@@ -19,15 +19,16 @@ used as implementation context.
 ## Pre-release cutover
 
 There is no production user data and no compatibility obligation. The product
-therefore has one direct cutover:
+therefore has one direct cutover. The exact integrated V3 development package
+is now registered, resolved as the default, and running through the generic
+Workbench Worker. The remaining sequence is:
 
-1. finish the portable V3 runtime/control/capture adapter;
-2. register `MainWireIntegratedModelTransactionV3` as one exact immutable
-   `modelId`;
-3. set that registered release as the default model;
-4. connect Workbench Save, Snapshot, Placement, and Reader runtime to the new
-   contracts;
-5. only then author official Scenario Presets, Experiments, and Lesson pages.
+1. admit portable controls beyond the fixed canonical fixture;
+2. bridge accepted-boundary capture from the one Worker owner into the V2
+   authoring application, then connect Workbench Save, Snapshot, Placement,
+   and Reader presentation;
+3. add the one-live article scheduler and disposable previews; and
+4. only then author official Scenario Presets, Experiments, and Lesson pages.
 
 Do not add a legacy reader, migration, dual-write, fallback model, or sample
 content encoded with the superseded structure.

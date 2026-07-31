@@ -1,41 +1,69 @@
 # Integrated V3 model: current state
 
-Status: numerical implementation in progress; not registered for product use.
+Status: exact experimental development package registered and wired as the
+default live Workbench model; not release-ready or clinically validated.
 
 ## Current model boundary
 
-The candidate product model is `MainWireIntegratedModelTransactionV3`. It
-combines the five-wall circulation, coronary V3, event-driven rhythm/calcium,
-and dynamic mechanical-support owners behind one accepted transaction and
-exact-checkpoint boundary.
+`MainWireIntegratedModelTransactionV3` combines the five-wall circulation,
+coronary V3, event-driven rhythm/calcium, and dynamic mechanical-support owners
+behind one accepted transaction and exact-checkpoint boundary.
 
 The numerical implementation, checkpoint codecs, focused verification, and
 offline characterization tools remain under `engine/`, `__tests__/`, and
-`tools/scientific/`. These are model-development assets. They are not a second
-Studio data model and they are not a browser runtime.
+`tools/scientific/`. These are model-development assets, not a second Studio
+data model.
 
-`MainWireIntegratedLaneBootstrapV1` and
-`MainWireIntegratedLaneSessionV1` are temporary numerical harnesses for that
-model work. The Bootstrap is not a Studio `ScenarioPreset`, and the Session is
-not the registered Studio `SimulationSession` adapter.
+`MainWireIntegratedModelRuntimeV3` and
+`MainWireIntegratedModelSessionV3` own the canonical numerical runtime and
+accepted-boundary session used behind the registered Studio simulation adapter.
+They are engine internals: durable Studio content stores only the exact
+`modelId`, fixture, and checkpoint.
 
-## Product boundary before registration
+## Current product wiring
 
-The product exposes only Home and the pre-registration Workbench surface. No
-legacy scientific Alpha, performance lab, session/release facade, or dedicated
-browser Worker is retained.
+The product exposes Home and a live V3 Workbench. Workbench resolves the exact
+development package from the trusted client registry projection, starts the
+generic simulation Worker automatically, and advances the actual integrated V3
+accepted state. It does not invoke a mock graph or a legacy model facade.
 
-Before authored experiments or lessons are created, the implementation must:
+The current exact development release is:
 
-1. define the exact V3 fixture, checkpoint, output, graph, control, and protocol
-   contract;
-2. register that exact package under a new immutable `modelId`;
-3. pass registry admission, including the one-time package-integrity check;
-4. make the registered V3 package the default model; and
-5. wire the generic Workbench runtime to the registered contract.
+```text
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-1
+```
 
-Studio persists only the exact `modelId`. Clients trust a successfully admitted
-registry entry and do not rehash the model package during load or execution.
+It pins:
+
+- regular-sinus rhythm;
+- normal-coronary configuration;
+- all-off, zero-inertance mechanical support;
+- the integrated V3 exact checkpoint codec;
+- eight initial signals and two graph definitions; and
+- the candidate periodic Snapshot gate.
+
+Its parameter and control catalogs are empty. Portable controls have not yet
+been admitted, so no durable `ParameterSet` or pretend knob mapping is exposed.
+
+Registry admission performs the one-time exact manifest/artifact integrity
+check. Browser clients receive the already-admitted manifest plus executable
+bundle and do not rehash either during load or execution.
+
+The model-pinned Snapshot gate restores the frozen candidate exactly, runs the
+periodic qualification protocol, accepts only period-1 convergence without
+numerical, event, or conservation failure, and emits a fresh terminal exact
+checkpoint. This gate is used only by Snapshot creation; Draft save remains
+allowed for an unsettled state.
+
+The live Worker does not yet expose accepted-boundary Draft capture to the
+main-thread authoring application. The default browser composition therefore
+does not construct an authoring facade against a second, invisible runtime
+host. That Worker-to-authoring bridge is implemented together with the Save UI;
+until then the Workbench is intentionally live/read-only.
+
+No official Scenario Preset, Experiment, Snapshot, article Placement, or Lesson
+content ships in this cutover. Those are authored only after the development
+package and portable controls are deliberately promoted.
 
 ## Integrity boundaries that remain
 
@@ -55,9 +83,16 @@ parallel `{ id, version, sha256 }` model reference.
 
 Numerical convergence, conservation, replay identity, and focused mechanism
 checks do not establish physiological or clinical validity. Settlement and
-numerical-health status are computed live and are not durable content. A saved
-checkpoint is captured only through an explicit user save; snapshot creation
-is gated on the current live state without persisting assessment objects.
+numerical-health status are computed at runtime and are not durable content. An
+explicit Draft save captures an exact accepted-boundary checkpoint, but the
+saved Draft may remain unsettled or numerically unhealthy and makes no
+qualification claim. Snapshot creation qualifies the frozen saved Draft,
+captures fresh settled checkpoints, and persists neither status flags nor
+assessment objects.
+
+The development package's underlying engine claim remains
+`releaseReady: false` and `simulationReady: false`. Passing the candidate
+Snapshot gate does not change that claim.
 
 Literature and validation boundaries for the retained V3 mechanisms are
 documented in

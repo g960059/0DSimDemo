@@ -40,6 +40,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -52,6 +54,11 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Verify exact V3 registry admission
+        run: npm run verify:registry:main-wire-v3
+        env:
+          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
 
   test:
     name: Fast tests

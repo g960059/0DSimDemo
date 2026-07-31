@@ -57,8 +57,7 @@ type SnapshotCommitInputInternalV2 = Readonly<{
  * deeply frozen snapshots. `commitSnapshot` contains no asynchronous gap:
  * readers observe both the immutable Snapshot and updated head, or neither.
  */
-class InMemoryExperimentRepositoryV2
-implements ExperimentQueryPortV2 {
+class InMemoryExperimentRepositoryV2 {
   readonly #workspaces =
     new Map<ExperimentIdV2, ExperimentWorkspaceV2>();
   readonly #snapshots =
@@ -255,10 +254,10 @@ export function createInMemoryExperimentAuthoringV2(
   });
   const queries: InMemoryExperimentQueryFacadeV2 = Object.freeze({
     readWorkspace(experimentId: ExperimentIdV2) {
-      return repository.readWorkspace(experimentId);
+      return application.readWorkspace(experimentId);
     },
     readSnapshot(snapshotId: ExperimentSnapshotIdV2) {
-      return repository.readSnapshot(snapshotId);
+      return application.readSnapshot(snapshotId);
     },
     get workspaceCount() {
       return repository.workspaceCount;

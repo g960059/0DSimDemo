@@ -144,14 +144,17 @@ export interface ExperimentDraftCapturePortV2 {
   ): Promise<ExperimentDraftCaptureResultV2>;
 }
 
-/** Public read façade. Snapshot write capabilities are deliberately absent. */
+/**
+ * Public read façade. Reads await exact capture validation; Snapshot write
+ * capabilities are deliberately absent.
+ */
 export interface ExperimentQueryPortV2 {
   readWorkspace(
     experimentId: ExperimentIdV2,
-  ): ExperimentWorkspaceV2 | null;
+  ): Promise<ExperimentWorkspaceV2 | null>;
   readSnapshot(
     snapshotId: ExperimentSnapshotIdV2,
-  ): ExperimentSnapshotV2 | null;
+  ): Promise<ExperimentSnapshotV2 | null>;
 }
 
 export interface ExperimentSnapshotIdFactoryPortV2 {

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3,
   MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
 import {
@@ -12,15 +11,15 @@ import {
   type MainWireIntegratedModelStepFailureReasonV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
-  createMainWireIntegratedLaneBootstrapV1,
-  type MainWireIntegratedLaneBootstrapV1,
-} from "@/engine/myocardium/MainWireIntegratedLaneBootstrapV1";
+  createMainWireIntegratedModelRuntimeV3,
+  type MainWireIntegratedModelRuntimeV3,
+} from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
 import {
-  INTEGRATED_LANE_PRESENTATION_COVERAGE_V1,
-  MainWireIntegratedLaneSessionV1,
-  integratedLanePresentationTargetTimeSecV1,
-  type MainWireIntegratedLanePresentationAdvanceV1,
-} from "@/engine/myocardium/MainWireIntegratedLaneSessionV1";
+  MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_COVERAGE_V3,
+  MainWireIntegratedModelSessionV3,
+  mainWireIntegratedModelPresentationTargetTimeSecV3,
+  type MainWireIntegratedModelPresentationAdvanceV3,
+} from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -35,19 +34,19 @@ import {
 type WallState = MainWireNormalAdultFiveWallMechanicsStateV1;
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<WallState>;
 type Advanced = Extract<
-  MainWireIntegratedLanePresentationAdvanceV1,
+  MainWireIntegratedModelPresentationAdvanceV3,
   { status: "advanced" }
 >;
 
-describe("MainWireIntegratedLaneSessionV1", () => {
+describe("MainWireIntegratedModelSessionV3", () => {
   it("T-A1/T-A3 — lands exactly for 500 ordinals and stays in direct V3 lockstep", async () => {
-    const session = await MainWireIntegratedLaneSessionV1.create();
-    const directBootstrap = await createMainWireIntegratedLaneBootstrapV1();
-    let direct = directBootstrap.cold.acceptedState;
+    const session = await MainWireIntegratedModelSessionV3.create();
+    const directRuntime = await createMainWireIntegratedModelRuntimeV3();
+    let direct = directRuntime.cold.acceptedState;
 
     for (let ordinal = 1; ordinal <= 500; ordinal += 1) {
       const targetTimeSec =
-        integratedLanePresentationTargetTimeSecV1(ordinal);
+        mainWireIntegratedModelPresentationTargetTimeSecV3(ordinal);
       const result = session.advanceToPresentationTime(targetTimeSec);
       expect(result.status).toBe("advanced");
       if (result.status !== "advanced") {
@@ -59,7 +58,7 @@ describe("MainWireIntegratedLaneSessionV1", () => {
         targetTimeSec,
       );
       direct = advanceDirectToPresentationTime(
-        directBootstrap,
+        directRuntime,
         direct,
         targetTimeSec,
       );
@@ -67,10 +66,15 @@ describe("MainWireIntegratedLaneSessionV1", () => {
 
     expect(session.currentAcceptedState()).toEqual(direct);
     expect(session.currentAcceptedState().acceptedTimeSec).toBe(1);
-    expect(Math.abs(
+    expect(
       session.currentAcceptedState()
-        .dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD,
-    )).toBeGreaterThan(1e-6);
+        .dynamicMechanicalSupport.acceptedFlowMlPerSec,
+    ).toEqual({
+      LVAD: 0,
+      IMPELLA: 0,
+      VA_ECMO: 0,
+      VV_ECMO: 0,
+    });
     const finalStep = session.observe().lastAcceptedStep;
     expect(finalStep).not.toBeNull();
     if (finalStep === null) throw new Error("final accepted readback is absent");
@@ -88,13 +92,13 @@ describe("MainWireIntegratedLaneSessionV1", () => {
   }, 120_000);
 
   it("T-A2/T6/T12 — emits one ordinal sample across the 0.8125 s rhythm boundary", async () => {
-    const session = await MainWireIntegratedLaneSessionV1.create();
+    const session = await MainWireIntegratedModelSessionV3.create();
     const emittedSamples: Advanced[] = [];
     let presentationOrdinal = 0;
 
     while (presentationOrdinal < 406) {
       const result = session.advanceToPresentationTime(
-        integratedLanePresentationTargetTimeSecV1(
+        mainWireIntegratedModelPresentationTargetTimeSecV3(
           presentationOrdinal + 1,
         ),
       );
@@ -108,7 +112,7 @@ describe("MainWireIntegratedLaneSessionV1", () => {
 
     const emittedBeforeBoundary = emittedSamples.length;
     const boundaryResult = session.advanceToPresentationTime(
-      integratedLanePresentationTargetTimeSecV1(
+      mainWireIntegratedModelPresentationTargetTimeSecV3(
         presentationOrdinal + 1,
       ),
     );
@@ -136,7 +140,7 @@ describe("MainWireIntegratedLaneSessionV1", () => {
   }, 120_000);
 
   it("T-A4 — retries a returned step failure without mutating its accepted input", async () => {
-    const session = await MainWireIntegratedLaneSessionV1.create();
+    const session = await MainWireIntegratedModelSessionV3.create();
     const previous = session.currentAcceptedState();
     const materialBefore = createCanonicalMainWireNormalAdultFiveWallProviderV1()
       .stateCodec.encode(previous.coronary.mechanics.materialState);
@@ -144,7 +148,7 @@ describe("MainWireIntegratedLaneSessionV1", () => {
       session,
       failingProvider(() => true, "forced retry-purity failure"),
     );
-    const target = integratedLanePresentationTargetTimeSecV1(1);
+    const target = mainWireIntegratedModelPresentationTargetTimeSecV3(1);
 
     const first = session.advanceToPresentationTime(target);
     const retry = session.advanceToPresentationTime(target);
@@ -159,15 +163,15 @@ describe("MainWireIntegratedLaneSessionV1", () => {
   });
 
   it("T-A5/T2/T15 — continues exactly after boundary and off-grid operational checkpoints", async () => {
-    const boundarySession = await MainWireIntegratedLaneSessionV1.create();
+    const boundarySession = await MainWireIntegratedModelSessionV3.create();
     advanceSessionThroughOrdinal(boundarySession, 400);
     const boundaryCheckpoint = await boundarySession.checkpointOperational();
     expect(boundaryCheckpoint.checkpointId).toBe(
       MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
     );
-    expect(boundaryCheckpoint.exactResumeClaim.simulationReady).toBe(false);
+    expect(boundaryCheckpoint).not.toHaveProperty("exactResumeClaim");
     const boundaryRestored =
-      await MainWireIntegratedLaneSessionV1.restoreOperationalCheckpoint(
+      await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
         JSON.parse(JSON.stringify(boundaryCheckpoint)),
       );
     expect(boundaryRestored.currentAcceptedState()).toEqual(
@@ -178,7 +182,7 @@ describe("MainWireIntegratedLaneSessionV1", () => {
       lastAcceptedStep: null,
     });
     for (let ordinal = 401; ordinal <= 410; ordinal += 1) {
-      const target = integratedLanePresentationTargetTimeSecV1(ordinal);
+      const target = mainWireIntegratedModelPresentationTargetTimeSecV3(ordinal);
       expectAdvanced(boundarySession.advanceToPresentationTime(target));
       expectAdvanced(boundaryRestored.advanceToPresentationTime(target));
     }
@@ -190,31 +194,28 @@ describe("MainWireIntegratedLaneSessionV1", () => {
     expect(offGridSession.currentAcceptedState().acceptedTimeSec).toBe(0.8125);
     const offGridCheckpoint = await offGridSession.checkpointOperational();
     const offGridRestored =
-      await MainWireIntegratedLaneSessionV1.restoreOperationalCheckpoint(
+      await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
         JSON.parse(JSON.stringify(offGridCheckpoint)),
       );
     expect(offGridRestored.currentAcceptedState()).toEqual(
       offGridSession.currentAcceptedState(),
     );
 
-    const uninterrupted = await MainWireIntegratedLaneSessionV1.create();
+    const uninterrupted = await MainWireIntegratedModelSessionV3.create();
     advanceSessionThroughOrdinal(uninterrupted, 407);
     expectAdvanced(offGridRestored.advanceToPresentationTime(
-      integratedLanePresentationTargetTimeSecV1(407),
+      mainWireIntegratedModelPresentationTargetTimeSecV3(407),
     ));
     expect(offGridRestored.currentAcceptedState()).toEqual(
       uninterrupted.currentAcceptedState(),
     );
-    expect(
-      MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3.simulationReady,
-    ).toBe(false);
   }, 120_000);
 
   // These cases pin independent defences at two layers. Collapsing them into
   // one path in a future refactor would silently remove a defence.
   it("T-A6a — throws when regular mode receives an external AF boundary", async () => {
-    const session = await MainWireIntegratedLaneSessionV1.create();
-    const target = integratedLanePresentationTargetTimeSecV1(1);
+    const session = await MainWireIntegratedModelSessionV3.create();
+    const target = mainWireIntegratedModelPresentationTargetTimeSecV3(1);
     installRhythmInput(session, {
       externalAfNextBoundaryTimeSec: target,
       externalAtrialSourceBatch: null,
@@ -230,15 +231,15 @@ describe("MainWireIntegratedLaneSessionV1", () => {
   });
 
   it("T-A6b — returns a step-union failure for an external AF batch", async () => {
-    const session = await MainWireIntegratedLaneSessionV1.create();
-    const target = integratedLanePresentationTargetTimeSecV1(1);
+    const session = await MainWireIntegratedModelSessionV3.create();
+    const target = mainWireIntegratedModelPresentationTargetTimeSecV3(1);
     installRhythmInput(session, {
       externalAfNextBoundaryTimeSec: null,
       externalAtrialSourceBatch: createNoExternalAtrialSourceBatchV2(target),
     });
     const expectedReason: MainWireIntegratedModelStepFailureReasonV3 =
       "outer-input-clock-binding-or-boundary-rejected";
-    let batchRejected: MainWireIntegratedLanePresentationAdvanceV1 | undefined;
+    let batchRejected: MainWireIntegratedModelPresentationAdvanceV3 | undefined;
 
     expect(() => {
       batchRejected = session.advanceToPresentationTime(target);
@@ -258,11 +259,11 @@ describe("MainWireIntegratedLaneSessionV1", () => {
   });
 
   it("T13 — retains the previous presentation observation when a call partially advances and fails", async () => {
-    const session = await MainWireIntegratedLaneSessionV1.create();
+    const session = await MainWireIntegratedModelSessionV3.create();
     advanceSessionThroughOrdinal(session, 406);
     const emittedSamples: Advanced[] = [];
     const requestedPresentationTimeSec =
-      integratedLanePresentationTargetTimeSecV1(407);
+      mainWireIntegratedModelPresentationTargetTimeSecV3(407);
     const retainedObservation = session.observe();
     installProvider(
       session,
@@ -292,36 +293,36 @@ describe("MainWireIntegratedLaneSessionV1", () => {
   }, 120_000);
 
   it("maps presentation identity without phase or accepted-revision arithmetic", async () => {
-    expect(integratedLanePresentationTargetTimeSecV1(0)).toBe(0);
-    expect(integratedLanePresentationTargetTimeSecV1(407)).toBe(
+    expect(mainWireIntegratedModelPresentationTargetTimeSecV3(0)).toBe(0);
+    expect(mainWireIntegratedModelPresentationTargetTimeSecV3(407)).toBe(
       407 * 0.002,
     );
-    expect(() => integratedLanePresentationTargetTimeSecV1(-1)).toThrow(
+    expect(() => mainWireIntegratedModelPresentationTargetTimeSecV3(-1)).toThrow(
       /ordinal is invalid/,
     );
-    expect(() => integratedLanePresentationTargetTimeSecV1(1.5)).toThrow(
+    expect(() => mainWireIntegratedModelPresentationTargetTimeSecV3(1.5)).toThrow(
       /ordinal is invalid/,
     );
-    expect(INTEGRATED_LANE_PRESENTATION_COVERAGE_V1).toBe(
+    expect(MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_COVERAGE_V3).toBe(
       "integrated-v3-live-presentation",
     );
 
-    const session = await MainWireIntegratedLaneSessionV1.create();
+    const session = await MainWireIntegratedModelSessionV3.create();
     expect(session.advanceToPresentationTime(0)).toMatchObject({
       status: "already-at-target",
       internalAcceptedSubstepCount: 0,
     });
     expectAdvanced(session.advanceToPresentationTime(
-      integratedLanePresentationTargetTimeSecV1(1),
+      mainWireIntegratedModelPresentationTargetTimeSecV3(1),
     ));
     expect(() => session.advanceToPresentationTime(0)).toThrow(
-      /precedes accepted model time/,
+      /precedes accepted time/,
     );
   });
 });
 
 function advanceDirectToPresentationTime(
-  bootstrap: MainWireIntegratedLaneBootstrapV1,
+  runtime: MainWireIntegratedModelRuntimeV3,
   initial: AcceptedState,
   targetTimeSec: number,
 ): AcceptedState {
@@ -333,24 +334,24 @@ function advanceDirectToPresentationTime(
       accepted,
       targetTimeSec,
       {
-        configuration: bootstrap.rhythm.configuration,
+        configuration: runtime.rhythm.configuration,
         externalAfNextBoundaryTimeSec: null,
       },
-      bootstrap.profile,
-      bootstrap.config,
+      runtime.profile,
+      runtime.config,
     );
     const result = stepMainWireIntegratedModelV3(
-      bootstrap.provider,
+      runtime.provider,
       accepted,
       {
         candidateTimeSec: limit.candidateTimeSec,
-        coronary: bootstrap.coronaryStepInput,
+        coronary: runtime.coronaryStepInput,
         rhythm: {
-          configuration: bootstrap.rhythm.configuration,
+          configuration: runtime.rhythm.configuration,
           externalAfNextBoundaryTimeSec: null,
           externalAtrialSourceBatch: null,
         },
-        dynamicMechanicalSupport: bootstrap.dynamicMechanicalSupport,
+        dynamicMechanicalSupport: runtime.dynamicMechanicalSupport,
       },
     );
     if (result.converged === false) throw new Error(result.message);
@@ -361,7 +362,7 @@ function advanceDirectToPresentationTime(
 }
 
 function advanceSessionThroughOrdinal(
-  session: MainWireIntegratedLaneSessionV1,
+  session: MainWireIntegratedModelSessionV3,
   finalOrdinal: number,
 ): void {
   const initialOrdinal = Math.round(
@@ -373,14 +374,14 @@ function advanceSessionThroughOrdinal(
     ordinal += 1
   ) {
     expectAdvanced(session.advanceToPresentationTime(
-      integratedLanePresentationTargetTimeSecV1(ordinal),
+      mainWireIntegratedModelPresentationTargetTimeSecV3(ordinal),
     ));
   }
 }
 
 async function partiallyAdvanceAcrossRhythmBoundary():
-Promise<MainWireIntegratedLaneSessionV1> {
-  const session = await MainWireIntegratedLaneSessionV1.create();
+Promise<MainWireIntegratedModelSessionV3> {
+  const session = await MainWireIntegratedModelSessionV3.create();
   advanceSessionThroughOrdinal(session, 406);
   installProvider(
     session,
@@ -390,7 +391,7 @@ Promise<MainWireIntegratedLaneSessionV1> {
     ),
   );
   const failed = session.advanceToPresentationTime(
-    integratedLanePresentationTargetTimeSecV1(407),
+    mainWireIntegratedModelPresentationTargetTimeSecV3(407),
   );
   expect(failed).toMatchObject({
     status: "failed",
@@ -416,7 +417,7 @@ function failingProvider(
 }
 
 function installProvider(
-  session: MainWireIntegratedLaneSessionV1,
+  session: MainWireIntegratedModelSessionV3,
   provider: MainWireNormalAdultFiveWallProviderV1,
 ): void {
   (session as unknown as {
@@ -425,7 +426,7 @@ function installProvider(
 }
 
 function installRhythmInput(
-  session: MainWireIntegratedLaneSessionV1,
+  session: MainWireIntegratedModelSessionV3,
   input: Pick<
     MainWireIntegratedComposedRhythmStepContextV3,
     "externalAfNextBoundaryTimeSec" | "externalAtrialSourceBatch"
@@ -433,16 +434,16 @@ function installRhythmInput(
 ): void {
   const sessionInternals = session as unknown as {
     rhythmInput: MainWireIntegratedComposedRhythmStepContextV3;
-    bootstrap: MainWireIntegratedLaneBootstrapV1;
+    runtime: MainWireIntegratedModelRuntimeV3;
   };
   sessionInternals.rhythmInput = Object.freeze({
-    configuration: sessionInternals.bootstrap.rhythm.configuration,
+    configuration: sessionInternals.runtime.rhythm.configuration,
     ...input,
   });
 }
 
 function expectAdvanced(
-  result: MainWireIntegratedLanePresentationAdvanceV1,
+  result: MainWireIntegratedModelPresentationAdvanceV3,
 ): asserts result is Advanced {
   expect(result.status).toBe("advanced");
   if (result.status !== "advanced") {
@@ -452,7 +453,7 @@ function expectAdvanced(
 
 function unexpectedAdvanceStatus(
   result: Exclude<
-    MainWireIntegratedLanePresentationAdvanceV1,
+    MainWireIntegratedModelPresentationAdvanceV3,
     { status: "advanced" }
   >,
 ): string {

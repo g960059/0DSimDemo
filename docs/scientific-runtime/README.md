@@ -4,7 +4,8 @@ This directory intentionally contains only current guidance for the integrated
 V3 numerical model:
 
 - [`INTEGRATED-MODEL-0001-current-state.md`](./INTEGRATED-MODEL-0001-current-state.md)
-  defines the pre-registration boundary and next product wiring step.
+  defines the exact experimental registry/default/Workbench boundary and the
+  remaining promotion work.
 - [`INTEGRATED-MODEL-0002-literature-traceability.md`](./INTEGRATED-MODEL-0002-literature-traceability.md)
   records mechanism sources and scientific claim limits.
 

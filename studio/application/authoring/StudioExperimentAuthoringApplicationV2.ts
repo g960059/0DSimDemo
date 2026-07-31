@@ -19,7 +19,6 @@ import type {
   CreateExperimentSnapshotCommandV2,
   CreateExperimentWorkspaceCommandV2,
   ExperimentDesiredContentV2,
-  ExperimentQueryPortV2,
   ExperimentSnapshotGateResultV2,
   ExperimentSnapshotIdFactoryPortV2,
   ForkExperimentWorkspaceCommandV2,
@@ -75,7 +74,9 @@ export class StudioExperimentDraftCaptureMutationErrorV2 extends Error {
   }
 }
 
-type ExperimentWorkspaceStoreInternalV2 = ExperimentQueryPortV2 & Readonly<{
+type ExperimentWorkspaceStoreInternalV2 = Readonly<{
+  readWorkspace(experimentId: string): ExperimentWorkspaceV2 | null;
+  readSnapshot(snapshotId: string): ExperimentSnapshotV2 | null;
   createWorkspace(workspace: ExperimentWorkspaceV2): void;
   replaceWorkspace(
     expectedDraftVersion: ExperimentDraftVersionV2,
@@ -127,9 +128,9 @@ export class StudioExperimentAuthoringApplicationV2 {
     this.#clock = input.clock;
   }
 
-  createWorkspace(
+  async createWorkspace(
     command: CreateExperimentWorkspaceCommandV2,
-  ): ExperimentWorkspaceV2 {
+  ): Promise<ExperimentWorkspaceV2> {
     assertCommandKeysV2(
       command,
       ["experimentId", "content"],
@@ -148,14 +149,18 @@ export class StudioExperimentAuthoringApplicationV2 {
       workspace.content.modelId,
     );
     assertExperimentContentMatchesModelV2(workspace.content, model);
-    assertExperimentCapturesMatchModelV2(workspace.content, model, adapter);
+    await assertExperimentCapturesMatchModelV2(
+      workspace.content,
+      model,
+      adapter,
+    );
     this.#repository.createWorkspace(workspace);
     return workspace;
   }
 
-  forkWorkspace(
+  async forkWorkspace(
     command: ForkExperimentWorkspaceCommandV2,
-  ): ExperimentWorkspaceV2 {
+  ): Promise<ExperimentWorkspaceV2> {
     assertCommandKeysV2(
       command,
       ["experimentId", "sourceSnapshotId"],
@@ -168,7 +173,7 @@ export class StudioExperimentAuthoringApplicationV2 {
         `fork source Snapshot not found: ${command.sourceSnapshotId}`,
       );
     }
-    const source = this.#validateRegisteredSnapshotV2(sourceValue);
+    const source = await this.#validateRegisteredSnapshotV2(sourceValue);
     const workspace = validateExperimentWorkspaceV2({
       schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
       experimentId: command.experimentId,
@@ -181,7 +186,9 @@ export class StudioExperimentAuthoringApplicationV2 {
     return workspace;
   }
 
-  readWorkspace(experimentId: string): ExperimentWorkspaceV2 | null {
+  async readWorkspace(
+    experimentId: string,
+  ): Promise<ExperimentWorkspaceV2 | null> {
     const workspace = this.#repository.readWorkspace(experimentId);
     if (workspace === null) return null;
     const validated = validateExperimentWorkspaceV2(workspace);
@@ -189,15 +196,21 @@ export class StudioExperimentAuthoringApplicationV2 {
       validated.content.modelId,
     );
     assertExperimentContentMatchesModelV2(validated.content, model);
-    assertExperimentCapturesMatchModelV2(validated.content, model, adapter);
+    await assertExperimentCapturesMatchModelV2(
+      validated.content,
+      model,
+      adapter,
+    );
     return validated;
   }
 
-  readSnapshot(snapshotId: string): ExperimentSnapshotV2 | null {
+  async readSnapshot(
+    snapshotId: string,
+  ): Promise<ExperimentSnapshotV2 | null> {
     const snapshot = this.#repository.readSnapshot(snapshotId);
     return snapshot === null
       ? null
-      : this.#validateRegisteredSnapshotV2(snapshot);
+      : await this.#validateRegisteredSnapshotV2(snapshot);
   }
 
   async saveDraft(
@@ -214,7 +227,7 @@ export class StudioExperimentAuthoringApplicationV2 {
       [],
       "SaveDraft",
     );
-    const current = this.#requiredWorkspaceV2(command.experimentId);
+    const current = await this.#requiredWorkspaceV2(command.experimentId);
     assertAuthoringVersionV2(current, command.expectedDraftVersion);
     if (command.desiredContent.modelId !== current.content.modelId) {
       throw new StudioExperimentAuthoringConflictErrorV2(
@@ -258,7 +271,7 @@ export class StudioExperimentAuthoringApplicationV2 {
       content: captureResult.content,
     });
     assertExperimentContentMatchesModelV2(replacement.content, model);
-    assertExperimentCapturesMatchModelV2(
+    await assertExperimentCapturesMatchModelV2(
       replacement.content,
       model,
       adapter,
@@ -275,9 +288,9 @@ export class StudioExperimentAuthoringApplicationV2 {
     return replacement;
   }
 
-  rebaseDraft(
+  async rebaseDraft(
     command: RebaseExperimentDraftCommandV2,
-  ): ExperimentWorkspaceV2 {
+  ): Promise<ExperimentWorkspaceV2> {
     assertCommandKeysV2(
       command,
       [
@@ -290,7 +303,7 @@ export class StudioExperimentAuthoringApplicationV2 {
       [],
       "RebaseDraft",
     );
-    const current = this.#requiredWorkspaceV2(command.experimentId);
+    const current = await this.#requiredWorkspaceV2(command.experimentId);
     assertAuthoringVersionV2(current, command.expectedDraftVersion);
     if (current.headSnapshotId !== command.expectedHeadSnapshotId) {
       throw new StudioExperimentAuthoringConflictErrorV2(
@@ -303,7 +316,7 @@ export class StudioExperimentAuthoringApplicationV2 {
         `rebase target Snapshot not found: ${command.targetSnapshotId}`,
       );
     }
-    const target = this.#validateRegisteredSnapshotV2(targetValue);
+    const target = await this.#validateRegisteredSnapshotV2(targetValue);
     const { contract: model, captureAdapter: adapter } = this.#requiredModelRuntimeV2(
       current.content.modelId,
     );
@@ -322,7 +335,7 @@ export class StudioExperimentAuthoringApplicationV2 {
       content: command.content,
     });
     assertExperimentContentMatchesModelV2(replacement.content, model);
-    assertExperimentCapturesMatchModelV2(
+    await assertExperimentCapturesMatchModelV2(
       replacement.content,
       model,
       adapter,
@@ -357,7 +370,7 @@ export class StudioExperimentAuthoringApplicationV2 {
         "CreateSnapshot.createdBy must be omitted or contain an ID",
       );
     }
-    const candidateWorkspace = this.#requiredWorkspaceV2(
+    const candidateWorkspace = await this.#requiredWorkspaceV2(
       command.experimentId,
     );
     assertAuthoringVersionV2(
@@ -380,7 +393,7 @@ export class StudioExperimentAuthoringApplicationV2 {
       candidateWorkspace.content,
       model,
     );
-    assertExperimentCapturesMatchModelV2(
+    await assertExperimentCapturesMatchModelV2(
       candidateWorkspace.content,
       model,
       adapter,
@@ -412,7 +425,7 @@ export class StudioExperimentAuthoringApplicationV2 {
       qualifiedWorkspace.content,
       model,
     );
-    assertExperimentCapturesMatchModelV2(
+    await assertExperimentCapturesMatchModelV2(
       qualifiedWorkspace.content,
       model,
       adapter,
@@ -453,10 +466,10 @@ export class StudioExperimentAuthoringApplicationV2 {
     return snapshot;
   }
 
-  #requiredWorkspaceV2(
+  async #requiredWorkspaceV2(
     experimentId: string,
-  ): ExperimentWorkspaceV2 {
-    const workspace = this.readWorkspace(experimentId);
+  ): Promise<ExperimentWorkspaceV2> {
+    const workspace = await this.readWorkspace(experimentId);
     if (workspace === null) {
       throw new StudioExperimentAuthoringConflictErrorV2(
         `workspace not found: ${experimentId}`,
@@ -465,15 +478,19 @@ export class StudioExperimentAuthoringApplicationV2 {
     return workspace;
   }
 
-  #validateRegisteredSnapshotV2(
+  async #validateRegisteredSnapshotV2(
     snapshotValue: ExperimentSnapshotV2,
-  ): ExperimentSnapshotV2 {
+  ): Promise<ExperimentSnapshotV2> {
     const snapshot = validateExperimentSnapshotV2(snapshotValue);
     const { contract: model, captureAdapter: adapter } = this.#requiredModelRuntimeV2(
       snapshot.content.modelId,
     );
     assertExperimentContentMatchesModelV2(snapshot.content, model);
-    assertExperimentCapturesMatchModelV2(snapshot.content, model, adapter);
+    await assertExperimentCapturesMatchModelV2(
+      snapshot.content,
+      model,
+      adapter,
+    );
     return snapshot;
   }
 
@@ -500,6 +517,18 @@ export class StudioExperimentAuthoringApplicationV2 {
       || runtime.fixtureAdapter.fixtureSchemaId
         !== runtime.contract.fixtureSchemaId
       || typeof runtime.fixtureAdapter.validateCompleteFixture !== "function"
+      || runtime.simulationAdapter.modelId !== modelId
+      || runtime.simulationAdapter.fixtureSchemaId
+        !== runtime.contract.fixtureSchemaId
+      || runtime.simulationAdapter.checkpointCodecId
+        !== runtime.contract.checkpointCodecId
+      || typeof runtime.simulationAdapter.createSession !== "function"
+      || typeof runtime.simulationAdapter.disposeSession !== "function"
+      || typeof runtime.simulationAdapter.currentFrame !== "function"
+      || typeof runtime.simulationAdapter.advanceOnePresentationStep
+        !== "function"
+      || typeof runtime.simulationAdapter.replaceFixture !== "function"
+      || typeof runtime.simulationAdapter.currentInputEpoch !== "function"
     ) {
       throw new StudioExperimentAuthoringConflictErrorV2(
         `registered executable bundle does not exactly match model ${modelId}`,

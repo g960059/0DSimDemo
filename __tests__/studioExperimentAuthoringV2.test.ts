@@ -48,7 +48,7 @@ describe("Studio Experiment authoring V2", () => {
       },
     });
     const initial = contentV2(0, 0);
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: initial,
     });
@@ -70,6 +70,76 @@ describe("Studio Experiment authoring V2", () => {
     );
   });
 
+  it("awaits exact capture restore before exposing a workspace or query result", async () => {
+    let finishValidation: (() => void) | undefined;
+    const pendingValidation = new Promise<void>((resolve) => {
+      finishValidation = resolve;
+    });
+    let validationCount = 0;
+    const adapter: RegisteredModelCaptureAdapterV2 = {
+      ...captureAdapterV2(),
+      validateCapture() {
+        validationCount += 1;
+        return validationCount === 1
+          ? pendingValidation
+          : Promise.resolve();
+      },
+    };
+    const { application, repository } = harnessV2(
+      undefined,
+      undefined,
+      undefined,
+      adapter,
+    );
+
+    const pendingCreate = application.createWorkspace({
+      experimentId: "experiment/main",
+      content: contentV2(0, 0),
+    });
+    expect(validationCount).toBe(1);
+    expect(repository.workspaceCount).toBe(0);
+
+    finishValidation?.();
+    const created = await pendingCreate;
+    expect(repository.workspaceCount).toBe(1);
+    expect(await repository.readWorkspace("experiment/main")).toEqual(created);
+    expect(validationCount).toBe(2);
+  });
+
+  it("keeps a workspace invisible when deferred exact restore rejects", async () => {
+    let rejectValidation: ((reason: Error) => void) | undefined;
+    const pendingValidation = new Promise<void>((_resolve, reject) => {
+      rejectValidation = reject;
+    });
+    const adapter: RegisteredModelCaptureAdapterV2 = {
+      ...captureAdapterV2(),
+      validateCapture() {
+        return pendingValidation;
+      },
+    };
+    const { application, repository } = harnessV2(
+      undefined,
+      undefined,
+      undefined,
+      adapter,
+    );
+
+    const pendingCreate = application.createWorkspace({
+      experimentId: "experiment/rejected-restore",
+      content: contentV2(0, 0),
+    });
+    const rejection = expect(pendingCreate).rejects.toThrow(
+      /rejected capture: exact restore failed/,
+    );
+    expect(repository.workspaceCount).toBe(0);
+
+    rejectValidation?.(new Error("exact restore failed"));
+    await rejection;
+    expect(repository.workspaceCount).toBe(0);
+    expect(await repository.readWorkspace("experiment/rejected-restore"))
+      .toBeNull();
+  });
+
   it("rejects stale or cross-session capture confirmation without saving", async () => {
     const { application } = harnessV2(undefined, {
       captureAcceptedCandidate(input) {
@@ -78,7 +148,7 @@ describe("Studio Experiment authoring V2", () => {
         return Promise.resolve(result);
       },
     });
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
@@ -90,7 +160,8 @@ describe("Studio Experiment authoring V2", () => {
       desiredContent,
       captureCorrelation: captureCorrelationV2(desiredContent),
     })).rejects.toThrow(/must exactly confirm/);
-    expect(application.readWorkspace("experiment/main")?.draftVersion).toBe(0);
+    expect((await application.readWorkspace("experiment/main"))?.draftVersion)
+      .toBe(0);
   });
 
   it("rejects malformed runtime capture epochs before invoking capture", async () => {
@@ -101,7 +172,7 @@ describe("Studio Experiment authoring V2", () => {
         return Promise.resolve(captureResultV2(input));
       },
     });
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
@@ -120,7 +191,7 @@ describe("Studio Experiment authoring V2", () => {
 
   it("rejects stale Draft writes without partial replacement", async () => {
     const { application } = harnessV2();
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
@@ -138,7 +209,7 @@ describe("Studio Experiment authoring V2", () => {
       captureCorrelation: captureCorrelationV2(desiredContentV2()),
     })).rejects.toBeInstanceOf(StudioExperimentAuthoringConflictErrorV2);
     expect(
-      application.readWorkspace("experiment/main")?.content.scenarios[0]
+      (await application.readWorkspace("experiment/main"))?.content.scenarios[0]
         .capture.checkpoint.acceptedRevision,
     ).toBe(1);
   });
@@ -153,7 +224,7 @@ describe("Studio Experiment authoring V2", () => {
         });
       },
     });
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: contentV2(4, 1),
     });
@@ -177,7 +248,7 @@ describe("Studio Experiment authoring V2", () => {
       acceptedTimeSec: 12,
     });
     expect(repository.snapshotCount).toBe(1);
-    expect(application.readWorkspace("experiment/main")).toMatchObject({
+    expect(await application.readWorkspace("experiment/main")).toMatchObject({
       draftVersion: 1,
       headSnapshotId: "snapshot/1",
       basedOnSnapshotId: "snapshot/1",
@@ -197,7 +268,7 @@ describe("Studio Experiment authoring V2", () => {
         });
       },
     });
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
@@ -210,7 +281,7 @@ describe("Studio Experiment authoring V2", () => {
       StudioExperimentSnapshotGateRejectedErrorV2,
     );
     expect(repository.snapshotCount).toBe(0);
-    expect(application.readWorkspace("experiment/main")).toMatchObject({
+    expect(await application.readWorkspace("experiment/main")).toMatchObject({
       draftVersion: 0,
       headSnapshotId: null,
     });
@@ -237,7 +308,7 @@ describe("Studio Experiment authoring V2", () => {
           return Promise.resolve(malformed as any);
         },
       });
-      application.createWorkspace({
+      await application.createWorkspace({
         experimentId: "experiment/malformed-gate",
         content: contentV2(0, 0),
       });
@@ -251,7 +322,7 @@ describe("Studio Experiment authoring V2", () => {
       );
       expect(repository.snapshotCount).toBe(0);
       expect(
-        application.readWorkspace("experiment/malformed-gate"),
+        await application.readWorkspace("experiment/malformed-gate"),
       ).toMatchObject({
         draftVersion: 0,
         headSnapshotId: null,
@@ -273,7 +344,7 @@ describe("Studio Experiment authoring V2", () => {
       },
     });
     const original = contentV2(0, 0);
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: original,
     });
@@ -298,7 +369,7 @@ describe("Studio Experiment authoring V2", () => {
       StudioExperimentConflictErrorV2,
     );
     expect(repository.snapshotCount).toBe(0);
-    expect(application.readWorkspace("experiment/main")).toMatchObject({
+    expect(await application.readWorkspace("experiment/main")).toMatchObject({
       draftVersion: 1,
       headSnapshotId: null,
     });
@@ -317,7 +388,7 @@ describe("Studio Experiment authoring V2", () => {
         });
       },
     });
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
@@ -333,12 +404,12 @@ describe("Studio Experiment authoring V2", () => {
 
   it("records fork lineage without inheriting future parent changes", async () => {
     const { application } = harnessV2();
-    expect(() => application.createWorkspace({
+    await expect(application.createWorkspace({
       experimentId: "experiment/invalid-direct-fork",
       basedOnSnapshotId: "snapshot/forbidden",
       content: contentV2(0, 0),
-    } as any)).toThrow(/CreateWorkspace field set mismatch/);
-    application.createWorkspace({
+    } as any)).rejects.toThrow(/CreateWorkspace field set mismatch/);
+    await application.createWorkspace({
       experimentId: "experiment/source",
       content: contentV2(0, 0),
     });
@@ -347,7 +418,7 @@ describe("Studio Experiment authoring V2", () => {
       expectedDraftVersion: 0,
       expectedHeadSnapshotId: null,
     });
-    const forkWorkspace = application.forkWorkspace({
+    const forkWorkspace = await application.forkWorkspace({
       experimentId: "experiment/fork",
       sourceSnapshotId: source.snapshotId,
     });
@@ -363,12 +434,12 @@ describe("Studio Experiment authoring V2", () => {
     expect(fork.parentSnapshotId).toBe(source.snapshotId);
     expect(fork.experimentId).toBe("experiment/fork");
     expect(source.parentSnapshotId).toBeNull();
-    expect(application.readSnapshot(source.snapshotId)).toEqual(source);
+    expect(await application.readSnapshot(source.snapshotId)).toEqual(source);
   });
 
   it("fails closed on unknown command fields and explicit undefined optionals", async () => {
     const { application } = harnessV2();
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
@@ -380,14 +451,14 @@ describe("Studio Experiment authoring V2", () => {
       captureCorrelation: captureCorrelationV2(desiredContentV2()),
       qualification: true,
     } as any)).rejects.toThrow(/SaveDraft field set mismatch/);
-    expect(() => application.rebaseDraft({
+    await expect(application.rebaseDraft({
       experimentId: "experiment/main",
       expectedDraftVersion: 0,
       expectedHeadSnapshotId: null,
       targetSnapshotId: "snapshot/target",
       content: contentV2(0, 0),
       automaticMerge: true,
-    } as any)).toThrow(/RebaseDraft field set mismatch/);
+    } as any)).rejects.toThrow(/RebaseDraft field set mismatch/);
     await expect(application.createSnapshot({
       experimentId: "experiment/main",
       expectedDraftVersion: 0,
@@ -445,7 +516,7 @@ describe("Studio Experiment authoring V2", () => {
         },
       };
       const { application, repository } = harnessV2(undefined, capture);
-      application.createWorkspace({
+      await application.createWorkspace({
         experimentId: "experiment/main",
         content: contentV2(0, 0),
       });
@@ -459,7 +530,7 @@ describe("Studio Experiment authoring V2", () => {
         StudioExperimentDraftCaptureMutationErrorV2,
       );
       expect(repository.snapshotCount).toBe(0);
-      expect(application.readWorkspace("experiment/main")?.draftVersion)
+      expect((await application.readWorkspace("experiment/main"))?.draftVersion)
         .toBe(0);
     }
   });
@@ -468,12 +539,12 @@ describe("Studio Experiment authoring V2", () => {
     const { application } = harnessV2();
     const unknownGraph = mutableContentV2(contentV2(0, 0));
     unknownGraph.surface.graphs[0].graphId = "graph-definition/missing";
-    expect(() => application.createWorkspace({
+    await expect(application.createWorkspace({
       experimentId: "experiment/unknown-graph",
       content: unknownGraph,
-    })).toThrow(/unknown registered graph/);
+    })).rejects.toThrow(/unknown registered graph/);
 
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
@@ -493,12 +564,12 @@ describe("Studio Experiment authoring V2", () => {
     malformedCreate.scenarios[0].capture.checkpoint.payload = {
       wrongCodec: true,
     };
-    expect(() => application.createWorkspace({
+    await expect(application.createWorkspace({
       experimentId: "experiment/malformed-create",
       content: malformedCreate,
-    })).toThrow(/rejected capture/);
+    })).rejects.toThrow(/rejected capture/);
 
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
@@ -521,7 +592,7 @@ describe("Studio Experiment authoring V2", () => {
         return Promise.resolve(captureResultV2(input, malformed));
       },
     });
-    postCaptureHarness.application.createWorkspace({
+    await postCaptureHarness.application.createWorkspace({
       experimentId: "experiment/post-capture",
       content: contentV2(0, 0),
     });
@@ -542,7 +613,7 @@ describe("Studio Experiment authoring V2", () => {
         });
       },
     });
-    postGateHarness.application.createWorkspace({
+    await postGateHarness.application.createWorkspace({
       experimentId: "experiment/post-gate",
       content: contentV2(0, 0),
     });
@@ -556,7 +627,7 @@ describe("Studio Experiment authoring V2", () => {
 
   it("uses the previous head as the ordinary second Snapshot parent", async () => {
     const { application } = harnessV2();
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
@@ -582,7 +653,7 @@ describe("Studio Experiment authoring V2", () => {
 
   it("rebases with CAS and uses the explicit target as the next parent", async () => {
     const { application } = harnessV2();
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/source",
       content: contentV2(0, 0),
     });
@@ -591,7 +662,7 @@ describe("Studio Experiment authoring V2", () => {
       expectedDraftVersion: 0,
       expectedHeadSnapshotId: null,
     });
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/target",
       content: contentV2(10, 4),
     });
@@ -601,7 +672,7 @@ describe("Studio Experiment authoring V2", () => {
       expectedHeadSnapshotId: null,
     });
 
-    const rebased = application.rebaseDraft({
+    const rebased = await application.rebaseDraft({
       experimentId: "experiment/source",
       expectedDraftVersion: 1,
       expectedHeadSnapshotId: source.snapshotId,
@@ -633,7 +704,7 @@ describe("Studio Experiment authoring V2", () => {
       undefined,
       { nextSnapshotId: () => snapshotIds.shift() ?? "snapshot/exhausted" },
     );
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
@@ -642,7 +713,7 @@ describe("Studio Experiment authoring V2", () => {
       expectedDraftVersion: 0,
       expectedHeadSnapshotId: null,
     });
-    application.createWorkspace({
+    await application.createWorkspace({
       experimentId: "experiment/other",
       content: contentV2(0, 0),
     });
@@ -664,7 +735,7 @@ describe("Studio Experiment authoring V2", () => {
       expectedHeadSnapshotId: first.snapshotId,
     })).rejects.toBeInstanceOf(StudioExperimentConflictErrorV2);
     expect(repository.snapshotCount).toBe(2);
-    expect(application.readWorkspace("experiment/main")).toMatchObject({
+    expect(await application.readWorkspace("experiment/main")).toMatchObject({
       draftVersion: saved.draftVersion,
       headSnapshotId: first.snapshotId,
       basedOnSnapshotId: first.snapshotId,
@@ -755,6 +826,25 @@ function harnessV2(
             fixtureSchemaId: model.fixtureSchemaId,
             validateCompleteFixture() {},
           },
+          simulationAdapter: {
+            modelId: model.modelId,
+            fixtureSchemaId: model.fixtureSchemaId,
+            checkpointCodecId: model.checkpointCodecId,
+            async createSession() {},
+            disposeSession() {},
+            currentFrame() {
+              throw new Error("not used by authoring harness");
+            },
+            advanceOnePresentationStep() {
+              throw new Error("not used by authoring harness");
+            },
+            async replaceFixture() {
+              return 0;
+            },
+            currentInputEpoch() {
+              return 0;
+            },
+          },
         };
       },
     },
@@ -814,7 +904,7 @@ function captureAdapterV2(): RegisteredModelCaptureAdapterV2 {
         throw new Error("invalid fixture schema");
       }
     },
-    validateCapture({ capture }) {
+    async validateCapture({ capture }) {
       if (!Array.isArray((capture.checkpoint.payload as any)?.state)) {
         throw new Error("invalid checkpoint codec");
       }

@@ -17,9 +17,7 @@ import {
   type CoronaryTerritoryLayerRecordV2,
 } from "@/engine/coronary/typesV2";
 import {
-  MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V3,
   checkpointMainWireFiveWallCoronaryV3,
-  promoteMainWireFiveWallCoronaryCheckpointV2ToV3,
   restoreMainWireFiveWallCoronaryV3,
   type MainWireFiveWallCoronaryCheckpointContextV3,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryCheckpointV3";
@@ -65,12 +63,8 @@ describe("main-wire coronary accepted-autoregulation checkpoint V3", () => {
       JSON.parse(JSON.stringify(checkpoint)),
     );
     expect(restored).toEqual(fixture.state);
-    expect(checkpoint.exactResumeClaim)
-      .toEqual(MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V3);
-    expect(checkpoint.exactResumeClaim.autoregulationAccumulatorIncluded)
-      .toBe(true);
-    expect(checkpoint.baseCheckpointV2.exactResumeClaim
-      .autoregulationAccumulatorIncluded).toBe(false);
+    expect(checkpoint).not.toHaveProperty("exactResumeClaim");
+    expect(checkpoint.baseCheckpointV2).not.toHaveProperty("exactResumeClaim");
     expect(checkpoint.coronaryAutoregulation).toMatchObject({
       acceptedDurationSec: 0.004,
       acceptedStepCount: 2,
@@ -154,39 +148,6 @@ describe("main-wire coronary accepted-autoregulation checkpoint V3", () => {
     )).rejects.toThrow(/unsupported.*V3 checkpoint schema/);
   }, 60_000);
 
-  it("promotes a verified V2 snapshot only as a new empty-window run", async () => {
-    const fixture = await midWindowFixture();
-    const checkpoint = await checkpointMainWireFiveWallCoronaryV3(
-      fixture.context,
-      fixture.state,
-    );
-    const promotedBinding = createCoronaryAutoregulationWindowBindingV3({
-      originAcceptedTimeSec: fixture.state.acceptedTimeSec,
-      durationSec: 1,
-      interpretation: "periodic-sinus-cycle-aligned",
-    });
-    const promoted = await promoteMainWireFiveWallCoronaryCheckpointV2ToV3(
-      Object.freeze({
-        ...fixture.context,
-        coronaryAutoregulationBinding: promotedBinding,
-      }),
-      checkpoint.baseCheckpointV2,
-    );
-    expect(promoted.migrationKind)
-      .toBe("v2-fixed-tone-to-v3-empty-window");
-    expect(promoted.inheritedPeriodicEvidence).toBe(false);
-    expect(promoted.acceptedState.acceptedTimeSec)
-      .toBe(fixture.state.acceptedTimeSec);
-    expect(promoted.acceptedState.revision).toBe(fixture.state.revision);
-    expect(promoted.acceptedState.coronary
-      .toneResistanceScaleByTerritoryLayer)
-      .toEqual(fixture.state.coronary.toneResistanceScaleByTerritoryLayer);
-    expect(promoted.acceptedState.coronaryAutoregulation).toMatchObject({
-      acceptedDurationSec: 0,
-      acceptedStepCount: 0,
-      windowControl: null,
-    });
-  }, 60_000);
 });
 
 async function midWindowFixture(): Promise<Readonly<{

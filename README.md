@@ -48,16 +48,26 @@ SimulationSession / preview cache (ephemeral)
 - 記事内PlacementはSnapshotを直接pinする
 - settlement、numerical health、input epoch、live samplesは永続化しない
 
-## V3への移行順序
+## V3直接切り替えの現在地
 
 公式Scenario Preset、Experiment、記事、Lessonはまだ作成しません。
 
-1. portable fixture/control/checkpoint境界を
-   `MainWireIntegratedModelTransactionV3`へ接続する
-2. V3のmodel packageをexact `modelId`でregistryへ登録する
-3. その登録済みpackageを新規Experimentのdefault modelにする
-4. WorkbenchのSave/SnapshotとReader Placementを接続する
-5. その後に公式Preset、Experiment、記事、Lessonを制作する
+完了済み:
+
+1. `MainWireIntegratedModelTransactionV3`のcanonical fixture、exact
+   checkpoint、output、accepted-boundary captureをmodel package化
+2. exact development `modelId`でregistry admission境界へ接続
+3. registryを信頼するclient catalogからdefault modelとして解決
+4. generic Worker経由でWorkbenchのlive simulationをautostart
+5. period-1 convergenceとminimum numerical条件を確認するSnapshot gateを接続
+
+残作業:
+
+1. fixed canonical fixture以外のportable controlをmodel packageへ追加
+2. Workerの単一runtime ownerからauthoringへのcapture bridgeを作り、
+   Workbench Save/SnapshotとReader PlacementをUIへ接続
+3. one-live article schedulerとdisposable previewを実装
+4. その後に公式Preset、Experiment、記事、Lessonを制作
 
 それ以前のcase catalog、lesson document、numeric Experiment revision、
 Working Set / Reader Brief、certification artifactは製品データの正典では
@@ -70,8 +80,9 @@ V3統合に必要な数値実装、verification、研究artifactが含まれま�
 これらはStudioのdurable contentとは別の境界です。研究artifactのintegrity
 digestや算出結果をExperimentへコピーしません。
 
-V3 packageのregistry登録が完了するまでは、製品surfaceはHomeと
-pre-registration Workbenchだけです。
+現在のWorkbenchは登録済みexact V3 development packageを実際にstepする
+開発surfaceです。parameter/control catalogは意図的に空で、engine側の
+`releaseReady` / `simulationReady` claimもfalseのままです。
 
 ## 重要: 研究・教育目的のみ
 
@@ -99,6 +110,7 @@ npm run dev
 ```bash
 npm run typecheck
 npm run check:repository-hygiene
+npm run verify:registry:main-wire-v3
 npm run test:fast
 npm run test:pr
 npm run build
@@ -116,6 +128,9 @@ npm run test:suites:audit
 studio/contracts/v2/          Studioの現行domain contracts
 studio/application/           authoring command boundary
 studio/infrastructure/model/  exact model registry implementation
+studio/integrations/          exact model-specific Studio adapters
+studio/composition/           registry/default application composition
+studio/workers/               generic live simulation Worker boundary
 engine/                       numerical model/runtime
 docs/studio/                  Studioの現行設計
 docs/myocardium/              V3研究・検証ドキュメント

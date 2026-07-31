@@ -12,6 +12,9 @@ import type {
 import type {
   StudioModelFixtureAdapterV2,
 } from "./runtime";
+import type {
+  RegisteredModelSimulationAdapterV2,
+} from "./simulation";
 
 export type RegisteredModelDraftCaptureAdapterV2 =
   ExperimentDraftCapturePortV2 & Readonly<{
@@ -36,6 +39,7 @@ export type RegisteredModelExecutableBundleV2 = Readonly<{
   draftCapture: RegisteredModelDraftCaptureAdapterV2;
   snapshotGate: RegisteredModelSnapshotGateAdapterV2;
   fixtureAdapter: StudioModelFixtureAdapterV2;
+  simulationAdapter: RegisteredModelSimulationAdapterV2;
 }>;
 
 /** Hash-free exact runtime projection. Artifact bytes and digest stay private. */
@@ -45,6 +49,7 @@ export type ResolvedExactModelRuntimeV2 = Readonly<{
   draftCapture: RegisteredModelDraftCaptureAdapterV2;
   snapshotGate: RegisteredModelSnapshotGateAdapterV2;
   fixtureAdapter: StudioModelFixtureAdapterV2;
+  simulationAdapter: RegisteredModelSimulationAdapterV2;
 }>;
 
 export interface ExactModelRuntimeResolverPortV2 {

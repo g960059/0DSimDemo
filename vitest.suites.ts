@@ -1,9 +1,8 @@
 /**
  * Vitest suite ownership registry.
  *
- * Fast and regression tests are fail-closed: a new file must be
- * registered explicitly. Current Main Wire scientific tests are routed by
- * their owned prefix. The manifest rejects every unowned or stale test.
+ * Every suite is fail-closed: a new file must be registered explicitly.
+ * The manifest rejects every unowned or stale test.
  */
 
 export const FAST_SUITE_FILE_BUDGET = 96;
@@ -30,6 +29,7 @@ export const fastTests = [
   "__tests__/mainWireFiveWallPeriodicClosureV1.test.ts",
   "__tests__/mainWireFourValveDiseaseResearchBracketsV1.test.ts",
   "__tests__/mainWireIntegratedModelValidationOnceV3.test.ts",
+  "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
   "__tests__/mainWireNormalAdultBloodVolumeOperatingPointV1.test.ts",
   "__tests__/mainWireNormalAdultFiveWallCycleDiagnosticsV1.test.ts",
@@ -49,13 +49,13 @@ export const fastTests = [
   "__tests__/studioExperimentDataV2.test.ts",
   "__tests__/studioFixtureReducerV2.test.ts",
   "__tests__/studioModelRegistryV2.test.ts",
+  "__tests__/studioSimulationWorkerV2.test.ts",
   "__tests__/testSuiteManifest.test.ts",
   "__tests__/wholeHeartMechanicsContractV1.test.ts",
   "engine/__tests__/activeStressSourcePressureAdapter.test.ts",
   "engine/__tests__/chambers.test.ts",
   "engine/__tests__/circulationGraphKernelV1.test.ts",
   "engine/__tests__/flowIntegrals.test.ts",
-  "engine/__tests__/instanceKnobs.test.ts",
   "engine/__tests__/modelCoreExperimentalActiveProviderState.test.ts",
   "engine/__tests__/starlingFit.test.ts",
   "engine/__tests__/valveTiming.test.ts",
@@ -74,15 +74,15 @@ export const prSmokeTests = [
   "__tests__/commonPericardiumV1.test.ts",
   "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
   "__tests__/energyConjugateTriSegV1.test.ts",
-  "__tests__/integratedLaneBootstrapV1.test.ts",
-  "__tests__/integratedLaneObservableRegistryV1.test.ts",
-  "__tests__/integratedLaneSessionV1.test.ts",
+  "__tests__/mainWireIntegratedModelOutputRegistryV3.test.ts",
+  "__tests__/mainWireIntegratedModelSessionV3.test.ts",
   "__tests__/mainWireFiveWallCoronaryCheckpointV3.test.ts",
   "__tests__/mainWireFiveWallCoronaryTransactionV3.test.ts",
   "__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts",
   "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
   "__tests__/mainWireIntegratedModelRealProviderSmokeV3.test.ts",
   "__tests__/mainWireIntegratedModelTransactionV3.test.ts",
+  "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/studioContractsBoundaryV2.test.ts",
@@ -90,6 +90,7 @@ export const prSmokeTests = [
   "__tests__/studioExperimentDataV2.test.ts",
   "__tests__/studioFixtureReducerV2.test.ts",
   "__tests__/studioModelRegistryV2.test.ts",
+  "__tests__/studioSimulationWorkerV2.test.ts",
   "__tests__/testSuiteManifest.test.ts",
 ] as const;
 
@@ -119,9 +120,8 @@ export const regressionTests = [
   "__tests__/dynamicMechanicalSupportNetworkV1.test.ts",
   "__tests__/dynamicRotaryPumpV1.test.ts",
   "__tests__/exactEventPrescribedCalciumV1.test.ts",
-  "__tests__/integratedLaneBootstrapV1.test.ts",
-  "__tests__/integratedLaneObservableRegistryV1.test.ts",
-  "__tests__/integratedLaneSessionV1.test.ts",
+  "__tests__/mainWireIntegratedModelOutputRegistryV3.test.ts",
+  "__tests__/mainWireIntegratedModelSessionV3.test.ts",
   "__tests__/nonCoronaryDynamicMechanicalSupportIntegrationV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV2.test.ts",
@@ -139,7 +139,6 @@ export const regressionTests = [
   "engine/__tests__/health.test.ts",
   "engine/__tests__/hemorrhage.test.ts",
   "engine/__tests__/interactionMechanics.test.ts",
-  "engine/__tests__/knobs.test.ts",
   "engine/__tests__/modelCoreAtrialPressureDecomposition.test.ts",
   "engine/__tests__/modelCoreRuntimeActiveSource.test.ts",
   "engine/__tests__/observables.test.ts",
@@ -153,23 +152,55 @@ export const regressionTests = [
   "engine/__tests__/verification.test.ts",
 ] as const;
 
-/** Current main-wire scientific lane. Exact unit tests may opt into fastTests. */
-export const canonicalScientificTestGlobs = [
-  "__tests__/mainWire*.test.ts",
+/** Current canonical scientific lane. This exact inventory is its source of truth. */
+export const canonicalScientificTests = [
   "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV2.test.ts",
   "__tests__/coronaryAutoregulationV2.test.ts",
   "__tests__/coronaryCycleEventSegmentationV1.test.ts",
   "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
   "__tests__/coronaryTopologyPriorV2.test.ts",
+  "__tests__/coronaryV2ShadowProtocol.test.ts",
   "__tests__/coronaryV3LesionStructuralCmdDirectionalCharacterizationV1.test.ts",
-  "__tests__/coronaryV3StructuralCmdActiveReserveCharacterizationV2.test.ts",
   "__tests__/coronaryV3ReducedPressureStepArtifactSvgV1.test.ts",
   "__tests__/coronaryV3ReducedPressureStepNumericalCharacterizationV1.test.ts",
   "__tests__/coronaryV3ReducedPressureStepNumericalCharacterizationV2.test.ts",
   "__tests__/coronaryV3ReducedPressureStepResponseV1.test.ts",
   "__tests__/coronaryV3StepResponseMetricsV1.test.ts",
-  "__tests__/coronaryV2ShadowProtocol.test.ts",
+  "__tests__/coronaryV3StructuralCmdActiveReserveCharacterizationV2.test.ts",
+  "__tests__/mainWireAcceptedRhythmEventScheduleV1.test.ts",
+  "__tests__/mainWireCoronaryBoundaryV2.test.ts",
+  "__tests__/mainWireCoronaryMechanicsCouplingV1.test.ts",
+  "__tests__/mainWireFiveWallCoronaryCheckpointV2.test.ts",
+  "__tests__/mainWireFiveWallCoronaryCheckpointV3.test.ts",
+  "__tests__/mainWireFiveWallCoronaryPeriodicClosureV2.test.ts",
+  "__tests__/mainWireFiveWallCoronaryPeriodicClosureV3.test.ts",
+  "__tests__/mainWireFiveWallCoronaryTransactionV1.test.ts",
+  "__tests__/mainWireFiveWallCoronaryTransactionV2.test.ts",
+  "__tests__/mainWireFiveWallCoronaryTransactionV3.test.ts",
+  "__tests__/mainWireFullLandMembranePericardiumArtifactsV1.test.ts",
+  "__tests__/mainWireHeartMateIiStanfieldMeanOperatingPointContextV1.test.ts",
+  "__tests__/mainWireIntegratedModelCanonicalSequenceV3.test.ts",
+  "__tests__/mainWireIntegratedModelExternalAfTransactionV1.test.ts",
+  "__tests__/mainWireIntegratedModelPeriodicClassifierV3.test.ts",
+  "__tests__/mainWireIntegratedModelPeriodicSteadyArtifactSvgV3.test.ts",
+  "__tests__/mainWireIntegratedModelPeriodicSteadyV3.test.ts",
+  "__tests__/mainWireIntegratedModelSnapshotQualificationV3.test.ts",
+  "__tests__/mainWireIntegratedModelRealProviderSmokeV3.test.ts",
+  "__tests__/mainWireIntegratedModelTransactionV3.test.ts",
+  "__tests__/mainWireMacroPhysiologyEnvelopeV1.test.ts",
+  "__tests__/mainWireMechanicalSupportDeviceModelsV1.test.ts",
+  "__tests__/mainWireMechanicalSupportIntegrationV1.test.ts",
+  "__tests__/mainWireNormalAdultCoronaryV2.test.ts",
+  "__tests__/mainWireNormalAdultFiveWallCoronaryPeriodicSteadyV2.test.ts",
+  "__tests__/mainWireNormalAdultFiveWallCoronaryPeriodicSteadyV3.test.ts",
+  "__tests__/mainWireNormalAdultFiveWallCoronaryPeriodicSteadyV3RealSmoke.test.ts",
+  "__tests__/mainWireNormalAdultFiveWallPeriodicSteadyV1.test.ts",
+  "__tests__/mainWireNormalAdultFiveWallPeriodicSummaryV1.test.ts",
+  "__tests__/mainWireNormalAdultLeftAtrialMechanismLedgerV1.test.ts",
+  "__tests__/mainWireNormalFiveWallStructuralAblationReportV1.test.ts",
+  "__tests__/mainWireSettledHyperemicRetrogradeGateV1.test.ts",
+  "__tests__/mainWireValveResearchBracketNumericalRobustnessEnvelopeV1.test.ts",
 ] as const;
 
 export type TestSuiteName =
@@ -179,36 +210,11 @@ export type TestSuiteName =
 
 const fastSet = new Set<string>(fastTests);
 const regressionSet = new Set<string>(regressionTests);
-
-const canonicalScientificExact = new Set<string>([
-  "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
-  "__tests__/backwardEulerCoronaryNetworkV2.test.ts",
-  "__tests__/coronaryAutoregulationV2.test.ts",
-  "__tests__/coronaryCycleEventSegmentationV1.test.ts",
-  "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
-  "__tests__/coronaryTopologyPriorV2.test.ts",
-  "__tests__/coronaryV3LesionStructuralCmdDirectionalCharacterizationV1.test.ts",
-  "__tests__/coronaryV3StructuralCmdActiveReserveCharacterizationV2.test.ts",
-  "__tests__/coronaryV3ReducedPressureStepArtifactSvgV1.test.ts",
-  "__tests__/coronaryV3ReducedPressureStepNumericalCharacterizationV1.test.ts",
-  "__tests__/coronaryV3ReducedPressureStepNumericalCharacterizationV2.test.ts",
-  "__tests__/coronaryV3ReducedPressureStepResponseV1.test.ts",
-  "__tests__/coronaryV3StepResponseMetricsV1.test.ts",
-  "__tests__/coronaryV2ShadowProtocol.test.ts",
-]);
-
-export function isCanonicalScientificTest(file: string): boolean {
-  return !fastSet.has(file)
-    && file.endsWith(".test.ts")
-    && (
-      file.startsWith("__tests__/mainWire")
-      || canonicalScientificExact.has(file)
-    );
-}
+const canonicalScientificSet = new Set<string>(canonicalScientificTests);
 
 export function classifyTestFile(file: string): TestSuiteName | null {
   if (fastSet.has(file)) return "fast";
   if (regressionSet.has(file)) return "regression";
-  if (isCanonicalScientificTest(file)) return "canonical-scientific";
+  if (canonicalScientificSet.has(file)) return "canonical-scientific";
   return null;
 }

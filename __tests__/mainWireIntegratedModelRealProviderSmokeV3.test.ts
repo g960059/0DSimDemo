@@ -28,7 +28,6 @@ import type {
   RotarySupportDeviceIdV1,
 } from "@/engine/devices/typesV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3,
   checkpointMainWireIntegratedModelV3,
   restoreMainWireIntegratedModelV3,
   type MainWireIntegratedModelCheckpointContextV3,
@@ -357,8 +356,7 @@ describe("integrated model V3 canonical-provider composed-rhythm smoke", () => {
       context,
       mid,
     );
-    expect(checkpoint.exactResumeClaim)
-      .toEqual(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3);
+    expect(checkpoint).not.toHaveProperty("exactResumeClaim");
     expect(checkpoint.composedRhythm.acceptedState)
       .not.toHaveProperty("rhythmCalcium");
     expect(canonicalJsonStringify(checkpoint))

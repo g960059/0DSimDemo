@@ -122,7 +122,7 @@ anesthetized-dog station and range are not direct human acceptance bands.
 |---|---|---|---|
 | Signed rotary H-Q law with patient pressure coupling | [Wang et al. 2014](https://pmc.ncbi.nlm.nih.gov/articles/PMC3894974/) and device-specific published curves | held-out mock-loop pressure/flow points and ordered afterload/speed sweeps | no universal product curve |
 | One accepted circuit-flow state, BE integrated | Wang HeartMate-II pump/cannula \(R,L\) values | analytic-versus-FD Jacobian, constant-boundary transient, dt halving and algebraic shadow | no motor torque/current dynamics |
-| Explicit reverse flow, clamp reaction and profile-specific inlet suction | HMII Choi pressure-dependent series resistance from Wang; legacy smooth availability only for provisional non-HMII profiles | stopped-pump backflow, clamp/disable transitions, exact series-resistance residual/tangent, explicit constraint reaction ownership, and the low-flow/backflow regimes measured by [Boes et al. 2019](https://doi.org/10.1109/TBME.2018.2876840) | no universal suction threshold, chamber-collapse geometry or chatter controller claim |
+| Explicit reverse flow, clamp reaction and profile-specific inlet suction | HMII Choi pressure-dependent series resistance from Wang; smooth availability comparator only for provisional non-HMII profiles | stopped-pump backflow, clamp/disable transitions, exact series-resistance residual/tangent, explicit constraint reaction ownership, and the low-flow/backflow regimes measured by [Boes et al. 2019](https://doi.org/10.1109/TBME.2018.2876840) | no universal suction threshold, chamber-collapse geometry or chatter controller claim |
 | Impella P-level maps to speed, not fixed flow | [FDA Impella CP IFU](https://www.fda.gov/media/140767/download) | pressure-dependent flow at multiple heads, including held-out heads | no clinical displayed-flow accuracy claim |
 | VA/VV circuit topology and pressure stations | [Takahashi et al. 2026](https://doi.org/10.1186/s40635-026-00870-z), [ELSO circuit guideline](https://www.elso.org/Portals/0/files/pdf/ELSO_Guidelines_for_Adult_and_Pediatric_Membrane_Oxygenation_Circuits.pdf) | conservation, cannulation-direction tests, held-out mock-loop cases | no cannula-position or management recommendation |
 | IABP as aortic displacement volume with event-owned timing | [Sun 1991](https://doi.org/10.1152/ajpheart.1991.261.4.H1300) and [Schampaert et al. 2013](https://pubmed.ncbi.nlm.nih.gov/23263334/) | valve-event timing, pressure augmentation/afterload directions, missed-trigger matrix | no pneumatic console, balloon occlusivity/geometry, proprietary trigger algorithm or patient-validated model |
@@ -658,7 +658,7 @@ and [ASME V&V 40](https://www.asme.org/codes-standards/find-codes-standards/asse
   a failed rest-convergence/target aggregate gate and makes no clinical CMD,
   CFR, FFR or MRR claim.
 - Stateful MCS is required for phasic/rhythm release claims; the algebraic
-  model remains a validation shadow and a legacy beat-mean lane.
+  model remains a non-product beat-mean validation comparator.
 - Exact-event calcium, signed finite-history deterministic sinus/flutter,
   AV recovery/concealment, and a pending effective-event queue are now
   implemented as one generated owner. They remain insufficient for AF or
@@ -667,4 +667,6 @@ and [ASME V&V 40](https://www.asme.org/codes-standards/find-codes-standards/asse
 - Autonomic reflexes and multipatch are intentionally deferred. Their absence
   is an applicability limit, not a parameter to compensate elsewhere.
 - No integrated release, clinical diagnosis, or treatment recommendation is
-  claimed until every release gate in `INTEGRATED-MODEL-0001` is closed.
+  claimed by the experimental development package. Promotion requires an
+  explicit release-readiness decision beyond the candidate Snapshot gate in
+  `INTEGRATED-MODEL-0001`.

@@ -19,14 +19,31 @@
     "eyebrow": "CIRCULATORY PHYSIOLOGY WORKBENCH",
     "headline": "Learn circulation by moving it.",
     "lead": "Explore circulatory physiology and build experiments in the Workbench.",
-    "openWorkbenchStatus": "View Workbench status"
+    "openWorkbenchStatus": "Open the V3 Workbench"
   },
   "workbench": {
-    "preRegistration": {
-      "eyebrow": "PRE-RELEASE WORKBENCH",
-      "title": "The exact V3 model is not registered yet.",
-      "description": "The Workbench will open after MainWireIntegratedModelTransactionV3 is registered as an immutable model and made the default.",
-      "status": "Experiments and published content will be authored only after that registry cutover. No provisional content is loaded here."
+    "live": {
+      "badge": "Registry-bound live V3",
+      "experimental": "Experimental development default",
+      "title": "Main Wire Integrated Model V3",
+      "description": "A Worker runs the Simulation adapter resolved from the exact model registry. Only accepted-boundary values are displayed, and no provisional Experiment or Preset content is created.",
+      "loading": "Loading the registry-trusted V3 release and initializing its Worker…",
+      "errorTitle": "The V3 runtime could not start",
+      "model": "exact model",
+      "modelTime": "model time",
+      "revision": "accepted revision",
+      "inputEpoch": "input epoch",
+      "pressureChart": "Left ventricular and aortic pressure",
+      "flowChart": "Coronary and LVAD flow",
+      "coronaryFlow": "Coronary flow",
+      "acceptedReadback": "Accepted readback",
+      "firstAcceptedStep": "Waiting for the first accepted step.",
+      "contentBoundary": "Durable content boundary",
+      "zeroContent": "Startup creates no Workspace, Snapshot, Preset, or Lesson. The default is a composition setting and is never stored as an alias in content.",
+      "workspaces": "Workspaces",
+      "snapshots": "Snapshots",
+      "snapshotGateTitle": "Candidate Snapshot gate is connected",
+      "snapshotGateDescription": "On explicit Snapshot creation, the model restores the frozen saved-Draft checkpoint, settles it under the canonical periodic policy, accepts P1 only, and captures a fresh exact checkpoint. This is a numerical eligibility gate, not physiological or clinical validation."
     }
   },
   "modelLimitations": {
@@ -38,7 +55,7 @@
     "items": [
       "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",
       "A 0D lumped-parameter model cannot resolve spatial blood flow, local wall stress, or three-dimensional hemodynamics.",
-      "No simulation surface is published until the exact V3 package is admitted to the product model registry.",
+      "The current exact V3 package is an experimental development default. It does not claim release readiness, simulation readiness, or clinical validation.",
       "Parameters and outputs are approximations and require validation for each intended scientific use."
     ]
   }

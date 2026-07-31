@@ -60,7 +60,8 @@ export function createStudioFixtureReducerV2(
 ): StudioFixtureReducerFacadeV2 {
   return Object.freeze({
     reduce(input: StudioFixtureReductionInputV2) {
-      const context = validateRuntimeContextV2(input.context);
+      const reductionInput = validateReductionInputV2(input);
+      const context = validateRuntimeContextV2(reductionInput.context);
       const runtime = models.resolveExactRuntime(context.modelId);
       if (
         runtime.contract.modelId !== context.modelId
@@ -74,7 +75,11 @@ export function createStudioFixtureReducerV2(
         );
       }
       return reduceStudioFixtureActionInternalV2(
-        Object.freeze({ ...input, context }),
+        Object.freeze({
+          desiredFixture: reductionInput.desiredFixture,
+          action: reductionInput.action,
+          context,
+        }),
         runtime.fixtureAdapter,
       );
     },
@@ -113,7 +118,7 @@ function reduceStudioFixtureActionInternalV2(
   for (const change of changes) {
     replaceAtPathV2(currentFixture, change.path, change.value);
   }
-  const reduced = deepFreezeV2(currentFixture);
+  const reduced = deepFreezeV2(cloneJsonV2(currentFixture, "$"));
   try {
     modelAdapter.validateCompleteFixture(Object.freeze({
       context,
@@ -129,16 +134,40 @@ function reduceStudioFixtureActionInternalV2(
   return reduced;
 }
 
+function validateReductionInputV2(
+  value: unknown,
+): StudioFixtureReductionInputV2 {
+  const record = exactDataRecordV2(
+    value,
+    ["action", "context", "desiredFixture"],
+    [],
+    "invalid-action",
+    "fixture reduction input",
+  );
+  return Object.freeze({
+    desiredFixture: record.desiredFixture as StudioDesiredFixtureV2,
+    action: record.action as StudioFixtureActionV2,
+    context: record.context as StudioScenarioRuntimeContextV2,
+  });
+}
+
 function validateRuntimeContextV2(
-  value: StudioScenarioRuntimeContextV2,
+  value: unknown,
 ): StudioScenarioRuntimeContextV2 {
+  const record = exactDataRecordV2(
+    value,
+    ["modelId", "scenarioId"],
+    [],
+    "invalid-action",
+    "runtime context",
+  );
+  const modelId = record.modelId;
+  const scenarioId = record.scenarioId;
   if (
-    value === null
-    || typeof value !== "object"
-    || Array.isArray(value)
-    || Object.keys(value).sort().join(",") !== "modelId,scenarioId"
-    || !PORTABLE_RUNTIME_ID_V2.test(value.modelId)
-    || !PORTABLE_RUNTIME_ID_V2.test(value.scenarioId)
+    typeof modelId !== "string"
+    || typeof scenarioId !== "string"
+    || !PORTABLE_RUNTIME_ID_V2.test(modelId)
+    || !PORTABLE_RUNTIME_ID_V2.test(scenarioId)
   ) {
     throw new StudioFixtureReductionErrorV2(
       "invalid-action",
@@ -146,8 +175,8 @@ function validateRuntimeContextV2(
     );
   }
   return Object.freeze({
-    scenarioId: value.scenarioId,
-    modelId: value.modelId,
+    scenarioId,
+    modelId,
   });
 }
 
@@ -169,29 +198,39 @@ function assertExactModelAdapterBindingV2(
 }
 
 function assertAndDetachActionV2(
-  candidate: StudioFixtureActionV2,
+  candidate: unknown,
 ): StudioFixtureActionV2 {
-  if (!isPlainObjectV2(candidate)) {
-    throw new StudioFixtureReductionErrorV2(
-      "invalid-action",
-      "fixture action must be a plain object",
-    );
-  }
-  assertOptionalCorrelationV2(candidate.requestCorrelation);
+  const data = dataRecordV2(candidate, "invalid-action", "fixture action");
 
-  if (candidate.kind === "control") {
+  if (data.kind === "control") {
+    const action = exactDataRecordV2(
+      data,
+      ["kind", "patch"],
+      ["requestCorrelation"],
+      "invalid-action",
+      "control action",
+    );
+    const requestCorrelation = optionalCorrelationV2(action);
     return Object.freeze({
       kind: "control",
-      patch: candidate.patch,
-      ...(candidate.requestCorrelation === undefined
+      patch: action.patch as StudioFixturePatchV2,
+      ...(requestCorrelation === undefined
         ? {}
-        : { requestCorrelation: candidate.requestCorrelation }),
+        : { requestCorrelation }),
     });
   }
-  if (candidate.kind === "knob") {
+  if (data.kind === "knob") {
+    const actionRecord = exactDataRecordV2(
+      data,
+      ["kind", "knobKey", "value"],
+      ["requestCorrelation"],
+      "invalid-action",
+      "knob action",
+    );
+    const requestCorrelation = optionalCorrelationV2(actionRecord);
     if (
-      typeof candidate.knobKey !== "string"
-      || candidate.knobKey.trim().length === 0
+      typeof actionRecord.knobKey !== "string"
+      || actionRecord.knobKey.trim().length === 0
     ) {
       throw new StudioFixtureReductionErrorV2(
         "invalid-action",
@@ -200,11 +239,14 @@ function assertAndDetachActionV2(
     }
     const action: StudioKnobActionV2 = {
       kind: "knob",
-      knobKey: candidate.knobKey,
-      value: deepFreezeV2(cloneJsonV2(candidate.value, "$.action.value")),
-      ...(candidate.requestCorrelation === undefined
+      knobKey: actionRecord.knobKey,
+      value: deepFreezeV2(cloneJsonV2(
+        actionRecord.value,
+        "$.action.value",
+      )),
+      ...(requestCorrelation === undefined
         ? {}
-        : { requestCorrelation: candidate.requestCorrelation }),
+        : { requestCorrelation }),
     };
     return Object.freeze(action);
   }
@@ -214,67 +256,91 @@ function assertAndDetachActionV2(
   );
 }
 
-function assertOptionalCorrelationV2(
-  candidate: string | undefined,
-): void {
+function optionalCorrelationV2(
+  candidate: Record<string, unknown>,
+): string | undefined {
+  if (!Object.prototype.hasOwnProperty.call(candidate, "requestCorrelation")) {
+    return undefined;
+  }
+  const correlation = candidate.requestCorrelation;
   if (
-    candidate !== undefined
-    && (typeof candidate !== "string" || candidate.length === 0)
+    typeof correlation !== "string"
+    || correlation.length === 0
   ) {
     throw new StudioFixtureReductionErrorV2(
       "invalid-action",
-      "requestCorrelation must be a non-empty string when present",
+      "requestCorrelation field must be a non-empty string when present",
     );
   }
+  return correlation;
 }
 
 function normalizePatchV2(
   currentFixture: StudioDesiredFixtureV2,
-  candidate: StudioFixturePatchV2,
+  candidate: unknown,
 ): readonly StudioFixtureFieldChangeV2[] {
-  if (!isPlainObjectV2(candidate) || !Array.isArray(candidate.changes)) {
-    throw new StudioFixtureReductionErrorV2(
-      "invalid-patch",
-      "fixture patch must contain a changes array",
-    );
-  }
-  if (candidate.changes.length === 0) {
+  const patch = exactDataRecordV2(
+    candidate,
+    ["changes"],
+    [],
+    "invalid-patch",
+    "fixture patch",
+  );
+  const changes = arrayDataValuesV2(
+    patch.changes,
+    "fixture patch changes",
+    "invalid-patch",
+  );
+  if (changes.length === 0) {
     throw new StudioFixtureReductionErrorV2(
       "invalid-patch",
       "fixture patch must contain at least one change",
     );
   }
 
-  const normalized = candidate.changes.map((change, index) => {
-    if (!isPlainObjectV2(change) || !Array.isArray(change.path)) {
-      throw new StudioFixtureReductionErrorV2(
-        "invalid-patch",
-        `fixture patch change ${index} is invalid`,
-      );
-    }
+  const normalized: StudioFixtureFieldChangeV2[] = [];
+  for (let index = 0; index < changes.length; index += 1) {
+    const change = exactDataRecordV2(
+      changes[index],
+      ["path", "value"],
+      [],
+      "invalid-patch",
+      `fixture patch change ${index}`,
+    );
     const path = normalizePathV2(change.path, index);
     assertKnownPathV2(currentFixture, path);
     const value = deepFreezeV2(
       cloneJsonV2(change.value, formatPathV2(path)),
     );
-    return Object.freeze({ path, value });
-  });
+    normalized.push(Object.freeze({ path, value }));
+  }
 
-  assertNonConflictingPathsV2(normalized.map((change) => change.path));
+  assertNonConflictingPathsV2(normalized);
   return Object.freeze(normalized);
 }
 
 function normalizePathV2(
-  candidate: readonly StudioFixturePathSegmentV2[],
+  candidate: unknown,
   changeIndex: number,
 ): StudioFixturePathV2 {
-  if (candidate.length === 0) {
+  const segments = arrayDataValuesV2(
+    candidate,
+    `fixture patch change ${changeIndex} path`,
+    "invalid-patch",
+  );
+  if (segments.length === 0) {
     throw new StudioFixtureReductionErrorV2(
       "invalid-patch",
       `fixture patch change ${changeIndex} has an empty path`,
     );
   }
-  const normalized = candidate.map((segment, segmentIndex) => {
+  const normalized: StudioFixturePathSegmentV2[] = [];
+  for (
+    let segmentIndex = 0;
+    segmentIndex < segments.length;
+    segmentIndex += 1
+  ) {
+    const segment = segments[segmentIndex];
     if (typeof segment === "number" && Object.is(segment, -0)) {
       throw new StudioFixtureReductionErrorV2(
         "invalid-patch",
@@ -285,20 +351,22 @@ function normalizePathV2(
       typeof segment === "string"
       && segment.length > 0
     ) {
-      return segment;
+      normalized.push(segment);
+      continue;
     }
     if (
       typeof segment === "number"
       && Number.isSafeInteger(segment)
       && segment >= 0
     ) {
-      return segment;
+      normalized.push(segment);
+      continue;
     }
     throw new StudioFixtureReductionErrorV2(
       "invalid-patch",
       `fixture patch change ${changeIndex} has an invalid path segment at ${segmentIndex}`,
     );
-  });
+  }
   return Object.freeze(normalized) as StudioFixturePathV2;
 }
 
@@ -333,16 +401,16 @@ function assertKnownPathV2(
 }
 
 function assertNonConflictingPathsV2(
-  paths: readonly StudioFixturePathV2[],
+  changes: readonly StudioFixtureFieldChangeV2[],
 ): void {
-  for (let leftIndex = 0; leftIndex < paths.length; leftIndex += 1) {
+  for (let leftIndex = 0; leftIndex < changes.length; leftIndex += 1) {
     for (
       let rightIndex = leftIndex + 1;
-      rightIndex < paths.length;
+      rightIndex < changes.length;
       rightIndex += 1
     ) {
-      const left = paths[leftIndex];
-      const right = paths[rightIndex];
+      const left = changes[leftIndex].path;
+      const right = changes[rightIndex].path;
       const commonLength = Math.min(left.length, right.length);
       let common = true;
       for (let index = 0; index < commonLength; index += 1) {
@@ -384,6 +452,119 @@ function replaceAtPathV2(
     value,
     writable: true,
   });
+}
+
+type StudioFixtureBoundaryErrorCodeV2 =
+  | "invalid-action"
+  | "invalid-patch";
+
+function dataRecordV2(
+  candidate: unknown,
+  code: StudioFixtureBoundaryErrorCodeV2,
+  label: string,
+): Record<string, unknown> {
+  if (!isPlainObjectV2(candidate)) {
+    throw new StudioFixtureReductionErrorV2(
+      code,
+      `${label} must be a plain data object`,
+    );
+  }
+  for (const key of Reflect.ownKeys(candidate)) {
+    if (typeof key !== "string") {
+      throw new StudioFixtureReductionErrorV2(
+        code,
+        `${label} fields must be string-keyed data`,
+      );
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(candidate, key);
+    if (
+      descriptor === undefined
+      || !descriptor.enumerable
+      || !("value" in descriptor)
+    ) {
+      throw new StudioFixtureReductionErrorV2(
+        code,
+        `${label} field ${key} must be enumerable data`,
+      );
+    }
+  }
+  return candidate as Record<string, unknown>;
+}
+
+function exactDataRecordV2(
+  candidate: unknown,
+  required: readonly string[],
+  optional: readonly string[],
+  code: StudioFixtureBoundaryErrorCodeV2,
+  label: string,
+): Record<string, unknown> {
+  const record = dataRecordV2(candidate, code, label);
+  const allowed = new Set<string>();
+  for (const key of required) allowed.add(key);
+  for (const key of optional) allowed.add(key);
+
+  const missing: string[] = [];
+  for (const key of required) {
+    if (!Object.prototype.hasOwnProperty.call(record, key)) missing.push(key);
+  }
+  const unknown: string[] = [];
+  for (const key of Object.keys(record)) {
+    if (!allowed.has(key)) unknown.push(key);
+  }
+  if (missing.length > 0 || unknown.length > 0) {
+    throw new StudioFixtureReductionErrorV2(
+      code,
+      `${label} fields must match exactly (missing: `
+        + `${missing.join(", ") || "none"}; unknown: `
+        + `${unknown.join(", ") || "none"})`,
+    );
+  }
+  return record;
+}
+
+function arrayDataValuesV2(
+  candidate: unknown,
+  label: string,
+  code: StudioFixtureBoundaryErrorCodeV2,
+): readonly unknown[] {
+  if (!Array.isArray(candidate)) {
+    throw new StudioFixtureReductionErrorV2(
+      code,
+      `${label} must be an array`,
+    );
+  }
+  const expectedKeys = new Set<string>(["length"]);
+  for (let index = 0; index < candidate.length; index += 1) {
+    expectedKeys.add(String(index));
+  }
+  for (const key of Reflect.ownKeys(candidate)) {
+    if (typeof key !== "string" || !expectedKeys.has(key)) {
+      throw new StudioFixtureReductionErrorV2(
+        code,
+        `${label} arrays must have no custom properties`,
+      );
+    }
+  }
+
+  const values: unknown[] = [];
+  for (let index = 0; index < candidate.length; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      candidate,
+      String(index),
+    );
+    if (
+      descriptor === undefined
+      || !descriptor.enumerable
+      || !("value" in descriptor)
+    ) {
+      throw new StudioFixtureReductionErrorV2(
+        code,
+        `${label}[${index}] must be dense enumerable data`,
+      );
+    }
+    values.push(descriptor.value);
+  }
+  return Object.freeze(values);
 }
 
 function cloneJsonV2(

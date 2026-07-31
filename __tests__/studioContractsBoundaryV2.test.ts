@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 describe("Studio V2 dependency boundary", () => {
   it("keeps Studio domain and application code independent from engine and UI", () => {
     const studioRoot = path.resolve(process.cwd(), "studio");
-    const problems = typescriptFiles(studioRoot).flatMap((file) => {
+    const problems = typescriptFiles(studioRoot)
+      .filter((file) => !relative(file).startsWith("studio/integrations/"))
+      .flatMap((file) => {
       const source = readFileSync(file, "utf8");
       return [
         /(?:from|import\()\s*["'][^"']*(?:\/engine\/|@\/engine\/)/.test(source)
@@ -15,9 +17,24 @@ describe("Studio V2 dependency boundary", () => {
           ? `${relative(file)} imports presentation/host code`
           : null,
       ].filter((problem): problem is string => problem !== null);
-    });
+      });
 
     expect(problems).toEqual([]);
+  });
+
+  it("isolates engine imports inside explicit Studio integrations", () => {
+    const integrationRoot = path.resolve(process.cwd(), "studio/integrations");
+    const sources = typescriptFiles(integrationRoot).map((file) => ({
+      file: relative(file),
+      source: readFileSync(file, "utf8"),
+    }));
+    expect(sources.length).toBeGreaterThan(0);
+    expect(sources.some(({ source }) =>
+      /(?:from|import\()\s*["'][^"']*@\/engine\//.test(source))).toBe(true);
+    expect(sources.flatMap(({ file, source }) =>
+      /(?:from|import\()\s*["'][^"']*(?:react|components\/)/.test(source)
+        ? [`${file} imports presentation/host code`]
+        : [])).toEqual([]);
   });
 
   it("does not retain the superseded Studio V1 implementation tree", () => {

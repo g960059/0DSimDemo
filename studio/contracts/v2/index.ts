@@ -6,3 +6,4 @@ export * from "./json";
 export * from "./model";
 export * from "./preview";
 export * from "./runtime";
+export * from "./simulation";

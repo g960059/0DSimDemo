@@ -9,3 +9,4 @@ export type {
   InMemoryExperimentQueryFacadeV2,
   StudioExperimentAuthoringFacadeV2,
 } from "./infrastructure/experiments/InMemoryExperimentRepositoryV2";
+export * from "./composition/StudioDefaultCompositionV2";

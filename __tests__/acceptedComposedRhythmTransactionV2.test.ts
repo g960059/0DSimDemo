@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CHECKPOINT_CLAIM_V2,
   checkpointAcceptedComposedRhythmTransactionStateV2,
   restoreAcceptedComposedRhythmTransactionStateV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionCheckpointV2";
@@ -622,8 +621,9 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
     expect(checkpoint.authoredVentricularPacingReplay?.cursor).toBe(1);
     expect(checkpoint.authoredVentricularPacingReplay?.acceptedState.cursor)
       .toBe(1);
-    expect(checkpoint.exactResumeClaim.authoredVentricularPacingReplay
-      .completeAcceptedOwnerStateStored).toBe(true);
+    expect(checkpoint).not.toHaveProperty("exactResumeClaim");
+    expect(checkpoint.authoredVentricularPacingReplay)
+      .not.toHaveProperty("exactResumeClaim");
 
     const restored = await restoreAcceptedComposedRhythmTransactionStateV2(
       JSON.parse(JSON.stringify(checkpoint)),
@@ -677,12 +677,7 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
     const checkpoint = await checkpointAcceptedComposedRhythmTransactionStateV2(current);
     expect(checkpoint.acceptedState.proximalAvGateState.stateSchemaId)
       .toBe(RECOVERY_CONCEALMENT_AV_GATE_STATE_V2_ID);
-    expect(checkpoint.exactResumeClaim.proximalAvGateV2CompleteAcceptedStateStored)
-      .toBe(true);
-    expect(canonicalJsonStringify(checkpoint.exactResumeClaim))
-      .not.toContain("legacyAvGate");
-    expect(checkpoint.exactResumeClaim)
-      .toEqual(ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CHECKPOINT_CLAIM_V2);
+    expect(checkpoint).not.toHaveProperty("exactResumeClaim");
     expect(canonicalJsonStringify(current)).not.toContain(
       '"lastVentricularActivationTimeSec":',
     );

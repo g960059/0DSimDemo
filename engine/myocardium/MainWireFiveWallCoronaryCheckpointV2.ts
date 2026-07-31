@@ -56,23 +56,6 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_V2_ID =
  * a new schema. It must not reinterpret this checkpoint as containing that
  * missing history.
  */
-export const MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V2 =
-  Object.freeze({
-    acceptedTuple:
-      "noncoronary-circulation-plus-coronary-v2-plus-mechanics-plus-mvc-reference" as const,
-    integrity: "sha-256-over-canonical-json-complete-payload" as const,
-    exactResumeScope:
-      "fixed-accepted-coronary-tone-hydraulics-mechanics-and-mvc-history" as const,
-    acceptedToneStateCount: 6 as const,
-    acceptedToneMode: "fixed-no-accepted-cycle-update" as const,
-    autoregulationAccumulatorIncluded: false as const,
-    futureAutoregulationAccumulatorRequired:
-      "six-qm-integrals-three-perfusion-pressure-integrals-window-duration-phase-start-and-sample-count" as const,
-    newSchemaRequiredBeforeAcceptedToneEvolution: true as const,
-    legacyNoncoronaryCheckpointV1Compatible: false as const,
-    legacyScientificExactCheckpointV3Compatible: false as const,
-  });
-
 export type MainWireFiveWallCoronaryCheckpointContextV2<TWallState> =
   Readonly<{
     provider: WholeHeartMechanicsProviderV1<
@@ -97,7 +80,6 @@ export type MainWireFiveWallCoronaryCheckpointPayloadV2 = Readonly<{
   coronary: CoronaryHydraulicCheckpointV2;
   mechanics: WholeHeartMechanicsCheckpointV1;
   mvcReferenceState: MainWireCoronaryMvcReferenceStateV2;
-  exactResumeClaim: typeof MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V2;
 }>;
 
 export type MainWireFiveWallCoronaryCheckpointV2 =
@@ -135,7 +117,6 @@ export async function checkpointMainWireFiveWallCoronaryV2<TWallState>(
       state.mechanics,
     ),
     mvcReferenceState: copyMvcReferenceState(state.mvcReferenceState),
-    exactResumeClaim: MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V2,
   }) satisfies MainWireFiveWallCoronaryCheckpointPayloadV2;
   return Object.freeze({
     ...payload,
@@ -154,12 +135,6 @@ export async function restoreMainWireFiveWallCoronaryV2<TWallState>(
   const calculatedSha256 = await sha256CanonicalJsonHex(payload);
   if (calculatedSha256 !== checkpointSha256) {
     throw new Error("five-wall coronary V2 checkpoint SHA-256 mismatch");
-  }
-  if (canonicalJsonStringify(checkpoint.exactResumeClaim)
-    !== canonicalJsonStringify(
-      MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V2,
-    )) {
-    throw new Error("five-wall coronary V2 checkpoint resume claim mismatch");
   }
 
   const expectedBinding = expectedBindingV2(context);
@@ -343,7 +318,6 @@ function assertCheckpointEnvelopeV2(
       "coronary",
       "mechanics",
       "mvcReferenceState",
-      "exactResumeClaim",
       "checkpointSha256",
     ],
     "five-wall coronary V2 checkpoint envelope",

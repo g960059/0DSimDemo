@@ -10,9 +10,9 @@ import { detectPreferredLocale, isLocale, prefixPath, stripLocaleFromPathname } 
 const Home = React.lazy(
   () => import('./components/Home').then((module) => ({ default: module.Home })),
 );
-const WorkbenchPreRegistrationPage = React.lazy(
-  () => import('./components/WorkbenchPreRegistrationPage').then((module) => ({
-    default: module.WorkbenchPreRegistrationPage,
+const WorkbenchV3Page = React.lazy(
+  () => import('./components/WorkbenchV3Page').then((module) => ({
+    default: module.WorkbenchV3Page,
   })),
 );
 
@@ -36,8 +36,8 @@ const appRoutes = () => (
     <Route
       path="workbench"
       element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading Workbench status…" />}>
-          <WorkbenchPreRegistrationPage />
+        <React.Suspense fallback={<ProductPageLoading label="Loading V3 Workbench…" />}>
+          <WorkbenchV3Page />
         </React.Suspense>
       )}
     />

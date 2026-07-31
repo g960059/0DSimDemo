@@ -1,7 +1,8 @@
 # CircleHeart Studio — Experiment data architecture
 
-Status: authoritative pre-release architecture for Studio identity,
-persistence, Snapshot publication, Placement, and Reader runtime ownership
+Status: authoritative pre-release architecture and current direct-cutover
+implementation contract for Studio identity, persistence, Snapshot publication,
+Placement, and Reader runtime ownership
 
 Date: 2026-07-31
 
@@ -219,6 +220,13 @@ remain registry-private. Clients do not rehash packages at
 load or during simulation. They still perform ordinary schema, codec,
 model-ID, exact-key, range, and structural compatibility validation.
 
+For the integrated V3 development release, CI builds the exact model adapter
+entry as a deterministic registry artifact, frames it with the canonical
+manifest, and compares the internal digest with the checked registry-admission
+lock. A pull request that changes that framed package while retaining the prior
+`modelId` fails. This lock is registration/CI metadata; it is never delivered
+through the client catalog or copied into Studio content.
+
 Content-addressed blob storage may continue to use checksums internally.
 Storage addressing and corruption detection are not Studio domain identity.
 
@@ -301,6 +309,12 @@ solver boundary:
 state. It does not mean settled, scientifically validated, certified, or
 bit-identical under a different `modelId`.
 
+Checkpoint payloads carry numerical state, the codec's structural identities,
+and corruption guards only. They do not repeat release blockers, readiness,
+clinical/physiological validation flags, or an `exactResumeClaim` object. Those
+semantics are pinned by `modelId` and belong to the model contract or current
+scientific documentation, not every saved Scenario.
+
 An accepted boundary exists after an accepted numerical step. Settlement is a
 separate convergence property over a beat/window. Therefore an unsettled Draft
 can still contain a valid exact checkpoint.
@@ -365,8 +379,12 @@ fail-closed operations:
 
 ```ts
 validateFixture({ model, fixture }): void;
-validateCapture({ model, capture }): void;
+validateCapture({ model, capture }): Promise<void>;
 ```
+
+Capture validation may restore the opaque checkpoint in an asynchronous model
+runtime. Every authoring read or write awaits that validation before returning
+the value or making a repository mutation visible.
 
 Authoring applies them at these boundaries:
 
@@ -788,8 +806,10 @@ There is no production Studio database or user-authored content to migrate.
 The cutover is therefore intentionally destructive:
 
 - no V1 data reader, migration, dual-write, fallback, or compatibility alias;
-- no official Preset, Experiment, Snapshot, Placement, or Lesson content is
-  authored before the exact V3 model release is registered;
+- the exact integrated V3 development release is now the registered/default
+  Workbench path, but no official Preset, Experiment, Snapshot, Placement, or
+  Lesson content is authored until that development boundary is deliberately
+  promoted;
 - the default-model setting is only an authoring convenience. Creating an
   Experiment resolves it once and stores the exact `modelId`; saved content
   never stores a mutable `default` alias;
@@ -801,20 +821,37 @@ development. Historical sidecar evidence and generated replay artifacts live
 only in Git history. Content-addressed storage may still use hashes internally,
 but neither old release refs nor storage hashes enter the new Studio domain.
 
-## 17. Delivery sequence
+## 17. Delivery state and sequence
 
-1. Land the single-manifest contracts, fail-closed validation, atomic
+Completed in the current development cutover:
+
+1. single-manifest contracts, fail-closed validation, atomic
    manifest/artifact/executable-bundle registry admission, exact-runtime
-   resolver, workspace repository, and factory-composed sealed Snapshot gateway.
-2. Complete portable fixture control and accepted-boundary capture for
-   `MainWireIntegratedModelTransactionV3`.
-3. Register its equations/runtime/solver/schemas/codecs/gate/catalog package
-   under one new exact immutable `modelId`.
-4. Make that exact release the default for creating new Experiments.
-5. Connect Workbench Save/Snapshot and snapshot-pinned Reader Placements.
-6. Introduce the one-live owner and disposable preview artifacts.
-7. Author official Scenario Presets, Experiments, and Lesson pages only on the
-   registered V3 path.
+   resolution, workspace repository, and factory-composed sealed Snapshot
+   gateway;
+2. a canonical regular-sinus, normal-coronary, all-off/zero-inertance fixture,
+   accepted-boundary Draft capture, exact checkpoint restore, and an integrated
+   V3 live numerical session;
+3. one development package for `MainWireIntegratedModelTransactionV3` under
+   the exact immutable `modelId`
+   `circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-1`;
+4. trusted client resolution of that registry-admitted release as the default,
+   with no client-side package rehash;
+5. Workbench autostart through the generic Worker protocol; and
+6. a model-pinned candidate periodic Snapshot gate that accepts only period-1
+   converged, numerically admissible terminal checkpoints.
+
+Still deliberately deferred:
+
+1. portable model controls beyond the fixed canonical fixture;
+2. a Worker-to-authoring capture bridge followed by the Save/Snapshot UI and
+   snapshot-pinned Reader Placement;
+3. one-live article scheduling and disposable preview artifacts; and
+4. official Scenario Presets, Experiments, articles, and Lesson pages.
+
+The current development package makes no physiological, clinical, release-ready,
+or simulation-ready claim. Its parameter and control catalogs are intentionally
+empty until model-owned portable control semantics are connected.
 
 No step adds a hidden compatibility reader, automatic parent propagation,
 client-side package hash verification, or content encoded with a superseded

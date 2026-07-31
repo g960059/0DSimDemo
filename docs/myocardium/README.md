@@ -12,6 +12,11 @@ from this tree so they cannot be mistaken for the current implementation.
   integrated atomic transaction.
 - `engine/myocardium/MainWireIntegratedModelCheckpointV3.ts` owns its exact
   checkpoint contract.
+- `engine/myocardium/MainWireIntegratedModelRuntimeV3.ts` and
+  `engine/myocardium/MainWireIntegratedModelSessionV3.ts` own the canonical
+  regular-sinus/all-off development runtime used by Studio.
+- `engine/myocardium/MainWireIntegratedModelOutputRegistryV3.ts` owns the
+  initial registered output surface.
 - `engine/myocardium/MainWireIntegratedModelCanonicalSequenceV3.ts` owns the
   canonical execution sequence.
 - `engine/myocardium/runtimeActiveSource.ts` and
@@ -19,9 +24,11 @@ from this tree so they cannot be mistaken for the current implementation.
 - `engine/myocardium/MainWireFiveWallCoronaryTransactionV3.ts` is the current
   coronary transaction boundary.
 
-The V3 transaction is not yet registered as the Studio default model. Product
-experiments, lesson pages, and reusable `ScenarioPreset` records must be
-authored only after that registry cutover.
+The exact experimental V3 development package is the Studio default and live
+Workbench runtime. It is not release-ready or simulation-ready, exposes no
+portable controls yet, and ships no authored product content. Product
+experiments, lesson pages, and reusable `ScenarioPreset` records are authored
+only after deliberate promotion of that boundary.
 
 ## Retained specifications
 

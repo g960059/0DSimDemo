@@ -137,7 +137,8 @@ extends RegisteredModelContractResolverPortV2 {
 /**
  * Exact-model executable seam for opaque fixture/checkpoint validation.
  * Identity fields are checked against the registered public contract before
- * any validator is called.
+ * any validator is called. Capture validation is asynchronous so an adapter
+ * can await exact restore before a Studio read or write becomes visible.
  */
 export type RegisteredModelCaptureAdapterV2 = Readonly<{
   modelId: ModelIdV2;
@@ -150,7 +151,7 @@ export type RegisteredModelCaptureAdapterV2 = Readonly<{
   validateCapture(input: Readonly<{
     model: ModelContractV2;
     capture: ScenarioCaptureV2;
-  }>): void;
+  }>): Promise<void>;
 }>;
 
 export class ModelContractValidationErrorV2 extends Error {
@@ -333,16 +334,19 @@ export function deriveModelContractFromManifestV2(
     fixtureSchemaId: manifest.fixtureSchema.fixtureSchemaId,
     checkpointCodecId: manifest.checkpointCodec.checkpointCodecId,
     snapshotGateId: manifest.snapshotGate.snapshotGateId,
-    parameterCatalog: Object.freeze(manifest.catalogs.parameterCatalog.map(
+    parameterCatalog: Object.freeze(mapArrayByIndexV2(
+      manifest.catalogs.parameterCatalog,
       ({ parameterId }) => Object.freeze({ parameterId }),
     )),
-    controlCatalog: Object.freeze(manifest.catalogs.controlCatalog.map(
+    controlCatalog: Object.freeze(mapArrayByIndexV2(
+      manifest.catalogs.controlCatalog,
       ({ controlId, parameterIds }) => Object.freeze({
         controlId,
-        parameterIds: Object.freeze([...parameterIds]),
+        parameterIds: Object.freeze(copyArrayByIndexV2(parameterIds)),
       }),
     )),
-    outputCatalog: Object.freeze(manifest.catalogs.outputCatalog.map(
+    outputCatalog: Object.freeze(mapArrayByIndexV2(
+      manifest.catalogs.outputCatalog,
       (output) => output.kind === "signal"
         ? Object.freeze({
           outputId: output.outputId,
@@ -357,13 +361,14 @@ export function deriveModelContractFromManifestV2(
           unit: output.unit,
           shape: output.shape,
           scope: output.scope,
-          dependencies: Object.freeze([...output.dependencies]),
+          dependencies: Object.freeze(copyArrayByIndexV2(output.dependencies)),
         }),
     )),
-    graphCatalog: Object.freeze(manifest.catalogs.graphCatalog.map(
+    graphCatalog: Object.freeze(mapArrayByIndexV2(
+      manifest.catalogs.graphCatalog,
       ({ graphId, outputIds }) => Object.freeze({
         graphId,
-        outputIds: Object.freeze([...outputIds]),
+        outputIds: Object.freeze(copyArrayByIndexV2(outputIds)),
       }),
     )),
   });
@@ -518,11 +523,9 @@ function assertPortableArrayV2(
   ancestors: Set<object>,
   depth: number,
 ): void {
-  const expectedKeys = new Set([
-    "length",
-    ...value.map((_, index) => String(index)),
-  ]);
+  const expectedKeys = new Set<string>(["length"]);
   for (let index = 0; index < value.length; index += 1) {
+    expectedKeys.add(String(index));
     const descriptor = Object.getOwnPropertyDescriptor(
       value,
       String(index),
@@ -552,6 +555,23 @@ function assertPortableArrayV2(
       );
     }
   }
+}
+
+function mapArrayByIndexV2<TValue, TResult>(
+  value: readonly TValue[],
+  transform: (value: TValue, index: number) => TResult,
+): TResult[] {
+  const result: TResult[] = [];
+  for (let index = 0; index < value.length; index += 1) {
+    result.push(transform(value[index]!, index));
+  }
+  return result;
+}
+
+function copyArrayByIndexV2<TValue>(
+  value: readonly TValue[],
+): TValue[] {
+  return mapArrayByIndexV2(value, (entry) => entry);
 }
 
 function assertCatalogV2(
@@ -841,7 +861,8 @@ function assertKnownIdArrayV2(
     );
   }
   const seen = new Set<string>();
-  value.forEach((candidate, index) => {
+  for (let index = 0; index < value.length; index += 1) {
+    const candidate = value[index];
     assertPortableModelIdentifierV2(candidate, `${path}[${index}]`);
     if (!knownIds.has(candidate)) {
       throw new ModelContractValidationErrorV2(
@@ -856,7 +877,7 @@ function assertKnownIdArrayV2(
       );
     }
     seen.add(candidate);
-  });
+  }
 }
 
 function assertAcyclicMetricDependenciesV2(

@@ -103,7 +103,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3 = deepFreeze({
     externalAfOrNonSinusWhenIabpEnabled:
       "rejected-until-accepted-ventricular-event-triggered-owner-is-integrated" as const,
   }),
-  legacyAlgebraicMcsAcceptedInIntegratedLane: false as const,
+  algebraicMechanicalSupportAccepted: false as const,
   fixedGlobalBloodVolumeConservationInheritedFromCoronaryV3: true as const,
   dynamicMcsNodeRateConservationRequired: true as const,
   externalAfSeam: Object.freeze({
@@ -1030,7 +1030,7 @@ function rejectExternallyOwnedStepInputs(input: object): void {
   }
   if (Object.hasOwn(input, "mechanicalSupport")) {
     throw new Error(
-      "composed integrated lane rejects legacy algebraic mechanicalSupport",
+      "integrated V3 transaction rejects algebraic mechanicalSupport",
     );
   }
   if (Object.hasOwn(input, "dynamicMechanicalSupport")) {

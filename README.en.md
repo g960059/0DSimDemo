@@ -50,17 +50,28 @@ Key decisions:
 - settlement, numerical health, input epochs, and live samples are not durable
   content
 
-## V3 cutover order
+## Current V3 direct-cutover state
 
 No official Scenario Presets, Experiments, articles, or Lessons will be
 authored yet.
 
-1. Connect portable fixture, control, and checkpoint boundaries to
-   `MainWireIntegratedModelTransactionV3`.
-2. Register the V3 model package under one exact `modelId`.
-3. Make that registered package the default for creating new Experiments.
-4. Connect Workbench Save/Snapshot and Reader Placements.
-5. Only then author official Presets, Experiments, articles, and Lessons.
+Completed:
+
+1. package the canonical fixture, exact checkpoint, outputs, and
+   accepted-boundary capture for `MainWireIntegratedModelTransactionV3`;
+2. connect that package to registry admission under an exact development
+   `modelId`;
+3. resolve the registry-trusted release as the default model;
+4. autostart the live simulation through the generic Worker; and
+5. connect the period-1/minimum-numerical Snapshot gate.
+
+Remaining:
+
+1. admit portable controls beyond the fixed canonical fixture;
+2. bridge capture from the single Worker runtime owner into authoring, then
+   connect Workbench Save/Snapshot and Reader Placements;
+3. add one-live article scheduling and disposable previews; and
+4. only then author official Presets, Experiments, articles, and Lessons.
 
 Earlier case catalogs, lesson documents, numeric Experiment revisions, Working
 Set / Reader Brief types, and certification artifacts are not product-data
@@ -74,8 +85,9 @@ for the V3 integration. They are separate from durable Studio content.
 Research-artifact integrity digests and computed results are not copied into
 Experiments.
 
-Until the V3 package is admitted to the registry, the product exposes only Home
-and the pre-registration Workbench.
+The Workbench now advances the admitted exact V3 development package. Its
+parameter/control catalogs are intentionally empty, and the engine's
+`releaseReady` and `simulationReady` claims remain false.
 
 ## Important: research and teaching only
 
@@ -104,6 +116,7 @@ Primary checks:
 ```bash
 npm run typecheck
 npm run check:repository-hygiene
+npm run verify:registry:main-wire-v3
 npm run test:fast
 npm run test:pr
 npm run build
@@ -121,6 +134,9 @@ npm run test:suites:audit
 studio/contracts/v2/          current Studio domain contracts
 studio/application/           authoring command boundary
 studio/infrastructure/model/  exact model registry implementation
+studio/integrations/          exact model-specific Studio adapters
+studio/composition/           registry/default application composition
+studio/workers/               generic live simulation Worker boundary
 engine/                       numerical model and runtime
 docs/studio/                  current Studio design
 docs/myocardium/              V3 research and verification documents

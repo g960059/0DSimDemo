@@ -29,7 +29,6 @@ import {
   CORONARY_TERRITORY_IDS_V2,
 } from "@/engine/coronary/typesV2";
 import {
-  MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V2,
   checkpointMainWireFiveWallCoronaryV2,
   restoreMainWireFiveWallCoronaryV2,
   type MainWireFiveWallCoronaryCheckpointContextV2,
@@ -77,13 +76,7 @@ describe("main-wire five-wall coronary accepted-tuple checkpoint V2", () => {
         restored.coronary.toneResistanceScaleByTerritoryLayer[territoryId][layerId]
       ))).toHaveLength(6);
     expect(checkpoint.checkpointSha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(checkpoint.exactResumeClaim).toEqual(
-      MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V2,
-    );
-    expect(checkpoint.exactResumeClaim.autoregulationAccumulatorIncluded)
-      .toBe(false);
-    expect(checkpoint.exactResumeClaim.newSchemaRequiredBeforeAcceptedToneEvolution)
-      .toBe(true);
+    expect(checkpoint).not.toHaveProperty("exactResumeClaim");
   });
 
   it("binds every accepted owner with the outer SHA-256", async () => {

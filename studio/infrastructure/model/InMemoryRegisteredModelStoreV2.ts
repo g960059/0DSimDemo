@@ -231,7 +231,7 @@ function prepareRegistrationInputV2(
   });
 }
 
-function validateExecutableBundleV2(
+export function validateExecutableBundleV2(
   bundle: RegisteredModelExecutableBundleV2,
   model: ModelContractV2,
 ): void {
@@ -249,6 +249,7 @@ function validateExecutableBundleV2(
     "draftCapture",
     "snapshotGate",
     "fixtureAdapter",
+    "simulationAdapter",
   ], "executable bundle");
   assertExactExecutableKeysV2(bundle.captureAdapter, [
     "modelId",
@@ -276,6 +277,17 @@ function validateExecutableBundleV2(
       ? []
       : ["reduceKnobAction"]),
   ], "fixture adapter");
+  assertExactExecutableKeysV2(bundle.simulationAdapter, [
+    "modelId",
+    "fixtureSchemaId",
+    "checkpointCodecId",
+    "createSession",
+    "disposeSession",
+    "currentFrame",
+    "advanceOnePresentationStep",
+    "replaceFixture",
+    "currentInputEpoch",
+  ], "simulation adapter");
   if (
     bundle.modelId !== model.modelId
     || bundle.fixtureSchemaId !== model.fixtureSchemaId
@@ -298,6 +310,15 @@ function validateExecutableBundleV2(
     || bundle.fixtureAdapter?.modelId !== model.modelId
     || bundle.fixtureAdapter.fixtureSchemaId !== model.fixtureSchemaId
     || typeof bundle.fixtureAdapter.validateCompleteFixture !== "function"
+    || bundle.simulationAdapter?.modelId !== model.modelId
+    || bundle.simulationAdapter.fixtureSchemaId !== model.fixtureSchemaId
+    || bundle.simulationAdapter.checkpointCodecId !== model.checkpointCodecId
+    || typeof bundle.simulationAdapter.createSession !== "function"
+    || typeof bundle.simulationAdapter.disposeSession !== "function"
+    || typeof bundle.simulationAdapter.currentFrame !== "function"
+    || typeof bundle.simulationAdapter.advanceOnePresentationStep !== "function"
+    || typeof bundle.simulationAdapter.replaceFixture !== "function"
+    || typeof bundle.simulationAdapter.currentInputEpoch !== "function"
     || (
       bundle.fixtureAdapter.reduceKnobAction !== undefined
       && typeof bundle.fixtureAdapter.reduceKnobAction !== "function"
@@ -309,7 +330,7 @@ function validateExecutableBundleV2(
   }
 }
 
-function freezeExactRuntimeV2(
+export function freezeExactRuntimeV2(
   bundle: RegisteredModelExecutableBundleV2,
   contract: ModelContractV2,
 ): ResolvedExactModelRuntimeV2 {
@@ -340,6 +361,18 @@ function freezeExactRuntimeV2(
       ...(bundle.fixtureAdapter.reduceKnobAction === undefined
         ? {}
         : { reduceKnobAction: bundle.fixtureAdapter.reduceKnobAction }),
+    }),
+    simulationAdapter: Object.freeze({
+      modelId: bundle.simulationAdapter.modelId,
+      fixtureSchemaId: bundle.simulationAdapter.fixtureSchemaId,
+      checkpointCodecId: bundle.simulationAdapter.checkpointCodecId,
+      createSession: bundle.simulationAdapter.createSession,
+      disposeSession: bundle.simulationAdapter.disposeSession,
+      currentFrame: bundle.simulationAdapter.currentFrame,
+      advanceOnePresentationStep:
+        bundle.simulationAdapter.advanceOnePresentationStep,
+      replaceFixture: bundle.simulationAdapter.replaceFixture,
+      currentInputEpoch: bundle.simulationAdapter.currentInputEpoch,
     }),
   });
 }

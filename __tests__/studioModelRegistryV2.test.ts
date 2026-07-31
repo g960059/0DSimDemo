@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   STUDIO_REGISTERED_MODEL_PACKAGE_V2_SCHEMA_ID,
+  assertModelContractV2,
+  deriveModelContractFromManifestV2,
   type RegisteredModelCaptureAdapterV2,
   type RegisteredModelPackageManifestV2,
 } from "@/studio/contracts/v2/model";
@@ -165,6 +167,102 @@ describe("InMemoryRegisteredModelStoreV2", () => {
     negativeZero.solver.zero = -0;
     await expect(registerV2(new InMemoryRegisteredModelStoreV2(), negativeZero))
       .rejects.toThrow(/negative zero/);
+  });
+
+  it("canonicalizes inherited array methods as data-free prototype state", async () => {
+    const manifest = makeManifestV2() as any;
+    let callCount = 0;
+    const map = vi.fn(() => {
+      callCount += 1;
+      return callCount === 1
+        ? ["0"]
+        : [JSON.stringify({ parameterId: "forged" })];
+    });
+    const prototype = Object.create(Array.prototype) as { map: typeof map };
+    prototype.map = map;
+    Object.setPrototypeOf(manifest.catalogs.parameterCatalog, prototype);
+
+    const contract = await registerV2(
+      new InMemoryRegisteredModelStoreV2(),
+      manifest,
+    );
+
+    expect(contract.parameterCatalog).toEqual([{
+      parameterId: "circulation.tbv",
+    }]);
+    expect(map).not.toHaveBeenCalled();
+  });
+
+  it("rejects own array methods without executing them during canonicalization", async () => {
+    const manifest = makeManifestV2() as any;
+    const map = vi.fn(() => {
+      throw new Error("untrusted array method executed");
+    });
+    Object.defineProperty(manifest.catalogs.parameterCatalog, "map", {
+      enumerable: true,
+      value: map,
+    });
+
+    await expect(registerV2(
+      new InMemoryRegisteredModelStoreV2(),
+      manifest,
+    )).rejects.toThrow(/custom array properties/);
+    expect(map).not.toHaveBeenCalled();
+  });
+
+  it("validates actual catalog IDs without invoking inherited array methods", () => {
+    const contract = structuredClone(
+      deriveModelContractFromManifestV2(makeManifestV2()),
+    ) as any;
+    contract.graphCatalog[0].outputIds = ["output/missing"];
+    const map = vi.fn(() => ["0"]);
+    const forEach = vi.fn();
+    const prototype = Object.create(Array.prototype) as {
+      map: typeof map;
+      forEach: typeof forEach;
+    };
+    prototype.map = map;
+    prototype.forEach = forEach;
+    Object.setPrototypeOf(contract.graphCatalog[0].outputIds, prototype);
+
+    expect(() => assertModelContractV2(contract)).toThrow(/unknown output/);
+    expect(map).not.toHaveBeenCalled();
+    expect(forEach).not.toHaveBeenCalled();
+  });
+
+  it("derives catalog copies without invoking inherited map, forEach, or iteration", () => {
+    const manifest = makeManifestV2() as any;
+    const catalog = manifest.catalogs.controlCatalog;
+    const parameterIds = catalog[0].parameterIds;
+    const catalogMap = vi.fn((callback: unknown) =>
+      Array.prototype.map.call(catalog, callback));
+    const idMap = vi.fn((callback: unknown) =>
+      Array.prototype.map.call(parameterIds, callback));
+    const idForEach = vi.fn((callback: unknown) =>
+      Array.prototype.forEach.call(parameterIds, callback));
+    const idIterator = vi.fn(() =>
+      Array.prototype[Symbol.iterator].call(parameterIds));
+    const catalogPrototype = Object.create(Array.prototype);
+    Object.defineProperty(catalogPrototype, "map", { value: catalogMap });
+    const idPrototype = Object.create(Array.prototype);
+    Object.defineProperties(idPrototype, {
+      map: { value: idMap },
+      forEach: { value: idForEach },
+      [Symbol.iterator]: { value: idIterator },
+    });
+    Object.setPrototypeOf(catalog, catalogPrototype);
+    Object.setPrototypeOf(parameterIds, idPrototype);
+
+    const contract = deriveModelContractFromManifestV2(manifest);
+
+    expect(contract.controlCatalog).toEqual([{
+      controlId: "control.tbv",
+      parameterIds: ["circulation.tbv"],
+    }]);
+    expect(catalogMap).not.toHaveBeenCalled();
+    expect(idMap).not.toHaveBeenCalled();
+    expect(idForEach).not.toHaveBeenCalled();
+    expect(idIterator).not.toHaveBeenCalled();
   });
 
   it("keeps the digest private and performs no client-side hash on resolve", async () => {
@@ -331,6 +429,25 @@ function makeExecutableBundleV2(
       fixtureSchemaId: manifest.fixtureSchema.fixtureSchemaId,
       validateCompleteFixture() {},
     },
+    simulationAdapter: {
+      modelId: manifest.modelId,
+      fixtureSchemaId: manifest.fixtureSchema.fixtureSchemaId,
+      checkpointCodecId: manifest.checkpointCodec.checkpointCodecId,
+      async createSession() {},
+      disposeSession() {},
+      currentFrame() {
+        throw new Error("not used");
+      },
+      advanceOnePresentationStep() {
+        throw new Error("not used");
+      },
+      async replaceFixture() {
+        return 0;
+      },
+      currentInputEpoch() {
+        return 0;
+      },
+    },
   };
 }
 
@@ -407,6 +524,6 @@ function makeCaptureAdapterV2(
     fixtureSchemaId: manifest.fixtureSchema.fixtureSchemaId,
     checkpointCodecId: manifest.checkpointCodec.checkpointCodecId,
     validateFixture() {},
-    validateCapture() {},
+    async validateCapture() {},
   };
 }

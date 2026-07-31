@@ -162,7 +162,7 @@ export function validateScenarioPresetV2(
 }
 
 export type ScenarioPresetCaptureClonerV2 = Readonly<{
-  clone(value: unknown): ScenarioCaptureV2;
+  clone(value: unknown): Promise<ScenarioCaptureV2>;
 }>;
 
 /**
@@ -177,13 +177,13 @@ export function createScenarioPresetCaptureClonerV2(
   models: ExactModelRuntimeResolverPortV2,
 ): ScenarioPresetCaptureClonerV2 {
   return Object.freeze({
-    clone(value: unknown): ScenarioCaptureV2 {
+    async clone(value: unknown): Promise<ScenarioCaptureV2> {
       const preset = validateScenarioPresetV2(value);
       const runtime = models.resolveExactRuntime(preset.modelId);
       assertModelContractV2(runtime.contract);
       assertScenarioPresetMatchesModelV2(preset, runtime.contract);
       const capture = validateScenarioCaptureV2(preset.capture);
-      assertCaptureMatchesModelV2(
+      await assertCaptureMatchesModelV2(
         capture,
         runtime.contract,
         runtime.captureAdapter,
@@ -450,33 +450,35 @@ export function assertExperimentDesiredFixturesMatchModelV2(
   });
 }
 
-export function assertExperimentCapturesMatchModelV2(
+export async function assertExperimentCapturesMatchModelV2(
   content: ExperimentContentV2,
   model: ModelContractV2,
   adapter: RegisteredModelCaptureAdapterV2,
-): void {
-  content.scenarios.forEach((scenario, index) =>
-    assertCaptureMatchesModelV2(
+): Promise<void> {
+  for (let index = 0; index < content.scenarios.length; index += 1) {
+    const scenario = content.scenarios[index];
+    await assertCaptureMatchesModelV2(
       scenario.capture,
       model,
       adapter,
       `$.content.scenarios[${index}].capture`,
-    ));
+    );
+  }
 }
 
-function assertCaptureMatchesModelV2(
+async function assertCaptureMatchesModelV2(
   capture: ScenarioCaptureV2,
   model: ModelContractV2,
   adapter: RegisteredModelCaptureAdapterV2,
   path: string,
-): void {
+): Promise<void> {
   assertCaptureAdapterBindingV2(adapter, model);
   try {
     adapter.validateFixture(Object.freeze({
       model,
       fixture: capture.fixture,
     }));
-    adapter.validateCapture(Object.freeze({ model, capture }));
+    await adapter.validateCapture(Object.freeze({ model, capture }));
   } catch (error) {
     throw validationErrorV2(
       path,

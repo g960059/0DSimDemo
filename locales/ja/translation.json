@@ -19,14 +19,31 @@
     "eyebrow": "CIRCULATORY PHYSIOLOGY WORKBENCH",
     "headline": "循環動態を、動かして学ぶ。",
     "lead": "循環動態を探索し、Workbenchで実験を組み立てます。",
-    "openWorkbenchStatus": "Workbenchの準備状況を見る"
+    "openWorkbenchStatus": "V3 Workbenchを開く"
   },
   "workbench": {
-    "preRegistration": {
-      "eyebrow": "PRE-RELEASE WORKBENCH",
-      "title": "exact V3 modelは、まだregistryに登録されていません。",
-      "description": "MainWireIntegratedModelTransactionV3をimmutable modelとしてregistryへ登録し、defaultにした後でWorkbenchを公開します。",
-      "status": "Experimentと公開コンテンツはregistry cutoverの後に作成します。暫定コンテンツは読み込みません。"
+    "live": {
+      "badge": "Registry-bound live V3",
+      "experimental": "Experimental development default",
+      "title": "Main Wire Integrated Model V3",
+      "description": "exact model registryから解決したSimulation adapterをWorker内で実行しています。表示値はaccepted boundaryのみで、暫定のExperimentやPresetは作成していません。",
+      "loading": "registryが保証したV3 releaseを読み込み、Workerを初期化しています…",
+      "errorTitle": "V3 runtimeを開始できませんでした",
+      "model": "exact model",
+      "modelTime": "model time",
+      "revision": "accepted revision",
+      "inputEpoch": "input epoch",
+      "pressureChart": "左室・大動脈圧",
+      "flowChart": "冠血流・LVAD流量",
+      "coronaryFlow": "冠血流",
+      "acceptedReadback": "Accepted readback",
+      "firstAcceptedStep": "最初のaccepted stepを待っています。",
+      "contentBoundary": "Durable content boundary",
+      "zeroContent": "起動時にWorkspace、Snapshot、Preset、Lessonは一件も作成しません。defaultはcomposition設定であり、保存データへaliasとして入りません。",
+      "workspaces": "Workspaces",
+      "snapshots": "Snapshots",
+      "snapshotGateTitle": "Candidate Snapshot gate接続済み",
+      "snapshotGateDescription": "明示的なSnapshot作成時に、保存済みfrozen Draftのcheckpointをrestoreし、canonical periodic policyでsettleします。P1のみを通し、fresh exact checkpointを取得します。これは数値的eligibility gateであり、生理学的・臨床的validationの主張ではありません。"
     }
   },
   "modelLimitations": {
@@ -38,7 +55,7 @@
     "items": [
       "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",
       "0D集中定数モデルでは、空間的な血流、局所壁応力、3D血行動態を解像できません。",
-      "exact V3 packageが製品用model registryへ登録されるまで、simulation surfaceは公開しません。",
+      "現在のexact V3 packageは開発用experimental defaultです。releaseReady、simulationReady、臨床validationを主張しません。",
       "parameterとoutputは近似であり、目的とする科学的用途ごとのvalidationが必要です。"
     ]
   }

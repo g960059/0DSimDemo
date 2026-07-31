@@ -238,13 +238,13 @@ describe("Studio Experiment data V2", () => {
     ).toThrow(/exact permutation/);
   });
 
-  it("validates the only reusable named input/state object and applies it by copy", () => {
+  it("validates the only reusable named input/state object and applies it by copy", async () => {
     const caller = presetV2();
     const preset = validateScenarioPresetV2(caller);
     const cloner = createScenarioPresetCaptureClonerV2(
       exactRuntimeResolverV2(),
     );
-    const applied = cloner.clone(caller);
+    const applied = await cloner.clone(caller);
 
     expect(preset).toMatchObject({
       presetId: "preset/healthy",
@@ -269,21 +269,21 @@ describe("Studio Experiment data V2", () => {
 
     const wrongModel = presetV2();
     wrongModel.modelId = "model/other";
-    expect(() => cloner.clone(wrongModel)).toThrow(/not registered/);
+    await expect(cloner.clone(wrongModel)).rejects.toThrow(/not registered/);
 
     const wrongCodec = presetV2() as any;
     wrongCodec.capture.checkpoint.payload = { wrongCodec: true };
-    expect(() => cloner.clone(wrongCodec)).toThrow(/rejected capture/);
+    await expect(cloner.clone(wrongCodec)).rejects.toThrow(/rejected capture/);
 
     const spoofedAdapter = {
       ...captureAdapterV2(),
       validateFixture() {},
-      validateCapture() {},
+      async validateCapture() {},
     };
     expect(Object.keys(cloner)).toEqual(["clone"]);
     expect(cloner).not.toHaveProperty("adapter");
-    expect(() => (cloner.clone as any)(wrongCodec, spoofedAdapter))
-      .toThrow(/rejected capture/);
+    await expect((cloner.clone as any)(wrongCodec, spoofedAdapter))
+      .rejects.toThrow(/rejected capture/);
   });
 
   it("fails closed on malformed checkpoints, duplicate identity, forbidden fields and non-JSON data", () => {
@@ -576,7 +576,7 @@ function captureAdapterV2(): RegisteredModelCaptureAdapterV2 {
       const svr = (fixture as any)?.controls?.svr;
       if (typeof svr !== "number") throw new Error("invalid fixture schema");
     },
-    validateCapture({ capture }) {
+    async validateCapture({ capture }) {
       if (!Array.isArray((capture.checkpoint.payload as any)?.state)) {
         throw new Error("invalid checkpoint codec");
       }
@@ -614,6 +614,25 @@ function exactRuntimeResolverV2() {
           modelId: contract.modelId,
           fixtureSchemaId: contract.fixtureSchemaId,
           validateCompleteFixture() {},
+        },
+        simulationAdapter: {
+          modelId: contract.modelId,
+          fixtureSchemaId: contract.fixtureSchemaId,
+          checkpointCodecId: contract.checkpointCodecId,
+          async createSession() {},
+          disposeSession() {},
+          currentFrame() {
+            throw new Error("not used by Preset clone");
+          },
+          advanceOnePresentationStep() {
+            throw new Error("not used by Preset clone");
+          },
+          async replaceFixture() {
+            return 0;
+          },
+          currentInputEpoch() {
+            return 0;
+          },
         },
       };
     },

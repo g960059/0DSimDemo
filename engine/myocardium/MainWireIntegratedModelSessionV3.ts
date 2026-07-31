@@ -13,10 +13,10 @@ import {
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
-  createMainWireIntegratedLaneBootstrapV1,
-  mainWireIntegratedLaneCheckpointContextV1,
-  type MainWireIntegratedLaneBootstrapV1,
-} from "@/engine/myocardium/MainWireIntegratedLaneBootstrapV1";
+  createMainWireIntegratedModelRuntimeV3,
+  mainWireIntegratedModelCheckpointContextV3,
+  type MainWireIntegratedModelRuntimeV3,
+} from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -24,12 +24,12 @@ import type {
   MainWireNormalAdultFiveWallProviderV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 
-export const MAIN_WIRE_INTEGRATED_LANE_SESSION_V1_ID =
-  "main-wire-integrated-lane-session-v1" as const;
+export const MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID =
+  "main-wire-integrated-model-session-v3" as const;
 
-export const INTEGRATED_LANE_PRESENTATION_DT_SEC_V1 = 0.002 as const;
-export const INTEGRATED_LANE_MAX_SUBSTEPS_PER_INTERVAL_V1 = 16 as const;
-export const INTEGRATED_LANE_PRESENTATION_COVERAGE_V1 =
+export const MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3 = 0.002 as const;
+export const MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3 = 16 as const;
+export const MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_COVERAGE_V3 =
   "integrated-v3-live-presentation" as const;
 
 type WallState = MainWireNormalAdultFiveWallMechanicsStateV1;
@@ -40,7 +40,7 @@ type AdvanceFailureReason =
   | "substep-budget-exhausted"
   | "candidate-time-did-not-advance";
 
-export type MainWireIntegratedLaneObservationV1 = Readonly<{
+export type MainWireIntegratedModelObservationV3 = Readonly<{
   source:
     | "cold"
     | "presentation-target"
@@ -51,7 +51,7 @@ export type MainWireIntegratedLaneObservationV1 = Readonly<{
 }>;
 
 /** One internal accepted commit. It is diagnostic state, not a sample. */
-export type MainWireIntegratedLaneSubstepRecordV1 = Readonly<{
+export type MainWireIntegratedModelSubstepRecordV3 = Readonly<{
   acceptedRevision: number;
   acceptedTimeSec: number;
   landedOnPresentationTarget: boolean;
@@ -61,7 +61,7 @@ export type MainWireIntegratedLaneSubstepRecordV1 = Readonly<{
   rhythmBoundaryOwners: readonly string[];
 }>;
 
-export type MainWireIntegratedLanePresentationAdvanceV1 =
+export type MainWireIntegratedModelPresentationAdvanceV3 =
   | Readonly<{
       status: "advanced";
       presentationTimeSec: number;
@@ -70,8 +70,8 @@ export type MainWireIntegratedLanePresentationAdvanceV1 =
       acceptedRevisionSpanFromPrevious: number;
       internalAcceptedSubstepCount: number;
       boundaryClippedSubstepCount: number;
-      substeps: readonly MainWireIntegratedLaneSubstepRecordV1[];
-      observation: MainWireIntegratedLaneObservationV1;
+      substeps: readonly MainWireIntegratedModelSubstepRecordV3[];
+      observation: MainWireIntegratedModelObservationV3;
     }>
   | Readonly<{
       status: "already-at-target";
@@ -79,7 +79,7 @@ export type MainWireIntegratedLanePresentationAdvanceV1 =
       acceptedTimeSec: number;
       acceptedRevision: number;
       internalAcceptedSubstepCount: 0;
-      observation: MainWireIntegratedLaneObservationV1;
+      observation: MainWireIntegratedModelObservationV3;
     }>
   | Readonly<{
       status: "failed";
@@ -90,53 +90,56 @@ export type MainWireIntegratedLanePresentationAdvanceV1 =
       partiallyAdvanced: boolean;
       internalAcceptedSubstepCount: number;
       boundaryClippedSubstepCount?: number;
-      substeps?: readonly MainWireIntegratedLaneSubstepRecordV1[];
+      substeps?: readonly MainWireIntegratedModelSubstepRecordV3[];
       requestedPresentationTimeSec: number;
     }>;
 
 /** Pure ordinal-to-time map. The presentation ordinal is the sample identity. */
-export function integratedLanePresentationTargetTimeSecV1(
+export function mainWireIntegratedModelPresentationTargetTimeSecV3(
   presentationOrdinal: number,
 ): number {
   if (!Number.isSafeInteger(presentationOrdinal) || presentationOrdinal < 0) {
-    throw new Error("integrated lane presentation ordinal is invalid");
+    throw new Error("Main Wire Integrated V3 presentation ordinal is invalid");
   }
-  return presentationOrdinal * INTEGRATED_LANE_PRESENTATION_DT_SEC_V1;
+  return presentationOrdinal * MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3;
 }
 
 /**
- * Numerical session for the fixed integrated-lane bootstrap. It owns model
- * state and readback only; it is not a registered Studio model adapter.
+ * Numerical session for the exact integrated V3 runtime. It owns model state
+ * and accepted-boundary readback behind the registered Studio adapter.
  */
-export class MainWireIntegratedLaneSessionV1 {
-  readonly sessionId = MAIN_WIRE_INTEGRATED_LANE_SESSION_V1_ID;
+export class MainWireIntegratedModelSessionV3 {
+  readonly sessionId = MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID;
 
-  private readonly bootstrap: MainWireIntegratedLaneBootstrapV1;
+  private readonly runtime: MainWireIntegratedModelRuntimeV3;
   private readonly provider: MainWireNormalAdultFiveWallProviderV1;
   private readonly rhythmInput: MainWireIntegratedComposedRhythmStepContextV3;
+  private readonly dynamicMechanicalSupportConfig:
+    MainWireIntegratedModelRuntimeV3["config"];
   private acceptedState: AcceptedState;
   private lastAcceptedStep: SuccessfulStep | null;
-  private lastPresentationObservation: MainWireIntegratedLaneObservationV1;
+  private lastPresentationObservation: MainWireIntegratedModelObservationV3;
 
   private constructor(
-    bootstrap: MainWireIntegratedLaneBootstrapV1,
+    runtime: MainWireIntegratedModelRuntimeV3,
     acceptedState: AcceptedState,
     observationSource:
-      MainWireIntegratedLaneObservationV1["source"],
+      MainWireIntegratedModelObservationV3["source"],
   ) {
     validateMainWireIntegratedModelAcceptedStateV3(
       acceptedState,
-      { configuration: bootstrap.rhythm.configuration },
-      bootstrap.profile,
-      bootstrap.config,
+      { configuration: runtime.rhythm.configuration },
+      runtime.profile,
+      runtime.config,
     );
-    this.bootstrap = bootstrap;
-    this.provider = bootstrap.provider;
+    this.runtime = runtime;
+    this.provider = runtime.provider;
     this.rhythmInput = Object.freeze({
-      configuration: bootstrap.rhythm.configuration,
+      configuration: runtime.rhythm.configuration,
       externalAfNextBoundaryTimeSec: null,
       externalAtrialSourceBatch: null,
     });
+    this.dynamicMechanicalSupportConfig = runtime.config;
     this.acceptedState = acceptedState;
     this.lastAcceptedStep = null;
     this.lastPresentationObservation = observation(
@@ -146,28 +149,28 @@ export class MainWireIntegratedLaneSessionV1 {
     );
   }
 
-  static async create(): Promise<MainWireIntegratedLaneSessionV1> {
-    const bootstrap = await createMainWireIntegratedLaneBootstrapV1();
-    return new MainWireIntegratedLaneSessionV1(
-      bootstrap,
-      bootstrap.cold.acceptedState,
+  static async create(): Promise<MainWireIntegratedModelSessionV3> {
+    const runtime = await createMainWireIntegratedModelRuntimeV3();
+    return new MainWireIntegratedModelSessionV3(
+      runtime,
+      runtime.cold.acceptedState,
       "cold",
     );
   }
 
   static async restoreOperationalCheckpoint(
     checkpoint: unknown,
-  ): Promise<MainWireIntegratedLaneSessionV1> {
-    const bootstrap = await createMainWireIntegratedLaneBootstrapV1();
+  ): Promise<MainWireIntegratedModelSessionV3> {
+    const runtime = await createMainWireIntegratedModelRuntimeV3();
     const acceptedState = await restoreMainWireIntegratedModelV3(
-      mainWireIntegratedLaneCheckpointContextV1(
-        bootstrap,
-        bootstrap.cold.acceptedState,
+      mainWireIntegratedModelCheckpointContextV3(
+        runtime,
+        runtime.cold.acceptedState,
       ),
       checkpoint,
     );
-    return new MainWireIntegratedLaneSessionV1(
-      bootstrap,
+    return new MainWireIntegratedModelSessionV3(
+      runtime,
       acceptedState,
       "operational-checkpoint-restore",
     );
@@ -177,7 +180,7 @@ export class MainWireIntegratedLaneSessionV1 {
     return this.acceptedState;
   }
 
-  observe(): MainWireIntegratedLaneObservationV1 {
+  observe(): MainWireIntegratedModelObservationV3 {
     return this.lastPresentationObservation;
   }
 
@@ -195,13 +198,15 @@ export class MainWireIntegratedLaneSessionV1 {
    */
   advanceToPresentationTime(
     targetTimeSec: number,
-  ): MainWireIntegratedLanePresentationAdvanceV1 {
+  ): MainWireIntegratedModelPresentationAdvanceV3 {
     if (!Number.isFinite(targetTimeSec) || targetTimeSec < 0) {
-      throw new Error("integrated lane presentation target time is invalid");
+      throw new Error(
+        "Main Wire Integrated V3 presentation target time is invalid",
+      );
     }
     if (targetTimeSec < this.acceptedState.acceptedTimeSec) {
       throw new Error(
-        "integrated lane presentation target precedes accepted model time",
+        "Main Wire Integrated V3 presentation target precedes accepted time",
       );
     }
     if (targetTimeSec === this.acceptedState.acceptedTimeSec) {
@@ -218,13 +223,13 @@ export class MainWireIntegratedLaneSessionV1 {
     const previousPresentationRevision =
       this.lastPresentationObservation.acceptedState.revision;
     let substepCount = 0;
-    const substeps: MainWireIntegratedLaneSubstepRecordV1[] = [];
+    const substeps: MainWireIntegratedModelSubstepRecordV3[] = [];
 
     while (this.acceptedState.acceptedTimeSec !== targetTimeSec) {
-      if (substepCount >= INTEGRATED_LANE_MAX_SUBSTEPS_PER_INTERVAL_V1) {
+      if (substepCount >= MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3) {
         return this.failedAdvance(
           "substep-budget-exhausted",
-          "integrated lane presentation interval exhausted its substep budget",
+          "Main Wire Integrated V3 interval exhausted its substep budget",
           targetTimeSec,
           substeps,
         );
@@ -240,8 +245,8 @@ export class MainWireIntegratedLaneSessionV1 {
             externalAfNextBoundaryTimeSec:
               this.rhythmInput.externalAfNextBoundaryTimeSec,
           },
-          this.bootstrap.profile,
-          this.bootstrap.config,
+          this.runtime.profile,
+          this.dynamicMechanicalSupportConfig,
         );
       } catch (error) {
         if (!isNonadvancingLimiterError(error)) throw error;
@@ -256,7 +261,7 @@ export class MainWireIntegratedLaneSessionV1 {
       if (!(limit.candidateTimeSec > this.acceptedState.acceptedTimeSec)) {
         return this.failedAdvance(
           "candidate-time-did-not-advance",
-          "integrated lane candidate time did not advance",
+          "Main Wire Integrated V3 candidate time did not advance",
           targetTimeSec,
           substeps,
         );
@@ -267,9 +272,12 @@ export class MainWireIntegratedLaneSessionV1 {
         this.acceptedState,
         {
           candidateTimeSec: limit.candidateTimeSec,
-          coronary: this.bootstrap.coronaryStepInput,
+          coronary: this.runtime.coronaryStepInput,
           rhythm: this.rhythmInput,
-          dynamicMechanicalSupport: this.bootstrap.dynamicMechanicalSupport,
+          dynamicMechanicalSupport: Object.freeze({
+            config: this.dynamicMechanicalSupportConfig,
+            profile: this.runtime.profile,
+          }),
         },
       );
       if (result.converged === false) {
@@ -283,7 +291,7 @@ export class MainWireIntegratedLaneSessionV1 {
       if (result.acceptedState.acceptedTimeSec !== limit.candidateTimeSec) {
         return this.failedAdvance(
           "integrated-promotion-rejected",
-          "integrated lane accepted clock did not equal the limited candidate",
+          "Main Wire Integrated V3 accepted clock differs from candidate",
           targetTimeSec,
           substeps,
         );
@@ -309,7 +317,7 @@ export class MainWireIntegratedLaneSessionV1 {
     if (this.acceptedState.acceptedTimeSec !== targetTimeSec) {
       return this.failedAdvance(
         "integrated-promotion-rejected",
-        "integrated lane did not land exactly on its presentation target",
+        "Main Wire Integrated V3 did not land on its presentation target",
         targetTimeSec,
         substeps,
       );
@@ -317,7 +325,7 @@ export class MainWireIntegratedLaneSessionV1 {
     if (this.lastAcceptedStep === null) {
       return this.failedAdvance(
         "integrated-promotion-rejected",
-        "integrated lane advanced without an accepted-step readback",
+        "Main Wire Integrated V3 advanced without accepted-step readback",
         targetTimeSec,
         substeps,
       );
@@ -327,7 +335,7 @@ export class MainWireIntegratedLaneSessionV1 {
     if (acceptedRevisionSpanFromPrevious < 1) {
       return this.failedAdvance(
         "integrated-promotion-rejected",
-        "integrated lane accepted revision did not advance",
+        "Main Wire Integrated V3 accepted revision did not advance",
         targetTimeSec,
         substeps,
       );
@@ -355,20 +363,24 @@ export class MainWireIntegratedLaneSessionV1 {
   }
 
   private checkpointContext() {
-    const base = mainWireIntegratedLaneCheckpointContextV1(
-      this.bootstrap,
+    const base = mainWireIntegratedModelCheckpointContextV3(
+      this.runtime,
       this.acceptedState,
     );
-    return Object.freeze({ ...base, provider: this.provider });
+    return Object.freeze({
+      ...base,
+      provider: this.provider,
+      dynamicMechanicalSupportConfig: this.dynamicMechanicalSupportConfig,
+    });
   }
 
   private failedAdvance(
     reason: AdvanceFailureReason,
     message: string,
     targetTimeSec: number,
-    substeps: readonly MainWireIntegratedLaneSubstepRecordV1[],
+    substeps: readonly MainWireIntegratedModelSubstepRecordV3[],
   ): Extract<
-    MainWireIntegratedLanePresentationAdvanceV1,
+    MainWireIntegratedModelPresentationAdvanceV3,
     { status: "failed" }
   > {
     return Object.freeze({
@@ -388,10 +400,10 @@ export class MainWireIntegratedLaneSessionV1 {
 }
 
 function observation(
-  source: MainWireIntegratedLaneObservationV1["source"],
+  source: MainWireIntegratedModelObservationV3["source"],
   acceptedState: AcceptedState,
   lastAcceptedStep: SuccessfulStep | null,
-): MainWireIntegratedLaneObservationV1 {
+): MainWireIntegratedModelObservationV3 {
   return Object.freeze({ source, acceptedState, lastAcceptedStep });
 }
 

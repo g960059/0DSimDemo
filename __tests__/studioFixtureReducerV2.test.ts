@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createStudioFixtureReducerV2,
@@ -130,6 +130,151 @@ describe("Studio fixture reducer V2", () => {
       },
     })).toThrow(/number must be finite/);
     expect(currentFixture.controls.valid).toBe(1);
+  });
+
+  it("never dispatches through caller-controlled array methods", () => {
+    const changesMap = vi.fn(() => [{
+      path: ["value"],
+      value: Number.NaN,
+    }]);
+    const changes: [{ path: ["value"]; value: number }] = [{
+      path: ["value"],
+      value: 2,
+    }];
+    const changesPrototype = Object.create(Array.prototype) as {
+      map: typeof changesMap;
+    };
+    changesPrototype.map = changesMap;
+    Object.setPrototypeOf(changes, changesPrototype);
+
+    expect(reduceFixtureV2({
+      desiredFixture: { value: 1 },
+      action: {
+        kind: "control",
+        patch: { changes },
+      },
+    })).toEqual({ value: 2 });
+    expect(changesMap).not.toHaveBeenCalled();
+
+    const pathMap = vi.fn(() => ["missing"]);
+    const path: ["value"] = ["value"];
+    const pathPrototype = Object.create(Array.prototype) as {
+      map: typeof pathMap;
+    };
+    pathPrototype.map = pathMap;
+    Object.setPrototypeOf(path, pathPrototype);
+
+    expect(reduceFixtureV2({
+      desiredFixture: { value: 1 },
+      action: {
+        kind: "control",
+        patch: { changes: [{ path, value: 3 }] },
+      },
+    })).toEqual({ value: 3 });
+    expect(pathMap).not.toHaveBeenCalled();
+  });
+
+  it("rejects own array methods without invoking them", () => {
+    const map = vi.fn(() => [{ path: ["value"], value: Number.NaN }]);
+    const changes = [{ path: ["value"], value: 2 }];
+    Object.defineProperty(changes, "map", {
+      enumerable: true,
+      value: map,
+    });
+
+    expect(() => reduceFixtureV2({
+      desiredFixture: { value: 1 },
+      action: {
+        kind: "control",
+        patch: { changes } as any,
+      },
+    })).toThrow(/custom properties/);
+    expect(map).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown or explicitly undefined command fields", () => {
+    const base = {
+      desiredFixture: { value: 1 },
+      action: {
+        kind: "control",
+        patch: { changes: [{ path: ["value"], value: 2 }] },
+      },
+      context: {
+        scenarioId: "scenario/baseline",
+        modelId: "model/main-wire-v3-r1",
+      },
+    } as const;
+    const reducer = createReducerV2();
+    const foreignInputs = [
+      { ...base, targetGeneration: 1 },
+      { ...base, action: { ...base.action, status: "pending" } },
+      {
+        ...base,
+        action: {
+          ...base.action,
+          patch: { ...base.action.patch, status: "pending" },
+        },
+      },
+      {
+        ...base,
+        action: {
+          ...base.action,
+          patch: {
+            changes: [{
+              ...base.action.patch.changes[0],
+              parameterSetId: "legacy-set",
+            }],
+          },
+        },
+      },
+      {
+        ...base,
+        action: {
+          ...base.action,
+          requestCorrelation: undefined,
+        },
+      },
+      {
+        ...base,
+        action: {
+          kind: "knob",
+          knobKey: "vascular-tone",
+          value: 1.2,
+          status: "pending",
+        },
+      },
+    ];
+
+    for (const input of foreignInputs) {
+      expect(() => reducer.reduce(input as any)).toThrow(/exactly|field/);
+    }
+  });
+
+  it("rejects non-string runtime IDs before resolving a model", () => {
+    const resolveExactRuntime = vi.fn();
+    const reducer = createReducerV2(resolveExactRuntime);
+
+    const invalidContexts = [
+      ...[undefined, null, 123].map((scenarioId) => ({
+        modelId: "model/main-wire-v3-r1",
+        scenarioId,
+      })),
+      ...[undefined, null, 123].map((modelId) => ({
+        modelId,
+        scenarioId: "scenario/baseline",
+      })),
+    ];
+    for (const context of invalidContexts) {
+      expect(() => reducer.reduce({
+        desiredFixture: { value: 1 },
+        action: {
+          kind: "control",
+          patch: { changes: [{ path: ["value"], value: 2 }] },
+        },
+        context,
+      } as any)).toThrow(/portable modelId and scenarioId/);
+    }
+    expect(resolveExactRuntime).not.toHaveBeenCalled();
   });
 
   it("uses the model reducer seam to map one complex knob to one atomic patch", () => {
@@ -399,17 +544,13 @@ function reduceFixtureV2(
     fixtureSchemaId: "fixture/main-wire-v3-r1",
     validateCompleteFixture() {},
   };
-  const reducer = createStudioFixtureReducerV2({
-    resolveExactRuntime(modelId) {
-      return {
-        contract: {
-          modelId,
-          fixtureSchemaId: "fixture/main-wire-v3-r1",
-        },
-        fixtureAdapter: modelAdapter,
-      } as any;
+  const reducer = createReducerV2((modelId) => ({
+    contract: {
+      modelId,
+      fixtureSchemaId: "fixture/main-wire-v3-r1",
     },
-  });
+    fixtureAdapter: modelAdapter,
+  } as any));
   return reducer.reduce({
     desiredFixture: input.desiredFixture,
     action: input.action,
@@ -418,4 +559,20 @@ function reduceFixtureV2(
       modelId: "model/main-wire-v3-r1",
     },
   });
+}
+
+function createReducerV2(
+  resolveExactRuntime: (modelId: string) => any = (modelId) => ({
+    contract: {
+      modelId,
+      fixtureSchemaId: "fixture/main-wire-v3-r1",
+    },
+    fixtureAdapter: {
+      modelId,
+      fixtureSchemaId: "fixture/main-wire-v3-r1",
+      validateCompleteFixture() {},
+    },
+  }),
+) {
+  return createStudioFixtureReducerV2({ resolveExactRuntime });
 }

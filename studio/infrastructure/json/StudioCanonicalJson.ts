@@ -67,9 +67,20 @@ function serialize(
   try {
     if (Array.isArray(value)) {
       assertArrayShape(value, path);
-      return `[${value.map((child, index) =>
-        serialize(child, `${path}[${index}]`, ancestors, depth + 1)
-      ).join(",")}]`;
+      const serializedChildren: string[] = [];
+      for (let index = 0; index < value.length; index += 1) {
+        const descriptor = Object.getOwnPropertyDescriptor(
+          value,
+          String(index),
+        )!;
+        serializedChildren.push(serialize(
+          descriptor.value,
+          `${path}[${index}]`,
+          ancestors,
+          depth + 1,
+        ));
+      }
+      return `[${serializedChildren.join(",")}]`;
     }
 
     assertPlainObject(value, path);
@@ -99,11 +110,9 @@ function assertArrayShape(
   value: readonly unknown[],
   path: string,
 ): void {
-  const expected = new Set([
-    "length",
-    ...value.map((_, index) => String(index)),
-  ]);
+  const expected = new Set<string>(["length"]);
   for (let index = 0; index < value.length; index += 1) {
+    expected.add(String(index));
     if (!Object.prototype.hasOwnProperty.call(value, index)) {
       throw new StudioCanonicalJsonError(
         `${path}[${index}]`,
