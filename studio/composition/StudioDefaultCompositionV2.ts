@@ -5,18 +5,30 @@ import type {
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
 import {
+  deriveModelContractFromManifestV2,
+} from "@/studio/contracts/v2/model";
+import {
   TrustedRegisteredModelClientCatalogV2,
 } from "@/studio/infrastructure/model/TrustedRegisteredModelClientCatalogV2";
 import {
+  createMainWireIntegratedStudioExecutableReleaseV3 as
+    createAdmittedMainWireIntegratedStudioExecutableReleaseV3,
+  createMainWireIntegratedStudioModelPackageV3 as
+    createAdmittedMainWireIntegratedStudioModelPackageV3,
+  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 as
+    ADMITTED_MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+} from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs";
+import type {
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
-  loadMainWireIntegratedStudioExecutableReleaseV3,
-  type MainWireIntegratedStudioFixtureV3,
+  MainWireIntegratedStudioExecutableReleaseV3,
+  MainWireIntegratedStudioFixtureV3,
+  MainWireIntegratedStudioModelPackageV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
-import mainWireIntegratedStudioExecutableArtifactV3 from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs?raw";
 
-export const DEFAULT_STUDIO_MODEL_ID_V2 =
-  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3;
+export const DEFAULT_STUDIO_MODEL_ID_V2:
+typeof MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
+  ADMITTED_MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3;
 
 export type StudioDefaultClientCompositionV2 = Readonly<{
   defaultModelId: typeof DEFAULT_STUDIO_MODEL_ID_V2;
@@ -46,11 +58,21 @@ let browserCompositionPromiseV2:
  */
 export async function createStudioDefaultClientCompositionV2():
 Promise<StudioDefaultClientCompositionV2> {
-  const resolved = await resolveDefaultReleaseV2();
+  // The main thread needs only the registry's public package projection. It
+  // must not instantiate the numerical executable bundle owned by the Worker.
+  const admittedPackage =
+    createAdmittedMainWireIntegratedStudioModelPackageV3() as
+      MainWireIntegratedStudioModelPackageV3;
+  const contract = deriveModelContractFromManifestV2(
+    admittedPackage.manifest,
+  );
+  if (contract.modelId !== DEFAULT_STUDIO_MODEL_ID_V2) {
+    throw new Error("Studio default model registration returned another model");
+  }
   return Object.freeze({
     defaultModelId: DEFAULT_STUDIO_MODEL_ID_V2,
-    defaultFixture: resolved.defaultFixture,
-    contract: resolved.registry.resolveContract(DEFAULT_STUDIO_MODEL_ID_V2),
+    defaultFixture: admittedPackage.defaultFixture,
+    contract,
   });
 }
 
@@ -58,7 +80,7 @@ Promise<StudioDefaultClientCompositionV2> {
  * main-thread authoring owner. */
 export async function createStudioDefaultWorkerCompositionV2():
 Promise<StudioDefaultWorkerCompositionV2> {
-  const resolved = await resolveDefaultReleaseV2();
+  const resolved = await resolveDefaultWorkerReleaseV2();
   return Object.freeze({
     defaultModelId: DEFAULT_STUDIO_MODEL_ID_V2,
     defaultFixture: resolved.defaultFixture,
@@ -66,13 +88,13 @@ Promise<StudioDefaultWorkerCompositionV2> {
   });
 }
 
-async function resolveDefaultReleaseV2() {
+async function resolveDefaultWorkerReleaseV2() {
+  // The Worker trusts the registry-admitted distribution and imports its
+  // committed artifact as ordinary ESM. Exact-byte evaluation belongs to
+  // registry admission/CI, not to every client startup.
   const admittedRelease =
-    await loadMainWireIntegratedStudioExecutableReleaseV3(
-      new TextEncoder().encode(
-        mainWireIntegratedStudioExecutableArtifactV3,
-      ),
-    );
+    createAdmittedMainWireIntegratedStudioExecutableReleaseV3() as
+      MainWireIntegratedStudioExecutableReleaseV3;
   const registry = new TrustedRegisteredModelClientCatalogV2([
     {
       manifest: admittedRelease.manifest,
@@ -83,6 +105,14 @@ async function resolveDefaultReleaseV2() {
   if (contract.modelId !== DEFAULT_STUDIO_MODEL_ID_V2) {
     throw new Error("Studio default model registration returned another model");
   }
+  registry.resolveExactRuntime(DEFAULT_STUDIO_MODEL_ID_V2)
+    .fixtureAdapter.validateCompleteFixture({
+      context: {
+        scenarioId: "scenario/default-composition",
+        modelId: DEFAULT_STUDIO_MODEL_ID_V2,
+      },
+      fixture: admittedRelease.defaultFixture,
+    });
   return Object.freeze({
     defaultFixture: admittedRelease.defaultFixture,
     registry,
@@ -92,6 +122,18 @@ async function resolveDefaultReleaseV2() {
 /** One browser composition shared across StrictMode remounts. */
 export function loadStudioDefaultClientCompositionV2():
 Promise<StudioDefaultClientCompositionV2> {
-  browserCompositionPromiseV2 ??= createStudioDefaultClientCompositionV2();
-  return browserCompositionPromiseV2;
+  if (browserCompositionPromiseV2 !== undefined) {
+    return browserCompositionPromiseV2;
+  }
+  const pending = createStudioDefaultClientCompositionV2();
+  browserCompositionPromiseV2 = pending;
+  void pending.catch(() => {
+    // A transient fetch/evaluation failure must not poison the browser
+    // composition for the rest of the page lifetime. Only clear the Promise
+    // that actually failed so a later successful load cannot be displaced.
+    if (browserCompositionPromiseV2 === pending) {
+      browserCompositionPromiseV2 = undefined;
+    }
+  });
+  return pending;
 }

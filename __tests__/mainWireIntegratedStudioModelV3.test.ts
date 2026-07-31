@@ -57,6 +57,53 @@ afterEach(() => {
 });
 
 describe("registered Main Wire Integrated Studio Model V3", () => {
+  it("retries the shared browser composition after a transient rejection", async () => {
+    vi.resetModules();
+    let attempts = 0;
+    vi.doMock(
+      "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs",
+      async () => {
+        const actual = await vi.importActual<typeof import(
+          "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs"
+        )>(
+          "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs",
+        );
+        return {
+          ...actual,
+          createMainWireIntegratedStudioModelPackageV3() {
+            attempts += 1;
+            if (attempts === 1) {
+              throw new Error("transient artifact delivery failure");
+            }
+            return actual.createMainWireIntegratedStudioModelPackageV3();
+          },
+        };
+      },
+    );
+
+    try {
+      const composition = await import(
+        "@/studio/composition/StudioDefaultCompositionV2"
+      );
+      const first = composition.loadStudioDefaultClientCompositionV2();
+      expect(composition.loadStudioDefaultClientCompositionV2()).toBe(first);
+      await expect(first).rejects.toThrow(/transient artifact delivery/);
+
+      const second = composition.loadStudioDefaultClientCompositionV2();
+      expect(second).not.toBe(first);
+      expect(composition.loadStudioDefaultClientCompositionV2()).toBe(second);
+      await expect(second).resolves.toMatchObject({
+        defaultModelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+      });
+      expect(attempts).toBe(2);
+    } finally {
+      vi.doUnmock(
+        "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs",
+      );
+      vi.resetModules();
+    }
+  });
+
   it("makes the exact V3 release the content-free default without client hashing", async () => {
     vi.stubGlobal("crypto", undefined);
 

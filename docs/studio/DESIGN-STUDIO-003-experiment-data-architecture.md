@@ -216,11 +216,17 @@ invocation would allocate new JavaScript function objects; function reference
 identity is not package identity.
 
 Clients trust authenticated delivery of the registry-admitted release. The
-exact executable artifact may be shipped as the code materialized by the
-client, but the internal digest remains registry-private. Clients neither
+exact executable artifact is shipped as an ordinary ESM build input and is the
+sole source for both client compositions. The main thread derives only its
+public package projection; the Worker materializes the executable bundle and
+owns the numerical runtime. Neither composition recreates an executable bundle
+independently from the integration source, fetches raw artifact text, or
+evaluates it through a Blob/data URL. Exact-byte evaluation belongs to registry
+admission and CI; authenticated client delivery may apply ordinary bundler
+transforms. The internal digest remains registry-private. Clients neither
 recompute that digest nor rehash packages at load or during simulation. They
-still perform ordinary schema, codec, model-ID, exact-key, range, and
-structural compatibility validation.
+still perform ordinary schema, codec, model-ID, exact-key, range, and structural
+compatibility validation.
 
 For the integrated V3 development release, CI builds the exact model adapter
 entry as a deterministic registry artifact, frames it with the canonical
