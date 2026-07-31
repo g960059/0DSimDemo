@@ -11,6 +11,7 @@ import {
 import {
   WorkbenchDockview,
   reconcileWorkbenchPanesV3,
+  resetWorkbenchDockviewTrackingV3,
   type WorkbenchPaneDefinitionV3,
 } from "@/components/workbench/WorkbenchDockview";
 import {
@@ -75,7 +76,7 @@ describe("V3 Dockview Workbench", () => {
     )).toThrow(/graph area cannot host output pane output-1/);
   });
 
-  it("does not rebuild Dockview for a new array with the same pane structure", () => {
+  it("does not rebuild Dockview for title or content-only pane changes", () => {
     const clear = vi.fn();
     const addPanel = vi.fn();
     const api = {
@@ -92,21 +93,67 @@ describe("V3 Dockview Workbench", () => {
     let signature = reconcileWorkbenchPanesV3(api, [pane], null);
     signature = reconcileWorkbenchPanesV3(
       api,
-      [{ ...pane }],
-      signature,
-    );
-
-    expect(clear).toHaveBeenCalledTimes(1);
-    expect(addPanel).toHaveBeenCalledTimes(1);
-
-    signature = reconcileWorkbenchPanesV3(
-      api,
       [{ ...pane, title: "Flow" }],
       signature,
     );
+    const changedContent = {
+      ...pane,
+      graphId: "graph-definition/flow",
+      title: "Flow",
+    };
+    signature = reconcileWorkbenchPanesV3(api, [changedContent], signature);
 
-    expect(clear).toHaveBeenCalledTimes(2);
-    expect(addPanel).toHaveBeenCalledTimes(2);
-    expect(addPanel.mock.calls[1]?.[0]).toMatchObject({ title: "Flow" });
+    expect(clear).toHaveBeenCalledTimes(1);
+    expect(addPanel).toHaveBeenCalledTimes(1);
+  });
+
+  it("rebuilds Dockview when pane ID, role, or order changes", () => {
+    const clear = vi.fn();
+    const addPanel = vi.fn();
+    const api = {
+      addPanel,
+      clear,
+      panels: [],
+    } as unknown as DockviewApi;
+    const first: WorkbenchPaneDefinitionV3 = Object.freeze({
+      paneId: "graph-1",
+      role: "graph",
+      title: "Pressure",
+    });
+    const second: WorkbenchPaneDefinitionV3 = Object.freeze({
+      paneId: "graph-2",
+      role: "graph",
+      title: "Flow",
+    });
+
+    let signature = reconcileWorkbenchPanesV3(api, [first, second], null);
+    signature = reconcileWorkbenchPanesV3(api, [second, first], signature);
+    signature = reconcileWorkbenchPanesV3(
+      api,
+      [second, { ...first, paneId: "graph-3" }],
+      signature,
+    );
+    reconcileWorkbenchPanesV3(
+      api,
+      [second, { ...first, paneId: "graph-3", role: "output" }],
+      signature,
+    );
+
+    expect(clear).toHaveBeenCalledTimes(4);
+    expect(addPanel).toHaveBeenCalledTimes(8);
+  });
+
+  it("drops stale Dockview tracking when its framework element unmounts", () => {
+    const apiRef: { current: DockviewApi | null } = {
+      current: { clear: vi.fn() } as unknown as DockviewApi,
+    };
+    const appliedSignatureRef: { current: string | null } = {
+      current: "[[\"graph-1\",\"graph\"]]",
+    };
+
+    resetWorkbenchDockviewTrackingV3(apiRef, appliedSignatureRef);
+
+    expect(apiRef.current).toBeNull();
+    expect(appliedSignatureRef.current).toBeNull();
   });
 });

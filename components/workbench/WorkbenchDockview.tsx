@@ -128,8 +128,10 @@ function applyPanesV3(
 export function getWorkbenchPaneSignatureV3(
   panes: readonly WorkbenchPaneDefinitionV3[],
 ): string {
+  // Titles and pane-specific selections flow through React context. Only the
+  // ordered Dockview membership and role require structural reconciliation.
   return JSON.stringify(
-    panes.map(({ paneId, role, title }) => [paneId, role, title]),
+    panes.map(({ paneId, role }) => [paneId, role]),
   );
 }
 
@@ -142,6 +144,14 @@ export function reconcileWorkbenchPanesV3(
   if (nextSignature === appliedSignature) return appliedSignature;
   applyPanesV3(api, panes);
   return nextSignature;
+}
+
+export function resetWorkbenchDockviewTrackingV3(
+  apiRef: { current: DockviewApi | null },
+  appliedSignatureRef: { current: string | null },
+): void {
+  apiRef.current = null;
+  appliedSignatureRef.current = null;
 }
 
 /**
@@ -183,6 +193,19 @@ export function WorkbenchDockview({
   );
   const components = React.useMemo(
     () => ({ "workbench-pane-v3": WorkbenchDockPanelV3 }),
+    [],
+  );
+  const dockviewElementRef = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      if (element !== null) return;
+      // DockviewReact owns API disposal. Its forwarded element ref tells us
+      // when that framework-managed instance leaves the tree, including empty
+      // state.
+      resetWorkbenchDockviewTrackingV3(
+        apiRef,
+        appliedPaneSignatureRef,
+      );
+    },
     [],
   );
 
@@ -232,6 +255,7 @@ export function WorkbenchDockview({
         data-workbench-role-area={role}
       >
         <DockviewReact
+          ref={dockviewElementRef}
           components={components}
           defaultTabComponent={WorkbenchDockTabV3}
           defaultRenderer="onlyWhenVisible"
