@@ -537,7 +537,7 @@ export function modelCoreLand2017LvSourceProviderIdentity() {
     sourceProviderId: MODELCORE_EXPERIMENTAL_LAND2017_LV_SOURCE_ONLY_PROVIDER_ID,
     parameterSetId: LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET_ID,
     initialState: DEFAULT_INITIAL_LAND_STATE,
-    calciumInput: "ModelCore legacy active chamber internal.c interpreted as freeCalciumUM without tuning",
+    calciumInput: "ModelCore baseline active chamber internal.c interpreted as freeCalciumUM without tuning",
     kinematicsInput: "ModelCore activeModel pressure-adapter lambda under the same closure",
     stateLifecycle: "ModelCore providerState with once-per-step BE commit by default; SDIRK2 commit is experimental evidence-only",
     pressurePath: "sourceActiveStressPa through ActiveStressChamberModel.pressureFromActiveFiberStress",
@@ -877,12 +877,12 @@ function landDebugTermsForCall(
     call.chamberCtx,
     pressureAdapterStressPa,
   );
-  const legacyTerms = call.activeModel.debugActiveStressTerms(call.volumeMl, call.internal, call.chamberCtx);
+  const baselineTerms = call.activeModel.debugActiveStressTerms(call.volumeMl, call.internal, call.chamberCtx);
   const landBoundFraction = landBoundFractionFromState(
     asLandProviderState(call.providerState, "debugActiveStressTerms.boundFraction").landState,
   );
   return {
-    ...legacyTerms,
+    ...baselineTerms,
     ...pressureTerms,
     c: freeCalciumUMFromInternal(call.internal.c),
     a: landBoundFraction,

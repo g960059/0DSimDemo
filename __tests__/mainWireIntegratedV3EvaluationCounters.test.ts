@@ -5,8 +5,8 @@ import {
   stepMainWireIntegratedModelV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
-  createMainWireIntegratedLanePresetV1,
-} from "@/engine/myocardium/MainWireIntegratedLanePresetV1";
+  createMainWireIntegratedLaneBootstrapV1,
+} from "@/engine/myocardium/MainWireIntegratedLaneBootstrapV1";
 import {
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
@@ -137,8 +137,8 @@ describe("main-wire integrated V3 evaluation counters", () => {
   });
 
   it("keeps the accounting valid after settling an enabled HMII lane into active Land stress", async () => {
-    const preset = await createMainWireIntegratedLanePresetV1();
-    let accepted = preset.cold.acceptedState;
+    const bootstrap = await createMainWireIntegratedLaneBootstrapV1();
+    let accepted = bootstrap.cold.acceptedState;
     let measured: ReturnType<typeof stepMainWireIntegratedModelV3> | null =
       null;
     let nominalGridIndex = 1;
@@ -154,30 +154,30 @@ describe("main-wire integrated V3 evaluation counters", () => {
         accepted,
         nominalTargetSec,
         {
-          configuration: preset.rhythm.configuration,
+          configuration: bootstrap.rhythm.configuration,
           externalAfNextBoundaryTimeSec: null,
         },
-        preset.profile,
-        preset.config,
+        bootstrap.profile,
+        bootstrap.config,
       );
       const collect = maximum.candidateTimeSec === targetTimeSec;
       const stepped = stepMainWireIntegratedModelV3(
-        preset.provider,
+        bootstrap.provider,
         accepted,
         Object.freeze({
           candidateTimeSec: maximum.candidateTimeSec,
           coronary: collect
             ? Object.freeze({
-              ...preset.coronaryStepInput,
+              ...bootstrap.coronaryStepInput,
               evaluationCounterCollection: "enabled" as const,
             })
-            : preset.coronaryStepInput,
+            : bootstrap.coronaryStepInput,
           rhythm: Object.freeze({
-            configuration: preset.rhythm.configuration,
+            configuration: bootstrap.rhythm.configuration,
             externalAfNextBoundaryTimeSec: null,
             externalAtrialSourceBatch: null,
           }),
-          dynamicMechanicalSupport: preset.dynamicMechanicalSupport,
+          dynamicMechanicalSupport: bootstrap.dynamicMechanicalSupport,
         }),
       );
       expect(stepped.converged).toBe(true);

@@ -1,7 +1,7 @@
 import {
   sanitizeForStableHash,
   stableHash,
-} from "@/engine/myocardium/kinematics/stableHash";
+} from "@/engine/integrity/stableHash";
 import {
   evaluateEnergyConjugateTriSegV1,
   evaluateTriSegGeometryV1,

@@ -41,8 +41,6 @@ describe("main-wire fixed macro physiology envelope V1", () => {
       MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_MACRO_PHYSIOLOGY_POINTS_V1) {
       expect(point.claim).toMatchObject({
         sourceResearchRunnerOnly: true,
-        releaseResolved: false,
-        cutoverEligible: false,
         fixedPointNotGenericPatch: true,
         oneFactorAtATime: true,
         warmStartAllowed: false,
@@ -173,13 +171,8 @@ describe("main-wire fixed macro physiology envelope V1", () => {
     expect(envelope.runs).toHaveLength(7);
     expect(envelope.claim).toMatchObject({
       sourceResearchRunnerOnly: true,
-      releaseResolved: false,
-      cutoverEligible: false,
-      simulationReleaseRefBound: false,
-      workerOrCaseDocumentExecutionUsed: false,
-      approvedTwoMillisecondProtocolClaimed: false,
-      executableBuildIdentityRecorded: false,
-      productionCutoverEvidenceEligible: false,
+      oneFactorAtATime: true,
+      parameterSearchOrFitting: false,
       terminalRetainedCycleTotalBloodVolumeConservationHardGate: true,
       wholeRunTotalBloodVolumeConservationClaimed: false,
       directionOrMagnitudeAcceptanceApplied: false,

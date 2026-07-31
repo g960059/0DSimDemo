@@ -10,7 +10,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const ACCEPTED_EVENT_TRIGGERED_IABP_ACTUATOR_CHECKPOINT_V1_ID =
   "circleheart.accepted-event-triggered-iabp-actuator-checkpoint.v1" as const;

@@ -33,9 +33,9 @@ import type {
   RotarySupportDeviceIdV1,
 } from "@/engine/devices/typesV1";
 import { initialMainWireQuasiSteadyOrificeValveStateV2 } from
-  "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
-import { MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1 } from
-  "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
+import { MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1 } from
+  "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import { stressedVolumeFromPtm } from "@/engine/vascularPv";
 
 const DT_SEC = 0.001;
@@ -51,7 +51,7 @@ const RUNTIME: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
     respAmpAlv: 0,
     respRate: 0,
   }),
-  valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
+  valveResearchInput: MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
 });
 
 describe("non-coronary dynamic mechanical-support trial seam V1", () => {

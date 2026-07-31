@@ -99,12 +99,12 @@ import {
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
-  MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 type TestState = Readonly<{
   timeSec: number;
@@ -144,7 +144,7 @@ const RUNTIME = Object.freeze({
     respAmpAlv: 0,
     respRate: 0,
   }),
-  valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
+  valveResearchInput: MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
 });
 
 describe("main-wire composed-rhythm integrated transaction V3", () => {

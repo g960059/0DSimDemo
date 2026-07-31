@@ -15,7 +15,6 @@ export default defineConfig({
       ...configDefaults.exclude,
       ".claude/**",
       ".codex/**",
-      ".firebase/**",
       ...fastTests,
     ],
     passWithNoTests: true,

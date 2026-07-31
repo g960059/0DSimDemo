@@ -4,14 +4,6 @@ import { Info, X } from 'lucide-react';
 
 const ACK_KEY = 'circleheart.modelLimitations.ack.v1';
 
-const LIMITATIONS: string[] = [
-  'Research & education only — not a medical device, and not for diagnosis, treatment, or any patient-specific decision.',
-  '0D lumped-parameter model: it does not resolve spatial blood flow, local wall stress, or 3D hemodynamics.',
-  'Parameters are calibration targets, not fixed physiological constants; outputs are approximate and not yet validated against clinical data.',
-  'Several subsystems are not modeled yet (coronary circulation, renal/hepatic/portal beds, detailed baroreflex, fluid exchange).',
-  'Use it to build intuition and explore hypotheses — not to predict a specific patient.',
-];
-
 function hasAck(): boolean {
   try {
     return localStorage.getItem(ACK_KEY) === '1';
@@ -28,7 +20,7 @@ function setAck() {
   }
 }
 
-const Body: React.FC<{ limitations?: string[] }> = ({ limitations = LIMITATIONS }) => (
+const Body: React.FC<{ limitations: string[] }> = ({ limitations }) => (
   <ul className="space-y-2 text-sm text-wb-muted">
     {limitations.map((l, i) => (
       <li key={i} className="flex gap-2">

@@ -1,7 +1,7 @@
 import type {
   MainWireIntegratedLaneObservationV1,
   MainWireIntegratedLanePresentationAdvanceV1,
-} from "@/engine/myocardium/MainWireIntegratedScientificSession";
+} from "@/engine/myocardium/MainWireIntegratedLaneSessionV1";
 
 export const MAIN_WIRE_INTEGRATED_LANE_OBSERVABLE_REGISTRY_V1_ID =
   "main-wire-integrated-v3-experimental-observable-registry-v1" as const;

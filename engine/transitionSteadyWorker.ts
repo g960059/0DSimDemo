@@ -1,18 +1,18 @@
 import { ModelCore } from "@/engine/ModelCore";
 import {
-  MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE,
+  MODELCORE_RUNTIME_DEFAULT_ACTIVE_SOURCE_MODE,
   createModelCoreRuntimeExperimentalOptions,
 } from "@/engine/myocardium/runtimeActiveSource";
-import type { PreviewCoreSnapshot } from "@/engine/previewWorkerProtocol";
 import { runToPeriodicSteadyInternal } from "@/engine/steadyJob";
 import type {
   TransitionSteadyErrorResult,
   TransitionSteadyJobRequest,
   TransitionSteadyJobResult,
+  TransitionSteadySnapshot,
 } from "@/engine/transitionSteadyProtocol";
 
 export function computeTransitionSteadyJob(request: TransitionSteadyJobRequest): TransitionSteadyJobResult {
-  const runtimeActiveSourceMode = request.options.runtimeActiveSourceMode ?? MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE;
+  const runtimeActiveSourceMode = request.options.runtimeActiveSourceMode ?? MODELCORE_RUNTIME_DEFAULT_ACTIVE_SOURCE_MODE;
   const run = runToPeriodicSteadyInternal(request.params, {
     ...request.options,
     runtimeActiveSourceMode,
@@ -52,9 +52,9 @@ export function transitionSteadyErrorResult(
 function snapshotFromSteady(
   request: TransitionSteadyJobRequest,
   run: ReturnType<typeof runToPeriodicSteadyInternal>,
-): PreviewCoreSnapshot {
+): TransitionSteadySnapshot {
   const core = new ModelCore(request.params, createModelCoreRuntimeExperimentalOptions({
-    mode: request.options.runtimeActiveSourceMode ?? MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE,
+    mode: request.options.runtimeActiveSourceMode ?? MODELCORE_RUNTIME_DEFAULT_ACTIVE_SOURCE_MODE,
     runtimeParams: request.params,
   }));
   core.initializeVenousPressuresForTargetTBV(request.targetVolume);

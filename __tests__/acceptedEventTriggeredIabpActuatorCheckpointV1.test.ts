@@ -20,7 +20,7 @@ import {
   ELECTRICAL_CAPTURE_PRIORITY_V2,
   type CapturedElectricalActivationV2,
 } from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 describe("accepted-event-triggered IABP actuator checkpoint V1", () => {
   it("restores a detached immutable mid-inflation state and continues exactly", async () => {

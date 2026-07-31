@@ -1,12 +1,12 @@
 // =============================================================================
-// Clinical knob layer (M4-lite) — the portable, version-robust control
+// Clinical knob layer (M4-lite) — the portable, versioned research-control
 // vocabulary that sits ABOVE raw CoreRuntimeParams.
 //
-// This is the CANONICAL home of the knob->raw mapping (the app's M4 UI, the
-// caseOps save/share op-stack, and future MCP authoring all resolve through
-// here, so there is one source of truth). A knob-primary CaseDocument stores
-// knobs + a knobMappingVersion; resolution is pinned by that version so old
-// cases keep resolving with the map they were authored against.
+// This is the canonical home of the knob->raw mapping used by research
+// scenarios and numerical tools. A reproducible research input records knobs
+// plus a knobMappingVersion so the input resolves with the mapping under which
+// it was authored. Studio's durable fixture is model-owned and does not persist
+// this mapping as a separate durable entity or compatibility layer.
 //
 // Resolution pipeline (all pure, deterministic):
 //   base    = baselines[id].params                     // full raw start point
@@ -119,7 +119,8 @@ export function clampKnobs(k: ClinicalKnobs): ClinicalKnobs {
 
 // -----------------------------------------------------------------------------
 // KNOB -> RAW mappings, keyed by knobMappingVersion. NEVER edit a published
-// mapping in place — add a NEW version so old cases keep resolving identically.
+// mapping in place — add a NEW version so existing research inputs and evidence
+// keep resolving identically.
 // Coefficients are calibration targets (math-model roadmap M12); tune against
 // the engine, not by eye.
 // -----------------------------------------------------------------------------

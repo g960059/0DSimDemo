@@ -25,7 +25,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_EXTERNAL_AF_CHECKPOINT_V1_ID =
   "circleheart.main-wire-integrated-model-external-af-wrapper-checkpoint.v1" as const;

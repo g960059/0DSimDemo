@@ -128,7 +128,7 @@ export type ActiveChamberParams = {
   // Diagnostic-only release/recoil gate. When positive, AV-plane descent recoil
   // is suppressed while the paired AV inlet valve is open, so the effective
   // wall-geometry release can be separated from AV inflow waves. Default 0
-  // preserves the Phase 5CV stateful release behavior.
+  // preserves the stateful AV-plane release behavior.
   avPlaneDescentReleaseInletOpenHold?: number;
   avPlaneDescentReleaseInletOpenThreshold?: number;
   reservoirBranchGain?: number;

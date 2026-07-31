@@ -86,7 +86,7 @@ export function createAtrialPhysiologyBridgeV2SourceProvider(
     throw new Error(`AtrialPhysiologyBridgeV2 params chamber ${params.chamber} does not match provider chamber ${chamber}.`);
   }
   return {
-    sourceProviderId: `${params.candidateId}:${chamber}:phase5ay-diagnostic`,
+    sourceProviderId: `${params.candidateId}:${chamber}:diagnostic-v1`,
     initialInternal: ({ activeModel }): ChamberInternal => activeModel.initialInternal(),
     pressure: (input): number => atrialPressure(input, params, instrumentation),
     passivePressure: ({ activeModel, volumeMl, chamberCtx }): number =>

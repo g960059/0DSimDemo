@@ -12,7 +12,7 @@ import {
   initializeAcceptedAuthoredVentricularPacingReplaySourceStateV1,
   type AcceptedAuthoredVentricularPacingReplaySourceConfigurationV1,
 } from "@/engine/myocardium/rhythm/acceptedAuthoredVentricularPacingReplaySourceV1";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 describe("accepted authored ventricular pacing replay checkpoint V1", () => {
   it("restores exact history, cursor, counters, and deterministic continuation", async () => {

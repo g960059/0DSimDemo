@@ -96,7 +96,7 @@ import {
 import {
   createRecoveryConcealmentAvGateParametersV1,
 } from "@/engine/myocardium/rhythm/recoveryConcealmentAvGateV1";
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 
 type Provider = ReturnType<
   typeof createCanonicalMainWireNormalAdultFiveWallProviderV1

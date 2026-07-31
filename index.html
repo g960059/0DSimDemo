@@ -39,7 +39,7 @@
       // would show a dark body to someone who chose light, on every load.
       (function () {
         try {
-          var stored = localStorage.getItem('hemosim.workbench.theme');
+          var stored = localStorage.getItem('circleheart.app.theme');
           document.body.dataset.workbenchTheme = stored === 'light' ? 'light' : 'dark';
         } catch (error) {
           document.body.dataset.workbenchTheme = 'dark';

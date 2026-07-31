@@ -34,6 +34,12 @@ const inputs = Object.freeze({
   compliance: readReport(paths.compliance),
   combined: readReport(paths.combined),
 });
+const sourceReports = Object.freeze(Object.fromEntries(
+  Object.entries(paths).map(([key, filePath]) => [
+    key,
+    repositoryRelativePath(filePath),
+  ]),
+));
 const summary = Object.freeze({
   schema: "circleheart.coronary-v2-mechanism-factorial-summary.v1" as const,
   completed: true as const,
@@ -43,9 +49,10 @@ const summary = Object.freeze({
     allRowsShareTerminalBoundary: true as const,
     parameterFit: false as const,
   }),
-  sourceReports: paths,
+  sourceReports,
   reproduction: Object.freeze({
-    runner: "npx tsx tools/coronary/runCoronaryV2TerminalBoundaryShadow.ts",
+    runner:
+      "npx vite-node --script tools/coronary/runCoronaryV2TerminalBoundaryShadow.ts",
     note: "Generate the four full reports named in sourceReports, summarize, then full ablation samples may be discarded.",
   }),
   rows: Object.freeze([
@@ -186,4 +193,8 @@ function compactPhase(value: PhaseLedger): Readonly<Record<string, number>> {
 function argument(flag: string, fallback: string): string {
   const index = process.argv.indexOf(flag);
   return index < 0 ? fallback : path.resolve(process.argv[index + 1]!);
+}
+
+function repositoryRelativePath(filePath: string): string {
+  return path.relative(process.cwd(), filePath).split(path.sep).join("/");
 }

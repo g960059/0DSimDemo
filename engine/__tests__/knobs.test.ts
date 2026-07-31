@@ -14,7 +14,7 @@ import { runScenario } from "@/engine/harness";
 
 /**
  * M4-lite clinical knob layer (milestone #2). The engine-owned, version-pinned
- * knob->raw vocabulary the app UI, caseOps, and MCP all resolve through.
+ * knob->raw vocabulary used by research scenarios and numerical tools.
  */
 const V = KNOB_MAPPING_VERSION;
 

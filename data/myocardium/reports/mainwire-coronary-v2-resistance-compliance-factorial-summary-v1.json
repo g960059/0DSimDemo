@@ -8,13 +8,13 @@
     "parameterFit": false
   },
   "sourceReports": {
-    "baseline": "/Users/hirakawa/ghq/github.com/g960059/0DSimDemo-mainwire-coronary-circulation-v1/data/myocardium/reports/mainwire-coronary-v2-autoregulated-terminal-boundary-shadow-v1.json",
-    "resistance": "/Users/hirakawa/ghq/github.com/g960059/0DSimDemo-mainwire-coronary-circulation-v1/data/myocardium/reports/mainwire-coronary-v2-transmural-resistance-ablation-v1.json",
-    "compliance": "/Users/hirakawa/ghq/github.com/g960059/0DSimDemo-mainwire-coronary-circulation-v1/data/myocardium/reports/mainwire-coronary-v2-low-proximal-compliance-ablation-v1.json",
-    "combined": "/Users/hirakawa/ghq/github.com/g960059/0DSimDemo-mainwire-coronary-circulation-v1/data/myocardium/reports/mainwire-coronary-v2-resistance-compliance-factorial-v1.json"
+    "baseline": "data/myocardium/reports/mainwire-coronary-v2-autoregulated-terminal-boundary-shadow-v1.json",
+    "resistance": "data/myocardium/reports/mainwire-coronary-v2-transmural-resistance-ablation-v1.json",
+    "compliance": "data/myocardium/reports/mainwire-coronary-v2-low-proximal-compliance-ablation-v1.json",
+    "combined": "data/myocardium/reports/mainwire-coronary-v2-resistance-compliance-factorial-v1.json"
   },
   "reproduction": {
-    "runner": "npx tsx tools/coronary/runCoronaryV2TerminalBoundaryShadow.ts",
+    "runner": "npx vite-node --script tools/coronary/runCoronaryV2TerminalBoundaryShadow.ts",
     "note": "Generate the four full reports named in sourceReports, summarize, then full ablation samples may be discarded."
   },
   "rows": [

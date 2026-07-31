@@ -1,4 +1,3 @@
-import type { ModelInstancePath, StateBlockDescriptor } from "@/engine/myocardium/contracts";
 import { requireFiniteNumber, requirePositiveFiniteSeconds } from "@/engine/myocardium/units";
 
 export const LAND2017_MYOFILAMENT_MODEL_ID = "land2017-myofilament-v1";
@@ -57,20 +56,6 @@ export type LandSourceOutput = {
     projectionUsed: boolean;
   };
 };
-
-export function makeLand2017StateBlockDescriptor(
-  instance: ModelInstancePath,
-  blockId = `${instance.moduleId}.${instance.instanceId}.land2017`,
-): StateBlockDescriptor {
-  return {
-    blockId,
-    owner: "myofilament",
-    instance,
-    labels: LAND2017_STATE_LABELS,
-    size: LAND2017_STATE_SIZE,
-    equationsVersion: LAND2017_EQUATIONS_VERSION,
-  };
-}
 
 export function deriveLand2017StepKinematics(input: LandStepInput): LandStepKinematics {
   rejectIndependentRateInput(input);

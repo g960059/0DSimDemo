@@ -467,7 +467,7 @@ const report = Object.freeze({
     periodicMeanQmEqualsLayerPerfusionByStorageClosure: true as const,
   }),
   configuration: Object.freeze({
-    sourcePath,
+    sourcePath: repositoryRelativePath(sourcePath),
     sourceSchema: source.schema,
     sourceTerminalBeatIndex: source.beatSummaries.at(-1)!.beatIndex,
     dtSec,
@@ -488,7 +488,7 @@ const report = Object.freeze({
     r1ReferenceMode,
     r1ReferenceReportPath:
       r1ReferenceMode === "rebased-accepted-tone"
-        ? r1ReferenceReportPath
+        ? repositoryRelativePath(r1ReferenceReportPath)
         : null,
     r1ReferenceCalibration,
     impMechanism,
@@ -528,6 +528,10 @@ const report = Object.freeze({
   beatSummaries: Object.freeze(beatSummaries),
   samples: retainedSamples,
 });
+
+function repositoryRelativePath(filePath: string): string {
+  return path.relative(process.cwd(), filePath).split(path.sep).join("/");
+}
 mkdirSync(path.dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, `${JSON.stringify(report)}\n`);
 process.stdout.write(`${JSON.stringify({

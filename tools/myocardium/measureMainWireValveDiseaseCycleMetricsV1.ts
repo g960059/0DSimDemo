@@ -22,7 +22,7 @@ process.stdout.write(`${JSON.stringify({
   outputPath,
   beatIndex: metrics.source.beatIndex,
   interpretationEligible: metrics.interpretationEligible,
-  bracketIds: result.valvePreset.bracketIds,
+  bracketIds: result.valveResearchInput.bracketIds,
   valves: Object.fromEntries(Object.entries(metrics.valves).map(
     ([valveId, valve]) => [valveId, {
       forwardVolumeMl: valve.forwardVolumeMl,

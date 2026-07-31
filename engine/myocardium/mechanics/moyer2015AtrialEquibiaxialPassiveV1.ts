@@ -1,7 +1,7 @@
 import {
   sanitizeForStableHash,
   stableHash,
-} from "@/engine/myocardium/kinematics/stableHash";
+} from "@/engine/integrity/stableHash";
 
 export const MOYER_2015_ATRIAL_EQUIBIAXIAL_PASSIVE_V1_ID =
   "moyer-2015-atrial-equibiaxial-passive-v1" as const;

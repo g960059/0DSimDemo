@@ -24,8 +24,7 @@ export function defaultParams(): CoreRuntimeParams {
     avDelaySec: 0.16,
     atrialElectromechanicalDelaySec: 0.00,
     ventricularElectromechanicalDelaySec: 0.05,
-    // LV/RV default to the single-fibre / active-stress model (§13).
-    // Use `stableElastanceBaseline` to opt back into time-varying elastance.
+    // Canonical chamber mechanics mode for this runtime parameter set.
     heartModel: "activeStress",
     useChiResistance: false,
     projectTBV: true,

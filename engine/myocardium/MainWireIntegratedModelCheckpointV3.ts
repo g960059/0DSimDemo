@@ -33,7 +33,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID =
   "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v3" as const;

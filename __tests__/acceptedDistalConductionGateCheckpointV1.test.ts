@@ -14,7 +14,7 @@ import {
   type AcceptedDistalConductionGateStateV1,
   type DistalConductionGateConfigurationV1,
 } from "@/engine/myocardium/rhythm/acceptedDistalConductionGateV1";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 describe("accepted distal conduction gate checkpoint V1", () => {
   it("round-trips mask position, distinct drops, readiness, and exact continuation", async () => {

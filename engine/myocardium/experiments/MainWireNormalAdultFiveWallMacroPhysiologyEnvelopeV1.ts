@@ -16,7 +16,7 @@ import {
 import {
   sanitizeForStableHash,
   stableHash,
-} from "@/engine/myocardium/kinematics/stableHash";
+} from "@/engine/integrity/stableHash";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_MACRO_PHYSIOLOGY_ENVELOPE_V1_ID =
   "main-wire-normal-adult-five-wall-macro-physiology-envelope-v1" as const;
@@ -35,22 +35,13 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_MACRO_PHYSIOLOGY_PROTOCOL_V1 =
       heartRateBpm: 60 as const,
       commonPericardiumMode: "on" as const,
       commonPericardiumCase: "healthy-slack" as const,
-      valvePreset: "healthy-baseline" as const,
+      valveResearchInput: "healthy-baseline" as const,
       laSlsMode: "on" as const,
       circulationRuntime: "normal-adult-main-wire-baseline" as const,
       initialization: "independent-point-specific-fixed-tbv-cold-start" as const,
     }),
     claim: Object.freeze({
       sourceResearchRunnerOnly: true as const,
-      releaseResolved: false as const,
-      cutoverEligible: false as const,
-      simulationReleaseRefBound: false as const,
-      releaseResolvedSessionInputUsed: false as const,
-      workerOrCaseDocumentExecutionUsed: false as const,
-      browserWorkspaceExecutionUsed: false as const,
-      approvedTwoMillisecondProtocolClaimed: false as const,
-      executableBuildIdentityRecorded: false as const,
-      productionCutoverEvidenceEligible: false as const,
       oneFactorAtATime: true as const,
       parameterSearchOrFitting: false as const,
       wholeLoopDirectionsAreDescriptive: true as const,

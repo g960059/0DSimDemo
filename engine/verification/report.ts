@@ -173,7 +173,7 @@ export function reportToMarkdown(report: VerificationReport): string {
   lines.push("");
   lines.push(`- Profile: ${report.profile.label} (${report.profile.mode})`);
   lines.push(`- Gate set: ${report.gateSet}`);
-  lines.push(`- Runtime active-source mode: ${report.runtimeActiveSourceMode ?? "legacy-default"}`);
+  lines.push(`- Runtime active-source mode: ${report.runtimeActiveSourceMode ?? "baseline-default"}`);
   lines.push(`- Generated: ${report.generatedAt}`);
   lines.push(`- Pass: ${report.summary.pass ? "yes" : "no"}`);
   lines.push(`- Hard failures: ${report.summary.hardFailures}`);

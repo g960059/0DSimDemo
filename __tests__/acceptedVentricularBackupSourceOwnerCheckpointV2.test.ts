@@ -16,7 +16,7 @@ import {
 } from "@/engine/myocardium/rhythm/acceptedVentricularBackupSourceOwnerV2";
 import {
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 import {
   createAcceptedElectricalCaptureOwnerConfigurationV2,
   createSourceImpulseV2,

@@ -173,17 +173,6 @@ export type StarlingSweepInterpretation = {
   zeroFlowConstraintReason: string;
 };
 
-export type StarlingSweepRequest = {
-  requestId: string;
-  signature: string;
-  instanceId: string;
-  params: CoreRuntimeParams;
-  targetVolumeMl: number;
-  runtimeActiveSourceMode?: ModelCoreRuntimeActiveSourceMode;
-  deltasMl?: number[];
-  sweepMode?: StarlingSweepMode;
-};
-
 export type StarlingSweepResponse = {
   requestId: string;
   signature: string;
@@ -193,69 +182,6 @@ export type StarlingSweepResponse = {
   warnings: string[];
   error?: string;
 };
-
-export type GuytonBaseMapTiming = {
-  baselineMs: number;
-  baseMapMs: number;
-  totalMs: number;
-  baselineSource: "cold" | "warm-retarget" | "warm-retarget-fallback";
-};
-
-export type StarlingSweepTiming = {
-  positiveChainMs: number;
-  negativeChainMs: number;
-  assembleMs: number;
-  totalMs: number;
-  retargetFallbackCount: number;
-  parallel?: boolean;
-  parallelFallback?: string;
-  chainWallMs?: number;
-  plannedPointCount?: number;
-  mode?: StarlingSweepMode | "full7-fallback" | "full7-reference" | "adaptive-audit";
-  anchorCount?: number;
-  fallbackReasons?: string[];
-  full7ReferenceMs?: number;
-  holdoutMaxFlowErrorLMin?: number;
-};
-
-export type GuytonStarlingBrowserTiming = {
-  workerCreateMs: number;
-  baseMapMs: number | null;
-  firstProgressMs: number | null;
-  firstFitMs: number | null;
-  finalSweepMs: number | null;
-  totalMs: number;
-};
-
-export type GuytonBaseMapResponse = {
-  type: "base-map";
-  requestId: string;
-  signature: string;
-  instanceId: string;
-  right?: GuytonPaneData;
-  left?: GuytonPaneData;
-  warnings: string[];
-  error?: string;
-  timing?: GuytonBaseMapTiming;
-};
-
-export type StarlingSweepWorkerMessage = StarlingSweepResponse & {
-  type: "starling-sweep";
-  timing?: StarlingSweepTiming;
-};
-
-export type StarlingSweepProgressMessage = StarlingSweepResponse & {
-  type: "starling-sweep-progress";
-  completedPoints: number;
-  totalPoints: number;
-};
-
-export type StarlingSweepAuditMessage = StarlingSweepResponse & {
-  type: "starling-sweep-audit";
-  timing?: StarlingSweepTiming;
-};
-
-export type GuytonStarlingWorkerMessage = GuytonBaseMapResponse | StarlingSweepProgressMessage | StarlingSweepWorkerMessage | StarlingSweepAuditMessage;
 
 const FLOW_FLOOR_L_MIN = 0.15;
 const RESISTANCE_MIN = 0.05;

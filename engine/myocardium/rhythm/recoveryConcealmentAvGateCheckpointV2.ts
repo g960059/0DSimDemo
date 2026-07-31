@@ -10,7 +10,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const RECOVERY_CONCEALMENT_AV_GATE_CHECKPOINT_V2_ID =
   "circleheart.recovery-concealment-proximal-av-owner-checkpoint.v2" as const;

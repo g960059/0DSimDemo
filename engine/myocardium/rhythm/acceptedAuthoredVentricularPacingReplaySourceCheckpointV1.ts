@@ -9,7 +9,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CHECKPOINT_V1_ID =
   "circleheart.accepted-authored-ventricular-pacing-replay-source-checkpoint.v1" as const;

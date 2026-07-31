@@ -38,19 +38,21 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedRegularSinusRhythmV3";
 import { FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_PROTOCOL_V2,
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V2,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelNumericalVerificationV2";
+  MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import {
   classifyMainWireIntegratedModelPeriodicityV3,
   type MainWireIntegratedModelPeriodicClassificationV3,
   type MainWireIntegratedModelPeriodicCycleObservationV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClassifierV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
   compareMainWireIntegratedModelAcceptedStatesV3,
   type MainWireIntegratedModelPeriodicClosureReportV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
 import { MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_CIRCULATION_NEWTON_POLICY_V2 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallCoronaryPeriodicSteadyV2";
 import {
   normalAdultMainWireRuntimeV1,
@@ -62,18 +64,14 @@ import { createCanonicalMainWireNormalAdultFiveWallProviderV1 } from "@/engine/m
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 import {
-  MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1,
-  type MainWireCycleEvidenceGateV1,
-} from "@/engine/scientific/validation/MainWireEvidencePacksV1";
+  MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3,
+  type MainWireIntegratedModelHealthyReferenceGateV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelHealthyReferenceContextV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID =
   "main-wire-integrated-composed-regular-sinus-all-off-periodic-steady-v3" as const;
-
-/** Thresholds, scales, slow-time horizon, and cycle bounds are inherited as-is. */
-export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 =
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V2;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3 = deepFreeze({
   scope:
@@ -87,7 +85,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3 = deepFreeze({
   terminalCycleTrace:
     "raw-accepted-endpoints-with-event-clipped-dt-no-resampling" as const,
   finiteConservationEventIdentityAndSingleCalciumOwnerFailClosed: true as const,
-  unchangedPredeclaredV2ThresholdPolicyReusedByIdentity: true as const,
+  predeclaredV3ThresholdPolicyOwnedByCurrentLane: true as const,
   maximumHorizon:
     "ten-times-25-second-coronary-controller-time-constant-equals-250-one-second-cycles" as const,
   thresholdsChangedAfterInspectingV3Output: false as const,
@@ -182,9 +180,9 @@ export type MainWireIntegratedModelPeriodicTerminalCycleTraceV3 = Readonly<{
 
 export type MainWireIntegratedModelHealthyReferenceProjectionV3 = Readonly<{
   projectionId: "main-wire-integrated-v3-terminal-cycle-healthy-reference-projection-v1";
-  referencePackId: typeof MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.packId;
+  referenceContextId: typeof MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.contextId;
   referenceBodySurfaceAreaM2: number;
-  referenceBodySurfaceAreaProvenance: "MainWireEvidencePacksV1.fixed-resting-adult-research-reference";
+  referenceBodySurfaceAreaProvenance: "MainWireIntegratedModelHealthyReferenceContextV3.resting-adult-research-reference";
   metric: Readonly<{
     lvEndDiastolicVolumeMl: number;
     lvEndSystolicVolumeMl: number;
@@ -375,8 +373,8 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
       executionPurpose: resolved.executionPurpose,
       nominalDtSec: resolved.nominalDtSec,
       maximumCycleCount: resolved.maximumCycleCount,
-      inheritedPolicy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
-      inheritedReferenceScales:
+      periodicPolicy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+      referenceScales:
         MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
       provider: providerIdentity(fixture.provider),
       composedRhythmConfiguration: fixture.rhythm.configuration,
@@ -623,10 +621,10 @@ function runOneCycle(
   while (accepted.acceptedTimeSec < endTimeSec) {
     if (
       acceptedStepCount >=
-      MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_PROTOCOL_V2.maximumAcceptedStepCountPerRun
+      MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun
     ) {
       throw new Error(
-        "V3 periodic cycle exceeded inherited accepted-step bound",
+        "V3 periodic cycle exceeded accepted-step bound",
       );
     }
     const nominalTargetTimeSec = Math.min(
@@ -768,7 +766,7 @@ function runOneCycle(
     throw new Error("V3 regular-sinus cycle event identity count differs");
   }
   const tolerance =
-    MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_PROTOCOL_V2.invariantTolerance;
+    MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.invariantTolerance;
   if (
     maximumGlobalTotalBloodVolumeErrorMl >
       tolerance.globalTotalBloodVolumeErrorMl ||
@@ -778,7 +776,7 @@ function runOneCycle(
       tolerance.dynamicMcsConservationResidualMlPerSec
   ) {
     throw new Error(
-      "V3 periodic cycle exceeds inherited conservation tolerance",
+      "V3 periodic cycle exceeds conservation tolerance",
     );
   }
   return deepFreeze({
@@ -807,7 +805,7 @@ function buildCycleSummary(
   period2: MainWireIntegratedModelPeriodicClosureReportV3 | null,
 ): MainWireIntegratedModelPeriodicSteadyCycleV3 {
   const tolerance =
-    MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_PROTOCOL_V2.invariantTolerance;
+    MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.invariantTolerance;
   const conservation = Object.freeze({
     maximumGlobalTotalBloodVolumeErrorMl:
       run.maximumGlobalTotalBloodVolumeErrorMl,
@@ -948,7 +946,7 @@ function rawHealthyMetrics(
   if (samples.length === 0)
     throw new Error("healthy metrics require raw samples");
   const bsa =
-    MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.referenceSubject
+    MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.referenceSubject
       .bodySurfaceAreaM2;
   const lvVolumes = samples.map((sample) => sample.chamberVolumeMl.LV);
   const lvEndDiastolicVolumeMl = Math.max(...lvVolumes);
@@ -1012,7 +1010,7 @@ function healthyReferenceProjection(
       metric.leftAtrialTimeWeightedMeanPressureMmHg,
   });
   const selectedGates =
-    MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.gates.filter(
+    MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.gates.filter(
       (gate) => valueByMetricId[gate.metricId] !== undefined,
     );
   if (selectedGates.length !== 6) {
@@ -1021,12 +1019,13 @@ function healthyReferenceProjection(
   return deepFreeze({
     projectionId:
       "main-wire-integrated-v3-terminal-cycle-healthy-reference-projection-v1" as const,
-    referencePackId: MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.packId,
+    referenceContextId:
+      MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.contextId,
     referenceBodySurfaceAreaM2:
-      MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.referenceSubject
+      MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.referenceSubject
         .bodySurfaceAreaM2,
     referenceBodySurfaceAreaProvenance:
-      "MainWireEvidencePacksV1.fixed-resting-adult-research-reference" as const,
+      "MainWireIntegratedModelHealthyReferenceContextV3.resting-adult-research-reference" as const,
     metric,
     assessmentEligibility: {
       eligible,
@@ -1045,7 +1044,7 @@ function healthyReferenceProjection(
 }
 
 function gateResult(
-  gate: MainWireCycleEvidenceGateV1,
+  gate: MainWireIntegratedModelHealthyReferenceGateV3,
   value: number,
   eligible: boolean,
 ): MainWireIntegratedModelHealthyReferenceProjectionV3["gateResults"][number] {

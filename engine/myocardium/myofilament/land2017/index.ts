@@ -6,7 +6,6 @@ export {
   LAND2017_STATE_SIZE,
   assertLand2017StateVectorLength,
   deriveLand2017StepKinematics,
-  makeLand2017StateBlockDescriptor,
   type IntegrationStageDescriptor,
   type LandContinuousInput,
   type LandSourceOutput,
@@ -95,12 +94,6 @@ export {
   land2017LengthFactorDerivative,
   type Land2017TangentOptions,
 } from "@/engine/myocardium/myofilament/land2017/tangents";
-export {
-  runLand2017Phase1CProtocolReport,
-  type Land2017ProtocolReport,
-  type Land2017ProtocolSection,
-  type Land2017ProtocolStatus,
-} from "@/engine/myocardium/myofilament/land2017/protocols";
 export {
   evaluateLand2017ContinuousOutput,
   evaluateLand2017StepOutput,

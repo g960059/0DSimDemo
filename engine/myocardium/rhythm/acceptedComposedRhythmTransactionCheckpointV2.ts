@@ -15,7 +15,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CHECKPOINT_V2_ID =
   "circleheart.accepted-composed-rhythm-transaction-checkpoint.v2" as const;

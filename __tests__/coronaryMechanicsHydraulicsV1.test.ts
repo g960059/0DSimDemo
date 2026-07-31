@@ -20,9 +20,9 @@ import {
   type VolumeDependentCoronaryResistancePriorV1,
 } from "@/engine/coronary";
 import {
-  CORONARY_DISEASE_RESEARCH_PRESET_IDS_V1,
-  CORONARY_DISEASE_RESEARCH_PRESETS_V1,
-} from "@/engine/coronary/coronaryDiseasePresetsV1";
+  CORONARY_DISEASE_RESEARCH_BRACKET_IDS_V1,
+  CORONARY_DISEASE_RESEARCH_BRACKETS_V1,
+} from "@/engine/coronary/coronaryDiseaseResearchBracketsV1";
 
 const mechanicsInput: CoronaryMechanicsInputV1 = Object.freeze({
   externalPressureMmHg: 3,
@@ -233,18 +233,18 @@ describe("coronary V1 topology and normal-adult prior", () => {
   });
 });
 
-describe("coronary disease research presets V1", () => {
+describe("coronary disease research brackets V1", () => {
   it("keeps focal diameter loss, derived area, and structural CMD independent", () => {
-    expect(Object.keys(CORONARY_DISEASE_RESEARCH_PRESETS_V1))
-      .toEqual([...CORONARY_DISEASE_RESEARCH_PRESET_IDS_V1]);
-    const focal = CORONARY_DISEASE_RESEARCH_PRESETS_V1
+    expect(Object.keys(CORONARY_DISEASE_RESEARCH_BRACKETS_V1))
+      .toEqual([...CORONARY_DISEASE_RESEARCH_BRACKET_IDS_V1]);
+    const focal = CORONARY_DISEASE_RESEARCH_BRACKETS_V1
       ["LAD-diameter-loss-0p70"];
     expect(focal.disease.LAD.diameterStenosisFraction01).toBe(0.7);
     expect(focal.derivedResidualAreaFraction01ByTerritory.LAD)
       .toBeCloseTo(0.09, 14);
     expect(focal.disease.LAD.microvascularStructuralResistanceScale).toBe(1);
 
-    const cmd = CORONARY_DISEASE_RESEARCH_PRESETS_V1
+    const cmd = CORONARY_DISEASE_RESEARCH_BRACKETS_V1
       ["diffuse-microvascular-resistance-2p50"];
     expect(cmd.disease.LAD.diameterStenosisFraction01).toBe(0);
     expect(cmd.disease.LAD.microvascularStructuralResistanceScale).toBe(2.5);
@@ -252,8 +252,8 @@ describe("coronary disease research presets V1", () => {
   });
 
   it("labels quantitative brackets without claiming clinical severity", () => {
-    for (const preset of Object.values(CORONARY_DISEASE_RESEARCH_PRESETS_V1)) {
-      expect(preset.claim).toEqual({
+    for (const bracket of Object.values(CORONARY_DISEASE_RESEARCH_BRACKETS_V1)) {
+      expect(bracket.claim).toEqual({
         quantitativeResearchBracketNotClinicalDiagnosis: true,
         diameterLossNotAreaLoss: true,
         focalAndMicrovascularAxesIndependent: true,

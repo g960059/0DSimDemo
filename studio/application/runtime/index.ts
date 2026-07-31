@@ -1,1 +1,1 @@
-export * from "./SimulationSessionCoordinatorV1";
+export * from "./StudioFixtureReducerV2";

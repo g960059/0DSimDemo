@@ -10,7 +10,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const ACCEPTED_DISTAL_CONDUCTION_GATE_CHECKPOINT_V1_ID =
   "circleheart.accepted-distal-conduction-gate-checkpoint.v1" as const;

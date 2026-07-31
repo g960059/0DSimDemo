@@ -1,7 +1,7 @@
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 import type {
   AcceptedRhythmActivationEventV1,
   RhythmBeatMorphologyV1,

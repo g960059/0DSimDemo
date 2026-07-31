@@ -13,7 +13,6 @@ import {
   vascularPvLawFromNodeV1,
   vascularTransmuralPressureFromPhysicalVolumeV1,
 } from "@/engine/core/circulationGraphKernelV1";
-import { OFFICIAL_BASELINES } from "@/engine/caseBaselines";
 import { stressedVolumeFromPtm } from "@/engine/vascularPv";
 
 export const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1_ID =
@@ -78,9 +77,8 @@ export const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1 =
  * 5600 - 77.89 = 5522.11 mL. This is provenance, not another fitted parameter.
  */
 export const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1 = Object.freeze({
-  fullGraphReferenceBaselineId: "active-normal" as const,
-  fullGraphReferenceTotalBloodVolumeMl:
-    OFFICIAL_BASELINES["active-normal"]!.targetVolume,
+  fullGraphReferenceBaselineId: "normal-adult-active-v1" as const,
+  fullGraphReferenceTotalBloodVolumeMl: 5600,
   pinnedExcludedCoronaryColdSeedVolumeMl: 77.89,
   nonCoronaryFixedTotalBloodVolumeMl: 5522.11,
 });

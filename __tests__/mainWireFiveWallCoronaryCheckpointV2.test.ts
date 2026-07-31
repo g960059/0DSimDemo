@@ -47,9 +47,9 @@ import {
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
-  MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+  MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 type TestWallState = Readonly<{
   history: readonly number[];
@@ -283,7 +283,7 @@ function testRuntime(): NonCoronaryCirculationRuntimeParamsV1 {
       respAmpAlv: 0,
       respRate: 0,
     }),
-    valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
+    valveResearchInput: MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
   });
 }
 

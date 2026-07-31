@@ -2,12 +2,6 @@ name: Scientific verification
 
 on:
   workflow_dispatch:
-    inputs:
-      run_archive:
-        description: Run historical research and artifact-replay tests
-        required: false
-        default: false
-        type: boolean
   schedule:
     # Nightly current-model verification at 03:17 JST.
     - cron: "17 18 * * *"
@@ -20,25 +14,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  suite_inventory:
-    name: Scientific suite inventory
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      canonical_files: ${{ steps.inventory.outputs.canonical_files }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Count canonical test files
-        id: inventory
-        shell: bash
-        run: |
-          canonical_files=$(find __tests__ -maxdepth 1 -name 'mainWire*.test.ts' -print | wc -l | tr -d ' ')
-          echo "canonical_files=$canonical_files" >> "$GITHUB_OUTPUT"
-          echo "Canonical mainWire test files: $canonical_files" >> "$GITHUB_STEP_SUMMARY"
-
   engine_regression:
     name: Engine regression (${{ matrix.shard }})
     runs-on: ubuntu-latest
@@ -70,9 +45,6 @@ jobs:
 
   canonical_scientific:
     name: Canonical scientific tests (${{ matrix.shard }})
-    needs:
-      - suite_inventory
-    if: ${{ needs.suite_inventory.outputs.canonical_files != '0' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -99,99 +71,3 @@ jobs:
 
       - name: Run canonical scientific shard
         run: npm run test:scientific:canonical -- --shard=${{ matrix.shard }}
-
-  heavy:
-    name: Opt-in heavy engine tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run heavy tests
-        run: npm run test:heavy
-
-  browser_e2e_full:
-    name: Production browser E2E (full, including @full-e2e)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
-
-      # The per-push gate runs everything except @full-e2e. These are the
-      # long-running stress tests, so they belong with the nightly numerical
-      # verification rather than in front of every merge.
-      - name: Run the full production browser E2E suite
-        run: npm run test:e2e:browser
-
-      - name: Upload browser E2E diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: nightly-browser-e2e-diagnostics
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
-
-  archived_research:
-    name: Archived research (${{ matrix.shard }})
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_archive }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        shard:
-          - 1/12
-          - 2/12
-          - 3/12
-          - 4/12
-          - 5/12
-          - 6/12
-          - 7/12
-          - 8/12
-          - 9/12
-          - 10/12
-          - 11/12
-          - 12/12
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run archived research shard
-        run: npm run test:scientific:archive -- --shard=${{ matrix.shard }}

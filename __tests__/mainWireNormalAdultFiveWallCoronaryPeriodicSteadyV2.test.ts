@@ -91,7 +91,7 @@ import type {
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 describe("canonical coronary V2 periodic runner", () => {
   let threeBeatResult:

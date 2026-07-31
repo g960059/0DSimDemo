@@ -56,7 +56,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 type FixtureOptions = Readonly<{
   events?: readonly AuthoredEctopyEventInputV2[];

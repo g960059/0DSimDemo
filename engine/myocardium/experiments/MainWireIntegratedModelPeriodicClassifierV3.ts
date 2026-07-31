@@ -2,7 +2,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_V3_ID,
   type MainWireIntegratedModelPeriodicClosureReportV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLASSIFIER_V3_ID =
   "main-wire-integrated-composed-rhythm-periodic-classifier-v3" as const;
@@ -14,7 +14,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLASSIFIER_CLAIM_V3 =
     period2ComparisonLag: 2 as const,
     minimumConsecutiveClassificationCycles: 3 as const,
     thresholds:
-      "unchanged-predeclared-V2-policy-not-derived-from-V3-observations" as const,
+      "predeclared-V3-policy-not-derived-from-V3-observations" as const,
     protocolIdentityRequirement:
       "one-lowercase-sha256-for-every-observation" as const,
     boundaryProvenanceRequirement:

@@ -20,7 +20,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_V3_ID =
   "circleheart.main-wire-five-wall-coronary-checkpoint.v3" as const;

@@ -52,7 +52,7 @@ import {
 import {
   sanitizeForStableHash,
   stableHash,
-} from "@/engine/myocardium/kinematics/stableHash";
+} from "@/engine/integrity/stableHash";
 import {
   sampleMainWireNormalAdultFiveWallDiagnosticStepV2,
   type MainWireNormalAdultFiveWallDiagnosticSampleV2,
@@ -75,8 +75,8 @@ import type {
 } from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
 import type {
   MainWireFourValveDiseaseBracketIdV1,
-  MainWireFourValveDiseasePresetV1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  MainWireFourValveDiseaseResearchInputV1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID =
   "main-wire-normal-adult-five-wall-periodic-steady-v1" as const;
@@ -171,8 +171,8 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 = Readonly<{
     }>;
     topologyGraphStableHash: string;
     runtimeStableHash: string;
-    valvePresetStableHash: string;
-    valvePresetSnapshot: MainWireFourValveDiseasePresetV1;
+    valveResearchInputStableHash: string;
+    valveResearchInputSnapshot: MainWireFourValveDiseaseResearchInputV1;
   }>;
   bloodVolumeOperatingPoint:
     MainWireNormalAdultBloodVolumeOperatingPointIdentityV1;
@@ -230,8 +230,6 @@ export type MainWireNormalAdultFiveWallMacroPhysiologyResearchRunV1 = Readonly<{
   periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
   claim: Readonly<{
     sourceResearchRunnerOnly: true;
-    releaseResolved: false;
-    cutoverEligible: false;
     independentCanonicalColdStart: true;
     warmStartApplied: false;
     genericParameterPatchAccepted: false;
@@ -267,7 +265,7 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   pericardiumMode: MainWireCommonPericardiumModeV1;
   pericardiumCase: MainWireNormalAdultCommonPericardiumCaseV1;
   pericardiumParameterSetId: string;
-  valvePreset: MainWireFourValveDiseasePresetV1;
+  valveResearchInput: MainWireFourValveDiseaseResearchInputV1;
   initialization: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   dtSec: number;
   stepsPerBeat: number;
@@ -345,7 +343,7 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     pericardialConstraintEnabled: boolean;
     pericardialConstraintMayBeSlackAtHealthyBaseline: true;
     warmStartIsInitialConditionOnly: true;
-    valveDiseasePresetIsProtocolParameterNotAcceptedState: true;
+    valveDiseaseResearchInputIsProtocolParameterNotAcceptedState: true;
     valveDiseaseBracketIsClinicalDiagnosis: false;
   }>;
 }>;
@@ -470,8 +468,6 @@ export function runMainWireNormalAdultFiveWallMacroPhysiologyResearchPointV1(
     periodicResult,
     claim: Object.freeze({
       sourceResearchRunnerOnly: true as const,
-      releaseResolved: false as const,
-      cutoverEligible: false as const,
       independentCanonicalColdStart: true as const,
       warmStartApplied: false as const,
       genericParameterPatchAccepted: false as const,
@@ -648,7 +644,7 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
     pericardiumMode: resolved.pericardiumMode,
     pericardiumCase: resolved.pericardiumCase,
     pericardiumParameterSetId: pericardium.parameterSetId,
-    valvePreset: runtime.valvePreset,
+    valveResearchInput: runtime.valveResearchInput,
     initialization: resolved.initialization,
     dtSec: resolved.dtSec,
     stepsPerBeat: resolved.stepsPerBeat,
@@ -681,7 +677,7 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
       pericardialConstraintEnabled: resolved.pericardiumMode === "on",
       pericardialConstraintMayBeSlackAtHealthyBaseline: true as const,
       warmStartIsInitialConditionOnly: true as const,
-      valveDiseasePresetIsProtocolParameterNotAcceptedState: true as const,
+      valveDiseaseResearchInputIsProtocolParameterNotAcceptedState: true as const,
       valveDiseaseBracketIsClinicalDiagnosis: false as const,
     }),
   });
@@ -780,8 +776,8 @@ function buildPeriodicProtocolIdentity(
       topologyGraphStableHash:
         componentHashes.circulationTopologyGraphStableHash,
       runtimeStableHash: componentHashes.circulationRuntimeStableHash,
-      valvePresetStableHash: hashProtocolValue(runtime.valvePreset),
-      valvePresetSnapshot: runtime.valvePreset,
+      valveResearchInputStableHash: hashProtocolValue(runtime.valveResearchInput),
+      valveResearchInputSnapshot: runtime.valveResearchInput,
     },
     bloodVolumeOperatingPoint,
     commonPericardium: {
@@ -1030,8 +1026,8 @@ function validateWarmStartSourceProtocolConsistency(
       !== hashes.circulationTopologyGraphStableHash
     || identity.circulation.runtimeStableHash
       !== hashes.circulationRuntimeStableHash
-    || hashProtocolValue(identity.circulation.valvePresetSnapshot)
-      !== identity.circulation.valvePresetStableHash
+    || hashProtocolValue(identity.circulation.valveResearchInputSnapshot)
+      !== identity.circulation.valveResearchInputStableHash
     || identity.bloodVolumeOperatingPoint === undefined
     || hashProtocolValue(identity.bloodVolumeOperatingPoint)
       !== hashes.bloodVolumeOperatingPointStableHash

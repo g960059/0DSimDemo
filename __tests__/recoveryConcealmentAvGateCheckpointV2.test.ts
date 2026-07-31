@@ -14,7 +14,7 @@ import {
   type RecoveryConcealmentAvGateAcceptedStateV2,
   type RecoveryConcealmentAvGateConfigurationV2,
 } from "@/engine/myocardium/rhythm/recoveryConcealmentAvGateV2";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 describe("recovery/concealment proximal AV checkpoint V2", () => {
   it("round-trips the input clock, concealed refractory state, and exact continuation", async () => {

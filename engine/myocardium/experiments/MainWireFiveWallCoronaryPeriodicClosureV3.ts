@@ -31,7 +31,7 @@ import type {
 import type {
   LandSlsWallMaterialStateV1,
 } from "@/engine/myocardium/mechanics/landSlsWallMaterialV1";
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 
 export const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_V3_ID =
   "main-wire-five-wall-coronary-full-accepted-state-periodic-closure-v3" as const;

@@ -38,9 +38,9 @@ import {
   createMainWireNormalAdultCommonPericardiumV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
 import {
-  MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+  MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 type Provider = ReturnType<
   typeof createCanonicalMainWireNormalAdultFiveWallProviderV1
@@ -257,7 +257,7 @@ function testRuntime() {
       respAmpAlv: 0,
       respRate: 0,
     }),
-    valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
+    valveResearchInput: MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
   });
 }
 

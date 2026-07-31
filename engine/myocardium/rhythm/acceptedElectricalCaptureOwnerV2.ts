@@ -1,4 +1,4 @@
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 
 /**
  * Minimal accepted electrical-capture composition layer.

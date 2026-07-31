@@ -68,7 +68,7 @@ import {
   runMainWireNormalAdultFiveWallCoronaryPeriodicSteadyV3,
   type MainWireNormalAdultFiveWallCoronaryPeriodicResultV3,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallCoronaryPeriodicSteadyV3";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 describe("canonical coronary V3 accepted-autoregulation periodic runner", () => {
   let first: MainWireNormalAdultFiveWallCoronaryPeriodicResultV3;

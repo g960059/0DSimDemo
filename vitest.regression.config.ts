@@ -15,7 +15,6 @@ export default defineConfig({
       ...configDefaults.exclude,
       ".claude/**",
       ".codex/**",
-      ".firebase/**",
     ],
     testTimeout: 120_000,
     hookTimeout: 120_000,

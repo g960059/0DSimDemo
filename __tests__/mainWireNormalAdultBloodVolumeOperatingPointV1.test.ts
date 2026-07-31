@@ -105,7 +105,7 @@ describe("main-wire normal-adult blood-volume operating point V1", () => {
     );
 
     expect(MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1).toEqual({
-      fullGraphReferenceBaselineId: "active-normal",
+      fullGraphReferenceBaselineId: "normal-adult-active-v1",
       fullGraphReferenceTotalBloodVolumeMl: 5600,
       pinnedExcludedCoronaryColdSeedVolumeMl: 77.89,
       nonCoronaryFixedTotalBloodVolumeMl: 5522.11,

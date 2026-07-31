@@ -8,7 +8,6 @@ import { DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID } from "@/engine/devices/dynamicR
 import {
   ROTARY_SUPPORT_DEVICE_IDS_V1,
   type MechanicalSupportConfigV1,
-  type RotarySupportDeviceIdV1,
 } from "@/engine/devices/typesV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
@@ -22,9 +21,9 @@ import {
   type MainWireFiveWallCoronaryPeriodicReferenceScalesV3,
 } from "@/engine/myocardium/experiments/MainWireFiveWallCoronaryPeriodicClosureV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V2,
-  type MainWireIntegratedModelPeriodicReferenceScalesV2,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV2";
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+  type MainWireIntegratedModelPeriodicReferenceScalesV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
 import type { MainWireNormalAdultFiveWallMechanicsStateV1 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
   COMPOSED_RHYTHM_WALL_IDS_V2,
@@ -32,14 +31,10 @@ import {
   type AcceptedComposedRhythmTransactionStateV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
 import type { CapturedElectricalActivationV2 } from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_V3_ID =
   "main-wire-integrated-composed-rhythm-full-accepted-state-periodic-closure-v3" as const;
-
-/** The V2 scales are reused by identity; no V3 output-derived scale exists. */
-export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 =
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V2;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_CLAIM_V3 = deepFreeze({
   scope:
@@ -67,9 +62,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_CLAIM_V3 = deepFreeze({
     "nullable-history-presence-and-structure-are-reported-as-delta-not-silently-discarded" as const,
   dynamicMechanicalSupport:
     "four-explicit-all-off-zero-inertance-circuits-with-exact-zero-accepted-q" as const,
-  referenceScaleObjectReusedByIdentity:
-    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 ===
-    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V2,
+  predeclaredReferenceScaleSetOwnedByIntegratedV3: true as const,
   thresholdsOrScalesDerivedFromV3Output: false as const,
   completeAcceptedStateNumericalPeriodicityIsPhysiology: false as const,
   normalConstructionTargetIsIndependentValidation: false as const,
@@ -217,7 +210,7 @@ const ALL_OFF_CONFIG = createMechanicalSupportConfigV1();
 export function compareMainWireIntegratedModelAcceptedStatesV3(
   current: MainWireIntegratedModelPeriodicAcceptedStateV3,
   reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
-  scales: MainWireIntegratedModelPeriodicReferenceScalesV2 = MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+  scales: MainWireIntegratedModelPeriodicReferenceScalesV3 = MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
   expectedAllOffConfig: MechanicalSupportConfigV1 = ALL_OFF_CONFIG,
 ): MainWireIntegratedModelPeriodicClosureReportV3 {
   validateScales(scales);
@@ -812,7 +805,7 @@ function addCaptureEntries(
   entries: IntegratedEntry[],
   current: MainWireIntegratedModelPeriodicAcceptedStateV3,
   reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
-  scales: MainWireIntegratedModelPeriodicReferenceScalesV2,
+  scales: MainWireIntegratedModelPeriodicReferenceScalesV3,
 ): void {
   const currentCapture = current.composedRhythm.electricalCaptureState;
   const referenceCapture = reference.composedRhythm.electricalCaptureState;
@@ -864,7 +857,7 @@ function addProximalAvEntries(
   entries: IntegratedEntry[],
   current: MainWireIntegratedModelPeriodicAcceptedStateV3,
   reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
-  scales: MainWireIntegratedModelPeriodicReferenceScalesV2,
+  scales: MainWireIntegratedModelPeriodicReferenceScalesV3,
 ): void {
   const currentAv = current.composedRhythm.proximalAvGateState;
   const referenceAv = reference.composedRhythm.proximalAvGateState;
@@ -922,7 +915,7 @@ function addDistalEntries(
   entries: IntegratedEntry[],
   current: MainWireIntegratedModelPeriodicAcceptedStateV3,
   reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
-  scales: MainWireIntegratedModelPeriodicReferenceScalesV2,
+  scales: MainWireIntegratedModelPeriodicReferenceScalesV3,
 ): void {
   const currentDistal = current.composedRhythm.distalGateState;
   const referenceDistal = reference.composedRhythm.distalGateState;
@@ -980,7 +973,7 @@ function addBackupEntries(
   entries: IntegratedEntry[],
   current: MainWireIntegratedModelPeriodicAcceptedStateV3,
   reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
-  scales: MainWireIntegratedModelPeriodicReferenceScalesV2,
+  scales: MainWireIntegratedModelPeriodicReferenceScalesV3,
 ): void {
   const currentBackup = current.composedRhythm.ventricularBackupState;
   const referenceBackup = reference.composedRhythm.ventricularBackupState;
@@ -1059,7 +1052,7 @@ function addIntervalEntries(
   entries: IntegratedEntry[],
   current: MainWireIntegratedModelPeriodicAcceptedStateV3,
   reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
-  scales: MainWireIntegratedModelPeriodicReferenceScalesV2,
+  scales: MainWireIntegratedModelPeriodicReferenceScalesV3,
 ): void {
   const currentInterval =
     current.composedRhythm.ventricularIntervalStrengthState;
@@ -1143,7 +1136,7 @@ function addPendingEntries(
   entries: IntegratedEntry[],
   current: MainWireIntegratedModelPeriodicAcceptedStateV3,
   reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
-  scales: MainWireIntegratedModelPeriodicReferenceScalesV2,
+  scales: MainWireIntegratedModelPeriodicReferenceScalesV3,
   periodLag: 1 | 2,
 ): void {
   const currentRhythm = current.composedRhythm;
@@ -1551,7 +1544,7 @@ function maximumGroup(
 }
 
 function projectCoronaryScales(
-  scales: MainWireIntegratedModelPeriodicReferenceScalesV2,
+  scales: MainWireIntegratedModelPeriodicReferenceScalesV3,
 ): MainWireFiveWallCoronaryPeriodicReferenceScalesV3 {
   return Object.freeze(
     Object.fromEntries(
@@ -1566,15 +1559,15 @@ function projectCoronaryScales(
 }
 
 function validateScales(
-  scales: MainWireIntegratedModelPeriodicReferenceScalesV2,
+  scales: MainWireIntegratedModelPeriodicReferenceScalesV3,
 ): void {
   if (
     canonicalJsonStringify(scales) !==
     canonicalJsonStringify(
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V2,
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
     )
   ) {
-    throw new Error("V3 periodic closure requires the unchanged V2 scales");
+    throw new Error("V3 periodic closure requires the predeclared V3 scales");
   }
 }
 

@@ -78,7 +78,7 @@ import type {
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_STEADY_V3_ID =
   "main-wire-normal-adult-five-wall-coronary-periodic-steady-v3" as const;

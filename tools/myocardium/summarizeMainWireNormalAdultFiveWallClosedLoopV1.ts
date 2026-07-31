@@ -2,10 +2,10 @@ import { readFileSync } from "node:fs";
 
 import {
   measureLaPvReservoirConduitOrderV1,
-} from "@/engine/mechanics2/diagnostics/LaPvReservoirConduitOrderV1";
+} from "@/engine/myocardium/diagnostics/LaPvReservoirConduitOrderV1";
 import {
   measureLaPvTwoLobesV2,
-} from "@/engine/mechanics2/diagnostics/LaPvLobeMeasurementV2";
+} from "@/engine/myocardium/diagnostics/LaPvLobeMeasurementV2";
 import type {
   MainWireNormalAdultFiveWallClosedLoopResultV1,
   MainWireNormalAdultFiveWallClosedLoopSampleV1,

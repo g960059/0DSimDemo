@@ -117,18 +117,18 @@ export type ParameterPatch = Partial<CoreRuntimeParams>;
 // =============================================================================
 // sanitizeParams — the engine's authoritative parameter-sanitation boundary.
 //
-// This is the FINAL gate every resolved parameter set passes through before it
-// reaches the integrator (caseOps.resolveInstance() calls it last). Its job:
+// This is the FINAL gate every resolved runtime-parameter object passes through
+// before it reaches the integrator. Its job:
 //   1. Clamp known physiology knobs to hard, integrator-safe ranges.
 //   2. Coerce non-finite values to a neutral fallback (defends against
-//      LLM/import-authored or corrupted cases).
+//      imported, generated, or corrupted research fixtures).
 //   3. Drop unknown junk keys (rebuilds the object from the known schema).
 //
 // CRITICAL — valvular interventions: the valve params (MV_*/AoV_*/TV_*/PV_*),
 // the deep scale knobs, and node/edge overrides are PRESERVED (guarded for
 // finiteness/non-negativity, never dropped). A naive whitelist that kept only
-// the "core" knobs would make every valve lesion (AS/MR/...) silently no-op —
-// see caseOps.ts §"Raw-patch clamp & review policy".
+// the "core" knobs would make every valve lesion (AS/MR/...) silently no-op;
+// this boundary deliberately preserves every supported intervention field.
 // =============================================================================
 
 /**
@@ -226,13 +226,14 @@ const VALVE_PREFIXES = ["MV", "AoV", "TV", "PV"] as const;
 
 /**
  * Neutral fallback for non-finite inputs. Mirrors defaultParams(); a guard test
- * (caseContract.test.ts) asserts the two stay in lock-step so this copy cannot
- * silently drift. Kept here so sanitizeParams has NO engine import (it is a
- * standalone safety boundary that caseOps/MCP can call without the simulator).
+ * (runtimeParameterSanitation.test.ts) asserts the two stay in lock-step so
+ * this copy cannot silently drift. Kept here so sanitizeParams has NO engine
+ * import (it is a standalone safety boundary that research-input resolvers can
+ * call without the simulator).
  */
 export const NEUTRAL_PARAMS: CoreRuntimeParams = {
   HR: 75, contractility: 1.0, relaxation: 1.0,
-  // Kept in lock-step with defaultParams() (caseContract test).
+  // Kept in lock-step with defaultParams() (runtime sanitation test).
   systemicResistance: 1.0, pulmonaryResistance: 0.625, venousTone: 0.15,
   arterialStiffness: 0.75, PEEP: 0, Pth0: 0, respAmpTh: 0, respAmpAlv: 0,
   respRate: 0.25, speed: 1,

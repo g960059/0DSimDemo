@@ -2,8 +2,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_PARAMS } from "@/constants";
 import {
-  MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
-  MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE,
+  MODELCORE_RUNTIME_BASELINE_ACTIVE_STRESS_MODE,
+  MODELCORE_RUNTIME_DEFAULT_ACTIVE_SOURCE_MODE,
   type ModelCoreRuntimeActiveSourceMode,
 } from "@/engine/myocardium/runtimeActiveSource";
 import { generateVerificationSvgs } from "@/engine/verification/artifacts";
@@ -43,7 +43,7 @@ for (const [filename, svg] of Object.entries(svgs)) {
 console.log(
   `verification ${report.summary.pass ? "PASS" : "FAIL"} ` +
   `profile=${report.profile.mode} gateSet=${report.gateSet} ` +
-  `runtime=${report.runtimeActiveSourceMode ?? "legacy-default"} ` +
+  `runtime=${report.runtimeActiveSourceMode ?? "baseline-default"} ` +
   `hardFailures=${report.summary.hardFailures} softFailures=${report.summary.softFailures} ` +
   `out=${options.outDir}`,
 );
@@ -84,21 +84,21 @@ function isGateSet(value: string | undefined): value is VerificationGateSet {
 function printHelp(): void {
   // eslint-disable-next-line no-console
   console.log([
-    "Usage: npm run verify:baseline -- [--profile=fitFast|verifyAccurate|preview] [--gate-set=normalBaseline|validityOnly] [--runtime=user0|legacy|none] [--out=DIR]",
+    "Usage: npm run verify:baseline -- [--profile=fitFast|verifyAccurate|preview] [--gate-set=normalBaseline|validityOnly] [--runtime=current|baseline|none] [--out=DIR]",
     "",
     "Examples:",
     "  npm run verify:baseline",
-    "  npm run verify:baseline -- --runtime=user0",
+    "  npm run verify:baseline -- --runtime=current",
     "  npm run verify:baseline -- --profile=fitFast --out=artifacts/verification/fit-fast",
   ].join("\n"));
 }
 
-function isRuntimeMode(value: string | undefined): value is "user0" | "legacy" | "none" {
-  return value === "user0" || value === "legacy" || value === "none";
+function isRuntimeMode(value: string | undefined): value is "current" | "baseline" | "none" {
+  return value === "current" || value === "baseline" || value === "none";
 }
 
-function runtimeMode(value: "user0" | "legacy" | "none"): ModelCoreRuntimeActiveSourceMode | undefined {
-  if (value === "user0") return MODELCORE_RUNTIME_USER0_STAGED_DEFAULT_MODE;
-  if (value === "legacy") return MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE;
+function runtimeMode(value: "current" | "baseline" | "none"): ModelCoreRuntimeActiveSourceMode | undefined {
+  if (value === "current") return MODELCORE_RUNTIME_DEFAULT_ACTIVE_SOURCE_MODE;
+  if (value === "baseline") return MODELCORE_RUNTIME_BASELINE_ACTIVE_STRESS_MODE;
   return undefined;
 }

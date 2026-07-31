@@ -12,7 +12,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts"],
-    exclude: [...configDefaults.exclude, ".claude/**", ".codex/**", ".firebase/**"],
+    exclude: [...configDefaults.exclude, ".claude/**", ".codex/**"],
     snapshotFormat: {
       printBasicPrototype: false,
     },

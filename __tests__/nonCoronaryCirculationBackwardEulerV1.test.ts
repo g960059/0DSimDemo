@@ -33,11 +33,11 @@ import {
   type NonCoronaryCirculationRuntimeParamsV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import { initialMainWireQuasiSteadyOrificeValveStateV2 } from
-  "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
+  "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
 import {
-  MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
-  composeMainWireFourValveDiseasePresetV1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
+  composeMainWireFourValveDiseaseResearchInputV1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import { stressedVolumeFromPtm } from "@/engine/vascularPv";
 
 const RUNTIME: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
@@ -50,7 +50,7 @@ const RUNTIME: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
     respAmpAlv: 0,
     respRate: 0,
   }),
-  valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
+  valveResearchInput: MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
 });
 
 describe("main-wire-derived non-coronary experimental backward Euler V1", () => {
@@ -235,11 +235,11 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     expect(trial.reverseFlowCapOrClampOnNonvalveEdges).toBe(false);
   });
 
-  it("applies a disease preset only to the requested reverse EROA", () => {
+  it("applies a disease research input only to the requested reverse EROA", () => {
     const fixture = steadyStateFixture();
     const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
       ...RUNTIME,
-      valvePreset: composeMainWireFourValveDiseasePresetV1(["MR-moderate"]),
+      valveResearchInput: composeMainWireFourValveDiseaseResearchInputV1(["MR-moderate"]),
     });
     const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
       previousAcceptedState: fixture.state,

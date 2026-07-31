@@ -58,7 +58,7 @@ import {
   type AcceptedComposedRhythmTransactionStateV2,
   type ComposedRhythmExternalAtrialSourceBatchV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 import type {
   WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
