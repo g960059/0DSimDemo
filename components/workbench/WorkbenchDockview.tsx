@@ -125,6 +125,25 @@ function applyPanesV3(
   });
 }
 
+export function getWorkbenchPaneSignatureV3(
+  panes: readonly WorkbenchPaneDefinitionV3[],
+): string {
+  return JSON.stringify(
+    panes.map(({ paneId, role, title }) => [paneId, role, title]),
+  );
+}
+
+export function reconcileWorkbenchPanesV3(
+  api: DockviewApi,
+  panes: readonly WorkbenchPaneDefinitionV3[],
+  appliedSignature: string | null,
+): string {
+  const nextSignature = getWorkbenchPaneSignatureV3(panes);
+  if (nextSignature === appliedSignature) return appliedSignature;
+  applyPanesV3(api, panes);
+  return nextSignature;
+}
+
 /**
  * Dockview is presentation infrastructure only. Its split geometry and active
  * tab stay ephemeral; durable Experiment data stores semantic groups/order and
@@ -147,8 +166,11 @@ export function WorkbenchDockview({
   }
 
   const apiRef = React.useRef<DockviewApi | null>(null);
+  const latestPanesRef = React.useRef(panes);
+  latestPanesRef.current = panes;
+  const appliedPaneSignatureRef = React.useRef<string | null>(null);
   const paneSignature = React.useMemo(
-    () => panes.map(({ paneId, title }) => `${paneId}:${title}`).join("|"),
+    () => getWorkbenchPaneSignatureV3(panes),
     [panes],
   );
   const paneById = React.useMemo(
@@ -167,8 +189,12 @@ export function WorkbenchDockview({
   React.useEffect(() => {
     const api = apiRef.current;
     if (api === null) return;
-    applyPanesV3(api, panes);
-  }, [paneSignature, panes]);
+    appliedPaneSignatureRef.current = reconcileWorkbenchPanesV3(
+      api,
+      latestPanesRef.current,
+      appliedPaneSignatureRef.current,
+    );
+  }, [paneSignature]);
 
   if (panes.length === 0) {
     return (
@@ -214,7 +240,11 @@ export function WorkbenchDockview({
           getTabGroupChipContextMenuItems={() => []}
           onReady={(event: DockviewReadyEvent) => {
             apiRef.current = event.api;
-            applyPanesV3(event.api, panes);
+            appliedPaneSignatureRef.current = reconcileWorkbenchPanesV3(
+              event.api,
+              latestPanesRef.current,
+              null,
+            );
           }}
         />
       </section>

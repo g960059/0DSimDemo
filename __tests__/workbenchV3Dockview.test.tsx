@@ -1,6 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import type { DockviewApi } from "dockview";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createDefaultControlPaneV3,
@@ -9,6 +10,7 @@ import {
 } from "@/components/WorkbenchV3Page";
 import {
   WorkbenchDockview,
+  reconcileWorkbenchPanesV3,
   type WorkbenchPaneDefinitionV3,
 } from "@/components/workbench/WorkbenchDockview";
 import {
@@ -71,5 +73,40 @@ describe("V3 Dockview Workbench", () => {
         renderPane={() => null}
       />,
     )).toThrow(/graph area cannot host output pane output-1/);
+  });
+
+  it("does not rebuild Dockview for a new array with the same pane structure", () => {
+    const clear = vi.fn();
+    const addPanel = vi.fn();
+    const api = {
+      addPanel,
+      clear,
+      panels: [],
+    } as unknown as DockviewApi;
+    const pane: WorkbenchPaneDefinitionV3 = Object.freeze({
+      paneId: "graph-1",
+      role: "graph",
+      title: "Pressure",
+    });
+
+    let signature = reconcileWorkbenchPanesV3(api, [pane], null);
+    signature = reconcileWorkbenchPanesV3(
+      api,
+      [{ ...pane }],
+      signature,
+    );
+
+    expect(clear).toHaveBeenCalledTimes(1);
+    expect(addPanel).toHaveBeenCalledTimes(1);
+
+    signature = reconcileWorkbenchPanesV3(
+      api,
+      [{ ...pane, title: "Flow" }],
+      signature,
+    );
+
+    expect(clear).toHaveBeenCalledTimes(2);
+    expect(addPanel).toHaveBeenCalledTimes(2);
+    expect(addPanel.mock.calls[1]?.[0]).toMatchObject({ title: "Flow" });
   });
 });
