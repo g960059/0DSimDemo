@@ -40,9 +40,9 @@
       (function () {
         try {
           var stored = localStorage.getItem('circleheart.app.theme');
-          document.body.dataset.workbenchTheme = stored === 'light' ? 'light' : 'dark';
+          document.body.dataset.appTheme = stored === 'light' ? 'light' : 'dark';
         } catch (error) {
-          document.body.dataset.workbenchTheme = 'dark';
+          document.body.dataset.appTheme = 'dark';
         }
       })();
     </script>

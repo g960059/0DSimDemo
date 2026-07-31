@@ -70,6 +70,68 @@ describe("Studio Experiment authoring V2", () => {
     );
   });
 
+  it("reuses exact checkpoints for Surface-only Save without a live capture", async () => {
+    let captureCalled = false;
+    const { application } = harnessV2(undefined, {
+      captureAcceptedCandidate() {
+        captureCalled = true;
+        throw new Error("presentation-only Save must not capture runtime state");
+      },
+    });
+    const initial = contentV2(42, 3.5);
+    await application.createWorkspace({
+      experimentId: "experiment/main",
+      content: initial,
+    });
+    const desired = mutableDesiredContentV2(desiredContentV2());
+    desired.scenarios[0].label = "Renamed baseline";
+    desired.surface.note.text = "Updated interpretation.";
+
+    const saved = await application.saveDraft({
+      experimentId: "experiment/main",
+      expectedDraftVersion: 0,
+      desiredContent: desired,
+    });
+
+    expect(captureCalled).toBe(false);
+    expect(saved.draftVersion).toBe(1);
+    expect(saved.content.scenarios[0]).toMatchObject({
+      label: "Renamed baseline",
+      capture: {
+        checkpoint: {
+          acceptedRevision: 42,
+          acceptedTimeSec: 3.5,
+        },
+      },
+    });
+    expect(saved.content.surface.note.text).toBe("Updated interpretation.");
+  });
+
+  it("requires accepted-boundary capture when a fixture changed", async () => {
+    let captureCalled = false;
+    const { application } = harnessV2(undefined, {
+      captureAcceptedCandidate() {
+        captureCalled = true;
+        throw new Error("capture should require an explicit correlation");
+      },
+    });
+    await application.createWorkspace({
+      experimentId: "experiment/main",
+      content: contentV2(0, 0),
+    });
+    const desired = mutableDesiredContentV2(desiredContentV2());
+    desired.scenarios[0].fixture.controls.heartRateBpm = 75;
+
+    await expect(application.saveDraft({
+      experimentId: "experiment/main",
+      expectedDraftVersion: 0,
+      desiredContent: desired,
+    })).rejects.toThrow(/captureCorrelation is required/);
+    expect(captureCalled).toBe(false);
+    expect((await application.readWorkspace("experiment/main"))?.draftVersion)
+      .toBe(0);
+  });
+
   it("awaits exact capture restore before exposing a workspace or query result", async () => {
     let finishValidation: (() => void) | undefined;
     const pendingValidation = new Promise<void>((resolve) => {
@@ -1041,6 +1103,7 @@ function contentV2(
       controls: [{
         instanceId: "control/hr",
         controlId: "control/heart-rate",
+        targetScenarioIds: ["scenario/baseline"],
         groupId: "group/main",
         order: 2,
         priority: 0,

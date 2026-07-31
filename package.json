@@ -36,6 +36,7 @@
     "validate:mechanical-support:v1": "vite-node --script tools/devices/generateMechanicalSupportValidationV1.ts"
   },
   "dependencies": {
+    "dockview": "^6.6.1",
     "i18next": "^26.3.1",
     "lucide-react": "^1.17.0",
     "react": "^19.2.3",

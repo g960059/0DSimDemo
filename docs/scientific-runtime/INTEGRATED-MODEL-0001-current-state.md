@@ -22,15 +22,17 @@ They are engine internals: durable Studio content stores only the exact
 
 ## Current product wiring
 
-The product exposes Home and a live V3 Workbench. Workbench resolves the exact
-development package from the trusted client registry projection, starts the
-generic simulation Worker automatically, and advances the actual integrated V3
-accepted state. It does not invoke a mock graph or a legacy model facade.
+The product exposes Home and a live V3 Workbench. Workbench materializes the
+trusted client registry projection from the committed exact executable
+artifact, starts the generic simulation Worker automatically, and advances the
+actual integrated V3 accepted state. Its Dockview graph, output, and control
+role areas are derived from the registered model catalogs and share one
+page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 
 The current exact development release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-1
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-2
 ```
 
 It pins:
@@ -46,8 +48,10 @@ Its parameter and control catalogs are empty. Portable controls have not yet
 been admitted, so no durable `ParameterSet` or pretend knob mapping is exposed.
 
 Registry admission performs the one-time exact manifest/artifact integrity
-check. Browser clients receive the already-admitted manifest plus executable
-bundle and do not rehash either during load or execution.
+check. The trusted loader evaluates those exact self-contained module bytes and
+materializes the executable bundle from them; arbitrary bytes cannot be paired
+with source-created functions. Browser clients load that committed admitted
+artifact and do not rehash it during load or execution.
 
 The model-pinned Snapshot gate restores the frozen candidate exactly, runs the
 periodic qualification protocol, accepts only period-1 convergence without

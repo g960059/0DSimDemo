@@ -32,7 +32,10 @@ function discoverTestFiles(directory = process.cwd()): string[] {
     const absolute = path.join(directory, entry.name);
     if (entry.isDirectory()) {
       files.push(...discoverTestFiles(absolute));
-    } else if (entry.isFile() && entry.name.endsWith(".test.ts")) {
+    } else if (
+      entry.isFile()
+      && (entry.name.endsWith(".test.ts") || entry.name.endsWith(".test.tsx"))
+    ) {
       files.push(path.relative(process.cwd(), absolute).split(path.sep).join("/"));
     }
   }

@@ -94,6 +94,11 @@ export type ExperimentSurfaceReadoutInstanceV2 = Readonly<{
 export type ExperimentSurfaceControlInstanceV2 = Readonly<{
   instanceId: SurfaceInstanceIdV2;
   controlId: string;
+  /**
+   * Explicit durable binding. A control never relies on an implicit
+   * "currently active" Scenario when an Experiment contains comparisons.
+   */
+  targetScenarioIds: readonly ScenarioIdV2[];
   groupId: SurfaceGroupIdV2;
   order: number;
   priority: number;

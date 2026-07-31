@@ -46,16 +46,17 @@ export type ExperimentDesiredContentV2 = Readonly<{
 }>;
 
 /**
- * The command carries checkpoint-free desired authored content. The
- * application freezes and validates it, then asks the exact registered model
- * runtime to construct complete accepted-boundary captures. Settlement is
- * deliberately not required.
+ * The command carries checkpoint-free desired authored content. When any
+ * Scenario fixture changed, `captureCorrelation` binds Save to fresh
+ * accepted-boundary captures from the exact registered model runtime. A
+ * Surface/label/order-only Save may omit it and reuse the matching persisted
+ * checkpoints. Settlement is deliberately not required.
  */
 export type SaveExperimentDraftCommandV2 = Readonly<{
   experimentId: ExperimentIdV2;
   expectedDraftVersion: ExperimentDraftVersionV2;
   desiredContent: ExperimentDesiredContentV2;
-  captureCorrelation: ExperimentDraftCaptureCorrelationV2;
+  captureCorrelation?: ExperimentDraftCaptureCorrelationV2;
 }>;
 
 export type ExperimentScenarioCaptureCorrelationV2 = Readonly<{

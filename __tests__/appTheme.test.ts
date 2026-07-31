@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 afterEach(() => {
@@ -21,6 +22,13 @@ describe('application theme', () => {
 
     expect(values.get(theme.APP_THEME_STORAGE_KEY)).toBe('light');
     expect((document.body.dataset as Record<string, string>).appTheme).toBe('light');
+  });
+
+  it('applies the current application dataset before the first paint', () => {
+    const html = readFileSync('index.html', 'utf8');
+
+    expect(html).toContain('document.body.dataset.appTheme');
+    expect(html).not.toContain('document.body.dataset.workbenchTheme');
   });
 
 });

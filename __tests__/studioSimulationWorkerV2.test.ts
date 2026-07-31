@@ -34,6 +34,7 @@ describe("Studio simulation worker V2 protocol", () => {
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId: 1,
       kind: "initialize",
+      expectedModelId: "model/main-wire-v3-r1",
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       fixture,
@@ -48,6 +49,7 @@ describe("Studio simulation worker V2 protocol", () => {
 
     expect(request).toMatchObject({
       requestId: 1,
+      expectedModelId: "model/main-wire-v3-r1",
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       fixture: {
@@ -241,6 +243,27 @@ describe("Studio simulation worker V2 runtime", () => {
     });
   });
 
+  it("rejects a loaded adapter for another model before creating a session", async () => {
+    const harness = runtimeHarnessV2();
+    harness.runtime.enqueue(initializeRequestV2(
+      1,
+      "model/another-release",
+    ));
+    await harness.runtime.whenIdle();
+
+    expect(harness.adapter.createSession).not.toHaveBeenCalled();
+    expect(harness.adapter.disposeSession).not.toHaveBeenCalled();
+    expect(harness.port.messages).toEqual([
+      expect.objectContaining({
+        requestId: 1,
+        status: "error",
+        message: expect.stringMatching(/modelId.*requested model/),
+      }),
+    ]);
+    expect(harness.port.close).toHaveBeenCalledTimes(1);
+    expect(harness.runtime.state).toBe("failed");
+  });
+
   it("decodes before loading an adapter and consumes malformed request IDs", async () => {
     const harness = runtimeHarnessV2();
     const getter = vi.fn(() => ({ value: 1 }));
@@ -416,12 +439,16 @@ describe("Studio simulation worker V2 client", () => {
     const client = new StudioSimulationWorkerClientV2({ transport });
     const fixture = { value: 1 };
     const initialized = client.initialize({
+      expectedModelId: "model/main-wire-v3-r1",
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       fixture,
     });
     fixture.value = 2;
-    expect(transport.messages[0]).toMatchObject({ fixture: { value: 1 } });
+    expect(transport.messages[0]).toMatchObject({
+      expectedModelId: "model/main-wire-v3-r1",
+      fixture: { value: 1 },
+    });
     transport.emitMessage(initializedResponseV2(1));
     await expect(initialized).resolves.toMatchObject({
       runtimeSessionId: "runtime/session-1",
@@ -444,6 +471,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = new StudioSimulationWorkerClientV2({ transport });
     const getter = vi.fn(() => "runtime/session-1");
     const input: Record<string, unknown> = {
+      expectedModelId: "model/main-wire-v3-r1",
       scenarioId: "scenario/baseline",
       fixture: { value: 1 },
     };
@@ -462,10 +490,12 @@ describe("Studio simulation worker V2 client", () => {
     for (const response of [
       { ...initializedResponseV2(9) },
       initializedResponseV2(1, { runtimeSessionId: "runtime/forged" }),
+      initializedResponseV2(1, { modelId: "model/forged" }),
     ]) {
       const transport = new FakeWorkerTransportV2();
       const client = new StudioSimulationWorkerClientV2({ transport });
       const initialized = client.initialize({
+        expectedModelId: "model/main-wire-v3-r1",
         runtimeSessionId: "runtime/session-1",
         scenarioId: "scenario/baseline",
         fixture: { value: 1 },
@@ -478,6 +508,7 @@ describe("Studio simulation worker V2 client", () => {
     const transport = new FakeWorkerTransportV2();
     const client = new StudioSimulationWorkerClientV2({ transport });
     const initialized = client.initialize({
+      expectedModelId: "model/main-wire-v3-r1",
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       fixture: { value: 1 },
@@ -507,6 +538,7 @@ describe("Studio simulation worker V2 client", () => {
       responseTimeoutMs: 10,
     });
     const initialized = client.initialize({
+      expectedModelId: "model/main-wire-v3-r1",
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       fixture: { value: 1 },
@@ -526,6 +558,7 @@ describe("Studio simulation worker V2 client", () => {
     const transport = new FakeWorkerTransportV2();
     const client = new StudioSimulationWorkerClientV2({ transport });
     const initialized = client.initialize({
+      expectedModelId: "model/main-wire-v3-r1",
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       fixture: { value: 1 },
@@ -553,8 +586,12 @@ describe("Studio simulation worker V2 client", () => {
   });
 });
 
-function initializeRequestV2(requestId: number) {
+function initializeRequestV2(
+  requestId: number,
+  expectedModelId = "model/main-wire-v3-r1",
+) {
   return createStudioSimulationInitializeRequestV2(requestId, {
+    expectedModelId,
     runtimeSessionId: "runtime/session-1",
     scenarioId: "scenario/baseline",
     fixture: { value: 1 },

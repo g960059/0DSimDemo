@@ -6,7 +6,6 @@ import type {
   StudioFixturePathSegmentV2,
   StudioFixturePathV2,
   StudioFixtureReductionInputV2,
-  StudioKnobActionV2,
   StudioScenarioRuntimeContextV2,
   StudioModelFixtureAdapterV2,
 } from "@/studio/contracts/v2/runtime";
@@ -26,7 +25,7 @@ export type StudioFixtureReductionErrorCodeV2 =
   | "model-validation"
   | "unknown-path";
 
-const MAXIMUM_FIXTURE_JSON_DEPTH_V2 = 128;
+const MAXIMUM_FIXTURE_JSON_DEPTH_V2 = 256;
 const PORTABLE_RUNTIME_ID_V2 = /^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/;
 
 export class StudioFixtureReductionErrorV2 extends Error {
@@ -43,7 +42,7 @@ export class StudioFixtureReductionErrorV2 extends Error {
 }
 
 /**
- * Reduces one ephemeral control/knob action directly into a detached, deeply
+ * Reduces one ephemeral semantic control action into a detached, deeply
  * frozen, complete fixture. Nothing is applied until every path and JSON value
  * in the resulting patch has passed validation.
  */
@@ -52,8 +51,9 @@ export type StudioFixtureReducerFacadeV2 = Readonly<{
 }>;
 
 /**
- * Binds fixture reduction to the exact executable bundle resolved by the
- * registry. Callers cannot supply or spoof their own validation adapter.
+ * Binds fixture reduction to the executable bundle returned by the supplied
+ * trusted registry resolver. Reduction callers cannot replace that adapter;
+ * integrity of the resolver/composition remains part of the trusted boundary.
  */
 export function createStudioFixtureReducerV2(
   models: ExactModelRuntimeResolverPortV2,
@@ -72,6 +72,14 @@ export function createStudioFixtureReducerV2(
         throw new StudioFixtureReductionErrorV2(
           "model-binding",
           `registered fixture adapter does not exactly match model ${context.modelId}`,
+        );
+      }
+      if (!runtime.contract.controlCatalog.some(
+        ({ controlId }) => controlId === reductionInput.action.controlId,
+      )) {
+        throw new StudioFixtureReductionErrorV2(
+          "invalid-action",
+          `unknown registered control ${reductionInput.action.controlId}`,
         );
       }
       return reduceStudioFixtureActionInternalV2(
@@ -95,24 +103,19 @@ function reduceStudioFixtureActionInternalV2(
   const currentFixture = cloneJsonV2(input.desiredFixture, "$");
   const action = assertAndDetachActionV2(input.action);
 
-  let patch: StudioFixturePatchV2;
-  if (action.kind === "control") {
-    patch = action.patch;
-  } else {
-    const reduceKnobAction = modelAdapter.reduceKnobAction;
-    if (reduceKnobAction === undefined) {
-      throw new StudioFixtureReductionErrorV2(
-        "missing-model-reducer",
-        `knob "${action.knobKey}" requires a model fixture reducer`,
-      );
-    }
-    const adapterFixture = deepFreezeV2(cloneJsonV2(currentFixture, "$"));
-    patch = reduceKnobAction(Object.freeze({
-      context,
-      fixture: adapterFixture,
-      action,
-    }));
+  const reduceControlAction = modelAdapter.reduceControlAction;
+  if (reduceControlAction === undefined) {
+    throw new StudioFixtureReductionErrorV2(
+      "missing-model-reducer",
+      `control "${action.controlId}" requires a model fixture reducer`,
+    );
   }
+  const adapterFixture = deepFreezeV2(cloneJsonV2(currentFixture, "$"));
+  const patch: StudioFixturePatchV2 = reduceControlAction(Object.freeze({
+    context,
+    fixture: adapterFixture,
+    action,
+  }));
 
   const changes = normalizePatchV2(currentFixture, patch);
   for (const change of changes) {
@@ -203,43 +206,26 @@ function assertAndDetachActionV2(
   const data = dataRecordV2(candidate, "invalid-action", "fixture action");
 
   if (data.kind === "control") {
-    const action = exactDataRecordV2(
+    const actionRecord = exactDataRecordV2(
       data,
-      ["kind", "patch"],
+      ["kind", "controlId", "value"],
       ["requestCorrelation"],
       "invalid-action",
       "control action",
     );
-    const requestCorrelation = optionalCorrelationV2(action);
-    return Object.freeze({
-      kind: "control",
-      patch: action.patch as StudioFixturePatchV2,
-      ...(requestCorrelation === undefined
-        ? {}
-        : { requestCorrelation }),
-    });
-  }
-  if (data.kind === "knob") {
-    const actionRecord = exactDataRecordV2(
-      data,
-      ["kind", "knobKey", "value"],
-      ["requestCorrelation"],
-      "invalid-action",
-      "knob action",
-    );
     const requestCorrelation = optionalCorrelationV2(actionRecord);
     if (
-      typeof actionRecord.knobKey !== "string"
-      || actionRecord.knobKey.trim().length === 0
+      typeof actionRecord.controlId !== "string"
+      || !PORTABLE_RUNTIME_ID_V2.test(actionRecord.controlId)
     ) {
       throw new StudioFixtureReductionErrorV2(
         "invalid-action",
-        "knob action requires a non-empty knobKey",
+        "control action requires a portable controlId",
       );
     }
-    const action: StudioKnobActionV2 = {
-      kind: "knob",
-      knobKey: actionRecord.knobKey,
+    return Object.freeze({
+      kind: "control",
+      controlId: actionRecord.controlId,
       value: deepFreezeV2(cloneJsonV2(
         actionRecord.value,
         "$.action.value",
@@ -247,8 +233,7 @@ function assertAndDetachActionV2(
       ...(requestCorrelation === undefined
         ? {}
         : { requestCorrelation }),
-    };
-    return Object.freeze(action);
+    });
   }
   throw new StudioFixtureReductionErrorV2(
     "invalid-action",

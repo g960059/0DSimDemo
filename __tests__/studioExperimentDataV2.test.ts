@@ -7,6 +7,7 @@ import {
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
 } from "@/studio/contracts/v2/content";
 import {
+  assertExperimentContentMatchesModelV2,
   createScenarioPresetCaptureClonerV2,
   StudioExperimentDataValidationErrorV2,
   validateExperimentPlacementAgainstSnapshotV2,
@@ -142,6 +143,7 @@ describe("Studio Experiment data V2", () => {
       controls: [{
         instanceId: "control/svr",
         controlId: "catalog.control/svr",
+        targetScenarioIds: ["scenario/baseline"],
         groupId: "group/hemodynamics",
         order: 2,
         priority: 9,
@@ -171,6 +173,44 @@ describe("Studio Experiment data V2", () => {
     noteArray.content.surface.note = [noteArray.content.surface.note];
     expect(() => validateExperimentWorkspaceV2(noteArray))
       .toThrow(/must be an object/);
+  });
+
+  it("requires every control instance to bind explicit existing Scenarios", () => {
+    const missingTargets = workspaceV2() as Record<string, any>;
+    delete missingTargets.content.surface.controls[0].targetScenarioIds;
+    expect(() => validateExperimentWorkspaceV2(missingTargets))
+      .toThrow(/keys must be exactly/);
+
+    const emptyTargets = workspaceV2() as Record<string, any>;
+    emptyTargets.content.surface.controls[0].targetScenarioIds = [];
+    expect(() => validateExperimentWorkspaceV2(emptyTargets))
+      .toThrow(/at least one explicit Scenario target/);
+
+    const duplicateTargets = workspaceV2() as Record<string, any>;
+    duplicateTargets.content.surface.controls[0].targetScenarioIds = [
+      "scenario/baseline",
+      "scenario/baseline",
+    ];
+    expect(() => validateExperimentWorkspaceV2(duplicateTargets))
+      .toThrow(/duplicate id scenario\/baseline/);
+
+    const unknownTarget = validateExperimentWorkspaceV2({
+      ...workspaceV2(),
+      content: {
+        ...workspaceV2().content,
+        surface: {
+          ...workspaceV2().content.surface,
+          controls: [{
+            ...workspaceV2().content.surface.controls[0],
+            targetScenarioIds: ["scenario/missing"],
+          }],
+        },
+      },
+    });
+    expect(() => assertExperimentContentMatchesModelV2(
+      unknownTarget.content,
+      modelContractV2(),
+    )).toThrow(/unknown target Scenario scenario\/missing/);
   });
 
   it("pins a placement to one snapshot and preserves omitted versus empty subsets", () => {
@@ -466,6 +506,7 @@ function contentV2() {
       controls: [{
         instanceId: "control/svr",
         controlId: "catalog.control/svr",
+        targetScenarioIds: ["scenario/baseline"],
         groupId: "group/hemodynamics",
         order: 2,
         priority: 9,

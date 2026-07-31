@@ -37,49 +37,38 @@ export type StudioFixtureFieldChangeV2 = Readonly<{
 }>;
 
 /**
- * One control command may replace several existing fixture fields. Consumers
- * must validate the complete patch before making any change visible.
+ * One model-owned control reduction may replace several existing fixture
+ * fields. This path-level value never crosses the public UI command boundary.
  */
 export type StudioFixturePatchV2 = Readonly<{
   changes: readonly StudioFixtureFieldChangeV2[];
 }>;
 
 /**
- * Ephemeral direct control input. It is reduced into the complete current
- * fixture immediately and is never a durable domain entity.
+ * Ephemeral semantic control input. The model-owned adapter resolves
+ * `controlId + value` into an atomic fixture patch; callers cannot name raw
+ * fixture paths. The action ends after the desired fixture is updated.
  */
 export type StudioControlActionV2 = Readonly<{
   kind: "control";
-  patch: StudioFixturePatchV2;
-  requestCorrelation?: string;
-}>;
-
-/**
- * Ephemeral model-level knob input. A knob is allowed to fan out to multiple
- * fixture fields through the model adapter seam below.
- */
-export type StudioKnobActionV2 = Readonly<{
-  kind: "knob";
-  knobKey: string;
+  controlId: string;
   value: StudioJsonValueV2;
   requestCorrelation?: string;
 }>;
 
-export type StudioFixtureActionV2 =
-  | StudioControlActionV2
-  | StudioKnobActionV2;
+export type StudioFixtureActionV2 = StudioControlActionV2;
 
-export type StudioModelKnobReductionInputV2 = Readonly<{
+export type StudioModelControlReductionInputV2 = Readonly<{
   context: StudioScenarioRuntimeContextV2;
   fixture: StudioDesiredFixtureV2;
-  action: StudioKnobActionV2;
+  action: StudioControlActionV2;
 }>;
 
 /**
  * Exact-model adapter seam for fixture actions.
  *
- * Every action validates the complete resulting fixture. Complex knobs may
- * additionally translate one semantic action into an atomic fixture patch.
+ * Every action validates the complete resulting fixture. One semantic control
+ * may translate into an atomic multi-field fixture patch.
  */
 export type StudioModelFixtureAdapterV2 = Readonly<{
   modelId: ModelIdV2;
@@ -88,8 +77,8 @@ export type StudioModelFixtureAdapterV2 = Readonly<{
     context: StudioScenarioRuntimeContextV2;
     fixture: StudioDesiredFixtureV2;
   }>): void;
-  reduceKnobAction?: (
-    input: StudioModelKnobReductionInputV2,
+  reduceControlAction?: (
+    input: StudioModelControlReductionInputV2,
   ) => StudioFixturePatchV2;
 }>;
 

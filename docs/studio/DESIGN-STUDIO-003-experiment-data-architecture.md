@@ -215,10 +215,12 @@ the same manifest and bytes returns the already stored runtime even if a loader
 invocation would allocate new JavaScript function objects; function reference
 identity is not package identity.
 
-Clients trust authenticated registry delivery. Artifact bytes and the digest
-remain registry-private. Clients do not rehash packages at
-load or during simulation. They still perform ordinary schema, codec,
-model-ID, exact-key, range, and structural compatibility validation.
+Clients trust authenticated delivery of the registry-admitted release. The
+exact executable artifact may be shipped as the code materialized by the
+client, but the internal digest remains registry-private. Clients neither
+recompute that digest nor rehash packages at load or during simulation. They
+still perform ordinary schema, codec, model-ID, exact-key, range, and
+structural compatibility validation.
 
 For the integrated V3 development release, CI builds the exact model adapter
 entry as a deterministic registry artifact, frames it with the canonical
@@ -278,6 +280,11 @@ bag. Renderer labels, ranges, formatting, and richer control presentation
 require a later explicit allowlisted contract revision. Unknown catalog keys
 are rejected, including fields named like build, release, or integrity
 metadata.
+
+Each stored control instance also owns a non-empty, duplicate-free
+`targetScenarioIds` list. Every target must exist in the same Experiment.
+Scenario binding is therefore authored semantics, while one control definition
+may still be reused by multiple instances with different targets.
 
 ## 5. Fixture, checkpoint, and Scenario
 
@@ -406,12 +413,15 @@ instead of being duplicated into runtime state.
 
 Studio has no durable `ParameterSet` entity.
 
-A knob is an interaction definition owned by the model catalog and selected
-by the Experiment Surface. A knob action is an ephemeral command:
+A knob is a UI presentation of a registered control selected by the Experiment
+Surface. It is not a second runtime or durable domain type. A parameter change
+is one ephemeral semantic command:
 
 ```text
 Knob interaction
-  → control action / fixture patch
+  → controlId + value
+  → require controlId in the exact model catalog
+  → model-owned adapter expands it to an internal fixture patch
   → validate the complete resulting fixture
   → apply atomically at an accepted command boundary
   → action ends
@@ -421,19 +431,20 @@ The ephemeral desired fixture changes immediately. Save later captures and
 persists the resulting fixture/checkpoint pair.
 
 One action may change multiple parameters. Atomic multi-parameter behavior is
-a command property, not a reason to create a durable `ParameterSet`:
+model-owned reduction behavior, not a reason to create a durable
+`ParameterSet`:
 
 ```ts
-type FixturePatch = {
-  changes: Array<{
-    path: readonly (string | number)[];
-    value: JsonValue;
-  }>;
+type ControlAction = {
+  kind: "control";
+  controlId: string;
+  value: JsonValue;
 };
 ```
 
-Model-specific knobs may use an adapter reducer when one semantic control maps
-to several fixture fields. Partial application is forbidden.
+Raw fixture paths never cross the public command boundary. The registry-bound
+model adapter may map one control to several fixture fields; the internal patch
+is validated and applied as one unit. Partial application is forbidden.
 
 ## 7. Scenario Preset
 
@@ -487,6 +498,7 @@ type ExperimentContent = {
 An Experiment Surface stores semantic composition:
 
 - selected graph/readout/control instance IDs;
+- explicit target Scenario IDs for every selected control instance;
 - semantic groups, ordering, and priority;
 - exactly one Markdown-compatible note.
 
@@ -558,32 +570,36 @@ command receipt may be retained outside the domain model.
 
 ```text
 SaveDraft(expectedDraftVersion, desiredContent,
-          runtimeSessionId, expectedInputEpochByScenario)
+          captureCorrelation?)
   1. clone and freeze checkpoint-free ExperimentDesiredContent
   2. exactly bind the model capture adapter and validate modelId, Scenario
      identity/order/label, every desired fixture, and Surface references
-  3. validate one runtime-only session ID and expected input epoch for every
-     desired Scenario in exact order
-  4. call captureAcceptedCandidate with experimentId, exact model,
+  3. if captureCorrelation is omitted, require every desired Scenario to
+     already exist with an exactly equal fixture, then reuse those checkpoints
+     while allowing Surface, label, order, or Scenario removal to change
+  4. otherwise validate one runtime-only session ID and expected input epoch
+     for every desired Scenario in exact order
+  5. call captureAcceptedCandidate with experimentId, exact model,
      desiredContent, session ID, and expected epochs
-  5. wait until each dirty scenario reaches an accepted command boundary
-  6. construct complete atomic fixture/checkpoint pairs
-  7. require the port to confirm the same Experiment, session, Scenario order,
+  6. wait until each new or dirty Scenario reaches an accepted command boundary
+  7. construct complete atomic fixture/checkpoint pairs
+  8. require the port to confirm the same Experiment, session, Scenario order,
      and input epochs; reject stale or cross-session completion
-  8. validate every complete returned capture
-  9. prove the capture port preserved modelId, Scenario order/identity/label,
+  9. validate every complete returned or reused capture
+ 10. prove the capture port preserved modelId, Scenario order/identity/label,
      fixture values, and Surface exactly
- 10. compare-and-swap draftVersion
- 11. expose either the whole complete workspace or none
+ 11. compare-and-swap draftVersion
+ 12. expose either the whole complete workspace or none
 ```
 
 The capture correlation is runtime-only and is never written into Workspace or
 Snapshot content. This also rejects the ABA case in which a fixture changes and
 later returns to the same JSON value while an older capture is still pending.
 
-The capture implementation may reuse a prior accepted capture for an unchanged
-fixture, but it must still return a complete validated `ExperimentContent`.
-Save does not require settlement or the minimum snapshot gate.
+Surface/label/order-only Save therefore does not require a live runtime. A new
+Scenario or changed fixture always requires explicit capture correlation and a
+fresh accepted-boundary capture. Save does not require settlement or the
+minimum snapshot gate.
 
 ### 11.2 Create Snapshot
 
@@ -604,6 +620,11 @@ CreateSnapshot(expectedDraftVersion, expectedHeadSnapshotId)
 
 A slow gate is safe: if the Draft or head changes while it is running, the
 final compare-and-swap fails and no Snapshot becomes visible.
+
+Snapshot commit advances the persisted Workspace to the qualified checkpoints,
+but does not silently restore or replace an already-running Worker session.
+The caller must mark that live session divergent and explicitly restart or
+rebind it before presenting it as the Snapshot state.
 
 For one-click UX, `SaveAndSnapshot` may orchestrate the two explicit commands.
 It must not weaken either boundary.
@@ -660,6 +681,12 @@ type ExperimentPlacement = {
 ```
 
 Placement pins an immutable Snapshot directly.
+
+Document/block ownership is deliberately absent from this pre-content value
+because articles and Lesson pages have not yet been authored. The future
+document repository must either nest Placement beneath its owning block or add
+an explicit owner ID; lineage or `experimentId` must not be overloaded for
+document ownership.
 
 `view` is a pure subset/order projection:
 
@@ -834,10 +861,12 @@ Completed in the current development cutover:
    V3 live numerical session;
 3. one development package for `MainWireIntegratedModelTransactionV3` under
    the exact immutable `modelId`
-   `circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-1`;
+   `circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-2`;
 4. trusted client resolution of that registry-admitted release as the default,
    with no client-side package rehash;
-5. Workbench autostart through the generic Worker protocol; and
+5. Workbench autostart through the generic Worker protocol into catalog-driven
+   Dockview graph, output, and control role areas with one page-owned Worker;
+   pane geometry and settings-open state remain ephemeral; and
 6. a model-pinned candidate periodic Snapshot gate that accepts only period-1
    converged, numerically admissible terminal checkpoints.
 

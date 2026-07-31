@@ -102,10 +102,11 @@ type QualifiedSnapshotCommitInternalV2 = Readonly<{
 /**
  * Command boundary for the V2 mutable-workspace / immutable-Snapshot model.
  *
- * `saveDraft` accepts checkpoint-free desired content and delegates creation
- * of complete accepted-boundary captures to the exact model runtime. The gate
- * owns settlement and minimum numerical verification; this application owns
- * frozen-candidate identity, lineage, and atomic repository visibility.
+ * `saveDraft` accepts checkpoint-free desired content. Fixture-changing Saves
+ * delegate complete accepted-boundary capture to the exact model runtime;
+ * Surface/label/order-only Saves reuse the current matching checkpoints. The
+ * gate owns settlement and minimum numerical verification; this application
+ * owns frozen-candidate identity, lineage, and atomic repository visibility.
  */
 export class StudioExperimentAuthoringApplicationV2 {
   readonly #repository: ExperimentWorkspaceStoreInternalV2;
@@ -222,9 +223,8 @@ export class StudioExperimentAuthoringApplicationV2 {
         "experimentId",
         "expectedDraftVersion",
         "desiredContent",
-        "captureCorrelation",
       ],
-      [],
+      ["captureCorrelation"],
       "SaveDraft",
     );
     const current = await this.#requiredWorkspaceV2(command.experimentId);
@@ -247,39 +247,36 @@ export class StudioExperimentAuthoringApplicationV2 {
       model,
       adapter,
     );
-    const correlation = validateDraftCaptureCorrelationV2(
-      command.captureCorrelation,
-      desiredContent,
+    const hasCaptureCorrelation = Object.prototype.hasOwnProperty.call(
+      command,
+      "captureCorrelation",
     );
-    const captureResult = await runtime.draftCapture.captureAcceptedCandidate({
-      experimentId: current.experimentId,
-      model,
-      desiredContent,
-      correlation,
-    });
-    assertDraftCaptureResultEnvelopeV2(captureResult);
-    validateDraftCaptureConfirmationV2(captureResult.confirmation, {
-      experimentId: current.experimentId,
-      correlation,
-    });
+    const capturedContent = hasCaptureCorrelation
+      ? await captureDesiredContentAtAcceptedBoundaryV2({
+        runtime,
+        experimentId: current.experimentId,
+        desiredContent,
+        captureCorrelation: command.captureCorrelation,
+      })
+      : reuseMatchingScenarioCapturesV2(current.content, desiredContent);
     const replacement = validateExperimentWorkspaceV2({
       schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
       experimentId: current.experimentId,
       draftVersion: current.draftVersion + 1,
       headSnapshotId: current.headSnapshotId,
       basedOnSnapshotId: current.basedOnSnapshotId,
-      content: captureResult.content,
+      content: capturedContent,
     });
+    assertCapturedDesiredContentV2(
+      desiredContent,
+      replacement.content,
+      (message) => new StudioExperimentDraftCaptureMutationErrorV2(message),
+    );
     assertExperimentContentMatchesModelV2(replacement.content, model);
     await assertExperimentCapturesMatchModelV2(
       replacement.content,
       model,
       adapter,
-    );
-    assertCapturedDesiredContentV2(
-      desiredContent,
-      replacement.content,
-      (message) => new StudioExperimentDraftCaptureMutationErrorV2(message),
     );
     this.#repository.replaceWorkspace(
       command.expectedDraftVersion,
@@ -536,6 +533,73 @@ export class StudioExperimentAuthoringApplicationV2 {
     }
     return runtime;
   }
+}
+
+async function captureDesiredContentAtAcceptedBoundaryV2(input: Readonly<{
+  runtime: ResolvedExactModelRuntimeV2;
+  experimentId: string;
+  desiredContent: ExperimentDesiredContentV2;
+  captureCorrelation: unknown;
+}>): Promise<ExperimentContentV2> {
+  const correlation = validateDraftCaptureCorrelationV2(
+    input.captureCorrelation,
+    input.desiredContent,
+  );
+  const captureResult = await input.runtime.draftCapture
+    .captureAcceptedCandidate({
+      experimentId: input.experimentId,
+      model: input.runtime.contract,
+      desiredContent: input.desiredContent,
+      correlation,
+    });
+  assertDraftCaptureResultEnvelopeV2(captureResult);
+  validateDraftCaptureConfirmationV2(captureResult.confirmation, {
+    experimentId: input.experimentId,
+    correlation,
+  });
+  return captureResult.content;
+}
+
+/**
+ * Presentation-only edits do not invalidate a Scenario's accepted numerical
+ * state. Reuse is allowed only when every desired Scenario already exists and
+ * retains an exactly equal complete fixture; any new or dirty fixture must be
+ * captured by the live exact-model runtime.
+ */
+function reuseMatchingScenarioCapturesV2(
+  current: ExperimentContentV2,
+  desired: ExperimentDesiredContentV2,
+): ExperimentContentV2 {
+  const currentByScenarioId = new Map(
+    current.scenarios.map((scenario) => [scenario.scenarioId, scenario]),
+  );
+  const scenarios = desired.scenarios.map((scenario) => {
+    const persisted = currentByScenarioId.get(scenario.scenarioId);
+    if (
+      persisted === undefined
+      || !samePortableValueV2(
+        scenario.fixture,
+        persisted.capture.fixture,
+      )
+    ) {
+      throw new StudioExperimentAuthoringConflictErrorV2(
+        "captureCorrelation is required when a Scenario is new or its fixture changed",
+      );
+    }
+    return {
+      scenarioId: scenario.scenarioId,
+      label: scenario.label,
+      capture: {
+        fixture: scenario.fixture,
+        checkpoint: persisted.capture.checkpoint,
+      },
+    };
+  });
+  return {
+    modelId: desired.modelId,
+    scenarios,
+    surface: desired.surface,
+  };
 }
 
 function assertDraftCaptureResultEnvelopeV2(

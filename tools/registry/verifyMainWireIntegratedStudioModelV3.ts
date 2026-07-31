@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,6 +27,9 @@ const entryPath = path.join(
 const lockRelativePath =
   "studio/integrations/mainWireIntegratedV3/registry-admission-lock.json";
 const lockPath = path.join(repositoryRoot, lockRelativePath);
+const artifactRelativePath =
+  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs";
+const artifactPath = path.join(repositoryRoot, artifactRelativePath);
 
 type RegistryAdmissionLock = Readonly<{
   schemaId: "circleheart-main-wire-integrated-v3-registry-admission-lock-v1";
@@ -34,53 +37,86 @@ type RegistryAdmissionLock = Readonly<{
   packageSha256: string;
 }>;
 
-const modelPackage = createMainWireIntegratedStudioModelPackageV3();
-const artifact = await buildExactArtifact();
-const canonicalManifest = studioCanonicalJsonStringify(modelPackage.manifest);
-const packageSha256 = exactPackageSha256(canonicalManifest, artifact);
-const currentLock = parseLock(readFileSync(lockPath, "utf8"), "current lock");
+await main();
 
-if (currentLock.modelId !== modelPackage.manifest.modelId) {
-  fail(
-    `lock modelId ${currentLock.modelId} differs from manifest modelId `
-      + modelPackage.manifest.modelId,
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const updateRequested = args.length === 1 && args[0] === "--write";
+  if (args.length > 0 && !updateRequested) {
+    fail("the only supported argument is --write");
+  }
+  const modelPackage = createMainWireIntegratedStudioModelPackageV3();
+  const artifact = await buildExactArtifact();
+  const deterministicRebuild = await buildExactArtifact();
+  if (!sameBytes(artifact, deterministicRebuild)) {
+    fail("two clean exact artifact builds emitted different bytes");
+  }
+  const canonicalManifest = studioCanonicalJsonStringify(
+    modelPackage.manifest,
   );
-}
-if (currentLock.packageSha256 !== packageSha256) {
-  fail(
-    `exact package digest changed for ${modelPackage.manifest.modelId}; `
-      + `computed ${packageSha256}. Assign a new modelId and replace the `
-      + "registry admission lock in the same change",
-  );
-}
+  const packageSha256 = exactPackageSha256(canonicalManifest, artifact);
 
-const baseRef = process.env.CIRCLEHEART_REGISTRY_BASE_REF;
-if (baseRef !== undefined && baseRef !== "" && !/^0+$/.test(baseRef)) {
-  const priorLock = readPriorLock(baseRef);
-  if (
-    priorLock !== null
-    && priorLock.packageSha256 !== currentLock.packageSha256
-    && priorLock.modelId === currentLock.modelId
-  ) {
+  await assertRegistryAdmission(modelPackage, artifact);
+
+  if (updateRequested) {
+    updateArtifactAndLock(
+      modelPackage.manifest.modelId,
+      packageSha256,
+      artifact,
+    );
+    console.log(
+      `Wrote exact V3 registry artifact and lock: `
+        + `${modelPackage.manifest.modelId} (${packageSha256})`,
+    );
+    return;
+  }
+
+  const committedArtifact = readFileSync(artifactPath);
+  if (!sameBytes(committedArtifact, artifact)) {
     fail(
-      `exact package digest changed relative to ${baseRef} while modelId `
-        + `${currentLock.modelId} stayed unchanged`,
+      `${artifactRelativePath} differs from the deterministic exact build; `
+        + "assign a new modelId and regenerate the artifact and lock",
     );
   }
-}
+  assertUtf8RoundTrip(committedArtifact);
+  const currentLock = parseLock(
+    readFileSync(lockPath, "utf8"),
+    "current lock",
+  );
+  if (currentLock.modelId !== modelPackage.manifest.modelId) {
+    fail(
+      `lock modelId ${currentLock.modelId} differs from manifest modelId `
+        + modelPackage.manifest.modelId,
+    );
+  }
+  if (currentLock.packageSha256 !== packageSha256) {
+    fail(
+      `exact package digest changed for ${modelPackage.manifest.modelId}; `
+        + `computed ${packageSha256}. Assign a new modelId and replace the `
+        + "registry admission artifact and lock in the same change",
+    );
+  }
 
-const registry = new InMemoryRegisteredModelStoreV2();
-const admitted = await registry.registerExactPackage(
-  modelPackage.createRegistryAdmission(artifact),
-);
-if (admitted.modelId !== currentLock.modelId) {
-  fail("registry admitted a model other than the locked exact modelId");
-}
+  const baseRef = process.env.CIRCLEHEART_REGISTRY_BASE_REF;
+  if (baseRef !== undefined && baseRef !== "" && !/^0+$/.test(baseRef)) {
+    const priorLock = readPriorLock(baseRef);
+    if (
+      priorLock !== null
+      && priorLock.packageSha256 !== currentLock.packageSha256
+      && priorLock.modelId === currentLock.modelId
+    ) {
+      fail(
+        `exact package digest changed relative to ${baseRef} while modelId `
+          + `${currentLock.modelId} stayed unchanged`,
+      );
+    }
+  }
 
-console.log(
-  `Exact V3 registry admission verified: ${currentLock.modelId} `
-    + `(${packageSha256})`,
-);
+  console.log(
+    `Exact V3 registry admission verified: ${currentLock.modelId} `
+      + `(${packageSha256})`,
+  );
+}
 
 async function buildExactArtifact(): Promise<Uint8Array> {
   const result = await build({
@@ -120,7 +156,75 @@ async function buildExactArtifact(): Promise<Uint8Array> {
   if (chunks.length !== 1 || chunks[0] === undefined) {
     fail(`exact model build emitted ${chunks.length} JavaScript chunks`);
   }
+  if (
+    chunks[0].imports.length !== 0
+    || chunks[0].dynamicImports.length !== 0
+  ) {
+    fail("exact model build must be one self-contained ESM artifact");
+  }
   return new TextEncoder().encode(chunks[0].code);
+}
+
+async function assertRegistryAdmission(
+  modelPackage: ReturnType<
+    typeof createMainWireIntegratedStudioModelPackageV3
+  >,
+  artifact: Uint8Array,
+): Promise<void> {
+  const registry = new InMemoryRegisteredModelStoreV2();
+  const admitted = await registry.registerExactPackage(
+    modelPackage.createRegistryAdmission(artifact),
+  );
+  if (admitted.modelId !== modelPackage.manifest.modelId) {
+    fail("registry admitted a model other than the exact artifact modelId");
+  }
+  if (
+    registry.resolveExactRuntime(admitted.modelId).contract.modelId
+      !== admitted.modelId
+  ) {
+    fail("registry runtime differs from the exact admitted model");
+  }
+}
+
+function updateArtifactAndLock(
+  modelId: string,
+  packageSha256: string,
+  artifact: Uint8Array,
+): void {
+  if (existsSync(lockPath)) {
+    const priorLock = parseLock(readFileSync(lockPath, "utf8"), "current lock");
+    if (
+      priorLock.modelId === modelId
+      && priorLock.packageSha256 !== packageSha256
+    ) {
+      fail(
+        `refusing to replace changed artifact bytes under immutable modelId ${modelId}`,
+      );
+    }
+  }
+  writeFileSync(artifactPath, artifact);
+  writeFileSync(lockPath, `${JSON.stringify({
+    schemaId: "circleheart-main-wire-integrated-v3-registry-admission-lock-v1",
+    modelId,
+    packageSha256,
+  }, null, 2)}\n`, "utf8");
+}
+
+function assertUtf8RoundTrip(artifact: Uint8Array): void {
+  let source: string;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(artifact);
+  } catch {
+    fail("exact executable artifact must be valid UTF-8 ESM source");
+  }
+  if (!sameBytes(new TextEncoder().encode(source), artifact)) {
+    fail("exact executable artifact does not round-trip as UTF-8 bytes");
+  }
+}
+
+function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
+  return left.byteLength === right.byteLength
+    && left.every((value, index) => value === right[index]);
 }
 
 function exactPackageSha256(

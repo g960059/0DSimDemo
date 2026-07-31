@@ -186,6 +186,11 @@ export class StudioSimulationWorkerRuntimeV2 {
       adapter = await this.#loadSimulationAdapter();
       if (this.#portClosed || this.#state !== "initializing") return;
       assertSimulationAdapterV2(adapter);
+      if (adapter.modelId !== request.expectedModelId) {
+        throw new Error(
+          "simulation worker loaded adapter modelId does not match the requested model",
+        );
+      }
       sessionCreationAttempted = true;
       await adapter.createSession(Object.freeze({
         runtimeSessionId: request.runtimeSessionId,

@@ -36,6 +36,7 @@ import type {
 } from "@/studio/contracts/v2/executable";
 import {
   STUDIO_REGISTERED_MODEL_PACKAGE_V2_SCHEMA_ID,
+  assertRegisteredModelPackageManifestV2,
   type ModelContractV2,
   type RegisteredModelPackageManifestV2,
 } from "@/studio/contracts/v2/model";
@@ -52,9 +53,12 @@ import {
 import type {
   RegisterExactModelPackageInputV2,
 } from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
+import {
+  importExactExecutableArtifactModuleV2,
+} from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
-  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-1" as const;
+  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-2" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 =
   "circleheart.main-wire-integrated-transaction" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3 =
@@ -380,21 +384,30 @@ export class MainWireIntegratedStudioRuntimeHostV3 {
 
 export type MainWireIntegratedStudioModelPackageV3 = Readonly<{
   manifest: RegisteredModelPackageManifestV2;
-  executables: RegisteredModelExecutableBundleV2;
   createRegistryAdmission(
     executableArtifact: Uint8Array,
   ): RegisterExactModelPackageInputV2;
   defaultFixture: MainWireIntegratedStudioFixtureV3;
 }>;
 
+export type MainWireIntegratedStudioExecutableReleaseV3 = Readonly<{
+  manifest: RegisteredModelPackageManifestV2;
+  executables: RegisteredModelExecutableBundleV2;
+  defaultFixture: MainWireIntegratedStudioFixtureV3;
+}>;
+
+const MAIN_WIRE_INTEGRATED_STUDIO_ARTIFACT_FACTORY_EXPORT_V3 =
+  "createMainWireIntegratedStudioExecutableReleaseV3" as const;
+
 export function createMainWireIntegratedStudioModelPackageV3():
 MainWireIntegratedStudioModelPackageV3 {
-  const runtimeHost = new MainWireIntegratedStudioRuntimeHostV3();
   const manifest = mainWireIntegratedStudioManifestV3();
-  const executables = mainWireIntegratedExecutableBundleV3(runtimeHost);
+  const canonicalManifest = studioCanonicalJsonStringify(manifest);
+  const canonicalDefaultFixture = studioCanonicalJsonStringify(
+    MAIN_WIRE_INTEGRATED_STUDIO_DEFAULT_FIXTURE_V3,
+  );
   return Object.freeze({
     manifest,
-    executables,
     createRegistryAdmission(executableArtifact: Uint8Array) {
       if (
         !(executableArtifact instanceof Uint8Array)
@@ -408,15 +421,84 @@ MainWireIntegratedStudioModelPackageV3 {
       return Object.freeze({
         manifest,
         executableArtifact: admittedArtifact,
-        loadExecutables(candidate) {
+        async loadExecutables(candidate) {
           if (!sameBytesV3(candidate, admittedArtifact)) {
             throw new Error("V3 exact executable artifact bytes differ");
           }
-          return executables;
+          const release =
+            await loadMainWireIntegratedStudioExecutableReleaseV3(candidate);
+          if (
+            studioCanonicalJsonStringify(release.manifest)
+              !== canonicalManifest
+            || studioCanonicalJsonStringify(release.defaultFixture)
+              !== canonicalDefaultFixture
+          ) {
+            throw new Error(
+              "V3 executable artifact release differs from its admission package",
+            );
+          }
+          return release.executables;
         },
       });
     },
     defaultFixture: MAIN_WIRE_INTEGRATED_STUDIO_DEFAULT_FIXTURE_V3,
+  });
+}
+
+/** The sole executable factory consumed from the deterministic ESM artifact. */
+export function createMainWireIntegratedStudioExecutableReleaseV3():
+MainWireIntegratedStudioExecutableReleaseV3 {
+  return Object.freeze({
+    manifest: mainWireIntegratedStudioManifestV3(),
+    executables: mainWireIntegratedExecutableBundleV3(
+      new MainWireIntegratedStudioRuntimeHostV3(),
+    ),
+    defaultFixture: MAIN_WIRE_INTEGRATED_STUDIO_DEFAULT_FIXTURE_V3,
+  });
+}
+
+/**
+ * Materializes the V3 release by evaluating the exact self-contained artifact
+ * bytes and invoking the factory exported by that evaluated module.
+ */
+export async function loadMainWireIntegratedStudioExecutableReleaseV3(
+  executableArtifact: Uint8Array,
+): Promise<MainWireIntegratedStudioExecutableReleaseV3> {
+  const artifactModule = await importExactExecutableArtifactModuleV2(
+    executableArtifact,
+  );
+  if (
+    !Object.prototype.hasOwnProperty.call(
+      artifactModule,
+      MAIN_WIRE_INTEGRATED_STUDIO_ARTIFACT_FACTORY_EXPORT_V3,
+    )
+    || typeof artifactModule[
+      MAIN_WIRE_INTEGRATED_STUDIO_ARTIFACT_FACTORY_EXPORT_V3
+    ] !== "function"
+  ) {
+    throw new Error(
+      `V3 executable artifact must export ${MAIN_WIRE_INTEGRATED_STUDIO_ARTIFACT_FACTORY_EXPORT_V3}`,
+    );
+  }
+  const factory = artifactModule[
+    MAIN_WIRE_INTEGRATED_STUDIO_ARTIFACT_FACTORY_EXPORT_V3
+  ] as () => unknown;
+  const release = exactExecutableReleaseRecordV3(factory());
+  const manifest = cloneAndFreezeStudioJson(release.manifest);
+  assertRegisteredModelPackageManifestV2(manifest);
+  const defaultFixture = validateAndOwnFixtureV3(release.defaultFixture);
+  if (
+    release.executables === null
+    || typeof release.executables !== "object"
+    || Array.isArray(release.executables)
+  ) {
+    throw new Error("V3 executable artifact returned an invalid bundle");
+  }
+  return Object.freeze({
+    manifest,
+    executables:
+      release.executables as RegisteredModelExecutableBundleV2,
+    defaultFixture,
   });
 }
 
@@ -835,6 +917,54 @@ function assertExactModelV3(model: ModelContractV2): void {
   ) {
     throw new Error("Main Wire V3 exact model contract mismatch");
   }
+}
+
+function exactExecutableReleaseRecordV3(value: unknown): Readonly<{
+  manifest: unknown;
+  executables: unknown;
+  defaultFixture: unknown;
+}> {
+  if (
+    value === null
+    || typeof value !== "object"
+    || Array.isArray(value)
+    || (
+      Object.getPrototypeOf(value) !== Object.prototype
+      && Object.getPrototypeOf(value) !== null
+    )
+  ) {
+    throw new Error("V3 executable artifact release must be a plain object");
+  }
+  const expected = ["defaultFixture", "executables", "manifest"];
+  const actual = Object.keys(value).sort();
+  if (
+    actual.length !== expected.length
+    || actual.some((key, index) => key !== expected[index])
+  ) {
+    throw new Error(
+      `V3 executable artifact release must contain exactly ${expected.join(", ")}`,
+    );
+  }
+  const record = value as Record<string, unknown>;
+  const owned: Record<string, unknown> = {};
+  for (const key of expected) {
+    const descriptor = Object.getOwnPropertyDescriptor(record, key);
+    if (
+      descriptor === undefined
+      || !("value" in descriptor)
+      || !descriptor.enumerable
+    ) {
+      throw new Error(
+        `V3 executable artifact release ${key} must be an enumerable data property`,
+      );
+    }
+    owned[key] = descriptor.value;
+  }
+  return Object.freeze({
+    manifest: owned.manifest,
+    executables: owned.executables,
+    defaultFixture: owned.defaultFixture,
+  });
 }
 
 function plainExactRecordV3(

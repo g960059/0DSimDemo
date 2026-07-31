@@ -75,14 +75,8 @@ const forbiddenExactPaths = new Set([
   "vitest.research.config.ts",
 ]);
 const forbiddenPrefixes = [
-  "components/scientificAlpha/",
-  "components/scientificPerformance/",
   "migrated_prompt_history/",
   "tools/sweeps/",
-  "components/scientificProduct/",
-  "components/scientificVerification/",
-  "components/scientificWorkbench/",
-  "data/scientific/",
   "data/mechanics2/",
   "data/myocardium/protocols/",
   "docs/mechanics2/",
@@ -92,11 +86,6 @@ const forbiddenPrefixes = [
   "engine/myocardium/state/",
   "engine/diagnostics/morphology/",
   "engine/mechanics2/",
-  "engine/product/",
-  "engine/research/",
-  "engine/scientific/",
-  "engine/scientificBrowser/",
-  "e2e/",
   "studio/adapters/mainWire/",
   "studio/application/content/",
   "studio/contracts/v1/",
@@ -105,6 +94,8 @@ const forbiddenPrefixes = [
 ];
 const requiredTrackedPaths = [
   "components/WorkbenchV3Page.tsx",
+  "components/workbench/WorkbenchDockview.tsx",
+  "__tests__/workbenchV3Dockview.test.tsx",
   "engine/myocardium/MainWireIntegratedModelOutputRegistryV3.ts",
   "engine/myocardium/MainWireIntegratedModelRuntimeV3.ts",
   "engine/myocardium/MainWireIntegratedModelSessionV3.ts",

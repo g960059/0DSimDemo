@@ -29,6 +29,8 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
   createMainWireIntegratedStudioModelPackageV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
+import mainWireIntegratedStudioExecutableArtifactV3 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs?raw";
 
 const EMPTY_SURFACE_V2: ExperimentSurfaceV2 = Object.freeze({
   groups: Object.freeze([Object.freeze({
@@ -81,13 +83,21 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     expect("runtime" in composition).toBe(false);
   });
 
-  it("requires caller-supplied exact build bytes at registry admission", async () => {
+  it("materializes only the exact executable artifact at registry admission", async () => {
     const modelPackage = createMainWireIntegratedStudioModelPackageV3();
     expect(() => modelPackage.createRegistryAdmission(new Uint8Array()))
       .toThrow(/nonempty exact build artifact bytes/);
 
     const registry = new InMemoryRegisteredModelStoreV2();
-    const artifact = new Uint8Array([0x56, 0x33, 0x01]);
+    await expect(registry.registerExactPackage(
+      modelPackage.createRegistryAdmission(
+        new Uint8Array([0x56, 0x33, 0x01]),
+      ),
+    )).rejects.toThrow(/artifact could not be evaluated/);
+    expect(registry.modelCount).toBe(0);
+    expect(registry.packageCount).toBe(0);
+
+    const artifact = exactExecutableArtifactBytesV3();
     const admission = modelPackage.createRegistryAdmission(artifact);
     artifact[0] = 0;
 
@@ -104,10 +114,9 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
   });
 
   it("runs, captures, restores, and retires exact V3 runtime sessions", async () => {
-    const modelPackage = createMainWireIntegratedStudioModelPackageV3();
-    const model = createStudioDefaultWorkerCompositionV2()
-      .then((composition) => composition.runtime.contract);
-    const simulation = modelPackage.executables.simulationAdapter;
+    const composition = await createStudioDefaultWorkerCompositionV2();
+    const model = composition.runtime.contract;
+    const simulation = composition.runtime.simulationAdapter;
     const runtimeSessionId = "session/v3-live";
     const scenarioId = "scenario/baseline";
 
@@ -115,7 +124,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       runtimeSessionId,
       scenarios: [{
         scenarioId,
-        fixture: modelPackage.defaultFixture,
+        fixture: composition.defaultFixture,
       }],
     });
 
@@ -156,21 +165,21 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     await expect(simulation.replaceFixture({
       runtimeSessionId,
       scenarioId,
-      fixture: modelPackage.defaultFixture,
+      fixture: composition.defaultFixture,
     })).resolves.toBe(1);
     expect(simulation.currentInputEpoch({ runtimeSessionId, scenarioId }))
       .toBe(1);
 
-    const captured = await modelPackage.executables.draftCapture
+    const captured = await composition.runtime.draftCapture
       .captureAcceptedCandidate({
       experimentId: "experiment/v3-live",
-      model: await model,
+      model,
       desiredContent: {
         modelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
         scenarios: [{
           scenarioId,
           label: "Baseline",
-          fixture: modelPackage.defaultFixture,
+          fixture: composition.defaultFixture,
         }],
         surface: EMPTY_SURFACE_V2,
       },
@@ -186,7 +195,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     simulation.disposeSession(runtimeSessionId);
     await expect(simulation.createSession({
       runtimeSessionId,
-      scenarios: [{ scenarioId, fixture: modelPackage.defaultFixture }],
+      scenarios: [{ scenarioId, fixture: composition.defaultFixture }],
     })).rejects.toThrow(/active or retired/);
 
     const restoredSessionId = "session/v3-restored";
@@ -194,7 +203,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       runtimeSessionId: restoredSessionId,
       scenarios: [{
         scenarioId,
-        fixture: modelPackage.defaultFixture,
+        fixture: composition.defaultFixture,
         checkpoint,
       }],
     });
@@ -213,20 +222,20 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       runtimeSessionId: "session/v3-tampered",
       scenarios: [{
         scenarioId,
-        fixture: modelPackage.defaultFixture,
+        fixture: composition.defaultFixture,
         checkpoint: tampered,
       }],
     })).rejects.toThrow(/checkpoint|SHA|hash|digest/i);
   }, 120_000);
 
   it("publishes one observation's clock and values even if accepted state moved", async () => {
-    const modelPackage = createMainWireIntegratedStudioModelPackageV3();
-    const simulation = modelPackage.executables.simulationAdapter;
+    const composition = await createStudioDefaultWorkerCompositionV2();
+    const simulation = composition.runtime.simulationAdapter;
     const runtimeSessionId = "session/v3-observation-clock";
     const scenarioId = "scenario/baseline";
     await simulation.createSession({
       runtimeSessionId,
-      scenarios: [{ scenarioId, fixture: modelPackage.defaultFixture }],
+      scenarios: [{ scenarioId, fixture: composition.defaultFixture }],
     });
     const clockSpy = vi.spyOn(
       MainWireIntegratedModelSessionV3.prototype,
@@ -256,3 +265,9 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     expect(JSON.stringify(modelPackage.manifest)).not.toMatch(/ParameterSet/);
   });
 });
+
+function exactExecutableArtifactBytesV3(): Uint8Array {
+  return new TextEncoder().encode(
+    mainWireIntegratedStudioExecutableArtifactV3,
+  );
+}

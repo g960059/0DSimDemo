@@ -86,3 +86,134 @@ body[data-app-theme="light"] {
 .app-root > main {
   background: var(--wb-app-bg);
 }
+
+/*
+ * Dockview is the Workbench presentation shell. Durable Experiment content
+ * never stores these split sizes, selected tabs, or library serialization.
+ */
+.workbench-dockview.dockview-theme-dark {
+  --workbench-surface: var(--wb-zone-aux-bg);
+  --workbench-divider: var(--wb-border);
+  --dv-group-view-background-color: var(--workbench-surface);
+  --dv-tabs-and-actions-container-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-background-color: transparent;
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: var(--wb-text);
+  --dv-activegroup-hiddenpanel-tab-color: var(--wb-text-subtle);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--wb-text-muted);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--wb-text-subtle);
+  --dv-tab-divider-color: transparent;
+  --dv-separator-border: var(--workbench-divider);
+  --dv-tabs-and-actions-container-height: 32px;
+  --dv-tabs-and-actions-container-font-size: 12px;
+  --dv-active-sash-color: var(--wb-accent);
+  --dv-scrollbar-background-color: var(--wb-border-strong);
+  color-scheme: inherit;
+  background: var(--workbench-surface);
+  color: var(--wb-text);
+}
+
+.workbench-dockview-main.dockview-theme-dark {
+  --workbench-surface: var(--wb-zone-main-bg);
+}
+
+.workbench-root .workbench-dockview .dv-grid-view,
+.workbench-root .workbench-dockview .dv-dockview,
+.workbench-dockview .dv-groupview,
+.workbench-dockview .dv-groupview > .dv-content-container {
+  background: var(--workbench-surface) !important;
+}
+
+.workbench-dockview .dv-groupview > .dv-content-container {
+  border-top: 0;
+}
+
+.workbench-dockview .dv-tabs-and-actions-container {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 0;
+  background: transparent !important;
+  box-shadow: inset 0 -1px 0 var(--wb-border);
+}
+
+.workbench-dockview .dv-tabs-and-actions-container .dv-tab,
+.workbench-dockview .dv-tabs-and-actions-container .dv-tab.dv-active-tab,
+.workbench-dockview .dv-tabs-and-actions-container .dv-tab.dv-inactive-tab {
+  flex: 0 0 auto !important;
+  min-width: 0;
+  padding: 0;
+  background: transparent !important;
+}
+
+.workbench-dockview .dv-tab > .dv-react-part {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.workbench-dockview .dv-tab .workbench-dock-tab {
+  min-width: 0;
+  max-width: 15rem;
+  width: 100%;
+  cursor: grab;
+  transition: color 120ms ease;
+}
+
+.workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab {
+  color: var(--wb-text);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--wb-accent);
+}
+
+.workbench-dockview .dv-tab.dv-inactive-tab .workbench-dock-tab:hover {
+  color: var(--wb-text);
+}
+
+.workbench-dockview .workbench-dock-tab-settings {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab-settings,
+.workbench-dockview .workbench-dock-tab:hover .workbench-dock-tab-settings,
+.workbench-dockview .workbench-dock-tab-settings:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .workbench-dockview .workbench-dock-tab-settings {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.workbench-dockview .dv-tab:focus::after,
+.workbench-dockview .dv-tab:focus-within::after {
+  border-radius: 0;
+  outline-color: var(--wb-border-strong) !important;
+  outline-offset: -3px;
+}
+
+.workbench-dockview .dv-split-view-container.dv-separator-border .dv-view:not(:first-child)::before {
+  background-color: var(--workbench-divider);
+}
+
+.workbench-dockview .dv-scrollable {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.workbench-dockview .dv-scrollable::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.workbench-dockview .dv-scrollable > .dv-tabs-container {
+  width: max-content !important;
+  overflow: visible;
+}

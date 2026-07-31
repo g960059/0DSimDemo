@@ -18,6 +18,7 @@ export const STUDIO_SIMULATION_WORKER_PROTOCOL_V2 =
 export const STUDIO_SIMULATION_WORKER_MAX_ADVANCE_STEPS_V2 = 8;
 
 export type StudioSimulationWorkerInitializeInputV2 = Readonly<{
+  expectedModelId: string;
   runtimeSessionId: string;
   scenarioId: string;
   fixture: StudioJsonValueV2;
@@ -35,6 +36,7 @@ export type StudioSimulationWorkerRequestV2 =
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
       requestId: number;
       kind: "initialize";
+      expectedModelId: string;
       runtimeSessionId: string;
       scenarioId: string;
       fixture: StudioJsonValueV2;
@@ -95,6 +97,7 @@ export function createStudioSimulationInitializeRequestV2(
   value: unknown,
 ): Extract<StudioSimulationWorkerRequestV2, { kind: "initialize" }> {
   const input = exactDataRecordV2(value, [
+    "expectedModelId",
     "fixture",
     "runtimeSessionId",
     "scenarioId",
@@ -103,6 +106,7 @@ export function createStudioSimulationInitializeRequestV2(
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId,
     kind: "initialize",
+    expectedModelId: input.expectedModelId,
     runtimeSessionId: input.runtimeSessionId,
     scenarioId: input.scenarioId,
     fixture: input.fixture,
@@ -156,6 +160,7 @@ export function validateStudioSimulationWorkerRequestV2(
 
   if (envelope.kind === "initialize") {
     const request = exactDataRecordV2(envelope, [
+      "expectedModelId",
       "fixture",
       "kind",
       "protocol",
@@ -174,6 +179,10 @@ export function validateStudioSimulationWorkerRequestV2(
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
       kind: "initialize",
+      expectedModelId: validateStudioSimulationPortableIdV2(
+        request.expectedModelId,
+        "$.request.expectedModelId",
+      ),
       runtimeSessionId: validateStudioSimulationPortableIdV2(
         request.runtimeSessionId,
         "$.request.runtimeSessionId",

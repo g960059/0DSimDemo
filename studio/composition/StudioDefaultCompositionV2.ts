@@ -9,9 +9,11 @@ import {
 } from "@/studio/infrastructure/model/TrustedRegisteredModelClientCatalogV2";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
-  createMainWireIntegratedStudioModelPackageV3,
+  loadMainWireIntegratedStudioExecutableReleaseV3,
   type MainWireIntegratedStudioFixtureV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
+import mainWireIntegratedStudioExecutableArtifactV3 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs?raw";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2 =
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3;
@@ -44,7 +46,7 @@ let browserCompositionPromiseV2:
  */
 export async function createStudioDefaultClientCompositionV2():
 Promise<StudioDefaultClientCompositionV2> {
-  const resolved = resolveDefaultReleaseV2();
+  const resolved = await resolveDefaultReleaseV2();
   return Object.freeze({
     defaultModelId: DEFAULT_STUDIO_MODEL_ID_V2,
     defaultFixture: resolved.defaultFixture,
@@ -56,7 +58,7 @@ Promise<StudioDefaultClientCompositionV2> {
  * main-thread authoring owner. */
 export async function createStudioDefaultWorkerCompositionV2():
 Promise<StudioDefaultWorkerCompositionV2> {
-  const resolved = resolveDefaultReleaseV2();
+  const resolved = await resolveDefaultReleaseV2();
   return Object.freeze({
     defaultModelId: DEFAULT_STUDIO_MODEL_ID_V2,
     defaultFixture: resolved.defaultFixture,
@@ -64,12 +66,17 @@ Promise<StudioDefaultWorkerCompositionV2> {
   });
 }
 
-function resolveDefaultReleaseV2() {
-  const modelPackage = createMainWireIntegratedStudioModelPackageV3();
+async function resolveDefaultReleaseV2() {
+  const admittedRelease =
+    await loadMainWireIntegratedStudioExecutableReleaseV3(
+      new TextEncoder().encode(
+        mainWireIntegratedStudioExecutableArtifactV3,
+      ),
+    );
   const registry = new TrustedRegisteredModelClientCatalogV2([
     {
-      manifest: modelPackage.manifest,
-      executables: modelPackage.executables,
+      manifest: admittedRelease.manifest,
+      executables: admittedRelease.executables,
     },
   ]);
   const contract = registry.resolveContract(DEFAULT_STUDIO_MODEL_ID_V2);
@@ -77,7 +84,7 @@ function resolveDefaultReleaseV2() {
     throw new Error("Studio default model registration returned another model");
   }
   return Object.freeze({
-    defaultFixture: modelPackage.defaultFixture,
+    defaultFixture: admittedRelease.defaultFixture,
     registry,
   });
 }

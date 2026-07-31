@@ -1,13 +1,8 @@
 import type {
-  ScenarioCheckpointV2,
-} from "@/studio/contracts/v2/content";
-import type {
-  StudioJsonValueV2,
-} from "@/studio/contracts/v2/json";
-import type {
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
 import {
+  type StudioSimulationWorkerInitializeInputV2,
   type StudioSimulationWorkerRequestV2,
   type StudioSimulationWorkerResponseV2,
   createStudioSimulationAdvanceRequestV2,
@@ -47,6 +42,7 @@ export type StudioSimulationWorkerClientOptionsV2 = Readonly<{
 type ExpectedResponseV2 =
   | Readonly<{
       kind: "initialized";
+      modelId: string;
       runtimeSessionId: string;
       scenarioId: string;
     }>
@@ -112,12 +108,9 @@ export class StudioSimulationWorkerClientV2 {
     this.#worker.addEventListener("error", this.#onWorkerError);
   }
 
-  async initialize(input: Readonly<{
-    runtimeSessionId: string;
-    scenarioId: string;
-    fixture: StudioJsonValueV2;
-    checkpoint?: ScenarioCheckpointV2;
-  }>): Promise<StudioSimulationFrameV2> {
+  async initialize(
+    input: StudioSimulationWorkerInitializeInputV2,
+  ): Promise<StudioSimulationFrameV2> {
     if (this.#state !== "new") {
       throw new Error("simulation worker client cannot initialize twice");
     }
@@ -129,6 +122,7 @@ export class StudioSimulationWorkerClientV2 {
     try {
       const response = await this.#postRequest(request, {
         kind: "initialized",
+        modelId: request.expectedModelId,
         runtimeSessionId: request.runtimeSessionId,
         scenarioId: request.scenarioId,
       });
@@ -137,7 +131,7 @@ export class StudioSimulationWorkerClientV2 {
       }
       this.#runtimeSessionId = request.runtimeSessionId;
       this.#scenarioId = request.scenarioId;
-      this.#modelId = response.frame.modelId;
+      this.#modelId = request.expectedModelId;
       this.#inputEpoch = response.frame.inputEpoch;
       this.#acceptedRevision = response.frame.acceptedRevision;
       this.#acceptedTimeSec = response.frame.acceptedTimeSec;
@@ -374,6 +368,7 @@ function assertExpectedResponseV2(
       response.frame,
       expected.runtimeSessionId,
       expected.scenarioId,
+      expected.modelId,
     );
     return;
   }

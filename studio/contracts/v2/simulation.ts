@@ -82,7 +82,7 @@ export type RegisteredModelSimulationAdapterV2 = Readonly<{
 
 const STUDIO_SIMULATION_PORTABLE_ID_V2 =
   /^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/;
-const MAXIMUM_STUDIO_SIMULATION_JSON_DEPTH_V2 = 128;
+const MAXIMUM_STUDIO_SIMULATION_JSON_DEPTH_V2 = 256;
 
 export class StudioSimulationContractValidationErrorV2 extends Error {
   constructor(path: string, message: string) {

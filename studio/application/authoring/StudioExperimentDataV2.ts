@@ -31,7 +31,7 @@ import type {
 
 const PORTABLE_ID_V2 = /^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/;
 const MAXIMUM_PORTABLE_ID_LENGTH_V2 = 256;
-const MAXIMUM_JSON_DEPTH_V2 = 128;
+const MAXIMUM_JSON_DEPTH_V2 = 256;
 
 export class StudioExperimentDataValidationErrorV2 extends Error {
   constructor(path: string, message: string) {
@@ -364,6 +364,7 @@ export function assertExperimentDesiredContentMatchesModelV2(
 function assertExperimentModelAndSurfaceMatchV2(
   content: Readonly<{
     modelId: string;
+    scenarios: readonly Readonly<{ scenarioId: string }>[];
     surface: ExperimentSurfaceV2;
   }>,
   model: ModelContractV2,
@@ -381,6 +382,9 @@ function assertExperimentModelAndSurfaceMatchV2(
   );
   const controlIds = new Set(
     model.controlCatalog.map(({ controlId }) => controlId),
+  );
+  const scenarioIds = new Set(
+    content.scenarios.map(({ scenarioId }) => scenarioId),
   );
   content.surface.graphs.forEach((instance, index) => {
     if (!graphIds.has(instance.graphId)) {
@@ -405,6 +409,14 @@ function assertExperimentModelAndSurfaceMatchV2(
         `unknown registered control ${instance.controlId}`,
       );
     }
+    instance.targetScenarioIds.forEach((scenarioId, targetIndex) => {
+      if (!scenarioIds.has(scenarioId)) {
+        throw validationErrorV2(
+          `${path}.surface.controls[${index}].targetScenarioIds[${targetIndex}]`,
+          `unknown target Scenario ${scenarioId}`,
+        );
+      }
+    });
   });
 }
 
@@ -764,7 +776,16 @@ function assertExperimentSurfaceV2(
   ): void => {
     assertExactKeysV2(instance, definitionKey === null
       ? ["instanceId", "text", "groupId", "order", "priority"]
-      : ["instanceId", definitionKey, "groupId", "order", "priority"], path);
+      : definitionKey === "controlId"
+        ? [
+          "instanceId",
+          definitionKey,
+          "targetScenarioIds",
+          "groupId",
+          "order",
+          "priority",
+        ]
+        : ["instanceId", definitionKey, "groupId", "order", "priority"], path);
     const instanceId = requiredPortableIdV2(
       instance.instanceId,
       `${path}.instanceId`,
@@ -777,6 +798,28 @@ function assertExperimentSurfaceV2(
         instance[definitionKey],
         `${path}.${definitionKey}`,
       );
+    }
+    if (definitionKey === "controlId") {
+      const targets = instance.targetScenarioIds;
+      arrayV2(targets, `${path}.targetScenarioIds`);
+      if (targets.length === 0) {
+        throw validationErrorV2(
+          `${path}.targetScenarioIds`,
+          "must contain at least one explicit Scenario target",
+        );
+      }
+      const targetIds = new Set<string>();
+      targets.forEach((target, index) => {
+        const targetId = requiredPortableIdV2(
+          target,
+          `${path}.targetScenarioIds[${index}]`,
+        );
+        assertUniqueIdV2(
+          targetIds,
+          targetId,
+          `${path}.targetScenarioIds[${index}]`,
+        );
+      });
     }
     const groupId = requiredPortableIdV2(
       instance.groupId,

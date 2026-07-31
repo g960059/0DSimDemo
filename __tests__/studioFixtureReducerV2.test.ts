@@ -25,8 +25,9 @@ describe("Studio fixture reducer V2", () => {
     };
     const action: StudioFixtureActionV2 = {
       kind: "control",
+      controlId: "control/test-patch",
       requestCorrelation: "pointer-17",
-      patch: {
+      value: {
         changes: [{
           path: ["controls", "heartRateBpm"],
           value: 72,
@@ -66,7 +67,8 @@ describe("Studio fixture reducer V2", () => {
       desiredFixture: currentFixture,
       action: {
         kind: "control",
-        patch: {
+        controlId: "control/test-patch",
+        value: {
           changes: [
             { path: ["controls", "preload"], value: 12 },
             { path: ["controls", "afterload"], value: 55 },
@@ -107,7 +109,8 @@ describe("Studio fixture reducer V2", () => {
       desiredFixture: currentFixture,
       action: {
         kind: "control",
-        patch: {
+        controlId: "control/test-patch",
+        value: {
           changes: [
             { path: ["controls", "valid"], value: 2 },
             { path: ["controls", "missing"], value: 3 },
@@ -121,7 +124,8 @@ describe("Studio fixture reducer V2", () => {
       desiredFixture: currentFixture,
       action: {
         kind: "control",
-        patch: {
+        controlId: "control/test-patch",
+        value: {
           changes: [{
             path: ["controls", "valid"],
             value: Number.NaN,
@@ -151,7 +155,8 @@ describe("Studio fixture reducer V2", () => {
       desiredFixture: { value: 1 },
       action: {
         kind: "control",
-        patch: { changes },
+        controlId: "control/test-patch",
+        value: { changes },
       },
     })).toEqual({ value: 2 });
     expect(changesMap).not.toHaveBeenCalled();
@@ -168,7 +173,8 @@ describe("Studio fixture reducer V2", () => {
       desiredFixture: { value: 1 },
       action: {
         kind: "control",
-        patch: { changes: [{ path, value: 3 }] },
+        controlId: "control/test-patch",
+        value: { changes: [{ path, value: 3 }] },
       },
     })).toEqual({ value: 3 });
     expect(pathMap).not.toHaveBeenCalled();
@@ -186,7 +192,8 @@ describe("Studio fixture reducer V2", () => {
       desiredFixture: { value: 1 },
       action: {
         kind: "control",
-        patch: { changes } as any,
+        controlId: "control/test-patch",
+        value: { changes } as any,
       },
     })).toThrow(/custom properties/);
     expect(map).not.toHaveBeenCalled();
@@ -197,7 +204,8 @@ describe("Studio fixture reducer V2", () => {
       desiredFixture: { value: 1 },
       action: {
         kind: "control",
-        patch: { changes: [{ path: ["value"], value: 2 }] },
+        controlId: "control/test-patch",
+        value: { changes: [{ path: ["value"], value: 2 }] },
       },
       context: {
         scenarioId: "scenario/baseline",
@@ -212,16 +220,16 @@ describe("Studio fixture reducer V2", () => {
         ...base,
         action: {
           ...base.action,
-          patch: { ...base.action.patch, status: "pending" },
+          value: { ...base.action.value, status: "pending" },
         },
       },
       {
         ...base,
         action: {
           ...base.action,
-          patch: {
+          value: {
             changes: [{
-              ...base.action.patch.changes[0],
+              ...base.action.value.changes[0],
               parameterSetId: "legacy-set",
             }],
           },
@@ -237,8 +245,8 @@ describe("Studio fixture reducer V2", () => {
       {
         ...base,
         action: {
-          kind: "knob",
-          knobKey: "vascular-tone",
+          kind: "control",
+          controlId: "control/test-patch",
           value: 1.2,
           status: "pending",
         },
@@ -269,7 +277,8 @@ describe("Studio fixture reducer V2", () => {
         desiredFixture: { value: 1 },
         action: {
           kind: "control",
-          patch: { changes: [{ path: ["value"], value: 2 }] },
+          controlId: "control/test-patch",
+          value: { changes: [{ path: ["value"], value: 2 }] },
         },
         context,
       } as any)).toThrow(/portable modelId and scenarioId/);
@@ -277,14 +286,14 @@ describe("Studio fixture reducer V2", () => {
     expect(resolveExactRuntime).not.toHaveBeenCalled();
   });
 
-  it("uses the model reducer seam to map one complex knob to one atomic patch", () => {
+  it("uses the model reducer seam to map one semantic control to one atomic patch", () => {
     const modelAdapter: StudioModelFixtureAdapterV2 = {
       modelId: "model/main-wire-v3-r1",
       fixtureSchemaId: "fixture/main-wire-v3-r1",
       validateCompleteFixture() {},
-      reduceKnobAction({ fixture, action }) {
+      reduceControlAction({ fixture, action }) {
         expect(Object.isFrozen(fixture)).toBe(true);
-        expect(action.knobKey).toBe("vascular-tone");
+        expect(action.controlId).toBe("control/vascular-tone");
         return {
           changes: [
             {
@@ -308,8 +317,8 @@ describe("Studio fixture reducer V2", () => {
         },
       },
       action: {
-        kind: "knob",
-        knobKey: "vascular-tone",
+        kind: "control",
+        controlId: "control/vascular-tone",
         value: 1.2,
       },
       modelAdapter,
@@ -339,7 +348,8 @@ describe("Studio fixture reducer V2", () => {
       desiredFixture: mutableFixture,
       action: {
         kind: "control",
-        patch: {
+        controlId: "control/test-patch",
+        value: {
           changes: [{
             path: ["controls", "gain"],
             value: mutableValue,
@@ -378,7 +388,8 @@ describe("Studio fixture reducer V2", () => {
       },
       action: {
         kind: "control",
-        patch: {
+        controlId: "control/test-patch",
+        value: {
           changes: [{
             path: ["controls", "heartRateBpm"],
             value: 65,
@@ -425,7 +436,8 @@ describe("Studio fixture reducer V2", () => {
         desiredFixture,
         action: {
           kind: "control",
-          patch: {
+          controlId: "control/test-patch",
+          value: {
             changes: [{
               path: ["controls", "heartRateBpm"],
               value: -1,
@@ -462,7 +474,8 @@ describe("Studio fixture reducer V2", () => {
       },
       action: {
         kind: "control",
-        patch: {
+        controlId: "control/test-patch",
+        value: {
           changes: [{
             path: ["values", 1],
             value: 2,
@@ -479,7 +492,8 @@ describe("Studio fixture reducer V2", () => {
       },
       action: {
         kind: "control",
-        patch: {
+        controlId: "control/test-patch",
+        value: {
           changes: [{
             path: ["label"],
             value: "portable",
@@ -499,10 +513,32 @@ describe("Studio fixture reducer V2", () => {
       desiredFixture: { value: 1 },
       action: {
         kind: "control",
-        patch: { changes: [{ path: ["value"], value: 2 }] },
+        controlId: "control/test-patch",
+        value: { changes: [{ path: ["value"], value: 2 }] },
       },
       modelAdapter,
     })).toThrow(/does not exactly match/);
+  });
+
+  it("rejects an unregistered control before invoking the model reducer", () => {
+    const reduceControlAction = vi.fn(() => ({
+      changes: [{ path: ["value"] as const, value: 2 }],
+    }));
+    expect(() => reduceFixtureV2({
+      desiredFixture: { value: 1 },
+      action: {
+        kind: "control",
+        controlId: "control/not-registered",
+        value: 2,
+      },
+      modelAdapter: {
+        modelId: "model/main-wire-v3-r1",
+        fixtureSchemaId: "fixture/main-wire-v3-r1",
+        validateCompleteFixture() {},
+        reduceControlAction,
+      },
+    })).toThrow(/unknown registered control/);
+    expect(reduceControlAction).not.toHaveBeenCalled();
   });
 
   it("rejects negative zero in the fixture or patch", () => {
@@ -510,21 +546,24 @@ describe("Studio fixture reducer V2", () => {
       desiredFixture: { value: -0 },
       action: {
         kind: "control",
-        patch: { changes: [{ path: ["value"], value: 1 }] },
+        controlId: "control/test-patch",
+        value: { changes: [{ path: ["value"], value: 1 }] },
       },
     })).toThrow(/negative zero/);
     expect(() => reduceFixtureV2({
       desiredFixture: { value: 1 },
       action: {
         kind: "control",
-        patch: { changes: [{ path: ["value"], value: -0 }] },
+        controlId: "control/test-patch",
+        value: { changes: [{ path: ["value"], value: -0 }] },
       },
     })).toThrow(/negative zero/);
     expect(() => reduceFixtureV2({
       desiredFixture: [1],
       action: {
         kind: "control",
-        patch: { changes: [{ path: [-0], value: 2 }] },
+        controlId: "control/test-patch",
+        value: { changes: [{ path: [-0], value: 2 }] },
       },
     })).toThrow(/negative zero/);
   });
@@ -539,15 +578,26 @@ function reduceFixtureV2(
     modelAdapter?: StudioModelFixtureAdapterV2;
   }>,
 ) {
-  const modelAdapter = input.modelAdapter ?? {
+  const modelAdapter: StudioModelFixtureAdapterV2 = {
     modelId: "model/main-wire-v3-r1",
     fixtureSchemaId: "fixture/main-wire-v3-r1",
     validateCompleteFixture() {},
+    reduceControlAction({ action }) {
+      return action.value as any;
+    },
+    ...input.modelAdapter,
   };
   const reducer = createReducerV2((modelId) => ({
     contract: {
       modelId,
       fixtureSchemaId: "fixture/main-wire-v3-r1",
+      controlCatalog: [{
+        controlId: "control/test-patch",
+        parameterIds: ["parameter/test"],
+      }, {
+        controlId: "control/vascular-tone",
+        parameterIds: ["parameter/vascular-tone"],
+      }],
     },
     fixtureAdapter: modelAdapter,
   } as any));
@@ -566,11 +616,18 @@ function createReducerV2(
     contract: {
       modelId,
       fixtureSchemaId: "fixture/main-wire-v3-r1",
+      controlCatalog: [{
+        controlId: "control/test-patch",
+        parameterIds: ["parameter/test"],
+      }],
     },
     fixtureAdapter: {
       modelId,
       fixtureSchemaId: "fixture/main-wire-v3-r1",
       validateCompleteFixture() {},
+      reduceControlAction({ action }: any) {
+        return action.value;
+      },
     },
   }),
 ) {

@@ -41,7 +41,8 @@ export type RegisterExactModelPackageInputV2 = Readonly<{
   /** Trusted server loader must materialize this exact byte artifact. */
   loadExecutables(
     executableArtifact: Uint8Array,
-  ): RegisteredModelExecutableBundleV2;
+  ): RegisteredModelExecutableBundleV2
+    | PromiseLike<RegisteredModelExecutableBundleV2>;
 }>;
 
 export class RegisteredModelValidationErrorV2 extends Error {
@@ -133,13 +134,59 @@ implements RegisteredModelResolverPortV2, ExactModelRuntimeResolverPortV2 {
       );
     }
 
-    const executables = input.loadExecutables(
-      new Uint8Array(prepared.executableArtifact),
-    );
+    let executables: RegisteredModelExecutableBundleV2;
+    try {
+      executables = await input.loadExecutables(
+        new Uint8Array(prepared.executableArtifact),
+      );
+    } catch (error) {
+      throw new RegisteredModelValidationErrorV2(
+        `trusted executable loader failed: ${errorMessageV2(error)}`,
+      );
+    }
     validateExecutableBundleV2(
       executables,
       prepared.resolvedPackage.contract,
     );
+
+    // An asynchronous trusted loader can yield while another registration for
+    // this model completes. Re-check the immutable binding immediately before
+    // committing so two callers cannot overwrite one another.
+    const concurrentDigest = this.#digestByModelId.get(
+      prepared.resolvedPackage.contract.modelId,
+    );
+    if (concurrentDigest !== undefined) {
+      const concurrent = this.#packageByDigest.get(concurrentDigest);
+      if (
+        concurrentDigest === digest
+        && concurrent !== undefined
+        && concurrent.canonicalManifest === prepared.canonicalManifest
+        && sameBytesV2(
+          concurrent.executableArtifact,
+          prepared.executableArtifact,
+        )
+      ) {
+        return concurrent.resolvedPackage.contract;
+      }
+      throw new RegisteredModelConflictErrorV2(
+        prepared.resolvedPackage.contract.modelId,
+      );
+    }
+    const concurrentPackage = this.#packageByDigest.get(digest);
+    if (
+      concurrentPackage !== undefined
+      && (
+        concurrentPackage.canonicalManifest !== prepared.canonicalManifest
+        || !sameBytesV2(
+          concurrentPackage.executableArtifact,
+          prepared.executableArtifact,
+        )
+      )
+    ) {
+      throw new RegisteredModelValidationErrorV2(
+        "SHA-256 collision across unequal canonical model packages",
+      );
+    }
     const stored: StoredRegisteredModelV2 = Object.freeze({
       ...prepared,
       exactRuntime: freezeExactRuntimeV2(
@@ -273,9 +320,9 @@ export function validateExecutableBundleV2(
     "modelId",
     "fixtureSchemaId",
     "validateCompleteFixture",
-    ...(bundle.fixtureAdapter.reduceKnobAction === undefined
+    ...(bundle.fixtureAdapter.reduceControlAction === undefined
       ? []
-      : ["reduceKnobAction"]),
+      : ["reduceControlAction"]),
   ], "fixture adapter");
   assertExactExecutableKeysV2(bundle.simulationAdapter, [
     "modelId",
@@ -320,8 +367,8 @@ export function validateExecutableBundleV2(
     || typeof bundle.simulationAdapter.replaceFixture !== "function"
     || typeof bundle.simulationAdapter.currentInputEpoch !== "function"
     || (
-      bundle.fixtureAdapter.reduceKnobAction !== undefined
-      && typeof bundle.fixtureAdapter.reduceKnobAction !== "function"
+      bundle.fixtureAdapter.reduceControlAction !== undefined
+      && typeof bundle.fixtureAdapter.reduceControlAction !== "function"
     )
   ) {
     throw new RegisteredModelValidationErrorV2(
@@ -358,9 +405,9 @@ export function freezeExactRuntimeV2(
       modelId: bundle.fixtureAdapter.modelId,
       fixtureSchemaId: bundle.fixtureAdapter.fixtureSchemaId,
       validateCompleteFixture: bundle.fixtureAdapter.validateCompleteFixture,
-      ...(bundle.fixtureAdapter.reduceKnobAction === undefined
+      ...(bundle.fixtureAdapter.reduceControlAction === undefined
         ? {}
-        : { reduceKnobAction: bundle.fixtureAdapter.reduceKnobAction }),
+        : { reduceControlAction: bundle.fixtureAdapter.reduceControlAction }),
     }),
     simulationAdapter: Object.freeze({
       modelId: bundle.simulationAdapter.modelId,
