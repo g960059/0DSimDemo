@@ -10,6 +10,7 @@ import {
 } from "@/components/WorkbenchV3Page";
 import {
   WorkbenchDockview,
+  reconcileWorkbenchPaneTitlesV3,
   reconcileWorkbenchPanesV3,
   resetWorkbenchDockviewTrackingV3,
   type WorkbenchPaneDefinitionV3,
@@ -107,6 +108,48 @@ describe("V3 Dockview Workbench", () => {
     expect(addPanel).toHaveBeenCalledTimes(1);
   });
 
+  it("updates Dockview's internal title without rebuilding pane structure", () => {
+    const clear = vi.fn();
+    const addPanel = vi.fn();
+    const setTitle = vi.fn();
+    const getPanel = vi.fn(() => ({ setTitle }));
+    const api = {
+      addPanel,
+      clear,
+      getPanel,
+      panels: [],
+    } as unknown as DockviewApi;
+    const pane: WorkbenchPaneDefinitionV3 = Object.freeze({
+      paneId: "graph-1",
+      role: "graph",
+      title: "Pressure",
+    });
+
+    const structureSignature = reconcileWorkbenchPanesV3(api, [pane], null);
+    let titleSignature = reconcileWorkbenchPaneTitlesV3(api, [pane], null);
+    const renamed = { ...pane, title: "Flow" };
+    reconcileWorkbenchPanesV3(api, [renamed], structureSignature);
+    titleSignature = reconcileWorkbenchPaneTitlesV3(
+      api,
+      [renamed],
+      titleSignature,
+    );
+    const changedContent = {
+      ...renamed,
+      graphId: "graph-definition/flow",
+    };
+    reconcileWorkbenchPaneTitlesV3(
+      api,
+      [changedContent],
+      titleSignature,
+    );
+
+    expect(clear).toHaveBeenCalledTimes(1);
+    expect(addPanel).toHaveBeenCalledTimes(1);
+    expect(getPanel).toHaveBeenCalledTimes(2);
+    expect(setTitle.mock.calls).toEqual([["Pressure"], ["Flow"]]);
+  });
+
   it("rebuilds Dockview when pane ID, role, or order changes", () => {
     const clear = vi.fn();
     const addPanel = vi.fn();
@@ -150,10 +193,18 @@ describe("V3 Dockview Workbench", () => {
     const appliedSignatureRef: { current: string | null } = {
       current: "[[\"graph-1\",\"graph\"]]",
     };
+    const appliedTitleSignatureRef: { current: string | null } = {
+      current: "[[\"graph-1\",\"Pressure\"]]",
+    };
 
-    resetWorkbenchDockviewTrackingV3(apiRef, appliedSignatureRef);
+    resetWorkbenchDockviewTrackingV3(
+      apiRef,
+      appliedSignatureRef,
+      appliedTitleSignatureRef,
+    );
 
     expect(apiRef.current).toBeNull();
     expect(appliedSignatureRef.current).toBeNull();
+    expect(appliedTitleSignatureRef.current).toBeNull();
   });
 });

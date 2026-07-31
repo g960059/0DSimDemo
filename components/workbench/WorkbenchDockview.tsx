@@ -146,12 +146,35 @@ export function reconcileWorkbenchPanesV3(
   return nextSignature;
 }
 
+export function getWorkbenchPaneTitleSignatureV3(
+  panes: readonly WorkbenchPaneDefinitionV3[],
+): string {
+  return JSON.stringify(
+    panes.map(({ paneId, title }) => [paneId, title]),
+  );
+}
+
+export function reconcileWorkbenchPaneTitlesV3(
+  api: DockviewApi,
+  panes: readonly WorkbenchPaneDefinitionV3[],
+  appliedSignature: string | null,
+): string {
+  const nextSignature = getWorkbenchPaneTitleSignatureV3(panes);
+  if (nextSignature === appliedSignature) return appliedSignature;
+  for (const pane of panes) {
+    api.getPanel(pane.paneId)?.setTitle(pane.title);
+  }
+  return nextSignature;
+}
+
 export function resetWorkbenchDockviewTrackingV3(
   apiRef: { current: DockviewApi | null },
   appliedSignatureRef: { current: string | null },
+  appliedTitleSignatureRef: { current: string | null },
 ): void {
   apiRef.current = null;
   appliedSignatureRef.current = null;
+  appliedTitleSignatureRef.current = null;
 }
 
 /**
@@ -179,8 +202,13 @@ export function WorkbenchDockview({
   const latestPanesRef = React.useRef(panes);
   latestPanesRef.current = panes;
   const appliedPaneSignatureRef = React.useRef<string | null>(null);
+  const appliedPaneTitleSignatureRef = React.useRef<string | null>(null);
   const paneSignature = React.useMemo(
     () => getWorkbenchPaneSignatureV3(panes),
+    [panes],
+  );
+  const paneTitleSignature = React.useMemo(
+    () => getWorkbenchPaneTitleSignatureV3(panes),
     [panes],
   );
   const paneById = React.useMemo(
@@ -204,6 +232,7 @@ export function WorkbenchDockview({
       resetWorkbenchDockviewTrackingV3(
         apiRef,
         appliedPaneSignatureRef,
+        appliedPaneTitleSignatureRef,
       );
     },
     [],
@@ -218,6 +247,16 @@ export function WorkbenchDockview({
       appliedPaneSignatureRef.current,
     );
   }, [paneSignature]);
+
+  React.useEffect(() => {
+    const api = apiRef.current;
+    if (api === null) return;
+    appliedPaneTitleSignatureRef.current = reconcileWorkbenchPaneTitlesV3(
+      api,
+      latestPanesRef.current,
+      appliedPaneTitleSignatureRef.current,
+    );
+  }, [paneTitleSignature]);
 
   if (panes.length === 0) {
     return (
@@ -269,6 +308,12 @@ export function WorkbenchDockview({
               latestPanesRef.current,
               null,
             );
+            appliedPaneTitleSignatureRef.current =
+              reconcileWorkbenchPaneTitlesV3(
+                event.api,
+                latestPanesRef.current,
+                null,
+              );
           }}
         />
       </section>
