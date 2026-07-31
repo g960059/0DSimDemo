@@ -84,7 +84,6 @@ export const prSmokeTests = [
   "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
   "__tests__/mainWireIntegratedModelRealProviderSmokeV3.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
-  "__tests__/mainWireIntegratedModelSnapshotQualificationV3.test.ts",
   "__tests__/mainWireIntegratedModelTransactionV3.test.ts",
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",

@@ -91,6 +91,15 @@ jobs:
           # Snapshot gates. Keep the 60 s local gate while allowing CI variance.
           CIRCLEHEART_FAST_TEST_BUDGET_MS: 180000
 
+      - name: Verify exact V3 snapshot qualification
+        if: github.event_name == 'pull_request'
+        # Keep the cold-to-P1 gate outside the parallel smoke worker pool. The
+        # test yields only at accepted cycle boundaries so Vitest RPC stays live.
+        run: >-
+          node node_modules/vitest/vitest.mjs run
+          --config vitest.canonical.config.ts
+          __tests__/mainWireIntegratedModelSnapshotQualificationV3.test.ts
+
   whitespace:
     name: Check diff whitespace
     runs-on: ubuntu-latest

@@ -13,10 +13,23 @@ import {
   qualifyMainWireIntegratedModelSnapshotV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelSnapshotQualificationV3";
 import {
+  classifyMainWireIntegratedModelPeriodicityV3,
+  type MainWireIntegratedModelPeriodicClassificationV3,
+  type MainWireIntegratedModelPeriodicCycleObservationV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClassifierV3";
+import {
+  compareMainWireIntegratedModelAcceptedStatesV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
+import {
   createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
-  runMainWireIntegratedModelPeriodicSteadyV3,
-  type MainWireIntegratedModelPeriodicSteadyResultV3,
+  runMainWireIntegratedModelRegularSinusAllOffCycleV3,
   type MainWireIntegratedModelRegularSinusAllOffFixtureV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import type {
@@ -27,15 +40,16 @@ type AcceptedState = MainWireIntegratedModelAcceptedStateV3<
   MainWireNormalAdultFiveWallMechanicsStateV1
 >;
 
+type SettledCandidate = Readonly<{
+  terminalAcceptedState: AcceptedState;
+  classification: MainWireIntegratedModelPeriodicClassificationV3;
+}>;
+
 describe("MainWireIntegratedModel candidate snapshot qualification V3", () => {
-  let settled: MainWireIntegratedModelPeriodicSteadyResultV3;
+  let settled: SettledCandidate;
 
   beforeAll(async () => {
-    settled = await runMainWireIntegratedModelPeriodicSteadyV3({
-      nominalDtSec: 0.01,
-      maximumCycleCount: 250,
-      executionPurpose: "canonical-evidence",
-    });
+    settled = await createSettledCandidateWithHostYields(0.01, 250);
     expect(settled.classification.status).toBe("period1-converged");
   }, 120_000);
 
@@ -181,6 +195,102 @@ describe("MainWireIntegratedModel candidate snapshot qualification V3", () => {
       });
   });
 });
+
+/**
+ * Builds the same canonical P1 candidate used by the periodic protocol while
+ * yielding between complete accepted cycles. A full cold-to-P1 run can occupy
+ * a two-core CI worker for more than Vitest 2's 60 s RPC timeout if it is one
+ * uninterrupted JavaScript turn; cycle boundaries are safe test-only yield
+ * points because no model state changes between them. The cycle runner,
+ * complete accepted-state comparator, preregistered classifier policy, and
+ * early-stop boundary are the production protocol's; only task scheduling is
+ * different. The fixed valid protocol hash below is classifier metadata and
+ * cannot affect either the numerical state or the selected cycle boundary.
+ */
+async function createSettledCandidateWithHostYields(
+  nominalDtSec: number,
+  maximumCycleCount: number,
+): Promise<SettledCandidate> {
+  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+  const classifierOptions = Object.freeze({
+    period1NormalizedTolerance:
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.period1NormalizedTolerance,
+    period2NormalizedTolerance:
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.period2NormalizedTolerance,
+    period2MinimumPeriod1NormalizedDelta:
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.period2MinimumPeriod1NormalizedDelta,
+    consecutiveCycles:
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.consecutiveCycles,
+  });
+  const observations: MainWireIntegratedModelPeriodicCycleObservationV3[] = [];
+  const boundaries: AcceptedState[] = [fixture.cold.acceptedState];
+  const protocolIdentityHash = "0".repeat(64);
+  let accepted = fixture.cold.acceptedState;
+  let classification = classifyMainWireIntegratedModelPeriodicityV3(
+    observations,
+    classifierOptions,
+  );
+
+  for (
+    let cycleIndex = 1;
+    cycleIndex <= maximumCycleCount;
+    cycleIndex += 1
+  ) {
+    const run = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+      fixture,
+      accepted,
+      cycleIndex,
+      nominalDtSec,
+    );
+    accepted = run.terminalAcceptedState;
+    const previous = boundaries.at(-1)!;
+    const twoBack = boundaries.length >= 2 ? boundaries.at(-2)! : null;
+    const period1 = compareMainWireIntegratedModelAcceptedStatesV3(
+      accepted,
+      previous,
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+      fixture.config,
+    );
+    const period2 = twoBack === null
+      ? null
+      : compareMainWireIntegratedModelAcceptedStatesV3(
+          accepted,
+          twoBack,
+          MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+          fixture.config,
+        );
+    observations.push(Object.freeze({
+      cycleIndex,
+      evidenceRole: "canonical-periodic-protocol" as const,
+      protocolIdentityHash,
+      period1,
+      period2,
+    }));
+    classification = classifyMainWireIntegratedModelPeriodicityV3(
+      observations,
+      classifierOptions,
+    );
+    boundaries.push(accepted);
+    if (boundaries.length > 3) boundaries.shift();
+
+    if (classification.status !== "not-converged") {
+      return Object.freeze({
+        terminalAcceptedState: accepted,
+        classification,
+      });
+    }
+    await yieldToHost();
+  }
+
+  return Object.freeze({
+    terminalAcceptedState: accepted,
+    classification,
+  });
+}
+
+function yieldToHost(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
 
 function advanceToAcceptedTime(
   fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
