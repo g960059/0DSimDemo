@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
+  STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
   STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
   type ExperimentContentV2,
@@ -1621,6 +1622,283 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
     });
   });
 
+  it("rejects add and duplicate commands once the four-Scenario limit is reached", async () => {
+    const harness = multiScenarioRuntimeHarnessV2();
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    let activeScenarioId = "scenario/baseline";
+    for (let index = 1; index < STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2; index += 1) {
+      const scenarioId = `scenario/copy-${index}`;
+      harness.runtime.enqueue(createStudioSimulationDuplicateScenarioRequestV2(
+        index + 1,
+        {
+          runtimeSessionId: "runtime/session-1",
+          sourceScenarioId: "scenario/baseline",
+          scenarioId,
+          label: `Copy ${index}`,
+          expectedActiveScenarioId: activeScenarioId,
+          expectedInputEpoch: 0,
+          expectedAcceptedRevision: 0,
+          expectedAcceptedTimeSec: 0,
+        },
+      ));
+      await harness.runtime.whenIdle();
+      expect(harness.port.messages.at(-1)).toMatchObject({
+        status: "ok",
+        kind: "scenario-state",
+        state: { activeScenarioId: scenarioId },
+      });
+      activeScenarioId = scenarioId;
+    }
+
+    harness.runtime.enqueue(createStudioSimulationDuplicateScenarioRequestV2(5, {
+      runtimeSessionId: "runtime/session-1",
+      sourceScenarioId: "scenario/baseline",
+      scenarioId: "scenario/overflow-copy",
+      label: "Overflow copy",
+      expectedActiveScenarioId: activeScenarioId,
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+    }));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "error",
+      fatal: false,
+      message: expect.stringMatching(/at most 4 Scenarios/),
+    });
+
+    harness.runtime.enqueue(createStudioSimulationAddScenarioFromPresetRequestV2(
+      6,
+      {
+        runtimeSessionId: "runtime/session-1",
+        scenarioId: "scenario/overflow-preset",
+        label: "Overflow preset",
+        preset: {
+          schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
+          presetId: "preset/overflow",
+          modelId: "model/main-wire-v3-r1",
+          title: "Overflow",
+          description: "Must be rejected before rebuild",
+          capture: {
+            fixture: { value: 2 },
+            checkpoint: {
+              acceptedRevision: 0,
+              acceptedTimeSec: 0,
+              payload: { state: [0] },
+            },
+          },
+        },
+        expectedActiveScenarioId: activeScenarioId,
+        expectedInputEpoch: 0,
+        expectedAcceptedRevision: 0,
+        expectedAcceptedTimeSec: 0,
+      },
+    ));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "error",
+      fatal: false,
+      message: expect.stringMatching(/at most 4 Scenarios/),
+    });
+    expect(harness.adapter.createSession).toHaveBeenCalledTimes(4);
+
+    harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(7, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: activeScenarioId,
+      stepCount: 1,
+    }));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "advanced",
+      frames: [{ scenarioId: activeScenarioId }],
+    });
+  });
+
+  it("starts a duplicate at the source boundary and keeps fixture and checkpoint evolution independent", async () => {
+    const harness = multiScenarioRuntimeHarnessV2();
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(2, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 2,
+    }));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "advanced",
+      frames: [
+        { acceptedRevision: 1, acceptedTimeSec: 0.1 },
+        { acceptedRevision: 2, acceptedTimeSec: 0.2 },
+      ],
+    });
+
+    harness.runtime.enqueue(createStudioSimulationDuplicateScenarioRequestV2(3, {
+      runtimeSessionId: "runtime/session-1",
+      sourceScenarioId: "scenario/baseline",
+      scenarioId: "scenario/baseline-copy",
+      label: "Baseline copy",
+      expectedActiveScenarioId: "scenario/baseline",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 2,
+      expectedAcceptedTimeSec: 0.2,
+    }));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "scenario-state",
+      state: {
+        activeScenarioId: "scenario/baseline-copy",
+        frame: {
+          scenarioId: "scenario/baseline-copy",
+          acceptedRevision: 2,
+          acceptedTimeSec: 0.2,
+        },
+      },
+    });
+    expect(vi.mocked(harness.adapter.createSession).mock.calls.at(-1)?.[0]
+      .scenarios).toEqual([
+        {
+          scenarioId: "scenario/baseline",
+          fixture: { value: 1 },
+          checkpoint: {
+            acceptedRevision: 2,
+            acceptedTimeSec: 0.2,
+            payload: { state: [2] },
+          },
+        },
+        {
+          scenarioId: "scenario/baseline-copy",
+          fixture: { value: 1 },
+          checkpoint: {
+            acceptedRevision: 2,
+            acceptedTimeSec: 0.2,
+            payload: { state: [2] },
+          },
+        },
+      ]);
+
+    harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(4, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline-copy",
+      stepCount: 1,
+    }));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "advanced",
+      frames: [{
+        scenarioId: "scenario/baseline-copy",
+        acceptedRevision: 3,
+        acceptedTimeSec: 0.30000000000000004,
+      }],
+    });
+
+    harness.runtime.enqueue(createStudioSimulationSelectScenarioRequestV2(5, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      expectedActiveScenarioId: "scenario/baseline-copy",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 3,
+      expectedAcceptedTimeSec: 0.30000000000000004,
+    }));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "scenario-state",
+      state: {
+        activeScenarioId: "scenario/baseline",
+        frame: {
+          scenarioId: "scenario/baseline",
+          inputEpoch: 0,
+          acceptedRevision: 2,
+          acceptedTimeSec: 0.2,
+        },
+      },
+    });
+
+    harness.runtime.enqueue(createStudioSimulationSelectScenarioRequestV2(6, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline-copy",
+      expectedActiveScenarioId: "scenario/baseline",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 2,
+      expectedAcceptedTimeSec: 0.2,
+    }));
+    await harness.runtime.whenIdle();
+    harness.runtime.enqueue(createStudioSimulationApplyControlRequestV2(7, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline-copy",
+      controlId: "control/heart-rate",
+      value: 72,
+      expectedInputEpoch: 0,
+    }));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "control-applied",
+      frame: {
+        scenarioId: "scenario/baseline-copy",
+        inputEpoch: 1,
+        acceptedRevision: 0,
+        acceptedTimeSec: 0,
+      },
+    });
+
+    harness.runtime.enqueue(createStudioSimulationSelectScenarioRequestV2(8, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      expectedActiveScenarioId: "scenario/baseline-copy",
+      expectedInputEpoch: 1,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+    }));
+    await harness.runtime.whenIdle();
+    harness.runtime.enqueue(createStudioSimulationReadScenariosRequestV2(9, {
+      runtimeSessionId: "runtime/session-1",
+      expectedActiveScenarioId: "scenario/baseline",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 2,
+      expectedAcceptedTimeSec: 0.2,
+    }));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "scenarios-captured",
+      captures: {
+        activeScenarioId: "scenario/baseline",
+        scenarios: [
+          {
+            scenarioId: "scenario/baseline",
+            capture: {
+              fixture: { value: 1 },
+              checkpoint: {
+                acceptedRevision: 2,
+                acceptedTimeSec: 0.2,
+                payload: { state: [2] },
+              },
+            },
+          },
+          {
+            scenarioId: "scenario/baseline-copy",
+            capture: {
+              fixture: { value: 72 },
+              checkpoint: {
+                acceptedRevision: 0,
+                acceptedTimeSec: 0,
+                payload: { state: [0] },
+              },
+            },
+          },
+        ],
+      },
+    });
+  });
+
   it("rejects an invalid Preset atomically before rebuilding branches", async () => {
     const harness = multiScenarioRuntimeHarnessV2();
     harness.runtime.enqueue(initializeRequestV2(1));
@@ -2668,13 +2946,12 @@ function surfaceV2(note = "Saved note"): ExperimentSurfaceV2 {
       paneId: "pane/pressure",
       role: "graph",
       label: "Pressure",
-      colorHex: "#ef4444",
       order: 0,
       priority: 0,
       graphId: "graph/pressure",
       windowSec: 2,
       series: [{
-        outputId: "pressure.lv",
+        seriesId: "series/pressure-lv",
         label: "LV pressure",
         colorHex: "#ef4444",
         order: 0,
@@ -2689,7 +2966,6 @@ function surfaceV2(note = "Saved note"): ExperimentSurfaceV2 {
       items: [{
         outputId: "pressure.lv",
         label: "LV pressure",
-        colorHex: "#3b82f6",
         order: 0,
       }],
     }],
@@ -2702,8 +2978,6 @@ function surfaceV2(note = "Saved note"): ExperimentSurfaceV2 {
       items: [{
         controlId: "control/heart-rate",
         label: "Heart rate",
-        colorHex: "#22c55e",
-        targetScenarioIds: ["scenario/baseline"],
         order: 0,
       }],
     }],
@@ -3053,7 +3327,12 @@ function exactRuntimeV2(
     graphCatalog: [{
       graphId: "graph/pressure",
       renderer: "sweep",
-      outputIds: ["pressure.lv"],
+      seriesCatalog: [{
+        kind: "scalar",
+        seriesId: "series/pressure-lv",
+        outputId: "pressure.lv",
+      }],
+      defaultSeriesIds: ["series/pressure-lv"],
     }],
   };
   return {

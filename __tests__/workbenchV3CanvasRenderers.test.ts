@@ -4,9 +4,13 @@ import {
   SINGLE_BEAT_PV_ORIENTATION_SEMANTICS_V3,
   WORKBENCH_PRESENTATION_SAMPLE_CAPACITY_V3,
   WorkbenchPresentationSampleStoreV3,
+  WorkbenchScenarioPresentationSampleStoreV3,
+  activeSweepingWaveformCursorTimeSecV3,
   appendWorkbenchPresentationSamplesV3,
   buildSingleBeatPvOrientationGuidesV3,
   buildSweepingWaveformSegmentsV3,
+  buildWorkbenchScenarioLegendItemsV3,
+  buildWorkbenchTraceColorLegendItemsV3,
   boundedCanvasPixelRatioV3,
   createWorkbenchCanvasFrameSchedulerV3,
   extractLastCompletePvBeatV3,
@@ -15,9 +19,12 @@ import {
   lastCompleteCycleRangeV3,
   nextHystereticNumericDomainV3,
   orderedFiniteWorkbenchSamplesV3,
+  workbenchScenarioLineDashV3,
   type WorkbenchPvPointV3,
   type WorkbenchScalarSampleV3,
 } from "@/components/workbench/v3";
+
+const TEST_CYCLE_PHASE_OUTPUT_ID_V3 = "custom.clock/cycle-fraction";
 
 const sampleV3 = (
   acceptedTimeSec: number,
@@ -25,8 +32,10 @@ const sampleV3 = (
   values: Readonly<Record<string, number | null>>,
 ): WorkbenchScalarSampleV3 => Object.freeze({
   acceptedTimeSec,
-  cyclePhase01,
-  values: Object.freeze(values),
+  values: Object.freeze({
+    ...values,
+    [TEST_CYCLE_PHASE_OUTPUT_ID_V3]: cyclePhase01,
+  }),
 });
 
 describe("V3-neutral Workbench Canvas helpers", () => {
@@ -53,6 +62,30 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     expect(segments.flat().some(({ phaseSec }) => phaseSec === 0.25)).toBe(false);
   });
 
+  it("anchors the sweeping cursor to the active Scenario instead of the first cached trace", () => {
+    const traces = [
+      {
+        scenarioId: "baseline",
+        samples: [sampleV3(9, null, { pressure: 90 })],
+      },
+      {
+        scenarioId: "comparison",
+        samples: [
+          sampleV3(2, null, { pressure: 20 }),
+          sampleV3(4, null, { pressure: 40 }),
+        ],
+      },
+    ];
+
+    expect(activeSweepingWaveformCursorTimeSecV3(traces, "comparison"))
+      .toBe(4);
+    expect(activeSweepingWaveformCursorTimeSecV3(traces, "baseline"))
+      .toBe(9);
+    expect(activeSweepingWaveformCursorTimeSecV3(traces, "missing"))
+      .toBeNull();
+    expect(activeSweepingWaveformCursorTimeSecV3(traces, null)).toBeNull();
+  });
+
   it("expands immediately but contracts only after a well-inset range change", () => {
     const previous = Object.freeze([0, 100] as const);
 
@@ -77,11 +110,19 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       sampleV3(2.2, 0.2, { volume: 110, pressure: 55 }),
     ];
 
-    expect(lastCompleteCycleRangeV3(samples)).toEqual({
+    expect(lastCompleteCycleRangeV3(
+      samples,
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+    )).toEqual({
       startIndex: 2,
       endIndexInclusive: 5,
     });
-    const beat = extractLastCompletePvBeatV3(samples, "volume", "pressure");
+    const beat = extractLastCompletePvBeatV3(
+      samples,
+      "volume",
+      "pressure",
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+    );
     expect(beat.map(({ acceptedTimeSec }) => acceptedTimeSec)).toEqual([
       1.1,
       1.4,
@@ -97,9 +138,60 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       sampleV3(1, null, { volume: 100, pressure: 10 }),
     ];
 
-    expect(lastCompleteCycleRangeV3(samples)).toBeNull();
-    expect(extractLastCompletePvBeatV3(samples, "volume", "pressure"))
+    expect(lastCompleteCycleRangeV3(
+      samples,
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+    )).toBeNull();
+    expect(extractLastCompletePvBeatV3(
+      samples,
+      "volume",
+      "pressure",
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+    ))
       .toEqual([]);
+  });
+
+  it("uses only catalog-bound arbitrary PV output IDs", () => {
+    const volumeOutputId = "arbitrary/x-axis";
+    const pressureOutputId = "arbitrary/y-axis";
+    const cyclePhaseOutputId = "arbitrary/cycle-boundary";
+    const samples = [
+      [0.1, 0.1, 120, 10],
+      [0.5, 0.5, 80, 110],
+      [0.9, 0.9, 118, 12],
+      [1.1, 0.1, 116, 16],
+      [1.5, 0.5, 78, 112],
+      [1.9, 0.9, 119, 11],
+      [2.1, 0.1, 117, 15],
+    ].map(([acceptedTimeSec, phase, volume, pressure]) => Object.freeze({
+      acceptedTimeSec,
+      values: Object.freeze({
+        [volumeOutputId]: volume,
+        [pressureOutputId]: pressure,
+        [cyclePhaseOutputId]: phase,
+        // A hard-coded Main Wire phase would never form a cycle here.
+        "rhythm.phase.regular-sinus": 0.5,
+      }),
+    }));
+
+    const beat = extractLastCompletePvBeatV3(
+      samples,
+      volumeOutputId,
+      pressureOutputId,
+      cyclePhaseOutputId,
+    );
+
+    expect(beat.map(({ acceptedTimeSec }) => acceptedTimeSec)).toEqual([
+      1.1,
+      1.5,
+      1.9,
+      2.1,
+    ]);
+    expect(beat[1]).toMatchObject({
+      cyclePhase01: 0.5,
+      volumeMl: 78,
+      pressureMmHg: 112,
+    });
   });
 
   it("labels single-beat transmural guides and never upgrades them to formal relations", () => {
@@ -263,8 +355,16 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     expect(presentation[0]?.presentationEnvelope).toEqual({
       bucketOrdinal: 60,
       sourceSampleCount: 1,
-      minimums: { pressure: 12, volume: 99 },
-      maximums: { pressure: 12, volume: 99 },
+      minimums: {
+        [TEST_CYCLE_PHASE_OUTPUT_ID_V3]: 0.25,
+        pressure: 12,
+        volume: 99,
+      },
+      maximums: {
+        [TEST_CYCLE_PHASE_OUTPUT_ID_V3]: 0.25,
+        pressure: 12,
+        volume: 99,
+      },
     });
   });
 
@@ -283,5 +383,98 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     expect(visiblePaneNotifications).toBe(1);
     expect(store.subscriberCount).toBe(0);
     expect(store.getSnapshot()).toHaveLength(1);
+  });
+
+  it("keeps bounded presentation samples independent per Scenario and clones a visual window safely", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3({
+      bucketSec: 0.01,
+      windowSec: 0.04,
+      capacity: 4,
+    });
+    let notifications = 0;
+    const unsubscribe = store.subscribe(() => { notifications += 1; });
+    const baselineTerminalSample = sampleV3(0.009, 0.01, { pressure: 12 });
+
+    store.append("baseline", [
+      sampleV3(0, 0, { pressure: 10 }),
+      baselineTerminalSample,
+    ]);
+    store.append("intervention", [
+      sampleV3(0, 0, { pressure: 80 }),
+    ]);
+
+    expect(store.scenarioCount).toBe(2);
+    expect(store.getScenarioSnapshot("baseline")).toHaveLength(1);
+    expect(store.getScenarioSnapshot("baseline")[0]?.acceptedTimeSec)
+      .toBe(0.009);
+    expect(store.getScenarioSnapshot("baseline")[0]?.values)
+      .toBe(baselineTerminalSample.values);
+    expect(store.getScenarioSnapshot("intervention")[0]?.values.pressure)
+      .toBe(80);
+
+    expect(store.cloneScenario("baseline", "baseline-copy")).toBe(true);
+    const clonedWindow = store.getScenarioSnapshot("baseline-copy");
+    expect(clonedWindow).toBe(store.getScenarioSnapshot("baseline"));
+    store.append("baseline-copy", [
+      sampleV3(0.02, 0.02, { pressure: 20 }),
+    ]);
+    expect(store.getScenarioSnapshot("baseline-copy")).not.toBe(clonedWindow);
+    expect(store.getScenarioSnapshot("baseline")).toBe(clonedWindow);
+    expect(store.getScenarioSnapshot("baseline")).toHaveLength(1);
+
+    expect(store.resetScenario("baseline")).toBe(true);
+    expect(store.getSnapshot()).toHaveProperty("baseline", []);
+    expect(store.removeScenario("intervention")).toBe(true);
+    expect(store.getSnapshot()).not.toHaveProperty("intervention");
+    expect(store.removeScenario("missing")).toBe(false);
+    expect(store.cloneScenario("missing", "copy")).toBe(false);
+    expect(notifications).toBe(6);
+    unsubscribe();
+  });
+
+  it("uses signal/chamber color and Scenario dash as independent legend axes", () => {
+    expect([0, 1, 2, 3].map(workbenchScenarioLineDashV3)).toEqual([
+      [],
+      [7, 4],
+      [2, 3],
+      [8, 3, 2, 3],
+    ]);
+    expect(() => workbenchScenarioLineDashV3(4)).toThrow(/between 0 and 3/);
+    const scenarioItems = buildWorkbenchScenarioLegendItemsV3([
+      { scenarioId: "baseline", scenarioLabel: "Baseline", scenarioStatus: "live" },
+      { scenarioId: "baseline", scenarioLabel: "Ignored duplicate" },
+      { scenarioId: "afterload", scenarioLabel: "Afterload", scenarioStatus: "cached" },
+      { scenarioId: "inotrope", scenarioLabel: "Inotrope", scenarioStyleIndex: 3 },
+    ]);
+    expect(scenarioItems).toEqual([
+      {
+        scenarioId: "baseline",
+        label: "Baseline",
+        status: "live",
+        styleIndex: 0,
+        lineDash: [],
+      },
+      {
+        scenarioId: "afterload",
+        label: "Afterload",
+        status: "cached",
+        styleIndex: 1,
+        lineDash: [7, 4],
+      },
+      {
+        scenarioId: "inotrope",
+        label: "Inotrope",
+        styleIndex: 3,
+        lineDash: [8, 3, 2, 3],
+      },
+    ]);
+    expect(buildWorkbenchTraceColorLegendItemsV3([
+      { colorKey: "lvp", label: "LVP", color: "#ef4444" },
+      { colorKey: "lvp", label: "LVP duplicate", color: "#000000" },
+      { colorKey: "lap", label: "LAP", color: "#0ea5e9" },
+    ])).toEqual([
+      { colorKey: "lvp", label: "LVP", color: "#ef4444" },
+      { colorKey: "lap", label: "LAP", color: "#0ea5e9" },
+    ]);
   });
 });

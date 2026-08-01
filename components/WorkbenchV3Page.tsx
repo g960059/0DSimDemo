@@ -45,11 +45,8 @@ import {
 import {
   WORKBENCH_SCENARIO_ID_V3,
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
-  addScenarioToControlTargetsV3,
   allSurfacePanesV3,
   createDefaultExperimentSurfaceV3,
-  reconcileSurfaceControlTargetsV3,
-  removeScenarioFromControlTargetsV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { homeHref } from "@/homeLinks";
 import {
@@ -93,9 +90,9 @@ import {
   GuytonStarlingOrientationCanvasV3,
   PressureVolumeLoopCanvasV3,
   SweepingWaveformCanvasV3,
-  WorkbenchPresentationSampleStoreV3,
+  WorkbenchScenarioPresentationSampleStoreV3,
   structuralReturnOrientationFromPayloadV3,
-  useWorkbenchPresentationSamplesV3,
+  useWorkbenchScenarioPresentationSamplesV3,
 } from "@/components/workbench/v3";
 import {
   WorkbenchLiveSchedulerV3,
@@ -130,8 +127,7 @@ type WorkbenchRuntimeRestartFeedbackV3 = Readonly<{
   snapshotError: string | null;
 }>;
 
-const WORKBENCH_EXPERIMENT_ID_V3 = "experiment/local-workbench";
-const CYCLE_PHASE_OUTPUT_ID_V3 = "rhythm.phase.regular-sinus";
+const WORKBENCH_EXPERIMENT_ID_V3 = "experiment/main-wire-v3-workbench";
 const WORKBENCH_ROOT_FRAME_INTERVAL_SEC_V3 = 0.1;
 
 export const WorkbenchV3Page = () => {
@@ -141,7 +137,7 @@ export const WorkbenchV3Page = () => {
     kind: "loading",
   });
   const [presentationSampleStore] = React.useState(
-    () => new WorkbenchPresentationSampleStoreV3(),
+    () => new WorkbenchScenarioPresentationSampleStoreV3(),
   );
   const [briefingHandoff] = React.useState(
     createBrowserStudioSnapshotBriefingHandoffV3,
@@ -278,16 +274,7 @@ export const WorkbenchV3Page = () => {
           composition.contract,
           initialScenarioId,
         );
-      const durableScenarioIds = storedWorkspace?.content.scenarios.map(
-        ({ scenarioId }) => scenarioId,
-      ) ?? [initialScenarioId];
-      const nextSurface = pendingSurface === null
-        ? candidateSurface
-        : reconcileSurfaceControlTargetsV3(
-          candidateSurface,
-          durableScenarioIds,
-          initialScenarioId,
-        );
+      const nextSurface = candidateSurface;
       const storedSnapshots = contentStore.listSnapshots().filter((snapshot) =>
         snapshot.experimentId === WORKBENCH_EXPERIMENT_ID_V3
         && snapshot.content.modelId === composition.defaultModelId);
@@ -470,6 +457,12 @@ export const WorkbenchV3Page = () => {
   const graphPanes = surface?.graphPanes ?? [];
   const outputPanes = surface?.outputPanes ?? [];
   const controlPanes = surface?.controlPanes ?? [];
+  const markDraftDirtyV3 = React.useCallback(() => {
+    setSaveState("dirty");
+    setSaveError(null);
+    setSnapshotState("idle");
+    setSnapshotError(null);
+  }, []);
   const updateSurface = React.useCallback((
     update: (current: ExperimentSurfaceV2) => ExperimentSurfaceV2,
   ) => {
@@ -482,12 +475,9 @@ export const WorkbenchV3Page = () => {
     setSurface(next);
     const durableOperation = exclusiveOperationRef.current;
     if (durableOperation !== "save" && durableOperation !== "snapshot") {
-      setSaveState("dirty");
-      setSaveError(null);
-      setSnapshotState("idle");
-      setSnapshotError(null);
+      markDraftDirtyV3();
     }
-  }, []);
+  }, [markDraftDirtyV3]);
 
   const openPaneSettings = React.useCallback((paneId: string) => {
     if (graphPanes.some((pane) => pane.paneId === paneId)) {
@@ -511,12 +501,11 @@ export const WorkbenchV3Page = () => {
       surface,
       kind,
       contract,
-      activeScenarioId ?? WORKBENCH_SCENARIO_ID_V3,
     );
     if (result.selectedPane === null || result.surface === surface) return;
     updateSurface(() => result.surface);
     setPaneSettings(result.selectedPane);
-  }, [activeScenarioId, contract, surface, updateSurface]);
+  }, [contract, surface, updateSurface]);
 
   const togglePlayback = React.useCallback(() => {
     const scheduler = schedulerRef.current;
@@ -582,7 +571,7 @@ export const WorkbenchV3Page = () => {
       });
       latestFrameRef.current = nextFrame;
       lastRootFrameTimeSecRef.current = nextFrame.acceptedTimeSec;
-      presentationSampleStore.reset();
+      presentationSampleStore.resetScenario(nextFrame.scenarioId);
       setAnalysisById({});
       setAnalysisErrorById({});
       appendFramesV3([nextFrame], presentationSampleStore);
@@ -680,7 +669,6 @@ export const WorkbenchV3Page = () => {
     setScenarios(next.scenarios);
     latestFrameRef.current = next.frame;
     lastRootFrameTimeSecRef.current = next.frame.acceptedTimeSec;
-    presentationSampleStore.reset();
     appendFramesV3([next.frame], presentationSampleStore);
     setAnalysisById({});
     setAnalysisErrorById({});
@@ -767,13 +755,10 @@ export const WorkbenchV3Page = () => {
             ),
           };
         }
-        updateSurface((current) => addScenarioToControlTargetsV3(
-          current,
-          intent.scenarioId,
-        ));
+        markDraftDirtyV3();
       },
     );
-  }, [contract, runScenarioOperationV3, updateSurface]);
+  }, [contract, markDraftDirtyV3, runScenarioOperationV3]);
 
   const duplicateScenarioV3 = React.useCallback((
     intent: WorkbenchScenarioDuplicateIntentV3,
@@ -796,13 +781,14 @@ export const WorkbenchV3Page = () => {
             [intent.scenarioId]: sourceValues,
           };
         }
-        updateSurface((current) => addScenarioToControlTargetsV3(
-          current,
+        presentationSampleStore.cloneScenario(
+          intent.sourceScenarioId,
           intent.scenarioId,
-        ));
+        );
+        markDraftDirtyV3();
       },
     );
-  }, [runScenarioOperationV3, updateSurface]);
+  }, [markDraftDirtyV3, presentationSampleStore, runScenarioOperationV3]);
 
   const renameScenarioV3 = React.useCallback((
     intent: WorkbenchScenarioRenameIntentV3,
@@ -815,13 +801,10 @@ export const WorkbenchV3Page = () => {
         label: intent.label,
       }),
       () => {
-        setSaveState("dirty");
-        setSaveError(null);
-        setSnapshotState("idle");
-        setSnapshotError(null);
+        markDraftDirtyV3();
       },
     );
-  }, [runScenarioOperationV3]);
+  }, [markDraftDirtyV3, runScenarioOperationV3]);
 
   const deleteScenarioV3 = React.useCallback((
     intent: WorkbenchScenarioDeleteIntentV3,
@@ -832,18 +815,15 @@ export const WorkbenchV3Page = () => {
         runtimeSessionId,
         scenarioId: intent.scenarioId,
       }),
-      (next) => {
+      () => {
         const { [intent.scenarioId]: _deleted, ...retained } =
           controlValuesByScenarioRef.current;
         controlValuesByScenarioRef.current = retained;
-        updateSurface((current) => removeScenarioFromControlTargetsV3(
-          current,
-          intent.scenarioId,
-          next.activeScenarioId,
-        ));
+        presentationSampleStore.removeScenario(intent.scenarioId);
+        markDraftDirtyV3();
       },
     );
-  }, [runScenarioOperationV3, updateSurface]);
+  }, [markDraftDirtyV3, presentationSampleStore, runScenarioOperationV3]);
 
   const saveDraftV3 = React.useCallback(async () => {
     const client = clientRef.current;
@@ -1125,7 +1105,6 @@ export const WorkbenchV3Page = () => {
       paneId: pane.paneId,
       role: pane.role,
       label: pane.label,
-      ...(pane.role === "graph" ? { colorHex: pane.colorHex } : {}),
       defaultPriority: pane.priority,
       order: pane.order,
     }));
@@ -1260,7 +1239,6 @@ export const WorkbenchV3Page = () => {
               paneId: pane.paneId,
               role: pane.role,
               title: pane.label,
-              colorHex: pane.colorHex,
             }))}
             role="graph"
             onOpenPaneSettings={openPaneSettings}
@@ -1274,6 +1252,8 @@ export const WorkbenchV3Page = () => {
                 ? <PaneLoadingV3 />
                 : (
                   <GraphPaneBodyV3
+                    activeScenarioId={activeScenarioId}
+                    activeScenarioPlaying={isPlaying}
                     analysisById={analysisById}
                     analysisErrorById={analysisErrorById}
                     contract={contract}
@@ -1283,6 +1263,7 @@ export const WorkbenchV3Page = () => {
                     pane={graphPane}
                     pendingAnalysisId={pendingAnalysisId}
                     sampleStore={presentationSampleStore}
+                    scenarios={scenarios}
                   />
                 );
             }}
@@ -1311,6 +1292,8 @@ export const WorkbenchV3Page = () => {
                   contract={contract}
                   frame={latestFrame}
                   pane={pane}
+                  scenarioLabel={scenarios.find(({ scenarioId }) =>
+                    scenarioId === activeScenarioId)?.label ?? "—"}
                 />
                 );
             }}
@@ -1349,7 +1332,7 @@ export const WorkbenchV3Page = () => {
                           duplicate: t("workbench.editor.scenarioManager.busy"),
                           rename: t("workbench.editor.scenarioManager.busy"),
                         }}
-                    renderControllerSlot={(scenario) => (
+                    renderControllerSlot={() => (
                       <>
                         {scenarioError !== null && (
                           <p
@@ -1370,7 +1353,6 @@ export const WorkbenchV3Page = () => {
                           onApplyControl={applyControl}
                           pane={pane}
                           pendingControlId={pendingControlId}
-                          scenarioId={scenario.scenarioId}
                         />
                       </>
                     )}
@@ -1395,6 +1377,7 @@ export const WorkbenchV3Page = () => {
                       noPresets: t("workbench.editor.scenarioManager.noPresets"),
                       preset: t("workbench.editor.scenarioManager.preset"),
                       rename: t("workbench.editor.scenarioManager.rename"),
+                      scenarioLimitReached: t("workbench.editor.scenarioManager.scenarioLimitReached"),
                       scenarioName: t("workbench.editor.scenarioManager.scenarioName"),
                       scenarios: t("workbench.editor.scenarioManager.scenarios"),
                       title: t("workbench.editor.scenarioManager.title"),
@@ -1413,7 +1396,6 @@ export const WorkbenchV3Page = () => {
             selectedPane={paneSettings}
             contract={contract}
             surface={surface}
-            currentScenarioId={activeScenarioId ?? WORKBENCH_SCENARIO_ID_V3}
             onClose={() => setPaneSettings(null)}
             onSelectedPaneChange={setPaneSettings}
             onChange={(nextSurface) => {
@@ -1424,9 +1406,8 @@ export const WorkbenchV3Page = () => {
               ));
             }}
             strings={{
-              addPane: t("workbench.editor.addPane"),
               close: t("workbench.editor.close"),
-              color: t("workbench.editor.paneColor"),
+              color: t("workbench.editor.seriesColor"),
               controlCatalog: t("workbench.live.registeredControls"),
               deletePane: t("workbench.editor.deletePane"),
               emptyCatalog: t("workbench.editor.emptyCatalog"),
@@ -1647,6 +1628,8 @@ export function shouldPublishWorkbenchRootFrameV3(input: Readonly<{
 }
 
 function GraphPaneBodyV3({
+  activeScenarioId,
+  activeScenarioPlaying,
   analysisById,
   analysisErrorById,
   contract,
@@ -1656,7 +1639,10 @@ function GraphPaneBodyV3({
   pane,
   pendingAnalysisId,
   sampleStore,
+  scenarios,
 }: Readonly<{
+  activeScenarioId: string | null;
+  activeScenarioPlaying: boolean;
   analysisById: Readonly<Record<string, StudioSimulationAnalysisV2>>;
   analysisErrorById: Readonly<Record<string, string>>;
   contract: ModelContractV2;
@@ -1665,7 +1651,8 @@ function GraphPaneBodyV3({
   operationPending: boolean;
   pane: ExperimentSurfaceGraphPaneV2;
   pendingAnalysisId: string | null;
-  sampleStore: WorkbenchPresentationSampleStoreV3;
+  sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
+  scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
 }>) {
   const { t } = useTranslation();
   const graph = contract.graphCatalog.find(({ graphId }) => graphId === pane.graphId);
@@ -1687,57 +1674,87 @@ function GraphPaneBodyV3({
   }
   return (
     <SampledGraphPaneBodyV3
+      activeScenarioId={activeScenarioId}
+      activeScenarioPlaying={activeScenarioPlaying}
       contract={contract}
       graph={graph}
       pane={pane}
       sampleStore={sampleStore}
+      scenarios={scenarios}
     />
   );
 }
 
 function SampledGraphPaneBodyV3({
+  activeScenarioId,
+  activeScenarioPlaying,
   contract,
   graph,
   pane,
   sampleStore,
+  scenarios,
 }: Readonly<{
+  activeScenarioId: string | null;
+  activeScenarioPlaying: boolean;
   contract: ModelContractV2;
   graph: Exclude<
     ModelContractV2["graphCatalog"][number],
     StructuralReturnGraphDefinitionV2
   >;
   pane: ExperimentSurfaceGraphPaneV2;
-  sampleStore: WorkbenchPresentationSampleStoreV3;
+  sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
+  scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
 }>) {
-  const samples = useWorkbenchPresentationSamplesV3(sampleStore);
-  const displayedSeries = graph.renderer === "sweep"
-    ? [...pane.series].sort((left, right) => left.order - right.order)
-    : [];
-  const outputs = displayedSeries.flatMap(({ outputId }) => {
-    const definition = contract.outputCatalog.find((candidate) => candidate.outputId === outputId);
-    return definition === undefined ? [] : [definition];
-  });
+  const samplesByScenarioId = useWorkbenchScenarioPresentationSamplesV3(
+    sampleStore,
+  );
+  const displayedSeries = [...pane.series]
+    .sort((left, right) => left.order - right.order);
   if (graph.renderer === "pressure-volume") {
-    const chamber = graph.graphId.split(".").at(-1)?.toUpperCase() ?? "PV";
-    const pressureBasis = graph.pressureOutputId.includes(".transmural.")
-      ? "transmural" as const
-      : "intracavitary" as const;
+    const bindings = displayedSeries.flatMap((series) => {
+      const binding = graph.seriesCatalog.find((candidate) =>
+        candidate.seriesId === series.seriesId);
+      return binding === undefined ? [] : [{ binding, series }];
+    });
     return (
       <div className="h-full min-h-0 bg-wb-app p-3">
         <PressureVolumeLoopCanvasV3
-          chamberLabel={chamber}
-          color={pane.colorHex}
-          pressureBasis={pressureBasis}
-          pressureOutputId={graph.pressureOutputId}
-          samples={samples}
-          showSingleBeatOrientationGuides={
-            graph.guideMode === "lv-single-beat-orientation"
-          }
-          volumeOutputId={graph.volumeOutputId}
+          traces={scenarios.flatMap((scenario, scenarioStyleIndex) => {
+            const samples = samplesByScenarioId[scenario.scenarioId] ?? [];
+            if (samples.length === 0) return [];
+            return bindings.map(({ binding, series }) => ({
+              scenarioId: scenario.scenarioId,
+              scenarioLabel: scenario.label,
+              scenarioStatus: scenario.scenarioId === activeScenarioId
+                ? activeScenarioPlaying ? "Live" : "Paused"
+                : "Cached",
+              scenarioStyleIndex,
+              samples,
+              volumeOutputId: binding.volumeOutputId,
+              pressureOutputId: binding.pressureOutputId,
+              pressureBasis: binding.pressureBasis,
+              cyclePhaseOutputId: binding.cyclePhaseOutputId,
+              chamberId: binding.seriesId,
+              chamberLabel: series.label,
+              chamberColor: series.colorHex,
+              showSingleBeatOrientationGuides:
+                binding.guideMode === "lv-single-beat-orientation",
+            }));
+          })}
         />
       </div>
     );
   }
+  const bindings = displayedSeries.flatMap((series) => {
+    const binding = graph.seriesCatalog.find((candidate) =>
+      candidate.seriesId === series.seriesId);
+    return binding === undefined ? [] : [{ binding, series }];
+  });
+  const outputs = bindings.flatMap(({ binding }) => {
+    const definition = contract.outputCatalog.find((candidate) =>
+      candidate.outputId === binding.outputId);
+    return definition === undefined ? [] : [definition];
+  });
   const commonUnit = outputs.length > 0
     && outputs.every(({ unit }) => unit === outputs[0]!.unit)
     ? outputs[0]!.unit
@@ -1745,14 +1762,25 @@ function SampledGraphPaneBodyV3({
   return (
     <div className="h-full min-h-0 bg-wb-app p-3">
       <SweepingWaveformCanvasV3
+        activeScenarioId={activeScenarioId}
         includeZero={outputs.every(({ outputId }) =>
           outputId.includes(".flow.") || outputId.endsWith(".flow"))}
-        samples={samples}
-        series={displayedSeries.map(({ outputId, label, colorHex }) => ({
-          outputId,
-          label,
-          color: colorHex,
-        }))}
+        traces={scenarios.flatMap((scenario, scenarioStyleIndex) => {
+          const samples = samplesByScenarioId[scenario.scenarioId] ?? [];
+          if (samples.length === 0) return [];
+          return bindings.map(({ binding, series }) => ({
+            scenarioId: scenario.scenarioId,
+            scenarioLabel: scenario.label,
+            scenarioStatus: scenario.scenarioId === activeScenarioId
+              ? activeScenarioPlaying ? "Live" : "Paused"
+              : "Cached",
+            scenarioStyleIndex,
+            samples,
+            outputId: binding.outputId,
+            signalLabel: series.label,
+            signalColor: series.colorHex,
+          }));
+        })}
         unitLabel={commonUnit}
         windowSec={pane.windowSec ?? WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3}
       />
@@ -1933,10 +1961,12 @@ function OutputPaneBodyV3({
   contract,
   frame,
   pane,
+  scenarioLabel,
 }: Readonly<{
   contract: ModelContractV2;
   frame: StudioSimulationFrameV2 | null;
   pane: ExperimentSurfaceOutputPaneV2;
+  scenarioLabel: string;
 }>) {
   const { t } = useTranslation();
   const selected = [...pane.items]
@@ -1947,37 +1977,41 @@ function OutputPaneBodyV3({
       return definition === undefined ? [] : [{ definition, item }];
     });
   return (
-    <div className="grid h-full content-start grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2 overflow-auto bg-wb-aux p-2">
-      {selected.length === 0 ? (
-        <p className="p-4 text-xs text-wb-subtle">
-          {t("workbench.live.noSelectedOutputs")}
-        </p>
-      ) : selected.map(({ definition: output, item }) => {
-        const value = frame?.outputs[item.outputId];
-        const scalar = scalarAvailableOutputV3(value);
-        return (
-          <div
-            key={item.outputId}
-            className="min-w-0 rounded-lg bg-wb-soft px-3.5 py-3"
-            data-output-availability={value?.availability ?? "unavailable"}
-            data-output-quality={value?.quality ?? "not-assessed"}
-          >
-            <p className="flex items-center gap-2 truncate text-[10px] font-semibold uppercase tracking-wide text-wb-subtle">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: item.colorHex }} />
-              <span className="truncate">{item.label}</span>
-            </p>
-            <p className="mt-1 font-mono text-lg font-bold text-wb-text">
-              {scalar === null ? "—" : scalar.toFixed(2)}
-              <span className="ml-1 text-[10px] font-normal text-wb-muted">{output.unit}</span>
-            </p>
-            {value?.quality === "not-assessed" && (
-              <p className="mt-1 text-[9px] text-wb-warning">
-                {t("workbench.live.outputNotAssessed")}
+    <div className="flex h-full min-h-0 flex-col bg-wb-aux">
+      <div className="shrink-0 px-3 pt-2 text-right text-[10px] font-medium text-wb-subtle">
+        {scenarioLabel}
+      </div>
+      <div className="grid min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2 overflow-auto p-2">
+        {selected.length === 0 ? (
+          <p className="p-4 text-xs text-wb-subtle">
+            {t("workbench.live.noSelectedOutputs")}
+          </p>
+        ) : selected.map(({ definition: output, item }) => {
+          const value = frame?.outputs[item.outputId];
+          const scalar = scalarAvailableOutputV3(value);
+          return (
+            <div
+              key={item.outputId}
+              className="min-w-0 rounded-lg bg-wb-soft px-3.5 py-3"
+              data-output-availability={value?.availability ?? "unavailable"}
+              data-output-quality={value?.quality ?? "not-assessed"}
+            >
+              <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-wb-subtle">
+                {item.label}
               </p>
-            )}
-          </div>
-        );
-      })}
+              <p className="mt-1 font-mono text-lg font-bold text-wb-text">
+                {scalar === null ? "—" : scalar.toFixed(2)}
+                <span className="ml-1 text-[10px] font-normal text-wb-muted">{output.unit}</span>
+              </p>
+              {value?.quality === "not-assessed" && (
+                <p className="mt-1 text-[9px] text-wb-warning">
+                  {t("workbench.live.outputNotAssessed")}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1990,7 +2024,6 @@ function ControlPaneBodyV3({
   onApplyControl,
   pane,
   pendingControlId,
-  scenarioId,
 }: Readonly<{
   contract: ModelContractV2;
   controlError: string | null;
@@ -1999,11 +2032,9 @@ function ControlPaneBodyV3({
   onApplyControl: (controlId: string, value: number) => Promise<boolean>;
   pane: ExperimentSurfaceControlPaneV2;
   pendingControlId: string | null;
-  scenarioId: string;
 }>) {
   const { t } = useTranslation();
   const selectedControls = [...pane.items]
-    .filter(({ targetScenarioIds }) => targetScenarioIds.includes(scenarioId))
     .sort((left, right) => left.order - right.order)
     .flatMap((item) => {
       const definition = contract.controlCatalog.find((control) =>
@@ -2027,7 +2058,6 @@ function ControlPaneBodyV3({
               <NumericControlV3
                 key={control.controlId}
                 control={control}
-                colorHex={item.colorHex}
                 disabled={pendingControlId !== null || disabledByAnalysis}
                 label={item.label}
                 pending={pendingControlId === control.controlId}
@@ -2048,7 +2078,6 @@ function ControlPaneBodyV3({
 }
 
 function NumericControlV3({
-  colorHex,
   control,
   disabled,
   label,
@@ -2056,7 +2085,6 @@ function NumericControlV3({
   pending,
   value,
 }: Readonly<{
-  colorHex: string;
   control: ControlDefinitionV2;
   disabled: boolean;
   label: string;
@@ -2081,10 +2109,7 @@ function NumericControlV3({
     <div className="rounded-lg bg-wb-panel p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 truncate text-xs font-semibold">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: colorHex }} />
-            <span className="truncate">{label}</span>
-          </p>
+          <p className="truncate text-xs font-semibold">{label}</p>
         </div>
         <output className="shrink-0 font-mono text-xs font-bold text-wb-accent">
           {draft.toFixed(precision)} {control.unit}
@@ -2146,9 +2171,7 @@ function BriefingPreviewPaneV3({
     candidate.paneId === paneId);
   if (pane === undefined) return null;
   if (pane.role === "graph") {
-    const colors = pane.series.length === 0
-      ? [pane.colorHex]
-      : pane.series.slice(0, 3).map(({ colorHex }) => colorHex);
+    const colors = pane.series.slice(0, 3).map(({ colorHex }) => colorHex);
     return (
       <div className="flex h-28 items-center justify-center bg-wb-app px-4">
         <svg viewBox="0 0 240 64" className="h-20 w-full" aria-hidden="true">
@@ -2171,10 +2194,7 @@ function BriefingPreviewPaneV3({
       <div className="grid grid-cols-2 gap-2 bg-wb-app p-3">
         {pane.items.slice(0, 4).map((item) => (
           <div key={item.outputId} className="rounded-lg bg-wb-soft px-2.5 py-2">
-            <p className="flex items-center gap-1.5 truncate text-[9px] text-wb-subtle">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: item.colorHex }} />
-              <span className="truncate">{item.label}</span>
-            </p>
+            <p className="truncate text-[9px] text-wb-subtle">{item.label}</p>
             <p className="mt-1 font-mono text-sm font-semibold text-wb-muted">—</p>
           </div>
         ))}
@@ -2185,12 +2205,9 @@ function BriefingPreviewPaneV3({
     <div className="space-y-3 bg-wb-app p-3">
       {pane.items.slice(0, 3).map((item) => (
         <div key={item.controlId}>
-          <p className="flex items-center gap-1.5 truncate text-[9px] text-wb-subtle">
-            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: item.colorHex }} />
-            <span className="truncate">{item.label}</span>
-          </p>
+          <p className="truncate text-[9px] text-wb-subtle">{item.label}</p>
           <div className="mt-1.5 h-1 rounded-full bg-wb-line-strong">
-            <div className="h-1 w-1/2 rounded-full" style={{ backgroundColor: item.colorHex }} />
+            <div className="h-1 w-1/2 rounded-full bg-wb-accent" />
           </div>
         </div>
       ))}
@@ -2244,21 +2261,26 @@ function controlValuesForFixtureV3(
 
 function appendFramesV3(
   frames: readonly StudioSimulationFrameV2[],
-  sampleStore: WorkbenchPresentationSampleStoreV3,
+  sampleStore: WorkbenchScenarioPresentationSampleStoreV3,
 ): void {
-  const next = frames.map((frame) => Object.freeze({
-    acceptedTimeSec: frame.acceptedTimeSec,
-    cyclePhase01: scalarAvailableOutputV3(
-      frame.outputs[CYCLE_PHASE_OUTPUT_ID_V3],
-    ),
-    values: Object.freeze(Object.fromEntries(Object.entries(frame.outputs).map(
-      ([outputId, output]) => [
-        outputId,
-        scalarAvailableOutputV3(output),
-      ],
-    ))),
-  }));
-  sampleStore.append(next);
+  const framesByScenarioId = new Map<string, StudioSimulationFrameV2[]>();
+  for (const frame of frames) {
+    const grouped = framesByScenarioId.get(frame.scenarioId) ?? [];
+    grouped.push(frame);
+    framesByScenarioId.set(frame.scenarioId, grouped);
+  }
+  for (const [scenarioId, scenarioFrames] of framesByScenarioId) {
+    const next = scenarioFrames.map((frame) => Object.freeze({
+      acceptedTimeSec: frame.acceptedTimeSec,
+      values: Object.freeze(Object.fromEntries(Object.entries(frame.outputs).map(
+        ([outputId, output]) => [
+          outputId,
+          scalarAvailableOutputV3(output),
+        ],
+      ))),
+    }));
+    sampleStore.append(scenarioId, next);
+  }
 }
 
 function scalarAvailableOutputV3(

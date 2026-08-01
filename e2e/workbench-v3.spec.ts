@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const EXACT_MODEL_ID =
-  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-10";
+  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-12";
 const LIMITATIONS_SCOPE = `${EXACT_MODEL_ID}:disclosure-v1`;
 const LIMITATIONS_KEY =
   `circleheart.modelLimitations.ack.${encodeURIComponent(LIMITATIONS_SCOPE)}`;
@@ -56,7 +56,7 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   }).click();
   const waveformSettings = page.getByRole("dialog", { name: "Pane設定" });
   const waveformWindow = waveformSettings.getByRole("spinbutton", {
-    name: "Waveform window",
+    name: "表示時間幅",
   });
   await waveformWindow.fill("3.5");
   await waveformWindow.press("Enter");
@@ -64,18 +64,28 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   await page.getByRole("button", { name: "閉じる" }).click();
   await expect(waveformSettings).toBeHidden();
 
-  const lvPvTab = page.getByText("LV pressure-volume loop", { exact: true });
-  await lvPvTab.scrollIntoViewIfNeeded();
-  await lvPvTab.click();
+  const pvTab = page.getByText("Pressure-volume loops", { exact: true });
+  await pvTab.scrollIntoViewIfNeeded();
+  await pvTab.click();
   await expectNonZeroCanvas(page.locator('[data-chart-kind="pressure-volume-loop-v3"]'));
   await expect(page.locator('[data-orientation-guide-semantics="single-beat-orientation-references-not-formal-pressure-volume-relations"]'))
     .toBeVisible();
 
-  const returnTab = page.getByText("Systemic venous-return orientation", {
-    exact: true,
-  });
-  await returnTab.scrollIntoViewIfNeeded();
-  await returnTab.click();
+  const graphArea = page.getByRole("region", { name: "グラフエリア" });
+  await graphArea.getByRole("button", { name: "Paneを追加" }).click();
+  const addedGraphSettings = page.getByRole("dialog", { name: "Pane設定" });
+  await expect(addedGraphSettings.getByRole("button", { name: "Paneを追加" }))
+    .toHaveCount(0);
+  await addedGraphSettings.getByRole("combobox").selectOption(
+    "hemodynamics.structural-return.systemic",
+  );
+  const structuralTab = graphArea.getByText(
+    "Systemic venous-return orientation",
+    { exact: true },
+  );
+  await expect(structuralTab).toBeVisible();
+  await addedGraphSettings.getByRole("button", { name: "閉じる" }).click();
+  await structuralTab.click();
   const structural = page.locator(
     '[data-chart-kind="guyton-starling-structural-orientation-v3"]',
   );
@@ -96,12 +106,102 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   }).click();
   const settings = page.getByRole("dialog", { name: "Pane設定" });
   await expect(settings).toBeVisible();
+  await expect(settings.locator('input[type="color"]')).toHaveCount(0);
   const firstOutput = settings.getByRole("checkbox").first();
   await expect(firstOutput).toBeChecked();
   await firstOutput.uncheck();
   await expect(firstOutput).not.toBeChecked();
   await page.getByRole("button", { name: "閉じる" }).click();
   await expect(settings).toBeHidden();
+});
+
+test("@desktop baseline duplication stays independent and requires explicit save", async ({
+  page,
+}) => {
+  const root = page.getByTestId("v3-dockview-workbench");
+  const scenarioRegion = page.getByRole("region", { name: "Scenarios" });
+  await expect(scenarioRegion.getByRole("button", { name: "複製" }))
+    .toHaveCount(1);
+  await scenarioRegion.getByRole("button", { name: "複製" }).click();
+  await expect(scenarioRegion.getByRole("button", { name: "複製" }))
+    .toHaveCount(2);
+  await expect(page.getByRole("button", { name: "保存", exact: true }))
+    .toBeVisible();
+
+  const copyScenario = scenarioRegion.getByRole("button", {
+    name: "起動時baseline のコピー scenario/workbench-live-default-copy",
+    exact: true,
+  });
+  await expect(copyScenario).toBeVisible();
+  const copyEpoch = await inputEpoch(page);
+  const systemicResistance = page.getByRole("slider", {
+    name: "Systemic resistance",
+  });
+  await systemicResistance.press("ArrowRight");
+  await expect.poll(() => inputEpoch(page)).toBeGreaterThan(copyEpoch);
+  await expect(systemicResistance).toHaveValue("1.01");
+
+  await expect.poll(() => modelTime(root)).toBeGreaterThan(0.2);
+  const playback = page.getByTestId("v3-playback-toggle");
+  await playback.click();
+  await expect(root).toHaveAttribute("data-playback", "paused");
+  const copyCheckpointTime = await modelTime(root);
+
+  const baselineScenario = scenarioRegion.getByRole("button", {
+    name: "起動時baseline workbench-live-default",
+    exact: true,
+  });
+  await baselineScenario.click();
+  await expect(systemicResistance).toHaveValue("1");
+  const baselineCheckpointTime = await modelTime(root);
+
+  await copyScenario.click();
+  await expect(systemicResistance).toHaveValue("1.01");
+  expect(Math.abs((await modelTime(root)) - copyCheckpointTime))
+    .toBeLessThanOrEqual(0.02);
+
+  // Save captures every exact branch, not only the active Scenario. Keep the
+  // baseline active so reload must restore the inactive divergent copy from
+  // its durable fixture + checkpoint rather than from live UI state.
+  await baselineScenario.click();
+  const save = page.getByTestId("v3-save-draft");
+  await save.click();
+  await expect(save).toContainText("保存済み");
+  await expect(root).toHaveAttribute("data-playback", "paused");
+
+  await page.reload();
+  await expect(root).toBeVisible();
+  await expect(root).toHaveAttribute("data-model-id", EXACT_MODEL_ID);
+  await expect(scenarioRegion.getByRole("button", { name: "複製" }))
+    .toHaveCount(2);
+  if (await root.getAttribute("data-playback") === "playing") {
+    await page.getByTestId("v3-playback-toggle").click();
+  }
+  await expect(root).toHaveAttribute("data-playback", "paused");
+
+  const restoredBaseline = scenarioRegion.getByRole("button", {
+    name: "起動時baseline workbench-live-default",
+    exact: true,
+  });
+  const restoredCopy = scenarioRegion.getByRole("button", {
+    name: "起動時baseline のコピー scenario/workbench-live-default-copy",
+    exact: true,
+  });
+  await restoredBaseline.click();
+  await expect(systemicResistance).toHaveValue("1");
+  expect(await modelTime(root)).toBeGreaterThanOrEqual(baselineCheckpointTime);
+
+  await restoredCopy.click();
+  await expect(systemicResistance).toHaveValue("1.01");
+  expect(Math.abs((await modelTime(root)) - copyCheckpointTime))
+    .toBeLessThanOrEqual(0.02);
+
+  // Mutating the restored copy remains branch-local after the durable
+  // round-trip; the baseline fixture is still untouched.
+  await systemicResistance.press("ArrowRight");
+  await expect(systemicResistance).toHaveValue("1.02");
+  await restoredBaseline.click();
+  await expect(systemicResistance).toHaveValue("1");
 });
 
 test("@desktop exact-model limitations acknowledgement persists", async ({

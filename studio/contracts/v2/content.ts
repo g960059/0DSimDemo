@@ -22,6 +22,11 @@ export const STUDIO_SWEEP_WINDOW_DEFAULT_SEC_V2 = 2;
 export const STUDIO_SWEEP_WINDOW_MIN_SEC_V2 = 1;
 export const STUDIO_SWEEP_WINDOW_MAX_SEC_V2 = 6;
 export const STUDIO_SWEEP_WINDOW_STEP_SEC_V2 = 0.5;
+/**
+ * Pre-release comparison limit. The four admitted Scenario ordinals map
+ * one-to-one to the four renderer line patterns.
+ */
+export const STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2 = 4;
 
 export type SurfacePaneIdV2 = string;
 export type ScenarioPresetIdV2 = string;
@@ -67,7 +72,8 @@ export type ScenarioPresetV2 = Readonly<{
 }>;
 
 export type ExperimentSurfaceGraphSeriesV2 = Readonly<{
-  outputId: string;
+  /** Registered graph-owned series binding. */
+  seriesId: string;
   label: string;
   colorHex: string;
   order: number;
@@ -77,7 +83,6 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
   paneId: SurfacePaneIdV2;
   role: "graph";
   label: string;
-  colorHex: string;
   order: number;
   priority: number;
   graphId: string;
@@ -88,9 +93,8 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
    */
   windowSec?: number;
   /**
-   * Sweep graphs select scalar outputs with one shared registered unit here.
-   * Structural renderers own their registered axes/analysis contract and
-   * therefore require an empty series.
+   * The pane selects bindings from its registered graph's series catalog.
+   * Structural renderers without a series catalog require an empty list.
    */
   series: readonly ExperimentSurfaceGraphSeriesV2[];
 }>;
@@ -98,7 +102,6 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
 export type ExperimentSurfaceOutputItemV2 = Readonly<{
   outputId: string;
   label: string;
-  colorHex: string;
   order: number;
 }>;
 
@@ -114,12 +117,6 @@ export type ExperimentSurfaceOutputPaneV2 = Readonly<{
 export type ExperimentSurfaceControlItemV2 = Readonly<{
   controlId: string;
   label: string;
-  colorHex: string;
-  /**
-   * Explicit durable binding. A control never relies on an implicit
-   * "currently active" Scenario when an Experiment contains comparisons.
-   */
-  targetScenarioIds: readonly ScenarioIdV2[];
   order: number;
 }>;
 

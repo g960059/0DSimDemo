@@ -1,5 +1,9 @@
 import React from "react";
 
+import type {
+  PressureVolumePressureBasisV2,
+} from "@/studio/contracts/v2/model";
+
 import {
   finiteWorkbenchScalarValueV3,
   orderedFiniteWorkbenchSamplesV3,
@@ -14,8 +18,28 @@ import {
   scaleLinearV3,
   useResponsiveCanvasFrameV3,
 } from "./WorkbenchCanvasRuntimeV3";
+import {
+  WorkbenchChartTwoAxisLegendV3,
+  buildWorkbenchScenarioLegendItemsV3,
+  buildWorkbenchTraceColorLegendItemsV3,
+  type WorkbenchScenarioTraceIdentityV3,
+} from "./WorkbenchChartTraceStyleV3";
 
-export type WorkbenchPvPressureBasisV3 = "transmural" | "intracavitary";
+export type WorkbenchPvPressureBasisV3 = PressureVolumePressureBasisV2;
+
+export type WorkbenchPressureVolumeTraceV3 =
+  WorkbenchScenarioTraceIdentityV3 & Readonly<{
+    samples: readonly WorkbenchScalarSampleV3[];
+    volumeOutputId: string;
+    pressureOutputId: string;
+    pressureBasis: WorkbenchPvPressureBasisV3;
+    cyclePhaseOutputId: string;
+    chamberId: string;
+    chamberLabel: string;
+    /** Stable per chamber, independent of Scenario. */
+    chamberColor: string;
+    showSingleBeatOrientationGuides?: boolean;
+  }>;
 
 export type WorkbenchPvPointV3 = Readonly<{
   acceptedTimeSec: number;
@@ -59,9 +83,14 @@ const KLOTZ_NORMALIZED_EXPONENT_V3 = 2.79;
  */
 export function lastCompleteCycleRangeV3(
   samples: readonly WorkbenchScalarSampleV3[],
+  cyclePhaseOutputId: string,
 ): CompleteCycleRangeV3 | null {
   if (samples.length < 3) return null;
-  const firstPhase = normalizedModelCyclePhaseV3(samples[0]?.cyclePhase01);
+  const firstPhase = normalizedModelCyclePhaseV3(
+    samples[0] === undefined
+      ? null
+      : finiteWorkbenchScalarValueV3(samples[0], cyclePhaseOutputId),
+  );
   let previousBoundary: number | null = null;
   let latestBoundary: number | null = firstPhase !== null
       && firstPhase <= CYCLE_START_TOLERANCE_V3
@@ -70,7 +99,9 @@ export function lastCompleteCycleRangeV3(
 
   let previousPhase = firstPhase;
   for (let index = 1; index < samples.length; index += 1) {
-    const phase = normalizedModelCyclePhaseV3(samples[index]?.cyclePhase01);
+    const phase = normalizedModelCyclePhaseV3(
+      finiteWorkbenchScalarValueV3(samples[index]!, cyclePhaseOutputId),
+    );
     if (phase === null) {
       previousBoundary = null;
       latestBoundary = null;
@@ -98,7 +129,9 @@ export function lastCompleteCycleRangeV3(
   let minimumPhase = Number.POSITIVE_INFINITY;
   let maximumPhase = Number.NEGATIVE_INFINITY;
   for (let index = startIndex; index < endIndexInclusive; index += 1) {
-    const phase = normalizedModelCyclePhaseV3(samples[index]?.cyclePhase01);
+    const phase = normalizedModelCyclePhaseV3(
+      finiteWorkbenchScalarValueV3(samples[index]!, cyclePhaseOutputId),
+    );
     if (phase === null) continue;
     phaseCount += 1;
     minimumPhase = Math.min(minimumPhase, phase);
@@ -116,9 +149,10 @@ export function extractLastCompletePvBeatV3(
   samples: readonly WorkbenchScalarSampleV3[],
   volumeOutputId: string,
   pressureOutputId: string,
+  cyclePhaseOutputId: string,
 ): readonly WorkbenchPvPointV3[] {
   const ordered = orderedFiniteWorkbenchSamplesV3(samples);
-  const range = lastCompleteCycleRangeV3(ordered);
+  const range = lastCompleteCycleRangeV3(ordered, cyclePhaseOutputId);
   if (range === null) return Object.freeze([]);
   const points: WorkbenchPvPointV3[] = [];
   for (
@@ -127,7 +161,9 @@ export function extractLastCompletePvBeatV3(
     index += 1
   ) {
     const sample = ordered[index]!;
-    const cyclePhase01 = normalizedModelCyclePhaseV3(sample.cyclePhase01);
+    const cyclePhase01 = normalizedModelCyclePhaseV3(
+      finiteWorkbenchScalarValueV3(sample, cyclePhaseOutputId),
+    );
     const volumeMl = finiteWorkbenchScalarValueV3(sample, volumeOutputId);
     const pressureMmHg = finiteWorkbenchScalarValueV3(
       sample,
@@ -271,35 +307,108 @@ export function buildSingleBeatPvOrientationGuidesV3(
   });
 }
 
-export function PressureVolumeLoopCanvasV3({
-  samples,
-  volumeOutputId,
-  pressureOutputId,
-  pressureBasis,
-  chamberLabel = "LV",
-  color = "#a78bfa",
-  showSingleBeatOrientationGuides = true,
-  className,
-}: Readonly<{
-  samples: readonly WorkbenchScalarSampleV3[];
-  volumeOutputId: string;
-  pressureOutputId: string;
-  pressureBasis: WorkbenchPvPressureBasisV3;
-  chamberLabel?: string;
-  color?: string;
-  showSingleBeatOrientationGuides?: boolean;
+type PressureVolumeLoopCanvasCommonPropsV3 = Readonly<{
   className?: string;
-}>) {
+}>;
+
+export type PressureVolumeLoopCanvasPropsV3 =
+  PressureVolumeLoopCanvasCommonPropsV3 & (
+    | Readonly<{
+        traces: readonly WorkbenchPressureVolumeTraceV3[];
+        samples?: never;
+        volumeOutputId?: never;
+        pressureOutputId?: never;
+        pressureBasis?: never;
+        cyclePhaseOutputId?: never;
+        chamberLabel?: never;
+        color?: never;
+        showSingleBeatOrientationGuides?: never;
+      }>
+    | Readonly<{
+        /** @deprecated Prefer one descriptor per Scenario/chamber in traces. */
+        samples: readonly WorkbenchScalarSampleV3[];
+        volumeOutputId: string;
+        pressureOutputId: string;
+        pressureBasis: WorkbenchPvPressureBasisV3;
+        cyclePhaseOutputId: string;
+        chamberLabel?: string;
+        color?: string;
+        showSingleBeatOrientationGuides?: boolean;
+        traces?: undefined;
+      }>
+  );
+
+export function PressureVolumeLoopCanvasV3(
+  props: PressureVolumeLoopCanvasPropsV3,
+) {
+  const { className } = props;
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
-  const beat = React.useMemo(() => extractLastCompletePvBeatV3(
-    samples,
-    volumeOutputId,
-    pressureOutputId,
-  ), [pressureOutputId, samples, volumeOutputId]);
-  const guides = React.useMemo(() => showSingleBeatOrientationGuides
-    ? buildSingleBeatPvOrientationGuidesV3(beat, pressureBasis)
-    : null, [beat, pressureBasis, showSingleBeatOrientationGuides]);
+  const traces = React.useMemo<readonly WorkbenchPressureVolumeTraceV3[]>(
+    () => {
+      if (props.traces !== undefined) return props.traces;
+      const chamberLabel = props.chamberLabel ?? "LV";
+      return Object.freeze([Object.freeze({
+        scenarioId: "current-scenario",
+        scenarioLabel: "Current",
+        scenarioStyleIndex: 0,
+        samples: props.samples,
+        volumeOutputId: props.volumeOutputId,
+        pressureOutputId: props.pressureOutputId,
+        pressureBasis: props.pressureBasis,
+        cyclePhaseOutputId: props.cyclePhaseOutputId,
+        chamberId: chamberLabel.toLowerCase(),
+        chamberLabel,
+        chamberColor: props.color ?? "#a78bfa",
+        showSingleBeatOrientationGuides:
+          props.showSingleBeatOrientationGuides ?? true,
+      })]);
+    }, [
+      props.chamberLabel,
+      props.color,
+      props.cyclePhaseOutputId,
+      props.pressureBasis,
+      props.pressureOutputId,
+      props.samples,
+      props.showSingleBeatOrientationGuides,
+      props.traces,
+      props.volumeOutputId,
+    ],
+  );
+  const scenarioLegendItems = React.useMemo(
+    () => buildWorkbenchScenarioLegendItemsV3(traces),
+    [traces],
+  );
+  const colorLegendItems = React.useMemo(
+    () => buildWorkbenchTraceColorLegendItemsV3(traces.map((trace) => ({
+      colorKey: trace.chamberId,
+      label: trace.chamberLabel,
+      color: trace.chamberColor,
+    }))),
+    [traces],
+  );
+  const renderedTraces = React.useMemo(() => traces.map((trace) => {
+    const beat = extractLastCompletePvBeatV3(
+      trace.samples,
+      trace.volumeOutputId,
+      trace.pressureOutputId,
+      trace.cyclePhaseOutputId,
+    );
+    const lineDash = scenarioLegendItems.find((item) =>
+      item.scenarioId === trace.scenarioId)?.lineDash ?? Object.freeze([]);
+    return Object.freeze({ trace, beat, lineDash });
+  }), [scenarioLegendItems, traces]);
+  const orientationGuides = React.useMemo(() => {
+    const onlyTrace = renderedTraces.length === 1
+      ? renderedTraces[0]
+      : undefined;
+    return onlyTrace?.trace.showSingleBeatOrientationGuides === true
+      ? buildSingleBeatPvOrientationGuidesV3(
+          onlyTrace.beat,
+          onlyTrace.trace.pressureBasis,
+        )
+      : null;
+  }, [renderedTraces]);
 
   const draw = React.useCallback((
     context: CanvasRenderingContext2D,
@@ -308,10 +417,10 @@ export function PressureVolumeLoopCanvasV3({
   ) => {
     const theme = readPvCanvasThemeV3(containerRef.current);
     const plot = pvPlotRectV3(width, height);
-    const domainPoints = [
-      ...beat,
-      ...(guides?.endSystolicRadialReference ?? []),
-      ...(guides?.klotzInformedDiastolicReference ?? []),
+    const domainPoints: WorkbenchPvGuidePointV3[] = [
+      ...renderedTraces.flatMap(({ beat }) => beat),
+      ...(orientationGuides?.endSystolicRadialReference ?? []),
+      ...(orientationGuides?.klotzInformedDiastolicReference ?? []),
     ];
     const volumeDomain = paddedPvDomainV3(
       domainPoints.map(({ volumeMl }) => volumeMl),
@@ -343,25 +452,39 @@ export function PressureVolumeLoopCanvasV3({
       plot.top,
     );
 
-    if (guides !== null) {
-      drawPvCurveV3(context, guides.endSystolicRadialReference, x, y, {
-        color: theme.systolicReference,
-        width: 1.35,
-        dash: [6, 4],
-      });
-      drawPvCurveV3(context, guides.klotzInformedDiastolicReference, x, y, {
-        color: theme.diastolicReference,
-        width: 1.35,
-        dash: [3, 4],
+    if (orientationGuides !== null) {
+      drawPvCurveV3(
+        context,
+        orientationGuides.endSystolicRadialReference,
+        x,
+        y,
+        {
+          color: theme.systolicReference,
+          width: 1.35,
+          dash: [6, 4],
+        },
+      );
+      drawPvCurveV3(
+        context,
+        orientationGuides.klotzInformedDiastolicReference,
+        x,
+        y,
+        {
+          color: theme.diastolicReference,
+          width: 1.35,
+          dash: [3, 4],
+        },
+      );
+    }
+    for (const { beat, lineDash, trace } of renderedTraces) {
+      drawPvCurveV3(context, beat, x, y, {
+        color: trace.chamberColor,
+        width: 2,
+        dash: lineDash,
       });
     }
-    drawPvCurveV3(context, beat, x, y, {
-      color,
-      width: 2,
-      dash: [],
-    });
 
-    if (beat.length === 0) {
+    if (renderedTraces.every(({ beat }) => beat.length === 0)) {
       context.save();
       context.fillStyle = theme.text;
       context.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -374,7 +497,7 @@ export function PressureVolumeLoopCanvasV3({
       );
       context.restore();
     }
-  }, [beat, color, guides]);
+  }, [orientationGuides, renderedTraces]);
 
   useResponsiveCanvasFrameV3(
     containerRef,
@@ -382,11 +505,18 @@ export function PressureVolumeLoopCanvasV3({
     draw,
   );
 
-  const guideStatus = guides !== null
-    ? "Orientation references only · not formal ESPVR/EDPVR relations"
-    : pressureBasis === "intracavitary" && showSingleBeatOrientationGuides
+  const onlyTrace = renderedTraces.length === 1
+    ? renderedTraces[0]
+    : undefined;
+  const guideStatus = orientationGuides !== null
+    ? "End-systolic radial + Klotz-informed diastolic orientation references · not formal ESPVR/EDPVR relations"
+    : onlyTrace?.trace.pressureBasis === "intracavitary"
+        && onlyTrace.trace.showSingleBeatOrientationGuides === true
       ? "PV orientation references require transmural pressure"
       : null;
+  const chamberAriaLabel = colorLegendItems.length === 0
+    ? "Pressure-volume"
+    : colorLegendItems.map(({ label }) => label).join(", ");
 
   return (
     <div
@@ -394,31 +524,23 @@ export function PressureVolumeLoopCanvasV3({
       className={`relative min-h-52 h-full w-full overflow-hidden ${className ?? ""}`}
       data-chart-kind="pressure-volume-loop-v3"
       data-cycle-source="model-emitted-cycle-phase"
-      data-orientation-guide-semantics={guides?.semantics ?? "unavailable"}
+      data-orientation-guide-semantics={
+        orientationGuides?.semantics ?? "unavailable"
+      }
     >
       <canvas
         ref={canvasRef}
         className="block h-full w-full"
         role="img"
-        aria-label={`${chamberLabel} pressure-volume loop from the last complete model-emitted cycle`}
+        aria-label={`${chamberAriaLabel} pressure-volume loops from the last complete model-emitted cycles${
+          guideStatus === null ? "" : `. ${guideStatus}`
+        }`}
       />
-      <div className="pointer-events-none absolute left-12 top-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-wb-muted">
-        <span className="inline-flex items-center gap-1">
-          <span className="h-0.5 w-3" style={{ backgroundColor: color }} />
-          {chamberLabel} loop
-        </span>
-        {guides !== null && (
-          <>
-            <span className="text-fuchsia-300">End-systolic radial reference</span>
-            <span className="text-cyan-300">Klotz-informed diastolic reference</span>
-          </>
-        )}
-      </div>
-      {guideStatus !== null && (
-        <div className="pointer-events-none absolute bottom-1.5 right-2 max-w-[70%] text-right text-[9px] leading-3 text-wb-subtle">
-          {guideStatus}
-        </div>
-      )}
+      <WorkbenchChartTwoAxisLegendV3
+        colorAxisLabel="Chamber"
+        colorItems={colorLegendItems}
+        scenarioItems={scenarioLegendItems}
+      />
     </div>
   );
 }

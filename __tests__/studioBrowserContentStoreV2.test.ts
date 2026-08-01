@@ -124,7 +124,6 @@ function workspaceV2(input: Readonly<{
           paneId: "pane/waveform",
           role: "graph",
           label: "Waveform",
-          colorHex: "#3ea8ff",
           order: 0,
           priority: 10,
           graphId: "graph/waveform",

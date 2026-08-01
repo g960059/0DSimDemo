@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
+  STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
@@ -96,6 +97,36 @@ describe("Studio Experiment data V2", () => {
     )).toThrow(/keys must be exactly/);
   });
 
+  it("limits durable and desired Experiment content to four Scenarios", () => {
+    const workspace = workspaceV2() as Record<string, any>;
+    const baseline = workspace.content.scenarios[0];
+    workspace.content.scenarios = Array.from(
+      { length: STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2 + 1 },
+      (_, index) => ({
+        ...baseline,
+        scenarioId: `scenario/${index + 1}`,
+        label: `Scenario ${index + 1}`,
+      }),
+    );
+    expect(() => validateExperimentWorkspaceV2(workspace))
+      .toThrow(/at most 4 Scenarios/);
+
+    const desired = desiredContentV2() as Record<string, any>;
+    const desiredBaseline = desired.scenarios[0];
+    desired.scenarios = Array.from(
+      { length: STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2 + 1 },
+      (_, index) => ({
+        ...desiredBaseline,
+        scenarioId: `scenario/${index + 1}`,
+        label: `Scenario ${index + 1}`,
+      }),
+    );
+    expect(() => validateExperimentDesiredContentForModelV2(
+      desired,
+      modelContractV2(),
+    )).toThrow(/at most 4 Scenarios/);
+  });
+
   it("keeps immutable snapshot identity opaque and separate from draftVersion", () => {
     const snapshot = validateExperimentSnapshotV2(snapshotV2());
 
@@ -123,13 +154,12 @@ describe("Studio Experiment data V2", () => {
         paneId: "pane/pressure",
         role: "graph",
         label: "Pressure",
-        colorHex: "#ff6685",
         order: 0,
         priority: 10,
         graphId: "catalog.graph/pressure",
         windowSec: 2,
         series: [{
-          outputId: "catalog.output/map",
+          seriesId: "MAP",
           label: "MAP",
           colorHex: "#3ea8ff",
           order: 0,
@@ -144,7 +174,6 @@ describe("Studio Experiment data V2", () => {
         items: [{
           outputId: "catalog.output/map",
           label: "MAP",
-          colorHex: "#3ea8ff",
           order: 0,
         }],
       }],
@@ -157,8 +186,6 @@ describe("Studio Experiment data V2", () => {
         items: [{
           controlId: "catalog.control/svr",
           label: "SVR",
-          colorHex: "#a78bfa",
-          targetScenarioIds: ["scenario/baseline"],
           order: 0,
         }],
       }],
@@ -184,64 +211,51 @@ describe("Studio Experiment data V2", () => {
     expect(() => validateExperimentWorkspaceV2(noteArray))
       .toThrow(/must be an object/);
 
-    for (const role of ["outputPanes", "controlPanes"] as const) {
+    for (
+      const role of ["graphPanes", "outputPanes", "controlPanes"] as const
+    ) {
       const legacyPaneColor = workspaceV2() as Record<string, any>;
       legacyPaneColor.content.surface[role][0].colorHex = "#3ea8ff";
       expect(() => validateExperimentWorkspaceV2(legacyPaneColor))
-        .toThrow(/keys must be exactly/);
+        .toThrow(/field set mismatch|keys must be exactly/);
+    }
+
+    for (const role of ["outputPanes", "controlPanes"] as const) {
+      const legacyItemColor = workspaceV2() as Record<string, any>;
+      legacyItemColor.content.surface[role][0].items[0].colorHex = "#3ea8ff";
+      expect(() => validateExperimentWorkspaceV2(legacyItemColor))
+        .toThrow(/field set mismatch|keys must be exactly/);
     }
   });
 
-  it("requires every control item to bind explicit existing Scenarios", () => {
-    const missingTargets = workspaceV2() as Record<string, any>;
-    delete missingTargets.content.surface.controlPanes[0].items[0]
-      .targetScenarioIds;
-    expect(() => validateExperimentWorkspaceV2(missingTargets))
-      .toThrow(/keys must be exactly/);
-
-    const emptyTargets = workspaceV2() as Record<string, any>;
-    emptyTargets.content.surface.controlPanes[0].items[0].targetScenarioIds = [];
-    expect(() => validateExperimentWorkspaceV2(emptyTargets))
-      .toThrow(/at least one explicit Scenario target/);
-
-    const duplicateTargets = workspaceV2() as Record<string, any>;
-    duplicateTargets.content.surface.controlPanes[0].items[0].targetScenarioIds = [
-      "scenario/baseline",
-      "scenario/baseline",
-    ];
-    expect(() => validateExperimentWorkspaceV2(duplicateTargets))
-      .toThrow(/duplicate id scenario\/baseline/);
-
-    const unknownTarget = validateExperimentWorkspaceV2({
-      ...workspaceV2(),
-      content: {
-        ...workspaceV2().content,
-        surface: {
-          ...workspaceV2().content.surface,
-          controlPanes: [{
-            ...workspaceV2().content.surface.controlPanes[0],
-            items: [{
-              ...workspaceV2().content.surface.controlPanes[0].items[0],
-              targetScenarioIds: ["scenario/missing"],
-            }],
-          }],
-        },
-      },
+  it("keeps control panes Scenario-agnostic for the active inspector context", () => {
+    const validated = validateExperimentWorkspaceV2(workspaceV2());
+    expect(validated.content.surface.controlPanes[0]?.items[0]).toEqual({
+      controlId: "catalog.control/svr",
+      label: "SVR",
+      order: 0,
     });
     expect(() => assertExperimentContentMatchesModelV2(
-      unknownTarget.content,
+      validated.content,
       modelContractV2(),
-    )).toThrow(/unknown target Scenario scenario\/missing/);
+    )).not.toThrow();
+
+    const legacyTargets = workspaceV2() as Record<string, any>;
+    legacyTargets.content.surface.controlPanes[0].items[0].targetScenarioIds = [
+      "scenario/baseline",
+    ];
+    expect(() => validateExperimentWorkspaceV2(legacyTargets))
+      .toThrow(/keys must be exactly/);
   });
 
-  it("enforces renderer-specific graph series against the full Output Catalog", () => {
+  it("enforces renderer-specific selections against graph-owned series catalogs", () => {
     const emptySweep = workspaceV2() as Record<string, any>;
     emptySweep.content.surface.graphPanes[0].series = [];
     const validatedEmptySweep = validateExperimentWorkspaceV2(emptySweep);
     expect(() => assertExperimentContentMatchesModelV2(
       validatedEmptySweep.content,
       modelContractV2(),
-    )).toThrow(/sweep graphs must select at least one scalar output/);
+    )).toThrow(/sweep graphs must select at least one registered series/);
 
     const missingWindow = workspaceV2() as Record<string, any>;
     delete missingWindow.content.surface.graphPanes[0].windowSec;
@@ -257,82 +271,85 @@ describe("Studio Experiment data V2", () => {
         .toThrow(/must be 1–6 seconds in 0.5 second steps/);
     }
 
-    const expandedModel = modelContractV2() as Record<string, any>;
-    expandedModel.outputCatalog.push(
-      {
-        outputId: "catalog.output/temperature",
-        kind: "signal",
-        unit: "degC",
-        shape: "scalar",
-        sampling: "accepted-step",
-      },
-      {
-        outputId: "catalog.output/vector",
-        kind: "signal",
-        unit: "1",
-        shape: "vector",
-        sampling: "accepted-step",
-      },
-    );
+    const expandedModel = structuredClone(
+      modelContractV2(),
+    ) as Record<string, any>;
+    expandedModel.outputCatalog.push({
+      outputId: "catalog.output/temperature",
+      kind: "signal",
+      unit: "mmHg",
+      shape: "scalar",
+      sampling: "accepted-step",
+    });
+    expandedModel.graphCatalog[0].seriesCatalog.push({
+      kind: "scalar",
+      seriesId: "Temperature",
+      outputId: "catalog.output/temperature",
+    });
 
-    const fullCatalogSelection = workspaceV2() as Record<string, any>;
-    fullCatalogSelection.content.surface.graphPanes[0].series[0].outputId =
-      "catalog.output/temperature";
+    const registeredSeriesSelection = workspaceV2() as Record<string, any>;
+    registeredSeriesSelection.content.surface.graphPanes[0].series[0].seriesId =
+      "Temperature";
     expect(() => assertExperimentContentMatchesModelV2(
-      validateExperimentWorkspaceV2(fullCatalogSelection).content,
+      validateExperimentWorkspaceV2(registeredSeriesSelection).content,
       expandedModel as ModelContractV2,
     )).not.toThrow();
 
-    const mixedUnitSelection = workspaceV2() as Record<string, any>;
-    mixedUnitSelection.content.surface.graphPanes[0].series.push({
-      outputId: "catalog.output/temperature",
-      label: "Temperature",
-      colorHex: "#ffbb33",
-      order: 1,
-    });
+    const unknownSeriesSelection = workspaceV2() as Record<string, any>;
+    unknownSeriesSelection.content.surface.graphPanes[0].series[0].seriesId =
+      "Missing";
     expect(() => assertExperimentContentMatchesModelV2(
-      validateExperimentWorkspaceV2(mixedUnitSelection).content,
+      validateExperimentWorkspaceV2(unknownSeriesSelection).content,
       expandedModel as ModelContractV2,
-    )).toThrow(/sweep outputs must share one unit.*expected mmHg.*uses degC/);
-
-    const vectorSelection = workspaceV2() as Record<string, any>;
-    vectorSelection.content.surface.graphPanes[0].series[0].outputId =
-      "catalog.output/vector";
-    expect(() => assertExperimentContentMatchesModelV2(
-      validateExperimentWorkspaceV2(vectorSelection).content,
-      expandedModel as ModelContractV2,
-    )).toThrow(/must be scalar/);
+    )).toThrow(/unknown registered graph series Missing/);
 
     const pressureVolumeModel = {
       ...modelContractV2(),
       graphCatalog: [{
-        graphId: "catalog.graph/pv",
+        graphId: "hemodynamics.pressure-volume",
         renderer: "pressure-volume" as const,
-        outputIds: ["catalog.output/map"],
-        volumeOutputId: "catalog.output/map",
-        pressureOutputId: "catalog.output/map",
-        cyclePhaseOutputId: "catalog.output/map",
-        guideMode: "none" as const,
+        seriesCatalog: [{
+          kind: "pressure-volume" as const,
+          seriesId: "LV",
+          volumeOutputId: "catalog.output/map",
+          pressureOutputId: "catalog.output/map",
+          pressureBasis: "transmural" as const,
+          cyclePhaseOutputId: "catalog.output/map",
+          guideMode: "lv-single-beat-orientation" as const,
+        }],
+        defaultSeriesIds: ["LV"],
       }],
     };
     const pressureVolume = workspaceV2() as Record<string, any>;
-    pressureVolume.content.surface.graphPanes[0].graphId = "catalog.graph/pv";
-    const validatedPressureVolume = validateExperimentWorkspaceV2(pressureVolume);
+    pressureVolume.content.surface.graphPanes[0].graphId =
+      "hemodynamics.pressure-volume";
+    pressureVolume.content.surface.graphPanes[0].series = [{
+      seriesId: "LV",
+      label: "LV",
+      colorHex: "#cf405a",
+      order: 0,
+    }];
+    const validatedPressureVolume = validateExperimentWorkspaceV2(
+      pressureVolume,
+    );
     expect(() => assertExperimentContentMatchesModelV2(
       validatedPressureVolume.content,
       pressureVolumeModel,
-    )).toThrow(/pressure-volume graphs must not configure output series/);
-
-    pressureVolume.content.surface.graphPanes[0].series = [];
-    expect(() => assertExperimentContentMatchesModelV2(
-      validateExperimentWorkspaceV2(pressureVolume).content,
-      pressureVolumeModel,
     )).toThrow(/must not configure a waveform window/);
+
     delete pressureVolume.content.surface.graphPanes[0].windowSec;
     expect(() => assertExperimentContentMatchesModelV2(
       validateExperimentWorkspaceV2(pressureVolume).content,
       pressureVolumeModel,
     )).not.toThrow();
+
+    pressureVolume.content.surface.graphPanes[0].series = [];
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentWorkspaceV2(pressureVolume).content,
+      pressureVolumeModel,
+    )).toThrow(
+      /pressure-volume graphs must select at least one registered series/,
+    );
   });
 
   it("allows an empty role-pane surface and an empty note", () => {
@@ -536,9 +553,9 @@ describe("Studio Experiment data V2", () => {
         /duplicate id scenario\/baseline/,
       ],
       [
-        "noncanonical pane color",
+        "noncanonical graph series color",
         (candidate) => {
-          candidate.content.surface.graphPanes[0].colorHex = "#FF6685";
+          candidate.content.surface.graphPanes[0].series[0].colorHex = "#FF6685";
         },
         /canonical lowercase #rrggbb color/,
       ],
@@ -565,7 +582,6 @@ describe("Studio Experiment data V2", () => {
           candidate.content.surface.outputPanes[0].items.push({
             outputId: "catalog.output/other",
             label: "Other",
-            colorHex: "#ffffff",
             order: 0,
           });
         },
@@ -655,13 +671,12 @@ function contentV2() {
         paneId: "pane/pressure",
         role: "graph",
         label: "Pressure",
-        colorHex: "#ff6685",
         order: 0,
         priority: 10,
         graphId: "catalog.graph/pressure",
         windowSec: 2,
         series: [{
-          outputId: "catalog.output/map",
+          seriesId: "MAP",
           label: "MAP",
           colorHex: "#3ea8ff",
           order: 0,
@@ -676,7 +691,6 @@ function contentV2() {
         items: [{
           outputId: "catalog.output/map",
           label: "MAP",
-          colorHex: "#3ea8ff",
           order: 0,
         }],
       }],
@@ -689,8 +703,6 @@ function contentV2() {
         items: [{
           controlId: "catalog.control/svr",
           label: "SVR",
-          colorHex: "#a78bfa",
-          targetScenarioIds: ["scenario/baseline"],
           order: 0,
         }],
       }],
@@ -786,7 +798,12 @@ function modelContractV2(): ModelContractV2 {
     graphCatalog: [{
       graphId: "catalog.graph/pressure",
       renderer: "sweep",
-      outputIds: ["catalog.output/map"],
+      seriesCatalog: [{
+        kind: "scalar",
+        seriesId: "MAP",
+        outputId: "catalog.output/map",
+      }],
+      defaultSeriesIds: ["MAP"],
     }],
   };
 }

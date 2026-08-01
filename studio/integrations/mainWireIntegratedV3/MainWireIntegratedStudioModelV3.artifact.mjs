@@ -16112,7 +16112,7 @@ function validateBinding(binding) {
   }
 }
 function assertSameBinding(accepted, requested) {
-  if (JSON.stringify(accepted) !== JSON.stringify(requested)) {
+  if (accepted.topologyId !== requested.topologyId || accepted.priorFingerprint !== requested.priorFingerprint || accepted.collapseHydraulicsFingerprint !== requested.collapseHydraulicsFingerprint || accepted.boundaryResolverId !== requested.boundaryResolverId || accepted.impMechanism !== requested.impMechanism || accepted.shorteningImpPriorFingerprint !== requested.shorteningImpPriorFingerprint || accepted.mvcReferenceSemantics !== requested.mvcReferenceSemantics) {
     throw new Error("accepted coronary V2 binding and step configuration differ");
   }
 }
@@ -30145,25 +30145,36 @@ const CONTROL_KEYS_V2 = Object.freeze([
   "valueType"
 ]);
 const SWEEP_GRAPH_KEYS_V2 = Object.freeze([
+  "defaultSeriesIds",
   "graphId",
-  "outputIds",
-  "renderer"
+  "renderer",
+  "seriesCatalog"
 ]);
 const PRESSURE_VOLUME_GRAPH_KEYS_V2 = Object.freeze([
-  "cyclePhaseOutputId",
+  "defaultSeriesIds",
   "graphId",
-  "guideMode",
-  "outputIds",
-  "pressureOutputId",
   "renderer",
-  "volumeOutputId"
+  "seriesCatalog"
 ]);
 const STRUCTURAL_RETURN_GRAPH_KEYS_V2 = Object.freeze([
   "analysisId",
   "graphId",
-  "outputIds",
   "renderer",
   "side"
+]);
+const SCALAR_GRAPH_SERIES_KEYS_V2 = Object.freeze([
+  "kind",
+  "outputId",
+  "seriesId"
+]);
+const PRESSURE_VOLUME_GRAPH_SERIES_KEYS_V2 = Object.freeze([
+  "cyclePhaseOutputId",
+  "guideMode",
+  "kind",
+  "pressureBasis",
+  "pressureOutputId",
+  "seriesId",
+  "volumeOutputId"
 ]);
 const SIGNAL_OUTPUT_KEYS_V2 = Object.freeze([
   "kind",
@@ -30624,12 +30635,6 @@ function assertGraphCatalogV2(value, path, outputCatalog) {
     }
     graphIds.add(graphId);
     if (graph.renderer === "structural-return") {
-      if (!Array.isArray(graph.outputIds) || graph.outputIds.length !== 0) {
-        throw new ModelContractValidationErrorV2(
-          `${definitionPath}.outputIds`,
-          "must be an exact empty array for on-demand structural analysis"
-        );
-      }
       assertPortableModelIdentifierV2(
         graph.analysisId,
         `${definitionPath}.analysisId`
@@ -30640,88 +30645,211 @@ function assertGraphCatalogV2(value, path, outputCatalog) {
           'must be "right" or "left"'
         );
       }
-    } else {
-      assertKnownIdArrayV2(
-        graph.outputIds,
-        `${definitionPath}.outputIds`,
-        outputCatalog.ids,
-        "output"
-      );
-      if (graph.renderer === "sweep") {
-        let sharedUnit;
-        const sweepOutputIds = graph.outputIds;
-        for (let outputIndex = 0; outputIndex < sweepOutputIds.length; outputIndex += 1) {
-          const outputId = sweepOutputIds[outputIndex];
-          const output = outputCatalog.definitionsById.get(outputId);
-          if (output.shape !== "scalar") {
-            throw new ModelContractValidationErrorV2(
-              `${definitionPath}.outputIds[${outputIndex}]`,
-              `sweep output ${outputId} must be scalar`
-            );
-          }
-          if (sharedUnit === void 0) {
-            sharedUnit = output.unit;
-          } else if (output.unit !== sharedUnit) {
-            throw new ModelContractValidationErrorV2(
-              `${definitionPath}.outputIds[${outputIndex}]`,
-              `sweep outputs must share one unit; expected ${sharedUnit} but ${outputId} uses ${output.unit}`
-            );
-          }
-        }
-      }
+      continue;
     }
-    if (graph.renderer === "pressure-volume") {
-      const graphOutputIds = new Set(graph.outputIds);
-      for (const key of [
-        "volumeOutputId",
-        "pressureOutputId",
-        "cyclePhaseOutputId"
-      ]) {
-        const outputId = graph[key];
-        assertPortableModelIdentifierV2(
-          outputId,
-          `${definitionPath}.${key}`
-        );
-        if (!graphOutputIds.has(outputId)) {
-          throw new ModelContractValidationErrorV2(
-            `${definitionPath}.${key}`,
-            "must reference an output included by this graph"
-          );
-        }
-      }
-      if (graph.guideMode !== "none" && graph.guideMode !== "lv-single-beat-orientation") {
-        throw new ModelContractValidationErrorV2(
-          `${definitionPath}.guideMode`,
-          'must be "none" or "lv-single-beat-orientation"'
-        );
-      }
-    }
+    const seriesIds = graph.renderer === "sweep" ? assertScalarGraphSeriesCatalogV2(
+      graph.seriesCatalog,
+      `${definitionPath}.seriesCatalog`,
+      outputCatalog
+    ) : assertPressureVolumeGraphSeriesCatalogV2(
+      graph.seriesCatalog,
+      `${definitionPath}.seriesCatalog`,
+      outputCatalog
+    );
+    assertDefaultGraphSeriesIdsV2(
+      graph.defaultSeriesIds,
+      `${definitionPath}.defaultSeriesIds`,
+      seriesIds
+    );
   }
 }
-function assertKnownIdArrayV2(value, path, knownIds, kind) {
+function assertScalarGraphSeriesCatalogV2(value, path, outputCatalog) {
   if (!Array.isArray(value) || value.length === 0) {
     throw new ModelContractValidationErrorV2(
       path,
-      `must be a nonempty array of ${kind} IDs`
+      "must be a nonempty array of scalar graph series"
     );
   }
-  const seen = /* @__PURE__ */ new Set();
+  const seriesIds = /* @__PURE__ */ new Set();
+  const outputIds = /* @__PURE__ */ new Set();
+  let sharedUnit;
   for (let index = 0; index < value.length; index += 1) {
-    const candidate = value[index];
-    assertPortableModelIdentifierV2(candidate, `${path}[${index}]`);
-    if (!knownIds.has(candidate)) {
+    const series = requiredGraphSeriesRecordV2(value[index], `${path}[${index}]`);
+    assertExactKeysV2(series, `${path}[${index}]`, SCALAR_GRAPH_SERIES_KEYS_V2);
+    if (series.kind !== "scalar") {
       throw new ModelContractValidationErrorV2(
-        `${path}[${index}]`,
-        `unknown ${kind} ID ${candidate}`
+        `${path}[${index}].kind`,
+        'must be "scalar"'
       );
     }
-    if (seen.has(candidate)) {
+    const seriesId = requiredUniqueGraphSeriesIdV2(
+      series.seriesId,
+      `${path}[${index}].seriesId`,
+      seriesIds
+    );
+    const output = requiredScalarGraphOutputV2(
+      series.outputId,
+      `${path}[${index}].outputId`,
+      outputCatalog
+    );
+    if (outputIds.has(series.outputId)) {
       throw new ModelContractValidationErrorV2(
-        `${path}[${index}]`,
-        `duplicate ${kind} ID ${candidate}`
+        `${path}[${index}].outputId`,
+        `duplicate scalar output binding ${series.outputId}`
       );
     }
-    seen.add(candidate);
+    outputIds.add(series.outputId);
+    if (sharedUnit === void 0) {
+      sharedUnit = output.unit;
+    } else if (output.unit !== sharedUnit) {
+      throw new ModelContractValidationErrorV2(
+        `${path}[${index}].outputId`,
+        `sweep series must share one unit; expected ${sharedUnit} but ${seriesId} uses ${output.unit}`
+      );
+    }
+  }
+  return seriesIds;
+}
+function assertPressureVolumeGraphSeriesCatalogV2(value, path, outputCatalog) {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new ModelContractValidationErrorV2(
+      path,
+      "must be a nonempty array of pressure-volume graph series"
+    );
+  }
+  const seriesIds = /* @__PURE__ */ new Set();
+  const bindings = /* @__PURE__ */ new Set();
+  const roleUnits = {};
+  for (let index = 0; index < value.length; index += 1) {
+    const seriesPath = `${path}[${index}]`;
+    const series = requiredGraphSeriesRecordV2(value[index], seriesPath);
+    assertExactKeysV2(
+      series,
+      seriesPath,
+      PRESSURE_VOLUME_GRAPH_SERIES_KEYS_V2
+    );
+    if (series.kind !== "pressure-volume") {
+      throw new ModelContractValidationErrorV2(
+        `${seriesPath}.kind`,
+        'must be "pressure-volume"'
+      );
+    }
+    requiredUniqueGraphSeriesIdV2(
+      series.seriesId,
+      `${seriesPath}.seriesId`,
+      seriesIds
+    );
+    const bindingOutputIds = [];
+    for (const key of [
+      "volumeOutputId",
+      "pressureOutputId",
+      "cyclePhaseOutputId"
+    ]) {
+      const output = requiredScalarGraphOutputV2(
+        series[key],
+        `${seriesPath}.${key}`,
+        outputCatalog
+      );
+      bindingOutputIds.push(series[key]);
+      if (roleUnits[key] === void 0) {
+        roleUnits[key] = output.unit;
+      } else if (roleUnits[key] !== output.unit) {
+        throw new ModelContractValidationErrorV2(
+          `${seriesPath}.${key}`,
+          `pressure-volume ${key} units must match across series; expected ${roleUnits[key]} but found ${output.unit}`
+        );
+      }
+    }
+    const bindingKey = bindingOutputIds.join("\0");
+    if (bindings.has(bindingKey)) {
+      throw new ModelContractValidationErrorV2(
+        seriesPath,
+        "duplicate pressure-volume output binding"
+      );
+    }
+    bindings.add(bindingKey);
+    if (series.guideMode !== "none" && series.guideMode !== "lv-single-beat-orientation") {
+      throw new ModelContractValidationErrorV2(
+        `${seriesPath}.guideMode`,
+        'must be "none" or "lv-single-beat-orientation"'
+      );
+    }
+    if (series.pressureBasis !== "transmural" && series.pressureBasis !== "intracavitary") {
+      throw new ModelContractValidationErrorV2(
+        `${seriesPath}.pressureBasis`,
+        'must be "transmural" or "intracavitary"'
+      );
+    }
+    if (series.guideMode === "lv-single-beat-orientation" && series.pressureBasis !== "transmural") {
+      throw new ModelContractValidationErrorV2(
+        `${seriesPath}.pressureBasis`,
+        "single-beat orientation guides require transmural pressure"
+      );
+    }
+  }
+  return seriesIds;
+}
+function requiredGraphSeriesRecordV2(value, path) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new ModelContractValidationErrorV2(
+      path,
+      "graph series definitions must be objects"
+    );
+  }
+  return value;
+}
+function requiredUniqueGraphSeriesIdV2(value, path, seriesIds) {
+  assertPortableModelIdentifierV2(value, path);
+  if (seriesIds.has(value)) {
+    throw new ModelContractValidationErrorV2(
+      path,
+      `duplicate graph series ID ${value}`
+    );
+  }
+  seriesIds.add(value);
+  return value;
+}
+function requiredScalarGraphOutputV2(value, path, outputCatalog) {
+  assertPortableModelIdentifierV2(value, path);
+  const output = outputCatalog.definitionsById.get(value);
+  if (output === void 0) {
+    throw new ModelContractValidationErrorV2(
+      path,
+      `unknown output ID ${value}`
+    );
+  }
+  if (output.shape !== "scalar") {
+    throw new ModelContractValidationErrorV2(
+      path,
+      `graph output ${value} must be scalar`
+    );
+  }
+  return output;
+}
+function assertDefaultGraphSeriesIdsV2(value, path, seriesIds) {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new ModelContractValidationErrorV2(
+      path,
+      "must be a nonempty array of graph series IDs"
+    );
+  }
+  const defaultIds = /* @__PURE__ */ new Set();
+  for (let index = 0; index < value.length; index += 1) {
+    const seriesId = value[index];
+    assertPortableModelIdentifierV2(seriesId, `${path}[${index}]`);
+    if (!seriesIds.has(seriesId)) {
+      throw new ModelContractValidationErrorV2(
+        `${path}[${index}]`,
+        `unknown graph series ID ${seriesId}`
+      );
+    }
+    if (defaultIds.has(seriesId)) {
+      throw new ModelContractValidationErrorV2(
+        `${path}[${index}]`,
+        `duplicate default graph series ID ${seriesId}`
+      );
+    }
+    defaultIds.add(seriesId);
   }
 }
 function assertAcyclicMetricDependenciesV2(metrics) {
@@ -31191,7 +31319,7 @@ function base64EncodeV2(bytes) {
 function errorMessageV2(error) {
   return error instanceof Error ? error.message : String(error);
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-10";
+const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-12";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3 = "hot-path-lean";
 const MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.v4";
@@ -31566,6 +31694,24 @@ async function loadMainWireIntegratedStudioExecutableReleaseV3(executableArtifac
     defaultFixture
   });
 }
+function scalarGraphSeriesV3(seriesId, outputId) {
+  return Object.freeze({
+    kind: "scalar",
+    seriesId,
+    outputId
+  });
+}
+function pressureVolumeGraphSeriesV3(chamber) {
+  return Object.freeze({
+    kind: "pressure-volume",
+    seriesId: chamber,
+    volumeOutputId: `hemodynamics.volume.${chamber}`,
+    pressureOutputId: `hemodynamics.pressure.transmural.${chamber}`,
+    pressureBasis: "transmural",
+    cyclePhaseOutputId: "rhythm.phase.regular-sinus",
+    guideMode: chamber === "LV" ? "lv-single-beat-orientation" : "none"
+  });
+}
 function mainWireIntegratedStudioManifestV3() {
   const outputCatalog = MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.map(
     (output) => Object.freeze({
@@ -31650,66 +31796,81 @@ function mainWireIntegratedStudioManifestV3() {
         Object.freeze({
           graphId: "hemodynamics.pressure.left-heart",
           renderer: "sweep",
-          outputIds: Object.freeze([
-            "hemodynamics.pressure.absolute.LA",
-            "hemodynamics.pressure.absolute.LV",
-            "hemodynamics.pressure.absolute.Ao"
-          ])
+          seriesCatalog: Object.freeze([
+            scalarGraphSeriesV3(
+              "LVP",
+              "hemodynamics.pressure.absolute.LV"
+            ),
+            scalarGraphSeriesV3(
+              "LAP",
+              "hemodynamics.pressure.absolute.LA"
+            ),
+            scalarGraphSeriesV3(
+              "AoP",
+              "hemodynamics.pressure.absolute.Ao"
+            )
+          ]),
+          defaultSeriesIds: Object.freeze(["LVP", "LAP", "AoP"])
         }),
         Object.freeze({
           graphId: "hemodynamics.pressure.right-heart",
           renderer: "sweep",
-          outputIds: Object.freeze([
-            "hemodynamics.pressure.absolute.RA",
-            "hemodynamics.pressure.absolute.RV",
-            "hemodynamics.pressure.absolute.PA"
-          ])
+          seriesCatalog: Object.freeze([
+            scalarGraphSeriesV3(
+              "RAP",
+              "hemodynamics.pressure.absolute.RA"
+            ),
+            scalarGraphSeriesV3(
+              "RVP",
+              "hemodynamics.pressure.absolute.RV"
+            ),
+            scalarGraphSeriesV3(
+              "PAP",
+              "hemodynamics.pressure.absolute.PA"
+            )
+          ]),
+          defaultSeriesIds: Object.freeze(["RAP", "RVP", "PAP"])
         }),
         Object.freeze({
           graphId: "hemodynamics.flow.valves",
           renderer: "sweep",
-          outputIds: Object.freeze([
-            "hemodynamics.flow.valve.MV",
-            "hemodynamics.flow.valve.AoV",
-            "hemodynamics.flow.valve.TV",
-            "hemodynamics.flow.valve.PV"
-          ])
+          seriesCatalog: Object.freeze([
+            scalarGraphSeriesV3("MV", "hemodynamics.flow.valve.MV"),
+            scalarGraphSeriesV3("AoV", "hemodynamics.flow.valve.AoV"),
+            scalarGraphSeriesV3("TV", "hemodynamics.flow.valve.TV"),
+            scalarGraphSeriesV3("PV", "hemodynamics.flow.valve.PV")
+          ]),
+          defaultSeriesIds: Object.freeze(["MV", "AoV", "TV", "PV"])
         }),
         Object.freeze({
           graphId: "coronary.flow.inlet-territories",
           renderer: "sweep",
-          outputIds: Object.freeze([
-            "coronary.flow.inlet.LAD",
-            "coronary.flow.inlet.LCx",
-            "coronary.flow.inlet.RCA"
-          ])
+          seriesCatalog: Object.freeze([
+            scalarGraphSeriesV3("LAD", "coronary.flow.inlet.LAD"),
+            scalarGraphSeriesV3("LCx", "coronary.flow.inlet.LCx"),
+            scalarGraphSeriesV3("RCA", "coronary.flow.inlet.RCA")
+          ]),
+          defaultSeriesIds: Object.freeze(["LAD", "LCx", "RCA"])
         }),
-        ...["LA", "LV", "RA", "RV"].map(
-          (chamber) => Object.freeze({
-            graphId: `hemodynamics.pressure-volume.${chamber}`,
-            renderer: "pressure-volume",
-            outputIds: Object.freeze([
-              `hemodynamics.volume.${chamber}`,
-              `hemodynamics.pressure.transmural.${chamber}`,
-              "rhythm.phase.regular-sinus"
-            ]),
-            volumeOutputId: `hemodynamics.volume.${chamber}`,
-            pressureOutputId: `hemodynamics.pressure.transmural.${chamber}`,
-            cyclePhaseOutputId: "rhythm.phase.regular-sinus",
-            guideMode: chamber === "LV" ? "lv-single-beat-orientation" : "none"
-          })
-        ),
+        Object.freeze({
+          graphId: "hemodynamics.pressure-volume",
+          renderer: "pressure-volume",
+          seriesCatalog: Object.freeze(
+            ["LV", "RV", "RA", "LA"].map(
+              (chamber) => pressureVolumeGraphSeriesV3(chamber)
+            )
+          ),
+          defaultSeriesIds: Object.freeze(["LV"])
+        }),
         Object.freeze({
           graphId: "hemodynamics.structural-return.systemic",
           renderer: "structural-return",
-          outputIds: Object.freeze([]),
           analysisId: MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
           side: "right"
         }),
         Object.freeze({
           graphId: "hemodynamics.structural-return.pulmonary",
           renderer: "structural-return",
-          outputIds: Object.freeze([]),
           analysisId: MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
           side: "left"
         })

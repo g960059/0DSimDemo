@@ -4,7 +4,7 @@ import { Info } from 'lucide-react';
 import { ModelDisclosureDialogV3 } from './workbench/ModelDisclosureDialogV3';
 
 const DEFAULT_ACKNOWLEDGEMENT_SCOPE =
-  'circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-10:disclosure-v1';
+  'circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-12:disclosure-v1';
 
 export function modelLimitationsAcknowledgementKey(scope: string): string {
   return `circleheart.modelLimitations.ack.${encodeURIComponent(scope)}`;

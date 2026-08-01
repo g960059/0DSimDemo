@@ -42,9 +42,14 @@ describe("InMemoryRegisteredModelStoreV2", () => {
       }],
       outputCatalog: manifest.catalogs.outputCatalog,
       graphCatalog: [{
+        defaultSeriesIds: ["LVP"],
         graphId: "graph.lv-pressure",
-        outputIds: ["hemodynamics.pressure.lv"],
         renderer: "sweep",
+        seriesCatalog: [{
+          kind: "scalar",
+          seriesId: "LVP",
+          outputId: "hemodynamics.pressure.lv",
+        }],
       }],
     });
     expect(Object.keys(resolvedPackage).sort()).toEqual([
@@ -227,7 +232,7 @@ describe("InMemoryRegisteredModelStoreV2", () => {
     const contract = structuredClone(
       deriveModelContractFromManifestV2(makeManifestV2()),
     ) as any;
-    contract.graphCatalog[0].outputIds = ["output/missing"];
+    contract.graphCatalog[0].seriesCatalog[0].outputId = "output/missing";
     const map = vi.fn(() => ["0"]);
     const forEach = vi.fn();
     const prototype = Object.create(Array.prototype) as {
@@ -236,7 +241,7 @@ describe("InMemoryRegisteredModelStoreV2", () => {
     };
     prototype.map = map;
     prototype.forEach = forEach;
-    Object.setPrototypeOf(contract.graphCatalog[0].outputIds, prototype);
+    Object.setPrototypeOf(contract.graphCatalog[0].seriesCatalog, prototype);
 
     expect(() => assertModelContractV2(contract)).toThrow(/unknown output/);
     expect(map).not.toHaveBeenCalled();
@@ -246,45 +251,77 @@ describe("InMemoryRegisteredModelStoreV2", () => {
   it("derives catalog copies without invoking inherited map, forEach, or iteration", () => {
     const manifest = makeManifestV2() as any;
     const catalog = manifest.catalogs.graphCatalog;
-    const outputIds = catalog[0].outputIds;
+    const seriesCatalog = catalog[0].seriesCatalog;
     const catalogMap = vi.fn((callback: unknown) =>
       Array.prototype.map.call(catalog, callback));
-    const idMap = vi.fn((callback: unknown) =>
-      Array.prototype.map.call(outputIds, callback));
-    const idForEach = vi.fn((callback: unknown) =>
-      Array.prototype.forEach.call(outputIds, callback));
-    const idIterator = vi.fn(() =>
-      Array.prototype[Symbol.iterator].call(outputIds));
+    const seriesMap = vi.fn((callback: unknown) =>
+      Array.prototype.map.call(seriesCatalog, callback));
+    const seriesForEach = vi.fn((callback: unknown) =>
+      Array.prototype.forEach.call(seriesCatalog, callback));
+    const seriesIterator = vi.fn(() =>
+      Array.prototype[Symbol.iterator].call(seriesCatalog));
     const catalogPrototype = Object.create(Array.prototype);
     Object.defineProperty(catalogPrototype, "map", { value: catalogMap });
     const idPrototype = Object.create(Array.prototype);
     Object.defineProperties(idPrototype, {
-      map: { value: idMap },
-      forEach: { value: idForEach },
-      [Symbol.iterator]: { value: idIterator },
+      map: { value: seriesMap },
+      forEach: { value: seriesForEach },
+      [Symbol.iterator]: { value: seriesIterator },
     });
     Object.setPrototypeOf(catalog, catalogPrototype);
-    Object.setPrototypeOf(outputIds, idPrototype);
+    Object.setPrototypeOf(seriesCatalog, idPrototype);
 
     const contract = deriveModelContractFromManifestV2(manifest);
 
     expect(contract.graphCatalog).toEqual([{
+      defaultSeriesIds: ["LVP"],
       graphId: "graph.lv-pressure",
-      outputIds: ["hemodynamics.pressure.lv"],
       renderer: "sweep",
+      seriesCatalog: [{
+        kind: "scalar",
+        seriesId: "LVP",
+        outputId: "hemodynamics.pressure.lv",
+      }],
     }]);
     expect(catalogMap).not.toHaveBeenCalled();
-    expect(idMap).not.toHaveBeenCalled();
-    expect(idForEach).not.toHaveBeenCalled();
-    expect(idIterator).not.toHaveBeenCalled();
+    expect(seriesMap).not.toHaveBeenCalled();
+    expect(seriesForEach).not.toHaveBeenCalled();
+    expect(seriesIterator).not.toHaveBeenCalled();
   });
 
   it("rejects mixed-unit outputs in a registered single-axis sweep graph", () => {
     const manifest = makeManifestV2() as any;
-    manifest.catalogs.graphCatalog[0].outputIds.push("hemodynamics.ef");
+    manifest.catalogs.graphCatalog[0].seriesCatalog.push({
+      kind: "scalar",
+      seriesId: "EF",
+      outputId: "hemodynamics.ef",
+    });
 
     expect(() => deriveModelContractFromManifestV2(manifest))
-      .toThrow(/sweep outputs must share one unit.*expected mmHg.*uses 1/);
+      .toThrow(/sweep series must share one unit.*expected mmHg.*uses 1/);
+  });
+
+  it("rejects malformed graph-owned scalar series and default selection", () => {
+    const mutations: Array<(graph: Record<string, any>) => void> = [
+      (graph) => { graph.seriesCatalog = []; },
+      (graph) => { graph.seriesCatalog[0].kind = "pressure-volume"; },
+      (graph) => { graph.seriesCatalog[0].metadata = {}; },
+      (graph) => {
+        graph.seriesCatalog.push({
+          ...graph.seriesCatalog[0],
+          seriesId: graph.seriesCatalog[0].seriesId,
+        });
+      },
+      (graph) => { graph.defaultSeriesIds = []; },
+      (graph) => { graph.defaultSeriesIds = ["missing-series"]; },
+      (graph) => { graph.defaultSeriesIds = ["LVP", "LVP"]; },
+    ];
+
+    for (const mutate of mutations) {
+      const manifest = makeManifestV2() as any;
+      mutate(manifest.catalogs.graphCatalog[0]);
+      expect(() => deriveModelContractFromManifestV2(manifest)).toThrow();
+    }
   });
 
   it("keeps the digest private and performs no client-side hash on resolve", async () => {
@@ -375,7 +412,7 @@ describe("InMemoryRegisteredModelStoreV2", () => {
     }
   });
 
-  it("validates pressure-volume graph role references against its outputs", () => {
+  it("validates graph-owned pressure-volume series and defaults", () => {
     const manifest = makeManifestV2() as any;
     manifest.catalogs.outputCatalog.push({
       outputId: "hemodynamics.volume.lv",
@@ -393,48 +430,59 @@ describe("InMemoryRegisteredModelStoreV2", () => {
     manifest.catalogs.graphCatalog.push({
       graphId: "graph.lv-pressure-volume",
       renderer: "pressure-volume",
-      outputIds: [
-        "hemodynamics.volume.lv",
-        "hemodynamics.pressure.lv",
-        "cardiac.cycle-phase",
-      ],
-      volumeOutputId: "hemodynamics.volume.lv",
-      pressureOutputId: "hemodynamics.pressure.lv",
-      cyclePhaseOutputId: "cardiac.cycle-phase",
-      guideMode: "lv-single-beat-orientation",
+      seriesCatalog: [{
+        kind: "pressure-volume",
+        seriesId: "LV",
+        volumeOutputId: "hemodynamics.volume.lv",
+        pressureOutputId: "hemodynamics.pressure.lv",
+        pressureBasis: "transmural",
+        cyclePhaseOutputId: "cardiac.cycle-phase",
+        guideMode: "lv-single-beat-orientation",
+      }],
+      defaultSeriesIds: ["LV"],
     });
 
     const contract = deriveModelContractFromManifestV2(manifest);
     expect(contract.graphCatalog[1]).toEqual({
       graphId: "graph.lv-pressure-volume",
       renderer: "pressure-volume",
-      outputIds: [
-        "hemodynamics.volume.lv",
-        "hemodynamics.pressure.lv",
-        "cardiac.cycle-phase",
-      ],
-      volumeOutputId: "hemodynamics.volume.lv",
-      pressureOutputId: "hemodynamics.pressure.lv",
-      cyclePhaseOutputId: "cardiac.cycle-phase",
-      guideMode: "lv-single-beat-orientation",
+      seriesCatalog: [{
+        kind: "pressure-volume",
+        seriesId: "LV",
+        volumeOutputId: "hemodynamics.volume.lv",
+        pressureOutputId: "hemodynamics.pressure.lv",
+        pressureBasis: "transmural",
+        cyclePhaseOutputId: "cardiac.cycle-phase",
+        guideMode: "lv-single-beat-orientation",
+      }],
+      defaultSeriesIds: ["LV"],
     });
-    expect(Object.isFrozen(contract.graphCatalog[1]!.outputIds)).toBe(true);
+    const pressureVolume = contract.graphCatalog[1]!;
+    expect(pressureVolume.renderer).toBe("pressure-volume");
+    if (pressureVolume.renderer !== "pressure-volume") {
+      throw new Error("expected pressure-volume graph");
+    }
+    expect(Object.isFrozen(pressureVolume.seriesCatalog)).toBe(true);
+    expect(Object.isFrozen(pressureVolume.seriesCatalog[0])).toBe(true);
+    expect(Object.isFrozen(pressureVolume.defaultSeriesIds)).toBe(true);
 
-    manifest.catalogs.graphCatalog[1].cyclePhaseOutputId =
-      "hemodynamics.pressure.lv";
-    manifest.catalogs.graphCatalog[1].outputIds = [
-      "hemodynamics.volume.lv",
-      "cardiac.cycle-phase",
-    ];
+    manifest.catalogs.graphCatalog[1].seriesCatalog[0].pressureOutputId =
+      "output/missing";
     expect(() => deriveModelContractFromManifestV2(manifest))
-      .toThrow(/pressureOutputId.*included by this graph/);
+      .toThrow(/pressureOutputId.*unknown output/);
+
+    manifest.catalogs.graphCatalog[1].seriesCatalog[0].pressureOutputId =
+      "hemodynamics.pressure.lv";
+    manifest.catalogs.graphCatalog[1].seriesCatalog[0].pressureBasis =
+      "intracavitary";
+    expect(() => deriveModelContractFromManifestV2(manifest))
+      .toThrow(/orientation guides require transmural pressure/);
   });
 
   it("admits only exact on-demand structural-return graph definitions", () => {
     const structuralGraph = () => ({
       graphId: "graph.guyton-starling.right",
       renderer: "structural-return",
-      outputIds: [],
       analysisId: "analysis.guyton-starling.orientation-v1",
       side: "right",
     });
@@ -444,10 +492,9 @@ describe("InMemoryRegisteredModelStoreV2", () => {
     const contract = deriveModelContractFromManifestV2(manifest);
     expect(contract.graphCatalog[1]).toEqual(structuralGraph());
     expect(Object.isFrozen(contract.graphCatalog[1])).toBe(true);
-    expect(Object.isFrozen(contract.graphCatalog[1]!.outputIds)).toBe(true);
 
     const mutations: Array<(graph: Record<string, unknown>) => void> = [
-      (graph) => { graph.outputIds = ["hemodynamics.pressure.lv"]; },
+      (graph) => { graph.seriesCatalog = []; },
       (graph) => { graph.analysisId = "not portable"; },
       (graph) => { graph.side = "bilateral"; },
       (graph) => { graph.configuration = {}; },
@@ -667,7 +714,12 @@ function makeManifestV2(
       graphCatalog: [{
         graphId: "graph.lv-pressure",
         renderer: "sweep",
-        outputIds: ["hemodynamics.pressure.lv"],
+        seriesCatalog: [{
+          kind: "scalar",
+          seriesId: "LVP",
+          outputId: "hemodynamics.pressure.lv",
+        }],
+        defaultSeriesIds: ["LVP"],
       }],
     },
   };

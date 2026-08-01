@@ -1,7 +1,6 @@
 import type {
   ExperimentSurfaceControlPaneV2,
   ExperimentSurfaceGraphPaneV2,
-  ExperimentSurfaceGraphSeriesV2,
   ExperimentSurfaceOutputPaneV2,
   ExperimentSurfaceV2,
 } from "@/studio/contracts/v2/content";
@@ -14,7 +13,6 @@ import {
 import type {
   GraphDefinitionV2,
   ModelContractV2,
-  OutputDefinitionV2,
 } from "@/studio/contracts/v2/model";
 
 export const WORKBENCH_SCENARIO_ID_V3 = "workbench-live-default";
@@ -27,45 +25,12 @@ export const WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3 =
 export const WORKBENCH_SWEEP_WINDOW_STEP_SEC_V3 =
   STUDIO_SWEEP_WINDOW_STEP_SEC_V2;
 
-/**
- * A sweep pane owns one numeric Y axis. Candidate series therefore inherit the
- * registered unit of its first selected scalar output; an empty pane may begin
- * with any scalar unit.
- */
-export function workbenchSweepCompatibleOutputsV3(
-  series: readonly Pick<ExperimentSurfaceGraphSeriesV2, "outputId">[],
-  contract: ModelContractV2,
-): readonly OutputDefinitionV2[] {
-  const scalarOutputs = contract.outputCatalog.filter(({ shape }) =>
-    shape === "scalar");
-  const selectedUnit = series
-    .map(({ outputId }) => scalarOutputs.find((output) =>
-      output.outputId === outputId)?.unit)
-    .find((unit): unit is string => unit !== undefined);
-  return selectedUnit === undefined
-    ? scalarOutputs
-    : scalarOutputs.filter(({ unit }) => unit === selectedUnit);
-}
-
-export function workbenchDefaultSweepOutputIdsV3(
+export function workbenchDefaultGraphSeriesIdsV3(
   graph: GraphDefinitionV2,
-  contract: ModelContractV2,
 ): readonly string[] {
-  if (graph.renderer !== "sweep") return Object.freeze([]);
-  const scalarById = new Map(contract.outputCatalog
-    .filter(({ shape }) => shape === "scalar")
-    .map((output) => [output.outputId, output]));
-  const registered = graph.outputIds.flatMap((outputId) => {
-    const output = scalarById.get(outputId);
-    return output === undefined ? [] : [output];
-  });
-  const candidates = registered.length > 0
-    ? registered
-    : [...scalarById.values()].slice(0, 1);
-  const unit = candidates[0]?.unit;
-  return Object.freeze(candidates
-    .filter((output) => output.unit === unit)
-    .map(({ outputId }) => outputId));
+  return graph.renderer === "structural-return"
+    ? Object.freeze([])
+    : graph.defaultSeriesIds;
 }
 
 const OUTPUT_COLOR_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
@@ -132,10 +97,19 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
 
 export function createDefaultExperimentSurfaceV3(
   contract: ModelContractV2,
-  initialScenarioId: string = WORKBENCH_SCENARIO_ID_V3,
+  _initialScenarioId: string = WORKBENCH_SCENARIO_ID_V3,
 ): ExperimentSurfaceV2 {
-  const graphPanes = contract.graphCatalog.map((graph, index) =>
-    createDefaultGraphPaneV3(contract, graph, index));
+  const defaultGraphIds = Object.freeze([
+    "hemodynamics.pressure.left-heart",
+    "hemodynamics.pressure-volume",
+  ]);
+  const graphPanes = defaultGraphIds.flatMap((graphId, index) => {
+    const graph = contract.graphCatalog.find((candidate) =>
+      candidate.graphId === graphId);
+    return graph === undefined
+      ? []
+      : [createDefaultGraphPaneV3(graph, index)];
+  });
   const outputPane: ExperimentSurfaceOutputPaneV2 = Object.freeze({
     paneId: "outputs-primary",
     role: "output",
@@ -146,7 +120,6 @@ export function createDefaultExperimentSurfaceV3(
       Object.freeze({
         outputId: output.outputId,
         label: outputLabelV3(output.outputId),
-        colorHex: outputColorV3(output.outputId),
         order: index,
       }))),
   });
@@ -160,8 +133,6 @@ export function createDefaultExperimentSurfaceV3(
       Object.freeze({
         controlId: control.controlId,
         label: controlLabelV3(control.controlId),
-        colorHex: outputColorV3(control.controlId),
-        targetScenarioIds: Object.freeze([initialScenarioId]),
         order: index,
       }))),
   });
@@ -173,139 +144,28 @@ export function createDefaultExperimentSurfaceV3(
   });
 }
 
-/**
- * New Scenarios inherit the authored controller selection, while every
- * binding stays explicit in durable Surface content.
- */
-export function addScenarioToControlTargetsV3(
-  surface: ExperimentSurfaceV2,
-  scenarioId: string,
-): ExperimentSurfaceV2 {
-  return Object.freeze({
-    ...surface,
-    controlPanes: Object.freeze(surface.controlPanes.map((pane) =>
-      Object.freeze({
-        ...pane,
-        items: Object.freeze(pane.items.map((item) =>
-          item.targetScenarioIds.includes(scenarioId)
-            ? item
-            : Object.freeze({
-                ...item,
-                targetScenarioIds: Object.freeze([
-                  ...item.targetScenarioIds,
-                  scenarioId,
-                ]),
-              }))),
-      }))),
-  });
-}
-
-/**
- * Removing a Scenario cannot leave a persisted controller with an empty
- * target set. In that edge case it is rebound to the deterministic active
- * fallback chosen by the Worker.
- */
-export function removeScenarioFromControlTargetsV3(
-  surface: ExperimentSurfaceV2,
-  scenarioId: string,
-  fallbackScenarioId: string,
-): ExperimentSurfaceV2 {
-  return Object.freeze({
-    ...surface,
-    controlPanes: Object.freeze(surface.controlPanes.map((pane) =>
-      Object.freeze({
-        ...pane,
-        items: Object.freeze(pane.items.map((item) => {
-          const remaining = item.targetScenarioIds.filter((candidate) =>
-            candidate !== scenarioId);
-          return Object.freeze({
-            ...item,
-            targetScenarioIds: Object.freeze(
-              remaining.length > 0 ? remaining : [fallbackScenarioId],
-            ),
-          });
-        })),
-      }))),
-  });
-}
-
-/**
- * Reconciles an ephemeral Surface with the Scenario set that actually survived
- * a durable-runtime rollback. Pane/note edits remain available for retry, but
- * controller bindings can never retain references to Scenarios that are no
- * longer present in the reconstructed Worker.
- */
-export function reconcileSurfaceControlTargetsV3(
-  surface: ExperimentSurfaceV2,
-  scenarioIds: readonly string[],
-  fallbackScenarioId: string,
-): ExperimentSurfaceV2 {
-  const admittedScenarioIds = new Set(scenarioIds);
-  if (
-    admittedScenarioIds.size === 0
-    || !admittedScenarioIds.has(fallbackScenarioId)
-  ) {
-    throw new Error("Workbench Surface Scenario reconciliation is invalid");
-  }
-  let changed = false;
-  const controlPanes = surface.controlPanes.map((pane) => {
-    const items = pane.items.map((item) => {
-      const retained = item.targetScenarioIds.filter((scenarioId) =>
-        admittedScenarioIds.has(scenarioId));
-      const targetScenarioIds = retained.length > 0
-        ? retained
-        : [fallbackScenarioId];
-      if (
-        targetScenarioIds.length === item.targetScenarioIds.length
-        && targetScenarioIds.every((scenarioId, index) =>
-          scenarioId === item.targetScenarioIds[index])
-      ) return item;
-      changed = true;
-      return Object.freeze({
-        ...item,
-        targetScenarioIds: Object.freeze(targetScenarioIds),
-      });
-    });
-    if (items.every((item, index) => item === pane.items[index])) return pane;
-    return Object.freeze({ ...pane, items: Object.freeze(items) });
-  });
-  if (!changed) return surface;
-  return Object.freeze({
-    ...surface,
-    controlPanes: Object.freeze(controlPanes),
-  });
-}
-
 function createDefaultGraphPaneV3(
-  contract: ModelContractV2,
   graph: GraphDefinitionV2,
   index: number,
 ): ExperimentSurfaceGraphPaneV2 {
-  const sourceOutputId = graph.renderer === "pressure-volume"
-    ? graph.pressureOutputId
-    : graph.outputIds[0];
   return Object.freeze({
     paneId: `graph-${index + 1}`,
     role: "graph",
     label: graphTitleV3(graph.graphId),
-    colorHex: sourceOutputId === undefined
-      ? "#5f6b76"
-      : outputColorV3(sourceOutputId),
     order: index,
     priority: Math.max(50, 100 - index),
     graphId: graph.graphId,
     ...(graph.renderer === "sweep"
       ? { windowSec: WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 }
       : {}),
-    series: Object.freeze(graph.renderer === "sweep"
-      ? workbenchDefaultSweepOutputIdsV3(graph, contract)
-        .map((outputId, seriesIndex) => Object.freeze({
-        outputId,
-        label: outputLabelV3(outputId),
-        colorHex: outputColorV3(outputId),
+    series: Object.freeze(graph.renderer === "structural-return"
+      ? []
+      : graph.defaultSeriesIds.map((seriesId, seriesIndex) => Object.freeze({
+        seriesId,
+        label: graphSeriesLabelV3(seriesId),
+        colorHex: graphSeriesColorV3(seriesId),
         order: seriesIndex,
-      }))
-      : []),
+      }))),
   });
 }
 
@@ -332,9 +192,54 @@ export function graphTitleV3(graphId: string): string {
   if (graphId === "hemodynamics.structural-return.pulmonary") {
     return "Pulmonary venous-return orientation";
   }
-  const pvChamber = graphId.match(/^hemodynamics\.pressure-volume\.([A-Za-z]+)$/)?.[1];
-  if (pvChamber !== undefined) return `${pvChamber.toUpperCase()} pressure-volume loop`;
+  if (graphId === "hemodynamics.pressure-volume") return "Pressure-volume loops";
   return humanizeCatalogIdV3(graphId);
+}
+
+export function graphSeriesLabelV3(seriesId: string): string {
+  const labels: Readonly<Record<string, string>> = {
+    LVP: "LVP",
+    LAP: "LAP",
+    AoP: "AoP",
+    RAP: "RAP",
+    RVP: "RVP",
+    PAP: "PAP",
+    MV: "MV",
+    AoV: "AoV",
+    TV: "TV",
+    PV: "PV",
+    LAD: "LAD",
+    LCx: "LCx",
+    RCA: "RCA",
+    LV: "LV",
+    RV: "RV",
+    RA: "RA",
+    LA: "LA",
+  };
+  return labels[seriesId] ?? humanizeCatalogIdV3(seriesId);
+}
+
+export function graphSeriesColorV3(seriesId: string): string {
+  const colors: Readonly<Record<string, string>> = {
+    LVP: "#cf405a",
+    LAP: "#c43f7c",
+    AoP: "#167db8",
+    RAP: "#16858b",
+    RVP: "#3472c4",
+    PAP: "#6a61b6",
+    LV: "#cf405a",
+    LA: "#c43f7c",
+    RV: "#3472c4",
+    RA: "#16858b",
+    MV: "#b23e78",
+    AoV: "#1d7cad",
+    TV: "#26806f",
+    PV: "#6d64bd",
+    LAD: "#c43f55",
+    LCx: "#247d59",
+    RCA: "#3472c4",
+  };
+  return colors[seriesId] ?? outputColorV3(seriesId);
 }
 
 export function outputLabelV3(outputId: string): string {

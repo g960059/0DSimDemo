@@ -1011,7 +1011,12 @@ function modelContractV2(): ModelContractV2 {
     graphCatalog: [{
       graphId: "graph-definition/pressure",
       renderer: "sweep",
-      outputIds: ["output/co"],
+      seriesCatalog: [{
+        kind: "scalar",
+        seriesId: "CO",
+        outputId: "output/co",
+      }],
+      defaultSeriesIds: ["CO"],
     }],
   };
 }
@@ -1145,13 +1150,12 @@ function contentV2(
         paneId: "pane/pressure",
         role: "graph",
         label: "Pressure",
-        colorHex: "#ff6685",
         order: 0,
         priority: 0,
         graphId: "graph-definition/pressure",
         windowSec: 2,
         series: [{
-          outputId: "output/co",
+          seriesId: "CO",
           label: "Cardiac output",
           colorHex: "#3ea8ff",
           order: 0,
@@ -1166,7 +1170,6 @@ function contentV2(
         items: [{
           outputId: "output/co",
           label: "Cardiac output",
-          colorHex: "#3ea8ff",
           order: 0,
         }],
       }],
@@ -1179,8 +1182,6 @@ function contentV2(
         items: [{
           controlId: "control/heart-rate",
           label: "Heart rate",
-          colorHex: "#a78bfa",
-          targetScenarioIds: ["scenario/baseline"],
           order: 0,
         }],
       }],

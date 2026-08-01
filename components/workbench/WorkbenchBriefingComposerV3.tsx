@@ -13,7 +13,6 @@ export type WorkbenchBriefingPaneOptionV3 = Readonly<{
   paneId: string;
   role: "graph" | "output" | "control";
   label: string;
-  colorHex?: string;
   defaultPriority: number;
   order: number;
 }>;
@@ -167,12 +166,6 @@ export function WorkbenchBriefingComposerV3({
                         onClick={() => toggle(option)}
                       >
                         <span className="flex items-center gap-2">
-                          {option.colorHex !== undefined && (
-                            <span
-                              className="h-2 w-2 shrink-0 rounded-full"
-                              style={{ backgroundColor: option.colorHex }}
-                            />
-                          )}
                           <span className="truncate text-xs font-semibold">
                             {option.label}
                           </span>
@@ -235,12 +228,6 @@ export function WorkbenchBriefingComposerV3({
                       data-briefing-priority={pick.priority}
                     >
                       <header className="flex min-h-9 items-center gap-2 px-3">
-                        {option.colorHex !== undefined && (
-                          <span
-                            className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: option.colorHex }}
-                          />
-                        )}
                         <span className="truncate text-[11px] font-semibold text-wb-muted">
                           {option.label}
                         </span>

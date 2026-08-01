@@ -108,14 +108,14 @@
       "home": "ホーム",
       "articles": "記事",
       "paneLabel": "Paneラベル",
-      "paneColor": "カラー",
+      "seriesColor": "系列カラー",
       "addPane": "Paneを追加",
       "deletePane": "Paneを削除",
       "emptyPaneArea": "Paneが選択されていません",
       "emptyCatalog": "登録済みの項目がありません。",
-      "noConfigurableSeries": "このグラフの軸はrendererが所有するため、変更可能なwaveform seriesはありません。",
-      "series": "Series",
-      "windowSec": "Waveform window",
+      "noConfigurableSeries": "このグラフの構造軸はrendererが所有するため、変更可能な系列はありません。",
+      "series": "グラフ系列",
+      "windowSec": "表示時間幅",
       "windowSecHint": "1〜6秒、0.5秒刻み",
       "items": "Items",
       "note": "Experiment note",
@@ -140,6 +140,7 @@
         "noPresets": "使用できるPresetがありません。",
         "preset": "Preset",
         "rename": "名前を変更",
+        "scenarioLimitReached": "比較できるScenarioは4件までです。",
         "scenarioName": "Scenario名",
         "scenarios": "Scenarios",
         "title": "Scenario inspector"
@@ -224,7 +225,8 @@
       "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",
       "0D集中定数モデルでは、空間的な血流、局所壁応力、3D血行動態を解像できません。",
       "現在のexact V3 packageは開発用experimental defaultです。releaseReady、simulationReady、臨床validationを主張しません。",
-      "parameterとoutputは近似であり、目的とする科学的用途ごとのvalidationが必要です。"
+      "parameterとoutputは近似であり、目的とする科学的用途ごとのvalidationが必要です。",
+      "PV loop上の収縮末期radial線とKlotz-informed拡張期曲線はorientation referenceであり、正式なESPVR/EDPVR推定ではありません。"
     ]
   }
 }

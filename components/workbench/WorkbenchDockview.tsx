@@ -3,6 +3,7 @@ import {
   DockviewReact,
   type DockviewApi,
   type DockviewReadyEvent,
+  type IDockviewHeaderActionsProps,
   type IDockviewPanelHeaderProps,
   type IDockviewPanelProps,
 } from "dockview";
@@ -16,7 +17,6 @@ export type WorkbenchPaneDefinitionV3 = Readonly<{
   paneId: string;
   role: WorkbenchPaneRoleV3;
   title: string;
-  colorHex?: string;
 }>;
 
 type WorkbenchDockPanelParametersV3 = Readonly<{
@@ -39,6 +39,9 @@ export type WorkbenchDockviewPropsV3 = Readonly<{
 type WorkbenchDockviewContextV3 = Readonly<{
   onOpenPaneSettings?: (paneId: string) => void;
   paneSettingsLabel?: string;
+  addPaneAnchorId?: string;
+  addPaneLabel?: string;
+  onAddPane?: () => void;
   paneById: ReadonlyMap<string, WorkbenchPaneDefinitionV3>;
   renderPane: WorkbenchDockviewPropsV3["renderPane"];
 }>;
@@ -90,7 +93,6 @@ function WorkbenchDockTabV3(
   const context = React.useContext(WorkbenchDockContextV3);
   const pane = context?.paneById.get(props.params.paneId);
   const title = pane?.title ?? props.params.paneId;
-  const colorHex = validWorkbenchPaneColorHexV3(pane?.colorHex);
   const settingsLabel = context?.paneSettingsLabel ?? "Pane settings";
 
   return (
@@ -98,13 +100,6 @@ function WorkbenchDockTabV3(
       className="workbench-dock-tab flex h-full min-w-0 items-center gap-2 px-2.5 text-xs font-semibold text-wb-muted"
       onClick={() => props.api.setActive()}
     >
-      {colorHex !== undefined && (
-        <span
-          className="workbench-dock-tab-accent h-1.5 w-1.5 shrink-0 rounded-full"
-          style={{ backgroundColor: colorHex }}
-          aria-hidden="true"
-        />
-      )}
       <span className="min-w-0 flex-1 truncate">{title}</span>
       {pane !== undefined && context?.onOpenPaneSettings !== undefined && (
         <button
@@ -125,12 +120,38 @@ function WorkbenchDockTabV3(
   );
 }
 
+function WorkbenchDockAddPaneActionV3(
+  props: IDockviewHeaderActionsProps,
+) {
+  const context = React.useContext(WorkbenchDockContextV3);
+  if (
+    context?.onAddPane === undefined
+    || !workbenchGroupOwnsAddPaneActionV3(
+      context.addPaneAnchorId,
+      props.panels.map(({ id }) => id),
+    )
+  ) return null;
+  return (
+    <button
+      type="button"
+      className="workbench-dock-add-pane inline-flex h-full min-w-9 touch-manipulation items-center justify-center text-wb-subtle transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wb-accent"
+      aria-label={context.addPaneLabel ?? "Add pane"}
+      title={context.addPaneLabel ?? "Add pane"}
+      onClick={context.onAddPane}
+    >
+      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+    </button>
+  );
+}
+
 function addPaneV3(
   api: DockviewApi,
   pane: WorkbenchPaneDefinitionV3,
   placement: "first" | "right" | "within",
 ): void {
-  const referenceGroup = api.panels[0]?.group;
+  const referenceGroup = placement === "within"
+    ? api.panels.at(-1)?.group
+    : api.panels[0]?.group;
   api.addPanel<WorkbenchDockPanelParametersV3>({
     id: pane.paneId,
     title: pane.title,
@@ -177,10 +198,24 @@ export function workbenchPanePlacementV3(
   layoutMode: WorkbenchDockLayoutModeV3,
 ): "first" | "right" | "within" {
   if (index === 0) return "first";
-  // Desktop split is intentionally bounded to two columns: pane 2 owns the
-  // secondary column and panes 3+ join pane 1's primary tab group. A catalog
-  // with many panes therefore adds tabs instead of ever-narrower columns.
+  // Desktop split is intentionally bounded to two columns: pane 2 starts the
+  // right-hand group and panes 3+ join that group's tab strip. New panes and
+  // the role-owned add action therefore stay in the same spatial location.
   return layoutMode === "split" && index === 1 ? "right" : "within";
+}
+
+export function workbenchAddPaneAnchorIdV3(
+  panes: readonly WorkbenchPaneDefinitionV3[],
+): string | undefined {
+  return panes.at(-1)?.paneId;
+}
+
+export function workbenchGroupOwnsAddPaneActionV3(
+  addPaneAnchorId: string | undefined,
+  groupPanelIds: readonly string[],
+): boolean {
+  return addPaneAnchorId !== undefined
+    && groupPanelIds.includes(addPaneAnchorId);
 }
 
 export function getWorkbenchPaneSignatureV3(
@@ -288,12 +323,23 @@ export function WorkbenchDockview({
   );
   const context = React.useMemo<WorkbenchDockviewContextV3>(
     () => ({
+      addPaneAnchorId: workbenchAddPaneAnchorIdV3(panes),
+      addPaneLabel,
+      onAddPane,
       paneById,
       renderPane,
       onOpenPaneSettings,
       paneSettingsLabel,
     }),
-    [onOpenPaneSettings, paneById, paneSettingsLabel, renderPane],
+    [
+      addPaneLabel,
+      onAddPane,
+      onOpenPaneSettings,
+      paneById,
+      paneSettingsLabel,
+      panes,
+      renderPane,
+    ],
   );
   const components = React.useMemo(
     () => ({ "workbench-pane-v3": WorkbenchDockPanelV3 }),
@@ -386,6 +432,7 @@ export function WorkbenchDockview({
           ref={dockviewElementRef}
           components={components}
           defaultTabComponent={WorkbenchDockTabV3}
+          leftHeaderActionsComponent={WorkbenchDockAddPaneActionV3}
           defaultRenderer="onlyWhenVisible"
           disableFloatingGroups
           getTabContextMenuItems={() => []}
@@ -409,14 +456,6 @@ export function WorkbenchDockview({
       </section>
     </WorkbenchDockContextV3.Provider>
   );
-}
-
-export function validWorkbenchPaneColorHexV3(
-  colorHex: string | undefined,
-): string | undefined {
-  return colorHex !== undefined && /^#[0-9a-f]{6}$/i.test(colorHex)
-    ? colorHex
-    : undefined;
 }
 
 function useNarrowWorkbenchDockviewV3(): boolean {

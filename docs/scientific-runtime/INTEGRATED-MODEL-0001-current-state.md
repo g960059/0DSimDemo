@@ -32,7 +32,7 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact development release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-10
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-12
 ```
 
 It pins:

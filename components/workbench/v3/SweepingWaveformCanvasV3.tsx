@@ -13,12 +13,46 @@ import {
   scaleLinearV3,
   useResponsiveCanvasFrameV3,
 } from "./WorkbenchCanvasRuntimeV3";
+import {
+  WorkbenchChartTwoAxisLegendV3,
+  buildWorkbenchScenarioLegendItemsV3,
+  buildWorkbenchTraceColorLegendItemsV3,
+  type WorkbenchScenarioTraceIdentityV3,
+} from "./WorkbenchChartTraceStyleV3";
 
 export type WorkbenchWaveformSeriesV3 = Readonly<{
   outputId: string;
   label: string;
   color: string;
 }>;
+
+export type WorkbenchWaveformTraceV3 = WorkbenchScenarioTraceIdentityV3 &
+  Readonly<{
+    samples: readonly WorkbenchScalarSampleV3[];
+    outputId: string;
+    signalLabel: string;
+    /** Stable per signal, independent of Scenario. */
+    signalColor: string;
+  }>;
+
+export function activeSweepingWaveformCursorTimeSecV3(
+  traces: readonly Pick<
+    WorkbenchWaveformTraceV3,
+    "scenarioId" | "samples"
+  >[],
+  activeScenarioId: string | null,
+): number | null {
+  if (activeScenarioId === null) return null;
+  const activeTrace = traces.find(({ scenarioId }) =>
+    scenarioId === activeScenarioId);
+  if (activeTrace === undefined) return null;
+  const latestTimeSec = orderedFiniteWorkbenchSamplesV3(
+    activeTrace.samples,
+  ).at(-1)?.acceptedTimeSec;
+  return latestTimeSec !== undefined && Number.isFinite(latestTimeSec)
+    ? latestTimeSec
+    : null;
+}
 
 export type SweepingWaveformPointV3 = Readonly<{
   phaseSec: number;
@@ -243,30 +277,86 @@ export function nextHystereticNumericDomainV3(
     : previous;
 }
 
-export function SweepingWaveformCanvasV3({
-  samples,
-  series,
-  windowSec = 6,
-  unitLabel,
-  includeZero = false,
-  className,
-}: Readonly<{
-  samples: readonly WorkbenchScalarSampleV3[];
-  series: readonly WorkbenchWaveformSeriesV3[];
+type SweepingWaveformCanvasCommonPropsV3 = Readonly<{
   windowSec?: number;
   unitLabel?: string;
   includeZero?: boolean;
   className?: string;
-}>) {
+}>;
+
+export type SweepingWaveformCanvasPropsV3 =
+  SweepingWaveformCanvasCommonPropsV3 & (
+    | Readonly<{
+        traces: readonly WorkbenchWaveformTraceV3[];
+        /** Exact Scenario whose accepted model time owns the sweep cursor. */
+        activeScenarioId: string | null;
+        samples?: never;
+        series?: never;
+      }>
+    | Readonly<{
+        /** @deprecated Prefer one descriptor per Scenario/signal in traces. */
+        samples: readonly WorkbenchScalarSampleV3[];
+        /** @deprecated Prefer one descriptor per Scenario/signal in traces. */
+        series: readonly WorkbenchWaveformSeriesV3[];
+        traces?: undefined;
+        activeScenarioId?: never;
+      }>
+  );
+
+export function SweepingWaveformCanvasV3(
+  props: SweepingWaveformCanvasPropsV3,
+) {
+  const {
+    windowSec = 6,
+    unitLabel,
+    includeZero = false,
+    className,
+  } = props;
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const domainRef = React.useRef<WorkbenchNumericDomainV3 | null>(null);
-  const orderedSamples = React.useMemo(
-    () => orderedFiniteWorkbenchSamplesV3(samples),
-    [samples],
+  const traces = React.useMemo<readonly WorkbenchWaveformTraceV3[]>(
+    () => props.traces ?? props.series.map((item) => Object.freeze({
+      scenarioId: "current-scenario",
+      scenarioLabel: "Current",
+      scenarioStyleIndex: 0,
+      samples: props.samples,
+      outputId: item.outputId,
+      signalLabel: item.label,
+      signalColor: item.color,
+    })),
+    [props.samples, props.series, props.traces],
   );
-  const domainIdentity = series
-    .map(({ outputId }) => outputId)
+  const activeScenarioId = props.traces === undefined
+    ? "current-scenario"
+    : props.activeScenarioId;
+  const cursorTimeSec = React.useMemo(
+    () => activeSweepingWaveformCursorTimeSecV3(traces, activeScenarioId),
+    [activeScenarioId, traces],
+  );
+  const scenarioLegendItems = React.useMemo(
+    () => buildWorkbenchScenarioLegendItemsV3(traces),
+    [traces],
+  );
+  const colorLegendItems = React.useMemo(
+    () => buildWorkbenchTraceColorLegendItemsV3(traces.map((trace) => ({
+      colorKey: trace.outputId,
+      label: trace.signalLabel,
+      color: trace.signalColor,
+    }))),
+    [traces],
+  );
+  const orderedTraces = React.useMemo(
+    () => traces.map((trace) => Object.freeze({
+      trace,
+      lineDash: scenarioLegendItems.find((item) =>
+        item.scenarioId === trace.scenarioId)?.lineDash ?? Object.freeze([]),
+      orderedSamples: orderedFiniteWorkbenchSamplesV3(trace.samples),
+    })),
+    [scenarioLegendItems, traces],
+  );
+  const domainIdentity = traces
+    .map(({ outputId, scenarioId }) => `${scenarioId}:${outputId}`)
     .join("\u001f")
     + `\u001e${unitLabel ?? ""}\u001e${includeZero}\u001e${windowSec}`;
 
@@ -281,16 +371,16 @@ export function SweepingWaveformCanvasV3({
   ) => {
     const theme = readCanvasThemeV3(containerRef.current);
     const plot = waveformPlotRectV3(width, height);
-    const projectedSeries = series.map((item) => Object.freeze({
-      item,
+    const projectedTraces = orderedTraces.map((item) => Object.freeze({
+      ...item,
       segments: buildSweepingWaveformSegmentsFromOrderedV3(
-        orderedSamples,
-        item.outputId,
+        item.orderedSamples,
+        item.trace.outputId,
         { windowSec },
       ),
     }));
     const allValues: number[] = [];
-    for (const { segments } of projectedSeries) {
+    for (const { segments } of projectedTraces) {
       for (const segment of segments) {
         for (const point of segment) {
           allValues.push(
@@ -332,12 +422,13 @@ export function SweepingWaveformCanvasV3({
       plot.top,
     );
 
-    for (const { item, segments } of projectedSeries) {
+    for (const { lineDash, segments, trace } of projectedTraces) {
       context.save();
-      context.strokeStyle = item.color;
+      context.strokeStyle = trace.signalColor;
       context.lineWidth = 1.6;
       context.lineJoin = "round";
       context.lineCap = "round";
+      context.setLineDash([...lineDash]);
       context.globalAlpha = 0.24;
       context.lineWidth = 1;
       context.beginPath();
@@ -368,9 +459,8 @@ export function SweepingWaveformCanvasV3({
       context.restore();
     }
 
-    const latestTimeSec = orderedSamples.at(-1)?.acceptedTimeSec;
-    if (latestTimeSec !== undefined && Number.isFinite(latestTimeSec)) {
-      const cursorX = x(positiveModuloV3(latestTimeSec, windowSec));
+    if (cursorTimeSec !== null) {
+      const cursorX = x(positiveModuloV3(cursorTimeSec, windowSec));
       context.save();
       context.strokeStyle = theme.cursor;
       context.globalAlpha = 0.5;
@@ -381,7 +471,7 @@ export function SweepingWaveformCanvasV3({
       context.stroke();
       context.restore();
     }
-  }, [includeZero, orderedSamples, series, unitLabel, windowSec]);
+  }, [cursorTimeSec, includeZero, orderedTraces, unitLabel, windowSec]);
 
   useResponsiveCanvasFrameV3(containerRef, canvasRef, draw);
 
@@ -390,6 +480,7 @@ export function SweepingWaveformCanvasV3({
       ref={containerRef}
       className={`relative min-h-48 h-full w-full overflow-hidden ${className ?? ""}`}
       data-chart-kind="sweeping-waveform-v3"
+      data-active-scenario-id={activeScenarioId}
       data-time-window-sec={windowSec}
     >
       <canvas
@@ -398,17 +489,11 @@ export function SweepingWaveformCanvasV3({
         role="img"
         aria-label={`Sweeping waveform, ${windowSec} second window`}
       />
-      <div className="pointer-events-none absolute left-12 top-2 flex max-w-[calc(100%-4rem)] flex-wrap gap-x-3 gap-y-1 text-[10px] text-wb-muted">
-        {series.map((item) => (
-          <span key={item.outputId} className="inline-flex items-center gap-1">
-            <span
-              className="h-0.5 w-3 rounded-full"
-              style={{ backgroundColor: item.color }}
-            />
-            {item.label}
-          </span>
-        ))}
-      </div>
+      <WorkbenchChartTwoAxisLegendV3
+        colorAxisLabel="Signal"
+        colorItems={colorLegendItems}
+        scenarioItems={scenarioLegendItems}
+      />
     </div>
   );
 }

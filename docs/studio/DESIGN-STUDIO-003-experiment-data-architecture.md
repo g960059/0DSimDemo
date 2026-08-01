@@ -303,44 +303,56 @@ type GraphDefinition =
   | {
       graphId: string;
       renderer: "sweep";
-      outputIds: readonly string[];
+      seriesCatalog: readonly {
+        kind: "scalar";
+        seriesId: string;
+        outputId: string;
+      }[];
+      defaultSeriesIds: readonly string[];
     }
   | {
       graphId: string;
       renderer: "pressure-volume";
-      outputIds: readonly string[];
-      volumeOutputId: string;
-      pressureOutputId: string;
-      cyclePhaseOutputId: string;
-      guideMode: "none" | "lv-single-beat-orientation";
+      seriesCatalog: readonly {
+        kind: "pressure-volume";
+        seriesId: string;
+        volumeOutputId: string;
+        pressureOutputId: string;
+        pressureBasis: "transmural" | "intracavitary";
+        cyclePhaseOutputId: string;
+        guideMode: "none" | "lv-single-beat-orientation";
+      }[];
+      defaultSeriesIds: readonly string[];
     }
   | {
       graphId: string;
       renderer: "structural-return";
-      outputIds: readonly [];
       analysisId: string;
       side: "right" | "left";
     };
 ```
 
-Every graph output must exist in the same model's output catalog. Each
-pressure-volume role reference must additionally appear in that graph's own
-`outputIds`; the renderer does not infer pressure, volume, or cycle phase from
-names. A `structural-return` graph is an explicit on-demand cardiac analysis,
-not a live output projection: its `outputIds` must be exactly empty, and its
-portable `analysisId` plus `side` select one model-owned analysis implementation.
-No analysis options or arbitrary JSON configuration may be embedded in the
-catalog definition.
+The model owns the semantic series a graph can display. A sweep series binds
+one scalar Output; every sweep series in one graph uses one registered unit. A
+pressure-volume series binds the volume, pressure, and model-emitted cycle
+phase roles explicitly. The renderer never guesses those roles from an output
+name. `defaultSeriesIds` is a nonempty ordered subset of that graph's series
+catalog and defines only its initial presentation.
+
+A `structural-return` graph is an explicit on-demand cardiac analysis, not a
+live output projection. It exposes neither a series catalog nor defaults; its
+portable `analysisId` plus `side` select one model-owned analysis
+implementation. No analysis options or arbitrary JSON configuration may be
+embedded in the catalog definition.
 
 This is an explicitly allowlisted semantic surface, not an extensible metadata
 bag. Additional renderer kinds, formatting, and richer control presentation
 require an explicit allowlisted contract revision. Unknown catalog keys are
 rejected, including fields named like build, release, or integrity metadata.
 
-Each stored control item also owns a non-empty, duplicate-free
-`targetScenarioIds` list. Every target must exist in the same Experiment.
-Scenario binding is therefore authored semantics, while one control definition
-may still be reused by multiple panes with different targets.
+Stored output and control items select catalog definitions only. They do not
+own presentation colors or durable Scenario bindings. The Scenario Manager's
+active Scenario supplies the output/controller context at runtime.
 
 ## 5. Fixture, checkpoint, and Scenario
 
@@ -563,13 +575,12 @@ type ExperimentSurface = {
     paneId: string;
     role: "graph";
     label: string;
-    colorHex: string;
     order: number;
     priority: number;
     graphId: string;
     windowSec?: number; // required only for a registered sweep renderer
     series: Array<{
-      outputId: string;
+      seriesId: string;
       label: string;
       colorHex: string;
       order: number;
@@ -584,7 +595,6 @@ type ExperimentSurface = {
     items: Array<{
       outputId: string;
       label: string;
-      colorHex: string;
       order: number;
     }>;
   }>;
@@ -597,8 +607,6 @@ type ExperimentSurface = {
     items: Array<{
       controlId: string;
       label: string;
-      colorHex: string;
-      targetScenarioIds: string[];
       order: number;
     }>;
   }>;
@@ -616,13 +624,10 @@ An Experiment Surface stores authored role-pane composition:
 
 - globally unique pane IDs and a fixed `graph | output | control` role;
 - a nonempty trimmed label on every pane and item;
-- a canonical lowercase `#rrggbb` color on graph panes, graph series, output
-  items, and control items; output/control panes intentionally have no redundant
-  pane-level color;
+- a canonical lowercase `#rrggbb` color only on graph series;
 - nonnegative pane order, unique within each role array, and nonnegative pane
   priority;
 - unique output/control IDs and item order within each pane;
-- explicit nonempty target Scenario IDs for every control item;
 - exactly one Markdown-compatible `{ text }` note; its trimmed text may be
   empty.
 
@@ -631,15 +636,32 @@ When priorities tie, renderers use ascending `order`, then ascending `paneId`,
 so responsive composition is deterministic without durable geometry.
 
 A registered sweep graph requires a nonempty `series` and an authored
-`windowSec` from 1 through 6 seconds in 0.5-second steps. Each series entry may
-select any scalar output in the model's full Output Catalog; the authored
-selection is not capped by the graph definition's `outputIds`. A
-`sweep` pane has one numeric Y axis, so all selected scalar outputs must
-use the same registered `unit`; pane settings expose only candidates compatible
-with the unit of the current selection. `pressure-volume` or `structural-return`
-graph requires an empty `series` and
-must omit `windowSec` because its registered graph definition already owns its
-axes or analysis contract. Output panes may select any registered output.
+`windowSec` from 1 through 6 seconds in 0.5-second steps. A registered
+pressure-volume graph also requires a nonempty `series`, but omits `windowSec`.
+In both cases each authored `seriesId` must exist in that graph's own series
+catalog. This is what lets a left-pressure pane offer LVP/LAP/AoP while a
+pressure-volume pane offers LV/RV/RA/LA without letting settings accidentally
+assemble an invalid renderer binding. A `structural-return` graph requires an
+empty `series` and omits `windowSec`. Output panes may select any registered
+output.
+
+Default Workbench graph composition is deliberately small: one left-heart
+sweep with LVP/LAP/AoP and one pressure-volume pane with LV selected. Pane
+addition belongs to each Dockview role area and is rendered immediately after
+the rightmost tab in that area's rightmost tab group; it is not an action owned
+by an individual pane's settings.
+
+Graph color and Scenario identity are orthogonal. Signal/chamber identity owns
+a stable hue (for example LVP/LV red, LAP/LA magenta, AoP blue, RVP/RV indigo,
+and RAP/RA teal). Scenario order owns the line pattern (baseline solid, then
+dash/dot variants). Thus Scenario 1 and Scenario 2 LVP share the same hue and
+remain directly comparable, while all Scenario 2 curves share one line
+pattern. Output and control panes remain neutral.
+
+The pre-release Experiment domain admits at most four Scenarios. Durable
+content validation, Worker add/duplicate admission, and the Scenario inspector
+all enforce that same limit, preserving the one-to-one mapping between Scenario
+ordinal and the four admitted line patterns.
 
 It does not store viewport dimensions, `inflow | peek | fullscreen`, active
 fullscreen state, open inspector state, Worker handles, runtime samples, or
@@ -649,9 +671,9 @@ settlement status.
 
 Workbench presents the Scenario Manager inside the Dockview `control` role
 area. It owns no numerical state. The active Scenario is ephemeral UI state;
-controller items remain durable Surface selections with explicit
-`targetScenarioIds`. Selecting a Scenario projects only the controller items
-bound to it into that Scenario's inspector.
+controller items are durable Surface selections without Scenario bindings.
+Selecting a Scenario makes that branch the neutral output/controller context.
+Every visible control action therefore applies only to the active Scenario.
 
 One persistent bidirectional Worker owns every live Scenario branch in the
 Experiment. Only the active branch is wall-clock paced, but inactive branches
@@ -675,10 +697,9 @@ the prior branch set active. The public `runtimeSessionId` remains stable while
 private adapter-session generations reject late work from a rebuilt branch
 set.
 
-Adding a Scenario extends the existing controller bindings to it explicitly.
-Deleting a Scenario removes its target ID; a control that would otherwise have
-no target is rebound to the deterministic active fallback. These changes are
-ordinary unsaved Surface edits and are persisted only by explicit Save.
+Adding, duplicating, or deleting a Scenario does not rewrite the Surface.
+Duplicating creates an independent exact branch: later control changes and
+accepted steps in the copy cannot mutate the baseline fixture or checkpoint.
 
 ## 9. Mutable workspace
 
@@ -1104,7 +1125,7 @@ Completed in the current development cutover:
    V3 live numerical session;
 3. one development package for `MainWireIntegratedModelTransactionV3` under
    the exact immutable `modelId`
-   `circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-10`;
+   `circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-12`;
 4. trusted client resolution of that registry-admitted release as the default,
    with no client-side package rehash;
 5. Workbench autostart through the generic Worker protocol into catalog-driven
@@ -1115,7 +1136,7 @@ Completed in the current development cutover:
 7. a persistent Worker-to-authoring bridge for accepted-boundary Draft capture,
    explicit header Save, gated Snapshot creation, exact checkpoint resume, and
    one versioned browser persistence envelope; and
-8. addable/removable custom Surface panes with editable labels, graph/item
+8. addable/removable custom Surface panes with editable labels, graph-series
    colors, authored sweep windows, placement-local Briefing pickup/priority,
    and a minimal Article Editor that supports repeated pinned Snapshot placement
    without pretending its authoring preview is live.

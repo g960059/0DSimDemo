@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canonicalJsonStringify,
+} from "@/engine/integrity";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
 import {
@@ -191,7 +194,9 @@ describe("MainWireIntegratedModelSessionV3", () => {
     ).rejects.toThrow(/hemodynamic research input SHA-256 identity mismatch/);
     const boundaryRestored =
       await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
-        JSON.parse(JSON.stringify(boundaryCheckpoint)),
+        // Browser persistence owns portable JSON in canonical key order. Exact
+        // continuation must not rely on the construction order of object keys.
+        JSON.parse(canonicalJsonStringify(boundaryCheckpoint)),
       );
     expect(boundaryRestored.currentAcceptedState()).toEqual(
       boundarySession.currentAcceptedState(),

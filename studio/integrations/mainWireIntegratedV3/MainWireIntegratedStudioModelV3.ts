@@ -81,7 +81,7 @@ import {
 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
-  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-10" as const;
+  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-12" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 =
   "circleheart.main-wire-integrated-transaction" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3 =
@@ -675,6 +675,30 @@ export async function loadMainWireIntegratedStudioExecutableReleaseV3(
   });
 }
 
+function scalarGraphSeriesV3(seriesId: string, outputId: string) {
+  return Object.freeze({
+    kind: "scalar" as const,
+    seriesId,
+    outputId,
+  });
+}
+
+function pressureVolumeGraphSeriesV3(
+  chamber: "LV" | "RV" | "RA" | "LA",
+) {
+  return Object.freeze({
+    kind: "pressure-volume" as const,
+    seriesId: chamber,
+    volumeOutputId: `hemodynamics.volume.${chamber}`,
+    pressureOutputId: `hemodynamics.pressure.transmural.${chamber}`,
+    pressureBasis: "transmural" as const,
+    cyclePhaseOutputId: "rhythm.phase.regular-sinus",
+    guideMode: chamber === "LV"
+      ? "lv-single-beat-orientation" as const
+      : "none" as const,
+  });
+}
+
 function mainWireIntegratedStudioManifestV3():
 RegisteredModelPackageManifestV2 {
   const outputCatalog = MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.map(
@@ -768,62 +792,75 @@ RegisteredModelPackageManifestV2 {
         Object.freeze({
           graphId: "hemodynamics.pressure.left-heart",
           renderer: "sweep" as const,
-          outputIds: Object.freeze([
-            "hemodynamics.pressure.absolute.LA",
-            "hemodynamics.pressure.absolute.LV",
-            "hemodynamics.pressure.absolute.Ao",
+          seriesCatalog: Object.freeze([
+            scalarGraphSeriesV3(
+              "LVP",
+              "hemodynamics.pressure.absolute.LV",
+            ),
+            scalarGraphSeriesV3(
+              "LAP",
+              "hemodynamics.pressure.absolute.LA",
+            ),
+            scalarGraphSeriesV3(
+              "AoP",
+              "hemodynamics.pressure.absolute.Ao",
+            ),
           ]),
+          defaultSeriesIds: Object.freeze(["LVP", "LAP", "AoP"]),
         }),
         Object.freeze({
           graphId: "hemodynamics.pressure.right-heart",
           renderer: "sweep" as const,
-          outputIds: Object.freeze([
-            "hemodynamics.pressure.absolute.RA",
-            "hemodynamics.pressure.absolute.RV",
-            "hemodynamics.pressure.absolute.PA",
+          seriesCatalog: Object.freeze([
+            scalarGraphSeriesV3(
+              "RAP",
+              "hemodynamics.pressure.absolute.RA",
+            ),
+            scalarGraphSeriesV3(
+              "RVP",
+              "hemodynamics.pressure.absolute.RV",
+            ),
+            scalarGraphSeriesV3(
+              "PAP",
+              "hemodynamics.pressure.absolute.PA",
+            ),
           ]),
+          defaultSeriesIds: Object.freeze(["RAP", "RVP", "PAP"]),
         }),
         Object.freeze({
           graphId: "hemodynamics.flow.valves",
           renderer: "sweep" as const,
-          outputIds: Object.freeze([
-            "hemodynamics.flow.valve.MV",
-            "hemodynamics.flow.valve.AoV",
-            "hemodynamics.flow.valve.TV",
-            "hemodynamics.flow.valve.PV",
+          seriesCatalog: Object.freeze([
+            scalarGraphSeriesV3("MV", "hemodynamics.flow.valve.MV"),
+            scalarGraphSeriesV3("AoV", "hemodynamics.flow.valve.AoV"),
+            scalarGraphSeriesV3("TV", "hemodynamics.flow.valve.TV"),
+            scalarGraphSeriesV3("PV", "hemodynamics.flow.valve.PV"),
           ]),
+          defaultSeriesIds: Object.freeze(["MV", "AoV", "TV", "PV"]),
         }),
         Object.freeze({
           graphId: "coronary.flow.inlet-territories",
           renderer: "sweep" as const,
-          outputIds: Object.freeze([
-            "coronary.flow.inlet.LAD",
-            "coronary.flow.inlet.LCx",
-            "coronary.flow.inlet.RCA",
+          seriesCatalog: Object.freeze([
+            scalarGraphSeriesV3("LAD", "coronary.flow.inlet.LAD"),
+            scalarGraphSeriesV3("LCx", "coronary.flow.inlet.LCx"),
+            scalarGraphSeriesV3("RCA", "coronary.flow.inlet.RCA"),
           ]),
+          defaultSeriesIds: Object.freeze(["LAD", "LCx", "RCA"]),
         }),
-        ...(["LA", "LV", "RA", "RV"] as const).map((chamber) =>
-          Object.freeze({
-            graphId: `hemodynamics.pressure-volume.${chamber}`,
-            renderer: "pressure-volume" as const,
-            outputIds: Object.freeze([
-              `hemodynamics.volume.${chamber}`,
-              `hemodynamics.pressure.transmural.${chamber}`,
-              "rhythm.phase.regular-sinus",
-            ]),
-            volumeOutputId: `hemodynamics.volume.${chamber}`,
-            pressureOutputId:
-              `hemodynamics.pressure.transmural.${chamber}`,
-            cyclePhaseOutputId: "rhythm.phase.regular-sinus",
-            guideMode: chamber === "LV"
-              ? "lv-single-beat-orientation" as const
-              : "none" as const,
-          })
-        ),
+        Object.freeze({
+          graphId: "hemodynamics.pressure-volume",
+          renderer: "pressure-volume" as const,
+          seriesCatalog: Object.freeze(
+            (["LV", "RV", "RA", "LA"] as const).map((chamber) =>
+              pressureVolumeGraphSeriesV3(chamber)
+            ),
+          ),
+          defaultSeriesIds: Object.freeze(["LV"]),
+        }),
         Object.freeze({
           graphId: "hemodynamics.structural-return.systemic",
           renderer: "structural-return" as const,
-          outputIds: Object.freeze([] as const),
           analysisId:
             MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
           side: "right" as const,
@@ -831,7 +868,6 @@ RegisteredModelPackageManifestV2 {
         Object.freeze({
           graphId: "hemodynamics.structural-return.pulmonary",
           renderer: "structural-return" as const,
-          outputIds: Object.freeze([] as const),
           analysisId:
             MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
           side: "left" as const,

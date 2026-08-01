@@ -15,13 +15,10 @@ import {
   structuralReturnAnalysisBoundaryStatusV3,
 } from "@/components/WorkbenchV3Page";
 import {
-  addScenarioToControlTargetsV3,
   createDefaultExperimentSurfaceV3,
-  reconcileSurfaceControlTargetsV3,
-  removeScenarioFromControlTargetsV3,
-  workbenchSweepCompatibleOutputsV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import {
+  DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3,
   addWorkbenchSurfacePaneV3,
   deleteWorkbenchSurfacePaneV3,
   selectWorkbenchGraphV3,
@@ -47,6 +44,8 @@ import {
   reconcileWorkbenchPanesV3,
   resetWorkbenchDockviewTrackingV3,
   shouldRenderWorkbenchDockPanelV3,
+  workbenchAddPaneAnchorIdV3,
+  workbenchGroupOwnsAddPaneActionV3,
   workbenchPanePlacementV3,
   type WorkbenchPaneDefinitionV3,
 } from "@/components/workbench/WorkbenchDockview";
@@ -125,16 +124,26 @@ describe("V3 Dockview Workbench", () => {
       ));
   });
 
-  it("derives graph, output, and control panes only from the exact registry contract", async () => {
+  it("starts with only LVP/LAP/AoP and the LV pressure-volume loop", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const surface = createDefaultExperimentSurfaceV3(composition.contract);
     const graphPanes = surface.graphPanes;
     const outputPane = surface.outputPanes[0]!;
     const controlPane = surface.controlPanes[0]!;
 
-    expect(graphPanes.map(({ graphId }) => graphId)).toEqual(
-      composition.contract.graphCatalog.map(({ graphId }) => graphId),
-    );
+    expect(graphPanes.map(({ graphId, series }) => ({
+      graphId,
+      seriesIds: series.map(({ seriesId }) => seriesId),
+    }))).toEqual([
+      {
+        graphId: "hemodynamics.pressure.left-heart",
+        seriesIds: ["LVP", "LAP", "AoP"],
+      },
+      {
+        graphId: "hemodynamics.pressure-volume",
+        seriesIds: ["LV"],
+      },
+    ]);
     expect(outputPane.items.map(({ outputId }) => outputId)).toEqual(
       composition.contract.outputCatalog.map(({ outputId }) => outputId),
     );
@@ -142,49 +151,52 @@ describe("V3 Dockview Workbench", () => {
       composition.contract.controlCatalog.map(({ controlId }) => controlId),
     );
     expect(controlPane.items.length).toBeGreaterThan(0);
-    expect(graphPanes.length).toBeGreaterThan(2);
-    expect(composition.contract.graphCatalog.some(
-      ({ renderer }) => renderer === "pressure-volume",
-    )).toBe(true);
+    expect(graphPanes).toHaveLength(2);
     expect(Object.isFrozen(graphPanes)).toBe(true);
     expect(Object.isFrozen(outputPane.items)).toBe(true);
     expect("colorHex" in outputPane).toBe(false);
     expect("colorHex" in controlPane).toBe(false);
+    expect(outputPane.items.every((item) => !("colorHex" in item))).toBe(true);
+    expect(controlPane.items.every((item) =>
+      !("colorHex" in item) && !("targetScenarioIds" in item))).toBe(true);
     for (const pane of graphPanes) {
       const graph = composition.contract.graphCatalog.find(({ graphId }) =>
         graphId === pane.graphId)!;
       expect("windowSec" in pane).toBe(graph.renderer === "sweep");
+      if (graph.renderer !== "structural-return") {
+        expect(pane.series.every(({ seriesId }) =>
+          graph.seriesCatalog.some((candidate) =>
+            candidate.seriesId === seriesId))).toBe(true);
+      }
       if (graph.renderer === "sweep") {
         expect(pane.windowSec).toBe(2);
-        const units = pane.series.map(({ outputId }) =>
-          composition.contract.outputCatalog.find((output) =>
-            output.outputId === outputId)!.unit);
-        expect(new Set(units).size).toBe(1);
       }
     }
   });
 
-  it("offers only scalar outputs compatible with a sweep pane's shared Y-axis unit", async () => {
+  it("resolves authored sweep series only through the graph-owned catalog", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const surface = createDefaultExperimentSurfaceV3(composition.contract);
-    const pressurePane = surface.graphPanes.find((pane) => {
-      const graph = composition.contract.graphCatalog.find(({ graphId }) =>
-        graphId === pane.graphId);
-      return graph?.renderer === "sweep"
-        && pane.series.some(({ outputId }) => outputId.includes("pressure"));
-    })!;
-    const selectedUnit = composition.contract.outputCatalog.find(({ outputId }) =>
-      outputId === pressurePane.series[0]!.outputId)!.unit;
-    const candidates = workbenchSweepCompatibleOutputsV3(
-      pressurePane.series,
-      composition.contract,
-    );
+    const pressurePane = surface.graphPanes.find(({ graphId }) =>
+      graphId === "hemodynamics.pressure.left-heart")!;
+    const pressureGraph = composition.contract.graphCatalog.find(({ graphId }) =>
+      graphId === pressurePane.graphId)!;
+    if (pressureGraph.renderer !== "sweep") {
+      throw new Error("expected the left-heart pressure sweep graph");
+    }
+    const selectedBindings = pressurePane.series.map(({ seriesId }) =>
+      pressureGraph.seriesCatalog.find((series) =>
+        series.seriesId === seriesId)!);
+    const selectedOutputs = selectedBindings.map(({ outputId }) =>
+      composition.contract.outputCatalog.find((output) =>
+        output.outputId === outputId)!);
 
-    expect(candidates.length).toBeGreaterThan(1);
-    expect(candidates.every((output) =>
-      output.shape === "scalar" && output.unit === selectedUnit)).toBe(true);
-    expect(candidates.some(({ outputId }) =>
-      outputId === "hemodynamics.volume.LV")).toBe(false);
+    expect(selectedBindings.map(({ seriesId }) => seriesId))
+      .toEqual(["LVP", "LAP", "AoP"]);
+    expect(selectedOutputs.every((output) =>
+      output.kind === "signal"
+      && output.shape === "scalar"
+      && output.unit === "mmHg")).toBe(true);
   });
 
   it("keeps custom pane presentation in the Experiment Surface", async () => {
@@ -194,7 +206,6 @@ describe("V3 Dockview Workbench", () => {
       original,
       "output",
       composition.contract,
-      "scenario/default",
     );
     expect(added.selectedPane).not.toBeNull();
     const selectedPane = added.selectedPane!;
@@ -303,7 +314,6 @@ describe("V3 Dockview Workbench", () => {
         original,
         kind,
         composition.contract,
-        "scenario/default",
       );
       expect(added.selectedPane?.kind).toBe(kind);
       expect(panes(added.surface)).toHaveLength(panes(original).length + 1);
@@ -327,7 +337,7 @@ describe("V3 Dockview Workbench", () => {
     const sweep = composition.contract.graphCatalog.find(({ renderer }) =>
       renderer === "sweep")!;
     const structural = composition.contract.graphCatalog.find(({ renderer }) =>
-      renderer !== "sweep")!;
+      renderer === "structural-return")!;
     const paneId = original.graphPanes.find(({ graphId }) =>
       graphId === sweep.graphId)!.paneId;
 
@@ -340,6 +350,7 @@ describe("V3 Dockview Workbench", () => {
     const structuralPane = changed.graphPanes.find((pane) => pane.paneId === paneId)!;
     expect("windowSec" in structuralPane).toBe(false);
     expect(structuralPane.series).toEqual([]);
+    expect(structuralPane.label).toBe("Systemic venous-return orientation");
 
     const restored = selectWorkbenchGraphV3(
       changed,
@@ -349,6 +360,8 @@ describe("V3 Dockview Workbench", () => {
     );
     expect(restored.graphPanes.find((pane) => pane.paneId === paneId)?.windowSec)
       .toBe(2);
+    expect(restored.graphPanes.find((pane) => pane.paneId === paneId)?.label)
+      .toBe("Left-heart pressure");
   });
 
   it("keeps an empty role area recoverable through an explicit add action", () => {
@@ -368,63 +381,24 @@ describe("V3 Dockview Workbench", () => {
     expect(html).toContain("Add output pane");
   });
 
-  it("keeps controller-to-Scenario bindings explicit across add and delete", async () => {
+  it("keeps output and control pane composition Scenario-neutral", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const original = createDefaultExperimentSurfaceV3(
+    const baselineSurface = createDefaultExperimentSurfaceV3(
       composition.contract,
       "scenario/baseline",
     );
-    const added = addScenarioToControlTargetsV3(original, "scenario/as");
-    expect(added.controlPanes[0]!.items.every(({ targetScenarioIds }) =>
-      targetScenarioIds.includes("scenario/baseline")
-      && targetScenarioIds.includes("scenario/as"))).toBe(true);
-
-    const removed = removeScenarioFromControlTargetsV3(
-      added,
-      "scenario/baseline",
+    const alternateSurface = createDefaultExperimentSurfaceV3(
+      composition.contract,
       "scenario/as",
     );
-    expect(removed.controlPanes[0]!.items.every(({ targetScenarioIds }) =>
-      targetScenarioIds.length === 1
-      && targetScenarioIds[0] === "scenario/as")).toBe(true);
-  });
-
-  it("reconciles carried Surface bindings after a durable Scenario rollback", async () => {
-    const composition = await loadStudioDefaultClientCompositionV2();
-    const original = createDefaultExperimentSurfaceV3(
-      composition.contract,
-      "scenario/baseline",
+    expect(alternateSurface.outputPanes).toEqual(baselineSurface.outputPanes);
+    expect(alternateSurface.controlPanes).toEqual(baselineSurface.controlPanes);
+    expect(JSON.stringify(baselineSurface.outputPanes)).not.toMatch(
+      /colorHex|targetScenarioIds/,
     );
-    const withUnsavedScenario = addScenarioToControlTargetsV3(
-      original,
-      "scenario/unsaved",
+    expect(JSON.stringify(baselineSurface.controlPanes)).not.toMatch(
+      /colorHex|targetScenarioIds/,
     );
-    const editedWhileSaving = {
-      ...withUnsavedScenario,
-      note: { text: "edit made while browser persistence was pending" },
-    };
-    const reconciled = reconcileSurfaceControlTargetsV3(
-      editedWhileSaving,
-      ["scenario/baseline"],
-      "scenario/baseline",
-    );
-    expect(reconciled.note.text).toBe(editedWhileSaving.note.text);
-    expect(reconciled.controlPanes[0]!.items.every(({ targetScenarioIds }) =>
-      targetScenarioIds.length === 1
-      && targetScenarioIds[0] === "scenario/baseline")).toBe(true);
-
-    const onlyUnsavedTargets = removeScenarioFromControlTargetsV3(
-      withUnsavedScenario,
-      "scenario/baseline",
-      "scenario/unsaved",
-    );
-    const rebound = reconcileSurfaceControlTargetsV3(
-      onlyUnsavedTargets,
-      ["scenario/baseline"],
-      "scenario/baseline",
-    );
-    expect(rebound.controlPanes[0]!.items.every(({ targetScenarioIds }) =>
-      targetScenarioIds[0] === "scenario/baseline")).toBe(true);
   });
 
   it("suggests portable collision-free Scenario identities and labels", () => {
@@ -461,6 +435,50 @@ describe("V3 Dockview Workbench", () => {
     expect(html).toContain('data-controller-scenario-id="scenario/healthy"');
     expect(html).toContain('data-controller-for="scenario/healthy"');
     expect(html).not.toContain('role="dialog"');
+  });
+
+  it("disables Scenario creation at the four-Scenario comparison limit", () => {
+    const limitReason = "At most 4 Scenarios can be compared.";
+    const html = renderToStaticMarkup(
+      <WorkbenchScenarioManagerV3
+        variant="embedded"
+        modelId="model/main-wire-v3"
+        scenarios={Array.from({ length: 4 }, (_, index) => ({
+          scenarioId: `scenario/${index + 1}`,
+          label: `Scenario ${index + 1}`,
+        }))}
+        activeScenarioId="scenario/1"
+        presets={[{
+          schemaId: "circleheart-studio-scenario-preset-v2",
+          presetId: "preset/healthy",
+          modelId: "model/main-wire-v3",
+          title: "Healthy",
+          description: "Baseline",
+          capture: {
+            fixture: {},
+            checkpoint: {
+              acceptedRevision: 0,
+              acceptedTimeSec: 0,
+              payload: {},
+            },
+          },
+        }]}
+        strings={{
+          ...DEFAULT_WORKBENCH_SCENARIO_MANAGER_STRINGS_V3,
+          scenarioLimitReached: limitReason,
+        }}
+        renderControllerSlot={() => null}
+        onSelectScenario={() => {}}
+        onAddFromPreset={() => {}}
+        onDuplicateScenario={() => {}}
+        onRenameScenario={() => {}}
+        onDeleteScenario={() => {}}
+      />,
+    );
+
+    expect(html.match(new RegExp(`title="${limitReason}"`, "g")))
+      .toHaveLength(5);
+    expect(html.match(/disabled=""/g)).toHaveLength(5);
   });
 
   it("keys structural auto-analysis by exact Scenario identity and retries after busy", () => {
@@ -664,11 +682,32 @@ describe("V3 Dockview Workbench", () => {
     expect([0, 1, 2, 3].map((index) =>
       workbenchPanePlacementV3(index, "tabs")))
       .toEqual(["first", "within", "within", "within"]);
-    // Desktop stays at two columns: pane 2 is standalone on the right while
-    // panes 1 and 3+ form the primary tab group on the left.
+    // Desktop stays at two columns: pane 2 starts the right-hand group and
+    // panes 3+ join its tab strip.
     expect([0, 1, 2, 3].map((index) =>
       workbenchPanePlacementV3(index, "split")))
       .toEqual(["first", "right", "within", "within"]);
+  });
+
+  it("anchors the role-owned add action immediately after the rightmost tab group", () => {
+    const panes: readonly WorkbenchPaneDefinitionV3[] = [
+      { paneId: "pane/one", role: "graph", title: "One" },
+      { paneId: "pane/two", role: "graph", title: "Two" },
+      { paneId: "pane/three", role: "graph", title: "Three" },
+    ];
+    const anchorId = workbenchAddPaneAnchorIdV3(panes);
+
+    expect(anchorId).toBe("pane/three");
+    expect(workbenchGroupOwnsAddPaneActionV3(
+      anchorId,
+      ["pane/two", "pane/three"],
+    )).toBe(true);
+    expect(workbenchGroupOwnsAddPaneActionV3(
+      anchorId,
+      ["pane/one"],
+    )).toBe(false);
+    expect(workbenchAddPaneAnchorIdV3([])).toBeUndefined();
+    expect("addPane" in DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3).toBe(false);
   });
 
   it("rejects a pane placed into a different role area", () => {

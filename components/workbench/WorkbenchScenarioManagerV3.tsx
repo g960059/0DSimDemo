@@ -9,8 +9,9 @@ import {
   X,
 } from "lucide-react";
 
-import type {
-  ScenarioPresetV2,
+import {
+  STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
+  type ScenarioPresetV2,
 } from "@/studio/contracts/v2/content";
 
 export type WorkbenchScenarioDescriptorV3 = Readonly<{
@@ -60,6 +61,7 @@ export type WorkbenchScenarioManagerStringsV3 = Readonly<{
   noPresets: string;
   preset: string;
   rename: string;
+  scenarioLimitReached: string;
   scenarioName: string;
   scenarios: string;
   title: string;
@@ -82,6 +84,7 @@ WorkbenchScenarioManagerStringsV3 = Object.freeze({
   noPresets: "No compatible Presets are available.",
   preset: "Preset",
   rename: "Rename",
+  scenarioLimitReached: "At most 4 Scenarios can be compared.",
   scenarioName: "Scenario name",
   scenarios: "Scenarios",
   title: "Scenario inspector",
@@ -208,6 +211,13 @@ export function WorkbenchScenarioManagerV3(
   const existingScenarioIds = new Set(scenarios.map(({ scenarioId }) =>
     scenarioId));
   const existingLabels = new Set(scenarios.map(({ label }) => label));
+  const scenarioLimitReason =
+    scenarios.length >= STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2
+      ? strings.scenarioLimitReached
+      : undefined;
+  const addDisabledReason = actionDisabledReasons?.add ?? scenarioLimitReason;
+  const duplicateDisabledReason =
+    actionDisabledReasons?.duplicate ?? scenarioLimitReason;
   onCloseRef.current = onClose;
 
   React.useEffect(() => {
@@ -273,7 +283,7 @@ export function WorkbenchScenarioManagerV3(
     cancelRename();
   };
   const addSelectedPreset = () => {
-    if (selectedPreset === undefined || actionDisabledReasons?.add !== undefined) {
+    if (selectedPreset === undefined || addDisabledReason !== undefined) {
       return;
     }
     onAddFromPreset({
@@ -289,7 +299,7 @@ export function WorkbenchScenarioManagerV3(
     });
   };
   const duplicate = (scenario: WorkbenchScenarioDescriptorV3) => {
-    if (actionDisabledReasons?.duplicate !== undefined) return;
+    if (duplicateDisabledReason !== undefined) return;
     const labelSeed = `${scenario.label} ${strings.copySuffix}`;
     onDuplicateScenario({
       sourceScenarioId: scenario.scenarioId,
@@ -360,9 +370,9 @@ export function WorkbenchScenarioManagerV3(
               >
                 {strings.addFromPreset}
               </h3>
-              {actionDisabledReasons?.add !== undefined && (
+              {addDisabledReason !== undefined && (
                 <span className="truncate text-[10px] text-wb-subtle">
-                  {actionDisabledReasons.add}
+                  {addDisabledReason}
                 </span>
               )}
             </div>
@@ -394,9 +404,9 @@ export function WorkbenchScenarioManagerV3(
                     className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-wb-primary px-3 text-xs font-semibold text-white hover:bg-wb-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent disabled:cursor-not-allowed disabled:opacity-40"
                     disabled={
                       selectedPreset === undefined
-                      || actionDisabledReasons?.add !== undefined
+                      || addDisabledReason !== undefined
                     }
-                    title={actionDisabledReasons?.add}
+                    title={addDisabledReason}
                     onClick={addSelectedPreset}
                   >
                     <Plus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -495,7 +505,7 @@ export function WorkbenchScenarioManagerV3(
                             </ScenarioIconButtonV3>
                             <ScenarioIconButtonV3
                               label={strings.duplicate}
-                              disabledReason={actionDisabledReasons?.duplicate}
+                              disabledReason={duplicateDisabledReason}
                               onClick={() => duplicate(scenario)}
                             >
                               <Copy className="h-3.5 w-3.5" aria-hidden="true" />

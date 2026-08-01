@@ -58,13 +58,12 @@ function snapshotV3(): ExperimentSnapshotV2 {
           paneId: "pane/pressure",
           role: "graph",
           label: "Pressure",
-          colorHex: "#ef4444",
           order: 0,
           priority: 6,
           graphId: "graph/pressure",
           windowSec: 2,
           series: [{
-            outputId: "output/lv-pressure",
+            seriesId: "series/lv-pressure",
             label: "LV",
             colorHex: "#ef4444",
             order: 0,
@@ -79,7 +78,6 @@ function snapshotV3(): ExperimentSnapshotV2 {
           items: [{
             outputId: "output/map",
             label: "MAP",
-            colorHex: "#3b82f6",
             order: 0,
           }],
         }],
@@ -108,7 +106,7 @@ describe("Article Editor V3 briefing", () => {
     ]);
   });
 
-  it("uses placement priority for prominence without copying pane labels or colors", () => {
+  it("uses placement priority without copying pane presentation into the placement", () => {
     const snapshot = snapshotV3();
     const placement: ExperimentPlacementV2 = {
       schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
@@ -126,19 +124,21 @@ describe("Article Editor V3 briefing", () => {
     expect(resolveArticlePlacementPanesV3(placement, snapshot).map((item) => ({
       paneId: item.pane.paneId,
       label: item.pane.label,
-      colorHex: item.pane.role === "graph" ? item.pane.colorHex : undefined,
+      seriesColors: item.pane.role === "graph"
+        ? item.pane.series.map(({ colorHex }) => colorHex)
+        : [],
       priority: item.priority,
     }))).toEqual([
       {
         paneId: "pane/outputs",
         label: "Outputs",
-        colorHex: undefined,
+        seriesColors: [],
         priority: 9,
       },
       {
         paneId: "pane/pressure",
         label: "Pressure",
-        colorHex: "#ef4444",
+        seriesColors: ["#ef4444"],
         priority: 1,
       },
     ]);

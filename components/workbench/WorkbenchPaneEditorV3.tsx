@@ -2,7 +2,6 @@ import React from "react";
 import { createPortal } from "react-dom";
 import {
   Check,
-  Plus,
   Trash2,
   X,
 } from "lucide-react";
@@ -22,11 +21,10 @@ import type {
 } from "@/studio/contracts/v2/model";
 import {
   controlLabelV3,
+  graphSeriesColorV3,
+  graphSeriesLabelV3,
   graphTitleV3,
-  outputColorV3,
   outputLabelV3,
-  workbenchDefaultSweepOutputIdsV3,
-  workbenchSweepCompatibleOutputsV3,
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
   WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3,
   WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3,
@@ -50,7 +48,6 @@ export type WorkbenchPaneIdentityV3 = Readonly<{
 }>;
 
 export type WorkbenchPaneEditorStringsV3 = Readonly<{
-  addPane: string;
   close: string;
   color: string;
   controlCatalog: string;
@@ -69,7 +66,6 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
 
 export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3:
 WorkbenchPaneEditorStringsV3 = Object.freeze({
-  addPane: "Add custom pane",
   close: "Close pane settings",
   color: "Color",
   controlCatalog: "Parameters",
@@ -148,8 +144,12 @@ export function selectWorkbenchGraphV3(
     (pane) => {
       if (pane.role !== "graph") return pane;
       const { windowSec: _previousWindowSec, ...basePane } = pane;
+      const previousDefaultLabel = graphTitleV3(pane.graphId);
       return {
         ...basePane,
+        label: pane.label === previousDefaultLabel
+          ? graphTitleV3(graph.graphId)
+          : pane.label,
         graphId: graph.graphId,
         ...(graph.renderer === "sweep"
           ? { windowSec: WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 }
@@ -164,7 +164,6 @@ export function addWorkbenchSurfacePaneV3(
   surface: ExperimentSurfaceV2,
   kind: WorkbenchPaneIdentityV3["kind"],
   contract: ModelContractV2,
-  currentScenarioId: string,
 ): Readonly<{
   surface: ExperimentSurfaceV2;
   selectedPane: WorkbenchPaneIdentityV3 | null;
@@ -185,16 +184,10 @@ export function addWorkbenchSurfacePaneV3(
   if (kind === "graph") {
     const graph = preferredNewGraphV3(contract);
     if (graph === undefined) return { surface, selectedPane: null };
-    const sourceOutputId = graph.renderer === "pressure-volume"
-      ? graph.pressureOutputId
-      : graph.outputIds[0];
     const pane: ExperimentSurfaceGraphPaneV2 = {
       paneId,
       role: "graph",
       label: graphTitleV3(graph.graphId),
-      colorHex: sourceOutputId === undefined
-        ? "#64748b"
-        : outputColorV3(sourceOutputId),
       order,
       priority,
       graphId: graph.graphId,
@@ -219,7 +212,6 @@ export function addWorkbenchSurfacePaneV3(
       items: contract.outputCatalog.slice(0, 1).map((output) => ({
         outputId: output.outputId,
         label: outputLabelV3(output.outputId),
-        colorHex: outputColorV3(output.outputId),
         order: 0,
       })),
     };
@@ -238,8 +230,6 @@ export function addWorkbenchSurfacePaneV3(
     items: contract.controlCatalog.slice(0, 1).map((control) => ({
       controlId: control.controlId,
       label: controlLabelV3(control.controlId),
-      colorHex: outputColorV3(control.controlId),
-      targetScenarioIds: [currentScenarioId],
       order: 0,
     })),
   };
@@ -279,7 +269,6 @@ export function WorkbenchPaneEditorV3({
   selectedPane,
   contract,
   surface,
-  currentScenarioId,
   strings,
   onChange,
   onClose,
@@ -289,7 +278,6 @@ export function WorkbenchPaneEditorV3({
   selectedPane: WorkbenchPaneIdentityV3;
   contract: ModelContractV2;
   surface: ExperimentSurfaceV2;
-  currentScenarioId: string;
   strings: WorkbenchPaneEditorStringsV3;
   onChange: (surface: ExperimentSurfaceV2) => void;
   onClose: () => void;
@@ -352,24 +340,11 @@ export function WorkbenchPaneEditorV3({
 
   if (!open || typeof document === "undefined") return null;
   const pane = findWorkbenchSurfacePaneV3(surface, selectedPane);
-  const canAdd = selectedPane.kind !== "graph"
-    || preferredNewGraphV3(contract) !== undefined;
 
   const updateSelectedPane = (
     update: (candidate: AnySurfacePaneV3) => AnySurfacePaneV3,
   ) => onChange(updateWorkbenchSurfacePaneV3(surface, selectedPane, update));
 
-  const addPane = () => {
-    const result = addWorkbenchSurfacePaneV3(
-      surface,
-      selectedPane.kind,
-      contract,
-      currentScenarioId,
-    );
-    if (result.surface === surface || result.selectedPane === null) return;
-    onChange(result.surface);
-    onSelectedPaneChange?.(result.selectedPane);
-  };
   const deletePane = () => {
     const result = deleteWorkbenchSurfacePaneV3(surface, selectedPane);
     if (!result.deleted) return;
@@ -401,13 +376,6 @@ export function WorkbenchPaneEditorV3({
         className="workbench-sheet-enter flex max-h-[min(88dvh,48rem)] w-full flex-col overflow-hidden rounded-t-2xl bg-wb-panel text-wb-text shadow-2xl outline-none sm:max-w-xl sm:rounded-xl sm:ring-1 sm:ring-wb-line"
       >
         <header className="flex min-h-14 shrink-0 items-center gap-3 px-4 py-3 sm:px-5">
-          {pane?.role === "graph" && (
-            <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: pane.colorHex }}
-              aria-hidden="true"
-            />
-          )}
           <div className="min-w-0 flex-1">
             <h2 id={titleId} className="truncate text-sm font-semibold">
               {strings.title}
@@ -432,17 +400,11 @@ export function WorkbenchPaneEditorV3({
             <div className="space-y-6">
               <PanePresentationEditorV3
                 label={pane.label}
-                colorHex={pane.role === "graph" ? pane.colorHex : undefined}
                 strings={strings}
                 onLabelChange={(label) => updateSelectedPane((candidate) => ({
                   ...candidate,
                   label,
                 }))}
-                onColorChange={pane.role === "graph"
-                  ? (colorHex) => updateSelectedPane((candidate) => candidate.role === "graph"
-                    ? { ...candidate, colorHex }
-                    : candidate)
-                  : undefined}
               />
 
               {pane.role === "graph" && (
@@ -471,7 +433,6 @@ export function WorkbenchPaneEditorV3({
                 <ControlPaneEditorV3
                   contract={contract}
                   pane={pane}
-                  currentScenarioId={currentScenarioId}
                   strings={strings}
                   onChange={(nextPane) => updateSelectedPane(() => nextPane)}
                 />
@@ -480,16 +441,7 @@ export function WorkbenchPaneEditorV3({
           )}
         </div>
 
-        <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-wb-line px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-5">
-          <button
-            type="button"
-            className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 text-xs font-medium text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={!canAdd}
-            onClick={addPane}
-          >
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            {strings.addPane}
-          </button>
+        <footer className="flex shrink-0 items-center justify-end border-t border-wb-line px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-5">
           <button
             type="button"
             className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 text-xs font-medium text-wb-muted hover:bg-red-500/10 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-35"
@@ -509,34 +461,20 @@ export function WorkbenchPaneEditorV3({
 
 function PanePresentationEditorV3({
   label,
-  colorHex,
   strings,
   onLabelChange,
-  onColorChange,
 }: Readonly<{
   label: string;
-  colorHex: string | undefined;
   strings: WorkbenchPaneEditorStringsV3;
   onLabelChange: (label: string) => void;
-  onColorChange: ((colorHex: string) => void) | undefined;
 }>) {
   return (
-    <div className={colorHex === undefined
-      ? "grid grid-cols-1"
-      : "grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3"}
-    >
+    <div className="grid grid-cols-1">
       <CommitTextInputV3
         label={strings.label}
         value={label}
         onCommit={onLabelChange}
       />
-      {colorHex !== undefined && onColorChange !== undefined && (
-        <ColorInputV3
-          label={strings.color}
-          value={colorHex}
-          onChange={onColorChange}
-        />
-      )}
     </div>
   );
 }
@@ -556,10 +494,6 @@ function GraphPaneEditorV3({
 }>) {
   const graph = contract.graphCatalog.find(({ graphId }) =>
     graphId === pane.graphId);
-  const scalarOutputs = workbenchSweepCompatibleOutputsV3(
-    pane.series,
-    contract,
-  );
   return (
     <section className="space-y-4">
       <EditorSectionHeadingV3>{strings.graphCatalog}</EditorSectionHeadingV3>
@@ -575,28 +509,30 @@ function GraphPaneEditorV3({
         ))}
       </select>
 
-      {graph?.renderer === "sweep" ? (
+      {graph !== undefined && graph.renderer !== "structural-return" ? (
         <>
-          <div className="grid gap-1.5">
-            <CommitNumberInputV3
-              label={strings.windowSec}
-              value={pane.windowSec ?? WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3}
-              minimum={WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3}
-              maximum={WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3}
-              step={WORKBENCH_SWEEP_WINDOW_STEP_SEC_V3}
-              onCommit={(windowSec) => onChange({ ...pane, windowSec })}
-            />
-            <p className="text-[10px] text-wb-subtle">{strings.windowSecHint}</p>
-          </div>
+          {graph.renderer === "sweep" && (
+            <div className="grid gap-1.5">
+              <CommitNumberInputV3
+                label={strings.windowSec}
+                value={pane.windowSec ?? WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3}
+                minimum={WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3}
+                maximum={WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3}
+                step={WORKBENCH_SWEEP_WINDOW_STEP_SEC_V3}
+                onCommit={(windowSec) => onChange({ ...pane, windowSec })}
+              />
+              <p className="text-[10px] text-wb-subtle">{strings.windowSecHint}</p>
+            </div>
+          )}
           <CatalogSelectionV3
             title={strings.seriesCatalog}
             emptyText={strings.emptyCatalog}
-            entries={scalarOutputs.map((output) => {
-              const selectedItem = pane.series.find(({ outputId }) =>
-                outputId === output.outputId);
+            entries={graph.seriesCatalog.map((series) => {
+              const selectedItem = pane.series.find(({ seriesId }) =>
+                seriesId === series.seriesId);
               return {
-                id: output.outputId,
-                defaultLabel: outputLabelV3(output.outputId),
+                id: series.seriesId,
+                defaultLabel: graphSeriesLabelV3(series.seriesId),
                 label: selectedItem?.label,
                 colorHex: selectedItem?.colorHex,
                 selected: selectedItem !== undefined,
@@ -605,35 +541,35 @@ function GraphPaneEditorV3({
               };
             })}
             strings={strings}
-            onToggle={(outputId) => {
+            onToggle={(seriesId) => {
               const existing = pane.series.find((series) =>
-                series.outputId === outputId);
+                series.seriesId === seriesId);
               if (existing !== undefined) {
                 if (pane.series.length === 1) return;
                 onChange({
                   ...pane,
                   series: pane.series.filter((series) =>
-                    series.outputId !== outputId),
+                    series.seriesId !== seriesId),
                 });
                 return;
               }
               const next: ExperimentSurfaceGraphSeriesV2 = {
-                outputId,
-                label: outputLabelV3(outputId),
-                colorHex: outputColorV3(outputId),
+                seriesId,
+                label: graphSeriesLabelV3(seriesId),
+                colorHex: graphSeriesColorV3(seriesId),
                 order: nextOrderV3(pane.series),
               };
               onChange({ ...pane, series: [...pane.series, next] });
             }}
-            onLabelChange={(outputId, label) => onChange({
+            onLabelChange={(seriesId, label) => onChange({
               ...pane,
-              series: pane.series.map((series) => series.outputId === outputId
+              series: pane.series.map((series) => series.seriesId === seriesId
                 ? { ...series, label }
                 : series),
             })}
-            onColorChange={(outputId, colorHex) => onChange({
+            onColorChange={(seriesId, colorHex) => onChange({
               ...pane,
-              series: pane.series.map((series) => series.outputId === outputId
+              series: pane.series.map((series) => series.seriesId === seriesId
                 ? { ...series, colorHex }
                 : series),
             })}
@@ -670,7 +606,6 @@ function OutputPaneEditorV3({
           id: output.outputId,
           defaultLabel: outputLabelV3(output.outputId),
           label: selectedItem?.label,
-          colorHex: selectedItem?.colorHex,
           selected: selectedItem !== undefined,
           disableDeselect: false,
         };
@@ -688,7 +623,6 @@ function OutputPaneEditorV3({
         const next: ExperimentSurfaceOutputItemV2 = {
           outputId,
           label: outputLabelV3(outputId),
-          colorHex: outputColorV3(outputId),
           order: nextOrderV3(pane.items),
         };
         onChange({ ...pane, items: [...pane.items, next] });
@@ -699,12 +633,6 @@ function OutputPaneEditorV3({
           ? { ...item, label }
           : item),
       })}
-      onColorChange={(outputId, colorHex) => onChange({
-        ...pane,
-        items: pane.items.map((item) => item.outputId === outputId
-          ? { ...item, colorHex }
-          : item),
-      })}
     />
   );
 }
@@ -712,13 +640,11 @@ function OutputPaneEditorV3({
 function ControlPaneEditorV3({
   contract,
   pane,
-  currentScenarioId,
   strings,
   onChange,
 }: Readonly<{
   contract: ModelContractV2;
   pane: ExperimentSurfaceControlPaneV2;
-  currentScenarioId: string;
   strings: WorkbenchPaneEditorStringsV3;
   onChange: (pane: ExperimentSurfaceControlPaneV2) => void;
 }>) {
@@ -733,7 +659,6 @@ function ControlPaneEditorV3({
           id: control.controlId,
           defaultLabel: controlLabelV3(control.controlId),
           label: selectedItem?.label,
-          colorHex: selectedItem?.colorHex,
           selected: selectedItem !== undefined,
           disableDeselect: false,
         };
@@ -751,8 +676,6 @@ function ControlPaneEditorV3({
         const next: ExperimentSurfaceControlItemV2 = {
           controlId,
           label: controlLabelV3(controlId),
-          colorHex: outputColorV3(controlId),
-          targetScenarioIds: [currentScenarioId],
           order: nextOrderV3(pane.items),
         };
         onChange({ ...pane, items: [...pane.items, next] });
@@ -763,12 +686,6 @@ function ControlPaneEditorV3({
           ? { ...item, label }
           : item),
       })}
-      onColorChange={(controlId, colorHex) => onChange({
-        ...pane,
-        items: pane.items.map((item) => item.controlId === controlId
-          ? { ...item, colorHex }
-          : item),
-      })}
     />
   );
 }
@@ -777,7 +694,7 @@ type CatalogSelectionEntryV3 = Readonly<{
   id: string;
   defaultLabel: string;
   label: string | undefined;
-  colorHex: string | undefined;
+  colorHex?: string;
   selected: boolean;
   disableDeselect: boolean;
 }>;
@@ -797,7 +714,7 @@ function CatalogSelectionV3({
   strings: WorkbenchPaneEditorStringsV3;
   onToggle: (id: string) => void;
   onLabelChange: (id: string, label: string) => void;
-  onColorChange: (id: string, colorHex: string) => void;
+  onColorChange?: (id: string, colorHex: string) => void;
 }>) {
   return (
     <section className="space-y-2">
@@ -849,19 +766,24 @@ function CatalogSelectionV3({
                   </span>
                 </button>
               </div>
-              {entry.selected && entry.label !== undefined
-                && entry.colorHex !== undefined && (
-                <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 pl-10">
+              {entry.selected && entry.label !== undefined && (
+                <div className={entry.colorHex !== undefined
+                  && onColorChange !== undefined
+                  ? "mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 pl-10"
+                  : "mt-2 grid grid-cols-1 pl-10"}
+                >
                   <CommitTextInputV3
                     label={strings.label}
                     value={entry.label}
                     onCommit={(label) => onLabelChange(entry.id, label)}
                   />
-                  <ColorInputV3
-                    label={strings.color}
-                    value={entry.colorHex}
-                    onChange={(colorHex) => onColorChange(entry.id, colorHex)}
-                  />
+                  {entry.colorHex !== undefined && onColorChange !== undefined && (
+                    <ColorInputV3
+                      label={strings.color}
+                      value={entry.colorHex}
+                      onChange={(colorHex) => onColorChange(entry.id, colorHex)}
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -1013,14 +935,13 @@ function EditorSectionHeadingV3({ children }: Readonly<{
 
 function defaultSeriesForGraphV3(
   graph: GraphDefinitionV2,
-  contract: ModelContractV2,
+  _contract: ModelContractV2,
 ): readonly ExperimentSurfaceGraphSeriesV2[] {
-  if (graph.renderer !== "sweep") return [];
-  const selectedIds = workbenchDefaultSweepOutputIdsV3(graph, contract);
-  return selectedIds.map((outputId, order) => ({
-    outputId,
-    label: outputLabelV3(outputId),
-    colorHex: outputColorV3(outputId),
+  if (graph.renderer === "structural-return") return [];
+  return graph.defaultSeriesIds.map((seriesId, order) => ({
+    seriesId,
+    label: graphSeriesLabelV3(seriesId),
+    colorHex: graphSeriesColorV3(seriesId),
     order,
   }));
 }
@@ -1031,7 +952,8 @@ function preferredNewGraphV3(
   const hasScalarOutput = contract.outputCatalog.some(({ shape }) =>
     shape === "scalar");
   return contract.graphCatalog.find((graph) =>
-    graph.renderer !== "sweep"
+    graph.renderer === "structural-return"
+    || graph.renderer === "pressure-volume"
     || hasScalarOutput);
 }
 

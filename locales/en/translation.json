@@ -108,13 +108,13 @@
       "home": "Home",
       "articles": "Articles",
       "paneLabel": "Pane label",
-      "paneColor": "Color",
+      "seriesColor": "Series color",
       "addPane": "Add pane",
       "deletePane": "Delete pane",
       "emptyPaneArea": "No panes selected",
       "emptyCatalog": "No registered items are available.",
-      "noConfigurableSeries": "This graph owns its axes and has no configurable waveform series.",
-      "series": "Series",
+      "noConfigurableSeries": "This graph owns its structural axes and has no configurable series.",
+      "series": "Graph series",
       "windowSec": "Waveform window",
       "windowSecHint": "1–6 seconds in 0.5 second steps",
       "items": "Items",
@@ -140,6 +140,7 @@
         "noPresets": "No compatible Presets are available.",
         "preset": "Preset",
         "rename": "Rename",
+        "scenarioLimitReached": "At most 4 Scenarios can be compared.",
         "scenarioName": "Scenario name",
         "scenarios": "Scenarios",
         "title": "Scenario inspector"
@@ -224,7 +225,8 @@
       "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",
       "A 0D lumped-parameter model cannot resolve spatial blood flow, local wall stress, or three-dimensional hemodynamics.",
       "The current exact V3 package is an experimental development default. It does not claim release readiness, simulation readiness, or clinical validation.",
-      "Parameters and outputs are approximations and require validation for each intended scientific use."
+      "Parameters and outputs are approximations and require validation for each intended scientific use.",
+      "The end-systolic radial and Klotz-informed diastolic curves on a PV loop are orientation references, not formal ESPVR or EDPVR estimates."
     ]
   }
 }

@@ -635,30 +635,80 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     ));
     expect("parameterCatalog" in modelPackage.manifest.catalogs).toBe(false);
     expect(JSON.stringify(modelPackage.manifest)).not.toMatch(/ParameterSet/);
-    expect(modelPackage.manifest.catalogs.graphCatalog).toHaveLength(10);
+    expect(modelPackage.manifest.catalogs.graphCatalog).toHaveLength(7);
+    expect(modelPackage.manifest.catalogs.graphCatalog[0]).toMatchObject({
+      graphId: "hemodynamics.pressure.left-heart",
+      renderer: "sweep",
+      defaultSeriesIds: ["LVP", "LAP", "AoP"],
+      seriesCatalog: [
+        {
+          kind: "scalar",
+          seriesId: "LVP",
+          outputId: "hemodynamics.pressure.absolute.LV",
+        },
+        {
+          kind: "scalar",
+          seriesId: "LAP",
+          outputId: "hemodynamics.pressure.absolute.LA",
+        },
+        {
+          kind: "scalar",
+          seriesId: "AoP",
+          outputId: "hemodynamics.pressure.absolute.Ao",
+        },
+      ],
+    });
     expect(modelPackage.manifest.catalogs.graphCatalog.filter(
       ({ renderer }) => renderer === "pressure-volume",
-    ).map((graph) => ({
-      graphId: graph.graphId,
-      guideMode: graph.renderer === "pressure-volume"
-        ? graph.guideMode
-        : null,
-    }))).toEqual([
-      { graphId: "hemodynamics.pressure-volume.LA", guideMode: "none" },
-      {
-        graphId: "hemodynamics.pressure-volume.LV",
-        guideMode: "lv-single-beat-orientation",
-      },
-      { graphId: "hemodynamics.pressure-volume.RA", guideMode: "none" },
-      { graphId: "hemodynamics.pressure-volume.RV", guideMode: "none" },
-    ]);
+    )).toEqual([{
+      graphId: "hemodynamics.pressure-volume",
+      renderer: "pressure-volume",
+      defaultSeriesIds: ["LV"],
+      seriesCatalog: [
+        {
+          kind: "pressure-volume",
+          seriesId: "LV",
+          volumeOutputId: "hemodynamics.volume.LV",
+          pressureOutputId: "hemodynamics.pressure.transmural.LV",
+          pressureBasis: "transmural",
+          cyclePhaseOutputId: "rhythm.phase.regular-sinus",
+          guideMode: "lv-single-beat-orientation",
+        },
+        {
+          kind: "pressure-volume",
+          seriesId: "RV",
+          volumeOutputId: "hemodynamics.volume.RV",
+          pressureOutputId: "hemodynamics.pressure.transmural.RV",
+          pressureBasis: "transmural",
+          cyclePhaseOutputId: "rhythm.phase.regular-sinus",
+          guideMode: "none",
+        },
+        {
+          kind: "pressure-volume",
+          seriesId: "RA",
+          volumeOutputId: "hemodynamics.volume.RA",
+          pressureOutputId: "hemodynamics.pressure.transmural.RA",
+          pressureBasis: "transmural",
+          cyclePhaseOutputId: "rhythm.phase.regular-sinus",
+          guideMode: "none",
+        },
+        {
+          kind: "pressure-volume",
+          seriesId: "LA",
+          volumeOutputId: "hemodynamics.volume.LA",
+          pressureOutputId: "hemodynamics.pressure.transmural.LA",
+          pressureBasis: "transmural",
+          cyclePhaseOutputId: "rhythm.phase.regular-sinus",
+          guideMode: "none",
+        },
+      ],
+    }]);
     expect(modelPackage.manifest.catalogs.graphCatalog.filter(
       ({ renderer }) => renderer === "structural-return",
     )).toEqual([
       {
         graphId: "hemodynamics.structural-return.systemic",
         renderer: "structural-return",
-        outputIds: [],
         analysisId:
           MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
         side: "right",
@@ -666,7 +716,6 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       {
         graphId: "hemodynamics.structural-return.pulmonary",
         renderer: "structural-return",
-        outputIds: [],
         analysisId:
           MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
         side: "left",

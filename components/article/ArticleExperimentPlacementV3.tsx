@@ -200,21 +200,11 @@ function ArticleStaticPanePreviewV3({
   return (
     <article
       className={`min-w-0 rounded-xl bg-wb-panel p-3.5 ${prominent ? "md:col-span-2" : ""}`}
-      style={pane.role === "graph"
-        ? { boxShadow: `inset 2px 0 0 ${pane.colorHex}` }
-        : undefined}
       data-pane-id={pane.paneId}
       data-pane-priority={priority}
       data-pane-role={pane.role}
     >
       <header className="flex items-center gap-2">
-        {pane.role === "graph" && (
-          <span
-            className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ backgroundColor: pane.colorHex }}
-            aria-hidden="true"
-          />
-        )}
         <h3 className="min-w-0 flex-1 truncate text-[11px] font-semibold">
           {pane.label}
         </h3>
@@ -226,14 +216,9 @@ function ArticleStaticPanePreviewV3({
       {pane.role === "graph" && (
         <div className="mt-3 rounded-lg bg-wb-app/55 px-3 py-4">
           <div className="flex min-h-12 flex-wrap content-center gap-x-3 gap-y-2">
-            {(pane.series.length > 0 ? pane.series : [{
-              outputId: pane.graphId,
-              label: pane.label,
-              colorHex: pane.colorHex,
-              order: 0,
-            }]).map((series) => (
+            {pane.series.map((series) => (
               <span
-                key={series.outputId}
+                key={series.seriesId}
                 className="inline-flex items-center gap-1.5 text-[10px] text-wb-muted"
               >
                 <span
@@ -256,11 +241,6 @@ function ArticleStaticPanePreviewV3({
           {pane.items.map((item) => (
             <div key={item.outputId} className="min-w-0">
               <dt className="flex items-center gap-1.5 truncate text-[9px] text-wb-muted">
-                <span
-                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: item.colorHex }}
-                  aria-hidden="true"
-                />
                 {item.label}
               </dt>
               <dd className="mt-0.5 font-mono text-sm text-wb-subtle">—</dd>
@@ -273,15 +253,7 @@ function ArticleStaticPanePreviewV3({
         <ul className="mt-3 grid gap-2">
           {pane.items.map((item) => (
             <li key={item.controlId} className="flex items-center gap-2 text-[10px] text-wb-muted">
-              <span
-                className="h-1.5 w-1.5 shrink-0 rounded-full"
-                style={{ backgroundColor: item.colorHex }}
-                aria-hidden="true"
-              />
               <span className="min-w-0 flex-1 truncate">{item.label}</span>
-              <span className="text-wb-subtle">
-                {t("articleEditor.scenarioCount", { count: item.targetScenarioIds.length })}
-              </span>
             </li>
           ))}
         </ul>
@@ -367,13 +339,6 @@ function ArticleBriefingEditorV3({
                   onChange={(event) => updatePanePick(pane, event.currentTarget.checked)}
                   className="h-3.5 w-3.5 accent-wb-accent"
                 />
-                {pane.role === "graph" && (
-                  <span
-                    className="h-1.5 w-1.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: pane.colorHex }}
-                    aria-hidden="true"
-                  />
-                )}
                 <span className="min-w-0 flex-1 truncate text-[11px] font-medium">
                   {pane.label}
                 </span>

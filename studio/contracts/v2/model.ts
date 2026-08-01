@@ -35,26 +35,47 @@ export type ControlDefinitionV2 = Readonly<{
   changeSemantics: "reset";
 }>;
 
+export type ScalarGraphSeriesDefinitionV2 = Readonly<{
+  kind: "scalar";
+  seriesId: string;
+  outputId: string;
+}>;
+
+export type PressureVolumePressureBasisV2 =
+  | "transmural"
+  | "intracavitary";
+
+export type PressureVolumeGraphSeriesDefinitionV2 = Readonly<{
+  kind: "pressure-volume";
+  seriesId: string;
+  volumeOutputId: string;
+  pressureOutputId: string;
+  pressureBasis: PressureVolumePressureBasisV2;
+  cyclePhaseOutputId: string;
+  guideMode: "none" | "lv-single-beat-orientation";
+}>;
+
+export type GraphSeriesDefinitionV2 =
+  | ScalarGraphSeriesDefinitionV2
+  | PressureVolumeGraphSeriesDefinitionV2;
+
 export type SweepGraphDefinitionV2 = Readonly<{
   graphId: string;
   renderer: "sweep";
-  outputIds: readonly string[];
+  seriesCatalog: readonly ScalarGraphSeriesDefinitionV2[];
+  defaultSeriesIds: readonly string[];
 }>;
 
 export type PressureVolumeGraphDefinitionV2 = Readonly<{
   graphId: string;
   renderer: "pressure-volume";
-  outputIds: readonly string[];
-  volumeOutputId: string;
-  pressureOutputId: string;
-  cyclePhaseOutputId: string;
-  guideMode: "none" | "lv-single-beat-orientation";
+  seriesCatalog: readonly PressureVolumeGraphSeriesDefinitionV2[];
+  defaultSeriesIds: readonly string[];
 }>;
 
 export type StructuralReturnGraphDefinitionV2 = Readonly<{
   graphId: string;
   renderer: "structural-return";
-  outputIds: readonly [];
   analysisId: string;
   side: "right" | "left";
 }>;
@@ -230,25 +251,36 @@ const CONTROL_KEYS_V2 = Object.freeze([
   "valueType",
 ]);
 const SWEEP_GRAPH_KEYS_V2 = Object.freeze([
+  "defaultSeriesIds",
   "graphId",
-  "outputIds",
   "renderer",
+  "seriesCatalog",
 ]);
 const PRESSURE_VOLUME_GRAPH_KEYS_V2 = Object.freeze([
-  "cyclePhaseOutputId",
+  "defaultSeriesIds",
   "graphId",
-  "guideMode",
-  "outputIds",
-  "pressureOutputId",
   "renderer",
-  "volumeOutputId",
+  "seriesCatalog",
 ]);
 const STRUCTURAL_RETURN_GRAPH_KEYS_V2 = Object.freeze([
   "analysisId",
   "graphId",
-  "outputIds",
   "renderer",
   "side",
+]);
+const SCALAR_GRAPH_SERIES_KEYS_V2 = Object.freeze([
+  "kind",
+  "outputId",
+  "seriesId",
+]);
+const PRESSURE_VOLUME_GRAPH_SERIES_KEYS_V2 = Object.freeze([
+  "cyclePhaseOutputId",
+  "guideMode",
+  "kind",
+  "pressureBasis",
+  "pressureOutputId",
+  "seriesId",
+  "volumeOutputId",
 ]);
 const SIGNAL_OUTPUT_KEYS_V2 = Object.freeze([
   "kind",
@@ -419,14 +451,23 @@ export function deriveModelContractFromManifestV2(
           return Object.freeze({
             graphId: graph.graphId,
             renderer: graph.renderer,
-            outputIds: Object.freeze(copyArrayByIndexV2(graph.outputIds)),
+            seriesCatalog: Object.freeze(mapArrayByIndexV2(
+              graph.seriesCatalog,
+              (series) => Object.freeze({
+                kind: series.kind,
+                seriesId: series.seriesId,
+                outputId: series.outputId,
+              }),
+            )),
+            defaultSeriesIds: Object.freeze(copyArrayByIndexV2(
+              graph.defaultSeriesIds,
+            )),
           });
         }
         if (graph.renderer === "structural-return") {
           return Object.freeze({
             graphId: graph.graphId,
             renderer: graph.renderer,
-            outputIds: Object.freeze([]) as readonly [],
             analysisId: graph.analysisId,
             side: graph.side,
           });
@@ -434,11 +475,21 @@ export function deriveModelContractFromManifestV2(
         return Object.freeze({
           graphId: graph.graphId,
           renderer: graph.renderer,
-          outputIds: Object.freeze(copyArrayByIndexV2(graph.outputIds)),
-          volumeOutputId: graph.volumeOutputId,
-          pressureOutputId: graph.pressureOutputId,
-          cyclePhaseOutputId: graph.cyclePhaseOutputId,
-          guideMode: graph.guideMode,
+          seriesCatalog: Object.freeze(mapArrayByIndexV2(
+            graph.seriesCatalog,
+            (series) => Object.freeze({
+              kind: series.kind,
+              seriesId: series.seriesId,
+              volumeOutputId: series.volumeOutputId,
+              pressureOutputId: series.pressureOutputId,
+              pressureBasis: series.pressureBasis,
+              cyclePhaseOutputId: series.cyclePhaseOutputId,
+              guideMode: series.guideMode,
+            }),
+          )),
+          defaultSeriesIds: Object.freeze(copyArrayByIndexV2(
+            graph.defaultSeriesIds,
+          )),
         });
       },
     )),
@@ -958,12 +1009,6 @@ function assertGraphCatalogV2(
     }
     graphIds.add(graphId);
     if (graph.renderer === "structural-return") {
-      if (!Array.isArray(graph.outputIds) || graph.outputIds.length !== 0) {
-        throw new ModelContractValidationErrorV2(
-          `${definitionPath}.outputIds`,
-          "must be an exact empty array for on-demand structural analysis",
-        );
-      }
       assertPortableModelIdentifierV2(
         graph.analysisId,
         `${definitionPath}.analysisId`,
@@ -974,101 +1019,255 @@ function assertGraphCatalogV2(
           'must be "right" or "left"',
         );
       }
-    } else {
-      assertKnownIdArrayV2(
-        graph.outputIds,
-        `${definitionPath}.outputIds`,
-        outputCatalog.ids,
-        "output",
+      continue;
+    }
+
+    const seriesIds = graph.renderer === "sweep"
+      ? assertScalarGraphSeriesCatalogV2(
+        graph.seriesCatalog,
+        `${definitionPath}.seriesCatalog`,
+        outputCatalog,
+      )
+      : assertPressureVolumeGraphSeriesCatalogV2(
+        graph.seriesCatalog,
+        `${definitionPath}.seriesCatalog`,
+        outputCatalog,
       );
-      if (graph.renderer === "sweep") {
-        let sharedUnit: string | undefined;
-        const sweepOutputIds = graph.outputIds as readonly string[];
-        for (
-          let outputIndex = 0;
-          outputIndex < sweepOutputIds.length;
-          outputIndex += 1
-        ) {
-          const outputId = sweepOutputIds[outputIndex]!;
-          const output = outputCatalog.definitionsById.get(outputId)!;
-          if (output.shape !== "scalar") {
-            throw new ModelContractValidationErrorV2(
-              `${definitionPath}.outputIds[${outputIndex}]`,
-              `sweep output ${outputId} must be scalar`,
-            );
-          }
-          if (sharedUnit === undefined) {
-            sharedUnit = output.unit;
-          } else if (output.unit !== sharedUnit) {
-            throw new ModelContractValidationErrorV2(
-              `${definitionPath}.outputIds[${outputIndex}]`,
-              `sweep outputs must share one unit; expected ${sharedUnit} but ${outputId} uses ${output.unit}`,
-            );
-          }
-        }
-      }
-    }
-    if (graph.renderer === "pressure-volume") {
-      const graphOutputIds = new Set(graph.outputIds as readonly string[]);
-      for (const key of [
-        "volumeOutputId",
-        "pressureOutputId",
-        "cyclePhaseOutputId",
-      ] as const) {
-        const outputId = graph[key];
-        assertPortableModelIdentifierV2(
-          outputId,
-          `${definitionPath}.${key}`,
-        );
-        if (!graphOutputIds.has(outputId as string)) {
-          throw new ModelContractValidationErrorV2(
-            `${definitionPath}.${key}`,
-            "must reference an output included by this graph",
-          );
-        }
-      }
-      if (
-        graph.guideMode !== "none"
-        && graph.guideMode !== "lv-single-beat-orientation"
-      ) {
-        throw new ModelContractValidationErrorV2(
-          `${definitionPath}.guideMode`,
-          'must be "none" or "lv-single-beat-orientation"',
-        );
-      }
-    }
+    assertDefaultGraphSeriesIdsV2(
+      graph.defaultSeriesIds,
+      `${definitionPath}.defaultSeriesIds`,
+      seriesIds,
+    );
   }
 }
 
-function assertKnownIdArrayV2(
+function assertScalarGraphSeriesCatalogV2(
   value: unknown,
   path: string,
-  knownIds: ReadonlySet<string>,
-  kind: "output",
+  outputCatalog: ValidatedOutputCatalogV2,
+): ReadonlySet<string> {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new ModelContractValidationErrorV2(
+      path,
+      "must be a nonempty array of scalar graph series",
+    );
+  }
+  const seriesIds = new Set<string>();
+  const outputIds = new Set<string>();
+  let sharedUnit: string | undefined;
+  for (let index = 0; index < value.length; index += 1) {
+    const series = requiredGraphSeriesRecordV2(value[index], `${path}[${index}]`);
+    assertExactKeysV2(series, `${path}[${index}]`, SCALAR_GRAPH_SERIES_KEYS_V2);
+    if (series.kind !== "scalar") {
+      throw new ModelContractValidationErrorV2(
+        `${path}[${index}].kind`,
+        'must be "scalar"',
+      );
+    }
+    const seriesId = requiredUniqueGraphSeriesIdV2(
+      series.seriesId,
+      `${path}[${index}].seriesId`,
+      seriesIds,
+    );
+    const output = requiredScalarGraphOutputV2(
+      series.outputId,
+      `${path}[${index}].outputId`,
+      outputCatalog,
+    );
+    if (outputIds.has(series.outputId as string)) {
+      throw new ModelContractValidationErrorV2(
+        `${path}[${index}].outputId`,
+        `duplicate scalar output binding ${series.outputId}`,
+      );
+    }
+    outputIds.add(series.outputId as string);
+    if (sharedUnit === undefined) {
+      sharedUnit = output.unit;
+    } else if (output.unit !== sharedUnit) {
+      throw new ModelContractValidationErrorV2(
+        `${path}[${index}].outputId`,
+        `sweep series must share one unit; expected ${sharedUnit} but ${seriesId} uses ${output.unit}`,
+      );
+    }
+  }
+  return seriesIds;
+}
+
+function assertPressureVolumeGraphSeriesCatalogV2(
+  value: unknown,
+  path: string,
+  outputCatalog: ValidatedOutputCatalogV2,
+): ReadonlySet<string> {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new ModelContractValidationErrorV2(
+      path,
+      "must be a nonempty array of pressure-volume graph series",
+    );
+  }
+  const seriesIds = new Set<string>();
+  const bindings = new Set<string>();
+  const roleUnits: Partial<Record<
+    "volumeOutputId" | "pressureOutputId" | "cyclePhaseOutputId",
+    string
+  >> = {};
+  for (let index = 0; index < value.length; index += 1) {
+    const seriesPath = `${path}[${index}]`;
+    const series = requiredGraphSeriesRecordV2(value[index], seriesPath);
+    assertExactKeysV2(
+      series,
+      seriesPath,
+      PRESSURE_VOLUME_GRAPH_SERIES_KEYS_V2,
+    );
+    if (series.kind !== "pressure-volume") {
+      throw new ModelContractValidationErrorV2(
+        `${seriesPath}.kind`,
+        'must be "pressure-volume"',
+      );
+    }
+    requiredUniqueGraphSeriesIdV2(
+      series.seriesId,
+      `${seriesPath}.seriesId`,
+      seriesIds,
+    );
+    const bindingOutputIds: string[] = [];
+    for (const key of [
+      "volumeOutputId",
+      "pressureOutputId",
+      "cyclePhaseOutputId",
+    ] as const) {
+      const output = requiredScalarGraphOutputV2(
+        series[key],
+        `${seriesPath}.${key}`,
+        outputCatalog,
+      );
+      bindingOutputIds.push(series[key] as string);
+      if (roleUnits[key] === undefined) {
+        roleUnits[key] = output.unit;
+      } else if (roleUnits[key] !== output.unit) {
+        throw new ModelContractValidationErrorV2(
+          `${seriesPath}.${key}`,
+          `pressure-volume ${key} units must match across series; expected ${roleUnits[key]} but found ${output.unit}`,
+        );
+      }
+    }
+    const bindingKey = bindingOutputIds.join("\u0000");
+    if (bindings.has(bindingKey)) {
+      throw new ModelContractValidationErrorV2(
+        seriesPath,
+        "duplicate pressure-volume output binding",
+      );
+    }
+    bindings.add(bindingKey);
+    if (
+      series.guideMode !== "none"
+      && series.guideMode !== "lv-single-beat-orientation"
+    ) {
+      throw new ModelContractValidationErrorV2(
+        `${seriesPath}.guideMode`,
+        'must be "none" or "lv-single-beat-orientation"',
+      );
+    }
+    if (
+      series.pressureBasis !== "transmural"
+      && series.pressureBasis !== "intracavitary"
+    ) {
+      throw new ModelContractValidationErrorV2(
+        `${seriesPath}.pressureBasis`,
+        'must be "transmural" or "intracavitary"',
+      );
+    }
+    if (
+      series.guideMode === "lv-single-beat-orientation"
+      && series.pressureBasis !== "transmural"
+    ) {
+      throw new ModelContractValidationErrorV2(
+        `${seriesPath}.pressureBasis`,
+        "single-beat orientation guides require transmural pressure",
+      );
+    }
+  }
+  return seriesIds;
+}
+
+function requiredGraphSeriesRecordV2(
+  value: unknown,
+  path: string,
+): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new ModelContractValidationErrorV2(
+      path,
+      "graph series definitions must be objects",
+    );
+  }
+  return value as Record<string, unknown>;
+}
+
+function requiredUniqueGraphSeriesIdV2(
+  value: unknown,
+  path: string,
+  seriesIds: Set<string>,
+): string {
+  assertPortableModelIdentifierV2(value, path);
+  if (seriesIds.has(value)) {
+    throw new ModelContractValidationErrorV2(
+      path,
+      `duplicate graph series ID ${value}`,
+    );
+  }
+  seriesIds.add(value);
+  return value;
+}
+
+function requiredScalarGraphOutputV2(
+  value: unknown,
+  path: string,
+  outputCatalog: ValidatedOutputCatalogV2,
+): Readonly<{ shape: "scalar" | "vector"; unit: string }> {
+  assertPortableModelIdentifierV2(value, path);
+  const output = outputCatalog.definitionsById.get(value);
+  if (output === undefined) {
+    throw new ModelContractValidationErrorV2(
+      path,
+      `unknown output ID ${value}`,
+    );
+  }
+  if (output.shape !== "scalar") {
+    throw new ModelContractValidationErrorV2(
+      path,
+      `graph output ${value} must be scalar`,
+    );
+  }
+  return output;
+}
+
+function assertDefaultGraphSeriesIdsV2(
+  value: unknown,
+  path: string,
+  seriesIds: ReadonlySet<string>,
 ): void {
   if (!Array.isArray(value) || value.length === 0) {
     throw new ModelContractValidationErrorV2(
       path,
-      `must be a nonempty array of ${kind} IDs`,
+      "must be a nonempty array of graph series IDs",
     );
   }
-  const seen = new Set<string>();
+  const defaultIds = new Set<string>();
   for (let index = 0; index < value.length; index += 1) {
-    const candidate = value[index];
-    assertPortableModelIdentifierV2(candidate, `${path}[${index}]`);
-    if (!knownIds.has(candidate)) {
+    const seriesId = value[index];
+    assertPortableModelIdentifierV2(seriesId, `${path}[${index}]`);
+    if (!seriesIds.has(seriesId)) {
       throw new ModelContractValidationErrorV2(
         `${path}[${index}]`,
-        `unknown ${kind} ID ${candidate}`,
+        `unknown graph series ID ${seriesId}`,
       );
     }
-    if (seen.has(candidate)) {
+    if (defaultIds.has(seriesId)) {
       throw new ModelContractValidationErrorV2(
         `${path}[${index}]`,
-        `duplicate ${kind} ID ${candidate}`,
+        `duplicate default graph series ID ${seriesId}`,
       );
     }
-    seen.add(candidate);
+    defaultIds.add(seriesId);
   }
 }
 
