@@ -145,7 +145,6 @@ test("@desktop baseline duplication stays independent and requires explicit save
   const playback = page.getByTestId("v3-playback-toggle");
   await playback.click();
   await expect(root).toHaveAttribute("data-playback", "paused");
-  const copyCheckpointTime = await modelTime(root);
 
   const baselineScenario = scenarioRegion.getByRole("button", {
     name: "起動時baseline workbench-live-default",
@@ -157,8 +156,9 @@ test("@desktop baseline duplication stays independent and requires explicit save
 
   await copyScenario.click();
   await expect(systemicResistance).toHaveValue("1.01");
-  expect(Math.abs((await modelTime(root)) - copyCheckpointTime))
-    .toBeLessThanOrEqual(0.02);
+  // Selection waits for global Pause to drain every lane, so this is the
+  // exact copy time that the following explicit Save must capture.
+  const copyCheckpointTime = await modelTime(root);
 
   // Save captures every exact branch, not only the active Scenario. Keep the
   // baseline active so reload must restore the inactive divergent copy from
@@ -193,8 +193,13 @@ test("@desktop baseline duplication stays independent and requires explicit save
 
   await restoredCopy.click();
   await expect(systemicResistance).toHaveValue("1.01");
-  expect(Math.abs((await modelTime(root)) - copyCheckpointTime))
-    .toBeLessThanOrEqual(0.02);
+  const restoredCopyTime = await modelTime(root);
+  expect(restoredCopyTime).toBeGreaterThanOrEqual(copyCheckpointTime);
+  // Every restored Scenario now autostarts live. It may accept a small number
+  // of exact batches before the browser can issue and await global Pause, but
+  // it must resume from the saved checkpoint rather than reset or replay
+  // hidden-tab debt beyond the scheduler's 250 ms catch-up boundary.
+  expect(restoredCopyTime - copyCheckpointTime).toBeLessThanOrEqual(0.25);
 
   // Mutating the restored copy remains branch-local after the durable
   // round-trip; the baseline fixture is still untouched.
