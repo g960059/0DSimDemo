@@ -47,6 +47,10 @@ import {
   withHotPathIntegrityTierV1,
 } from "@/engine/hotPathIntegrityTierV1";
 import {
+  selectValidationStampModeV1,
+  validationStampModeV1,
+} from "@/engine/validationStampModeV1";
+import {
   createAcceptedVentricularBackupSourceConfigurationV2,
 } from "@/engine/myocardium/rhythm/acceptedVentricularBackupSourceOwnerV2";
 import {
@@ -283,6 +287,36 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
           candidateFromA,
         )).toThrow(/candidate does not match its accepted base/);
     });
+  });
+
+  it("retains complete candidate recomputation when validation stamps are disabled in the lean tier", () => {
+    const previousStampMode = validationStampModeV1();
+    selectValidationStampModeV1("validation-stamps-disabled");
+    try {
+      withHotPathIntegrityTierV1("hot-path-lean", () => {
+        const a = fixture({ firstRegularTimeSec: 10 });
+        const b = fixture({
+          firstRegularTimeSec: 10,
+          lvfwCalciumGainUMPerUnitDrive: 1.125,
+        });
+        const candidateFromA = evaluateAt(a.state, 0.1);
+
+        expect(
+          commitAcceptedComposedRhythmTransactionCandidateV2(
+            a.state,
+            candidateFromA,
+          ),
+        ).toEqual(candidateFromA.candidateState);
+        expect(() =>
+          commitAcceptedComposedRhythmTransactionCandidateV2(
+            b.state,
+            candidateFromA,
+          )).toThrow(/candidate does not match its accepted base/);
+      });
+    } finally {
+      selectValidationStampModeV1(previousStampMode);
+    }
+    expect(validationStampModeV1()).toBe(previousStampMode);
   });
 
   it("returns the exact owned endpoint without exposing a re-addable duration", () => {

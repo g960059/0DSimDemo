@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const EXACT_MODEL_ID =
-  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-8";
+  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-10";
 const LIMITATIONS_SCOPE = `${EXACT_MODEL_ID}:disclosure-v1`;
 const LIMITATIONS_KEY =
   `circleheart.modelLimitations.ack.${encodeURIComponent(LIMITATIONS_SCOPE)}`;
@@ -14,8 +14,11 @@ test.beforeEach(async ({ page }, testInfo) => {
     );
   }
   await page.goto("/ja/workbench");
-  await expect(page.getByTestId("v3-dockview-workbench")).toBeVisible();
-  await expect(page.getByText(EXACT_MODEL_ID, { exact: true })).toBeVisible();
+  const root = page.getByTestId("v3-dockview-workbench");
+  await expect(root).toBeVisible();
+  await expect(root).toHaveAttribute("data-model-id", EXACT_MODEL_ID);
+  await expect(page.getByTestId("workbench-model-menu-trigger-v3"))
+    .toContainText("MW V3");
   await expect.poll(() => acceptedRevision(page)).toBeGreaterThan(10);
 });
 
@@ -48,6 +51,19 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
 
   await expectNonZeroCanvas(page.locator('[data-chart-kind="sweeping-waveform-v3"]'));
 
+  await page.getByRole("button", {
+    name: "Pane設定: Left-heart pressure",
+  }).click();
+  const waveformSettings = page.getByRole("dialog", { name: "Pane設定" });
+  const waveformWindow = waveformSettings.getByRole("spinbutton", {
+    name: "Waveform window",
+  });
+  await waveformWindow.fill("3.5");
+  await waveformWindow.press("Enter");
+  await expect(waveformWindow).toHaveValue("3.5");
+  await page.getByRole("button", { name: "閉じる" }).click();
+  await expect(waveformSettings).toBeHidden();
+
   const lvPvTab = page.getByText("LV pressure-volume loop", { exact: true });
   await lvPvTab.scrollIntoViewIfNeeded();
   await lvPvTab.click();
@@ -76,7 +92,7 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   await expect.poll(() => modelTime(root)).toBeGreaterThan(0.2);
 
   await page.getByRole("button", {
-    name: "Open Outputs pane settings",
+    name: "Pane設定: Outputs",
   }).click();
   const settings = page.getByRole("dialog", { name: "Pane設定" });
   await expect(settings).toBeVisible();
@@ -116,7 +132,7 @@ test("@mobile 390px Workbench uses one graph tab group and keeps controls reacha
   await expect(page.getByRole("slider", { name: "Systemic resistance" }))
     .toBeVisible();
   await page.getByRole("button", {
-    name: "Open Parameters pane settings",
+    name: "Pane設定: Parameters",
   }).click();
   await expect(page.getByRole("dialog", { name: "Pane設定" })).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Pane設定" }).getByRole("checkbox"))
@@ -137,11 +153,9 @@ async function acceptedRevision(page: Page): Promise<number> {
 }
 
 async function inputEpoch(page: Page): Promise<number> {
-  const text = await page.getByTestId("v3-runtime-status")
-    .locator("dd")
-    .nth(2)
-    .textContent();
-  return Number(text?.trim() ?? -1);
+  const raw = await page.getByTestId("v3-dockview-workbench")
+    .getAttribute("data-input-epoch");
+  return Number(raw ?? -1);
 }
 
 async function expectNonZeroCanvas(container: Locator): Promise<void> {

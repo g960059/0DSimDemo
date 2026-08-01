@@ -1,4 +1,5 @@
 export * from "./authoring";
+export * from "./article";
 export * from "./content";
 export * from "./executable";
 export * from "./ids";

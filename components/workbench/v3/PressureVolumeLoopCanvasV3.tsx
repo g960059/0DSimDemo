@@ -2,6 +2,7 @@ import React from "react";
 
 import {
   finiteWorkbenchScalarValueV3,
+  orderedFiniteWorkbenchSamplesV3,
   type WorkbenchScalarSampleV3,
 } from "./WorkbenchScalarSampleV3";
 import {
@@ -60,44 +61,52 @@ export function lastCompleteCycleRangeV3(
   samples: readonly WorkbenchScalarSampleV3[],
 ): CompleteCycleRangeV3 | null {
   if (samples.length < 3) return null;
-  const boundaries: number[] = [];
   const firstPhase = normalizedModelCyclePhaseV3(samples[0]?.cyclePhase01);
-  if (firstPhase !== null && firstPhase <= CYCLE_START_TOLERANCE_V3) {
-    boundaries.push(0);
-  }
+  let previousBoundary: number | null = null;
+  let latestBoundary: number | null = firstPhase !== null
+      && firstPhase <= CYCLE_START_TOLERANCE_V3
+    ? 0
+    : null;
 
   let previousPhase = firstPhase;
   for (let index = 1; index < samples.length; index += 1) {
     const phase = normalizedModelCyclePhaseV3(samples[index]?.cyclePhase01);
     if (phase === null) {
-      boundaries.length = 0;
+      previousBoundary = null;
+      latestBoundary = null;
       previousPhase = null;
       continue;
     }
     if (previousPhase === null && phase <= CYCLE_START_TOLERANCE_V3) {
-      boundaries.push(index);
+      previousBoundary = latestBoundary;
+      latestBoundary = index;
     }
     if (
       previousPhase !== null
       && phase + CYCLE_PHASE_EPSILON_V3 < previousPhase
     ) {
-      boundaries.push(index);
+      previousBoundary = latestBoundary;
+      latestBoundary = index;
     }
     previousPhase = phase;
   }
-  if (boundaries.length < 2) return null;
-  const startIndex = boundaries.at(-2)!;
-  const endIndexInclusive = boundaries.at(-1)!;
+  if (previousBoundary === null || latestBoundary === null) return null;
+  const startIndex = previousBoundary;
+  const endIndexInclusive = latestBoundary;
   if (endIndexInclusive - startIndex < 3) return null;
-  const phases = samples
-    .slice(startIndex, endIndexInclusive)
-    .flatMap(({ cyclePhase01 }) => {
-      const phase = normalizedModelCyclePhaseV3(cyclePhase01);
-      return phase === null ? [] : [phase];
-    });
+  let phaseCount = 0;
+  let minimumPhase = Number.POSITIVE_INFINITY;
+  let maximumPhase = Number.NEGATIVE_INFINITY;
+  for (let index = startIndex; index < endIndexInclusive; index += 1) {
+    const phase = normalizedModelCyclePhaseV3(samples[index]?.cyclePhase01);
+    if (phase === null) continue;
+    phaseCount += 1;
+    minimumPhase = Math.min(minimumPhase, phase);
+    maximumPhase = Math.max(maximumPhase, phase);
+  }
   if (
-    phases.length < 3
-    || Math.max(...phases) - Math.min(...phases)
+    phaseCount < 3
+    || maximumPhase - minimumPhase
       < MINIMUM_COMPLETE_CYCLE_PHASE_SPAN_V3
   ) return null;
   return Object.freeze({ startIndex, endIndexInclusive });
@@ -108,33 +117,34 @@ export function extractLastCompletePvBeatV3(
   volumeOutputId: string,
   pressureOutputId: string,
 ): readonly WorkbenchPvPointV3[] {
-  const ordered = samples
-    .filter(({ acceptedTimeSec }) => Number.isFinite(acceptedTimeSec))
-    .slice()
-    .sort((left, right) => left.acceptedTimeSec - right.acceptedTimeSec);
+  const ordered = orderedFiniteWorkbenchSamplesV3(samples);
   const range = lastCompleteCycleRangeV3(ordered);
   if (range === null) return Object.freeze([]);
-  const points = ordered
-    .slice(range.startIndex, range.endIndexInclusive + 1)
-    .flatMap((sample) => {
-      const cyclePhase01 = normalizedModelCyclePhaseV3(sample.cyclePhase01);
-      const volumeMl = finiteWorkbenchScalarValueV3(sample, volumeOutputId);
-      const pressureMmHg = finiteWorkbenchScalarValueV3(
-        sample,
-        pressureOutputId,
-      );
-      if (
-        cyclePhase01 === null
-        || volumeMl === null
-        || pressureMmHg === null
-      ) return [];
-      return [Object.freeze({
-        acceptedTimeSec: sample.acceptedTimeSec,
-        cyclePhase01,
-        volumeMl,
-        pressureMmHg,
-      })];
-    });
+  const points: WorkbenchPvPointV3[] = [];
+  for (
+    let index = range.startIndex;
+    index <= range.endIndexInclusive;
+    index += 1
+  ) {
+    const sample = ordered[index]!;
+    const cyclePhase01 = normalizedModelCyclePhaseV3(sample.cyclePhase01);
+    const volumeMl = finiteWorkbenchScalarValueV3(sample, volumeOutputId);
+    const pressureMmHg = finiteWorkbenchScalarValueV3(
+      sample,
+      pressureOutputId,
+    );
+    if (
+      cyclePhase01 === null
+      || volumeMl === null
+      || pressureMmHg === null
+    ) continue;
+    points.push(Object.freeze({
+      acceptedTimeSec: sample.acceptedTimeSec,
+      cyclePhase01,
+      volumeMl,
+      pressureMmHg,
+    }));
+  }
   return points.length >= 3 ? Object.freeze(points) : Object.freeze([]);
 }
 

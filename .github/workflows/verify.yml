@@ -127,6 +127,15 @@ jobs:
       - name: Run desktop and mobile Workbench smoke
         run: npm run test:browser
 
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
   whitespace:
     name: Check diff whitespace
     runs-on: ubuntu-latest

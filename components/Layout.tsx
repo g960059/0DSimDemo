@@ -7,11 +7,19 @@ import { homeHref, workbenchHref } from '../homeLinks';
 import { useAppTheme } from '../appTheme';
 import { type Locale, localeFromPathname, setPreferredLocale, stripLocaleFromPathname, switchLocalePath } from '../localeRouting';
 
+export function routeOwnsApplicationChrome(pathname: string): boolean {
+  return pathname === '/workbench'
+    || pathname.startsWith('/workbench/')
+    || pathname === '/articles'
+    || pathname.startsWith('/articles/');
+}
+
 export const Layout = () => {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
   const normalizedPath = stripLocaleFromPathname(location.pathname);
+  const pageOwnsChrome = routeOwnsApplicationChrome(normalizedPath);
   const { appTheme, setAppTheme } = useAppTheme();
 
   React.useEffect(() => {
@@ -33,7 +41,8 @@ export const Layout = () => {
       className="app-root flex h-screen w-screen flex-col overflow-hidden bg-wb-app font-sans text-wb-text"
       data-app-theme={appTheme}
     >
-      <header className="z-50 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-wb-line bg-wb-header px-4">
+      {!pageOwnsChrome && (
+        <header className="z-50 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-wb-line bg-wb-header px-4">
           <div className="flex min-w-0 items-center gap-6">
             <Link to={homeHref(locale)} className="shrink-0">
               <span className="text-lg font-bold tracking-tight text-wb-accent">
@@ -95,13 +104,15 @@ export const Layout = () => {
               })}
             </div>
           </div>
-      </header>
+        </header>
+      )}
 
       <main className="relative flex-1 overflow-hidden">
         <Outlet />
       </main>
 
-      <div className="pb-safe z-50 flex shrink-0 items-center justify-around border-t border-wb-line bg-wb-header md:hidden">
+      {!pageOwnsChrome && (
+        <div className="pb-safe z-50 flex shrink-0 items-center justify-around border-t border-wb-line bg-wb-header md:hidden">
           {navItems.map((item) => {
             const isActive = normalizedPath === item.matchPath || (item.matchPath !== '/' && normalizedPath.startsWith(item.matchPath));
             return (
@@ -118,7 +129,8 @@ export const Layout = () => {
               </Link>
             );
           })}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

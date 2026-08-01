@@ -13,6 +13,7 @@ import {
   InMemoryRegisteredModelStoreV2,
 } from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3,
   createMainWireIntegratedStudioModelPackageV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
 
@@ -122,6 +123,17 @@ async function buildExactArtifact(): Promise<Uint8Array> {
   const result = await build({
     configFile: false,
     logLevel: "silent",
+    // The admitted artifact is the dedicated live numerical Worker build.
+    // Pin its existing identity-stamped lean tier at compile time so browser
+    // execution cannot silently fall back to the source/test default. The
+    // tier changes defensive recomputation only; full-vs-lean lockstep tests
+    // prove identical accepted frames and checkpoints.
+    define: {
+      "import.meta.env.VITE_CIRCLEHEART_HOT_PATH_INTEGRITY":
+        JSON.stringify(
+          MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3,
+        ),
+    },
     resolve: {
       alias: { "@": repositoryRoot },
     },

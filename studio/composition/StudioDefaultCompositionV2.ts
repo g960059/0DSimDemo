@@ -50,11 +50,9 @@ let browserCompositionPromiseV2:
  * client catalog. Startup intentionally creates no Preset, Workspace,
  * Snapshot, Placement, or Lesson content.
  *
- * Authoring is not composed here yet. Live numerical ownership is inside the
- * Worker, so binding authoring to this main-thread package instance would give
- * Draft capture a second runtime host that cannot see the live session. The
- * future Save UI must first add an explicit Worker capture bridge and then
- * compose authoring against that one owner.
+ * Authoring remains outside this main-thread composition. The persistent
+ * Worker loads the exact runtime below and owns both live simulation and the
+ * accepted-boundary Draft/Snapshot bridge against that single runtime host.
  */
 export async function createStudioDefaultClientCompositionV2():
 Promise<StudioDefaultClientCompositionV2> {

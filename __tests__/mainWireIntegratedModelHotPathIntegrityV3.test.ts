@@ -9,6 +9,9 @@ import {
   sha256CanonicalJsonHex,
 } from "@/engine/integrity";
 import {
+  projectMainWireIntegratedModelAdvancedFrameV3,
+} from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
+import {
   MainWireIntegratedModelSessionV3,
   mainWireIntegratedModelPresentationTargetTimeSecV3,
   type MainWireIntegratedModelPresentationAdvanceV3,
@@ -18,6 +21,11 @@ const PRESENTATION_STEP_COUNT_V3 = 500;
 
 type HotPathRunV3 = Readonly<{
   acceptedResultsSha256: string;
+  acceptedFramesSha256: string;
+  rhythmBoundarySubsteps: readonly Readonly<{
+    acceptedTimeSec: number;
+    boundaryOwners: readonly string[];
+  }>[];
   checkpoint: Awaited<
     ReturnType<MainWireIntegratedModelSessionV3["checkpointOperational"]>
   >;
@@ -33,6 +41,22 @@ describe("Main Wire Integrated Model V3 hot-path integrity", () => {
     const lean = await runHotPathTierV3("hot-path-lean");
 
     expect(lean.acceptedResultsSha256).toBe(full.acceptedResultsSha256);
+    expect(lean.acceptedFramesSha256).toBe(full.acceptedFramesSha256);
+    expect(lean.rhythmBoundarySubsteps).toEqual(
+      full.rhythmBoundarySubsteps,
+    );
+    const rhythmBoundaryTimes = lean.rhythmBoundarySubsteps.map(
+      ({ acceptedTimeSec }) => acceptedTimeSec,
+    );
+    expect(rhythmBoundaryTimes).toEqual(expect.arrayContaining([
+      0.625,
+      0.6875,
+      0.8125,
+      0.875,
+    ]));
+    expect(rhythmBoundaryTimes.some(
+      (acceptedTimeSec) => !Number.isInteger(acceptedTimeSec / 0.002),
+    )).toBe(true);
     expect(lean.checkpoint).toEqual(full.checkpoint);
     expect(lean.finalAcceptedState).toEqual(full.finalAcceptedState);
     expect(lean.finalAcceptedState.acceptedTimeSec).toBe(1);
@@ -81,6 +105,11 @@ async function runHotPathTierV3(
     expect(hotPathIntegrityTierV1()).toBe(tier);
     const session = await MainWireIntegratedModelSessionV3.create();
     const acceptedResults: unknown[] = [];
+    const acceptedFrames: unknown[] = [];
+    const rhythmBoundarySubsteps: Array<Readonly<{
+      acceptedTimeSec: number;
+      boundaryOwners: readonly string[];
+    }>> = [];
 
     for (
       let ordinal = 1;
@@ -94,10 +123,22 @@ async function runHotPathTierV3(
         throw new Error(unexpectedAdvanceV3(tier, ordinal, result));
       }
       acceptedResults.push(plainDataProjectionV3(result));
+      acceptedFrames.push(plainDataProjectionV3(
+        projectMainWireIntegratedModelAdvancedFrameV3(result),
+      ));
+      for (const substep of result.substeps) {
+        if (!substep.clippedByRhythmBoundary) continue;
+        rhythmBoundarySubsteps.push(Object.freeze({
+          acceptedTimeSec: substep.acceptedTimeSec,
+          boundaryOwners: Object.freeze([...substep.rhythmBoundaryOwners]),
+        }));
+      }
     }
 
     return Object.freeze({
       acceptedResultsSha256: await sha256CanonicalJsonHex(acceptedResults),
+      acceptedFramesSha256: await sha256CanonicalJsonHex(acceptedFrames),
+      rhythmBoundarySubsteps: Object.freeze(rhythmBoundarySubsteps),
       checkpoint: await session.checkpointOperational(),
       finalAcceptedState: session.currentAcceptedState(),
     });

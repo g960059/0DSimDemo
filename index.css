@@ -4,29 +4,34 @@
 .app-root,
 body[data-app-theme] {
   color-scheme: dark;
-  --wb-app-bg: #151f2e;
-  --wb-header-bg: #101825;
-  --wb-panel-bg: #1f2f45;
-  --wb-panel-bg-soft: #1a2638;
-  --wb-zone-main-bg: #151f2e;
-  --wb-zone-aux-bg: #1a2638;
-  --wb-tab-strip-bg: rgba(16, 24, 37, 0.34);
-  --wb-hover-bg: rgba(46, 68, 92, 0.55);
-  --wb-active-bg: rgba(62, 168, 255, 0.14);
-  --wb-input-bg: rgba(46, 68, 92, 0.42);
+  /* Zenn's current dark palette is blue-black, not neutral charcoal. */
+  --wb-app-bg: #0d223a;
+  --wb-header-bg: #0d223a;
+  --wb-panel-bg: #0d223a;
+  --wb-panel-bg-soft: #162c49;
+  --wb-zone-main-bg: #081d35;
+  --wb-zone-aux-bg: #0b2c53;
+  --wb-tab-strip-bg: transparent;
+  --wb-hover-bg: rgba(62, 168, 255, 0.07);
+  --wb-active-bg: rgba(62, 168, 255, 0.13);
+  --wb-input-bg: #0b2c53;
   --wb-border: rgba(46, 68, 92, 0.72);
-  --wb-border-strong: rgba(105, 130, 155, 0.66);
-  --wb-text: #d6e3ed;
+  --wb-border-strong: #344c69;
+  --wb-text: #edf4fa;
   --wb-text-muted: #acbcc7;
   --wb-text-subtle: #8f9faa;
   --wb-accent: #3ea8ff;
-  --wb-accent-soft: rgba(62, 168, 255, 0.16);
-  --wb-primary: #1d6fd0;
-  --wb-primary-hover: #1a63bd;
-  --wb-danger: #ff8fa3;
-  --wb-danger-soft: rgba(255, 143, 163, 0.14);
-  --wb-warning: #ffc56d;
-  --wb-warning-soft: rgba(255, 197, 109, 0.16);
+  --wb-accent-soft: rgba(62, 168, 255, 0.14);
+  --wb-primary: #0868ce;
+  --wb-primary-hover: #0f83fd;
+  --wb-danger: #f18b9b;
+  --wb-danger-soft: rgba(241, 139, 155, 0.12);
+  --wb-warning: #d8a657;
+  --wb-warning-soft: rgba(216, 166, 87, 0.13);
+  --wb-grid: rgba(172, 188, 199, 0.12);
+  --wb-axis: rgba(172, 188, 199, 0.34);
+  --wb-line: var(--wb-border);
+  --wb-muted: var(--wb-text-muted);
   background: var(--wb-app-bg);
   color: var(--wb-text);
 }
@@ -58,29 +63,33 @@ body[data-app-theme] {
 .app-root[data-app-theme="light"],
 body[data-app-theme="light"] {
   color-scheme: light;
-  --wb-app-bg: #ffffff;
+  --wb-app-bg: #f5f9fc;
   --wb-header-bg: #ffffff;
   --wb-panel-bg: #ffffff;
-  --wb-panel-bg-soft: #f5f9fc;
-  --wb-zone-main-bg: #ffffff;
-  --wb-zone-aux-bg: #f5f9fc;
+  --wb-panel-bg-soft: #edf2f7;
+  --wb-zone-main-bg: #f5f9fc;
+  --wb-zone-aux-bg: #f1f5f9;
   --wb-tab-strip-bg: transparent;
-  --wb-hover-bg: rgba(26, 38, 56, 0.05);
-  --wb-active-bg: rgba(11, 107, 192, 0.1);
-  --wb-input-bg: rgba(26, 38, 56, 0.04);
+  --wb-hover-bg: rgba(31, 50, 66, 0.045);
+  --wb-active-bg: rgba(62, 168, 255, 0.1);
+  --wb-input-bg: rgba(31, 50, 66, 0.04);
   --wb-border: #d6e3ed;
   --wb-border-strong: #acbcc7;
-  --wb-text: #1a2638;
-  --wb-text-muted: #4a5568;
-  --wb-text-subtle: #65717b;
-  --wb-accent: #0b6bc0;
-  --wb-accent-soft: rgba(62, 168, 255, 0.14);
-  --wb-primary: #0b6bc0;
-  --wb-primary-hover: #095aa3;
+  --wb-text: #1f2933;
+  --wb-text-muted: #5f6b76;
+  --wb-text-subtle: #89939d;
+  --wb-accent: #3ea8ff;
+  --wb-accent-soft: rgba(62, 168, 255, 0.11);
+  --wb-primary: #167fbd;
+  --wb-primary-hover: #126fa7;
   --wb-danger: #c9252d;
   --wb-danger-soft: rgba(201, 37, 45, 0.1);
   --wb-warning: #b45309;
   --wb-warning-soft: rgba(180, 83, 9, 0.12);
+  --wb-grid: rgba(37, 55, 72, 0.09);
+  --wb-axis: rgba(37, 55, 72, 0.25);
+  --wb-line: var(--wb-border);
+  --wb-muted: var(--wb-text-muted);
 }
 
 .app-root > main {
@@ -106,7 +115,7 @@ body[data-app-theme="light"] {
   --dv-inactivegroup-hiddenpanel-tab-color: var(--wb-text-subtle);
   --dv-tab-divider-color: transparent;
   --dv-separator-border: var(--workbench-divider);
-  --dv-tabs-and-actions-container-height: 32px;
+  --dv-tabs-and-actions-container-height: 30px;
   --dv-tabs-and-actions-container-font-size: 12px;
   --dv-active-sash-color: var(--wb-accent);
   --dv-scrollbar-background-color: var(--wb-border-strong);
@@ -158,29 +167,40 @@ body[data-app-theme="light"] {
   max-width: 15rem;
   width: 100%;
   cursor: grab;
-  transition: color 120ms ease;
+  transition: color 160ms ease;
 }
 
 .workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab {
   color: var(--wb-text);
   font-weight: 600;
-  box-shadow: inset 0 -2px 0 var(--wb-accent);
+  box-shadow: inset 0 -1px 0 var(--wb-accent);
 }
 
-.workbench-dockview .dv-tab.dv-inactive-tab .workbench-dock-tab:hover {
-  color: var(--wb-text);
+.workbench-dockview .workbench-dock-tab-accent {
+  box-shadow: 0 0 0 1px var(--wb-border-strong);
 }
 
 .workbench-dockview .workbench-dock-tab-settings {
   opacity: 0;
   pointer-events: none;
+  transition: color 160ms ease, background-color 160ms ease, opacity 160ms ease;
 }
 
 .workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab-settings,
-.workbench-dockview .workbench-dock-tab:hover .workbench-dock-tab-settings,
 .workbench-dockview .workbench-dock-tab-settings:focus-visible {
-  opacity: 1;
+  opacity: 0.72;
   pointer-events: auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .workbench-dockview .dv-tab.dv-inactive-tab .workbench-dock-tab:hover {
+    color: var(--wb-text);
+  }
+
+  .workbench-dockview .workbench-dock-tab:hover .workbench-dock-tab-settings {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 @media (hover: none) {
@@ -216,4 +236,53 @@ body[data-app-theme="light"] {
 .workbench-dockview .dv-scrollable > .dv-tabs-container {
   width: max-content !important;
   overflow: visible;
+}
+
+@keyframes model-disclosure-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes model-disclosure-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.model-disclosure-backdrop {
+  animation: model-disclosure-backdrop-in 160ms ease-out both;
+}
+
+.model-disclosure-panel {
+  animation: model-disclosure-panel-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (min-width: 640px) {
+  @keyframes model-disclosure-panel-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.25rem) scale(0.99);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .model-disclosure-backdrop,
+  .model-disclosure-panel {
+    animation: none;
+  }
+
+  .workbench-dockview .dv-tab .workbench-dock-tab,
+  .workbench-dockview .workbench-dock-tab-settings {
+    transition-duration: 0.01ms;
+  }
 }

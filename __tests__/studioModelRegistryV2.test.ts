@@ -279,6 +279,14 @@ describe("InMemoryRegisteredModelStoreV2", () => {
     expect(idIterator).not.toHaveBeenCalled();
   });
 
+  it("rejects mixed-unit outputs in a registered single-axis sweep graph", () => {
+    const manifest = makeManifestV2() as any;
+    manifest.catalogs.graphCatalog[0].outputIds.push("hemodynamics.ef");
+
+    expect(() => deriveModelContractFromManifestV2(manifest))
+      .toThrow(/sweep outputs must share one unit.*expected mmHg.*uses 1/);
+  });
+
   it("keeps the digest private and performs no client-side hash on resolve", async () => {
     const store = new InMemoryRegisteredModelStoreV2();
     await registerV2(store, makeManifestV2());

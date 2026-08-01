@@ -13,12 +13,17 @@ import type {
   ExperimentSnapshotGateResultV2,
   ExperimentDraftCapturePortV2,
 } from "@/studio/contracts/v2/authoring";
-import type {
-  ExperimentContentV2,
+import {
+  STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+  type ExperimentContentV2,
+  type ExperimentWorkspaceV2,
 } from "@/studio/contracts/v2/content";
 import {
   createInMemoryExperimentAuthoringV2,
   StudioExperimentConflictErrorV2,
+} from "@/studio/infrastructure/experiments/InMemoryExperimentRepositoryV2";
+import type {
+  InMemoryExperimentAuthoringSeedV2,
 } from "@/studio/infrastructure/experiments/InMemoryExperimentRepositoryV2";
 import * as experimentInfrastructure from "@/studio/infrastructure/experiments/InMemoryExperimentRepositoryV2";
 import type {
@@ -499,6 +504,34 @@ describe("Studio Experiment authoring V2", () => {
     expect(await application.readSnapshot(source.snapshotId)).toEqual(source);
   });
 
+  it("rejects seed workspace lineage that references absent Snapshots", () => {
+    expect(() => harnessV2(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        workspace: seedWorkspaceV2({
+          headSnapshotId: "snapshot/missing-head",
+        }),
+        snapshots: [],
+      },
+    )).toThrow(/seed workspace head Snapshot not found: snapshot\/missing-head/);
+
+    expect(() => harnessV2(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        workspace: seedWorkspaceV2({
+          basedOnSnapshotId: "snapshot/missing-base",
+        }),
+        snapshots: [],
+      },
+    )).toThrow(/seed workspace base Snapshot not found: snapshot\/missing-base/);
+  });
+
   it("fails closed on unknown command fields and explicit undefined optionals", async () => {
     const { application } = harnessV2();
     await application.createWorkspace({
@@ -600,7 +633,7 @@ describe("Studio Experiment authoring V2", () => {
   it("binds workspaces and Surface references to a registered model", async () => {
     const { application } = harnessV2();
     const unknownGraph = mutableContentV2(contentV2(0, 0));
-    unknownGraph.surface.graphs[0].graphId = "graph-definition/missing";
+    unknownGraph.surface.graphPanes[0].graphId = "graph-definition/missing";
     await expect(application.createWorkspace({
       experimentId: "experiment/unknown-graph",
       content: unknownGraph,
@@ -852,6 +885,7 @@ function harnessV2(
   },
   snapshotIds: { nextSnapshotId(): string } | undefined = undefined,
   adapter: RegisteredModelCaptureAdapterV2 = captureAdapterV2(),
+  seed: InMemoryExperimentAuthoringSeedV2 | undefined = undefined,
 ) {
   const resolvedGate: ExperimentSnapshotGatePortV2 = gate ?? {
     qualifyFrozenCandidate({ content }) {
@@ -927,8 +961,25 @@ function harnessV2(
         return "2026-07-31T00:00:00.000Z";
       },
     },
+    ...(seed === undefined ? {} : { seed }),
   });
   return { application, repository: queries };
+}
+
+function seedWorkspaceV2(
+  lineage: Readonly<{
+    headSnapshotId?: string;
+    basedOnSnapshotId?: string;
+  }>,
+): ExperimentWorkspaceV2 {
+  return {
+    schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+    experimentId: "experiment/seeded",
+    draftVersion: 0,
+    headSnapshotId: lineage.headSnapshotId ?? null,
+    basedOnSnapshotId: lineage.basedOnSnapshotId ?? null,
+    content: contentV2(0, 0),
+  };
 }
 
 function modelContractV2(): ModelContractV2 {
@@ -1090,40 +1141,51 @@ function contentV2(
       },
     }],
     surface: {
-      groups: [{
-        groupId: "group/main",
-        label: "Main",
+      graphPanes: [{
+        paneId: "pane/pressure",
+        role: "graph",
+        label: "Pressure",
+        colorHex: "#ff6685",
         order: 0,
         priority: 0,
-      }],
-      graphs: [{
-        instanceId: "graph/pressure",
         graphId: "graph-definition/pressure",
-        groupId: "group/main",
+        windowSec: 2,
+        series: [{
+          outputId: "output/co",
+          label: "Cardiac output",
+          colorHex: "#3ea8ff",
+          order: 0,
+        }],
+      }],
+      outputPanes: [{
+        paneId: "pane/outputs",
+        role: "output",
+        label: "Outputs",
         order: 0,
         priority: 0,
+        items: [{
+          outputId: "output/co",
+          label: "Cardiac output",
+          colorHex: "#3ea8ff",
+          order: 0,
+        }],
       }],
-      readouts: [{
-        instanceId: "readout/co",
-        outputId: "output/co",
-        groupId: "group/main",
-        order: 1,
+      controlPanes: [{
+        paneId: "pane/controls",
+        role: "control",
+        label: "Controls",
+        order: 0,
         priority: 0,
-      }],
-      controls: [{
-        instanceId: "control/hr",
-        controlId: "control/heart-rate",
-        targetScenarioIds: ["scenario/baseline"],
-        groupId: "group/main",
-        order: 2,
-        priority: 0,
+        items: [{
+          controlId: "control/heart-rate",
+          label: "Heart rate",
+          colorHex: "#a78bfa",
+          targetScenarioIds: ["scenario/baseline"],
+          order: 0,
+        }],
       }],
       note: {
-        instanceId: "note/main",
         text: "Educational baseline.",
-        groupId: "group/main",
-        order: 3,
-        priority: 0,
       },
     },
   };

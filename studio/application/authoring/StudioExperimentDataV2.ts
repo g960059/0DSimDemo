@@ -3,9 +3,12 @@ import {
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
+  STUDIO_SWEEP_WINDOW_MAX_SEC_V2,
+  STUDIO_SWEEP_WINDOW_MIN_SEC_V2,
+  STUDIO_SWEEP_WINDOW_STEP_SEC_V2,
   type ExperimentContentV2,
+  type ExperimentPlacementBriefingV2,
   type ExperimentPlacementV2,
-  type ExperimentPlacementViewV2,
   type ExperimentScenarioV2,
   type ExperimentSnapshotV2,
   type ExperimentSurfaceV2,
@@ -376,9 +379,11 @@ function assertExperimentModelAndSurfaceMatchV2(
       `must match registered model ${model.modelId}`,
     );
   }
-  const graphIds = new Set(model.graphCatalog.map(({ graphId }) => graphId));
-  const outputIds = new Set(
-    model.outputCatalog.map(({ outputId }) => outputId),
+  const graphsById = new Map(
+    model.graphCatalog.map((definition) => [definition.graphId, definition]),
+  );
+  const outputsById = new Map(
+    model.outputCatalog.map((definition) => [definition.outputId, definition]),
   );
   const controlIds = new Set(
     model.controlCatalog.map(({ controlId }) => controlId),
@@ -386,36 +391,94 @@ function assertExperimentModelAndSurfaceMatchV2(
   const scenarioIds = new Set(
     content.scenarios.map(({ scenarioId }) => scenarioId),
   );
-  content.surface.graphs.forEach((instance, index) => {
-    if (!graphIds.has(instance.graphId)) {
+  content.surface.graphPanes.forEach((pane, paneIndex) => {
+    const panePath = `${path}.surface.graphPanes[${paneIndex}]`;
+    const graph = graphsById.get(pane.graphId);
+    if (graph === undefined) {
       throw validationErrorV2(
-        `${path}.surface.graphs[${index}].graphId`,
-        `unknown registered graph ${instance.graphId}`,
+        `${panePath}.graphId`,
+        `unknown registered graph ${pane.graphId}`,
       );
     }
-  });
-  content.surface.readouts.forEach((instance, index) => {
-    if (!outputIds.has(instance.outputId)) {
-      throw validationErrorV2(
-        `${path}.surface.readouts[${index}].outputId`,
-        `unknown registered output ${instance.outputId}`,
-      );
-    }
-  });
-  content.surface.controls.forEach((instance, index) => {
-    if (!controlIds.has(instance.controlId)) {
-      throw validationErrorV2(
-        `${path}.surface.controls[${index}].controlId`,
-        `unknown registered control ${instance.controlId}`,
-      );
-    }
-    instance.targetScenarioIds.forEach((scenarioId, targetIndex) => {
-      if (!scenarioIds.has(scenarioId)) {
+    if (graph.renderer !== "sweep") {
+      if (pane.series.length !== 0) {
         throw validationErrorV2(
-          `${path}.surface.controls[${index}].targetScenarioIds[${targetIndex}]`,
-          `unknown target Scenario ${scenarioId}`,
+          `${panePath}.series`,
+          `${graph.renderer} graphs must not configure output series`,
         );
       }
+      if (pane.windowSec !== undefined) {
+        throw validationErrorV2(
+          `${panePath}.windowSec`,
+          `${graph.renderer} graphs must not configure a waveform window`,
+        );
+      }
+      return;
+    }
+    if (pane.windowSec === undefined) {
+      throw validationErrorV2(
+        `${panePath}.windowSec`,
+        "sweep graphs must configure an authored waveform window",
+      );
+    }
+    if (pane.series.length === 0) {
+      throw validationErrorV2(
+        `${panePath}.series`,
+        "sweep graphs must select at least one scalar output",
+      );
+    }
+    let sharedSweepUnit: string | undefined;
+    pane.series.forEach((series, seriesIndex) => {
+      const output = outputsById.get(series.outputId);
+      if (output === undefined) {
+        throw validationErrorV2(
+          `${panePath}.series[${seriesIndex}].outputId`,
+          `unknown registered output ${series.outputId}`,
+        );
+      }
+      if (output.shape !== "scalar") {
+        throw validationErrorV2(
+          `${panePath}.series[${seriesIndex}].outputId`,
+          `sweep output ${series.outputId} must be scalar`,
+        );
+      }
+      if (sharedSweepUnit === undefined) {
+        sharedSweepUnit = output.unit;
+      } else if (output.unit !== sharedSweepUnit) {
+        throw validationErrorV2(
+          `${panePath}.series[${seriesIndex}].outputId`,
+          `sweep outputs must share one unit; expected ${sharedSweepUnit} but ${series.outputId} uses ${output.unit}`,
+        );
+      }
+    });
+  });
+  content.surface.outputPanes.forEach((pane, paneIndex) => {
+    pane.items.forEach((item, itemIndex) => {
+      if (!outputsById.has(item.outputId)) {
+        throw validationErrorV2(
+          `${path}.surface.outputPanes[${paneIndex}].items[${itemIndex}].outputId`,
+          `unknown registered output ${item.outputId}`,
+        );
+      }
+    });
+  });
+  content.surface.controlPanes.forEach((pane, paneIndex) => {
+    pane.items.forEach((item, itemIndex) => {
+      const itemPath = `${path}.surface.controlPanes[${paneIndex}].items[${itemIndex}]`;
+      if (!controlIds.has(item.controlId)) {
+        throw validationErrorV2(
+          `${itemPath}.controlId`,
+          `unknown registered control ${item.controlId}`,
+        );
+      }
+      item.targetScenarioIds.forEach((scenarioId, targetIndex) => {
+        if (!scenarioIds.has(scenarioId)) {
+          throw validationErrorV2(
+            `${itemPath}.targetScenarioIds[${targetIndex}]`,
+            `unknown target Scenario ${scenarioId}`,
+          );
+        }
+      });
     });
   });
 }
@@ -546,7 +609,7 @@ export function validateExperimentPlacementV2(
     "placementId",
     "snapshotId",
     "caption",
-  ], ["view"], "$.placement");
+  ], ["briefing"], "$.placement");
   if (placement.schemaId !== STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID) {
     throw validationErrorV2("$.placement.schemaId", "schema identity mismatch");
   }
@@ -555,8 +618,11 @@ export function validateExperimentPlacementV2(
   if (placement.caption !== null) {
     requiredTrimmedStringV2(placement.caption, "$.placement.caption");
   }
-  if (hasOwnV2(placement, "view")) {
-    assertPlacementViewV2(placement.view, "$.placement.view");
+  if (hasOwnV2(placement, "briefing")) {
+    assertPlacementBriefingV2(
+      placement.briefing,
+      "$.placement.briefing",
+    );
   }
   return placement;
 }
@@ -580,52 +646,28 @@ export function validateExperimentPlacementAgainstSnapshotV2(
       "does not match the pinned snapshot",
     );
   }
-  if (placement.view === undefined) return placement;
+  if (placement.briefing === undefined) return placement;
 
-  const view = placement.view;
+  const briefing = placement.briefing;
   const surface = snapshot.content.surface;
   assertKnownSubsetV2(
-    view.scenarioIds,
+    briefing.scenarioIds,
     snapshot.content.scenarios.map(({ scenarioId }) => scenarioId),
-    "$.placement.view.scenarioIds",
+    "$.placement.briefing.scenarioIds",
   );
-  assertKnownSubsetV2(
-    view.graphInstanceIds,
-    surface.graphs.map(({ instanceId }) => instanceId),
-    "$.placement.view.graphInstanceIds",
-  );
-  assertKnownSubsetV2(
-    view.readoutInstanceIds,
-    surface.readouts.map(({ instanceId }) => instanceId),
-    "$.placement.view.readoutInstanceIds",
-  );
-  assertKnownSubsetV2(
-    view.controlInstanceIds,
-    surface.controls.map(({ instanceId }) => instanceId),
-    "$.placement.view.controlInstanceIds",
-  );
-
-  if (view.order !== undefined) {
-    const selectedIds = [
-      ...(view.graphInstanceIds
-        ?? surface.graphs.map(({ instanceId }) => instanceId)),
-      ...(view.readoutInstanceIds
-        ?? surface.readouts.map(({ instanceId }) => instanceId)),
-      ...(view.controlInstanceIds
-        ?? surface.controls.map(({ instanceId }) => instanceId)),
-      surface.note.instanceId,
-    ];
-    const selectedSet = new Set(selectedIds);
-    if (
-      view.order.length !== selectedIds.length
-      || view.order.some((instanceId) => !selectedSet.has(instanceId))
-    ) {
+  const availablePaneIds = new Set([
+    ...surface.graphPanes.map(({ paneId }) => paneId),
+    ...surface.outputPanes.map(({ paneId }) => paneId),
+    ...surface.controlPanes.map(({ paneId }) => paneId),
+  ]);
+  briefing.panePicks.forEach((pick, index) => {
+    if (!availablePaneIds.has(pick.paneId)) {
       throw validationErrorV2(
-        "$.placement.view.order",
-        "must be an exact permutation of the selected views and note",
+        `$.placement.briefing.panePicks[${index}].paneId`,
+        `unknown pane ${pick.paneId}`,
       );
     }
-  }
+  });
   return placement;
 }
 
@@ -738,181 +780,187 @@ function assertExperimentSurfaceV2(
   path: string,
 ): void {
   assertExactKeysV2(surface, [
-    "groups",
-    "graphs",
-    "readouts",
-    "controls",
+    "graphPanes",
+    "outputPanes",
+    "controlPanes",
     "note",
   ], path);
-  arrayV2(surface.groups, `${path}.groups`);
-  arrayV2(surface.graphs, `${path}.graphs`);
-  arrayV2(surface.readouts, `${path}.readouts`);
-  arrayV2(surface.controls, `${path}.controls`);
+  arrayV2(surface.graphPanes, `${path}.graphPanes`);
+  arrayV2(surface.outputPanes, `${path}.outputPanes`);
+  arrayV2(surface.controlPanes, `${path}.controlPanes`);
 
-  const groupIds = new Set<string>();
-  const groupOrders = new Set<number>();
-  surface.groups.forEach((group, index) => {
-    const groupPath = `${path}.groups[${index}]`;
-    assertExactKeysV2(group, [
-      "groupId",
-      "label",
-      "order",
-      "priority",
-    ], groupPath);
-    const groupId = requiredPortableIdV2(
-      group.groupId,
-      `${groupPath}.groupId`,
-    );
-    assertUniqueIdV2(groupIds, groupId, `${groupPath}.groupId`);
-    requiredTrimmedStringV2(group.label, `${groupPath}.label`);
-    semanticOrderV2(group.order, `${groupPath}.order`);
-    if (groupOrders.has(group.order)) {
+  const paneIds = new Set<string>();
+  const assertPane = (
+    pane: Record<string, unknown>,
+    panePath: string,
+    role: "graph" | "output" | "control",
+    roleOrders: Set<number>,
+  ): void => {
+    const paneId = requiredPortableIdV2(pane.paneId, `${panePath}.paneId`);
+    assertUniqueIdV2(paneIds, paneId, `${panePath}.paneId`);
+    if (pane.role !== role) {
+      throw validationErrorV2(`${panePath}.role`, `must be ${role}`);
+    }
+    requiredTrimmedStringV2(pane.label, `${panePath}.label`);
+    semanticOrderV2(pane.order, `${panePath}.order`);
+    if (roleOrders.has(pane.order as number)) {
       throw validationErrorV2(
-        `${groupPath}.order`,
-        `duplicate semantic order ${group.order}`,
+        `${panePath}.order`,
+        `duplicate ${role} pane order ${String(pane.order)}`,
       );
     }
-    groupOrders.add(group.order);
-    semanticPriorityV2(group.priority, `${groupPath}.priority`);
+    roleOrders.add(pane.order as number);
+    semanticPriorityV2(pane.priority, `${panePath}.priority`);
+  };
+  const assertLabeledOutputItems = (
+    items: readonly unknown[],
+    itemsPath: string,
+  ): void => {
+    const outputIds = new Set<string>();
+    const orders = new Set<number>();
+    items.forEach((item, index) => {
+      const itemPath = `${itemsPath}[${index}]`;
+      assertExactKeysV2(item, ["outputId", "label", "colorHex", "order"], itemPath);
+      const outputId = requiredPortableIdV2(item.outputId, `${itemPath}.outputId`);
+      assertUniqueIdV2(outputIds, outputId, `${itemPath}.outputId`);
+      requiredTrimmedStringV2(item.label, `${itemPath}.label`);
+      canonicalColorHexV2(item.colorHex, `${itemPath}.colorHex`);
+      semanticOrderV2(item.order, `${itemPath}.order`);
+      assertUniqueOrderV2(orders, item.order as number, `${itemPath}.order`);
+    });
+  };
+
+  const graphOrders = new Set<number>();
+  surface.graphPanes.forEach((pane, index) => {
+    const panePath = `${path}.graphPanes[${index}]`;
+    assertRequiredOptionalKeysV2(
+      pane,
+      ["paneId", "role", "label", "colorHex", "order", "priority", "graphId", "series"],
+      ["windowSec"],
+      panePath,
+    );
+    assertPane(
+      pane as unknown as Record<string, unknown>,
+      panePath,
+      "graph",
+      graphOrders,
+    );
+    canonicalColorHexV2(pane.colorHex, `${panePath}.colorHex`);
+    requiredPortableIdV2(pane.graphId, `${panePath}.graphId`);
+    if (pane.windowSec !== undefined) {
+      sweepWindowSecV2(pane.windowSec, `${panePath}.windowSec`);
+    }
+    arrayV2(pane.series, `${panePath}.series`);
+    assertLabeledOutputItems(pane.series, `${panePath}.series`);
   });
 
-  const instanceIds = new Set<string>();
-  const ordersByGroup = new Map<string, Set<number>>();
-  const assertInstance = (
-    instance: Record<string, unknown>,
-    path: string,
-    definitionKey: "graphId" | "outputId" | "controlId" | null,
-  ): void => {
-    assertExactKeysV2(instance, definitionKey === null
-      ? ["instanceId", "text", "groupId", "order", "priority"]
-      : definitionKey === "controlId"
-        ? [
-          "instanceId",
-          definitionKey,
-          "targetScenarioIds",
-          "groupId",
-          "order",
-          "priority",
-        ]
-        : ["instanceId", definitionKey, "groupId", "order", "priority"], path);
-    const instanceId = requiredPortableIdV2(
-      instance.instanceId,
-      `${path}.instanceId`,
+  const outputOrders = new Set<number>();
+  surface.outputPanes.forEach((pane, index) => {
+    const panePath = `${path}.outputPanes[${index}]`;
+    assertExactKeysV2(
+      pane,
+      ["paneId", "role", "label", "order", "priority", "items"],
+      panePath,
     );
-    assertUniqueIdV2(instanceIds, instanceId, `${path}.instanceId`);
-    if (definitionKey === null) {
-      trimmedStringV2(instance.text, `${path}.text`);
-    } else {
-      requiredPortableIdV2(
-        instance[definitionKey],
-        `${path}.${definitionKey}`,
+    assertPane(
+      pane as unknown as Record<string, unknown>,
+      panePath,
+      "output",
+      outputOrders,
+    );
+    arrayV2(pane.items, `${panePath}.items`);
+    assertLabeledOutputItems(pane.items, `${panePath}.items`);
+  });
+
+  const controlOrders = new Set<number>();
+  surface.controlPanes.forEach((pane, paneIndex) => {
+    const panePath = `${path}.controlPanes[${paneIndex}]`;
+    assertExactKeysV2(
+      pane,
+      ["paneId", "role", "label", "order", "priority", "items"],
+      panePath,
+    );
+    assertPane(
+      pane as unknown as Record<string, unknown>,
+      panePath,
+      "control",
+      controlOrders,
+    );
+    arrayV2(pane.items, `${panePath}.items`);
+    const controlIds = new Set<string>();
+    const itemOrders = new Set<number>();
+    pane.items.forEach((item, itemIndex) => {
+      const itemPath = `${panePath}.items[${itemIndex}]`;
+      assertExactKeysV2(item, [
+        "controlId",
+        "label",
+        "colorHex",
+        "targetScenarioIds",
+        "order",
+      ], itemPath);
+      const controlId = requiredPortableIdV2(
+        item.controlId,
+        `${itemPath}.controlId`,
       );
-    }
-    if (definitionKey === "controlId") {
-      const targets = instance.targetScenarioIds;
-      arrayV2(targets, `${path}.targetScenarioIds`);
-      if (targets.length === 0) {
+      assertUniqueIdV2(controlIds, controlId, `${itemPath}.controlId`);
+      requiredTrimmedStringV2(item.label, `${itemPath}.label`);
+      canonicalColorHexV2(item.colorHex, `${itemPath}.colorHex`);
+      semanticOrderV2(item.order, `${itemPath}.order`);
+      assertUniqueOrderV2(itemOrders, item.order, `${itemPath}.order`);
+      arrayV2(item.targetScenarioIds, `${itemPath}.targetScenarioIds`);
+      if (item.targetScenarioIds.length === 0) {
         throw validationErrorV2(
-          `${path}.targetScenarioIds`,
+          `${itemPath}.targetScenarioIds`,
           "must contain at least one explicit Scenario target",
         );
       }
       const targetIds = new Set<string>();
-      targets.forEach((target, index) => {
+      item.targetScenarioIds.forEach((target, targetIndex) => {
         const targetId = requiredPortableIdV2(
           target,
-          `${path}.targetScenarioIds[${index}]`,
+          `${itemPath}.targetScenarioIds[${targetIndex}]`,
         );
         assertUniqueIdV2(
           targetIds,
           targetId,
-          `${path}.targetScenarioIds[${index}]`,
+          `${itemPath}.targetScenarioIds[${targetIndex}]`,
         );
       });
-    }
-    const groupId = requiredPortableIdV2(
-      instance.groupId,
-      `${path}.groupId`,
-    );
-    if (!groupIds.has(groupId)) {
-      throw validationErrorV2(
-        `${path}.groupId`,
-        `unknown semantic group ${groupId}`,
-      );
-    }
-    semanticOrderV2(instance.order, `${path}.order`);
-    semanticPriorityV2(instance.priority, `${path}.priority`);
-    const groupOrders = ordersByGroup.get(groupId) ?? new Set<number>();
-    if (groupOrders.has(instance.order as number)) {
-      throw validationErrorV2(
-        `${path}.order`,
-        `duplicate order ${String(instance.order)} in group ${groupId}`,
-      );
-    }
-    groupOrders.add(instance.order as number);
-    ordersByGroup.set(groupId, groupOrders);
-  };
+    });
+  });
 
-  surface.graphs.forEach((instance, index) =>
-    assertInstance(
-      instance as unknown as Record<string, unknown>,
-      `${path}.graphs[${index}]`,
-      "graphId",
-    ));
-  surface.readouts.forEach((instance, index) =>
-    assertInstance(
-      instance as unknown as Record<string, unknown>,
-      `${path}.readouts[${index}]`,
-      "outputId",
-    ));
-  surface.controls.forEach((instance, index) =>
-    assertInstance(
-      instance as unknown as Record<string, unknown>,
-      `${path}.controls[${index}]`,
-      "controlId",
-    ));
-  assertInstance(
-    surface.note as unknown as Record<string, unknown>,
-    `${path}.note`,
-    null,
-  );
+  assertExactKeysV2(surface.note, ["text"], `${path}.note`);
+  trimmedStringV2(surface.note.text, `${path}.note.text`);
 }
 
-function assertPlacementViewV2(
-  view: ExperimentPlacementViewV2 | undefined,
+function assertPlacementBriefingV2(
+  briefing: ExperimentPlacementBriefingV2 | undefined,
   path: string,
-): asserts view is ExperimentPlacementViewV2 {
-  if (view === undefined) {
+): asserts briefing is ExperimentPlacementBriefingV2 {
+  if (briefing === undefined) {
     throw validationErrorV2(path, "must be an object when present");
   }
-  assertRequiredOptionalKeysV2(view, [], [
-    "scenarioIds",
-    "graphInstanceIds",
-    "readoutInstanceIds",
-    "controlInstanceIds",
-    "order",
-  ], path);
-  for (const field of [
-    "scenarioIds",
-    "graphInstanceIds",
-    "readoutInstanceIds",
-    "controlInstanceIds",
-    "order",
-  ] as const) {
-    if (!hasOwnV2(view, field)) continue;
-    const values = view[field];
-    if (!Array.isArray(values)) {
-      throw validationErrorV2(`${path}.${field}`, "must be an array");
-    }
+  assertRequiredOptionalKeysV2(briefing, ["panePicks"], ["scenarioIds"], path);
+  if (hasOwnV2(briefing, "scenarioIds")) {
+    arrayV2(briefing.scenarioIds, `${path}.scenarioIds`);
     const seen = new Set<string>();
-    values.forEach((value, index) => {
+    briefing.scenarioIds.forEach((value, index) => {
       const id = requiredPortableIdV2(
         value,
-        `${path}.${field}[${index}]`,
+        `${path}.scenarioIds[${index}]`,
       );
-      assertUniqueIdV2(seen, id, `${path}.${field}[${index}]`);
+      assertUniqueIdV2(seen, id, `${path}.scenarioIds[${index}]`);
     });
   }
+  arrayV2(briefing.panePicks, `${path}.panePicks`);
+  const paneIds = new Set<string>();
+  briefing.panePicks.forEach((pick, index) => {
+    const pickPath = `${path}.panePicks[${index}]`;
+    assertExactKeysV2(pick, ["paneId", "priority"], pickPath);
+    const paneId = requiredPortableIdV2(pick.paneId, `${pickPath}.paneId`);
+    assertUniqueIdV2(paneIds, paneId, `${pickPath}.paneId`);
+    semanticPriorityV2(pick.priority, `${pickPath}.priority`);
+  });
 }
 
 function assertKnownSubsetV2(
@@ -1016,6 +1064,17 @@ function assertUniqueIdV2(
   seen.add(value);
 }
 
+function assertUniqueOrderV2(
+  seen: Set<number>,
+  value: number,
+  path: string,
+): void {
+  if (seen.has(value)) {
+    throw validationErrorV2(path, `duplicate order ${value}`);
+  }
+  seen.add(value);
+}
+
 function requiredTrimmedStringV2(value: unknown, path: string): void {
   if (
     typeof value !== "string"
@@ -1032,6 +1091,15 @@ function trimmedStringV2(value: unknown, path: string): void {
   }
 }
 
+function canonicalColorHexV2(value: unknown, path: string): void {
+  if (typeof value !== "string" || !/^#[0-9a-f]{6}$/.test(value)) {
+    throw validationErrorV2(
+      path,
+      "must be a canonical lowercase #rrggbb color",
+    );
+  }
+}
+
 function nonnegativeSafeIntegerV2(value: unknown, path: string): void {
   if (!Number.isSafeInteger(value) || (value as number) < 0) {
     throw validationErrorV2(path, "must be a nonnegative safe integer");
@@ -1045,6 +1113,29 @@ function nonnegativeFiniteNumberV2(value: unknown, path: string): void {
     || value < 0
   ) {
     throw validationErrorV2(path, "must be a nonnegative finite number");
+  }
+}
+
+function sweepWindowSecV2(value: unknown, path: string): void {
+  if (
+    typeof value !== "number"
+    || !Number.isFinite(value)
+    || value < STUDIO_SWEEP_WINDOW_MIN_SEC_V2
+    || value > STUDIO_SWEEP_WINDOW_MAX_SEC_V2
+    || Math.abs(
+      (value - STUDIO_SWEEP_WINDOW_MIN_SEC_V2)
+        / STUDIO_SWEEP_WINDOW_STEP_SEC_V2
+      - Math.round(
+        (value - STUDIO_SWEEP_WINDOW_MIN_SEC_V2)
+          / STUDIO_SWEEP_WINDOW_STEP_SEC_V2,
+      ),
+    ) > 1e-9
+  ) {
+    throw validationErrorV2(
+      path,
+      `must be ${STUDIO_SWEEP_WINDOW_MIN_SEC_V2}–${STUDIO_SWEEP_WINDOW_MAX_SEC_V2} `
+        + `seconds in ${STUDIO_SWEEP_WINDOW_STEP_SEC_V2} second steps`,
+    );
   }
 }
 

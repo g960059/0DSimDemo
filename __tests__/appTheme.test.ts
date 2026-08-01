@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { outputColorV3 } from '@/components/workbench/WorkbenchSurfaceV3';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -31,4 +32,82 @@ describe('application theme', () => {
     expect(html).not.toContain('document.body.dataset.workbenchTheme');
   });
 
+  it('keeps the shared light and dark surfaces quiet and Zenn-blue accented', () => {
+    const css = readFileSync('index.css', 'utf8');
+
+    expect(css).toContain('--wb-app-bg: #0d223a;');
+    expect(css).toContain('--wb-zone-main-bg: #081d35;');
+    expect(css).toContain('--wb-app-bg: #f5f9fc;');
+    expect(css).toContain('--wb-accent: #3ea8ff;');
+    expect(css).toContain('--wb-line: var(--wb-border);');
+    expect(css).toContain('--wb-grid: rgba(37, 55, 72, 0.09);');
+  });
+
+  it('uses semantic default series colors legible on both application canvases', () => {
+    const outputIds = [
+      'hemodynamics.volume.LA',
+      'hemodynamics.volume.LV',
+      'hemodynamics.volume.RA',
+      'hemodynamics.volume.RV',
+      'hemodynamics.pressure.absolute.LA',
+      'hemodynamics.pressure.absolute.LV',
+      'hemodynamics.pressure.absolute.RA',
+      'hemodynamics.pressure.absolute.RV',
+      'hemodynamics.pressure.transmural.LA',
+      'hemodynamics.pressure.transmural.LV',
+      'hemodynamics.pressure.transmural.RA',
+      'hemodynamics.pressure.transmural.RV',
+      'hemodynamics.pressure.absolute.Ao',
+      'hemodynamics.pressure.absolute.SA',
+      'hemodynamics.pressure.absolute.PA',
+      'hemodynamics.pressure.absolute.PVein',
+      'hemodynamics.pressure.absolute.VC',
+      'hemodynamics.flow.valve.MV',
+      'hemodynamics.flow.valve.AoV',
+      'hemodynamics.flow.valve.TV',
+      'hemodynamics.flow.valve.PV',
+      'coronary.flow.total',
+      'coronary.flow.inlet.LAD',
+      'coronary.flow.inlet.LCx',
+      'coronary.flow.inlet.RCA',
+      'device.LVAD.flow',
+      'rhythm.phase.regular-sinus',
+      'future.output.uses-deterministic-fallback',
+    ] as const;
+    const backgrounds = ['#081d35', '#f5f9fc'] as const;
+
+    outputIds.forEach((outputId) => {
+      const color = outputColorV3(outputId);
+      backgrounds.forEach((background) => {
+        expect(
+          contrastRatio(color, background),
+          `${outputId} ${color} on ${background}`,
+        ).toBeGreaterThanOrEqual(3);
+      });
+    });
+
+    expect(outputColorV3('coronary.flow.total')).toBe('#66717b');
+    expect(outputColorV3('hemodynamics.pressure.absolute.LV')).toBe('#cf405a');
+    expect(outputColorV3('hemodynamics.pressure.absolute.RV')).toBe('#3472c4');
+  });
+
 });
+
+function contrastRatio(foreground: string, background: string): number {
+  const foregroundLuminance = relativeLuminance(foreground);
+  const backgroundLuminance = relativeLuminance(background);
+  return (Math.max(foregroundLuminance, backgroundLuminance) + 0.05)
+    / (Math.min(foregroundLuminance, backgroundLuminance) + 0.05);
+}
+
+function relativeLuminance(color: string): number {
+  const channels = color.match(/[0-9a-f]{2}/gi)?.map((channel) =>
+    Number.parseInt(channel, 16) / 255);
+  if (channels === undefined || channels.length !== 3) {
+    throw new Error(`Expected canonical six-digit hex, received ${color}`);
+  }
+  const linear = channels.map((channel) => channel <= 0.04045
+    ? channel / 12.92
+    : ((channel + 0.055) / 1.055) ** 2.4);
+  return (0.2126 * linear[0]!) + (0.7152 * linear[1]!) + (0.0722 * linear[2]!);
+}

@@ -11,7 +11,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["**/*.test.ts"],
+    include: ["**/*.test.{ts,tsx}"],
     exclude: [...configDefaults.exclude, ".claude/**", ".codex/**"],
     snapshotFormat: {
       printBasicPrototype: false,

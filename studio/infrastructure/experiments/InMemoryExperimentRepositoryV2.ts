@@ -63,6 +63,39 @@ class InMemoryExperimentRepositoryV2 {
   readonly #snapshots =
     new Map<ExperimentSnapshotIdV2, ExperimentSnapshotV2>();
 
+  constructor(seed: InMemoryExperimentAuthoringSeedV2 | undefined) {
+    if (seed === undefined) return;
+    const validatedSeed = validateSeedEnvelopeV2(seed);
+
+    for (const snapshot of validatedSeed.snapshots ?? []) {
+      if (this.#snapshots.has(snapshot.snapshotId)) {
+        throw new StudioExperimentConflictErrorV2(
+          `seed contains duplicate snapshotId: ${snapshot.snapshotId}`,
+        );
+      }
+      this.#snapshots.set(snapshot.snapshotId, snapshot);
+    }
+
+    for (const snapshot of this.#snapshots.values()) {
+      if (snapshot.parentSnapshotId === null) continue;
+      const parent = this.#snapshots.get(snapshot.parentSnapshotId);
+      if (
+        parent !== undefined
+        && parent.content.modelId !== snapshot.content.modelId
+      ) {
+        throw new StudioExperimentConflictErrorV2(
+          "seed Snapshot lineage must keep the exact modelId",
+        );
+      }
+    }
+
+    if (validatedSeed.workspace !== undefined) {
+      const workspace = validatedSeed.workspace;
+      assertSeedWorkspaceLineageV2(workspace, this.#snapshots);
+      this.#workspaces.set(workspace.experimentId, workspace);
+    }
+  }
+
   get workspaceCount(): number {
     return this.#workspaces.size;
   }
@@ -207,7 +240,14 @@ class InMemoryExperimentRepositoryV2 {
 export type InMemoryExperimentAuthoringDependenciesV2 = Omit<
   ConstructorParameters<typeof StudioExperimentAuthoringApplicationV2>[0],
   "repository" | "qualifiedSnapshotCommit"
->;
+> & Readonly<{
+  seed?: InMemoryExperimentAuthoringSeedV2;
+}>;
+
+export type InMemoryExperimentAuthoringSeedV2 = Readonly<{
+  workspace?: ExperimentWorkspaceV2;
+  snapshots?: readonly ExperimentSnapshotV2[];
+}>;
 
 export type InMemoryExperimentQueryFacadeV2 = ExperimentQueryPortV2 & Readonly<{
   readonly workspaceCount: number;
@@ -236,9 +276,10 @@ export function createInMemoryExperimentAuthoringV2(
   application: StudioExperimentAuthoringFacadeV2;
   queries: InMemoryExperimentQueryFacadeV2;
 }> {
-  const repository = new InMemoryExperimentRepositoryV2();
+  const { seed, ...authoringDependencies } = dependencies;
+  const repository = new InMemoryExperimentRepositoryV2(seed);
   const application = new StudioExperimentAuthoringApplicationV2({
-    ...dependencies,
+    ...authoringDependencies,
     repository,
     qualifiedSnapshotCommit:
       repository[QUALIFIED_SNAPSHOT_COMMIT_CAPABILITY_V2](),
@@ -267,6 +308,133 @@ export function createInMemoryExperimentAuthoringV2(
     },
   });
   return Object.freeze({ application: authoringFacade, queries });
+}
+
+function validateSeedEnvelopeV2(
+  seed: InMemoryExperimentAuthoringSeedV2,
+): InMemoryExperimentAuthoringSeedV2 {
+  if (
+    seed === null
+    || typeof seed !== "object"
+    || Array.isArray(seed)
+    || (
+      Object.getPrototypeOf(seed) !== Object.prototype
+      && Object.getPrototypeOf(seed) !== null
+    )
+  ) {
+    throw new StudioExperimentConflictErrorV2(
+      "authoring seed must be a plain data object",
+    );
+  }
+  const allowed = new Set(["workspace", "snapshots"]);
+  const unknown = Reflect.ownKeys(seed).filter((key) =>
+    typeof key !== "string" || !allowed.has(key));
+  if (unknown.length > 0) {
+    throw new StudioExperimentConflictErrorV2(
+      "authoring seed contains unknown fields",
+    );
+  }
+  const workspaceValue = seedDataPropertyV2(seed, "workspace");
+  const snapshotsValue = seedDataPropertyV2(seed, "snapshots");
+  const workspace = workspaceValue === ABSENT_SEED_FIELD_V2
+    ? undefined
+    : validateExperimentWorkspaceV2(workspaceValue);
+  const snapshots = snapshotsValue === ABSENT_SEED_FIELD_V2
+    ? undefined
+    : validateSeedSnapshotsV2(snapshotsValue);
+  return Object.freeze({
+    ...(workspace === undefined ? {} : { workspace }),
+    ...(snapshots === undefined ? {} : { snapshots }),
+  });
+}
+
+const ABSENT_SEED_FIELD_V2 = Symbol("absent-seed-field-v2");
+
+function seedDataPropertyV2(
+  seed: object,
+  key: "workspace" | "snapshots",
+): unknown | typeof ABSENT_SEED_FIELD_V2 {
+  const descriptor = Object.getOwnPropertyDescriptor(seed, key);
+  if (descriptor === undefined) return ABSENT_SEED_FIELD_V2;
+  if (!descriptor.enumerable || !("value" in descriptor)) {
+    throw new StudioExperimentConflictErrorV2(
+      `authoring seed ${key} must be an enumerable data property`,
+    );
+  }
+  return descriptor.value;
+}
+
+function validateSeedSnapshotsV2(
+  value: unknown,
+): readonly ExperimentSnapshotV2[] {
+  if (
+    !Array.isArray(value)
+    || Object.getPrototypeOf(value) !== Array.prototype
+  ) {
+    throw new StudioExperimentConflictErrorV2(
+      "authoring seed snapshots must be a plain array",
+    );
+  }
+  const expectedKeys = new Set(["length"]);
+  for (let index = 0; index < value.length; index += 1) {
+    expectedKeys.add(String(index));
+  }
+  if (Reflect.ownKeys(value).some((key) =>
+    typeof key !== "string" || !expectedKeys.has(key))) {
+    throw new StudioExperimentConflictErrorV2(
+      "authoring seed snapshots must not contain custom properties",
+    );
+  }
+  const snapshots: ExperimentSnapshotV2[] = [];
+  for (let index = 0; index < value.length; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+    if (
+      descriptor === undefined
+      || !descriptor.enumerable
+      || !("value" in descriptor)
+    ) {
+      throw new StudioExperimentConflictErrorV2(
+        "authoring seed snapshots must be dense enumerable data",
+      );
+    }
+    snapshots.push(validateExperimentSnapshotV2(descriptor.value));
+  }
+  return Object.freeze(snapshots);
+}
+
+function assertSeedWorkspaceLineageV2(
+  workspace: ExperimentWorkspaceV2,
+  snapshots: ReadonlyMap<ExperimentSnapshotIdV2, ExperimentSnapshotV2>,
+): void {
+  if (workspace.headSnapshotId !== null) {
+    const head = snapshots.get(workspace.headSnapshotId);
+    if (head === undefined) {
+      throw new StudioExperimentConflictErrorV2(
+        `seed workspace head Snapshot not found: ${workspace.headSnapshotId}`,
+      );
+    }
+    if (
+      head.experimentId !== workspace.experimentId
+      || head.content.modelId !== workspace.content.modelId
+    ) {
+      throw new StudioExperimentConflictErrorV2(
+        "seed workspace head must belong to the same Experiment and model",
+      );
+    }
+  }
+  if (workspace.basedOnSnapshotId !== null) {
+    const basedOn = snapshots.get(workspace.basedOnSnapshotId);
+    if (basedOn === undefined) {
+      throw new StudioExperimentConflictErrorV2(
+        `seed workspace base Snapshot not found: ${workspace.basedOnSnapshotId}`,
+      );
+    }
+    if (basedOn.content.modelId !== workspace.content.modelId) {
+      throw new StudioExperimentConflictErrorV2(
+        "seed workspace base must use the same exact model",
+      );
+    }
+  }
 }
 
 function assertExpectedDraftVersionV2(

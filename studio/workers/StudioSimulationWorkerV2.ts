@@ -16,9 +16,9 @@ type WorkerPortV2 = Readonly<{
 const workerPort = globalThis as unknown as WorkerPortV2;
 const workerRuntime = new StudioSimulationWorkerRuntimeV2({
   port: workerPort,
-  async loadSimulationAdapter() {
+  async loadExactRuntime() {
     const composition = await createStudioDefaultWorkerCompositionV2();
-    return composition.runtime.simulationAdapter;
+    return composition.runtime;
   },
 });
 

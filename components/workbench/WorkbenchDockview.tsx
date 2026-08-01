@@ -6,7 +6,7 @@ import {
   type IDockviewPanelHeaderProps,
   type IDockviewPanelProps,
 } from "dockview";
-import { Settings2 } from "lucide-react";
+import { Plus, Settings2 } from "lucide-react";
 import "dockview/dist/styles/dockview.css";
 
 export type WorkbenchPaneRoleV3 = "graph" | "output" | "control" | "note";
@@ -16,6 +16,7 @@ export type WorkbenchPaneDefinitionV3 = Readonly<{
   paneId: string;
   role: WorkbenchPaneRoleV3;
   title: string;
+  colorHex?: string;
 }>;
 
 type WorkbenchDockPanelParametersV3 = Readonly<{
@@ -29,10 +30,15 @@ export type WorkbenchDockviewPropsV3 = Readonly<{
   role: WorkbenchPaneRoleV3;
   renderPane: (pane: WorkbenchPaneDefinitionV3) => React.ReactNode;
   onOpenPaneSettings?: (paneId: string) => void;
+  paneSettingsLabel?: string;
+  onAddPane?: () => void;
+  addPaneLabel?: string;
+  emptyPaneLabel?: string;
 }>;
 
 type WorkbenchDockviewContextV3 = Readonly<{
   onOpenPaneSettings?: (paneId: string) => void;
+  paneSettingsLabel?: string;
   paneById: ReadonlyMap<string, WorkbenchPaneDefinitionV3>;
   renderPane: WorkbenchDockviewPropsV3["renderPane"];
 }>;
@@ -46,6 +52,15 @@ function WorkbenchDockPanelV3(
 ) {
   const context = React.useContext(WorkbenchDockContextV3);
   const pane = context?.paneById.get(props.params.paneId);
+  const [isVisible, setIsVisible] = React.useState(() => props.api.isVisible);
+  React.useEffect(() => {
+    const update = () => setIsVisible(props.api.isVisible);
+    const visible = props.api.onDidVisibilityChange(update);
+    update();
+    return () => {
+      visible.dispose();
+    };
+  }, [props.api]);
   if (context === null || pane === undefined) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-wb-subtle">
@@ -53,7 +68,20 @@ function WorkbenchDockPanelV3(
       </div>
     );
   }
+  // Dockview's `onlyWhenVisible` detaches inactive panel DOM but keeps its
+  // React portal mounted. Explicitly unmount expensive chart content so a
+  // hidden tab cannot retain a live sample-store subscription or Canvas loop.
+  if (!shouldRenderWorkbenchDockPanelV3(props.api.isActive, isVisible)) {
+    return null;
+  }
   return <>{context.renderPane(pane)}</>;
+}
+
+export function shouldRenderWorkbenchDockPanelV3(
+  _isActive: boolean,
+  isVisible: boolean,
+): boolean {
+  return isVisible;
 }
 
 function WorkbenchDockTabV3(
@@ -62,19 +90,28 @@ function WorkbenchDockTabV3(
   const context = React.useContext(WorkbenchDockContextV3);
   const pane = context?.paneById.get(props.params.paneId);
   const title = pane?.title ?? props.params.paneId;
+  const colorHex = validWorkbenchPaneColorHexV3(pane?.colorHex);
+  const settingsLabel = context?.paneSettingsLabel ?? "Pane settings";
 
   return (
     <div
       className="workbench-dock-tab flex h-full min-w-0 items-center gap-2 px-2.5 text-xs font-semibold text-wb-muted"
       onClick={() => props.api.setActive()}
     >
+      {colorHex !== undefined && (
+        <span
+          className="workbench-dock-tab-accent h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ backgroundColor: colorHex }}
+          aria-hidden="true"
+        />
+      )}
       <span className="min-w-0 flex-1 truncate">{title}</span>
       {pane !== undefined && context?.onOpenPaneSettings !== undefined && (
         <button
           type="button"
-          className="workbench-dock-tab-settings inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
-          aria-label={`Open ${title} pane settings`}
-          title="Pane settings"
+          className="workbench-dock-tab-settings inline-flex h-7 w-7 shrink-0 touch-manipulation items-center justify-center rounded-md text-wb-subtle transition-colors duration-150 hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          aria-label={`${settingsLabel}: ${title}`}
+          title={settingsLabel}
           draggable={false}
           onClick={(event) => {
             event.stopPropagation();
@@ -117,6 +154,7 @@ function applyPanesV3(
   panes: readonly WorkbenchPaneDefinitionV3[],
   layoutMode: WorkbenchDockLayoutModeV3,
 ): void {
+  const activePaneId = api.activePanel?.id;
   api.clear();
   panes.forEach((pane, index) => {
     addPaneV3(
@@ -125,9 +163,12 @@ function applyPanesV3(
       workbenchPanePlacementV3(index, layoutMode),
     );
   });
-  const firstPane = panes[0];
-  if (firstPane !== undefined) {
-    api.getPanel?.(firstPane.paneId)?.api?.setActive?.();
+  const paneToActivate = activePaneId !== undefined
+    && panes.some(({ paneId }) => paneId === activePaneId)
+    ? activePaneId
+    : panes[0]?.paneId;
+  if (paneToActivate !== undefined) {
+    api.getPanel?.(paneToActivate)?.api?.setActive?.();
   }
 }
 
@@ -136,6 +177,9 @@ export function workbenchPanePlacementV3(
   layoutMode: WorkbenchDockLayoutModeV3,
 ): "first" | "right" | "within" {
   if (index === 0) return "first";
+  // Desktop split is intentionally bounded to two columns: pane 2 owns the
+  // secondary column and panes 3+ join pane 1's primary tab group. A catalog
+  // with many panes therefore adds tabs instead of ever-narrower columns.
   return layoutMode === "split" && index === 1 ? "right" : "within";
 }
 
@@ -205,6 +249,10 @@ export function WorkbenchDockview({
   role,
   renderPane,
   onOpenPaneSettings,
+  paneSettingsLabel,
+  onAddPane,
+  addPaneLabel = "Add pane",
+  emptyPaneLabel = "No panes selected",
 }: WorkbenchDockviewPropsV3) {
   for (const pane of panes) {
     if (pane.role !== role) {
@@ -239,8 +287,13 @@ export function WorkbenchDockview({
     [panes],
   );
   const context = React.useMemo<WorkbenchDockviewContextV3>(
-    () => ({ paneById, renderPane, onOpenPaneSettings }),
-    [onOpenPaneSettings, paneById, renderPane],
+    () => ({
+      paneById,
+      renderPane,
+      onOpenPaneSettings,
+      paneSettingsLabel,
+    }),
+    [onOpenPaneSettings, paneById, paneSettingsLabel, renderPane],
   );
   const components = React.useMemo(
     () => ({ "workbench-pane-v3": WorkbenchDockPanelV3 }),
@@ -289,7 +342,19 @@ export function WorkbenchDockview({
         aria-label={ariaLabel}
         data-workbench-role-area={role}
       >
-        No panes selected
+        <div className="grid justify-items-center gap-2">
+          <span>{emptyPaneLabel}</span>
+          {onAddPane !== undefined && (
+            <button
+              type="button"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              onClick={onAddPane}
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              {addPaneLabel}
+            </button>
+          )}
+        </div>
       </section>
     );
   }
@@ -344,6 +409,14 @@ export function WorkbenchDockview({
       </section>
     </WorkbenchDockContextV3.Provider>
   );
+}
+
+export function validWorkbenchPaneColorHexV3(
+  colorHex: string | undefined,
+): string | undefined {
+  return colorHex !== undefined && /^#[0-9a-f]{6}$/i.test(colorHex)
+    ? colorHex
+    : undefined;
 }
 
 function useNarrowWorkbenchDockviewV3(): boolean {

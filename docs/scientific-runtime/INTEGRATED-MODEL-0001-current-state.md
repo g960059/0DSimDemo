@@ -32,7 +32,7 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact development release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-8
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-10
 ```
 
 It pins:
@@ -42,6 +42,8 @@ It pins:
 - all-off, zero-inertance mechanical support;
 - four model-owned haemodynamic research inputs (systemic and pulmonary
   resistance, venous tone, and arterial stiffness);
+- the validation-stamped `hot-path-lean` Worker execution tier, whose accepted
+  frames and exact checkpoints are locked against `full-invariant` execution;
 - the integrated V3 exact checkpoint codec v4;
 - 27 registered outputs and ten graph definitions (four sweeping waveform
   groups, four chamber pressure-volume loops, and two on-demand structural

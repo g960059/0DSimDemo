@@ -2,11 +2,19 @@ import { describe, expect, it } from "vitest";
 
 import {
   SINGLE_BEAT_PV_ORIENTATION_SEMANTICS_V3,
+  WORKBENCH_PRESENTATION_SAMPLE_CAPACITY_V3,
+  WorkbenchPresentationSampleStoreV3,
+  appendWorkbenchPresentationSamplesV3,
   buildSingleBeatPvOrientationGuidesV3,
   buildSweepingWaveformSegmentsV3,
+  boundedCanvasPixelRatioV3,
+  createWorkbenchCanvasFrameSchedulerV3,
   extractLastCompletePvBeatV3,
+  firstSampleAtOrAfterV3,
+  isWorkbenchPresentationSampleV3,
   lastCompleteCycleRangeV3,
   nextHystereticNumericDomainV3,
+  orderedFiniteWorkbenchSamplesV3,
   type WorkbenchPvPointV3,
   type WorkbenchScalarSampleV3,
 } from "@/components/workbench/v3";
@@ -113,5 +121,167 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       .toContainEqual(guides?.maximumVolumeContact);
     expect(buildSingleBeatPvOrientationGuidesV3(beat, "intracavitary"))
       .toBeNull();
+  });
+
+  it("keeps monotonic Worker samples on the allocation-free fast path", () => {
+    const ordered = Object.freeze([
+      sampleV3(0, 0, {}),
+      sampleV3(0.002, 0.002, {}),
+      sampleV3(0.004, 0.004, {}),
+    ]);
+
+    expect(orderedFiniteWorkbenchSamplesV3(ordered)).toBe(ordered);
+    expect(firstSampleAtOrAfterV3(ordered, 0.001)).toBe(1);
+    expect(firstSampleAtOrAfterV3(ordered, 1)).toBe(ordered.length);
+
+    const malformed = [ordered[2]!, sampleV3(Number.NaN, null, {}), ordered[0]!];
+    expect(orderedFiniteWorkbenchSamplesV3(malformed).map((sample) =>
+      sample.acceptedTimeSec)).toEqual([0, 0.004]);
+  });
+
+  it("bounds Retina backing-store cost while preserving CSS resolution", () => {
+    expect(boundedCanvasPixelRatioV3(0.5)).toBe(1);
+    expect(boundedCanvasPixelRatioV3(2)).toBe(2);
+    expect(boundedCanvasPixelRatioV3(4)).toBe(2);
+    expect(boundedCanvasPixelRatioV3(Number.NaN)).toBe(1);
+  });
+
+  it("coalesces saturated Canvas updates into one pending animation frame", () => {
+    let requestCount = 0;
+    let cancelCount = 0;
+    let renderCount = 0;
+    let pending: (() => void) | null = null;
+    const scheduler = createWorkbenchCanvasFrameSchedulerV3(
+      () => { renderCount += 1; },
+      (callback) => {
+        requestCount += 1;
+        pending = callback;
+        return requestCount;
+      },
+      () => { cancelCount += 1; },
+    );
+
+    for (let index = 0; index < 2_000; index += 1) scheduler.schedule();
+    expect(requestCount).toBe(1);
+    expect(cancelCount).toBe(0);
+    (pending as (() => void) | null)?.();
+    expect(renderCount).toBe(1);
+
+    scheduler.schedule();
+    expect(requestCount).toBe(2);
+    scheduler.dispose();
+    expect(cancelCount).toBe(1);
+  });
+
+  it("keeps a minute-long exact stream bounded and preserves bucket extrema", () => {
+    let presentation: readonly WorkbenchScalarSampleV3[] = [];
+    const dtSec = 0.002;
+    const sourceSampleCount = 30_000;
+    const batchSize = 16;
+    for (let start = 0; start < sourceSampleCount; start += batchSize) {
+      const batch = Array.from(
+        { length: Math.min(batchSize, sourceSampleCount - start) },
+        (_, offset) => {
+          const ordinal = start + offset;
+          const timeSec = ordinal * dtSec;
+          return sampleV3(timeSec, (timeSec % 0.8) / 0.8, {
+            pressure: ordinal % 83 === 0 ? 180 : 80 + 20 * Math.sin(timeSec),
+            flow: ordinal % 71 === 0 ? -40 : 5 + 10 * Math.cos(timeSec),
+            volume: 100 + 25 * Math.sin(timeSec * 2),
+          });
+        },
+      );
+      presentation = appendWorkbenchPresentationSamplesV3(
+        presentation,
+        batch,
+      );
+      expect(presentation.length)
+        .toBeLessThanOrEqual(WORKBENCH_PRESENTATION_SAMPLE_CAPACITY_V3);
+    }
+
+    expect(presentation.length).toBeLessThanOrEqual(362);
+    expect(presentation.at(-1)!.acceptedTimeSec
+      - presentation[0]!.acceptedTimeSec).toBeLessThanOrEqual(6.002);
+    const retainedExactSourceCount = presentation.reduce(
+      (total, sample) => total + (isWorkbenchPresentationSampleV3(sample)
+        ? sample.presentationEnvelope.sourceSampleCount
+        : 0),
+      0,
+    );
+    expect(retainedExactSourceCount).toBeGreaterThanOrEqual(2_990);
+    expect(retainedExactSourceCount).toBeLessThanOrEqual(3_010);
+    for (const outputId of ["pressure", "flow", "volume"]) {
+      const segments = buildSweepingWaveformSegmentsV3(
+        presentation,
+        outputId,
+        { windowSec: 6, forwardGapFraction: 0 },
+      );
+      expect(segments.flat()).toHaveLength(presentation.length);
+      expect(segments.flat().every((point) =>
+        point.envelopeMinimum !== undefined
+        && point.envelopeMaximum !== undefined)).toBe(true);
+    }
+
+    const oneBucket = appendWorkbenchPresentationSamplesV3([], [
+      sampleV3(0, 0, { pressure: 10 }),
+      sampleV3(0.002, 0.002, { pressure: 180 }),
+      sampleV3(0.004, 0.004, { pressure: -20 }),
+    ]);
+    expect(oneBucket).toHaveLength(1);
+    const projected = buildSweepingWaveformSegmentsV3(
+      oneBucket,
+      "pressure",
+      { windowSec: 6, forwardGapFraction: 0 },
+    ).flat();
+    expect(projected[0]).toMatchObject({
+      value: -20,
+      envelopeMinimum: -20,
+      envelopeMaximum: 180,
+    });
+  });
+
+  it("starts a new trace on the smallest representable backward clock step", () => {
+    const previous = appendWorkbenchPresentationSamplesV3([], [
+      sampleV3(1, 0.5, { pressure: 100, volume: 120 }),
+    ]);
+    const restoredTimeSec = 1 - Number.EPSILON / 2;
+    const restored = sampleV3(
+      restoredTimeSec,
+      0.25,
+      { pressure: 12, volume: 99 },
+    );
+
+    const presentation = appendWorkbenchPresentationSamplesV3(
+      previous,
+      [restored],
+    );
+
+    expect(restoredTimeSec).toBeLessThan(1);
+    expect(presentation).toHaveLength(1);
+    expect(presentation[0]).toMatchObject(restored);
+    expect(presentation[0]?.values).toBe(restored.values);
+    expect(presentation[0]?.presentationEnvelope).toEqual({
+      bucketOrdinal: 60,
+      sourceSampleCount: 1,
+      minimums: { pressure: 12, volume: 99 },
+      maximums: { pressure: 12, volume: 99 },
+    });
+  });
+
+  it("invalidates only active presentation-store subscribers", () => {
+    const store = new WorkbenchPresentationSampleStoreV3();
+    let visiblePaneNotifications = 0;
+    const unsubscribe = store.subscribe(() => {
+      visiblePaneNotifications += 1;
+    });
+    store.append([sampleV3(0, 0, { pressure: 10 })]);
+    expect(visiblePaneNotifications).toBe(1);
+    expect(store.subscriberCount).toBe(1);
+
+    unsubscribe();
+    store.append([sampleV3(0.002, 0.002, { pressure: 20 })]);
+    expect(visiblePaneNotifications).toBe(1);
+    expect(store.subscriberCount).toBe(0);
+    expect(store.getSnapshot()).toHaveLength(1);
   });
 });

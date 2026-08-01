@@ -4967,12 +4967,11 @@ function constantLayerRecordV2(value) {
 function clamp$2(value, lower, upper) {
   return Math.min(upper, Math.max(lower, value));
 }
-const __vite_import_meta_env__ = { "BASE_URL": "/", "DEV": true, "MODE": "production", "PROD": false, "SSR": false };
 const DEFAULT_HOT_PATH_INTEGRITY_TIER_V1 = "full-invariant";
 function environmentTierV1() {
   let raw;
   try {
-    raw = __vite_import_meta_env__?.VITE_CIRCLEHEART_HOT_PATH_INTEGRITY;
+    raw = "hot-path-lean";
   } catch {
     raw = void 0;
   }
@@ -30226,14 +30225,14 @@ function assertRegisteredModelPackageManifestV2(value) {
     catalogs.controlCatalog,
     "$.manifest.catalogs.controlCatalog"
   );
-  const outputIds = assertOutputCatalogV2(
+  const outputCatalog = assertOutputCatalogV2(
     catalogs.outputCatalog,
     "$.manifest.catalogs.outputCatalog"
   );
   assertGraphCatalogV2(
     catalogs.graphCatalog,
     "$.manifest.catalogs.graphCatalog",
-    outputIds
+    outputCatalog
   );
 }
 function assertPortableModelIdentifierV2(value, path = "$.modelId") {
@@ -30467,6 +30466,7 @@ function assertOutputCatalogV2(value, path) {
     throw new ModelContractValidationErrorV2(path, "must be an array");
   }
   const ids = /* @__PURE__ */ new Set();
+  const definitionsById = /* @__PURE__ */ new Map();
   const metricDependencies = [];
   for (let index = 0; index < value.length; index += 1) {
     const definition2 = value[index];
@@ -30500,6 +30500,10 @@ function assertOutputCatalogV2(value, path) {
         'must be "scalar" or "vector"'
       );
     }
+    definitionsById.set(output.outputId, Object.freeze({
+      shape: output.shape,
+      unit: output.unit
+    }));
     if (output.kind === "signal") {
       assertExactKeysV2(
         definition2,
@@ -30570,9 +30574,9 @@ function assertOutputCatalogV2(value, path) {
     });
   }
   assertAcyclicMetricDependenciesV2(metricDependencies);
-  return ids;
+  return Object.freeze({ ids, definitionsById });
 }
-function assertGraphCatalogV2(value, path, outputIds) {
+function assertGraphCatalogV2(value, path, outputCatalog) {
   if (!Array.isArray(value)) {
     throw new ModelContractValidationErrorV2(path, "must be an array");
   }
@@ -30640,9 +30644,31 @@ function assertGraphCatalogV2(value, path, outputIds) {
       assertKnownIdArrayV2(
         graph.outputIds,
         `${definitionPath}.outputIds`,
-        outputIds,
+        outputCatalog.ids,
         "output"
       );
+      if (graph.renderer === "sweep") {
+        let sharedUnit;
+        const sweepOutputIds = graph.outputIds;
+        for (let outputIndex = 0; outputIndex < sweepOutputIds.length; outputIndex += 1) {
+          const outputId = sweepOutputIds[outputIndex];
+          const output = outputCatalog.definitionsById.get(outputId);
+          if (output.shape !== "scalar") {
+            throw new ModelContractValidationErrorV2(
+              `${definitionPath}.outputIds[${outputIndex}]`,
+              `sweep output ${outputId} must be scalar`
+            );
+          }
+          if (sharedUnit === void 0) {
+            sharedUnit = output.unit;
+          } else if (output.unit !== sharedUnit) {
+            throw new ModelContractValidationErrorV2(
+              `${definitionPath}.outputIds[${outputIndex}]`,
+              `sweep outputs must share one unit; expected ${sharedUnit} but ${outputId} uses ${output.unit}`
+            );
+          }
+        }
+      }
     }
     if (graph.renderer === "pressure-volume") {
       const graphOutputIds = new Set(graph.outputIds);
@@ -31165,8 +31191,9 @@ function base64EncodeV2(bytes) {
 function errorMessageV2(error) {
   return error instanceof Error ? error.message : String(error);
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-8";
+const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-10";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
+const MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3 = "hot-path-lean";
 const MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.v4";
 const MAIN_WIRE_INTEGRATED_STUDIO_CHECKPOINT_CODEC_ID_V3 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.v4";
 const MAIN_WIRE_INTEGRATED_STUDIO_SNAPSHOT_GATE_ID_V3 = MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID;
@@ -31563,6 +31590,7 @@ function mainWireIntegratedStudioManifestV3() {
     runtime: Object.freeze({
       numericalSessionId: MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID,
       presentationDtSec: MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
+      hotPathIntegrityTier: MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3,
       acceptedBoundaryCapture: true,
       runtimeFixtureCommands: Object.freeze([
         ...Object.values(MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3)
@@ -32118,6 +32146,7 @@ export {
   MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_DEFAULT_FIXTURE_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3,
+  MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_SNAPSHOT_GATE_ID_V3,

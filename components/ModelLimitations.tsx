@@ -1,12 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Info, X } from 'lucide-react';
+import { Info } from 'lucide-react';
+import { ModelDisclosureDialogV3 } from './workbench/ModelDisclosureDialogV3';
 
 const DEFAULT_ACKNOWLEDGEMENT_SCOPE =
-  'circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-8:disclosure-v1';
+  'circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-10:disclosure-v1';
 
 export function modelLimitationsAcknowledgementKey(scope: string): string {
   return `circleheart.modelLimitations.ack.${encodeURIComponent(scope)}`;
+}
+
+export function resolveModelLimitationsOpenState(input: Readonly<{
+  acknowledged: boolean;
+  dismissed: boolean;
+  manuallyOpened: boolean;
+  controlledOpen: boolean | undefined;
+}>): boolean {
+  if (input.controlledOpen === true) return true;
+  if (!input.acknowledged && !input.dismissed) return true;
+  return input.controlledOpen === undefined && input.manuallyOpened;
 }
 
 function hasAck(scope: string): boolean {
@@ -25,17 +37,6 @@ function setAck(scope: string) {
   }
 }
 
-const Body: React.FC<{ limitations: string[] }> = ({ limitations }) => (
-  <ul className="space-y-2 text-sm text-wb-muted">
-    {limitations.map((l, i) => (
-      <li key={i} className="flex gap-2">
-        <span className="text-wb-subtle mt-0.5">•</span>
-        <span>{l}</span>
-      </li>
-    ))}
-  </ul>
-);
-
 /**
  * Model-limitations UX (ROADMAP S1): a one-time first-run modal that records
  * acknowledgement in localStorage, plus a tiny always-reachable info button.
@@ -43,77 +44,109 @@ const Body: React.FC<{ limitations: string[] }> = ({ limitations }) => (
  */
 export const ModelLimitations: React.FC<{
   compact?: boolean;
-  limitations?: string[];
+  limitations?: readonly string[];
   acknowledgementScope?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
 }> = ({
   compact = false,
   limitations,
   acknowledgementScope = DEFAULT_ACKNOWLEDGEMENT_SCOPE,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true,
 }) => {
   const { t } = useTranslation();
   const defaultLimitations = t('modelLimitations.items', { returnObjects: true }) as string[];
   const shownLimitations = limitations ?? defaultLimitations;
-  // First-run modal: open if not acknowledged. Manual reopen via the header icon.
-  const [firstRun, setFirstRun] = useState<boolean>(() =>
-    !hasAck(acknowledgementScope));
-  const [reopened, setReopened] = useState(false);
-  const open = firstRun || reopened;
+  const [acknowledged, setAcknowledged] = useState<boolean>(() =>
+    hasAck(acknowledgementScope));
+  const [dismissed, setDismissed] = useState(false);
+  const [manuallyOpened, setManuallyOpened] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const previousControlled = useRef<Readonly<{
+    scope: string;
+    open: boolean | undefined;
+  }>>({ scope: acknowledgementScope, open: controlledOpen });
+  const controlledCloseTransition =
+    previousControlled.current.scope === acknowledgementScope
+    && previousControlled.current.open === true
+    && controlledOpen === false;
+  const open = resolveModelLimitationsOpenState({
+    acknowledged,
+    dismissed: dismissed || controlledCloseTransition,
+    manuallyOpened,
+    controlledOpen,
+  });
 
-  const close = () => {
-    if (firstRun) setAck(acknowledgementScope);
-    setFirstRun(false);
-    setReopened(false);
+  useEffect(() => {
+    setAcknowledged(hasAck(acknowledgementScope));
+    setDismissed(false);
+    setManuallyOpened(false);
+  }, [acknowledgementScope]);
+
+  useEffect(() => {
+    const previous = previousControlled.current;
+    if (
+      previous.scope === acknowledgementScope
+      && previous.open === true
+      && controlledOpen === false
+    ) {
+      setDismissed(true);
+      setManuallyOpened(false);
+    }
+    previousControlled.current = {
+      scope: acknowledgementScope,
+      open: controlledOpen,
+    };
+  }, [acknowledgementScope, controlledOpen]);
+
+  const setOpen = (nextOpen: boolean) => {
+    setManuallyOpened(nextOpen);
+    if (nextOpen) setDismissed(false);
+    else setDismissed(true);
+    if (isControlled) onOpenChange?.(nextOpen);
   };
 
-  // Escape closes (and acknowledges, if first run).
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const acknowledge = () => {
+    setAck(acknowledgementScope);
+    setAcknowledged(true);
+    setDismissed(true);
+    setManuallyOpened(false);
+    if (isControlled) onOpenChange?.(false);
+  };
 
   return (
     <>
-      <button
-        onClick={() => setReopened(true)}
-        className="p-1.5 text-wb-muted hover:text-wb-text hover:bg-wb-hover rounded transition-colors flex items-center gap-1"
-        title={t('modelLimitations.buttonTitle')}
-        aria-label={t('modelLimitations.titleShort')}
-      >
-        <Info className="w-4 h-4" />
-        {!compact && <span className="hidden lg:inline text-[10px] font-medium">{t('modelLimitations.buttonShort')}</span>}
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="model-limits-title" className="bg-wb-panel border border-wb-line-strong rounded-lg shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-wb-line">
-              <div className="flex items-center gap-2">
-                <Info className="w-4 h-4 text-blue-400" />
-                <h2 id="model-limits-title" className="text-sm font-bold text-wb-text">{t('modelLimitations.title')}</h2>
-              </div>
-              {!firstRun && (
-                <button onClick={close} aria-label={t('common.close')} className="text-wb-subtle hover:text-wb-muted">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            <div className="px-5 py-4">
-              <Body limitations={shownLimitations} />
-            </div>
-            <div className="px-5 py-3 border-t border-wb-line flex justify-end">
-              <button
-                onClick={close}
-                autoFocus
-                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-bold transition-colors"
-              >
-                {t('modelLimitations.understand')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {showTrigger && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex min-h-9 items-center gap-1 rounded-md px-2 text-wb-muted transition-colors duration-150 hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          title={t('modelLimitations.buttonTitle')}
+          aria-label={t('modelLimitations.titleShort')}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+        >
+          <Info className="h-4 w-4" aria-hidden="true" />
+          {!compact && (
+            <span className="hidden text-[10px] font-medium lg:inline">
+              {t('modelLimitations.buttonShort')}
+            </span>
+          )}
+        </button>
       )}
+
+      <ModelDisclosureDialogV3
+        open={open}
+        onOpenChange={setOpen}
+        onAcknowledge={acknowledge}
+        title={t('modelLimitations.title')}
+        closeLabel={t('common.close')}
+        acknowledgeLabel={t('modelLimitations.understand')}
+        limitations={shownLimitations}
+      />
     </>
   );
 };

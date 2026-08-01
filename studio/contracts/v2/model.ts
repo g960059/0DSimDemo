@@ -301,14 +301,14 @@ export function assertModelContractV2(
     value.controlCatalog,
     "$.controlCatalog",
   );
-  const outputIds = assertOutputCatalogV2(
+  const outputCatalog = assertOutputCatalogV2(
     value.outputCatalog,
     "$.outputCatalog",
   );
   assertGraphCatalogV2(
     value.graphCatalog,
     "$.graphCatalog",
-    outputIds,
+    outputCatalog,
   );
 }
 
@@ -357,14 +357,14 @@ export function assertRegisteredModelPackageManifestV2(
     catalogs.controlCatalog,
     "$.manifest.catalogs.controlCatalog",
   );
-  const outputIds = assertOutputCatalogV2(
+  const outputCatalog = assertOutputCatalogV2(
     catalogs.outputCatalog,
     "$.manifest.catalogs.outputCatalog",
   );
   assertGraphCatalogV2(
     catalogs.graphCatalog,
     "$.manifest.catalogs.graphCatalog",
-    outputIds,
+    outputCatalog,
   );
 }
 
@@ -752,14 +752,26 @@ function assertControlCatalogV2(
   }
 }
 
+type ValidatedOutputCatalogV2 = Readonly<{
+  ids: ReadonlySet<string>;
+  definitionsById: ReadonlyMap<string, Readonly<{
+    shape: "scalar" | "vector";
+    unit: string;
+  }>>;
+}>;
+
 function assertOutputCatalogV2(
   value: unknown,
   path: string,
-): ReadonlySet<string> {
+): ValidatedOutputCatalogV2 {
   if (!Array.isArray(value)) {
     throw new ModelContractValidationErrorV2(path, "must be an array");
   }
   const ids = new Set<string>();
+  const definitionsById = new Map<string, Readonly<{
+    shape: "scalar" | "vector";
+    unit: string;
+  }>>();
   const metricDependencies: Array<Readonly<{
     outputId: string;
     path: string;
@@ -801,6 +813,10 @@ function assertOutputCatalogV2(
         'must be "scalar" or "vector"',
       );
     }
+    definitionsById.set(output.outputId as string, Object.freeze({
+      shape: output.shape,
+      unit: output.unit as string,
+    }));
 
     if (output.kind === "signal") {
       assertExactKeysV2(
@@ -883,13 +899,13 @@ function assertOutputCatalogV2(
     });
   }
   assertAcyclicMetricDependenciesV2(metricDependencies);
-  return ids;
+  return Object.freeze({ ids, definitionsById });
 }
 
 function assertGraphCatalogV2(
   value: unknown,
   path: string,
-  outputIds: ReadonlySet<string>,
+  outputCatalog: ValidatedOutputCatalogV2,
 ): void {
   if (!Array.isArray(value)) {
     throw new ModelContractValidationErrorV2(path, "must be an array");
@@ -962,9 +978,35 @@ function assertGraphCatalogV2(
       assertKnownIdArrayV2(
         graph.outputIds,
         `${definitionPath}.outputIds`,
-        outputIds,
+        outputCatalog.ids,
         "output",
       );
+      if (graph.renderer === "sweep") {
+        let sharedUnit: string | undefined;
+        const sweepOutputIds = graph.outputIds as readonly string[];
+        for (
+          let outputIndex = 0;
+          outputIndex < sweepOutputIds.length;
+          outputIndex += 1
+        ) {
+          const outputId = sweepOutputIds[outputIndex]!;
+          const output = outputCatalog.definitionsById.get(outputId)!;
+          if (output.shape !== "scalar") {
+            throw new ModelContractValidationErrorV2(
+              `${definitionPath}.outputIds[${outputIndex}]`,
+              `sweep output ${outputId} must be scalar`,
+            );
+          }
+          if (sharedUnit === undefined) {
+            sharedUnit = output.unit;
+          } else if (output.unit !== sharedUnit) {
+            throw new ModelContractValidationErrorV2(
+              `${definitionPath}.outputIds[${outputIndex}]`,
+              `sweep outputs must share one unit; expected ${sharedUnit} but ${outputId} uses ${output.unit}`,
+            );
+          }
+        }
+      }
     }
     if (graph.renderer === "pressure-volume") {
       const graphOutputIds = new Set(graph.outputIds as readonly string[]);

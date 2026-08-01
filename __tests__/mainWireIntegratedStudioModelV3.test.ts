@@ -34,6 +34,7 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_DEFAULT_FIXTURE_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3,
+  MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
   MainWireIntegratedStudioRuntimeHostV3,
   createMainWireIntegratedStudioModelPackageV3,
@@ -42,22 +43,10 @@ import mainWireIntegratedStudioExecutableArtifactV3 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs?raw";
 
 const EMPTY_SURFACE_V2: ExperimentSurfaceV2 = Object.freeze({
-  groups: Object.freeze([Object.freeze({
-    groupId: "group/main",
-    label: "Main",
-    order: 0,
-    priority: 0,
-  })]),
-  graphs: Object.freeze([]),
-  readouts: Object.freeze([]),
-  controls: Object.freeze([]),
-  note: Object.freeze({
-    instanceId: "note/main",
-    text: "",
-    groupId: "group/main",
-    order: 0,
-    priority: 0,
-  }),
+  graphPanes: Object.freeze([]),
+  outputPanes: Object.freeze([]),
+  controlPanes: Object.freeze([]),
+  note: Object.freeze({ text: "" }),
 });
 
 afterEach(() => {
@@ -141,6 +130,10 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
 
   it("materializes only the exact executable artifact at registry admission", async () => {
     const modelPackage = createMainWireIntegratedStudioModelPackageV3();
+    expect(modelPackage.manifest.runtime).toMatchObject({
+      hotPathIntegrityTier:
+        MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3,
+    });
     expect(() => modelPackage.createRegistryAdmission(new Uint8Array()))
       .toThrow(/nonempty exact build artifact bytes/);
 

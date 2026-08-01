@@ -10,6 +10,7 @@ export const PR_SMOKE_SUITE_FILE_BUDGET = 42;
 
 export const fastTests = [
   "__tests__/appTheme.test.ts",
+  "__tests__/articleEditorV3.test.ts",
   "__tests__/commonPericardiumV1.test.ts",
   "__tests__/energyConjugateTriSegV1.test.ts",
   "__tests__/equilibriumOneFiberPassiveV1.test.ts",
@@ -42,11 +43,13 @@ export const fastTests = [
   "__tests__/mainWireNormalAdultFiveWallProviderV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/mainWireValveDiseaseCycleMetricsV1.test.ts",
+  "__tests__/modelLimitations.test.ts",
   "__tests__/moyer2015AtrialEquibiaxialPassiveV1.test.ts",
   "__tests__/nonCoronaryCirculationBackwardEulerV1.test.ts",
   "__tests__/normalAdultFiveWallPriorV1.test.ts",
   "__tests__/parallelOneStateSlsV1.test.ts",
   "__tests__/studioContractsBoundaryV2.test.ts",
+  "__tests__/studioBrowserContentStoreV2.test.ts",
   "__tests__/studioExperimentAuthoringV2.test.ts",
   "__tests__/studioExperimentDataV2.test.ts",
   "__tests__/studioFixtureReducerV2.test.ts",
@@ -76,6 +79,7 @@ export const fastTests = [
  */
 export const prSmokeTests = [
   "__tests__/appTheme.test.ts",
+  "__tests__/articleEditorV3.test.ts",
   "__tests__/commonPericardiumV1.test.ts",
   "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
   "__tests__/energyConjugateTriSegV1.test.ts",
@@ -92,7 +96,9 @@ export const prSmokeTests = [
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
+  "__tests__/modelLimitations.test.ts",
   "__tests__/studioContractsBoundaryV2.test.ts",
+  "__tests__/studioBrowserContentStoreV2.test.ts",
   "__tests__/studioExperimentAuthoringV2.test.ts",
   "__tests__/studioExperimentDataV2.test.ts",
   "__tests__/studioFixtureReducerV2.test.ts",

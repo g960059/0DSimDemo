@@ -1,7 +1,12 @@
 import React from "react";
 
 import {
+  isWorkbenchPresentationSampleV3,
+} from "./WorkbenchPresentationSampleBufferV3";
+import {
+  firstSampleAtOrAfterV3,
   finiteWorkbenchScalarValueV3,
+  orderedFiniteWorkbenchSamplesV3,
   type WorkbenchScalarSampleV3,
 } from "./WorkbenchScalarSampleV3";
 import {
@@ -18,11 +23,18 @@ export type WorkbenchWaveformSeriesV3 = Readonly<{
 export type SweepingWaveformPointV3 = Readonly<{
   phaseSec: number;
   value: number;
+  envelopeMinimum?: number;
+  envelopeMaximum?: number;
 }>;
 
 export type SweepingWaveformSegmentV3 = readonly SweepingWaveformPointV3[];
 
 export type WorkbenchNumericDomainV3 = readonly [number, number];
+
+type SweepingWaveformOptionsV3 = Readonly<{
+  windowSec: number;
+  forwardGapFraction?: number;
+}>;
 
 export const WORKBENCH_SWEEP_FORWARD_GAP_FRACTION_V3 = 0.025;
 
@@ -57,19 +69,29 @@ export function phaseIsInsideForwardSweepGapV3(
 export function buildSweepingWaveformSegmentsV3(
   samples: readonly WorkbenchScalarSampleV3[],
   outputId: string,
-  options: Readonly<{
-    windowSec: number;
-    forwardGapFraction?: number;
-  }>,
+  options: SweepingWaveformOptionsV3,
 ): readonly SweepingWaveformSegmentV3[] {
   const windowSec = options.windowSec;
   if (!(windowSec > 0) || !Number.isFinite(windowSec)) {
     return Object.freeze([]);
   }
-  const ordered = samples
-    .filter(({ acceptedTimeSec }) => Number.isFinite(acceptedTimeSec))
-    .slice()
-    .sort((left, right) => left.acceptedTimeSec - right.acceptedTimeSec);
+  const ordered = orderedFiniteWorkbenchSamplesV3(samples);
+  return buildSweepingWaveformSegmentsFromOrderedV3(
+    ordered,
+    outputId,
+    options,
+  );
+}
+
+function buildSweepingWaveformSegmentsFromOrderedV3(
+  ordered: readonly WorkbenchScalarSampleV3[],
+  outputId: string,
+  options: SweepingWaveformOptionsV3,
+): readonly SweepingWaveformSegmentV3[] {
+  const windowSec = options.windowSec;
+  if (!(windowSec > 0) || !Number.isFinite(windowSec)) {
+    return Object.freeze([]);
+  }
   const latestTimeSec = ordered.at(-1)?.acceptedTimeSec;
   if (latestTimeSec === undefined) return Object.freeze([]);
 
@@ -91,8 +113,9 @@ export function buildSweepingWaveformSegmentsV3(
     active = [];
   };
 
-  for (const sample of ordered) {
-    if (sample.acceptedTimeSec < oldestTimeSec) continue;
+  const firstIndex = firstSampleAtOrAfterV3(ordered, oldestTimeSec);
+  for (let index = firstIndex; index < ordered.length; index += 1) {
+    const sample = ordered[index]!;
     const phaseSec = positiveModuloV3(sample.acceptedTimeSec, windowSec);
     if (
       previousPhaseSec !== null
@@ -112,7 +135,26 @@ export function buildSweepingWaveformSegmentsV3(
       flush();
       continue;
     }
-    active.push(Object.freeze({ phaseSec, value }));
+    const envelopeMinimum = isWorkbenchPresentationSampleV3(sample)
+      ? sample.presentationEnvelope.minimums[outputId]
+      : undefined;
+    const envelopeMaximum = isWorkbenchPresentationSampleV3(sample)
+      ? sample.presentationEnvelope.maximums[outputId]
+      : undefined;
+    const hasEnvelope = typeof envelopeMinimum === "number"
+      && Number.isFinite(envelopeMinimum)
+      && typeof envelopeMaximum === "number"
+      && Number.isFinite(envelopeMaximum);
+    active.push(Object.freeze({
+      phaseSec,
+      value,
+      ...(!hasEnvelope
+        ? {}
+        : {
+            envelopeMinimum,
+            envelopeMaximum,
+          }),
+    }));
   }
   flush();
   return Object.freeze(segments.map((segment) => Object.freeze(segment)));
@@ -219,9 +261,14 @@ export function SweepingWaveformCanvasV3({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const domainRef = React.useRef<WorkbenchNumericDomainV3 | null>(null);
+  const orderedSamples = React.useMemo(
+    () => orderedFiniteWorkbenchSamplesV3(samples),
+    [samples],
+  );
   const domainIdentity = series
     .map(({ outputId }) => outputId)
-    .join("\u001f") + `\u001e${unitLabel ?? ""}\u001e${includeZero}`;
+    .join("\u001f")
+    + `\u001e${unitLabel ?? ""}\u001e${includeZero}\u001e${windowSec}`;
 
   React.useEffect(() => {
     domainRef.current = null;
@@ -236,14 +283,24 @@ export function SweepingWaveformCanvasV3({
     const plot = waveformPlotRectV3(width, height);
     const projectedSeries = series.map((item) => Object.freeze({
       item,
-      segments: buildSweepingWaveformSegmentsV3(
-        samples,
+      segments: buildSweepingWaveformSegmentsFromOrderedV3(
+        orderedSamples,
         item.outputId,
         { windowSec },
       ),
     }));
-    const allValues = projectedSeries.flatMap(({ segments }) =>
-      segments.flatMap((segment) => segment.map(({ value }) => value)));
+    const allValues: number[] = [];
+    for (const { segments } of projectedSeries) {
+      for (const segment of segments) {
+        for (const point of segment) {
+          allValues.push(
+            point.value,
+            point.envelopeMinimum ?? point.value,
+            point.envelopeMaximum ?? point.value,
+          );
+        }
+      }
+    }
     domainRef.current = nextHystereticNumericDomainV3(
       domainRef.current,
       allValues,
@@ -281,6 +338,24 @@ export function SweepingWaveformCanvasV3({
       context.lineWidth = 1.6;
       context.lineJoin = "round";
       context.lineCap = "round";
+      context.globalAlpha = 0.24;
+      context.lineWidth = 1;
+      context.beginPath();
+      for (const segment of segments) {
+        for (const point of segment) {
+          if (
+            point.envelopeMinimum === undefined
+            || point.envelopeMaximum === undefined
+            || !(point.envelopeMaximum > point.envelopeMinimum)
+          ) continue;
+          const pointX = x(point.phaseSec);
+          context.moveTo(pointX, y(point.envelopeMinimum));
+          context.lineTo(pointX, y(point.envelopeMaximum));
+        }
+      }
+      context.stroke();
+      context.globalAlpha = 1;
+      context.lineWidth = 1.6;
       for (const segment of segments) {
         if (segment.length === 0) continue;
         context.beginPath();
@@ -293,7 +368,7 @@ export function SweepingWaveformCanvasV3({
       context.restore();
     }
 
-    const latestTimeSec = samples.at(-1)?.acceptedTimeSec;
+    const latestTimeSec = orderedSamples.at(-1)?.acceptedTimeSec;
     if (latestTimeSec !== undefined && Number.isFinite(latestTimeSec)) {
       const cursorX = x(positiveModuloV3(latestTimeSec, windowSec));
       context.save();
@@ -306,7 +381,7 @@ export function SweepingWaveformCanvasV3({
       context.stroke();
       context.restore();
     }
-  }, [includeZero, samples, series, unitLabel, windowSec]);
+  }, [includeZero, orderedSamples, series, unitLabel, windowSec]);
 
   useResponsiveCanvasFrameV3(containerRef, canvasRef, draw);
 

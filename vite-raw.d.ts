@@ -4,6 +4,7 @@ declare module "*?raw" {
 }
 
 interface ImportMetaEnv {
+  readonly MODE: string;
   readonly PROD: boolean;
 }
 

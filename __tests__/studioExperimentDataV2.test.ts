@@ -52,7 +52,6 @@ describe("Studio Experiment data V2", () => {
         }],
         surface: {
           note: {
-            instanceId: "note/method",
             text: "Compare pressure and volume after the target changes.",
           },
         },
@@ -117,43 +116,54 @@ describe("Studio Experiment data V2", () => {
     expect(validateExperimentSnapshotV2(withoutActor).createdBy).toBeUndefined();
   });
 
-  it("models semantic surface groups, order and priority with exactly one note", () => {
+  it("models role panes, authored presentation metadata and exactly one note", () => {
     const validated = validateExperimentWorkspaceV2(workspaceV2());
     expect(validated.content.surface).toEqual({
-      groups: [{
-        groupId: "group/hemodynamics",
-        label: "Hemodynamics",
+      graphPanes: [{
+        paneId: "pane/pressure",
+        role: "graph",
+        label: "Pressure",
+        colorHex: "#ff6685",
         order: 0,
         priority: 10,
-      }],
-      graphs: [{
-        instanceId: "graph/pressure",
         graphId: "catalog.graph/pressure",
-        groupId: "group/hemodynamics",
+        windowSec: 2,
+        series: [{
+          outputId: "catalog.output/map",
+          label: "MAP",
+          colorHex: "#3ea8ff",
+          order: 0,
+        }],
+      }],
+      outputPanes: [{
+        paneId: "pane/outputs",
+        role: "output",
+        label: "Outputs",
         order: 0,
-        priority: 10,
-      }],
-      readouts: [{
-        instanceId: "readout/map",
-        outputId: "catalog.output/map",
-        groupId: "group/hemodynamics",
-        order: 1,
         priority: 8,
+        items: [{
+          outputId: "catalog.output/map",
+          label: "MAP",
+          colorHex: "#3ea8ff",
+          order: 0,
+        }],
       }],
-      controls: [{
-        instanceId: "control/svr",
-        controlId: "catalog.control/svr",
-        targetScenarioIds: ["scenario/baseline"],
-        groupId: "group/hemodynamics",
-        order: 2,
+      controlPanes: [{
+        paneId: "pane/controls",
+        role: "control",
+        label: "Controls",
+        order: 0,
         priority: 9,
+        items: [{
+          controlId: "catalog.control/svr",
+          label: "SVR",
+          colorHex: "#a78bfa",
+          targetScenarioIds: ["scenario/baseline"],
+          order: 0,
+        }],
       }],
       note: {
-        instanceId: "note/method",
         text: "Compare pressure and volume after the target changes.",
-        groupId: "group/hemodynamics",
-        order: 3,
-        priority: 5,
       },
     });
 
@@ -173,21 +183,29 @@ describe("Studio Experiment data V2", () => {
     noteArray.content.surface.note = [noteArray.content.surface.note];
     expect(() => validateExperimentWorkspaceV2(noteArray))
       .toThrow(/must be an object/);
+
+    for (const role of ["outputPanes", "controlPanes"] as const) {
+      const legacyPaneColor = workspaceV2() as Record<string, any>;
+      legacyPaneColor.content.surface[role][0].colorHex = "#3ea8ff";
+      expect(() => validateExperimentWorkspaceV2(legacyPaneColor))
+        .toThrow(/keys must be exactly/);
+    }
   });
 
-  it("requires every control instance to bind explicit existing Scenarios", () => {
+  it("requires every control item to bind explicit existing Scenarios", () => {
     const missingTargets = workspaceV2() as Record<string, any>;
-    delete missingTargets.content.surface.controls[0].targetScenarioIds;
+    delete missingTargets.content.surface.controlPanes[0].items[0]
+      .targetScenarioIds;
     expect(() => validateExperimentWorkspaceV2(missingTargets))
       .toThrow(/keys must be exactly/);
 
     const emptyTargets = workspaceV2() as Record<string, any>;
-    emptyTargets.content.surface.controls[0].targetScenarioIds = [];
+    emptyTargets.content.surface.controlPanes[0].items[0].targetScenarioIds = [];
     expect(() => validateExperimentWorkspaceV2(emptyTargets))
       .toThrow(/at least one explicit Scenario target/);
 
     const duplicateTargets = workspaceV2() as Record<string, any>;
-    duplicateTargets.content.surface.controls[0].targetScenarioIds = [
+    duplicateTargets.content.surface.controlPanes[0].items[0].targetScenarioIds = [
       "scenario/baseline",
       "scenario/baseline",
     ];
@@ -200,9 +218,12 @@ describe("Studio Experiment data V2", () => {
         ...workspaceV2().content,
         surface: {
           ...workspaceV2().content.surface,
-          controls: [{
-            ...workspaceV2().content.surface.controls[0],
-            targetScenarioIds: ["scenario/missing"],
+          controlPanes: [{
+            ...workspaceV2().content.surface.controlPanes[0],
+            items: [{
+              ...workspaceV2().content.surface.controlPanes[0].items[0],
+              targetScenarioIds: ["scenario/missing"],
+            }],
           }],
         },
       },
@@ -213,43 +234,159 @@ describe("Studio Experiment data V2", () => {
     )).toThrow(/unknown target Scenario scenario\/missing/);
   });
 
-  it("pins a placement to one snapshot and preserves omitted versus empty subsets", () => {
+  it("enforces renderer-specific graph series against the full Output Catalog", () => {
+    const emptySweep = workspaceV2() as Record<string, any>;
+    emptySweep.content.surface.graphPanes[0].series = [];
+    const validatedEmptySweep = validateExperimentWorkspaceV2(emptySweep);
+    expect(() => assertExperimentContentMatchesModelV2(
+      validatedEmptySweep.content,
+      modelContractV2(),
+    )).toThrow(/sweep graphs must select at least one scalar output/);
+
+    const missingWindow = workspaceV2() as Record<string, any>;
+    delete missingWindow.content.surface.graphPanes[0].windowSec;
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentWorkspaceV2(missingWindow).content,
+      modelContractV2(),
+    )).toThrow(/must configure an authored waveform window/);
+
+    for (const invalidWindow of [0.5, 1.25, 6.5]) {
+      const invalid = workspaceV2() as Record<string, any>;
+      invalid.content.surface.graphPanes[0].windowSec = invalidWindow;
+      expect(() => validateExperimentWorkspaceV2(invalid))
+        .toThrow(/must be 1–6 seconds in 0.5 second steps/);
+    }
+
+    const expandedModel = modelContractV2() as Record<string, any>;
+    expandedModel.outputCatalog.push(
+      {
+        outputId: "catalog.output/temperature",
+        kind: "signal",
+        unit: "degC",
+        shape: "scalar",
+        sampling: "accepted-step",
+      },
+      {
+        outputId: "catalog.output/vector",
+        kind: "signal",
+        unit: "1",
+        shape: "vector",
+        sampling: "accepted-step",
+      },
+    );
+
+    const fullCatalogSelection = workspaceV2() as Record<string, any>;
+    fullCatalogSelection.content.surface.graphPanes[0].series[0].outputId =
+      "catalog.output/temperature";
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentWorkspaceV2(fullCatalogSelection).content,
+      expandedModel as ModelContractV2,
+    )).not.toThrow();
+
+    const mixedUnitSelection = workspaceV2() as Record<string, any>;
+    mixedUnitSelection.content.surface.graphPanes[0].series.push({
+      outputId: "catalog.output/temperature",
+      label: "Temperature",
+      colorHex: "#ffbb33",
+      order: 1,
+    });
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentWorkspaceV2(mixedUnitSelection).content,
+      expandedModel as ModelContractV2,
+    )).toThrow(/sweep outputs must share one unit.*expected mmHg.*uses degC/);
+
+    const vectorSelection = workspaceV2() as Record<string, any>;
+    vectorSelection.content.surface.graphPanes[0].series[0].outputId =
+      "catalog.output/vector";
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentWorkspaceV2(vectorSelection).content,
+      expandedModel as ModelContractV2,
+    )).toThrow(/must be scalar/);
+
+    const pressureVolumeModel = {
+      ...modelContractV2(),
+      graphCatalog: [{
+        graphId: "catalog.graph/pv",
+        renderer: "pressure-volume" as const,
+        outputIds: ["catalog.output/map"],
+        volumeOutputId: "catalog.output/map",
+        pressureOutputId: "catalog.output/map",
+        cyclePhaseOutputId: "catalog.output/map",
+        guideMode: "none" as const,
+      }],
+    };
+    const pressureVolume = workspaceV2() as Record<string, any>;
+    pressureVolume.content.surface.graphPanes[0].graphId = "catalog.graph/pv";
+    const validatedPressureVolume = validateExperimentWorkspaceV2(pressureVolume);
+    expect(() => assertExperimentContentMatchesModelV2(
+      validatedPressureVolume.content,
+      pressureVolumeModel,
+    )).toThrow(/pressure-volume graphs must not configure output series/);
+
+    pressureVolume.content.surface.graphPanes[0].series = [];
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentWorkspaceV2(pressureVolume).content,
+      pressureVolumeModel,
+    )).toThrow(/must not configure a waveform window/);
+    delete pressureVolume.content.surface.graphPanes[0].windowSec;
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentWorkspaceV2(pressureVolume).content,
+      pressureVolumeModel,
+    )).not.toThrow();
+  });
+
+  it("allows an empty role-pane surface and an empty note", () => {
+    const candidate = workspaceV2() as Record<string, any>;
+    candidate.content.surface = {
+      graphPanes: [],
+      outputPanes: [],
+      controlPanes: [],
+      note: { text: "" },
+    };
+
+    const validated = validateExperimentWorkspaceV2(candidate);
+    expect(validated.content.surface).toEqual(candidate.content.surface);
+    expect(() => assertExperimentContentMatchesModelV2(
+      validated.content,
+      modelContractV2(),
+    )).not.toThrow();
+  });
+
+  it("pins a placement and distinguishes an omitted briefing from empty picks", () => {
     const snapshot = snapshotV2();
     const all = validateExperimentPlacementAgainstSnapshotV2(
       placementV2(),
       snapshot,
     );
-    expect(all.view).toBeUndefined();
+    expect(all.briefing).toBeUndefined();
 
     const none = placementV2() as Record<string, any>;
-    none.view = {
+    none.briefing = {
       scenarioIds: [],
-      graphInstanceIds: [],
-      readoutInstanceIds: [],
-      controlInstanceIds: [],
-      order: ["note/method"],
+      panePicks: [],
     };
     const validatedNone = validateExperimentPlacementAgainstSnapshotV2(
       none,
       snapshot,
     );
-    expect(validatedNone.view).toEqual(none.view);
-    expect(validatedNone.view?.scenarioIds).toEqual([]);
-    expect(validatedNone.view?.graphInstanceIds).toEqual([]);
+    expect(validatedNone.briefing).toEqual(none.briefing);
+    expect(validatedNone.briefing?.scenarioIds).toEqual([]);
+    expect(validatedNone.briefing?.panePicks).toEqual([]);
 
     const subset = placementV2() as Record<string, any>;
-    subset.view = {
+    subset.briefing = {
       scenarioIds: ["scenario/baseline"],
-      graphInstanceIds: ["graph/pressure"],
-      readoutInstanceIds: [],
-      controlInstanceIds: ["control/svr"],
-      order: ["control/svr", "note/method", "graph/pressure"],
+      panePicks: [
+        { paneId: "pane/controls", priority: 20 },
+        { paneId: "pane/pressure", priority: 10 },
+      ],
     };
-    expect(validateExperimentPlacementAgainstSnapshotV2(subset, snapshot).view)
-      .toEqual(subset.view);
+    expect(
+      validateExperimentPlacementAgainstSnapshotV2(subset, snapshot).briefing,
+    ).toEqual(subset.briefing);
   });
 
-  it("rejects a wrong snapshot, unknown or duplicate subsets, and non-permutation order", () => {
+  it("rejects a wrong snapshot and invalid briefing selections", () => {
     const snapshot = snapshotV2();
     const wrongSnapshot = placementV2();
     wrongSnapshot.snapshotId = "snapshot/other";
@@ -258,24 +395,40 @@ describe("Studio Experiment data V2", () => {
     ).toThrow(/does not match the pinned snapshot/);
 
     const unknown = placementV2() as Record<string, any>;
-    unknown.view = { graphInstanceIds: ["graph/missing"] };
+    unknown.briefing = {
+      panePicks: [{ paneId: "pane/missing", priority: 0 }],
+    };
     expect(() =>
       validateExperimentPlacementAgainstSnapshotV2(unknown, snapshot)
-    ).toThrow(/unknown id graph\/missing/);
+    ).toThrow(/unknown pane pane\/missing/);
 
     const duplicate = placementV2() as Record<string, any>;
-    duplicate.view = {
+    duplicate.briefing = {
       scenarioIds: ["scenario/baseline", "scenario/baseline"],
+      panePicks: [],
     };
     expect(() =>
       validateExperimentPlacementAgainstSnapshotV2(duplicate, snapshot)
     ).toThrow(/duplicate id scenario\/baseline/);
 
-    const incompleteOrder = placementV2() as Record<string, any>;
-    incompleteOrder.view = { order: ["note/method"] };
+    const duplicatePick = placementV2() as Record<string, any>;
+    duplicatePick.briefing = {
+      panePicks: [
+        { paneId: "pane/pressure", priority: 5 },
+        { paneId: "pane/pressure", priority: 10 },
+      ],
+    };
     expect(() =>
-      validateExperimentPlacementAgainstSnapshotV2(incompleteOrder, snapshot)
-    ).toThrow(/exact permutation/);
+      validateExperimentPlacementAgainstSnapshotV2(duplicatePick, snapshot)
+    ).toThrow(/duplicate id pane\/pressure/);
+
+    const negativePriority = placementV2() as Record<string, any>;
+    negativePriority.briefing = {
+      panePicks: [{ paneId: "pane/pressure", priority: -1 }],
+    };
+    expect(() =>
+      validateExperimentPlacementAgainstSnapshotV2(negativePriority, snapshot)
+    ).toThrow(/nonnegative safe integer/);
   });
 
   it("validates the only reusable named input/state object and applies it by copy", async () => {
@@ -383,23 +536,38 @@ describe("Studio Experiment data V2", () => {
         /duplicate id scenario\/baseline/,
       ],
       [
-        "unknown group",
+        "noncanonical pane color",
         (candidate) => {
-          candidate.content.surface.graphs[0].groupId = "group/missing";
+          candidate.content.surface.graphPanes[0].colorHex = "#FF6685";
         },
-        /unknown semantic group/,
+        /canonical lowercase #rrggbb color/,
       ],
       [
-        "duplicate surface identity",
+        "duplicate pane identity across roles",
         (candidate) => {
-          candidate.content.surface.readouts[0].instanceId = "graph/pressure";
+          candidate.content.surface.outputPanes[0].paneId = "pane/pressure";
         },
-        /duplicate id graph\/pressure/,
+        /duplicate id pane\/pressure/,
       ],
       [
-        "duplicate order",
+        "duplicate pane order within one role",
         (candidate) => {
-          candidate.content.surface.readouts[0].order = 0;
+          candidate.content.surface.graphPanes.push({
+            ...structuredClone(candidate.content.surface.graphPanes[0]),
+            paneId: "pane/pressure-secondary",
+          });
+        },
+        /duplicate graph pane order 0/,
+      ],
+      [
+        "duplicate item order",
+        (candidate) => {
+          candidate.content.surface.outputPanes[0].items.push({
+            outputId: "catalog.output/other",
+            label: "Other",
+            colorHex: "#ffffff",
+            order: 0,
+          });
         },
         /duplicate order 0/,
       ],
@@ -483,40 +651,51 @@ function contentV2() {
       capture: captureV2(),
     }],
     surface: {
-      groups: [{
-        groupId: "group/hemodynamics",
-        label: "Hemodynamics",
+      graphPanes: [{
+        paneId: "pane/pressure",
+        role: "graph",
+        label: "Pressure",
+        colorHex: "#ff6685",
         order: 0,
         priority: 10,
-      }],
-      graphs: [{
-        instanceId: "graph/pressure",
         graphId: "catalog.graph/pressure",
-        groupId: "group/hemodynamics",
+        windowSec: 2,
+        series: [{
+          outputId: "catalog.output/map",
+          label: "MAP",
+          colorHex: "#3ea8ff",
+          order: 0,
+        }],
+      }],
+      outputPanes: [{
+        paneId: "pane/outputs",
+        role: "output",
+        label: "Outputs",
         order: 0,
-        priority: 10,
-      }],
-      readouts: [{
-        instanceId: "readout/map",
-        outputId: "catalog.output/map",
-        groupId: "group/hemodynamics",
-        order: 1,
         priority: 8,
+        items: [{
+          outputId: "catalog.output/map",
+          label: "MAP",
+          colorHex: "#3ea8ff",
+          order: 0,
+        }],
       }],
-      controls: [{
-        instanceId: "control/svr",
-        controlId: "catalog.control/svr",
-        targetScenarioIds: ["scenario/baseline"],
-        groupId: "group/hemodynamics",
-        order: 2,
+      controlPanes: [{
+        paneId: "pane/controls",
+        role: "control",
+        label: "Controls",
+        order: 0,
         priority: 9,
+        items: [{
+          controlId: "catalog.control/svr",
+          label: "SVR",
+          colorHex: "#a78bfa",
+          targetScenarioIds: ["scenario/baseline"],
+          order: 0,
+        }],
       }],
       note: {
-        instanceId: "note/method",
         text: "Compare pressure and volume after the target changes.",
-        groupId: "group/hemodynamics",
-        order: 3,
-        priority: 5,
       },
     },
   };

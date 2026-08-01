@@ -81,9 +81,11 @@ import {
 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
-  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-8" as const;
+  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-10" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 =
   "circleheart.main-wire-integrated-transaction" as const;
+export const MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3 =
+  "hot-path-lean" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3 =
   "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.v4" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_CHECKPOINT_CODEC_ID_V3 =
@@ -699,6 +701,8 @@ RegisteredModelPackageManifestV2 {
     runtime: Object.freeze({
       numericalSessionId: MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID,
       presentationDtSec: MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
+      hotPathIntegrityTier:
+        MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3,
       acceptedBoundaryCapture: true,
       runtimeFixtureCommands: Object.freeze([
         ...Object.values(MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3),

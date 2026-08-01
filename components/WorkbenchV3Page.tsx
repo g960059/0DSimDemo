@@ -1,25 +1,71 @@
 import React from "react";
-import { createPortal } from "react-dom";
 import {
   Activity,
-  Database,
+  BookOpenText,
+  Check,
+  ClipboardList,
+  FileText,
+  Home,
   Pause,
   Play,
-  Radio,
   RefreshCw,
-  Settings2,
-  ShieldAlert,
-  X,
+  Save,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Link, useParams } from "react-router-dom";
 
+import { ModelLimitations } from "@/components/ModelLimitations";
 import {
   WorkbenchDockview,
-  type WorkbenchPaneDefinitionV3,
 } from "@/components/workbench/WorkbenchDockview";
+import {
+  WorkbenchBriefingComposerV3,
+  type WorkbenchBriefingPanePickV3,
+} from "@/components/workbench/WorkbenchBriefingComposerV3";
+import {
+  WorkbenchModelMenuV3,
+} from "@/components/workbench/WorkbenchModelMenuV3";
+import {
+  WorkbenchNoteEditorV3,
+} from "@/components/workbench/WorkbenchNoteEditorV3";
+import {
+  WorkbenchPaneEditorV3,
+  addWorkbenchSurfacePaneV3,
+} from "@/components/workbench/WorkbenchPaneEditorV3";
+import {
+  WorkbenchScenarioManagerV3,
+  type WorkbenchScenarioAddIntentV3,
+  type WorkbenchScenarioDeleteIntentV3,
+  type WorkbenchScenarioDuplicateIntentV3,
+  type WorkbenchScenarioRenameIntentV3,
+} from "@/components/workbench/WorkbenchScenarioManagerV3";
+import {
+  commitWorkbenchDurableMutationV3,
+} from "@/components/workbench/WorkbenchDurableCommitV3";
+import {
+  WORKBENCH_SCENARIO_ID_V3,
+  WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
+  addScenarioToControlTargetsV3,
+  allSurfacePanesV3,
+  createDefaultExperimentSurfaceV3,
+  reconcileSurfaceControlTargetsV3,
+  removeScenarioFromControlTargetsV3,
+} from "@/components/workbench/WorkbenchSurfaceV3";
+import { homeHref } from "@/homeLinks";
 import {
   loadStudioDefaultClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
+import type {
+  ExperimentSurfaceControlPaneV2,
+  ExperimentSurfaceGraphPaneV2,
+  ExperimentSurfaceOutputPaneV2,
+  ExperimentSurfaceV2,
+  ExperimentWorkspaceV2,
+  ScenarioPresetV2,
+} from "@/studio/contracts/v2/content";
+import {
+  STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
+} from "@/studio/contracts/v2/content";
 import type {
   ControlDefinitionV2,
   ModelContractV2,
@@ -32,12 +78,24 @@ import type {
 import {
   StudioSimulationWorkerClientV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
+import type {
+  StudioSimulationWorkerScenarioDescriptorV2,
+  StudioSimulationWorkerScenarioStateV2,
+} from "@/studio/workers/StudioSimulationWorkerProtocolV2";
+import {
+  StudioBrowserContentStoreV2,
+} from "@/studio/infrastructure/browser/StudioBrowserContentStoreV2";
+import {
+  StudioSnapshotBriefingHandoffV3,
+  createBrowserStudioSnapshotBriefingHandoffV3,
+} from "@/studio/infrastructure/browser/StudioSnapshotBriefingHandoffV3";
 import {
   GuytonStarlingOrientationCanvasV3,
   PressureVolumeLoopCanvasV3,
   SweepingWaveformCanvasV3,
+  WorkbenchPresentationSampleStoreV3,
   structuralReturnOrientationFromPayloadV3,
-  type WorkbenchScalarSampleV3,
+  useWorkbenchPresentationSamplesV3,
 } from "@/components/workbench/v3";
 import {
   WorkbenchLiveSchedulerV3,
@@ -53,137 +111,58 @@ type WorkbenchStatusV3 =
     }>
   | Readonly<{ kind: "error"; message: string }>;
 
-export type WorkbenchGraphPaneV3 = WorkbenchPaneDefinitionV3 & Readonly<{
-  role: "graph";
-  graphId: string;
-}>;
-
-export type WorkbenchOutputPaneV3 = WorkbenchPaneDefinitionV3 & Readonly<{
-  role: "output";
-  outputIds: readonly string[];
-}>;
-
-export type WorkbenchControlPaneV3 = WorkbenchPaneDefinitionV3 & Readonly<{
-  role: "control";
-  controlIds: readonly string[];
-}>;
-
 type WorkbenchPaneSettingsV3 =
   | Readonly<{ kind: "graph"; paneId: string }>
   | Readonly<{ kind: "output"; paneId: string }>
   | Readonly<{ kind: "control"; paneId: string }>;
 
-const SAMPLE_CAPACITY_V3 = 2_000;
-const WORKBENCH_SCENARIO_ID_V3 = "workbench-live-default";
+type WorkbenchScenarioOperationV3 =
+  | "select"
+  | "add"
+  | "duplicate"
+  | "rename"
+  | "delete";
+
+type WorkbenchRuntimeRestartFeedbackV3 = Readonly<{
+  saveState: "clean" | "dirty" | "error";
+  saveError: string | null;
+  snapshotState: "idle" | "created" | "error";
+  snapshotError: string | null;
+}>;
+
+const WORKBENCH_EXPERIMENT_ID_V3 = "experiment/local-workbench";
 const CYCLE_PHASE_OUTPUT_ID_V3 = "rhythm.phase.regular-sinus";
-
-const OUTPUT_COLOR_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
-  "hemodynamics.volume.LA": "#f9a8d4",
-  "hemodynamics.volume.LV": "#a78bfa",
-  "hemodynamics.volume.RA": "#67e8f9",
-  "hemodynamics.volume.RV": "#60a5fa",
-  "hemodynamics.pressure.absolute.LA": "#f9a8d4",
-  "hemodynamics.pressure.absolute.LV": "#ff6685",
-  "hemodynamics.pressure.absolute.RA": "#67e8f9",
-  "hemodynamics.pressure.absolute.RV": "#60a5fa",
-  "hemodynamics.pressure.transmural.LA": "#f472b6",
-  "hemodynamics.pressure.transmural.LV": "#fb7185",
-  "hemodynamics.pressure.transmural.RA": "#22d3ee",
-  "hemodynamics.pressure.transmural.RV": "#3b82f6",
-  "hemodynamics.pressure.absolute.Ao": "#3ea8ff",
-  "hemodynamics.pressure.absolute.SA": "#38bdf8",
-  "hemodynamics.pressure.absolute.PA": "#818cf8",
-  "hemodynamics.pressure.absolute.PVein": "#c084fc",
-  "hemodynamics.pressure.absolute.VC": "#2dd4bf",
-  "hemodynamics.flow.valve.MV": "#f472b6",
-  "hemodynamics.flow.valve.AoV": "#38bdf8",
-  "hemodynamics.flow.valve.TV": "#2dd4bf",
-  "hemodynamics.flow.valve.PV": "#818cf8",
-  "coronary.flow.total": "#f8fafc",
-  "coronary.flow.inlet.LAD": "#fb7185",
-  "coronary.flow.inlet.LCx": "#34d399",
-  "coronary.flow.inlet.RCA": "#60a5fa",
-  "device.LVAD.flow": "#ffc56d",
-});
-
-const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
-  "hemodynamics.volume.LA": "LA volume",
-  "hemodynamics.volume.LV": "LV volume",
-  "hemodynamics.volume.RA": "RA volume",
-  "hemodynamics.volume.RV": "RV volume",
-  "hemodynamics.pressure.absolute.LA": "LA pressure",
-  "hemodynamics.pressure.absolute.LV": "LV pressure",
-  "hemodynamics.pressure.absolute.RA": "RA pressure",
-  "hemodynamics.pressure.absolute.RV": "RV pressure",
-  "hemodynamics.pressure.transmural.LA": "LA transmural pressure",
-  "hemodynamics.pressure.transmural.LV": "LV transmural pressure",
-  "hemodynamics.pressure.transmural.RA": "RA transmural pressure",
-  "hemodynamics.pressure.transmural.RV": "RV transmural pressure",
-  "hemodynamics.pressure.absolute.Ao": "Ao pressure",
-  "hemodynamics.pressure.absolute.SA": "Systemic arterial pressure",
-  "hemodynamics.pressure.absolute.PA": "Pulmonary arterial pressure",
-  "hemodynamics.pressure.absolute.PVein": "Pulmonary venous pressure",
-  "hemodynamics.pressure.absolute.VC": "Vena cava pressure",
-  "hemodynamics.flow.valve.MV": "Mitral flow",
-  "hemodynamics.flow.valve.AoV": "Aortic valve flow",
-  "hemodynamics.flow.valve.TV": "Tricuspid flow",
-  "hemodynamics.flow.valve.PV": "Pulmonary valve flow",
-  "coronary.flow.total": "Total coronary flow",
-  "coronary.flow.inlet.LAD": "LAD flow",
-  "coronary.flow.inlet.LCx": "LCx flow",
-  "coronary.flow.inlet.RCA": "RCA flow",
-  "device.LVAD.flow": "LVAD flow",
-  "rhythm.phase.regular-sinus": "Sinus cycle phase",
-});
-
-export function createDefaultGraphPanesV3(
-  contract: ModelContractV2,
-): readonly WorkbenchGraphPaneV3[] {
-  return Object.freeze(contract.graphCatalog.map((graph, index) => Object.freeze({
-    paneId: `graph-${index + 1}`,
-    role: "graph" as const,
-    title: graphTitleV3(graph.graphId),
-    graphId: graph.graphId,
-  })));
-}
-
-export function createDefaultOutputPaneV3(
-  contract: ModelContractV2,
-): WorkbenchOutputPaneV3 {
-  return Object.freeze({
-    paneId: "outputs-primary",
-    role: "output" as const,
-    title: "Outputs",
-    outputIds: Object.freeze(contract.outputCatalog.map(({ outputId }) => outputId)),
-  });
-}
-
-export function createDefaultControlPaneV3(
-  contract: ModelContractV2,
-): WorkbenchControlPaneV3 {
-  return Object.freeze({
-    paneId: "controls-primary",
-    role: "control" as const,
-    title: "Parameters",
-    controlIds: Object.freeze(contract.controlCatalog.map(({ controlId }) => controlId)),
-  });
-}
+const WORKBENCH_ROOT_FRAME_INTERVAL_SEC_V3 = 0.1;
 
 export const WorkbenchV3Page = () => {
   const { t } = useTranslation();
+  const { locale } = useParams();
   const [status, setStatus] = React.useState<WorkbenchStatusV3>({
     kind: "loading",
   });
-  const [samples, setSamples] = React.useState<readonly WorkbenchScalarSampleV3[]>([]);
-  const [graphPanes, setGraphPanes] = React.useState<
-  readonly WorkbenchGraphPaneV3[]
+  const [presentationSampleStore] = React.useState(
+    () => new WorkbenchPresentationSampleStoreV3(),
+  );
+  const [briefingHandoff] = React.useState(
+    createBrowserStudioSnapshotBriefingHandoffV3,
+  );
+  const [surface, setSurface] = React.useState<ExperimentSurfaceV2 | null>(null);
+  const [workspace, setWorkspace] = React.useState<ExperimentWorkspaceV2 | null>(null);
+  const [snapshotCount, setSnapshotCount] = React.useState(0);
+  const [saveState, setSaveState] = React.useState<
+    "clean" | "dirty" | "saving" | "error"
+  >("clean");
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+  const [snapshotState, setSnapshotState] = React.useState<
+    "idle" | "creating" | "created" | "error"
+  >("idle");
+  const [snapshotError, setSnapshotError] = React.useState<string | null>(null);
+  const [briefingOpen, setBriefingOpen] = React.useState(false);
+  const [noteOpen, setNoteOpen] = React.useState(false);
+  const [briefingPicks, setBriefingPicks] = React.useState<
+    readonly WorkbenchBriefingPanePickV3[]
   >([]);
-  const [outputPane, setOutputPane] = React.useState<
-  WorkbenchOutputPaneV3 | null
-  >(null);
-  const [controlPane, setControlPane] = React.useState<
-  WorkbenchControlPaneV3 | null
-  >(null);
+  const [limitationsOpen, setLimitationsOpen] = React.useState(false);
   const [paneSettings, setPaneSettings] = React.useState<
   WorkbenchPaneSettingsV3 | null
   >(null);
@@ -194,6 +173,17 @@ export const WorkbenchV3Page = () => {
   >({});
   const [pendingControlId, setPendingControlId] = React.useState<string | null>(null);
   const [controlError, setControlError] = React.useState<string | null>(null);
+  const [scenarios, setScenarios] = React.useState<
+    readonly StudioSimulationWorkerScenarioDescriptorV2[]
+  >([]);
+  const [activeScenarioId, setActiveScenarioId] = React.useState<string | null>(null);
+  const [scenarioPresets, setScenarioPresets] = React.useState<
+    readonly ScenarioPresetV2[]
+  >([]);
+  const [scenarioOperation, setScenarioOperation] = React.useState<
+    WorkbenchScenarioOperationV3 | null
+  >(null);
+  const [scenarioError, setScenarioError] = React.useState<string | null>(null);
   const [analysisById, setAnalysisById] = React.useState<
   Readonly<Record<string, StudioSimulationAnalysisV2>>
   >({});
@@ -202,10 +192,39 @@ export const WorkbenchV3Page = () => {
   Readonly<Record<string, string>>
   >({});
   const clientRef = React.useRef<StudioSimulationWorkerClientV2 | null>(null);
+  const contentStoreRef = React.useRef<StudioBrowserContentStoreV2 | null>(null);
+  const workspaceRef = React.useRef<ExperimentWorkspaceV2 | null>(null);
   const schedulerRef = React.useRef<WorkbenchLiveSchedulerV3<StudioSimulationFrameV2> | null>(null);
   const latestFrameRef = React.useRef<StudioSimulationFrameV2 | null>(null);
+  const lastRootFrameTimeSecRef = React.useRef(Number.NEGATIVE_INFINITY);
+  const activeScenarioIdRef = React.useRef<string | null>(null);
+  const controlValuesByScenarioRef = React.useRef<
+    Record<string, Readonly<Record<string, number>>>
+  >({});
   const playingIntentRef = React.useRef(true);
-  const exclusiveOperationRef = React.useRef<"control" | "analysis" | null>(null);
+  const exclusiveOperationRef = React.useRef<
+    "control" | "analysis" | "scenario" | "save" | "snapshot" | null
+  >(null);
+  const surfaceRef = React.useRef<ExperimentSurfaceV2 | null>(null);
+  const briefingPicksRef = React.useRef<
+    readonly WorkbenchBriefingPanePickV3[] | null
+  >(null);
+  const surfaceMutationRevisionRef = React.useRef(0);
+  const pendingSurfaceAfterRuntimeRestartRef = React.useRef<
+    ExperimentSurfaceV2 | null
+  >(null);
+  const pendingFeedbackAfterRuntimeRestartRef = React.useRef<
+    WorkbenchRuntimeRestartFeedbackV3 | null
+  >(null);
+  const contract = status.kind === "live" ? status.contract : null;
+
+  const updateBriefingPicksV3 = React.useCallback((
+    picks: readonly WorkbenchBriefingPanePickV3[],
+  ) => {
+    const next = Object.freeze(picks.map((pick) => Object.freeze({ ...pick })));
+    briefingPicksRef.current = next;
+    setBriefingPicks(next);
+  }, []);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -230,22 +249,81 @@ export const WorkbenchV3Page = () => {
     const start = async () => {
       const composition = await loadStudioDefaultClientCompositionV2();
       if (cancelled) return;
-      setGraphPanes(createDefaultGraphPanesV3(composition.contract));
-      setOutputPane(createDefaultOutputPaneV3(composition.contract));
-      setControlPane(createDefaultControlPaneV3(composition.contract));
-      setControlValues(Object.freeze(Object.fromEntries(
-        composition.contract.controlCatalog.map((control) => [
-          control.controlId,
-          control.defaultValue,
-        ]),
-      )));
+      const contentStore = new StudioBrowserContentStoreV2();
+      contentStoreRef.current = contentStore;
+      const storedWorkspace = contentStore.readWorkspace(WORKBENCH_EXPERIMENT_ID_V3);
+      if (
+        storedWorkspace !== null
+        && storedWorkspace.content.modelId !== composition.defaultModelId
+      ) {
+        throw new Error(
+          "The saved Experiment belongs to another exact model and cannot be opened by this release",
+        );
+      }
+      const preferredScenarioId = activeScenarioIdRef.current;
+      const initialScenarioId = preferredScenarioId !== null
+        && storedWorkspace?.content.scenarios.some(({ scenarioId }) =>
+          scenarioId === preferredScenarioId)
+        ? preferredScenarioId
+        : storedWorkspace?.content.scenarios[0]?.scenarioId
+          ?? WORKBENCH_SCENARIO_ID_V3;
+      const storedScenario = storedWorkspace?.content.scenarios.find(
+        ({ scenarioId }) => scenarioId === initialScenarioId,
+      );
+      const pendingSurface = pendingSurfaceAfterRuntimeRestartRef.current;
+      const pendingFeedback = pendingFeedbackAfterRuntimeRestartRef.current;
+      const candidateSurface = pendingSurface
+        ?? storedWorkspace?.content.surface
+        ?? createDefaultExperimentSurfaceV3(
+          composition.contract,
+          initialScenarioId,
+        );
+      const durableScenarioIds = storedWorkspace?.content.scenarios.map(
+        ({ scenarioId }) => scenarioId,
+      ) ?? [initialScenarioId];
+      const nextSurface = pendingSurface === null
+        ? candidateSurface
+        : reconcileSurfaceControlTargetsV3(
+          candidateSurface,
+          durableScenarioIds,
+          initialScenarioId,
+        );
+      const storedSnapshots = contentStore.listSnapshots().filter((snapshot) =>
+        snapshot.experimentId === WORKBENCH_EXPERIMENT_ID_V3
+        && snapshot.content.modelId === composition.defaultModelId);
+      surfaceRef.current = nextSurface;
+      setSurface(nextSurface);
+      workspaceRef.current = storedWorkspace;
+      setWorkspace(storedWorkspace);
+      setSnapshotCount(storedSnapshots.length);
+      const nextBriefingPicks = resolveWorkbenchBriefingPicksAfterRestartV3(
+        briefingPicksRef.current,
+        nextSurface,
+      );
+      briefingPicksRef.current = nextBriefingPicks;
+      setBriefingPicks(nextBriefingPicks);
+      setSaveState(pendingFeedback?.saveState
+        ?? (pendingSurface === null ? "clean" : "dirty"));
+      setSaveError(pendingFeedback?.saveError ?? null);
+      setSnapshotState(pendingFeedback?.snapshotState ?? "idle");
+      setSnapshotError(pendingFeedback?.snapshotError ?? null);
+      setScenarios([]);
+      setActiveScenarioId(null);
+      setScenarioPresets([]);
+      setScenarioOperation(null);
+      setScenarioError(null);
+      controlValuesByScenarioRef.current = {};
+      setControlValues(controlValuesForFixtureV3(
+        composition.contract,
+        storedScenario?.capture.fixture,
+      ));
       setControlError(null);
       setPendingControlId(null);
       setAnalysisById({});
       setPendingAnalysisId(null);
       setAnalysisErrorById({});
       exclusiveOperationRef.current = null;
-      setSamples([]);
+      presentationSampleStore.reset();
 
       const runtimeSessionId = `workbench-${randomPortableTokenV3()}`;
       client = new StudioSimulationWorkerClientV2();
@@ -253,15 +331,66 @@ export const WorkbenchV3Page = () => {
       const initial = await client.initialize({
         expectedModelId: composition.defaultModelId,
         runtimeSessionId,
-        scenarioId: WORKBENCH_SCENARIO_ID_V3,
-        fixture: composition.defaultFixture,
+        scenarioId: initialScenarioId,
+        scenarioLabel: storedScenario?.label
+          ?? t("workbench.editor.scenarioManager.baselinePresetTitle"),
+        fixture: storedScenario?.capture.fixture ?? composition.defaultFixture,
+        ...(storedScenario === undefined
+          ? {}
+          : { checkpoint: storedScenario.capture.checkpoint }),
+        ...(storedWorkspace === null && storedSnapshots.length === 0
+          ? {}
+          : {
+            authoringSeed: {
+              ...(storedWorkspace === null ? {} : { workspace: storedWorkspace }),
+              snapshots: storedSnapshots,
+            },
+          }),
       });
       if (cancelled) {
         client.terminate();
         return;
       }
+      const capturedScenarios = await client.readScenarios({ runtimeSessionId });
+      if (cancelled) {
+        client.terminate();
+        return;
+      }
+      const descriptors = Object.freeze(capturedScenarios.scenarios.map(
+        ({ scenarioId, label }) => Object.freeze({ scenarioId, label }),
+      ));
+      const controlValuesByScenario = Object.fromEntries(
+        capturedScenarios.scenarios.map((scenario) => [
+          scenario.scenarioId,
+          controlValuesForFixtureV3(
+            composition.contract,
+            scenario.capture.fixture,
+          ),
+        ]),
+      );
+      controlValuesByScenarioRef.current = controlValuesByScenario;
+      activeScenarioIdRef.current = capturedScenarios.activeScenarioId;
+      setScenarios(descriptors);
+      setActiveScenarioId(capturedScenarios.activeScenarioId);
+      setControlValues(controlValuesByScenario[capturedScenarios.activeScenarioId]
+        ?? controlValuesForFixtureV3(composition.contract, undefined));
+      const baseline = capturedScenarios.scenarios.find(({ scenarioId }) =>
+        scenarioId === capturedScenarios.activeScenarioId);
+      setScenarioPresets(baseline === undefined
+        ? []
+        : Object.freeze([Object.freeze({
+            schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
+            presetId: "preset/workbench-startup-baseline",
+            modelId: composition.defaultModelId,
+            title: t("workbench.editor.scenarioManager.baselinePresetTitle"),
+            description: t(
+              "workbench.editor.scenarioManager.baselinePresetDescription",
+            ),
+            capture: baseline.capture,
+          })]));
       latestFrameRef.current = initial;
-      appendFramesV3([initial], setSamples);
+      lastRootFrameTimeSecRef.current = initial.acceptedTimeSec;
+      appendFramesV3([initial], presentationSampleStore);
       setStatus({
         kind: "live",
         contract: composition.contract,
@@ -269,28 +398,43 @@ export const WorkbenchV3Page = () => {
         frame: initial,
       });
       scheduler = new WorkbenchLiveSchedulerV3({
-        advance: (stepCount) => client!.advance({
-          runtimeSessionId,
-          scenarioId: WORKBENCH_SCENARIO_ID_V3,
-          stepCount,
-        }),
+        advance: (stepCount) => {
+          const scenarioId = activeScenarioIdRef.current;
+          if (scenarioId === null) {
+            throw new Error("Workbench has no active Scenario");
+          }
+          return client!.advance({ runtimeSessionId, scenarioId, stepCount });
+        },
         acceptedTimeSec: (frame) => frame.acceptedTimeSec,
         onFrames: (frames) => {
           if (cancelled) return;
-          appendFramesV3(frames, setSamples);
+          appendFramesV3(frames, presentationSampleStore);
           const frame = frames.at(-1);
           if (frame === undefined) return;
           latestFrameRef.current = frame;
-          setStatus((current) => current.kind === "live"
-            ? { ...current, frame }
-            : current);
+          if (shouldPublishWorkbenchRootFrameV3({
+            acceptedTimeSec: frame.acceptedTimeSec,
+            lastPublishedTimeSec: lastRootFrameTimeSecRef.current,
+            schedulerRunning: scheduler?.running ?? false,
+          })) {
+            lastRootFrameTimeSecRef.current = frame.acceptedTimeSec;
+            setStatus((current) => current.kind === "live"
+              ? { ...current, frame }
+              : current);
+          }
         },
         onError: failRuntime,
       });
       schedulerRef.current = scheduler;
-      playingIntentRef.current = true;
-      setIsPlaying(true);
-      scheduler.play(initial.acceptedTimeSec);
+      const playbackIntent = playingIntentRef.current;
+      setIsPlaying(playbackIntent);
+      if (playbackIntent && !document.hidden) {
+        scheduler.play(initial.acceptedTimeSec);
+      }
+      // Consume restart handoff only after the Worker, its complete Scenario
+      // set, and the live scheduler have all been reconstructed successfully.
+      pendingSurfaceAfterRuntimeRestartRef.current = null;
+      pendingFeedbackAfterRuntimeRestartRef.current = null;
     };
 
     void start().catch(failRuntime);
@@ -323,19 +467,56 @@ export const WorkbenchV3Page = () => {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
+  const graphPanes = surface?.graphPanes ?? [];
+  const outputPanes = surface?.outputPanes ?? [];
+  const controlPanes = surface?.controlPanes ?? [];
+  const updateSurface = React.useCallback((
+    update: (current: ExperimentSurfaceV2) => ExperimentSurfaceV2,
+  ) => {
+    const current = surfaceRef.current;
+    if (current === null) return;
+    const next = update(current);
+    if (next === current) return;
+    surfaceRef.current = next;
+    surfaceMutationRevisionRef.current += 1;
+    setSurface(next);
+    const durableOperation = exclusiveOperationRef.current;
+    if (durableOperation !== "save" && durableOperation !== "snapshot") {
+      setSaveState("dirty");
+      setSaveError(null);
+      setSnapshotState("idle");
+      setSnapshotError(null);
+    }
+  }, []);
+
   const openPaneSettings = React.useCallback((paneId: string) => {
     if (graphPanes.some((pane) => pane.paneId === paneId)) {
       setPaneSettings({ kind: "graph", paneId });
       return;
     }
-    if (outputPane?.paneId === paneId) {
+    if (outputPanes.some((pane) => pane.paneId === paneId)) {
       setPaneSettings({ kind: "output", paneId });
       return;
     }
-    if (controlPane?.paneId === paneId) {
+    if (controlPanes.some((pane) => pane.paneId === paneId)) {
       setPaneSettings({ kind: "control", paneId });
     }
-  }, [controlPane, graphPanes, outputPane]);
+  }, [controlPanes, graphPanes, outputPanes]);
+
+  const addPaneToRoleArea = React.useCallback((
+    kind: WorkbenchPaneSettingsV3["kind"],
+  ) => {
+    if (surface === null || contract === null) return;
+    const result = addWorkbenchSurfacePaneV3(
+      surface,
+      kind,
+      contract,
+      activeScenarioId ?? WORKBENCH_SCENARIO_ID_V3,
+    );
+    if (result.selectedPane === null || result.surface === surface) return;
+    updateSurface(() => result.surface);
+    setPaneSettings(result.selectedPane);
+  }, [activeScenarioId, contract, surface, updateSurface]);
 
   const togglePlayback = React.useCallback(() => {
     const scheduler = schedulerRef.current;
@@ -348,7 +529,14 @@ export const WorkbenchV3Page = () => {
     if (playingIntentRef.current) {
       playingIntentRef.current = false;
       setIsPlaying(false);
-      void scheduler.pause();
+      void scheduler.pause().then(() => {
+        const latest = latestFrameRef.current;
+        if (latest === null) return;
+        lastRootFrameTimeSecRef.current = latest.acceptedTimeSec;
+        setStatus((current) => current.kind === "live"
+          ? { ...current, frame: latest }
+          : current);
+      });
       return;
     }
     playingIntentRef.current = true;
@@ -356,9 +544,9 @@ export const WorkbenchV3Page = () => {
     scheduler.play(frame.acceptedTimeSec);
   }, []);
 
-  const restartRuntime = React.useCallback(() => {
-    playingIntentRef.current = true;
-    setIsPlaying(true);
+  const restartRuntime = React.useCallback((playbackIntent = true) => {
+    playingIntentRef.current = playbackIntent;
+    setIsPlaying(playbackIntent);
     setStatus({ kind: "loading" });
     setRuntimeGeneration((generation) => generation + 1);
   }, []);
@@ -393,17 +581,29 @@ export const WorkbenchV3Page = () => {
         expectedInputEpoch: acceptedFrame.inputEpoch,
       });
       latestFrameRef.current = nextFrame;
-      setSamples([]);
+      lastRootFrameTimeSecRef.current = nextFrame.acceptedTimeSec;
+      presentationSampleStore.reset();
       setAnalysisById({});
       setAnalysisErrorById({});
-      appendFramesV3([nextFrame], setSamples);
+      appendFramesV3([nextFrame], presentationSampleStore);
       setStatus((current) => current.kind === "live"
         ? { ...current, frame: nextFrame }
         : current);
-      setControlValues((current) => Object.freeze({
-        ...current,
+      const currentScenarioValues =
+        controlValuesByScenarioRef.current[nextFrame.scenarioId] ?? {};
+      const nextControlValues = Object.freeze({
+        ...currentScenarioValues,
         [controlId]: value,
-      }));
+      });
+      controlValuesByScenarioRef.current = {
+        ...controlValuesByScenarioRef.current,
+        [nextFrame.scenarioId]: nextControlValues,
+      };
+      setControlValues(nextControlValues);
+      setSaveState("dirty");
+      setSaveError(null);
+      setSnapshotState("idle");
+      setSnapshotError(null);
       if (playingIntentRef.current && !document.hidden) {
         scheduler.play(nextFrame.acceptedTimeSec);
       }
@@ -421,7 +621,7 @@ export const WorkbenchV3Page = () => {
     }
   }, []);
 
-  const requestAnalysis = React.useCallback(async (analysisId: string) => {
+  const requestAnalysis = React.useCallback((analysisId: string): boolean => {
     const client = clientRef.current;
     const scheduler = schedulerRef.current;
     if (
@@ -429,56 +629,506 @@ export const WorkbenchV3Page = () => {
       || scheduler === null
       || latestFrameRef.current === null
       || exclusiveOperationRef.current !== null
-    ) return;
+    ) return false;
     exclusiveOperationRef.current = "analysis";
     setPendingAnalysisId(analysisId);
     setAnalysisErrorById((current) => withoutRecordKeyV3(current, analysisId));
+    void (async () => {
+      try {
+        await scheduler.pause();
+        const acceptedFrame = latestFrameRef.current;
+        if (acceptedFrame === null) {
+          throw new Error("The live Scenario no longer has an accepted frame");
+        }
+        const analysis = await client.requestAnalysis({
+          runtimeSessionId: acceptedFrame.runtimeSessionId,
+          scenarioId: acceptedFrame.scenarioId,
+          analysisId,
+          expectedInputEpoch: acceptedFrame.inputEpoch,
+          expectedAcceptedRevision: acceptedFrame.acceptedRevision,
+          expectedAcceptedTimeSec: acceptedFrame.acceptedTimeSec,
+        });
+        setAnalysisById((current) => Object.freeze({
+          ...current,
+          [analysisId]: analysis,
+        }));
+        if (playingIntentRef.current && !document.hidden) {
+          scheduler.play(acceptedFrame.acceptedTimeSec);
+        }
+      } catch (error) {
+        setAnalysisErrorById((current) => Object.freeze({
+          ...current,
+          [analysisId]: error instanceof Error ? error.message : String(error),
+        }));
+        const latest = latestFrameRef.current;
+        if (playingIntentRef.current && !document.hidden && latest !== null) {
+          scheduler.play(latest.acceptedTimeSec);
+        }
+      } finally {
+        exclusiveOperationRef.current = null;
+        setPendingAnalysisId(null);
+      }
+    })();
+    return true;
+  }, []);
+
+  const adoptScenarioStateV3 = React.useCallback((
+    next: StudioSimulationWorkerScenarioStateV2,
+  ) => {
+    activeScenarioIdRef.current = next.activeScenarioId;
+    setActiveScenarioId(next.activeScenarioId);
+    setScenarios(next.scenarios);
+    latestFrameRef.current = next.frame;
+    lastRootFrameTimeSecRef.current = next.frame.acceptedTimeSec;
+    presentationSampleStore.reset();
+    appendFramesV3([next.frame], presentationSampleStore);
+    setAnalysisById({});
+    setAnalysisErrorById({});
+    setControlError(null);
+    setControlValues(
+      controlValuesByScenarioRef.current[next.activeScenarioId]
+        ?? (contract === null
+          ? {}
+          : controlValuesForFixtureV3(contract, undefined)),
+    );
+    setStatus((current) => current.kind === "live"
+      ? { ...current, frame: next.frame }
+      : current);
+  }, [contract]);
+
+  const runScenarioOperationV3 = React.useCallback(async (
+    kind: WorkbenchScenarioOperationV3,
+    operation: (
+      client: StudioSimulationWorkerClientV2,
+      runtimeSessionId: string,
+    ) => Promise<StudioSimulationWorkerScenarioStateV2>,
+    beforeAdopt?: (state: StudioSimulationWorkerScenarioStateV2) => void,
+  ): Promise<boolean> => {
+    const client = clientRef.current;
+    const scheduler = schedulerRef.current;
+    const frame = latestFrameRef.current;
+    if (
+      client === null
+      || scheduler === null
+      || frame === null
+      || exclusiveOperationRef.current !== null
+    ) return false;
+    exclusiveOperationRef.current = "scenario";
+    setScenarioOperation(kind);
+    setScenarioError(null);
     try {
       await scheduler.pause();
-      const acceptedFrame = latestFrameRef.current;
-      if (acceptedFrame === null) {
-        throw new Error("The live Scenario no longer has an accepted frame");
-      }
-      const analysis = await client.requestAnalysis({
-        runtimeSessionId: acceptedFrame.runtimeSessionId,
-        scenarioId: acceptedFrame.scenarioId,
-        analysisId,
-        expectedInputEpoch: acceptedFrame.inputEpoch,
-        expectedAcceptedRevision: acceptedFrame.acceptedRevision,
-        expectedAcceptedTimeSec: acceptedFrame.acceptedTimeSec,
-      });
-      setAnalysisById((current) => Object.freeze({
-        ...current,
-        [analysisId]: analysis,
-      }));
-      if (playingIntentRef.current && !document.hidden) {
-        scheduler.play(acceptedFrame.acceptedTimeSec);
-      }
+      const next = await operation(client, frame.runtimeSessionId);
+      beforeAdopt?.(next);
+      adoptScenarioStateV3(next);
+      return true;
     } catch (error) {
-      setAnalysisErrorById((current) => Object.freeze({
-        ...current,
-        [analysisId]: error instanceof Error ? error.message : String(error),
-      }));
+      setScenarioError(error instanceof Error ? error.message : String(error));
+      return false;
+    } finally {
+      exclusiveOperationRef.current = null;
+      setScenarioOperation(null);
       const latest = latestFrameRef.current;
       if (playingIntentRef.current && !document.hidden && latest !== null) {
         scheduler.play(latest.acceptedTimeSec);
       }
+    }
+  }, [adoptScenarioStateV3]);
+
+  const selectScenarioV3 = React.useCallback((scenarioId: string) => {
+    if (scenarioId === activeScenarioIdRef.current) return;
+    void runScenarioOperationV3(
+      "select",
+      (client, runtimeSessionId) => client.selectScenario({
+        runtimeSessionId,
+        scenarioId,
+      }),
+    );
+  }, [runScenarioOperationV3]);
+
+  const addScenarioFromPresetV3 = React.useCallback((
+    intent: WorkbenchScenarioAddIntentV3,
+  ) => {
+    void runScenarioOperationV3(
+      "add",
+      (client, runtimeSessionId) => client.addScenarioFromPreset({
+        runtimeSessionId,
+        scenarioId: intent.scenarioId,
+        label: intent.label,
+        preset: intent.preset,
+      }),
+      () => {
+        if (contract !== null) {
+          controlValuesByScenarioRef.current = {
+            ...controlValuesByScenarioRef.current,
+            [intent.scenarioId]: controlValuesForFixtureV3(
+              contract,
+              intent.preset.capture.fixture,
+            ),
+          };
+        }
+        updateSurface((current) => addScenarioToControlTargetsV3(
+          current,
+          intent.scenarioId,
+        ));
+      },
+    );
+  }, [contract, runScenarioOperationV3, updateSurface]);
+
+  const duplicateScenarioV3 = React.useCallback((
+    intent: WorkbenchScenarioDuplicateIntentV3,
+  ) => {
+    const sourceValues = controlValuesByScenarioRef.current[
+      intent.sourceScenarioId
+    ];
+    void runScenarioOperationV3(
+      "duplicate",
+      (client, runtimeSessionId) => client.duplicateScenario({
+        runtimeSessionId,
+        sourceScenarioId: intent.sourceScenarioId,
+        scenarioId: intent.scenarioId,
+        label: intent.label,
+      }),
+      () => {
+        if (sourceValues !== undefined) {
+          controlValuesByScenarioRef.current = {
+            ...controlValuesByScenarioRef.current,
+            [intent.scenarioId]: sourceValues,
+          };
+        }
+        updateSurface((current) => addScenarioToControlTargetsV3(
+          current,
+          intent.scenarioId,
+        ));
+      },
+    );
+  }, [runScenarioOperationV3, updateSurface]);
+
+  const renameScenarioV3 = React.useCallback((
+    intent: WorkbenchScenarioRenameIntentV3,
+  ) => {
+    void runScenarioOperationV3(
+      "rename",
+      (client, runtimeSessionId) => client.renameScenario({
+        runtimeSessionId,
+        scenarioId: intent.scenarioId,
+        label: intent.label,
+      }),
+      () => {
+        setSaveState("dirty");
+        setSaveError(null);
+        setSnapshotState("idle");
+        setSnapshotError(null);
+      },
+    );
+  }, [runScenarioOperationV3]);
+
+  const deleteScenarioV3 = React.useCallback((
+    intent: WorkbenchScenarioDeleteIntentV3,
+  ) => {
+    void runScenarioOperationV3(
+      "delete",
+      (client, runtimeSessionId) => client.deleteScenario({
+        runtimeSessionId,
+        scenarioId: intent.scenarioId,
+      }),
+      (next) => {
+        const { [intent.scenarioId]: _deleted, ...retained } =
+          controlValuesByScenarioRef.current;
+        controlValuesByScenarioRef.current = retained;
+        updateSurface((current) => removeScenarioFromControlTargetsV3(
+          current,
+          intent.scenarioId,
+          next.activeScenarioId,
+        ));
+      },
+    );
+  }, [runScenarioOperationV3, updateSurface]);
+
+  const saveDraftV3 = React.useCallback(async () => {
+    const client = clientRef.current;
+    const scheduler = schedulerRef.current;
+    const frame = latestFrameRef.current;
+    const contentStore = contentStoreRef.current;
+    if (
+      client === null
+      || scheduler === null
+      || frame === null
+      || surface === null
+      || contentStore === null
+      || exclusiveOperationRef.current !== null
+    ) return;
+    const submittedSurface = surfaceRef.current;
+    if (submittedSurface === null) return;
+    const submittedSurfaceMutationRevision =
+      surfaceMutationRevisionRef.current;
+    exclusiveOperationRef.current = "save";
+    setSaveState("saving");
+    setSaveError(null);
+    let restartingFromDurableWorkspace = false;
+    try {
+      await scheduler.pause();
+      const saved = await client.saveDraft({
+        runtimeSessionId: frame.runtimeSessionId,
+        scenarioId: frame.scenarioId,
+        experimentId: WORKBENCH_EXPERIMENT_ID_V3,
+        surface: submittedSurface,
+        expectedDraftVersion: workspaceRef.current?.draftVersion ?? null,
+      });
+      commitWorkbenchDurableMutationV3({
+        kind: "draft-save",
+        persist: () => contentStore.saveWorkspace(saved),
+        adoptDurable: (durableWorkspace) => {
+          const surfaceResolution = resolveWorkbenchSurfaceAfterCommitV3({
+            currentMutationRevision: surfaceMutationRevisionRef.current,
+            currentSurface: surfaceRef.current,
+            durableSurface: durableWorkspace.content.surface,
+            submittedMutationRevision: submittedSurfaceMutationRevision,
+          });
+          workspaceRef.current = durableWorkspace;
+          setWorkspace(durableWorkspace);
+          surfaceRef.current = surfaceResolution.surface;
+          setSurface(surfaceResolution.surface);
+          setScenarios(Object.freeze(durableWorkspace.content.scenarios.map(
+            ({ scenarioId, label }) => Object.freeze({ scenarioId, label }),
+          )));
+          if (contract !== null) {
+            controlValuesByScenarioRef.current = Object.fromEntries(
+              durableWorkspace.content.scenarios.map((scenario) => [
+                scenario.scenarioId,
+                controlValuesForFixtureV3(contract, scenario.capture.fixture),
+              ]),
+            );
+            const activeId = activeScenarioIdRef.current;
+            if (activeId !== null) {
+              setControlValues(controlValuesByScenarioRef.current[activeId]
+                ?? controlValuesForFixtureV3(contract, undefined));
+            }
+          }
+          setSaveState(surfaceResolution.hasNewerMutations
+            ? "dirty"
+            : "clean");
+          setSnapshotState("idle");
+        },
+        terminateRuntime: () => {
+          client.terminate();
+          clientRef.current = null;
+          schedulerRef.current = null;
+        },
+        reinitializeFromDurable: () => {
+          // A failed browser write must not discard the Surface the user was
+          // trying to save. Startup reconciles its controller targets against
+          // the Scenario set that actually survived the durable rollback.
+          pendingSurfaceAfterRuntimeRestartRef.current =
+            surfaceRef.current ?? submittedSurface;
+          restartingFromDurableWorkspace = true;
+          restartRuntime(playingIntentRef.current);
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const hasNewerSurfaceMutations =
+        hasWorkbenchSurfaceMutationsAfterSubmissionV3(
+          submittedSurfaceMutationRevision,
+          surfaceMutationRevisionRef.current,
+        );
+      if (restartingFromDurableWorkspace) {
+        pendingFeedbackAfterRuntimeRestartRef.current = Object.freeze({
+          saveState: "dirty",
+          saveError: message,
+          snapshotState: "idle",
+          snapshotError: null,
+        });
+      }
+      setSaveError(message);
+      setSaveState(restartingFromDurableWorkspace
+        ? "dirty"
+        : hasNewerSurfaceMutations
+          ? "dirty"
+          : "error");
     } finally {
       exclusiveOperationRef.current = null;
-      setPendingAnalysisId(null);
+      const latest = latestFrameRef.current;
+      if (
+        !restartingFromDurableWorkspace
+        && playingIntentRef.current
+        && !document.hidden
+        && latest !== null
+      ) {
+        scheduler.play(latest.acceptedTimeSec);
+      }
     }
-  }, []);
+  }, [contract, restartRuntime, surface]);
 
-  const contract = status.kind === "live" ? status.contract : null;
+  const createSnapshotV3 = React.useCallback(async () => {
+    const client = clientRef.current;
+    const scheduler = schedulerRef.current;
+    const frame = latestFrameRef.current;
+    const contentStore = contentStoreRef.current;
+    const durableWorkspace = workspaceRef.current;
+    if (
+      client === null
+      || scheduler === null
+      || frame === null
+      || durableWorkspace === null
+      || contentStore === null
+      || saveState !== "clean"
+      || exclusiveOperationRef.current !== null
+    ) return;
+    const submittedSurfaceMutationRevision =
+      surfaceMutationRevisionRef.current;
+    exclusiveOperationRef.current = "snapshot";
+    setSnapshotState("creating");
+    setSnapshotError(null);
+    let restartRuntimeAfterCommit = false;
+    let snapshotHasNewerSurfaceMutations = false;
+    try {
+      await scheduler.pause();
+      const created = await client.createSnapshot({
+        runtimeSessionId: frame.runtimeSessionId,
+        scenarioId: frame.scenarioId,
+        experimentId: durableWorkspace.experimentId,
+        expectedDraftVersion: durableWorkspace.draftVersion,
+        expectedHeadSnapshotId: durableWorkspace.headSnapshotId,
+      });
+      commitWorkbenchDurableMutationV3({
+        kind: "snapshot",
+        persist: () => {
+          const persisted = contentStore.saveSnapshotAndWorkspace(created);
+          const snapshotCount = contentStore.listSnapshots().filter((snapshot) =>
+            snapshot.experimentId === WORKBENCH_EXPERIMENT_ID_V3).length;
+          return Object.freeze({ ...persisted, snapshotCount });
+        },
+        adoptDurable: (durable) => {
+          const surfaceResolution = resolveWorkbenchSurfaceAfterCommitV3({
+            currentMutationRevision: surfaceMutationRevisionRef.current,
+            currentSurface: surfaceRef.current,
+            durableSurface: durable.workspace.content.surface,
+            submittedMutationRevision: submittedSurfaceMutationRevision,
+          });
+          workspaceRef.current = durable.workspace;
+          setWorkspace(durable.workspace);
+          surfaceRef.current = surfaceResolution.surface;
+          setSurface(surfaceResolution.surface);
+          setSaveState(surfaceResolution.hasNewerMutations
+            ? "dirty"
+            : "clean");
+          snapshotHasNewerSurfaceMutations =
+            surfaceResolution.hasNewerMutations;
+          if (surfaceResolution.hasNewerMutations) {
+            pendingSurfaceAfterRuntimeRestartRef.current =
+              surfaceResolution.surface;
+          } else {
+            pendingSurfaceAfterRuntimeRestartRef.current = null;
+          }
+          setSnapshotCount(durable.snapshotCount);
+          setSnapshotState("created");
+          // Snapshot/Workspace persistence is already committed. This
+          // session-only transport is deliberately best effort: a blocked or
+          // full sessionStorage must never turn a durable Snapshot into a
+          // false failure or prevent the mandatory runtime reconstruction.
+          if (briefingHandoff !== null) {
+            persistWorkbenchBriefingHandoffV3({
+              handoff: briefingHandoff,
+              snapshotId: durable.snapshot.snapshotId,
+              picks: briefingPicksRef.current ?? [],
+              snapshotSurface: durable.snapshot.content.surface,
+            });
+          }
+        },
+        terminateRuntime: () => {
+          client.terminate();
+          clientRef.current = null;
+          schedulerRef.current = null;
+        },
+        reinitializeFromDurable: () => {
+          carryNewerWorkbenchSurfaceAcrossRestartV3({
+            currentMutationRevision: surfaceMutationRevisionRef.current,
+            currentSurface: surfaceRef.current,
+            pendingSurfaceRef: pendingSurfaceAfterRuntimeRestartRef,
+            submittedMutationRevision: submittedSurfaceMutationRevision,
+          });
+          restartRuntimeAfterCommit = true;
+          restartRuntime(playingIntentRef.current);
+        },
+      });
+      pendingFeedbackAfterRuntimeRestartRef.current = Object.freeze({
+        saveState: snapshotHasNewerSurfaceMutations ? "dirty" : "clean",
+        saveError: null,
+        snapshotState: "created",
+        snapshotError: null,
+      });
+      restartRuntimeAfterCommit = true;
+      restartRuntime(playingIntentRef.current);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const hasNewerSurfaceMutations =
+        hasWorkbenchSurfaceMutationsAfterSubmissionV3(
+          submittedSurfaceMutationRevision,
+          surfaceMutationRevisionRef.current,
+        );
+      if (restartRuntimeAfterCommit) {
+        pendingFeedbackAfterRuntimeRestartRef.current = Object.freeze({
+          saveState: hasNewerSurfaceMutations ? "dirty" : "clean",
+          saveError: null,
+          snapshotState: "error",
+          snapshotError: message,
+        });
+      }
+      setSnapshotError(message);
+      setSnapshotState("error");
+      if (hasNewerSurfaceMutations) {
+        setSaveState("dirty");
+      }
+    } finally {
+      exclusiveOperationRef.current = null;
+      const latest = latestFrameRef.current;
+      if (
+        !restartRuntimeAfterCommit
+        && playingIntentRef.current
+        && !document.hidden
+        && latest !== null
+      ) {
+        scheduler.play(latest.acceptedTimeSec);
+      }
+    }
+  }, [briefingHandoff, restartRuntime, saveState]);
+
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void saveDraftV3();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [saveDraftV3]);
+
   const latestFrame = status.kind === "live" ? status.frame : null;
   const rootRuntimeData = status.kind === "live"
     ? {
       "data-accepted-revision": status.frame.acceptedRevision,
+      "data-input-epoch": status.frame.inputEpoch,
+      "data-model-id": status.frame.modelId,
       "data-model-time-sec": status.frame.acceptedTimeSec,
     }
     : {};
   const runtimeOperationPending = pendingControlId !== null
-    || pendingAnalysisId !== null;
+    || pendingAnalysisId !== null
+    || scenarioOperation !== null
+    || saveState === "saving"
+    || snapshotState === "creating";
+  const briefingOptions = surface === null
+    ? []
+    : allSurfacePanesV3(surface).map((pane) => Object.freeze({
+      paneId: pane.paneId,
+      role: pane.role,
+      label: pane.label,
+      ...(pane.role === "graph" ? { colorHex: pane.colorHex } : {}),
+      defaultPriority: pane.priority,
+      order: pane.order,
+    }));
 
   return (
     <div
@@ -487,30 +1137,88 @@ export const WorkbenchV3Page = () => {
       data-playback={isPlaying ? "playing" : "paused"}
       {...rootRuntimeData}
     >
-      <header className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-x-5 gap-y-2 border-b border-wb-line bg-wb-panel px-4 py-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-wb-accent/40 bg-wb-accent-soft px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-wb-accent">
-            <Radio className="h-3 w-3" />
-            {t("workbench.live.badge")}
-          </span>
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-bold">
-              {status.kind === "live"
-                ? status.contract.displayName
-                : t("workbench.live.title")}
-            </h1>
-            <p className="truncate font-mono text-[10px] text-wb-subtle">
-              {status.kind === "live"
-                ? status.contract.modelId
-                : t("workbench.live.loading")}
-            </p>
-          </div>
+      <header className="flex min-h-12 shrink-0 items-center gap-2 bg-wb-panel px-2.5 py-1.5 shadow-[inset_0_-1px_0_var(--wb-line)] sm:px-3">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <Link
+            to={homeHref(locale === "ja" || locale === "en" ? locale : undefined)}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+            aria-label={t("workbench.editor.home")}
+          >
+            <Home className="h-4 w-4" aria-hidden="true" />
+          </Link>
+          <h1 className="hidden truncate text-xs font-semibold text-wb-text sm:block">
+            {t("workbench.editor.experimentTitle")}
+          </h1>
+          {contract !== null && (
+            <WorkbenchModelMenuV3
+              currentModelId={contract.modelId}
+              models={[{ contract, shortLabel: "MW V3" }]}
+              onOpenDisclosure={() => setLimitationsOpen(true)}
+              strings={{
+                chooseModel: t("workbench.editor.modelChoose"),
+                close: t("workbench.editor.close"),
+                copyModelId: t("workbench.editor.modelCopyId"),
+                copied: t("workbench.editor.modelCopied"),
+                details: t("workbench.editor.modelDetails"),
+                exactModelId: t("workbench.editor.modelExactId"),
+                fixtureSchema: t("workbench.editor.fixtureSchema"),
+                checkpointCodec: t("workbench.editor.checkpointCodec"),
+                snapshotGate: t("workbench.editor.snapshotGate"),
+                validationAndLimitations: t("workbench.editor.validationAndLimitations"),
+              }}
+            />
+          )}
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <RuntimeStatusV3 status={status} />
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Link
+            to="../articles"
+            className="hidden min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:inline-flex"
+          >
+            <BookOpenText className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("workbench.editor.articles")}
+          </Link>
+          <button
+            type="button"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent disabled:opacity-40"
+            disabled={surface === null}
+            onClick={() => setNoteOpen(true)}
+            aria-label={t("workbench.editor.note")}
+          >
+            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent disabled:opacity-40"
+            disabled={surface === null}
+            onClick={() => setBriefingOpen(true)}
+          >
+            <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="hidden md:inline">{t("workbench.editor.briefing")}</span>
+          </button>
+          <button
+            type="button"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent disabled:cursor-wait disabled:opacity-40"
+            disabled={status.kind !== "live" || runtimeOperationPending}
+            onClick={() => void saveDraftV3()}
+            title={saveError ?? undefined}
+            data-testid="v3-save-draft"
+          >
+            {saveState === "clean"
+              ? <Check className="h-3.5 w-3.5 text-emerald-500" aria-hidden="true" />
+              : <Save className="h-3.5 w-3.5" aria-hidden="true" />}
+            <span className="hidden sm:inline">
+              {saveState === "saving"
+                ? t("workbench.editor.saving")
+                : saveState === "clean"
+                  ? t("workbench.editor.saved")
+                  : t("workbench.editor.save")}
+            </span>
+          </button>
           {status.kind === "live" && (
             <button
               type="button"
-              className="inline-flex h-8 items-center gap-1.5 rounded border border-wb-line bg-wb-soft px-2.5 text-xs font-semibold text-wb-text transition-colors hover:bg-wb-hover disabled:cursor-wait disabled:opacity-50"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-wb-primary text-white hover:bg-wb-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent disabled:cursor-wait disabled:opacity-50"
               disabled={runtimeOperationPending}
               aria-label={isPlaying
                 ? t("workbench.live.pause")
@@ -522,12 +1230,8 @@ export const WorkbenchV3Page = () => {
               {isPlaying
                 ? <Pause className="h-3.5 w-3.5" />
                 : <Play className="h-3.5 w-3.5" />}
-              <span>{isPlaying
-                ? t("workbench.live.pause")
-                : t("workbench.live.play")}</span>
             </button>
           )}
-          <RuntimeStatusV3 status={status} />
         </div>
       </header>
 
@@ -541,7 +1245,7 @@ export const WorkbenchV3Page = () => {
           <button
             type="button"
             className="mt-4 inline-flex h-9 items-center gap-2 rounded border border-wb-danger/50 bg-wb-panel px-3 text-xs font-bold text-wb-text hover:bg-wb-hover"
-            onClick={restartRuntime}
+            onClick={() => restartRuntime()}
           >
             <RefreshCw className="h-3.5 w-3.5" />
             {t("workbench.live.restart")}
@@ -552,9 +1256,18 @@ export const WorkbenchV3Page = () => {
           <WorkbenchDockview
             ariaLabel={t("workbench.live.graphArea")}
             className="workbench-dockview-main border-b border-wb-line lg:col-start-1 lg:row-start-1 lg:border-r"
-            panes={graphPanes}
+            panes={graphPanes.map((pane) => ({
+              paneId: pane.paneId,
+              role: pane.role,
+              title: pane.label,
+              colorHex: pane.colorHex,
+            }))}
             role="graph"
             onOpenPaneSettings={openPaneSettings}
+            onAddPane={() => addPaneToRoleArea("graph")}
+            addPaneLabel={t("workbench.editor.addPane")}
+            emptyPaneLabel={t("workbench.editor.emptyPaneArea")}
+            paneSettingsLabel={t("workbench.live.paneSettings")}
             renderPane={(pane) => {
               const graphPane = graphPanes.find(({ paneId }) => paneId === pane.paneId);
               return graphPane === undefined || contract === null
@@ -566,9 +1279,10 @@ export const WorkbenchV3Page = () => {
                     contract={contract}
                     frame={latestFrame}
                     onRequestAnalysis={requestAnalysis}
+                    operationPending={runtimeOperationPending}
                     pane={graphPane}
                     pendingAnalysisId={pendingAnalysisId}
-                    samples={samples}
+                    sampleStore={presentationSampleStore}
                   />
                 );
             }}
@@ -576,74 +1290,227 @@ export const WorkbenchV3Page = () => {
           <WorkbenchDockview
             ariaLabel={t("workbench.live.outputArea")}
             className="border-b border-wb-line lg:col-start-1 lg:row-start-2 lg:border-b-0 lg:border-r"
-            panes={outputPane === null ? [] : [outputPane]}
+            panes={outputPanes.map((pane) => ({
+              paneId: pane.paneId,
+              role: pane.role,
+              title: pane.label,
+            }))}
             role="output"
             onOpenPaneSettings={openPaneSettings}
-            renderPane={() => outputPane === null || contract === null
-              ? <PaneLoadingV3 />
-              : (
+            onAddPane={() => addPaneToRoleArea("output")}
+            addPaneLabel={t("workbench.editor.addPane")}
+            emptyPaneLabel={t("workbench.editor.emptyPaneArea")}
+            paneSettingsLabel={t("workbench.live.paneSettings")}
+            renderPane={(paneDefinition) => {
+              const pane = outputPanes.find(({ paneId }) =>
+                paneId === paneDefinition.paneId);
+              return pane === undefined || contract === null
+                ? <PaneLoadingV3 />
+                : (
                 <OutputPaneBodyV3
                   contract={contract}
                   frame={latestFrame}
-                  pane={outputPane}
+                  pane={pane}
                 />
-              )}
+                );
+            }}
           />
           <WorkbenchDockview
             ariaLabel={t("workbench.live.controlArea")}
             className="lg:col-start-2 lg:row-span-2 lg:row-start-1"
-            panes={controlPane === null ? [] : [controlPane]}
+            panes={controlPanes.map((pane) => ({
+              paneId: pane.paneId,
+              role: pane.role,
+              title: pane.label,
+            }))}
             role="control"
             onOpenPaneSettings={openPaneSettings}
-            renderPane={() => controlPane === null || contract === null
-              ? <PaneLoadingV3 />
-              : (
-                <ControlPaneBodyV3
-                  contract={contract}
-                  controlError={controlError}
-                  controlValues={controlValues}
-                  disabledByAnalysis={pendingAnalysisId !== null}
-                  frame={latestFrame}
-                  onApplyControl={applyControl}
-                  pane={controlPane}
-                  pendingControlId={pendingControlId}
-                />
-              )}
+            onAddPane={() => addPaneToRoleArea("control")}
+            addPaneLabel={t("workbench.editor.addPane")}
+            emptyPaneLabel={t("workbench.editor.emptyPaneArea")}
+            paneSettingsLabel={t("workbench.live.paneSettings")}
+            renderPane={(paneDefinition) => {
+              const pane = controlPanes.find(({ paneId }) =>
+                paneId === paneDefinition.paneId);
+              return pane === undefined || contract === null
+                ? <PaneLoadingV3 />
+                : (
+                  <WorkbenchScenarioManagerV3
+                    variant="embedded"
+                    modelId={contract.modelId}
+                    scenarios={scenarios}
+                    activeScenarioId={activeScenarioId}
+                    presets={scenarioPresets}
+                    actionDisabledReasons={scenarioOperation === null
+                      ? undefined
+                      : {
+                          add: t("workbench.editor.scenarioManager.busy"),
+                          delete: t("workbench.editor.scenarioManager.busy"),
+                          duplicate: t("workbench.editor.scenarioManager.busy"),
+                          rename: t("workbench.editor.scenarioManager.busy"),
+                        }}
+                    renderControllerSlot={(scenario) => (
+                      <>
+                        {scenarioError !== null && (
+                          <p
+                            className="mb-2 rounded-lg bg-wb-danger-soft p-2 text-[10px] text-wb-danger"
+                            role="alert"
+                          >
+                            {scenarioError}
+                          </p>
+                        )}
+                        <ControlPaneBodyV3
+                          contract={contract}
+                          controlError={controlError}
+                          controlValues={controlValues}
+                          disabledByAnalysis={
+                            pendingAnalysisId !== null
+                            || scenarioOperation !== null
+                          }
+                          onApplyControl={applyControl}
+                          pane={pane}
+                          pendingControlId={pendingControlId}
+                          scenarioId={scenario.scenarioId}
+                        />
+                      </>
+                    )}
+                    onSelectScenario={selectScenarioV3}
+                    onAddFromPreset={addScenarioFromPresetV3}
+                    onDuplicateScenario={duplicateScenarioV3}
+                    onRenameScenario={renameScenarioV3}
+                    onDeleteScenario={deleteScenarioV3}
+                    strings={{
+                      activeScenario: t("workbench.editor.scenarioManager.activeScenario"),
+                      add: t("workbench.editor.scenarioManager.add"),
+                      addFromPreset: t("workbench.editor.scenarioManager.addFromPreset"),
+                      close: t("workbench.editor.scenarioManager.close"),
+                      controllerSlot: t("workbench.editor.scenarioManager.controllerSlot"),
+                      copySuffix: t("workbench.editor.scenarioManager.copySuffix"),
+                      delete: t("workbench.editor.scenarioManager.delete"),
+                      deleteLastScenario: t("workbench.editor.scenarioManager.deleteLastScenario"),
+                      duplicate: t("workbench.editor.scenarioManager.duplicate"),
+                      emptyScenarios: t("workbench.editor.scenarioManager.emptyScenarios"),
+                      incompatiblePreset: t("workbench.editor.scenarioManager.incompatiblePreset"),
+                      noControllerSelection: t("workbench.editor.scenarioManager.noControllerSelection"),
+                      noPresets: t("workbench.editor.scenarioManager.noPresets"),
+                      preset: t("workbench.editor.scenarioManager.preset"),
+                      rename: t("workbench.editor.scenarioManager.rename"),
+                      scenarioName: t("workbench.editor.scenarioManager.scenarioName"),
+                      scenarios: t("workbench.editor.scenarioManager.scenarios"),
+                      title: t("workbench.editor.scenarioManager.title"),
+                    }}
+                  />
+                );
+            }}
           />
         </div>
       )}
 
-      {paneSettings !== null && contract !== null && (
-        <PaneSettingsModalV3
-          contract={contract}
-          graphPanes={graphPanes}
-          outputPane={outputPane}
-          controlPane={controlPane}
-          settings={paneSettings}
-          onClose={() => setPaneSettings(null)}
-          onSelectGraph={(paneId, graphId) => {
-            setGraphPanes((current) => current.map((pane) => pane.paneId === paneId
-              ? { ...pane, graphId, title: graphTitleV3(graphId) }
-              : pane));
-          }}
-          onToggleOutput={(outputId) => {
-            setOutputPane((current) => current === null
-              ? current
-              : {
-                ...current,
-                outputIds: toggleIdV3(current.outputIds, outputId),
-              });
-          }}
-          onToggleControl={(controlId) => {
-            setControlPane((current) => current === null
-              ? current
-              : {
-                ...current,
-                controlIds: toggleIdV3(current.controlIds, controlId),
-              });
-          }}
+      {contract !== null && (
+        surface !== null && paneSettings !== null && (
+          <WorkbenchPaneEditorV3
+            open
+            selectedPane={paneSettings}
+            contract={contract}
+            surface={surface}
+            currentScenarioId={activeScenarioId ?? WORKBENCH_SCENARIO_ID_V3}
+            onClose={() => setPaneSettings(null)}
+            onSelectedPaneChange={setPaneSettings}
+            onChange={(nextSurface) => {
+              updateSurface(() => nextSurface);
+              updateBriefingPicksV3(reconcileWorkbenchBriefingPicksV3(
+                briefingPicksRef.current ?? [],
+                nextSurface,
+              ));
+            }}
+            strings={{
+              addPane: t("workbench.editor.addPane"),
+              close: t("workbench.editor.close"),
+              color: t("workbench.editor.paneColor"),
+              controlCatalog: t("workbench.live.registeredControls"),
+              deletePane: t("workbench.editor.deletePane"),
+              emptyCatalog: t("workbench.editor.emptyCatalog"),
+              graphCatalog: t("workbench.live.registeredGraphs"),
+              label: t("workbench.editor.paneLabel"),
+              noConfigurableSeries: t("workbench.editor.noConfigurableSeries"),
+              outputCatalog: t("workbench.live.registeredOutputs"),
+              paneKinds: {
+                graph: t("workbench.editor.paneKinds.graph"),
+                output: t("workbench.editor.paneKinds.output"),
+                control: t("workbench.editor.paneKinds.control"),
+              },
+              seriesCatalog: t("workbench.editor.series"),
+              title: t("workbench.live.paneSettings"),
+              windowSec: t("workbench.editor.windowSec"),
+              windowSecHint: t("workbench.editor.windowSecHint"),
+            }}
+          />
+        )
+      )}
+      {contract !== null && (
+        <ModelLimitations
+          acknowledgementScope={`${contract.modelId}:disclosure-v1`}
+          limitations={[
+            ...(t("modelLimitations.items", { returnObjects: true }) as string[]),
+            t("workbench.live.snapshotGateDescription"),
+          ]}
+          open={limitationsOpen}
+          onOpenChange={setLimitationsOpen}
+          showTrigger={false}
         />
       )}
+      <WorkbenchNoteEditorV3
+        open={noteOpen}
+        value={surface?.note.text ?? ""}
+        onClose={() => setNoteOpen(false)}
+        onChange={(text) => updateSurface((current) => ({
+          ...current,
+          note: { text },
+        }))}
+        strings={{
+          close: t("workbench.editor.close"),
+          placeholder: t("workbench.editor.notePlaceholder"),
+          title: t("workbench.editor.note"),
+        }}
+      />
+      <WorkbenchBriefingComposerV3
+        open={briefingOpen}
+        options={briefingOptions}
+        picks={briefingPicks}
+        onChange={updateBriefingPicksV3}
+        onClose={() => setBriefingOpen(false)}
+        renderPreview={(paneId) => surface === null
+          ? null
+          : <BriefingPreviewPaneV3 paneId={paneId} surface={surface} />}
+        snapshotAction={{
+          disabled: workspace === null
+            || saveState !== "clean"
+            || snapshotState === "creating",
+          label: snapshotState === "creating"
+            ? t("workbench.editor.creatingSnapshot")
+            : t("workbench.editor.createSnapshot"),
+          pending: snapshotState === "creating",
+          onCreate: () => void createSnapshotV3(),
+        }}
+        strings={{
+          close: t("workbench.editor.close"),
+          description: t("workbench.editor.briefingDescription"),
+          empty: t("workbench.editor.briefingEmpty"),
+          lowerPriority: t("workbench.editor.lowerPriority"),
+          paneKinds: {
+            graph: t("workbench.editor.paneKinds.graph"),
+            output: t("workbench.editor.paneKinds.output"),
+            control: t("workbench.editor.paneKinds.control"),
+          },
+          preview: t("workbench.editor.briefingPreview"),
+          raisePriority: t("workbench.editor.raisePriority"),
+          snapshotNotice: snapshotError
+            ?? (snapshotState === "created"
+              ? t("workbench.editor.snapshotCreated", { count: snapshotCount })
+              : t("workbench.editor.briefingSnapshotNotice")),
+          title: t("workbench.editor.briefingTitle"),
+        }}
+      />
     </div>
   );
 };
@@ -659,30 +1526,124 @@ function RuntimeStatusV3({ status }: Readonly<{ status: WorkbenchStatusV3 }>) {
   }
   if (status.kind === "error") return null;
   return (
-    <dl
-      className="flex shrink-0 items-center gap-4 font-mono text-[10px]"
+    <div
+      className="hidden shrink-0 items-center gap-1.5 font-mono text-[10px] text-wb-muted md:flex"
       data-testid="v3-runtime-status"
     >
-      <div>
-        <dt className="text-wb-subtle">{t("workbench.live.modelTime")}</dt>
-        <dd className="text-right font-bold text-wb-text">
-          {status.frame.acceptedTimeSec.toFixed(3)} s
-        </dd>
-      </div>
-      <div>
-        <dt className="text-wb-subtle">{t("workbench.live.revision")}</dt>
-        <dd className="text-right font-bold text-wb-text">
-          {status.frame.acceptedRevision}
-        </dd>
-      </div>
-      <div>
-        <dt className="text-wb-subtle">{t("workbench.live.inputEpoch")}</dt>
-        <dd className="text-right font-bold text-wb-text">
-          {status.frame.inputEpoch}
-        </dd>
-      </div>
-    </dl>
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+      <span>{status.frame.acceptedTimeSec.toFixed(2)} s</span>
+      <span className="sr-only">{t("workbench.live.modelTime")}</span>
+    </div>
   );
+}
+
+export function reconcileWorkbenchBriefingPicksV3(
+  picks: readonly WorkbenchBriefingPanePickV3[],
+  surface: ExperimentSurfaceV2,
+): readonly WorkbenchBriefingPanePickV3[] {
+  const paneIds = new Set(allSurfacePanesV3(surface).map(({ paneId }) => paneId));
+  return Object.freeze(picks.filter(({ paneId }) => paneIds.has(paneId)));
+}
+
+/**
+ * Worker reconstruction must not turn an authored empty/partial briefing back
+ * into "all panes". Only the first mount receives the complete default.
+ */
+export function resolveWorkbenchBriefingPicksAfterRestartV3(
+  currentPicks: readonly WorkbenchBriefingPanePickV3[] | null,
+  surface: ExperimentSurfaceV2,
+): readonly WorkbenchBriefingPanePickV3[] {
+  if (currentPicks !== null) {
+    return reconcileWorkbenchBriefingPicksV3(currentPicks, surface);
+  }
+  return Object.freeze(allSurfacePanesV3(surface).map((pane) => Object.freeze({
+    paneId: pane.paneId,
+    priority: pane.priority,
+  })));
+}
+
+export function persistWorkbenchBriefingHandoffV3(input: Readonly<{
+  handoff: StudioSnapshotBriefingHandoffV3;
+  snapshotId: string;
+  picks: readonly WorkbenchBriefingPanePickV3[];
+  snapshotSurface: ExperimentSurfaceV2;
+}>): boolean {
+  try {
+    input.handoff.write(input.snapshotId, Object.freeze({
+      panePicks: reconcileWorkbenchBriefingPicksV3(
+        input.picks,
+        input.snapshotSurface,
+      ),
+    }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function hasWorkbenchSurfaceMutationsAfterSubmissionV3(
+  submittedMutationRevision: number,
+  currentMutationRevision: number,
+): boolean {
+  if (
+    !Number.isSafeInteger(submittedMutationRevision)
+    || submittedMutationRevision < 0
+    || !Number.isSafeInteger(currentMutationRevision)
+    || currentMutationRevision < submittedMutationRevision
+  ) {
+    throw new Error("Workbench Surface mutation revision is invalid");
+  }
+  return currentMutationRevision > submittedMutationRevision;
+}
+
+export function resolveWorkbenchSurfaceAfterCommitV3(input: Readonly<{
+  submittedMutationRevision: number;
+  currentMutationRevision: number;
+  currentSurface: ExperimentSurfaceV2 | null;
+  durableSurface: ExperimentSurfaceV2;
+}>): Readonly<{
+  surface: ExperimentSurfaceV2;
+  hasNewerMutations: boolean;
+}> {
+  const hasNewerMutations = hasWorkbenchSurfaceMutationsAfterSubmissionV3(
+    input.submittedMutationRevision,
+    input.currentMutationRevision,
+  );
+  if (hasNewerMutations && input.currentSurface === null) {
+    throw new Error("Workbench newer Surface mutation is unavailable");
+  }
+  return Object.freeze({
+    surface: hasNewerMutations
+      ? input.currentSurface!
+      : input.durableSurface,
+    hasNewerMutations,
+  });
+}
+
+function carryNewerWorkbenchSurfaceAcrossRestartV3(input: Readonly<{
+  submittedMutationRevision: number;
+  currentMutationRevision: number;
+  currentSurface: ExperimentSurfaceV2 | null;
+  pendingSurfaceRef: React.MutableRefObject<ExperimentSurfaceV2 | null>;
+}>): void {
+  if (!hasWorkbenchSurfaceMutationsAfterSubmissionV3(
+    input.submittedMutationRevision,
+    input.currentMutationRevision,
+  )) return;
+  if (input.currentSurface === null) {
+    throw new Error("Workbench newer Surface mutation is unavailable");
+  }
+  input.pendingSurfaceRef.current = input.currentSurface;
+}
+
+export function shouldPublishWorkbenchRootFrameV3(input: Readonly<{
+  acceptedTimeSec: number;
+  lastPublishedTimeSec: number;
+  schedulerRunning: boolean;
+}>): boolean {
+  return !input.schedulerRunning
+    || input.acceptedTimeSec - input.lastPublishedTimeSec
+      >= WORKBENCH_ROOT_FRAME_INTERVAL_SEC_V3;
 }
 
 function GraphPaneBodyV3({
@@ -691,18 +1652,20 @@ function GraphPaneBodyV3({
   contract,
   frame,
   onRequestAnalysis,
+  operationPending,
   pane,
   pendingAnalysisId,
-  samples,
+  sampleStore,
 }: Readonly<{
   analysisById: Readonly<Record<string, StudioSimulationAnalysisV2>>;
   analysisErrorById: Readonly<Record<string, string>>;
   contract: ModelContractV2;
   frame: StudioSimulationFrameV2 | null;
-  onRequestAnalysis: (analysisId: string) => Promise<void>;
-  pane: WorkbenchGraphPaneV3;
+  onRequestAnalysis: (analysisId: string) => boolean;
+  operationPending: boolean;
+  pane: ExperimentSurfaceGraphPaneV2;
   pendingAnalysisId: string | null;
-  samples: readonly WorkbenchScalarSampleV3[];
+  sampleStore: WorkbenchPresentationSampleStoreV3;
 }>) {
   const { t } = useTranslation();
   const graph = contract.graphCatalog.find(({ graphId }) => graphId === pane.graphId);
@@ -717,11 +1680,40 @@ function GraphPaneBodyV3({
         frame={frame}
         graph={graph}
         onRequestAnalysis={onRequestAnalysis}
+        operationPending={operationPending}
         pending={pendingAnalysisId === graph.analysisId}
       />
     );
   }
-  const outputs = graph.outputIds.flatMap((outputId) => {
+  return (
+    <SampledGraphPaneBodyV3
+      contract={contract}
+      graph={graph}
+      pane={pane}
+      sampleStore={sampleStore}
+    />
+  );
+}
+
+function SampledGraphPaneBodyV3({
+  contract,
+  graph,
+  pane,
+  sampleStore,
+}: Readonly<{
+  contract: ModelContractV2;
+  graph: Exclude<
+    ModelContractV2["graphCatalog"][number],
+    StructuralReturnGraphDefinitionV2
+  >;
+  pane: ExperimentSurfaceGraphPaneV2;
+  sampleStore: WorkbenchPresentationSampleStoreV3;
+}>) {
+  const samples = useWorkbenchPresentationSamplesV3(sampleStore);
+  const displayedSeries = graph.renderer === "sweep"
+    ? [...pane.series].sort((left, right) => left.order - right.order)
+    : [];
+  const outputs = displayedSeries.flatMap(({ outputId }) => {
     const definition = contract.outputCatalog.find((candidate) => candidate.outputId === outputId);
     return definition === undefined ? [] : [definition];
   });
@@ -734,7 +1726,7 @@ function GraphPaneBodyV3({
       <div className="h-full min-h-0 bg-wb-app p-3">
         <PressureVolumeLoopCanvasV3
           chamberLabel={chamber}
-          color={outputColorV3(graph.pressureOutputId)}
+          color={pane.colorHex}
           pressureBasis={pressureBasis}
           pressureOutputId={graph.pressureOutputId}
           samples={samples}
@@ -756,13 +1748,13 @@ function GraphPaneBodyV3({
         includeZero={outputs.every(({ outputId }) =>
           outputId.includes(".flow.") || outputId.endsWith(".flow"))}
         samples={samples}
-        series={outputs.map(({ outputId }) => ({
+        series={displayedSeries.map(({ outputId, label, colorHex }) => ({
           outputId,
-          label: outputLabelV3(outputId),
-          color: outputColorV3(outputId),
+          label,
+          color: colorHex,
         }))}
         unitLabel={commonUnit}
-        windowSec={2}
+        windowSec={pane.windowSec ?? WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3}
       />
     </div>
   );
@@ -774,18 +1766,28 @@ function StructuralReturnGraphPaneV3({
   frame,
   graph,
   onRequestAnalysis,
+  operationPending,
   pending,
 }: Readonly<{
   analysis: StudioSimulationAnalysisV2 | undefined;
   error: string | null;
   frame: StudioSimulationFrameV2 | null;
   graph: StructuralReturnGraphDefinitionV2;
-  onRequestAnalysis: (analysisId: string) => Promise<void>;
+  onRequestAnalysis: (analysisId: string) => boolean;
+  operationPending: boolean;
   pending: boolean;
 }>) {
   const { t } = useTranslation();
   const acceptedStepAvailable = (frame?.acceptedRevision ?? 0) > 0;
-  const lastAutoRequestedInputEpochRef = React.useRef<number | null>(null);
+  const lastAutoRequestedKeyRef = React.useRef<string | null>(null);
+  const currentRequestKey = structuralReturnAnalysisRequestKeyV3(
+    frame,
+    graph.analysisId,
+  );
+  const analysisRequestKey = structuralReturnAnalysisRequestKeyV3(
+    analysis,
+    analysis?.analysisId,
+  );
   const analysisBoundaryStatus = structuralReturnAnalysisBoundaryStatusV3(
     analysis,
     frame,
@@ -793,23 +1795,24 @@ function StructuralReturnGraphPaneV3({
   React.useEffect(() => {
     if (shouldAutoRequestStructuralReturnAnalysisV3({
       acceptedStepAvailable,
-      analysisInputEpoch: analysis?.inputEpoch,
-      currentInputEpoch: frame?.inputEpoch,
+      analysisRequestKey,
+      currentRequestKey,
       error,
-      lastAutoRequestedInputEpoch: lastAutoRequestedInputEpochRef.current,
-      pending,
+      lastAutoRequestedKey: lastAutoRequestedKeyRef.current,
+      operationPending,
     })) {
-      lastAutoRequestedInputEpochRef.current = frame!.inputEpoch;
-      void onRequestAnalysis(graph.analysisId);
+      if (onRequestAnalysis(graph.analysisId)) {
+        lastAutoRequestedKeyRef.current = currentRequestKey;
+      }
     }
   }, [
     acceptedStepAvailable,
-    analysis?.inputEpoch,
+    analysisRequestKey,
+    currentRequestKey,
     error,
-    frame?.inputEpoch,
     graph.analysisId,
     onRequestAnalysis,
-    pending,
+    operationPending,
   ]);
   const orientation = structuralReturnOrientationFromPayloadV3(
     analysis?.payload,
@@ -851,8 +1854,8 @@ function StructuralReturnGraphPaneV3({
       <button
         type="button"
         className="absolute right-5 top-5 z-10 inline-flex h-7 items-center gap-1 rounded border border-wb-line bg-wb-panel/90 px-2 text-[10px] font-semibold text-wb-muted shadow-sm hover:bg-wb-hover hover:text-wb-text disabled:opacity-50"
-        disabled={!acceptedStepAvailable || pending}
-        onClick={() => void onRequestAnalysis(graph.analysisId)}
+        disabled={!acceptedStepAvailable || pending || operationPending}
+        onClick={() => onRequestAnalysis(graph.analysisId)}
         aria-label={t("workbench.live.refreshAnalysis")}
       >
         <RefreshCw className={`h-3 w-3 ${pending ? "animate-spin" : ""}`} />
@@ -864,25 +1867,45 @@ function StructuralReturnGraphPaneV3({
 
 export function shouldAutoRequestStructuralReturnAnalysisV3({
   acceptedStepAvailable,
-  analysisInputEpoch,
-  currentInputEpoch,
+  analysisRequestKey,
+  currentRequestKey,
   error,
-  lastAutoRequestedInputEpoch,
-  pending,
+  lastAutoRequestedKey,
+  operationPending,
 }: Readonly<{
   acceptedStepAvailable: boolean;
-  analysisInputEpoch: number | undefined;
-  currentInputEpoch: number | undefined;
+  analysisRequestKey: string | null;
+  currentRequestKey: string | null;
   error: string | null;
-  lastAutoRequestedInputEpoch: number | null;
-  pending: boolean;
+  lastAutoRequestedKey: string | null;
+  operationPending: boolean;
 }>): boolean {
   return acceptedStepAvailable
-    && currentInputEpoch !== undefined
-    && analysisInputEpoch !== currentInputEpoch
+    && currentRequestKey !== null
+    && analysisRequestKey !== currentRequestKey
     && error === null
-    && lastAutoRequestedInputEpoch !== currentInputEpoch
-    && !pending;
+    && lastAutoRequestedKey !== currentRequestKey
+    && !operationPending;
+}
+
+export function structuralReturnAnalysisRequestKeyV3(
+  source: Readonly<{
+    modelId: string;
+    runtimeSessionId: string;
+    scenarioId: string;
+    inputEpoch: number;
+  }> | null | undefined,
+  analysisId: string | null | undefined,
+): string | null {
+  if (source === null || source === undefined || analysisId === null
+    || analysisId === undefined) return null;
+  return JSON.stringify([
+    source.modelId,
+    source.runtimeSessionId,
+    source.scenarioId,
+    source.inputEpoch,
+    analysisId,
+  ]);
 }
 
 export type StructuralReturnAnalysisBoundaryStatusV3 =
@@ -913,31 +1936,35 @@ function OutputPaneBodyV3({
 }: Readonly<{
   contract: ModelContractV2;
   frame: StudioSimulationFrameV2 | null;
-  pane: WorkbenchOutputPaneV3;
+  pane: ExperimentSurfaceOutputPaneV2;
 }>) {
   const { t } = useTranslation();
-  const selected = pane.outputIds.flatMap((outputId) => {
-    const definition = contract.outputCatalog.find((output) => output.outputId === outputId);
-    return definition === undefined ? [] : [definition];
-  });
+  const selected = [...pane.items]
+    .sort((left, right) => left.order - right.order)
+    .flatMap((item) => {
+      const definition = contract.outputCatalog.find((output) =>
+        output.outputId === item.outputId);
+      return definition === undefined ? [] : [{ definition, item }];
+    });
   return (
-    <div className="grid h-full content-start grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-px overflow-auto bg-wb-line p-px">
+    <div className="grid h-full content-start grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2 overflow-auto bg-wb-aux p-2">
       {selected.length === 0 ? (
-        <p className="bg-wb-aux p-4 text-xs text-wb-subtle">
+        <p className="p-4 text-xs text-wb-subtle">
           {t("workbench.live.noSelectedOutputs")}
         </p>
-      ) : selected.map((output) => {
-        const value = frame?.outputs[output.outputId];
+      ) : selected.map(({ definition: output, item }) => {
+        const value = frame?.outputs[item.outputId];
         const scalar = scalarAvailableOutputV3(value);
         return (
           <div
-            key={output.outputId}
-            className="min-w-0 bg-wb-aux px-4 py-3"
+            key={item.outputId}
+            className="min-w-0 rounded-lg bg-wb-soft px-3.5 py-3"
             data-output-availability={value?.availability ?? "unavailable"}
             data-output-quality={value?.quality ?? "not-assessed"}
           >
-            <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-wb-subtle">
-              {outputLabelV3(output.outputId)}
+            <p className="flex items-center gap-2 truncate text-[10px] font-semibold uppercase tracking-wide text-wb-subtle">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: item.colorHex }} />
+              <span className="truncate">{item.label}</span>
             </p>
             <p className="mt-1 font-mono text-lg font-bold text-wb-text">
               {scalar === null ? "—" : scalar.toFixed(2)}
@@ -960,55 +1987,49 @@ function ControlPaneBodyV3({
   controlError,
   controlValues,
   disabledByAnalysis,
-  frame,
   onApplyControl,
   pane,
   pendingControlId,
+  scenarioId,
 }: Readonly<{
   contract: ModelContractV2;
   controlError: string | null;
   controlValues: Readonly<Record<string, number>>;
   disabledByAnalysis: boolean;
-  frame: StudioSimulationFrameV2 | null;
   onApplyControl: (controlId: string, value: number) => Promise<boolean>;
-  pane: WorkbenchControlPaneV3;
+  pane: ExperimentSurfaceControlPaneV2;
   pendingControlId: string | null;
+  scenarioId: string;
 }>) {
   const { t } = useTranslation();
-  const selectedControls = pane.controlIds.flatMap((controlId) => {
-    const definition = contract.controlCatalog.find((control) => control.controlId === controlId);
-    return definition === undefined ? [] : [definition];
-  });
+  const selectedControls = [...pane.items]
+    .filter(({ targetScenarioIds }) => targetScenarioIds.includes(scenarioId))
+    .sort((left, right) => left.order - right.order)
+    .flatMap((item) => {
+      const definition = contract.controlCatalog.find((control) =>
+        control.controlId === item.controlId);
+      return definition === undefined ? [] : [{ definition, item }];
+    });
   return (
-    <div className="h-full overflow-y-auto bg-wb-aux p-4">
+    <div className="min-w-0">
       <section>
-        <div className="mb-3 rounded border border-wb-line bg-wb-strip px-3 py-2">
-          <p className="text-[9px] font-semibold uppercase tracking-wide text-wb-subtle">
-            {t("workbench.live.activeScenario")}
-          </p>
-          <p className="mt-0.5 truncate font-mono text-[10px] text-wb-text">
-            {WORKBENCH_SCENARIO_ID_V3}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs font-bold text-wb-text">
-          <Settings2 className="h-3.5 w-3.5 text-wb-accent" />
-          {t("workbench.live.registeredControls")}
-        </div>
         {contract.controlCatalog.length === 0 ? (
-          <p className="mt-3 rounded border border-wb-line bg-wb-soft p-3 text-xs leading-5 text-wb-muted">
+          <p className="rounded-lg bg-wb-panel p-3 text-xs leading-5 text-wb-muted">
             {t("workbench.live.noRegisteredControls")}
           </p>
         ) : selectedControls.length === 0 ? (
-          <p className="mt-3 text-xs text-wb-subtle">
+          <p className="text-xs text-wb-subtle">
             {t("workbench.live.noSelectedControls")}
           </p>
         ) : (
-          <div className="mt-3 grid gap-2">
-            {selectedControls.map((control) => (
+          <div className="grid gap-2">
+            {selectedControls.map(({ definition: control, item }) => (
               <NumericControlV3
                 key={control.controlId}
                 control={control}
+                colorHex={item.colorHex}
                 disabled={pendingControlId !== null || disabledByAnalysis}
+                label={item.label}
                 pending={pendingControlId === control.controlId}
                 value={controlValues[control.controlId] ?? control.defaultValue}
                 onCommit={(value) => onApplyControl(control.controlId, value)}
@@ -1016,55 +2037,29 @@ function ControlPaneBodyV3({
             ))}
           </div>
         )}
-        <p className="mt-3 text-[10px] leading-4 text-wb-subtle">
-          {t("workbench.live.controlResetSemantics")}
-        </p>
         {controlError !== null && (
-          <p className="mt-3 rounded border border-wb-danger/40 bg-wb-danger-soft p-2 text-[10px] text-wb-danger" role="alert">
+          <p className="mt-3 rounded-lg bg-wb-danger-soft p-2 text-[10px] text-wb-danger" role="alert">
             {controlError}
           </p>
         )}
       </section>
-      <section className="mt-5 border-t border-wb-line pt-4">
-        <div className="flex items-center gap-2 text-xs font-bold">
-          <Database className="h-3.5 w-3.5 text-wb-accent" />
-          {t("workbench.live.contentBoundary")}
-        </div>
-        <p className="mt-2 text-xs leading-5 text-wb-muted">
-          {t("workbench.live.zeroContent")}
-        </p>
-        <dl className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
-          <BoundaryCountV3 label={t("workbench.live.workspaces")} value={0} />
-          <BoundaryCountV3 label={t("workbench.live.snapshots")} value={0} />
-        </dl>
-      </section>
-      <section className="mt-5 border-t border-wb-line pt-4">
-        <p className="flex items-center gap-2 text-xs font-bold text-wb-warning">
-          <ShieldAlert className="h-3.5 w-3.5" />
-          {t("workbench.live.snapshotGateTitle")}
-        </p>
-        <p className="mt-2 text-xs leading-5 text-wb-muted">
-          {t("workbench.live.snapshotGateDescription")}
-        </p>
-      </section>
-      {frame !== null && (
-        <p className="mt-5 border-t border-wb-line pt-3 font-mono text-[9px] text-wb-subtle">
-          {t("workbench.live.inputEpoch")} {frame.inputEpoch} · {t("workbench.live.liveEditable")}
-        </p>
-      )}
     </div>
   );
 }
 
 function NumericControlV3({
+  colorHex,
   control,
   disabled,
+  label,
   onCommit,
   pending,
   value,
 }: Readonly<{
+  colorHex: string;
   control: ControlDefinitionV2;
   disabled: boolean;
+  label: string;
   onCommit: (value: number) => Promise<boolean>;
   pending: boolean;
   value: number;
@@ -1083,14 +2078,12 @@ function NumericControlV3({
   };
   const precision = controlStepPrecisionV3(control.step);
   return (
-    <div className="rounded border border-wb-line bg-wb-soft p-3">
+    <div className="rounded-lg bg-wb-panel p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-xs font-bold">
-            {controlLabelV3(control.controlId)}
-          </p>
-          <p className="mt-0.5 truncate font-mono text-[9px] text-wb-subtle">
-            {control.controlId}
+          <p className="flex items-center gap-2 truncate text-xs font-semibold">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: colorHex }} />
+            <span className="truncate">{label}</span>
           </p>
         </div>
         <output className="shrink-0 font-mono text-xs font-bold text-wb-accent">
@@ -1105,7 +2098,7 @@ function NumericControlV3({
         step={control.step}
         value={draft}
         disabled={disabled}
-        aria-label={controlLabelV3(control.controlId)}
+        aria-label={label}
         onChange={(event) => setDraft(Number(event.currentTarget.value))}
         onPointerUp={() => void commit(draft)}
         onKeyUp={(event) => {
@@ -1142,158 +2135,65 @@ function NumericControlV3({
   );
 }
 
-function PaneSettingsModalV3({
-  contract,
-  graphPanes,
-  outputPane,
-  controlPane,
-  settings,
-  onClose,
-  onSelectGraph,
-  onToggleOutput,
-  onToggleControl,
+function BriefingPreviewPaneV3({
+  paneId,
+  surface,
 }: Readonly<{
-  contract: ModelContractV2;
-  graphPanes: readonly WorkbenchGraphPaneV3[];
-  outputPane: WorkbenchOutputPaneV3 | null;
-  controlPane: WorkbenchControlPaneV3 | null;
-  settings: WorkbenchPaneSettingsV3;
-  onClose: () => void;
-  onSelectGraph: (paneId: string, graphId: string) => void;
-  onToggleOutput: (outputId: string) => void;
-  onToggleControl: (controlId: string) => void;
+  paneId: string;
+  surface: ExperimentSurfaceV2;
 }>) {
-  const { t } = useTranslation();
-  React.useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
-  if (typeof document === "undefined") return null;
-  const graphPane = settings.kind === "graph"
-    ? graphPanes.find(({ paneId }) => paneId === settings.paneId)
-    : undefined;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 p-4" onMouseDown={onClose}>
-      <section
-        className="max-h-[min(720px,90vh)] w-full max-w-xl overflow-hidden rounded-lg border border-wb-line bg-wb-panel shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="v3-pane-settings-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header className="flex h-12 items-center justify-between border-b border-wb-line px-4">
-          <div>
-            <h2 id="v3-pane-settings-title" className="text-sm font-bold">
-              {t("workbench.live.paneSettings")}
-            </h2>
-            <p className="font-mono text-[9px] text-wb-subtle">{contract.modelId}</p>
+  const pane = allSurfacePanesV3(surface).find((candidate) =>
+    candidate.paneId === paneId);
+  if (pane === undefined) return null;
+  if (pane.role === "graph") {
+    const colors = pane.series.length === 0
+      ? [pane.colorHex]
+      : pane.series.slice(0, 3).map(({ colorHex }) => colorHex);
+    return (
+      <div className="flex h-28 items-center justify-center bg-wb-app px-4">
+        <svg viewBox="0 0 240 64" className="h-20 w-full" aria-hidden="true">
+          {colors.map((color, index) => (
+            <path
+              key={`${color}:${index}`}
+              d={`M 0 ${34 + index * 6} C 28 ${8 + index * 5}, 48 ${58 - index * 4}, 76 ${28 + index * 3} S 124 ${12 + index * 9}, 152 ${36 - index * 4} S 204 ${54 - index * 5}, 240 ${22 + index * 5}`}
+              fill="none"
+              stroke={color}
+              strokeWidth="1.75"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
+      </div>
+    );
+  }
+  if (pane.role === "output") {
+    return (
+      <div className="grid grid-cols-2 gap-2 bg-wb-app p-3">
+        {pane.items.slice(0, 4).map((item) => (
+          <div key={item.outputId} className="rounded-lg bg-wb-soft px-2.5 py-2">
+            <p className="flex items-center gap-1.5 truncate text-[9px] text-wb-subtle">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: item.colorHex }} />
+              <span className="truncate">{item.label}</span>
+            </p>
+            <p className="mt-1 font-mono text-sm font-semibold text-wb-muted">—</p>
           </div>
-          <button
-            type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text"
-            aria-label={t("common.close")}
-            onClick={onClose}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </header>
-        <div className="max-h-[calc(min(720px,90vh)-3rem)] overflow-y-auto p-4">
-          {settings.kind === "graph" && graphPane !== undefined && (
-            <fieldset>
-              <legend className="text-xs font-bold">
-                {t("workbench.live.registeredGraphs")}
-              </legend>
-              <div className="mt-3 grid gap-2">
-                {contract.graphCatalog.map((graph) => (
-                  <label key={graph.graphId} className="flex cursor-pointer gap-3 rounded border border-wb-line bg-wb-soft p-3">
-                    <input
-                      type="radio"
-                      name={`graph-${settings.paneId}`}
-                      checked={graphPane.graphId === graph.graphId}
-                      onChange={() => onSelectGraph(settings.paneId, graph.graphId)}
-                    />
-                    <span className="min-w-0">
-                      <span className="block text-xs font-bold">{graphTitleV3(graph.graphId)}</span>
-                      <span className="mt-1 block break-all font-mono text-[9px] text-wb-subtle">
-                        {graph.renderer === "structural-return"
-                          ? `${graph.analysisId} · ${graph.side}`
-                          : graph.outputIds.join(" · ")}
-                      </span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          )}
-          {settings.kind === "output" && outputPane !== null && (
-            <fieldset>
-              <legend className="text-xs font-bold">
-                {t("workbench.live.registeredOutputs")}
-              </legend>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {contract.outputCatalog.map((output) => (
-                  <label key={output.outputId} className="flex cursor-pointer gap-3 rounded border border-wb-line bg-wb-soft p-3">
-                    <input
-                      type="checkbox"
-                      checked={outputPane.outputIds.includes(output.outputId)}
-                      onChange={() => onToggleOutput(output.outputId)}
-                    />
-                    <span className="min-w-0">
-                      <span className="block text-xs font-bold">{outputLabelV3(output.outputId)}</span>
-                      <span className="block font-mono text-[9px] text-wb-subtle">{output.unit} · {output.kind}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          )}
-          {settings.kind === "control" && controlPane !== null && (
-            <fieldset>
-              <legend className="text-xs font-bold">
-                {t("workbench.live.registeredControls")}
-              </legend>
-              {contract.controlCatalog.length === 0 ? (
-                <p className="mt-3 rounded border border-wb-line bg-wb-soft p-3 text-xs leading-5 text-wb-muted">
-                  {t("workbench.live.noRegisteredControls")}
-                </p>
-              ) : (
-                <div className="mt-3 grid gap-2">
-                  {contract.controlCatalog.map((control) => (
-                    <label key={control.controlId} className="flex cursor-pointer gap-3 rounded border border-wb-line bg-wb-soft p-3">
-                      <input
-                        type="checkbox"
-                        checked={controlPane.controlIds.includes(control.controlId)}
-                        onChange={() => onToggleControl(control.controlId)}
-                      />
-                      <span className="min-w-0">
-                        <span className="block font-mono text-xs font-bold">{control.controlId}</span>
-                        <span className="block font-mono text-[9px] text-wb-subtle">
-                          {control.minimum}–{control.maximum} {control.unit} · {control.changeSemantics}
-                        </span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </fieldset>
-          )}
-        </div>
-      </section>
-    </div>,
-    document.body,
-  );
-}
-
-function BoundaryCountV3({ label, value }: Readonly<{ label: string; value: number }>) {
+        ))}
+      </div>
+    );
+  }
   return (
-    <div className="rounded border border-wb-line bg-wb-soft p-2">
-      <dt className="text-wb-subtle">{label}</dt>
-      <dd className="mt-1 font-mono text-sm font-bold">{value}</dd>
+    <div className="space-y-3 bg-wb-app p-3">
+      {pane.items.slice(0, 3).map((item) => (
+        <div key={item.controlId}>
+          <p className="flex items-center gap-1.5 truncate text-[9px] text-wb-subtle">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: item.colorHex }} />
+            <span className="truncate">{item.label}</span>
+          </p>
+          <div className="mt-1.5 h-1 rounded-full bg-wb-line-strong">
+            <div className="h-1 w-1/2 rounded-full" style={{ backgroundColor: item.colorHex }} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1308,9 +2208,43 @@ function PaneLoadingV3() {
   );
 }
 
+function controlValueFromFixtureV3(
+  fixture: unknown,
+  controlId: string,
+): number | null {
+  if (fixture === null || typeof fixture !== "object" || Array.isArray(fixture)) {
+    return null;
+  }
+  const inputs = (fixture as Record<string, unknown>).hemodynamicResearchInputs;
+  if (inputs === null || typeof inputs !== "object" || Array.isArray(inputs)) {
+    return null;
+  }
+  const inputKeyByControlId: Readonly<Record<string, string>> = {
+    "hemodynamics.systemic-resistance": "systemicResistance",
+    "hemodynamics.pulmonary-resistance": "pulmonaryResistance",
+    "hemodynamics.venous-tone": "venousTone",
+    "hemodynamics.arterial-stiffness": "arterialStiffness",
+  };
+  const inputKey = inputKeyByControlId[controlId];
+  if (inputKey === undefined) return null;
+  const value = (inputs as Record<string, unknown>)[inputKey];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function controlValuesForFixtureV3(
+  contract: ModelContractV2,
+  fixture: unknown,
+): Readonly<Record<string, number>> {
+  return Object.freeze(Object.fromEntries(contract.controlCatalog.map((control) => [
+    control.controlId,
+    controlValueFromFixtureV3(fixture, control.controlId)
+      ?? control.defaultValue,
+  ])));
+}
+
 function appendFramesV3(
   frames: readonly StudioSimulationFrameV2[],
-  setSamples: React.Dispatch<React.SetStateAction<readonly WorkbenchScalarSampleV3[]>>,
+  sampleStore: WorkbenchPresentationSampleStoreV3,
 ): void {
   const next = frames.map((frame) => Object.freeze({
     acceptedTimeSec: frame.acceptedTimeSec,
@@ -1324,9 +2258,7 @@ function appendFramesV3(
       ],
     ))),
   }));
-  setSamples((current) => Object.freeze(
-    [...current, ...next].slice(-SAMPLE_CAPACITY_V3),
-  ));
+  sampleStore.append(next);
 }
 
 function scalarAvailableOutputV3(
@@ -1338,12 +2270,6 @@ function scalarAvailableOutputV3(
     && Number.isFinite(output.value)
     ? output.value
     : null;
-}
-
-function toggleIdV3(ids: readonly string[], id: string): readonly string[] {
-  return Object.freeze(ids.includes(id)
-    ? ids.filter((candidate) => candidate !== id)
-    : [...ids, id]);
 }
 
 function withoutRecordKeyV3(
@@ -1397,62 +2323,6 @@ function controlStepPrecisionV3(step: number): number {
   const text = step.toString();
   if (text.includes("e-")) return Math.min(6, Number(text.split("e-")[1]));
   return Math.min(6, text.split(".")[1]?.length ?? 0);
-}
-
-function controlLabelV3(controlId: string): string {
-  const labels: Readonly<Record<string, string>> = {
-    "hemodynamics.systemic-resistance": "Systemic resistance",
-    "hemodynamics.pulmonary-resistance": "Pulmonary resistance",
-    "hemodynamics.venous-tone": "Venous tone",
-    "hemodynamics.arterial-stiffness": "Arterial stiffness",
-  };
-  return labels[controlId] ?? humanizeCatalogIdV3(controlId);
-}
-
-function graphTitleV3(graphId: string): string {
-  if (graphId === "hemodynamics.pressure.left-heart") {
-    return "Left-heart pressure";
-  }
-  if (graphId === "hemodynamics.pressure.right-heart") {
-    return "Right-heart pressure";
-  }
-  if (graphId === "hemodynamics.flow.valves") {
-    return "Valve flows";
-  }
-  if (graphId === "coronary.flow.inlet-territories") {
-    return "Coronary territory flow";
-  }
-  if (graphId === "hemodynamics.structural-return.systemic") {
-    return "Systemic venous-return orientation";
-  }
-  if (graphId === "hemodynamics.structural-return.pulmonary") {
-    return "Pulmonary venous-return orientation";
-  }
-  const pvChamber = graphId.match(/^hemodynamics\.pressure-volume\.([A-Za-z]+)$/)?.[1];
-  if (pvChamber !== undefined) return `${pvChamber.toUpperCase()} pressure-volume loop`;
-  return humanizeCatalogIdV3(graphId);
-}
-
-function outputLabelV3(outputId: string): string {
-  return OUTPUT_LABEL_BY_ID_V3[outputId] ?? outputId;
-}
-
-function outputColorV3(outputId: string): string {
-  if (OUTPUT_COLOR_BY_ID_V3[outputId] !== undefined) {
-    return OUTPUT_COLOR_BY_ID_V3[outputId]!;
-  }
-  const palette = ["#38bdf8", "#f472b6", "#a78bfa", "#34d399", "#fbbf24", "#fb7185"];
-  let hash = 0;
-  for (let index = 0; index < outputId.length; index += 1) {
-    hash = ((hash << 5) - hash + outputId.charCodeAt(index)) | 0;
-  }
-  return palette[Math.abs(hash) % palette.length]!;
-}
-
-function humanizeCatalogIdV3(value: string): string {
-  const token = value.split(".").at(-1) ?? value;
-  return token.replaceAll("-", " ").replace(/\b\w/g, (character) =>
-    character.toUpperCase());
 }
 
 function randomPortableTokenV3(): string {
