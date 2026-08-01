@@ -12,6 +12,12 @@ import type {
 import type {
   ExactModelRuntimeResolverPortV2,
 } from "@/studio/contracts/v2/executable";
+import {
+  studioNumericControlValueIssueV2,
+} from "@/studio/contracts/v2/control";
+import type {
+  ControlDefinitionV2,
+} from "@/studio/contracts/v2/model";
 import type {
   StudioJsonValueV2,
 } from "@/studio/contracts/v2/json";
@@ -62,6 +68,7 @@ export function createStudioFixtureReducerV2(
     reduce(input: StudioFixtureReductionInputV2) {
       const reductionInput = validateReductionInputV2(input);
       const context = validateRuntimeContextV2(reductionInput.context);
+      const action = assertAndDetachActionV2(reductionInput.action);
       const runtime = models.resolveExactRuntime(context.modelId);
       if (
         runtime.contract.modelId !== context.modelId
@@ -74,18 +81,20 @@ export function createStudioFixtureReducerV2(
           `registered fixture adapter does not exactly match model ${context.modelId}`,
         );
       }
-      if (!runtime.contract.controlCatalog.some(
-        ({ controlId }) => controlId === reductionInput.action.controlId,
-      )) {
+      const controlDefinition = runtime.contract.controlCatalog.find(
+        ({ controlId }) => controlId === action.controlId,
+      );
+      if (controlDefinition === undefined) {
         throw new StudioFixtureReductionErrorV2(
           "invalid-action",
-          `unknown registered control ${reductionInput.action.controlId}`,
+          `unknown registered control ${action.controlId}`,
         );
       }
+      assertRegisteredControlValueV2(action.value, controlDefinition);
       return reduceStudioFixtureActionInternalV2(
         Object.freeze({
           desiredFixture: reductionInput.desiredFixture,
-          action: reductionInput.action,
+          action,
           context,
         }),
         runtime.fixtureAdapter,
@@ -101,7 +110,7 @@ function reduceStudioFixtureActionInternalV2(
   const context = validateRuntimeContextV2(input.context);
   assertExactModelAdapterBindingV2(modelAdapter, context);
   const currentFixture = cloneJsonV2(input.desiredFixture, "$");
-  const action = assertAndDetachActionV2(input.action);
+  const action = input.action;
 
   const reduceControlAction = modelAdapter.reduceControlAction;
   if (reduceControlAction === undefined) {
@@ -123,10 +132,13 @@ function reduceStudioFixtureActionInternalV2(
   }
   const reduced = deepFreezeV2(cloneJsonV2(currentFixture, "$"));
   try {
-    modelAdapter.validateCompleteFixture(Object.freeze({
+    const result = modelAdapter.validateCompleteFixture(Object.freeze({
       context,
       fixture: reduced,
     }));
+    if (result !== undefined) {
+      throw new Error("fixture validator must complete synchronously");
+    }
   } catch (error) {
     throw new StudioFixtureReductionErrorV2(
       "model-validation",
@@ -226,10 +238,7 @@ function assertAndDetachActionV2(
     return Object.freeze({
       kind: "control",
       controlId: actionRecord.controlId,
-      value: deepFreezeV2(cloneJsonV2(
-        actionRecord.value,
-        "$.action.value",
-      )),
+      value: finiteControlNumberV2(actionRecord.value),
       ...(requestCorrelation === undefined
         ? {}
         : { requestCorrelation }),
@@ -239,6 +248,33 @@ function assertAndDetachActionV2(
     "invalid-action",
     "fixture action kind is invalid",
   );
+}
+
+function finiteControlNumberV2(candidate: unknown): number {
+  if (
+    typeof candidate !== "number"
+    || !Number.isFinite(candidate)
+    || Object.is(candidate, -0)
+  ) {
+    throw new StudioFixtureReductionErrorV2(
+      "invalid-action",
+      "control action value must be a finite number and must not be negative zero",
+    );
+  }
+  return candidate;
+}
+
+function assertRegisteredControlValueV2(
+  value: number,
+  definition: ControlDefinitionV2,
+): void {
+  const issue = studioNumericControlValueIssueV2(value, definition);
+  if (issue !== undefined) {
+    throw new StudioFixtureReductionErrorV2(
+      "invalid-action",
+      `control ${definition.controlId} value ${issue}`,
+    );
+  }
 }
 
 function optionalCorrelationV2(

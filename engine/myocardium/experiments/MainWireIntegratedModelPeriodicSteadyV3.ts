@@ -38,6 +38,11 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedRegularSinusRhythmV3";
 import { FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
+  type MainWireIntegratedModelHemodynamicResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
@@ -295,9 +300,29 @@ export type MainWireIntegratedModelRegularSinusAllOffFixtureV3 = ReturnType<
   typeof createMainWireIntegratedModelRegularSinusAllOffFixtureV3
 >;
 
-export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3() {
+export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+  requestedHemodynamicResearchInputs:
+  MainWireIntegratedModelHemodynamicResearchInputsV3 =
+    MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+) {
+  const hemodynamicResearchInputs =
+    validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+      requestedHemodynamicResearchInputs,
+    );
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
-  const runtime = normalAdultMainWireRuntimeV1();
+  const canonicalRuntime = normalAdultMainWireRuntimeV1();
+  const runtime = Object.freeze({
+    vascular: Object.freeze({
+      venousTone: hemodynamicResearchInputs.venousTone,
+      arterialStiffness: hemodynamicResearchInputs.arterialStiffness,
+    }),
+    losses: Object.freeze({
+      systemicResistance: hemodynamicResearchInputs.systemicResistance,
+      pulmonaryResistance: hemodynamicResearchInputs.pulmonaryResistance,
+    }),
+    respiratory: canonicalRuntime.respiratory,
+    valveResearchInput: canonicalRuntime.valveResearchInput,
+  });
   const pericardium = createMainWireNormalAdultCommonPericardiumV1();
   const rhythm = createMainWireIntegratedRegularSinusRhythmV3({
     idPrefix: "periodic-v3",
@@ -349,6 +374,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3() {
   });
   assertAllOffAcceptedQ(cold.acceptedState);
   return Object.freeze({
+    hemodynamicResearchInputs,
     provider,
     runtime,
     pericardium,
@@ -1417,6 +1443,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffCheckpointContext
     rhythm: Object.freeze({ configuration: fixture.rhythm.configuration }),
     dynamicMechanicalSupportProfile: fixture.profile,
     dynamicMechanicalSupportConfig: fixture.config,
+    hemodynamicResearchInputs: fixture.hemodynamicResearchInputs,
   });
 }
 

@@ -191,7 +191,7 @@ describe("MainWireIntegratedModel candidate snapshot qualification V3", () => {
         acceptedOutcome: "period1-converged-only",
         completeAcceptedStateComparatorReused: true,
         terminalCheckpoint:
-          "exact-V3-checkpoint-restore-and-recheckpoint-equality-required",
+          "exact-V4-checkpoint-restore-and-recheckpoint-equality-required",
       });
   });
 });

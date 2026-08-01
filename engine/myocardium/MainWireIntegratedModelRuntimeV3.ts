@@ -8,6 +8,10 @@ import {
   createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  type MainWireIntegratedModelHemodynamicResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -18,15 +22,20 @@ export type MainWireIntegratedModelRuntimeV3 = ReturnType<
 >;
 
 /**
- * Canonical V3 numerical runtime constructor.
+ * Exact registered V3 numerical runtime constructor.
  *
  * Studio runtime, exact restore, periodic qualification, and Snapshot
- * checkpointing all use this one regular-sinus / all-off / zero-inertance
- * fixture.
+ * checkpointing all use the same regular-sinus / all-off / zero-inertance
+ * construction with an explicitly validated bounded hemodynamic input tuple.
  */
 export async function createMainWireIntegratedModelRuntimeV3(
+  hemodynamicResearchInputs:
+  MainWireIntegratedModelHemodynamicResearchInputsV3 =
+    MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
 ): Promise<MainWireIntegratedModelRuntimeV3> {
-  return createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+  return createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    hemodynamicResearchInputs,
+  );
 }
 
 export function mainWireIntegratedModelCheckpointContextV3(

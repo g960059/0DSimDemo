@@ -5,9 +5,11 @@ import type {
   StudioJsonValueV2,
 } from "@/studio/contracts/v2/json";
 import type {
+  StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
 import {
+  validateStudioSimulationAnalysisV2,
   validateStudioSimulationFrameV2,
   validateStudioSimulationPortableIdV2,
   validateStudioSimulationScenarioInputV2,
@@ -31,6 +33,23 @@ export type StudioSimulationWorkerAdvanceInputV2 = Readonly<{
   stepCount: number;
 }>;
 
+export type StudioSimulationWorkerApplyControlInputV2 = Readonly<{
+  runtimeSessionId: string;
+  scenarioId: string;
+  controlId: string;
+  value: number;
+  expectedInputEpoch: number;
+}>;
+
+export type StudioSimulationWorkerRequestAnalysisInputV2 = Readonly<{
+  runtimeSessionId: string;
+  scenarioId: string;
+  analysisId: string;
+  expectedInputEpoch: number;
+  expectedAcceptedRevision: number;
+  expectedAcceptedTimeSec: number;
+}>;
+
 export type StudioSimulationWorkerRequestV2 =
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -49,6 +68,27 @@ export type StudioSimulationWorkerRequestV2 =
       runtimeSessionId: string;
       scenarioId: string;
       stepCount: number;
+    }>
+  | Readonly<{
+      protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
+      requestId: number;
+      kind: "apply-control";
+      runtimeSessionId: string;
+      scenarioId: string;
+      controlId: string;
+      value: number;
+      expectedInputEpoch: number;
+    }>
+  | Readonly<{
+      protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
+      requestId: number;
+      kind: "request-analysis";
+      runtimeSessionId: string;
+      scenarioId: string;
+      analysisId: string;
+      expectedInputEpoch: number;
+      expectedAcceptedRevision: number;
+      expectedAcceptedTimeSec: number;
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -76,12 +116,27 @@ export type StudioSimulationWorkerResponseV2 =
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
       requestId: number;
       status: "ok";
+      kind: "control-applied";
+      frame: StudioSimulationFrameV2;
+    }>
+  | Readonly<{
+      protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
+      requestId: number;
+      status: "ok";
+      kind: "analysis-result";
+      analysis: StudioSimulationAnalysisV2;
+    }>
+  | Readonly<{
+      protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
+      requestId: number;
+      status: "ok";
       kind: "disposed";
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
       requestId: number;
       status: "error";
+      fatal: boolean;
       message: string;
     }>;
 
@@ -133,6 +188,60 @@ export function createStudioSimulationAdvanceRequestV2(
     scenarioId: input.scenarioId,
     stepCount: input.stepCount,
   }) as Extract<StudioSimulationWorkerRequestV2, { kind: "advance" }>;
+}
+
+export function createStudioSimulationApplyControlRequestV2(
+  requestId: number,
+  value: unknown,
+): Extract<StudioSimulationWorkerRequestV2, { kind: "apply-control" }> {
+  const input = exactDataRecordV2(value, [
+    "controlId",
+    "expectedInputEpoch",
+    "runtimeSessionId",
+    "scenarioId",
+    "value",
+  ], [], "$.applyControl");
+  return validateStudioSimulationWorkerRequestV2({
+    protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+    requestId,
+    kind: "apply-control",
+    runtimeSessionId: input.runtimeSessionId,
+    scenarioId: input.scenarioId,
+    controlId: input.controlId,
+    value: input.value,
+    expectedInputEpoch: input.expectedInputEpoch,
+  }) as Extract<
+    StudioSimulationWorkerRequestV2,
+    { kind: "apply-control" }
+  >;
+}
+
+export function createStudioSimulationRequestAnalysisRequestV2(
+  requestId: number,
+  value: unknown,
+): Extract<StudioSimulationWorkerRequestV2, { kind: "request-analysis" }> {
+  const input = exactDataRecordV2(value, [
+    "analysisId",
+    "expectedAcceptedRevision",
+    "expectedAcceptedTimeSec",
+    "expectedInputEpoch",
+    "runtimeSessionId",
+    "scenarioId",
+  ], [], "$.requestAnalysis");
+  return validateStudioSimulationWorkerRequestV2({
+    protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+    requestId,
+    kind: "request-analysis",
+    runtimeSessionId: input.runtimeSessionId,
+    scenarioId: input.scenarioId,
+    analysisId: input.analysisId,
+    expectedInputEpoch: input.expectedInputEpoch,
+    expectedAcceptedRevision: input.expectedAcceptedRevision,
+    expectedAcceptedTimeSec: input.expectedAcceptedTimeSec,
+  }) as Extract<
+    StudioSimulationWorkerRequestV2,
+    { kind: "request-analysis" }
+  >;
 }
 
 export function createStudioSimulationDisposeRequestV2(
@@ -232,6 +341,84 @@ export function validateStudioSimulationWorkerRequestV2(
     });
   }
 
+  if (envelope.kind === "apply-control") {
+    const request = exactDataRecordV2(envelope, [
+      "controlId",
+      "expectedInputEpoch",
+      "kind",
+      "protocol",
+      "requestId",
+      "runtimeSessionId",
+      "scenarioId",
+      "value",
+    ], [], "$.request");
+    return Object.freeze({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId,
+      kind: "apply-control",
+      runtimeSessionId: validateStudioSimulationPortableIdV2(
+        request.runtimeSessionId,
+        "$.request.runtimeSessionId",
+      ),
+      scenarioId: validateStudioSimulationPortableIdV2(
+        request.scenarioId,
+        "$.request.scenarioId",
+      ),
+      controlId: validateStudioSimulationPortableIdV2(
+        request.controlId,
+        "$.request.controlId",
+      ),
+      value: finiteScalarV2(request.value, "$.request.value"),
+      expectedInputEpoch: nonnegativeSafeIntegerV2(
+        request.expectedInputEpoch,
+        "$.request.expectedInputEpoch",
+      ),
+    });
+  }
+
+  if (envelope.kind === "request-analysis") {
+    const request = exactDataRecordV2(envelope, [
+      "analysisId",
+      "expectedAcceptedRevision",
+      "expectedAcceptedTimeSec",
+      "expectedInputEpoch",
+      "kind",
+      "protocol",
+      "requestId",
+      "runtimeSessionId",
+      "scenarioId",
+    ], [], "$.request");
+    return Object.freeze({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId,
+      kind: "request-analysis",
+      runtimeSessionId: validateStudioSimulationPortableIdV2(
+        request.runtimeSessionId,
+        "$.request.runtimeSessionId",
+      ),
+      scenarioId: validateStudioSimulationPortableIdV2(
+        request.scenarioId,
+        "$.request.scenarioId",
+      ),
+      analysisId: validateStudioSimulationPortableIdV2(
+        request.analysisId,
+        "$.request.analysisId",
+      ),
+      expectedInputEpoch: nonnegativeSafeIntegerV2(
+        request.expectedInputEpoch,
+        "$.request.expectedInputEpoch",
+      ),
+      expectedAcceptedRevision: nonnegativeSafeIntegerV2(
+        request.expectedAcceptedRevision,
+        "$.request.expectedAcceptedRevision",
+      ),
+      expectedAcceptedTimeSec: nonnegativeFiniteNumberV2(
+        request.expectedAcceptedTimeSec,
+        "$.request.expectedAcceptedTimeSec",
+      ),
+    });
+  }
+
   if (envelope.kind === "dispose") {
     const request = exactDataRecordV2(envelope, [
       "kind",
@@ -265,15 +452,20 @@ export function validateStudioSimulationWorkerResponseV2(
 
   if (envelope.status === "error") {
     const response = exactDataRecordV2(envelope, [
+      "fatal",
       "message",
       "protocol",
       "requestId",
       "status",
     ], [], "$.response");
+    if (typeof response.fatal !== "boolean") {
+      throw protocolErrorV2("$.response.fatal", "must be a boolean");
+    }
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
       status: "error",
+      fatal: response.fatal,
       message: portableErrorMessageV2(
         response.message,
         "$.response.message",
@@ -334,6 +526,38 @@ export function validateStudioSimulationWorkerResponseV2(
       status: "ok",
       kind: "advanced",
       frames: Object.freeze(frames),
+    });
+  }
+  if (envelope.kind === "control-applied") {
+    const response = exactDataRecordV2(envelope, [
+      "frame",
+      "kind",
+      "protocol",
+      "requestId",
+      "status",
+    ], [], "$.response");
+    return Object.freeze({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId,
+      status: "ok",
+      kind: "control-applied",
+      frame: validateStudioSimulationFrameV2(response.frame),
+    });
+  }
+  if (envelope.kind === "analysis-result") {
+    const response = exactDataRecordV2(envelope, [
+      "analysis",
+      "kind",
+      "protocol",
+      "requestId",
+      "status",
+    ], [], "$.response");
+    return Object.freeze({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId,
+      status: "ok",
+      kind: "analysis-result",
+      analysis: validateStudioSimulationAnalysisV2(response.analysis),
     });
   }
   if (envelope.kind === "disposed") {
@@ -412,6 +636,33 @@ function responseRequestIdV2(value: unknown, path: string): number {
     throw protocolErrorV2(path, "must be a nonnegative safe integer");
   }
   return value;
+}
+
+function nonnegativeSafeIntegerV2(value: unknown, path: string): number {
+  if (
+    typeof value !== "number"
+    || !Number.isSafeInteger(value)
+    || value < 0
+    || Object.is(value, -0)
+  ) {
+    throw protocolErrorV2(path, "must be a nonnegative safe integer");
+  }
+  return value;
+}
+
+function finiteScalarV2(value: unknown, path: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw protocolErrorV2(path, "must be a finite scalar number");
+  }
+  return value;
+}
+
+function nonnegativeFiniteNumberV2(value: unknown, path: string): number {
+  const number = finiteScalarV2(value, path);
+  if (number < 0 || Object.is(number, -0)) {
+    throw protocolErrorV2(path, "must be a nonnegative finite number");
+  }
+  return number;
 }
 
 function portableErrorMessageV2(value: unknown, path: string): string {

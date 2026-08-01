@@ -886,7 +886,7 @@ function harnessV2(
           fixtureAdapter: {
             modelId: model.modelId,
             fixtureSchemaId: model.fixtureSchemaId,
-            validateCompleteFixture() {},
+            validateCompleteFixture() { return undefined; },
           },
           simulationAdapter: {
             modelId: model.modelId,
@@ -898,6 +898,12 @@ function harnessV2(
               throw new Error("not used by authoring harness");
             },
             advanceOnePresentationStep() {
+              throw new Error("not used by authoring harness");
+            },
+            applyControl() {
+              throw new Error("not used by authoring harness");
+            },
+            requestAnalysis() {
               throw new Error("not used by authoring harness");
             },
             async replaceFixture() {
@@ -933,12 +939,15 @@ function modelContractV2(): ModelContractV2 {
     fixtureSchemaId: "fixture/main-wire-v3-r1",
     checkpointCodecId: "checkpoint/main-wire-v3-r1",
     snapshotGateId: "snapshot-gate/main-wire-v3-r1",
-    parameterCatalog: [{
-      parameterId: "parameter/heart-rate",
-    }],
     controlCatalog: [{
       controlId: "control/heart-rate",
-      parameterIds: ["parameter/heart-rate"],
+      valueType: "number",
+      unit: "bpm",
+      minimum: 30,
+      maximum: 180,
+      step: 1,
+      defaultValue: 72,
+      changeSemantics: "reset",
     }],
     outputCatalog: [{
       outputId: "output/co",
@@ -950,6 +959,7 @@ function modelContractV2(): ModelContractV2 {
     }],
     graphCatalog: [{
       graphId: "graph-definition/pressure",
+      renderer: "sweep",
       outputIds: ["output/co"],
     }],
   };

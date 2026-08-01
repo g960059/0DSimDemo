@@ -13,6 +13,7 @@
     "test": "npm run test:fast",
     "test:fast": "node tools/testing/runFastVitest.mjs",
     "test:pr": "CIRCLEHEART_TEST_SUITE_LABEL='PR smoke suite' CIRCLEHEART_VITEST_CONFIG=vitest.pr.config.ts node tools/testing/runFastVitest.mjs",
+    "test:browser": "playwright test",
     "test:related": "vitest related --run --config vitest.fast.config.ts",
     "test:suites:audit": "vitest run --config vitest.fast.config.ts __tests__/testSuiteManifest.test.ts",
     "test:regression": "vitest run --config vitest.regression.config.ts",
@@ -45,6 +46,7 @@
     "react-router-dom": "^7.16.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.0",
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.18",

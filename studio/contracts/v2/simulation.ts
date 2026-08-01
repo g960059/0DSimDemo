@@ -42,6 +42,25 @@ export type StudioSimulationFrameV2 = Readonly<{
   outputs: Readonly<Record<string, StudioSimulationOutputValueV2>>;
 }>;
 
+/**
+ * Immutable, on-demand analysis of one exact accepted simulation boundary.
+ *
+ * Analyses are ephemeral presentation/runtime results. They deliberately stay
+ * out of every streamed frame and carry the exact source clock so a caller can
+ * never mistake a result computed from an older input or accepted state for
+ * the currently displayed simulation.
+ */
+export type StudioSimulationAnalysisV2 = Readonly<{
+  modelId: ModelIdV2;
+  runtimeSessionId: string;
+  scenarioId: ScenarioIdV2;
+  inputEpoch: number;
+  sourceAcceptedRevision: number;
+  sourceAcceptedTimeSec: number;
+  analysisId: string;
+  payload: StudioJsonValueV2;
+}>;
+
 export type StudioSimulationScenarioInputV2 = Readonly<{
   scenarioId: ScenarioIdV2;
   fixture: StudioJsonValueV2;
@@ -69,6 +88,33 @@ export type RegisteredModelSimulationAdapterV2 = Readonly<{
     runtimeSessionId: string;
     scenarioId: ScenarioIdV2;
   }>): Promise<StudioSimulationFrameV2>;
+  /**
+   * Applies one model-owned semantic control at an accepted boundary.
+   *
+   * The adapter must compare `expectedInputEpoch` and commit the resulting
+   * fixture/state/frame as one operation. A rejected action must leave both
+   * the input epoch and current frame unchanged.
+   */
+  applyControl(input: Readonly<{
+    runtimeSessionId: string;
+    scenarioId: ScenarioIdV2;
+    controlId: string;
+    value: number;
+    expectedInputEpoch: number;
+  }>): Promise<StudioSimulationFrameV2>;
+  /**
+   * Computes a read-only model-owned analysis from one exact accepted state.
+   * Implementations must reject stale expected clocks and must not advance or
+   * otherwise mutate the numerical session.
+   */
+  requestAnalysis(input: Readonly<{
+    runtimeSessionId: string;
+    scenarioId: ScenarioIdV2;
+    analysisId: string;
+    expectedInputEpoch: number;
+    expectedAcceptedRevision: number;
+    expectedAcceptedTimeSec: number;
+  }>): Promise<StudioSimulationAnalysisV2>;
   replaceFixture(input: Readonly<{
     runtimeSessionId: string;
     scenarioId: ScenarioIdV2;
@@ -106,7 +152,10 @@ export function validateStudioSimulationScenarioInputV2(
     scenario.scenarioId,
     `${path}.scenarioId`,
   );
-  const fixture = clonePortableJsonV2(scenario.fixture, `${path}.fixture`);
+  const fixture = validateAndOwnStudioSimulationPortableJsonV2(
+    scenario.fixture,
+    `${path}.fixture`,
+  );
   const hasCheckpoint = Object.prototype.hasOwnProperty.call(
     scenario,
     "checkpoint",
@@ -171,6 +220,57 @@ export function validateStudioSimulationFrameV2(
   });
 }
 
+/** Validates, detaches, and deeply freezes one portable analysis result. */
+export function validateStudioSimulationAnalysisV2(
+  value: unknown,
+  path = "$.analysis",
+): StudioSimulationAnalysisV2 {
+  const analysis = exactDataRecordV2(value, [
+    "analysisId",
+    "inputEpoch",
+    "modelId",
+    "payload",
+    "runtimeSessionId",
+    "scenarioId",
+    "sourceAcceptedRevision",
+    "sourceAcceptedTimeSec",
+  ], [], path);
+  return Object.freeze({
+    modelId: validateStudioSimulationPortableIdV2(
+      analysis.modelId,
+      `${path}.modelId`,
+    ),
+    runtimeSessionId: validateStudioSimulationPortableIdV2(
+      analysis.runtimeSessionId,
+      `${path}.runtimeSessionId`,
+    ),
+    scenarioId: validateStudioSimulationPortableIdV2(
+      analysis.scenarioId,
+      `${path}.scenarioId`,
+    ),
+    inputEpoch: nonnegativeSafeIntegerV2(
+      analysis.inputEpoch,
+      `${path}.inputEpoch`,
+    ),
+    sourceAcceptedRevision: nonnegativeSafeIntegerV2(
+      analysis.sourceAcceptedRevision,
+      `${path}.sourceAcceptedRevision`,
+    ),
+    sourceAcceptedTimeSec: nonnegativeFiniteNumberV2(
+      analysis.sourceAcceptedTimeSec,
+      `${path}.sourceAcceptedTimeSec`,
+    ),
+    analysisId: validateStudioSimulationPortableIdV2(
+      analysis.analysisId,
+      `${path}.analysisId`,
+    ),
+    payload: validateAndOwnStudioSimulationPortableJsonV2(
+      analysis.payload,
+      `${path}.payload`,
+    ),
+  });
+}
+
 export function validateStudioSimulationPortableIdV2(
   value: unknown,
   path: string,
@@ -202,7 +302,10 @@ function validateCheckpointV2(
       checkpoint.acceptedTimeSec,
       `${path}.acceptedTimeSec`,
     ),
-    payload: clonePortableJsonV2(checkpoint.payload, `${path}.payload`),
+    payload: validateAndOwnStudioSimulationPortableJsonV2(
+      checkpoint.payload,
+      `${path}.payload`,
+    ),
   });
 }
 
@@ -279,6 +382,21 @@ function validateOutputValueV2(
     result.push(portableNumberV2(entries[index], `${path}[${index}]`));
   }
   return Object.freeze(result);
+}
+
+/**
+ * Shared worker-bound portable JSON decoder.
+ *
+ * This is intentionally stricter than JSON.stringify: accessors, custom
+ * prototypes, sparse arrays, cycles, non-finite numbers, negative zero, and
+ * invalid Unicode scalar sequences are rejected before any model code sees
+ * the value. The returned graph is detached and deeply frozen.
+ */
+export function validateAndOwnStudioSimulationPortableJsonV2(
+  value: unknown,
+  path = "$.value",
+): StudioJsonValueV2 {
+  return clonePortableJsonV2(value, path, new Set<object>(), 0);
 }
 
 function clonePortableJsonV2(

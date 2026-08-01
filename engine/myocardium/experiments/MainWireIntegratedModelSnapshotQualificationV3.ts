@@ -28,9 +28,14 @@ import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
 } from "@/engine/integrity";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
+  type MainWireIntegratedModelHemodynamicResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID =
-  "main-wire-integrated-regular-sinus-all-off-snapshot-qualification-v3" as const;
+  "main-wire-integrated-regular-sinus-all-off-snapshot-qualification-v4" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_DEFAULT_NOMINAL_DT_SEC_V3 =
   0.002 as const;
@@ -38,11 +43,11 @@ export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_DEFAULT_NOMINAL_D
 export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_CLAIM_V3 =
   deepFreeze({
     scope:
-      "canonical-periodic-v3-identity-regular-sinus-all-four-MCS-disabled-and-all-four-inertance-circuits-zero" as const,
+      "bounded-hemodynamic-input-periodic-v3-identity-regular-sinus-all-four-MCS-disabled-and-all-four-inertance-circuits-zero" as const,
     candidateOrigin:
       "exact-MainWireIntegratedModelCheckpointV3-accepted-boundary" as const,
     candidateCheckpointIdentityRequired:
-      "canonical-periodic-v3-rhythm-profile-config-and-provider" as const,
+      "periodic-v3-rhythm-profile-config-provider-and-hemodynamic-input-identity" as const,
     coldStartUsed: false as const,
     openCandidateWindow:
       "completed-from-restored-accepted-aggregates-before-full-cycle-classification" as const,
@@ -60,7 +65,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_CLAIM_V3 =
       "terminal-checkpoint-round-trip-failure",
     ] as const),
     terminalCheckpoint:
-      "exact-V3-checkpoint-restore-and-recheckpoint-equality-required" as const,
+      "exact-V4-checkpoint-restore-and-recheckpoint-equality-required" as const,
     snapshotQualificationIsPhysiologicalValidation: false as const,
     clinicalValidationClaimed: false as const,
   });
@@ -69,6 +74,8 @@ export type MainWireIntegratedModelSnapshotQualificationOptionsV3 = Readonly<{
   candidateCheckpoint: unknown;
   nominalDtSec?: number;
   maximumCycleCount?: number;
+  hemodynamicResearchInputs?:
+    MainWireIntegratedModelHemodynamicResearchInputsV3;
 }>;
 
 export type MainWireIntegratedModelSnapshotQualificationRejectionReasonV3 =
@@ -152,6 +159,8 @@ type ResolvedOptions = Readonly<{
   candidateCheckpoint: unknown;
   nominalDtSec: number;
   maximumCycleCount: number;
+  hemodynamicResearchInputs:
+    MainWireIntegratedModelHemodynamicResearchInputsV3;
 }>;
 
 type AcceptedState = ReturnType<
@@ -167,7 +176,9 @@ export async function qualifyMainWireIntegratedModelSnapshotV3(
   options: MainWireIntegratedModelSnapshotQualificationOptionsV3,
 ): Promise<MainWireIntegratedModelSnapshotQualificationResultV3> {
   const resolved = resolveOptions(options);
-  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    resolved.hemodynamicResearchInputs,
+  );
   const checkpointContext =
     createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
       fixture,
@@ -624,9 +635,12 @@ function resolveOptions(
   if (
     keys.some(
       (key) =>
-        !["candidateCheckpoint", "nominalDtSec", "maximumCycleCount"].includes(
-          key,
-        ),
+        ![
+          "candidateCheckpoint",
+          "nominalDtSec",
+          "maximumCycleCount",
+          "hemodynamicResearchInputs",
+        ].includes(key),
     )
   ) {
     throw new Error("V3 snapshot qualification options contain unexpected fields");
@@ -661,6 +675,11 @@ function resolveOptions(
     candidateCheckpoint: options.candidateCheckpoint,
     nominalDtSec,
     maximumCycleCount,
+    hemodynamicResearchInputs:
+      validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+        options.hemodynamicResearchInputs
+          ?? MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      ),
   });
 }
 

@@ -524,6 +524,7 @@ export class StudioExperimentAuthoringApplicationV2 {
       || typeof runtime.simulationAdapter.currentFrame !== "function"
       || typeof runtime.simulationAdapter.advanceOnePresentationStep
         !== "function"
+      || typeof runtime.simulationAdapter.applyControl !== "function"
       || typeof runtime.simulationAdapter.replaceFixture !== "function"
       || typeof runtime.simulationAdapter.currentInputEpoch !== "function"
     ) {

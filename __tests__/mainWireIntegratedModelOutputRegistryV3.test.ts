@@ -19,94 +19,52 @@ import {
   type MainWireIntegratedModelPresentationAdvanceV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 
-const EXACT_CATALOG = [
-  {
-    outputId: "hemodynamics.volume.LV",
-    quantityKind: "volume",
-    unit: "mL",
-    modelingStatus: "modeled",
-    sourceKind: "accepted-state",
-    sourcePath: "accepted.coronary.circulation.nodeVolumesMl.LV",
-  },
-  {
-    outputId: "hemodynamics.pressure.absolute.LV",
-    quantityKind: "pressure",
-    unit: "mmHg",
-    modelingStatus: "modeled",
-    sourceKind: "accepted-step-readback",
-    sourcePath:
-      "step.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.LV",
-  },
-  {
-    outputId: "hemodynamics.pressure.absolute.Ao",
-    quantityKind: "pressure",
-    unit: "mmHg",
-    modelingStatus: "modeled",
-    sourceKind: "accepted-step-readback",
-    sourcePath:
-      "step.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.Ao",
-  },
-  {
-    outputId: "coronary.flow.total",
-    quantityKind: "flow",
-    unit: "mL/s",
-    modelingStatus: "modeled",
-    sourceKind: "accepted-step-readback",
-    sourcePath:
-      "step.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.totalInletFlowMlPerSec",
-  },
-  {
-    outputId: "coronary.flow.inlet.LAD",
-    quantityKind: "flow",
-    unit: "mL/s",
-    modelingStatus: "modeled",
-    sourceKind: "accepted-step-readback",
-    sourcePath:
-      "step.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.inletFlowMlPerSecByTerritory.LAD",
-  },
-  {
-    outputId: "coronary.flow.inlet.LCx",
-    quantityKind: "flow",
-    unit: "mL/s",
-    modelingStatus: "modeled",
-    sourceKind: "accepted-step-readback",
-    sourcePath:
-      "step.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.inletFlowMlPerSecByTerritory.LCx",
-  },
-  {
-    outputId: "coronary.flow.inlet.RCA",
-    quantityKind: "flow",
-    unit: "mL/s",
-    modelingStatus: "modeled",
-    sourceKind: "accepted-step-readback",
-    sourcePath:
-      "step.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.inletFlowMlPerSecByTerritory.RCA",
-  },
-  {
-    outputId: "device.LVAD.flow",
-    quantityKind: "flow",
-    unit: "mL/s",
-    modelingStatus: "modeled",
-    sourceKind: "accepted-state",
-    sourcePath:
-      "accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD",
-  },
+const EXACT_OUTPUT_IDS = [
+  "hemodynamics.volume.LA",
+  "hemodynamics.volume.LV",
+  "hemodynamics.volume.RA",
+  "hemodynamics.volume.RV",
+  "hemodynamics.pressure.absolute.LA",
+  "hemodynamics.pressure.absolute.LV",
+  "hemodynamics.pressure.absolute.RA",
+  "hemodynamics.pressure.absolute.RV",
+  "hemodynamics.pressure.transmural.LA",
+  "hemodynamics.pressure.transmural.LV",
+  "hemodynamics.pressure.transmural.RA",
+  "hemodynamics.pressure.transmural.RV",
+  "hemodynamics.pressure.absolute.Ao",
+  "hemodynamics.pressure.absolute.SA",
+  "hemodynamics.pressure.absolute.PA",
+  "hemodynamics.pressure.absolute.PVein",
+  "hemodynamics.pressure.absolute.VC",
+  "hemodynamics.flow.valve.MV",
+  "hemodynamics.flow.valve.AoV",
+  "hemodynamics.flow.valve.TV",
+  "hemodynamics.flow.valve.PV",
+  "coronary.flow.total",
+  "coronary.flow.inlet.LAD",
+  "coronary.flow.inlet.LCx",
+  "coronary.flow.inlet.RCA",
+  "device.LVAD.flow",
+  "rhythm.phase.regular-sinus",
 ] as const;
 
 describe("Main Wire Integrated Model V3 output registry", () => {
-  it("locks the exact eight-output catalog and excludes status from frames", () => {
+  it("locks the exact expanded output catalog and excludes status from frames", () => {
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID).toBe(
-      "main-wire-integrated-model-output-registry-v3",
+      "main-wire-integrated-model-output-registry-v4",
     );
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID).toBe(
-      "main-wire-integrated-model-output-frame-v3",
-    );
-    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3).toEqual(
-      EXACT_CATALOG,
+      "main-wire-integrated-model-output-frame-v4",
     );
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3).toEqual(
-      EXACT_CATALOG.map(({ outputId }) => outputId),
+      EXACT_OUTPUT_IDS,
     );
+    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3).toHaveLength(27);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.every(
+      ({ modelingStatus, sourcePath }) =>
+        modelingStatus === "modeled" && sourcePath.length > 0,
+    )).toBe(true);
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_SNAPSHOT_V3)
       .toMatchObject({
         unavailableValuePolicy: "null-never-zero",
@@ -145,6 +103,15 @@ describe("Main Wire Integrated Model V3 output registry", () => {
       availability: "available",
       quality: "authoritative-state",
     });
+    expect(cold.values["rhythm.phase.regular-sinus"]).toMatchObject({
+      value: expect.any(Number),
+      availability: "available",
+      quality: "accepted-derived",
+    });
+    expect(cold.values["rhythm.phase.regular-sinus"].value).toBeGreaterThanOrEqual(
+      0,
+    );
+    expect(cold.values["rhythm.phase.regular-sinus"].value).toBeLessThan(1);
     for (const outputId of MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3) {
       const definition =
         MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.find(
@@ -174,6 +141,15 @@ describe("Main Wire Integrated Model V3 output registry", () => {
     expect(firstFrame.values["hemodynamics.pressure.absolute.Ao"].value).toBe(
       firstStep.coronaryStep.baseStep.circulationTrial
         .nodeAbsolutePressuresMmHg.Ao,
+    );
+    expect(firstFrame.values["hemodynamics.pressure.transmural.LV"].value)
+      .toBe(
+        firstStep.coronaryStep.baseStep.mechanicsTrial
+          .transmuralPressuresMmHg.LV,
+      );
+    expect(firstFrame.values["hemodynamics.flow.valve.AoV"].value).toBe(
+      firstStep.coronaryStep.baseStep.circulationTrial
+        .valveEvaluations.AoV.flowMlPerSec,
     );
     expect(firstFrame.values["coronary.flow.total"].value).toBe(
       firstStep.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics

@@ -32,7 +32,7 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact development release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-2
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-8
 ```
 
 It pins:
@@ -40,12 +40,20 @@ It pins:
 - regular-sinus rhythm;
 - normal-coronary configuration;
 - all-off, zero-inertance mechanical support;
-- the integrated V3 exact checkpoint codec;
-- eight initial signals and two graph definitions; and
+- four model-owned haemodynamic research inputs (systemic and pulmonary
+  resistance, venous tone, and arterial stiffness);
+- the integrated V3 exact checkpoint codec v4;
+- 27 registered outputs and ten graph definitions (four sweeping waveform
+  groups, four chamber pressure-volume loops, and two on-demand structural
+  vascular-return orientations); and
 - the candidate periodic Snapshot gate.
 
-Its parameter and control catalogs are empty. Portable controls have not yet
-been admitted, so no durable `ParameterSet` or pretend knob mapping is exposed.
+There is no Parameter catalog or durable `ParameterSet`. The four registered
+numeric controls are the only public input authority. Each control resolves in
+the model-owned reducer, rebuilds a complete portable fixture, and performs an
+honest cold reset inside the same persistent Worker. The changed fixture is
+what a later explicit Draft save captures; the transient control action itself
+is not durable content.
 
 Registry admission performs the one-time exact manifest/artifact integrity
 check. The trusted loader evaluates those exact self-contained module bytes and
@@ -62,8 +70,17 @@ allowed for an unsettled state.
 The live Worker does not yet expose accepted-boundary Draft capture to the
 main-thread authoring application. The default browser composition therefore
 does not construct an authoring facade against a second, invisible runtime
-host. That Worker-to-authoring bridge is implemented together with the Save UI;
-until then the Workbench is intentionally live/read-only.
+host. That Worker-to-authoring bridge is implemented together with the Save UI.
+Until then the Workbench is live and model-controlled, but cannot yet save its
+current Scenario as durable Experiment content.
+
+The systemic and pulmonary return panes request one read-only analysis from
+the same persistent Worker only when needed. They freeze one accepted step and
+show a structural volume-constrained orientation plus its operating point; they
+do not stream curve arrays in every frame and do not claim a simulated Guyton
+intervention or a Frank-Starling locus. The exact fixed-TBV fork protocol still
+required for a formal Starling relation is specified in
+[`INTEGRATED-MODEL-0003-guyton-starling-side-analysis.md`](./INTEGRATED-MODEL-0003-guyton-starling-side-analysis.md).
 
 No official Scenario Preset, Experiment, Snapshot, article Placement, or Lesson
 content ships in this cutover. Those are authored only after the development

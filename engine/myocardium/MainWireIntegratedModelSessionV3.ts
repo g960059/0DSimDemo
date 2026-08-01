@@ -17,6 +17,10 @@ import {
   mainWireIntegratedModelCheckpointContextV3,
   type MainWireIntegratedModelRuntimeV3,
 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  type MainWireIntegratedModelHemodynamicResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -149,8 +153,14 @@ export class MainWireIntegratedModelSessionV3 {
     );
   }
 
-  static async create(): Promise<MainWireIntegratedModelSessionV3> {
-    const runtime = await createMainWireIntegratedModelRuntimeV3();
+  static async create(
+    hemodynamicResearchInputs:
+    MainWireIntegratedModelHemodynamicResearchInputsV3 =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  ): Promise<MainWireIntegratedModelSessionV3> {
+    const runtime = await createMainWireIntegratedModelRuntimeV3(
+      hemodynamicResearchInputs,
+    );
     return new MainWireIntegratedModelSessionV3(
       runtime,
       runtime.cold.acceptedState,
@@ -160,8 +170,13 @@ export class MainWireIntegratedModelSessionV3 {
 
   static async restoreOperationalCheckpoint(
     checkpoint: unknown,
+    hemodynamicResearchInputs:
+    MainWireIntegratedModelHemodynamicResearchInputsV3 =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedModelSessionV3> {
-    const runtime = await createMainWireIntegratedModelRuntimeV3();
+    const runtime = await createMainWireIntegratedModelRuntimeV3(
+      hemodynamicResearchInputs,
+    );
     const acceptedState = await restoreMainWireIntegratedModelV3(
       mainWireIntegratedModelCheckpointContextV3(
         runtime,

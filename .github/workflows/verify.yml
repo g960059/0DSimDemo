@@ -100,6 +100,33 @@ jobs:
           --config vitest.canonical.config.ts
           __tests__/mainWireIntegratedModelSnapshotQualificationV3.test.ts
 
+  browser:
+    name: Workbench browser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Run desktop and mobile Workbench smoke
+        run: npm run test:browser
+
   whitespace:
     name: Check diff whitespace
     runs-on: ubuntu-latest
@@ -130,6 +157,7 @@ jobs:
     needs:
       - hygiene
       - build
+      - browser
       - test
       - whitespace
     if: always()
@@ -141,6 +169,7 @@ jobs:
         env:
           HYGIENE_RESULT: ${{ needs.hygiene.result }}
           BUILD_RESULT: ${{ needs.build.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
           TEST_RESULT: ${{ needs.test.result }}
           WHITESPACE_RESULT: ${{ needs.whitespace.result }}
         run: |
@@ -148,6 +177,7 @@ jobs:
           for item in \
             "Repository hygiene:$HYGIENE_RESULT" \
             "Build:$BUILD_RESULT" \
+            "Workbench browser smoke:$BROWSER_RESULT" \
             "Test:$TEST_RESULT" \
             "Check diff whitespace:$WHITESPACE_RESULT"
           do

@@ -9,6 +9,9 @@ import type {
   StudioJsonObjectV2,
   StudioJsonValueV2,
 } from "./json";
+import {
+  studioNumericControlValueIssueV2,
+} from "./control";
 
 export const STUDIO_REGISTERED_MODEL_PACKAGE_V2_SCHEMA_ID =
   "circleheart-studio-registered-model-package-v2" as const;
@@ -17,21 +20,49 @@ export const STUDIO_REGISTERED_MODEL_PACKAGE_V2_SCHEMA_ID =
  * The public model contract is an allowlisted identity/reference projection
  * for the V2 foundation. Registry package metadata, build identities, release
  * labels, and integrity values cannot be smuggled through extensible catalog
- * records. Renderer-facing labels, ranges, and richer control presentation
- * require a later explicit allowlisted schema; there is no arbitrary JSON
- * escape hatch here.
+ * records. Renderer-facing labels are localized by the application. Numeric
+ * control ranges and graph renderer semantics are allowlisted here; there is
+ * no arbitrary JSON escape hatch.
  */
-export type ParameterDefinitionV2 = Readonly<{
-  parameterId: string;
-}>;
 export type ControlDefinitionV2 = Readonly<{
   controlId: string;
-  parameterIds: readonly string[];
+  valueType: "number";
+  unit: string;
+  minimum: number;
+  maximum: number;
+  step: number;
+  defaultValue: number;
+  changeSemantics: "reset";
 }>;
-export type GraphDefinitionV2 = Readonly<{
+
+export type SweepGraphDefinitionV2 = Readonly<{
   graphId: string;
+  renderer: "sweep";
   outputIds: readonly string[];
 }>;
+
+export type PressureVolumeGraphDefinitionV2 = Readonly<{
+  graphId: string;
+  renderer: "pressure-volume";
+  outputIds: readonly string[];
+  volumeOutputId: string;
+  pressureOutputId: string;
+  cyclePhaseOutputId: string;
+  guideMode: "none" | "lv-single-beat-orientation";
+}>;
+
+export type StructuralReturnGraphDefinitionV2 = Readonly<{
+  graphId: string;
+  renderer: "structural-return";
+  outputIds: readonly [];
+  analysisId: string;
+  side: "right" | "left";
+}>;
+
+export type GraphDefinitionV2 =
+  | SweepGraphDefinitionV2
+  | PressureVolumeGraphDefinitionV2
+  | StructuralReturnGraphDefinitionV2;
 
 export type SignalOutputDefinitionV2 = Readonly<{
   outputId: string;
@@ -67,7 +98,6 @@ export type ModelContractV2 = Readonly<{
   fixtureSchemaId: string;
   checkpointCodecId: string;
   snapshotGateId: string;
-  parameterCatalog: readonly ParameterDefinitionV2[];
   controlCatalog: readonly ControlDefinitionV2[];
   outputCatalog: readonly OutputDefinitionV2[];
   graphCatalog: readonly GraphDefinitionV2[];
@@ -89,7 +119,6 @@ export type RegisteredModelSnapshotGateV2 = Readonly<{
 }>;
 
 export type RegisteredModelCatalogsV2 = Readonly<{
-  parameterCatalog: readonly ParameterDefinitionV2[];
   controlCatalog: readonly ControlDefinitionV2[];
   outputCatalog: readonly OutputDefinitionV2[];
   graphCatalog: readonly GraphDefinitionV2[];
@@ -147,7 +176,7 @@ export type RegisteredModelCaptureAdapterV2 = Readonly<{
   validateFixture(input: Readonly<{
     model: ModelContractV2;
     fixture: StudioJsonValueV2;
-  }>): void;
+  }>): undefined;
   validateCapture(input: Readonly<{
     model: ModelContractV2;
     capture: ScenarioCaptureV2;
@@ -170,7 +199,6 @@ const MODEL_CONTRACT_KEYS_V2 = Object.freeze([
   "modelFamilyId",
   "modelId",
   "outputCatalog",
-  "parameterCatalog",
   "snapshotGateId",
 ]);
 const MODEL_MANIFEST_KEYS_V2 = Object.freeze([
@@ -190,7 +218,37 @@ const MODEL_CATALOG_KEYS_V2 = Object.freeze([
   "controlCatalog",
   "graphCatalog",
   "outputCatalog",
-  "parameterCatalog",
+]);
+const CONTROL_KEYS_V2 = Object.freeze([
+  "changeSemantics",
+  "controlId",
+  "defaultValue",
+  "maximum",
+  "minimum",
+  "step",
+  "unit",
+  "valueType",
+]);
+const SWEEP_GRAPH_KEYS_V2 = Object.freeze([
+  "graphId",
+  "outputIds",
+  "renderer",
+]);
+const PRESSURE_VOLUME_GRAPH_KEYS_V2 = Object.freeze([
+  "cyclePhaseOutputId",
+  "graphId",
+  "guideMode",
+  "outputIds",
+  "pressureOutputId",
+  "renderer",
+  "volumeOutputId",
+]);
+const STRUCTURAL_RETURN_GRAPH_KEYS_V2 = Object.freeze([
+  "analysisId",
+  "graphId",
+  "outputIds",
+  "renderer",
+  "side",
 ]);
 const SIGNAL_OUTPUT_KEYS_V2 = Object.freeze([
   "kind",
@@ -239,15 +297,9 @@ export function assertModelContractV2(
     "$.snapshotGateId",
   );
 
-  const parameterIds = assertCatalogV2(
-    value.parameterCatalog,
-    "$.parameterCatalog",
-    "parameterId",
-  );
   assertControlCatalogV2(
     value.controlCatalog,
     "$.controlCatalog",
-    parameterIds,
   );
   const outputIds = assertOutputCatalogV2(
     value.outputCatalog,
@@ -301,15 +353,9 @@ export function assertRegisteredModelPackageManifestV2(
   );
   assertExactKeysV2(value.catalogs, "$.manifest.catalogs", MODEL_CATALOG_KEYS_V2);
   const catalogs = value.catalogs as unknown as RegisteredModelCatalogsV2;
-  const parameterIds = assertCatalogV2(
-    catalogs.parameterCatalog,
-    "$.manifest.catalogs.parameterCatalog",
-    "parameterId",
-  );
   assertControlCatalogV2(
     catalogs.controlCatalog,
     "$.manifest.catalogs.controlCatalog",
-    parameterIds,
   );
   const outputIds = assertOutputCatalogV2(
     catalogs.outputCatalog,
@@ -334,15 +380,17 @@ export function deriveModelContractFromManifestV2(
     fixtureSchemaId: manifest.fixtureSchema.fixtureSchemaId,
     checkpointCodecId: manifest.checkpointCodec.checkpointCodecId,
     snapshotGateId: manifest.snapshotGate.snapshotGateId,
-    parameterCatalog: Object.freeze(mapArrayByIndexV2(
-      manifest.catalogs.parameterCatalog,
-      ({ parameterId }) => Object.freeze({ parameterId }),
-    )),
     controlCatalog: Object.freeze(mapArrayByIndexV2(
       manifest.catalogs.controlCatalog,
-      ({ controlId, parameterIds }) => Object.freeze({
-        controlId,
-        parameterIds: Object.freeze(copyArrayByIndexV2(parameterIds)),
+      (control) => Object.freeze({
+        changeSemantics: control.changeSemantics,
+        controlId: control.controlId,
+        defaultValue: control.defaultValue,
+        maximum: control.maximum,
+        minimum: control.minimum,
+        step: control.step,
+        unit: control.unit,
+        valueType: control.valueType,
       }),
     )),
     outputCatalog: Object.freeze(mapArrayByIndexV2(
@@ -366,10 +414,33 @@ export function deriveModelContractFromManifestV2(
     )),
     graphCatalog: Object.freeze(mapArrayByIndexV2(
       manifest.catalogs.graphCatalog,
-      ({ graphId, outputIds }) => Object.freeze({
-        graphId,
-        outputIds: Object.freeze(copyArrayByIndexV2(outputIds)),
-      }),
+      (graph) => {
+        if (graph.renderer === "sweep") {
+          return Object.freeze({
+            graphId: graph.graphId,
+            renderer: graph.renderer,
+            outputIds: Object.freeze(copyArrayByIndexV2(graph.outputIds)),
+          });
+        }
+        if (graph.renderer === "structural-return") {
+          return Object.freeze({
+            graphId: graph.graphId,
+            renderer: graph.renderer,
+            outputIds: Object.freeze([]) as readonly [],
+            analysisId: graph.analysisId,
+            side: graph.side,
+          });
+        }
+        return Object.freeze({
+          graphId: graph.graphId,
+          renderer: graph.renderer,
+          outputIds: Object.freeze(copyArrayByIndexV2(graph.outputIds)),
+          volumeOutputId: graph.volumeOutputId,
+          pressureOutputId: graph.pressureOutputId,
+          cyclePhaseOutputId: graph.cyclePhaseOutputId,
+          guideMode: graph.guideMode,
+        });
+      },
     )),
   });
   assertModelContractV2(contract);
@@ -574,52 +645,9 @@ function copyArrayByIndexV2<TValue>(
   return mapArrayByIndexV2(value, (entry) => entry);
 }
 
-function assertCatalogV2(
-  value: unknown,
-  path: string,
-  idKey: "parameterId",
-): ReadonlySet<string> {
-  if (!Array.isArray(value)) {
-    throw new ModelContractValidationErrorV2(path, "must be an array");
-  }
-  const ids = new Set<string>();
-  for (let index = 0; index < value.length; index += 1) {
-    const definition = value[index];
-    if (
-      definition === null
-      || typeof definition !== "object"
-      || Array.isArray(definition)
-    ) {
-      throw new ModelContractValidationErrorV2(
-        `${path}[${index}]`,
-        "catalog definitions must be objects",
-      );
-    }
-    const id = (definition as Record<string, unknown>)[idKey];
-    assertExactKeysV2(
-      definition,
-      `${path}[${index}]`,
-      [idKey],
-    );
-    assertPortableModelIdentifierV2(
-      id,
-      `${path}[${index}].${idKey}`,
-    );
-    if (ids.has(id)) {
-      throw new ModelContractValidationErrorV2(
-        `${path}[${index}].${idKey}`,
-        `duplicate catalog ID ${id}`,
-      );
-    }
-    ids.add(id);
-  }
-  return ids;
-}
-
 function assertControlCatalogV2(
   value: unknown,
   path: string,
-  parameterIds: ReadonlySet<string>,
 ): void {
   if (!Array.isArray(value)) {
     throw new ModelContractValidationErrorV2(path, "must be an array");
@@ -642,7 +670,7 @@ function assertControlCatalogV2(
     assertExactKeysV2(
       definition,
       definitionPath,
-      ["controlId", "parameterIds"],
+      CONTROL_KEYS_V2,
     );
     const controlId = control.controlId;
     assertPortableModelIdentifierV2(
@@ -656,12 +684,71 @@ function assertControlCatalogV2(
       );
     }
     controlIds.add(controlId);
-    assertKnownIdArrayV2(
-      control.parameterIds,
-      `${definitionPath}.parameterIds`,
-      parameterIds,
-      "parameter",
+    if (control.valueType !== "number") {
+      throw new ModelContractValidationErrorV2(
+        `${definitionPath}.valueType`,
+        'must be "number"',
+      );
+    }
+    if (control.changeSemantics !== "reset") {
+      throw new ModelContractValidationErrorV2(
+        `${definitionPath}.changeSemantics`,
+        'must be "reset"',
+      );
+    }
+    assertNonEmptyTrimmedStringV2(
+      control.unit,
+      `${definitionPath}.unit`,
+      128,
     );
+    const minimum = finiteNumberV2(
+      control.minimum,
+      `${definitionPath}.minimum`,
+    );
+    const maximum = finiteNumberV2(
+      control.maximum,
+      `${definitionPath}.maximum`,
+    );
+    const step = finiteNumberV2(
+      control.step,
+      `${definitionPath}.step`,
+    );
+    const defaultValue = finiteNumberV2(
+      control.defaultValue,
+      `${definitionPath}.defaultValue`,
+    );
+    if (!(minimum < maximum)) {
+      throw new ModelContractValidationErrorV2(
+        definitionPath,
+        "minimum must be less than maximum",
+      );
+    }
+    if (!(step > 0) || step > maximum - minimum) {
+      throw new ModelContractValidationErrorV2(
+        `${definitionPath}.step`,
+        "must be positive and no larger than the control range",
+      );
+    }
+    const maximumIssue = studioNumericControlValueIssueV2(
+      maximum,
+      { controlId, minimum, maximum, step },
+    );
+    if (maximumIssue !== undefined) {
+      throw new ModelContractValidationErrorV2(
+        `${definitionPath}.maximum`,
+        maximumIssue,
+      );
+    }
+    const defaultValueIssue = studioNumericControlValueIssueV2(
+      defaultValue,
+      { controlId, minimum, maximum, step },
+    );
+    if (defaultValueIssue !== undefined) {
+      throw new ModelContractValidationErrorV2(
+        `${definitionPath}.defaultValue`,
+        defaultValueIssue,
+      );
+    }
   }
 }
 
@@ -822,11 +909,26 @@ function assertGraphCatalogV2(
       );
     }
     const graph = definition as Record<string, unknown>;
-    assertExactKeysV2(
-      definition,
-      definitionPath,
-      ["graphId", "outputIds"],
-    );
+    if (graph.renderer === "sweep") {
+      assertExactKeysV2(definition, definitionPath, SWEEP_GRAPH_KEYS_V2);
+    } else if (graph.renderer === "pressure-volume") {
+      assertExactKeysV2(
+        definition,
+        definitionPath,
+        PRESSURE_VOLUME_GRAPH_KEYS_V2,
+      );
+    } else if (graph.renderer === "structural-return") {
+      assertExactKeysV2(
+        definition,
+        definitionPath,
+        STRUCTURAL_RETURN_GRAPH_KEYS_V2,
+      );
+    } else {
+      throw new ModelContractValidationErrorV2(
+        `${definitionPath}.renderer`,
+        'must be "sweep", "pressure-volume", or "structural-return"',
+      );
+    }
     const graphId = graph.graphId;
     assertPortableModelIdentifierV2(
       graphId,
@@ -839,12 +941,60 @@ function assertGraphCatalogV2(
       );
     }
     graphIds.add(graphId);
-    assertKnownIdArrayV2(
-      graph.outputIds,
-      `${definitionPath}.outputIds`,
-      outputIds,
-      "output",
-    );
+    if (graph.renderer === "structural-return") {
+      if (!Array.isArray(graph.outputIds) || graph.outputIds.length !== 0) {
+        throw new ModelContractValidationErrorV2(
+          `${definitionPath}.outputIds`,
+          "must be an exact empty array for on-demand structural analysis",
+        );
+      }
+      assertPortableModelIdentifierV2(
+        graph.analysisId,
+        `${definitionPath}.analysisId`,
+      );
+      if (graph.side !== "right" && graph.side !== "left") {
+        throw new ModelContractValidationErrorV2(
+          `${definitionPath}.side`,
+          'must be "right" or "left"',
+        );
+      }
+    } else {
+      assertKnownIdArrayV2(
+        graph.outputIds,
+        `${definitionPath}.outputIds`,
+        outputIds,
+        "output",
+      );
+    }
+    if (graph.renderer === "pressure-volume") {
+      const graphOutputIds = new Set(graph.outputIds as readonly string[]);
+      for (const key of [
+        "volumeOutputId",
+        "pressureOutputId",
+        "cyclePhaseOutputId",
+      ] as const) {
+        const outputId = graph[key];
+        assertPortableModelIdentifierV2(
+          outputId,
+          `${definitionPath}.${key}`,
+        );
+        if (!graphOutputIds.has(outputId as string)) {
+          throw new ModelContractValidationErrorV2(
+            `${definitionPath}.${key}`,
+            "must reference an output included by this graph",
+          );
+        }
+      }
+      if (
+        graph.guideMode !== "none"
+        && graph.guideMode !== "lv-single-beat-orientation"
+      ) {
+        throw new ModelContractValidationErrorV2(
+          `${definitionPath}.guideMode`,
+          'must be "none" or "lv-single-beat-orientation"',
+        );
+      }
+    }
   }
 }
 
@@ -852,7 +1002,7 @@ function assertKnownIdArrayV2(
   value: unknown,
   path: string,
   knownIds: ReadonlySet<string>,
-  kind: "parameter" | "output",
+  kind: "output",
 ): void {
   if (!Array.isArray(value) || value.length === 0) {
     throw new ModelContractValidationErrorV2(
@@ -979,6 +1129,20 @@ function assertNonEmptyTrimmedStringV2(
       `must be a non-empty trimmed string up to ${maximumLength} characters`,
     );
   }
+}
+
+function finiteNumberV2(value: unknown, path: string): number {
+  if (
+    typeof value !== "number"
+    || !Number.isFinite(value)
+    || Object.is(value, -0)
+  ) {
+    throw new ModelContractValidationErrorV2(
+      path,
+      "must be a finite number other than negative zero",
+    );
+  }
+  return value;
 }
 
 function assertUnicodeScalarSequenceV2(

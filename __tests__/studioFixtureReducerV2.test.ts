@@ -12,8 +12,34 @@ import type {
   StudioPreviewArtifactV2,
 } from "@/studio/contracts/v2/preview";
 
+const MODEL_ID = "model/main-wire-v3-r1";
+const FIXTURE_SCHEMA_ID = "fixture/main-wire-v3-r1";
+const SCENARIO_ID = "scenario/baseline";
+
+const TEST_CONTROL = Object.freeze({
+  controlId: "control/test-value",
+  valueType: "number" as const,
+  unit: "1",
+  minimum: 0,
+  maximum: 10,
+  step: 0.1,
+  defaultValue: 1,
+  changeSemantics: "reset" as const,
+});
+
+const VASCULAR_TONE_CONTROL = Object.freeze({
+  controlId: "control/vascular-tone",
+  valueType: "number" as const,
+  unit: "1",
+  minimum: 0.5,
+  maximum: 2,
+  step: 0.05,
+  defaultValue: 1,
+  changeSemantics: "reset" as const,
+});
+
 describe("Studio fixture reducer V2", () => {
-  it("folds an ephemeral control action into the complete current fixture immediately", () => {
+  it("folds one semantic numeric control into the complete fixture immediately", () => {
     const currentFixture = {
       controls: {
         heartRateBpm: 60,
@@ -25,19 +51,20 @@ describe("Studio fixture reducer V2", () => {
     };
     const action: StudioFixtureActionV2 = {
       kind: "control",
-      controlId: "control/test-patch",
+      controlId: TEST_CONTROL.controlId,
       requestCorrelation: "pointer-17",
-      value: {
-        changes: [{
-          path: ["controls", "heartRateBpm"],
-          value: 72,
-        }],
-      },
+      value: 72 / 10,
     };
 
     const reduced = reduceFixtureV2({
       desiredFixture: currentFixture,
       action,
+      modelAdapter: adapterV2(({ action: received }) => ({
+        changes: [{
+          path: ["controls", "heartRateBpm"],
+          value: received.value * 10,
+        }],
+      })),
     });
 
     expect(reduced).toEqual({
@@ -52,7 +79,7 @@ describe("Studio fixture reducer V2", () => {
     expect(currentFixture.controls.heartRateBpm).toBe(60);
   });
 
-  it("applies a multi-field control patch atomically", () => {
+  it("keeps a model-owned multi-field patch atomic", () => {
     const currentFixture = {
       controls: {
         preload: 8,
@@ -65,17 +92,14 @@ describe("Studio fixture reducer V2", () => {
 
     const reduced = reduceFixtureV2({
       desiredFixture: currentFixture,
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: {
-          changes: [
-            { path: ["controls", "preload"], value: 12 },
-            { path: ["controls", "afterload"], value: 55 },
-            { path: ["flags", "assisted"], value: true },
-          ],
-        },
-      },
+      action: controlActionV2(1.2, VASCULAR_TONE_CONTROL.controlId),
+      modelAdapter: adapterV2(({ action }) => ({
+        changes: [
+          { path: ["controls", "preload"], value: action.value * 10 },
+          { path: ["controls", "afterload"], value: 55 },
+          { path: ["flags", "assisted"], value: true },
+        ],
+      })),
     });
 
     expect(reduced).toEqual({
@@ -98,7 +122,7 @@ describe("Studio fixture reducer V2", () => {
     });
   });
 
-  it("rolls back the whole patch when a path or JSON value is invalid", () => {
+  it("rolls back the whole model patch when a path or JSON value is invalid", () => {
     const currentFixture = {
       controls: {
         valid: 1,
@@ -107,36 +131,30 @@ describe("Studio fixture reducer V2", () => {
 
     expect(() => reduceFixtureV2({
       desiredFixture: currentFixture,
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: {
-          changes: [
-            { path: ["controls", "valid"], value: 2 },
-            { path: ["controls", "missing"], value: 3 },
-          ],
-        },
-      },
+      action: controlActionV2(2),
+      modelAdapter: adapterV2(() => ({
+        changes: [
+          { path: ["controls", "valid"], value: 2 },
+          { path: ["controls", "missing"], value: 3 },
+        ],
+      })),
     })).toThrowError(StudioFixtureReductionErrorV2);
     expect(currentFixture.controls.valid).toBe(1);
 
     expect(() => reduceFixtureV2({
       desiredFixture: currentFixture,
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: {
-          changes: [{
-            path: ["controls", "valid"],
-            value: Number.NaN,
-          }],
-        },
-      },
+      action: controlActionV2(2),
+      modelAdapter: adapterV2(() => ({
+        changes: [{
+          path: ["controls", "valid"],
+          value: Number.NaN,
+        }],
+      })),
     })).toThrow(/number must be finite/);
     expect(currentFixture.controls.valid).toBe(1);
   });
 
-  it("never dispatches through caller-controlled array methods", () => {
+  it("never dispatches through model-patch array prototype methods", () => {
     const changesMap = vi.fn(() => [{
       path: ["value"],
       value: Number.NaN,
@@ -153,11 +171,8 @@ describe("Studio fixture reducer V2", () => {
 
     expect(reduceFixtureV2({
       desiredFixture: { value: 1 },
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: { changes },
-      },
+      action: controlActionV2(2),
+      modelAdapter: adapterV2(() => ({ changes })),
     })).toEqual({ value: 2 });
     expect(changesMap).not.toHaveBeenCalled();
 
@@ -171,16 +186,15 @@ describe("Studio fixture reducer V2", () => {
 
     expect(reduceFixtureV2({
       desiredFixture: { value: 1 },
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: { changes: [{ path, value: 3 }] },
-      },
+      action: controlActionV2(3),
+      modelAdapter: adapterV2(() => ({
+        changes: [{ path, value: 3 }],
+      })),
     })).toEqual({ value: 3 });
     expect(pathMap).not.toHaveBeenCalled();
   });
 
-  it("rejects own array methods without invoking them", () => {
+  it("rejects own model-patch array methods without invoking them", () => {
     const map = vi.fn(() => [{ path: ["value"], value: Number.NaN }]);
     const changes = [{ path: ["value"], value: 2 }];
     Object.defineProperty(changes, "map", {
@@ -190,26 +204,19 @@ describe("Studio fixture reducer V2", () => {
 
     expect(() => reduceFixtureV2({
       desiredFixture: { value: 1 },
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: { changes } as any,
-      },
+      action: controlActionV2(2),
+      modelAdapter: adapterV2(() => ({ changes }) as any),
     })).toThrow(/custom properties/);
     expect(map).not.toHaveBeenCalled();
   });
 
-  it("rejects unknown or explicitly undefined command fields", () => {
+  it("rejects unknown or explicitly undefined public command fields", () => {
     const base = {
       desiredFixture: { value: 1 },
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: { changes: [{ path: ["value"], value: 2 }] },
-      },
+      action: controlActionV2(1.2),
       context: {
-        scenarioId: "scenario/baseline",
-        modelId: "model/main-wire-v3-r1",
+        scenarioId: SCENARIO_ID,
+        modelId: MODEL_ID,
       },
     } as const;
     const reducer = createReducerV2();
@@ -220,35 +227,7 @@ describe("Studio fixture reducer V2", () => {
         ...base,
         action: {
           ...base.action,
-          value: { ...base.action.value, status: "pending" },
-        },
-      },
-      {
-        ...base,
-        action: {
-          ...base.action,
-          value: {
-            changes: [{
-              ...base.action.value.changes[0],
-              parameterSetId: "legacy-set",
-            }],
-          },
-        },
-      },
-      {
-        ...base,
-        action: {
-          ...base.action,
           requestCorrelation: undefined,
-        },
-      },
-      {
-        ...base,
-        action: {
-          kind: "control",
-          controlId: "control/test-patch",
-          value: 1.2,
-          status: "pending",
         },
       },
     ];
@@ -258,56 +237,97 @@ describe("Studio fixture reducer V2", () => {
     }
   });
 
+  it("rejects nonnumeric, nonfinite, and negative-zero values before model reduction", () => {
+    const reduceControlAction = vi.fn(() => ({
+      changes: [{ path: ["value"] as const, value: 2 }],
+    }));
+    const reducer = createReducerV2(undefined, adapterV2(reduceControlAction));
+    const invalidValues: readonly unknown[] = [
+      null,
+      "1",
+      {},
+      [],
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+      -0,
+    ];
+
+    for (const value of invalidValues) {
+      expect(() => reducer.reduce({
+        desiredFixture: { value: 1 },
+        action: {
+          kind: "control",
+          controlId: TEST_CONTROL.controlId,
+          value,
+        },
+        context: { scenarioId: SCENARIO_ID, modelId: MODEL_ID },
+      } as any)).toThrow(/finite number|negative zero/);
+    }
+    expect(reduceControlAction).not.toHaveBeenCalled();
+  });
+
+  it("enforces the registered inclusive range and minimum-anchored step lattice", () => {
+    const reduceControlAction = vi.fn(({ action }) => ({
+      changes: [{ path: ["value"] as const, value: action.value }],
+    }));
+    const reducer = createReducerV2(undefined, adapterV2(reduceControlAction));
+
+    for (const value of [-0.1, 10.1]) {
+      expect(() => reducer.reduce(reductionInputV2(value))).toThrow(/within/);
+    }
+    for (const value of [0.05, 1.25, 9.999]) {
+      expect(() => reducer.reduce(reductionInputV2(value))).toThrow(/step lattice/);
+    }
+    expect(reduceControlAction).not.toHaveBeenCalled();
+
+    for (const value of [0, 10, 0.1 + 0.2]) {
+      expect(reducer.reduce(reductionInputV2(value))).toEqual({ value });
+    }
+    expect(reduceControlAction).toHaveBeenCalledTimes(3);
+  });
+
   it("rejects non-string runtime IDs before resolving a model", () => {
     const resolveExactRuntime = vi.fn();
     const reducer = createReducerV2(resolveExactRuntime);
 
     const invalidContexts = [
       ...[undefined, null, 123].map((scenarioId) => ({
-        modelId: "model/main-wire-v3-r1",
+        modelId: MODEL_ID,
         scenarioId,
       })),
       ...[undefined, null, 123].map((modelId) => ({
         modelId,
-        scenarioId: "scenario/baseline",
+        scenarioId: SCENARIO_ID,
       })),
     ];
     for (const context of invalidContexts) {
       expect(() => reducer.reduce({
         desiredFixture: { value: 1 },
-        action: {
-          kind: "control",
-          controlId: "control/test-patch",
-          value: { changes: [{ path: ["value"], value: 2 }] },
-        },
+        action: controlActionV2(2),
         context,
       } as any)).toThrow(/portable modelId and scenarioId/);
     }
     expect(resolveExactRuntime).not.toHaveBeenCalled();
   });
 
-  it("uses the model reducer seam to map one semantic control to one atomic patch", () => {
-    const modelAdapter: StudioModelFixtureAdapterV2 = {
-      modelId: "model/main-wire-v3-r1",
-      fixtureSchemaId: "fixture/main-wire-v3-r1",
-      validateCompleteFixture() {},
-      reduceControlAction({ fixture, action }) {
-        expect(Object.isFrozen(fixture)).toBe(true);
-        expect(action.controlId).toBe("control/vascular-tone");
-        return {
-          changes: [
-            {
-              path: ["circulation", "systemicResistance"],
-              value: action.value,
-            },
-            {
-              path: ["circulation", "venousCompliance"],
-              value: 0.85,
-            },
-          ],
-        };
-      },
-    };
+  it("uses the model reducer seam to map one semantic control to an atomic patch", () => {
+    const modelAdapter = adapterV2(({ fixture, action }) => {
+      expect(Object.isFrozen(fixture)).toBe(true);
+      expect(action.controlId).toBe(VASCULAR_TONE_CONTROL.controlId);
+      return {
+        changes: [
+          {
+            path: ["circulation", "systemicResistance"],
+            value: action.value,
+          },
+          {
+            path: ["circulation", "venousCompliance"],
+            value: 0.85,
+          },
+        ],
+      };
+    });
 
     const reduced = reduceFixtureV2({
       desiredFixture: {
@@ -316,11 +336,7 @@ describe("Studio fixture reducer V2", () => {
           venousCompliance: 1,
         },
       },
-      action: {
-        kind: "control",
-        controlId: "control/vascular-tone",
-        value: 1.2,
-      },
+      action: controlActionV2(1.2, VASCULAR_TONE_CONTROL.controlId),
       modelAdapter,
     });
 
@@ -332,34 +348,31 @@ describe("Studio fixture reducer V2", () => {
     });
   });
 
-  it("returns detached, deeply frozen data", () => {
+  it("returns detached, deeply frozen fixture and model-patch data", () => {
     const mutableFixture = {
       controls: {
         labels: ["baseline"],
         gain: 1,
       },
     };
-    const mutableValue = {
+    const mutablePatchValue = {
       label: "updated",
       points: [1, 2],
     };
 
     const reduced = reduceFixtureV2({
       desiredFixture: mutableFixture,
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: {
-          changes: [{
-            path: ["controls", "gain"],
-            value: mutableValue,
-          }],
-        },
-      },
+      action: controlActionV2(2),
+      modelAdapter: adapterV2(() => ({
+        changes: [{
+          path: ["controls", "gain"],
+          value: mutablePatchValue,
+        }],
+      })),
     });
     mutableFixture.controls.labels.push("mutated");
-    mutableValue.label = "mutated";
-    mutableValue.points.push(3);
+    mutablePatchValue.label = "mutated";
+    mutablePatchValue.points.push(3);
 
     expect(reduced).toEqual({
       controls: {
@@ -386,16 +399,13 @@ describe("Studio fixture reducer V2", () => {
           heartRateBpm: 60,
         },
       },
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: {
-          changes: [{
-            path: ["controls", "heartRateBpm"],
-            value: 65,
-          }],
-        },
-      },
+      action: controlActionV2(6.5),
+      modelAdapter: adapterV2(({ action }) => ({
+        changes: [{
+          path: ["controls", "heartRateBpm"],
+          value: action.value * 10,
+        }],
+      })),
     });
     const preview: StudioPreviewArtifactV2 = {
       snapshotId: "snapshot-1",
@@ -419,103 +429,74 @@ describe("Studio fixture reducer V2", () => {
     expect(serialized).not.toMatch(
       /ParameterSet|parameterSet|targetGeneration|inputEpoch|"status"|"hash"/,
     );
-    expect(serialized).not.toMatch(
-      /qualification|evidence/,
-    );
+    expect(serialized).not.toMatch(/qualification|evidence/);
   });
 
-  it("rejects a structurally valid patch when the exact model rejects the complete fixture", () => {
+  it("rejects a valid model patch when exact-model fixture validation fails", () => {
     const desiredFixture = {
       controls: {
         heartRateBpm: 60,
       },
     };
+    const modelAdapter = adapterV2(
+      () => ({
+        changes: [{ path: ["controls", "heartRateBpm"], value: -1 }],
+      }),
+      ({ context, fixture }) => {
+        expect(context.modelId).toBe(MODEL_ID);
+        const heartRate = (fixture as {
+          controls: { heartRateBpm: number };
+        }).controls.heartRateBpm;
+        if (heartRate <= 0) throw new Error("heart rate must be positive");
+        return undefined;
+      },
+    );
+
     let thrown: unknown;
     try {
       reduceFixtureV2({
         desiredFixture,
-        action: {
-          kind: "control",
-          controlId: "control/test-patch",
-          value: {
-            changes: [{
-              path: ["controls", "heartRateBpm"],
-              value: -1,
-            }],
-          },
-        },
-        modelAdapter: {
-          modelId: "model/main-wire-v3-r1",
-          fixtureSchemaId: "fixture/main-wire-v3-r1",
-          validateCompleteFixture({ context, fixture }) {
-            expect(context.modelId).toBe("model/main-wire-v3-r1");
-            const heartRate = (fixture as {
-              controls: { heartRateBpm: number };
-            }).controls.heartRateBpm;
-            if (heartRate <= 0) throw new Error("heart rate must be positive");
-          },
-        },
+        action: controlActionV2(1),
+        modelAdapter,
       });
     } catch (error) {
       thrown = error;
     }
-    expect(thrown).toMatchObject({
-      code: "model-validation",
-    });
+    expect(thrown).toMatchObject({ code: "model-validation" });
     expect(desiredFixture.controls.heartRateBpm).toBe(60);
   });
 
-  it("rejects sparse arrays before a non-portable fixture can escape", () => {
+  it("rejects sparse fixture arrays before a model patch can escape", () => {
     const sparse = Array<number>(2);
     sparse[1] = 1;
     expect(() => reduceFixtureV2({
-      desiredFixture: {
-        values: sparse,
-      },
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: {
-          changes: [{
-            path: ["values", 1],
-            value: 2,
-          }],
-        },
-      },
+      desiredFixture: { values: sparse },
+      action: controlActionV2(2),
+      modelAdapter: adapterV2(() => ({
+        changes: [{ path: ["values", 1], value: 2 }],
+      })),
     })).toThrow(/array entries must be enumerable JSON data/);
   });
 
-  it("rejects non-portable Unicode before applying a fixture action", () => {
+  it("rejects non-portable Unicode before applying a model patch", () => {
     expect(() => reduceFixtureV2({
-      desiredFixture: {
-        label: "\ud800",
-      },
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: {
-          changes: [{
-            path: ["label"],
-            value: "portable",
-          }],
-        },
-      },
+      desiredFixture: { label: "\ud800" },
+      action: controlActionV2(2),
+      modelAdapter: adapterV2(() => ({
+        changes: [{ path: ["label"], value: "portable" }],
+      })),
     })).toThrow(/unpaired high surrogate/);
   });
 
   it("rejects an adapter bound to a different exact model", () => {
-    const modelAdapter = {
-      modelId: "model/other",
-      fixtureSchemaId: "fixture/main-wire-v3-r1",
-      validateCompleteFixture() {},
-    };
+    const modelAdapter = adapterV2(
+      () => ({ changes: [{ path: ["value"], value: 2 }] }),
+      undefined,
+      "model/other",
+    );
     expect(() => reduceFixtureV2({
       desiredFixture: { value: 1 },
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: { changes: [{ path: ["value"], value: 2 }] },
-      },
+      action: controlActionV2(2),
       modelAdapter,
     })).toThrow(/does not exactly match/);
   });
@@ -526,48 +507,71 @@ describe("Studio fixture reducer V2", () => {
     }));
     expect(() => reduceFixtureV2({
       desiredFixture: { value: 1 },
-      action: {
-        kind: "control",
-        controlId: "control/not-registered",
-        value: 2,
-      },
-      modelAdapter: {
-        modelId: "model/main-wire-v3-r1",
-        fixtureSchemaId: "fixture/main-wire-v3-r1",
-        validateCompleteFixture() {},
-        reduceControlAction,
-      },
+      action: controlActionV2(2, "control/not-registered"),
+      modelAdapter: adapterV2(reduceControlAction),
     })).toThrow(/unknown registered control/);
     expect(reduceControlAction).not.toHaveBeenCalled();
   });
 
-  it("rejects negative zero in the fixture or patch", () => {
+  it("rejects negative zero in fixtures and model-owned patches", () => {
     expect(() => reduceFixtureV2({
       desiredFixture: { value: -0 },
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: { changes: [{ path: ["value"], value: 1 }] },
-      },
+      action: controlActionV2(1),
+      modelAdapter: adapterV2(() => ({
+        changes: [{ path: ["value"], value: 1 }],
+      })),
     })).toThrow(/negative zero/);
     expect(() => reduceFixtureV2({
       desiredFixture: { value: 1 },
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: { changes: [{ path: ["value"], value: -0 }] },
-      },
+      action: controlActionV2(1),
+      modelAdapter: adapterV2(() => ({
+        changes: [{ path: ["value"], value: -0 }],
+      })),
     })).toThrow(/negative zero/);
     expect(() => reduceFixtureV2({
       desiredFixture: [1],
-      action: {
-        kind: "control",
-        controlId: "control/test-patch",
-        value: { changes: [{ path: [-0], value: 2 }] },
-      },
+      action: controlActionV2(1),
+      modelAdapter: adapterV2(() => ({
+        changes: [{ path: [-0], value: 2 }],
+      })),
     })).toThrow(/negative zero/);
   });
 });
+
+type ReduceControlActionV2 = NonNullable<
+  StudioModelFixtureAdapterV2["reduceControlAction"]
+>;
+type ValidateFixtureV2 = StudioModelFixtureAdapterV2[
+  "validateCompleteFixture"
+];
+
+function adapterV2(
+  reduceControlAction: ReduceControlActionV2,
+  validateCompleteFixture: ValidateFixtureV2 = () => undefined,
+  modelId = MODEL_ID,
+): StudioModelFixtureAdapterV2 {
+  return {
+    modelId,
+    fixtureSchemaId: FIXTURE_SCHEMA_ID,
+    validateCompleteFixture,
+    reduceControlAction,
+  };
+}
+
+function controlActionV2(
+  value: number,
+  controlId: string = TEST_CONTROL.controlId,
+): StudioFixtureActionV2 {
+  return { kind: "control", controlId, value };
+}
+
+function reductionInputV2(value: number) {
+  return {
+    desiredFixture: { value: 1 },
+    action: controlActionV2(value),
+    context: { scenarioId: SCENARIO_ID, modelId: MODEL_ID },
+  } as const;
+}
 
 function reduceFixtureV2(
   input: Readonly<{
@@ -575,61 +579,30 @@ function reduceFixtureV2(
       ReturnType<typeof createStudioFixtureReducerV2>["reduce"]
     >[0]["desiredFixture"];
     action: StudioFixtureActionV2;
-    modelAdapter?: StudioModelFixtureAdapterV2;
+    modelAdapter: StudioModelFixtureAdapterV2;
   }>,
 ) {
-  const modelAdapter: StudioModelFixtureAdapterV2 = {
-    modelId: "model/main-wire-v3-r1",
-    fixtureSchemaId: "fixture/main-wire-v3-r1",
-    validateCompleteFixture() {},
-    reduceControlAction({ action }) {
-      return action.value as any;
-    },
-    ...input.modelAdapter,
-  };
-  const reducer = createReducerV2((modelId) => ({
-    contract: {
-      modelId,
-      fixtureSchemaId: "fixture/main-wire-v3-r1",
-      controlCatalog: [{
-        controlId: "control/test-patch",
-        parameterIds: ["parameter/test"],
-      }, {
-        controlId: "control/vascular-tone",
-        parameterIds: ["parameter/vascular-tone"],
-      }],
-    },
-    fixtureAdapter: modelAdapter,
-  } as any));
+  const reducer = createReducerV2(undefined, input.modelAdapter);
   return reducer.reduce({
     desiredFixture: input.desiredFixture,
     action: input.action,
-    context: {
-      scenarioId: "scenario/baseline",
-      modelId: "model/main-wire-v3-r1",
-    },
+    context: { scenarioId: SCENARIO_ID, modelId: MODEL_ID },
   });
 }
 
 function createReducerV2(
-  resolveExactRuntime: (modelId: string) => any = (modelId) => ({
+  resolveExactRuntime?: (modelId: string) => any,
+  fixtureAdapter: StudioModelFixtureAdapterV2 = adapterV2(({ action }) => ({
+    changes: [{ path: ["value"], value: action.value }],
+  })),
+) {
+  const resolve = resolveExactRuntime ?? ((modelId: string) => ({
     contract: {
       modelId,
-      fixtureSchemaId: "fixture/main-wire-v3-r1",
-      controlCatalog: [{
-        controlId: "control/test-patch",
-        parameterIds: ["parameter/test"],
-      }],
+      fixtureSchemaId: FIXTURE_SCHEMA_ID,
+      controlCatalog: [TEST_CONTROL, VASCULAR_TONE_CONTROL],
     },
-    fixtureAdapter: {
-      modelId,
-      fixtureSchemaId: "fixture/main-wire-v3-r1",
-      validateCompleteFixture() {},
-      reduceControlAction({ action }: any) {
-        return action.value;
-      },
-    },
-  }),
-) {
-  return createStudioFixtureReducerV2({ resolveExactRuntime });
+    fixtureAdapter,
+  }));
+  return createStudioFixtureReducerV2({ resolveExactRuntime: resolve });
 }

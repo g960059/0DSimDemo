@@ -586,12 +586,15 @@ function modelContractV2(): ModelContractV2 {
     fixtureSchemaId: "fixture/main-wire-v3",
     checkpointCodecId: "checkpoint/main-wire-v4",
     snapshotGateId: "snapshot-gate/main-wire-v3",
-    parameterCatalog: [{
-      parameterId: "catalog.parameter/svr",
-    }],
     controlCatalog: [{
       controlId: "catalog.control/svr",
-      parameterIds: ["catalog.parameter/svr"],
+      valueType: "number",
+      unit: "1",
+      minimum: 0.5,
+      maximum: 2,
+      step: 0.05,
+      defaultValue: 1,
+      changeSemantics: "reset",
     }],
     outputCatalog: [{
       outputId: "catalog.output/map",
@@ -603,6 +606,7 @@ function modelContractV2(): ModelContractV2 {
     }],
     graphCatalog: [{
       graphId: "catalog.graph/pressure",
+      renderer: "sweep",
       outputIds: ["catalog.output/map"],
     }],
   };
@@ -654,7 +658,7 @@ function exactRuntimeResolverV2() {
         fixtureAdapter: {
           modelId: contract.modelId,
           fixtureSchemaId: contract.fixtureSchemaId,
-          validateCompleteFixture() {},
+          validateCompleteFixture() { return undefined; },
         },
         simulationAdapter: {
           modelId: contract.modelId,
@@ -666,6 +670,12 @@ function exactRuntimeResolverV2() {
             throw new Error("not used by Preset clone");
           },
           advanceOnePresentationStep() {
+            throw new Error("not used by Preset clone");
+          },
+          applyControl() {
+            throw new Error("not used by Preset clone");
+          },
+          requestAnalysis() {
             throw new Error("not used by Preset clone");
           },
           async replaceFixture() {

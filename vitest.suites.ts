@@ -29,6 +29,7 @@ export const fastTests = [
   "__tests__/mainWireFiveWallPeriodicClosureV1.test.ts",
   "__tests__/mainWireFourValveDiseaseResearchBracketsV1.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
+  "__tests__/mainWireIntegratedModelGuytonStarlingOrientationV3.test.ts",
   "__tests__/mainWireIntegratedModelValidationOnceV3.test.ts",
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
@@ -53,6 +54,8 @@ export const fastTests = [
   "__tests__/studioSimulationWorkerV2.test.ts",
   "__tests__/testSuiteManifest.test.ts",
   "__tests__/workbenchV3Dockview.test.tsx",
+  "__tests__/workbenchV3CanvasRenderers.test.ts",
+  "__tests__/workbenchLiveSchedulerV3.test.ts",
   "__tests__/wholeHeartMechanicsContractV1.test.ts",
   "engine/__tests__/activeStressSourcePressureAdapter.test.ts",
   "engine/__tests__/chambers.test.ts",
@@ -83,6 +86,7 @@ export const prSmokeTests = [
   "__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts",
   "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
   "__tests__/mainWireIntegratedModelRealProviderSmokeV3.test.ts",
+  "__tests__/mainWireIntegratedModelGuytonStarlingOrientationV3.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
   "__tests__/mainWireIntegratedModelTransactionV3.test.ts",
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
@@ -96,6 +100,8 @@ export const prSmokeTests = [
   "__tests__/studioSimulationWorkerV2.test.ts",
   "__tests__/testSuiteManifest.test.ts",
   "__tests__/workbenchV3Dockview.test.tsx",
+  "__tests__/workbenchV3CanvasRenderers.test.ts",
+  "__tests__/workbenchLiveSchedulerV3.test.ts",
 ] as const;
 
 export const regressionTests = [

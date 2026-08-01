@@ -3,6 +3,17 @@ import {
   type MainWireIntegratedModelCheckpointV3,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
+  type MainWireIntegratedModelHemodynamicResearchInputKeyV3,
+  type MainWireIntegratedModelHemodynamicResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+  buildMainWireIntegratedModelGuytonStarlingOrientationV3,
+} from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
@@ -37,15 +48,27 @@ import type {
 import {
   STUDIO_REGISTERED_MODEL_PACKAGE_V2_SCHEMA_ID,
   assertRegisteredModelPackageManifestV2,
+  type ControlDefinitionV2,
   type ModelContractV2,
   type RegisteredModelPackageManifestV2,
 } from "@/studio/contracts/v2/model";
+import {
+  studioNumericControlValueIssueV2,
+} from "@/studio/contracts/v2/control";
 import type {
+  StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
+} from "@/studio/contracts/v2/simulation";
+import {
+  validateAndOwnStudioSimulationPortableJsonV2,
 } from "@/studio/contracts/v2/simulation";
 import type {
   StudioJsonValueV2,
 } from "@/studio/contracts/v2/json";
+import type {
+  StudioControlActionV2,
+  StudioFixturePatchV2,
+} from "@/studio/contracts/v2/runtime";
 import {
   cloneAndFreezeStudioJson,
   studioCanonicalJsonStringify,
@@ -58,15 +81,27 @@ import {
 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
-  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-2" as const;
+  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-8" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 =
   "circleheart.main-wire-integrated-transaction" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3 =
-  "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.v3" as const;
+  "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.v4" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_CHECKPOINT_CODEC_ID_V3 =
-  "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.v3" as const;
+  "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.v4" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_SNAPSHOT_GATE_ID_V3 =
   MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID;
+
+export const MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3 = Object.freeze({
+  systemicResistance: "hemodynamics.systemic-resistance",
+  pulmonaryResistance: "hemodynamics.pulmonary-resistance",
+  venousTone: "hemodynamics.venous-tone",
+  arterialStiffness: "hemodynamics.arterial-stiffness",
+} as const);
+
+export type MainWireIntegratedStudioControlIdV3 =
+  (typeof MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3)[
+    MainWireIntegratedModelHemodynamicResearchInputKeyV3
+  ];
 
 export type MainWireIntegratedStudioFixtureV3 = Readonly<{
   schemaId: typeof MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3;
@@ -75,6 +110,8 @@ export type MainWireIntegratedStudioFixtureV3 = Readonly<{
   dynamicMechanicalSupport: Readonly<{
     mode: "all-off-zero-inertance-v3";
   }>;
+  hemodynamicResearchInputs:
+    MainWireIntegratedModelHemodynamicResearchInputsV3;
 }>;
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_DEFAULT_FIXTURE_V3:
@@ -85,6 +122,8 @@ MainWireIntegratedStudioFixtureV3 = Object.freeze({
   dynamicMechanicalSupport: Object.freeze({
     mode: "all-off-zero-inertance-v3",
   }),
+  hemodynamicResearchInputs:
+    MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
 });
 
 export type MainWireIntegratedStudioLiveScenarioInputV3 = Readonly<{
@@ -94,6 +133,12 @@ export type MainWireIntegratedStudioLiveScenarioInputV3 = Readonly<{
 }>;
 
 export type MainWireIntegratedStudioLiveFrameV3 = StudioSimulationFrameV2;
+
+export type MainWireIntegratedStudioControlResetResultV3 = Readonly<{
+  transition: "reset";
+  inputEpoch: number;
+  frame: MainWireIntegratedStudioLiveFrameV3;
+}>;
 
 type RuntimeScenarioV3 = {
   fixture: MainWireIntegratedStudioFixtureV3;
@@ -141,9 +186,12 @@ export class MainWireIntegratedStudioRuntimeHostV3 {
       }
       const fixture = validateAndOwnFixtureV3(input.fixture);
       const modelSession = input.checkpoint === undefined
-        ? await MainWireIntegratedModelSessionV3.create()
+        ? await MainWireIntegratedModelSessionV3.create(
+          fixture.hemodynamicResearchInputs,
+        )
         : await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
           validateScenarioCheckpointV3(input.checkpoint).payload,
+          fixture.hemodynamicResearchInputs,
         );
       if (
         input.checkpoint !== undefined
@@ -231,21 +279,97 @@ export class MainWireIntegratedStudioRuntimeHostV3 {
     });
   }
 
+  async applyControl(
+    runtimeSessionId: string,
+    scenarioId: string,
+    controlId: string,
+    value: number,
+    expectedInputEpoch: number,
+  ): Promise<MainWireIntegratedStudioControlResetResultV3> {
+    const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
+    if (scenario.inputEpoch !== expectedInputEpoch) {
+      throw new Error(
+        `V3 control input epoch is stale: expected ${expectedInputEpoch}, `
+          + `current ${scenario.inputEpoch}`,
+      );
+    }
+    const fixture = reduceControlToCompleteFixtureV3(
+      scenario.fixture,
+      Object.freeze({
+        kind: "control",
+        controlId,
+        value,
+      }),
+    );
+    return this.#resetFixtureAtomically(
+      runtimeSessionId,
+      scenarioId,
+      fixture,
+      expectedInputEpoch,
+    );
+  }
+
+  requestAnalysis(
+    runtimeSessionId: string,
+    scenarioId: string,
+    analysisId: string,
+    expectedInputEpoch: number,
+    expectedAcceptedRevision: number,
+    expectedAcceptedTimeSec: number,
+  ): StudioSimulationAnalysisV2 {
+    const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
+    const observation = scenario.modelSession.observe();
+    const accepted = observation.acceptedState;
+    if (
+      scenario.inputEpoch !== expectedInputEpoch
+      || accepted.revision !== expectedAcceptedRevision
+      || accepted.acceptedTimeSec !== expectedAcceptedTimeSec
+    ) {
+      throw new Error("V3 analysis source clocks are stale");
+    }
+    if (
+      analysisId
+        !== MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID
+    ) {
+      throw new Error(`V3 analysis is not registered: ${analysisId}`);
+    }
+    const payload = validateAndOwnStudioSimulationPortableJsonV2(
+      buildMainWireIntegratedModelGuytonStarlingOrientationV3(
+        observation,
+        scenario.fixture.hemodynamicResearchInputs,
+      ),
+      "$.mainWireIntegratedV3Analysis.payload",
+    );
+    return Object.freeze({
+      modelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+      runtimeSessionId,
+      scenarioId,
+      inputEpoch: scenario.inputEpoch,
+      sourceAcceptedRevision: accepted.revision,
+      sourceAcceptedTimeSec: accepted.acceptedTimeSec,
+      analysisId,
+      payload,
+    });
+  }
+
   /**
-   * Replaces the complete fixture at an accepted boundary. The action that
-   * produced this fixture is already over; only the new fixture and epoch live
-   * in runtime memory.
+   * Full-fixture replacement is an honest cold reset. It never rebinds an old
+   * checkpoint or claims state continuity under changed inputs.
    */
-  replaceFixture(
+  async replaceFixture(
     runtimeSessionId: string,
     scenarioId: string,
     fixtureValue: StudioJsonValueV2,
-  ): number {
+  ): Promise<number> {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
     const fixture = validateAndOwnFixtureV3(fixtureValue);
-    scenario.fixture = fixture;
-    scenario.inputEpoch += 1;
-    return scenario.inputEpoch;
+    const result = await this.#resetFixtureAtomically(
+      runtimeSessionId,
+      scenarioId,
+      fixture,
+      scenario.inputEpoch,
+    );
+    return result.inputEpoch;
   }
 
   async captureDesiredContent(input: Readonly<{
@@ -379,6 +503,53 @@ export class MainWireIntegratedStudioRuntimeHostV3 {
       );
     }
     return scenario;
+  }
+
+  async #resetFixtureAtomically(
+    runtimeSessionId: string,
+    scenarioId: string,
+    fixture: MainWireIntegratedStudioFixtureV3,
+    expectedInputEpoch: number,
+  ): Promise<MainWireIntegratedStudioControlResetResultV3> {
+    const original = this.#requiredScenario(runtimeSessionId, scenarioId);
+    if (original.inputEpoch !== expectedInputEpoch) {
+      throw new Error(
+        `V3 fixture reset input epoch is stale: expected `
+          + `${expectedInputEpoch}, current ${original.inputEpoch}`,
+      );
+    }
+
+    const candidateSession = await MainWireIntegratedModelSessionV3.create(
+      fixture.hemodynamicResearchInputs,
+    );
+    const nextInputEpoch = expectedInputEpoch + 1;
+    const candidateObservation = candidateSession.observe();
+    const candidateAccepted = candidateObservation.acceptedState;
+    const candidateFrame = toStudioSimulationFrameV3({
+      runtimeSessionId,
+      scenarioId,
+      inputEpoch: nextInputEpoch,
+      acceptedRevision: candidateAccepted.revision,
+      acceptedTimeSec: candidateAccepted.acceptedTimeSec,
+      frame: projectMainWireIntegratedModelObservationV3(
+        candidateObservation,
+      ),
+    });
+
+    const current = this.#requiredScenario(runtimeSessionId, scenarioId);
+    if (current !== original || current.inputEpoch !== expectedInputEpoch) {
+      throw new Error("V3 fixture reset became stale before atomic swap");
+    }
+    current.fixture = fixture;
+    current.modelSession = candidateSession;
+    current.presentationOriginSec = candidateAccepted.acceptedTimeSec;
+    current.presentationOrdinal = 0;
+    current.inputEpoch = nextInputEpoch;
+    return Object.freeze({
+      transition: "reset" as const,
+      inputEpoch: nextInputEpoch,
+      frame: candidateFrame,
+    });
   }
 }
 
@@ -529,9 +700,12 @@ RegisteredModelPackageManifestV2 {
       numericalSessionId: MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID,
       presentationDtSec: MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
       acceptedBoundaryCapture: true,
-      runtimeFixtureCommands: Object.freeze([]),
+      runtimeFixtureCommands: Object.freeze([
+        ...Object.values(MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3),
+      ]),
+      fixtureChangeSemantics: "atomic-cold-reset-new-numerical-session",
       scope:
-        "regular-sinus-normal-coronary-all-off-zero-inertance",
+        "regular-sinus-normal-coronary-all-off-zero-inertance-with-bounded-hemodynamic-research-inputs",
     }),
     solver: Object.freeze({
       candidateSemantics:
@@ -548,10 +722,13 @@ RegisteredModelPackageManifestV2 {
           "rhythm",
           "coronary",
           "dynamicMechanicalSupport",
+          "hemodynamicResearchInputs",
         ]),
         rhythmMode: "regular-sinus-v3",
         coronaryDiseaseProfile: "normal-coronary-v2",
         dynamicMechanicalSupportMode: "all-off-zero-inertance-v3",
+        hemodynamicResearchInputRanges:
+          MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
       }),
     }),
     checkpointCodec: Object.freeze({
@@ -559,9 +736,9 @@ RegisteredModelPackageManifestV2 {
         MAIN_WIRE_INTEGRATED_STUDIO_CHECKPOINT_CODEC_ID_V3,
       definition: Object.freeze({
         checkpointId: MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
-        schemaVersion: 3,
+        schemaVersion: 4,
         fixturePairing:
-          "canonical-regular-sinus-all-off-zero-inertance-context",
+          "regular-sinus-all-off-zero-inertance-and-hemodynamic-input-identity",
         restoreSemantics: "exact-no-migration-no-clock-rebase",
       }),
     }),
@@ -577,24 +754,83 @@ RegisteredModelPackageManifestV2 {
       }),
     }),
     catalogs: Object.freeze({
-      parameterCatalog: Object.freeze([]),
-      controlCatalog: Object.freeze([]),
+      controlCatalog: Object.freeze((Object.keys(
+        MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3,
+      ) as MainWireIntegratedModelHemodynamicResearchInputKeyV3[]).map(
+        mainWireIntegratedStudioControlDefinitionV3,
+      )),
       outputCatalog: Object.freeze(outputCatalog),
       graphCatalog: Object.freeze([
         Object.freeze({
-          graphId: "hemodynamics.pressure.lv-aorta",
+          graphId: "hemodynamics.pressure.left-heart",
+          renderer: "sweep" as const,
           outputIds: Object.freeze([
+            "hemodynamics.pressure.absolute.LA",
             "hemodynamics.pressure.absolute.LV",
             "hemodynamics.pressure.absolute.Ao",
           ]),
         }),
         Object.freeze({
+          graphId: "hemodynamics.pressure.right-heart",
+          renderer: "sweep" as const,
+          outputIds: Object.freeze([
+            "hemodynamics.pressure.absolute.RA",
+            "hemodynamics.pressure.absolute.RV",
+            "hemodynamics.pressure.absolute.PA",
+          ]),
+        }),
+        Object.freeze({
+          graphId: "hemodynamics.flow.valves",
+          renderer: "sweep" as const,
+          outputIds: Object.freeze([
+            "hemodynamics.flow.valve.MV",
+            "hemodynamics.flow.valve.AoV",
+            "hemodynamics.flow.valve.TV",
+            "hemodynamics.flow.valve.PV",
+          ]),
+        }),
+        Object.freeze({
           graphId: "coronary.flow.inlet-territories",
+          renderer: "sweep" as const,
           outputIds: Object.freeze([
             "coronary.flow.inlet.LAD",
             "coronary.flow.inlet.LCx",
             "coronary.flow.inlet.RCA",
           ]),
+        }),
+        ...(["LA", "LV", "RA", "RV"] as const).map((chamber) =>
+          Object.freeze({
+            graphId: `hemodynamics.pressure-volume.${chamber}`,
+            renderer: "pressure-volume" as const,
+            outputIds: Object.freeze([
+              `hemodynamics.volume.${chamber}`,
+              `hemodynamics.pressure.transmural.${chamber}`,
+              "rhythm.phase.regular-sinus",
+            ]),
+            volumeOutputId: `hemodynamics.volume.${chamber}`,
+            pressureOutputId:
+              `hemodynamics.pressure.transmural.${chamber}`,
+            cyclePhaseOutputId: "rhythm.phase.regular-sinus",
+            guideMode: chamber === "LV"
+              ? "lv-single-beat-orientation" as const
+              : "none" as const,
+          })
+        ),
+        Object.freeze({
+          graphId: "hemodynamics.structural-return.systemic",
+          renderer: "structural-return" as const,
+          outputIds: Object.freeze([] as const),
+          analysisId:
+            MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+          side: "right" as const,
+        }),
+        Object.freeze({
+          graphId: "hemodynamics.structural-return.pulmonary",
+          renderer: "structural-return" as const,
+          outputIds: Object.freeze([] as const),
+          analysisId:
+            MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+          side: "left" as const,
         }),
       ]),
     }),
@@ -615,19 +851,21 @@ function mainWireIntegratedExecutableBundleV3(
     }>) {
       assertExactModelV3(input.model);
       validateAndOwnFixtureV3(input.fixture);
+      return undefined;
     },
     async validateCapture(input: Readonly<{
       model: ModelContractV2;
       capture: ScenarioCaptureV2;
     }>): Promise<void> {
       assertExactModelV3(input.model);
-      validateAndOwnFixtureV3(input.capture.fixture);
+      const fixture = validateAndOwnFixtureV3(input.capture.fixture);
       const checkpoint = validateScenarioCheckpointV3(
         input.capture.checkpoint,
       );
       const restored =
         await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
           checkpoint.payload,
+          fixture.hemodynamicResearchInputs,
         );
       const accepted = restored.currentAcceptedState();
       if (
@@ -657,6 +895,21 @@ function mainWireIntegratedExecutableBundleV3(
       }
       requiredId(input.context.scenarioId, "scenarioId");
       validateAndOwnFixtureV3(input.fixture);
+      return undefined;
+    },
+    reduceControlAction(input: Readonly<{
+      context: Readonly<{ scenarioId: string; modelId: string }>;
+      fixture: StudioJsonValueV2;
+      action: StudioControlActionV2;
+    }>) {
+      if (input.context.modelId !== MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3) {
+        throw new Error("V3 fixture reduction modelId mismatch");
+      }
+      requiredId(input.context.scenarioId, "scenarioId");
+      return controlPatchV3(
+        validateAndOwnFixtureV3(input.fixture),
+        input.action,
+      );
     },
   });
   const simulationAdapter = Object.freeze({
@@ -692,6 +945,39 @@ function mainWireIntegratedExecutableBundleV3(
       return runtimeHost.advanceOnePresentationStep(
         input.runtimeSessionId,
         input.scenarioId,
+      );
+    },
+    async applyControl(input: Readonly<{
+      runtimeSessionId: string;
+      scenarioId: string;
+      controlId: string;
+      value: number;
+      expectedInputEpoch: number;
+    }>) {
+      const result = await runtimeHost.applyControl(
+        input.runtimeSessionId,
+        input.scenarioId,
+        input.controlId,
+        input.value,
+        input.expectedInputEpoch,
+      );
+      return result.frame;
+    },
+    async requestAnalysis(input: Readonly<{
+      runtimeSessionId: string;
+      scenarioId: string;
+      analysisId: string;
+      expectedInputEpoch: number;
+      expectedAcceptedRevision: number;
+      expectedAcceptedTimeSec: number;
+    }>) {
+      return runtimeHost.requestAnalysis(
+        input.runtimeSessionId,
+        input.scenarioId,
+        input.analysisId,
+        input.expectedInputEpoch,
+        input.expectedAcceptedRevision,
+        input.expectedAcceptedTimeSec,
       );
     },
     async replaceFixture(input: Readonly<{
@@ -746,9 +1032,14 @@ function mainWireIntegratedExecutableBundleV3(
             model: input.model,
             capture: scenario.capture,
           });
+          const fixture = validateAndOwnFixtureV3(
+            scenario.capture.fixture,
+          );
           const qualification =
             await qualifyMainWireIntegratedModelSnapshotV3({
               candidateCheckpoint: scenario.capture.checkpoint.payload,
+              hemodynamicResearchInputs:
+                fixture.hemodynamicResearchInputs,
             });
           if (
             qualification.status !== "accepted"
@@ -803,7 +1094,13 @@ function validateAndOwnFixtureV3(
   const fixture = cloneAndFreezeStudioJson(value);
   plainExactRecordV3(
     fixture,
-    ["schemaId", "rhythm", "coronary", "dynamicMechanicalSupport"],
+    [
+      "schemaId",
+      "rhythm",
+      "coronary",
+      "dynamicMechanicalSupport",
+      "hemodynamicResearchInputs",
+    ],
     "V3 fixture",
   );
   if (fixture.schemaId !== MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3) {
@@ -836,7 +1133,90 @@ function validateAndOwnFixtureV3(
   ) {
     throw new Error("V3 fixture dynamic MCS mode mismatch");
   }
-  return fixture as MainWireIntegratedStudioFixtureV3;
+  const hemodynamicResearchInputs =
+    validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+      fixture.hemodynamicResearchInputs,
+    );
+  return Object.freeze({
+    schemaId: MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3,
+    rhythm: fixture.rhythm,
+    coronary: fixture.coronary,
+    dynamicMechanicalSupport: fixture.dynamicMechanicalSupport,
+    hemodynamicResearchInputs,
+  }) as MainWireIntegratedStudioFixtureV3;
+}
+
+function reduceControlToCompleteFixtureV3(
+  fixture: MainWireIntegratedStudioFixtureV3,
+  action: StudioControlActionV2,
+): MainWireIntegratedStudioFixtureV3 {
+  const inputKey = controlInputKeyV3(action.controlId);
+  const definition = mainWireIntegratedStudioControlDefinitionV3(inputKey);
+  const valueIssue = studioNumericControlValueIssueV2(
+    action.value,
+    definition,
+  );
+  if (valueIssue !== undefined) {
+    throw new Error(`V3 control ${action.controlId} value ${valueIssue}`);
+  }
+  return validateAndOwnFixtureV3({
+    ...fixture,
+    hemodynamicResearchInputs: {
+      ...fixture.hemodynamicResearchInputs,
+      [inputKey]: action.value,
+    },
+  });
+}
+
+function mainWireIntegratedStudioControlDefinitionV3(
+  inputKey: MainWireIntegratedModelHemodynamicResearchInputKeyV3,
+): ControlDefinitionV2 {
+  const range =
+    MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3[inputKey];
+  return Object.freeze({
+    controlId: MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3[inputKey],
+    valueType: "number",
+    unit: "1",
+    minimum: range.minimum,
+    maximum: range.maximum,
+    step: range.step,
+    defaultValue:
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3[
+        inputKey
+      ],
+    changeSemantics: "reset",
+  });
+}
+
+function controlPatchV3(
+  fixture: MainWireIntegratedStudioFixtureV3,
+  action: StudioControlActionV2,
+): StudioFixturePatchV2 {
+  const reduced = reduceControlToCompleteFixtureV3(fixture, action);
+  const inputKey = controlInputKeyV3(action.controlId);
+  return Object.freeze({
+    changes: Object.freeze([Object.freeze({
+      path: Object.freeze([
+        "hemodynamicResearchInputs",
+        inputKey,
+      ]) as readonly [string, string],
+      value: reduced.hemodynamicResearchInputs[inputKey],
+    })]),
+  });
+}
+
+function controlInputKeyV3(
+  controlId: string,
+): MainWireIntegratedModelHemodynamicResearchInputKeyV3 {
+  for (const [inputKey, registeredControlId] of Object.entries(
+    MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3,
+  )) {
+    if (registeredControlId === controlId) {
+      return inputKey as
+        MainWireIntegratedModelHemodynamicResearchInputKeyV3;
+    }
+  }
+  throw new Error(`unsupported V3 control: ${controlId}`);
 }
 
 function validateScenarioCheckpointV3(
@@ -862,6 +1242,7 @@ function validateScenarioCheckpointV3(
     "composedRhythmConfigurationIdentitySha256",
     "dynamicMechanicalSupportProfileIdentitySha256",
     "dynamicMechanicalSupportStructuralHydraulicIdentitySha256",
+    "hemodynamicResearchInputIdentitySha256",
     "coronary",
     "composedRhythm",
     "dynamicMechanicalSupport",
@@ -869,7 +1250,7 @@ function validateScenarioCheckpointV3(
   ], "V3 checkpoint payload");
   if (
     payload.checkpointId !== MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID
-    || payload.schemaVersion !== 3
+    || payload.schemaVersion !== 4
     || payload.transactionId !== MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID
   ) {
     throw new Error("V3 checkpoint payload identity mismatch");
@@ -889,6 +1270,7 @@ function validateScenarioCheckpointV3(
     "composedRhythmConfigurationIdentitySha256",
     "dynamicMechanicalSupportProfileIdentitySha256",
     "dynamicMechanicalSupportStructuralHydraulicIdentitySha256",
+    "hemodynamicResearchInputIdentitySha256",
     "checkpointSha256",
   ]) {
     if (

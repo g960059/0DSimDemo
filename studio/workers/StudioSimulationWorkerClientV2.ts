@@ -1,13 +1,18 @@
 import type {
+  StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
 import {
+  type StudioSimulationWorkerApplyControlInputV2,
   type StudioSimulationWorkerInitializeInputV2,
+  type StudioSimulationWorkerRequestAnalysisInputV2,
   type StudioSimulationWorkerRequestV2,
   type StudioSimulationWorkerResponseV2,
+  createStudioSimulationApplyControlRequestV2,
   createStudioSimulationAdvanceRequestV2,
   createStudioSimulationDisposeRequestV2,
   createStudioSimulationInitializeRequestV2,
+  createStudioSimulationRequestAnalysisRequestV2,
   validateStudioSimulationWorkerResponseV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 
@@ -57,6 +62,23 @@ type ExpectedResponseV2 =
       stepCount: number;
     }>
   | Readonly<{
+      kind: "control-applied";
+      modelId: string;
+      runtimeSessionId: string;
+      scenarioId: string;
+      expectedInputEpoch: number;
+    }>
+  | Readonly<{
+      kind: "analysis-result";
+      modelId: string;
+      runtimeSessionId: string;
+      scenarioId: string;
+      analysisId: string;
+      inputEpoch: number;
+      sourceAcceptedRevision: number;
+      sourceAcceptedTimeSec: number;
+    }>
+  | Readonly<{
       kind: "disposed";
     }>;
 
@@ -86,7 +108,8 @@ export class StudioSimulationWorkerClientV2 {
   #inputEpoch: number | undefined;
   #acceptedRevision: number | undefined;
   #acceptedTimeSec: number | undefined;
-  #advanceInFlight = false;
+  #operationInFlight:
+    "advance" | "apply-control" | "request-analysis" | undefined;
   #disposePromise: Promise<void> | undefined;
 
   constructor(options: StudioSimulationWorkerClientOptionsV2 = {}) {
@@ -159,8 +182,8 @@ export class StudioSimulationWorkerClientV2 {
     ) {
       throw new Error("simulation worker client is not active");
     }
-    if (this.#advanceInFlight) {
-      throw new Error("simulation worker client already has an advance in flight");
+    if (this.#operationInFlight !== undefined) {
+      throw new Error("simulation worker client already has an operation in flight");
     }
     const request = createStudioSimulationAdvanceRequestV2(
       this.#allocateRequestId(),
@@ -173,7 +196,7 @@ export class StudioSimulationWorkerClientV2 {
       throw new Error("simulation worker client session identity mismatch");
     }
 
-    this.#advanceInFlight = true;
+    this.#operationInFlight = "advance";
     try {
       const response = await this.#postRequest(request, {
         kind: "advanced",
@@ -197,7 +220,115 @@ export class StudioSimulationWorkerClientV2 {
       this.#terminateWith(errorAsErrorV2(error));
       throw error;
     } finally {
-      this.#advanceInFlight = false;
+      this.#operationInFlight = undefined;
+    }
+  }
+
+  async applyControl(
+    input: StudioSimulationWorkerApplyControlInputV2,
+  ): Promise<StudioSimulationFrameV2> {
+    if (
+      this.#state !== "active"
+      || this.#runtimeSessionId === undefined
+      || this.#scenarioId === undefined
+      || this.#modelId === undefined
+      || this.#inputEpoch === undefined
+      || this.#acceptedRevision === undefined
+      || this.#acceptedTimeSec === undefined
+    ) {
+      throw new Error("simulation worker client is not active");
+    }
+    if (this.#operationInFlight !== undefined) {
+      throw new Error("simulation worker client already has an operation in flight");
+    }
+    const request = createStudioSimulationApplyControlRequestV2(
+      this.#allocateRequestId(),
+      input,
+    );
+    if (
+      request.runtimeSessionId !== this.#runtimeSessionId
+      || request.scenarioId !== this.#scenarioId
+    ) {
+      throw new Error("simulation worker client session identity mismatch");
+    }
+    if (request.expectedInputEpoch !== this.#inputEpoch) {
+      throw new Error("simulation worker client input epoch is stale");
+    }
+
+    this.#operationInFlight = "apply-control";
+    try {
+      const response = await this.#postRequest(request, {
+        kind: "control-applied",
+        modelId: this.#modelId,
+        runtimeSessionId: this.#runtimeSessionId,
+        scenarioId: this.#scenarioId,
+        expectedInputEpoch: request.expectedInputEpoch,
+      });
+      if (response.status !== "ok" || response.kind !== "control-applied") {
+        throw new Error("simulation worker returned another control response");
+      }
+      this.#inputEpoch = response.frame.inputEpoch;
+      this.#acceptedRevision = response.frame.acceptedRevision;
+      this.#acceptedTimeSec = response.frame.acceptedTimeSec;
+      return response.frame;
+    } finally {
+      this.#operationInFlight = undefined;
+    }
+  }
+
+  async requestAnalysis(
+    input: StudioSimulationWorkerRequestAnalysisInputV2,
+  ): Promise<StudioSimulationAnalysisV2> {
+    if (
+      this.#state !== "active"
+      || this.#runtimeSessionId === undefined
+      || this.#scenarioId === undefined
+      || this.#modelId === undefined
+      || this.#inputEpoch === undefined
+      || this.#acceptedRevision === undefined
+      || this.#acceptedTimeSec === undefined
+    ) {
+      throw new Error("simulation worker client is not active");
+    }
+    if (this.#operationInFlight !== undefined) {
+      throw new Error("simulation worker client already has an operation in flight");
+    }
+    const request = createStudioSimulationRequestAnalysisRequestV2(
+      this.#allocateRequestId(),
+      input,
+    );
+    if (
+      request.runtimeSessionId !== this.#runtimeSessionId
+      || request.scenarioId !== this.#scenarioId
+    ) {
+      throw new Error("simulation worker client session identity mismatch");
+    }
+    if (
+      request.expectedInputEpoch !== this.#inputEpoch
+      || request.expectedAcceptedRevision !== this.#acceptedRevision
+      || request.expectedAcceptedTimeSec !== this.#acceptedTimeSec
+    ) {
+      throw new Error("simulation worker client analysis clocks are stale");
+    }
+
+    this.#operationInFlight = "request-analysis";
+    try {
+      const response = await this.#postRequest(request, {
+        kind: "analysis-result",
+        modelId: this.#modelId,
+        runtimeSessionId: this.#runtimeSessionId,
+        scenarioId: this.#scenarioId,
+        analysisId: request.analysisId,
+        inputEpoch: this.#inputEpoch,
+        sourceAcceptedRevision: this.#acceptedRevision,
+        sourceAcceptedTimeSec: this.#acceptedTimeSec,
+      });
+      if (response.status !== "ok" || response.kind !== "analysis-result") {
+        throw new Error("simulation worker returned another analysis response");
+      }
+      return response.analysis;
+    } finally {
+      this.#operationInFlight = undefined;
     }
   }
 
@@ -208,8 +339,8 @@ export class StudioSimulationWorkerClientV2 {
       this.#terminateWith(new Error("simulation worker client disposed before activation"));
       return Promise.resolve();
     }
-    if (this.#advanceInFlight) {
-      this.#terminateWith(new Error("simulation worker client disposed during advance"));
+    if (this.#operationInFlight !== undefined) {
+      this.#terminateWith(new Error("simulation worker client disposed during an operation"));
       return Promise.resolve();
     }
     if (
@@ -296,8 +427,10 @@ export class StudioSimulationWorkerClientV2 {
       return;
     }
     if (response.status === "error") {
+      const error = new Error(response.message);
       this.#settlePending(response.requestId);
-      pending.reject(new Error(response.message));
+      pending.reject(error);
+      if (response.fatal) this.#terminateWith(error);
       return;
     }
     try {
@@ -394,6 +527,44 @@ function assertExpectedResponseV2(
       }
       acceptedRevision = frame.acceptedRevision;
       acceptedTimeSec = frame.acceptedTimeSec;
+    }
+    return;
+  }
+  if (
+    response.kind === "control-applied"
+    && expected.kind === "control-applied"
+  ) {
+    assertFrameIdentityV2(
+      response.frame,
+      expected.runtimeSessionId,
+      expected.scenarioId,
+      expected.modelId,
+    );
+    if (
+      response.frame.inputEpoch !== expected.expectedInputEpoch + 1
+    ) {
+      throw new Error("simulation worker control frame sequence is invalid");
+    }
+    return;
+  }
+  if (
+    response.kind === "analysis-result"
+    && expected.kind === "analysis-result"
+  ) {
+    const analysis = response.analysis;
+    if (
+      analysis.modelId !== expected.modelId
+      || analysis.runtimeSessionId !== expected.runtimeSessionId
+      || analysis.scenarioId !== expected.scenarioId
+      || analysis.analysisId !== expected.analysisId
+      || analysis.inputEpoch !== expected.inputEpoch
+      || analysis.sourceAcceptedRevision
+        !== expected.sourceAcceptedRevision
+      || analysis.sourceAcceptedTimeSec !== expected.sourceAcceptedTimeSec
+    ) {
+      throw new Error(
+        "simulation worker analysis result identity or clocks mismatch",
+      );
     }
   }
 }

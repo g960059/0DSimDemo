@@ -428,10 +428,13 @@ export function assertExperimentFixturesMatchModelV2(
   assertCaptureAdapterBindingV2(adapter, model);
   content.scenarios.forEach((scenario, index) => {
     try {
-      adapter.validateFixture(Object.freeze({
+      const result = adapter.validateFixture(Object.freeze({
         model,
         fixture: scenario.capture.fixture,
       }));
+      if (result !== undefined) {
+        throw new Error("fixture validator must complete synchronously");
+      }
     } catch (error) {
       throw validationErrorV2(
         `$.content.scenarios[${index}].capture.fixture`,
@@ -449,10 +452,13 @@ export function assertExperimentDesiredFixturesMatchModelV2(
   assertCaptureAdapterBindingV2(adapter, model);
   desiredContent.scenarios.forEach((scenario, index) => {
     try {
-      adapter.validateFixture(Object.freeze({
+      const result = adapter.validateFixture(Object.freeze({
         model,
         fixture: scenario.fixture,
       }));
+      if (result !== undefined) {
+        throw new Error("fixture validator must complete synchronously");
+      }
     } catch (error) {
       throw validationErrorV2(
         `$.desiredContent.scenarios[${index}].fixture`,
@@ -486,10 +492,13 @@ async function assertCaptureMatchesModelV2(
 ): Promise<void> {
   assertCaptureAdapterBindingV2(adapter, model);
   try {
-    adapter.validateFixture(Object.freeze({
+    const fixtureResult = adapter.validateFixture(Object.freeze({
       model,
       fixture: capture.fixture,
     }));
+    if (fixtureResult !== undefined) {
+      throw new Error("fixture validator must complete synchronously");
+    }
     await adapter.validateCapture(Object.freeze({ model, capture }));
   } catch (error) {
     throw validationErrorV2(

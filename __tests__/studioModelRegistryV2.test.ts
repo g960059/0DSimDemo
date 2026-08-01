@@ -30,15 +30,21 @@ describe("InMemoryRegisteredModelStoreV2", () => {
       fixtureSchemaId: "circulation-fixture-v1",
       checkpointCodecId: "circulation-checkpoint-v1",
       snapshotGateId: "circulation-minimum-gate-v1",
-      parameterCatalog: [{ parameterId: "circulation.tbv" }],
       controlCatalog: [{
+        changeSemantics: "reset",
         controlId: "control.tbv",
-        parameterIds: ["circulation.tbv"],
+        defaultValue: 5_000,
+        maximum: 7_000,
+        minimum: 3_000,
+        step: 10,
+        unit: "mL",
+        valueType: "number",
       }],
       outputCatalog: manifest.catalogs.outputCatalog,
       graphCatalog: [{
         graphId: "graph.lv-pressure",
         outputIds: ["hemodynamics.pressure.lv"],
+        renderer: "sweep",
       }],
     });
     expect(Object.keys(resolvedPackage).sort()).toEqual([
@@ -46,7 +52,7 @@ describe("InMemoryRegisteredModelStoreV2", () => {
       "manifest",
     ]);
     expect(Object.isFrozen(resolved)).toBe(true);
-    expect(Object.isFrozen(resolved.parameterCatalog[0])).toBe(true);
+    expect(Object.isFrozen(resolved.controlCatalog[0])).toBe(true);
     expect(Object.isFrozen(resolvedPackage.manifest.runtime)).toBe(true);
 
     (manifest as { displayName: string }).displayName = "caller mutation";
@@ -141,7 +147,7 @@ describe("InMemoryRegisteredModelStoreV2", () => {
 
   it("rejects metadata escape hatches, malformed catalogs, non-JSON, and negative zero", async () => {
     const leakedBuild = makeManifestV2() as any;
-    leakedBuild.catalogs.parameterCatalog[0].buildId = "build-123";
+    leakedBuild.catalogs.graphCatalog[0].buildId = "build-123";
     await expect(registerV2(new InMemoryRegisteredModelStoreV2(), leakedBuild))
       .rejects.toThrow(/exactly/);
 
@@ -176,19 +182,26 @@ describe("InMemoryRegisteredModelStoreV2", () => {
       callCount += 1;
       return callCount === 1
         ? ["0"]
-        : [JSON.stringify({ parameterId: "forged" })];
+        : [JSON.stringify({ controlId: "forged" })];
     });
     const prototype = Object.create(Array.prototype) as { map: typeof map };
     prototype.map = map;
-    Object.setPrototypeOf(manifest.catalogs.parameterCatalog, prototype);
+    Object.setPrototypeOf(manifest.catalogs.controlCatalog, prototype);
 
     const contract = await registerV2(
       new InMemoryRegisteredModelStoreV2(),
       manifest,
     );
 
-    expect(contract.parameterCatalog).toEqual([{
-      parameterId: "circulation.tbv",
+    expect(contract.controlCatalog).toEqual([{
+      changeSemantics: "reset",
+      controlId: "control.tbv",
+      defaultValue: 5_000,
+      maximum: 7_000,
+      minimum: 3_000,
+      step: 10,
+      unit: "mL",
+      valueType: "number",
     }]);
     expect(map).not.toHaveBeenCalled();
   });
@@ -198,7 +211,7 @@ describe("InMemoryRegisteredModelStoreV2", () => {
     const map = vi.fn(() => {
       throw new Error("untrusted array method executed");
     });
-    Object.defineProperty(manifest.catalogs.parameterCatalog, "map", {
+    Object.defineProperty(manifest.catalogs.controlCatalog, "map", {
       enumerable: true,
       value: map,
     });
@@ -232,16 +245,16 @@ describe("InMemoryRegisteredModelStoreV2", () => {
 
   it("derives catalog copies without invoking inherited map, forEach, or iteration", () => {
     const manifest = makeManifestV2() as any;
-    const catalog = manifest.catalogs.controlCatalog;
-    const parameterIds = catalog[0].parameterIds;
+    const catalog = manifest.catalogs.graphCatalog;
+    const outputIds = catalog[0].outputIds;
     const catalogMap = vi.fn((callback: unknown) =>
       Array.prototype.map.call(catalog, callback));
     const idMap = vi.fn((callback: unknown) =>
-      Array.prototype.map.call(parameterIds, callback));
+      Array.prototype.map.call(outputIds, callback));
     const idForEach = vi.fn((callback: unknown) =>
-      Array.prototype.forEach.call(parameterIds, callback));
+      Array.prototype.forEach.call(outputIds, callback));
     const idIterator = vi.fn(() =>
-      Array.prototype[Symbol.iterator].call(parameterIds));
+      Array.prototype[Symbol.iterator].call(outputIds));
     const catalogPrototype = Object.create(Array.prototype);
     Object.defineProperty(catalogPrototype, "map", { value: catalogMap });
     const idPrototype = Object.create(Array.prototype);
@@ -251,13 +264,14 @@ describe("InMemoryRegisteredModelStoreV2", () => {
       [Symbol.iterator]: { value: idIterator },
     });
     Object.setPrototypeOf(catalog, catalogPrototype);
-    Object.setPrototypeOf(parameterIds, idPrototype);
+    Object.setPrototypeOf(outputIds, idPrototype);
 
     const contract = deriveModelContractFromManifestV2(manifest);
 
-    expect(contract.controlCatalog).toEqual([{
-      controlId: "control.tbv",
-      parameterIds: ["circulation.tbv"],
+    expect(contract.graphCatalog).toEqual([{
+      graphId: "graph.lv-pressure",
+      outputIds: ["hemodynamics.pressure.lv"],
+      renderer: "sweep",
     }]);
     expect(catalogMap).not.toHaveBeenCalled();
     expect(idMap).not.toHaveBeenCalled();
@@ -284,7 +298,6 @@ describe("InMemoryRegisteredModelStoreV2", () => {
       "modelFamilyId",
       "modelId",
       "outputCatalog",
-      "parameterCatalog",
       "snapshotGateId",
     ]);
     expect(JSON.stringify({ contract, resolvedPackage })).not.toMatch(
@@ -309,9 +322,135 @@ describe("InMemoryRegisteredModelStoreV2", () => {
       modelId: manifest.modelId,
       snapshotGateId: manifest.snapshotGate.snapshotGateId,
     });
+    expect(Object.isFrozen(runtime.simulationAdapter)).toBe(true);
+    expect(typeof runtime.simulationAdapter.requestAnalysis).toBe("function");
     expect(JSON.stringify(runtime)).not.toMatch(
       /artifact|bytes|digest|hash/i,
     );
+  });
+
+  it("rejects an exact executable bundle without the analysis operation", async () => {
+    const store = new InMemoryRegisteredModelStoreV2();
+    const manifest = makeManifestV2();
+    const bundle = makeExecutableBundleV2(manifest) as any;
+    delete bundle.simulationAdapter.requestAnalysis;
+
+    await expect(store.registerExactPackage({
+      manifest,
+      executableArtifact: executableArtifactV2(manifest.modelId),
+      loadExecutables: () => bundle,
+    })).rejects.toThrow(/simulation adapter.*requestAnalysis/);
+    expect(store.modelCount).toBe(0);
+  });
+
+  it("rejects malformed numeric control ranges", async () => {
+    const mutations: Array<(control: Record<string, unknown>) => void> = [
+      (control) => { control.minimum = 7_000; },
+      (control) => { control.maximum = 3_000; },
+      (control) => { control.maximum = 7_001; },
+      (control) => { control.step = 0; },
+      (control) => { control.step = Number.MIN_VALUE; },
+      (control) => { control.step = 4_001; },
+      (control) => { control.defaultValue = 2_999; },
+      (control) => { control.defaultValue = 5_005; },
+      (control) => { control.valueType = "text"; },
+      (control) => { control.changeSemantics = "live"; },
+    ];
+
+    for (const mutate of mutations) {
+      const manifest = makeManifestV2() as any;
+      mutate(manifest.catalogs.controlCatalog[0]);
+      await expect(registerV2(
+        new InMemoryRegisteredModelStoreV2(),
+        manifest,
+      )).rejects.toBeInstanceOf(RegisteredModelValidationErrorV2);
+    }
+  });
+
+  it("validates pressure-volume graph role references against its outputs", () => {
+    const manifest = makeManifestV2() as any;
+    manifest.catalogs.outputCatalog.push({
+      outputId: "hemodynamics.volume.lv",
+      kind: "signal",
+      unit: "mL",
+      shape: "scalar",
+      sampling: "accepted-step",
+    }, {
+      outputId: "cardiac.cycle-phase",
+      kind: "signal",
+      unit: "1",
+      shape: "scalar",
+      sampling: "accepted-step",
+    });
+    manifest.catalogs.graphCatalog.push({
+      graphId: "graph.lv-pressure-volume",
+      renderer: "pressure-volume",
+      outputIds: [
+        "hemodynamics.volume.lv",
+        "hemodynamics.pressure.lv",
+        "cardiac.cycle-phase",
+      ],
+      volumeOutputId: "hemodynamics.volume.lv",
+      pressureOutputId: "hemodynamics.pressure.lv",
+      cyclePhaseOutputId: "cardiac.cycle-phase",
+      guideMode: "lv-single-beat-orientation",
+    });
+
+    const contract = deriveModelContractFromManifestV2(manifest);
+    expect(contract.graphCatalog[1]).toEqual({
+      graphId: "graph.lv-pressure-volume",
+      renderer: "pressure-volume",
+      outputIds: [
+        "hemodynamics.volume.lv",
+        "hemodynamics.pressure.lv",
+        "cardiac.cycle-phase",
+      ],
+      volumeOutputId: "hemodynamics.volume.lv",
+      pressureOutputId: "hemodynamics.pressure.lv",
+      cyclePhaseOutputId: "cardiac.cycle-phase",
+      guideMode: "lv-single-beat-orientation",
+    });
+    expect(Object.isFrozen(contract.graphCatalog[1]!.outputIds)).toBe(true);
+
+    manifest.catalogs.graphCatalog[1].cyclePhaseOutputId =
+      "hemodynamics.pressure.lv";
+    manifest.catalogs.graphCatalog[1].outputIds = [
+      "hemodynamics.volume.lv",
+      "cardiac.cycle-phase",
+    ];
+    expect(() => deriveModelContractFromManifestV2(manifest))
+      .toThrow(/pressureOutputId.*included by this graph/);
+  });
+
+  it("admits only exact on-demand structural-return graph definitions", () => {
+    const structuralGraph = () => ({
+      graphId: "graph.guyton-starling.right",
+      renderer: "structural-return",
+      outputIds: [],
+      analysisId: "analysis.guyton-starling.orientation-v1",
+      side: "right",
+    });
+    const manifest = makeManifestV2() as any;
+    manifest.catalogs.graphCatalog.push(structuralGraph());
+
+    const contract = deriveModelContractFromManifestV2(manifest);
+    expect(contract.graphCatalog[1]).toEqual(structuralGraph());
+    expect(Object.isFrozen(contract.graphCatalog[1])).toBe(true);
+    expect(Object.isFrozen(contract.graphCatalog[1]!.outputIds)).toBe(true);
+
+    const mutations: Array<(graph: Record<string, unknown>) => void> = [
+      (graph) => { graph.outputIds = ["hemodynamics.pressure.lv"]; },
+      (graph) => { graph.analysisId = "not portable"; },
+      (graph) => { graph.side = "bilateral"; },
+      (graph) => { graph.configuration = {}; },
+    ];
+    for (const mutate of mutations) {
+      const candidate = makeManifestV2() as any;
+      const graph = structuralGraph() as Record<string, unknown>;
+      mutate(graph);
+      candidate.catalogs.graphCatalog.push(graph);
+      expect(() => deriveModelContractFromManifestV2(candidate)).toThrow();
+    }
   });
 
   it("rejects empty or changed executable artifacts and mismatched bundles", async () => {
@@ -427,7 +566,7 @@ function makeExecutableBundleV2(
     fixtureAdapter: {
       modelId: manifest.modelId,
       fixtureSchemaId: manifest.fixtureSchema.fixtureSchemaId,
-      validateCompleteFixture() {},
+      validateCompleteFixture() { return undefined; },
     },
     simulationAdapter: {
       modelId: manifest.modelId,
@@ -439,6 +578,12 @@ function makeExecutableBundleV2(
         throw new Error("not used");
       },
       advanceOnePresentationStep() {
+        throw new Error("not used");
+      },
+      applyControl() {
+        throw new Error("not used");
+      },
+      requestAnalysis() {
         throw new Error("not used");
       },
       async replaceFixture() {
@@ -487,12 +632,15 @@ function makeManifestV2(
       },
     },
     catalogs: {
-      parameterCatalog: [{
-        parameterId: "circulation.tbv",
-      }],
       controlCatalog: [{
         controlId: "control.tbv",
-        parameterIds: ["circulation.tbv"],
+        valueType: "number",
+        unit: "mL",
+        minimum: 3_000,
+        maximum: 7_000,
+        step: 10,
+        defaultValue: 5_000,
+        changeSemantics: "reset",
       }],
       outputCatalog: [{
         outputId: "hemodynamics.pressure.lv",
@@ -510,6 +658,7 @@ function makeManifestV2(
       }],
       graphCatalog: [{
         graphId: "graph.lv-pressure",
+        renderer: "sweep",
         outputIds: ["hemodynamics.pressure.lv"],
       }],
     },

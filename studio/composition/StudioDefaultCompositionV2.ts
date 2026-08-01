@@ -91,9 +91,11 @@ Promise<StudioDefaultWorkerCompositionV2> {
 async function resolveDefaultWorkerReleaseV2() {
   // The Worker trusts the registry-admitted distribution and imports its
   // committed artifact as ordinary ESM. Exact-byte evaluation belongs to
-  // registry admission/CI, not to every client startup.
+  // registry admission/CI, not to every client startup. The generated JS
+  // loses TypeScript's non-empty fixture-path tuple annotation, so this cast
+  // restores the source release type before the registry revalidates it.
   const admittedRelease =
-    createAdmittedMainWireIntegratedStudioExecutableReleaseV3() as
+    createAdmittedMainWireIntegratedStudioExecutableReleaseV3() as unknown as
       MainWireIntegratedStudioExecutableReleaseV3;
   const registry = new TrustedRegisteredModelClientCatalogV2([
     {
@@ -105,7 +107,7 @@ async function resolveDefaultWorkerReleaseV2() {
   if (contract.modelId !== DEFAULT_STUDIO_MODEL_ID_V2) {
     throw new Error("Studio default model registration returned another model");
   }
-  registry.resolveExactRuntime(DEFAULT_STUDIO_MODEL_ID_V2)
+  const fixtureValidation = registry.resolveExactRuntime(DEFAULT_STUDIO_MODEL_ID_V2)
     .fixtureAdapter.validateCompleteFixture({
       context: {
         scenarioId: "scenario/default-composition",
@@ -113,6 +115,9 @@ async function resolveDefaultWorkerReleaseV2() {
       },
       fixture: admittedRelease.defaultFixture,
     });
+  if (fixtureValidation !== undefined) {
+    throw new Error("Studio default fixture validator must be synchronous");
+  }
   return Object.freeze({
     defaultFixture: admittedRelease.defaultFixture,
     registry,

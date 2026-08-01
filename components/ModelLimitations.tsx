@@ -2,19 +2,24 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Info, X } from 'lucide-react';
 
-const ACK_KEY = 'circleheart.modelLimitations.ack.v1';
+const DEFAULT_ACKNOWLEDGEMENT_SCOPE =
+  'circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-8:disclosure-v1';
 
-function hasAck(): boolean {
+export function modelLimitationsAcknowledgementKey(scope: string): string {
+  return `circleheart.modelLimitations.ack.${encodeURIComponent(scope)}`;
+}
+
+function hasAck(scope: string): boolean {
   try {
-    return localStorage.getItem(ACK_KEY) === '1';
+    return localStorage.getItem(modelLimitationsAcknowledgementKey(scope)) === '1';
   } catch {
     return true; // if storage is unavailable, don't nag
   }
 }
 
-function setAck() {
+function setAck(scope: string) {
   try {
-    localStorage.setItem(ACK_KEY, '1');
+    localStorage.setItem(modelLimitationsAcknowledgementKey(scope), '1');
   } catch {
     /* ignore */
   }
@@ -36,17 +41,26 @@ const Body: React.FC<{ limitations: string[] }> = ({ limitations }) => (
  * acknowledgement in localStorage, plus a tiny always-reachable info button.
  * Deliberately NOT a large always-on banner.
  */
-export const ModelLimitations: React.FC<{ compact?: boolean; limitations?: string[] }> = ({ compact = false, limitations }) => {
+export const ModelLimitations: React.FC<{
+  compact?: boolean;
+  limitations?: string[];
+  acknowledgementScope?: string;
+}> = ({
+  compact = false,
+  limitations,
+  acknowledgementScope = DEFAULT_ACKNOWLEDGEMENT_SCOPE,
+}) => {
   const { t } = useTranslation();
   const defaultLimitations = t('modelLimitations.items', { returnObjects: true }) as string[];
   const shownLimitations = limitations ?? defaultLimitations;
   // First-run modal: open if not acknowledged. Manual reopen via the header icon.
-  const [firstRun, setFirstRun] = useState<boolean>(() => !hasAck());
+  const [firstRun, setFirstRun] = useState<boolean>(() =>
+    !hasAck(acknowledgementScope));
   const [reopened, setReopened] = useState(false);
   const open = firstRun || reopened;
 
   const close = () => {
-    if (firstRun) setAck();
+    if (firstRun) setAck(acknowledgementScope);
     setFirstRun(false);
     setReopened(false);
   };

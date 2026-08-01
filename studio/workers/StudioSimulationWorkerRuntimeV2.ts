@@ -1,8 +1,10 @@
 import type {
   RegisteredModelSimulationAdapterV2,
+  StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
 import {
+  validateStudioSimulationAnalysisV2,
   validateStudioSimulationFrameV2,
   validateStudioSimulationPortableIdV2,
 } from "@/studio/contracts/v2/simulation";
@@ -148,9 +150,14 @@ export class StudioSimulationWorkerRuntimeV2 {
         try {
           await this.#handleRequest(request);
         } catch (error) {
-          this.#safePostError(request.requestId, errorMessageV2(error));
-          if (error instanceof FatalWorkerStateErrorV2) {
-            this.#failClosed(error.message, "failed");
+          const fatal = error instanceof FatalWorkerStateErrorV2;
+          this.#safePostError(
+            request.requestId,
+            errorMessageV2(error),
+            fatal,
+          );
+          if (fatal) {
+            this.#failClosed(errorMessageV2(error), "failed");
           }
         }
       }
@@ -167,6 +174,12 @@ export class StudioSimulationWorkerRuntimeV2 {
         return;
       case "advance":
         await this.#advance(request);
+        return;
+      case "apply-control":
+        await this.#applyControl(request);
+        return;
+      case "request-analysis":
+        await this.#requestAnalysis(request);
         return;
       case "dispose":
         this.#dispose(request);
@@ -269,6 +282,186 @@ export class StudioSimulationWorkerRuntimeV2 {
     }
   }
 
+  async #applyControl(
+    request: Extract<
+      StudioSimulationWorkerRequestV2,
+      { kind: "apply-control" }
+    >,
+  ): Promise<void> {
+    const adapter = this.#requiredActiveAdapter(
+      request.runtimeSessionId,
+      request.scenarioId,
+    );
+    const priorFrame = this.#lastFrame;
+    if (priorFrame === undefined) {
+      throw new FatalWorkerStateErrorV2(
+        "simulation worker control failed: no accepted frame is active",
+      );
+    }
+    let currentInputEpoch: number;
+    try {
+      currentInputEpoch = adapter.currentInputEpoch({
+        runtimeSessionId: request.runtimeSessionId,
+        scenarioId: request.scenarioId,
+      });
+    } catch (error) {
+      throw new FatalWorkerStateErrorV2(
+        `simulation worker control failed: ${errorMessageV2(error)}`,
+      );
+    }
+    if (currentInputEpoch !== priorFrame.inputEpoch) {
+      throw new FatalWorkerStateErrorV2(
+        "simulation worker control failed: adapter input epoch drifted",
+      );
+    }
+    if (request.expectedInputEpoch !== currentInputEpoch) {
+      throw new Error(
+        "simulation worker control rejected a stale expected input epoch",
+      );
+    }
+    if (currentInputEpoch === Number.MAX_SAFE_INTEGER) {
+      throw new Error("simulation worker control input epoch is exhausted");
+    }
+
+    let proposedFrame: unknown;
+    try {
+      proposedFrame = await adapter.applyControl({
+        runtimeSessionId: request.runtimeSessionId,
+        scenarioId: request.scenarioId,
+        controlId: request.controlId,
+        value: request.value,
+        expectedInputEpoch: request.expectedInputEpoch,
+      });
+    } catch (error) {
+      this.#assertRejectedControlWasAtomic(priorFrame, error);
+      throw new Error(
+        `simulation worker control rejected: ${errorMessageV2(error)}`,
+      );
+    }
+
+    let frame: StudioSimulationFrameV2;
+    try {
+      frame = this.#validateAdapterFrame(proposedFrame);
+      if (frame.inputEpoch !== request.expectedInputEpoch + 1) {
+        throw new Error("control frame must advance input epoch exactly once");
+      }
+      const committedFrame = this.#validateAdapterFrame(adapter.currentFrame({
+        runtimeSessionId: request.runtimeSessionId,
+        scenarioId: request.scenarioId,
+      }));
+      if (!sameStudioSimulationFrameV2(frame, committedFrame)) {
+        throw new Error("control result is not the committed current frame");
+      }
+    } catch (error) {
+      this.#assertRejectedControlWasAtomic(priorFrame, error);
+      throw new Error(
+        `simulation worker control rejected: ${errorMessageV2(error)}`,
+      );
+    }
+
+    this.#lastFrame = frame;
+    this.#postResponse({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: request.requestId,
+      status: "ok",
+      kind: "control-applied",
+      frame,
+    });
+  }
+
+  async #requestAnalysis(
+    request: Extract<
+      StudioSimulationWorkerRequestV2,
+      { kind: "request-analysis" }
+    >,
+  ): Promise<void> {
+    const adapter = this.#requiredActiveAdapter(
+      request.runtimeSessionId,
+      request.scenarioId,
+    );
+    const priorFrame = this.#lastFrame;
+    if (priorFrame === undefined) {
+      throw new FatalWorkerStateErrorV2(
+        "simulation worker analysis failed: no accepted frame is active",
+      );
+    }
+    let currentFrame: StudioSimulationFrameV2;
+    try {
+      currentFrame = this.#validateAdapterFrame(adapter.currentFrame({
+        runtimeSessionId: request.runtimeSessionId,
+        scenarioId: request.scenarioId,
+      }));
+    } catch (error) {
+      throw new FatalWorkerStateErrorV2(
+        `simulation worker analysis failed: ${errorMessageV2(error)}`,
+      );
+    }
+    if (!sameStudioSimulationFrameV2(priorFrame, currentFrame)) {
+      throw new FatalWorkerStateErrorV2(
+        "simulation worker analysis failed: adapter frame drifted",
+      );
+    }
+    if (
+      request.expectedInputEpoch !== priorFrame.inputEpoch
+      || request.expectedAcceptedRevision !== priorFrame.acceptedRevision
+      || request.expectedAcceptedTimeSec !== priorFrame.acceptedTimeSec
+    ) {
+      throw new Error(
+        "simulation worker analysis rejected stale expected clocks",
+      );
+    }
+
+    let proposedAnalysis: unknown;
+    try {
+      proposedAnalysis = await adapter.requestAnalysis({
+        runtimeSessionId: request.runtimeSessionId,
+        scenarioId: request.scenarioId,
+        analysisId: request.analysisId,
+        expectedInputEpoch: request.expectedInputEpoch,
+        expectedAcceptedRevision: request.expectedAcceptedRevision,
+        expectedAcceptedTimeSec: request.expectedAcceptedTimeSec,
+      });
+    } catch (error) {
+      this.#assertAnalysisDidNotMutate(priorFrame, error);
+      throw new Error(
+        `simulation worker analysis rejected: ${errorMessageV2(error)}`,
+      );
+    }
+
+    let analysis: StudioSimulationAnalysisV2;
+    try {
+      analysis = validateStudioSimulationAnalysisV2(proposedAnalysis);
+      if (
+        analysis.modelId !== adapter.modelId
+        || analysis.runtimeSessionId !== request.runtimeSessionId
+        || analysis.scenarioId !== request.scenarioId
+        || analysis.analysisId !== request.analysisId
+        || analysis.inputEpoch !== priorFrame.inputEpoch
+        || analysis.sourceAcceptedRevision !== priorFrame.acceptedRevision
+        || analysis.sourceAcceptedTimeSec !== priorFrame.acceptedTimeSec
+      ) {
+        throw new Error(
+          "analysis result identity or source clocks do not match the request",
+        );
+      }
+      this.#assertAnalysisDidNotMutate(priorFrame, analysis);
+    } catch (error) {
+      if (error instanceof FatalWorkerStateErrorV2) throw error;
+      this.#assertAnalysisDidNotMutate(priorFrame, error);
+      throw new Error(
+        `simulation worker analysis rejected: ${errorMessageV2(error)}`,
+      );
+    }
+
+    this.#postResponse({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: request.requestId,
+      status: "ok",
+      kind: "analysis-result",
+      analysis,
+    });
+  }
+
   #dispose(
     request: Extract<StudioSimulationWorkerRequestV2, { kind: "dispose" }>,
   ): void {
@@ -342,18 +535,87 @@ export class StudioSimulationWorkerRuntimeV2 {
     return frame;
   }
 
+  #assertRejectedControlWasAtomic(
+    priorFrame: StudioSimulationFrameV2,
+    originalError: unknown,
+  ): void {
+    const adapter = this.#adapter;
+    const runtimeSessionId = this.#runtimeSessionId;
+    const scenarioId = this.#scenarioId;
+    if (
+      adapter === undefined
+      || runtimeSessionId === undefined
+      || scenarioId === undefined
+    ) {
+      throw new FatalWorkerStateErrorV2(
+        `simulation worker control violated atomicity after: ${errorMessageV2(originalError)}`,
+      );
+    }
+    try {
+      const currentFrame = this.#validateAdapterFrame(adapter.currentFrame({
+        runtimeSessionId,
+        scenarioId,
+      }));
+      if (!sameStudioSimulationFrameV2(priorFrame, currentFrame)) {
+        throw new Error("adapter frame changed after a rejected control");
+      }
+    } catch (error) {
+      throw new FatalWorkerStateErrorV2(
+        "simulation worker control violated atomicity: "
+          + errorMessageV2(error),
+      );
+    }
+  }
+
+  #assertAnalysisDidNotMutate(
+    priorFrame: StudioSimulationFrameV2,
+    originalResult: unknown,
+  ): void {
+    const adapter = this.#adapter;
+    const runtimeSessionId = this.#runtimeSessionId;
+    const scenarioId = this.#scenarioId;
+    if (
+      adapter === undefined
+      || runtimeSessionId === undefined
+      || scenarioId === undefined
+    ) {
+      throw new FatalWorkerStateErrorV2(
+        `simulation worker analysis violated read-only semantics after: ${errorMessageV2(originalResult)}`,
+      );
+    }
+    try {
+      const currentFrame = this.#validateAdapterFrame(adapter.currentFrame({
+        runtimeSessionId,
+        scenarioId,
+      }));
+      if (!sameStudioSimulationFrameV2(priorFrame, currentFrame)) {
+        throw new Error("adapter frame changed while computing an analysis");
+      }
+    } catch (error) {
+      throw new FatalWorkerStateErrorV2(
+        "simulation worker analysis violated read-only semantics: "
+          + errorMessageV2(error),
+      );
+    }
+  }
+
   #postResponse(value: unknown): void {
     const response = validateStudioSimulationWorkerResponseV2(value);
     this.#port.postMessage(response);
   }
 
-  #safePostError(requestId: number, message: string): void {
+  #safePostError(
+    requestId: number,
+    message: string,
+    fatal = false,
+  ): void {
     if (this.#portClosed) return;
     try {
       this.#postResponse({
         protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
         requestId,
         status: "error",
+        fatal,
         message: portableErrorMessageV2(message),
       });
     } catch {
@@ -380,6 +642,7 @@ export class StudioSimulationWorkerRuntimeV2 {
           protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
           requestId: request.requestId,
           status: "error",
+          fatal: true,
           message: portableErrorMessageV2(message),
         });
         this.#port.postMessage(response);
@@ -423,6 +686,8 @@ function assertSimulationAdapterV2(
     || typeof adapter.disposeSession !== "function"
     || typeof adapter.currentFrame !== "function"
     || typeof adapter.advanceOnePresentationStep !== "function"
+    || typeof adapter.applyControl !== "function"
+    || typeof adapter.requestAnalysis !== "function"
     || typeof adapter.replaceFixture !== "function"
     || typeof adapter.currentInputEpoch !== "function"
   ) {
@@ -453,6 +718,52 @@ function assertNonRegressingFrameV2(
   ) {
     throw new Error("simulation worker frame clock regressed");
   }
+}
+
+function sameStudioSimulationFrameV2(
+  left: StudioSimulationFrameV2,
+  right: StudioSimulationFrameV2,
+): boolean {
+  if (
+    left.modelId !== right.modelId
+    || left.runtimeSessionId !== right.runtimeSessionId
+    || left.scenarioId !== right.scenarioId
+    || left.inputEpoch !== right.inputEpoch
+    || left.acceptedRevision !== right.acceptedRevision
+    || left.acceptedTimeSec !== right.acceptedTimeSec
+  ) {
+    return false;
+  }
+  const leftIds = Object.keys(left.outputs);
+  const rightIds = Object.keys(right.outputs);
+  if (leftIds.length !== rightIds.length) return false;
+  for (const outputId of leftIds) {
+    const leftOutput = left.outputs[outputId];
+    const rightOutput = right.outputs[outputId];
+    if (
+      leftOutput === undefined
+      || rightOutput === undefined
+      || leftOutput.outputId !== rightOutput.outputId
+      || leftOutput.availability !== rightOutput.availability
+      || leftOutput.quality !== rightOutput.quality
+      || !sameOutputValueV2(leftOutput.value, rightOutput.value)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function sameOutputValueV2(
+  left: number | readonly number[] | null,
+  right: number | readonly number[] | null,
+): boolean {
+  if (Array.isArray(left)) {
+    return Array.isArray(right)
+      && left.length === right.length
+      && left.every((value, index) => value === right[index]);
+  }
+  return !Array.isArray(right) && left === right;
 }
 
 function bestEffortDisposeV2(

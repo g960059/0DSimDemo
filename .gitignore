@@ -41,3 +41,5 @@ dist/
 .codex/skills/*
 !.codex/skills/0dsimdemo-myocardium-lead/
 !.codex/skills/0dsimdemo-myocardium-lead/**
+/playwright-report/
+/test-results/

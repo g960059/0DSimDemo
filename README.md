@@ -63,11 +63,10 @@ SimulationSession / preview cache (ephemeral)
 
 残作業:
 
-1. fixed canonical fixture以外のportable controlをmodel packageへ追加
-2. Workerの単一runtime ownerからauthoringへのcapture bridgeを作り、
+1. Workerの単一runtime ownerからauthoringへのcapture bridgeを作り、
    Workbench Save/SnapshotとReader PlacementをUIへ接続
-3. one-live article schedulerとdisposable previewを実装
-4. その後に公式Preset、Experiment、記事、Lessonを制作
+2. one-live article schedulerとdisposable previewを実装
+3. その後に公式Preset、Experiment、記事、Lessonを制作
 
 それ以前のcase catalog、lesson document、numeric Experiment revision、
 Working Set / Reader Brief、certification artifactは製品データの正典では
@@ -81,8 +80,10 @@ V3統合に必要な数値実装、verification、研究artifactが含まれま�
 digestや算出結果をExperimentへコピーしません。
 
 現在のWorkbenchは登録済みexact V3 development packageを実際にstepする
-開発surfaceです。parameter/control catalogは意図的に空で、engine側の
-`releaseReady` / `simulationReady` claimもfalseのままです。
+開発surfaceです。Parameter catalogとdurable `ParameterSet`はなく、登録済み
+Control catalogはsystemic/pulmonary resistance、venous tone、arterial
+stiffnessの4つのnumeric reset controlを公開します。engine側の
+`releaseReady` / `simulationReady` claimはfalseのままです。
 
 ## 重要: 研究・教育目的のみ
 

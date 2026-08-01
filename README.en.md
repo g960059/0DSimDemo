@@ -67,11 +67,10 @@ Completed:
 
 Remaining:
 
-1. admit portable controls beyond the fixed canonical fixture;
-2. bridge capture from the single Worker runtime owner into authoring, then
+1. bridge capture from the single Worker runtime owner into authoring, then
    connect Workbench Save/Snapshot and Reader Placements;
-3. add one-live article scheduling and disposable previews; and
-4. only then author official Presets, Experiments, articles, and Lessons.
+2. add one-live article scheduling and disposable previews; and
+3. only then author official Presets, Experiments, articles, and Lessons.
 
 Earlier case catalogs, lesson documents, numeric Experiment revisions, Working
 Set / Reader Brief types, and certification artifacts are not product-data
@@ -86,8 +85,10 @@ Research-artifact integrity digests and computed results are not copied into
 Experiments.
 
 The Workbench now advances the admitted exact V3 development package. Its
-parameter/control catalogs are intentionally empty, and the engine's
-`releaseReady` and `simulationReady` claims remain false.
+Parameter catalog and durable `ParameterSet` are absent. Its registered Control
+catalog exposes four numeric reset controls: systemic and pulmonary resistance,
+venous tone, and arterial stiffness. The engine's `releaseReady` and
+`simulationReady` claims remain false.
 
 ## Important: research and teaching only
 

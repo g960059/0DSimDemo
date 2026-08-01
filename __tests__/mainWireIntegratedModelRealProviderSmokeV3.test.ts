@@ -33,6 +33,9 @@ import {
   type MainWireIntegratedModelCheckpointContextV3,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3,
   evaluateMainWireIntegratedModelCalciumDriveV3,
   initializeMainWireIntegratedModelV3,
@@ -643,6 +646,8 @@ function checkpointContext(
     rhythm: Object.freeze({ configuration }),
     dynamicMechanicalSupportProfile: profile,
     dynamicMechanicalSupportConfig: config,
+    hemodynamicResearchInputs:
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   });
 }
 

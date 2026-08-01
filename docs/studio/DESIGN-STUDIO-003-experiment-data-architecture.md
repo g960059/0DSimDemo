@@ -63,8 +63,8 @@ Model registry
 
 Model package
   owns equations, runtime, solver semantics, fixture schema,
-  checkpoint codec, minimum snapshot gate, parameter/control/output/graph
-  catalogs
+  checkpoint codec, minimum snapshot gate, control/output/graph catalogs,
+  and the private mapping from semantic controls into complete fixtures
 
 Studio authoring
   resolves one registry-bound exact runtime containing the allowlisted contract
@@ -122,7 +122,7 @@ simulation, output meaning, or the minimum snapshot gate:
 - runtime and solver semantics;
 - fixture schema;
 - checkpoint schema and codec;
-- parameter/control mappings;
+- semantic control-to-fixture mappings and control reset behavior;
 - observable and metric semantics;
 - event ordering and random-number semantics where applicable;
 - minimum settlement/numerical gate;
@@ -163,7 +163,6 @@ type RegisteredModelPackageManifestV2 = {
     definition: JsonObject;
   };
   catalogs: {
-    parameterCatalog: ParameterDefinition[];
     controlCatalog: ControlDefinition[];
     outputCatalog: OutputDefinition[];
     graphCatalog: GraphDefinition[];
@@ -240,10 +239,9 @@ Storage addressing and corruption detection are not Studio domain identity.
 
 ## 4. Model surface
 
-One model contract exposes four model-owned catalogs:
+One model contract exposes three model-owned catalogs:
 
 ```text
-parameters
 controls
 outputs
 graphs
@@ -274,18 +272,66 @@ type OutputDefinition =
 Graph, readout, and control instances stored in an Experiment refer to these
 catalog definitions by ID. A stored instance does not copy a second catalog.
 
-The initial V2 public catalog is deliberately narrow and exact-keyed:
+Controls are semantic, numeric reset commands rather than durable parameter
+entities:
 
-- parameters expose only `parameterId`;
-- controls expose `controlId` and referenced `parameterIds`;
-- graphs expose `graphId` and referenced `outputIds`;
-- outputs expose only the discriminated semantic fields shown above.
+```ts
+type ControlDefinition = {
+  controlId: string;
+  valueType: "number";
+  unit: string;
+  minimum: number;
+  maximum: number;
+  step: number;
+  defaultValue: number;
+  changeSemantics: "reset";
+};
+```
 
-This is an identity/reference-only foundation, not an extensible metadata
-bag. Renderer labels, ranges, formatting, and richer control presentation
-require a later explicit allowlisted contract revision. Unknown catalog keys
-are rejected, including fields named like build, release, or integrity
-metadata.
+`minimum < maximum`, `step > 0`, `step` no larger than the range, and an
+inclusive in-range `defaultValue` are registry admission requirements. Labels
+remain application-localized and are not model-package metadata.
+
+Graphs explicitly select one allowlisted renderer:
+
+```ts
+type GraphDefinition =
+  | {
+      graphId: string;
+      renderer: "sweep";
+      outputIds: readonly string[];
+    }
+  | {
+      graphId: string;
+      renderer: "pressure-volume";
+      outputIds: readonly string[];
+      volumeOutputId: string;
+      pressureOutputId: string;
+      cyclePhaseOutputId: string;
+      guideMode: "none" | "lv-single-beat-orientation";
+    }
+  | {
+      graphId: string;
+      renderer: "structural-return";
+      outputIds: readonly [];
+      analysisId: string;
+      side: "right" | "left";
+    };
+```
+
+Every graph output must exist in the same model's output catalog. Each
+pressure-volume role reference must additionally appear in that graph's own
+`outputIds`; the renderer does not infer pressure, volume, or cycle phase from
+names. A `structural-return` graph is an explicit on-demand cardiac analysis,
+not a live output projection: its `outputIds` must be exactly empty, and its
+portable `analysisId` plus `side` select one model-owned analysis implementation.
+No analysis options or arbitrary JSON configuration may be embedded in the
+catalog definition.
+
+This is an explicitly allowlisted semantic surface, not an extensible metadata
+bag. Additional renderer kinds, formatting, and richer control presentation
+require an explicit allowlisted contract revision. Unknown catalog keys are
+rejected, including fields named like build, release, or integrity metadata.
 
 Each stored control instance also owns a non-empty, duplicate-free
 `targetScenarioIds` list. Every target must exist in the same Experiment.
@@ -436,6 +482,13 @@ Knob interaction
 The ephemeral desired fixture changes immediately. Save later captures and
 persists the resulting fixture/checkpoint pair.
 
+Every V2 control declares `changeSemantics: "reset"`. Applying a control value
+therefore replaces the complete desired fixture and starts a fresh exact-model
+runtime from that fixture; it does not continue from the pre-change checkpoint
+as though the value were a time-resolved intervention. The prior live session
+state is ephemeral. A subsequent Save captures the new runtime's accepted
+fixture/checkpoint pair.
+
 One action may change multiple parameters. Atomic multi-parameter behavior is
 model-owned reduction behavior, not a reason to create a durable
 `ParameterSet`:
@@ -444,9 +497,24 @@ model-owned reduction behavior, not a reason to create a durable
 type ControlAction = {
   kind: "control";
   controlId: string;
-  value: JsonValue;
+  value: number;
 };
 ```
+
+One shared rule validates catalog defaults, the public fixture reducer, and the
+admitted live simulation adapter. It rejects non-finite values, values outside
+the registered inclusive range, and values off the minimum-anchored
+`minimum + n * step` lattice before model state can change. A small bounded
+tolerance admits only ordinary IEEE-754 rounding around a lattice point; it
+does not turn `step` into presentation metadata. Registry admission also
+requires the inclusive maximum to lie on that lattice and rejects a lattice
+span too large for finite, reliably distinguishable step arithmetic.
+
+This lattice is a semantic-control contract, not fixture quantization. A
+complete fixture entering through capture, restore, or a future explicit
+fixture replacement remains valid at any continuous value accepted by the
+model-owned fixture schema; `step` constrains only catalog control actions and
+their defaults.
 
 Raw fixture paths never cross the public command boundary. The registry-bound
 model adapter may map one control to several fixture fields; the internal patch
@@ -867,7 +935,7 @@ Completed in the current development cutover:
    V3 live numerical session;
 3. one development package for `MainWireIntegratedModelTransactionV3` under
    the exact immutable `modelId`
-   `circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-2`;
+   `circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-8`;
 4. trusted client resolution of that registry-admitted release as the default,
    with no client-side package rehash;
 5. Workbench autostart through the generic Worker protocol into catalog-driven
@@ -878,15 +946,14 @@ Completed in the current development cutover:
 
 Still deliberately deferred:
 
-1. portable model controls beyond the fixed canonical fixture;
-2. a Worker-to-authoring capture bridge followed by the Save/Snapshot UI and
+1. a Worker-to-authoring capture bridge followed by the Save/Snapshot UI and
    snapshot-pinned Reader Placement;
-3. one-live article scheduling and disposable preview artifacts; and
-4. official Scenario Presets, Experiments, articles, and Lesson pages.
+2. one-live article scheduling and disposable preview artifacts; and
+3. official Scenario Presets, Experiments, articles, and Lesson pages.
 
-The current development package makes no physiological, clinical, release-ready,
-or simulation-ready claim. Its parameter and control catalogs are intentionally
-empty until model-owned portable control semantics are connected.
+The current development package makes no physiological, clinical,
+release-ready, or simulation-ready claim. Model catalogs are runtime and
+presentation interfaces; their presence is not scientific validation evidence.
 
 No step adds a hidden compatibility reader, automatic parent propagation,
 client-side package hash verification, or content encoded with a superseded

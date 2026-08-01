@@ -8,6 +8,9 @@ import {
 } from "@/engine/coronary/mainWireNormalAdultCoronaryV2";
 import { createMechanicalSupportConfigV1 } from "@/engine/devices/defaultsV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
   createDynamicMechanicalSupportDeviceProfileBindingV1,
   createDynamicMechanicalSupportInertanceProfileV1,
   type DynamicMechanicalSupportInertanceProfileV1,
@@ -720,6 +723,8 @@ function checkpointContext(
       rhythm: Object.freeze({ configuration: fixture.rhythmConfiguration }),
       dynamicMechanicalSupportProfile: fixture.profile,
       dynamicMechanicalSupportConfig: fixture.config,
+      hemodynamicResearchInputs:
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     }),
   });
 }

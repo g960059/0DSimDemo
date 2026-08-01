@@ -10,6 +10,7 @@ import { Settings2 } from "lucide-react";
 import "dockview/dist/styles/dockview.css";
 
 export type WorkbenchPaneRoleV3 = "graph" | "output" | "control" | "note";
+export type WorkbenchDockLayoutModeV3 = "split" | "tabs";
 
 export type WorkbenchPaneDefinitionV3 = Readonly<{
   paneId: string;
@@ -114,24 +115,38 @@ function addPaneV3(
 function applyPanesV3(
   api: DockviewApi,
   panes: readonly WorkbenchPaneDefinitionV3[],
+  layoutMode: WorkbenchDockLayoutModeV3,
 ): void {
   api.clear();
   panes.forEach((pane, index) => {
     addPaneV3(
       api,
       pane,
-      index === 0 ? "first" : index === 1 ? "right" : "within",
+      workbenchPanePlacementV3(index, layoutMode),
     );
   });
+  const firstPane = panes[0];
+  if (firstPane !== undefined) {
+    api.getPanel?.(firstPane.paneId)?.api?.setActive?.();
+  }
+}
+
+export function workbenchPanePlacementV3(
+  index: number,
+  layoutMode: WorkbenchDockLayoutModeV3,
+): "first" | "right" | "within" {
+  if (index === 0) return "first";
+  return layoutMode === "split" && index === 1 ? "right" : "within";
 }
 
 export function getWorkbenchPaneSignatureV3(
   panes: readonly WorkbenchPaneDefinitionV3[],
+  layoutMode: WorkbenchDockLayoutModeV3 = "split",
 ): string {
   // Titles and pane-specific selections flow through React context. Only the
   // ordered Dockview membership and role require structural reconciliation.
   return JSON.stringify(
-    panes.map(({ paneId, role }) => [paneId, role]),
+    [layoutMode, panes.map(({ paneId, role }) => [paneId, role])],
   );
 }
 
@@ -139,10 +154,11 @@ export function reconcileWorkbenchPanesV3(
   api: DockviewApi,
   panes: readonly WorkbenchPaneDefinitionV3[],
   appliedSignature: string | null,
+  layoutMode: WorkbenchDockLayoutModeV3 = "split",
 ): string {
-  const nextSignature = getWorkbenchPaneSignatureV3(panes);
+  const nextSignature = getWorkbenchPaneSignatureV3(panes, layoutMode);
   if (nextSignature === appliedSignature) return appliedSignature;
-  applyPanesV3(api, panes);
+  applyPanesV3(api, panes, layoutMode);
   return nextSignature;
 }
 
@@ -199,13 +215,20 @@ export function WorkbenchDockview({
   }
 
   const apiRef = React.useRef<DockviewApi | null>(null);
+  const narrowViewport = useNarrowWorkbenchDockviewV3();
+  const layoutMode: WorkbenchDockLayoutModeV3 = role === "graph"
+    && narrowViewport
+    ? "tabs"
+    : "split";
   const latestPanesRef = React.useRef(panes);
   latestPanesRef.current = panes;
+  const latestLayoutModeRef = React.useRef(layoutMode);
+  latestLayoutModeRef.current = layoutMode;
   const appliedPaneSignatureRef = React.useRef<string | null>(null);
   const appliedPaneTitleSignatureRef = React.useRef<string | null>(null);
   const paneSignature = React.useMemo(
-    () => getWorkbenchPaneSignatureV3(panes),
-    [panes],
+    () => getWorkbenchPaneSignatureV3(panes, layoutMode),
+    [layoutMode, panes],
   );
   const paneTitleSignature = React.useMemo(
     () => getWorkbenchPaneTitleSignatureV3(panes),
@@ -245,6 +268,7 @@ export function WorkbenchDockview({
       api,
       latestPanesRef.current,
       appliedPaneSignatureRef.current,
+      latestLayoutModeRef.current,
     );
   }, [paneSignature]);
 
@@ -307,6 +331,7 @@ export function WorkbenchDockview({
               event.api,
               latestPanesRef.current,
               null,
+              latestLayoutModeRef.current,
             );
             appliedPaneTitleSignatureRef.current =
               reconcileWorkbenchPaneTitlesV3(
@@ -319,6 +344,20 @@ export function WorkbenchDockview({
       </section>
     </WorkbenchDockContextV3.Provider>
   );
+}
+
+function useNarrowWorkbenchDockviewV3(): boolean {
+  const query = "(max-width: 1023px)";
+  const [matches, setMatches] = React.useState(() =>
+    typeof window !== "undefined" && window.matchMedia(query).matches);
+  React.useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setMatches(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  return matches;
 }
 
 export default WorkbenchDockview;

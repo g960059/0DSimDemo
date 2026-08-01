@@ -52,7 +52,7 @@ export type StudioFixturePatchV2 = Readonly<{
 export type StudioControlActionV2 = Readonly<{
   kind: "control";
   controlId: string;
-  value: StudioJsonValueV2;
+  value: number;
   requestCorrelation?: string;
 }>;
 
@@ -76,7 +76,7 @@ export type StudioModelFixtureAdapterV2 = Readonly<{
   validateCompleteFixture(input: Readonly<{
     context: StudioScenarioRuntimeContextV2;
     fixture: StudioDesiredFixtureV2;
-  }>): void;
+  }>): undefined;
   reduceControlAction?: (
     input: StudioModelControlReductionInputV2,
   ) => StudioFixturePatchV2;

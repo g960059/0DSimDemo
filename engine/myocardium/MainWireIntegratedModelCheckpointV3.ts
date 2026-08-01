@@ -33,9 +33,13 @@ import {
 import {
   sha256CanonicalJsonHex,
 } from "@/engine/integrity";
+import {
+  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
+  type MainWireIntegratedModelHemodynamicResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID =
-  "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v3" as const;
+  "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v4" as const;
 
 export type MainWireIntegratedModelCheckpointContextV3<TWallState> = Readonly<
   MainWireFiveWallCoronaryCheckpointContextV3<TWallState>
@@ -44,18 +48,21 @@ export type MainWireIntegratedModelCheckpointContextV3<TWallState> = Readonly<
     dynamicMechanicalSupportProfile:
       DynamicMechanicalSupportInertanceProfileV1;
     dynamicMechanicalSupportConfig: MechanicalSupportConfigV1;
+    hemodynamicResearchInputs:
+      MainWireIntegratedModelHemodynamicResearchInputsV3;
   }
 >;
 
 export type MainWireIntegratedModelCheckpointPayloadV3 = Readonly<{
   checkpointId: typeof MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID;
-  schemaVersion: 3;
+  schemaVersion: 4;
   transactionId: typeof MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID;
   revision: number;
   acceptedTimeSec: number;
   composedRhythmConfigurationIdentitySha256: string;
   dynamicMechanicalSupportProfileIdentitySha256: string;
   dynamicMechanicalSupportStructuralHydraulicIdentitySha256: string;
+  hemodynamicResearchInputIdentitySha256: string;
   coronary: MainWireFiveWallCoronaryCheckpointV3;
   composedRhythm: AcceptedComposedRhythmTransactionCheckpointV2;
   dynamicMechanicalSupport: DynamicMechanicalSupportAcceptedStateV1;
@@ -89,6 +96,7 @@ export async function checkpointMainWireIntegratedModelV3<TWallState>(
     composedRhythmConfigurationIdentitySha256,
     dynamicMechanicalSupportProfileIdentitySha256,
     dynamicMechanicalSupportStructuralHydraulicIdentitySha256,
+    hemodynamicResearchInputIdentitySha256,
   ] = await Promise.all([
     checkpointMainWireFiveWallCoronaryV3(context, state.coronary),
     checkpointAcceptedComposedRhythmTransactionStateV2(
@@ -101,6 +109,11 @@ export async function checkpointMainWireIntegratedModelV3<TWallState>(
     sha256CanonicalJsonHex(
       dynamicMechanicalSupport.structuralHydraulicProjection,
     ),
+    sha256CanonicalJsonHex(
+      validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+        context.hemodynamicResearchInputs,
+      ),
+    ),
   ]);
   assertNestedClocks(
     state.revision,
@@ -110,13 +123,14 @@ export async function checkpointMainWireIntegratedModelV3<TWallState>(
   );
   const payload = Object.freeze({
     checkpointId: MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
-    schemaVersion: 3 as const,
+    schemaVersion: 4 as const,
     transactionId: MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
     revision: state.revision,
     acceptedTimeSec: state.acceptedTimeSec,
     composedRhythmConfigurationIdentitySha256,
     dynamicMechanicalSupportProfileIdentitySha256,
     dynamicMechanicalSupportStructuralHydraulicIdentitySha256,
+    hemodynamicResearchInputIdentitySha256,
     coronary,
     composedRhythm,
     dynamicMechanicalSupport,
@@ -148,11 +162,17 @@ export async function restoreMainWireIntegratedModelV3<TWallState>(
     expectedComposedRhythmConfigurationIdentitySha256,
     expectedDynamicMechanicalSupportProfileIdentitySha256,
     expectedDynamicMechanicalSupportStructuralHydraulicIdentitySha256,
+    expectedHemodynamicResearchInputIdentitySha256,
   ] = await Promise.all([
     sha256CanonicalJsonHex(context.rhythm.configuration),
     sha256CanonicalJsonHex(expectedDynamicBinding.inertanceProfileSnapshot),
     sha256CanonicalJsonHex(
       expectedDynamicBinding.structuralHydraulicProjection,
+    ),
+    sha256CanonicalJsonHex(
+      validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+        context.hemodynamicResearchInputs,
+      ),
     ),
   ]);
   if (
@@ -177,6 +197,14 @@ export async function restoreMainWireIntegratedModelV3<TWallState>(
   ) {
     throw new Error(
       "composed integrated checkpoint dynamic MCS structural hydraulic SHA-256 identity mismatch",
+    );
+  }
+  if (
+    checkpoint.hemodynamicResearchInputIdentitySha256
+      !== expectedHemodynamicResearchInputIdentitySha256
+  ) {
+    throw new Error(
+      "composed integrated checkpoint hemodynamic research input SHA-256 identity mismatch",
     );
   }
 
@@ -249,6 +277,9 @@ function validateCheckpointContext<TWallState>(
     context.dynamicMechanicalSupportProfile,
   );
   validateMechanicalSupportConfigV1(context.dynamicMechanicalSupportConfig);
+  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+    context.hemodynamicResearchInputs,
+  );
 }
 
 function assertNestedClocks(
@@ -287,6 +318,7 @@ function assertCheckpointEnvelope(
     "composedRhythmConfigurationIdentitySha256",
     "dynamicMechanicalSupportProfileIdentitySha256",
     "dynamicMechanicalSupportStructuralHydraulicIdentitySha256",
+    "hemodynamicResearchInputIdentitySha256",
     "coronary",
     "composedRhythm",
     "dynamicMechanicalSupport",
@@ -295,7 +327,7 @@ function assertCheckpointEnvelope(
   const typed = input as Partial<MainWireIntegratedModelCheckpointV3>;
   if (
     typed.checkpointId !== MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID
-    || typed.schemaVersion !== 3
+    || typed.schemaVersion !== 4
     || typed.transactionId !== MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID
   ) throw new Error("unsupported composed integrated model checkpoint schema");
   digest(typed.checkpointSha256, "composed integrated checkpoint SHA-256");
@@ -310,6 +342,10 @@ function assertCheckpointEnvelope(
   digest(
     typed.dynamicMechanicalSupportStructuralHydraulicIdentitySha256,
     "composed integrated checkpoint dynamic MCS structural hydraulic SHA-256 identity",
+  );
+  digest(
+    typed.hemodynamicResearchInputIdentitySha256,
+    "composed integrated checkpoint hemodynamic research input SHA-256 identity",
   );
 }
 

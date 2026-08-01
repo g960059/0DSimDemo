@@ -4,6 +4,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
   limitMainWireIntegratedModelCandidateTimeV3,
   stepMainWireIntegratedModelV3,
   type MainWireIntegratedModelAcceptedStateV3,
@@ -169,7 +172,23 @@ describe("MainWireIntegratedModelSessionV3", () => {
     expect(boundaryCheckpoint.checkpointId).toBe(
       MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
     );
+    expect(boundaryCheckpoint).toMatchObject({
+      checkpointId:
+        "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v4",
+      schemaVersion: 4,
+      hemodynamicResearchInputIdentitySha256:
+        expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
     expect(boundaryCheckpoint).not.toHaveProperty("exactResumeClaim");
+    await expect(
+      MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
+        JSON.parse(JSON.stringify(boundaryCheckpoint)),
+        {
+          ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+          systemicResistance: 1.1,
+        },
+      ),
+    ).rejects.toThrow(/hemodynamic research input SHA-256 identity mismatch/);
     const boundaryRestored =
       await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
         JSON.parse(JSON.stringify(boundaryCheckpoint)),
