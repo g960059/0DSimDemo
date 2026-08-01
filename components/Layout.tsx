@@ -1,15 +1,15 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, PlaySquare, Moon, Sun } from 'lucide-react';
+import { BookOpen, FileText, PlaySquare, Moon, Sun } from 'lucide-react';
 import { ModelLimitations } from './ModelLimitations';
-import { homeHref, workbenchHref } from '../homeLinks';
+import { articlesHref, experimentsHref, homeHref } from '../homeLinks';
 import { useAppTheme } from '../appTheme';
 import { type Locale, localeFromPathname, setPreferredLocale, stripLocaleFromPathname, switchLocalePath } from '../localeRouting';
 
 export function routeOwnsApplicationChrome(pathname: string): boolean {
-  return pathname === '/workbench'
-    || pathname.startsWith('/workbench/')
+  return pathname === '/experiments'
+    || pathname.startsWith('/experiments/')
     || pathname === '/articles'
     || pathname.startsWith('/articles/');
 }
@@ -30,7 +30,8 @@ export const Layout = () => {
 
   const navItems = [
     { name: t('nav.home'), path: homeHref(locale), matchPath: '/', icon: <BookOpen className="h-4 w-4" /> },
-    { name: t('nav.workbench'), path: workbenchHref(locale), matchPath: '/workbench', icon: <PlaySquare className="h-4 w-4" /> },
+    { name: t('nav.articles'), path: articlesHref(locale), matchPath: '/articles', icon: <FileText className="h-4 w-4" /> },
+    { name: t('nav.workbench'), path: experimentsHref(locale), matchPath: '/experiments', icon: <PlaySquare className="h-4 w-4" /> },
   ];
   const languageItems: Array<{ locale: Locale; label: string }> = [
     { locale: 'ja', label: t('common.language.ja') },

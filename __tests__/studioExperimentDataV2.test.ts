@@ -384,7 +384,7 @@ describe("Studio Experiment data V2", () => {
     )).not.toThrow();
   });
 
-  it("pins a placement and distinguishes an omitted briefing from empty picks", () => {
+  it("pins a placement and validates role-specific Reader briefing content", () => {
     const snapshot = snapshotV2();
     const all = validateExperimentPlacementAgainstSnapshotV2(
       placementV2(),
@@ -392,33 +392,47 @@ describe("Studio Experiment data V2", () => {
     );
     expect(all.briefing).toBeUndefined();
 
-    const none = placementV2() as Record<string, any>;
-    none.briefing = {
-      scenarioIds: [],
-      panePicks: [],
-    };
-    const validatedNone = validateExperimentPlacementAgainstSnapshotV2(
-      none,
+    const roleSpecific = placementV2() as Record<string, any>;
+    roleSpecific.briefing = briefingV2();
+    const validated = validateExperimentPlacementAgainstSnapshotV2(
+      roleSpecific,
       snapshot,
     );
-    expect(validatedNone.briefing).toEqual(none.briefing);
-    expect(validatedNone.briefing?.scenarioIds).toEqual([]);
-    expect(validatedNone.briefing?.panePicks).toEqual([]);
-
-    const subset = placementV2() as Record<string, any>;
-    subset.briefing = {
-      scenarioIds: ["scenario/baseline"],
-      panePicks: [
-        { paneId: "pane/controls", priority: 20 },
-        { paneId: "pane/pressure", priority: 10 },
-      ],
-    };
-    expect(
-      validateExperimentPlacementAgainstSnapshotV2(subset, snapshot).briefing,
-    ).toEqual(subset.briefing);
+    expect(validated.briefing).toEqual(roleSpecific.briefing);
+    expect(validated.briefing).toMatchObject({
+      scenarioScope: {
+        visibleScenarioIds: ["scenario/baseline"],
+        initialFocusScenarioId: "scenario/baseline",
+      },
+      graphs: [{
+        paneId: "pane/pressure",
+        emphasis: "primary",
+        overrides: {
+          legend: "compact",
+          windowSec: 3,
+        },
+      }],
+      outputs: [{ outputId: "catalog.output/map" }],
+      controls: [{
+        controlId: "catalog.control/svr",
+        presentation: {
+          kind: "buttons",
+          options: [
+            { label: "Low", value: 0.8 },
+            { label: "High", value: 1.2 },
+          ],
+        },
+        binding: {
+          mode: "fixed",
+          scenarioIds: ["scenario/baseline"],
+          application: "absolute",
+        },
+      }],
+    });
+    expect(Object.isFrozen(validated.briefing)).toBe(true);
   });
 
-  it("rejects a wrong snapshot and invalid briefing selections", () => {
+  it("rejects a wrong snapshot and malformed or unknown briefing selections", () => {
     const snapshot = snapshotV2();
     const wrongSnapshot = placementV2();
     wrongSnapshot.snapshotId = "snapshot/other";
@@ -426,41 +440,194 @@ describe("Studio Experiment data V2", () => {
       validateExperimentPlacementAgainstSnapshotV2(wrongSnapshot, snapshot)
     ).toThrow(/does not match the pinned snapshot/);
 
-    const unknown = placementV2() as Record<string, any>;
-    unknown.briefing = {
-      panePicks: [{ paneId: "pane/missing", priority: 0 }],
-    };
+    const malformed = placementV2() as Record<string, any>;
+    malformed.briefing = { unknownProjection: [] };
     expect(() =>
-      validateExperimentPlacementAgainstSnapshotV2(unknown, snapshot)
-    ).toThrow(/unknown pane pane\/missing/);
+      validateExperimentPlacementAgainstSnapshotV2(malformed, snapshot)
+    ).toThrow(/keys must be exactly/);
 
-    const duplicate = placementV2() as Record<string, any>;
-    duplicate.briefing = {
-      scenarioIds: ["scenario/baseline", "scenario/baseline"],
-      panePicks: [],
-    };
+    const unknownGraph = placementWithBriefingV2();
+    unknownGraph.briefing.graphs[0].paneId = "pane/missing";
     expect(() =>
-      validateExperimentPlacementAgainstSnapshotV2(duplicate, snapshot)
-    ).toThrow(/duplicate id scenario\/baseline/);
+      validateExperimentPlacementAgainstSnapshotV2(unknownGraph, snapshot)
+    ).toThrow(/unknown graph pane pane\/missing/);
 
-    const duplicatePick = placementV2() as Record<string, any>;
-    duplicatePick.briefing = {
-      panePicks: [
-        { paneId: "pane/pressure", priority: 5 },
-        { paneId: "pane/pressure", priority: 10 },
+    const unknownSeries = placementWithBriefingV2();
+    unknownSeries.briefing.graphs[0].overrides.series[0].seriesId = "missing";
+    expect(() =>
+      validateExperimentPlacementAgainstSnapshotV2(unknownSeries, snapshot)
+    ).toThrow(/unknown id missing/);
+
+    const unknownOutput = placementWithBriefingV2();
+    unknownOutput.briefing.outputs[0].outputId = "catalog.output/missing";
+    expect(() =>
+      validateExperimentPlacementAgainstSnapshotV2(unknownOutput, snapshot)
+    ).toThrow(/unknown Surface output catalog.output\/missing/);
+
+    const unknownControl = placementWithBriefingV2();
+    unknownControl.briefing.controls[0].controlId = "catalog.control/missing";
+    expect(() =>
+      validateExperimentPlacementAgainstSnapshotV2(unknownControl, snapshot)
+    ).toThrow(/unknown Surface control catalog.control\/missing/);
+  });
+
+  it("fails closed on briefing identity, order, labels, colors and button values", () => {
+    const cases: Array<readonly [
+      string,
+      (briefing: Record<string, any>) => void,
+      RegExp,
+    ]> = [
+      [
+        "duplicate graph pane",
+        (briefing) => {
+          briefing.graphs.push({ ...briefing.graphs[0], order: 1 });
+        },
+        /duplicate id pane\/pressure/,
       ],
-    };
-    expect(() =>
-      validateExperimentPlacementAgainstSnapshotV2(duplicatePick, snapshot)
-    ).toThrow(/duplicate id pane\/pressure/);
+      [
+        "negative graph order",
+        (briefing) => {
+          briefing.graphs[0].order = -1;
+        },
+        /nonnegative safe integer/,
+      ],
+      [
+        "unknown emphasis",
+        (briefing) => {
+          briefing.graphs[0].emphasis = "hero";
+        },
+        /must be primary or supporting/,
+      ],
+      [
+        "blank graph label",
+        (briefing) => {
+          briefing.graphs[0].overrides.label = " ";
+        },
+        /nonempty trimmed string/,
+      ],
+      [
+        "noncanonical graph color",
+        (briefing) => {
+          briefing.graphs[0].overrides.series[0].colorHex = "#3EA8FF";
+        },
+        /canonical lowercase #rrggbb color/,
+      ],
+      [
+        "duplicate output",
+        (briefing) => {
+          briefing.outputs.push({ ...briefing.outputs[0], order: 1 });
+        },
+        /duplicate id catalog.output\/map/,
+      ],
+      [
+        "untrimmed output label",
+        (briefing) => {
+          briefing.outputs[0].label = " MAP";
+        },
+        /nonempty trimmed string/,
+      ],
+      [
+        "duplicate control",
+        (briefing) => {
+          briefing.controls.push({ ...briefing.controls[0], order: 1 });
+        },
+        /duplicate id catalog.control\/svr/,
+      ],
+      [
+        "invalid button value",
+        (briefing) => {
+          briefing.controls[0].presentation.options[0].value = "low";
+        },
+        /must be a finite number/,
+      ],
+      [
+        "duplicate button value",
+        (briefing) => {
+          briefing.controls[0].presentation.options[1].value = 0.8;
+        },
+        /duplicate button value/,
+      ],
+      [
+        "empty buttons",
+        (briefing) => {
+          briefing.controls[0].presentation.options = [];
+        },
+        /must contain at least one option/,
+      ],
+      [
+        "invalid fixed application",
+        (briefing) => {
+          briefing.controls[0].binding.application = "relative";
+        },
+        /must be absolute/,
+      ],
+    ];
 
-    const negativePriority = placementV2() as Record<string, any>;
-    negativePriority.briefing = {
-      panePicks: [{ paneId: "pane/pressure", priority: -1 }],
+    for (const [_name, mutate, pattern] of cases) {
+      const placement = placementWithBriefingV2();
+      mutate(placement.briefing);
+      expect(() => validateExperimentPlacementAgainstSnapshotV2(
+        placement,
+        snapshotV2(),
+      )).toThrow(pattern);
+    }
+  });
+
+  it("fails closed on Reader scenario scope and control binding targets", () => {
+    const duplicateVisible = placementWithBriefingV2();
+    duplicateVisible.briefing.scenarioScope.visibleScenarioIds.push(
+      "scenario/baseline",
+    );
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      duplicateVisible,
+      snapshotV2(),
+    )).toThrow(/duplicate id scenario\/baseline/);
+
+    const emptyVisible = placementWithBriefingV2();
+    emptyVisible.briefing.scenarioScope.visibleScenarioIds = [];
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      emptyVisible,
+      snapshotV2(),
+    )).toThrow(/must contain at least one Scenario/);
+
+    const focusOutsideScope = placementWithBriefingV2();
+    focusOutsideScope.briefing.scenarioScope.initialFocusScenarioId =
+      "scenario/comparison";
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      focusOutsideScope,
+      snapshotV2(),
+    )).toThrow(/must be included in visibleScenarioIds/);
+
+    const snapshot = snapshotV2() as Record<string, any>;
+    snapshot.content.scenarios.push({
+      ...structuredClone(snapshot.content.scenarios[0]),
+      scenarioId: "scenario/comparison",
+      label: "Comparison",
+    });
+    const hiddenFixedTarget = placementWithBriefingV2();
+    hiddenFixedTarget.briefing.controls[0].binding.scenarioIds = [
+      "scenario/comparison",
+    ];
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      hiddenFixedTarget,
+      snapshot,
+    )).toThrow(/unknown id scenario\/comparison/);
+
+    const readerFocus = placementWithBriefingV2();
+    readerFocus.briefing.controls[0].binding = {
+      mode: "reader-focus",
+      allowedScenarioIds: ["scenario/baseline"],
     };
-    expect(() =>
-      validateExperimentPlacementAgainstSnapshotV2(negativePriority, snapshot)
-    ).toThrow(/nonnegative safe integer/);
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      readerFocus,
+      snapshotV2(),
+    )).not.toThrow();
+
+    readerFocus.briefing.controls[0].binding.allowedScenarioIds = [];
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      readerFocus,
+      snapshotV2(),
+    )).toThrow(/must contain at least one Scenario/);
   });
 
   it("validates the only reusable named input/state object and applies it by copy", async () => {
@@ -771,6 +938,60 @@ function placementV2() {
     snapshotId: "snapshot/3",
     caption: "Afterload experiment",
   };
+}
+
+function briefingV2() {
+  return {
+    scenarioScope: {
+      visibleScenarioIds: ["scenario/baseline"],
+      initialFocusScenarioId: "scenario/baseline",
+    },
+    graphs: [{
+      paneId: "pane/pressure",
+      order: 0,
+      emphasis: "primary",
+      overrides: {
+        label: "Arterial pressure",
+        legend: "compact",
+        series: [{
+          seriesId: "MAP",
+          label: "MAP",
+          colorHex: "#3ea8ff",
+          order: 0,
+        }],
+        windowSec: 3,
+      },
+    }],
+    outputs: [{
+      outputId: "catalog.output/map",
+      label: "MAP",
+      order: 0,
+    }],
+    controls: [{
+      controlId: "catalog.control/svr",
+      label: "Afterload",
+      order: 0,
+      presentation: {
+        kind: "buttons",
+        options: [
+          { label: "Low", value: 0.8 },
+          { label: "High", value: 1.2 },
+        ],
+      },
+      binding: {
+        mode: "fixed",
+        scenarioIds: ["scenario/baseline"],
+        application: "absolute",
+      },
+    }],
+  };
+}
+
+function placementWithBriefingV2() {
+  return {
+    ...placementV2(),
+    briefing: briefingV2(),
+  } as Record<string, any>;
 }
 
 function presetV2() {

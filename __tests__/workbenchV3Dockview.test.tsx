@@ -5,9 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   archiveWorkbenchAnalysesV3,
+  createWorkbenchBriefingSnapshotV3,
   persistWorkbenchBriefingHandoffV3,
-  reconcileWorkbenchBriefingPicksV3,
-  resolveWorkbenchBriefingPicksAfterRestartV3,
+  reconcileWorkbenchBriefingV3,
+  resolveWorkbenchBriefingEditorChangeV3,
+  resolveWorkbenchInitialSaveStateV3,
   resolveControlDraftCommitV3,
   resolveWorkbenchSurfaceAfterCommitV3,
   readNewerDurableWorkbenchWorkspaceV3,
@@ -72,6 +74,29 @@ import {
 } from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 
 describe("V3 Dockview Workbench", () => {
+  it("marks a new Workbench dirty until its first durable Save", () => {
+    expect(resolveWorkbenchInitialSaveStateV3({
+      hasStoredWorkspace: false,
+      hasPendingSurface: false,
+      pendingSaveState: null,
+    })).toBe("dirty");
+    expect(resolveWorkbenchInitialSaveStateV3({
+      hasStoredWorkspace: true,
+      hasPendingSurface: false,
+      pendingSaveState: null,
+    })).toBe("clean");
+    expect(resolveWorkbenchInitialSaveStateV3({
+      hasStoredWorkspace: true,
+      hasPendingSurface: true,
+      pendingSaveState: null,
+    })).toBe("dirty");
+    expect(resolveWorkbenchInitialSaveStateV3({
+      hasStoredWorkspace: true,
+      hasPendingSurface: false,
+      pendingSaveState: "error",
+    })).toBe("error");
+  });
+
   it("treats a graph history depth of zero as no history", () => {
     const history = Object.freeze(["oldest", "older", "newer", "newest"]);
     expect(workbenchBoundedGraphHistoryV3(history, 0)).toEqual([]);
@@ -426,12 +451,6 @@ describe("V3 Dockview Workbench", () => {
     const deleted = deleteWorkbenchSurfacePaneV3(customized, selectedPane);
     expect(deleted.deleted).toBe(true);
     expect(deleted.surface.outputPanes).toHaveLength(1);
-    expect(reconcileWorkbenchBriefingPicksV3([
-      { paneId: selectedPane.paneId, priority: 4 },
-      { paneId: customized.graphPanes[0]!.paneId, priority: 3 },
-    ], deleted.surface)).toEqual([
-      { paneId: customized.graphPanes[0]!.paneId, priority: 3 },
-    ]);
     const deleteLast = deleteWorkbenchSurfacePaneV3(
       deleted.surface,
       { kind: "output", paneId: deleted.surface.outputPanes[0]!.paneId },
@@ -441,46 +460,179 @@ describe("V3 Dockview Workbench", () => {
     expect(deleteLast.nextSelectedPane).toBeNull();
   });
 
-  it("preserves partial and explicitly empty Briefings across Worker restart", async () => {
+  it("preserves role-specific and explicitly empty Briefings across Worker restart", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const surface = createDefaultExperimentSurfaceV3(composition.contract);
-    const paneId = surface.graphPanes[0]!.paneId;
+    const snapshot = createWorkbenchBriefingSnapshotV3({
+      experimentId: "experiment/workbench-briefing",
+      modelId: composition.contract.modelId,
+      scenarios: [
+        { scenarioId: "scenario/default", label: "Baseline" },
+        { scenarioId: "scenario/comparison", label: "Comparison" },
+      ],
+      surface,
+    });
+    const defaultBriefing = reconcileWorkbenchBriefingV3({
+      briefing: null,
+      preferredFocusScenarioId: "scenario/comparison",
+      snapshot,
+    });
+    expect(defaultBriefing.scenarioScope.initialFocusScenarioId)
+      .toBe("scenario/comparison");
+    expect(defaultBriefing.controls.every((control) => (
+      control.binding.mode === "fixed"
+      && control.binding.scenarioIds[0] === "scenario/comparison"
+    ))).toBe(true);
 
-    expect(resolveWorkbenchBriefingPicksAfterRestartV3(null, surface))
-      .toHaveLength(
-        surface.graphPanes.length
-        + surface.outputPanes.length
-        + surface.controlPanes.length,
-      );
-    expect(resolveWorkbenchBriefingPicksAfterRestartV3([], surface)).toEqual([]);
-    expect(resolveWorkbenchBriefingPicksAfterRestartV3([
-      { paneId, priority: 12 },
-    ], surface)).toEqual([{ paneId, priority: 12 }]);
+    const explicitEmpty = {
+      scenarioScope: {
+        visibleScenarioIds: ["scenario/default"],
+        initialFocusScenarioId: "scenario/default",
+      },
+      graphs: [],
+      outputs: [],
+      controls: [],
+    } as const;
+    expect(reconcileWorkbenchBriefingV3({
+      briefing: explicitEmpty,
+      preferredFocusScenarioId: "scenario/comparison",
+      snapshot,
+    })).toEqual(explicitEmpty);
+
+    const graph = surface.graphPanes[0]!;
+    const partial = {
+      ...explicitEmpty,
+      graphs: [{
+        paneId: graph.paneId,
+        order: 0,
+        emphasis: "primary" as const,
+        overrides: {
+          label: "Article pressure",
+          legend: "compact" as const,
+          series: graph.series.slice(0, 1).map((series) => ({
+            ...series,
+            label: "Focused series",
+            colorHex: "#3ea8ff",
+            order: 0,
+          })),
+          ...(graph.windowSec === undefined ? {} : { windowSec: graph.windowSec }),
+          ...(graph.historyDepth === undefined ? {} : { historyDepth: graph.historyDepth }),
+        },
+      }],
+    };
+    const reconciled = reconcileWorkbenchBriefingV3({
+      briefing: partial,
+      preferredFocusScenarioId: "scenario/default",
+      snapshot,
+    });
+    expect(reconciled.graphs).toEqual(partial.graphs);
+    expect(reconciled.outputs).toEqual([]);
+    expect(reconciled.controls).toEqual([]);
+  });
+
+  it("materializes the active slot only for a newly picked control", async () => {
+    const composition = await loadStudioDefaultClientCompositionV2();
+    const surface = createDefaultExperimentSurfaceV3(composition.contract);
+    const snapshot = createWorkbenchBriefingSnapshotV3({
+      experimentId: "experiment/workbench-control-pickup",
+      modelId: composition.contract.modelId,
+      scenarios: [
+        { scenarioId: "scenario/default", label: "Baseline" },
+        { scenarioId: "scenario/comparison", label: "Comparison" },
+      ],
+      surface,
+    });
+    const defaults = reconcileWorkbenchBriefingV3({
+      briefing: null,
+      preferredFocusScenarioId: "scenario/default",
+      snapshot,
+    });
+    const control = defaults.controls[0]!;
+    const current = {
+      ...defaults,
+      scenarioScope: {
+        visibleScenarioIds: ["scenario/default"],
+        initialFocusScenarioId: "scenario/default",
+      },
+      controls: [],
+    };
+    const picked = resolveWorkbenchBriefingEditorChangeV3({
+      activeScenarioId: "scenario/comparison",
+      current,
+      next: { ...current, controls: [control] },
+      snapshot,
+    });
+    expect(picked.scenarioScope.visibleScenarioIds)
+      .toEqual(["scenario/default", "scenario/comparison"]);
+    expect(picked.controls[0]?.binding).toEqual({
+      mode: "fixed",
+      scenarioIds: ["scenario/comparison"],
+      application: "absolute",
+    });
+
+    const refocused = resolveWorkbenchBriefingEditorChangeV3({
+      activeScenarioId: "scenario/default",
+      current: picked,
+      next: picked,
+      snapshot,
+    });
+    expect(refocused.controls[0]?.binding).toEqual(
+      picked.controls[0]?.binding,
+    );
   });
 
   it("hands the exact authored Briefing to Article without risking Snapshot commit", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const surface = createDefaultExperimentSurfaceV3(composition.contract);
-    const paneId = surface.graphPanes[0]!.paneId;
+    const graph = surface.graphPanes[0]!;
     const values = new Map<string, string>();
     const handoff = new StudioSnapshotBriefingHandoffV3({
       getItem: (key) => values.get(key) ?? null,
       setItem: (key, value) => { values.set(key, value); },
       removeItem: (key) => { values.delete(key); },
     });
+    const snapshot = Object.freeze({
+      ...createWorkbenchBriefingSnapshotV3({
+        experimentId: "experiment/workbench-briefing",
+        modelId: composition.contract.modelId,
+        scenarios: [{ scenarioId: "scenario/default", label: "Baseline" }],
+        surface,
+      }),
+      snapshotId: "snapshot/workbench-briefing",
+    });
+    const briefing = {
+      scenarioScope: {
+        visibleScenarioIds: ["scenario/default"],
+        initialFocusScenarioId: "scenario/default",
+      },
+      graphs: [{
+        paneId: graph.paneId,
+        order: 0,
+        emphasis: "primary" as const,
+        overrides: {
+          label: "Focused graph",
+          legend: "compact" as const,
+          series: graph.series.slice(0, 1).map((series) => ({
+            ...series,
+            label: "Article series",
+            colorHex: "#3ea8ff",
+            order: 0,
+          })),
+          ...(graph.windowSec === undefined ? {} : { windowSec: graph.windowSec }),
+          ...(graph.historyDepth === undefined ? {} : { historyDepth: graph.historyDepth }),
+        },
+      }],
+      outputs: [],
+      controls: [],
+    };
 
     expect(persistWorkbenchBriefingHandoffV3({
+      activeScenarioId: "scenario/default",
+      briefing,
       handoff,
-      snapshotId: "snapshot/workbench-briefing",
-      picks: [
-        { paneId, priority: 12 },
-        { paneId: "pane/deleted-before-snapshot", priority: 9 },
-      ],
-      snapshotSurface: surface,
+      snapshot,
     })).toBe(true);
-    expect(handoff.read("snapshot/workbench-briefing")).toEqual({
-      panePicks: [{ paneId, priority: 12 }],
-    });
+    expect(handoff.read("snapshot/workbench-briefing")).toEqual(briefing);
 
     const unavailable = new StudioSnapshotBriefingHandoffV3({
       getItem: () => null,
@@ -488,10 +640,13 @@ describe("V3 Dockview Workbench", () => {
       removeItem: () => undefined,
     });
     expect(persistWorkbenchBriefingHandoffV3({
+      activeScenarioId: "scenario/default",
+      briefing: {
+        ...briefing,
+        graphs: [],
+      },
       handoff: unavailable,
-      snapshotId: "snapshot/workbench-briefing",
-      picks: [],
-      snapshotSurface: surface,
+      snapshot,
     })).toBe(false);
   });
 

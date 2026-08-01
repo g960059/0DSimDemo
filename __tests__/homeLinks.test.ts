@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   articlesHref,
+  articleEditorHref,
+  articlePlacementHref,
+  articleReaderHref,
+  experimentDetailHref,
+  experimentsHref,
+  experimentSnapshotHref,
   homeHref,
-  workbenchDetailHref,
-  workbenchHref,
+  newArticleEditorHref,
 } from '../homeLinks';
 import {
   allocateOpaqueWorkbenchIdV3,
@@ -14,27 +19,45 @@ import {
 
 describe('homeLinks', () => {
   it('builds static home and workbench hrefs', () => {
-    expect(workbenchHref()).toBe('/ja/workbench');
+    expect(experimentsHref()).toBe('/ja/experiments');
     expect(articlesHref()).toBe('/ja/articles');
     expect(homeHref()).toBe('/ja');
   });
 
   it('always prefixes localized hrefs', () => {
-    expect(workbenchHref('en')).toBe('/en/workbench');
+    expect(experimentsHref('en')).toBe('/en/experiments');
     expect(articlesHref('en')).toBe('/en/articles');
     expect(homeHref('en')).toBe('/en');
-    expect(workbenchHref('ja')).toBe('/ja/workbench');
+    expect(experimentsHref('ja')).toBe('/ja/experiments');
   });
 
-  it('builds a URL-safe Workbench detail route without deriving identity from a model', () => {
-    expect(workbenchDetailHref({
+  it('builds a URL-safe Experiment detail route without deriving identity from a model', () => {
+    expect(experimentDetailHref({
+      experimentId: 'workbench-opaque_identity',
       locale: 'en',
-      workbenchId: 'workbench-opaque_identity',
-    })).toBe('/en/workbench/workbench-opaque_identity');
-    expect(() => workbenchDetailHref({
+    })).toBe('/en/experiments/workbench-opaque_identity');
+    expect(() => experimentDetailHref({
+      experimentId: 'model/exact-release',
       locale: 'ja',
-      workbenchId: 'model/exact-release',
     })).toThrow(/URL-safe opaque identity/);
+  });
+
+  it('separates the Article library, Reader, and Editor URLs', () => {
+    expect(newArticleEditorHref('ja')).toBe('/ja/articles/new/edit');
+    expect(articleReaderHref({ articleId: 'article-opaque', locale: 'en' }))
+      .toBe('/en/articles/article-opaque');
+    expect(articleEditorHref({ articleId: 'article-opaque', locale: 'en' }))
+      .toBe('/en/articles/article-opaque/edit');
+    expect(articlePlacementHref({
+      articleId: 'article-opaque',
+      locale: 'en',
+      placementId: 'placement/local-one',
+    })).toBe('/en/articles/article-opaque#placement-placement%2Flocal-one');
+    expect(experimentSnapshotHref({
+      experimentId: 'workbench-opaque_identity',
+      snapshotId: 'snapshot/exact-one',
+      locale: 'ja',
+    })).toBe('/ja/experiments/workbench-opaque_identity/snapshots/snapshot%2Fexact-one');
   });
 
   it('allocates URL-safe opaque identities and retries collisions', () => {

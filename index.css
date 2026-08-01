@@ -96,6 +96,44 @@ body[data-app-theme="light"] {
   background: var(--wb-app-bg);
 }
 
+/* Reader peek: short, interruptible, and limited to compositor properties. */
+.article-reader-drawer-backdrop {
+  opacity: 1;
+  transition: opacity 180ms ease-out;
+}
+
+.article-reader-drawer {
+  transform: translateX(0);
+  transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@starting-style {
+  .article-reader-drawer-backdrop {
+    opacity: 0;
+  }
+
+  .article-reader-drawer {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .article-reader-drawer-backdrop,
+  .article-reader-drawer {
+    transition-duration: 0.01ms;
+  }
+}
+
+[data-reader-legend="hidden"] [data-chart-legend] {
+  display: none;
+}
+
+[data-reader-legend="compact"] [data-chart-legend] {
+  max-width: calc(100% - 4rem);
+  column-gap: 0.4rem;
+  opacity: 0.86;
+}
+
 /*
  * Dockview is the Workbench presentation shell. Durable Experiment content
  * never stores these split sizes, selected tabs, or library serialization.

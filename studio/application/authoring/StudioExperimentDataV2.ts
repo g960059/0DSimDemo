@@ -633,8 +633,8 @@ export function validateExperimentPlacementV2(
 /**
  * Resolves only against the immutable snapshot explicitly pinned by Placement.
  *
- * Omitted subsets remain omitted and mean "all"; explicit empty arrays remain
- * empty and mean "none". No lookup against a mutable Experiment workspace is
+ * Briefing references are role-specific and must resolve entirely inside the
+ * pinned Snapshot. No lookup against a mutable Experiment workspace is
  * permitted here.
  */
 export function validateExperimentPlacementAgainstSnapshotV2(
@@ -654,22 +654,101 @@ export function validateExperimentPlacementAgainstSnapshotV2(
   const briefing = placement.briefing;
   const surface = snapshot.content.surface;
   assertKnownSubsetV2(
-    briefing.scenarioIds,
+    briefing.scenarioScope.visibleScenarioIds,
     snapshot.content.scenarios.map(({ scenarioId }) => scenarioId),
-    "$.placement.briefing.scenarioIds",
+    "$.placement.briefing.scenarioScope.visibleScenarioIds",
   );
-  const availablePaneIds = new Set([
-    ...surface.graphPanes.map(({ paneId }) => paneId),
-    ...surface.outputPanes.map(({ paneId }) => paneId),
-    ...surface.controlPanes.map(({ paneId }) => paneId),
-  ]);
-  briefing.panePicks.forEach((pick, index) => {
-    if (!availablePaneIds.has(pick.paneId)) {
+  if (!briefing.scenarioScope.visibleScenarioIds.includes(
+    briefing.scenarioScope.initialFocusScenarioId,
+  )) {
+    throw validationErrorV2(
+      "$.placement.briefing.scenarioScope.initialFocusScenarioId",
+      "must be included in visibleScenarioIds",
+    );
+  }
+
+  const graphPanesById = new Map(
+    surface.graphPanes.map((pane) => [pane.paneId, pane] as const),
+  );
+  briefing.graphs.forEach((graph, graphIndex) => {
+    const graphPath = `$.placement.briefing.graphs[${graphIndex}]`;
+    const sourcePane = graphPanesById.get(graph.paneId);
+    if (sourcePane === undefined) {
       throw validationErrorV2(
-        `$.placement.briefing.panePicks[${index}].paneId`,
-        `unknown pane ${pick.paneId}`,
+        `${graphPath}.paneId`,
+        `unknown graph pane ${graph.paneId}`,
       );
     }
+    const overrides = graph.overrides;
+    if (overrides?.series !== undefined) {
+      if (sourcePane.series.length > 0 && overrides.series.length === 0) {
+        throw validationErrorV2(
+          `${graphPath}.overrides.series`,
+          "must select at least one source graph series",
+        );
+      }
+      assertKnownSubsetV2(
+        overrides.series.map(({ seriesId }) => seriesId),
+        sourcePane.series.map(({ seriesId }) => seriesId),
+        `${graphPath}.overrides.series`,
+        "seriesId",
+      );
+    }
+    if (
+      overrides?.windowSec !== undefined
+      && sourcePane.windowSec === undefined
+    ) {
+      throw validationErrorV2(
+        `${graphPath}.overrides.windowSec`,
+        "source graph pane does not support a waveform window",
+      );
+    }
+    if (
+      overrides?.historyDepth !== undefined
+      && sourcePane.historyDepth === undefined
+    ) {
+      throw validationErrorV2(
+        `${graphPath}.overrides.historyDepth`,
+        "source graph pane does not support graph history",
+      );
+    }
+  });
+
+  const availableOutputIds = new Set(
+    surface.outputPanes.flatMap(({ items }) =>
+      items.map(({ outputId }) => outputId)),
+  );
+  briefing.outputs.forEach((output, index) => {
+    if (!availableOutputIds.has(output.outputId)) {
+      throw validationErrorV2(
+        `$.placement.briefing.outputs[${index}].outputId`,
+        `unknown Surface output ${output.outputId}`,
+      );
+    }
+  });
+
+  const availableControlIds = new Set(
+    surface.controlPanes.flatMap(({ items }) =>
+      items.map(({ controlId }) => controlId)),
+  );
+  briefing.controls.forEach((control, index) => {
+    const controlPath = `$.placement.briefing.controls[${index}]`;
+    if (!availableControlIds.has(control.controlId)) {
+      throw validationErrorV2(
+        `${controlPath}.controlId`,
+        `unknown Surface control ${control.controlId}`,
+      );
+    }
+    const targetScenarioIds = control.binding.mode === "reader-focus"
+      ? control.binding.allowedScenarioIds
+      : control.binding.scenarioIds;
+    assertKnownSubsetV2(
+      targetScenarioIds,
+      briefing.scenarioScope.visibleScenarioIds,
+      `${controlPath}.binding.${control.binding.mode === "reader-focus"
+        ? "allowedScenarioIds"
+        : "scenarioIds"}`,
+    );
   });
   return placement;
 }
@@ -956,39 +1035,290 @@ function assertPlacementBriefingV2(
   if (briefing === undefined) {
     throw validationErrorV2(path, "must be an object when present");
   }
-  assertRequiredOptionalKeysV2(briefing, ["panePicks"], ["scenarioIds"], path);
-  if (hasOwnV2(briefing, "scenarioIds")) {
-    arrayV2(briefing.scenarioIds, `${path}.scenarioIds`);
-    const seen = new Set<string>();
-    briefing.scenarioIds.forEach((value, index) => {
-      const id = requiredPortableIdV2(
-        value,
-        `${path}.scenarioIds[${index}]`,
-      );
-      assertUniqueIdV2(seen, id, `${path}.scenarioIds[${index}]`);
-    });
+  assertExactKeysV2(briefing, [
+    "scenarioScope",
+    "graphs",
+    "outputs",
+    "controls",
+  ], path);
+
+  const scopePath = `${path}.scenarioScope`;
+  assertExactKeysV2(briefing.scenarioScope, [
+    "visibleScenarioIds",
+    "initialFocusScenarioId",
+  ], scopePath);
+  arrayV2(
+    briefing.scenarioScope.visibleScenarioIds,
+    `${scopePath}.visibleScenarioIds`,
+  );
+  if (briefing.scenarioScope.visibleScenarioIds.length === 0) {
+    throw validationErrorV2(
+      `${scopePath}.visibleScenarioIds`,
+      "must contain at least one Scenario",
+    );
   }
-  arrayV2(briefing.panePicks, `${path}.panePicks`);
-  const paneIds = new Set<string>();
-  briefing.panePicks.forEach((pick, index) => {
-    const pickPath = `${path}.panePicks[${index}]`;
-    assertExactKeysV2(pick, ["paneId", "priority"], pickPath);
-    const paneId = requiredPortableIdV2(pick.paneId, `${pickPath}.paneId`);
-    assertUniqueIdV2(paneIds, paneId, `${pickPath}.paneId`);
-    semanticPriorityV2(pick.priority, `${pickPath}.priority`);
+  const visibleScenarioIds = new Set<string>();
+  briefing.scenarioScope.visibleScenarioIds.forEach((value, index) => {
+    const scenarioId = requiredPortableIdV2(
+      value,
+      `${scopePath}.visibleScenarioIds[${index}]`,
+    );
+    assertUniqueIdV2(
+      visibleScenarioIds,
+      scenarioId,
+      `${scopePath}.visibleScenarioIds[${index}]`,
+    );
+  });
+  requiredPortableIdV2(
+    briefing.scenarioScope.initialFocusScenarioId,
+    `${scopePath}.initialFocusScenarioId`,
+  );
+
+  arrayV2(briefing.graphs, `${path}.graphs`);
+  const graphPaneIds = new Set<string>();
+  const graphOrders = new Set<number>();
+  briefing.graphs.forEach((graph, index) => {
+    const graphPath = `${path}.graphs[${index}]`;
+    assertRequiredOptionalKeysV2(
+      graph,
+      ["paneId", "order", "emphasis"],
+      ["overrides"],
+      graphPath,
+    );
+    const paneId = requiredPortableIdV2(
+      graph.paneId,
+      `${graphPath}.paneId`,
+    );
+    assertUniqueIdV2(graphPaneIds, paneId, `${graphPath}.paneId`);
+    semanticOrderV2(graph.order, `${graphPath}.order`);
+    assertUniqueOrderV2(graphOrders, graph.order, `${graphPath}.order`);
+    if (graph.emphasis !== "primary" && graph.emphasis !== "supporting") {
+      throw validationErrorV2(
+        `${graphPath}.emphasis`,
+        "must be primary or supporting",
+      );
+    }
+    if (hasOwnV2(graph, "overrides")) {
+      assertGraphBriefingOverridesV2(
+        graph.overrides,
+        `${graphPath}.overrides`,
+      );
+    }
+  });
+
+  arrayV2(briefing.outputs, `${path}.outputs`);
+  const outputIds = new Set<string>();
+  const outputOrders = new Set<number>();
+  briefing.outputs.forEach((output, index) => {
+    const outputPath = `${path}.outputs[${index}]`;
+    assertExactKeysV2(output, ["outputId", "label", "order"], outputPath);
+    const outputId = requiredPortableIdV2(
+      output.outputId,
+      `${outputPath}.outputId`,
+    );
+    assertUniqueIdV2(outputIds, outputId, `${outputPath}.outputId`);
+    requiredTrimmedStringV2(output.label, `${outputPath}.label`);
+    semanticOrderV2(output.order, `${outputPath}.order`);
+    assertUniqueOrderV2(outputOrders, output.order, `${outputPath}.order`);
+  });
+
+  arrayV2(briefing.controls, `${path}.controls`);
+  const controlIds = new Set<string>();
+  const controlOrders = new Set<number>();
+  briefing.controls.forEach((control, index) => {
+    const controlPath = `${path}.controls[${index}]`;
+    assertExactKeysV2(control, [
+      "controlId",
+      "label",
+      "order",
+      "presentation",
+      "binding",
+    ], controlPath);
+    const controlId = requiredPortableIdV2(
+      control.controlId,
+      `${controlPath}.controlId`,
+    );
+    assertUniqueIdV2(controlIds, controlId, `${controlPath}.controlId`);
+    requiredTrimmedStringV2(control.label, `${controlPath}.label`);
+    semanticOrderV2(control.order, `${controlPath}.order`);
+    assertUniqueOrderV2(controlOrders, control.order, `${controlPath}.order`);
+    assertControlBriefingPresentationV2(
+      control.presentation,
+      `${controlPath}.presentation`,
+    );
+    assertControlBriefingBindingV2(
+      control.binding,
+      `${controlPath}.binding`,
+    );
+  });
+}
+
+function assertGraphBriefingOverridesV2(
+  overrides: unknown,
+  path: string,
+): void {
+  assertRequiredOptionalKeysV2(overrides, [], [
+    "label",
+    "legend",
+    "series",
+    "windowSec",
+    "historyDepth",
+  ], path);
+  if (hasOwnV2(overrides, "label")) {
+    requiredTrimmedStringV2(overrides.label, `${path}.label`);
+  }
+  if (
+    hasOwnV2(overrides, "legend")
+    && overrides.legend !== "auto"
+    && overrides.legend !== "hidden"
+    && overrides.legend !== "compact"
+    && overrides.legend !== "full"
+  ) {
+    throw validationErrorV2(
+      `${path}.legend`,
+      "must be auto, hidden, compact, or full",
+    );
+  }
+  if (hasOwnV2(overrides, "windowSec")) {
+    sweepWindowSecV2(overrides.windowSec, `${path}.windowSec`);
+  }
+  if (hasOwnV2(overrides, "historyDepth")) {
+    graphHistoryDepthV2(overrides.historyDepth, `${path}.historyDepth`);
+  }
+  if (!hasOwnV2(overrides, "series")) return;
+
+  arrayV2(overrides.series, `${path}.series`);
+  const seriesIds = new Set<string>();
+  const seriesOrders = new Set<number>();
+  overrides.series.forEach((series, index) => {
+    const seriesPath = `${path}.series[${index}]`;
+    assertExactKeysV2(
+      series,
+      ["seriesId", "label", "colorHex", "order"],
+      seriesPath,
+    );
+    const seriesId = requiredPortableIdV2(
+      series.seriesId,
+      `${seriesPath}.seriesId`,
+    );
+    assertUniqueIdV2(seriesIds, seriesId, `${seriesPath}.seriesId`);
+    requiredTrimmedStringV2(series.label, `${seriesPath}.label`);
+    canonicalColorHexV2(series.colorHex, `${seriesPath}.colorHex`);
+    semanticOrderV2(series.order, `${seriesPath}.order`);
+    assertUniqueOrderV2(
+      seriesOrders,
+      series.order as number,
+      `${seriesPath}.order`,
+    );
+  });
+}
+
+function assertControlBriefingPresentationV2(
+  presentation: unknown,
+  path: string,
+): void {
+  recordV2(presentation, path);
+  if (presentation.kind === "slider") {
+    assertExactKeysV2(presentation, ["kind"], path);
+    return;
+  }
+  if (presentation.kind !== "buttons") {
+    throw validationErrorV2(`${path}.kind`, "must be slider or buttons");
+  }
+  assertExactKeysV2(presentation, ["kind", "options"], path);
+  arrayV2(presentation.options, `${path}.options`);
+  if (presentation.options.length === 0) {
+    throw validationErrorV2(
+      `${path}.options`,
+      "button presentation must contain at least one option",
+    );
+  }
+  const labels = new Set<string>();
+  const values = new Set<number>();
+  presentation.options.forEach((option, index) => {
+    const optionPath = `${path}.options[${index}]`;
+    assertExactKeysV2(option, ["label", "value"], optionPath);
+    requiredTrimmedStringV2(option.label, `${optionPath}.label`);
+    const label = option.label as string;
+    if (labels.has(label)) {
+      throw validationErrorV2(
+        `${optionPath}.label`,
+        `duplicate button label ${label}`,
+      );
+    }
+    labels.add(label);
+    finiteNumberV2(option.value, `${optionPath}.value`);
+    const value = option.value as number;
+    if (values.has(value)) {
+      throw validationErrorV2(
+        `${optionPath}.value`,
+        `duplicate button value ${String(value)}`,
+      );
+    }
+    values.add(value);
+  });
+}
+
+function assertControlBriefingBindingV2(
+  binding: unknown,
+  path: string,
+): void {
+  recordV2(binding, path);
+  if (binding.mode === "reader-focus") {
+    assertExactKeysV2(binding, ["mode", "allowedScenarioIds"], path);
+    assertNonemptyUniquePortableIdsV2(
+      binding.allowedScenarioIds,
+      `${path}.allowedScenarioIds`,
+    );
+    return;
+  }
+  if (binding.mode !== "fixed") {
+    throw validationErrorV2(
+      `${path}.mode`,
+      "must be reader-focus or fixed",
+    );
+  }
+  assertExactKeysV2(binding, ["mode", "scenarioIds", "application"], path);
+  if (binding.application !== "absolute") {
+    throw validationErrorV2(
+      `${path}.application`,
+      "must be absolute",
+    );
+  }
+  assertNonemptyUniquePortableIdsV2(
+    binding.scenarioIds,
+    `${path}.scenarioIds`,
+  );
+}
+
+function assertNonemptyUniquePortableIdsV2(
+  value: unknown,
+  path: string,
+): void {
+  arrayV2(value, path);
+  if (value.length === 0) {
+    throw validationErrorV2(path, "must contain at least one Scenario");
+  }
+  const seen = new Set<string>();
+  value.forEach((candidate, index) => {
+    const id = requiredPortableIdV2(candidate, `${path}[${index}]`);
+    assertUniqueIdV2(seen, id, `${path}[${index}]`);
   });
 }
 
 function assertKnownSubsetV2(
-  subset: readonly string[] | undefined,
+  subset: readonly string[],
   available: readonly string[],
   path: string,
+  memberField?: string,
 ): void {
-  if (subset === undefined) return;
   const availableIds = new Set(available);
   subset.forEach((id, index) => {
     if (!availableIds.has(id)) {
-      throw validationErrorV2(`${path}[${index}]`, `unknown id ${id}`);
+      throw validationErrorV2(
+        `${path}[${index}]${memberField === undefined ? "" : `.${memberField}`}`,
+        `unknown id ${id}`,
+      );
     }
   });
 }
@@ -1129,6 +1459,12 @@ function nonnegativeFiniteNumberV2(value: unknown, path: string): void {
     || value < 0
   ) {
     throw validationErrorV2(path, "must be a nonnegative finite number");
+  }
+}
+
+function finiteNumberV2(value: unknown, path: string): void {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw validationErrorV2(path, "must be a finite number");
   }
 }
 

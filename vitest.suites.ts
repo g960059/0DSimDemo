@@ -10,6 +10,8 @@ export const PR_SMOKE_SUITE_FILE_BUDGET = 42;
 
 export const fastTests = [
   "__tests__/appTheme.test.ts",
+  "__tests__/articleReaderV3.test.tsx",
+  "__tests__/articleReaderLiveRuntimeV3.test.ts",
   "__tests__/articleEditorV3.test.ts",
   "__tests__/commonPericardiumV1.test.ts",
   "__tests__/energyConjugateTriSegV1.test.ts",
@@ -81,6 +83,8 @@ export const fastTests = [
  */
 export const prSmokeTests = [
   "__tests__/appTheme.test.ts",
+  "__tests__/articleReaderV3.test.tsx",
+  "__tests__/articleReaderLiveRuntimeV3.test.ts",
   "__tests__/articleEditorV3.test.ts",
   "__tests__/commonPericardiumV1.test.ts",
   "__tests__/coronaryMechanicsHydraulicsV1.test.ts",

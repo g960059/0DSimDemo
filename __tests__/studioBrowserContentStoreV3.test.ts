@@ -529,8 +529,13 @@ describe("Studio browser content store V3", () => {
       snapshotId: snapshot.snapshotId,
       caption: null,
       briefing: {
-        scenarioIds: ["scenario/baseline"],
-        panePicks: [{ paneId: "pane/waveform", priority: 10 }],
+        scenarioScope: {
+          visibleScenarioIds: ["scenario/baseline"],
+          initialFocusScenarioId: "scenario/baseline",
+        },
+        graphs: [{ paneId: "pane/waveform", order: 0, emphasis: "primary" }],
+        outputs: [],
+        controls: [],
       },
     };
     const article = {
@@ -561,7 +566,10 @@ describe("Studio browser content store V3", () => {
           ...placement,
           briefing: {
             ...placement.briefing,
-            scenarioIds: ["scenario/missing"],
+            scenarioScope: {
+              visibleScenarioIds: ["scenario/missing"],
+              initialFocusScenarioId: "scenario/missing",
+            },
           },
         },
       }],
@@ -574,11 +582,11 @@ describe("Studio browser content store V3", () => {
           ...placement,
           briefing: {
             ...placement.briefing,
-            panePicks: [{ paneId: "pane/missing", priority: 1 }],
+            graphs: [{ paneId: "pane/missing", order: 0, emphasis: "primary" }],
           },
         },
       }],
-    })).toThrow(/unknown pane pane\/missing/);
+    })).toThrow(/unknown graph pane pane\/missing/);
   });
 
   it("fails closed on invalid Snapshots, dangling heads, and bad lineage in storage", () => {

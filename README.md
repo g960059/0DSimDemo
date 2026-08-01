@@ -14,7 +14,9 @@ Experiment / Snapshot / Placement 構造へ置き換えています。削除し�
 
 Studio のデータ構造と所有境界は
 [`docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md`](docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md)
-を唯一の正典とします。
+を正典とし、Experiment / Article / Briefing / ReaderのIAは
+[`docs/studio/DESIGN-STUDIO-004-reader-briefing-experiment-ia.md`](docs/studio/DESIGN-STUDIO-004-reader-briefing-experiment-ia.md)
+をactive companionとします。
 
 中心となる構造は次のとおりです。
 
@@ -60,13 +62,22 @@ SimulationSession / preview cache (ephemeral)
 3. registryを信頼するclient catalogからdefault modelとして解決
 4. generic Worker経由でWorkbenchのlive simulationをautostart
 5. period-1 convergenceとminimum numerical条件を確認するSnapshot gateを接続
+6. explicit Saveで全Scenarioの`fixture + checkpoint`を保存し、qualified
+   Snapshotを作成するauthoring bridgeを接続
+7. role-specific Briefing、Article Editor / Library / ReaderとSnapshotをpinする
+   Placementを接続
+8. 記事内で中央のPlacementだけをlive ownerにし、そのBriefingで可視な全Scenarioを
+   persistent Worker laneで同時実行
+9. graph数からborderless inflow、right-drawer peek、fullscreenを導出し、Readerから
+   play/pauseと許可されたcontrol操作を提供
 
 残作業:
 
-1. Workerの単一runtime ownerからauthoringへのcapture bridgeを作り、
-   Workbench Save/SnapshotとReader PlacementをUIへ接続
-2. one-live article schedulerとdisposable previewを実装
-3. その後に公式Preset、Experiment、記事、Lessonを制作
+1. graph complexityを含む表示extentの重み付けと、非active Placement向けの
+   disposable one-beat replay cache
+2. 過去のexact model releaseを選択・保持できるmulti-release catalog
+3. publication/server境界と共有権限
+4. その後に公式Preset、Experiment、記事、Lessonを制作
 
 それ以前のcase catalog、lesson document、numeric Experiment revision、
 Working Set / Reader Brief、certification artifactは製品データの正典では

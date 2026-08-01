@@ -16,7 +16,7 @@ import {
   allocateOpaqueWorkbenchIdV3,
   classifyWorkbenchAvailabilityV3,
 } from "@/studio/infrastructure/browser/StudioWorkbenchIdentityV3";
-import { articlesHref, homeHref, workbenchDetailHref } from "@/homeLinks";
+import { articlesHref, experimentDetailHref, homeHref } from "@/homeLinks";
 import { isLocale, type Locale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
@@ -75,10 +75,10 @@ export function WorkbenchSelectorV3Page() {
     if (state.kind !== "ready") return;
     setActionError(null);
     try {
-      const workbenchId = allocateOpaqueWorkbenchIdV3(
+      const experimentId = allocateOpaqueWorkbenchIdV3(
         state.workspaces.map(({ experimentId }) => experimentId),
       );
-      navigate(workbenchDetailHref({ locale, workbenchId }));
+      navigate(experimentDetailHref({ experimentId, locale }));
     } catch (error) {
       setActionError(errorMessageV3(error));
     }
@@ -265,9 +265,9 @@ export function WorkbenchSelectorV3Page() {
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
                         <Link
-                          to={workbenchDetailHref({
+                          to={experimentDetailHref({
+                            experimentId: workspace.experimentId,
                             locale,
-                            workbenchId: workspace.experimentId,
                           })}
                           className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-wb-line bg-wb-soft px-3 text-xs font-bold hover:bg-wb-hover"
                         >

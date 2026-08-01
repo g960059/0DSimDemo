@@ -25,6 +25,21 @@ const ArticleEditorV3Page = React.lazy(
     default: module.ArticleEditorV3Page,
   })),
 );
+const ArticleLibraryV3Page = React.lazy(
+  () => import('./components/ArticleLibraryV3Page').then((module) => ({
+    default: module.ArticleLibraryV3Page,
+  })),
+);
+const ArticleReaderV3Page = React.lazy(
+  () => import('./components/ArticleReaderV3Page').then((module) => ({
+    default: module.ArticleReaderV3Page,
+  })),
+);
+const ExperimentSnapshotV3Page = React.lazy(
+  () => import('./components/ExperimentSnapshotV3Page').then((module) => ({
+    default: module.ExperimentSnapshotV3Page,
+  })),
+);
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -44,7 +59,7 @@ const appRoutes = () => (
       )}
     />
     <Route
-      path="workbench"
+      path="experiments"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Workbenches…" />}>
           <WorkbenchSelectorV3Page />
@@ -52,7 +67,7 @@ const appRoutes = () => (
       )}
     />
     <Route
-      path="workbench/:workbenchId"
+      path="experiments/:experimentId"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading V3 Workbench…" />}>
           <WorkbenchV3Page />
@@ -60,10 +75,34 @@ const appRoutes = () => (
       )}
     />
     <Route
+      path="experiments/:experimentId/snapshots/:snapshotId"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading Snapshot…" />}>
+          <ExperimentSnapshotV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
       path="articles"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading Articles…" />}>
+          <ArticleLibraryV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="articles/:articleId/edit"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Article Editor…" />}>
           <ArticleEditorV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="articles/:articleId"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading Article…" />}>
+          <ArticleReaderV3Page />
         </React.Suspense>
       )}
     />

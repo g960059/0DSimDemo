@@ -4,7 +4,7 @@ Status: authoritative pre-release architecture and current direct-cutover
 implementation contract for Studio identity, persistence, Snapshot publication,
 Placement, and Reader runtime ownership
 
-Date: 2026-08-01
+Date: 2026-08-02
 
 Decision: registry-trusted exact `modelId`, mutable Experiment workspace,
 immutable Experiment snapshot
@@ -16,6 +16,11 @@ removed from the working tree and remain available only in Git history.
 Current V3 scientific validation remains a separate model concern. Historical
 sidecar benches, readiness artifacts, and pre-V3 authored scenario generators
 are removed rather than reclassified as active evidence.
+
+`DESIGN-STUDIO-004-reader-briefing-experiment-ia.md` is the active companion for
+standalone Experiment IA, Article ownership, role-specific inline Briefing,
+responsive Reader presentation, and canonical routes. It refines the product
+projection without creating a separately identified Reader Brief entity.
 
 ## 1. Decision
 
@@ -33,7 +38,8 @@ ExperimentSnapshot (immutable)
   └─ frozen ExperimentContent
 
 ExperimentPlacement
-  └─ pins one ExperimentSnapshot
+  ├─ pins one ExperimentSnapshot
+  └─ owns one optional inline Briefing
 
 StudioArticleDraft
   └─ owns ordered text and Experiment-placement blocks
@@ -48,9 +54,13 @@ The minimum domain roots are:
 - one mutable Experiment workspace with an optimistic `draftVersion`;
 - one immutable `snapshotId` for each publishable capture;
 - one lineage-only `parentSnapshotId`;
-- one placement that pins an immutable snapshot;
+- one Article-owned placement that pins an immutable snapshot and may own an
+  audience-specific inline Briefing;
 - one runtime session whose numerical and asynchronous correlation state is
   never durable content.
+
+Experiment is an Article-independent root. Creating, opening, saving, or
+snapshotting an Experiment never requires or automatically creates an Article.
 
 Studio V2 does not introduce durable `ParameterSet`, `AssessmentReport`,
 `CertifiedSeed`, `PublicationManifest`, `WorkingSet`, or `ReaderBrief`
@@ -69,10 +79,14 @@ Model package
   checkpoint codec, minimum snapshot gate, control/output/graph catalogs,
   and the private mapping from semantic controls into complete fixtures
 
-Studio authoring
+Experiment authoring
   resolves one registry-bound exact runtime containing the allowlisted contract
-  and executable adapters; owns Experiment workspace, Scenario composition, Surface, note,
-  Snapshot, Placement
+  and executable adapters; owns Experiment workspace, Scenario composition,
+  Surface, note, and Snapshot
+
+Article authoring
+  owns Article Draft, ordered blocks, Placement, and each Placement-local
+  Briefing; pins Snapshots but never owns or mutates their Experiments
 
 Simulation runtime
   owns accepted state, live stepping, settlement checks, numerical checks,
@@ -103,17 +117,22 @@ scenarioId
 
 `experimentId` identifies one logical authoring series.
 
-Workbench identity is model-independent and URL-addressable. `/workbench` is
-the selector; `/workbench/:workbenchId` opens one opaque `experimentId`. New
-IDs are browser-generated URL-safe random tokens and never encode a default
-model, release name, digest, or hash. A saved Workspace remains pinned to its
-own exact `content.modelId`. Opening the selector after a default-model change
-therefore never reuses or mutates an older Workspace: the user may open it when
-that exact release is available, export/delete it when unavailable, or create a
-new opaque Workbench on the latest default release.
+Experiment identity is model-independent and URL-addressable. The canonical
+target selector is `/experiments`; `/experiments/:experimentId` opens the
+standalone mutable Workbench for one opaque Experiment identity. The baseline
+pre-release `/workbench` routes are replaced directly and are not retained as
+domain aliases. New IDs are browser-generated URL-safe random tokens and never
+encode a default model, release name, digest, or hash. A saved Workspace remains
+pinned to its own exact `content.modelId`. Opening the selector after a
+default-model change therefore never reuses or mutates an older Workspace: the
+user may open it when that exact release is available, export/archive it when
+unavailable, or create a new opaque Experiment on the latest default release.
 
 `snapshotId` identifies one immutable materialization. It replaces
 `experimentId + numeric revision` as the exact content reference.
+`/experiments/:experimentId/snapshots/:snapshotId` is the canonical exact-view,
+share, and fork-source route. It validates Snapshot ownership and never follows
+the mutable Experiment head.
 
 `parentSnapshotId` records derivation only. It never means inheritance,
 read-through, or automatic propagation. A fork may create a new
@@ -360,8 +379,13 @@ require an explicit allowlisted contract revision. Unknown catalog keys are
 rejected, including fields named like build, release, or integrity metadata.
 
 Stored output and control items select catalog definitions only. They do not
-own presentation colors or durable Scenario bindings. The Scenario Manager's
-active Scenario supplies the output/controller context at runtime.
+own presentation colors. In the standalone Workbench, the Scenario Manager's
+active slot supplies the currently implemented output/controller context. The
+target controller settings may instead select an explicit multi-Scenario set.
+An Article Briefing freezes every published control's target Scenario IDs by
+default. An author may instead opt explicitly into a bounded `reader-focus`
+binding; focus-following is never inferred from the Workbench active slot.
+DESIGN-STUDIO-004 specifies the separation.
 
 ## 5. Fixture, checkpoint, and Scenario
 
@@ -682,6 +706,11 @@ It does not store viewport dimensions, `inflow | peek | fullscreen`, active
 fullscreen state, open inspector state, Worker handles, runtime samples, or
 settlement status.
 
+The complete Surface is the standalone Experiment's laboratory composition. It
+does not mean that the Experiment belongs to an Article. Article Placements
+project the Surface independently and may reuse the same pinned Snapshot with
+different Briefings for beginner, clinical, or research narratives.
+
 ### 8.1 Scenario Manager and controller inspector
 
 Workbench presents the Scenario Manager inside the Dockview `control` role
@@ -689,6 +718,14 @@ area. It owns no numerical state. The active Scenario is ephemeral UI state;
 controller items are durable Surface selections without Scenario bindings.
 Selecting a Scenario makes that branch the neutral output/controller context.
 Every visible control action therefore applies only to the active Scenario.
+
+That last sentence describes the current pre-release implementation. The target
+standalone inspector also permits an explicitly selected Scenario set for a
+coupled control action. Active-slot and explicit-set targeting remain Workbench
+authoring behavior; when a control is picked into an Article Briefing, its
+current target is materialized as a fixed binding by default. `reader-focus` is
+available only as an explicit author opt-in over an allowlisted visible Scenario
+set, never as an accidental consequence of changing Article focus.
 
 Each Scenario owns one persistent bidirectional numerical Worker and one live
 scheduler lane. All admitted Scenarios are wall-clock paced concurrently; the
@@ -875,71 +912,89 @@ domain-aware conflict model.
 
 ## 12. Article Placement
 
+Placement pins an immutable Snapshot directly. Article content nests each
+Placement beneath its owning Experiment block. The same Snapshot may be placed
+repeatedly in one or many Articles with independent Placement IDs and
+independent inline Briefings. Lineage and `experimentId` are never overloaded
+for Article ownership. Lesson-page content may reuse the same nesting rule.
+
+Experiment itself is an Article-independent root. Direct standalone clinical
+use requires neither a Placement nor an Article, and opening an Experiment does
+not auto-create either one. Article membership is a reverse index over
+Placements, not a field on Experiment.
+
+The baseline before the current direct cutover used a provisional
+`scenarioIds + panePicks(priority)` projection. It proved repeated pinned
+Snapshot placement, but that generic shape has now been removed rather than
+retained as a compatibility reader.
+
+The direct-cutover target keeps Briefing inline and Placement-owned while
+separating its roles:
+
 ```ts
 type ExperimentPlacement = {
   placementId: string;
   snapshotId: string;
   caption: string | null;
   briefing?: {
-    scenarioIds?: string[];
-    panePicks: Array<{
-      paneId: string;
-      priority: number;
-    }>;
+    scenarioScope: {
+      visibleScenarioIds: string[];
+      initialFocusScenarioId: string;
+    };
+    graphs: GraphBriefing[];
+    outputs: OutputBriefingItem[];
+    controls: ControlBriefingControl[];
   };
 };
 ```
 
-Placement pins an immutable Snapshot directly.
+The full bounded shapes are defined in DESIGN-STUDIO-004. Their ownership rules
+are:
 
-Article content nests each Placement beneath its owning Experiment block.
-The same Snapshot may be placed repeatedly with independent Placement IDs and
-independent inline Briefings. Lineage and `experimentId` are never overloaded
-for document ownership. Lesson-page content may reuse the same nesting rule.
+- a graph selects one custom graph pane from the pinned Snapshot and may carry
+  Placement-local label, legend/color, window, and history overrides within the
+  registered graph contract;
+- output selection is item-level and may override only the label;
+- control selection is item-level and may override label and allowlisted
+  slider/button presentation;
+- published control pickup produces a fixed binding by default; an explicit
+  `reader-focus` binding is allowed only over an allowlisted visible set;
+- visible Scenarios, initial focus, and control bindings are distinct and all
+  focused/allowed/fixed-target Scenarios must be visible; and
+- output/control content is color-neutral.
 
-`briefing` is an inline, pure projection rather than a `ReaderBrief` entity or
-ID:
+This preserves “compose a rich Experiment once, then project a smaller Article
+view” without creating an independently identified or versioned Reader Brief.
+There is no Placement revision or durable presentation-mode enum.
 
-- every Scenario and pane ID must exist in the pinned Snapshot and be unique;
-- omission means “use every Scenario and pane from the complete Surface”;
-- a present Briefing always owns `panePicks`, which may be empty to select no
-  panes; omitted `scenarioIds` means every Scenario and an explicit empty array
-  means none;
-- each pick supplies only a nonnegative placement priority. It cannot override
-  the pane label, color, items, values, graph contract, control defaults, or
-  note, and there is no item-level selection;
-- larger priority means more prominent. Ties use the selected Surface pane's
-  ascending `order`, then ascending `paneId`.
-
-This value preserves the historically useful Working Set → Reader Brief
-behavior—compose a rich Experiment once, then project a smaller article view—
-without giving either projection a second lifecycle or identity. There is no
-Placement revision or presentation-mode enum.
-
-Workbench may carry the current author-selected Briefing across its mandatory
-post-Snapshot runtime restart and into Article insertion through a browser
-`sessionStorage` handoff keyed by the newly created exact `snapshotId`. This is
-ephemeral navigation state, not Snapshot, Workspace, Placement, or Article
-domain content. It never changes the complete Snapshot Surface. Article
-insertion reads the handoff, validates it through the ordinary Placement-to-
-Snapshot boundary, and uses it only as the new Placement's initial inline
-`briefing`. An explicit empty `panePicks` remains empty. Missing, corrupt,
-cross-Snapshot, or stale selections are treated as no handoff and the Article
-falls back to its ordinary complete-Surface insertion policy.
+Workbench may carry the current author-selected projection across its mandatory
+post-Snapshot runtime restart and into explicit Article insertion through an
+ephemeral handoff keyed by the new exact `snapshotId`. The handoff is not
+Snapshot, Workspace, Placement, or Article content. Article insertion validates
+it against the pinned Snapshot and copies it only as the new Placement's initial
+Briefing. Missing, corrupt, cross-Snapshot, or stale selections fall back to the
+ordinary complete-Surface projection.
 
 The renderer derives density and extent from:
 
 ```text
 Snapshot Surface
 + Placement briefing
++ selected-content complexity
 + viewport
 + renderer policy/version
 ```
 
-The renderer derives inline/peek/fullscreen extent automatically from selected
-pane count and complexity, priority, viewport, and renderer policy. Extent is
-never durable content. Fullscreen activation remains ephemeral and
-user-controlled.
+The target renderer derives inflow/peek/fullscreen extent automatically from
+graph complexity, series count, output/control density, graph emphasis/source-
+pane priority, viewport, and renderer policy. A borderless inflow is the inline
+Article anchor; medium complexity may expand into a side peek and high
+complexity into fullscreen. The current cutover implements graph-count
+inflow/peek/fullscreen thresholds; weighted complexity promotion remains
+deferred.
+Extent is never durable content. On mobile, graph panes become one horizontal
+snap/swipe row while outputs and controls remain vertical. Fullscreen
+activation remains ephemeral and user-controlled.
 
 The current Article Editor renders a pinned static composition while authoring.
 It never invents live values, and it labels this state as pinned/static. Live
@@ -961,7 +1016,14 @@ together, permits qualification to change checkpoints only, and rejects every
 duplicate `snapshotId`. Envelope reads fail closed on dangling or cyclic
 lineage. Article drafts start at version zero and advance by exactly one;
 Article writes resolve every Placement against its pinned Snapshot and reject
-unknown Snapshot, Scenario, or pane identities.
+unknown Snapshot, Scenario, pane, output, control, or graph-series identities.
+The direct-cutover validator covers role-specific selection, bounded graph
+overrides, visible/focus/binding relationships, and finite unique control
+button values. Exact control range/lattice enforcement is contract-aware: the
+Article Editor quantizes authored values, and Reader validates them before
+calling the registered runtime. If the exact contract is unavailable those
+authoring/execution paths are disabled; runtime application failures remain
+recoverable placement errors rather than terminating the whole live session.
 
 Authoring seeds and Experiment exports carry the target Experiment's immutable
 Snapshot series together with the complete parent closure required by any
@@ -979,7 +1041,9 @@ domain repository CAS contract remains mandatory for that replacement.
 
 ## 13. Reader runtime ownership and preview
 
-Article experiments autostart under one resource policy:
+The Article Editor remains a static pinned authoring preview. The separate
+Article Reader route in DESIGN-STUDIO-004 autostarts Experiments under one
+resource policy:
 
 ```text
 focused / screen-centered Placement
@@ -995,6 +1059,10 @@ not-yet-active Placement
 Moving focus suspends or closes the old live owner before activating the new
 one. Cached content never accepts control input; interaction first promotes
 the Placement to live ownership.
+
+The current cutover implements the single live owner and a static non-active
+fallback. The previously-active disposable cached-preview branch in the policy
+above remains deferred; it must not be inferred from the current static card.
 
 The preview artifact is outside Snapshot identity:
 
@@ -1131,12 +1199,19 @@ checkpoint codec rather than relying on a JSON number.
     exact-model target, and stores caller-resolved complete content.
 16. Snapshot and parent references are immutable.
 17. Parent means lineage only; no implicit inheritance or propagation.
-18. Placement pins a Snapshot and only selects existing IDs.
-19. Responsive layout is derived, not durable geometry.
-20. Runtime epochs, settlement, numerical health, and samples are not durable
+18. Placement pins one Snapshot and every Briefing selection or override stays
+    within IDs and bounds admitted by that frozen Snapshot and exact model.
+19. Experiment is Article-independent; direct use never creates an Article.
+20. Briefing belongs to Placement; repeated Placements never share mutable
+    Briefing state.
+21. Briefing visibility, focus, and control bindings are distinct; fixed is the
+    pickup default, reader-focus is explicit, and every referenced Scenario is
+    visible.
+22. Responsive extent and layout are derived, not durable geometry.
+23. Runtime epochs, settlement, numerical health, and samples are not durable
     content.
-21. Preview artifacts cannot participate in qualification or exact restore.
-22. At most one article Placement owns an active live simulation.
+24. Preview artifacts cannot participate in qualification or exact restore.
+25. At most one article Placement owns an active live simulation.
 
 ## 16. Pre-release direct cutover
 
@@ -1178,23 +1253,48 @@ Completed in the current development cutover:
 4. trusted client resolution of that registry-admitted release as the default,
    with no client-side package rehash;
 5. Workbench autostart through the generic Worker protocol into catalog-driven
-   Dockview graph, output, and control role areas with one page-owned Worker;
-   pane geometry and settings-open state remain ephemeral; and
+   Dockview graph, output, and control role areas with one persistent Worker per
+   Scenario under a page-owned runtime pool; pane geometry and settings-open
+   state remain ephemeral;
 6. a model-pinned candidate periodic Snapshot gate that accepts only period-1
    converged, numerically admissible terminal checkpoints;
 7. a persistent Worker-to-authoring bridge for accepted-boundary Draft capture,
    explicit header Save, gated Snapshot creation, exact checkpoint resume, and
    one versioned browser persistence envelope; and
 8. addable/removable custom Surface panes with editable labels, graph-series
-   colors, authored sweep windows, placement-local Briefing pickup/priority,
-   and a minimal Article Editor that supports repeated pinned Snapshot placement
-   without pretending its authoring preview is live.
+   colors, authored sweep windows, placement-local Briefing pickup, and a
+   minimal Article Editor that supports repeated pinned Snapshot placement
+   without pretending its authoring preview is live. The old generic pane-pick
+   Briefing was the baseline and is not accepted by the direct-cutover reader.
 
-Still deliberately deferred:
+The current direct-cutover change adds the following contracts and resource
+boundaries beyond that baseline:
 
-1. one-live article Reader scheduling and disposable preview artifacts;
-2. server persistence, collaboration, and authenticated publication; and
-3. official Scenario Presets, Experiments, published articles, and Lesson pages.
+1. role-specific graph/output/control Briefing, separate visibility/focus/fixed
+   or reader-focus binding semantics, bounded graph overrides, and control
+   presentation;
+2. canonical `/experiments/:experimentId`, nested immutable Snapshot,
+   `/articles/:articleId/edit`, and `/articles/:articleId` resource routes; and
+3. an Article Reader live owner that restores exactly the Briefing-visible
+   Snapshot Scenarios through the existing parallel Scenario runtime, applies
+   explicit control bindings, and does not mutate durable content;
+4. a borderless one-graph inflow, graph-count click-to-open right peek or
+   fullscreen presentation, responsive mobile graph swipe, and vertical
+   output/control presentation; and
+5. page-level one-live scheduling in which the centered/focused Placement owns
+   the live runtime and other Placements fail closed to static previews.
+
+Still deliberately deferred and therefore not an implementation claim:
+
+1. weighted complexity-derived presentation beyond the current graph-count
+   inflow/peek/fullscreen thresholds;
+2. labelled disposable one-beat replay generation for previously active
+   Placements (non-active Placements currently use static previews);
+3. retained multi-release client and Worker catalogs before a second exact
+   model release must remain executable in Reader;
+4. `Use in article…` handoff and derived Article backlinks;
+5. server persistence, collaboration, and authenticated publication; and
+6. official Scenario Presets, Experiments, published articles, and Lesson pages.
 
 The current development package makes no physiological, clinical,
 release-ready, or simulation-ready claim. Model catalogs are runtime and

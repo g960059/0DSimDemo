@@ -23,8 +23,10 @@ import {
 } from "@/components/workbench/WorkbenchDockview";
 import {
   WorkbenchBriefingComposerV3,
-  type WorkbenchBriefingPanePickV3,
 } from "@/components/workbench/WorkbenchBriefingComposerV3";
+import {
+  defaultArticleBriefingV3,
+} from "@/components/article/ArticleEditorStateV3";
 import {
   WorkbenchModelMenuV3,
 } from "@/components/workbench/WorkbenchModelMenuV3";
@@ -48,7 +50,6 @@ import {
 import {
   WORKBENCH_SCENARIO_ID_V3,
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
-  allSurfacePanesV3,
   createDefaultExperimentSurfaceV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import {
@@ -57,9 +58,9 @@ import {
 } from "@/studio/infrastructure/browser/StudioWorkbenchIdentityV3";
 import {
   articlesHref,
+  experimentDetailHref,
+  experimentsHref,
   homeHref,
-  workbenchDetailHref,
-  workbenchHref,
 } from "@/homeLinks";
 import { isLocale } from "@/localeRouting";
 import {
@@ -70,12 +71,20 @@ import type {
   ExperimentSurfaceGraphPaneV2,
   ExperimentSurfaceOutputPaneV2,
   ExperimentSurfaceV2,
+  ExperimentSnapshotV2,
+  ExperimentPlacementBriefingV2,
+  ExperimentPlacementBriefingGraphOverridesV2,
   ExperimentWorkspaceV2,
   ScenarioPresetV2,
 } from "@/studio/contracts/v2/content";
 import {
+  STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
+  STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
 } from "@/studio/contracts/v2/content";
+import {
+  validateExperimentPlacementAgainstSnapshotV2,
+} from "@/studio/application/authoring/StudioExperimentDataV2";
 import type {
   ControlDefinitionV2,
   ModelContractV2,
@@ -92,6 +101,9 @@ import type {
 import {
   StudioBrowserContentStoreV3,
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
+import {
+  mainWireIntegratedStudioControlValueFromFixtureV3,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import {
   StudioSnapshotBriefingHandoffV3,
   createBrowserStudioSnapshotBriefingHandoffV3,
@@ -153,16 +165,27 @@ type WorkbenchRuntimeRestartFeedbackV3 = Readonly<{
 const WORKBENCH_ROOT_FRAME_INTERVAL_SEC_V3 = 0.1;
 const EMPTY_WORKBENCH_GRAPH_HISTORY_V3 = Object.freeze([] as never[]);
 
+export function resolveWorkbenchInitialSaveStateV3(input: Readonly<{
+  hasStoredWorkspace: boolean;
+  hasPendingSurface: boolean;
+  pendingSaveState: "clean" | "dirty" | "error" | null;
+}>): "clean" | "dirty" | "error" {
+  if (input.pendingSaveState !== null) return input.pendingSaveState;
+  return input.hasStoredWorkspace && !input.hasPendingSurface
+    ? "clean"
+    : "dirty";
+}
+
 export const WorkbenchV3Page = () => {
-  const { locale, workbenchId } = useParams();
+  const { experimentId, locale } = useParams();
   const selectedLocale = isLocale(locale) ? locale : undefined;
-  if (!isOpaqueWorkbenchIdV3(workbenchId)) {
-    return <Navigate to={workbenchHref(selectedLocale)} replace />;
+  if (!isOpaqueWorkbenchIdV3(experimentId)) {
+    return <Navigate to={experimentsHref(selectedLocale)} replace />;
   }
   return (
     <WorkbenchV3Session
-      key={workbenchId}
-      experimentId={workbenchId}
+      key={experimentId}
+      experimentId={experimentId}
     />
   );
 };
@@ -187,7 +210,7 @@ const WorkbenchV3Session = ({
   const [snapshotCount, setSnapshotCount] = React.useState(0);
   const [saveState, setSaveState] = React.useState<
     "clean" | "dirty" | "saving" | "error"
-  >("clean");
+  >("dirty");
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [snapshotState, setSnapshotState] = React.useState<
     "idle" | "creating" | "created" | "error"
@@ -196,9 +219,9 @@ const WorkbenchV3Session = ({
   const [recoveryError, setRecoveryError] = React.useState<string | null>(null);
   const [briefingOpen, setBriefingOpen] = React.useState(false);
   const [noteOpen, setNoteOpen] = React.useState(false);
-  const [briefingPicks, setBriefingPicks] = React.useState<
-    readonly WorkbenchBriefingPanePickV3[]
-  >([]);
+  const [briefing, setBriefing] = React.useState<
+    ExperimentPlacementBriefingV2 | null
+  >(null);
   const [limitationsOpen, setLimitationsOpen] = React.useState(false);
   const [paneSettings, setPaneSettings] = React.useState<
   WorkbenchPaneSettingsV3 | null
@@ -249,9 +272,10 @@ const WorkbenchV3Session = ({
     "control" | "analysis" | "scenario" | "save" | "snapshot" | null
   >(null);
   const surfaceRef = React.useRef<ExperimentSurfaceV2 | null>(null);
-  const briefingPicksRef = React.useRef<
-    readonly WorkbenchBriefingPanePickV3[] | null
-  >(null);
+  const briefingRef = React.useRef<ExperimentPlacementBriefingV2 | null>(null);
+  const scenarioDescriptorsRef = React.useRef<
+    readonly StudioSimulationWorkerScenarioDescriptorV2[]
+  >([]);
   const surfaceMutationRevisionRef = React.useRef(0);
   const pendingSurfaceAfterRuntimeRestartRef = React.useRef<
     ExperimentSurfaceV2 | null
@@ -286,12 +310,11 @@ const WorkbenchV3Session = ({
     }
   }, [replaceAnalysisByIdV3]);
 
-  const updateBriefingPicksV3 = React.useCallback((
-    picks: readonly WorkbenchBriefingPanePickV3[],
+  const updateWorkbenchBriefingV3 = React.useCallback((
+    next: ExperimentPlacementBriefingV2,
   ) => {
-    const next = Object.freeze(picks.map((pick) => Object.freeze({ ...pick })));
-    briefingPicksRef.current = next;
-    setBriefingPicks(next);
+    briefingRef.current = next;
+    setBriefing(next);
   }, []);
 
   React.useEffect(() => {
@@ -365,14 +388,37 @@ const WorkbenchV3Session = ({
       workspaceRef.current = storedWorkspace;
       setWorkspace(storedWorkspace);
       setSnapshotCount(storedSnapshots.length);
-      const nextBriefingPicks = resolveWorkbenchBriefingPicksAfterRestartV3(
-        briefingPicksRef.current,
-        nextSurface,
+      const baselineLabel = translationRef.current(
+        "workbench.editor.scenarioManager.baselinePresetTitle",
       );
-      briefingPicksRef.current = nextBriefingPicks;
-      setBriefingPicks(nextBriefingPicks);
-      setSaveState(pendingFeedback?.saveState
-        ?? (pendingSurface === null ? "clean" : "dirty"));
+      const candidateScenarioDescriptors = storedWorkspace === null
+        ? Object.freeze([Object.freeze({
+            scenarioId: initialScenarioId,
+            label: baselineLabel,
+          })])
+        : Object.freeze(storedWorkspace.content.scenarios.map((scenario) =>
+            Object.freeze({
+              scenarioId: scenario.scenarioId,
+              label: scenario.label,
+            })));
+      scenarioDescriptorsRef.current = candidateScenarioDescriptors;
+      const nextBriefing = reconcileWorkbenchBriefingV3({
+        briefing: briefingRef.current,
+        preferredFocusScenarioId: initialScenarioId,
+        snapshot: createWorkbenchBriefingSnapshotV3({
+          experimentId,
+          modelId: composition.defaultModelId,
+          scenarios: candidateScenarioDescriptors,
+          surface: nextSurface,
+        }),
+      });
+      briefingRef.current = nextBriefing;
+      setBriefing(nextBriefing);
+      setSaveState(resolveWorkbenchInitialSaveStateV3({
+        hasStoredWorkspace: storedWorkspace !== null,
+        hasPendingSurface: pendingSurface !== null,
+        pendingSaveState: pendingFeedback?.saveState ?? null,
+      }));
       setSaveError(pendingFeedback?.saveError ?? null);
       setSnapshotState(pendingFeedback?.snapshotState ?? "idle");
       setSnapshotError(pendingFeedback?.snapshotError ?? null);
@@ -399,9 +445,7 @@ const WorkbenchV3Session = ({
         storedWorkspace === null
           ? [Object.freeze({
               scenarioId: initialScenarioId,
-              label: translationRef.current(
-                "workbench.editor.scenarioManager.baselinePresetTitle",
-              ),
+              label: baselineLabel,
               fixture: composition.defaultFixture,
             })]
           : storedWorkspace.content.scenarios.map((scenario) => Object.freeze({
@@ -451,6 +495,7 @@ const WorkbenchV3Session = ({
       const descriptors = Object.freeze(capturedScenarios.scenarios.map(
         ({ scenarioId, label }) => Object.freeze({ scenarioId, label }),
       ));
+      scenarioDescriptorsRef.current = descriptors;
       const controlValuesByScenario = Object.fromEntries(
         capturedScenarios.scenarios.map((scenario) => [
           scenario.scenarioId,
@@ -557,11 +602,35 @@ const WorkbenchV3Session = ({
     surfaceRef.current = next;
     surfaceMutationRevisionRef.current += 1;
     setSurface(next);
+    const currentBriefing = briefingRef.current;
+    const currentScenarios = scenarioDescriptorsRef.current;
+    if (
+      currentBriefing !== null
+      && contract !== null
+      && currentScenarios.length > 0
+    ) {
+      updateWorkbenchBriefingV3(reconcileWorkbenchBriefingV3({
+        briefing: currentBriefing,
+        preferredFocusScenarioId: activeScenarioIdRef.current
+          ?? currentScenarios[0]!.scenarioId,
+        snapshot: createWorkbenchBriefingSnapshotV3({
+          experimentId,
+          modelId: contract.modelId,
+          scenarios: currentScenarios,
+          surface: next,
+        }),
+      }));
+    }
     const durableOperation = exclusiveOperationRef.current;
     if (durableOperation !== "save" && durableOperation !== "snapshot") {
       markDraftDirtyV3();
     }
-  }, [markDraftDirtyV3]);
+  }, [
+    contract,
+    experimentId,
+    markDraftDirtyV3,
+    updateWorkbenchBriefingV3,
+  ]);
 
   const openPaneSettings = React.useCallback((paneId: string) => {
     if (graphPanes.some((pane) => pane.paneId === paneId)) {
@@ -629,12 +698,12 @@ const WorkbenchV3Session = ({
     try {
       const contentStore = contentStoreRef.current
         ?? new StudioBrowserContentStoreV3();
-      const nextWorkbenchId = allocateOpaqueWorkbenchIdV3(
+      const nextExperimentId = allocateOpaqueWorkbenchIdV3(
         contentStore.listWorkspaces().map(({ experimentId: storedId }) => storedId),
       );
-      navigate(workbenchDetailHref({
+      navigate(experimentDetailHref({
+        experimentId: nextExperimentId,
         locale: isLocale(locale) ? locale : undefined,
-        workbenchId: nextWorkbenchId,
       }));
     } catch (error) {
       setRecoveryError(error instanceof Error ? error.message : String(error));
@@ -767,6 +836,21 @@ const WorkbenchV3Session = ({
   const adoptScenarioStateV3 = React.useCallback((
     next: StudioSimulationWorkerScenarioStateV2,
   ) => {
+    scenarioDescriptorsRef.current = next.scenarios;
+    const currentSurface = surfaceRef.current;
+    const currentBriefing = briefingRef.current;
+    if (currentSurface !== null && currentBriefing !== null && contract !== null) {
+      updateWorkbenchBriefingV3(reconcileWorkbenchBriefingV3({
+        briefing: currentBriefing,
+        preferredFocusScenarioId: next.activeScenarioId,
+        snapshot: createWorkbenchBriefingSnapshotV3({
+          experimentId,
+          modelId: contract.modelId,
+          scenarios: next.scenarios,
+          surface: currentSurface,
+        }),
+      }));
+    }
     activeScenarioIdRef.current = next.activeScenarioId;
     setActiveScenarioId(next.activeScenarioId);
     setScenarios(next.scenarios);
@@ -785,7 +869,13 @@ const WorkbenchV3Session = ({
     setStatus((current) => current.kind === "live"
       ? { ...current, frame: next.frame }
       : current);
-  }, [contract, presentationSampleStore, replaceAnalysisByIdV3]);
+  }, [
+    contract,
+    experimentId,
+    presentationSampleStore,
+    replaceAnalysisByIdV3,
+    updateWorkbenchBriefingV3,
+  ]);
 
   const runScenarioOperationV3 = React.useCallback(async (
     kind: WorkbenchScenarioOperationV3,
@@ -1096,10 +1186,10 @@ const WorkbenchV3Session = ({
       // sessionStorage must never turn a durable Snapshot into a false failure.
       if (briefingHandoff !== null) {
         persistWorkbenchBriefingHandoffV3({
+          activeScenarioId: activeScenarioIdRef.current ?? frame.scenarioId,
+          briefing: briefingRef.current,
           handoff: briefingHandoff,
-          snapshotId: durable.snapshot.snapshotId,
-          picks: briefingPicksRef.current ?? [],
-          snapshotSurface: durable.snapshot.content.surface,
+          snapshot: durable.snapshot,
         });
       }
       pendingFeedbackAfterRuntimeRestartRef.current = Object.freeze({
@@ -1189,15 +1279,16 @@ const WorkbenchV3Session = ({
     || scenarioOperation !== null
     || saveState === "saving"
     || snapshotState === "creating";
-  const briefingOptions = surface === null
-    ? []
-    : allSurfacePanesV3(surface).map((pane) => Object.freeze({
-      paneId: pane.paneId,
-      role: pane.role,
-      label: pane.label,
-      defaultPriority: pane.priority,
-      order: pane.order,
-    }));
+  const briefingSnapshot = surface === null
+    || contract === null
+    || scenarios.length === 0
+    ? null
+    : createWorkbenchBriefingSnapshotV3({
+        experimentId,
+        modelId: contract.modelId,
+        scenarios,
+        surface,
+      });
 
   return (
     <div
@@ -1340,7 +1431,7 @@ const WorkbenchV3Session = ({
               )}
               <div className="mt-5 flex flex-wrap gap-2">
                 <Link
-                  to={workbenchHref(isLocale(locale) ? locale : undefined)}
+                  to={experimentsHref(isLocale(locale) ? locale : undefined)}
                   className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-wb-line bg-wb-panel px-3 text-xs font-bold text-wb-text hover:bg-wb-hover"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1548,10 +1639,6 @@ const WorkbenchV3Session = ({
             onSelectedPaneChange={setPaneSettings}
             onChange={(nextSurface) => {
               updateSurface(() => nextSurface);
-              updateBriefingPicksV3(reconcileWorkbenchBriefingPicksV3(
-                briefingPicksRef.current ?? [],
-                nextSurface,
-              ));
             }}
             strings={{
               close: t("workbench.editor.close"),
@@ -1604,44 +1691,43 @@ const WorkbenchV3Session = ({
           title: t("workbench.editor.note"),
         }}
       />
-      <WorkbenchBriefingComposerV3
-        open={briefingOpen}
-        options={briefingOptions}
-        picks={briefingPicks}
-        onChange={updateBriefingPicksV3}
-        onClose={() => setBriefingOpen(false)}
-        renderPreview={(paneId) => surface === null
-          ? null
-          : <BriefingPreviewPaneV3 paneId={paneId} surface={surface} />}
-        snapshotAction={{
-          disabled: workspace === null
-            || saveState !== "clean"
-            || snapshotState === "creating",
-          label: snapshotState === "creating"
-            ? t("workbench.editor.creatingSnapshot")
-            : t("workbench.editor.createSnapshot"),
-          pending: snapshotState === "creating",
-          onCreate: () => void createSnapshotV3(),
-        }}
-        strings={{
-          close: t("workbench.editor.close"),
-          description: t("workbench.editor.briefingDescription"),
-          empty: t("workbench.editor.briefingEmpty"),
-          lowerPriority: t("workbench.editor.lowerPriority"),
-          paneKinds: {
-            graph: t("workbench.editor.paneKinds.graph"),
-            output: t("workbench.editor.paneKinds.output"),
-            control: t("workbench.editor.paneKinds.control"),
-          },
-          preview: t("workbench.editor.briefingPreview"),
-          raisePriority: t("workbench.editor.raisePriority"),
-          snapshotNotice: snapshotError
-            ?? (snapshotState === "created"
-              ? t("workbench.editor.snapshotCreated", { count: snapshotCount })
-              : t("workbench.editor.briefingSnapshotNotice")),
-          title: t("workbench.editor.briefingTitle"),
-        }}
-      />
+      {briefingSnapshot !== null && briefing !== null && (
+        <WorkbenchBriefingComposerV3
+          open={briefingOpen}
+          briefing={briefing}
+          contract={contract}
+          snapshot={briefingSnapshot}
+          onChange={(next) => updateWorkbenchBriefingV3(
+            resolveWorkbenchBriefingEditorChangeV3({
+              activeScenarioId: activeScenarioId
+                ?? next.scenarioScope.initialFocusScenarioId,
+              current: briefing,
+              next,
+              snapshot: briefingSnapshot,
+            }),
+          )}
+          onClose={() => setBriefingOpen(false)}
+          snapshotAction={{
+            disabled: workspace === null
+              || saveState !== "clean"
+              || snapshotState === "creating",
+            label: snapshotState === "creating"
+              ? t("workbench.editor.creatingSnapshot")
+              : t("workbench.editor.createSnapshot"),
+            pending: snapshotState === "creating",
+            onCreate: () => void createSnapshotV3(),
+          }}
+          strings={{
+            close: t("workbench.editor.close"),
+            description: t("workbench.editor.briefingDescription"),
+            snapshotNotice: snapshotError
+              ?? (snapshotState === "created"
+                ? t("workbench.editor.snapshotCreated", { count: snapshotCount })
+                : t("workbench.editor.briefingSnapshotNotice")),
+            title: t("workbench.editor.briefingTitle"),
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -1668,48 +1754,308 @@ function RuntimeStatusV3({ status }: Readonly<{ status: WorkbenchStatusV3 }>) {
   );
 }
 
-export function reconcileWorkbenchBriefingPicksV3(
-  picks: readonly WorkbenchBriefingPanePickV3[],
-  surface: ExperimentSurfaceV2,
-): readonly WorkbenchBriefingPanePickV3[] {
-  const paneIds = new Set(allSurfacePanesV3(surface).map(({ paneId }) => paneId));
-  return Object.freeze(picks.filter(({ paneId }) => paneIds.has(paneId)));
+export function createWorkbenchBriefingSnapshotV3(input: Readonly<{
+  experimentId: string;
+  modelId: string;
+  scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
+  surface: ExperimentSurfaceV2;
+}>): ExperimentSnapshotV2 {
+  if (input.scenarios.length === 0) {
+    throw new Error("Workbench Briefing requires at least one Scenario");
+  }
+  return Object.freeze({
+    schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
+    snapshotId: "snapshot/workbench-briefing-composer",
+    experimentId: input.experimentId,
+    parentSnapshotId: null,
+    createdAt: "1970-01-01T00:00:00.000Z",
+    content: Object.freeze({
+      modelId: input.modelId,
+      scenarios: Object.freeze(input.scenarios.map((scenario) => Object.freeze({
+        scenarioId: scenario.scenarioId,
+        label: scenario.label,
+        capture: Object.freeze({
+          fixture: Object.freeze({}),
+          checkpoint: Object.freeze({
+            acceptedRevision: 0,
+            acceptedTimeSec: 0,
+            payload: Object.freeze({}),
+          }),
+        }),
+      }))),
+      surface: input.surface,
+    }),
+  });
 }
 
 /**
- * Worker reconstruction must not turn an authored empty/partial briefing back
- * into "all panes". Only the first mount receives the complete default.
+ * Rebinds session-only author choices to the current Scenario/Surface schema.
+ * Empty graph/output/control selections are intentional and remain empty.
  */
-export function resolveWorkbenchBriefingPicksAfterRestartV3(
-  currentPicks: readonly WorkbenchBriefingPanePickV3[] | null,
-  surface: ExperimentSurfaceV2,
-): readonly WorkbenchBriefingPanePickV3[] {
-  if (currentPicks !== null) {
-    return reconcileWorkbenchBriefingPicksV3(currentPicks, surface);
+export function reconcileWorkbenchBriefingV3(input: Readonly<{
+  briefing: ExperimentPlacementBriefingV2 | null;
+  preferredFocusScenarioId: string;
+  snapshot: ExperimentSnapshotV2;
+}>): ExperimentPlacementBriefingV2 {
+  const availableScenarioIds = input.snapshot.content.scenarios.map(
+    ({ scenarioId }) => scenarioId,
+  );
+  const fallbackFocusScenarioId = availableScenarioIds.includes(
+    input.preferredFocusScenarioId,
+  )
+    ? input.preferredFocusScenarioId
+    : availableScenarioIds[0];
+  if (fallbackFocusScenarioId === undefined) {
+    throw new Error("Workbench Briefing requires at least one Snapshot Scenario");
   }
-  return Object.freeze(allSurfacePanesV3(surface).map((pane) => Object.freeze({
-    paneId: pane.paneId,
-    priority: pane.priority,
-  })));
+
+  const defaultBriefing = defaultArticleBriefingV3(input.snapshot);
+  const authored = input.briefing ?? Object.freeze({
+    ...defaultBriefing,
+    scenarioScope: Object.freeze({
+      ...defaultBriefing.scenarioScope,
+      initialFocusScenarioId: fallbackFocusScenarioId,
+    }),
+    controls: Object.freeze(defaultBriefing.controls.map((control) =>
+      Object.freeze({
+        ...control,
+        binding: Object.freeze({
+          mode: "fixed" as const,
+          scenarioIds: Object.freeze([fallbackFocusScenarioId]),
+          application: "absolute" as const,
+        }),
+      }))),
+  });
+  const authoredVisible = new Set(authored.scenarioScope.visibleScenarioIds);
+  const retainedVisibleScenarioIds = availableScenarioIds.filter((scenarioId) =>
+    authoredVisible.has(scenarioId));
+  const visibleScenarioIds = retainedVisibleScenarioIds.length > 0
+    ? retainedVisibleScenarioIds
+    : [fallbackFocusScenarioId];
+  const initialFocusScenarioId = visibleScenarioIds.includes(
+    authored.scenarioScope.initialFocusScenarioId,
+  )
+    ? authored.scenarioScope.initialFocusScenarioId
+    : visibleScenarioIds.includes(fallbackFocusScenarioId)
+      ? fallbackFocusScenarioId
+      : visibleScenarioIds[0]!;
+
+  const graphPanesById = new Map(
+    input.snapshot.content.surface.graphPanes.map((pane) => [pane.paneId, pane]),
+  );
+  const graphs = [...authored.graphs]
+    .sort(compareBriefingOrderV3)
+    .flatMap((graph) => {
+      const pane = graphPanesById.get(graph.paneId);
+      if (pane === undefined) return [];
+      const overrides = reconcileWorkbenchGraphOverridesV3(
+        graph.overrides,
+        pane,
+      );
+      return [Object.freeze({
+        paneId: graph.paneId,
+        order: 0,
+        emphasis: graph.emphasis,
+        ...(overrides === undefined ? {} : { overrides }),
+      })];
+    })
+    .map((graph, order) => Object.freeze({ ...graph, order }));
+  if (
+    graphs.length > 0
+    && !graphs.some(({ emphasis }) => emphasis === "primary")
+  ) {
+    graphs[0] = Object.freeze({ ...graphs[0]!, emphasis: "primary" });
+  }
+
+  const availableOutputIds = new Set(
+    input.snapshot.content.surface.outputPanes.flatMap(({ items }) =>
+      items.map(({ outputId }) => outputId)),
+  );
+  const seenOutputIds = new Set<string>();
+  const outputs = [...authored.outputs]
+    .sort(compareBriefingOrderV3)
+    .filter(({ outputId }) => {
+      if (!availableOutputIds.has(outputId) || seenOutputIds.has(outputId)) {
+        return false;
+      }
+      seenOutputIds.add(outputId);
+      return true;
+    })
+    .map((output, order) => Object.freeze({ ...output, order }));
+
+  const availableControlIds = new Set(
+    input.snapshot.content.surface.controlPanes.flatMap(({ items }) =>
+      items.map(({ controlId }) => controlId)),
+  );
+  const seenControlIds = new Set<string>();
+  const controls = [...authored.controls]
+    .sort(compareBriefingOrderV3)
+    .filter(({ controlId }) => {
+      if (!availableControlIds.has(controlId) || seenControlIds.has(controlId)) {
+        return false;
+      }
+      seenControlIds.add(controlId);
+      return true;
+    })
+    .map((control, order) => Object.freeze({
+      ...control,
+      order,
+      binding: reconcileWorkbenchControlBindingV3(
+        control.binding,
+        visibleScenarioIds,
+        initialFocusScenarioId,
+      ),
+    }));
+
+  const candidate = Object.freeze({
+    scenarioScope: Object.freeze({
+      visibleScenarioIds: Object.freeze(visibleScenarioIds),
+      initialFocusScenarioId,
+    }),
+    graphs: Object.freeze(graphs),
+    outputs: Object.freeze(outputs),
+    controls: Object.freeze(controls),
+  });
+  const validated = validateExperimentPlacementAgainstSnapshotV2({
+    schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
+    placementId: "placement/workbench-briefing-validation",
+    snapshotId: input.snapshot.snapshotId,
+    caption: null,
+    briefing: candidate,
+  }, input.snapshot).briefing;
+  if (validated === undefined) {
+    throw new Error("Workbench Briefing validation returned no Briefing");
+  }
+  return validated;
 }
 
 export function persistWorkbenchBriefingHandoffV3(input: Readonly<{
+  activeScenarioId: string;
+  briefing: ExperimentPlacementBriefingV2 | null;
   handoff: StudioSnapshotBriefingHandoffV3;
-  snapshotId: string;
-  picks: readonly WorkbenchBriefingPanePickV3[];
-  snapshotSurface: ExperimentSurfaceV2;
+  snapshot: ExperimentSnapshotV2;
 }>): boolean {
   try {
-    input.handoff.write(input.snapshotId, Object.freeze({
-      panePicks: reconcileWorkbenchBriefingPicksV3(
-        input.picks,
-        input.snapshotSurface,
-      ),
-    }));
+    const briefing = reconcileWorkbenchBriefingV3({
+      briefing: input.briefing,
+      preferredFocusScenarioId: input.activeScenarioId,
+      snapshot: input.snapshot,
+    });
+    input.handoff.write(input.snapshot.snapshotId, briefing);
     return true;
   } catch {
     return false;
   }
+}
+
+/** Materializes the Workbench active slot only for newly picked controls. */
+export function resolveWorkbenchBriefingEditorChangeV3(input: Readonly<{
+  activeScenarioId: string;
+  current: ExperimentPlacementBriefingV2;
+  next: ExperimentPlacementBriefingV2;
+  snapshot: ExperimentSnapshotV2;
+}>): ExperimentPlacementBriefingV2 {
+  const availableScenarioIds = input.snapshot.content.scenarios.map(
+    ({ scenarioId }) => scenarioId,
+  );
+  const activeScenarioId = availableScenarioIds.includes(input.activeScenarioId)
+    ? input.activeScenarioId
+    : input.next.scenarioScope.initialFocusScenarioId;
+  const existingControlIds = new Set(
+    input.current.controls.map(({ controlId }) => controlId),
+  );
+  const hasNewControl = input.next.controls.some(({ controlId }) =>
+    !existingControlIds.has(controlId));
+  const visibleScenarioIds = hasNewControl
+    ? availableScenarioIds.filter((scenarioId) =>
+        input.next.scenarioScope.visibleScenarioIds.includes(scenarioId)
+        || scenarioId === activeScenarioId)
+    : input.next.scenarioScope.visibleScenarioIds;
+  const candidate = Object.freeze({
+    ...input.next,
+    scenarioScope: Object.freeze({
+      ...input.next.scenarioScope,
+      visibleScenarioIds: Object.freeze(visibleScenarioIds),
+    }),
+    controls: Object.freeze(input.next.controls.map((control) =>
+      existingControlIds.has(control.controlId)
+        ? control
+        : Object.freeze({
+            ...control,
+            binding: Object.freeze({
+              mode: "fixed" as const,
+              scenarioIds: Object.freeze([activeScenarioId]),
+              application: "absolute" as const,
+            }),
+          }))),
+  });
+  return reconcileWorkbenchBriefingV3({
+    briefing: candidate,
+    preferredFocusScenarioId: input.next.scenarioScope.initialFocusScenarioId,
+    snapshot: input.snapshot,
+  });
+}
+
+function reconcileWorkbenchGraphOverridesV3(
+  overrides: ExperimentPlacementBriefingGraphOverridesV2 | undefined,
+  pane: ExperimentSurfaceGraphPaneV2,
+): ExperimentPlacementBriefingGraphOverridesV2 | undefined {
+  if (overrides === undefined) return undefined;
+  const availableSeriesIds = new Set(pane.series.map(({ seriesId }) => seriesId));
+  const series = overrides.series === undefined
+    ? undefined
+    : [...overrides.series]
+        .sort(compareBriefingOrderV3)
+        .filter(({ seriesId }) => availableSeriesIds.has(seriesId))
+        .map((item, order) => Object.freeze({ ...item, order }));
+  const retainSeries = series !== undefined
+    && (series.length > 0 || pane.series.length === 0);
+  const next: ExperimentPlacementBriefingGraphOverridesV2 = Object.freeze({
+    ...(overrides.label === undefined ? {} : { label: overrides.label }),
+    ...(overrides.legend === undefined ? {} : { legend: overrides.legend }),
+    ...(retainSeries ? { series: Object.freeze(series) } : {}),
+    ...(overrides.windowSec === undefined || pane.windowSec === undefined
+      ? {}
+      : { windowSec: overrides.windowSec }),
+    ...(overrides.historyDepth === undefined || pane.historyDepth === undefined
+      ? {}
+      : { historyDepth: overrides.historyDepth }),
+  });
+  return Object.keys(next).length === 0 ? undefined : next;
+}
+
+function reconcileWorkbenchControlBindingV3(
+  binding: ExperimentPlacementBriefingV2["controls"][number]["binding"],
+  visibleScenarioIds: readonly string[],
+  initialFocusScenarioId: string,
+): ExperimentPlacementBriefingV2["controls"][number]["binding"] {
+  const visible = new Set(visibleScenarioIds);
+  if (binding.mode === "reader-focus") {
+    const allowedScenarioIds = binding.allowedScenarioIds.filter((scenarioId) =>
+      visible.has(scenarioId));
+    return Object.freeze({
+      mode: "reader-focus",
+      allowedScenarioIds: Object.freeze(allowedScenarioIds.length > 0
+        ? allowedScenarioIds
+        : [initialFocusScenarioId]),
+    });
+  }
+  const scenarioIds = binding.scenarioIds.filter((scenarioId) =>
+    visible.has(scenarioId));
+  return Object.freeze({
+    mode: "fixed",
+    scenarioIds: Object.freeze(scenarioIds.length > 0
+      ? scenarioIds
+      : [initialFocusScenarioId]),
+    application: "absolute",
+  });
+}
+
+function compareBriefingOrderV3(
+  left: Readonly<{ order: number }>,
+  right: Readonly<{ order: number }>,
+): number {
+  return left.order - right.order;
 }
 
 export function hasWorkbenchSurfaceMutationsAfterSubmissionV3(
@@ -2490,61 +2836,6 @@ function NumericControlV3({
   );
 }
 
-function BriefingPreviewPaneV3({
-  paneId,
-  surface,
-}: Readonly<{
-  paneId: string;
-  surface: ExperimentSurfaceV2;
-}>) {
-  const pane = allSurfacePanesV3(surface).find((candidate) =>
-    candidate.paneId === paneId);
-  if (pane === undefined) return null;
-  if (pane.role === "graph") {
-    const colors = pane.series.slice(0, 3).map(({ colorHex }) => colorHex);
-    return (
-      <div className="flex h-28 items-center justify-center bg-wb-app px-4">
-        <svg viewBox="0 0 240 64" className="h-20 w-full" aria-hidden="true">
-          {colors.map((color, index) => (
-            <path
-              key={`${color}:${index}`}
-              d={`M 0 ${34 + index * 6} C 28 ${8 + index * 5}, 48 ${58 - index * 4}, 76 ${28 + index * 3} S 124 ${12 + index * 9}, 152 ${36 - index * 4} S 204 ${54 - index * 5}, 240 ${22 + index * 5}`}
-              fill="none"
-              stroke={color}
-              strokeWidth="1.75"
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-        </svg>
-      </div>
-    );
-  }
-  if (pane.role === "output") {
-    return (
-      <div className="grid grid-cols-2 gap-2 bg-wb-app p-3">
-        {pane.items.slice(0, 4).map((item) => (
-          <div key={item.outputId} className="rounded-lg bg-wb-soft px-2.5 py-2">
-            <p className="truncate text-[9px] text-wb-subtle">{item.label}</p>
-            <p className="mt-1 font-mono text-sm font-semibold text-wb-muted">—</p>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-3 bg-wb-app p-3">
-      {pane.items.slice(0, 3).map((item) => (
-        <div key={item.controlId}>
-          <p className="truncate text-[9px] text-wb-subtle">{item.label}</p>
-          <div className="mt-1.5 h-1 rounded-full bg-wb-line-strong">
-            <div className="h-1 w-1/2 rounded-full bg-wb-accent" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function PaneLoadingV3() {
   const { t } = useTranslation();
   return (
@@ -2555,36 +2846,16 @@ function PaneLoadingV3() {
   );
 }
 
-function controlValueFromFixtureV3(
-  fixture: unknown,
-  controlId: string,
-): number | null {
-  if (fixture === null || typeof fixture !== "object" || Array.isArray(fixture)) {
-    return null;
-  }
-  const inputs = (fixture as Record<string, unknown>).hemodynamicResearchInputs;
-  if (inputs === null || typeof inputs !== "object" || Array.isArray(inputs)) {
-    return null;
-  }
-  const inputKeyByControlId: Readonly<Record<string, string>> = {
-    "hemodynamics.systemic-resistance": "systemicResistance",
-    "hemodynamics.pulmonary-resistance": "pulmonaryResistance",
-    "hemodynamics.venous-tone": "venousTone",
-    "hemodynamics.arterial-stiffness": "arterialStiffness",
-  };
-  const inputKey = inputKeyByControlId[controlId];
-  if (inputKey === undefined) return null;
-  const value = (inputs as Record<string, unknown>)[inputKey];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
 function controlValuesForFixtureV3(
   contract: ModelContractV2,
   fixture: unknown,
 ): Readonly<Record<string, number>> {
   return Object.freeze(Object.fromEntries(contract.controlCatalog.map((control) => [
     control.controlId,
-    controlValueFromFixtureV3(fixture, control.controlId)
+    mainWireIntegratedStudioControlValueFromFixtureV3(
+      fixture,
+      control.controlId,
+    )
       ?? control.defaultValue,
   ])));
 }

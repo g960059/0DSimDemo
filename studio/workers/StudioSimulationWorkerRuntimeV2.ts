@@ -1882,7 +1882,10 @@ ExperimentSnapshotIdFactoryPortV2 {
         throw new Error("simulation worker Snapshot ID space is exhausted");
       }
       ordinal += 1;
-      return `snapshot/worker-${prefix}/${ordinal}`;
+      // Snapshot IDs are also canonical route segments. Keep generated
+      // identities slash-free so a hard refresh cannot depend on a host or
+      // proxy preserving an encoded path separator.
+      return `snapshot-worker-${prefix}-${ordinal}`;
     },
   });
 }

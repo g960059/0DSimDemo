@@ -183,19 +183,90 @@ export type ExperimentSnapshotV2 = Readonly<{
   createdBy?: string;
 }>;
 
-export type ExperimentPlacementPanePickV2 = Readonly<{
+export type ExperimentPlacementBriefingScenarioScopeV2 = Readonly<{
+  /** Scenarios that the Reader is allowed to display and interact with. */
+  visibleScenarioIds: readonly ScenarioIdV2[];
+  /** Initial neutral output/controller context. Must be visible. */
+  initialFocusScenarioId: ScenarioIdV2;
+}>;
+
+export type ExperimentPlacementBriefingGraphSeriesV2 = Readonly<{
+  /** Must select a series already authored by the source Surface graph pane. */
+  seriesId: string;
+  label: string;
+  colorHex: string;
+  order: number;
+}>;
+
+export type ExperimentPlacementBriefingGraphOverridesV2 = Readonly<{
+  label?: string;
+  legend?: "auto" | "hidden" | "compact" | "full";
+  series?: readonly ExperimentPlacementBriefingGraphSeriesV2[];
+  windowSec?: number;
+  historyDepth?: number;
+}>;
+
+export type ExperimentPlacementBriefingGraphV2 = Readonly<{
+  /** Selects one immutable graph pane from the pinned Snapshot Surface. */
   paneId: SurfacePaneIdV2;
-  /** Larger values are rendered more prominently. */
-  priority: number;
+  order: number;
+  emphasis: "primary" | "supporting";
+  overrides?: ExperimentPlacementBriefingGraphOverridesV2;
+}>;
+
+export type ExperimentPlacementBriefingOutputV2 = Readonly<{
+  /** Must select an output item present in the pinned Snapshot Surface. */
+  outputId: string;
+  label: string;
+  order: number;
+}>;
+
+export type ExperimentPlacementBriefingControlButtonOptionV2 = Readonly<{
+  label: string;
+  value: number;
+}>;
+
+export type ExperimentPlacementBriefingControlPresentationV2 =
+  | Readonly<{ kind: "slider" }>
+  | Readonly<{
+      kind: "buttons";
+      options: readonly ExperimentPlacementBriefingControlButtonOptionV2[];
+    }>;
+
+export type ExperimentPlacementBriefingControlBindingV2 =
+  | Readonly<{
+      mode: "reader-focus";
+      allowedScenarioIds: readonly ScenarioIdV2[];
+    }>
+  | Readonly<{
+      mode: "fixed";
+      scenarioIds: readonly ScenarioIdV2[];
+      application: "absolute";
+    }>;
+
+export type ExperimentPlacementBriefingControlV2 = Readonly<{
+  /** Must select a control item present in the pinned Snapshot Surface. */
+  controlId: string;
+  label: string;
+  order: number;
+  presentation: ExperimentPlacementBriefingControlPresentationV2;
+  binding: ExperimentPlacementBriefingControlBindingV2;
 }>;
 
 /**
- * Inline article projection of a pinned Surface. Omission means every Scenario
- * and pane. A present briefing may explicitly select no panes.
+ * Article-local Reader projection of one pinned immutable Snapshot Surface.
+ *
+ * The role-specific selections are deliberately explicit. Graphs may carry a
+ * small allowlisted presentation override, while outputs and controls remain
+ * item selections. Scenario scope and control targets are resolved when the
+ * Placement is authored; no mutable Workbench active-slot identity leaks into
+ * durable Article content.
  */
 export type ExperimentPlacementBriefingV2 = Readonly<{
-  scenarioIds?: readonly ScenarioIdV2[];
-  panePicks: readonly ExperimentPlacementPanePickV2[];
+  scenarioScope: ExperimentPlacementBriefingScenarioScopeV2;
+  graphs: readonly ExperimentPlacementBriefingGraphV2[];
+  outputs: readonly ExperimentPlacementBriefingOutputV2[];
+  controls: readonly ExperimentPlacementBriefingControlV2[];
 }>;
 
 export type ExperimentPlacementV2 = Readonly<{

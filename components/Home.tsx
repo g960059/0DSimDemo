@@ -1,16 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Play } from 'lucide-react';
-import { workbenchHref } from '../homeLinks';
+import { BookOpen, Play } from 'lucide-react';
+import { articlesHref, experimentsHref } from '../homeLinks';
 import { localeFromPathname } from '../localeRouting';
 
-/**
- * Pre-release entry into the simulation product.
- *
- * Published-content entry points stay absent until the exact V3 model is
- * registered and the new Snapshot/Placement path owns their content.
- */
+/** Top-level entry into independent Article and Experiment resources. */
 export const Home = () => {
   const { t } = useTranslation();
   const location = useLocation();
@@ -31,11 +26,18 @@ export const Home = () => {
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              to={workbenchHref(locale)}
+              to={experimentsHref(locale)}
               className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-wb-primary px-5 text-sm font-bold text-white transition-transform duration-150 hover:bg-wb-primary-hover active:scale-[0.98] motion-reduce:transform-none"
             >
               <Play className="h-4 w-4" />
               {t('home.openWorkbenchStatus')}
+            </Link>
+            <Link
+              to={articlesHref(locale)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg px-4 text-sm font-bold text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.98] motion-reduce:transform-none"
+            >
+              <BookOpen className="h-4 w-4" />
+              {t('home.openArticles')}
             </Link>
           </div>
         </div>

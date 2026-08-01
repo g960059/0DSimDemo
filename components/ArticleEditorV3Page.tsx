@@ -3,7 +3,7 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
-  FilePlus2,
+  Eye,
   FlaskConical,
   Heading2,
   Home,
@@ -12,9 +12,20 @@ import {
   Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
-import { homeHref, workbenchHref } from "@/homeLinks";
+import {
+  articleEditorHref,
+  articleReaderHref,
+  articlesHref,
+  experimentsHref,
+  homeHref,
+} from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import { ArticleExperimentPlacementV3 } from "@/components/article/ArticleExperimentPlacementV3";
 import {
@@ -38,12 +49,64 @@ import {
 import {
   createBrowserStudioSnapshotBriefingHandoffV3,
 } from "@/studio/infrastructure/browser/StudioSnapshotBriefingHandoffV3";
+import {
+  loadStudioDefaultClientCompositionV2,
+} from "@/studio/composition/StudioDefaultCompositionV2";
+import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 
 type EditorSaveStatusV3 = "idle" | "dirty" | "saving" | "saved" | "error";
+
+type ArticleEditorRouteDraftResolutionV3 = Readonly<{
+  draft: StudioArticleDraftV2;
+  routeChanged: boolean;
+  routeKey: string;
+}>;
+
+export function articleEditorRouteKeyV3(
+  routeArticleId: string | undefined,
+): string {
+  return routeArticleId ?? "new";
+}
+
+export function resolveArticleEditorRouteDraftV3(input: Readonly<{
+  currentDraft: StudioArticleDraftV2;
+  hydratedRouteKey: string | null;
+  locale: string;
+  readArticle: (articleId: string) => StudioArticleDraftV2 | null;
+  routeArticleId: string | undefined;
+  untitledTitle: string;
+}>): ArticleEditorRouteDraftResolutionV3 {
+  const routeKey = articleEditorRouteKeyV3(input.routeArticleId);
+  if (input.hydratedRouteKey === routeKey) {
+    return Object.freeze({
+      draft: input.currentDraft,
+      routeChanged: false,
+      routeKey,
+    });
+  }
+  if (input.routeArticleId === "new" || input.routeArticleId === undefined) {
+    return Object.freeze({
+      draft: createEmptyArticleDraftV3(input.locale, input.untitledTitle),
+      routeChanged: true,
+      routeKey,
+    });
+  }
+  const stored = input.readArticle(input.routeArticleId);
+  if (stored === null) {
+    throw new Error(`Article not found: ${input.routeArticleId}`);
+  }
+  return Object.freeze({
+    draft: stored,
+    routeChanged: true,
+    routeKey,
+  });
+}
 
 export function ArticleEditorV3Page() {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { articleId: routeArticleId } = useParams();
   const locale = localeFromPathname(location.pathname);
   const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
   const briefingHandoff = React.useMemo(
@@ -51,36 +114,63 @@ export function ArticleEditorV3Page() {
     [],
   );
   const [snapshots, setSnapshots] = React.useState<readonly ExperimentSnapshotV2[]>([]);
-  const [savedArticles, setSavedArticles] = React.useState<readonly StudioArticleDraftV2[]>([]);
   const [draft, setDraft] = React.useState<StudioArticleDraftV2>(() =>
     createEmptyArticleDraftV3(locale, t("articleEditor.untitled")));
+  const draftRef = React.useRef(draft);
+  const hydratedRouteKeyRef = React.useRef<string | null>(
+    routeArticleId === "new" || routeArticleId === undefined
+      ? articleEditorRouteKeyV3(routeArticleId)
+      : null,
+  );
   const [status, setStatus] = React.useState<EditorSaveStatusV3>("idle");
   const [error, setError] = React.useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [modelContract, setModelContract] = React.useState<ModelContractV2 | null>(null);
+
+  React.useEffect(() => {
+    let current = true;
+    void loadStudioDefaultClientCompositionV2().then(({ contract }) => {
+      if (current) setModelContract(contract);
+    }).catch(() => {
+      if (current) setModelContract(null);
+    });
+    return () => {
+      current = false;
+    };
+  }, []);
 
   React.useEffect(() => {
     try {
       const nextSnapshots = [...store.listSnapshots()].sort((left, right) =>
         right.createdAt.localeCompare(left.createdAt));
-      const nextArticles = [...store.listArticles()].sort((left, right) =>
-        left.title.localeCompare(right.title));
       setSnapshots(Object.freeze(nextSnapshots));
-      setSavedArticles(Object.freeze(nextArticles));
-      const preferred = nextArticles.find((article) => article.locale === locale)
-        ?? nextArticles[0];
-      if (preferred !== undefined) setDraft(preferred);
-      setStatus("idle");
-      setError(null);
+      const resolution = resolveArticleEditorRouteDraftV3({
+        currentDraft: draftRef.current,
+        hydratedRouteKey: hydratedRouteKeyRef.current,
+        locale,
+        readArticle: (articleId) => store.readArticle(articleId),
+        routeArticleId,
+        untitledTitle: t("articleEditor.untitled"),
+      });
+      if (resolution.routeChanged) {
+        hydratedRouteKeyRef.current = resolution.routeKey;
+        draftRef.current = resolution.draft;
+        setDraft(resolution.draft);
+        setStatus("idle");
+        setError(null);
+      }
     } catch (cause) {
       setStatus("error");
       setError(errorMessageV3(cause));
     }
-  }, [locale, store]);
+  }, [locale, routeArticleId, store, t]);
 
   const updateDraft = React.useCallback((
     update: (current: StudioArticleDraftV2) => StudioArticleDraftV2,
   ) => {
-    setDraft((current) => update(current));
+    const next = update(draftRef.current);
+    draftRef.current = next;
+    setDraft(next);
     setStatus("dirty");
     setError(null);
   }, []);
@@ -89,23 +179,26 @@ export function ArticleEditorV3Page() {
     setStatus("saving");
     setError(null);
     try {
-      const isInitialSave = store.readArticle(draft.articleId) === null;
+      const candidate = draftRef.current;
+      const isInitialSave = store.readArticle(candidate.articleId) === null;
       const normalized = normalizeArticleDraftV3({
-        ...draft,
-        draftVersion: isInitialSave ? 0 : draft.draftVersion + 1,
+        ...candidate,
+        draftVersion: isInitialSave ? 0 : candidate.draftVersion + 1,
       });
       const saved = store.saveArticle(normalized);
+      draftRef.current = saved;
       setDraft(saved);
-      setSavedArticles((current) => Object.freeze([
-        ...current.filter(({ articleId }) => articleId !== saved.articleId),
-        saved,
-      ].sort((left, right) => left.title.localeCompare(right.title))));
       setStatus("saved");
+      if (routeArticleId !== saved.articleId) {
+        navigate(articleEditorHref({ articleId: saved.articleId, locale }), {
+          replace: true,
+        });
+      }
     } catch (cause) {
       setStatus("error");
       setError(errorMessageV3(cause));
     }
-  }, [draft, store]);
+  }, [locale, navigate, routeArticleId, store]);
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -203,53 +296,24 @@ export function ArticleEditorV3Page() {
           {draft.title || t("articleEditor.untitled")}
         </span>
 
-        {savedArticles.length > 0 && (
-          <label className="hidden md:block">
-            <span className="sr-only">{t("articleEditor.chooseArticle")}</span>
-            <select
-              value={savedArticles.some(({ articleId }) => articleId === draft.articleId)
-                ? draft.articleId
-                : ""}
-              disabled={status === "dirty" || status === "saving"}
-              onChange={(event) => {
-                const selected = savedArticles.find(({ articleId }) =>
-                  articleId === event.currentTarget.value);
-                if (selected !== undefined) {
-                  setDraft(selected);
-                  setStatus("idle");
-                  setError(null);
-                }
-              }}
-              className="h-8 max-w-40 rounded-lg bg-wb-soft px-2 text-[10px] text-wb-muted outline-none focus:ring-2 focus:ring-wb-accent disabled:opacity-40"
-            >
-              {!savedArticles.some(({ articleId }) => articleId === draft.articleId) && (
-                <option value="">{t("articleEditor.newArticle")}</option>
-              )}
-              {savedArticles.map((article) => (
-                <option key={article.articleId} value={article.articleId}>
-                  {article.title}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        <button
-          type="button"
-          disabled={status === "dirty" || status === "saving"}
-          onClick={() => {
-            setDraft(createEmptyArticleDraftV3(locale, t("articleEditor.untitled")));
-            setStatus("idle");
-            setError(null);
-          }}
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:pointer-events-none disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          aria-label={t("articleEditor.newArticle")}
-          title={t("articleEditor.newArticle")}
-        >
-          <FilePlus2 className="h-4 w-4" />
-        </button>
         <Link
-          to={workbenchHref(locale)}
+          to={articlesHref(locale)}
+          className="hidden min-h-8 items-center rounded-lg px-2.5 text-[11px] font-medium text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:inline-flex"
+        >
+          {t("articleLibrary.title")}
+        </Link>
+        {routeArticleId !== "new" && (
+          <Link
+            to={articleReaderHref({ articleId: draft.articleId, locale })}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+            aria-label={t("articleEditor.preview")}
+            title={t("articleEditor.preview")}
+          >
+            <Eye className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        )}
+        <Link
+          to={experimentsHref(locale)}
           className="hidden min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:inline-flex"
         >
           <FlaskConical className="h-3.5 w-3.5" />
@@ -306,7 +370,7 @@ export function ArticleEditorV3Page() {
                 </p>
               </div>
               <Link
-                to={workbenchHref(locale)}
+                to={experimentsHref(locale)}
                 className="mt-3 inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-accent transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:mt-0"
               >
                 {t("articleEditor.emptySnapshots.openWorkbench")}
@@ -323,6 +387,7 @@ export function ArticleEditorV3Page() {
                     key={block.blockId}
                     block={block}
                     snapshot={articleSnapshotById.get(block.placement.snapshotId) ?? null}
+                    contract={modelContract}
                     index={index}
                     total={draft.blocks.length}
                     onChange={(next) => updateBlock(index, next)}

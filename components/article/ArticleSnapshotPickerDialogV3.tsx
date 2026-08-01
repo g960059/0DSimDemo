@@ -1,9 +1,9 @@
 import React from "react";
-import { Check, FlaskConical, X } from "lucide-react";
+import { ArrowUpRight, Check, FlaskConical, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
-import { workbenchHref } from "@/homeLinks";
+import { experimentsHref, experimentSnapshotHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import type { ExperimentSnapshotV2 } from "@/studio/contracts/v2/content";
 
@@ -79,7 +79,7 @@ export function ArticleSnapshotPickerDialogV3({
               {t("articleEditor.emptySnapshots.description")}
             </p>
             <Link
-              to={workbenchHref(locale)}
+              to={experimentsHref(locale)}
               onClick={onClose}
               className="mt-5 inline-flex min-h-9 items-center rounded-lg bg-wb-primary px-3.5 text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
             >
@@ -89,14 +89,14 @@ export function ArticleSnapshotPickerDialogV3({
         ) : (
           <ul className="grid gap-1" aria-label={t("articleEditor.snapshotPicker.listLabel")}>
             {snapshots.map((snapshot) => (
-              <li key={snapshot.snapshotId}>
+              <li key={snapshot.snapshotId} className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => {
                     onSelect(snapshot);
                     onClose();
                   }}
-                  className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                  className="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-3 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                 >
                   <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-wb-soft text-wb-muted group-hover:text-wb-accent">
                     <FlaskConical className="h-4 w-4" />
@@ -116,6 +116,20 @@ export function ArticleSnapshotPickerDialogV3({
                   </span>
                   <Check className="h-4 w-4 shrink-0 text-wb-subtle opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
                 </button>
+                <Link
+                  to={experimentSnapshotHref({
+                    experimentId: snapshot.experimentId,
+                    locale,
+                    snapshotId: snapshot.snapshotId,
+                  })}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={t("articleEditor.openSnapshot")}
+                  aria-label={t("articleEditor.openSnapshot")}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-wb-subtle transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-accent active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                >
+                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
               </li>
             ))}
           </ul>
