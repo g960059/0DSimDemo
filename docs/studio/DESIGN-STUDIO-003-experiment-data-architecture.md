@@ -103,6 +103,15 @@ scenarioId
 
 `experimentId` identifies one logical authoring series.
 
+Workbench identity is model-independent and URL-addressable. `/workbench` is
+the selector; `/workbench/:workbenchId` opens one opaque `experimentId`. New
+IDs are browser-generated URL-safe random tokens and never encode a default
+model, release name, digest, or hash. A saved Workspace remains pinned to its
+own exact `content.modelId`. Opening the selector after a default-model change
+therefore never reuses or mutates an older Workspace: the user may open it when
+that exact release is available, export/delete it when unavailable, or create a
+new opaque Workbench on the latest default release.
+
 `snapshotId` identifies one immutable materialization. It replaces
 `experimentId + numeric revision` as the exact content reference.
 
@@ -636,13 +645,19 @@ When priorities tie, renderers use ascending `order`, then ascending `paneId`,
 so responsive composition is deterministic without durable geometry.
 
 A registered sweep graph requires a nonempty `series` and an authored
-`windowSec` from 1 through 6 seconds in 0.5-second steps. A registered
-pressure-volume graph also requires a nonempty `series`, but omits `windowSec`.
+`windowSec` from 1 through 6 seconds in 0.5-second steps. It omits
+`historyDepth`: its existing time trace remains continuous across a control
+reset and leaves the window naturally as the sweep advances. A registered
+pressure-volume graph also requires a nonempty `series`, omits `windowSec`, and
+stores `historyDepth` from 0 through 3. `historyDepth` selects how many completed
+pre-control parameter epochs are drawn as progressively faded presentation
+context; the retained samples themselves remain ephemeral runtime data.
 In both cases each authored `seriesId` must exist in that graph's own series
 catalog. This is what lets a left-pressure pane offer LVP/LAP/AoP while a
 pressure-volume pane offers LV/RV/RA/LA without letting settings accidentally
 assemble an invalid renderer binding. A `structural-return` graph requires an
-empty `series` and omits `windowSec`. Output panes may select any registered
+empty `series`, omits `windowSec`, and also stores `historyDepth` from 0 through
+3 for prior exact analysis payloads. Output panes may select any registered
 output.
 
 Default Workbench graph composition is deliberately small: one left-heart
@@ -675,27 +690,27 @@ controller items are durable Surface selections without Scenario bindings.
 Selecting a Scenario makes that branch the neutral output/controller context.
 Every visible control action therefore applies only to the active Scenario.
 
-One persistent bidirectional Worker owns every live Scenario branch in the
-Experiment. Only the active branch is wall-clock paced, but inactive branches
-remain exact accepted-boundary fixture/checkpoint captures inside the same
-Worker. The following operations are Worker commands, not optimistic UI array
-edits:
+Each Scenario owns one persistent bidirectional numerical Worker and one live
+scheduler lane. All admitted Scenarios are wall-clock paced concurrently; the
+active Scenario selects only the neutral output/controller inspector context.
+This avoids serial branch restoration, keeps numerical ownership off the main
+thread, and lets graph panes compare every Scenario live. The following
+operations are runtime-pool commands, not optimistic UI array edits:
 
 ```text
-add from Preset  -> validate and clone the complete Preset capture
-duplicate        -> capture and clone the selected exact branch
-select           -> restore the selected branch and return its accepted frame
+add from Preset  -> validate the complete Preset capture and create one lane
+duplicate        -> capture the selected exact branch and create an independent lane
+select           -> change the inspector context without pausing another lane
 rename           -> change branch metadata only
-delete           -> remove one branch; at least one must remain
+delete           -> dispose one lane; at least one must remain
 ```
 
 Add and duplicate activate the new branch. Deleting the active branch selects
-a deterministic remaining branch. Before any numerical branch mutation, the
-Workbench pauses live pacing and the Worker captures every branch. Validation,
-session rebuild, and active-branch selection are all-or-none; failures leave
-the prior branch set active. The public `runtimeSessionId` remains stable while
-private adapter-session generations reject late work from a rebuilt branch
-set.
+a deterministic remaining branch. Pool mutations temporarily pause all lanes
+at accepted boundaries; a failed lane construction leaves the existing pool
+unchanged. Save and Snapshot commands capture every lane only at their explicit
+authoring boundaries. Runtime session IDs, input epochs, schedulers, and lane
+membership never become durable Experiment content.
 
 Adding, duplicating, or deleting a Scenario does not rewrite the Surface.
 Duplicating creates an independent exact branch: later control changes and
@@ -948,6 +963,13 @@ lineage. Article drafts start at version zero and advance by exactly one;
 Article writes resolve every Placement against its pinned Snapshot and reject
 unknown Snapshot, Scenario, or pane identities.
 
+Authoring seeds and Experiment exports carry the target Experiment's immutable
+Snapshot series together with the complete parent closure required by any
+cross-Experiment fork. The closure is deterministic and parent-first, while
+Workbench Snapshot counts continue to count only Snapshots owned by that
+Workbench. This keeps an exported fork self-contained without confusing
+lineage ancestors with locally authored revisions.
+
 This local-storage adapter is single-renderer authoring infrastructure.
 Its persisted version check rejects an already-visible stale write, but browser
 local storage cannot make the read/compare/write sequence transactional across
@@ -1015,7 +1037,12 @@ SimulationSession may internally own:
 - settlement and numerical-health evaluations;
 - live pacing and presentation samples;
 - pending capture/gate jobs;
-- one-live scheduling state.
+- delivery scheduling state.
+
+Inside one active Workbench or Article Placement, every Scenario owns a live
+lane and advances concurrently. The one-live resource policy in Section 13 is
+between Article Placements; it never serializes the Scenarios inside the
+selected Experiment.
 
 The input epoch rejects late asynchronous results after rapid control changes.
 It is an implementation counter, not a domain field. It must not enter
@@ -1027,22 +1054,42 @@ are not written to durable storage.
 ### 14.1 Live calculation and presentation cadence
 
 Numerical stepping and UI presentation use separate cadences. The Worker keeps
-the exact 2 ms accepted-step stream. Live pacing normally waits until eight
+the exact 2 ms accepted-step stream. Live pacing normally waits until sixteen
 steps are wall-clock due and crosses the Worker boundary once for that exact
-16 ms batch; this removes hundreds of request/response round trips per model
-second without advancing ahead of real time. Every accepted frame in the batch
-still returns in order. The Workbench then notifies presentation consumers at
-approximately 30 frames per second; pausing, saving, or a hard pending-frame
+32 ms model-time batch; this removes hundreds of request/response round trips
+per model second without advancing ahead of real time. Every accepted frame in
+the batch still returns in order. The Workbench then notifies presentation
+consumers at approximately 30 frames per second; pausing, saving, or a hard pending-frame
 bound flushes every accepted frame before the command boundary. Coalescing
 therefore reduces transport and React churn without changing numerical
 stepping or checkpoint history.
 
+Presentation keeps two bounded resolutions from the same accepted frames.
+Sweep graphs use a 60 Hz terminal-plus-extrema buffer for the authored time
+window. Pressure-volume graphs use a separate bounded exact 2 ms scalar-orbit
+buffer for the current and recent complete beats, so systolic geometry is not
+reduced to roughly 40--60 vertices per beat. The latter is a display cache, not
+a second numerical state or a source for Snapshot qualification.
+
+`acceptedTimeSec` remains the exact model clock and may restart at zero after a
+model-owned cold-reset control. A separate monotonic `presentationTimeSec` maps
+each input epoch onto one continuous visual timeline. Sweep paths split their
+stroke at an epoch boundary but keep the previous samples in the same window,
+so the waveform does not disappear on commit and naturally sweeps away without
+claiming numerical continuity across the reset. PV/structural panes instead
+archive completed pre-control epochs up to authored `historyDepth`; their
+historical orbit, single-beat end-systolic/Klotz-informed orientation references
+(not formal ESPVR/EDPVR relations), Guyton curve, and any qualified Starling
+locus are rendered with age-based opacity and never reused as current analysis.
+
 Canvas elements keep one context, size observer, and pending animation frame
-for their mounted lifetime. Sweep graphs scan only the current display window,
-and pressure-volume graphs scan the latest complete cycle. Live samples are
-already monotonic, so the renderer preserves their identity instead of copying
-and sorting the full bounded buffer on every paint. Canvas device-pixel ratio
-is capped independently of numerical resolution.
+for their mounted lifetime. Live samples are already monotonic in presentation
+time, so renderers preserve array identity instead of copying and sorting the
+full bounded buffer on every paint. Canvas device-pixel ratio is capped
+independently of numerical resolution. OffscreenCanvas and WebGL are not the
+default: they are introduced only if production profiling shows main-thread
+render saturation after the bounded multi-resolution caches, because another
+Worker cannot reduce the numerical kernel's CPU cost.
 
 ### 14.2 Portable JSON and signed zero
 
@@ -1097,6 +1144,8 @@ There is no production Studio database or user-authored content to migrate.
 The cutover is therefore intentionally destructive:
 
 - no V1 data reader, migration, dual-write, fallback, or compatibility alias;
+- the V3 browser store deletes the retired V2 local envelope without reading
+  or migrating it;
 - the exact integrated V3 development release is now the registered/default
   Workbench path, but no official Preset, Experiment, Snapshot, Placement, or
   Lesson content is authored until that development boundary is deliberately

@@ -22,6 +22,9 @@ export const STUDIO_SWEEP_WINDOW_DEFAULT_SEC_V2 = 2;
 export const STUDIO_SWEEP_WINDOW_MIN_SEC_V2 = 1;
 export const STUDIO_SWEEP_WINDOW_MAX_SEC_V2 = 6;
 export const STUDIO_SWEEP_WINDOW_STEP_SEC_V2 = 0.5;
+export const STUDIO_GRAPH_HISTORY_DEFAULT_DEPTH_V2 = 1;
+export const STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2 = 0;
+export const STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2 = 3;
 /**
  * Pre-release comparison limit. The four admitted Scenario ordinals map
  * one-to-one to the four renderer line patterns.
@@ -92,6 +95,12 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
    * it because they do not own a time window.
    */
   windowSec?: number;
+  /**
+   * Number of completed input epochs shown behind the current graph. Required
+   * for PV and structural renderers; sweep renderers carry prior epochs out in
+   * their monotonic presentation window and therefore omit this field.
+   */
+  historyDepth?: number;
   /**
    * The pane selects bindings from its registered graph's series catalog.
    * Structural renderers without a series catalog require an empty list.

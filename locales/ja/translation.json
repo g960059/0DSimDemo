@@ -23,6 +23,36 @@
     "openWorkbenchStatus": "V3 Workbenchを開く"
   },
   "workbench": {
+    "selector": {
+      "title": "Workbenches",
+      "eyebrow": "EXACT-MODEL EXPERIMENTS",
+      "newTitle": "新しいWorkbenchを開始",
+      "newDescription": "利用可能な最新のexact model用に、modelとは独立したopaqueなExperiment identityを作成します。明示的に下書きを保存するまで永続化しません。",
+      "newAction": "新しいWorkbench",
+      "savedTitle": "保存済みWorkbenches",
+      "savedCount": "{{count}}件保存済み",
+      "loading": "保存済みWorkbenchを読み込んでいます…",
+      "errorTitle": "保存済みWorkbenchを読み込めませんでした",
+      "retry": "再試行",
+      "emptyTitle": "保存済みWorkbenchはありません",
+      "emptyDescription": "上から開始し、Experimentの準備ができたら保存してください。",
+      "untitled": "名称未設定のExperiment",
+      "unavailable": "このreleaseにはexact modelが含まれていません。保存データは変更せず保持しています。",
+      "export": "Workbenchを書き出す",
+      "delete": "Workbenchを削除",
+      "deleteConfirm": "このWorkbenchと、他から参照されていないSnapshotを削除しますか？この操作は取り消せません。",
+      "open": "開く",
+      "inspect": "復旧方法を見る"
+    },
+    "unavailable": {
+      "title": "このWorkbenchには別のexact modelが必要です",
+      "description": "保存済みWorkbenchは、このreleaseに含まれていないexact modelへ固定されています。現在のdefault modelで開いたり、上書きしたりしません。",
+      "savedModel": "保存済みexact model",
+      "currentModel": "利用可能な最新モデル",
+      "back": "Workbench一覧へ戻る",
+      "startLatest": "最新モデルで開始",
+      "preserved": "保持しているWorkbenchの書き出し・削除はWorkbench一覧から行えます。"
+    },
     "live": {
       "badge": "Registry-bound live V3",
       "experimental": "Experimental development default",
@@ -115,6 +145,8 @@
       "emptyCatalog": "登録済みの項目がありません。",
       "noConfigurableSeries": "このグラフの構造軸はrendererが所有するため、変更可能な系列はありません。",
       "series": "グラフ系列",
+      "historyDepth": "変更前の状態",
+      "historyDepthHint": "完了したパラメータ状態を0〜3件表示",
       "windowSec": "表示時間幅",
       "windowSecHint": "1〜6秒、0.5秒刻み",
       "items": "Items",

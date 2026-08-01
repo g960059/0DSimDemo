@@ -73,7 +73,10 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
       setTimeout(callback, delayMs));
     this.#cancel = dependencies.cancel ?? ((timer) => clearTimeout(timer));
     this.#presentationDtSec = dependencies.presentationDtSec ?? 0.002;
-    this.#maximumBatchSteps = dependencies.maximumBatchSteps ?? 8;
+    // Sixteen exact 2 ms samples cover one 32 ms simulated interval while
+    // halving Worker request/response traffic versus the former eight-sample
+    // batch. No numerical step or accepted frame is skipped.
+    this.#maximumBatchSteps = dependencies.maximumBatchSteps ?? 16;
     this.#preferredBatchSteps = dependencies.preferredBatchSteps
       ?? this.#maximumBatchSteps;
     this.#maximumCatchUpSec = dependencies.maximumCatchUpSec ?? 0.25;
@@ -120,6 +123,20 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
     this.#running = false;
     this.#cancelTimer();
     await this.#inFlight;
+    this.#flushPresentationFrames(this.#nowMs());
+  }
+
+  /**
+   * Publishes the already-accepted presentation prefix without changing
+   * playback ownership or waiting for an in-flight Worker request.
+   *
+   * The parallel Scenario pool uses this synchronous boundary when a sibling
+   * lane fails. Waiting for the failing lane from inside its own rejection
+   * callback would self-depend, while disposing every lane immediately would
+   * otherwise discard healthy lanes' scheduler-side accepted prefixes.
+   */
+  flushAcceptedFrames(): void {
+    if (this.#disposed) return;
     this.#flushPresentationFrames(this.#nowMs());
   }
 

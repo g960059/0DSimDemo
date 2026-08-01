@@ -35,11 +35,11 @@ describe("WorkbenchLiveSchedulerV3", () => {
 
     expect(acceptedTimeSec).toBeGreaterThanOrEqual(0.99);
     expect(acceptedTimeSec).toBeLessThanOrEqual(1.002);
-    expect(Math.max(...batchSizes)).toBeLessThanOrEqual(8);
-    expect(batchSizes.every((size) => size === 8)).toBe(true);
-    // Eight exact 2 ms steps share one Worker request/response instead of
+    expect(Math.max(...batchSizes)).toBeLessThanOrEqual(16);
+    expect(batchSizes.every((size) => size === 16)).toBe(true);
+    // Sixteen exact 2 ms steps share one Worker request/response instead of
     // forcing roughly 500 structured-clone round trips per model second.
-    expect(batchSizes.length).toBeLessThanOrEqual(63);
+    expect(batchSizes.length).toBeLessThanOrEqual(32);
     await scheduler.dispose();
   });
 
@@ -187,12 +187,44 @@ describe("WorkbenchLiveSchedulerV3", () => {
     });
 
     scheduler.play(0);
-    await clock.advanceBy(20);
+    await clock.advanceBy(40);
     expect(delivered).toHaveLength(0);
     await scheduler.pause();
 
     expect(delivered.length).toBeGreaterThan(0);
     expect(delivered.at(-1)?.acceptedTimeSec).toBeCloseTo(acceptedTimeSec);
+    await scheduler.dispose();
+  });
+
+  it("publishes an accepted prefix synchronously without pausing or duplicating it", async () => {
+    const clock = new SchedulerClock();
+    let acceptedTimeSec = 0;
+    const delivered: Frame[] = [];
+    const scheduler = new WorkbenchLiveSchedulerV3<Frame>({
+      nowMs: clock.now,
+      schedule: clock.schedule,
+      cancel: clock.cancel,
+      acceptedTimeSec: (frame) => frame.acceptedTimeSec,
+      async advance() {
+        return [{ acceptedTimeSec: acceptedTimeSec += 0.002 }];
+      },
+      onFrames: (frames) => delivered.push(...frames),
+      onError: (error) => { throw error; },
+      maximumBatchSteps: 1,
+      presentationIntervalMs: 1_000,
+    });
+
+    scheduler.play(0);
+    await clock.advanceBy(2);
+    expect(delivered).toEqual([]);
+
+    scheduler.flushAcceptedFrames();
+    expect(delivered).toEqual([{ acceptedTimeSec: 0.002 }]);
+    expect(scheduler.running).toBe(true);
+
+    scheduler.flushAcceptedFrames();
+    await scheduler.pause();
+    expect(delivered).toEqual([{ acceptedTimeSec: 0.002 }]);
     await scheduler.dispose();
   });
 

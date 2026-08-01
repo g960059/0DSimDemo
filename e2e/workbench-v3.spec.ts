@@ -5,6 +5,7 @@ const EXACT_MODEL_ID =
 const LIMITATIONS_SCOPE = `${EXACT_MODEL_ID}:disclosure-v1`;
 const LIMITATIONS_KEY =
   `circleheart.modelLimitations.ack.${encodeURIComponent(LIMITATIONS_SCOPE)}`;
+const E2E_WORKBENCH_ID = "workbench-e2e-primary";
 
 test.beforeEach(async ({ page }, testInfo) => {
   if (!testInfo.title.includes("limitations acknowledgement")) {
@@ -13,13 +14,29 @@ test.beforeEach(async ({ page }, testInfo) => {
       LIMITATIONS_KEY,
     );
   }
-  await page.goto("/ja/workbench");
+  if (testInfo.title.includes("selector creates")) {
+    await page.goto("/ja/workbench");
+    return;
+  }
+  await page.goto(`/ja/workbench/${E2E_WORKBENCH_ID}`);
   const root = page.getByTestId("v3-dockview-workbench");
   await expect(root).toBeVisible();
   await expect(root).toHaveAttribute("data-model-id", EXACT_MODEL_ID);
   await expect(page.getByTestId("workbench-model-menu-trigger-v3"))
     .toContainText("MW V3");
   await expect.poll(() => acceptedRevision(page)).toBeGreaterThan(10);
+});
+
+test("@desktop selector creates a model-independent opaque Workbench route", async ({
+  page,
+}) => {
+  await expect(page.getByTestId("workbench-selector-v3")).toBeVisible();
+  await page.getByTestId("create-workbench-v3").click();
+  await expect(page).toHaveURL(/\/ja\/workbench\/workbench-[A-Za-z0-9_-]+$/);
+  await expect(page.getByTestId("v3-dockview-workbench")).toBeVisible();
+  await expect(page.getByTestId("workbench-unavailable-model-v3"))
+    .toHaveCount(0);
+  expect(page.url()).not.toContain(encodeURIComponent(EXACT_MODEL_ID));
 });
 
 test("@desktop playback, charts, analysis, controls, and settings stay live", async ({

@@ -107,7 +107,7 @@ function buildSweepingWaveformSegmentsFromOrderedV3(
   if (!(windowSec > 0) || !Number.isFinite(windowSec)) {
     return Object.freeze([]);
   }
-  const latestTimeSec = ordered.at(-1)?.acceptedTimeSec;
+  const latestTimeSec = ordered.at(-1)?.presentationTimeSec;
   if (latestTimeSec === undefined) return Object.freeze([]);
 
   const cursorPhaseSec = positiveModuloV3(latestTimeSec, windowSec);
@@ -122,6 +122,7 @@ function buildSweepingWaveformSegmentsFromOrderedV3(
   const segments: SweepingWaveformPointV3[][] = [];
   let active: SweepingWaveformPointV3[] = [];
   let previousPhaseSec: number | null = null;
+  let previousInputEpoch: number | null = null;
 
   const flush = () => {
     if (active.length > 0) segments.push(active);
@@ -131,13 +132,23 @@ function buildSweepingWaveformSegmentsFromOrderedV3(
   const firstIndex = firstSampleAtOrAfterV3(ordered, oldestTimeSec);
   for (let index = firstIndex; index < ordered.length; index += 1) {
     const sample = ordered[index]!;
-    const phaseSec = positiveModuloV3(sample.acceptedTimeSec, windowSec);
+    const phaseSec = positiveModuloV3(
+      sample.presentationTimeSec,
+      windowSec,
+    );
     if (
+      previousInputEpoch !== null
+      && sample.inputEpoch !== previousInputEpoch
+    ) {
+      flush();
+      previousPhaseSec = null;
+    } else if (
       previousPhaseSec !== null
       && phaseSec + WAVEFORM_EPSILON_V3 < previousPhaseSec
     ) {
       flush();
     }
+    previousInputEpoch = sample.inputEpoch;
     previousPhaseSec = phaseSec;
     const value = finiteWorkbenchScalarValueV3(sample, outputId);
     const hiddenByCursorGap = phaseIsInsideForwardSweepGapV3(
@@ -193,16 +204,16 @@ function latestSweepingWaveformPointFromOrderedV3(
   outputId: string,
   windowSec: number,
 ): SweepingWaveformPointV3 | null {
-  const latestTimeSec = ordered.at(-1)?.acceptedTimeSec;
+  const latestTimeSec = ordered.at(-1)?.presentationTimeSec;
   if (latestTimeSec === undefined) return null;
   const oldestVisibleTimeSec = latestTimeSec - windowSec;
   for (let index = ordered.length - 1; index >= 0; index -= 1) {
     const sample = ordered[index]!;
-    if (sample.acceptedTimeSec < oldestVisibleTimeSec) break;
+    if (sample.presentationTimeSec < oldestVisibleTimeSec) break;
     const value = finiteWorkbenchScalarValueV3(sample, outputId);
     if (value === null) continue;
     return Object.freeze({
-      phaseSec: positiveModuloV3(sample.acceptedTimeSec, windowSec),
+      phaseSec: positiveModuloV3(sample.presentationTimeSec, windowSec),
       value,
     });
   }

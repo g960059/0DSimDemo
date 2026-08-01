@@ -25,10 +25,10 @@ export type WorkbenchPresentationBufferOptionsV3 = Readonly<{
  * Reduces exact accepted Worker samples to a bounded visual buffer.
  *
  * Each retained point is an actual accepted sample (the bucket terminal
- * state), so PV geometry never pairs values from different model states.
- * Per-output minima/maxima retain a scientifically neutral sweep envelope for
- * excursions between those representative states. Exact checkpoint/capture
- * ownership remains entirely in the Worker and is not downsampled here.
+ * state). Per-output minima/maxima retain a scientifically neutral sweep
+ * envelope for excursions between representative states. Spatial orbit panes
+ * such as PV use WorkbenchExactOrbitSampleBufferV3 instead; exact
+ * checkpoint/capture ownership remains entirely in the Worker.
  */
 export function appendWorkbenchPresentationSamplesV3(
   current: readonly WorkbenchScalarSampleV3[],
@@ -43,22 +43,25 @@ export function appendWorkbenchPresentationSamplesV3(
 
   let retained = current.filter(isWorkbenchPresentationSampleV3);
   for (const sample of incoming) {
-    if (!Number.isFinite(sample.acceptedTimeSec)) continue;
+    if (!Number.isFinite(sample.presentationTimeSec)) continue;
     const last = retained.at(-1);
     if (
       last !== undefined
-      && sample.acceptedTimeSec < last.acceptedTimeSec
+      && sample.presentationTimeSec < last.presentationTimeSec
     ) {
       // A restored/forked clock starts a new visual trace. It must never be
       // connected to the previous runtime's samples.
       retained = [];
     }
     const bucketOrdinal = presentationBucketOrdinalV3(
-      sample.acceptedTimeSec,
+      sample.presentationTimeSec,
       bucketSec,
     );
     const active = retained.at(-1);
-    if (active?.presentationEnvelope.bucketOrdinal === bucketOrdinal) {
+    if (
+      active?.presentationEnvelope.bucketOrdinal === bucketOrdinal
+      && active.inputEpoch === sample.inputEpoch
+    ) {
       retained[retained.length - 1] = mergePresentationBucketV3(
         active,
         sample,
@@ -68,7 +71,7 @@ export function appendWorkbenchPresentationSamplesV3(
     }
   }
 
-  const latestTimeSec = retained.at(-1)?.acceptedTimeSec;
+  const latestTimeSec = retained.at(-1)?.presentationTimeSec;
   if (latestTimeSec === undefined) return Object.freeze([]);
   const oldestTimeSec = latestTimeSec - windowSec;
   let startIndex = firstPresentationSampleAtOrAfterV3(
@@ -152,21 +155,21 @@ function scalarExtremaV3(
 }
 
 function presentationBucketOrdinalV3(
-  acceptedTimeSec: number,
+  presentationTimeSec: number,
   bucketSec: number,
 ): number {
-  return Math.floor((acceptedTimeSec + bucketSec * 1e-9) / bucketSec);
+  return Math.floor((presentationTimeSec + bucketSec * 1e-9) / bucketSec);
 }
 
 function firstPresentationSampleAtOrAfterV3(
   samples: readonly WorkbenchPresentationSampleV3[],
-  acceptedTimeSec: number,
+  presentationTimeSec: number,
 ): number {
   let lower = 0;
   let upper = samples.length;
   while (lower < upper) {
     const middle = lower + Math.floor((upper - lower) / 2);
-    if (samples[middle]!.acceptedTimeSec < acceptedTimeSec) {
+    if (samples[middle]!.presentationTimeSec < presentationTimeSec) {
       lower = middle + 1;
     } else {
       upper = middle;

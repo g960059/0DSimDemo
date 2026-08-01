@@ -25,6 +25,9 @@ import {
 } from "./WorkbenchLiveSchedulerV3";
 import { randomPortableTokenV3 } from "./randomPortableTokenV3";
 
+// One short visual deadline lets independently completing Scenario Workers
+// coalesce without stacking a second full 32 ms delay on top of each lane's
+// scheduler-side presentation buffer.
 const WORKBENCH_PARALLEL_FRAME_FLUSH_MS_V3 = 16;
 
 export type WorkbenchParallelScenarioSeedV3 = Readonly<{
@@ -46,7 +49,7 @@ export type WorkbenchParallelScenarioRuntimeClientV3 = Pick<
 
 type WorkbenchParallelScenarioSchedulerV3 = Pick<
   WorkbenchLiveSchedulerV3<StudioSimulationFrameV2>,
-  "dispose" | "pause" | "play" | "running"
+  "dispose" | "flushAcceptedFrames" | "pause" | "play" | "running"
 >;
 
 type WorkbenchParallelScenarioLaneV3 = {
@@ -355,7 +358,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
       }
     } catch (error) {
-      this.#fail(errorAsErrorV3(error));
+      this.#fail(null, errorAsErrorV3(error));
     }
   }
 
@@ -425,7 +428,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
           lane.latestFrame = last;
           this.#enqueueFrames(frames);
         },
-        onError: (error) => this.#fail(error),
+        onError: (error) => this.#fail(seed.scenarioId, error),
       });
       lane = {
         descriptor: Object.freeze({
@@ -485,10 +488,33 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#frameFlushTimer = undefined;
   }
 
-  #fail(error: Error): void {
+  #fail(failingScenarioId: string | null, error: Error): void {
     if (this.#failed || this.#state === "terminated") return;
     this.#failed = true;
     const normalized = errorAsErrorV3(error);
+    // A healthy sibling may have accepted frames buffered behind its own
+    // presentation cadence. Publish those synchronously while the pool is
+    // active, but never await or re-enter the failing scheduler's in-flight
+    // rejection. The failing scheduler flushes its own accepted prefix before
+    // invoking this callback.
+    for (const [scenarioId, lane] of this.#lanes) {
+      if (scenarioId === failingScenarioId) continue;
+      try {
+        lane.scheduler.flushAcceptedFrames();
+      } catch {
+        // A presentation callback cannot replace the causal lane error or
+        // prevent the numerical authority from failing closed.
+      }
+    }
+    // Scheduler flushes append to the pool's coalescing queue. Publish the
+    // exact accumulated prefix before termination clears runtime state.
+    this.#cancelPendingFlush();
+    try {
+      this.#flushFrames();
+    } catch {
+      // Presentation callback failure cannot keep a compromised numerical
+      // authority alive or replace the causal lane error.
+    }
     this.terminate();
     this.#onError(normalized);
   }

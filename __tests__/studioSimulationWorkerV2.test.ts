@@ -142,12 +142,17 @@ describe("Studio simulation worker V2 protocol", () => {
       scenarioId: "scenario/baseline",
       stepCount: 1,
     })).toThrow(/positive safe integer/);
-    for (const stepCount of [0, 9, 1.5, Number.NaN]) {
+    expect(createStudioSimulationAdvanceRequestV2(1, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 16,
+    })).toMatchObject({ stepCount: 16 });
+    for (const stepCount of [0, 17, 1.5, Number.NaN]) {
       expect(() => createStudioSimulationAdvanceRequestV2(1, {
         runtimeSessionId: "runtime/session-1",
         scenarioId: "scenario/baseline",
         stepCount,
-      })).toThrow(/within \[1, 8\]/);
+      })).toThrow(/within \[1, 16\]/);
     }
     expect(() => validateStudioSimulationWorkerRequestV2({
       ...createStudioSimulationDisposeRequestV2(1, "runtime/session-1"),

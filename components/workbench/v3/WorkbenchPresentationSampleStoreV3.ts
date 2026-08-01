@@ -4,7 +4,14 @@ import {
   appendWorkbenchPresentationSamplesV3,
   type WorkbenchPresentationBufferOptionsV3,
 } from "./WorkbenchPresentationSampleBufferV3";
-import type { WorkbenchScalarSampleV3 } from "./WorkbenchScalarSampleV3";
+import {
+  appendWorkbenchExactOrbitSamplesV3,
+  type WorkbenchExactOrbitBufferOptionsV3,
+} from "./WorkbenchExactOrbitSampleBufferV3";
+import type {
+  WorkbenchAcceptedScalarSampleV3,
+  WorkbenchScalarSampleV3,
+} from "./WorkbenchScalarSampleV3";
 
 const EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3:
   readonly WorkbenchScalarSampleV3[] = Object.freeze([]);
@@ -13,62 +20,34 @@ export type WorkbenchScenarioPresentationSamplesV3 = Readonly<
   Record<string, readonly WorkbenchScalarSampleV3[]>
 >;
 
-/**
- * Chart-local external store. Live sample delivery invalidates only mounted
- * (therefore Dockview-visible) graph panes instead of the entire Workbench and
- * Scenario inspector tree.
- */
-export class WorkbenchPresentationSampleStoreV3 {
-  readonly #options: WorkbenchPresentationBufferOptionsV3;
-  readonly #listeners = new Set<() => void>();
-  #samples: readonly WorkbenchScalarSampleV3[] = Object.freeze([]);
+export type WorkbenchOrbitHistoryEpochV3 = Readonly<{
+  inputEpoch: number;
+  sourceAcceptedRevision: number;
+  sourceAcceptedTimeSec: number;
+  samples: readonly WorkbenchScalarSampleV3[];
+}>;
 
-  constructor(options: WorkbenchPresentationBufferOptionsV3 = {}) {
-    this.#options = Object.freeze({ ...options });
-  }
+const EMPTY_WORKBENCH_ORBIT_HISTORY_V3:
+  readonly WorkbenchOrbitHistoryEpochV3[] = Object.freeze([]);
 
-  readonly getSnapshot = (): readonly WorkbenchScalarSampleV3[] =>
-    this.#samples;
+export type WorkbenchScenarioOrbitHistoryV3 = Readonly<
+  Record<string, readonly WorkbenchOrbitHistoryEpochV3[]>
+>;
 
-  readonly subscribe = (listener: () => void): (() => void) => {
-    this.#listeners.add(listener);
-    return () => this.#listeners.delete(listener);
-  };
+export const WORKBENCH_PRESENTATION_HISTORY_MAX_DEPTH_V3 = 3;
 
-  append(samples: readonly WorkbenchScalarSampleV3[]): void {
-    if (samples.length === 0) return;
-    this.#samples = appendWorkbenchPresentationSamplesV3(
-      this.#samples,
-      samples,
-      this.#options,
-    );
-    this.#notify();
-  }
+type WorkbenchScenarioPresentationClockV3 = Readonly<{
+  inputEpoch: number;
+  acceptedTimeSec: number;
+  presentationTimeSec: number;
+  offsetSec: number;
+}>;
 
-  reset(): void {
-    if (this.#samples.length === 0) return;
-    this.#samples = Object.freeze([]);
-    this.#notify();
-  }
-
-  get subscriberCount(): number {
-    return this.#listeners.size;
-  }
-
-  #notify(): void {
-    for (const listener of this.#listeners) listener();
-  }
-}
-
-export function useWorkbenchPresentationSamplesV3(
-  store: WorkbenchPresentationSampleStoreV3,
-): readonly WorkbenchScalarSampleV3[] {
-  return React.useSyncExternalStore(
-    store.subscribe,
-    store.getSnapshot,
-    store.getSnapshot,
-  );
-}
+export type WorkbenchScenarioPresentationStoreOptionsV3 =
+  WorkbenchPresentationBufferOptionsV3 & Readonly<{
+    exactOrbitWindowSec?: number;
+    exactOrbitCapacity?: number;
+  }>;
 
 /**
  * Presentation-only cache for every Scenario currently available to graph
@@ -78,16 +57,42 @@ export function useWorkbenchPresentationSamplesV3(
  */
 export class WorkbenchScenarioPresentationSampleStoreV3 {
   readonly #options: WorkbenchPresentationBufferOptionsV3;
+  readonly #exactOrbitOptions: WorkbenchExactOrbitBufferOptionsV3;
   readonly #listeners = new Set<() => void>();
+  readonly #clocks = new Map<string, WorkbenchScenarioPresentationClockV3>();
   #samplesByScenarioId: WorkbenchScenarioPresentationSamplesV3 =
     emptyScenarioPresentationSnapshotV3();
+  #exactOrbitSamplesByScenarioId: WorkbenchScenarioPresentationSamplesV3 =
+    emptyScenarioPresentationSnapshotV3();
+  #orbitHistoryByScenarioId: WorkbenchScenarioOrbitHistoryV3 =
+    emptyScenarioOrbitHistorySnapshotV3();
 
-  constructor(options: WorkbenchPresentationBufferOptionsV3 = {}) {
-    this.#options = Object.freeze({ ...options });
+  constructor(options: WorkbenchScenarioPresentationStoreOptionsV3 = {}) {
+    const {
+      exactOrbitCapacity,
+      exactOrbitWindowSec,
+      ...sweepOptions
+    } = options;
+    this.#options = Object.freeze(sweepOptions);
+    this.#exactOrbitOptions = Object.freeze({
+      ...(exactOrbitCapacity === undefined
+        ? {}
+        : { capacity: exactOrbitCapacity }),
+      ...(exactOrbitWindowSec === undefined
+        ? {}
+        : { windowSec: exactOrbitWindowSec }),
+    });
   }
 
   readonly getSnapshot = (): WorkbenchScenarioPresentationSamplesV3 =>
     this.#samplesByScenarioId;
+
+  readonly getExactOrbitSnapshot = ():
+    WorkbenchScenarioPresentationSamplesV3 =>
+      this.#exactOrbitSamplesByScenarioId;
+
+  readonly getOrbitHistorySnapshot = ():
+    WorkbenchScenarioOrbitHistoryV3 => this.#orbitHistoryByScenarioId;
 
   readonly subscribe = (listener: () => void): (() => void) => {
     this.#listeners.add(listener);
@@ -101,9 +106,23 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
       ?? EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3;
   }
 
+  getScenarioExactOrbitSnapshot(
+    scenarioId: string,
+  ): readonly WorkbenchScalarSampleV3[] {
+    return this.#exactOrbitSamplesByScenarioId[scenarioId]
+      ?? EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3;
+  }
+
+  getScenarioOrbitHistorySnapshot(
+    scenarioId: string,
+  ): readonly WorkbenchOrbitHistoryEpochV3[] {
+    return this.#orbitHistoryByScenarioId[scenarioId]
+      ?? EMPTY_WORKBENCH_ORBIT_HISTORY_V3;
+  }
+
   append(
     scenarioId: string,
-    samples: readonly WorkbenchScalarSampleV3[],
+    samples: readonly WorkbenchAcceptedScalarSampleV3[],
   ): void {
     this.appendMany([{ scenarioId, samples }]);
   }
@@ -111,33 +130,83 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
   /** Commits one Worker delivery for all Scenarios with a single UI invalidation. */
   appendMany(entries: readonly Readonly<{
     scenarioId: string;
-    samples: readonly WorkbenchScalarSampleV3[];
+    samples: readonly WorkbenchAcceptedScalarSampleV3[];
   }>[]): void {
-    const next = createScenarioPresentationSnapshotV3(
+    const nextSweep = createScenarioPresentationSnapshotV3(
       this.#samplesByScenarioId,
+    );
+    const nextExact = createScenarioPresentationSnapshotV3(
+      this.#exactOrbitSamplesByScenarioId,
+    );
+    const nextHistory = createScenarioOrbitHistorySnapshotV3(
+      this.#orbitHistoryByScenarioId,
     );
     let changed = false;
     for (const { scenarioId, samples } of entries) {
       if (samples.length === 0) continue;
-      next[scenarioId] = appendWorkbenchPresentationSamplesV3(
-        next[scenarioId] ?? EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3,
-        samples,
+      const mapped = this.#mapToPresentationTimeline(scenarioId, samples);
+      if (mapped.length === 0) continue;
+      nextSweep[scenarioId] = appendWorkbenchPresentationSamplesV3(
+        nextSweep[scenarioId] ?? EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3,
+        mapped,
         this.#options,
       );
+      let currentExact = nextExact[scenarioId]
+        ?? EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3;
+      let currentHistory = nextHistory[scenarioId]
+        ?? EMPTY_WORKBENCH_ORBIT_HISTORY_V3;
+      let pendingExact: WorkbenchScalarSampleV3[] = [];
+      const flushExact = () => {
+        if (pendingExact.length === 0) return;
+        currentExact = appendWorkbenchExactOrbitSamplesV3(
+          currentExact,
+          pendingExact,
+          this.#exactOrbitOptions,
+        );
+        pendingExact = [];
+      };
+      for (const sample of mapped) {
+        const currentEpoch = currentExact.at(-1)?.inputEpoch;
+        const pendingEpoch = pendingExact.at(-1)?.inputEpoch;
+        if (
+          (pendingEpoch !== undefined && pendingEpoch !== sample.inputEpoch)
+          || (pendingEpoch === undefined
+            && currentEpoch !== undefined
+            && currentEpoch !== sample.inputEpoch)
+        ) {
+          flushExact();
+          currentHistory = appendOrbitHistoryEpochV3(
+            currentHistory,
+            currentExact,
+          );
+          currentExact = EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3;
+        }
+        pendingExact.push(sample);
+      }
+      flushExact();
+      nextExact[scenarioId] = currentExact;
+      nextHistory[scenarioId] = currentHistory;
       changed = true;
     }
     if (!changed) return;
-    this.#samplesByScenarioId = Object.freeze(next);
+    this.#samplesByScenarioId = Object.freeze(nextSweep);
+    this.#exactOrbitSamplesByScenarioId = Object.freeze(nextExact);
+    this.#orbitHistoryByScenarioId = Object.freeze(nextHistory);
     this.#notify();
   }
 
   /** Clears one Scenario while retaining its identity in the cache map. */
   resetScenario(scenarioId: string): boolean {
-    if (!hasOwnScenarioV3(this.#samplesByScenarioId, scenarioId)) return false;
-    if (this.#samplesByScenarioId[scenarioId]?.length === 0) return true;
-    this.#replaceScenario(
+    const exists = hasOwnScenarioV3(this.#samplesByScenarioId, scenarioId)
+      || hasOwnScenarioV3(this.#exactOrbitSamplesByScenarioId, scenarioId)
+      || hasOwnScenarioV3(this.#orbitHistoryByScenarioId, scenarioId);
+    if (!exists) return false;
+    this.#clocks.delete(scenarioId);
+    this.#replaceScenarioState(
       scenarioId,
       EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3,
+      EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3,
+      EMPTY_WORKBENCH_ORBIT_HISTORY_V3,
     );
     return true;
   }
@@ -145,16 +214,31 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
   reset(): void {
     if (this.scenarioCount === 0) return;
     this.#samplesByScenarioId = emptyScenarioPresentationSnapshotV3();
+    this.#exactOrbitSamplesByScenarioId =
+      emptyScenarioPresentationSnapshotV3();
+    this.#orbitHistoryByScenarioId = emptyScenarioOrbitHistorySnapshotV3();
+    this.#clocks.clear();
     this.#notify();
   }
 
   removeScenario(scenarioId: string): boolean {
-    if (!hasOwnScenarioV3(this.#samplesByScenarioId, scenarioId)) return false;
-    const next = createScenarioPresentationSnapshotV3(
+    const exists = hasOwnScenarioV3(this.#samplesByScenarioId, scenarioId)
+      || hasOwnScenarioV3(this.#exactOrbitSamplesByScenarioId, scenarioId)
+      || hasOwnScenarioV3(this.#orbitHistoryByScenarioId, scenarioId);
+    if (!exists) return false;
+    this.#samplesByScenarioId = withoutScenarioV3(
       this.#samplesByScenarioId,
+      scenarioId,
     );
-    delete next[scenarioId];
-    this.#samplesByScenarioId = Object.freeze(next);
+    this.#exactOrbitSamplesByScenarioId = withoutScenarioV3(
+      this.#exactOrbitSamplesByScenarioId,
+      scenarioId,
+    );
+    this.#orbitHistoryByScenarioId = withoutScenarioHistoryV3(
+      this.#orbitHistoryByScenarioId,
+      scenarioId,
+    );
+    this.#clocks.delete(scenarioId);
     this.#notify();
     return true;
   }
@@ -171,7 +255,18 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
       sourceScenarioId === targetScenarioId
       || this.#samplesByScenarioId[targetScenarioId] === source
     ) return true;
-    this.#replaceScenario(targetScenarioId, source);
+    const sourceExact = this.#exactOrbitSamplesByScenarioId[sourceScenarioId]
+      ?? EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3;
+    const sourceClock = this.#clocks.get(sourceScenarioId);
+    if (sourceClock !== undefined) {
+      this.#clocks.set(targetScenarioId, sourceClock);
+    }
+    this.#replaceScenarioState(
+      targetScenarioId,
+      source,
+      sourceExact,
+      EMPTY_WORKBENCH_ORBIT_HISTORY_V3,
+    );
     return true;
   }
 
@@ -183,16 +278,71 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
     return this.#listeners.size;
   }
 
-  #replaceScenario(
+  #replaceScenarioState(
     scenarioId: string,
-    samples: readonly WorkbenchScalarSampleV3[],
+    sweepSamples: readonly WorkbenchScalarSampleV3[],
+    exactSamples: readonly WorkbenchScalarSampleV3[],
+    history: readonly WorkbenchOrbitHistoryEpochV3[],
   ): void {
-    const next = createScenarioPresentationSnapshotV3(
+    const nextSweep = createScenarioPresentationSnapshotV3(
       this.#samplesByScenarioId,
     );
-    next[scenarioId] = samples;
-    this.#samplesByScenarioId = Object.freeze(next);
+    const nextExact = createScenarioPresentationSnapshotV3(
+      this.#exactOrbitSamplesByScenarioId,
+    );
+    const nextHistory = createScenarioOrbitHistorySnapshotV3(
+      this.#orbitHistoryByScenarioId,
+    );
+    nextSweep[scenarioId] = sweepSamples;
+    nextExact[scenarioId] = exactSamples;
+    nextHistory[scenarioId] = history;
+    this.#samplesByScenarioId = Object.freeze(nextSweep);
+    this.#exactOrbitSamplesByScenarioId = Object.freeze(nextExact);
+    this.#orbitHistoryByScenarioId = Object.freeze(nextHistory);
     this.#notify();
+  }
+
+  #mapToPresentationTimeline(
+    scenarioId: string,
+    samples: readonly WorkbenchAcceptedScalarSampleV3[],
+  ): readonly WorkbenchScalarSampleV3[] {
+    let clock = this.#clocks.get(scenarioId);
+    const mapped: WorkbenchScalarSampleV3[] = [];
+    for (const sample of samples) {
+      if (
+        !Number.isSafeInteger(sample.inputEpoch)
+        || sample.inputEpoch < 0
+        || !Number.isSafeInteger(sample.acceptedRevision)
+        || sample.acceptedRevision < 0
+        || !Number.isFinite(sample.acceptedTimeSec)
+        || sample.acceptedTimeSec < 0
+      ) continue;
+      let offsetSec = clock?.offsetSec ?? 0;
+      if (clock !== undefined && sample.inputEpoch !== clock.inputEpoch) {
+        offsetSec = clock.presentationTimeSec - sample.acceptedTimeSec;
+      } else if (
+        clock !== undefined
+        && sample.acceptedTimeSec < clock.acceptedTimeSec
+      ) {
+        // An unexpected same-epoch rewind is a new visual authority. Let the
+        // bounded buffers fail closed instead of drawing a false connection.
+        offsetSec = 0;
+      }
+      const presentationTimeSec = sample.acceptedTimeSec + offsetSec;
+      const projected = Object.freeze({
+        ...sample,
+        presentationTimeSec,
+      });
+      mapped.push(projected);
+      clock = Object.freeze({
+        inputEpoch: sample.inputEpoch,
+        acceptedTimeSec: sample.acceptedTimeSec,
+        presentationTimeSec,
+        offsetSec,
+      });
+    }
+    if (clock !== undefined) this.#clocks.set(scenarioId, clock);
+    return Object.freeze(mapped);
   }
 
   #notify(): void {
@@ -210,6 +360,26 @@ export function useWorkbenchScenarioPresentationSamplesV3(
   );
 }
 
+export function useWorkbenchScenarioExactOrbitSamplesV3(
+  store: WorkbenchScenarioPresentationSampleStoreV3,
+): WorkbenchScenarioPresentationSamplesV3 {
+  return React.useSyncExternalStore(
+    store.subscribe,
+    store.getExactOrbitSnapshot,
+    store.getExactOrbitSnapshot,
+  );
+}
+
+export function useWorkbenchScenarioOrbitHistoryV3(
+  store: WorkbenchScenarioPresentationSampleStoreV3,
+): WorkbenchScenarioOrbitHistoryV3 {
+  return React.useSyncExternalStore(
+    store.subscribe,
+    store.getOrbitHistorySnapshot,
+    store.getOrbitHistorySnapshot,
+  );
+}
+
 function emptyScenarioPresentationSnapshotV3():
   WorkbenchScenarioPresentationSamplesV3 {
   return Object.freeze(Object.create(null)) as
@@ -223,8 +393,55 @@ function createScenarioPresentationSnapshotV3(
     Record<string, readonly WorkbenchScalarSampleV3[]>;
 }
 
-function hasOwnScenarioV3(
+function emptyScenarioOrbitHistorySnapshotV3():
+  WorkbenchScenarioOrbitHistoryV3 {
+  return Object.freeze(Object.create(null)) as WorkbenchScenarioOrbitHistoryV3;
+}
+
+function createScenarioOrbitHistorySnapshotV3(
+  current: WorkbenchScenarioOrbitHistoryV3,
+): Record<string, readonly WorkbenchOrbitHistoryEpochV3[]> {
+  return Object.assign(Object.create(null), current) as
+    Record<string, readonly WorkbenchOrbitHistoryEpochV3[]>;
+}
+
+function appendOrbitHistoryEpochV3(
+  current: readonly WorkbenchOrbitHistoryEpochV3[],
+  samples: readonly WorkbenchScalarSampleV3[],
+): readonly WorkbenchOrbitHistoryEpochV3[] {
+  const terminal = samples.at(-1);
+  if (terminal === undefined) return current;
+  const entry = Object.freeze({
+    inputEpoch: terminal.inputEpoch,
+    sourceAcceptedRevision: terminal.acceptedRevision,
+    sourceAcceptedTimeSec: terminal.acceptedTimeSec,
+    samples,
+  });
+  return Object.freeze([...current, entry].slice(
+    -WORKBENCH_PRESENTATION_HISTORY_MAX_DEPTH_V3,
+  ));
+}
+
+function withoutScenarioV3(
   snapshot: WorkbenchScenarioPresentationSamplesV3,
+  scenarioId: string,
+): WorkbenchScenarioPresentationSamplesV3 {
+  const next = createScenarioPresentationSnapshotV3(snapshot);
+  delete next[scenarioId];
+  return Object.freeze(next);
+}
+
+function withoutScenarioHistoryV3(
+  snapshot: WorkbenchScenarioOrbitHistoryV3,
+  scenarioId: string,
+): WorkbenchScenarioOrbitHistoryV3 {
+  const next = createScenarioOrbitHistorySnapshotV3(snapshot);
+  delete next[scenarioId];
+  return Object.freeze(next);
+}
+
+function hasOwnScenarioV3(
+  snapshot: Readonly<Record<string, unknown>>,
   scenarioId: string,
 ): boolean {
   return Object.prototype.hasOwnProperty.call(snapshot, scenarioId);

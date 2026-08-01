@@ -33,8 +33,8 @@ import {
 } from "@/studio/contracts/v2/article";
 import type { ExperimentSnapshotV2 } from "@/studio/contracts/v2/content";
 import {
-  StudioBrowserContentStoreV2,
-} from "@/studio/infrastructure/browser/StudioBrowserContentStoreV2";
+  StudioBrowserContentStoreV3,
+} from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
   createBrowserStudioSnapshotBriefingHandoffV3,
 } from "@/studio/infrastructure/browser/StudioSnapshotBriefingHandoffV3";
@@ -45,7 +45,7 @@ export function ArticleEditorV3Page() {
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
-  const store = React.useMemo(() => new StudioBrowserContentStoreV2(), []);
+  const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
   const briefingHandoff = React.useMemo(
     createBrowserStudioSnapshotBriefingHandoffV3,
     [],

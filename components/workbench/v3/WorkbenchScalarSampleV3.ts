@@ -4,10 +4,21 @@
  * Every scalar stays keyed by the registered output ID. Graph renderers use
  * their catalog-owned binding IDs; no output role is inferred from a name.
  */
-export type WorkbenchScalarSampleV3 = Readonly<{
+export type WorkbenchAcceptedScalarSampleV3 = Readonly<{
+  inputEpoch: number;
+  acceptedRevision: number;
   acceptedTimeSec: number;
   values: Readonly<Record<string, number | null>>;
 }>;
+
+export type WorkbenchScalarSampleV3 = WorkbenchAcceptedScalarSampleV3 &
+  Readonly<{
+    /**
+     * Monotonic, presentation-only time across model input epochs. Exact model
+     * identity remains in inputEpoch/acceptedRevision/acceptedTimeSec.
+     */
+    presentationTimeSec: number;
+  }>;
 
 export function finiteWorkbenchScalarValueV3(
   sample: WorkbenchScalarSampleV3,
@@ -29,7 +40,7 @@ export function orderedFiniteWorkbenchSamplesV3(
   let allFinite = true;
   let monotonic = true;
   for (const sample of samples) {
-    const timeSec = sample.acceptedTimeSec;
+    const timeSec = sample.presentationTimeSec;
     if (!Number.isFinite(timeSec)) {
       allFinite = false;
       continue;
@@ -38,22 +49,23 @@ export function orderedFiniteWorkbenchSamplesV3(
     previousTimeSec = timeSec;
   }
   if (allFinite && monotonic) return samples;
-  const finite = samples.filter(({ acceptedTimeSec }) =>
-    Number.isFinite(acceptedTimeSec));
+  const finite = samples.filter(({ presentationTimeSec }) =>
+    Number.isFinite(presentationTimeSec));
   return monotonic
     ? finite
-    : finite.sort((left, right) => left.acceptedTimeSec - right.acceptedTimeSec);
+    : finite.sort((left, right) =>
+        left.presentationTimeSec - right.presentationTimeSec);
 }
 
 export function firstSampleAtOrAfterV3(
   orderedSamples: readonly WorkbenchScalarSampleV3[],
-  acceptedTimeSec: number,
+  presentationTimeSec: number,
 ): number {
   let lower = 0;
   let upper = orderedSamples.length;
   while (lower < upper) {
     const middle = lower + Math.floor((upper - lower) / 2);
-    if (orderedSamples[middle]!.acceptedTimeSec < acceptedTimeSec) {
+    if (orderedSamples[middle]!.presentationTimeSec < presentationTimeSec) {
       lower = middle + 1;
     } else {
       upper = middle;

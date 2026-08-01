@@ -31,7 +31,7 @@ import {
 
 export const STUDIO_SIMULATION_WORKER_PROTOCOL_V2 =
   "circleheart-studio-simulation-worker-protocol-v2" as const;
-export const STUDIO_SIMULATION_WORKER_MAX_ADVANCE_STEPS_V2 = 8;
+export const STUDIO_SIMULATION_WORKER_MAX_ADVANCE_STEPS_V2 = 16;
 
 export type StudioSimulationWorkerAuthoringSeedV2 = Readonly<{
   workspace?: ExperimentWorkspaceV2;

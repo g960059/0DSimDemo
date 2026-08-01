@@ -23,6 +23,36 @@
     "openWorkbenchStatus": "Open the V3 Workbench"
   },
   "workbench": {
+    "selector": {
+      "title": "Workbenches",
+      "eyebrow": "EXACT-MODEL EXPERIMENTS",
+      "newTitle": "Start a new Workbench",
+      "newDescription": "A new opaque Experiment identity will be created for the latest available exact model. Nothing is saved until you explicitly save the draft.",
+      "newAction": "New Workbench",
+      "savedTitle": "Saved Workbenches",
+      "savedCount": "{{count}} saved",
+      "loading": "Loading saved Workbenches…",
+      "errorTitle": "Saved Workbenches could not be read",
+      "retry": "Try again",
+      "emptyTitle": "No saved Workbenches",
+      "emptyDescription": "Start one above, then save it when the experiment is ready.",
+      "untitled": "Untitled experiment",
+      "unavailable": "Its exact model is not bundled in this release. The saved data remains intact.",
+      "export": "Export Workbench",
+      "delete": "Delete Workbench",
+      "deleteConfirm": "Delete this Workbench and its unreferenced Snapshots? This cannot be undone.",
+      "open": "Open",
+      "inspect": "View recovery"
+    },
+    "unavailable": {
+      "title": "This Workbench needs another exact model",
+      "description": "The saved Workbench is pinned to an exact model that is not bundled in this release. It will not be opened with, or overwritten by, the current default model.",
+      "savedModel": "Saved exact model",
+      "currentModel": "Latest available model",
+      "back": "Back to Workbenches",
+      "startLatest": "Start with latest model",
+      "preserved": "You can export or delete this preserved Workbench from the Workbench list."
+    },
     "live": {
       "badge": "Registry-bound live V3",
       "experimental": "Experimental development default",
@@ -115,6 +145,8 @@
       "emptyCatalog": "No registered items are available.",
       "noConfigurableSeries": "This graph owns its structural axes and has no configurable series.",
       "series": "Graph series",
+      "historyDepth": "Previous states",
+      "historyDepthHint": "0–3 completed parameter states",
       "windowSec": "Waveform window",
       "windowSecHint": "1–6 seconds in 0.5 second steps",
       "items": "Items",

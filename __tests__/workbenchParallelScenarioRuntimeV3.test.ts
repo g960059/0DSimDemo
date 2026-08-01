@@ -7,9 +7,10 @@ import {
 import type {
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
-import type {
-  WorkbenchLiveSchedulerDependenciesV3,
-  WorkbenchLiveSchedulerTimerV3,
+import {
+  WorkbenchLiveSchedulerV3,
+  type WorkbenchLiveSchedulerDependenciesV3,
+  type WorkbenchLiveSchedulerTimerV3,
 } from "@/components/workbench/v3/WorkbenchLiveSchedulerV3";
 
 describe("WorkbenchParallelScenarioRuntimeV3", () => {
@@ -156,17 +157,107 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       activeScenarioId: "scenario/baseline",
     });
 
+    harness.schedulers.get("scenario/baseline")!.emit([
+      frameV3("scenario/baseline", 1),
+      frameV3("scenario/baseline", 2),
+    ]);
+    expect(harness.onFrames).not.toHaveBeenCalled();
+
     harness.schedulers.get("scenario/comparison")!
       .fail(new Error("comparison Worker failed"));
 
+    expect(harness.onFrames).toHaveBeenCalledOnce();
+    expect(harness.onFrames.mock.calls[0]![0].map(({ acceptedRevision }) =>
+      acceptedRevision)).toEqual([1, 2]);
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({
       message: "comparison Worker failed",
     }));
     expect([...harness.clients.values()].every(({ terminate }) =>
       terminate.mock.calls.length === 1)).toBe(true);
+    const firstTerminate = Math.min(...[...harness.clients.values()].map(
+      ({ terminate }) => terminate.mock.invocationCallOrder[0]!,
+    ));
+    expect(harness.onFrames.mock.invocationCallOrder[0])
+      .toBeLessThan(firstTerminate);
+    expect(firstTerminate).toBeLessThan(onError.mock.invocationCallOrder[0]!);
+    harness.flushCallbacks.shift()?.();
+    expect(harness.onFrames).toHaveBeenCalledOnce();
     expect(() => harness.runtime.activeFrame()).toThrow(/not active/);
     expect(() => harness.runtime.playAll()).not.toThrow();
     await expect(harness.runtime.pauseAll()).resolves.toBeUndefined();
+  });
+
+  it("publishes a healthy real scheduler's buffered accepted prefix before a sibling fails", async () => {
+    const clock = new ParallelSchedulerClockV3();
+    const events: string[] = [];
+    const clients = new Map<string, ReturnType<typeof clientV3>>();
+    const stalePoolFlushes: Array<() => void> = [];
+    const runtime = new WorkbenchParallelScenarioRuntimeV3({
+      expectedModelId: "model/main-wire-v3-r1",
+      createRuntimeSessionId: (scenarioId) => `runtime/${scenarioId}`,
+      createClient: (scenarioId) => {
+        const client = clientV3(scenarioId);
+        let acceptedRevision = 0;
+        client.advance.mockImplementation(async (input) => {
+          if (scenarioId === "scenario/comparison") {
+            throw new Error("comparison failed");
+          }
+          const { stepCount } = input as unknown as { stepCount: number };
+          return Array.from({ length: stepCount }, () =>
+            frameV3(scenarioId, acceptedRevision += 1));
+        });
+        clients.set(scenarioId, client);
+        return client as unknown as WorkbenchParallelScenarioRuntimeClientV3;
+      },
+      createScheduler: (_scenarioId, dependencies) =>
+        new WorkbenchLiveSchedulerV3({
+          ...dependencies,
+          nowMs: clock.now,
+          schedule: clock.schedule,
+          cancel: clock.cancel,
+          maximumBatchSteps: 1,
+          preferredBatchSteps: 1,
+          presentationIntervalMs: 1_000,
+        }),
+      scheduleFrameFlush: (callback) => {
+        stalePoolFlushes.push(callback);
+        return stalePoolFlushes.length as unknown as
+          WorkbenchLiveSchedulerTimerV3;
+      },
+      cancelFrameFlush: () => undefined,
+      onFrames: (frames) => events.push(...frames.map(
+        ({ scenarioId, acceptedRevision }) =>
+          `frame:${scenarioId}:${acceptedRevision}`,
+      )),
+      onError: (error) => events.push(`error:${error.message}`),
+    });
+    await runtime.initialize({
+      scenarios: [
+        seedV3("scenario/baseline", "Baseline", 0),
+        seedV3("scenario/comparison", "Comparison", 0),
+      ],
+      activeScenarioId: "scenario/baseline",
+    });
+
+    runtime.playAll();
+    await clock.advanceBy(2);
+
+    expect(events).toEqual([
+      "frame:scenario/baseline:1",
+      "error:comparison failed",
+    ]);
+    expect([...clients.values()].every(({ terminate }) =>
+      terminate.mock.calls.length === 1)).toBe(true);
+    expect(() => runtime.activeFrame()).toThrow(/not active/);
+
+    // The canceled pool-level coalescing callback cannot republish the prefix.
+    stalePoolFlushes.forEach((flush) => flush());
+    expect(events).toEqual([
+      "frame:scenario/baseline:1",
+      "error:comparison failed",
+    ]);
+    await expect(runtime.pauseAll()).resolves.toBeUndefined();
+    await runtime.dispose();
   });
 
   it("reserves an ID while a Scenario lane is being added", async () => {
@@ -265,6 +356,7 @@ function harnessV3(onError = vi.fn<(error: Error) => void>()) {
 class FakeSchedulerV3 {
   running = false;
   readonly dispose = vi.fn(async () => { this.running = false; });
+  readonly flushAcceptedFrames = vi.fn(() => undefined);
   readonly pause = vi.fn(async () => { this.running = false; });
   readonly play = vi.fn(() => { this.running = true; });
 
@@ -279,6 +371,53 @@ class FakeSchedulerV3 {
 
   fail(error: Error): void {
     this.dependencies.onError(error);
+  }
+}
+
+class ParallelSchedulerClockV3 {
+  #nowMs = 0;
+  #nextId = 1;
+  readonly #timers = new Map<number, Readonly<{
+    atMs: number;
+    callback: () => void;
+  }>>();
+
+  readonly now = () => this.#nowMs;
+
+  readonly schedule = (
+    callback: () => void,
+    delayMs: number,
+  ): WorkbenchLiveSchedulerTimerV3 => {
+    const id = this.#nextId;
+    this.#nextId += 1;
+    this.#timers.set(id, { atMs: this.#nowMs + delayMs, callback });
+    return id as unknown as WorkbenchLiveSchedulerTimerV3;
+  };
+
+  readonly cancel = (timer: WorkbenchLiveSchedulerTimerV3): void => {
+    this.#timers.delete(timer as unknown as number);
+  };
+
+  async advanceBy(deltaMs: number): Promise<void> {
+    this.#nowMs += deltaMs;
+    for (let iteration = 0; iteration < 1_000; iteration += 1) {
+      const due = [...this.#timers.entries()]
+        .filter(([, timer]) => timer.atMs <= this.#nowMs)
+        .sort((left, right) => left[1].atMs - right[1].atMs)[0];
+      if (due === undefined) {
+        await Promise.resolve();
+        const newlyDue = [...this.#timers.values()].some(
+          (timer) => timer.atMs <= this.#nowMs,
+        );
+        if (!newlyDue) return;
+        continue;
+      }
+      this.#timers.delete(due[0]);
+      due[1].callback();
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+    throw new Error("parallel scheduler clock did not drain");
   }
 }
 

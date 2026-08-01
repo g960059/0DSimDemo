@@ -34,6 +34,8 @@ describe('locale helpers', () => {
   it('switches locale while preserving query and hash', () => {
     expect(switchLocalePath('/ja/workbench', '?from=home', '#status', 'en')).toBe('/en/workbench?from=home#status');
     expect(switchLocalePath('/en/workbench', '?from=home', '#status', 'ja')).toBe('/ja/workbench?from=home#status');
+    expect(switchLocalePath('/ja/workbench/workbench-opaque_123', '?from=list', '#status', 'en'))
+      .toBe('/en/workbench/workbench-opaque_123?from=list#status');
   });
 
   it('keeps Japanese and English translation keys in parity', () => {

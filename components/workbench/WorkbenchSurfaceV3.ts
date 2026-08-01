@@ -5,6 +5,9 @@ import type {
   ExperimentSurfaceV2,
 } from "@/studio/contracts/v2/content";
 import {
+  STUDIO_GRAPH_HISTORY_DEFAULT_DEPTH_V2,
+  STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2,
+  STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2,
   STUDIO_SWEEP_WINDOW_DEFAULT_SEC_V2,
   STUDIO_SWEEP_WINDOW_MAX_SEC_V2,
   STUDIO_SWEEP_WINDOW_MIN_SEC_V2,
@@ -24,6 +27,12 @@ export const WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3 =
   STUDIO_SWEEP_WINDOW_MAX_SEC_V2;
 export const WORKBENCH_SWEEP_WINDOW_STEP_SEC_V3 =
   STUDIO_SWEEP_WINDOW_STEP_SEC_V2;
+export const WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3 =
+  STUDIO_GRAPH_HISTORY_DEFAULT_DEPTH_V2;
+export const WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3 =
+  STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2;
+export const WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3 =
+  STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2;
 
 export function workbenchDefaultGraphSeriesIdsV3(
   graph: GraphDefinitionV2,
@@ -157,7 +166,7 @@ function createDefaultGraphPaneV3(
     graphId: graph.graphId,
     ...(graph.renderer === "sweep"
       ? { windowSec: WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 }
-      : {}),
+      : { historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3 }),
     series: Object.freeze(graph.renderer === "structural-return"
       ? []
       : graph.defaultSeriesIds.map((seriesId, seriesIndex) => Object.freeze({

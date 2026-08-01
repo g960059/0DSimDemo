@@ -323,6 +323,7 @@ describe("Studio Experiment data V2", () => {
     const pressureVolume = workspaceV2() as Record<string, any>;
     pressureVolume.content.surface.graphPanes[0].graphId =
       "hemodynamics.pressure-volume";
+    pressureVolume.content.surface.graphPanes[0].historyDepth = 1;
     pressureVolume.content.surface.graphPanes[0].series = [{
       seriesId: "LV",
       label: "LV",
@@ -342,6 +343,20 @@ describe("Studio Experiment data V2", () => {
       validateExperimentWorkspaceV2(pressureVolume).content,
       pressureVolumeModel,
     )).not.toThrow();
+
+    for (const invalidDepth of [-1, 1.5, 4]) {
+      const invalid = structuredClone(pressureVolume);
+      invalid.content.surface.graphPanes[0].historyDepth = invalidDepth;
+      expect(() => validateExperimentWorkspaceV2(invalid))
+        .toThrow(/must be an integer from 0 to 3/);
+    }
+
+    const sweepWithHistory = workspaceV2() as Record<string, any>;
+    sweepWithHistory.content.surface.graphPanes[0].historyDepth = 1;
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentWorkspaceV2(sweepWithHistory).content,
+      modelContractV2(),
+    )).toThrow(/sweep graphs must not configure an explicit history depth/);
 
     pressureVolume.content.surface.graphPanes[0].series = [];
     expect(() => assertExperimentContentMatchesModelV2(

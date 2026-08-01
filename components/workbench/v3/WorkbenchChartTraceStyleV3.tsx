@@ -51,6 +51,23 @@ export function workbenchScenarioLineDashV3(
   return WORKBENCH_SCENARIO_LINE_DASHES_V3[scenarioStyleIndex]!;
 }
 
+export function workbenchHistoryAlphaV3(
+  historyIndex: number,
+  historyCount: number,
+): number {
+  if (
+    !Number.isSafeInteger(historyIndex)
+    || !Number.isSafeInteger(historyCount)
+    || historyCount <= 0
+    || historyIndex < 0
+    || historyIndex >= historyCount
+  ) return 0;
+  const recency01 = historyCount === 1
+    ? 1
+    : historyIndex / (historyCount - 1);
+  return 0.08 + recency01 * 0.12;
+}
+
 /**
  * Builds one deterministic Scenario style per Scenario. Explicit Experiment
  * ordinals survive filtering/reordering; otherwise first appearance defines

@@ -22,6 +22,7 @@ import {
   WorkbenchChartTwoAxisLegendV3,
   buildWorkbenchScenarioLegendItemsV3,
   buildWorkbenchTraceColorLegendItemsV3,
+  workbenchHistoryAlphaV3,
   type WorkbenchScenarioTraceIdentityV3,
 } from "./WorkbenchChartTraceStyleV3";
 
@@ -30,6 +31,7 @@ export type WorkbenchPvPressureBasisV3 = PressureVolumePressureBasisV2;
 export type WorkbenchPressureVolumeTraceV3 =
   WorkbenchScenarioTraceIdentityV3 & Readonly<{
     samples: readonly WorkbenchScalarSampleV3[];
+    historySampleSets?: readonly (readonly WorkbenchScalarSampleV3[])[];
     volumeOutputId: string;
     pressureOutputId: string;
     pressureBasis: WorkbenchPvPressureBasisV3;
@@ -72,6 +74,11 @@ export type SingleBeatPvOrientationGuidesV3 = Readonly<{
   maximumVolumeContact: WorkbenchPvGuidePointV3;
 }>;
 
+export type WorkbenchHistoricalPvProjectionV3 = Readonly<{
+  completedBeat: readonly WorkbenchPvPointV3[];
+  orientationGuides: SingleBeatPvOrientationGuidesV3 | null;
+}>;
+
 export type CompleteCycleRangeV3 = Readonly<{
   startIndex: number;
   endIndexInclusive: number;
@@ -82,6 +89,10 @@ const CYCLE_START_TOLERANCE_V3 = 0.03;
 const MINIMUM_COMPLETE_CYCLE_PHASE_SPAN_V3 = 0.8;
 const KLOTZ_NORMALIZED_PRESSURE_MMHG_V3 = 28.2;
 const KLOTZ_NORMALIZED_EXPONENT_V3 = 2.79;
+const HISTORICAL_PV_PROJECTION_CACHE_V3 = new WeakMap<
+  readonly WorkbenchScalarSampleV3[],
+  Map<string, WorkbenchHistoricalPvProjectionV3>
+>();
 
 /**
  * Locates the newest complete model-emitted cycle. The true next-cycle
@@ -164,6 +175,55 @@ export function extractLastCompletePvBeatV3(
     pressureOutputId,
     cyclePhaseOutputId,
   ).completedBeat;
+}
+
+/**
+ * Projects an immutable, completed input epoch once. Current-epoch samples are
+ * intentionally excluded because their live segment changes on every Worker
+ * delivery.
+ */
+export function projectHistoricalPvEpochV3(
+  samples: readonly WorkbenchScalarSampleV3[],
+  volumeOutputId: string,
+  pressureOutputId: string,
+  cyclePhaseOutputId: string,
+  pressureBasis: WorkbenchPvPressureBasisV3,
+  showSingleBeatOrientationGuides: boolean,
+): WorkbenchHistoricalPvProjectionV3 {
+  const cacheKey = JSON.stringify([
+    volumeOutputId,
+    pressureOutputId,
+    cyclePhaseOutputId,
+    pressureBasis,
+    showSingleBeatOrientationGuides,
+  ]);
+  if (Object.isFrozen(samples)) {
+    const cached = HISTORICAL_PV_PROJECTION_CACHE_V3
+      .get(samples)
+      ?.get(cacheKey);
+    if (cached !== undefined) return cached;
+  }
+  const completedBeat = extractLastCompletePvBeatV3(
+    samples,
+    volumeOutputId,
+    pressureOutputId,
+    cyclePhaseOutputId,
+  );
+  const projection = Object.freeze({
+    completedBeat,
+    orientationGuides: showSingleBeatOrientationGuides
+      ? buildSingleBeatPvOrientationGuidesV3(completedBeat, pressureBasis)
+      : null,
+  });
+  if (Object.isFrozen(samples)) {
+    let cache = HISTORICAL_PV_PROJECTION_CACHE_V3.get(samples);
+    if (cache === undefined) {
+      cache = new Map();
+      HISTORICAL_PV_PROJECTION_CACHE_V3.set(samples, cache);
+    }
+    cache.set(cacheKey, projection);
+  }
+  return projection;
 }
 
 export function extractLivePvTrajectoryV3(
@@ -478,19 +538,36 @@ export function PressureVolumeLoopCanvasV3(
     );
     const lineDash = scenarioLegendItems.find((item) =>
       item.scenarioId === trace.scenarioId)?.lineDash ?? Object.freeze([]);
-    return Object.freeze({ trace, ...trajectory, lineDash });
-  }), [scenarioLegendItems, traces]);
-  const orientationGuides = React.useMemo(() => {
-    const onlyTrace = renderedTraces.length === 1
-      ? renderedTraces[0]
-      : undefined;
-    return onlyTrace?.trace.showSingleBeatOrientationGuides === true
+    const orientationGuides = trace.showSingleBeatOrientationGuides === true
       ? buildSingleBeatPvOrientationGuidesV3(
-          onlyTrace.completedBeat,
-          onlyTrace.trace.pressureBasis,
+          trajectory.completedBeat,
+          trace.pressureBasis,
         )
       : null;
-  }, [renderedTraces]);
+    const history = Object.freeze((trace.historySampleSets ?? []).map(
+      (samples, historyIndex, all) => {
+        const projection = projectHistoricalPvEpochV3(
+          samples,
+          trace.volumeOutputId,
+          trace.pressureOutputId,
+          trace.cyclePhaseOutputId,
+          trace.pressureBasis,
+          trace.showSingleBeatOrientationGuides === true,
+        );
+        return Object.freeze({
+          ...projection,
+          alpha: workbenchHistoryAlphaV3(historyIndex, all.length),
+        });
+      },
+    ));
+    return Object.freeze({
+      trace,
+      ...trajectory,
+      lineDash,
+      orientationGuides,
+      history,
+    });
+  }), [scenarioLegendItems, traces]);
 
   const draw = React.useCallback((
     context: CanvasRenderingContext2D,
@@ -504,8 +581,15 @@ export function PressureVolumeLoopCanvasV3(
         ...completedBeat,
         ...liveSegment,
       ]),
-      ...(orientationGuides?.endSystolicRadialReference ?? []),
-      ...(orientationGuides?.klotzInformedDiastolicReference ?? []),
+      ...renderedTraces.flatMap(({ history, orientationGuides }) => [
+        ...(orientationGuides?.endSystolicRadialReference ?? []),
+        ...(orientationGuides?.klotzInformedDiastolicReference ?? []),
+        ...history.flatMap(({ completedBeat, orientationGuides: guides }) => [
+          ...completedBeat,
+          ...(guides?.endSystolicRadialReference ?? []),
+          ...(guides?.klotzInformedDiastolicReference ?? []),
+        ]),
+      ]),
     ];
     const volumeDomain = paddedPvDomainV3(
       domainPoints.map(({ volumeMl }) => volumeMl),
@@ -537,36 +621,73 @@ export function PressureVolumeLoopCanvasV3(
       plot.top,
     );
 
-    if (orientationGuides !== null) {
-      drawPvCurveV3(
-        context,
-        orientationGuides.endSystolicRadialReference,
-        x,
-        y,
-        {
-          color: theme.systolicReference,
+    for (const { history, lineDash, trace } of renderedTraces) {
+      for (const historical of history) {
+        if (historical.orientationGuides !== null) {
+          drawPvCurveV3(
+            context,
+            historical.orientationGuides.endSystolicRadialReference,
+            x,
+            y,
+            {
+              color: theme.systolicReference,
+              width: 1.1,
+              dash: [6, 4],
+              alpha: historical.alpha,
+            },
+          );
+          drawPvCurveV3(
+            context,
+            historical.orientationGuides.klotzInformedDiastolicReference,
+            x,
+            y,
+            {
+              color: theme.diastolicReference,
+              width: 1.1,
+              dash: [3, 4],
+              alpha: historical.alpha,
+            },
+          );
+        }
+        drawPvCurveV3(context, historical.completedBeat, x, y, {
+          color: trace.chamberColor,
           width: 1.35,
-          dash: [6, 4],
-        },
-      );
-      drawPvCurveV3(
-        context,
-        orientationGuides.klotzInformedDiastolicReference,
-        x,
-        y,
-        {
-          color: theme.diastolicReference,
-          width: 1.35,
-          dash: [3, 4],
-        },
-      );
+          dash: lineDash,
+          alpha: historical.alpha,
+        });
+      }
     }
     for (const {
       completedBeat,
+      orientationGuides,
       lineDash,
       liveSegment,
       trace,
     } of renderedTraces) {
+      if (orientationGuides !== null) {
+        drawPvCurveV3(
+          context,
+          orientationGuides.endSystolicRadialReference,
+          x,
+          y,
+          {
+            color: theme.systolicReference,
+            width: 1.35,
+            dash: [6, 4],
+          },
+        );
+        drawPvCurveV3(
+          context,
+          orientationGuides.klotzInformedDiastolicReference,
+          x,
+          y,
+          {
+            color: theme.diastolicReference,
+            width: 1.35,
+            dash: [3, 4],
+          },
+        );
+      }
       drawPvCurveV3(context, completedBeat, x, y, {
         color: trace.chamberColor,
         width: 1.5,
@@ -605,7 +726,7 @@ export function PressureVolumeLoopCanvasV3(
       );
       context.restore();
     }
-  }, [orientationGuides, renderedTraces]);
+  }, [renderedTraces]);
 
   useResponsiveCanvasFrameV3(
     containerRef,
@@ -613,13 +734,14 @@ export function PressureVolumeLoopCanvasV3(
     draw,
   );
 
-  const onlyTrace = renderedTraces.length === 1
-    ? renderedTraces[0]
-    : undefined;
-  const guideStatus = orientationGuides !== null
+  const anyOrientationGuides = renderedTraces.some(({ orientationGuides }) =>
+    orientationGuides !== null);
+  const anyRequestedIntracavitaryGuides = renderedTraces.some(({ trace }) =>
+    trace.pressureBasis === "intracavitary"
+      && trace.showSingleBeatOrientationGuides === true);
+  const guideStatus = anyOrientationGuides
     ? "End-systolic radial + Klotz-informed diastolic orientation references · not formal ESPVR/EDPVR relations"
-    : onlyTrace?.trace.pressureBasis === "intracavitary"
-        && onlyTrace.trace.showSingleBeatOrientationGuides === true
+    : anyRequestedIntracavitaryGuides
       ? "PV orientation references require transmural pressure"
       : null;
   const chamberAriaLabel = colorLegendItems.length === 0
@@ -633,7 +755,9 @@ export function PressureVolumeLoopCanvasV3(
       data-chart-kind="pressure-volume-loop-v3"
       data-cycle-source="model-emitted-cycle-phase"
       data-orientation-guide-semantics={
-        orientationGuides?.semantics ?? "unavailable"
+        anyOrientationGuides
+          ? SINGLE_BEAT_PV_ORIENTATION_SEMANTICS_V3
+          : "unavailable"
       }
     >
       <canvas

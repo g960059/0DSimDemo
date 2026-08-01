@@ -1,6 +1,8 @@
 import React from "react";
 import {
   Activity,
+  AlertTriangle,
+  ArrowLeft,
   BookOpenText,
   Check,
   ClipboardList,
@@ -8,11 +10,12 @@ import {
   Home,
   Pause,
   Play,
+  Plus,
   RefreshCw,
   Save,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
 import { ModelLimitations } from "@/components/ModelLimitations";
 import {
@@ -48,7 +51,17 @@ import {
   allSurfacePanesV3,
   createDefaultExperimentSurfaceV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
-import { homeHref } from "@/homeLinks";
+import {
+  allocateOpaqueWorkbenchIdV3,
+  isOpaqueWorkbenchIdV3,
+} from "@/studio/infrastructure/browser/StudioWorkbenchIdentityV3";
+import {
+  articlesHref,
+  homeHref,
+  workbenchDetailHref,
+  workbenchHref,
+} from "@/homeLinks";
+import { isLocale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
@@ -77,8 +90,8 @@ import type {
   StudioSimulationWorkerScenarioStateV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 import {
-  StudioBrowserContentStoreV2,
-} from "@/studio/infrastructure/browser/StudioBrowserContentStoreV2";
+  StudioBrowserContentStoreV3,
+} from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
   StudioSnapshotBriefingHandoffV3,
   createBrowserStudioSnapshotBriefingHandoffV3,
@@ -89,6 +102,8 @@ import {
   SweepingWaveformCanvasV3,
   WorkbenchScenarioPresentationSampleStoreV3,
   structuralReturnOrientationFromPayloadV3,
+  useWorkbenchScenarioExactOrbitSamplesV3,
+  useWorkbenchScenarioOrbitHistoryV3,
   useWorkbenchScenarioPresentationSamplesV3,
 } from "@/components/workbench/v3";
 import {
@@ -108,6 +123,11 @@ type WorkbenchStatusV3 =
       kind: "live";
       contract: ModelContractV2;
       frame: StudioSimulationFrameV2;
+    }>
+  | Readonly<{
+      kind: "unavailable-model";
+      savedModelId: string;
+      currentModelId: string;
     }>
   | Readonly<{ kind: "error"; message: string }>;
 
@@ -130,12 +150,29 @@ type WorkbenchRuntimeRestartFeedbackV3 = Readonly<{
   snapshotError: string | null;
 }>;
 
-const WORKBENCH_EXPERIMENT_ID_V3 = "experiment/main-wire-v3-workbench";
 const WORKBENCH_ROOT_FRAME_INTERVAL_SEC_V3 = 0.1;
+const EMPTY_WORKBENCH_GRAPH_HISTORY_V3 = Object.freeze([] as never[]);
 
 export const WorkbenchV3Page = () => {
+  const { locale, workbenchId } = useParams();
+  const selectedLocale = isLocale(locale) ? locale : undefined;
+  if (!isOpaqueWorkbenchIdV3(workbenchId)) {
+    return <Navigate to={workbenchHref(selectedLocale)} replace />;
+  }
+  return (
+    <WorkbenchV3Session
+      key={workbenchId}
+      experimentId={workbenchId}
+    />
+  );
+};
+
+const WorkbenchV3Session = ({
+  experimentId,
+}: Readonly<{ experimentId: string }>) => {
   const { t } = useTranslation();
   const { locale } = useParams();
+  const navigate = useNavigate();
   const [status, setStatus] = React.useState<WorkbenchStatusV3>({
     kind: "loading",
   });
@@ -156,6 +193,7 @@ export const WorkbenchV3Page = () => {
     "idle" | "creating" | "created" | "error"
   >("idle");
   const [snapshotError, setSnapshotError] = React.useState<string | null>(null);
+  const [recoveryError, setRecoveryError] = React.useState<string | null>(null);
   const [briefingOpen, setBriefingOpen] = React.useState(false);
   const [noteOpen, setNoteOpen] = React.useState(false);
   const [briefingPicks, setBriefingPicks] = React.useState<
@@ -186,12 +224,19 @@ export const WorkbenchV3Page = () => {
   const [analysisById, setAnalysisById] = React.useState<
   Readonly<Record<string, StudioSimulationAnalysisV2>>
   >({});
+  const [analysisHistoryByKey, setAnalysisHistoryByKey] = React.useState<
+  Readonly<Record<string, readonly StudioSimulationAnalysisV2[]>>
+  >({});
   const [pendingAnalysisId, setPendingAnalysisId] = React.useState<string | null>(null);
   const [analysisErrorById, setAnalysisErrorById] = React.useState<
   Readonly<Record<string, string>>
   >({});
   const runtimeRef = React.useRef<WorkbenchParallelScenarioRuntimeV3 | null>(null);
-  const contentStoreRef = React.useRef<StudioBrowserContentStoreV2 | null>(null);
+  const translationRef = React.useRef(t);
+  const analysisByIdRef = React.useRef<
+    Readonly<Record<string, StudioSimulationAnalysisV2>>
+  >({});
+  const contentStoreRef = React.useRef<StudioBrowserContentStoreV3 | null>(null);
   const workspaceRef = React.useRef<ExperimentWorkspaceV2 | null>(null);
   const latestFrameRef = React.useRef<StudioSimulationFrameV2 | null>(null);
   const lastRootFrameTimeSecRef = React.useRef(Number.NEGATIVE_INFINITY);
@@ -215,6 +260,31 @@ export const WorkbenchV3Page = () => {
     WorkbenchRuntimeRestartFeedbackV3 | null
   >(null);
   const contract = status.kind === "live" ? status.contract : null;
+
+  React.useEffect(() => {
+    translationRef.current = t;
+  }, [t]);
+
+  const replaceAnalysisByIdV3 = React.useCallback((
+    next: Readonly<Record<string, StudioSimulationAnalysisV2>>,
+  ) => {
+    analysisByIdRef.current = next;
+    setAnalysisById(next);
+  }, []);
+
+  const commitAnalysisV3 = React.useCallback((
+    analysis: StudioSimulationAnalysisV2,
+  ) => {
+    if (workbenchAnalysisMatchesFrameEpochV3(
+      analysis,
+      latestFrameRef.current,
+    )) {
+      replaceAnalysisByIdV3(Object.freeze({
+        ...analysisByIdRef.current,
+        [analysis.analysisId]: analysis,
+      }));
+    }
+  }, [replaceAnalysisByIdV3]);
 
   const updateBriefingPicksV3 = React.useCallback((
     picks: readonly WorkbenchBriefingPanePickV3[],
@@ -245,16 +315,28 @@ export const WorkbenchV3Page = () => {
     const start = async () => {
       const composition = await loadStudioDefaultClientCompositionV2();
       if (cancelled) return;
-      const contentStore = new StudioBrowserContentStoreV2();
+      const contentStore = new StudioBrowserContentStoreV3();
       contentStoreRef.current = contentStore;
-      const storedWorkspace = contentStore.readWorkspace(WORKBENCH_EXPERIMENT_ID_V3);
+      const storedWorkspace = contentStore.readWorkspace(experimentId);
       if (
         storedWorkspace !== null
         && storedWorkspace.content.modelId !== composition.defaultModelId
       ) {
-        throw new Error(
-          "The saved Experiment belongs to another exact model and cannot be opened by this release",
-        );
+        playingIntentRef.current = false;
+        setIsPlaying(false);
+        workspaceRef.current = storedWorkspace;
+        setWorkspace(storedWorkspace);
+        surfaceRef.current = null;
+        setSurface(null);
+        setSnapshotCount(contentStore.listSnapshots().filter((snapshot) =>
+          snapshot.experimentId === experimentId
+          && snapshot.content.modelId === storedWorkspace.content.modelId).length);
+        setStatus({
+          kind: "unavailable-model",
+          savedModelId: storedWorkspace.content.modelId,
+          currentModelId: composition.defaultModelId,
+        });
+        return;
       }
       const preferredScenarioId = activeScenarioIdRef.current;
       const initialScenarioId = preferredScenarioId !== null
@@ -276,7 +358,7 @@ export const WorkbenchV3Page = () => {
         );
       const nextSurface = candidateSurface;
       const storedSnapshots = contentStore.listSnapshots().filter((snapshot) =>
-        snapshot.experimentId === WORKBENCH_EXPERIMENT_ID_V3
+        snapshot.experimentId === experimentId
         && snapshot.content.modelId === composition.defaultModelId);
       surfaceRef.current = nextSurface;
       setSurface(nextSurface);
@@ -306,7 +388,8 @@ export const WorkbenchV3Page = () => {
       ));
       setControlError(null);
       setPendingControlId(null);
-      setAnalysisById({});
+      replaceAnalysisByIdV3({});
+      setAnalysisHistoryByKey({});
       setPendingAnalysisId(null);
       setAnalysisErrorById({});
       exclusiveOperationRef.current = null;
@@ -316,7 +399,9 @@ export const WorkbenchV3Page = () => {
         storedWorkspace === null
           ? [Object.freeze({
               scenarioId: initialScenarioId,
-              label: t("workbench.editor.scenarioManager.baselinePresetTitle"),
+              label: translationRef.current(
+                "workbench.editor.scenarioManager.baselinePresetTitle",
+              ),
               fixture: composition.defaultFixture,
             })]
           : storedWorkspace.content.scenarios.map((scenario) => Object.freeze({
@@ -389,8 +474,10 @@ export const WorkbenchV3Page = () => {
             schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
             presetId: "preset/workbench-startup-baseline",
             modelId: composition.defaultModelId,
-            title: t("workbench.editor.scenarioManager.baselinePresetTitle"),
-            description: t(
+            title: translationRef.current(
+              "workbench.editor.scenarioManager.baselinePresetTitle",
+            ),
+            description: translationRef.current(
               "workbench.editor.scenarioManager.baselinePresetDescription",
             ),
             capture: baseline.capture,
@@ -427,7 +514,12 @@ export const WorkbenchV3Page = () => {
       runtimeRef.current = null;
       void runtime?.dispose();
     };
-  }, [runtimeGeneration]);
+  }, [
+    experimentId,
+    presentationSampleStore,
+    replaceAnalysisByIdV3,
+    runtimeGeneration,
+  ]);
 
   React.useEffect(() => {
     const handleVisibility = () => {
@@ -532,6 +624,23 @@ export const WorkbenchV3Page = () => {
     setRuntimeGeneration((generation) => generation + 1);
   }, []);
 
+  const startLatestWorkbenchV3 = React.useCallback(() => {
+    setRecoveryError(null);
+    try {
+      const contentStore = contentStoreRef.current
+        ?? new StudioBrowserContentStoreV3();
+      const nextWorkbenchId = allocateOpaqueWorkbenchIdV3(
+        contentStore.listWorkspaces().map(({ experimentId: storedId }) => storedId),
+      );
+      navigate(workbenchDetailHref({
+        locale: isLocale(locale) ? locale : undefined,
+        workbenchId: nextWorkbenchId,
+      }));
+    } catch (error) {
+      setRecoveryError(error instanceof Error ? error.message : String(error));
+    }
+  }, [locale, navigate]);
+
   const applyControl = React.useCallback(async (
     controlId: string,
     value: number,
@@ -552,6 +661,14 @@ export const WorkbenchV3Page = () => {
       if (acceptedFrame === null) {
         throw new Error("The live Scenario no longer has an accepted frame");
       }
+      const analysesToArchive = await requestExactStructuralHistoryAtBoundaryV3({
+        analysisIds: workbenchStructuralHistoryAnalysisIdsV3(
+          surfaceRef.current,
+          contract,
+        ),
+        frame: acceptedFrame,
+        runtime,
+      });
       const nextFrame = await runtime.applyControl({
         scenarioId: acceptedFrame.scenarioId,
         controlId,
@@ -560,8 +677,11 @@ export const WorkbenchV3Page = () => {
       });
       latestFrameRef.current = nextFrame;
       lastRootFrameTimeSecRef.current = nextFrame.acceptedTimeSec;
-      presentationSampleStore.resetScenario(nextFrame.scenarioId);
-      setAnalysisById({});
+      if (analysesToArchive.length > 0) {
+        setAnalysisHistoryByKey((current) =>
+          archiveWorkbenchAnalysesV3(current, analysesToArchive));
+      }
+      replaceAnalysisByIdV3({});
       setAnalysisErrorById({});
       appendFramesV3([nextFrame], presentationSampleStore);
       setStatus((current) => current.kind === "live"
@@ -597,7 +717,7 @@ export const WorkbenchV3Page = () => {
       exclusiveOperationRef.current = null;
       setPendingControlId(null);
     }
-  }, []);
+  }, [contract, presentationSampleStore, replaceAnalysisByIdV3]);
 
   const requestAnalysis = React.useCallback((analysisId: string): boolean => {
     const runtime = runtimeRef.current;
@@ -623,10 +743,7 @@ export const WorkbenchV3Page = () => {
           expectedAcceptedRevision: acceptedFrame.acceptedRevision,
           expectedAcceptedTimeSec: acceptedFrame.acceptedTimeSec,
         });
-        setAnalysisById((current) => Object.freeze({
-          ...current,
-          [analysisId]: analysis,
-        }));
+        commitAnalysisV3(analysis);
         if (playingIntentRef.current && !document.hidden) {
           runtime.playAll();
         }
@@ -645,7 +762,7 @@ export const WorkbenchV3Page = () => {
       }
     })();
     return true;
-  }, []);
+  }, [commitAnalysisV3]);
 
   const adoptScenarioStateV3 = React.useCallback((
     next: StudioSimulationWorkerScenarioStateV2,
@@ -656,7 +773,7 @@ export const WorkbenchV3Page = () => {
     latestFrameRef.current = next.frame;
     lastRootFrameTimeSecRef.current = next.frame.acceptedTimeSec;
     appendFramesV3([next.frame], presentationSampleStore);
-    setAnalysisById({});
+    replaceAnalysisByIdV3({});
     setAnalysisErrorById({});
     setControlError(null);
     setControlValues(
@@ -668,7 +785,7 @@ export const WorkbenchV3Page = () => {
     setStatus((current) => current.kind === "live"
       ? { ...current, frame: next.frame }
       : current);
-  }, [contract]);
+  }, [contract, presentationSampleStore, replaceAnalysisByIdV3]);
 
   const runScenarioOperationV3 = React.useCallback(async (
     kind: WorkbenchScenarioOperationV3,
@@ -796,6 +913,11 @@ export const WorkbenchV3Page = () => {
           controlValuesByScenarioRef.current;
         controlValuesByScenarioRef.current = retained;
         presentationSampleStore.removeScenario(intent.scenarioId);
+        setAnalysisHistoryByKey((current) =>
+          withoutWorkbenchScenarioAnalysisHistoryV3(
+            current,
+            intent.scenarioId,
+          ));
         markDraftDirtyV3();
       },
     );
@@ -822,17 +944,18 @@ export const WorkbenchV3Page = () => {
     try {
       await runtime.pauseAll();
       const captures = await runtime.captureScenarios();
-      const snapshots = contentStore.listSnapshots().filter((snapshot) =>
-        snapshot.experimentId === WORKBENCH_EXPERIMENT_ID_V3
-        && snapshot.content.modelId === frame.modelId);
+      const currentWorkspace = workspaceRef.current;
+      const snapshots = currentWorkspace === null
+        ? Object.freeze([])
+        : contentStore.snapshotLineageForExperiment(experimentId);
       const coordinator = new WorkbenchParallelAuthoringCoordinatorV3();
       const saved = await coordinator.saveDraft({
         modelId: frame.modelId,
         scenarios: captures.scenarios,
         activeScenarioId: captures.activeScenarioId,
-        workspace: workspaceRef.current,
+        workspace: currentWorkspace,
         snapshots,
-        experimentId: WORKBENCH_EXPERIMENT_ID_V3,
+        experimentId,
         surface: submittedSurface,
         runtimeSessionId: `workbench-authoring-${randomPortableTokenV3()}`,
       });
@@ -880,7 +1003,7 @@ export const WorkbenchV3Page = () => {
       // current Surface remain the user's retry payload.
       const latestDurableWorkspace = readNewerDurableWorkbenchWorkspaceV3({
         reader: contentStore,
-        experimentId: WORKBENCH_EXPERIMENT_ID_V3,
+        experimentId,
         current: workspaceRef.current,
       });
       const durableBaseAdvanced = latestDurableWorkspace !== null;
@@ -908,7 +1031,7 @@ export const WorkbenchV3Page = () => {
         runtime.playAll();
       }
     }
-  }, [contract, surface]);
+  }, [contract, experimentId, surface]);
 
   const createSnapshotV3 = React.useCallback(async () => {
     const runtime = runtimeRef.current;
@@ -933,9 +1056,7 @@ export const WorkbenchV3Page = () => {
     let snapshotHasNewerSurfaceMutations = false;
     try {
       await runtime.pauseAll();
-      const snapshots = contentStore.listSnapshots().filter((snapshot) =>
-        snapshot.experimentId === durableWorkspace.experimentId
-        && snapshot.content.modelId === frame.modelId);
+      const snapshots = contentStore.snapshotLineageForExperiment(experimentId);
       const coordinator = new WorkbenchParallelAuthoringCoordinatorV3();
       const created = await coordinator.createSnapshot({
         modelId: frame.modelId,
@@ -944,7 +1065,7 @@ export const WorkbenchV3Page = () => {
         surface: durableWorkspace.content.surface,
         workspace: durableWorkspace,
         snapshots,
-        experimentId: durableWorkspace.experimentId,
+        experimentId,
         runtimeSessionId: `workbench-qualification-${randomPortableTokenV3()}`,
       });
       const persisted = contentStore.saveSnapshotAndWorkspace(created);
@@ -952,7 +1073,7 @@ export const WorkbenchV3Page = () => {
       const durable = Object.freeze({
         ...persisted,
         snapshotCount: contentStore.listSnapshots().filter((snapshot) =>
-          snapshot.experimentId === WORKBENCH_EXPERIMENT_ID_V3).length,
+          snapshot.experimentId === experimentId).length,
       });
       const surfaceResolution = resolveWorkbenchSurfaceAfterCommitV3({
         currentMutationRevision: surfaceMutationRevisionRef.current,
@@ -1000,7 +1121,7 @@ export const WorkbenchV3Page = () => {
       if (!restartRuntimeAfterCommit) {
         const latestDurableWorkspace = readNewerDurableWorkbenchWorkspaceV3({
           reader: contentStore,
-          experimentId: durableWorkspace.experimentId,
+          experimentId,
           current: workspaceRef.current,
         });
         if (latestDurableWorkspace !== null) {
@@ -1041,7 +1162,7 @@ export const WorkbenchV3Page = () => {
         runtime.playAll();
       }
     }
-  }, [briefingHandoff, restartRuntime, saveState]);
+  }, [briefingHandoff, experimentId, restartRuntime, saveState]);
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1120,7 +1241,7 @@ export const WorkbenchV3Page = () => {
         <RuntimeStatusV3 status={status} />
         <div className="flex shrink-0 items-center gap-0.5">
           <Link
-            to="../articles"
+            to={articlesHref(isLocale(locale) ? locale : undefined)}
             className="hidden min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:inline-flex"
           >
             <BookOpenText className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1183,7 +1304,64 @@ export const WorkbenchV3Page = () => {
         </div>
       </header>
 
-      {status.kind === "error" ? (
+      {status.kind === "unavailable-model" ? (
+        <section
+          className="m-4 max-w-3xl self-center rounded-xl border border-wb-warning/50 bg-wb-warning-soft p-6 text-sm"
+          role="alert"
+          data-testid="workbench-unavailable-model-v3"
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-wb-warning" aria-hidden="true" />
+            <div className="min-w-0">
+              <h2 className="font-bold text-wb-text">
+                {t("workbench.unavailable.title")}
+              </h2>
+              <p className="mt-2 leading-6 text-wb-muted">
+                {t("workbench.unavailable.description")}
+              </p>
+              <dl className="mt-4 grid gap-2 rounded-lg border border-wb-line bg-wb-panel p-3 text-xs sm:grid-cols-[auto_minmax(0,1fr)]">
+                <dt className="font-bold text-wb-subtle">
+                  {t("workbench.unavailable.savedModel")}
+                </dt>
+                <dd className="truncate font-mono text-wb-text" title={status.savedModelId}>
+                  {status.savedModelId}
+                </dd>
+                <dt className="font-bold text-wb-subtle">
+                  {t("workbench.unavailable.currentModel")}
+                </dt>
+                <dd className="truncate font-mono text-wb-text" title={status.currentModelId}>
+                  {status.currentModelId}
+                </dd>
+              </dl>
+              {recoveryError !== null && (
+                <p className="mt-3 text-xs text-wb-danger" role="alert">
+                  {recoveryError}
+                </p>
+              )}
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Link
+                  to={workbenchHref(isLocale(locale) ? locale : undefined)}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-wb-line bg-wb-panel px-3 text-xs font-bold text-wb-text hover:bg-wb-hover"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t("workbench.unavailable.back")}
+                </Link>
+                <button
+                  type="button"
+                  onClick={startLatestWorkbenchV3}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-wb-accent px-3 text-xs font-bold text-white hover:opacity-90"
+                >
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t("workbench.unavailable.startLatest")}
+                </button>
+              </div>
+              <p className="mt-4 text-xs leading-5 text-wb-subtle">
+                {t("workbench.unavailable.preserved")}
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : status.kind === "error" ? (
         <section
           className="m-4 rounded-lg border border-wb-danger/50 bg-wb-danger-soft p-5 text-sm text-wb-danger"
           role="alert"
@@ -1224,6 +1402,7 @@ export const WorkbenchV3Page = () => {
                     activeScenarioId={activeScenarioId}
                     playbackRunning={isPlaying}
                     analysisById={analysisById}
+                    analysisHistoryByKey={analysisHistoryByKey}
                     analysisErrorById={analysisErrorById}
                     contract={contract}
                     frame={latestFrame}
@@ -1381,6 +1560,8 @@ export const WorkbenchV3Page = () => {
               deletePane: t("workbench.editor.deletePane"),
               emptyCatalog: t("workbench.editor.emptyCatalog"),
               graphCatalog: t("workbench.live.registeredGraphs"),
+              historyDepth: t("workbench.editor.historyDepth"),
+              historyDepthHint: t("workbench.editor.historyDepthHint"),
               label: t("workbench.editor.paneLabel"),
               noConfigurableSeries: t("workbench.editor.noConfigurableSeries"),
               outputCatalog: t("workbench.live.registeredOutputs"),
@@ -1474,7 +1655,7 @@ function RuntimeStatusV3({ status }: Readonly<{ status: WorkbenchStatusV3 }>) {
       </div>
     );
   }
-  if (status.kind === "error") return null;
+  if (status.kind === "error" || status.kind === "unavailable-model") return null;
   return (
     <div
       className="hidden shrink-0 items-center gap-1.5 font-mono text-[10px] text-wb-muted md:flex"
@@ -1616,6 +1797,7 @@ function GraphPaneBodyV3({
   activeScenarioId,
   playbackRunning,
   analysisById,
+  analysisHistoryByKey,
   analysisErrorById,
   contract,
   frame,
@@ -1629,6 +1811,9 @@ function GraphPaneBodyV3({
   activeScenarioId: string | null;
   playbackRunning: boolean;
   analysisById: Readonly<Record<string, StudioSimulationAnalysisV2>>;
+  analysisHistoryByKey: Readonly<
+    Record<string, readonly StudioSimulationAnalysisV2[]>
+  >;
   analysisErrorById: Readonly<Record<string, string>>;
   contract: ModelContractV2;
   frame: StudioSimulationFrameV2 | null;
@@ -1648,6 +1833,14 @@ function GraphPaneBodyV3({
     return (
       <StructuralReturnGraphPaneV3
         analysis={analysisById[graph.analysisId]}
+        history={activeScenarioId === null
+          ? []
+          : workbenchBoundedGraphHistoryV3(analysisHistoryByKey[
+              workbenchAnalysisHistoryKeyV3(
+                activeScenarioId,
+                graph.analysisId,
+              )
+            ] ?? [], pane.historyDepth ?? 1)}
         error={analysisErrorById[graph.analysisId] ?? null}
         frame={frame}
         graph={graph}
@@ -1693,6 +1886,10 @@ function SampledGraphPaneBodyV3({
   const samplesByScenarioId = useWorkbenchScenarioPresentationSamplesV3(
     sampleStore,
   );
+  const exactOrbitSamplesByScenarioId =
+    useWorkbenchScenarioExactOrbitSamplesV3(sampleStore);
+  const orbitHistoryByScenarioId =
+    useWorkbenchScenarioOrbitHistoryV3(sampleStore);
   const displayedSeries = [...pane.series]
     .sort((left, right) => left.order - right.order);
   if (graph.renderer === "pressure-volume") {
@@ -1705,7 +1902,9 @@ function SampledGraphPaneBodyV3({
       <div className="h-full min-h-0 bg-wb-app p-3">
         <PressureVolumeLoopCanvasV3
           traces={scenarios.flatMap((scenario, scenarioStyleIndex) => {
-            const samples = samplesByScenarioId[scenario.scenarioId] ?? [];
+            const samples = exactOrbitSamplesByScenarioId[
+              scenario.scenarioId
+            ] ?? [];
             if (samples.length === 0) return [];
             return bindings.map(({ binding, series }) => ({
               scenarioId: scenario.scenarioId,
@@ -1715,6 +1914,12 @@ function SampledGraphPaneBodyV3({
               ),
               scenarioStyleIndex,
               samples,
+              historySampleSets: workbenchBoundedGraphHistoryV3(
+                orbitHistoryByScenarioId[
+                  scenario.scenarioId
+                ] ?? [],
+                pane.historyDepth ?? 1,
+              ).map((entry) => entry.samples),
               volumeOutputId: binding.volumeOutputId,
               pressureOutputId: binding.pressureOutputId,
               pressureBasis: binding.pressureBasis,
@@ -1723,7 +1928,8 @@ function SampledGraphPaneBodyV3({
               chamberLabel: series.label,
               chamberColor: series.colorHex,
               showSingleBeatOrientationGuides:
-                binding.guideMode === "lv-single-beat-orientation",
+                scenario.scenarioId === activeScenarioId
+                && binding.guideMode === "lv-single-beat-orientation",
             }));
           })}
         />
@@ -1775,6 +1981,7 @@ function SampledGraphPaneBodyV3({
 
 function StructuralReturnGraphPaneV3({
   analysis,
+  history,
   error,
   frame,
   graph,
@@ -1783,6 +1990,7 @@ function StructuralReturnGraphPaneV3({
   pending,
 }: Readonly<{
   analysis: StudioSimulationAnalysisV2 | undefined;
+  history: readonly StudioSimulationAnalysisV2[];
   error: string | null;
   frame: StudioSimulationFrameV2 | null;
   graph: StructuralReturnGraphDefinitionV2;
@@ -1827,9 +2035,22 @@ function StructuralReturnGraphPaneV3({
     onRequestAnalysis,
     operationPending,
   ]);
-  const orientation = structuralReturnOrientationFromPayloadV3(
-    analysis?.payload,
-    graph.side,
+  const orientation = React.useMemo(
+    () => structuralReturnOrientationFromPayloadV3(
+      analysis?.payload,
+      graph.side,
+    ),
+    [analysis?.payload, graph.side],
+  );
+  const historyOrientations = React.useMemo(
+    () => Object.freeze(history.flatMap((historical) => {
+      const candidate = structuralReturnOrientationFromPayloadV3(
+        historical.payload,
+        graph.side,
+      );
+      return candidate === null ? [] : [candidate];
+    })),
+    [graph.side, history],
   );
   return (
     <div className="relative h-full min-h-0 bg-wb-app p-3">
@@ -1842,7 +2063,10 @@ function StructuralReturnGraphPaneV3({
               : t("workbench.live.firstAcceptedStep"))}
         </div>
       ) : (
-        <GuytonStarlingOrientationCanvasV3 orientation={orientation} />
+        <GuytonStarlingOrientationCanvasV3
+          orientation={orientation}
+          historyOrientations={historyOrientations}
+        />
       )}
       {analysis !== undefined && (
         <div
@@ -1919,6 +2143,127 @@ export function structuralReturnAnalysisRequestKeyV3(
     source.inputEpoch,
     analysisId,
   ]);
+}
+
+export function workbenchAnalysisHistoryKeyV3(
+  scenarioId: string,
+  analysisId: string,
+): string {
+  return JSON.stringify([scenarioId, analysisId]);
+}
+
+export function workbenchAnalysisMatchesFrameEpochV3(
+  analysis: StudioSimulationAnalysisV2,
+  frame: StudioSimulationFrameV2 | null,
+): boolean {
+  return frame !== null
+    && analysis.modelId === frame.modelId
+    && analysis.runtimeSessionId === frame.runtimeSessionId
+    && analysis.scenarioId === frame.scenarioId
+    && analysis.inputEpoch === frame.inputEpoch;
+}
+
+export function workbenchAnalysisMatchesExactFrameBoundaryV3(
+  analysis: StudioSimulationAnalysisV2,
+  frame: StudioSimulationFrameV2,
+): boolean {
+  return workbenchAnalysisMatchesFrameEpochV3(analysis, frame)
+    && analysis.sourceAcceptedRevision === frame.acceptedRevision
+    && Object.is(analysis.sourceAcceptedTimeSec, frame.acceptedTimeSec);
+}
+
+export function workbenchStructuralHistoryAnalysisIdsV3(
+  surface: ExperimentSurfaceV2 | null,
+  contract: ModelContractV2 | null,
+): readonly string[] {
+  if (surface === null || contract === null) return Object.freeze([]);
+  const analysisIds = new Set<string>();
+  for (const pane of surface.graphPanes) {
+    if ((pane.historyDepth ?? 0) <= 0) continue;
+    const graph = contract.graphCatalog.find(({ graphId }) =>
+      graphId === pane.graphId);
+    if (graph?.renderer === "structural-return") {
+      analysisIds.add(graph.analysisId);
+    }
+  }
+  return Object.freeze([...analysisIds]);
+}
+
+export async function requestExactStructuralHistoryAtBoundaryV3(input: Readonly<{
+  analysisIds: readonly string[];
+  frame: StudioSimulationFrameV2;
+  runtime: Pick<WorkbenchParallelScenarioRuntimeV3, "requestAnalysis">;
+}>): Promise<readonly StudioSimulationAnalysisV2[]> {
+  const exact: StudioSimulationAnalysisV2[] = [];
+  for (const analysisId of new Set(input.analysisIds)) {
+    try {
+      const analysis = await input.runtime.requestAnalysis({
+        scenarioId: input.frame.scenarioId,
+        analysisId,
+        expectedInputEpoch: input.frame.inputEpoch,
+        expectedAcceptedRevision: input.frame.acceptedRevision,
+        expectedAcceptedTimeSec: input.frame.acceptedTimeSec,
+      });
+      if (
+        analysis.analysisId === analysisId
+        && workbenchAnalysisMatchesExactFrameBoundaryV3(analysis, input.frame)
+      ) exact.push(analysis);
+    } catch {
+      // History is optional presentation context. A missing analysis must not
+      // prevent the accepted control transition or create a stale curve.
+    }
+  }
+  return Object.freeze(exact);
+}
+
+export function workbenchBoundedGraphHistoryV3<T>(
+  history: readonly T[],
+  depth: number,
+): readonly T[] {
+  if (!Number.isSafeInteger(depth) || depth <= 0) {
+    return EMPTY_WORKBENCH_GRAPH_HISTORY_V3;
+  }
+  const boundedDepth = Math.min(3, depth);
+  return history.length <= boundedDepth
+    ? history
+    : Object.freeze(history.slice(-boundedDepth));
+}
+
+export function archiveWorkbenchAnalysesV3(
+  current: Readonly<Record<string, readonly StudioSimulationAnalysisV2[]>>,
+  analyses: readonly StudioSimulationAnalysisV2[],
+): Readonly<Record<string, readonly StudioSimulationAnalysisV2[]>> {
+  if (analyses.length === 0) return current;
+  const next: Record<string, readonly StudioSimulationAnalysisV2[]> = {
+    ...current,
+  };
+  for (const analysis of analyses) {
+    const key = workbenchAnalysisHistoryKeyV3(
+      analysis.scenarioId,
+      analysis.analysisId,
+    );
+    const previous = next[key] ?? [];
+    const withoutSameEpoch = previous.filter((candidate) =>
+      candidate.inputEpoch !== analysis.inputEpoch);
+    next[key] = Object.freeze([...withoutSameEpoch, analysis].slice(-3));
+  }
+  return Object.freeze(next);
+}
+
+export function withoutWorkbenchScenarioAnalysisHistoryV3(
+  current: Readonly<Record<string, readonly StudioSimulationAnalysisV2[]>>,
+  scenarioId: string,
+): Readonly<Record<string, readonly StudioSimulationAnalysisV2[]>> {
+  let changed = false;
+  const retained: Record<string, readonly StudioSimulationAnalysisV2[]> = {};
+  for (const [key, history] of Object.entries(current)) {
+    if (history.some((analysis) => analysis.scenarioId === scenarioId)) {
+      changed = true;
+    } else {
+      retained[key] = history;
+    }
+  }
+  return changed ? Object.freeze(retained) : current;
 }
 
 export type StructuralReturnAnalysisBoundaryStatusV3 =
@@ -2260,6 +2605,8 @@ function appendFramesV3(
   ]) => ({
     scenarioId,
     samples: scenarioFrames.map((frame) => Object.freeze({
+      inputEpoch: frame.inputEpoch,
+      acceptedRevision: frame.acceptedRevision,
       acceptedTimeSec: frame.acceptedTimeSec,
       values: Object.freeze(Object.fromEntries(Object.entries(frame.outputs).map(
         ([outputId, output]) => [

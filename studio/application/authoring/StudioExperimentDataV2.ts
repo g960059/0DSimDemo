@@ -3,6 +3,8 @@ import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+  STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2,
+  STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
   STUDIO_SWEEP_WINDOW_MAX_SEC_V2,
   STUDIO_SWEEP_WINDOW_MIN_SEC_V2,
@@ -411,6 +413,12 @@ function assertExperimentModelAndSurfaceMatchV2(
           `${graph.renderer} graphs must not configure a waveform window`,
         );
       }
+      if (pane.historyDepth === undefined) {
+        throw validationErrorV2(
+          `${panePath}.historyDepth`,
+          "structural-return graphs must configure a history depth",
+        );
+      }
       return;
     }
     if (graph.renderer === "sweep" && pane.windowSec === undefined) {
@@ -423,6 +431,18 @@ function assertExperimentModelAndSurfaceMatchV2(
       throw validationErrorV2(
         `${panePath}.windowSec`,
         `${graph.renderer} graphs must not configure a waveform window`,
+      );
+    }
+    if (graph.renderer === "sweep" && pane.historyDepth !== undefined) {
+      throw validationErrorV2(
+        `${panePath}.historyDepth`,
+        "sweep graphs must not configure an explicit history depth",
+      );
+    }
+    if (graph.renderer === "pressure-volume" && pane.historyDepth === undefined) {
+      throw validationErrorV2(
+        `${panePath}.historyDepth`,
+        "pressure-volume graphs must configure a history depth",
       );
     }
     if (pane.series.length === 0) {
@@ -830,7 +850,7 @@ function assertExperimentSurfaceV2(
     assertRequiredOptionalKeysV2(
       pane,
       ["paneId", "role", "label", "order", "priority", "graphId", "series"],
-      ["windowSec"],
+      ["windowSec", "historyDepth"],
       panePath,
     );
     assertPane(
@@ -842,6 +862,9 @@ function assertExperimentSurfaceV2(
     requiredPortableIdV2(pane.graphId, `${panePath}.graphId`);
     if (pane.windowSec !== undefined) {
       sweepWindowSecV2(pane.windowSec, `${panePath}.windowSec`);
+    }
+    if (pane.historyDepth !== undefined) {
+      graphHistoryDepthV2(pane.historyDepth, `${panePath}.historyDepth`);
     }
     arrayV2(pane.series, `${panePath}.series`);
     const seriesIds = new Set<string>();
@@ -1128,6 +1151,20 @@ function sweepWindowSecV2(value: unknown, path: string): void {
       path,
       `must be ${STUDIO_SWEEP_WINDOW_MIN_SEC_V2}–${STUDIO_SWEEP_WINDOW_MAX_SEC_V2} `
         + `seconds in ${STUDIO_SWEEP_WINDOW_STEP_SEC_V2} second steps`,
+    );
+  }
+}
+
+function graphHistoryDepthV2(value: unknown, path: string): void {
+  if (
+    !Number.isSafeInteger(value)
+    || (value as number) < STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2
+    || (value as number) > STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2
+  ) {
+    throw validationErrorV2(
+      path,
+      `must be an integer from ${STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2} to `
+        + `${STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2}`,
     );
   }
 }

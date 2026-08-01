@@ -4,16 +4,24 @@ import type { DockviewApi } from "dockview";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  archiveWorkbenchAnalysesV3,
   persistWorkbenchBriefingHandoffV3,
   reconcileWorkbenchBriefingPicksV3,
   resolveWorkbenchBriefingPicksAfterRestartV3,
   resolveControlDraftCommitV3,
   resolveWorkbenchSurfaceAfterCommitV3,
   readNewerDurableWorkbenchWorkspaceV3,
+  requestExactStructuralHistoryAtBoundaryV3,
   shouldAutoRequestStructuralReturnAnalysisV3,
   shouldPublishWorkbenchRootFrameV3,
   structuralReturnAnalysisRequestKeyV3,
   structuralReturnAnalysisBoundaryStatusV3,
+  withoutWorkbenchScenarioAnalysisHistoryV3,
+  workbenchAnalysisHistoryKeyV3,
+  workbenchAnalysisMatchesExactFrameBoundaryV3,
+  workbenchAnalysisMatchesFrameEpochV3,
+  workbenchBoundedGraphHistoryV3,
+  workbenchStructuralHistoryAnalysisIdsV3,
   workbenchScenarioRuntimeStatusV3,
 } from "@/components/WorkbenchV3Page";
 import {
@@ -32,6 +40,9 @@ import {
   suggestWorkbenchScenarioIdV3,
   suggestWorkbenchScenarioLabelV3,
 } from "@/components/workbench/WorkbenchScenarioManagerV3";
+import type {
+  StudioSimulationWorkerRequestAnalysisInputV2,
+} from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
@@ -61,6 +72,173 @@ import {
 } from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 
 describe("V3 Dockview Workbench", () => {
+  it("treats a graph history depth of zero as no history", () => {
+    const history = Object.freeze(["oldest", "older", "newer", "newest"]);
+    expect(workbenchBoundedGraphHistoryV3(history, 0)).toEqual([]);
+    expect(workbenchBoundedGraphHistoryV3(history, 1)).toEqual(["newest"]);
+    expect(workbenchBoundedGraphHistoryV3(history, 3)).toEqual([
+      "older",
+      "newer",
+      "newest",
+    ]);
+  });
+
+  it("archives, deduplicates, caps, and prunes analysis epochs", () => {
+    const analysis = (
+      scenarioId: string,
+      analysisId: string,
+      inputEpoch: number,
+      sourceAcceptedRevision = inputEpoch,
+    ): StudioSimulationAnalysisV2 => Object.freeze({
+      modelId: "model/exact",
+      runtimeSessionId: "runtime/1",
+      scenarioId,
+      inputEpoch,
+      sourceAcceptedRevision,
+      sourceAcceptedTimeSec: sourceAcceptedRevision * 0.002,
+      analysisId,
+      payload: { sourceAcceptedRevision },
+    });
+    let history: Readonly<
+      Record<string, readonly StudioSimulationAnalysisV2[]>
+    > = {};
+    for (let epoch = 0; epoch <= 4; epoch += 1) {
+      history = archiveWorkbenchAnalysesV3(history, [
+        analysis("scenario/a", "analysis/systemic", epoch),
+      ]);
+    }
+    const keyA = workbenchAnalysisHistoryKeyV3(
+      "scenario/a",
+      "analysis/systemic",
+    );
+    expect(history[keyA]?.map(({ inputEpoch }) => inputEpoch))
+      .toEqual([2, 3, 4]);
+
+    history = archiveWorkbenchAnalysesV3(history, [
+      analysis("scenario/a", "analysis/systemic", 4, 99),
+      analysis("scenario/b", "analysis/pulmonary", 4, 100),
+    ]);
+    expect(history[keyA]).toHaveLength(3);
+    expect(history[keyA]?.at(-1)?.sourceAcceptedRevision).toBe(99);
+
+    const pruned = withoutWorkbenchScenarioAnalysisHistoryV3(
+      history,
+      "scenario/a",
+    );
+    expect(pruned).not.toHaveProperty(keyA);
+    expect(Object.values(pruned).flat().every(({ scenarioId }) =>
+      scenarioId === "scenario/b")).toBe(true);
+    expect(withoutWorkbenchScenarioAnalysisHistoryV3(pruned, "missing"))
+      .toBe(pruned);
+
+    const current = analysis("scenario/a", "analysis/systemic", 4, 99);
+    const frame = {
+      modelId: current.modelId,
+      runtimeSessionId: current.runtimeSessionId,
+      scenarioId: current.scenarioId,
+      inputEpoch: current.inputEpoch,
+      acceptedRevision: 200,
+      acceptedTimeSec: 0.4,
+      outputs: {},
+    } as StudioSimulationFrameV2;
+    expect(workbenchAnalysisMatchesFrameEpochV3(current, frame)).toBe(true);
+    expect(workbenchAnalysisMatchesExactFrameBoundaryV3(current, frame))
+      .toBe(false);
+    expect(workbenchAnalysisMatchesExactFrameBoundaryV3(
+      analysis("scenario/a", "analysis/systemic", 4, 200),
+      frame,
+    )).toBe(true);
+    expect(workbenchAnalysisMatchesFrameEpochV3(current, {
+      ...frame,
+      inputEpoch: 5,
+    })).toBe(false);
+  });
+
+  it("refreshes only exact paused-boundary structural history and fails closed", async () => {
+    const frame = {
+      modelId: "model/exact",
+      runtimeSessionId: "runtime/1",
+      scenarioId: "scenario/a",
+      inputEpoch: 4,
+      acceptedRevision: 200,
+      acceptedTimeSec: 0.4,
+      outputs: {},
+    } as StudioSimulationFrameV2;
+    const exact = Object.freeze({
+      modelId: frame.modelId,
+      runtimeSessionId: frame.runtimeSessionId,
+      scenarioId: frame.scenarioId,
+      inputEpoch: frame.inputEpoch,
+      sourceAcceptedRevision: frame.acceptedRevision,
+      sourceAcceptedTimeSec: frame.acceptedTimeSec,
+      analysisId: "analysis/exact",
+      payload: null,
+    }) as StudioSimulationAnalysisV2;
+    const requestAnalysis = vi.fn(async (
+      input: Omit<
+        StudioSimulationWorkerRequestAnalysisInputV2,
+        "runtimeSessionId"
+      >,
+    ): Promise<StudioSimulationAnalysisV2> => {
+      if (input.analysisId === "analysis/fails") {
+        throw new Error("optional analysis unavailable");
+      }
+      if (input.analysisId === "analysis/stale") {
+        return {
+          ...exact,
+          analysisId: input.analysisId,
+          sourceAcceptedRevision: frame.acceptedRevision - 1,
+          sourceAcceptedTimeSec: frame.acceptedTimeSec - 0.002,
+        };
+      }
+      return exact;
+    });
+
+    await expect(requestExactStructuralHistoryAtBoundaryV3({
+      analysisIds: [
+        "analysis/exact",
+        "analysis/stale",
+        "analysis/fails",
+        "analysis/exact",
+      ],
+      frame,
+      runtime: { requestAnalysis },
+    })).resolves.toEqual([exact]);
+    expect(requestAnalysis).toHaveBeenCalledTimes(3);
+    expect(requestAnalysis).toHaveBeenCalledWith({
+      scenarioId: frame.scenarioId,
+      analysisId: "analysis/exact",
+      expectedInputEpoch: frame.inputEpoch,
+      expectedAcceptedRevision: frame.acceptedRevision,
+      expectedAcceptedTimeSec: frame.acceptedTimeSec,
+    });
+
+    const composition = await loadStudioDefaultClientCompositionV2();
+    const original = createDefaultExperimentSurfaceV3(composition.contract);
+    const structural = composition.contract.graphCatalog.find(({ renderer }) =>
+      renderer === "structural-return")!;
+    if (structural.renderer !== "structural-return") {
+      throw new Error("expected a structural-return graph");
+    }
+    const targetPaneId = original.graphPanes[0]!.paneId;
+    const configured = selectWorkbenchGraphV3(
+      original,
+      targetPaneId,
+      structural.graphId,
+      composition.contract,
+    );
+    expect(workbenchStructuralHistoryAnalysisIdsV3(
+      configured,
+      composition.contract,
+    )).toEqual([structural.analysisId]);
+    expect(workbenchStructuralHistoryAnalysisIdsV3({
+      ...configured,
+      graphPanes: configured.graphPanes.map((pane) => pane.paneId === targetPaneId
+        ? { ...pane, historyDepth: 0 }
+        : pane),
+    }, composition.contract)).toEqual([]);
+  });
+
   it("adopts only a strictly newer durable Workspace as the retry base", () => {
     const current = { experimentId: "experiment/workbench", draftVersion: 3 };
     const newer = { experimentId: "experiment/workbench", draftVersion: 4 };
@@ -180,6 +358,7 @@ describe("V3 Dockview Workbench", () => {
       const graph = composition.contract.graphCatalog.find(({ graphId }) =>
         graphId === pane.graphId)!;
       expect("windowSec" in pane).toBe(graph.renderer === "sweep");
+      expect("historyDepth" in pane).toBe(graph.renderer !== "sweep");
       if (graph.renderer !== "structural-return") {
         expect(pane.series.every(({ seriesId }) =>
           graph.seriesCatalog.some((candidate) =>
@@ -187,6 +366,8 @@ describe("V3 Dockview Workbench", () => {
       }
       if (graph.renderer === "sweep") {
         expect(pane.windowSec).toBe(2);
+      } else {
+        expect(pane.historyDepth).toBe(1);
       }
     }
   });
@@ -348,7 +529,7 @@ describe("V3 Dockview Workbench", () => {
     },
   );
 
-  it("adds and removes authored sweep windows with the selected renderer", async () => {
+  it("switches authored sweep windows and bounded history with the renderer", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const original = createDefaultExperimentSurfaceV3(composition.contract);
     const sweep = composition.contract.graphCatalog.find(({ renderer }) =>
@@ -366,6 +547,7 @@ describe("V3 Dockview Workbench", () => {
     );
     const structuralPane = changed.graphPanes.find((pane) => pane.paneId === paneId)!;
     expect("windowSec" in structuralPane).toBe(false);
+    expect(structuralPane.historyDepth).toBe(1);
     expect(structuralPane.series).toEqual([]);
     expect(structuralPane.label).toBe("Systemic venous-return orientation");
 
@@ -377,6 +559,8 @@ describe("V3 Dockview Workbench", () => {
     );
     expect(restored.graphPanes.find((pane) => pane.paneId === paneId)?.windowSec)
       .toBe(2);
+    expect("historyDepth" in restored.graphPanes.find((pane) =>
+      pane.paneId === paneId)!).toBe(false);
     expect(restored.graphPanes.find((pane) => pane.paneId === paneId)?.label)
       .toBe("Left-heart pressure");
   });

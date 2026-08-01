@@ -8,6 +8,7 @@ import {
   scaleLinearV3,
   useResponsiveCanvasFrameV3,
 } from "./WorkbenchCanvasRuntimeV3";
+import { workbenchHistoryAlphaV3 } from "./WorkbenchChartTraceStyleV3";
 
 export type GuytonStarlingPlotDomainV3 = Readonly<{
   pressureMinimumMmHg: number;
@@ -53,26 +54,24 @@ export function structuralReturnOrientationFromPayloadV3(
 
 export function guytonStarlingPlotDomainV3(
   orientation: MainWireIntegratedModelStructuralReturnOrientationV3,
+  historyOrientations: readonly MainWireIntegratedModelStructuralReturnOrientationV3[] = [],
 ): GuytonStarlingPlotDomainV3 {
-  const structuralPoints = orientation.curve.map((point) => ({
-    pressureMmHg: point.downstreamPressureMmHg,
-    flowLPerMin: point.returnFlowLPerMin,
-  }));
-  const starlingPoints = orientation.starlingLocus.status
-      === "measured-fixed-tbv-protocol"
-    ? orientation.starlingLocus.points.map((point) => ({
-        pressureMmHg: point.fillingPressureMmHg,
-        flowLPerMin: point.cardiacOutputLPerMin,
-      }))
-    : [];
-  const all = [
-    ...structuralPoints,
-    ...starlingPoints,
+  const all = [orientation, ...historyOrientations].flatMap((candidate) => [
+    ...candidate.curve.map((point) => ({
+      pressureMmHg: point.downstreamPressureMmHg,
+      flowLPerMin: point.returnFlowLPerMin,
+    })),
+    ...(candidate.starlingLocus.status === "measured-fixed-tbv-protocol"
+      ? candidate.starlingLocus.points.map((point) => ({
+          pressureMmHg: point.fillingPressureMmHg,
+          flowLPerMin: point.cardiacOutputLPerMin,
+        }))
+      : []),
     {
-      pressureMmHg: orientation.operatingPoint.downstreamPressureMmHg,
-      flowLPerMin: orientation.operatingPoint.returnFlowLPerMin,
+      pressureMmHg: candidate.operatingPoint.downstreamPressureMmHg,
+      flowLPerMin: candidate.operatingPoint.returnFlowLPerMin,
     },
-  ];
+  ]);
   const pressures = all.map(({ pressureMmHg }) => pressureMmHg)
     .filter(Number.isFinite);
   const flows = all.map(({ flowLPerMin }) => flowLPerMin)
@@ -92,16 +91,18 @@ export function guytonStarlingPlotDomainV3(
 
 export function GuytonStarlingOrientationCanvasV3({
   orientation,
+  historyOrientations = [],
   className,
 }: Readonly<{
   orientation: MainWireIntegratedModelStructuralReturnOrientationV3;
+  historyOrientations?: readonly MainWireIntegratedModelStructuralReturnOrientationV3[];
   className?: string;
 }>) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const domain = React.useMemo(
-    () => guytonStarlingPlotDomainV3(orientation),
-    [orientation],
+    () => guytonStarlingPlotDomainV3(orientation, historyOrientations),
+    [historyOrientations, orientation],
   );
   const draw = React.useCallback((
     context: CanvasRenderingContext2D,
@@ -125,6 +126,52 @@ export function GuytonStarlingOrientationCanvasV3({
       plot.top,
     );
     drawAxesV3(context, plot, domain, theme);
+    historyOrientations.forEach((historical, historyIndex) => {
+      const alpha = workbenchHistoryAlphaV3(
+        historyIndex,
+        historyOrientations.length,
+      );
+      drawCurveV3(
+        context,
+        historical.curve.map((point) => ({
+          pressureMmHg: point.downstreamPressureMmHg,
+          flowLPerMin: point.returnFlowLPerMin,
+        })),
+        x,
+        y,
+        theme.structural,
+        [],
+        alpha,
+      );
+      if (historical.starlingLocus.status === "measured-fixed-tbv-protocol") {
+        drawCurveV3(
+          context,
+          historical.starlingLocus.points.map((point) => ({
+            pressureMmHg: point.fillingPressureMmHg,
+            flowLPerMin: point.cardiacOutputLPerMin,
+          })),
+          x,
+          y,
+          theme.starling,
+          [5, 4],
+          alpha,
+        );
+      }
+      drawPointV3(
+        context,
+        x(historical.operatingPoint.downstreamPressureMmHg),
+        y(historical.operatingPoint.returnFlowLPerMin),
+        theme.operating,
+        alpha,
+      );
+      drawFillingPressureMarkerV3(
+        context,
+        x(historical.fillingPressureMmHg),
+        plot,
+        theme.marker,
+        alpha,
+      );
+    });
     drawCurveV3(
       context,
       orientation.curve.map((point) => ({
@@ -161,7 +208,7 @@ export function GuytonStarlingOrientationCanvasV3({
       plot,
       theme.marker,
     );
-  }, [domain, orientation]);
+  }, [domain, historyOrientations, orientation]);
   useResponsiveCanvasFrameV3(containerRef, canvasRef, draw);
 
   const sideLabel = orientation.side === "right"
@@ -301,12 +348,14 @@ function drawCurveV3(
   y: (value: number) => number,
   color: string,
   dash: readonly number[],
+  alpha = 1,
 ): void {
   const finite = points.filter((point) =>
     Number.isFinite(point.pressureMmHg)
     && Number.isFinite(point.flowLPerMin));
   if (finite.length < 2) return;
   context.save();
+  context.globalAlpha = alpha;
   context.strokeStyle = color;
   context.lineWidth = 1.8;
   context.setLineDash([...dash]);
@@ -326,8 +375,10 @@ function drawPointV3(
   x: number,
   y: number,
   color: string,
+  alpha = 1,
 ): void {
   context.save();
+  context.globalAlpha = alpha;
   context.fillStyle = color;
   context.strokeStyle = "rgba(15, 23, 42, 0.9)";
   context.lineWidth = 1.5;
@@ -343,8 +394,10 @@ function drawFillingPressureMarkerV3(
   x: number,
   plot: PlotRectV3,
   color: string,
+  alpha = 1,
 ): void {
   context.save();
+  context.globalAlpha = alpha;
   context.strokeStyle = color;
   context.lineWidth = 1;
   context.setLineDash([2, 4]);

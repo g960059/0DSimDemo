@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   SINGLE_BEAT_PV_ORIENTATION_SEMANTICS_V3,
   WORKBENCH_PRESENTATION_SAMPLE_CAPACITY_V3,
-  WorkbenchPresentationSampleStoreV3,
+  WORKBENCH_PRESENTATION_HISTORY_MAX_DEPTH_V3,
   WorkbenchScenarioPresentationSampleStoreV3,
   appendWorkbenchPresentationSamplesV3,
+  appendWorkbenchExactOrbitSamplesV3,
   buildSingleBeatPvOrientationGuidesV3,
   buildSweepingWaveformSegmentsV3,
   buildWorkbenchScenarioLegendItemsV3,
@@ -20,7 +21,9 @@ import {
   latestSweepingWaveformPointV3,
   nextHystereticNumericDomainV3,
   orderedFiniteWorkbenchSamplesV3,
+  projectHistoricalPvEpochV3,
   workbenchScenarioLineDashV3,
+  workbenchHistoryAlphaV3,
   type WorkbenchPvPointV3,
   type WorkbenchScalarSampleV3,
 } from "@/components/workbench/v3";
@@ -31,8 +34,17 @@ const sampleV3 = (
   acceptedTimeSec: number,
   cyclePhase01: number | null,
   values: Readonly<Record<string, number | null>>,
+  identity: Readonly<{
+    inputEpoch?: number;
+    acceptedRevision?: number;
+    presentationTimeSec?: number;
+  }> = {},
 ): WorkbenchScalarSampleV3 => Object.freeze({
+  inputEpoch: identity.inputEpoch ?? 0,
+  acceptedRevision: identity.acceptedRevision
+    ?? Math.max(0, Math.round(acceptedTimeSec / 0.002)),
   acceptedTimeSec,
+  presentationTimeSec: identity.presentationTimeSec ?? acceptedTimeSec,
   values: Object.freeze({
     ...values,
     [TEST_CYCLE_PHASE_OUTPUT_ID_V3]: cyclePhase01,
@@ -199,6 +211,45 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       .toEqual([]);
   });
 
+  it("reuses PV projection only for immutable historical epochs", () => {
+    const history = Object.freeze([
+      sampleV3(0, 0, { volume: 120, pressure: 10 }),
+      sampleV3(0.25, 0.25, { volume: 100, pressure: 80 }),
+      sampleV3(0.5, 0.5, { volume: 65, pressure: 120 }),
+      sampleV3(0.9, 0.9, { volume: 115, pressure: 12 }),
+      sampleV3(1, 0, { volume: 120, pressure: 10 }),
+    ]);
+    const first = projectHistoricalPvEpochV3(
+      history,
+      "volume",
+      "pressure",
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+      "transmural",
+      true,
+    );
+    const reused = projectHistoricalPvEpochV3(
+      history,
+      "volume",
+      "pressure",
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+      "transmural",
+      true,
+    );
+    const differentGuideMode = projectHistoricalPvEpochV3(
+      history,
+      "volume",
+      "pressure",
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+      "transmural",
+      false,
+    );
+
+    expect(reused).toBe(first);
+    expect(first.completedBeat.length).toBeGreaterThanOrEqual(3);
+    expect(differentGuideMode).not.toBe(first);
+    expect(differentGuideMode.orientationGuides).toBeNull();
+  });
+
   it("uses only catalog-bound arbitrary PV output IDs", () => {
     const volumeOutputId = "arbitrary/x-axis";
     const pressureOutputId = "arbitrary/y-axis";
@@ -212,7 +263,10 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       [1.9, 0.9, 119, 11],
       [2.1, 0.1, 117, 15],
     ].map(([acceptedTimeSec, phase, volume, pressure]) => Object.freeze({
+      inputEpoch: 0,
+      acceptedRevision: Math.round(acceptedTimeSec / 0.002),
       acceptedTimeSec,
+      presentationTimeSec: acceptedTimeSec,
       values: Object.freeze({
         [volumeOutputId]: volume,
         [pressureOutputId]: pressure,
@@ -416,23 +470,6 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     });
   });
 
-  it("invalidates only active presentation-store subscribers", () => {
-    const store = new WorkbenchPresentationSampleStoreV3();
-    let visiblePaneNotifications = 0;
-    const unsubscribe = store.subscribe(() => {
-      visiblePaneNotifications += 1;
-    });
-    store.append([sampleV3(0, 0, { pressure: 10 })]);
-    expect(visiblePaneNotifications).toBe(1);
-    expect(store.subscriberCount).toBe(1);
-
-    unsubscribe();
-    store.append([sampleV3(0.002, 0.002, { pressure: 20 })]);
-    expect(visiblePaneNotifications).toBe(1);
-    expect(store.subscriberCount).toBe(0);
-    expect(store.getSnapshot()).toHaveLength(1);
-  });
-
   it("keeps bounded presentation samples independent per Scenario and clones a visual window safely", () => {
     const store = new WorkbenchScenarioPresentationSampleStoreV3({
       bucketSec: 0.01,
@@ -462,11 +499,20 @@ describe("V3-neutral Workbench Canvas helpers", () => {
 
     expect(store.cloneScenario("baseline", "baseline-copy")).toBe(true);
     const clonedWindow = store.getScenarioSnapshot("baseline-copy");
+    const clonedExact = store.getScenarioExactOrbitSnapshot("baseline-copy");
     expect(clonedWindow).toBe(store.getScenarioSnapshot("baseline"));
+    expect(clonedExact).toBe(store.getScenarioExactOrbitSnapshot("baseline"));
+    expect(store.getScenarioOrbitHistorySnapshot("baseline-copy")).toEqual([]);
     store.append("baseline-copy", [
       sampleV3(0.02, 0.02, { pressure: 20 }),
     ]);
     expect(store.getScenarioSnapshot("baseline-copy")).not.toBe(clonedWindow);
+    expect(store.getScenarioSnapshot("baseline-copy").at(-1)
+      ?.presentationTimeSec).toBe(0.02);
+    expect(store.getScenarioExactOrbitSnapshot("baseline-copy"))
+      .not.toBe(clonedExact);
+    expect(store.getScenarioExactOrbitSnapshot("baseline")).toBe(clonedExact);
+    expect(store.getScenarioOrbitHistorySnapshot("baseline-copy")).toEqual([]);
     expect(store.getScenarioSnapshot("baseline")).toBe(clonedWindow);
     expect(store.getScenarioSnapshot("baseline")).toHaveLength(1);
 
@@ -478,6 +524,124 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     expect(store.cloneScenario("missing", "copy")).toBe(false);
     expect(notifications).toBe(6);
     unsubscribe();
+  });
+
+  it("retains exact 2 ms PV samples without presentation bucketing", () => {
+    const exact = Array.from({ length: 1_000 }, (_, index) => sampleV3(
+      index * 0.002,
+      (index % 400) / 400,
+      { pressure: index, volume: 120 - index / 100 },
+    ));
+    const retained = appendWorkbenchExactOrbitSamplesV3([], exact, {
+      capacity: 1_200,
+      windowSec: 2.1,
+    });
+
+    expect(retained).toHaveLength(exact.length);
+    expect(retained[537]).toBe(exact[537]);
+    expect(retained.every((sample) =>
+      !("presentationEnvelope" in sample))).toBe(true);
+  });
+
+  it("keeps sweep time monotonic across input epochs and archives exact PV epochs", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3({
+      bucketSec: 0.001,
+      windowSec: 0.05,
+      capacity: 100,
+      exactOrbitWindowSec: 1,
+      exactOrbitCapacity: 600,
+    });
+    store.append("baseline", [
+      sampleV3(0.996, 0.2, { pressure: 80 }, {
+        inputEpoch: 0,
+        acceptedRevision: 498,
+      }),
+      sampleV3(0.998, 0.3, { pressure: 82 }, {
+        inputEpoch: 0,
+        acceptedRevision: 499,
+      }),
+    ]);
+    store.append("baseline", [
+      sampleV3(0, 0, { pressure: 90 }, {
+        inputEpoch: 1,
+        acceptedRevision: 0,
+      }),
+      sampleV3(0.002, 0.01, { pressure: 92 }, {
+        inputEpoch: 1,
+        acceptedRevision: 1,
+      }),
+    ]);
+
+    const sweep = store.getScenarioSnapshot("baseline");
+    expect(sweep.map(({ presentationTimeSec }) => presentationTimeSec))
+      .toEqual([0.996, 0.998, 0.998, 1]);
+    expect(sweep.map(({ inputEpoch }) => inputEpoch)).toEqual([0, 0, 1, 1]);
+    expect(buildSweepingWaveformSegmentsV3(sweep, "pressure", {
+      windowSec: 6,
+      forwardGapFraction: 0,
+    }).map((segment) => segment.length)).toEqual([2, 2]);
+
+    expect(store.getScenarioExactOrbitSnapshot("baseline").map(
+      ({ acceptedTimeSec }) => acceptedTimeSec,
+    )).toEqual([0, 0.002]);
+    expect(store.getScenarioOrbitHistorySnapshot("baseline")).toMatchObject([{
+      inputEpoch: 0,
+      sourceAcceptedRevision: 499,
+      sourceAcceptedTimeSec: 0.998,
+    }]);
+  });
+
+  it("fails closed on an unexpected same-epoch accepted-clock rewind", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3({
+      bucketSec: 0.001,
+      windowSec: 6,
+      capacity: 384,
+    });
+    store.append("baseline", [sampleV3(
+      1,
+      0.5,
+      { pressure: 100 },
+      { inputEpoch: 2, acceptedRevision: 500 },
+    )]);
+    store.append("baseline", [sampleV3(
+      0.5,
+      0.25,
+      { pressure: 80 },
+      { inputEpoch: 2, acceptedRevision: 250 },
+    )]);
+
+    expect(store.getScenarioSnapshot("baseline")).toHaveLength(1);
+    expect(store.getScenarioSnapshot("baseline")[0]).toMatchObject({
+      inputEpoch: 2,
+      acceptedRevision: 250,
+      acceptedTimeSec: 0.5,
+      presentationTimeSec: 0.5,
+    });
+    expect(store.getScenarioExactOrbitSnapshot("baseline")).toHaveLength(1);
+    expect(store.getScenarioOrbitHistorySnapshot("baseline")).toEqual([]);
+  });
+
+  it("caps per-Scenario exact orbit history at three completed epochs", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    for (let inputEpoch = 0; inputEpoch <= 4; inputEpoch += 1) {
+      store.append("baseline", [sampleV3(
+        0,
+        0,
+        { pressure: 80 + inputEpoch },
+        { inputEpoch, acceptedRevision: 0 },
+      )]);
+    }
+    const history = store.getScenarioOrbitHistorySnapshot("baseline");
+    expect(history).toHaveLength(WORKBENCH_PRESENTATION_HISTORY_MAX_DEPTH_V3);
+    expect(history.map(({ inputEpoch }) => inputEpoch)).toEqual([1, 2, 3]);
+    expect(store.getScenarioExactOrbitSnapshot("baseline")[0]?.inputEpoch)
+      .toBe(4);
+  });
+
+  it("fades historical graph states by recency", () => {
+    expect([0, 1, 2].map((index) => workbenchHistoryAlphaV3(index, 3)))
+      .toEqual([0.08, 0.14, 0.2]);
+    expect(workbenchHistoryAlphaV3(-1, 3)).toBe(0);
   });
 
   it("uses signal/chamber color and Scenario dash as independent legend axes", () => {

@@ -25,6 +25,9 @@ import {
   graphSeriesLabelV3,
   graphTitleV3,
   outputLabelV3,
+  WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3,
+  WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3,
+  WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3,
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
   WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3,
   WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3,
@@ -54,6 +57,8 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   deletePane: string;
   emptyCatalog: string;
   graphCatalog: string;
+  historyDepth: string;
+  historyDepthHint: string;
   label: string;
   noConfigurableSeries: string;
   outputCatalog: string;
@@ -72,6 +77,8 @@ WorkbenchPaneEditorStringsV3 = Object.freeze({
   deletePane: "Delete pane",
   emptyCatalog: "No registered items are available.",
   graphCatalog: "Graph",
+  historyDepth: "Previous states",
+  historyDepthHint: "0–3 completed parameter states",
   label: "Label",
   noConfigurableSeries: "This graph owns its structural axes and has no configurable series.",
   outputCatalog: "Outputs",
@@ -143,7 +150,11 @@ export function selectWorkbenchGraphV3(
     { kind: "graph", paneId },
     (pane) => {
       if (pane.role !== "graph") return pane;
-      const { windowSec: _previousWindowSec, ...basePane } = pane;
+      const {
+        historyDepth: _previousHistoryDepth,
+        windowSec: _previousWindowSec,
+        ...basePane
+      } = pane;
       const previousDefaultLabel = graphTitleV3(pane.graphId);
       return {
         ...basePane,
@@ -153,7 +164,7 @@ export function selectWorkbenchGraphV3(
         graphId: graph.graphId,
         ...(graph.renderer === "sweep"
           ? { windowSec: WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 }
-          : {}),
+          : { historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3 }),
         series: defaultSeriesForGraphV3(graph, contract),
       };
     },
@@ -193,7 +204,7 @@ export function addWorkbenchSurfacePaneV3(
       graphId: graph.graphId,
       ...(graph.renderer === "sweep"
         ? { windowSec: WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 }
-        : {}),
+        : { historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3 }),
       series: defaultSeriesForGraphV3(graph, contract),
     };
     return {
@@ -508,6 +519,26 @@ function GraphPaneEditorV3({
           </option>
         ))}
       </select>
+
+      {graph !== undefined && graph.renderer !== "sweep" && (
+        <div className="grid gap-1.5">
+          <CommitNumberInputV3
+            label={strings.historyDepth}
+            value={pane.historyDepth
+              ?? WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3}
+            minimum={WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3}
+            maximum={WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3}
+            step={1}
+            onCommit={(historyDepth) => onChange({
+              ...pane,
+              historyDepth,
+            })}
+          />
+          <p className="text-[10px] text-wb-subtle">
+            {strings.historyDepthHint}
+          </p>
+        </div>
+      )}
 
       {graph !== undefined && graph.renderer !== "structural-return" ? (
         <>
