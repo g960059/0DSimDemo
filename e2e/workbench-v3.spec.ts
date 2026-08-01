@@ -174,10 +174,6 @@ test("@desktop baseline duplication stays independent and requires explicit save
   await expect(root).toHaveAttribute("data-model-id", EXACT_MODEL_ID);
   await expect(scenarioRegion.getByRole("button", { name: "複製" }))
     .toHaveCount(2);
-  if (await root.getAttribute("data-playback") === "playing") {
-    await page.getByTestId("v3-playback-toggle").click();
-  }
-  await expect(root).toHaveAttribute("data-playback", "paused");
 
   const restoredBaseline = scenarioRegion.getByRole("button", {
     name: "起動時baseline workbench-live-default",
@@ -188,18 +184,38 @@ test("@desktop baseline duplication stays independent and requires explicit save
     exact: true,
   });
   await restoredBaseline.click();
+  if (await root.getAttribute("data-playback") !== "playing") {
+    await playback.click();
+  }
+  await expect(root).toHaveAttribute("data-playback", "playing");
+  await expect.poll(
+    () => modelTime(root),
+    { timeout: 10_000, intervals: [100] },
+  ).toBeGreaterThan(baselineCheckpointTime + 0.08);
+
+  await playback.click();
+  await expect(root).toHaveAttribute("data-playback", "paused");
+  // Scenario selection drains any final in-flight batches before adopting the
+  // selected frame, making both post-reload times stable for comparison.
+  await restoredCopy.click();
+  await expect(systemicResistance).toHaveValue("1.01");
+  await restoredBaseline.click();
   await expect(systemicResistance).toHaveValue("1");
-  expect(await modelTime(root)).toBeGreaterThanOrEqual(baselineCheckpointTime);
+  const restoredBaselineTime = await modelTime(root);
+  const baselineAutostartAdvance =
+    restoredBaselineTime - baselineCheckpointTime;
+  expect(baselineAutostartAdvance).toBeGreaterThan(0.02);
 
   await restoredCopy.click();
   await expect(systemicResistance).toHaveValue("1.01");
   const restoredCopyTime = await modelTime(root);
-  expect(restoredCopyTime).toBeGreaterThanOrEqual(copyCheckpointTime);
-  // Every restored Scenario now autostarts live. It may accept a small number
-  // of exact batches before the browser can issue and await global Pause, but
-  // it must resume from the saved checkpoint rather than reset or replay
-  // hidden-tab debt beyond the scheduler's 250 ms catch-up boundary.
-  expect(restoredCopyTime - copyCheckpointTime).toBeLessThanOrEqual(0.25);
+  const copyAutostartAdvance = restoredCopyTime - copyCheckpointTime;
+  // The copy was never selected while playback ran. Its positive advancement
+  // therefore proves that inactive Scenarios also simulate live, while the
+  // bounded delta rejects a reset or hidden-tab debt replay.
+  expect(copyAutostartAdvance).toBeGreaterThan(0.02);
+  expect(Math.abs(copyAutostartAdvance - baselineAutostartAdvance))
+    .toBeLessThanOrEqual(0.25);
 
   // Mutating the restored copy remains branch-local after the durable
   // round-trip; the baseline fixture is still untouched.
