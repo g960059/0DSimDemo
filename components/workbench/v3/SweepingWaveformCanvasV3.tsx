@@ -35,25 +35,6 @@ export type WorkbenchWaveformTraceV3 = WorkbenchScenarioTraceIdentityV3 &
     signalColor: string;
   }>;
 
-export function activeSweepingWaveformCursorTimeSecV3(
-  traces: readonly Pick<
-    WorkbenchWaveformTraceV3,
-    "scenarioId" | "samples"
-  >[],
-  activeScenarioId: string | null,
-): number | null {
-  if (activeScenarioId === null) return null;
-  const activeTrace = traces.find(({ scenarioId }) =>
-    scenarioId === activeScenarioId);
-  if (activeTrace === undefined) return null;
-  const latestTimeSec = orderedFiniteWorkbenchSamplesV3(
-    activeTrace.samples,
-  ).at(-1)?.acceptedTimeSec;
-  return latestTimeSec !== undefined && Number.isFinite(latestTimeSec)
-    ? latestTimeSec
-    : null;
-}
-
 export type SweepingWaveformPointV3 = Readonly<{
   phaseSec: number;
   value: number;
@@ -194,6 +175,40 @@ function buildSweepingWaveformSegmentsFromOrderedV3(
   return Object.freeze(segments.map((segment) => Object.freeze(segment)));
 }
 
+export function latestSweepingWaveformPointV3(
+  samples: readonly WorkbenchScalarSampleV3[],
+  outputId: string,
+  windowSec: number,
+): SweepingWaveformPointV3 | null {
+  if (!(windowSec > 0) || !Number.isFinite(windowSec)) return null;
+  return latestSweepingWaveformPointFromOrderedV3(
+    orderedFiniteWorkbenchSamplesV3(samples),
+    outputId,
+    windowSec,
+  );
+}
+
+function latestSweepingWaveformPointFromOrderedV3(
+  ordered: readonly WorkbenchScalarSampleV3[],
+  outputId: string,
+  windowSec: number,
+): SweepingWaveformPointV3 | null {
+  const latestTimeSec = ordered.at(-1)?.acceptedTimeSec;
+  if (latestTimeSec === undefined) return null;
+  const oldestVisibleTimeSec = latestTimeSec - windowSec;
+  for (let index = ordered.length - 1; index >= 0; index -= 1) {
+    const sample = ordered[index]!;
+    if (sample.acceptedTimeSec < oldestVisibleTimeSec) break;
+    const value = finiteWorkbenchScalarValueV3(sample, outputId);
+    if (value === null) continue;
+    return Object.freeze({
+      phaseSec: positiveModuloV3(sample.acceptedTimeSec, windowSec),
+      value,
+    });
+  }
+  return null;
+}
+
 export function observedNumericDomainV3(
   values: readonly number[],
   options: Readonly<{
@@ -288,7 +303,7 @@ export type SweepingWaveformCanvasPropsV3 =
   SweepingWaveformCanvasCommonPropsV3 & (
     | Readonly<{
         traces: readonly WorkbenchWaveformTraceV3[];
-        /** Exact Scenario whose accepted model time owns the sweep cursor. */
+        /** Current Workbench selection; every Scenario retains its own live head. */
         activeScenarioId: string | null;
         samples?: never;
         series?: never;
@@ -330,10 +345,6 @@ export function SweepingWaveformCanvasV3(
   const activeScenarioId = props.traces === undefined
     ? "current-scenario"
     : props.activeScenarioId;
-  const cursorTimeSec = React.useMemo(
-    () => activeSweepingWaveformCursorTimeSecV3(traces, activeScenarioId),
-    [activeScenarioId, traces],
-  );
   const scenarioLegendItems = React.useMemo(
     () => buildWorkbenchScenarioLegendItemsV3(traces),
     [traces],
@@ -377,6 +388,11 @@ export function SweepingWaveformCanvasV3(
         item.orderedSamples,
         item.trace.outputId,
         { windowSec },
+      ),
+      head: latestSweepingWaveformPointFromOrderedV3(
+        item.orderedSamples,
+        item.trace.outputId,
+        windowSec,
       ),
     }));
     const allValues: number[] = [];
@@ -422,7 +438,7 @@ export function SweepingWaveformCanvasV3(
       plot.top,
     );
 
-    for (const { lineDash, segments, trace } of projectedTraces) {
+    for (const { head, lineDash, segments, trace } of projectedTraces) {
       context.save();
       context.strokeStyle = trace.signalColor;
       context.lineWidth = 1.6;
@@ -457,21 +473,16 @@ export function SweepingWaveformCanvasV3(
         context.stroke();
       }
       context.restore();
+      if (head !== null) {
+        drawWaveformLeadingCapV3(
+          context,
+          x(head.phaseSec),
+          y(head.value),
+          trace.signalColor,
+        );
+      }
     }
-
-    if (cursorTimeSec !== null) {
-      const cursorX = x(positiveModuloV3(cursorTimeSec, windowSec));
-      context.save();
-      context.strokeStyle = theme.cursor;
-      context.globalAlpha = 0.5;
-      context.setLineDash([3, 4]);
-      context.beginPath();
-      context.moveTo(cursorX, plot.top);
-      context.lineTo(cursorX, plot.bottom);
-      context.stroke();
-      context.restore();
-    }
-  }, [cursorTimeSec, includeZero, orderedTraces, unitLabel, windowSec]);
+  }, [includeZero, orderedTraces, unitLabel, windowSec]);
 
   useResponsiveCanvasFrameV3(containerRef, canvasRef, draw);
 
@@ -509,7 +520,6 @@ type CanvasThemeV3 = Readonly<{
   grid: string;
   axis: string;
   text: string;
-  cursor: string;
 }>;
 
 function waveformPlotRectV3(width: number, height: number): CanvasPlotRectV3 {
@@ -591,7 +601,6 @@ function readCanvasThemeV3(element: HTMLElement | null): CanvasThemeV3 {
     grid: read("--wb-border", "rgba(148, 163, 184, 0.18)"),
     axis: read("--wb-border-strong", "rgba(148, 163, 184, 0.48)"),
     text: read("--wb-text-muted", "#94a3b8"),
-    cursor: read("--wb-text", "#e2e8f0"),
   });
 }
 
@@ -600,8 +609,30 @@ function fallbackCanvasThemeV3(): CanvasThemeV3 {
     grid: "rgba(148, 163, 184, 0.18)",
     axis: "rgba(148, 163, 184, 0.48)",
     text: "#94a3b8",
-    cursor: "#e2e8f0",
   });
+}
+
+function drawWaveformLeadingCapV3(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  color: string,
+): void {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  context.save();
+  context.setLineDash([]);
+  context.fillStyle = color;
+  context.globalAlpha = 0.2;
+  context.beginPath();
+  context.arc(x, y, 4, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = color;
+  context.lineWidth = 1;
+  context.globalAlpha = 0.72;
+  context.beginPath();
+  context.arc(x, y, 3.25, 0, Math.PI * 2);
+  context.stroke();
+  context.restore();
 }
 
 function formatAxisNumberV3(value: number): string {

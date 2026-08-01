@@ -105,14 +105,30 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
     scenarioId: string,
     samples: readonly WorkbenchScalarSampleV3[],
   ): void {
-    if (samples.length === 0) return;
-    const current = this.getScenarioSnapshot(scenarioId);
-    const next = appendWorkbenchPresentationSamplesV3(
-      current,
-      samples,
-      this.#options,
+    this.appendMany([{ scenarioId, samples }]);
+  }
+
+  /** Commits one Worker delivery for all Scenarios with a single UI invalidation. */
+  appendMany(entries: readonly Readonly<{
+    scenarioId: string;
+    samples: readonly WorkbenchScalarSampleV3[];
+  }>[]): void {
+    const next = createScenarioPresentationSnapshotV3(
+      this.#samplesByScenarioId,
     );
-    this.#replaceScenario(scenarioId, next);
+    let changed = false;
+    for (const { scenarioId, samples } of entries) {
+      if (samples.length === 0) continue;
+      next[scenarioId] = appendWorkbenchPresentationSamplesV3(
+        next[scenarioId] ?? EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3,
+        samples,
+        this.#options,
+      );
+      changed = true;
+    }
+    if (!changed) return;
+    this.#samplesByScenarioId = Object.freeze(next);
+    this.#notify();
   }
 
   /** Clears one Scenario while retaining its identity in the cache map. */

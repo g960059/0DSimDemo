@@ -9,10 +9,12 @@ import {
   resolveWorkbenchBriefingPicksAfterRestartV3,
   resolveControlDraftCommitV3,
   resolveWorkbenchSurfaceAfterCommitV3,
+  readNewerDurableWorkbenchWorkspaceV3,
   shouldAutoRequestStructuralReturnAnalysisV3,
   shouldPublishWorkbenchRootFrameV3,
   structuralReturnAnalysisRequestKeyV3,
   structuralReturnAnalysisBoundaryStatusV3,
+  workbenchScenarioRuntimeStatusV3,
 } from "@/components/WorkbenchV3Page";
 import {
   createDefaultExperimentSurfaceV3,
@@ -30,10 +32,6 @@ import {
   suggestWorkbenchScenarioIdV3,
   suggestWorkbenchScenarioLabelV3,
 } from "@/components/workbench/WorkbenchScenarioManagerV3";
-import {
-  WorkbenchDurablePersistenceErrorV3,
-  commitWorkbenchDurableMutationV3,
-} from "@/components/workbench/WorkbenchDurableCommitV3";
 import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
@@ -58,8 +56,57 @@ import {
 import {
   StudioSnapshotBriefingHandoffV3,
 } from "@/studio/infrastructure/browser/StudioSnapshotBriefingHandoffV3";
+import {
+  commitWorkbenchTransientAuthoringResultV3,
+} from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 
 describe("V3 Dockview Workbench", () => {
+  it("adopts only a strictly newer durable Workspace as the retry base", () => {
+    const current = { experimentId: "experiment/workbench", draftVersion: 3 };
+    const newer = { experimentId: "experiment/workbench", draftVersion: 4 };
+    expect(readNewerDurableWorkbenchWorkspaceV3({
+      reader: { readWorkspace: () => newer },
+      experimentId: current.experimentId,
+      current,
+    })).toBe(newer);
+    expect(readNewerDurableWorkbenchWorkspaceV3({
+      reader: { readWorkspace: () => ({ ...current }) },
+      experimentId: current.experimentId,
+      current,
+    })).toBeNull();
+    expect(readNewerDurableWorkbenchWorkspaceV3({
+      reader: { readWorkspace: () => null },
+      experimentId: current.experimentId,
+      current,
+    })).toBeNull();
+    expect(readNewerDurableWorkbenchWorkspaceV3({
+      reader: { readWorkspace: () => { throw new Error("unreadable"); } },
+      experimentId: current.experimentId,
+      current,
+    })).toBeNull();
+  });
+
+  it("preserves the live authority after transient Draft persistence failure and permits retry", () => {
+    const adoptDurable = vi.fn();
+    const persist = vi.fn()
+      .mockImplementationOnce(() => {
+        throw new Error("storage quota rejected setItem");
+      })
+      .mockReturnValueOnce("durable-workspace");
+
+    expect(() => commitWorkbenchTransientAuthoringResultV3({
+      persist,
+      adoptDurable,
+    })).toThrow("storage quota rejected setItem");
+    expect(adoptDurable).not.toHaveBeenCalled();
+
+    expect(commitWorkbenchTransientAuthoringResultV3({
+      persist,
+      adoptDurable,
+    })).toBe("durable-workspace");
+    expect(adoptDurable).toHaveBeenCalledOnce();
+  });
+
   it("renders a visible panel even when it is not globally active", () => {
     // Dockview can expose one visible panel in each split group even though
     // only one panel across the whole Dockview is globally active.
@@ -84,36 +131,6 @@ describe("V3 Dockview Workbench", () => {
   it("renders an active visible panel", () => {
     expect(shouldRenderWorkbenchDockPanelV3(true, true)).toBe(true);
   });
-
-  it.each(["draft-save", "snapshot"] as const)(
-    "fails closed and reloads durable state after %s persistence failure",
-    (kind) => {
-      const events: string[] = [];
-      const adoptDurable = vi.fn();
-
-      expect(() => commitWorkbenchDurableMutationV3({
-        kind,
-        persist: () => {
-          events.push("persist");
-          throw new Error("storage quota rejected setItem");
-        },
-        adoptDurable,
-        terminateRuntime: () => {
-          events.push("terminate-runtime");
-        },
-        reinitializeFromDurable: () => {
-          events.push("reinitialize-from-durable");
-        },
-      })).toThrow(WorkbenchDurablePersistenceErrorV3);
-
-      expect(events).toEqual([
-        "persist",
-        "terminate-runtime",
-        "reinitialize-from-durable",
-      ]);
-      expect(adoptDurable).not.toHaveBeenCalled();
-    },
-  );
 
   it("scopes limitations acknowledgement to the exact model disclosure", () => {
     expect(modelLimitationsAcknowledgementKey("model/dev-3:disclosure-v1"))
@@ -592,6 +609,11 @@ describe("V3 Dockview Workbench", () => {
       lastPublishedTimeSec: 1,
       schedulerRunning: false,
     })).toBe(true);
+  });
+
+  it("labels every concurrently simulated Scenario from global playback", () => {
+    expect(workbenchScenarioRuntimeStatusV3(true)).toBe("Live");
+    expect(workbenchScenarioRuntimeStatusV3(false)).toBe("Paused");
   });
 
   it("restores the accepted control value after a rejected commit", async () => {

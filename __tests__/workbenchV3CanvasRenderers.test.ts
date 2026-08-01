@@ -5,7 +5,6 @@ import {
   WORKBENCH_PRESENTATION_SAMPLE_CAPACITY_V3,
   WorkbenchPresentationSampleStoreV3,
   WorkbenchScenarioPresentationSampleStoreV3,
-  activeSweepingWaveformCursorTimeSecV3,
   appendWorkbenchPresentationSamplesV3,
   buildSingleBeatPvOrientationGuidesV3,
   buildSweepingWaveformSegmentsV3,
@@ -13,10 +12,12 @@ import {
   buildWorkbenchTraceColorLegendItemsV3,
   boundedCanvasPixelRatioV3,
   createWorkbenchCanvasFrameSchedulerV3,
+  extractLivePvTrajectoryV3,
   extractLastCompletePvBeatV3,
   firstSampleAtOrAfterV3,
   isWorkbenchPresentationSampleV3,
   lastCompleteCycleRangeV3,
+  latestSweepingWaveformPointV3,
   nextHystereticNumericDomainV3,
   orderedFiniteWorkbenchSamplesV3,
   workbenchScenarioLineDashV3,
@@ -62,28 +63,24 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     expect(segments.flat().some(({ phaseSec }) => phaseSec === 0.25)).toBe(false);
   });
 
-  it("anchors the sweeping cursor to the active Scenario instead of the first cached trace", () => {
-    const traces = [
-      {
-        scenarioId: "baseline",
-        samples: [sampleV3(9, null, { pressure: 90 })],
-      },
-      {
-        scenarioId: "comparison",
-        samples: [
-          sampleV3(2, null, { pressure: 20 }),
-          sampleV3(4, null, { pressure: 40 }),
-        ],
-      },
+  it("places each waveform cap on that trace's newest finite live sample", () => {
+    const samples = [
+      sampleV3(6.01, null, { pressure: 80 }),
+      sampleV3(6.25, null, { pressure: 96 }),
     ];
 
-    expect(activeSweepingWaveformCursorTimeSecV3(traces, "comparison"))
-      .toBe(4);
-    expect(activeSweepingWaveformCursorTimeSecV3(traces, "baseline"))
-      .toBe(9);
-    expect(activeSweepingWaveformCursorTimeSecV3(traces, "missing"))
-      .toBeNull();
-    expect(activeSweepingWaveformCursorTimeSecV3(traces, null)).toBeNull();
+    expect(latestSweepingWaveformPointV3(samples, "pressure", 6)).toEqual({
+      phaseSec: 0.25,
+      value: 96,
+    });
+    expect(latestSweepingWaveformPointV3(
+      [...samples, sampleV3(6.5, null, { pressure: null })],
+      "pressure",
+      6,
+    )).toEqual({
+      phaseSec: 0.25,
+      value: 96,
+    });
   });
 
   it("expands immediately but contracts only after a well-inset range change", () => {
@@ -129,6 +126,57 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       1.9,
       2.1,
     ]);
+    const trajectory = extractLivePvTrajectoryV3(
+      samples,
+      "volume",
+      "pressure",
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+    );
+    expect(trajectory.completedBeat).toEqual(beat);
+    expect(trajectory.liveSegment.map(({ acceptedTimeSec }) =>
+      acceptedTimeSec)).toEqual([2.1, 2.2]);
+    expect(trajectory.liveSegment.at(-1)).toMatchObject({
+      cyclePhase01: 0.2,
+      volumeMl: 110,
+      pressureMmHg: 55,
+    });
+  });
+
+  it("renders a moving partial PV trajectory before the first complete beat", () => {
+    const samples = [
+      sampleV3(0.2, 0.2, { volume: 118, pressure: 20 }),
+      sampleV3(0.4, 0.4, { volume: 88, pressure: 112 }),
+      sampleV3(0.6, 0.6, { volume: 70, pressure: 65 }),
+    ];
+
+    expect(extractLivePvTrajectoryV3(
+      samples,
+      "volume",
+      "pressure",
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+    )).toEqual({
+      completedBeat: [],
+      liveSegment: [
+        {
+          acceptedTimeSec: 0.2,
+          cyclePhase01: 0.2,
+          volumeMl: 118,
+          pressureMmHg: 20,
+        },
+        {
+          acceptedTimeSec: 0.4,
+          cyclePhase01: 0.4,
+          volumeMl: 88,
+          pressureMmHg: 112,
+        },
+        {
+          acceptedTimeSec: 0.6,
+          cyclePhase01: 0.6,
+          volumeMl: 70,
+          pressureMmHg: 65,
+        },
+      ],
+    });
   });
 
   it("does not infer a complete beat when model cycle phase is absent", () => {

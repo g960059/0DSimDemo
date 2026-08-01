@@ -48,6 +48,13 @@ export type WorkbenchPvPointV3 = Readonly<{
   pressureMmHg: number;
 }>;
 
+export type WorkbenchLivePvTrajectoryV3 = Readonly<{
+  /** Most recent full model-emitted cycle, retained as spatial context. */
+  completedBeat: readonly WorkbenchPvPointV3[];
+  /** Current model-emitted cycle, including its moving leading point. */
+  liveSegment: readonly WorkbenchPvPointV3[];
+}>;
+
 export type WorkbenchPvGuidePointV3 = Readonly<{
   volumeMl: number;
   pressureMmHg: number;
@@ -151,16 +158,91 @@ export function extractLastCompletePvBeatV3(
   pressureOutputId: string,
   cyclePhaseOutputId: string,
 ): readonly WorkbenchPvPointV3[] {
+  return extractLivePvTrajectoryV3(
+    samples,
+    volumeOutputId,
+    pressureOutputId,
+    cyclePhaseOutputId,
+  ).completedBeat;
+}
+
+export function extractLivePvTrajectoryV3(
+  samples: readonly WorkbenchScalarSampleV3[],
+  volumeOutputId: string,
+  pressureOutputId: string,
+  cyclePhaseOutputId: string,
+): WorkbenchLivePvTrajectoryV3 {
   const ordered = orderedFiniteWorkbenchSamplesV3(samples);
   const range = lastCompleteCycleRangeV3(ordered, cyclePhaseOutputId);
-  if (range === null) return Object.freeze([]);
+  const completedCandidate = range === null
+    ? Object.freeze([])
+    : extractPvPointsV3(
+        ordered,
+        range.startIndex,
+        range.endIndexInclusive,
+        volumeOutputId,
+        pressureOutputId,
+        cyclePhaseOutputId,
+      );
+  const completedBeat = completedCandidate.length >= 3
+    ? completedCandidate
+    : Object.freeze([]);
+  const liveStartIndex = range?.endIndexInclusive
+    ?? latestPvCycleStartIndexV3(ordered, cyclePhaseOutputId);
+  const liveSegment = liveStartIndex === null
+    ? Object.freeze([])
+    : extractPvPointsV3(
+        ordered,
+        liveStartIndex,
+        ordered.length - 1,
+        volumeOutputId,
+        pressureOutputId,
+        cyclePhaseOutputId,
+      );
+  return Object.freeze({ completedBeat, liveSegment });
+}
+
+function latestPvCycleStartIndexV3(
+  samples: readonly WorkbenchScalarSampleV3[],
+  cyclePhaseOutputId: string,
+): number | null {
+  let startIndex: number | null = null;
+  let previousPhase: number | null = null;
+  for (let index = 0; index < samples.length; index += 1) {
+    const phase = normalizedModelCyclePhaseV3(
+      finiteWorkbenchScalarValueV3(samples[index]!, cyclePhaseOutputId),
+    );
+    if (phase === null) {
+      startIndex = null;
+      previousPhase = null;
+      continue;
+    }
+    if (
+      previousPhase === null
+      || phase + CYCLE_PHASE_EPSILON_V3 < previousPhase
+    ) {
+      startIndex = index;
+    }
+    previousPhase = phase;
+  }
+  return startIndex;
+}
+
+function extractPvPointsV3(
+  samples: readonly WorkbenchScalarSampleV3[],
+  startIndex: number,
+  endIndexInclusive: number,
+  volumeOutputId: string,
+  pressureOutputId: string,
+  cyclePhaseOutputId: string,
+): readonly WorkbenchPvPointV3[] {
   const points: WorkbenchPvPointV3[] = [];
   for (
-    let index = range.startIndex;
-    index <= range.endIndexInclusive;
+    let index = startIndex;
+    index <= endIndexInclusive;
     index += 1
   ) {
-    const sample = ordered[index]!;
+    const sample = samples[index]!;
     const cyclePhase01 = normalizedModelCyclePhaseV3(
       finiteWorkbenchScalarValueV3(sample, cyclePhaseOutputId),
     );
@@ -181,7 +263,7 @@ export function extractLastCompletePvBeatV3(
       pressureMmHg,
     }));
   }
-  return points.length >= 3 ? Object.freeze(points) : Object.freeze([]);
+  return Object.freeze(points);
 }
 
 /**
@@ -388,7 +470,7 @@ export function PressureVolumeLoopCanvasV3(
     [traces],
   );
   const renderedTraces = React.useMemo(() => traces.map((trace) => {
-    const beat = extractLastCompletePvBeatV3(
+    const trajectory = extractLivePvTrajectoryV3(
       trace.samples,
       trace.volumeOutputId,
       trace.pressureOutputId,
@@ -396,7 +478,7 @@ export function PressureVolumeLoopCanvasV3(
     );
     const lineDash = scenarioLegendItems.find((item) =>
       item.scenarioId === trace.scenarioId)?.lineDash ?? Object.freeze([]);
-    return Object.freeze({ trace, beat, lineDash });
+    return Object.freeze({ trace, ...trajectory, lineDash });
   }), [scenarioLegendItems, traces]);
   const orientationGuides = React.useMemo(() => {
     const onlyTrace = renderedTraces.length === 1
@@ -404,7 +486,7 @@ export function PressureVolumeLoopCanvasV3(
       : undefined;
     return onlyTrace?.trace.showSingleBeatOrientationGuides === true
       ? buildSingleBeatPvOrientationGuidesV3(
-          onlyTrace.beat,
+          onlyTrace.completedBeat,
           onlyTrace.trace.pressureBasis,
         )
       : null;
@@ -418,7 +500,10 @@ export function PressureVolumeLoopCanvasV3(
     const theme = readPvCanvasThemeV3(containerRef.current);
     const plot = pvPlotRectV3(width, height);
     const domainPoints: WorkbenchPvGuidePointV3[] = [
-      ...renderedTraces.flatMap(({ beat }) => beat),
+      ...renderedTraces.flatMap(({ completedBeat, liveSegment }) => [
+        ...completedBeat,
+        ...liveSegment,
+      ]),
       ...(orientationGuides?.endSystolicRadialReference ?? []),
       ...(orientationGuides?.klotzInformedDiastolicReference ?? []),
     ];
@@ -476,22 +561,45 @@ export function PressureVolumeLoopCanvasV3(
         },
       );
     }
-    for (const { beat, lineDash, trace } of renderedTraces) {
-      drawPvCurveV3(context, beat, x, y, {
+    for (const {
+      completedBeat,
+      lineDash,
+      liveSegment,
+      trace,
+    } of renderedTraces) {
+      drawPvCurveV3(context, completedBeat, x, y, {
+        color: trace.chamberColor,
+        width: 1.5,
+        dash: lineDash,
+        // A completed beat remains quiet context throughout the next cycle,
+        // including the single boundary-frame redraw.
+        alpha: 0.28,
+      });
+      drawPvCurveV3(context, liveSegment, x, y, {
         color: trace.chamberColor,
         width: 2,
         dash: lineDash,
       });
+      const head = liveSegment.at(-1);
+      if (head !== undefined) {
+        drawPvLeadingCapV3(
+          context,
+          x(head.volumeMl),
+          y(head.pressureMmHg),
+          trace.chamberColor,
+        );
+      }
     }
 
-    if (renderedTraces.every(({ beat }) => beat.length === 0)) {
+    if (renderedTraces.every(({ completedBeat, liveSegment }) =>
+      completedBeat.length === 0 && liveSegment.length === 0)) {
       context.save();
       context.fillStyle = theme.text;
       context.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
       context.textAlign = "center";
       context.textBaseline = "middle";
       context.fillText(
-        "Collecting a complete model-emitted cycle…",
+        "Collecting model-emitted cycle data…",
         (plot.left + plot.right) / 2,
         (plot.top + plot.bottom) / 2,
       );
@@ -532,7 +640,7 @@ export function PressureVolumeLoopCanvasV3(
         ref={canvasRef}
         className="block h-full w-full"
         role="img"
-        aria-label={`${chamberAriaLabel} pressure-volume loops from the last complete model-emitted cycles${
+        aria-label={`${chamberAriaLabel} live pressure-volume loops from model-emitted cycles${
           guideStatus === null ? "" : `. ${guideStatus}`
         }`}
       />
@@ -715,6 +823,7 @@ function drawPvCurveV3<T extends Readonly<{
     color: string;
     width: number;
     dash: readonly number[];
+    alpha?: number;
   }>,
 ): void {
   if (points.length === 0) return;
@@ -724,11 +833,35 @@ function drawPvCurveV3<T extends Readonly<{
   context.lineJoin = "round";
   context.lineCap = "round";
   context.setLineDash([...style.dash]);
+  context.globalAlpha = style.alpha ?? 1;
   context.beginPath();
   points.forEach((point, index) => {
     if (index === 0) context.moveTo(x(point.volumeMl), y(point.pressureMmHg));
     else context.lineTo(x(point.volumeMl), y(point.pressureMmHg));
   });
+  context.stroke();
+  context.restore();
+}
+
+function drawPvLeadingCapV3(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  color: string,
+): void {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  context.save();
+  context.setLineDash([]);
+  context.fillStyle = color;
+  context.globalAlpha = 0.2;
+  context.beginPath();
+  context.arc(x, y, 4.25, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = color;
+  context.lineWidth = 1;
+  context.globalAlpha = 0.72;
+  context.beginPath();
+  context.arc(x, y, 3.5, 0, Math.PI * 2);
   context.stroke();
   context.restore();
 }

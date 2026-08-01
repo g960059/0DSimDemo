@@ -40,8 +40,8 @@ import {
   type WorkbenchScenarioRenameIntentV3,
 } from "@/components/workbench/WorkbenchScenarioManagerV3";
 import {
-  commitWorkbenchDurableMutationV3,
-} from "@/components/workbench/WorkbenchDurableCommitV3";
+  commitWorkbenchTransientAuthoringResultV3,
+} from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 import {
   WORKBENCH_SCENARIO_ID_V3,
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
@@ -72,9 +72,6 @@ import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
-import {
-  StudioSimulationWorkerClientV2,
-} from "@/studio/workers/StudioSimulationWorkerClientV2";
 import type {
   StudioSimulationWorkerScenarioDescriptorV2,
   StudioSimulationWorkerScenarioStateV2,
@@ -95,8 +92,15 @@ import {
   useWorkbenchScenarioPresentationSamplesV3,
 } from "@/components/workbench/v3";
 import {
-  WorkbenchLiveSchedulerV3,
-} from "@/components/workbench/v3/WorkbenchLiveSchedulerV3";
+  WorkbenchParallelAuthoringCoordinatorV3,
+} from "@/components/workbench/v3/WorkbenchParallelAuthoringCoordinatorV3";
+import {
+  WorkbenchParallelScenarioRuntimeV3,
+  type WorkbenchParallelScenarioSeedV3,
+} from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
+import {
+  randomPortableTokenV3,
+} from "@/components/workbench/v3/randomPortableTokenV3";
 
 type WorkbenchStatusV3 =
   | Readonly<{ kind: "loading" }>
@@ -104,7 +108,6 @@ type WorkbenchStatusV3 =
       kind: "live";
       contract: ModelContractV2;
       frame: StudioSimulationFrameV2;
-      runtimeSessionId: string;
     }>
   | Readonly<{ kind: "error"; message: string }>;
 
@@ -187,10 +190,9 @@ export const WorkbenchV3Page = () => {
   const [analysisErrorById, setAnalysisErrorById] = React.useState<
   Readonly<Record<string, string>>
   >({});
-  const clientRef = React.useRef<StudioSimulationWorkerClientV2 | null>(null);
+  const runtimeRef = React.useRef<WorkbenchParallelScenarioRuntimeV3 | null>(null);
   const contentStoreRef = React.useRef<StudioBrowserContentStoreV2 | null>(null);
   const workspaceRef = React.useRef<ExperimentWorkspaceV2 | null>(null);
-  const schedulerRef = React.useRef<WorkbenchLiveSchedulerV3<StudioSimulationFrameV2> | null>(null);
   const latestFrameRef = React.useRef<StudioSimulationFrameV2 | null>(null);
   const lastRootFrameTimeSecRef = React.useRef(Number.NEGATIVE_INFINITY);
   const activeScenarioIdRef = React.useRef<string | null>(null);
@@ -224,17 +226,15 @@ export const WorkbenchV3Page = () => {
 
   React.useEffect(() => {
     let cancelled = false;
-    let client: StudioSimulationWorkerClientV2 | undefined;
-    let scheduler: WorkbenchLiveSchedulerV3<StudioSimulationFrameV2> | undefined;
+    let runtime: WorkbenchParallelScenarioRuntimeV3 | undefined;
 
     const failRuntime = (error: unknown) => {
       if (cancelled) return;
       playingIntentRef.current = false;
       setIsPlaying(false);
-      client?.terminate();
-      client = undefined;
-      clientRef.current = null;
-      schedulerRef.current = null;
+      runtime?.terminate();
+      runtime = undefined;
+      runtimeRef.current = null;
       exclusiveOperationRef.current = null;
       setStatus({
         kind: "error",
@@ -312,35 +312,55 @@ export const WorkbenchV3Page = () => {
       exclusiveOperationRef.current = null;
       presentationSampleStore.reset();
 
-      const runtimeSessionId = `workbench-${randomPortableTokenV3()}`;
-      client = new StudioSimulationWorkerClientV2();
-      clientRef.current = client;
-      const initial = await client.initialize({
+      const runtimeSeeds: readonly WorkbenchParallelScenarioSeedV3[] =
+        storedWorkspace === null
+          ? [Object.freeze({
+              scenarioId: initialScenarioId,
+              label: t("workbench.editor.scenarioManager.baselinePresetTitle"),
+              fixture: composition.defaultFixture,
+            })]
+          : storedWorkspace.content.scenarios.map((scenario) => Object.freeze({
+              scenarioId: scenario.scenarioId,
+              label: scenario.label,
+              fixture: scenario.capture.fixture,
+              checkpoint: scenario.capture.checkpoint,
+            }));
+      runtime = new WorkbenchParallelScenarioRuntimeV3({
         expectedModelId: composition.defaultModelId,
-        runtimeSessionId,
-        scenarioId: initialScenarioId,
-        scenarioLabel: storedScenario?.label
-          ?? t("workbench.editor.scenarioManager.baselinePresetTitle"),
-        fixture: storedScenario?.capture.fixture ?? composition.defaultFixture,
-        ...(storedScenario === undefined
-          ? {}
-          : { checkpoint: storedScenario.capture.checkpoint }),
-        ...(storedWorkspace === null && storedSnapshots.length === 0
-          ? {}
-          : {
-            authoringSeed: {
-              ...(storedWorkspace === null ? {} : { workspace: storedWorkspace }),
-              snapshots: storedSnapshots,
-            },
-          }),
+        onFrames: (frames) => {
+          if (cancelled) return;
+          appendFramesV3(frames, presentationSampleStore);
+          const activeId = activeScenarioIdRef.current;
+          const frame = activeId === null
+            ? undefined
+            : [...frames].reverse().find(({ scenarioId }) =>
+                scenarioId === activeId);
+          if (frame === undefined) return;
+          latestFrameRef.current = frame;
+          if (shouldPublishWorkbenchRootFrameV3({
+            acceptedTimeSec: frame.acceptedTimeSec,
+            lastPublishedTimeSec: lastRootFrameTimeSecRef.current,
+            schedulerRunning: runtime?.playing ?? false,
+          })) {
+            lastRootFrameTimeSecRef.current = frame.acceptedTimeSec;
+            setStatus((current) => current.kind === "live"
+              ? { ...current, frame }
+              : current);
+          }
+        },
+        onError: failRuntime,
+      });
+      const initialState = await runtime.initialize({
+        scenarios: runtimeSeeds,
+        activeScenarioId: initialScenarioId,
       });
       if (cancelled) {
-        client.terminate();
+        runtime.terminate();
         return;
       }
-      const capturedScenarios = await client.readScenarios({ runtimeSessionId });
+      const capturedScenarios = await runtime.captureScenarios();
       if (cancelled) {
-        client.terminate();
+        runtime.terminate();
         return;
       }
       const descriptors = Object.freeze(capturedScenarios.scenarios.map(
@@ -375,51 +395,27 @@ export const WorkbenchV3Page = () => {
             ),
             capture: baseline.capture,
           })]));
+      const initial = initialState.frame;
+      const initialFrames = runtimeSeeds.map(({ scenarioId }) =>
+        runtime!.latestFrame(scenarioId));
       latestFrameRef.current = initial;
       lastRootFrameTimeSecRef.current = initial.acceptedTimeSec;
-      appendFramesV3([initial], presentationSampleStore);
+      appendFramesV3(initialFrames, presentationSampleStore);
+      // Publish the runtime authority only after every lane is active. Toolbar
+      // and visibility handlers must never observe an initializing pool.
+      runtimeRef.current = runtime;
       setStatus({
         kind: "live",
         contract: composition.contract,
-        runtimeSessionId,
         frame: initial,
       });
-      scheduler = new WorkbenchLiveSchedulerV3({
-        advance: (stepCount) => {
-          const scenarioId = activeScenarioIdRef.current;
-          if (scenarioId === null) {
-            throw new Error("Workbench has no active Scenario");
-          }
-          return client!.advance({ runtimeSessionId, scenarioId, stepCount });
-        },
-        acceptedTimeSec: (frame) => frame.acceptedTimeSec,
-        onFrames: (frames) => {
-          if (cancelled) return;
-          appendFramesV3(frames, presentationSampleStore);
-          const frame = frames.at(-1);
-          if (frame === undefined) return;
-          latestFrameRef.current = frame;
-          if (shouldPublishWorkbenchRootFrameV3({
-            acceptedTimeSec: frame.acceptedTimeSec,
-            lastPublishedTimeSec: lastRootFrameTimeSecRef.current,
-            schedulerRunning: scheduler?.running ?? false,
-          })) {
-            lastRootFrameTimeSecRef.current = frame.acceptedTimeSec;
-            setStatus((current) => current.kind === "live"
-              ? { ...current, frame }
-              : current);
-          }
-        },
-        onError: failRuntime,
-      });
-      schedulerRef.current = scheduler;
       const playbackIntent = playingIntentRef.current;
       setIsPlaying(playbackIntent);
       if (playbackIntent && !document.hidden) {
-        scheduler.play(initial.acceptedTimeSec);
+        runtime.playAll();
       }
-      // Consume restart handoff only after the Worker, its complete Scenario
-      // set, and the live scheduler have all been reconstructed successfully.
+      // Consume restart handoff only after every Scenario Worker and live
+      // scheduler lane has been reconstructed successfully.
       pendingSurfaceAfterRuntimeRestartRef.current = null;
       pendingFeedbackAfterRuntimeRestartRef.current = null;
     };
@@ -428,26 +424,22 @@ export const WorkbenchV3Page = () => {
 
     return () => {
       cancelled = true;
-      schedulerRef.current = null;
-      clientRef.current = null;
-      void scheduler?.dispose();
-      client?.terminate();
+      runtimeRef.current = null;
+      void runtime?.dispose();
     };
   }, [runtimeGeneration]);
 
   React.useEffect(() => {
     const handleVisibility = () => {
-      const scheduler = schedulerRef.current;
-      const frame = latestFrameRef.current;
+      const runtime = runtimeRef.current;
       if (
-        scheduler === null
-        || frame === null
+        runtime === null
         || exclusiveOperationRef.current !== null
       ) return;
       if (document.hidden) {
-        void scheduler.pause();
+        void runtime.pauseAll();
       } else if (playingIntentRef.current) {
-        scheduler.play(frame.acceptedTimeSec);
+        runtime.playAll();
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
@@ -508,17 +500,17 @@ export const WorkbenchV3Page = () => {
   }, [contract, surface, updateSurface]);
 
   const togglePlayback = React.useCallback(() => {
-    const scheduler = schedulerRef.current;
+    const runtime = runtimeRef.current;
     const frame = latestFrameRef.current;
     if (
-      scheduler === null
+      runtime === null
       || frame === null
       || exclusiveOperationRef.current !== null
     ) return;
     if (playingIntentRef.current) {
       playingIntentRef.current = false;
       setIsPlaying(false);
-      void scheduler.pause().then(() => {
+      void runtime.pauseAll().then(() => {
         const latest = latestFrameRef.current;
         if (latest === null) return;
         lastRootFrameTimeSecRef.current = latest.acceptedTimeSec;
@@ -530,7 +522,7 @@ export const WorkbenchV3Page = () => {
     }
     playingIntentRef.current = true;
     setIsPlaying(true);
-    scheduler.play(frame.acceptedTimeSec);
+    runtime.playAll();
   }, []);
 
   const restartRuntime = React.useCallback((playbackIntent = true) => {
@@ -544,12 +536,10 @@ export const WorkbenchV3Page = () => {
     controlId: string,
     value: number,
   ): Promise<boolean> => {
-    const client = clientRef.current;
-    const scheduler = schedulerRef.current;
+    const runtime = runtimeRef.current;
     const frame = latestFrameRef.current;
     if (
-      client === null
-      || scheduler === null
+      runtime === null
       || frame === null
       || exclusiveOperationRef.current !== null
     ) return false;
@@ -557,13 +547,12 @@ export const WorkbenchV3Page = () => {
     setPendingControlId(controlId);
     setControlError(null);
     try {
-      await scheduler.pause();
+      await runtime.pauseAll();
       const acceptedFrame = latestFrameRef.current;
       if (acceptedFrame === null) {
         throw new Error("The live Scenario no longer has an accepted frame");
       }
-      const nextFrame = await client.applyControl({
-        runtimeSessionId: acceptedFrame.runtimeSessionId,
+      const nextFrame = await runtime.applyControl({
         scenarioId: acceptedFrame.scenarioId,
         controlId,
         value,
@@ -594,14 +583,14 @@ export const WorkbenchV3Page = () => {
       setSnapshotState("idle");
       setSnapshotError(null);
       if (playingIntentRef.current && !document.hidden) {
-        scheduler.play(nextFrame.acceptedTimeSec);
+        runtime.playAll();
       }
       return true;
     } catch (error) {
       setControlError(error instanceof Error ? error.message : String(error));
       const latest = latestFrameRef.current;
       if (playingIntentRef.current && !document.hidden && latest !== null) {
-        scheduler.play(latest.acceptedTimeSec);
+        runtime.playAll();
       }
       return false;
     } finally {
@@ -611,11 +600,9 @@ export const WorkbenchV3Page = () => {
   }, []);
 
   const requestAnalysis = React.useCallback((analysisId: string): boolean => {
-    const client = clientRef.current;
-    const scheduler = schedulerRef.current;
+    const runtime = runtimeRef.current;
     if (
-      client === null
-      || scheduler === null
+      runtime === null
       || latestFrameRef.current === null
       || exclusiveOperationRef.current !== null
     ) return false;
@@ -624,13 +611,12 @@ export const WorkbenchV3Page = () => {
     setAnalysisErrorById((current) => withoutRecordKeyV3(current, analysisId));
     void (async () => {
       try {
-        await scheduler.pause();
+        await runtime.pauseAll();
         const acceptedFrame = latestFrameRef.current;
         if (acceptedFrame === null) {
           throw new Error("The live Scenario no longer has an accepted frame");
         }
-        const analysis = await client.requestAnalysis({
-          runtimeSessionId: acceptedFrame.runtimeSessionId,
+        const analysis = await runtime.requestAnalysis({
           scenarioId: acceptedFrame.scenarioId,
           analysisId,
           expectedInputEpoch: acceptedFrame.inputEpoch,
@@ -642,7 +628,7 @@ export const WorkbenchV3Page = () => {
           [analysisId]: analysis,
         }));
         if (playingIntentRef.current && !document.hidden) {
-          scheduler.play(acceptedFrame.acceptedTimeSec);
+          runtime.playAll();
         }
       } catch (error) {
         setAnalysisErrorById((current) => Object.freeze({
@@ -651,7 +637,7 @@ export const WorkbenchV3Page = () => {
         }));
         const latest = latestFrameRef.current;
         if (playingIntentRef.current && !document.hidden && latest !== null) {
-          scheduler.play(latest.acceptedTimeSec);
+          runtime.playAll();
         }
       } finally {
         exclusiveOperationRef.current = null;
@@ -687,17 +673,15 @@ export const WorkbenchV3Page = () => {
   const runScenarioOperationV3 = React.useCallback(async (
     kind: WorkbenchScenarioOperationV3,
     operation: (
-      client: StudioSimulationWorkerClientV2,
-      runtimeSessionId: string,
-    ) => Promise<StudioSimulationWorkerScenarioStateV2>,
+      runtime: WorkbenchParallelScenarioRuntimeV3,
+    ) => Promise<StudioSimulationWorkerScenarioStateV2>
+      | StudioSimulationWorkerScenarioStateV2,
     beforeAdopt?: (state: StudioSimulationWorkerScenarioStateV2) => void,
   ): Promise<boolean> => {
-    const client = clientRef.current;
-    const scheduler = schedulerRef.current;
+    const runtime = runtimeRef.current;
     const frame = latestFrameRef.current;
     if (
-      client === null
-      || scheduler === null
+      runtime === null
       || frame === null
       || exclusiveOperationRef.current !== null
     ) return false;
@@ -705,8 +689,8 @@ export const WorkbenchV3Page = () => {
     setScenarioOperation(kind);
     setScenarioError(null);
     try {
-      await scheduler.pause();
-      const next = await operation(client, frame.runtimeSessionId);
+      await runtime.pauseAll();
+      const next = await operation(runtime);
       beforeAdopt?.(next);
       adoptScenarioStateV3(next);
       return true;
@@ -718,7 +702,7 @@ export const WorkbenchV3Page = () => {
       setScenarioOperation(null);
       const latest = latestFrameRef.current;
       if (playingIntentRef.current && !document.hidden && latest !== null) {
-        scheduler.play(latest.acceptedTimeSec);
+        runtime.playAll();
       }
     }
   }, [adoptScenarioStateV3]);
@@ -727,10 +711,7 @@ export const WorkbenchV3Page = () => {
     if (scenarioId === activeScenarioIdRef.current) return;
     void runScenarioOperationV3(
       "select",
-      (client, runtimeSessionId) => client.selectScenario({
-        runtimeSessionId,
-        scenarioId,
-      }),
+      (runtime) => runtime.selectScenario(scenarioId),
     );
   }, [runScenarioOperationV3]);
 
@@ -739,11 +720,11 @@ export const WorkbenchV3Page = () => {
   ) => {
     void runScenarioOperationV3(
       "add",
-      (client, runtimeSessionId) => client.addScenarioFromPreset({
-        runtimeSessionId,
+      (runtime) => runtime.addScenario({
         scenarioId: intent.scenarioId,
         label: intent.label,
-        preset: intent.preset,
+        fixture: intent.preset.capture.fixture,
+        checkpoint: intent.preset.capture.checkpoint,
       }),
       () => {
         if (contract !== null) {
@@ -768,8 +749,7 @@ export const WorkbenchV3Page = () => {
     ];
     void runScenarioOperationV3(
       "duplicate",
-      (client, runtimeSessionId) => client.duplicateScenario({
-        runtimeSessionId,
+      (runtime) => runtime.duplicateScenario({
         sourceScenarioId: intent.sourceScenarioId,
         scenarioId: intent.scenarioId,
         label: intent.label,
@@ -795,8 +775,7 @@ export const WorkbenchV3Page = () => {
   ) => {
     void runScenarioOperationV3(
       "rename",
-      (client, runtimeSessionId) => client.renameScenario({
-        runtimeSessionId,
+      (runtime) => runtime.renameScenario({
         scenarioId: intent.scenarioId,
         label: intent.label,
       }),
@@ -811,10 +790,7 @@ export const WorkbenchV3Page = () => {
   ) => {
     void runScenarioOperationV3(
       "delete",
-      (client, runtimeSessionId) => client.deleteScenario({
-        runtimeSessionId,
-        scenarioId: intent.scenarioId,
-      }),
+      (runtime) => runtime.deleteScenario(intent.scenarioId),
       () => {
         const { [intent.scenarioId]: _deleted, ...retained } =
           controlValuesByScenarioRef.current;
@@ -826,13 +802,11 @@ export const WorkbenchV3Page = () => {
   }, [markDraftDirtyV3, presentationSampleStore, runScenarioOperationV3]);
 
   const saveDraftV3 = React.useCallback(async () => {
-    const client = clientRef.current;
-    const scheduler = schedulerRef.current;
+    const runtime = runtimeRef.current;
     const frame = latestFrameRef.current;
     const contentStore = contentStoreRef.current;
     if (
-      client === null
-      || scheduler === null
+      runtime === null
       || frame === null
       || surface === null
       || contentStore === null
@@ -845,18 +819,27 @@ export const WorkbenchV3Page = () => {
     exclusiveOperationRef.current = "save";
     setSaveState("saving");
     setSaveError(null);
-    let restartingFromDurableWorkspace = false;
     try {
-      await scheduler.pause();
-      const saved = await client.saveDraft({
-        runtimeSessionId: frame.runtimeSessionId,
-        scenarioId: frame.scenarioId,
+      await runtime.pauseAll();
+      const captures = await runtime.captureScenarios();
+      const snapshots = contentStore.listSnapshots().filter((snapshot) =>
+        snapshot.experimentId === WORKBENCH_EXPERIMENT_ID_V3
+        && snapshot.content.modelId === frame.modelId);
+      const coordinator = new WorkbenchParallelAuthoringCoordinatorV3();
+      const saved = await coordinator.saveDraft({
+        modelId: frame.modelId,
+        scenarios: captures.scenarios,
+        activeScenarioId: captures.activeScenarioId,
+        workspace: workspaceRef.current,
+        snapshots,
         experimentId: WORKBENCH_EXPERIMENT_ID_V3,
         surface: submittedSurface,
-        expectedDraftVersion: workspaceRef.current?.draftVersion ?? null,
+        runtimeSessionId: `workbench-authoring-${randomPortableTokenV3()}`,
       });
-      commitWorkbenchDurableMutationV3({
-        kind: "draft-save",
+      // The authoring Worker is transient and already terminated. Persistence
+      // failure therefore leaves the independent live lane pool untouched so
+      // the user can retry without losing unsaved exact Scenario state.
+      commitWorkbenchTransientAuthoringResultV3({
         persist: () => contentStore.saveWorkspace(saved),
         adoptDurable: (durableWorkspace) => {
           const surfaceResolution = resolveWorkbenchSurfaceAfterCommitV3({
@@ -885,70 +868,55 @@ export const WorkbenchV3Page = () => {
                 ?? controlValuesForFixtureV3(contract, undefined));
             }
           }
-          setSaveState(surfaceResolution.hasNewerMutations
-            ? "dirty"
-            : "clean");
+          setSaveState(surfaceResolution.hasNewerMutations ? "dirty" : "clean");
           setSnapshotState("idle");
-        },
-        terminateRuntime: () => {
-          client.terminate();
-          clientRef.current = null;
-          schedulerRef.current = null;
-        },
-        reinitializeFromDurable: () => {
-          // A failed browser write must not discard the Surface the user was
-          // trying to save. Startup reconciles its controller targets against
-          // the Scenario set that actually survived the durable rollback.
-          pendingSurfaceAfterRuntimeRestartRef.current =
-            surfaceRef.current ?? submittedSurface;
-          restartingFromDurableWorkspace = true;
-          restartRuntime(playingIntentRef.current);
-        },
+        }
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      // A quota/write failure leaves the live pool untouched. If another tab
+      // advanced this Experiment, adopt only its durable version/lineage as
+      // the next optimistic-concurrency base; the exact live captures and
+      // current Surface remain the user's retry payload.
+      const latestDurableWorkspace = readNewerDurableWorkbenchWorkspaceV3({
+        reader: contentStore,
+        experimentId: WORKBENCH_EXPERIMENT_ID_V3,
+        current: workspaceRef.current,
+      });
+      const durableBaseAdvanced = latestDurableWorkspace !== null;
+      if (durableBaseAdvanced) {
+        workspaceRef.current = latestDurableWorkspace;
+        setWorkspace(latestDurableWorkspace);
+      }
       const hasNewerSurfaceMutations =
         hasWorkbenchSurfaceMutationsAfterSubmissionV3(
           submittedSurfaceMutationRevision,
           surfaceMutationRevisionRef.current,
         );
-      if (restartingFromDurableWorkspace) {
-        pendingFeedbackAfterRuntimeRestartRef.current = Object.freeze({
-          saveState: "dirty",
-          saveError: message,
-          snapshotState: "idle",
-          snapshotError: null,
-        });
-      }
       setSaveError(message);
-      setSaveState(restartingFromDurableWorkspace
-        ? "dirty"
-        : hasNewerSurfaceMutations
-          ? "dirty"
-          : "error");
+      setSaveState(
+        hasNewerSurfaceMutations || durableBaseAdvanced ? "dirty" : "error",
+      );
     } finally {
       exclusiveOperationRef.current = null;
       const latest = latestFrameRef.current;
       if (
-        !restartingFromDurableWorkspace
-        && playingIntentRef.current
+        playingIntentRef.current
         && !document.hidden
         && latest !== null
       ) {
-        scheduler.play(latest.acceptedTimeSec);
+        runtime.playAll();
       }
     }
-  }, [contract, restartRuntime, surface]);
+  }, [contract, surface]);
 
   const createSnapshotV3 = React.useCallback(async () => {
-    const client = clientRef.current;
-    const scheduler = schedulerRef.current;
+    const runtime = runtimeRef.current;
     const frame = latestFrameRef.current;
     const contentStore = contentStoreRef.current;
     const durableWorkspace = workspaceRef.current;
     if (
-      client === null
-      || scheduler === null
+      runtime === null
       || frame === null
       || durableWorkspace === null
       || contentStore === null
@@ -961,84 +929,65 @@ export const WorkbenchV3Page = () => {
     setSnapshotState("creating");
     setSnapshotError(null);
     let restartRuntimeAfterCommit = false;
+    let runtimeRestartRequested = false;
     let snapshotHasNewerSurfaceMutations = false;
     try {
-      await scheduler.pause();
-      const created = await client.createSnapshot({
-        runtimeSessionId: frame.runtimeSessionId,
-        scenarioId: frame.scenarioId,
+      await runtime.pauseAll();
+      const snapshots = contentStore.listSnapshots().filter((snapshot) =>
+        snapshot.experimentId === durableWorkspace.experimentId
+        && snapshot.content.modelId === frame.modelId);
+      const coordinator = new WorkbenchParallelAuthoringCoordinatorV3();
+      const created = await coordinator.createSnapshot({
+        modelId: frame.modelId,
+        scenarios: durableWorkspace.content.scenarios,
+        activeScenarioId: activeScenarioIdRef.current ?? frame.scenarioId,
+        surface: durableWorkspace.content.surface,
+        workspace: durableWorkspace,
+        snapshots,
         experimentId: durableWorkspace.experimentId,
-        expectedDraftVersion: durableWorkspace.draftVersion,
-        expectedHeadSnapshotId: durableWorkspace.headSnapshotId,
+        runtimeSessionId: `workbench-qualification-${randomPortableTokenV3()}`,
       });
-      commitWorkbenchDurableMutationV3({
-        kind: "snapshot",
-        persist: () => {
-          const persisted = contentStore.saveSnapshotAndWorkspace(created);
-          const snapshotCount = contentStore.listSnapshots().filter((snapshot) =>
-            snapshot.experimentId === WORKBENCH_EXPERIMENT_ID_V3).length;
-          return Object.freeze({ ...persisted, snapshotCount });
-        },
-        adoptDurable: (durable) => {
-          const surfaceResolution = resolveWorkbenchSurfaceAfterCommitV3({
-            currentMutationRevision: surfaceMutationRevisionRef.current,
-            currentSurface: surfaceRef.current,
-            durableSurface: durable.workspace.content.surface,
-            submittedMutationRevision: submittedSurfaceMutationRevision,
-          });
-          workspaceRef.current = durable.workspace;
-          setWorkspace(durable.workspace);
-          surfaceRef.current = surfaceResolution.surface;
-          setSurface(surfaceResolution.surface);
-          setSaveState(surfaceResolution.hasNewerMutations
-            ? "dirty"
-            : "clean");
-          snapshotHasNewerSurfaceMutations =
-            surfaceResolution.hasNewerMutations;
-          if (surfaceResolution.hasNewerMutations) {
-            pendingSurfaceAfterRuntimeRestartRef.current =
-              surfaceResolution.surface;
-          } else {
-            pendingSurfaceAfterRuntimeRestartRef.current = null;
-          }
-          setSnapshotCount(durable.snapshotCount);
-          setSnapshotState("created");
-          // Snapshot/Workspace persistence is already committed. This
-          // session-only transport is deliberately best effort: a blocked or
-          // full sessionStorage must never turn a durable Snapshot into a
-          // false failure or prevent the mandatory runtime reconstruction.
-          if (briefingHandoff !== null) {
-            persistWorkbenchBriefingHandoffV3({
-              handoff: briefingHandoff,
-              snapshotId: durable.snapshot.snapshotId,
-              picks: briefingPicksRef.current ?? [],
-              snapshotSurface: durable.snapshot.content.surface,
-            });
-          }
-        },
-        terminateRuntime: () => {
-          client.terminate();
-          clientRef.current = null;
-          schedulerRef.current = null;
-        },
-        reinitializeFromDurable: () => {
-          carryNewerWorkbenchSurfaceAcrossRestartV3({
-            currentMutationRevision: surfaceMutationRevisionRef.current,
-            currentSurface: surfaceRef.current,
-            pendingSurfaceRef: pendingSurfaceAfterRuntimeRestartRef,
-            submittedMutationRevision: submittedSurfaceMutationRevision,
-          });
-          restartRuntimeAfterCommit = true;
-          restartRuntime(playingIntentRef.current);
-        },
+      const persisted = contentStore.saveSnapshotAndWorkspace(created);
+      restartRuntimeAfterCommit = true;
+      const durable = Object.freeze({
+        ...persisted,
+        snapshotCount: contentStore.listSnapshots().filter((snapshot) =>
+          snapshot.experimentId === WORKBENCH_EXPERIMENT_ID_V3).length,
       });
+      const surfaceResolution = resolveWorkbenchSurfaceAfterCommitV3({
+        currentMutationRevision: surfaceMutationRevisionRef.current,
+        currentSurface: surfaceRef.current,
+        durableSurface: durable.workspace.content.surface,
+        submittedMutationRevision: submittedSurfaceMutationRevision,
+      });
+      workspaceRef.current = durable.workspace;
+      setWorkspace(durable.workspace);
+      surfaceRef.current = surfaceResolution.surface;
+      setSurface(surfaceResolution.surface);
+      setSaveState(surfaceResolution.hasNewerMutations ? "dirty" : "clean");
+      snapshotHasNewerSurfaceMutations = surfaceResolution.hasNewerMutations;
+      pendingSurfaceAfterRuntimeRestartRef.current =
+        surfaceResolution.hasNewerMutations ? surfaceResolution.surface : null;
+      setSnapshotCount(durable.snapshotCount);
+      setSnapshotState("created");
+      // Snapshot/Workspace persistence is already committed. This
+      // session-only transport is deliberately best effort: a blocked or full
+      // sessionStorage must never turn a durable Snapshot into a false failure.
+      if (briefingHandoff !== null) {
+        persistWorkbenchBriefingHandoffV3({
+          handoff: briefingHandoff,
+          snapshotId: durable.snapshot.snapshotId,
+          picks: briefingPicksRef.current ?? [],
+          snapshotSurface: durable.snapshot.content.surface,
+        });
+      }
       pendingFeedbackAfterRuntimeRestartRef.current = Object.freeze({
         saveState: snapshotHasNewerSurfaceMutations ? "dirty" : "clean",
         saveError: null,
         snapshotState: "created",
         snapshotError: null,
       });
-      restartRuntimeAfterCommit = true;
+      runtimeRestartRequested = true;
       restartRuntime(playingIntentRef.current);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1047,17 +996,37 @@ export const WorkbenchV3Page = () => {
           submittedSurfaceMutationRevision,
           surfaceMutationRevisionRef.current,
         );
+      let durableBaseAdvanced = false;
+      if (!restartRuntimeAfterCommit) {
+        const latestDurableWorkspace = readNewerDurableWorkbenchWorkspaceV3({
+          reader: contentStore,
+          experimentId: durableWorkspace.experimentId,
+          current: workspaceRef.current,
+        });
+        if (latestDurableWorkspace !== null) {
+          workspaceRef.current = latestDurableWorkspace;
+          setWorkspace(latestDurableWorkspace);
+          durableBaseAdvanced = true;
+        }
+      }
       if (restartRuntimeAfterCommit) {
+        if (hasNewerSurfaceMutations && surfaceRef.current !== null) {
+          pendingSurfaceAfterRuntimeRestartRef.current = surfaceRef.current;
+        }
         pendingFeedbackAfterRuntimeRestartRef.current = Object.freeze({
           saveState: hasNewerSurfaceMutations ? "dirty" : "clean",
           saveError: null,
           snapshotState: "error",
           snapshotError: message,
         });
+        if (!runtimeRestartRequested) {
+          runtimeRestartRequested = true;
+          restartRuntime(playingIntentRef.current);
+        }
       }
       setSnapshotError(message);
       setSnapshotState("error");
-      if (hasNewerSurfaceMutations) {
+      if (hasNewerSurfaceMutations || durableBaseAdvanced) {
         setSaveState("dirty");
       }
     } finally {
@@ -1069,7 +1038,7 @@ export const WorkbenchV3Page = () => {
         && !document.hidden
         && latest !== null
       ) {
-        scheduler.play(latest.acceptedTimeSec);
+        runtime.playAll();
       }
     }
   }, [briefingHandoff, restartRuntime, saveState]);
@@ -1253,7 +1222,7 @@ export const WorkbenchV3Page = () => {
                 : (
                   <GraphPaneBodyV3
                     activeScenarioId={activeScenarioId}
-                    activeScenarioPlaying={isPlaying}
+                    playbackRunning={isPlaying}
                     analysisById={analysisById}
                     analysisErrorById={analysisErrorById}
                     contract={contract}
@@ -1601,22 +1570,6 @@ export function resolveWorkbenchSurfaceAfterCommitV3(input: Readonly<{
   });
 }
 
-function carryNewerWorkbenchSurfaceAcrossRestartV3(input: Readonly<{
-  submittedMutationRevision: number;
-  currentMutationRevision: number;
-  currentSurface: ExperimentSurfaceV2 | null;
-  pendingSurfaceRef: React.MutableRefObject<ExperimentSurfaceV2 | null>;
-}>): void {
-  if (!hasWorkbenchSurfaceMutationsAfterSubmissionV3(
-    input.submittedMutationRevision,
-    input.currentMutationRevision,
-  )) return;
-  if (input.currentSurface === null) {
-    throw new Error("Workbench newer Surface mutation is unavailable");
-  }
-  input.pendingSurfaceRef.current = input.currentSurface;
-}
-
 export function shouldPublishWorkbenchRootFrameV3(input: Readonly<{
   acceptedTimeSec: number;
   lastPublishedTimeSec: number;
@@ -1627,9 +1580,41 @@ export function shouldPublishWorkbenchRootFrameV3(input: Readonly<{
       >= WORKBENCH_ROOT_FRAME_INTERVAL_SEC_V3;
 }
 
+export function workbenchScenarioRuntimeStatusV3(
+  isPlaying: boolean,
+): "Live" | "Paused" {
+  return isPlaying ? "Live" : "Paused";
+}
+
+export function readNewerDurableWorkbenchWorkspaceV3<
+  T extends Pick<ExperimentWorkspaceV2, "draftVersion" | "experimentId">,
+>(input: Readonly<{
+  reader: Readonly<{ readWorkspace(experimentId: string): T | null }>;
+  experimentId: string;
+  current: T | null;
+}>): T | null {
+  let candidate: T | null;
+  try {
+    candidate = input.reader.readWorkspace(input.experimentId);
+  } catch {
+    return null;
+  }
+  if (candidate === null || candidate.experimentId !== input.experimentId) {
+    return null;
+  }
+  if (
+    input.current !== null
+    && (
+      candidate.experimentId !== input.current.experimentId
+      || candidate.draftVersion <= input.current.draftVersion
+    )
+  ) return null;
+  return candidate;
+}
+
 function GraphPaneBodyV3({
   activeScenarioId,
-  activeScenarioPlaying,
+  playbackRunning,
   analysisById,
   analysisErrorById,
   contract,
@@ -1642,7 +1627,7 @@ function GraphPaneBodyV3({
   scenarios,
 }: Readonly<{
   activeScenarioId: string | null;
-  activeScenarioPlaying: boolean;
+  playbackRunning: boolean;
   analysisById: Readonly<Record<string, StudioSimulationAnalysisV2>>;
   analysisErrorById: Readonly<Record<string, string>>;
   contract: ModelContractV2;
@@ -1675,7 +1660,7 @@ function GraphPaneBodyV3({
   return (
     <SampledGraphPaneBodyV3
       activeScenarioId={activeScenarioId}
-      activeScenarioPlaying={activeScenarioPlaying}
+      playbackRunning={playbackRunning}
       contract={contract}
       graph={graph}
       pane={pane}
@@ -1687,7 +1672,7 @@ function GraphPaneBodyV3({
 
 function SampledGraphPaneBodyV3({
   activeScenarioId,
-  activeScenarioPlaying,
+  playbackRunning,
   contract,
   graph,
   pane,
@@ -1695,7 +1680,7 @@ function SampledGraphPaneBodyV3({
   scenarios,
 }: Readonly<{
   activeScenarioId: string | null;
-  activeScenarioPlaying: boolean;
+  playbackRunning: boolean;
   contract: ModelContractV2;
   graph: Exclude<
     ModelContractV2["graphCatalog"][number],
@@ -1725,9 +1710,9 @@ function SampledGraphPaneBodyV3({
             return bindings.map(({ binding, series }) => ({
               scenarioId: scenario.scenarioId,
               scenarioLabel: scenario.label,
-              scenarioStatus: scenario.scenarioId === activeScenarioId
-                ? activeScenarioPlaying ? "Live" : "Paused"
-                : "Cached",
+              scenarioStatus: workbenchScenarioRuntimeStatusV3(
+                playbackRunning,
+              ),
               scenarioStyleIndex,
               samples,
               volumeOutputId: binding.volumeOutputId,
@@ -1771,9 +1756,9 @@ function SampledGraphPaneBodyV3({
           return bindings.map(({ binding, series }) => ({
             scenarioId: scenario.scenarioId,
             scenarioLabel: scenario.label,
-            scenarioStatus: scenario.scenarioId === activeScenarioId
-              ? activeScenarioPlaying ? "Live" : "Paused"
-              : "Cached",
+            scenarioStatus: workbenchScenarioRuntimeStatusV3(
+              playbackRunning,
+            ),
             scenarioStyleIndex,
             samples,
             outputId: binding.outputId,
@@ -2269,8 +2254,12 @@ function appendFramesV3(
     grouped.push(frame);
     framesByScenarioId.set(frame.scenarioId, grouped);
   }
-  for (const [scenarioId, scenarioFrames] of framesByScenarioId) {
-    const next = scenarioFrames.map((frame) => Object.freeze({
+  sampleStore.appendMany([...framesByScenarioId].map(([
+    scenarioId,
+    scenarioFrames,
+  ]) => ({
+    scenarioId,
+    samples: scenarioFrames.map((frame) => Object.freeze({
       acceptedTimeSec: frame.acceptedTimeSec,
       values: Object.freeze(Object.fromEntries(Object.entries(frame.outputs).map(
         ([outputId, output]) => [
@@ -2278,9 +2267,8 @@ function appendFramesV3(
           scalarAvailableOutputV3(output),
         ],
       ))),
-    }));
-    sampleStore.append(scenarioId, next);
-  }
+    })),
+  })));
 }
 
 function scalarAvailableOutputV3(
@@ -2345,13 +2333,6 @@ function controlStepPrecisionV3(step: number): number {
   const text = step.toString();
   if (text.includes("e-")) return Math.min(6, Number(text.split("e-")[1]));
   return Math.min(6, text.split(".")[1]?.length ?? 0);
-}
-
-function randomPortableTokenV3(): string {
-  if (typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.floor(Math.random() * 1_000_000_000)}`;
 }
 
 export default WorkbenchV3Page;
