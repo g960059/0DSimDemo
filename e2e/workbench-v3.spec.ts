@@ -76,7 +76,14 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   const playback = page.getByTestId("v3-playback-toggle");
   await playback.click();
   await expect(root).toHaveAttribute("data-playback", "paused");
-  await page.waitForTimeout(100);
+  // The pause intent is rendered immediately while the scheduler drains an
+  // already accepted presentation batch. Wait for that bounded drain rather
+  // than treating a slow shared runner's queued frame delivery as playback.
+  await expect.poll(async () => {
+    const beforeDrain = await modelTime(root);
+    await page.waitForTimeout(150);
+    return Math.abs((await modelTime(root)) - beforeDrain);
+  }, { timeout: 5_000 }).toBeLessThanOrEqual(0.02);
   const pausedAt = await modelTime(root);
   await page.waitForTimeout(800);
   expect(Math.abs((await modelTime(root)) - pausedAt)).toBeLessThanOrEqual(
