@@ -1083,11 +1083,13 @@ const WorkbenchV3Session = ({
         const structuralAnalysisIds = new Set(
           workbenchStructuralHistoryAnalysisIdsV3(surfaceRef.current, contract),
         );
-        // History is visual comparison context, not a second qualification run.
-        // Preserve the latest curve already shown for the old input epoch and
-        // let the control transition commit immediately from its exact
-        // checkpoint. Recomputing a full Starling sweep here would hold every
-        // live Scenario for tens of seconds before the slider visibly moved.
+        // History is visual comparison context, not a qualification result.
+        // Preserve the latest curve that was actually renderable for the old
+        // input epoch, including an accepted progressive preview. Requiring a
+        // fully exhausted adaptive sweep here makes the curve disappear on
+        // slower clients even though it was visible immediately before the
+        // control change. Recomputing a full sweep would also hold every live
+        // Scenario for tens of seconds before the slider visibly moved.
         const analysesToArchive = Object.freeze(
           Object.values(analysisByKeyRef.current).filter(
             (analysis) => {
@@ -1096,7 +1098,7 @@ const WorkbenchV3Session = ({
               return acceptedFrame !== undefined &&
                 structuralAnalysisIds.has(analysis.analysisId) &&
                 analysis.inputEpoch === acceptedFrame.inputEpoch &&
-                workbenchStructuralAnalysisCompleteV3(analysis);
+                workbenchStructuralAnalysisRenderableV3(analysis);
             },
           ),
         );
@@ -4010,6 +4012,14 @@ export function workbenchStructuralAnalysisCompleteV3(
         locus.completedPointCount === locus.totalPointCount)
     );
   });
+}
+
+export function workbenchStructuralAnalysisRenderableV3(
+  analysis: StudioSimulationAnalysisV2,
+): boolean {
+  return (["right", "left"] as const).every((side) =>
+    structuralReturnOrientationFromPayloadV3(analysis.payload, side) !== null
+  );
 }
 
 export function workbenchStructuralHistoryAnalysisIdsV3(

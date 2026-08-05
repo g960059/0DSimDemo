@@ -240,9 +240,9 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   ).toHaveCount(0);
   await page.getByRole("button", { name: "閉じる" }).click();
   await structuralTab.click();
-  // History intentionally retains only a complete prior analysis. Establish
-  // that precondition before mutating the fixture; progressive first paint was
-  // already asserted above and may still be converging on shared CI hardware.
+  // Let the source analysis finish when the runner permits it. History itself
+  // deliberately retains the last renderable preview, so a slower client does
+  // not lose the curve that was visible immediately before this mutation.
   await expect(structural).toHaveAttribute(
     "data-pending-scenario-count",
     "0",
@@ -263,7 +263,9 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
       exact: true,
     }),
   ).toBeVisible({ timeout: 20_000 });
-  await expect(structural).toHaveAttribute("data-history-count", "1");
+  await expect(structural).toHaveAttribute("data-history-count", "1", {
+    timeout: 20_000,
+  });
   await expect.poll(() => inputEpoch(page)).toBeGreaterThan(initialEpoch);
   const changedEpoch = await inputEpoch(page);
   expect(await modelTime(root)).toBeGreaterThanOrEqual(preControlTime);
