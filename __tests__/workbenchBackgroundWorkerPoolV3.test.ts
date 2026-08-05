@@ -75,9 +75,13 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
   });
 
   it("derives a conservative bounded budget from logical CPU count", () => {
-    expect(resolveWorkbenchBackgroundWorkerBudgetV3(2)).toEqual({
+    expect(resolveWorkbenchBackgroundWorkerBudgetV3(1)).toEqual({
       warmSize: 1,
       maxSize: 1,
+    });
+    expect(resolveWorkbenchBackgroundWorkerBudgetV3(2)).toEqual({
+      warmSize: 2,
+      maxSize: 2,
     });
     expect(resolveWorkbenchBackgroundWorkerBudgetV3(8)).toEqual({
       warmSize: 2,

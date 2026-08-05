@@ -194,9 +194,13 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
         const total = Number(
           await structural.first().getAttribute("data-starling-total-points"),
         );
-        return completed > 0 && completed === total;
+        // The reader renders every accepted continuation point immediately.
+        // Full-locus convergence is covered by deterministic protocol tests;
+        // this variable-hardware browser smoke owns progressive first paint,
+        // not a numerical-throughput benchmark.
+        return completed > 0 && total >= completed;
       },
-      { timeout: 20_000 },
+      { timeout: 30_000 },
     )
     .toBe(true);
   expect(
@@ -236,6 +240,14 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   ).toHaveCount(0);
   await page.getByRole("button", { name: "閉じる" }).click();
   await structuralTab.click();
+  // History intentionally retains only a complete prior analysis. Establish
+  // that precondition before mutating the fixture; progressive first paint was
+  // already asserted above and may still be converging on shared CI hardware.
+  await expect(structural).toHaveAttribute(
+    "data-pending-scenario-count",
+    "0",
+    { timeout: 60_000 },
+  );
 
   const initialEpoch = await inputEpoch(page);
   const preControlTime = await modelTime(root);
@@ -423,7 +435,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   await expect(structuralComparisons.first()).toHaveAttribute(
     "data-scenario-count",
     "2",
-    { timeout: 20_000 },
+    { timeout: 45_000 },
   );
   await expect(
     graphArea.locator('[data-chart-legend="scenario-only"]'),

@@ -160,7 +160,15 @@ export function resolveWorkbenchBackgroundWorkerBudgetV3(
   const logicalCores = Number.isFinite(hardwareConcurrency)
     ? Math.max(1, Math.floor(hardwareConcurrency))
     : 8;
-  const maxSize = Math.min(4, Math.max(1, Math.floor(logicalCores / 4)));
+  // Responsive Guyton / Starling and rapid PV analysis intentionally fork
+  // hypovolemic and hypervolemic continuation lanes. Keep both directions
+  // concurrent whenever the browser reports at least two logical cores;
+  // serializing them makes progressive analysis visibly stall on modest
+  // laptops and shared CI runners. The live Scenario lane remains separate
+  // and the global cap still prevents unbounded numerical Worker growth.
+  const maxSize = logicalCores === 1
+    ? 1
+    : Math.min(4, Math.max(2, Math.floor(logicalCores / 4)));
   return Object.freeze({
     warmSize: Math.min(2, maxSize),
     maxSize,
