@@ -2,10 +2,8 @@ import React from "react";
 import {
   AlertTriangle,
   ArrowRight,
-  BookOpenText,
-  Download,
   FlaskConical,
-  Home,
+  Play,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -13,29 +11,35 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import {
-  allocateOpaqueWorkbenchIdV3,
-  classifyWorkbenchAvailabilityV3,
-} from "@/studio/infrastructure/browser/StudioWorkbenchIdentityV3";
-import { articlesHref, experimentDetailHref, homeHref } from "@/homeLinks";
+  classifyExperimentAvailabilityV3,
+} from "@/studio/infrastructure/browser/StudioExperimentIdentityV3";
+import {
+  experimentDetailHref,
+  experimentSnapshotHref,
+  newExperimentHref,
+} from "@/homeLinks";
 import { isLocale, type Locale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
-import type { ExperimentWorkspaceV2 } from "@/studio/contracts/v2/content";
+import type { ExperimentV2 } from "@/studio/contracts/v2/content";
+import { StudioBrowserContentStoreV3 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
-  StudioBrowserContentStoreV3,
-  type StudioBrowserExperimentExportV3,
-} from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
-import {
-  studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+  StudioBrowserExperimentIndexV3,
+  type StudioBrowserExperimentRecordV3,
+} from "@/studio/infrastructure/browser/StudioBrowserExperimentIndexV3";
+
+type WorkbenchSelectorItemV3 = Readonly<{
+  record: StudioBrowserExperimentRecordV3;
+  experiment: ExperimentV2 | null;
+}>;
 
 type WorkbenchSelectorStateV3 =
   | Readonly<{ kind: "loading" }>
   | Readonly<{
       kind: "ready";
       currentModelId: string;
-      workspaces: readonly ExperimentWorkspaceV2[];
+      items: readonly WorkbenchSelectorItemV3[];
     }>
   | Readonly<{ kind: "error"; message: string }>;
 
@@ -45,6 +49,10 @@ export function WorkbenchSelectorV3Page() {
   const locale: Locale = isLocale(localeParam) ? localeParam : "ja";
   const navigate = useNavigate();
   const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
+  const experimentIndex = React.useMemo(
+    () => new StudioBrowserExperimentIndexV3(),
+    [],
+  );
   const [state, setState] = React.useState<WorkbenchSelectorStateV3>({
     kind: "loading",
   });
@@ -54,18 +62,53 @@ export function WorkbenchSelectorV3Page() {
     setState({ kind: "loading" });
     try {
       const composition = await loadStudioDefaultClientCompositionV2();
-      const workspaces = Object.freeze([...store.listWorkspaces()].sort(
-        (left, right) => left.experimentId.localeCompare(right.experimentId),
-      ));
+      const experiments = store.listExperiments();
+      const nowIso = new Date().toISOString();
+      for (const experiment of experiments) {
+        experimentIndex.ensure({
+          experimentId: experiment.experimentId,
+          title: experiment.content.scenarios[0]?.label
+            ?? t("workbench.selector.untitled"),
+          nowIso,
+        });
+      }
+      for (const record of experimentIndex.list()) {
+        if (!experiments.some((experiment) =>
+          experiment.experimentId === record.experimentId)) {
+          experimentIndex.delete(record.experimentId);
+          continue;
+        }
+        if (record.publishedSnapshotId === null) continue;
+        const published = store.readSnapshot(record.publishedSnapshotId);
+        if (
+          published === null
+          || published.kind !== "publication"
+        ) {
+          throw new Error(
+            `Experiment publication pointer is invalid: ${record.experimentId}`,
+          );
+        }
+      }
+      const experimentById = new Map(experiments.map((experiment) => [
+        experiment.experimentId,
+        experiment,
+      ]));
+      const items = Object.freeze(experiments
+        .map((experiment) => Object.freeze({
+          record: experimentIndex.read(experiment.experimentId)!,
+          experiment: experimentById.get(experiment.experimentId) ?? null,
+        }))
+        .sort((left, right) =>
+          right.record.updatedAt.localeCompare(left.record.updatedAt)));
       setState({
         kind: "ready",
         currentModelId: composition.defaultModelId,
-        workspaces,
+        items,
       });
     } catch (error) {
       setState({ kind: "error", message: errorMessageV3(error) });
     }
-  }, [store]);
+  }, [experimentIndex, store, t]);
 
   React.useEffect(() => {
     void loadSelector();
@@ -74,71 +117,39 @@ export function WorkbenchSelectorV3Page() {
   const startLatestWorkbench = React.useCallback(() => {
     if (state.kind !== "ready") return;
     setActionError(null);
-    try {
-      const experimentId = allocateOpaqueWorkbenchIdV3(
-        state.workspaces.map(({ experimentId }) => experimentId),
-      );
-      navigate(experimentDetailHref({ experimentId, locale }));
-    } catch (error) {
-      setActionError(errorMessageV3(error));
-    }
+    navigate(newExperimentHref(locale));
   }, [locale, navigate, state]);
-
-  const exportWorkbench = React.useCallback((experimentId: string) => {
-    setActionError(null);
-    try {
-      downloadWorkbenchExportV3(store.exportExperiment(experimentId));
-    } catch (error) {
-      setActionError(errorMessageV3(error));
-    }
-  }, [store]);
 
   const deleteWorkbench = React.useCallback((experimentId: string) => {
     if (!window.confirm(t("workbench.selector.deleteConfirm"))) return;
     setActionError(null);
     try {
       store.deleteExperiment(experimentId);
+      experimentIndex.delete(experimentId);
       void loadSelector();
     } catch (error) {
       setActionError(errorMessageV3(error));
     }
-  }, [loadSelector, store, t]);
+  }, [experimentIndex, loadSelector, store, t]);
 
   return (
     <div
       className="h-full overflow-y-auto bg-wb-app text-wb-text"
       data-testid="workbench-selector-v3"
     >
-      <header className="sticky top-0 z-10 flex min-h-12 items-center justify-between gap-3 border-b border-wb-line bg-wb-panel px-3 py-1.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <Link
-            to={homeHref(locale)}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-wb-muted hover:bg-wb-hover hover:text-wb-text"
-            aria-label={t("workbench.editor.home")}
-          >
-            <Home className="h-4 w-4" aria-hidden="true" />
-          </Link>
-          <h1 className="truncate text-sm font-bold">
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-wb-accent">
+            {t("workbench.selector.eyebrow")}
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">
             {t("workbench.selector.title")}
           </h1>
         </div>
-        <Link
-          to={articlesHref(locale)}
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text"
-        >
-          <BookOpenText className="h-3.5 w-3.5" aria-hidden="true" />
-          {t("workbench.editor.articles")}
-        </Link>
-      </header>
-
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6">
         <section className="rounded-2xl border border-wb-line bg-wb-panel p-5 shadow-sm sm:p-7">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-wb-accent">
-                {t("workbench.selector.eyebrow")}
-              </p>
-              <h2 className="mt-2 text-xl font-bold">
+              <h2 className="text-xl font-bold">
                 {t("workbench.selector.newTitle")}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-wb-muted">
@@ -175,7 +186,7 @@ export function WorkbenchSelectorV3Page() {
             {state.kind === "ready" && (
               <span className="text-xs text-wb-subtle">
                 {t("workbench.selector.savedCount", {
-                  count: state.workspaces.length,
+                  count: state.items.length,
                 })}
               </span>
             )}
@@ -199,7 +210,7 @@ export function WorkbenchSelectorV3Page() {
               </button>
             </div>
           )}
-          {state.kind === "ready" && state.workspaces.length === 0 && (
+          {state.kind === "ready" && state.items.length === 0 && (
             <div className="rounded-xl border border-dashed border-wb-line bg-wb-panel p-8 text-center">
               <FlaskConical className="mx-auto h-6 w-6 text-wb-subtle" aria-hidden="true" />
               <p className="mt-3 text-sm font-bold">
@@ -210,73 +221,96 @@ export function WorkbenchSelectorV3Page() {
               </p>
             </div>
           )}
-          {state.kind === "ready" && state.workspaces.length > 0 && (
-            <ul className="grid gap-3">
-              {state.workspaces.map((workspace) => {
-                const availability = classifyWorkbenchAvailabilityV3(
-                  workspace.content.modelId,
-                  state.currentModelId,
-                );
+          {state.kind === "ready" && state.items.length > 0 && (
+            <ul className="divide-y divide-wb-line/80 border-y border-wb-line/80">
+              {state.items.map(({ record, experiment }) => {
+                const availability = experiment === null
+                  ? "available"
+                  : classifyExperimentAvailabilityV3(
+                    experiment.content.modelId,
+                    state.currentModelId,
+                  );
+                const publishedSnapshot = record.publishedSnapshotId === null
+                  ? null
+                  : store.readSnapshot(record.publishedSnapshotId);
                 return (
                   <li
-                    key={workspace.experimentId}
-                    className="rounded-xl border border-wb-line bg-wb-panel p-4"
+                    key={record.experimentId}
+                    className="group flex min-h-16 items-center gap-3 px-1 py-3 sm:px-2"
                   >
-                    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          {availability === "unavailable-model" && (
-                            <AlertTriangle className="h-4 w-4 shrink-0 text-wb-warning" aria-hidden="true" />
-                          )}
-                          <p className="truncate text-sm font-bold">
-                            {workspace.content.scenarios[0]?.label
-                              ?? t("workbench.selector.untitled")}
-                          </p>
-                        </div>
-                        <p className="mt-1 truncate font-mono text-[11px] text-wb-subtle">
-                          {workspace.experimentId}
-                        </p>
-                        <p className="mt-1 truncate font-mono text-[11px] text-wb-muted">
-                          {workspace.content.modelId}
-                        </p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
                         {availability === "unavailable-model" && (
-                          <p className="mt-2 text-xs text-wb-warning">
-                            {t("workbench.selector.unavailable")}
-                          </p>
+                          <AlertTriangle
+                            className="h-3.5 w-3.5 shrink-0 text-wb-warning"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <p className="truncate text-sm font-semibold tracking-tight">
+                          {record.title}
+                        </p>
+                      </div>
+                      <div className="mt-1 flex min-w-0 items-center gap-2 text-[11px] text-wb-subtle">
+                        <span className={record.publishedSnapshotId === null
+                          ? "text-wb-muted"
+                          : "text-wb-accent"}
+                        >
+                          {record.publishedSnapshotId === null
+                            ? t("workbench.selector.statusDraft")
+                            : t("workbench.selector.statusPublished")}
+                        </span>
+                        <span aria-hidden="true">·</span>
+                        <time dateTime={record.updatedAt}>
+                          {formatExperimentUpdatedAtV3(record.updatedAt, locale)}
+                        </time>
+                        {availability === "unavailable-model" && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span className="truncate text-wb-warning">
+                              {t("workbench.selector.unavailable")}
+                            </span>
+                          </>
                         )}
                       </div>
-                      <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => exportWorkbench(workspace.experimentId)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted hover:bg-wb-hover hover:text-wb-text"
-                          aria-label={t("workbench.selector.export")}
-                          title={t("workbench.selector.export")}
-                        >
-                          <Download className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteWorkbench(workspace.experimentId)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted hover:bg-wb-danger-soft hover:text-wb-danger"
-                          aria-label={t("workbench.selector.delete")}
-                          title={t("workbench.selector.delete")}
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <Link
+                        to={experimentDetailHref({
+                          experimentId: record.experimentId,
+                          locale,
+                        })}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                        aria-label={availability === "available"
+                          ? t("workbench.selector.open")
+                          : t("workbench.selector.inspect")}
+                        title={availability === "available"
+                          ? t("workbench.selector.open")
+                          : t("workbench.selector.inspect")}
+                      >
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                      {publishedSnapshot !== null && (
                         <Link
-                          to={experimentDetailHref({
-                            experimentId: workspace.experimentId,
+                          to={experimentSnapshotHref({
                             locale,
+                            snapshotId: publishedSnapshot.snapshotId,
                           })}
-                          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-wb-line bg-wb-soft px-3 text-xs font-bold hover:bg-wb-hover"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-accent active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                          aria-label={t("workbench.selector.openPublished")}
+                          title={t("workbench.selector.openPublished")}
                         >
-                          {availability === "available"
-                            ? t("workbench.selector.open")
-                            : t("workbench.selector.inspect")}
-                          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                          <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
                         </Link>
-                      </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => deleteWorkbench(record.experimentId)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-danger-soft hover:text-wb-danger active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-danger"
+                        aria-label={t("workbench.selector.delete")}
+                        title={t("workbench.selector.delete")}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
                     </div>
                   </li>
                 );
@@ -289,18 +323,12 @@ export function WorkbenchSelectorV3Page() {
   );
 }
 
-function downloadWorkbenchExportV3(
-  exported: StudioBrowserExperimentExportV3,
-): void {
-  const blob = new Blob([studioCanonicalJsonStringify(exported)], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `${exported.workspace.experimentId}.json`;
-  anchor.click();
-  URL.revokeObjectURL(url);
+function formatExperimentUpdatedAtV3(value: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
 }
 
 function errorMessageV3(error: unknown): string {

@@ -97,6 +97,93 @@ describe("MainWireIntegratedModelSessionV3", () => {
     )).toBeLessThan(1e-8);
   }, 120_000);
 
+  it("warm-starts vascular inputs from the exact accepted boundary", async () => {
+    const session = await MainWireIntegratedModelSessionV3.create();
+    advanceSessionThroughOrdinal(session, 500);
+    const source = session.currentAcceptedState();
+    const warmed = await session.warmStartWithHemodynamicResearchInputs(
+      Object.freeze({
+        ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+        systemicResistance: 1.1,
+      }),
+    );
+    const accepted = warmed.currentAcceptedState();
+
+    expect(accepted).not.toBe(source);
+    expect(accepted.revision).toBe(source.revision);
+    expect(accepted.acceptedTimeSec).toBe(source.acceptedTimeSec);
+    expect(accepted.coronary).toBe(source.coronary);
+    expect(accepted.composedRhythm).toBe(source.composedRhythm);
+    expect(accepted.dynamicMechanicalSupport)
+      .toBe(source.dynamicMechanicalSupport);
+    expect(warmed.observe()).toMatchObject({
+      source: "hemodynamic-input-warm-start",
+      lastAcceptedStep: null,
+    });
+
+    const advanced = warmed.advanceToPresentationTime(
+      source.acceptedTimeSec
+        + mainWireIntegratedModelPresentationTargetTimeSecV3(1),
+    );
+    expect(advanced.status).toBe("advanced");
+    if (advanced.status !== "advanced") {
+      throw new Error(unexpectedAdvanceStatus(advanced));
+    }
+    expect(advanced.acceptedRevision).toBeGreaterThan(source.revision);
+    expect(advanced.acceptedTimeSec).toBe(source.acceptedTimeSec + 0.002);
+  }, 120_000);
+
+  it("warm-starts HR and TBV, preserves phase, and round-trips its checkpoint", async () => {
+    const session = await MainWireIntegratedModelSessionV3.create();
+    advanceSessionThroughOrdinal(session, 500);
+    const source = session.currentAcceptedState();
+    const sourceRegular = source.composedRhythm.regularAtrialSourceState;
+    if (sourceRegular === null) throw new Error("regular source is absent");
+    const sourceRemainingSec = sourceRegular.nextActivationTimeSec
+      - source.acceptedTimeSec;
+    const inputs = Object.freeze({
+      ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      heartRateBpm: 75,
+      totalBloodVolumeMl: 6_000,
+    });
+    const warmed = await session.warmStartWithHemodynamicResearchInputs(inputs);
+    const accepted = warmed.currentAcceptedState();
+    const targetRegular = accepted.composedRhythm.regularAtrialSourceState;
+    if (targetRegular === null) throw new Error("rebound source is absent");
+
+    expect(accepted.revision).toBe(source.revision);
+    expect(accepted.acceptedTimeSec).toBe(source.acceptedTimeSec);
+    expect(accepted.coronary.fixedGlobalTotalBloodVolumeMl).toBe(6_000);
+    expect(accepted.coronary.mechanics).toBe(source.coronary.mechanics);
+    expect(accepted.coronary.coronary).toBe(source.coronary.coronary);
+    expect(targetRegular.nextActivationTimeSec - accepted.acceptedTimeSec)
+      .toBeCloseTo(sourceRemainingSec * 0.8, 12);
+    expect(accepted.coronary.coronaryAutoregulationBinding.windowPolicy)
+      .toMatchObject({
+        originAcceptedTimeSec: source.acceptedTimeSec,
+        durationSec: 0.8,
+      });
+    expect(accepted.coronary.coronaryAutoregulation).toMatchObject({
+      windowIndex: 0,
+      windowStartAcceptedTimeSec: source.acceptedTimeSec,
+      windowStartRevision: source.revision,
+      acceptedDurationSec: 0,
+      acceptedStepCount: 0,
+    });
+
+    const checkpoint = await warmed.checkpointOperational();
+    const restored = await MainWireIntegratedModelSessionV3
+      .restoreOperationalCheckpoint(checkpoint, inputs);
+    expect(restored.currentAcceptedState()).toEqual(accepted);
+    expect(canonicalJsonStringify(await restored.checkpointOperational()))
+      .toBe(canonicalJsonStringify(checkpoint));
+
+    const advanced = warmed.advanceToPresentationTime(
+      source.acceptedTimeSec + 0.002,
+    );
+    expect(advanced.status).toBe("advanced");
+  }, 120_000);
+
   it("T-A2/T6/T12 — emits one ordinal sample across the 0.8125 s rhythm boundary", async () => {
     const session = await MainWireIntegratedModelSessionV3.create();
     const emittedSamples: Advanced[] = [];
@@ -177,8 +264,8 @@ describe("MainWireIntegratedModelSessionV3", () => {
     );
     expect(boundaryCheckpoint).toMatchObject({
       checkpointId:
-        "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v4",
-      schemaVersion: 4,
+        "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v5",
+      schemaVersion: 5,
       hemodynamicResearchInputIdentitySha256:
         expect.stringMatching(/^[0-9a-f]{64}$/),
     });

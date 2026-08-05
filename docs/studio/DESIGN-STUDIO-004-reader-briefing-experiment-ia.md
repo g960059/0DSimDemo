@@ -1,417 +1,536 @@
 # CircleHeart Studio — Reader, Briefing, and Experiment IA
 
-Status: active product-IA companion; target contract with implementation status
+Status: authoritative pre-release product and Article contract
 
-Date: 2026-08-02
+Date: 2026-08-05
 
-Decision: Experiment is an Article-independent root; an Article Placement pins
-one immutable Experiment Snapshot and owns its audience-specific Briefing
+Decision: Articles place immutable Article Snapshots. Each Article Snapshot
+contains both complete Experiment content and the exact Briefing authored for
+that use. Placement owns only article position and caption.
 
-This document is the active companion to
-`DESIGN-STUDIO-003-experiment-data-architecture.md`. DESIGN-STUDIO-003 remains
-authoritative for exact model identity, fixture/checkpoint capture, Workspace,
-Snapshot, lineage, and persistence. This document owns product navigation,
-Article/Experiment relationships, Briefing semantics, and responsive Reader
-presentation.
+This document is the companion to
+`DESIGN-STUDIO-003-experiment-data-architecture.md`. It does not restore a
+Working Set entity, detached Reader Brief, manual display-mode field,
+certification hierarchy, or Snapshot lineage.
 
-It does not revive DESIGN-STUDIO-002. In particular, it does not restore a
-durable Working Set, independently versioned Reader Brief, manual
-`inflow | peek | fullscreen` field, certification-artifact hierarchy, or
-command-log architecture.
+## 1. Audience and top-level IA
 
-## 1. Audience and product entry points
+CircleHeart serves three overlapping groups:
 
-CircleHeart must serve three overlapping groups without creating three
-incompatible products:
+- beginners, including early residents and medical engineers, who need guided
+  explanation and deliberately constrained controls;
+- experienced clinicians, who often want a standalone interactive laboratory;
+  and
+- haemodynamics researchers, who need raw parameters, scientifically meaningful
+  model disclosure, richer comparisons, and reproducible immutable captures.
 
-- beginners, including early residents and medical engineers, who benefit from
-  guided explanation and a small, deliberately selected interactive surface;
-- experienced clinicians, including cardiology and anaesthesia trainees and
-  specialists, who may open an Experiment directly without an Article; and
-- haemodynamics researchers, who need exact model/Snapshot disclosure, richer
-  comparisons, and export, but should still use the same Experiment identity.
-
-The top-level IA therefore has two content entry points, with progressive
-disclosure inside each:
+The product has two entry points, not three role-specific products:
 
 ```text
-Learn / Articles
-  guided narrative + audience-specific Experiment Placements
+Articles
+  narrative + purpose-built Article Snapshots
 
 Experiments
-  direct standalone Workbench + Scenario Manager + full authored Surface
+  explicitly saved laboratories opened in Workbench
 ```
 
-Research features are advanced Experiment capabilities, not a third data root.
-No user must declare a role before opening content.
+Progressive disclosure happens inside the same UI. Beginners see authored
+controls and concise outputs; advanced users can open catalogs, human-facing
+model information, raw parameters, formal analyses, and full Snapshot content.
 
-## 2. Ownership and sharing
+An Experiment never requires or auto-creates an Article. A clinician may use
+Workbench indefinitely with no Briefing. An Article may create five disposable
+Sessions and five Article Snapshots without adding five Experiments to the
+author’s library.
 
-The ownership graph is:
+### 1.1 Site shell and task shell
+
+Discovery pages share one stable, deliberately small site header:
 
 ```text
-Experiment (independent mutable authoring series)
-  └─ 0..N ExperimentSnapshots (immutable)
-          ↑
-          │ pinned by
-          │
-Article ──┴─ 0..N ExperimentPlacements
-                    └─ one Placement-owned Briefing
+anonymous      CircleHeart      locale · theme · Start simulation · Login
+authenticated  CircleHeart               theme · Create ▾ · account
+```
+
+The wordmark returns Home. For an anonymous visitor, `Start simulation` opens
+the identity-less `/experiments/new` Session directly. An authenticated author
+instead sees one familiar `Create` menu with `New simulation` and `New article`.
+Anonymous visitors see the compact locale switch and Login; authenticated
+users do not see locale in the header and change it under Account settings.
+The account menu owns My Simulations and My Articles.
+
+Architecture names remain `Experiment`, `ExperimentSession`, and Article.
+Product copy deliberately presents an Experiment as a **simulation**. “Case”
+is a content subtype rather than the umbrella name because mechanism studies,
+device comparisons, and research parameter sweeps are not necessarily patient
+cases. “Article” remains the umbrella publishing term; lesson, case review, and
+research note may later be article categories.
+
+Home, public directories, Article Reader, and account-management pages use
+this Global Shell. Article Editor, ExperimentSession, and Snapshot inspection
+use their own contextual task chrome and never stack a second global header.
+Mobile does not add a duplicate bottom navigation bar.
+
+Home is the discovery hub: it presents a small curated/public subset of
+Experiments and Articles, with explicit “more” links to the complete public
+directories. Public discovery never shares a route or list with private Draft
+management.
+
+## 2. Ownership graph
+
+```text
+ExperimentSession
+  ├─ explicit Save ─────────────→ Experiment
+  ├─ Save, then Publish ────────→ PublicationSnapshot
+  └─ Brief for Article ─────────→ ArticleSnapshot(content + briefing)
+
+Article
+  └─ blocks[]
+       └─ ExperimentPlacement
+            ├─ snapshotId ──────→ ArticleSnapshot
+            └─ caption
 ```
 
 The consequences are normative:
 
-1. Creating or directly opening an Experiment never creates an Article.
-2. An Experiment remains useful with no Article.
-3. One Article may place several Experiments or several Snapshots of one
-   Experiment.
-4. The same Snapshot may appear repeatedly in one or many Articles, each time
-   with an independent Placement ID and Briefing.
-5. Briefing edits never mutate the Experiment Workspace or pinned Snapshot.
-6. A later Experiment Snapshot never changes an existing Placement. Updating a
-   Placement to a newer Snapshot is explicit.
-7. Article membership is derived by indexing Placements. Experiment does not
-   carry an `articleIds` array.
-8. Deleting an Article never deletes an Experiment or Snapshot. A referenced
-   Snapshot remains retained even if its mutable Workspace is later archived.
+1. Experiment, Snapshot, and Article lifecycles are independent.
+2. Article Snapshot creation does not require an Experiment Save.
+3. Briefing is not an Article field, Placement field, Session handoff record,
+   or reusable template. It is nested in the immutable Article Snapshot.
+4. Placement cannot pair one Snapshot with a different Briefing.
+5. Changing any Briefing choice creates a new Article Snapshot.
+6. Later Session/Experiment changes cannot alter an existing Article.
+7. Deleting an Experiment never invalidates a retained Snapshot or Article.
+8. Experiment does not carry `articleIds`; backlinks are derived by indexing
+   Article Placements.
 
-The Experiment header separates global navigation from relationships:
+The same Article Snapshot may be placed more than once only with the same
+captured projection. A new audience angle, label, binding, graph selection, or
+window is a new Article Snapshot, even when the underlying numerical content
+is otherwise identical.
 
-- `Articles` opens the Article library;
-- `Use in article…` explicitly creates or selects a target Article and inserts
-  a pinned Snapshot;
-- `Used in N articles` opens backlinks derived from Placements.
-
-The word *Workbench* names the full Experiment authoring surface. It is not the
-durable resource identity and should not own the canonical URL.
-
-## 3. Surface and Briefing responsibilities
-
-The Experiment Surface is the reusable full laboratory configuration. It owns
-Scenario captures, custom graph panes, selected output/control items, the
-standalone default composition, and the Experiment note.
-
-A Briefing is a pure, Placement-owned projection of one pinned Surface for one
-article context. It answers four separate questions:
-
-1. which Scenarios are visible;
-2. which visible Scenario initially has focus;
-3. which graph, output, and control content is present; and
-4. which binding and Scenario scope each published control targets.
-
-Visibility, focus, and control targets are not aliases:
-
-- `scenarioScope.visibleScenarioIds` controls graph comparison and available
-  output context;
-- `scenarioScope.initialFocusScenarioId` is the initial neutral output context;
-- every control has an explicit binding. Pickup defaults to a fixed Scenario
-  set; following reader focus is a separate explicit opt-in.
-
-Every focused, allowed, or fixed-target Scenario must be visible. A present
-Briefing has a nonempty visible set and exactly one initial focus Scenario.
-Graphs render the visible comparison set. Neutral output values use reader
-focus; changing that focus does not retarget a fixed control.
-
-### 3.1 Role-specific projection
-
-Graphs, outputs, and controls have different authoring needs and are not forced
-through one generic pane-pick shape:
+## 3. Minimal Placement, inseparable Briefing
 
 ```ts
-type ExperimentPlacementBriefing = {
-  scenarioScope: {
-    visibleScenarioIds: string[];
+type ExperimentPlacement = Readonly<{
+  schemaId: "circleheart-studio-experiment-placement-v2";
+  placementId: string;
+  snapshotId: string;
+  titleOverride: string | null;
+  caption: string | null;
+}>;
+
+type ArticleExperimentSnapshot = Readonly<{
+  kind: "article";
+  snapshotId: string;
+  content: ExperimentContent;
+  briefing: ExperimentPlacementBriefing;
+  createdAt: string;
+}>;
+```
+
+Placement is intentionally article-owned and small. Reordering a block,
+changing its caption, or changing its display title does not manufacture a new
+scientific artifact. Changing what the Reader can see or control does, because
+that projection is captured with the exact executable content.
+
+`PublicationSnapshot` cannot be placed directly in an Article. An author may
+open it in a disposable Session, compose a Briefing, and capture a new Article
+Snapshot.
+
+## 4. Briefing contract
+
+Briefing answers five distinct questions:
+
+1. which authoring-time Experiment title is the default Placement title;
+2. which Scenarios the Reader may see;
+3. which Scenario initially owns Reader focus;
+4. which graph panes and output/control items are present; and
+5. which exact Scenario each output and each published control targets.
+
+```ts
+type ExperimentPlacementBriefing = Readonly<{
+  defaultTitle: string;
+  scenarioScope: Readonly<{
+    visibleScenarioIds: readonly string[];
     initialFocusScenarioId: string;
-  };
-  graphs: GraphBriefing[];
-  outputs: OutputBriefingItem[];
-  controls: ControlBriefingControl[];
-};
-
-type GraphBriefing = {
-  paneId: string;
-  order: number;
-  emphasis: "primary" | "supporting";
-  overrides?: {
-    label?: string;
-    legend?: "auto" | "hidden" | "compact" | "full";
-    series?: Array<{
-      seriesId: string;
-      label: string;
-      colorHex: string;
-      order: number;
-    }>;
-    windowSec?: number;
-    historyDepth?: number;
-  };
-};
-
-type OutputBriefingItem = {
-  outputId: string;
-  label: string;
-  order: number;
-};
-
-type ControlBriefingControl = {
-  controlId: string;
-  label: string;
-  order: number;
-  presentation:
-    | { kind: "slider" }
-    | {
-        kind: "buttons";
-        options: Array<{ label: string; value: number }>;
-      };
-  binding:
-    | {
-        mode: "fixed";
-        scenarioIds: string[];
-        application: "absolute";
-      }
-    | {
-        mode: "reader-focus";
-        allowedScenarioIds: string[];
-      };
-};
+  }>;
+  graphs: readonly GraphBriefing[];
+  outputs: readonly OutputBriefingItem[];
+  controls: readonly ControlBriefingControl[];
+}>;
 ```
 
-This is a semantic sketch, not permission for arbitrary renderer JSON.
+Visible scope, focus, output binding, and control binding are not aliases.
+Every focused, allowed, or fixed-target Scenario must be in
+`visibleScenarioIds`.
 
-- A graph entry selects a custom graph pane already present in the pinned
-  Snapshot. It may narrow that pane and override article-local labels, legend
-  colors, sweep window, or structural history only within the registered graph
-  contract and Studio bounds.
-- Output entries select output items already admitted to the Snapshot Surface.
-  Their only article-local presentation override is the label.
-- Control entries select controls already admitted to the Snapshot Surface.
-  They may change the label and choose a slider or an allowlisted button map.
-  Every button value must pass the registered control range/lattice rules.
-- Output and control content remains color-neutral. Graph series alone own
-  semantic color.
-- Control order is durable. Pixel divider positions and Dockview geometry are
-  not.
+### 4.1 Graph pickup
 
-When authoring in the standalone Workbench, a controller may target the active
-Scenario slot or an explicitly selected Scenario set. Pickup into a Briefing
-resolves that ephemeral active slot to a `fixed` binding by default. An author
-may explicitly choose `reader-focus`, limited to an allowlisted visible Scenario
-set, when focus-following behavior is the pedagogical intent. It is never an
-implicit consequence of changing focus.
+A graph entry selects one complete custom graph pane from the captured
+Surface. It may contain article-specific, allowlisted overrides:
 
-An independent `BriefingTemplate` is not a V1 domain root. Authors may duplicate
-a Placement or copy its Briefing. A reusable template can be introduced later
-only if repeated cross-Article authoring demonstrates a lifecycle that cannot
-be served by copy-on-place.
+- label and legend density;
+- series narrowing and labels;
+- exact `(scenarioId, seriesId)` colors;
+- waveform window; and
+- PV/structural history depth.
 
-## 4. Briefing authoring flow
+Graph pickup preserves the source pane’s renderer, Scenario scope, trace
+exclusions, structural side, and analysis semantics. It does not accept
+arbitrary renderer JSON.
 
-The Article owns the final Briefing. The Workbench right drawer is a convenient
-composer and handoff, not a second durable Briefing owner:
+At seal time, the Reader graph is defined as:
 
 ```text
-standalone Experiment Workbench
-  → compose article projection in right drawer
-  → Save current Experiment
-  → create minimum-gated immutable Snapshot
-  → choose or create target Article explicitly
-  → insert Placement(snapshotId, copied Briefing)
-  → continue editing the Placement in Article Editor
+effective Reader graph
+  = exact graph pane captured in Article Snapshot content
+  + allowlisted Briefing overrides captured in the same Article Snapshot
 ```
 
-The Workbench drawer reuses the same role-specific Briefing editor as Article
-Editor. Before an exact Snapshot exists, it supplies that editor with a
-synthetic Snapshot-shaped adapter containing only current Scenario IDs/labels
-and the current Surface. Its placeholder capture is non-executable,
-non-qualifiable, non-persistent, and must never be handed off. At Snapshot
-creation, the complete Briefing is reconciled and validated again against the
-newly created immutable Snapshot before the session-only handoff is written.
-Only `null` means “not initialized”; explicit empty graph/output/control arrays
-remain intentional author choices.
+That one effective graph is consumed by the same registered renderer and the
+same Canvas implementation in Inflow, Peek, and Fullscreen. Presentation
+extent may change available pixels, but it must not substitute a simplified
+graph definition. In particular, selected series and labels, exact trace
+colors, Scenario exclusions, waveform window, history depth, structural side,
+and PV analysis mode (including ESPVR/EDPVR policy) remain identical.
 
-If the author enters from an Article, `Edit in Experiment` opens the pinned
-Snapshot as an exact view or an explicit fork. It never opens a mutable head and
-pretends that edits update the Article automatically.
+One graph pane keeps one pane-level Scenario binding. Fine-grained sparse
+comparison uses exact trace exclusions; authors are not forced to configure a
+binding for every item.
 
-Article Editor should preview both desktop and mobile composition. Validation
-rejects unknown Snapshot, Scenario, pane, output, control, or series IDs;
-duplicate IDs; hidden control targets; invalid graph settings; and invalid
-button values or control bindings. The portable content boundary can prove that
-button values are finite and unique. The contract-aware authoring and Reader
-layers additionally enforce the pinned exact model's range and lattice; when
-that exact contract is unavailable, button-value authoring and execution are
-disabled rather than guessed.
+### 4.2 Output pickup
 
-## 5. Reader presentation
+Outputs are selected as individual items already present in one captured
+Output pane. A picked output copies its `sourcePaneId`, `outputId`, label,
+order, and concrete `scenarioId`. If the source pane uses `active-slot`, the
+current Scenario is materialized at pickup/seal time. A later Scenario Manager
+selection cannot silently retarget the Article output.
 
-Presentation extent is derived from:
+Output presentation remains color-neutral. The same metric may be picked from
+multiple fixed panes to present an explicit Scenario comparison; each entry
+keeps its Scenario identity instead of relying on color or Reader focus. This
+also keeps Output and Controller authoring consistent: one source pane owns one
+binding, while Briefing freezes that binding by value.
+
+### 4.3 Control pickup
+
+Controls are selected from an existing controller pane. A picked control
+copies by value:
+
+- source pane and control identity;
+- label and order;
+- slider or allowlisted button presentation; and
+- materialized Scenario binding.
+
+Workbench `active-slot` becomes the actual fixed Scenario identity at capture
+time. A later Scenario Manager selection cannot silently retarget an Article
+control. `reader-focus` is an explicit author option constrained to visible
+Scenarios; it is never inferred.
+
+Button values must satisfy the exact model control range and lattice. Missing
+exact-model contracts disable editing/execution instead of guessing.
+
+## 5. Authoring flows
+
+### 5.1 From a saved Experiment
 
 ```text
-pinned Snapshot Surface
-+ Placement-owned Briefing
+open Experiment in Workbench
+  → optionally edit the Session
+  → open Briefing composer
+  → pick Scenario scope, graphs, outputs, and controls
+  → capture minimum-gated Article Snapshot(content + briefing)
+  → return to Article Editor
+  → insert Placement(snapshotId, caption)
+  → save Article
+```
+
+The Experiment need not be saved again. Capturing the Article Snapshot does
+not change its version.
+
+### 5.2 Directly from Article Editor
+
+```text
+insert Experiment block
+  → save Article Draft and remember exact block boundary in session storage
+  → mint an ephemeral sessionToken
+  → open /experiments/new as a disposable ExperimentSession
+  → compose/run the Experiment and Briefing
+  → capture Article Snapshot
+  → return and insert Placement at the remembered boundary
+```
+
+This flow creates no My Experiments item unless the author separately presses
+Save in Workbench. Losing or cancelling the transient return handoff creates
+no inferred Placement and no Experiment.
+
+The handoff is correlated by `sessionToken`, never by a prospective
+`experimentId`, and carries navigation intent only. It does not carry a
+detached Briefing: the completed Article Snapshot already contains the durable
+Briefing. After return, the completed handoff remains in session storage until
+the Article itself is saved. Reloading before Article Save therefore restores
+the same exact Placement instead of losing it; confirmed discard clears it.
+
+### 5.3 Edit an embedded Snapshot
+
+Article Snapshot is immutable. “Open in Workbench” creates a disposable
+Session from its content and preloads its Briefing as an authoring starting
+point. The author may:
+
+- capture a new Article Snapshot and replace/insert a Placement;
+- explicitly Save a new Experiment and optionally publish it; or
+- leave without persistence.
+
+There is no direct Snapshot update and no parent/source Snapshot pointer.
+
+## 6. Briefing composer IA
+
+The Brief action appears only with explicit Article context: an Article-origin
+handoff, an Article Snapshot edit, or a deliberate “Use in article” action.
+Standalone Workbench omits it so clinical users are not shown irrelevant
+publishing concepts.
+
+The composer is a right push drawer, not an overlay. It reduces the Workbench
+canvas width, slides in from the right, and slides out toward the right. Motion
+uses only transform/opacity, respects reduced motion, and stays short enough to
+preserve direct manipulation.
+
+The composer freezes the source projection it opened against. While open,
+later active-Scenario, pane-binding, or pane-membership changes do not silently
+retarget the in-progress Briefing. The author explicitly closes/reopens or
+recaptures, then creates a new immutable Article Snapshot.
+
+The frozen Surface, rather than the later live Surface, is supplied to Article
+Snapshot capture. If Scenario membership, order, or labels change while the
+drawer is open, capture fails visibly and asks the author to reopen the
+composer. Opening moves focus to the drawer close action; closing immediately
+makes the exiting drawer inert and restores focus to its opener.
+
+Surface and Briefing mutation revisions are checked again after asynchronous
+qualification and before persistence. An edit made after capture starts never
+gets cleared or lost by the Article return handoff; the author remains in the
+Workbench and retries from the newer projection.
+
+Pressing the capture action begins a short **Briefing seal**. The frozen
+Briefing editor, close action, and repeated capture action are inert until that
+seal succeeds or fails. Numerical qualification runs from an on-demand exact
+fork in the shared background Worker pool while live graphs resume immediately.
+This avoids a late Scenario-focus or binding edit changing the artifact being
+committed, without keeping the composer locked before the author explicitly
+requests capture.
+
+Article seal uses the exact model's numerical-safety profile, not its
+Publication settlement profile. It restores the atomic click-time capture and
+runs one complete verification cycle. The saved Article Snapshot retains that
+click-time checkpoint and makes no settlement claim. Publication remains the
+strict period-1-settled path.
+
+There is no “Save Briefing” command. The capture action persists the Briefing
+inside an Article Snapshot; saving the Article persists its Placement.
+
+## 7. Article Editor IA
+
+Article authoring uses one Notion-like ordered block document:
+
+- paragraph, heading, and Experiment blocks share one flow;
+- a quiet left gutter owns insert and drag handles;
+- Enter splits text; Backspace removes an empty block;
+- `/` in an empty block opens insertion; and
+- block chrome appears on hover/focus, not during ordinary reading.
+
+The Snapshot picker lists only Article Snapshots. Publication Snapshots are
+not silently given default Briefings inside an Article.
+
+An Experiment block previews its immutable Article Snapshot with the same
+derived extent rule as Reader. One graph receives the complete inflow preview;
+two to four graphs receive one compact Peek anchor; larger projections receive
+one fullscreen anchor. Editor must not render a multi-graph inflow card that
+Reader later presents as Peek.
+
+The compact anchor defaults to `briefing.defaultTitle`, captured from the
+Experiment title at seal time. Peek exposes that title as a quiet inline edit;
+the Article stores only `placement.titleOverride`, while caption remains a
+separate optional field below the block. Clearing the override restores the
+captured default. Title editing never mutates the immutable Briefing and does
+not create a new Snapshot.
+
+Article Editor and Reader use the same push Peek component, live runtime, graph
+definitions, and renderers. The right companion region slides in, compresses
+the document, and is resized with the same device-local divider. The block's
+full Experiment edit action still opens a Session and replaces the Placement
+with a newly captured Article Snapshot.
+
+Article Editor header chrome is intentionally small: one back action, one
+Draft/Public switch, and Save or Saved state. Article-list, Reader-preview,
+direct-Experiment links, breadcrumbs, Snapshot counts, and duplicate Draft
+labels do not compete with authoring. The editable title and document blocks
+remain the page's primary hierarchy.
+
+## 8. Reader presentation
+
+Presentation extent is derived, not persisted:
+
+```text
+Article Snapshot content
++ nested Briefing
 + content complexity
 + viewport
-+ renderer policy/version
++ renderer policy
 ```
 
-Extent is not durable Placement content. Pane count may contribute to the
-decision, but a fixed `1 / 2..4 / 5+` rule is insufficient: one complex graph
-with several series and controls may need more space than four output items.
+### 8.1 Desktop
 
-### 5.1 Desktop
+- **Inflow** is a borderless, article-native inline presentation for one
+  primary graph and concise controls/outputs.
+- **Peek** is used for a medium projection. Activating it opens a non-modal
+  companion region from the right and reduces the article pane's available
+  width; it never overlays or disables the article. A directly manipulable
+  vertical divider resizes the two panes. Its header places fullscreen
+  immediately before close.
+- **Fullscreen** leaves the reading layout and opens the complete Article
+  Snapshot as a disposable `/experiments/new` ExperimentSession. It may be
+  operated freely, saved explicitly as an Experiment, or abandoned without
+  persistence. A return token restores the originating Article.
 
-- **Inflow** is the borderless inline anchor inside article prose. It must read
-  like part of the Article, not a bordered embedded application. It presents
-  the primary/highest-emphasis graph or concise projection and provides the
-  activation point for interaction. Activating a static inflow promotes that
-  Placement to live ownership in place; it does not open a drawer.
-- **Peek** is a responsive side presentation for a medium-complexity Briefing.
-  Clicking its compact anchor opens a right drawer and preserves article
-  reading context.
-- **Fullscreen** is used for high-complexity composition or explicit reader
-  expansion.
+Peek width is device-local Reader geometry. It may be retained in browser
+storage, but never enters Article, Snapshot, Placement, or Briefing data. Open
+and close follow the same right-hand path; reduced-motion clients replace the
+spatial transition with an effectively immediate state change.
 
-Peek/fullscreen activation is ephemeral. A renderer policy derives the initial
-extent from weighted graph complexity, number of graph series, output/control
-density, graph emphasis, source-pane priority, and available viewport.
+The product may currently approximate the policy by graph count, but the
+target weighs renderer complexity, series/Scenario count, output/control
+density, priority, and viewport. No `inflow | peek | fullscreen` field enters
+durable data.
 
-### 5.2 Mobile
+Each Placement renders one predictable activation target: its effective
+Placement title. Reader does not add a second clickable `Live experiment` or
+Snapshot breadcrumb above it. A quiet information action inside the
+interactive Experiment surface opens contextual simulation status, model
+validation scope, and limitations; it never opens Peek and never becomes
+global Article chrome. Exact model IDs, fixture/checkpoint implementation
+identities, integrity metadata, and gate names stay out of normal product UI.
 
-Mobile does not reproduce the desktop side layout at reduced width:
+### 8.2 Mobile
 
-1. Scenario focus and selected controls remain compact and color-neutral above
-   the visual surface, matching the borderless inflow interaction pattern;
-2. selected graph panes form one horizontal, touch-scrollable snap/swipe row;
-3. outputs follow as a vertical, readable list; desktop pixel divider
-   positions are not preserved; and
-4. fullscreen becomes a mobile sheet/page transition when more room is needed.
+Mobile is a composed reading surface, not a compressed desktop. Opening Peek
+pushes the Article page left and brings the Experiment page from the right; it
+does not place a translucent simulation layer over the text:
 
-Scenario and control-target labels remain visible. A reader must not have to
-infer which Scenario a value or control affects from color alone.
+1. compact Scenario focus and selected controls;
+2. touch-scrollable snap/swipe graph row;
+3. readable vertical outputs; and
+4. sheet/page expansion for complete Snapshot interaction.
 
-### 5.3 Live ownership
+Scenario and control-target labels remain textual. Color is never the only
+carrier of identity.
 
-The one-live Article policy in DESIGN-STUDIO-003 remains unchanged: the focused
-or screen-centered Placement owns the live SimulationSession, a previously
-active Placement may show a labelled disposable replay, and an untouched
-Placement shows a poster or graph strip. All visible Scenarios inside the one
-active Placement remain live concurrently. When the document is hidden, the
-active runtime pauses every Scenario; returning to the visible document resumes
-only the play intent that was active before hiding. Background tabs never own a
-live simulation.
+### 8.3 Live ownership
 
-## 6. Canonical URL policy
+Only the focused/screen-centered Article Placement owns live numerical
+execution at a time. Every visible Scenario inside that active Placement runs
+concurrently in its own persistent Worker lane. Previously active placements
+may show a labelled disposable cached beat; untouched placements show a static
+preview. Replays never qualify Snapshots or compute scientific metrics.
 
-Target resource routes are:
+Hidden documents pause active runtime. Returning resumes only the prior play
+intent. Background tabs never own live execution.
+
+## 9. Publication and Snapshot page
+
+Publication is a `PublicationSnapshot` plus an Experiment-library pointer to
+the currently published Snapshot. It is not a mutable view of the Experiment.
+The Experiment must therefore be explicitly saved before Publish; Article
+Snapshot capture remains available without saving an Experiment. Publish is
+enabled only when the saved Experiment has no newer unsaved Session changes.
+
+`/snapshots/:snapshotId` renders either variant read-only:
+
+- Publication Snapshot uses a temporary full-content projection for display;
+- Article Snapshot uses its exact nested Briefing; and
+- “Open in Workbench” starts a new disposable Session.
+
+The page has no “source Experiment” link because Snapshot does not own or
+require source identity.
+
+## 10. Experiments library
+
+`/me/experiments` lists only resources created by explicit Save. Each row shows:
+
+- editable Experiment title;
+- Draft or Published state;
+- last updated date;
+- Open;
+- optional published Snapshot play link; and
+- Delete.
+
+Opening New Experiment does not add a row. JSON download is not a primary user
+action and is omitted. Deleting an Experiment does not delete its immutable
+Snapshots or Article uses.
+
+The Workbench header keeps title editing direct: clicking the title produces a
+caret without changing its visual container. Save, play/pause, theme, and
+contextual Brief actions stay in the header; elapsed model time and permanent
+Article navigation do not. The center remains visually quiet: a compact
+information icon in the action cluster replaces a prominent model
+abbreviation. Its disclosure separates Scenario-local execution, settlement,
+and numerical-check status from model-level validation scope and limitations.
+
+## 11. URLs
 
 ```text
-/:locale/experiments
+/:locale/experiments                     public directory
+/:locale/experiments/new
 /:locale/experiments/:experimentId
-
-/:locale/experiments/:experimentId/snapshots/:snapshotId
-
-/:locale/articles
+/:locale/snapshots/:snapshotId
+/:locale/articles                        public directory
 /:locale/articles/new/edit
 /:locale/articles/:articleId/edit
 /:locale/articles/:articleId
+/:locale/me/experiments                  personal management
+/:locale/me/articles                     personal management
+/:locale/me/settings                     account preferences
 ```
 
-- `/experiments` is the library and owns the create action. Creation allocates
-  an Experiment and redirects to its canonical ID route.
-- `/experiments/:experimentId` is the mutable, standalone Workbench route.
-- `/experiments/:experimentId/snapshots/:snapshotId` is the immutable share,
-  exact-view, and fork-source route. The route resolver/content store validates
-  that the Snapshot is owned by the stated Experiment; the URL never follows
-  that Experiment's mutable head. The dedicated page renders its live pinned
-  composition inline rather than running it behind an Article peek anchor.
-- `/articles/:articleId/edit` is the mutable Article Editor route.
-- `/articles/new/edit` creates a new Article Draft and redirects to its allocated
-  ID route after the first save.
-- `/articles/:articleId` currently reads the mutable browser Article Draft in
-  this pre-release cutover. Mapping the same route to a published/current
-  Article pointer and adding immutable Article-revision identity are deferred
-  until publication exists.
-- Placement fragment links use `#placement-<placementId>`. A valid fragment
-  activates the pinned Placement and scrolls it into the reading focus without
-  changing durable focus or opening its drawer automatically.
+User IDs are not part of canonical content URLs. Backend ownership and access
+control are metadata. IDs are opaque; model IDs, hashes, fixture/checkpoint
+data, Briefing JSON, layout, theme, and live focus are not encoded in paths.
 
-IDs are opaque, URL-safe identifiers. URLs do not encode `modelId`, fixture,
-checkpoint, Briefing JSON, color, graph window, history depth, runtime focus,
-or live/cached state. Optional query parameters may request ephemeral UI focus
-but are never scientific or durable identity.
+An unsaved Workbench uses `/experiments/new` and has no Experiment identity.
+The first successful Save allocates an opaque ID and replaces the route.
+Snapshot/article edit context uses an ephemeral query token until the user
+explicitly saves or captures; it is not a durable resource identity.
 
-Fork/clone is a command followed by redirect to the newly allocated Experiment
-URL; a GET route does not mutate content.
+## 12. UI and accessibility principles
 
-The baseline before this direct cutover exposed `/workbench` and
-`/workbench/:workbenchId`, and mounted one Article Editor at `/articles` without
-an Article ID. Those routes are not retained as aliases. There is no production
-content that requires URL compatibility.
+- Zenn/Claude-like quiet surfaces, restrained borders, and one typography
+  scale serve both light and dark themes.
+- Interactive affordances use hover/focus/pressed feedback; static outputs do
+  not masquerade as buttons.
+- Drawers and menus animate specific transform/opacity properties, never
+  `transition: all`.
+- Dockview tab action slots retain width while icons hide outside hover/active
+  states, preventing layout jumps.
+- Pane settings use a VS Code-like section index and a roomy editor/inspector;
+  destructive pane removal lives in the tab menu, not the modal footer.
+- Reduced-motion users receive immediate state changes without losing context.
 
-## 7. Current implementation versus target
+## 13. Normative IA invariants
 
-### Baseline implemented before this direct cutover
-
-- an Article-independent Experiment Workspace and standalone Workbench;
-- opaque Experiment and immutable Snapshot identities;
-- Placement pinning of an exact Snapshot;
-- repeated use of the same Snapshot in one or many Article Drafts;
-- a provisional inline Briefing containing Scenario selection and generic pane
-  picks with priority;
-- a static pinned Article Editor preview; and
-- referential protection against deleting Experiment Snapshot lineage used by
-  another fork or Article.
-
-### Direct-cutover contract
-
-- role-specific graph/output/control Briefing fields and validation;
-- separate visible Scenario, focus Scenario, and explicit control-binding
-  semantics;
-- article-local graph legend/color/window/history overrides;
-- control button maps and fixed-by-default/reader-focus-opt-in bindings;
-- canonical Experiment, nested Snapshot, Article Library/Editor, and Reader
-  routes; and
-- a live runtime owner that restores every Briefing-visible Scenario in the
-  pinned Snapshot, and no hidden Scenario, without mutating Snapshot content.
-
-The direct cutover additionally delivers a borderless one-graph inflow,
-graph-count click-to-open right peek or fullscreen presentation, mobile graph
-swipe, vertical output/control layout, Reader play/pause and control
-application, and page-level one-live ownership.
-Exact Snapshot links are exposed from the Article Snapshot picker, Placement
-preview, and Reader model badge; they are not direct-URL-only implementation
-details.
-Non-active Placements deliberately remain static rather than masquerading as
-live.
-
-### Delivery target still requiring UI/runtime completion
-
-- `Use in article…` plus derived `Used in N articles` backlinks;
-- weighted complexity-derived presentation beyond the current graph-count
-  inflow/peek/fullscreen thresholds;
-- labelled disposable one-beat previews for previously active Placements;
-- retained multi-release registry delivery before more than one exact model
-  release must remain executable client-side;
-- immutable Article publication/revision identity.
-
-No remaining delivery-target item should be described as implemented until its
-route, contract validation, persistence, responsive rendering, and resource
-ownership all exist.
-
-## 8. IA invariants
-
-1. Experiment identity never depends on Article identity.
-2. Direct Experiment use never requires or auto-creates an Article.
-3. Every Placement pins one immutable Snapshot.
-4. Every Briefing is owned by exactly one Placement.
-5. The same Snapshot may have many independent Placements and Briefings.
-6. Briefing edits cannot mutate Snapshot or Experiment content.
-7. Visible Scenario selection, initial focus, and control targets are distinct.
-8. Article control bindings are explicit, visible, and nonempty. Fixed is the
-   pickup default; reader-focus is an explicit opt-in over visible Scenarios.
-9. Graph overrides remain inside the selected registered graph contract.
-10. Output and control items do not own presentation colors.
-11. Responsive extent and pixel geometry are derived, not durable identity.
-12. Cached Reader presentation is never a scientific or Snapshot authority.
-13. Parent Snapshot lineage never means Article ownership or auto-update.
-14. DESIGN-STUDIO-002 remains historical Git context, not an implementation
-    dependency.
+1. Direct Experiment use never requires or creates an Article.
+2. Briefing appears only in explicit Article context.
+3. Every Article Placement pins one Article Snapshot.
+4. Every Article Snapshot owns exactly one immutable Briefing.
+5. Placement owns position and caption, not projection semantics.
+6. Changing a Briefing creates a new Article Snapshot.
+7. Article Snapshot creation does not require saving an Experiment.
+8. Opening/editing a Snapshot creates a Session and never mutates the Snapshot.
+9. Visible scope, focus Scenario, output target, and control target are
+   distinct.
+10. Output and control bindings are captured by value; active-slot cannot leak
+    into Reader.
+11. Presentation extent and one-live state are derived/runtime-only.
+12. My Experiments contains only explicitly saved Experiments.
+13. Article handoff is correlated by an ephemeral Session token, never by an
+    unsaved Experiment identity.
+14. Briefing becomes inert only during the explicit seal operation.

@@ -32,7 +32,7 @@ export type ControlDefinitionV2 = Readonly<{
   maximum: number;
   step: number;
   defaultValue: number;
-  changeSemantics: "reset";
+  changeSemantics: "accepted-state-warm-start";
 }>;
 
 export type ScalarGraphSeriesDefinitionV2 = Readonly<{
@@ -52,7 +52,6 @@ export type PressureVolumeGraphSeriesDefinitionV2 = Readonly<{
   pressureOutputId: string;
   pressureBasis: PressureVolumePressureBasisV2;
   cyclePhaseOutputId: string;
-  guideMode: "none" | "lv-single-beat-orientation";
 }>;
 
 export type GraphSeriesDefinitionV2 =
@@ -77,7 +76,7 @@ export type StructuralReturnGraphDefinitionV2 = Readonly<{
   graphId: string;
   renderer: "structural-return";
   analysisId: string;
-  side: "right" | "left";
+  side: "right" | "left" | "both";
 }>;
 
 export type GraphDefinitionV2 =
@@ -275,7 +274,6 @@ const SCALAR_GRAPH_SERIES_KEYS_V2 = Object.freeze([
 ]);
 const PRESSURE_VOLUME_GRAPH_SERIES_KEYS_V2 = Object.freeze([
   "cyclePhaseOutputId",
-  "guideMode",
   "kind",
   "pressureBasis",
   "pressureOutputId",
@@ -484,7 +482,6 @@ export function deriveModelContractFromManifestV2(
               pressureOutputId: series.pressureOutputId,
               pressureBasis: series.pressureBasis,
               cyclePhaseOutputId: series.cyclePhaseOutputId,
-              guideMode: series.guideMode,
             }),
           )),
           defaultSeriesIds: Object.freeze(copyArrayByIndexV2(
@@ -741,10 +738,10 @@ function assertControlCatalogV2(
         'must be "number"',
       );
     }
-    if (control.changeSemantics !== "reset") {
+    if (control.changeSemantics !== "accepted-state-warm-start") {
       throw new ModelContractValidationErrorV2(
         `${definitionPath}.changeSemantics`,
-        'must be "reset"',
+        'must be "accepted-state-warm-start"',
       );
     }
     assertNonEmptyTrimmedStringV2(
@@ -1013,10 +1010,14 @@ function assertGraphCatalogV2(
         graph.analysisId,
         `${definitionPath}.analysisId`,
       );
-      if (graph.side !== "right" && graph.side !== "left") {
+      if (
+        graph.side !== "right"
+        && graph.side !== "left"
+        && graph.side !== "both"
+      ) {
         throw new ModelContractValidationErrorV2(
           `${definitionPath}.side`,
-          'must be "right" or "left"',
+          'must be "right", "left", or "both"',
         );
       }
       continue;
@@ -1159,30 +1160,12 @@ function assertPressureVolumeGraphSeriesCatalogV2(
     }
     bindings.add(bindingKey);
     if (
-      series.guideMode !== "none"
-      && series.guideMode !== "lv-single-beat-orientation"
-    ) {
-      throw new ModelContractValidationErrorV2(
-        `${seriesPath}.guideMode`,
-        'must be "none" or "lv-single-beat-orientation"',
-      );
-    }
-    if (
       series.pressureBasis !== "transmural"
       && series.pressureBasis !== "intracavitary"
     ) {
       throw new ModelContractValidationErrorV2(
         `${seriesPath}.pressureBasis`,
         'must be "transmural" or "intracavitary"',
-      );
-    }
-    if (
-      series.guideMode === "lv-single-beat-orientation"
-      && series.pressureBasis !== "transmural"
-    ) {
-      throw new ModelContractValidationErrorV2(
-        `${seriesPath}.pressureBasis`,
-        "single-beat orientation guides require transmural pressure",
       );
     }
   }

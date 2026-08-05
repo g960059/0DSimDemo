@@ -23,6 +23,7 @@ export type UseArticleReaderLiveRuntimeResultV3 = Readonly<{
     scenarioIds: readonly string[];
   }>): Promise<void>;
   applyControl(input: Readonly<{
+    controlInstanceId: string;
     controlId: string;
     scenarioIds: readonly string[];
     value: number;
@@ -120,6 +121,7 @@ export function useArticleReaderLiveRuntimeV3(
     await controller.requestAnalysis(input);
   }, []);
   const applyControl = React.useCallback(async (input: Readonly<{
+    controlInstanceId: string;
     controlId: string;
     scenarioIds: readonly string[];
     value: number;
@@ -166,7 +168,7 @@ function initialStateV3(
     snapshotId: snapshot.snapshotId,
     scenarioIds: visibleScenarioIds,
     activeScenarioId,
-    pendingControlId: null,
+    pendingControlInstanceId: null,
     pendingAnalysisKeys: Object.freeze([]),
     committedControlValues: Object.freeze(Object.create(null)) as Readonly<
       Record<string, Readonly<Record<string, number>>>
@@ -180,7 +182,7 @@ function initialStateV3(
     analysisErrorByKey: Object.freeze(Object.create(null)) as Readonly<
       Record<string, string>
     >,
-    controlErrorById: Object.freeze(Object.create(null)) as Readonly<
+    controlErrorByInstanceId: Object.freeze(Object.create(null)) as Readonly<
       Record<string, string>
     >,
     error: null,

@@ -24,7 +24,7 @@ const TEST_CONTROL = Object.freeze({
   maximum: 10,
   step: 0.1,
   defaultValue: 1,
-  changeSemantics: "reset" as const,
+  changeSemantics: "accepted-state-warm-start" as const,
 });
 
 const VASCULAR_TONE_CONTROL = Object.freeze({
@@ -35,7 +35,7 @@ const VASCULAR_TONE_CONTROL = Object.freeze({
   maximum: 2,
   step: 0.05,
   defaultValue: 1,
-  changeSemantics: "reset" as const,
+  changeSemantics: "accepted-state-warm-start" as const,
 });
 
 describe("Studio fixture reducer V2", () => {

@@ -31,7 +31,7 @@ describe("InMemoryRegisteredModelStoreV2", () => {
       checkpointCodecId: "circulation-checkpoint-v1",
       snapshotGateId: "circulation-minimum-gate-v1",
       controlCatalog: [{
-        changeSemantics: "reset",
+        changeSemantics: "accepted-state-warm-start",
         controlId: "control.tbv",
         defaultValue: 5_000,
         maximum: 7_000,
@@ -199,7 +199,7 @@ describe("InMemoryRegisteredModelStoreV2", () => {
     );
 
     expect(contract.controlCatalog).toEqual([{
-      changeSemantics: "reset",
+      changeSemantics: "accepted-state-warm-start",
       controlId: "control.tbv",
       defaultValue: 5_000,
       maximum: 7_000,
@@ -437,7 +437,6 @@ describe("InMemoryRegisteredModelStoreV2", () => {
         pressureOutputId: "hemodynamics.pressure.lv",
         pressureBasis: "transmural",
         cyclePhaseOutputId: "cardiac.cycle-phase",
-        guideMode: "lv-single-beat-orientation",
       }],
       defaultSeriesIds: ["LV"],
     });
@@ -453,7 +452,6 @@ describe("InMemoryRegisteredModelStoreV2", () => {
         pressureOutputId: "hemodynamics.pressure.lv",
         pressureBasis: "transmural",
         cyclePhaseOutputId: "cardiac.cycle-phase",
-        guideMode: "lv-single-beat-orientation",
       }],
       defaultSeriesIds: ["LV"],
     });
@@ -475,8 +473,14 @@ describe("InMemoryRegisteredModelStoreV2", () => {
       "hemodynamics.pressure.lv";
     manifest.catalogs.graphCatalog[1].seriesCatalog[0].pressureBasis =
       "intracavitary";
-    expect(() => deriveModelContractFromManifestV2(manifest))
-      .toThrow(/orientation guides require transmural pressure/);
+    const intracavitaryContract = deriveModelContractFromManifestV2(manifest);
+    const intracavitaryGraph = intracavitaryContract.graphCatalog[1]!;
+    expect(intracavitaryGraph.renderer).toBe("pressure-volume");
+    if (intracavitaryGraph.renderer !== "pressure-volume") {
+      throw new Error("expected pressure-volume graph");
+    }
+    expect(intracavitaryGraph.seriesCatalog[0]?.pressureBasis)
+      .toBe("intracavitary");
   });
 
   it("admits only exact on-demand structural-return graph definitions", () => {
@@ -581,7 +585,7 @@ function makeExecutableBundleV2(
     checkpointCodecId: manifest.checkpointCodec.checkpointCodecId,
     snapshotGateId: manifest.snapshotGate.snapshotGateId,
     captureAdapter,
-    draftCapture: {
+    experimentCapture: {
       modelId: manifest.modelId,
       fixtureSchemaId: manifest.fixtureSchema.fixtureSchemaId,
       checkpointCodecId: manifest.checkpointCodec.checkpointCodecId,
@@ -695,7 +699,7 @@ function makeManifestV2(
         maximum: 7_000,
         step: 10,
         defaultValue: 5_000,
-        changeSemantics: "reset",
+        changeSemantics: "accepted-state-warm-start",
       }],
       outputCatalog: [{
         outputId: "hemodynamics.pressure.lv",

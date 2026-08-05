@@ -11,14 +11,18 @@ import {
   articleReaderPlacementAfterCenterExitV3,
   articleReaderBoundedHistoryV3,
   commonGraphUnitV3,
+  resolveArticleReaderGraphPresentationV3,
   selectedSweepOutputIdsV3,
 } from "@/components/article/reader/ArticleReaderExperimentV3";
-import type {
-  StudioArticleExperimentBlockV2,
-} from "@/studio/contracts/v2/article";
+import {
+  articleReaderPeekFractionForPointerV3,
+  clampArticleReaderPeekFractionV3,
+} from "@/components/ArticleReaderV3Page";
+import type { StudioArticleExperimentBlockV2 } from "@/studio/contracts/v2/article";
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
+  type ArticleExperimentSnapshotV2,
   type ExperimentPlacementBriefingV2,
   type ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
@@ -26,26 +30,20 @@ import type {
   ControlDefinitionV2,
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
-import type { StudioSimulationAnalysisV2 } from
-  "@/studio/contracts/v2/simulation";
-import type { UseArticleReaderLiveRuntimeResultV3 } from
-  "@/components/article/reader/useArticleReaderLiveRuntimeV3";
-import {
-  articleReaderAnalysisKeyV3,
-} from "@/components/article/reader/ArticleReaderLiveRuntimeV3";
-import {
-  WorkbenchScenarioPresentationSampleStoreV3,
-} from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
+import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
+import type { UseArticleReaderLiveRuntimeResultV3 } from "@/components/article/reader/useArticleReaderLiveRuntimeV3";
+import { articleReaderAnalysisKeyV3 } from "@/components/article/reader/ArticleReaderLiveRuntimeV3";
+import { WorkbenchScenarioPresentationSampleStoreV3 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
 
 const NOOP = () => {};
 
-function snapshotV3(): ExperimentSnapshotV2 {
+function snapshotV3(): ArticleExperimentSnapshotV2 {
   return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
+    kind: "article",
     snapshotId: "snapshot/reader",
-    experimentId: "experiment/reader",
-    parentSnapshotId: null,
     createdAt: "2026-08-02T00:00:00.000Z",
+    briefing: briefingV3(),
     content: {
       modelId: "model/exact-reader-v3",
       scenarios: [
@@ -54,16 +52,21 @@ function snapshotV3(): ExperimentSnapshotV2 {
         scenarioV3("scenario/excluded", "Excluded"),
       ],
       surface: {
-        graphPanes: [{
-          paneId: "pane/return",
-          role: "graph",
-          label: "Systemic return",
-          order: 0,
-          priority: 10,
-          graphId: "graph/return",
-          historyDepth: 1,
-          series: [],
-        }],
+        graphPanes: [
+          {
+            paneId: "pane/return",
+            role: "graph",
+            label: "Systemic return",
+            order: 0,
+            priority: 10,
+            graphId: "graph/return",
+            scenarioScope: { mode: "visible-scenarios" },
+            excludedTraces: [],
+            historyDepth: 1,
+            structuralSide: "right",
+            series: [],
+          },
+        ],
         outputPanes: [],
         controlPanes: [],
         note: { text: "" },
@@ -89,15 +92,18 @@ function scenarioV3(scenarioId: string, label: string) {
 
 function briefingV3(): ExperimentPlacementBriefingV2 {
   return {
+    defaultTitle: "Reader experiment",
     scenarioScope: {
       visibleScenarioIds: ["scenario/comparison"],
       initialFocusScenarioId: "scenario/comparison",
     },
-    graphs: [{
-      paneId: "pane/return",
-      order: 0,
-      emphasis: "primary",
-    }],
+    graphs: [
+      {
+        paneId: "pane/return",
+        order: 0,
+        emphasis: "primary",
+      },
+    ],
     outputs: [],
     controls: [],
   };
@@ -111,8 +117,8 @@ function blockV3(): StudioArticleExperimentBlockV2 {
       schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
       placementId: "placement/reader",
       snapshotId: "snapshot/reader",
+      titleOverride: null,
       caption: null,
-      briefing: briefingV3(),
     },
   };
 }
@@ -127,29 +133,33 @@ function contractV3(): ModelContractV2 {
     snapshotGateId: "gate/reader-v3",
     controlCatalog: [],
     outputCatalog: [],
-    graphCatalog: [{
-      graphId: "graph/return",
-      renderer: "structural-return",
-      analysisId: "analysis/return",
-      side: "right",
-    }],
+    graphCatalog: [
+      {
+        graphId: "graph/return",
+        renderer: "structural-return",
+        analysisId: "analysis/return",
+        side: "right",
+      },
+    ],
   };
 }
 
-function renderExperimentV3(input: Readonly<{
-  block?: StudioArticleExperimentBlockV2;
-  snapshot: ExperimentSnapshotV2 | null;
-  contract?: ModelContractV2 | null;
-  live?: boolean;
-  forceInline?: boolean;
-}>): string {
+function renderExperimentV3(
+  input: Readonly<{
+    block?: StudioArticleExperimentBlockV2;
+    snapshot: ExperimentSnapshotV2 | null;
+    contract?: ModelContractV2 | null;
+    live?: boolean;
+    forceInline?: boolean;
+  }>,
+): string {
   return renderToStaticMarkup(
     <ArticleReaderExperimentV3
       block={input.block ?? blockV3()}
       snapshot={input.snapshot}
       contract={input.contract ?? null}
       live={input.live ?? false}
-      expanded={false}
+      expandedPresentation={null}
       forceInline={input.forceInline ?? false}
       onActivate={NOOP}
       onDeactivate={NOOP}
@@ -159,10 +169,17 @@ function renderExperimentV3(input: Readonly<{
   );
 }
 
-function twoGraphSnapshotV3(): ExperimentSnapshotV2 {
+function twoGraphSnapshotV3(): ArticleExperimentSnapshotV2 {
   const snapshot = snapshotV3();
   return {
     ...snapshot,
+    briefing: {
+      ...snapshot.briefing,
+      graphs: [
+        ...snapshot.briefing.graphs,
+        { paneId: "pane/pv", order: 1, emphasis: "supporting" },
+      ],
+    },
     content: {
       ...snapshot.content,
       surface: {
@@ -176,6 +193,8 @@ function twoGraphSnapshotV3(): ExperimentSnapshotV2 {
             order: 1,
             priority: 9,
             graphId: "graph/pv",
+            scenarioScope: { mode: "visible-scenarios" },
+            excludedTraces: [],
             historyDepth: 1,
             series: [],
           },
@@ -186,25 +205,10 @@ function twoGraphSnapshotV3(): ExperimentSnapshotV2 {
 }
 
 function twoGraphBlockV3(): StudioArticleExperimentBlockV2 {
-  const block = blockV3();
-  return {
-    ...block,
-    placement: {
-      ...block.placement,
-      briefing: {
-        ...block.placement.briefing,
-        graphs: [
-          ...block.placement.briefing.graphs,
-          { paneId: "pane/pv", order: 1, emphasis: "supporting" },
-        ],
-      },
-    },
-  };
+  return blockV3();
 }
 
-function structuralAnalysisV3(
-  scenarioId: string,
-): StudioSimulationAnalysisV2 {
+function structuralAnalysisV3(scenarioId: string): StudioSimulationAnalysisV2 {
   return Object.freeze({
     modelId: "model/exact-reader-v3",
     runtimeSessionId: `runtime/${scenarioId}`,
@@ -229,7 +233,13 @@ function structuralAnalysisV3(
         operatingPoint: Object.freeze({
           downstreamPressureMmHg: 3,
           returnFlowLPerMin: 5,
-          returnPath: "VC_RA",
+          returnPath: "VC_RA+CS_RA",
+        }),
+        anchoring: Object.freeze({
+          status: "accepted-step-readback",
+          method: "none",
+          downstreamPressureOffsetMmHg: 0,
+          volumeResidualMl: null,
         }),
         curve: Object.freeze([
           Object.freeze({
@@ -263,18 +273,15 @@ function readerRuntimeStubV3(
     state: Object.freeze({
       status: "paused" as const,
       snapshotId: "snapshot/reader",
-      scenarioIds: Object.freeze([
-        "scenario/baseline",
-        "scenario/comparison",
-      ]),
+      scenarioIds: Object.freeze(["scenario/baseline", "scenario/comparison"]),
       activeScenarioId: "scenario/baseline",
-      pendingControlId: null,
+      pendingControlInstanceId: null,
       pendingAnalysisKeys: Object.freeze([]),
       committedControlValues: Object.freeze({}),
       analysisByKey: Object.freeze({}),
       analysisHistoryByKey: Object.freeze({}),
       analysisErrorByKey: Object.freeze({}),
-      controlErrorById: Object.freeze({}),
+      controlErrorByInstanceId: Object.freeze({}),
       error: null,
       ...stateOverrides,
     }),
@@ -288,19 +295,57 @@ function readerRuntimeStubV3(
 }
 
 describe("Article Reader V3 experiment anchor", () => {
+  it("keeps Peek resizing bounded while tracking the divider one-to-one", () => {
+    expect(articleReaderPeekFractionForPointerV3(100, 1_000, 600)).toBe(0.5);
+    expect(articleReaderPeekFractionForPointerV3(100, 1_000, -500)).toBe(0.64);
+    expect(articleReaderPeekFractionForPointerV3(100, 1_000, 1_500)).toBe(0.3);
+    expect(clampArticleReaderPeekFractionV3(Number.NaN)).toBe(0.46);
+  });
+
+  it("resolves one sealed graph presentation for every Reader extent", () => {
+    const snapshot = snapshotV3();
+    const pane = snapshot.content.surface.graphPanes[0]!;
+    const resolved = resolveArticleReaderGraphPresentationV3(snapshot, {
+      paneId: pane.paneId,
+      order: 0,
+      emphasis: "primary",
+      overrides: {
+        label: "Reader-facing return",
+        legend: "hidden",
+        historyDepth: 0,
+        windowSec: 4,
+        series: [{ seriesId: "series/custom", label: "Custom", order: 0 }],
+      },
+    });
+
+    expect(resolved).toEqual({
+      pane,
+      label: "Reader-facing return",
+      legend: "hidden",
+      historyDepth: 0,
+      windowSec: 4,
+      series: [{ seriesId: "series/custom", label: "Custom", order: 0 }],
+    });
+    expect(resolved?.pane.structuralSide).toBe("right");
+  });
+
   it("clears only the Placement that actually left the Reader center band", () => {
-    expect(articleReaderPlacementAfterCenterExitV3("placement/a", "placement/a"))
-      .toBeNull();
-    expect(articleReaderPlacementAfterCenterExitV3("placement/b", "placement/a"))
-      .toBe("placement/b");
+    expect(
+      articleReaderPlacementAfterCenterExitV3("placement/a", "placement/a"),
+    ).toBeNull();
+    expect(
+      articleReaderPlacementAfterCenterExitV3("placement/b", "placement/a"),
+    ).toBe("placement/b");
   });
 
   it("treats history depth zero as no previous structural states", () => {
     const history = ["oldest", "older", "newest"];
     expect(articleReaderBoundedHistoryV3(history, 0)).toEqual([]);
     expect(articleReaderBoundedHistoryV3(history, 1)).toEqual(["newest"]);
-    expect(articleReaderBoundedHistoryV3(history, 2))
-      .toEqual(["older", "newest"]);
+    expect(articleReaderBoundedHistoryV3(history, 2)).toEqual([
+      "older",
+      "newest",
+    ]);
   });
 
   it("derives sweep units from the selected series rather than hidden catalog entries", () => {
@@ -309,8 +354,16 @@ describe("Article Reader V3 experiment anchor", () => {
       renderer: "sweep" as const,
       defaultSeriesIds: ["series/pressure"],
       seriesCatalog: [
-        { kind: "scalar" as const, seriesId: "series/pressure", outputId: "output/pressure" },
-        { kind: "scalar" as const, seriesId: "series/flow", outputId: "output/flow" },
+        {
+          kind: "scalar" as const,
+          seriesId: "series/pressure",
+          outputId: "output/pressure",
+        },
+        {
+          kind: "scalar" as const,
+          seriesId: "series/flow",
+          outputId: "output/flow",
+        },
       ],
     };
     const contract: ModelContractV2 = {
@@ -338,11 +391,15 @@ describe("Article Reader V3 experiment anchor", () => {
 
     expect(selectedOutputIds).toEqual(["output/pressure"]);
     expect(commonGraphUnitV3(contract, selectedOutputIds)).toBe("mmHg");
-    expect(commonGraphUnitV3(contract, graph.seriesCatalog.map(({ outputId }) =>
-      outputId))).toBeUndefined();
+    expect(
+      commonGraphUnitV3(
+        contract,
+        graph.seriesCatalog.map(({ outputId }) => outputId),
+      ),
+    ).toBeUndefined();
   });
 
-  it("renders a borderless inflow anchor with an explicit live activation path", () => {
+  it("renders a borderless inflow anchor without a second model link", () => {
     const html = renderExperimentV3({
       snapshot: snapshotV3(),
       contract: contractV3(),
@@ -353,9 +410,10 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(root).toContain('id="placement-placement/reader"');
     expect(root).not.toMatch(/\bborder(?:-|\b)/);
     expect(root).not.toMatch(/\bbg-/);
-    expect(html).toContain(">MW V3</span>");
+    expect(html).not.toContain("Live experiment");
+    expect(html).not.toContain("MW V3");
     expect(html).toMatch(/<button type="button"[^>]+aria-label="[^"]+"/);
-    expect(html.match(/<button type="button"/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(html.match(/<button type="button"/g)?.length).toBe(1);
     const inflowButton = html.match(
       /<button type="button"[^>]*class="block w-full[^>]*>.*?<\/button>/s,
     )?.[0];
@@ -384,59 +442,152 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).not.toContain("min-w-0 px-4 pb-10");
   });
 
-  it("renders one labeled structural canvas for every visible Scenario", () => {
+  it("overlays every visible Scenario in one structural comparison canvas", () => {
     const snapshot = snapshotV3();
     const scenarios = snapshot.content.scenarios.slice(0, 2);
-    const analysisByKey = Object.fromEntries(scenarios.map((scenario) => [
-      articleReaderAnalysisKeyV3(scenario.scenarioId, "analysis/return"),
-      structuralAnalysisV3(scenario.scenarioId),
-    ]));
+    const analysisByKey = Object.fromEntries(
+      scenarios.map((scenario) => [
+        articleReaderAnalysisKeyV3(scenario.scenarioId, "analysis/return"),
+        structuralAnalysisV3(scenario.scenarioId),
+      ]),
+    );
     const runtime = readerRuntimeStubV3({ analysisByKey });
     const graph = contractV3().graphCatalog[0]!;
     if (graph.renderer !== "structural-return") {
       throw new Error("expected structural graph");
     }
+    const pane = snapshot.content.surface.graphPanes[0]!;
 
     const html = renderToStaticMarkup(
       <ArticleReaderStructuralReturnGraphV3
+        authoredScenarios={snapshot.content.scenarios}
         graph={graph}
         historyDepth={1}
+        pane={pane}
         runtime={runtime}
+        surface={snapshot.content.surface}
+        structuralSide={pane.structuralSide!}
         visibleScenarios={scenarios}
       />,
     );
 
-    expect(html.match(/data-chart-kind="guyton-starling-structural-orientation-v3"/g))
-      .toHaveLength(2);
-    expect(html).toContain('data-reader-structural-scenario-id="scenario/baseline"');
-    expect(html).toContain('data-reader-structural-scenario-id="scenario/comparison"');
+    expect(
+      html.match(
+        /data-chart-kind="guyton-starling-structural-orientation-v3"/g,
+      ),
+    ).toHaveLength(1);
+    expect(html).toContain('data-scenario-count="2"');
+    expect(html).toContain('data-chart-legend="scenario-only"');
+    expect(html).toContain(
+      'data-reader-structural-scenario-id="scenario/baseline"',
+    );
+    expect(html).toContain(
+      'data-reader-structural-scenario-id="scenario/comparison"',
+    );
     expect(html).toContain("Baseline");
     expect(html).toContain("Comparison");
+    expect(html).not.toContain("Pmpf orientation");
+    expect(html).not.toContain("Refresh analysis");
     expect(html).not.toContain("Open this experiment to start");
+  });
+
+  it("omits the structural legend when only one Scenario is visible", () => {
+    const snapshot = snapshotV3();
+    const scenario = snapshot.content.scenarios[0]!;
+    const graph = contractV3().graphCatalog[0]!;
+    if (graph.renderer !== "structural-return") {
+      throw new Error("expected structural graph");
+    }
+    const runtime = readerRuntimeStubV3({
+      analysisByKey: {
+        [articleReaderAnalysisKeyV3(scenario.scenarioId, graph.analysisId)]:
+          structuralAnalysisV3(scenario.scenarioId),
+      },
+    });
+    const html = renderToStaticMarkup(
+      <ArticleReaderStructuralReturnGraphV3
+        authoredScenarios={snapshot.content.scenarios}
+        graph={graph}
+        historyDepth={1}
+        pane={snapshot.content.surface.graphPanes[0]!}
+        runtime={runtime}
+        surface={snapshot.content.surface}
+        structuralSide="right"
+        visibleScenarios={[scenario]}
+      />,
+    );
+
+    expect(html).toContain('data-scenario-count="1"');
+    expect(html).not.toContain('data-chart-legend="scenario-only"');
+  });
+
+  it("keeps the last complete structural curve visible while its Scenario recalculates", () => {
+    const snapshot = snapshotV3();
+    const scenario = snapshot.content.scenarios[0]!;
+    const graph = contractV3().graphCatalog[0]!;
+    if (graph.renderer !== "structural-return") {
+      throw new Error("expected structural graph");
+    }
+    const key = articleReaderAnalysisKeyV3(
+      scenario.scenarioId,
+      graph.analysisId,
+    );
+    const runtime = readerRuntimeStubV3({
+      pendingAnalysisKeys: [key],
+      analysisHistoryByKey: {
+        [key]: [structuralAnalysisV3(scenario.scenarioId)],
+      },
+    });
+    const html = renderToStaticMarkup(
+      <ArticleReaderStructuralReturnGraphV3
+        authoredScenarios={snapshot.content.scenarios}
+        graph={graph}
+        historyDepth={0}
+        pane={snapshot.content.surface.graphPanes[0]!}
+        runtime={runtime}
+        surface={snapshot.content.surface}
+        structuralSide="right"
+        visibleScenarios={[scenario]}
+      />,
+    );
+
+    expect(html).toContain(
+      'data-chart-kind="guyton-starling-structural-orientation-v3"',
+    );
+    expect(html).toContain('data-pending-scenario-count="1"');
+    expect(html).toContain('data-starling-pending="true"');
+    expect(html).toContain("再計算中");
   });
 
   it("keeps Reader outputs vertical on the mobile base breakpoint", () => {
     const store = new WorkbenchScenarioPresentationSampleStoreV3();
     const briefing: ExperimentPlacementBriefingV2 = {
       ...briefingV3(),
-      outputs: [{ outputId: "output/co", label: "CO", order: 0 }],
+      outputs: [{
+        sourcePaneId: "pane/outputs",
+        outputId: "output/co",
+        scenarioId: "scenario/comparison",
+        label: "CO",
+        order: 0,
+      }],
     };
     const contract: ModelContractV2 = {
       ...contractV3(),
-      outputCatalog: [{
-        outputId: "output/co",
-        kind: "metric",
-        unit: "L/min",
-        shape: "scalar",
-        scope: "instant",
-        dependencies: [],
-      }],
+      outputCatalog: [
+        {
+          outputId: "output/co",
+          kind: "metric",
+          unit: "L/min",
+          shape: "scalar",
+          scope: "instant",
+          dependencies: [],
+        },
+      ],
     };
     const html = renderToStaticMarkup(
       <ArticleReaderOutputsV3
         briefing={briefing}
         contract={contract}
-        scenarioId="scenario/comparison"
         sampleStore={store}
       />,
     );
@@ -455,27 +606,30 @@ describe("Article Reader V3 experiment anchor", () => {
       maximum: 2,
       step: 1,
       defaultValue: 1,
-      changeSemantics: "reset",
+      changeSemantics: "accepted-state-warm-start",
     };
     const briefing: ExperimentPlacementBriefingV2 = {
       ...briefingV3(),
-      controls: [{
-        controlId: "control/svr",
-        label: "SVR",
-        order: 0,
-        presentation: {
-          kind: "buttons",
-          options: [
-            { label: "Valid", value: 1 },
-            { label: "Invalid", value: 1.25 },
-          ],
+      controls: [
+        {
+          sourcePaneId: "pane/controls",
+          controlId: "control/svr",
+          label: "SVR",
+          order: 0,
+          presentation: {
+            kind: "buttons",
+            options: [
+              { label: "Valid", value: 1 },
+              { label: "Invalid", value: 1.25 },
+            ],
+          },
+          binding: {
+            mode: "fixed",
+            scenarioIds: ["scenario/comparison"],
+            application: "absolute",
+          },
         },
-        binding: {
-          mode: "fixed",
-          scenarioIds: ["scenario/comparison"],
-          application: "absolute",
-        },
-      }],
+      ],
     };
     const html = renderToStaticMarkup(
       <ArticleReaderControlV3
@@ -503,7 +657,9 @@ describe("Article Reader V3 experiment anchor", () => {
     });
 
     expect(html).toContain('data-reader-presentation="peek"');
-    expect(html).toContain("Systemic return · Pressure-volume loop");
+    expect(html).toContain("Reader experiment");
+    expect(html).not.toContain("Live experiment");
+    expect(html).not.toContain("MW V3");
     expect(html).not.toContain("<figure");
   });
 
@@ -549,22 +705,20 @@ describe("Article Reader V3 experiment anchor", () => {
 
   it("fails only the inconsistent Placement closed instead of crashing the Article", () => {
     const block = blockV3();
+    const snapshot = snapshotV3();
     const html = renderExperimentV3({
-      block: {
-        ...block,
-        placement: {
-          ...block.placement,
-          briefing: {
-            ...block.placement.briefing,
-            graphs: [{
-              paneId: "pane/missing",
-              order: 0,
-              emphasis: "primary",
-            }],
-          },
+      block,
+      snapshot: {
+        ...snapshot,
+        briefing: {
+          ...snapshot.briefing,
+          graphs: [{
+            paneId: "pane/missing",
+            order: 0,
+            emphasis: "primary",
+          }],
         },
       },
-      snapshot: snapshotV3(),
       contract: contractV3(),
       live: true,
     });

@@ -1,1305 +1,541 @@
 # CircleHeart Studio — Experiment data architecture
 
-Status: authoritative pre-release architecture and current direct-cutover
-implementation contract for Studio identity, persistence, Snapshot publication,
-Placement, and Reader runtime ownership
+Status: authoritative pre-release contract; direct cutover
 
-Date: 2026-08-02
+Date: 2026-08-05
 
-Decision: registry-trusted exact `modelId`, mutable Experiment workspace,
-immutable Experiment snapshot
+Decision: one shared `ExperimentContent` shape moves through an ephemeral
+`ExperimentSession`, an explicitly saved mutable `Experiment`, and an
+immutable qualified `ExperimentSnapshot`.
 
-This is the only active Studio data-architecture document. Superseded
-`ParameterSet`, Working Set / Reader Brief entities, numeric Experiment revision,
-certification-artifact, placement-mode, and session-only preview designs were
-removed from the working tree and remain available only in Git history.
-Current V3 scientific validation remains a separate model concern. Historical
-sidecar benches, readiness artifacts, and pre-V3 authored scenario generators
-are removed rather than reclassified as active evidence.
+This document is the persistence and runtime-ownership source of truth.
+`DESIGN-STUDIO-004-reader-briefing-experiment-ia.md` owns Article, Briefing,
+Reader, and navigation IA.
 
-`DESIGN-STUDIO-004-reader-briefing-experiment-ia.md` is the active companion for
-standalone Experiment IA, Article ownership, role-specific inline Briefing,
-responsive Reader presentation, and canonical routes. It refines the product
-projection without creating a separately identified Reader Brief entity.
+The application has no production users or durable production database.
+Superseded schemas are deleted rather than migrated. Git history is the only
+archive for `Workspace`, `ExperimentDraft`, numeric Snapshot revisions,
+Snapshot lineage, and Placement-owned Briefing designs.
 
-## 1. Decision
-
-Studio's durable product model is:
+## 1. Canonical vocabulary
 
 ```text
-RegisteredModel(modelId)
+Registered model release
+  └─ exact immutable modelId
 
-ExperimentWorkspace (mutable)
+ExperimentSession                         ephemeral, mutable
+  ├─ current ExperimentContent
+  ├─ live numerical runtimes
+  └─ transient UI/runtime state
+
+Experiment                                durable, mutable by explicit Save
+  ├─ experimentId
+  ├─ version                              concurrency only
   └─ ExperimentContent
-       ├─ ScenarioCapture[]
-       └─ ExperimentSurface
 
-ExperimentSnapshot (immutable)
-  └─ frozen ExperimentContent
-
-ExperimentPlacement
-  ├─ pins one ExperimentSnapshot
-  └─ owns one optional inline Briefing
-
-StudioArticleDraft
-  └─ owns ordered text and Experiment-placement blocks
-
-SimulationSession (ephemeral)
-ExperimentPreviewArtifact (disposable)
+ExperimentSnapshot                        durable, immutable, qualified
+  ├─ PublicationSnapshot
+  │    └─ ExperimentContent
+  └─ ArticleSnapshot
+       ├─ ExperimentContent
+       └─ Briefing
 ```
 
-The minimum domain roots are:
+The terms are intentionally narrow:
 
-- one exact, immutable `modelId`;
-- one mutable Experiment workspace with an optimistic `draftVersion`;
-- one immutable `snapshotId` for each publishable capture;
-- one lineage-only `parentSnapshotId`;
-- one Article-owned placement that pins an immutable snapshot and may own an
-  audience-specific inline Briefing;
-- one runtime session whose numerical and asynchronous correlation state is
-  never durable content.
+- **Experiment** is the user-visible saved laboratory resource.
+- **Workbench** is the UI used to operate an `ExperimentSession`; it is not a
+  data type or persistence root.
+- **ExperimentSession** is the mutable, unsaved working state in one open
+  Workbench. It may start blank, from an Experiment, or from a Snapshot.
+- **ExperimentSnapshot** is an immutable, minimum-gated capture. Publication
+  and Article embedding are Snapshot variants, not separate domain entities.
+- **ExperimentContent** is the shared scientific/presentation payload. Sharing
+  this shape does not make the three lifecycle states interchangeable.
 
-Experiment is an Article-independent root. Creating, opening, saving, or
-snapshotting an Experiment never requires or automatically creates an Article.
+`Workspace`, `WorkbenchSession`, `ExperimentDraft`, `ExperimentRevision`, and
+`Publication` are not aliases. They are removed names.
 
-Studio V2 does not introduce durable `ParameterSet`, `AssessmentReport`,
-`CertifiedSeed`, `PublicationManifest`, `WorkingSet`, or `ReaderBrief`
-entities.
+## 2. Why one content shape still needs three lifecycle states
 
-## 2. Boundary and ownership
+All three states contain substantially the same Scenario and Surface content,
+but they have different guarantees:
 
-```text
-Model registry
-  atomically admits the manifest, nonempty exact executable artifact bytes,
-  and the model-bound executable bundle; owns exact modelId registration and
-  exact-runtime resolution
+| State | Mutable | Durable | Gate required | User-visible identity |
+| --- | --- | --- | --- | --- |
+| ExperimentSession | yes | no | no | no durable identity |
+| Experiment | yes, through Save | yes | no | `experimentId` |
+| ExperimentSnapshot | no | yes | yes | `snapshotId` |
 
-Model package
-  owns equations, runtime, solver semantics, fixture schema,
-  checkpoint codec, minimum snapshot gate, control/output/graph catalogs,
-  and the private mapping from semantic controls into complete fixtures
+Collapsing them into one tagged record would make invalid operations easy: a
+Reader could mutate a Snapshot, an unsettled Save could look published, or an
+open tab could silently enter My Experiments. Separate outer types make those
+state transitions explicit while reusing `ExperimentContent` inside them.
 
-Experiment authoring
-  resolves one registry-bound exact runtime containing the allowlisted contract
-  and executable adapters; owns Experiment workspace, Scenario composition,
-  Surface, note, and Snapshot
+## 3. Canonical data contracts
 
-Article authoring
-  owns Article Draft, ordered blocks, Placement, and each Placement-local
-  Briefing; pins Snapshots but never owns or mutates their Experiments
+```ts
+type ExperimentContent = Readonly<{
+  modelId: string;
+  scenarios: readonly ExperimentScenario[];
+  surface: ExperimentSurface;
+}>;
 
-Simulation runtime
-  owns accepted state, live stepping, settlement checks, numerical checks,
-  asynchronous intent correlation
+type Experiment = Readonly<{
+  schemaId: "circleheart-studio-experiment-v2";
+  experimentId: string;
+  version: number;
+  content: ExperimentContent;
+}>;
 
-Reader delivery
-  owns one-live scheduling and disposable preview artifacts
+type PublicationExperimentSnapshot = Readonly<{
+  schemaId: "circleheart-studio-experiment-snapshot-v2";
+  kind: "publication";
+  snapshotId: string;
+  content: ExperimentContent;
+  createdAt: string;
+  createdBy?: string;
+}>;
+
+type ArticleExperimentSnapshot = Readonly<{
+  schemaId: "circleheart-studio-experiment-snapshot-v2";
+  kind: "article";
+  snapshotId: string;
+  content: ExperimentContent;
+  briefing: ExperimentPlacementBriefing;
+  createdAt: string;
+  createdBy?: string;
+}>;
+
+type ExperimentSnapshot =
+  | PublicationExperimentSnapshot
+  | ArticleExperimentSnapshot;
 ```
 
-Studio does not interpret model checkpoint payloads or import engine-specific
-state classes. Model adapters validate fixture/checkpoint compatibility every
-time a capture enters or leaves the Studio authoring boundary.
+`ExperimentSession` is not a portable persistence schema. The Workbench owns
+its React state, Worker handles, desired fixtures, captured checkpoints,
+request tokens, and rendering buffers. When it crosses a durable boundary it
+produces validated `ExperimentContent`.
 
-## 3. Identity and integrity
+## 4. Identity, integrity, and release policy
 
-### 3.1 Domain identities
-
-The following are opaque IDs, not hashes:
+Domain identities are opaque IDs, not content hashes:
 
 ```text
 modelId
 experimentId
 snapshotId
-parentSnapshotId
-placementId / blockId
 scenarioId
+articleId
+placementId
 ```
 
-`experimentId` identifies one logical authoring series.
+One exact `modelId` pins the result-affecting execution contract:
 
-Experiment identity is model-independent and URL-addressable. The canonical
-target selector is `/experiments`; `/experiments/:experimentId` opens the
-standalone mutable Workbench for one opaque Experiment identity. The baseline
-pre-release `/workbench` routes are replaced directly and are not retained as
-domain aliases. New IDs are browser-generated URL-safe random tokens and never
-encode a default model, release name, digest, or hash. A saved Workspace remains
-pinned to its own exact `content.modelId`. Opening the selector after a
-default-model change therefore never reuses or mutates an older Workspace: the
-user may open it when that exact release is available, export/archive it when
-unavailable, or create a new opaque Experiment on the latest default release.
+- equations and normative parameter semantics;
+- solver/runtime and event-boundary semantics;
+- fixture schema and control mapping;
+- checkpoint codec and exact restore semantics;
+- output meanings, units, and aggregation semantics; and
+- the minimum Snapshot gate.
 
-`snapshotId` identifies one immutable materialization. It replaces
-`experimentId + numeric revision` as the exact content reference.
-`/experiments/:experimentId/snapshots/:snapshotId` is the canonical exact-view,
-share, and fork-source route. It validates Snapshot ownership and never follows
-the mutable Experiment head.
+The registry checks package integrity only when registering a release. An
+existing `modelId` cannot be overwritten with different normative content.
+CI fails when the execution-contract fingerprint changes without a new
+`modelId`. Ordinary clients trust the admitted registry and do not repeatedly
+hash model packages at runtime.
 
-`parentSnapshotId` records derivation only. It never means inheritance,
-read-through, or automatic propagation. A fork may create a new
-`experimentId` whose first snapshot points to a snapshot from another series.
+An Experiment stays pinned to its exact `modelId`. The current pre-release
+direct-cutover client deliberately bundles only the latest development release
+and fails closed when it encounters an older development ID; it preserves the
+stored bytes and never opens them with another model. Before the first stable
+release or retained user Snapshot, a multi-release registry that resolves each
+resource by `content.modelId` is a release blocker. At that boundary, changing
+the default creates only new Sessions with the new release; old Experiments
+remain executable through their retained exact release. Migration is explicit.
 
-`draftVersion` is the only numeric content-side revision. It is an optimistic
-concurrency token for the mutable workspace, not immutable content identity,
-scientific revision, or a Reader reference.
+`Experiment.version` is only an optimistic-concurrency token. It is not a
+scientific revision, publication number, or URL identity.
 
-### 3.2 Exact `modelId`
+Snapshots deliberately carry no `sourceExperimentId`, `parentSnapshotId`,
+`headSnapshotId`, or `basedOnSnapshotId`:
 
-One `modelId` identifies exactly one registered execution release.
+- an Article-origin session can create a Snapshot without an Experiment;
+- editing always clones Snapshot content into a new Session;
+- a Snapshot never inherits or follows later changes; and
+- provenance fields would imply ownership/lineage behavior the product does
+  not use.
 
-The release includes every contract element that can affect restore,
-simulation, output meaning, or the minimum snapshot gate:
+## 5. Model contract and catalogs
 
-- model equations and model-owned defaults;
-- runtime and solver semantics;
-- fixture schema;
-- checkpoint schema and codec;
-- semantic control-to-fixture mappings and control reset behavior;
-- observable and metric semantics;
-- event ordering and random-number semantics where applicable;
-- minimum settlement/numerical gate;
-- model-owned catalogs used by stored Experiment content.
-
-There is no many-builds-per-`modelId` concept in V2. Any normative package
-change, including a behavior-preserving optimization with different package
-bytes, requires a new `modelId`. `modelFamilyId` provides UI grouping across
-exact releases.
-
-This is intentionally conservative. A future compatible-build feature would
-need an explicit numerical conformance profile and build provenance. V2 does
-not need that complexity.
-
-The registry admits one exact, fail-closed
-`RegisteredModelPackageManifestV2`; there is no separately supplied public
-contract or parallel package-content object that could disagree with it:
+The registered model exposes one allowlisted Studio surface:
 
 ```ts
-type RegisteredModelPackageManifestV2 = {
-  schemaId: "circleheart-studio-registered-model-package-v2";
+type ModelContract = {
   modelId: string;
   modelFamilyId: string;
   displayName: string;
-  equations: JsonObject;
-  runtime: JsonObject;
-  solver: JsonObject;
-  fixtureSchema: {
-    fixtureSchemaId: string;
-    definition: JsonObject;
-  };
-  checkpointCodec: {
-    checkpointCodecId: string;
-    definition: JsonObject;
-  };
-  snapshotGate: {
-    snapshotGateId: string;
-    definition: JsonObject;
-  };
-  catalogs: {
-    controlCatalog: ControlDefinition[];
-    outputCatalog: OutputDefinition[];
-    graphCatalog: GraphDefinition[];
-  };
+  fixtureSchemaId: string;
+  checkpointCodecId: string;
+  snapshotGateId: string;
+  controlCatalog: readonly ControlDefinition[];
+  outputCatalog: readonly OutputDefinition[];
+  graphCatalog: readonly GraphDefinition[];
 };
 ```
 
-All manifest records use exact keys. Equations, runtime, solver, fixture-schema
-definition, checkpoint-codec definition, and snapshot-gate definition must be
-non-empty portable JSON objects. Missing or empty normative definitions are
-rejected rather than filled with defaults.
+Signals and derived metrics share `outputCatalog`; their definition kind,
+shape, scope, and dependencies distinguish them. There is no overlapping
+`observableCatalog`.
 
-The registry derives `ModelContractV2` from this manifest by explicit
-allowlisting. Public model resolution cannot carry integrity digests, build
-IDs, release metadata, or arbitrary catalog properties.
+There is no durable `ParameterSet`. A control action is an ephemeral command.
+After application, the complete changed input is part of the Scenario fixture.
+A Knob may issue several assignments as one UI action, but it creates no
+second persistence identity.
 
-### 3.3 Registry-only hash
-
-The registry computes package integrity when a model is registered. Admission
-receives canonical manifest data, a nonempty exact built-artifact byte sequence,
-and a trusted loader that materializes the executable bundle from those bytes:
-
-```text
-new modelId + complete manifest + exact executable artifact bytes
-  → validate
-  → canonicalize the complete manifest and frame it with the artifact bytes
-  → calculate one internal digest over both
-  → use the trusted loader to materialize and identity-check the executable bundle
-  → store immutable digest-addressed bytes
-  → atomically bind modelId to that digest and executable bundle
-
-same modelId + byte-equivalent canonical manifest and artifact
-  → idempotent
-
-same modelId + any different manifest or artifact byte
-  → reject
-```
-
-The digest is registry/storage metadata. It is not returned as Studio domain
-identity and is not stored in Experiment, Snapshot, Placement, Preset, or
-runtime commands.
-
-The executable bundle contains the capture validator, accepted-boundary Draft
-capture, minimum Snapshot gate, and fixture reducer. Each declares the exact
-model/schema/codec/gate identities it uses, and all are admitted together;
-there is no post-registration adapter API. A trusted loader must materialize the
-bundle represented by the supplied artifact bytes. A repeated admission with
-the same manifest and bytes returns the already stored runtime even if a loader
-invocation would allocate new JavaScript function objects; function reference
-identity is not package identity.
-
-Clients trust authenticated delivery of the registry-admitted release. The
-exact executable artifact is shipped as an ordinary ESM build input and is the
-sole source for both client compositions. The main thread derives only its
-public package projection; the Worker materializes the executable bundle and
-owns the numerical runtime. Neither composition recreates an executable bundle
-independently from the integration source, fetches raw artifact text, or
-evaluates it through a Blob/data URL. Exact-byte evaluation belongs to registry
-admission and CI; authenticated client delivery may apply ordinary bundler
-transforms. The internal digest remains registry-private. Clients neither
-recompute that digest nor rehash packages at load or during simulation. They
-still perform ordinary schema, codec, model-ID, exact-key, range, and structural
-compatibility validation.
-
-For the integrated V3 development release, CI builds the exact model adapter
-entry as a deterministic registry artifact, frames it with the canonical
-manifest, and compares the internal digest with the checked registry-admission
-lock. A pull request that changes that framed package while retaining the prior
-`modelId` fails. This lock is registration/CI metadata; it is never delivered
-through the client catalog or copied into Studio content.
-
-Content-addressed blob storage may continue to use checksums internally.
-Storage addressing and corruption detection are not Studio domain identity.
-
-## 4. Model surface
-
-One model contract exposes three model-owned catalogs:
-
-```text
-controls
-outputs
-graphs
-```
-
-Observable and metric catalogs are unified as `outputs`, while their runtime
-semantics remain discriminated:
+## 6. Scenario capture and Preset
 
 ```ts
-type OutputDefinition =
-  | {
-      outputId: string;
-      kind: "signal";
-      unit: string;
-      shape: "scalar" | "vector";
-      sampling: "accepted-step" | "event";
-    }
-  | {
-      outputId: string;
-      kind: "metric";
-      unit: string;
-      shape: "scalar" | "vector";
-      scope: "instant" | "beat" | "window";
-      dependencies: readonly string[];
-    };
-```
+type ScenarioCapture = Readonly<{
+  fixture: JsonValue;
+  checkpoint: Readonly<{
+    acceptedRevision: number;
+    acceptedTimeSec: number;
+    payload: JsonValue;
+  }>;
+}>;
 
-Graph panes, output-pane items, and control-pane items stored in an Experiment
-refer to these catalog definitions by ID. A stored pane does not copy a second
-catalog.
-
-Controls are semantic, numeric reset commands rather than durable parameter
-entities:
-
-```ts
-type ControlDefinition = {
-  controlId: string;
-  valueType: "number";
-  unit: string;
-  minimum: number;
-  maximum: number;
-  step: number;
-  defaultValue: number;
-  changeSemantics: "reset";
-};
-```
-
-`minimum < maximum`, `step > 0`, `step` no larger than the range, and an
-inclusive in-range `defaultValue` are registry admission requirements. Labels
-remain application-localized and are not model-package metadata.
-
-Graphs explicitly select one allowlisted renderer:
-
-```ts
-type GraphDefinition =
-  | {
-      graphId: string;
-      renderer: "sweep";
-      seriesCatalog: readonly {
-        kind: "scalar";
-        seriesId: string;
-        outputId: string;
-      }[];
-      defaultSeriesIds: readonly string[];
-    }
-  | {
-      graphId: string;
-      renderer: "pressure-volume";
-      seriesCatalog: readonly {
-        kind: "pressure-volume";
-        seriesId: string;
-        volumeOutputId: string;
-        pressureOutputId: string;
-        pressureBasis: "transmural" | "intracavitary";
-        cyclePhaseOutputId: string;
-        guideMode: "none" | "lv-single-beat-orientation";
-      }[];
-      defaultSeriesIds: readonly string[];
-    }
-  | {
-      graphId: string;
-      renderer: "structural-return";
-      analysisId: string;
-      side: "right" | "left";
-    };
-```
-
-The model owns the semantic series a graph can display. A sweep series binds
-one scalar Output; every sweep series in one graph uses one registered unit. A
-pressure-volume series binds the volume, pressure, and model-emitted cycle
-phase roles explicitly. The renderer never guesses those roles from an output
-name. `defaultSeriesIds` is a nonempty ordered subset of that graph's series
-catalog and defines only its initial presentation.
-
-A `structural-return` graph is an explicit on-demand cardiac analysis, not a
-live output projection. It exposes neither a series catalog nor defaults; its
-portable `analysisId` plus `side` select one model-owned analysis
-implementation. No analysis options or arbitrary JSON configuration may be
-embedded in the catalog definition.
-
-This is an explicitly allowlisted semantic surface, not an extensible metadata
-bag. Additional renderer kinds, formatting, and richer control presentation
-require an explicit allowlisted contract revision. Unknown catalog keys are
-rejected, including fields named like build, release, or integrity metadata.
-
-Stored output and control items select catalog definitions only. They do not
-own presentation colors. In the standalone Workbench, the Scenario Manager's
-active slot supplies the currently implemented output/controller context. The
-target controller settings may instead select an explicit multi-Scenario set.
-An Article Briefing freezes every published control's target Scenario IDs by
-default. An author may instead opt explicitly into a bounded `reader-focus`
-binding; focus-following is never inferred from the Workbench active slot.
-DESIGN-STUDIO-004 specifies the separation.
-
-## 5. Fixture, checkpoint, and Scenario
-
-### 5.1 Fixture
-
-`fixture` is the complete current externally configured input:
-
-- model parameters;
-- rhythm configuration;
-- valve/circulation/device configuration;
-- controller targets;
-- model-defined initialization configuration that remains authoritative after
-  restore.
-
-The fixture is the durable source of truth for configured parameters. A
-parameter change is not stored as a durable action after it has been applied.
-
-### 5.2 Checkpoint
-
-`checkpoint` is the complete restorable numerical state at one accepted
-solver boundary:
-
-- accepted revision and simulation time;
-- internal circulation/mechanics/device/rhythm state;
-- event and solver memory required for exact continuation;
-- opaque model-owned payload interpreted by the registered checkpoint codec.
-
-“Exact” means that the registered model release can restore that accepted
-state. It does not mean settled, scientifically validated, certified, or
-bit-identical under a different `modelId`.
-
-Checkpoint payloads carry numerical state, the codec's structural identities,
-and corruption guards only. They do not repeat release blockers, readiness,
-clinical/physiological validation flags, or an `exactResumeClaim` object. Those
-semantics are pinned by `modelId` and belong to the model contract or current
-scientific documentation, not every saved Scenario.
-
-An accepted boundary exists after an accepted numerical step. Settlement is a
-separate convergence property over a beat/window. Therefore an unsettled Draft
-can still contain a valid exact checkpoint.
-
-### 5.3 Atomic capture
-
-Fixture and checkpoint are one indivisible value:
-
-```ts
-type ScenarioCapture = {
-  fixture: Fixture;
-  checkpoint: Checkpoint;
-};
-```
-
-Changing a fixture immediately invalidates its previously paired checkpoint.
-Save waits for the new fixture to be applied at an accepted command boundary,
-then captures a fresh checkpoint and commits the pair atomically.
-
-An edited fixture is never represented as a `ScenarioCapture`. Save intent has
-a separate checkpoint-free ephemeral shape:
-
-```ts
-type ExperimentDesiredScenario = {
+type ExperimentScenario = Readonly<{
   scenarioId: string;
   label: string;
-  fixture: Fixture;
-};
+  capture: ScenarioCapture;
+}>;
 
-type ExperimentDesiredContent = {
-  modelId: string;
-  scenarios: ExperimentDesiredScenario[];
-  surface: ExperimentSurface;
-};
-```
-
-Only the accepted-boundary capture port may turn this desired content into
-durable `ExperimentContent` containing complete `ScenarioCapture` values.
-Every persisted workspace therefore contains valid fixture/checkpoint pairs;
-the desired/edit type is never written to the repository.
-
-If a codec duplicates configured values inside its opaque checkpoint payload,
-the model adapter must validate equality with the fixture at capture and
-restore. Studio still treats the fixture as authoritative.
-
-### 5.4 Exact capture adapter
-
-The exact-runtime resolver is keyed by `modelId`. It returns one atomically
-registered bundle containing the public contract and all executable adapters.
-The capture adapter declares the exact triple:
-
-```text
-modelId + fixtureSchemaId + checkpointCodecId
-```
-
-All three values must match the registry-derived model contract before either
-adapter function is called. The Snapshot gate additionally declares the exact
-`modelId + snapshotGateId`; Draft capture declares the exact
-`modelId + fixtureSchemaId + checkpointCodecId`; and the fixture reducer
-declares `modelId + fixtureSchemaId`. The capture adapter exposes two
-fail-closed operations:
-
-```ts
-validateFixture({ model, fixture }): void;
-validateCapture({ model, capture }): Promise<void>;
-```
-
-Capture validation may restore the opaque checkpoint in an asynchronous model
-runtime. Every authoring read or write awaits that validation before returning
-the value or making a repository mutation visible.
-
-Authoring applies them at these boundaries:
-
-- workspace create and workspace/Snapshot read: validate every complete
-  capture;
-- Save pre-capture: validate checkpoint-free desired content, every desired
-  fixture, Surface reference, and Scenario identity;
-- Save post-capture: validate every complete fresh capture;
-- Snapshot pre-gate and post-gate: validate every complete capture;
-- Preset clone: validate the complete source capture before cloning it.
-
-The portable fixture reducer is created from the exact-runtime resolver and
-resolves its model adapter internally. Its public reduction call cannot accept
-a caller-supplied adapter. Runtime context remains only `modelId` plus
-`scenarioId`; fixture-schema identity is checked by the registry-bound factory
-instead of being duplicated into runtime state.
-
-## 6. Knobs and parameter changes
-
-Studio has no durable `ParameterSet` entity.
-
-A knob is a UI presentation of a registered control selected by the Experiment
-Surface. It is not a second runtime or durable domain type. A parameter change
-is one ephemeral semantic command:
-
-```text
-Knob interaction
-  → controlId + value
-  → require controlId in the exact model catalog
-  → model-owned adapter expands it to an internal fixture patch
-  → validate the complete resulting fixture
-  → apply atomically at an accepted command boundary
-  → action ends
-```
-
-The ephemeral desired fixture changes immediately. Save later captures and
-persists the resulting fixture/checkpoint pair.
-
-Every V2 control declares `changeSemantics: "reset"`. Applying a control value
-therefore replaces the complete desired fixture and starts a fresh exact-model
-runtime from that fixture; it does not continue from the pre-change checkpoint
-as though the value were a time-resolved intervention. The prior live session
-state is ephemeral. A subsequent Save captures the new runtime's accepted
-fixture/checkpoint pair.
-
-One action may change multiple parameters. Atomic multi-parameter behavior is
-model-owned reduction behavior, not a reason to create a durable
-`ParameterSet`:
-
-```ts
-type ControlAction = {
-  kind: "control";
-  controlId: string;
-  value: number;
-};
-```
-
-One shared rule validates catalog defaults, the public fixture reducer, and the
-admitted live simulation adapter. It rejects non-finite values, values outside
-the registered inclusive range, and values off the minimum-anchored
-`minimum + n * step` lattice before model state can change. A small bounded
-tolerance admits only ordinary IEEE-754 rounding around a lattice point; it
-does not turn `step` into presentation metadata. Registry admission also
-requires the inclusive maximum to lie on that lattice and rejects a lattice
-span too large for finite, reliably distinguishable step arithmetic.
-
-This lattice is a semantic-control contract, not fixture quantization. A
-complete fixture entering through capture, restore, or a future explicit
-fixture replacement remains valid at any continuous value accepted by the
-model-owned fixture schema; `step` constrains only catalog control actions and
-their defaults.
-
-Raw fixture paths never cross the public command boundary. The registry-bound
-model adapter may map one control to several fixture fields; the internal patch
-is validated and applied as one unit. Partial application is forbidden.
-
-## 7. Scenario Preset
-
-The only optional reusable scenario object is a named complete capture:
-
-```ts
-type ScenarioPreset = {
+type ScenarioPreset = Readonly<{
   presetId: string;
   modelId: string;
   title: string;
   description: string;
   capture: ScenarioCapture;
-};
+}>;
 ```
 
-Examples include Healthy baseline, Severe AS, HFrEF, or a device-enabled
-starting state.
+Fixture and checkpoint cross durable boundaries atomically. The fixture holds
+all current input values; the checkpoint holds the exact state and model time
+needed to continue. The registered model validates both against `modelId`.
 
-Applying a Preset clones its capture into an Experiment. There is no live link,
-inheritance, or automatic update. Preset existence does not imply
-qualification; its exact capture adapter validates the source before cloning,
-and Snapshot creation always runs the model's current minimum gate.
+Changing a parameter warm-starts at the current accepted `(time, state)` and
+continues visibly from there. A request generation/token may reject stale
+asynchronous work, but generations are runtime-only.
 
-If a dedicated Preset catalog is not needed, cloning a Scenario from an
-existing Snapshot provides the same numerical behavior.
+A Scenario Preset includes fixture and checkpoint because its purpose is a
+fast, meaningful start. Applying a Preset deep-copies the capture. It creates
+no live link, warm-cache reference, certification, or publication claim.
 
-## 8. Experiment data
+## 7. Experiment Surface
 
-```ts
-type Scenario = {
-  scenarioId: string;
-  label: string;
-  capture: ScenarioCapture;
-};
+The Surface owns durable semantic composition:
 
-type ExperimentSurface = {
-  graphPanes: Array<{
-    paneId: string;
-    role: "graph";
-    label: string;
-    order: number;
-    priority: number;
-    graphId: string;
-    windowSec?: number; // required only for a registered sweep renderer
-    series: Array<{
-      seriesId: string;
-      label: string;
-      colorHex: string;
-      order: number;
-    }>;
-  }>;
-  outputPanes: Array<{
-    paneId: string;
-    role: "output";
-    label: string;
-    order: number;
-    priority: number;
-    items: Array<{
-      outputId: string;
-      label: string;
-      order: number;
-    }>;
-  }>;
-  controlPanes: Array<{
-    paneId: string;
-    role: "control";
-    label: string;
-    order: number;
-    priority: number;
-    items: Array<{
-      controlId: string;
-      label: string;
-      order: number;
-    }>;
-  }>;
-  note: { text: string };
-};
+- graph panes, selected series, Scenario scope, exact exclusions, history,
+  window, analysis mode, labels, and frozen trace-color allocation;
+- output panes, selected output items, and one pane-level Scenario binding;
+- controller panes, selected controls, slider/button presentation, order, and
+  pane-level Scenario binding;
+- one Experiment note; and
+- Scenario base-color seeds used only for future automatic allocation.
 
-type ExperimentContent = {
-  modelId: string;
-  scenarios: Scenario[];
-  surface: ExperimentSurface;
-};
-```
+Device presentation is not content. Dockview geometry, area split ratios,
+active tabs, hover/focus, modal state, fullscreen state, transient graph-trace
+visibility, and current theme stay in memory or versioned device-local storage.
 
-An Experiment Surface stores authored role-pane composition:
+### 7.1 Graph binding
 
-- globally unique pane IDs and a fixed `graph | output | control` role;
-- a nonempty trimmed label on every pane and item;
-- a canonical lowercase `#rrggbb` color only on graph series;
-- nonnegative pane order, unique within each role array, and nonnegative pane
-  priority;
-- unique output/control IDs and item order within each pane;
-- exactly one Markdown-compatible `{ text }` note; its trimmed text may be
-  empty.
+Binding is pane-level by default:
 
-The three pane arrays may be empty. Larger `priority` means more prominent.
-When priorities tie, renderers use ascending `order`, then ascending `paneId`,
-so responsive composition is deterministic without durable geometry.
+- `visible-scenarios` follows ephemeral Scenario Manager visibility;
+- `fixed` names an authored Scenario subset; and
+- `excludedTraces` provides precise Scenario × series exceptions.
 
-A registered sweep graph requires a nonempty `series` and an authored
-`windowSec` from 1 through 6 seconds in 0.5-second steps. It omits
-`historyDepth`: its existing time trace remains continuous across a control
-reset and leaves the window naturally as the sweep advances. A registered
-pressure-volume graph also requires a nonempty `series`, omits `windowSec`, and
-stores `historyDepth` from 0 through 3. `historyDepth` selects how many completed
-pre-control parameter epochs are drawn as progressively faded presentation
-context; the retained samples themselves remain ephemeral runtime data.
-In both cases each authored `seriesId` must exist in that graph's own series
-catalog. This is what lets a left-pressure pane offer LVP/LAP/AoP while a
-pressure-volume pane offers LV/RV/RA/LA without letting settings accidentally
-assemble an invalid renderer binding. A `structural-return` graph requires an
-empty `series`, omits `windowSec`, and also stores `historyDepth` from 0 through
-3 for prior exact analysis payloads. Output panes may select any registered
-output.
+This preserves a simple pane mental model while permitting sparse comparisons
+without forcing every series item to own a binding editor.
 
-Default Workbench graph composition is deliberately small: one left-heart
-sweep with LVP/LAP/AoP and one pressure-volume pane with LV selected. Pane
-addition belongs to each Dockview role area and is rendered immediately after
-the rightmost tab in that area's rightmost tab group; it is not an action owned
-by an individual pane's settings.
+### 7.2 Output binding
 
-Graph color and Scenario identity are orthogonal. Signal/chamber identity owns
-a stable hue (for example LVP/LV red, LAP/LA magenta, AoP blue, RVP/RV indigo,
-and RAP/RA teal). Scenario order owns the line pattern (baseline solid, then
-dash/dot variants). Thus Scenario 1 and Scenario 2 LVP share the same hue and
-remain directly comparable, while all Scenario 2 curves share one line
-pattern. Output and control panes remain neutral.
+One output pane has exactly one binding:
 
-The pre-release Experiment domain admits at most four Scenarios. Durable
-content validation, Worker add/duplicate admission, and the Scenario inspector
-all enforce that same limit, preserving the one-to-one mapping between Scenario
-ordinal and the four admitted line patterns.
+- `active-slot` follows the Scenario Manager's active Scenario; or
+- `fixed` targets exactly one explicit Scenario.
 
-It does not store viewport dimensions, `inflow | peek | fullscreen`, active
-fullscreen state, open inspector state, Worker handles, runtime samples, or
-settlement status.
+When two or more Scenarios exist, a compact content-sized binding indicator is
+shown above the pane contents and opens the binding section in Pane Settings.
+It is omitted for a single Scenario because there is no meaningful target
+choice to explain. Output items never own independent Scenario targets.
+To compare Scenarios, **Compare by Scenario** fixes the source pane to its
+currently resolved Scenario, duplicates the whole pane, fixes the copy to the
+next unrepresented Scenario, and places it beside the source. This produces a
+predictable side-by-side comparison without a `metric × scenario` matrix in
+one pane.
 
-The complete Surface is the standalone Experiment's laboratory composition. It
-does not mean that the Experiment belongs to an Article. Article Placements
-project the Surface independently and may reuse the same pinned Snapshot with
-different Briefings for beginner, clinical, or research narratives.
+Scenario Manager visibility affects graph traces only. It does not hide an
+Output or Controller pane, because pane visibility, splitting, and deletion
+belong to Dockview layout controls rather than Scenario state.
 
-### 8.1 Scenario Manager and controller inspector
+### 7.3 Controller binding
 
-Workbench presents the Scenario Manager inside the Dockview `control` role
-area. It owns no numerical state. The active Scenario is ephemeral UI state;
-controller items are durable Surface selections without Scenario bindings.
-Selecting a Scenario makes that branch the neutral output/controller context.
-Every visible control action therefore applies only to the active Scenario.
+One controller pane has one binding:
 
-That last sentence describes the current pre-release implementation. The target
-standalone inspector also permits an explicitly selected Scenario set for a
-coupled control action. Active-slot and explicit-set targeting remain Workbench
-authoring behavior; when a control is picked into an Article Briefing, its
-current target is materialized as a fixed binding by default. `reader-focus` is
-available only as an explicit author opt-in over an allowlisted visible Scenario
-set, never as an accidental consequence of changing Article focus.
+- `active-slot` follows the Scenario Manager inside a mutable Session; or
+- `fixed` targets one or more explicit Scenarios.
 
-Each Scenario owns one persistent bidirectional numerical Worker and one live
-scheduler lane. All admitted Scenarios are wall-clock paced concurrently; the
-active Scenario selects only the neutral output/controller inspector context.
-This avoids serial branch restoration, keeps numerical ownership off the main
-thread, and lets graph panes compare every Scenario live. The following
-operations are runtime-pool commands, not optimistic UI array edits:
+With two or more Scenarios, the pane displays the same compact resolved mode
+and target indicator as Output panes. Selecting it opens the binding section
+in Pane Settings; it stays hidden for a single Scenario. Briefing capture materializes
+`active-slot` into a fixed Scenario identity so later focus changes cannot
+retarget published controls.
+
+## 8. Session lifecycle
+
+### 8.1 New Workbench
 
 ```text
-add from Preset  -> validate the complete Preset capture and create one lane
-duplicate        -> capture the selected exact branch and create an independent lane
-select           -> change the inspector context without pausing another lane
-rename           -> change branch metadata only
-delete           -> dispose one lane; at least one must remain
+open New Experiment
+  → navigate to /experiments/new with no Experiment identity
+  → create an ExperimentSession using the current default exact model
+  → start every Scenario in its persistent Worker lane
+  → do not create an Experiment or My Experiments entry
 ```
 
-Add and duplicate activate the new branch. Deleting the active branch selects
-a deterministic remaining branch. Pool mutations temporarily pause all lanes
-at accepted boundaries; a failed lane construction leaves the existing pool
-unchanged. Save and Snapshot commands capture every lane only at their explicit
-authoring boundaries. Runtime session IDs, input epochs, schedulers, and lane
-membership never become durable Experiment content.
+`experimentId` does not exist in this state. The first successful explicit Save
+allocates it inside the Save boundary and replaces the URL with the durable
+Experiment URL. A failed or abandoned Session consumes no Experiment identity
+and creates no recoverable-looking library entry.
 
-Adding, duplicating, or deleting a Scenario does not rewrite the Surface.
-Duplicating creates an independent exact branch: later control changes and
-accepted steps in the copy cannot mutate the baseline fixture or checkpoint.
-
-## 9. Mutable workspace
-
-```ts
-type ExperimentWorkspace = {
-  experimentId: string;
-  draftVersion: number;
-  headSnapshotId: string | null;
-  basedOnSnapshotId: string | null;
-  content: ExperimentContent;
-};
-```
-
-`headSnapshotId` is the current immutable head of this logical series.
-
-`basedOnSnapshotId` is the immutable snapshot from which the current Draft was
-derived. For an ordinary edit it equals the current head. For a new fork,
-`headSnapshotId` is null and `basedOnSnapshotId` is the source snapshot.
-
-The workspace may be saved while live, transitioning, unsettled, or
-numerically unhealthy. These statuses are recomputed runtime signals and are
-not durable fields.
-
-## 10. Immutable Experiment Snapshot
-
-```ts
-type ExperimentSnapshot = {
-  snapshotId: string;
-  experimentId: string;
-  parentSnapshotId: string | null;
-  content: ExperimentContent;
-  createdAt: string;
-  createdBy?: string;
-};
-```
-
-There is no numeric snapshot revision.
-
-Snapshot creation is the only sealed write path. Snapshot tables/collections
-must not expose generic insert, migration bypass, caller-supplied qualification
-flags, or a raw commit port from the public Studio barrel. The in-memory V2
-composition factory keeps the repository and a module-private runtime
-capability inside the module and returns a plain frozen façade of bound
-authoring functions plus read-only queries. Application dependencies are
-ECMAScript `#private` fields. Possessing an object with a look-alike commit
-method or `Symbol` is not sufficient to publish a Snapshot.
-
-The existence of a Snapshot means only:
-
-> The exact stored content passed the minimum snapshot gate pinned by its
-> `modelId` at creation time.
-
-It does not claim complete scientific V&V, clinical validation, regulatory
-certification, or freedom from future model defects.
-
-No `settled: true`, `verificationPassed: true`, Assessment report, or
-Certification object is duplicated into Snapshot content. An operational
-command receipt may be retained outside the domain model.
-
-## 11. Save and Snapshot command boundaries
-
-### 11.1 Save Draft
+### 8.2 Open saved Experiment
 
 ```text
-SaveDraft(expectedDraftVersion, desiredContent,
-          captureCorrelation?)
-  1. clone and freeze checkpoint-free ExperimentDesiredContent
-  2. exactly bind the model capture adapter and validate modelId, Scenario
-     identity/order/label, every desired fixture, and Surface references
-  3. if captureCorrelation is omitted, require every desired Scenario to
-     already exist with an exactly equal fixture, then reuse those checkpoints
-     while allowing Surface, label, order, or Scenario removal to change
-  4. otherwise validate one runtime-only session ID and expected input epoch
-     for every desired Scenario in exact order
-  5. call captureAcceptedCandidate with experimentId, exact model,
-     desiredContent, session ID, and expected epochs
-  6. wait until each new or dirty Scenario reaches an accepted command boundary
-  7. construct complete atomic fixture/checkpoint pairs
-  8. require the port to confirm the same Experiment, session, Scenario order,
-     and input epochs; reject stale or cross-session completion
-  9. validate every complete returned or reused capture
- 10. prove the capture port preserved modelId, Scenario order/identity/label,
-     fixture values, and Surface exactly
- 11. compare-and-swap draftVersion
- 12. expose either the whole complete workspace or none
+read Experiment
+  → deep-copy ExperimentContent into a Session
+  → restore each exact capture using Experiment.modelId
+  → edit independently
+  → explicit Save performs version-checked replacement
 ```
 
-The capture correlation is runtime-only and is never written into Workspace or
-Snapshot content. This also rejects the ABA case in which a fixture changes and
-later returns to the same JSON value while an older capture is still pending.
+### 8.3 Open Snapshot
 
-Surface/label/order-only Save therefore does not require a live runtime. A new
-Scenario or changed fixture always requires explicit capture correlation and a
-fresh accepted-boundary capture. Save does not require settlement or the
-minimum snapshot gate.
+The Snapshot page is read-only. “Open in Workbench” deep-copies its content
+into `/experiments/new` as a disposable Session with no Experiment ID. The user
+may Save it as an Experiment, capture another Snapshot, or leave it without
+adding anything to My Experiments.
 
-### 11.2 Create Snapshot
+No edit mutates or advances the source Snapshot.
+
+## 9. Explicit Experiment Save
+
+An Experiment is created only by the Save action:
 
 ```text
-CreateSnapshot(expectedDraftVersion, expectedHeadSnapshotId)
-  1. load the saved Draft only; never absorb unsaved runtime state implicitly
-  2. freeze and detach the candidate content
-  3. resolve and exactly bind its capture adapter; validate all captures
-  4. settle every Scenario from that frozen candidate
-  5. run the model-pinned minimum numerical gate
-  6. capture fresh settled checkpoints and validate all resulting captures
-  7. verify that fixture, Scenario identity, and Surface were not changed by
-     qualification
-  8. compare-and-swap draftVersion and headSnapshotId
-  9. through the sealed capability, atomically insert Snapshot and advance the
-     workspace head
+Save
+  → pause/correlate all live Scenario lanes at accepted boundaries
+  → atomically capture fixture + checkpoint for each Scenario
+  → resume live lanes immediately
+  → validate exact model references and Surface
+  → first Save: allocate experimentId and persist Experiment(version = 0)
+  → later Save: compare expected version, then persist version + 1
+  → add/update My Experiments metadata
+  → after first commit, replace /experiments/new with /experiments/:experimentId
 ```
 
-A slow gate is safe: if the Draft or head changes while it is running, the
-final compare-and-swap fails and no Snapshot becomes visible.
+Save does not require settlement. A user may preserve an unstable,
+transitioning, or exploratory exact state.
 
-Snapshot commit advances the persisted Workspace to the qualified checkpoints,
-but does not silently restore or replace an already-running Worker session.
-The caller must mark that live session divergent and explicitly restart or
-rebind it before presenting it as the Snapshot state.
+Opening a Workbench, changing a parameter, starting from an Article, or
+creating a Snapshot never implicitly saves an Experiment. An untouched default
+Session does not prompt. Authored content, an uncommitted title, or an
+uncaptured Briefing prompts before close/reload and ordinary in-app Link
+navigation.
 
-For one-click UX, `SaveAndSnapshot` may orchestrate the two explicit commands.
-It must not weaken either boundary.
+Live stepping and plotting never write every 2 ms. Workers and ring buffers
+remain in memory; only explicit boundaries capture durable state.
 
-### 11.3 Fork and rebase
+## 10. Snapshot creation
 
-Root `CreateWorkspace` always creates `headSnapshotId = null` and
-`basedOnSnapshotId = null`. It cannot claim a source Snapshot. `ForkWorkspace`
-takes only a new `experimentId` and source `snapshotId`; it loads and clones the
-source content inside the application, sets `headSnapshotId = null`, and sets
-`basedOnSnapshotId` to the source. Caller-supplied fork content is forbidden.
-
-Parent changes never auto-propagate. Rebase is an explicit operation that
-creates a new Draft and later a new Snapshot. `RebaseDraft`:
+Both Snapshot variants cross the same exact-model port, but the command
+purpose selects a different qualification profile:
 
 ```text
-RebaseDraft(expectedDraftVersion, expectedHeadSnapshotId,
-            targetSnapshotId, resolvedCompleteContent)
-  1. compare the caller's expected Draft version and head
-  2. require that the target Snapshot exists
-  3. require current Draft, target, and resolved content to use the same exact
-     modelId
-  4. validate every capture in the caller-resolved complete content
-  5. increment draftVersion, keep headSnapshotId unchanged, and set
-     basedOnSnapshotId = targetSnapshotId
-  6. publish either that whole rebased Draft or none
+briefly pause live lanes at accepted boundaries
+  → atomically capture fixture + checkpoint and freeze candidate content
+  → resume live lanes immediately
+  → lease a warm, bounded background Worker
+  → Article: exact restore + one-cycle numerical-safety verification
+             (finite/conservation/event/MCS checks; settlement not required)
+  → Publication: require period-1 settlement and numerical checks
+                 and emit fresh terminal settled checkpoints
+  → validate candidate again
+  → re-check model, Surface, Scenario identity/label, and fixture at persistence
+  → persist a new immutable snapshotId
 ```
 
-Studio does not compute a merge and does not treat the target as inherited
-content. The caller supplies the already conflict-resolved complete content.
-The next Snapshot's one `parentSnapshotId` is the rebased Draft's
-`basedOnSnapshotId`, so it points to the explicit rebase target. After the
-atomic Snapshot commit, both head and based-on advance to the new Snapshot.
+For a Publication, the command additionally carries `experimentId` and
+`expectedVersion`. The application boundary reads that saved head and rejects
+any candidate whose model, Surface, Scenario order/identity/label, or fixture
+differs; only checkpoint advancement is allowed. Browser persistence repeats
+the saved-head/version and authored-projection check so bypassing the
+Workbench UI cannot publish an unsaved or dirty Session.
 
-V2 records one parent, so it supports fork/rebase but does not claim true merge
-semantics. A future merge feature would require multiple parent IDs and a
-domain-aware conflict model.
+The Publication profile may replace checkpoints with qualified accepted
+states. The Article profile preserves the click-time checkpoint after its
+detached safety verification passes. Neither profile may change model ID,
+fixture, Scenario identity/order/label, or Surface.
 
-## 12. Article Placement
+There is no long-lived `QualifiedAnchor`. Snapshot, rapid PV-relation, and
+Guyton/Starling jobs fork only when requested. They share a bounded pool of
+pre-created but uninitialized Workers. Each leased Worker is single-use,
+terminated after completion, and replenished with a fresh warm Worker; no
+numerical state or runtime identity is reused between jobs. Snapshot has queue
+priority over exploratory analysis. The hardware-derived cap prevents an
+unbounded “one more Worker” policy while still allowing hypovolaemic and
+hypervolaemic partitions to run in parallel on capable devices.
 
-Placement pins an immutable Snapshot directly. Article content nests each
-Placement beneath its owning Experiment block. The same Snapshot may be placed
-repeatedly in one or many Articles with independent Placement IDs and
-independent inline Briefings. Lineage and `experimentId` are never overloaded
-for Article ownership. Lesson-page content may reuse the same nesting rule.
+Settlement traces, numerical-health status, V&V reports, assessment records,
+and certification chains are not Snapshot fields. Snapshot existence is the
+machine-readable assertion that the purpose-specific gate passed; an Article
+Snapshot therefore makes no settlement claim. Human-facing limitations,
+provenance, references, and interpretation live in the model information UI,
+Preset description, or Experiment note. That UI presents Scenario-local
+settlement and numerical-check status separately from model-level validation
+scope. Exact model IDs, fixture schema IDs, checkpoint codec IDs, integrity
+metadata, and gate identities remain registry/developer concerns rather than
+ordinary user-facing information.
 
-Experiment itself is an Article-independent root. Direct standalone clinical
-use requires neither a Placement nor an Article, and opening an Experiment does
-not auto-create either one. Article membership is a reverse index over
-Placements, not a field on Experiment.
+### 10.1 Publication Snapshot
 
-The baseline before the current direct cutover used a provisional
-`scenarioIds + panePicks(priority)` projection. It proved repeated pinned
-Snapshot placement, but that generic shape has now been removed rather than
-retained as a compatibility reader.
+Publication captures complete `ExperimentContent`. It is the immutable target
+of a saved Experiment’s published pointer. It has no independent Publication
+entity and no Briefing. Because the library pointer belongs to a durable
+Experiment, the first explicit Save is required before Publish. Publish never
+performs that Save implicitly and never advances the Experiment version. The
+current Session must be clean: authored changes are saved before publishing.
 
-The direct-cutover target keeps Briefing inline and Placement-owned while
-separating its roles:
+### 10.2 Article Snapshot
 
-```ts
-type ExperimentPlacement = {
-  placementId: string;
-  snapshotId: string;
-  caption: string | null;
-  briefing?: {
-    scenarioScope: {
-      visibleScenarioIds: string[];
-      initialFocusScenarioId: string;
-    };
-    graphs: GraphBriefing[];
-    outputs: OutputBriefingItem[];
-    controls: ControlBriefingControl[];
-  };
-};
-```
+Article capture freezes `ExperimentContent` and the exact audience Briefing in
+one object. The Briefing cannot be detached, retargeted, or edited in place.
+Creating or changing a Briefing creates another Article Snapshot.
 
-The full bounded shapes are defined in DESIGN-STUDIO-004. Their ownership rules
-are:
+Article capture deliberately does not wait for settlement. It verifies exact
+restore and one complete cycle for finite values, conservation/TBV safety,
+event identity/counts, and the pinned MCS-off contract, then keeps the atomic
+click-time fixture/checkpoint pair. This makes ordinary authoring capture fast
+without misrepresenting the result as periodic steady state.
 
-- a graph selects one custom graph pane from the pinned Snapshot and may carry
-  Placement-local label, legend/color, window, and history overrides within the
-  registered graph contract;
-- output selection is item-level and may override only the label;
-- control selection is item-level and may override label and allowlisted
-  slider/button presentation;
-- published control pickup produces a fixed binding by default; an explicit
-  `reader-focus` binding is allowed only over an allowlisted visible set;
-- visible Scenarios, initial focus, and control bindings are distinct and all
-  focused/allowed/fixed-target Scenarios must be visible; and
-- output/control content is color-neutral.
+Snapshot creation never saves or version-advances an Experiment. A single
+unsaved Session may create many Article Snapshots; Publication Snapshots
+require an already-saved Experiment so they cannot become orphaned releases.
 
-This preserves “compose a rich Experiment once, then project a smaller Article
-view” without creating an independently identified or versioned Reader Brief.
-There is no Placement revision or durable presentation-mode enum.
+## 11. Runtime-only data
 
-Workbench may carry the current author-selected projection across its mandatory
-post-Snapshot runtime restart and into explicit Article insertion through an
-ephemeral handoff keyed by the new exact `snapshotId`. The handoff is not
-Snapshot, Workspace, Placement, or Article content. Article insertion validates
-it against the pinned Snapshot and copies it only as the new Placement's initial
-Briefing. Missing, corrupt, cross-Snapshot, or stale selections fall back to the
-ordinary complete-Surface projection.
+None of the following is carried by Experiment, Snapshot, or Article:
 
-The renderer derives density and extent from:
+- play/pause, elapsed runtime, accepted state between captures;
+- settlement/numerical-health progress and analysis workers;
+- target generation, request IDs, Worker IDs, and correlation tokens;
+- trace ring buffers, one-beat replay, graph caches, and render decimation;
+- current Scenario Manager focus and graph-trace visibility;
+- active Dockview pane, split geometry, theme, modal/drawer state; and
+- Reader one-live scheduling or legend-click visibility.
+
+Workbench runs all Experiment Scenarios concurrently. Presentation buffers
+decouple model step cadence from the browser render cadence. Background
+settlement/verification status, Worker-pool leases, queue priority, and
+captured job candidates remain ephemeral.
+
+## 12. Browser persistence and deletion
+
+The direct-cutover browser envelope is:
 
 ```text
-Snapshot Surface
-+ Placement briefing
-+ selected-content complexity
-+ viewport
-+ renderer policy/version
+circleheart.studio.browser-content.v6
+  ├─ experiments[]
+  ├─ snapshots[]
+  └─ articles[]
+
+circleheart.studio.browser-experiment-index.v5
+  └─ explicit Experiment metadata and optional publication pointer
 ```
 
-The target renderer derives inflow/peek/fullscreen extent automatically from
-graph complexity, series count, output/control density, graph emphasis/source-
-pane priority, viewport, and renderer policy. A borderless inflow is the inline
-Article anchor; medium complexity may expand into a side peek and high
-complexity into fullscreen. The current cutover implements graph-count
-inflow/peek/fullscreen thresholds; weighted complexity promotion remains
-deferred.
-Extent is never durable content. On mobile, graph panes become one horizontal
-snap/swipe row while outputs and controls remain vertical. Fullscreen
-activation remains ephemeral and user-controlled.
+Old browser envelopes are retired, not migrated. The current store validates
+exact schemas, unique IDs, immutable Snapshot writes, Experiment version
+progression, exact model identity, and Article placement references. Before an
+Experiment Save is written, it also rechecks the Worker result against the
+frozen submitted model, Surface, Scenario order/identity/label, and fixtures;
+Worker capture may change checkpoints only.
 
-The current Article Editor renders a pinned static composition while authoring.
-It never invents live values, and it labels this state as pinned/static. Live
-Reader ownership belongs to the delivery policy below, not the editor preview.
+The localStorage implementation is a pre-backend product prototype. Its
+version checks cannot provide transactional compare-and-swap across concurrent
+tabs, and Snapshot persistence plus the Experiment publication pointer are two
+browser writes. Before production launch, the backend store must provide:
 
-Browser-only pre-release authoring persists Workspaces, Snapshots, and Article
-Drafts inside one versioned, exact-key local-storage envelope. Snapshot and
-advanced Workspace visibility are written as one envelope update. This is a
-replaceable persistence adapter, not a domain identity or a commitment to a
-future server database schema.
+- atomic Experiment version compare-and-swap with explicit conflict UI;
+- atomic Publication Snapshot + published-pointer commit or recovery journal;
+- retained exact-model lookup by `content.modelId`;
+- typed quota handling plus per-record corruption quarantine/recovery;
+- a data-router navigation blocker covering browser history traversal; and
+- authorization and ownership outside canonical URLs.
 
-The browser adapter repeats the durable invariants rather than trusting plain
-JSON from UI code. Draft writes compare-and-swap one exact `draftVersion` while
-preserving head, based-on lineage, and `modelId`. Snapshot writes accept only
-the opaque runtime authority minted after the persistent Worker client's
-correlated sealed-authoring response; casts, clones, and hand-built structural
-look-alikes are rejected. Commit then advances version, head, and based-on
-together, permits qualification to change checkpoints only, and rejects every
-duplicate `snapshotId`. Envelope reads fail closed on dangling or cyclic
-lineage. Article drafts start at version zero and advance by exactly one;
-Article writes resolve every Placement against its pinned Snapshot and reject
-unknown Snapshot, Scenario, pane, output, control, or graph-series identities.
-The direct-cutover validator covers role-specific selection, bounded graph
-overrides, visible/focus/binding relationships, and finite unique control
-button values. Exact control range/lattice enforcement is contract-aware: the
-Article Editor quantizes authored values, and Reader validates them before
-calling the registered runtime. If the exact contract is unavailable those
-authoring/execution paths are disabled; runtime application failures remain
-recoverable placement errors rather than terminating the whole live session.
+Deleting an Experiment removes only that mutable resource and its library
+metadata. It never cascades to Snapshots or Articles. Backend retention and
+garbage collection removes only Snapshots that are no longer referenced by an
+Article Placement or an Experiment publication pointer. Article deletion starts
+a short recovery retention window; after it expires, a periodic backend job may
+delete newly unreferenced Article Snapshots. The browser prototype does not
+pretend localStorage can provide that transactional retention service.
 
-Authoring seeds and Experiment exports carry the target Experiment's immutable
-Snapshot series together with the complete parent closure required by any
-cross-Experiment fork. The closure is deterministic and parent-first, while
-Workbench Snapshot counts continue to count only Snapshots owned by that
-Workbench. This keeps an exported fork self-contained without confusing
-lineage ancestors with locally authored revisions.
-
-This local-storage adapter is single-renderer authoring infrastructure.
-Its persisted version check rejects an already-visible stale write, but browser
-local storage cannot make the read/compare/write sequence transactional across
-two tabs. Concurrent-tab authoring is therefore unsupported until the adapter
-is replaced by a server transaction or an equivalent cross-context lock; the
-domain repository CAS contract remains mandatory for that replacement.
-
-## 13. Reader runtime ownership and preview
-
-The Article Editor remains a static pinned authoring preview. The separate
-Article Reader route in DESIGN-STUDIO-004 autostarts Experiments under one
-resource policy:
+## 13. Canonical URLs
 
 ```text
-focused / screen-centered Placement
-  → one active live SimulationSession
-
-previously active Placement
-  → disposable cached preview
-
-not-yet-active Placement
-  → poster or graph-strip preview
+/:locale/experiments                     public directory
+/:locale/experiments/new
+/:locale/experiments/:experimentId
+/:locale/snapshots/:snapshotId
+/:locale/articles                        public directory
+/:locale/articles/:articleId/edit
+/:locale/articles/:articleId
+/:locale/me/experiments                  personal management
+/:locale/me/articles                     personal management
+/:locale/me/settings                     account preferences
 ```
 
-Moving focus suspends or closes the old live owner before activating the new
-one. Cached content never accepts control input; interaction first promotes
-the Placement to live ownership.
+User IDs are not embedded in canonical content paths. Authentication,
+ownership, and authorization belong to backend metadata. IDs are opaque and
+URL-safe; routes do not encode model release, hash, fixture, checkpoint, or
+Briefing JSON.
 
-The current cutover implements the single live owner and a static non-active
-fallback. The previously-active disposable cached-preview branch in the policy
-above remains deferred; it must not be inferred from the current static card.
+An unsaved Session always uses `/experiments/new`. `:experimentId` is therefore
+a durable Experiment identity, not a prospective reservation. Article handoff
+context may add an ephemeral `sessionToken` query parameter; the token is
+navigation correlation only and never becomes content or a canonical URL.
 
-The preview artifact is outside Snapshot identity:
+## 14. Normative invariants
 
-```ts
-type ExperimentPreviewArtifact = {
-  snapshotId: string;
-  cacheFormatVersion: number;
-  generatedAt: string;
-  scenarios: Array<{
-    scenarioId: string;
-    kind: "loopable-beat" | "trace-strip" | "poster";
-    timeRange?: {
-      startSec: number;
-      endSec: number;
-    };
-    loopable: boolean;
-    samples: JsonValue;
-  }>;
-};
-```
-
-A normal periodic cardiovascular case may use one complete beat. Transient,
-stochastic, event-driven, or nonperiodic states use a bounded trace or poster
-instead of pretending one beat is representative.
-
-Preview artifacts:
-
-- are regenerable and may be deleted without correctness loss;
-- are never a gate input, scientific export, metric authority, or checkpoint;
-- are visibly labelled `Replay` or `Cached` when not live;
-- solve first paint without adding a seed observable to durable Experiment
-  content.
-
-## 14. Runtime-only state
-
-SimulationSession may internally own:
-
-- current fixture and accepted numerical state;
-- an input epoch / intent token;
-- settlement and numerical-health evaluations;
-- live pacing and presentation samples;
-- pending capture/gate jobs;
-- delivery scheduling state.
-
-Inside one active Workbench or Article Placement, every Scenario owns a live
-lane and advances concurrently. The one-live resource policy in Section 13 is
-between Article Placements; it never serializes the Scenarios inside the
-selected Experiment.
-
-The input epoch rejects late asynchronous results after rapid control changes.
-It is an implementation counter, not a domain field. It must not enter
-Experiment, Snapshot, Placement, Preset, or preview identity.
-
-Slider pointer events, knob actions, settlement reports, and per-step samples
-are not written to durable storage.
-
-### 14.1 Live calculation and presentation cadence
-
-Numerical stepping and UI presentation use separate cadences. The Worker keeps
-the exact 2 ms accepted-step stream. Live pacing normally waits until sixteen
-steps are wall-clock due and crosses the Worker boundary once for that exact
-32 ms model-time batch; this removes hundreds of request/response round trips
-per model second without advancing ahead of real time. Every accepted frame in
-the batch still returns in order. The Workbench then notifies presentation
-consumers at approximately 30 frames per second; pausing, saving, or a hard pending-frame
-bound flushes every accepted frame before the command boundary. Coalescing
-therefore reduces transport and React churn without changing numerical
-stepping or checkpoint history.
-
-Presentation keeps two bounded resolutions from the same accepted frames.
-Sweep graphs use a 60 Hz terminal-plus-extrema buffer for the authored time
-window. Pressure-volume graphs use a separate bounded exact 2 ms scalar-orbit
-buffer for the current and recent complete beats, so systolic geometry is not
-reduced to roughly 40--60 vertices per beat. The latter is a display cache, not
-a second numerical state or a source for Snapshot qualification.
-
-`acceptedTimeSec` remains the exact model clock and may restart at zero after a
-model-owned cold-reset control. A separate monotonic `presentationTimeSec` maps
-each input epoch onto one continuous visual timeline. Sweep paths split their
-stroke at an epoch boundary but keep the previous samples in the same window,
-so the waveform does not disappear on commit and naturally sweeps away without
-claiming numerical continuity across the reset. PV/structural panes instead
-archive completed pre-control epochs up to authored `historyDepth`; their
-historical orbit, single-beat end-systolic/Klotz-informed orientation references
-(not formal ESPVR/EDPVR relations), Guyton curve, and any qualified Starling
-locus are rendered with age-based opacity and never reused as current analysis.
-
-Canvas elements keep one context, size observer, and pending animation frame
-for their mounted lifetime. Live samples are already monotonic in presentation
-time, so renderers preserve array identity instead of copying and sorting the
-full bounded buffer on every paint. Canvas device-pixel ratio is capped
-independently of numerical resolution. OffscreenCanvas and WebGL are not the
-default: they are introduced only if production profiling shows main-thread
-render saturation after the bounded multi-resolution caches, because another
-Worker cannot reduce the numerical kernel's CPU cost.
-
-### 14.2 Portable JSON and signed zero
-
-All Studio V2 portable JSON boundaries reject non-finite numbers and negative
-zero (`-0`). This includes manifest admission, canonical serialization,
-fixture/capture cloning, and portable fixture reduction. JSON text cannot
-preserve the sign of zero, so accepting it would make canonical identity and
-round trips ambiguous. A model for which signed zero is scientifically
-meaningful must encode that sign explicitly in its model-owned schema or
-checkpoint codec rather than relying on a JSON number.
-
-## 15. Invariants
-
-1. A `modelId` maps to one immutable registered manifest, nonempty executable
-   artifact, and exact executable bundle.
-2. The manifest and artifact bytes are the sources for the public allowlisted
-   contract and registry-internal digest; no parallel public contract exists.
-3. Missing, empty, extra, or changed normative manifest/artifact content is rejected;
-   changing it requires a new `modelId`.
-4. Domain objects and clients never use a package hash as identity or receive
-   build/release/integrity metadata through the public model contract.
-5. Every executable adapter is atomically registry-bound and exactly matches
-   its model plus applicable fixture schema, checkpoint codec, or Snapshot gate
-   before it is called.
-6. Desired Save input is checkpoint-free and ephemeral; every persisted
-   Scenario fixture/checkpoint pair is complete, captured atomically, and
-   validated at each authoring ingress/egress boundary.
-7. Save capture confirms its runtime session and every expected input epoch;
-   that correlation is never persisted.
-8. Fixture is authoritative for configured parameters.
-9. Portable JSON never contains negative zero.
-10. Draft may be unsettled; Snapshot may exist only after the minimum gate.
-11. Snapshot write access exists only through the factory-composed,
-    capability-sealed `CreateSnapshot` path.
-12. Gate evaluation and stored content refer to the same frozen candidate.
-13. `draftVersion` and head are compare-and-swap protected.
-14. Root creation cannot claim lineage; Fork clones its source internally.
-15. Rebase keeps the current head, advances `basedOnSnapshotId` to an existing
-    exact-model target, and stores caller-resolved complete content.
-16. Snapshot and parent references are immutable.
-17. Parent means lineage only; no implicit inheritance or propagation.
-18. Placement pins one Snapshot and every Briefing selection or override stays
-    within IDs and bounds admitted by that frozen Snapshot and exact model.
-19. Experiment is Article-independent; direct use never creates an Article.
-20. Briefing belongs to Placement; repeated Placements never share mutable
-    Briefing state.
-21. Briefing visibility, focus, and control bindings are distinct; fixed is the
-    pickup default, reader-focus is explicit, and every referenced Scenario is
-    visible.
-22. Responsive extent and layout are derived, not durable geometry.
-23. Runtime epochs, settlement, numerical health, and samples are not durable
-    content.
-24. Preview artifacts cannot participate in qualification or exact restore.
-25. At most one article Placement owns an active live simulation.
-
-## 16. Pre-release direct cutover
-
-There is no production Studio database or user-authored content to migrate.
-The cutover is therefore intentionally destructive:
-
-- no V1 data reader, migration, dual-write, fallback, or compatibility alias;
-- the V3 browser store deletes the retired V2 local envelope without reading
-  or migrating it;
-- the exact integrated V3 development release is now the registered/default
-  Workbench path, but no official Preset, Experiment, Snapshot, Placement, or
-  Lesson content is authored until that development boundary is deliberately
-  promoted;
-- the default-model setting is only an authoring convenience. Creating an
-  Experiment resolves it once and stores the exact `modelId`; saved content
-  never stores a mutable `default` alias;
-- obsolete Studio content contracts, sample articles, preview routes, and
-  superseded design documents are deleted rather than deprecated.
-
-Current V3 engine tests and source-grounding data remain available for model
-development. Historical sidecar evidence and generated replay artifacts live
-only in Git history. Content-addressed storage may still use hashes internally,
-but neither old release refs nor storage hashes enter the new Studio domain.
-
-## 17. Delivery state and sequence
-
-Completed in the current development cutover:
-
-1. single-manifest contracts, fail-closed validation, atomic
-   manifest/artifact/executable-bundle registry admission, exact-runtime
-   resolution, workspace repository, and factory-composed sealed Snapshot
-   gateway;
-2. a canonical regular-sinus, normal-coronary, all-off/zero-inertance fixture,
-   accepted-boundary Draft capture, exact checkpoint restore, and an integrated
-   V3 live numerical session;
-3. one development package for `MainWireIntegratedModelTransactionV3` under
-   the exact immutable `modelId`
-   `circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-12`;
-4. trusted client resolution of that registry-admitted release as the default,
-   with no client-side package rehash;
-5. Workbench autostart through the generic Worker protocol into catalog-driven
-   Dockview graph, output, and control role areas with one persistent Worker per
-   Scenario under a page-owned runtime pool; pane geometry and settings-open
-   state remain ephemeral;
-6. a model-pinned candidate periodic Snapshot gate that accepts only period-1
-   converged, numerically admissible terminal checkpoints;
-7. a persistent Worker-to-authoring bridge for accepted-boundary Draft capture,
-   explicit header Save, gated Snapshot creation, exact checkpoint resume, and
-   one versioned browser persistence envelope; and
-8. addable/removable custom Surface panes with editable labels, graph-series
-   colors, authored sweep windows, placement-local Briefing pickup, and a
-   minimal Article Editor that supports repeated pinned Snapshot placement
-   without pretending its authoring preview is live. The old generic pane-pick
-   Briefing was the baseline and is not accepted by the direct-cutover reader.
-
-The current direct-cutover change adds the following contracts and resource
-boundaries beyond that baseline:
-
-1. role-specific graph/output/control Briefing, separate visibility/focus/fixed
-   or reader-focus binding semantics, bounded graph overrides, and control
-   presentation;
-2. canonical `/experiments/:experimentId`, nested immutable Snapshot,
-   `/articles/:articleId/edit`, and `/articles/:articleId` resource routes; and
-3. an Article Reader live owner that restores exactly the Briefing-visible
-   Snapshot Scenarios through the existing parallel Scenario runtime, applies
-   explicit control bindings, and does not mutate durable content;
-4. a borderless one-graph inflow, graph-count click-to-open right peek or
-   fullscreen presentation, responsive mobile graph swipe, and vertical
-   output/control presentation; and
-5. page-level one-live scheduling in which the centered/focused Placement owns
-   the live runtime and other Placements fail closed to static previews.
-
-Still deliberately deferred and therefore not an implementation claim:
-
-1. weighted complexity-derived presentation beyond the current graph-count
-   inflow/peek/fullscreen thresholds;
-2. labelled disposable one-beat replay generation for previously active
-   Placements (non-active Placements currently use static previews);
-3. retained multi-release client and Worker catalogs before a second exact
-   model release must remain executable in Reader;
-4. `Use in article…` handoff and derived Article backlinks;
-5. server persistence, collaboration, and authenticated publication; and
-6. official Scenario Presets, Experiments, published articles, and Lesson pages.
-
-The current development package makes no physiological, clinical,
-release-ready, or simulation-ready claim. Model catalogs are runtime and
-presentation interfaces; their presence is not scientific validation evidence.
-
-No step adds a hidden compatibility reader, automatic parent propagation,
-client-side package hash verification, or content encoded with a superseded
-schema.
+1. `ExperimentContent` is shared; lifecycle guarantees are not.
+2. Workbench is a UI, not a domain or persistence entity.
+3. Only explicit Save creates or updates an Experiment.
+4. Only explicit Save adds an item to My Experiments.
+5. Experiment Save may be unsettled; Article Snapshot capture requires
+   numerical safety but not settlement; Publication Snapshot capture requires
+   period-1 settlement.
+6. Every Snapshot is immutable, independently addressable, and gated.
+7. Article Snapshot creation requires no Experiment; neither Snapshot variant
+   version-advances an Experiment.
+8. A Snapshot has no parent/source/head/base lineage fields.
+9. Publication is a Publication Snapshot, not another entity.
+10. Article projection is inseparable from an Article Snapshot.
+11. Fixture and checkpoint are captured atomically against exact `modelId`.
+12. Hashes remain registry/storage integrity mechanisms, not domain identity.
+13. Runtime checks, caches, and device layout never become scientific content.
+14. No compatibility aliases preserve removed pre-release structures.
+15. `/experiments/new` has no `experimentId`; only a successful first Save
+    allocates one.
+16. Background qualification forks from one atomic capture, resumes live
+    lanes immediately, and runs within a bounded single-use Worker pool.

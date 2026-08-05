@@ -1,7 +1,7 @@
 import React from "react";
-import { ArrowLeft, FlaskConical, Home } from "lucide-react";
+import { ArrowLeft, Home, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import {
   defaultArticleBriefingV3,
@@ -11,8 +11,8 @@ import {
 } from "@/components/article/reader/ArticleReaderExperimentV3";
 import {
   homeHref,
-  experimentDetailHref,
   experimentsHref,
+  newExperimentHref,
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import {
@@ -20,6 +20,7 @@ import {
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
+  type ArticleExperimentSnapshotV2,
   type ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
@@ -29,11 +30,10 @@ import {
 
 export function ExperimentSnapshotV3Page() {
   const location = useLocation();
-  const { experimentId, snapshotId } = useParams();
+  const { snapshotId } = useParams();
   return (
     <ExperimentSnapshotV3Resource
-      key={`${experimentId ?? "missing-experiment"}\u001f${snapshotId ?? "missing-snapshot"}`}
-      experimentId={experimentId}
+      key={snapshotId ?? "missing-snapshot"}
       pathname={location.pathname}
       snapshotId={snapshotId}
     />
@@ -41,26 +41,39 @@ export function ExperimentSnapshotV3Page() {
 }
 
 function ExperimentSnapshotV3Resource({
-  experimentId,
   pathname,
   snapshotId,
 }: Readonly<{
-  experimentId: string | undefined;
   pathname: string;
   snapshotId: string | undefined;
 }>) {
   const { t } = useTranslation();
   const locale = localeFromPathname(pathname);
+  const navigate = useNavigate();
   const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
   const [snapshot] = React.useState<ExperimentSnapshotV2 | null>(() => {
-    if (snapshotId === undefined || experimentId === undefined) return null;
+    if (snapshotId === undefined) return null;
     try {
-      const candidate = store.readSnapshot(snapshotId);
-      return candidate?.experimentId === experimentId ? candidate : null;
+      return store.readSnapshot(snapshotId);
     } catch {
       return null;
     }
   });
+  const readerSnapshot = React.useMemo<ArticleExperimentSnapshotV2 | null>(() => {
+    if (snapshot === null) return null;
+    if (snapshot.kind === "article") return snapshot;
+    return Object.freeze({
+      schemaId: snapshot.schemaId,
+      snapshotId: snapshot.snapshotId,
+      kind: "article" as const,
+      content: snapshot.content,
+      briefing: defaultArticleBriefingV3(snapshot),
+      createdAt: snapshot.createdAt,
+      ...(snapshot.createdBy === undefined
+        ? {}
+        : { createdBy: snapshot.createdBy }),
+    });
+  }, [snapshot]);
   const [contract, setContract] = React.useState<ModelContractV2 | null>(null);
   const [expanded, setExpanded] = React.useState(false);
 
@@ -104,17 +117,22 @@ function ExperimentSnapshotV3Resource({
         <span className="min-w-0 flex-1 truncate text-center font-mono text-[10px] text-wb-subtle">
           {snapshot?.snapshotId ?? ""}
         </span>
-        {experimentId !== undefined && (
-          <Link
-            to={experimentDetailHref({ experimentId, locale })}
-            aria-label={t("snapshotReader.openExperiment")}
+        {snapshot !== null && (
+          <button
+            type="button"
+            aria-label={t("snapshotReader.editInWorkbench")}
+            onClick={() => {
+              navigate(`${newExperimentHref(locale)}?snapshotId=${
+                encodeURIComponent(snapshot.snapshotId)
+              }`);
+            }}
             className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
           >
-            <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
+            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
             <span className="hidden sm:inline">
-              {t("snapshotReader.openExperiment")}
+              {t("snapshotReader.editInWorkbench")}
             </span>
-          </Link>
+          </button>
         )}
       </header>
 
@@ -131,7 +149,7 @@ function ExperimentSnapshotV3Resource({
                 {t("snapshotReader.eyebrow")}
               </p>
               <h1 className="mt-2 text-3xl font-bold tracking-[-0.025em] sm:text-4xl">
-                {snapshot.content.scenarios[0]?.label ?? snapshot.experimentId}
+                {snapshot.content.scenarios[0]?.label ?? snapshot.snapshotId}
               </h1>
               {snapshot.content.surface.note.text.length > 0 && (
                 <p className="mt-4 max-w-3xl whitespace-pre-wrap text-sm leading-7 text-wb-muted">
@@ -139,7 +157,7 @@ function ExperimentSnapshotV3Resource({
                 </p>
               )}
             </header>
-            <ArticleReaderExperimentV3
+            {readerSnapshot !== null && <ArticleReaderExperimentV3
               block={Object.freeze({
                 blockId: `snapshot-view-${snapshot.snapshotId}`,
                 kind: "experiment",
@@ -147,20 +165,20 @@ function ExperimentSnapshotV3Resource({
                   schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
                   placementId: `snapshot-view-${snapshot.snapshotId}`,
                   snapshotId: snapshot.snapshotId,
+                  titleOverride: null,
                   caption: null,
-                  briefing: defaultArticleBriefingV3(snapshot),
                 }),
               })}
-              snapshot={snapshot}
+              snapshot={readerSnapshot}
               contract={contract}
               live
-              expanded={expanded}
+              expandedPresentation={expanded ? "fullscreen" : null}
               forceInline
               onActivate={() => undefined}
               onDeactivate={() => undefined}
               onExpand={() => setExpanded(true)}
               onClose={() => setExpanded(false)}
-            />
+            />}
           </>
         )}
       </main>

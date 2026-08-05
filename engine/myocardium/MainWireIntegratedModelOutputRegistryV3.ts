@@ -4,14 +4,16 @@ import type {
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID =
-  "main-wire-integrated-model-output-registry-v4" as const;
+  "main-wire-integrated-model-output-registry-v5" as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_SCHEMA_VERSION =
-  2 as const;
+  3 as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID =
-  "main-wire-integrated-model-output-frame-v4" as const;
+  "main-wire-integrated-model-output-frame-v5" as const;
 
 export type MainWireIntegratedModelOutputUnitV3 =
   | "1"
+  | "bpm"
+  | "L/min"
   | "mL"
   | "mmHg"
   | "mL/s";
@@ -20,21 +22,27 @@ export type MainWireIntegratedModelOutputQuantityKindV3 =
   | "volume"
   | "pressure"
   | "flow"
-  | "phase";
+  | "phase"
+  | "rate"
+  | "derived";
 
 export type MainWireIntegratedModelOutputSourceKindV3 =
   | "accepted-state"
-  | "accepted-step-readback";
+  | "accepted-step-readback"
+  | "completed-beat";
 
 export type MainWireIntegratedModelOutputDefinitionV3<
   TId extends string = string,
 > = Readonly<{
   outputId: TId;
+  kind: "signal" | "metric";
   quantityKind: MainWireIntegratedModelOutputQuantityKindV3;
   unit: MainWireIntegratedModelOutputUnitV3;
   modelingStatus: "modeled";
   sourceKind: MainWireIntegratedModelOutputSourceKindV3;
   sourcePath: string;
+  scope?: "beat";
+  dependencies?: readonly string[];
 }>;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
@@ -73,6 +81,62 @@ export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
     "accepted-step-readback",
     `step.coronaryStep.baseStep.circulationTrial.valveEvaluations.${valve}.flowMlPerSec`,
   )),
+  definition(
+    "hemodynamics.flow.systemic.SA_Art",
+    "flow",
+    "mL/s",
+    "accepted-step-readback",
+    "step.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.SA_Art",
+  ),
+  definition(
+    "hemodynamics.flow.pulmonary.PA_PArt",
+    "flow",
+    "mL/s",
+    "accepted-step-readback",
+    "step.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.PA_PArt",
+  ),
+  definition(
+    "hemodynamics.flow.venous.VC_RA",
+    "flow",
+    "mL/s",
+    "accepted-step-readback",
+    "step.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.VC_RA",
+  ),
+  definition(
+    "hemodynamics.flow.venous.PVein_LA",
+    "flow",
+    "mL/s",
+    "accepted-step-readback",
+    "step.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.PVein_LA",
+  ),
+  definition(
+    "pericardium.pressure.excess",
+    "pressure",
+    "mmHg",
+    "accepted-step-readback",
+    "step.coronaryStep.baseStep.pericardium.excessPressureMmHg",
+  ),
+  definition(
+    "respiration.pressure.pleural",
+    "pressure",
+    "mmHg",
+    "accepted-state",
+    "observation.runtimeSignals.pleuralPressureMmHg",
+  ),
+  definition(
+    "respiration.pressure.alveolar",
+    "pressure",
+    "mmHg",
+    "accepted-state",
+    "observation.runtimeSignals.alveolarPressureMmHg",
+  ),
+  definition(
+    "rhythm.heart-rate.instantaneous",
+    "rate",
+    "bpm",
+    "accepted-state",
+    "derive.60/accepted.composedRhythm.regularAtrialSourceState.configuration.cycleLengthSec",
+  ),
   definition(
     "coronary.flow.total",
     "flow",
@@ -114,6 +178,113 @@ export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
     "1",
     "accepted-state",
     "derive.regularSinusPhase01(accepted.composedRhythm.acceptedTimeSec,accepted.composedRhythm.regularAtrialSourceState.nextActivationTimeSec,accepted.composedRhythm.regularAtrialSourceState.configuration.cycleLengthSec)",
+  ),
+  metricDefinition(
+    "hemodynamics.pressure.mean.Ao",
+    "pressure",
+    "mmHg",
+    ["hemodynamics.pressure.absolute.Ao"],
+    "completedBeatMetrics.meanAorticPressureMmHg",
+  ),
+  metricDefinition(
+    "hemodynamics.pressure.systolic.Ao",
+    "pressure",
+    "mmHg",
+    ["hemodynamics.pressure.absolute.Ao"],
+    "completedBeatMetrics.systolicAorticPressureMmHg",
+  ),
+  metricDefinition(
+    "hemodynamics.pressure.diastolic.Ao",
+    "pressure",
+    "mmHg",
+    ["hemodynamics.pressure.absolute.Ao"],
+    "completedBeatMetrics.diastolicAorticPressureMmHg",
+  ),
+  metricDefinition(
+    "hemodynamics.pressure.pulse.Ao",
+    "pressure",
+    "mmHg",
+    [
+      "hemodynamics.pressure.systolic.Ao",
+      "hemodynamics.pressure.diastolic.Ao",
+    ],
+    "completedBeatMetrics.pulseAorticPressureMmHg",
+  ),
+  metricDefinition(
+    "hemodynamics.pressure.mean.PA",
+    "pressure",
+    "mmHg",
+    ["hemodynamics.pressure.absolute.PA"],
+    "completedBeatMetrics.meanPulmonaryArterialPressureMmHg",
+  ),
+  metricDefinition(
+    "hemodynamics.pressure.mean.LA",
+    "pressure",
+    "mmHg",
+    ["hemodynamics.pressure.absolute.LA"],
+    "completedBeatMetrics.meanLeftAtrialPressureMmHg",
+  ),
+  metricDefinition(
+    "hemodynamics.pressure.mean.RA",
+    "pressure",
+    "mmHg",
+    ["hemodynamics.pressure.absolute.RA"],
+    "completedBeatMetrics.meanRightAtrialPressureMmHg",
+  ),
+  metricDefinition(
+    "hemodynamics.volume.maximum.LV",
+    "volume",
+    "mL",
+    ["hemodynamics.volume.LV"],
+    "completedBeatMetrics.maximumLeftVentricularVolumeMl",
+  ),
+  metricDefinition(
+    "hemodynamics.volume.minimum.LV",
+    "volume",
+    "mL",
+    ["hemodynamics.volume.LV"],
+    "completedBeatMetrics.minimumLeftVentricularVolumeMl",
+  ),
+  metricDefinition(
+    "hemodynamics.stroke-volume.LV-extrema",
+    "derived",
+    "mL",
+    [
+      "hemodynamics.volume.maximum.LV",
+      "hemodynamics.volume.minimum.LV",
+    ],
+    "completedBeatMetrics.extremaLeftVentricularStrokeVolumeMl",
+  ),
+  metricDefinition(
+    "hemodynamics.ejection-fraction.LV-extrema",
+    "derived",
+    "1",
+    [
+      "hemodynamics.volume.maximum.LV",
+      "hemodynamics.volume.minimum.LV",
+    ],
+    "completedBeatMetrics.extremaLeftVentricularEjectionFraction01",
+  ),
+  metricDefinition(
+    "hemodynamics.output.native-left",
+    "flow",
+    "L/min",
+    ["hemodynamics.flow.valve.AoV"],
+    "completedBeatMetrics.nativeLeftCardiacOutputLPerMin",
+  ),
+  metricDefinition(
+    "hemodynamics.output.systemic-tissue",
+    "flow",
+    "L/min",
+    ["hemodynamics.flow.systemic.SA_Art"],
+    "completedBeatMetrics.systemicTissueOutputLPerMin",
+  ),
+  metricDefinition(
+    "hemodynamics.output.pulmonary",
+    "flow",
+    "L/min",
+    ["hemodynamics.flow.pulmonary.PA_PArt"],
+    "completedBeatMetrics.pulmonaryOutputLPerMin",
   ),
 ] as const);
 
@@ -300,6 +471,45 @@ export function projectMainWireIntegratedModelObservationV3(
       step?.coronaryStep.baseStep.circulationTrial
         .valveEvaluations.PV.flowMlPerSec,
     ),
+    "hemodynamics.flow.systemic.SA_Art": readbackValue(
+      "hemodynamics.flow.systemic.SA_Art",
+      step?.coronaryStep.baseStep.circulationTrial
+        .edgeFlowsMlPerSec.SA_Art,
+    ),
+    "hemodynamics.flow.pulmonary.PA_PArt": readbackValue(
+      "hemodynamics.flow.pulmonary.PA_PArt",
+      step?.coronaryStep.baseStep.circulationTrial
+        .edgeFlowsMlPerSec.PA_PArt,
+    ),
+    "hemodynamics.flow.venous.VC_RA": readbackValue(
+      "hemodynamics.flow.venous.VC_RA",
+      step?.coronaryStep.baseStep.circulationTrial
+        .edgeFlowsMlPerSec.VC_RA,
+    ),
+    "hemodynamics.flow.venous.PVein_LA": readbackValue(
+      "hemodynamics.flow.venous.PVein_LA",
+      step?.coronaryStep.baseStep.circulationTrial
+        .edgeFlowsMlPerSec.PVein_LA,
+    ),
+    "pericardium.pressure.excess": readbackValue(
+      "pericardium.pressure.excess",
+      step?.coronaryStep.baseStep.pericardium.excessPressureMmHg,
+    ),
+    "respiration.pressure.pleural": availableValue(
+      "respiration.pressure.pleural",
+      observation.runtimeSignals.pleuralPressureMmHg,
+      "accepted-derived",
+    ),
+    "respiration.pressure.alveolar": availableValue(
+      "respiration.pressure.alveolar",
+      observation.runtimeSignals.alveolarPressureMmHg,
+      "accepted-derived",
+    ),
+    "rhythm.heart-rate.instantaneous": availableValue(
+      "rhythm.heart-rate.instantaneous",
+      regularSinusHeartRateBpmV3(accepted.composedRhythm),
+      "accepted-derived",
+    ),
     "coronary.flow.total": readbackValue(
       "coronary.flow.total",
       step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics
@@ -329,6 +539,63 @@ export function projectMainWireIntegratedModelObservationV3(
       "rhythm.phase.regular-sinus",
       regularSinusPhase01V3(accepted.composedRhythm),
       "accepted-derived",
+    ),
+    "hemodynamics.pressure.mean.Ao": beatMetricValue(
+      "hemodynamics.pressure.mean.Ao",
+      observation.completedBeatMetrics?.meanAorticPressureMmHg,
+    ),
+    "hemodynamics.pressure.systolic.Ao": beatMetricValue(
+      "hemodynamics.pressure.systolic.Ao",
+      observation.completedBeatMetrics?.systolicAorticPressureMmHg,
+    ),
+    "hemodynamics.pressure.diastolic.Ao": beatMetricValue(
+      "hemodynamics.pressure.diastolic.Ao",
+      observation.completedBeatMetrics?.diastolicAorticPressureMmHg,
+    ),
+    "hemodynamics.pressure.pulse.Ao": beatMetricValue(
+      "hemodynamics.pressure.pulse.Ao",
+      observation.completedBeatMetrics?.pulseAorticPressureMmHg,
+    ),
+    "hemodynamics.pressure.mean.PA": beatMetricValue(
+      "hemodynamics.pressure.mean.PA",
+      observation.completedBeatMetrics?.meanPulmonaryArterialPressureMmHg,
+    ),
+    "hemodynamics.pressure.mean.LA": beatMetricValue(
+      "hemodynamics.pressure.mean.LA",
+      observation.completedBeatMetrics?.meanLeftAtrialPressureMmHg,
+    ),
+    "hemodynamics.pressure.mean.RA": beatMetricValue(
+      "hemodynamics.pressure.mean.RA",
+      observation.completedBeatMetrics?.meanRightAtrialPressureMmHg,
+    ),
+    "hemodynamics.volume.maximum.LV": beatMetricValue(
+      "hemodynamics.volume.maximum.LV",
+      observation.completedBeatMetrics?.maximumLeftVentricularVolumeMl,
+    ),
+    "hemodynamics.volume.minimum.LV": beatMetricValue(
+      "hemodynamics.volume.minimum.LV",
+      observation.completedBeatMetrics?.minimumLeftVentricularVolumeMl,
+    ),
+    "hemodynamics.stroke-volume.LV-extrema": beatMetricValue(
+      "hemodynamics.stroke-volume.LV-extrema",
+      observation.completedBeatMetrics?.extremaLeftVentricularStrokeVolumeMl,
+    ),
+    "hemodynamics.ejection-fraction.LV-extrema": beatMetricValue(
+      "hemodynamics.ejection-fraction.LV-extrema",
+      observation.completedBeatMetrics
+        ?.extremaLeftVentricularEjectionFraction01,
+    ),
+    "hemodynamics.output.native-left": beatMetricValue(
+      "hemodynamics.output.native-left",
+      observation.completedBeatMetrics?.nativeLeftCardiacOutputLPerMin,
+    ),
+    "hemodynamics.output.systemic-tissue": beatMetricValue(
+      "hemodynamics.output.systemic-tissue",
+      observation.completedBeatMetrics?.systemicTissueOutputLPerMin,
+    ),
+    "hemodynamics.output.pulmonary": beatMetricValue(
+      "hemodynamics.output.pulmonary",
+      observation.completedBeatMetrics?.pulmonaryOutputLPerMin,
     ),
   } satisfies Record<
     MainWireIntegratedModelOutputIdV3,
@@ -368,11 +635,32 @@ function definition<TId extends string>(
 ): MainWireIntegratedModelOutputDefinitionV3<TId> {
   return Object.freeze({
     outputId,
+    kind: "signal" as const,
     quantityKind,
     unit,
     modelingStatus: "modeled" as const,
     sourceKind,
     sourcePath,
+  });
+}
+
+function metricDefinition<TId extends string>(
+  outputId: TId,
+  quantityKind: MainWireIntegratedModelOutputQuantityKindV3,
+  unit: MainWireIntegratedModelOutputUnitV3,
+  dependencies: readonly string[],
+  sourcePath: string,
+): MainWireIntegratedModelOutputDefinitionV3<TId> {
+  return Object.freeze({
+    outputId,
+    kind: "metric" as const,
+    quantityKind,
+    unit,
+    modelingStatus: "modeled" as const,
+    sourceKind: "completed-beat" as const,
+    sourcePath,
+    scope: "beat" as const,
+    dependencies: Object.freeze([...dependencies]),
   });
 }
 
@@ -406,6 +694,37 @@ function readbackValue(
         quality: "not-assessed" as const,
       })
     : availableValue(outputId, value, "accepted-derived");
+}
+
+function beatMetricValue(
+  outputId: MainWireIntegratedModelOutputIdV3,
+  value: number | undefined,
+): MainWireIntegratedModelOutputValueV3 {
+  return value === undefined
+    ? Object.freeze({
+        outputId,
+        value: null,
+        availability: "not-evaluated-at-accepted-state" as const,
+        quality: "not-assessed" as const,
+      })
+    : availableValue(outputId, value, "accepted-derived");
+}
+
+function regularSinusHeartRateBpmV3(
+  state:
+    MainWireIntegratedModelObservationV3["acceptedState"]["composedRhythm"],
+): number {
+  const source = state.regularAtrialSourceState;
+  if (
+    source === null
+    || source.configuration.rhythmClass !== "sinus"
+    || !(source.configuration.cycleLengthSec > 0)
+  ) {
+    throw new MainWireIntegratedModelOutputProjectionErrorV3(
+      "regular-sinus heart rate is unavailable for the accepted rhythm state",
+    );
+  }
+  return 60 / source.configuration.cycleLengthSec;
 }
 
 function regularSinusPhase01V3(

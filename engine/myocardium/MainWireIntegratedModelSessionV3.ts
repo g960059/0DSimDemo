@@ -27,6 +27,20 @@ import type {
 import type {
   MainWireNormalAdultFiveWallProviderV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  forkMainWireIntegratedModelAtFixedTbvV3,
+  forkMainWireIntegratedModelResponsiveStarlingV3,
+} from "@/engine/myocardium/MainWireIntegratedModelFixedTbvForkV3";
+import {
+  MainWireIntegratedModelBeatAccumulatorV3,
+  type MainWireIntegratedModelCompletedBeatMetricsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
+import {
+  respiratoryExternalPressuresV1,
+} from "@/engine/core/circulationGraphKernelV1";
+import {
+  warmStartMainWireIntegratedModelV3,
+} from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID =
   "main-wire-integrated-model-session-v3" as const;
@@ -48,10 +62,19 @@ export type MainWireIntegratedModelObservationV3 = Readonly<{
   source:
     | "cold"
     | "presentation-target"
-    | "operational-checkpoint-restore";
+    | "operational-checkpoint-restore"
+    | "fixed-tbv-protocol-fork"
+    | "hemodynamic-input-warm-start";
   acceptedState: AcceptedState;
   /** Null at cold start and after operational checkpoint restore. */
   lastAcceptedStep: SuccessfulStep | null;
+  /** Algebraic environment values at the exact accepted clock. */
+  runtimeSignals: Readonly<{
+    pleuralPressureMmHg: number;
+    alveolarPressureMmHg: number;
+  }>;
+  /** Latest full atrial-capture-to-capture beat; null until one completes. */
+  completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null;
 }>;
 
 /** One internal accepted commit. It is diagnostic state, not a sample. */
@@ -123,6 +146,10 @@ export class MainWireIntegratedModelSessionV3 {
   private acceptedState: AcceptedState;
   private lastAcceptedStep: SuccessfulStep | null;
   private lastPresentationObservation: MainWireIntegratedModelObservationV3;
+  private readonly beatAccumulator =
+    new MainWireIntegratedModelBeatAccumulatorV3();
+  private completedBeatMetrics:
+    MainWireIntegratedModelCompletedBeatMetricsV3 | null = null;
 
   private constructor(
     runtime: MainWireIntegratedModelRuntimeV3,
@@ -149,6 +176,8 @@ export class MainWireIntegratedModelSessionV3 {
     this.lastPresentationObservation = observation(
       observationSource,
       acceptedState,
+      null,
+      runtime,
       null,
     );
   }
@@ -197,6 +226,66 @@ export class MainWireIntegratedModelSessionV3 {
 
   observe(): MainWireIntegratedModelObservationV3 {
     return this.lastPresentationObservation;
+  }
+
+  /**
+   * Starts a new fixture epoch from the current accepted boundary. This is an
+   * atomic candidate session for Studio controls: failure leaves the source
+   * session untouched, while success preserves its accepted revision/time.
+   */
+  async warmStartWithHemodynamicResearchInputs(
+    hemodynamicResearchInputs:
+    MainWireIntegratedModelHemodynamicResearchInputsV3,
+  ): Promise<MainWireIntegratedModelSessionV3> {
+    const targetRuntime = await createMainWireIntegratedModelRuntimeV3(
+      hemodynamicResearchInputs,
+    );
+    const acceptedState = warmStartMainWireIntegratedModelV3({
+      source: this.acceptedState,
+      sourceRuntime: this.runtime,
+      targetRuntime,
+    });
+    return new MainWireIntegratedModelSessionV3(
+      targetRuntime,
+      acceptedState,
+      "hemodynamic-input-warm-start",
+    );
+  }
+
+  /**
+   * Creates an isolated numerical branch for an ephemeral fixed-TBV protocol.
+   * The source session and its accepted readback remain untouched.
+   */
+  forkAtFixedGlobalTotalBloodVolume(
+    targetGlobalTotalBloodVolumeMl: number,
+  ): MainWireIntegratedModelSessionV3 {
+    return new MainWireIntegratedModelSessionV3(
+      this.runtime,
+      forkMainWireIntegratedModelAtFixedTbvV3({
+        source: this.acceptedState,
+        runtime: this.runtime,
+        targetGlobalTotalBloodVolumeMl,
+      }),
+      "fixed-tbv-protocol-fork",
+    );
+  }
+
+  /**
+   * Isolated fixed-tone continuation branch used only by the responsive
+   * Starling analysis. It is never a durable checkpoint or live authority.
+   */
+  forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
+    targetGlobalTotalBloodVolumeMl: number,
+  ): MainWireIntegratedModelSessionV3 {
+    return new MainWireIntegratedModelSessionV3(
+      this.runtime,
+      forkMainWireIntegratedModelResponsiveStarlingV3({
+        source: this.acceptedState,
+        runtime: this.runtime,
+        targetGlobalTotalBloodVolumeMl,
+      }),
+      "fixed-tbv-protocol-fork",
+    );
   }
 
   async checkpointOperational():
@@ -314,6 +403,8 @@ export class MainWireIntegratedModelSessionV3 {
 
       this.acceptedState = result.acceptedState;
       this.lastAcceptedStep = result;
+      this.completedBeatMetrics = this.beatAccumulator.accept(result)
+        ?? this.completedBeatMetrics;
       substepCount += 1;
       substeps.push(Object.freeze({
         acceptedRevision: result.acceptedState.revision,
@@ -360,6 +451,8 @@ export class MainWireIntegratedModelSessionV3 {
       "presentation-target",
       this.acceptedState,
       this.lastAcceptedStep,
+      this.runtime,
+      this.completedBeatMetrics,
     );
     this.lastPresentationObservation = nextObservation;
     const frozenSubsteps = Object.freeze([...substeps]);
@@ -418,8 +511,23 @@ function observation(
   source: MainWireIntegratedModelObservationV3["source"],
   acceptedState: AcceptedState,
   lastAcceptedStep: SuccessfulStep | null,
+  runtime: MainWireIntegratedModelRuntimeV3,
+  completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null,
 ): MainWireIntegratedModelObservationV3 {
-  return Object.freeze({ source, acceptedState, lastAcceptedStep });
+  const respiratory = respiratoryExternalPressuresV1(
+    acceptedState.acceptedTimeSec,
+    runtime.coronaryStepInput.runtime.respiratory,
+  );
+  return Object.freeze({
+    source,
+    acceptedState,
+    lastAcceptedStep,
+    runtimeSignals: Object.freeze({
+      pleuralPressureMmHg: respiratory.pthMmHg,
+      alveolarPressureMmHg: respiratory.palvMmHg,
+    }),
+    completedBeatMetrics,
+  });
 }
 
 function isNonadvancingLimiterError(error: unknown): boolean {

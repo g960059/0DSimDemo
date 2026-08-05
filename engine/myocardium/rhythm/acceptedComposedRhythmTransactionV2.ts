@@ -738,6 +738,83 @@ export function initializeAcceptedComposedRhythmTransactionStateV2(
 }
 
 /**
+ * Rebinds the regular-sinus cycle contract at one accepted boundary without
+ * rewinding any owner clock or discarding electrical, conduction, calcium, or
+ * capture state. The remaining fraction of the active sinus interval is
+ * preserved, so a heart-rate edit changes the next interval continuously
+ * instead of restarting the rhythm owner at its cold phase.
+ *
+ * Only the regular-source cycle and its cycle-derived calcium parameters may
+ * differ. Every other composed-rhythm owner contract must remain identical.
+ */
+export function rebindAcceptedComposedRegularSinusStateV2(
+  state: AcceptedComposedRhythmTransactionStateV2,
+  targetConfiguration: AcceptedComposedRhythmTransactionConfigurationV2,
+): AcceptedComposedRhythmTransactionStateV2 {
+  validateAcceptedComposedRhythmTransactionStateV2(state);
+  validateAcceptedComposedRhythmTransactionConfigurationV2(
+    targetConfiguration,
+  );
+  const sourceAtrial = state.configuration.atrialSource;
+  const targetAtrial = targetConfiguration.atrialSource;
+  if (
+    sourceAtrial.mode !== "regular"
+    || targetAtrial.mode !== "regular"
+    || sourceAtrial.regularSourceConfiguration.rhythmClass !== "sinus"
+    || targetAtrial.regularSourceConfiguration.rhythmClass !== "sinus"
+    || state.regularAtrialSourceState === null
+  ) {
+    throw new Error(
+      "composed rhythm warm start requires regular sinus source owners",
+    );
+  }
+  assertRegularSinusWarmStartConfigurationV2(
+    state.configuration,
+    targetConfiguration,
+  );
+
+  const sourceRegular = state.regularAtrialSourceState;
+  const sourceCycleSec =
+    sourceAtrial.regularSourceConfiguration.cycleLengthSec;
+  const targetCycleSec =
+    targetAtrial.regularSourceConfiguration.cycleLengthSec;
+  const remainingFraction = (
+    sourceRegular.nextActivationTimeSec - state.acceptedTimeSec
+  ) / sourceCycleSec;
+  const fractionTolerance = 64 * Number.EPSILON;
+  if (
+    !Number.isFinite(remainingFraction)
+    || !(remainingFraction > 0)
+    || remainingFraction > 1 + fractionTolerance
+  ) {
+    throw new Error(
+      "composed rhythm warm-start sinus phase is outside one cycle",
+    );
+  }
+  const nextActivationTimeSec = state.acceptedTimeSec
+    + Math.min(1, remainingFraction) * targetCycleSec;
+  if (!Number.isFinite(nextActivationTimeSec)
+    || !(nextActivationTimeSec > state.acceptedTimeSec)) {
+    throw new Error(
+      "composed rhythm warm-start next sinus activation is invalid",
+    );
+  }
+
+  const rebound = deepFreeze({
+    ...state,
+    configuration: targetConfiguration,
+    regularAtrialSourceState: {
+      ...sourceRegular,
+      configuration: targetAtrial.regularSourceConfiguration,
+      nextActivationTimeSec,
+    },
+  }) satisfies AcceptedComposedRhythmTransactionStateV2;
+  validateAcceptedComposedRhythmTransactionStateV2(rebound);
+  stampInternallyValidatedAcceptedComposedRhythmStateV2(rebound);
+  return rebound;
+}
+
+/**
  * Limits an absolute requested endpoint to the earliest owned event boundary.
  *
  * candidateTimeSec is the sole executable endpoint. Consumers must not
@@ -1250,6 +1327,38 @@ function stampInternallyValidatedAcceptedComposedRhythmConfigurationV2(
   if (validationStampIssuanceEligibleV1(configuration)) {
     internallyValidatedAcceptedComposedRhythmConfigurationsV2.add(
       configuration,
+    );
+  }
+}
+
+function assertRegularSinusWarmStartConfigurationV2(
+  source: AcceptedComposedRhythmTransactionConfigurationV2,
+  target: AcceptedComposedRhythmTransactionConfigurationV2,
+): void {
+  if (source.atrialSource.mode !== "regular"
+    || target.atrialSource.mode !== "regular") {
+    throw new Error(
+      "composed rhythm warm-start configuration is not regular",
+    );
+  }
+  const allowedProjection = {
+    ...source,
+    atrialSource: {
+      ...source.atrialSource,
+      regularSourceConfiguration: {
+        ...source.atrialSource.regularSourceConfiguration,
+        cycleLengthSec:
+          target.atrialSource.regularSourceConfiguration.cycleLengthSec,
+      },
+    },
+    calciumParametersByWall: target.calciumParametersByWall,
+  };
+  if (
+    canonicalJsonStringify(allowedProjection)
+      !== canonicalJsonStringify(target)
+  ) {
+    throw new Error(
+      "composed rhythm warm start changed an unsupported owner contract",
     );
   }
 }

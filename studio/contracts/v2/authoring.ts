@@ -1,13 +1,14 @@
 import type {
   ExperimentContentV2,
+  ExperimentPlacementBriefingV2,
   ExperimentSnapshotV2,
   ExperimentSurfaceV2,
-  ExperimentWorkspaceV2,
+  ExperimentV2,
 } from "./content";
 import type {
-  ExperimentDraftVersionV2,
   ExperimentIdV2,
   ExperimentSnapshotIdV2,
+  ExperimentVersionV2,
   ModelIdV2,
   ScenarioIdV2,
 } from "./ids";
@@ -18,12 +19,12 @@ import type {
   ModelContractV2,
 } from "./model";
 
-export type CreateExperimentWorkspaceCommandV2 = Readonly<{
+export type CreateExperimentCommandV2 = Readonly<{
   experimentId: ExperimentIdV2;
   content: ExperimentContentV2;
 }>;
 
-export type ForkExperimentWorkspaceCommandV2 = Readonly<{
+export type ForkExperimentCommandV2 = Readonly<{
   experimentId: ExperimentIdV2;
   sourceSnapshotId: ExperimentSnapshotIdV2;
 }>;
@@ -52,11 +53,11 @@ export type ExperimentDesiredContentV2 = Readonly<{
  * Surface/label/order-only Save may omit it and reuse the matching persisted
  * checkpoints. Settlement is deliberately not required.
  */
-export type SaveExperimentDraftCommandV2 = Readonly<{
+export type SaveExperimentCommandV2 = Readonly<{
   experimentId: ExperimentIdV2;
-  expectedDraftVersion: ExperimentDraftVersionV2;
+  expectedVersion: ExperimentVersionV2;
   desiredContent: ExperimentDesiredContentV2;
-  captureCorrelation?: ExperimentDraftCaptureCorrelationV2;
+  captureCorrelation?: ExperimentCaptureCorrelationV2;
 }>;
 
 export type ExperimentScenarioCaptureCorrelationV2 = Readonly<{
@@ -65,48 +66,53 @@ export type ExperimentScenarioCaptureCorrelationV2 = Readonly<{
 }>;
 
 /** Runtime-only correlation. It is confirmed by capture and never persisted. */
-export type ExperimentDraftCaptureCorrelationV2 = Readonly<{
+export type ExperimentCaptureCorrelationV2 = Readonly<{
   runtimeSessionId: string;
   scenarios: readonly ExperimentScenarioCaptureCorrelationV2[];
 }>;
 
-export type ExperimentDraftCaptureConfirmationV2 = Readonly<{
+export type ExperimentCaptureConfirmationV2 = Readonly<{
   experimentId: ExperimentIdV2;
   runtimeSessionId: string;
   scenarios: readonly ExperimentScenarioCaptureCorrelationV2[];
 }>;
 
-export type ExperimentDraftCaptureResultV2 = Readonly<{
+export type ExperimentCaptureResultV2 = Readonly<{
   content: ExperimentContentV2;
-  confirmation: ExperimentDraftCaptureConfirmationV2;
+  confirmation: ExperimentCaptureConfirmationV2;
 }>;
+
+export type CreateExperimentSnapshotCommandV2 =
+  | Readonly<{
+      kind: "publication";
+      /**
+       * A Publication is the immutable release of one explicitly saved,
+       * clean Experiment head. The expected version makes that provenance a
+       * command-boundary invariant rather than a UI convention.
+       */
+      experimentId: ExperimentIdV2;
+      expectedVersion: ExperimentVersionV2;
+      /** Complete frozen candidate captured from the clean Experiment Session. */
+      content: ExperimentContentV2;
+      createdBy?: string;
+    }>
+  | Readonly<{
+      kind: "article";
+      /** Complete frozen candidate captured from an Experiment Session. */
+      content: ExperimentContentV2;
+      briefing: ExperimentPlacementBriefingV2;
+      createdBy?: string;
+    }>;
 
 /**
- * Explicitly rebases one saved Draft onto another immutable Snapshot. The
- * caller supplies already conflict-resolved complete content; no inheritance
- * or automatic merge occurs.
- */
-export type RebaseExperimentDraftCommandV2 = Readonly<{
-  experimentId: ExperimentIdV2;
-  expectedDraftVersion: ExperimentDraftVersionV2;
-  expectedHeadSnapshotId: ExperimentSnapshotIdV2 | null;
-  targetSnapshotId: ExperimentSnapshotIdV2;
-  content: ExperimentContentV2;
-}>;
-
-export type CreateExperimentSnapshotCommandV2 = Readonly<{
-  experimentId: ExperimentIdV2;
-  expectedDraftVersion: ExperimentDraftVersionV2;
-  expectedHeadSnapshotId: ExperimentSnapshotIdV2 | null;
-  createdBy?: string;
-}>;
-
-/**
- * Ephemeral result of settling and checking one frozen candidate.
+ * Ephemeral result of applying the exact model's purpose-specific gate to one
+ * frozen candidate.
  *
- * A passed result may replace checkpoints with freshly settled captures but
- * must preserve modelId, scenario identity/fixture, and Surface. Neither
- * branch of this union is persisted in an ExperimentSnapshot.
+ * Publication may replace checkpoints with freshly settled captures. Article
+ * capture may instead retain the click-time checkpoints after its numerical
+ * safety profile passes. Both purposes must preserve modelId, scenario
+ * identity/fixture, and Surface. Neither branch of this union is persisted in
+ * an ExperimentSnapshot.
  */
 export type ExperimentSnapshotGateResultV2 =
   | Readonly<{
@@ -121,6 +127,7 @@ export type ExperimentSnapshotGateResultV2 =
 export interface ExperimentSnapshotGatePortV2 {
   qualifyFrozenCandidate(
     input: Readonly<{
+      purpose: CreateExperimentSnapshotCommandV2["kind"];
       model: ModelContractV2;
       content: ExperimentContentV2;
     }>,
@@ -128,21 +135,21 @@ export interface ExperimentSnapshotGatePortV2 {
 }
 
 /**
- * Model-owned accepted-boundary capture seam used by explicit Draft Save.
+ * Model-owned accepted-boundary capture seam used by explicit Experiment Save.
  *
  * It constructs complete captures from checkpoint-free desired content.
  * Fixture, scenario identity/order/label, Surface, and modelId must remain
  * identical to the frozen desired candidate.
  */
-export interface ExperimentDraftCapturePortV2 {
+export interface ExperimentCapturePortV2 {
   captureAcceptedCandidate(
     input: Readonly<{
       experimentId: ExperimentIdV2;
       model: ModelContractV2;
       desiredContent: ExperimentDesiredContentV2;
-      correlation: ExperimentDraftCaptureCorrelationV2;
+      correlation: ExperimentCaptureCorrelationV2;
     }>,
-  ): Promise<ExperimentDraftCaptureResultV2>;
+  ): Promise<ExperimentCaptureResultV2>;
 }
 
 /**
@@ -150,9 +157,9 @@ export interface ExperimentDraftCapturePortV2 {
  * capabilities are deliberately absent.
  */
 export interface ExperimentQueryPortV2 {
-  readWorkspace(
+  readExperiment(
     experimentId: ExperimentIdV2,
-  ): Promise<ExperimentWorkspaceV2 | null>;
+  ): Promise<ExperimentV2 | null>;
   readSnapshot(
     snapshotId: ExperimentSnapshotIdV2,
   ): Promise<ExperimentSnapshotV2 | null>;

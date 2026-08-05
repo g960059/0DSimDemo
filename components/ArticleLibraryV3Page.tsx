@@ -3,7 +3,6 @@ import {
   ArrowRight,
   BookOpenText,
   FilePlus2,
-  Home,
   PencilLine,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -12,7 +11,6 @@ import { Link, useLocation } from "react-router-dom";
 import {
   articleEditorHref,
   articleReaderHref,
-  homeHref,
   newArticleEditorHref,
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
@@ -20,6 +18,9 @@ import type { StudioArticleDraftV2 } from "@/studio/contracts/v2/article";
 import {
   StudioBrowserContentStoreV3,
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
+import {
+  publicArticleExcerptV3,
+} from "@/components/site/PublicCatalogPresentationV3";
 
 type ArticleLibraryStateV3 =
   | Readonly<{ kind: "ready"; articles: readonly StudioArticleDraftV2[] }>
@@ -50,38 +51,27 @@ export function ArticleLibraryV3Page() {
       className="h-full overflow-y-auto bg-wb-app text-wb-text"
       data-testid="article-library-v3"
     >
-      <header className="sticky top-0 z-20 flex min-h-12 items-center gap-2 bg-wb-header px-3 shadow-[inset_0_-1px_0_var(--wb-border)] sm:px-4">
-        <Link
-          to={homeHref(locale)}
-          aria-label={t("nav.home")}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-        >
-          <Home className="h-4 w-4" aria-hidden="true" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-sm font-semibold tracking-tight">
-            {t("articleLibrary.title")}
-          </h1>
-        </div>
-        <Link
-          to={newArticleEditorHref(locale)}
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-wb-primary px-3 text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-        >
-          <FilePlus2 className="h-3.5 w-3.5" aria-hidden="true" />
-          {t("articleLibrary.new")}
-        </Link>
-      </header>
-
       <main className="mx-auto w-full max-w-4xl px-5 py-10 sm:px-8 sm:py-14">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-wb-accent">
-          {t("articleLibrary.eyebrow")}
-        </p>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-          {t("articleLibrary.heading")}
-        </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-wb-muted">
-          {t("articleLibrary.description")}
-        </p>
+        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-wb-accent">
+              {t("articleLibrary.eyebrow")}
+            </p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+              {t("articleLibrary.heading")}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-wb-muted">
+              {t("articleLibrary.description")}
+            </p>
+          </div>
+          <Link
+            to={newArticleEditorHref(locale)}
+            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-wb-primary px-3 text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          >
+            <FilePlus2 className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("articleLibrary.new")}
+          </Link>
+        </div>
 
         {state.kind === "error" ? (
           <p className="mt-8 rounded-xl bg-wb-danger-soft p-4 text-sm text-wb-danger" role="alert">
@@ -100,8 +90,6 @@ export function ArticleLibraryV3Page() {
         ) : (
           <ul className="mt-10 divide-y divide-wb-line" aria-label={t("articleLibrary.saved") }>
             {state.articles.map((article) => {
-              const experimentCount = article.blocks.filter((block) =>
-                block.kind === "experiment").length;
               return (
                 <li key={article.articleId} className="group py-5 sm:py-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -109,11 +97,20 @@ export function ArticleLibraryV3Page() {
                       <h3 className="truncate text-base font-semibold tracking-tight">
                         {article.title || t("articleEditor.untitled")}
                       </h3>
-                      <p className="mt-1 text-xs text-wb-subtle">
-                        {t("articleLibrary.summary", {
-                          blocks: article.blocks.length,
-                          experiments: experimentCount,
-                        })}
+                      <p className="mt-1 truncate text-xs leading-5 text-wb-subtle">
+                        <span className={article.visibility === "public"
+                          ? "text-wb-accent"
+                          : "text-wb-muted"}
+                        >
+                          {article.visibility === "public"
+                            ? t("articleLibrary.statusPublic")
+                            : t("articleLibrary.statusDraft")}
+                        </span>
+                        <span aria-hidden="true"> · </span>
+                        <span>
+                          {publicArticleExcerptV3(article.blocks)
+                            ?? t("articleLibrary.articleFallback")}
+                        </span>
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">

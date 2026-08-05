@@ -2,17 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import {
   STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+  type StudioArticleDraftV2,
 } from "@/studio/contracts/v2/article";
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-  STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+  STUDIO_EXPERIMENT_V2_SCHEMA_ID,
+  type ArticleExperimentSnapshotV2,
+  type ExperimentPlacementBriefingV2,
   type ExperimentSnapshotV2,
-  type ExperimentWorkspaceV2,
+  type ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import {
-  STUDIO_BROWSER_EXPERIMENT_EXPORT_V3_SCHEMA_ID,
   STUDIO_BROWSER_CONTENT_STORE_V3_KEY,
+  STUDIO_BROWSER_CONTENT_STORE_V3_SCHEMA_ID,
   StudioBrowserContentStoreV3,
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import type { StudioSimulationFrameV2 } from "@/studio/contracts/v2/simulation";
@@ -25,90 +28,56 @@ import {
   STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 
-class MemoryStorageV2 {
+class MemoryStorageV3 {
   readonly values = new Map<string, string>();
-  getItem(key: string): string | null {
-    return this.values.get(key) ?? null;
-  }
-  removeItem(key: string): void {
-    this.values.delete(key);
-  }
-  setItem(key: string, value: string): void {
-    this.values.set(key, value);
-  }
+  getItem(key: string): string | null { return this.values.get(key) ?? null; }
+  removeItem(key: string): void { this.values.delete(key); }
+  setItem(key: string, value: string): void { this.values.set(key, value); }
 }
 
-class QualifyingWorkerTransportV2 implements StudioSimulationWorkerTransportV2 {
-  readonly messages: unknown[] = [];
+class QualifyingWorkerTransportV3 implements StudioSimulationWorkerTransportV2 {
   readonly #messageListeners = new Set<(event: MessageEvent<unknown>) => void>();
   readonly #errorListeners = new Set<(event: ErrorEvent) => void>();
-
-  postMessage(message: unknown): void {
-    this.messages.push(message);
-  }
+  postMessage(): void {}
   terminate(): void {}
-  addEventListener(
-    type: "message",
-    listener: (event: MessageEvent<unknown>) => void,
-  ): void;
-  addEventListener(
-    type: "error",
-    listener: (event: ErrorEvent) => void,
-  ): void;
+  addEventListener(type: "message", listener: (event: MessageEvent<unknown>) => void): void;
+  addEventListener(type: "error", listener: (event: ErrorEvent) => void): void;
   addEventListener(
     type: "message" | "error",
-    listener: ((event: MessageEvent<unknown>) => void)
-      | ((event: ErrorEvent) => void),
+    listener: ((event: MessageEvent<unknown>) => void) | ((event: ErrorEvent) => void),
   ): void {
     if (type === "message") {
-      this.#messageListeners.add(
-        listener as (event: MessageEvent<unknown>) => void,
-      );
+      this.#messageListeners.add(listener as (event: MessageEvent<unknown>) => void);
     } else {
       this.#errorListeners.add(listener as (event: ErrorEvent) => void);
     }
   }
-  removeEventListener(
-    type: "message",
-    listener: (event: MessageEvent<unknown>) => void,
-  ): void;
-  removeEventListener(
-    type: "error",
-    listener: (event: ErrorEvent) => void,
-  ): void;
+  removeEventListener(type: "message", listener: (event: MessageEvent<unknown>) => void): void;
+  removeEventListener(type: "error", listener: (event: ErrorEvent) => void): void;
   removeEventListener(
     type: "message" | "error",
-    listener: ((event: MessageEvent<unknown>) => void)
-      | ((event: ErrorEvent) => void),
+    listener: ((event: MessageEvent<unknown>) => void) | ((event: ErrorEvent) => void),
   ): void {
     if (type === "message") {
-      this.#messageListeners.delete(
-        listener as (event: MessageEvent<unknown>) => void,
-      );
+      this.#messageListeners.delete(listener as (event: MessageEvent<unknown>) => void);
     } else {
       this.#errorListeners.delete(listener as (event: ErrorEvent) => void);
     }
   }
-  emitMessage(data: unknown): void {
-    for (const listener of this.#messageListeners) {
-      listener({ data } as MessageEvent<unknown>);
-    }
+  emit(data: unknown): void {
+    this.#messageListeners.forEach((listener) => listener({ data } as MessageEvent<unknown>));
   }
 }
 
-function workspaceV2(input: Readonly<{
+function experimentV3(input: Readonly<{
   experimentId?: string;
-  draftVersion?: number;
-  headSnapshotId?: string | null;
-  basedOnSnapshotId?: string | null;
+  version?: number;
   modelId?: string;
-}> = {}): ExperimentWorkspaceV2 {
+}> = {}): ExperimentV2 {
   return {
-    schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
-    experimentId: input.experimentId ?? "workbench-browser-store",
-    draftVersion: input.draftVersion ?? 0,
-    headSnapshotId: input.headSnapshotId ?? null,
-    basedOnSnapshotId: input.basedOnSnapshotId ?? null,
+    schemaId: STUDIO_EXPERIMENT_V2_SCHEMA_ID,
+    experimentId: input.experimentId ?? "experiment-browser-store-a1b2c3d4",
+    version: input.version ?? 0,
     content: {
       modelId: input.modelId ?? "model/exact-v3",
       scenarios: [{
@@ -131,6 +100,8 @@ function workspaceV2(input: Readonly<{
           order: 0,
           priority: 10,
           graphId: "graph/waveform",
+          scenarioScope: { mode: "visible-scenarios" },
+          excludedTraces: [],
           windowSec: 2,
           series: [],
         }],
@@ -142,47 +113,61 @@ function workspaceV2(input: Readonly<{
   };
 }
 
-function snapshotV2(input: Readonly<{
-  snapshotId?: string;
-  experimentId?: string;
-  parentSnapshotId?: string | null;
-  workspace?: ExperimentWorkspaceV2;
-}> = {}): ExperimentSnapshotV2 {
-  const workspace = input.workspace ?? workspaceV2({
-    experimentId: input.experimentId,
-  });
+function briefingV3(): ExperimentPlacementBriefingV2 {
   return {
-    schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-    snapshotId: input.snapshotId ?? "snapshot/browser-store-1",
-    experimentId: input.experimentId ?? workspace.experimentId,
-    parentSnapshotId: input.parentSnapshotId ?? null,
-    content: workspace.content,
-    createdAt: "2026-08-01T00:00:00.000Z",
+    defaultTitle: "Stored experiment",
+    scenarioScope: {
+      visibleScenarioIds: ["scenario/baseline"],
+      initialFocusScenarioId: "scenario/baseline",
+    },
+    graphs: [{
+      paneId: "pane/waveform",
+      order: 0,
+      emphasis: "primary",
+    }],
+    outputs: [],
+    controls: [],
   };
 }
 
-async function qualifySnapshotCommitV2(
-  current: ExperimentWorkspaceV2,
-  snapshotId = "snapshot/browser-store-1",
-  snapshots: readonly ExperimentSnapshotV2[] = [],
+function snapshotV3(
+  experiment: ExperimentV2,
+  input: Readonly<{
+    snapshotId?: string;
+    kind?: "publication" | "article";
+  }> = {},
+): ExperimentSnapshotV2 {
+  const base = {
+    schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
+    snapshotId: input.snapshotId ?? "snapshot/browser-store-1",
+    content: experiment.content,
+    createdAt: "2026-08-01T00:00:00.000Z",
+  };
+  return input.kind === "article"
+    ? { ...base, kind: "article", briefing: briefingV3() }
+    : { ...base, kind: "publication" };
+}
+
+async function qualifiedCommitV3(
+  experiment: ExperimentV2,
+  input: Readonly<{
+    snapshotId?: string;
+    kind?: "publication" | "article";
+  }> = {},
 ): Promise<StudioSimulationWorkerQualifiedSnapshotCommitV2> {
-  const transport = new QualifyingWorkerTransportV2();
+  const transport = new QualifyingWorkerTransportV3();
   const client = createStudioSimulationWorkerClientForTestV2({ transport });
-  const scenario = current.content.scenarios[0]!;
+  const scenario = experiment.content.scenarios[0]!;
   const initialized = client.initialize({
-    expectedModelId: current.content.modelId,
+    expectedModelId: experiment.content.modelId,
     runtimeSessionId: "runtime/browser-store-test",
     scenarioId: scenario.scenarioId,
     scenarioLabel: scenario.label,
     fixture: scenario.capture.fixture,
     checkpoint: scenario.capture.checkpoint,
-    authoringSeed: {
-      workspace: current,
-      ...(snapshots.length === 0 ? {} : { snapshots }),
-    },
   });
   const frame: StudioSimulationFrameV2 = {
-    modelId: current.content.modelId,
+    modelId: experiment.content.modelId,
     runtimeSessionId: "runtime/browser-store-test",
     scenarioId: scenario.scenarioId,
     inputEpoch: 0,
@@ -190,7 +175,7 @@ async function qualifySnapshotCommitV2(
     acceptedTimeSec: scenario.capture.checkpoint.acceptedTimeSec,
     outputs: {},
   };
-  transport.emitMessage({
+  transport.emit({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId: 1,
     status: "ok",
@@ -199,461 +184,334 @@ async function qualifySnapshotCommitV2(
   });
   await initialized;
 
-  const pending = client.createSnapshot({
-    runtimeSessionId: frame.runtimeSessionId,
-    scenarioId: frame.scenarioId,
-    experimentId: current.experimentId,
-    expectedDraftVersion: current.draftVersion,
-    expectedHeadSnapshotId: current.headSnapshotId,
-  });
-  const snapshot = snapshotV2({
-    snapshotId,
-    experimentId: current.experimentId,
-    parentSnapshotId: current.basedOnSnapshotId,
-    workspace: current,
-  });
-  const workspace = {
-    ...current,
-    draftVersion: current.draftVersion + 1,
-    headSnapshotId: snapshot.snapshotId,
-    basedOnSnapshotId: snapshot.snapshotId,
-    content: snapshot.content,
-  } satisfies ExperimentWorkspaceV2;
-  transport.emitMessage({
+  const kind = input.kind ?? "publication";
+  const pending = kind === "article"
+    ? client.createSnapshot({
+        runtimeSessionId: frame.runtimeSessionId,
+        scenarioId: frame.scenarioId,
+        surface: experiment.content.surface,
+        snapshotKind: "article",
+        briefing: briefingV3(),
+      })
+    : client.createSnapshot({
+        runtimeSessionId: frame.runtimeSessionId,
+        scenarioId: frame.scenarioId,
+        surface: experiment.content.surface,
+        snapshotKind: "publication",
+      });
+  transport.emit({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId: 2,
     status: "ok",
     kind: "snapshot-created",
-    snapshot,
-    workspace,
+    snapshot: snapshotV3(experiment, {
+      snapshotId: input.snapshotId,
+      kind,
+    }),
   });
   return pending;
 }
 
-async function publishFirstSnapshotV2(
-  store: StudioBrowserContentStoreV3,
-): Promise<Readonly<{
-  snapshot: ExperimentSnapshotV2;
-  workspace: ExperimentWorkspaceV2;
-  qualifiedCommit: StudioSimulationWorkerQualifiedSnapshotCommitV2;
-}>> {
-  const current = workspaceV2();
-  store.saveWorkspace(current);
-  const qualifiedCommit = await qualifySnapshotCommitV2(current);
-  const persisted = store.saveSnapshotAndWorkspace(qualifiedCommit);
-  return Object.freeze({ ...persisted, qualifiedCommit });
+function articleV3(
+  snapshot: ArticleExperimentSnapshotV2,
+  input: Readonly<{ version?: number; placementId?: string }> = {},
+): StudioArticleDraftV2 {
+  return {
+    schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+    articleId: "article/browser-store",
+    draftVersion: input.version ?? 0,
+    visibility: "draft",
+    locale: "ja",
+    title: "Article",
+    blocks: [{
+      blockId: "block/experiment",
+      kind: "experiment",
+      placement: {
+        schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
+        placementId: input.placementId ?? "placement/browser-store",
+        snapshotId: snapshot.snapshotId,
+        titleOverride: null,
+        caption: null,
+      },
+    }],
+  };
 }
 
 describe("Studio browser content store V3", () => {
-  it("cuts over by deleting the fixed-identity V2 envelope without reading it", () => {
-    const storage = new MemoryStorageV2();
-    const legacyValue = JSON.stringify({
-      schemaId: "circleheart-studio-browser-content-v2",
-      workspaces: [],
-      snapshots: [],
-      articles: [],
-    });
-    storage.setItem("circleheart.studio.browser-content.v2", legacyValue);
+  it("deletes every retired pre-release envelope instead of migrating it", () => {
+    const storage = new MemoryStorageV3();
+    [
+      "circleheart.studio.browser-content.v2",
+      "circleheart.studio.browser-content.v3",
+      "circleheart.studio.browser-content.v3.binding-v1",
+      "circleheart.studio.browser-content.v4",
+      "circleheart.studio.browser-content.v5",
+      "circleheart.studio.browser-content.v6",
+      "circleheart.studio.browser-content.v7",
+    ].forEach((key) => storage.setItem(key, "legacy"));
 
     const store = new StudioBrowserContentStoreV3(storage);
-    expect(store.listWorkspaces()).toEqual([]);
-    store.saveWorkspace(workspaceV2({ experimentId: "workbench-opaque-v3" }));
 
-    expect(storage.values.has("circleheart.studio.browser-content.v2"))
-      .toBe(false);
-    expect(storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY))
-      .toContain("circleheart-studio-browser-content-v3");
+    expect(store.listExperiments()).toEqual([]);
+    expect([...storage.values.keys()]).toEqual([]);
   });
 
-  it("keeps multiple opaque Workbench identities with independent exact models", () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV2());
-    const first = workspaceV2({
-      experimentId: "workbench-opaque-first",
-      modelId: "model/exact-first",
-    });
-    const second = workspaceV2({
-      experimentId: "workbench-opaque-second",
-      modelId: "model/exact-second",
-    });
+  it("creates only explicitly saved Experiments and advances version by one", () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    expect(store.listExperiments()).toEqual([]);
 
-    store.saveWorkspace(first);
-    store.saveWorkspace(second);
-
-    expect(store.listWorkspaces().map(({ experimentId, content }) => ({
-      experimentId,
-      modelId: content.modelId,
-    }))).toEqual([
-      { experimentId: first.experimentId, modelId: first.content.modelId },
-      { experimentId: second.experimentId, modelId: second.content.modelId },
-    ]);
-    expect(store.exportExperiment(first.experimentId)).toEqual({
-      schemaId: STUDIO_BROWSER_EXPERIMENT_EXPORT_V3_SCHEMA_ID,
-      workspace: first,
-      snapshots: [],
-    });
-    expect(store.deleteExperiment(first.experimentId)).toBe(true);
-    expect(store.readWorkspace(first.experimentId)).toBeNull();
-    expect(store.readWorkspace(second.experimentId)).toEqual(second);
-    expect(store.deleteExperiment(first.experimentId)).toBe(false);
-  });
-
-  it("rejects generic Experiment IDs at the browser Workbench boundary", () => {
-    const storage = new MemoryStorageV2();
-    const store = new StudioBrowserContentStoreV3(storage);
-    expect(() => store.saveWorkspace(workspaceV2({
-      experimentId: "experiment/not-a-workbench-route",
-    }))).toThrow(/opaque Workbench identity/);
-    expect(storage.values.has(STUDIO_BROWSER_CONTENT_STORE_V3_KEY)).toBe(false);
-    expect(() => store.readWorkspace("experiment/not-a-workbench-route"))
-      .toThrow(/opaque Workbench identity/);
-
-    storage.setItem(STUDIO_BROWSER_CONTENT_STORE_V3_KEY, JSON.stringify({
-      schemaId: "circleheart-studio-browser-content-v3",
-      workspaces: [workspaceV2({
-        experimentId: "experiment/not-a-workbench-route",
-      })],
-      snapshots: [],
-      articles: [],
-    }));
-    expect(() => store.listWorkspaces()).toThrow(/opaque Workbench identity/);
-  });
-
-  it("exports and supplies a self-contained cross-Experiment fork lineage", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV2());
-    const sourceFirst = await publishFirstSnapshotV2(store);
-    const sourceSecondCommit = await qualifySnapshotCommitV2(
-      sourceFirst.workspace,
-      "snapshot/browser-store-2",
-      [sourceFirst.snapshot],
-    );
-    const sourceSecond = store.saveSnapshotAndWorkspace(sourceSecondCommit);
-    const fork = workspaceV2({
-      experimentId: "workbench-browser-fork",
-      basedOnSnapshotId: sourceSecond.snapshot.snapshotId,
-      modelId: sourceSecond.snapshot.content.modelId,
-    });
-    store.saveWorkspace(fork);
-
-    expect(store.snapshotLineageForExperiment(fork.experimentId)).toEqual([
-      sourceFirst.snapshot,
-      sourceSecond.snapshot,
-    ]);
-    const qualifiedFork = await qualifySnapshotCommitV2(
-      fork,
-      "snapshot/browser-fork-1",
-      store.snapshotLineageForExperiment(fork.experimentId),
-    );
-    const committedFork = store.saveSnapshotAndWorkspace(qualifiedFork);
-    expect(committedFork.snapshot.parentSnapshotId)
-      .toBe(sourceSecond.snapshot.snapshotId);
-    expect(store.exportExperiment(fork.experimentId)).toEqual({
-      schemaId: STUDIO_BROWSER_EXPERIMENT_EXPORT_V3_SCHEMA_ID,
-      workspace: committedFork.workspace,
-      snapshots: [
-        sourceFirst.snapshot,
-        sourceSecond.snapshot,
-        committedFork.snapshot,
-      ],
-    });
-  });
-
-  it("starts empty and owns a detached frozen Workspace on explicit save", () => {
-    const storage = new MemoryStorageV2();
-    const store = new StudioBrowserContentStoreV3(storage);
-    expect(store.listWorkspaces()).toEqual([]);
-
-    const mutable = structuredClone(workspaceV2()) as ExperimentWorkspaceV2 & {
-      content: { scenarios: Array<{ label: string }> };
-    };
-    const saved = store.saveWorkspace(mutable);
-    mutable.content.scenarios[0]!.label = "Mutated outside";
-
-    expect(store.readWorkspace(saved.experimentId)?.content.scenarios[0]?.label)
-      .toBe("Baseline");
-    expect(Object.isFrozen(saved)).toBe(true);
-    expect(storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY))
-      .toContain("circleheart-studio-browser-content-v3");
-  });
-
-  it("publishes only a sealed qualified Snapshot result atomically", async () => {
-    const storage = new MemoryStorageV2();
-    const store = new StudioBrowserContentStoreV3(storage);
-    const { snapshot, workspace } = await publishFirstSnapshotV2(store);
-
-    expect({ snapshot, workspace }).toEqual({
-      snapshot,
-      workspace,
-    });
-    expect(store.readSnapshot(snapshot.snapshotId)?.snapshotId)
-      .toBe(snapshot.snapshotId);
-    expect(store.readWorkspace(workspace.experimentId)?.headSnapshotId)
-      .toBe(snapshot.snapshotId);
-
-    const before = storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY);
-    const structuralClone = {
-      snapshot,
-      workspace,
-    } as unknown as StudioSimulationWorkerQualifiedSnapshotCommitV2;
-    expect(() => store.saveSnapshotAndWorkspace(structuralClone))
-      .toThrow(/requires a sealed qualified Worker result/);
-    expect(storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY)).toBe(before);
-  });
-
-  it("enforces Workspace compare-and-swap version and lineage", () => {
-    const storage = new MemoryStorageV2();
-    const store = new StudioBrowserContentStoreV3(storage);
-    store.saveWorkspace(workspaceV2());
-    const before = storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY);
-
-    expect(() => store.saveWorkspace(workspaceV2({ draftVersion: 0 })))
-      .toThrow(/draftVersion must advance by exactly one/);
-    expect(() => store.saveWorkspace(workspaceV2({ draftVersion: 2 })))
-      .toThrow(/draftVersion must advance by exactly one/);
-    expect(() => store.saveWorkspace(workspaceV2({
-      draftVersion: 1,
-      headSnapshotId: "snapshot/forged-head",
-    }))).toThrow(/cannot change Snapshot lineage/);
-
-    expect(storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY)).toBe(before);
-    expect(store.saveWorkspace(workspaceV2({ draftVersion: 1 })).draftVersion)
-      .toBe(1);
-  });
-
-  it("rejects initial Workspaces that skip creation or claim missing lineage", () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV2());
-    expect(() => store.saveWorkspace(workspaceV2({ draftVersion: 1 })))
-      .toThrow(/must start at draftVersion 0 without a head/);
-    expect(() => store.saveWorkspace(workspaceV2({
-      basedOnSnapshotId: "snapshot/missing",
-    }))).toThrow(/fork source Snapshot not found/);
-  });
-
-  it("never overwrites an immutable snapshotId, including an identical retry", async () => {
-    const storage = new MemoryStorageV2();
-    const store = new StudioBrowserContentStoreV3(storage);
-    const committed = await publishFirstSnapshotV2(store);
-    const before = storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY);
-
-    expect(() => store.saveSnapshotAndWorkspace(committed.qualifiedCommit))
-      .toThrow(/immutable snapshotId already exists/);
-    expect(() => store.saveSnapshotAndWorkspace({
-      snapshot: {
-        ...committed.snapshot,
-        createdAt: "2026-08-01T00:00:01.000Z",
-      },
-      workspace: committed.workspace,
-    } as unknown as StudioSimulationWorkerQualifiedSnapshotCommitV2))
-      .toThrow(/requires a sealed qualified Worker result/);
-    expect(storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY)).toBe(before);
-  });
-
-  it("rejects a sealed Snapshot commit after the persisted Workspace advances", async () => {
-    const storage = new MemoryStorageV2();
-    const store = new StudioBrowserContentStoreV3(storage);
-    const current = workspaceV2();
-    store.saveWorkspace(current);
-    const staleQualifiedCommit = await qualifySnapshotCommitV2(current);
-    store.saveWorkspace(workspaceV2({ draftVersion: 1 }));
-    const before = storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY);
-
-    expect(() => store.saveSnapshotAndWorkspace(staleQualifiedCommit))
-      .toThrow(/atomically advance version/);
-    expect(storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY)).toBe(before);
-  });
-
-  it("enforces Article draftVersion compare-and-swap", () => {
-    const storage = new MemoryStorageV2();
-    const store = new StudioBrowserContentStoreV3(storage);
-    const article = {
-      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
-      articleId: "article/cas",
-      draftVersion: 0,
-      locale: "ja",
-      title: "Article",
-      blocks: [],
-    };
-    expect(() => store.saveArticle({
-      ...article,
-      articleId: "article/skipped-initial-version",
-      draftVersion: 1,
-    })).toThrow(/initial Article must start at draftVersion 0/);
-    store.saveArticle(article);
-    const before = storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY);
-    expect(() => store.saveArticle(article))
-      .toThrow(/Article draftVersion must advance by exactly one/);
-    expect(() => store.saveArticle({ ...article, draftVersion: 2 }))
-      .toThrow(/Article draftVersion must advance by exactly one/);
-    expect(storage.values.get(STUDIO_BROWSER_CONTENT_STORE_V3_KEY)).toBe(before);
-    expect(store.saveArticle({ ...article, draftVersion: 1 }).draftVersion)
-      .toBe(1);
-  });
-
-  it("allows repeated Snapshot placement but rejects duplicate Placement identity", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV2());
-    await publishFirstSnapshotV2(store);
-    const placement = (placementId: string) => ({
-      schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
-      placementId,
-      snapshotId: "snapshot/browser-store-1",
-      caption: null,
-    });
-    const article = {
-      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
-      articleId: "article/browser-store",
-      draftVersion: 0,
-      locale: "ja",
-      title: "Article",
-      blocks: [
-        { blockId: "block/one", kind: "experiment", placement: placement("placement/one") },
-        { blockId: "block/two", kind: "experiment", placement: placement("placement/two") },
-      ],
-    };
-    expect(store.saveArticle(article).blocks).toHaveLength(2);
-    expect(() => store.deleteExperiment("workbench-browser-store"))
-      .toThrow(/used by an Article/);
-    expect(() => store.saveArticle({
-      ...article,
-      blocks: [
-        article.blocks[0],
-        { ...article.blocks[1], placement: placement("placement/one") },
-      ],
-    })).toThrow(/duplicate Placement ID/);
-  });
-
-  it("rejects dangling Snapshot, Scenario, and pane references in Articles", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV2());
-    const { snapshot } = await publishFirstSnapshotV2(store);
-    const placement = {
-      schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
-      placementId: "placement/cross-validated",
-      snapshotId: snapshot.snapshotId,
-      caption: null,
-      briefing: {
-        scenarioScope: {
-          visibleScenarioIds: ["scenario/baseline"],
-          initialFocusScenarioId: "scenario/baseline",
-        },
-        graphs: [{ paneId: "pane/waveform", order: 0, emphasis: "primary" }],
-        outputs: [],
-        controls: [],
+    const initial = experimentV3();
+    const first = store.saveExperiment(initial, initial.content);
+    const replacement = {
+      ...first,
+      version: 1,
+      content: {
+        ...first.content,
+        surface: { ...first.content.surface, note: { text: "saved" } },
       },
     };
-    const article = {
-      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
-      articleId: "article/cross-validated",
-      draftVersion: 0,
-      locale: "ja",
-      title: "Article",
-      blocks: [{
-        blockId: "block/experiment",
-        kind: "experiment",
-        placement,
-      }],
+    const second = store.saveExperiment(replacement, replacement.content);
+
+    expect(second.version).toBe(1);
+    expect(store.readExperiment(first.experimentId)?.content.surface.note.text)
+      .toBe("saved");
+    expect(Object.isFrozen(second)).toBe(true);
+  });
+
+  it("rechecks a Worker Save against the submitted authored candidate", () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const candidate = experimentV3();
+    const changedByWorker = {
+      ...candidate,
+      content: {
+        ...candidate.content,
+        scenarios: candidate.content.scenarios.map((scenario) => ({
+          ...scenario,
+          label: `${scenario.label} changed by worker`,
+        })),
+      },
+    } satisfies ExperimentV2;
+
+    expect(() => store.saveExperiment(
+      changedByWorker,
+      candidate.content,
+    )).toThrow(/Saved Experiment changed authored Scenario/);
+    expect(store.listExperiments()).toEqual([]);
+  });
+
+  it("rejects generic IDs, skipped initial versions, stale writes, and model swaps", () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const generic = experimentV3({ experimentId: "experiment/generic" });
+    expect(() => store.saveExperiment(generic, generic.content))
+      .toThrow(/opaque Experiment identity/);
+    const skipped = experimentV3({ version: 1 });
+    expect(() => store.saveExperiment(skipped, skipped.content))
+      .toThrow(/start at version 0/);
+
+    const initial = experimentV3();
+    const current = store.saveExperiment(initial, initial.content);
+    const skippedAdvance = { ...current, version: 2 };
+    expect(() => store.saveExperiment(skippedAdvance, skippedAdvance.content))
+      .toThrow(/advance by exactly one/);
+    const modelSwap = {
+      ...current,
+      version: 1,
+      content: { ...current.content, modelId: "model/other" },
     };
-    expect(store.saveArticle(article).blocks).toHaveLength(1);
+    expect(() => store.saveExperiment(modelSwap, modelSwap.content))
+      .toThrow(/cannot change modelId/);
+  });
+
+  it("persists a qualified Article Snapshot without creating an Experiment", async () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const sessionContent = experimentV3();
+    const commit = await qualifiedCommitV3(sessionContent, { kind: "article" });
+
+    const saved = store.saveSnapshotCommit(commit, sessionContent.content);
+
+    expect(saved.snapshot.kind).toBe("article");
+    expect(store.listExperiments()).toEqual([]);
+    expect(store.listSnapshots()).toHaveLength(1);
+  });
+
+  it("requires a version-matched saved Experiment for Publication", async () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const sessionContent = experimentV3();
+    const commit = await qualifiedCommitV3(sessionContent);
+
+    expect(() => store.saveSnapshotCommit(commit, sessionContent.content))
+      .toThrow(/requires a saved Experiment source/);
+    const savedExperiment = store.saveExperiment(
+      sessionContent,
+      sessionContent.content,
+    );
+    expect(() => store.saveSnapshotCommit(
+      commit,
+      sessionContent.content,
+      {
+        experimentId: savedExperiment.experimentId,
+        expectedVersion: savedExperiment.version + 1,
+      },
+    )).toThrow(/expected version/);
+    expect(store.saveSnapshotCommit(
+      commit,
+      sessionContent.content,
+      {
+        experimentId: savedExperiment.experimentId,
+        expectedVersion: savedExperiment.version,
+      },
+    ).snapshot.kind).toBe("publication");
+  });
+
+  it("rechecks worker-qualified labels and fixtures against the frozen candidate", async () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const candidate = experimentV3();
+    const changed = {
+      ...candidate,
+      content: {
+        ...candidate.content,
+        scenarios: candidate.content.scenarios.map((scenario) => ({
+          ...scenario,
+          label: `${scenario.label} changed by worker`,
+        })),
+      },
+    } satisfies ExperimentV2;
+    const commit = await qualifiedCommitV3(changed);
+
+    expect(() => store.saveSnapshotCommit(commit, candidate.content))
+      .toThrow(/changed authored Scenario/);
+    expect(store.listSnapshots()).toEqual([]);
+  });
+
+  it("never overwrites an immutable snapshotId", async () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const candidate = experimentV3();
+    const experiment = store.saveExperiment(candidate, candidate.content);
+    const source = {
+      experimentId: experiment.experimentId,
+      expectedVersion: experiment.version,
+    };
+    store.saveSnapshotCommit(
+      await qualifiedCommitV3(experiment),
+      experiment.content,
+      source,
+    );
+    await expect(async () => store.saveSnapshotCommit(
+      await qualifiedCommitV3(experiment),
+      experiment.content,
+      source,
+    )).rejects.toThrow(/already exists/);
+  });
+
+  it("stores Briefing only inside an Article Snapshot and accepts a minimal Placement", async () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const experiment = experimentV3();
+    const saved = store.saveSnapshotCommit(await qualifiedCommitV3(
+      experiment,
+      { kind: "article", snapshotId: "snapshot/article-1" },
+    ), experiment.content).snapshot;
+    expect(saved.kind).toBe("article");
+    if (saved.kind !== "article") throw new Error("expected Article Snapshot");
+
+    store.saveArticle(articleV3(saved));
+
+    expect(store.readArticle("article/browser-store")?.blocks[0]).toEqual({
+      blockId: "block/experiment",
+      kind: "experiment",
+      placement: {
+        schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
+        placementId: "placement/browser-store",
+        snapshotId: "snapshot/article-1",
+        titleOverride: null,
+        caption: null,
+      },
+    });
+    expect(saved.briefing).toEqual(briefingV3());
+  });
+
+  it("rejects Article placement of a Publication Snapshot", async () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const candidate = experimentV3();
+    const experiment = store.saveExperiment(candidate, candidate.content);
+    const publication = store.saveSnapshotCommit(
+      await qualifiedCommitV3(experiment),
+      experiment.content,
+      {
+        experimentId: experiment.experimentId,
+        expectedVersion: experiment.version,
+      },
+    ).snapshot;
+    const forgedArticle = articleV3({
+      ...publication,
+      kind: "article",
+      briefing: briefingV3(),
+    });
+
     expect(() => store.saveArticle({
-      ...article,
-      blocks: [{
-        ...article.blocks[0],
-        placement: { ...placement, snapshotId: "snapshot/missing" },
-      }],
-    })).toThrow(/Article placement Snapshot not found/);
-    expect(() => store.saveArticle({
-      ...article,
-      blocks: [{
-        ...article.blocks[0],
-        placement: {
-          ...placement,
-          briefing: {
-            ...placement.briefing,
-            scenarioScope: {
-              visibleScenarioIds: ["scenario/missing"],
-              initialFocusScenarioId: "scenario/missing",
+      ...forgedArticle,
+      blocks: forgedArticle.blocks.map((block) => block.kind === "experiment"
+        ? {
+            ...block,
+            placement: {
+              ...block.placement,
+              snapshotId: publication.snapshotId,
             },
-          },
-        },
-      }],
-    })).toThrow(/unknown id scenario\/missing/);
+          }
+        : block),
+    })).toThrow(/must pin an article Snapshot/);
+  });
+
+  it("enforces Article compare-and-swap and rejects dangling Snapshot references", async () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const experiment = experimentV3();
+    const saved = store.saveSnapshotCommit(await qualifiedCommitV3(
+      experiment,
+      { kind: "article", snapshotId: "snapshot/article-2" },
+    ), experiment.content).snapshot;
+    if (saved.kind !== "article") throw new Error("expected Article Snapshot");
+    store.saveArticle(articleV3(saved));
+    expect(() => store.saveArticle(articleV3(saved)))
+      .toThrow(/advance by exactly one/);
     expect(() => store.saveArticle({
-      ...article,
+      ...articleV3(saved, { version: 1 }),
       blocks: [{
-        ...article.blocks[0],
+        ...articleV3(saved).blocks[0]!,
         placement: {
-          ...placement,
-          briefing: {
-            ...placement.briefing,
-            graphs: [{ paneId: "pane/missing", order: 0, emphasis: "primary" }],
-          },
+          ...(articleV3(saved).blocks[0]! as Extract<StudioArticleDraftV2["blocks"][number], { kind: "experiment" }>).placement,
+          snapshotId: "snapshot/missing",
         },
       }],
-    })).toThrow(/unknown graph pane pane\/missing/);
+    })).toThrow(/Snapshot not found/);
   });
 
-  it("fails closed on invalid Snapshots, dangling heads, and bad lineage in storage", () => {
-    const storage = new MemoryStorageV2();
-    storage.setItem(STUDIO_BROWSER_CONTENT_STORE_V3_KEY, JSON.stringify({
-      schemaId: "circleheart-studio-browser-content-v3",
-      workspaces: [workspaceV2({
-        headSnapshotId: "snapshot/missing",
-      })],
-      snapshots: [],
-      articles: [],
-    }));
-    expect(() => new StudioBrowserContentStoreV3(storage).listSnapshots())
-      .toThrow(/Workspace head is invalid/);
+  it("deletes an Experiment without cascading to immutable Snapshots or Articles", async () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const candidate = experimentV3();
+    const experiment = store.saveExperiment(candidate, candidate.content);
+    const snapshot = store.saveSnapshotCommit(await qualifiedCommitV3(
+      experiment,
+      { kind: "article", snapshotId: "snapshot/retained" },
+    ), experiment.content).snapshot;
+    if (snapshot.kind !== "article") throw new Error("expected Article Snapshot");
+    store.saveArticle(articleV3(snapshot));
 
-    storage.setItem(STUDIO_BROWSER_CONTENT_STORE_V3_KEY, JSON.stringify({
-      schemaId: "circleheart-studio-browser-content-v3",
-      workspaces: [workspaceV2()],
-      snapshots: [snapshotV2({
-        workspace: workspaceV2({ modelId: "model/other-v3" }),
-      })],
-      articles: [],
-    }));
-    expect(() => new StudioBrowserContentStoreV3(storage).listSnapshots())
-      .toThrow(/has no matching Experiment Workspace and modelId/);
-
-    storage.setItem(STUDIO_BROWSER_CONTENT_STORE_V3_KEY, JSON.stringify({
-      schemaId: "circleheart-studio-browser-content-v3",
-      workspaces: [workspaceV2()],
-      snapshots: [snapshotV2({ parentSnapshotId: "snapshot/missing" })],
-      articles: [],
-    }));
-    expect(() => new StudioBrowserContentStoreV3(storage).listSnapshots())
-      .toThrow(/Snapshot parent not found/);
-
-    const snapshotOne = snapshotV2({
-      snapshotId: "snapshot/cycle-one",
-      parentSnapshotId: "snapshot/cycle-two",
-    });
-    const snapshotTwo = snapshotV2({
-      snapshotId: "snapshot/cycle-two",
-      parentSnapshotId: "snapshot/cycle-one",
-    });
-    storage.setItem(STUDIO_BROWSER_CONTENT_STORE_V3_KEY, JSON.stringify({
-      schemaId: "circleheart-studio-browser-content-v3",
-      workspaces: [workspaceV2({
-        draftVersion: 2,
-        headSnapshotId: snapshotTwo.snapshotId,
-        basedOnSnapshotId: snapshotTwo.snapshotId,
-      })],
-      snapshots: [snapshotOne, snapshotTwo],
-      articles: [],
-    }));
-    expect(() => new StudioBrowserContentStoreV3(storage).listSnapshots())
-      .toThrow(/lineage contains a cycle/);
+    expect(store.deleteExperiment(experiment.experimentId)).toBe(true);
+    expect(store.readExperiment(experiment.experimentId)).toBeNull();
+    expect(store.readSnapshot(snapshot.snapshotId)).toEqual(snapshot);
+    expect(store.readArticle("article/browser-store")).not.toBeNull();
   });
 
-  it("fails closed when the single versioned envelope is corrupted", () => {
-    const storage = new MemoryStorageV2();
+  it("fails closed when the single current envelope is corrupt", () => {
+    const storage = new MemoryStorageV3();
     storage.setItem(STUDIO_BROWSER_CONTENT_STORE_V3_KEY, JSON.stringify({
-      schemaId: "circleheart-studio-browser-content-v3",
-      workspaces: [],
+      schemaId: STUDIO_BROWSER_CONTENT_STORE_V3_SCHEMA_ID,
+      experiments: [],
       snapshots: [],
       articles: [],
-      legacyReaderBriefs: [],
+      legacyWorkspace: {},
     }));
-    expect(() => new StudioBrowserContentStoreV3(storage).listSnapshots())
-      .toThrow(/schema is invalid/);
+    const store = new StudioBrowserContentStoreV3(storage);
+
+    expect(() => store.listSnapshots()).toThrow(/schema is invalid/);
   });
 });

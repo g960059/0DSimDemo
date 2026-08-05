@@ -1,13 +1,14 @@
 import React from "react";
 import {
   ArrowLeft,
+  Check,
   ChevronDown,
   ChevronUp,
-  Eye,
   FlaskConical,
+  GripVertical,
   Heading2,
-  Home,
   Pilcrow,
+  Plus,
   Save,
   Trash2,
 } from "lucide-react";
@@ -21,20 +22,20 @@ import {
 
 import {
   articleEditorHref,
-  articleReaderHref,
-  articlesHref,
-  experimentsHref,
-  homeHref,
+  myArticlesHref,
+  newExperimentHref,
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import { ArticleExperimentPlacementV3 } from "@/components/article/ArticleExperimentPlacementV3";
+import {
+  ArticleReaderExperimentV3,
+} from "@/components/article/reader/ArticleReaderExperimentV3";
 import {
   ArticleSnapshotPickerDialogV3,
 } from "@/components/article/ArticleSnapshotPickerDialogV3";
 import {
   createArticleExperimentBlockV3,
   portableEditorIdV3,
-  resolveArticleBriefingHandoffV3,
 } from "@/components/article/ArticleEditorStateV3";
 import {
   STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
@@ -42,19 +43,64 @@ import {
   type StudioArticleDraftV2,
   type StudioArticleExperimentBlockV2,
 } from "@/studio/contracts/v2/article";
-import type { ExperimentSnapshotV2 } from "@/studio/contracts/v2/content";
+import type {
+  ArticleExperimentSnapshotV2,
+} from "@/studio/contracts/v2/content";
 import {
   StudioBrowserContentStoreV3,
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
-  createBrowserStudioSnapshotBriefingHandoffV3,
-} from "@/studio/infrastructure/browser/StudioSnapshotBriefingHandoffV3";
+  createArticleExperimentSessionTokenV3,
+  StudioArticleExperimentAuthoringHandoffStoreV3,
+} from "@/studio/infrastructure/browser/StudioArticleExperimentAuthoringHandoffV3";
 import {
   loadStudioDefaultClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
+import { useUnsavedChangesGuardV3 } from "@/components/useUnsavedChangesGuardV3";
 
 type EditorSaveStatusV3 = "idle" | "dirty" | "saving" | "saved" | "error";
+
+const ARTICLE_EDITOR_PEEK_FRACTION_STORAGE_KEY_V3 =
+  "circleheart.article-editor.peek-fraction.v1";
+const ARTICLE_EDITOR_PEEK_DEFAULT_FRACTION_V3 = 0.46;
+const ARTICLE_EDITOR_PEEK_MIN_FRACTION_V3 = 0.3;
+const ARTICLE_EDITOR_PEEK_MAX_FRACTION_V3 = 0.64;
+
+export function clampArticleEditorPeekFractionV3(value: number): number {
+  if (!Number.isFinite(value)) return ARTICLE_EDITOR_PEEK_DEFAULT_FRACTION_V3;
+  return Math.min(
+    ARTICLE_EDITOR_PEEK_MAX_FRACTION_V3,
+    Math.max(ARTICLE_EDITOR_PEEK_MIN_FRACTION_V3, value),
+  );
+}
+
+export function articleEditorPeekFractionForPointerV3(
+  shellLeft: number,
+  shellWidth: number,
+  pointerClientX: number,
+): number {
+  if (!Number.isFinite(shellWidth) || shellWidth <= 0) {
+    return ARTICLE_EDITOR_PEEK_DEFAULT_FRACTION_V3;
+  }
+  return clampArticleEditorPeekFractionV3(
+    (shellLeft + shellWidth - pointerClientX) / shellWidth,
+  );
+}
+
+function initialArticleEditorPeekFractionV3(): number {
+  if (typeof window === "undefined") return ARTICLE_EDITOR_PEEK_DEFAULT_FRACTION_V3;
+  try {
+    const raw = window.localStorage.getItem(
+      ARTICLE_EDITOR_PEEK_FRACTION_STORAGE_KEY_V3,
+    );
+    return raw === null
+      ? ARTICLE_EDITOR_PEEK_DEFAULT_FRACTION_V3
+      : clampArticleEditorPeekFractionV3(Number(raw));
+  } catch {
+    return ARTICLE_EDITOR_PEEK_DEFAULT_FRACTION_V3;
+  }
+}
 
 type ArticleEditorRouteDraftResolutionV3 = Readonly<{
   draft: StudioArticleDraftV2;
@@ -109,11 +155,13 @@ export function ArticleEditorV3Page() {
   const { articleId: routeArticleId } = useParams();
   const locale = localeFromPathname(location.pathname);
   const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
-  const briefingHandoff = React.useMemo(
-    createBrowserStudioSnapshotBriefingHandoffV3,
+  const articleExperimentHandoff = React.useMemo(
+    () => new StudioArticleExperimentAuthoringHandoffStoreV3(),
     [],
   );
-  const [snapshots, setSnapshots] = React.useState<readonly ExperimentSnapshotV2[]>([]);
+  const [snapshots, setSnapshots] = React.useState<
+    readonly ArticleExperimentSnapshotV2[]
+  >([]);
   const [draft, setDraft] = React.useState<StudioArticleDraftV2>(() =>
     createEmptyArticleDraftV3(locale, t("articleEditor.untitled")));
   const draftRef = React.useRef(draft);
@@ -123,9 +171,91 @@ export function ArticleEditorV3Page() {
       : null,
   );
   const [status, setStatus] = React.useState<EditorSaveStatusV3>("idle");
+  const [hasUnsavedArticleChanges, setHasUnsavedArticleChanges] =
+    React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [insertMenuIndex, setInsertMenuIndex] = React.useState<number | null>(null);
+  const [blockMenuId, setBlockMenuId] = React.useState<string | null>(null);
+  const [draggedBlockId, setDraggedBlockId] = React.useState<string | null>(null);
+  const [focusBlockId, setFocusBlockId] = React.useState<string | null>(null);
+  const pendingExperimentInsertIndexRef = React.useRef<number | null>(null);
+  const pendingExperimentReplacementBlockIdRef = React.useRef<string | null>(null);
+  const pendingReturnedSnapshotIdRef = React.useRef<string | null>(null);
+  const slashReplacementIndexRef = React.useRef<number | null>(null);
   const [modelContract, setModelContract] = React.useState<ModelContractV2 | null>(null);
+  const [peekBlockId, setPeekBlockId] = React.useState<string | null>(null);
+  const [peekOpen, setPeekOpen] = React.useState(false);
+  const [peekPortalHost, setPeekPortalHost] =
+    React.useState<HTMLDivElement | null>(null);
+  const [peekFraction, setPeekFraction] = React.useState(
+    initialArticleEditorPeekFractionV3,
+  );
+  const [peekDragging, setPeekDragging] = React.useState(false);
+  const splitRef = React.useRef<HTMLDivElement>(null);
+  const peekCloseTimerRef = React.useRef<number | null>(null);
+  const peekResizeFrameRef = React.useRef<number | null>(null);
+  const peekDraggingRef = React.useRef(false);
+  const pendingPeekFractionRef = React.useRef(peekFraction);
+
+  const cancelPeekCloseTimer = React.useCallback(() => {
+    if (peekCloseTimerRef.current === null) return;
+    window.clearTimeout(peekCloseTimerRef.current);
+    peekCloseTimerRef.current = null;
+  }, []);
+
+  const openEditorPeekV3 = React.useCallback((blockId: string) => {
+    cancelPeekCloseTimer();
+    setPeekBlockId(blockId);
+  }, [cancelPeekCloseTimer]);
+
+  const closeEditorPeekV3 = React.useCallback(() => {
+    setPeekOpen(false);
+    cancelPeekCloseTimer();
+    peekCloseTimerRef.current = window.setTimeout(() => {
+      peekCloseTimerRef.current = null;
+      setPeekBlockId(null);
+    }, 260);
+  }, [cancelPeekCloseTimer]);
+
+  React.useEffect(() => {
+    if (peekBlockId === null) return undefined;
+    const frame = window.requestAnimationFrame(() => setPeekOpen(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [peekBlockId]);
+
+  React.useEffect(() => () => {
+    cancelPeekCloseTimer();
+    if (peekResizeFrameRef.current !== null) {
+      window.cancelAnimationFrame(peekResizeFrameRef.current);
+    }
+  }, [cancelPeekCloseTimer]);
+
+  const resizePeekFromPointer = React.useCallback((clientX: number) => {
+    const bounds = splitRef.current?.getBoundingClientRect();
+    if (bounds === undefined) return;
+    pendingPeekFractionRef.current = articleEditorPeekFractionForPointerV3(
+      bounds.left,
+      bounds.width,
+      clientX,
+    );
+    if (peekResizeFrameRef.current !== null) return;
+    peekResizeFrameRef.current = window.requestAnimationFrame(() => {
+      peekResizeFrameRef.current = null;
+      setPeekFraction(pendingPeekFractionRef.current);
+    });
+  }, []);
+
+  const persistPeekFraction = React.useCallback((fraction: number) => {
+    try {
+      window.localStorage.setItem(
+        ARTICLE_EDITOR_PEEK_FRACTION_STORAGE_KEY_V3,
+        String(clampArticleEditorPeekFractionV3(fraction)),
+      );
+    } catch {
+      // Device-local Editor geometry is optional.
+    }
+  }, []);
 
   React.useEffect(() => {
     let current = true;
@@ -141,8 +271,10 @@ export function ArticleEditorV3Page() {
 
   React.useEffect(() => {
     try {
-      const nextSnapshots = [...store.listSnapshots()].sort((left, right) =>
-        right.createdAt.localeCompare(left.createdAt));
+      const nextSnapshots = store.listSnapshots()
+        .filter((snapshot): snapshot is ArticleExperimentSnapshotV2 =>
+          snapshot.kind === "article")
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
       setSnapshots(Object.freeze(nextSnapshots));
       const resolution = resolveArticleEditorRouteDraftV3({
         currentDraft: draftRef.current,
@@ -154,9 +286,11 @@ export function ArticleEditorV3Page() {
       });
       if (resolution.routeChanged) {
         hydratedRouteKeyRef.current = resolution.routeKey;
+        pendingReturnedSnapshotIdRef.current = null;
         draftRef.current = resolution.draft;
         setDraft(resolution.draft);
         setStatus("idle");
+        setHasUnsavedArticleChanges(false);
         setError(null);
       }
     } catch (cause) {
@@ -172,10 +306,11 @@ export function ArticleEditorV3Page() {
     draftRef.current = next;
     setDraft(next);
     setStatus("dirty");
+    setHasUnsavedArticleChanges(true);
     setError(null);
   }, []);
 
-  const saveDraft = React.useCallback(() => {
+  const saveDraft = React.useCallback((): StudioArticleDraftV2 | null => {
     setStatus("saving");
     setError(null);
     try {
@@ -186,19 +321,155 @@ export function ArticleEditorV3Page() {
         draftVersion: isInitialSave ? 0 : candidate.draftVersion + 1,
       });
       const saved = store.saveArticle(normalized);
+      const pendingSnapshotId = pendingReturnedSnapshotIdRef.current;
+      if (pendingSnapshotId !== null) {
+        const pendingHandoff = articleExperimentHandoff.read();
+        if (
+          pendingHandoff?.articleId === saved.articleId
+          && pendingHandoff.snapshotId === pendingSnapshotId
+        ) {
+          articleExperimentHandoff.clear();
+        }
+        pendingReturnedSnapshotIdRef.current = null;
+      }
       draftRef.current = saved;
       setDraft(saved);
       setStatus("saved");
+      setHasUnsavedArticleChanges(false);
       if (routeArticleId !== saved.articleId) {
         navigate(articleEditorHref({ articleId: saved.articleId, locale }), {
           replace: true,
         });
       }
+      return saved;
     } catch (cause) {
       setStatus("error");
       setError(errorMessageV3(cause));
+      return null;
     }
-  }, [locale, navigate, routeArticleId, store]);
+  }, [
+    articleExperimentHandoff,
+    locale,
+    navigate,
+    routeArticleId,
+    store,
+  ]);
+
+  const insertExperimentSnapshotV3 = React.useCallback((input: Readonly<{
+    insertionIndex: number;
+    replacementBlockId: string | null;
+    snapshot: ArticleExperimentSnapshotV2;
+  }>) => {
+    const block = createArticleExperimentBlockV3(input.snapshot);
+    updateDraft((current) => {
+      const replacementIndex = input.replacementBlockId === null
+        ? -1
+        : current.blocks.findIndex((candidate) =>
+            candidate.blockId === input.replacementBlockId);
+      const replacement = current.blocks[replacementIndex];
+      if (
+        replacementIndex >= 0
+        && replacement !== undefined
+        && (
+          replacement.kind === "experiment"
+          || replacement.text.length === 0
+        )
+      ) {
+        const blocks = [...current.blocks];
+        blocks[replacementIndex] = block;
+        return { ...current, blocks };
+      }
+      return {
+        ...current,
+        blocks: insertArticleBlockV3(
+          current.blocks,
+          input.insertionIndex,
+          block,
+        ),
+      };
+    });
+  }, [updateDraft]);
+
+  React.useEffect(() => {
+    const pending = articleExperimentHandoff.read();
+    if (
+      pending === null
+      || pending.snapshotId === null
+      || pending.articleId !== draft.articleId
+      || pendingReturnedSnapshotIdRef.current === pending.snapshotId
+    ) return;
+    const snapshot = store.readSnapshot(pending.snapshotId);
+    if (snapshot === null || snapshot.kind !== "article") return;
+    insertExperimentSnapshotV3({
+      insertionIndex: pending.insertionIndex,
+      replacementBlockId: pending.replacementBlockId,
+      snapshot,
+    });
+    // Keep the completed handoff until the Article itself is saved. If the
+    // tab reloads before then, this exact immutable Snapshot can be inserted
+    // again instead of silently losing the returned Placement.
+    pendingReturnedSnapshotIdRef.current = pending.snapshotId;
+    setSnapshots(Object.freeze(store.listSnapshots()
+      .filter((candidate): candidate is ArticleExperimentSnapshotV2 =>
+        candidate.kind === "article")
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))));
+  }, [
+    articleExperimentHandoff,
+    draft.articleId,
+    insertExperimentSnapshotV3,
+    store,
+  ]);
+
+  const discardPendingReturnedSnapshotV3 = React.useCallback(() => {
+    if (pendingReturnedSnapshotIdRef.current === null) return;
+    articleExperimentHandoff.clear();
+    pendingReturnedSnapshotIdRef.current = null;
+  }, [articleExperimentHandoff]);
+  useUnsavedChangesGuardV3({
+    enabled: hasUnsavedArticleChanges,
+    message: t("common.unsavedChanges"),
+    onConfirmedDiscard: discardPendingReturnedSnapshotV3,
+  });
+
+  const startArticleExperimentSessionV3 = React.useCallback((input: Readonly<{
+    insertionIndex: number;
+    replacementBlockId: string | null;
+    snapshotId?: string;
+  }>) => {
+    const savedArticle = saveDraft();
+    if (savedArticle === null) return;
+    const sessionToken = createArticleExperimentSessionTokenV3();
+    articleExperimentHandoff.begin({
+      articleId: savedArticle.articleId,
+      sessionToken,
+      insertionIndex: input.insertionIndex,
+      replacementBlockId: input.replacementBlockId,
+    });
+    setPickerOpen(false);
+    const search = new URLSearchParams({
+      articleId: savedArticle.articleId,
+      sessionToken,
+    });
+    if (input.snapshotId !== undefined) {
+      search.set("snapshotId", input.snapshotId);
+    }
+    navigate(`${newExperimentHref(locale)}?${
+      search.toString()
+    }`);
+  }, [
+    articleExperimentHandoff,
+    locale,
+    navigate,
+    saveDraft,
+  ]);
+
+  const createExperimentFromArticleV3 = React.useCallback(() => {
+    startArticleExperimentSessionV3({
+      insertionIndex: pendingExperimentInsertIndexRef.current
+        ?? draftRef.current.blocks.length,
+      replacementBlockId: pendingExperimentReplacementBlockIdRef.current,
+    });
+  }, [startArticleExperimentSessionV3]);
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -210,6 +481,31 @@ export function ArticleEditorV3Page() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [saveDraft]);
+
+  React.useEffect(() => {
+    if (insertMenuIndex === null && blockMenuId === null) return;
+    const closeMenus = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-article-block-menu]")) {
+        return;
+      }
+      setInsertMenuIndex(null);
+      setBlockMenuId(null);
+      slashReplacementIndexRef.current = null;
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setInsertMenuIndex(null);
+      setBlockMenuId(null);
+      slashReplacementIndexRef.current = null;
+    };
+    document.addEventListener("pointerdown", closeMenus);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeMenus);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [blockMenuId, insertMenuIndex]);
 
   const updateBlock = (index: number, block: StudioArticleBlockV2) => {
     updateDraft((current) => ({
@@ -236,44 +532,148 @@ export function ArticleEditorV3Page() {
     });
   };
 
-  const addTextBlock = (kind: "heading" | "paragraph") => {
-    updateDraft((current) => ({
-      ...current,
-      blocks: [...current.blocks, kind === "heading"
-        ? {
-          blockId: portableEditorIdV3("block"),
-          kind: "heading" as const,
-          level: 2 as const,
-          text: t("articleEditor.newHeading"),
-        }
-        : {
-          blockId: portableEditorIdV3("block"),
-          kind: "paragraph" as const,
-          text: "",
-        }],
-    }));
+  const moveBlockTo = (blockId: string, targetIndex: number) => {
+    updateDraft((current) => {
+      const sourceIndex = current.blocks.findIndex((block) =>
+        block.blockId === blockId);
+      if (sourceIndex < 0 || sourceIndex === targetIndex) return current;
+      const blocks = [...current.blocks];
+      const [moved] = blocks.splice(sourceIndex, 1);
+      if (moved === undefined) return current;
+      blocks.splice(Math.max(0, Math.min(targetIndex, blocks.length)), 0, moved);
+      return { ...current, blocks };
+    });
   };
 
-  const addExperiment = (snapshot: ExperimentSnapshotV2) => {
-    const handedOff = briefingHandoff?.read(snapshot.snapshotId) ?? null;
-    const briefing = resolveArticleBriefingHandoffV3(snapshot, handedOff);
-    if (handedOff !== null && briefing === null) {
-      briefingHandoff?.clear(snapshot.snapshotId);
+  const addTextBlock = (
+    kind: "heading" | "paragraph",
+    index = draftRef.current.blocks.length,
+  ) => {
+    const blockId = portableEditorIdV3("block");
+    const replaceCurrent = slashReplacementIndexRef.current === index;
+    let focusTargetId = blockId;
+    updateDraft((current) => {
+      const currentBlock = current.blocks[index];
+      if (
+        replaceCurrent
+        && currentBlock !== undefined
+        && currentBlock.kind !== "experiment"
+        && currentBlock.text.length === 0
+      ) {
+        focusTargetId = currentBlock.blockId;
+        const blocks = [...current.blocks];
+        blocks[index] = kind === "heading"
+          ? {
+              blockId: currentBlock.blockId,
+              kind: "heading" as const,
+              level: 2 as const,
+              text: "",
+            }
+          : {
+              blockId: currentBlock.blockId,
+              kind: "paragraph" as const,
+              text: "",
+            };
+        return { ...current, blocks };
+      }
+      return {
+        ...current,
+        blocks: insertArticleBlockV3(current.blocks, index, kind === "heading"
+          ? {
+            blockId,
+            kind: "heading" as const,
+            level: 2 as const,
+            text: "",
+          }
+          : {
+            blockId,
+            kind: "paragraph" as const,
+            text: "",
+          }),
+      };
+    });
+    slashReplacementIndexRef.current = null;
+    setInsertMenuIndex(null);
+    setFocusBlockId(focusTargetId);
+  };
+
+  const splitTextBlock = (index: number, offset: number) => {
+    const nextBlockId = portableEditorIdV3("block");
+    updateDraft((current) => {
+      const currentBlock = current.blocks[index];
+      if (
+        currentBlock === undefined
+        || currentBlock.kind === "experiment"
+      ) return current;
+      const splitOffset = Math.max(0, Math.min(offset, currentBlock.text.length));
+      const before = currentBlock.text.slice(0, splitOffset);
+      const after = currentBlock.text.slice(splitOffset);
+      const nextBlock = {
+        blockId: nextBlockId,
+        kind: "paragraph" as const,
+        text: after,
+      };
+      const blocks = [...current.blocks];
+      blocks[index] = { ...currentBlock, text: before };
+      blocks.splice(index + 1, 0, nextBlock);
+      return { ...current, blocks };
+    });
+    setFocusBlockId(nextBlockId);
+  };
+
+  const removeEmptyTextBlock = (index: number) => {
+    const previous = draftRef.current.blocks[index - 1];
+    removeBlock(index);
+    if (previous !== undefined && previous.kind !== "experiment") {
+      setFocusBlockId(previous.blockId);
     }
-    const block = createArticleExperimentBlockV3(
+  };
+
+  const openExperimentPickerAt = (index: number) => {
+    pendingExperimentInsertIndexRef.current = index;
+    pendingExperimentReplacementBlockIdRef.current =
+      slashReplacementIndexRef.current === index
+        ? draftRef.current.blocks[index]?.blockId ?? null
+        : null;
+    slashReplacementIndexRef.current = null;
+    setInsertMenuIndex(null);
+    setPickerOpen(true);
+  };
+
+  const addExperiment = (snapshot: ArticleExperimentSnapshotV2) => {
+    insertExperimentSnapshotV3({
+      insertionIndex: pendingExperimentInsertIndexRef.current
+        ?? draftRef.current.blocks.length,
+      replacementBlockId: pendingExperimentReplacementBlockIdRef.current,
       snapshot,
-      briefing ?? undefined,
-    );
-    updateDraft((current) => ({
-      ...current,
-      blocks: [...current.blocks, block],
-    }));
+    });
+    pendingExperimentInsertIndexRef.current = null;
+    pendingExperimentReplacementBlockIdRef.current = null;
+    setPickerOpen(false);
   };
 
   const articleSnapshotById = React.useMemo(
     () => new Map(snapshots.map((snapshot) => [snapshot.snapshotId, snapshot])),
     [snapshots],
   );
+  const selectedPeek = React.useMemo(() => {
+    if (peekBlockId === null) return null;
+    const index = draft.blocks.findIndex(({ blockId }) => blockId === peekBlockId);
+    if (index < 0) return null;
+    const block = draft.blocks[index];
+    if (block === undefined || block.kind !== "experiment") return null;
+    const snapshot = articleSnapshotById.get(block.placement.snapshotId) ?? null;
+    return snapshot === null ? null : Object.freeze({ block, index, snapshot });
+  }, [articleSnapshotById, draft.blocks, peekBlockId]);
+  React.useEffect(() => {
+    if (peekBlockId !== null && selectedPeek === null) closeEditorPeekV3();
+  }, [closeEditorPeekV3, peekBlockId, selectedPeek]);
+  const persistedArticle = routeArticleId !== undefined
+    && routeArticleId !== "new";
+  const savedClean = persistedArticle
+    && !hasUnsavedArticleChanges
+    && status !== "saving"
+    && status !== "error";
 
   return (
     <div
@@ -282,61 +682,74 @@ export function ArticleEditorV3Page() {
     >
       <header className="z-20 flex h-12 shrink-0 items-center gap-2 bg-wb-header px-2.5 shadow-[inset_0_-1px_0_var(--wb-border)] sm:px-4">
         <Link
-          to={homeHref(locale)}
-          aria-label={t("nav.home")}
+          to={myArticlesHref(locale)}
+          aria-label={t("articleReader.backToArticles")}
+          title={t("articleReader.backToArticles")}
           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
         >
-          <Home className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         </Link>
-        <span className="hidden text-xs font-semibold tracking-tight text-wb-accent sm:inline">
-          {t("common.appName")}
-        </span>
-        <span className="hidden text-wb-subtle sm:inline" aria-hidden="true">/</span>
-        <span className="min-w-0 flex-1 truncate text-xs font-medium text-wb-muted">
-          {draft.title || t("articleEditor.untitled")}
-        </span>
-
-        <Link
-          to={articlesHref(locale)}
-          className="hidden min-h-8 items-center rounded-lg px-2.5 text-[11px] font-medium text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:inline-flex"
-        >
-          {t("articleLibrary.title")}
-        </Link>
-        {routeArticleId !== "new" && (
-          <Link
-            to={articleReaderHref({ articleId: draft.articleId, locale })}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-            aria-label={t("articleEditor.preview")}
-            title={t("articleEditor.preview")}
-          >
-            <Eye className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        )}
-        <Link
-          to={experimentsHref(locale)}
-          className="hidden min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:inline-flex"
-        >
-          <FlaskConical className="h-3.5 w-3.5" />
-          {t("nav.workbench")}
-        </Link>
-        <span
-          className={`hidden min-w-12 text-right text-[10px] sm:inline ${status === "error" ? "text-wb-danger" : "text-wb-subtle"}`}
-          role={status === "error" ? "alert" : "status"}
-        >
-          {t(`articleEditor.status.${status}`)}
-        </span>
+        <span className="min-w-0 flex-1" />
         <button
           type="button"
-          onClick={saveDraft}
+          role="switch"
+          aria-checked={draft.visibility === "public"}
+          aria-label={t("articleEditor.publicToggle")}
           disabled={status === "saving"}
-          className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg bg-wb-primary px-3 text-[11px] font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          onClick={() => updateDraft((current) => ({
+            ...current,
+            visibility: current.visibility === "public" ? "draft" : "public",
+          }))}
+          className="inline-flex min-h-8 shrink-0 items-center gap-2 rounded-lg px-1.5 text-[11px] font-semibold text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:px-2"
         >
-          <Save className="h-3.5 w-3.5" />
-          {t("articleEditor.save")}
+          <span
+            aria-hidden="true"
+            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-150 ${draft.visibility === "public" ? "bg-wb-primary" : "bg-wb-line"}`}
+          >
+            <span
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-150 ${draft.visibility === "public" ? "translate-x-[1.125rem]" : "translate-x-0.5"}`}
+            />
+          </span>
+          <span className="hidden sm:inline">
+            {t(draft.visibility === "public"
+              ? "articleEditor.published"
+              : "articleEditor.publish")}
+          </span>
         </button>
+        {savedClean ? (
+          <span
+            className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg bg-wb-primary px-3 text-[11px] font-semibold text-white"
+            role="status"
+          >
+            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("articleEditor.status.saved")}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={saveDraft}
+            disabled={status === "saving"}
+            className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg bg-wb-primary px-3 text-[11px] font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          >
+            <Save className="h-3.5 w-3.5" aria-hidden="true" />
+            {status === "saving"
+              ? t("articleEditor.status.saving")
+              : t("articleEditor.save")}
+          </button>
+        )}
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div
+        ref={splitRef}
+        className="article-reader-split relative flex min-h-0 flex-1 overflow-hidden"
+        data-peek-mounted={peekBlockId === null ? "false" : "true"}
+        data-peek-open={peekOpen ? "true" : "false"}
+        data-peek-dragging={peekDragging ? "true" : "false"}
+        style={{
+          "--article-reader-peek-width": `${peekFraction * 100}%`,
+        } as React.CSSProperties}
+      >
+      <main className="article-reader-article-pane min-w-0 flex-1 overflow-y-auto overscroll-contain">
         <article className="mx-auto w-full max-w-[760px] px-5 pb-40 pt-14 sm:px-8 sm:pt-20">
           <input
             type="text"
@@ -349,11 +762,6 @@ export function ArticleEditorV3Page() {
             aria-label={t("articleEditor.title")}
             className="w-full bg-transparent text-3xl font-bold leading-tight tracking-[-0.025em] text-wb-text outline-none placeholder:text-wb-subtle sm:text-[2.5rem]"
           />
-          <div className="mt-4 flex items-center gap-2 text-[10px] text-wb-subtle">
-            <span>{t("articleEditor.draft")}</span>
-            <span aria-hidden="true">·</span>
-            <span>{t("articleEditor.snapshotCount", { count: snapshots.length })}</span>
-          </div>
 
           {error !== null && (
             <p className="mt-6 rounded-xl bg-wb-danger-soft px-4 py-3 text-xs leading-5 text-wb-danger" role="alert">
@@ -369,74 +777,236 @@ export function ArticleEditorV3Page() {
                   {t("articleEditor.emptySnapshots.description")}
                 </p>
               </div>
-              <Link
-                to={experimentsHref(locale)}
+              <button
+                type="button"
+                onClick={() => {
+                  pendingExperimentInsertIndexRef.current =
+                    draftRef.current.blocks.length;
+                  pendingExperimentReplacementBlockIdRef.current = null;
+                  createExperimentFromArticleV3();
+                }}
                 className="mt-3 inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-accent transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:mt-0"
               >
-                {t("articleEditor.emptySnapshots.openWorkbench")}
+                {t("articleEditor.emptySnapshots.createExperiment")}
                 <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
-              </Link>
+              </button>
             </div>
           )}
 
           <div className="mt-12" data-testid="article-blocks-v3">
             {draft.blocks.map((block, index) => {
-              if (block.kind === "experiment") {
-                return (
+              return (
+                <ArticleBlockShellV3
+                  key={block.blockId}
+                  blockId={block.blockId}
+                  blockKind={block.kind}
+                  index={index}
+                  total={draft.blocks.length}
+                  insertMenuOpen={insertMenuIndex === index}
+                  blockMenuOpen={blockMenuId === block.blockId}
+                  onToggleInsertMenu={() => {
+                    setBlockMenuId(null);
+                    slashReplacementIndexRef.current = null;
+                    setInsertMenuIndex((current) => current === index ? null : index);
+                  }}
+                  onToggleBlockMenu={() => {
+                    setInsertMenuIndex(null);
+                    setBlockMenuId((current) => current === block.blockId
+                      ? null
+                      : block.blockId);
+                  }}
+                  onInsertHeading={() => addTextBlock("heading", index)}
+                  onInsertParagraph={() => addTextBlock("paragraph", index)}
+                  onInsertExperiment={() => openExperimentPickerAt(index)}
+                  onMove={(direction) => {
+                    moveBlock(index, direction);
+                    setBlockMenuId(null);
+                  }}
+                  onRemove={() => {
+                    removeBlock(index);
+                    setBlockMenuId(null);
+                  }}
+                  onDragStart={() => setDraggedBlockId(block.blockId)}
+                  onDrop={() => {
+                    if (draggedBlockId !== null) moveBlockTo(draggedBlockId, index);
+                    setDraggedBlockId(null);
+                  }}
+                >
+                  {block.kind === "experiment" ? (
                   <ArticleExperimentPlacementV3
-                    key={block.blockId}
                     block={block}
                     snapshot={articleSnapshotById.get(block.placement.snapshotId) ?? null}
                     contract={modelContract}
                     index={index}
                     total={draft.blocks.length}
+                    blockEditorLayout
+                    showBlockActions={false}
                     onChange={(next) => updateBlock(index, next)}
+                    onEdit={() => openEditorPeekV3(block.blockId)}
                     onRemove={() => removeBlock(index)}
                     onMove={(direction) => moveBlock(index, direction)}
                   />
-                );
-              }
-              return (
-                <ArticleTextBlockV3
-                  key={block.blockId}
-                  block={block}
-                  index={index}
-                  total={draft.blocks.length}
-                  onChange={(next) => updateBlock(index, next)}
-                  onRemove={() => removeBlock(index)}
-                  onMove={(direction) => moveBlock(index, direction)}
-                />
+                  ) : (
+                    <ArticleTextBlockV3
+                      block={block}
+                      focusRequested={focusBlockId === block.blockId}
+                      onFocusHandled={() => setFocusBlockId(null)}
+                      onChange={(next) => updateBlock(index, next)}
+                      onDeleteEmpty={() => removeEmptyTextBlock(index)}
+                      onOpenInsertMenu={() => {
+                        slashReplacementIndexRef.current = index;
+                        setBlockMenuId(null);
+                        setInsertMenuIndex(index);
+                      }}
+                      onSplit={(offset) => splitTextBlock(index, offset)}
+                    />
+                  )}
+                </ArticleBlockShellV3>
               );
             })}
           </div>
 
-          <div className="mt-10 flex flex-wrap items-center gap-1.5" aria-label={t("articleEditor.addBlock")}>
-            <AddBlockButtonV3
-              label={t("articleEditor.addHeading")}
-              onClick={() => addTextBlock("heading")}
-            >
-              <Heading2 className="h-3.5 w-3.5" />
-            </AddBlockButtonV3>
-            <AddBlockButtonV3
-              label={t("articleEditor.addParagraph")}
-              onClick={() => addTextBlock("paragraph")}
-            >
-              <Pilcrow className="h-3.5 w-3.5" />
-            </AddBlockButtonV3>
-            <AddBlockButtonV3
-              label={t("articleEditor.addExperiment")}
-              onClick={() => setPickerOpen(true)}
-            >
-              <FlaskConical className="h-3.5 w-3.5" />
-            </AddBlockButtonV3>
-          </div>
+          <ArticleBlockInsertionV3
+            index={draft.blocks.length}
+            open={insertMenuIndex === draft.blocks.length}
+            empty={draft.blocks.length === 0}
+            onToggle={() => {
+              setBlockMenuId(null);
+              slashReplacementIndexRef.current = null;
+              setInsertMenuIndex((current) => current === draft.blocks.length
+                ? null
+                : draft.blocks.length);
+            }}
+            onInsertHeading={() => addTextBlock("heading")}
+            onInsertParagraph={() => addTextBlock("paragraph")}
+            onInsertExperiment={() => openExperimentPickerAt(draft.blocks.length)}
+          />
         </article>
       </main>
+
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={t("articleReader.resizeExperiment")}
+        aria-valuemin={Math.round(ARTICLE_EDITOR_PEEK_MIN_FRACTION_V3 * 100)}
+        aria-valuemax={Math.round(ARTICLE_EDITOR_PEEK_MAX_FRACTION_V3 * 100)}
+        aria-valuenow={Math.round(peekFraction * 100)}
+        tabIndex={peekOpen ? 0 : -1}
+        className="article-reader-peek-divider group relative z-10 shrink-0 touch-none outline-none"
+        data-testid="article-editor-peek-divider-v3"
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.currentTarget.setPointerCapture(event.pointerId);
+          peekDraggingRef.current = true;
+          setPeekDragging(true);
+          resizePeekFromPointer(event.clientX);
+        }}
+        onPointerMove={(event) => {
+          if (peekDraggingRef.current) resizePeekFromPointer(event.clientX);
+        }}
+        onPointerUp={(event) => {
+          if (!peekDraggingRef.current) return;
+          resizePeekFromPointer(event.clientX);
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+          const next = pendingPeekFractionRef.current;
+          setPeekFraction(next);
+          persistPeekFraction(next);
+          peekDraggingRef.current = false;
+          setPeekDragging(false);
+        }}
+        onPointerCancel={() => {
+          peekDraggingRef.current = false;
+          setPeekDragging(false);
+        }}
+        onKeyDown={(event) => {
+          let next: number | null = null;
+          if (event.key === "ArrowLeft") next = peekFraction + 0.025;
+          else if (event.key === "ArrowRight") next = peekFraction - 0.025;
+          else if (event.key === "Home") next = ARTICLE_EDITOR_PEEK_MIN_FRACTION_V3;
+          else if (event.key === "End") next = ARTICLE_EDITOR_PEEK_MAX_FRACTION_V3;
+          if (next === null) return;
+          event.preventDefault();
+          const clamped = clampArticleEditorPeekFractionV3(next);
+          pendingPeekFractionRef.current = clamped;
+          setPeekFraction(clamped);
+          persistPeekFraction(clamped);
+        }}
+      >
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-wb-line transition-[width,background-color] duration-150 group-hover:w-0.5 group-hover:bg-wb-accent group-focus-visible:w-0.5 group-focus-visible:bg-wb-accent"
+        />
+      </div>
+
+      <aside
+        aria-hidden={!peekOpen}
+        aria-label={t("articleReader.drawerTitle")}
+        className="article-reader-peek-column min-w-0 shrink-0 overflow-hidden bg-wb-panel"
+        data-testid="article-editor-peek-column-v3"
+        inert={!peekOpen}
+      >
+        <div
+          ref={setPeekPortalHost}
+          className="article-reader-peek-host h-full"
+          data-testid="article-editor-peek-host-v3"
+        />
+      </aside>
+
+      {selectedPeek !== null && (
+        <div className="pointer-events-none absolute h-0 w-0 overflow-hidden" aria-hidden="true">
+          <ArticleReaderExperimentV3
+            block={selectedPeek.block}
+            snapshot={selectedPeek.snapshot}
+            contract={
+              modelContract?.modelId === selectedPeek.snapshot.content.modelId
+                ? modelContract
+                : null
+            }
+            live
+            expandedPresentation="peek"
+            peekPortalHost={peekPortalHost}
+            onActivate={() => undefined}
+            onDeactivate={() => undefined}
+            onClose={closeEditorPeekV3}
+            onExpand={(presentation) => {
+              if (presentation !== "fullscreen") return;
+              startArticleExperimentSessionV3({
+                insertionIndex: selectedPeek.index,
+                replacementBlockId: selectedPeek.block.blockId,
+                snapshotId: selectedPeek.block.placement.snapshotId,
+              });
+            }}
+            onTitleCommit={(title) => {
+              const normalized = title.trim();
+              const fallback = selectedPeek.snapshot.briefing.defaultTitle;
+              updateBlock(selectedPeek.index, Object.freeze({
+                ...selectedPeek.block,
+                placement: Object.freeze({
+                  ...selectedPeek.block.placement,
+                  titleOverride:
+                    normalized.length === 0 || normalized === fallback
+                      ? null
+                      : normalized,
+                }),
+              }));
+            }}
+          />
+        </div>
+      )}
+      </div>
 
       <ArticleSnapshotPickerDialogV3
         open={pickerOpen}
         snapshots={snapshots}
-        onClose={() => setPickerOpen(false)}
+        onCreateExperiment={createExperimentFromArticleV3}
+        onClose={() => {
+          pendingExperimentInsertIndexRef.current = null;
+          pendingExperimentReplacementBlockIdRef.current = null;
+          setPickerOpen(false);
+        }}
         onSelect={addExperiment}
       />
     </div>
@@ -445,18 +1015,20 @@ export function ArticleEditorV3Page() {
 
 function ArticleTextBlockV3({
   block,
-  index,
-  total,
+  focusRequested,
   onChange,
-  onRemove,
-  onMove,
+  onDeleteEmpty,
+  onFocusHandled,
+  onOpenInsertMenu,
+  onSplit,
 }: Readonly<{
   block: Exclude<StudioArticleBlockV2, StudioArticleExperimentBlockV2>;
-  index: number;
-  total: number;
+  focusRequested: boolean;
   onChange: (block: Exclude<StudioArticleBlockV2, StudioArticleExperimentBlockV2>) => void;
-  onRemove: () => void;
-  onMove: (direction: -1 | 1) => void;
+  onDeleteEmpty: () => void;
+  onFocusHandled: () => void;
+  onOpenInsertMenu: () => void;
+  onSplit: (offset: number) => void;
 }>) {
   const { t } = useTranslation();
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
@@ -468,13 +1040,39 @@ function ArticleTextBlockV3({
     element.style.height = `${Math.max(element.scrollHeight, block.kind === "heading" ? 52 : 48)}px`;
   }, [block.kind, block.text]);
 
+  React.useEffect(() => {
+    if (!focusRequested) return;
+    const element = textareaRef.current;
+    if (element !== null) {
+      element.focus();
+      element.setSelectionRange(element.value.length, element.value.length);
+    }
+    onFocusHandled();
+  }, [focusRequested, onFocusHandled]);
+
   return (
-    <div className="group relative my-5 pr-0 sm:pr-24" data-article-block-kind={block.kind}>
+    <div className="relative py-1" data-article-block-kind={block.kind}>
       <textarea
         ref={textareaRef}
         rows={1}
         value={block.text}
         onChange={(event) => onChange({ ...block, text: event.currentTarget.value })}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            onSplit(event.currentTarget.selectionStart ?? block.text.length);
+            return;
+          }
+          if (event.key === "Backspace" && block.text.length === 0) {
+            event.preventDefault();
+            onDeleteEmpty();
+            return;
+          }
+          if (event.key === "/" && block.text.length === 0) {
+            event.preventDefault();
+            onOpenInsertMenu();
+          }
+        }}
         placeholder={block.kind === "heading"
           ? t("articleEditor.headingPlaceholder")
           : t("articleEditor.paragraphPlaceholder")}
@@ -485,68 +1083,242 @@ function ArticleTextBlockV3({
           ? "text-2xl font-bold leading-[1.35] tracking-tight"
           : "text-[15px] leading-7 text-wb-muted focus:text-wb-text"}`}
       />
-      <div className="mt-1 flex items-center justify-end gap-0.5 text-wb-subtle sm:absolute sm:right-0 sm:top-0 sm:mt-0 sm:opacity-0 sm:transition-opacity sm:duration-150 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
-        <TextBlockActionV3
-          label={t("articleEditor.moveUp")}
-          disabled={index === 0}
-          onClick={() => onMove(-1)}
-        >
-          <ChevronUp className="h-3.5 w-3.5" />
-        </TextBlockActionV3>
-        <TextBlockActionV3
-          label={t("articleEditor.moveDown")}
-          disabled={index === total - 1}
-          onClick={() => onMove(1)}
-        >
-          <ChevronDown className="h-3.5 w-3.5" />
-        </TextBlockActionV3>
-        <TextBlockActionV3 label={t("articleEditor.removeBlock")} onClick={onRemove}>
-          <Trash2 className="h-3.5 w-3.5" />
-        </TextBlockActionV3>
-      </div>
     </div>
   );
 }
 
-function TextBlockActionV3({
+function ArticleBlockShellV3({
+  blockId,
+  blockKind,
   children,
-  label,
-  disabled = false,
-  onClick,
+  index,
+  total,
+  insertMenuOpen,
+  blockMenuOpen,
+  onToggleInsertMenu,
+  onToggleBlockMenu,
+  onInsertHeading,
+  onInsertParagraph,
+  onInsertExperiment,
+  onMove,
+  onRemove,
+  onDragStart,
+  onDrop,
 }: Readonly<{
+  blockId: string;
+  blockKind: StudioArticleBlockV2["kind"];
   children: React.ReactNode;
-  label: string;
-  disabled?: boolean;
-  onClick: () => void;
+  index: number;
+  total: number;
+  insertMenuOpen: boolean;
+  blockMenuOpen: boolean;
+  onToggleInsertMenu: () => void;
+  onToggleBlockMenu: () => void;
+  onInsertHeading: () => void;
+  onInsertParagraph: () => void;
+  onInsertExperiment: () => void;
+  onMove: (direction: -1 | 1) => void;
+  onRemove: () => void;
+  onDragStart: () => void;
+  onDrop: () => void;
 }>) {
+  const { t } = useTranslation();
   return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="inline-flex h-7 w-7 items-center justify-center rounded-md transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] disabled:pointer-events-none disabled:opacity-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+    <div
+      className={`group/article-block relative -ml-10 pl-10 ${blockKind === "experiment" ? "my-7" : "my-3"}`}
+      data-article-block-id={blockId}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        event.preventDefault();
+        onDrop();
+      }}
     >
+      <div
+        className="absolute left-0 top-1 z-30 flex items-center text-wb-subtle opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-focus-within/article-block:opacity-100 sm:group-hover/article-block:opacity-100"
+        data-article-block-menu
+      >
+        <button
+          type="button"
+          aria-label={t("articleEditor.addBlock")}
+          aria-haspopup="menu"
+          aria-expanded={insertMenuOpen}
+          title={t("articleEditor.addBlock")}
+          onClick={onToggleInsertMenu}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          draggable
+          aria-label={t("articleEditor.blockHandle")}
+          aria-haspopup="menu"
+          aria-expanded={blockMenuOpen}
+          title={t("articleEditor.blockHandle")}
+          onClick={onToggleBlockMenu}
+          onDragStart={(event) => {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", blockId);
+            onDragStart();
+          }}
+          className="inline-flex h-7 w-6 cursor-grab items-center justify-center rounded-md transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:cursor-grabbing active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+        {insertMenuOpen && (
+          <ArticleBlockTypeMenuV3
+            className="left-0 top-8"
+            onInsertHeading={onInsertHeading}
+            onInsertParagraph={onInsertParagraph}
+            onInsertExperiment={onInsertExperiment}
+          />
+        )}
+        {blockMenuOpen && (
+          <div
+            className="absolute left-7 top-8 z-40 w-44 rounded-xl bg-wb-panel p-1.5 text-xs shadow-[0_16px_48px_rgba(0,0,0,0.22)] ring-1 ring-wb-line/70"
+            role="menu"
+            aria-label={t("articleEditor.blockHandle")}
+          >
+            <BlockMenuActionV3
+              autoFocus
+              disabled={index === 0}
+              label={t("articleEditor.moveUp")}
+              onClick={() => onMove(-1)}
+            >
+              <ChevronUp className="h-3.5 w-3.5" />
+            </BlockMenuActionV3>
+            <BlockMenuActionV3
+              disabled={index === total - 1}
+              label={t("articleEditor.moveDown")}
+              onClick={() => onMove(1)}
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </BlockMenuActionV3>
+            <BlockMenuActionV3
+              danger
+              label={t("articleEditor.removeBlock")}
+              onClick={onRemove}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </BlockMenuActionV3>
+          </div>
+        )}
+      </div>
       {children}
-    </button>
+    </div>
   );
 }
 
-function AddBlockButtonV3({
+function ArticleBlockInsertionV3({
+  empty,
+  index,
+  open,
+  onToggle,
+  onInsertHeading,
+  onInsertParagraph,
+  onInsertExperiment,
+}: Readonly<{
+  empty: boolean;
+  index: number;
+  open: boolean;
+  onToggle: () => void;
+  onInsertHeading: () => void;
+  onInsertParagraph: () => void;
+  onInsertExperiment: () => void;
+}>) {
+  const { t } = useTranslation();
+  return (
+    <div
+      className={`relative mt-3 -ml-10 pl-10 ${empty ? "py-10" : "py-3"}`}
+      data-article-block-menu
+      data-insertion-index={index}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="group inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-xs text-wb-subtle transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-muted active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+      >
+        <Plus className="h-4 w-4" />
+        <span>{empty ? t("articleEditor.slashHint") : t("articleEditor.addBlock")}</span>
+      </button>
+      {open && (
+        <ArticleBlockTypeMenuV3
+          className="left-10 top-12"
+          onInsertHeading={onInsertHeading}
+          onInsertParagraph={onInsertParagraph}
+          onInsertExperiment={onInsertExperiment}
+        />
+      )}
+    </div>
+  );
+}
+
+function ArticleBlockTypeMenuV3({
+  className,
+  onInsertHeading,
+  onInsertParagraph,
+  onInsertExperiment,
+}: Readonly<{
+  className: string;
+  onInsertHeading: () => void;
+  onInsertParagraph: () => void;
+  onInsertExperiment: () => void;
+}>) {
+  const { t } = useTranslation();
+  return (
+    <div
+      className={`absolute z-50 w-52 rounded-xl bg-wb-panel p-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.22)] ring-1 ring-wb-line/70 ${className}`}
+      role="menu"
+      aria-label={t("articleEditor.addBlock")}
+    >
+      <BlockMenuActionV3
+        autoFocus
+        label={t("articleEditor.addParagraph")}
+        onClick={onInsertParagraph}
+      >
+        <Pilcrow className="h-4 w-4" />
+      </BlockMenuActionV3>
+      <BlockMenuActionV3
+        label={t("articleEditor.addHeading")}
+        onClick={onInsertHeading}
+      >
+        <Heading2 className="h-4 w-4" />
+      </BlockMenuActionV3>
+      <BlockMenuActionV3
+        label={t("articleEditor.addExperiment")}
+        onClick={onInsertExperiment}
+      >
+        <FlaskConical className="h-4 w-4" />
+      </BlockMenuActionV3>
+    </div>
+  );
+}
+
+function BlockMenuActionV3({
+  autoFocus = false,
   children,
+  danger = false,
+  disabled = false,
   label,
   onClick,
 }: Readonly<{
   children: React.ReactNode;
+  autoFocus?: boolean;
+  danger?: boolean;
+  disabled?: boolean;
   label: string;
   onClick: () => void;
 }>) {
   return (
     <button
+      autoFocus={autoFocus}
       type="button"
+      role="menuitem"
+      disabled={disabled}
       onClick={onClick}
-      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+      className={`flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs transition-[color,background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.98] disabled:pointer-events-none disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${danger ? "text-wb-danger" : "text-wb-muted hover:text-wb-text"}`}
     >
       {children}
       {label}
@@ -554,11 +1326,23 @@ function AddBlockButtonV3({
   );
 }
 
+export function insertArticleBlockV3(
+  blocks: readonly StudioArticleBlockV2[],
+  index: number,
+  block: StudioArticleBlockV2,
+): readonly StudioArticleBlockV2[] {
+  const insertionIndex = Math.max(0, Math.min(index, blocks.length));
+  const next = [...blocks];
+  next.splice(insertionIndex, 0, block);
+  return Object.freeze(next);
+}
+
 function createEmptyArticleDraftV3(locale: string, title: string): StudioArticleDraftV2 {
   return Object.freeze({
     schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
     articleId: portableEditorIdV3("article"),
     draftVersion: 0,
+    visibility: "draft",
     locale,
     title,
     blocks: Object.freeze([]),
@@ -574,10 +1358,12 @@ function normalizeArticleDraftV3(draft: StudioArticleDraftV2): StudioArticleDraf
         return { ...block, text: block.text.trim() };
       }
       const caption = block.placement.caption?.trim() ?? "";
+      const titleOverride = block.placement.titleOverride?.trim() ?? "";
       return {
         ...block,
         placement: {
           ...block.placement,
+          titleOverride: titleOverride.length === 0 ? null : titleOverride,
           caption: caption.length === 0 ? null : caption,
         },
       };

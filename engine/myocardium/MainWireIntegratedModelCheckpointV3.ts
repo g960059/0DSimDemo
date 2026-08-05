@@ -39,7 +39,7 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID =
-  "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v4" as const;
+  "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v5" as const;
 
 export type MainWireIntegratedModelCheckpointContextV3<TWallState> = Readonly<
   MainWireFiveWallCoronaryCheckpointContextV3<TWallState>
@@ -55,7 +55,7 @@ export type MainWireIntegratedModelCheckpointContextV3<TWallState> = Readonly<
 
 export type MainWireIntegratedModelCheckpointPayloadV3 = Readonly<{
   checkpointId: typeof MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID;
-  schemaVersion: 4;
+  schemaVersion: 5;
   transactionId: typeof MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID;
   revision: number;
   acceptedTimeSec: number;
@@ -123,7 +123,7 @@ export async function checkpointMainWireIntegratedModelV3<TWallState>(
   );
   const payload = Object.freeze({
     checkpointId: MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
-    schemaVersion: 4 as const,
+    schemaVersion: 5 as const,
     transactionId: MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
     revision: state.revision,
     acceptedTimeSec: state.acceptedTimeSec,
@@ -214,8 +214,16 @@ export async function restoreMainWireIntegratedModelV3<TWallState>(
     checkpoint.coronary,
     checkpoint.composedRhythm,
   );
+  const checkpointContext = Object.freeze({
+    ...context,
+    coronaryAutoregulationBinding:
+      checkpoint.coronary.coronaryAutoregulationBinding,
+  });
   const [coronary, composedRhythm] = await Promise.all([
-    restoreMainWireFiveWallCoronaryV3(context, checkpoint.coronary),
+    restoreMainWireFiveWallCoronaryV3(
+      checkpointContext,
+      checkpoint.coronary,
+    ),
     restoreAcceptedComposedRhythmTransactionStateV2(
       checkpoint.composedRhythm,
       context.rhythm.configuration,
@@ -327,7 +335,7 @@ function assertCheckpointEnvelope(
   const typed = input as Partial<MainWireIntegratedModelCheckpointV3>;
   if (
     typed.checkpointId !== MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID
-    || typed.schemaVersion !== 4
+    || typed.schemaVersion !== 5
     || typed.transactionId !== MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID
   ) throw new Error("unsupported composed integrated model checkpoint schema");
   digest(typed.checkpointSha256, "composed integrated checkpoint SHA-256");

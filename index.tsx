@@ -5,6 +5,7 @@ import { Layout } from './components/Layout';
 import './index.css';
 import './i18n';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { SiteAccountSessionProviderV3 } from './components/site/SiteAccountSessionV3';
 import { detectPreferredLocale, isLocale, prefixPath, stripLocaleFromPathname } from './localeRouting';
 
 const Home = React.lazy(
@@ -20,6 +21,11 @@ const WorkbenchSelectorV3Page = React.lazy(
     default: module.WorkbenchSelectorV3Page,
   })),
 );
+const PublicExperimentDirectoryV3Page = React.lazy(
+  () => import('./components/PublicExperimentDirectoryV3Page').then((module) => ({
+    default: module.PublicExperimentDirectoryV3Page,
+  })),
+);
 const ArticleEditorV3Page = React.lazy(
   () => import('./components/ArticleEditorV3Page').then((module) => ({
     default: module.ArticleEditorV3Page,
@@ -30,6 +36,11 @@ const ArticleLibraryV3Page = React.lazy(
     default: module.ArticleLibraryV3Page,
   })),
 );
+const PublicArticleDirectoryV3Page = React.lazy(
+  () => import('./components/PublicArticleDirectoryV3Page').then((module) => ({
+    default: module.PublicArticleDirectoryV3Page,
+  })),
+);
 const ArticleReaderV3Page = React.lazy(
   () => import('./components/ArticleReaderV3Page').then((module) => ({
     default: module.ArticleReaderV3Page,
@@ -38,6 +49,16 @@ const ArticleReaderV3Page = React.lazy(
 const ExperimentSnapshotV3Page = React.lazy(
   () => import('./components/ExperimentSnapshotV3Page').then((module) => ({
     default: module.ExperimentSnapshotV3Page,
+  })),
+);
+const AccountAccessV3Page = React.lazy(
+  () => import('./components/AccountAccessV3Page').then((module) => ({
+    default: module.AccountAccessV3Page,
+  })),
+);
+const AccountSettingsV3Page = React.lazy(
+  () => import('./components/AccountSettingsV3Page').then((module) => ({
+    default: module.AccountSettingsV3Page,
   })),
 );
 
@@ -61,7 +82,15 @@ const appRoutes = () => (
     <Route
       path="experiments"
       element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading Workbenches…" />}>
+        <React.Suspense fallback={<ProductPageLoading label="Loading Experiments…" />}>
+          <PublicExperimentDirectoryV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="me/experiments"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading saved Experiments…" />}>
           <WorkbenchSelectorV3Page />
         </React.Suspense>
       )}
@@ -75,7 +104,7 @@ const appRoutes = () => (
       )}
     />
     <Route
-      path="experiments/:experimentId/snapshots/:snapshotId"
+      path="snapshots/:snapshotId"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Snapshot…" />}>
           <ExperimentSnapshotV3Page />
@@ -86,6 +115,14 @@ const appRoutes = () => (
       path="articles"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Articles…" />}>
+          <PublicArticleDirectoryV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="me/articles"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading saved Articles…" />}>
           <ArticleLibraryV3Page />
         </React.Suspense>
       )}
@@ -103,6 +140,22 @@ const appRoutes = () => (
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Article…" />}>
           <ArticleReaderV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="login"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading account…" />}>
+          <AccountAccessV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="me/settings"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading settings…" />}>
+          <AccountSettingsV3Page />
         </React.Suspense>
       )}
     />
@@ -147,15 +200,17 @@ const PreferredLocaleRedirect = () => (
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<PreferredLocaleRedirect />} />
-          <Route path="/:locale" element={<LocalizedLayout />}>
-            {appRoutes()}
-          </Route>
-          <Route path="*" element={<PreferredLocaleRedirect />} />
-        </Routes>
-      </BrowserRouter>
+      <SiteAccountSessionProviderV3>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<PreferredLocaleRedirect />} />
+            <Route path="/:locale" element={<LocalizedLayout />}>
+              {appRoutes()}
+            </Route>
+            <Route path="*" element={<PreferredLocaleRedirect />} />
+          </Routes>
+        </BrowserRouter>
+      </SiteAccountSessionProviderV3>
     </ErrorBoundary>
   </React.StrictMode>
 );

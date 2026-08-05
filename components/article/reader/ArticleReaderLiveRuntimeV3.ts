@@ -12,6 +12,9 @@ import {
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
+import {
+  DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
+} from "@/studio/composition/StudioDefaultCompositionV2";
 
 export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   status:
@@ -26,7 +29,8 @@ export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   snapshotId: string;
   scenarioIds: readonly string[];
   activeScenarioId: string;
-  pendingControlId: string | null;
+  /** Composite Briefing identity (`sourcePaneId` + `controlId`). */
+  pendingControlInstanceId: string | null;
   pendingAnalysisKeys: readonly string[];
   committedControlValues: Readonly<
     Record<string, Readonly<Record<string, number>>>
@@ -36,7 +40,7 @@ export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
     Record<string, readonly StudioSimulationAnalysisV2[]>
   >;
   analysisErrorByKey: Readonly<Record<string, string>>;
-  controlErrorById: Readonly<Record<string, string>>;
+  controlErrorByInstanceId: Readonly<Record<string, string>>;
   error: Error | null;
 }>;
 
@@ -52,8 +56,10 @@ export type ArticleReaderParallelRuntimeV3 = Pick<
   | "initialize"
   | "latestFrame"
   | "pauseAll"
+  | "pauseScenario"
   | "playAll"
   | "requestAnalysis"
+  | "resumeScenario"
   | "selectScenario"
   | "terminate"
 >;
@@ -125,19 +131,23 @@ export class ArticleReaderLiveRuntimeV3 {
     this.sampleStore = dependencies.sampleStore
       ?? new WorkbenchScenarioPresentationSampleStoreV3();
     this.#createRuntime = dependencies.createRuntime
-      ?? ((input) => new WorkbenchParallelScenarioRuntimeV3(input));
+      ?? ((input) => new WorkbenchParallelScenarioRuntimeV3({
+        ...input,
+        resolveAnalysisExecutionPlan:
+          DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
+      }));
     this.#state = Object.freeze({
       status: "idle",
       snapshotId: snapshot.snapshotId,
       scenarioIds,
       activeScenarioId,
-      pendingControlId: null,
+      pendingControlInstanceId: null,
       pendingAnalysisKeys: EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3,
       committedControlValues: EMPTY_ARTICLE_READER_CONTROL_VALUES_V3,
       analysisByKey: EMPTY_ARTICLE_READER_ANALYSES_V3,
       analysisHistoryByKey: EMPTY_ARTICLE_READER_ANALYSIS_HISTORY_V3,
       analysisErrorByKey: EMPTY_ARTICLE_READER_ANALYSIS_ERRORS_V3,
-      controlErrorById: EMPTY_ARTICLE_READER_CONTROL_ERRORS_V3,
+      controlErrorByInstanceId: EMPTY_ARTICLE_READER_CONTROL_ERRORS_V3,
       error: null,
     });
   }
@@ -304,8 +314,9 @@ export class ArticleReaderLiveRuntimeV3 {
 
   /**
    * Requests one exact, read-only analysis for every requested visible
-   * Scenario. The numerical lanes are first paused at accepted boundaries and
-   * are resumed only when the current play intent still asks for playback.
+   * Scenario. Each runtime lane captures one accepted checkpoint and delegates
+   * the expensive continuation to an isolated analysis Worker, so unrelated
+   * and source live lanes keep animating while partial points arrive.
    */
   requestAnalysis(input: Readonly<{
     analysisId: string;
@@ -343,23 +354,46 @@ export class ArticleReaderLiveRuntimeV3 {
     });
     const operation = (async () => {
       try {
-        await runtime.pauseAll();
-        if (this.#runtime !== runtime) return;
-        const requests = input.scenarioIds.map((scenarioId) => {
-          const frame = runtime.latestFrame(scenarioId);
-          return Object.freeze({
-            key: articleReaderAnalysisKeyV3(scenarioId, input.analysisId),
-            frame,
-          });
-        });
-        const results = await Promise.all(requests.map(async ({ key, frame }) => {
+        const results = await Promise.all(input.scenarioIds.map(async (
+          scenarioId,
+        ) => {
+          const key = articleReaderAnalysisKeyV3(
+            scenarioId,
+            input.analysisId,
+          );
+          let frame: StudioSimulationFrameV2 | null = null;
           try {
+            // Drain only the source lane before reading its boundary. Reading
+            // latestFrame while the lane is still playing creates a race with
+            // requestAnalysis's exact checkpoint capture and can fail the
+            // first Reader analysis as stale. Sibling Scenarios stay live.
+            frame = await runtime.pauseScenario(scenarioId);
             const analysis = await runtime.requestAnalysis({
-              scenarioId: frame.scenarioId,
+              scenarioId,
               analysisId: input.analysisId,
               expectedInputEpoch: frame.inputEpoch,
               expectedAcceptedRevision: frame.acceptedRevision,
               expectedAcceptedTimeSec: frame.acceptedTimeSec,
+              onProgress: (analysis) => {
+                if (
+                  this.#runtime !== runtime
+                  || !articleReaderAnalysisMatchesExactBoundaryV3(
+                    analysis,
+                    frame,
+                    input.analysisId,
+                  )
+                ) return;
+                this.#publish({
+                  analysisByKey: Object.freeze({
+                    ...this.#state.analysisByKey,
+                    [key]: analysis,
+                  }),
+                  analysisErrorByKey: withoutArticleReaderRecordKeysV3(
+                    this.#state.analysisErrorByKey,
+                    [key],
+                  ),
+                });
+              },
             });
             if (!articleReaderAnalysisMatchesExactBoundaryV3(
               analysis,
@@ -377,6 +411,8 @@ export class ArticleReaderLiveRuntimeV3 {
               analysis: null,
               error: errorAsErrorV3(error),
             });
+          } finally {
+            if (frame !== null) runtime.resumeScenario(scenarioId);
           }
         }));
         if (this.#runtime !== runtime) return;
@@ -421,6 +457,7 @@ export class ArticleReaderLiveRuntimeV3 {
   }
 
   async applyControl(input: Readonly<{
+    controlInstanceId: string;
     controlId: string;
     scenarioIds: readonly string[];
     value: number;
@@ -445,10 +482,10 @@ export class ArticleReaderLiveRuntimeV3 {
     }
     this.#publish({
       status: "applying-control",
-      pendingControlId: input.controlId,
-      controlErrorById: withoutArticleReaderRecordKeysV3(
-        this.#state.controlErrorById,
-        [input.controlId],
+      pendingControlInstanceId: input.controlInstanceId,
+      controlErrorByInstanceId: withoutArticleReaderRecordKeysV3(
+        this.#state.controlErrorByInstanceId,
+        [input.controlInstanceId],
       ),
       error: null,
     });
@@ -457,31 +494,15 @@ export class ArticleReaderLiveRuntimeV3 {
       if (this.#runtime !== runtime) return;
       const boundaryFrames = input.scenarioIds.map((scenarioId) =>
         runtime.latestFrame(scenarioId));
-      const historicalAnalyses = (await Promise.all(boundaryFrames.flatMap(
-        (frame) => [...this.#structuralHistoryDepthByAnalysisId]
+      const historicalAnalyses = boundaryFrames.flatMap((frame) =>
+        [...this.#structuralHistoryDepthByAnalysisId]
           .filter(([, historyDepth]) => historyDepth > 0)
-          .map(async ([analysisId]) => {
-            try {
-              const analysis = await runtime.requestAnalysis({
-                scenarioId: frame.scenarioId,
-                analysisId,
-                expectedInputEpoch: frame.inputEpoch,
-                expectedAcceptedRevision: frame.acceptedRevision,
-                expectedAcceptedTimeSec: frame.acceptedTimeSec,
-              });
-              return articleReaderAnalysisMatchesExactBoundaryV3(
-                analysis,
-                frame,
-                analysisId,
-              ) ? analysis : null;
-            } catch {
-              // Structural history is optional presentation context. A
-              // missing analysis must not reject an otherwise valid control.
-              return null;
-            }
-          }),
-      ))).filter((analysis): analysis is StudioSimulationAnalysisV2 =>
-        analysis !== null);
+          .map(([analysisId]) => this.#state.analysisByKey[
+            articleReaderAnalysisKeyV3(frame.scenarioId, analysisId)
+          ])
+          .filter((analysis): analysis is StudioSimulationAnalysisV2 =>
+            analysis !== undefined
+            && analysis.inputEpoch === frame.inputEpoch));
       const frames = await Promise.all(input.scenarioIds.map((scenarioId) => {
         const current = runtime.latestFrame(scenarioId);
         return runtime.applyControl({
@@ -512,7 +533,7 @@ export class ArticleReaderLiveRuntimeV3 {
         [...this.#structuralHistoryDepthByAnalysisId.keys()].map((analysisId) =>
           articleReaderAnalysisKeyV3(scenarioId, analysisId)));
       this.#resumeAfterExclusiveOperationV3(runtime, {
-        pendingControlId: null,
+        pendingControlInstanceId: null,
         committedControlValues,
         analysisByKey: withoutArticleReaderRecordKeysV3(
           this.#state.analysisByKey,
@@ -523,9 +544,9 @@ export class ArticleReaderLiveRuntimeV3 {
           this.#state.analysisErrorByKey,
           clearedAnalysisKeys,
         ),
-        controlErrorById: withoutArticleReaderRecordKeysV3(
-          this.#state.controlErrorById,
-          [input.controlId],
+        controlErrorByInstanceId: withoutArticleReaderRecordKeysV3(
+          this.#state.controlErrorByInstanceId,
+          [input.controlInstanceId],
         ),
         error: null,
       });
@@ -540,10 +561,10 @@ export class ArticleReaderLiveRuntimeV3 {
           this.#fail(normalized, runtime);
         } else {
           this.#resumeAfterExclusiveOperationV3(runtime, {
-            pendingControlId: null,
-            controlErrorById: Object.freeze({
-              ...this.#state.controlErrorById,
-              [input.controlId]: normalized.message,
+            pendingControlInstanceId: null,
+            controlErrorByInstanceId: Object.freeze({
+              ...this.#state.controlErrorByInstanceId,
+              [input.controlInstanceId]: normalized.message,
             }),
             error: null,
           });
@@ -605,7 +626,7 @@ export class ArticleReaderLiveRuntimeV3 {
     } finally {
       this.#publish({
         status: "failed",
-        pendingControlId: null,
+        pendingControlInstanceId: null,
         pendingAnalysisKeys: EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3,
         error,
       });

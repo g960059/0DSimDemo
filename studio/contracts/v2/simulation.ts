@@ -29,7 +29,7 @@ export type StudioSimulationOutputValueV2 = Readonly<{
  * Portable runtime frame returned by one exact registered model.
  *
  * Frames are ephemeral. Their accepted clock lets renderers order samples and
- * lets Draft capture prove which accepted boundary was saved without making
+ * lets Experiment capture prove which accepted boundary was saved without making
  * frames part of durable Experiment content.
  */
 export type StudioSimulationFrameV2 = Readonly<{
@@ -60,6 +60,23 @@ export type StudioSimulationAnalysisV2 = Readonly<{
   analysisId: string;
   payload: StudioJsonValueV2;
 }>;
+
+/**
+ * Main-thread execution plan for one model-owned analysis. Partitions are
+ * portable request tokens; each receives its own Worker and exact checkpoint
+ * clone. The merger is trusted client code registered alongside the exact
+ * model and never crosses the durable or Worker boundary.
+ */
+export type StudioSimulationAnalysisExecutionPlanV2 = Readonly<{
+  partitions: readonly string[];
+  merge(
+    analyses: readonly StudioSimulationAnalysisV2[],
+  ): StudioSimulationAnalysisV2;
+}>;
+
+export type StudioSimulationAnalysisExecutionPlanResolverV2 = (
+  analysisId: string,
+) => StudioSimulationAnalysisExecutionPlanV2 | null;
 
 export type StudioSimulationScenarioInputV2 = Readonly<{
   scenarioId: ScenarioIdV2;
@@ -114,6 +131,9 @@ export type RegisteredModelSimulationAdapterV2 = Readonly<{
     expectedInputEpoch: number;
     expectedAcceptedRevision: number;
     expectedAcceptedTimeSec: number;
+    analysisPartition?: string;
+    /** Ephemeral partial results from the same exact source boundary. */
+    onProgress?: (analysis: StudioSimulationAnalysisV2) => void;
   }>): Promise<StudioSimulationAnalysisV2>;
   replaceFixture(input: Readonly<{
     runtimeSessionId: string;

@@ -1,7 +1,8 @@
 import type {
+  ExperimentPlacementBriefingV2,
   ExperimentSurfaceV2,
   ExperimentSnapshotV2,
-  ExperimentWorkspaceV2,
+  ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import type {
   StudioSimulationAnalysisV2,
@@ -19,7 +20,7 @@ import {
   type StudioSimulationWorkerRequestAnalysisInputV2,
   type StudioSimulationWorkerRequestV2,
   type StudioSimulationWorkerResponseV2,
-  type StudioSimulationWorkerSaveDraftInputV2,
+  type StudioSimulationWorkerSaveExperimentInputV2,
   type StudioSimulationWorkerScenarioCapturesV2,
   type StudioSimulationWorkerScenarioStateV2,
   type StudioSimulationWorkerSelectScenarioInputV2,
@@ -34,7 +35,7 @@ import {
   createStudioSimulationReadScenariosRequestV2,
   createStudioSimulationRenameScenarioRequestV2,
   createStudioSimulationRequestAnalysisRequestV2,
-  createStudioSimulationSaveDraftRequestV2,
+  createStudioSimulationSaveExperimentRequestV2,
   createStudioSimulationSelectScenarioRequestV2,
   validateStudioSimulationWorkerResponseV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
@@ -64,7 +65,6 @@ const qualifiedSnapshotCommitsV2 = new WeakSet<object>();
  */
 export type StudioSimulationWorkerQualifiedSnapshotCommitV2 = Readonly<{
   snapshot: ExperimentSnapshotV2;
-  workspace: ExperimentWorkspaceV2;
   [QUALIFIED_SNAPSHOT_COMMIT_V2]: true;
 }>;
 
@@ -173,19 +173,21 @@ type ExpectedResponseV2 =
       runtimeSessionId: string;
     }>
   | Readonly<{
-      kind: "draft-saved";
+      kind: "experiment-saved";
       modelId: string;
       runtimeSessionId: string;
       experimentId: string;
       surface: ExperimentSurfaceV2;
-      expectedDraftVersion: number | null;
-      priorWorkspace: ExperimentWorkspaceV2 | undefined;
+      expectedVersion: number | null;
+      priorExperiment: ExperimentV2 | undefined;
     }>
   | Readonly<{
       kind: "snapshot-created";
       modelId: string;
-      experimentId: string;
-      candidateWorkspace: ExperimentWorkspaceV2;
+      snapshotKind: "publication" | "article";
+      briefing?: ExperimentPlacementBriefingV2;
+      surface: ExperimentSurfaceV2;
+      scenarioIds: readonly string[];
     }>
   | Readonly<{
       kind: "disposed";
@@ -196,7 +198,13 @@ type PendingRequestV2 = Readonly<{
   reject(error: Error): void;
   timeout: ReturnType<typeof setTimeout>;
   expected: ExpectedResponseV2;
+  onAnalysisProgress?: (analysis: StudioSimulationAnalysisV2) => void;
 }>;
+
+export type StudioSimulationWorkerRequestAnalysisClientInputV2 =
+  StudioSimulationWorkerRequestAnalysisInputV2 & Readonly<{
+    onProgress?: (analysis: StudioSimulationAnalysisV2) => void;
+  }>;
 
 type ClientStateV2 =
   | "new"
@@ -222,6 +230,7 @@ export class StudioSimulationWorkerClientV2 {
   #state: ClientStateV2 = "new";
   #runtimeSessionId: string | undefined;
   #scenarioId: string | undefined;
+  #scenarioIds: readonly string[] | undefined;
   #modelId: string | undefined;
   #inputEpoch: number | undefined;
   #acceptedRevision: number | undefined;
@@ -236,10 +245,10 @@ export class StudioSimulationWorkerClientV2 {
     | "duplicate-scenario"
     | "rename-scenario"
     | "delete-scenario"
-    | "save-draft"
+    | "save-experiment"
     | "create-snapshot"
     | undefined;
-  #workspace: ExperimentWorkspaceV2 | undefined;
+  #experiment: ExperimentV2 | undefined;
   #disposePromise: Promise<void> | undefined;
 
   /** Production construction always owns the real module Worker. */
@@ -320,11 +329,16 @@ export class StudioSimulationWorkerClientV2 {
       }
       this.#runtimeSessionId = request.runtimeSessionId;
       this.#scenarioId = request.scenarioId;
+      this.#scenarioIds = Object.freeze(
+        request.authoringSeed?.experiment?.content.scenarios.map(
+          ({ scenarioId }) => scenarioId,
+        ) ?? [request.scenarioId],
+      );
       this.#modelId = request.expectedModelId;
       this.#inputEpoch = response.frame.inputEpoch;
       this.#acceptedRevision = response.frame.acceptedRevision;
       this.#acceptedTimeSec = response.frame.acceptedTimeSec;
-      this.#workspace = request.authoringSeed?.workspace;
+      this.#experiment = request.authoringSeed?.experiment;
       this.#state = "active";
       return response.frame;
     } catch (error) {
@@ -342,6 +356,7 @@ export class StudioSimulationWorkerClientV2 {
       this.#state !== "active"
       || this.#runtimeSessionId === undefined
       || this.#scenarioId === undefined
+      || this.#scenarioIds === undefined
       || this.#modelId === undefined
       || this.#inputEpoch === undefined
       || this.#acceptedRevision === undefined
@@ -444,7 +459,7 @@ export class StudioSimulationWorkerClientV2 {
   }
 
   async requestAnalysis(
-    input: StudioSimulationWorkerRequestAnalysisInputV2,
+    input: StudioSimulationWorkerRequestAnalysisClientInputV2,
   ): Promise<StudioSimulationAnalysisV2> {
     if (
       this.#state !== "active"
@@ -460,9 +475,10 @@ export class StudioSimulationWorkerClientV2 {
     if (this.#operationInFlight !== undefined) {
       throw new Error("simulation worker client already has an operation in flight");
     }
+    const { onProgress, ...requestInput } = input;
     const request = createStudioSimulationRequestAnalysisRequestV2(
       this.#allocateRequestId(),
-      input,
+      requestInput,
     );
     if (
       request.runtimeSessionId !== this.#runtimeSessionId
@@ -489,7 +505,7 @@ export class StudioSimulationWorkerClientV2 {
         inputEpoch: this.#inputEpoch,
         sourceAcceptedRevision: this.#acceptedRevision,
         sourceAcceptedTimeSec: this.#acceptedTimeSec,
-      });
+      }, undefined, onProgress);
       if (response.status !== "ok" || response.kind !== "analysis-result") {
         throw new Error("simulation worker returned another analysis response");
       }
@@ -589,13 +605,14 @@ export class StudioSimulationWorkerClientV2 {
     );
   }
 
-  async saveDraft(
-    input: StudioSimulationWorkerSaveDraftInputV2,
-  ): Promise<ExperimentWorkspaceV2> {
+  async saveExperiment(
+    input: StudioSimulationWorkerSaveExperimentInputV2,
+  ): Promise<ExperimentV2> {
     if (
       this.#state !== "active"
       || this.#runtimeSessionId === undefined
       || this.#scenarioId === undefined
+      || this.#scenarioIds === undefined
       || this.#modelId === undefined
     ) {
       throw new Error("simulation worker client is not active");
@@ -604,10 +621,11 @@ export class StudioSimulationWorkerClientV2 {
       throw new Error("simulation worker client already has an operation in flight");
     }
     const boundary = this.#requiredActiveBoundary(input.runtimeSessionId);
-    const request = createStudioSimulationSaveDraftRequestV2(
+    const request = createStudioSimulationSaveExperimentRequestV2(
       this.#allocateRequestId(),
       {
         ...input,
+        scenarioIds: this.#scenarioIds,
         expectedInputEpoch: boundary.expectedInputEpoch,
         expectedAcceptedRevision: boundary.expectedAcceptedRevision,
         expectedAcceptedTimeSec: boundary.expectedAcceptedTimeSec,
@@ -619,38 +637,38 @@ export class StudioSimulationWorkerClientV2 {
     ) {
       throw new Error("simulation worker client session identity mismatch");
     }
-    const priorWorkspace = this.#workspace;
-    if (priorWorkspace === undefined) {
-      if (request.expectedDraftVersion !== null) {
+    const priorExperiment = this.#experiment;
+    if (priorExperiment === undefined) {
+      if (request.expectedVersion !== null) {
         throw new Error(
-          "simulation worker client first Save requires a null draft version",
+          "simulation worker client first Save requires a null version",
         );
       }
     } else if (
-      request.experimentId !== priorWorkspace.experimentId
-      || request.expectedDraftVersion !== priorWorkspace.draftVersion
+      request.experimentId !== priorExperiment.experimentId
+      || request.expectedVersion !== priorExperiment.version
     ) {
       throw new Error(
-        "simulation worker client Draft identity or version is stale",
+        "simulation worker client Experiment identity or version is stale",
       );
     }
 
-    this.#operationInFlight = "save-draft";
+    this.#operationInFlight = "save-experiment";
     try {
       const response = await this.#postRequest(request, {
-        kind: "draft-saved",
+        kind: "experiment-saved",
         modelId: this.#modelId,
         runtimeSessionId: this.#runtimeSessionId,
         experimentId: request.experimentId,
         surface: request.surface,
-        expectedDraftVersion: request.expectedDraftVersion,
-        priorWorkspace,
+        expectedVersion: request.expectedVersion,
+        priorExperiment,
       });
-      if (response.status !== "ok" || response.kind !== "draft-saved") {
-        throw new Error("simulation worker returned another Draft response");
+      if (response.status !== "ok" || response.kind !== "experiment-saved") {
+        throw new Error("simulation worker returned another Experiment response");
       }
-      this.#workspace = response.workspace;
-      return response.workspace;
+      this.#experiment = response.experiment;
+      return response.experiment;
     } finally {
       this.#operationInFlight = undefined;
     }
@@ -713,6 +731,9 @@ export class StudioSimulationWorkerClientV2 {
       }
       if (response.kind === "scenario-state") {
         this.#scenarioId = response.state.activeScenarioId;
+        this.#scenarioIds = Object.freeze(response.state.scenarios.map(
+          ({ scenarioId }) => scenarioId,
+        ));
         this.#inputEpoch = response.state.frame.inputEpoch;
         this.#acceptedRevision = response.state.frame.acceptedRevision;
         this.#acceptedTimeSec = response.state.frame.acceptedTimeSec;
@@ -731,6 +752,7 @@ export class StudioSimulationWorkerClientV2 {
       this.#state !== "active"
       || this.#runtimeSessionId === undefined
       || this.#scenarioId === undefined
+      || this.#scenarioIds === undefined
       || this.#modelId === undefined
     ) {
       throw new Error("simulation worker client is not active");
@@ -738,9 +760,16 @@ export class StudioSimulationWorkerClientV2 {
     if (this.#operationInFlight !== undefined) {
       throw new Error("simulation worker client already has an operation in flight");
     }
+    const boundary = this.#requiredActiveBoundary(input.runtimeSessionId);
     const request = createStudioSimulationCreateSnapshotRequestV2(
       this.#allocateRequestId(),
-      input,
+      {
+        ...input,
+        scenarioIds: this.#scenarioIds,
+        expectedInputEpoch: boundary.expectedInputEpoch,
+        expectedAcceptedRevision: boundary.expectedAcceptedRevision,
+        expectedAcceptedTimeSec: boundary.expectedAcceptedTimeSec,
+      },
     );
     if (
       request.runtimeSessionId !== this.#runtimeSessionId
@@ -748,34 +777,23 @@ export class StudioSimulationWorkerClientV2 {
     ) {
       throw new Error("simulation worker client session identity mismatch");
     }
-    const candidateWorkspace = this.#workspace;
-    if (
-      candidateWorkspace === undefined
-      || request.experimentId !== candidateWorkspace.experimentId
-      || request.expectedDraftVersion !== candidateWorkspace.draftVersion
-      || request.expectedHeadSnapshotId
-        !== candidateWorkspace.headSnapshotId
-    ) {
-      throw new Error(
-        "simulation worker client Snapshot identity or version is stale",
-      );
-    }
-
     this.#operationInFlight = "create-snapshot";
     try {
       const response = await this.#postRequest(request, {
         kind: "snapshot-created",
         modelId: this.#modelId,
-        experimentId: request.experimentId,
-        candidateWorkspace,
+        snapshotKind: request.snapshotKind,
+        ...(request.snapshotKind === "article"
+          ? { briefing: request.briefing }
+          : {}),
+        surface: request.surface,
+        scenarioIds: request.scenarioIds,
       }, this.#snapshotQualificationTimeoutMs);
       if (response.status !== "ok" || response.kind !== "snapshot-created") {
         throw new Error("simulation worker returned another Snapshot response");
       }
-      this.#workspace = response.workspace;
       const qualifiedCommit = {
         snapshot: response.snapshot,
-        workspace: response.workspace,
       } as StudioSimulationWorkerQualifiedSnapshotCommitV2;
       Object.defineProperty(qualifiedCommit, QUALIFIED_SNAPSHOT_COMMIT_V2, {
         value: true,
@@ -846,6 +864,7 @@ export class StudioSimulationWorkerClientV2 {
     request: StudioSimulationWorkerRequestV2,
     expected: ExpectedResponseV2,
     timeoutMs = this.#responseTimeoutMs,
+    onAnalysisProgress?: (analysis: StudioSimulationAnalysisV2) => void,
   ): Promise<StudioSimulationWorkerResponseV2> {
     if (this.#state === "terminated") {
       return Promise.reject(new Error("simulation worker client is terminated"));
@@ -862,6 +881,7 @@ export class StudioSimulationWorkerClientV2 {
         reject,
         timeout,
         expected,
+        onAnalysisProgress,
       });
       try {
         this.#worker.postMessage(request);
@@ -891,6 +911,20 @@ export class StudioSimulationWorkerClientV2 {
       this.#settlePending(response.requestId);
       pending.reject(error);
       if (response.fatal) this.#terminateWith(error);
+      return;
+    }
+    if (response.kind === "analysis-progress") {
+      try {
+        if (pending.expected.kind !== "analysis-result") {
+          throw new Error(
+            "simulation worker emitted analysis progress for another request",
+          );
+        }
+        assertExpectedAnalysisV2(response.analysis, pending.expected);
+        pending.onAnalysisProgress?.(response.analysis);
+      } catch (error) {
+        this.#terminateWith(errorAsErrorV2(error));
+      }
       return;
     }
     try {
@@ -1034,58 +1068,35 @@ function assertExpectedResponseV2(
     response.kind === "analysis-result"
     && expected.kind === "analysis-result"
   ) {
-    const analysis = response.analysis;
-    if (
-      analysis.modelId !== expected.modelId
-      || analysis.runtimeSessionId !== expected.runtimeSessionId
-      || analysis.scenarioId !== expected.scenarioId
-      || analysis.analysisId !== expected.analysisId
-      || analysis.inputEpoch !== expected.inputEpoch
-      || analysis.sourceAcceptedRevision
-        !== expected.sourceAcceptedRevision
-      || analysis.sourceAcceptedTimeSec !== expected.sourceAcceptedTimeSec
-    ) {
-      throw new Error(
-        "simulation worker analysis result identity or clocks mismatch",
-      );
-    }
+    assertExpectedAnalysisV2(response.analysis, expected);
     return;
   }
   if (
-    response.kind === "draft-saved"
-    && expected.kind === "draft-saved"
+    response.kind === "experiment-saved"
+    && expected.kind === "experiment-saved"
   ) {
-    const workspace = response.workspace;
-    const expectedVersion = expected.expectedDraftVersion === null
+    const experiment = response.experiment;
+    const expectedVersion = expected.expectedVersion === null
       ? 0
-      : expected.expectedDraftVersion + 1;
+      : expected.expectedVersion + 1;
     if (
-      workspace.experimentId !== expected.experimentId
-      || workspace.draftVersion !== expectedVersion
-      || workspace.content.modelId !== expected.modelId
-      || workspace.content.scenarios.length < 1
-      || !samePortableValueV2(workspace.content.surface, expected.surface)
+      experiment.experimentId !== expected.experimentId
+      || experiment.version !== expectedVersion
+      || experiment.content.modelId !== expected.modelId
+      || experiment.content.scenarios.length < 1
+      || !samePortableValueV2(experiment.content.surface, expected.surface)
     ) {
       throw new Error(
-        "simulation worker saved Draft response correlation mismatch",
+        "simulation worker saved Experiment response correlation mismatch",
       );
     }
-    if (expected.priorWorkspace === undefined) {
-      if (
-        workspace.headSnapshotId !== null
-        || workspace.basedOnSnapshotId !== null
-      ) {
-        throw new Error(
-          "simulation worker first Draft response has invalid lineage",
-        );
-      }
-    } else if (
-      workspace.headSnapshotId !== expected.priorWorkspace.headSnapshotId
-      || workspace.basedOnSnapshotId
-        !== expected.priorWorkspace.basedOnSnapshotId
+    if (
+      expected.priorExperiment !== undefined
+      && experiment.content.modelId
+        !== expected.priorExperiment.content.modelId
     ) {
       throw new Error(
-        "simulation worker saved Draft response changed lineage",
+        "simulation worker saved Experiment response changed modelId",
       );
     }
     return;
@@ -1123,26 +1134,43 @@ function assertExpectedResponseV2(
     response.kind === "snapshot-created"
     && expected.kind === "snapshot-created"
   ) {
-    const { snapshot, workspace } = response;
-    const candidate = expected.candidateWorkspace;
+    const { snapshot } = response;
+    const snapshotScenarioIds = snapshot.content.scenarios.map(
+      ({ scenarioId }) => scenarioId,
+    );
     if (
-      snapshot.experimentId !== expected.experimentId
-      || snapshot.content.modelId !== expected.modelId
-      || snapshot.parentSnapshotId !== candidate.basedOnSnapshotId
-      || workspace.experimentId !== expected.experimentId
-      || workspace.draftVersion !== candidate.draftVersion + 1
-      || workspace.headSnapshotId !== snapshot.snapshotId
-      || workspace.basedOnSnapshotId !== snapshot.snapshotId
-      || !samePortableValueV2(workspace.content, snapshot.content)
-      || !sameAuthoredContentExceptCheckpointsV2(
-        candidate.content,
-        snapshot.content,
+      snapshot.content.modelId !== expected.modelId
+      || snapshot.kind !== expected.snapshotKind
+      || (
+        snapshot.kind === "article"
+        && !samePortableValueV2(snapshot.briefing, expected.briefing)
       )
+      || !samePortableValueV2(snapshot.content.surface, expected.surface)
+      || !samePortableValueV2(snapshotScenarioIds, expected.scenarioIds)
     ) {
       throw new Error(
         "simulation worker Snapshot response correlation mismatch",
       );
     }
+  }
+}
+
+function assertExpectedAnalysisV2(
+  analysis: StudioSimulationAnalysisV2,
+  expected: Extract<ExpectedResponseV2, { kind: "analysis-result" }>,
+): void {
+  if (
+    analysis.modelId !== expected.modelId
+    || analysis.runtimeSessionId !== expected.runtimeSessionId
+    || analysis.scenarioId !== expected.scenarioId
+    || analysis.analysisId !== expected.analysisId
+    || analysis.inputEpoch !== expected.inputEpoch
+    || analysis.sourceAcceptedRevision !== expected.sourceAcceptedRevision
+    || analysis.sourceAcceptedTimeSec !== expected.sourceAcceptedTimeSec
+  ) {
+    throw new Error(
+      "simulation worker analysis result identity or clocks mismatch",
+    );
   }
 }
 
@@ -1159,29 +1187,6 @@ function assertFrameIdentityV2(
   ) {
     throw new Error("simulation worker response frame identity mismatch");
   }
-}
-
-function sameAuthoredContentExceptCheckpointsV2(
-  before: ExperimentWorkspaceV2["content"],
-  after: ExperimentWorkspaceV2["content"],
-): boolean {
-  if (
-    before.modelId !== after.modelId
-    || !samePortableValueV2(before.surface, after.surface)
-    || before.scenarios.length !== after.scenarios.length
-  ) {
-    return false;
-  }
-  return before.scenarios.every((scenario, index) => {
-    const qualified = after.scenarios[index];
-    return qualified !== undefined
-      && qualified.scenarioId === scenario.scenarioId
-      && qualified.label === scenario.label
-      && samePortableValueV2(
-        qualified.capture.fixture,
-        scenario.capture.fixture,
-      );
-  });
 }
 
 function samePortableValueV2(left: unknown, right: unknown): boolean {

@@ -4,7 +4,9 @@ import {
   type ExperimentPlacementV2,
   type ExperimentSnapshotV2,
   type ExperimentSurfaceControlPaneV2,
+  type ExperimentSurfaceControlPaneBindingV2,
   type ExperimentSurfaceGraphPaneV2,
+  type ExperimentSurfaceOutputPaneBindingV2,
   type ExperimentSurfaceOutputPaneV2,
   type ExperimentSurfaceV2,
 } from "@/studio/contracts/v2/content";
@@ -19,6 +21,20 @@ export type ArticleSurfacePaneV3 =
   | ExperimentSurfaceGraphPaneV2
   | ExperimentSurfaceOutputPaneV2
   | ExperimentSurfaceControlPaneV2;
+
+export type ArticleBriefingPresentationV3 =
+  | "inflow"
+  | "peek"
+  | "fullscreen";
+
+/** One shared extent rule for Editor preview and Reader interaction. */
+export function articleBriefingPresentationV3(
+  briefing: Pick<ExperimentPlacementBriefingV2, "graphs">,
+): ArticleBriefingPresentationV3 {
+  if (briefing.graphs.length <= 1) return "inflow";
+  if (briefing.graphs.length <= 4) return "peek";
+  return "fullscreen";
+}
 
 const ROLE_ORDER_V3: Readonly<Record<ArticleSurfacePaneV3["role"], number>> = {
   graph: 0,
@@ -41,32 +57,33 @@ export function articleSurfacePanesV3(
 }
 
 /**
- * Resolves the role-specific Reader Briefing against one immutable Snapshot.
- * Omission expands to an explicit, portable projection of the complete Surface.
+ * Resolves the role-specific Reader Briefing captured inside one immutable
+ * Article Snapshot. Placement owns only article position and caption.
  */
 export function resolveArticlePlacementBriefingV3(
   placement: ExperimentPlacementV2,
   snapshot: ExperimentSnapshotV2,
 ): ExperimentPlacementBriefingV2 {
-  const briefing = placement.briefing ?? defaultArticleBriefingV3(snapshot);
-  const resolved = validateExperimentPlacementAgainstSnapshotV2({
-    ...placement,
-    briefing,
-  }, snapshot).briefing;
-  if (resolved === undefined) {
-    throw new Error("Article Placement Briefing resolution returned no Briefing");
+  validateExperimentPlacementAgainstSnapshotV2(placement, snapshot);
+  if (snapshot.kind !== "article") {
+    throw new Error("Article Placement must pin an Article Snapshot");
   }
-  return resolved;
+  return snapshot.briefing;
 }
 
 /** Creates the explicit Reader projection used for a newly placed Snapshot. */
 export function defaultArticleBriefingV3(
-  snapshot: ExperimentSnapshotV2,
+  snapshot: Pick<ExperimentSnapshotV2, "content">,
+  preferredFocusScenarioId?: string,
+  defaultTitle?: string,
 ): ExperimentPlacementBriefingV2 {
   const visibleScenarioIds = Object.freeze(snapshot.content.scenarios.map(
     ({ scenarioId }) => scenarioId,
   ));
-  const initialFocusScenarioId = visibleScenarioIds[0];
+  const initialFocusScenarioId = preferredFocusScenarioId !== undefined &&
+    visibleScenarioIds.includes(preferredFocusScenarioId)
+    ? preferredFocusScenarioId
+    : visibleScenarioIds[0];
   if (initialFocusScenarioId === undefined) {
     throw new Error("Article Briefing requires at least one Snapshot Scenario");
   }
@@ -84,41 +101,50 @@ export function defaultArticleBriefingV3(
         ? "primary" as const
         : "supporting" as const,
     })));
-  const seenOutputIds = new Set<string>();
   const outputs = Object.freeze([...surface.outputPanes]
     .sort(compareSurfacePaneOrderV3)
-    .flatMap((pane) => [...pane.items].sort(compareItemOrderV3))
-    .filter(({ outputId }) => {
-      if (seenOutputIds.has(outputId)) return false;
-      seenOutputIds.add(outputId);
-      return true;
-    })
-    .map((item, order) => Object.freeze({
+    .flatMap((pane) => [...pane.items]
+      .sort(compareItemOrderV3)
+      .map((item) => ({ pane, item })))
+    .map(({ pane, item }, order) => Object.freeze({
+      sourcePaneId: pane.paneId,
       outputId: item.outputId,
+      scenarioId: materializeSurfaceOutputPaneBindingV3(
+        pane.binding,
+        initialFocusScenarioId,
+        visibleScenarioIds,
+      ),
       label: item.label,
       order,
     })));
-  const seenControlIds = new Set<string>();
   const controls = Object.freeze([...surface.controlPanes]
     .sort(compareSurfacePaneOrderV3)
-    .flatMap((pane) => [...pane.items].sort(compareItemOrderV3))
-    .filter(({ controlId }) => {
-      if (seenControlIds.has(controlId)) return false;
-      seenControlIds.add(controlId);
-      return true;
-    })
-    .map((item, order) => Object.freeze({
+    .flatMap((pane) => [...pane.items]
+      .sort(compareItemOrderV3)
+      .map((item) => ({ pane, item })))
+    .map(({ pane, item }, order) => Object.freeze({
+      sourcePaneId: pane.paneId,
       controlId: item.controlId,
       label: item.label,
       order,
-      presentation: Object.freeze({ kind: "slider" as const }),
-      binding: Object.freeze({
-        mode: "fixed" as const,
-        scenarioIds: Object.freeze([initialFocusScenarioId]),
-        application: "absolute" as const,
-      }),
+      presentation: item.presentation.kind === "buttons"
+        ? Object.freeze({
+            kind: "buttons" as const,
+            options: Object.freeze(item.presentation.options.map((option) =>
+              Object.freeze({ ...option }))),
+          })
+        : Object.freeze({ kind: "slider" as const }),
+      binding: materializeSurfaceControlPaneBindingV3(
+        pane.binding,
+        initialFocusScenarioId,
+        visibleScenarioIds,
+      ),
     })));
   return Object.freeze({
+    defaultTitle: normalizedBriefingTitleV3(
+      defaultTitle,
+      snapshot.content.scenarios[0]?.label,
+    ),
     scenarioScope: Object.freeze({
       visibleScenarioIds,
       initialFocusScenarioId,
@@ -129,49 +155,91 @@ export function defaultArticleBriefingV3(
   });
 }
 
-/**
- * A session handoff is advisory UI state, not Snapshot content. Resolve it
- * through the ordinary Placement validator and treat a stale pane/Scenario
- * selection as absent instead of broadening the durable Snapshot schema.
- */
-export function resolveArticleBriefingHandoffV3(
-  snapshot: ExperimentSnapshotV2,
-  briefing: ExperimentPlacementBriefingV2 | null,
-): ExperimentPlacementBriefingV2 | null {
-  if (briefing === null) return null;
-  try {
-    return validateExperimentPlacementAgainstSnapshotV2({
-      schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
-      placementId: "placement/session-briefing-handoff-validation",
-      snapshotId: snapshot.snapshotId,
-      caption: null,
-      briefing,
-    }, snapshot).briefing ?? null;
-  } catch {
-    return null;
+/** Materializes one Output pane's active slot to one concrete Scenario. */
+export function materializeSurfaceOutputPaneBindingV3(
+  binding: ExperimentSurfaceOutputPaneBindingV2,
+  captureScenarioId: string,
+  availableScenarioIds: readonly string[],
+): string {
+  const available = new Set(availableScenarioIds);
+  if (binding.mode === "fixed" && available.has(binding.scenarioId)) {
+    return binding.scenarioId;
   }
+  if (available.has(captureScenarioId)) return captureScenarioId;
+  const fallbackScenarioId = availableScenarioIds[0];
+  if (fallbackScenarioId === undefined) {
+    throw new Error("Briefing output binding requires at least one Scenario");
+  }
+  return fallbackScenarioId;
+}
+
+/**
+ * Converts mutable Workbench pane semantics to portable Reader semantics.
+ * The returned binding never contains `active-slot`.
+ */
+export function materializeSurfaceControlPaneBindingV3(
+  binding: ExperimentSurfaceControlPaneBindingV2,
+  captureScenarioId: string,
+  availableScenarioIds: readonly string[],
+): ExperimentPlacementBriefingV2["controls"][number]["binding"] {
+  const available = new Set(availableScenarioIds);
+  const fixedScenarioIds = binding.mode === "fixed"
+    ? binding.scenarioIds.filter((scenarioId) => available.has(scenarioId))
+    : [];
+  const fallbackScenarioId = available.has(captureScenarioId)
+    ? captureScenarioId
+    : availableScenarioIds[0];
+  if (fallbackScenarioId === undefined) {
+    throw new Error("Briefing control binding requires at least one Scenario");
+  }
+  return Object.freeze({
+    mode: "fixed" as const,
+    scenarioIds: Object.freeze(
+      fixedScenarioIds.length > 0 ? fixedScenarioIds : [fallbackScenarioId],
+    ),
+    application: "absolute" as const,
+  });
 }
 
 export function createArticleExperimentBlockV3(
   snapshot: ExperimentSnapshotV2,
-  briefing?: ExperimentPlacementBriefingV2,
   createId: (kind: "block" | "placement") => string = portableEditorIdV3,
 ): StudioArticleExperimentBlockV2 {
   const blockId = createId("block");
   const placementId = createId("placement");
-  const initialBriefing = briefing ?? defaultArticleBriefingV3(snapshot);
+  if (snapshot.kind !== "article") {
+    throw new Error("Article blocks require an Article Snapshot");
+  }
   const placement = validateExperimentPlacementAgainstSnapshotV2({
     schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
     placementId,
     snapshotId: snapshot.snapshotId,
+    titleOverride: null,
     caption: null,
-    briefing: initialBriefing,
   }, snapshot);
   return Object.freeze({
     blockId,
     kind: "experiment",
     placement,
   });
+}
+
+/** Article copy may rename a Placement without mutating its immutable Snapshot. */
+export function resolveArticlePlacementTitleV3(
+  placement: Pick<ExperimentPlacementV2, "titleOverride">,
+  briefing: Pick<ExperimentPlacementBriefingV2, "defaultTitle">,
+): string {
+  return placement.titleOverride ?? briefing.defaultTitle;
+}
+
+function normalizedBriefingTitleV3(
+  requested: string | undefined,
+  scenarioFallback: string | undefined,
+): string {
+  const normalized = requested?.trim() ?? "";
+  if (normalized.length > 0) return normalized;
+  const fallback = scenarioFallback?.trim() ?? "";
+  return fallback.length > 0 ? fallback : "Simulation";
 }
 
 export function portableEditorIdV3(kind: "block" | "placement" | "article"): string {

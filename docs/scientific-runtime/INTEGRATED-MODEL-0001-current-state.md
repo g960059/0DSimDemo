@@ -32,7 +32,7 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact development release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-12
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-35
 ```
 
 It pins:
@@ -40,22 +40,32 @@ It pins:
 - regular-sinus rhythm;
 - normal-coronary configuration;
 - all-off, zero-inertance mechanical support;
-- four model-owned haemodynamic research inputs (systemic and pulmonary
-  resistance, venous tone, and arterial stiffness);
+- seven model-owned warm-start inputs: systemic and pulmonary resistance, venous
+  tone, arterial stiffness, regular-sinus heart rate, fixed total blood
+  volume, and PEEP;
 - the validation-stamped `hot-path-lean` Worker execution tier, whose accepted
   frames and exact checkpoints are locked against `full-invariant` execution;
-- the integrated V3 exact checkpoint codec v4;
-- 27 registered outputs and ten graph definitions (four sweeping waveform
-  groups, four chamber pressure-volume loops, and two on-demand structural
-  vascular-return orientations); and
-- the candidate periodic Snapshot gate.
+- the integrated V3 exact checkpoint codec v5;
+- 49 registered outputs: 35 accepted-state/accepted-step signals and 14
+  complete-beat metrics;
+- four unit-safe graph constructors: pressure sweep, flow sweep,
+  pressure-volume, and on-demand bilateral Guyton/Starling orientation; and
+- the purpose-specific Article/Publication Snapshot gate.
 
-There is no Parameter catalog or durable `ParameterSet`. The four registered
+There is no Parameter catalog or durable `ParameterSet`. The seven registered
 numeric controls are the only public input authority. Each control resolves in
-the model-owned reducer, rebuilds a complete portable fixture, and performs an
-honest cold reset inside the same persistent Worker. The changed fixture is
-what a later explicit Draft save captures; the transient control action itself
-is not durable content.
+the model-owned reducer, rebuilds a complete portable fixture, and atomically
+starts its next input epoch from the current accepted `(revision, t, state)`
+boundary. The changed fixture and a fresh checkpoint bound to it are what a
+later explicit Draft save captures; the transient control action itself is not
+durable content.
+
+The beat metrics are accumulated from every accepted numerical substep,
+including event-clipped substeps, rather than from decimated UI frames. They
+remain unavailable until a complete atrial-capture-to-capture beat has been
+observed. The extrema-derived LV volumes, stroke volume, and ejection fraction
+are deliberately not labelled EDV/ESV because they are not yet tied to named
+valve events.
 
 Registry admission performs the one-time exact manifest/artifact integrity
 check. The trusted loader evaluates those exact self-contained module bytes and
@@ -63,25 +73,34 @@ materializes the executable bundle from them; arbitrary bytes cannot be paired
 with source-created functions. Browser clients load that committed admitted
 artifact and do not rehash it during load or execution.
 
-The model-pinned Snapshot gate restores the frozen candidate exactly, runs the
-periodic qualification protocol, accepts only period-1 convergence without
-numerical, event, or conservation failure, and emits a fresh terminal exact
-checkpoint. This gate is used only by Snapshot creation; Draft save remains
-allowed for an unsettled state.
+The model-pinned Snapshot gate restores the frozen candidate exactly and then
+selects a profile from the capture purpose. Article capture advances a detached
+fork for one complete regular-sinus cycle, requires the canonical finite,
+conservation, event-identity, and MCS-off checks, and preserves the click-time
+checkpoint; settlement is not required or claimed. Publication runs the strict
+periodic qualification protocol, accepts only period-1 convergence, and emits
+a fresh terminal settled checkpoint. Experiment Save remains allowed for an
+unsettled state.
 
-The live Worker does not yet expose accepted-boundary Draft capture to the
-main-thread authoring application. The default browser composition therefore
-does not construct an authoring facade against a second, invisible runtime
-host. That Worker-to-authoring bridge is implemented together with the Save UI.
-Until then the Workbench is live and model-controlled, but cannot yet save its
-current Scenario as durable Experiment content.
+The live Worker exposes correlated accepted-boundary Experiment capture to the
+main-thread authoring application. Explicit Save captures each Scenario's
+current fixture and exact checkpoint; accepted steps between saves remain
+ephemeral Worker state and are never written at the numerical step rate.
 
-The systemic and pulmonary return panes request one read-only analysis from
-the same persistent Worker only when needed. They freeze one accepted step and
-show a structural volume-constrained orientation plus its operating point; they
-do not stream curve arrays in every frame and do not claim a simulated Guyton
-intervention or a Frank-Starling locus. The exact fixed-TBV fork protocol still
-required for a formal Starling relation is specified in
+The systemic and pulmonary return panes request one read-only analysis only
+when needed. They freeze one accepted step and show a structural
+volume-constrained orientation plus its operating point. The same on-demand
+request captures that exact boundary once, initializes two disposable analysis
+Workers, and runs hypovolemic and hypervolemic fixed-TBV continuations in
+parallel while the persistent live Worker resumes. Their actual progressive
+points are merged into one responsive Starling preview. Its short
+warm-up/measurement protocol is explicitly unsettled and is not qualified
+periodic evidence. A pressure-volume pane can instead opt into a separate
+formal analysis identity. That path warm-starts bounded fixed-TBV loads, admits
+only canonical full-accepted-state period-1 qualified branches, and fits the
+event-consistent multi-load ESPVR/EDPVR loci directly. Formal analysis remains
+ephemeral numerical evidence rather than clinical or independent physiological
+validation. The complete boundary is specified in
 [`INTEGRATED-MODEL-0003-guyton-starling-side-analysis.md`](./INTEGRATED-MODEL-0003-guyton-starling-side-analysis.md).
 
 No official Scenario Preset, Experiment, Snapshot, article Placement, or Lesson
@@ -107,11 +126,11 @@ parallel `{ id, version, sha256 }` model reference.
 Numerical convergence, conservation, replay identity, and focused mechanism
 checks do not establish physiological or clinical validity. Settlement and
 numerical-health status are computed at runtime and are not durable content. An
-explicit Draft save captures an exact accepted-boundary checkpoint, but the
-saved Draft may remain unsettled or numerically unhealthy and makes no
-qualification claim. Snapshot creation qualifies the frozen saved Draft,
-captures fresh settled checkpoints, and persists neither status flags nor
-assessment objects.
+explicit Experiment Save captures an exact accepted-boundary checkpoint but
+makes no qualification claim. Article Snapshot creation requires numerical
+safety while retaining its atomic click-time checkpoint; it makes no settlement
+claim. Publication Snapshot creation captures fresh period-1-settled
+checkpoints. Neither path persists status flags or assessment objects.
 
 The development package's underlying engine claim remains
 `releaseReady: false` and `simulationReady: false`. Passing the candidate
@@ -120,3 +139,5 @@ Snapshot gate does not change that claim.
 Literature and validation boundaries for the retained V3 mechanisms are
 documented in
 [`INTEGRATED-MODEL-0002-literature-traceability.md`](./INTEGRATED-MODEL-0002-literature-traceability.md).
+The exact Studio Control, Output, and Graph surface is listed in
+[`INTEGRATED-MODEL-0004-studio-catalog.md`](./INTEGRATED-MODEL-0004-studio-catalog.md).

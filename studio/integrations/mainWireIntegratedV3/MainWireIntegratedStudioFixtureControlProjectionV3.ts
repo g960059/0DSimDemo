@@ -9,6 +9,9 @@ const MAIN_WIRE_INPUT_KEY_BY_CONTROL_ID_V3: Readonly<Record<string, string>> =
     "hemodynamics.pulmonary-resistance": "pulmonaryResistance",
     "hemodynamics.venous-tone": "venousTone",
     "hemodynamics.arterial-stiffness": "arterialStiffness",
+    "rhythm.heart-rate-bpm": "heartRateBpm",
+    "hemodynamics.total-blood-volume-ml": "totalBloodVolumeMl",
+    "ventilation.peep-cm-h2o": "peepCmH2O",
   });
 
 export function mainWireIntegratedStudioControlValueFromFixtureV3(

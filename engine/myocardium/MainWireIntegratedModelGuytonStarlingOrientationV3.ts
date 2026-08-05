@@ -14,13 +14,17 @@ import type {
   MainWireIntegratedModelObservationV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import {
   complianceFromPtm,
   stressedVolumeFromPtm,
   type VascularPvLaw,
 } from "@/engine/vascularPv";
 
-export const MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID =
-  "main-wire-integrated-v3-guyton-starling-structural-orientation-v1" as const;
+export {
+  MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_STRUCTURAL_RETURN_SEMANTICS_V3 =
   "frozen-accepted-step-volume-constrained-structural-orientation-not-simulated-response" as const;
@@ -36,6 +40,56 @@ export type MainWireIntegratedModelGuytonPointV3 = Readonly<{
   flowLimited: boolean;
 }>;
 
+export type MainWireIntegratedModelPressureVolumeLoopPointV3 = Readonly<{
+  volumeMl: number;
+  pressureMmHg: number;
+}>;
+
+export type MainWireIntegratedModelStarlingPointV3 = Readonly<{
+  totalBloodVolumeMl: number;
+  fillingPressureMmHg: number;
+  cardiacOutputLPerMin: number;
+  role: "operating-anchor" | "continuation";
+  quality:
+    | "locally-converged"
+    | "adaptive-preview"
+    | "convergence-cap"
+    | "period-2-boundary";
+  curveEligible: boolean;
+  completedBeatCount: number;
+  maximumNormalizedBeatDelta: number;
+  settled: boolean;
+  finiteAndFixedTbvPassed: true;
+  evidence:
+    | "responsive-preview"
+    | "responsive-settled-anchor"
+    | "qualified-periodic";
+  measurementWindowStatus:
+    | "complete-beat-converged"
+    | "complete-beat-preview"
+    | "complete-beat-cap"
+    | "period-2-detected"
+    | "responsive-period1-settled"
+    | "canonical-period1-qualified";
+  acceptedMeasurementDurationSec: number;
+  /** Last complete analysis beat sampled from the fixed-TBV branch. */
+  ventricularPressureVolumeLoop:
+    readonly MainWireIntegratedModelPressureVolumeLoopPointV3[];
+  ventricularPressureVolumeLandmarks: Readonly<{
+    pressureBasis: "transmural";
+    endDiastolic: Readonly<{
+      volumeMl: number;
+      pressureMmHg: number;
+      event: "maximum-volume";
+    }>;
+    endSystolic: Readonly<{
+      volumeMl: number;
+      pressureMmHg: number;
+      event: "semilunar-valve-closure" | "minimum-volume-fallback";
+    }>;
+  }>;
+}>;
+
 export type MainWireIntegratedModelStarlingLocusV3 =
   | Readonly<{
       status: "requires-protocol";
@@ -44,16 +98,36 @@ export type MainWireIntegratedModelStarlingLocusV3 =
       points: readonly [];
     }>
   | Readonly<{
+      status: "responsive-fixed-tbv-preview";
+      protocolId: string;
+      warmupDurationSec: number;
+      measurementDurationSec: number;
+      minimumBeatCount: number;
+      maximumBeatCount: number;
+      slowControllerPolicy: "coronary-tone-frozen-at-branch-source";
+      completedPointCount: number;
+      totalPointCount: number;
+      points: readonly MainWireIntegratedModelStarlingPointV3[];
+    }>
+  | Readonly<{
       status: "measured-fixed-tbv-protocol";
+      protocolId: string;
       requirement:
         typeof MAIN_WIRE_INTEGRATED_MODEL_STARLING_PROTOCOL_REQUIREMENT_V3;
-      points: readonly Readonly<{
-        totalBloodVolumeMl: number;
-        fillingPressureMmHg: number;
-        cardiacOutputLPerMin: number;
+      minimumBeatCount: number;
+      maximumBeatCount: number;
+      completedPointCount: number;
+      totalPointCount: number;
+      slowControllerPolicy: "fully-active";
+      convergencePolicy:
+        "canonical-full-accepted-state-period1-closure";
+      points: readonly (MainWireIntegratedModelStarlingPointV3 & Readonly<{
+        quality: "locally-converged";
+        curveEligible: true;
         settled: true;
-        numericalQualificationPassed: true;
-      }>[];
+        evidence: "qualified-periodic";
+        measurementWindowStatus: "canonical-period1-qualified";
+      }>)[];
     }>;
 
 export type MainWireIntegratedModelStructuralReturnOrientationV3 = Readonly<{
@@ -70,8 +144,21 @@ export type MainWireIntegratedModelStructuralReturnOrientationV3 = Readonly<{
   operatingPoint: Readonly<{
     downstreamPressureMmHg: number;
     returnFlowLPerMin: number;
-    returnPath: "VC_RA" | "PVein_LA";
+    returnPath: "VC_RA+CS_RA" | "PVein_LA";
   }>;
+  anchoring:
+    | Readonly<{
+        status: "starling-operating-anchor";
+        method: "downstream-pressure-translation";
+        downstreamPressureOffsetMmHg: number;
+        volumeResidualMl: number;
+      }>
+    | Readonly<{
+        status: "accepted-step-readback";
+        method: "none";
+        downstreamPressureOffsetMmHg: 0;
+        volumeResidualMl: null;
+      }>;
   curve: readonly MainWireIntegratedModelGuytonPointV3[];
   starlingLocus: MainWireIntegratedModelStarlingLocusV3;
   limitations: readonly string[];
@@ -119,6 +206,11 @@ type StructuralPathV3 = Readonly<{
   totalStressedVolumeMl: number;
 }>;
 
+type StructuralAnchorV3 = Readonly<{
+  downstreamPressureMmHg: number;
+  returnFlowLPerMin: number;
+}>;
+
 const SYSTEMIC_NODE_PATH_V3 = Object.freeze([
   "VC", "SV", "Cap", "Art", "SA", "Ao",
 ] as const);
@@ -135,6 +227,9 @@ const PULMONARY_EDGE_PATH_V3 = Object.freeze([
 const CURVE_SAMPLE_COUNT_V3 = 121;
 const MAXIMUM_ORIENTATION_FLOW_ML_PER_SEC_V3 = 350;
 const ROOT_TOLERANCE_ML_V3 = 1e-4;
+const ANCHOR_VOLUME_TOLERANCE_ML_V3 = 1e-6;
+const ANCHOR_PRESSURE_TOLERANCE_MMHG_V3 = 1e-12;
+const MAXIMUM_ANCHOR_PRESSURE_OFFSET_MMHG_V3 = 160;
 
 /**
  * Read-only side analysis of one exact accepted V3 step.
@@ -148,6 +243,10 @@ const ROOT_TOLERANCE_ML_V3 = 1e-4;
 export function buildMainWireIntegratedModelGuytonStarlingOrientationV3(
   observation: MainWireIntegratedModelObservationV3,
   hemodynamicInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
+  starlingLoci?: Readonly<Record<
+    MainWireIntegratedModelGuytonSideV3,
+    MainWireIntegratedModelStarlingLocusV3
+  >>,
 ): MainWireIntegratedModelGuytonStarlingOrientationV3 {
   const accepted = observation.acceptedState;
   const step = observation.lastAcceptedStep;
@@ -169,8 +268,18 @@ export function buildMainWireIntegratedModelGuytonStarlingOrientationV3(
     status: "available" as const,
     sourceAcceptedRevision: accepted.revision,
     sourceAcceptedTimeSec: accepted.acceptedTimeSec,
-    right: buildSideOrientationV3("right", observation, hemodynamicInputs),
-    left: buildSideOrientationV3("left", observation, hemodynamicInputs),
+    right: buildSideOrientationV3(
+      "right",
+      observation,
+      hemodynamicInputs,
+      starlingLoci?.right,
+    ),
+    left: buildSideOrientationV3(
+      "left",
+      observation,
+      hemodynamicInputs,
+      starlingLoci?.left,
+    ),
   });
 }
 
@@ -178,33 +287,60 @@ function buildSideOrientationV3(
   side: MainWireIntegratedModelGuytonSideV3,
   observation: MainWireIntegratedModelObservationV3,
   hemodynamicInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
+  starlingLocus?: MainWireIntegratedModelStarlingLocusV3,
 ): MainWireIntegratedModelStructuralReturnOrientationV3 {
   const accepted = observation.acceptedState;
   const circulation = observation.lastAcceptedStep!.coronaryStep.baseStep
     .circulationTrial;
   const path = structuralPathV3(side, observation, hemodynamicInputs);
   const downstreamNode = side === "right" ? "RA" : "LA";
-  const returnPath = side === "right" ? "VC_RA" : "PVein_LA";
-  const downstreamPressureMmHg =
+  const returnPath = side === "right" ? "VC_RA+CS_RA" : "PVein_LA";
+  const acceptedDownstreamPressureMmHg =
     circulation.nodeAbsolutePressuresMmHg[downstreamNode];
-  const returnFlowLPerMin =
-    circulation.edgeFlowsMlPerSec[returnPath] * 60 / 1_000;
-  const fillingPressureMmHg = solveUniformFillingPressureV3(path);
+  const acceptedReturnFlowLPerMin = side === "right"
+    ? (
+        circulation.edgeFlowsMlPerSec.VC_RA
+        + observation.lastAcceptedStep!.coronaryStep.baseStep.coronaryTrial
+          .diagnostics.hydraulics.commonCoronaryVenousOutletFlowMlPerSec
+      ) * 60 / 1_000
+    : circulation.edgeFlowsMlPerSec.PVein_LA * 60 / 1_000;
+  const starlingAnchor = responsiveStarlingAnchorV3(starlingLocus);
+  const downstreamPressureMmHg = starlingAnchor?.downstreamPressureMmHg
+    ?? acceptedDownstreamPressureMmHg;
+  const returnFlowLPerMin = starlingAnchor?.returnFlowLPerMin
+    ?? acceptedReturnFlowLPerMin;
+  const anchorCalibration = starlingAnchor === null
+    ? null
+    : calibrateStructuralPressureOffsetV3(path, starlingAnchor);
+  const downstreamPressureOffsetMmHg =
+    anchorCalibration?.downstreamPressureOffsetMmHg ?? 0;
+  const fillingPressureMmHg = solveUniformFillingPressureV3(path)
+    - downstreamPressureOffsetMmHg;
   const [domainMinimum, domainMaximum] = pressureDomainV3(
     side,
     downstreamPressureMmHg,
     fillingPressureMmHg,
   );
-  const curve = Object.freeze(Array.from(
-    { length: CURVE_SAMPLE_COUNT_V3 },
-    (_, index) => {
-      const ratio = index / (CURVE_SAMPLE_COUNT_V3 - 1);
-      return solveStructuralReturnAtPressureV3(
-        path,
-        domainMinimum + ratio * (domainMaximum - domainMinimum),
-      );
-    },
-  ));
+  const samplePressures = structuralCurveSamplePressuresV3(
+    domainMinimum,
+    domainMaximum,
+    starlingAnchor?.downstreamPressureMmHg ?? null,
+  );
+  const curve = Object.freeze(samplePressures.map((pressureMmHg) =>
+    starlingAnchor !== null
+      && pressureMmHg === starlingAnchor.downstreamPressureMmHg
+      ? Object.freeze({
+          downstreamPressureMmHg: pressureMmHg,
+          returnFlowLPerMin: starlingAnchor.returnFlowLPerMin,
+          flowLimited: false,
+        })
+      : remapStructuralPressureV3(
+          solveStructuralReturnAtPressureV3(
+            path,
+            pressureMmHg + downstreamPressureOffsetMmHg,
+          ),
+          pressureMmHg,
+        )));
   return Object.freeze({
     side,
     semantics:
@@ -222,8 +358,22 @@ function buildSideOrientationV3(
       returnFlowLPerMin,
       returnPath,
     }),
+    anchoring: anchorCalibration === null
+      ? Object.freeze({
+          status: "accepted-step-readback" as const,
+          method: "none" as const,
+          downstreamPressureOffsetMmHg: 0 as const,
+          volumeResidualMl: null,
+        })
+      : Object.freeze({
+          status: "starling-operating-anchor" as const,
+          method: "downstream-pressure-translation" as const,
+          downstreamPressureOffsetMmHg:
+            anchorCalibration.downstreamPressureOffsetMmHg,
+          volumeResidualMl: anchorCalibration.volumeResidualMl,
+        }),
     curve,
-    starlingLocus: Object.freeze({
+    starlingLocus: starlingLocus ?? Object.freeze({
       status: "requires-protocol" as const,
       requirement:
         MAIN_WIRE_INTEGRATED_MODEL_STARLING_PROTOCOL_REQUIREMENT_V3,
@@ -233,9 +383,16 @@ function buildSideOrientationV3(
       "Structural return orientation only; not a simulated pressure intervention.",
       "Edge losses and external pressures are frozen at the accepted step; inertance is omitted from the steady map.",
       side === "right"
-        ? "The non-coronary VC-to-RA return path is shown; the parallel coronary-sinus return branch is not included."
+        ? "The displayed systemic operating return includes VC-to-RA plus coronary-sinus return; the structural curve represents their effective aggregate."
         : "The pulmonary venous PCap-to-LA return path is shown.",
-      "A Starling locus requires independent fixed-TBV V3 fixture forks, settlement, and numerical qualification at every point.",
+      starlingAnchor === null
+        ? "The pressure coordinate is the exact accepted-step structural readback."
+        : "The frozen-volume structural shape and positive edge losses are retained, while its pressure coordinate is translated to the complete-beat mean operating anchor.",
+      starlingLocus?.status === "responsive-fixed-tbv-preview"
+        ? "The operating anchor is locally period-1-settled in the frozen-tone responsive regime; off-centre Starling points remain adaptive preview data rather than canonical settled periodic evidence."
+        : starlingLocus?.status === "measured-fixed-tbv-protocol"
+          ? "The formal locus uses independent fixed-TBV branches with active controllers and repeated complete-beat closure at every included point; it is numerical analysis, not physiological or clinical validation."
+          : "A qualified Starling locus requires independent fixed-TBV V3 fixture forks, settlement, and numerical qualification at every point.",
     ]),
   });
 }
@@ -420,6 +577,156 @@ function totalStressedVolumeAtFlowV3(
     currentDownstreamPressureMmHg = upstreamPressureMmHg;
   }
   return totalStressedVolumeMl;
+}
+
+function responsiveStarlingAnchorV3(
+  locus: MainWireIntegratedModelStarlingLocusV3 | undefined,
+): StructuralAnchorV3 | null {
+  if (
+    locus?.status !== "responsive-fixed-tbv-preview" &&
+    locus?.status !== "measured-fixed-tbv-protocol"
+  ) return null;
+  const point = locus.points.find((candidate) =>
+    candidate.role === "operating-anchor" && candidate.curveEligible);
+  return point === undefined
+    ? null
+    : Object.freeze({
+        downstreamPressureMmHg: point.fillingPressureMmHg,
+        returnFlowLPerMin: point.cardiacOutputLPerMin,
+      });
+}
+
+function calibrateStructuralPressureOffsetV3(
+  path: StructuralPathV3,
+  anchor: StructuralAnchorV3,
+): Readonly<{
+  downstreamPressureOffsetMmHg: number;
+  volumeResidualMl: number;
+}> {
+  const anchorFlowMlPerSec = anchor.returnFlowLPerMin * 1_000 / 60;
+  const residual = (downstreamPressureOffsetMmHg: number) =>
+    totalStressedVolumeAtFlowV3(
+      path,
+      anchor.downstreamPressureMmHg + downstreamPressureOffsetMmHg,
+      anchorFlowMlPerSec,
+    ) - path.totalStressedVolumeMl;
+  const zeroResidual = residual(0);
+  if (Math.abs(zeroResidual) <= ANCHOR_VOLUME_TOLERANCE_ML_V3) {
+    return Object.freeze({
+      downstreamPressureOffsetMmHg: 0,
+      volumeResidualMl: zeroResidual,
+    });
+  }
+  let lower = zeroResidual > 0 ? -1 : 0;
+  let upper = zeroResidual > 0 ? 0 : 1;
+  let lowerResidual = residual(lower);
+  let upperResidual = residual(upper);
+  while (
+    Math.sign(lowerResidual) === Math.sign(upperResidual)
+    && Math.max(Math.abs(lower), Math.abs(upper))
+      < MAXIMUM_ANCHOR_PRESSURE_OFFSET_MMHG_V3
+  ) {
+    if (lowerResidual > 0 && upperResidual > 0) {
+      lower = Math.max(
+        -MAXIMUM_ANCHOR_PRESSURE_OFFSET_MMHG_V3,
+        lower * 2,
+      );
+      lowerResidual = residual(lower);
+    } else {
+      upper = Math.min(
+        MAXIMUM_ANCHOR_PRESSURE_OFFSET_MMHG_V3,
+        upper * 2,
+      );
+      upperResidual = residual(upper);
+    }
+  }
+  if (Math.sign(lowerResidual) === Math.sign(upperResidual)) {
+    throw new Error(
+      "integrated V3 structural return cannot align to the complete-beat operating anchor",
+    );
+  }
+  const downstreamPressureOffsetMmHg = bisectResidualV3(
+    residual,
+    lower,
+    upper,
+    ANCHOR_VOLUME_TOLERANCE_ML_V3,
+    ANCHOR_PRESSURE_TOLERANCE_MMHG_V3,
+    128,
+  );
+  return Object.freeze({
+    downstreamPressureOffsetMmHg,
+    volumeResidualMl: residual(downstreamPressureOffsetMmHg),
+  });
+}
+
+function remapStructuralPressureV3(
+  point: MainWireIntegratedModelGuytonPointV3,
+  downstreamPressureMmHg: number,
+): MainWireIntegratedModelGuytonPointV3 {
+  return Object.freeze({
+    ...point,
+    downstreamPressureMmHg,
+  });
+}
+
+function bisectResidualV3(
+  evaluate: (value: number) => number,
+  lower: number,
+  upper: number,
+  residualTolerance: number,
+  valueTolerance: number,
+  maximumIterations: number,
+): number {
+  let low = lower;
+  let high = upper;
+  let lowResidual = evaluate(low);
+  let highResidual = evaluate(high);
+  for (let iteration = 0; iteration < maximumIterations; iteration += 1) {
+    const midpoint = 0.5 * (low + high);
+    const midpointResidual = evaluate(midpoint);
+    if (!Number.isFinite(midpointResidual)) {
+      throw new Error("integrated V3 anchor-alignment residual is not finite");
+    }
+    if (Math.abs(midpointResidual) <= residualTolerance) return midpoint;
+    if (Math.sign(midpointResidual) === Math.sign(lowResidual)) {
+      low = midpoint;
+      lowResidual = midpointResidual;
+    } else {
+      high = midpoint;
+      highResidual = midpointResidual;
+    }
+    if (
+      Math.abs(high - low)
+        <= valueTolerance * Math.max(1, Math.abs(midpoint))
+    ) break;
+  }
+  return Math.abs(lowResidual) <= Math.abs(highResidual) ? low : high;
+}
+
+function structuralCurveSamplePressuresV3(
+  minimumMmHg: number,
+  maximumMmHg: number,
+  anchorMmHg: number | null,
+): readonly number[] {
+  const values = Array.from({ length: CURVE_SAMPLE_COUNT_V3 }, (_, index) =>
+    minimumMmHg
+      + index / (CURVE_SAMPLE_COUNT_V3 - 1) * (maximumMmHg - minimumMmHg));
+  if (
+    anchorMmHg !== null
+    && anchorMmHg > minimumMmHg
+    && anchorMmHg < maximumMmHg
+  ) {
+    let nearestIndex = 0;
+    for (let index = 1; index < values.length; index += 1) {
+      if (
+        Math.abs(values[index]! - anchorMmHg)
+          < Math.abs(values[nearestIndex]! - anchorMmHg)
+      ) nearestIndex = index;
+    }
+    values[nearestIndex] = anchorMmHg;
+    values.sort((left, right) => left - right);
+  }
+  return Object.freeze(values);
 }
 
 function pressureDomainV3(

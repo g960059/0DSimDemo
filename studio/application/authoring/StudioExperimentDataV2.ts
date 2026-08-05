@@ -2,7 +2,7 @@ import {
   STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-  STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+  STUDIO_EXPERIMENT_V2_SCHEMA_ID,
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2,
   STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
@@ -17,11 +17,11 @@ import {
   type ExperimentSurfaceV2,
   type ScenarioCaptureV2,
   type ScenarioPresetV2,
-  type ExperimentWorkspaceV2,
+  type ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import type {
-  ExperimentDraftCaptureConfirmationV2,
-  ExperimentDraftCaptureCorrelationV2,
+  ExperimentCaptureConfirmationV2,
+  ExperimentCaptureCorrelationV2,
   ExperimentDesiredContentV2,
   ExperimentDesiredScenarioV2,
 } from "@/studio/contracts/v2/authoring";
@@ -31,9 +31,8 @@ import {
   type RegisteredModelCaptureAdapterV2,
   type ModelContractV2,
 } from "@/studio/contracts/v2/model";
-import type {
-  ExactModelRuntimeResolverPortV2,
-} from "@/studio/contracts/v2/executable";
+import type { ExactModelRuntimeResolverPortV2 } from "@/studio/contracts/v2/executable";
+import { studioNumericControlValueIssueV2 } from "@/studio/contracts/v2/control";
 
 const PORTABLE_ID_V2 = /^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/;
 const MAXIMUM_PORTABLE_ID_LENGTH_V2 = 256;
@@ -47,43 +46,41 @@ export class StudioExperimentDataValidationErrorV2 extends Error {
 }
 
 /**
- * Validates and takes ownership of a mutable Experiment workspace value.
+ * Validates and takes ownership of one explicitly saved mutable Experiment.
  *
  * The returned graph shares no objects with the caller and is deeply frozen.
  */
-export function validateExperimentWorkspaceV2(
+export function validateExperimentV2(
   value: unknown,
-): ExperimentWorkspaceV2 {
-  const workspace = clonePortableJsonV2(
+): ExperimentV2 {
+  const experiment = clonePortableJsonV2(
     value,
-    "$.workspace",
-  ) as ExperimentWorkspaceV2;
-  assertExactKeysV2(workspace, [
-    "schemaId",
-    "experimentId",
-    "draftVersion",
-    "headSnapshotId",
-    "basedOnSnapshotId",
-    "content",
-  ], "$.workspace");
-  if (workspace.schemaId !== STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID) {
-    throw validationErrorV2("$.workspace.schemaId", "schema identity mismatch");
+    "$.experiment",
+  ) as ExperimentV2;
+  assertExactKeysV2(
+    experiment,
+    ["schemaId", "experimentId", "version", "content"],
+    "$.experiment",
+  );
+  if (experiment.schemaId !== STUDIO_EXPERIMENT_V2_SCHEMA_ID) {
+    throw validationErrorV2("$.experiment.schemaId", "schema identity mismatch");
   }
-  requiredPortableIdV2(workspace.experimentId, "$.workspace.experimentId");
-  nonnegativeSafeIntegerV2(
-    workspace.draftVersion,
-    "$.workspace.draftVersion",
-  );
-  nullablePortableIdV2(
-    workspace.headSnapshotId,
-    "$.workspace.headSnapshotId",
-  );
-  nullablePortableIdV2(
-    workspace.basedOnSnapshotId,
-    "$.workspace.basedOnSnapshotId",
-  );
-  assertExperimentContentV2(workspace.content, "$.workspace.content");
-  return workspace;
+  requiredPortableIdV2(experiment.experimentId, "$.experiment.experimentId");
+  nonnegativeSafeIntegerV2(experiment.version, "$.experiment.version");
+  assertExperimentContentV2(experiment.content, "$.experiment.content");
+  return experiment;
+}
+
+/** Validates detached Workbench content without manufacturing an Experiment. */
+export function validateExperimentContentV2(
+  value: unknown,
+): ExperimentContentV2 {
+  const content = clonePortableJsonV2(
+    value,
+    "$.content",
+  ) as ExperimentContentV2;
+  assertExperimentContentV2(content, "$.content");
+  return content;
 }
 
 /**
@@ -99,30 +96,33 @@ export function validateExperimentSnapshotV2(
     value,
     "$.snapshot",
   ) as ExperimentSnapshotV2;
-  assertRequiredOptionalKeysV2(snapshot, [
-    "schemaId",
-    "snapshotId",
-    "experimentId",
-    "parentSnapshotId",
-    "content",
-    "createdAt",
-  ], ["createdBy"], "$.snapshot");
+  assertRequiredOptionalKeysV2(
+    snapshot,
+    snapshot.kind === "article"
+      ? ["schemaId", "kind", "snapshotId", "content", "briefing", "createdAt"]
+      : ["schemaId", "kind", "snapshotId", "content", "createdAt"],
+    ["createdBy"],
+    "$.snapshot",
+  );
   if (snapshot.schemaId !== STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID) {
     throw validationErrorV2("$.snapshot.schemaId", "schema identity mismatch");
   }
   requiredPortableIdV2(snapshot.snapshotId, "$.snapshot.snapshotId");
-  requiredPortableIdV2(snapshot.experimentId, "$.snapshot.experimentId");
-  nullablePortableIdV2(
-    snapshot.parentSnapshotId,
-    "$.snapshot.parentSnapshotId",
-  );
-  if (snapshot.parentSnapshotId === snapshot.snapshotId) {
+  if (snapshot.kind !== "publication" && snapshot.kind !== "article") {
     throw validationErrorV2(
-      "$.snapshot.parentSnapshotId",
-      "must not reference the snapshot itself",
+      "$.snapshot.kind",
+      "must be publication or article",
     );
   }
   assertExperimentContentV2(snapshot.content, "$.snapshot.content");
+  if (snapshot.kind === "article") {
+    assertPlacementBriefingV2(snapshot.briefing, "$.snapshot.briefing");
+    assertBriefingReferencesContentV2(
+      snapshot.briefing,
+      snapshot.content,
+      "$.snapshot.briefing",
+    );
+  }
   isoTimestampV2(snapshot.createdAt, "$.snapshot.createdAt");
   if (hasOwnV2(snapshot, "createdBy")) {
     requiredPortableIdV2(snapshot.createdBy, "$.snapshot.createdBy");
@@ -130,32 +130,38 @@ export function validateExperimentSnapshotV2(
   return snapshot;
 }
 
-export function validateScenarioCaptureV2(
+/** Validates one Article projection against the exact content it captures. */
+export function validateExperimentPlacementBriefingV2(
   value: unknown,
-): ScenarioCaptureV2 {
-  const capture = clonePortableJsonV2(
+  contentValue: unknown,
+): ExperimentPlacementBriefingV2 {
+  const briefing = clonePortableJsonV2(
     value,
-    "$.capture",
-  ) as ScenarioCaptureV2;
+    "$.briefing",
+  ) as ExperimentPlacementBriefingV2;
+  const content = clonePortableJsonV2(
+    contentValue,
+    "$.content",
+  ) as ExperimentContentV2;
+  assertExperimentContentV2(content, "$.content");
+  assertPlacementBriefingV2(briefing, "$.briefing");
+  assertBriefingReferencesContentV2(briefing, content, "$.briefing");
+  return briefing;
+}
+
+export function validateScenarioCaptureV2(value: unknown): ScenarioCaptureV2 {
+  const capture = clonePortableJsonV2(value, "$.capture") as ScenarioCaptureV2;
   assertScenarioCaptureV2(capture, "$.capture");
   return capture;
 }
 
-export function validateScenarioPresetV2(
-  value: unknown,
-): ScenarioPresetV2 {
-  const preset = clonePortableJsonV2(
-    value,
+export function validateScenarioPresetV2(value: unknown): ScenarioPresetV2 {
+  const preset = clonePortableJsonV2(value, "$.preset") as ScenarioPresetV2;
+  assertExactKeysV2(
+    preset,
+    ["schemaId", "presetId", "modelId", "title", "description", "capture"],
     "$.preset",
-  ) as ScenarioPresetV2;
-  assertExactKeysV2(preset, [
-    "schemaId",
-    "presetId",
-    "modelId",
-    "title",
-    "description",
-    "capture",
-  ], "$.preset");
+  );
   if (preset.schemaId !== STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID) {
     throw validationErrorV2("$.preset.schemaId", "schema identity mismatch");
   }
@@ -224,7 +230,7 @@ export function validateExperimentContentForModelV2(
 /**
  * Validates and takes ownership of checkpoint-free Save intent.
  *
- * This shape cannot be persisted as an Experiment workspace. The model-owned
+ * This checkpoint-free shape cannot be persisted as an Experiment. The model-owned
  * capture port must first turn every desired fixture into a complete atomic
  * fixture/checkpoint capture.
  */
@@ -236,30 +242,25 @@ export function validateExperimentDesiredContentForModelV2(
     value,
     "$.desiredContent",
   ) as ExperimentDesiredContentV2;
-  assertExperimentDesiredContentV2(
-    desiredContent,
-    "$.desiredContent",
-  );
+  assertExperimentDesiredContentV2(desiredContent, "$.desiredContent");
   assertModelContractV2(modelValue);
-  assertExperimentDesiredContentMatchesModelV2(
-    desiredContent,
-    modelValue,
-  );
+  assertExperimentDesiredContentMatchesModelV2(desiredContent, modelValue);
   return desiredContent;
 }
 
-export function validateDraftCaptureCorrelationV2(
+export function validateExperimentCaptureCorrelationV2(
   value: unknown,
   desiredContent: ExperimentDesiredContentV2,
-): ExperimentDraftCaptureCorrelationV2 {
+): ExperimentCaptureCorrelationV2 {
   const correlation = clonePortableJsonV2(
     value,
     "$.captureCorrelation",
-  ) as ExperimentDraftCaptureCorrelationV2;
-  assertExactKeysV2(correlation, [
-    "runtimeSessionId",
-    "scenarios",
-  ], "$.captureCorrelation");
+  ) as ExperimentCaptureCorrelationV2;
+  assertExactKeysV2(
+    correlation,
+    ["runtimeSessionId", "scenarios"],
+    "$.captureCorrelation",
+  );
   requiredPortableIdV2(
     correlation.runtimeSessionId,
     "$.captureCorrelation.runtimeSessionId",
@@ -272,22 +273,22 @@ export function validateDraftCaptureCorrelationV2(
   return correlation;
 }
 
-export function validateDraftCaptureConfirmationV2(
+export function validateExperimentCaptureConfirmationV2(
   value: unknown,
   expected: Readonly<{
     experimentId: string;
-    correlation: ExperimentDraftCaptureCorrelationV2;
+    correlation: ExperimentCaptureCorrelationV2;
   }>,
-): ExperimentDraftCaptureConfirmationV2 {
+): ExperimentCaptureConfirmationV2 {
   const confirmation = clonePortableJsonV2(
     value,
     "$.captureConfirmation",
-  ) as ExperimentDraftCaptureConfirmationV2;
-  assertExactKeysV2(confirmation, [
-    "experimentId",
-    "runtimeSessionId",
-    "scenarios",
-  ], "$.captureConfirmation");
+  ) as ExperimentCaptureConfirmationV2;
+  assertExactKeysV2(
+    confirmation,
+    ["experimentId", "runtimeSessionId", "scenarios"],
+    "$.captureConfirmation",
+  );
   requiredPortableIdV2(
     confirmation.experimentId,
     "$.captureConfirmation.experimentId",
@@ -302,11 +303,13 @@ export function validateDraftCaptureConfirmationV2(
     "$.captureConfirmation.scenarios",
   );
   if (
-    confirmation.experimentId !== expected.experimentId
-    || confirmation.runtimeSessionId !== expected.correlation.runtimeSessionId
-    || confirmation.scenarios.some((scenario, index) =>
-      scenario.expectedInputEpoch
-        !== expected.correlation.scenarios[index]?.expectedInputEpoch)
+    confirmation.experimentId !== expected.experimentId ||
+    confirmation.runtimeSessionId !== expected.correlation.runtimeSessionId ||
+    confirmation.scenarios.some(
+      (scenario, index) =>
+        scenario.expectedInputEpoch !==
+        expected.correlation.scenarios[index]?.expectedInputEpoch,
+    )
   ) {
     throw validationErrorV2(
       "$.captureConfirmation",
@@ -317,10 +320,12 @@ export function validateDraftCaptureConfirmationV2(
 }
 
 function assertCaptureCorrelationScenariosV2(
-  value: readonly Readonly<{
-    scenarioId: string;
-    expectedInputEpoch: number;
-  }>[] | unknown,
+  value:
+    | readonly Readonly<{
+        scenarioId: string;
+        expectedInputEpoch: number;
+      }>[]
+    | unknown,
   expectedScenarioIds: readonly string[],
   path: string,
 ): void {
@@ -331,10 +336,11 @@ function assertCaptureCorrelationScenariosV2(
     );
   }
   value.forEach((scenario, index) => {
-    assertExactKeysV2(scenario, [
-      "scenarioId",
-      "expectedInputEpoch",
-    ], `${path}[${index}]`);
+    assertExactKeysV2(
+      scenario,
+      ["scenarioId", "expectedInputEpoch"],
+      `${path}[${index}]`,
+    );
     requiredPortableIdV2(scenario.scenarioId, `${path}[${index}].scenarioId`);
     nonnegativeSafeIntegerV2(
       scenario.expectedInputEpoch,
@@ -367,6 +373,39 @@ export function assertExperimentDesiredContentMatchesModelV2(
   );
 }
 
+/** Validates Article-only control presentation values against the exact model. */
+export function assertExperimentBriefingMatchesModelV2(
+  briefing: ExperimentPlacementBriefingV2,
+  model: ModelContractV2,
+): void {
+  const controlsById = new Map(
+    model.controlCatalog.map((definition) => [definition.controlId, definition]),
+  );
+  briefing.controls.forEach((control, controlIndex) => {
+    const definition = controlsById.get(control.controlId);
+    const controlPath = `$.briefing.controls[${controlIndex}]`;
+    if (definition === undefined) {
+      throw validationErrorV2(
+        `${controlPath}.controlId`,
+        `unknown registered control ${control.controlId}`,
+      );
+    }
+    if (control.presentation.kind !== "buttons") return;
+    control.presentation.options.forEach((option, optionIndex) => {
+      const issue = studioNumericControlValueIssueV2(
+        option.value,
+        definition,
+      );
+      if (issue !== undefined) {
+        throw validationErrorV2(
+          `${controlPath}.presentation.options[${optionIndex}].value`,
+          issue,
+        );
+      }
+    });
+  });
+}
+
 function assertExperimentModelAndSurfaceMatchV2(
   content: Readonly<{
     modelId: string;
@@ -388,8 +427,8 @@ function assertExperimentModelAndSurfaceMatchV2(
   const outputsById = new Map(
     model.outputCatalog.map((definition) => [definition.outputId, definition]),
   );
-  const controlIds = new Set(
-    model.controlCatalog.map(({ controlId }) => controlId),
+  const controlsById = new Map(
+    model.controlCatalog.map((definition) => [definition.controlId, definition]),
   );
   content.surface.graphPanes.forEach((pane, paneIndex) => {
     const panePath = `${path}.surface.graphPanes[${paneIndex}]`;
@@ -400,6 +439,9 @@ function assertExperimentModelAndSurfaceMatchV2(
         `unknown registered graph ${pane.graphId}`,
       );
     }
+    const scopedScenarioIds = pane.scenarioScope.mode === "fixed"
+      ? pane.scenarioScope.scenarioIds
+      : content.scenarios.map(({ scenarioId }) => scenarioId);
     if (graph.renderer === "structural-return") {
       if (pane.series.length !== 0) {
         throw validationErrorV2(
@@ -413,13 +455,83 @@ function assertExperimentModelAndSurfaceMatchV2(
           `${graph.renderer} graphs must not configure a waveform window`,
         );
       }
+      if (pane.pressureVolumeAnalysisMode !== undefined) {
+        throw validationErrorV2(
+          `${panePath}.pressureVolumeAnalysisMode`,
+          "structural-return graphs must not configure pressure-volume analysis",
+        );
+      }
       if (pane.historyDepth === undefined) {
         throw validationErrorV2(
           `${panePath}.historyDepth`,
           "structural-return graphs must configure a history depth",
         );
       }
+      if (pane.structuralSide === undefined) {
+        throw validationErrorV2(
+          `${panePath}.structuralSide`,
+          "structural-return graphs must select exactly one circulation side",
+        );
+      }
+      if (graph.side !== "both" && pane.structuralSide !== graph.side) {
+        throw validationErrorV2(
+          `${panePath}.structuralSide`,
+          `registered graph only supports ${graph.side}`,
+        );
+      }
+      const invalidExclusionIndex = pane.excludedTraces.findIndex(
+        ({ seriesId }) => seriesId !== null,
+      );
+      if (invalidExclusionIndex >= 0) {
+        throw validationErrorV2(
+          `${panePath}.excludedTraces[${invalidExclusionIndex}].seriesId`,
+          "structural-return exclusions must target the whole Scenario trace",
+        );
+      }
+      const excludedScenarioIds = new Set(
+        pane.excludedTraces.map(({ scenarioId }) => scenarioId),
+      );
+      if (scopedScenarioIds.every((scenarioId) =>
+        excludedScenarioIds.has(scenarioId))) {
+        throw validationErrorV2(
+          `${panePath}.excludedTraces`,
+          "must leave at least one visible Scenario trace",
+        );
+      }
       return;
+    }
+    const wholeScenarioExclusionIndex = pane.excludedTraces.findIndex(
+      ({ seriesId }) => seriesId === null,
+    );
+    if (wholeScenarioExclusionIndex >= 0) {
+      throw validationErrorV2(
+        `${panePath}.excludedTraces[${wholeScenarioExclusionIndex}].seriesId`,
+        `${graph.renderer} exclusions must select an exact series`,
+      );
+    }
+    if (pane.structuralSide !== undefined) {
+      throw validationErrorV2(
+        `${panePath}.structuralSide`,
+        `${graph.renderer} graphs must not configure a structural side`,
+      );
+    }
+    if (
+      graph.renderer === "pressure-volume" &&
+      pane.pressureVolumeAnalysisMode === undefined
+    ) {
+      throw validationErrorV2(
+        `${panePath}.pressureVolumeAnalysisMode`,
+        "pressure-volume graphs must configure an analysis mode",
+      );
+    }
+    if (
+      graph.renderer !== "pressure-volume" &&
+      pane.pressureVolumeAnalysisMode !== undefined
+    ) {
+      throw validationErrorV2(
+        `${panePath}.pressureVolumeAnalysisMode`,
+        `${graph.renderer} graphs must not configure pressure-volume analysis`,
+      );
     }
     if (graph.renderer === "sweep" && pane.windowSec === undefined) {
       throw validationErrorV2(
@@ -439,7 +551,10 @@ function assertExperimentModelAndSurfaceMatchV2(
         "sweep graphs must not configure an explicit history depth",
       );
     }
-    if (graph.renderer === "pressure-volume" && pane.historyDepth === undefined) {
+    if (
+      graph.renderer === "pressure-volume" &&
+      pane.historyDepth === undefined
+    ) {
       throw validationErrorV2(
         `${panePath}.historyDepth`,
         "pressure-volume graphs must configure a history depth",
@@ -462,6 +577,19 @@ function assertExperimentModelAndSurfaceMatchV2(
         );
       }
     });
+    const excludedTraceKeys = new Set(
+      pane.excludedTraces.map(({ scenarioId, seriesId }) =>
+        `${scenarioId}\u001f${seriesId ?? ""}`),
+    );
+    const hasVisibleTrace = scopedScenarioIds.some((scenarioId) =>
+      pane.series.some(({ seriesId }) =>
+        !excludedTraceKeys.has(`${scenarioId}\u001f${seriesId}`)));
+    if (!hasVisibleTrace) {
+      throw validationErrorV2(
+        `${panePath}.excludedTraces`,
+        "must leave at least one visible Scenario/series trace",
+      );
+    }
   });
   content.surface.outputPanes.forEach((pane, paneIndex) => {
     pane.items.forEach((item, itemIndex) => {
@@ -476,11 +604,26 @@ function assertExperimentModelAndSurfaceMatchV2(
   content.surface.controlPanes.forEach((pane, paneIndex) => {
     pane.items.forEach((item, itemIndex) => {
       const itemPath = `${path}.surface.controlPanes[${paneIndex}].items[${itemIndex}]`;
-      if (!controlIds.has(item.controlId)) {
+      const definition = controlsById.get(item.controlId);
+      if (definition === undefined) {
         throw validationErrorV2(
           `${itemPath}.controlId`,
           `unknown registered control ${item.controlId}`,
         );
+      }
+      if (item.presentation.kind === "buttons") {
+        item.presentation.options.forEach((option, optionIndex) => {
+          const issue = studioNumericControlValueIssueV2(
+            option.value,
+            definition,
+          );
+          if (issue !== undefined) {
+            throw validationErrorV2(
+              `${itemPath}.presentation.options[${optionIndex}].value`,
+              issue,
+            );
+          }
+        });
       }
     });
   });
@@ -494,10 +637,12 @@ export function assertExperimentFixturesMatchModelV2(
   assertCaptureAdapterBindingV2(adapter, model);
   content.scenarios.forEach((scenario, index) => {
     try {
-      const result = adapter.validateFixture(Object.freeze({
-        model,
-        fixture: scenario.capture.fixture,
-      }));
+      const result = adapter.validateFixture(
+        Object.freeze({
+          model,
+          fixture: scenario.capture.fixture,
+        }),
+      );
       if (result !== undefined) {
         throw new Error("fixture validator must complete synchronously");
       }
@@ -518,10 +663,12 @@ export function assertExperimentDesiredFixturesMatchModelV2(
   assertCaptureAdapterBindingV2(adapter, model);
   desiredContent.scenarios.forEach((scenario, index) => {
     try {
-      const result = adapter.validateFixture(Object.freeze({
-        model,
-        fixture: scenario.fixture,
-      }));
+      const result = adapter.validateFixture(
+        Object.freeze({
+          model,
+          fixture: scenario.fixture,
+        }),
+      );
       if (result !== undefined) {
         throw new Error("fixture validator must complete synchronously");
       }
@@ -558,10 +705,12 @@ async function assertCaptureMatchesModelV2(
 ): Promise<void> {
   assertCaptureAdapterBindingV2(adapter, model);
   try {
-    const fixtureResult = adapter.validateFixture(Object.freeze({
-      model,
-      fixture: capture.fixture,
-    }));
+    const fixtureResult = adapter.validateFixture(
+      Object.freeze({
+        model,
+        fixture: capture.fixture,
+      }),
+    );
     if (fixtureResult !== undefined) {
       throw new Error("fixture validator must complete synchronously");
     }
@@ -581,10 +730,7 @@ function assertCaptureAdapterBindingV2(
   try {
     assertCaptureAdapterMatchesModelV2(adapter, model);
   } catch (error) {
-    throw validationErrorV2(
-      "$.captureAdapter",
-      errorMessageV2(error),
-    );
+    throw validationErrorV2("$.captureAdapter", errorMessageV2(error));
   }
 }
 
@@ -607,25 +753,25 @@ export function validateExperimentPlacementV2(
     value,
     "$.placement",
   ) as ExperimentPlacementV2;
-  assertRequiredOptionalKeysV2(placement, [
-    "schemaId",
-    "placementId",
-    "snapshotId",
-    "caption",
-  ], ["briefing"], "$.placement");
+  assertRequiredOptionalKeysV2(
+    placement,
+    ["schemaId", "placementId", "snapshotId", "titleOverride", "caption"],
+    [],
+    "$.placement",
+  );
   if (placement.schemaId !== STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID) {
     throw validationErrorV2("$.placement.schemaId", "schema identity mismatch");
   }
   requiredPortableIdV2(placement.placementId, "$.placement.placementId");
   requiredPortableIdV2(placement.snapshotId, "$.placement.snapshotId");
+  if (placement.titleOverride !== null) {
+    requiredTrimmedStringV2(
+      placement.titleOverride,
+      "$.placement.titleOverride",
+    );
+  }
   if (placement.caption !== null) {
     requiredTrimmedStringV2(placement.caption, "$.placement.caption");
-  }
-  if (hasOwnV2(placement, "briefing")) {
-    assertPlacementBriefingV2(
-      placement.briefing,
-      "$.placement.briefing",
-    );
   }
   return placement;
 }
@@ -634,7 +780,7 @@ export function validateExperimentPlacementV2(
  * Resolves only against the immutable snapshot explicitly pinned by Placement.
  *
  * Briefing references are role-specific and must resolve entirely inside the
- * pinned Snapshot. No lookup against a mutable Experiment workspace is
+ * pinned Snapshot. No lookup against a mutable Experiment is
  * permitted here.
  */
 export function validateExperimentPlacementAgainstSnapshotV2(
@@ -649,20 +795,33 @@ export function validateExperimentPlacementAgainstSnapshotV2(
       "does not match the pinned snapshot",
     );
   }
-  if (placement.briefing === undefined) return placement;
+  if (snapshot.kind !== "article") {
+    throw validationErrorV2(
+      "$.placement.snapshotId",
+      "must pin an article Snapshot",
+    );
+  }
+  return placement;
+}
 
-  const briefing = placement.briefing;
-  const surface = snapshot.content.surface;
+function assertBriefingReferencesContentV2(
+  briefing: ExperimentPlacementBriefingV2,
+  content: ExperimentContentV2,
+  path: string,
+): void {
+  const surface = content.surface;
   assertKnownSubsetV2(
     briefing.scenarioScope.visibleScenarioIds,
-    snapshot.content.scenarios.map(({ scenarioId }) => scenarioId),
-    "$.placement.briefing.scenarioScope.visibleScenarioIds",
+    content.scenarios.map(({ scenarioId }) => scenarioId),
+    `${path}.scenarioScope.visibleScenarioIds`,
   );
-  if (!briefing.scenarioScope.visibleScenarioIds.includes(
-    briefing.scenarioScope.initialFocusScenarioId,
-  )) {
+  if (
+    !briefing.scenarioScope.visibleScenarioIds.includes(
+      briefing.scenarioScope.initialFocusScenarioId,
+    )
+  ) {
     throw validationErrorV2(
-      "$.placement.briefing.scenarioScope.initialFocusScenarioId",
+      `${path}.scenarioScope.initialFocusScenarioId`,
       "must be included in visibleScenarioIds",
     );
   }
@@ -671,7 +830,7 @@ export function validateExperimentPlacementAgainstSnapshotV2(
     surface.graphPanes.map((pane) => [pane.paneId, pane] as const),
   );
   briefing.graphs.forEach((graph, graphIndex) => {
-    const graphPath = `$.placement.briefing.graphs[${graphIndex}]`;
+    const graphPath = `${path}.graphs[${graphIndex}]`;
     const sourcePane = graphPanesById.get(graph.paneId);
     if (sourcePane === undefined) {
       throw validationErrorV2(
@@ -694,9 +853,35 @@ export function validateExperimentPlacementAgainstSnapshotV2(
         "seriesId",
       );
     }
+    if (overrides?.traceColors !== undefined) {
+      const selectedSeriesIds = new Set(
+        (overrides.series ?? sourcePane.series).map(({ seriesId }) => seriesId),
+      );
+      overrides.traceColors.forEach((trace, traceIndex) => {
+        const tracePath = `${graphPath}.overrides.traceColors[${traceIndex}]`;
+        if (!briefing.scenarioScope.visibleScenarioIds.includes(
+          trace.scenarioId,
+        )) {
+          throw validationErrorV2(
+            `${tracePath}.scenarioId`,
+            "must reference a visible Briefing Scenario",
+          );
+        }
+        if (
+          trace.seriesId === null
+            ? sourcePane.series.length > 0
+            : !selectedSeriesIds.has(trace.seriesId)
+        ) {
+          throw validationErrorV2(
+            `${tracePath}.seriesId`,
+            "must reference a selected source graph trace",
+          );
+        }
+      });
+    }
     if (
-      overrides?.windowSec !== undefined
-      && sourcePane.windowSec === undefined
+      overrides?.windowSec !== undefined &&
+      sourcePane.windowSec === undefined
     ) {
       throw validationErrorV2(
         `${graphPath}.overrides.windowSec`,
@@ -704,8 +889,8 @@ export function validateExperimentPlacementAgainstSnapshotV2(
       );
     }
     if (
-      overrides?.historyDepth !== undefined
-      && sourcePane.historyDepth === undefined
+      overrides?.historyDepth !== undefined &&
+      sourcePane.historyDepth === undefined
     ) {
       throw validationErrorV2(
         `${graphPath}.overrides.historyDepth`,
@@ -714,54 +899,72 @@ export function validateExperimentPlacementAgainstSnapshotV2(
     }
   });
 
-  const availableOutputIds = new Set(
-    surface.outputPanes.flatMap(({ items }) =>
-      items.map(({ outputId }) => outputId)),
+  const outputPanesById = new Map(
+    surface.outputPanes.map((pane) => [pane.paneId, pane] as const),
   );
   briefing.outputs.forEach((output, index) => {
-    if (!availableOutputIds.has(output.outputId)) {
+    const outputPath = `${path}.outputs[${index}]`;
+    const sourcePane = outputPanesById.get(output.sourcePaneId);
+    if (sourcePane === undefined) {
       throw validationErrorV2(
-        `$.placement.briefing.outputs[${index}].outputId`,
-        `unknown Surface output ${output.outputId}`,
+        `${outputPath}.sourcePaneId`,
+        `unknown Surface output pane ${output.sourcePaneId}`,
+      );
+    }
+    if (!sourcePane.items.some(({ outputId }) => outputId === output.outputId)) {
+      throw validationErrorV2(
+        `${outputPath}.outputId`,
+        `output ${output.outputId} is not present in source pane ${output.sourcePaneId}`,
+      );
+    }
+    if (!briefing.scenarioScope.visibleScenarioIds.includes(output.scenarioId)) {
+      throw validationErrorV2(
+        `${outputPath}.scenarioId`,
+        `output target ${output.scenarioId} must be visible`,
       );
     }
   });
 
-  const availableControlIds = new Set(
-    surface.controlPanes.flatMap(({ items }) =>
-      items.map(({ controlId }) => controlId)),
+  const controlPanesById = new Map(
+    surface.controlPanes.map((pane) => [pane.paneId, pane] as const),
   );
   briefing.controls.forEach((control, index) => {
-    const controlPath = `$.placement.briefing.controls[${index}]`;
-    if (!availableControlIds.has(control.controlId)) {
+    const controlPath = `${path}.controls[${index}]`;
+    const sourcePane = controlPanesById.get(control.sourcePaneId);
+    if (sourcePane === undefined) {
       throw validationErrorV2(
-        `${controlPath}.controlId`,
-        `unknown Surface control ${control.controlId}`,
+        `${controlPath}.sourcePaneId`,
+        `unknown Surface control pane ${control.sourcePaneId}`,
       );
     }
-    const targetScenarioIds = control.binding.mode === "reader-focus"
-      ? control.binding.allowedScenarioIds
-      : control.binding.scenarioIds;
+    if (!sourcePane.items.some(({ controlId }) =>
+      controlId === control.controlId)) {
+      throw validationErrorV2(
+        `${controlPath}.controlId`,
+        `control ${control.controlId} is not present in source pane ${control.sourcePaneId}`,
+      );
+    }
+    const targetScenarioIds =
+      control.binding.mode === "reader-focus"
+        ? control.binding.allowedScenarioIds
+        : control.binding.scenarioIds;
     assertKnownSubsetV2(
       targetScenarioIds,
       briefing.scenarioScope.visibleScenarioIds,
-      `${controlPath}.binding.${control.binding.mode === "reader-focus"
-        ? "allowedScenarioIds"
-        : "scenarioIds"}`,
+      `${controlPath}.binding.${
+        control.binding.mode === "reader-focus"
+          ? "allowedScenarioIds"
+          : "scenarioIds"
+      }`,
     );
   });
-  return placement;
 }
 
 function assertExperimentContentV2(
   content: ExperimentContentV2,
   path: string,
 ): void {
-  assertExactKeysV2(content, [
-    "modelId",
-    "scenarios",
-    "surface",
-  ], path);
+  assertExactKeysV2(content, ["modelId", "scenarios", "surface"], path);
   requiredPortableIdV2(content.modelId, `${path}.modelId`);
   if (!Array.isArray(content.scenarios) || content.scenarios.length === 0) {
     throw validationErrorV2(`${path}.scenarios`, "must be a nonempty array");
@@ -778,23 +981,20 @@ function assertExperimentContentV2(
       scenario,
       `${path}.scenarios[${index}]`,
       scenarioIds,
-    ));
-  assertExperimentSurfaceV2(content.surface, `${path}.surface`);
+    ),
+  );
+  assertExperimentSurfaceV2(content.surface, `${path}.surface`, scenarioIds);
 }
 
 function assertExperimentDesiredContentV2(
   desiredContent: ExperimentDesiredContentV2,
   path: string,
 ): void {
-  assertExactKeysV2(desiredContent, [
-    "modelId",
-    "scenarios",
-    "surface",
-  ], path);
+  assertExactKeysV2(desiredContent, ["modelId", "scenarios", "surface"], path);
   requiredPortableIdV2(desiredContent.modelId, `${path}.modelId`);
   if (
-    !Array.isArray(desiredContent.scenarios)
-    || desiredContent.scenarios.length === 0
+    !Array.isArray(desiredContent.scenarios) ||
+    desiredContent.scenarios.length === 0
   ) {
     throw validationErrorV2(`${path}.scenarios`, "must be a nonempty array");
   }
@@ -810,8 +1010,13 @@ function assertExperimentDesiredContentV2(
       scenario,
       `${path}.scenarios[${index}]`,
       scenarioIds,
-    ));
-  assertExperimentSurfaceV2(desiredContent.surface, `${path}.surface`);
+    ),
+  );
+  assertExperimentSurfaceV2(
+    desiredContent.surface,
+    `${path}.surface`,
+    scenarioIds,
+  );
 }
 
 function assertExperimentDesiredScenarioV2(
@@ -851,11 +1056,11 @@ function assertScenarioCaptureV2(
 ): void {
   assertExactKeysV2(capture, ["fixture", "checkpoint"], path);
   const checkpoint = capture.checkpoint;
-  assertExactKeysV2(checkpoint, [
-    "acceptedRevision",
-    "acceptedTimeSec",
-    "payload",
-  ], `${path}.checkpoint`);
+  assertExactKeysV2(
+    checkpoint,
+    ["acceptedRevision", "acceptedTimeSec", "payload"],
+    `${path}.checkpoint`,
+  );
   nonnegativeSafeIntegerV2(
     checkpoint.acceptedRevision,
     `${path}.checkpoint.acceptedRevision`,
@@ -872,16 +1077,37 @@ function assertScenarioCaptureV2(
 function assertExperimentSurfaceV2(
   surface: ExperimentSurfaceV2,
   path: string,
+  scenarioIds: ReadonlySet<string>,
 ): void {
-  assertExactKeysV2(surface, [
-    "graphPanes",
-    "outputPanes",
-    "controlPanes",
-    "note",
-  ], path);
+  assertRequiredOptionalKeysV2(
+    surface,
+    ["graphPanes", "outputPanes", "controlPanes", "note"],
+    ["scenarioColorSeeds"],
+    path,
+  );
   arrayV2(surface.graphPanes, `${path}.graphPanes`);
   arrayV2(surface.outputPanes, `${path}.outputPanes`);
   arrayV2(surface.controlPanes, `${path}.controlPanes`);
+  if (surface.scenarioColorSeeds !== undefined) {
+    arrayV2(surface.scenarioColorSeeds, `${path}.scenarioColorSeeds`);
+    const seededScenarioIds = new Set<string>();
+    surface.scenarioColorSeeds.forEach((seed, index) => {
+      const seedPath = `${path}.scenarioColorSeeds[${index}]`;
+      assertExactKeysV2(seed, ["scenarioId", "colorHex"], seedPath);
+      const scenarioId = requiredPortableIdV2(
+        seed.scenarioId,
+        `${seedPath}.scenarioId`,
+      );
+      if (!scenarioIds.has(scenarioId)) {
+        throw validationErrorV2(
+          `${seedPath}.scenarioId`,
+          "must reference a Scenario in the same Experiment",
+        );
+      }
+      assertUniqueIdV2(seededScenarioIds, scenarioId, `${seedPath}.scenarioId`);
+      canonicalColorHexV2(seed.colorHex, `${seedPath}.colorHex`);
+    });
+  }
 
   const paneIds = new Set<string>();
   const assertPane = (
@@ -915,7 +1141,10 @@ function assertExperimentSurfaceV2(
     items.forEach((item, index) => {
       const itemPath = `${itemsPath}[${index}]`;
       assertExactKeysV2(item, ["outputId", "label", "order"], itemPath);
-      const outputId = requiredPortableIdV2(item.outputId, `${itemPath}.outputId`);
+      const outputId = requiredPortableIdV2(
+        item.outputId,
+        `${itemPath}.outputId`,
+      );
       assertUniqueIdV2(outputIds, outputId, `${itemPath}.outputId`);
       requiredTrimmedStringV2(item.label, `${itemPath}.label`);
       semanticOrderV2(item.order, `${itemPath}.order`);
@@ -928,8 +1157,24 @@ function assertExperimentSurfaceV2(
     const panePath = `${path}.graphPanes[${index}]`;
     assertRequiredOptionalKeysV2(
       pane,
-      ["paneId", "role", "label", "order", "priority", "graphId", "series"],
-      ["windowSec", "historyDepth"],
+      [
+        "paneId",
+        "role",
+        "label",
+        "order",
+        "priority",
+        "graphId",
+        "scenarioScope",
+        "excludedTraces",
+        "series",
+      ],
+      [
+        "windowSec",
+        "historyDepth",
+        "pressureVolumeAnalysisMode",
+        "structuralSide",
+        "traceColors",
+      ],
       panePath,
     );
     assertPane(
@@ -939,11 +1184,59 @@ function assertExperimentSurfaceV2(
       graphOrders,
     );
     requiredPortableIdV2(pane.graphId, `${panePath}.graphId`);
+    recordV2(pane.scenarioScope, `${panePath}.scenarioScope`);
+    if (pane.scenarioScope.mode === "visible-scenarios") {
+      assertExactKeysV2(
+        pane.scenarioScope,
+        ["mode"],
+        `${panePath}.scenarioScope`,
+      );
+    } else if (pane.scenarioScope.mode === "fixed") {
+      assertExactKeysV2(
+        pane.scenarioScope,
+        ["mode", "scenarioIds"],
+        `${panePath}.scenarioScope`,
+      );
+      assertNonemptyUniquePortableIdsV2(
+        pane.scenarioScope.scenarioIds,
+        `${panePath}.scenarioScope.scenarioIds`,
+      );
+      assertKnownSubsetV2(
+        pane.scenarioScope.scenarioIds,
+        [...scenarioIds],
+        `${panePath}.scenarioScope.scenarioIds`,
+      );
+    } else {
+      throw validationErrorV2(
+        `${panePath}.scenarioScope.mode`,
+        "must be visible-scenarios or fixed",
+      );
+    }
     if (pane.windowSec !== undefined) {
       sweepWindowSecV2(pane.windowSec, `${panePath}.windowSec`);
     }
     if (pane.historyDepth !== undefined) {
       graphHistoryDepthV2(pane.historyDepth, `${panePath}.historyDepth`);
+    }
+    if (
+      pane.pressureVolumeAnalysisMode !== undefined &&
+      pane.pressureVolumeAnalysisMode !== "responsive-preview" &&
+      pane.pressureVolumeAnalysisMode !== "formal-periodic"
+    ) {
+      throw validationErrorV2(
+        `${panePath}.pressureVolumeAnalysisMode`,
+        "must be responsive-preview or formal-periodic",
+      );
+    }
+    if (
+      pane.structuralSide !== undefined &&
+      pane.structuralSide !== "left" &&
+      pane.structuralSide !== "right"
+    ) {
+      throw validationErrorV2(
+        `${panePath}.structuralSide`,
+        "must be left or right",
+      );
     }
     arrayV2(pane.series, `${panePath}.series`);
     const seriesIds = new Set<string>();
@@ -952,7 +1245,7 @@ function assertExperimentSurfaceV2(
       const seriesPath = `${panePath}.series[${seriesIndex}]`;
       assertExactKeysV2(
         series,
-        ["seriesId", "label", "colorHex", "order"],
+        ["seriesId", "label", "order"],
         seriesPath,
       );
       const seriesId = requiredPortableIdV2(
@@ -961,14 +1254,93 @@ function assertExperimentSurfaceV2(
       );
       assertUniqueIdV2(seriesIds, seriesId, `${seriesPath}.seriesId`);
       requiredTrimmedStringV2(series.label, `${seriesPath}.label`);
-      canonicalColorHexV2(series.colorHex, `${seriesPath}.colorHex`);
       semanticOrderV2(series.order, `${seriesPath}.order`);
-      assertUniqueOrderV2(
-        seriesOrders,
-        series.order,
-        `${seriesPath}.order`,
-      );
+      assertUniqueOrderV2(seriesOrders, series.order, `${seriesPath}.order`);
     });
+    arrayV2(pane.excludedTraces, `${panePath}.excludedTraces`);
+    const excludedTraceKeys = new Set<string>();
+    pane.excludedTraces.forEach((trace, traceIndex) => {
+      const tracePath = `${panePath}.excludedTraces[${traceIndex}]`;
+      assertExactKeysV2(trace, ["scenarioId", "seriesId"], tracePath);
+      const scenarioId = requiredPortableIdV2(
+        trace.scenarioId,
+        `${tracePath}.scenarioId`,
+      );
+      if (!scenarioIds.has(scenarioId)) {
+        throw validationErrorV2(
+          `${tracePath}.scenarioId`,
+          "must reference a Scenario in the same Experiment",
+        );
+      }
+      const seriesId = trace.seriesId === null
+        ? null
+        : requiredPortableIdV2(trace.seriesId, `${tracePath}.seriesId`);
+      if (seriesId !== null && !seriesIds.has(seriesId)) {
+        throw validationErrorV2(
+          `${tracePath}.seriesId`,
+          "must reference a selected series in the same graph pane",
+        );
+      }
+      const traceKey = `${scenarioId}\u001f${seriesId ?? ""}`;
+      if (excludedTraceKeys.has(traceKey)) {
+        throw validationErrorV2(tracePath, "duplicates an excluded trace");
+      }
+      excludedTraceKeys.add(traceKey);
+    });
+    if (pane.traceColors !== undefined) {
+      arrayV2(pane.traceColors, `${panePath}.traceColors`);
+      const traceKeys = new Set<string>();
+      pane.traceColors.forEach((trace, traceIndex) => {
+        const tracePath = `${panePath}.traceColors[${traceIndex}]`;
+        assertRequiredOptionalKeysV2(
+          trace,
+          ["scenarioId", "seriesId", "automaticColorHex"],
+          ["customColorHex"],
+          tracePath,
+        );
+        const scenarioId = requiredPortableIdV2(
+          trace.scenarioId,
+          `${tracePath}.scenarioId`,
+        );
+        if (!scenarioIds.has(scenarioId)) {
+          throw validationErrorV2(
+            `${tracePath}.scenarioId`,
+            "must reference a Scenario in the same Experiment",
+          );
+        }
+        const seriesId =
+          trace.seriesId === null
+            ? null
+            : requiredPortableIdV2(trace.seriesId, `${tracePath}.seriesId`);
+        if (
+          seriesId !== null &&
+          !pane.series.some((series) => series.seriesId === seriesId)
+        ) {
+          throw validationErrorV2(
+            `${tracePath}.seriesId`,
+            "must reference a selected series in the same graph pane",
+          );
+        }
+        const traceKey = `${scenarioId}\u001f${seriesId ?? ""}`;
+        if (traceKeys.has(traceKey)) {
+          throw validationErrorV2(
+            tracePath,
+            "duplicates a Scenario/series trace color",
+          );
+        }
+        traceKeys.add(traceKey);
+        canonicalColorHexV2(
+          trace.automaticColorHex,
+          `${tracePath}.automaticColorHex`,
+        );
+        if (trace.customColorHex !== undefined) {
+          canonicalColorHexV2(
+            trace.customColorHex,
+            `${tracePath}.customColorHex`,
+          );
+        }
+      });
+    }
   });
 
   const outputOrders = new Set<number>();
@@ -976,7 +1348,7 @@ function assertExperimentSurfaceV2(
     const panePath = `${path}.outputPanes[${index}]`;
     assertExactKeysV2(
       pane,
-      ["paneId", "role", "label", "order", "priority", "items"],
+      ["paneId", "role", "label", "order", "priority", "binding", "items"],
       panePath,
     );
     assertPane(
@@ -985,6 +1357,31 @@ function assertExperimentSurfaceV2(
       "output",
       outputOrders,
     );
+    recordV2(pane.binding, `${panePath}.binding`);
+    if (pane.binding.mode === "active-slot") {
+      assertExactKeysV2(pane.binding, ["mode"], `${panePath}.binding`);
+    } else if (pane.binding.mode === "fixed") {
+      assertExactKeysV2(
+        pane.binding,
+        ["mode", "scenarioId"],
+        `${panePath}.binding`,
+      );
+      const scenarioId = requiredPortableIdV2(
+        pane.binding.scenarioId,
+        `${panePath}.binding.scenarioId`,
+      );
+      if (!scenarioIds.has(scenarioId)) {
+        throw validationErrorV2(
+          `${panePath}.binding.scenarioId`,
+          `unknown Scenario ${scenarioId}`,
+        );
+      }
+    } else {
+      throw validationErrorV2(
+        `${panePath}.binding.mode`,
+        "must be active-slot or fixed",
+      );
+    }
     arrayV2(pane.items, `${panePath}.items`);
     assertLabeledOutputItems(pane.items, `${panePath}.items`);
   });
@@ -994,7 +1391,7 @@ function assertExperimentSurfaceV2(
     const panePath = `${path}.controlPanes[${paneIndex}]`;
     assertExactKeysV2(
       pane,
-      ["paneId", "role", "label", "order", "priority", "items"],
+      ["paneId", "role", "label", "order", "priority", "binding", "items"],
       panePath,
     );
     assertPane(
@@ -1003,16 +1400,40 @@ function assertExperimentSurfaceV2(
       "control",
       controlOrders,
     );
+    recordV2(pane.binding, `${panePath}.binding`);
+    if (pane.binding.mode === "active-slot") {
+      assertExactKeysV2(pane.binding, ["mode"], `${panePath}.binding`);
+    } else if (pane.binding.mode === "fixed") {
+      assertExactKeysV2(
+        pane.binding,
+        ["mode", "scenarioIds"],
+        `${panePath}.binding`,
+      );
+      assertNonemptyUniquePortableIdsV2(
+        pane.binding.scenarioIds,
+        `${panePath}.binding.scenarioIds`,
+      );
+      assertKnownSubsetV2(
+        pane.binding.scenarioIds,
+        [...scenarioIds],
+        `${panePath}.binding.scenarioIds`,
+      );
+    } else {
+      throw validationErrorV2(
+        `${panePath}.binding.mode`,
+        "must be active-slot or fixed",
+      );
+    }
     arrayV2(pane.items, `${panePath}.items`);
     const controlIds = new Set<string>();
     const itemOrders = new Set<number>();
     pane.items.forEach((item, itemIndex) => {
       const itemPath = `${panePath}.items[${itemIndex}]`;
-      assertExactKeysV2(item, [
-        "controlId",
-        "label",
-        "order",
-      ], itemPath);
+      assertExactKeysV2(
+        item,
+        ["controlId", "label", "order", "presentation"],
+        itemPath,
+      );
       const controlId = requiredPortableIdV2(
         item.controlId,
         `${itemPath}.controlId`,
@@ -1021,6 +1442,10 @@ function assertExperimentSurfaceV2(
       requiredTrimmedStringV2(item.label, `${itemPath}.label`);
       semanticOrderV2(item.order, `${itemPath}.order`);
       assertUniqueOrderV2(itemOrders, item.order, `${itemPath}.order`);
+      assertControlPresentationV2(
+        item.presentation,
+        `${itemPath}.presentation`,
+      );
     });
   });
 
@@ -1035,18 +1460,19 @@ function assertPlacementBriefingV2(
   if (briefing === undefined) {
     throw validationErrorV2(path, "must be an object when present");
   }
-  assertExactKeysV2(briefing, [
-    "scenarioScope",
-    "graphs",
-    "outputs",
-    "controls",
-  ], path);
+  assertExactKeysV2(
+    briefing,
+    ["defaultTitle", "scenarioScope", "graphs", "outputs", "controls"],
+    path,
+  );
+  requiredTrimmedStringV2(briefing.defaultTitle, `${path}.defaultTitle`);
 
   const scopePath = `${path}.scenarioScope`;
-  assertExactKeysV2(briefing.scenarioScope, [
-    "visibleScenarioIds",
-    "initialFocusScenarioId",
-  ], scopePath);
+  assertExactKeysV2(
+    briefing.scenarioScope,
+    ["visibleScenarioIds", "initialFocusScenarioId"],
+    scopePath,
+  );
   arrayV2(
     briefing.scenarioScope.visibleScenarioIds,
     `${scopePath}.visibleScenarioIds`,
@@ -1085,10 +1511,7 @@ function assertPlacementBriefingV2(
       ["overrides"],
       graphPath,
     );
-    const paneId = requiredPortableIdV2(
-      graph.paneId,
-      `${graphPath}.paneId`,
-    );
+    const paneId = requiredPortableIdV2(graph.paneId, `${graphPath}.paneId`);
     assertUniqueIdV2(graphPaneIds, paneId, `${graphPath}.paneId`);
     semanticOrderV2(graph.order, `${graphPath}.order`);
     assertUniqueOrderV2(graphOrders, graph.order, `${graphPath}.order`);
@@ -1099,57 +1522,80 @@ function assertPlacementBriefingV2(
       );
     }
     if (hasOwnV2(graph, "overrides")) {
-      assertGraphBriefingOverridesV2(
-        graph.overrides,
-        `${graphPath}.overrides`,
-      );
+      assertGraphBriefingOverridesV2(graph.overrides, `${graphPath}.overrides`);
     }
   });
 
   arrayV2(briefing.outputs, `${path}.outputs`);
-  const outputIds = new Set<string>();
+  const outputKeys = new Set<string>();
   const outputOrders = new Set<number>();
   briefing.outputs.forEach((output, index) => {
     const outputPath = `${path}.outputs[${index}]`;
-    assertExactKeysV2(output, ["outputId", "label", "order"], outputPath);
+    assertExactKeysV2(
+      output,
+      ["sourcePaneId", "outputId", "scenarioId", "label", "order"],
+      outputPath,
+    );
+    const sourcePaneId = requiredPortableIdV2(
+      output.sourcePaneId,
+      `${outputPath}.sourcePaneId`,
+    );
     const outputId = requiredPortableIdV2(
       output.outputId,
       `${outputPath}.outputId`,
     );
-    assertUniqueIdV2(outputIds, outputId, `${outputPath}.outputId`);
+    const scenarioId = requiredPortableIdV2(
+      output.scenarioId,
+      `${outputPath}.scenarioId`,
+    );
+    assertUniqueIdV2(
+      outputKeys,
+      `${sourcePaneId}\u001f${outputId}\u001f${scenarioId}`,
+      outputPath,
+    );
     requiredTrimmedStringV2(output.label, `${outputPath}.label`);
     semanticOrderV2(output.order, `${outputPath}.order`);
     assertUniqueOrderV2(outputOrders, output.order, `${outputPath}.order`);
   });
 
   arrayV2(briefing.controls, `${path}.controls`);
-  const controlIds = new Set<string>();
+  const controlKeys = new Set<string>();
   const controlOrders = new Set<number>();
   briefing.controls.forEach((control, index) => {
     const controlPath = `${path}.controls[${index}]`;
-    assertExactKeysV2(control, [
-      "controlId",
-      "label",
-      "order",
-      "presentation",
-      "binding",
-    ], controlPath);
+    assertExactKeysV2(
+      control,
+      [
+        "sourcePaneId",
+        "controlId",
+        "label",
+        "order",
+        "presentation",
+        "binding",
+      ],
+      controlPath,
+    );
+    const sourcePaneId = requiredPortableIdV2(
+      control.sourcePaneId,
+      `${controlPath}.sourcePaneId`,
+    );
     const controlId = requiredPortableIdV2(
       control.controlId,
       `${controlPath}.controlId`,
     );
-    assertUniqueIdV2(controlIds, controlId, `${controlPath}.controlId`);
+    assertUniqueIdV2(
+      controlKeys,
+      `${sourcePaneId}\u001f${controlId}`,
+      controlPath,
+    );
     requiredTrimmedStringV2(control.label, `${controlPath}.label`);
     semanticOrderV2(control.order, `${controlPath}.order`);
     assertUniqueOrderV2(controlOrders, control.order, `${controlPath}.order`);
-    assertControlBriefingPresentationV2(
+    assertControlPresentationV2(
       control.presentation,
       `${controlPath}.presentation`,
     );
-    assertControlBriefingBindingV2(
-      control.binding,
-      `${controlPath}.binding`,
-    );
+    assertControlBriefingBindingV2(control.binding, `${controlPath}.binding`);
   });
 }
 
@@ -1157,22 +1603,28 @@ function assertGraphBriefingOverridesV2(
   overrides: unknown,
   path: string,
 ): void {
-  assertRequiredOptionalKeysV2(overrides, [], [
-    "label",
-    "legend",
-    "series",
-    "windowSec",
-    "historyDepth",
-  ], path);
+  assertRequiredOptionalKeysV2(
+    overrides,
+    [],
+    [
+      "label",
+      "legend",
+      "series",
+      "traceColors",
+      "windowSec",
+      "historyDepth",
+    ],
+    path,
+  );
   if (hasOwnV2(overrides, "label")) {
     requiredTrimmedStringV2(overrides.label, `${path}.label`);
   }
   if (
-    hasOwnV2(overrides, "legend")
-    && overrides.legend !== "auto"
-    && overrides.legend !== "hidden"
-    && overrides.legend !== "compact"
-    && overrides.legend !== "full"
+    hasOwnV2(overrides, "legend") &&
+    overrides.legend !== "auto" &&
+    overrides.legend !== "hidden" &&
+    overrides.legend !== "compact" &&
+    overrides.legend !== "full"
   ) {
     throw validationErrorV2(
       `${path}.legend`,
@@ -1185,35 +1637,62 @@ function assertGraphBriefingOverridesV2(
   if (hasOwnV2(overrides, "historyDepth")) {
     graphHistoryDepthV2(overrides.historyDepth, `${path}.historyDepth`);
   }
-  if (!hasOwnV2(overrides, "series")) return;
-
-  arrayV2(overrides.series, `${path}.series`);
-  const seriesIds = new Set<string>();
-  const seriesOrders = new Set<number>();
-  overrides.series.forEach((series, index) => {
-    const seriesPath = `${path}.series[${index}]`;
-    assertExactKeysV2(
-      series,
-      ["seriesId", "label", "colorHex", "order"],
-      seriesPath,
-    );
-    const seriesId = requiredPortableIdV2(
-      series.seriesId,
-      `${seriesPath}.seriesId`,
-    );
-    assertUniqueIdV2(seriesIds, seriesId, `${seriesPath}.seriesId`);
-    requiredTrimmedStringV2(series.label, `${seriesPath}.label`);
-    canonicalColorHexV2(series.colorHex, `${seriesPath}.colorHex`);
-    semanticOrderV2(series.order, `${seriesPath}.order`);
-    assertUniqueOrderV2(
-      seriesOrders,
-      series.order as number,
-      `${seriesPath}.order`,
-    );
-  });
+  if (hasOwnV2(overrides, "series")) {
+    arrayV2(overrides.series, `${path}.series`);
+    const seriesIds = new Set<string>();
+    const seriesOrders = new Set<number>();
+    overrides.series.forEach((series, index) => {
+      const seriesPath = `${path}.series[${index}]`;
+      assertExactKeysV2(
+        series,
+        ["seriesId", "label", "order"],
+        seriesPath,
+      );
+      const seriesId = requiredPortableIdV2(
+        series.seriesId,
+        `${seriesPath}.seriesId`,
+      );
+      assertUniqueIdV2(seriesIds, seriesId, `${seriesPath}.seriesId`);
+      requiredTrimmedStringV2(series.label, `${seriesPath}.label`);
+      semanticOrderV2(series.order, `${seriesPath}.order`);
+      assertUniqueOrderV2(
+        seriesOrders,
+        series.order as number,
+        `${seriesPath}.order`,
+      );
+    });
+  }
+  if (hasOwnV2(overrides, "traceColors")) {
+    arrayV2(overrides.traceColors, `${path}.traceColors`);
+    const traceKeys = new Set<string>();
+    overrides.traceColors.forEach((trace, index) => {
+      const tracePath = `${path}.traceColors[${index}]`;
+      assertExactKeysV2(
+        trace,
+        ["scenarioId", "seriesId", "colorHex"],
+        tracePath,
+      );
+      const scenarioId = requiredPortableIdV2(
+        trace.scenarioId,
+        `${tracePath}.scenarioId`,
+      );
+      const seriesId = trace.seriesId === null
+        ? null
+        : requiredPortableIdV2(trace.seriesId, `${tracePath}.seriesId`);
+      const key = `${scenarioId}\u001f${seriesId ?? ""}`;
+      if (traceKeys.has(key)) {
+        throw validationErrorV2(
+          tracePath,
+          "duplicates a Scenario/series trace color override",
+        );
+      }
+      traceKeys.add(key);
+      canonicalColorHexV2(trace.colorHex, `${tracePath}.colorHex`);
+    });
+  }
 }
 
-function assertControlBriefingPresentationV2(
+function assertControlPresentationV2(
   presentation: unknown,
   path: string,
 ): void {
@@ -1227,10 +1706,10 @@ function assertControlBriefingPresentationV2(
   }
   assertExactKeysV2(presentation, ["kind", "options"], path);
   arrayV2(presentation.options, `${path}.options`);
-  if (presentation.options.length === 0) {
+  if (presentation.options.length < 2 || presentation.options.length > 6) {
     throw validationErrorV2(
       `${path}.options`,
-      "button presentation must contain at least one option",
+      "button presentation must contain between 2 and 6 options",
     );
   }
   const labels = new Set<string>();
@@ -1259,10 +1738,7 @@ function assertControlBriefingPresentationV2(
   });
 }
 
-function assertControlBriefingBindingV2(
-  binding: unknown,
-  path: string,
-): void {
+function assertControlBriefingBindingV2(binding: unknown, path: string): void {
   recordV2(binding, path);
   if (binding.mode === "reader-focus") {
     assertExactKeysV2(binding, ["mode", "allowedScenarioIds"], path);
@@ -1273,28 +1749,16 @@ function assertControlBriefingBindingV2(
     return;
   }
   if (binding.mode !== "fixed") {
-    throw validationErrorV2(
-      `${path}.mode`,
-      "must be reader-focus or fixed",
-    );
+    throw validationErrorV2(`${path}.mode`, "must be reader-focus or fixed");
   }
   assertExactKeysV2(binding, ["mode", "scenarioIds", "application"], path);
   if (binding.application !== "absolute") {
-    throw validationErrorV2(
-      `${path}.application`,
-      "must be absolute",
-    );
+    throw validationErrorV2(`${path}.application`, "must be absolute");
   }
-  assertNonemptyUniquePortableIdsV2(
-    binding.scenarioIds,
-    `${path}.scenarioIds`,
-  );
+  assertNonemptyUniquePortableIdsV2(binding.scenarioIds, `${path}.scenarioIds`);
 }
 
-function assertNonemptyUniquePortableIdsV2(
-  value: unknown,
-  path: string,
-): void {
+function assertNonemptyUniquePortableIdsV2(value: unknown, path: string): void {
   arrayV2(value, path);
   if (value.length === 0) {
     throw validationErrorV2(path, "must contain at least one Scenario");
@@ -1332,8 +1796,8 @@ function assertExactKeysV2(
   const actual = Object.keys(value).sort();
   const required = [...expected].sort();
   if (
-    actual.length !== required.length
-    || actual.some((key, index) => key !== required[index])
+    actual.length !== required.length ||
+    actual.some((key, index) => key !== required[index])
   ) {
     throw validationErrorV2(
       path,
@@ -1356,8 +1820,8 @@ function assertRequiredOptionalKeysV2(
   if (missing.length > 0 || unknown.length > 0) {
     throw validationErrorV2(
       path,
-      `field set mismatch (missing: ${missing.join(", ") || "none"}; `
-        + `unknown: ${unknown.join(", ") || "none"})`,
+      `field set mismatch (missing: ${missing.join(", ") || "none"}; ` +
+        `unknown: ${unknown.join(", ") || "none"})`,
     );
   }
 }
@@ -1386,17 +1850,13 @@ function hasOwnV2(value: object, key: PropertyKey): boolean {
 
 function requiredPortableIdV2(value: unknown, path: string): string {
   if (
-    typeof value !== "string"
-    || value.length > MAXIMUM_PORTABLE_ID_LENGTH_V2
-    || !PORTABLE_ID_V2.test(value)
+    typeof value !== "string" ||
+    value.length > MAXIMUM_PORTABLE_ID_LENGTH_V2 ||
+    !PORTABLE_ID_V2.test(value)
   ) {
     throw validationErrorV2(path, "must be a portable opaque ID");
   }
   return value;
-}
-
-function nullablePortableIdV2(value: unknown, path: string): void {
-  if (value !== null) requiredPortableIdV2(value, path);
 }
 
 function assertUniqueIdV2(
@@ -1423,9 +1883,9 @@ function assertUniqueOrderV2(
 
 function requiredTrimmedStringV2(value: unknown, path: string): void {
   if (
-    typeof value !== "string"
-    || value.length === 0
-    || value.trim() !== value
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.trim() !== value
   ) {
     throw validationErrorV2(path, "must be a nonempty trimmed string");
   }
@@ -1453,11 +1913,7 @@ function nonnegativeSafeIntegerV2(value: unknown, path: string): void {
 }
 
 function nonnegativeFiniteNumberV2(value: unknown, path: string): void {
-  if (
-    typeof value !== "number"
-    || !Number.isFinite(value)
-    || value < 0
-  ) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw validationErrorV2(path, "must be a nonnegative finite number");
   }
 }
@@ -1470,37 +1926,37 @@ function finiteNumberV2(value: unknown, path: string): void {
 
 function sweepWindowSecV2(value: unknown, path: string): void {
   if (
-    typeof value !== "number"
-    || !Number.isFinite(value)
-    || value < STUDIO_SWEEP_WINDOW_MIN_SEC_V2
-    || value > STUDIO_SWEEP_WINDOW_MAX_SEC_V2
-    || Math.abs(
-      (value - STUDIO_SWEEP_WINDOW_MIN_SEC_V2)
-        / STUDIO_SWEEP_WINDOW_STEP_SEC_V2
-      - Math.round(
-        (value - STUDIO_SWEEP_WINDOW_MIN_SEC_V2)
-          / STUDIO_SWEEP_WINDOW_STEP_SEC_V2,
-      ),
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < STUDIO_SWEEP_WINDOW_MIN_SEC_V2 ||
+    value > STUDIO_SWEEP_WINDOW_MAX_SEC_V2 ||
+    Math.abs(
+      (value - STUDIO_SWEEP_WINDOW_MIN_SEC_V2) /
+        STUDIO_SWEEP_WINDOW_STEP_SEC_V2 -
+        Math.round(
+          (value - STUDIO_SWEEP_WINDOW_MIN_SEC_V2) /
+            STUDIO_SWEEP_WINDOW_STEP_SEC_V2,
+        ),
     ) > 1e-9
   ) {
     throw validationErrorV2(
       path,
-      `must be ${STUDIO_SWEEP_WINDOW_MIN_SEC_V2}–${STUDIO_SWEEP_WINDOW_MAX_SEC_V2} `
-        + `seconds in ${STUDIO_SWEEP_WINDOW_STEP_SEC_V2} second steps`,
+      `must be ${STUDIO_SWEEP_WINDOW_MIN_SEC_V2}–${STUDIO_SWEEP_WINDOW_MAX_SEC_V2} ` +
+        `seconds in ${STUDIO_SWEEP_WINDOW_STEP_SEC_V2} second steps`,
     );
   }
 }
 
 function graphHistoryDepthV2(value: unknown, path: string): void {
   if (
-    !Number.isSafeInteger(value)
-    || (value as number) < STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2
-    || (value as number) > STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2
+    !Number.isSafeInteger(value) ||
+    (value as number) < STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2 ||
+    (value as number) > STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2
   ) {
     throw validationErrorV2(
       path,
-      `must be an integer from ${STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2} to `
-        + `${STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2}`,
+      `must be an integer from ${STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2} to ` +
+        `${STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2}`,
     );
   }
 }
@@ -1516,10 +1972,10 @@ function semanticPriorityV2(value: unknown, path: string): void {
 function isoTimestampV2(value: unknown, path: string): void {
   const parsed = typeof value === "string" ? Date.parse(value) : Number.NaN;
   if (
-    typeof value !== "string"
-    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
-    || !Number.isFinite(parsed)
-    || new Date(parsed).toISOString() !== value
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) ||
+    !Number.isFinite(parsed) ||
+    new Date(parsed).toISOString() !== value
   ) {
     throw validationErrorV2(
       path,
@@ -1537,10 +1993,7 @@ function clonePortableJsonV2(
   if (depth > MAXIMUM_JSON_DEPTH_V2) {
     throw validationErrorV2(path, "JSON nesting limit exceeded");
   }
-  if (
-    value === null
-    || typeof value === "boolean"
-  ) {
+  if (value === null || typeof value === "boolean") {
     return value;
   }
   if (typeof value === "string") {
@@ -1580,26 +2033,25 @@ function clonePortableJsonV2(
     }
     const clone: unknown[] = [];
     for (let index = 0; index < value.length; index += 1) {
-      const descriptor = Object.getOwnPropertyDescriptor(
-        value,
-        String(index),
-      );
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
       if (
-        descriptor === undefined
-        || !descriptor.enumerable
-        || !("value" in descriptor)
+        descriptor === undefined ||
+        !descriptor.enumerable ||
+        !("value" in descriptor)
       ) {
         throw validationErrorV2(
           `${path}[${index}]`,
           "JSON array entries must be enumerable data properties",
         );
       }
-      clone.push(clonePortableJsonV2(
-        descriptor.value,
-        `${path}[${index}]`,
-        nextAncestors,
-        depth + 1,
-      ));
+      clone.push(
+        clonePortableJsonV2(
+          descriptor.value,
+          `${path}[${index}]`,
+          nextAncestors,
+          depth + 1,
+        ),
+      );
     }
     return Object.freeze(clone);
   }
@@ -1617,9 +2069,9 @@ function clonePortableJsonV2(
     assertUnicodeScalarSequenceV2(key, `${path} property name`);
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     if (
-      descriptor === undefined
-      || !descriptor.enumerable
-      || !("value" in descriptor)
+      descriptor === undefined ||
+      !descriptor.enumerable ||
+      !("value" in descriptor)
     ) {
       throw validationErrorV2(
         `${path}.${key}`,
@@ -1641,10 +2093,7 @@ function clonePortableJsonV2(
   return Object.freeze(clone);
 }
 
-function assertUnicodeScalarSequenceV2(
-  value: string,
-  path: string,
-): void {
+function assertUnicodeScalarSequenceV2(value: string, path: string): void {
   for (let index = 0; index < value.length; index += 1) {
     const codeUnit = value.charCodeAt(index);
     if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {

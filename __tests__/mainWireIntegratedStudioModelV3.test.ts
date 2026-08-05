@@ -7,6 +7,7 @@ import {
 } from "vitest";
 
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3,
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
@@ -120,6 +121,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       MAIN_WIRE_INTEGRATED_STUDIO_DEFAULT_FIXTURE_V3,
     );
     expect(Object.keys(composition).sort()).toEqual([
+      "analysisExecutionPlan",
       "contract",
       "defaultFixture",
       "defaultModelId",
@@ -253,10 +255,13 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     })).resolves.toBe(1);
     expect(simulation.currentInputEpoch({ runtimeSessionId, scenarioId }))
       .toBe(1);
-    const resetFrame = simulation.currentFrame({ runtimeSessionId, scenarioId });
-    expect(resetFrame).toMatchObject({
-      acceptedRevision: 0,
-      acceptedTimeSec: 0,
+    const warmStartedFrame = simulation.currentFrame({
+      runtimeSessionId,
+      scenarioId,
+    });
+    expect(warmStartedFrame).toMatchObject({
+      acceptedRevision: advanced.acceptedRevision,
+      acceptedTimeSec: advanced.acceptedTimeSec,
       inputEpoch: 1,
     });
     advanced = await simulation.advanceOnePresentationStep({
@@ -264,7 +269,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       scenarioId,
     });
 
-    const captured = await composition.runtime.draftCapture
+    const captured = await composition.runtime.experimentCapture
       .captureAcceptedCandidate({
       experimentId: "experiment/v3-live",
       model,
@@ -285,6 +290,18 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     const checkpoint = captured.content.scenarios[0]!.capture.checkpoint;
     expect(checkpoint.acceptedRevision).toBe(advanced.acceptedRevision);
     expect(checkpoint.acceptedTimeSec).toBe(advanced.acceptedTimeSec);
+
+    const articleGateResult = await composition.runtime.snapshotGate
+      .qualifyFrozenCandidate({
+        purpose: "article",
+        model,
+        content: captured.content,
+      });
+    expect(articleGateResult.status).toBe("passed");
+    if (articleGateResult.status === "passed") {
+      expect(articleGateResult.qualifiedContent.scenarios[0]!.capture.checkpoint)
+        .toEqual(checkpoint);
+    }
 
     simulation.disposeSession(runtimeSessionId);
     await expect(simulation.createSession({
@@ -357,74 +374,77 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       fixture: MAIN_WIRE_INTEGRATED_STUDIO_DEFAULT_FIXTURE_V3,
     }]);
     const coldFrame = host.currentFrame(runtimeSessionId, scenarioId);
-    const coldAnalysis = host.requestAnalysis(
+    const coldAnalysis = await host.requestAnalysis(
       runtimeSessionId,
       scenarioId,
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
       coldFrame.inputEpoch,
       coldFrame.acceptedRevision,
       coldFrame.acceptedTimeSec,
+      "hypovolemic",
     );
     expect(coldAnalysis).toMatchObject({
-      analysisId:
-        MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-      sourceAcceptedRevision: 0,
-      sourceAcceptedTimeSec: 0,
-      payload: { status: "accepted-step-readback-required" },
-    });
-    expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(coldFrame);
-
-    const advanced = host.advanceOnePresentationStep(
-      runtimeSessionId,
-      scenarioId,
-    );
-    const result = host.requestAnalysis(
-      runtimeSessionId,
-      scenarioId,
-      MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-      advanced.inputEpoch,
-      advanced.acceptedRevision,
-      advanced.acceptedTimeSec,
-    );
-    expect(result).toMatchObject({
       modelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
       runtimeSessionId,
       scenarioId,
-      inputEpoch: advanced.inputEpoch,
-      sourceAcceptedRevision: advanced.acceptedRevision,
-      sourceAcceptedTimeSec: advanced.acceptedTimeSec,
+      inputEpoch: coldFrame.inputEpoch,
+      sourceAcceptedRevision: coldFrame.acceptedRevision,
+      sourceAcceptedTimeSec: coldFrame.acceptedTimeSec,
       analysisId:
         MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
       payload: {
         status: "available",
-        right: { curve: expect.any(Array) },
-        left: { curve: expect.any(Array) },
+        right: {
+          curve: expect.any(Array),
+          starlingLocus: {
+            status: "responsive-fixed-tbv-preview",
+            points: expect.arrayContaining([
+              expect.objectContaining({ settled: false }),
+            ]),
+          },
+        },
+        left: {
+          curve: expect.any(Array),
+          starlingLocus: {
+            status: "responsive-fixed-tbv-preview",
+            points: expect.any(Array),
+          },
+        },
       },
     });
-    expect(Object.isFrozen(result.payload)).toBe(true);
-    expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(advanced);
+    expect(Object.isFrozen(coldAnalysis.payload)).toBe(true);
+    expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(coldFrame);
 
-    expect(() => host.requestAnalysis(
+    await expect(host.requestAnalysis(
       runtimeSessionId,
       scenarioId,
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-      advanced.inputEpoch,
-      advanced.acceptedRevision - 1,
-      advanced.acceptedTimeSec,
-    )).toThrow(/clocks are stale/);
-    expect(() => host.requestAnalysis(
+      coldFrame.inputEpoch,
+      coldFrame.acceptedRevision + 1,
+      coldFrame.acceptedTimeSec,
+    )).rejects.toThrow(/clocks are stale/);
+    await expect(host.requestAnalysis(
       runtimeSessionId,
       scenarioId,
       "analysis/unknown",
-      advanced.inputEpoch,
-      advanced.acceptedRevision,
-      advanced.acceptedTimeSec,
-    )).toThrow(/not registered/);
-    expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(advanced);
+      coldFrame.inputEpoch,
+      coldFrame.acceptedRevision,
+      coldFrame.acceptedTimeSec,
+    )).rejects.toThrow(/not registered/);
+    await expect(host.requestAnalysis(
+      runtimeSessionId,
+      scenarioId,
+      MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+      coldFrame.inputEpoch,
+      coldFrame.acceptedRevision,
+      coldFrame.acceptedTimeSec,
+      "lateral",
+    )).rejects.toThrow(/partition is not registered/);
+    expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(coldFrame);
     host.closeSession(runtimeSessionId);
   }, 120_000);
 
-  it("applies controls as atomic cold resets and changes actual V3 outputs", async () => {
+  it("warm-starts controls atomically and changes actual V3 outputs", async () => {
     const host = new MainWireIntegratedStudioRuntimeHostV3();
     const runtimeSessionId = "session/v3-control-reset";
     const scenarioId = "scenario/research-input";
@@ -442,20 +462,20 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     ]!.value;
     expect(typeof baselineAoPressure).toBe("number");
 
-    const reset = await host.applyControl(
+    const warmed = await host.applyControl(
       runtimeSessionId,
       scenarioId,
       MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3.systemicResistance,
       1.1,
       0,
     );
-    expect(reset).toMatchObject({
-      transition: "reset",
+    expect(warmed).toMatchObject({
+      transition: "accepted-state-warm-start",
       inputEpoch: 1,
       frame: {
         inputEpoch: 1,
-        acceptedRevision: 0,
-        acceptedTimeSec: 0,
+        acceptedRevision: baseline.acceptedRevision,
+        acceptedTimeSec: baseline.acceptedTimeSec,
       },
     });
     expect(host.currentFixture(runtimeSessionId, scenarioId))
@@ -463,7 +483,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
         hemodynamicResearchInputs: { systemicResistance: 1.1 },
       });
 
-    let adjusted = reset.frame;
+    let adjusted = warmed.frame;
     for (let ordinal = 1; ordinal <= 500; ordinal += 1) {
       adjusted = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
       for (const output of Object.values(adjusted.outputs)) {
@@ -480,7 +500,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     }
     expect(adjusted).toMatchObject({
       inputEpoch: 1,
-      acceptedTimeSec: 1,
+      acceptedTimeSec: baseline.acceptedTimeSec + 1,
     });
 
     const beforeRejectedAction = host.currentFrame(
@@ -508,7 +528,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     host.closeSession(runtimeSessionId);
   }, 120_000);
 
-  it("cold-resets and emits finite accepted-step outputs at every registered control endpoint", async () => {
+  it("warm-starts every control endpoint and emits finite accepted-step outputs", async () => {
     const host = new MainWireIntegratedStudioRuntimeHostV3();
     const inputKeys = Object.keys(
       MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3,
@@ -531,20 +551,24 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
         fixture: MAIN_WIRE_INTEGRATED_STUDIO_DEFAULT_FIXTURE_V3,
       }]);
 
-      const reset = await host.applyControl(
+      let before = host.currentFrame(runtimeSessionId, scenarioId);
+      for (let ordinal = 1; ordinal <= 50; ordinal += 1) {
+        before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
+      }
+      const warmed = await host.applyControl(
         runtimeSessionId,
         scenarioId,
         endpoint.controlId,
         endpoint.value,
         0,
       );
-      expect(reset).toMatchObject({
-        transition: "reset",
+      expect(warmed).toMatchObject({
+        transition: "accepted-state-warm-start",
         inputEpoch: 1,
         frame: {
           inputEpoch: 1,
-          acceptedRevision: 0,
-          acceptedTimeSec: 0,
+          acceptedRevision: before.acceptedRevision,
+          acceptedTimeSec: before.acceptedTimeSec,
         },
       });
       expect(host.currentInputEpoch(runtimeSessionId, scenarioId)).toBe(1);
@@ -553,10 +577,10 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
           .hemodynamicResearchInputs[endpoint.inputKey],
       ).toBe(endpoint.value);
       expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(
-        reset.frame,
+        warmed.frame,
       );
 
-      let frame = reset.frame;
+      let frame = warmed.frame;
       for (let ordinal = 1; ordinal <= 50; ordinal += 1) {
         frame = host.advanceOnePresentationStep(
           runtimeSessionId,
@@ -565,12 +589,22 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       }
       expect(frame).toMatchObject({
         inputEpoch: 1,
-        acceptedTimeSec: 0.1,
+        acceptedTimeSec: before.acceptedTimeSec + 0.1,
       });
       for (const output of Object.values(frame.outputs)) {
-        expect(output.availability).toBe("available");
-        expect(typeof output.value).toBe("number");
-        expect(Number.isFinite(output.value)).toBe(true);
+        const definition = MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.find(
+          ({ outputId }) => outputId === output.outputId,
+        )!;
+        if (definition.kind === "metric") {
+          expect(output).toMatchObject({
+            value: null,
+            availability: "not-evaluated-at-accepted-state",
+          });
+        } else {
+          expect(output.availability).toBe("available");
+          expect(typeof output.value).toBe("number");
+          expect(Number.isFinite(output.value)).toBe(true);
+        }
       }
 
       host.closeSession(runtimeSessionId);
@@ -619,7 +653,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     }
   }, 120_000);
 
-  it("pins reset-only controls without introducing a durable ParameterSet", () => {
+  it("pins warm-start controls without introducing a durable ParameterSet", () => {
     const modelPackage = createMainWireIntegratedStudioModelPackageV3();
 
     expect(modelPackage.manifest.runtime.numericalSessionId).toBe(
@@ -631,13 +665,16 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
         changeSemantics,
       }),
     )).toEqual(Object.values(MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3).map(
-      (controlId) => ({ controlId, changeSemantics: "reset" }),
+      (controlId) => ({
+        controlId,
+        changeSemantics: "accepted-state-warm-start",
+      }),
     ));
     expect("parameterCatalog" in modelPackage.manifest.catalogs).toBe(false);
     expect(JSON.stringify(modelPackage.manifest)).not.toMatch(/ParameterSet/);
-    expect(modelPackage.manifest.catalogs.graphCatalog).toHaveLength(7);
+    expect(modelPackage.manifest.catalogs.graphCatalog).toHaveLength(4);
     expect(modelPackage.manifest.catalogs.graphCatalog[0]).toMatchObject({
-      graphId: "hemodynamics.pressure.left-heart",
+      graphId: "hemodynamics.pressure.waveform",
       renderer: "sweep",
       defaultSeriesIds: ["LVP", "LAP", "AoP"],
       seriesCatalog: [
@@ -656,6 +693,46 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
           seriesId: "AoP",
           outputId: "hemodynamics.pressure.absolute.Ao",
         },
+        {
+          kind: "scalar",
+          seriesId: "RAP",
+          outputId: "hemodynamics.pressure.absolute.RA",
+        },
+        {
+          kind: "scalar",
+          seriesId: "RVP",
+          outputId: "hemodynamics.pressure.absolute.RV",
+        },
+        {
+          kind: "scalar",
+          seriesId: "PAP",
+          outputId: "hemodynamics.pressure.absolute.PA",
+        },
+        {
+          kind: "scalar",
+          seriesId: "PVeinP",
+          outputId: "hemodynamics.pressure.absolute.PVein",
+        },
+        {
+          kind: "scalar",
+          seriesId: "VCP",
+          outputId: "hemodynamics.pressure.absolute.VC",
+        },
+        {
+          kind: "scalar",
+          seriesId: "Pperi",
+          outputId: "pericardium.pressure.excess",
+        },
+        {
+          kind: "scalar",
+          seriesId: "Ppl",
+          outputId: "respiration.pressure.pleural",
+        },
+        {
+          kind: "scalar",
+          seriesId: "Palv",
+          outputId: "respiration.pressure.alveolar",
+        },
       ],
     });
     expect(modelPackage.manifest.catalogs.graphCatalog.filter(
@@ -672,7 +749,6 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
           pressureOutputId: "hemodynamics.pressure.transmural.LV",
           pressureBasis: "transmural",
           cyclePhaseOutputId: "rhythm.phase.regular-sinus",
-          guideMode: "lv-single-beat-orientation",
         },
         {
           kind: "pressure-volume",
@@ -681,7 +757,6 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
           pressureOutputId: "hemodynamics.pressure.transmural.RV",
           pressureBasis: "transmural",
           cyclePhaseOutputId: "rhythm.phase.regular-sinus",
-          guideMode: "none",
         },
         {
           kind: "pressure-volume",
@@ -690,7 +765,6 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
           pressureOutputId: "hemodynamics.pressure.transmural.RA",
           pressureBasis: "transmural",
           cyclePhaseOutputId: "rhythm.phase.regular-sinus",
-          guideMode: "none",
         },
         {
           kind: "pressure-volume",
@@ -699,28 +773,18 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
           pressureOutputId: "hemodynamics.pressure.transmural.LA",
           pressureBasis: "transmural",
           cyclePhaseOutputId: "rhythm.phase.regular-sinus",
-          guideMode: "none",
         },
       ],
     }]);
     expect(modelPackage.manifest.catalogs.graphCatalog.filter(
       ({ renderer }) => renderer === "structural-return",
-    )).toEqual([
-      {
-        graphId: "hemodynamics.structural-return.systemic",
-        renderer: "structural-return",
-        analysisId:
-          MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-        side: "right",
-      },
-      {
-        graphId: "hemodynamics.structural-return.pulmonary",
-        renderer: "structural-return",
-        analysisId:
-          MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-        side: "left",
-      },
-    ]);
+    )).toEqual([{
+      graphId: "hemodynamics.guyton-starling",
+      renderer: "structural-return",
+      analysisId:
+        MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+      side: "both",
+    }]);
   });
 });
 

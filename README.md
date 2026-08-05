@@ -23,15 +23,19 @@ Studio のデータ構造と所有境界は
 ```text
 RegisteredModel(modelId)
 
-ExperimentWorkspace (mutable)
+ExperimentSession (ephemeral, mutable; operated in Workbench)
   └─ ExperimentContent
        ├─ ScenarioCapture[] = fixture + checkpoint
-       └─ ExperimentSurface = graphs + readouts + controls + one note
+       └─ ExperimentSurface = graphs + outputs + controls + one note
 
-ExperimentSnapshot (immutable)
-ExperimentPlacement (pins one snapshot)
+Experiment (explicitly saved, mutable by version-checked Save)
+  └─ ExperimentContent
 
-SimulationSession / preview cache (ephemeral)
+ExperimentSnapshot (immutable, qualified)
+  ├─ PublicationSnapshot = complete content
+  └─ ArticleSnapshot = complete content + Briefing
+
+ExperimentPlacement = snapshotId + caption
 ```
 
 主な判断:
@@ -42,12 +46,15 @@ SimulationSession / preview cache (ephemeral)
   registry を信頼する
 - parameter変更 action はfixtureへ反映された時点で役目を終え、durable
   `ParameterSet` は作らない
-- Preset、Draft、Snapshot の Scenario は `fixture + checkpoint` を一体で持つ
-- Draft は未settledでも保存でき、Snapshot作成時だけsettlementとminimum
+- Preset、Experiment、Snapshot の Scenario は `fixture + checkpoint` を一体で持つ
+- Experiment は未settledでも保存でき、Snapshot作成時だけsettlementとminimum
   numerical gateを要求する
 - immutable版は数値revisionではなく`snapshotId`で識別する
-- `parentSnapshotId`はlineageだけを表し、自動継承しない
-- 記事内PlacementはSnapshotを直接pinする
+- Snapshotはsource/parent/head lineageを持たない
+- 記事内PlacementはBriefingを内包したArticle Snapshotを直接pinする
+- `/experiments/new`はIDを持たず、最初の明示Save成功時だけ`experimentId`を発行する
+- Snapshot/PV/Starlingはatomic capture後すぐliveを再開し、上限付きwarm Worker poolで処理する
+- Workbenchを開くだけではMy Experimentsへ保存しない
 - settlement、numerical health、input epoch、live samplesは永続化しない
 
 ## V3直接切り替えの現在地
@@ -91,9 +98,8 @@ V3統合に必要な数値実装、verification、研究artifactが含まれま�
 digestや算出結果をExperimentへコピーしません。
 
 現在のWorkbenchは登録済みexact V3 development packageを実際にstepする
-開発surfaceです。Parameter catalogとdurable `ParameterSet`はなく、登録済み
-Control catalogはsystemic/pulmonary resistance、venous tone、arterial
-stiffnessの4つのnumeric reset controlを公開します。engine側の
+開発surfaceです。durable `ParameterSet`はなく、登録済みControl catalogが
+authoring可能なparameterを公開します。engine側の
 `releaseReady` / `simulationReady` claimはfalseのままです。
 
 ## 重要: 研究・教育目的のみ

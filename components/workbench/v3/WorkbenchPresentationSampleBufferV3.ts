@@ -7,8 +7,12 @@ export const WORKBENCH_PRESENTATION_SAMPLE_CAPACITY_V3 = 384;
 export type WorkbenchPresentationEnvelopeV3 = Readonly<{
   bucketOrdinal: number;
   sourceSampleCount: number;
+  firsts: Readonly<Record<string, number>>;
   minimums: Readonly<Record<string, number>>;
   maximums: Readonly<Record<string, number>>;
+  firstPresentationTimesSec: Readonly<Record<string, number>>;
+  minimumPresentationTimesSec: Readonly<Record<string, number>>;
+  maximumPresentationTimesSec: Readonly<Record<string, number>>;
 }>;
 
 export type WorkbenchPresentationSampleV3 = WorkbenchScalarSampleV3 & Readonly<{
@@ -25,9 +29,11 @@ export type WorkbenchPresentationBufferOptionsV3 = Readonly<{
  * Reduces exact accepted Worker samples to a bounded visual buffer.
  *
  * Each retained point is an actual accepted sample (the bucket terminal
- * state). Per-output minima/maxima retain a scientifically neutral sweep
- * envelope for excursions between representative states. Spatial orbit panes
- * such as PV use WorkbenchExactOrbitSampleBufferV3 instead; exact
+ * state). Per-output bucket starts and extrema retain both their value and
+ * exact presentation time. The waveform renderer can therefore restore a
+ * bounded first/min/max/last polyline in causal order instead of drawing
+ * misleading vertical whiskers at the bucket terminal time. Spatial orbit
+ * panes such as PV use WorkbenchExactOrbitSampleBufferV3 instead; exact
  * checkpoint/capture ownership remains entirely in the Worker.
  */
 export function appendWorkbenchPresentationSamplesV3(
@@ -94,14 +100,25 @@ function createPresentationBucketV3(
   sample: WorkbenchScalarSampleV3,
   bucketOrdinal: number,
 ): WorkbenchPresentationSampleV3 {
-  const { minimums, maximums } = scalarExtremaV3(sample.values);
+  const {
+    firsts,
+    minimums,
+    maximums,
+    firstPresentationTimesSec,
+    minimumPresentationTimesSec,
+    maximumPresentationTimesSec,
+  } = scalarExtremaV3(sample);
   return Object.freeze({
     ...sample,
     presentationEnvelope: Object.freeze({
       bucketOrdinal,
       sourceSampleCount: 1,
+      firsts,
       minimums,
       maximums,
+      firstPresentationTimesSec,
+      minimumPresentationTimesSec,
+      maximumPresentationTimesSec,
     }),
   });
 }
@@ -116,41 +133,66 @@ function mergePresentationBucketV3(
   const maximums: Record<string, number> = {
     ...current.presentationEnvelope.maximums,
   };
+  const minimumPresentationTimesSec: Record<string, number> = {
+    ...current.presentationEnvelope.minimumPresentationTimesSec,
+  };
+  const maximumPresentationTimesSec: Record<string, number> = {
+    ...current.presentationEnvelope.maximumPresentationTimesSec,
+  };
   for (const [outputId, value] of Object.entries(sample.values)) {
     if (typeof value !== "number" || !Number.isFinite(value)) continue;
-    minimums[outputId] = minimums[outputId] === undefined
-      ? value
-      : Math.min(minimums[outputId], value);
-    maximums[outputId] = maximums[outputId] === undefined
-      ? value
-      : Math.max(maximums[outputId], value);
+    if (minimums[outputId] === undefined || value < minimums[outputId]) {
+      minimums[outputId] = value;
+      minimumPresentationTimesSec[outputId] = sample.presentationTimeSec;
+    }
+    if (maximums[outputId] === undefined || value > maximums[outputId]) {
+      maximums[outputId] = value;
+      maximumPresentationTimesSec[outputId] = sample.presentationTimeSec;
+    }
   }
   return Object.freeze({
     ...sample,
     presentationEnvelope: Object.freeze({
       bucketOrdinal: current.presentationEnvelope.bucketOrdinal,
       sourceSampleCount: current.presentationEnvelope.sourceSampleCount + 1,
+      firsts: current.presentationEnvelope.firsts,
       minimums: Object.freeze(minimums),
       maximums: Object.freeze(maximums),
+      firstPresentationTimesSec:
+        current.presentationEnvelope.firstPresentationTimesSec,
+      minimumPresentationTimesSec:
+        Object.freeze(minimumPresentationTimesSec),
+      maximumPresentationTimesSec:
+        Object.freeze(maximumPresentationTimesSec),
     }),
   });
 }
 
 function scalarExtremaV3(
-  values: Readonly<Record<string, number | null>>,
+  sample: WorkbenchScalarSampleV3,
 ): Readonly<{
+  firsts: Readonly<Record<string, number>>;
   minimums: Readonly<Record<string, number>>;
   maximums: Readonly<Record<string, number>>;
+  firstPresentationTimesSec: Readonly<Record<string, number>>;
+  minimumPresentationTimesSec: Readonly<Record<string, number>>;
+  maximumPresentationTimesSec: Readonly<Record<string, number>>;
 }> {
   const finite: Record<string, number> = {};
-  for (const [outputId, value] of Object.entries(values)) {
+  const times: Record<string, number> = {};
+  for (const [outputId, value] of Object.entries(sample.values)) {
     if (typeof value === "number" && Number.isFinite(value)) {
       finite[outputId] = value;
+      times[outputId] = sample.presentationTimeSec;
     }
   }
   return Object.freeze({
+    firsts: Object.freeze({ ...finite }),
     minimums: Object.freeze({ ...finite }),
     maximums: Object.freeze(finite),
+    firstPresentationTimesSec: Object.freeze({ ...times }),
+    minimumPresentationTimesSec: Object.freeze({ ...times }),
+    maximumPresentationTimesSec: Object.freeze(times),
   });
 }
 

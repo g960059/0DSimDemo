@@ -28,7 +28,8 @@ therefore has one direct cutover. The exact integrated V3 development package
 is registered, resolved as the default, and running through persistent Scenario
 Workers. Workbench Save, minimum-gated Snapshot creation, repeated pinned
 Snapshot placement, role-specific Article Editor, canonical resource routes,
-and the pinned-Snapshot Reader are connected. Reader now includes borderless
+the ID-less `/experiments/new` first-Save transition, on-demand background
+qualification pool, and the pinned-Snapshot Reader are connected. Reader now includes borderless
 inflow, graph-count right peek/fullscreen, mobile graph swipe, one-live
 scheduling, play/pause, and explicit control binding. The remaining sequence
 is:

@@ -3,6 +3,10 @@ import React from "react";
 import type {
   PressureVolumePressureBasisV2,
 } from "@/studio/contracts/v2/model";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_RAPID_PRESSURE_VOLUME_RELATION_SEMANTICS_V3,
+  type MainWireIntegratedModelRapidPressureVolumeRelationV3,
+} from "@/engine/myocardium/MainWireIntegratedModelRapidPressureVolumeRelationV3";
 
 import {
   finiteWorkbenchScalarValueV3,
@@ -10,21 +14,28 @@ import {
   type WorkbenchScalarSampleV3,
 } from "./WorkbenchScalarSampleV3";
 import {
-  observedNumericDomainV3,
   positiveModuloV3,
-  type WorkbenchNumericDomainV3,
 } from "./SweepingWaveformCanvasV3";
 import {
   scaleLinearV3,
   useResponsiveCanvasFrameV3,
 } from "./WorkbenchCanvasRuntimeV3";
 import {
-  WorkbenchChartTwoAxisLegendV3,
-  buildWorkbenchScenarioLegendItemsV3,
-  buildWorkbenchTraceColorLegendItemsV3,
+  WorkbenchChartLegendV3,
+  buildWorkbenchTraceLegendModelV3,
   workbenchHistoryAlphaV3,
+  workbenchLegendTraceAlphaV3,
+  workbenchLegendTraceHiddenV3,
+  workbenchTraceLegendKeyV3,
+  type WorkbenchChartLegendSelectionV3,
   type WorkbenchScenarioTraceIdentityV3,
 } from "./WorkbenchChartTraceStyleV3";
+import {
+  nextStableNumericDomainStateV3,
+  numericTicksV3,
+  type WorkbenchNumericDomainV3,
+  type WorkbenchStableNumericDomainStateV3,
+} from "./WorkbenchStableChartDomainV3";
 
 export type WorkbenchPvPressureBasisV3 = PressureVolumePressureBasisV2;
 
@@ -38,9 +49,12 @@ export type WorkbenchPressureVolumeTraceV3 =
     cyclePhaseOutputId: string;
     chamberId: string;
     chamberLabel: string;
-    /** Stable per chamber, independent of Scenario. */
+    /** Final resolved trace color from the automatic comparison strategy. */
     chamberColor: string;
-    showSingleBeatOrientationGuides?: boolean;
+    rapidPressureVolumeRelation?:
+      MainWireIntegratedModelRapidPressureVolumeRelationV3;
+    rapidPressureVolumeRelationHistory?: readonly MainWireIntegratedModelRapidPressureVolumeRelationV3[];
+    rapidPressureVolumeRelationPending?: boolean;
   }>;
 
 export type WorkbenchPvPointV3 = Readonly<{
@@ -57,26 +71,13 @@ export type WorkbenchLivePvTrajectoryV3 = Readonly<{
   liveSegment: readonly WorkbenchPvPointV3[];
 }>;
 
-export type WorkbenchPvGuidePointV3 = Readonly<{
+export type WorkbenchPvRelationPointV3 = Readonly<{
   volumeMl: number;
   pressureMmHg: number;
 }>;
 
-export const SINGLE_BEAT_PV_ORIENTATION_SEMANTICS_V3 =
-  "single-beat-orientation-references-not-formal-pressure-volume-relations" as const;
-
-export type SingleBeatPvOrientationGuidesV3 = Readonly<{
-  semantics: typeof SINGLE_BEAT_PV_ORIENTATION_SEMANTICS_V3;
-  pressureBasis: "transmural";
-  endSystolicRadialReference: readonly WorkbenchPvGuidePointV3[];
-  klotzInformedDiastolicReference: readonly WorkbenchPvGuidePointV3[];
-  systolicReferenceContact: WorkbenchPvGuidePointV3;
-  maximumVolumeContact: WorkbenchPvGuidePointV3;
-}>;
-
 export type WorkbenchHistoricalPvProjectionV3 = Readonly<{
   completedBeat: readonly WorkbenchPvPointV3[];
-  orientationGuides: SingleBeatPvOrientationGuidesV3 | null;
 }>;
 
 export type CompleteCycleRangeV3 = Readonly<{
@@ -87,8 +88,6 @@ export type CompleteCycleRangeV3 = Readonly<{
 const CYCLE_PHASE_EPSILON_V3 = 1e-6;
 const CYCLE_START_TOLERANCE_V3 = 0.03;
 const MINIMUM_COMPLETE_CYCLE_PHASE_SPAN_V3 = 0.8;
-const KLOTZ_NORMALIZED_PRESSURE_MMHG_V3 = 28.2;
-const KLOTZ_NORMALIZED_EXPONENT_V3 = 2.79;
 const HISTORICAL_PV_PROJECTION_CACHE_V3 = new WeakMap<
   readonly WorkbenchScalarSampleV3[],
   Map<string, WorkbenchHistoricalPvProjectionV3>
@@ -187,15 +186,11 @@ export function projectHistoricalPvEpochV3(
   volumeOutputId: string,
   pressureOutputId: string,
   cyclePhaseOutputId: string,
-  pressureBasis: WorkbenchPvPressureBasisV3,
-  showSingleBeatOrientationGuides: boolean,
 ): WorkbenchHistoricalPvProjectionV3 {
   const cacheKey = JSON.stringify([
     volumeOutputId,
     pressureOutputId,
     cyclePhaseOutputId,
-    pressureBasis,
-    showSingleBeatOrientationGuides,
   ]);
   if (Object.isFrozen(samples)) {
     const cached = HISTORICAL_PV_PROJECTION_CACHE_V3
@@ -209,12 +204,7 @@ export function projectHistoricalPvEpochV3(
     pressureOutputId,
     cyclePhaseOutputId,
   );
-  const projection = Object.freeze({
-    completedBeat,
-    orientationGuides: showSingleBeatOrientationGuides
-      ? buildSingleBeatPvOrientationGuidesV3(completedBeat, pressureBasis)
-      : null,
-  });
+  const projection = Object.freeze({ completedBeat });
   if (Object.isFrozen(samples)) {
     let cache = HISTORICAL_PV_PROJECTION_CACHE_V3.get(samples);
     if (cache === undefined) {
@@ -260,6 +250,76 @@ export function extractLivePvTrajectoryV3(
         cyclePhaseOutputId,
       );
   return Object.freeze({ completedBeat, liveSegment });
+}
+
+/**
+ * Uses the previous completed orbit as a phase-aware back buffer. The live
+ * prefix replaces only the phase it has already traversed, leaving one
+ * continuous, full-opacity loop without an arbitrary alpha seam at its head.
+ */
+export function buildPvBackBufferRemainderV3(
+  completedBeat: readonly WorkbenchPvPointV3[],
+  liveSegment: readonly WorkbenchPvPointV3[],
+): readonly WorkbenchPvPointV3[] {
+  if (completedBeat.length === 0) return Object.freeze([]);
+  if (liveSegment.length === 0) return completedBeat;
+  const liveStart = liveSegment[0]!;
+  const liveHead = liveSegment.at(-1)!;
+  const headProgress = positiveModuloV3(
+    liveHead.cyclePhase01 - liveStart.cyclePhase01,
+    1,
+  );
+  if (headProgress <= CYCLE_PHASE_EPSILON_V3) return completedBeat;
+
+  const progress = unwrappedPvCycleProgressV3(completedBeat);
+  const lastProgress = progress.at(-1) ?? 0;
+  if (headProgress >= lastProgress - CYCLE_PHASE_EPSILON_V3) {
+    return Object.freeze([]);
+  }
+  let nextIndex = progress.findIndex((value) =>
+    value + CYCLE_PHASE_EPSILON_V3 >= headProgress);
+  if (nextIndex < 0) return Object.freeze([]);
+  if (
+    Math.abs(progress[nextIndex]! - headProgress) <= CYCLE_PHASE_EPSILON_V3
+  ) {
+    return Object.freeze(completedBeat.slice(nextIndex));
+  }
+  const previousIndex = Math.max(0, nextIndex - 1);
+  const previousProgress = progress[previousIndex]!;
+  const nextProgress = progress[nextIndex]!;
+  const span = Math.max(CYCLE_PHASE_EPSILON_V3, nextProgress - previousProgress);
+  const ratio = clampV3((headProgress - previousProgress) / span, 0, 1);
+  const previousPoint = completedBeat[previousIndex]!;
+  const nextPoint = completedBeat[nextIndex]!;
+  const interpolated = Object.freeze({
+    acceptedTimeSec: previousPoint.acceptedTimeSec
+      + ratio * (nextPoint.acceptedTimeSec - previousPoint.acceptedTimeSec),
+    cyclePhase01: liveHead.cyclePhase01,
+    volumeMl: previousPoint.volumeMl
+      + ratio * (nextPoint.volumeMl - previousPoint.volumeMl),
+    pressureMmHg: previousPoint.pressureMmHg
+      + ratio * (nextPoint.pressureMmHg - previousPoint.pressureMmHg),
+  });
+  return Object.freeze([interpolated, ...completedBeat.slice(nextIndex)]);
+}
+
+function unwrappedPvCycleProgressV3(
+  points: readonly WorkbenchPvPointV3[],
+): readonly number[] {
+  if (points.length === 0) return Object.freeze([]);
+  const firstPhase = points[0]!.cyclePhase01;
+  let previousPhase = firstPhase;
+  let wraps = 0;
+  return Object.freeze(points.map((point, index) => {
+    if (
+      index > 0
+      && point.cyclePhase01 + CYCLE_PHASE_EPSILON_V3 < previousPhase
+    ) {
+      wraps += 1;
+    }
+    previousPhase = point.cyclePhase01;
+    return point.cyclePhase01 - firstPhase + wraps;
+  }));
 }
 
 function latestPvCycleStartIndexV3(
@@ -326,131 +386,9 @@ function extractPvPointsV3(
   return Object.freeze(points);
 }
 
-/**
- * Creates familiar single-beat orientation guides. It intentionally fails
- * closed for intracavitary pressure because both formulas require transmural
- * pressure. The result is never a formal multi-load ESPVR/EDPVR fit.
- */
-export function buildSingleBeatPvOrientationGuidesV3(
-  beat: readonly WorkbenchPvPointV3[],
-  pressureBasis: WorkbenchPvPressureBasisV3,
-): SingleBeatPvOrientationGuidesV3 | null {
-  if (pressureBasis !== "transmural" || beat.length < 3) return null;
-  const finite = beat.filter((point) =>
-    Number.isFinite(point.volumeMl)
-    && Number.isFinite(point.pressureMmHg)
-    && point.volumeMl > 1e-6);
-  if (finite.length < 3) return null;
-  const maximumPressure = Math.max(...finite.map(({ pressureMmHg }) =>
-    pressureMmHg));
-  const maximumVolume = Math.max(...finite.map(({ volumeMl }) => volumeMl));
-  const systolicCandidates = finite.filter((point) =>
-    point.pressureMmHg > 0
-    && point.pressureMmHg >= 0.5 * maximumPressure
-    && point.volumeMl <= 0.98 * maximumVolume);
-  const systolicReference = maximumByV3(
-    systolicCandidates.length > 0 ? systolicCandidates : finite,
-    (point) => point.pressureMmHg / point.volumeMl,
-  );
-  const maximumVolumeReference = maximumByV3(
-    finite,
-    (point) => point.volumeMl - Math.max(0, point.pressureMmHg) * 1e-9,
-  );
-  if (
-    systolicReference === null
-    || maximumVolumeReference === null
-    || !(systolicReference.pressureMmHg > 0)
-    || !(maximumVolumeReference.pressureMmHg > 0)
-    || !(maximumVolumeReference.pressureMmHg < 30)
-  ) return null;
-
-  // Origin-to-contact is an explicit radial display convention. It is not a
-  // fitted V0 or a single-beat/multi-load ESPVR estimator.
-  const orientationElastance = systolicReference.pressureMmHg
-    / systolicReference.volumeMl;
-  const radialEndVolumeMl = Math.max(
-    maximumVolume * 1.15,
-    systolicReference.volumeMl * 1.2,
-  );
-  const endSystolicRadialReference = sampleGuideCurveV3(
-    0,
-    radialEndVolumeMl,
-    (volumeMl) => orientationElastance * volumeMl,
-    64,
-  );
-
-  // Klotz-informed normalized filling guide, anchored at this beat's
-  // maximum-volume point. The model does not yet emit a formal ED event, so
-  // this is a presentation reference rather than an EDPVR estimate.
-  const diastolicV0Ml = clampV3(
-    maximumVolumeReference.volumeMl
-      * (0.6 - 0.006 * maximumVolumeReference.pressureMmHg),
-    0,
-    Math.max(0, maximumVolumeReference.volumeMl - 1e-6),
-  );
-  const diastolicSpanMl = Math.max(
-    1e-6,
-    maximumVolumeReference.volumeMl - diastolicV0Ml,
-  );
-  const diastolicV30Ml = diastolicV0Ml + diastolicSpanMl
-    / Math.pow(
-      maximumVolumeReference.pressureMmHg
-        / KLOTZ_NORMALIZED_PRESSURE_MMHG_V3,
-      1 / KLOTZ_NORMALIZED_EXPONENT_V3,
-    );
-  const diastolicV30SpanMl = Math.max(
-    1e-6,
-    diastolicV30Ml - diastolicV0Ml,
-  );
-  const diastolicEndVolumeMl = Math.max(
-    maximumVolumeReference.volumeMl * 1.12,
-    Math.min(
-      maximumVolumeReference.volumeMl * 1.28,
-      diastolicV0Ml + diastolicSpanMl
-        * Math.pow(
-          Math.max(30, maximumVolumeReference.pressureMmHg * 2.4)
-            / maximumVolumeReference.pressureMmHg,
-          1 / KLOTZ_NORMALIZED_EXPONENT_V3,
-        ),
-    ),
-  );
-  const klotzInformedDiastolicReference = sampleGuideCurveV3(
-    diastolicV0Ml,
-    diastolicEndVolumeMl,
-    (volumeMl) => KLOTZ_NORMALIZED_PRESSURE_MMHG_V3
-      * Math.pow(
-        Math.max(0, (volumeMl - diastolicV0Ml) / diastolicV30SpanMl),
-        KLOTZ_NORMALIZED_EXPONENT_V3,
-      ),
-    64,
-  );
-
-  const systolicReferenceContact = Object.freeze({
-    volumeMl: systolicReference.volumeMl,
-    pressureMmHg: systolicReference.pressureMmHg,
-  });
-  const maximumVolumeContact = Object.freeze({
-    volumeMl: maximumVolumeReference.volumeMl,
-    pressureMmHg: maximumVolumeReference.pressureMmHg,
-  });
-  return Object.freeze({
-    semantics: SINGLE_BEAT_PV_ORIENTATION_SEMANTICS_V3,
-    pressureBasis: "transmural" as const,
-    endSystolicRadialReference: withExactContactV3(
-      endSystolicRadialReference,
-      systolicReferenceContact,
-    ),
-    klotzInformedDiastolicReference: withExactContactV3(
-      klotzInformedDiastolicReference,
-      maximumVolumeContact,
-    ),
-    systolicReferenceContact,
-    maximumVolumeContact,
-  });
-}
-
 type PressureVolumeLoopCanvasCommonPropsV3 = Readonly<{
   className?: string;
+  analysisMode?: "responsive-preview" | "formal-periodic";
 }>;
 
 export type PressureVolumeLoopCanvasPropsV3 =
@@ -464,7 +402,6 @@ export type PressureVolumeLoopCanvasPropsV3 =
         cyclePhaseOutputId?: never;
         chamberLabel?: never;
         color?: never;
-        showSingleBeatOrientationGuides?: never;
       }>
     | Readonly<{
         /** @deprecated Prefer one descriptor per Scenario/chamber in traces. */
@@ -475,7 +412,6 @@ export type PressureVolumeLoopCanvasPropsV3 =
         cyclePhaseOutputId: string;
         chamberLabel?: string;
         color?: string;
-        showSingleBeatOrientationGuides?: boolean;
         traces?: undefined;
       }>
   );
@@ -486,6 +422,17 @@ export function PressureVolumeLoopCanvasV3(
   const { className } = props;
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const volumeDomainStateRef = React.useRef<
+    WorkbenchStableNumericDomainStateV3 | null
+  >(null);
+  const pressureDomainStateRef = React.useRef<
+    WorkbenchStableNumericDomainStateV3 | null
+  >(null);
+  const [hoveredLegendSelection, setHoveredLegendSelection] =
+    React.useState<WorkbenchChartLegendSelectionV3 | null>(null);
+  const [hiddenLegendSelections, setHiddenLegendSelections] =
+    React.useState<readonly WorkbenchChartLegendSelectionV3[]>([]);
+  const legendSelection = hoveredLegendSelection;
   const traces = React.useMemo<readonly WorkbenchPressureVolumeTraceV3[]>(
     () => {
       if (props.traces !== undefined) return props.traces;
@@ -502,8 +449,6 @@ export function PressureVolumeLoopCanvasV3(
         chamberId: chamberLabel.toLowerCase(),
         chamberLabel,
         chamberColor: props.color ?? "#a78bfa",
-        showSingleBeatOrientationGuides:
-          props.showSingleBeatOrientationGuides ?? true,
       })]);
     }, [
       props.chamberLabel,
@@ -512,19 +457,17 @@ export function PressureVolumeLoopCanvasV3(
       props.pressureBasis,
       props.pressureOutputId,
       props.samples,
-      props.showSingleBeatOrientationGuides,
       props.traces,
       props.volumeOutputId,
     ],
   );
-  const scenarioLegendItems = React.useMemo(
-    () => buildWorkbenchScenarioLegendItemsV3(traces),
-    [traces],
-  );
-  const colorLegendItems = React.useMemo(
-    () => buildWorkbenchTraceColorLegendItemsV3(traces.map((trace) => ({
-      colorKey: trace.chamberId,
-      label: trace.chamberLabel,
+  const legendModel = React.useMemo(
+    () => buildWorkbenchTraceLegendModelV3(traces.map((trace) => ({
+      traceKey: workbenchTraceLegendKeyV3(trace.scenarioId, trace.chamberId),
+      scenarioId: trace.scenarioId,
+      scenarioLabel: trace.scenarioLabel,
+      itemId: trace.chamberId,
+      itemLabel: trace.chamberLabel,
       color: trace.chamberColor,
     }))),
     [traces],
@@ -536,14 +479,13 @@ export function PressureVolumeLoopCanvasV3(
       trace.pressureOutputId,
       trace.cyclePhaseOutputId,
     );
-    const lineDash = scenarioLegendItems.find((item) =>
-      item.scenarioId === trace.scenarioId)?.lineDash ?? Object.freeze([]);
-    const orientationGuides = trace.showSingleBeatOrientationGuides === true
-      ? buildSingleBeatPvOrientationGuidesV3(
-          trajectory.completedBeat,
-          trace.pressureBasis,
-        )
-      : null;
+    const rapidRelation =
+      trace.rapidPressureVolumeRelation?.status === "complete-preview"
+      || trace.rapidPressureVolumeRelation?.status === "collecting-preview"
+      || trace.rapidPressureVolumeRelation?.status === "complete-formal"
+      || trace.rapidPressureVolumeRelation?.status === "collecting-formal"
+        ? trace.rapidPressureVolumeRelation
+        : null;
     const history = Object.freeze((trace.historySampleSets ?? []).map(
       (samples, historyIndex, all) => {
         const projection = projectHistoricalPvEpochV3(
@@ -551,8 +493,6 @@ export function PressureVolumeLoopCanvasV3(
           trace.volumeOutputId,
           trace.pressureOutputId,
           trace.cyclePhaseOutputId,
-          trace.pressureBasis,
-          trace.showSingleBeatOrientationGuides === true,
         );
         return Object.freeze({
           ...projection,
@@ -563,11 +503,60 @@ export function PressureVolumeLoopCanvasV3(
     return Object.freeze({
       trace,
       ...trajectory,
-      lineDash,
-      orientationGuides,
+      backBufferRemainder: buildPvBackBufferRemainderV3(
+        trajectory.completedBeat,
+        trajectory.liveSegment,
+      ),
+      rapidRelation,
+      rapidRelationHistory: Object.freeze(
+        (trace.rapidPressureVolumeRelationHistory ?? []).flatMap(
+          (relation, historyIndex, all) =>
+            relation.status === "complete-preview"
+              || relation.status === "collecting-preview"
+              || relation.status === "complete-formal"
+              || relation.status === "collecting-formal"
+              ? [Object.freeze({
+                  relation,
+                  alpha: workbenchHistoryAlphaV3(historyIndex, all.length),
+                })]
+              : [],
+        ),
+      ),
       history,
     });
-  }), [scenarioLegendItems, traces]);
+  }), [traces]);
+  const visibleRenderedTraces = React.useMemo(
+    () => renderedTraces.filter(({ trace }) =>
+      !workbenchLegendTraceHiddenV3(
+        hiddenLegendSelections,
+        pvLegendDescriptorV3(trace),
+      )),
+    [hiddenLegendSelections, renderedTraces],
+  );
+  const domainIdentity = traces.map((trace) => [
+    trace.scenarioId,
+    trace.chamberId,
+    trace.volumeOutputId,
+    trace.pressureOutputId,
+    trace.pressureBasis,
+  ].join(":"))
+    .join("\u001f");
+
+  React.useEffect(() => {
+    volumeDomainStateRef.current = null;
+    pressureDomainStateRef.current = null;
+    setHoveredLegendSelection(null);
+    setHiddenLegendSelections([]);
+  }, [domainIdentity]);
+
+  const domainCommitKey = React.useMemo(
+    () => pvStableDomainCommitKeyV3(visibleRenderedTraces),
+    [visibleRenderedTraces],
+  );
+  const pressureAxisTitle = React.useMemo(
+    () => pvPressureAxisTitleV3(traces),
+    [traces],
+  );
 
   const draw = React.useCallback((
     context: CanvasRenderingContext2D,
@@ -576,34 +565,57 @@ export function PressureVolumeLoopCanvasV3(
   ) => {
     const theme = readPvCanvasThemeV3(containerRef.current);
     const plot = pvPlotRectV3(width, height);
-    const domainPoints: WorkbenchPvGuidePointV3[] = [
-      ...renderedTraces.flatMap(({ completedBeat, liveSegment }) => [
+    // Upper domains remain loop-owned. The lower volume domain is extended
+    // separately to finite extrapolated intercepts so the V0 geometry remains
+    // visible without inflating the current upper bounds.
+    const domainPoints: WorkbenchPvRelationPointV3[] = [
+      ...visibleRenderedTraces.flatMap(({ completedBeat, liveSegment }) => [
         ...completedBeat,
         ...liveSegment,
       ]),
-      ...renderedTraces.flatMap(({ history, orientationGuides }) => [
-        ...(orientationGuides?.endSystolicRadialReference ?? []),
-        ...(orientationGuides?.klotzInformedDiastolicReference ?? []),
-        ...history.flatMap(({ completedBeat, orientationGuides: guides }) => [
-          ...completedBeat,
-          ...(guides?.endSystolicRadialReference ?? []),
-          ...(guides?.klotzInformedDiastolicReference ?? []),
-        ]),
-      ]),
+      ...visibleRenderedTraces.flatMap(({ history }) =>
+        history.flatMap(({ completedBeat }) => completedBeat)),
     ];
-    const volumeDomain = paddedPvDomainV3(
+    volumeDomainStateRef.current = nextStableNumericDomainStateV3(
+      volumeDomainStateRef.current,
       domainPoints.map(({ volumeMl }) => volumeMl),
-      true,
+      {
+        lowerPaddingFraction: 0.08,
+        upperPaddingFraction: 0.08,
+        minimumLowerPadding: 4,
+        minimumUpperPadding: 4,
+        commitKey: domainCommitKey,
+      },
     );
-    const pressureDomain = paddedPvDomainV3(
+    pressureDomainStateRef.current = nextStableNumericDomainStateV3(
+      pressureDomainStateRef.current,
       domainPoints.map(({ pressureMmHg }) => pressureMmHg),
-      true,
+      {
+        includeZero: true,
+        lowerPaddingFraction: 0.02,
+        upperPaddingFraction: 0.12,
+        minimumUpperPadding: 5,
+        commitKey: domainCommitKey,
+      },
     );
+    const volumeDomain = extendPvVolumeDomainToExtrapolatedInterceptsV3(
+      volumeDomainStateRef.current.domain,
+      visibleRenderedTraces.flatMap(({ rapidRelation }) => rapidRelation === null
+        ? []
+        : [
+            rapidRelation.systolicEnvelope
+              .extrapolatedVolumeAxisInterceptMl,
+            rapidRelation.maximumVolume
+              .extrapolatedZeroPressureVolumeMl,
+          ]),
+    );
+    const pressureDomain = pressureDomainStateRef.current.domain;
     drawPvAxesV3(
       context,
       plot,
       volumeDomain,
       pressureDomain,
+      pressureAxisTitle,
       theme,
     );
     const x = (value: number) => scaleLinearV3(
@@ -621,85 +633,76 @@ export function PressureVolumeLoopCanvasV3(
       plot.top,
     );
 
-    for (const { history, lineDash, trace } of renderedTraces) {
+    context.save();
+    context.beginPath();
+    context.rect(
+      plot.left,
+      plot.top,
+      plot.right - plot.left,
+      plot.bottom - plot.top,
+    );
+    context.clip();
+    for (const { history, rapidRelationHistory, trace } of visibleRenderedTraces) {
+      const traceAlpha = workbenchLegendTraceAlphaV3(
+        legendSelection,
+        pvLegendDescriptorV3(trace),
+      );
+      for (const historical of rapidRelationHistory) {
+        drawRapidPvRelationV3(
+          context,
+          historical.relation,
+          volumeDomain,
+          pressureDomain,
+          x,
+          y,
+          trace.chamberColor,
+          historical.alpha * traceAlpha,
+          false,
+        );
+      }
       for (const historical of history) {
-        if (historical.orientationGuides !== null) {
-          drawPvCurveV3(
-            context,
-            historical.orientationGuides.endSystolicRadialReference,
-            x,
-            y,
-            {
-              color: theme.systolicReference,
-              width: 1.1,
-              dash: [6, 4],
-              alpha: historical.alpha,
-            },
-          );
-          drawPvCurveV3(
-            context,
-            historical.orientationGuides.klotzInformedDiastolicReference,
-            x,
-            y,
-            {
-              color: theme.diastolicReference,
-              width: 1.1,
-              dash: [3, 4],
-              alpha: historical.alpha,
-            },
-          );
-        }
         drawPvCurveV3(context, historical.completedBeat, x, y, {
           color: trace.chamberColor,
           width: 1.35,
-          dash: lineDash,
-          alpha: historical.alpha,
+          dash: Object.freeze([]),
+          alpha: historical.alpha * traceAlpha,
         });
       }
     }
     for (const {
-      completedBeat,
-      orientationGuides,
-      lineDash,
+      backBufferRemainder,
+      rapidRelation,
       liveSegment,
       trace,
-    } of renderedTraces) {
-      if (orientationGuides !== null) {
-        drawPvCurveV3(
+    } of visibleRenderedTraces) {
+      const traceAlpha = workbenchLegendTraceAlphaV3(
+        legendSelection,
+        pvLegendDescriptorV3(trace),
+      );
+      if (rapidRelation !== null) {
+        drawRapidPvRelationV3(
           context,
-          orientationGuides.endSystolicRadialReference,
+          rapidRelation,
+          volumeDomain,
+          pressureDomain,
           x,
           y,
-          {
-            color: theme.systolicReference,
-            width: 1.35,
-            dash: [6, 4],
-          },
-        );
-        drawPvCurveV3(
-          context,
-          orientationGuides.klotzInformedDiastolicReference,
-          x,
-          y,
-          {
-            color: theme.diastolicReference,
-            width: 1.35,
-            dash: [3, 4],
-          },
+          trace.chamberColor,
+          0.82 * traceAlpha,
+          true,
         );
       }
-      drawPvCurveV3(context, completedBeat, x, y, {
+      drawPvCurveV3(context, backBufferRemainder, x, y, {
         color: trace.chamberColor,
         width: 1.5,
-        dash: lineDash,
-        // A completed beat remains quiet context throughout the next cycle,
-        // including the single boundary-frame redraw.
-        alpha: 0.28,
+        dash: Object.freeze([]),
+        alpha: traceAlpha,
       });
       drawPvCurveV3(context, liveSegment, x, y, {
         color: trace.chamberColor,
         width: 2,
-        dash: lineDash,
+        dash: Object.freeze([]),
+        alpha: traceAlpha,
       });
       const head = liveSegment.at(-1);
       if (head !== undefined) {
@@ -708,11 +711,13 @@ export function PressureVolumeLoopCanvasV3(
           x(head.volumeMl),
           y(head.pressureMmHg),
           trace.chamberColor,
+          traceAlpha,
         );
       }
     }
+    context.restore();
 
-    if (renderedTraces.every(({ completedBeat, liveSegment }) =>
+    if (visibleRenderedTraces.every(({ completedBeat, liveSegment }) =>
       completedBeat.length === 0 && liveSegment.length === 0)) {
       context.save();
       context.fillStyle = theme.text;
@@ -726,7 +731,12 @@ export function PressureVolumeLoopCanvasV3(
       );
       context.restore();
     }
-  }, [renderedTraces]);
+  }, [
+    domainCommitKey,
+    legendSelection,
+    pressureAxisTitle,
+    visibleRenderedTraces,
+  ]);
 
   useResponsiveCanvasFrameV3(
     containerRef,
@@ -734,47 +744,292 @@ export function PressureVolumeLoopCanvasV3(
     draw,
   );
 
-  const anyOrientationGuides = renderedTraces.some(({ orientationGuides }) =>
-    orientationGuides !== null);
-  const anyRequestedIntracavitaryGuides = renderedTraces.some(({ trace }) =>
-    trace.pressureBasis === "intracavitary"
-      && trace.showSingleBeatOrientationGuides === true);
-  const guideStatus = anyOrientationGuides
-    ? "End-systolic radial + Klotz-informed diastolic orientation references · not formal ESPVR/EDPVR relations"
-    : anyRequestedIntracavitaryGuides
-      ? "PV orientation references require transmural pressure"
-      : null;
-  const chamberAriaLabel = colorLegendItems.length === 0
+  const anyRapidRelation = renderedTraces.some(({ rapidRelation }) =>
+    rapidRelation !== null);
+  const anyFormalRelation = renderedTraces.some(({ rapidRelation }) =>
+    rapidRelation?.analysisMode === "formal-periodic");
+  const formalAnalysisSelected =
+    props.analysisMode === "formal-periodic" || anyFormalRelation;
+  const rapidRelationTraceCount = renderedTraces.filter(({ rapidRelation }) =>
+    rapidRelation !== null).length;
+  const relationStatus = anyFormalRelation
+    ? "Formal periodic fixed-TBV multi-load ESPVR / EDPVR analysis · not clinical validation"
+    : formalAnalysisSelected
+    ? "Formal periodic fixed-TBV ESPVR / EDPVR analysis selected · qualified multi-load relation not yet available"
+    : anyRapidRelation
+    ? "Responsive multi-load fixed-TBV PV-loop support-envelope preview · center locally settled · not a formal ESPVR/EDPVR protocol"
+    : null;
+  const chamberAriaLabel = legendModel.items.length === 0
     ? "Pressure-volume"
-    : colorLegendItems.map(({ label }) => label).join(", ");
+    : legendModel.items.map(({ label }) => label).join(", ");
+  const rapidRelationPending = traces.some(
+    ({ rapidPressureVolumeRelationPending }) =>
+      rapidPressureVolumeRelationPending === true,
+  );
 
   return (
     <div
-      ref={containerRef}
-      className={`relative min-h-52 h-full w-full overflow-hidden ${className ?? ""}`}
+      className={`flex min-h-52 h-full w-full flex-col overflow-hidden ${className ?? ""}`}
       data-chart-kind="pressure-volume-loop-v3"
+      data-pv-analysis-mode={
+        formalAnalysisSelected ? "formal-periodic" : "responsive-preview"
+      }
       data-cycle-source="model-emitted-cycle-phase"
-      data-orientation-guide-semantics={
-        anyOrientationGuides
-          ? SINGLE_BEAT_PV_ORIENTATION_SEMANTICS_V3
+      data-pv-relation-semantics={
+        anyRapidRelation
+          ? renderedTraces.find(({ rapidRelation }) => rapidRelation !== null)
+              ?.rapidRelation?.semantics ??
+            MAIN_WIRE_INTEGRATED_MODEL_RAPID_PRESSURE_VOLUME_RELATION_SEMANTICS_V3
           : "unavailable"
       }
+      data-pv-relation-trace-count={rapidRelationTraceCount}
+      data-rapid-pv-relation-pending={
+        rapidRelationPending ? "true" : "false"
+      }
     >
-      <canvas
-        ref={canvasRef}
-        className="block h-full w-full"
-        role="img"
-        aria-label={`${chamberAriaLabel} live pressure-volume loops from model-emitted cycles${
-          guideStatus === null ? "" : `. ${guideStatus}`
-        }`}
+      <WorkbenchChartLegendV3
+        hiddenSelections={hiddenLegendSelections}
+        model={legendModel}
+        selection={legendSelection}
+        onHoverSelection={setHoveredLegendSelection}
+        onToggleSelection={() => undefined}
+        onToggleVisibility={(selection) =>
+          setHiddenLegendSelections((current) =>
+            current.some((candidate) =>
+              pvLegendSelectionKeyV3(candidate) ===
+                pvLegendSelectionKeyV3(selection))
+              ? current.filter((candidate) =>
+                  pvLegendSelectionKeyV3(candidate) !==
+                    pvLegendSelectionKeyV3(selection))
+              : Object.freeze([...current, selection]))}
       />
-      <WorkbenchChartTwoAxisLegendV3
-        colorAxisLabel="Chamber"
-        colorItems={colorLegendItems}
-        scenarioItems={scenarioLegendItems}
-      />
+      <div ref={containerRef} className="relative min-h-0 flex-1 overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          className="block h-full w-full"
+          role="img"
+          aria-label={`${chamberAriaLabel} live pressure-volume loops from model-emitted cycles${
+            relationStatus === null ? "" : `. ${relationStatus}`
+          }`}
+        />
+        {rapidRelationPending && (
+          <div
+            className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1.5 text-[10px] text-wb-subtle"
+            role="status"
+          >
+            <span
+              aria-hidden="true"
+              className="h-2.5 w-2.5 rounded-full border border-wb-subtle/35 border-t-wb-accent motion-safe:animate-spin"
+            />
+            {formalAnalysisSelected ? "Formal PV analysis" : "PV preview"}
+          </div>
+        )}
+      </div>
     </div>
   );
+}
+
+function pvLegendDescriptorV3(trace: WorkbenchPressureVolumeTraceV3) {
+  return Object.freeze({
+    traceKey: workbenchTraceLegendKeyV3(trace.scenarioId, trace.chamberId),
+    scenarioId: trace.scenarioId,
+    scenarioLabel: trace.scenarioLabel,
+    itemId: trace.chamberId,
+    itemLabel: trace.chamberLabel,
+    color: trace.chamberColor,
+  });
+}
+
+export function extendPvVolumeDomainToExtrapolatedInterceptsV3(
+  loopOwnedDomain: WorkbenchNumericDomainV3,
+  interceptVolumesMl: readonly number[],
+): WorkbenchNumericDomainV3 {
+  const finite = interceptVolumesMl.filter(Number.isFinite);
+  if (finite.length === 0) return loopOwnedDomain;
+  const minimumInterceptMl = Math.min(...finite);
+  if (minimumInterceptMl >= loopOwnedDomain[0]) return loopOwnedDomain;
+  const loopSpanMl = loopOwnedDomain[1] - loopOwnedDomain[0];
+  return Object.freeze([
+    minimumInterceptMl - Math.max(2, loopSpanMl * 0.03),
+    loopOwnedDomain[1],
+  ]);
+}
+
+function pvPressureAxisTitleV3(
+  traces: readonly WorkbenchPressureVolumeTraceV3[],
+): string {
+  const bases = new Set(traces.map(({ pressureBasis }) => pressureBasis));
+  const chambers = new Set(traces.map(({ chamberLabel }) => chamberLabel));
+  if (bases.size !== 1) return "Pressure (mmHg)";
+  const basis = traces[0]?.pressureBasis === "transmural"
+    ? "transmural pressure"
+    : "intracavitary pressure";
+  const chamber = chambers.size === 1 ? traces[0]?.chamberLabel : undefined;
+  return `${chamber === undefined ? "" : `${chamber} `}${basis} (mmHg)`;
+}
+
+function pvStableDomainCommitKeyV3(
+  traces: readonly Readonly<{
+    completedBeat: readonly WorkbenchPvPointV3[];
+    liveSegment: readonly WorkbenchPvPointV3[];
+    history: readonly unknown[];
+    trace: WorkbenchPressureVolumeTraceV3;
+  }>[],
+): string | null {
+  const keys = traces.flatMap(({ completedBeat, liveSegment, history, trace }) => {
+    const completed = completedBeat.at(-1);
+    if (completed !== undefined) {
+      return [
+        `${trace.scenarioId}:${trace.chamberId}:beat:${completed.acceptedTimeSec.toFixed(6)}:history:${history.length}`,
+      ];
+    }
+    const live = liveSegment.at(-1);
+    return live === undefined
+      ? []
+      : [
+          `${trace.scenarioId}:${trace.chamberId}:time:${Math.floor(live.acceptedTimeSec / 0.75)}:history:${history.length}`,
+        ];
+  });
+  return keys.length === 0 ? null : keys.join("\u001f");
+}
+
+function pvLegendSelectionKeyV3(
+  selection: WorkbenchChartLegendSelectionV3 | null,
+): string | null {
+  if (selection === null) return null;
+  if (selection.kind === "scenario") return `scenario:${selection.scenarioId}`;
+  if (selection.kind === "item") return `item:${selection.itemId}`;
+  return `trace:${selection.traceKey}`;
+}
+
+function drawRapidPvRelationV3(
+  context: CanvasRenderingContext2D,
+  relation: Exclude<
+    MainWireIntegratedModelRapidPressureVolumeRelationV3,
+    Readonly<{ status: "insufficient-data" }>
+  >,
+  volumeDomain: WorkbenchNumericDomainV3,
+  pressureDomain: WorkbenchNumericDomainV3,
+  x: (volumeMl: number) => number,
+  y: (pressureMmHg: number) => number,
+  color: string,
+  alpha: number,
+  showLandmarks: boolean,
+): void {
+  drawPvCurveV3(
+    context,
+    extendPvSystolicRelationToPlotBoundaryV3(
+      relation,
+      volumeDomain,
+      pressureDomain,
+    ),
+    x,
+    y,
+    {
+      color,
+      width: relation.analysisMode === "formal-periodic" ? 1.45 : 1.15,
+      dash: Object.freeze([]),
+      alpha: alpha *
+        (relation.analysisMode === "formal-periodic" ? 0.86 : 0.62),
+    },
+  );
+  drawPvCurveV3(context, relation.maximumVolumeTrendCurve, x, y, {
+    color,
+    width: 1.2,
+    dash: Object.freeze([]),
+    alpha: alpha * 0.5,
+  });
+  if (!showLandmarks) return;
+  // The fixed-TBV sweep landmarks remain part of the numerical fit, but are
+  // intentionally presentation-internal. Showing every sampled ES/ED point
+  // reads as a second dataset and obscures the loop/relation geometry. Keep
+  // only the semantically useful V0 and current-loop contact markers below.
+  const systolicIntercept = relation.systolicEnvelopeTrendCurve[0];
+  const passiveIntercept = relation.maximumVolumeTrendCurve[0];
+  if (systolicIntercept !== undefined) {
+    drawPvRelationMarkerV3(
+      context,
+      x(systolicIntercept.volumeMl),
+      y(systolicIntercept.pressureMmHg),
+      color,
+      2.25,
+      alpha * 0.72,
+      false,
+    );
+  }
+  if (passiveIntercept !== undefined) {
+    drawPvRelationMarkerV3(
+      context,
+      x(passiveIntercept.volumeMl),
+      y(passiveIntercept.pressureMmHg),
+      color,
+      1.8,
+      alpha * 0.48,
+      false,
+    );
+  }
+}
+
+/**
+ * Draws the fitted ESPVR convention from V0 until it first meets the visible
+ * right or top plot boundary. The numerical fit remains owned by the complete
+ * multi-load PV-loop support envelope; this helper changes only its
+ * presentation extent.
+ */
+export function extendPvSystolicRelationToPlotBoundaryV3(
+  relation: Exclude<
+    MainWireIntegratedModelRapidPressureVolumeRelationV3,
+    Readonly<{ status: "insufficient-data" }>
+  >,
+  volumeDomain: WorkbenchNumericDomainV3,
+  pressureDomain: WorkbenchNumericDomainV3,
+): readonly WorkbenchPvRelationPointV3[] {
+  const volumeIntercept = relation.systolicEnvelope
+    .extrapolatedVolumeAxisInterceptMl;
+  const slope = relation.systolicEnvelope.elastanceMmHgPerMl;
+  const maximumVolume = volumeDomain[1];
+  const maximumPressure = pressureDomain[1];
+  if (
+    !Number.isFinite(volumeIntercept) ||
+    !Number.isFinite(slope) ||
+    !Number.isFinite(maximumVolume) ||
+    !Number.isFinite(maximumPressure) ||
+    !(slope > 0) ||
+    !(maximumVolume > volumeIntercept) ||
+    !(maximumPressure > 0)
+  ) return Object.freeze([]);
+  const topBoundaryVolume = volumeIntercept + maximumPressure / slope;
+  const endVolume = Math.min(maximumVolume, topBoundaryVolume);
+  if (!(endVolume > volumeIntercept)) return Object.freeze([]);
+  return Object.freeze([
+    Object.freeze({ volumeMl: volumeIntercept, pressureMmHg: 0 }),
+    Object.freeze({
+      volumeMl: endVolume,
+      pressureMmHg: slope * (endVolume - volumeIntercept),
+    }),
+  ]);
+}
+
+function drawPvRelationMarkerV3(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  color: string,
+  radius: number,
+  alpha: number,
+  filled: boolean,
+): void {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  context.save();
+  context.globalAlpha = alpha;
+  context.strokeStyle = color;
+  context.fillStyle = color;
+  context.lineWidth = 1;
+  context.beginPath();
+  context.arc(x, y, radius, 0, Math.PI * 2);
+  if (filled) context.fill();
+  else context.stroke();
+  context.restore();
 }
 
 type PvPlotRectV3 = Readonly<{
@@ -788,8 +1043,6 @@ type PvCanvasThemeV3 = Readonly<{
   grid: string;
   axis: string;
   text: string;
-  systolicReference: string;
-  diastolicReference: string;
 }>;
 
 function normalizedModelCyclePhaseV3(value: number | null | undefined): number | null {
@@ -797,71 +1050,12 @@ function normalizedModelCyclePhaseV3(value: number | null | undefined): number |
   return positiveModuloV3(value, 1);
 }
 
-function paddedPvDomainV3(
-  values: readonly number[],
-  includeZero: boolean,
-): WorkbenchNumericDomainV3 {
-  return observedNumericDomainV3(values, {
-    includeZero,
-    paddingFraction: 0.08,
-  });
-}
-
-function sampleGuideCurveV3(
-  startVolumeMl: number,
-  endVolumeMl: number,
-  pressureAtVolume: (volumeMl: number) => number,
-  sampleCount: number,
-): readonly WorkbenchPvGuidePointV3[] {
-  const count = Math.max(2, Math.floor(sampleCount));
-  const points = Array.from({ length: count }, (_, index) => {
-    const ratio = index / (count - 1);
-    const volumeMl = startVolumeMl
-      + ratio * (endVolumeMl - startVolumeMl);
-    return Object.freeze({
-      volumeMl,
-      pressureMmHg: pressureAtVolume(volumeMl),
-    });
-  });
-  return Object.freeze(points);
-}
-
-function withExactContactV3(
-  points: readonly WorkbenchPvGuidePointV3[],
-  contact: WorkbenchPvGuidePointV3,
-): readonly WorkbenchPvGuidePointV3[] {
-  if (points.length === 0) return Object.freeze([contact]);
-  let closestIndex = 0;
-  let closestDistance = Number.POSITIVE_INFINITY;
-  points.forEach(({ volumeMl }, index) => {
-    const distance = Math.abs(volumeMl - contact.volumeMl);
-    if (distance < closestDistance) {
-      closestDistance = distance;
-      closestIndex = index;
-    }
-  });
-  return Object.freeze(points.map((point, index) =>
-    index === closestIndex ? contact : point));
-}
-
-function maximumByV3<T>(
-  values: readonly T[],
-  score: (value: T) => number,
-): T | null {
-  let best: T | null = null;
-  let bestScore = Number.NEGATIVE_INFINITY;
-  for (const value of values) {
-    const candidate = score(value);
-    if (!Number.isFinite(candidate) || candidate <= bestScore) continue;
-    best = value;
-    bestScore = candidate;
-  }
-  return best;
-}
-
-function pvPlotRectV3(width: number, height: number): PvPlotRectV3 {
+function pvPlotRectV3(
+  width: number,
+  height: number,
+): PvPlotRectV3 {
   const left = Math.min(58, width * 0.24);
-  const top = Math.min(34, height * 0.22);
+  const top = Math.min(12, height * 0.08);
   return Object.freeze({
     left,
     right: Math.max(left + 1, width - 16),
@@ -875,6 +1069,7 @@ function drawPvAxesV3(
   plot: PvPlotRectV3,
   volumeDomain: WorkbenchNumericDomainV3,
   pressureDomain: WorkbenchNumericDomainV3,
+  pressureAxisTitle: string,
   theme: PvCanvasThemeV3,
 ): void {
   context.save();
@@ -882,33 +1077,42 @@ function drawPvAxesV3(
   context.fillStyle = theme.text;
   context.strokeStyle = theme.grid;
   context.lineWidth = 1;
-  for (let ordinal = 0; ordinal <= 4; ordinal += 1) {
-    const ratio = ordinal / 4;
-    const x = plot.left + ratio * (plot.right - plot.left);
-    const y = plot.bottom - ratio * (plot.bottom - plot.top);
+  for (const value of numericTicksV3(volumeDomain, 4)) {
+    const x = scaleLinearV3(
+      value,
+      volumeDomain[0],
+      volumeDomain[1],
+      plot.left,
+      plot.right,
+    );
     context.beginPath();
     context.moveTo(x, plot.top);
     context.lineTo(x, plot.bottom);
     context.stroke();
+    context.textAlign = "center";
+    context.textBaseline = "top";
+    context.fillText(
+      formatPvAxisNumberV3(value),
+      x,
+      plot.bottom + 7,
+    );
+  }
+  for (const value of numericTicksV3(pressureDomain, 4)) {
+    const y = scaleLinearV3(
+      value,
+      pressureDomain[0],
+      pressureDomain[1],
+      plot.bottom,
+      plot.top,
+    );
     context.beginPath();
     context.moveTo(plot.left, y);
     context.lineTo(plot.right, y);
     context.stroke();
-    context.textAlign = "center";
-    context.textBaseline = "top";
-    context.fillText(
-      formatPvAxisNumberV3(
-        volumeDomain[0] + ratio * (volumeDomain[1] - volumeDomain[0]),
-      ),
-      x,
-      plot.bottom + 7,
-    );
     context.textAlign = "right";
     context.textBaseline = "middle";
     context.fillText(
-      formatPvAxisNumberV3(
-        pressureDomain[0] + ratio * (pressureDomain[1] - pressureDomain[0]),
-      ),
+      formatPvAxisNumberV3(value),
       plot.left - 6,
       y,
     );
@@ -930,7 +1134,7 @@ function drawPvAxesV3(
   context.save();
   context.translate(12, (plot.top + plot.bottom) / 2);
   context.rotate(-Math.PI / 2);
-  context.fillText("Pressure (mmHg)", 0, 0);
+  context.fillText(pressureAxisTitle, 0, 0);
   context.restore();
   context.restore();
 }
@@ -972,18 +1176,19 @@ function drawPvLeadingCapV3(
   x: number,
   y: number,
   color: string,
+  traceAlpha = 1,
 ): void {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return;
   context.save();
   context.setLineDash([]);
   context.fillStyle = color;
-  context.globalAlpha = 0.2;
+  context.globalAlpha = 0.2 * traceAlpha;
   context.beginPath();
   context.arc(x, y, 4.25, 0, Math.PI * 2);
   context.fill();
   context.strokeStyle = color;
   context.lineWidth = 1;
-  context.globalAlpha = 0.72;
+  context.globalAlpha = 0.72 * traceAlpha;
   context.beginPath();
   context.arc(x, y, 3.5, 0, Math.PI * 2);
   context.stroke();
@@ -1001,8 +1206,6 @@ function readPvCanvasThemeV3(element: HTMLElement | null): PvCanvasThemeV3 {
     grid: read("--wb-border", "rgba(148, 163, 184, 0.18)"),
     axis: read("--wb-border-strong", "rgba(148, 163, 184, 0.48)"),
     text: read("--wb-text-muted", "#94a3b8"),
-    systolicReference: "#e879f9",
-    diastolicReference: "#67e8f9",
   });
 }
 
@@ -1011,8 +1214,6 @@ function fallbackPvCanvasThemeV3(): PvCanvasThemeV3 {
     grid: "rgba(148, 163, 184, 0.18)",
     axis: "rgba(148, 163, 184, 0.48)",
     text: "#94a3b8",
-    systolicReference: "#e879f9",
-    diastolicReference: "#67e8f9",
   });
 }
 

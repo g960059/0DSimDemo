@@ -62,6 +62,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     expect(controller.sampleStore.getScenarioSnapshot("scenario/two").at(-1))
       .toMatchObject({ acceptedTimeSec: 1, values: { pressure: 20 } });
     await expect(controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
       controlId: "control/svr",
       scenarioIds: ["scenario/one"],
       value: 44,
@@ -166,6 +167,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     await controller.start();
 
     await controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
       controlId: "control/svr",
       scenarioIds: ["scenario/one", "scenario/two"],
       value: 44,
@@ -178,7 +180,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     expect(harness.playAll).toHaveBeenCalledTimes(2);
     expect(controller.getSnapshot()).toMatchObject({
       status: "playing",
-      pendingControlId: null,
+      pendingControlInstanceId: null,
       committedControlValues: {
         "scenario/one": { "control/svr": 44 },
         "scenario/two": { "control/svr": 44 },
@@ -188,9 +190,9 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       .toMatchObject({ values: { pressure: 44 } });
   });
 
-  it("requests exact structural analysis for every visible Scenario and resumes", async () => {
+  it("drains only each analysis source lane without pausing all Scenarios", async () => {
     const snapshot = snapshotV3();
-    const harness = runtimeHarnessV3(snapshot);
+    const harness = runtimeHarnessV3(snapshot, { advanceOnPause: true });
     const controller = new ArticleReaderLiveRuntimeV3(snapshot, {
       createRuntime: harness.createRuntime,
       structuralAnalyses: [{
@@ -205,7 +207,10 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       scenarioIds: ["scenario/one", "scenario/two"],
     });
 
-    expect(harness.pauseAll).toHaveBeenCalledTimes(1);
+    expect(harness.pauseAll).not.toHaveBeenCalled();
+    expect(harness.pauseScenario).toHaveBeenCalledTimes(2);
+    expect(harness.pauseScenario.mock.calls.map(([scenarioId]) => scenarioId))
+      .toEqual(["scenario/one", "scenario/two"]);
     expect(harness.requestAnalysis).toHaveBeenCalledTimes(2);
     expect(harness.requestAnalysis.mock.calls.map(([input]) => input))
       .toEqual([
@@ -213,15 +218,15 @@ describe("ArticleReaderLiveRuntimeV3", () => {
           scenarioId: "scenario/one",
           analysisId: "analysis/return",
           expectedInputEpoch: 0,
-          expectedAcceptedRevision: 500,
-          expectedAcceptedTimeSec: 1,
+          expectedAcceptedRevision: 501,
+          expectedAcceptedTimeSec: 1.002,
         }),
         expect.objectContaining({
           scenarioId: "scenario/two",
           analysisId: "analysis/return",
           expectedInputEpoch: 0,
-          expectedAcceptedRevision: 500,
-          expectedAcceptedTimeSec: 1,
+          expectedAcceptedRevision: 501,
+          expectedAcceptedTimeSec: 1.002,
         }),
       ]);
     expect(controller.getSnapshot()).toMatchObject({
@@ -251,6 +256,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     await Promise.resolve();
     expect(controller.getSnapshot().status).toBe("requesting-analysis");
     await expect(controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
       controlId: "control/svr",
       scenarioIds: ["scenario/one"],
       value: 44,
@@ -322,6 +328,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     );
 
     await controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
       controlId: "control/svr",
       scenarioIds: ["scenario/one"],
       value: 44,
@@ -357,6 +364,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     });
 
     await controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
       controlId: "control/svr",
       scenarioIds: ["scenario/one"],
       value: 44,
@@ -377,6 +385,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     await controller.start();
 
     await expect(controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
       controlId: "control/svr",
       scenarioIds: ["scenario/one"],
       value: 44,
@@ -386,8 +395,10 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       .toEqual([]);
     expect(controller.getSnapshot()).toMatchObject({
       status: "playing",
-      pendingControlId: null,
-      controlErrorById: { "control/svr": "control failed" },
+      pendingControlInstanceId: null,
+      controlErrorByInstanceId: {
+        "pane/control\u001fcontrol/svr": "control failed",
+      },
     });
     expect(harness.playAll).toHaveBeenCalledTimes(2);
     expect(harness.terminate).not.toHaveBeenCalled();
@@ -406,6 +417,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     await controller.start();
 
     await expect(controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
       controlId: "control/svr",
       scenarioIds: ["scenario/one", "scenario/two"],
       value: 44,
@@ -414,7 +426,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     expect(harness.applyControl).toHaveBeenCalledTimes(2);
     expect(controller.getSnapshot()).toMatchObject({
       status: "failed",
-      pendingControlId: null,
+      pendingControlInstanceId: null,
     });
     expect(controller.getSnapshot().committedControlValues).toEqual({});
     expect(harness.terminate).toHaveBeenCalledTimes(1);
@@ -551,10 +563,19 @@ describe("ArticleReaderLiveRuntimeV3", () => {
 function snapshotV3(): ExperimentSnapshotV2 {
   return Object.freeze({
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
+    kind: "article" as const,
     snapshotId: "snapshot/reader-live-v3",
-    experimentId: "experiment/reader-live-v3",
-    parentSnapshotId: null,
     createdAt: "2026-08-02T00:00:00.000Z",
+    briefing: Object.freeze({
+      defaultTitle: "Reader live experiment",
+      scenarioScope: Object.freeze({
+        visibleScenarioIds: Object.freeze(["scenario/one", "scenario/two"]),
+        initialFocusScenarioId: "scenario/one",
+      }),
+      graphs: Object.freeze([]),
+      outputs: Object.freeze([]),
+      controls: Object.freeze([]),
+    }),
     content: Object.freeze({
       modelId: "model/exact-reader-v3",
       scenarios: Object.freeze([
@@ -630,6 +651,7 @@ function runtimeHarnessV3(
     pauseGate?: DeferredV3<void>;
     analysisGate?: DeferredV3<void>;
     analysisError?: Error;
+    advanceOnPause?: boolean;
     applyControlError?: Error;
     applyControlErrorByScenarioId?: Readonly<Record<string, Error>>;
   }> = {},
@@ -692,6 +714,24 @@ function runtimeHarnessV3(
   const pauseAll = vi.fn(async () => {
     await gates.pauseGate?.promise;
   });
+  const pauseScenario = vi.fn(async (scenarioId: string) => {
+    const current = frames.get(scenarioId);
+    if (current === undefined) throw new Error("missing test frame");
+    if (!gates.advanceOnPause) return current;
+    const pressure = current.outputs.pressure?.availability === "available"
+      && typeof current.outputs.pressure.value === "number"
+      ? current.outputs.pressure.value
+      : 0;
+    const drained = frameV3(
+      scenarioId,
+      current.acceptedTimeSec + 0.002,
+      pressure,
+      current.inputEpoch,
+    );
+    frames.set(scenarioId, drained);
+    return drained;
+  });
+  const resumeScenario = vi.fn();
   const selectScenario = vi.fn((scenarioId: string) => {
     activeScenarioId = scenarioId;
     return workerStateV3(snapshot, scenarioId);
@@ -718,7 +758,9 @@ function runtimeHarnessV3(
       },
       playAll,
       pauseAll,
+      pauseScenario,
       selectScenario,
+      resumeScenario,
       terminate,
       dispose,
     };
@@ -735,6 +777,8 @@ function runtimeHarnessV3(
     applyControl,
     requestAnalysis,
     pauseAll,
+    pauseScenario,
+    resumeScenario,
     selectScenario,
     terminate,
     dispose,

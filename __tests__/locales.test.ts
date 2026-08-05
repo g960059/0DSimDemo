@@ -34,8 +34,8 @@ describe('locale helpers', () => {
   it('switches locale while preserving query and hash', () => {
     expect(switchLocalePath('/ja/experiments', '?from=home', '#status', 'en')).toBe('/en/experiments?from=home#status');
     expect(switchLocalePath('/en/experiments', '?from=home', '#status', 'ja')).toBe('/ja/experiments?from=home#status');
-    expect(switchLocalePath('/ja/experiments/workbench-opaque_123', '?from=list', '#status', 'en'))
-      .toBe('/en/experiments/workbench-opaque_123?from=list#status');
+    expect(switchLocalePath('/ja/experiments/experiment-opaque_123', '?from=list', '#status', 'en'))
+      .toBe('/en/experiments/experiment-opaque_123?from=list#status');
   });
 
   it('keeps Japanese and English translation keys in parity', () => {

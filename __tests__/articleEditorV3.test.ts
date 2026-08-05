@@ -5,16 +5,18 @@ import { describe, expect, it } from "vitest";
 import i18n from "@/i18n";
 import {
   articleEditorRouteKeyV3,
+  insertArticleBlockV3,
   resolveArticleEditorRouteDraftV3,
 } from "@/components/ArticleEditorV3Page";
 import {
   ArticleBriefingEditorV3,
+  ArticleExperimentPlacementV3,
 } from "@/components/article/ArticleExperimentPlacementV3";
 import {
+  articleBriefingPresentationV3,
   createArticleExperimentBlockV3,
   defaultArticleBriefingV3,
   portableEditorIdV3,
-  resolveArticleBriefingHandoffV3,
   resolveArticlePlacementBriefingV3,
 } from "@/components/article/ArticleEditorStateV3";
 import {
@@ -24,28 +26,15 @@ import {
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
+  type ArticleExperimentSnapshotV2,
   type ExperimentPlacementBriefingV2,
   type ExperimentPlacementV2,
-  type ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
-import {
-  StudioSnapshotBriefingHandoffV3,
-  studioSnapshotBriefingHandoffKeyV3,
-} from "@/studio/infrastructure/browser/StudioSnapshotBriefingHandoffV3";
-
-class MemorySessionStorageV3 {
-  readonly values = new Map<string, string>();
-  getItem(key: string): string | null { return this.values.get(key) ?? null; }
-  setItem(key: string, value: string): void { this.values.set(key, value); }
-  removeItem(key: string): void { this.values.delete(key); }
-}
-
-function snapshotV3(): ExperimentSnapshotV2 {
-  return {
+function snapshotV3(): ArticleExperimentSnapshotV2 {
+  const snapshot: Omit<ArticleExperimentSnapshotV2, "briefing"> = {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
+    kind: "article" as const,
     snapshotId: "snapshot/article-preview",
-    experimentId: "experiment/article-preview",
-    parentSnapshotId: null,
     createdAt: "2026-08-01T00:00:00.000Z",
     content: {
       modelId: "model/exact-v3",
@@ -61,11 +50,12 @@ function snapshotV3(): ExperimentSnapshotV2 {
           order: 0,
           priority: 6,
           graphId: "graph/pressure",
+          scenarioScope: { mode: "visible-scenarios" },
+          excludedTraces: [],
           windowSec: 2,
           series: [{
             seriesId: "series/lv-pressure",
             label: "LV",
-            colorHex: "#ef4444",
             order: 0,
           }],
         }],
@@ -75,6 +65,7 @@ function snapshotV3(): ExperimentSnapshotV2 {
           label: "Outputs",
           order: 0,
           priority: 3,
+          binding: { mode: "active-slot" },
           items: [{ outputId: "output/map", label: "MAP", order: 0 }],
         }],
         controlPanes: [{
@@ -83,9 +74,54 @@ function snapshotV3(): ExperimentSnapshotV2 {
           label: "Controls",
           order: 0,
           priority: 2,
-          items: [{ controlId: "control/svr", label: "SVR", order: 0 }],
+          binding: { mode: "active-slot" },
+          items: [{
+            controlId: "control/svr",
+            label: "SVR",
+            order: 0,
+            presentation: { kind: "slider" },
+          }],
         }],
         note: { text: "Pinned note" },
+      },
+    },
+  };
+  return {
+    ...snapshot,
+    briefing: defaultArticleBriefingV3(snapshot),
+  };
+}
+
+function twoGraphSnapshotV3(): ArticleExperimentSnapshotV2 {
+  const snapshot = snapshotV3();
+  return {
+    ...snapshot,
+    briefing: {
+      ...snapshot.briefing,
+      graphs: [
+        ...snapshot.briefing.graphs,
+        { paneId: "pane/pv", order: 1, emphasis: "supporting" },
+      ],
+    },
+    content: {
+      ...snapshot.content,
+      surface: {
+        ...snapshot.content.surface,
+        graphPanes: [
+          ...snapshot.content.surface.graphPanes,
+          {
+            paneId: "pane/pv",
+            role: "graph",
+            label: "PV loop",
+            order: 1,
+            priority: 5,
+            graphId: "graph/pv",
+            scenarioScope: { mode: "visible-scenarios" },
+            excludedTraces: [],
+            historyDepth: 1,
+            series: [],
+          },
+        ],
       },
     },
   };
@@ -108,6 +144,7 @@ function scenarioV3(scenarioId: string, label: string) {
 
 function focusedBriefingV3(): ExperimentPlacementBriefingV2 {
   return {
+    defaultTitle: "Focused experiment",
     scenarioScope: {
       visibleScenarioIds: ["scenario/comparison"],
       initialFocusScenarioId: "scenario/comparison",
@@ -122,14 +159,25 @@ function focusedBriefingV3(): ExperimentPlacementBriefingV2 {
         series: [{
           seriesId: "series/lv-pressure",
           label: "LV pressure",
-          colorHex: "#dc2626",
           order: 0,
+        }],
+        traceColors: [{
+          scenarioId: "scenario/comparison",
+          seriesId: "series/lv-pressure",
+          colorHex: "#dc2626",
         }],
         windowSec: 3,
       },
     }],
-    outputs: [{ outputId: "output/map", label: "Mean pressure", order: 0 }],
+    outputs: [{
+      sourcePaneId: "pane/outputs",
+      outputId: "output/map",
+      scenarioId: "scenario/comparison",
+      label: "Mean pressure",
+      order: 0,
+    }],
     controls: [{
+      sourcePaneId: "pane/controls",
       controlId: "control/svr",
       label: "Resistance",
       order: 0,
@@ -143,6 +191,69 @@ function focusedBriefingV3(): ExperimentPlacementBriefingV2 {
 }
 
 describe("Article Editor V3 briefing", () => {
+  it("shares graph-count presentation rules between Editor and Reader", () => {
+    expect(articleBriefingPresentationV3({ graphs: [] })).toBe("inflow");
+    expect(articleBriefingPresentationV3({ graphs: [{}] as never })).toBe("inflow");
+    expect(articleBriefingPresentationV3({ graphs: [{}, {}] as never })).toBe("peek");
+    expect(articleBriefingPresentationV3({
+      graphs: [{}, {}, {}, {}, {}] as never,
+    })).toBe("fullscreen");
+  });
+
+  it("renders a two-graph Editor placement as the same compact Peek anchor", () => {
+    const snapshot = twoGraphSnapshotV3();
+    const block = createArticleExperimentBlockV3(
+      snapshot,
+      (kind) => `${kind}/editor-peek`,
+    );
+    const html = renderToStaticMarkup(React.createElement(
+      ArticleExperimentPlacementV3,
+      {
+        block,
+        snapshot,
+        index: 0,
+        total: 1,
+        blockEditorLayout: true,
+        showBlockActions: false,
+        onChange: () => undefined,
+        onEdit: () => undefined,
+        onRemove: () => undefined,
+        onMove: () => undefined,
+      },
+    ));
+
+    expect(html).toContain('data-reader-presentation="peek"');
+    expect(html).toContain("Baseline");
+    expect(html).not.toContain(i18n.t("articleEditor.staticDataNotice"));
+  });
+
+  it("inserts a Notion-style block at the requested document boundary", () => {
+    const first = {
+      blockId: "block/first",
+      kind: "paragraph" as const,
+      text: "First",
+    };
+    const second = {
+      blockId: "block/second",
+      kind: "heading" as const,
+      level: 2 as const,
+      text: "Second",
+    };
+    const inserted = {
+      blockId: "block/inserted",
+      kind: "paragraph" as const,
+      text: "Inserted",
+    };
+
+    const result = insertArticleBlockV3([first, second], 1, inserted);
+    expect(result.map(({ blockId }) => blockId)).toEqual([
+      "block/first",
+      "block/inserted",
+      "block/second",
+    ]);
+    expect(Object.isFrozen(result)).toBe(true);
+  });
+
   it("renders the shared Briefing editor from Snapshot and Briefing values only", () => {
     const html = renderToStaticMarkup(React.createElement(
       ArticleBriefingEditorV3,
@@ -180,11 +291,11 @@ describe("Article Editor V3 briefing", () => {
       schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
       articleId: "article-initial-save-race",
       draftVersion: 0,
+      visibility: "draft",
       locale: "ja",
       title: "AS briefing",
       blocks: [createArticleExperimentBlockV3(
         snapshot,
-        undefined,
         (kind) => `${kind}/initial-save-race`,
       )],
     } satisfies StudioArticleDraftV2;
@@ -235,20 +346,28 @@ describe("Article Editor V3 briefing", () => {
     const snapshot = snapshotV3();
     let sequence = 0;
     const createId = (kind: "block" | "placement") => `${kind}/${++sequence}`;
-    const first = createArticleExperimentBlockV3(snapshot, undefined, createId);
-    const second = createArticleExperimentBlockV3(snapshot, undefined, createId);
+    const first = createArticleExperimentBlockV3(snapshot, createId);
+    const second = createArticleExperimentBlockV3(snapshot, createId);
 
     expect(first.placement.snapshotId).toBe(snapshot.snapshotId);
     expect(first.blockId).not.toBe(second.blockId);
     expect(first.placement.placementId).not.toBe(second.placement.placementId);
-    expect(first.placement.briefing).toEqual({
+    expect(snapshot.briefing).toEqual({
+      defaultTitle: "Baseline",
       scenarioScope: {
         visibleScenarioIds: ["scenario/baseline", "scenario/comparison"],
         initialFocusScenarioId: "scenario/baseline",
       },
       graphs: [{ paneId: "pane/pressure", order: 0, emphasis: "primary" }],
-      outputs: [{ outputId: "output/map", label: "MAP", order: 0 }],
+      outputs: [{
+        sourcePaneId: "pane/outputs",
+        outputId: "output/map",
+        scenarioId: "scenario/baseline",
+        label: "MAP",
+        order: 0,
+      }],
       controls: [{
+        sourcePaneId: "pane/controls",
         controlId: "control/svr",
         label: "SVR",
         order: 0,
@@ -264,15 +383,19 @@ describe("Article Editor V3 briefing", () => {
 
   it("resolves role-specific selections and authored graph overrides", () => {
     const snapshot = snapshotV3();
+    const focusedSnapshot: ArticleExperimentSnapshotV2 = {
+      ...snapshot,
+      briefing: focusedBriefingV3(),
+    };
     const placement: ExperimentPlacementV2 = {
       schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
       placementId: "placement/article-preview",
       snapshotId: snapshot.snapshotId,
+      titleOverride: null,
       caption: null,
-      briefing: focusedBriefingV3(),
     };
 
-    expect(resolveArticlePlacementBriefingV3(placement, snapshot)).toEqual(
+    expect(resolveArticlePlacementBriefingV3(placement, focusedSnapshot)).toEqual(
       focusedBriefingV3(),
     );
   });
@@ -280,6 +403,7 @@ describe("Article Editor V3 briefing", () => {
   it("preserves explicit empty role selections without allowing empty Scenario scope", () => {
     const snapshot = snapshotV3();
     const emptyRoles: ExperimentPlacementBriefingV2 = {
+      defaultTitle: "Empty experiment",
       scenarioScope: {
         visibleScenarioIds: ["scenario/baseline"],
         initialFocusScenarioId: "scenario/baseline",
@@ -288,61 +412,29 @@ describe("Article Editor V3 briefing", () => {
       outputs: [],
       controls: [],
     };
+    const emptySnapshot: ArticleExperimentSnapshotV2 = {
+      ...snapshot,
+      briefing: emptyRoles,
+    };
     const placement: ExperimentPlacementV2 = {
       schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
       placementId: "placement/empty-preview",
       snapshotId: snapshot.snapshotId,
+      titleOverride: null,
       caption: null,
-      briefing: emptyRoles,
     };
 
-    expect(resolveArticlePlacementBriefingV3(placement, snapshot)).toEqual(emptyRoles);
+    expect(resolveArticlePlacementBriefingV3(placement, emptySnapshot)).toEqual(emptyRoles);
     expect(createArticleExperimentBlockV3(
-      snapshot,
-      emptyRoles,
+      emptySnapshot,
       (kind) => `${kind}/empty-briefing`,
-    ).placement.briefing).toEqual(emptyRoles);
-  });
-
-  it("hands the complete role-specific Briefing across exact Snapshot identity", () => {
-    const snapshot = snapshotV3();
-    const storage = new MemorySessionStorageV3();
-    const handoff = new StudioSnapshotBriefingHandoffV3(storage);
-    const source = focusedBriefingV3();
-
-    const written = handoff.write(snapshot.snapshotId, source);
-    const handedOff = handoff.read(snapshot.snapshotId);
-
-    expect(storage.values.has(
-      studioSnapshotBriefingHandoffKeyV3(snapshot.snapshotId),
-    )).toBe(true);
-    expect(Object.isFrozen(written)).toBe(true);
-    expect(handedOff).toEqual(source);
-    expect(resolveArticleBriefingHandoffV3(snapshot, handedOff)).toEqual(source);
-  });
-
-  it("discards corrupt or stale role-specific session handoffs", () => {
-    const snapshot = snapshotV3();
-    const storage = new MemorySessionStorageV3();
-    const handoff = new StudioSnapshotBriefingHandoffV3(storage);
-    const key = studioSnapshotBriefingHandoffKeyV3(snapshot.snapshotId);
-
-    storage.setItem(key, "{not-json");
-    expect(handoff.read(snapshot.snapshotId)).toBeNull();
-    expect(storage.values.has(key)).toBe(false);
-
-    const stale: ExperimentPlacementBriefingV2 = {
-      ...focusedBriefingV3(),
-      graphs: [{
-        paneId: "pane/removed-after-snapshot",
-        order: 0,
-        emphasis: "primary",
-      }],
-    };
-    handoff.write(snapshot.snapshotId, stale);
-    const structurallyValid = handoff.read(snapshot.snapshotId);
-    expect(structurallyValid).not.toBeNull();
-    expect(resolveArticleBriefingHandoffV3(snapshot, structurallyValid)).toBeNull();
+    ).placement).toEqual({
+      schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
+      placementId: "placement/empty-briefing",
+      snapshotId: emptySnapshot.snapshotId,
+      titleOverride: null,
+      caption: null,
+    });
   });
 
   it("keeps generated Article IDs URL-safe", () => {
@@ -352,17 +444,13 @@ describe("Article Editor V3 briefing", () => {
   it("builds the same default projection through the dedicated helper", () => {
     const snapshot = snapshotV3();
     expect(defaultArticleBriefingV3(snapshot)).toEqual(
-      createArticleExperimentBlockV3(
-        snapshot,
-        undefined,
-        (kind) => `${kind}/default`,
-      ).placement.briefing,
+      snapshot.briefing,
     );
   });
 
-  it("deduplicates repeated Surface items and normalizes default graph order", () => {
+  it("keeps controller-pane identity while normalizing default graph order", () => {
     const base = snapshotV3();
-    const snapshot: ExperimentSnapshotV2 = {
+    const snapshot: ArticleExperimentSnapshotV2 = {
       ...base,
       content: {
         ...base.content,
@@ -379,6 +467,7 @@ describe("Article Editor V3 briefing", () => {
               label: "Repeated outputs",
               order: 1,
               priority: 1,
+              binding: { mode: "active-slot" },
               items: [{ outputId: "output/map", label: "MAP duplicate", order: 0 }],
             },
           ],
@@ -390,7 +479,13 @@ describe("Article Editor V3 briefing", () => {
               label: "Repeated controls",
               order: 1,
               priority: 1,
-              items: [{ controlId: "control/svr", label: "SVR duplicate", order: 0 }],
+              binding: { mode: "active-slot" },
+              items: [{
+                controlId: "control/svr",
+                label: "SVR duplicate",
+                order: 0,
+                presentation: { kind: "slider" },
+              }],
             },
           ],
         },
@@ -400,13 +495,66 @@ describe("Article Editor V3 briefing", () => {
     const briefing = defaultArticleBriefingV3(snapshot);
     expect(briefing.graphs.map(({ order }) => order)).toEqual([0]);
     expect(briefing.outputs).toEqual([
-      { outputId: "output/map", label: "MAP", order: 0 },
+      {
+        sourcePaneId: "pane/outputs",
+        outputId: "output/map",
+        scenarioId: "scenario/baseline",
+        label: "MAP",
+        order: 0,
+      },
+      {
+        sourcePaneId: "pane/outputs-duplicate",
+        outputId: "output/map",
+        scenarioId: "scenario/baseline",
+        label: "MAP duplicate",
+        order: 1,
+      },
     ]);
-    expect(briefing.controls).toHaveLength(1);
+    expect(briefing.controls.map(({ sourcePaneId }) => sourcePaneId)).toEqual([
+      "pane/controls",
+      "pane/controls-duplicate",
+    ]);
     expect(createArticleExperimentBlockV3(
       snapshot,
-      undefined,
       (kind) => `${kind}/deduplicated-default`,
-    ).placement.briefing).toEqual(briefing);
+    ).placement.snapshotId).toEqual(snapshot.snapshotId);
+  });
+
+  it("captures a Surface custom-button presentation by value", () => {
+    const base = snapshotV3();
+    const snapshot: ArticleExperimentSnapshotV2 = {
+      ...base,
+      content: {
+        ...base.content,
+        surface: {
+          ...base.content.surface,
+          controlPanes: base.content.surface.controlPanes.map((pane) => ({
+            ...pane,
+            items: pane.items.map((item) => ({
+              ...item,
+              presentation: {
+                kind: "buttons" as const,
+                options: [
+                  { label: "Low", value: 0.8 },
+                  { label: "High", value: 1.2 },
+                ],
+              },
+            })),
+          })),
+        },
+      },
+    };
+
+    const briefing = defaultArticleBriefingV3(snapshot);
+    expect(briefing.controls[0]?.presentation).toEqual({
+      kind: "buttons",
+      options: [
+        { label: "Low", value: 0.8 },
+        { label: "High", value: 1.2 },
+      ],
+    });
+    expect(briefing.controls[0]?.presentation).not.toBe(
+      snapshot.content.surface.controlPanes[0]?.items[0]?.presentation,
+    );
   });
 });

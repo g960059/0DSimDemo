@@ -3,17 +3,14 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   GripVertical,
   SlidersHorizontal,
   Trash2,
-  Waves,
+  X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation } from "react-router-dom";
-
-import { experimentSnapshotHref } from "@/homeLinks";
-import { localeFromPathname } from "@/localeRouting";
 import type {
   StudioArticleExperimentBlockV2,
 } from "@/studio/contracts/v2/article";
@@ -31,16 +28,22 @@ import {
   type ExperimentPlacementV2,
   type ExperimentSnapshotV2,
   type ExperimentSurfaceControlItemV2,
+  type ExperimentSurfaceControlPaneV2,
   type ExperimentSurfaceGraphPaneV2,
   type ExperimentSurfaceOutputItemV2,
+  type ExperimentSurfaceOutputPaneV2,
 } from "@/studio/contracts/v2/content";
 import type {
   ControlDefinitionV2,
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
 import {
+  articleBriefingPresentationV3,
   defaultArticleBriefingV3,
+  materializeSurfaceControlPaneBindingV3,
+  materializeSurfaceOutputPaneBindingV3,
   resolveArticlePlacementBriefingV3,
+  resolveArticlePlacementTitleV3,
 } from "./ArticleEditorStateV3";
 
 export type ArticleExperimentPlacementV3Props = Readonly<{
@@ -49,7 +52,10 @@ export type ArticleExperimentPlacementV3Props = Readonly<{
   contract?: ModelContractV2 | null;
   index: number;
   total: number;
+  showBlockActions?: boolean;
+  blockEditorLayout?: boolean;
   onChange: (block: StudioArticleExperimentBlockV2) => void;
+  onEdit: () => void;
   onRemove: () => void;
   onMove: (direction: -1 | 1) => void;
 }>;
@@ -60,14 +66,14 @@ export function ArticleExperimentPlacementV3({
   contract = null,
   index,
   total,
+  showBlockActions = true,
+  blockEditorLayout = false,
   onChange,
+  onEdit,
   onRemove,
   onMove,
 }: ArticleExperimentPlacementV3Props) {
   const { t } = useTranslation();
-  const location = useLocation();
-  const locale = localeFromPathname(location.pathname);
-  const [briefingOpen, setBriefingOpen] = React.useState(false);
   const placement = block.placement;
 
   const updatePlacement = React.useCallback((next: ExperimentPlacementV2) => {
@@ -77,7 +83,7 @@ export function ArticleExperimentPlacementV3({
   if (snapshot === null) {
     return (
       <section
-        className="group my-8 rounded-xl bg-wb-danger-soft px-4 py-4"
+        className={`group rounded-xl bg-wb-danger-soft px-4 py-4 ${blockEditorLayout ? "my-0" : "my-8"}`}
         data-testid="article-experiment-placement-v3"
       >
         <div className="flex items-start gap-3">
@@ -89,12 +95,14 @@ export function ArticleExperimentPlacementV3({
               {placement.snapshotId}
             </p>
           </div>
-          <PlacementBlockActionsV3
-            index={index}
-            total={total}
-            onMove={onMove}
-            onRemove={onRemove}
-          />
+          {showBlockActions && (
+            <PlacementBlockActionsV3
+              index={index}
+              total={total}
+              onMove={onMove}
+              onRemove={onRemove}
+            />
+          )}
         </div>
       </section>
     );
@@ -106,19 +114,21 @@ export function ArticleExperimentPlacementV3({
   } catch {
     return (
       <section
-        className="group my-8 rounded-xl bg-wb-danger-soft px-4 py-4"
+        className={`group rounded-xl bg-wb-danger-soft px-4 py-4 ${blockEditorLayout ? "my-0" : "my-8"}`}
         data-testid="article-experiment-placement-v3"
       >
         <div className="flex items-start gap-3">
           <p className="min-w-0 flex-1 text-sm font-medium text-wb-danger" role="alert">
             {t("articleEditor.invalidBriefing")}
           </p>
-          <PlacementBlockActionsV3
-            index={index}
-            total={total}
-            onMove={onMove}
-            onRemove={onRemove}
-          />
+          {showBlockActions && (
+            <PlacementBlockActionsV3
+              index={index}
+              total={total}
+              onMove={onMove}
+              onRemove={onRemove}
+            />
+          )}
         </div>
       </section>
     );
@@ -126,64 +136,65 @@ export function ArticleExperimentPlacementV3({
   const graphPanesById = new Map(
     snapshot.content.surface.graphPanes.map((pane) => [pane.paneId, pane]),
   );
-  const visibleScenarios = snapshot.content.scenarios.filter(({ scenarioId }) =>
-    briefing.scenarioScope.visibleScenarioIds.includes(scenarioId));
-  const focusScenario = visibleScenarios.find(({ scenarioId }) =>
-    scenarioId === briefing.scenarioScope.initialFocusScenarioId);
   const selectedCardCount = briefing.graphs.length
     + (briefing.outputs.length > 0 ? 1 : 0)
     + (briefing.controls.length > 0 ? 1 : 0);
+  const presentation = articleBriefingPresentationV3(briefing);
+  const placementTitle = resolveArticlePlacementTitleV3(placement, briefing);
+  if (blockEditorLayout && presentation !== "inflow") {
+    return (
+      <section
+        className="group my-0"
+        data-testid="article-experiment-placement-v3"
+        data-snapshot-id={snapshot.snapshotId}
+        data-static-preview="true"
+        data-reader-presentation={presentation}
+      >
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={t("articleEditor.briefing.edit")}
+          className="group/anchor flex w-full items-center gap-4 rounded-xl bg-wb-soft/70 px-4 py-5 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover/70 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:px-5"
+        >
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold tracking-[-0.012em] text-wb-text">
+            {placementTitle}
+          </span>
+          <ChevronRight
+            className="h-4 w-4 shrink-0 text-wb-subtle transition-transform duration-150 group-hover/anchor:translate-x-0.5 group-hover/anchor:text-wb-text"
+            aria-hidden="true"
+          />
+        </button>
+        <ArticlePlacementCaptionInputV3
+          caption={placement.caption}
+          onChange={(caption) => updatePlacement(Object.freeze({
+            ...placement,
+            caption,
+          }))}
+        />
+      </section>
+    );
+  }
 
   return (
     <section
-      className="group relative my-8 rounded-2xl bg-wb-soft/70 px-4 py-4 sm:px-5 sm:py-5"
+      className={`group relative rounded-2xl bg-wb-soft/70 px-4 py-4 sm:px-5 sm:py-5 ${blockEditorLayout ? "my-0" : "my-8"}`}
       data-testid="article-experiment-placement-v3"
       data-snapshot-id={snapshot.snapshotId}
       data-static-preview="true"
     >
-      <header className="flex items-start gap-3">
-        <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-wb-panel text-wb-accent">
-          <Waves className="h-4 w-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="truncate text-sm font-semibold tracking-tight">
-              {focusScenario?.label
-                ?? visibleScenarios[0]?.label
-                ?? snapshot.content.scenarios[0]?.label
-                ?? snapshot.experimentId}
-            </h2>
-            <span className="rounded-full bg-wb-panel px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-wb-subtle">
-              {t("articleEditor.pinned")}
-            </span>
-            <span className="rounded-full bg-wb-panel px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-wb-subtle">
-              {t("articleEditor.staticPreview")}
-            </span>
-          </div>
-          <Link
-            to={experimentSnapshotHref({
-              experimentId: snapshot.experimentId,
-              locale,
-              snapshotId: snapshot.snapshotId,
-            })}
-            target="_blank"
-            rel="noreferrer"
-            title={t("articleEditor.openSnapshot")}
-            className="mt-1 block truncate font-mono text-[9px] text-wb-subtle transition-colors hover:text-wb-accent focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          >
-            {snapshot.snapshotId}
-          </Link>
+      {showBlockActions && (
+        <div className="mb-3 flex justify-end">
+          <PlacementBlockActionsV3
+            index={index}
+            total={total}
+            onMove={onMove}
+            onRemove={onRemove}
+          />
         </div>
-        <PlacementBlockActionsV3
-          index={index}
-          total={total}
-          onMove={onMove}
-          onRemove={onRemove}
-        />
-      </header>
+      )}
 
       <div
-        className="mt-4 grid grid-cols-1 gap-2.5 md:grid-cols-2"
+        className="grid grid-cols-1 gap-2.5 md:grid-cols-2"
         aria-label={t("articleEditor.previewLabel")}
       >
         {[...briefing.graphs]
@@ -195,6 +206,8 @@ export function ArticleExperimentPlacementV3({
                 key={graph.paneId}
                 graph={graph}
                 pane={pane}
+                scenarioId={briefing.scenarioScope.initialFocusScenarioId}
+                snapshot={snapshot}
               />
             );
           })}
@@ -217,59 +230,67 @@ export function ArticleExperimentPlacementV3({
         </p>
       )}
 
-      <label className="mt-4 block">
-        <span className="sr-only">{t("articleEditor.caption")}</span>
-        <input
-          type="text"
-          value={placement.caption ?? ""}
-          onChange={(event) => updatePlacement(Object.freeze({
-            ...placement,
-            caption: event.currentTarget.value,
-          }))}
-          placeholder={t("articleEditor.captionPlaceholder")}
-          className="w-full bg-transparent py-1 text-xs leading-5 text-wb-muted outline-none placeholder:text-wb-subtle focus:text-wb-text"
-        />
-      </label>
+      <ArticlePlacementCaptionInputV3
+        caption={placement.caption}
+        onChange={(caption) => updatePlacement(Object.freeze({
+          ...placement,
+          caption,
+        }))}
+      />
 
       <button
         type="button"
-        aria-expanded={briefingOpen}
-        onClick={() => setBriefingOpen((value) => !value)}
+        onClick={onEdit}
         className="mt-3 inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-[11px] font-medium text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
         {t("articleEditor.briefing.edit")}
-        {briefingOpen
-          ? <ChevronUp className="h-3.5 w-3.5" />
-          : <ChevronDown className="h-3.5 w-3.5" />}
       </button>
-
-      {briefingOpen && (
-        <ArticleBriefingEditorV3
-          contract={contract?.modelId === snapshot.content.modelId ? contract : null}
-          briefing={placement.briefing}
-          snapshot={snapshot}
-          onChange={(nextBriefing) => updatePlacement(Object.freeze({
-            ...placement,
-            briefing: nextBriefing,
-          }))}
-        />
-      )}
     </section>
+  );
+}
+
+function ArticlePlacementCaptionInputV3({
+  caption,
+  onChange,
+}: Readonly<{
+  caption: string | null;
+  onChange(caption: string): void;
+}>) {
+  const { t } = useTranslation();
+  return (
+    <label className="mt-3 block">
+      <span className="sr-only">{t("articleEditor.caption")}</span>
+      <input
+        type="text"
+        value={caption ?? ""}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        placeholder={t("articleEditor.captionPlaceholder")}
+        className="w-full bg-transparent py-1 text-xs leading-5 text-wb-muted outline-none placeholder:text-wb-subtle focus:text-wb-text"
+      />
+    </label>
   );
 }
 
 function ArticleStaticGraphPreviewV3({
   graph,
   pane,
+  scenarioId,
+  snapshot,
 }: Readonly<{
   graph: ExperimentPlacementBriefingGraphV2;
   pane: ExperimentSurfaceGraphPaneV2;
+  scenarioId: string;
+  snapshot: ExperimentSnapshotV2;
 }>) {
   const { t } = useTranslation();
   const label = graph.overrides?.label ?? pane.label;
   const series = graph.overrides?.series ?? pane.series;
   const legend = graph.overrides?.legend ?? "auto";
+  const previewScenarioId = snapshot.content.scenarios.some((scenario) =>
+    scenario.scenarioId === scenarioId)
+    ? scenarioId
+    : snapshot.content.scenarios[0]?.scenarioId;
   return (
     <article
       className={`min-w-0 rounded-xl bg-wb-panel p-3.5 ${graph.emphasis === "primary" ? "md:col-span-2" : ""}`}
@@ -296,7 +317,14 @@ function ArticleStaticGraphPreviewV3({
               >
                 <span
                   className="h-px w-4"
-                  style={{ backgroundColor: item.colorHex }}
+                  style={{
+                    backgroundColor: articlePreviewTraceColorV3(
+                      graph,
+                      pane,
+                      previewScenarioId,
+                      item.seriesId,
+                    ),
+                  }}
                   aria-hidden="true"
                 />
                 {item.label}
@@ -312,6 +340,25 @@ function ArticleStaticGraphPreviewV3({
   );
 }
 
+function articlePreviewTraceColorV3(
+  graph: ExperimentPlacementBriefingGraphV2,
+  pane: ExperimentSurfaceGraphPaneV2,
+  scenarioId: string | undefined,
+  seriesId: string | null,
+): string {
+  if (scenarioId === undefined) return "#64748b";
+  return graph.overrides?.traceColors?.find((trace) =>
+    trace.scenarioId === scenarioId && trace.seriesId === seriesId
+  )?.colorHex
+    ?? pane.traceColors?.find((trace) =>
+      trace.scenarioId === scenarioId && trace.seriesId === seriesId
+    )?.customColorHex
+    ?? pane.traceColors?.find((trace) =>
+      trace.scenarioId === scenarioId && trace.seriesId === seriesId
+    )?.automaticColorHex
+    ?? "#64748b";
+}
+
 function ArticleStaticOutputPreviewV3({
   outputs,
 }: Readonly<{
@@ -323,7 +370,10 @@ function ArticleStaticOutputPreviewV3({
       <h3 className="text-[11px] font-semibold">{t("articleEditor.role.output")}</h3>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
         {[...outputs].sort(compareSemanticOrderV3).map((item) => (
-          <div key={item.outputId} className="min-w-0">
+          <div
+            key={`${item.sourcePaneId}:${item.outputId}:${item.scenarioId}`}
+            className="min-w-0"
+          >
             <dt className="truncate text-[9px] text-wb-muted">{item.label}</dt>
             <dd className="mt-0.5 font-mono text-sm text-wb-subtle">—</dd>
           </div>
@@ -344,7 +394,10 @@ function ArticleStaticControlPreviewV3({
       <h3 className="text-[11px] font-semibold">{t("articleEditor.role.control")}</h3>
       <ul className="mt-3 grid gap-3">
         {[...controls].sort(compareSemanticOrderV3).map((item) => (
-          <li key={item.controlId} className="min-w-0 text-[10px] text-wb-muted">
+          <li
+            key={`${item.sourcePaneId}:${item.controlId}`}
+            className="min-w-0 text-[10px] text-wb-muted"
+          >
             <span className="block truncate">{item.label}</span>
             {item.presentation.kind === "buttons" ? (
               <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -373,6 +426,8 @@ export type ArticleBriefingEditorV3Props = Readonly<{
   contract?: ModelContractV2 | null;
   showIntro?: boolean;
   testId?: string;
+  /** Active Workbench Scenario used only when a new active-slot control is picked. */
+  captureScenarioId?: string;
   onChange: (briefing: ExperimentPlacementBriefingV2) => void;
 }>;
 
@@ -384,6 +439,7 @@ export type ArticleBriefingEditorV3Props = Readonly<{
  * semantics while adapting the returned value to their own storage boundary.
  */
 export function ArticleBriefingEditorV3({
+  captureScenarioId,
   contract = null,
   briefing: authoredBriefing = null,
   showIntro = true,
@@ -401,10 +457,16 @@ export function ArticleBriefingEditorV3({
     briefing.graphs.map((graph) => [graph.paneId, graph]),
   );
   const outputById = new Map(
-    briefing.outputs.map((output) => [output.outputId, output]),
+    briefing.outputs.map((output) => [
+      briefingOutputKeyV3(output.sourcePaneId, output.outputId),
+      output,
+    ]),
   );
   const controlById = new Map(
-    briefing.controls.map((control) => [control.controlId, control]),
+    briefing.controls.map((control) => [
+      briefingControlKeyV3(control.sourcePaneId, control.controlId),
+      control,
+    ]),
   );
 
   const updateBriefing = (next: ExperimentPlacementBriefingV2) => {
@@ -424,6 +486,8 @@ export function ArticleBriefingEditorV3({
     updateBriefing({
       ...briefing,
       scenarioScope: { visibleScenarioIds, initialFocusScenarioId },
+      outputs: briefing.outputs.filter((output) =>
+        visibleScenarioIds.includes(output.scenarioId)),
       controls: briefing.controls.map((control) => ({
         ...control,
         binding: reconcileControlBindingScopeV3(
@@ -470,42 +534,77 @@ export function ArticleBriefingEditorV3({
     });
   };
 
-  const toggleOutput = (item: ExperimentSurfaceOutputItemV2, enabled: boolean) => {
+  const toggleOutput = (source: SurfaceOutputItemV3, enabled: boolean) => {
+    const sourceKey = briefingOutputKeyV3(
+      source.pane.paneId,
+      source.item.outputId,
+    );
+    const bindingCaptureScenarioId = captureScenarioId !== undefined &&
+      snapshot.content.scenarios.some(({ scenarioId }) =>
+        scenarioId === captureScenarioId)
+      ? captureScenarioId
+      : briefing.scenarioScope.initialFocusScenarioId;
     updateBriefing({
       ...briefing,
       outputs: enabled
         ? normalizeSemanticOrderV3([...briefing.outputs, {
-          outputId: item.outputId,
-          label: item.label,
+          sourcePaneId: source.pane.paneId,
+          outputId: source.item.outputId,
+          scenarioId: materializeSurfaceOutputPaneBindingV3(
+            source.pane.binding,
+            bindingCaptureScenarioId,
+            briefing.scenarioScope.visibleScenarioIds,
+          ),
+          label: source.item.label,
           order: briefing.outputs.length,
         }])
         : normalizeSemanticOrderV3(
-          briefing.outputs.filter(({ outputId }) => outputId !== item.outputId),
+          briefing.outputs.filter((output) =>
+            briefingOutputKeyV3(output.sourcePaneId, output.outputId)
+              !== sourceKey),
         ),
     });
   };
 
   const toggleControl = (
-    item: ExperimentSurfaceControlItemV2,
+    source: SurfaceControlItemV3,
     enabled: boolean,
   ) => {
+    const sourceKey = briefingControlKeyV3(
+      source.pane.paneId,
+      source.item.controlId,
+    );
+    const bindingCaptureScenarioId = captureScenarioId !== undefined &&
+      snapshot.content.scenarios.some(({ scenarioId }) =>
+        scenarioId === captureScenarioId)
+      ? captureScenarioId
+      : briefing.scenarioScope.initialFocusScenarioId;
     updateBriefing({
       ...briefing,
       controls: enabled
         ? normalizeSemanticOrderV3([...briefing.controls, {
-          controlId: item.controlId,
-          label: item.label,
+          sourcePaneId: source.pane.paneId,
+          controlId: source.item.controlId,
+          label: source.item.label,
           order: briefing.controls.length,
-          presentation: { kind: "slider" as const },
-          binding: {
-            mode: "fixed" as const,
-            scenarioIds: [briefing.scenarioScope.initialFocusScenarioId],
-            application: "absolute" as const,
-          },
+          presentation: source.item.presentation.kind === "buttons"
+            ? {
+                kind: "buttons" as const,
+                options: source.item.presentation.options.map((option) => ({
+                  ...option,
+                })),
+              }
+            : { kind: "slider" as const },
+          binding: materializeSurfaceControlPaneBindingV3(
+            source.pane.binding,
+            bindingCaptureScenarioId,
+            briefing.scenarioScope.visibleScenarioIds,
+          ),
         }])
         : normalizeSemanticOrderV3(
-          briefing.controls.filter(({ controlId }) =>
-            controlId !== item.controlId),
+          briefing.controls.filter((control) =>
+            briefingControlKeyV3(control.sourcePaneId, control.controlId)
+              !== sourceKey),
         ),
     });
   };
@@ -603,6 +702,8 @@ export function ArticleBriefingEditorV3({
             key={pane.paneId}
             pane={pane}
             graph={graphByPaneId.get(pane.paneId)}
+            scenarios={snapshot.content.scenarios.filter(({ scenarioId }) =>
+              briefing.scenarioScope.visibleScenarioIds.includes(scenarioId))}
             selectedGraphs={briefing.graphs}
             onToggle={(enabled) => toggleGraph(pane, enabled)}
             onChange={updateGraph}
@@ -612,60 +713,90 @@ export function ArticleBriefingEditorV3({
       </BriefingSectionV3>
 
       <BriefingSectionV3 label={t("articleEditor.role.output")}>
-        {outputItems.map((item) => (
-          <OutputBriefingRowV3
-            key={item.outputId}
-            label={item.label}
-            selected={outputById.get(item.outputId)}
+        {outputItems.map((source) => {
+          const sourceKey = briefingOutputKeyV3(
+            source.pane.paneId,
+            source.item.outputId,
+          );
+          const selected = outputById.get(sourceKey);
+          const scenarioId = selected?.scenarioId
+            ?? materializeSurfaceOutputPaneBindingV3(
+              source.pane.binding,
+              captureScenarioId ?? briefing.scenarioScope.initialFocusScenarioId,
+              briefing.scenarioScope.visibleScenarioIds,
+            );
+          const scenarioLabel = snapshot.content.scenarios.find((scenario) =>
+            scenario.scenarioId === scenarioId)?.label ?? scenarioId;
+          return <OutputBriefingRowV3
+            key={sourceKey}
+            label={source.item.label}
+            scenarioLabel={scenarioLabel}
+            selected={selected}
             selectedItems={briefing.outputs}
-            onToggle={(enabled) => toggleOutput(item, enabled)}
+            onToggle={(enabled) => toggleOutput(source, enabled)}
             onChange={(next) => updateBriefing({
               ...briefing,
               outputs: briefing.outputs.map((output) =>
-                output.outputId === next.outputId ? next : output),
+                briefingOutputKeyV3(output.sourcePaneId, output.outputId)
+                    === sourceKey
+                  ? next
+                  : output),
             })}
             onMove={(direction) => updateBriefing({
               ...briefing,
-              outputs: moveOrderedItemV3(
+              outputs: moveBriefingOutputV3(
                 briefing.outputs,
-                item.outputId,
+                source.pane.paneId,
+                source.item.outputId,
                 direction,
-                "outputId",
               ),
             })}
           />
-        ))}
+        })}
       </BriefingSectionV3>
 
       <BriefingSectionV3 label={t("articleEditor.role.control")}>
-        {controlItems.map((item) => (
+        {controlItems.map((source) => {
+          const sourceKey = briefingControlKeyV3(
+            source.pane.paneId,
+            source.item.controlId,
+          );
+          return (
           <ControlBriefingRowV3
-            key={item.controlId}
-            item={item}
+            key={sourceKey}
+            item={source.item}
+            sourcePaneId={source.pane.paneId}
             definition={contract?.controlCatalog.find(({ controlId }) =>
-              controlId === item.controlId)}
-            control={controlById.get(item.controlId)}
+              controlId === source.item.controlId)}
+            control={controlById.get(sourceKey)}
             selectedControls={briefing.controls}
             scenarios={snapshot.content.scenarios}
             visibleScenarioIds={briefing.scenarioScope.visibleScenarioIds}
             initialFocusScenarioId={briefing.scenarioScope.initialFocusScenarioId}
-            onToggle={(enabled) => toggleControl(item, enabled)}
+            onToggle={(enabled) => toggleControl(source, enabled)}
             onChange={(next) => updateBriefing({
               ...briefing,
               controls: briefing.controls.map((control) =>
-                control.controlId === next.controlId ? next : control),
+                briefingControlKeyV3(
+                  control.sourcePaneId,
+                  control.controlId,
+                ) === briefingControlKeyV3(
+                  next.sourcePaneId,
+                  next.controlId,
+                ) ? next : control),
             })}
             onMove={(direction) => updateBriefing({
               ...briefing,
-              controls: moveOrderedItemV3(
+              controls: moveBriefingControlV3(
                 briefing.controls,
-                item.controlId,
+                source.pane.paneId,
+                source.item.controlId,
                 direction,
-                "controlId",
               ),
             })}
           />
-        ))}
+          );
+        })}
       </BriefingSectionV3>
     </div>
   );
@@ -691,6 +822,7 @@ function BriefingSectionV3({
 function GraphBriefingRowV3({
   pane,
   graph,
+  scenarios,
   selectedGraphs,
   onToggle,
   onChange,
@@ -698,6 +830,7 @@ function GraphBriefingRowV3({
 }: Readonly<{
   pane: ExperimentSurfaceGraphPaneV2;
   graph: ExperimentPlacementBriefingGraphV2 | undefined;
+  scenarios: ExperimentSnapshotV2["content"]["scenarios"];
   selectedGraphs: readonly ExperimentPlacementBriefingGraphV2[];
   onToggle: (enabled: boolean) => void;
   onChange: (graph: ExperimentPlacementBriefingGraphV2) => void;
@@ -719,6 +852,19 @@ function GraphBriefingRowV3({
   const updateSeries = (
     next: readonly ExperimentPlacementBriefingGraphSeriesV2[],
   ) => updateOverrides({ series: normalizeSemanticOrderV3(next) });
+  const updateTraceColor = (
+    scenarioId: string,
+    seriesId: string | null,
+    colorHex: string | null,
+  ) => {
+    const retained = (graph?.overrides?.traceColors ?? []).filter((trace) =>
+      trace.scenarioId !== scenarioId || trace.seriesId !== seriesId);
+    updateOverrides({
+      traceColors: colorHex === null
+        ? retained
+        : [...retained, { scenarioId, seriesId, colorHex }],
+    });
+  };
 
   return (
     <div className="rounded-lg px-2 py-1.5 hover:bg-wb-hover">
@@ -814,7 +960,7 @@ function GraphBriefingRowV3({
                 return (
                   <div
                     key={sourceSeries.seriesId}
-                    className="grid grid-cols-[auto_minmax(0,1fr)_2rem] items-center gap-2"
+                    className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2"
                   >
                     <input
                       type="checkbox"
@@ -855,20 +1001,81 @@ function GraphBriefingRowV3({
                       }}
                       className="h-8 min-w-0 rounded-md bg-wb-input px-2 outline-none disabled:opacity-40 focus:ring-2 focus:ring-wb-accent"
                     />
-                    <input
-                      type="color"
-                      disabled={selectedSeries === undefined}
-                      value={selectedSeries?.colorHex ?? sourceSeries.colorHex}
-                      onChange={(event) => {
-                        if (selectedSeries === undefined) return;
-                        updateSeries(materializedSeries().map((series) =>
-                          series.seriesId === sourceSeries.seriesId
-                            ? { ...series, colorHex: event.currentTarget.value }
-                            : series));
-                      }}
-                      aria-label={`${sourceSeries.label} ${t("articleEditor.briefing.color")}`}
-                      className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent p-0 disabled:opacity-40"
-                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {scenarios.length > 0 && (
+            <div className="mt-3 grid gap-2">
+              <span className="font-medium">
+                {t("articleEditor.briefing.color")}
+              </span>
+              {scenarios.map((scenario, scenarioIndex) => {
+                const items = pane.series.length === 0
+                  ? [{ seriesId: null, label: "Guyton / Starling" }]
+                  : effectiveSeries;
+                return (
+                  <div
+                    key={scenario.scenarioId}
+                    className="rounded-md bg-wb-panel/60 px-2.5 py-2"
+                  >
+                    {scenarios.length > 1 && (
+                      <p className="mb-2 truncate font-medium text-wb-text">
+                        {scenario.label}
+                      </p>
+                    )}
+                    <div className="grid gap-1.5 sm:grid-cols-2">
+                      {items.map((item, itemIndex) => {
+                        const source = pane.traceColors?.find((trace) =>
+                          trace.scenarioId === scenario.scenarioId
+                          && trace.seriesId === item.seriesId);
+                        const override = graph.overrides?.traceColors?.find(
+                          (trace) =>
+                            trace.scenarioId === scenario.scenarioId
+                            && trace.seriesId === item.seriesId,
+                        );
+                        const fallback = source?.customColorHex
+                          ?? source?.automaticColorHex
+                          ?? ["#2f8fd3", "#d58a19", "#8b76d1", "#2aa67d"][
+                            scenarioIndex % 4
+                          ]!;
+                        return (
+                          <label
+                            key={item.seriesId ?? `structural-${itemIndex}`}
+                            className="grid grid-cols-[minmax(0,1fr)_2rem_2rem] items-center gap-1.5"
+                          >
+                            <span className="truncate">{item.label}</span>
+                            <input
+                              type="color"
+                              value={override?.colorHex ?? fallback}
+                              onChange={(event) => updateTraceColor(
+                                scenario.scenarioId,
+                                item.seriesId,
+                                event.currentTarget.value,
+                              )}
+                              aria-label={`${scenario.label} ${item.label} ${t("articleEditor.briefing.color")}`}
+                              className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent p-0"
+                            />
+                            <button
+                              type="button"
+                              disabled={override === undefined}
+                              aria-label={t("workbench.editor.resetColor")}
+                              title={t("workbench.editor.resetColor")}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text disabled:invisible"
+                              onClick={() => updateTraceColor(
+                                scenario.scenarioId,
+                                item.seriesId,
+                                null,
+                              )}
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
@@ -882,6 +1089,7 @@ function GraphBriefingRowV3({
 
 function OutputBriefingRowV3({
   label,
+  scenarioLabel,
   selected,
   selectedItems,
   onToggle,
@@ -889,6 +1097,7 @@ function OutputBriefingRowV3({
   onMove,
 }: Readonly<{
   label: string;
+  scenarioLabel: string;
   selected: ExperimentPlacementBriefingOutputV2 | undefined;
   selectedItems: readonly ExperimentPlacementBriefingOutputV2[];
   onToggle: (enabled: boolean) => void;
@@ -906,7 +1115,14 @@ function OutputBriefingRowV3({
             onChange={(event) => onToggle(event.currentTarget.checked)}
             className="h-3.5 w-3.5 accent-wb-accent"
           />
-          <span className="truncate text-[11px] font-medium">{label}</span>
+          <span className="min-w-0">
+            <span className="block truncate text-[11px] font-medium">
+              {label}
+            </span>
+            <span className="block truncate text-[9px] text-wb-subtle">
+              {scenarioLabel}
+            </span>
+          </span>
         </label>
         {selected !== undefined && (
           <OrderControlsV3
@@ -935,6 +1151,7 @@ function OutputBriefingRowV3({
 function ControlBriefingRowV3({
   definition,
   item,
+  sourcePaneId,
   control,
   selectedControls,
   scenarios,
@@ -946,6 +1163,7 @@ function ControlBriefingRowV3({
 }: Readonly<{
   definition: ControlDefinitionV2 | undefined;
   item: ExperimentSurfaceControlItemV2;
+  sourcePaneId: string;
   control: ExperimentPlacementBriefingControlV2 | undefined;
   selectedControls: readonly ExperimentPlacementBriefingControlV2[];
   scenarios: ExperimentSnapshotV2["content"]["scenarios"];
@@ -960,7 +1178,10 @@ function ControlBriefingRowV3({
     ? control.binding.allowedScenarioIds
     : control?.binding.scenarioIds ?? [];
   return (
-    <div className="rounded-lg px-2 py-1.5 hover:bg-wb-hover">
+    <div
+      className="rounded-lg px-2 py-1.5 hover:bg-wb-hover"
+      data-source-pane-id={sourcePaneId}
+    >
       <div className="flex min-h-8 items-center gap-2">
         <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
           <input
@@ -1004,10 +1225,9 @@ function ControlBriefingRowV3({
                   presentation: event.currentTarget.value === "buttons"
                     ? {
                       kind: "buttons",
-                      options: [{
-                        label: String(definition?.defaultValue ?? 0),
-                        value: definition?.defaultValue ?? 0,
-                      }],
+                      options: definition === undefined
+                        ? []
+                        : defaultArticleControlButtonOptionsV3(definition),
                     }
                     : { kind: "slider" },
                 })}
@@ -1131,7 +1351,7 @@ function ControlBriefingRowV3({
                     type="button"
                     disabled={
                       control.presentation.kind !== "buttons"
-                      || control.presentation.options.length === 1
+                      || control.presentation.options.length <= 2
                     }
                     onClick={() => onChange({
                       ...control,
@@ -1152,7 +1372,10 @@ function ControlBriefingRowV3({
               ))}
               <button
                 type="button"
-                disabled={definition === undefined}
+                disabled={
+                  definition === undefined
+                  || control.presentation.options.length >= 6
+                }
                 onClick={() => {
                   if (control.presentation.kind !== "buttons") return;
                   const lastValue = control.presentation.options.at(-1)?.value
@@ -1367,32 +1590,86 @@ function OrderButtonV3({
   );
 }
 
+type SurfaceOutputItemV3 = Readonly<{
+  pane: ExperimentSurfaceOutputPaneV2;
+  item: ExperimentSurfaceOutputItemV2;
+}>;
+
 function collectSurfaceOutputItemsV3(
   snapshot: ExperimentSnapshotV2,
-): readonly ExperimentSurfaceOutputItemV2[] {
-  const seen = new Set<string>();
+): readonly SurfaceOutputItemV3[] {
   return [...snapshot.content.surface.outputPanes]
     .sort(compareSemanticOrderV3)
-    .flatMap((pane) => [...pane.items].sort(compareSemanticOrderV3))
-    .filter(({ outputId }) => {
-      if (seen.has(outputId)) return false;
-      seen.add(outputId);
-      return true;
-    });
+    .flatMap((pane) => [...pane.items]
+      .sort(compareSemanticOrderV3)
+      .map((item) => Object.freeze({ pane, item })));
 }
+
+function briefingOutputKeyV3(sourcePaneId: string, outputId: string): string {
+  return `${sourcePaneId}\u001f${outputId}`;
+}
+
+type SurfaceControlItemV3 = Readonly<{
+  pane: ExperimentSurfaceControlPaneV2;
+  item: ExperimentSurfaceControlItemV2;
+}>;
 
 function collectSurfaceControlItemsV3(
   snapshot: ExperimentSnapshotV2,
-): readonly ExperimentSurfaceControlItemV2[] {
-  const seen = new Set<string>();
+): readonly SurfaceControlItemV3[] {
   return [...snapshot.content.surface.controlPanes]
     .sort(compareSemanticOrderV3)
-    .flatMap((pane) => [...pane.items].sort(compareSemanticOrderV3))
-    .filter(({ controlId }) => {
-      if (seen.has(controlId)) return false;
-      seen.add(controlId);
-      return true;
-    });
+    .flatMap((pane) => [...pane.items]
+      .sort(compareSemanticOrderV3)
+      .map((item) => Object.freeze({ pane, item })));
+}
+
+function briefingControlKeyV3(sourcePaneId: string, controlId: string): string {
+  return `${sourcePaneId}\u001f${controlId}`;
+}
+
+function moveBriefingControlV3(
+  controls: readonly ExperimentPlacementBriefingControlV2[],
+  sourcePaneId: string,
+  controlId: string,
+  direction: -1 | 1,
+): ExperimentPlacementBriefingControlV2[] {
+  const sorted = normalizeSemanticOrderV3(controls);
+  const key = briefingControlKeyV3(sourcePaneId, controlId);
+  const currentIndex = sorted.findIndex((control) =>
+    briefingControlKeyV3(control.sourcePaneId, control.controlId) === key);
+  const nextIndex = currentIndex + direction;
+  if (
+    currentIndex < 0 ||
+    nextIndex < 0 ||
+    nextIndex >= sorted.length
+  ) return sorted;
+  [sorted[currentIndex], sorted[nextIndex]] = [
+    sorted[nextIndex]!,
+    sorted[currentIndex]!,
+  ];
+  return sorted.map((control, order) => ({ ...control, order }));
+}
+
+function moveBriefingOutputV3(
+  outputs: readonly ExperimentPlacementBriefingOutputV2[],
+  sourcePaneId: string,
+  outputId: string,
+  direction: -1 | 1,
+): ExperimentPlacementBriefingOutputV2[] {
+  const sorted = normalizeSemanticOrderV3(outputs);
+  const key = briefingOutputKeyV3(sourcePaneId, outputId);
+  const currentIndex = sorted.findIndex((output) =>
+    briefingOutputKeyV3(output.sourcePaneId, output.outputId) === key);
+  const nextIndex = currentIndex + direction;
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= sorted.length) {
+    return sorted;
+  }
+  [sorted[currentIndex], sorted[nextIndex]] = [
+    sorted[nextIndex]!,
+    sorted[currentIndex]!,
+  ];
+  return sorted.map((output, order) => ({ ...output, order }));
 }
 
 function normalizeSemanticOrderV3<T extends Readonly<{ order: number }>>(
@@ -1489,6 +1766,21 @@ function normalizeControlOptionValueV3(
     definition.maximum,
     Math.max(definition.minimum, normalized),
   ).toPrecision(12));
+}
+
+function defaultArticleControlButtonOptionsV3(
+  definition: ControlDefinitionV2,
+): readonly Readonly<{ label: string; value: number }>[] {
+  const candidates = [
+    definition.defaultValue - definition.step,
+    definition.defaultValue,
+    definition.defaultValue + definition.step,
+    definition.minimum,
+    definition.maximum,
+  ].map((value) => normalizeControlOptionValueV3(value, definition));
+  const values = [...new Set(candidates)].slice(0, 3);
+  if (values.length < 2) values.push(definition.maximum);
+  return values.map((value) => ({ label: String(value), value }));
 }
 
 function PlacementBlockActionsV3({
