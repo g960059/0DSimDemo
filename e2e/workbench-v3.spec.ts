@@ -595,8 +595,11 @@ test("@desktop baseline duplication stays independent and requires explicit save
 
   // Mutating the restored copy remains branch-local after the durable
   // round-trip; the baseline fixture is still untouched.
+  const restoredCopyEpoch = await inputEpoch(page);
   await systemicResistance.press("ArrowRight");
   await expect(systemicResistance).toHaveValue("1.02");
+  await expect.poll(() => inputEpoch(page), { timeout: 30_000 })
+    .toBeGreaterThan(restoredCopyEpoch);
   await restoredBaseline.click();
   await expect(systemicResistance).toHaveValue("1");
 });
@@ -671,11 +674,16 @@ test("@mobile 390px Workbench uses one graph tab group and keeps controls reacha
   await expect.poll(async () =>
     (await catalogDrawerHost.boundingBox())?.width ?? 0
   ).toBeGreaterThan(300);
-  const contentBoxWithDrawer = await settingsContent.boundingBox();
-  const drawerBox = await catalogDrawer.boundingBox();
-  expect(drawerBox?.x ?? 0).toBeGreaterThanOrEqual(
-    (contentBoxWithDrawer?.x ?? 0) + (contentBoxWithDrawer?.width ?? 0) - 1,
-  );
+  // The inspector pushes the settings content while sliding in. Assert its
+  // final adjacency after the transition, not an intermediate animation
+  // frame whose exact x coordinate depends on shared-runner paint timing.
+  await expect.poll(async () => {
+    const contentBoxWithDrawer = await settingsContent.boundingBox();
+    const drawerBox = await catalogDrawer.boundingBox();
+    if (contentBoxWithDrawer === null || drawerBox === null) return -Infinity;
+    return drawerBox.x -
+      (contentBoxWithDrawer.x + contentBoxWithDrawer.width);
+  }, { timeout: 5_000 }).toBeGreaterThanOrEqual(-1);
   await expect(
     catalogDrawer.getByRole("button", { name: /項目を追加:/ }),
   ).toHaveCount(2);
