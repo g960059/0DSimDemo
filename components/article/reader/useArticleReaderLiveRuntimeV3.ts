@@ -2,6 +2,12 @@ import React from "react";
 
 import type { ExperimentSnapshotV2 } from
   "@/studio/contracts/v2/content";
+import type {
+  StudioModelWorkerReleaseTicketV2,
+} from "@/studio/contracts/v2/release";
+import type {
+  StudioSimulationAnalysisExecutionPlanResolverV2,
+} from "@/studio/contracts/v2/simulation";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
@@ -40,6 +46,11 @@ export function useArticleReaderLiveRuntimeV3(
   initialActiveScenarioId?: string,
   visibleScenarioIds?: readonly string[],
   structuralAnalyses: readonly ArticleReaderStructuralAnalysisRequestV3[] = [],
+  exactModel?: Readonly<{
+    releaseTicket?: StudioModelWorkerReleaseTicketV2;
+    resolveAnalysisExecutionPlan?:
+      StudioSimulationAnalysisExecutionPlanResolverV2;
+  }>,
 ): UseArticleReaderLiveRuntimeResultV3 {
   const requestedScopeKey = JSON.stringify(visibleScenarioIds ?? null);
   const validatedVisibleScenarioIds = React.useMemo(
@@ -71,6 +82,15 @@ export function useArticleReaderLiveRuntimeV3(
       visibleScenarioIds: validatedVisibleScenarioIds,
       structuralAnalyses,
       sampleStore,
+      ...(exactModel?.releaseTicket === undefined
+        ? {}
+        : { releaseTicket: exactModel.releaseTicket }),
+      ...(exactModel?.resolveAnalysisExecutionPlan === undefined
+        ? {}
+        : {
+            resolveAnalysisExecutionPlan:
+              exactModel.resolveAnalysisExecutionPlan,
+          }),
     });
     controllerRef.current = controller;
     setState(controller.getSnapshot());
@@ -101,6 +121,8 @@ export function useArticleReaderLiveRuntimeV3(
     snapshot,
     structuralAnalysisKey,
     visibleScopeKey,
+    exactModel?.releaseTicket,
+    exactModel?.resolveAnalysisExecutionPlan,
   ]);
 
   const play = React.useCallback(() => controllerRef.current?.play(), []);

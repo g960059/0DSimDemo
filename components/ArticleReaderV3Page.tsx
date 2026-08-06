@@ -11,7 +11,8 @@ import {
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import {
-  loadStudioDefaultClientCompositionV2,
+  loadStudioModelClientCompositionV2,
+  type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import type {
   StudioArticleDraftV2,
@@ -19,7 +20,6 @@ import type {
 import type {
   ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
-import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import {
   StudioBrowserContentStoreV3,
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
@@ -43,8 +43,11 @@ type ArticleReaderContentStateV3 =
 
 type ArticleReaderContractStateV3 =
   | Readonly<{ kind: "loading" }>
-  | Readonly<{ kind: "ready"; contract: ModelContractV2 }>
-  | Readonly<{ kind: "unavailable"; message: string }>;
+  | Readonly<{
+      kind: "ready";
+      compositionByModelId: ReadonlyMap<string, StudioClientCompositionV2>;
+      errors: readonly string[];
+    }>;
 
 type ArticleReaderExpandedPlacementV3 = Readonly<{
   placementId: string;
@@ -287,21 +290,40 @@ function ArticleReaderV3Resource({
   }, []);
 
   React.useEffect(() => {
+    if (content.kind !== "ready") return undefined;
     let current = true;
-    void loadStudioDefaultClientCompositionV2().then(({ contract }) => {
-      if (current) setContractState({ kind: "ready", contract });
-    }).catch((error) => {
-      if (current) {
-        setContractState({
-          kind: "unavailable",
-          message: error instanceof Error ? error.message : String(error),
-        });
+    const modelIds = [...new Set(
+      [...content.snapshots.values()].map(({ content }) => content.modelId),
+    )];
+    setContractState({ kind: "loading" });
+    void Promise.allSettled(modelIds.map(async (modelId) => Object.freeze({
+      modelId,
+      composition: await loadStudioModelClientCompositionV2(modelId),
+    }))).then((results) => {
+      if (!current) return;
+      const compositions = new Map<string, StudioClientCompositionV2>();
+      const errors: string[] = [];
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          compositions.set(result.value.modelId, result.value.composition);
+        } else {
+          errors.push(
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason),
+          );
+        }
       }
+      setContractState({
+        kind: "ready",
+        compositionByModelId: compositions,
+        errors: Object.freeze(errors),
+      });
     });
     return () => {
       current = false;
     };
-  }, []);
+  }, [content]);
 
   React.useEffect(() => {
     if (content.kind !== "ready" || !hash.startsWith("#placement-")) return;
@@ -345,10 +367,6 @@ function ArticleReaderV3Resource({
       </div>
     );
   }
-
-  const exactContract = contractState.kind === "ready"
-    ? contractState.contract
-    : null;
 
   return (
     <div
@@ -408,8 +426,12 @@ function ArticleReaderV3Resource({
               );
             }
             const snapshot = content.snapshots.get(block.placement.snapshotId) ?? null;
-            const modelMatches = snapshot !== null
-              && exactContract?.modelId === snapshot.content.modelId;
+            const runtimeComposition = snapshot === null
+              || contractState.kind !== "ready"
+              ? null
+              : contractState.compositionByModelId.get(
+                  snapshot.content.modelId,
+                ) ?? null;
             const isLive = expandedPlacement === null
               ? activePlacementId === block.placement.placementId
               : expandedPlacement.placementId === block.placement.placementId;
@@ -422,7 +444,8 @@ function ArticleReaderV3Resource({
                 key={block.blockId}
                 block={block}
                 snapshot={snapshot}
-                contract={modelMatches ? exactContract : null}
+                contract={runtimeComposition?.contract ?? null}
+                runtimeComposition={runtimeComposition}
                 live={isLive}
                 expandedPresentation={expandedPresentation}
                 peekPortalHost={peekPortalHost}
@@ -448,9 +471,9 @@ function ArticleReaderV3Resource({
             );
           })}
 
-          {contractState.kind === "unavailable" && (
+          {contractState.kind === "ready" && contractState.errors.length > 0 && (
             <p className="mt-10 text-xs text-wb-danger" role="alert">
-              {contractState.message}
+              {contractState.errors.join(" ")}
             </p>
           )}
             </article>

@@ -1,0 +1,215 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type {
+  ModelContractV2,
+  RegisteredModelPackageManifestV2,
+} from "@/studio/contracts/v2/model";
+import {
+  assertPortableStudioJsonObjectV2,
+  deriveModelContractFromManifestV2,
+} from "@/studio/contracts/v2/model";
+import type { StudioJsonObjectV2 } from "@/studio/contracts/v2/json";
+import type {
+  StudioModelWorkerReleaseTicketV2,
+} from "@/studio/contracts/v2/release";
+import {
+  STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+  validateRegisteredModelModuleAbiV2,
+  validateStudioModelWorkerReleaseTicketV2,
+} from "@/studio/contracts/v2/release";
+import {
+  readStudioSupabaseConfigurationV1,
+  studioSupabaseClientV1,
+} from "@/studio/infrastructure/supabase/StudioSupabaseClientV1";
+
+export type StudioResolvedModelReleaseV1 = Readonly<{
+  contract: ModelContractV2;
+  defaultFixture: StudioJsonObjectV2;
+  analysisProfileId: string;
+  ticket: StudioModelWorkerReleaseTicketV2;
+}>;
+
+export type StudioModelReleaseRpcResultV1 = Readonly<{
+  data: unknown;
+  error: Readonly<{ message: string }> | null;
+}>;
+
+export interface StudioModelReleaseRpcPortV1 {
+  call(
+    functionName: "get_model_release_v2" | "get_model_release_channel_v2",
+    parameters: Readonly<Record<string, string>>,
+  ): Promise<StudioModelReleaseRpcResultV1>;
+}
+
+/**
+ * Hash-free browser projection of the trusted exact-model registry.
+ * Exact model promises are cached for the page lifetime; channel pointers are
+ * deliberately resolved afresh and immediately pinned to the returned ID.
+ */
+export class StudioSupabaseModelReleaseResolverV1 {
+  readonly #rpc: StudioModelReleaseRpcPortV1;
+  readonly #supabaseOrigin: string;
+  readonly #releasePromises = new Map<string, Promise<StudioResolvedModelReleaseV1>>();
+
+  constructor(dependencies: Readonly<{
+    rpc: StudioModelReleaseRpcPortV1;
+    supabaseOrigin: string;
+  }>) {
+    this.#rpc = dependencies.rpc;
+    this.#supabaseOrigin = validateSupabaseOriginV1(dependencies.supabaseOrigin);
+  }
+
+  resolveExactModel(modelId: string): Promise<StudioResolvedModelReleaseV1> {
+    const cached = this.#releasePromises.get(modelId);
+    if (cached !== undefined) return cached;
+    const pending = this.#readOne(
+      "get_model_release_v2",
+      Object.freeze({ p_model_id: modelId }),
+    );
+    this.#releasePromises.set(modelId, pending);
+    void pending.catch(() => {
+      if (this.#releasePromises.get(modelId) === pending) {
+        this.#releasePromises.delete(modelId);
+      }
+    });
+    return pending;
+  }
+
+  async resolveChannel(channel: string): Promise<StudioResolvedModelReleaseV1> {
+    const resolved = await this.#readOne(
+      "get_model_release_channel_v2",
+      Object.freeze({ p_channel: channel }),
+    );
+    const cached = this.#releasePromises.get(resolved.contract.modelId);
+    if (cached !== undefined) return cached;
+    const owned = Promise.resolve(resolved);
+    this.#releasePromises.set(resolved.contract.modelId, owned);
+    return owned;
+  }
+
+  async #readOne(
+    functionName: "get_model_release_v2" | "get_model_release_channel_v2",
+    parameters: Readonly<Record<string, string>>,
+  ): Promise<StudioResolvedModelReleaseV1> {
+    const result = await this.#rpc.call(functionName, parameters);
+    if (result.error !== null) {
+      throw new Error(`Exact model registry lookup failed: ${result.error.message}`);
+    }
+    if (!Array.isArray(result.data) || result.data.length !== 1) {
+      throw new Error("Exact model release is unavailable");
+    }
+    return this.#ownReleaseRow(result.data[0]);
+  }
+
+  #ownReleaseRow(value: unknown): StudioResolvedModelReleaseV1 {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Exact model registry returned an invalid row");
+    }
+    const row = value as Record<string, unknown>;
+    const modelId = requiredStringV1(row.model_id, "model_id");
+    const artifactPath = requiredStringV1(row.artifact_path, "artifact_path");
+    const moduleAbi = validateRegisteredModelModuleAbiV2(
+      row.module_abi,
+      "$.module_abi",
+    );
+    assertPortableStudioJsonObjectV2(
+      row.default_fixture,
+      "$.default_fixture",
+    );
+    const defaultFixture = ownJsonObjectV1(row.default_fixture);
+    const analysisProfileId = requiredStringV1(
+      row.analysis_profile_id,
+      "analysis_profile_id",
+    );
+    const ticket = validateStudioModelWorkerReleaseTicketV2({
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId,
+      manifest: row.manifest as RegisteredModelPackageManifestV2,
+      moduleAbi,
+      artifactUrl: publicArtifactUrlV1(this.#supabaseOrigin, artifactPath),
+    });
+    return Object.freeze({
+      contract: deriveModelContractFromManifestV2(ticket.manifest),
+      defaultFixture,
+      analysisProfileId,
+      ticket,
+    });
+  }
+}
+
+let sharedResolverV1: StudioSupabaseModelReleaseResolverV1 | null | undefined;
+
+export function studioSupabaseModelReleaseResolverV1():
+StudioSupabaseModelReleaseResolverV1 | null {
+  if (sharedResolverV1 !== undefined) return sharedResolverV1;
+  const configuration = readStudioSupabaseConfigurationV1();
+  const client = studioSupabaseClientV1();
+  sharedResolverV1 = configuration === null || client === null
+    ? null
+    : new StudioSupabaseModelReleaseResolverV1({
+        rpc: supabaseRpcPortV1(client),
+        supabaseOrigin: configuration.url,
+      });
+  return sharedResolverV1;
+}
+
+function supabaseRpcPortV1(client: SupabaseClient): StudioModelReleaseRpcPortV1 {
+  return Object.freeze({
+    async call(functionName, parameters) {
+      const result = await client.rpc(functionName, parameters);
+      return Object.freeze({
+        data: result.data,
+        error: result.error === null
+          ? null
+          : Object.freeze({ message: result.error.message }),
+      });
+    },
+  });
+}
+
+function publicArtifactUrlV1(origin: string, artifactPath: string): string {
+  const segments = artifactPath.split("/");
+  if (
+    segments.length < 2
+    || segments.some((segment) => segment.length === 0 || segment === "." || segment === "..")
+  ) {
+    throw new Error("Exact model artifact path is invalid");
+  }
+  return `${origin}/storage/v1/object/public/${segments.map(encodeURIComponent).join("/")}`;
+}
+
+function validateSupabaseOriginV1(value: string): string {
+  const parsed = new URL(value);
+  if (
+    parsed.protocol !== "https:"
+    && !(parsed.protocol === "http:" && (
+      parsed.hostname === "127.0.0.1"
+      || parsed.hostname === "localhost"
+      || parsed.hostname === "[::1]"
+    ))
+  ) {
+    throw new Error("Model registry origin must use HTTPS or loopback HTTP");
+  }
+  return parsed.origin;
+}
+
+function requiredStringV1(value: unknown, field: string): string {
+  if (typeof value !== "string" || value.length === 0 || value !== value.trim()) {
+    throw new Error(`Exact model registry ${field} is invalid`);
+  }
+  return value;
+}
+
+function ownJsonObjectV1(value: StudioJsonObjectV2): StudioJsonObjectV2 {
+  return deepFreezeV1(JSON.parse(JSON.stringify(value)) as StudioJsonObjectV2);
+}
+
+function deepFreezeV1<TValue>(value: TValue): TValue {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const child of Object.values(value as Record<string, unknown>)) {
+      deepFreezeV1(child);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}

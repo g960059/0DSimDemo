@@ -33,6 +33,12 @@ import {
   InMemoryRegisteredModelStoreV2,
 } from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
 import {
+  DynamicExactModelRuntimeLoaderV2,
+} from "@/studio/infrastructure/model/DynamicExactModelRuntimeLoaderV2";
+import {
+  STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+} from "@/studio/contracts/v2/release";
+import {
   MAIN_WIRE_INTEGRATED_STUDIO_DEFAULT_FIXTURE_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3,
@@ -162,6 +168,40 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     ).simulationAdapter.modelId).toBe(
       MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
     );
+  });
+
+  it("loads the immutable development-36 artifact from a hash-free Worker ticket", async () => {
+    const artifact = exactExecutableArtifactBytesV3();
+    const modelPackage = createMainWireIntegratedStudioModelPackageV3();
+    const fetchArtifact = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      async arrayBuffer() {
+        return artifact.buffer.slice(
+          artifact.byteOffset,
+          artifact.byteOffset + artifact.byteLength,
+        ) as ArrayBuffer;
+      },
+    });
+    const loader = new DynamicExactModelRuntimeLoaderV2(fetchArtifact);
+    const ticket = {
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId: modelPackage.manifest.modelId,
+      manifest: modelPackage.manifest,
+      moduleAbi: "legacy-main-wire-v3-development-36",
+      artifactUrl: "https://registry.example/model-releases/development-36.mjs",
+    } as const;
+
+    const first = loader.load(ticket);
+    expect(loader.load(ticket)).toBe(first);
+    await expect(first).resolves.toMatchObject({
+      contract: { modelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 },
+      simulationAdapter: {
+        modelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+      },
+    });
+    expect(fetchArtifact).toHaveBeenCalledOnce();
+    expect(fetchArtifact).toHaveBeenCalledWith(ticket.artifactUrl);
   });
 
   it("enforces the exact control lattice through the admitted simulation adapter", async () => {

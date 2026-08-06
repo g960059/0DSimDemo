@@ -83,7 +83,7 @@ ExperimentPlacement = snapshotId + Briefing + title/caption
 
 1. graph complexityを含む表示extentの重み付けと、非active Placement向けの
    disposable one-beat replay cache
-2. 過去のexact model releaseを動的に解決するmulti-release loader
+2. standard ABIの次期exact releaseでhistorical loadを実地検証
 3. production redirect、Google OAuth、匿名利用のabuse control、定期GCを設定
 4. その後に公式Preset、Experiment、記事、Lessonを制作
 

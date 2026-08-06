@@ -69,10 +69,14 @@ are deliberately not labelled EDV/ESV because they are not yet tied to named
 valve events.
 
 Registry admission performs the one-time exact manifest/artifact integrity
-check. The trusted loader evaluates those exact self-contained module bytes and
-materializes the executable bundle from them; arbitrary bytes cannot be paired
-with source-created functions. Browser clients load that committed admitted
-artifact and do not rehash it during load or execution.
+check. New Sessions resolve the default channel once; existing Experiments and
+Snapshots resolve their stored exact `modelId`. The trusted Worker loader then
+evaluates that release's self-contained module bytes and materializes the
+executable bundle from them; arbitrary bytes cannot be paired with
+source-created functions. Browser clients trust the registry response and do
+not rehash the artifact during load or execution. `development-36` uses a
+registry-only legacy ABI adapter, leaving its committed bytes and modelId
+unchanged.
 
 The model-compatible Snapshot admission policy is purpose-neutral. Before
 admission, Workbench freezes the click-time model/fixture/input intent and may

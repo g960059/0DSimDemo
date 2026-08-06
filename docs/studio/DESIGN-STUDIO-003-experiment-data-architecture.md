@@ -155,6 +155,49 @@ The registry keeps old exact releases loadable. Changing the default channel
 affects only new Sessions. Existing Experiments and Snapshots remain pinned to
 their stored `modelId`; migration or cloning is explicit.
 
+### 4.1 Dynamic exact-model resolution
+
+The browser does not bundle historical releases into one application chunk.
+It resolves one small, hash-free launch projection from Supabase:
+
+```ts
+type ModelWorkerReleaseTicket = Readonly<{
+  modelId: string;
+  manifest: RegisteredModelPackageManifest;
+  moduleAbi:
+    | "legacy-main-wire-v3-development-36"
+    | "circleheart-exact-model-esm-v1";
+  artifactUrl: string;
+}>;
+```
+
+The same immutable registry launch contract also owns the default fixture and
+an `analysisProfileId`. These are launch inputs, not identity. The exact
+manifest and artifact bytes remain the authority for numerical behavior.
+
+- `/experiments/new` resolves the `default` channel once, then immediately
+  pins the returned `modelId` for the Session.
+- an existing Experiment or Snapshot resolves its stored exact `modelId`
+  directly and never follows a channel;
+- one Article may resolve several exact releases, one per distinct pinned
+  `modelId` among its Snapshots;
+- the main thread derives the public contract from the returned manifest and
+  sends the validated release ticket with Worker initialization;
+- the Worker downloads only that artifact, selects the immutable module ABI,
+  validates executable/manifest identity bindings, and creates the exact
+  runtime;
+- a missing, retired, malformed, or unsupported release fails closed. The
+  loader never substitutes the current default for historical content.
+
+Exact-model promises are cached by `modelId` for a page lifetime. Mutable
+channel pointers are not used as runtime cache keys. Browser HTTP caching may
+reuse immutable artifact bytes; no durable Experiment field stores URL, ABI,
+cache state, or a digest.
+
+`development-36` keeps its committed artifact byte-for-byte and is attached to
+the legacy ABI only in registry metadata. The standard ABI is reserved for the
+next exact release boundary. Neither operation changes its existing modelId.
+
 `Experiment.version` is an optimistic-concurrency token only. It is neither a
 scientific revision nor part of a public URL.
 
@@ -434,3 +477,5 @@ browser Web Workers remain the interactive numerical owner.
 11. All backend writes are semantic, authenticated, idempotent, and
     version-checked where the resource is mutable.
 12. Device layout and live status never leak into portable content.
+13. Existing content resolves its stored exact model; it never falls back to a
+    channel-selected model after load failure.

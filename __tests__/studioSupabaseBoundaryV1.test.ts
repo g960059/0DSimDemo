@@ -12,6 +12,12 @@ import {
 import {
   StudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
+import {
+  StudioSupabaseModelReleaseResolverV1,
+} from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
+import {
+  createMainWireIntegratedStudioModelPackageV3,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
 
 describe("Studio Supabase boundary V1", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -31,6 +37,46 @@ describe("Studio Supabase boundary V1", () => {
       url: "https://project.supabase.co",
       publishableKey: "sb_publishable_browser",
     });
+  });
+
+  it("resolves a hash-free exact model ticket and owns its launch fixture", async () => {
+    const modelPackage = createMainWireIntegratedStudioModelPackageV3();
+    const call = vi.fn().mockResolvedValue({
+      data: [{
+        model_id: modelPackage.manifest.modelId,
+        model_family_id: modelPackage.manifest.modelFamilyId,
+        display_name: modelPackage.manifest.displayName,
+        manifest: modelPackage.manifest,
+        artifact_path: "model-releases/exact/model.mjs",
+        module_abi: "legacy-main-wire-v3-development-36",
+        default_fixture: modelPackage.defaultFixture,
+        analysis_profile_id: "main-wire-integrated-v3",
+      }],
+      error: null,
+    });
+    const resolver = new StudioSupabaseModelReleaseResolverV1({
+      rpc: { call },
+      supabaseOrigin: "https://project.supabase.co/path-is-ignored",
+    });
+
+    const first = resolver.resolveExactModel(modelPackage.manifest.modelId);
+    expect(resolver.resolveExactModel(modelPackage.manifest.modelId)).toBe(first);
+    const resolved = await first;
+    expect(resolved).toMatchObject({
+      contract: { modelId: modelPackage.manifest.modelId },
+      defaultFixture: modelPackage.defaultFixture,
+      analysisProfileId: "main-wire-integrated-v3",
+      ticket: {
+        modelId: modelPackage.manifest.modelId,
+        moduleAbi: "legacy-main-wire-v3-development-36",
+        artifactUrl:
+          "https://project.supabase.co/storage/v1/object/public/model-releases/exact/model.mjs",
+      },
+    });
+    expect(resolved.ticket).not.toHaveProperty("artifactSha256");
+    expect(resolved.ticket).not.toHaveProperty("registryFingerprint");
+    expect(Object.isFrozen(resolved.defaultFixture)).toBe(true);
+    expect(call).toHaveBeenCalledOnce();
   });
 
   it("creates an anonymous account only when a Save asks for authentication", async () => {

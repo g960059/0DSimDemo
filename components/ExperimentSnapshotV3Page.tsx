@@ -16,13 +16,13 @@ import {
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import {
-  loadStudioDefaultClientCompositionV2,
+  loadStudioModelClientCompositionV2,
+  type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   type ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
-import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import {
   StudioBrowserContentStoreV3,
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
@@ -72,7 +72,8 @@ function ExperimentSnapshotV3Resource({
     snapshot === null || snapshot === undefined
       ? null
       : defaultArticleBriefingV3(snapshot), [snapshot]);
-  const [contract, setContract] = React.useState<ModelContractV2 | null>(null);
+  const [composition, setComposition] =
+    React.useState<StudioClientCompositionV2 | null>(null);
   const [expanded, setExpanded] = React.useState(false);
 
   React.useEffect(() => {
@@ -94,15 +95,12 @@ function ExperimentSnapshotV3Resource({
 
   React.useEffect(() => {
     let current = true;
-    void loadStudioDefaultClientCompositionV2().then((composition) => {
-      if (
-        current
-        && snapshot !== null
-        && snapshot !== undefined
-        && composition.contract.modelId === snapshot.content.modelId
-      ) {
-        setContract(composition.contract);
-      }
+    if (snapshot === null || snapshot === undefined) {
+      setComposition(null);
+      return undefined;
+    }
+    void loadStudioModelClientCompositionV2(snapshot.content.modelId).then((next) => {
+      if (current) setComposition(next);
     }).catch(() => {
       // The immutable Snapshot stays readable when its exact release is not
       // present in this pre-release client catalog; live controls stay closed.
@@ -191,7 +189,8 @@ function ExperimentSnapshotV3Resource({
                 }),
               })}
               snapshot={snapshot}
-              contract={contract}
+              contract={composition?.contract ?? null}
+              runtimeComposition={composition}
               live
               expandedPresentation={expanded ? "fullscreen" : null}
               forceInline

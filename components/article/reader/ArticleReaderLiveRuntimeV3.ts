@@ -1,10 +1,14 @@
 import type { ExperimentSnapshotV2 } from
   "@/studio/contracts/v2/content";
 import type {
+  StudioSimulationAnalysisExecutionPlanResolverV2,
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from
   "@/studio/contracts/v2/simulation";
+import type {
+  StudioModelWorkerReleaseTicketV2,
+} from "@/studio/contracts/v2/release";
 import {
   WorkbenchParallelScenarioRuntimeV3,
   type WorkbenchParallelScenarioSeedV3,
@@ -16,9 +20,6 @@ import {
   WorkbenchBackgroundWorkerPoolV3,
   type WorkbenchBackgroundWorkerPoolPortV3,
 } from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
-import {
-  DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
-} from "@/studio/composition/StudioDefaultCompositionV2";
 
 export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   status:
@@ -80,6 +81,9 @@ export type ArticleReaderLiveRuntimeDependenciesV3 = Readonly<{
   structuralAnalyses?: readonly ArticleReaderStructuralAnalysisRequestV3[];
   sampleStore?: WorkbenchScenarioPresentationSampleStoreV3;
   backgroundWorkerPool?: WorkbenchBackgroundWorkerPoolPortV3;
+  releaseTicket?: StudioModelWorkerReleaseTicketV2;
+  resolveAnalysisExecutionPlan?:
+    StudioSimulationAnalysisExecutionPlanResolverV2;
   createRuntime?: (
     input: ArticleReaderParallelRuntimeFactoryInputV3,
   ) => ArticleReaderParallelRuntimeV3;
@@ -146,9 +150,12 @@ export class ArticleReaderLiveRuntimeV3 {
       this.#createRuntime = (input) =>
         new WorkbenchParallelScenarioRuntimeV3({
           ...input,
+          ...(dependencies.releaseTicket === undefined
+            ? {}
+            : { releaseTicket: dependencies.releaseTicket }),
           backgroundWorkerPool,
           resolveAnalysisExecutionPlan:
-            DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
+            dependencies.resolveAnalysisExecutionPlan ?? (() => null),
         });
     } else {
       this.#ownedBackgroundWorkerPool = null;

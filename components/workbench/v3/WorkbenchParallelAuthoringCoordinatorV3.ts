@@ -9,6 +9,9 @@ import {
   validateExperimentContentV2,
   validateExperimentV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
+import type {
+  StudioModelWorkerReleaseTicketV2,
+} from "@/studio/contracts/v2/release";
 import {
   StudioSimulationWorkerClientV2,
   type StudioSimulationWorkerAdmittedSnapshotCommitV2,
@@ -25,6 +28,7 @@ export type WorkbenchParallelAuthoringClientFactoryV3 =
 
 export type WorkbenchParallelAuthoringInputV3 = Readonly<{
   modelId: string;
+  releaseTicket?: StudioModelWorkerReleaseTicketV2;
   /** Exact captures gathered from the live lane Workers, in UI order. */
   scenarios: readonly ExperimentScenarioV2[];
   activeScenarioId: string;
@@ -43,6 +47,7 @@ export type WorkbenchParallelSnapshotAuthoringInputV3 =
 
 type ValidatedAuthoringInputV3 = Readonly<{
   modelId: string;
+  releaseTicket?: StudioModelWorkerReleaseTicketV2;
   scenarios: readonly ExperimentScenarioV2[];
   activeScenario: ExperimentScenarioV2;
   surface: ExperimentSurfaceV2;
@@ -213,6 +218,9 @@ async function initializeFirstSaveV3(
   const firstScenario = input.scenarios[0]!;
   await client.initialize({
     expectedModelId: input.modelId,
+    ...(input.releaseTicket === undefined
+      ? {}
+      : { releaseTicket: input.releaseTicket }),
     runtimeSessionId: input.runtimeSessionId,
     scenarioId: firstScenario.scenarioId,
     scenarioLabel: firstScenario.label,
@@ -247,6 +255,9 @@ async function initializeTransientAuthoringV3(
   const firstScenario = input.scenarios[0]!;
   await client.initialize({
     expectedModelId: input.modelId,
+    ...(input.releaseTicket === undefined
+      ? {}
+      : { releaseTicket: input.releaseTicket }),
     runtimeSessionId: input.runtimeSessionId,
     scenarioId: firstScenario.scenarioId,
     scenarioLabel: firstScenario.label,
@@ -289,6 +300,9 @@ async function initializeFromExperimentV3(
   }
   await client.initialize({
     expectedModelId: input.modelId,
+    ...(input.releaseTicket === undefined
+      ? {}
+      : { releaseTicket: input.releaseTicket }),
     runtimeSessionId: input.runtimeSessionId,
     scenarioId: seededActiveScenario.scenarioId,
     scenarioLabel: seededActiveScenario.label,
@@ -354,6 +368,9 @@ function validateAuthoringInputV3(
 
   return Object.freeze({
     modelId: validatedContent.modelId,
+    ...(input.releaseTicket === undefined
+      ? {}
+      : { releaseTicket: input.releaseTicket }),
     scenarios: validatedContent.scenarios,
     activeScenario,
     surface: validatedContent.surface,

@@ -1,5 +1,8 @@
 import type { ExperimentScenarioV2 } from "@/studio/contracts/v2/content";
 import type {
+  StudioModelWorkerReleaseTicketV2,
+} from "@/studio/contracts/v2/release";
+import type {
   StudioSimulationFrameV2,
   StudioSimulationOutputValueV2,
 } from "@/studio/contracts/v2/simulation";
@@ -27,6 +30,7 @@ const STABLE_NORMALIZED_DELTA_V3 = 1e-3;
 
 export type WorkbenchSteadyCandidateSourceV3 = Readonly<{
   modelId: string;
+  releaseTicket?: StudioModelWorkerReleaseTicketV2;
   inputEpoch: number;
   scenario: ExperimentScenarioV2;
 }>;
@@ -170,6 +174,9 @@ async function computeSteadyCandidateV3(
   const runtimeSessionId = `workbench-steady-${randomPortableTokenV3()}`;
   const initialFrame = await client.initialize({
     expectedModelId: source.modelId,
+    ...(source.releaseTicket === undefined
+      ? {}
+      : { releaseTicket: source.releaseTicket }),
     runtimeSessionId,
     scenarioId: source.scenario.scenarioId,
     scenarioLabel: source.scenario.label,

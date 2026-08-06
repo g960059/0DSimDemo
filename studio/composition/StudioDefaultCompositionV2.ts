@@ -4,6 +4,10 @@ import type {
 import type {
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
+import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
+import type {
+  StudioModelWorkerReleaseTicketV2,
+} from "@/studio/contracts/v2/release";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
 } from "@/studio/contracts/v2/simulation";
@@ -13,6 +17,9 @@ import {
 import {
   TrustedRegisteredModelClientCatalogV2,
 } from "@/studio/infrastructure/model/TrustedRegisteredModelClientCatalogV2";
+import {
+  studioSupabaseModelReleaseResolverV1,
+} from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import {
   createMainWireIntegratedStudioExecutableReleaseV3 as
     createAdmittedMainWireIntegratedStudioExecutableReleaseV3,
@@ -36,12 +43,15 @@ export const DEFAULT_STUDIO_MODEL_ID_V2:
 typeof MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
   ADMITTED_MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3;
 
-export type StudioDefaultClientCompositionV2 = Readonly<{
-  defaultModelId: typeof DEFAULT_STUDIO_MODEL_ID_V2;
-  defaultFixture: MainWireIntegratedStudioFixtureV3;
+export type StudioClientCompositionV2 = Readonly<{
+  defaultModelId: string;
+  defaultFixture: StudioJsonValueV2;
   contract: ModelContractV2;
   analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
+  workerReleaseTicket?: StudioModelWorkerReleaseTicketV2;
 }>;
+
+export type StudioDefaultClientCompositionV2 = StudioClientCompositionV2;
 
 export const DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2 =
   resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
@@ -54,6 +64,10 @@ export type StudioDefaultWorkerCompositionV2 = Readonly<{
 
 let browserCompositionPromiseV2:
   Promise<StudioDefaultClientCompositionV2> | undefined;
+const browserExactCompositionPromisesV2 = new Map<
+  string,
+  Promise<StudioClientCompositionV2>
+>();
 
 /**
  * Loads the one registry-admitted development release into the hash-free
@@ -82,6 +96,25 @@ Promise<StudioDefaultClientCompositionV2> {
     defaultFixture: admittedPackage.defaultFixture,
     contract,
     analysisExecutionPlan: DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
+  });
+}
+
+async function createRegistryClientCompositionV2(
+  modelId?: string,
+): Promise<StudioClientCompositionV2> {
+  const resolver = studioSupabaseModelReleaseResolverV1();
+  if (resolver === null) return createStudioDefaultClientCompositionV2();
+  const release = modelId === undefined
+    ? await resolver.resolveChannel("default")
+    : await resolver.resolveExactModel(modelId);
+  return Object.freeze({
+    defaultModelId: release.contract.modelId,
+    defaultFixture: release.defaultFixture,
+    contract: release.contract,
+    analysisExecutionPlan: analysisExecutionPlanForProfileV2(
+      release.analysisProfileId,
+    ),
+    workerReleaseTicket: release.ticket,
   });
 }
 
@@ -139,7 +172,7 @@ Promise<StudioDefaultClientCompositionV2> {
   if (browserCompositionPromiseV2 !== undefined) {
     return browserCompositionPromiseV2;
   }
-  const pending = createStudioDefaultClientCompositionV2();
+  const pending = createRegistryClientCompositionV2();
   browserCompositionPromiseV2 = pending;
   void pending.catch(() => {
     // A transient fetch/evaluation failure must not poison the browser
@@ -150,4 +183,40 @@ Promise<StudioDefaultClientCompositionV2> {
     }
   });
   return pending;
+}
+
+/** Existing content pins its exact modelId and never follows a channel. */
+export function loadStudioModelClientCompositionV2(
+  modelId: string,
+): Promise<StudioClientCompositionV2> {
+  if (modelId === DEFAULT_STUDIO_MODEL_ID_V2) {
+    const resolver = studioSupabaseModelReleaseResolverV1();
+    if (resolver === null) return loadStudioDefaultClientCompositionV2();
+  }
+  const cached = browserExactCompositionPromisesV2.get(modelId);
+  if (cached !== undefined) return cached;
+  const pending = createRegistryClientCompositionV2(modelId).then(
+    (composition) => {
+      if (composition.contract.modelId !== modelId) {
+        throw new Error("Exact model registry returned another modelId");
+      }
+      return composition;
+    },
+  );
+  browserExactCompositionPromisesV2.set(modelId, pending);
+  void pending.catch(() => {
+    if (browserExactCompositionPromisesV2.get(modelId) === pending) {
+      browserExactCompositionPromisesV2.delete(modelId);
+    }
+  });
+  return pending;
+}
+
+function analysisExecutionPlanForProfileV2(
+  profileId: string,
+): StudioSimulationAnalysisExecutionPlanResolverV2 {
+  if (profileId === "main-wire-integrated-v3") {
+    return resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
+  }
+  throw new Error(`Unsupported Studio analysis profile ${profileId}`);
 }

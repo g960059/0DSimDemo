@@ -30,7 +30,11 @@ Workers. Workbench Save, non-blocking reuse of shared post-control candidates
 for structural analysis and Snapshot capture, common one-cycle Snapshot admission, repeated pinned
 Snapshot placement with Placement-owned Briefing, role-specific Article Editor,
 canonical resource routes, the ID-less `/experiments/new` first-Save transition,
-on-demand background Worker pool, and the pinned-Snapshot Reader are connected.
+on-demand background Worker pool, dynamic exact-model registry resolution, and
+the pinned-Snapshot Reader are connected. New Sessions resolve `default` once;
+saved Experiments, Snapshots, Article Reader placements, and Snapshot Reader
+sessions resolve their stored `modelId` and send a hash-free release ticket to
+the Worker. A historical load failure never falls back to the current default.
 Reader now includes borderless inflow, graph-count right peek/fullscreen,
 mobile graph swipe, one-live scheduling, play/pause, and explicit control
 binding. The remaining release-spine sequence is:
@@ -40,8 +44,8 @@ binding. The remaining release-spine sequence is:
 2. make the backend validate the complete portable Studio envelope and keep
    public publication admin-only until the public trust boundary is server-
    authoritative;
-3. retain and dynamically load every referenced exact release in both client
-   and Worker before introducing the next numerical `modelId`;
+3. exercise multi-release retention with the next standard-ABI numerical
+   release before moving the default channel;
 4. configure production OAuth redirects, Turnstile/anonymous-save abuse
    controls, paginated management UI, and scheduled unreferenced-Snapshot GC;
 5. perform bounded contract-preserving refactors and rename formal multi-load
