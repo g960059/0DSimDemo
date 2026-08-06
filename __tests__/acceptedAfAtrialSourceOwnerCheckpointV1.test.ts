@@ -12,7 +12,7 @@ import {
   initializeAcceptedAfAtrialSourceStateV1,
   type AcceptedAfAtrialSourceConfigurationV1,
 } from "@/engine/myocardium/rhythm/acceptedAfAtrialSourceOwnerV1";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 describe("accepted AF atrial source owner checkpoint V1", () => {
   it("restores the exact PRNG, Gaussian spare, MA history, lineage, and continuation", async () => {

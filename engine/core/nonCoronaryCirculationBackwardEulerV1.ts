@@ -20,15 +20,15 @@ import {
   fullHotPathInvariantsEnabledV1,
 } from "@/engine/hotPathIntegrityTierV1";
 import {
-  validateMainWireFourValveDiseasePresetV1,
-  type MainWireFourValveDiseasePresetV1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  validateMainWireFourValveDiseaseResearchInputV1,
+  type MainWireFourValveDiseaseResearchInputV1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
   initialMainWireQuasiSteadyOrificeValveStateV2,
   stepMainWireQuasiSteadyOrificeValveV2,
   type MainWireQuasiSteadyOrificeValveEvaluationV2,
   type MainWireQuasiSteadyOrificeValveStateV2,
-} from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
+} from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
 import { stressedVolumeFromPtm } from "@/engine/vascularPv";
 import { evaluateIabpV1 } from "@/engine/devices/iabpV1";
 import {
@@ -201,12 +201,12 @@ export type NonCoronaryCirculationRuntimeParamsV1 = Readonly<{
   losses: BaseEdgeLossRuntimeParameterViewV1;
   respiratory: RespiratoryPressureParameterViewV1;
   /** Explicit even for normal, so numeric identity and provenance cannot diverge. */
-  valvePreset: MainWireFourValveDiseasePresetV1;
+  valveResearchInput: MainWireFourValveDiseaseResearchInputV1;
 }>;
 
 /**
- * Optional same-candidate device extension. It is deliberately a trial input,
- * rather than part of the immutable adult-0.2.0 runtime release contract.
+ * Optional same-candidate device extension. It is deliberately a trial input;
+ * the circulation kernel does not own or promote device state.
  */
 export type NonCoronaryMechanicalSupportInputV1 = Readonly<{
   config: MechanicalSupportConfigV1;
@@ -1495,7 +1495,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     NonCoronaryValveNameV1,
     MainWireQuasiSteadyOrificeValveEvaluationV2
   >;
-  const valvePreset = input.runtime.valvePreset;
+  const valveResearchInput = input.runtime.valveResearchInput;
   const flows = {} as Record<NonCoronaryEdgeNameV1, number>;
   const dynamicFlows = {} as Record<NonCoronaryDynamicEdgeNameV1, number>;
   for (const edge of graph.edges) {
@@ -1515,7 +1515,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
           upstreamPressureMmHg: upstreamPressure,
           downstreamPressureMmHg: downstreamPressure,
         },
-        valvePreset.valves[valveName],
+        valveResearchInput.valves[valveName],
       );
       if (!evaluation.valid || !evaluation.finite) {
         throw new Error(`${name} valve trial failed: ${evaluation.issues.join("; ")}`);
@@ -2893,7 +2893,7 @@ function resolveNewtonOptions(
  * Runtime parameters that have already passed this validation. The session
  * holds one frozen runtime object for the life of a parameter setting and hands
  * the same object to every step, so without this the whole check — including
- * five `stableHash` passes over an unchanging valve preset — re-ran twice per
+ * five `stableHash` passes over an unchanging valve research input — re-ran twice per
  * 2 ms step.
  *
  * Membership is by object identity. A caller that mutates a runtime object in
@@ -2927,11 +2927,11 @@ function validateRuntimeOnceV1(
   requireFinite(runtime.respiratory.respAmpTh, "respAmpTh");
   requireFinite(runtime.respiratory.respAmpAlv, "respAmpAlv");
   requireNonnegative(runtime.respiratory.respRate, "respRate");
-  const valveIssues = validateMainWireFourValveDiseasePresetV1(
-    runtime.valvePreset,
+  const valveIssues = validateMainWireFourValveDiseaseResearchInputV1(
+    runtime.valveResearchInput,
   );
   if (valveIssues.length > 0) {
-    throw new Error(`invalid valvePreset: ${valveIssues.join("; ")}`);
+    throw new Error(`invalid valveResearchInput: ${valveIssues.join("; ")}`);
   }
 }
 

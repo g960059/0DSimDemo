@@ -4,7 +4,7 @@ import {
   type CapturedElectricalActivationV2,
   type ElectricalImpulseSourceKindV2,
 } from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 
 /**
  * One-state accepted-ventricular interval-strength boundary.

@@ -10,7 +10,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const ACCEPTED_VENTRICULAR_INTERVAL_STRENGTH_CHECKPOINT_V1_ID =
   "circleheart.accepted-ventricular-interval-strength-checkpoint.v1" as const;

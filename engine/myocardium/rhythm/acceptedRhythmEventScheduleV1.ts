@@ -2,9 +2,9 @@ import type {
   ExactEventCalciumEventV1,
 } from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
 import { canonicalJsonStringify } from
-  "@/engine/scientific/release/canonicalJson";
+  "@/engine/integrity/canonicalJson";
 import { sha256CanonicalJsonHex } from
-  "@/engine/scientific/release/sha256";
+  "@/engine/integrity/sha256";
 
 export const ACCEPTED_RHYTHM_EVENT_SCHEDULE_V1_ID =
   "accepted-rhythm-event-schedule-v1" as const;
@@ -104,8 +104,8 @@ export type AcceptedRhythmEventScheduleV1 = Readonly<{
 }>;
 
 /**
- * Complete cryptographic preimage. The legacy 32-bit fingerprint remains a
- * fast binding guard, but is never sufficient for checkpoint/release identity.
+ * Complete cryptographic preimage. The 32-bit fingerprint remains a fast
+ * binding guard, but is never sufficient for checkpoint integrity.
  */
 export type AcceptedRhythmScheduleCanonicalIdentityV1 = Readonly<{
   identitySchemaId:

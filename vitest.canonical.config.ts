@@ -1,6 +1,6 @@
 import path from "path";
 import { configDefaults, defineConfig } from "vitest/config";
-import { canonicalScientificTestGlobs, fastTests } from "./vitest.suites";
+import { canonicalScientificTests } from "./vitest.suites";
 
 export default defineConfig({
   resolve: {
@@ -10,15 +10,12 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: [...canonicalScientificTestGlobs],
+    include: [...canonicalScientificTests],
     exclude: [
       ...configDefaults.exclude,
       ".claude/**",
       ".codex/**",
-      ".firebase/**",
-      ...fastTests,
     ],
-    passWithNoTests: true,
     testTimeout: 600_000,
     hookTimeout: 600_000,
     snapshotFormat: {

@@ -1,6 +1,6 @@
 {
   "name": "CircleHeart",
-  "description": "Real-time 0D closed-loop hemodynamic simulator using Runge-Kutta 4 integration. Visualizes Pressure-Volume loops and hemodynamic waveforms with interactive physiological parameters.",
+  "description": "Pre-release research and education platform for 0D closed-loop cardiovascular simulation and exact-model Experiment authoring.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

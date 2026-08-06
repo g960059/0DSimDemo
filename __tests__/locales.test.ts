@@ -12,42 +12,33 @@ function flattenTranslationKeys(value: unknown, prefix = ''): string[] {
 
 describe('locale helpers', () => {
   it('detects supported path locales and defaults to Japanese', () => {
-    expect(localeFromPathname('/en/cases')).toBe('en');
-    expect(localeFromPathname('/ja/cases')).toBe('ja');
-    expect(localeFromPathname('/cases')).toBe('ja');
+    expect(localeFromPathname('/en/workbench')).toBe('en');
+    expect(localeFromPathname('/ja/workbench')).toBe('ja');
+    expect(localeFromPathname('/workbench')).toBe('ja');
   });
 
   it('strips locale prefixes from pathnames', () => {
-    expect(stripLocaleFromPathname('/en/workbench/normal')).toBe('/workbench/normal');
-    expect(stripLocaleFromPathname('/ja/cases')).toBe('/cases');
-    expect(stripLocaleFromPathname('/cases')).toBe('/cases');
+    expect(stripLocaleFromPathname('/en/workbench/details')).toBe('/workbench/details');
+    expect(stripLocaleFromPathname('/ja/workbench')).toBe('/workbench');
+    expect(stripLocaleFromPathname('/workbench')).toBe('/workbench');
     expect(stripLocaleFromPathname('/en')).toBe('/');
   });
 
   it('always prefixes localized paths', () => {
-    expect(prefixPath('/cases', 'ja')).toBe('/ja/cases');
-    expect(prefixPath('/cases', 'en')).toBe('/en/cases');
+    expect(prefixPath('/workbench', 'ja')).toBe('/ja/workbench');
+    expect(prefixPath('/workbench', 'en')).toBe('/en/workbench');
     expect(prefixPath('/', 'ja')).toBe('/ja');
     expect(prefixPath('/', 'en')).toBe('/en');
   });
 
   it('switches locale while preserving query and hash', () => {
-    expect(switchLocalePath('/ja/workbench/normal', '?from=cases', '#metrics', 'en')).toBe('/en/workbench/normal?from=cases#metrics');
-    expect(switchLocalePath('/en/workbench/normal', '?from=cases', '#metrics', 'ja')).toBe('/ja/workbench/normal?from=cases#metrics');
+    expect(switchLocalePath('/ja/workbench', '?from=home', '#status', 'en')).toBe('/en/workbench?from=home#status');
+    expect(switchLocalePath('/en/workbench', '?from=home', '#status', 'ja')).toBe('/ja/workbench?from=home#status');
+    expect(switchLocalePath('/ja/workbench/workbench-opaque_123', '?from=list', '#status', 'en'))
+      .toBe('/en/workbench/workbench-opaque_123?from=list#status');
   });
 
   it('keeps Japanese and English translation keys in parity', () => {
     expect(flattenTranslationKeys(jaTranslation).sort()).toEqual(flattenTranslationKeys(enTranslation).sort());
-  });
-
-  it('localizes both scenario-cap and shared-lane refusal messages', () => {
-    expect(enTranslation.workbench.scenarioPane.maximumScenariosReached)
-      .toContain('Maximum of {{count}} scenarios');
-    expect(jaTranslation.workbench.scenarioPane.maximumScenariosReached)
-      .toContain('シナリオは最大{{count}}件');
-    expect(enTranslation.workbench.scenarioPane.liveLaneCapacityReached)
-      .toContain('live simulation slots');
-    expect(jaTranslation.workbench.scenarioPane.liveLaneCapacityReached)
-      .toContain('ライブ実験の同時実行枠');
   });
 });

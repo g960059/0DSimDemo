@@ -7,7 +7,7 @@ import {
   type ElectricalImpulseSourceKindV2,
   type SourceImpulseV2,
 } from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 
 /**
  * Accepted ventricular backup-source clock for intrinsic escape and simple VVI.

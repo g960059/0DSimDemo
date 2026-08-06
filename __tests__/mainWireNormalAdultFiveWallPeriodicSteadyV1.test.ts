@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   sanitizeForStableHash,
   stableHash,
-} from "@/engine/myocardium/kinematics/stableHash";
+} from "@/engine/integrity/stableHash";
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
@@ -110,9 +110,9 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       .toBe(result.protocolComponentHashes.circulationTopologyGraphStableHash);
     expect(result.protocolIdentity.circulation.runtimeStableHash)
       .toBe(result.protocolComponentHashes.circulationRuntimeStableHash);
-    expect(result.protocolIdentity.circulation.valvePresetSnapshot)
-      .toEqual(result.valvePreset);
-    expect(result.protocolIdentity.circulation.valvePresetStableHash)
+    expect(result.protocolIdentity.circulation.valveResearchInputSnapshot)
+      .toEqual(result.valveResearchInput);
+    expect(result.protocolIdentity.circulation.valveResearchInputStableHash)
       .toMatch(/^[0-9a-f]{8}$/);
     expect(result.protocolComponentHashes.bloodVolumeOperatingPointStableHash)
       .toBe(stableHash(sanitizeForStableHash(

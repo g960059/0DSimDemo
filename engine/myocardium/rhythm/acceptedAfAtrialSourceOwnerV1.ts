@@ -5,7 +5,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 /**
  * Accepted stationary AF atrial source owner.

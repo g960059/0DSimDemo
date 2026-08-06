@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PARAMS } from "@/constants";
-import { applyKnobs, KNOB_MAPPING_VERSION, neutralKnobs } from "@/engine/knobs";
 import { runScenario } from "@/engine/harness";
 import type { CoreRuntimeParams, SimMetrics } from "@/engine/protocol";
 
@@ -19,20 +18,22 @@ describe("valve flow metrics", () => {
   });
 
   it("aortic regurgitation increases aortic reverse volume and regurgitant fraction", () => {
-    const neutral = applyKnobs(DEFAULT_PARAMS, neutralKnobs(DEFAULT_PARAMS), KNOB_MAPPING_VERSION);
-    const ar = applyKnobs(DEFAULT_PARAMS, { ...neutralKnobs(DEFAULT_PARAMS), aorticRegurgitation: 0.6 }, KNOB_MAPPING_VERSION);
-    const baselineMetrics = run(neutral).metrics;
-    const arMetrics = run(ar).metrics;
+    const baselineMetrics = run(DEFAULT_PARAMS).metrics;
+    const arMetrics = run({
+      ...DEFAULT_PARAMS,
+      AoV_Aleak: DEFAULT_PARAMS.AoV_Amax * 0.083 * 0.6,
+    }).metrics;
 
     expect(arMetrics.AoVReverseVolumeMl).toBeGreaterThan(baselineMetrics.AoVReverseVolumeMl + 0.5);
     expect(arMetrics.AoVRegurgitantFraction).toBeGreaterThan(baselineMetrics.AoVRegurgitantFraction + 0.01);
   });
 
   it("mitral regurgitation increases mitral reverse volume and regurgitant fraction", () => {
-    const neutral = applyKnobs(DEFAULT_PARAMS, neutralKnobs(DEFAULT_PARAMS), KNOB_MAPPING_VERSION);
-    const mr = applyKnobs(DEFAULT_PARAMS, { ...neutralKnobs(DEFAULT_PARAMS), mitralRegurgitation: 1.0 }, KNOB_MAPPING_VERSION);
-    const baselineMetrics = run(neutral).metrics;
-    const mrMetrics = run(mr).metrics;
+    const baselineMetrics = run(DEFAULT_PARAMS).metrics;
+    const mrMetrics = run({
+      ...DEFAULT_PARAMS,
+      MV_Aleak: DEFAULT_PARAMS.MV_Amax * 0.11,
+    }).metrics;
 
     expect(mrMetrics.MVReverseVolumeMl).toBeGreaterThan(baselineMetrics.MVReverseVolumeMl + 0.5);
     expect(mrMetrics.MVRegurgitantFraction).toBeGreaterThan(baselineMetrics.MVRegurgitantFraction + 0.01);

@@ -1,8 +1,12 @@
-export * from "./application";
-export * from "./adapters/mainWire";
-export * from "./contracts/v1";
-export * from "./infrastructure/artifacts/InMemoryContentAddressedArtifactStoreV1";
+export * from "./application/runtime/StudioFixtureReducerV2";
+export * from "./contracts/v2";
+export * from "./infrastructure/model";
 export {
-  loadExactSignalExportContentV1,
-  StudioExactSignalExportValidationErrorV1,
-} from "./infrastructure/artifacts/StudioExactSignalExportWriterV1";
+  createInMemoryExperimentAuthoringV2,
+} from "./infrastructure/experiments/InMemoryExperimentRepositoryV2";
+export type {
+  InMemoryExperimentAuthoringDependenciesV2,
+  InMemoryExperimentQueryFacadeV2,
+  StudioExperimentAuthoringFacadeV2,
+} from "./infrastructure/experiments/InMemoryExperimentRepositoryV2";
+export * from "./composition/StudioDefaultCompositionV2";

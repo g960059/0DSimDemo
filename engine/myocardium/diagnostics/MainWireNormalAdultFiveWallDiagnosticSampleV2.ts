@@ -18,7 +18,7 @@ import type {
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import type {
   MainWireQuasiSteadyOrificeValveDirectionV2,
-} from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
+} from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_ID =
   "main-wire-normal-adult-five-wall-diagnostic-sample-v2" as const;

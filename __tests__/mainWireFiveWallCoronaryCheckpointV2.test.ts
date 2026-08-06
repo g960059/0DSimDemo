@@ -29,7 +29,6 @@ import {
   CORONARY_TERRITORY_IDS_V2,
 } from "@/engine/coronary/typesV2";
 import {
-  MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V2,
   checkpointMainWireFiveWallCoronaryV2,
   restoreMainWireFiveWallCoronaryV2,
   type MainWireFiveWallCoronaryCheckpointContextV2,
@@ -47,9 +46,9 @@ import {
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
-  MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+  MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 type TestWallState = Readonly<{
   history: readonly number[];
@@ -77,13 +76,7 @@ describe("main-wire five-wall coronary accepted-tuple checkpoint V2", () => {
         restored.coronary.toneResistanceScaleByTerritoryLayer[territoryId][layerId]
       ))).toHaveLength(6);
     expect(checkpoint.checkpointSha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(checkpoint.exactResumeClaim).toEqual(
-      MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V2,
-    );
-    expect(checkpoint.exactResumeClaim.autoregulationAccumulatorIncluded)
-      .toBe(false);
-    expect(checkpoint.exactResumeClaim.newSchemaRequiredBeforeAcceptedToneEvolution)
-      .toBe(true);
+    expect(checkpoint).not.toHaveProperty("exactResumeClaim");
   });
 
   it("binds every accepted owner with the outer SHA-256", async () => {
@@ -283,7 +276,7 @@ function testRuntime(): NonCoronaryCirculationRuntimeParamsV1 {
       respAmpAlv: 0,
       respRate: 0,
     }),
-    valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
+    valveResearchInput: MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
   });
 }
 

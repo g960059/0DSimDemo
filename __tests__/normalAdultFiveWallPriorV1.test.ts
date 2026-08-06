@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   sanitizeForStableHash,
   stableHash,
-} from "@/engine/myocardium/kinematics/stableHash";
+} from "@/engine/integrity/stableHash";
 import {
   assertNormalAdultFiveWallPriorV1,
   evaluateNormalAdultAtrialPassivePressureReplayV1,

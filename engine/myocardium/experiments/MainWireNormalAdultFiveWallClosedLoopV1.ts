@@ -35,10 +35,10 @@ import type {
   WholeHeartMechanicsSerializableValueV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
-  composeMainWireFourValveDiseasePresetV1,
+  composeMainWireFourValveDiseaseResearchInputV1,
   type MainWireFourValveDiseaseBracketIdV1,
-  type MainWireFourValveDiseasePresetV1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  type MainWireFourValveDiseaseResearchInputV1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID =
   "main-wire-normal-adult-five-wall-closed-loop-v1" as const;
@@ -148,7 +148,7 @@ export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
   pericardiumMode: MainWireCommonPericardiumModeV1;
   pericardiumCase: MainWireNormalAdultCommonPericardiumCaseV1;
   pericardiumParameterSetId: string;
-  valvePreset: MainWireFourValveDiseasePresetV1;
+  valveResearchInput: MainWireFourValveDiseaseResearchInputV1;
   completed: boolean;
   requestedBeatCount: number;
   completedBeatCount: number;
@@ -171,7 +171,7 @@ export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
     parameterSearch: false;
     smoothingAppliedToSamples: false;
     laSlsExactOffIsPairedAblationOnly: boolean;
-    valveDiseasePresetIsProtocolParameterNotAcceptedState: true;
+    valveDiseaseResearchInputIsProtocolParameterNotAcceptedState: true;
     valveDiseaseBracketIsClinicalDiagnosis: false;
   }>;
 }>;
@@ -206,7 +206,7 @@ NonCoronaryCirculationRuntimeParamsV1 {
       respAmpAlv: 0,
       respRate: 0,
     }),
-    valvePreset: composeMainWireFourValveDiseasePresetV1(
+    valveResearchInput: composeMainWireFourValveDiseaseResearchInputV1(
       valveDiseaseBracketIds,
     ),
   });
@@ -287,7 +287,7 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
     pericardiumMode,
     pericardiumCase,
     pericardiumParameterSetId: pericardium.parameterSetId,
-    valvePreset: runtime.valvePreset,
+    valveResearchInput: runtime.valveResearchInput,
     completed: failure === null && beatClosure.length === options.beatCount,
     requestedBeatCount: options.beatCount,
     completedBeatCount: beatClosure.length,
@@ -306,7 +306,7 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
       parameterSearch: false as const,
       smoothingAppliedToSamples: false as const,
       laSlsExactOffIsPairedAblationOnly: laSlsMode === "exact-off",
-      valveDiseasePresetIsProtocolParameterNotAcceptedState: true as const,
+      valveDiseaseResearchInputIsProtocolParameterNotAcceptedState: true as const,
       valveDiseaseBracketIsClinicalDiagnosis: false as const,
     }),
   });

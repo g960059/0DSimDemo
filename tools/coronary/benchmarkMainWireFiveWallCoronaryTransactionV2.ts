@@ -13,8 +13,8 @@ import {
   createMainWireNormalAdultCommonPericardiumV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
 import {
-  MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 
 const dtSec = numericArgument("--dt", 0.002);
 const stepCount = integerArgument("--steps", 1);
@@ -35,7 +35,7 @@ const runtime = Object.freeze({
     respAmpAlv: 0,
     respRate: 0,
   }),
-  valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
+  valveResearchInput: MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
 });
 const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
 const pericardium = createMainWireNormalAdultCommonPericardiumV1();

@@ -9,7 +9,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const ACCEPTED_ELECTRICAL_CAPTURE_OWNER_CHECKPOINT_V2_ID =
   "circleheart.accepted-electrical-capture-owner-checkpoint.v2" as const;

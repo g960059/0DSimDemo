@@ -9,7 +9,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const ACCEPTED_AUTHORED_ECTOPY_SCHEDULE_CHECKPOINT_V2_ID =
   "circleheart.accepted-authored-ectopy-schedule-checkpoint.v2" as const;

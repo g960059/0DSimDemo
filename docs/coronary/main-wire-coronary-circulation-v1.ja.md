@@ -1210,7 +1210,7 @@ mechanism gateとする。RCAだけの compression scaleを病態補正として
 RAP / pericardial pressureを上げ、CS pressureとeffective perfusion gradientを介して flowが低下することを確認する。
 高RAP時にCS-to-RA edgeを一方向 clampしない。
 
-### 17.10 research preset catalog
+### 17.10 research input bracket catalog
 
 初期 catalog は次を推奨する。すべて `research bracket, not diagnosis` と明記する。
 
@@ -1225,7 +1225,7 @@ RAP / pericardial pressureを上げ、CS pressureとeffective perfusion gradient
 9. RV pressure overload
 10. elevated RAP / coronary venous congestion
 
-同じ病態名でも kernel parameterだけを変える presetと、whole-heart parameterを含む composite presetを別IDにする。
+同じ病態名でもkernel parameterだけを変えるinput bracketと、whole-heart parameterを含むcomposite inputを別IDにする。
 
 ## 18. Workbench observable と UI
 
@@ -1272,7 +1272,7 @@ FFR-like と CFR は protocol result areaに置き、通常の live metric列へ
 - coronary vasodilatory capacity
 - mechanical demand scale
 - coronary hyperemia protocol button
-- coronary dominance research preset
+- coronary dominance research input bracket
 
 advanced controller settingsには次を追加できる。
 
@@ -1298,17 +1298,23 @@ $\gamma$、tube exponent、septal weightは `research / weakly identifiable` gro
 
 ### 18.5 model-version semantics
 
-case documentは少なくとも次を保存する。
+coronaryを含むmodel packageは、次の意味を1つのexact immutable
+`modelId`に固定する。
 
-- coronary topology / equation version
-- release parameter hash
-- territory / layer / dominance binding
-- current volume / tone checkpoint
-- lesion geometry semantics（areaかdiameterか）
-- demand owner ID
-- FFR/CFR protocol version
+- coronary topology / equations / model-owned parameter catalog
+- territory / layer / dominanceとlesion geometryのfixture schema
+- volume / toneを含むcheckpoint schemaとcodec
+- demand ownerとFFR/CFR protocol semantics
+- minimum snapshot gateとmodel-owned output / graph catalog
 
-旧 noncoronary caseへ silent migrationしない。coronary V1を追加した新releaseとして明示的にinstantiateする。
+ExperimentのScenario captureは、その`modelId`とmodel-ownedな
+`fixture + checkpoint`を一体で保持する。release parameter hashやprotocol versionを
+別のproduct identityとして重複保存しない。
+
+noncoronary modelのfixture / checkpointはcoronary対応`modelId`でfail closedに
+拒否する。新しいmodelで開始する場合は、そのmodel-owned schemaから
+明示的に新規fixtureとcheckpointを作り、silent migration、fallback、
+compatibility aliasは追加しない。
 
 ## 19. parameter identifiability
 
@@ -1659,17 +1665,18 @@ $+0.01416$ mL/beatだった。11拍目から12拍目にもmean inlet $+0.405\%$�
 - AS / LVH、PH / RV overload、high LVEDP、tachycardia
 
 **status:** focal diameter loss、three-vessel bracket、diffuse structural microvascular resistance、combined LAD bracketの
-quantitative research preset dataは実装済み。ただしhyperemia / recovery、CFR / FFR-like、whole-heart disease envelopeは
-future protocol workであり、現時点のkernel parameter smokeをvalidated clinical presetと呼ばない。
+quantitative research bracket dataは実装済み。ただしhyperemia / recovery、CFR / FFR-like、whole-heart disease envelopeは
+future protocol workであり、現時点のkernel parameter smokeをvalidated clinical scenarioと呼ばない。
 
 ### Phase E: Workbench
 
-- graph / metric / controller catalog
-- scenario / transition / checkpoint versioning
-- pane settings / note reference
-- production browser E2E
+- exact V3 `modelId` のregistry登録とportable fixture/checkpoint adapter
+- unified output / graph / control catalog
+- SnapshotをpinするPlacementとone-live Reader scheduling
+- Workbench Save / Snapshot gateのmodel-bound integration
 
-**status:** future browser integration。scientific runtime / Workbenchへ配線されたとはまだ主張しない。
+**status:** future product integration。registry登録前のためscientific runtime / Workbenchへ
+配線されたとはまだ主張せず、旧browser runtimeやそのE2E経路も現行設計として保持しない。
 
 Phase Aのmean flowが良くても、Phase Bのleft/right phasic mechanics、Phase Dのfactorial識別、Phase Eのprotocol
 label gateを通るまでは、canonical coronary releaseと呼ばない。

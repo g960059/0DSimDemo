@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CHECKPOINT_CLAIM_V2,
   checkpointAcceptedComposedRhythmTransactionStateV2,
   restoreAcceptedComposedRhythmTransactionStateV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionCheckpointV2";
@@ -48,6 +47,10 @@ import {
   withHotPathIntegrityTierV1,
 } from "@/engine/hotPathIntegrityTierV1";
 import {
+  selectValidationStampModeV1,
+  validationStampModeV1,
+} from "@/engine/validationStampModeV1";
+import {
   createAcceptedVentricularBackupSourceConfigurationV2,
 } from "@/engine/myocardium/rhythm/acceptedVentricularBackupSourceOwnerV2";
 import {
@@ -56,7 +59,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 type FixtureOptions = Readonly<{
   events?: readonly AuthoredEctopyEventInputV2[];
@@ -284,6 +287,36 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
           candidateFromA,
         )).toThrow(/candidate does not match its accepted base/);
     });
+  });
+
+  it("retains complete candidate recomputation when validation stamps are disabled in the lean tier", () => {
+    const previousStampMode = validationStampModeV1();
+    selectValidationStampModeV1("validation-stamps-disabled");
+    try {
+      withHotPathIntegrityTierV1("hot-path-lean", () => {
+        const a = fixture({ firstRegularTimeSec: 10 });
+        const b = fixture({
+          firstRegularTimeSec: 10,
+          lvfwCalciumGainUMPerUnitDrive: 1.125,
+        });
+        const candidateFromA = evaluateAt(a.state, 0.1);
+
+        expect(
+          commitAcceptedComposedRhythmTransactionCandidateV2(
+            a.state,
+            candidateFromA,
+          ),
+        ).toEqual(candidateFromA.candidateState);
+        expect(() =>
+          commitAcceptedComposedRhythmTransactionCandidateV2(
+            b.state,
+            candidateFromA,
+          )).toThrow(/candidate does not match its accepted base/);
+      });
+    } finally {
+      selectValidationStampModeV1(previousStampMode);
+    }
+    expect(validationStampModeV1()).toBe(previousStampMode);
   });
 
   it("returns the exact owned endpoint without exposing a re-addable duration", () => {
@@ -622,8 +655,9 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
     expect(checkpoint.authoredVentricularPacingReplay?.cursor).toBe(1);
     expect(checkpoint.authoredVentricularPacingReplay?.acceptedState.cursor)
       .toBe(1);
-    expect(checkpoint.exactResumeClaim.authoredVentricularPacingReplay
-      .completeAcceptedOwnerStateStored).toBe(true);
+    expect(checkpoint).not.toHaveProperty("exactResumeClaim");
+    expect(checkpoint.authoredVentricularPacingReplay)
+      .not.toHaveProperty("exactResumeClaim");
 
     const restored = await restoreAcceptedComposedRhythmTransactionStateV2(
       JSON.parse(JSON.stringify(checkpoint)),
@@ -677,12 +711,7 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
     const checkpoint = await checkpointAcceptedComposedRhythmTransactionStateV2(current);
     expect(checkpoint.acceptedState.proximalAvGateState.stateSchemaId)
       .toBe(RECOVERY_CONCEALMENT_AV_GATE_STATE_V2_ID);
-    expect(checkpoint.exactResumeClaim.proximalAvGateV2CompleteAcceptedStateStored)
-      .toBe(true);
-    expect(canonicalJsonStringify(checkpoint.exactResumeClaim))
-      .not.toContain("legacyAvGate");
-    expect(checkpoint.exactResumeClaim)
-      .toEqual(ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CHECKPOINT_CLAIM_V2);
+    expect(checkpoint).not.toHaveProperty("exactResumeClaim");
     expect(canonicalJsonStringify(current)).not.toContain(
       '"lastVentricularActivationTimeSec":',
     );

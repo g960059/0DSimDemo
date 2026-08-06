@@ -10,7 +10,7 @@ import type {
   RotaryPumpDeviceConfigV1,
 } from "@/engine/devices/typesV1";
 import type { MainWireFourValveDiseaseBracketIdV1 } from
-  "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 
 export const MECHANICAL_SUPPORT_PRESET_IDS_V1 = Object.freeze([
   "all-off",

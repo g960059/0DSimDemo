@@ -1,4 +1,4 @@
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 
 /**
  * Accepted proximal-AV recovery/concealment owner.

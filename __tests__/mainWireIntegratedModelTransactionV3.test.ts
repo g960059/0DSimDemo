@@ -28,12 +28,14 @@ import {
   type RotarySupportDeviceIdV1,
 } from "@/engine/devices/typesV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3,
   checkpointMainWireIntegratedModelV3,
   restoreMainWireIntegratedModelV3,
   type MainWireIntegratedModelCheckpointContextV3,
   type MainWireIntegratedModelCheckpointV3,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3,
   evaluateMainWireIntegratedModelCalciumDriveV3,
@@ -99,12 +101,12 @@ import {
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
-  MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 type TestState = Readonly<{
   timeSec: number;
@@ -144,7 +146,7 @@ const RUNTIME = Object.freeze({
     respAmpAlv: 0,
     respRate: 0,
   }),
-  valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
+  valveResearchInput: MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
 });
 
 describe("main-wire composed-rhythm integrated transaction V3", () => {
@@ -405,7 +407,7 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
     expect(legacyMcs.converged).toBe(false);
     if (legacyMcs.converged === false) {
       expect(legacyMcs.rollbackState).toBe(previous);
-      expect(legacyMcs.message).toMatch(/rejects legacy algebraic/);
+      expect(legacyMcs.message).toMatch(/rejects algebraic mechanicalSupport/);
       expect(allCommitFlagsFalse(legacyMcs)).toBe(true);
     }
     expect(canonicalJsonStringify(previous)).toBe(before);
@@ -651,8 +653,9 @@ describe("main-wire composed-rhythm integrated checkpoint V3", () => {
     );
 
     expect(restored).toEqual(state);
-    expect(checkpoint.exactResumeClaim)
-      .toEqual(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3);
+    expect(checkpoint).not.toHaveProperty("exactResumeClaim");
+    expect(canonicalJsonStringify(checkpoint))
+      .not.toContain('"exactResumeClaim"');
     expect(checkpoint.checkpointSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(checkpoint.coronary.checkpointSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(checkpoint.composedRhythm.checkpointSha256)
@@ -661,25 +664,6 @@ describe("main-wire composed-rhythm integrated checkpoint V3", () => {
       .toMatch(/^[0-9a-f]{64}$/);
     expect(checkpoint.composedRhythm.acceptedState.pendingCalciumDeposits)
       .toHaveLength(1);
-    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
-      .externalAfSeam.externalAfOwnerStateStored).toBe(false);
-    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
-      .externalAfSeam.afWrapperIntegrated).toBe(true);
-    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
-      .externalAfSeam.jointCheckpointId)
-      .toBe(
-        "circleheart.main-wire-integrated-model-external-af-wrapper-checkpoint.v1",
-      );
-    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
-      .externalAfSeam.browserSessionPathIntegrated).toBe(false);
-    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
-      .releaseBlockers.afOwnerWrapperAndJointCheckpoint).toBe("closed");
-    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
-      .releaseBlockers.iabpAcceptedVentricularSynchronization).toBe("open");
-    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
-      .proximalAvGateV2CompleteAcceptedStateStoredInComposedCheckpoint)
-      .toBe(true);
-
     let uninterrupted = state;
     let resumed = restored;
     for (let index = 0; index < 2; index += 1) {
@@ -1077,6 +1061,8 @@ function checkpointContext(
     rhythm: Object.freeze({ configuration: fixture.rhythmConfiguration }),
     dynamicMechanicalSupportProfile: fixture.profile,
     dynamicMechanicalSupportConfig: fixture.config,
+    hemodynamicResearchInputs:
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   });
 }
 

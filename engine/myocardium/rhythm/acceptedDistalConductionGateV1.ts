@@ -3,7 +3,7 @@ import {
   validateSourceImpulseV2,
   type SourceImpulseV2,
 } from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 
 /**
  * Minimal accepted distal (His-Purkinje boundary) conduction gate.

@@ -18,7 +18,7 @@ import {
   type ElectricalImpulseSourceKindV2,
   type SourceImpulseV2,
 } from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 describe("accepted electrical capture owner checkpoint V2", () => {
   it("round-trips mixed A/V capture and refractory block with exact continuation", async () => {

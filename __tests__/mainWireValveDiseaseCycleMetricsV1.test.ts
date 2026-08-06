@@ -12,8 +12,8 @@ import type {
   MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
-  composeMainWireFourValveDiseasePresetV1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  composeMainWireFourValveDiseaseResearchInputV1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 
 const VALVES = ["MV", "AoV", "TV", "PV"] as const;
 const FLOW_SCALE = Object.freeze({ MV: 1, AoV: 0.8, TV: 1.2, PV: 1 });
@@ -33,7 +33,7 @@ describe("MainWireValveDiseaseCycleMetricsV1", () => {
     expect(measured.source.sampleCount).toBe(8);
     expect(measured.source.sampledCycleDurationSec).toBeCloseTo(0.8, 15);
     expect(measured.source.protocolIdentityHash).toBe("fixture-protocol-hash");
-    expect(measured.source.valvePreset.bracketIds)
+    expect(measured.source.valveResearchInput.bracketIds)
       .toEqual(["AR-mild", "MR-mild", "PR-mild", "TR-mild"]);
     expect(measured.interpretationEligible).toBe(false);
     expect(mv.configuredMaximumForwardEoaCm2).toBe(5.5);
@@ -151,10 +151,10 @@ describe("MainWireValveDiseaseCycleMetricsV1", () => {
 
   it.each([
     {
-      name: "preset/sample reverse EROA mismatch",
+      name: "research input/sample reverse EROA mismatch",
       sampleIndex: 0,
       patch: { closedReverseEroaCm2: 0.11 },
-      error: /closed reverse EROA must equal the configured preset value/,
+      error: /closed reverse EROA must equal the configured research input value/,
     },
     {
       name: "forward area below the configured residual area",
@@ -216,7 +216,7 @@ function fixtureResult(input: Readonly<{
     baseFlow,
     gradient,
   ));
-  const valvePreset = composeMainWireFourValveDiseasePresetV1([
+  const valveResearchInput = composeMainWireFourValveDiseaseResearchInputV1([
     "AR-mild",
     "MR-mild",
     "TR-mild",
@@ -226,7 +226,7 @@ function fixtureResult(input: Readonly<{
     dtSec: 0.1,
     protocolIdentityHash: "fixture-protocol-hash",
     periodicSteadyStateClaimed: input.periodicSteadyStateClaimed,
-    valvePreset,
+    valveResearchInput,
     retainedCompleteBeats: [
       {
         beatIndex: 6,

@@ -42,8 +42,6 @@ export type MainWireNormalAdultFiveWallMacroPhysiologyPointV1 = Readonly<{
     | "fixed-total-blood-volume-operating-point";
   claim: Readonly<{
     sourceResearchRunnerOnly: true;
-    releaseResolved: false;
-    cutoverEligible: false;
     fixedPointNotGenericPatch: true;
     oneFactorAtATime: true;
     warmStartAllowed: false;
@@ -54,8 +52,6 @@ export type MainWireNormalAdultFiveWallMacroPhysiologyPointV1 = Readonly<{
 
 const CLAIM = Object.freeze({
   sourceResearchRunnerOnly: true as const,
-  releaseResolved: false as const,
-  cutoverEligible: false as const,
   fixedPointNotGenericPatch: true as const,
   oneFactorAtATime: true as const,
   warmStartAllowed: false as const,

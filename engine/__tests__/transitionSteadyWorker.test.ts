@@ -7,8 +7,8 @@ import {
 } from "@/engine/transitionSteadyWorker";
 import { makeTransitionTargetSignature, type TransitionSteadyJobRequest } from "@/engine/transitionSteadyProtocol";
 import {
-  MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
-  MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
+  MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_MODE,
+  MODELCORE_RUNTIME_BASELINE_ACTIVE_STRESS_MODE,
 } from "@/engine/myocardium/runtimeActiveSource";
 
 const request = (overrides: Partial<TransitionSteadyJobRequest> = {}): TransitionSteadyJobRequest => {
@@ -56,22 +56,22 @@ describe("transition steady worker", () => {
     expect(result.snapshot?.settleStatus?.beats).toBe(result.steady.solverStats.nBeats);
     expect(result.snapshot?.observables.expectedTBV).toBeGreaterThan(0);
     if (result.outcome !== "completed") throw new Error("expected completed transition result");
-    expect(result.runtimeActiveSourceMode).toBe(MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE);
+    expect(result.runtimeActiveSourceMode).toBe(MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_MODE);
   });
 
-  it("honors explicit legacy active-stress rollback mode", () => {
+  it("honors explicit baseline active-stress reference mode", () => {
     const req = request();
     const result = computeTransitionSteadyJob({
       ...req,
       options: {
         ...req.options,
-        runtimeActiveSourceMode: MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
+        runtimeActiveSourceMode: MODELCORE_RUNTIME_BASELINE_ACTIVE_STRESS_MODE,
       },
     });
 
     expect(result.outcome).toBe("completed");
     if (result.outcome !== "completed") throw new Error("expected completed transition result");
-    expect(result.runtimeActiveSourceMode).toBe(MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE);
+    expect(result.runtimeActiveSourceMode).toBe(MODELCORE_RUNTIME_BASELINE_ACTIVE_STRESS_MODE);
     expect(result.experimentalActiveProviderStates).toBeUndefined();
   });
 

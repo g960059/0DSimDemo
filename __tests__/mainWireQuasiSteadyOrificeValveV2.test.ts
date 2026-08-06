@@ -6,7 +6,7 @@ import {
   initialMainWireQuasiSteadyOrificeValveStateV2,
   type MainWireQuasiSteadyOrificeValveParamsV2,
   stepMainWireQuasiSteadyOrificeValveV2,
-} from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
+} from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
 
 const BASE = Object.freeze({
   parameterSetId: "test-MV-direction-separated-orifice-v2",

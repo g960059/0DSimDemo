@@ -11,7 +11,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const ACCEPTED_AF_ATRIAL_SOURCE_CHECKPOINT_V1_ID =
   "circleheart.accepted-af-atrial-source-checkpoint.v1" as const;

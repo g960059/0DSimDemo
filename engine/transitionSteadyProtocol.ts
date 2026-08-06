@@ -1,11 +1,26 @@
-import type { PreviewCoreSnapshot } from "@/engine/previewWorkerProtocol";
 import type { ModelCoreExperimentalActiveSourceProviderRuntimeState } from "@/engine/ModelCore";
 import type { ModelCoreRuntimeActiveSourceMode } from "@/engine/myocardium/runtimeActiveSource";
-import type { CoreRuntimeParams, SimSample } from "@/engine/protocol";
+import type {
+  CoreRuntimeParams,
+  SimMetrics,
+  SimObservables,
+  SimSample,
+  SimulationHealth,
+} from "@/engine/protocol";
+import type { SettleStatus } from "@/engine/settling";
 import type { RunToPeriodicSteadyOptions, SteadyResult } from "@/engine/stateContract";
 import { simpleStableHash } from "@/engine/stateContract";
 
 export type TransitionSteadyJobOutcome = "completed" | "stale" | "error";
+
+export type TransitionSteadySnapshot = {
+  t: number;
+  p: CoreRuntimeParams;
+  metrics: SimMetrics;
+  health: SimulationHealth;
+  observables: SimObservables;
+  settleStatus?: SettleStatus;
+};
 
 export type TransitionSteadyTarget = {
   params: CoreRuntimeParams;
@@ -34,7 +49,7 @@ export type TransitionSteadyCompletedResult = {
   outcome: "completed";
   steady: SteadyResult;
   samples?: SimSample[];
-  snapshot?: PreviewCoreSnapshot;
+  snapshot?: TransitionSteadySnapshot;
   runtimeActiveSourceMode?: ModelCoreRuntimeActiveSourceMode;
   experimentalActiveProviderStates?: ModelCoreExperimentalActiveSourceProviderRuntimeState;
 };

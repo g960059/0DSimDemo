@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`baseline freeze (legacy active-stress rollback reference) > matches the frozen baseline summary 1`] = `
+exports[`baseline freeze (active-stress reference) > matches the frozen baseline summary 1`] = `
 {
   "AoP_dia": 79.5,
   "AoP_mean": 86.9,

@@ -10,7 +10,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const ACCEPTED_VENTRICULAR_BACKUP_SOURCE_OWNER_CHECKPOINT_V2_ID =
   "circleheart.accepted-ventricular-backup-source-owner-checkpoint.v2" as const;

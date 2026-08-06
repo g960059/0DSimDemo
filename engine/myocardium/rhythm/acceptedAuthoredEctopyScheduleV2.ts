@@ -5,7 +5,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 /**
  * Accepted, finite, authored PAC/PVC source schedule.

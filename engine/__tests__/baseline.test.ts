@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { recordValveExtremes, runScenario, summarize } from "@/engine/harness";
 import { DEFAULT_PARAMS } from "@/constants";
-import { MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE } from "@/engine/myocardium/runtimeActiveSource";
+import { MODELCORE_RUNTIME_BASELINE_ACTIVE_STRESS_MODE } from "@/engine/myocardium/runtimeActiveSource";
 import type { SimSample } from "@/engine/protocol";
 
 /**
  * S0 — Baseline freeze (M0).
  *
- * Captures the frozen legacy active-stress reference behavior as a
- * change-detector and asserts the §6 invariants. Runtime default is now LV Land;
- * this suite intentionally exercises the rollback/reference path.
+ * Captures the frozen baseline active-stress reference behavior as a
+ * change-detector and asserts the §6 invariants. This suite intentionally
+ * exercises the explicit baseline reference path.
  */
-describe("baseline freeze (legacy active-stress rollback reference)", () => {
-  const legacyOptions = {
-    runtimeActiveSourceMode: MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
+describe("baseline freeze (active-stress reference)", () => {
+  const baselineOptions = {
+    runtimeActiveSourceMode: MODELCORE_RUNTIME_BASELINE_ACTIVE_STRESS_MODE,
   } as const;
-  const result = runScenario(DEFAULT_PARAMS, legacyOptions);
+  const result = runScenario(DEFAULT_PARAMS, baselineOptions);
   const { metrics, health, samples } = result;
 
   it("produces only finite state across the run", () => {
@@ -34,7 +34,7 @@ describe("baseline freeze (legacy active-stress rollback reference)", () => {
     // The default scenario re-pins TBV every step (projectTBV), which would make
     // a drift check vacuous. Turning the controller OFF exercises the raw
     // integrator's mass conservation — the actual §6 invariant.
-    const free = runScenario({ ...DEFAULT_PARAMS, projectTBV: false }, legacyOptions);
+    const free = runScenario({ ...DEFAULT_PARAMS, projectTBV: false }, baselineOptions);
     expect(Math.abs(free.driftPctPer60s)).toBeLessThan(0.1);
   });
 

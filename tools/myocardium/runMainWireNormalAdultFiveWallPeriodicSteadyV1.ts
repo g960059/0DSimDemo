@@ -17,7 +17,7 @@ import type {
 } from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
 import type {
   MainWireFourValveDiseaseBracketIdV1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 
 const dtSec = numberArgument("--dt", 0.002);
 const maximumBeatCount = integerArgument("--max-beats", 32);
@@ -75,8 +75,8 @@ process.stdout.write(`${JSON.stringify({
   pericardiumMode: result.pericardiumMode,
   pericardiumCase: result.pericardiumCase,
   pericardiumParameterSetId: result.pericardiumParameterSetId,
-  valvePresetParameterSetId: result.valvePreset.parameterSetId,
-  valveDiseaseBracketIds: result.valvePreset.bracketIds,
+  valveResearchInputParameterSetId: result.valveResearchInput.parameterSetId,
+  valveDiseaseBracketIds: result.valveResearchInput.bracketIds,
   dtSec: result.dtSec,
   requestedMaximumBeatCount: result.requestedMaximumBeatCount,
   completedBeatCount: result.completedBeatCount,

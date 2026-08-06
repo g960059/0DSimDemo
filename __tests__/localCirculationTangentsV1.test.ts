@@ -16,7 +16,7 @@ import {
   initialMainWireQuasiSteadyOrificeValveStateV2,
   stepMainWireQuasiSteadyOrificeValveV2,
   type MainWireQuasiSteadyOrificeValveParamsV2,
-} from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
+} from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
 import {
   MAIN_WIRE_ARTERIAL_MINIMUM_LOG_STRAIN,
   MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   measureLaPvReservoirConduitOrderV1,
-} from "@/engine/mechanics2/diagnostics/LaPvReservoirConduitOrderV1";
+} from "@/engine/myocardium/diagnostics/LaPvReservoirConduitOrderV1";
 
 describe("LA PV reservoir/conduit equal-volume order V1", () => {
   it("reports a lower conduit branch without imposing an acceptance threshold", () => {

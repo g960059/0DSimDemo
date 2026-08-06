@@ -14,7 +14,7 @@ import {
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 
 const NOMINAL_DT_SEC = 0.002;
 

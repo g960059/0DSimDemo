@@ -57,7 +57,7 @@ import {
 import {
   sanitizeForStableHash,
   stableHash,
-} from "@/engine/myocardium/kinematics/stableHash";
+} from "@/engine/integrity/stableHash";
 
 type TestWallState = Readonly<{
   landState: Float64Array;

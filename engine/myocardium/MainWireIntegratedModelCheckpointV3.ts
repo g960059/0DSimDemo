@@ -31,70 +31,15 @@ import {
   validateAcceptedComposedRhythmTransactionConfigurationV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
 import {
-  canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
+import {
+  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
+  type MainWireIntegratedModelHemodynamicResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID =
-  "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v3" as const;
-
-export const MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3 = deepFreeze({
-  acceptedTuple:
-    "coronary-v3-plus-composed-rhythm-v2-plus-dynamic-mcs-flow-and-model-binding-v1" as const,
-  integrity:
-    "outer-sha-256-over-canonical-json-containing-two-nested-sha-checkpoints" as const,
-  nestedIntegrity: Object.freeze({
-    coronary: "verified-coronary-v3-sha-checkpoint" as const,
-    composedRhythm:
-      "verified-composed-rhythm-v2-sha-checkpoint-with-complete-owned-state" as const,
-    dynamicMechanicalSupport:
-      "covered-by-outer-sha-and-rehydrated-against-expected-profile-and-structural-config" as const,
-  }),
-  composedRhythmConfigurationIdentity:
-    "sha-256-over-complete-composed-rhythm-v2-configuration" as const,
-  dynamicMechanicalSupportProfileIdentity:
-    "sha-256-over-complete-canonical-dynamic-inertance-profile-content" as const,
-  dynamicMechanicalSupportStructuralHydraulicIdentity:
-    "sha-256-over-accepted-rotary-structural-hydraulic-projection" as const,
-  exactResumeScope:
-    "all-coronary-v3-owners-all-composed-rhythm-owned-source-conduction-capture-interval-calcium-queues-and-four-dynamic-device-flows" as const,
-  ownerClock:
-    "outer-coronary-and-composed-rhythm-clocks-must-match-exactly" as const,
-  calciumOwnership: Object.freeze({
-    soleAcceptedOwner: "AcceptedComposedRhythmTransactionV2" as const,
-    fiveExactEventCalciumStatesStored: true as const,
-    legacyFixedPeriodicOwnerStored: false as const,
-    generatedPeriodicOwnerStored: false as const,
-  }),
-  externalAfSeam: Object.freeze({
-    typedSourceModeConfigurationStored: true as const,
-    externalAfOwnerStateStored: false as const,
-    externalAfOwnerCheckpointRequiredSeparately: true as const,
-    afWrapperIntegrated: true as const,
-    jointCheckpointId:
-      "circleheart.main-wire-integrated-model-external-af-wrapper-checkpoint.v1" as const,
-    browserSessionPathIntegrated: false as const,
-  }),
-  proximalAvGateV2CompleteAcceptedStateStoredInComposedCheckpoint:
-    true as const,
-  dynamicMechanicalSupportStateStored:
-    "q-ml-per-sec-plus-detached-profile-and-structural-hydraulic-snapshots" as const,
-  providerStored: false as const,
-  exactRestoreRequiresExpectedProvider: true as const,
-  exactRestoreRequiresExpectedComposedRhythmConfiguration: true as const,
-  exactRestoreRequiresExpectedDynamicInertanceProfile: true as const,
-  exactRestoreRequiresExpectedDynamicStructuralHydraulicConfig: true as const,
-  externalSessionMustOwnDeviceConfigAndControllerCommand: true as const,
-  releaseBlockers: Object.freeze({
-    afOwnerWrapperAndJointCheckpoint: "closed" as const,
-    iabpAcceptedVentricularSynchronization: "open" as const,
-  }),
-  migrationClaimed: false as const,
-  clockRebaseClaimed: false as const,
-  longTermPhysiologicalValidationEstablished: false as const,
-  clinicalValidationClaimed: false as const,
-  simulationReady: false as const,
-});
+  "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v4" as const;
 
 export type MainWireIntegratedModelCheckpointContextV3<TWallState> = Readonly<
   MainWireFiveWallCoronaryCheckpointContextV3<TWallState>
@@ -103,22 +48,24 @@ export type MainWireIntegratedModelCheckpointContextV3<TWallState> = Readonly<
     dynamicMechanicalSupportProfile:
       DynamicMechanicalSupportInertanceProfileV1;
     dynamicMechanicalSupportConfig: MechanicalSupportConfigV1;
+    hemodynamicResearchInputs:
+      MainWireIntegratedModelHemodynamicResearchInputsV3;
   }
 >;
 
 export type MainWireIntegratedModelCheckpointPayloadV3 = Readonly<{
   checkpointId: typeof MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID;
-  schemaVersion: 3;
+  schemaVersion: 4;
   transactionId: typeof MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID;
   revision: number;
   acceptedTimeSec: number;
   composedRhythmConfigurationIdentitySha256: string;
   dynamicMechanicalSupportProfileIdentitySha256: string;
   dynamicMechanicalSupportStructuralHydraulicIdentitySha256: string;
+  hemodynamicResearchInputIdentitySha256: string;
   coronary: MainWireFiveWallCoronaryCheckpointV3;
   composedRhythm: AcceptedComposedRhythmTransactionCheckpointV2;
   dynamicMechanicalSupport: DynamicMechanicalSupportAcceptedStateV1;
-  exactResumeClaim: typeof MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3;
 }>;
 
 export type MainWireIntegratedModelCheckpointV3 =
@@ -149,6 +96,7 @@ export async function checkpointMainWireIntegratedModelV3<TWallState>(
     composedRhythmConfigurationIdentitySha256,
     dynamicMechanicalSupportProfileIdentitySha256,
     dynamicMechanicalSupportStructuralHydraulicIdentitySha256,
+    hemodynamicResearchInputIdentitySha256,
   ] = await Promise.all([
     checkpointMainWireFiveWallCoronaryV3(context, state.coronary),
     checkpointAcceptedComposedRhythmTransactionStateV2(
@@ -161,6 +109,11 @@ export async function checkpointMainWireIntegratedModelV3<TWallState>(
     sha256CanonicalJsonHex(
       dynamicMechanicalSupport.structuralHydraulicProjection,
     ),
+    sha256CanonicalJsonHex(
+      validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+        context.hemodynamicResearchInputs,
+      ),
+    ),
   ]);
   assertNestedClocks(
     state.revision,
@@ -170,17 +123,17 @@ export async function checkpointMainWireIntegratedModelV3<TWallState>(
   );
   const payload = Object.freeze({
     checkpointId: MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
-    schemaVersion: 3 as const,
+    schemaVersion: 4 as const,
     transactionId: MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
     revision: state.revision,
     acceptedTimeSec: state.acceptedTimeSec,
     composedRhythmConfigurationIdentitySha256,
     dynamicMechanicalSupportProfileIdentitySha256,
     dynamicMechanicalSupportStructuralHydraulicIdentitySha256,
+    hemodynamicResearchInputIdentitySha256,
     coronary,
     composedRhythm,
     dynamicMechanicalSupport,
-    exactResumeClaim: MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3,
   }) satisfies MainWireIntegratedModelCheckpointPayloadV3;
   return Object.freeze({
     ...payload,
@@ -204,22 +157,22 @@ export async function restoreMainWireIntegratedModelV3<TWallState>(
   if (await sha256CanonicalJsonHex(payload) !== checkpointSha256) {
     throw new Error("composed integrated model checkpoint outer SHA-256 mismatch");
   }
-  if (
-    canonicalJsonStringify(checkpoint.exactResumeClaim)
-      !== canonicalJsonStringify(
-        MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3,
-      )
-  ) throw new Error("composed integrated model checkpoint claim mismatch");
 
   const [
     expectedComposedRhythmConfigurationIdentitySha256,
     expectedDynamicMechanicalSupportProfileIdentitySha256,
     expectedDynamicMechanicalSupportStructuralHydraulicIdentitySha256,
+    expectedHemodynamicResearchInputIdentitySha256,
   ] = await Promise.all([
     sha256CanonicalJsonHex(context.rhythm.configuration),
     sha256CanonicalJsonHex(expectedDynamicBinding.inertanceProfileSnapshot),
     sha256CanonicalJsonHex(
       expectedDynamicBinding.structuralHydraulicProjection,
+    ),
+    sha256CanonicalJsonHex(
+      validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+        context.hemodynamicResearchInputs,
+      ),
     ),
   ]);
   if (
@@ -244,6 +197,14 @@ export async function restoreMainWireIntegratedModelV3<TWallState>(
   ) {
     throw new Error(
       "composed integrated checkpoint dynamic MCS structural hydraulic SHA-256 identity mismatch",
+    );
+  }
+  if (
+    checkpoint.hemodynamicResearchInputIdentitySha256
+      !== expectedHemodynamicResearchInputIdentitySha256
+  ) {
+    throw new Error(
+      "composed integrated checkpoint hemodynamic research input SHA-256 identity mismatch",
     );
   }
 
@@ -316,6 +277,9 @@ function validateCheckpointContext<TWallState>(
     context.dynamicMechanicalSupportProfile,
   );
   validateMechanicalSupportConfigV1(context.dynamicMechanicalSupportConfig);
+  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+    context.hemodynamicResearchInputs,
+  );
 }
 
 function assertNestedClocks(
@@ -354,16 +318,16 @@ function assertCheckpointEnvelope(
     "composedRhythmConfigurationIdentitySha256",
     "dynamicMechanicalSupportProfileIdentitySha256",
     "dynamicMechanicalSupportStructuralHydraulicIdentitySha256",
+    "hemodynamicResearchInputIdentitySha256",
     "coronary",
     "composedRhythm",
     "dynamicMechanicalSupport",
-    "exactResumeClaim",
     "checkpointSha256",
   ], "composed integrated model checkpoint");
   const typed = input as Partial<MainWireIntegratedModelCheckpointV3>;
   if (
     typed.checkpointId !== MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID
-    || typed.schemaVersion !== 3
+    || typed.schemaVersion !== 4
     || typed.transactionId !== MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID
   ) throw new Error("unsupported composed integrated model checkpoint schema");
   digest(typed.checkpointSha256, "composed integrated checkpoint SHA-256");
@@ -378,6 +342,10 @@ function assertCheckpointEnvelope(
   digest(
     typed.dynamicMechanicalSupportStructuralHydraulicIdentitySha256,
     "composed integrated checkpoint dynamic MCS structural hydraulic SHA-256 identity",
+  );
+  digest(
+    typed.hemodynamicResearchInputIdentitySha256,
+    "composed integrated checkpoint hemodynamic research input SHA-256 identity",
   );
 }
 
@@ -428,16 +396,6 @@ function nonnegativeInteger(value: unknown, label: string): number {
 function nonnegativeFinite(value: unknown, label: string): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new Error(`${label} must be finite and nonnegative`);
-  }
-  return value;
-}
-
-function deepFreeze<T>(value: T): T {
-  if (value !== null && typeof value === "object") {
-    for (const child of Object.values(value as Record<string, unknown>)) {
-      deepFreeze(child);
-    }
-    Object.freeze(value);
   }
   return value;
 }

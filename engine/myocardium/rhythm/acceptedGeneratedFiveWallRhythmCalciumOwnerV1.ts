@@ -19,7 +19,7 @@ import type {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 import {
   ACCEPTED_DETERMINISTIC_RHYTHM_GENERATOR_V1_ID,
   checkpointAcceptedDeterministicRhythmGeneratorStateV1,

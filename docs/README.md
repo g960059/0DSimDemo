@@ -9,12 +9,10 @@ assistant transcripts, and plans that no longer constrain the implementation.
 
 | Area | Entry point | Status |
 |---|---|---|
-| Studio v1 | [studio/README.md](studio/README.md) | Active greenfield application lane |
+| Studio V2 | [studio/README.md](studio/README.md) | Authoritative pre-release Experiment architecture |
 | Scientific runtime | [scientific-runtime/README.md](scientific-runtime/README.md) | Active Model Platform boundary |
-| Myocardial contraction rebuild | [myocardium/README.md](myocardium/README.md) | Proposed Phase 0 |
-| MechanicsCore2 sidecar | [mechanics2/README.md](mechanics2/README.md) | Active user-0 architecture lane |
+| Myocardium model | [myocardium/README.md](myocardium/README.md) | Current V3 contracts and numerical evidence |
 | Cross-lane routing | [status/current-lanes.md](status/current-lanes.md) | Compact pointer index |
-| Repository archaeology | [history/README.md](history/README.md) | Recovery index |
 
 ## Recovery policy for removed docs
 

@@ -28,11 +28,13 @@ import type {
   RotarySupportDeviceIdV1,
 } from "@/engine/devices/typesV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3,
   checkpointMainWireIntegratedModelV3,
   restoreMainWireIntegratedModelV3,
   type MainWireIntegratedModelCheckpointContextV3,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3,
   evaluateMainWireIntegratedModelCalciumDriveV3,
@@ -96,7 +98,7 @@ import {
 import {
   createRecoveryConcealmentAvGateParametersV1,
 } from "@/engine/myocardium/rhythm/recoveryConcealmentAvGateV1";
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 
 type Provider = ReturnType<
   typeof createCanonicalMainWireNormalAdultFiveWallProviderV1
@@ -357,8 +359,7 @@ describe("integrated model V3 canonical-provider composed-rhythm smoke", () => {
       context,
       mid,
     );
-    expect(checkpoint.exactResumeClaim)
-      .toEqual(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3);
+    expect(checkpoint).not.toHaveProperty("exactResumeClaim");
     expect(checkpoint.composedRhythm.acceptedState)
       .not.toHaveProperty("rhythmCalcium");
     expect(canonicalJsonStringify(checkpoint))
@@ -645,6 +646,8 @@ function checkpointContext(
     rhythm: Object.freeze({ configuration }),
     dynamicMechanicalSupportProfile: profile,
     dynamicMechanicalSupportConfig: config,
+    hemodynamicResearchInputs:
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   });
 }
 

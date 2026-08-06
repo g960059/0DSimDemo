@@ -8,7 +8,9 @@ This extension adds LVAD, Impella, peripheral/central VA-ECMO, VV-ECMO, and IABP
 
 The base circulation and myocardium remain the accepted-state owners. A device is evaluated inside every backward-Euler candidate, so its flow responds to the same candidate's preload, afterload, chamber pressure, and vascular pressure. Rotary device transfer is added as equal-and-opposite inlet/outlet volume rates. IABP does not transfer blood between nodes and therefore uses a separate aortic displacement-volume law.
 
-The immutable `adult-five-wall-noncoronary@0.2.0` release is not relabeled. Mechanical support is an optional trial extension and an independent research scenario runner. With an all-off configuration, the accepted state, native pressures, and native flows are bit-exact with the extension omitted.
+Mechanical support is an optional trial extension of the numerical model. With
+an all-off configuration, the accepted state, native pressures, and native
+flows are bit-exact with the extension omitted.
 
 ## Common rotary-pump law
 

@@ -18,7 +18,7 @@ import {
   ELECTRICAL_CAPTURE_PRIORITY_V2,
   type CapturedElectricalActivationV2,
 } from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 describe("accepted ventricular interval-strength checkpoint V1", () => {
   it("round-trips full SR-load state and resumes exactly", async () => {

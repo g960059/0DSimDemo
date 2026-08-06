@@ -1,7 +1,7 @@
 import {
   sanitizeForStableHash,
   stableHash,
-} from "@/engine/myocardium/kinematics/stableHash";
+} from "@/engine/integrity/stableHash";
 
 export const EQUILIBRIUM_ONE_FIBER_PASSIVE_V1_ID =
   "equilibrium-one-fiber-passive-log-strain-v1" as const;

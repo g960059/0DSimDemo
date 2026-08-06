@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CHECKPOINT_CLAIM_V1,
   checkpointAcceptedAuthoredVentricularPacingReplaySourceStateV1,
   restoreAcceptedAuthoredVentricularPacingReplaySourceStateV1,
 } from "@/engine/myocardium/rhythm/acceptedAuthoredVentricularPacingReplaySourceCheckpointV1";
@@ -12,7 +11,7 @@ import {
   initializeAcceptedAuthoredVentricularPacingReplaySourceStateV1,
   type AcceptedAuthoredVentricularPacingReplaySourceConfigurationV1,
 } from "@/engine/myocardium/rhythm/acceptedAuthoredVentricularPacingReplaySourceV1";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 describe("accepted authored ventricular pacing replay checkpoint V1", () => {
   it("restores exact history, cursor, counters, and deterministic continuation", async () => {
@@ -42,7 +41,7 @@ describe("accepted authored ventricular pacing replay checkpoint V1", () => {
     expect(Object.isFrozen(restored.configuration)).toBe(true);
     expect(Object.isFrozen(restored.configuration.events)).toBe(true);
     expect(Object.isFrozen(restored.configuration.events[0])).toBe(true);
-    expect(checkpoint.exactResumeClaim.authenticationClaimed).toBe(false);
+    expect(checkpoint).not.toHaveProperty("exactResumeClaim");
 
     const originalNext =
       evaluateAcceptedAuthoredVentricularPacingReplaySourceTrialV1(state, 0.6);
@@ -65,7 +64,7 @@ describe("accepted authored ventricular pacing replay checkpoint V1", () => {
     );
   });
 
-  it("rejects SHA, schema, exact-claim, and unknown-key tamper", async () => {
+  it("rejects SHA, schema, and unknown-key tamper", async () => {
     const configuration = replayConfiguration();
     const checkpoint =
       await checkpointAcceptedAuthoredVentricularPacingReplaySourceStateV1(
@@ -93,20 +92,10 @@ describe("accepted authored ventricular pacing replay checkpoint V1", () => {
       ),
     ).rejects.toThrow(/unsupported.*schema/);
 
-    const badClaim = jsonClone(checkpoint);
-    badClaim.exactResumeClaim.authenticationClaimed = true;
-    await resign(badClaim);
-    await expect(
-      restoreAcceptedAuthoredVentricularPacingReplaySourceStateV1(
-        badClaim,
-        configuration,
-      ),
-    ).rejects.toThrow(/claim mismatch/);
-    expect(
-      ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CHECKPOINT_CLAIM_V1.authenticationClaimed,
-    ).toBe(false);
-
-    const extra = { ...checkpoint, extra: "not-accepted" };
+    const extra = {
+      ...checkpoint,
+      exactResumeClaim: { authenticationClaimed: false },
+    };
     const { checkpointSha256: _old, ...payload } = extra;
     const resignedExtra = {
       ...payload,

@@ -1,12 +1,12 @@
 import {
   measureLaPvReservoirConduitOrderV1,
   type LaPvReservoirConduitOrderV1,
-} from "@/engine/mechanics2/diagnostics/LaPvReservoirConduitOrderV1";
+} from "@/engine/myocardium/diagnostics/LaPvReservoirConduitOrderV1";
 import {
   measureLaPvTwoLobesV2,
   type LaPvLobeMeasurementV2,
   type LaPvMeasuredLobeV2,
-} from "@/engine/mechanics2/diagnostics/LaPvLobeMeasurementV2";
+} from "@/engine/myocardium/diagnostics/LaPvLobeMeasurementV2";
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
@@ -137,7 +137,7 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     pericardiumCase:
       MainWireNormalAdultFiveWallPeriodicResultV1["pericardiumCase"];
     pericardiumParameterSetId: string;
-    valvePreset: MainWireNormalAdultFiveWallPeriodicResultV1["valvePreset"];
+    valveResearchInput: MainWireNormalAdultFiveWallPeriodicResultV1["valveResearchInput"];
     dtSec: number;
     requestedMaximumBeatCount: number;
     completedBeatCount: number;
@@ -348,7 +348,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       pericardiumMode: result.pericardiumMode,
       pericardiumCase: result.pericardiumCase,
       pericardiumParameterSetId: result.pericardiumParameterSetId,
-      valvePreset: result.valvePreset,
+      valveResearchInput: result.valveResearchInput,
       dtSec: result.dtSec,
       requestedMaximumBeatCount: result.requestedMaximumBeatCount,
       completedBeatCount: result.completedBeatCount,

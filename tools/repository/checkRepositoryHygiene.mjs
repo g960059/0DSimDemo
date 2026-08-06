@@ -17,25 +17,123 @@ const trackedPaths = execFileSync(
   .filter(Boolean);
 
 const forbiddenExactPaths = new Set([
+  ".firebaserc",
+  "__tests__/integratedLaneBootstrapV1.test.ts",
+  "__tests__/integratedLaneObservableRegistryV1.test.ts",
+  "__tests__/integratedLaneSessionV1.test.ts",
+  "caseDoc.ts",
+  "caseValidation.ts",
+  "contexts/AuthContext.tsx",
+  "engine/__tests__/guytonStarlingWorkerCore.test.ts",
+  "engine/__tests__/guytonStarlingWorkerQueue.test.ts",
+  "engine/__tests__/instanceKnobs.test.ts",
+  "engine/__tests__/knobs.test.ts",
+  "engine/__tests__/verifyGuytonStarling.test.ts",
+  "engine/guytonStarlingChainProtocol.ts",
+  "engine/guytonStarlingChainWorker.ts",
+  "engine/guytonStarlingChainWorkerCore.ts",
+  "engine/guytonStarlingValidation.ts",
+  "engine/guytonStarlingWorker.ts",
+  "engine/guytonStarlingWorkerCore.ts",
+  "engine/guytonStarlingWorkerQueue.ts",
+  "engine/instanceKnobs.ts",
+  "engine/knobs.ts",
+  "engine/myocardium/MainWireIntegratedLaneBootstrapV1.ts",
+  "engine/myocardium/MainWireIntegratedLaneObservableRegistryV1.ts",
+  "engine/myocardium/MainWireIntegratedLaneSessionV1.ts",
+  "engine/myocardium/activation/periodicActivationSchedulerV1.ts",
+  "engine/myocardium/calcium/PrescribedCalciumTransientV1.ts",
+  "engine/myocardium/calcium/index.ts",
+  "engine/myocardium/calcium/protocols.ts",
+  "engine/myocardium/contracts.ts",
+  "engine/myocardium/mechanics/contracts.ts",
+  "engine/myocardium/mechanics/identityForcePhase3BReport.ts",
+  "engine/myocardium/mechanics/index.ts",
+  "engine/myocardium/mechanics/passiveExponentialEnergyV1.ts",
+  "engine/myocardium/mechanics/virtualPowerGeneralizedForceV1.ts",
+  "engine/myocardium/mechanics/virtualPowerNominalEngineeringV1.ts",
+  "engine/myocardium/myofilament/land2017/protocols.ts",
+  "engine/myocardium/provenance.ts",
+  "firebase-applet-config.json",
+  "firebase-blueprint.json",
+  "firebase.json",
+  "firebaseSetup.ts",
+  "firestore.rules",
   "logs.txt",
   "mv_out.txt",
+  "playwright.e2e.config.ts",
+  "components/WorkbenchPreRegistrationPage.tsx",
+  "rawParameterCatalog.ts",
+  "readingConversion.ts",
   "test_blocknote.ts",
   "test_blocknote_esm.mjs",
+  "tools/verifyGuytonStarling.ts",
+  "studio/application/runtime/SimulationSessionCoordinatorV1.ts",
+  "tools/myocardium/verifyContracts.ts",
+  "vitest.archive.config.ts",
+  "vitest.heavy.config.ts",
+  "vitest.research.config.ts",
 ]);
 const forbiddenPrefixes = [
   "migrated_prompt_history/",
   "tools/sweeps/",
+  "data/mechanics2/",
+  "data/myocardium/protocols/",
+  "docs/mechanics2/",
+  "engine/myocardium/homogenization/",
+  "engine/myocardium/kinematics/",
+  "engine/myocardium/protocols/",
+  "engine/myocardium/state/",
+  "engine/diagnostics/morphology/",
+  "engine/mechanics2/",
+  "studio/adapters/mainWire/",
+  "studio/application/content/",
+  "studio/contracts/v1/",
+  "studio/infrastructure/artifacts/",
+  "tools/mechanics2/",
 ];
 const requiredTrackedPaths = [
-  "studio/adapters/mainWire/MainWireBrowserWorkerSessionHostV1.ts",
-  "studio/adapters/mainWire/MainWireSimulationRuntimeAdapterV1.ts",
-  "studio/adapters/mainWire/MainWireStudioSessionHostV1.ts",
-  "studio/adapters/mainWire/MainWireStudioSnapshotEnvelopeV1.ts",
-  "studio/adapters/mainWire/MainWireStudioTargetResolverV1.ts",
-  "studio/adapters/mainWire/index.ts",
-  "studio/application/runtime/SimulationSessionCoordinatorV1.ts",
-  "studio/infrastructure/artifacts/InMemoryContentAddressedArtifactStoreV1.ts",
-  "studio/infrastructure/artifacts/studioCanonicalJsonV1.ts",
+  "components/WorkbenchV3Page.tsx",
+  "components/workbench/WorkbenchDockview.tsx",
+  "__tests__/workbenchV3Dockview.test.tsx",
+  "engine/myocardium/MainWireIntegratedModelOutputRegistryV3.ts",
+  "engine/myocardium/MainWireIntegratedModelRuntimeV3.ts",
+  "engine/myocardium/MainWireIntegratedModelSessionV3.ts",
+  "engine/myocardium/experiments/MainWireIntegratedModelSnapshotQualificationV3.ts",
+  "studio/application/authoring/StudioExperimentAuthoringApplicationV2.ts",
+  "studio/application/authoring/StudioExperimentDataV2.ts",
+  "studio/application/runtime/StudioFixtureReducerV2.ts",
+  "studio/contracts/v2/index.ts",
+  "studio/contracts/v2/simulation.ts",
+  "studio/composition/StudioDefaultCompositionV2.ts",
+  "studio/infrastructure/experiments/InMemoryExperimentRepositoryV2.ts",
+  "studio/infrastructure/json/StudioCanonicalJson.ts",
+  "studio/infrastructure/model/InMemoryRegisteredModelStoreV2.ts",
+  "studio/infrastructure/model/TrustedRegisteredModelClientCatalogV2.ts",
+  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.ts",
+  "studio/integrations/mainWireIntegratedV3/registry-admission-lock.json",
+  "studio/workers/StudioSimulationWorkerClientV2.ts",
+  "studio/workers/StudioSimulationWorkerProtocolV2.ts",
+  "studio/workers/StudioSimulationWorkerRuntimeV2.ts",
+  "studio/workers/StudioSimulationWorkerV2.ts",
+  "tools/registry/verifyMainWireIntegratedStudioModelV3.ts",
+];
+const portableTextExtensions = new Set([
+  ".css",
+  ".html",
+  ".js",
+  ".json",
+  ".md",
+  ".mjs",
+  ".ts",
+  ".tsx",
+  ".yaml",
+  ".yml",
+]);
+const machineLocalPathPatterns = [
+  /\/Users\/[^/]+\//,
+  /\/home\/[^/]+\//,
+  /[A-Za-z]:\\Users\\[^\\]+\\/,
 ];
 
 const failures = [];
@@ -49,7 +147,8 @@ for (const requiredPath of requiredTrackedPaths) {
 }
 
 for (const trackedPath of trackedPaths) {
-  if (!existsSync(path.join(repositoryRoot, trackedPath))) continue;
+  const absolutePath = path.join(repositoryRoot, trackedPath);
+  if (!existsSync(absolutePath)) continue;
   if (
     forbiddenExactPaths.has(trackedPath)
     || forbiddenPrefixes.some((prefix) => trackedPath.startsWith(prefix))
@@ -57,6 +156,14 @@ for (const trackedPath of trackedPaths) {
     failures.push(
       `${trackedPath}: historical scratch output belongs in Git history, not the working tree`,
     );
+  }
+  if (portableTextExtensions.has(path.extname(trackedPath))) {
+    const text = readFileSync(absolutePath, "utf8");
+    if (machineLocalPathPatterns.some((pattern) => pattern.test(text))) {
+      failures.push(
+        `${trackedPath}: tracked portable content must not contain a machine-local absolute path`,
+      );
+    }
   }
 }
 
@@ -75,31 +182,6 @@ for (const trackedPath of trackedPaths) {
   if (!studioIndex.includes(`(${relativePath})`)) {
     failures.push(
       `${trackedPath}: every Studio document must be classified in docs/studio/README.md`,
-    );
-  }
-}
-
-// A verification tool must not pin the prose of an archived document.
-//
-// Twenty-one myocardium verifiers used to require specific wording in
-// docs/status/archive/current-lanes-through-2026-07-10.md. The file is frozen,
-// so once a phase landed after the archive date its pin could never be
-// satisfied — twenty verifiers were red for that reason alone, and the red said
-// nothing about the physics they existed to guard. Compacting a status document
-// is normal and will happen again; this rule keeps the next compaction from
-// recreating the class.
-for (const trackedPath of trackedPaths) {
-  if (
-    !existsSync(path.join(repositoryRoot, trackedPath))
-    || !trackedPath.startsWith("tools/")
-    || !/\.(ts|tsx|mjs|js)$/.test(trackedPath)
-    || trackedPath === "tools/repository/checkRepositoryHygiene.mjs"
-  ) {
-    continue;
-  }
-  if (readFileSync(path.join(repositoryRoot, trackedPath), "utf8").includes("docs/status/archive/")) {
-    failures.push(
-      `${trackedPath}: a verification tool must not read docs/status/archive/ — an archived document is frozen, so any prose requirement against it becomes permanently unsatisfiable`,
     );
   }
 }

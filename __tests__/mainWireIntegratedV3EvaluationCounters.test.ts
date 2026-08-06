@@ -5,8 +5,8 @@ import {
   stepMainWireIntegratedModelV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
-  createMainWireIntegratedLanePresetV1,
-} from "@/engine/myocardium/MainWireIntegratedLanePresetV1";
+  createMainWireIntegratedModelRuntimeV3,
+} from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
 import {
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
@@ -136,9 +136,9 @@ describe("main-wire integrated V3 evaluation counters", () => {
     expect(raCacheableRepeatMaterialEvaluationCount).toBe(0);
   });
 
-  it("keeps the accounting valid after settling an enabled HMII lane into active Land stress", async () => {
-    const preset = await createMainWireIntegratedLanePresetV1();
-    let accepted = preset.cold.acceptedState;
+  it("keeps the accounting valid after advancing the canonical V3 runtime into active Land stress", async () => {
+    const runtime = await createMainWireIntegratedModelRuntimeV3();
+    let accepted = runtime.cold.acceptedState;
     let measured: ReturnType<typeof stepMainWireIntegratedModelV3> | null =
       null;
     let nominalGridIndex = 1;
@@ -154,36 +154,36 @@ describe("main-wire integrated V3 evaluation counters", () => {
         accepted,
         nominalTargetSec,
         {
-          configuration: preset.rhythm.configuration,
+          configuration: runtime.rhythm.configuration,
           externalAfNextBoundaryTimeSec: null,
         },
-        preset.profile,
-        preset.config,
+        runtime.profile,
+        runtime.config,
       );
       const collect = maximum.candidateTimeSec === targetTimeSec;
       const stepped = stepMainWireIntegratedModelV3(
-        preset.provider,
+        runtime.provider,
         accepted,
         Object.freeze({
           candidateTimeSec: maximum.candidateTimeSec,
           coronary: collect
             ? Object.freeze({
-              ...preset.coronaryStepInput,
+              ...runtime.coronaryStepInput,
               evaluationCounterCollection: "enabled" as const,
             })
-            : preset.coronaryStepInput,
+            : runtime.coronaryStepInput,
           rhythm: Object.freeze({
-            configuration: preset.rhythm.configuration,
+            configuration: runtime.rhythm.configuration,
             externalAfNextBoundaryTimeSec: null,
             externalAtrialSourceBatch: null,
           }),
-          dynamicMechanicalSupport: preset.dynamicMechanicalSupport,
+          dynamicMechanicalSupport: runtime.dynamicMechanicalSupport,
         }),
       );
       expect(stepped.converged).toBe(true);
       if (stepped.converged === false) {
         throw new Error(
-          `settled device counter fixture failed: ${stepped.message}`,
+          `canonical V3 counter fixture failed: ${stepped.message}`,
         );
       }
       accepted = stepped.acceptedState;
@@ -195,14 +195,14 @@ describe("main-wire integrated V3 evaluation counters", () => {
 
     expect(measured?.converged).toBe(true);
     if (measured === null || measured.converged === false) {
-      throw new Error("settled device counter fixture omitted measured step");
+      throw new Error("canonical V3 counter fixture omitted measured step");
     }
     const diagnostics =
       measured.coronaryStep.baseStep.circulationTrial.diagnostics;
     const counters = diagnostics.evaluationCounters;
     expect(counters).toBeDefined();
     if (counters === undefined) {
-      throw new Error("settled device step omitted evaluation counters");
+      throw new Error("canonical V3 step omitted evaluation counters");
     }
     const mechanics = providerReadback(
       measured.coronaryStep.baseStep.mechanicsTrial.diagnostics.readback,
@@ -215,8 +215,8 @@ describe("main-wire integrated V3 evaluation counters", () => {
       wallReadback(mechanics.wallMaterialReadbackByWall[wallId])
         .landActiveKirchhoffStressPa);
 
-    expect(measured.dynamicMechanicalSupportTrial.pump.LVAD.flowMlPerSec)
-      .not.toBe(0);
+    expect(measured.acceptedState.dynamicMechanicalSupport.acceptedFlowMlPerSec)
+      .toEqual({ LVAD: 0, IMPELLA: 0, VA_ECMO: 0, VV_ECMO: 0 });
     expect(Math.max(...ventricularActiveStressPa)).toBeGreaterThan(0);
     expect(counters.coronaryImplicitSensitivities.directionCount)
       .toBeGreaterThan(0);

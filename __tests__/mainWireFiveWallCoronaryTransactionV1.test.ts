@@ -27,8 +27,8 @@ import {
   resolveMainWireNormalAdultBloodVolumeProtocolTargetV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
 import {
-  MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
   WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
   type WholeHeartMechanicsProviderV1,
@@ -54,7 +54,7 @@ const RUNTIME = Object.freeze({
     respAmpAlv: 0,
     respRate: 0,
   }),
-  valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
+  valveResearchInput: MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
 });
 
 describe("main-wire five-wall + coronary atomic transaction V1", () => {

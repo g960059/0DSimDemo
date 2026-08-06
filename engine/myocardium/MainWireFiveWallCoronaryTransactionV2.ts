@@ -1810,7 +1810,17 @@ function assertSameBinding(
   accepted: MainWireFiveWallCoronaryBindingV2,
   requested: MainWireFiveWallCoronaryBindingV2,
 ): void {
-  if (JSON.stringify(accepted) !== JSON.stringify(requested)) {
+  if (
+    accepted.topologyId !== requested.topologyId
+    || accepted.priorFingerprint !== requested.priorFingerprint
+    || accepted.collapseHydraulicsFingerprint
+      !== requested.collapseHydraulicsFingerprint
+    || accepted.boundaryResolverId !== requested.boundaryResolverId
+    || accepted.impMechanism !== requested.impMechanism
+    || accepted.shorteningImpPriorFingerprint
+      !== requested.shorteningImpPriorFingerprint
+    || accepted.mvcReferenceSemantics !== requested.mvcReferenceSemantics
+  ) {
     throw new Error("accepted coronary V2 binding and step configuration differ");
   }
 }

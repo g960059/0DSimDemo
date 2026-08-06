@@ -8,6 +8,9 @@ import {
 } from "@/engine/coronary/mainWireNormalAdultCoronaryV2";
 import { createMechanicalSupportConfigV1 } from "@/engine/devices/defaultsV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
   createDynamicMechanicalSupportDeviceProfileBindingV1,
   createDynamicMechanicalSupportInertanceProfileV1,
   type DynamicMechanicalSupportInertanceProfileV1,
@@ -70,8 +73,8 @@ import {
   WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
-import { MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1 } from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import { MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 type TestState = Readonly<{
   timeSec: number;
@@ -112,7 +115,7 @@ const RUNTIME = Object.freeze({
     respAmpAlv: 0,
     respRate: 0,
   }),
-  valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
+  valveResearchInput: MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
 });
 
 describe("main-wire external-AF atomic wrapper transaction V1", () => {
@@ -720,6 +723,8 @@ function checkpointContext(
       rhythm: Object.freeze({ configuration: fixture.rhythmConfiguration }),
       dynamicMechanicalSupportProfile: fixture.profile,
       dynamicMechanicalSupportConfig: fixture.config,
+      hemodynamicResearchInputs:
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     }),
   });
 }

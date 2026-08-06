@@ -2,10 +2,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
   runMainWireIntegratedModelPeriodicSteadyV3,
   type MainWireIntegratedModelPeriodicExecutionPurposeV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 
 const executionPurpose = executionPurposeArgument();
 const nominalDtSec = numericArgument("--dt", 0.002);

@@ -14,14 +14,14 @@ import type {
   ModelCoreExperimentalActiveSourceProvider,
 } from "@/engine/ModelCore";
 import {
-  LANDATRIAL_DEFAULT_FLOOR_SELECTED_CANDIDATE_ID,
-  LANDATRIAL_DEFAULT_FLOOR_V1_CONTRACT,
-} from "@/engine/myocardium/landAtrialDefaultFloor";
+  LANDATRIAL_RUNTIME_SELECTED_CONFIGURATION_ID,
+  LANDATRIAL_RUNTIME_CONTRACT_V1,
+} from "@/engine/myocardium/landAtrialRuntimeContract";
 import {
-  createLandAtrialRuntimeCandidateInstrumentation,
-  createLandAtrialRuntimeCandidateProviders,
-  type LandAtrialRuntimeCandidateInstrumentation,
-} from "@/engine/myocardium/landAtrialRuntimeCandidate";
+  createLandAtrialRuntimeInstrumentation,
+  createLandAtrialRuntimeProviders,
+  type LandAtrialRuntimeInstrumentation,
+} from "@/engine/myocardium/landAtrialRuntime";
 import type { ModelCoreLand2017LvSourceProviderInstrumentation } from "@/engine/myocardium/modelCoreLand2017LvSourceProvider";
 
 export type AtrialIsolatedBenchChamber = "LA" | "RA";
@@ -56,7 +56,7 @@ export type AtrialIsolatedBenchSample = {
 export type AtrialIsolatedBenchSummary = {
   readonly chamber: AtrialIsolatedBenchChamber;
   readonly variant: AtrialIsolatedBenchVariant;
-  readonly sourceCandidateId: typeof LANDATRIAL_DEFAULT_FLOOR_SELECTED_CANDIDATE_ID;
+  readonly sourceCandidateId: typeof LANDATRIAL_RUNTIME_SELECTED_CONFIGURATION_ID;
   readonly sampleCount: number;
   readonly measuredBeatCount: number;
   readonly providerId: string;
@@ -83,7 +83,7 @@ export type AtrialIsolatedBenchSummary = {
 export type AtrialIsolatedBenchResult = {
   readonly benchId: "landatrial-isolated-prescribed-volume-avplane-bench-v1";
   readonly protocol: {
-    readonly candidateId: typeof LANDATRIAL_DEFAULT_FLOOR_SELECTED_CANDIDATE_ID;
+    readonly candidateId: typeof LANDATRIAL_RUNTIME_SELECTED_CONFIGURATION_ID;
     readonly hr: 75;
     readonly dtSec: 0.001;
     readonly warmupBeats: 2;
@@ -125,7 +125,7 @@ export function runLandAtrialIsolatedBench(): AtrialIsolatedBenchResult {
   return {
     benchId: "landatrial-isolated-prescribed-volume-avplane-bench-v1",
     protocol: {
-      candidateId: LANDATRIAL_DEFAULT_FLOOR_SELECTED_CANDIDATE_ID,
+      candidateId: LANDATRIAL_RUNTIME_SELECTED_CONFIGURATION_ID,
       hr: HR,
       dtSec: DT_SEC,
       warmupBeats: WARMUP_BEATS,
@@ -147,8 +147,8 @@ function runChamberVariant(
   chamber: AtrialIsolatedBenchChamber,
   variant: AtrialIsolatedBenchVariant,
 ): AtrialIsolatedBenchSummary {
-  const instrumentation = createLandAtrialRuntimeCandidateInstrumentation();
-  const providers = createLandAtrialRuntimeCandidateProviders(instrumentation);
+  const instrumentation = createLandAtrialRuntimeInstrumentation();
+  const providers = createLandAtrialRuntimeProviders(instrumentation);
   const provider = providers[chamber];
   if (!provider) throw new Error(`Missing LandAtrial runtime provider for ${chamber}.`);
   const activeModel = activeModelFor(chamber, variant);
@@ -240,7 +240,7 @@ function activeModelFor(
   variant: AtrialIsolatedBenchVariant,
 ): ActiveStressChamberModel {
   const base = chamber === "LA" ? defaultActiveLA : defaultActiveRA;
-  const floorOverride = LANDATRIAL_DEFAULT_FLOOR_V1_CONTRACT.atrialActiveOverrides[chamber];
+  const floorOverride = LANDATRIAL_RUNTIME_CONTRACT_V1.atrialActiveOverrides[chamber];
   return new ActiveStressChamberModel({
     ...base,
     ...floorOverride,
@@ -413,7 +413,7 @@ function summarize(
   return {
     chamber,
     variant,
-    sourceCandidateId: LANDATRIAL_DEFAULT_FLOOR_SELECTED_CANDIDATE_ID,
+    sourceCandidateId: LANDATRIAL_RUNTIME_SELECTED_CONFIGURATION_ID,
     sampleCount: samples.length,
     measuredBeatCount: MEASURE_BEATS,
     providerId: provider.sourceProviderId,
@@ -487,7 +487,7 @@ function sensitivity(
 
 function instrumentationFor(
   chamber: AtrialIsolatedBenchChamber,
-  instrumentation: LandAtrialRuntimeCandidateInstrumentation,
+  instrumentation: LandAtrialRuntimeInstrumentation,
 ): ModelCoreLand2017LvSourceProviderInstrumentation {
   return chamber === "LA" ? instrumentation.LA : instrumentation.RA;
 }

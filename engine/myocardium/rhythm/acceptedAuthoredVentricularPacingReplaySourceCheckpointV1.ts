@@ -1,5 +1,4 @@
 import {
-  ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CLAIM_V1,
   ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_STATE_V1_ID,
   validateAcceptedAuthoredVentricularPacingReplaySourceConfigurationV1,
   validateAcceptedAuthoredVentricularPacingReplaySourceStateV1,
@@ -9,38 +8,10 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CHECKPOINT_V1_ID =
   "circleheart.accepted-authored-ventricular-pacing-replay-source-checkpoint.v1" as const;
-
-/**
- * The unkeyed digest detects content changes. It is not authentication: a
- * party able to replace the payload can also compute a replacement digest.
- */
-export const ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CHECKPOINT_CLAIM_V1 =
-  deepFreeze({
-    exactResumeScope:
-      "complete-authored-ventricular-pacing-replay-configuration-clock-cursor-history-and-counters" as const,
-    fullConfigurationStored: true as const,
-    completeAcceptedStateStored: true as const,
-    outerStateCrossChecks: Object.freeze([
-      "revision",
-      "acceptedTimeSec",
-      "cursor",
-      "acceptedEmittedImpulseCount",
-    ] as const),
-    integrity:
-      "sha-256-over-complete-canonical-json-payload-for-change-detection" as const,
-    authenticationClaimed: false as const,
-    expectedConfigurationRequirement:
-      "exact-complete-canonical-content-match-not-id-only" as const,
-    restoreResult: "detached-recursively-immutable-accepted-state" as const,
-    migrationClaimed: false as const,
-    clockRebaseClaimed: false as const,
-    replaySemantics:
-      ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CLAIM_V1,
-  });
 
 export type AcceptedAuthoredVentricularPacingReplaySourceCheckpointPayloadV1 =
   Readonly<{
@@ -53,7 +24,6 @@ export type AcceptedAuthoredVentricularPacingReplaySourceCheckpointPayloadV1 =
     acceptedEmittedImpulseCount: number;
     configuration: AcceptedAuthoredVentricularPacingReplaySourceConfigurationV1;
     acceptedState: AcceptedAuthoredVentricularPacingReplaySourceStateV1;
-    exactResumeClaim: typeof ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CHECKPOINT_CLAIM_V1;
   }>;
 
 export type AcceptedAuthoredVentricularPacingReplaySourceCheckpointV1 =
@@ -72,7 +42,6 @@ const CHECKPOINT_PAYLOAD_KEYS = Object.freeze([
   "acceptedEmittedImpulseCount",
   "configuration",
   "acceptedState",
-  "exactResumeClaim",
 ] as const);
 const CHECKPOINT_KEYS = Object.freeze([
   ...CHECKPOINT_PAYLOAD_KEYS,
@@ -95,8 +64,6 @@ export async function checkpointAcceptedAuthoredVentricularPacingReplaySourceSta
     acceptedEmittedImpulseCount: state.acceptedEmittedImpulseCount,
     configuration: state.configuration,
     acceptedState: state,
-    exactResumeClaim:
-      ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CHECKPOINT_CLAIM_V1,
   }) satisfies AcceptedAuthoredVentricularPacingReplaySourceCheckpointPayloadV1;
   return Object.freeze({
     ...payload,
@@ -148,17 +115,6 @@ export async function restoreAcceptedAuthoredVentricularPacingReplaySourceStateV
       "authored ventricular pacing replay checkpoint SHA-256 mismatch",
     );
   }
-  if (
-    canonicalJsonStringify(checkpoint.exactResumeClaim) !==
-    canonicalJsonStringify(
-      ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CHECKPOINT_CLAIM_V1,
-    )
-  ) {
-    throw new Error(
-      "authored ventricular pacing replay checkpoint claim mismatch",
-    );
-  }
-
   const restored =
     detachedFrozenCopy<AcceptedAuthoredVentricularPacingReplaySourceStateV1>(
       checkpoint.acceptedState,

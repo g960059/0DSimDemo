@@ -1,5 +1,4 @@
 import {
-  ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CLAIM_V2,
   ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_STATE_V2_ID,
   validateAcceptedComposedRhythmTransactionConfigurationV2,
   validateAcceptedComposedRhythmTransactionStateV2,
@@ -7,7 +6,6 @@ import {
   type AcceptedComposedRhythmTransactionStateV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
 import {
-  ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CHECKPOINT_CLAIM_V1,
   checkpointAcceptedAuthoredVentricularPacingReplaySourceStateV1,
   restoreAcceptedAuthoredVentricularPacingReplaySourceStateV1,
   type AcceptedAuthoredVentricularPacingReplaySourceCheckpointV1,
@@ -15,41 +13,10 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 
 export const ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CHECKPOINT_V2_ID =
   "circleheart.accepted-composed-rhythm-transaction-checkpoint.v2" as const;
-
-export const ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CHECKPOINT_CLAIM_V2 =
-  deepFreeze({
-    exactResumeScope:
-      "complete-transaction-configuration-owned-substates-pending-queues-five-calcium-states-clocks-and-counters" as const,
-    externalAfSourceOwnerStateStored: false as const,
-    externalAfSourceOwnerCheckpointRequiredSeparately: true as const,
-    fullConfigurationStored: true as const,
-    completeOwnedAcceptedStateStored: true as const,
-    integrity:
-      "sha-256-over-complete-canonical-json-payload-for-change-detection" as const,
-    authenticationClaimed: false as const,
-    expectedConfigurationRequirement:
-      "exact-complete-canonical-content-match-not-id-only" as const,
-    restoreResult: "detached-recursively-immutable-accepted-state" as const,
-    migrationClaimed: false as const,
-    clockRebaseClaimed: false as const,
-    proximalAvGateV2Ownership:
-      ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CLAIM_V2
-        .proximalAvGateV2Ownership,
-    proximalAvGateV2CompleteAcceptedStateStored: true as const,
-    authoredVentricularPacingReplay: Object.freeze({
-      optionalNestedCheckpointStored: true as const,
-      nullWhenSourceNotConfigured: true as const,
-      completeAcceptedOwnerStateStored: true as const,
-      nestedIntegrity:
-        ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_CHECKPOINT_CLAIM_V1,
-      nestedStateCrossCheckedAgainstTransactionAcceptedState: true as const,
-    }),
-    transactionSemantics: ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CLAIM_V2,
-  });
 
 export type AcceptedComposedRhythmTransactionCheckpointPayloadV2 = Readonly<{
   checkpointId: typeof ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CHECKPOINT_V2_ID;
@@ -61,8 +28,6 @@ export type AcceptedComposedRhythmTransactionCheckpointPayloadV2 = Readonly<{
   acceptedState: AcceptedComposedRhythmTransactionStateV2;
   authoredVentricularPacingReplay:
     AcceptedAuthoredVentricularPacingReplaySourceCheckpointV1 | null;
-  exactResumeClaim:
-    typeof ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CHECKPOINT_CLAIM_V2;
 }>;
 
 export type AcceptedComposedRhythmTransactionCheckpointV2 =
@@ -89,8 +54,6 @@ export async function checkpointAcceptedComposedRhythmTransactionStateV2(
     configuration: state.configuration,
     acceptedState: state,
     authoredVentricularPacingReplay,
-    exactResumeClaim:
-      ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CHECKPOINT_CLAIM_V2,
   }) satisfies AcceptedComposedRhythmTransactionCheckpointPayloadV2;
   return Object.freeze({
     ...payload,
@@ -108,7 +71,7 @@ export async function restoreAcceptedComposedRhythmTransactionStateV2(
   const record = requirePlainRecord(input, "composed rhythm checkpoint");
   requireExactKeys(record, [
     "checkpointId", "schemaVersion", "stateSchemaId", "revision",
-    "acceptedTimeSec", "configuration", "acceptedState", "exactResumeClaim",
+    "acceptedTimeSec", "configuration", "acceptedState",
     "authoredVentricularPacingReplay",
     "checkpointSha256",
   ], "composed rhythm checkpoint");
@@ -133,14 +96,6 @@ export async function restoreAcceptedComposedRhythmTransactionStateV2(
   const { checkpointSha256, ...payload } = checkpoint;
   if (await sha256CanonicalJsonHex(payload) !== checkpointSha256) {
     throw new Error("composed rhythm checkpoint SHA-256 mismatch");
-  }
-  if (
-    canonicalJsonStringify(checkpoint.exactResumeClaim)
-      !== canonicalJsonStringify(
-        ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CHECKPOINT_CLAIM_V2,
-      )
-  ) {
-    throw new Error("composed rhythm checkpoint claim mismatch");
   }
   const restored = detachedFrozenCopy<
     AcceptedComposedRhythmTransactionStateV2

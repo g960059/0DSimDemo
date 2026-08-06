@@ -5,8 +5,8 @@ import type {
   MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
-  validateMainWireFourValveDiseasePresetV1,
-} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+  validateMainWireFourValveDiseaseResearchInputV1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 
 export const MAIN_WIRE_VALVE_DISEASE_CYCLE_METRICS_V1_ID =
   "main-wire-valve-disease-cycle-metrics-v1" as const;
@@ -140,8 +140,8 @@ export type MainWireValveDiseaseCycleMetricsV1 = Readonly<{
     sampledCycleDurationSec: number;
     periodicSteadyStateClaimed: boolean;
     protocolIdentityHash: string;
-    valvePreset: Readonly<{
-      presetId: string;
+    valveResearchInput: Readonly<{
+      researchInputId: string;
       parameterSetId: string;
       parameterIdentityHash: string;
       bracketIds: readonly string[];
@@ -169,11 +169,11 @@ export function measureMainWireValveDiseaseCycleMetricsV1(
   ) {
     throw new Error("periodic result protocolIdentityHash must be non-empty");
   }
-  const valvePresetIssues = validateMainWireFourValveDiseasePresetV1(
-    result.valvePreset,
+  const valveResearchInputIssues = validateMainWireFourValveDiseaseResearchInputV1(
+    result.valveResearchInput,
   );
-  if (valvePresetIssues.length > 0) {
-    throw new Error(`periodic result valvePreset is invalid: ${valvePresetIssues.join("; ")}`);
+  if (valveResearchInputIssues.length > 0) {
+    throw new Error(`periodic result valveResearchInput is invalid: ${valveResearchInputIssues.join("; ")}`);
   }
   const selectedBeat = result.retainedCompleteBeats.at(-1);
   if (selectedBeat === undefined || selectedBeat.samples.length === 0) {
@@ -190,8 +190,8 @@ export function measureMainWireValveDiseaseCycleMetricsV1(
     valveId,
     selectedBeat.samples,
     result.dtSec,
-    result.valvePreset.valves[valveId].maximumForwardEoaCm2,
-    result.valvePreset.valves[valveId].closedReverseEroaCm2,
+    result.valveResearchInput.valves[valveId].maximumForwardEoaCm2,
+    result.valveResearchInput.valves[valveId].closedReverseEroaCm2,
   ));
   const netVolumeMlByValve = valveRecord((valveId) =>
     valves[valveId].netVolumeMl);
@@ -221,11 +221,11 @@ export function measureMainWireValveDiseaseCycleMetricsV1(
       sampledCycleDurationSec: selectedBeat.samples.length * result.dtSec,
       periodicSteadyStateClaimed: result.periodicSteadyStateClaimed,
       protocolIdentityHash: result.protocolIdentityHash,
-      valvePreset: Object.freeze({
-        presetId: result.valvePreset.presetId,
-        parameterSetId: result.valvePreset.parameterSetId,
-        parameterIdentityHash: result.valvePreset.parameterIdentityHash,
-        bracketIds: Object.freeze([...result.valvePreset.bracketIds]),
+      valveResearchInput: Object.freeze({
+        researchInputId: result.valveResearchInput.researchInputId,
+        parameterSetId: result.valveResearchInput.parameterSetId,
+        parameterIdentityHash: result.valveResearchInput.parameterIdentityHash,
+        bracketIds: Object.freeze([...result.valveResearchInput.bracketIds]),
       }),
     }),
     interpretationEligible: result.periodicSteadyStateClaimed,
@@ -277,7 +277,7 @@ function measureValve(
     }
     if (valve.closedReverseEroaCm2 !== configuredClosedReverseEroaCm2) {
       throw new Error(
-        `${valveId} sample ${sampleIndex} closed reverse EROA must equal the configured preset value`,
+        `${valveId} sample ${sampleIndex} closed reverse EROA must equal the configured research input value`,
       );
     }
     if (

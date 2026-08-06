@@ -103,7 +103,7 @@ import {
 import {
   fullHotPathInvariantsEnabledV1,
 } from "@/engine/hotPathIntegrityTierV1";
-import { canonicalJsonStringify } from "@/engine/scientific/release";
+import { canonicalJsonStringify } from "@/engine/integrity";
 import {
   validationStampIssuanceEligibleV1,
   validationStampReuseEligibleV1,

@@ -12,7 +12,7 @@ import {
   initializeAcceptedAuthoredEctopyScheduleStateV2,
   type AcceptedAuthoredEctopyScheduleConfigurationV2,
 } from "@/engine/myocardium/rhythm/acceptedAuthoredEctopyScheduleV2";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 describe("accepted authored ectopy schedule checkpoint V2", () => {
   it("restores exact history, cursor, counters, and deterministic continuation", async () => {

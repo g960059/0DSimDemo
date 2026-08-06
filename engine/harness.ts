@@ -1,6 +1,6 @@
 import { ModelCore } from "@/engine/ModelCore";
 import {
-  MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
+  MODELCORE_RUNTIME_BASELINE_ACTIVE_STRESS_MODE,
   createModelCoreRuntimeExperimentalOptions,
   type ModelCoreRuntimeActiveSourceMode,
 } from "@/engine/myocardium/runtimeActiveSource";
@@ -31,7 +31,7 @@ export type ScenarioOptions = {
   sampleHz?: number;
   /**
    * Runtime active-source mode for explicit adoption tests. The regression
-   * harness defaults to the frozen legacy reference so historical physiology
+   * harness defaults to the frozen baseline reference so baseline physiology
    * snapshots do not silently move when app/runtime defaults change.
    */
   runtimeActiveSourceMode?: ModelCoreRuntimeActiveSourceMode;
@@ -52,7 +52,7 @@ export type ScenarioResult = {
   driftPctPer60s: number;
   /**
    * Convergence verdict at the end of the settle phase. Present only for
-   * settleMode "converge" — grounded metrics (caseOps fingerprints, review)
+   * settleMode "converge" — grounded research fingerprints and review metrics
    * should require settled===true before trusting the reported values.
    */
   settleStatus?: SettleStatus;
@@ -68,7 +68,7 @@ export const BASELINE_OPTIONS: Required<ScenarioOptions> = {
   measureSeconds: 30,
   dt: 0.001,
   sampleHz: 120,
-  runtimeActiveSourceMode: MODELCORE_RUNTIME_LEGACY_ACTIVE_STRESS_ROLLBACK_MODE,
+  runtimeActiveSourceMode: MODELCORE_RUNTIME_BASELINE_ACTIVE_STRESS_MODE,
 };
 
 export function runScenario(

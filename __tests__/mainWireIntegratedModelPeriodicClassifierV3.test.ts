@@ -9,6 +9,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_V3_ID,
   type MainWireIntegratedModelPeriodicClosureReportV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
 
 const OPTIONS = Object.freeze({
   period1NormalizedTolerance: 1e-6,
@@ -124,7 +127,7 @@ function report(
   return Object.freeze({
     closureId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_V3_ID,
     referenceScaleSetId:
-      "fixed-dimensional-reference-scales-integrated-generated-rhythm-v2",
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3.scaleSetId,
     coronaryClosure,
     compatibility: Object.freeze({ fixture: "classifier-v3" }),
     provenance: Object.freeze({

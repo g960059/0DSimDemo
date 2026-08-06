@@ -38,19 +38,26 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedRegularSinusRhythmV3";
 import { FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_PROTOCOL_V2,
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V2,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelNumericalVerificationV2";
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
+  type MainWireIntegratedModelHemodynamicResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import {
   classifyMainWireIntegratedModelPeriodicityV3,
   type MainWireIntegratedModelPeriodicClassificationV3,
   type MainWireIntegratedModelPeriodicCycleObservationV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClassifierV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
   compareMainWireIntegratedModelAcceptedStatesV3,
   type MainWireIntegratedModelPeriodicClosureReportV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
 import { MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_CIRCULATION_NEWTON_POLICY_V2 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallCoronaryPeriodicSteadyV2";
 import {
   normalAdultMainWireRuntimeV1,
@@ -62,18 +69,14 @@ import { createCanonicalMainWireNormalAdultFiveWallProviderV1 } from "@/engine/m
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
-} from "@/engine/scientific/release";
+} from "@/engine/integrity";
 import {
-  MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1,
-  type MainWireCycleEvidenceGateV1,
-} from "@/engine/scientific/validation/MainWireEvidencePacksV1";
+  MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3,
+  type MainWireIntegratedModelHealthyReferenceGateV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelHealthyReferenceContextV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID =
   "main-wire-integrated-composed-regular-sinus-all-off-periodic-steady-v3" as const;
-
-/** Thresholds, scales, slow-time horizon, and cycle bounds are inherited as-is. */
-export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 =
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V2;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3 = deepFreeze({
   scope:
@@ -87,7 +90,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3 = deepFreeze({
   terminalCycleTrace:
     "raw-accepted-endpoints-with-event-clipped-dt-no-resampling" as const,
   finiteConservationEventIdentityAndSingleCalciumOwnerFailClosed: true as const,
-  unchangedPredeclaredV2ThresholdPolicyReusedByIdentity: true as const,
+  canonicalV3ThresholdPolicyOwned: true as const,
   maximumHorizon:
     "ten-times-25-second-coronary-controller-time-constant-equals-250-one-second-cycles" as const,
   thresholdsChangedAfterInspectingV3Output: false as const,
@@ -182,9 +185,9 @@ export type MainWireIntegratedModelPeriodicTerminalCycleTraceV3 = Readonly<{
 
 export type MainWireIntegratedModelHealthyReferenceProjectionV3 = Readonly<{
   projectionId: "main-wire-integrated-v3-terminal-cycle-healthy-reference-projection-v1";
-  referencePackId: typeof MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.packId;
+  referenceContextId: typeof MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.contextId;
   referenceBodySurfaceAreaM2: number;
-  referenceBodySurfaceAreaProvenance: "MainWireEvidencePacksV1.fixed-resting-adult-research-reference";
+  referenceBodySurfaceAreaProvenance: "MainWireIntegratedModelHealthyReferenceContextV3.resting-adult-research-reference";
   metric: Readonly<{
     lvEndDiastolicVolumeMl: number;
     lvEndSystolicVolumeMl: number;
@@ -297,9 +300,29 @@ export type MainWireIntegratedModelRegularSinusAllOffFixtureV3 = ReturnType<
   typeof createMainWireIntegratedModelRegularSinusAllOffFixtureV3
 >;
 
-export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3() {
+export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+  requestedHemodynamicResearchInputs:
+  MainWireIntegratedModelHemodynamicResearchInputsV3 =
+    MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+) {
+  const hemodynamicResearchInputs =
+    validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+      requestedHemodynamicResearchInputs,
+    );
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
-  const runtime = normalAdultMainWireRuntimeV1();
+  const canonicalRuntime = normalAdultMainWireRuntimeV1();
+  const runtime = Object.freeze({
+    vascular: Object.freeze({
+      venousTone: hemodynamicResearchInputs.venousTone,
+      arterialStiffness: hemodynamicResearchInputs.arterialStiffness,
+    }),
+    losses: Object.freeze({
+      systemicResistance: hemodynamicResearchInputs.systemicResistance,
+      pulmonaryResistance: hemodynamicResearchInputs.pulmonaryResistance,
+    }),
+    respiratory: canonicalRuntime.respiratory,
+    valveResearchInput: canonicalRuntime.valveResearchInput,
+  });
   const pericardium = createMainWireNormalAdultCommonPericardiumV1();
   const rhythm = createMainWireIntegratedRegularSinusRhythmV3({
     idPrefix: "periodic-v3",
@@ -351,6 +374,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3() {
   });
   assertAllOffAcceptedQ(cold.acceptedState);
   return Object.freeze({
+    hemodynamicResearchInputs,
     provider,
     runtime,
     pericardium,
@@ -375,8 +399,8 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
       executionPurpose: resolved.executionPurpose,
       nominalDtSec: resolved.nominalDtSec,
       maximumCycleCount: resolved.maximumCycleCount,
-      inheritedPolicy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
-      inheritedReferenceScales:
+      periodicPolicy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+      referenceScales:
         MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
       provider: providerIdentity(fixture.provider),
       composedRhythmConfiguration: fixture.rhythm.configuration,
@@ -415,10 +439,10 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     zeroBasedCycleIndex += 1
   ) {
     const start = accepted;
-    const run = runOneCycle(
+    const run = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       fixture,
       start,
-      zeroBasedCycleIndex,
+      zeroBasedCycleIndex + 1,
       resolved.nominalDtSec,
     );
     accepted = run.terminalAcceptedState;
@@ -510,7 +534,10 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     resolved.executionPurpose,
     canonicalPeriod1,
   );
-  const checkpointContext = createCheckpointContext(fixture, accepted);
+  const checkpointContext =
+    createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+      fixture,
+    );
   const terminalCheckpoint = await checkpointMainWireIntegratedModelV3(
     checkpointContext,
     accepted,
@@ -572,7 +599,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
   });
 }
 
-type CycleRun = Readonly<{
+export type MainWireIntegratedModelRegularSinusAllOffCycleRunV3 = Readonly<{
   startTimeSec: number;
   endTimeSec: number;
   acceptedStepCount: number;
@@ -590,19 +617,303 @@ type CycleRun = Readonly<{
   allDynamicMcsAcceptedFlowsExactlyZero: boolean;
 }>;
 
-function runOneCycle(
+export type MainWireIntegratedModelRegularSinusAllOffAlignmentV3 = Readonly<{
+  alignmentRequired: boolean;
+  sourceAcceptedTimeSec: number;
+  boundaryAcceptedTimeSec: number;
+  acceptedStepCount: number;
+  completedWindowIndex: number | null;
+  terminalAcceptedState: AcceptedState;
+  acceptedAtrialCaptureIds: readonly string[];
+  acceptedVentricularCaptureIds: readonly string[];
+  deliveredCalciumDepositIds: readonly string[];
+  maximumGlobalTotalBloodVolumeErrorMl: number;
+  maximumCoronaryBloodVolumeLedgerResidualMl: number;
+  maximumDynamicMcsConservationResidualMlPerSec: number;
+  allRawValuesFinite: true;
+  oneComposedCalciumOwnerOnly: true;
+  allDynamicMcsAcceptedFlowsExactlyZero: true;
+}>;
+
+/**
+ * Finishes only the candidate's already-open autoregulation window. This
+ * preserves its accepted aggregates and event queues, then hands the periodic
+ * comparator a complete regular-sinus/window boundary without cold-starting.
+ */
+export function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
   fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
   initial: AcceptedState,
-  zeroBasedCycleIndex: number,
   nominalDtSec: number,
-): CycleRun {
-  const startTimeSec = zeroBasedCycleIndex * fixture.cycleLengthSec;
+): MainWireIntegratedModelRegularSinusAllOffAlignmentV3 {
+  assertPeriodicNominalDtSec(nominalDtSec);
+  assertAllOffConfig(fixture.config);
+  assertAllOffAcceptedQ(initial);
+  const binding = initial.coronary.coronaryAutoregulationBinding;
+  const window = initial.coronary.coronaryAutoregulation;
+  const sourceAcceptedTimeSec = initial.acceptedTimeSec;
+  if (
+    binding.windowPolicy.interpretation !== "periodic-sinus-cycle-aligned" ||
+    !nearlyEqual(binding.windowPolicy.durationSec, fixture.cycleLengthSec)
+  ) {
+    throw new Error("V3 qualification candidate window policy differs");
+  }
+  if (sourceAcceptedTimeSec === window.windowStartAcceptedTimeSec) {
+    if (window.acceptedDurationSec !== 0 || window.acceptedStepCount !== 0) {
+      throw new Error("V3 qualification boundary has a nonempty open window");
+    }
+    return deepFreeze({
+      alignmentRequired: false,
+      sourceAcceptedTimeSec,
+      boundaryAcceptedTimeSec: sourceAcceptedTimeSec,
+      acceptedStepCount: 0,
+      completedWindowIndex: null,
+      terminalAcceptedState: initial,
+      acceptedAtrialCaptureIds: [],
+      acceptedVentricularCaptureIds: [],
+      deliveredCalciumDepositIds: [],
+      maximumGlobalTotalBloodVolumeErrorMl: 0,
+      maximumCoronaryBloodVolumeLedgerResidualMl: 0,
+      maximumDynamicMcsConservationResidualMlPerSec: 0,
+      allRawValuesFinite: true as const,
+      oneComposedCalciumOwnerOnly: true as const,
+      allDynamicMcsAcceptedFlowsExactlyZero: true as const,
+    });
+  }
+
+  const boundaryAcceptedTimeSec =
+    binding.windowPolicy.originAcceptedTimeSec +
+    (window.windowIndex + 1) * binding.windowPolicy.durationSec;
+  if (!(boundaryAcceptedTimeSec > sourceAcceptedTimeSec)) {
+    throw new Error("V3 qualification candidate passed its window boundary");
+  }
+  let accepted = initial;
+  let acceptedStepCount = 0;
+  let nominalGridIndex = 1;
+  let maximumGlobalTotalBloodVolumeErrorMl = 0;
+  let maximumCoronaryBloodVolumeLedgerResidualMl = 0;
+  let maximumDynamicMcsConservationResidualMlPerSec = 0;
+  let oneComposedCalciumOwnerOnly = true;
+  let allRawValuesFinite = true;
+  let allDynamicMcsAcceptedFlowsExactlyZero = true;
+  const acceptedAtrialCaptureIds: string[] = [];
+  const acceptedVentricularCaptureIds: string[] = [];
+  const deliveredCalciumDepositIds: string[] = [];
+  const completedWindowIndices: number[] = [];
+
+  while (accepted.acceptedTimeSec < boundaryAcceptedTimeSec) {
+    if (
+      acceptedStepCount >=
+      MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun
+    ) {
+      throw new Error("V3 qualification alignment exceeded accepted-step bound");
+    }
+    const nominalTargetTimeSec = Math.min(
+      boundaryAcceptedTimeSec,
+      sourceAcceptedTimeSec + nominalGridIndex * nominalDtSec,
+    );
+    if (!(nominalTargetTimeSec > accepted.acceptedTimeSec)) {
+      nominalGridIndex += 1;
+      continue;
+    }
+    const maximum = limitMainWireIntegratedModelCandidateTimeV3(
+      accepted,
+      nominalTargetTimeSec,
+      {
+        configuration: fixture.rhythm.configuration,
+        externalAfNextBoundaryTimeSec: null,
+      },
+      fixture.profile,
+      fixture.config,
+    );
+    if (
+      !(maximum.candidateTimeSec > accepted.acceptedTimeSec) ||
+      maximum.candidateTimeSec > nominalTargetTimeSec
+    ) {
+      throw new Error("V3 qualification alignment scheduler returned an invalid step");
+    }
+    const acceptedDtSec = maximum.candidateTimeSec - accepted.acceptedTimeSec;
+    const stepped = stepMainWireIntegratedModelV3(
+      fixture.provider,
+      accepted,
+      stepInput(fixture, maximum.candidateTimeSec),
+    );
+    if (stepped.converged === false) {
+      throw new Error(
+        `V3 qualification alignment step failed at ${accepted.acceptedTimeSec}s: ${stepped.message}`,
+      );
+    }
+    accepted = stepped.acceptedState;
+    acceptedStepCount += 1;
+    if (Math.abs(accepted.acceptedTimeSec - nominalTargetTimeSec) <= 1e-14) {
+      nominalGridIndex += 1;
+    }
+    if (stepped.coronaryStep.autoregulationWindowCompleted) {
+      const completion = stepped.coronaryStep.autoregulationCompletion;
+      if (completion === null) {
+        throw new Error("V3 qualification completion flag lacks completion state");
+      }
+      if (
+        completion.windowIndex !== window.windowIndex ||
+        completion.windowStartAcceptedTimeSec !==
+          window.windowStartAcceptedTimeSec ||
+        completion.windowEndAcceptedTimeSec !== boundaryAcceptedTimeSec ||
+        !nearlyEqual(
+          completion.aggregate.acceptedWindowDurationSec,
+          fixture.cycleLengthSec,
+        )
+      ) {
+        throw new Error("V3 qualification alignment window identity differs");
+      }
+      completedWindowIndices.push(completion.windowIndex);
+    }
+    const expectedCalcium = evaluateMainWireIntegratedModelCalciumDriveV3(
+      accepted.composedRhythm,
+    );
+    oneComposedCalciumOwnerOnly =
+      oneComposedCalciumOwnerOnly &&
+      canonicalJsonStringify(expectedCalcium) ===
+        canonicalJsonStringify(stepped.calciumDrive) &&
+      canonicalJsonStringify(stepped.coronaryStep.baseStep.calciumDrive) ===
+        canonicalJsonStringify(stepped.calciumDrive) &&
+      !("generatedRhythmCalcium" in accepted) &&
+      !("rhythmCalcium" in accepted) &&
+      !("fixedPeriodicCalcium" in accepted);
+    assertAllOffAcceptedQ(accepted);
+    allDynamicMcsAcceptedFlowsExactlyZero =
+      allDynamicMcsAcceptedFlowsExactlyZero &&
+      Object.values(
+        accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec,
+      ).every((value) => value === 0);
+    const candidate = stepped.composedRhythmCandidate;
+    if (candidate.capturedAtrialActivation !== null) {
+      acceptedAtrialCaptureIds.push(
+        candidate.capturedAtrialActivation.capturedActivationId,
+      );
+    }
+    if (candidate.capturedVentricularActivation !== null) {
+      acceptedVentricularCaptureIds.push(
+        candidate.capturedVentricularActivation.capturedActivationId,
+      );
+    }
+    deliveredCalciumDepositIds.push(
+      ...candidate.deliveredCalciumDeposits.map((deposit) => deposit.depositId),
+    );
+    const sample = traceSample(
+      0,
+      acceptedStepCount,
+      window.windowStartAcceptedTimeSec,
+      fixture.cycleLengthSec,
+      acceptedDtSec,
+      stepped,
+    );
+    allRawValuesFinite = allRawValuesFinite && allNumericLeavesFinite(sample);
+    maximumGlobalTotalBloodVolumeErrorMl = Math.max(
+      maximumGlobalTotalBloodVolumeErrorMl,
+      Math.abs(sample.diagnostics.totalBloodVolumeErrorMl),
+    );
+    maximumCoronaryBloodVolumeLedgerResidualMl = Math.max(
+      maximumCoronaryBloodVolumeLedgerResidualMl,
+      Math.abs(sample.diagnostics.coronaryBloodVolumeLedgerResidualMl),
+    );
+    maximumDynamicMcsConservationResidualMlPerSec = Math.max(
+      maximumDynamicMcsConservationResidualMlPerSec,
+      Math.abs(sample.diagnostics.dynamicMcsConservationResidualMlPerSec),
+    );
+  }
+
+  if (
+    accepted.acceptedTimeSec !== boundaryAcceptedTimeSec ||
+    completedWindowIndices.length !== 1 ||
+    completedWindowIndices[0] !== window.windowIndex
+  ) {
+    throw new Error("V3 qualification did not reach one exact window boundary");
+  }
+  if (!oneComposedCalciumOwnerOnly) {
+    throw new Error("V3 qualification alignment detected split calcium ownership");
+  }
+  if (!allRawValuesFinite) {
+    throw new Error("V3 qualification alignment contains nonfinite raw values");
+  }
+  if (!allDynamicMcsAcceptedFlowsExactlyZero) {
+    throw new Error("V3 qualification alignment produced nonzero MCS q");
+  }
+  const tolerance =
+    MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.invariantTolerance;
+  if (
+    maximumGlobalTotalBloodVolumeErrorMl >
+      tolerance.globalTotalBloodVolumeErrorMl ||
+    maximumCoronaryBloodVolumeLedgerResidualMl >
+      tolerance.coronaryBloodVolumeLedgerResidualMl ||
+    maximumDynamicMcsConservationResidualMlPerSec >
+      tolerance.dynamicMcsConservationResidualMlPerSec
+  ) {
+    throw new Error("V3 qualification alignment exceeds conservation tolerance");
+  }
+  rejectDuplicateIds(
+    new Set<string>(),
+    acceptedAtrialCaptureIds,
+    "alignment atrial capture",
+  );
+  rejectDuplicateIds(
+    new Set<string>(),
+    acceptedVentricularCaptureIds,
+    "alignment ventricular capture",
+  );
+  rejectDuplicateIds(
+    new Set<string>(),
+    deliveredCalciumDepositIds,
+    "alignment calcium deposit",
+  );
+  return deepFreeze({
+    alignmentRequired: true,
+    sourceAcceptedTimeSec,
+    boundaryAcceptedTimeSec,
+    acceptedStepCount,
+    completedWindowIndex: window.windowIndex,
+    terminalAcceptedState: accepted,
+    acceptedAtrialCaptureIds,
+    acceptedVentricularCaptureIds,
+    deliveredCalciumDepositIds,
+    maximumGlobalTotalBloodVolumeErrorMl,
+    maximumCoronaryBloodVolumeLedgerResidualMl,
+    maximumDynamicMcsConservationResidualMlPerSec,
+    allRawValuesFinite: true as const,
+    oneComposedCalciumOwnerOnly: true as const,
+    allDynamicMcsAcceptedFlowsExactlyZero: true as const,
+  });
+}
+
+/**
+ * Executes one complete canonical regular-sinus/autoregulation cycle from an
+ * already accepted coronary-window boundary. Unlike the cold-start experiment
+ * loop, the boundary may occur at any absolute accepted time/window index.
+ */
+export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  initial: AcceptedState,
+  cycleIndex: number,
+  nominalDtSec: number,
+): MainWireIntegratedModelRegularSinusAllOffCycleRunV3 {
+  assertPeriodicNominalDtSec(nominalDtSec);
+  if (!Number.isSafeInteger(cycleIndex) || cycleIndex < 1) {
+    throw new Error("V3 periodic cycle index must be a positive integer");
+  }
+  const window = initial.coronary.coronaryAutoregulation;
+  const windowPolicy =
+    initial.coronary.coronaryAutoregulationBinding.windowPolicy;
+  const startTimeSec = initial.acceptedTimeSec;
   const endTimeSec = startTimeSec + fixture.cycleLengthSec;
-  if (initial.acceptedTimeSec !== startTimeSec) {
+  if (
+    startTimeSec !== window.windowStartAcceptedTimeSec ||
+    window.acceptedDurationSec !== 0 ||
+    window.acceptedStepCount !== 0 ||
+    !nearlyEqual(windowPolicy.durationSec, fixture.cycleLengthSec)
+  ) {
     throw new Error(
       "V3 periodic continuation does not start on cycle boundary",
     );
   }
+  const expectedWindowIndex = window.windowIndex;
   let accepted = initial;
   let acceptedStepCount = 0;
   let nominalGridIndex = 1;
@@ -623,10 +934,10 @@ function runOneCycle(
   while (accepted.acceptedTimeSec < endTimeSec) {
     if (
       acceptedStepCount >=
-      MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_PROTOCOL_V2.maximumAcceptedStepCountPerRun
+      MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun
     ) {
       throw new Error(
-        "V3 periodic cycle exceeded inherited accepted-step bound",
+        "V3 periodic cycle exceeded accepted-step bound",
       );
     }
     const nominalTargetTimeSec = Math.min(
@@ -719,7 +1030,7 @@ function runOneCycle(
       ...candidate.deliveredCalciumDeposits.map((deposit) => deposit.depositId),
     );
     const sample = traceSample(
-      zeroBasedCycleIndex + 1,
+      cycleIndex,
       acceptedStepCount,
       startTimeSec,
       fixture.cycleLengthSec,
@@ -744,7 +1055,7 @@ function runOneCycle(
   if (
     accepted.acceptedTimeSec !== endTimeSec ||
     completions.length !== 1 ||
-    completions[0]!.windowIndex !== zeroBasedCycleIndex ||
+    completions[0]!.windowIndex !== expectedWindowIndex ||
     completions[0]!.startTimeSec !== startTimeSec ||
     completions[0]!.endTimeSec !== endTimeSec ||
     !nearlyEqual(completions[0]!.acceptedDurationSec, fixture.cycleLengthSec)
@@ -768,7 +1079,7 @@ function runOneCycle(
     throw new Error("V3 regular-sinus cycle event identity count differs");
   }
   const tolerance =
-    MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_PROTOCOL_V2.invariantTolerance;
+    MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.invariantTolerance;
   if (
     maximumGlobalTotalBloodVolumeErrorMl >
       tolerance.globalTotalBloodVolumeErrorMl ||
@@ -778,7 +1089,7 @@ function runOneCycle(
       tolerance.dynamicMcsConservationResidualMlPerSec
   ) {
     throw new Error(
-      "V3 periodic cycle exceeds inherited conservation tolerance",
+      "V3 periodic cycle exceeds conservation tolerance",
     );
   }
   return deepFreeze({
@@ -802,12 +1113,12 @@ function runOneCycle(
 
 function buildCycleSummary(
   cycleIndex: number,
-  run: CycleRun,
+  run: MainWireIntegratedModelRegularSinusAllOffCycleRunV3,
   period1: MainWireIntegratedModelPeriodicClosureReportV3,
   period2: MainWireIntegratedModelPeriodicClosureReportV3 | null,
 ): MainWireIntegratedModelPeriodicSteadyCycleV3 {
   const tolerance =
-    MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_PROTOCOL_V2.invariantTolerance;
+    MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.invariantTolerance;
   const conservation = Object.freeze({
     maximumGlobalTotalBloodVolumeErrorMl:
       run.maximumGlobalTotalBloodVolumeErrorMl,
@@ -948,7 +1259,7 @@ function rawHealthyMetrics(
   if (samples.length === 0)
     throw new Error("healthy metrics require raw samples");
   const bsa =
-    MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.referenceSubject
+    MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.referenceSubject
       .bodySurfaceAreaM2;
   const lvVolumes = samples.map((sample) => sample.chamberVolumeMl.LV);
   const lvEndDiastolicVolumeMl = Math.max(...lvVolumes);
@@ -1012,7 +1323,7 @@ function healthyReferenceProjection(
       metric.leftAtrialTimeWeightedMeanPressureMmHg,
   });
   const selectedGates =
-    MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.gates.filter(
+    MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.gates.filter(
       (gate) => valueByMetricId[gate.metricId] !== undefined,
     );
   if (selectedGates.length !== 6) {
@@ -1021,12 +1332,13 @@ function healthyReferenceProjection(
   return deepFreeze({
     projectionId:
       "main-wire-integrated-v3-terminal-cycle-healthy-reference-projection-v1" as const,
-    referencePackId: MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.packId,
+    referenceContextId:
+      MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.contextId,
     referenceBodySurfaceAreaM2:
-      MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.referenceSubject
+      MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.referenceSubject
         .bodySurfaceAreaM2,
     referenceBodySurfaceAreaProvenance:
-      "MainWireEvidencePacksV1.fixed-resting-adult-research-reference" as const,
+      "MainWireIntegratedModelHealthyReferenceContextV3.resting-adult-research-reference" as const,
     metric,
     assessmentEligibility: {
       eligible,
@@ -1045,7 +1357,7 @@ function healthyReferenceProjection(
 }
 
 function gateResult(
-  gate: MainWireCycleEvidenceGateV1,
+  gate: MainWireIntegratedModelHealthyReferenceGateV3,
   value: number,
   eligible: boolean,
 ): MainWireIntegratedModelHealthyReferenceProjectionV3["gateResults"][number] {
@@ -1117,9 +1429,8 @@ function stepInput(
   });
 }
 
-function createCheckpointContext(
+export function createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
   fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
-  state: AcceptedState,
 ): MainWireIntegratedModelCheckpointContextV3<WallState> {
   return Object.freeze({
     provider: fixture.provider,
@@ -1127,10 +1438,12 @@ function createCheckpointContext(
     collapseHydraulics: fixture.coronaryStepInput.collapseHydraulics,
     impMechanism: fixture.coronaryStepInput.impMechanism,
     shorteningImpPrior: fixture.coronaryStepInput.shorteningImpPrior,
-    coronaryAutoregulationBinding: state.coronary.coronaryAutoregulationBinding,
+    coronaryAutoregulationBinding:
+      fixture.cold.acceptedState.coronary.coronaryAutoregulationBinding,
     rhythm: Object.freeze({ configuration: fixture.rhythm.configuration }),
     dynamicMechanicalSupportProfile: fixture.profile,
     dynamicMechanicalSupportConfig: fixture.config,
+    hemodynamicResearchInputs: fixture.hemodynamicResearchInputs,
   });
 }
 
@@ -1156,15 +1469,7 @@ function resolveOptions(
     throw new Error("V3 periodic options contain unexpected fields");
   }
   const policy = MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3;
-  if (
-    !Number.isFinite(options.nominalDtSec) ||
-    options.nominalDtSec < policy.minimumNominalDtSec ||
-    options.nominalDtSec > policy.maximumNominalDtSec
-  ) {
-    throw new RangeError(
-      `nominalDtSec must be from ${policy.minimumNominalDtSec} through ${policy.maximumNominalDtSec}`,
-    );
-  }
+  assertPeriodicNominalDtSec(options.nominalDtSec);
   const executionPurpose = options.executionPurpose ?? "canonical-evidence";
   if (
     executionPurpose !== "canonical-evidence" &&
@@ -1196,6 +1501,19 @@ function resolveOptions(
     maximumCycleCount,
     executionPurpose,
   });
+}
+
+function assertPeriodicNominalDtSec(nominalDtSec: number): void {
+  const policy = MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3;
+  if (
+    !Number.isFinite(nominalDtSec) ||
+    nominalDtSec < policy.minimumNominalDtSec ||
+    nominalDtSec > policy.maximumNominalDtSec
+  ) {
+    throw new RangeError(
+      `nominalDtSec must be from ${policy.minimumNominalDtSec} through ${policy.maximumNominalDtSec}`,
+    );
+  }
 }
 
 function providerIdentity(provider: Provider) {

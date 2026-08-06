@@ -7,7 +7,7 @@ import {
 import {
   createModelCoreActiveSourcePressureAdapterInvocationCounts,
   modelCoreActiveSourcePressureAdapterProvider,
-} from "@/tools/myocardium/modelCoreActiveSourcePressureAdapter";
+} from "@/engine/myocardium/modelCoreActiveSourcePressureAdapter";
 import {
   ActiveStressChamberModel,
   defaultActiveLA,
@@ -17,16 +17,16 @@ import {
   type ChamberInternal,
 } from "@/engine/chambers";
 import {
-  LANDATRIAL_SHADOW_PARAMETER_PACK,
-  createAtrialLandShadowParameterSet,
-  createAtrialLandShadowSourceProvider,
-} from "@/engine/myocardium/atrialLandShadow";
+  LANDATRIAL_PARAMETER_PACK,
+  createAtrialLandParameterSet,
+  createAtrialLandSourceProvider,
+} from "@/engine/myocardium/atrialLandContract";
 import {
   calciumScaledLand2017LaSourceOnlyProvider,
   createModelCoreLand2017LvSourceProviderInstrumentation,
 } from "@/engine/myocardium/modelCoreLand2017LvSourceProvider";
 import {
-  MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
+  MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_MODE,
   resolveModelCoreRuntimeActiveSource,
 } from "@/engine/myocardium/runtimeActiveSource";
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017";
@@ -241,7 +241,7 @@ describe("ActiveStressChamberModel source active-fiber pressure adapter", () => 
 
   it("preserves stateful AV-plane release state in ModelCore sanitization", () => {
     const resolved = resolveModelCoreRuntimeActiveSource({
-      mode: MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_DEFAULT_MODE,
+      mode: MODELCORE_RUNTIME_ALL_CHAMBER_LANDATRIAL_MODE,
       runtimeParams: DEFAULT_PARAMS,
     });
     const basePatch = resolved.experimentalOptions.runtimeParameterPatch ?? {};
@@ -284,8 +284,8 @@ describe("ActiveStressChamberModel source active-fiber pressure adapter", () => 
     expect(maxFor("RAAvPlaneEffectiveVolumeCorrectionMl")).toBeGreaterThan(0.05);
   });
 
-  it("defines a LandAtrial shadow parameter pack without changing source Tref", () => {
-    const pack = LANDATRIAL_SHADOW_PARAMETER_PACK;
+  it("defines the LandAtrial runtime parameter pack without changing source Tref", () => {
+    const pack = LANDATRIAL_PARAMETER_PACK;
     expect(pack.sourceTrefUnchanged).toBe(true);
     expect(pack.chamberParameterSets.LA.values.Tref)
       .toBe(LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET.values.Tref);
@@ -299,9 +299,9 @@ describe("ActiveStressChamberModel source active-fiber pressure adapter", () => 
     expect(pack.chamberParameterSets.RA.values.ku).toBe(750);
   });
 
-  it("creates deterministic atrial Land shadow parameter-set variants without Tref scaling", () => {
-    const base = LANDATRIAL_SHADOW_PARAMETER_PACK.chamberParameterSets.RA;
-    const variant = createAtrialLandShadowParameterSet("RA", {
+  it("creates deterministic atrial Land parameter-set variants without Tref scaling", () => {
+    const base = LANDATRIAL_PARAMETER_PACK.chamberParameterSets.RA;
+    const variant = createAtrialLandParameterSet("RA", {
       parameterSetIdSuffix: "test-desensitized",
       runtimeValueOverrides: { CaT50Ref: 0.95, ku: 700 },
     });
@@ -313,10 +313,10 @@ describe("ActiveStressChamberModel source active-fiber pressure adapter", () => 
     expect(variant.parameterSetStableHash).not.toBe(base.parameterSetStableHash);
   });
 
-  it("creates a signed LandAtrial shadow provider using atrial geometry", () => {
+  it("creates a signed LandAtrial provider using atrial geometry", () => {
     const model = new ActiveStressChamberModel(defaultActiveRA);
     const instrumentation = createModelCoreLand2017LvSourceProviderInstrumentation();
-    const provider = createAtrialLandShadowSourceProvider("RA", instrumentation, {
+    const provider = createAtrialLandSourceProvider("RA", instrumentation, {
       commitScheme: "BE",
       calciumScale: 1,
       calciumInputMultiplier: "none",
@@ -347,7 +347,7 @@ describe("ActiveStressChamberModel source active-fiber pressure adapter", () => 
       providerStateVersion: 0,
     });
 
-    expect(provider.sourceProviderId).toContain("landatrial-fast-lowpressure-shadow-v1");
+    expect(provider.sourceProviderId).toContain("landatrial-runtime-v1");
     expect(Number.isFinite(pressure)).toBe(true);
     expect(instrumentation.sourcePathAudit.sampleCount).toBeGreaterThan(0);
   });

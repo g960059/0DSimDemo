@@ -105,7 +105,7 @@ export function resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(
         * definition.pulmonaryResistanceScaleFromBaseline,
     }),
     respiratory: baseline.respiratory,
-    valvePreset: baseline.valvePreset,
+    valveResearchInput: baseline.valveResearchInput,
   });
 }
 

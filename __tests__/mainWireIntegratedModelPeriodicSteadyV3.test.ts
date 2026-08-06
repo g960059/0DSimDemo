@@ -1,26 +1,41 @@
 import { describe, expect, it } from "vitest";
 
-import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V2 } from "@/engine/myocardium/experiments/MainWireIntegratedModelNumericalVerificationV2";
-import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V2 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV2";
-import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
   runMainWireIntegratedModelPeriodicSteadyV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
 
 describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
-  it("reuses the predeclared V2 policy/scales and makes every MCS circuit explicitly all-off with zero inertance", () => {
-    expect(MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3).toBe(
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V2,
-    );
-    expect(MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3).toBe(
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V2,
-    );
+  it("owns the predeclared V3 policy/scales and makes every MCS circuit explicitly all-off with zero inertance", () => {
     expect(MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3).toMatchObject({
+      policyId:
+        "integrated-full-accepted-state-periodic-policy-v3-preregistered",
       coronaryAutoregulationResponseTimeConstantSec: 25,
       maximumCycleCount: 250,
     });
+    expect(MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3)
+      .toMatchObject({
+        scaleSetId:
+          "fixed-dimensional-reference-scales-integrated-composed-rhythm-v3",
+        dynamicMcsAcceptedFlowMlPerSecByDevice: {
+          LVAD: 100,
+          IMPELLA: 50,
+          VA_ECMO: 100,
+          VV_ECMO: 100,
+        },
+        generatedCalciumRiseDrive: 1,
+        generatedCalciumDecayDrive: 1,
+        generatedAvRelativeTimingSec: 1,
+        generatedNextSourceRelativeTimingSec: 1,
+        generatedPendingRelativeTimingSec: 1,
+        generatedPendingActivationStrength01: 1,
+      });
 
     const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
     expect(fixture.rhythm.configuration.atrialSource.mode).toBe("regular");

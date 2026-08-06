@@ -368,34 +368,6 @@ V-loop面積は`3.435 : 3.380 mmHg mL`（fineで1.6%低下）、mean branch gap�
 A/Vは`2.188 : 2.451`となる。したがってV-loopと枝順序はこのrefinementで定性的・定量的に近いが、
 A-loop面積は同じ程度には収束していない。単一の2:1 pairから漸近収束域や次数を推定しない。
 
-### pre-fix `dt=1 ms` failureの所有者
-
-履歴として、修正前の`dt=1 ms`はbeat 4、phase 0.419、time 3.419 sで停止した。
-
-- failure reason: `line-search-failed`
-- failure前にaccepted Newton steps: 22
-- accumulated line-search backtracks: 223
-- 最終line-search候補: callback exception 25、Armijo residual rejection 0
-- final scaled residual infinity norm: `3.0653e-5`
-- final maximum continuity residual: `0.001561 mL`
-- worst independent continuity owner: LV
-- TBV error: `9.09e-13 mL`
-
-failure候補はすべてmechanics callbackで棄却され、Armijo条件そのものに落ちた候補はなかった。
-last exceptionは、SEP stretchがLand length factorのkink `lambda=0.87`直上にある状態で、nominal central
-difference幅がkinkを跨いだgeneralized-force Jacobian symmetry auditであった。relative antisymmetryは
-`0.0002000000031`で固定gate `0.0002`を極微小に超えたが、same-branchに留まる小さいFD幅では
-antisymmetryは`1e-11`程度、symmetric-part minimum eigenvalueは約0.146であった。
-
-修正はnominal幅を必ず最初に監査し、それが不成立のときだけ`0.5, 0.25, 0.125, 2, 4, 8`倍の
-固定優先順位で同じhard gateを最初に満たすJacobianを採用する。constitutive branch自体のラベル判定は行わず、
-小さな中心差分区間がkinkを跨がないことと局所対称性を診断根拠とする。constitutive residual floorに対する従来のlarge-step
-候補も保持した。これはLand kinkを平滑化せず、symmetry tolerance、constitutive law、solver residual
-tolerance、parameter、accepted-state更新、time stepを変えない監査幅の選択である。修正後の成功により、
-pre-fix failureを物理不安定性または現在のdt-halving blockerとは解釈しない。
-このhistorical raw/summaryは`protocolIdentityHash`とaccepted-step差分幅readbackの導入前に生成されたため、
-現runとの波形比較には用いず、pre-fix failure ownerの記録に限定する。
-
 ## 現時点の設計判断
 
 1. PR #475のcore mechanicsと1-state parallel SLSを保持する。
@@ -412,7 +384,6 @@ pre-fix failureを物理不安定性または現在のdt-halving blockerとは�
 - `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-canonical-dt1ms-summary-v1.json`
 - `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-la-sls-exact-off-dt2ms-summary-v1.json`
 - `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-initialization-basin-dt2ms-v1.json`
-- `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-pre-same-branch-fix-dt1ms-failure-summary-v1.json`
 - `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-dt-halving-v1.json`
 
 raw full-cycle JSONは再生成可能で大きいためcommitしない。review HTML/SVGはraw accepted samplesから
