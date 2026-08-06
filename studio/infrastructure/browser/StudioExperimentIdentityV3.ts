@@ -7,7 +7,10 @@ const SERVER_EXPERIMENT_ID_PATTERN_V3 =
 const EXPERIMENT_ID_ALLOCATION_ATTEMPTS_V3 = 32;
 
 export type ExperimentIdentityTokenFactoryV3 = () => string;
-export type ExperimentAvailabilityV3 = "available" | "unavailable-model";
+export type ExperimentAvailabilityV3 =
+  | "current-default"
+  | "historical-loadable"
+  | "unavailable-model";
 
 /**
  * Experiment identity is deliberately independent from model identity and the
@@ -64,11 +67,43 @@ export function requireOpaqueExperimentIdV3(
 
 export function classifyExperimentAvailabilityV3(
   savedModelId: string,
-  availableExactModelId: string,
+  currentDefaultModelId: string,
+  exactModelIsLoadable: boolean,
 ): ExperimentAvailabilityV3 {
-  return savedModelId === availableExactModelId
-    ? "available"
-    : "unavailable-model";
+  if (!exactModelIsLoadable) return "unavailable-model";
+  return savedModelId === currentDefaultModelId
+    ? "current-default"
+    : "historical-loadable";
+}
+
+/** Resolves registry metadata only; callers must not fetch executable bytes. */
+export async function resolveExperimentAvailabilityByModelIdV3(
+  input: Readonly<{
+    savedModelIds: readonly string[];
+    currentDefaultModelId: string;
+    resolveExactModel(modelId: string): Promise<unknown>;
+  }>,
+): Promise<ReadonlyMap<string, ExperimentAvailabilityV3>> {
+  const modelIds = [...new Set(input.savedModelIds)];
+  const results = await Promise.allSettled(modelIds.map(async (modelId) => {
+    if (modelId !== input.currentDefaultModelId) {
+      await input.resolveExactModel(modelId);
+    }
+    return modelId;
+  }));
+  const availabilityByModelId = new Map<string, ExperimentAvailabilityV3>();
+  results.forEach((result, index) => {
+    const modelId = modelIds[index]!;
+    availabilityByModelId.set(
+      modelId,
+      classifyExperimentAvailabilityV3(
+        modelId,
+        input.currentDefaultModelId,
+        result.status === "fulfilled",
+      ),
+    );
+  });
+  return availabilityByModelId;
 }
 
 function randomExperimentTokenV3(): string {

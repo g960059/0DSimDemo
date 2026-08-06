@@ -20,6 +20,7 @@ import {
   classifyExperimentAvailabilityV3,
   createOpaqueExperimentIdV3,
   isOpaqueExperimentIdV3,
+  resolveExperimentAvailabilityByModelIdV3,
 } from '@/studio/infrastructure/browser/StudioExperimentIdentityV3';
 
 describe('homeLinks', () => {
@@ -89,9 +90,45 @@ describe('homeLinks', () => {
   });
 
   it('never treats the current default as a fallback for another exact model', () => {
-    expect(classifyExperimentAvailabilityV3('model/exact-a', 'model/exact-a'))
-      .toBe('available');
-    expect(classifyExperimentAvailabilityV3('model/exact-a', 'model/exact-b'))
+    expect(classifyExperimentAvailabilityV3(
+      'model/exact-a',
+      'model/exact-a',
+      true,
+    )).toBe('current-default');
+    expect(classifyExperimentAvailabilityV3(
+      'model/exact-a',
+      'model/exact-b',
+      true,
+    )).toBe('historical-loadable');
+    expect(classifyExperimentAvailabilityV3(
+      'model/exact-a',
+      'model/exact-b',
+      false,
+    ))
       .toBe('unavailable-model');
+  });
+
+  it('distinguishes a loadable historical model from an unavailable one', async () => {
+    const requested: string[] = [];
+    const availability = await resolveExperimentAvailabilityByModelIdV3({
+      savedModelIds: [
+        'model/current',
+        'model/historical',
+        'model/missing',
+        'model/historical',
+      ],
+      currentDefaultModelId: 'model/current',
+      async resolveExactModel(modelId) {
+        requested.push(modelId);
+        if (modelId === 'model/missing') throw new Error('not loadable');
+      },
+    });
+
+    expect([...availability]).toEqual([
+      ['model/current', 'current-default'],
+      ['model/historical', 'historical-loadable'],
+      ['model/missing', 'unavailable-model'],
+    ]);
+    expect(requested).toEqual(['model/historical', 'model/missing']);
   });
 });

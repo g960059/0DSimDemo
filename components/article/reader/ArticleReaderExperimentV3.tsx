@@ -12,6 +12,12 @@ import {
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/appTheme";
 import { ModelLimitations } from "@/components/ModelLimitations";
+import type {
+  StudioClientCompositionV2,
+} from "@/studio/composition/StudioDefaultCompositionV2";
+import {
+  DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
+} from "@/studio/composition/StudioDefaultCompositionV2";
 
 import {
   articleBriefingPresentationV3,
@@ -70,6 +76,7 @@ export type ArticleReaderExperimentV3Props = Readonly<{
   block: StudioArticleExperimentBlockV2;
   snapshot: ExperimentSnapshotV2 | null;
   contract: ModelContractV2 | null;
+  runtimeComposition?: StudioClientCompositionV2 | null;
   live: boolean;
   expandedPresentation: ArticleReaderExpandedPresentationV3 | null;
   peekPortalHost?: HTMLElement | null;
@@ -103,6 +110,7 @@ export function ArticleReaderExperimentV3({
   block,
   snapshot,
   contract,
+  runtimeComposition = null,
   live,
   expandedPresentation,
   peekPortalHost = null,
@@ -202,6 +210,7 @@ export function ArticleReaderExperimentV3({
         <ArticleReaderLiveOwnerV3
           briefing={briefing}
           contract={contract}
+          runtimeComposition={runtimeComposition}
           expandedPresentation={expandedPresentation}
           forceInline={forceInline}
           peekPortalHost={peekPortalHost}
@@ -360,6 +369,7 @@ function ArticleReaderStaticExperimentV3({
 function ArticleReaderLiveOwnerV3({
   briefing,
   contract,
+  runtimeComposition,
   expandedPresentation,
   forceInline,
   peekPortalHost,
@@ -372,6 +382,7 @@ function ArticleReaderLiveOwnerV3({
 }: Readonly<{
   briefing: ExperimentPlacementBriefingV2;
   contract: ModelContractV2;
+  runtimeComposition: StudioClientCompositionV2 | null;
   expandedPresentation: ArticleReaderExpandedPresentationV3 | null;
   forceInline: boolean;
   peekPortalHost: HTMLElement | null;
@@ -393,6 +404,14 @@ function ArticleReaderLiveOwnerV3({
     briefing.scenarioScope.initialFocusScenarioId,
     briefing.scenarioScope.visibleScenarioIds,
     structuralAnalyses,
+    {
+      ...(runtimeComposition?.workerReleaseTicket === undefined
+        ? {}
+        : { releaseTicket: runtimeComposition.workerReleaseTicket }),
+      resolveAnalysisExecutionPlan:
+        runtimeComposition?.analysisExecutionPlan
+        ?? DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
+    },
   );
   const detail = (
     <ArticleReaderLiveDetailV3

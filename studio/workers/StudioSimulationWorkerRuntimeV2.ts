@@ -83,7 +83,13 @@ export type StudioSimulationWorkerPortV2 = Readonly<{
 }>;
 
 export type StudioSimulationWorkerRuntimeDependenciesV2 = Readonly<{
-  loadExactRuntime(): Promise<ResolvedExactModelRuntimeV2>;
+  loadExactRuntime(input: Readonly<{
+    expectedModelId: string;
+    releaseTicket?: Extract<
+      StudioSimulationWorkerRequestV2,
+      { kind: "initialize" }
+    >["releaseTicket"];
+  }>): Promise<ResolvedExactModelRuntimeV2>;
   port: StudioSimulationWorkerPortV2;
   queueCapacity?: number;
   snapshotIds?: ExperimentSnapshotIdFactoryPortV2;
@@ -102,7 +108,9 @@ type StudioSimulationWorkerAuthoringContextV2 = Readonly<{
  * admission and every adapter-produced frame is decoded again before posting.
  */
 export class StudioSimulationWorkerRuntimeV2 {
-  readonly #loadExactRuntime: () => Promise<ResolvedExactModelRuntimeV2>;
+  readonly #loadExactRuntime: StudioSimulationWorkerRuntimeDependenciesV2[
+    "loadExactRuntime"
+  ];
   readonly #port: StudioSimulationWorkerPortV2;
   readonly #queueCapacity: number;
   readonly #snapshotIds: ExperimentSnapshotIdFactoryPortV2;
@@ -311,7 +319,12 @@ export class StudioSimulationWorkerRuntimeV2 {
     let adapter: RegisteredModelSimulationAdapterV2 | undefined;
     let sessionCreationAttempted = false;
     try {
-      exactRuntime = await this.#loadExactRuntime();
+      exactRuntime = await this.#loadExactRuntime(Object.freeze({
+        expectedModelId: request.expectedModelId,
+        ...(request.releaseTicket === undefined
+          ? {}
+          : { releaseTicket: request.releaseTicket }),
+      }));
       if (this.#portClosed || this.#state !== "initializing") return;
       assertExactRuntimeV2(exactRuntime);
       if (exactRuntime.contract.modelId !== request.expectedModelId) {

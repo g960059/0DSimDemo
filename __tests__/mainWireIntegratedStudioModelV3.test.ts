@@ -29,9 +29,18 @@ import {
 import type {
   ExperimentSurfaceV2,
 } from "@/studio/contracts/v2/content";
+import type {
+  RegisteredModelPackageManifestV2,
+} from "@/studio/contracts/v2/model";
 import {
   InMemoryRegisteredModelStoreV2,
 } from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
+import {
+  DynamicExactModelRuntimeLoaderV2,
+} from "@/studio/infrastructure/model/DynamicExactModelRuntimeLoaderV2";
+import {
+  STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+} from "@/studio/contracts/v2/release";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_DEFAULT_FIXTURE_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3,
@@ -163,6 +172,141 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
     );
   });
+
+  it("loads the immutable development-36 artifact from a hash-free Worker ticket", async () => {
+    const artifact = exactExecutableArtifactBytesV3();
+    const modelPackage = createMainWireIntegratedStudioModelPackageV3();
+    const fetchArtifact = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      async arrayBuffer() {
+        return artifact.buffer.slice(
+          artifact.byteOffset,
+          artifact.byteOffset + artifact.byteLength,
+        ) as ArrayBuffer;
+      },
+    });
+    const loader = new DynamicExactModelRuntimeLoaderV2(fetchArtifact);
+    const ticket = {
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId: modelPackage.manifest.modelId,
+      manifest: modelPackage.manifest,
+      moduleAbi: "legacy-main-wire-v3-development-36",
+      artifactUrl: "https://registry.example/model-releases/development-36.mjs",
+    } as const;
+
+    const first = loader.load(ticket);
+    expect(loader.load(ticket)).toBe(first);
+    await expect(first).resolves.toMatchObject({
+      contract: { modelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 },
+      simulationAdapter: {
+        modelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+      },
+    });
+    expect(fetchArtifact).toHaveBeenCalledOnce();
+    expect(fetchArtifact).toHaveBeenCalledWith(ticket.artifactUrl);
+  });
+
+  it("loads legacy and standard ABI releases independently and fails closed", async () => {
+    const modelPackage = createMainWireIntegratedStudioModelPackageV3();
+    const legacyModelId = modelPackage.manifest.modelId;
+    const standardModelId = legacyModelId.replace(
+      "development-36",
+      "standard-abi-test-1",
+    );
+    const standardManifest = Object.freeze({
+      ...JSON.parse(JSON.stringify(modelPackage.manifest)),
+      modelId: standardModelId,
+    }) as RegisteredModelPackageManifestV2;
+    const legacyBytes = exactExecutableArtifactBytesV3();
+    const standardBytes = standardExecutableArtifactBytesV3(
+      legacyModelId,
+      standardModelId,
+    );
+    const artifactByUrl = new Map<string, Uint8Array>([
+      ["https://registry.example/model-releases/legacy.mjs", legacyBytes],
+      ["https://registry.example/model-releases/standard.mjs", standardBytes],
+    ]);
+    const fetchArtifact = vi.fn(async (url: string) => {
+      const bytes = artifactByUrl.get(url);
+      if (bytes === undefined) {
+        return {
+          ok: false,
+          status: 404,
+          async arrayBuffer() { return new ArrayBuffer(0); },
+        };
+      }
+      return artifactFetchResponseV3(bytes);
+    });
+    const loader = new DynamicExactModelRuntimeLoaderV2(fetchArtifact);
+    const legacyTicket = {
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId: legacyModelId,
+      manifest: modelPackage.manifest,
+      moduleAbi: "legacy-main-wire-v3-development-36",
+      artifactUrl: "https://registry.example/model-releases/legacy.mjs",
+    } as const;
+    const standardTicket = {
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId: standardModelId,
+      manifest: standardManifest,
+      moduleAbi: "circleheart-exact-model-esm-v1",
+      artifactUrl: "https://registry.example/model-releases/standard.mjs",
+    } as const;
+
+    const [legacy, standard] = await Promise.all([
+      loader.load(legacyTicket),
+      loader.load(standardTicket),
+    ]);
+    expect(legacy.contract.modelId).toBe(legacyModelId);
+    expect(standard.contract.modelId).toBe(standardModelId);
+    expect(legacy).not.toBe(standard);
+    await expect(loader.load(legacyTicket)).resolves.toBe(legacy);
+    await expect(loader.load(standardTicket)).resolves.toBe(standard);
+
+    await expect(loader.load({
+      ...legacyTicket,
+      artifactUrl: "https://registry.example/model-releases/other.mjs",
+    })).rejects.toThrow(/another immutable release ticket/);
+    expect(fetchArtifact).toHaveBeenCalledTimes(2);
+
+    const mismatchLoader = new DynamicExactModelRuntimeLoaderV2(
+      async () => artifactFetchResponseV3(standardBytes),
+    );
+    await expect(mismatchLoader.load({
+      ...standardTicket,
+      manifest: {
+        ...standardManifest,
+        displayName: `${standardManifest.displayName} mismatch`,
+      },
+    })).rejects.toThrow(
+      /manifest does not match the registry/,
+    );
+
+    const missingExportLoader = new DynamicExactModelRuntimeLoaderV2(
+      async () => artifactFetchResponseV3(legacyBytes),
+    );
+    await expect(missingExportLoader.load({
+      ...legacyTicket,
+      moduleAbi: "circleheart-exact-model-esm-v1",
+    })).rejects.toThrow(/createCircleHeartExactModelReleaseV1/);
+
+    const missingArtifactLoader = new DynamicExactModelRuntimeLoaderV2(
+      async () => ({
+        ok: false,
+        status: 404,
+        async arrayBuffer() { return new ArrayBuffer(0); },
+      }),
+    );
+    await expect(missingArtifactLoader.load(standardTicket)).rejects.toThrow(
+      /artifact fetch failed \(404\)/,
+    );
+
+    expect(() => loader.load({
+      ...standardTicket,
+      moduleAbi: "unsupported-abi",
+    })).toThrow(/unsupported exact-model module ABI/);
+  }, 60_000);
 
   it("enforces the exact control lattice through the admitted simulation adapter", async () => {
     const composition = await createStudioDefaultWorkerCompositionV2();
@@ -789,4 +933,37 @@ function exactExecutableArtifactBytesV3(): Uint8Array {
   return new TextEncoder().encode(
     mainWireIntegratedStudioExecutableArtifactV3,
   );
+}
+
+function standardExecutableArtifactBytesV3(
+  legacyModelId: string,
+  standardModelId: string,
+): Uint8Array {
+  const standardSource = mainWireIntegratedStudioExecutableArtifactV3
+    .replaceAll(legacyModelId, standardModelId)
+    + `\nexport function createCircleHeartExactModelReleaseV1() {
+  const legacyRelease = createMainWireIntegratedStudioExecutableReleaseV3();
+  return Object.freeze({
+    manifest: legacyRelease.manifest,
+    executables: legacyRelease.executables,
+  });
+}\n`;
+  return new TextEncoder().encode(standardSource);
+}
+
+function artifactFetchResponseV3(bytes: Uint8Array): Readonly<{
+  ok: true;
+  status: 200;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}> {
+  return Object.freeze({
+    ok: true,
+    status: 200,
+    async arrayBuffer() {
+      return bytes.buffer.slice(
+        bytes.byteOffset,
+        bytes.byteOffset + bytes.byteLength,
+      ) as ArrayBuffer;
+    },
+  });
 }

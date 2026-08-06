@@ -82,7 +82,17 @@ import {
   newExperimentHref,
 } from "@/homeLinks";
 import { isLocale } from "@/localeRouting";
-import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
+import {
+  loadStudioDefaultClientCompositionV2,
+  loadStudioModelClientCompositionV2,
+  type StudioClientCompositionV2,
+} from "@/studio/composition/StudioDefaultCompositionV2";
+import {
+  StudioExactModelUnavailableErrorV1,
+} from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
+import type {
+  StudioModelWorkerReleaseTicketV2,
+} from "@/studio/contracts/v2/release";
 import type {
   ExperimentControlPresentationV2,
   ExperimentSurfaceControlPaneV2,
@@ -175,7 +185,6 @@ type WorkbenchStatusV3 =
   | Readonly<{
       kind: "unavailable-model";
       savedModelId: string;
-      currentModelId: string;
     }>
   | Readonly<{ kind: "error"; message: string }>;
 
@@ -387,6 +396,9 @@ const WorkbenchV3Session = ({
   const runtimeRef = React.useRef<WorkbenchParallelScenarioRuntimeV3 | null>(
     null,
   );
+  const workerReleaseTicketRef = React.useRef<
+    StudioModelWorkerReleaseTicketV2 | undefined
+  >(undefined);
   const translationRef = React.useRef(t);
   const analysisByKeyRef = React.useRef<
     Readonly<Record<string, StudioSimulationAnalysisV2>>
@@ -514,8 +526,6 @@ const WorkbenchV3Session = ({
     };
 
     const start = async () => {
-      const composition = await loadStudioDefaultClientCompositionV2();
-      if (cancelled) return;
       const contentStore = remoteContentRepository === null
         ? new StudioBrowserContentStoreV3()
         : null;
@@ -552,6 +562,28 @@ const WorkbenchV3Session = ({
             sourceSnapshot.content,
           );
       const initialContent = storedExperiment?.content ?? sourceSnapshot?.content;
+      let composition: StudioClientCompositionV2;
+      try {
+        composition = initialContent === undefined
+          ? await loadStudioDefaultClientCompositionV2()
+          : await loadStudioModelClientCompositionV2(initialContent.modelId);
+      } catch (error) {
+        if (
+          initialContent !== undefined
+          && error instanceof StudioExactModelUnavailableErrorV1
+        ) {
+          playingIntentRef.current = false;
+          setIsPlaying(false);
+          setStatus({
+            kind: "unavailable-model",
+            savedModelId: initialContent.modelId,
+          });
+          return;
+        }
+        throw error;
+      }
+      if (cancelled) return;
+      workerReleaseTicketRef.current = composition.workerReleaseTicket;
       const record = storedExperiment === null
         ? null
         : remoteExperimentResource === null
@@ -572,24 +604,6 @@ const WorkbenchV3Session = ({
       setArticleLinked(
         articleAuthoringContext !== null,
       );
-      if (
-        initialContent !== undefined &&
-        initialContent.modelId !== composition.defaultModelId
-      ) {
-        playingIntentRef.current = false;
-        setIsPlaying(false);
-        experimentRef.current = storedExperiment;
-        setExperiment(storedExperiment);
-        surfaceRef.current = null;
-        setSurface(null);
-        setSnapshotCount(0);
-        setStatus({
-          kind: "unavailable-model",
-          savedModelId: initialContent.modelId,
-          currentModelId: composition.defaultModelId,
-        });
-        return;
-      }
       const preferredScenarioId = activeScenarioIdRef.current;
       const initialScenarioId =
         preferredScenarioId !== null &&
@@ -716,6 +730,9 @@ const WorkbenchV3Session = ({
             );
       runtime = new WorkbenchParallelScenarioRuntimeV3({
         expectedModelId: composition.defaultModelId,
+        ...(composition.workerReleaseTicket === undefined
+          ? {}
+          : { releaseTicket: composition.workerReleaseTicket }),
         backgroundWorkerPool,
         resolveAnalysisExecutionPlan: composition.analysisExecutionPlan,
         onFrames: (frames) => {
@@ -1657,6 +1674,9 @@ const WorkbenchV3Session = ({
         );
         const assembled = await coordinator.saveExperiment({
           modelId: frame.modelId,
+          ...(workerReleaseTicketRef.current === undefined
+            ? {}
+            : { releaseTicket: workerReleaseTicketRef.current }),
           scenarios: captures.scenarios,
           activeScenarioId: captures.activeScenarioId,
           experiment: currentExperiment,
@@ -1877,6 +1897,9 @@ const WorkbenchV3Session = ({
       );
       const authoringInput = {
         modelId: frame.modelId,
+        ...(workerReleaseTicketRef.current === undefined
+          ? {}
+          : { releaseTicket: workerReleaseTicketRef.current }),
         scenarios: captures.scenarios,
         activeScenarioId: captures.activeScenarioId,
         surface: submittedSurface,
@@ -2444,26 +2467,6 @@ const WorkbenchV3Session = ({
               <p className="mt-2 leading-6 text-wb-muted">
                 {t("workbench.unavailable.description")}
               </p>
-              <dl className="mt-4 grid gap-2 rounded-lg border border-wb-line bg-wb-panel p-3 text-xs sm:grid-cols-[auto_minmax(0,1fr)]">
-                <dt className="font-bold text-wb-subtle">
-                  {t("workbench.unavailable.savedModel")}
-                </dt>
-                <dd
-                  className="truncate font-mono text-wb-text"
-                  title={status.savedModelId}
-                >
-                  {status.savedModelId}
-                </dd>
-                <dt className="font-bold text-wb-subtle">
-                  {t("workbench.unavailable.currentModel")}
-                </dt>
-                <dd
-                  className="truncate font-mono text-wb-text"
-                  title={status.currentModelId}
-                >
-                  {status.currentModelId}
-                </dd>
-              </dl>
               {recoveryError !== null && (
                 <p className="mt-3 text-xs text-wb-danger" role="alert">
                   {recoveryError}

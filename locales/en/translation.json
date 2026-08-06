@@ -97,7 +97,8 @@
       "emptyTitle": "No saved simulations",
       "emptyDescription": "Start a new simulation, then save it when you want to keep it.",
       "untitled": "Untitled simulation",
-      "unavailable": "Its exact model is not bundled in this release. The saved data remains intact.",
+      "historical": "Earlier mathematical model",
+      "unavailable": "The mathematical model required by this simulation is currently unavailable. Its saved content remains intact.",
       "delete": "Delete simulation",
       "deleteConfirm": "Delete this saved simulation? Content already pinned in articles remains available. This cannot be undone.",
       "open": "Open",
@@ -107,10 +108,8 @@
       "statusPublished": "Published"
     },
     "unavailable": {
-      "title": "This simulation needs another exact model",
-      "description": "The saved simulation is pinned to an exact model that is not bundled in this release. It will not be opened with, or overwritten by, the current default model.",
-      "savedModel": "Saved exact model",
-      "currentModel": "Latest available model",
+      "title": "This simulation cannot be opened right now",
+      "description": "The mathematical model required by this simulation could not be loaded. Its saved content will not be opened with, or overwritten by, another model.",
       "back": "Back to simulations",
       "startLatest": "Start with latest model",
       "preserved": "You can inspect or delete this preserved simulation from the simulation list."

@@ -11,7 +11,8 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import {
-  classifyExperimentAvailabilityV3,
+  resolveExperimentAvailabilityByModelIdV3,
+  type ExperimentAvailabilityV3,
 } from "@/studio/infrastructure/browser/StudioExperimentIdentityV3";
 import {
   experimentDetailHref,
@@ -21,6 +22,7 @@ import {
 import { isLocale, type Locale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
+  loadStudioModelClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { StudioBrowserContentStoreV3 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
@@ -42,8 +44,8 @@ type WorkbenchSelectorStateV3 =
   | Readonly<{ kind: "loading" }>
   | Readonly<{
       kind: "ready";
-      currentModelId: string;
       items: readonly WorkbenchSelectorItemV3[];
+      availabilityByModelId: ReadonlyMap<string, ExperimentAvailabilityV3>;
     }>
   | Readonly<{ kind: "error"; message: string }>;
 
@@ -72,21 +74,28 @@ export function WorkbenchSelectorV3Page() {
       const composition = await loadStudioDefaultClientCompositionV2();
       if (remoteRepository !== null) {
         const resources = (await remoteRepository.listMyExperiments()).items;
+        const items = Object.freeze(resources.map((resource) => Object.freeze({
+          record: Object.freeze({
+            schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
+            experimentId: resource.experimentId,
+            title: resource.title,
+            createdAt: resource.createdAt,
+            updatedAt: resource.updatedAt,
+            publishedSnapshotId: resource.publishedSnapshotId,
+          }),
+          modelId: resource.modelId,
+          version: resource.version,
+        })));
         setState({
           kind: "ready",
-          currentModelId: composition.defaultModelId,
-          items: Object.freeze(resources.map((resource) => Object.freeze({
-            record: Object.freeze({
-              schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
-              experimentId: resource.experimentId,
-              title: resource.title,
-              createdAt: resource.createdAt,
-              updatedAt: resource.updatedAt,
-              publishedSnapshotId: resource.publishedSnapshotId,
-            }),
-            modelId: resource.modelId,
-            version: resource.version,
-          }))),
+          items,
+          availabilityByModelId: await resolveExperimentAvailabilityByModelIdV3(
+            {
+              savedModelIds: items.map(({ modelId }) => modelId),
+              currentDefaultModelId: composition.defaultModelId,
+              resolveExactModel: loadStudioModelClientCompositionV2,
+            },
+          ),
         });
         return;
       }
@@ -124,8 +133,14 @@ export function WorkbenchSelectorV3Page() {
           right.record.updatedAt.localeCompare(left.record.updatedAt)));
       setState({
         kind: "ready",
-        currentModelId: composition.defaultModelId,
         items,
+        availabilityByModelId: await resolveExperimentAvailabilityByModelIdV3(
+          {
+            savedModelIds: items.map(({ modelId }) => modelId),
+            currentDefaultModelId: composition.defaultModelId,
+            resolveExactModel: loadStudioModelClientCompositionV2,
+          },
+        ),
       });
     } catch (error) {
       setState({ kind: "error", message: errorMessageV3(error) });
@@ -253,10 +268,8 @@ export function WorkbenchSelectorV3Page() {
           {state.kind === "ready" && state.items.length > 0 && (
             <ul className="divide-y divide-wb-line/80 border-y border-wb-line/80">
               {state.items.map(({ record, modelId, version }) => {
-                const availability = classifyExperimentAvailabilityV3(
-                  modelId,
-                  state.currentModelId,
-                );
+                const availability = state.availabilityByModelId.get(modelId)
+                  ?? "unavailable-model";
                 return (
                   <li
                     key={record.experimentId}
@@ -295,6 +308,14 @@ export function WorkbenchSelectorV3Page() {
                             </span>
                           </>
                         )}
+                        {availability === "historical-loadable" && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span className="truncate text-wb-subtle">
+                              {t("workbench.selector.historical")}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-0.5">
@@ -304,10 +325,10 @@ export function WorkbenchSelectorV3Page() {
                           locale,
                         })}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-                        aria-label={availability === "available"
+                        aria-label={availability !== "unavailable-model"
                           ? t("workbench.selector.open")
                           : t("workbench.selector.inspect")}
-                        title={availability === "available"
+                        title={availability !== "unavailable-model"
                           ? t("workbench.selector.open")
                           : t("workbench.selector.inspect")}
                       >

@@ -20,6 +20,12 @@ import type {
   StudioJsonValueV2,
 } from "@/studio/contracts/v2/json";
 import type {
+  StudioModelWorkerReleaseTicketV2,
+} from "@/studio/contracts/v2/release";
+import {
+  validateStudioModelWorkerReleaseTicketV2,
+} from "@/studio/contracts/v2/release";
+import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
@@ -44,6 +50,7 @@ export type StudioSimulationWorkerInitializeInputV2 = Readonly<{
   scenarioId: string;
   scenarioLabel: string;
   fixture: StudioJsonValueV2;
+  releaseTicket?: StudioModelWorkerReleaseTicketV2;
   checkpoint?: ScenarioCheckpointV2;
   authoringSeed?: StudioSimulationWorkerAuthoringSeedV2;
 }>;
@@ -152,6 +159,7 @@ export type StudioSimulationWorkerRequestV2 =
       scenarioId: string;
       scenarioLabel: string;
       fixture: StudioJsonValueV2;
+      releaseTicket?: StudioModelWorkerReleaseTicketV2;
       checkpoint?: ScenarioCheckpointV2;
       authoringSeed?: StudioSimulationWorkerAuthoringSeedV2;
     }>
@@ -382,7 +390,7 @@ export function createStudioSimulationInitializeRequestV2(
     "runtimeSessionId",
     "scenarioId",
     "scenarioLabel",
-  ], ["authoringSeed", "checkpoint"], "$.initialize");
+  ], ["authoringSeed", "checkpoint", "releaseTicket"], "$.initialize");
   return validateStudioSimulationWorkerRequestV2({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId,
@@ -392,6 +400,9 @@ export function createStudioSimulationInitializeRequestV2(
     scenarioId: input.scenarioId,
     scenarioLabel: input.scenarioLabel,
     fixture: input.fixture,
+    ...(Object.prototype.hasOwnProperty.call(input, "releaseTicket")
+      ? { releaseTicket: input.releaseTicket }
+      : {}),
     ...(Object.prototype.hasOwnProperty.call(input, "checkpoint")
       ? { checkpoint: input.checkpoint }
       : {}),
@@ -721,7 +732,7 @@ export function validateStudioSimulationWorkerRequestV2(
       "runtimeSessionId",
       "scenarioId",
       "scenarioLabel",
-    ], ["authoringSeed", "checkpoint"], "$.request");
+    ], ["authoringSeed", "checkpoint", "releaseTicket"], "$.request");
     const scenario = validateStudioSimulationScenarioInputV2({
       scenarioId: request.scenarioId,
       fixture: request.fixture,
@@ -747,6 +758,13 @@ export function validateStudioSimulationWorkerRequestV2(
         "$.request.scenarioLabel",
       ),
       fixture: scenario.fixture,
+      ...(Object.prototype.hasOwnProperty.call(request, "releaseTicket")
+        ? {
+            releaseTicket: validateStudioModelWorkerReleaseTicketV2(
+              request.releaseTicket,
+            ),
+          }
+        : {}),
       ...(scenario.checkpoint === undefined
         ? {}
         : { checkpoint: scenario.checkpoint }),

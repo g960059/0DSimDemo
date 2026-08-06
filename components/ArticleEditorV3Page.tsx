@@ -59,9 +59,9 @@ import {
   StudioArticleExperimentAuthoringHandoffStoreV3,
 } from "@/studio/infrastructure/browser/StudioArticleExperimentAuthoringHandoffV3";
 import {
-  loadStudioDefaultClientCompositionV2,
+  loadStudioModelClientCompositionV2,
+  type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
-import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import { useUnsavedChangesGuardV3 } from "@/components/useUnsavedChangesGuardV3";
 
 type EditorSaveStatusV3 = "idle" | "dirty" | "saving" | "saved" | "error";
@@ -207,7 +207,9 @@ export function ArticleEditorV3Page() {
   const pendingExperimentReplacementBlockIdRef = React.useRef<string | null>(null);
   const pendingReturnedSnapshotIdRef = React.useRef<string | null>(null);
   const slashReplacementIndexRef = React.useRef<number | null>(null);
-  const [modelContract, setModelContract] = React.useState<ModelContractV2 | null>(null);
+  const [compositionByModelId, setCompositionByModelId] = React.useState<
+    ReadonlyMap<string, StudioClientCompositionV2>
+  >(() => new Map());
   const [peekBlockId, setPeekBlockId] = React.useState<string | null>(null);
   const [peekOpen, setPeekOpen] = React.useState(false);
   const [peekPortalHost, setPeekPortalHost] =
@@ -283,15 +285,21 @@ export function ArticleEditorV3Page() {
 
   React.useEffect(() => {
     let current = true;
-    void loadStudioDefaultClientCompositionV2().then(({ contract }) => {
-      if (current) setModelContract(contract);
-    }).catch(() => {
-      if (current) setModelContract(null);
+    const modelIds = [...new Set(snapshots.map(({ content }) => content.modelId))];
+    void Promise.allSettled(modelIds.map(async (modelId) => Object.freeze({
+      modelId,
+      composition: await loadStudioModelClientCompositionV2(modelId),
+    }))).then((results) => {
+      if (!current) return;
+      setCompositionByModelId(new Map(results.flatMap((result) =>
+        result.status === "fulfilled"
+          ? [[result.value.modelId, result.value.composition] as const]
+          : [])));
     });
     return () => {
       current = false;
     };
-  }, []);
+  }, [snapshots]);
 
   React.useEffect(() => {
     let current = true;
@@ -1000,6 +1008,13 @@ export function ArticleEditorV3Page() {
 
           <div className="mt-12" data-testid="article-blocks-v3">
             {draft.blocks.map((block, index) => {
+              const placementSnapshot = block.kind === "experiment"
+                ? articleSnapshotById.get(block.placement.snapshotId) ?? null
+                : null;
+              const placementContract = placementSnapshot === null
+                ? null
+                : compositionByModelId.get(placementSnapshot.content.modelId)
+                    ?.contract ?? null;
               return (
                 <ArticleBlockShellV3
                   key={block.blockId}
@@ -1038,19 +1053,19 @@ export function ArticleEditorV3Page() {
                   }}
                 >
                   {block.kind === "experiment" ? (
-                  <ArticleExperimentPlacementV3
-                    block={block}
-                    snapshot={articleSnapshotById.get(block.placement.snapshotId) ?? null}
-                    contract={modelContract}
-                    index={index}
-                    total={draft.blocks.length}
-                    blockEditorLayout
-                    showBlockActions={false}
-                    onChange={(next) => updateBlock(index, next)}
-                    onEdit={() => openEditorPeekV3(block.blockId)}
-                    onRemove={() => removeBlock(index)}
-                    onMove={(direction) => moveBlock(index, direction)}
-                  />
+                    <ArticleExperimentPlacementV3
+                      block={block}
+                      snapshot={placementSnapshot}
+                      contract={placementContract}
+                      index={index}
+                      total={draft.blocks.length}
+                      blockEditorLayout
+                      showBlockActions={false}
+                      onChange={(next) => updateBlock(index, next)}
+                      onEdit={() => openEditorPeekV3(block.blockId)}
+                      onRemove={() => removeBlock(index)}
+                      onMove={(direction) => moveBlock(index, direction)}
+                    />
                   ) : (
                     <ArticleTextBlockV3
                       block={block}
@@ -1165,11 +1180,12 @@ export function ArticleEditorV3Page() {
           <ArticleReaderExperimentV3
             block={selectedPeek.block}
             snapshot={selectedPeek.snapshot}
-            contract={
-              modelContract?.modelId === selectedPeek.snapshot.content.modelId
-                ? modelContract
-                : null
-            }
+            contract={compositionByModelId.get(
+              selectedPeek.snapshot.content.modelId,
+            )?.contract ?? null}
+            runtimeComposition={compositionByModelId.get(
+              selectedPeek.snapshot.content.modelId,
+            ) ?? null}
             live
             expandedPresentation="peek"
             peekPortalHost={peekPortalHost}
