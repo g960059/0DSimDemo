@@ -38,11 +38,14 @@ file_size_limit = "50MiB"
 
 [auth]
 enabled = true
-site_url = "http://127.0.0.1:3000"
+site_url = "https://www.circleheart.dev"
 additional_redirect_urls = [
+  "https://circleheart.dev/**",
+  "https://www.circleheart.dev/**",
   "http://127.0.0.1:3000/**",
   "http://127.0.0.1:3015/**",
   "http://localhost:3000/**",
+  "http://localhost:3015/**",
 ]
 jwt_expiry = 3600
 enable_signup = true

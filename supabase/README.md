@@ -14,6 +14,26 @@ uses Supabase only for:
 - idempotent semantic writes; and
 - bounded garbage collection.
 
+## Production topology
+
+`circleheart.dev` is the production product domain. Squarespace remains the DNS
+manager and the application is served by Firebase Hosting. The current Hosting
+configuration redirects the apex domain to the canonical browser origin
+`https://www.circleheart.dev`. Firebase is only the static Vite/SPA delivery
+layer; Firestore, Firebase Auth, and Firebase Storage are not part of the new
+architecture.
+
+```text
+circleheart.dev / www.circleheart.dev (Squarespace-managed DNS)
+  -> Firebase Hosting (dist + SPA rewrite)
+  -> Browser Web Workers (interactive simulation)
+  -> Supabase (Auth + Postgres + model artifact Storage)
+```
+
+The checked-in `firebase.json` deliberately contains Hosting only. Hashed Vite
+assets are cached immutably, while `index.html` is revalidated so a new release
+can move the application shell without stale route code.
+
 ## Local setup
 
 Docker Desktop must be running.
@@ -85,6 +105,20 @@ Creates the public, read-only-to-clients `model-releases` bucket for exact
 executable modules. Upload and registry registration remain trusted release
 operations; clients receive no object-write policy.
 
+### `20260806000500_content_operations.sql`
+
+Adds the production operating boundary around semantic writes:
+
+- anonymous accounts may perform at most 60 mutations per minute and 600 per
+  rolling 24 hours;
+- idempotent replay is checked before quota consumption;
+- same-account quota checks are serialized to prevent concurrent bypass; and
+- Supabase Cron calls bounded content GC every 15 minutes.
+
+The database quota limits storage amplification by one anonymous identity. It
+does not replace Supabase Auth's IP-based anonymous-sign-in limit or production
+CAPTCHA/Turnstile.
+
 ## Auth policy
 
 Supported product flows are:
@@ -99,6 +133,11 @@ Supported product flows are:
 Local email sign-in is enabled. Google remains disabled in `config.toml`
 because production client credentials belong in Supabase secrets/Dashboard,
 not source control.
+
+The production Supabase Site URL is the final canonical origin
+`https://www.circleheart.dev`; both apex and `www` remain allow-listed.
+Localhost and loopback redirects remain explicitly allow-listed for
+development; the client always supplies its current origin as `redirectTo`.
 
 ## Write boundary
 
@@ -172,8 +211,9 @@ select studio.gc_unreferenced_content_v1(500);
 
 The function removes only bounded batches of expired soft-deleted roots,
 unreferenced Snapshots, unreachable immutable content, and expired idempotency
-receipts. In production this can be invoked by Supabase Cron/pg_cron or another
-trusted scheduler.
+receipts. `20260806000500_content_operations.sql` registers the production
+Supabase Cron job at a 15-minute interval; job history is available in
+`cron.job_run_details`.
 
 ## Release registration
 
@@ -197,10 +237,11 @@ ExperimentSession. Existing content never follows the channel.
 
 ## Deferred work
 
-- configure production magic-link redirects and Google OAuth;
+- configure production email delivery and Google OAuth credentials;
+- enable production CAPTCHA/Turnstile for anonymous sign-in;
 - add the multi-release browser/Worker loader for historical exact models;
-- schedule GC and receipt cleanup;
-- add rate limits/abuse controls for anonymous saves; and
+- define retention for abandoned anonymous identities after account-linking UX
+  is complete; and
 - introduce Cloud Run Jobs only for patient fitting or expensive batch work.
 
 Realtime numerical frames, ordinary simulation stepping, CRDT editing, and

@@ -452,9 +452,13 @@
     "saved": "保存済みの記事",
     "statusDraft": "未公開",
     "statusPublic": "公開済み",
-    "articleFallback": "循環動態を学ぶ記事",
+    "savedLocally": "この端末に保存",
+    "updated": "{{date}} 更新",
     "edit": "編集",
-    "read": "読む"
+    "read": "読む",
+    "delete": "削除",
+    "deleteConfirm": "この記事を削除しますか？公開中の場合は公開も終了します。この操作は取り消せません。",
+    "deleteFailed": "記事を削除できませんでした: {{message}}"
   },
   "articleReader": {
     "loading": "記事を読み込んでいます…",

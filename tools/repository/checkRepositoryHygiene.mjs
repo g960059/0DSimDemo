@@ -17,7 +17,6 @@ const trackedPaths = execFileSync(
   .filter(Boolean);
 
 const forbiddenExactPaths = new Set([
-  ".firebaserc",
   "__tests__/integratedLaneBootstrapV1.test.ts",
   "__tests__/integratedLaneObservableRegistryV1.test.ts",
   "__tests__/integratedLaneSessionV1.test.ts",
@@ -56,7 +55,6 @@ const forbiddenExactPaths = new Set([
   "engine/myocardium/provenance.ts",
   "firebase-applet-config.json",
   "firebase-blueprint.json",
-  "firebase.json",
   "firebaseSetup.ts",
   "firestore.rules",
   "logs.txt",
@@ -118,8 +116,13 @@ const requiredTrackedPaths = [
   "studio/workers/StudioSimulationWorkerRuntimeV2.ts",
   "studio/workers/StudioSimulationWorkerV2.ts",
   "supabase/config.toml",
+  ".firebaserc",
+  "firebase.json",
   "supabase/migrations/20260806000100_model_release_spine.sql",
   "supabase/migrations/20260806000200_content_release_spine.sql",
+  "supabase/migrations/20260806000300_content_read_api.sql",
+  "supabase/migrations/20260806000400_model_release_storage.sql",
+  "supabase/migrations/20260806000500_content_operations.sql",
   "tools/registry/verifyMainWireIntegratedStudioModelV3.ts",
 ];
 const portableTextExtensions = new Set([

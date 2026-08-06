@@ -98,6 +98,22 @@ export class StudioBrowserContentStoreV3 {
   }
 
   /**
+   * Deletes only the explicitly saved Article root. Snapshots remain neutral
+   * and independently valid, matching the remote repository boundary.
+   */
+  deleteArticle(articleId: string): boolean {
+    const current = this.#read();
+    if (!current.articles.some((article) =>
+      article.articleId === articleId)) return false;
+    this.#write({
+      ...current,
+      articles: Object.freeze(current.articles.filter((article) =>
+        article.articleId !== articleId)),
+    });
+    return true;
+  }
+
+  /**
    * Deletes only the explicitly saved mutable Experiment. Immutable
    * Snapshots remain valid independently.
    */

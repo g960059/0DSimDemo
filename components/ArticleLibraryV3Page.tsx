@@ -4,6 +4,7 @@ import {
   BookOpenText,
   FilePlus2,
   PencilLine,
+  Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
@@ -21,13 +22,15 @@ import {
 import {
   createStudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
-import {
-  publicArticleExcerptV3,
-} from "@/components/site/PublicCatalogPresentationV3";
+
+type ArticleLibraryItemV3 = Readonly<{
+  article: StudioArticleDraftV2;
+  updatedAt: string | null;
+}>;
 
 type ArticleLibraryStateV3 =
   | Readonly<{ kind: "loading" }>
-  | Readonly<{ kind: "ready"; articles: readonly StudioArticleDraftV2[] }>
+  | Readonly<{ kind: "ready"; items: readonly ArticleLibraryItemV3[] }>
   | Readonly<{ kind: "error"; message: string }>;
 
 export function ArticleLibraryV3Page() {
@@ -42,33 +45,66 @@ export function ArticleLibraryV3Page() {
   const [state, setState] = React.useState<ArticleLibraryStateV3>({
     kind: "loading",
   });
+  const [actionError, setActionError] = React.useState<string | null>(null);
+  const [deletingArticleId, setDeletingArticleId] = React.useState<string | null>(
+    null,
+  );
+
+  const readArticleItems = React.useCallback(async () => {
+    const items: readonly ArticleLibraryItemV3[] = remoteRepository === null
+      ? store.listArticles().map((article) => Object.freeze({
+          article,
+          updatedAt: null,
+        }))
+      : (await remoteRepository.listMyArticles()).map((resource) =>
+          Object.freeze({
+            article: resource.article,
+            updatedAt: resource.updatedAt,
+          }));
+    return Object.freeze([...items].sort((left, right) => {
+      if (left.updatedAt !== null && right.updatedAt !== null) {
+        return right.updatedAt.localeCompare(left.updatedAt);
+      }
+      if (left.updatedAt !== null) return -1;
+      if (right.updatedAt !== null) return 1;
+      return left.article.title.localeCompare(right.article.title);
+    }));
+  }, [remoteRepository, store]);
 
   React.useEffect(() => {
     let current = true;
-    const load = async () => {
-      const articles = remoteRepository === null
-        ? store.listArticles()
-        : (await remoteRepository.listMyArticles()).map(({ article }) => article);
+    void readArticleItems().then((items) => {
+      if (current) setState({ kind: "ready", items });
+    }).catch((error) => {
       if (current) {
-        setState({
-          kind: "ready",
-          articles: Object.freeze([...articles].sort((left, right) =>
-            left.title.localeCompare(right.title))),
-        });
-      }
-    };
-    void load().catch((error) => {
-      if (current) {
-        setState({
-          kind: "error",
-          message: error instanceof Error ? error.message : String(error),
-        });
+        setState({ kind: "error", message: errorMessageV3(error) });
       }
     });
     return () => {
       current = false;
     };
-  }, [remoteRepository, store]);
+  }, [readArticleItems]);
+
+  const deleteArticle = React.useCallback(async (article: StudioArticleDraftV2) => {
+    if (!window.confirm(t("articleLibrary.deleteConfirm"))) return;
+    setActionError(null);
+    setDeletingArticleId(article.articleId);
+    try {
+      if (remoteRepository === null) {
+        store.deleteArticle(article.articleId);
+      } else {
+        await remoteRepository.deleteArticle(
+          article.articleId,
+          article.draftVersion,
+        );
+      }
+      setState({ kind: "ready", items: await readArticleItems() });
+    } catch (error) {
+      setActionError(errorMessageV3(error));
+    } finally {
+      setDeletingArticleId(null);
+    }
+  }, [readArticleItems, remoteRepository, store, t]);
 
   return (
     <div
@@ -97,6 +133,15 @@ export function ArticleLibraryV3Page() {
           </Link>
         </div>
 
+        {actionError !== null && (
+          <p
+            className="mt-6 rounded-xl bg-wb-danger-soft p-4 text-sm text-wb-danger"
+            role="alert"
+          >
+            {t("articleLibrary.deleteFailed", { message: actionError })}
+          </p>
+        )}
+
         {state.kind === "loading" ? (
           <p className="mt-8 text-sm text-wb-muted" role="status">
             {t("articleLibrary.loading")}
@@ -105,7 +150,7 @@ export function ArticleLibraryV3Page() {
           <p className="mt-8 rounded-xl bg-wb-danger-soft p-4 text-sm text-wb-danger" role="alert">
             {state.message}
           </p>
-        ) : state.articles.length === 0 ? (
+        ) : state.items.length === 0 ? (
           <section className="mt-12 py-12 text-center">
             <BookOpenText className="mx-auto h-7 w-7 text-wb-subtle" aria-hidden="true" />
             <h3 className="mt-4 text-sm font-semibold">
@@ -117,7 +162,7 @@ export function ArticleLibraryV3Page() {
           </section>
         ) : (
           <ul className="mt-10 divide-y divide-wb-line" aria-label={t("articleLibrary.saved") }>
-            {state.articles.map((article) => {
+            {state.items.map(({ article, updatedAt }) => {
               return (
                 <li key={article.articleId} className="group py-5 sm:py-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -135,10 +180,15 @@ export function ArticleLibraryV3Page() {
                             : t("articleLibrary.statusDraft")}
                         </span>
                         <span aria-hidden="true"> · </span>
-                        <span>
-                          {publicArticleExcerptV3(article.blocks)
-                            ?? t("articleLibrary.articleFallback")}
-                        </span>
+                        {updatedAt === null ? (
+                          <span>{t("articleLibrary.savedLocally")}</span>
+                        ) : (
+                          <time dateTime={updatedAt}>
+                            {t("articleLibrary.updated", {
+                              date: formatArticleUpdatedAtV3(updatedAt, locale),
+                            })}
+                          </time>
+                        )}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
@@ -156,6 +206,16 @@ export function ArticleLibraryV3Page() {
                         {t("articleLibrary.read")}
                         <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => void deleteArticle(article)}
+                        disabled={deletingArticleId === article.articleId}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-danger-soft hover:text-wb-danger active:scale-[0.97] disabled:cursor-wait disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-danger"
+                        aria-label={t("articleLibrary.delete")}
+                        title={t("articleLibrary.delete")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
                     </div>
                   </div>
                 </li>
@@ -166,6 +226,18 @@ export function ArticleLibraryV3Page() {
       </main>
     </div>
   );
+}
+
+function formatArticleUpdatedAtV3(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
+}
+
+function errorMessageV3(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export default ArticleLibraryV3Page;

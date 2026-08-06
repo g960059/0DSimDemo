@@ -452,9 +452,13 @@
     "saved": "Saved articles",
     "statusDraft": "Not published",
     "statusPublic": "Published",
-    "articleFallback": "An article about circulatory physiology",
+    "savedLocally": "Saved on this device",
+    "updated": "Updated {{date}}",
     "edit": "Edit",
-    "read": "Read"
+    "read": "Read",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this article? If it is published, its public page will also be removed. This cannot be undone.",
+    "deleteFailed": "The article could not be deleted: {{message}}"
   },
   "articleReader": {
     "loading": "Loading article…",

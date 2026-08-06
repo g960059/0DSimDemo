@@ -492,6 +492,21 @@ describe("Studio browser content store V3", () => {
     expect(store.readArticle("article/browser-store")).not.toBeNull();
   });
 
+  it("deletes an Article without cascading to its neutral Snapshot", async () => {
+    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const experiment = experimentV3();
+    const snapshot = store.saveSnapshotCommit(await admittedCommitV3(
+      experiment,
+      { snapshotId: "snapshot/article-delete-retained" },
+    ), experiment.content).snapshot;
+    store.saveArticle(articleV3(snapshot));
+
+    expect(store.deleteArticle("article/browser-store")).toBe(true);
+    expect(store.deleteArticle("article/browser-store")).toBe(false);
+    expect(store.readArticle("article/browser-store")).toBeNull();
+    expect(store.readSnapshot(snapshot.snapshotId)).toEqual(snapshot);
+  });
+
   it("fails closed when the single current envelope is corrupt", () => {
     const storage = new MemoryStorageV3();
     storage.setItem(STUDIO_BROWSER_CONTENT_STORE_V3_KEY, JSON.stringify({
