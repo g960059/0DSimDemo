@@ -13,6 +13,7 @@ import {
   StudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
+  StudioExactModelUnavailableErrorV1,
   StudioSupabaseModelReleaseResolverV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import {
@@ -77,6 +78,84 @@ describe("Studio Supabase boundary V1", () => {
     expect(resolved.ticket).not.toHaveProperty("registryFingerprint");
     expect(Object.isFrozen(resolved.defaultFixture)).toBe(true);
     expect(call).toHaveBeenCalledOnce();
+  });
+
+  it("keeps an old exact release pinned after the default channel moves", async () => {
+    const modelPackage = createMainWireIntegratedStudioModelPackageV3();
+    const modelA = modelPackage.manifest.modelId;
+    const modelB = modelA.replace("development-36", "standard-abi-test-1");
+    const manifestB = {
+      ...JSON.parse(JSON.stringify(modelPackage.manifest)),
+      modelId: modelB,
+    };
+    const row = (
+      modelId: string,
+      manifest: unknown,
+      moduleAbi: string,
+    ) => ({
+      model_id: modelId,
+      model_family_id: modelPackage.manifest.modelFamilyId,
+      display_name: modelPackage.manifest.displayName,
+      manifest,
+      artifact_path: `model-releases/exact/${encodeURIComponent(modelId)}.mjs`,
+      module_abi: moduleAbi,
+      default_fixture: modelPackage.defaultFixture,
+      analysis_profile_id: "main-wire-integrated-v3",
+    });
+    let channelRow = row(
+      modelA,
+      modelPackage.manifest,
+      "legacy-main-wire-v3-development-36",
+    );
+    const call = vi.fn(async (
+      functionName: "get_model_release_v2" | "get_model_release_channel_v2",
+      parameters: Readonly<Record<string, string>>,
+    ) => ({
+      data: [functionName === "get_model_release_channel_v2"
+        ? channelRow
+        : parameters.p_model_id === modelA
+          ? row(
+              modelA,
+              modelPackage.manifest,
+              "legacy-main-wire-v3-development-36",
+            )
+          : row(modelB, manifestB, "circleheart-exact-model-esm-v1")],
+      error: null,
+    }));
+    const resolver = new StudioSupabaseModelReleaseResolverV1({
+      rpc: { call },
+      supabaseOrigin: "https://project.supabase.co",
+    });
+
+    const exactA = await resolver.resolveExactModel(modelA);
+    expect((await resolver.resolveChannel("default")).contract.modelId)
+      .toBe(modelA);
+    channelRow = row(modelB, manifestB, "circleheart-exact-model-esm-v1");
+    expect((await resolver.resolveChannel("default")).contract.modelId)
+      .toBe(modelB);
+    await expect(resolver.resolveExactModel(modelA)).resolves.toBe(exactA);
+    expect(exactA.contract.modelId).toBe(modelA);
+  });
+
+  it("reports an unavailable exact release without substituting a channel", async () => {
+    const call = vi.fn().mockResolvedValue({ data: [], error: null });
+    const resolver = new StudioSupabaseModelReleaseResolverV1({
+      rpc: { call },
+      supabaseOrigin: "https://project.supabase.co",
+    });
+
+    const failure = await resolver.resolveExactModel("model/historical-a")
+      .catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(StudioExactModelUnavailableErrorV1);
+    expect(failure).toMatchObject({
+      modelId: "model/historical-a",
+      reason: "not-registered-or-loadable",
+    });
+    expect(call).toHaveBeenCalledOnce();
+    expect(call).toHaveBeenCalledWith(
+      "get_model_release_v2",
+      { p_model_id: "model/historical-a" },
+    );
   });
 
   it("creates an anonymous account only when a Save asks for authentication", async () => {

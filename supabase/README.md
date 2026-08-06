@@ -273,7 +273,11 @@ and an analysis-profile ID. Public V2 reads return those values with the
 manifest and public Storage path, but continue to hide artifact SHA,
 fingerprint, and source commit. `development-36` is backfilled with its legacy
 ABI without changing its artifact, repository lock, or modelId. Future exact
-artifacts use `circleheart-exact-model-esm-v1`.
+artifacts use `circleheart-exact-model-esm-v1` and export
+`createCircleHeartExactModelReleaseV1() -> { manifest, executables }`.
+Registry metadata is the sole authority for the default fixture. Analysis
+profile IDs are immutable; changed analysis semantics require another profile
+ID rather than rebinding an existing release.
 
 After the exact release files are committed, a maintainer with an authenticated
 Supabase CLI session publishes the artifact and registry row without exposing a
@@ -294,6 +298,10 @@ ExperimentSession. Existing content never follows the channel.
 - enable production CAPTCHA/Turnstile for anonymous sign-in;
 - exercise retained historical loading when the first standard-ABI successor
   to `development-36` is registered;
+- verify Worker Blob ESM import and Storage CORS in WebKit and real Safari/iOS
+  Safari before public deployment;
+- keep immutable artifacts write/delete restricted, forbid path reuse, audit
+  registry digests server-side, and retain an independently restorable mirror;
 - define retention for abandoned anonymous identities after account-linking UX
   is complete; and
 - introduce Cloud Run Jobs only for patient fitting or expensive batch work.

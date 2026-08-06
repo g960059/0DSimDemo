@@ -40,7 +40,10 @@ export type ExactModelArtifactFetchPortV2 = (
  */
 export class DynamicExactModelRuntimeLoaderV2 {
   readonly #fetchArtifact: ExactModelArtifactFetchPortV2;
-  readonly #runtimePromises = new Map<string, Promise<ResolvedExactModelRuntimeV2>>();
+  readonly #runtimePromises = new Map<string, Readonly<{
+    canonicalTicket: string;
+    promise: Promise<ResolvedExactModelRuntimeV2>;
+  }>>();
 
   constructor(
     fetchArtifact: ExactModelArtifactFetchPortV2 = defaultArtifactFetchV2,
@@ -50,12 +53,21 @@ export class DynamicExactModelRuntimeLoaderV2 {
 
   load(ticketValue: unknown): Promise<ResolvedExactModelRuntimeV2> {
     const ticket = validateStudioModelWorkerReleaseTicketV2(ticketValue);
+    const canonicalTicket = studioCanonicalJsonStringify(ticket);
     const cached = this.#runtimePromises.get(ticket.modelId);
-    if (cached !== undefined) return cached;
+    if (cached !== undefined) {
+      if (cached.canonicalTicket !== canonicalTicket) {
+        return Promise.reject(new Error(
+          "Exact modelId was requested with another immutable release ticket",
+        ));
+      }
+      return cached.promise;
+    }
     const pending = this.#loadUncached(ticket);
-    this.#runtimePromises.set(ticket.modelId, pending);
+    const entry = Object.freeze({ canonicalTicket, promise: pending });
+    this.#runtimePromises.set(ticket.modelId, entry);
     void pending.catch(() => {
-      if (this.#runtimePromises.get(ticket.modelId) === pending) {
+      if (this.#runtimePromises.get(ticket.modelId) === entry) {
         this.#runtimePromises.delete(ticket.modelId);
       }
     });
@@ -82,7 +94,7 @@ export class DynamicExactModelRuntimeLoaderV2 {
       throw new Error(`Exact model artifact does not export ${exportName}`);
     }
     const produced = await factory();
-    const release = exactExecutableReleaseRecordV2(produced);
+    const release = exactExecutableReleaseRecordV2(produced, ticket.moduleAbi);
     if (
       studioCanonicalJsonStringify(release.manifest)
       !== studioCanonicalJsonStringify(ticket.manifest)
@@ -102,11 +114,14 @@ function factoryExportNameV2(ticket: StudioModelWorkerReleaseTicketV2): string {
     case "legacy-main-wire-v3-development-36":
       return "createMainWireIntegratedStudioExecutableReleaseV3";
     case "circleheart-exact-model-esm-v1":
-      return "createCircleHeartExactModelRuntimeV1";
+      return "createCircleHeartExactModelReleaseV1";
   }
 }
 
-function exactExecutableReleaseRecordV2(value: unknown): Readonly<{
+function exactExecutableReleaseRecordV2(
+  value: unknown,
+  moduleAbi: StudioModelWorkerReleaseTicketV2["moduleAbi"],
+): Readonly<{
   manifest: RegisteredModelPackageManifestV2;
   executables: RegisteredModelExecutableBundleV2;
 }> {
@@ -121,13 +136,15 @@ function exactExecutableReleaseRecordV2(value: unknown): Readonly<{
   }
   const record = value as Record<string, unknown>;
   const keys = Object.keys(record).sort();
-  const expected = ["defaultFixture", "executables", "manifest"];
+  const expected = moduleAbi === "legacy-main-wire-v3-development-36"
+    ? ["defaultFixture", "executables", "manifest"]
+    : ["executables", "manifest"];
   if (
     keys.length !== expected.length
     || keys.some((key, index) => key !== expected[index])
   ) {
     throw new Error(
-      "Exact model artifact release must contain exactly defaultFixture, executables, manifest",
+      `Exact model artifact release must contain exactly ${expected.join(", ")}`,
     );
   }
   for (const key of expected) {

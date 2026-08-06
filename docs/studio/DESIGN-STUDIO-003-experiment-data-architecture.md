@@ -175,6 +175,19 @@ The same immutable registry launch contract also owns the default fixture and
 an `analysisProfileId`. These are launch inputs, not identity. The exact
 manifest and artifact bytes remain the authority for numerical behavior.
 
+The standard module ABI exports only the executable release:
+
+```ts
+export function createCircleHeartExactModelReleaseV1() {
+  return { manifest, executables };
+}
+```
+
+The default fixture is intentionally absent. Registry launch metadata is its
+single authority. The immutable `development-36` artifact still returns its
+legacy `defaultFixture`, but the dynamic loader ignores that compatibility
+field rather than creating a second source of truth.
+
 - `/experiments/new` resolves the `default` channel once, then immediately
   pins the returned `modelId` for the Session.
 - an existing Experiment or Snapshot resolves its stored exact `modelId`
@@ -189,14 +202,36 @@ manifest and artifact bytes remain the authority for numerical behavior.
 - a missing, retired, malformed, or unsupported release fails closed. The
   loader never substitutes the current default for historical content.
 
+The saved-Experiment directory resolves only the small registry projection for
+each distinct stored `modelId`. It classifies entries as current-default,
+historical-loadable, or unavailable; it never treats “not the current default”
+as evidence of unavailability and never downloads executable artifacts merely
+to render the list.
+
 Exact-model promises are cached by `modelId` for a page lifetime. Mutable
 channel pointers are not used as runtime cache keys. Browser HTTP caching may
 reuse immutable artifact bytes; no durable Experiment field stores URL, ABI,
-cache state, or a digest.
+cache state, or a digest. A cached Worker runtime also remembers the canonical
+ticket and rejects a second URL, ABI, or manifest for the same `modelId`.
+
+The default composition is pinned for one loaded application page, including
+React StrictMode remounts and multiple new-Session navigations. A page reload
+resolves a moved default channel. This avoids changing numerical defaults
+halfway through one authoring visit.
+
+Analysis profile IDs are immutable semantic identifiers. Existing
+`main-wire-integrated-v3` semantics must not be overwritten; future analysis
+implementations receive a new explicitly versioned profile ID.
 
 `development-36` keeps its committed artifact byte-for-byte and is attached to
 the legacy ABI only in registry metadata. The standard ABI is reserved for the
 next exact release boundary. Neither operation changes its existing modelId.
+
+Before public deployment, the release gate must exercise module-Worker Blob
+ESM import and Storage CORS in Playwright WebKit plus real Safari/iOS Safari.
+Registry artifacts remain write/delete restricted, use non-reused paths, are
+audited server-side against registry integrity metadata, and are mirrored
+outside Supabase Storage for restoration drills.
 
 `Experiment.version` is an optimistic-concurrency token only. It is neither a
 scientific revision nor part of a public URL.

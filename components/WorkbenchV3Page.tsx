@@ -85,7 +85,11 @@ import { isLocale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
   loadStudioModelClientCompositionV2,
+  type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
+import {
+  StudioExactModelUnavailableErrorV1,
+} from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import type {
   StudioModelWorkerReleaseTicketV2,
 } from "@/studio/contracts/v2/release";
@@ -181,7 +185,6 @@ type WorkbenchStatusV3 =
   | Readonly<{
       kind: "unavailable-model";
       savedModelId: string;
-      currentModelId: string;
     }>
   | Readonly<{ kind: "error"; message: string }>;
 
@@ -559,9 +562,26 @@ const WorkbenchV3Session = ({
             sourceSnapshot.content,
           );
       const initialContent = storedExperiment?.content ?? sourceSnapshot?.content;
-      const composition = initialContent === undefined
-        ? await loadStudioDefaultClientCompositionV2()
-        : await loadStudioModelClientCompositionV2(initialContent.modelId);
+      let composition: StudioClientCompositionV2;
+      try {
+        composition = initialContent === undefined
+          ? await loadStudioDefaultClientCompositionV2()
+          : await loadStudioModelClientCompositionV2(initialContent.modelId);
+      } catch (error) {
+        if (
+          initialContent !== undefined
+          && error instanceof StudioExactModelUnavailableErrorV1
+        ) {
+          playingIntentRef.current = false;
+          setIsPlaying(false);
+          setStatus({
+            kind: "unavailable-model",
+            savedModelId: initialContent.modelId,
+          });
+          return;
+        }
+        throw error;
+      }
       if (cancelled) return;
       workerReleaseTicketRef.current = composition.workerReleaseTicket;
       const record = storedExperiment === null
@@ -2447,26 +2467,6 @@ const WorkbenchV3Session = ({
               <p className="mt-2 leading-6 text-wb-muted">
                 {t("workbench.unavailable.description")}
               </p>
-              <dl className="mt-4 grid gap-2 rounded-lg border border-wb-line bg-wb-panel p-3 text-xs sm:grid-cols-[auto_minmax(0,1fr)]">
-                <dt className="font-bold text-wb-subtle">
-                  {t("workbench.unavailable.savedModel")}
-                </dt>
-                <dd
-                  className="truncate font-mono text-wb-text"
-                  title={status.savedModelId}
-                >
-                  {status.savedModelId}
-                </dd>
-                <dt className="font-bold text-wb-subtle">
-                  {t("workbench.unavailable.currentModel")}
-                </dt>
-                <dd
-                  className="truncate font-mono text-wb-text"
-                  title={status.currentModelId}
-                >
-                  {status.currentModelId}
-                </dd>
-              </dl>
               {recoveryError !== null && (
                 <p className="mt-3 text-xs text-wb-danger" role="alert">
                   {recoveryError}

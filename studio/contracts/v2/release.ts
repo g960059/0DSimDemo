@@ -15,6 +15,7 @@ export const STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID =
  */
 export type RegisteredModelModuleAbiV2 =
   | "legacy-main-wire-v3-development-36"
+  /** Exports createCircleHeartExactModelReleaseV1 -> manifest + executables. */
   | "circleheart-exact-model-esm-v1";
 
 export type StudioModelWorkerReleaseTicketV2 = Readonly<{

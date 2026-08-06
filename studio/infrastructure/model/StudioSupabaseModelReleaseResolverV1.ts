@@ -41,6 +41,29 @@ export interface StudioModelReleaseRpcPortV1 {
   ): Promise<StudioModelReleaseRpcResultV1>;
 }
 
+export type StudioExactModelUnavailableReasonV1 =
+  | "registry-read-failed"
+  | "not-registered-or-loadable"
+  | "invalid-release-record";
+
+export class StudioExactModelUnavailableErrorV1 extends Error {
+  readonly modelId: string;
+  readonly reason: StudioExactModelUnavailableReasonV1;
+
+  constructor(
+    modelId: string,
+    reason: StudioExactModelUnavailableReasonV1,
+    detail?: string,
+  ) {
+    super(detail === undefined
+      ? `Exact model ${modelId} is unavailable (${reason})`
+      : `Exact model ${modelId} is unavailable (${reason}): ${detail}`);
+    this.name = "StudioExactModelUnavailableErrorV1";
+    this.modelId = modelId;
+    this.reason = reason;
+  }
+}
+
 /**
  * Hash-free browser projection of the trusted exact-model registry.
  * Exact model promises are cached for the page lifetime; channel pointers are
@@ -62,10 +85,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
   resolveExactModel(modelId: string): Promise<StudioResolvedModelReleaseV1> {
     const cached = this.#releasePromises.get(modelId);
     if (cached !== undefined) return cached;
-    const pending = this.#readOne(
-      "get_model_release_v2",
-      Object.freeze({ p_model_id: modelId }),
-    );
+    const pending = this.#readExactModel(modelId);
     this.#releasePromises.set(modelId, pending);
     void pending.catch(() => {
       if (this.#releasePromises.get(modelId) === pending) {
@@ -99,6 +119,35 @@ export class StudioSupabaseModelReleaseResolverV1 {
       throw new Error("Exact model release is unavailable");
     }
     return this.#ownReleaseRow(result.data[0]);
+  }
+
+  async #readExactModel(modelId: string): Promise<StudioResolvedModelReleaseV1> {
+    const result = await this.#rpc.call(
+      "get_model_release_v2",
+      Object.freeze({ p_model_id: modelId }),
+    );
+    if (result.error !== null) {
+      throw new StudioExactModelUnavailableErrorV1(
+        modelId,
+        "registry-read-failed",
+        result.error.message,
+      );
+    }
+    if (!Array.isArray(result.data) || result.data.length !== 1) {
+      throw new StudioExactModelUnavailableErrorV1(
+        modelId,
+        "not-registered-or-loadable",
+      );
+    }
+    try {
+      return this.#ownReleaseRow(result.data[0]);
+    } catch (error) {
+      throw new StudioExactModelUnavailableErrorV1(
+        modelId,
+        "invalid-release-record",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   }
 
   #ownReleaseRow(value: unknown): StudioResolvedModelReleaseV1 {
