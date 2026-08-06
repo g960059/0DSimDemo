@@ -63,7 +63,6 @@ import {
   normalAdultMainWireRuntimeV1,
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
-import { MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
 import { createMainWireNormalAdultCommonPericardiumV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
 import { createCanonicalMainWireNormalAdultFiveWallProviderV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
@@ -311,6 +310,15 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
     );
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
   const canonicalRuntime = normalAdultMainWireRuntimeV1();
+  const cycleLengthSec = 60 / hemodynamicResearchInputs.heartRateBpm;
+  const peepMmHg = hemodynamicResearchInputs.peepCmH2O * 0.7355592401;
+  const calciumDriveParams = Object.freeze({
+    ...FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+    parameterSetId:
+      `${FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId}`
+      + `-hr-${hemodynamicResearchInputs.heartRateBpm}-bpm`,
+    cycleLengthSec,
+  });
   const runtime = Object.freeze({
     vascular: Object.freeze({
       venousTone: hemodynamicResearchInputs.venousTone,
@@ -320,13 +328,17 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
       systemicResistance: hemodynamicResearchInputs.systemicResistance,
       pulmonaryResistance: hemodynamicResearchInputs.pulmonaryResistance,
     }),
-    respiratory: canonicalRuntime.respiratory,
+    respiratory: Object.freeze({
+      ...canonicalRuntime.respiratory,
+      PEEP: peepMmHg,
+    }),
     valveResearchInput: canonicalRuntime.valveResearchInput,
   });
   const pericardium = createMainWireNormalAdultCommonPericardiumV1();
   const rhythm = createMainWireIntegratedRegularSinusRhythmV3({
     idPrefix: "periodic-v3",
     parameterProvenanceSourceId: "bounded-periodic-v3-construction",
+    cycleLengthSec,
   });
   const profile = createAllOffZeroInertanceProfileV3();
   const config = createMechanicalSupportConfigV1();
@@ -337,7 +349,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
   });
   const coronaryStepInput = Object.freeze({
     runtime,
-    calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+    calciumDriveParams,
     pericardium,
     coronaryPrior: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2,
     coronaryDisease: NORMAL_CORONARY_DISEASE_INPUT_V2,
@@ -351,7 +363,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
     coronary: {
       provider,
       runtime,
-      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      calciumDriveParams,
       pericardium,
       coronaryPrior: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2,
       coronaryDisease: NORMAL_CORONARY_DISEASE_INPUT_V2,
@@ -360,9 +372,9 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
       impMechanism: "cep-shortening-induced" as const,
       shorteningImpPrior: NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
       fixedGlobalTotalBloodVolumeMl:
-        MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1.fullGraphReferenceTotalBloodVolumeMl,
+        hemodynamicResearchInputs.totalBloodVolumeMl,
       autoregulationWindow: Object.freeze({
-        durationSec: 1,
+        durationSec: cycleLengthSec,
         interpretation: "periodic-sinus-cycle-aligned" as const,
       }),
     },
@@ -383,7 +395,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
     config,
     dynamicMechanicalSupport,
     coronaryStepInput,
-    cycleLengthSec: 1 as const,
+    cycleLengthSec,
     cold,
   });
 }

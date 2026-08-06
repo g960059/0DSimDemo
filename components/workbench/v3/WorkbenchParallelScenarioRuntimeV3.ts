@@ -4,9 +4,13 @@ import {
   type ScenarioCheckpointV2,
 } from "@/studio/contracts/v2/content";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
-import type {
-  StudioSimulationAnalysisV2,
-  StudioSimulationFrameV2,
+import {
+  validateStudioSimulationAnalysisV2,
+  validateStudioSimulationPortableIdV2,
+  validateStudioSimulationScenarioInputV2,
+  type StudioSimulationAnalysisExecutionPlanResolverV2,
+  type StudioSimulationAnalysisV2,
+  type StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
 import { StudioSimulationWorkerClientV2 } from
   "@/studio/workers/StudioSimulationWorkerClientV2";
@@ -23,6 +27,13 @@ import {
   type WorkbenchLiveSchedulerDependenciesV3,
   type WorkbenchLiveSchedulerTimerV3,
 } from "./WorkbenchLiveSchedulerV3";
+import type {
+  WorkbenchBackgroundWorkerPoolPortV3,
+} from "./WorkbenchBackgroundWorkerPoolV3";
+import {
+  WorkbenchScenarioSteadyCandidateCoordinatorV3,
+  type WorkbenchSteadyCandidateSourceV3,
+} from "./WorkbenchScenarioSteadyCandidateCoordinatorV3";
 import { randomPortableTokenV3 } from "./randomPortableTokenV3";
 
 // One short visual deadline lets independently completing Scenario Workers
@@ -67,6 +78,13 @@ export type WorkbenchParallelScenarioRuntimeDependenciesV3 = Readonly<{
   createClient?: (
     scenarioId: string,
   ) => WorkbenchParallelScenarioRuntimeClientV3;
+  createAnalysisClient?: (
+    scenarioId: string,
+    analysisPartition?: string,
+  ) => WorkbenchParallelScenarioRuntimeClientV3;
+  backgroundWorkerPool?: WorkbenchBackgroundWorkerPoolPortV3;
+  resolveAnalysisExecutionPlan?:
+    StudioSimulationAnalysisExecutionPlanResolverV2;
   createScheduler?: (
     scenarioId: string,
     dependencies: WorkbenchLiveSchedulerDependenciesV3<StudioSimulationFrameV2>,
@@ -99,6 +117,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   readonly #createClient: (
     scenarioId: string,
   ) => WorkbenchParallelScenarioRuntimeClientV3;
+  readonly #createAnalysisClient: (
+    scenarioId: string,
+    analysisPartition?: string,
+  ) => WorkbenchParallelScenarioRuntimeClientV3;
+  readonly #backgroundWorkerPool:
+    WorkbenchBackgroundWorkerPoolPortV3 | undefined;
+  readonly #steadyCandidates:
+    WorkbenchScenarioSteadyCandidateCoordinatorV3 | undefined;
+  readonly #resolveAnalysisExecutionPlan:
+    StudioSimulationAnalysisExecutionPlanResolverV2;
   readonly #createScheduler: (
     scenarioId: string,
     dependencies: WorkbenchLiveSchedulerDependenciesV3<StudioSimulationFrameV2>,
@@ -110,6 +138,9 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   ) => WorkbenchLiveSchedulerTimerV3;
   readonly #cancelFrameFlush: (timer: WorkbenchLiveSchedulerTimerV3) => void;
   readonly #lanes = new Map<string, WorkbenchParallelScenarioLaneV3>();
+  readonly #analysisClients = new Set<
+    WorkbenchParallelScenarioRuntimeClientV3
+  >();
   readonly #pendingScenarioIds = new Set<string>();
   #state: ParallelRuntimeStateV3 = "new";
   #activeScenarioId: string | null = null;
@@ -124,6 +155,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#onError = dependencies.onError;
     this.#createClient = dependencies.createClient
       ?? (() => new StudioSimulationWorkerClientV2());
+    this.#createAnalysisClient = dependencies.createAnalysisClient
+      ?? (() => new StudioSimulationWorkerClientV2());
+    this.#backgroundWorkerPool = dependencies.backgroundWorkerPool;
+    this.#steadyCandidates = dependencies.backgroundWorkerPool === undefined
+      ? undefined
+      : new WorkbenchScenarioSteadyCandidateCoordinatorV3(
+          dependencies.backgroundWorkerPool,
+        );
+    this.#resolveAnalysisExecutionPlan = dependencies.resolveAnalysisExecutionPlan
+      ?? (() => null);
     this.#createScheduler = dependencies.createScheduler
       ?? ((_scenarioId, schedulerDependencies) =>
         new WorkbenchLiveSchedulerV3(schedulerDependencies));
@@ -252,11 +293,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     label: string;
   }>): Promise<StudioSimulationWorkerScenarioStateV2> {
     const source = await this.#captureScenario(input.sourceScenarioId);
+    const ownedCapture = validateStudioSimulationScenarioInputV2({
+      scenarioId: input.scenarioId,
+      fixture: source.capture.fixture,
+      checkpoint: source.capture.checkpoint,
+    }, "$.duplicateScenario");
     return this.addScenario({
       scenarioId: input.scenarioId,
       label: input.label,
-      fixture: source.capture.fixture,
-      checkpoint: source.capture.checkpoint,
+      fixture: ownedCapture.fixture,
+      checkpoint: ownedCapture.checkpoint,
     });
   }
 
@@ -283,6 +329,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }
     const lane = this.#requiredLane(scenarioId);
     this.#lanes.delete(scenarioId);
+    this.#steadyCandidates?.invalidateScenario(scenarioId);
     if (this.#activeScenarioId === scenarioId) {
       this.#activeScenarioId = this.#lanes.keys().next().value ?? null;
     }
@@ -304,18 +351,144 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       runtimeSessionId: lane.runtimeSessionId,
     });
     lane.latestFrame = frame;
+    await this.#prewarmLane(lane);
     return frame;
   }
 
   async requestAnalysis(
-    input: Omit<StudioSimulationWorkerRequestAnalysisInputV2, "runtimeSessionId">,
+    input: Omit<StudioSimulationWorkerRequestAnalysisInputV2, "runtimeSessionId">
+      & Readonly<{
+        onProgress?: (analysis: StudioSimulationAnalysisV2) => void;
+        onLiveLaneReleased?: () => void;
+      }>,
   ): Promise<StudioSimulationAnalysisV2> {
     this.#requireActive();
     const lane = this.#requiredLane(input.scenarioId);
-    return lane.client.requestAnalysis({
-      ...input,
-      runtimeSessionId: lane.runtimeSessionId,
-    });
+    const executionPlan = input.analysisPartition === undefined
+      ? this.#resolveAnalysisExecutionPlan(input.analysisId)
+      : null;
+    const partitions = executionPlan === null
+      ? Object.freeze([input.analysisPartition])
+      : validatedAnalysisPartitionsV3(executionPlan.partitions);
+    try {
+      await lane.scheduler.pause();
+      this.#flushFrames();
+      const sourceFrame = lane.latestFrame;
+      if (
+        sourceFrame.inputEpoch !== input.expectedInputEpoch
+        || sourceFrame.acceptedRevision !== input.expectedAcceptedRevision
+        || sourceFrame.acceptedTimeSec !== input.expectedAcceptedTimeSec
+      ) throw new Error("parallel Scenario analysis source clocks are stale");
+
+      const source = await this.#captureScenario(input.scenarioId);
+      if (
+        source.capture.checkpoint.acceptedRevision
+          !== input.expectedAcceptedRevision
+        || source.capture.checkpoint.acceptedTimeSec
+          !== input.expectedAcceptedTimeSec
+      ) throw new Error("parallel Scenario analysis capture clocks differ");
+
+      // The exact source tuple is now detached from the live lane. Resume it
+      // before the shared steady candidate is awaited or another Worker is
+      // leased; queueing and numerical work must never extend the visible pause.
+      this.resumeScenario(input.scenarioId);
+      input.onLiveLaneReleased?.();
+
+      const sourceForAnalysis = this.#bestAvailableSteadyCandidate(
+        source,
+        sourceFrame.inputEpoch,
+      );
+      const checkpoint = sourceForAnalysis.capture.checkpoint;
+
+      const remap = (analysis: StudioSimulationAnalysisV2) =>
+        validateStudioSimulationAnalysisV2({
+          ...analysis,
+          runtimeSessionId: lane.runtimeSessionId,
+          inputEpoch: input.expectedInputEpoch,
+          sourceAcceptedRevision: checkpoint.acceptedRevision,
+          sourceAcceptedTimeSec: checkpoint.acceptedTimeSec,
+        }, "$.parallelScenarioAnalysis");
+      const latestByPartition = new Map<string | undefined,
+        StudioSimulationAnalysisV2>();
+      const publishProgress = (
+        analysisPartition: string | undefined,
+        progress: StudioSimulationAnalysisV2,
+      ) => {
+        const remapped = remap(progress);
+        latestByPartition.set(analysisPartition, remapped);
+        input.onProgress?.(
+          executionPlan === null
+            ? remapped
+            : executionPlan.merge([...latestByPartition.values()]),
+        );
+      };
+      const analyses = await Promise.all(partitions.map((analysisPartition) =>
+        this.#withAnalysisClient(
+          input.scenarioId,
+          analysisPartition,
+          async (client) => {
+            if (this.#state === "terminated") {
+              throw new Error("parallel Scenario runtime was terminated");
+            }
+            this.#analysisClients.add(client);
+            try {
+              const runtimeSessionId =
+                `workbench-analysis-${randomPortableTokenV3()}`;
+              const initialFrame = await client.initialize({
+                expectedModelId: this.#expectedModelId,
+                runtimeSessionId,
+                scenarioId: input.scenarioId,
+                scenarioLabel: sourceForAnalysis.label,
+                fixture: sourceForAnalysis.capture.fixture,
+                checkpoint,
+              });
+              const analysis = await client.requestAnalysis({
+                runtimeSessionId,
+                scenarioId: input.scenarioId,
+                analysisId: input.analysisId,
+                expectedInputEpoch: initialFrame.inputEpoch,
+                expectedAcceptedRevision: initialFrame.acceptedRevision,
+                expectedAcceptedTimeSec: initialFrame.acceptedTimeSec,
+                ...(analysisPartition === undefined
+                  ? {}
+                  : { analysisPartition }),
+                ...(input.onProgress === undefined
+                  ? {}
+                  : {
+                      onProgress: (progress) => publishProgress(
+                        analysisPartition,
+                        progress,
+                      ),
+                    }),
+              });
+              return remap(analysis);
+            } finally {
+              this.#analysisClients.delete(client);
+            }
+          },
+        )));
+      return executionPlan === null
+        ? analyses[0]!
+        : executionPlan.merge(analyses);
+    } finally {
+      this.resumeScenario(input.scenarioId);
+    }
+  }
+
+  async #withAnalysisClient<T>(
+    scenarioId: string,
+    analysisPartition: string | undefined,
+    operation: (client: WorkbenchParallelScenarioRuntimeClientV3) => Promise<T>,
+  ): Promise<T> {
+    if (this.#backgroundWorkerPool !== undefined) {
+      return await this.#backgroundWorkerPool.run("analysis", operation);
+    }
+    const client = this.#createAnalysisClient(scenarioId, analysisPartition);
+    try {
+      return await operation(client);
+    } finally {
+      client.terminate();
+    }
   }
 
   async captureScenarios(): Promise<StudioSimulationWorkerScenarioCapturesV2> {
@@ -341,6 +514,42 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }));
     return Object.freeze({
       activeScenarioId: this.#requiredActiveScenarioId(),
+      scenarios: Object.freeze(scenarios),
+    });
+  }
+
+  /**
+   * Selects the newest already-produced cycle-boundary candidate for each
+   * detached intent target. It never waits for speculative convergence. When
+   * no candidate is ready, the click-time exact capture remains authoritative
+   * and a low-priority candidate is started only for a later request.
+   */
+  selectBestAvailableScenarioCaptures(
+    captures: StudioSimulationWorkerScenarioCapturesV2,
+  ): StudioSimulationWorkerScenarioCapturesV2 {
+    this.#requireActive();
+    if (this.#steadyCandidates === undefined) return captures;
+    const scenarios = captures.scenarios.map((scenario) => {
+      const lane = this.#requiredLane(scenario.scenarioId);
+      const source = {
+        modelId: this.#expectedModelId,
+        inputEpoch: lane.latestFrame.inputEpoch,
+        scenario,
+      } satisfies WorkbenchSteadyCandidateSourceV3;
+      const candidate = this.#steadyCandidates!.bestAvailable(source);
+      if (candidate === null) {
+        this.#steadyCandidates!.prewarm(source);
+        return scenario;
+      }
+      return Object.freeze({
+        ...candidate.scenario,
+        // Labels are authored presentation metadata, not numerical candidate
+        // identity. Preserve a rename without recomputing the same state.
+        label: scenario.label,
+      });
+    });
+    return Object.freeze({
+      activeScenarioId: captures.activeScenarioId,
       scenarios: Object.freeze(scenarios),
     });
   }
@@ -371,12 +580,38 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#flushFrames();
   }
 
+  /** Pauses and drains only one numerical lane; sibling Scenarios stay live. */
+  async pauseScenario(
+    scenarioId: string,
+  ): Promise<StudioSimulationFrameV2> {
+    if (this.#state === "terminated") {
+      throw new Error("parallel Scenario runtime is not active");
+    }
+    this.#requireActive();
+    const lane = this.#requiredLane(scenarioId);
+    await lane.scheduler.pause();
+    this.#flushFrames();
+    return lane.latestFrame;
+  }
+
+  /** Resumes one drained lane only when global playback intent is still live. */
+  resumeScenario(scenarioId: string): void {
+    if (this.#state === "terminated" || !this.#playing) return;
+    this.#requireActive();
+    const lane = this.#requiredLane(scenarioId);
+    if (lane.scheduler.running) return;
+    lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
+  }
+
   terminate(): void {
     if (this.#state === "terminated") return;
     this.#state = "terminated";
     this.#playing = false;
+    this.#steadyCandidates?.dispose();
     this.#cancelPendingFlush();
     this.#pendingFrames = [];
+    for (const client of this.#analysisClients) client.terminate();
+    this.#analysisClients.clear();
     for (const lane of this.#lanes.values()) terminateLaneV3(lane);
     this.#lanes.clear();
     this.#pendingScenarioIds.clear();
@@ -387,8 +622,11 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (this.#state === "terminated") return;
     this.#state = "terminated";
     this.#playing = false;
+    this.#steadyCandidates?.dispose();
     this.#cancelPendingFlush();
     this.#pendingFrames = [];
+    for (const client of this.#analysisClients) client.terminate();
+    this.#analysisClients.clear();
     const lanes = [...this.#lanes.values()];
     this.#lanes.clear();
     this.#pendingScenarioIds.clear();
@@ -462,6 +700,44 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       scenarioId,
       label: lane.descriptor.label,
       capture: scenario.capture,
+    });
+  }
+
+  async #prewarmLane(lane: WorkbenchParallelScenarioLaneV3): Promise<void> {
+    if (this.#steadyCandidates === undefined) return;
+    const scenario = await this.#captureScenario(
+      lane.descriptor.scenarioId,
+    );
+    this.#steadyCandidates.prewarm(
+      this.#steadyCandidateSource(lane, scenario),
+    );
+  }
+
+  #bestAvailableSteadyCandidate(
+    scenario: ExperimentScenarioV2,
+    inputEpoch: number,
+  ): ExperimentScenarioV2 {
+    if (this.#steadyCandidates === undefined) return scenario;
+    const lane = this.#requiredLane(scenario.scenarioId);
+    const candidate = this.#steadyCandidates.bestAvailable(
+      this.#steadyCandidateSource(lane, scenario, inputEpoch),
+    );
+    if (candidate === null) return scenario;
+    return Object.freeze({
+      ...candidate.scenario,
+      label: scenario.label,
+    });
+  }
+
+  #steadyCandidateSource(
+    lane: WorkbenchParallelScenarioLaneV3,
+    scenario: ExperimentScenarioV2,
+    inputEpoch = lane.latestFrame.inputEpoch,
+  ): WorkbenchSteadyCandidateSourceV3 {
+    return Object.freeze({
+      modelId: this.#expectedModelId,
+      inputEpoch,
+      scenario,
     });
   }
 
@@ -569,6 +845,23 @@ function validateScenarioSeedsV3(
   if (!ids.has(activeScenarioId)) {
     throw new Error("parallel active Scenario is not in the seed set");
   }
+}
+
+function validatedAnalysisPartitionsV3(
+  partitions: readonly string[],
+): readonly string[] {
+  if (partitions.length < 1 || partitions.length > 4) {
+    throw new Error("parallel analysis requires 1-4 Worker partitions");
+  }
+  const validated = partitions.map((partition, index) =>
+    validateStudioSimulationPortableIdV2(
+      partition,
+      `$.analysisExecutionPlan.partitions[${index}]`,
+    ));
+  if (new Set(validated).size !== validated.length) {
+    throw new Error("parallel analysis Worker partitions must be unique");
+  }
+  return Object.freeze(validated);
 }
 
 function requireScenarioLabelV3(label: string): void {

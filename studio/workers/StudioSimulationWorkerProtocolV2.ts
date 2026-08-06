@@ -1,19 +1,20 @@
 import type {
+  ExperimentContentV2,
   ExperimentScenarioV2,
   ExperimentSnapshotV2,
   ExperimentSurfaceV2,
-  ExperimentWorkspaceV2,
+  ExperimentV2,
   ScenarioCheckpointV2,
   ScenarioPresetV2,
 } from "@/studio/contracts/v2/content";
 import {
-  STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+  STUDIO_EXPERIMENT_V2_SCHEMA_ID,
 } from "@/studio/contracts/v2/content";
 import {
   validateScenarioCaptureV2,
   validateScenarioPresetV2,
   validateExperimentSnapshotV2,
-  validateExperimentWorkspaceV2,
+  validateExperimentV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import type {
   StudioJsonValueV2,
@@ -34,8 +35,7 @@ export const STUDIO_SIMULATION_WORKER_PROTOCOL_V2 =
 export const STUDIO_SIMULATION_WORKER_MAX_ADVANCE_STEPS_V2 = 16;
 
 export type StudioSimulationWorkerAuthoringSeedV2 = Readonly<{
-  workspace?: ExperimentWorkspaceV2;
-  snapshots?: readonly ExperimentSnapshotV2[];
+  experiment?: ExperimentV2;
 }>;
 
 export type StudioSimulationWorkerInitializeInputV2 = Readonly<{
@@ -69,14 +69,15 @@ export type StudioSimulationWorkerRequestAnalysisInputV2 = Readonly<{
   expectedInputEpoch: number;
   expectedAcceptedRevision: number;
   expectedAcceptedTimeSec: number;
+  analysisPartition?: string;
 }>;
 
-export type StudioSimulationWorkerSaveDraftInputV2 = Readonly<{
+export type StudioSimulationWorkerSaveExperimentInputV2 = Readonly<{
   runtimeSessionId: string;
   scenarioId: string;
   experimentId: string;
   surface: ExperimentSurfaceV2;
-  expectedDraftVersion: number | null;
+  expectedVersion: number | null;
 }>;
 
 export type StudioSimulationWorkerScenarioDescriptorV2 = Readonly<{
@@ -129,13 +130,17 @@ export type StudioSimulationWorkerReadScenariosInputV2 = Readonly<{
   runtimeSessionId: string;
 }>;
 
-export type StudioSimulationWorkerCreateSnapshotInputV2 = Readonly<{
+type StudioSimulationWorkerCreateSnapshotBaseInputV2 = Readonly<{
   runtimeSessionId: string;
   scenarioId: string;
-  experimentId: string;
-  expectedDraftVersion: number;
-  expectedHeadSnapshotId: string | null;
+  surface: ExperimentSurfaceV2;
 }>;
+
+export type StudioSimulationWorkerCreateSnapshotInputV2 =
+  StudioSimulationWorkerCreateSnapshotBaseInputV2 & Readonly<{
+    /** Transient workflow constraint; never persisted in the Snapshot. */
+    snapshotSource: "saved-experiment" | "session";
+  }>;
 
 export type StudioSimulationWorkerRequestV2 =
   | Readonly<{
@@ -178,16 +183,19 @@ export type StudioSimulationWorkerRequestV2 =
       expectedInputEpoch: number;
       expectedAcceptedRevision: number;
       expectedAcceptedTimeSec: number;
+      analysisPartition?: string;
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
       requestId: number;
-      kind: "save-draft";
+      kind: "save-experiment";
       runtimeSessionId: string;
       scenarioId: string;
       experimentId: string;
       surface: ExperimentSurfaceV2;
-      expectedDraftVersion: number | null;
+      /** Complete Experiment Scenario identity set used to validate Surface refs. */
+      scenarioIds: readonly string[];
+      expectedVersion: number | null;
       expectedInputEpoch: number;
       expectedAcceptedRevision: number;
       expectedAcceptedTimeSec: number;
@@ -264,9 +272,13 @@ export type StudioSimulationWorkerRequestV2 =
       kind: "create-snapshot";
       runtimeSessionId: string;
       scenarioId: string;
-      experimentId: string;
-      expectedDraftVersion: number;
-      expectedHeadSnapshotId: string | null;
+      surface: ExperimentSurfaceV2;
+      /** Complete Scenario identity set used to validate Surface refs. */
+      scenarioIds: readonly string[];
+      snapshotSource: "saved-experiment" | "session";
+      expectedInputEpoch: number;
+      expectedAcceptedRevision: number;
+      expectedAcceptedTimeSec: number;
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -301,6 +313,13 @@ export type StudioSimulationWorkerResponseV2 =
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
       requestId: number;
       status: "ok";
+      kind: "analysis-progress";
+      analysis: StudioSimulationAnalysisV2;
+    }>
+  | Readonly<{
+      protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
+      requestId: number;
+      status: "ok";
       kind: "analysis-result";
       analysis: StudioSimulationAnalysisV2;
     }>
@@ -322,8 +341,8 @@ export type StudioSimulationWorkerResponseV2 =
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
       requestId: number;
       status: "ok";
-      kind: "draft-saved";
-      workspace: ExperimentWorkspaceV2;
+      kind: "experiment-saved";
+      experiment: ExperimentV2;
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -331,7 +350,6 @@ export type StudioSimulationWorkerResponseV2 =
       status: "ok";
       kind: "snapshot-created";
       snapshot: ExperimentSnapshotV2;
-      workspace: ExperimentWorkspaceV2;
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -439,7 +457,7 @@ export function createStudioSimulationRequestAnalysisRequestV2(
     "expectedInputEpoch",
     "runtimeSessionId",
     "scenarioId",
-  ], [], "$.requestAnalysis");
+  ], ["analysisPartition"], "$.requestAnalysis");
   return validateStudioSimulationWorkerRequestV2({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId,
@@ -450,39 +468,46 @@ export function createStudioSimulationRequestAnalysisRequestV2(
     expectedInputEpoch: input.expectedInputEpoch,
     expectedAcceptedRevision: input.expectedAcceptedRevision,
     expectedAcceptedTimeSec: input.expectedAcceptedTimeSec,
+    ...(input.analysisPartition === undefined
+      ? {}
+      : { analysisPartition: input.analysisPartition }),
   }) as Extract<
     StudioSimulationWorkerRequestV2,
     { kind: "request-analysis" }
   >;
 }
 
-export function createStudioSimulationSaveDraftRequestV2(
+export function createStudioSimulationSaveExperimentRequestV2(
   requestId: number,
   value: unknown,
-): Extract<StudioSimulationWorkerRequestV2, { kind: "save-draft" }> {
+): Extract<StudioSimulationWorkerRequestV2, { kind: "save-experiment" }> {
   const input = exactDataRecordV2(value, [
     "expectedAcceptedRevision",
     "expectedAcceptedTimeSec",
-    "expectedDraftVersion",
+    "expectedVersion",
     "expectedInputEpoch",
     "experimentId",
     "runtimeSessionId",
     "scenarioId",
     "surface",
-  ], [], "$.saveDraft");
+  ], ["scenarioIds"], "$.saveExperiment");
+  const scenarioIds = input.scenarioIds === undefined
+    ? [input.scenarioId]
+    : input.scenarioIds;
   return validateStudioSimulationWorkerRequestV2({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId,
-    kind: "save-draft",
+    kind: "save-experiment",
     runtimeSessionId: input.runtimeSessionId,
     scenarioId: input.scenarioId,
     experimentId: input.experimentId,
     surface: input.surface,
-    expectedDraftVersion: input.expectedDraftVersion,
+    scenarioIds,
+    expectedVersion: input.expectedVersion,
     expectedInputEpoch: input.expectedInputEpoch,
     expectedAcceptedRevision: input.expectedAcceptedRevision,
     expectedAcceptedTimeSec: input.expectedAcceptedTimeSec,
-  }) as Extract<StudioSimulationWorkerRequestV2, { kind: "save-draft" }>;
+  }) as Extract<StudioSimulationWorkerRequestV2, { kind: "save-experiment" }>;
 }
 
 function activeBoundaryCorrelationFieldsV2(
@@ -636,11 +661,14 @@ export function createStudioSimulationCreateSnapshotRequestV2(
   value: unknown,
 ): Extract<StudioSimulationWorkerRequestV2, { kind: "create-snapshot" }> {
   const input = exactDataRecordV2(value, [
-    "expectedDraftVersion",
-    "expectedHeadSnapshotId",
-    "experimentId",
+    "expectedAcceptedRevision",
+    "expectedAcceptedTimeSec",
+    "expectedInputEpoch",
     "runtimeSessionId",
     "scenarioId",
+    "scenarioIds",
+    "snapshotSource",
+    "surface",
   ], [], "$.createSnapshot");
   return validateStudioSimulationWorkerRequestV2({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
@@ -648,9 +676,12 @@ export function createStudioSimulationCreateSnapshotRequestV2(
     kind: "create-snapshot",
     runtimeSessionId: input.runtimeSessionId,
     scenarioId: input.scenarioId,
-    experimentId: input.experimentId,
-    expectedDraftVersion: input.expectedDraftVersion,
-    expectedHeadSnapshotId: input.expectedHeadSnapshotId,
+    scenarioIds: input.scenarioIds,
+    surface: input.surface,
+    snapshotSource: input.snapshotSource,
+    expectedInputEpoch: input.expectedInputEpoch,
+    expectedAcceptedRevision: input.expectedAcceptedRevision,
+    expectedAcceptedTimeSec: input.expectedAcceptedTimeSec,
   }) as Extract<
     StudioSimulationWorkerRequestV2,
     { kind: "create-snapshot" }
@@ -813,7 +844,7 @@ export function validateStudioSimulationWorkerRequestV2(
       "requestId",
       "runtimeSessionId",
       "scenarioId",
-    ], [], "$.request");
+    ], ["analysisPartition"], "$.request");
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
@@ -830,6 +861,14 @@ export function validateStudioSimulationWorkerRequestV2(
         request.analysisId,
         "$.request.analysisId",
       ),
+      ...(request.analysisPartition === undefined
+        ? {}
+        : {
+            analysisPartition: validateStudioSimulationPortableIdV2(
+              request.analysisPartition,
+              "$.request.analysisPartition",
+            ),
+          }),
       expectedInputEpoch: nonnegativeSafeIntegerV2(
         request.expectedInputEpoch,
         "$.request.expectedInputEpoch",
@@ -845,11 +884,11 @@ export function validateStudioSimulationWorkerRequestV2(
     });
   }
 
-  if (envelope.kind === "save-draft") {
+  if (envelope.kind === "save-experiment") {
     const request = exactDataRecordV2(envelope, [
       "expectedAcceptedRevision",
       "expectedAcceptedTimeSec",
-      "expectedDraftVersion",
+      "expectedVersion",
       "expectedInputEpoch",
       "experimentId",
       "kind",
@@ -857,6 +896,7 @@ export function validateStudioSimulationWorkerRequestV2(
       "requestId",
       "runtimeSessionId",
       "scenarioId",
+      "scenarioIds",
       "surface",
     ], [], "$.request");
     const runtimeSessionId = validateStudioSimulationPortableIdV2(
@@ -867,10 +907,15 @@ export function validateStudioSimulationWorkerRequestV2(
       request.scenarioId,
       "$.request.scenarioId",
     );
+    const scenarioIds = validateScenarioIdsV2(
+      request.scenarioIds,
+      scenarioId,
+      "$.request.scenarioIds",
+    );
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
-      kind: "save-draft",
+      kind: "save-experiment",
       runtimeSessionId,
       scenarioId,
       experimentId: validateStudioSimulationPortableIdV2(
@@ -879,12 +924,13 @@ export function validateStudioSimulationWorkerRequestV2(
       ),
       surface: validateSurfaceV2(
         request.surface,
-        scenarioId,
+        scenarioIds,
         "$.request.surface",
       ),
-      expectedDraftVersion: nullableNonnegativeSafeIntegerV2(
-        request.expectedDraftVersion,
-        "$.request.expectedDraftVersion",
+      scenarioIds,
+      expectedVersion: nullableNonnegativeSafeIntegerV2(
+        request.expectedVersion,
+        "$.request.expectedVersion",
       ),
       expectedInputEpoch: nonnegativeSafeIntegerV2(
         request.expectedInputEpoch,
@@ -1083,38 +1129,60 @@ export function validateStudioSimulationWorkerRequestV2(
 
   if (envelope.kind === "create-snapshot") {
     const request = exactDataRecordV2(envelope, [
-      "expectedDraftVersion",
-      "expectedHeadSnapshotId",
-      "experimentId",
+      "expectedAcceptedRevision",
+      "expectedAcceptedTimeSec",
+      "expectedInputEpoch",
       "kind",
       "protocol",
       "requestId",
       "runtimeSessionId",
       "scenarioId",
+      "scenarioIds",
+      "snapshotSource",
+      "surface",
     ], [], "$.request");
+    const runtimeSessionId = validateStudioSimulationPortableIdV2(
+      request.runtimeSessionId,
+      "$.request.runtimeSessionId",
+    );
+    const scenarioId = validateStudioSimulationPortableIdV2(
+      request.scenarioId,
+      "$.request.scenarioId",
+    );
+    const scenarioIds = validateScenarioIdsV2(
+      request.scenarioIds,
+      scenarioId,
+      "$.request.scenarioIds",
+    );
+    const surface = validateSurfaceV2(
+      request.surface,
+      scenarioIds,
+      "$.request.surface",
+    );
+    const snapshotSource = snapshotSourceV2(
+      request.snapshotSource,
+      "$.request.snapshotSource",
+    );
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
       kind: "create-snapshot",
-      runtimeSessionId: validateStudioSimulationPortableIdV2(
-        request.runtimeSessionId,
-        "$.request.runtimeSessionId",
+      runtimeSessionId,
+      scenarioId,
+      scenarioIds,
+      surface,
+      snapshotSource,
+      expectedInputEpoch: nonnegativeSafeIntegerV2(
+        request.expectedInputEpoch,
+        "$.request.expectedInputEpoch",
       ),
-      scenarioId: validateStudioSimulationPortableIdV2(
-        request.scenarioId,
-        "$.request.scenarioId",
+      expectedAcceptedRevision: nonnegativeSafeIntegerV2(
+        request.expectedAcceptedRevision,
+        "$.request.expectedAcceptedRevision",
       ),
-      experimentId: validateStudioSimulationPortableIdV2(
-        request.experimentId,
-        "$.request.experimentId",
-      ),
-      expectedDraftVersion: nonnegativeSafeIntegerV2(
-        request.expectedDraftVersion,
-        "$.request.expectedDraftVersion",
-      ),
-      expectedHeadSnapshotId: nullablePortableIdV2(
-        request.expectedHeadSnapshotId,
-        "$.request.expectedHeadSnapshotId",
+      expectedAcceptedTimeSec: nonnegativeFiniteNumberV2(
+        request.expectedAcceptedTimeSec,
+        "$.request.expectedAcceptedTimeSec",
       ),
     });
   }
@@ -1244,7 +1312,10 @@ export function validateStudioSimulationWorkerResponseV2(
       frame: validateStudioSimulationFrameV2(response.frame),
     });
   }
-  if (envelope.kind === "analysis-result") {
+  if (
+    envelope.kind === "analysis-progress"
+    || envelope.kind === "analysis-result"
+  ) {
     const response = exactDataRecordV2(envelope, [
       "analysis",
       "kind",
@@ -1256,7 +1327,7 @@ export function validateStudioSimulationWorkerResponseV2(
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
       status: "ok",
-      kind: "analysis-result",
+      kind: envelope.kind,
       analysis: validateStudioSimulationAnalysisV2(response.analysis),
     });
   }
@@ -1295,20 +1366,20 @@ export function validateStudioSimulationWorkerResponseV2(
       ),
     });
   }
-  if (envelope.kind === "draft-saved") {
+  if (envelope.kind === "experiment-saved") {
     const response = exactDataRecordV2(envelope, [
       "kind",
       "protocol",
       "requestId",
       "status",
-      "workspace",
+      "experiment",
     ], [], "$.response");
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
       status: "ok",
-      kind: "draft-saved",
-      workspace: validateExperimentWorkspaceV2(response.workspace),
+      kind: "experiment-saved",
+      experiment: validateExperimentV2(response.experiment),
     });
   }
   if (envelope.kind === "snapshot-created") {
@@ -1318,7 +1389,6 @@ export function validateStudioSimulationWorkerResponseV2(
       "requestId",
       "snapshot",
       "status",
-      "workspace",
     ], [], "$.response");
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
@@ -1326,7 +1396,6 @@ export function validateStudioSimulationWorkerResponseV2(
       status: "ok",
       kind: "snapshot-created",
       snapshot: validateExperimentSnapshotV2(response.snapshot),
-      workspace: validateExperimentWorkspaceV2(response.workspace),
     });
   }
   if (envelope.kind === "disposed") {
@@ -1589,15 +1658,6 @@ function nullableNonnegativeSafeIntegerV2(
   return value === null ? null : nonnegativeSafeIntegerV2(value, path);
 }
 
-function nullablePortableIdV2(
-  value: unknown,
-  path: string,
-): string | null {
-  return value === null
-    ? null
-    : validateStudioSimulationPortableIdV2(value, path);
-}
-
 function nonemptyTrimmedStringV2(value: unknown, path: string): string {
   if (
     typeof value !== "string"
@@ -1621,71 +1681,99 @@ function validateAuthoringSeedV2(
   const seed = exactDataRecordV2(
     value,
     [],
-    ["snapshots", "workspace"],
+    ["experiment"],
     path,
   );
-  let workspace: ExperimentWorkspaceV2 | undefined;
-  if (Object.prototype.hasOwnProperty.call(seed, "workspace")) {
+  let experiment: ExperimentV2 | undefined;
+  if (Object.prototype.hasOwnProperty.call(seed, "experiment")) {
     try {
-      workspace = validateExperimentWorkspaceV2(seed.workspace);
+      experiment = validateExperimentV2(seed.experiment);
     } catch (error) {
       throw protocolErrorV2(path, errorMessageForProtocolV2(error));
     }
   }
-  let snapshots: readonly ExperimentSnapshotV2[] | undefined;
-  if (Object.prototype.hasOwnProperty.call(seed, "snapshots")) {
-    const values = arrayDataValuesV2(seed.snapshots, `${path}.snapshots`);
-    const detached: ExperimentSnapshotV2[] = [];
-    for (let index = 0; index < values.length; index += 1) {
-      try {
-        detached.push(validateExperimentSnapshotV2(values[index]));
-      } catch (error) {
-        throw protocolErrorV2(
-          `${path}.snapshots[${index}]`,
-          errorMessageForProtocolV2(error),
-        );
-      }
-    }
-    snapshots = Object.freeze(detached);
-  }
   return Object.freeze({
-    ...(workspace === undefined ? {} : { workspace }),
-    ...(snapshots === undefined ? {} : { snapshots }),
+    ...(experiment === undefined ? {} : { experiment }),
   });
 }
 
 function validateSurfaceV2(
   value: unknown,
-  scenarioId: string,
+  scenarioIds: readonly string[],
   path: string,
 ): ExperimentSurfaceV2 {
   try {
-    return validateExperimentWorkspaceV2({
-      schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+    return validateExperimentV2({
+      schemaId: STUDIO_EXPERIMENT_V2_SCHEMA_ID,
       experimentId: "experiment/protocol-validation",
-      draftVersion: 0,
-      headSnapshotId: null,
-      basedOnSnapshotId: null,
-      content: {
-        modelId: "model/protocol-validation",
-        scenarios: [{
-          scenarioId,
-          label: "Protocol validation",
-          capture: {
-            fixture: null,
-            checkpoint: {
-              acceptedRevision: 0,
-              acceptedTimeSec: 0,
-              payload: null,
-            },
-          },
-        }],
-        surface: value,
-      },
+      version: 0,
+      content: protocolValidationContentV2(
+        value as ExperimentSurfaceV2,
+        scenarioIds,
+      ),
     }).content.surface;
   } catch (error) {
     throw protocolErrorV2(path, errorMessageForProtocolV2(error));
   }
+}
+
+function protocolValidationContentV2(
+  surface: ExperimentSurfaceV2,
+  scenarioIds: readonly string[],
+): ExperimentContentV2 {
+  return {
+    modelId: "model/protocol-validation",
+    scenarios: scenarioIds.map((scenarioId, index) => ({
+      scenarioId,
+      label: `Protocol validation ${index + 1}`,
+      capture: {
+        fixture: null,
+        checkpoint: {
+          acceptedRevision: 0,
+          acceptedTimeSec: 0,
+          payload: null,
+        },
+      },
+    })),
+    surface,
+  };
+}
+
+function snapshotSourceV2(
+  value: unknown,
+  path: string,
+): "saved-experiment" | "session" {
+  if (value !== "saved-experiment" && value !== "session") {
+    throw protocolErrorV2(path, "must be saved-experiment or session");
+  }
+  return value;
+}
+
+function validateScenarioIdsV2(
+  value: unknown,
+  activeScenarioId: string,
+  path: string,
+): readonly string[] {
+  const values = arrayDataValuesV2(value, path);
+  if (values.length === 0) {
+    throw protocolErrorV2(path, "must contain at least one Scenario ID");
+  }
+  const seen = new Set<string>();
+  const scenarioIds = values.map((candidate, index) => {
+    const scenarioId = validateStudioSimulationPortableIdV2(
+      candidate,
+      `${path}[${index}]`,
+    );
+    if (seen.has(scenarioId)) {
+      throw protocolErrorV2(`${path}[${index}]`, "duplicates a Scenario ID");
+    }
+    seen.add(scenarioId);
+    return scenarioId;
+  });
+  if (!seen.has(activeScenarioId)) {
+    throw protocolErrorV2(path, "must include the active Scenario ID");
+  }
+  return Object.freeze(scenarioIds);
 }
 
 function errorMessageForProtocolV2(error: unknown): string {

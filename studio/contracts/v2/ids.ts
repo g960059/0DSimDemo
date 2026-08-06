@@ -11,7 +11,7 @@ export type ExperimentPlacementIdV2 = string;
 
 /**
  * The only numeric revision retained by the authoring model is an optimistic
- * concurrency token for the mutable workspace. It is not immutable content
+ * concurrency token for the mutable Experiment. It is not immutable content
  * identity and is never referenced by an article placement.
  */
-export type ExperimentDraftVersionV2 = number;
+export type ExperimentVersionV2 = number;

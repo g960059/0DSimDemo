@@ -6,6 +6,9 @@ export const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_INPUT_KEYS_V3 =
     "pulmonaryResistance",
     "venousTone",
     "arterialStiffness",
+    "heartRateBpm",
+    "totalBloodVolumeMl",
+    "peepCmH2O",
   ] as const);
 
 export type MainWireIntegratedModelHemodynamicResearchInputKeyV3 =
@@ -48,6 +51,21 @@ export const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 =
       maximum: 1,
       step: 0.01,
     }),
+    heartRateBpm: Object.freeze({
+      minimum: 40,
+      maximum: 100,
+      step: 1,
+    }),
+    totalBloodVolumeMl: Object.freeze({
+      minimum: 4_800,
+      maximum: 7_000,
+      step: 50,
+    }),
+    peepCmH2O: Object.freeze({
+      minimum: 0,
+      maximum: 20,
+      step: 1,
+    }),
   } satisfies Readonly<Record<
     MainWireIntegratedModelHemodynamicResearchInputKeyV3,
     MainWireIntegratedModelHemodynamicResearchInputRangeV3
@@ -61,6 +79,9 @@ MainWireIntegratedModelHemodynamicResearchInputsV3 = Object.freeze({
   pulmonaryResistance: DEFAULT_PARAMS_V3.pulmonaryResistance,
   venousTone: DEFAULT_PARAMS_V3.venousTone,
   arterialStiffness: DEFAULT_PARAMS_V3.arterialStiffness,
+  heartRateBpm: 60,
+  totalBloodVolumeMl: 5_600,
+  peepCmH2O: 0,
 });
 
 export function validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(

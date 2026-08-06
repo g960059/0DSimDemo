@@ -293,7 +293,7 @@ export function validateExecutableBundleV2(
     "checkpointCodecId",
     "snapshotGateId",
     "captureAdapter",
-    "draftCapture",
+    "experimentCapture",
     "snapshotGate",
     "fixtureAdapter",
     "simulationAdapter",
@@ -305,16 +305,16 @@ export function validateExecutableBundleV2(
     "validateFixture",
     "validateCapture",
   ], "capture adapter");
-  assertExactExecutableKeysV2(bundle.draftCapture, [
+  assertExactExecutableKeysV2(bundle.experimentCapture, [
     "modelId",
     "fixtureSchemaId",
     "checkpointCodecId",
     "captureAcceptedCandidate",
-  ], "Draft capture adapter");
+  ], "Experiment capture adapter");
   assertExactExecutableKeysV2(bundle.snapshotGate, [
     "modelId",
     "snapshotGateId",
-    "qualifyFrozenCandidate",
+    "admitFrozenCandidate",
   ], "Snapshot gate adapter");
   assertExactExecutableKeysV2(bundle.fixtureAdapter, [
     "modelId",
@@ -349,13 +349,13 @@ export function validateExecutableBundleV2(
   }
   assertCaptureAdapterMatchesModelV2(bundle.captureAdapter, model);
   if (
-    bundle.draftCapture?.modelId !== model.modelId
-    || bundle.draftCapture.fixtureSchemaId !== model.fixtureSchemaId
-    || bundle.draftCapture.checkpointCodecId !== model.checkpointCodecId
-    || typeof bundle.draftCapture.captureAcceptedCandidate !== "function"
+    bundle.experimentCapture?.modelId !== model.modelId
+    || bundle.experimentCapture.fixtureSchemaId !== model.fixtureSchemaId
+    || bundle.experimentCapture.checkpointCodecId !== model.checkpointCodecId
+    || typeof bundle.experimentCapture.captureAcceptedCandidate !== "function"
     || bundle.snapshotGate?.modelId !== model.modelId
     || bundle.snapshotGate.snapshotGateId !== model.snapshotGateId
-    || typeof bundle.snapshotGate.qualifyFrozenCandidate !== "function"
+    || typeof bundle.snapshotGate.admitFrozenCandidate !== "function"
     || bundle.fixtureAdapter?.modelId !== model.modelId
     || bundle.fixtureAdapter.fixtureSchemaId !== model.fixtureSchemaId
     || typeof bundle.fixtureAdapter.validateCompleteFixture !== "function"
@@ -394,16 +394,16 @@ export function freezeExactRuntimeV2(
       validateFixture: bundle.captureAdapter.validateFixture,
       validateCapture: bundle.captureAdapter.validateCapture,
     }),
-    draftCapture: Object.freeze({
-      modelId: bundle.draftCapture.modelId,
-      fixtureSchemaId: bundle.draftCapture.fixtureSchemaId,
-      checkpointCodecId: bundle.draftCapture.checkpointCodecId,
-      captureAcceptedCandidate: bundle.draftCapture.captureAcceptedCandidate,
+    experimentCapture: Object.freeze({
+      modelId: bundle.experimentCapture.modelId,
+      fixtureSchemaId: bundle.experimentCapture.fixtureSchemaId,
+      checkpointCodecId: bundle.experimentCapture.checkpointCodecId,
+      captureAcceptedCandidate: bundle.experimentCapture.captureAcceptedCandidate,
     }),
     snapshotGate: Object.freeze({
       modelId: bundle.snapshotGate.modelId,
       snapshotGateId: bundle.snapshotGate.snapshotGateId,
-      qualifyFrozenCandidate: bundle.snapshotGate.qualifyFrozenCandidate,
+      admitFrozenCandidate: bundle.snapshotGate.admitFrozenCandidate,
     }),
     fixtureAdapter: Object.freeze({
       modelId: bundle.fixtureAdapter.modelId,

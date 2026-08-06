@@ -4,6 +4,9 @@ import type {
 import type {
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
+import type {
+  StudioSimulationAnalysisExecutionPlanResolverV2,
+} from "@/studio/contracts/v2/simulation";
 import {
   deriveModelContractFromManifestV2,
 } from "@/studio/contracts/v2/model";
@@ -25,6 +28,9 @@ import type {
   MainWireIntegratedStudioFixtureV3,
   MainWireIntegratedStudioModelPackageV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
+import {
+  resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
 typeof MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
@@ -34,7 +40,11 @@ export type StudioDefaultClientCompositionV2 = Readonly<{
   defaultModelId: typeof DEFAULT_STUDIO_MODEL_ID_V2;
   defaultFixture: MainWireIntegratedStudioFixtureV3;
   contract: ModelContractV2;
+  analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
 }>;
+
+export const DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2 =
+  resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
 
 export type StudioDefaultWorkerCompositionV2 = Readonly<{
   defaultModelId: typeof DEFAULT_STUDIO_MODEL_ID_V2;
@@ -47,12 +57,12 @@ let browserCompositionPromiseV2:
 
 /**
  * Loads the one registry-admitted development release into the hash-free
- * client catalog. Startup intentionally creates no Preset, Workspace,
+ * client catalog. Startup intentionally creates no Preset, Experiment,
  * Snapshot, Placement, or Lesson content.
  *
  * Authoring remains outside this main-thread composition. The persistent
  * Worker loads the exact runtime below and owns both live simulation and the
- * accepted-boundary Draft/Snapshot bridge against that single runtime host.
+ * accepted-boundary Experiment/Snapshot bridge against that single runtime host.
  */
 export async function createStudioDefaultClientCompositionV2():
 Promise<StudioDefaultClientCompositionV2> {
@@ -71,6 +81,7 @@ Promise<StudioDefaultClientCompositionV2> {
     defaultModelId: DEFAULT_STUDIO_MODEL_ID_V2,
     defaultFixture: admittedPackage.defaultFixture,
     contract,
+    analysisExecutionPlan: DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
   });
 }
 

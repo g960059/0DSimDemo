@@ -40,9 +40,14 @@ export async function createMainWireIntegratedModelRuntimeV3(
 
 export function mainWireIntegratedModelCheckpointContextV3(
   runtime: MainWireIntegratedModelRuntimeV3,
-  _state: MainWireIntegratedModelAcceptedStateV3<WallState>,
+  state: MainWireIntegratedModelAcceptedStateV3<WallState>,
 ): MainWireIntegratedModelCheckpointContextV3<WallState> {
-  return createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+  const base = createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
     runtime,
   );
+  return Object.freeze({
+    ...base,
+    coronaryAutoregulationBinding:
+      state.coronary.coronaryAutoregulationBinding,
+  });
 }

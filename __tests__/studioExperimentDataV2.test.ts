@@ -4,7 +4,7 @@ import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-  STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+  STUDIO_EXPERIMENT_V2_SCHEMA_ID,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
 } from "@/studio/contracts/v2/content";
 import {
@@ -14,7 +14,7 @@ import {
   validateExperimentPlacementAgainstSnapshotV2,
   validateExperimentDesiredContentForModelV2,
   validateExperimentSnapshotV2,
-  validateExperimentWorkspaceV2,
+  validateExperimentV2,
   validateScenarioPresetV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import type {
@@ -23,9 +23,9 @@ import type {
 } from "@/studio/contracts/v2/model";
 
 describe("Studio Experiment data V2", () => {
-  it("detaches and deeply freezes a mutable workspace with an atomic Scenario capture", () => {
-    const caller = workspaceV2();
-    const validated = validateExperimentWorkspaceV2(caller);
+  it("detaches and deeply freezes a mutable experiment with an atomic Scenario capture", () => {
+    const caller = experimentV2();
+    const validated = validateExperimentV2(caller);
 
     caller.content.scenarios[0]!.label = "caller mutation";
     caller.content.scenarios[0]!.capture.fixture.controls.svr = 99;
@@ -34,9 +34,7 @@ describe("Studio Experiment data V2", () => {
 
     expect(validated).toMatchObject({
       experimentId: "experiment/afterload",
-      draftVersion: 3,
-      headSnapshotId: "snapshot/2",
-      basedOnSnapshotId: "snapshot/2",
+      version: 3,
       content: {
         modelId: "model/main-wire-v3",
         scenarios: [{
@@ -98,9 +96,9 @@ describe("Studio Experiment data V2", () => {
   });
 
   it("limits durable and desired Experiment content to four Scenarios", () => {
-    const workspace = workspaceV2() as Record<string, any>;
-    const baseline = workspace.content.scenarios[0];
-    workspace.content.scenarios = Array.from(
+    const experiment = experimentV2() as Record<string, any>;
+    const baseline = experiment.content.scenarios[0];
+    experiment.content.scenarios = Array.from(
       { length: STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2 + 1 },
       (_, index) => ({
         ...baseline,
@@ -108,7 +106,7 @@ describe("Studio Experiment data V2", () => {
         label: `Scenario ${index + 1}`,
       }),
     );
-    expect(() => validateExperimentWorkspaceV2(workspace))
+    expect(() => validateExperimentV2(experiment))
       .toThrow(/at most 4 Scenarios/);
 
     const desired = desiredContentV2() as Record<string, any>;
@@ -127,13 +125,11 @@ describe("Studio Experiment data V2", () => {
     )).toThrow(/at most 4 Scenarios/);
   });
 
-  it("keeps immutable snapshot identity opaque and separate from draftVersion", () => {
+  it("keeps immutable snapshot identity opaque and separate from Experiment version", () => {
     const snapshot = validateExperimentSnapshotV2(snapshotV2());
 
     expect(snapshot).toEqual(expect.objectContaining({
       snapshotId: "snapshot/3",
-      experimentId: "experiment/afterload",
-      parentSnapshotId: "snapshot/2",
       createdAt: "2026-07-31T03:04:05.000Z",
       createdBy: "user/author",
     }));
@@ -148,7 +144,7 @@ describe("Studio Experiment data V2", () => {
   });
 
   it("models role panes, authored presentation metadata and exactly one note", () => {
-    const validated = validateExperimentWorkspaceV2(workspaceV2());
+    const validated = validateExperimentV2(experimentV2());
     expect(validated.content.surface).toEqual({
       graphPanes: [{
         paneId: "pane/pressure",
@@ -157,11 +153,12 @@ describe("Studio Experiment data V2", () => {
         order: 0,
         priority: 10,
         graphId: "catalog.graph/pressure",
+        scenarioScope: { mode: "visible-scenarios" },
+        excludedTraces: [],
         windowSec: 2,
         series: [{
           seriesId: "MAP",
           label: "MAP",
-          colorHex: "#3ea8ff",
           order: 0,
         }],
       }],
@@ -171,6 +168,7 @@ describe("Studio Experiment data V2", () => {
         label: "Outputs",
         order: 0,
         priority: 8,
+        binding: { mode: "active-slot" },
         items: [{
           outputId: "catalog.output/map",
           label: "MAP",
@@ -183,10 +181,12 @@ describe("Studio Experiment data V2", () => {
         label: "Controls",
         order: 0,
         priority: 9,
+        binding: { mode: "active-slot" },
         items: [{
           controlId: "catalog.control/svr",
           label: "SVR",
           order: 0,
+          presentation: { kind: "slider" },
         }],
       }],
       note: {
@@ -195,79 +195,197 @@ describe("Studio Experiment data V2", () => {
     });
 
     for (const forbidden of ["extent", "fullscreen", "layout", "geometry"]) {
-      const candidate = workspaceV2() as Record<string, any>;
+      const candidate = experimentV2() as Record<string, any>;
       candidate.content.surface[forbidden] = {};
-      expect(() => validateExperimentWorkspaceV2(candidate))
-        .toThrow(/keys must be exactly/);
+      expect(() => validateExperimentV2(candidate))
+        .toThrow(/field set mismatch/);
     }
 
-    const missingNote = workspaceV2() as Record<string, any>;
+    const missingNote = experimentV2() as Record<string, any>;
     delete missingNote.content.surface.note;
-    expect(() => validateExperimentWorkspaceV2(missingNote))
-      .toThrow(/keys must be exactly/);
+    expect(() => validateExperimentV2(missingNote))
+      .toThrow(/field set mismatch/);
 
-    const noteArray = workspaceV2() as Record<string, any>;
+    const noteArray = experimentV2() as Record<string, any>;
     noteArray.content.surface.note = [noteArray.content.surface.note];
-    expect(() => validateExperimentWorkspaceV2(noteArray))
+    expect(() => validateExperimentV2(noteArray))
       .toThrow(/must be an object/);
 
     for (
       const role of ["graphPanes", "outputPanes", "controlPanes"] as const
     ) {
-      const legacyPaneColor = workspaceV2() as Record<string, any>;
+      const legacyPaneColor = experimentV2() as Record<string, any>;
       legacyPaneColor.content.surface[role][0].colorHex = "#3ea8ff";
-      expect(() => validateExperimentWorkspaceV2(legacyPaneColor))
+      expect(() => validateExperimentV2(legacyPaneColor))
         .toThrow(/field set mismatch|keys must be exactly/);
     }
 
     for (const role of ["outputPanes", "controlPanes"] as const) {
-      const legacyItemColor = workspaceV2() as Record<string, any>;
+      const legacyItemColor = experimentV2() as Record<string, any>;
       legacyItemColor.content.surface[role][0].items[0].colorHex = "#3ea8ff";
-      expect(() => validateExperimentWorkspaceV2(legacyItemColor))
+      expect(() => validateExperimentV2(legacyItemColor))
         .toThrow(/field set mismatch|keys must be exactly/);
     }
   });
 
-  it("keeps control panes Scenario-agnostic for the active inspector context", () => {
-    const validated = validateExperimentWorkspaceV2(workspaceV2());
+  it("persists materialized automatic and optional custom trace colors", () => {
+    const candidate = experimentV2() as Record<string, any>;
+    candidate.content.surface.scenarioColorSeeds = [{
+      scenarioId: "scenario/baseline",
+      colorHex: "#167db8",
+    }];
+    candidate.content.surface.graphPanes[0].traceColors = [
+      {
+        scenarioId: "scenario/baseline",
+        seriesId: null,
+        automaticColorHex: "#a96c08",
+      },
+      {
+        scenarioId: "scenario/baseline",
+        seriesId: "MAP",
+        automaticColorHex: "#167db8",
+        customColorHex: "#db2777",
+      },
+    ];
+
+    const validated = validateExperimentV2(candidate);
+    expect(validated.content.surface.scenarioColorSeeds).toEqual([{
+      scenarioId: "scenario/baseline",
+      colorHex: "#167db8",
+    }]);
+    expect(validated.content.surface.graphPanes[0]?.traceColors)
+      .toEqual(candidate.content.surface.graphPanes[0].traceColors);
+
+    const unknownScenario = structuredClone(candidate);
+    unknownScenario.content.surface.graphPanes[0].traceColors[0]
+      .scenarioId = "scenario/missing";
+    expect(() => validateExperimentV2(unknownScenario))
+      .toThrow(/must reference a Scenario in the same Experiment/);
+
+    const unknownItem = structuredClone(candidate);
+    unknownItem.content.surface.graphPanes[0].traceColors[1].seriesId =
+      "missing";
+    expect(() => validateExperimentV2(unknownItem))
+      .toThrow(/must reference a selected series in the same graph pane/);
+  });
+
+  it("stores one pane-level controller binding and rejects item-level targets", () => {
+    const validated = validateExperimentV2(experimentV2());
     expect(validated.content.surface.controlPanes[0]?.items[0]).toEqual({
       controlId: "catalog.control/svr",
       label: "SVR",
       order: 0,
+      presentation: { kind: "slider" },
     });
     expect(() => assertExperimentContentMatchesModelV2(
       validated.content,
       modelContractV2(),
     )).not.toThrow();
 
-    const legacyTargets = workspaceV2() as Record<string, any>;
+    const legacyTargets = experimentV2() as Record<string, any>;
     legacyTargets.content.surface.controlPanes[0].items[0].targetScenarioIds = [
       "scenario/baseline",
     ];
-    expect(() => validateExperimentWorkspaceV2(legacyTargets))
+    expect(() => validateExperimentV2(legacyTargets))
       .toThrow(/keys must be exactly/);
+
+    const fixed = experimentV2() as Record<string, any>;
+    fixed.content.surface.controlPanes[0].binding = {
+      mode: "fixed",
+      scenarioIds: ["scenario/baseline"],
+    };
+    expect(validateExperimentV2(fixed).content.surface
+      .controlPanes[0]?.binding).toEqual({
+        mode: "fixed",
+        scenarioIds: ["scenario/baseline"],
+      });
+  });
+
+  it("stores exactly one pane-level Output binding", () => {
+    const active = validateExperimentV2(experimentV2());
+    expect(active.content.surface.outputPanes[0]?.binding).toEqual({
+      mode: "active-slot",
+    });
+
+    const fixed = experimentV2() as Record<string, any>;
+    fixed.content.surface.outputPanes[0].binding = {
+      mode: "fixed",
+      scenarioId: "scenario/baseline",
+    };
+    expect(validateExperimentV2(fixed).content.surface
+      .outputPanes[0]?.binding).toEqual({
+        mode: "fixed",
+        scenarioId: "scenario/baseline",
+      });
+
+    const itemTarget = experimentV2() as Record<string, any>;
+    itemTarget.content.surface.outputPanes[0].items[0].scenarioId =
+      "scenario/baseline";
+    expect(() => validateExperimentV2(itemTarget))
+      .toThrow(/keys must be exactly/);
+
+    const unknown = experimentV2() as Record<string, any>;
+    unknown.content.surface.outputPanes[0].binding = {
+      mode: "fixed",
+      scenarioId: "scenario/missing",
+    };
+    expect(() => validateExperimentV2(unknown))
+      .toThrow(/unknown Scenario scenario\/missing/);
+  });
+
+  it("stores slider or bounded absolute-value buttons on each control item", () => {
+    const buttons = experimentV2() as Record<string, any>;
+    buttons.content.surface.controlPanes[0].items[0].presentation = {
+      kind: "buttons",
+      options: [
+        { label: "Low", value: 0.8 },
+        { label: "High", value: 1.2 },
+      ],
+    };
+    const validated = validateExperimentV2(buttons);
+    expect(validated.content.surface.controlPanes[0]?.items[0]?.presentation)
+      .toEqual(buttons.content.surface.controlPanes[0].items[0].presentation);
+    expect(() => assertExperimentContentMatchesModelV2(
+      validated.content,
+      modelContractV2(),
+    )).not.toThrow();
+
+    const single = structuredClone(buttons);
+    single.content.surface.controlPanes[0].items[0].presentation.options = [
+      { label: "Only", value: 1 },
+    ];
+    expect(() => validateExperimentV2(single))
+      .toThrow(/between 2 and 6 options/);
+
+    const offLattice = structuredClone(buttons);
+    offLattice.content.surface.controlPanes[0].items[0]
+      .presentation.options[0].value = 0.81;
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentV2(offLattice).content,
+      modelContractV2(),
+    )).toThrow(/step lattice/);
   });
 
   it("enforces renderer-specific selections against graph-owned series catalogs", () => {
-    const emptySweep = workspaceV2() as Record<string, any>;
+    const emptySweep = experimentV2() as Record<string, any>;
     emptySweep.content.surface.graphPanes[0].series = [];
-    const validatedEmptySweep = validateExperimentWorkspaceV2(emptySweep);
+    const validatedEmptySweep = validateExperimentV2(emptySweep);
     expect(() => assertExperimentContentMatchesModelV2(
       validatedEmptySweep.content,
       modelContractV2(),
     )).toThrow(/sweep graphs must select at least one registered series/);
 
-    const missingWindow = workspaceV2() as Record<string, any>;
+    const missingWindow = experimentV2() as Record<string, any>;
     delete missingWindow.content.surface.graphPanes[0].windowSec;
     expect(() => assertExperimentContentMatchesModelV2(
-      validateExperimentWorkspaceV2(missingWindow).content,
+      validateExperimentV2(missingWindow).content,
       modelContractV2(),
     )).toThrow(/must configure an authored waveform window/);
 
     for (const invalidWindow of [0.5, 1.25, 6.5]) {
-      const invalid = workspaceV2() as Record<string, any>;
+      const invalid = experimentV2() as Record<string, any>;
       invalid.content.surface.graphPanes[0].windowSec = invalidWindow;
-      expect(() => validateExperimentWorkspaceV2(invalid))
+      expect(() => validateExperimentV2(invalid))
         .toThrow(/must be 1–6 seconds in 0.5 second steps/);
     }
 
@@ -287,21 +405,42 @@ describe("Studio Experiment data V2", () => {
       outputId: "catalog.output/temperature",
     });
 
-    const registeredSeriesSelection = workspaceV2() as Record<string, any>;
+    const registeredSeriesSelection = experimentV2() as Record<string, any>;
     registeredSeriesSelection.content.surface.graphPanes[0].series[0].seriesId =
       "Temperature";
     expect(() => assertExperimentContentMatchesModelV2(
-      validateExperimentWorkspaceV2(registeredSeriesSelection).content,
+      validateExperimentV2(registeredSeriesSelection).content,
       expandedModel as ModelContractV2,
     )).not.toThrow();
 
-    const unknownSeriesSelection = workspaceV2() as Record<string, any>;
+    const unknownSeriesSelection = experimentV2() as Record<string, any>;
     unknownSeriesSelection.content.surface.graphPanes[0].series[0].seriesId =
       "Missing";
     expect(() => assertExperimentContentMatchesModelV2(
-      validateExperimentWorkspaceV2(unknownSeriesSelection).content,
+      validateExperimentV2(unknownSeriesSelection).content,
       expandedModel as ModelContractV2,
     )).toThrow(/unknown registered graph series Missing/);
+
+    const hiddenOnlyTrace = experimentV2() as Record<string, any>;
+    hiddenOnlyTrace.content.surface.graphPanes[0].excludedTraces = [{
+      scenarioId: "scenario/baseline",
+      seriesId: "MAP",
+    }];
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentV2(hiddenOnlyTrace).content,
+      modelContractV2(),
+    )).toThrow(/must leave at least one visible Scenario\/series trace/);
+
+    const invalidWholeScenarioExclusion = experimentV2() as Record<string, any>;
+    invalidWholeScenarioExclusion.content.surface.graphPanes[0]
+      .excludedTraces = [{
+        scenarioId: "scenario/baseline",
+        seriesId: null,
+      }];
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentV2(invalidWholeScenarioExclusion).content,
+      modelContractV2(),
+    )).toThrow(/sweep exclusions must select an exact series/);
 
     const pressureVolumeModel = {
       ...modelContractV2(),
@@ -315,22 +454,22 @@ describe("Studio Experiment data V2", () => {
           pressureOutputId: "catalog.output/map",
           pressureBasis: "transmural" as const,
           cyclePhaseOutputId: "catalog.output/map",
-          guideMode: "lv-single-beat-orientation" as const,
         }],
         defaultSeriesIds: ["LV"],
       }],
     };
-    const pressureVolume = workspaceV2() as Record<string, any>;
+    const pressureVolume = experimentV2() as Record<string, any>;
     pressureVolume.content.surface.graphPanes[0].graphId =
       "hemodynamics.pressure-volume";
     pressureVolume.content.surface.graphPanes[0].historyDepth = 1;
+    pressureVolume.content.surface.graphPanes[0].pressureVolumeAnalysisMode =
+      "responsive-preview";
     pressureVolume.content.surface.graphPanes[0].series = [{
       seriesId: "LV",
       label: "LV",
-      colorHex: "#cf405a",
       order: 0,
     }];
-    const validatedPressureVolume = validateExperimentWorkspaceV2(
+    const validatedPressureVolume = validateExperimentV2(
       pressureVolume,
     );
     expect(() => assertExperimentContentMatchesModelV2(
@@ -340,27 +479,43 @@ describe("Studio Experiment data V2", () => {
 
     delete pressureVolume.content.surface.graphPanes[0].windowSec;
     expect(() => assertExperimentContentMatchesModelV2(
-      validateExperimentWorkspaceV2(pressureVolume).content,
+      validateExperimentV2(pressureVolume).content,
+      pressureVolumeModel,
+    )).not.toThrow();
+
+    const missingAnalysisMode = structuredClone(pressureVolume);
+    delete missingAnalysisMode.content.surface.graphPanes[0]
+      .pressureVolumeAnalysisMode;
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentV2(missingAnalysisMode).content,
+      pressureVolumeModel,
+    )).toThrow(/pressure-volume graphs must configure an analysis mode/);
+
+    const formalPressureVolume = structuredClone(pressureVolume);
+    formalPressureVolume.content.surface.graphPanes[0]
+      .pressureVolumeAnalysisMode = "formal-periodic";
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentV2(formalPressureVolume).content,
       pressureVolumeModel,
     )).not.toThrow();
 
     for (const invalidDepth of [-1, 1.5, 4]) {
       const invalid = structuredClone(pressureVolume);
       invalid.content.surface.graphPanes[0].historyDepth = invalidDepth;
-      expect(() => validateExperimentWorkspaceV2(invalid))
+      expect(() => validateExperimentV2(invalid))
         .toThrow(/must be an integer from 0 to 3/);
     }
 
-    const sweepWithHistory = workspaceV2() as Record<string, any>;
+    const sweepWithHistory = experimentV2() as Record<string, any>;
     sweepWithHistory.content.surface.graphPanes[0].historyDepth = 1;
     expect(() => assertExperimentContentMatchesModelV2(
-      validateExperimentWorkspaceV2(sweepWithHistory).content,
+      validateExperimentV2(sweepWithHistory).content,
       modelContractV2(),
     )).toThrow(/sweep graphs must not configure an explicit history depth/);
 
     pressureVolume.content.surface.graphPanes[0].series = [];
     expect(() => assertExperimentContentMatchesModelV2(
-      validateExperimentWorkspaceV2(pressureVolume).content,
+      validateExperimentV2(pressureVolume).content,
       pressureVolumeModel,
     )).toThrow(
       /pressure-volume graphs must select at least one registered series/,
@@ -368,7 +523,7 @@ describe("Studio Experiment data V2", () => {
   });
 
   it("allows an empty role-pane surface and an empty note", () => {
-    const candidate = workspaceV2() as Record<string, any>;
+    const candidate = experimentV2() as Record<string, any>;
     candidate.content.surface = {
       graphPanes: [],
       outputPanes: [],
@@ -376,7 +531,7 @@ describe("Studio Experiment data V2", () => {
       note: { text: "" },
     };
 
-    const validated = validateExperimentWorkspaceV2(candidate);
+    const validated = validateExperimentV2(candidate);
     expect(validated.content.surface).toEqual(candidate.content.surface);
     expect(() => assertExperimentContentMatchesModelV2(
       validated.content,
@@ -384,41 +539,51 @@ describe("Studio Experiment data V2", () => {
     )).not.toThrow();
   });
 
-  it("pins a placement and distinguishes an omitted briefing from empty picks", () => {
-    const snapshot = snapshotV2();
+  it("pins a placement and validates role-specific Reader briefing content", () => {
+    const snapshot = validateExperimentSnapshotV2(snapshotV2());
     const all = validateExperimentPlacementAgainstSnapshotV2(
       placementV2(),
       snapshot,
     );
-    expect(all.briefing).toBeUndefined();
-
-    const none = placementV2() as Record<string, any>;
-    none.briefing = {
-      scenarioIds: [],
-      panePicks: [],
-    };
-    const validatedNone = validateExperimentPlacementAgainstSnapshotV2(
-      none,
-      snapshot,
-    );
-    expect(validatedNone.briefing).toEqual(none.briefing);
-    expect(validatedNone.briefing?.scenarioIds).toEqual([]);
-    expect(validatedNone.briefing?.panePicks).toEqual([]);
-
-    const subset = placementV2() as Record<string, any>;
-    subset.briefing = {
-      scenarioIds: ["scenario/baseline"],
-      panePicks: [
-        { paneId: "pane/controls", priority: 20 },
-        { paneId: "pane/pressure", priority: 10 },
-      ],
-    };
-    expect(
-      validateExperimentPlacementAgainstSnapshotV2(subset, snapshot).briefing,
-    ).toEqual(subset.briefing);
+    expect(all).toEqual(placementV2());
+    expect(all.briefing).toMatchObject({
+      scenarioScope: {
+        visibleScenarioIds: ["scenario/baseline"],
+        initialFocusScenarioId: "scenario/baseline",
+      },
+      graphs: [{
+        paneId: "pane/pressure",
+        emphasis: "primary",
+        overrides: {
+          legend: "compact",
+          windowSec: 3,
+        },
+      }],
+      outputs: [{
+        sourcePaneId: "pane/outputs",
+        outputId: "catalog.output/map",
+        scenarioId: "scenario/baseline",
+      }],
+      controls: [{
+        controlId: "catalog.control/svr",
+        presentation: {
+          kind: "buttons",
+          options: [
+            { label: "Low", value: 0.8 },
+            { label: "High", value: 1.2 },
+          ],
+        },
+        binding: {
+          mode: "fixed",
+          scenarioIds: ["scenario/baseline"],
+          application: "absolute",
+        },
+      }],
+    });
+    expect(Object.isFrozen(all.briefing)).toBe(true);
   });
 
-  it("rejects a wrong snapshot and invalid briefing selections", () => {
+  it("rejects a wrong snapshot and malformed or unknown briefing selections", () => {
     const snapshot = snapshotV2();
     const wrongSnapshot = placementV2();
     wrongSnapshot.snapshotId = "snapshot/other";
@@ -426,41 +591,217 @@ describe("Studio Experiment data V2", () => {
       validateExperimentPlacementAgainstSnapshotV2(wrongSnapshot, snapshot)
     ).toThrow(/does not match the pinned snapshot/);
 
-    const unknown = placementV2() as Record<string, any>;
-    unknown.briefing = {
-      panePicks: [{ paneId: "pane/missing", priority: 0 }],
-    };
-    expect(() =>
-      validateExperimentPlacementAgainstSnapshotV2(unknown, snapshot)
-    ).toThrow(/unknown pane pane\/missing/);
+    const malformed = placementV2() as Record<string, any>;
+    malformed.briefing = { unknownProjection: [] };
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      malformed,
+      snapshot,
+    ))
+      .toThrow(/keys must be exactly/);
 
-    const duplicate = placementV2() as Record<string, any>;
-    duplicate.briefing = {
-      scenarioIds: ["scenario/baseline", "scenario/baseline"],
-      panePicks: [],
-    };
-    expect(() =>
-      validateExperimentPlacementAgainstSnapshotV2(duplicate, snapshot)
-    ).toThrow(/duplicate id scenario\/baseline/);
+    const unknownGraph = placementWithBriefingV2();
+    unknownGraph.briefing.graphs[0].paneId = "pane/missing";
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      unknownGraph,
+      snapshot,
+    ))
+      .toThrow(/unknown graph pane pane\/missing/);
 
-    const duplicatePick = placementV2() as Record<string, any>;
-    duplicatePick.briefing = {
-      panePicks: [
-        { paneId: "pane/pressure", priority: 5 },
-        { paneId: "pane/pressure", priority: 10 },
+    const unknownSeries = placementWithBriefingV2();
+    unknownSeries.briefing.graphs[0].overrides.series[0].seriesId = "missing";
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      unknownSeries,
+      snapshot,
+    ))
+      .toThrow(/unknown id missing/);
+
+    const unknownOutput = placementWithBriefingV2();
+    unknownOutput.briefing.outputs[0].outputId = "catalog.output/missing";
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      unknownOutput,
+      snapshot,
+    ))
+      .toThrow(/output catalog.output\/missing is not present in source pane/);
+
+    const unknownControl = placementWithBriefingV2();
+    unknownControl.briefing.controls[0].controlId = "catalog.control/missing";
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      unknownControl,
+      snapshot,
+    ))
+      .toThrow(/control catalog.control\/missing is not present in source pane/);
+  });
+
+  it("fails closed on briefing identity, order, labels, colors and button values", () => {
+    const cases: Array<readonly [
+      string,
+      (briefing: Record<string, any>) => void,
+      RegExp,
+    ]> = [
+      [
+        "duplicate graph pane",
+        (briefing) => {
+          briefing.graphs.push({ ...briefing.graphs[0], order: 1 });
+        },
+        /duplicate id pane\/pressure/,
       ],
-    };
-    expect(() =>
-      validateExperimentPlacementAgainstSnapshotV2(duplicatePick, snapshot)
-    ).toThrow(/duplicate id pane\/pressure/);
+      [
+        "negative graph order",
+        (briefing) => {
+          briefing.graphs[0].order = -1;
+        },
+        /nonnegative safe integer/,
+      ],
+      [
+        "unknown emphasis",
+        (briefing) => {
+          briefing.graphs[0].emphasis = "hero";
+        },
+        /must be primary or supporting/,
+      ],
+      [
+        "blank graph label",
+        (briefing) => {
+          briefing.graphs[0].overrides.label = " ";
+        },
+        /nonempty trimmed string/,
+      ],
+      [
+        "noncanonical graph color",
+        (briefing) => {
+          briefing.graphs[0].overrides.traceColors[0].colorHex = "#3EA8FF";
+        },
+        /canonical lowercase #rrggbb color/,
+      ],
+      [
+        "duplicate output",
+        (briefing) => {
+          briefing.outputs.push({ ...briefing.outputs[0], order: 1 });
+        },
+        /duplicate id pane\/outputs.*catalog.output\/map/,
+      ],
+      [
+        "untrimmed output label",
+        (briefing) => {
+          briefing.outputs[0].label = " MAP";
+        },
+        /nonempty trimmed string/,
+      ],
+      [
+        "duplicate control",
+        (briefing) => {
+          briefing.controls.push({ ...briefing.controls[0], order: 1 });
+        },
+        /duplicate id pane\/controls.*catalog.control\/svr/,
+      ],
+      [
+        "invalid button value",
+        (briefing) => {
+          briefing.controls[0].presentation.options[0].value = "low";
+        },
+        /must be a finite number/,
+      ],
+      [
+        "duplicate button value",
+        (briefing) => {
+          briefing.controls[0].presentation.options[1].value = 0.8;
+        },
+        /duplicate button value/,
+      ],
+      [
+        "empty buttons",
+        (briefing) => {
+          briefing.controls[0].presentation.options = [];
+        },
+        /must contain between 2 and 6 options/,
+      ],
+      [
+        "invalid fixed application",
+        (briefing) => {
+          briefing.controls[0].binding.application = "relative";
+        },
+        /must be absolute/,
+      ],
+    ];
 
-    const negativePriority = placementV2() as Record<string, any>;
-    negativePriority.briefing = {
-      panePicks: [{ paneId: "pane/pressure", priority: -1 }],
+    for (const [_name, mutate, pattern] of cases) {
+      const placement = placementWithBriefingV2();
+      mutate(placement.briefing);
+      expect(() => validateExperimentPlacementAgainstSnapshotV2(
+        placement,
+        snapshotV2(),
+      )).toThrow(pattern);
+    }
+  });
+
+  it("fails closed on Reader scenario scope and control binding targets", () => {
+    const duplicateVisible = placementWithBriefingV2();
+    duplicateVisible.briefing.scenarioScope.visibleScenarioIds.push(
+      "scenario/baseline",
+    );
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      duplicateVisible,
+      snapshotV2(),
+    ))
+      .toThrow(/duplicate id scenario\/baseline/);
+
+    const emptyVisible = placementWithBriefingV2();
+    emptyVisible.briefing.scenarioScope.visibleScenarioIds = [];
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      emptyVisible,
+      snapshotV2(),
+    ))
+      .toThrow(/must contain at least one Scenario/);
+
+    const focusOutsideScope = placementWithBriefingV2();
+    focusOutsideScope.briefing.scenarioScope.initialFocusScenarioId =
+      "scenario/comparison";
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      focusOutsideScope,
+      snapshotV2(),
+    ))
+      .toThrow(/must be included in visibleScenarioIds/);
+
+    const snapshot = snapshotV2() as Record<string, any>;
+    snapshot.content.scenarios.push({
+      ...structuredClone(snapshot.content.scenarios[0]),
+      scenarioId: "scenario/comparison",
+      label: "Comparison",
+    });
+    const hiddenFixedTarget = placementWithBriefingV2();
+    hiddenFixedTarget.briefing.controls[0].binding.scenarioIds = [
+      "scenario/comparison",
+    ];
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      hiddenFixedTarget,
+      snapshot,
+    ))
+      .toThrow(/unknown id scenario\/comparison/);
+
+    const hiddenOutputTarget = placementWithBriefingV2();
+    hiddenOutputTarget.briefing.outputs[0].scenarioId = "scenario/comparison";
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      hiddenOutputTarget,
+      snapshot,
+    ))
+      .toThrow(/output target scenario\/comparison must be visible/);
+
+    const readerFocus = placementWithBriefingV2();
+    readerFocus.briefing.controls[0].binding = {
+      mode: "reader-focus",
+      allowedScenarioIds: ["scenario/baseline"],
     };
-    expect(() =>
-      validateExperimentPlacementAgainstSnapshotV2(negativePriority, snapshot)
-    ).toThrow(/nonnegative safe integer/);
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      readerFocus,
+      snapshotV2(),
+    )).not.toThrow();
+
+    readerFocus.briefing.controls[0].binding.allowedScenarioIds = [];
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      readerFocus,
+      snapshotV2(),
+    ))
+      .toThrow(/must contain at least one Scenario/);
   });
 
   it("validates the only reusable named input/state object and applies it by copy", async () => {
@@ -568,9 +909,13 @@ describe("Studio Experiment data V2", () => {
         /duplicate id scenario\/baseline/,
       ],
       [
-        "noncanonical graph series color",
+        "noncanonical graph trace color",
         (candidate) => {
-          candidate.content.surface.graphPanes[0].series[0].colorHex = "#FF6685";
+          candidate.content.surface.graphPanes[0].traceColors = [{
+            scenarioId: "scenario/baseline",
+            seriesId: "MAP",
+            automaticColorHex: "#FF6685",
+          }];
         },
         /canonical lowercase #rrggbb color/,
       ],
@@ -626,15 +971,15 @@ describe("Studio Experiment data V2", () => {
     ];
 
     for (const [_name, mutate, pattern] of cases) {
-      const candidate = workspaceV2() as Record<string, any>;
+      const candidate = experimentV2() as Record<string, any>;
       mutate(candidate);
-      expect(() => validateExperimentWorkspaceV2(candidate)).toThrow(pattern);
+      expect(() => validateExperimentV2(candidate)).toThrow(pattern);
     }
 
-    const selfParent = snapshotV2();
-    selfParent.parentSnapshotId = selfParent.snapshotId;
-    expect(() => validateExperimentSnapshotV2(selfParent))
-      .toThrow(/must not reference the snapshot itself/);
+    const forbiddenLineage = snapshotV2() as Record<string, unknown>;
+    forbiddenLineage.parentSnapshotId = forbiddenLineage.snapshotId;
+    expect(() => validateExperimentSnapshotV2(forbiddenLineage))
+      .toThrow(/field set mismatch/);
 
     const forbiddenSnapshot = snapshotV2() as Record<string, unknown>;
     forbiddenSnapshot.revision = 4;
@@ -646,12 +991,12 @@ describe("Studio Experiment data V2", () => {
     expect(() => validateExperimentSnapshotV2(normalizedInvalidDate))
       .toThrow(/calendar-valid/);
 
-    const cyclic = workspaceV2() as Record<string, any>;
+    const cyclic = experimentV2() as Record<string, any>;
     cyclic.content.scenarios[0].capture.fixture.self =
       cyclic.content.scenarios[0].capture.fixture;
-    expect(() => validateExperimentWorkspaceV2(cyclic))
+    expect(() => validateExperimentV2(cyclic))
       .toThrow(StudioExperimentDataValidationErrorV2);
-    expect(() => validateExperimentWorkspaceV2(cyclic))
+    expect(() => validateExperimentV2(cyclic))
       .toThrow(/cyclic JSON/);
   });
 });
@@ -689,11 +1034,12 @@ function contentV2() {
         order: 0,
         priority: 10,
         graphId: "catalog.graph/pressure",
+        scenarioScope: { mode: "visible-scenarios" },
+        excludedTraces: [],
         windowSec: 2,
         series: [{
           seriesId: "MAP",
           label: "MAP",
-          colorHex: "#3ea8ff",
           order: 0,
         }],
       }],
@@ -703,6 +1049,7 @@ function contentV2() {
         label: "Outputs",
         order: 0,
         priority: 8,
+        binding: { mode: "active-slot" },
         items: [{
           outputId: "catalog.output/map",
           label: "MAP",
@@ -715,10 +1062,12 @@ function contentV2() {
         label: "Controls",
         order: 0,
         priority: 9,
+        binding: { mode: "active-slot" },
         items: [{
           controlId: "catalog.control/svr",
           label: "SVR",
           order: 0,
+          presentation: { kind: "slider" },
         }],
       }],
       note: {
@@ -741,13 +1090,11 @@ function desiredContentV2() {
   };
 }
 
-function workspaceV2() {
+function experimentV2() {
   return {
-    schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+    schemaId: STUDIO_EXPERIMENT_V2_SCHEMA_ID,
     experimentId: "experiment/afterload",
-    draftVersion: 3,
-    headSnapshotId: "snapshot/2",
-    basedOnSnapshotId: "snapshot/2",
+    version: 3,
     content: contentV2(),
   };
 }
@@ -756,8 +1103,6 @@ function snapshotV2() {
   return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
     snapshotId: "snapshot/3",
-    experimentId: "experiment/afterload",
-    parentSnapshotId: "snapshot/2",
     content: contentV2(),
     createdAt: "2026-07-31T03:04:05.000Z",
     createdBy: "user/author",
@@ -769,8 +1114,69 @@ function placementV2() {
     schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
     placementId: "placement/article-afterload",
     snapshotId: "snapshot/3",
+    briefing: briefingV2(),
+    titleOverride: null,
     caption: "Afterload experiment",
   };
+}
+
+function briefingV2() {
+  return {
+    defaultTitle: "Afterload experiment",
+    scenarioScope: {
+      visibleScenarioIds: ["scenario/baseline"],
+      initialFocusScenarioId: "scenario/baseline",
+    },
+    graphs: [{
+      paneId: "pane/pressure",
+      order: 0,
+      emphasis: "primary",
+      overrides: {
+        label: "Arterial pressure",
+        legend: "compact",
+        series: [{
+          seriesId: "MAP",
+          label: "MAP",
+          order: 0,
+        }],
+        traceColors: [{
+          scenarioId: "scenario/baseline",
+          seriesId: "MAP",
+          colorHex: "#3ea8ff",
+        }],
+        windowSec: 3,
+      },
+    }],
+    outputs: [{
+      sourcePaneId: "pane/outputs",
+      outputId: "catalog.output/map",
+      scenarioId: "scenario/baseline",
+      label: "MAP",
+      order: 0,
+    }],
+    controls: [{
+      sourcePaneId: "pane/controls",
+      controlId: "catalog.control/svr",
+      label: "Afterload",
+      order: 0,
+      presentation: {
+        kind: "buttons",
+        options: [
+          { label: "Low", value: 0.8 },
+          { label: "High", value: 1.2 },
+        ],
+      },
+      binding: {
+        mode: "fixed",
+        scenarioIds: ["scenario/baseline"],
+        application: "absolute",
+      },
+    }],
+  };
+}
+
+function placementWithBriefingV2() {
+  return structuredClone(placementV2()) as Record<string, any>;
 }
 
 function presetV2() {
@@ -800,7 +1206,7 @@ function modelContractV2(): ModelContractV2 {
       maximum: 2,
       step: 0.05,
       defaultValue: 1,
-      changeSemantics: "reset",
+      changeSemantics: "accepted-state-warm-start",
     }],
     outputCatalog: [{
       outputId: "catalog.output/map",
@@ -851,7 +1257,7 @@ function exactRuntimeResolverV2() {
       return {
         contract,
         captureAdapter,
-        draftCapture: {
+        experimentCapture: {
           modelId: contract.modelId,
           fixtureSchemaId: contract.fixtureSchemaId,
           checkpointCodecId: contract.checkpointCodecId,
@@ -862,7 +1268,7 @@ function exactRuntimeResolverV2() {
         snapshotGate: {
           modelId: contract.modelId,
           snapshotGateId: contract.snapshotGateId,
-          qualifyFrozenCandidate() {
+          admitFrozenCandidate() {
             throw new Error("not used by Preset clone");
           },
         },

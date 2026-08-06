@@ -1,23 +1,84 @@
 import { type Locale, prefixPath } from "./localeRouting";
 import {
-  isOpaqueWorkbenchIdV3,
-} from "./studio/infrastructure/browser/StudioWorkbenchIdentityV3";
+  isOpaqueExperimentIdV3,
+} from "./studio/infrastructure/browser/StudioExperimentIdentityV3";
 
-export const workbenchHref = (locale?: Locale) => prefixPath("/workbench", locale);
+/** Public Experiment directory. */
+export const experimentsHref = (locale?: Locale) => prefixPath("/experiments", locale);
 
-export const workbenchDetailHref = ({
+/** Account-scoped management for explicitly saved Experiments. */
+export const myExperimentsHref = (locale?: Locale) =>
+  prefixPath("/me/experiments", locale);
+
+/** A disposable ExperimentSession. No durable Experiment identity exists yet. */
+export const newExperimentHref = (locale?: Locale) =>
+  prefixPath("/experiments/new", locale);
+
+export const experimentDetailHref = ({
+  experimentId,
   locale,
-  workbenchId,
 }: Readonly<{
+  experimentId: string;
   locale?: Locale;
-  workbenchId: string;
 }>) => {
-  if (!isOpaqueWorkbenchIdV3(workbenchId)) {
-    throw new Error("Workbench detail href requires a URL-safe opaque identity");
+  if (!isOpaqueExperimentIdV3(experimentId)) {
+    throw new Error("Experiment detail href requires a URL-safe opaque identity");
   }
-  return prefixPath(`/workbench/${workbenchId}`, locale);
+  return prefixPath(`/experiments/${experimentId}`, locale);
 };
 
+/** Public Article directory. */
 export const articlesHref = (locale?: Locale) => prefixPath("/articles", locale);
+
+/** Account-scoped management for authored Articles, including drafts. */
+export const myArticlesHref = (locale?: Locale) =>
+  prefixPath("/me/articles", locale);
+
+export const accountSettingsHref = (locale?: Locale) =>
+  prefixPath("/me/settings", locale);
+
+export const loginHref = (locale?: Locale) => prefixPath("/login", locale);
+
+export const articleEditorHref = ({
+  articleId,
+  locale,
+}: Readonly<{
+  articleId: string;
+  locale?: Locale;
+}>) => prefixPath(`/articles/${encodeURIComponent(articleId)}/edit`, locale);
+
+export const newArticleEditorHref = (locale?: Locale) =>
+  prefixPath("/articles/new/edit", locale);
+
+export const articleReaderHref = ({
+  articleId,
+  locale,
+}: Readonly<{
+  articleId: string;
+  locale?: Locale;
+}>) => prefixPath(`/articles/${encodeURIComponent(articleId)}`, locale);
+
+export const articlePlacementHref = ({
+  articleId,
+  locale,
+  placementId,
+}: Readonly<{
+  articleId: string;
+  locale?: Locale;
+  placementId: string;
+}>) => `${articleReaderHref({ articleId, locale })}#${
+  encodeURIComponent(`placement-${placementId}`)
+}`;
+
+export const experimentSnapshotHref = ({
+  locale,
+  snapshotId,
+}: Readonly<{
+  locale?: Locale;
+  snapshotId: string;
+}>) => prefixPath(
+  `/snapshots/${encodeURIComponent(snapshotId)}`,
+  locale,
+);
 
 export const homeHref = (locale?: Locale) => prefixPath("/", locale);

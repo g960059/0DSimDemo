@@ -8,12 +8,14 @@
     "typecheck": "tsc --noEmit --pretty false",
     "build": "npm run typecheck && vite build",
     "verify:registry:main-wire-v3": "vite-node --script tools/registry/verifyMainWireIntegratedStudioModelV3.ts",
+    "publish:registry:main-wire-v3": "vite-node --script tools/registry/publishMainWireIntegratedStudioModelV3.ts",
     "preview": "vite preview",
     "check:repository-hygiene": "node tools/repository/checkRepositoryHygiene.mjs",
     "test": "npm run test:fast",
     "test:fast": "node tools/testing/runFastVitest.mjs",
     "test:pr": "CIRCLEHEART_TEST_SUITE_LABEL='PR smoke suite' CIRCLEHEART_VITEST_CONFIG=vitest.pr.config.ts node tools/testing/runFastVitest.mjs",
     "test:browser": "playwright test",
+    "test:supabase": "supabase test db --local supabase/tests/database",
     "test:related": "vitest related --run --config vitest.fast.config.ts",
     "test:suites:audit": "vitest run --config vitest.fast.config.ts __tests__/testSuiteManifest.test.ts",
     "test:regression": "vitest run --config vitest.regression.config.ts",
@@ -37,6 +39,7 @@
     "validate:mechanical-support:v1": "vite-node --script tools/devices/generateMechanicalSupportValidationV1.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.1",
     "dockview": "^6.6.1",
     "i18next": "^26.3.1",
     "lucide-react": "^1.17.0",

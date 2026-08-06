@@ -1,55 +1,41 @@
 import React from "react";
 
-import {
-  STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
-} from "@/studio/contracts/v2/content";
-
-export const WORKBENCH_SCENARIO_LINE_DASHES_V3 = Object.freeze([
-  Object.freeze([]),
-  Object.freeze([7, 4]),
-  Object.freeze([2, 3]),
-  Object.freeze([8, 3, 2, 3]),
-] as const);
-
 export type WorkbenchScenarioTraceIdentityV3 = Readonly<{
   scenarioId: string;
   scenarioLabel: string;
   scenarioStatus?: string;
-  /**
-   * Stable ordinal in the Experiment Scenario order. Omit only when the
-   * descriptor order itself is stable (the first Scenario is rendered solid).
-   */
+  scenarioColor?: string;
+  /** Stable ordinal in the Experiment Scenario order. */
   scenarioStyleIndex?: number;
 }>;
 
-export type WorkbenchScenarioLegendItemV3 = Readonly<{
+export type WorkbenchTraceLegendDescriptorV3 = Readonly<{
+  traceKey: string;
   scenarioId: string;
-  label: string;
-  status?: string;
-  styleIndex: number;
-  lineDash: readonly number[];
-}>;
-
-export type WorkbenchTraceColorLegendItemV3 = Readonly<{
-  colorKey: string;
-  label: string;
+  scenarioLabel: string;
+  itemId: string;
+  itemLabel: string;
   color: string;
 }>;
 
-export function workbenchScenarioLineDashV3(
-  scenarioStyleIndex: number,
-): readonly number[] {
-  if (
-    !Number.isSafeInteger(scenarioStyleIndex)
-    || scenarioStyleIndex < 0
-    || scenarioStyleIndex >= STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2
-  ) {
-    throw new RangeError(
-      `Scenario style index must be between 0 and ${STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2 - 1}`,
-    );
-  }
-  return WORKBENCH_SCENARIO_LINE_DASHES_V3[scenarioStyleIndex]!;
-}
+export type WorkbenchChartLegendSelectionV3 =
+  | Readonly<{ kind: "scenario"; scenarioId: string }>
+  | Readonly<{ kind: "item"; itemId: string }>
+  | Readonly<{ kind: "trace"; traceKey: string }>;
+
+export type WorkbenchTraceLegendModelV3 = Readonly<{
+  mode: "items" | "scenarios" | "groups";
+  scenarios: readonly Readonly<{
+    scenarioId: string;
+    label: string;
+    color: string;
+  }>[];
+  items: readonly Readonly<{
+    itemId: string;
+    label: string;
+  }>[];
+  traces: readonly WorkbenchTraceLegendDescriptorV3[];
+}>;
 
 export function workbenchHistoryAlphaV3(
   historyIndex: number,
@@ -68,122 +54,281 @@ export function workbenchHistoryAlphaV3(
   return 0.08 + recency01 * 0.12;
 }
 
-/**
- * Builds one deterministic Scenario style per Scenario. Explicit Experiment
- * ordinals survive filtering/reordering; otherwise first appearance defines
- * the ordinal so the baseline/first Scenario remains solid.
- */
-export function buildWorkbenchScenarioLegendItemsV3(
-  traces: readonly WorkbenchScenarioTraceIdentityV3[],
-): readonly WorkbenchScenarioLegendItemV3[] {
-  const seen = new Set<string>();
-  const items: WorkbenchScenarioLegendItemV3[] = [];
-  for (const trace of traces) {
-    if (seen.has(trace.scenarioId)) continue;
-    seen.add(trace.scenarioId);
-    const styleIndex = Number.isSafeInteger(trace.scenarioStyleIndex)
-      && (trace.scenarioStyleIndex ?? -1) >= 0
-      ? trace.scenarioStyleIndex!
-      : items.length;
-    items.push(Object.freeze({
-      scenarioId: trace.scenarioId,
-      label: trace.scenarioLabel,
-      ...(trace.scenarioStatus === undefined
-        ? {}
-        : { status: trace.scenarioStatus }),
-      styleIndex,
-      lineDash: workbenchScenarioLineDashV3(styleIndex),
-    }));
-  }
-  return Object.freeze(items);
+export function workbenchTraceLegendKeyV3(
+  scenarioId: string,
+  itemId: string,
+): string {
+  return `${scenarioId}\u001f${itemId}`;
 }
 
-export function buildWorkbenchTraceColorLegendItemsV3(
-  traces: readonly WorkbenchTraceColorLegendItemV3[],
-): readonly WorkbenchTraceColorLegendItemV3[] {
-  const seen = new Set<string>();
-  const items: WorkbenchTraceColorLegendItemV3[] = [];
+export function buildWorkbenchTraceLegendModelV3(
+  descriptors: readonly WorkbenchTraceLegendDescriptorV3[],
+): WorkbenchTraceLegendModelV3 {
+  const seenTraceKeys = new Set<string>();
+  const traces = descriptors.filter(({ traceKey }) => {
+    if (seenTraceKeys.has(traceKey)) return false;
+    seenTraceKeys.add(traceKey);
+    return true;
+  });
+  const scenarioById = new Map<
+    string,
+    WorkbenchTraceLegendModelV3["scenarios"][number]
+  >();
+  const itemById = new Map<
+    string,
+    WorkbenchTraceLegendModelV3["items"][number]
+  >();
   for (const trace of traces) {
-    if (seen.has(trace.colorKey)) continue;
-    seen.add(trace.colorKey);
-    items.push(Object.freeze({ ...trace }));
+    if (!scenarioById.has(trace.scenarioId)) {
+      scenarioById.set(trace.scenarioId, Object.freeze({
+        scenarioId: trace.scenarioId,
+        label: trace.scenarioLabel,
+        color: trace.color,
+      }));
+    }
+    if (!itemById.has(trace.itemId)) {
+      itemById.set(trace.itemId, Object.freeze({
+        itemId: trace.itemId,
+        label: trace.itemLabel,
+      }));
+    }
   }
-  return Object.freeze(items);
+  const scenarios = Object.freeze([...scenarioById.values()]);
+  const items = Object.freeze([...itemById.values()]);
+  const mode = scenarios.length <= 1
+    ? "items"
+    : items.length <= 1
+      ? "scenarios"
+      : "groups";
+  return Object.freeze({
+    mode,
+    scenarios,
+    items,
+    traces: Object.freeze(traces),
+  });
 }
 
-export function WorkbenchChartTwoAxisLegendV3({
-  colorAxisLabel,
-  colorItems,
-  scenarioItems,
+export function workbenchLegendSelectionMatchesTraceV3(
+  selection: WorkbenchChartLegendSelectionV3 | null,
+  trace: WorkbenchTraceLegendDescriptorV3,
+): boolean {
+  if (selection === null) return true;
+  if (selection.kind === "scenario") {
+    return selection.scenarioId === trace.scenarioId;
+  }
+  if (selection.kind === "item") return selection.itemId === trace.itemId;
+  return selection.traceKey === trace.traceKey;
+}
+
+export function workbenchLegendTraceAlphaV3(
+  selection: WorkbenchChartLegendSelectionV3 | null,
+  trace: WorkbenchTraceLegendDescriptorV3,
+): number {
+  return workbenchLegendSelectionMatchesTraceV3(selection, trace) ? 1 : 0.28;
+}
+
+export function workbenchLegendTraceHiddenV3(
+  hiddenSelections: readonly WorkbenchChartLegendSelectionV3[],
+  trace: WorkbenchTraceLegendDescriptorV3,
+): boolean {
+  return hiddenSelections.some((selection) =>
+    workbenchLegendSelectionMatchesTraceV3(selection, trace));
+}
+
+export function WorkbenchChartLegendV3({
+  model,
+  hiddenSelections = [],
+  selection,
+  onHoverSelection,
+  onToggleSelection,
+  onToggleVisibility,
 }: Readonly<{
-  colorAxisLabel: string;
-  colorItems: readonly WorkbenchTraceColorLegendItemV3[];
-  scenarioItems: readonly WorkbenchScenarioLegendItemV3[];
+  model: WorkbenchTraceLegendModelV3;
+  hiddenSelections?: readonly WorkbenchChartLegendSelectionV3[];
+  selection: WorkbenchChartLegendSelectionV3 | null;
+  onHoverSelection: (selection: WorkbenchChartLegendSelectionV3 | null) => void;
+  onToggleSelection: (selection: WorkbenchChartLegendSelectionV3) => void;
+  onToggleVisibility?: (selection: WorkbenchChartLegendSelectionV3) => void;
 }>) {
-  if (colorItems.length === 0 && scenarioItems.length === 0) return null;
+  if (model.traces.length === 0) return null;
+  const traceByPair = new Map(model.traces.map((trace) => [
+    workbenchTraceLegendKeyV3(trace.scenarioId, trace.itemId),
+    trace,
+  ]));
+  const commonClassName =
+    "pointer-events-auto inline-flex min-h-5 items-center gap-1 whitespace-nowrap rounded-sm px-0.5 text-[11px] leading-4 text-wb-muted outline-none transition-[color,opacity] duration-150 hover:text-wb-text focus-visible:ring-1 focus-visible:ring-wb-accent";
+  const selectionClassName = (candidate: WorkbenchChartLegendSelectionV3) =>
+    selection === null || legendSelectionsEqualV3(selection, candidate)
+      ? "opacity-100"
+      : "opacity-45";
+  const visibilityClassName = (candidate: WorkbenchChartLegendSelectionV3) =>
+    hiddenSelections.some((hidden) => legendSelectionsEqualV3(hidden, candidate))
+      ? "line-through opacity-40"
+      : "";
+  const interactionProps = (candidate: WorkbenchChartLegendSelectionV3) => ({
+    onPointerEnter: () => onHoverSelection(candidate),
+    onFocus: () => onHoverSelection(candidate),
+    onBlur: () => onHoverSelection(null),
+    onClick: () => onToggleVisibility === undefined
+      ? onToggleSelection(candidate)
+      : onToggleVisibility(candidate),
+    "aria-pressed": onToggleVisibility === undefined
+      ? selection !== null && legendSelectionsEqualV3(selection, candidate)
+      : hiddenSelections.some((hidden) =>
+          legendSelectionsEqualV3(hidden, candidate)),
+  });
+
+  if (model.mode === "items") {
+    const scenario = model.scenarios[0];
+    return (
+      <div
+        className="pointer-events-none flex min-h-7 flex-none flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pt-1.5"
+        data-chart-legend="items"
+        onPointerLeave={() => onHoverSelection(null)}
+      >
+        {model.items.map((item) => {
+          const trace = scenario === undefined
+            ? undefined
+            : traceByPair.get(
+                workbenchTraceLegendKeyV3(scenario.scenarioId, item.itemId),
+              );
+          if (trace === undefined) return null;
+          const candidate = Object.freeze({
+            kind: "item" as const,
+            itemId: item.itemId,
+          });
+          return (
+            <button
+              key={trace.traceKey}
+              type="button"
+              className={`${commonClassName} ${selectionClassName(candidate)} ${visibilityClassName(candidate)}`}
+              {...interactionProps(candidate)}
+            >
+              <LegendLineV3 color={trace.color} />
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (model.mode === "scenarios") {
+    const item = model.items[0];
+    return (
+      <div
+        className="pointer-events-none flex min-h-7 flex-none flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pt-1.5"
+        data-chart-legend="scenarios"
+        onPointerLeave={() => onHoverSelection(null)}
+      >
+        {model.scenarios.map((scenario) => {
+          const trace = item === undefined
+            ? undefined
+            : traceByPair.get(
+                workbenchTraceLegendKeyV3(scenario.scenarioId, item.itemId),
+              );
+          if (trace === undefined) return null;
+          const candidate = Object.freeze({
+            kind: "scenario" as const,
+            scenarioId: scenario.scenarioId,
+          });
+          return (
+            <button
+              key={scenario.scenarioId}
+              type="button"
+              className={`${commonClassName} ${selectionClassName(candidate)} ${visibilityClassName(candidate)}`}
+              {...interactionProps(candidate)}
+            >
+              <LegendLineV3 color={trace.color} />
+              {scenario.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div
-      className="pointer-events-none absolute left-12 top-2 flex max-w-[calc(100%-4rem)] flex-wrap items-center gap-x-3 gap-y-1 text-[10px] leading-3 text-wb-muted"
-      data-chart-legend="color-and-scenario"
+      className="pointer-events-none flex flex-none flex-wrap items-center gap-x-5 gap-y-1 px-3 pt-1.5 text-[11px] leading-4 text-wb-muted"
+      data-chart-legend="groups"
+      onPointerLeave={() => onHoverSelection(null)}
     >
-      {colorItems.length > 0 && (
-        <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-wb-subtle">{colorAxisLabel}</span>
-          {colorItems.map((item) => (
-            <span
-              key={item.colorKey}
-              className="inline-flex items-center gap-1 whitespace-nowrap"
+      {model.scenarios.map((scenario) => {
+          const scenarioSelection = Object.freeze({
+            kind: "scenario" as const,
+            scenarioId: scenario.scenarioId,
+          });
+          return (
+            <div
+              key={scenario.scenarioId}
+              className="pointer-events-auto inline-flex min-w-0 items-center gap-2"
+            >
+            <button
+              type="button"
+              className={`${commonClassName} min-w-0 max-w-36 justify-start ${selectionClassName(scenarioSelection)} ${visibilityClassName(scenarioSelection)}`}
+              {...interactionProps(scenarioSelection)}
             >
               <span
                 aria-hidden="true"
-                className="h-0.5 w-3 rounded-full"
-                style={{ backgroundColor: item.color }}
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: scenario.color }}
               />
-              {item.label}
-            </span>
-          ))}
-        </span>
-      )}
-      {scenarioItems.length > 0 && (
-        <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-wb-subtle">Scenario</span>
-          {scenarioItems.map((item) => (
-            <span
-              key={item.scenarioId}
-              className="inline-flex items-center gap-1 whitespace-nowrap"
-            >
-              <WorkbenchLegendDashV3 dash={item.lineDash} />
-              <span>{item.label}</span>
-              {item.status !== undefined && item.status.length > 0 && (
-                <span className="text-wb-subtle">· {item.status}</span>
-              )}
-            </span>
-          ))}
-        </span>
-      )}
+              <span className="truncate">{scenario.label}</span>
+            </button>
+            <span aria-hidden="true" className="text-wb-muted/60">·</span>
+            {model.items.map((item) => {
+              const trace = traceByPair.get(
+                workbenchTraceLegendKeyV3(scenario.scenarioId, item.itemId),
+              );
+              if (trace === undefined) return null;
+              const traceSelection = Object.freeze({
+                kind: "item" as const,
+                itemId: item.itemId,
+              });
+              return (
+                <button
+                  key={trace.traceKey}
+                  type="button"
+                  aria-label={`${scenario.label}, ${item.label}`}
+                  title={`${scenario.label} · ${item.label}`}
+                  className={`${commonClassName} justify-center ${selectionClassName(traceSelection)} ${visibilityClassName(traceSelection)}`}
+                  {...interactionProps(traceSelection)}
+                >
+                  <LegendLineV3 color={trace.color} />
+                  {item.label}
+                </button>
+              );
+            })}
+            </div>
+          );
+        })}
     </div>
   );
 }
 
-function WorkbenchLegendDashV3({
-  dash,
-}: Readonly<{ dash: readonly number[] }>) {
+function LegendLineV3({ color }: Readonly<{ color: string }>) {
   return (
-    <svg
+    <span
       aria-hidden="true"
-      className="h-2 w-5 shrink-0 overflow-visible"
-      viewBox="0 0 20 8"
-    >
-      <line
-        x1="0"
-        x2="20"
-        y1="4"
-        y2="4"
-        stroke="currentColor"
-        strokeDasharray={dash.length === 0 ? undefined : dash.join(" ")}
-        strokeLinecap="round"
-        strokeWidth="1.5"
-      />
-    </svg>
+      className="h-0.5 w-3 shrink-0 rounded-full"
+      style={{ backgroundColor: color }}
+    />
   );
+}
+
+function legendSelectionsEqualV3(
+  left: WorkbenchChartLegendSelectionV3,
+  right: WorkbenchChartLegendSelectionV3,
+): boolean {
+  if (left.kind !== right.kind) return false;
+  if (left.kind === "scenario" && right.kind === "scenario") {
+    return left.scenarioId === right.scenarioId;
+  }
+  if (left.kind === "item" && right.kind === "item") {
+    return left.itemId === right.itemId;
+  }
+  return left.kind === "trace"
+    && right.kind === "trace"
+    && left.traceKey === right.traceKey;
 }

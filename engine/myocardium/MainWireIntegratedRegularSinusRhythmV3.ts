@@ -39,6 +39,7 @@ import {
 export type MainWireIntegratedRegularSinusRhythmIdentityV3 = Readonly<{
   idPrefix: string;
   parameterProvenanceSourceId: string;
+  cycleLengthSec: number;
 }>;
 
 export type MainWireIntegratedRegularSinusRhythmV3 = Readonly<{
@@ -58,6 +59,7 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
     identity.parameterProvenanceSourceId,
     "parameterProvenanceSourceId",
   );
+  const cycleLengthSec = requireCycleLengthSec(identity.cycleLengthSec);
   const capture = createAcceptedElectricalCaptureOwnerConfigurationV2({
     configurationId: `${idPrefix}-capture-configuration`,
     ownerInstanceId: `${idPrefix}-capture-owner`,
@@ -88,7 +90,7 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
     ownerInstanceId: `${idPrefix}-regular-sinus-owner`,
     sourceId: `${idPrefix}-sinus-source`,
     rhythmClass: "sinus",
-    cycleLengthSec: 1,
+    cycleLengthSec,
   });
   const atrialCalcium = convertPeriodicBiexponentialToExactEventCalciumV1(
     {
@@ -103,7 +105,7 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
         FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial
           .decayTimeConstantSec,
     },
-    1,
+    cycleLengthSec,
   );
   const ventricularCalcium = convertPeriodicBiexponentialToExactEventCalciumV1(
     {
@@ -120,7 +122,7 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
         FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular
           .decayTimeConstantSec,
     },
-    1,
+    cycleLengthSec,
   );
   const configuration = createAcceptedComposedRhythmTransactionConfigurationV2({
     configurationId: `${idPrefix}-composed-sinus-configuration`,
@@ -202,7 +204,7 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
     configuration,
     {
       acceptedTimeSec: 0,
-      regularFirstFutureActivationTimeSec: 0.625,
+      regularFirstFutureActivationTimeSec: 0.625 * cycleLengthSec,
       regularFirstSourceSequence: 0,
       priorAcceptedAtrialCapture: null,
       priorAcceptedVentricularActivation: priorVentricularCapture(
@@ -251,6 +253,13 @@ function priorVentricularCapture(
 function requireIdentityString(value: string, label: string): string {
   if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
     throw new Error(`integrated regular-sinus ${label} is invalid`);
+  }
+  return value;
+}
+
+function requireCycleLengthSec(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error("integrated regular-sinus cycleLengthSec is invalid");
   }
   return value;
 }

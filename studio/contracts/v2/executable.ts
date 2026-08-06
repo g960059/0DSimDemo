@@ -1,6 +1,6 @@
 import type {
-  ExperimentDraftCapturePortV2,
-  ExperimentSnapshotGatePortV2,
+  ExperimentCapturePortV2,
+  ExperimentSnapshotAdmissionPortV2,
 } from "./authoring";
 import type {
   ModelIdV2,
@@ -16,15 +16,15 @@ import type {
   RegisteredModelSimulationAdapterV2,
 } from "./simulation";
 
-export type RegisteredModelDraftCaptureAdapterV2 =
-  ExperimentDraftCapturePortV2 & Readonly<{
+export type RegisteredModelExperimentCaptureAdapterV2 =
+  ExperimentCapturePortV2 & Readonly<{
     modelId: ModelIdV2;
     fixtureSchemaId: string;
     checkpointCodecId: string;
   }>;
 
 export type RegisteredModelSnapshotGateAdapterV2 =
-  ExperimentSnapshotGatePortV2 & Readonly<{
+  ExperimentSnapshotAdmissionPortV2 & Readonly<{
     modelId: ModelIdV2;
     snapshotGateId: string;
   }>;
@@ -36,7 +36,7 @@ export type RegisteredModelExecutableBundleV2 = Readonly<{
   checkpointCodecId: string;
   snapshotGateId: string;
   captureAdapter: RegisteredModelCaptureAdapterV2;
-  draftCapture: RegisteredModelDraftCaptureAdapterV2;
+  experimentCapture: RegisteredModelExperimentCaptureAdapterV2;
   snapshotGate: RegisteredModelSnapshotGateAdapterV2;
   fixtureAdapter: StudioModelFixtureAdapterV2;
   simulationAdapter: RegisteredModelSimulationAdapterV2;
@@ -46,7 +46,7 @@ export type RegisteredModelExecutableBundleV2 = Readonly<{
 export type ResolvedExactModelRuntimeV2 = Readonly<{
   contract: ModelContractV2;
   captureAdapter: RegisteredModelCaptureAdapterV2;
-  draftCapture: RegisteredModelDraftCaptureAdapterV2;
+  experimentCapture: RegisteredModelExperimentCaptureAdapterV2;
   snapshotGate: RegisteredModelSnapshotGateAdapterV2;
   fixtureAdapter: StudioModelFixtureAdapterV2;
   simulationAdapter: RegisteredModelSimulationAdapterV2;

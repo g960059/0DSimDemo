@@ -5,6 +5,7 @@ import {
   type WorkbenchParallelScenarioRuntimeClientV3,
 } from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
 import type {
+  StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
 import {
@@ -47,6 +48,197 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       .toBe(true);
   });
 
+  it("pauses one analysis lane while sibling Scenarios remain live", async () => {
+    const harness = harnessV3();
+    await harness.runtime.initialize({
+      scenarios: [
+        seedV3("scenario/baseline", "Baseline", 0),
+        seedV3("scenario/comparison", "Comparison", 0),
+      ],
+      activeScenarioId: "scenario/baseline",
+    });
+    harness.runtime.playAll();
+
+    await harness.runtime.pauseScenario("scenario/baseline");
+    expect(harness.schedulers.get("scenario/baseline")?.running).toBe(false);
+    expect(harness.schedulers.get("scenario/comparison")?.running).toBe(true);
+
+    harness.runtime.resumeScenario("scenario/baseline");
+    expect(harness.schedulers.get("scenario/baseline")?.running).toBe(true);
+    expect(harness.schedulers.get("scenario/comparison")?.running).toBe(true);
+  });
+
+  it("runs analysis in an isolated Worker and resumes the live lane after capture", async () => {
+    const harness = harnessV3();
+    await harness.runtime.initialize({
+      scenarios: [seedV3("scenario/baseline", "Baseline", 0)],
+      activeScenarioId: "scenario/baseline",
+    });
+    harness.runtime.playAll();
+    const analysisClient = harness.analysisClients.get("scenario/baseline")!;
+    let releaseAnalysis!: (value: ReturnType<typeof analysisV3>) => void;
+    analysisClient.requestAnalysis.mockImplementation((request) =>
+      new Promise((resolve) => {
+        releaseAnalysis = resolve;
+        const initialized = analysisClient.initialize.mock.calls[0]![0] as {
+          runtimeSessionId: string;
+        };
+        void request;
+        queueMicrotask(() => releaseAnalysis(analysisV3(
+          initialized.runtimeSessionId,
+          "scenario/baseline",
+          "analysis/guyton-starling",
+        )));
+      }));
+
+    const pending = harness.runtime.requestAnalysis({
+      scenarioId: "scenario/baseline",
+      analysisId: "analysis/guyton-starling",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+    });
+    await vi.waitFor(() => {
+      expect(analysisClient.requestAnalysis).toHaveBeenCalledOnce();
+    });
+
+    expect(harness.clients.get("scenario/baseline")?.requestAnalysis)
+      .not.toHaveBeenCalled();
+    expect(analysisClient.initialize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checkpoint: expect.objectContaining({ acceptedRevision: 0 }),
+      }),
+    );
+    expect(harness.schedulers.get("scenario/baseline")?.running).toBe(true);
+    await expect(pending).resolves.toMatchObject({
+      runtimeSessionId: "runtime/scenario/baseline",
+      scenarioId: "scenario/baseline",
+      sourceAcceptedRevision: 0,
+    });
+    expect(analysisClient.terminate).toHaveBeenCalledOnce();
+  });
+
+  it("starts hypovolemic and hypervolemic analysis Workers from one exact capture", async () => {
+    const liveClient = clientV3("scenario/baseline");
+    const analysisClients = new Map<string, ReturnType<typeof clientV3>>();
+    const releases = new Map<string, () => void>();
+    const started: string[] = [];
+    const onProgress = vi.fn<(analysis: StudioSimulationAnalysisV2) => void>();
+    const onLiveLaneReleased = vi.fn();
+    let scheduler: FakeSchedulerV3 | null = null;
+    const runtime = new WorkbenchParallelScenarioRuntimeV3({
+      expectedModelId: "model/main-wire-v3-r1",
+      createRuntimeSessionId: (scenarioId) => `runtime/${scenarioId}`,
+      createClient: () => liveClient as unknown as
+        WorkbenchParallelScenarioRuntimeClientV3,
+      createAnalysisClient: (_scenarioId, analysisPartition) => {
+        if (analysisPartition === undefined) {
+          throw new Error("partitioned analysis Worker requires a direction");
+        }
+        const client = clientV3("scenario/baseline");
+        client.requestAnalysis.mockImplementation((request) => {
+          const workerRequest = request as unknown as Readonly<{
+            runtimeSessionId: string;
+            scenarioId: string;
+            analysisId: string;
+            analysisPartition?: string;
+            onProgress?: (analysis: StudioSimulationAnalysisV2) => void;
+          }>;
+          started.push(analysisPartition);
+          const result: StudioSimulationAnalysisV2 = Object.freeze({
+            ...analysisV3(
+              workerRequest.runtimeSessionId,
+              workerRequest.scenarioId,
+              workerRequest.analysisId,
+            ),
+            payload: Object.freeze({
+              status: "available",
+              partition: analysisPartition,
+            }),
+          });
+          workerRequest.onProgress?.(result);
+          return new Promise<StudioSimulationAnalysisV2>((resolve) => {
+            releases.set(analysisPartition, () => resolve(result));
+          });
+        });
+        analysisClients.set(analysisPartition, client);
+        return client as unknown as WorkbenchParallelScenarioRuntimeClientV3;
+      },
+      createScheduler: (_scenarioId, dependencies) => {
+        scheduler = new FakeSchedulerV3(dependencies);
+        return scheduler;
+      },
+      resolveAnalysisExecutionPlan: (analysisId) =>
+        analysisId === "analysis/guyton-starling"
+          ? Object.freeze({
+              partitions: Object.freeze(["hypovolemic", "hypervolemic"]),
+              merge: (analyses) => Object.freeze({
+                ...analyses[0]!,
+                payload: Object.freeze({
+                  status: "available",
+                  partitions: Object.freeze(analyses.map((analysis) =>
+                    (analysis.payload as Readonly<{ partition: string }>)
+                      .partition).sort()),
+                }),
+              }),
+            })
+          : null,
+      onFrames: vi.fn(),
+      onError: vi.fn(),
+    });
+    await runtime.initialize({
+      scenarios: [seedV3("scenario/baseline", "Baseline", 0)],
+      activeScenarioId: "scenario/baseline",
+    });
+    runtime.playAll();
+
+    const pending = runtime.requestAnalysis({
+      scenarioId: "scenario/baseline",
+      analysisId: "analysis/guyton-starling",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+      onProgress,
+      onLiveLaneReleased,
+    });
+    await vi.waitFor(() => expect(started.sort()).toEqual([
+      "hypervolemic",
+      "hypovolemic",
+    ]));
+
+    expect(scheduler?.running).toBe(true);
+    expect(onLiveLaneReleased).toHaveBeenCalledOnce();
+    const lowClient = analysisClients.get("hypovolemic")!;
+    const highClient = analysisClients.get("hypervolemic")!;
+    expect(lowClient.initialize).toHaveBeenCalledOnce();
+    expect(highClient.initialize).toHaveBeenCalledOnce();
+    expect(lowClient.initialize.mock.calls[0]![0].checkpoint)
+      .toBe(highClient.initialize.mock.calls[0]![0].checkpoint);
+    expect(lowClient.requestAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({ analysisPartition: "hypovolemic" }),
+    );
+    expect(highClient.requestAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({ analysisPartition: "hypervolemic" }),
+    );
+    expect(onProgress).toHaveBeenCalledTimes(2);
+    expect(onProgress.mock.calls.at(-1)?.[0].payload).toEqual({
+      status: "available",
+      partitions: ["hypervolemic", "hypovolemic"],
+    });
+
+    releases.get("hypovolemic")!();
+    releases.get("hypervolemic")!();
+    await expect(pending).resolves.toMatchObject({
+      runtimeSessionId: "runtime/scenario/baseline",
+      payload: {
+        status: "available",
+        partitions: ["hypervolemic", "hypovolemic"],
+      },
+    });
+    expect(lowClient.terminate).toHaveBeenCalledOnce();
+    expect(highClient.terminate).toHaveBeenCalledOnce();
+  });
+
   it("coalesces independently delivered lane frames into one presentation commit", async () => {
     const harness = harnessV3();
     await harness.runtime.initialize({
@@ -87,9 +279,14 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       scenarios: [seedV3("scenario/baseline", "Baseline", 3)],
       activeScenarioId: "scenario/baseline",
     });
+    const sourceCapture = scenarioV3(
+      "scenario/baseline",
+      "stale worker label",
+      9,
+    );
     harness.clients.get("scenario/baseline")!.readScenarios.mockResolvedValue({
       activeScenarioId: "scenario/baseline",
-      scenarios: [scenarioV3("scenario/baseline", "stale worker label", 9)],
+      scenarios: [sourceCapture],
     });
 
     const duplicated = await harness.runtime.duplicateScenario({
@@ -103,6 +300,13 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
         fixture: { value: 9 },
         checkpoint: expect.objectContaining({ acceptedRevision: 9 }),
       }));
+    const duplicateSeed = harness.clients.get("scenario/copy")?.initialize
+      .mock.calls[0]![0] as Readonly<{
+        fixture: unknown;
+        checkpoint: unknown;
+      }>;
+    expect(duplicateSeed.fixture).not.toBe(sourceCapture.capture.fixture);
+    expect(duplicateSeed.checkpoint).not.toBe(sourceCapture.capture.checkpoint);
 
     harness.runtime.renameScenario({
       scenarioId: "scenario/baseline",
@@ -326,6 +530,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
 
 function harnessV3(onError = vi.fn<(error: Error) => void>()) {
   const clients = new Map<string, ReturnType<typeof clientV3>>();
+  const analysisClients = new Map<string, ReturnType<typeof clientV3>>();
   const schedulers = new Map<string, FakeSchedulerV3>();
   const flushCallbacks: Array<() => void> = [];
   const onFrames = vi.fn<(frames: readonly StudioSimulationFrameV2[]) => void>();
@@ -335,6 +540,13 @@ function harnessV3(onError = vi.fn<(error: Error) => void>()) {
     createClient: (scenarioId) => {
       const client = clientV3(scenarioId);
       clients.set(scenarioId, client);
+      return client as unknown as WorkbenchParallelScenarioRuntimeClientV3;
+    },
+    createAnalysisClient: (scenarioId) => {
+      const client = analysisClients.get(scenarioId) ?? clientV3(scenarioId);
+      if (!analysisClients.has(scenarioId)) {
+        analysisClients.set(scenarioId, client);
+      }
       return client as unknown as WorkbenchParallelScenarioRuntimeClientV3;
     },
     createScheduler: (scenarioId, dependencies) => {
@@ -350,7 +562,22 @@ function harnessV3(onError = vi.fn<(error: Error) => void>()) {
     onFrames,
     onError,
   });
-  return { clients, flushCallbacks, onFrames, runtime, schedulers };
+  // Factories are lazy: provision deterministic analysis doubles for the
+  // assertions before the request allocates one.
+  for (const scenarioId of ["scenario/baseline", "scenario/comparison"]) {
+    if (!analysisClients.has(scenarioId)) {
+      const client = clientV3(scenarioId);
+      analysisClients.set(scenarioId, client);
+    }
+  }
+  return {
+    analysisClients,
+    clients,
+    flushCallbacks,
+    onFrames,
+    runtime,
+    schedulers,
+  };
 }
 
 class FakeSchedulerV3 {
@@ -483,4 +710,21 @@ function frameV3(
     acceptedTimeSec: acceptedRevision * 0.002,
     outputs: {},
   };
+}
+
+function analysisV3(
+  runtimeSessionId: string,
+  scenarioId: string,
+  analysisId: string,
+) {
+  return {
+    runtimeSessionId,
+    scenarioId,
+    modelId: "model/main-wire-v3-r1",
+    inputEpoch: 0,
+    sourceAcceptedRevision: 0,
+    sourceAcceptedTimeSec: 0,
+    analysisId,
+    payload: { status: "available" },
+  } as const;
 }

@@ -136,6 +136,33 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  supabase:
+    name: Supabase schema and policy tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.111.0
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Run database tests
+        run: supabase test db --local supabase/tests/database
+
+      - name: Lint local database
+        run: >-
+          supabase db lint --local
+          --schema public,studio
+          --level error
+          --fail-on error
+
   whitespace:
     name: Check diff whitespace
     runs-on: ubuntu-latest
@@ -167,6 +194,7 @@ jobs:
       - hygiene
       - build
       - browser
+      - supabase
       - test
       - whitespace
     if: always()
@@ -179,6 +207,7 @@ jobs:
           HYGIENE_RESULT: ${{ needs.hygiene.result }}
           BUILD_RESULT: ${{ needs.build.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
+          SUPABASE_RESULT: ${{ needs.supabase.result }}
           TEST_RESULT: ${{ needs.test.result }}
           WHITESPACE_RESULT: ${{ needs.whitespace.result }}
         run: |
@@ -187,6 +216,7 @@ jobs:
             "Repository hygiene:$HYGIENE_RESULT" \
             "Build:$BUILD_RESULT" \
             "Workbench browser smoke:$BROWSER_RESULT" \
+            "Supabase schema and policy tests:$SUPABASE_RESULT" \
             "Test:$TEST_RESULT" \
             "Check diff whitespace:$WHITESPACE_RESULT"
           do

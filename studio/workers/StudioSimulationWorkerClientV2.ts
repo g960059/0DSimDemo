@@ -1,7 +1,7 @@
 import type {
   ExperimentSurfaceV2,
   ExperimentSnapshotV2,
-  ExperimentWorkspaceV2,
+  ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import type {
   StudioSimulationAnalysisV2,
@@ -19,7 +19,7 @@ import {
   type StudioSimulationWorkerRequestAnalysisInputV2,
   type StudioSimulationWorkerRequestV2,
   type StudioSimulationWorkerResponseV2,
-  type StudioSimulationWorkerSaveDraftInputV2,
+  type StudioSimulationWorkerSaveExperimentInputV2,
   type StudioSimulationWorkerScenarioCapturesV2,
   type StudioSimulationWorkerScenarioStateV2,
   type StudioSimulationWorkerSelectScenarioInputV2,
@@ -34,25 +34,25 @@ import {
   createStudioSimulationReadScenariosRequestV2,
   createStudioSimulationRenameScenarioRequestV2,
   createStudioSimulationRequestAnalysisRequestV2,
-  createStudioSimulationSaveDraftRequestV2,
+  createStudioSimulationSaveExperimentRequestV2,
   createStudioSimulationSelectScenarioRequestV2,
   validateStudioSimulationWorkerResponseV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 
 const WORKER_RESPONSE_TIMEOUT_MS_V2 = 30_000;
 /**
- * Snapshot qualification executes the canonical, bounded periodic protocol for
- * every Scenario sequentially. It therefore has a deliberately separate,
- * user-configurable deadline instead of inheriting the interactive RPC budget.
- * A deadline remains finite so a wedged qualification always terminates the
+ * Snapshot admission executes a bounded public-executable protocol for every
+ * Scenario. It therefore has a separate, user-configurable deadline instead
+ * of inheriting the interactive RPC budget. A finite deadline ensures a wedged
+ * admission always terminates the
  * Worker and rejects every pending request deterministically.
  */
-const WORKER_SNAPSHOT_QUALIFICATION_TIMEOUT_MS_V2 = 15 * 60_000;
+const WORKER_SNAPSHOT_ADMISSION_TIMEOUT_MS_V2 = 15 * 60_000;
 
-const QUALIFIED_SNAPSHOT_COMMIT_V2 = Symbol(
-  "StudioSimulationWorkerQualifiedSnapshotCommitV2",
+const ADMITTED_SNAPSHOT_COMMIT_V2 = Symbol(
+  "StudioSimulationWorkerAdmittedSnapshotCommitV2",
 );
-const qualifiedSnapshotCommitsV2 = new WeakSet<object>();
+const admittedSnapshotCommitsV2 = new WeakSet<object>();
 
 /**
  * Runtime authority minted only after one correlated response from the
@@ -62,22 +62,21 @@ const qualifiedSnapshotCommitsV2 = new WeakSet<object>();
  * the private WeakSet makes casts, clones, and hand-built JavaScript objects
  * fail at the browser persistence boundary as well.
  */
-export type StudioSimulationWorkerQualifiedSnapshotCommitV2 = Readonly<{
+export type StudioSimulationWorkerAdmittedSnapshotCommitV2 = Readonly<{
   snapshot: ExperimentSnapshotV2;
-  workspace: ExperimentWorkspaceV2;
-  [QUALIFIED_SNAPSHOT_COMMIT_V2]: true;
+  [ADMITTED_SNAPSHOT_COMMIT_V2]: true;
 }>;
 
-export function assertStudioSimulationWorkerQualifiedSnapshotCommitV2(
+export function assertStudioSimulationWorkerAdmittedSnapshotCommitV2(
   value: unknown,
-): asserts value is StudioSimulationWorkerQualifiedSnapshotCommitV2 {
+): asserts value is StudioSimulationWorkerAdmittedSnapshotCommitV2 {
   if (
     value === null
     || typeof value !== "object"
-    || !qualifiedSnapshotCommitsV2.has(value)
+    || !admittedSnapshotCommitsV2.has(value)
   ) {
     throw new Error(
-      "Browser Snapshot persistence requires a sealed qualified Worker result",
+      "Browser Snapshot persistence requires a sealed admitted Worker result",
     );
   }
 }
@@ -105,13 +104,13 @@ export interface StudioSimulationWorkerTransportV2 {
 
 export type StudioSimulationWorkerClientOptionsV2 = Readonly<{
   responseTimeoutMs?: number;
-  snapshotQualificationTimeoutMs?: number;
+  snapshotAdmissionTimeoutMs?: number;
 }>;
 
 type StudioSimulationWorkerClientTestOptionsV2 = Readonly<{
   transport: StudioSimulationWorkerTransportV2;
   responseTimeoutMs?: number;
-  snapshotQualificationTimeoutMs?: number;
+  snapshotAdmissionTimeoutMs?: number;
 }>;
 
 const TEST_CLIENT_CONSTRUCTION_AUTHORITY_V2 = Symbol(
@@ -173,19 +172,19 @@ type ExpectedResponseV2 =
       runtimeSessionId: string;
     }>
   | Readonly<{
-      kind: "draft-saved";
+      kind: "experiment-saved";
       modelId: string;
       runtimeSessionId: string;
       experimentId: string;
       surface: ExperimentSurfaceV2;
-      expectedDraftVersion: number | null;
-      priorWorkspace: ExperimentWorkspaceV2 | undefined;
+      expectedVersion: number | null;
+      priorExperiment: ExperimentV2 | undefined;
     }>
   | Readonly<{
       kind: "snapshot-created";
       modelId: string;
-      experimentId: string;
-      candidateWorkspace: ExperimentWorkspaceV2;
+      surface: ExperimentSurfaceV2;
+      scenarioIds: readonly string[];
     }>
   | Readonly<{
       kind: "disposed";
@@ -196,7 +195,13 @@ type PendingRequestV2 = Readonly<{
   reject(error: Error): void;
   timeout: ReturnType<typeof setTimeout>;
   expected: ExpectedResponseV2;
+  onAnalysisProgress?: (analysis: StudioSimulationAnalysisV2) => void;
 }>;
+
+export type StudioSimulationWorkerRequestAnalysisClientInputV2 =
+  StudioSimulationWorkerRequestAnalysisInputV2 & Readonly<{
+    onProgress?: (analysis: StudioSimulationAnalysisV2) => void;
+  }>;
 
 type ClientStateV2 =
   | "new"
@@ -216,12 +221,13 @@ type ScenarioOperationV2 =
 export class StudioSimulationWorkerClientV2 {
   readonly #worker: StudioSimulationWorkerTransportV2;
   readonly #responseTimeoutMs: number;
-  readonly #snapshotQualificationTimeoutMs: number;
+  readonly #snapshotAdmissionTimeoutMs: number;
   readonly #pending = new Map<number, PendingRequestV2>();
   #nextRequestId = 1;
   #state: ClientStateV2 = "new";
   #runtimeSessionId: string | undefined;
   #scenarioId: string | undefined;
+  #scenarioIds: readonly string[] | undefined;
   #modelId: string | undefined;
   #inputEpoch: number | undefined;
   #acceptedRevision: number | undefined;
@@ -236,10 +242,10 @@ export class StudioSimulationWorkerClientV2 {
     | "duplicate-scenario"
     | "rename-scenario"
     | "delete-scenario"
-    | "save-draft"
+    | "save-experiment"
     | "create-snapshot"
     | undefined;
-  #workspace: ExperimentWorkspaceV2 | undefined;
+  #experiment: ExperimentV2 | undefined;
   #disposePromise: Promise<void> | undefined;
 
   /** Production construction always owns the real module Worker. */
@@ -258,19 +264,19 @@ export class StudioSimulationWorkerClientV2 {
       throw new Error("simulation worker response timeout must be within [1, 300000]");
     }
     this.#responseTimeoutMs = responseTimeoutMs;
-    const snapshotQualificationTimeoutMs =
-      options.snapshotQualificationTimeoutMs
-      ?? WORKER_SNAPSHOT_QUALIFICATION_TIMEOUT_MS_V2;
+    const snapshotAdmissionTimeoutMs =
+      options.snapshotAdmissionTimeoutMs
+      ?? WORKER_SNAPSHOT_ADMISSION_TIMEOUT_MS_V2;
     if (
-      !Number.isSafeInteger(snapshotQualificationTimeoutMs)
-      || snapshotQualificationTimeoutMs < 1
-      || snapshotQualificationTimeoutMs > 86_400_000
+      !Number.isSafeInteger(snapshotAdmissionTimeoutMs)
+      || snapshotAdmissionTimeoutMs < 1
+      || snapshotAdmissionTimeoutMs > 86_400_000
     ) {
       throw new Error(
-        "simulation worker Snapshot qualification timeout must be within [1, 86400000]",
+        "simulation worker Snapshot admission timeout must be within [1, 86400000]",
       );
     }
-    this.#snapshotQualificationTimeoutMs = snapshotQualificationTimeoutMs;
+    this.#snapshotAdmissionTimeoutMs = snapshotAdmissionTimeoutMs;
     if (import.meta.env.PROD) {
       if (testConstruction !== undefined) {
         throw new Error(
@@ -320,11 +326,16 @@ export class StudioSimulationWorkerClientV2 {
       }
       this.#runtimeSessionId = request.runtimeSessionId;
       this.#scenarioId = request.scenarioId;
+      this.#scenarioIds = Object.freeze(
+        request.authoringSeed?.experiment?.content.scenarios.map(
+          ({ scenarioId }) => scenarioId,
+        ) ?? [request.scenarioId],
+      );
       this.#modelId = request.expectedModelId;
       this.#inputEpoch = response.frame.inputEpoch;
       this.#acceptedRevision = response.frame.acceptedRevision;
       this.#acceptedTimeSec = response.frame.acceptedTimeSec;
-      this.#workspace = request.authoringSeed?.workspace;
+      this.#experiment = request.authoringSeed?.experiment;
       this.#state = "active";
       return response.frame;
     } catch (error) {
@@ -342,6 +353,7 @@ export class StudioSimulationWorkerClientV2 {
       this.#state !== "active"
       || this.#runtimeSessionId === undefined
       || this.#scenarioId === undefined
+      || this.#scenarioIds === undefined
       || this.#modelId === undefined
       || this.#inputEpoch === undefined
       || this.#acceptedRevision === undefined
@@ -444,7 +456,7 @@ export class StudioSimulationWorkerClientV2 {
   }
 
   async requestAnalysis(
-    input: StudioSimulationWorkerRequestAnalysisInputV2,
+    input: StudioSimulationWorkerRequestAnalysisClientInputV2,
   ): Promise<StudioSimulationAnalysisV2> {
     if (
       this.#state !== "active"
@@ -460,9 +472,10 @@ export class StudioSimulationWorkerClientV2 {
     if (this.#operationInFlight !== undefined) {
       throw new Error("simulation worker client already has an operation in flight");
     }
+    const { onProgress, ...requestInput } = input;
     const request = createStudioSimulationRequestAnalysisRequestV2(
       this.#allocateRequestId(),
-      input,
+      requestInput,
     );
     if (
       request.runtimeSessionId !== this.#runtimeSessionId
@@ -489,7 +502,7 @@ export class StudioSimulationWorkerClientV2 {
         inputEpoch: this.#inputEpoch,
         sourceAcceptedRevision: this.#acceptedRevision,
         sourceAcceptedTimeSec: this.#acceptedTimeSec,
-      });
+      }, undefined, onProgress);
       if (response.status !== "ok" || response.kind !== "analysis-result") {
         throw new Error("simulation worker returned another analysis response");
       }
@@ -589,13 +602,14 @@ export class StudioSimulationWorkerClientV2 {
     );
   }
 
-  async saveDraft(
-    input: StudioSimulationWorkerSaveDraftInputV2,
-  ): Promise<ExperimentWorkspaceV2> {
+  async saveExperiment(
+    input: StudioSimulationWorkerSaveExperimentInputV2,
+  ): Promise<ExperimentV2> {
     if (
       this.#state !== "active"
       || this.#runtimeSessionId === undefined
       || this.#scenarioId === undefined
+      || this.#scenarioIds === undefined
       || this.#modelId === undefined
     ) {
       throw new Error("simulation worker client is not active");
@@ -604,10 +618,11 @@ export class StudioSimulationWorkerClientV2 {
       throw new Error("simulation worker client already has an operation in flight");
     }
     const boundary = this.#requiredActiveBoundary(input.runtimeSessionId);
-    const request = createStudioSimulationSaveDraftRequestV2(
+    const request = createStudioSimulationSaveExperimentRequestV2(
       this.#allocateRequestId(),
       {
         ...input,
+        scenarioIds: this.#scenarioIds,
         expectedInputEpoch: boundary.expectedInputEpoch,
         expectedAcceptedRevision: boundary.expectedAcceptedRevision,
         expectedAcceptedTimeSec: boundary.expectedAcceptedTimeSec,
@@ -619,38 +634,38 @@ export class StudioSimulationWorkerClientV2 {
     ) {
       throw new Error("simulation worker client session identity mismatch");
     }
-    const priorWorkspace = this.#workspace;
-    if (priorWorkspace === undefined) {
-      if (request.expectedDraftVersion !== null) {
+    const priorExperiment = this.#experiment;
+    if (priorExperiment === undefined) {
+      if (request.expectedVersion !== null) {
         throw new Error(
-          "simulation worker client first Save requires a null draft version",
+          "simulation worker client first Save requires a null version",
         );
       }
     } else if (
-      request.experimentId !== priorWorkspace.experimentId
-      || request.expectedDraftVersion !== priorWorkspace.draftVersion
+      request.experimentId !== priorExperiment.experimentId
+      || request.expectedVersion !== priorExperiment.version
     ) {
       throw new Error(
-        "simulation worker client Draft identity or version is stale",
+        "simulation worker client Experiment identity or version is stale",
       );
     }
 
-    this.#operationInFlight = "save-draft";
+    this.#operationInFlight = "save-experiment";
     try {
       const response = await this.#postRequest(request, {
-        kind: "draft-saved",
+        kind: "experiment-saved",
         modelId: this.#modelId,
         runtimeSessionId: this.#runtimeSessionId,
         experimentId: request.experimentId,
         surface: request.surface,
-        expectedDraftVersion: request.expectedDraftVersion,
-        priorWorkspace,
+        expectedVersion: request.expectedVersion,
+        priorExperiment,
       });
-      if (response.status !== "ok" || response.kind !== "draft-saved") {
-        throw new Error("simulation worker returned another Draft response");
+      if (response.status !== "ok" || response.kind !== "experiment-saved") {
+        throw new Error("simulation worker returned another Experiment response");
       }
-      this.#workspace = response.workspace;
-      return response.workspace;
+      this.#experiment = response.experiment;
+      return response.experiment;
     } finally {
       this.#operationInFlight = undefined;
     }
@@ -713,6 +728,9 @@ export class StudioSimulationWorkerClientV2 {
       }
       if (response.kind === "scenario-state") {
         this.#scenarioId = response.state.activeScenarioId;
+        this.#scenarioIds = Object.freeze(response.state.scenarios.map(
+          ({ scenarioId }) => scenarioId,
+        ));
         this.#inputEpoch = response.state.frame.inputEpoch;
         this.#acceptedRevision = response.state.frame.acceptedRevision;
         this.#acceptedTimeSec = response.state.frame.acceptedTimeSec;
@@ -726,11 +744,12 @@ export class StudioSimulationWorkerClientV2 {
 
   async createSnapshot(
     input: StudioSimulationWorkerCreateSnapshotInputV2,
-  ): Promise<StudioSimulationWorkerQualifiedSnapshotCommitV2> {
+  ): Promise<StudioSimulationWorkerAdmittedSnapshotCommitV2> {
     if (
       this.#state !== "active"
       || this.#runtimeSessionId === undefined
       || this.#scenarioId === undefined
+      || this.#scenarioIds === undefined
       || this.#modelId === undefined
     ) {
       throw new Error("simulation worker client is not active");
@@ -738,9 +757,16 @@ export class StudioSimulationWorkerClientV2 {
     if (this.#operationInFlight !== undefined) {
       throw new Error("simulation worker client already has an operation in flight");
     }
+    const boundary = this.#requiredActiveBoundary(input.runtimeSessionId);
     const request = createStudioSimulationCreateSnapshotRequestV2(
       this.#allocateRequestId(),
-      input,
+      {
+        ...input,
+        scenarioIds: this.#scenarioIds,
+        expectedInputEpoch: boundary.expectedInputEpoch,
+        expectedAcceptedRevision: boundary.expectedAcceptedRevision,
+        expectedAcceptedTimeSec: boundary.expectedAcceptedTimeSec,
+      },
     );
     if (
       request.runtimeSessionId !== this.#runtimeSessionId
@@ -748,44 +774,29 @@ export class StudioSimulationWorkerClientV2 {
     ) {
       throw new Error("simulation worker client session identity mismatch");
     }
-    const candidateWorkspace = this.#workspace;
-    if (
-      candidateWorkspace === undefined
-      || request.experimentId !== candidateWorkspace.experimentId
-      || request.expectedDraftVersion !== candidateWorkspace.draftVersion
-      || request.expectedHeadSnapshotId
-        !== candidateWorkspace.headSnapshotId
-    ) {
-      throw new Error(
-        "simulation worker client Snapshot identity or version is stale",
-      );
-    }
-
     this.#operationInFlight = "create-snapshot";
     try {
       const response = await this.#postRequest(request, {
         kind: "snapshot-created",
         modelId: this.#modelId,
-        experimentId: request.experimentId,
-        candidateWorkspace,
-      }, this.#snapshotQualificationTimeoutMs);
+        surface: request.surface,
+        scenarioIds: request.scenarioIds,
+      }, this.#snapshotAdmissionTimeoutMs);
       if (response.status !== "ok" || response.kind !== "snapshot-created") {
         throw new Error("simulation worker returned another Snapshot response");
       }
-      this.#workspace = response.workspace;
-      const qualifiedCommit = {
+      const admittedCommit = {
         snapshot: response.snapshot,
-        workspace: response.workspace,
-      } as StudioSimulationWorkerQualifiedSnapshotCommitV2;
-      Object.defineProperty(qualifiedCommit, QUALIFIED_SNAPSHOT_COMMIT_V2, {
+      } as StudioSimulationWorkerAdmittedSnapshotCommitV2;
+      Object.defineProperty(admittedCommit, ADMITTED_SNAPSHOT_COMMIT_V2, {
         value: true,
         enumerable: false,
         configurable: false,
         writable: false,
       });
-      Object.freeze(qualifiedCommit);
-      qualifiedSnapshotCommitsV2.add(qualifiedCommit);
-      return qualifiedCommit;
+      Object.freeze(admittedCommit);
+      admittedSnapshotCommitsV2.add(admittedCommit);
+      return admittedCommit;
     } finally {
       this.#operationInFlight = undefined;
     }
@@ -846,6 +857,7 @@ export class StudioSimulationWorkerClientV2 {
     request: StudioSimulationWorkerRequestV2,
     expected: ExpectedResponseV2,
     timeoutMs = this.#responseTimeoutMs,
+    onAnalysisProgress?: (analysis: StudioSimulationAnalysisV2) => void,
   ): Promise<StudioSimulationWorkerResponseV2> {
     if (this.#state === "terminated") {
       return Promise.reject(new Error("simulation worker client is terminated"));
@@ -862,6 +874,7 @@ export class StudioSimulationWorkerClientV2 {
         reject,
         timeout,
         expected,
+        onAnalysisProgress,
       });
       try {
         this.#worker.postMessage(request);
@@ -891,6 +904,20 @@ export class StudioSimulationWorkerClientV2 {
       this.#settlePending(response.requestId);
       pending.reject(error);
       if (response.fatal) this.#terminateWith(error);
+      return;
+    }
+    if (response.kind === "analysis-progress") {
+      try {
+        if (pending.expected.kind !== "analysis-result") {
+          throw new Error(
+            "simulation worker emitted analysis progress for another request",
+          );
+        }
+        assertExpectedAnalysisV2(response.analysis, pending.expected);
+        pending.onAnalysisProgress?.(response.analysis);
+      } catch (error) {
+        this.#terminateWith(errorAsErrorV2(error));
+      }
       return;
     }
     try {
@@ -1034,58 +1061,35 @@ function assertExpectedResponseV2(
     response.kind === "analysis-result"
     && expected.kind === "analysis-result"
   ) {
-    const analysis = response.analysis;
-    if (
-      analysis.modelId !== expected.modelId
-      || analysis.runtimeSessionId !== expected.runtimeSessionId
-      || analysis.scenarioId !== expected.scenarioId
-      || analysis.analysisId !== expected.analysisId
-      || analysis.inputEpoch !== expected.inputEpoch
-      || analysis.sourceAcceptedRevision
-        !== expected.sourceAcceptedRevision
-      || analysis.sourceAcceptedTimeSec !== expected.sourceAcceptedTimeSec
-    ) {
-      throw new Error(
-        "simulation worker analysis result identity or clocks mismatch",
-      );
-    }
+    assertExpectedAnalysisV2(response.analysis, expected);
     return;
   }
   if (
-    response.kind === "draft-saved"
-    && expected.kind === "draft-saved"
+    response.kind === "experiment-saved"
+    && expected.kind === "experiment-saved"
   ) {
-    const workspace = response.workspace;
-    const expectedVersion = expected.expectedDraftVersion === null
+    const experiment = response.experiment;
+    const expectedVersion = expected.expectedVersion === null
       ? 0
-      : expected.expectedDraftVersion + 1;
+      : expected.expectedVersion + 1;
     if (
-      workspace.experimentId !== expected.experimentId
-      || workspace.draftVersion !== expectedVersion
-      || workspace.content.modelId !== expected.modelId
-      || workspace.content.scenarios.length < 1
-      || !samePortableValueV2(workspace.content.surface, expected.surface)
+      experiment.experimentId !== expected.experimentId
+      || experiment.version !== expectedVersion
+      || experiment.content.modelId !== expected.modelId
+      || experiment.content.scenarios.length < 1
+      || !samePortableValueV2(experiment.content.surface, expected.surface)
     ) {
       throw new Error(
-        "simulation worker saved Draft response correlation mismatch",
+        "simulation worker saved Experiment response correlation mismatch",
       );
     }
-    if (expected.priorWorkspace === undefined) {
-      if (
-        workspace.headSnapshotId !== null
-        || workspace.basedOnSnapshotId !== null
-      ) {
-        throw new Error(
-          "simulation worker first Draft response has invalid lineage",
-        );
-      }
-    } else if (
-      workspace.headSnapshotId !== expected.priorWorkspace.headSnapshotId
-      || workspace.basedOnSnapshotId
-        !== expected.priorWorkspace.basedOnSnapshotId
+    if (
+      expected.priorExperiment !== undefined
+      && experiment.content.modelId
+        !== expected.priorExperiment.content.modelId
     ) {
       throw new Error(
-        "simulation worker saved Draft response changed lineage",
+        "simulation worker saved Experiment response changed modelId",
       );
     }
     return;
@@ -1123,26 +1127,38 @@ function assertExpectedResponseV2(
     response.kind === "snapshot-created"
     && expected.kind === "snapshot-created"
   ) {
-    const { snapshot, workspace } = response;
-    const candidate = expected.candidateWorkspace;
+    const { snapshot } = response;
+    const snapshotScenarioIds = snapshot.content.scenarios.map(
+      ({ scenarioId }) => scenarioId,
+    );
     if (
-      snapshot.experimentId !== expected.experimentId
-      || snapshot.content.modelId !== expected.modelId
-      || snapshot.parentSnapshotId !== candidate.basedOnSnapshotId
-      || workspace.experimentId !== expected.experimentId
-      || workspace.draftVersion !== candidate.draftVersion + 1
-      || workspace.headSnapshotId !== snapshot.snapshotId
-      || workspace.basedOnSnapshotId !== snapshot.snapshotId
-      || !samePortableValueV2(workspace.content, snapshot.content)
-      || !sameAuthoredContentExceptCheckpointsV2(
-        candidate.content,
-        snapshot.content,
-      )
+      snapshot.content.modelId !== expected.modelId
+      || !samePortableValueV2(snapshot.content.surface, expected.surface)
+      || !samePortableValueV2(snapshotScenarioIds, expected.scenarioIds)
     ) {
       throw new Error(
         "simulation worker Snapshot response correlation mismatch",
       );
     }
+  }
+}
+
+function assertExpectedAnalysisV2(
+  analysis: StudioSimulationAnalysisV2,
+  expected: Extract<ExpectedResponseV2, { kind: "analysis-result" }>,
+): void {
+  if (
+    analysis.modelId !== expected.modelId
+    || analysis.runtimeSessionId !== expected.runtimeSessionId
+    || analysis.scenarioId !== expected.scenarioId
+    || analysis.analysisId !== expected.analysisId
+    || analysis.inputEpoch !== expected.inputEpoch
+    || analysis.sourceAcceptedRevision !== expected.sourceAcceptedRevision
+    || analysis.sourceAcceptedTimeSec !== expected.sourceAcceptedTimeSec
+  ) {
+    throw new Error(
+      "simulation worker analysis result identity or clocks mismatch",
+    );
   }
 }
 
@@ -1159,29 +1175,6 @@ function assertFrameIdentityV2(
   ) {
     throw new Error("simulation worker response frame identity mismatch");
   }
-}
-
-function sameAuthoredContentExceptCheckpointsV2(
-  before: ExperimentWorkspaceV2["content"],
-  after: ExperimentWorkspaceV2["content"],
-): boolean {
-  if (
-    before.modelId !== after.modelId
-    || !samePortableValueV2(before.surface, after.surface)
-    || before.scenarios.length !== after.scenarios.length
-  ) {
-    return false;
-  }
-  return before.scenarios.every((scenario, index) => {
-    const qualified = after.scenarios[index];
-    return qualified !== undefined
-      && qualified.scenarioId === scenario.scenarioId
-      && qualified.label === scenario.label
-      && samePortableValueV2(
-        qualified.capture.fixture,
-        scenario.capture.fixture,
-      );
-  });
 }
 
 function samePortableValueV2(left: unknown, right: unknown): boolean {

@@ -1,6 +1,6 @@
 import {
   validateExperimentSnapshotV2,
-  validateExperimentWorkspaceV2,
+  validateExperimentV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {
   StudioExperimentAuthoringApplicationV2,
@@ -10,10 +10,10 @@ import type {
 } from "@/studio/contracts/v2/authoring";
 import type {
   ExperimentSnapshotV2,
-  ExperimentWorkspaceV2,
+  ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import type {
-  ExperimentDraftVersionV2,
+  ExperimentVersionV2,
   ExperimentIdV2,
   ExperimentSnapshotIdV2,
 } from "@/studio/contracts/v2/ids";
@@ -39,27 +39,20 @@ export class StudioExperimentConflictErrorV2 extends Error {
   }
 }
 
-const QUALIFIED_SNAPSHOT_COMMIT_CAPABILITY_V2 = Symbol(
-  "StudioQualifiedSnapshotCommitV2",
+const ADMITTED_SNAPSHOT_COMMIT_CAPABILITY_V2 = Symbol(
+  "StudioAdmittedSnapshotCommitV2",
 );
-
-type SnapshotCommitInputInternalV2 = Readonly<{
-  expectedDraftVersion: ExperimentDraftVersionV2;
-  expectedHeadSnapshotId: ExperimentSnapshotIdV2 | null;
-  snapshot: ExperimentSnapshotV2;
-  nextWorkspace: ExperimentWorkspaceV2;
-}>;
 
 /**
  * Deterministic repository used by the V2 foundation and tests.
  *
  * Values enter only through fail-closed validators and remain detached,
- * deeply frozen snapshots. `commitSnapshot` contains no asynchronous gap:
- * readers observe both the immutable Snapshot and updated head, or neither.
+ * deeply frozen values. Snapshot persistence is independent of a mutable
+ * Experiment; separate library metadata may point at a publication Snapshot.
  */
 class InMemoryExperimentRepositoryV2 {
-  readonly #workspaces =
-    new Map<ExperimentIdV2, ExperimentWorkspaceV2>();
+  readonly #experiments =
+    new Map<ExperimentIdV2, ExperimentV2>();
   readonly #snapshots =
     new Map<ExperimentSnapshotIdV2, ExperimentSnapshotV2>();
 
@@ -76,106 +69,54 @@ class InMemoryExperimentRepositoryV2 {
       this.#snapshots.set(snapshot.snapshotId, snapshot);
     }
 
-    for (const snapshot of this.#snapshots.values()) {
-      if (snapshot.parentSnapshotId === null) continue;
-      const parent = this.#snapshots.get(snapshot.parentSnapshotId);
-      if (
-        parent !== undefined
-        && parent.content.modelId !== snapshot.content.modelId
-      ) {
-        throw new StudioExperimentConflictErrorV2(
-          "seed Snapshot lineage must keep the exact modelId",
-        );
-      }
-    }
-
-    if (validatedSeed.workspace !== undefined) {
-      const workspace = validatedSeed.workspace;
-      assertSeedWorkspaceLineageV2(workspace, this.#snapshots);
-      this.#workspaces.set(workspace.experimentId, workspace);
+    if (validatedSeed.experiment !== undefined) {
+      const experiment = validatedSeed.experiment;
+      this.#experiments.set(experiment.experimentId, experiment);
     }
   }
 
-  get workspaceCount(): number {
-    return this.#workspaces.size;
+  get experimentCount(): number {
+    return this.#experiments.size;
   }
 
   get snapshotCount(): number {
     return this.#snapshots.size;
   }
 
-  createWorkspace(workspaceValue: ExperimentWorkspaceV2): void {
-    const workspace = validateExperimentWorkspaceV2(workspaceValue);
-    if (this.#workspaces.has(workspace.experimentId)) {
+  createExperiment(experimentValue: ExperimentV2): void {
+    const experiment = validateExperimentV2(experimentValue);
+    if (this.#experiments.has(experiment.experimentId)) {
       throw new StudioExperimentAlreadyExistsErrorV2(
-        workspace.experimentId,
+        experiment.experimentId,
       );
     }
-    this.#workspaces.set(workspace.experimentId, workspace);
+    this.#experiments.set(experiment.experimentId, experiment);
   }
 
-  readWorkspace(
+  readExperiment(
     experimentId: ExperimentIdV2,
-  ): ExperimentWorkspaceV2 | null {
-    return this.#workspaces.get(experimentId) ?? null;
+  ): ExperimentV2 | null {
+    return this.#experiments.get(experimentId) ?? null;
   }
 
-  replaceWorkspace(
-    expectedDraftVersion: ExperimentDraftVersionV2,
-    workspaceValue: ExperimentWorkspaceV2,
+  replaceExperiment(
+    expectedVersion: ExperimentVersionV2,
+    experimentValue: ExperimentV2,
   ): void {
-    const workspace = validateExperimentWorkspaceV2(workspaceValue);
-    const current = this.#requiredWorkspaceV2(workspace.experimentId);
-    assertExpectedDraftVersionV2(current, expectedDraftVersion);
-    if (workspace.draftVersion !== current.draftVersion + 1) {
+    const experiment = validateExperimentV2(experimentValue);
+    const current = this.#requiredExperimentV2(experiment.experimentId);
+    assertExpectedVersionV2(current, expectedVersion);
+    if (experiment.version !== current.version + 1) {
       throw new StudioExperimentConflictErrorV2(
-        "replacement draftVersion must advance by exactly one",
+        "replacement version must advance by exactly one",
       );
     }
-    if (
-      workspace.headSnapshotId !== current.headSnapshotId
-      || workspace.basedOnSnapshotId !== current.basedOnSnapshotId
-    ) {
+    if (experiment.content.modelId !== current.content.modelId) {
       throw new StudioExperimentConflictErrorV2(
-        "SaveDraft cannot change snapshot lineage",
+        "SaveExperiment cannot change the exact modelId",
       );
     }
-    this.#workspaces.set(workspace.experimentId, workspace);
-  }
-
-  rebaseWorkspace(input: Readonly<{
-    expectedDraftVersion: ExperimentDraftVersionV2;
-    expectedHeadSnapshotId: ExperimentSnapshotIdV2 | null;
-    targetSnapshotId: ExperimentSnapshotIdV2;
-    workspace: ExperimentWorkspaceV2;
-  }>): void {
-    const workspace = validateExperimentWorkspaceV2(input.workspace);
-    const current = this.#requiredWorkspaceV2(workspace.experimentId);
-    assertExpectedDraftVersionV2(current, input.expectedDraftVersion);
-    if (current.headSnapshotId !== input.expectedHeadSnapshotId) {
-      throw new StudioExperimentConflictErrorV2(
-        "headSnapshotId changed before rebase",
-      );
-    }
-    const target = this.#snapshots.get(input.targetSnapshotId);
-    if (target === undefined) {
-      throw new StudioExperimentConflictErrorV2(
-        `rebase target Snapshot not found: ${input.targetSnapshotId}`,
-      );
-    }
-    if (
-      workspace.experimentId !== current.experimentId
-      || workspace.draftVersion !== current.draftVersion + 1
-      || workspace.headSnapshotId !== current.headSnapshotId
-      || workspace.basedOnSnapshotId !== target.snapshotId
-      || target.content.modelId !== current.content.modelId
-      || workspace.content.modelId !== current.content.modelId
-    ) {
-      throw new StudioExperimentConflictErrorV2(
-        "rebase must keep the head and exact model while advancing basedOn",
-      );
-    }
-    this.#workspaces.set(workspace.experimentId, workspace);
+    this.#experiments.set(experiment.experimentId, experiment);
   }
 
   readSnapshot(
@@ -184,84 +125,59 @@ class InMemoryExperimentRepositoryV2 {
     return this.#snapshots.get(snapshotId) ?? null;
   }
 
-  [QUALIFIED_SNAPSHOT_COMMIT_CAPABILITY_V2](): Readonly<{
-    commitSnapshot(input: SnapshotCommitInputInternalV2): void;
+  [ADMITTED_SNAPSHOT_COMMIT_CAPABILITY_V2](): Readonly<{
+    commitSnapshot(snapshot: ExperimentSnapshotV2): void;
   }> {
     return Object.freeze({
       commitSnapshot: this.#commitSnapshotV2.bind(this),
     });
   }
 
-  #commitSnapshotV2(input: SnapshotCommitInputInternalV2): void {
-    const snapshot = validateExperimentSnapshotV2(input.snapshot);
-    const nextWorkspace = validateExperimentWorkspaceV2(
-      input.nextWorkspace,
-    );
-    const current = this.#requiredWorkspaceV2(snapshot.experimentId);
-    assertExpectedDraftVersionV2(current, input.expectedDraftVersion);
-    if (current.headSnapshotId !== input.expectedHeadSnapshotId) {
-      throw new StudioExperimentConflictErrorV2(
-        "headSnapshotId changed while the candidate was qualified",
-      );
-    }
+  #commitSnapshotV2(snapshotValue: ExperimentSnapshotV2): void {
+    const snapshot = validateExperimentSnapshotV2(snapshotValue);
     if (this.#snapshots.has(snapshot.snapshotId)) {
       throw new StudioExperimentConflictErrorV2(
         `snapshotId already exists: ${snapshot.snapshotId}`,
       );
     }
-    if (
-      snapshot.parentSnapshotId !== current.basedOnSnapshotId
-      || nextWorkspace.experimentId !== current.experimentId
-      || nextWorkspace.draftVersion !== current.draftVersion + 1
-      || nextWorkspace.headSnapshotId !== snapshot.snapshotId
-      || nextWorkspace.basedOnSnapshotId !== snapshot.snapshotId
-      || !samePortableValueV2(nextWorkspace.content, snapshot.content)
-    ) {
-      throw new StudioExperimentConflictErrorV2(
-        "Snapshot commit does not atomically advance the same workspace",
-      );
-    }
-
     this.#snapshots.set(snapshot.snapshotId, snapshot);
-    this.#workspaces.set(nextWorkspace.experimentId, nextWorkspace);
   }
 
-  #requiredWorkspaceV2(
+  #requiredExperimentV2(
     experimentId: ExperimentIdV2,
-  ): ExperimentWorkspaceV2 {
-    const workspace = this.#workspaces.get(experimentId);
-    if (workspace === undefined) {
+  ): ExperimentV2 {
+    const experiment = this.#experiments.get(experimentId);
+    if (experiment === undefined) {
       throw new StudioExperimentNotFoundErrorV2(experimentId);
     }
-    return workspace;
+    return experiment;
   }
 }
 
 export type InMemoryExperimentAuthoringDependenciesV2 = Omit<
   ConstructorParameters<typeof StudioExperimentAuthoringApplicationV2>[0],
-  "repository" | "qualifiedSnapshotCommit"
+  "repository" | "admittedSnapshotCommit"
 > & Readonly<{
   seed?: InMemoryExperimentAuthoringSeedV2;
 }>;
 
 export type InMemoryExperimentAuthoringSeedV2 = Readonly<{
-  workspace?: ExperimentWorkspaceV2;
+  experiment?: ExperimentV2;
   snapshots?: readonly ExperimentSnapshotV2[];
 }>;
 
 export type InMemoryExperimentQueryFacadeV2 = ExperimentQueryPortV2 & Readonly<{
-  readonly workspaceCount: number;
+  readonly experimentCount: number;
   readonly snapshotCount: number;
 }>;
 
 export type StudioExperimentAuthoringFacadeV2 = Pick<
   StudioExperimentAuthoringApplicationV2,
-  | "createWorkspace"
-  | "forkWorkspace"
-  | "readWorkspace"
+  | "createExperiment"
+  | "forkExperiment"
+  | "readExperiment"
   | "readSnapshot"
-  | "saveDraft"
-  | "rebaseDraft"
+  | "saveExperiment"
   | "createSnapshot"
 >;
 
@@ -281,27 +197,26 @@ export function createInMemoryExperimentAuthoringV2(
   const application = new StudioExperimentAuthoringApplicationV2({
     ...authoringDependencies,
     repository,
-    qualifiedSnapshotCommit:
-      repository[QUALIFIED_SNAPSHOT_COMMIT_CAPABILITY_V2](),
+    admittedSnapshotCommit:
+      repository[ADMITTED_SNAPSHOT_COMMIT_CAPABILITY_V2](),
   });
   const authoringFacade: StudioExperimentAuthoringFacadeV2 = Object.freeze({
-    createWorkspace: application.createWorkspace.bind(application),
-    forkWorkspace: application.forkWorkspace.bind(application),
-    readWorkspace: application.readWorkspace.bind(application),
+    createExperiment: application.createExperiment.bind(application),
+    forkExperiment: application.forkExperiment.bind(application),
+    readExperiment: application.readExperiment.bind(application),
     readSnapshot: application.readSnapshot.bind(application),
-    saveDraft: application.saveDraft.bind(application),
-    rebaseDraft: application.rebaseDraft.bind(application),
+    saveExperiment: application.saveExperiment.bind(application),
     createSnapshot: application.createSnapshot.bind(application),
   });
   const queries: InMemoryExperimentQueryFacadeV2 = Object.freeze({
-    readWorkspace(experimentId: ExperimentIdV2) {
-      return application.readWorkspace(experimentId);
+    readExperiment(experimentId: ExperimentIdV2) {
+      return application.readExperiment(experimentId);
     },
     readSnapshot(snapshotId: ExperimentSnapshotIdV2) {
       return application.readSnapshot(snapshotId);
     },
-    get workspaceCount() {
-      return repository.workspaceCount;
+    get experimentCount() {
+      return repository.experimentCount;
     },
     get snapshotCount() {
       return repository.snapshotCount;
@@ -326,7 +241,7 @@ function validateSeedEnvelopeV2(
       "authoring seed must be a plain data object",
     );
   }
-  const allowed = new Set(["workspace", "snapshots"]);
+  const allowed = new Set(["experiment", "snapshots"]);
   const unknown = Reflect.ownKeys(seed).filter((key) =>
     typeof key !== "string" || !allowed.has(key));
   if (unknown.length > 0) {
@@ -334,16 +249,16 @@ function validateSeedEnvelopeV2(
       "authoring seed contains unknown fields",
     );
   }
-  const workspaceValue = seedDataPropertyV2(seed, "workspace");
+  const experimentValue = seedDataPropertyV2(seed, "experiment");
   const snapshotsValue = seedDataPropertyV2(seed, "snapshots");
-  const workspace = workspaceValue === ABSENT_SEED_FIELD_V2
+  const experiment = experimentValue === ABSENT_SEED_FIELD_V2
     ? undefined
-    : validateExperimentWorkspaceV2(workspaceValue);
+    : validateExperimentV2(experimentValue);
   const snapshots = snapshotsValue === ABSENT_SEED_FIELD_V2
     ? undefined
     : validateSeedSnapshotsV2(snapshotsValue);
   return Object.freeze({
-    ...(workspace === undefined ? {} : { workspace }),
+    ...(experiment === undefined ? {} : { experiment }),
     ...(snapshots === undefined ? {} : { snapshots }),
   });
 }
@@ -352,7 +267,7 @@ const ABSENT_SEED_FIELD_V2 = Symbol("absent-seed-field-v2");
 
 function seedDataPropertyV2(
   seed: object,
-  key: "workspace" | "snapshots",
+  key: "experiment" | "snapshots",
 ): unknown | typeof ABSENT_SEED_FIELD_V2 {
   const descriptor = Object.getOwnPropertyDescriptor(seed, key);
   if (descriptor === undefined) return ABSENT_SEED_FIELD_V2;
@@ -402,76 +317,14 @@ function validateSeedSnapshotsV2(
   return Object.freeze(snapshots);
 }
 
-function assertSeedWorkspaceLineageV2(
-  workspace: ExperimentWorkspaceV2,
-  snapshots: ReadonlyMap<ExperimentSnapshotIdV2, ExperimentSnapshotV2>,
+function assertExpectedVersionV2(
+  experiment: ExperimentV2,
+  expectedVersion: ExperimentVersionV2,
 ): void {
-  if (workspace.headSnapshotId !== null) {
-    const head = snapshots.get(workspace.headSnapshotId);
-    if (head === undefined) {
-      throw new StudioExperimentConflictErrorV2(
-        `seed workspace head Snapshot not found: ${workspace.headSnapshotId}`,
-      );
-    }
-    if (
-      head.experimentId !== workspace.experimentId
-      || head.content.modelId !== workspace.content.modelId
-    ) {
-      throw new StudioExperimentConflictErrorV2(
-        "seed workspace head must belong to the same Experiment and model",
-      );
-    }
-  }
-  if (workspace.basedOnSnapshotId !== null) {
-    const basedOn = snapshots.get(workspace.basedOnSnapshotId);
-    if (basedOn === undefined) {
-      throw new StudioExperimentConflictErrorV2(
-        `seed workspace base Snapshot not found: ${workspace.basedOnSnapshotId}`,
-      );
-    }
-    if (basedOn.content.modelId !== workspace.content.modelId) {
-      throw new StudioExperimentConflictErrorV2(
-        "seed workspace base must use the same exact model",
-      );
-    }
-  }
-}
-
-function assertExpectedDraftVersionV2(
-  workspace: ExperimentWorkspaceV2,
-  expectedDraftVersion: ExperimentDraftVersionV2,
-): void {
-  if (workspace.draftVersion !== expectedDraftVersion) {
+  if (experiment.version !== expectedVersion) {
     throw new StudioExperimentConflictErrorV2(
-      `expected draftVersion ${expectedDraftVersion}, `
-        + `found ${workspace.draftVersion}`,
+      `expected version ${expectedVersion}, `
+        + `found ${experiment.version}`,
     );
   }
-}
-
-function samePortableValueV2(left: unknown, right: unknown): boolean {
-  if (Object.is(left, right)) return true;
-  if (
-    left === null
-    || right === null
-    || typeof left !== "object"
-    || typeof right !== "object"
-  ) {
-    return false;
-  }
-  if (Array.isArray(left) || Array.isArray(right)) {
-    return Array.isArray(left)
-      && Array.isArray(right)
-      && left.length === right.length
-      && left.every((value, index) =>
-        samePortableValueV2(value, right[index]));
-  }
-  const leftRecord = left as Record<string, unknown>;
-  const rightRecord = right as Record<string, unknown>;
-  const leftKeys = Object.keys(leftRecord).sort();
-  const rightKeys = Object.keys(rightRecord).sort();
-  return leftKeys.length === rightKeys.length
-    && leftKeys.every((key, index) =>
-      key === rightKeys[index]
-      && samePortableValueV2(leftRecord[key], rightRecord[key]));
 }

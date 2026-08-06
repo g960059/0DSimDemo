@@ -2,21 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import {
   StudioExperimentAuthoringConflictErrorV2,
-  StudioExperimentDraftCaptureMutationErrorV2,
-  StudioExperimentSnapshotGateMutationErrorV2,
-  StudioExperimentSnapshotGateProtocolErrorV2,
-  StudioExperimentSnapshotGateRejectedErrorV2,
+  StudioExperimentCaptureMutationErrorV2,
+  StudioExperimentSnapshotAdmissionProtocolErrorV2,
+  StudioExperimentSnapshotAdmissionRejectedErrorV2,
 } from "@/studio/application/authoring/StudioExperimentAuthoringApplicationV2";
 import type {
   ExperimentDesiredContentV2,
-  ExperimentSnapshotGatePortV2,
-  ExperimentSnapshotGateResultV2,
-  ExperimentDraftCapturePortV2,
+  ExperimentSnapshotAdmissionPortV2,
+  ExperimentSnapshotAdmissionResultV2,
+  ExperimentCapturePortV2,
 } from "@/studio/contracts/v2/authoring";
 import {
-  STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+  STUDIO_EXPERIMENT_V2_SCHEMA_ID,
   type ExperimentContentV2,
-  type ExperimentWorkspaceV2,
+  type ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import {
   createInMemoryExperimentAuthoringV2,
@@ -53,19 +52,19 @@ describe("Studio Experiment authoring V2", () => {
       },
     });
     const initial = contentV2(0, 0);
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
       content: initial,
     });
 
-    const saved = await application.saveDraft({
+    const saved = await application.saveExperiment({
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent: desiredContentV2(),
       captureCorrelation: captureCorrelationV2(desiredContentV2()),
     });
 
-    expect(saved.draftVersion).toBe(1);
+    expect(saved.version).toBe(1);
     expect(saved.content.scenarios[0].capture.checkpoint).toMatchObject({
       acceptedRevision: 1,
       acceptedTimeSec: 0.25,
@@ -84,7 +83,7 @@ describe("Studio Experiment authoring V2", () => {
       },
     });
     const initial = contentV2(42, 3.5);
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
       content: initial,
     });
@@ -92,14 +91,14 @@ describe("Studio Experiment authoring V2", () => {
     desired.scenarios[0].label = "Renamed baseline";
     desired.surface.note.text = "Updated interpretation.";
 
-    const saved = await application.saveDraft({
+    const saved = await application.saveExperiment({
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent: desired,
     });
 
     expect(captureCalled).toBe(false);
-    expect(saved.draftVersion).toBe(1);
+    expect(saved.version).toBe(1);
     expect(saved.content.scenarios[0]).toMatchObject({
       label: "Renamed baseline",
       capture: {
@@ -120,24 +119,24 @@ describe("Studio Experiment authoring V2", () => {
         throw new Error("capture should require an explicit correlation");
       },
     });
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
     const desired = mutableDesiredContentV2(desiredContentV2());
     desired.scenarios[0].fixture.controls.heartRateBpm = 75;
 
-    await expect(application.saveDraft({
+    await expect(application.saveExperiment({
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent: desired,
     })).rejects.toThrow(/captureCorrelation is required/);
     expect(captureCalled).toBe(false);
-    expect((await application.readWorkspace("experiment/main"))?.draftVersion)
+    expect((await application.readExperiment("experiment/main"))?.version)
       .toBe(0);
   });
 
-  it("awaits exact capture restore before exposing a workspace or query result", async () => {
+  it("awaits exact capture restore before exposing a experiment or query result", async () => {
     let finishValidation: (() => void) | undefined;
     const pendingValidation = new Promise<void>((resolve) => {
       finishValidation = resolve;
@@ -159,21 +158,21 @@ describe("Studio Experiment authoring V2", () => {
       adapter,
     );
 
-    const pendingCreate = application.createWorkspace({
+    const pendingCreate = application.createExperiment({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
     expect(validationCount).toBe(1);
-    expect(repository.workspaceCount).toBe(0);
+    expect(repository.experimentCount).toBe(0);
 
     finishValidation?.();
     const created = await pendingCreate;
-    expect(repository.workspaceCount).toBe(1);
-    expect(await repository.readWorkspace("experiment/main")).toEqual(created);
+    expect(repository.experimentCount).toBe(1);
+    expect(await repository.readExperiment("experiment/main")).toEqual(created);
     expect(validationCount).toBe(2);
   });
 
-  it("keeps a workspace invisible when deferred exact restore rejects", async () => {
+  it("keeps a experiment invisible when deferred exact restore rejects", async () => {
     let rejectValidation: ((reason: Error) => void) | undefined;
     const pendingValidation = new Promise<void>((_resolve, reject) => {
       rejectValidation = reject;
@@ -191,19 +190,19 @@ describe("Studio Experiment authoring V2", () => {
       adapter,
     );
 
-    const pendingCreate = application.createWorkspace({
+    const pendingCreate = application.createExperiment({
       experimentId: "experiment/rejected-restore",
       content: contentV2(0, 0),
     });
     const rejection = expect(pendingCreate).rejects.toThrow(
       /rejected capture: exact restore failed/,
     );
-    expect(repository.workspaceCount).toBe(0);
+    expect(repository.experimentCount).toBe(0);
 
     rejectValidation?.(new Error("exact restore failed"));
     await rejection;
-    expect(repository.workspaceCount).toBe(0);
-    expect(await repository.readWorkspace("experiment/rejected-restore"))
+    expect(repository.experimentCount).toBe(0);
+    expect(await repository.readExperiment("experiment/rejected-restore"))
       .toBeNull();
   });
 
@@ -215,19 +214,19 @@ describe("Studio Experiment authoring V2", () => {
         return Promise.resolve(result);
       },
     });
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
     const desiredContent = desiredContentV2();
 
-    await expect(application.saveDraft({
+    await expect(application.saveExperiment({
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent,
       captureCorrelation: captureCorrelationV2(desiredContent),
     })).rejects.toThrow(/must exactly confirm/);
-    expect((await application.readWorkspace("experiment/main"))?.draftVersion)
+    expect((await application.readExperiment("experiment/main"))?.version)
       .toBe(0);
   });
 
@@ -239,7 +238,7 @@ describe("Studio Experiment authoring V2", () => {
         return Promise.resolve(captureResultV2(input));
       },
     });
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
@@ -247,9 +246,9 @@ describe("Studio Experiment authoring V2", () => {
     const captureCorrelation = captureCorrelationV2(desiredContent) as any;
     captureCorrelation.scenarios[0].expectedInputEpoch = -1;
 
-    await expect(application.saveDraft({
+    await expect(application.saveExperiment({
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent,
       captureCorrelation,
     })).rejects.toThrow(/nonnegative safe integer/);
@@ -258,314 +257,236 @@ describe("Studio Experiment authoring V2", () => {
 
   it("rejects stale Draft writes without partial replacement", async () => {
     const { application } = harnessV2();
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
-    await application.saveDraft({
+    await application.saveExperiment({
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent: desiredContentV2(),
       captureCorrelation: captureCorrelationV2(desiredContentV2()),
     });
 
-    await expect(application.saveDraft({
+    await expect(application.saveExperiment({
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent: desiredContentV2(),
       captureCorrelation: captureCorrelationV2(desiredContentV2()),
     })).rejects.toBeInstanceOf(StudioExperimentAuthoringConflictErrorV2);
     expect(
-      (await application.readWorkspace("experiment/main"))?.content.scenarios[0]
+      (await application.readExperiment("experiment/main"))?.content.scenarios[0]
         .capture.checkpoint.acceptedRevision,
     ).toBe(1);
   });
 
-  it("creates an immutable Snapshot only from fresh gate-produced checkpoints", async () => {
+  it("creates one neutral immutable Snapshot without replacing its checkpoint", async () => {
+    const original = contentV2(4, 1);
     const { application, repository } = harnessV2({
-      qualifyFrozenCandidate({ content }) {
+      admitFrozenCandidate({ content }) {
         expect(Object.isFrozen(content)).toBe(true);
-        return Promise.resolve({
-          status: "passed",
-          qualifiedContent: replaceCheckpointV2(content, 500, 12),
-        });
+        expect(content).toEqual(original);
+        return Promise.resolve({ status: "passed" });
       },
     });
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
-      content: contentV2(4, 1),
+      content: original,
     });
 
-    const snapshot = await application.createSnapshot({
+    const snapshot = await createSnapshotForExperimentV2(application, {
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       expectedHeadSnapshotId: null,
       createdBy: "user/author",
     });
 
     expect(snapshot).toMatchObject({
       snapshotId: "snapshot/1",
-      experimentId: "experiment/main",
-      parentSnapshotId: null,
       createdAt: "2026-07-31T00:00:00.000Z",
       createdBy: "user/author",
     });
-    expect(snapshot.content.scenarios[0].capture.checkpoint).toMatchObject({
-      acceptedRevision: 500,
-      acceptedTimeSec: 12,
-    });
+    expect(snapshot).not.toHaveProperty("kind");
+    expect(snapshot).not.toHaveProperty("briefing");
+    expect(snapshot.content).toEqual(original);
     expect(repository.snapshotCount).toBe(1);
-    expect(await application.readWorkspace("experiment/main")).toMatchObject({
-      draftVersion: 1,
-      headSnapshotId: "snapshot/1",
-      basedOnSnapshotId: "snapshot/1",
-    });
     expect(Object.isFrozen(snapshot)).toBe(true);
-    expect(JSON.stringify(snapshot)).not.toMatch(
-      /gatePassed|settled|verificationPassed|qualification/,
-    );
   });
 
-  it("leaves no Snapshot or head when the gate rejects", async () => {
-    const { application, repository } = harnessV2({
-      qualifyFrozenCandidate() {
-        return Promise.resolve({
-          status: "rejected",
-          reason: "minimum numerical gate failed",
-        });
-      },
-    });
-    await application.createWorkspace({
+  it("enforces a clean saved head only when savedExperiment is requested", async () => {
+    const { application, repository } = harnessV2();
+    const savedContent = contentV2(4, 1);
+    await application.createExperiment({
       experimentId: "experiment/main",
-      content: contentV2(0, 0),
+      content: savedContent,
     });
+    const edited = {
+      ...savedContent,
+      surface: { ...savedContent.surface, note: { text: "unsaved edit" } },
+    };
 
     await expect(application.createSnapshot({
-      experimentId: "experiment/main",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
-    })).rejects.toBeInstanceOf(
-      StudioExperimentSnapshotGateRejectedErrorV2,
-    );
-    expect(repository.snapshotCount).toBe(0);
-    expect(await application.readWorkspace("experiment/main")).toMatchObject({
-      draftVersion: 0,
-      headSnapshotId: null,
-    });
+      content: edited,
+      savedExperiment: {
+        experimentId: "experiment/main",
+        expectedVersion: 0,
+      },
+    })).rejects.toThrow(/not the clean saved Experiment head/);
+    await expect(application.createSnapshot({
+      content: savedContent,
+      savedExperiment: {
+        experimentId: "experiment/missing",
+        expectedVersion: 0,
+      },
+    })).rejects.toThrow(/Experiment not found/);
+    await expect(application.createSnapshot({ content: savedContent }))
+      .resolves.toMatchObject({ content: savedContent });
+    expect(repository.snapshotCount).toBe(1);
   });
 
-  it("fails closed for malformed Snapshot gate results", async () => {
+  it("uses the same admission for session and saved-Experiment workflows", async () => {
+    let admissions = 0;
+    const { application } = harnessV2({
+      admitFrozenCandidate() {
+        admissions += 1;
+        return Promise.resolve({ status: "passed" });
+      },
+    });
+    const content = contentV2(0, 0);
+    await application.createSnapshot({ content });
+    await application.createExperiment({
+      experimentId: "experiment/common-admission",
+      content,
+    });
+    await application.createSnapshot({
+      content,
+      savedExperiment: {
+        experimentId: "experiment/common-admission",
+        expectedVersion: 0,
+      },
+    });
+    expect(admissions).toBe(2);
+  });
+
+  it("leaves no Snapshot when admission rejects or returns malformed data", async () => {
+    const rejected = harnessV2({
+      admitFrozenCandidate() {
+        return Promise.resolve({ status: "rejected", reason: "unsafe" });
+      },
+    });
+    await expect(rejected.application.createSnapshot({ content: contentV2(0, 0) }))
+      .rejects.toBeInstanceOf(StudioExperimentSnapshotAdmissionRejectedErrorV2);
+    expect(rejected.repository.snapshotCount).toBe(0);
+
     for (const malformed of [
-      {
-        status: "skipped",
-        qualifiedContent: contentV2(500, 12),
-      },
-      {
-        status: "passed",
-        qualifiedContent: contentV2(500, 12),
-        verificationPassed: true,
-      },
-      {
-        status: "rejected",
-        reason: "",
-      },
+      { status: "skipped" },
+      { status: "passed", verificationPassed: true },
+      { status: "rejected", reason: "" },
     ]) {
-      const { application, repository } = harnessV2({
-        qualifyFrozenCandidate() {
+      const harness = harnessV2({
+        admitFrozenCandidate() {
           return Promise.resolve(malformed as any);
         },
       });
-      await application.createWorkspace({
-        experimentId: "experiment/malformed-gate",
-        content: contentV2(0, 0),
-      });
-
-      await expect(application.createSnapshot({
-        experimentId: "experiment/malformed-gate",
-        expectedDraftVersion: 0,
-        expectedHeadSnapshotId: null,
-      })).rejects.toBeInstanceOf(
-        StudioExperimentSnapshotGateProtocolErrorV2,
-      );
-      expect(repository.snapshotCount).toBe(0);
-      expect(
-        await application.readWorkspace("experiment/malformed-gate"),
-      ).toMatchObject({
-        draftVersion: 0,
-        headSnapshotId: null,
-      });
+      await expect(harness.application.createSnapshot({ content: contentV2(0, 0) }))
+        .rejects.toBeInstanceOf(StudioExperimentSnapshotAdmissionProtocolErrorV2);
+      expect(harness.repository.snapshotCount).toBe(0);
     }
   });
 
-  it("binds qualification to the frozen candidate and rejects a late completion", async () => {
-    let resolveGate:
-      ((result: ExperimentSnapshotGateResultV2) => void) | undefined;
-    const gatePromise = new Promise<ExperimentSnapshotGateResultV2>(
-      (resolve) => {
-        resolveGate = resolve;
-      },
+  it("binds admission to frozen content independently of later Experiment edits", async () => {
+    let resolveAdmission:
+      ((result: ExperimentSnapshotAdmissionResultV2) => void) | undefined;
+    const admissionPromise = new Promise<ExperimentSnapshotAdmissionResultV2>(
+      (resolve) => { resolveAdmission = resolve; },
     );
     const { application, repository } = harnessV2({
-      qualifyFrozenCandidate() {
-        return gatePromise;
-      },
+      admitFrozenCandidate() { return admissionPromise; },
     });
     const original = contentV2(0, 0);
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
       content: original,
     });
-    const pendingSnapshot = application.createSnapshot({
+    const pendingSnapshot = createSnapshotForExperimentV2(application, {
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       expectedHeadSnapshotId: null,
     });
-
-    await application.saveDraft({
+    await application.saveExperiment({
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent: desiredContentV2(),
       captureCorrelation: captureCorrelationV2(desiredContentV2()),
     });
-    resolveGate?.({
-      status: "passed",
-      qualifiedContent: replaceCheckpointV2(original, 500, 12),
-    });
+    resolveAdmission?.({ status: "passed" });
 
-    await expect(pendingSnapshot).rejects.toBeInstanceOf(
-      StudioExperimentConflictErrorV2,
-    );
-    expect(repository.snapshotCount).toBe(0);
-    expect(await application.readWorkspace("experiment/main")).toMatchObject({
-      draftVersion: 1,
-      headSnapshotId: null,
-    });
+    const snapshot = await pendingSnapshot;
+    expect(snapshot.content).toEqual(original);
+    expect(repository.snapshotCount).toBe(1);
+    expect(await application.readExperiment("experiment/main"))
+      .toMatchObject({ version: 1 });
   });
 
-  it("allows the gate to replace checkpoints but not authored fixture or Surface", async () => {
-    const { application } = harnessV2({
-      qualifyFrozenCandidate({ content }) {
-        const changed = mutableContentV2(content);
-        (changed.scenarios[0].capture.fixture as {
-          controls: { heartRateBpm: number };
-        }).controls.heartRateBpm = 90;
-        return Promise.resolve({
-          status: "passed",
-          qualifiedContent: changed,
-        });
-      },
-    });
-    await application.createWorkspace({
-      experimentId: "experiment/main",
-      content: contentV2(0, 0),
-    });
-
-    await expect(application.createSnapshot({
-      experimentId: "experiment/main",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
-    })).rejects.toBeInstanceOf(
-      StudioExperimentSnapshotGateMutationErrorV2,
-    );
-  });
-
-  it("records fork lineage without inheriting future parent changes", async () => {
+  it("forks Snapshot content into a detached Experiment without lineage fields", async () => {
     const { application } = harnessV2();
-    await expect(application.createWorkspace({
+    await expect(application.createExperiment({
       experimentId: "experiment/invalid-direct-fork",
       basedOnSnapshotId: "snapshot/forbidden",
       content: contentV2(0, 0),
-    } as any)).rejects.toThrow(/CreateWorkspace field set mismatch/);
-    await application.createWorkspace({
+    } as any)).rejects.toThrow(/CreateExperiment field set mismatch/);
+    await application.createExperiment({
       experimentId: "experiment/source",
       content: contentV2(0, 0),
     });
-    const source = await application.createSnapshot({
+    const source = await createSnapshotForExperimentV2(application, {
       experimentId: "experiment/source",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       expectedHeadSnapshotId: null,
     });
-    const forkWorkspace = await application.forkWorkspace({
+    const forkExperiment = await application.forkExperiment({
       experimentId: "experiment/fork",
       sourceSnapshotId: source.snapshotId,
     });
-    expect(forkWorkspace.content).toEqual(source.content);
-    expect(forkWorkspace.content).not.toBe(source.content);
+    expect(forkExperiment.content).toEqual(source.content);
+    expect(forkExperiment.content).not.toBe(source.content);
 
-    const fork = await application.createSnapshot({
+    const fork = await createSnapshotForExperimentV2(application, {
       experimentId: "experiment/fork",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       expectedHeadSnapshotId: null,
     });
 
-    expect(fork.parentSnapshotId).toBe(source.snapshotId);
-    expect(fork.experimentId).toBe("experiment/fork");
-    expect(source.parentSnapshotId).toBeNull();
+    expect(fork).not.toHaveProperty("kind");
+    expect(fork).not.toHaveProperty("parentSnapshotId");
+    expect(fork).not.toHaveProperty("sourceExperimentId");
     expect(await application.readSnapshot(source.snapshotId)).toEqual(source);
-  });
-
-  it("rejects seed workspace lineage that references absent Snapshots", () => {
-    expect(() => harnessV2(
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      {
-        workspace: seedWorkspaceV2({
-          headSnapshotId: "snapshot/missing-head",
-        }),
-        snapshots: [],
-      },
-    )).toThrow(/seed workspace head Snapshot not found: snapshot\/missing-head/);
-
-    expect(() => harnessV2(
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      {
-        workspace: seedWorkspaceV2({
-          basedOnSnapshotId: "snapshot/missing-base",
-        }),
-        snapshots: [],
-      },
-    )).toThrow(/seed workspace base Snapshot not found: snapshot\/missing-base/);
   });
 
   it("fails closed on unknown command fields and explicit undefined optionals", async () => {
     const { application } = harnessV2();
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
 
-    await expect(application.saveDraft({
+    await expect(application.saveExperiment({
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent: desiredContentV2(),
       captureCorrelation: captureCorrelationV2(desiredContentV2()),
       qualification: true,
-    } as any)).rejects.toThrow(/SaveDraft field set mismatch/);
-    await expect(application.rebaseDraft({
-      experimentId: "experiment/main",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
-      targetSnapshotId: "snapshot/target",
-      content: contentV2(0, 0),
-      automaticMerge: true,
-    } as any)).rejects.toThrow(/RebaseDraft field set mismatch/);
+    } as any)).rejects.toThrow(/SaveExperiment field set mismatch/);
     await expect(application.createSnapshot({
-      experimentId: "experiment/main",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
+      content: contentV2(0, 0),
+      purpose: "publication",
+      parentSnapshotId: null,
       verificationPassed: true,
     } as any)).rejects.toThrow(/CreateSnapshot field set mismatch/);
     await expect(application.createSnapshot({
-      experimentId: "experiment/main",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
+      content: contentV2(0, 0),
       createdBy: undefined,
-    })).rejects.toThrow(/must be omitted or contain an ID/);
+    } as any)).rejects.toThrow(/must be omitted or contain an ID/);
   });
 
   it("requires Save capture to preserve all authored desired content", async () => {
@@ -600,7 +521,7 @@ describe("Studio Experiment authoring V2", () => {
     }];
 
     for (const testCase of cases) {
-      const capture: ExperimentDraftCapturePortV2 = {
+      const capture: ExperimentCapturePortV2 = {
         captureAcceptedCandidate(input) {
           const { desiredContent } = input;
           const changed = mutableContentV2(
@@ -611,43 +532,43 @@ describe("Studio Experiment authoring V2", () => {
         },
       };
       const { application, repository } = harnessV2(undefined, capture);
-      await application.createWorkspace({
+      await application.createExperiment({
         experimentId: "experiment/main",
         content: contentV2(0, 0),
       });
 
-      await expect(application.saveDraft({
+      await expect(application.saveExperiment({
         experimentId: "experiment/main",
-        expectedDraftVersion: 0,
+        expectedVersion: 0,
         desiredContent: testCase.desiredContent,
         captureCorrelation: captureCorrelationV2(testCase.desiredContent),
       })).rejects.toBeInstanceOf(
-        StudioExperimentDraftCaptureMutationErrorV2,
+        StudioExperimentCaptureMutationErrorV2,
       );
       expect(repository.snapshotCount).toBe(0);
-      expect((await application.readWorkspace("experiment/main"))?.draftVersion)
+      expect((await application.readExperiment("experiment/main"))?.version)
         .toBe(0);
     }
   });
 
-  it("binds workspaces and Surface references to a registered model", async () => {
+  it("binds experiments and Surface references to a registered model", async () => {
     const { application } = harnessV2();
     const unknownGraph = mutableContentV2(contentV2(0, 0));
     unknownGraph.surface.graphPanes[0].graphId = "graph-definition/missing";
-    await expect(application.createWorkspace({
+    await expect(application.createExperiment({
       experimentId: "experiment/unknown-graph",
       content: unknownGraph,
     })).rejects.toThrow(/unknown registered graph/);
 
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
     const changedModel = mutableDesiredContentV2(desiredContentV2());
     changedModel.modelId = "model/other";
-    await expect(application.saveDraft({
+    await expect(application.saveExperiment({
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent: changedModel,
       captureCorrelation: captureCorrelationV2(changedModel),
     })).rejects.toBeInstanceOf(StudioExperimentAuthoringConflictErrorV2);
@@ -659,20 +580,20 @@ describe("Studio Experiment authoring V2", () => {
     malformedCreate.scenarios[0].capture.checkpoint.payload = {
       wrongCodec: true,
     };
-    await expect(application.createWorkspace({
+    await expect(application.createExperiment({
       experimentId: "experiment/malformed-create",
       content: malformedCreate,
     })).rejects.toThrow(/rejected capture/);
 
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
     const malformedFixture = mutableDesiredContentV2(desiredContentV2());
     malformedFixture.scenarios[0].fixture.controls.heartRateBpm = 0;
-    await expect(application.saveDraft({
+    await expect(application.saveExperiment({
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent: malformedFixture,
       captureCorrelation: captureCorrelationV2(malformedFixture),
     })).rejects.toThrow(/rejected fixture/);
@@ -687,108 +608,20 @@ describe("Studio Experiment authoring V2", () => {
         return Promise.resolve(captureResultV2(input, malformed));
       },
     });
-    await postCaptureHarness.application.createWorkspace({
+    await postCaptureHarness.application.createExperiment({
       experimentId: "experiment/post-capture",
       content: contentV2(0, 0),
     });
-    await expect(postCaptureHarness.application.saveDraft({
+    await expect(postCaptureHarness.application.saveExperiment({
       experimentId: "experiment/post-capture",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       desiredContent: desiredContentV2(),
       captureCorrelation: captureCorrelationV2(desiredContentV2()),
     })).rejects.toThrow(/rejected capture/);
 
-    const postGateHarness = harnessV2({
-      qualifyFrozenCandidate({ content }) {
-        const malformed = mutableContentV2(content);
-        malformed.scenarios[0].capture.checkpoint.payload = "wrong-codec";
-        return Promise.resolve({
-          status: "passed",
-          qualifiedContent: malformed,
-        });
-      },
-    });
-    await postGateHarness.application.createWorkspace({
-      experimentId: "experiment/post-gate",
-      content: contentV2(0, 0),
-    });
-    await expect(postGateHarness.application.createSnapshot({
-      experimentId: "experiment/post-gate",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
-    })).rejects.toThrow(/rejected capture/);
-    expect(postGateHarness.repository.snapshotCount).toBe(0);
   });
 
-  it("uses the previous head as the ordinary second Snapshot parent", async () => {
-    const { application } = harnessV2();
-    await application.createWorkspace({
-      experimentId: "experiment/main",
-      content: contentV2(0, 0),
-    });
-    const first = await application.createSnapshot({
-      experimentId: "experiment/main",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
-    });
-    const saved = await application.saveDraft({
-      experimentId: "experiment/main",
-      expectedDraftVersion: 1,
-      desiredContent: desiredContentV2(),
-      captureCorrelation: captureCorrelationV2(desiredContentV2()),
-    });
-    const second = await application.createSnapshot({
-      experimentId: "experiment/main",
-      expectedDraftVersion: saved.draftVersion,
-      expectedHeadSnapshotId: first.snapshotId,
-    });
-
-    expect(second.parentSnapshotId).toBe(first.snapshotId);
-  });
-
-  it("rebases with CAS and uses the explicit target as the next parent", async () => {
-    const { application } = harnessV2();
-    await application.createWorkspace({
-      experimentId: "experiment/source",
-      content: contentV2(0, 0),
-    });
-    const source = await application.createSnapshot({
-      experimentId: "experiment/source",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
-    });
-    await application.createWorkspace({
-      experimentId: "experiment/target",
-      content: contentV2(10, 4),
-    });
-    const target = await application.createSnapshot({
-      experimentId: "experiment/target",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
-    });
-
-    const rebased = await application.rebaseDraft({
-      experimentId: "experiment/source",
-      expectedDraftVersion: 1,
-      expectedHeadSnapshotId: source.snapshotId,
-      targetSnapshotId: target.snapshotId,
-      content: target.content,
-    });
-    expect(rebased).toMatchObject({
-      draftVersion: 2,
-      headSnapshotId: source.snapshotId,
-      basedOnSnapshotId: target.snapshotId,
-    });
-
-    const next = await application.createSnapshot({
-      experimentId: "experiment/source",
-      expectedDraftVersion: 2,
-      expectedHeadSnapshotId: source.snapshotId,
-    });
-    expect(next.parentSnapshotId).toBe(target.snapshotId);
-  });
-
-  it("keeps Snapshot and head unchanged when the ID factory collides", async () => {
+  it("keeps standalone Snapshots and the Experiment unchanged when an ID collides", async () => {
     const snapshotIds = [
       "snapshot/main-head",
       "snapshot/collision",
@@ -799,41 +632,34 @@ describe("Studio Experiment authoring V2", () => {
       undefined,
       { nextSnapshotId: () => snapshotIds.shift() ?? "snapshot/exhausted" },
     );
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/main",
       content: contentV2(0, 0),
     });
-    const first = await application.createSnapshot({
+    const first = await createSnapshotForExperimentV2(application, {
       experimentId: "experiment/main",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       expectedHeadSnapshotId: null,
     });
-    await application.createWorkspace({
+    await application.createExperiment({
       experimentId: "experiment/other",
       content: contentV2(0, 0),
     });
-    await application.createSnapshot({
+    await createSnapshotForExperimentV2(application, {
       experimentId: "experiment/other",
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       expectedHeadSnapshotId: null,
     });
-    const saved = await application.saveDraft({
-      experimentId: "experiment/main",
-      expectedDraftVersion: 1,
-      desiredContent: desiredContentV2(),
-      captureCorrelation: captureCorrelationV2(desiredContentV2()),
-    });
-
     await expect(application.createSnapshot({
-      experimentId: "experiment/main",
-      expectedDraftVersion: saved.draftVersion,
-      expectedHeadSnapshotId: first.snapshotId,
+      content: first.content,
+      savedExperiment: {
+        experimentId: "experiment/main",
+        expectedVersion: 0,
+      },
     })).rejects.toBeInstanceOf(StudioExperimentConflictErrorV2);
     expect(repository.snapshotCount).toBe(2);
-    expect(await application.readWorkspace("experiment/main")).toMatchObject({
-      draftVersion: saved.draftVersion,
-      headSnapshotId: first.snapshotId,
-      basedOnSnapshotId: first.snapshotId,
+    expect(await application.readExperiment("experiment/main")).toMatchObject({
+      version: 0,
     });
   });
 
@@ -846,7 +672,7 @@ describe("Studio Experiment authoring V2", () => {
       "InMemoryExperimentRepositoryV2",
     );
     expect(experimentInfrastructure).not.toHaveProperty(
-      "StudioUnqualifiedSnapshotCommitErrorV2",
+      "StudioUnadmittedSnapshotCommitErrorV2",
     );
     expect(Object.keys(experimentInfrastructure).join(",")).not.toMatch(
       /commit/i,
@@ -855,30 +681,29 @@ describe("Studio Experiment authoring V2", () => {
     expect(Object.isFrozen(application)).toBe(true);
     expect(Object.getPrototypeOf(application)).toBe(Object.prototype);
     expect(Object.keys(application).sort()).toEqual([
+      "createExperiment",
       "createSnapshot",
-      "createWorkspace",
-      "forkWorkspace",
+      "forkExperiment",
+      "readExperiment",
       "readSnapshot",
-      "readWorkspace",
-      "rebaseDraft",
-      "saveDraft",
+      "saveExperiment",
     ]);
     expect(application).not.toHaveProperty("repository");
-    expect(application).not.toHaveProperty("qualifiedSnapshotCommit");
+    expect(application).not.toHaveProperty("admittedSnapshotCommit");
     expect(Object.isFrozen(repository)).toBe(true);
     expect(Object.getPrototypeOf(repository)).toBe(Object.prototype);
     expect(Object.keys(repository).sort()).toEqual([
+      "experimentCount",
+      "readExperiment",
       "readSnapshot",
-      "readWorkspace",
       "snapshotCount",
-      "workspaceCount",
     ]);
   });
 });
 
 function harnessV2(
-  gate: ExperimentSnapshotGatePortV2 | undefined = undefined,
-  capture: ExperimentDraftCapturePortV2 = {
+  gate: ExperimentSnapshotAdmissionPortV2 | undefined = undefined,
+  capture: ExperimentCapturePortV2 = {
     captureAcceptedCandidate(input) {
       return Promise.resolve(captureResultV2(input));
     },
@@ -887,12 +712,9 @@ function harnessV2(
   adapter: RegisteredModelCaptureAdapterV2 = captureAdapterV2(),
   seed: InMemoryExperimentAuthoringSeedV2 | undefined = undefined,
 ) {
-  const resolvedGate: ExperimentSnapshotGatePortV2 = gate ?? {
-    qualifyFrozenCandidate({ content }) {
-      return Promise.resolve({
-        status: "passed",
-        qualifiedContent: replaceCheckpointV2(content, 100, 2),
-      });
+  const resolvedGate: ExperimentSnapshotAdmissionPortV2 = gate ?? {
+    admitFrozenCandidate() {
+      return Promise.resolve({ status: "passed" });
     },
   };
   let nextSnapshot = 0;
@@ -906,7 +728,7 @@ function harnessV2(
         return {
           contract: model,
           captureAdapter: adapter,
-          draftCapture: {
+          experimentCapture: {
             modelId: model.modelId,
             fixtureSchemaId: model.fixtureSchemaId,
             checkpointCodecId: model.checkpointCodecId,
@@ -915,7 +737,7 @@ function harnessV2(
           snapshotGate: {
             modelId: model.modelId,
             snapshotGateId: model.snapshotGateId,
-            qualifyFrozenCandidate: resolvedGate.qualifyFrozenCandidate,
+            admitFrozenCandidate: resolvedGate.admitFrozenCandidate,
           },
           fixtureAdapter: {
             modelId: model.modelId,
@@ -966,20 +788,29 @@ function harnessV2(
   return { application, repository: queries };
 }
 
-function seedWorkspaceV2(
-  lineage: Readonly<{
-    headSnapshotId?: string;
-    basedOnSnapshotId?: string;
+async function createSnapshotForExperimentV2(
+  application: ReturnType<typeof harnessV2>["application"],
+  input: Readonly<{
+    experimentId: string;
+    expectedVersion: number;
+    expectedHeadSnapshotId: string | null;
+    createdBy?: string;
   }>,
-): ExperimentWorkspaceV2 {
-  return {
-    schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
-    experimentId: "experiment/seeded",
-    draftVersion: 0,
-    headSnapshotId: lineage.headSnapshotId ?? null,
-    basedOnSnapshotId: lineage.basedOnSnapshotId ?? null,
-    content: contentV2(0, 0),
-  };
+) {
+  const experiment = await application.readExperiment(input.experimentId);
+  if (experiment === null) {
+    throw new Error(`Experiment not found: ${input.experimentId}`);
+  }
+  return application.createSnapshot({
+    content: experiment.content,
+    savedExperiment: {
+      experimentId: input.experimentId,
+      expectedVersion: input.expectedVersion,
+    },
+    ...(Object.prototype.hasOwnProperty.call(input, "createdBy")
+      ? { createdBy: input.createdBy! }
+      : {}),
+  });
 }
 
 function modelContractV2(): ModelContractV2 {
@@ -998,7 +829,7 @@ function modelContractV2(): ModelContractV2 {
       maximum: 180,
       step: 1,
       defaultValue: 72,
-      changeSemantics: "reset",
+      changeSemantics: "accepted-state-warm-start",
     }],
     outputCatalog: [{
       outputId: "output/co",
@@ -1082,7 +913,7 @@ function captureCorrelationV2(
 
 function captureResultV2(
   input: Parameters<
-    ExperimentDraftCapturePortV2["captureAcceptedCandidate"]
+    ExperimentCapturePortV2["captureAcceptedCandidate"]
   >[0],
   content = captureDesiredContentV2(input.desiredContent),
 ) {
@@ -1153,11 +984,12 @@ function contentV2(
         order: 0,
         priority: 0,
         graphId: "graph-definition/pressure",
+        scenarioScope: { mode: "visible-scenarios" },
+        excludedTraces: [],
         windowSec: 2,
         series: [{
           seriesId: "CO",
           label: "Cardiac output",
-          colorHex: "#3ea8ff",
           order: 0,
         }],
       }],
@@ -1167,6 +999,7 @@ function contentV2(
         label: "Outputs",
         order: 0,
         priority: 0,
+        binding: { mode: "active-slot" },
         items: [{
           outputId: "output/co",
           label: "Cardiac output",
@@ -1179,10 +1012,12 @@ function contentV2(
         label: "Controls",
         order: 0,
         priority: 0,
+        binding: { mode: "active-slot" },
         items: [{
           controlId: "control/heart-rate",
           label: "Heart rate",
           order: 0,
+          presentation: { kind: "slider" },
         }],
       }],
       note: {

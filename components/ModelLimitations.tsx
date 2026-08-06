@@ -1,21 +1,23 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Info } from 'lucide-react';
-import { ModelDisclosureDialogV3 } from './workbench/ModelDisclosureDialogV3';
+import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Info } from "lucide-react";
+import { ModelDisclosureDialogV3 } from "./workbench/ModelDisclosureDialogV3";
 
 const DEFAULT_ACKNOWLEDGEMENT_SCOPE =
-  'circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-12:disclosure-v1';
+  "circleheart.integrated-v3:disclosure-v1";
 
 export function modelLimitationsAcknowledgementKey(scope: string): string {
   return `circleheart.modelLimitations.ack.${encodeURIComponent(scope)}`;
 }
 
-export function resolveModelLimitationsOpenState(input: Readonly<{
-  acknowledged: boolean;
-  dismissed: boolean;
-  manuallyOpened: boolean;
-  controlledOpen: boolean | undefined;
-}>): boolean {
+export function resolveModelLimitationsOpenState(
+  input: Readonly<{
+    acknowledged: boolean;
+    dismissed: boolean;
+    manuallyOpened: boolean;
+    controlledOpen: boolean | undefined;
+  }>,
+): boolean {
   if (input.controlledOpen === true) return true;
   if (!input.acknowledged && !input.dismissed) return true;
   return input.controlledOpen === undefined && input.manuallyOpened;
@@ -23,7 +25,9 @@ export function resolveModelLimitationsOpenState(input: Readonly<{
 
 function hasAck(scope: string): boolean {
   try {
-    return localStorage.getItem(modelLimitationsAcknowledgementKey(scope)) === '1';
+    return (
+      localStorage.getItem(modelLimitationsAcknowledgementKey(scope)) === "1"
+    );
   } catch {
     return true; // if storage is unavailable, don't nag
   }
@@ -31,7 +35,7 @@ function hasAck(scope: string): boolean {
 
 function setAck(scope: string) {
   try {
-    localStorage.setItem(modelLimitationsAcknowledgementKey(scope), '1');
+    localStorage.setItem(modelLimitationsAcknowledgementKey(scope), "1");
   } catch {
     /* ignore */
   }
@@ -49,6 +53,7 @@ export const ModelLimitations: React.FC<{
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   showTrigger?: boolean;
+  autoOpenUnacknowledged?: boolean;
 }> = ({
   compact = false,
   limitations,
@@ -56,26 +61,33 @@ export const ModelLimitations: React.FC<{
   open: controlledOpen,
   onOpenChange,
   showTrigger = true,
+  autoOpenUnacknowledged = true,
 }) => {
   const { t } = useTranslation();
-  const defaultLimitations = t('modelLimitations.items', { returnObjects: true }) as string[];
+  const defaultLimitations = t("modelLimitations.items", {
+    returnObjects: true,
+  }) as string[];
   const shownLimitations = limitations ?? defaultLimitations;
   const [acknowledged, setAcknowledged] = useState<boolean>(() =>
-    hasAck(acknowledgementScope));
+    hasAck(acknowledgementScope),
+  );
   const [dismissed, setDismissed] = useState(false);
   const [manuallyOpened, setManuallyOpened] = useState(false);
   const isControlled = controlledOpen !== undefined;
-  const previousControlled = useRef<Readonly<{
-    scope: string;
-    open: boolean | undefined;
-  }>>({ scope: acknowledgementScope, open: controlledOpen });
+  const previousControlled = useRef<
+    Readonly<{
+      scope: string;
+      open: boolean | undefined;
+    }>
+  >({ scope: acknowledgementScope, open: controlledOpen });
   const controlledCloseTransition =
-    previousControlled.current.scope === acknowledgementScope
-    && previousControlled.current.open === true
-    && controlledOpen === false;
+    previousControlled.current.scope === acknowledgementScope &&
+    previousControlled.current.open === true &&
+    controlledOpen === false;
   const open = resolveModelLimitationsOpenState({
     acknowledged,
-    dismissed: dismissed || controlledCloseTransition,
+    dismissed:
+      dismissed || controlledCloseTransition || !autoOpenUnacknowledged,
     manuallyOpened,
     controlledOpen,
   });
@@ -89,9 +101,9 @@ export const ModelLimitations: React.FC<{
   useEffect(() => {
     const previous = previousControlled.current;
     if (
-      previous.scope === acknowledgementScope
-      && previous.open === true
-      && controlledOpen === false
+      previous.scope === acknowledgementScope &&
+      previous.open === true &&
+      controlledOpen === false
     ) {
       setDismissed(true);
       setManuallyOpened(false);
@@ -124,15 +136,15 @@ export const ModelLimitations: React.FC<{
           type="button"
           onClick={() => setOpen(true)}
           className="flex min-h-9 items-center gap-1 rounded-md px-2 text-wb-muted transition-colors duration-150 hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          title={t('modelLimitations.buttonTitle')}
-          aria-label={t('modelLimitations.titleShort')}
+          title={t("modelLimitations.buttonTitle")}
+          aria-label={t("modelLimitations.titleShort")}
           aria-haspopup="dialog"
           aria-expanded={open}
         >
           <Info className="h-4 w-4" aria-hidden="true" />
           {!compact && (
             <span className="hidden text-[10px] font-medium lg:inline">
-              {t('modelLimitations.buttonShort')}
+              {t("modelLimitations.buttonShort")}
             </span>
           )}
         </button>
@@ -142,9 +154,9 @@ export const ModelLimitations: React.FC<{
         open={open}
         onOpenChange={setOpen}
         onAcknowledge={acknowledge}
-        title={t('modelLimitations.title')}
-        closeLabel={t('common.close')}
-        acknowledgeLabel={t('modelLimitations.understand')}
+        title={t("modelLimitations.title")}
+        closeLabel={t("common.close")}
+        acknowledgeLabel={t("modelLimitations.understand")}
         limitations={shownLimitations}
       />
     </>

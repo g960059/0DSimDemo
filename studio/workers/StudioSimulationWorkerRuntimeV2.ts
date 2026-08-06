@@ -2,19 +2,19 @@ import {
   assertExperimentCapturesMatchModelV2,
   assertExperimentDesiredFixturesMatchModelV2,
   createScenarioPresetCaptureClonerV2,
-  validateDraftCaptureConfirmationV2,
-  validateDraftCaptureCorrelationV2,
+  validateExperimentCaptureConfirmationV2,
+  validateExperimentCaptureCorrelationV2,
   validateExperimentContentForModelV2,
   validateExperimentDesiredContentForModelV2,
   validateExperimentSnapshotV2,
-  validateExperimentWorkspaceV2,
+  validateExperimentV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {
   createStudioFixtureReducerV2,
   type StudioFixtureReducerFacadeV2,
 } from "@/studio/application/runtime/StudioFixtureReducerV2";
 import type {
-  ExperimentDraftCaptureCorrelationV2,
+  ExperimentCaptureCorrelationV2,
   ExperimentDesiredContentV2,
   ExperimentSnapshotIdFactoryPortV2,
   StudioClockPortV2,
@@ -25,7 +25,7 @@ import {
   type ExperimentScenarioV2,
   type ExperimentSnapshotV2,
   type ExperimentSurfaceV2,
-  type ExperimentWorkspaceV2,
+  type ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import type {
   ExactModelRuntimeResolverPortV2,
@@ -88,6 +88,13 @@ export type StudioSimulationWorkerRuntimeDependenciesV2 = Readonly<{
   queueCapacity?: number;
   snapshotIds?: ExperimentSnapshotIdFactoryPortV2;
   clock?: StudioClockPortV2;
+}>;
+
+type StudioSimulationWorkerAuthoringContextV2 = Readonly<{
+  runtime: ResolvedExactModelRuntimeV2;
+  authoring: StudioExperimentAuthoringFacadeV2;
+  fixture: StudioJsonValueV2;
+  frame: StudioSimulationFrameV2;
 }>;
 
 /**
@@ -282,8 +289,8 @@ export class StudioSimulationWorkerRuntimeV2 {
       case "delete-scenario":
         await this.#deleteScenario(request);
         return;
-      case "save-draft":
-        await this.#saveDraft(request);
+      case "save-experiment":
+        await this.#saveExperiment(request);
         return;
       case "create-snapshot":
         await this.#createSnapshot(request);
@@ -340,7 +347,7 @@ export class StudioSimulationWorkerRuntimeV2 {
       if (this.#portClosed || this.#state !== "initializing") return;
 
       adapter = exactRuntime.simulationAdapter;
-      const seededScenarios = request.authoringSeed?.workspace?.content.scenarios;
+      const seededScenarios = request.authoringSeed?.experiment?.content.scenarios;
       const scenarioInputs = seededScenarios === undefined
         ? [Object.freeze({
             scenarioId: request.scenarioId,
@@ -375,7 +382,7 @@ export class StudioSimulationWorkerRuntimeV2 {
       this.#adapter = adapter;
       this.#fixtureReducer = createStudioFixtureReducerV2(models);
       this.#authoring = authoringStack.application;
-      this.#authoringExperimentId = request.authoringSeed?.workspace
+      this.#authoringExperimentId = request.authoringSeed?.experiment
         ?.experimentId;
       this.#runtimeSessionId = request.runtimeSessionId;
       this.#physicalRuntimeSessionId = request.runtimeSessionId;
@@ -614,25 +621,9 @@ export class StudioSimulationWorkerRuntimeV2 {
       );
     }
 
-    let proposedAnalysis: unknown;
-    try {
-      proposedAnalysis = await adapter.requestAnalysis({
-        runtimeSessionId: physicalRuntimeSessionId,
-        scenarioId: request.scenarioId,
-        analysisId: request.analysisId,
-        expectedInputEpoch: request.expectedInputEpoch,
-        expectedAcceptedRevision: request.expectedAcceptedRevision,
-        expectedAcceptedTimeSec: request.expectedAcceptedTimeSec,
-      });
-    } catch (error) {
-      this.#assertAnalysisDidNotMutate(priorFrame, error);
-      throw new Error(
-        `simulation worker analysis rejected: ${errorMessageV2(error)}`,
-      );
-    }
-
-    let analysis: StudioSimulationAnalysisV2;
-    try {
+    const validateProposedAnalysis = (
+      proposedAnalysis: unknown,
+    ): StudioSimulationAnalysisV2 => {
       const physicalAnalysis = validateStudioSimulationAnalysisV2(
         proposedAnalysis,
       );
@@ -645,7 +636,8 @@ export class StudioSimulationWorkerRuntimeV2 {
           "analysis result physical runtime identity does not match the request",
         );
       }
-      analysis = physicalAnalysis.runtimeSessionId === request.runtimeSessionId
+      const analysis = physicalAnalysis.runtimeSessionId
+        === request.runtimeSessionId
         ? physicalAnalysis
         : validateStudioSimulationAnalysisV2({
             ...physicalAnalysis,
@@ -665,6 +657,42 @@ export class StudioSimulationWorkerRuntimeV2 {
         );
       }
       this.#assertAnalysisDidNotMutate(priorFrame, analysis);
+      return analysis;
+    };
+
+    let proposedAnalysis: unknown;
+    try {
+      proposedAnalysis = await adapter.requestAnalysis({
+        runtimeSessionId: physicalRuntimeSessionId,
+        scenarioId: request.scenarioId,
+        analysisId: request.analysisId,
+        expectedInputEpoch: request.expectedInputEpoch,
+        expectedAcceptedRevision: request.expectedAcceptedRevision,
+        expectedAcceptedTimeSec: request.expectedAcceptedTimeSec,
+        ...(request.analysisPartition === undefined
+          ? {}
+          : { analysisPartition: request.analysisPartition }),
+        onProgress: (proposedProgress) => {
+          const analysis = validateProposedAnalysis(proposedProgress);
+          this.#postResponse({
+            protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+            requestId: request.requestId,
+            status: "ok",
+            kind: "analysis-progress",
+            analysis,
+          });
+        },
+      });
+    } catch (error) {
+      this.#assertAnalysisDidNotMutate(priorFrame, error);
+      throw new Error(
+        `simulation worker analysis rejected: ${errorMessageV2(error)}`,
+      );
+    }
+
+    let analysis: StudioSimulationAnalysisV2;
+    try {
+      analysis = validateProposedAnalysis(proposedAnalysis);
     } catch (error) {
       if (error instanceof FatalWorkerStateErrorV2) throw error;
       this.#assertAnalysisDidNotMutate(priorFrame, error);
@@ -866,7 +894,7 @@ export class StudioSimulationWorkerRuntimeV2 {
       })),
       surface,
     }, runtime.contract);
-    const correlation = validateDraftCaptureCorrelationV2({
+    const correlation = validateExperimentCaptureCorrelationV2({
       runtimeSessionId: physicalRuntimeSessionId,
       scenarios: this.#scenarioOrder.map((scenarioId) => ({
         scenarioId,
@@ -876,7 +904,7 @@ export class StudioSimulationWorkerRuntimeV2 {
         }),
       })),
     }, desiredContent);
-    return captureFirstWorkspaceContentV2({
+    return captureFirstExperimentContentV2({
       runtime,
       experimentId,
       desiredContent,
@@ -973,10 +1001,10 @@ export class StudioSimulationWorkerRuntimeV2 {
     });
   }
 
-  async #saveDraft(
+  async #saveExperiment(
     request: Extract<
       StudioSimulationWorkerRequestV2,
-      { kind: "save-draft" }
+      { kind: "save-experiment" }
     >,
   ): Promise<void> {
     const context = this.#requiredAuthoringContext(
@@ -990,6 +1018,15 @@ export class StudioSimulationWorkerRuntimeV2 {
       throw new Error("simulation worker authoring Experiment identity mismatch");
     }
     this.#assertExpectedActiveBoundary(request);
+    if (
+      request.scenarioIds.length !== this.#scenarioOrder.length
+      || request.scenarioIds.some((scenarioId, index) =>
+        scenarioId !== this.#scenarioOrder[index])
+    ) {
+      throw new Error(
+        "simulation worker Save Surface Scenario identities are stale",
+      );
+    }
     const desiredContent = validateExperimentDesiredContentForModelV2({
       modelId: context.runtime.contract.modelId,
       scenarios: this.#scenarioOrder.map((scenarioId) => ({
@@ -1004,7 +1041,7 @@ export class StudioSimulationWorkerRuntimeV2 {
       context.runtime.contract,
       context.runtime.captureAdapter,
     );
-    const correlation = validateDraftCaptureCorrelationV2({
+    const correlation = validateExperimentCaptureCorrelationV2({
       runtimeSessionId: this.#requiredPhysicalRuntimeSessionId(),
       scenarios: this.#scenarioOrder.map((scenarioId) => ({
         scenarioId,
@@ -1015,59 +1052,59 @@ export class StudioSimulationWorkerRuntimeV2 {
       })),
     }, desiredContent);
 
-    let workspace: ExperimentWorkspaceV2;
+    let experiment: ExperimentV2;
     try {
-      const current = await context.authoring.readWorkspace(
+      const current = await context.authoring.readExperiment(
         request.experimentId,
       );
       if (current === null) {
-        if (request.expectedDraftVersion !== null) {
+        if (request.expectedVersion !== null) {
           throw new Error(
-            "first Draft Save requires expectedDraftVersion null",
+            "first Experiment Save requires expectedVersion null",
           );
         }
-        const capturedContent = await captureFirstWorkspaceContentV2({
+        const capturedContent = await captureFirstExperimentContentV2({
           runtime: context.runtime,
           experimentId: request.experimentId,
           desiredContent,
           correlation,
           frames: this.#scenarioFrames,
         });
-        workspace = await context.authoring.createWorkspace({
+        experiment = await context.authoring.createExperiment({
           experimentId: request.experimentId,
           content: capturedContent,
         });
       } else {
-        if (request.expectedDraftVersion === null) {
+        if (request.expectedVersion === null) {
           throw new Error(
-            "existing Draft Save requires an expected draftVersion",
+            "existing Experiment Save requires an expected version",
           );
         }
-        workspace = await context.authoring.saveDraft({
+        experiment = await context.authoring.saveExperiment({
           experimentId: request.experimentId,
-          expectedDraftVersion: request.expectedDraftVersion,
+          expectedVersion: request.expectedVersion,
           desiredContent,
           captureCorrelation: correlation,
         });
       }
-      workspace = validateExperimentWorkspaceV2(workspace);
-      assertSavedWorkspaceAtBoundaryV2({
-        workspace,
+      experiment = validateExperimentV2(experiment);
+      assertSavedExperimentAtBoundaryV2({
+        experiment,
         experimentId: request.experimentId,
-        expectedDraftVersion: request.expectedDraftVersion,
+        expectedVersion: request.expectedVersion,
         desiredContent,
         frames: this.#scenarioFrames,
-        priorWorkspace: current,
+        priorExperiment: current,
       });
       this.#assertAcceptedFrameUnchanged(
         context.frame,
-        "Draft Save",
+        "Experiment Save",
       );
     } catch (error) {
       if (error instanceof FatalWorkerStateErrorV2) throw error;
-      this.#assertAcceptedFrameUnchanged(context.frame, "Draft Save");
+      this.#assertAcceptedFrameUnchanged(context.frame, "Experiment Save");
       throw new Error(
-        `simulation worker Draft Save rejected: ${errorMessageV2(error)}`,
+        `simulation worker Experiment Save rejected: ${errorMessageV2(error)}`,
       );
     }
 
@@ -1076,8 +1113,8 @@ export class StudioSimulationWorkerRuntimeV2 {
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId: request.requestId,
       status: "ok",
-      kind: "draft-saved",
-      workspace,
+      kind: "experiment-saved",
+      experiment,
     });
   }
 
@@ -1091,36 +1128,42 @@ export class StudioSimulationWorkerRuntimeV2 {
       request.runtimeSessionId,
       request.scenarioId,
     );
-    if (this.#authoringExperimentId !== request.experimentId) {
-      throw new Error("simulation worker authoring Experiment identity mismatch");
+    this.#assertExpectedActiveBoundary(request);
+    if (
+      request.scenarioIds.length !== this.#scenarioOrder.length
+      || request.scenarioIds.some((scenarioId, index) =>
+        scenarioId !== this.#scenarioOrder[index])
+    ) {
+      throw new Error(
+        "simulation worker Snapshot Surface Scenario identities are stale",
+      );
     }
 
     let snapshot: ExperimentSnapshotV2;
-    let workspace: ExperimentWorkspaceV2;
     try {
-      const candidate = await context.authoring.readWorkspace(
-        request.experimentId,
+      const candidateContent = await this.#captureAllScenarios(
+        `experiment/session/${request.runtimeSessionId}`,
+        request.surface,
       );
-      if (candidate === null) {
-        throw new Error("Snapshot requires a saved Draft workspace");
-      }
-      snapshot = validateExperimentSnapshotV2(
-        await context.authoring.createSnapshot({
-          experimentId: request.experimentId,
-          expectedDraftVersion: request.expectedDraftVersion,
-          expectedHeadSnapshotId: request.expectedHeadSnapshotId,
-        }),
-      );
-      const advanced = await context.authoring.readWorkspace(
-        request.experimentId,
-      );
-      if (advanced === null) {
+      const created = request.snapshotSource === "session"
+        ? await context.authoring.createSnapshot({ content: candidateContent })
+        : await this.#createPublicationSnapshotFromSavedHead(
+            context,
+            candidateContent,
+          );
+      snapshot = validateExperimentSnapshotV2(created);
+      if (
+        snapshot.content.modelId !== context.runtime.contract.modelId
+      ) {
         throw new FatalWorkerStateErrorV2(
-          "simulation worker Snapshot commit lost its workspace",
+          "simulation worker Snapshot commit returned inconsistent identity",
         );
       }
-      workspace = validateExperimentWorkspaceV2(advanced);
-      assertSnapshotAdvanceV2(candidate, snapshot, workspace);
+      if (!samePortableValueV2(candidateContent, snapshot.content)) {
+        throw new FatalWorkerStateErrorV2(
+          "simulation worker Snapshot admission changed captured content",
+        );
+      }
       this.#assertAcceptedFrameUnchanged(
         context.frame,
         "Snapshot creation",
@@ -1142,7 +1185,31 @@ export class StudioSimulationWorkerRuntimeV2 {
       status: "ok",
       kind: "snapshot-created",
       snapshot,
-      workspace,
+    });
+  }
+
+  async #createPublicationSnapshotFromSavedHead(
+    context: StudioSimulationWorkerAuthoringContextV2,
+    candidateContent: ExperimentContentV2,
+  ): Promise<ExperimentSnapshotV2> {
+    const experimentId = this.#authoringExperimentId;
+    if (experimentId === undefined) {
+      throw new Error(
+        "Publishing requires a saved Experiment authoring seed",
+      );
+    }
+    const experiment = await context.authoring.readExperiment(experimentId);
+    if (experiment === null) {
+      throw new Error(
+        "The saved Experiment required for publishing is no longer available",
+      );
+    }
+    return context.authoring.createSnapshot({
+      content: candidateContent,
+      savedExperiment: {
+        experimentId,
+        expectedVersion: experiment.version,
+      },
     });
   }
 
@@ -1284,12 +1351,7 @@ export class StudioSimulationWorkerRuntimeV2 {
   #requiredAuthoringContext(
     runtimeSessionId: string,
     scenarioId: string,
-  ): Readonly<{
-    runtime: ResolvedExactModelRuntimeV2;
-    authoring: StudioExperimentAuthoringFacadeV2;
-    fixture: StudioJsonValueV2;
-    frame: StudioSimulationFrameV2;
-  }> {
+  ): StudioSimulationWorkerAuthoringContextV2 {
     this.#requiredActiveAdapter(runtimeSessionId, scenarioId);
     if (
       this.#exactRuntime === undefined
@@ -1547,16 +1609,16 @@ function assertExactRuntimeV2(
   );
   const modelId = runtime.contract.modelId;
   if (
-    runtime.draftCapture?.modelId !== modelId
-    || runtime.draftCapture.fixtureSchemaId
+    runtime.experimentCapture?.modelId !== modelId
+    || runtime.experimentCapture.fixtureSchemaId
       !== runtime.contract.fixtureSchemaId
-    || runtime.draftCapture.checkpointCodecId
+    || runtime.experimentCapture.checkpointCodecId
       !== runtime.contract.checkpointCodecId
-    || typeof runtime.draftCapture.captureAcceptedCandidate !== "function"
+    || typeof runtime.experimentCapture.captureAcceptedCandidate !== "function"
     || runtime.snapshotGate?.modelId !== modelId
     || runtime.snapshotGate.snapshotGateId
       !== runtime.contract.snapshotGateId
-    || typeof runtime.snapshotGate.qualifyFrozenCandidate !== "function"
+    || typeof runtime.snapshotGate.admitFrozenCandidate !== "function"
     || runtime.fixtureAdapter?.modelId !== modelId
     || runtime.fixtureAdapter.fixtureSchemaId
       !== runtime.contract.fixtureSchemaId
@@ -1604,20 +1666,12 @@ async function validateAuthoringSeedAgainstRuntimeV2(
     { kind: "initialize" }
   >["authoringSeed"],
 ): Promise<void> {
-  if (seed?.workspace !== undefined) {
-    const workspace = await authoring.readWorkspace(
-      seed.workspace.experimentId,
+  if (seed?.experiment !== undefined) {
+    const experiment = await authoring.readExperiment(
+      seed.experiment.experimentId,
     );
-    if (workspace === null) {
-      throw new Error("authoring seed workspace was not admitted");
-    }
-  }
-  for (const snapshot of seed?.snapshots ?? []) {
-    const admitted = await authoring.readSnapshot(snapshot.snapshotId);
-    if (admitted === null) {
-      throw new Error(
-        `authoring seed Snapshot was not admitted: ${snapshot.snapshotId}`,
-      );
+    if (experiment === null) {
+      throw new Error("authoring seed experiment was not admitted");
     }
   }
 }
@@ -1632,19 +1686,19 @@ function assertSeedMatchesInitializationV2(
     { kind: "initialize" }
   >["authoringSeed"],
 ): void {
-  const workspace = seed?.workspace;
-  if (workspace === undefined) return;
-  if (workspace.content.modelId !== request.expectedModelId) {
+  const experiment = seed?.experiment;
+  if (experiment === undefined) return;
+  if (experiment.content.modelId !== request.expectedModelId) {
     throw new Error(
-      "authoring seed workspace does not use the active exact model",
+      "authoring seed experiment does not use the active exact model",
     );
   }
-  const scenario = workspace.content.scenarios.find(
+  const scenario = experiment.content.scenarios.find(
     ({ scenarioId }) => scenarioId === request.scenarioId,
   );
   if (scenario === undefined) {
     throw new Error(
-      "authoring seed workspace does not contain the active Scenario",
+      "authoring seed experiment does not contain the active Scenario",
     );
   }
   if (scenario.label !== request.scenarioLabel) {
@@ -1670,24 +1724,24 @@ function assertSeedMatchesInitializationV2(
   }
 }
 
-async function captureFirstWorkspaceContentV2(input: Readonly<{
+async function captureFirstExperimentContentV2(input: Readonly<{
   runtime: ResolvedExactModelRuntimeV2;
   experimentId: string;
   desiredContent: ExperimentDesiredContentV2;
-  correlation: ExperimentDraftCaptureCorrelationV2;
+  correlation: ExperimentCaptureCorrelationV2;
   frames: ReadonlyMap<string, StudioSimulationFrameV2>;
 }>): Promise<ExperimentContentV2> {
   const result = exactDataResultV2(
-    await input.runtime.draftCapture.captureAcceptedCandidate({
+    await input.runtime.experimentCapture.captureAcceptedCandidate({
       experimentId: input.experimentId,
       model: input.runtime.contract,
       desiredContent: input.desiredContent,
       correlation: input.correlation,
     }),
     ["confirmation", "content"],
-    "Draft capture",
+    "Experiment capture",
   );
-  validateDraftCaptureConfirmationV2(result.confirmation, {
+  validateExperimentCaptureConfirmationV2(result.confirmation, {
     experimentId: input.experimentId,
     correlation: input.correlation,
   });
@@ -1708,40 +1762,33 @@ async function captureFirstWorkspaceContentV2(input: Readonly<{
   return content;
 }
 
-function assertSavedWorkspaceAtBoundaryV2(input: Readonly<{
-  workspace: ExperimentWorkspaceV2;
+function assertSavedExperimentAtBoundaryV2(input: Readonly<{
+  experiment: ExperimentV2;
   experimentId: string;
-  expectedDraftVersion: number | null;
+  expectedVersion: number | null;
   desiredContent: ExperimentDesiredContentV2;
   frames: ReadonlyMap<string, StudioSimulationFrameV2>;
-  priorWorkspace: ExperimentWorkspaceV2 | null;
+  priorExperiment: ExperimentV2 | null;
 }>): void {
-  const expectedVersion = input.expectedDraftVersion === null
+  const expectedVersion = input.expectedVersion === null
     ? 0
-    : input.expectedDraftVersion + 1;
+    : input.expectedVersion + 1;
   if (
-    input.workspace.experimentId !== input.experimentId
-    || input.workspace.draftVersion !== expectedVersion
+    input.experiment.experimentId !== input.experimentId
+    || input.experiment.version !== expectedVersion
   ) {
-    throw new Error("saved Draft workspace identity or version mismatch");
+    throw new Error("saved Experiment experiment identity or version mismatch");
   }
-  if (input.priorWorkspace === null) {
-    if (
-      input.workspace.headSnapshotId !== null
-      || input.workspace.basedOnSnapshotId !== null
-    ) {
-      throw new Error("first saved Draft must start without Snapshot lineage");
-    }
-  } else if (
-    input.workspace.headSnapshotId !== input.priorWorkspace.headSnapshotId
-    || input.workspace.basedOnSnapshotId
-      !== input.priorWorkspace.basedOnSnapshotId
+  if (
+    input.priorExperiment !== null
+    && input.experiment.content.modelId
+      !== input.priorExperiment.content.modelId
   ) {
-    throw new Error("saved Draft changed Snapshot lineage");
+    throw new Error("saved Experiment changed exact modelId");
   }
   assertCapturedDesiredContentAtBoundaryV2(
     input.desiredContent,
-    input.workspace.content,
+    input.experiment.content,
     input.frames,
   );
 }
@@ -1775,58 +1822,6 @@ function assertCapturedDesiredContentAtBoundaryV2(
     ) {
       throw new Error(
         "accepted-boundary capture changed Scenario identity, fixture, or clocks",
-      );
-    }
-  }
-}
-
-function assertSnapshotAdvanceV2(
-  candidate: ExperimentWorkspaceV2,
-  snapshot: ExperimentSnapshotV2,
-  advanced: ExperimentWorkspaceV2,
-): void {
-  if (
-    snapshot.experimentId !== candidate.experimentId
-    || snapshot.parentSnapshotId !== candidate.basedOnSnapshotId
-    || advanced.experimentId !== candidate.experimentId
-    || advanced.draftVersion !== candidate.draftVersion + 1
-    || advanced.headSnapshotId !== snapshot.snapshotId
-    || advanced.basedOnSnapshotId !== snapshot.snapshotId
-    || !samePortableValueV2(advanced.content, snapshot.content)
-  ) {
-    throw new FatalWorkerStateErrorV2(
-      "simulation worker Snapshot commit returned inconsistent lineage",
-    );
-  }
-  assertSnapshotChangedCheckpointsOnlyV2(candidate.content, snapshot.content);
-}
-
-function assertSnapshotChangedCheckpointsOnlyV2(
-  candidate: ExperimentContentV2,
-  qualified: ExperimentContentV2,
-): void {
-  if (
-    candidate.modelId !== qualified.modelId
-    || !samePortableValueV2(candidate.surface, qualified.surface)
-    || candidate.scenarios.length !== qualified.scenarios.length
-  ) {
-    throw new FatalWorkerStateErrorV2(
-      "simulation worker Snapshot gate changed authored content",
-    );
-  }
-  for (let index = 0; index < candidate.scenarios.length; index += 1) {
-    const before = candidate.scenarios[index]!;
-    const after = qualified.scenarios[index]!;
-    if (
-      before.scenarioId !== after.scenarioId
-      || before.label !== after.label
-      || !samePortableValueV2(
-        before.capture.fixture,
-        after.capture.fixture,
-      )
-    ) {
-      throw new FatalWorkerStateErrorV2(
-        "simulation worker Snapshot gate changed Scenario authored content",
       );
     }
   }
@@ -1882,7 +1877,10 @@ ExperimentSnapshotIdFactoryPortV2 {
         throw new Error("simulation worker Snapshot ID space is exhausted");
       }
       ordinal += 1;
-      return `snapshot/worker-${prefix}/${ordinal}`;
+      // Snapshot IDs are also canonical route segments. Keep generated
+      // identities slash-free so a hard refresh cannot depend on a host or
+      // proxy preserving an encoded path separator.
+      return `snapshot-worker-${prefix}-${ordinal}`;
     },
   });
 }

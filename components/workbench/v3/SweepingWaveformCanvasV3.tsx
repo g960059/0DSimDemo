@@ -14,11 +14,20 @@ import {
   useResponsiveCanvasFrameV3,
 } from "./WorkbenchCanvasRuntimeV3";
 import {
-  WorkbenchChartTwoAxisLegendV3,
-  buildWorkbenchScenarioLegendItemsV3,
-  buildWorkbenchTraceColorLegendItemsV3,
+  WorkbenchChartLegendV3,
+  buildWorkbenchTraceLegendModelV3,
+  workbenchLegendTraceAlphaV3,
+  workbenchLegendTraceHiddenV3,
+  workbenchTraceLegendKeyV3,
+  type WorkbenchChartLegendSelectionV3,
   type WorkbenchScenarioTraceIdentityV3,
 } from "./WorkbenchChartTraceStyleV3";
+import {
+  nextStableNumericDomainStateV3,
+  numericTicksV3,
+  type WorkbenchNumericDomainV3,
+  type WorkbenchStableNumericDomainStateV3,
+} from "./WorkbenchStableChartDomainV3";
 
 export type WorkbenchWaveformSeriesV3 = Readonly<{
   outputId: string;
@@ -31,25 +40,84 @@ export type WorkbenchWaveformTraceV3 = WorkbenchScenarioTraceIdentityV3 &
     samples: readonly WorkbenchScalarSampleV3[];
     outputId: string;
     signalLabel: string;
-    /** Stable per signal, independent of Scenario. */
+    /** Final resolved trace color from the automatic comparison strategy. */
     signalColor: string;
+    /** Optional catalog-owned cycle source used to commit stable axes. */
+    cyclePhaseOutputId?: string;
   }>;
 
 export type SweepingWaveformPointV3 = Readonly<{
   phaseSec: number;
   value: number;
-  envelopeMinimum?: number;
-  envelopeMaximum?: number;
 }>;
 
 export type SweepingWaveformSegmentV3 = readonly SweepingWaveformPointV3[];
 
-export type WorkbenchNumericDomainV3 = readonly [number, number];
+type WaveformSourcePointV3 = Readonly<{
+  presentationTimeSec: number;
+  value: number;
+}>;
 
 type SweepingWaveformOptionsV3 = Readonly<{
   windowSec: number;
   forwardGapFraction?: number;
 }>;
+
+/**
+ * Expands one bounded presentation bucket into its causally ordered
+ * first/min/max/last samples. This preserves sharp accepted-step features in
+ * the main polyline without a separate min/max whisker layer or an unbounded
+ * 2 ms UI trace.
+ */
+function waveformSourcePointsV3(
+  sample: WorkbenchScalarSampleV3,
+  outputId: string,
+): readonly WaveformSourcePointV3[] {
+  const terminal = finiteWorkbenchScalarValueV3(sample, outputId);
+  if (terminal === null) return Object.freeze([]);
+  if (!isWorkbenchPresentationSampleV3(sample)) {
+    return Object.freeze([Object.freeze({
+      presentationTimeSec: sample.presentationTimeSec,
+      value: terminal,
+    })]);
+  }
+  const envelope = sample.presentationEnvelope;
+  const candidates: WaveformSourcePointV3[] = [];
+  const append = (
+    presentationTimeSec: number | undefined,
+    value: number | undefined,
+  ) => {
+    if (
+      typeof presentationTimeSec !== "number"
+      || !Number.isFinite(presentationTimeSec)
+      || typeof value !== "number"
+      || !Number.isFinite(value)
+    ) return;
+    candidates.push(Object.freeze({ presentationTimeSec, value }));
+  };
+  append(
+    envelope.firstPresentationTimesSec[outputId],
+    envelope.firsts[outputId],
+  );
+  append(
+    envelope.minimumPresentationTimesSec[outputId],
+    envelope.minimums[outputId],
+  );
+  append(
+    envelope.maximumPresentationTimesSec[outputId],
+    envelope.maximums[outputId],
+  );
+  append(sample.presentationTimeSec, terminal);
+  candidates.sort((left, right) =>
+    left.presentationTimeSec - right.presentationTimeSec);
+  return Object.freeze(candidates.filter((point, index) => {
+    const previous = candidates[index - 1];
+    return previous === undefined
+      || Math.abs(previous.presentationTimeSec - point.presentationTimeSec)
+        > WAVEFORM_EPSILON_V3
+      || Math.abs(previous.value - point.value) > WAVEFORM_EPSILON_V3;
+  }));
+}
 
 export const WORKBENCH_SWEEP_FORWARD_GAP_FRACTION_V3 = 0.025;
 
@@ -122,7 +190,6 @@ function buildSweepingWaveformSegmentsFromOrderedV3(
   const segments: SweepingWaveformPointV3[][] = [];
   let active: SweepingWaveformPointV3[] = [];
   let previousPhaseSec: number | null = null;
-  let previousInputEpoch: number | null = null;
 
   const flush = () => {
     if (active.length > 0) segments.push(active);
@@ -132,55 +199,42 @@ function buildSweepingWaveformSegmentsFromOrderedV3(
   const firstIndex = firstSampleAtOrAfterV3(ordered, oldestTimeSec);
   for (let index = firstIndex; index < ordered.length; index += 1) {
     const sample = ordered[index]!;
-    const phaseSec = positiveModuloV3(
-      sample.presentationTimeSec,
-      windowSec,
-    );
-    if (
-      previousInputEpoch !== null
-      && sample.inputEpoch !== previousInputEpoch
-    ) {
-      flush();
-      previousPhaseSec = null;
-    } else if (
-      previousPhaseSec !== null
-      && phaseSec + WAVEFORM_EPSILON_V3 < previousPhaseSec
-    ) {
-      flush();
+    for (const sourcePoint of waveformSourcePointsV3(sample, outputId)) {
+      if (sourcePoint.presentationTimeSec < oldestTimeSec) continue;
+      const phaseSec = positiveModuloV3(
+        sourcePoint.presentationTimeSec,
+        windowSec,
+      );
+      if (
+        previousPhaseSec !== null
+        && phaseSec + WAVEFORM_EPSILON_V3 < previousPhaseSec
+      ) {
+        flush();
+      }
+      previousPhaseSec = phaseSec;
+      const hiddenByCursorGap = phaseIsInsideForwardSweepGapV3(
+        phaseSec,
+        cursorPhaseSec,
+        gapSec,
+        windowSec,
+      );
+      if (hiddenByCursorGap) {
+        flush();
+        continue;
+      }
+      const previousPoint = active.at(-1);
+      if (
+        previousPoint !== undefined
+        && Math.abs(previousPoint.phaseSec - phaseSec)
+          <= WAVEFORM_EPSILON_V3
+        && Math.abs(previousPoint.value - sourcePoint.value)
+          <= WAVEFORM_EPSILON_V3
+      ) continue;
+      active.push(Object.freeze({
+        phaseSec,
+        value: sourcePoint.value,
+      }));
     }
-    previousInputEpoch = sample.inputEpoch;
-    previousPhaseSec = phaseSec;
-    const value = finiteWorkbenchScalarValueV3(sample, outputId);
-    const hiddenByCursorGap = phaseIsInsideForwardSweepGapV3(
-      phaseSec,
-      cursorPhaseSec,
-      gapSec,
-      windowSec,
-    );
-    if (value === null || hiddenByCursorGap) {
-      flush();
-      continue;
-    }
-    const envelopeMinimum = isWorkbenchPresentationSampleV3(sample)
-      ? sample.presentationEnvelope.minimums[outputId]
-      : undefined;
-    const envelopeMaximum = isWorkbenchPresentationSampleV3(sample)
-      ? sample.presentationEnvelope.maximums[outputId]
-      : undefined;
-    const hasEnvelope = typeof envelopeMinimum === "number"
-      && Number.isFinite(envelopeMinimum)
-      && typeof envelopeMaximum === "number"
-      && Number.isFinite(envelopeMaximum);
-    active.push(Object.freeze({
-      phaseSec,
-      value,
-      ...(!hasEnvelope
-        ? {}
-        : {
-            envelopeMinimum,
-            envelopeMaximum,
-          }),
-    }));
   }
   flush();
   return Object.freeze(segments.map((segment) => Object.freeze(segment)));
@@ -220,92 +274,10 @@ function latestSweepingWaveformPointFromOrderedV3(
   return null;
 }
 
-export function observedNumericDomainV3(
-  values: readonly number[],
-  options: Readonly<{
-    includeZero?: boolean;
-    paddingFraction?: number;
-  }> = {},
-): WorkbenchNumericDomainV3 {
-  const finite = values.filter(Number.isFinite);
-  if (finite.length === 0) return Object.freeze([0, 1]);
-  let minimum = Math.min(...finite);
-  let maximum = Math.max(...finite);
-  if (options.includeZero) {
-    minimum = Math.min(0, minimum);
-    maximum = Math.max(0, maximum);
-  }
-  if (maximum - minimum < 1e-12) {
-    const halfSpan = Math.max(0.5, Math.abs(maximum) * 0.05);
-    minimum -= halfSpan;
-    maximum += halfSpan;
-  }
-  const padding = Math.max(
-    1e-6,
-    (maximum - minimum) * clampV3(options.paddingFraction ?? 0.08, 0, 0.5),
-  );
-  const lowerPadding = options.includeZero && minimum === 0 && maximum > 0
-    ? 0
-    : padding;
-  const upperPadding = options.includeZero && maximum === 0 && minimum < 0
-    ? 0
-    : padding;
-  return Object.freeze([
-    minimum - lowerPadding,
-    maximum + upperPadding,
-  ]);
-}
-
-/**
- * Expands immediately to avoid clipping. It contracts only after the new
- * observations occupy a substantially smaller, well-inset range.
- */
-export function nextHystereticNumericDomainV3(
-  previous: WorkbenchNumericDomainV3 | null,
-  values: readonly number[],
-  options: Readonly<{
-    includeZero?: boolean;
-    paddingFraction?: number;
-    contractionSpanRatio?: number;
-    contractionInsetFraction?: number;
-  }> = {},
-): WorkbenchNumericDomainV3 {
-  const observed = observedNumericDomainV3(values, options);
-  if (
-    previous === null
-    || !Number.isFinite(previous[0])
-    || !Number.isFinite(previous[1])
-    || !(previous[1] > previous[0])
-  ) return observed;
-
-  const expandsLower = observed[0] < previous[0];
-  const expandsUpper = observed[1] > previous[1];
-  if (expandsLower || expandsUpper) {
-    return Object.freeze([
-      Math.min(previous[0], observed[0]),
-      Math.max(previous[1], observed[1]),
-    ]);
-  }
-
-  const previousSpan = previous[1] - previous[0];
-  const observedSpan = observed[1] - observed[0];
-  const spanRatio = clampV3(options.contractionSpanRatio ?? 0.7, 0.1, 0.95);
-  const insetFraction = clampV3(
-    options.contractionInsetFraction ?? 0.1,
-    0,
-    0.4,
-  );
-  const inset = previousSpan * insetFraction;
-  const safelyInset = observed[0] >= previous[0] + inset
-    && observed[1] <= previous[1] - inset;
-  return observedSpan <= previousSpan * spanRatio && safelyInset
-    ? observed
-    : previous;
-}
-
 type SweepingWaveformCanvasCommonPropsV3 = Readonly<{
   windowSec?: number;
   unitLabel?: string;
+  axisLabel?: string;
   includeZero?: boolean;
   className?: string;
 }>;
@@ -335,12 +307,20 @@ export function SweepingWaveformCanvasV3(
   const {
     windowSec = 6,
     unitLabel,
+    axisLabel,
     includeZero = false,
     className,
   } = props;
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
-  const domainRef = React.useRef<WorkbenchNumericDomainV3 | null>(null);
+  const domainStateRef = React.useRef<
+    WorkbenchStableNumericDomainStateV3 | null
+  >(null);
+  const [hoveredLegendSelection, setHoveredLegendSelection] =
+    React.useState<WorkbenchChartLegendSelectionV3 | null>(null);
+  const [hiddenLegendSelections, setHiddenLegendSelections] =
+    React.useState<readonly WorkbenchChartLegendSelectionV3[]>([]);
+  const legendSelection = hoveredLegendSelection;
   const traces = React.useMemo<readonly WorkbenchWaveformTraceV3[]>(
     () => props.traces ?? props.series.map((item) => Object.freeze({
       scenarioId: "current-scenario",
@@ -356,14 +336,13 @@ export function SweepingWaveformCanvasV3(
   const activeScenarioId = props.traces === undefined
     ? "current-scenario"
     : props.activeScenarioId;
-  const scenarioLegendItems = React.useMemo(
-    () => buildWorkbenchScenarioLegendItemsV3(traces),
-    [traces],
-  );
-  const colorLegendItems = React.useMemo(
-    () => buildWorkbenchTraceColorLegendItemsV3(traces.map((trace) => ({
-      colorKey: trace.outputId,
-      label: trace.signalLabel,
+  const legendModel = React.useMemo(
+    () => buildWorkbenchTraceLegendModelV3(traces.map((trace) => ({
+      traceKey: workbenchTraceLegendKeyV3(trace.scenarioId, trace.outputId),
+      scenarioId: trace.scenarioId,
+      scenarioLabel: trace.scenarioLabel,
+      itemId: trace.outputId,
+      itemLabel: trace.signalLabel,
       color: trace.signalColor,
     }))),
     [traces],
@@ -371,11 +350,9 @@ export function SweepingWaveformCanvasV3(
   const orderedTraces = React.useMemo(
     () => traces.map((trace) => Object.freeze({
       trace,
-      lineDash: scenarioLegendItems.find((item) =>
-        item.scenarioId === trace.scenarioId)?.lineDash ?? Object.freeze([]),
       orderedSamples: orderedFiniteWorkbenchSamplesV3(trace.samples),
     })),
-    [scenarioLegendItems, traces],
+    [traces],
   );
   const domainIdentity = traces
     .map(({ outputId, scenarioId }) => `${scenarioId}:${outputId}`)
@@ -383,8 +360,16 @@ export function SweepingWaveformCanvasV3(
     + `\u001e${unitLabel ?? ""}\u001e${includeZero}\u001e${windowSec}`;
 
   React.useEffect(() => {
-    domainRef.current = null;
+    domainStateRef.current = null;
+    setHoveredLegendSelection(null);
+    setHiddenLegendSelections([]);
   }, [domainIdentity]);
+
+  const domainCommitKey = React.useMemo(
+    () => waveformStableDomainCommitKeyV3(orderedTraces),
+    [orderedTraces],
+  );
+  const resolvedAxisTitle = waveformAxisTitleV3(axisLabel, unitLabel);
 
   const draw = React.useCallback((
     context: CanvasRenderingContext2D,
@@ -407,31 +392,38 @@ export function SweepingWaveformCanvasV3(
       ),
     }));
     const allValues: number[] = [];
-    for (const { segments } of projectedTraces) {
+    for (const { segments, trace } of projectedTraces) {
+      const descriptor = waveformLegendDescriptorV3(trace);
+      if (workbenchLegendTraceHiddenV3(hiddenLegendSelections, descriptor)) {
+        continue;
+      }
       for (const segment of segments) {
         for (const point of segment) {
-          allValues.push(
-            point.value,
-            point.envelopeMinimum ?? point.value,
-            point.envelopeMaximum ?? point.value,
-          );
+          allValues.push(point.value);
         }
       }
     }
-    domainRef.current = nextHystereticNumericDomainV3(
-      domainRef.current,
+    domainStateRef.current = nextStableNumericDomainStateV3(
+      domainStateRef.current,
       allValues,
-      { includeZero },
+      {
+        includeZero,
+        softZeroFloor: unitLabel?.trim().toLowerCase() === "mmhg",
+        softZeroSpanFraction: 0.25,
+        lowerPaddingFraction: 0.04,
+        upperPaddingFraction: 0.12,
+        minimumUpperPadding:
+          unitLabel?.trim().toLowerCase() === "mmhg" ? 3 : 0,
+        commitKey: domainCommitKey,
+      },
     );
-    const domain = domainRef.current;
+    const domain = domainStateRef.current.domain;
     drawWaveformAxesV3(
       context,
       plot,
-      width,
-      height,
       domain,
       windowSec,
-      unitLabel,
+      resolvedAxisTitle,
       theme,
     );
     const x = (phaseSec: number) => scaleLinearV3(
@@ -449,30 +441,22 @@ export function SweepingWaveformCanvasV3(
       plot.top,
     );
 
-    for (const { head, lineDash, segments, trace } of projectedTraces) {
+    for (const { head, segments, trace } of projectedTraces) {
+      const legendDescriptor = waveformLegendDescriptorV3(trace);
+      if (workbenchLegendTraceHiddenV3(
+        hiddenLegendSelections,
+        legendDescriptor,
+      )) continue;
+      const traceAlpha = workbenchLegendTraceAlphaV3(
+        legendSelection,
+        legendDescriptor,
+      );
       context.save();
       context.strokeStyle = trace.signalColor;
-      context.lineWidth = 1.6;
       context.lineJoin = "round";
       context.lineCap = "round";
-      context.setLineDash([...lineDash]);
-      context.globalAlpha = 0.24;
-      context.lineWidth = 1;
-      context.beginPath();
-      for (const segment of segments) {
-        for (const point of segment) {
-          if (
-            point.envelopeMinimum === undefined
-            || point.envelopeMaximum === undefined
-            || !(point.envelopeMaximum > point.envelopeMinimum)
-          ) continue;
-          const pointX = x(point.phaseSec);
-          context.moveTo(pointX, y(point.envelopeMinimum));
-          context.lineTo(pointX, y(point.envelopeMaximum));
-        }
-      }
-      context.stroke();
-      context.globalAlpha = 1;
+      context.setLineDash([]);
+      context.globalAlpha = traceAlpha;
       context.lineWidth = 1.6;
       for (const segment of segments) {
         if (segment.length === 0) continue;
@@ -490,34 +474,123 @@ export function SweepingWaveformCanvasV3(
           x(head.phaseSec),
           y(head.value),
           trace.signalColor,
+          traceAlpha,
         );
       }
     }
-  }, [includeZero, orderedTraces, unitLabel, windowSec]);
+  }, [
+    domainCommitKey,
+    hiddenLegendSelections,
+    includeZero,
+    legendSelection,
+    orderedTraces,
+    resolvedAxisTitle,
+    unitLabel,
+    windowSec,
+  ]);
 
   useResponsiveCanvasFrameV3(containerRef, canvasRef, draw);
 
   return (
     <div
-      ref={containerRef}
-      className={`relative min-h-48 h-full w-full overflow-hidden ${className ?? ""}`}
+      className={`flex min-h-48 h-full w-full flex-col overflow-hidden ${className ?? ""}`}
       data-chart-kind="sweeping-waveform-v3"
       data-active-scenario-id={activeScenarioId}
       data-time-window-sec={windowSec}
     >
-      <canvas
-        ref={canvasRef}
-        className="block h-full w-full"
-        role="img"
-        aria-label={`Sweeping waveform, ${windowSec} second window`}
+      <WorkbenchChartLegendV3
+        hiddenSelections={hiddenLegendSelections}
+        model={legendModel}
+        selection={legendSelection}
+        onHoverSelection={setHoveredLegendSelection}
+        onToggleSelection={() => undefined}
+        onToggleVisibility={(selection) =>
+          setHiddenLegendSelections((current) =>
+            current.some((candidate) =>
+              legendSelectionKeyV3(candidate) === legendSelectionKeyV3(selection))
+              ? current.filter((candidate) =>
+                  legendSelectionKeyV3(candidate) !== legendSelectionKeyV3(selection))
+              : Object.freeze([...current, selection]))}
       />
-      <WorkbenchChartTwoAxisLegendV3
-        colorAxisLabel="Signal"
-        colorItems={colorLegendItems}
-        scenarioItems={scenarioLegendItems}
-      />
+      <div ref={containerRef} className="relative min-h-0 flex-1 overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          className="block h-full w-full"
+          role="img"
+          aria-label={`Sweeping waveform, ${windowSec} second window`}
+        />
+      </div>
     </div>
   );
+}
+
+function waveformLegendDescriptorV3(trace: WorkbenchWaveformTraceV3) {
+  return Object.freeze({
+    traceKey: workbenchTraceLegendKeyV3(trace.scenarioId, trace.outputId),
+    scenarioId: trace.scenarioId,
+    scenarioLabel: trace.scenarioLabel,
+    itemId: trace.outputId,
+    itemLabel: trace.signalLabel,
+    color: trace.signalColor,
+  });
+}
+
+function waveformStableDomainCommitKeyV3(
+  traces: readonly Readonly<{
+    trace: WorkbenchWaveformTraceV3;
+    orderedSamples: readonly WorkbenchScalarSampleV3[];
+  }>[],
+): string | null {
+  const seenScenarioIds = new Set<string>();
+  const keys: string[] = [];
+  for (const { trace, orderedSamples } of traces) {
+    if (seenScenarioIds.has(trace.scenarioId)) continue;
+    seenScenarioIds.add(trace.scenarioId);
+    const key = latestWaveformDomainCommitKeyV3(
+      orderedSamples,
+      trace.cyclePhaseOutputId,
+    );
+    if (key !== null) keys.push(`${trace.scenarioId}:${key}`);
+  }
+  return keys.length === 0 ? null : keys.join("\u001f");
+}
+
+function latestWaveformDomainCommitKeyV3(
+  samples: readonly WorkbenchScalarSampleV3[],
+  cyclePhaseOutputId: string | undefined,
+): string | null {
+  const latest = samples.at(-1);
+  if (latest === undefined) return null;
+  if (cyclePhaseOutputId !== undefined) {
+    let previousPhase: number | null = null;
+    let latestBoundary: WorkbenchScalarSampleV3 | null = null;
+    for (const sample of samples) {
+      const value = finiteWorkbenchScalarValueV3(sample, cyclePhaseOutputId);
+      const phase = value === null ? null : positiveModuloV3(value, 1);
+      if (
+        phase !== null
+        && previousPhase !== null
+        && phase + WAVEFORM_EPSILON_V3 < previousPhase
+      ) {
+        latestBoundary = sample;
+      }
+      previousPhase = phase;
+    }
+    if (latestBoundary !== null) {
+      return `cycle:${latestBoundary.inputEpoch}:${latestBoundary.acceptedRevision}`;
+    }
+  }
+  // Models without a cycle source still receive a quiet semantic cadence.
+  return `time:${Math.floor(latest.presentationTimeSec / 0.75)}`;
+}
+
+function legendSelectionKeyV3(
+  selection: WorkbenchChartLegendSelectionV3 | null,
+): string | null {
+  if (selection === null) return null;
+  if (selection.kind === "scenario") return `scenario:${selection.scenarioId}`;
+  if (selection.kind === "item") return `item:${selection.itemId}`;
+  return `trace:${selection.traceKey}`;
 }
 
 type CanvasPlotRectV3 = Readonly<{
@@ -533,23 +606,26 @@ type CanvasThemeV3 = Readonly<{
   text: string;
 }>;
 
-function waveformPlotRectV3(width: number, height: number): CanvasPlotRectV3 {
+function waveformPlotRectV3(
+  width: number,
+  height: number,
+): CanvasPlotRectV3 {
+  const left = Math.min(62, width * 0.27);
+  const top = Math.min(12, height * 0.08);
   return Object.freeze({
-    left: Math.min(52, width * 0.22),
-    right: Math.max(Math.min(52, width * 0.22) + 1, width - 12),
-    top: Math.min(32, height * 0.25),
-    bottom: Math.max(Math.min(32, height * 0.25) + 1, height - 28),
+    left,
+    right: Math.max(left + 1, width - 12),
+    top,
+    bottom: Math.max(top + 1, height - 28),
   });
 }
 
 function drawWaveformAxesV3(
   context: CanvasRenderingContext2D,
   plot: CanvasPlotRectV3,
-  width: number,
-  height: number,
   domain: WorkbenchNumericDomainV3,
   windowSec: number,
-  unitLabel: string | undefined,
+  axisTitle: string | undefined,
   theme: CanvasThemeV3,
 ): void {
   context.save();
@@ -557,10 +633,14 @@ function drawWaveformAxesV3(
   context.fillStyle = theme.text;
   context.strokeStyle = theme.grid;
   context.lineWidth = 1;
-  for (let ordinal = 0; ordinal <= 4; ordinal += 1) {
-    const ratio = ordinal / 4;
-    const y = plot.bottom - ratio * (plot.bottom - plot.top);
-    const value = domain[0] + ratio * (domain[1] - domain[0]);
+  for (const value of numericTicksV3(domain, 4)) {
+    const y = scaleLinearV3(
+      value,
+      domain[0],
+      domain[1],
+      plot.bottom,
+      plot.top,
+    );
     context.beginPath();
     context.moveTo(plot.left, y);
     context.lineTo(plot.right, y);
@@ -591,14 +671,33 @@ function drawWaveformAxesV3(
     plot.right - plot.left,
     plot.bottom - plot.top,
   );
-  if (unitLabel) {
-    context.textAlign = "left";
-    context.textBaseline = "top";
-    context.fillText(unitLabel, Math.max(0, plot.left - 44), 7);
+  if (axisTitle) {
+    context.save();
+    context.translate(Math.max(9, plot.left - 48), (plot.top + plot.bottom) / 2);
+    context.rotate(-Math.PI / 2);
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(axisTitle, 0, 0);
+    context.restore();
   }
   context.restore();
-  void width;
-  void height;
+}
+
+function waveformAxisTitleV3(
+  axisLabel: string | undefined,
+  unitLabel: string | undefined,
+): string | undefined {
+  const explicit = axisLabel?.trim();
+  const unit = unitLabel?.trim();
+  if (explicit) return unit ? `${explicit} (${unit})` : explicit;
+  if (!unit) return undefined;
+  const normalized = unit.toLowerCase();
+  if (normalized === "mmhg") return `Pressure (${unit})`;
+  if (normalized === "ml" || normalized === "l") return `Volume (${unit})`;
+  if (normalized.includes("/s") || normalized.includes("/min")) {
+    return `Flow (${unit})`;
+  }
+  return unit;
 }
 
 function readCanvasThemeV3(element: HTMLElement | null): CanvasThemeV3 {
@@ -628,18 +727,19 @@ function drawWaveformLeadingCapV3(
   x: number,
   y: number,
   color: string,
+  traceAlpha = 1,
 ): void {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return;
   context.save();
   context.setLineDash([]);
   context.fillStyle = color;
-  context.globalAlpha = 0.2;
+  context.globalAlpha = 0.2 * traceAlpha;
   context.beginPath();
   context.arc(x, y, 4, 0, Math.PI * 2);
   context.fill();
   context.strokeStyle = color;
   context.lineWidth = 1;
-  context.globalAlpha = 0.72;
+  context.globalAlpha = 0.72 * traceAlpha;
   context.beginPath();
   context.arc(x, y, 3.25, 0, Math.PI * 2);
   context.stroke();
@@ -647,9 +747,13 @@ function drawWaveformLeadingCapV3(
 }
 
 function formatAxisNumberV3(value: number): string {
+  if (Math.abs(value - Math.round(value)) < 1e-9) {
+    return Math.round(value).toString();
+  }
   const magnitude = Math.abs(value);
   if (magnitude >= 100) return value.toFixed(0);
   if (magnitude >= 10) return value.toFixed(1);
+  if (magnitude >= 1) return value.toFixed(1);
   return value.toFixed(2);
 }
 

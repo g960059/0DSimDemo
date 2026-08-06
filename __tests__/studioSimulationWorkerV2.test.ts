@@ -3,11 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
-  STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+  STUDIO_EXPERIMENT_V2_SCHEMA_ID,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
   type ExperimentContentV2,
   type ExperimentSurfaceV2,
-  type ExperimentWorkspaceV2,
+  type ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import type {
   ResolvedExactModelRuntimeV2,
@@ -38,7 +38,7 @@ import {
   createStudioSimulationReadScenariosRequestV2,
   createStudioSimulationRenameScenarioRequestV2,
   createStudioSimulationRequestAnalysisRequestV2,
-  createStudioSimulationSaveDraftRequestV2,
+  createStudioSimulationSaveExperimentRequestV2,
   createStudioSimulationSelectScenarioRequestV2,
   validateStudioSimulationWorkerRequestV2,
   validateStudioSimulationWorkerResponseV2,
@@ -284,36 +284,37 @@ describe("Studio simulation worker V2 protocol", () => {
   });
 
   it("validates detached authoring seeds and exact Save/Snapshot commands", () => {
-    const workspace = workspaceV2();
+    const experiment = experimentV2();
     const initialize = createStudioSimulationInitializeRequestV2(1, {
       expectedModelId: "model/main-wire-v3-r1",
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
       fixture: { value: 1 },
-      checkpoint: workspace.content.scenarios[0]!.capture.checkpoint,
-      authoringSeed: { workspace, snapshots: [] },
+      checkpoint: experiment.content.scenarios[0]!.capture.checkpoint,
+      authoringSeed: { experiment },
     });
-    (workspace.content.surface.note as { text: string }).text = "mutated";
-    expect(initialize.authoringSeed?.workspace?.content.surface.note.text)
+    (experiment.content.surface.note as { text: string }).text = "mutated";
+    expect(initialize.authoringSeed?.experiment?.content.surface.note.text)
       .toBe("Saved note");
-    expect(Object.isFrozen(initialize.authoringSeed?.workspace)).toBe(true);
+    expect(Object.isFrozen(initialize.authoringSeed?.experiment)).toBe(true);
 
     const surface = surfaceV2();
-    const save = createStudioSimulationSaveDraftRequestV2(2, {
+    const save = createStudioSimulationSaveExperimentRequestV2(2, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface,
-      expectedDraftVersion: null,
+      expectedVersion: null,
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
     });
     (surface.note as { text: string }).text = "mutated";
     expect(save).toMatchObject({
-      kind: "save-draft",
-      expectedDraftVersion: null,
+      kind: "save-experiment",
+      expectedVersion: null,
+      scenarioIds: ["scenario/baseline"],
       surface: { note: { text: "Saved note" } },
     });
     expect(Object.isFrozen(save.surface.controlPanes[0]?.items)).toBe(true);
@@ -321,13 +322,15 @@ describe("Studio simulation worker V2 protocol", () => {
     expect(createStudioSimulationCreateSnapshotRequestV2(3, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
-      experimentId: "experiment/main",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
+      scenarioIds: ["scenario/baseline"],
+      surface: surfaceV2(),
+      snapshotSource: "saved-experiment",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
     })).toMatchObject({
       kind: "create-snapshot",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
+      snapshotSource: "saved-experiment",
     });
 
     expect(createStudioSimulationDuplicateScenarioRequestV2(4, {
@@ -353,12 +356,12 @@ describe("Studio simulation worker V2 protocol", () => {
       expectedAcceptedRevision: 4,
       expectedAcceptedTimeSec: 0.4,
     })).toThrow(/fields must match exactly.*sourceScenarioId/);
-    expect(() => createStudioSimulationSaveDraftRequestV2(4, {
+    expect(() => createStudioSimulationSaveExperimentRequestV2(4, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2(),
-      expectedDraftVersion: null,
+      expectedVersion: null,
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: -1,
@@ -675,7 +678,7 @@ describe("Studio simulation worker V2 runtime", () => {
     expect(harness.runtime.state).toBe("failed");
   });
 
-  it("captures first and updated Drafts from the tracked exact fixture boundary", async () => {
+  it("captures first and updated Experiments from the tracked exact fixture boundary", async () => {
     const harness = runtimeHarnessV2();
     harness.runtime.enqueue(initializeRequestV2(1));
     await harness.runtime.whenIdle();
@@ -694,12 +697,12 @@ describe("Studio simulation worker V2 runtime", () => {
     }));
     await harness.runtime.whenIdle();
 
-    harness.runtime.enqueue(createStudioSimulationSaveDraftRequestV2(4, {
+    harness.runtime.enqueue(createStudioSimulationSaveExperimentRequestV2(4, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2(),
-      expectedDraftVersion: null,
+      expectedVersion: null,
       expectedInputEpoch: 1,
       expectedAcceptedRevision: 1,
       expectedAcceptedTimeSec: 0.1,
@@ -708,10 +711,10 @@ describe("Studio simulation worker V2 runtime", () => {
     expect(harness.port.messages.at(-1)).toMatchObject({
       requestId: 4,
       status: "ok",
-      kind: "draft-saved",
-      workspace: {
+      kind: "experiment-saved",
+      experiment: {
         experimentId: "experiment/main",
-        draftVersion: 0,
+        version: 0,
         content: {
           scenarios: [{
             capture: {
@@ -732,12 +735,12 @@ describe("Studio simulation worker V2 runtime", () => {
       stepCount: 1,
     }));
     await harness.runtime.whenIdle();
-    harness.runtime.enqueue(createStudioSimulationSaveDraftRequestV2(6, {
+    harness.runtime.enqueue(createStudioSimulationSaveExperimentRequestV2(6, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2("Updated note"),
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       expectedInputEpoch: 1,
       expectedAcceptedRevision: 2,
       expectedAcceptedTimeSec: 0.2,
@@ -747,9 +750,9 @@ describe("Studio simulation worker V2 runtime", () => {
     expect(saved).toMatchObject({
       requestId: 6,
       status: "ok",
-      kind: "draft-saved",
-      workspace: {
-        draftVersion: 1,
+      kind: "experiment-saved",
+      experiment: {
+        version: 1,
         content: {
           scenarios: [{
             label: "Baseline",
@@ -771,27 +774,27 @@ describe("Studio simulation worker V2 runtime", () => {
     expect(harness.runtime.state).toBe("active");
   });
 
-  it("rejects stale Draft versions and sessions without killing simulation", async () => {
+  it("rejects stale Experiment versions and sessions without killing simulation", async () => {
     const harness = runtimeHarnessV2();
     harness.runtime.enqueue(initializeRequestV2(1));
     await harness.runtime.whenIdle();
-    harness.runtime.enqueue(createStudioSimulationSaveDraftRequestV2(2, {
+    harness.runtime.enqueue(createStudioSimulationSaveExperimentRequestV2(2, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2(),
-      expectedDraftVersion: null,
+      expectedVersion: null,
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
     }));
     await harness.runtime.whenIdle();
-    harness.runtime.enqueue(createStudioSimulationSaveDraftRequestV2(3, {
+    harness.runtime.enqueue(createStudioSimulationSaveExperimentRequestV2(3, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2(),
-      expectedDraftVersion: 9,
+      expectedVersion: 9,
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
@@ -801,15 +804,15 @@ describe("Studio simulation worker V2 runtime", () => {
       requestId: 3,
       status: "error",
       fatal: false,
-      message: expect.stringMatching(/expected draftVersion 9/),
+      message: expect.stringMatching(/expected version 9/),
     });
 
-    harness.runtime.enqueue(createStudioSimulationSaveDraftRequestV2(4, {
+    harness.runtime.enqueue(createStudioSimulationSaveExperimentRequestV2(4, {
       runtimeSessionId: "runtime/forged",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2(),
-      expectedDraftVersion: 0,
+      expectedVersion: 0,
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
@@ -835,20 +838,19 @@ describe("Studio simulation worker V2 runtime", () => {
     expect(harness.runtime.state).toBe("active");
   });
 
-  it("qualifies a Snapshot and persists only its content and lineage", async () => {
-    const qualifyFrozenCandidate = vi.fn(async ({ content }) => ({
+  it("admits an independent neutral Snapshot without changing its capture", async () => {
+    const admitFrozenCandidate = vi.fn(async () => ({
       status: "passed" as const,
-      qualifiedContent: replaceCheckpointV2(content, 25, 2.5),
     }));
-    const harness = runtimeHarnessV2({ qualifyFrozenCandidate });
+    const harness = runtimeHarnessV2({ admitFrozenCandidate });
     harness.runtime.enqueue(initializeRequestV2(1));
     await harness.runtime.whenIdle();
-    harness.runtime.enqueue(createStudioSimulationSaveDraftRequestV2(2, {
+    harness.runtime.enqueue(createStudioSimulationSaveExperimentRequestV2(2, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2(),
-      expectedDraftVersion: null,
+      expectedVersion: null,
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
@@ -857,13 +859,16 @@ describe("Studio simulation worker V2 runtime", () => {
     harness.runtime.enqueue(createStudioSimulationCreateSnapshotRequestV2(3, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
-      experimentId: "experiment/main",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
+      scenarioIds: ["scenario/baseline"],
+      surface: surfaceV2(),
+      snapshotSource: "saved-experiment",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
     }));
     await harness.runtime.whenIdle();
 
-    expect(qualifyFrozenCandidate).toHaveBeenCalledTimes(1);
+    expect(admitFrozenCandidate).toHaveBeenCalledTimes(1);
     const response = harness.port.messages.at(-1);
     expect(response).toMatchObject({
       requestId: 3,
@@ -871,46 +876,41 @@ describe("Studio simulation worker V2 runtime", () => {
       kind: "snapshot-created",
       snapshot: {
         snapshotId: "snapshot/worker-test/1",
-        parentSnapshotId: null,
         content: {
           scenarios: [{
             capture: {
               checkpoint: {
-                acceptedRevision: 25,
-                acceptedTimeSec: 2.5,
+                acceptedRevision: 0,
+                acceptedTimeSec: 0,
               },
             },
           }],
         },
         createdAt: "2026-08-01T00:00:00.000Z",
       },
-      workspace: {
-        draftVersion: 1,
-        headSnapshotId: "snapshot/worker-test/1",
-        basedOnSnapshotId: "snapshot/worker-test/1",
-      },
     });
+    expect(response).not.toHaveProperty("experiment");
     expect(JSON.stringify(response)).not.toMatch(
-      /qualification|numericalHealth|certification|gateResult/,
+      /admission|qualification|numericalHealth|certification|gateResult/,
     );
     expect(harness.runtime.state).toBe("active");
   });
 
   it("keeps gate rejection recoverable and rejects mismatched seed state", async () => {
     const harness = runtimeHarnessV2({
-      qualifyFrozenCandidate: vi.fn(async () => ({
+      admitFrozenCandidate: vi.fn(async () => ({
         status: "rejected" as const,
-        reason: "candidate did not settle",
+        reason: "candidate failed numerical verification",
       })),
     });
     harness.runtime.enqueue(initializeRequestV2(1));
     await harness.runtime.whenIdle();
-    harness.runtime.enqueue(createStudioSimulationSaveDraftRequestV2(2, {
+    harness.runtime.enqueue(createStudioSimulationSaveExperimentRequestV2(2, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2(),
-      expectedDraftVersion: null,
+      expectedVersion: null,
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
@@ -919,21 +919,24 @@ describe("Studio simulation worker V2 runtime", () => {
     harness.runtime.enqueue(createStudioSimulationCreateSnapshotRequestV2(3, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
-      experimentId: "experiment/main",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
+      scenarioIds: ["scenario/baseline"],
+      surface: surfaceV2(),
+      snapshotSource: "saved-experiment",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
     }));
     await harness.runtime.whenIdle();
     expect(harness.port.messages.at(-1)).toMatchObject({
       requestId: 3,
       status: "error",
       fatal: false,
-      message: expect.stringMatching(/did not settle/),
+      message: expect.stringMatching(/failed numerical verification/),
     });
     expect(harness.runtime.state).toBe("active");
 
     const mismatched = runtimeHarnessV2();
-    const seeded = workspaceV2();
+    const seeded = experimentV2();
     mismatched.runtime.enqueue(createStudioSimulationInitializeRequestV2(1, {
       expectedModelId: "model/main-wire-v3-r1",
       runtimeSessionId: "runtime/session-1",
@@ -941,7 +944,7 @@ describe("Studio simulation worker V2 runtime", () => {
       scenarioLabel: "Baseline",
       fixture: { value: 2 },
       checkpoint: seeded.content.scenarios[0]!.capture.checkpoint,
-      authoringSeed: { workspace: seeded, snapshots: [] },
+      authoringSeed: { experiment: seeded },
     }));
     await mismatched.runtime.whenIdle();
     expect(mismatched.port.messages.at(-1)).toMatchObject({
@@ -952,9 +955,9 @@ describe("Studio simulation worker V2 runtime", () => {
     expect(mismatched.adapter.createSession).not.toHaveBeenCalled();
   });
 
-  it("resumes a validated seeded workspace at its exact Draft version", async () => {
+  it("resumes a validated seeded experiment at its exact Experiment version", async () => {
     const harness = runtimeHarnessV2();
-    const seeded = workspaceV2(4);
+    const seeded = experimentV2(4);
     harness.runtime.enqueue(createStudioSimulationInitializeRequestV2(1, {
       expectedModelId: "model/main-wire-v3-r1",
       runtimeSessionId: "runtime/session-1",
@@ -962,7 +965,7 @@ describe("Studio simulation worker V2 runtime", () => {
       scenarioLabel: "Baseline",
       fixture: seeded.content.scenarios[0]!.capture.fixture,
       checkpoint: seeded.content.scenarios[0]!.capture.checkpoint,
-      authoringSeed: { workspace: seeded, snapshots: [] },
+      authoringSeed: { experiment: seeded },
     }));
     await harness.runtime.whenIdle();
     expect(harness.port.messages.at(-1)).toMatchObject({
@@ -971,12 +974,12 @@ describe("Studio simulation worker V2 runtime", () => {
       kind: "initialized",
     });
 
-    harness.runtime.enqueue(createStudioSimulationSaveDraftRequestV2(2, {
+    harness.runtime.enqueue(createStudioSimulationSaveExperimentRequestV2(2, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2("Resumed note"),
-      expectedDraftVersion: 4,
+      expectedVersion: 4,
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
@@ -985,23 +988,32 @@ describe("Studio simulation worker V2 runtime", () => {
     expect(harness.port.messages.at(-1)).toMatchObject({
       requestId: 2,
       status: "ok",
-      kind: "draft-saved",
-      workspace: {
+      kind: "experiment-saved",
+      experiment: {
         experimentId: "experiment/main",
-        draftVersion: 5,
+        version: 5,
         content: { surface: { note: { text: "Resumed note" } } },
       },
     });
   });
 
   it("computes an exact-clock analysis without changing the active frame", async () => {
-    const requestAnalysis = vi.fn((input) => Promise.resolve(analysisV2({
-      analysisId: input.analysisId,
-      inputEpoch: input.expectedInputEpoch,
-      sourceAcceptedRevision: input.expectedAcceptedRevision,
-      sourceAcceptedTimeSec: input.expectedAcceptedTimeSec,
-      payload: { curve: [{ pressure: 2, flow: 4 }] },
-    })));
+    const requestAnalysis = vi.fn((input) => {
+      input.onProgress?.(analysisV2({
+        analysisId: input.analysisId,
+        inputEpoch: input.expectedInputEpoch,
+        sourceAcceptedRevision: input.expectedAcceptedRevision,
+        sourceAcceptedTimeSec: input.expectedAcceptedTimeSec,
+        payload: { curve: [{ pressure: 1, flow: 2 }] },
+      }));
+      return Promise.resolve(analysisV2({
+        analysisId: input.analysisId,
+        inputEpoch: input.expectedInputEpoch,
+        sourceAcceptedRevision: input.expectedAcceptedRevision,
+        sourceAcceptedTimeSec: input.expectedAcceptedTimeSec,
+        payload: { curve: [{ pressure: 2, flow: 4 }] },
+      }));
+    });
     const harness = runtimeHarnessV2({ requestAnalysis });
     harness.runtime.enqueue(initializeRequestV2(1));
     await harness.runtime.whenIdle();
@@ -1014,6 +1026,7 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       analysisId: "analysis/guyton-starling-v1",
+      analysisPartition: "hypovolemic",
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
@@ -1021,6 +1034,16 @@ describe("Studio simulation worker V2 runtime", () => {
     await harness.runtime.whenIdle();
 
     expect(requestAnalysis).toHaveBeenCalledTimes(1);
+    expect(requestAnalysis).toHaveBeenCalledWith(expect.objectContaining({
+      analysisId: "analysis/guyton-starling-v1",
+      analysisPartition: "hypovolemic",
+    }));
+    expect(harness.port.messages.at(-2)).toMatchObject({
+      requestId: 2,
+      status: "ok",
+      kind: "analysis-progress",
+      analysis: { payload: { curve: [{ pressure: 1, flow: 2 }] } },
+    });
     expect(harness.port.messages.at(-1)).toMatchObject({
       requestId: 2,
       status: "ok",
@@ -1322,8 +1345,8 @@ describe("Studio simulation worker V2 runtime", () => {
 describe("Studio simulation worker V2 multi-Scenario authoring", () => {
   it("restores every seeded branch while activating only the requested Scenario", async () => {
     const harness = multiScenarioRuntimeHarnessV2();
-    const baseline = workspaceV2();
-    const seeded: ExperimentWorkspaceV2 = {
+    const baseline = experimentV2();
+    const seeded: ExperimentV2 = {
       ...baseline,
       content: {
         ...baseline.content,
@@ -1351,7 +1374,7 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
       scenarioLabel: "Comparison",
       fixture: seeded.content.scenarios[1]!.capture.fixture,
       checkpoint: seeded.content.scenarios[1]!.capture.checkpoint,
-      authoringSeed: { workspace: seeded, snapshots: [] },
+      authoringSeed: { experiment: seeded },
     }));
     await harness.runtime.whenIdle();
     expect(harness.port.messages.at(-1)).toMatchObject({
@@ -1489,12 +1512,13 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
       },
     });
 
-    harness.runtime.enqueue(createStudioSimulationSaveDraftRequestV2(8, {
+    harness.runtime.enqueue(createStudioSimulationSaveExperimentRequestV2(8, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/from-preset",
+      scenarioIds: ["scenario/from-preset", "scenario/copy"],
       experimentId: "experiment/multi",
       surface: { ...surfaceV2(), controlPanes: [] },
-      expectedDraftVersion: null,
+      expectedVersion: null,
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
@@ -1502,8 +1526,8 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
     await harness.runtime.whenIdle();
     expect(harness.port.messages.at(-1)).toMatchObject({
       status: "ok",
-      kind: "draft-saved",
-      workspace: {
+      kind: "experiment-saved",
+      experiment: {
         experimentId: "experiment/multi",
         content: {
           scenarios: [
@@ -1963,7 +1987,7 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
           modelId: "model/main-wire-v3-r1",
           title: "Rejected rebuild",
           description: "",
-          capture: workspaceV2().content.scenarios[0]!.capture,
+          capture: experimentV2().content.scenarios[0]!.capture,
         },
         expectedActiveScenarioId: "scenario/baseline",
         expectedInputEpoch: 0,
@@ -2057,7 +2081,7 @@ describe("Studio simulation worker V2 client", () => {
       kind: "scenarios-captured",
       captures: {
         activeScenarioId: "scenario/baseline",
-        scenarios: workspaceV2().content.scenarios,
+        scenarios: experimentV2().content.scenarios,
       },
     });
     await expect(captures).resolves.toMatchObject({
@@ -2074,7 +2098,7 @@ describe("Studio simulation worker V2 client", () => {
         modelId: "model/main-wire-v3-r1",
         title: "Baseline",
         description: "",
-        capture: workspaceV2().content.scenarios[0]!.capture,
+        capture: experimentV2().content.scenarios[0]!.capture,
       },
     });
     transport.emitMessage({
@@ -2130,7 +2154,7 @@ describe("Studio simulation worker V2 client", () => {
         modelId: "model/main-wire-v3-r1",
         title: "Comparison",
         description: "",
-        capture: workspaceV2().content.scenarios[0]!.capture,
+        capture: experimentV2().content.scenarios[0]!.capture,
       },
     });
     transport.emitMessage({
@@ -2367,22 +2391,39 @@ describe("Studio simulation worker V2 client", () => {
     })]));
     await advanced;
 
+    const onProgress = vi.fn();
     const requested = client.requestAnalysis({
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       analysisId: "analysis/guyton-starling-v1",
+      analysisPartition: "hypervolemic",
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 4,
       expectedAcceptedTimeSec: 0.4,
+      onProgress,
     });
     expect(transport.messages.at(-1)).toMatchObject({
       requestId: 3,
       kind: "request-analysis",
       analysisId: "analysis/guyton-starling-v1",
+      analysisPartition: "hypervolemic",
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 4,
       expectedAcceptedTimeSec: 0.4,
     });
+    await expect(client.advance({
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 1,
+    })).rejects.toThrow(/operation in flight/);
+    transport.emitMessage(analysisProgressResponseV2(3, analysisV2({
+      sourceAcceptedRevision: 4,
+      sourceAcceptedTimeSec: 0.4,
+      payload: { points: [1] },
+    })));
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({
+      payload: { points: [1] },
+    }));
     await expect(client.advance({
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
@@ -2427,7 +2468,7 @@ describe("Studio simulation worker V2 client", () => {
     expect(transport.terminate).not.toHaveBeenCalled();
   });
 
-  it("saves a Draft, rejects stale versions locally, and accepts Snapshot lineage", async () => {
+  it("saves a Experiment, rejects stale versions locally, and accepts Snapshot lineage", async () => {
     const transport = new FakeWorkerTransportV2();
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
@@ -2440,34 +2481,34 @@ describe("Studio simulation worker V2 client", () => {
     transport.emitMessage(initializedResponseV2(1));
     await initialized;
 
-    const savedPromise = client.saveDraft({
+    const savedPromise = client.saveExperiment({
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2(),
-      expectedDraftVersion: null,
+      expectedVersion: null,
     });
     expect(transport.messages.at(-1)).toMatchObject({
       requestId: 2,
-      kind: "save-draft",
-      expectedDraftVersion: null,
+      kind: "save-experiment",
+      expectedVersion: null,
     });
-    const savedWorkspace = workspaceV2(0);
+    const savedExperiment = experimentV2(0);
     transport.emitMessage({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId: 2,
       status: "ok",
-      kind: "draft-saved",
-      workspace: savedWorkspace,
+      kind: "experiment-saved",
+      experiment: savedExperiment,
     });
-    await expect(savedPromise).resolves.toEqual(savedWorkspace);
+    await expect(savedPromise).resolves.toEqual(savedExperiment);
 
-    await expect(client.saveDraft({
+    await expect(client.saveExperiment({
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2(),
-      expectedDraftVersion: 7,
+      expectedVersion: 7,
     })).rejects.toThrow(/version is stale/);
     expect(transport.messages).toHaveLength(2);
     expect(transport.terminate).not.toHaveBeenCalled();
@@ -2475,29 +2516,19 @@ describe("Studio simulation worker V2 client", () => {
     const snapshotPromise = client.createSnapshot({
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
-      experimentId: "experiment/main",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
+      surface: surfaceV2(),
+      snapshotSource: "saved-experiment",
     });
-    const qualifiedContent = replaceCheckpointV2(
-      savedWorkspace.content,
+    const admittedContent = replaceCheckpointV2(
+      savedExperiment.content,
       10,
       1,
     );
     const snapshot = {
       schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
       snapshotId: "snapshot/client-test/1",
-      experimentId: "experiment/main",
-      parentSnapshotId: null,
-      content: qualifiedContent,
+      content: admittedContent,
       createdAt: "2026-08-01T00:00:00.000Z",
-    };
-    const advancedWorkspace: ExperimentWorkspaceV2 = {
-      ...savedWorkspace,
-      draftVersion: 1,
-      headSnapshotId: snapshot.snapshotId,
-      basedOnSnapshotId: snapshot.snapshotId,
-      content: qualifiedContent,
     };
     transport.emitMessage({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
@@ -2505,11 +2536,9 @@ describe("Studio simulation worker V2 client", () => {
       status: "ok",
       kind: "snapshot-created",
       snapshot,
-      workspace: advancedWorkspace,
     });
     await expect(snapshotPromise).resolves.toEqual({
       snapshot,
-      workspace: advancedWorkspace,
     });
     expect(transport.terminate).not.toHaveBeenCalled();
   });
@@ -2527,19 +2556,19 @@ describe("Studio simulation worker V2 client", () => {
     transport.emitMessage(initializedResponseV2(1));
     await initialized;
 
-    const rejected = client.saveDraft({
+    const rejected = client.saveExperiment({
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2(),
-      expectedDraftVersion: null,
+      expectedVersion: null,
     });
     transport.emitMessage({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId: 2,
       status: "error",
       fatal: false,
-      message: "Draft version conflict",
+      message: "Experiment version conflict",
     });
     await expect(rejected).rejects.toThrow(/version conflict/);
     expect(transport.terminate).not.toHaveBeenCalled();
@@ -2711,7 +2740,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({
       transport,
       responseTimeoutMs: 10,
-      snapshotQualificationTimeoutMs: 40,
+      snapshotAdmissionTimeoutMs: 40,
     });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
@@ -2723,29 +2752,28 @@ describe("Studio simulation worker V2 client", () => {
     transport.emitMessage(initializedResponseV2(1));
     await initialized;
 
-    const saved = client.saveDraft({
+    const saved = client.saveExperiment({
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
       surface: surfaceV2(),
-      expectedDraftVersion: null,
+      expectedVersion: null,
     });
-    const workspace = workspaceV2(0);
+    const experiment = experimentV2(0);
     transport.emitMessage({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId: 2,
       status: "ok",
-      kind: "draft-saved",
-      workspace,
+      kind: "experiment-saved",
+      experiment,
     });
     await saved;
 
     const snapshot = client.createSnapshot({
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
-      experimentId: "experiment/main",
-      expectedDraftVersion: 0,
-      expectedHeadSnapshotId: null,
+      surface: surfaceV2(),
+      snapshotSource: "saved-experiment",
     });
     const assertion = expect(snapshot).rejects.toThrow(/timed out/);
     await vi.advanceTimersByTimeAsync(10);
@@ -2954,11 +2982,12 @@ function surfaceV2(note = "Saved note"): ExperimentSurfaceV2 {
       order: 0,
       priority: 0,
       graphId: "graph/pressure",
+      scenarioScope: { mode: "visible-scenarios" },
+      excludedTraces: [],
       windowSec: 2,
       series: [{
         seriesId: "series/pressure-lv",
         label: "LV pressure",
-        colorHex: "#ef4444",
         order: 0,
       }],
     }],
@@ -2968,6 +2997,7 @@ function surfaceV2(note = "Saved note"): ExperimentSurfaceV2 {
       label: "Outputs",
       order: 0,
       priority: 0,
+      binding: { mode: "active-slot" },
       items: [{
         outputId: "pressure.lv",
         label: "LV pressure",
@@ -2980,23 +3010,23 @@ function surfaceV2(note = "Saved note"): ExperimentSurfaceV2 {
       label: "Controls",
       order: 0,
       priority: 0,
+      binding: { mode: "active-slot" },
       items: [{
         controlId: "control/heart-rate",
         label: "Heart rate",
         order: 0,
+        presentation: { kind: "slider" },
       }],
     }],
     note: { text: note },
   };
 }
 
-function workspaceV2(draftVersion = 4): ExperimentWorkspaceV2 {
+function experimentV2(version = 4): ExperimentV2 {
   return {
-    schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+    schemaId: STUDIO_EXPERIMENT_V2_SCHEMA_ID,
     experimentId: "experiment/main",
-    draftVersion,
-    headSnapshotId: null,
-    basedOnSnapshotId: null,
+    version,
     content: {
       modelId: "model/main-wire-v3-r1",
       scenarios: [{
@@ -3102,6 +3132,19 @@ function analysisResultResponseV2(
   };
 }
 
+function analysisProgressResponseV2(
+  requestId: number,
+  analysis: StudioSimulationAnalysisV2,
+) {
+  return {
+    protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+    requestId,
+    status: "ok" as const,
+    kind: "analysis-progress" as const,
+    analysis,
+  };
+}
+
 function frameV2(
   overrides: Partial<StudioSimulationFrameV2> = {},
 ): StudioSimulationFrameV2 {
@@ -3154,9 +3197,9 @@ function runtimeHarnessV2(overrides: Readonly<{
   requestAnalysis?: RegisteredModelSimulationAdapterV2["requestAnalysis"];
   currentInputEpoch?: RegisteredModelSimulationAdapterV2["currentInputEpoch"];
   captureAcceptedCandidate?:
-    ResolvedExactModelRuntimeV2["draftCapture"]["captureAcceptedCandidate"];
-  qualifyFrozenCandidate?:
-    ResolvedExactModelRuntimeV2["snapshotGate"]["qualifyFrozenCandidate"];
+    ResolvedExactModelRuntimeV2["experimentCapture"]["captureAcceptedCandidate"];
+  admitFrozenCandidate?:
+    ResolvedExactModelRuntimeV2["snapshotGate"]["admitFrozenCandidate"];
   reduceControlAction?: NonNullable<
     ResolvedExactModelRuntimeV2["fixtureAdapter"]["reduceControlAction"]
   >;
@@ -3297,9 +3340,9 @@ function exactRuntimeV2(
   adapter: RegisteredModelSimulationAdapterV2,
   overrides: Readonly<{
     captureAcceptedCandidate?:
-      ResolvedExactModelRuntimeV2["draftCapture"]["captureAcceptedCandidate"];
-    qualifyFrozenCandidate?:
-      ResolvedExactModelRuntimeV2["snapshotGate"]["qualifyFrozenCandidate"];
+      ResolvedExactModelRuntimeV2["experimentCapture"]["captureAcceptedCandidate"];
+    admitFrozenCandidate?:
+      ResolvedExactModelRuntimeV2["snapshotGate"]["admitFrozenCandidate"];
     reduceControlAction?: NonNullable<
       ResolvedExactModelRuntimeV2["fixtureAdapter"]["reduceControlAction"]
     >;
@@ -3320,7 +3363,7 @@ function exactRuntimeV2(
       maximum: 180,
       step: 1,
       defaultValue: 60,
-      changeSemantics: "reset",
+      changeSemantics: "accepted-state-warm-start",
     }],
     outputCatalog: [{
       outputId: "pressure.lv",
@@ -3349,7 +3392,7 @@ function exactRuntimeV2(
       validateFixture() { return undefined; },
       async validateCapture() {},
     },
-    draftCapture: {
+    experimentCapture: {
       modelId: contract.modelId,
       fixtureSchemaId: contract.fixtureSchemaId,
       checkpointCodecId: contract.checkpointCodecId,
@@ -3396,10 +3439,9 @@ function exactRuntimeV2(
     snapshotGate: {
       modelId: contract.modelId,
       snapshotGateId: contract.snapshotGateId,
-      qualifyFrozenCandidate: overrides.qualifyFrozenCandidate
-        ?? (async ({ content }) => ({
+      admitFrozenCandidate: overrides.admitFrozenCandidate
+        ?? (async () => ({
           status: "passed" as const,
-          qualifiedContent: content,
         })),
     },
     fixtureAdapter: {

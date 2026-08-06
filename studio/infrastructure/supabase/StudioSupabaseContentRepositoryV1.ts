@@ -1,0 +1,693 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import {
+  validateStudioArticleDraftV2,
+} from "@/studio/application/authoring/StudioArticleDataV2";
+import {
+  validateExperimentContentV2,
+  validateExperimentSnapshotV2,
+  validateExperimentV2,
+} from "@/studio/application/authoring/StudioExperimentDataV2";
+import {
+  STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+  type StudioArticleDraftV2,
+} from "@/studio/contracts/v2/article";
+import {
+  STUDIO_EXPERIMENT_V2_SCHEMA_ID,
+  type ExperimentContentV2,
+  type ExperimentSnapshotV2,
+  type ExperimentV2,
+} from "@/studio/contracts/v2/content";
+import {
+  studioCanonicalJsonStringify,
+} from "@/studio/infrastructure/json/StudioCanonicalJson";
+import {
+  assertStudioSimulationWorkerAdmittedSnapshotCommitV2,
+  type StudioSimulationWorkerAdmittedSnapshotCommitV2,
+} from "@/studio/workers/StudioSimulationWorkerClientV2";
+import { ensureStudioAuthenticatedForSaveV1 } from "./StudioSupabaseAuthV1";
+import { studioSupabaseClientV1 } from "./StudioSupabaseClientV1";
+
+export type StudioRemoteExperimentResourceV1 = Readonly<{
+  experiment: ExperimentV2;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedSnapshotId: string | null;
+  publicSlug: string | null;
+}>;
+
+export type StudioSummaryCursorV1 = Readonly<{
+  timestamp: string;
+  id: string;
+}>;
+
+export type StudioSummaryPageV1<T> = Readonly<{
+  items: readonly T[];
+  nextCursor: StudioSummaryCursorV1 | null;
+}>;
+
+export type StudioSummaryPageRequestV1 = Readonly<{
+  limit?: number;
+  cursor?: StudioSummaryCursorV1 | null;
+}>;
+
+export type StudioRemoteExperimentSummaryV1 = Readonly<{
+  experimentId: string;
+  version: number;
+  modelId: string;
+  title: string;
+  scenarioCount: number;
+  createdAt: string;
+  updatedAt: string;
+  publishedSnapshotId: string | null;
+  publicSlug: string | null;
+}>;
+
+export type StudioRemoteSnapshotSummaryV1 = Readonly<{
+  snapshotId: string;
+  modelId: string;
+  title: string;
+  scenarioCount: number;
+  paneCount: number;
+  createdAt: string;
+}>;
+
+export type StudioRemoteArticleSummaryV1 = Readonly<{
+  articleId: string;
+  version: number;
+  visibility: "draft" | "public";
+  locale: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  publicSlug: string | null;
+}>;
+
+export type StudioPublicExperimentSummaryV1 = Readonly<{
+  experimentId: string;
+  title: string;
+  publicSlug: string;
+  publishedAt: string;
+  snapshotId: string;
+  modelId: string;
+  scenarioCount: number;
+}>;
+
+export type StudioPublicArticleSummaryV1 = Readonly<{
+  articleId: string;
+  locale: string;
+  title: string;
+  excerpt: string | null;
+  publicSlug: string;
+  publishedAt: string;
+}>;
+
+export function createStudioSupabaseContentRepositoryV1():
+  StudioSupabaseContentRepositoryV1 | null {
+  const client = studioSupabaseClientV1();
+  return client === null ? null : new StudioSupabaseContentRepositoryV1(client);
+}
+
+export class StudioSupabaseContentRepositoryV1 {
+  readonly #client: SupabaseClient;
+  readonly #pendingOperationIds = new Map<string, string>();
+
+  constructor(client: SupabaseClient | null = studioSupabaseClientV1()) {
+    if (client === null) throw new Error("Supabase is not configured");
+    this.#client = client;
+  }
+
+  async saveExperiment(input: Readonly<{
+    experimentId: string | null;
+    expectedVersion: number | null;
+    title: string;
+    content: ExperimentContentV2;
+  }>): Promise<ExperimentV2> {
+    await ensureStudioAuthenticatedForSaveV1(this.#client);
+    const content = validateExperimentContentV2(input.content);
+    const data = await this.#mutationRpc("save_experiment_v1", {
+      p_experiment_id: input.experimentId,
+      p_expected_version: input.expectedVersion,
+      p_title: requiredTrimmedV1(input.title, "Experiment title"),
+      p_model_id: content.modelId,
+      p_content: content,
+    });
+    const result = recordV1(data, "save_experiment_v1 result");
+    return validateExperimentV2({
+      schemaId: STUDIO_EXPERIMENT_V2_SCHEMA_ID,
+      experimentId: requiredStringV1(result.experimentId, "experimentId"),
+      version: nonnegativeIntegerV1(result.version, "version"),
+      content,
+    });
+  }
+
+  async commitSnapshot(input: Readonly<{
+    admitted: StudioSimulationWorkerAdmittedSnapshotCommitV2;
+    sourceExperiment?: Readonly<{
+      experimentId: string;
+      expectedVersion: number;
+    }>;
+  }>): Promise<ExperimentSnapshotV2> {
+    await ensureStudioAuthenticatedForSaveV1(this.#client);
+    assertStudioSimulationWorkerAdmittedSnapshotCommitV2(input.admitted);
+    const candidate = input.admitted.snapshot;
+    const data = await this.#mutationRpc(
+      "commit_admitted_experiment_snapshot_v1",
+      {
+        // Persistence owns durable identity; the Worker's ID seals admission
+        // correlation only and is intentionally not reused as a database key.
+        p_snapshot_id: null,
+        p_model_id: candidate.content.modelId,
+        p_content: candidate.content,
+        p_source_experiment_id: input.sourceExperiment?.experimentId ?? null,
+        p_expected_experiment_version:
+          input.sourceExperiment?.expectedVersion ?? null,
+      },
+    );
+    const result = recordV1(
+      data,
+      "commit_admitted_experiment_snapshot_v1 result",
+    );
+    return validateExperimentSnapshotV2({
+      schemaId: requiredStringV1(result.schemaId, "schemaId"),
+      snapshotId: requiredStringV1(result.snapshotId, "snapshotId"),
+      content: candidate.content,
+      createdAt: isoTimestampV1(result.createdAt, "createdAt"),
+    });
+  }
+
+  async saveArticle(input: Readonly<{
+    articleId: string | null;
+    expectedVersion: number | null;
+    article: StudioArticleDraftV2;
+  }>): Promise<StudioArticleDraftV2> {
+    await ensureStudioAuthenticatedForSaveV1(this.#client);
+    const article = validateStudioArticleDraftV2(input.article);
+    const data = await this.#mutationRpc("save_article_v1", {
+      p_article_id: input.articleId,
+      p_expected_version: input.expectedVersion,
+      p_locale: article.locale,
+      p_title: article.title,
+      p_blocks: article.blocks,
+    });
+    const result = recordV1(data, "save_article_v1 result");
+    return validateStudioArticleDraftV2({
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: requiredStringV1(result.articleId, "articleId"),
+      draftVersion: nonnegativeIntegerV1(result.version, "version"),
+      visibility: article.visibility,
+      locale: article.locale,
+      title: article.title,
+      blocks: article.blocks,
+    });
+  }
+
+  async publishExperiment(input: Readonly<{
+    experimentId: string;
+    expectedVersion: number;
+    snapshotId: string;
+    publicSlug: string;
+  }>): Promise<void> {
+    await this.#mutationRpc("publish_experiment_v1", {
+      p_experiment_id: input.experimentId,
+      p_expected_version: input.expectedVersion,
+      p_snapshot_id: input.snapshotId,
+      p_public_slug: input.publicSlug,
+    });
+  }
+
+  async publishArticle(input: Readonly<{
+    articleId: string;
+    expectedVersion: number;
+    publicSlug: string;
+  }>): Promise<void> {
+    await this.#mutationRpc("publish_article_v1", {
+      p_article_id: input.articleId,
+      p_expected_version: input.expectedVersion,
+      p_public_slug: input.publicSlug,
+    });
+  }
+
+  async unpublishExperiment(experimentId: string, expectedVersion: number): Promise<void> {
+    await this.#mutationRpc("unpublish_experiment_v1", {
+      p_experiment_id: experimentId,
+      p_expected_version: expectedVersion,
+    });
+  }
+
+  async unpublishArticle(articleId: string, expectedVersion: number): Promise<void> {
+    await this.#mutationRpc("unpublish_article_v1", {
+      p_article_id: articleId,
+      p_expected_version: expectedVersion,
+    });
+  }
+
+  async deleteExperiment(experimentId: string, expectedVersion: number): Promise<void> {
+    await this.#mutationRpc("delete_experiment_v1", {
+      p_experiment_id: experimentId,
+      p_expected_version: expectedVersion,
+    });
+  }
+
+  async deleteArticle(articleId: string, expectedVersion: number): Promise<void> {
+    await this.#mutationRpc("delete_article_v1", {
+      p_article_id: articleId,
+      p_expected_version: expectedVersion,
+    });
+  }
+
+  async listMyExperiments(
+    request: StudioSummaryPageRequestV1 = {},
+  ): Promise<StudioSummaryPageV1<StudioRemoteExperimentSummaryV1>> {
+    const session = await this.#client.auth.getSession();
+    if (session.error !== null) throw session.error;
+    if (session.data.session === null) return emptySummaryPageV1();
+    const data = await this.#rpc("list_my_experiment_summaries_v1", {
+      p_limit: summaryPageLimitV1(request.limit),
+      p_before_updated_at: request.cursor?.timestamp ?? null,
+      p_before_id: request.cursor?.id ?? null,
+    });
+    return validateSummaryPageV1(
+      data,
+      "Experiment summary page",
+      validateExperimentSummaryV1,
+    );
+  }
+
+  async readMyExperiment(experimentId: string): Promise<StudioRemoteExperimentResourceV1 | null> {
+    const session = await this.#client.auth.getSession();
+    if (session.error !== null) throw session.error;
+    if (session.data.session === null) return null;
+    const data = await this.#rpc("read_my_experiment_v1", {
+      p_experiment_id: experimentId,
+    });
+    return data === null ? null : validateExperimentResourceV1(data);
+  }
+
+  async listMySnapshots(
+    request: StudioSummaryPageRequestV1 = {},
+  ): Promise<StudioSummaryPageV1<StudioRemoteSnapshotSummaryV1>> {
+    const session = await this.#client.auth.getSession();
+    if (session.error !== null) throw session.error;
+    if (session.data.session === null) return emptySummaryPageV1();
+    const data = await this.#rpc("list_my_snapshot_summaries_v1", {
+      p_limit: summaryPageLimitV1(request.limit),
+      p_before_created_at: request.cursor?.timestamp ?? null,
+      p_before_id: request.cursor?.id ?? null,
+    });
+    return validateSummaryPageV1(
+      data,
+      "Snapshot summary page",
+      validateSnapshotSummaryV1,
+    );
+  }
+
+  async readSnapshot(snapshotId: string): Promise<ExperimentSnapshotV2 | null> {
+    const data = await this.#rpc("read_experiment_snapshot_v1", {
+      p_snapshot_id: snapshotId,
+    });
+    return data === null ? null : validateExperimentSnapshotV2(data);
+  }
+
+  async listMyArticles(
+    request: StudioSummaryPageRequestV1 = {},
+  ): Promise<StudioSummaryPageV1<StudioRemoteArticleSummaryV1>> {
+    const session = await this.#client.auth.getSession();
+    if (session.error !== null) throw session.error;
+    if (session.data.session === null) return emptySummaryPageV1();
+    const data = await this.#rpc("list_my_article_summaries_v1", {
+      p_limit: summaryPageLimitV1(request.limit),
+      p_before_updated_at: request.cursor?.timestamp ?? null,
+      p_before_id: request.cursor?.id ?? null,
+    });
+    return validateSummaryPageV1(
+      data,
+      "Article summary page",
+      validateArticleSummaryV1,
+    );
+  }
+
+  async readArticle(articleId: string): Promise<StudioArticleDraftV2 | null> {
+    const data = await this.#rpc("read_article_v1", { p_article_id: articleId });
+    return data === null ? null : validateStudioArticleDraftV2(data);
+  }
+
+  async listPublicExperiments(
+    request: StudioSummaryPageRequestV1 = {},
+  ): Promise<StudioSummaryPageV1<StudioPublicExperimentSummaryV1>> {
+    const data = await this.#rpc("list_public_experiment_summaries_v1", {
+      p_limit: summaryPageLimitV1(request.limit),
+      p_before_published_at: request.cursor?.timestamp ?? null,
+      p_before_id: request.cursor?.id ?? null,
+    });
+    return validateSummaryPageV1(
+      data,
+      "Public Experiment summary page",
+      validatePublicExperimentSummaryV1,
+    );
+  }
+
+  async listPublicArticles(
+    request: StudioSummaryPageRequestV1 = {},
+  ): Promise<StudioSummaryPageV1<StudioPublicArticleSummaryV1>> {
+    const data = await this.#rpc("list_public_article_summaries_v1", {
+      p_limit: summaryPageLimitV1(request.limit),
+      p_before_published_at: request.cursor?.timestamp ?? null,
+      p_before_id: request.cursor?.id ?? null,
+    });
+    return validateSummaryPageV1(
+      data,
+      "Public Article summary page",
+      validatePublicArticleSummaryV1,
+    );
+  }
+
+  async #rpc(functionName: string, args: Record<string, unknown>): Promise<unknown> {
+    const result = await this.#client.rpc(functionName, args);
+    if (result.error !== null) throw result.error;
+    return result.data;
+  }
+
+  /**
+   * Reuses one operation UUID for an exact semantic mutation until the
+   * backend acknowledges a committed result. This covers the important
+   * response-loss case: a user retry (including after a reload in the same
+   * tab) reaches the operation receipt with the original UUID instead of
+   * creating a duplicate immutable content row.
+   */
+  async #mutationRpc(
+    functionName: string,
+    args: Record<string, unknown>,
+  ): Promise<unknown> {
+    const canonicalRequest = studioCanonicalJsonStringify({
+      functionName,
+      args,
+    });
+    const storageKey = await pendingOperationStorageKeyV1(canonicalRequest);
+    const operationId = this.#pendingOperationIds.get(canonicalRequest)
+      ?? readPendingOperationIdV1(storageKey)
+      ?? operationIdV1();
+    this.#pendingOperationIds.set(canonicalRequest, operationId);
+    writePendingOperationIdV1(storageKey, operationId);
+    const data = await this.#rpc(functionName, {
+      p_operation_id: operationId,
+      ...args,
+    });
+    this.#pendingOperationIds.delete(canonicalRequest);
+    removePendingOperationIdV1(storageKey, operationId);
+    return data;
+  }
+}
+
+function validateExperimentResourceV1(value: unknown): StudioRemoteExperimentResourceV1 {
+  const record = recordV1(value, "Experiment resource");
+  return Object.freeze({
+    experiment: validateExperimentV2(record.experiment),
+    title: requiredStringV1(record.title, "title"),
+    createdAt: isoTimestampV1(record.createdAt, "createdAt"),
+    updatedAt: isoTimestampV1(record.updatedAt, "updatedAt"),
+    publishedSnapshotId: nullableStringV1(
+      record.publishedSnapshotId,
+      "publishedSnapshotId",
+    ),
+    publicSlug: nullableStringV1(record.publicSlug, "publicSlug"),
+  });
+}
+
+function validateExperimentSummaryV1(
+  value: unknown,
+): StudioRemoteExperimentSummaryV1 {
+  const record = recordV1(value, "Experiment summary");
+  return Object.freeze({
+    experimentId: requiredStringV1(record.experimentId, "experimentId"),
+    version: nonnegativeIntegerV1(record.version, "version"),
+    modelId: requiredStringV1(record.modelId, "modelId"),
+    title: requiredStringV1(record.title, "title"),
+    scenarioCount: nonnegativeIntegerV1(record.scenarioCount, "scenarioCount"),
+    createdAt: isoTimestampV1(record.createdAt, "createdAt"),
+    updatedAt: isoTimestampV1(record.updatedAt, "updatedAt"),
+    publishedSnapshotId: nullableStringV1(
+      record.publishedSnapshotId,
+      "publishedSnapshotId",
+    ),
+    publicSlug: nullableStringV1(record.publicSlug, "publicSlug"),
+  });
+}
+
+function validateSnapshotSummaryV1(
+  value: unknown,
+): StudioRemoteSnapshotSummaryV1 {
+  const record = recordV1(value, "Snapshot summary");
+  return Object.freeze({
+    snapshotId: requiredStringV1(record.snapshotId, "snapshotId"),
+    modelId: requiredStringV1(record.modelId, "modelId"),
+    title: requiredStringV1(record.title, "title"),
+    scenarioCount: nonnegativeIntegerV1(record.scenarioCount, "scenarioCount"),
+    paneCount: nonnegativeIntegerV1(record.paneCount, "paneCount"),
+    createdAt: isoTimestampV1(record.createdAt, "createdAt"),
+  });
+}
+
+function validateArticleSummaryV1(
+  value: unknown,
+): StudioRemoteArticleSummaryV1 {
+  const record = recordV1(value, "Article summary");
+  const visibility = requiredStringV1(record.visibility, "visibility");
+  if (visibility !== "draft" && visibility !== "public") {
+    throw new Error("visibility must be draft or public");
+  }
+  return Object.freeze({
+    articleId: requiredStringV1(record.articleId, "articleId"),
+    version: nonnegativeIntegerV1(record.version, "version"),
+    visibility,
+    locale: requiredStringV1(record.locale, "locale"),
+    title: requiredStringV1(record.title, "title"),
+    createdAt: isoTimestampV1(record.createdAt, "createdAt"),
+    updatedAt: isoTimestampV1(record.updatedAt, "updatedAt"),
+    publicSlug: nullableStringV1(record.publicSlug, "publicSlug"),
+  });
+}
+
+function validatePublicExperimentSummaryV1(
+  value: unknown,
+): StudioPublicExperimentSummaryV1 {
+  const record = recordV1(value, "Public Experiment summary");
+  return Object.freeze({
+    experimentId: requiredStringV1(record.experimentId, "experimentId"),
+    title: requiredStringV1(record.title, "title"),
+    publicSlug: requiredStringV1(record.publicSlug, "publicSlug"),
+    publishedAt: isoTimestampV1(record.publishedAt, "publishedAt"),
+    snapshotId: requiredStringV1(record.snapshotId, "snapshotId"),
+    modelId: requiredStringV1(record.modelId, "modelId"),
+    scenarioCount: nonnegativeIntegerV1(record.scenarioCount, "scenarioCount"),
+  });
+}
+
+function validatePublicArticleSummaryV1(
+  value: unknown,
+): StudioPublicArticleSummaryV1 {
+  const record = recordV1(value, "Public Article summary");
+  return Object.freeze({
+    articleId: requiredStringV1(record.articleId, "articleId"),
+    locale: requiredStringV1(record.locale, "locale"),
+    title: requiredStringV1(record.title, "title"),
+    excerpt: nullableStringV1(record.excerpt, "excerpt"),
+    publicSlug: requiredStringV1(record.publicSlug, "publicSlug"),
+    publishedAt: isoTimestampV1(record.publishedAt, "publishedAt"),
+  });
+}
+
+function validateSummaryPageV1<T>(
+  value: unknown,
+  label: string,
+  validateItem: (value: unknown) => T,
+): StudioSummaryPageV1<T> {
+  const record = recordV1(value, label);
+  const items = Object.freeze(arrayV1(record.items, `${label}.items`).map(
+    validateItem,
+  ));
+  const cursorValue = record.nextCursor;
+  const nextCursor = cursorValue === null
+    ? null
+    : validateSummaryCursorV1(cursorValue, `${label}.nextCursor`);
+  return Object.freeze({ items, nextCursor });
+}
+
+function validateSummaryCursorV1(
+  value: unknown,
+  label: string,
+): StudioSummaryCursorV1 {
+  const record = recordV1(value, label);
+  return Object.freeze({
+    timestamp: isoTimestampV1(record.timestamp, `${label}.timestamp`),
+    id: requiredStringV1(record.id, `${label}.id`),
+  });
+}
+
+function emptySummaryPageV1<T>(): StudioSummaryPageV1<T> {
+  return Object.freeze({ items: Object.freeze([]), nextCursor: null });
+}
+
+function summaryPageLimitV1(value: number | undefined): number {
+  if (value === undefined) return 50;
+  if (!Number.isSafeInteger(value) || value < 1 || value > 100) {
+    throw new Error("Summary page limit must be an integer within [1, 100]");
+  }
+  return value;
+}
+
+function operationIdV1(): string {
+  if (typeof globalThis.crypto?.randomUUID !== "function") {
+    throw new Error("This browser cannot create an idempotent operation ID");
+  }
+  return globalThis.crypto.randomUUID();
+}
+
+const STUDIO_PENDING_OPERATION_PREFIX_V1 =
+  "circleheart.studio.pending-operation.v1.";
+const STUDIO_PENDING_OPERATION_MAXIMUM_AGE_MS_V1 = 24 * 60 * 60 * 1_000;
+
+type PendingOperationStorageRecordV1 = Readonly<{
+  operationId: string;
+  createdAtMs: number;
+}>;
+
+async function pendingOperationStorageKeyV1(
+  canonicalRequest: string,
+): Promise<string> {
+  const bytes = new TextEncoder().encode(canonicalRequest);
+  const subtle = globalThis.crypto?.subtle;
+  if (subtle !== undefined) {
+    const digest = new Uint8Array(await subtle.digest("SHA-256", bytes));
+    return `${STUDIO_PENDING_OPERATION_PREFIX_V1}${Array.from(
+      digest,
+      (byte) => byte.toString(16).padStart(2, "0"),
+    ).join("")}`;
+  }
+  // Old WebViews without SubtleCrypto still receive stable retry behavior.
+  // The server compares the complete request fingerprint before replaying, so
+  // a local fallback collision fails closed instead of replaying other data.
+  let hash = 0x811c9dc5;
+  for (const byte of bytes) {
+    hash ^= byte;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${STUDIO_PENDING_OPERATION_PREFIX_V1}fallback-${bytes.length}-${hash.toString(16)}`;
+}
+
+function readPendingOperationIdV1(storageKey: string): string | null {
+  const storage = sessionStorageV1();
+  if (storage === null) return null;
+  try {
+    const raw = storage.getItem(storageKey);
+    if (raw === null) return null;
+    const value = JSON.parse(raw) as Partial<PendingOperationStorageRecordV1>;
+    if (
+      typeof value.operationId !== "string"
+      || typeof value.createdAtMs !== "number"
+      || !Number.isFinite(value.createdAtMs)
+      || Date.now() - value.createdAtMs
+        > STUDIO_PENDING_OPERATION_MAXIMUM_AGE_MS_V1
+    ) {
+      storage.removeItem(storageKey);
+      return null;
+    }
+    return value.operationId;
+  } catch {
+    try {
+      storage.removeItem(storageKey);
+    } catch {
+      // Storage is only a reload acceleration; in-memory reuse remains valid.
+    }
+    return null;
+  }
+}
+
+function writePendingOperationIdV1(
+  storageKey: string,
+  operationId: string,
+): void {
+  const storage = sessionStorageV1();
+  if (storage === null) return;
+  try {
+    storage.setItem(storageKey, JSON.stringify({
+      operationId,
+      createdAtMs: Date.now(),
+    } satisfies PendingOperationStorageRecordV1));
+  } catch {
+    // Private browsing/storage pressure must not disable durable saves.
+  }
+}
+
+function removePendingOperationIdV1(
+  storageKey: string,
+  operationId: string,
+): void {
+  const storage = sessionStorageV1();
+  if (storage === null) return;
+  try {
+    const raw = storage.getItem(storageKey);
+    if (raw === null) return;
+    const value = JSON.parse(raw) as Partial<PendingOperationStorageRecordV1>;
+    if (value.operationId === operationId) storage.removeItem(storageKey);
+  } catch {
+    // A corrupt/blocked storage entry cannot affect an acknowledged mutation.
+  }
+}
+
+function sessionStorageV1(): Storage | null {
+  try {
+    return typeof globalThis.sessionStorage === "undefined"
+      ? null
+      : globalThis.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function recordV1(value: unknown, label: string): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function arrayV1(value: unknown, label: string): readonly unknown[] {
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
+  return value;
+}
+
+function requiredStringV1(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`${label} must be a nonempty string`);
+  }
+  return value;
+}
+
+function requiredTrimmedV1(value: string, label: string): string {
+  const normalized = value.trim();
+  if (normalized.length === 0 || normalized.length > 240) {
+    throw new Error(`${label} must contain 1–240 characters`);
+  }
+  return normalized;
+}
+
+function nullableStringV1(value: unknown, label: string): string | null {
+  return value === null ? null : requiredStringV1(value, label);
+}
+
+function nonnegativeIntegerV1(value: unknown, label: string): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    throw new Error(`${label} must be a nonnegative integer`);
+  }
+  return value as number;
+}
+
+function isoTimestampV1(value: unknown, label: string): string {
+  const timestamp = requiredStringV1(value, label);
+  if (!Number.isFinite(Date.parse(timestamp))) {
+    throw new Error(`${label} must be an ISO timestamp`);
+  }
+  return timestamp;
+}

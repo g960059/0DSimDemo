@@ -14,38 +14,48 @@ Experiment / Snapshot / Placement 構造へ置き換えています。削除し�
 
 Studio のデータ構造と所有境界は
 [`docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md`](docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md)
-を唯一の正典とします。
+を正典とし、Experiment / Article / Briefing / ReaderのIAは
+[`docs/studio/DESIGN-STUDIO-004-reader-briefing-experiment-ia.md`](docs/studio/DESIGN-STUDIO-004-reader-briefing-experiment-ia.md)
+をactive companionとします。
 
 中心となる構造は次のとおりです。
 
 ```text
 RegisteredModel(modelId)
 
-ExperimentWorkspace (mutable)
+ExperimentSession (ephemeral, mutable; operated in Workbench)
   └─ ExperimentContent
        ├─ ScenarioCapture[] = fixture + checkpoint
-       └─ ExperimentSurface = graphs + readouts + controls + one note
+       └─ ExperimentSurface = graphs + outputs + controls + one note
 
-ExperimentSnapshot (immutable)
-ExperimentPlacement (pins one snapshot)
+Experiment (explicitly saved, mutable by version-checked Save)
+  └─ ExperimentContent
 
-SimulationSession / preview cache (ephemeral)
+ExperimentSnapshot (neutral, immutable, admitted)
+  └─ ExperimentContent
+
+ExperimentPublication = public pointer → snapshotId
+ExperimentPlacement = snapshotId + Briefing + title/caption
 ```
 
 主な判断:
 
 - `modelId` は equations、runtime、solver、fixture schema、checkpoint
-  codec、catalog、snapshot gate を固定する exact immutable identity
+  codec、catalog、Snapshot admission を固定する exact immutable identity
 - package integrity は registry 登録時にのみ検査し、client runtime は
   registry を信頼する
 - parameter変更 action はfixtureへ反映された時点で役目を終え、durable
   `ParameterSet` は作らない
-- Preset、Draft、Snapshot の Scenario は `fixture + checkpoint` を一体で持つ
-- Draft は未settledでも保存でき、Snapshot作成時だけsettlementとminimum
-  numerical gateを要求する
+- Preset、Experiment、Snapshot の Scenario は `fixture + checkpoint` を一体で持つ
+- Experiment は未settledでも保存でき、Snapshot admissionはdetached forkで
+  exact restore、1周期のfinite/conservation/event検査を行う
+- admissionはsettlementを要求せず、captureしたcheckpointを書き換えない
 - immutable版は数値revisionではなく`snapshotId`で識別する
-- `parentSnapshotId`はlineageだけを表し、自動継承しない
-- 記事内PlacementはSnapshotを直接pinする
+- portable Snapshotはsource/parent/head lineageや用途kindを持たない
+- 記事内PlacementがBriefingを所有し、中立なSnapshotをpinする
+- `/experiments/new`はIDを持たず、最初の明示Save成功時だけ`experimentId`を発行する
+- Snapshot/PV/Starlingはatomic capture後すぐliveを再開し、上限付きwarm Worker poolで処理する
+- Workbenchを開くだけではMy Experimentsへ保存しない
 - settlement、numerical health、input epoch、live samplesは永続化しない
 
 ## V3直接切り替えの現在地
@@ -59,14 +69,28 @@ SimulationSession / preview cache (ephemeral)
 2. exact development `modelId`でregistry admission境界へ接続
 3. registryを信頼するclient catalogからdefault modelとして解決
 4. generic Worker経由でWorkbenchのlive simulationをautostart
-5. period-1 convergenceとminimum numerical条件を確認するSnapshot gateを接続
+5. 全Snapshot共通のone-cycle public-executable admissionを接続
+6. explicit Saveで全Scenarioの`fixture + checkpoint`を保存し、admitted
+   Snapshotを作成するauthoring bridgeを接続
+7. Placement-owned Briefing、Article Editor / Library / ReaderとSnapshot pinを接続
+   Placementを接続
+8. 記事内で中央のPlacementだけをlive ownerにし、そのBriefingで可視な全Scenarioを
+   persistent Worker laneで同時実行
+9. graph数からborderless inflow、right-drawer peek、fullscreenを導出し、Readerから
+   play/pauseと許可されたcontrol操作を提供
 
 残作業:
 
-1. Workerの単一runtime ownerからauthoringへのcapture bridgeを作り、
-   Workbench Save/SnapshotとReader PlacementをUIへ接続
-2. one-live article schedulerとdisposable previewを実装
-3. その後に公式Preset、Experiment、記事、Lessonを制作
+1. graph complexityを含む表示extentの重み付けと、非active Placement向けの
+   disposable one-beat replay cache
+2. 過去のexact model releaseを動的に解決するmulti-release loader
+3. production redirect、Google OAuth、匿名利用のabuse control、定期GCを設定
+4. その後に公式Preset、Experiment、記事、Lessonを制作
+
+Supabaseを設定したbuildでは、Experiment / Snapshot / Articleのread/write、
+publication pointer、exact model registryをremote backendが一貫して所有します。
+browser storeはSupabase未設定のtest/development fallbackに限定され、dual-writeは
+行いません。
 
 それ以前のcase catalog、lesson document、numeric Experiment revision、
 Working Set / Reader Brief、certification artifactは製品データの正典では
@@ -80,9 +104,8 @@ V3統合に必要な数値実装、verification、研究artifactが含まれま�
 digestや算出結果をExperimentへコピーしません。
 
 現在のWorkbenchは登録済みexact V3 development packageを実際にstepする
-開発surfaceです。Parameter catalogとdurable `ParameterSet`はなく、登録済み
-Control catalogはsystemic/pulmonary resistance、venous tone、arterial
-stiffnessの4つのnumeric reset controlを公開します。engine側の
+開発surfaceです。durable `ParameterSet`はなく、登録済みControl catalogが
+authoring可能なparameterを公開します。engine側の
 `releaseReady` / `simulationReady` claimはfalseのままです。
 
 ## 重要: 研究・教育目的のみ
@@ -132,6 +155,7 @@ studio/infrastructure/model/  exact model registry implementation
 studio/integrations/          exact model-specific Studio adapters
 studio/composition/           registry/default application composition
 studio/workers/               generic live simulation Worker boundary
+supabase/                      Auth・registry・content release spine
 engine/                       numerical model/runtime
 docs/studio/                  Studioの現行設計
 docs/myocardium/              V3研究・検証ドキュメント
@@ -143,7 +167,7 @@ __tests__/                    application/runtime tests
 
 - 新しいStudio機能はV2 contractsを経由する
 - 旧構造へfallback、dual-write、compatibility aliasを追加しない
-- model behavior、schema、codec、catalog、gateが変わる場合は新しい
+- model behavior、schema、codec、catalog、admissionが変わる場合は新しい
   `modelId`を登録する
 - official contentはregistered exact modelを必ずpinする
 - 古い設計が必要な場合は現行ツリーへ戻さず、Git履歴を参照する

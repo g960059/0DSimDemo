@@ -2,28 +2,27 @@ import {
   assertExperimentCapturesMatchModelV2,
   assertExperimentContentMatchesModelV2,
   assertExperimentDesiredFixturesMatchModelV2,
-  validateDraftCaptureConfirmationV2,
-  validateDraftCaptureCorrelationV2,
+  validateExperimentCaptureConfirmationV2,
+  validateExperimentCaptureCorrelationV2,
   validateExperimentDesiredContentForModelV2,
   validateExperimentSnapshotV2,
-  validateExperimentWorkspaceV2,
+  validateExperimentV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-  STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+  STUDIO_EXPERIMENT_V2_SCHEMA_ID,
   type ExperimentContentV2,
   type ExperimentSnapshotV2,
-  type ExperimentWorkspaceV2,
+  type ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import type {
   CreateExperimentSnapshotCommandV2,
-  CreateExperimentWorkspaceCommandV2,
+  CreateExperimentCommandV2,
   ExperimentDesiredContentV2,
-  ExperimentSnapshotGateResultV2,
+  ExperimentSnapshotAdmissionResultV2,
   ExperimentSnapshotIdFactoryPortV2,
-  ForkExperimentWorkspaceCommandV2,
-  RebaseExperimentDraftCommandV2,
-  SaveExperimentDraftCommandV2,
+  ForkExperimentCommandV2,
+  SaveExperimentCommandV2,
   StudioClockPortV2,
 } from "@/studio/contracts/v2/authoring";
 import {
@@ -35,8 +34,7 @@ import type {
   ResolvedExactModelRuntimeV2,
 } from "@/studio/contracts/v2/executable";
 import type {
-  ExperimentDraftVersionV2,
-  ExperimentSnapshotIdV2,
+  ExperimentVersionV2,
 } from "@/studio/contracts/v2/ids";
 
 export class StudioExperimentAuthoringConflictErrorV2 extends Error {
@@ -46,127 +44,111 @@ export class StudioExperimentAuthoringConflictErrorV2 extends Error {
   }
 }
 
-export class StudioExperimentSnapshotGateRejectedErrorV2 extends Error {
+export class StudioExperimentSnapshotAdmissionRejectedErrorV2 extends Error {
   constructor(reason: string) {
-    super(`Studio Experiment Snapshot gate rejected: ${reason}`);
-    this.name = "StudioExperimentSnapshotGateRejectedErrorV2";
+    super(`Studio Experiment Snapshot admission rejected: ${reason}`);
+    this.name = "StudioExperimentSnapshotAdmissionRejectedErrorV2";
   }
 }
 
-export class StudioExperimentSnapshotGateMutationErrorV2 extends Error {
+export class StudioExperimentSnapshotAdmissionProtocolErrorV2 extends Error {
   constructor(message: string) {
-    super(`Studio Experiment Snapshot gate changed authored content: ${message}`);
-    this.name = "StudioExperimentSnapshotGateMutationErrorV2";
+    super(`Studio Experiment Snapshot admission returned an invalid result: ${message}`);
+    this.name = "StudioExperimentSnapshotAdmissionProtocolErrorV2";
   }
 }
 
-export class StudioExperimentSnapshotGateProtocolErrorV2 extends Error {
+export class StudioExperimentCaptureMutationErrorV2 extends Error {
   constructor(message: string) {
-    super(`Studio Experiment Snapshot gate returned an invalid result: ${message}`);
-    this.name = "StudioExperimentSnapshotGateProtocolErrorV2";
+    super(`Studio Experiment capture changed authored content: ${message}`);
+    this.name = "StudioExperimentCaptureMutationErrorV2";
   }
 }
 
-export class StudioExperimentDraftCaptureMutationErrorV2 extends Error {
-  constructor(message: string) {
-    super(`Studio Experiment Draft capture changed authored content: ${message}`);
-    this.name = "StudioExperimentDraftCaptureMutationErrorV2";
-  }
-}
-
-type ExperimentWorkspaceStoreInternalV2 = Readonly<{
-  readWorkspace(experimentId: string): ExperimentWorkspaceV2 | null;
+type ExperimentStoreInternalV2 = Readonly<{
+  readExperiment(experimentId: string): ExperimentV2 | null;
   readSnapshot(snapshotId: string): ExperimentSnapshotV2 | null;
-  createWorkspace(workspace: ExperimentWorkspaceV2): void;
-  replaceWorkspace(
-    expectedDraftVersion: ExperimentDraftVersionV2,
-    workspace: ExperimentWorkspaceV2,
+  createExperiment(experiment: ExperimentV2): void;
+  replaceExperiment(
+    expectedVersion: ExperimentVersionV2,
+    experiment: ExperimentV2,
   ): void;
-  rebaseWorkspace(input: Readonly<{
-    expectedDraftVersion: ExperimentDraftVersionV2;
-    expectedHeadSnapshotId: ExperimentSnapshotIdV2 | null;
-    targetSnapshotId: ExperimentSnapshotIdV2;
-    workspace: ExperimentWorkspaceV2;
-  }>): void;
 }>;
 
-type QualifiedSnapshotCommitInternalV2 = Readonly<{
-  commitSnapshot(input: Readonly<{
-    expectedDraftVersion: ExperimentDraftVersionV2;
-    expectedHeadSnapshotId: ExperimentSnapshotIdV2 | null;
-    snapshot: ExperimentSnapshotV2;
-    nextWorkspace: ExperimentWorkspaceV2;
-  }>): void;
+type AdmittedSnapshotCommitInternalV2 = Readonly<{
+  commitSnapshot(snapshot: ExperimentSnapshotV2): void;
 }>;
 
 /**
- * Command boundary for the V2 mutable-workspace / immutable-Snapshot model.
+ * Command boundary for explicitly saved Experiments and independent immutable
+ * Snapshots.
  *
- * `saveDraft` accepts checkpoint-free desired content. Fixture-changing Saves
+ * `saveExperiment` accepts checkpoint-free desired content. Fixture-changing Saves
  * delegate complete accepted-boundary capture to the exact model runtime;
  * Surface/label/order-only Saves reuse the current matching checkpoints. The
- * gate owns settlement and minimum numerical verification; this application
- * owns frozen-candidate identity, lineage, and atomic repository visibility.
+ * admission gate verifies public executability without changing the captured
+ * checkpoint; this application owns frozen-candidate identity and repository
+ * visibility. A Snapshot may come directly from an ephemeral Experiment
+ * Session. A standalone Publication workflow may additionally require a
+ * version-matched, explicitly saved Experiment head.
  */
 export class StudioExperimentAuthoringApplicationV2 {
-  readonly #repository: ExperimentWorkspaceStoreInternalV2;
-  readonly #qualifiedSnapshotCommit: QualifiedSnapshotCommitInternalV2;
+  readonly #repository: ExperimentStoreInternalV2;
+  readonly #admittedSnapshotCommit: AdmittedSnapshotCommitInternalV2;
   readonly #models: ExactModelRuntimeResolverPortV2;
   readonly #snapshotIds: ExperimentSnapshotIdFactoryPortV2;
   readonly #clock: StudioClockPortV2;
 
   constructor(input: Readonly<{
-    repository: ExperimentWorkspaceStoreInternalV2;
-    qualifiedSnapshotCommit: QualifiedSnapshotCommitInternalV2;
+    repository: ExperimentStoreInternalV2;
+    admittedSnapshotCommit: AdmittedSnapshotCommitInternalV2;
     models: ExactModelRuntimeResolverPortV2;
     snapshotIds: ExperimentSnapshotIdFactoryPortV2;
     clock: StudioClockPortV2;
   }>) {
     this.#repository = input.repository;
-    this.#qualifiedSnapshotCommit = input.qualifiedSnapshotCommit;
+    this.#admittedSnapshotCommit = input.admittedSnapshotCommit;
     this.#models = input.models;
     this.#snapshotIds = input.snapshotIds;
     this.#clock = input.clock;
   }
 
-  async createWorkspace(
-    command: CreateExperimentWorkspaceCommandV2,
-  ): Promise<ExperimentWorkspaceV2> {
+  async createExperiment(
+    command: CreateExperimentCommandV2,
+  ): Promise<ExperimentV2> {
     assertCommandKeysV2(
       command,
       ["experimentId", "content"],
       [],
-      "CreateWorkspace",
+      "CreateExperiment",
     );
-    const workspace = validateExperimentWorkspaceV2({
-      schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+    const experiment = validateExperimentV2({
+      schemaId: STUDIO_EXPERIMENT_V2_SCHEMA_ID,
       experimentId: command.experimentId,
-      draftVersion: 0,
-      headSnapshotId: null,
-      basedOnSnapshotId: null,
+      version: 0,
       content: command.content,
     });
     const { contract: model, captureAdapter: adapter } = this.#requiredModelRuntimeV2(
-      workspace.content.modelId,
+      experiment.content.modelId,
     );
-    assertExperimentContentMatchesModelV2(workspace.content, model);
+    assertExperimentContentMatchesModelV2(experiment.content, model);
     await assertExperimentCapturesMatchModelV2(
-      workspace.content,
+      experiment.content,
       model,
       adapter,
     );
-    this.#repository.createWorkspace(workspace);
-    return workspace;
+    this.#repository.createExperiment(experiment);
+    return experiment;
   }
 
-  async forkWorkspace(
-    command: ForkExperimentWorkspaceCommandV2,
-  ): Promise<ExperimentWorkspaceV2> {
+  async forkExperiment(
+    command: ForkExperimentCommandV2,
+  ): Promise<ExperimentV2> {
     assertCommandKeysV2(
       command,
       ["experimentId", "sourceSnapshotId"],
       [],
-      "ForkWorkspace",
+      "ForkExperiment",
     );
     const sourceValue = this.#repository.readSnapshot(command.sourceSnapshotId);
     if (sourceValue === null) {
@@ -175,24 +157,22 @@ export class StudioExperimentAuthoringApplicationV2 {
       );
     }
     const source = await this.#validateRegisteredSnapshotV2(sourceValue);
-    const workspace = validateExperimentWorkspaceV2({
-      schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+    const experiment = validateExperimentV2({
+      schemaId: STUDIO_EXPERIMENT_V2_SCHEMA_ID,
       experimentId: command.experimentId,
-      draftVersion: 0,
-      headSnapshotId: null,
-      basedOnSnapshotId: source.snapshotId,
+      version: 0,
       content: source.content,
     });
-    this.#repository.createWorkspace(workspace);
-    return workspace;
+    this.#repository.createExperiment(experiment);
+    return experiment;
   }
 
-  async readWorkspace(
+  async readExperiment(
     experimentId: string,
-  ): Promise<ExperimentWorkspaceV2 | null> {
-    const workspace = this.#repository.readWorkspace(experimentId);
-    if (workspace === null) return null;
-    const validated = validateExperimentWorkspaceV2(workspace);
+  ): Promise<ExperimentV2 | null> {
+    const experiment = this.#repository.readExperiment(experimentId);
+    if (experiment === null) return null;
+    const validated = validateExperimentV2(experiment);
     const { contract: model, captureAdapter: adapter } = this.#requiredModelRuntimeV2(
       validated.content.modelId,
     );
@@ -214,21 +194,21 @@ export class StudioExperimentAuthoringApplicationV2 {
       : await this.#validateRegisteredSnapshotV2(snapshot);
   }
 
-  async saveDraft(
-    command: SaveExperimentDraftCommandV2,
-  ): Promise<ExperimentWorkspaceV2> {
+  async saveExperiment(
+    command: SaveExperimentCommandV2,
+  ): Promise<ExperimentV2> {
     assertCommandKeysV2(
       command,
       [
         "experimentId",
-        "expectedDraftVersion",
+        "expectedVersion",
         "desiredContent",
       ],
       ["captureCorrelation"],
-      "SaveDraft",
+      "SaveExperiment",
     );
-    const current = await this.#requiredWorkspaceV2(command.experimentId);
-    assertAuthoringVersionV2(current, command.expectedDraftVersion);
+    const current = await this.#requiredExperimentV2(command.experimentId);
+    assertAuthoringVersionV2(current, command.expectedVersion);
     if (command.desiredContent.modelId !== current.content.modelId) {
       throw new StudioExperimentAuthoringConflictErrorV2(
         "modelId is fixed for an Experiment series",
@@ -259,18 +239,16 @@ export class StudioExperimentAuthoringApplicationV2 {
         captureCorrelation: command.captureCorrelation,
       })
       : reuseMatchingScenarioCapturesV2(current.content, desiredContent);
-    const replacement = validateExperimentWorkspaceV2({
-      schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
+    const replacement = validateExperimentV2({
+      schemaId: STUDIO_EXPERIMENT_V2_SCHEMA_ID,
       experimentId: current.experimentId,
-      draftVersion: current.draftVersion + 1,
-      headSnapshotId: current.headSnapshotId,
-      basedOnSnapshotId: current.basedOnSnapshotId,
+      version: current.version + 1,
       content: capturedContent,
     });
     assertCapturedDesiredContentV2(
       desiredContent,
       replacement.content,
-      (message) => new StudioExperimentDraftCaptureMutationErrorV2(message),
+      (message) => new StudioExperimentCaptureMutationErrorV2(message),
     );
     assertExperimentContentMatchesModelV2(replacement.content, model);
     await assertExperimentCapturesMatchModelV2(
@@ -278,71 +256,10 @@ export class StudioExperimentAuthoringApplicationV2 {
       model,
       adapter,
     );
-    this.#repository.replaceWorkspace(
-      command.expectedDraftVersion,
+    this.#repository.replaceExperiment(
+      command.expectedVersion,
       replacement,
     );
-    return replacement;
-  }
-
-  async rebaseDraft(
-    command: RebaseExperimentDraftCommandV2,
-  ): Promise<ExperimentWorkspaceV2> {
-    assertCommandKeysV2(
-      command,
-      [
-        "experimentId",
-        "expectedDraftVersion",
-        "expectedHeadSnapshotId",
-        "targetSnapshotId",
-        "content",
-      ],
-      [],
-      "RebaseDraft",
-    );
-    const current = await this.#requiredWorkspaceV2(command.experimentId);
-    assertAuthoringVersionV2(current, command.expectedDraftVersion);
-    if (current.headSnapshotId !== command.expectedHeadSnapshotId) {
-      throw new StudioExperimentAuthoringConflictErrorV2(
-        "headSnapshotId does not match the caller's expected head",
-      );
-    }
-    const targetValue = this.#repository.readSnapshot(command.targetSnapshotId);
-    if (targetValue === null) {
-      throw new StudioExperimentAuthoringConflictErrorV2(
-        `rebase target Snapshot not found: ${command.targetSnapshotId}`,
-      );
-    }
-    const target = await this.#validateRegisteredSnapshotV2(targetValue);
-    const { contract: model, captureAdapter: adapter } = this.#requiredModelRuntimeV2(
-      current.content.modelId,
-    );
-    if (
-      target.content.modelId !== model.modelId
-      || command.content.modelId !== model.modelId
-    ) {
-      throw new StudioExperimentAuthoringConflictErrorV2(
-        "rebase target and resolved content must use the Experiment's exact modelId",
-      );
-    }
-    const replacement = validateExperimentWorkspaceV2({
-      ...current,
-      draftVersion: current.draftVersion + 1,
-      basedOnSnapshotId: target.snapshotId,
-      content: command.content,
-    });
-    assertExperimentContentMatchesModelV2(replacement.content, model);
-    await assertExperimentCapturesMatchModelV2(
-      replacement.content,
-      model,
-      adapter,
-    );
-    this.#repository.rebaseWorkspace({
-      expectedDraftVersion: command.expectedDraftVersion,
-      expectedHeadSnapshotId: command.expectedHeadSnapshotId,
-      targetSnapshotId: target.snapshotId,
-      workspace: replacement,
-    });
     return replacement;
   }
 
@@ -351,12 +268,8 @@ export class StudioExperimentAuthoringApplicationV2 {
   ): Promise<ExperimentSnapshotV2> {
     assertCommandKeysV2(
       command,
-      [
-        "experimentId",
-        "expectedDraftVersion",
-        "expectedHeadSnapshotId",
-      ],
-      ["createdBy"],
+      ["content"],
+      ["createdBy", "savedExperiment"],
       "CreateSnapshot",
     );
     if (
@@ -367,112 +280,80 @@ export class StudioExperimentAuthoringApplicationV2 {
         "CreateSnapshot.createdBy must be omitted or contain an ID",
       );
     }
-    const candidateWorkspace = await this.#requiredWorkspaceV2(
-      command.experimentId,
-    );
-    assertAuthoringVersionV2(
-      candidateWorkspace,
-      command.expectedDraftVersion,
-    );
-    if (
-      candidateWorkspace.headSnapshotId
-      !== command.expectedHeadSnapshotId
-    ) {
-      throw new StudioExperimentAuthoringConflictErrorV2(
-        "headSnapshotId does not match the caller's expected head",
+    const candidateContent = command.content;
+    if (command.savedExperiment !== undefined) {
+      assertCommandKeysV2(
+        command.savedExperiment,
+        ["experimentId", "expectedVersion"],
+        [],
+        "CreateSnapshot.savedExperiment",
+      );
+      const sourceExperiment = await this.#requiredExperimentV2(
+        command.savedExperiment.experimentId,
+      );
+      assertAuthoringVersionV2(
+        sourceExperiment,
+        command.savedExperiment.expectedVersion,
+      );
+      assertSameAuthoredProjectionV2(
+        sourceExperiment.content,
+        candidateContent,
+        (message) => new StudioExperimentAuthoringConflictErrorV2(
+          `Snapshot candidate is not the clean saved Experiment head: ${message}`,
+        ),
       );
     }
     const runtime = this.#requiredModelRuntimeV2(
-      candidateWorkspace.content.modelId,
+      candidateContent.modelId,
     );
     const { contract: model, captureAdapter: adapter } = runtime;
     assertExperimentContentMatchesModelV2(
-      candidateWorkspace.content,
+      candidateContent,
       model,
     );
     await assertExperimentCapturesMatchModelV2(
-      candidateWorkspace.content,
+      candidateContent,
       model,
       adapter,
     );
 
-    // The repository owns an already detached/frozen workspace. The gate
-    // therefore receives the exact immutable candidate that this command
-    // intends to publish, never a mutable live-session projection.
-    const gateResult = await runtime.snapshotGate.qualifyFrozenCandidate({
+    // Admission always verifies the exact detached/frozen candidate on a
+    // fork. It cannot manufacture a settled replacement checkpoint.
+    const gateResult = await runtime.snapshotGate.admitFrozenCandidate({
       model,
-      content: candidateWorkspace.content,
+      content: candidateContent,
     });
-    assertSnapshotGateResultEnvelopeV2(gateResult);
+    assertSnapshotAdmissionResultEnvelopeV2(gateResult);
     if (gateResult.status === "rejected") {
-      throw new StudioExperimentSnapshotGateRejectedErrorV2(
+      throw new StudioExperimentSnapshotAdmissionRejectedErrorV2(
         gateResult.reason,
       );
     }
-
-    const qualifiedWorkspace = validateExperimentWorkspaceV2({
-      schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
-      experimentId: candidateWorkspace.experimentId,
-      draftVersion: candidateWorkspace.draftVersion + 1,
-      headSnapshotId: candidateWorkspace.headSnapshotId,
-      basedOnSnapshotId: candidateWorkspace.basedOnSnapshotId,
-      content: gateResult.qualifiedContent,
-    });
-    assertExperimentContentMatchesModelV2(
-      qualifiedWorkspace.content,
-      model,
-    );
-    await assertExperimentCapturesMatchModelV2(
-      qualifiedWorkspace.content,
-      model,
-      adapter,
-    );
-    assertChangedCheckpointsOnlyV2(
-      candidateWorkspace.content,
-      qualifiedWorkspace.content,
-      (message) => new StudioExperimentSnapshotGateMutationErrorV2(message),
-    );
 
     const snapshotId = this.#snapshotIds.nextSnapshotId();
     const snapshot = validateExperimentSnapshotV2({
       schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
       snapshotId,
-      experimentId: candidateWorkspace.experimentId,
-      parentSnapshotId: candidateWorkspace.basedOnSnapshotId,
-      content: qualifiedWorkspace.content,
+      content: candidateContent,
       createdAt: this.#clock.nowIso(),
       ...(command.createdBy === undefined
         ? {}
         : { createdBy: command.createdBy }),
     });
-    const nextWorkspace = validateExperimentWorkspaceV2({
-      schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
-      experimentId: candidateWorkspace.experimentId,
-      draftVersion: candidateWorkspace.draftVersion + 1,
-      headSnapshotId: snapshot.snapshotId,
-      basedOnSnapshotId: snapshot.snapshotId,
-      content: snapshot.content,
-    });
-
-    this.#qualifiedSnapshotCommit.commitSnapshot({
-      expectedDraftVersion: command.expectedDraftVersion,
-      expectedHeadSnapshotId: command.expectedHeadSnapshotId,
-      snapshot,
-      nextWorkspace,
-    });
+    this.#admittedSnapshotCommit.commitSnapshot(snapshot);
     return snapshot;
   }
 
-  async #requiredWorkspaceV2(
+  async #requiredExperimentV2(
     experimentId: string,
-  ): Promise<ExperimentWorkspaceV2> {
-    const workspace = await this.readWorkspace(experimentId);
-    if (workspace === null) {
+  ): Promise<ExperimentV2> {
+    const experiment = await this.readExperiment(experimentId);
+    if (experiment === null) {
       throw new StudioExperimentAuthoringConflictErrorV2(
-        `workspace not found: ${experimentId}`,
+        `Experiment not found: ${experimentId}`,
       );
     }
-    return workspace;
+    return experiment;
   }
 
   async #validateRegisteredSnapshotV2(
@@ -500,16 +381,16 @@ export class StudioExperimentAuthoringApplicationV2 {
     );
     if (
       runtime.contract.modelId !== modelId
-      || runtime.draftCapture.modelId !== modelId
-      || runtime.draftCapture.fixtureSchemaId
+      || runtime.experimentCapture.modelId !== modelId
+      || runtime.experimentCapture.fixtureSchemaId
         !== runtime.contract.fixtureSchemaId
-      || runtime.draftCapture.checkpointCodecId
+      || runtime.experimentCapture.checkpointCodecId
         !== runtime.contract.checkpointCodecId
-      || typeof runtime.draftCapture.captureAcceptedCandidate !== "function"
+      || typeof runtime.experimentCapture.captureAcceptedCandidate !== "function"
       || runtime.snapshotGate.modelId !== modelId
       || runtime.snapshotGate.snapshotGateId
         !== runtime.contract.snapshotGateId
-      || typeof runtime.snapshotGate.qualifyFrozenCandidate !== "function"
+      || typeof runtime.snapshotGate.admitFrozenCandidate !== "function"
       || runtime.fixtureAdapter.modelId !== modelId
       || runtime.fixtureAdapter.fixtureSchemaId
         !== runtime.contract.fixtureSchemaId
@@ -542,19 +423,19 @@ async function captureDesiredContentAtAcceptedBoundaryV2(input: Readonly<{
   desiredContent: ExperimentDesiredContentV2;
   captureCorrelation: unknown;
 }>): Promise<ExperimentContentV2> {
-  const correlation = validateDraftCaptureCorrelationV2(
+  const correlation = validateExperimentCaptureCorrelationV2(
     input.captureCorrelation,
     input.desiredContent,
   );
-  const captureResult = await input.runtime.draftCapture
+  const captureResult = await input.runtime.experimentCapture
     .captureAcceptedCandidate({
       experimentId: input.experimentId,
       model: input.runtime.contract,
       desiredContent: input.desiredContent,
       correlation,
     });
-  assertDraftCaptureResultEnvelopeV2(captureResult);
-  validateDraftCaptureConfirmationV2(captureResult.confirmation, {
+  assertExperimentCaptureResultEnvelopeV2(captureResult);
+  validateExperimentCaptureConfirmationV2(captureResult.confirmation, {
     experimentId: input.experimentId,
     correlation,
   });
@@ -603,7 +484,7 @@ function reuseMatchingScenarioCapturesV2(
   };
 }
 
-function assertDraftCaptureResultEnvelopeV2(
+function assertExperimentCaptureResultEnvelopeV2(
   value: unknown,
 ): asserts value is Readonly<{ content: ExperimentContentV2; confirmation: unknown }> {
   if (
@@ -612,43 +493,43 @@ function assertDraftCaptureResultEnvelopeV2(
     || Array.isArray(value)
     || Object.keys(value).sort().join(",") !== "confirmation,content"
   ) {
-    throw new StudioExperimentDraftCaptureMutationErrorV2(
+    throw new StudioExperimentCaptureMutationErrorV2(
       "result must contain exactly content and confirmation",
     );
   }
 }
 
-function assertSnapshotGateResultEnvelopeV2(
+function assertSnapshotAdmissionResultEnvelopeV2(
   value: unknown,
-): asserts value is ExperimentSnapshotGateResultV2 {
+): asserts value is ExperimentSnapshotAdmissionResultV2 {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new StudioExperimentSnapshotGateProtocolErrorV2(
+    throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
       "result must be an object",
     );
   }
   const record = value as Record<string, unknown>;
   if (record.status === "passed") {
-    assertGateResultKeysV2(record, ["status", "qualifiedContent"]);
+    assertAdmissionResultKeysV2(record, ["status"]);
     return;
   }
   if (record.status === "rejected") {
-    assertGateResultKeysV2(record, ["status", "reason"]);
+    assertAdmissionResultKeysV2(record, ["status", "reason"]);
     if (
       typeof record.reason !== "string"
       || record.reason.trim().length === 0
     ) {
-      throw new StudioExperimentSnapshotGateProtocolErrorV2(
+      throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
         "rejected result must contain a non-empty reason",
       );
     }
     return;
   }
-  throw new StudioExperimentSnapshotGateProtocolErrorV2(
+  throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
     'status must be exactly "passed" or "rejected"',
   );
 }
 
-function assertGateResultKeysV2(
+function assertAdmissionResultKeysV2(
   value: Record<string, unknown>,
   expected: readonly string[],
 ): void {
@@ -658,7 +539,7 @@ function assertGateResultKeysV2(
     actual.length !== required.length
     || actual.some((key, index) => key !== required[index])
   ) {
-    throw new StudioExperimentSnapshotGateProtocolErrorV2(
+    throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
       `fields must be exactly ${required.join(", ")}`,
     );
   }
@@ -690,13 +571,13 @@ function assertCommandKeysV2(
 }
 
 function assertAuthoringVersionV2(
-  workspace: ExperimentWorkspaceV2,
-  expectedDraftVersion: number,
+  experiment: ExperimentV2,
+  expectedVersion: number,
 ): void {
-  if (workspace.draftVersion !== expectedDraftVersion) {
+  if (experiment.version !== expectedVersion) {
     throw new StudioExperimentAuthoringConflictErrorV2(
-      `expected draftVersion ${expectedDraftVersion}, `
-        + `found ${workspace.draftVersion}`,
+      `expected version ${expectedVersion}, `
+        + `found ${experiment.version}`,
     );
   }
 }
@@ -732,28 +613,28 @@ function assertCapturedDesiredContentV2(
   });
 }
 
-function assertChangedCheckpointsOnlyV2(
+function assertSameAuthoredProjectionV2(
+  saved: ExperimentContentV2,
   candidate: ExperimentContentV2,
-  qualified: ExperimentContentV2,
   mutationError: (message: string) => Error,
 ): void {
-  if (candidate.modelId !== qualified.modelId) {
+  if (saved.modelId !== candidate.modelId) {
     throw mutationError("modelId");
   }
-  if (!samePortableValueV2(candidate.surface, qualified.surface)) {
+  if (!samePortableValueV2(saved.surface, candidate.surface)) {
     throw mutationError("Surface");
   }
-  if (candidate.scenarios.length !== qualified.scenarios.length) {
+  if (saved.scenarios.length !== candidate.scenarios.length) {
     throw mutationError("Scenario count");
   }
-  candidate.scenarios.forEach((scenario, index) => {
-    const settled = qualified.scenarios[index];
+  saved.scenarios.forEach((scenario, index) => {
+    const captured = candidate.scenarios[index];
     if (
-      scenario.scenarioId !== settled.scenarioId
-      || scenario.label !== settled.label
+      scenario.scenarioId !== captured.scenarioId
+      || scenario.label !== captured.label
       || !samePortableValueV2(
         scenario.capture.fixture,
-        settled.capture.fixture,
+        captured.capture.fixture,
       )
     ) {
       throw mutationError(

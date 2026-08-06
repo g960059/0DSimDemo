@@ -14,39 +14,51 @@ history; they are not kept as compatibility code.
 
 ## Current authority
 
-The sole authority for Studio data and ownership boundaries is
-[`docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md`](docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md).
+The authority for Studio data and ownership boundaries is
+[`docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md`](docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md),
+with Reader and Briefing IA defined by
+[`docs/studio/DESIGN-STUDIO-004-reader-briefing-experiment-ia.md`](docs/studio/DESIGN-STUDIO-004-reader-briefing-experiment-ia.md).
 
 The central structure is:
 
 ```text
 RegisteredModel(modelId)
 
-ExperimentWorkspace (mutable)
+ExperimentSession (ephemeral, mutable; operated in Workbench)
   └─ ExperimentContent
        ├─ ScenarioCapture[] = fixture + checkpoint
-       └─ ExperimentSurface = graphs + readouts + controls + one note
+       └─ ExperimentSurface = graphs + outputs + controls + one note
 
-ExperimentSnapshot (immutable)
-ExperimentPlacement (pins one snapshot)
+Experiment (explicitly saved, mutable by version-checked Save)
+  └─ ExperimentContent
 
-SimulationSession / preview cache (ephemeral)
+ExperimentSnapshot (neutral, immutable, admitted)
+  └─ ExperimentContent
+
+ExperimentPublication = public pointer → snapshotId
+ExperimentPlacement = snapshotId + Briefing + title/caption
 ```
 
 Key decisions:
 
 - `modelId` is the exact immutable identity of equations, runtime, solver,
-  fixture schema, checkpoint codec, catalogs, and snapshot gate
+  fixture schema, checkpoint codec, catalogs, and Snapshot admission
 - package integrity is checked only when registering a model; runtime clients
   trust the registry
 - a parameter action ends after updating the fixture; there is no durable
   `ParameterSet`
-- Scenario Presets, Drafts, and Snapshots keep `fixture + checkpoint` together
-- an unsettled Draft may be saved; only Snapshot creation requires settlement
-  and the minimum numerical gate
+- Scenario Presets, Experiments, and Snapshots keep `fixture + checkpoint` together
+- an unsettled Experiment may be saved; Snapshot admission restores a detached
+  fork and runs one cycle of finite, conservation, and event checks
+- admission neither requires settlement nor replaces the captured checkpoint
 - immutable versions use `snapshotId`, not a numeric revision
-- `parentSnapshotId` records lineage only and never implies inheritance
-- an article Placement pins one Snapshot directly
+- portable Snapshots carry no purpose kind or source/parent/head lineage
+- an Article Placement owns its Briefing and pins a neutral Snapshot
+- `/experiments/new` has no ID; only the first successful explicit Save mints
+  an `experimentId`
+- Snapshot/PV/Starling resume live lanes immediately after atomic capture and
+  run in a bounded warm Worker pool
+- opening Workbench does not add anything to My Experiments
 - settlement, numerical health, input epochs, and live samples are not durable
   content
 
@@ -59,18 +71,21 @@ Completed:
 
 1. package the canonical fixture, exact checkpoint, outputs, and
    accepted-boundary capture for `MainWireIntegratedModelTransactionV3`;
-2. connect that package to registry admission under an exact development
-   `modelId`;
-3. resolve the registry-trusted release as the default model;
-4. autostart the live simulation through the generic Worker; and
-5. connect the period-1/minimum-numerical Snapshot gate.
+2. admit and resolve that exact release through the registry as the default;
+3. run all visible Workbench Scenarios in persistent Worker lanes;
+4. capture explicit Experiment Saves and common-admission immutable Snapshots;
+5. author role-specific Placement Briefings against neutral Snapshots; and
+6. pin those Snapshots from the Article Editor and Reader.
 
-Remaining:
+Remaining work includes weighted Reader extent, disposable inactive-placement
+beat caches, a multi-release loader, and production OAuth/redirect, abuse-control,
+and scheduled-GC configuration. Official Presets, Experiments, articles, and
+Lessons follow those boundaries rather than the removed legacy structures.
 
-1. bridge capture from the single Worker runtime owner into authoring, then
-   connect Workbench Save/Snapshot and Reader Placements;
-2. add one-live article scheduling and disposable previews; and
-3. only then author official Presets, Experiments, articles, and Lessons.
+In a Supabase-configured build, the remote backend exclusively owns
+Experiment, Snapshot, and Article reads/writes, publication pointers, and the
+exact-model registry. The browser store is only an unconfigured test/development
+fallback; the product does not dual-write.
 
 Earlier case catalogs, lesson documents, numeric Experiment revisions, Working
 Set / Reader Brief types, and certification artifacts are not product-data
@@ -84,10 +99,9 @@ for the V3 integration. They are separate from durable Studio content.
 Research-artifact integrity digests and computed results are not copied into
 Experiments.
 
-The Workbench now advances the admitted exact V3 development package. Its
-Parameter catalog and durable `ParameterSet` are absent. Its registered Control
-catalog exposes four numeric reset controls: systemic and pulmonary resistance,
-venous tone, and arterial stiffness. The engine's `releaseReady` and
+The Workbench now advances the admitted exact V3 development package. A
+durable `ParameterSet` is absent; the registered Control catalog exposes the
+authorable parameters. The engine's `releaseReady` and
 `simulationReady` claims remain false.
 
 ## Important: research and teaching only
@@ -138,6 +152,7 @@ studio/infrastructure/model/  exact model registry implementation
 studio/integrations/          exact model-specific Studio adapters
 studio/composition/           registry/default application composition
 studio/workers/               generic live simulation Worker boundary
+supabase/                      Auth, registry, and content release spine
 engine/                       numerical model and runtime
 docs/studio/                  current Studio design
 docs/myocardium/              V3 research and verification documents
@@ -151,7 +166,7 @@ __tests__/                    application and runtime tests
 - Do not add fallback readers, dual writes, or compatibility aliases for the
   removed content model.
 - Register a new `modelId` whenever model behavior, schema, codec, catalog, or
-  gate changes.
+  admission changes.
 - Official content must pin an exact registered model.
 - Consult Git history instead of restoring superseded design into the working
   tree.

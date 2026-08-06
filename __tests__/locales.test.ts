@@ -12,30 +12,30 @@ function flattenTranslationKeys(value: unknown, prefix = ''): string[] {
 
 describe('locale helpers', () => {
   it('detects supported path locales and defaults to Japanese', () => {
-    expect(localeFromPathname('/en/workbench')).toBe('en');
-    expect(localeFromPathname('/ja/workbench')).toBe('ja');
-    expect(localeFromPathname('/workbench')).toBe('ja');
+    expect(localeFromPathname('/en/experiments')).toBe('en');
+    expect(localeFromPathname('/ja/experiments')).toBe('ja');
+    expect(localeFromPathname('/experiments')).toBe('ja');
   });
 
   it('strips locale prefixes from pathnames', () => {
-    expect(stripLocaleFromPathname('/en/workbench/details')).toBe('/workbench/details');
-    expect(stripLocaleFromPathname('/ja/workbench')).toBe('/workbench');
-    expect(stripLocaleFromPathname('/workbench')).toBe('/workbench');
+    expect(stripLocaleFromPathname('/en/experiments/details')).toBe('/experiments/details');
+    expect(stripLocaleFromPathname('/ja/experiments')).toBe('/experiments');
+    expect(stripLocaleFromPathname('/experiments')).toBe('/experiments');
     expect(stripLocaleFromPathname('/en')).toBe('/');
   });
 
   it('always prefixes localized paths', () => {
-    expect(prefixPath('/workbench', 'ja')).toBe('/ja/workbench');
-    expect(prefixPath('/workbench', 'en')).toBe('/en/workbench');
+    expect(prefixPath('/experiments', 'ja')).toBe('/ja/experiments');
+    expect(prefixPath('/experiments', 'en')).toBe('/en/experiments');
     expect(prefixPath('/', 'ja')).toBe('/ja');
     expect(prefixPath('/', 'en')).toBe('/en');
   });
 
   it('switches locale while preserving query and hash', () => {
-    expect(switchLocalePath('/ja/workbench', '?from=home', '#status', 'en')).toBe('/en/workbench?from=home#status');
-    expect(switchLocalePath('/en/workbench', '?from=home', '#status', 'ja')).toBe('/ja/workbench?from=home#status');
-    expect(switchLocalePath('/ja/workbench/workbench-opaque_123', '?from=list', '#status', 'en'))
-      .toBe('/en/workbench/workbench-opaque_123?from=list#status');
+    expect(switchLocalePath('/ja/experiments', '?from=home', '#status', 'en')).toBe('/en/experiments?from=home#status');
+    expect(switchLocalePath('/en/experiments', '?from=home', '#status', 'ja')).toBe('/ja/experiments?from=home#status');
+    expect(switchLocalePath('/ja/experiments/experiment-opaque_123', '?from=list', '#status', 'en'))
+      .toBe('/en/experiments/experiment-opaque_123?from=list#status');
   });
 
   it('keeps Japanese and English translation keys in parity', () => {

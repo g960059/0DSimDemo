@@ -35,12 +35,15 @@ describe('application theme', () => {
   it('keeps the shared light and dark surfaces quiet and Zenn-blue accented', () => {
     const css = readFileSync('index.css', 'utf8');
 
-    expect(css).toContain('--wb-app-bg: #0d223a;');
-    expect(css).toContain('--wb-zone-main-bg: #081d35;');
-    expect(css).toContain('--wb-app-bg: #f5f9fc;');
+    expect(css).toContain('--wb-app-bg: #0a1622;');
+    expect(css).toContain('--wb-zone-main-bg: #0b1a29;');
+    expect(css).toContain('--wb-app-bg: #f4f7f9;');
+    expect(css).toContain('--wb-zone-main-bg: #f8fafb;');
     expect(css).toContain('--wb-accent: #3ea8ff;');
     expect(css).toContain('--wb-line: var(--wb-border);');
     expect(css).toContain('--wb-grid: rgba(37, 55, 72, 0.09);');
+    expect(css).toContain('--wb-type-label: 0.75rem;');
+    expect(css).toContain('--wb-type-value: 1rem;');
   });
 
   it('uses semantic default series colors legible on both application canvases', () => {
@@ -74,7 +77,7 @@ describe('application theme', () => {
       'rhythm.phase.regular-sinus',
       'future.output.uses-deterministic-fallback',
     ] as const;
-    const backgrounds = ['#081d35', '#f5f9fc'] as const;
+    const backgrounds = ['#0b1a29', '#f8fafb'] as const;
 
     outputIds.forEach((outputId) => {
       const color = outputColorV3(outputId);

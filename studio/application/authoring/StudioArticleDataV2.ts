@@ -27,6 +27,7 @@ export function validateStudioArticleDraftV2(value: unknown): StudioArticleDraft
     "schemaId",
     "articleId",
     "draftVersion",
+    "visibility",
     "locale",
     "title",
     "blocks",
@@ -36,6 +37,9 @@ export function validateStudioArticleDraftV2(value: unknown): StudioArticleDraft
   }
   portableIdV2(draft.articleId, "$.article.articleId");
   nonnegativeIntegerV2(draft.draftVersion, "$.article.draftVersion");
+  if (draft.visibility !== "draft" && draft.visibility !== "public") {
+    failV2("$.article.visibility", "must be draft or public");
+  }
   trimmedNonemptyV2(draft.locale, "$.article.locale", 64);
   trimmedNonemptyV2(draft.title, "$.article.title", 240);
   if (!Array.isArray(draft.blocks)) {

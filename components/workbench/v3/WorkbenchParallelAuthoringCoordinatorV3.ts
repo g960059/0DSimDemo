@@ -1,20 +1,24 @@
 import {
-  STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
   type ExperimentScenarioV2,
-  type ExperimentSnapshotV2,
   type ExperimentSurfaceV2,
-  type ExperimentWorkspaceV2,
+  type ExperimentV2,
   type ScenarioPresetV2,
 } from "@/studio/contracts/v2/content";
 import {
-  validateExperimentSnapshotV2,
-  validateExperimentWorkspaceV2,
+  validateExperimentContentV2,
+  validateExperimentV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {
   StudioSimulationWorkerClientV2,
-  type StudioSimulationWorkerQualifiedSnapshotCommitV2,
+  type StudioSimulationWorkerAdmittedSnapshotCommitV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
+import { studioCanonicalJsonStringify } from
+  "@/studio/infrastructure/json/StudioCanonicalJson";
+import type {
+  WorkbenchBackgroundJobPriorityV3,
+  WorkbenchBackgroundWorkerPoolPortV3,
+} from "./WorkbenchBackgroundWorkerPoolV3";
 
 export type WorkbenchParallelAuthoringClientFactoryV3 =
   () => StudioSimulationWorkerClientV2;
@@ -25,20 +29,25 @@ export type WorkbenchParallelAuthoringInputV3 = Readonly<{
   scenarios: readonly ExperimentScenarioV2[];
   activeScenarioId: string;
   surface: ExperimentSurfaceV2;
-  workspace: ExperimentWorkspaceV2 | null;
-  snapshots: readonly ExperimentSnapshotV2[];
-  experimentId: string;
+  experiment: ExperimentV2 | null;
+  /** Null for any disposable Session that has not been explicitly saved. */
+  experimentId: string | null;
   runtimeSessionId: string;
 }>;
+
+export type WorkbenchParallelSnapshotAuthoringInputV3 =
+  WorkbenchParallelAuthoringInputV3 & Readonly<{
+    /** Transient authoring constraint, not Snapshot identity. */
+    snapshotSource: "saved-experiment" | "session";
+  }>;
 
 type ValidatedAuthoringInputV3 = Readonly<{
   modelId: string;
   scenarios: readonly ExperimentScenarioV2[];
   activeScenario: ExperimentScenarioV2;
   surface: ExperimentSurfaceV2;
-  workspace: ExperimentWorkspaceV2 | null;
-  snapshots: readonly ExperimentSnapshotV2[];
-  experimentId: string;
+  experiment: ExperimentV2 | null;
+  experimentId: string | null;
   runtimeSessionId: string;
 }>;
 
@@ -51,100 +60,148 @@ type ValidatedAuthoringInputV3 = Readonly<{
  */
 export class WorkbenchParallelAuthoringCoordinatorV3 {
   readonly #createClient: WorkbenchParallelAuthoringClientFactoryV3;
+  readonly #workerPool: WorkbenchBackgroundWorkerPoolPortV3 | undefined;
 
   constructor(
     createClient: WorkbenchParallelAuthoringClientFactoryV3 =
       () => new StudioSimulationWorkerClientV2(),
+    workerPool?: WorkbenchBackgroundWorkerPoolPortV3,
   ) {
     this.#createClient = createClient;
+    this.#workerPool = workerPool;
   }
 
-  async saveDraft(
+  async saveExperiment(
     inputValue: WorkbenchParallelAuthoringInputV3,
-  ): Promise<ExperimentWorkspaceV2> {
+  ): Promise<ExperimentV2> {
     const input = validateAuthoringInputV3(inputValue);
-    const client = this.#createClient();
-    try {
-      if (input.workspace === null) {
+    if (input.experimentId === null) {
+      throw new Error("Experiment Save requires a durable Experiment identity");
+    }
+    return await this.#withClient("save", async (client) => {
+      if (input.experiment === null) {
         await initializeFirstSaveV3(client, input);
-        return await client.saveDraft({
+        return await client.saveExperiment({
           runtimeSessionId: input.runtimeSessionId,
           scenarioId: input.activeScenario.scenarioId,
           experimentId: input.experimentId,
           surface: input.surface,
-          expectedDraftVersion: null,
+          expectedVersion: null,
         });
       }
 
-      const syntheticWorkspace = validateExperimentWorkspaceV2({
-        ...input.workspace,
+      const syntheticExperiment = validateExperimentV2({
+        ...input.experiment,
         content: {
           modelId: input.modelId,
           scenarios: input.scenarios,
           surface: input.surface,
         },
       });
-      await initializeFromWorkspaceV3(
+      await initializeFromExperimentV3(
         client,
         input,
-        syntheticWorkspace,
+        syntheticExperiment,
       );
-      return await client.saveDraft({
+      return await client.saveExperiment({
         runtimeSessionId: input.runtimeSessionId,
         scenarioId: input.activeScenario.scenarioId,
         experimentId: input.experimentId,
         surface: input.surface,
-        expectedDraftVersion: input.workspace.draftVersion,
+        expectedVersion: input.experiment.version,
       });
+    });
+  }
+
+  async createSnapshot(
+    inputValue: WorkbenchParallelSnapshotAuthoringInputV3,
+  ): Promise<StudioSimulationWorkerAdmittedSnapshotCommitV2> {
+    const input = validateAuthoringInputV3(inputValue);
+    return await this.#withClient("snapshot", async (client) => {
+      if (inputValue.snapshotSource === "saved-experiment") {
+        if (input.experiment === null || input.experimentId === null) {
+          throw new Error(
+            "Publishing requires an explicitly saved Experiment",
+          );
+        }
+        assertSameSavedProjectionV3(input.experiment, input);
+        // Publication is authorized by the clean saved projection, but the
+        // immutable Snapshot owns the detached steady-candidate checkpoints.
+        // The authoring application intentionally compares model, Surface,
+        // Scenario identity/order/label, and fixture while allowing newer
+        // exact checkpoints for the same saved parameter target.
+        const candidateExperiment = validateExperimentV2({
+          ...input.experiment,
+          content: {
+            modelId: input.modelId,
+            scenarios: input.scenarios,
+            surface: input.surface,
+          },
+        });
+        await initializeFromExperimentV3(
+          client,
+          input,
+          candidateExperiment,
+        );
+      } else {
+        await initializeTransientAuthoringV3(client, input);
+      }
+      // Return the Worker's original sealed object. Cloning or reconstructing
+      // it would intentionally invalidate browser Snapshot persistence.
+      const base = {
+        runtimeSessionId: input.runtimeSessionId,
+        scenarioId: input.activeScenario.scenarioId,
+        surface: input.surface,
+      };
+      return await client.createSnapshot({
+        ...base,
+        snapshotSource: inputValue.snapshotSource,
+      });
+    });
+  }
+
+  async #withClient<T>(
+    priority: WorkbenchBackgroundJobPriorityV3,
+    operation: (client: StudioSimulationWorkerClientV2) => Promise<T>,
+  ): Promise<T> {
+    if (this.#workerPool !== undefined) {
+      return await this.#workerPool.run(priority, operation);
+    }
+    const client = this.#createClient();
+    try {
+      return await operation(client);
     } finally {
       client.terminate();
     }
   }
+}
 
-  async createSnapshot(
-    inputValue: WorkbenchParallelAuthoringInputV3,
-  ): Promise<StudioSimulationWorkerQualifiedSnapshotCommitV2> {
-    const input = validateAuthoringInputV3(inputValue);
-    const workspace = input.workspace;
-    if (workspace === null) {
-      throw new Error(
-        "parallel authoring Snapshot requires a saved Draft workspace",
-      );
-    }
-    const durableActiveScenario = workspace.content.scenarios.find(
-      ({ scenarioId }) => scenarioId === input.activeScenario.scenarioId,
+function assertSameSavedProjectionV3(
+  saved: ExperimentV2,
+  candidate: ValidatedAuthoringInputV3,
+): void {
+  if (
+    saved.content.modelId !== candidate.modelId
+    || studioCanonicalJsonStringify(saved.content.surface)
+      !== studioCanonicalJsonStringify(candidate.surface)
+    || saved.content.scenarios.length !== candidate.scenarios.length
+  ) {
+    throw new Error(
+      "Publishing candidate differs from the clean saved Experiment projection",
     );
-    if (durableActiveScenario === undefined) {
+  }
+  for (let index = 0; index < candidate.scenarios.length; index += 1) {
+    const durable = saved.content.scenarios[index]!;
+    const selected = candidate.scenarios[index]!;
+    if (
+      durable.scenarioId !== selected.scenarioId
+      || durable.label !== selected.label
+      || studioCanonicalJsonStringify(durable.capture.fixture)
+        !== studioCanonicalJsonStringify(selected.capture.fixture)
+    ) {
       throw new Error(
-        "parallel authoring active Scenario is not in the saved Draft workspace",
+        "Publishing candidate differs from the clean saved Experiment projection",
       );
-    }
-
-    const client = this.#createClient();
-    try {
-      await client.initialize({
-        expectedModelId: input.modelId,
-        runtimeSessionId: input.runtimeSessionId,
-        scenarioId: durableActiveScenario.scenarioId,
-        scenarioLabel: durableActiveScenario.label,
-        fixture: durableActiveScenario.capture.fixture,
-        checkpoint: durableActiveScenario.capture.checkpoint,
-        authoringSeed: {
-          workspace,
-          snapshots: input.snapshots,
-        },
-      });
-      // Return the Worker's original sealed object. Cloning or reconstructing
-      // it would intentionally invalidate browser Snapshot persistence.
-      return await client.createSnapshot({
-        runtimeSessionId: input.runtimeSessionId,
-        scenarioId: durableActiveScenario.scenarioId,
-        experimentId: input.experimentId,
-        expectedDraftVersion: workspace.draftVersion,
-        expectedHeadSnapshotId: workspace.headSnapshotId,
-      });
-    } finally {
-      client.terminate();
     }
   }
 }
@@ -183,21 +240,62 @@ async function initializeFirstSaveV3(
   }
 }
 
-async function initializeFromWorkspaceV3(
+async function initializeTransientAuthoringV3(
   client: StudioSimulationWorkerClientV2,
   input: ValidatedAuthoringInputV3,
-  workspace: ExperimentWorkspaceV2,
 ): Promise<void> {
+  const firstScenario = input.scenarios[0]!;
   await client.initialize({
     expectedModelId: input.modelId,
     runtimeSessionId: input.runtimeSessionId,
-    scenarioId: input.activeScenario.scenarioId,
-    scenarioLabel: input.activeScenario.label,
-    fixture: input.activeScenario.capture.fixture,
-    checkpoint: input.activeScenario.capture.checkpoint,
+    scenarioId: firstScenario.scenarioId,
+    scenarioLabel: firstScenario.label,
+    fixture: firstScenario.capture.fixture,
+    checkpoint: firstScenario.capture.checkpoint,
+  });
+
+  let selectedScenarioId = firstScenario.scenarioId;
+  for (let index = 1; index < input.scenarios.length; index += 1) {
+    const scenario = input.scenarios[index]!;
+    await client.addScenarioFromPreset({
+      runtimeSessionId: input.runtimeSessionId,
+      scenarioId: scenario.scenarioId,
+      label: scenario.label,
+      preset: transientPresetV3(input.modelId, scenario, index),
+    });
+    selectedScenarioId = scenario.scenarioId;
+  }
+
+  if (selectedScenarioId !== input.activeScenario.scenarioId) {
+    await client.selectScenario({
+      runtimeSessionId: input.runtimeSessionId,
+      scenarioId: input.activeScenario.scenarioId,
+    });
+  }
+}
+
+async function initializeFromExperimentV3(
+  client: StudioSimulationWorkerClientV2,
+  input: ValidatedAuthoringInputV3,
+  experiment: ExperimentV2,
+): Promise<void> {
+  const seededActiveScenario = experiment.content.scenarios.find(
+    ({ scenarioId }) => scenarioId === input.activeScenario.scenarioId,
+  );
+  if (seededActiveScenario === undefined) {
+    throw new Error(
+      "saved Experiment does not contain the active authoring Scenario",
+    );
+  }
+  await client.initialize({
+    expectedModelId: input.modelId,
+    runtimeSessionId: input.runtimeSessionId,
+    scenarioId: seededActiveScenario.scenarioId,
+    scenarioLabel: seededActiveScenario.label,
+    fixture: seededActiveScenario.capture.fixture,
+    checkpoint: seededActiveScenario.capture.checkpoint,
     authoringSeed: {
-      workspace,
-      snapshots: input.snapshots,
+      experiment,
     },
   });
 }
@@ -223,40 +321,28 @@ function validateAuthoringInputV3(
   if (input.scenarios.length === 0) {
     throw new Error("parallel authoring requires at least one Scenario capture");
   }
-  if (input.workspace === null && input.snapshots.length > 0) {
-    throw new Error(
-      "parallel authoring cannot seed Snapshots without their Workspace",
-    );
-  }
-
-  const workspace = input.workspace === null
+  const experiment = input.experiment === null
     ? null
-    : validateExperimentWorkspaceV2(input.workspace);
-  if (workspace !== null) {
-    if (workspace.experimentId !== input.experimentId) {
+    : validateExperimentV2(input.experiment);
+  if (experiment !== null) {
+    if (
+      input.experimentId === null
+      || experiment.experimentId !== input.experimentId
+    ) {
       throw new Error(
-        "parallel authoring workspace Experiment identity mismatch",
+        "parallel authoring experiment Experiment identity mismatch",
       );
     }
-    if (workspace.content.modelId !== input.modelId) {
-      throw new Error("parallel authoring workspace exact modelId mismatch");
+    if (experiment.content.modelId !== input.modelId) {
+      throw new Error("parallel authoring experiment exact modelId mismatch");
     }
   }
 
-  // Reuse the durable validator as the single structural authority for the
-  // ordered Scenario captures and Surface, even before a first Draft exists.
-  const validatedContent = validateExperimentWorkspaceV2({
-    schemaId: STUDIO_EXPERIMENT_WORKSPACE_V2_SCHEMA_ID,
-    experimentId: input.experimentId,
-    draftVersion: workspace?.draftVersion ?? 0,
-    headSnapshotId: null,
-    basedOnSnapshotId: null,
-    content: {
-      modelId: input.modelId,
-      scenarios: input.scenarios,
-      surface: input.surface,
-    },
-  }).content;
+  const validatedContent = validateExperimentContentV2({
+    modelId: input.modelId,
+    scenarios: input.scenarios,
+    surface: input.surface,
+  });
   const activeScenario = validatedContent.scenarios.find(
     ({ scenarioId }) => scenarioId === input.activeScenarioId,
   );
@@ -266,25 +352,12 @@ function validateAuthoringInputV3(
     );
   }
 
-  const snapshotIds = new Set<string>();
-  const snapshots = Object.freeze(input.snapshots.map((snapshotValue) => {
-    const snapshot = validateExperimentSnapshotV2(snapshotValue);
-    if (snapshotIds.has(snapshot.snapshotId)) {
-      throw new Error(
-        `parallel authoring received duplicate Snapshot: ${snapshot.snapshotId}`,
-      );
-    }
-    snapshotIds.add(snapshot.snapshotId);
-    return snapshot;
-  }));
-
   return Object.freeze({
     modelId: validatedContent.modelId,
     scenarios: validatedContent.scenarios,
     activeScenario,
     surface: validatedContent.surface,
-    workspace,
-    snapshots,
+    experiment,
     experimentId: input.experimentId,
     runtimeSessionId: input.runtimeSessionId,
   });

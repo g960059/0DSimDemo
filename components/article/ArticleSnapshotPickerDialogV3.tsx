@@ -1,22 +1,29 @@
 import React from "react";
-import { Check, FlaskConical, X } from "lucide-react";
+import { ArrowUpRight, Check, FlaskConical, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
-import { workbenchHref } from "@/homeLinks";
+import { experimentSnapshotHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
-import type { ExperimentSnapshotV2 } from "@/studio/contracts/v2/content";
+export type ArticleSnapshotPickerItemV3 = Readonly<{
+  snapshotId: string;
+  title: string;
+  createdAt: string;
+  paneCount: number;
+}>;
 
 export type ArticleSnapshotPickerDialogV3Props = Readonly<{
   open: boolean;
-  snapshots: readonly ExperimentSnapshotV2[];
+  snapshots: readonly ArticleSnapshotPickerItemV3[];
+  onCreateExperiment: () => void;
   onClose: () => void;
-  onSelect: (snapshot: ExperimentSnapshotV2) => void;
+  onSelect: (snapshot: ArticleSnapshotPickerItemV3) => void | Promise<void>;
 }>;
 
 export function ArticleSnapshotPickerDialogV3({
   open,
   snapshots,
+  onCreateExperiment,
   onClose,
   onSelect,
 }: ArticleSnapshotPickerDialogV3Props) {
@@ -24,6 +31,9 @@ export function ArticleSnapshotPickerDialogV3({
   const dialogRef = React.useRef<HTMLDialogElement | null>(null);
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
+  const [selectingSnapshotId, setSelectingSnapshotId] = React.useState<
+    string | null
+  >(null);
 
   React.useEffect(() => {
     const dialog = dialogRef.current;
@@ -67,6 +77,21 @@ export function ArticleSnapshotPickerDialogV3({
       </header>
 
       <div className="max-h-[calc(86dvh-7.5rem)] overflow-y-auto px-3 pb-4 sm:px-4 sm:pb-5">
+        <button
+          type="button"
+          onClick={onCreateExperiment}
+          className="mb-2 flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-wb-text transition-[color,background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        >
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-wb-primary text-white">
+            <Plus className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block">{t("articleEditor.snapshotPicker.createExperiment")}</span>
+            <span className="mt-0.5 block text-[11px] font-normal leading-4 text-wb-muted">
+              {t("articleEditor.snapshotPicker.createExperimentHint")}
+            </span>
+          </span>
+        </button>
         {snapshots.length === 0 ? (
           <div className="mx-2 my-8 flex flex-col items-center text-center">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-wb-soft text-wb-subtle">
@@ -78,44 +103,60 @@ export function ArticleSnapshotPickerDialogV3({
             <p className="mt-1 max-w-sm text-xs leading-5 text-wb-muted">
               {t("articleEditor.emptySnapshots.description")}
             </p>
-            <Link
-              to={workbenchHref(locale)}
-              onClick={onClose}
-              className="mt-5 inline-flex min-h-9 items-center rounded-lg bg-wb-primary px-3.5 text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-            >
-              {t("articleEditor.emptySnapshots.openWorkbench")}
-            </Link>
           </div>
         ) : (
           <ul className="grid gap-1" aria-label={t("articleEditor.snapshotPicker.listLabel")}>
             {snapshots.map((snapshot) => (
-              <li key={snapshot.snapshotId}>
+              <li key={snapshot.snapshotId} className="flex items-center gap-1">
                 <button
                   type="button"
+                  disabled={selectingSnapshotId !== null}
                   onClick={() => {
-                    onSelect(snapshot);
-                    onClose();
+                    setSelectingSnapshotId(snapshot.snapshotId);
+                    void Promise.resolve(onSelect(snapshot)).then(() => {
+                      onClose();
+                    }).catch(() => {
+                      // The Editor owns the localized load error and keeps the
+                      // picker open so the user can retry another Snapshot.
+                    }).finally(() => {
+                      setSelectingSnapshotId(null);
+                    });
                   }}
-                  className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                  className="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-3 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                 >
                   <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-wb-soft text-wb-muted group-hover:text-wb-accent">
                     <FlaskConical className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">
-                      {snapshot.content.scenarios[0]?.label ?? snapshot.experimentId}
+                      {snapshot.title || t("workbench.selector.untitled")}
                     </span>
-                    <span className="mt-0.5 block truncate font-mono text-[10px] text-wb-subtle">
-                      {snapshot.snapshotId}
+                    <span className="mt-0.5 block truncate text-[10px] text-wb-subtle">
+                      {new Intl.DateTimeFormat(locale, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      }).format(new Date(snapshot.createdAt))}
                     </span>
                   </span>
                   <span className="shrink-0 text-[10px] text-wb-subtle">
-                    {snapshot.content.surface.graphPanes.length
-                      + snapshot.content.surface.outputPanes.length
-                      + snapshot.content.surface.controlPanes.length} {t("articleEditor.panes")}
+                    {snapshot.paneCount} {t("articleEditor.panes")}
                   </span>
                   <Check className="h-4 w-4 shrink-0 text-wb-subtle opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
                 </button>
+                <Link
+                  to={experimentSnapshotHref({
+                    locale,
+                    snapshotId: snapshot.snapshotId,
+                  })}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={t("articleEditor.openSnapshot")}
+                  aria-label={t("articleEditor.openSnapshot")}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-wb-subtle transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-accent active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                >
+                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
               </li>
             ))}
           </ul>

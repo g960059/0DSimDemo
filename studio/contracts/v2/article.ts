@@ -5,6 +5,7 @@ export const STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID =
 
 export type StudioArticleIdV2 = string;
 export type StudioArticleBlockIdV2 = string;
+export type StudioArticleVisibilityV2 = "draft" | "public";
 
 export type StudioArticleHeadingBlockV2 = Readonly<{
   blockId: StudioArticleBlockIdV2;
@@ -40,6 +41,7 @@ export type StudioArticleDraftV2 = Readonly<{
   schemaId: typeof STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID;
   articleId: StudioArticleIdV2;
   draftVersion: number;
+  visibility: StudioArticleVisibilityV2;
   locale: string;
   title: string;
   blocks: readonly StudioArticleBlockV2[];

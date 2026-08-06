@@ -4,6 +4,7 @@ import type {
   ExperimentSurfaceOutputPaneV2,
   ExperimentSurfaceV2,
 } from "@/studio/contracts/v2/content";
+import { reconcileWorkbenchGraphColorsV3 } from "./v3/WorkbenchGraphColorV3";
 import {
   STUDIO_GRAPH_HISTORY_DEFAULT_DEPTH_V2,
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2,
@@ -21,10 +22,8 @@ import type {
 export const WORKBENCH_SCENARIO_ID_V3 = "workbench-live-default";
 export const WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 =
   STUDIO_SWEEP_WINDOW_DEFAULT_SEC_V2;
-export const WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3 =
-  STUDIO_SWEEP_WINDOW_MIN_SEC_V2;
-export const WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3 =
-  STUDIO_SWEEP_WINDOW_MAX_SEC_V2;
+export const WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3 = STUDIO_SWEEP_WINDOW_MIN_SEC_V2;
+export const WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3 = STUDIO_SWEEP_WINDOW_MAX_SEC_V2;
 export const WORKBENCH_SWEEP_WINDOW_STEP_SEC_V3 =
   STUDIO_SWEEP_WINDOW_STEP_SEC_V2;
 export const WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3 =
@@ -33,6 +32,58 @@ export const WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3 =
   STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2;
 export const WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3 =
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2;
+export const WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3 =
+  "responsive-preview" as const;
+
+/**
+ * The Workbench exposes graph constructors, not registry graph presets. Each
+ * constructor owns one axis-unit family so any compatible series can be mixed
+ * without asking the author to choose a left/right catalog fragment first.
+ */
+export const WORKBENCH_GRAPH_PANE_OPTIONS_V3 = Object.freeze([
+  Object.freeze({
+    optionId: "hemodynamics.pressure-volume",
+    graphId: "hemodynamics.pressure-volume",
+    kind: "pressure-volume" as const,
+  }),
+  Object.freeze({
+    optionId: "hemodynamics.pressure.waveform",
+    graphId: "hemodynamics.pressure.waveform",
+    kind: "pressure-waveform" as const,
+  }),
+  Object.freeze({
+    optionId: "hemodynamics.flow.waveform",
+    graphId: "hemodynamics.flow.waveform",
+    kind: "flow-waveform" as const,
+  }),
+  Object.freeze({
+    optionId: "hemodynamics.guyton-starling/systemic",
+    graphId: "hemodynamics.guyton-starling",
+    kind: "guyton-starling-systemic" as const,
+    structuralSide: "right" as const,
+  }),
+  Object.freeze({
+    optionId: "hemodynamics.guyton-starling/pulmonary",
+    graphId: "hemodynamics.guyton-starling",
+    kind: "guyton-starling-pulmonary" as const,
+    structuralSide: "left" as const,
+  }),
+] as const);
+
+export type WorkbenchGraphPaneKindV3 =
+  (typeof WORKBENCH_GRAPH_PANE_OPTIONS_V3)[number]["kind"];
+
+export function workbenchGraphIdForPaneKindV3(
+  kind: WorkbenchGraphPaneKindV3,
+): string {
+  const option = WORKBENCH_GRAPH_PANE_OPTIONS_V3.find(
+    (candidate) => candidate.kind === kind,
+  );
+  if (option === undefined) {
+    throw new Error(`Unknown Workbench graph pane kind: ${kind}`);
+  }
+  return option.graphId;
+}
 
 export function workbenchDefaultGraphSeriesIdsV3(
   graph: GraphDefinitionV2,
@@ -65,6 +116,13 @@ const OUTPUT_COLOR_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.flow.valve.AoV": "#1d7cad",
   "hemodynamics.flow.valve.TV": "#26806f",
   "hemodynamics.flow.valve.PV": "#6d64bd",
+  "hemodynamics.flow.systemic.SA_Art": "#167db8",
+  "hemodynamics.flow.pulmonary.PA_PArt": "#6a61b6",
+  "hemodynamics.flow.venous.VC_RA": "#247c71",
+  "hemodynamics.flow.venous.PVein_LA": "#8d52a7",
+  "pericardium.pressure.excess": "#a96c08",
+  "respiration.pressure.pleural": "#66717b",
+  "respiration.pressure.alveolar": "#23818a",
   // A mid-slate total remains visible on both paper and near-black canvases.
   "coronary.flow.total": "#66717b",
   "coronary.flow.inlet.LAD": "#c43f55",
@@ -96,28 +154,62 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.flow.valve.AoV": "Aortic valve flow",
   "hemodynamics.flow.valve.TV": "Tricuspid flow",
   "hemodynamics.flow.valve.PV": "Pulmonary valve flow",
+  "hemodynamics.flow.systemic.SA_Art": "Systemic tissue flow",
+  "hemodynamics.flow.pulmonary.PA_PArt": "Pulmonary arterial flow",
+  "hemodynamics.flow.venous.VC_RA": "Systemic venous return",
+  "hemodynamics.flow.venous.PVein_LA": "Pulmonary venous return",
+  "pericardium.pressure.excess": "Pericardial pressure",
+  "respiration.pressure.pleural": "Pleural pressure",
+  "respiration.pressure.alveolar": "Alveolar pressure",
+  "rhythm.heart-rate.instantaneous": "Heart rate",
   "coronary.flow.total": "Total coronary flow",
   "coronary.flow.inlet.LAD": "LAD flow",
   "coronary.flow.inlet.LCx": "LCx flow",
   "coronary.flow.inlet.RCA": "RCA flow",
   "device.LVAD.flow": "LVAD flow",
   "rhythm.phase.regular-sinus": "Sinus cycle phase",
+  "hemodynamics.pressure.mean.Ao": "Mean arterial pressure",
+  "hemodynamics.pressure.systolic.Ao": "Systolic arterial pressure",
+  "hemodynamics.pressure.diastolic.Ao": "Diastolic arterial pressure",
+  "hemodynamics.pressure.pulse.Ao": "Pulse pressure",
+  "hemodynamics.pressure.mean.PA": "Mean pulmonary arterial pressure",
+  "hemodynamics.pressure.mean.LA": "Mean left atrial pressure",
+  "hemodynamics.pressure.mean.RA": "Mean right atrial pressure",
+  "hemodynamics.volume.maximum.LV": "Maximum LV volume",
+  "hemodynamics.volume.minimum.LV": "Minimum LV volume",
+  "hemodynamics.stroke-volume.LV-extrema": "LV stroke volume (extrema)",
+  "hemodynamics.ejection-fraction.LV-extrema": "LV ejection fraction (extrema)",
+  "hemodynamics.output.native-left": "Native left cardiac output",
+  "hemodynamics.output.systemic-tissue": "Systemic tissue output",
+  "hemodynamics.output.pulmonary": "Pulmonary output",
 });
 
 export function createDefaultExperimentSurfaceV3(
   contract: ModelContractV2,
-  _initialScenarioId: string = WORKBENCH_SCENARIO_ID_V3,
+  initialScenarioId: string = WORKBENCH_SCENARIO_ID_V3,
 ): ExperimentSurfaceV2 {
   const defaultGraphIds = Object.freeze([
-    "hemodynamics.pressure.left-heart",
+    "hemodynamics.pressure.waveform",
     "hemodynamics.pressure-volume",
   ]);
   const graphPanes = defaultGraphIds.flatMap((graphId, index) => {
-    const graph = contract.graphCatalog.find((candidate) =>
-      candidate.graphId === graphId);
-    return graph === undefined
-      ? []
-      : [createDefaultGraphPaneV3(graph, index)];
+    const graph = contract.graphCatalog.find(
+      (candidate) => candidate.graphId === graphId,
+    );
+    return graph === undefined ? [] : [createDefaultGraphPaneV3(graph, index)];
+  });
+  const defaultOutputIds = Object.freeze([
+    "rhythm.heart-rate.instantaneous",
+    "hemodynamics.output.native-left",
+    "hemodynamics.pressure.mean.Ao",
+    "hemodynamics.ejection-fraction.LV-extrema",
+    "hemodynamics.pressure.mean.LA",
+  ]);
+  const defaultOutputs = defaultOutputIds.flatMap((outputId) => {
+    const output = contract.outputCatalog.find(
+      (candidate) => candidate.outputId === outputId,
+    );
+    return output === undefined ? [] : [output];
   });
   const outputPane: ExperimentSurfaceOutputPaneV2 = Object.freeze({
     paneId: "outputs-primary",
@@ -125,12 +217,29 @@ export function createDefaultExperimentSurfaceV3(
     label: "Outputs",
     order: 0,
     priority: 40,
-    items: Object.freeze(contract.outputCatalog.map((output, index) =>
-      Object.freeze({
-        outputId: output.outputId,
-        label: outputLabelV3(output.outputId),
-        order: index,
-      }))),
+    binding: Object.freeze({ mode: "active-slot" as const }),
+    items: Object.freeze(
+      defaultOutputs.map((output, index) =>
+        Object.freeze({
+          outputId: output.outputId,
+          label: outputLabelV3(output.outputId),
+          order: index,
+        }),
+      ),
+    ),
+  });
+  const defaultControlIds = Object.freeze([
+    "rhythm.heart-rate-bpm",
+    "hemodynamics.total-blood-volume-ml",
+    "hemodynamics.systemic-resistance",
+    "hemodynamics.venous-tone",
+    "ventilation.peep-cm-h2o",
+  ]);
+  const defaultControls = defaultControlIds.flatMap((controlId) => {
+    const control = contract.controlCatalog.find(
+      (candidate) => candidate.controlId === controlId,
+    );
+    return control === undefined ? [] : [control];
   });
   const controlPane: ExperimentSurfaceControlPaneV2 = Object.freeze({
     paneId: "controls-primary",
@@ -138,19 +247,32 @@ export function createDefaultExperimentSurfaceV3(
     label: "Parameters",
     order: 0,
     priority: 30,
-    items: Object.freeze(contract.controlCatalog.map((control, index) =>
-      Object.freeze({
-        controlId: control.controlId,
-        label: controlLabelV3(control.controlId),
-        order: index,
-      }))),
+    binding: Object.freeze({ mode: "active-slot" as const }),
+    items: Object.freeze(
+      defaultControls.map((control, index) =>
+        Object.freeze({
+          controlId: control.controlId,
+          label: controlLabelV3(control.controlId),
+          order: index,
+          presentation: Object.freeze({ kind: "slider" as const }),
+        }),
+      ),
+    ),
   });
-  return Object.freeze({
+  const surface: ExperimentSurfaceV2 = Object.freeze({
     graphPanes: Object.freeze(graphPanes),
     outputPanes: Object.freeze([outputPane]),
     controlPanes: Object.freeze([controlPane]),
     note: Object.freeze({ text: "" }),
   });
+  // Single-Scenario waveforms start with familiar item semantics. Structural
+  // and PV panes use the Scenario seed from their first allocation because
+  // Scenario identity is their primary visual distinction.
+  return reconcileWorkbenchGraphColorsV3(
+    surface,
+    Object.freeze([Object.freeze({ scenarioId: initialScenarioId })]),
+    "series",
+  );
 }
 
 function createDefaultGraphPaneV3(
@@ -160,25 +282,198 @@ function createDefaultGraphPaneV3(
   return Object.freeze({
     paneId: `graph-${index + 1}`,
     role: "graph",
-    label: graphTitleV3(graph.graphId),
+    label: graphTitleV3(
+      graph.graphId,
+      graph.renderer === "structural-return"
+        ? graph.side === "both"
+          ? "right"
+          : graph.side
+        : undefined,
+    ),
     order: index,
     priority: Math.max(50, 100 - index),
     graphId: graph.graphId,
+    scenarioScope: Object.freeze({ mode: "visible-scenarios" as const }),
+    excludedTraces: Object.freeze([]),
     ...(graph.renderer === "sweep"
       ? { windowSec: WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 }
-      : { historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3 }),
-    series: Object.freeze(graph.renderer === "structural-return"
-      ? []
-      : graph.defaultSeriesIds.map((seriesId, seriesIndex) => Object.freeze({
-        seriesId,
-        label: graphSeriesLabelV3(seriesId),
-        colorHex: graphSeriesColorV3(seriesId),
-        order: seriesIndex,
-      }))),
+      : {
+          historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3,
+          ...(graph.renderer === "pressure-volume"
+            ? {
+                pressureVolumeAnalysisMode:
+                  WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
+              }
+            : {}),
+          ...(graph.renderer === "structural-return"
+            ? { structuralSide: graph.side === "both" ? "right" : graph.side }
+            : {}),
+        }),
+    traceColors: Object.freeze([]),
+    series: Object.freeze(
+      graph.renderer === "structural-return"
+        ? []
+        : graph.defaultSeriesIds.map((seriesId, seriesIndex) =>
+            Object.freeze({
+              seriesId,
+              label: graphSeriesLabelV3(seriesId),
+              order: seriesIndex,
+            }),
+          ),
+    ),
   });
 }
 
-export function allSurfacePanesV3(surface: ExperimentSurfaceV2): readonly (
+/**
+ * Reconciles pane-level Scenario policies after add/delete/restore.
+ *
+ * A fixed policy that loses every target falls back to the Workbench's
+ * dynamic policy instead of retaining an invalid empty binding. Trace colors
+ * are reconciled in the same transaction, while exclusions and fixed targets
+ * are retained only when their referenced Scenario/series still exists.
+ */
+export function reconcileWorkbenchSurfaceScenariosV3(
+  surface: ExperimentSurfaceV2,
+  scenarios: readonly Readonly<{ scenarioId: string }>[],
+): ExperimentSurfaceV2 {
+  const scenarioIds = new Set(scenarios.map(({ scenarioId }) => scenarioId));
+  const graphPanes = surface.graphPanes.map((pane) => {
+    const fixedScenarioIds = pane.scenarioScope.mode === "fixed"
+      ? pane.scenarioScope.scenarioIds.filter((scenarioId) =>
+          scenarioIds.has(scenarioId))
+      : [];
+    const selectedSeriesIds = new Set(pane.series.map(({ seriesId }) => seriesId));
+    return Object.freeze({
+      ...pane,
+      scenarioScope:
+        pane.scenarioScope.mode === "fixed" && fixedScenarioIds.length > 0
+          ? Object.freeze({
+              mode: "fixed" as const,
+              scenarioIds: Object.freeze(fixedScenarioIds),
+            })
+          : Object.freeze({ mode: "visible-scenarios" as const }),
+      excludedTraces: Object.freeze(
+        pane.excludedTraces.filter((trace) =>
+          scenarioIds.has(trace.scenarioId) &&
+          (trace.seriesId === null || selectedSeriesIds.has(trace.seriesId))),
+      ),
+    });
+  });
+  const controlPanes = surface.controlPanes.map((pane) => {
+    const fixedScenarioIds = pane.binding.mode === "fixed"
+      ? pane.binding.scenarioIds.filter((scenarioId) =>
+          scenarioIds.has(scenarioId))
+      : [];
+    return Object.freeze({
+      ...pane,
+      binding:
+        pane.binding.mode === "fixed" && fixedScenarioIds.length > 0
+          ? Object.freeze({
+              mode: "fixed" as const,
+              scenarioIds: Object.freeze(fixedScenarioIds),
+            })
+          : Object.freeze({ mode: "active-slot" as const }),
+    });
+  });
+  const outputPanes = surface.outputPanes.map((pane) => {
+    // Re-materialize the durable pane instead of spreading the live UI value.
+    // This keeps transient/Fast Refresh fields out of persistence and gives a
+    // pre-save Session created before the binding cutover the current default.
+    const candidateBinding = (
+      pane as ExperimentSurfaceOutputPaneV2 & Readonly<{
+        binding?: ExperimentSurfaceOutputPaneV2["binding"];
+      }>
+    ).binding;
+    const binding =
+      candidateBinding?.mode === "fixed" &&
+        scenarioIds.has(candidateBinding.scenarioId)
+        ? Object.freeze({
+            mode: "fixed" as const,
+            scenarioId: candidateBinding.scenarioId,
+          })
+        : Object.freeze({ mode: "active-slot" as const });
+    return Object.freeze({
+      paneId: pane.paneId,
+      role: "output" as const,
+      label: pane.label,
+      order: pane.order,
+      priority: pane.priority,
+      binding,
+      items: Object.freeze(pane.items.map((item) => Object.freeze({
+        outputId: item.outputId,
+        label: item.label,
+        order: item.order,
+      }))),
+    });
+  });
+  return reconcileWorkbenchGraphColorsV3(
+    Object.freeze({ ...surface, graphPanes, outputPanes, controlPanes }),
+    scenarios,
+  );
+}
+
+/** Resolve the durable graph-pane policy against the currently available UI scope. */
+export function resolveWorkbenchGraphScenarioIdsV3(
+  pane: ExperimentSurfaceGraphPaneV2,
+  visibleScenarioIds: readonly string[],
+): readonly string[] {
+  if (pane.scenarioScope.mode === "visible-scenarios") {
+    return visibleScenarioIds;
+  }
+  const visible = new Set(visibleScenarioIds);
+  return Object.freeze(
+    pane.scenarioScope.scenarioIds.filter((scenarioId) =>
+      visible.has(scenarioId)),
+  );
+}
+
+/** Exact trace exclusions are durable Pane Settings, not transient legend state. */
+export function isWorkbenchGraphTraceExcludedV3(
+  pane: ExperimentSurfaceGraphPaneV2,
+  scenarioId: string,
+  seriesId: string | null,
+): boolean {
+  return pane.excludedTraces.some((trace) =>
+    trace.scenarioId === scenarioId && trace.seriesId === seriesId);
+}
+
+/** Resolve one controller pane's single binding context. */
+export function resolveWorkbenchControlPaneScenarioIdsV3(
+  pane: ExperimentSurfaceControlPaneV2,
+  activeScenarioId: string | null,
+  scenarios: readonly Readonly<{ scenarioId: string }>[],
+): readonly string[] {
+  const available = new Set(scenarios.map(({ scenarioId }) => scenarioId));
+  if (pane.binding.mode === "active-slot") {
+    return activeScenarioId !== null && available.has(activeScenarioId)
+      ? Object.freeze([activeScenarioId])
+      : Object.freeze([]);
+  }
+  return Object.freeze(
+    pane.binding.scenarioIds.filter((scenarioId) => available.has(scenarioId)),
+  );
+}
+
+/** Resolve one output pane's single Scenario binding context. */
+export function resolveWorkbenchOutputPaneScenarioIdV3(
+  pane: ExperimentSurfaceOutputPaneV2,
+  activeScenarioId: string | null,
+  scenarios: readonly Readonly<{ scenarioId: string }>[],
+): string | null {
+  const available = new Set(scenarios.map(({ scenarioId }) => scenarioId));
+  if (pane.binding.mode === "active-slot") {
+    return activeScenarioId !== null && available.has(activeScenarioId)
+      ? activeScenarioId
+      : null;
+  }
+  return available.has(pane.binding.scenarioId)
+    ? pane.binding.scenarioId
+    : null;
+}
+
+export function allSurfacePanesV3(
+  surface: ExperimentSurfaceV2,
+): readonly (
   | ExperimentSurfaceGraphPaneV2
   | ExperimentSurfaceOutputPaneV2
   | ExperimentSurfaceControlPaneV2
@@ -190,18 +485,18 @@ export function allSurfacePanesV3(surface: ExperimentSurfaceV2): readonly (
   ]);
 }
 
-export function graphTitleV3(graphId: string): string {
-  if (graphId === "hemodynamics.pressure.left-heart") return "Left-heart pressure";
-  if (graphId === "hemodynamics.pressure.right-heart") return "Right-heart pressure";
-  if (graphId === "hemodynamics.flow.valves") return "Valve flows";
-  if (graphId === "coronary.flow.inlet-territories") return "Coronary territory flow";
-  if (graphId === "hemodynamics.structural-return.systemic") {
-    return "Systemic venous-return orientation";
+export function graphTitleV3(
+  graphId: string,
+  structuralSide?: "left" | "right",
+): string {
+  if (graphId === "hemodynamics.pressure.waveform") return "Pressure waveforms";
+  if (graphId === "hemodynamics.flow.waveform") return "Flow waveforms";
+  if (graphId === "hemodynamics.guyton-starling") {
+    if (structuralSide === "right") return "Systemic Guyton / Starling";
+    if (structuralSide === "left") return "Pulmonary Guyton / Starling";
+    return "Guyton / Starling";
   }
-  if (graphId === "hemodynamics.structural-return.pulmonary") {
-    return "Pulmonary venous-return orientation";
-  }
-  if (graphId === "hemodynamics.pressure-volume") return "Pressure-volume loops";
+  if (graphId === "hemodynamics.pressure-volume") return "PV loop";
   return humanizeCatalogIdV3(graphId);
 }
 
@@ -213,6 +508,11 @@ export function graphSeriesLabelV3(seriesId: string): string {
     RAP: "RAP",
     RVP: "RVP",
     PAP: "PAP",
+    PVeinP: "Pulmonary vein pressure",
+    VCP: "Vena cava pressure",
+    Pperi: "Pericardial pressure",
+    Ppl: "Pleural pressure",
+    Palv: "Alveolar pressure",
     MV: "MV",
     AoV: "AoV",
     TV: "TV",
@@ -220,35 +520,18 @@ export function graphSeriesLabelV3(seriesId: string): string {
     LAD: "LAD",
     LCx: "LCx",
     RCA: "RCA",
+    Coronary: "Coronary",
+    LVAD: "LVAD",
+    SA_Art: "Systemic tissue flow",
+    PA_PArt: "Pulmonary arterial flow",
+    VC_RA: "Systemic venous return",
+    PVein_LA: "Pulmonary venous return",
     LV: "LV",
     RV: "RV",
     RA: "RA",
     LA: "LA",
   };
   return labels[seriesId] ?? humanizeCatalogIdV3(seriesId);
-}
-
-export function graphSeriesColorV3(seriesId: string): string {
-  const colors: Readonly<Record<string, string>> = {
-    LVP: "#cf405a",
-    LAP: "#c43f7c",
-    AoP: "#167db8",
-    RAP: "#16858b",
-    RVP: "#3472c4",
-    PAP: "#6a61b6",
-    LV: "#cf405a",
-    LA: "#c43f7c",
-    RV: "#3472c4",
-    RA: "#16858b",
-    MV: "#b23e78",
-    AoV: "#1d7cad",
-    TV: "#26806f",
-    PV: "#6d64bd",
-    LAD: "#c43f55",
-    LCx: "#247d59",
-    RCA: "#3472c4",
-  };
-  return colors[seriesId] ?? outputColorV3(seriesId);
 }
 
 export function outputLabelV3(outputId: string): string {
@@ -261,6 +544,9 @@ export function controlLabelV3(controlId: string): string {
     "hemodynamics.pulmonary-resistance": "Pulmonary resistance",
     "hemodynamics.venous-tone": "Venous tone",
     "hemodynamics.arterial-stiffness": "Arterial stiffness",
+    "rhythm.heart-rate-bpm": "Heart rate",
+    "hemodynamics.total-blood-volume-ml": "Total blood volume",
+    "ventilation.peep-cm-h2o": "PEEP",
   };
   return labels[controlId] ?? humanizeCatalogIdV3(controlId);
 }
@@ -272,7 +558,14 @@ export function outputColorV3(outputId: string): string {
   // All fallback colors keep at least 3:1 contrast against both application
   // canvases. The authored Surface stores the chosen hex, so a later theme
   // switch never remaps or overrides a user's custom color.
-  const palette = ["#167db8", "#c43f7c", "#6a61b6", "#247d59", "#a96c08", "#c43f55"];
+  const palette = [
+    "#167db8",
+    "#c43f7c",
+    "#6a61b6",
+    "#247d59",
+    "#a96c08",
+    "#c43f55",
+  ];
   let hash = 0;
   for (let index = 0; index < outputId.length; index += 1) {
     hash = ((hash << 5) - hash + outputId.charCodeAt(index)) | 0;
@@ -282,6 +575,7 @@ export function outputColorV3(outputId: string): string {
 
 function humanizeCatalogIdV3(value: string): string {
   const token = value.split(".").at(-1) ?? value;
-  return token.replaceAll("-", " ").replace(/\b\w/g, (character) =>
-    character.toUpperCase());
+  return token
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
