@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import i18n from "@/i18n";
 import {
+  articleEditorRouteHydratedV3,
   articleEditorRouteKeyV3,
   insertArticleBlockV3,
   resolveArticleEditorRouteDraftV3,
@@ -179,6 +180,16 @@ function focusedBriefingV3(): ExperimentPlacementBriefingV2 {
 }
 
 describe("Article Editor V3 briefing", () => {
+  it("keeps an existing Article inert until its exact route is hydrated", () => {
+    expect(articleEditorRouteHydratedV3(null, "article-existing")).toBe(false);
+    expect(articleEditorRouteHydratedV3("new", "article-existing")).toBe(false);
+    expect(articleEditorRouteHydratedV3(
+      "article-existing",
+      "article-existing",
+    )).toBe(true);
+    expect(articleEditorRouteHydratedV3("new", "new")).toBe(true);
+  });
+
   it("shares graph-count presentation rules between Editor and Reader", () => {
     expect(articleBriefingPresentationV3({ graphs: [] })).toBe("inflow");
     expect(articleBriefingPresentationV3({ graphs: [{}] as never })).toBe("inflow");

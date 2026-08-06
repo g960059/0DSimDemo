@@ -118,6 +118,13 @@ export function articleEditorRouteKeyV3(
   return routeArticleId ?? "new";
 }
 
+export function articleEditorRouteHydratedV3(
+  hydratedRouteKey: string | null,
+  routeArticleId: string | undefined,
+): boolean {
+  return hydratedRouteKey === articleEditorRouteKeyV3(routeArticleId);
+}
+
 export function resolveArticleEditorRouteDraftV3(input: Readonly<{
   currentDraft: StudioArticleDraftV2;
   hydratedRouteKey: string | null;
@@ -179,6 +186,9 @@ export function ArticleEditorV3Page() {
     routeArticleId === "new" || routeArticleId === undefined
       ? articleEditorRouteKeyV3(routeArticleId)
       : null,
+  );
+  const [hydratedRouteKey, setHydratedRouteKey] = React.useState<string | null>(
+    hydratedRouteKeyRef.current,
   );
   const [status, setStatus] = React.useState<EditorSaveStatusV3>("idle");
   const [hasUnsavedArticleChanges, setHasUnsavedArticleChanges] =
@@ -290,7 +300,11 @@ export function ArticleEditorV3Page() {
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))));
 
       const routeKey = articleEditorRouteKeyV3(routeArticleId);
-      if (hydratedRouteKeyRef.current === routeKey) return;
+      if (hydratedRouteKeyRef.current === routeKey) {
+        setHydratedRouteKey(routeKey);
+        return;
+      }
+      setHydratedRouteKey(null);
       let nextDraft: StudioArticleDraftV2;
       if (routeArticleId === "new" || routeArticleId === undefined) {
         nextDraft = createEmptyArticleDraftV3(
@@ -318,6 +332,7 @@ export function ArticleEditorV3Page() {
       }
       if (!current) return;
       hydratedRouteKeyRef.current = routeKey;
+      setHydratedRouteKey(routeKey);
       pendingReturnedSnapshotIdRef.current = null;
       draftRef.current = nextDraft;
       setDraft(nextDraft);
@@ -327,6 +342,7 @@ export function ArticleEditorV3Page() {
     };
     void load().catch((cause) => {
       if (!current) return;
+      setHydratedRouteKey(null);
       setStatus("error");
       setError(errorMessageV3(cause));
     });
@@ -334,6 +350,11 @@ export function ArticleEditorV3Page() {
       current = false;
     };
   }, [locale, remoteRepository, routeArticleId, store, t]);
+
+  const routeHydrated = articleEditorRouteHydratedV3(
+    hydratedRouteKey,
+    routeArticleId,
+  );
 
   const updateDraft = React.useCallback((
     update: (current: StudioArticleDraftV2) => StudioArticleDraftV2,
@@ -348,6 +369,7 @@ export function ArticleEditorV3Page() {
 
   const saveDraft = React.useCallback(async ():
     Promise<StudioArticleDraftV2 | null> => {
+    if (!routeHydrated) return null;
     setStatus("saving");
     setError(null);
     let remotelySaved: StudioArticleDraftV2 | null = null;
@@ -442,6 +464,7 @@ export function ArticleEditorV3Page() {
     navigate,
     routeArticleId,
     remoteRepository,
+    routeHydrated,
     store,
   ]);
 
@@ -810,7 +833,7 @@ export function ArticleEditorV3Page() {
           role="switch"
           aria-checked={draft.visibility === "public"}
           aria-label={t("articleEditor.publicToggle")}
-          disabled={status === "saving"}
+          disabled={status === "saving" || !routeHydrated}
           onClick={() => updateDraft((current) => ({
             ...current,
             visibility: current.visibility === "public" ? "draft" : "public",
@@ -843,7 +866,7 @@ export function ArticleEditorV3Page() {
           <button
             type="button"
             onClick={saveDraft}
-            disabled={status === "saving"}
+            disabled={status === "saving" || !routeHydrated}
             className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg bg-wb-primary px-3 text-[11px] font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
           >
             <Save className="h-3.5 w-3.5" aria-hidden="true" />
@@ -864,7 +887,12 @@ export function ArticleEditorV3Page() {
           "--article-reader-peek-width": `${peekFraction * 100}%`,
         } as React.CSSProperties}
       >
-      <main className="article-reader-article-pane min-w-0 flex-1 overflow-y-auto overscroll-contain">
+      <main
+        className="article-reader-article-pane min-w-0 flex-1 overflow-y-auto overscroll-contain"
+        aria-busy={!routeHydrated}
+        data-route-hydrated={routeHydrated ? "true" : "false"}
+        inert={!routeHydrated}
+      >
         <article className="mx-auto w-full max-w-[760px] px-5 pb-40 pt-14 sm:px-8 sm:pt-20">
           <input
             type="text"
