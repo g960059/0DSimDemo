@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(15);
 
 insert into auth.users (
   id,
@@ -31,6 +31,16 @@ insert into auth.users (
     '{}'::jsonb,
     '{}'::jsonb,
     false,
+    now(),
+    now()
+  ),
+  (
+    '10000000-0000-0000-0000-000000000003',
+    'authenticated',
+    'authenticated',
+    '{}'::jsonb,
+    '{}'::jsonb,
+    true,
     now(),
     now()
   );
@@ -264,6 +274,32 @@ select is(
   ),
   null::jsonb,
   'Another authenticated owner cannot read the private Experiment'
+);
+
+select pg_catalog.set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-0000-0000-000000000003","role":"authenticated","is_anonymous":true}',
+  true
+);
+
+select ok(
+  public.save_experiment_v1(
+    '20000000-0000-0000-0000-000000000006',
+    null,
+    null,
+    'Anonymous baseline',
+    'model/integration-test-v1',
+    '{
+      "modelId":"model/integration-test-v1",
+      "scenarios":[{
+        "scenarioId":"scenario/anonymous",
+        "label":"Anonymous",
+        "capture":{"fixture":{"control":1},"checkpoint":{"acceptedTimeSec":1}}
+      }],
+      "surface":{}
+    }'::jsonb
+  ) ? 'experimentId',
+  'Anonymous Save crosses the polymorphic storage-quota trigger'
 );
 
 select * from finish();

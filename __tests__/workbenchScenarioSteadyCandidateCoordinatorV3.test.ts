@@ -34,6 +34,7 @@ describe("WorkbenchScenarioSteadyCandidateCoordinatorV3", () => {
     );
     const source = sourceV3(4);
     coordinator.prewarm(source);
+    expect(coordinator.bestAvailable(source)).toBeNull();
     const snapshotCandidate = await coordinator.resolve(source, "snapshot");
 
     expect(snapshotCandidate.convergence).toBe("observed-period1");
@@ -42,6 +43,7 @@ describe("WorkbenchScenarioSteadyCandidateCoordinatorV3", () => {
       .toBeGreaterThan(4);
     expect(clients).toHaveLength(2);
     expect(clients[1]!.initialize).toHaveBeenCalledOnce();
+    expect(coordinator.bestAvailable(source)).toBe(snapshotCandidate);
 
     const reused = await coordinator.resolve(source, "analysis");
     expect(reused).toBe(snapshotCandidate);

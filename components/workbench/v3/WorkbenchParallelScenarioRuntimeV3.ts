@@ -28,7 +28,6 @@ import {
   type WorkbenchLiveSchedulerTimerV3,
 } from "./WorkbenchLiveSchedulerV3";
 import type {
-  WorkbenchBackgroundJobPriorityV3,
   WorkbenchBackgroundWorkerPoolPortV3,
 } from "./WorkbenchBackgroundWorkerPoolV3";
 import {
@@ -208,8 +207,6 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }
     this.#activeScenarioId = input.activeScenarioId;
     this.#state = "active";
-    await Promise.all([...this.#lanes.values()].map((lane) =>
-      this.#prewarmLane(lane)));
     return this.currentState();
   }
 
@@ -283,7 +280,6 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       }
       this.#lanes.set(seed.scenarioId, lane);
       this.#activeScenarioId = seed.scenarioId;
-      await this.#prewarmLane(lane);
       if (this.#playing) lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
       return this.currentState();
     } finally {
@@ -398,10 +394,9 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       this.resumeScenario(input.scenarioId);
       input.onLiveLaneReleased?.();
 
-      const sourceForAnalysis = await this.#resolveSteadyCandidate(
+      const sourceForAnalysis = this.#bestAvailableSteadyCandidate(
         source,
         sourceFrame.inputEpoch,
-        "analysis",
       );
       const checkpoint = sourceForAnalysis.capture.checkpoint;
 
@@ -524,30 +519,35 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   }
 
   /**
-   * Resolves the detached intent cohort to the best single-flight steady
-   * candidates for the same exact model, Scenario fixtures, and input epochs.
-   * The live lanes are never advanced or paused by this operation.
+   * Selects the newest already-produced cycle-boundary candidate for each
+   * detached intent target. It never waits for speculative convergence. When
+   * no candidate is ready, the click-time exact capture remains authoritative
+   * and a low-priority candidate is started only for a later request.
    */
-  async resolveSteadyScenarioCaptures(
+  selectBestAvailableScenarioCaptures(
     captures: StudioSimulationWorkerScenarioCapturesV2,
-    priority: Extract<WorkbenchBackgroundJobPriorityV3, "snapshot"> = "snapshot",
-  ): Promise<StudioSimulationWorkerScenarioCapturesV2> {
+  ): StudioSimulationWorkerScenarioCapturesV2 {
     this.#requireActive();
     if (this.#steadyCandidates === undefined) return captures;
-    const scenarios = await Promise.all(captures.scenarios.map(async (scenario) => {
+    const scenarios = captures.scenarios.map((scenario) => {
       const lane = this.#requiredLane(scenario.scenarioId);
-      const candidate = await this.#steadyCandidates!.resolve({
+      const source = {
         modelId: this.#expectedModelId,
         inputEpoch: lane.latestFrame.inputEpoch,
         scenario,
-      }, priority);
+      } satisfies WorkbenchSteadyCandidateSourceV3;
+      const candidate = this.#steadyCandidates!.bestAvailable(source);
+      if (candidate === null) {
+        this.#steadyCandidates!.prewarm(source);
+        return scenario;
+      }
       return Object.freeze({
         ...candidate.scenario,
         // Labels are authored presentation metadata, not numerical candidate
         // identity. Preserve a rename without recomputing the same state.
         label: scenario.label,
       });
-    }));
+    });
     return Object.freeze({
       activeScenarioId: captures.activeScenarioId,
       scenarios: Object.freeze(scenarios),
@@ -713,17 +713,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     );
   }
 
-  async #resolveSteadyCandidate(
+  #bestAvailableSteadyCandidate(
     scenario: ExperimentScenarioV2,
     inputEpoch: number,
-    priority: Extract<WorkbenchBackgroundJobPriorityV3, "analysis">,
-  ): Promise<ExperimentScenarioV2> {
+  ): ExperimentScenarioV2 {
     if (this.#steadyCandidates === undefined) return scenario;
     const lane = this.#requiredLane(scenario.scenarioId);
-    const candidate = await this.#steadyCandidates.resolve(
+    const candidate = this.#steadyCandidates.bestAvailable(
       this.#steadyCandidateSource(lane, scenario, inputEpoch),
-      priority,
     );
+    if (candidate === null) return scenario;
     return Object.freeze({
       ...candidate.scenario,
       label: scenario.label,

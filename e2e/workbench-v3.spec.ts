@@ -7,6 +7,10 @@ const registryAdmissionLock = JSON.parse(readFileSync(new URL(
 ), "utf8")) as Readonly<{ modelId: string }>;
 
 const EXACT_MODEL_ID = registryAdmissionLock.modelId;
+const UUID_RESOURCE_ID =
+  "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const EXPERIMENT_RESOURCE_ID =
+  `(?:${UUID_RESOURCE_ID}|experiment-[A-Za-z0-9_-]+)`;
 
 test.beforeEach(async ({ page }, testInfo) => {
   if (testInfo.title.includes("selector stays")) {
@@ -44,7 +48,9 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
   await expect(
     page.getByRole("button", { name: "保存済み", exact: true }),
   ).toBeVisible({ timeout: 30_000 });
-  await expect(page).toHaveURL(/\/ja\/experiments\/experiment-[A-Za-z0-9_-]+$/);
+  await expect(page).toHaveURL(new RegExp(
+    `/ja/experiments/${EXPERIMENT_RESOURCE_ID}$`,
+  ));
 
   await page.goto("/ja/me/experiments");
   const experimentRow = page.getByRole("listitem").filter({

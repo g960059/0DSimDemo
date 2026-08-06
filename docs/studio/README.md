@@ -26,8 +26,8 @@ used as implementation context.
 There is no production user data and no compatibility obligation. The product
 therefore has one direct cutover. The exact integrated V3 development package
 is registered, resolved as the default, and running through persistent Scenario
-Workers. Workbench Save, shared post-control steady candidates for structural
-analysis and Snapshot capture, common one-cycle Snapshot admission, repeated pinned
+Workers. Workbench Save, non-blocking reuse of shared post-control candidates
+for structural analysis and Snapshot capture, common one-cycle Snapshot admission, repeated pinned
 Snapshot placement with Placement-owned Briefing, role-specific Article Editor,
 canonical resource routes, the ID-less `/experiments/new` first-Save transition,
 on-demand background Worker pool, and the pinned-Snapshot Reader are connected.

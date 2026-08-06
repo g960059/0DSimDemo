@@ -76,9 +76,11 @@ artifact and do not rehash it during load or execution.
 
 The model-compatible Snapshot admission policy is purpose-neutral. Before
 admission, Workbench freezes the click-time model/fixture/input intent and may
-reuse one detached post-control steady candidate shared with PV/Starling. That
-runtime-only candidate observes bounded beat-to-beat output closure; it is not
-formal period-1 qualification. Admission then restores the selected candidate
+reuse the newest exact cycle-boundary candidate already produced by the
+post-control background lane shared with PV/Starling. It never waits for that
+speculative lane; the click-time capture is the fallback. The runtime-only
+candidate may continue to observe bounded beat-to-beat output closure, but is
+not formal period-1 qualification. Admission then restores the selected candidate
 exactly, verifies checkpoint round-trip identity, finishes the open
 cycle/window on a detached fork, advances one complete regular-sinus cycle,
 and applies the canonical finite, conservation, event-identity, and MCS-off
@@ -99,8 +101,9 @@ current fixture and exact checkpoint; accepted steps between saves remain
 ephemeral Worker state and are never written at the numerical step rate.
 
 The systemic and pulmonary return panes request one read-only analysis only
-when needed. They freeze one accepted input target, reuse or complete its
-single-flight detached steady candidate, and show a structural
+when needed. They freeze one accepted input target, opportunistically reuse its
+latest ready single-flight candidate without awaiting convergence, and show a
+structural
 volume-constrained orientation plus its operating point. The same on-demand
 request initializes two disposable analysis Workers from that exact candidate
 checkpoint, and runs hypovolemic and hypervolemic fixed-TBV continuations in

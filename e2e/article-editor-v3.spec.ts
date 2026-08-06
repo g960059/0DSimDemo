@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+const UUID_RESOURCE_ID =
+  "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const ARTICLE_RESOURCE_ID =
+  `(?:${UUID_RESOURCE_ID}|article-[A-Za-z0-9_-]+)`;
+
 test("@desktop Article Editor supports Notion-style block authoring", async ({
   page,
 }) => {
@@ -27,7 +32,9 @@ test("@desktop Article Editor supports Notion-style block authoring", async ({
   await heading.fill("圧波形");
 
   await page.getByRole("button", { name: "保存", exact: true }).click();
-  await expect(page).toHaveURL(/\/ja\/articles\/article-[A-Za-z0-9_-]+\/edit$/);
+  await expect(page).toHaveURL(new RegExp(
+    `/ja/articles/${ARTICLE_RESOURCE_ID}/edit$`,
+  ));
   await page.reload();
   await expect(page.getByRole("textbox", { name: "本文" }))
     .toHaveValue("循環動態を比較します。");
@@ -44,9 +51,10 @@ test("@desktop Article Editor supports Notion-style block authoring", async ({
   await picker.getByRole("button", {
     name: /新しいシミュレーションを作成/,
   }).click();
-  await expect(page).toHaveURL(
-    /\/ja\/experiments\/new\?articleId=article-[A-Za-z0-9_-]+&sessionToken=session-[A-Za-z0-9._:@+/-]+$/,
-  );
+  await expect(page).toHaveURL(new RegExp(
+    `/ja/experiments/new\\?articleId=${ARTICLE_RESOURCE_ID}`
+      + "&sessionToken=session-[A-Za-z0-9._:@+/-]+$",
+  ));
   const workbench = page.getByTestId("v3-dockview-workbench");
   await expect(workbench).toBeVisible();
   await expect.poll(async () => Number(

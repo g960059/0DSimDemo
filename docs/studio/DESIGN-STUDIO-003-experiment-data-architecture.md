@@ -241,10 +241,11 @@ brief user action
   → pause live lanes only for one accepted-boundary exact capture
   → copy the current fixture + checkpoint for every Scenario
   → immediately resume live lanes
-  → resolve one Scenario/input-epoch single-flight steady candidate
-       ├─ reuse post-control background candidate when available
-       └─ otherwise advance the detached capture in a warm Worker
-  → seal the resulting exact fixture + checkpoint tuple
+  → select the newest already-produced Scenario/input-epoch candidate
+       ├─ reuse a post-control cycle-boundary candidate when available
+       └─ otherwise keep the click-time exact fixture + checkpoint
+  → never await speculative convergence on the capture critical path
+  → seal the selected exact fixture + checkpoint tuple
   → common Snapshot admission
   → insert one neutral immutable ExperimentSnapshot
 ```
@@ -258,10 +259,12 @@ not force publication to rewind to its older numerical clock.
 
 The click boundary freezes authored **intent**, not one cross-Scenario model
 time. Scenarios are independent simulations and already own independent exact
-clocks. Each detached fork may therefore advance to its best candidate while
-preserving the frozen exact `modelId`, Scenario identity/order, fixture, and
-input epoch. A later control change creates another input epoch and cannot
-reuse the previous candidate.
+clocks. Each detached fork may therefore publish newer cycle-boundary
+candidates while preserving the frozen exact `modelId`, Scenario
+identity/order, fixture, and input epoch. A later control change creates
+another input epoch and cannot reuse the previous candidate. If no candidate
+is already ready at the brief action, the captured live checkpoint is admitted
+directly; capture never waits for the speculative Worker.
 
 Workbench observes complete-cycle output closure for up to a bounded number of
 cycles. This is an ephemeral acceleration heuristic named a *steady
@@ -271,13 +274,18 @@ candidate and may apply stricter model-owned convergence. Snapshot admission
 still independently verifies executable safety. Candidate diagnostics and
 settlement status are never written into Experiment or Snapshot content.
 
-Candidate work is single-flight per Scenario/input epoch. Speculative post-
-control prewarm has the lowest pool priority, analysis may promote it, and an
-explicit Snapshot promotes it to foreground priority. The pool remains bounded
-for normal work; explicit Save or Snapshot may use one temporary burst Worker
-so two already-running bidirectional analysis lanes cannot place the author's
-explicit action behind an entire sweep. Persistent live Scenario Workers are
-outside this pool and never stop for detached candidate computation.
+Candidate work is single-flight per Scenario/input epoch and starts after a
+parameter change, not during initial load or Scenario duplication. After three
+complete cycles it exposes an exact bounded warm-start candidate, then may
+continue toward observed output closure in the background. PV/Starling and
+Snapshot capture only read a candidate already available at request time; they
+never join or promote an unfinished prewarm. The lowest-priority prewarm may
+therefore improve later requests without delaying the first graph or the
+author's click. The pool remains bounded for normal work; explicit Save or
+Snapshot admission may use one temporary burst Worker so two already-running
+bidirectional analysis lanes cannot place the author's explicit action behind
+an entire sweep. Persistent live Scenario Workers are outside this pool and
+never stop for detached candidate computation.
 
 ### 7.4 Common Snapshot admission
 

@@ -1856,14 +1856,12 @@ const WorkbenchV3Session = ({
         // creation never freezes the visible simulation for that work.
         if (playingIntentRef.current && !document.hidden) runtime.playAll();
       }
-      // Freeze authored intent at the click boundary, then reuse the same
-      // per-input-epoch steady candidates that warm PV/Starling analysis.
-      // Each candidate is an exact detached fixture + checkpoint; common
-      // Snapshot admission remains the safety authority before persistence.
-      captures = await runtime.resolveSteadyScenarioCaptures(
-        captures,
-        "snapshot",
-      );
+      // Freeze authored intent at the click boundary, then opportunistically
+      // reuse an exact cycle-boundary candidate already produced for the same
+      // input epoch. Candidate convergence is never awaited here: the exact
+      // click capture is the fallback and common Snapshot admission remains
+      // the safety authority before persistence.
+      captures = runtime.selectBestAvailableScenarioCaptures(captures);
       if (
         options.kind === "article"
         && !workbenchBriefingSourceScenariosMatchV3(

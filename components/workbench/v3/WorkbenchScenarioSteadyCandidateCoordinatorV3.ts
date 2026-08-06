@@ -17,6 +17,7 @@ import { randomPortableTokenV3 } from "./randomPortableTokenV3";
 
 const CYCLE_PHASE_OUTPUT_ID_V3 = "rhythm.phase.regular-sinus";
 const ADVANCE_BATCH_STEPS_V3 = 16;
+const WARM_START_CANDIDATE_CYCLES_V3 = 3;
 const MINIMUM_OBSERVED_CYCLES_V3 = 4;
 const REQUIRED_STABLE_TRANSITIONS_V3 = 3;
 const MAXIMUM_OBSERVED_CYCLES_V3 = 20;
@@ -37,13 +38,14 @@ export type WorkbenchSteadyCandidateV3 = Readonly<{
   completedCycleCount: number;
   consecutiveStableTransitionCount: number;
   maximumNormalizedDelta: number | null;
-  convergence: "observed-period1" | "cycle-cap";
+  convergence: "bounded-warm-start" | "observed-period1" | "cycle-cap";
 }>;
 
 type CandidateRecordV3 = {
   key: string;
   handle: WorkbenchBackgroundJobHandleV3<WorkbenchSteadyCandidateV3>;
   promise: Promise<WorkbenchSteadyCandidateV3>;
+  latest: WorkbenchSteadyCandidateV3 | null;
 };
 
 /**
@@ -71,6 +73,20 @@ export class WorkbenchScenarioSteadyCandidateCoordinatorV3 {
       // Prewarming is speculative. Explicit analysis/Snapshot requests retry
       // from their own accepted capture and surface any authoritative failure.
     });
+  }
+
+  /**
+   * Returns the newest exact cycle-boundary candidate already produced for
+   * this input target. It never queues, promotes, or waits for numerical work.
+   * Analysis and Snapshot capture use this opportunistic read so speculative
+   * convergence cannot become part of an interactive critical path.
+   */
+  bestAvailable(
+    source: WorkbenchSteadyCandidateSourceV3,
+  ): WorkbenchSteadyCandidateV3 | null {
+    if (this.#disposed) return null;
+    const record = this.#records.get(source.scenario.scenarioId);
+    return record?.key === candidateKeyV3(source) ? record.latest : null;
   }
 
   async resolve(
@@ -115,19 +131,32 @@ export class WorkbenchScenarioSteadyCandidateCoordinatorV3 {
       previous.handle.cancel();
     }
 
+    let record!: CandidateRecordV3;
     const handle = this.#pool.schedule(priority, (client) =>
-      computeSteadyCandidateV3(client, source));
-    const record: CandidateRecordV3 = {
+      computeSteadyCandidateV3(client, source, (candidate) => {
+        if (this.#records.get(source.scenario.scenarioId) === record) {
+          record.latest = candidate;
+        }
+      }));
+    record = {
       key,
       handle,
       promise: Promise.resolve(undefined as never),
+      latest: null,
     };
-    record.promise = handle.promise.catch((error) => {
-      if (this.#records.get(source.scenario.scenarioId) === record) {
-        this.#records.delete(source.scenario.scenarioId);
-      }
-      throw error;
-    });
+    record.promise = handle.promise
+      .then((candidate) => {
+        if (this.#records.get(source.scenario.scenarioId) === record) {
+          record.latest = candidate;
+        }
+        return candidate;
+      })
+      .catch((error) => {
+        if (this.#records.get(source.scenario.scenarioId) === record) {
+          this.#records.delete(source.scenario.scenarioId);
+        }
+        throw error;
+      });
     this.#records.set(source.scenario.scenarioId, record);
     return await record.promise;
   }
@@ -136,6 +165,7 @@ export class WorkbenchScenarioSteadyCandidateCoordinatorV3 {
 async function computeSteadyCandidateV3(
   client: StudioSimulationWorkerClientV2,
   source: WorkbenchSteadyCandidateSourceV3,
+  publish: (candidate: WorkbenchSteadyCandidateV3) => void,
 ): Promise<WorkbenchSteadyCandidateV3> {
   const runtimeSessionId = `workbench-steady-${randomPortableTokenV3()}`;
   const initialFrame = await client.initialize({
@@ -148,7 +178,7 @@ async function computeSteadyCandidateV3(
   });
   let previousPhase = cyclePhaseV3(initialFrame);
   if (previousPhase === null) {
-    return await captureCandidateV3(client, source, {
+    return await captureAndPublishCandidateV3(client, source, publish, {
       runtimeSessionId,
       completedCycleCount: 0,
       consecutiveStableTransitionCount: 0,
@@ -190,19 +220,35 @@ async function computeSteadyCandidateV3(
           consecutiveStableTransitionCount = 0;
         }
         previousSignature = signature;
+        if (completedCycleCount === WARM_START_CANDIDATE_CYCLES_V3) {
+          await captureAndPublishCandidateV3(client, source, publish, {
+            runtimeSessionId,
+            completedCycleCount,
+            consecutiveStableTransitionCount,
+            maximumNormalizedDelta,
+            convergence: "bounded-warm-start",
+          });
+        }
         const observedPeriod1 =
           completedCycleCount >= MINIMUM_OBSERVED_CYCLES_V3
           && consecutiveStableTransitionCount
             >= REQUIRED_STABLE_TRANSITIONS_V3;
         const reachedCap = completedCycleCount >= MAXIMUM_OBSERVED_CYCLES_V3;
         if (observedPeriod1 || reachedCap) {
-          return await captureCandidateV3(client, source, {
-            runtimeSessionId,
-            completedCycleCount,
-            consecutiveStableTransitionCount,
-            maximumNormalizedDelta,
-            convergence: observedPeriod1 ? "observed-period1" : "cycle-cap",
-          });
+          return await captureAndPublishCandidateV3(
+            client,
+            source,
+            publish,
+            {
+              runtimeSessionId,
+              completedCycleCount,
+              consecutiveStableTransitionCount,
+              maximumNormalizedDelta,
+              convergence: observedPeriod1
+                ? "observed-period1"
+                : "cycle-cap",
+            },
+          );
         }
       }
       previousPhase = phase;
@@ -214,7 +260,7 @@ async function computeSteadyCandidateV3(
       && terminalFrame.acceptedTimeSec - initialFrame.acceptedTimeSec
         >= MAXIMUM_UNWRAPPED_ADVANCE_SEC_V3
     ) {
-      return await captureCandidateV3(client, source, {
+      return await captureAndPublishCandidateV3(client, source, publish, {
         runtimeSessionId,
         completedCycleCount,
         consecutiveStableTransitionCount,
@@ -223,13 +269,24 @@ async function computeSteadyCandidateV3(
       });
     }
   }
-  return await captureCandidateV3(client, source, {
+  return await captureAndPublishCandidateV3(client, source, publish, {
     runtimeSessionId,
     completedCycleCount,
     consecutiveStableTransitionCount,
     maximumNormalizedDelta,
     convergence: "cycle-cap",
   });
+}
+
+async function captureAndPublishCandidateV3(
+  client: StudioSimulationWorkerClientV2,
+  source: WorkbenchSteadyCandidateSourceV3,
+  publish: (candidate: WorkbenchSteadyCandidateV3) => void,
+  diagnostics: Parameters<typeof captureCandidateV3>[2],
+): Promise<WorkbenchSteadyCandidateV3> {
+  const candidate = await captureCandidateV3(client, source, diagnostics);
+  publish(candidate);
+  return candidate;
 }
 
 async function captureCandidateV3(
