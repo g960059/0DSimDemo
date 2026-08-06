@@ -1670,7 +1670,7 @@ function ArticleReaderExperimentDrawerV3({
 }
 
 export type ArticleReaderResolvedGraphPresentationV3 = Readonly<{
-  /** Exact graph pane sealed into the Article Snapshot. */
+  /** Exact graph pane pinned by the Snapshot and Placement Briefing. */
   pane: ExperimentSurfaceGraphPaneV2;
   label: string;
   legend: "auto" | "hidden" | "compact" | "full";

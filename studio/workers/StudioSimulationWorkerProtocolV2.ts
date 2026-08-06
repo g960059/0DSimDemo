@@ -1,6 +1,5 @@
 import type {
   ExperimentContentV2,
-  ExperimentPlacementBriefingV2,
   ExperimentScenarioV2,
   ExperimentSnapshotV2,
   ExperimentSurfaceV2,
@@ -14,7 +13,6 @@ import {
 import {
   validateScenarioCaptureV2,
   validateScenarioPresetV2,
-  validateExperimentPlacementBriefingV2,
   validateExperimentSnapshotV2,
   validateExperimentV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
@@ -139,13 +137,10 @@ type StudioSimulationWorkerCreateSnapshotBaseInputV2 = Readonly<{
 }>;
 
 export type StudioSimulationWorkerCreateSnapshotInputV2 =
-  StudioSimulationWorkerCreateSnapshotBaseInputV2 & (
-    | Readonly<{ snapshotKind: "publication" }>
-    | Readonly<{
-        snapshotKind: "article";
-        briefing: ExperimentPlacementBriefingV2;
-      }>
-  );
+  StudioSimulationWorkerCreateSnapshotBaseInputV2 & Readonly<{
+    /** Transient workflow constraint; never persisted in the Snapshot. */
+    snapshotSource: "saved-experiment" | "session";
+  }>;
 
 export type StudioSimulationWorkerRequestV2 =
   | Readonly<{
@@ -280,8 +275,7 @@ export type StudioSimulationWorkerRequestV2 =
       surface: ExperimentSurfaceV2;
       /** Complete Scenario identity set used to validate Surface refs. */
       scenarioIds: readonly string[];
-      snapshotKind: "publication" | "article";
-      briefing?: ExperimentPlacementBriefingV2;
+      snapshotSource: "saved-experiment" | "session";
       expectedInputEpoch: number;
       expectedAcceptedRevision: number;
       expectedAcceptedTimeSec: number;
@@ -666,7 +660,6 @@ export function createStudioSimulationCreateSnapshotRequestV2(
   requestId: number,
   value: unknown,
 ): Extract<StudioSimulationWorkerRequestV2, { kind: "create-snapshot" }> {
-  const candidate = dataRecordV2(value, "$.createSnapshot");
   const input = exactDataRecordV2(value, [
     "expectedAcceptedRevision",
     "expectedAcceptedTimeSec",
@@ -674,9 +667,8 @@ export function createStudioSimulationCreateSnapshotRequestV2(
     "runtimeSessionId",
     "scenarioId",
     "scenarioIds",
-    "snapshotKind",
+    "snapshotSource",
     "surface",
-    ...(candidate.snapshotKind === "article" ? ["briefing"] : []),
   ], [], "$.createSnapshot");
   return validateStudioSimulationWorkerRequestV2({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
@@ -686,10 +678,7 @@ export function createStudioSimulationCreateSnapshotRequestV2(
     scenarioId: input.scenarioId,
     scenarioIds: input.scenarioIds,
     surface: input.surface,
-    snapshotKind: input.snapshotKind,
-    ...(candidate.snapshotKind === "article"
-      ? { briefing: input.briefing }
-      : {}),
+    snapshotSource: input.snapshotSource,
     expectedInputEpoch: input.expectedInputEpoch,
     expectedAcceptedRevision: input.expectedAcceptedRevision,
     expectedAcceptedTimeSec: input.expectedAcceptedTimeSec,
@@ -1149,9 +1138,8 @@ export function validateStudioSimulationWorkerRequestV2(
       "runtimeSessionId",
       "scenarioId",
       "scenarioIds",
-      "snapshotKind",
+      "snapshotSource",
       "surface",
-      ...(envelope.snapshotKind === "article" ? ["briefing"] : []),
     ], [], "$.request");
     const runtimeSessionId = validateStudioSimulationPortableIdV2(
       request.runtimeSessionId,
@@ -1171,16 +1159,10 @@ export function validateStudioSimulationWorkerRequestV2(
       scenarioIds,
       "$.request.surface",
     );
-    const snapshotKind = snapshotKindV2(
-      request.snapshotKind,
-      "$.request.snapshotKind",
+    const snapshotSource = snapshotSourceV2(
+      request.snapshotSource,
+      "$.request.snapshotSource",
     );
-    const briefing = snapshotKind === "article"
-      ? validateExperimentPlacementBriefingV2(
-          request.briefing,
-          protocolValidationContentV2(surface, scenarioIds),
-        )
-      : undefined;
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
@@ -1189,8 +1171,7 @@ export function validateStudioSimulationWorkerRequestV2(
       scenarioId,
       scenarioIds,
       surface,
-      snapshotKind,
-      ...(briefing === undefined ? {} : { briefing }),
+      snapshotSource,
       expectedInputEpoch: nonnegativeSafeIntegerV2(
         request.expectedInputEpoch,
         "$.request.expectedInputEpoch",
@@ -1758,12 +1739,12 @@ function protocolValidationContentV2(
   };
 }
 
-function snapshotKindV2(
+function snapshotSourceV2(
   value: unknown,
   path: string,
-): "publication" | "article" {
-  if (value !== "publication" && value !== "article") {
-    throw protocolErrorV2(path, "must be publication or article");
+): "saved-experiment" | "session" {
+  if (value !== "saved-experiment" && value !== "session") {
+    throw protocolErrorV2(path, "must be saved-experiment or session");
   }
   return value;
 }

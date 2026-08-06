@@ -98,23 +98,36 @@ describe("Article → Experiment authoring handoff V3", () => {
   it("round-trips the insertion target and immutable Snapshot identity", () => {
     const storage = new MemoryStorageV3();
     const handoff = new StudioArticleExperimentAuthoringHandoffStoreV3(storage);
+    const briefing = {
+      defaultTitle: "Clinical AS",
+      scenarioScope: {
+        visibleScenarioIds: ["scenario/baseline"],
+        initialFocusScenarioId: "scenario/baseline",
+      },
+      graphs: [],
+      outputs: [],
+      controls: [],
+    } as const;
 
     const pending = handoff.begin({
       articleId: "article/clinical-as",
       sessionToken: "session-article-001",
       insertionIndex: 2,
       replacementBlockId: "block/empty",
+      briefing,
     });
     expect(pending.snapshotId).toBeNull();
 
     expect(handoff.complete({
       sessionToken: "session-other-001",
       snapshotId: "snapshot/wrong",
+      briefing,
     })).toBeNull();
 
     const completed = handoff.complete({
       sessionToken: pending.sessionToken,
       snapshotId: "snapshot/clinical-as-v1",
+      briefing,
     });
     expect(completed?.snapshotId).toBe("snapshot/clinical-as-v1");
     // Completion remains recoverable until the Article persistence boundary

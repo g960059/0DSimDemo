@@ -31875,9 +31875,9 @@ function assertObservationReadbackPairV3(observation2) {
     );
   }
 }
-const MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_VERIFICATION_V3_ID = "main-wire-integrated-article-capture-numerical-safety-v1";
-const MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_NOMINAL_DT_SEC_V3 = 2e-3;
-async function verifyMainWireIntegratedModelArticleCaptureV3(input) {
+const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID = "main-wire-integrated-public-executable-snapshot-admission-v1";
+const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_NOMINAL_DT_SEC_V3 = 2e-3;
+async function admitMainWireIntegratedModelSnapshotV3(input) {
   try {
     const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
       input.hemodynamicResearchInputs
@@ -31899,13 +31899,13 @@ async function verifyMainWireIntegratedModelArticleCaptureV3(input) {
     const alignment = alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
       fixture,
       restored,
-      MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_NOMINAL_DT_SEC_V3
+      MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_NOMINAL_DT_SEC_V3
     );
     const cycle = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       fixture,
       alignment.terminalAcceptedState,
       1,
-      MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_NOMINAL_DT_SEC_V3
+      MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_NOMINAL_DT_SEC_V3
     );
     assertNoRepeatedAcceptedEventIdsV3([
       ...alignment.acceptedAtrialCaptureIds,
@@ -31936,12 +31936,12 @@ async function verifyMainWireIntegratedModelArticleCaptureV3(input) {
     }
     return Object.freeze({
       status: "accepted",
-      verificationId: MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_VERIFICATION_V3_ID
+      admissionId: MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID
     });
   } catch (error) {
     return Object.freeze({
       status: "rejected",
-      verificationId: MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_VERIFICATION_V3_ID,
+      admissionId: MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID,
       reason: error instanceof Error ? error.message : String(error)
     });
   }
@@ -33183,12 +33183,12 @@ function base64EncodeV2(bytes) {
 function errorMessageV2(error) {
   return error instanceof Error ? error.message : String(error);
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-35";
+const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-36";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3 = "hot-path-lean";
 const MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.v5";
 const MAIN_WIRE_INTEGRATED_STUDIO_CHECKPOINT_CODEC_ID_V3 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.v5";
-const MAIN_WIRE_INTEGRATED_STUDIO_SNAPSHOT_GATE_ID_V3 = "main-wire-integrated-studio-snapshot-gate-v5";
+const MAIN_WIRE_INTEGRATED_STUDIO_SNAPSHOT_GATE_ID_V3 = "main-wire-integrated-studio-snapshot-admission-v6";
 const MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3 = Object.freeze({
   systemicResistance: "hemodynamics.systemic-resistance",
   pulmonaryResistance: "hemodynamics.pulmonary-resistance",
@@ -33674,17 +33674,10 @@ function mainWireIntegratedStudioManifestV3() {
     snapshotGate: Object.freeze({
       snapshotGateId: MAIN_WIRE_INTEGRATED_STUDIO_SNAPSHOT_GATE_ID_V3,
       definition: Object.freeze({
-        status: "purpose-specific-capture-gate",
-        article: Object.freeze({
-          acceptedOutcome: "one-cycle-numerical-safety",
-          verificationId: MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_VERIFICATION_V3_ID,
-          settlementRequired: false
-        }),
-        publication: Object.freeze({
-          acceptedOutcome: "period1-converged-only",
-          qualificationId: MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID,
-          settlementRequired: true
-        }),
+        status: "public-executable-admission",
+        acceptedOutcome: "one-cycle-numerical-safety",
+        admissionId: MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID,
+        settlementRequired: false,
         physiologicalValidationClaimed: false,
         clinicalValidationClaimed: false
       })
@@ -33884,64 +33877,26 @@ function mainWireIntegratedExecutableBundleV3(runtimeHost) {
     snapshotGate: Object.freeze({
       modelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
       snapshotGateId: MAIN_WIRE_INTEGRATED_STUDIO_SNAPSHOT_GATE_ID_V3,
-      async qualifyFrozenCandidate(input) {
+      async admitFrozenCandidate(input) {
         assertExactModelV3(input.model);
-        const qualifiedScenarios = [];
         for (const scenario of input.content.scenarios) {
           await captureAdapter.validateCapture({
             model: input.model,
             capture: scenario.capture
           });
           const fixture = validateAndOwnFixtureV3(scenario.capture.fixture);
-          if (input.purpose === "article") {
-            const verification = await verifyMainWireIntegratedModelArticleCaptureV3({
-              candidateCheckpoint: scenario.capture.checkpoint.payload,
-              hemodynamicResearchInputs: fixture.hemodynamicResearchInputs
-            });
-            if (verification.status !== "accepted") {
-              return Object.freeze({
-                status: "rejected",
-                reason: `Scenario ${scenario.scenarioId} failed ${verification.verificationId}: ${verification.reason}`
-              });
-            }
-            qualifiedScenarios.push(scenario);
-            continue;
-          }
-          const qualification = await qualifyMainWireIntegratedModelSnapshotV3({
+          const admission = await admitMainWireIntegratedModelSnapshotV3({
             candidateCheckpoint: scenario.capture.checkpoint.payload,
             hemodynamicResearchInputs: fixture.hemodynamicResearchInputs
           });
-          if (qualification.status !== "accepted" || qualification.terminalCheckpoint === null) {
+          if (admission.status !== "accepted") {
             return Object.freeze({
               status: "rejected",
-              reason: `Scenario ${scenario.scenarioId} failed ${MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID}: ${qualification.reason}` + (qualification.message === null ? "" : ` (${qualification.message})`)
+              reason: `Scenario ${scenario.scenarioId} failed ${admission.admissionId}: ${admission.reason}`
             });
           }
-          qualifiedScenarios.push(
-            Object.freeze({
-              scenarioId: scenario.scenarioId,
-              label: scenario.label,
-              capture: Object.freeze({
-                fixture: scenario.capture.fixture,
-                checkpoint: Object.freeze({
-                  acceptedRevision: qualification.terminalCheckpoint.revision,
-                  acceptedTimeSec: qualification.terminalCheckpoint.acceptedTimeSec,
-                  payload: cloneAndFreezeStudioJson(
-                    qualification.terminalCheckpoint
-                  )
-                })
-              })
-            })
-          );
         }
-        return Object.freeze({
-          status: "passed",
-          qualifiedContent: Object.freeze({
-            modelId: input.content.modelId,
-            scenarios: Object.freeze(qualifiedScenarios),
-            surface: input.content.surface
-          })
-        });
+        return Object.freeze({ status: "passed" });
       }
     }),
     fixtureAdapter,

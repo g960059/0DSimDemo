@@ -24,11 +24,15 @@ import {
   StudioBrowserContentStoreV3,
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
+  createStudioSupabaseContentRepositoryV1,
+} from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
+import {
   createExperimentSessionTokenV3,
   StudioExperimentSessionHandoffStoreV3,
 } from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
 
 type ArticleReaderContentStateV3 =
+  | Readonly<{ kind: "loading" }>
   | Readonly<{
       kind: "ready";
       article: StudioArticleDraftV2;
@@ -119,29 +123,16 @@ function ArticleReaderV3Resource({
   const locale = localeFromPathname(pathname);
   const navigate = useNavigate();
   const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
+  const remoteRepository = React.useMemo(
+    createStudioSupabaseContentRepositoryV1,
+    [],
+  );
   const experimentSessionHandoff = React.useMemo(
     () => new StudioExperimentSessionHandoffStoreV3(),
     [],
   );
-  const [content] = React.useState<ArticleReaderContentStateV3>(() => {
-    if (articleId === undefined) return { kind: "missing" };
-    try {
-      const article = store.readArticle(articleId);
-      if (article === null) return { kind: "missing" };
-      return {
-        kind: "ready",
-        article,
-        snapshots: new Map(store.listSnapshots().map((snapshot) => [
-          snapshot.snapshotId,
-          snapshot,
-        ])),
-      };
-    } catch (error) {
-      return {
-        kind: "error",
-        message: error instanceof Error ? error.message : String(error),
-      };
-    }
+  const [content, setContent] = React.useState<ArticleReaderContentStateV3>({
+    kind: "loading",
   });
   const [contractState, setContractState] =
     React.useState<ArticleReaderContractStateV3>({ kind: "loading" });
@@ -162,6 +153,53 @@ function ArticleReaderV3Resource({
   const peekResizeFrameRef = React.useRef<number | null>(null);
   const peekDraggingRef = React.useRef(false);
   const pendingPeekFractionRef = React.useRef(peekFraction);
+  React.useEffect(() => {
+    let current = true;
+    const load = async () => {
+      if (articleId === undefined) {
+        setContent({ kind: "missing" });
+        return;
+      }
+      const article = remoteRepository === null
+        ? store.readArticle(articleId)
+        : await remoteRepository.readArticle(articleId);
+      if (!current) return;
+      if (article === null) {
+        setContent({ kind: "missing" });
+        return;
+      }
+      const snapshotIds = Object.freeze(article.blocks.flatMap((block) =>
+        block.kind === "experiment" ? [block.placement.snapshotId] : []));
+      const snapshots = remoteRepository === null
+        ? store.listSnapshots().filter(({ snapshotId }) =>
+            snapshotIds.includes(snapshotId))
+        : (await Promise.all(snapshotIds.map((snapshotId) =>
+            remoteRepository.readSnapshot(snapshotId))))
+            .filter((snapshot): snapshot is ExperimentSnapshotV2 =>
+              snapshot !== null);
+      if (current) {
+        setContent({
+          kind: "ready",
+          article,
+          snapshots: new Map(snapshots.map((snapshot) => [
+            snapshot.snapshotId,
+            snapshot,
+          ])),
+        });
+      }
+    };
+    void load().catch((error) => {
+      if (current) {
+        setContent({
+          kind: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, [articleId, remoteRepository, store]);
   const openExperimentSessionV3 = React.useCallback((snapshotId: string) => {
     const sessionToken = createExperimentSessionTokenV3();
     experimentSessionHandoff.begin({
@@ -292,12 +330,16 @@ function ArticleReaderV3Resource({
       <div className="h-full overflow-y-auto bg-wb-panel text-wb-text">
         <main className="mx-auto max-w-3xl px-6 py-20 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">
-            {t("articleReader.missingTitle")}
+            {content.kind === "loading"
+              ? t("articleReader.loading")
+              : t("articleReader.missingTitle")}
           </h1>
           <p className={`mt-3 text-sm leading-7 ${content.kind === "error" ? "text-wb-danger" : "text-wb-muted"}`}>
-            {content.kind === "error"
-              ? content.message
-              : t("articleReader.missingDescription")}
+            {content.kind === "loading"
+              ? ""
+              : content.kind === "error"
+                ? content.message
+                : t("articleReader.missingDescription")}
           </p>
         </main>
       </div>

@@ -1,5 +1,4 @@
 import type {
-  ExperimentPlacementBriefingV2,
   ExperimentSurfaceV2,
   ExperimentSnapshotV2,
   ExperimentV2,
@@ -42,18 +41,18 @@ import {
 
 const WORKER_RESPONSE_TIMEOUT_MS_V2 = 30_000;
 /**
- * Snapshot qualification executes the canonical, bounded periodic protocol for
- * every Scenario sequentially. It therefore has a deliberately separate,
- * user-configurable deadline instead of inheriting the interactive RPC budget.
- * A deadline remains finite so a wedged qualification always terminates the
+ * Snapshot admission executes a bounded public-executable protocol for every
+ * Scenario. It therefore has a separate, user-configurable deadline instead
+ * of inheriting the interactive RPC budget. A finite deadline ensures a wedged
+ * admission always terminates the
  * Worker and rejects every pending request deterministically.
  */
-const WORKER_SNAPSHOT_QUALIFICATION_TIMEOUT_MS_V2 = 15 * 60_000;
+const WORKER_SNAPSHOT_ADMISSION_TIMEOUT_MS_V2 = 15 * 60_000;
 
-const QUALIFIED_SNAPSHOT_COMMIT_V2 = Symbol(
-  "StudioSimulationWorkerQualifiedSnapshotCommitV2",
+const ADMITTED_SNAPSHOT_COMMIT_V2 = Symbol(
+  "StudioSimulationWorkerAdmittedSnapshotCommitV2",
 );
-const qualifiedSnapshotCommitsV2 = new WeakSet<object>();
+const admittedSnapshotCommitsV2 = new WeakSet<object>();
 
 /**
  * Runtime authority minted only after one correlated response from the
@@ -63,21 +62,21 @@ const qualifiedSnapshotCommitsV2 = new WeakSet<object>();
  * the private WeakSet makes casts, clones, and hand-built JavaScript objects
  * fail at the browser persistence boundary as well.
  */
-export type StudioSimulationWorkerQualifiedSnapshotCommitV2 = Readonly<{
+export type StudioSimulationWorkerAdmittedSnapshotCommitV2 = Readonly<{
   snapshot: ExperimentSnapshotV2;
-  [QUALIFIED_SNAPSHOT_COMMIT_V2]: true;
+  [ADMITTED_SNAPSHOT_COMMIT_V2]: true;
 }>;
 
-export function assertStudioSimulationWorkerQualifiedSnapshotCommitV2(
+export function assertStudioSimulationWorkerAdmittedSnapshotCommitV2(
   value: unknown,
-): asserts value is StudioSimulationWorkerQualifiedSnapshotCommitV2 {
+): asserts value is StudioSimulationWorkerAdmittedSnapshotCommitV2 {
   if (
     value === null
     || typeof value !== "object"
-    || !qualifiedSnapshotCommitsV2.has(value)
+    || !admittedSnapshotCommitsV2.has(value)
   ) {
     throw new Error(
-      "Browser Snapshot persistence requires a sealed qualified Worker result",
+      "Browser Snapshot persistence requires a sealed admitted Worker result",
     );
   }
 }
@@ -105,13 +104,13 @@ export interface StudioSimulationWorkerTransportV2 {
 
 export type StudioSimulationWorkerClientOptionsV2 = Readonly<{
   responseTimeoutMs?: number;
-  snapshotQualificationTimeoutMs?: number;
+  snapshotAdmissionTimeoutMs?: number;
 }>;
 
 type StudioSimulationWorkerClientTestOptionsV2 = Readonly<{
   transport: StudioSimulationWorkerTransportV2;
   responseTimeoutMs?: number;
-  snapshotQualificationTimeoutMs?: number;
+  snapshotAdmissionTimeoutMs?: number;
 }>;
 
 const TEST_CLIENT_CONSTRUCTION_AUTHORITY_V2 = Symbol(
@@ -184,8 +183,6 @@ type ExpectedResponseV2 =
   | Readonly<{
       kind: "snapshot-created";
       modelId: string;
-      snapshotKind: "publication" | "article";
-      briefing?: ExperimentPlacementBriefingV2;
       surface: ExperimentSurfaceV2;
       scenarioIds: readonly string[];
     }>
@@ -224,7 +221,7 @@ type ScenarioOperationV2 =
 export class StudioSimulationWorkerClientV2 {
   readonly #worker: StudioSimulationWorkerTransportV2;
   readonly #responseTimeoutMs: number;
-  readonly #snapshotQualificationTimeoutMs: number;
+  readonly #snapshotAdmissionTimeoutMs: number;
   readonly #pending = new Map<number, PendingRequestV2>();
   #nextRequestId = 1;
   #state: ClientStateV2 = "new";
@@ -267,19 +264,19 @@ export class StudioSimulationWorkerClientV2 {
       throw new Error("simulation worker response timeout must be within [1, 300000]");
     }
     this.#responseTimeoutMs = responseTimeoutMs;
-    const snapshotQualificationTimeoutMs =
-      options.snapshotQualificationTimeoutMs
-      ?? WORKER_SNAPSHOT_QUALIFICATION_TIMEOUT_MS_V2;
+    const snapshotAdmissionTimeoutMs =
+      options.snapshotAdmissionTimeoutMs
+      ?? WORKER_SNAPSHOT_ADMISSION_TIMEOUT_MS_V2;
     if (
-      !Number.isSafeInteger(snapshotQualificationTimeoutMs)
-      || snapshotQualificationTimeoutMs < 1
-      || snapshotQualificationTimeoutMs > 86_400_000
+      !Number.isSafeInteger(snapshotAdmissionTimeoutMs)
+      || snapshotAdmissionTimeoutMs < 1
+      || snapshotAdmissionTimeoutMs > 86_400_000
     ) {
       throw new Error(
-        "simulation worker Snapshot qualification timeout must be within [1, 86400000]",
+        "simulation worker Snapshot admission timeout must be within [1, 86400000]",
       );
     }
-    this.#snapshotQualificationTimeoutMs = snapshotQualificationTimeoutMs;
+    this.#snapshotAdmissionTimeoutMs = snapshotAdmissionTimeoutMs;
     if (import.meta.env.PROD) {
       if (testConstruction !== undefined) {
         throw new Error(
@@ -747,7 +744,7 @@ export class StudioSimulationWorkerClientV2 {
 
   async createSnapshot(
     input: StudioSimulationWorkerCreateSnapshotInputV2,
-  ): Promise<StudioSimulationWorkerQualifiedSnapshotCommitV2> {
+  ): Promise<StudioSimulationWorkerAdmittedSnapshotCommitV2> {
     if (
       this.#state !== "active"
       || this.#runtimeSessionId === undefined
@@ -782,28 +779,24 @@ export class StudioSimulationWorkerClientV2 {
       const response = await this.#postRequest(request, {
         kind: "snapshot-created",
         modelId: this.#modelId,
-        snapshotKind: request.snapshotKind,
-        ...(request.snapshotKind === "article"
-          ? { briefing: request.briefing }
-          : {}),
         surface: request.surface,
         scenarioIds: request.scenarioIds,
-      }, this.#snapshotQualificationTimeoutMs);
+      }, this.#snapshotAdmissionTimeoutMs);
       if (response.status !== "ok" || response.kind !== "snapshot-created") {
         throw new Error("simulation worker returned another Snapshot response");
       }
-      const qualifiedCommit = {
+      const admittedCommit = {
         snapshot: response.snapshot,
-      } as StudioSimulationWorkerQualifiedSnapshotCommitV2;
-      Object.defineProperty(qualifiedCommit, QUALIFIED_SNAPSHOT_COMMIT_V2, {
+      } as StudioSimulationWorkerAdmittedSnapshotCommitV2;
+      Object.defineProperty(admittedCommit, ADMITTED_SNAPSHOT_COMMIT_V2, {
         value: true,
         enumerable: false,
         configurable: false,
         writable: false,
       });
-      Object.freeze(qualifiedCommit);
-      qualifiedSnapshotCommitsV2.add(qualifiedCommit);
-      return qualifiedCommit;
+      Object.freeze(admittedCommit);
+      admittedSnapshotCommitsV2.add(admittedCommit);
+      return admittedCommit;
     } finally {
       this.#operationInFlight = undefined;
     }
@@ -1140,11 +1133,6 @@ function assertExpectedResponseV2(
     );
     if (
       snapshot.content.modelId !== expected.modelId
-      || snapshot.kind !== expected.snapshotKind
-      || (
-        snapshot.kind === "article"
-        && !samePortableValueV2(snapshot.briefing, expected.briefing)
-      )
       || !samePortableValueV2(snapshot.content.surface, expected.surface)
       || !samePortableValueV2(snapshotScenarioIds, expected.scenarioIds)
     ) {

@@ -44,11 +44,15 @@ import {
   type StudioArticleExperimentBlockV2,
 } from "@/studio/contracts/v2/article";
 import type {
-  ArticleExperimentSnapshotV2,
+  ExperimentPlacementBriefingV2,
+  ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
 import {
   StudioBrowserContentStoreV3,
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
+import {
+  createStudioSupabaseContentRepositoryV1,
+} from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
   createArticleExperimentSessionTokenV3,
   StudioArticleExperimentAuthoringHandoffStoreV3,
@@ -155,16 +159,22 @@ export function ArticleEditorV3Page() {
   const { articleId: routeArticleId } = useParams();
   const locale = localeFromPathname(location.pathname);
   const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
+  const remoteRepository = React.useMemo(
+    createStudioSupabaseContentRepositoryV1,
+    [],
+  );
   const articleExperimentHandoff = React.useMemo(
     () => new StudioArticleExperimentAuthoringHandoffStoreV3(),
     [],
   );
   const [snapshots, setSnapshots] = React.useState<
-    readonly ArticleExperimentSnapshotV2[]
+    readonly ExperimentSnapshotV2[]
   >([]);
   const [draft, setDraft] = React.useState<StudioArticleDraftV2>(() =>
     createEmptyArticleDraftV3(locale, t("articleEditor.untitled")));
   const draftRef = React.useRef(draft);
+  const remoteSavedArticleIdRef = React.useRef<string | null>(null);
+  const remotePublishedRef = React.useRef(false);
   const hydratedRouteKeyRef = React.useRef<string | null>(
     routeArticleId === "new" || routeArticleId === undefined
       ? articleEditorRouteKeyV3(routeArticleId)
@@ -270,34 +280,60 @@ export function ArticleEditorV3Page() {
   }, []);
 
   React.useEffect(() => {
-    try {
-      const nextSnapshots = store.listSnapshots()
-        .filter((snapshot): snapshot is ArticleExperimentSnapshotV2 =>
-          snapshot.kind === "article")
-        .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-      setSnapshots(Object.freeze(nextSnapshots));
-      const resolution = resolveArticleEditorRouteDraftV3({
-        currentDraft: draftRef.current,
-        hydratedRouteKey: hydratedRouteKeyRef.current,
-        locale,
-        readArticle: (articleId) => store.readArticle(articleId),
-        routeArticleId,
-        untitledTitle: t("articleEditor.untitled"),
-      });
-      if (resolution.routeChanged) {
-        hydratedRouteKeyRef.current = resolution.routeKey;
-        pendingReturnedSnapshotIdRef.current = null;
-        draftRef.current = resolution.draft;
-        setDraft(resolution.draft);
-        setStatus("idle");
-        setHasUnsavedArticleChanges(false);
-        setError(null);
+    let current = true;
+    const load = async () => {
+      const nextSnapshots = remoteRepository === null
+        ? store.listSnapshots()
+        : await remoteRepository.listMySnapshots();
+      if (!current) return;
+      setSnapshots(Object.freeze([...nextSnapshots]
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))));
+
+      const routeKey = articleEditorRouteKeyV3(routeArticleId);
+      if (hydratedRouteKeyRef.current === routeKey) return;
+      let nextDraft: StudioArticleDraftV2;
+      if (routeArticleId === "new" || routeArticleId === undefined) {
+        nextDraft = createEmptyArticleDraftV3(
+          locale,
+          t("articleEditor.untitled"),
+        );
+        remoteSavedArticleIdRef.current = null;
+        remotePublishedRef.current = false;
+      } else if (remoteRepository !== null) {
+        const stored = await remoteRepository.readArticle(routeArticleId);
+        if (stored === null) throw new Error(`Article not found: ${routeArticleId}`);
+        nextDraft = stored;
+        remoteSavedArticleIdRef.current = stored.articleId;
+        remotePublishedRef.current = stored.visibility === "public";
+      } else {
+        const resolution = resolveArticleEditorRouteDraftV3({
+          currentDraft: draftRef.current,
+          hydratedRouteKey: hydratedRouteKeyRef.current,
+          locale,
+          readArticle: (articleId) => store.readArticle(articleId),
+          routeArticleId,
+          untitledTitle: t("articleEditor.untitled"),
+        });
+        nextDraft = resolution.draft;
       }
-    } catch (cause) {
+      if (!current) return;
+      hydratedRouteKeyRef.current = routeKey;
+      pendingReturnedSnapshotIdRef.current = null;
+      draftRef.current = nextDraft;
+      setDraft(nextDraft);
+      setStatus("idle");
+      setHasUnsavedArticleChanges(false);
+      setError(null);
+    };
+    void load().catch((cause) => {
+      if (!current) return;
       setStatus("error");
       setError(errorMessageV3(cause));
-    }
-  }, [locale, routeArticleId, store, t]);
+    });
+    return () => {
+      current = false;
+    };
+  }, [locale, remoteRepository, routeArticleId, store, t]);
 
   const updateDraft = React.useCallback((
     update: (current: StudioArticleDraftV2) => StudioArticleDraftV2,
@@ -310,17 +346,52 @@ export function ArticleEditorV3Page() {
     setError(null);
   }, []);
 
-  const saveDraft = React.useCallback((): StudioArticleDraftV2 | null => {
+  const saveDraft = React.useCallback(async ():
+    Promise<StudioArticleDraftV2 | null> => {
     setStatus("saving");
     setError(null);
+    let remotelySaved: StudioArticleDraftV2 | null = null;
     try {
       const candidate = draftRef.current;
-      const isInitialSave = store.readArticle(candidate.articleId) === null;
-      const normalized = normalizeArticleDraftV3({
-        ...candidate,
-        draftVersion: isInitialSave ? 0 : candidate.draftVersion + 1,
-      });
-      const saved = store.saveArticle(normalized);
+      let saved: StudioArticleDraftV2;
+      if (remoteRepository !== null) {
+        const persistedArticleId = remoteSavedArticleIdRef.current;
+        const normalized = normalizeArticleDraftV3(candidate);
+        saved = await remoteRepository.saveArticle({
+          articleId: persistedArticleId,
+          expectedVersion: persistedArticleId === null
+            ? null
+            : candidate.draftVersion,
+          article: normalized,
+        });
+        // Saving Article content and moving its publication pointer are two
+        // semantic commits. Retain the new durable version even when the
+        // latter is rejected (for example, while the owner is anonymous), so
+        // the next explicit retry cannot write against a stale version.
+        remotelySaved = saved;
+        remoteSavedArticleIdRef.current = saved.articleId;
+        if (candidate.visibility === "public") {
+          await remoteRepository.publishArticle({
+            articleId: saved.articleId,
+            expectedVersion: saved.draftVersion,
+            publicSlug: publicArticleSlugV3(saved.articleId),
+          });
+          remotePublishedRef.current = true;
+        } else if (remotePublishedRef.current) {
+          await remoteRepository.unpublishArticle(
+            saved.articleId,
+            saved.draftVersion,
+          );
+          remotePublishedRef.current = false;
+        }
+      } else {
+        const isInitialSave = store.readArticle(candidate.articleId) === null;
+        const normalized = normalizeArticleDraftV3({
+          ...candidate,
+          draftVersion: isInitialSave ? 0 : candidate.draftVersion + 1,
+        });
+        saved = store.saveArticle(normalized);
+      }
       const pendingSnapshotId = pendingReturnedSnapshotIdRef.current;
       if (pendingSnapshotId !== null) {
         const pendingHandoff = articleExperimentHandoff.read();
@@ -343,6 +414,24 @@ export function ArticleEditorV3Page() {
       }
       return saved;
     } catch (cause) {
+      if (remotelySaved !== null) {
+        const adopted = Object.freeze({
+          ...remotelySaved,
+          // Keep the author's requested visibility visible. The error state
+          // communicates that moving the publication pointer is still
+          // pending; the Article body itself is already durable.
+          visibility: draftRef.current.visibility,
+        }) satisfies StudioArticleDraftV2;
+        draftRef.current = adopted;
+        setDraft(adopted);
+        setHasUnsavedArticleChanges(true);
+        if (routeArticleId !== adopted.articleId) {
+          navigate(articleEditorHref({
+            articleId: adopted.articleId,
+            locale,
+          }), { replace: true });
+        }
+      }
       setStatus("error");
       setError(errorMessageV3(cause));
       return null;
@@ -352,15 +441,20 @@ export function ArticleEditorV3Page() {
     locale,
     navigate,
     routeArticleId,
+    remoteRepository,
     store,
   ]);
 
   const insertExperimentSnapshotV3 = React.useCallback((input: Readonly<{
     insertionIndex: number;
     replacementBlockId: string | null;
-    snapshot: ArticleExperimentSnapshotV2;
+    snapshot: ExperimentSnapshotV2;
+    briefing?: ExperimentPlacementBriefingV2;
   }>) => {
-    const block = createArticleExperimentBlockV3(input.snapshot);
+    const block = createArticleExperimentBlockV3(
+      input.snapshot,
+      input.briefing,
+    );
     updateDraft((current) => {
       const replacementIndex = input.replacementBlockId === null
         ? -1
@@ -398,25 +492,44 @@ export function ArticleEditorV3Page() {
       || pending.articleId !== draft.articleId
       || pendingReturnedSnapshotIdRef.current === pending.snapshotId
     ) return;
-    const snapshot = store.readSnapshot(pending.snapshotId);
-    if (snapshot === null || snapshot.kind !== "article") return;
-    insertExperimentSnapshotV3({
-      insertionIndex: pending.insertionIndex,
-      replacementBlockId: pending.replacementBlockId,
-      snapshot,
+    let current = true;
+    const loadReturnedSnapshot = async () => {
+      const snapshot = remoteRepository === null
+        ? store.readSnapshot(pending.snapshotId!)
+        : await remoteRepository.readSnapshot(pending.snapshotId!);
+      if (!current || snapshot === null || pending.briefing === null) return;
+      insertExperimentSnapshotV3({
+        insertionIndex: pending.insertionIndex,
+        replacementBlockId: pending.replacementBlockId,
+        snapshot,
+        briefing: pending.briefing,
+      });
+      // Keep the completed handoff until the Article itself is saved. If the
+      // tab reloads before then, this exact immutable Snapshot can be inserted
+      // again instead of silently losing the returned Placement.
+      pendingReturnedSnapshotIdRef.current = pending.snapshotId;
+      const nextSnapshots = remoteRepository === null
+        ? store.listSnapshots()
+        : await remoteRepository.listMySnapshots();
+      if (current) {
+        setSnapshots(Object.freeze([...nextSnapshots]
+          .sort((left, right) => right.createdAt.localeCompare(left.createdAt))));
+      }
+    };
+    void loadReturnedSnapshot().catch((cause) => {
+      if (current) {
+        setStatus("error");
+        setError(errorMessageV3(cause));
+      }
     });
-    // Keep the completed handoff until the Article itself is saved. If the
-    // tab reloads before then, this exact immutable Snapshot can be inserted
-    // again instead of silently losing the returned Placement.
-    pendingReturnedSnapshotIdRef.current = pending.snapshotId;
-    setSnapshots(Object.freeze(store.listSnapshots()
-      .filter((candidate): candidate is ArticleExperimentSnapshotV2 =>
-        candidate.kind === "article")
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))));
+    return () => {
+      current = false;
+    };
   }, [
     articleExperimentHandoff,
     draft.articleId,
     insertExperimentSnapshotV3,
+    remoteRepository,
     store,
   ]);
 
@@ -431,12 +544,13 @@ export function ArticleEditorV3Page() {
     onConfirmedDiscard: discardPendingReturnedSnapshotV3,
   });
 
-  const startArticleExperimentSessionV3 = React.useCallback((input: Readonly<{
+  const startArticleExperimentSessionV3 = React.useCallback(async (input: Readonly<{
     insertionIndex: number;
     replacementBlockId: string | null;
     snapshotId?: string;
+    briefing?: ExperimentPlacementBriefingV2;
   }>) => {
-    const savedArticle = saveDraft();
+    const savedArticle = await saveDraft();
     if (savedArticle === null) return;
     const sessionToken = createArticleExperimentSessionTokenV3();
     articleExperimentHandoff.begin({
@@ -444,6 +558,7 @@ export function ArticleEditorV3Page() {
       sessionToken,
       insertionIndex: input.insertionIndex,
       replacementBlockId: input.replacementBlockId,
+      briefing: input.briefing ?? null,
     });
     setPickerOpen(false);
     const search = new URLSearchParams({
@@ -464,7 +579,7 @@ export function ArticleEditorV3Page() {
   ]);
 
   const createExperimentFromArticleV3 = React.useCallback(() => {
-    startArticleExperimentSessionV3({
+    void startArticleExperimentSessionV3({
       insertionIndex: pendingExperimentInsertIndexRef.current
         ?? draftRef.current.blocks.length,
       replacementBlockId: pendingExperimentReplacementBlockIdRef.current,
@@ -640,7 +755,7 @@ export function ArticleEditorV3Page() {
     setPickerOpen(true);
   };
 
-  const addExperiment = (snapshot: ArticleExperimentSnapshotV2) => {
+  const addExperiment = (snapshot: ExperimentSnapshotV2) => {
     insertExperimentSnapshotV3({
       insertionIndex: pendingExperimentInsertIndexRef.current
         ?? draftRef.current.blocks.length,
@@ -977,11 +1092,12 @@ export function ArticleEditorV3Page() {
                 insertionIndex: selectedPeek.index,
                 replacementBlockId: selectedPeek.block.blockId,
                 snapshotId: selectedPeek.block.placement.snapshotId,
+                briefing: selectedPeek.block.placement.briefing,
               });
             }}
             onTitleCommit={(title) => {
               const normalized = title.trim();
-              const fallback = selectedPeek.snapshot.briefing.defaultTitle;
+              const fallback = selectedPeek.block.placement.briefing.defaultTitle;
               updateBlock(selectedPeek.index, Object.freeze({
                 ...selectedPeek.block,
                 placement: Object.freeze({
@@ -1373,6 +1489,10 @@ function normalizeArticleDraftV3(draft: StudioArticleDraftV2): StudioArticleDraf
 
 function errorMessageV3(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function publicArticleSlugV3(articleId: string): string {
+  return `article-${articleId.toLocaleLowerCase()}`;
 }
 
 export default ArticleEditorV3Page;

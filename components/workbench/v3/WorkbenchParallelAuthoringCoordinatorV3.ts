@@ -1,6 +1,5 @@
 import {
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
-  type ExperimentPlacementBriefingV2,
   type ExperimentScenarioV2,
   type ExperimentSurfaceV2,
   type ExperimentV2,
@@ -12,7 +11,7 @@ import {
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {
   StudioSimulationWorkerClientV2,
-  type StudioSimulationWorkerQualifiedSnapshotCommitV2,
+  type StudioSimulationWorkerAdmittedSnapshotCommitV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
 import type {
   WorkbenchBackgroundJobPriorityV3,
@@ -29,19 +28,16 @@ export type WorkbenchParallelAuthoringInputV3 = Readonly<{
   activeScenarioId: string;
   surface: ExperimentSurfaceV2;
   experiment: ExperimentV2 | null;
-  /** Null only for a disposable Article Snapshot Session. */
+  /** Null for any disposable Session that has not been explicitly saved. */
   experimentId: string | null;
   runtimeSessionId: string;
 }>;
 
 export type WorkbenchParallelSnapshotAuthoringInputV3 =
-  WorkbenchParallelAuthoringInputV3 & (
-    | Readonly<{ snapshotKind: "publication" }>
-    | Readonly<{
-        snapshotKind: "article";
-        briefing: ExperimentPlacementBriefingV2;
-      }>
-  );
+  WorkbenchParallelAuthoringInputV3 & Readonly<{
+    /** Transient authoring constraint, not Snapshot identity. */
+    snapshotSource: "saved-experiment" | "session";
+  }>;
 
 type ValidatedAuthoringInputV3 = Readonly<{
   modelId: string;
@@ -117,13 +113,13 @@ export class WorkbenchParallelAuthoringCoordinatorV3 {
 
   async createSnapshot(
     inputValue: WorkbenchParallelSnapshotAuthoringInputV3,
-  ): Promise<StudioSimulationWorkerQualifiedSnapshotCommitV2> {
+  ): Promise<StudioSimulationWorkerAdmittedSnapshotCommitV2> {
     const input = validateAuthoringInputV3(inputValue);
     return await this.#withClient("snapshot", async (client) => {
-      if (inputValue.snapshotKind === "publication") {
+      if (inputValue.snapshotSource === "saved-experiment") {
         if (input.experiment === null || input.experimentId === null) {
           throw new Error(
-            "Publication Snapshot requires an explicitly saved Experiment",
+            "Publishing requires an explicitly saved Experiment",
           );
         }
         await initializeFromExperimentV3(client, input, input.experiment);
@@ -137,16 +133,10 @@ export class WorkbenchParallelAuthoringCoordinatorV3 {
         scenarioId: input.activeScenario.scenarioId,
         surface: input.surface,
       };
-      return inputValue.snapshotKind === "article"
-        ? await client.createSnapshot({
-            ...base,
-            snapshotKind: "article",
-            briefing: inputValue.briefing,
-          })
-        : await client.createSnapshot({
-            ...base,
-            snapshotKind: "publication",
-          });
+      return await client.createSnapshot({
+        ...base,
+        snapshotSource: inputValue.snapshotSource,
+      });
     });
   }
 

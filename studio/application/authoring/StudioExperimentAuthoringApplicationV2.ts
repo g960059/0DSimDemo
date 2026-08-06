@@ -1,12 +1,10 @@
 import {
-  assertExperimentBriefingMatchesModelV2,
   assertExperimentCapturesMatchModelV2,
   assertExperimentContentMatchesModelV2,
   assertExperimentDesiredFixturesMatchModelV2,
   validateExperimentCaptureConfirmationV2,
   validateExperimentCaptureCorrelationV2,
   validateExperimentDesiredContentForModelV2,
-  validateExperimentPlacementBriefingV2,
   validateExperimentSnapshotV2,
   validateExperimentV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
@@ -21,7 +19,7 @@ import type {
   CreateExperimentSnapshotCommandV2,
   CreateExperimentCommandV2,
   ExperimentDesiredContentV2,
-  ExperimentSnapshotGateResultV2,
+  ExperimentSnapshotAdmissionResultV2,
   ExperimentSnapshotIdFactoryPortV2,
   ForkExperimentCommandV2,
   SaveExperimentCommandV2,
@@ -46,24 +44,17 @@ export class StudioExperimentAuthoringConflictErrorV2 extends Error {
   }
 }
 
-export class StudioExperimentSnapshotGateRejectedErrorV2 extends Error {
+export class StudioExperimentSnapshotAdmissionRejectedErrorV2 extends Error {
   constructor(reason: string) {
-    super(`Studio Experiment Snapshot gate rejected: ${reason}`);
-    this.name = "StudioExperimentSnapshotGateRejectedErrorV2";
+    super(`Studio Experiment Snapshot admission rejected: ${reason}`);
+    this.name = "StudioExperimentSnapshotAdmissionRejectedErrorV2";
   }
 }
 
-export class StudioExperimentSnapshotGateMutationErrorV2 extends Error {
+export class StudioExperimentSnapshotAdmissionProtocolErrorV2 extends Error {
   constructor(message: string) {
-    super(`Studio Experiment Snapshot gate changed authored content: ${message}`);
-    this.name = "StudioExperimentSnapshotGateMutationErrorV2";
-  }
-}
-
-export class StudioExperimentSnapshotGateProtocolErrorV2 extends Error {
-  constructor(message: string) {
-    super(`Studio Experiment Snapshot gate returned an invalid result: ${message}`);
-    this.name = "StudioExperimentSnapshotGateProtocolErrorV2";
+    super(`Studio Experiment Snapshot admission returned an invalid result: ${message}`);
+    this.name = "StudioExperimentSnapshotAdmissionProtocolErrorV2";
   }
 }
 
@@ -84,7 +75,7 @@ type ExperimentStoreInternalV2 = Readonly<{
   ): void;
 }>;
 
-type QualifiedSnapshotCommitInternalV2 = Readonly<{
+type AdmittedSnapshotCommitInternalV2 = Readonly<{
   commitSnapshot(snapshot: ExperimentSnapshotV2): void;
 }>;
 
@@ -95,28 +86,28 @@ type QualifiedSnapshotCommitInternalV2 = Readonly<{
  * `saveExperiment` accepts checkpoint-free desired content. Fixture-changing Saves
  * delegate complete accepted-boundary capture to the exact model runtime;
  * Surface/label/order-only Saves reuse the current matching checkpoints. The
- * gate owns settlement and minimum numerical verification; this application
- * owns frozen-candidate identity and repository visibility. A
- * An Article Snapshot may come directly from an ephemeral Experiment Session.
- * A Publication must name and version-match an explicitly saved Experiment
- * whose authored projection is unchanged.
+ * admission gate verifies public executability without changing the captured
+ * checkpoint; this application owns frozen-candidate identity and repository
+ * visibility. A Snapshot may come directly from an ephemeral Experiment
+ * Session. A standalone Publication workflow may additionally require a
+ * version-matched, explicitly saved Experiment head.
  */
 export class StudioExperimentAuthoringApplicationV2 {
   readonly #repository: ExperimentStoreInternalV2;
-  readonly #qualifiedSnapshotCommit: QualifiedSnapshotCommitInternalV2;
+  readonly #admittedSnapshotCommit: AdmittedSnapshotCommitInternalV2;
   readonly #models: ExactModelRuntimeResolverPortV2;
   readonly #snapshotIds: ExperimentSnapshotIdFactoryPortV2;
   readonly #clock: StudioClockPortV2;
 
   constructor(input: Readonly<{
     repository: ExperimentStoreInternalV2;
-    qualifiedSnapshotCommit: QualifiedSnapshotCommitInternalV2;
+    admittedSnapshotCommit: AdmittedSnapshotCommitInternalV2;
     models: ExactModelRuntimeResolverPortV2;
     snapshotIds: ExperimentSnapshotIdFactoryPortV2;
     clock: StudioClockPortV2;
   }>) {
     this.#repository = input.repository;
-    this.#qualifiedSnapshotCommit = input.qualifiedSnapshotCommit;
+    this.#admittedSnapshotCommit = input.admittedSnapshotCommit;
     this.#models = input.models;
     this.#snapshotIds = input.snapshotIds;
     this.#clock = input.clock;
@@ -277,15 +268,8 @@ export class StudioExperimentAuthoringApplicationV2 {
   ): Promise<ExperimentSnapshotV2> {
     assertCommandKeysV2(
       command,
-      command.kind === "article"
-        ? ["kind", "content", "briefing"]
-        : [
-            "kind",
-            "experimentId",
-            "expectedVersion",
-            "content",
-          ],
-      ["createdBy"],
+      ["content"],
+      ["createdBy", "savedExperiment"],
       "CreateSnapshot",
     );
     if (
@@ -297,25 +281,28 @@ export class StudioExperimentAuthoringApplicationV2 {
       );
     }
     const candidateContent = command.content;
-    if (command.kind === "publication") {
-      const sourceExperiment = await this.#requiredExperimentV2(
-        command.experimentId,
+    if (command.savedExperiment !== undefined) {
+      assertCommandKeysV2(
+        command.savedExperiment,
+        ["experimentId", "expectedVersion"],
+        [],
+        "CreateSnapshot.savedExperiment",
       );
-      assertAuthoringVersionV2(sourceExperiment, command.expectedVersion);
-      assertChangedCheckpointsOnlyV2(
+      const sourceExperiment = await this.#requiredExperimentV2(
+        command.savedExperiment.experimentId,
+      );
+      assertAuthoringVersionV2(
+        sourceExperiment,
+        command.savedExperiment.expectedVersion,
+      );
+      assertSameAuthoredProjectionV2(
         sourceExperiment.content,
         candidateContent,
         (message) => new StudioExperimentAuthoringConflictErrorV2(
-          `Publication candidate is not the clean saved Experiment head: ${message}`,
+          `Snapshot candidate is not the clean saved Experiment head: ${message}`,
         ),
       );
     }
-    const articleBriefing = command.kind === "article"
-      ? validateExperimentPlacementBriefingV2(
-          command.briefing,
-          candidateContent,
-        )
-      : undefined;
     const runtime = this.#requiredModelRuntimeV2(
       candidateContent.modelId,
     );
@@ -324,60 +311,36 @@ export class StudioExperimentAuthoringApplicationV2 {
       candidateContent,
       model,
     );
-    if (articleBriefing !== undefined) {
-      assertExperimentBriefingMatchesModelV2(articleBriefing, model);
-    }
     await assertExperimentCapturesMatchModelV2(
       candidateContent,
       model,
       adapter,
     );
 
-    // The gate always qualifies the exact detached/frozen candidate. Article
-    // capture is standalone and needs no Experiment Save; Publication has
-    // already proven above that the candidate is the version-matched clean
-    // head of an explicitly saved Experiment.
-    const gateResult = await runtime.snapshotGate.qualifyFrozenCandidate({
-      purpose: command.kind,
+    // Admission always verifies the exact detached/frozen candidate on a
+    // fork. It cannot manufacture a settled replacement checkpoint.
+    const gateResult = await runtime.snapshotGate.admitFrozenCandidate({
       model,
       content: candidateContent,
     });
-    assertSnapshotGateResultEnvelopeV2(gateResult);
+    assertSnapshotAdmissionResultEnvelopeV2(gateResult);
     if (gateResult.status === "rejected") {
-      throw new StudioExperimentSnapshotGateRejectedErrorV2(
+      throw new StudioExperimentSnapshotAdmissionRejectedErrorV2(
         gateResult.reason,
       );
     }
 
-    const qualifiedContent = gateResult.qualifiedContent;
-    assertExperimentContentMatchesModelV2(
-      qualifiedContent,
-      model,
-    );
-    await assertExperimentCapturesMatchModelV2(
-      qualifiedContent,
-      model,
-      adapter,
-    );
-    assertChangedCheckpointsOnlyV2(
-      candidateContent,
-      qualifiedContent,
-      (message) => new StudioExperimentSnapshotGateMutationErrorV2(message),
-    );
-
     const snapshotId = this.#snapshotIds.nextSnapshotId();
     const snapshot = validateExperimentSnapshotV2({
       schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-      kind: command.kind,
       snapshotId,
-      content: qualifiedContent,
-      ...(articleBriefing === undefined ? {} : { briefing: articleBriefing }),
+      content: candidateContent,
       createdAt: this.#clock.nowIso(),
       ...(command.createdBy === undefined
         ? {}
         : { createdBy: command.createdBy }),
     });
-    this.#qualifiedSnapshotCommit.commitSnapshot(snapshot);
+    this.#admittedSnapshotCommit.commitSnapshot(snapshot);
     return snapshot;
   }
 
@@ -427,7 +390,7 @@ export class StudioExperimentAuthoringApplicationV2 {
       || runtime.snapshotGate.modelId !== modelId
       || runtime.snapshotGate.snapshotGateId
         !== runtime.contract.snapshotGateId
-      || typeof runtime.snapshotGate.qualifyFrozenCandidate !== "function"
+      || typeof runtime.snapshotGate.admitFrozenCandidate !== "function"
       || runtime.fixtureAdapter.modelId !== modelId
       || runtime.fixtureAdapter.fixtureSchemaId
         !== runtime.contract.fixtureSchemaId
@@ -536,37 +499,37 @@ function assertExperimentCaptureResultEnvelopeV2(
   }
 }
 
-function assertSnapshotGateResultEnvelopeV2(
+function assertSnapshotAdmissionResultEnvelopeV2(
   value: unknown,
-): asserts value is ExperimentSnapshotGateResultV2 {
+): asserts value is ExperimentSnapshotAdmissionResultV2 {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new StudioExperimentSnapshotGateProtocolErrorV2(
+    throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
       "result must be an object",
     );
   }
   const record = value as Record<string, unknown>;
   if (record.status === "passed") {
-    assertGateResultKeysV2(record, ["status", "qualifiedContent"]);
+    assertAdmissionResultKeysV2(record, ["status"]);
     return;
   }
   if (record.status === "rejected") {
-    assertGateResultKeysV2(record, ["status", "reason"]);
+    assertAdmissionResultKeysV2(record, ["status", "reason"]);
     if (
       typeof record.reason !== "string"
       || record.reason.trim().length === 0
     ) {
-      throw new StudioExperimentSnapshotGateProtocolErrorV2(
+      throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
         "rejected result must contain a non-empty reason",
       );
     }
     return;
   }
-  throw new StudioExperimentSnapshotGateProtocolErrorV2(
+  throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
     'status must be exactly "passed" or "rejected"',
   );
 }
 
-function assertGateResultKeysV2(
+function assertAdmissionResultKeysV2(
   value: Record<string, unknown>,
   expected: readonly string[],
 ): void {
@@ -576,7 +539,7 @@ function assertGateResultKeysV2(
     actual.length !== required.length
     || actual.some((key, index) => key !== required[index])
   ) {
-    throw new StudioExperimentSnapshotGateProtocolErrorV2(
+    throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
       `fields must be exactly ${required.join(", ")}`,
     );
   }
@@ -650,28 +613,28 @@ function assertCapturedDesiredContentV2(
   });
 }
 
-function assertChangedCheckpointsOnlyV2(
+function assertSameAuthoredProjectionV2(
+  saved: ExperimentContentV2,
   candidate: ExperimentContentV2,
-  qualified: ExperimentContentV2,
   mutationError: (message: string) => Error,
 ): void {
-  if (candidate.modelId !== qualified.modelId) {
+  if (saved.modelId !== candidate.modelId) {
     throw mutationError("modelId");
   }
-  if (!samePortableValueV2(candidate.surface, qualified.surface)) {
+  if (!samePortableValueV2(saved.surface, candidate.surface)) {
     throw mutationError("Surface");
   }
-  if (candidate.scenarios.length !== qualified.scenarios.length) {
+  if (saved.scenarios.length !== candidate.scenarios.length) {
     throw mutationError("Scenario count");
   }
-  candidate.scenarios.forEach((scenario, index) => {
-    const settled = qualified.scenarios[index];
+  saved.scenarios.forEach((scenario, index) => {
+    const captured = candidate.scenarios[index];
     if (
-      scenario.scenarioId !== settled.scenarioId
-      || scenario.label !== settled.label
+      scenario.scenarioId !== captured.scenarioId
+      || scenario.label !== captured.label
       || !samePortableValueV2(
         scenario.capture.fixture,
-        settled.capture.fixture,
+        captured.capture.fixture,
       )
     ) {
       throw mutationError(

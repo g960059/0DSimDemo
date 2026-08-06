@@ -1,13 +1,17 @@
 import {
   studioCanonicalJsonStringify,
 } from "@/studio/infrastructure/json/StudioCanonicalJson";
+import type {
+  ExperimentPlacementBriefingV2,
+} from "@/studio/contracts/v2/content";
 export const STUDIO_ARTICLE_EXPERIMENT_AUTHORING_HANDOFF_V3_KEY =
-  "circleheart.studio.article-experiment-authoring-handoff.v4";
+  "circleheart.studio.article-experiment-authoring-handoff.v5";
 export const STUDIO_ARTICLE_EXPERIMENT_AUTHORING_HANDOFF_V3_SCHEMA_ID =
-  "circleheart-studio-article-experiment-authoring-handoff-v4" as const;
+  "circleheart-studio-article-experiment-authoring-handoff-v5" as const;
 
 const RETIRED_ARTICLE_EXPERIMENT_AUTHORING_HANDOFF_KEYS_V3 = Object.freeze([
   "circleheart.studio.article-experiment-authoring-handoff.v3",
+  "circleheart.studio.article-experiment-authoring-handoff.v4",
 ]);
 
 export type StudioArticleExperimentAuthoringHandoffV3 = Readonly<{
@@ -17,6 +21,8 @@ export type StudioArticleExperimentAuthoringHandoffV3 = Readonly<{
   insertionIndex: number;
   replacementBlockId: string | null;
   snapshotId: string | null;
+  /** Article-local projection transported independently of the Snapshot. */
+  briefing: ExperimentPlacementBriefingV2 | null;
 }>;
 
 export type StudioArticleExperimentHandoffStorageV3 = Pick<
@@ -41,6 +47,7 @@ export class StudioArticleExperimentAuthoringHandoffStoreV3 {
     sessionToken: string;
     insertionIndex: number;
     replacementBlockId: string | null;
+    briefing: ExperimentPlacementBriefingV2 | null;
   }>): StudioArticleExperimentAuthoringHandoffV3 {
     const handoff = validateStudioArticleExperimentAuthoringHandoffV3({
       schemaId: STUDIO_ARTICLE_EXPERIMENT_AUTHORING_HANDOFF_V3_SCHEMA_ID,
@@ -70,6 +77,7 @@ export class StudioArticleExperimentAuthoringHandoffStoreV3 {
   complete(input: Readonly<{
     sessionToken: string;
     snapshotId: string;
+    briefing: ExperimentPlacementBriefingV2;
   }>): StudioArticleExperimentAuthoringHandoffV3 | null {
     const current = this.read();
     if (current === null || current.sessionToken !== input.sessionToken) {
@@ -78,6 +86,7 @@ export class StudioArticleExperimentAuthoringHandoffStoreV3 {
     const completed = validateStudioArticleExperimentAuthoringHandoffV3({
       ...current,
       snapshotId: input.snapshotId,
+      briefing: input.briefing,
     });
     this.#storage.setItem(
       STUDIO_ARTICLE_EXPERIMENT_AUTHORING_HANDOFF_V3_KEY,
@@ -102,6 +111,7 @@ export function validateStudioArticleExperimentAuthoringHandoffV3(
   const record = value as Record<string, unknown>;
   const expected = [
     "articleId",
+    "briefing",
     "insertionIndex",
     "replacementBlockId",
     "schemaId",
@@ -135,6 +145,7 @@ export function validateStudioArticleExperimentAuthoringHandoffV3(
   const snapshotId = record.snapshotId === null
     ? null
     : requiredPortableIdV3(record.snapshotId, "snapshotId");
+  const briefing = portableBriefingV3(record.briefing);
   return Object.freeze({
     schemaId: STUDIO_ARTICLE_EXPERIMENT_AUTHORING_HANDOFF_V3_SCHEMA_ID,
     articleId,
@@ -142,7 +153,26 @@ export function validateStudioArticleExperimentAuthoringHandoffV3(
     insertionIndex: record.insertionIndex,
     replacementBlockId,
     snapshotId,
+    briefing,
   });
+}
+
+function portableBriefingV3(
+  value: unknown,
+): ExperimentPlacementBriefingV2 | null {
+  if (value === null) return null;
+  if (value === undefined) {
+    throw new Error("Article Experiment handoff briefing is invalid");
+  }
+  const detached = JSON.parse(studioCanonicalJsonStringify(value)) as unknown;
+  if (
+    detached === null
+    || typeof detached !== "object"
+    || Array.isArray(detached)
+  ) {
+    throw new Error("Article Experiment handoff briefing is invalid");
+  }
+  return Object.freeze(detached) as ExperimentPlacementBriefingV2;
 }
 
 export function createArticleExperimentSessionTokenV3(): string {

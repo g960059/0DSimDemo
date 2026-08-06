@@ -2,20 +2,22 @@
 
 Status: authoritative pre-release contract; direct cutover
 
-Date: 2026-08-05
+Date: 2026-08-06
 
-Decision: one shared `ExperimentContent` shape moves through an ephemeral
-`ExperimentSession`, an explicitly saved mutable `Experiment`, and an
-immutable qualified `ExperimentSnapshot`.
+Decision: one `ExperimentContent` shape crosses three deliberately different
+lifecycle boundaries: an ephemeral `ExperimentSession`, an explicitly saved
+mutable `Experiment`, and a neutral immutable `ExperimentSnapshot`. A public
+Experiment and an Article Placement both point to that same Snapshot type.
 
-This document is the persistence and runtime-ownership source of truth.
-`DESIGN-STUDIO-004-reader-briefing-experiment-ia.md` owns Article, Briefing,
-Reader, and navigation IA.
+This document owns persistence, numerical-capture, model-release, and backend
+boundaries. `DESIGN-STUDIO-004-reader-briefing-experiment-ia.md` owns Article,
+Briefing, Reader, navigation, and presentation IA.
 
 The application has no production users or durable production database.
-Superseded schemas are deleted rather than migrated. Git history is the only
-archive for `Workspace`, `ExperimentDraft`, numeric Snapshot revisions,
-Snapshot lineage, and Placement-owned Briefing designs.
+Superseded schemas are removed rather than migrated. Git history, not live
+compatibility code, is the archive for Workspace, ExperimentDraft,
+PublicationSnapshot, ArticleSnapshot, numeric Snapshot revisions, nested
+Snapshot Briefing, and Snapshot lineage designs.
 
 ## 1. Canonical vocabulary
 
@@ -25,54 +27,58 @@ Registered model release
 
 ExperimentSession                         ephemeral, mutable
   ├─ current ExperimentContent
-  ├─ live numerical runtimes
+  ├─ live numerical lanes
   └─ transient UI/runtime state
 
-Experiment                                durable, mutable by explicit Save
+Experiment                                durable mutable resource
   ├─ experimentId
   ├─ version                              concurrency only
-  └─ ExperimentContent
+  └─ current ExperimentContent
 
-ExperimentSnapshot                        durable, immutable, qualified
-  ├─ PublicationSnapshot
-  │    └─ ExperimentContent
-  └─ ArticleSnapshot
-       ├─ ExperimentContent
-       └─ Briefing
+ExperimentSnapshot                        durable, neutral, immutable
+  ├─ snapshotId
+  └─ admitted ExperimentContent
+
+ExperimentPublication                     mutable public pointer
+  └─ currentSnapshotId ────────────────→ ExperimentSnapshot
+
+ArticleContent                            immutable article version
+  └─ ExperimentPlacement
+       ├─ snapshotId ──────────────────→ ExperimentSnapshot
+       └─ Briefing                       article-owned projection
 ```
 
-The terms are intentionally narrow:
+- **Workbench** is the UI that operates an `ExperimentSession`; it is not a
+  persisted entity.
+- **ExperimentSession** is one open mutable working state. It may start blank,
+  from an Experiment, or from a Snapshot.
+- **Experiment** is the user-visible saved simulation. Save changes its current
+  content pointer under optimistic concurrency.
+- **ExperimentSnapshot** is one immutable, publicly executable capture. It has
+  no Article/Publication kind and owns no Briefing.
+- **ExperimentPublication** is only the current public pointer for a saved
+  Experiment. Moving that pointer performs no numerical calculation.
+- **ExperimentPlacement** belongs to an Article and owns its resolved Briefing.
 
-- **Experiment** is the user-visible saved laboratory resource.
-- **Workbench** is the UI used to operate an `ExperimentSession`; it is not a
-  data type or persistence root.
-- **ExperimentSession** is the mutable, unsaved working state in one open
-  Workbench. It may start blank, from an Experiment, or from a Snapshot.
-- **ExperimentSnapshot** is an immutable, minimum-gated capture. Publication
-  and Article embedding are Snapshot variants, not separate domain entities.
-- **ExperimentContent** is the shared scientific/presentation payload. Sharing
-  this shape does not make the three lifecycle states interchangeable.
+`Workspace`, `WorkbenchSession`, `ExperimentDraft`, `ExperimentRevision`,
+`PublicationSnapshot`, and `ArticleSnapshot` are retired names.
 
-`Workspace`, `WorkbenchSession`, `ExperimentDraft`, `ExperimentRevision`, and
-`Publication` are not aliases. They are removed names.
+## 2. Why the outer lifecycle types remain separate
 
-## 2. Why one content shape still needs three lifecycle states
+The inner data is intentionally shared, but the guarantees are not:
 
-All three states contain substantially the same Scenario and Surface content,
-but they have different guarantees:
-
-| State | Mutable | Durable | Gate required | User-visible identity |
+| State | Mutable | Durable | Snapshot admission | User identity |
 | --- | --- | --- | --- | --- |
-| ExperimentSession | yes | no | no | no durable identity |
-| Experiment | yes, through Save | yes | no | `experimentId` |
-| ExperimentSnapshot | no | yes | yes | `snapshotId` |
+| ExperimentSession | yes | no | no | none |
+| Experiment | by explicit Save | yes | no | `experimentId` |
+| ExperimentSnapshot | no | yes | passed before insert | `snapshotId` |
+| ExperimentPublication | pointer only | yes | reuses admitted Snapshot | `experimentId` |
 
-Collapsing them into one tagged record would make invalid operations easy: a
-Reader could mutate a Snapshot, an unsettled Save could look published, or an
-open tab could silently enter My Experiments. Separate outer types make those
-state transitions explicit while reusing `ExperimentContent` inside them.
+Collapsing these into one tagged record would let an open tab silently enter My
+Simulations, make a Reader artifact mutable, or make an ordinary Save appear
+numerically admitted. Separate outer contracts prevent those invalid states.
 
-## 3. Canonical data contracts
+## 3. Portable domain contracts
 
 ```ts
 type ExperimentContent = Readonly<{
@@ -88,112 +94,60 @@ type Experiment = Readonly<{
   content: ExperimentContent;
 }>;
 
-type PublicationExperimentSnapshot = Readonly<{
+type ExperimentSnapshot = Readonly<{
   schemaId: "circleheart-studio-experiment-snapshot-v2";
-  kind: "publication";
   snapshotId: string;
   content: ExperimentContent;
   createdAt: string;
   createdBy?: string;
 }>;
 
-type ArticleExperimentSnapshot = Readonly<{
-  schemaId: "circleheart-studio-experiment-snapshot-v2";
-  kind: "article";
+type ExperimentPlacement = Readonly<{
+  schemaId: "circleheart-studio-experiment-placement-v2";
+  placementId: string;
   snapshotId: string;
-  content: ExperimentContent;
   briefing: ExperimentPlacementBriefing;
-  createdAt: string;
-  createdBy?: string;
+  titleOverride: string | null;
+  caption: string | null;
 }>;
-
-type ExperimentSnapshot =
-  | PublicationExperimentSnapshot
-  | ArticleExperimentSnapshot;
 ```
 
-`ExperimentSession` is not a portable persistence schema. The Workbench owns
-its React state, Worker handles, desired fixtures, captured checkpoints,
-request tokens, and rendering buffers. When it crosses a durable boundary it
-produces validated `ExperimentContent`.
+`ExperimentSession` is not portable data. React state, Worker handles,
+accepted frames, input epochs, rendering buffers, analysis progress, and device
+layout stay in memory or versioned device-local storage.
 
-## 4. Identity, integrity, and release policy
+## 4. Identity and exact-model release policy
 
 Domain identities are opaque IDs, not content hashes:
 
 ```text
-modelId
-experimentId
-snapshotId
-scenarioId
-articleId
-placementId
+modelId, experimentId, snapshotId, scenarioId, articleId, placementId
 ```
 
-One exact `modelId` pins the result-affecting execution contract:
+One exact `modelId` pins every result-affecting execution contract:
 
-- equations and normative parameter semantics;
-- solver/runtime and event-boundary semantics;
+- equations and parameter semantics;
+- runtime, solver, and event-boundary behavior;
 - fixture schema and control mapping;
-- checkpoint codec and exact restore semantics;
-- output meanings, units, and aggregation semantics; and
-- the minimum Snapshot gate.
+- checkpoint codec and exact restore behavior;
+- output units and aggregation semantics;
+- graph catalog; and
+- Snapshot admission behavior.
 
-The registry checks package integrity only when registering a release. An
-existing `modelId` cannot be overwritten with different normative content.
-CI fails when the execution-contract fingerprint changes without a new
-`modelId`. Ordinary clients trust the admitted registry and do not repeatedly
-hash model packages at runtime.
+Integrity hashes remain inside CI, the model registry, artifact storage, and
+model-owned corruption checks. Registration is idempotent for identical bytes
+and rejects the same `modelId` with a different manifest or artifact. Ordinary
+clients resolve `modelId` through the trusted registry and do not rehash the
+package at runtime.
 
-An Experiment stays pinned to its exact `modelId`. The current pre-release
-direct-cutover client deliberately bundles only the latest development release
-and fails closed when it encounters an older development ID; it preserves the
-stored bytes and never opens them with another model. Before the first stable
-release or retained user Snapshot, a multi-release registry that resolves each
-resource by `content.modelId` is a release blocker. At that boundary, changing
-the default creates only new Sessions with the new release; old Experiments
-remain executable through their retained exact release. Migration is explicit.
+The registry keeps old exact releases loadable. Changing the default channel
+affects only new Sessions. Existing Experiments and Snapshots remain pinned to
+their stored `modelId`; migration or cloning is explicit.
 
-`Experiment.version` is only an optimistic-concurrency token. It is not a
-scientific revision, publication number, or URL identity.
+`Experiment.version` is an optimistic-concurrency token only. It is neither a
+scientific revision nor part of a public URL.
 
-Snapshots deliberately carry no `sourceExperimentId`, `parentSnapshotId`,
-`headSnapshotId`, or `basedOnSnapshotId`:
-
-- an Article-origin session can create a Snapshot without an Experiment;
-- editing always clones Snapshot content into a new Session;
-- a Snapshot never inherits or follows later changes; and
-- provenance fields would imply ownership/lineage behavior the product does
-  not use.
-
-## 5. Model contract and catalogs
-
-The registered model exposes one allowlisted Studio surface:
-
-```ts
-type ModelContract = {
-  modelId: string;
-  modelFamilyId: string;
-  displayName: string;
-  fixtureSchemaId: string;
-  checkpointCodecId: string;
-  snapshotGateId: string;
-  controlCatalog: readonly ControlDefinition[];
-  outputCatalog: readonly OutputDefinition[];
-  graphCatalog: readonly GraphDefinition[];
-};
-```
-
-Signals and derived metrics share `outputCatalog`; their definition kind,
-shape, scope, and dependencies distinguish them. There is no overlapping
-`observableCatalog`.
-
-There is no durable `ParameterSet`. A control action is an ephemeral command.
-After application, the complete changed input is part of the Scenario fixture.
-A Knob may issue several assignments as one UI action, but it creates no
-second persistence identity.
-
-## 6. Scenario capture and Preset
+## 5. Scenario capture, Preset, and control actions
 
 ```ts
 type ScenarioCapture = Readonly<{
@@ -220,322 +174,210 @@ type ScenarioPreset = Readonly<{
 }>;
 ```
 
-Fixture and checkpoint cross durable boundaries atomically. The fixture holds
-all current input values; the checkpoint holds the exact state and model time
-needed to continue. The registered model validates both against `modelId`.
+Fixture and checkpoint cross every capture/save boundary atomically. The
+fixture contains all current inputs; the checkpoint contains the exact state
+and model time required to continue. A Preset carries both because its purpose
+is an immediate meaningful start. Applying it deep-copies the capture and
+creates no live link or certification claim.
 
-Changing a parameter warm-starts at the current accepted `(time, state)` and
-continues visibly from there. A request generation/token may reject stale
-asynchronous work, but generations are runtime-only.
+There is no durable `ParameterSet`. A slider, custom button, or Knob sends an
+ephemeral absolute assignment. Once accepted, the resulting values live in the
+complete fixture. Parameter changes warm-start from the current accepted
+`(time, state)` boundary. Correlation generations remain runtime-only.
 
-A Scenario Preset includes fixture and checkpoint because its purpose is a
-fast, meaningful start. Applying a Preset deep-copies the capture. It creates
-no live link, warm-cache reference, certification, or publication claim.
+## 6. Experiment Surface
 
-## 7. Experiment Surface
+The Surface owns semantic authoring choices:
 
-The Surface owns durable semantic composition:
-
-- graph panes, selected series, Scenario scope, exact exclusions, history,
-  window, analysis mode, labels, and frozen trace-color allocation;
-- output panes, selected output items, and one pane-level Scenario binding;
+- graph panes, series, Scenario scope, exact trace exclusions, history,
+  waveform window, analysis mode, labels, and frozen trace colors;
+- output panes, selected outputs, and one pane-level Scenario binding;
 - controller panes, selected controls, slider/button presentation, order, and
-  pane-level Scenario binding;
+  one pane-level Scenario binding;
 - one Experiment note; and
 - Scenario base-color seeds used only for future automatic allocation.
 
-Device presentation is not content. Dockview geometry, area split ratios,
-active tabs, hover/focus, modal state, fullscreen state, transient graph-trace
-visibility, and current theme stay in memory or versioned device-local storage.
+Dockview geometry, area split ratios, active tabs, hover/focus, modal state,
+fullscreen state, current Scenario Manager selection, temporary visibility,
+and theme are not portable content.
 
-### 7.1 Graph binding
+Graph panes can show several Scenarios. Output and controller panes use one
+`active-slot` or fixed binding per pane; explicit comparison is composed by
+splitting/duplicating panes. Briefing materializes runtime-active bindings to
+concrete Scenario identities.
 
-Binding is pane-level by default:
+## 7. Session, Save, admission, and publication workflows
 
-- `visible-scenarios` follows ephemeral Scenario Manager visibility;
-- `fixed` names an authored Scenario subset; and
-- `excludedTraces` provides precise Scenario × series exceptions.
+### 7.1 New Session
 
-This preserves a simple pane mental model while permitting sparse comparisons
-without forcing every series item to own a binding editor.
+`/experiments/new` has no durable identity. Opening, modifying, or closing it
+does not create a row. The first successful explicit Save mints
+`experimentId`; later Saves require the expected version.
 
-### 7.2 Output binding
+### 7.2 Save
 
-One output pane has exactly one binding:
+Save captures every Scenario's current fixture and exact accepted checkpoint,
+then stores the complete content. Save does not require settlement or Snapshot
+admission. Accepted steps are never written at the numerical step rate.
 
-- `active-slot` follows the Scenario Manager's active Scenario; or
-- `fixed` targets exactly one explicit Scenario.
+### 7.3 Atomic Snapshot capture
 
-When two or more Scenarios exist, a compact content-sized binding indicator is
-shown above the pane contents and opens the binding section in Pane Settings.
-It is omitted for a single Scenario because there is no meaningful target
-choice to explain. Output items never own independent Scenario targets.
-To compare Scenarios, **Compare by Scenario** fixes the source pane to its
-currently resolved Scenario, duplicates the whole pane, fixes the copy to the
-next unrepresented Scenario, and places it beside the source. This produces a
-predictable side-by-side comparison without a `metric × scenario` matrix in
-one pane.
-
-Scenario Manager visibility affects graph traces only. It does not hide an
-Output or Controller pane, because pane visibility, splitting, and deletion
-belong to Dockview layout controls rather than Scenario state.
-
-### 7.3 Controller binding
-
-One controller pane has one binding:
-
-- `active-slot` follows the Scenario Manager inside a mutable Session; or
-- `fixed` targets one or more explicit Scenarios.
-
-With two or more Scenarios, the pane displays the same compact resolved mode
-and target indicator as Output panes. Selecting it opens the binding section
-in Pane Settings; it stays hidden for a single Scenario. Briefing capture materializes
-`active-slot` into a fixed Scenario identity so later focus changes cannot
-retarget published controls.
-
-## 8. Session lifecycle
-
-### 8.1 New Workbench
+Both Article placement and standalone publication use the same sequence:
 
 ```text
-open New Experiment
-  → navigate to /experiments/new with no Experiment identity
-  → create an ExperimentSession using the current default exact model
-  → start every Scenario in its persistent Worker lane
-  → do not create an Experiment or My Experiments entry
+brief user action
+  → freeze Scenario/Surface intent
+  → pause live lanes only for one accepted-boundary atomic capture
+  → copy fixture + checkpoint for every Scenario
+  → immediately resume live lanes
+  → hand the detached candidate to a bounded warm Worker
+  → common Snapshot admission
+  → insert one neutral immutable ExperimentSnapshot
 ```
 
-`experimentId` does not exist in this state. The first successful explicit Save
-allocates it inside the Save boundary and replaces the URL with the durable
-Experiment URL. A failed or abandoned Session consumes no Experiment identity
-and creates no recoverable-looking library entry.
+Article authoring may capture directly from an unsaved Session. Standalone
+publication additionally proves that model, Scenario identity/order, fixture,
+and Surface still match the explicitly saved Experiment head. Click-time
+checkpoints may be newer than the saved checkpoints.
 
-### 8.2 Open saved Experiment
+### 7.4 Common Snapshot admission
+
+Admission answers only: “Can this exact capture be restored and executed
+safely as an interactive public simulation?” For Main Wire V3 it:
+
+1. exact-restores the candidate checkpoint;
+2. verifies its exact checkpoint round trip;
+3. finishes the already-open cycle/window on the detached fork;
+4. advances one complete canonical cycle;
+5. checks finite values, conservation tolerances, event identity, and the
+   model-pinned mechanical-support constraints; and
+6. verifies a terminal checkpoint round trip.
+
+Admission never replaces the captured checkpoint. It does not require or
+persist settlement, and it does not establish physiological validity,
+clinical validity, certification, or release readiness. Those runtime and
+scientific concepts remain available in human-facing model information and
+formal analysis, not in Snapshot identity.
+
+### 7.5 Publication and Article placement
+
+After admission:
+
+- standalone publication atomically moves an Experiment's public pointer to
+  the Snapshot; and
+- Article authoring inserts a Placement containing `snapshotId + briefing` in
+  the next immutable Article content.
+
+Neither pointer operation reruns numerical work. The Snapshot itself remains
+neutral and can be read through whichever retained reference authorizes it.
+
+## 8. Supabase physical model
+
+Portable contracts stay free of database implementation fields. Supabase uses
+an internal `studio` schema and semantic RPCs:
 
 ```text
-read Experiment
-  → deep-copy ExperimentContent into a Session
-  → restore each exact capture using Experiment.modelId
-  → edit independently
-  → explicit Save performs version-checked replacement
+model_releases (immutable)
+model_release_availability
+model_release_channels
+
+experiment_contents (immutable JSONB)
+experiments ───────────────→ current_content_id
+experiment_snapshots ──────→ content_id
+experiment_snapshot_sources saved-Experiment provenance only
+experiment_publications ───→ current_snapshot_id
+
+article_contents (immutable JSONB)
+articles ──────────────────→ current_draft_content_id
+article_snapshot_refs       derived index of Placement/Briefing in blocks
+article_publications ───────→ current_content_id
+
+operation_receipts          idempotent command results
+profiles
 ```
 
-### 8.3 Open Snapshot
+An `ExperimentSnapshot` owns complete portable content semantically. The DB
+may share one immutable `experiment_contents` row between an Experiment and a
+Snapshot when the bytes are identical. Export/read materializes the portable
+shape; `content_id` never enters the domain contract.
 
-The Snapshot page is read-only. “Open in Workbench” deep-copies its content
-into `/experiments/new` as a disposable Session with no Experiment ID. The user
-may Save it as an Experiment, capture another Snapshot, or leave it without
-adding anything to My Experiments.
+`experiment_snapshot_sources` exists only as backend provenance and
+publication enforcement. It has no row for Session-origin Article captures
+and is not exported in `ExperimentSnapshot`. Keeping the relation outside the
+immutable Snapshot row also lets a deleted Experiment be collected while an
+Article safely retains the Snapshot. There is no `parent_snapshot_id`.
 
-No edit mutates or advances the source Snapshot.
+Article `blocks` are the source of truth. `article_snapshot_refs` is generated
+inside the Save RPC from each Experiment Placement; clients cannot submit a
+second independent Briefing/reference list.
 
-## 9. Explicit Experiment Save
+All client writes use semantic, idempotent RPCs. Direct table writes are
+revoked. Each command is keyed by `(actor_id, operation_id)` and either returns
+the original result for the same request or rejects reuse with different data.
+Experiment and Article Saves use expected-version compare-and-swap and never
+auto-merge.
 
-An Experiment is created only by the Save action:
+Anonymous Auth is created at the first backend Save, not when a visitor merely
+opens or forks a public simulation. Anonymous users can retain private work and
+later link magic-link email or Google identity. Publishing requires a linked
+non-anonymous account.
 
-```text
-Save
-  → pause/correlate all live Scenario lanes at accepted boundaries
-  → atomically capture fixture + checkpoint for each Scenario
-  → resume live lanes immediately
-  → validate exact model references and Surface
-  → first Save: allocate experimentId and persist Experiment(version = 0)
-  → later Save: compare expected version, then persist version + 1
-  → add/update My Experiments metadata
-  → after first commit, replace /experiments/new with /experiments/:experimentId
-```
+When `VITE_SUPABASE_URL` and its publishable browser key are configured, the
+frontend uses these RPC/read functions as its sole durable repository. It does
+not also write localStorage. The browser content store remains only for
+unconfigured tests and local development; it is not a migration layer or an
+offline replica.
 
-Save does not require settlement. A user may preserve an unstable,
-transitioning, or exploratory exact state.
+Exact executable artifacts are uploaded by the trusted release command to the
+public `model-releases` Storage bucket before registry admission. The object
+path is immutable and model-scoped. Ordinary clients may download it but have
+no upload or registry-write authority. The release command verifies existing
+bytes before reusing a path, registers the exact release, and only then moves a
+mutable channel such as `default`.
 
-Opening a Workbench, changing a parameter, starting from an Article, or
-creating a Snapshot never implicitly saves an Experiment. An untouched default
-Session does not prompt. Authored content, an uncommitted title, or an
-uncaptured Briefing prompts before close/reload and ordinary in-app Link
-navigation.
+## 9. Retention and deletion
 
-Live stepping and plotting never write every 2 ms. Workers and ring buffers
-remain in memory; only explicit boundaries capture durable state.
+Snapshots are retained while referenced by a public Experiment or any retained
+Article content. A newly admitted but unreferenced Snapshot receives a short
+grace period so a failed handoff can retry. Scheduled GC removes expired
+unreferenced Snapshots, unreachable immutable content, and old idempotency
+receipts in bounded batches.
 
-## 10. Snapshot creation
+Deleting an Experiment never deletes a Snapshot still used by an Article or
+publication. Deleting/unpublishing the last owner removes only pointers first;
+soft-deleted roots and unreachable immutable content become eligible for
+bounded physical collection after one hour. Supabase Storage is not the sole
+archive for exact model releases; registry artifacts remain reproducibly
+available from the release pipeline as well.
 
-Both Snapshot variants cross the same exact-model port, but the command
-purpose selects a different qualification profile:
+## 10. Non-goals for the first backend cut
 
-```text
-briefly pause live lanes at accepted boundaries
-  → atomically capture fixture + checkpoint and freeze candidate content
-  → resume live lanes immediately
-  → lease a warm, bounded background Worker
-  → Article: exact restore + one-cycle numerical-safety verification
-             (finite/conservation/event/MCS checks; settlement not required)
-  → Publication: require period-1 settlement and numerical checks
-                 and emit fresh terminal settled checkpoints
-  → validate candidate again
-  → re-check model, Surface, Scenario identity/label, and fixture at persistence
-  → persist a new immutable snapshotId
-```
+- no CRDT or automatic merge;
+- no Realtime replication of numerical frames;
+- no server-side normal simulation stepping;
+- no Cloud Run dependency for ordinary Save/Snapshot/publication;
+- no Assessment, Certification, ParameterSet, or durable settlement entity;
+- no legacy data migration or compatibility readers; and
+- no patient-specific data workflow.
 
-For a Publication, the command additionally carries `experimentId` and
-`expectedVersion`. The application boundary reads that saved head and rejects
-any candidate whose model, Surface, Scenario order/identity/label, or fixture
-differs; only checkpoint advancement is allowed. Browser persistence repeats
-the saved-head/version and authored-projection check so bypassing the
-Workbench UI cannot publish an unsaved or dirty Session.
+Cloud Run Jobs may later host patient fitting or expensive batch analysis, but
+browser Web Workers remain the interactive numerical owner.
 
-The Publication profile may replace checkpoints with qualified accepted
-states. The Article profile preserves the click-time checkpoint after its
-detached safety verification passes. Neither profile may change model ID,
-fixture, Scenario identity/order/label, or Surface.
+## 11. Required invariants
 
-There is no long-lived `QualifiedAnchor`. Snapshot, rapid PV-relation, and
-Guyton/Starling jobs fork only when requested. They share a bounded pool of
-pre-created but uninitialized Workers. Each leased Worker is single-use,
-terminated after completion, and replenished with a fresh warm Worker; no
-numerical state or runtime identity is reused between jobs. Snapshot has queue
-priority over exploratory analysis. The hardware-derived cap prevents an
-unbounded “one more Worker” policy while still allowing hypovolaemic and
-hypervolaemic partitions to run in parallel on capable devices.
-
-Settlement traces, numerical-health status, V&V reports, assessment records,
-and certification chains are not Snapshot fields. Snapshot existence is the
-machine-readable assertion that the purpose-specific gate passed; an Article
-Snapshot therefore makes no settlement claim. Human-facing limitations,
-provenance, references, and interpretation live in the model information UI,
-Preset description, or Experiment note. That UI presents Scenario-local
-settlement and numerical-check status separately from model-level validation
-scope. Exact model IDs, fixture schema IDs, checkpoint codec IDs, integrity
-metadata, and gate identities remain registry/developer concerns rather than
-ordinary user-facing information.
-
-### 10.1 Publication Snapshot
-
-Publication captures complete `ExperimentContent`. It is the immutable target
-of a saved Experiment’s published pointer. It has no independent Publication
-entity and no Briefing. Because the library pointer belongs to a durable
-Experiment, the first explicit Save is required before Publish. Publish never
-performs that Save implicitly and never advances the Experiment version. The
-current Session must be clean: authored changes are saved before publishing.
-
-### 10.2 Article Snapshot
-
-Article capture freezes `ExperimentContent` and the exact audience Briefing in
-one object. The Briefing cannot be detached, retargeted, or edited in place.
-Creating or changing a Briefing creates another Article Snapshot.
-
-Article capture deliberately does not wait for settlement. It verifies exact
-restore and one complete cycle for finite values, conservation/TBV safety,
-event identity/counts, and the pinned MCS-off contract, then keeps the atomic
-click-time fixture/checkpoint pair. This makes ordinary authoring capture fast
-without misrepresenting the result as periodic steady state.
-
-Snapshot creation never saves or version-advances an Experiment. A single
-unsaved Session may create many Article Snapshots; Publication Snapshots
-require an already-saved Experiment so they cannot become orphaned releases.
-
-## 11. Runtime-only data
-
-None of the following is carried by Experiment, Snapshot, or Article:
-
-- play/pause, elapsed runtime, accepted state between captures;
-- settlement/numerical-health progress and analysis workers;
-- target generation, request IDs, Worker IDs, and correlation tokens;
-- trace ring buffers, one-beat replay, graph caches, and render decimation;
-- current Scenario Manager focus and graph-trace visibility;
-- active Dockview pane, split geometry, theme, modal/drawer state; and
-- Reader one-live scheduling or legend-click visibility.
-
-Workbench runs all Experiment Scenarios concurrently. Presentation buffers
-decouple model step cadence from the browser render cadence. Background
-settlement/verification status, Worker-pool leases, queue priority, and
-captured job candidates remain ephemeral.
-
-## 12. Browser persistence and deletion
-
-The direct-cutover browser envelope is:
-
-```text
-circleheart.studio.browser-content.v6
-  ├─ experiments[]
-  ├─ snapshots[]
-  └─ articles[]
-
-circleheart.studio.browser-experiment-index.v5
-  └─ explicit Experiment metadata and optional publication pointer
-```
-
-Old browser envelopes are retired, not migrated. The current store validates
-exact schemas, unique IDs, immutable Snapshot writes, Experiment version
-progression, exact model identity, and Article placement references. Before an
-Experiment Save is written, it also rechecks the Worker result against the
-frozen submitted model, Surface, Scenario order/identity/label, and fixtures;
-Worker capture may change checkpoints only.
-
-The localStorage implementation is a pre-backend product prototype. Its
-version checks cannot provide transactional compare-and-swap across concurrent
-tabs, and Snapshot persistence plus the Experiment publication pointer are two
-browser writes. Before production launch, the backend store must provide:
-
-- atomic Experiment version compare-and-swap with explicit conflict UI;
-- atomic Publication Snapshot + published-pointer commit or recovery journal;
-- retained exact-model lookup by `content.modelId`;
-- typed quota handling plus per-record corruption quarantine/recovery;
-- a data-router navigation blocker covering browser history traversal; and
-- authorization and ownership outside canonical URLs.
-
-Deleting an Experiment removes only that mutable resource and its library
-metadata. It never cascades to Snapshots or Articles. Backend retention and
-garbage collection removes only Snapshots that are no longer referenced by an
-Article Placement or an Experiment publication pointer. Article deletion starts
-a short recovery retention window; after it expires, a periodic backend job may
-delete newly unreferenced Article Snapshots. The browser prototype does not
-pretend localStorage can provide that transactional retention service.
-
-## 13. Canonical URLs
-
-```text
-/:locale/experiments                     public directory
-/:locale/experiments/new
-/:locale/experiments/:experimentId
-/:locale/snapshots/:snapshotId
-/:locale/articles                        public directory
-/:locale/articles/:articleId/edit
-/:locale/articles/:articleId
-/:locale/me/experiments                  personal management
-/:locale/me/articles                     personal management
-/:locale/me/settings                     account preferences
-```
-
-User IDs are not embedded in canonical content paths. Authentication,
-ownership, and authorization belong to backend metadata. IDs are opaque and
-URL-safe; routes do not encode model release, hash, fixture, checkpoint, or
-Briefing JSON.
-
-An unsaved Session always uses `/experiments/new`. `:experimentId` is therefore
-a durable Experiment identity, not a prospective reservation. Article handoff
-context may add an ephemeral `sessionToken` query parameter; the token is
-navigation correlation only and never becomes content or a canonical URL.
-
-## 14. Normative invariants
-
-1. `ExperimentContent` is shared; lifecycle guarantees are not.
-2. Workbench is a UI, not a domain or persistence entity.
-3. Only explicit Save creates or updates an Experiment.
-4. Only explicit Save adds an item to My Experiments.
-5. Experiment Save may be unsettled; Article Snapshot capture requires
-   numerical safety but not settlement; Publication Snapshot capture requires
-   period-1 settlement.
-6. Every Snapshot is immutable, independently addressable, and gated.
-7. Article Snapshot creation requires no Experiment; neither Snapshot variant
-   version-advances an Experiment.
-8. A Snapshot has no parent/source/head/base lineage fields.
-9. Publication is a Publication Snapshot, not another entity.
-10. Article projection is inseparable from an Article Snapshot.
-11. Fixture and checkpoint are captured atomically against exact `modelId`.
-12. Hashes remain registry/storage integrity mechanisms, not domain identity.
-13. Runtime checks, caches, and device layout never become scientific content.
-14. No compatibility aliases preserve removed pre-release structures.
-15. `/experiments/new` has no `experimentId`; only a successful first Save
-    allocates one.
-16. Background qualification forks from one atomic capture, resumes live
-    lanes immediately, and runs within a bounded single-use Worker pool.
+1. Every durable Scenario carries fixture and exact checkpoint together.
+2. Every Experiment and Snapshot pins one exact registered `modelId`.
+3. Snapshot rows are insert-only and neutral; no purpose, Briefing, status, or
+   qualification payload is stored in them.
+4. The same admission implementation is used before every Snapshot insert.
+5. Admission cannot mutate the captured candidate.
+6. An Article Placement owns one Briefing and pins one Snapshot.
+7. Briefing changes create new immutable Article content, not a new Snapshot
+   unless a new numerical capture is intentionally requested.
+8. Experiment Save may be unsettled and requires no admission.
+9. Opening or forking a Session creates no durable Experiment.
+10. Model integrity is enforced at CI/registry admission, not rehashed by each
+    client.
+11. All backend writes are semantic, authenticated, idempotent, and
+    version-checked where the resource is mutable.
+12. Device layout and live status never leak into portable content.

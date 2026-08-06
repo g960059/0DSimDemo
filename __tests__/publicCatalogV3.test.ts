@@ -12,7 +12,7 @@ import type { ExperimentSnapshotV2 } from "@/studio/contracts/v2/content";
 import type { StudioBrowserExperimentRecordV3 } from "@/studio/infrastructure/browser/StudioBrowserExperimentIndexV3";
 
 describe("public catalog V3", () => {
-  it("exposes public Articles and valid publication pointers only", () => {
+  it("exposes public Articles and valid published Snapshot pointers only", () => {
     const publicArticle = {
       articleId: "article-public",
       title: "Public",
@@ -25,22 +25,17 @@ describe("public catalog V3", () => {
     } as StudioArticleDraftV2;
     const publication = {
       snapshotId: "snapshot-publication",
-      kind: "publication",
-    } as ExperimentSnapshotV2;
-    const articleSnapshot = {
-      snapshotId: "snapshot-article",
-      kind: "article",
-    } as ExperimentSnapshotV2;
+    } as unknown as ExperimentSnapshotV2;
     const records = [
       experimentRecord("experiment-public", publication.snapshotId),
       experimentRecord("experiment-draft", null),
-      experimentRecord("experiment-wrong-kind", articleSnapshot.snapshotId),
+      experimentRecord("experiment-missing-snapshot", "snapshot/missing"),
     ];
 
     const catalog = readPublicCatalogV3(
       {
         listArticles: () => [draftArticle, publicArticle],
-        listSnapshots: () => [publication, articleSnapshot],
+        listSnapshots: () => [publication],
       },
       { list: () => records },
     );

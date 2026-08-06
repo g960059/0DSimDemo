@@ -6,15 +6,15 @@ import { Link, useLocation } from "react-router-dom";
 import { experimentSnapshotHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import type {
-  ArticleExperimentSnapshotV2,
+  ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
 
 export type ArticleSnapshotPickerDialogV3Props = Readonly<{
   open: boolean;
-  snapshots: readonly ArticleExperimentSnapshotV2[];
+  snapshots: readonly ExperimentSnapshotV2[];
   onCreateExperiment: () => void;
   onClose: () => void;
-  onSelect: (snapshot: ArticleExperimentSnapshotV2) => void;
+  onSelect: (snapshot: ExperimentSnapshotV2) => void;
 }>;
 
 export function ArticleSnapshotPickerDialogV3({
@@ -115,10 +115,15 @@ export function ArticleSnapshotPickerDialogV3({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">
-                      {snapshot.content.scenarios[0]?.label ?? snapshot.snapshotId}
+                      {snapshot.content.scenarios[0]?.label
+                        ?? t("workbench.selector.untitled")}
                     </span>
-                    <span className="mt-0.5 block truncate font-mono text-[10px] text-wb-subtle">
-                      {snapshot.snapshotId}
+                    <span className="mt-0.5 block truncate text-[10px] text-wb-subtle">
+                      {new Intl.DateTimeFormat(locale, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      }).format(new Date(snapshot.createdAt))}
                     </span>
                   </span>
                   <span className="shrink-0 text-[10px] text-wb-subtle">

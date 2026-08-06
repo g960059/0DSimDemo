@@ -38,16 +38,12 @@ import {
   type MainWireIntegratedModelPresentationAdvanceV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID,
-  qualifyMainWireIntegratedModelSnapshotV3,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelSnapshotQualificationV3";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_VERIFICATION_V3_ID,
-  verifyMainWireIntegratedModelArticleCaptureV3,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelArticleCaptureVerificationV3";
+  MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID,
+  admitMainWireIntegratedModelSnapshotV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelSnapshotAdmissionV3";
 import type {
   ExperimentCaptureResultV2,
-  ExperimentSnapshotGateResultV2,
+  ExperimentSnapshotAdmissionResultV2,
 } from "@/studio/contracts/v2/authoring";
 import type {
   ExperimentContentV2,
@@ -81,7 +77,7 @@ import type { RegisterExactModelPackageInputV2 } from "@/studio/infrastructure/m
 import { importExactExecutableArtifactModuleV2 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
-  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-35" as const;
+  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-36" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 =
   "circleheart.main-wire-integrated-transaction" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3 =
@@ -91,7 +87,7 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3 =
 export const MAIN_WIRE_INTEGRATED_STUDIO_CHECKPOINT_CODEC_ID_V3 =
   "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.v5" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_SNAPSHOT_GATE_ID_V3 =
-  "main-wire-integrated-studio-snapshot-gate-v5" as const;
+  "main-wire-integrated-studio-snapshot-admission-v6" as const;
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_CONTROL_IDS_V3 = Object.freeze({
   systemicResistance: "hemodynamics.systemic-resistance",
@@ -829,19 +825,10 @@ function mainWireIntegratedStudioManifestV3(): RegisteredModelPackageManifestV2 
     snapshotGate: Object.freeze({
       snapshotGateId: MAIN_WIRE_INTEGRATED_STUDIO_SNAPSHOT_GATE_ID_V3,
       definition: Object.freeze({
-        status: "purpose-specific-capture-gate",
-        article: Object.freeze({
-          acceptedOutcome: "one-cycle-numerical-safety",
-          verificationId:
-            MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_VERIFICATION_V3_ID,
-          settlementRequired: false,
-        }),
-        publication: Object.freeze({
-          acceptedOutcome: "period1-converged-only",
-          qualificationId:
-            MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID,
-          settlementRequired: true,
-        }),
+        status: "public-executable-admission",
+        acceptedOutcome: "one-cycle-numerical-safety",
+        admissionId: MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID,
+        settlementRequired: false,
         physiologicalValidationClaimed: false,
         clinicalValidationClaimed: false,
       }),
@@ -1121,84 +1108,33 @@ function mainWireIntegratedExecutableBundleV3(
     snapshotGate: Object.freeze({
       modelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
       snapshotGateId: MAIN_WIRE_INTEGRATED_STUDIO_SNAPSHOT_GATE_ID_V3,
-      async qualifyFrozenCandidate(
+      async admitFrozenCandidate(
         input: Readonly<{
-          purpose: "article" | "publication";
           model: ModelContractV2;
           content: ExperimentContentV2;
         }>,
-      ): Promise<ExperimentSnapshotGateResultV2> {
+      ): Promise<ExperimentSnapshotAdmissionResultV2> {
         assertExactModelV3(input.model);
-        const qualifiedScenarios: ExperimentContentV2["scenarios"][number][] =
-          [];
         for (const scenario of input.content.scenarios) {
           await captureAdapter.validateCapture({
             model: input.model,
             capture: scenario.capture,
           });
           const fixture = validateAndOwnFixtureV3(scenario.capture.fixture);
-          if (input.purpose === "article") {
-            const verification =
-              await verifyMainWireIntegratedModelArticleCaptureV3({
-                candidateCheckpoint: scenario.capture.checkpoint.payload,
-                hemodynamicResearchInputs: fixture.hemodynamicResearchInputs,
-              });
-            if (verification.status !== "accepted") {
-              return Object.freeze({
-                status: "rejected" as const,
-                reason:
-                  `Scenario ${scenario.scenarioId} failed `
-                  + `${verification.verificationId}: ${verification.reason}`,
-              });
-            }
-            qualifiedScenarios.push(scenario);
-            continue;
-          }
-          const qualification = await qualifyMainWireIntegratedModelSnapshotV3({
+          const admission = await admitMainWireIntegratedModelSnapshotV3({
             candidateCheckpoint: scenario.capture.checkpoint.payload,
             hemodynamicResearchInputs: fixture.hemodynamicResearchInputs,
           });
-          if (
-            qualification.status !== "accepted" ||
-            qualification.terminalCheckpoint === null
-          ) {
+          if (admission.status !== "accepted") {
             return Object.freeze({
               status: "rejected" as const,
               reason:
                 `Scenario ${scenario.scenarioId} failed ` +
-                `${MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID}: ` +
-                `${qualification.reason}` +
-                (qualification.message === null
-                  ? ""
-                  : ` (${qualification.message})`),
+                `${admission.admissionId}: ${admission.reason}`,
             });
           }
-          qualifiedScenarios.push(
-            Object.freeze({
-              scenarioId: scenario.scenarioId,
-              label: scenario.label,
-              capture: Object.freeze({
-                fixture: scenario.capture.fixture,
-                checkpoint: Object.freeze({
-                  acceptedRevision: qualification.terminalCheckpoint.revision,
-                  acceptedTimeSec:
-                    qualification.terminalCheckpoint.acceptedTimeSec,
-                  payload: cloneAndFreezeStudioJson(
-                    qualification.terminalCheckpoint,
-                  ),
-                }),
-              }),
-            }),
-          );
         }
-        return Object.freeze({
-          status: "passed" as const,
-          qualifiedContent: Object.freeze({
-            modelId: input.content.modelId,
-            scenarios: Object.freeze(qualifiedScenarios),
-            surface: input.content.surface,
-          }),
-        });
+        return Object.freeze({ status: "passed" as const });
       },
     }),
     fixtureAdapter,

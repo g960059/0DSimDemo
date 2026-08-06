@@ -133,8 +133,8 @@ describe("V3 Dockview Workbench", () => {
     expect(visible).toContain("Baseline");
   });
 
-  it("preloads only an Article Snapshot's inseparable Briefing", () => {
-    const articleSnapshot = createWorkbenchBriefingSnapshotV3({
+  it("preloads Placement Briefing independently from its neutral Snapshot", () => {
+    const snapshot = createWorkbenchBriefingSnapshotV3({
       modelId: "model/main-wire-v3",
       scenarios: [{ scenarioId: "scenario/a", label: "A" }],
       surface: {
@@ -144,24 +144,23 @@ describe("V3 Dockview Workbench", () => {
         note: { text: "" },
       },
     });
-    if (articleSnapshot.kind !== "article") {
-      throw new Error("Briefing helper must create an Article Snapshot");
-    }
+    const sourceBriefing = reconcileWorkbenchBriefingV3({
+      briefing: null,
+      preferredFocusScenarioId: "scenario/a",
+      defaultTitle: "A",
+      snapshot,
+    });
     expect(resolveWorkbenchInitialBriefingV3({
       current: null,
-      sourceSnapshot: articleSnapshot,
-    })).toEqual(articleSnapshot.briefing);
+      sourceBriefing,
+    })).toEqual(sourceBriefing);
     expect(resolveWorkbenchInitialBriefingV3({
-      current: articleSnapshot.briefing,
-      sourceSnapshot: null,
-    })).toBe(articleSnapshot.briefing);
-    const { briefing: _briefing, ...snapshotBase } = articleSnapshot;
+      current: sourceBriefing,
+      sourceBriefing: null,
+    })).toBe(sourceBriefing);
     expect(resolveWorkbenchInitialBriefingV3({
       current: null,
-      sourceSnapshot: {
-        ...snapshotBase,
-        kind: "publication",
-      },
+      sourceBriefing: null,
     })).toBeNull();
   });
 
@@ -892,6 +891,7 @@ describe("V3 Dockview Workbench", () => {
     expect(reconcileWorkbenchBriefingV3({
       briefing: { ...explicitEmpty, defaultTitle: "Stale title" },
       preferredFocusScenarioId: "scenario/default",
+      defaultTitle: "Workbench experiment",
       snapshot,
     }).defaultTitle).toBe("Workbench experiment");
 

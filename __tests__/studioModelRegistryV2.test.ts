@@ -618,8 +618,8 @@ function makeExecutableBundleV2(
     snapshotGate: {
       modelId: manifest.modelId,
       snapshotGateId: manifest.snapshotGate.snapshotGateId,
-      qualifyFrozenCandidate({ content }: any) {
-        return Promise.resolve({ status: "passed" as const, qualifiedContent: content });
+      admitFrozenCandidate() {
+        return Promise.resolve({ status: "passed" as const });
       },
     },
     fixtureAdapter: {

@@ -81,6 +81,8 @@ describe('homeLinks', () => {
 
     expect(allocated).toBe('experiment-unique_token_123');
     expect(isOpaqueExperimentIdV3(allocated)).toBe(true);
+    expect(isOpaqueExperimentIdV3("d9428888-122b-4a51-85c4-5dc04b6f0708"))
+      .toBe(true);
     expect(isOpaqueExperimentIdV3('model/exact-release')).toBe(false);
     expect(createOpaqueExperimentIdV3(() => 'opaque_token_123'))
       .toBe('experiment-opaque_token_123');

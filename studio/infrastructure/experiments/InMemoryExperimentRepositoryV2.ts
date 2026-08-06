@@ -39,8 +39,8 @@ export class StudioExperimentConflictErrorV2 extends Error {
   }
 }
 
-const QUALIFIED_SNAPSHOT_COMMIT_CAPABILITY_V2 = Symbol(
-  "StudioQualifiedSnapshotCommitV2",
+const ADMITTED_SNAPSHOT_COMMIT_CAPABILITY_V2 = Symbol(
+  "StudioAdmittedSnapshotCommitV2",
 );
 
 /**
@@ -125,7 +125,7 @@ class InMemoryExperimentRepositoryV2 {
     return this.#snapshots.get(snapshotId) ?? null;
   }
 
-  [QUALIFIED_SNAPSHOT_COMMIT_CAPABILITY_V2](): Readonly<{
+  [ADMITTED_SNAPSHOT_COMMIT_CAPABILITY_V2](): Readonly<{
     commitSnapshot(snapshot: ExperimentSnapshotV2): void;
   }> {
     return Object.freeze({
@@ -156,7 +156,7 @@ class InMemoryExperimentRepositoryV2 {
 
 export type InMemoryExperimentAuthoringDependenciesV2 = Omit<
   ConstructorParameters<typeof StudioExperimentAuthoringApplicationV2>[0],
-  "repository" | "qualifiedSnapshotCommit"
+  "repository" | "admittedSnapshotCommit"
 > & Readonly<{
   seed?: InMemoryExperimentAuthoringSeedV2;
 }>;
@@ -197,8 +197,8 @@ export function createInMemoryExperimentAuthoringV2(
   const application = new StudioExperimentAuthoringApplicationV2({
     ...authoringDependencies,
     repository,
-    qualifiedSnapshotCommit:
-      repository[QUALIFIED_SNAPSHOT_COMMIT_CAPABILITY_V2](),
+    admittedSnapshotCommit:
+      repository[ADMITTED_SNAPSHOT_COMMIT_CAPABILITY_V2](),
   });
   const authoringFacade: StudioExperimentAuthoringFacadeV2 = Object.freeze({
     createExperiment: application.createExperiment.bind(application),

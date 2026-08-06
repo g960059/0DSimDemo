@@ -291,17 +291,14 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     expect(checkpoint.acceptedRevision).toBe(advanced.acceptedRevision);
     expect(checkpoint.acceptedTimeSec).toBe(advanced.acceptedTimeSec);
 
-    const articleGateResult = await composition.runtime.snapshotGate
-      .qualifyFrozenCandidate({
-        purpose: "article",
+    const admissionResult = await composition.runtime.snapshotGate
+      .admitFrozenCandidate({
         model,
         content: captured.content,
       });
-    expect(articleGateResult.status).toBe("passed");
-    if (articleGateResult.status === "passed") {
-      expect(articleGateResult.qualifiedContent.scenarios[0]!.capture.checkpoint)
-        .toEqual(checkpoint);
-    }
+    expect(admissionResult.status).toBe("passed");
+    expect(captured.content.scenarios[0]!.capture.checkpoint)
+      .toEqual(checkpoint);
 
     simulation.disposeSession(runtimeSessionId);
     await expect(simulation.createSession({

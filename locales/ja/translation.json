@@ -62,7 +62,19 @@
   },
   "accountAccess": {
     "title": "CircleHeartにログイン",
-    "preRelease": "アカウント機能は現在準備中です。認証基盤の接続後にログインできるようになります。"
+    "description": "保存したシミュレーションや記事を、別の端末からも開けるようにします。",
+    "retainAnonymous": "この端末で保存した内容を、メールまたはGoogleアカウントへ引き継ぎます。",
+    "email": "メールアドレス",
+    "emailPlaceholder": "you@example.com",
+    "continueWithEmail": "メールで続ける",
+    "continueWithGoogle": "Googleで続ける",
+    "sending": "送信中…",
+    "redirecting": "Googleを開いています…",
+    "or": "または",
+    "magicLinkSent": "メールを送信しました",
+    "magicLinkSentDescription": "メール内のリンクを開くと、パスワードなしでログインできます。",
+    "noPassword": "CircleHeartはパスワードを保存しません。メールのリンクまたはGoogleでログインします。",
+    "unconfigured": "認証サービスが設定されていません。"
   },
   "accountSettings": {
     "eyebrow": "ACCOUNT",
@@ -165,21 +177,21 @@
       "saveError": "保存できませんでした",
       "publish": "公開",
       "publishing": "公開中…",
-      "publishDescription": "公開用Snapshotを作成し、保存済みシミュレーションの公開先として設定します。",
+      "publishDescription": "現在の状態を数値確認し、保存済みシミュレーションの公開内容として固定します。",
       "publishRequiresSave": "公開する前にシミュレーションを保存してください。",
       "publishRequiresClean": "現在のシミュレーションの変更を保存してから公開してください。",
       "briefing": "Brief",
       "briefingTitle": "記事用Briefing",
       "briefingDescription": "記事へ持ち込むScenario、graph、output、controlを選びます。",
-      "briefingSnapshotNotice": "BriefingはArticle Snapshot作成時に固定されます。Editorへ戻った後、記事を保存するとPlacementが永続化されます。",
+      "briefingSnapshotNotice": "記事へ追加した時点の表示内容と操作範囲を固定します。Editorへ戻った後、記事を保存すると配置が保存されます。",
       "briefingSourceChanged": "Briefingを開いた後に元のシミュレーション構成が変わりました。閉じて開き直してから、もう一度作成してください。",
-      "briefingChangedDuringSnapshot": "Snapshot作成中にBriefingが変更されました。変更内容を確認して、もう一度作成してください。",
-      "createSnapshot": "Snapshotを作成",
-      "createSnapshotForArticle": "Snapshotを作成して記事へ追加",
-      "creatingSnapshot": "Snapshotを作成中…",
-      "snapshotCreated": "Snapshotを作成しました",
-      "snapshotError": "Snapshotを作成できませんでした",
-      "snapshotNotReady": "Live simulationがまだSnapshotを作成できる状態ではありません。",
+      "briefingChangedDuringSnapshot": "記事用の選択内容が確認中に変更されました。内容を確認して、もう一度追加してください。",
+      "createSnapshot": "現在の状態を固定",
+      "createSnapshotForArticle": "記事へ追加",
+      "creatingSnapshot": "数値を確認中…",
+      "snapshotCreated": "現在の状態を固定しました",
+      "snapshotError": "現在の状態を固定できませんでした",
+      "snapshotNotReady": "Live simulationがまだ安全に固定できる状態ではありません。",
       "snapshotBusy": "別のシミュレーション操作を処理中です。完了後にもう一度作成してください。",
       "close": "閉じる",
       "cancel": "キャンセル",
@@ -365,7 +377,7 @@
     "emptyBriefing": "この配置ではpaneを表示しない設定です。",
     "panes": "panes",
     "scenarioCount": "{{count}} scenarios",
-    "snapshotCount": "{{count}}件のSnapshot",
+    "snapshotCount": "{{count}}件の固定データ",
     "status": {
       "idle": "",
       "dirty": "未保存",
@@ -375,19 +387,19 @@
     },
     "snapshotPicker": {
       "title": "シミュレーションを挿入",
-      "description": "各配置はimmutableなArticle Snapshot 1件をpinします。Briefingを変更すると新しいSnapshotを作成します。",
+      "description": "記事に固定するシミュレーションを選びます。表示内容や操作範囲は配置ごとに編集できます。",
       "listLabel": "配置可能なシミュレーション",
       "createExperiment": "新しいシミュレーションを作成",
       "createExperimentHint": "シミュレーションを編集し、記事に見せる内容を選んでこの記事へ戻ります。"
     },
     "emptySnapshots": {
-      "title": "Snapshotがまだありません",
+      "title": "記事に配置できるシミュレーションがまだありません",
       "description": "シミュレーションを構成し、記事用の固定データとして配置します。シミュレーションの保存は必須ではありません。",
       "openWorkbench": "シミュレーションを開く",
       "createExperiment": "シミュレーションを作成"
     },
     "missingSnapshot": {
-      "title": "固定先のSnapshotを読み込めません"
+      "title": "固定したシミュレーションを読み込めません"
     },
     "invalidBriefing": "この配置のBriefingを安全に読み込めません。",
     "briefing": {
@@ -434,6 +446,7 @@
     "eyebrow": "GUIDED EXPLORATION",
     "heading": "記事",
     "description": "文章と固定したシミュレーションを組み合わせて、循環動態を伝えます。",
+    "loading": "記事を読み込んでいます…",
     "emptyTitle": "記事はまだありません",
     "emptyDescription": "記事を作成し、必要に応じてシミュレーションを追加してください。",
     "saved": "保存済みの記事",
@@ -444,6 +457,7 @@
     "read": "読む"
   },
   "articleReader": {
+    "loading": "記事を読み込んでいます…",
     "backToArticles": "記事一覧",
     "edit": "記事を編集",
     "untitled": "名称未設定の記事",
@@ -479,6 +493,7 @@
     "noControlTarget": "現在のScenarioは対象外"
   },
   "snapshotReader": {
+    "loading": "シミュレーションを読み込んでいます…",
     "eyebrow": "SIMULATION SNAPSHOT",
     "editInWorkbench": "シミュレーションとして編集",
     "missingTitle": "Snapshotが見つかりません",

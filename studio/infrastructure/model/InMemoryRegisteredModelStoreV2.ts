@@ -314,7 +314,7 @@ export function validateExecutableBundleV2(
   assertExactExecutableKeysV2(bundle.snapshotGate, [
     "modelId",
     "snapshotGateId",
-    "qualifyFrozenCandidate",
+    "admitFrozenCandidate",
   ], "Snapshot gate adapter");
   assertExactExecutableKeysV2(bundle.fixtureAdapter, [
     "modelId",
@@ -355,7 +355,7 @@ export function validateExecutableBundleV2(
     || typeof bundle.experimentCapture.captureAcceptedCandidate !== "function"
     || bundle.snapshotGate?.modelId !== model.modelId
     || bundle.snapshotGate.snapshotGateId !== model.snapshotGateId
-    || typeof bundle.snapshotGate.qualifyFrozenCandidate !== "function"
+    || typeof bundle.snapshotGate.admitFrozenCandidate !== "function"
     || bundle.fixtureAdapter?.modelId !== model.modelId
     || bundle.fixtureAdapter.fixtureSchemaId !== model.fixtureSchemaId
     || typeof bundle.fixtureAdapter.validateCompleteFixture !== "function"
@@ -403,7 +403,7 @@ export function freezeExactRuntimeV2(
     snapshotGate: Object.freeze({
       modelId: bundle.snapshotGate.modelId,
       snapshotGateId: bundle.snapshotGate.snapshotGateId,
-      qualifyFrozenCandidate: bundle.snapshotGate.qualifyFrozenCandidate,
+      admitFrozenCandidate: bundle.snapshotGate.admitFrozenCandidate,
     }),
     fixtureAdapter: Object.freeze({
       modelId: bundle.fixtureAdapter.modelId,

@@ -83,7 +83,6 @@ import {
 import { isLocale } from "@/localeRouting";
 import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
 import type {
-  ArticleExperimentSnapshotV2,
   ExperimentControlPresentationV2,
   ExperimentSurfaceControlPaneV2,
   ExperimentSurfaceGraphPaneV2,
@@ -121,8 +120,13 @@ import { StudioBrowserContentStoreV3 } from "@/studio/infrastructure/browser/Stu
 import { studioCanonicalJsonStringify } from "@/studio/infrastructure/json/StudioCanonicalJson";
 import {
   StudioBrowserExperimentIndexV3,
+  STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
   type StudioBrowserExperimentRecordV3,
 } from "@/studio/infrastructure/browser/StudioBrowserExperimentIndexV3";
+import {
+  createStudioSupabaseContentRepositoryV1,
+  type StudioRemoteExperimentResourceV1,
+} from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
   StudioArticleExperimentAuthoringHandoffStoreV3,
 } from "@/studio/infrastructure/browser/StudioArticleExperimentAuthoringHandoffV3";
@@ -253,6 +257,10 @@ const WorkbenchV3Session = ({
     () => new StudioBrowserExperimentIndexV3(),
     [],
   );
+  const remoteContentRepository = React.useMemo(
+    createStudioSupabaseContentRepositoryV1,
+    [],
+  );
   const articleExperimentHandoff = React.useMemo(
     () => new StudioArticleExperimentAuthoringHandoffStoreV3(),
     [],
@@ -329,7 +337,7 @@ const WorkbenchV3Session = ({
   const [briefing, setBriefing] =
     React.useState<ExperimentPlacementBriefingV2 | null>(null);
   const [briefingCaptureSnapshot, setBriefingCaptureSnapshot] =
-    React.useState<ArticleExperimentSnapshotV2 | null>(null);
+    React.useState<ExperimentSnapshotV2 | null>(null);
   const [briefingCaptureSurfaceMutationRevision, setBriefingCaptureSurfaceMutationRevision] =
     React.useState<number | null>(null);
   const [paneSettings, setPaneSettings] =
@@ -506,12 +514,20 @@ const WorkbenchV3Session = ({
     const start = async () => {
       const composition = await loadStudioDefaultClientCompositionV2();
       if (cancelled) return;
-      const contentStore = new StudioBrowserContentStoreV3();
+      const contentStore = remoteContentRepository === null
+        ? new StudioBrowserContentStoreV3()
+        : null;
       contentStoreRef.current = contentStore;
       const durableExperimentId = experimentIdRef.current;
+      const remoteExperimentResource = durableExperimentId === null
+        || remoteContentRepository === null
+        ? null
+        : await remoteContentRepository.readMyExperiment(durableExperimentId);
       const storedExperiment = durableExperimentId === null
         ? null
-        : contentStore.readExperiment(durableExperimentId);
+        : remoteContentRepository === null
+          ? contentStore!.readExperiment(durableExperimentId)
+          : remoteExperimentResource?.experiment ?? null;
       if (durableExperimentId !== null && storedExperiment === null) {
         navigate(myExperimentsHref(resolvedLocale), { replace: true });
         return;
@@ -521,27 +537,38 @@ const WorkbenchV3Session = ({
       );
       const sourceSnapshot = storedExperiment === null
         && requestedSnapshotId !== null
-        ? contentStore.readSnapshot(requestedSnapshotId)
+        ? remoteContentRepository === null
+          ? contentStore!.readSnapshot(requestedSnapshotId)
+          : await remoteContentRepository.readSnapshot(requestedSnapshotId)
         : null;
+      const sourceBriefing = sourceSnapshot === null
+        || articleAuthoringContext?.briefing === null
+        || articleAuthoringContext?.briefing === undefined
+        ? null
+        : validateExperimentPlacementBriefingV2(
+            articleAuthoringContext.briefing,
+            sourceSnapshot.content,
+          );
       const initialContent = storedExperiment?.content ?? sourceSnapshot?.content;
       const record = storedExperiment === null
         ? null
-        : experimentIndex.ensure({
-            experimentId: durableExperimentId!,
-            title: storedExperiment.content.scenarios[0]?.label
-              ?? translationRef.current("workbench.selector.untitled"),
-            nowIso: new Date().toISOString(),
-          });
+        : remoteExperimentResource === null
+          ? experimentIndex.ensure({
+              experimentId: durableExperimentId!,
+              title: storedExperiment.content.scenarios[0]?.label
+                ?? translationRef.current("workbench.selector.untitled"),
+              nowIso: new Date().toISOString(),
+            })
+          : remoteExperimentRecordV3(remoteExperimentResource);
       setExperimentRecord(record);
       const initialTitle = record?.title
-        ?? (sourceSnapshot?.kind === "article"
-          ? sourceSnapshot.briefing.defaultTitle
-          : sourceSnapshot?.content.scenarios[0]?.label)
+        ?? sourceBriefing?.defaultTitle
+        ?? sourceSnapshot?.content.scenarios[0]?.label
         ?? translationRef.current("workbench.selector.untitled");
       setExperimentTitle(initialTitle);
       experimentTitleRef.current = initialTitle;
       setArticleLinked(
-        articleAuthoringContext !== null || sourceSnapshot?.kind === "article",
+        articleAuthoringContext !== null,
       );
       if (
         initialContent !== undefined &&
@@ -614,9 +641,10 @@ const WorkbenchV3Session = ({
       const nextBriefing = reconcileWorkbenchBriefingV3({
         briefing: resolveWorkbenchInitialBriefingV3({
           current: briefingRef.current,
-          sourceSnapshot,
+          sourceBriefing,
         }),
         preferredFocusScenarioId: initialScenarioId,
+        defaultTitle: experimentTitleRef.current,
         snapshot: createWorkbenchBriefingSnapshotV3({
           defaultTitle: experimentTitleRef.current,
           modelId: composition.defaultModelId,
@@ -811,6 +839,7 @@ const WorkbenchV3Session = ({
     navigate,
     presentationSampleStore,
     replaceAnalysisByKeyV3,
+    remoteContentRepository,
     resolvedLocale,
     runtimeGeneration,
   ]);
@@ -1564,7 +1593,7 @@ const WorkbenchV3Session = ({
       runtime === null ||
       frame === null ||
       surface === null ||
-      contentStore === null ||
+      (remoteContentRepository === null && contentStore === null) ||
       backgroundWorkerPool === null ||
       exclusiveOperationRef.current !== null
     )
@@ -1590,40 +1619,60 @@ const WorkbenchV3Session = ({
         if (playingIntentRef.current && !document.hidden) runtime.playAll();
       }
       const currentExperiment = experimentRef.current;
-      const currentExperimentId = experimentIdRef.current;
-      const targetExperimentId = currentExperiment?.experimentId
-        ?? currentExperimentId
-        ?? allocateOpaqueExperimentIdV3([
-          ...contentStore.listExperiments().map(({ experimentId }) =>
-            experimentId),
-          ...experimentIndex.list().map(({ experimentId }) => experimentId),
-        ]);
-      const coordinator = new WorkbenchParallelAuthoringCoordinatorV3(
-        undefined,
-        backgroundWorkerPool,
-      );
-      const saved = await coordinator.saveExperiment({
-        modelId: frame.modelId,
-        scenarios: captures.scenarios,
-        activeScenarioId: captures.activeScenarioId,
-        experiment: currentExperiment,
-        experimentId: targetExperimentId,
-        surface: submittedSurface,
-        runtimeSessionId: `workbench-authoring-${randomPortableTokenV3()}`,
-      });
       const submittedCandidateContent = {
         modelId: frame.modelId,
         scenarios: captures.scenarios,
         surface: submittedSurface,
       };
+      const currentExperimentId = experimentIdRef.current;
+      let saved: ExperimentV2;
+      let remoteSavedResource: StudioRemoteExperimentResourceV1 | null = null;
+      if (remoteContentRepository !== null) {
+        saved = await remoteContentRepository.saveExperiment({
+          experimentId: currentExperiment?.experimentId
+            ?? currentExperimentId,
+          expectedVersion: currentExperiment?.version ?? null,
+          title: submittedTitle,
+          content: submittedCandidateContent,
+        });
+        remoteSavedResource = await remoteContentRepository.readMyExperiment(
+          saved.experimentId,
+        );
+        if (remoteSavedResource === null) {
+          throw new Error("Saved Experiment could not be read back");
+        }
+      } else {
+        const targetExperimentId = currentExperiment?.experimentId
+          ?? currentExperimentId
+          ?? allocateOpaqueExperimentIdV3([
+            ...contentStore!.listExperiments().map(({ experimentId }) =>
+              experimentId),
+            ...experimentIndex.list().map(({ experimentId }) => experimentId),
+          ]);
+        const coordinator = new WorkbenchParallelAuthoringCoordinatorV3(
+          undefined,
+          backgroundWorkerPool,
+        );
+        const assembled = await coordinator.saveExperiment({
+          modelId: frame.modelId,
+          scenarios: captures.scenarios,
+          activeScenarioId: captures.activeScenarioId,
+          experiment: currentExperiment,
+          experimentId: targetExperimentId,
+          surface: submittedSurface,
+          runtimeSessionId: `workbench-authoring-${randomPortableTokenV3()}`,
+        });
+        saved = contentStore!.saveExperiment(
+          assembled,
+          submittedCandidateContent,
+        );
+      }
+      const targetExperimentId = saved.experimentId;
       // The authoring Worker is transient and already terminated. Persistence
       // failure therefore leaves the independent live lane pool untouched so
       // the user can retry without losing unsaved exact Scenario state.
       commitWorkbenchTransientAuthoringResultV3({
-        persist: () => contentStore.saveExperiment(
-          saved,
-          submittedCandidateContent,
-        ),
+        persist: () => saved,
         adoptDurable: (durableExperiment) => {
           const surfaceResolution = resolveWorkbenchSurfaceAfterCommitV3({
             currentMutationRevision: surfaceMutationRevisionRef.current,
@@ -1634,14 +1683,23 @@ const WorkbenchV3Session = ({
           experimentRef.current = durableExperiment;
           setExperiment(durableExperiment);
           const nowIso = new Date().toISOString();
-          const existingRecord = experimentIndex.read(targetExperimentId);
-          const touchedRecord = existingRecord === null
-            ? experimentIndex.ensure({
-                experimentId: targetExperimentId,
-                title: submittedTitle,
-                nowIso,
-              })
-            : experimentIndex.touch(targetExperimentId, nowIso);
+          const existingRecord = experimentRecord?.experimentId
+            === targetExperimentId
+            ? experimentRecord
+            : null;
+          const touchedRecord = remoteContentRepository === null
+            ? existingRecord === null
+              ? experimentIndex.ensure({
+                  experimentId: targetExperimentId,
+                  title: submittedTitle,
+                  nowIso,
+                })
+              : experimentIndex.rename({
+                  experimentId: targetExperimentId,
+                  title: submittedTitle,
+                  nowIso,
+                })
+            : remoteExperimentRecordV3(remoteSavedResource!);
           const isFirstSave = experimentIdRef.current === null;
           experimentIdRef.current = targetExperimentId;
           setExperimentRecord(touchedRecord);
@@ -1705,9 +1763,11 @@ const WorkbenchV3Session = ({
     backgroundWorkerPool,
     contract,
     experimentIndex,
+    experimentRecord,
     experimentTitle,
     location.search,
     navigate,
+    remoteContentRepository,
     resolvedLocale,
     surface,
     t,
@@ -1718,7 +1778,6 @@ const WorkbenchV3Session = ({
       | Readonly<{ kind: "publication" }>
       | Readonly<{
           kind: "article";
-          briefing: ExperimentPlacementBriefingV2;
           sourceSnapshot: ExperimentSnapshotV2;
           sourceSurfaceMutationRevision: number;
           sourceBriefingMutationRevision: number;
@@ -1759,7 +1818,7 @@ const WorkbenchV3Session = ({
       runtime === null ||
       frame === null ||
       submittedSurface === null ||
-      contentStore === null ||
+      (remoteContentRepository === null && contentStore === null) ||
       backgroundWorkerPool === null
     ) {
       setSnapshotError(t("workbench.editor.snapshotNotReady"));
@@ -1782,9 +1841,8 @@ const WorkbenchV3Session = ({
         captures = await runtime.captureScenarios();
       } finally {
         // The exact fixture + checkpoint tuple is now owned by the background
-        // job. Resume every live lane before settlement and verification so a
-        // Snapshot never freezes the visible simulation for the duration of
-        // qualification.
+        // job. Resume every live lane before bounded admission so Snapshot
+        // creation never freezes the visible simulation for that work.
         if (playingIntentRef.current && !document.hidden) runtime.playAll();
       }
       if (
@@ -1807,17 +1865,16 @@ const WorkbenchV3Session = ({
         surface: submittedSurface,
         experiment: publicationExperiment,
         experimentId: publicationExperiment?.experimentId ?? null,
-        runtimeSessionId: `workbench-qualification-${randomPortableTokenV3()}`,
+        runtimeSessionId: `workbench-admission-${randomPortableTokenV3()}`,
       };
       const created = options.kind === "article"
         ? await coordinator.createSnapshot({
             ...authoringInput,
-            snapshotKind: "article",
-            briefing: options.briefing,
+            snapshotSource: "session",
           })
         : await coordinator.createSnapshot({
             ...authoringInput,
-            snapshotKind: "publication",
+            snapshotSource: "saved-experiment",
           });
       if (
         options.kind === "article"
@@ -1833,31 +1890,67 @@ const WorkbenchV3Session = ({
       ) {
         throw new Error(t("workbench.editor.briefingChangedDuringSnapshot"));
       }
-      const persisted = contentStore.saveSnapshotCommit(
-        created,
-        {
-          modelId: authoringInput.modelId,
-          scenarios: authoringInput.scenarios,
-          surface: authoringInput.surface,
-        },
-        options.kind === "publication" && publicationExperiment !== null
-          ? {
-              experimentId: publicationExperiment.experimentId,
-              expectedVersion: publicationExperiment.version,
-            }
-          : undefined,
-      );
+      const persistedSnapshot = remoteContentRepository === null
+        ? contentStore!.saveSnapshotCommit(
+            created,
+            {
+              modelId: authoringInput.modelId,
+              scenarios: authoringInput.scenarios,
+              surface: authoringInput.surface,
+            },
+            options.kind === "publication" && publicationExperiment !== null
+              ? {
+                  experimentId: publicationExperiment.experimentId,
+                  expectedVersion: publicationExperiment.version,
+                }
+              : undefined,
+          ).snapshot
+        : await remoteContentRepository.commitSnapshot({
+            admitted: created,
+            ...(options.kind === "publication" && publicationExperiment !== null
+              ? {
+                  sourceExperiment: {
+                    experimentId: publicationExperiment.experimentId,
+                    expectedVersion: publicationExperiment.version,
+                  },
+                }
+              : {}),
+          });
       if (options.kind === "publication" && experimentRef.current !== null) {
-        const nextRecord = experimentIndex.publish({
-          experimentId: experimentRef.current.experimentId,
-          snapshotId: persisted.snapshot.snapshotId,
-          nowIso: new Date().toISOString(),
-        });
+        if (remoteContentRepository !== null) {
+          await remoteContentRepository.publishExperiment({
+            experimentId: experimentRef.current.experimentId,
+            expectedVersion: experimentRef.current.version,
+            snapshotId: persistedSnapshot.snapshotId,
+            publicSlug: publicExperimentSlugV3(
+              experimentRef.current.experimentId,
+            ),
+          });
+        }
+        const nowIso = new Date().toISOString();
+        const remotePublishedResource = remoteContentRepository === null
+          ? null
+          : await remoteContentRepository.readMyExperiment(
+              experimentRef.current.experimentId,
+            );
+        if (
+          remoteContentRepository !== null
+          && remotePublishedResource === null
+        ) {
+          throw new Error("Published Experiment could not be read back");
+        }
+        const nextRecord = remoteContentRepository === null
+          ? experimentIndex.publish({
+              experimentId: experimentRef.current.experimentId,
+              snapshotId: persistedSnapshot.snapshotId,
+              nowIso,
+            })
+          : remoteExperimentRecordV3(remotePublishedResource!);
         setExperimentRecord(nextRecord);
       }
       setSnapshotCount((count) => count + 1);
       setSnapshotState("created");
-      return persisted.snapshot;
+      return persistedSnapshot;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setSnapshotError(message);
@@ -1877,6 +1970,8 @@ const WorkbenchV3Session = ({
   }, [
     backgroundWorkerPool,
     experimentIndex,
+    experimentRecord,
+    remoteContentRepository,
     saveState,
     t,
   ]);
@@ -1893,27 +1988,26 @@ const WorkbenchV3Session = ({
     ) return;
     const snapshot = await createSnapshotV3({
       kind: "article",
-      briefing: currentBriefing,
       sourceSnapshot,
       sourceSurfaceMutationRevision,
       sourceBriefingMutationRevision: briefingMutationRevisionRef.current,
     });
-    if (snapshot !== null && snapshot.kind === "article") {
+    if (snapshot !== null) {
       setHasUncapturedBriefingChanges(false);
     }
     if (
       snapshot === null
-      || snapshot.kind !== "article"
       || articleAuthoringContext === null
     ) return;
     const completed = articleExperimentHandoff.complete({
       sessionToken,
       snapshotId: snapshot.snapshotId,
+      briefing: currentBriefing,
     });
     if (completed === null) return;
-    // Returning to the Article is an explicit persistence boundary: current
-    // content and Briefing now live in the immutable Article Snapshot even
-    // when the disposable Session was never saved as an Experiment.
+    // Returning to the Article completes only the single-use handoff. The
+    // neutral Snapshot exists independently; saving the Article persists its
+    // Placement-owned Briefing even when this Session was never an Experiment.
     setHasUnsavedContentChanges(false);
     setHasUncommittedTitleChanges(false);
     setHasUncapturedBriefingChanges(false);
@@ -2042,6 +2136,7 @@ const WorkbenchV3Session = ({
     const nextBriefing = reconcileWorkbenchBriefingV3({
       briefing: briefingRef.current,
       preferredFocusScenarioId: activeId,
+      defaultTitle: experimentTitleRef.current,
       snapshot: capture,
     });
     setBriefingCaptureSnapshot(capture);
@@ -2064,6 +2159,12 @@ const WorkbenchV3Session = ({
       setHasUncommittedTitleChanges(false);
       return;
     }
+    if (remoteContentRepository !== null) {
+      setHasUncommittedTitleChanges(true);
+      setSaveState("dirty");
+      setHasUnsavedContentChanges(true);
+      return;
+    }
     try {
       const nextRecord = experimentIndex.rename({
         experimentId: experimentRecord.experimentId,
@@ -2078,7 +2179,13 @@ const WorkbenchV3Session = ({
       setHasUncommittedTitleChanges(false);
       setSaveError(error instanceof Error ? error.message : String(error));
     }
-  }, [experimentIndex, experimentRecord, experimentTitle, t]);
+  }, [
+    experimentIndex,
+    experimentRecord,
+    experimentTitle,
+    remoteContentRepository,
+    t,
+  ]);
 
   return (
     <div
@@ -2888,7 +2995,7 @@ export function createWorkbenchBriefingSnapshotV3(
     scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
     surface: ExperimentSurfaceV2;
   }>,
-): ArticleExperimentSnapshotV2 {
+): ExperimentSnapshotV2 {
   if (input.scenarios.length === 0) {
     throw new Error("Workbench Briefing requires at least one Scenario");
   }
@@ -2918,15 +3025,9 @@ export function createWorkbenchBriefingSnapshotV3(
   });
   return Object.freeze({
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-    kind: "article" as const,
     snapshotId: "snapshot/workbench-briefing-composer",
     createdAt: "1970-01-01T00:00:00.000Z",
     content,
-    briefing: defaultArticleBriefingV3(
-      { content },
-      undefined,
-      input.defaultTitle,
-    ),
   });
 }
 
@@ -2950,19 +3051,17 @@ export function workbenchBriefingSourceScenariosMatchV3(
 }
 
 /**
- * Article Snapshot edits begin from the exact captured projection. An
- * in-session composer value wins only after the Session has authored one.
+ * Placement edits begin from the exact captured projection. An in-session
+ * composer value wins only after the Session has authored one.
  */
 export function resolveWorkbenchInitialBriefingV3(
   input: Readonly<{
     current: ExperimentPlacementBriefingV2 | null;
-    sourceSnapshot: ExperimentSnapshotV2 | null;
+    sourceBriefing: ExperimentPlacementBriefingV2 | null;
   }>,
 ): ExperimentPlacementBriefingV2 | null {
   if (input.current !== null) return input.current;
-  return input.sourceSnapshot?.kind === "article"
-    ? input.sourceSnapshot.briefing
-    : null;
+  return input.sourceBriefing;
 }
 
 /**
@@ -2973,7 +3072,8 @@ export function reconcileWorkbenchBriefingV3(
   input: Readonly<{
     briefing: ExperimentPlacementBriefingV2 | null;
     preferredFocusScenarioId: string;
-    snapshot: ArticleExperimentSnapshotV2;
+    defaultTitle?: string;
+    snapshot: ExperimentSnapshotV2;
   }>,
 ): ExperimentPlacementBriefingV2 {
   const availableScenarioIds = input.snapshot.content.scenarios.map(
@@ -2993,6 +3093,7 @@ export function reconcileWorkbenchBriefingV3(
   const defaultBriefing = defaultArticleBriefingV3(
     input.snapshot,
     fallbackFocusScenarioId,
+    input.defaultTitle,
   );
   const authored = input.briefing ?? defaultBriefing;
   const authoredVisible = new Set(authored.scenarioScope.visibleScenarioIds);
@@ -3103,7 +3204,7 @@ export function reconcileWorkbenchBriefingV3(
     // The composer has no detached title editor. Its default title always
     // comes from the frozen source projection so a stale in-memory Briefing
     // cannot override the Experiment title captured for this seal.
-    defaultTitle: input.snapshot.briefing.defaultTitle,
+    defaultTitle: input.defaultTitle ?? authored.defaultTitle,
     scenarioScope: Object.freeze({
       visibleScenarioIds: Object.freeze(visibleScenarioIds),
       initialFocusScenarioId,
@@ -3124,7 +3225,7 @@ export function resolveWorkbenchBriefingEditorChangeV3(
     activeScenarioId: string;
     current: ExperimentPlacementBriefingV2;
     next: ExperimentPlacementBriefingV2;
-    snapshot: ArticleExperimentSnapshotV2;
+    snapshot: ExperimentSnapshotV2;
   }>,
 ): ExperimentPlacementBriefingV2 {
   const availableScenarioIds = input.snapshot.content.scenarios.map(
@@ -3179,6 +3280,7 @@ export function resolveWorkbenchBriefingEditorChangeV3(
   return reconcileWorkbenchBriefingV3({
     briefing: candidate,
     preferredFocusScenarioId: input.next.scenarioScope.initialFocusScenarioId,
+    defaultTitle: input.current.defaultTitle,
     snapshot: input.snapshot,
   });
 }
@@ -4765,6 +4867,23 @@ function controlStepPrecisionV3(step: number): number {
   const text = step.toString();
   if (text.includes("e-")) return Math.min(6, Number(text.split("e-")[1]));
   return Math.min(6, text.split(".")[1]?.length ?? 0);
+}
+
+function remoteExperimentRecordV3(
+  resource: StudioRemoteExperimentResourceV1,
+): StudioBrowserExperimentRecordV3 {
+  return Object.freeze({
+    schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
+    experimentId: resource.experiment.experimentId,
+    title: resource.title,
+    createdAt: resource.createdAt,
+    updatedAt: resource.updatedAt,
+    publishedSnapshotId: resource.publishedSnapshotId,
+  });
+}
+
+function publicExperimentSlugV3(experimentId: string): string {
+  return `simulation-${experimentId.toLocaleLowerCase()}`;
 }
 
 export default WorkbenchV3Page;

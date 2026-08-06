@@ -19,8 +19,8 @@ import {
   studioCanonicalJsonStringify,
 } from "@/studio/infrastructure/json/StudioCanonicalJson";
 import {
-  assertStudioSimulationWorkerQualifiedSnapshotCommitV2,
-  type StudioSimulationWorkerQualifiedSnapshotCommitV2,
+  assertStudioSimulationWorkerAdmittedSnapshotCommitV2,
+  type StudioSimulationWorkerAdmittedSnapshotCommitV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
 
 /**
@@ -29,9 +29,9 @@ import {
  * leak back into the authoring model.
  */
 export const STUDIO_BROWSER_CONTENT_STORE_V3_KEY =
-  "circleheart.studio.browser-content.v8";
+  "circleheart.studio.browser-content.v9";
 export const STUDIO_BROWSER_CONTENT_STORE_V3_SCHEMA_ID =
-  "circleheart-studio-browser-content-v8" as const;
+  "circleheart-studio-browser-content-v9" as const;
 
 const RETIRED_CONTENT_STORE_KEYS_V3 = Object.freeze([
   "circleheart.studio.browser-content.v2",
@@ -41,6 +41,7 @@ const RETIRED_CONTENT_STORE_KEYS_V3 = Object.freeze([
   "circleheart.studio.browser-content.v5",
   "circleheart.studio.browser-content.v6",
   "circleheart.studio.browser-content.v7",
+  "circleheart.studio.browser-content.v8",
 ]);
 
 export type StudioBrowserStoragePortV3 = Pick<
@@ -98,7 +99,7 @@ export class StudioBrowserContentStoreV3 {
 
   /**
    * Deletes only the explicitly saved mutable Experiment. Immutable
-   * publication/article Snapshots remain valid independently.
+   * Snapshots remain valid independently.
    */
   deleteExperiment(experimentId: string): boolean {
     requireOpaqueExperimentIdV3(experimentId);
@@ -147,15 +148,15 @@ export class StudioBrowserContentStoreV3 {
   }
 
   /**
-   * Persists one independently qualified immutable Snapshot. Snapshot
+   * Persists one independently admitted immutable Snapshot. Snapshot
    * creation never mutates or implicitly creates an Experiment.
    */
   saveSnapshotCommit(
-    input: StudioSimulationWorkerQualifiedSnapshotCommitV2,
+    input: StudioSimulationWorkerAdmittedSnapshotCommitV2,
     candidateContentValue: unknown,
     publicationSource?: StudioBrowserPublicationSnapshotSourceV3,
   ): Readonly<{ snapshot: ExperimentSnapshotV2 }> {
-    assertStudioSimulationWorkerQualifiedSnapshotCommitV2(input);
+    assertStudioSimulationWorkerAdmittedSnapshotCommitV2(input);
     const candidateContent = validateExperimentContentV2(
       candidateContentValue,
     );
@@ -163,18 +164,22 @@ export class StudioBrowserContentStoreV3 {
     assertContentPreservesCandidateAuthoredContentV3(
       candidateContent,
       snapshot.content,
-      "Qualified Snapshot",
+      "Admitted Snapshot",
     );
+    if (
+      studioCanonicalJsonStringify(candidateContent)
+      !== studioCanonicalJsonStringify(snapshot.content)
+    ) {
+      throw new Error(
+        "Admitted Snapshot must preserve the exact captured candidate",
+      );
+    }
     const current = this.#read();
-    if (snapshot.kind === "publication") {
+    if (publicationSource !== undefined) {
       assertPublicationSourceV3(
         publicationSource,
         candidateContent,
         current.experiments,
-      );
-    } else if (publicationSource !== undefined) {
-      throw new Error(
-        "Article Snapshot must not carry a Publication Experiment source",
       );
     }
     assertNewSnapshotV3(snapshot, current.snapshots);
@@ -271,13 +276,13 @@ function assertContentPreservesCandidateAuthoredContentV3(
     );
   }
   candidate.scenarios.forEach((scenario, index) => {
-    const qualified = persisted.scenarios[index];
+    const captured = persisted.scenarios[index];
     if (
-      qualified === undefined
-      || scenario.scenarioId !== qualified.scenarioId
-      || scenario.label !== qualified.label
+      captured === undefined
+      || scenario.scenarioId !== captured.scenarioId
+      || scenario.label !== captured.label
       || studioCanonicalJsonStringify(scenario.capture.fixture)
-        !== studioCanonicalJsonStringify(qualified.capture.fixture)
+        !== studioCanonicalJsonStringify(captured.capture.fixture)
     ) {
       throw new Error(
         `${subject} changed authored Scenario ${scenario.scenarioId}`,
@@ -293,7 +298,7 @@ function assertPublicationSourceV3(
 ): void {
   if (source === undefined) {
     throw new Error(
-      "Publication Snapshot requires a saved Experiment source",
+      "Publishing requires a saved Experiment source",
     );
   }
   requireOpaqueExperimentIdV3(

@@ -26,14 +26,13 @@ import {
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-  type ArticleExperimentSnapshotV2,
+  type ExperimentSnapshotV2,
   type ExperimentPlacementBriefingV2,
   type ExperimentPlacementV2,
 } from "@/studio/contracts/v2/content";
-function snapshotV3(): ArticleExperimentSnapshotV2 {
-  const snapshot: Omit<ArticleExperimentSnapshotV2, "briefing"> = {
+function snapshotV3(): ExperimentSnapshotV2 {
+  return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-    kind: "article" as const,
     snapshotId: "snapshot/article-preview",
     createdAt: "2026-08-01T00:00:00.000Z",
     content: {
@@ -86,23 +85,12 @@ function snapshotV3(): ArticleExperimentSnapshotV2 {
       },
     },
   };
-  return {
-    ...snapshot,
-    briefing: defaultArticleBriefingV3(snapshot),
-  };
 }
 
-function twoGraphSnapshotV3(): ArticleExperimentSnapshotV2 {
+function twoGraphSnapshotV3(): ExperimentSnapshotV2 {
   const snapshot = snapshotV3();
   return {
     ...snapshot,
-    briefing: {
-      ...snapshot.briefing,
-      graphs: [
-        ...snapshot.briefing.graphs,
-        { paneId: "pane/pv", order: 1, emphasis: "supporting" },
-      ],
-    },
     content: {
       ...snapshot.content,
       surface: {
@@ -352,7 +340,7 @@ describe("Article Editor V3 briefing", () => {
     expect(first.placement.snapshotId).toBe(snapshot.snapshotId);
     expect(first.blockId).not.toBe(second.blockId);
     expect(first.placement.placementId).not.toBe(second.placement.placementId);
-    expect(snapshot.briefing).toEqual({
+    expect(first.placement.briefing).toEqual({
       defaultTitle: "Baseline",
       scenarioScope: {
         visibleScenarioIds: ["scenario/baseline", "scenario/comparison"],
@@ -383,14 +371,12 @@ describe("Article Editor V3 briefing", () => {
 
   it("resolves role-specific selections and authored graph overrides", () => {
     const snapshot = snapshotV3();
-    const focusedSnapshot: ArticleExperimentSnapshotV2 = {
-      ...snapshot,
-      briefing: focusedBriefingV3(),
-    };
+    const focusedSnapshot = snapshot;
     const placement: ExperimentPlacementV2 = {
       schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
       placementId: "placement/article-preview",
       snapshotId: snapshot.snapshotId,
+      briefing: focusedBriefingV3(),
       titleOverride: null,
       caption: null,
     };
@@ -412,14 +398,12 @@ describe("Article Editor V3 briefing", () => {
       outputs: [],
       controls: [],
     };
-    const emptySnapshot: ArticleExperimentSnapshotV2 = {
-      ...snapshot,
-      briefing: emptyRoles,
-    };
+    const emptySnapshot = snapshot;
     const placement: ExperimentPlacementV2 = {
       schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
       placementId: "placement/empty-preview",
       snapshotId: snapshot.snapshotId,
+      briefing: emptyRoles,
       titleOverride: null,
       caption: null,
     };
@@ -427,11 +411,13 @@ describe("Article Editor V3 briefing", () => {
     expect(resolveArticlePlacementBriefingV3(placement, emptySnapshot)).toEqual(emptyRoles);
     expect(createArticleExperimentBlockV3(
       emptySnapshot,
+      emptyRoles,
       (kind) => `${kind}/empty-briefing`,
     ).placement).toEqual({
       schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
       placementId: "placement/empty-briefing",
       snapshotId: emptySnapshot.snapshotId,
+      briefing: emptyRoles,
       titleOverride: null,
       caption: null,
     });
@@ -443,14 +429,13 @@ describe("Article Editor V3 briefing", () => {
 
   it("builds the same default projection through the dedicated helper", () => {
     const snapshot = snapshotV3();
-    expect(defaultArticleBriefingV3(snapshot)).toEqual(
-      snapshot.briefing,
-    );
+    expect(createArticleExperimentBlockV3(snapshot).placement.briefing)
+      .toEqual(defaultArticleBriefingV3(snapshot));
   });
 
   it("keeps controller-pane identity while normalizing default graph order", () => {
     const base = snapshotV3();
-    const snapshot: ArticleExperimentSnapshotV2 = {
+    const snapshot: ExperimentSnapshotV2 = {
       ...base,
       content: {
         ...base.content,
@@ -522,7 +507,7 @@ describe("Article Editor V3 briefing", () => {
 
   it("captures a Surface custom-button presentation by value", () => {
     const base = snapshotV3();
-    const snapshot: ArticleExperimentSnapshotV2 = {
+    const snapshot: ExperimentSnapshotV2 = {
       ...base,
       content: {
         ...base.content,

@@ -8,7 +8,7 @@ import {
   type ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import type {
-  StudioSimulationWorkerQualifiedSnapshotCommitV2,
+  StudioSimulationWorkerAdmittedSnapshotCommitV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
 import {
   StudioSimulationWorkerClientV2,
@@ -151,7 +151,7 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
     expect(client.terminate).toHaveBeenCalledOnce();
   });
 
-  it("returns the Worker's sealed qualified Snapshot commit unchanged", async () => {
+  it("returns the Worker's sealed admitted Snapshot commit unchanged", async () => {
     const durableScenario = scenarioV3(
       "scenario/baseline",
       "Durable Baseline",
@@ -168,7 +168,7 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
     });
     const commit = Object.freeze({
       snapshot: snapshotV3("snapshot/next", experiment),
-    }) as unknown as StudioSimulationWorkerQualifiedSnapshotCommitV2;
+    }) as unknown as StudioSimulationWorkerAdmittedSnapshotCommitV2;
     const client = clientDoubleV3();
     client.createSnapshot.mockResolvedValue(commit);
     const coordinator = new WorkbenchParallelAuthoringCoordinatorV3(
@@ -193,7 +193,7 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
       runtimeSessionId: "runtime/authoring-1",
       scenarioId: "scenario/baseline",
       surface: surfaceV3("Workbench note"),
-      snapshotKind: "publication",
+      snapshotSource: "saved-experiment",
     });
     expect(client.terminate).toHaveBeenCalledOnce();
   });
@@ -231,7 +231,7 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
     expect(factory).not.toHaveBeenCalled();
   });
 
-  it("creates an independent Article Snapshot without a saved Experiment", async () => {
+  it("creates a neutral Snapshot for Article placement without a saved Experiment", async () => {
     const baseExperiment = experimentV3({
       version: 0,
       scenarios: [scenarioV3("scenario/baseline", "Baseline", 1)],
@@ -242,7 +242,7 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
         ...baseSnapshot,
         snapshotId: "snapshot/next",
       },
-    }) as unknown as StudioSimulationWorkerQualifiedSnapshotCommitV2;
+    }) as unknown as StudioSimulationWorkerAdmittedSnapshotCommitV2;
     const client = clientDoubleV3();
     client.createSnapshot.mockResolvedValue(commit);
     const coordinator = new WorkbenchParallelAuthoringCoordinatorV3(
@@ -251,17 +251,7 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
 
     await expect(coordinator.createSnapshot({
       ...snapshotInputV3({ experiment: null, experimentId: null }),
-      snapshotKind: "article",
-      briefing: {
-        defaultTitle: "Workbench experiment",
-        scenarioScope: {
-          visibleScenarioIds: ["scenario/baseline"],
-          initialFocusScenarioId: "scenario/baseline",
-        },
-        graphs: [],
-        outputs: [],
-        controls: [],
-      },
+      snapshotSource: "session",
     })).resolves.toBe(commit);
     expect(client.initialize.mock.calls[0]![0]).not.toHaveProperty(
       "authoringSeed",
@@ -270,17 +260,7 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
       runtimeSessionId: "runtime/authoring-1",
       scenarioId: "scenario/baseline",
       surface: surfaceV3("Workbench note"),
-      snapshotKind: "article",
-      briefing: {
-        defaultTitle: "Workbench experiment",
-        scenarioScope: {
-          visibleScenarioIds: ["scenario/baseline"],
-          initialFocusScenarioId: "scenario/baseline",
-        },
-        graphs: [],
-        outputs: [],
-        controls: [],
-      },
+      snapshotSource: "session",
     });
 
     await expect(coordinator.createSnapshot(snapshotInputV3({
@@ -320,7 +300,7 @@ function snapshotInputV3(
 ): WorkbenchParallelSnapshotAuthoringInputV3 {
   return {
     ...inputV3(overrides),
-    snapshotKind: "publication",
+    snapshotSource: "saved-experiment",
   };
 }
 
@@ -375,7 +355,6 @@ function snapshotV3(
 ): ExperimentSnapshotV2 {
   return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-    kind: "publication",
     snapshotId,
     content: experiment.content,
     createdAt: "2026-08-01T00:00:00.000Z",

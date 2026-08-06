@@ -285,7 +285,16 @@ export type ExperimentV2 = Readonly<{
   content: ExperimentContentV2;
 }>;
 
-type ExperimentSnapshotBaseV2 = Readonly<{
+/**
+ * One immutable, publicly executable Experiment state.
+ *
+ * A Snapshot has no Article/Publication kind. Those are mutable references to
+ * the same admitted artifact: an Experiment Publication points at a Snapshot,
+ * while an Article Placement owns its resolved Reader projection and points
+ * at a Snapshot. The admission contract is therefore identical for every
+ * Snapshot and never rewrites the captured checkpoint through settlement.
+ */
+export type ExperimentSnapshotV2 = Readonly<{
   schemaId: typeof STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID;
   snapshotId: ExperimentSnapshotIdV2;
   content: ExperimentContentV2;
@@ -388,31 +397,13 @@ export type ExperimentPlacementBriefingV2 = Readonly<{
   controls: readonly ExperimentPlacementBriefingControlV2[];
 }>;
 
-/** Standalone immutable publication of one complete Experiment state. */
-export type PublicationExperimentSnapshotV2 =
-  ExperimentSnapshotBaseV2 & Readonly<{
-    kind: "publication";
-  }>;
-
-/**
- * Article-specific immutable capture. The audience projection is inseparable
- * from the exact Experiment state it was authored against.
- */
-export type ArticleExperimentSnapshotV2 =
-  ExperimentSnapshotBaseV2 & Readonly<{
-    kind: "article";
-    briefing: ExperimentPlacementBriefingV2;
-  }>;
-
-export type ExperimentSnapshotV2 =
-  | PublicationExperimentSnapshotV2
-  | ArticleExperimentSnapshotV2;
-
 export type ExperimentPlacementV2 = Readonly<{
   schemaId: typeof STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID;
   placementId: ExperimentPlacementIdV2;
   snapshotId: ExperimentSnapshotIdV2;
-  /** Article-local copy edit. Null resolves to Snapshot briefing.defaultTitle. */
+  /** Immutable Article-local projection of the pinned Snapshot. */
+  briefing: ExperimentPlacementBriefingV2;
+  /** Article-local copy edit. Null resolves to briefing.defaultTitle. */
   titleOverride: string | null;
   caption: string | null;
 }>;

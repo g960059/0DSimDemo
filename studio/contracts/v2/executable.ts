@@ -1,6 +1,6 @@
 import type {
   ExperimentCapturePortV2,
-  ExperimentSnapshotGatePortV2,
+  ExperimentSnapshotAdmissionPortV2,
 } from "./authoring";
 import type {
   ModelIdV2,
@@ -24,7 +24,7 @@ export type RegisteredModelExperimentCaptureAdapterV2 =
   }>;
 
 export type RegisteredModelSnapshotGateAdapterV2 =
-  ExperimentSnapshotGatePortV2 & Readonly<{
+  ExperimentSnapshotAdmissionPortV2 & Readonly<{
     modelId: ModelIdV2;
     snapshotGateId: string;
   }>;

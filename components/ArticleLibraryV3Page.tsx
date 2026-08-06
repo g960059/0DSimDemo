@@ -19,10 +19,14 @@ import {
   StudioBrowserContentStoreV3,
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
+  createStudioSupabaseContentRepositoryV1,
+} from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
+import {
   publicArticleExcerptV3,
 } from "@/components/site/PublicCatalogPresentationV3";
 
 type ArticleLibraryStateV3 =
+  | Readonly<{ kind: "loading" }>
   | Readonly<{ kind: "ready"; articles: readonly StudioArticleDraftV2[] }>
   | Readonly<{ kind: "error"; message: string }>;
 
@@ -31,20 +35,40 @@ export function ArticleLibraryV3Page() {
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
   const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
-  const [state] = React.useState<ArticleLibraryStateV3>(() => {
-    try {
-      return {
-        kind: "ready",
-        articles: Object.freeze([...store.listArticles()].sort((left, right) =>
-          left.title.localeCompare(right.title))),
-      };
-    } catch (error) {
-      return {
-        kind: "error",
-        message: error instanceof Error ? error.message : String(error),
-      };
-    }
+  const remoteRepository = React.useMemo(
+    createStudioSupabaseContentRepositoryV1,
+    [],
+  );
+  const [state, setState] = React.useState<ArticleLibraryStateV3>({
+    kind: "loading",
   });
+
+  React.useEffect(() => {
+    let current = true;
+    const load = async () => {
+      const articles = remoteRepository === null
+        ? store.listArticles()
+        : (await remoteRepository.listMyArticles()).map(({ article }) => article);
+      if (current) {
+        setState({
+          kind: "ready",
+          articles: Object.freeze([...articles].sort((left, right) =>
+            left.title.localeCompare(right.title))),
+        });
+      }
+    };
+    void load().catch((error) => {
+      if (current) {
+        setState({
+          kind: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, [remoteRepository, store]);
 
   return (
     <div
@@ -73,7 +97,11 @@ export function ArticleLibraryV3Page() {
           </Link>
         </div>
 
-        {state.kind === "error" ? (
+        {state.kind === "loading" ? (
+          <p className="mt-8 text-sm text-wb-muted" role="status">
+            {t("articleLibrary.loading")}
+          </p>
+        ) : state.kind === "error" ? (
           <p className="mt-8 rounded-xl bg-wb-danger-soft p-4 text-sm text-wb-danger" role="alert">
             {state.message}
           </p>

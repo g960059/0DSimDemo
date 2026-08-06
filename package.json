@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit --pretty false",
     "build": "npm run typecheck && vite build",
     "verify:registry:main-wire-v3": "vite-node --script tools/registry/verifyMainWireIntegratedStudioModelV3.ts",
+    "publish:registry:main-wire-v3": "vite-node --script tools/registry/publishMainWireIntegratedStudioModelV3.ts",
     "preview": "vite preview",
     "check:repository-hygiene": "node tools/repository/checkRepositoryHygiene.mjs",
     "test": "npm run test:fast",
@@ -37,6 +38,7 @@
     "validate:mechanical-support:v1": "vite-node --script tools/devices/generateMechanicalSupportValidationV1.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.1",
     "dockview": "^6.6.1",
     "i18next": "^26.3.1",
     "lucide-react": "^1.17.0",

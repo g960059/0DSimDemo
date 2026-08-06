@@ -563,19 +563,8 @@ describe("ArticleReaderLiveRuntimeV3", () => {
 function snapshotV3(): ExperimentSnapshotV2 {
   return Object.freeze({
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-    kind: "article" as const,
     snapshotId: "snapshot/reader-live-v3",
     createdAt: "2026-08-02T00:00:00.000Z",
-    briefing: Object.freeze({
-      defaultTitle: "Reader live experiment",
-      scenarioScope: Object.freeze({
-        visibleScenarioIds: Object.freeze(["scenario/one", "scenario/two"]),
-        initialFocusScenarioId: "scenario/one",
-      }),
-      graphs: Object.freeze([]),
-      outputs: Object.freeze([]),
-      controls: Object.freeze([]),
-    }),
     content: Object.freeze({
       modelId: "model/exact-reader-v3",
       scenarios: Object.freeze([

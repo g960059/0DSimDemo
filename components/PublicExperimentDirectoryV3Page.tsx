@@ -5,25 +5,33 @@ import { Link, useLocation } from "react-router-dom";
 
 import { experimentSnapshotHref, newExperimentHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
-import { readPublicCatalogV3 } from "@/components/site/PublicCatalogV3";
+import { readPublicCatalogAsyncV3 } from "@/components/site/PublicCatalogV3";
 
 export function PublicExperimentDirectoryV3Page() {
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
-  const [state] = React.useState(() => {
-    try {
-      return {
-        kind: "ready" as const,
-        experiments: readPublicCatalogV3().experiments,
-      };
-    } catch (error) {
-      return {
-        kind: "error" as const,
-        message: error instanceof Error ? error.message : String(error),
-      };
-    }
-  });
+  const [state, setState] = React.useState<
+    | Readonly<{ kind: "loading" }>
+    | Readonly<{ kind: "ready"; experiments: Awaited<ReturnType<typeof readPublicCatalogAsyncV3>>["experiments"] }>
+    | Readonly<{ kind: "error"; message: string }>
+  >({ kind: "loading" });
+  React.useEffect(() => {
+    let current = true;
+    void readPublicCatalogAsyncV3().then((catalog) => {
+      if (current) setState({ kind: "ready", experiments: catalog.experiments });
+    }).catch((error) => {
+      if (current) {
+        setState({
+          kind: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, []);
 
   return (
     <div className="h-full overflow-y-auto bg-wb-app text-wb-text" data-testid="public-experiment-directory-v3">
@@ -46,7 +54,11 @@ export function PublicExperimentDirectoryV3Page() {
           </Link>
         </div>
 
-        {state.kind === "error" ? (
+        {state.kind === "loading" ? (
+          <p className="mt-10 text-sm text-wb-muted" role="status">
+            {t("workbench.selector.loading")}
+          </p>
+        ) : state.kind === "error" ? (
           <p className="mt-10 rounded-xl bg-wb-danger-soft p-4 text-sm text-wb-danger" role="alert">
             {state.message}
           </p>

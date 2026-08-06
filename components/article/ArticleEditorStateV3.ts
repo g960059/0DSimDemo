@@ -57,18 +57,15 @@ export function articleSurfacePanesV3(
 }
 
 /**
- * Resolves the role-specific Reader Briefing captured inside one immutable
- * Article Snapshot. Placement owns only article position and caption.
+ * Resolves the role-specific Reader Briefing owned by one Article Placement.
+ * The pinned Snapshot remains a neutral immutable executable value.
  */
 export function resolveArticlePlacementBriefingV3(
   placement: ExperimentPlacementV2,
   snapshot: ExperimentSnapshotV2,
 ): ExperimentPlacementBriefingV2 {
   validateExperimentPlacementAgainstSnapshotV2(placement, snapshot);
-  if (snapshot.kind !== "article") {
-    throw new Error("Article Placement must pin an Article Snapshot");
-  }
-  return snapshot.briefing;
+  return placement.briefing;
 }
 
 /** Creates the explicit Reader projection used for a newly placed Snapshot. */
@@ -203,17 +200,25 @@ export function materializeSurfaceControlPaneBindingV3(
 
 export function createArticleExperimentBlockV3(
   snapshot: ExperimentSnapshotV2,
-  createId: (kind: "block" | "placement") => string = portableEditorIdV3,
+  briefingOrCreateId:
+    | ExperimentPlacementBriefingV2
+    | ((kind: "block" | "placement") => string) =
+      defaultArticleBriefingV3(snapshot),
+  createIdValue: (kind: "block" | "placement") => string = portableEditorIdV3,
 ): StudioArticleExperimentBlockV2 {
+  const briefing = typeof briefingOrCreateId === "function"
+    ? defaultArticleBriefingV3(snapshot)
+    : briefingOrCreateId;
+  const createId = typeof briefingOrCreateId === "function"
+    ? briefingOrCreateId
+    : createIdValue;
   const blockId = createId("block");
   const placementId = createId("placement");
-  if (snapshot.kind !== "article") {
-    throw new Error("Article blocks require an Article Snapshot");
-  }
   const placement = validateExperimentPlacementAgainstSnapshotV2({
     schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
     placementId,
     snapshotId: snapshot.snapshotId,
+    briefing,
     titleOverride: null,
     caption: null,
   }, snapshot);

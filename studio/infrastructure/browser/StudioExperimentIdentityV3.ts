@@ -2,6 +2,8 @@ import type { ExperimentIdV2 } from "@/studio/contracts/v2/ids";
 
 const EXPERIMENT_ID_PREFIX_V3 = "experiment-";
 const EXPERIMENT_ID_PATTERN_V3 = /^experiment-[A-Za-z0-9_-]{8,128}$/;
+const SERVER_EXPERIMENT_ID_PATTERN_V3 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EXPERIMENT_ID_ALLOCATION_ATTEMPTS_V3 = 32;
 
 export type ExperimentIdentityTokenFactoryV3 = () => string;
@@ -41,7 +43,13 @@ export function allocateOpaqueExperimentIdV3(
 export function isOpaqueExperimentIdV3(
   value: unknown,
 ): value is ExperimentIdV2 {
-  return typeof value === "string" && EXPERIMENT_ID_PATTERN_V3.test(value);
+  return typeof value === "string" && (
+    SERVER_EXPERIMENT_ID_PATTERN_V3.test(value)
+    // Kept only for the unconfigured browser repository used by isolated
+    // development/tests. Configured clients receive UUID identities from the
+    // Save transaction and never allocate this fallback form.
+    || EXPERIMENT_ID_PATTERN_V3.test(value)
+  );
 }
 
 export function requireOpaqueExperimentIdV3(

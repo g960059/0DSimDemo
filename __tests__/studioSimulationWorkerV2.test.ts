@@ -324,13 +324,13 @@ describe("Studio simulation worker V2 protocol", () => {
       scenarioId: "scenario/baseline",
       scenarioIds: ["scenario/baseline"],
       surface: surfaceV2(),
-      snapshotKind: "publication",
+      snapshotSource: "saved-experiment",
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
     })).toMatchObject({
       kind: "create-snapshot",
-      snapshotKind: "publication",
+      snapshotSource: "saved-experiment",
     });
 
     expect(createStudioSimulationDuplicateScenarioRequestV2(4, {
@@ -838,12 +838,11 @@ describe("Studio simulation worker V2 runtime", () => {
     expect(harness.runtime.state).toBe("active");
   });
 
-  it("qualifies an independent Publication Snapshot without lineage", async () => {
-    const qualifyFrozenCandidate = vi.fn(async ({ content }) => ({
+  it("admits an independent neutral Snapshot without changing its capture", async () => {
+    const admitFrozenCandidate = vi.fn(async () => ({
       status: "passed" as const,
-      qualifiedContent: replaceCheckpointV2(content, 25, 2.5),
     }));
-    const harness = runtimeHarnessV2({ qualifyFrozenCandidate });
+    const harness = runtimeHarnessV2({ admitFrozenCandidate });
     harness.runtime.enqueue(initializeRequestV2(1));
     await harness.runtime.whenIdle();
     harness.runtime.enqueue(createStudioSimulationSaveExperimentRequestV2(2, {
@@ -862,28 +861,27 @@ describe("Studio simulation worker V2 runtime", () => {
       scenarioId: "scenario/baseline",
       scenarioIds: ["scenario/baseline"],
       surface: surfaceV2(),
-      snapshotKind: "publication",
+      snapshotSource: "saved-experiment",
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
     }));
     await harness.runtime.whenIdle();
 
-    expect(qualifyFrozenCandidate).toHaveBeenCalledTimes(1);
+    expect(admitFrozenCandidate).toHaveBeenCalledTimes(1);
     const response = harness.port.messages.at(-1);
     expect(response).toMatchObject({
       requestId: 3,
       status: "ok",
       kind: "snapshot-created",
       snapshot: {
-        kind: "publication",
         snapshotId: "snapshot/worker-test/1",
         content: {
           scenarios: [{
             capture: {
               checkpoint: {
-                acceptedRevision: 25,
-                acceptedTimeSec: 2.5,
+                acceptedRevision: 0,
+                acceptedTimeSec: 0,
               },
             },
           }],
@@ -893,16 +891,16 @@ describe("Studio simulation worker V2 runtime", () => {
     });
     expect(response).not.toHaveProperty("experiment");
     expect(JSON.stringify(response)).not.toMatch(
-      /qualification|numericalHealth|certification|gateResult/,
+      /admission|qualification|numericalHealth|certification|gateResult/,
     );
     expect(harness.runtime.state).toBe("active");
   });
 
   it("keeps gate rejection recoverable and rejects mismatched seed state", async () => {
     const harness = runtimeHarnessV2({
-      qualifyFrozenCandidate: vi.fn(async () => ({
+      admitFrozenCandidate: vi.fn(async () => ({
         status: "rejected" as const,
-        reason: "candidate did not settle",
+        reason: "candidate failed numerical verification",
       })),
     });
     harness.runtime.enqueue(initializeRequestV2(1));
@@ -923,7 +921,7 @@ describe("Studio simulation worker V2 runtime", () => {
       scenarioId: "scenario/baseline",
       scenarioIds: ["scenario/baseline"],
       surface: surfaceV2(),
-      snapshotKind: "publication",
+      snapshotSource: "saved-experiment",
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
@@ -933,7 +931,7 @@ describe("Studio simulation worker V2 runtime", () => {
       requestId: 3,
       status: "error",
       fatal: false,
-      message: expect.stringMatching(/did not settle/),
+      message: expect.stringMatching(/failed numerical verification/),
     });
     expect(harness.runtime.state).toBe("active");
 
@@ -2519,18 +2517,17 @@ describe("Studio simulation worker V2 client", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       surface: surfaceV2(),
-      snapshotKind: "publication",
+      snapshotSource: "saved-experiment",
     });
-    const qualifiedContent = replaceCheckpointV2(
+    const admittedContent = replaceCheckpointV2(
       savedExperiment.content,
       10,
       1,
     );
     const snapshot = {
       schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-      kind: "publication" as const,
       snapshotId: "snapshot/client-test/1",
-      content: qualifiedContent,
+      content: admittedContent,
       createdAt: "2026-08-01T00:00:00.000Z",
     };
     transport.emitMessage({
@@ -2743,7 +2740,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({
       transport,
       responseTimeoutMs: 10,
-      snapshotQualificationTimeoutMs: 40,
+      snapshotAdmissionTimeoutMs: 40,
     });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
@@ -2776,7 +2773,7 @@ describe("Studio simulation worker V2 client", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       surface: surfaceV2(),
-      snapshotKind: "publication",
+      snapshotSource: "saved-experiment",
     });
     const assertion = expect(snapshot).rejects.toThrow(/timed out/);
     await vi.advanceTimersByTimeAsync(10);
@@ -3201,8 +3198,8 @@ function runtimeHarnessV2(overrides: Readonly<{
   currentInputEpoch?: RegisteredModelSimulationAdapterV2["currentInputEpoch"];
   captureAcceptedCandidate?:
     ResolvedExactModelRuntimeV2["experimentCapture"]["captureAcceptedCandidate"];
-  qualifyFrozenCandidate?:
-    ResolvedExactModelRuntimeV2["snapshotGate"]["qualifyFrozenCandidate"];
+  admitFrozenCandidate?:
+    ResolvedExactModelRuntimeV2["snapshotGate"]["admitFrozenCandidate"];
   reduceControlAction?: NonNullable<
     ResolvedExactModelRuntimeV2["fixtureAdapter"]["reduceControlAction"]
   >;
@@ -3344,8 +3341,8 @@ function exactRuntimeV2(
   overrides: Readonly<{
     captureAcceptedCandidate?:
       ResolvedExactModelRuntimeV2["experimentCapture"]["captureAcceptedCandidate"];
-    qualifyFrozenCandidate?:
-      ResolvedExactModelRuntimeV2["snapshotGate"]["qualifyFrozenCandidate"];
+    admitFrozenCandidate?:
+      ResolvedExactModelRuntimeV2["snapshotGate"]["admitFrozenCandidate"];
     reduceControlAction?: NonNullable<
       ResolvedExactModelRuntimeV2["fixtureAdapter"]["reduceControlAction"]
     >;
@@ -3442,10 +3439,9 @@ function exactRuntimeV2(
     snapshotGate: {
       modelId: contract.modelId,
       snapshotGateId: contract.snapshotGateId,
-      qualifyFrozenCandidate: overrides.qualifyFrozenCandidate
-        ?? (async ({ content }) => ({
+      admitFrozenCandidate: overrides.admitFrozenCandidate
+        ?? (async () => ({
           status: "passed" as const,
-          qualifiedContent: content,
         })),
     },
     fixtureAdapter: {

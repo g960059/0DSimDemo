@@ -130,7 +130,6 @@ describe("Studio Experiment data V2", () => {
 
     expect(snapshot).toEqual(expect.objectContaining({
       snapshotId: "snapshot/3",
-      kind: "article",
       createdAt: "2026-07-31T03:04:05.000Z",
       createdBy: "user/author",
     }));
@@ -542,13 +541,12 @@ describe("Studio Experiment data V2", () => {
 
   it("pins a placement and validates role-specific Reader briefing content", () => {
     const snapshot = validateExperimentSnapshotV2(snapshotV2());
-    if (snapshot.kind !== "article") throw new Error("expected Article Snapshot");
     const all = validateExperimentPlacementAgainstSnapshotV2(
       placementV2(),
       snapshot,
     );
     expect(all).toEqual(placementV2());
-    expect(snapshot.briefing).toMatchObject({
+    expect(all.briefing).toMatchObject({
       scenarioScope: {
         visibleScenarioIds: ["scenario/baseline"],
         initialFocusScenarioId: "scenario/baseline",
@@ -582,7 +580,7 @@ describe("Studio Experiment data V2", () => {
         },
       }],
     });
-    expect(Object.isFrozen(snapshot.briefing)).toBe(true);
+    expect(Object.isFrozen(all.briefing)).toBe(true);
   });
 
   it("rejects a wrong snapshot and malformed or unknown briefing selections", () => {
@@ -593,29 +591,44 @@ describe("Studio Experiment data V2", () => {
       validateExperimentPlacementAgainstSnapshotV2(wrongSnapshot, snapshot)
     ).toThrow(/does not match the pinned snapshot/);
 
-    const malformed = snapshotV2() as Record<string, any>;
+    const malformed = placementV2() as Record<string, any>;
     malformed.briefing = { unknownProjection: [] };
-    expect(() => validateExperimentSnapshotV2(malformed))
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      malformed,
+      snapshot,
+    ))
       .toThrow(/keys must be exactly/);
 
-    const unknownGraph = snapshotWithBriefingV2();
+    const unknownGraph = placementWithBriefingV2();
     unknownGraph.briefing.graphs[0].paneId = "pane/missing";
-    expect(() => validateExperimentSnapshotV2(unknownGraph))
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      unknownGraph,
+      snapshot,
+    ))
       .toThrow(/unknown graph pane pane\/missing/);
 
-    const unknownSeries = snapshotWithBriefingV2();
+    const unknownSeries = placementWithBriefingV2();
     unknownSeries.briefing.graphs[0].overrides.series[0].seriesId = "missing";
-    expect(() => validateExperimentSnapshotV2(unknownSeries))
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      unknownSeries,
+      snapshot,
+    ))
       .toThrow(/unknown id missing/);
 
-    const unknownOutput = snapshotWithBriefingV2();
+    const unknownOutput = placementWithBriefingV2();
     unknownOutput.briefing.outputs[0].outputId = "catalog.output/missing";
-    expect(() => validateExperimentSnapshotV2(unknownOutput))
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      unknownOutput,
+      snapshot,
+    ))
       .toThrow(/output catalog.output\/missing is not present in source pane/);
 
-    const unknownControl = snapshotWithBriefingV2();
+    const unknownControl = placementWithBriefingV2();
     unknownControl.briefing.controls[0].controlId = "catalog.control/missing";
-    expect(() => validateExperimentSnapshotV2(unknownControl))
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      unknownControl,
+      snapshot,
+    ))
       .toThrow(/control catalog.control\/missing is not present in source pane/);
   });
 
@@ -712,29 +725,41 @@ describe("Studio Experiment data V2", () => {
     ];
 
     for (const [_name, mutate, pattern] of cases) {
-      const snapshot = snapshotWithBriefingV2();
-      mutate(snapshot.briefing);
-      expect(() => validateExperimentSnapshotV2(snapshot)).toThrow(pattern);
+      const placement = placementWithBriefingV2();
+      mutate(placement.briefing);
+      expect(() => validateExperimentPlacementAgainstSnapshotV2(
+        placement,
+        snapshotV2(),
+      )).toThrow(pattern);
     }
   });
 
   it("fails closed on Reader scenario scope and control binding targets", () => {
-    const duplicateVisible = snapshotWithBriefingV2();
+    const duplicateVisible = placementWithBriefingV2();
     duplicateVisible.briefing.scenarioScope.visibleScenarioIds.push(
       "scenario/baseline",
     );
-    expect(() => validateExperimentSnapshotV2(duplicateVisible))
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      duplicateVisible,
+      snapshotV2(),
+    ))
       .toThrow(/duplicate id scenario\/baseline/);
 
-    const emptyVisible = snapshotWithBriefingV2();
+    const emptyVisible = placementWithBriefingV2();
     emptyVisible.briefing.scenarioScope.visibleScenarioIds = [];
-    expect(() => validateExperimentSnapshotV2(emptyVisible))
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      emptyVisible,
+      snapshotV2(),
+    ))
       .toThrow(/must contain at least one Scenario/);
 
-    const focusOutsideScope = snapshotWithBriefingV2();
+    const focusOutsideScope = placementWithBriefingV2();
     focusOutsideScope.briefing.scenarioScope.initialFocusScenarioId =
       "scenario/comparison";
-    expect(() => validateExperimentSnapshotV2(focusOutsideScope))
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      focusOutsideScope,
+      snapshotV2(),
+    ))
       .toThrow(/must be included in visibleScenarioIds/);
 
     const snapshot = snapshotV2() as Record<string, any>;
@@ -743,29 +768,39 @@ describe("Studio Experiment data V2", () => {
       scenarioId: "scenario/comparison",
       label: "Comparison",
     });
-    const hiddenFixedTarget = snapshotWithBriefingV2();
-    hiddenFixedTarget.content = snapshot.content;
+    const hiddenFixedTarget = placementWithBriefingV2();
     hiddenFixedTarget.briefing.controls[0].binding.scenarioIds = [
       "scenario/comparison",
     ];
-    expect(() => validateExperimentSnapshotV2(hiddenFixedTarget))
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      hiddenFixedTarget,
+      snapshot,
+    ))
       .toThrow(/unknown id scenario\/comparison/);
 
-    const hiddenOutputTarget = snapshotWithBriefingV2();
-    hiddenOutputTarget.content = snapshot.content;
+    const hiddenOutputTarget = placementWithBriefingV2();
     hiddenOutputTarget.briefing.outputs[0].scenarioId = "scenario/comparison";
-    expect(() => validateExperimentSnapshotV2(hiddenOutputTarget))
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      hiddenOutputTarget,
+      snapshot,
+    ))
       .toThrow(/output target scenario\/comparison must be visible/);
 
-    const readerFocus = snapshotWithBriefingV2();
+    const readerFocus = placementWithBriefingV2();
     readerFocus.briefing.controls[0].binding = {
       mode: "reader-focus",
       allowedScenarioIds: ["scenario/baseline"],
     };
-    expect(() => validateExperimentSnapshotV2(readerFocus)).not.toThrow();
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      readerFocus,
+      snapshotV2(),
+    )).not.toThrow();
 
     readerFocus.briefing.controls[0].binding.allowedScenarioIds = [];
-    expect(() => validateExperimentSnapshotV2(readerFocus))
+    expect(() => validateExperimentPlacementAgainstSnapshotV2(
+      readerFocus,
+      snapshotV2(),
+    ))
       .toThrow(/must contain at least one Scenario/);
   });
 
@@ -1067,10 +1102,8 @@ function experimentV2() {
 function snapshotV2() {
   return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-    kind: "article",
     snapshotId: "snapshot/3",
     content: contentV2(),
-    briefing: briefingV2(),
     createdAt: "2026-07-31T03:04:05.000Z",
     createdBy: "user/author",
   };
@@ -1081,6 +1114,7 @@ function placementV2() {
     schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
     placementId: "placement/article-afterload",
     snapshotId: "snapshot/3",
+    briefing: briefingV2(),
     titleOverride: null,
     caption: "Afterload experiment",
   };
@@ -1141,8 +1175,8 @@ function briefingV2() {
   };
 }
 
-function snapshotWithBriefingV2() {
-  return structuredClone(snapshotV2()) as Record<string, any>;
+function placementWithBriefingV2() {
+  return structuredClone(placementV2()) as Record<string, any>;
 }
 
 function presetV2() {
@@ -1234,7 +1268,7 @@ function exactRuntimeResolverV2() {
         snapshotGate: {
           modelId: contract.modelId,
           snapshotGateId: contract.snapshotGateId,
-          qualifyFrozenCandidate() {
+          admitFrozenCandidate() {
             throw new Error("not used by Preset clone");
           },
         },

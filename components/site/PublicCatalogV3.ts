@@ -3,8 +3,12 @@ import type { ExperimentSnapshotV2 } from "@/studio/contracts/v2/content";
 import { StudioBrowserContentStoreV3 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
   StudioBrowserExperimentIndexV3,
+  STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
   type StudioBrowserExperimentRecordV3,
 } from "@/studio/infrastructure/browser/StudioBrowserExperimentIndexV3";
+import {
+  createStudioSupabaseContentRepositoryV1,
+} from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 
 export type PublicExperimentCatalogItemV3 = Readonly<{
   record: StudioBrowserExperimentRecordV3;
@@ -49,11 +53,35 @@ export function readPublicCatalogV3(
       .flatMap((record) => {
         if (record.publishedSnapshotId === null) return [];
         const snapshot = snapshotById.get(record.publishedSnapshotId);
-        if (snapshot === undefined || snapshot.kind !== "publication") return [];
+        if (snapshot === undefined) return [];
         return [Object.freeze({ record, snapshot })];
       })
       .sort((left, right) =>
         right.record.updatedAt.localeCompare(left.record.updatedAt)),
   );
   return Object.freeze({ articles, experiments });
+}
+
+/** Configured clients read the server publication pointers exclusively. */
+export async function readPublicCatalogAsyncV3(): Promise<PublicCatalogV3> {
+  const remote = createStudioSupabaseContentRepositoryV1();
+  if (remote === null) return readPublicCatalogV3();
+  const [articles, resources] = await Promise.all([
+    remote.listPublicArticles(),
+    remote.listPublicExperiments(),
+  ]);
+  return Object.freeze({
+    articles,
+    experiments: Object.freeze(resources.map((resource) => Object.freeze({
+      record: Object.freeze({
+        schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
+        experimentId: resource.experimentId,
+        title: resource.title,
+        createdAt: resource.publishedAt,
+        updatedAt: resource.publishedAt,
+        publishedSnapshotId: resource.snapshot.snapshotId,
+      }),
+      snapshot: resource.snapshot,
+    }))),
+  });
 }

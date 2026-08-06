@@ -8,7 +8,6 @@ import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_V2_SCHEMA_ID,
-  type ArticleExperimentSnapshotV2,
   type ExperimentPlacementBriefingV2,
   type ExperimentSnapshotV2,
   type ExperimentV2,
@@ -21,7 +20,7 @@ import {
 import type { StudioSimulationFrameV2 } from "@/studio/contracts/v2/simulation";
 import {
   createStudioSimulationWorkerClientForTestV2,
-  type StudioSimulationWorkerQualifiedSnapshotCommitV2,
+  type StudioSimulationWorkerAdmittedSnapshotCommitV2,
   type StudioSimulationWorkerTransportV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
 import {
@@ -134,27 +133,23 @@ function snapshotV3(
   experiment: ExperimentV2,
   input: Readonly<{
     snapshotId?: string;
-    kind?: "publication" | "article";
   }> = {},
 ): ExperimentSnapshotV2 {
-  const base = {
+  return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
     snapshotId: input.snapshotId ?? "snapshot/browser-store-1",
     content: experiment.content,
     createdAt: "2026-08-01T00:00:00.000Z",
   };
-  return input.kind === "article"
-    ? { ...base, kind: "article", briefing: briefingV3() }
-    : { ...base, kind: "publication" };
 }
 
-async function qualifiedCommitV3(
+async function admittedCommitV3(
   experiment: ExperimentV2,
   input: Readonly<{
     snapshotId?: string;
-    kind?: "publication" | "article";
+    source?: "session" | "saved-experiment";
   }> = {},
-): Promise<StudioSimulationWorkerQualifiedSnapshotCommitV2> {
+): Promise<StudioSimulationWorkerAdmittedSnapshotCommitV2> {
   const transport = new QualifyingWorkerTransportV3();
   const client = createStudioSimulationWorkerClientForTestV2({ transport });
   const scenario = experiment.content.scenarios[0]!;
@@ -184,21 +179,12 @@ async function qualifiedCommitV3(
   });
   await initialized;
 
-  const kind = input.kind ?? "publication";
-  const pending = kind === "article"
-    ? client.createSnapshot({
-        runtimeSessionId: frame.runtimeSessionId,
-        scenarioId: frame.scenarioId,
-        surface: experiment.content.surface,
-        snapshotKind: "article",
-        briefing: briefingV3(),
-      })
-    : client.createSnapshot({
-        runtimeSessionId: frame.runtimeSessionId,
-        scenarioId: frame.scenarioId,
-        surface: experiment.content.surface,
-        snapshotKind: "publication",
-      });
+  const pending = client.createSnapshot({
+    runtimeSessionId: frame.runtimeSessionId,
+    scenarioId: frame.scenarioId,
+    surface: experiment.content.surface,
+    snapshotSource: input.source ?? "session",
+  });
   transport.emit({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId: 2,
@@ -206,14 +192,13 @@ async function qualifiedCommitV3(
     kind: "snapshot-created",
     snapshot: snapshotV3(experiment, {
       snapshotId: input.snapshotId,
-      kind,
     }),
   });
   return pending;
 }
 
 function articleV3(
-  snapshot: ArticleExperimentSnapshotV2,
+  snapshot: ExperimentSnapshotV2,
   input: Readonly<{ version?: number; placementId?: string }> = {},
 ): StudioArticleDraftV2 {
   return {
@@ -230,6 +215,7 @@ function articleV3(
         schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
         placementId: input.placementId ?? "placement/browser-store",
         snapshotId: snapshot.snapshotId,
+        briefing: briefingV3(),
         titleOverride: null,
         caption: null,
       },
@@ -248,6 +234,7 @@ describe("Studio browser content store V3", () => {
       "circleheart.studio.browser-content.v5",
       "circleheart.studio.browser-content.v6",
       "circleheart.studio.browser-content.v7",
+      "circleheart.studio.browser-content.v8",
     ].forEach((key) => storage.setItem(key, "legacy"));
 
     const store = new StudioBrowserContentStoreV3(storage);
@@ -322,25 +309,29 @@ describe("Studio browser content store V3", () => {
       .toThrow(/cannot change modelId/);
   });
 
-  it("persists a qualified Article Snapshot without creating an Experiment", async () => {
+  it("persists an admitted neutral Snapshot without creating an Experiment", async () => {
     const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
     const sessionContent = experimentV3();
-    const commit = await qualifiedCommitV3(sessionContent, { kind: "article" });
+    const commit = await admittedCommitV3(sessionContent);
 
     const saved = store.saveSnapshotCommit(commit, sessionContent.content);
 
-    expect(saved.snapshot.kind).toBe("article");
+    expect(Object.keys(saved.snapshot)).toEqual([
+      "schemaId",
+      "snapshotId",
+      "content",
+      "createdAt",
+    ]);
     expect(store.listExperiments()).toEqual([]);
     expect(store.listSnapshots()).toHaveLength(1);
   });
 
-  it("requires a version-matched saved Experiment for Publication", async () => {
+  it("validates a version-matched saved Experiment when a source is supplied", async () => {
     const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
     const sessionContent = experimentV3();
-    const commit = await qualifiedCommitV3(sessionContent);
-
-    expect(() => store.saveSnapshotCommit(commit, sessionContent.content))
-      .toThrow(/requires a saved Experiment source/);
+    const commit = await admittedCommitV3(sessionContent, {
+      source: "saved-experiment",
+    });
     const savedExperiment = store.saveExperiment(
       sessionContent,
       sessionContent.content,
@@ -360,7 +351,7 @@ describe("Studio browser content store V3", () => {
         experimentId: savedExperiment.experimentId,
         expectedVersion: savedExperiment.version,
       },
-    ).snapshot.kind).toBe("publication");
+    ).snapshot.snapshotId).toBe("snapshot/browser-store-1");
   });
 
   it("rechecks worker-qualified labels and fixtures against the frozen candidate", async () => {
@@ -376,7 +367,7 @@ describe("Studio browser content store V3", () => {
         })),
       },
     } satisfies ExperimentV2;
-    const commit = await qualifiedCommitV3(changed);
+    const commit = await admittedCommitV3(changed);
 
     expect(() => store.saveSnapshotCommit(commit, candidate.content))
       .toThrow(/changed authored Scenario/);
@@ -392,26 +383,24 @@ describe("Studio browser content store V3", () => {
       expectedVersion: experiment.version,
     };
     store.saveSnapshotCommit(
-      await qualifiedCommitV3(experiment),
+      await admittedCommitV3(experiment),
       experiment.content,
       source,
     );
     await expect(async () => store.saveSnapshotCommit(
-      await qualifiedCommitV3(experiment),
+      await admittedCommitV3(experiment),
       experiment.content,
       source,
     )).rejects.toThrow(/already exists/);
   });
 
-  it("stores Briefing only inside an Article Snapshot and accepts a minimal Placement", async () => {
+  it("stores Briefing only in Placement while reusing a neutral Snapshot", async () => {
     const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
     const experiment = experimentV3();
-    const saved = store.saveSnapshotCommit(await qualifiedCommitV3(
+    const saved = store.saveSnapshotCommit(await admittedCommitV3(
       experiment,
-      { kind: "article", snapshotId: "snapshot/article-1" },
+      { snapshotId: "snapshot/article-1" },
     ), experiment.content).snapshot;
-    expect(saved.kind).toBe("article");
-    if (saved.kind !== "article") throw new Error("expected Article Snapshot");
 
     store.saveArticle(articleV3(saved));
 
@@ -422,30 +411,27 @@ describe("Studio browser content store V3", () => {
         schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
         placementId: "placement/browser-store",
         snapshotId: "snapshot/article-1",
+        briefing: briefingV3(),
         titleOverride: null,
         caption: null,
       },
     });
-    expect(saved.briefing).toEqual(briefingV3());
+    expect(saved).not.toHaveProperty("briefing");
   });
 
-  it("rejects Article placement of a Publication Snapshot", async () => {
+  it("rejects an Article Placement whose Briefing cannot resolve in its Snapshot", async () => {
     const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
     const candidate = experimentV3();
     const experiment = store.saveExperiment(candidate, candidate.content);
     const publication = store.saveSnapshotCommit(
-      await qualifiedCommitV3(experiment),
+      await admittedCommitV3(experiment),
       experiment.content,
       {
         experimentId: experiment.experimentId,
         expectedVersion: experiment.version,
       },
     ).snapshot;
-    const forgedArticle = articleV3({
-      ...publication,
-      kind: "article",
-      briefing: briefingV3(),
-    });
+    const forgedArticle = articleV3(publication);
 
     expect(() => store.saveArticle({
       ...forgedArticle,
@@ -454,21 +440,27 @@ describe("Studio browser content store V3", () => {
             ...block,
             placement: {
               ...block.placement,
-              snapshotId: publication.snapshotId,
+              briefing: {
+                ...block.placement.briefing,
+                graphs: [{
+                  paneId: "pane/missing",
+                  order: 0,
+                  emphasis: "primary",
+                }],
+              },
             },
           }
         : block),
-    })).toThrow(/must pin an article Snapshot/);
+    })).toThrow(/unknown graph pane pane\/missing/);
   });
 
   it("enforces Article compare-and-swap and rejects dangling Snapshot references", async () => {
     const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
     const experiment = experimentV3();
-    const saved = store.saveSnapshotCommit(await qualifiedCommitV3(
+    const saved = store.saveSnapshotCommit(await admittedCommitV3(
       experiment,
-      { kind: "article", snapshotId: "snapshot/article-2" },
+      { snapshotId: "snapshot/article-2" },
     ), experiment.content).snapshot;
-    if (saved.kind !== "article") throw new Error("expected Article Snapshot");
     store.saveArticle(articleV3(saved));
     expect(() => store.saveArticle(articleV3(saved)))
       .toThrow(/advance by exactly one/);
@@ -488,11 +480,10 @@ describe("Studio browser content store V3", () => {
     const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
     const candidate = experimentV3();
     const experiment = store.saveExperiment(candidate, candidate.content);
-    const snapshot = store.saveSnapshotCommit(await qualifiedCommitV3(
+    const snapshot = store.saveSnapshotCommit(await admittedCommitV3(
       experiment,
-      { kind: "article", snapshotId: "snapshot/retained" },
+      { snapshotId: "snapshot/retained" },
     ), experiment.content).snapshot;
-    if (snapshot.kind !== "article") throw new Error("expected Article Snapshot");
     store.saveArticle(articleV3(snapshot));
 
     expect(store.deleteExperiment(experiment.experimentId)).toBe(true);

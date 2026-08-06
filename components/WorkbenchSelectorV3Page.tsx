@@ -26,8 +26,12 @@ import type { ExperimentV2 } from "@/studio/contracts/v2/content";
 import { StudioBrowserContentStoreV3 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
   StudioBrowserExperimentIndexV3,
+  STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
   type StudioBrowserExperimentRecordV3,
 } from "@/studio/infrastructure/browser/StudioBrowserExperimentIndexV3";
+import {
+  createStudioSupabaseContentRepositoryV1,
+} from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 
 type WorkbenchSelectorItemV3 = Readonly<{
   record: StudioBrowserExperimentRecordV3;
@@ -49,6 +53,10 @@ export function WorkbenchSelectorV3Page() {
   const locale: Locale = isLocale(localeParam) ? localeParam : "ja";
   const navigate = useNavigate();
   const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
+  const remoteRepository = React.useMemo(
+    createStudioSupabaseContentRepositoryV1,
+    [],
+  );
   const experimentIndex = React.useMemo(
     () => new StudioBrowserExperimentIndexV3(),
     [],
@@ -62,6 +70,25 @@ export function WorkbenchSelectorV3Page() {
     setState({ kind: "loading" });
     try {
       const composition = await loadStudioDefaultClientCompositionV2();
+      if (remoteRepository !== null) {
+        const resources = await remoteRepository.listMyExperiments();
+        setState({
+          kind: "ready",
+          currentModelId: composition.defaultModelId,
+          items: Object.freeze(resources.map((resource) => Object.freeze({
+            record: Object.freeze({
+              schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
+              experimentId: resource.experiment.experimentId,
+              title: resource.title,
+              createdAt: resource.createdAt,
+              updatedAt: resource.updatedAt,
+              publishedSnapshotId: resource.publishedSnapshotId,
+            }),
+            experiment: resource.experiment,
+          }))),
+        });
+        return;
+      }
       const experiments = store.listExperiments();
       const nowIso = new Date().toISOString();
       for (const experiment of experiments) {
@@ -80,10 +107,7 @@ export function WorkbenchSelectorV3Page() {
         }
         if (record.publishedSnapshotId === null) continue;
         const published = store.readSnapshot(record.publishedSnapshotId);
-        if (
-          published === null
-          || published.kind !== "publication"
-        ) {
+        if (published === null) {
           throw new Error(
             `Experiment publication pointer is invalid: ${record.experimentId}`,
           );
@@ -108,7 +132,7 @@ export function WorkbenchSelectorV3Page() {
     } catch (error) {
       setState({ kind: "error", message: errorMessageV3(error) });
     }
-  }, [experimentIndex, store, t]);
+  }, [experimentIndex, remoteRepository, store, t]);
 
   React.useEffect(() => {
     void loadSelector();
@@ -120,17 +144,24 @@ export function WorkbenchSelectorV3Page() {
     navigate(newExperimentHref(locale));
   }, [locale, navigate, state]);
 
-  const deleteWorkbench = React.useCallback((experimentId: string) => {
+  const deleteWorkbench = React.useCallback(async (
+    experimentId: string,
+    expectedVersion: number,
+  ) => {
     if (!window.confirm(t("workbench.selector.deleteConfirm"))) return;
     setActionError(null);
     try {
-      store.deleteExperiment(experimentId);
-      experimentIndex.delete(experimentId);
-      void loadSelector();
+      if (remoteRepository === null) {
+        store.deleteExperiment(experimentId);
+        experimentIndex.delete(experimentId);
+      } else {
+        await remoteRepository.deleteExperiment(experimentId, expectedVersion);
+      }
+      await loadSelector();
     } catch (error) {
       setActionError(errorMessageV3(error));
     }
-  }, [experimentIndex, loadSelector, store, t]);
+  }, [experimentIndex, loadSelector, remoteRepository, store, t]);
 
   return (
     <div
@@ -230,9 +261,6 @@ export function WorkbenchSelectorV3Page() {
                     experiment.content.modelId,
                     state.currentModelId,
                   );
-                const publishedSnapshot = record.publishedSnapshotId === null
-                  ? null
-                  : store.readSnapshot(record.publishedSnapshotId);
                 return (
                   <li
                     key={record.experimentId}
@@ -289,11 +317,11 @@ export function WorkbenchSelectorV3Page() {
                       >
                         <ArrowRight className="h-4 w-4" aria-hidden="true" />
                       </Link>
-                      {publishedSnapshot !== null && (
+                      {record.publishedSnapshotId !== null && (
                         <Link
                           to={experimentSnapshotHref({
                             locale,
-                            snapshotId: publishedSnapshot.snapshotId,
+                            snapshotId: record.publishedSnapshotId,
                           })}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-accent active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                           aria-label={t("workbench.selector.openPublished")}
@@ -304,7 +332,10 @@ export function WorkbenchSelectorV3Page() {
                       )}
                       <button
                         type="button"
-                        onClick={() => deleteWorkbench(record.experimentId)}
+                        onClick={() => void deleteWorkbench(
+                          record.experimentId,
+                          experiment?.version ?? 0,
+                        )}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-danger-soft hover:text-wb-danger active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-danger"
                         aria-label={t("workbench.selector.delete")}
                         title={t("workbench.selector.delete")}

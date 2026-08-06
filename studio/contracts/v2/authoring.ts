@@ -83,55 +83,42 @@ export type ExperimentCaptureResultV2 = Readonly<{
 }>;
 
 export type CreateExperimentSnapshotCommandV2 =
-  | Readonly<{
-      kind: "publication";
-      /**
-       * A Publication is the immutable release of one explicitly saved,
-       * clean Experiment head. The expected version makes that provenance a
-       * command-boundary invariant rather than a UI convention.
-       */
+  Readonly<{
+    /** Complete frozen candidate captured from an Experiment Session. */
+    content: ExperimentContentV2;
+    /**
+     * Present only when the workflow requires a clean, explicitly saved
+     * Experiment head (currently standalone Publication). It constrains the
+     * command, not the resulting neutral Snapshot identity.
+     */
+    savedExperiment?: Readonly<{
       experimentId: ExperimentIdV2;
       expectedVersion: ExperimentVersionV2;
-      /** Complete frozen candidate captured from the clean Experiment Session. */
-      content: ExperimentContentV2;
-      createdBy?: string;
-    }>
-  | Readonly<{
-      kind: "article";
-      /** Complete frozen candidate captured from an Experiment Session. */
-      content: ExperimentContentV2;
-      briefing: ExperimentPlacementBriefingV2;
-      createdBy?: string;
     }>;
+    createdBy?: string;
+  }>;
 
 /**
- * Ephemeral result of applying the exact model's purpose-specific gate to one
- * frozen candidate.
- *
- * Publication may replace checkpoints with freshly settled captures. Article
- * capture may instead retain the click-time checkpoints after its numerical
- * safety profile passes. Both purposes must preserve modelId, scenario
- * identity/fixture, and Surface. Neither branch of this union is persisted in
- * an ExperimentSnapshot.
+ * Ephemeral result of applying the exact model's public-executable admission
+ * gate to one frozen candidate. Admission verifies the candidate on a fork;
+ * it cannot replace or otherwise mutate the captured content.
  */
-export type ExperimentSnapshotGateResultV2 =
+export type ExperimentSnapshotAdmissionResultV2 =
   | Readonly<{
     status: "passed";
-    qualifiedContent: ExperimentContentV2;
   }>
   | Readonly<{
     status: "rejected";
     reason: string;
   }>;
 
-export interface ExperimentSnapshotGatePortV2 {
-  qualifyFrozenCandidate(
+export interface ExperimentSnapshotAdmissionPortV2 {
+  admitFrozenCandidate(
     input: Readonly<{
-      purpose: CreateExperimentSnapshotCommandV2["kind"];
       model: ModelContractV2;
       content: ExperimentContentV2;
     }>,
-  ): Promise<ExperimentSnapshotGateResultV2>;
+  ): Promise<ExperimentSnapshotAdmissionResultV2>;
 }
 
 /**

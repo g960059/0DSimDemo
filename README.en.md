@@ -32,27 +32,28 @@ ExperimentSession (ephemeral, mutable; operated in Workbench)
 Experiment (explicitly saved, mutable by version-checked Save)
   └─ ExperimentContent
 
-ExperimentSnapshot (immutable, qualified)
-  ├─ PublicationSnapshot = complete content
-  └─ ArticleSnapshot = complete content + Briefing
+ExperimentSnapshot (neutral, immutable, admitted)
+  └─ ExperimentContent
 
-ExperimentPlacement = snapshotId + caption
+ExperimentPublication = public pointer → snapshotId
+ExperimentPlacement = snapshotId + Briefing + title/caption
 ```
 
 Key decisions:
 
 - `modelId` is the exact immutable identity of equations, runtime, solver,
-  fixture schema, checkpoint codec, catalogs, and snapshot gate
+  fixture schema, checkpoint codec, catalogs, and Snapshot admission
 - package integrity is checked only when registering a model; runtime clients
   trust the registry
 - a parameter action ends after updating the fixture; there is no durable
   `ParameterSet`
 - Scenario Presets, Experiments, and Snapshots keep `fixture + checkpoint` together
-- an unsettled Experiment may be saved; only Snapshot creation requires settlement
-  and the minimum numerical gate
+- an unsettled Experiment may be saved; Snapshot admission restores a detached
+  fork and runs one cycle of finite, conservation, and event checks
+- admission neither requires settlement nor replaces the captured checkpoint
 - immutable versions use `snapshotId`, not a numeric revision
-- Snapshots carry no source/parent/head lineage
-- an article Placement pins an Article Snapshot containing its Briefing
+- portable Snapshots carry no purpose kind or source/parent/head lineage
+- an Article Placement owns its Briefing and pins a neutral Snapshot
 - `/experiments/new` has no ID; only the first successful explicit Save mints
   an `experimentId`
 - Snapshot/PV/Starling resume live lanes immediately after atomic capture and
@@ -72,14 +73,19 @@ Completed:
    accepted-boundary capture for `MainWireIntegratedModelTransactionV3`;
 2. admit and resolve that exact release through the registry as the default;
 3. run all visible Workbench Scenarios in persistent Worker lanes;
-4. capture explicit Experiment Saves and minimum-gated immutable Snapshots;
-5. author role-specific Briefings inside Article Snapshots; and
+4. capture explicit Experiment Saves and common-admission immutable Snapshots;
+5. author role-specific Placement Briefings against neutral Snapshots; and
 6. pin those Snapshots from the Article Editor and Reader.
 
 Remaining work includes weighted Reader extent, disposable inactive-placement
-beat caches, a multi-release client catalog, and server publication/access
-control. Official Presets, Experiments, articles, and Lessons follow those
-boundaries rather than the removed legacy structures.
+beat caches, a multi-release loader, and production OAuth/redirect, abuse-control,
+and scheduled-GC configuration. Official Presets, Experiments, articles, and
+Lessons follow those boundaries rather than the removed legacy structures.
+
+In a Supabase-configured build, the remote backend exclusively owns
+Experiment, Snapshot, and Article reads/writes, publication pointers, and the
+exact-model registry. The browser store is only an unconfigured test/development
+fallback; the product does not dual-write.
 
 Earlier case catalogs, lesson documents, numeric Experiment revisions, Working
 Set / Reader Brief types, and certification artifacts are not product-data
@@ -146,6 +152,7 @@ studio/infrastructure/model/  exact model registry implementation
 studio/integrations/          exact model-specific Studio adapters
 studio/composition/           registry/default application composition
 studio/workers/               generic live simulation Worker boundary
+supabase/                      Auth, registry, and content release spine
 engine/                       numerical model and runtime
 docs/studio/                  current Studio design
 docs/myocardium/              V3 research and verification documents
@@ -159,7 +166,7 @@ __tests__/                    application and runtime tests
 - Do not add fallback readers, dual writes, or compatibility aliases for the
   removed content model.
 - Register a new `modelId` whenever model behavior, schema, codec, catalog, or
-  gate changes.
+  admission changes.
 - Official content must pin an exact registered model.
 - Consult Git history instead of restoring superseded design into the working
   tree.

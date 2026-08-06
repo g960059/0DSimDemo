@@ -8,7 +8,10 @@ import {
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
-import { readPublicCatalogV3 } from "@/components/site/PublicCatalogV3";
+import {
+  readPublicCatalogAsyncV3,
+  type PublicCatalogV3,
+} from "@/components/site/PublicCatalogV3";
 import {
   publicArticleExcerptV3,
 } from "@/components/site/PublicCatalogPresentationV3";
@@ -25,13 +28,20 @@ export const Home = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
-  const [catalog] = React.useState(() => {
-    try {
-      return readPublicCatalogV3();
-    } catch {
-      return Object.freeze({ articles: Object.freeze([]), experiments: Object.freeze([]) });
-    }
-  });
+  const [catalog, setCatalog] = React.useState<PublicCatalogV3>(() =>
+    Object.freeze({ articles: Object.freeze([]), experiments: Object.freeze([]) }));
+
+  React.useEffect(() => {
+    let current = true;
+    void readPublicCatalogAsyncV3().then((next) => {
+      if (current) setCatalog(next);
+    }).catch(() => {
+      // The public landing page remains usable when the catalog is offline.
+    });
+    return () => {
+      current = false;
+    };
+  }, []);
 
   return (
     <div className="h-full w-full overflow-y-auto bg-wb-app text-wb-text">

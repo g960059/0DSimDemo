@@ -3,14 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   StudioExperimentAuthoringConflictErrorV2,
   StudioExperimentCaptureMutationErrorV2,
-  StudioExperimentSnapshotGateMutationErrorV2,
-  StudioExperimentSnapshotGateProtocolErrorV2,
-  StudioExperimentSnapshotGateRejectedErrorV2,
+  StudioExperimentSnapshotAdmissionProtocolErrorV2,
+  StudioExperimentSnapshotAdmissionRejectedErrorV2,
 } from "@/studio/application/authoring/StudioExperimentAuthoringApplicationV2";
 import type {
   ExperimentDesiredContentV2,
-  ExperimentSnapshotGatePortV2,
-  ExperimentSnapshotGateResultV2,
+  ExperimentSnapshotAdmissionPortV2,
+  ExperimentSnapshotAdmissionResultV2,
   ExperimentCapturePortV2,
 } from "@/studio/contracts/v2/authoring";
 import {
@@ -281,19 +280,18 @@ describe("Studio Experiment authoring V2", () => {
     ).toBe(1);
   });
 
-  it("creates an immutable Snapshot only from fresh gate-produced checkpoints", async () => {
+  it("creates one neutral immutable Snapshot without replacing its checkpoint", async () => {
+    const original = contentV2(4, 1);
     const { application, repository } = harnessV2({
-      qualifyFrozenCandidate({ content }) {
+      admitFrozenCandidate({ content }) {
         expect(Object.isFrozen(content)).toBe(true);
-        return Promise.resolve({
-          status: "passed",
-          qualifiedContent: replaceCheckpointV2(content, 500, 12),
-        });
+        expect(content).toEqual(original);
+        return Promise.resolve({ status: "passed" });
       },
     });
     await application.createExperiment({
       experimentId: "experiment/main",
-      content: contentV2(4, 1),
+      content: original,
     });
 
     const snapshot = await createSnapshotForExperimentV2(application, {
@@ -305,213 +303,105 @@ describe("Studio Experiment authoring V2", () => {
 
     expect(snapshot).toMatchObject({
       snapshotId: "snapshot/1",
-      kind: "publication",
       createdAt: "2026-07-31T00:00:00.000Z",
       createdBy: "user/author",
     });
-    expect(snapshot.content.scenarios[0].capture.checkpoint).toMatchObject({
-      acceptedRevision: 500,
-      acceptedTimeSec: 12,
-    });
+    expect(snapshot).not.toHaveProperty("kind");
+    expect(snapshot).not.toHaveProperty("briefing");
+    expect(snapshot.content).toEqual(original);
     expect(repository.snapshotCount).toBe(1);
-    expect(await application.readExperiment("experiment/main")).toMatchObject({
-      version: 0,
-    });
     expect(Object.isFrozen(snapshot)).toBe(true);
-    expect(JSON.stringify(snapshot)).not.toMatch(
-      /gatePassed|settled|verificationPassed|qualification/,
-    );
   });
 
-  it("rejects Publication candidates that are not the saved Experiment head", async () => {
+  it("enforces a clean saved head only when savedExperiment is requested", async () => {
     const { application, repository } = harnessV2();
     const savedContent = contentV2(4, 1);
     await application.createExperiment({
       experimentId: "experiment/main",
       content: savedContent,
     });
+    const edited = {
+      ...savedContent,
+      surface: { ...savedContent.surface, note: { text: "unsaved edit" } },
+    };
 
     await expect(application.createSnapshot({
-      kind: "publication",
-      experimentId: "experiment/main",
-      expectedVersion: 0,
-      content: {
-        ...savedContent,
-        surface: {
-          ...savedContent.surface,
-          note: { text: "unsaved Session edit" },
-        },
+      content: edited,
+      savedExperiment: {
+        experimentId: "experiment/main",
+        expectedVersion: 0,
       },
     })).rejects.toThrow(/not the clean saved Experiment head/);
     await expect(application.createSnapshot({
-      kind: "publication",
-      experimentId: "experiment/missing",
-      expectedVersion: 0,
       content: savedContent,
+      savedExperiment: {
+        experimentId: "experiment/missing",
+        expectedVersion: 0,
+      },
     })).rejects.toThrow(/Experiment not found/);
-    expect(repository.snapshotCount).toBe(0);
+    await expect(application.createSnapshot({ content: savedContent }))
+      .resolves.toMatchObject({ content: savedContent });
+    expect(repository.snapshotCount).toBe(1);
   });
 
-  it("rejects Article control buttons outside the exact model lattice", async () => {
-    const { application, repository } = harnessV2();
-    const content = contentV2(0, 0);
-
-    await expect(application.createSnapshot({
-      kind: "article",
-      content,
-      briefing: {
-        defaultTitle: "Article experiment",
-        scenarioScope: {
-          visibleScenarioIds: ["scenario/baseline"],
-          initialFocusScenarioId: "scenario/baseline",
-        },
-        graphs: [],
-        outputs: [],
-        controls: [{
-          sourcePaneId: "pane/controls",
-          controlId: "control/heart-rate",
-          label: "Heart rate",
-          order: 0,
-          presentation: {
-            kind: "buttons",
-            options: [
-              { label: "Normal", value: 60 },
-              { label: "Off lattice", value: 60.5 },
-            ],
-          },
-          binding: {
-            mode: "fixed",
-            scenarioIds: ["scenario/baseline"],
-            application: "absolute",
-          },
-        }],
-      },
-    })).rejects.toThrow(/step lattice/);
-    expect(repository.snapshotCount).toBe(0);
-  });
-
-  it("passes the Snapshot purpose to the exact model gate", async () => {
-    const purposes: string[] = [];
+  it("uses the same admission for session and saved-Experiment workflows", async () => {
+    let admissions = 0;
     const { application } = harnessV2({
-      qualifyFrozenCandidate({ purpose, content }) {
-        purposes.push(purpose);
-        return Promise.resolve({
-          status: "passed",
-          qualifiedContent: content,
-        });
+      admitFrozenCandidate() {
+        admissions += 1;
+        return Promise.resolve({ status: "passed" });
       },
     });
     const content = contentV2(0, 0);
-
-    await application.createSnapshot({
-      kind: "article",
-      content,
-      briefing: {
-        defaultTitle: "Article experiment",
-        scenarioScope: {
-          visibleScenarioIds: ["scenario/baseline"],
-          initialFocusScenarioId: "scenario/baseline",
-        },
-        graphs: [],
-        outputs: [],
-        controls: [],
-      },
-    });
+    await application.createSnapshot({ content });
     await application.createExperiment({
-      experimentId: "experiment/purpose",
+      experimentId: "experiment/common-admission",
       content,
     });
     await application.createSnapshot({
-      kind: "publication",
-      experimentId: "experiment/purpose",
-      expectedVersion: 0,
       content,
-    });
-
-    expect(purposes).toEqual(["article", "publication"]);
-  });
-
-  it("leaves no Snapshot and does not mutate the Experiment when the gate rejects", async () => {
-    const { application, repository } = harnessV2({
-      qualifyFrozenCandidate() {
-        return Promise.resolve({
-          status: "rejected",
-          reason: "minimum numerical gate failed",
-        });
+      savedExperiment: {
+        experimentId: "experiment/common-admission",
+        expectedVersion: 0,
       },
     });
-    await application.createExperiment({
-      experimentId: "experiment/main",
-      content: contentV2(0, 0),
-    });
-
-    await expect(createSnapshotForExperimentV2(application, {
-      experimentId: "experiment/main",
-      expectedVersion: 0,
-      expectedHeadSnapshotId: null,
-    })).rejects.toBeInstanceOf(
-      StudioExperimentSnapshotGateRejectedErrorV2,
-    );
-    expect(repository.snapshotCount).toBe(0);
-    expect(await application.readExperiment("experiment/main")).toMatchObject({
-      version: 0,
-    });
+    expect(admissions).toBe(2);
   });
 
-  it("fails closed for malformed Snapshot gate results", async () => {
+  it("leaves no Snapshot when admission rejects or returns malformed data", async () => {
+    const rejected = harnessV2({
+      admitFrozenCandidate() {
+        return Promise.resolve({ status: "rejected", reason: "unsafe" });
+      },
+    });
+    await expect(rejected.application.createSnapshot({ content: contentV2(0, 0) }))
+      .rejects.toBeInstanceOf(StudioExperimentSnapshotAdmissionRejectedErrorV2);
+    expect(rejected.repository.snapshotCount).toBe(0);
+
     for (const malformed of [
-      {
-        status: "skipped",
-        qualifiedContent: contentV2(500, 12),
-      },
-      {
-        status: "passed",
-        qualifiedContent: contentV2(500, 12),
-        verificationPassed: true,
-      },
-      {
-        status: "rejected",
-        reason: "",
-      },
+      { status: "skipped" },
+      { status: "passed", verificationPassed: true },
+      { status: "rejected", reason: "" },
     ]) {
-      const { application, repository } = harnessV2({
-        qualifyFrozenCandidate() {
+      const harness = harnessV2({
+        admitFrozenCandidate() {
           return Promise.resolve(malformed as any);
         },
       });
-      await application.createExperiment({
-        experimentId: "experiment/malformed-gate",
-        content: contentV2(0, 0),
-      });
-
-      await expect(createSnapshotForExperimentV2(application, {
-        experimentId: "experiment/malformed-gate",
-        expectedVersion: 0,
-        expectedHeadSnapshotId: null,
-      })).rejects.toBeInstanceOf(
-        StudioExperimentSnapshotGateProtocolErrorV2,
-      );
-      expect(repository.snapshotCount).toBe(0);
-      expect(
-        await application.readExperiment("experiment/malformed-gate"),
-      ).toMatchObject({
-        version: 0,
-      });
+      await expect(harness.application.createSnapshot({ content: contentV2(0, 0) }))
+        .rejects.toBeInstanceOf(StudioExperimentSnapshotAdmissionProtocolErrorV2);
+      expect(harness.repository.snapshotCount).toBe(0);
     }
   });
 
-  it("binds qualification to frozen content independently of later Experiment edits", async () => {
-    let resolveGate:
-      ((result: ExperimentSnapshotGateResultV2) => void) | undefined;
-    const gatePromise = new Promise<ExperimentSnapshotGateResultV2>(
-      (resolve) => {
-        resolveGate = resolve;
-      },
+  it("binds admission to frozen content independently of later Experiment edits", async () => {
+    let resolveAdmission:
+      ((result: ExperimentSnapshotAdmissionResultV2) => void) | undefined;
+    const admissionPromise = new Promise<ExperimentSnapshotAdmissionResultV2>(
+      (resolve) => { resolveAdmission = resolve; },
     );
     const { application, repository } = harnessV2({
-      qualifyFrozenCandidate() {
-        return gatePromise;
-      },
+      admitFrozenCandidate() { return admissionPromise; },
     });
     const original = contentV2(0, 0);
     await application.createExperiment({
@@ -523,54 +413,19 @@ describe("Studio Experiment authoring V2", () => {
       expectedVersion: 0,
       expectedHeadSnapshotId: null,
     });
-
     await application.saveExperiment({
       experimentId: "experiment/main",
       expectedVersion: 0,
       desiredContent: desiredContentV2(),
       captureCorrelation: captureCorrelationV2(desiredContentV2()),
     });
-    resolveGate?.({
-      status: "passed",
-      qualifiedContent: replaceCheckpointV2(original, 500, 12),
-    });
+    resolveAdmission?.({ status: "passed" });
 
     const snapshot = await pendingSnapshot;
-    expect(snapshot.content.scenarios[0].capture.checkpoint).toMatchObject({
-      acceptedRevision: 500,
-      acceptedTimeSec: 12,
-    });
+    expect(snapshot.content).toEqual(original);
     expect(repository.snapshotCount).toBe(1);
-    expect(await application.readExperiment("experiment/main")).toMatchObject({
-      version: 1,
-    });
-  });
-
-  it("allows the gate to replace checkpoints but not authored fixture or Surface", async () => {
-    const { application } = harnessV2({
-      qualifyFrozenCandidate({ content }) {
-        const changed = mutableContentV2(content);
-        (changed.scenarios[0].capture.fixture as {
-          controls: { heartRateBpm: number };
-        }).controls.heartRateBpm = 90;
-        return Promise.resolve({
-          status: "passed",
-          qualifiedContent: changed,
-        });
-      },
-    });
-    await application.createExperiment({
-      experimentId: "experiment/main",
-      content: contentV2(0, 0),
-    });
-
-    await expect(createSnapshotForExperimentV2(application, {
-      experimentId: "experiment/main",
-      expectedVersion: 0,
-      expectedHeadSnapshotId: null,
-    })).rejects.toBeInstanceOf(
-      StudioExperimentSnapshotGateMutationErrorV2,
-    );
+    expect(await application.readExperiment("experiment/main"))
+      .toMatchObject({ version: 1 });
   });
 
   it("forks Snapshot content into a detached Experiment without lineage fields", async () => {
@@ -602,7 +457,7 @@ describe("Studio Experiment authoring V2", () => {
       expectedHeadSnapshotId: null,
     });
 
-    expect(fork.kind).toBe("publication");
+    expect(fork).not.toHaveProperty("kind");
     expect(fork).not.toHaveProperty("parentSnapshotId");
     expect(fork).not.toHaveProperty("sourceExperimentId");
     expect(await application.readSnapshot(source.snapshotId)).toEqual(source);
@@ -623,15 +478,12 @@ describe("Studio Experiment authoring V2", () => {
       qualification: true,
     } as any)).rejects.toThrow(/SaveExperiment field set mismatch/);
     await expect(application.createSnapshot({
-      kind: "publication",
       content: contentV2(0, 0),
+      purpose: "publication",
       parentSnapshotId: null,
       verificationPassed: true,
     } as any)).rejects.toThrow(/CreateSnapshot field set mismatch/);
     await expect(application.createSnapshot({
-      kind: "publication",
-      experimentId: "experiment/main",
-      expectedVersion: 0,
       content: contentV2(0, 0),
       createdBy: undefined,
     } as any)).rejects.toThrow(/must be omitted or contain an ID/);
@@ -767,26 +619,6 @@ describe("Studio Experiment authoring V2", () => {
       captureCorrelation: captureCorrelationV2(desiredContentV2()),
     })).rejects.toThrow(/rejected capture/);
 
-    const postGateHarness = harnessV2({
-      qualifyFrozenCandidate({ content }) {
-        const malformed = mutableContentV2(content);
-        malformed.scenarios[0].capture.checkpoint.payload = "wrong-codec";
-        return Promise.resolve({
-          status: "passed",
-          qualifiedContent: malformed,
-        });
-      },
-    });
-    await postGateHarness.application.createExperiment({
-      experimentId: "experiment/post-gate",
-      content: contentV2(0, 0),
-    });
-    await expect(createSnapshotForExperimentV2(postGateHarness.application, {
-      experimentId: "experiment/post-gate",
-      expectedVersion: 0,
-      expectedHeadSnapshotId: null,
-    })).rejects.toThrow(/rejected capture/);
-    expect(postGateHarness.repository.snapshotCount).toBe(0);
   });
 
   it("keeps standalone Snapshots and the Experiment unchanged when an ID collides", async () => {
@@ -819,10 +651,11 @@ describe("Studio Experiment authoring V2", () => {
       expectedHeadSnapshotId: null,
     });
     await expect(application.createSnapshot({
-      kind: "publication",
-      experimentId: "experiment/main",
-      expectedVersion: 0,
       content: first.content,
+      savedExperiment: {
+        experimentId: "experiment/main",
+        expectedVersion: 0,
+      },
     })).rejects.toBeInstanceOf(StudioExperimentConflictErrorV2);
     expect(repository.snapshotCount).toBe(2);
     expect(await application.readExperiment("experiment/main")).toMatchObject({
@@ -839,7 +672,7 @@ describe("Studio Experiment authoring V2", () => {
       "InMemoryExperimentRepositoryV2",
     );
     expect(experimentInfrastructure).not.toHaveProperty(
-      "StudioUnqualifiedSnapshotCommitErrorV2",
+      "StudioUnadmittedSnapshotCommitErrorV2",
     );
     expect(Object.keys(experimentInfrastructure).join(",")).not.toMatch(
       /commit/i,
@@ -856,7 +689,7 @@ describe("Studio Experiment authoring V2", () => {
       "saveExperiment",
     ]);
     expect(application).not.toHaveProperty("repository");
-    expect(application).not.toHaveProperty("qualifiedSnapshotCommit");
+    expect(application).not.toHaveProperty("admittedSnapshotCommit");
     expect(Object.isFrozen(repository)).toBe(true);
     expect(Object.getPrototypeOf(repository)).toBe(Object.prototype);
     expect(Object.keys(repository).sort()).toEqual([
@@ -869,7 +702,7 @@ describe("Studio Experiment authoring V2", () => {
 });
 
 function harnessV2(
-  gate: ExperimentSnapshotGatePortV2 | undefined = undefined,
+  gate: ExperimentSnapshotAdmissionPortV2 | undefined = undefined,
   capture: ExperimentCapturePortV2 = {
     captureAcceptedCandidate(input) {
       return Promise.resolve(captureResultV2(input));
@@ -879,12 +712,9 @@ function harnessV2(
   adapter: RegisteredModelCaptureAdapterV2 = captureAdapterV2(),
   seed: InMemoryExperimentAuthoringSeedV2 | undefined = undefined,
 ) {
-  const resolvedGate: ExperimentSnapshotGatePortV2 = gate ?? {
-    qualifyFrozenCandidate({ content }) {
-      return Promise.resolve({
-        status: "passed",
-        qualifiedContent: replaceCheckpointV2(content, 100, 2),
-      });
+  const resolvedGate: ExperimentSnapshotAdmissionPortV2 = gate ?? {
+    admitFrozenCandidate() {
+      return Promise.resolve({ status: "passed" });
     },
   };
   let nextSnapshot = 0;
@@ -907,7 +737,7 @@ function harnessV2(
           snapshotGate: {
             modelId: model.modelId,
             snapshotGateId: model.snapshotGateId,
-            qualifyFrozenCandidate: resolvedGate.qualifyFrozenCandidate,
+            admitFrozenCandidate: resolvedGate.admitFrozenCandidate,
           },
           fixtureAdapter: {
             modelId: model.modelId,
@@ -972,10 +802,11 @@ async function createSnapshotForExperimentV2(
     throw new Error(`Experiment not found: ${input.experimentId}`);
   }
   return application.createSnapshot({
-    kind: "publication",
-    experimentId: input.experimentId,
-    expectedVersion: input.expectedVersion,
     content: experiment.content,
+    savedExperiment: {
+      experimentId: input.experimentId,
+      expectedVersion: input.expectedVersion,
+    },
     ...(Object.prototype.hasOwnProperty.call(input, "createdBy")
       ? { createdBy: input.createdBy! }
       : {}),

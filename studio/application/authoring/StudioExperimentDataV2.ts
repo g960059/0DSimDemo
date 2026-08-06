@@ -98,9 +98,7 @@ export function validateExperimentSnapshotV2(
   ) as ExperimentSnapshotV2;
   assertRequiredOptionalKeysV2(
     snapshot,
-    snapshot.kind === "article"
-      ? ["schemaId", "kind", "snapshotId", "content", "briefing", "createdAt"]
-      : ["schemaId", "kind", "snapshotId", "content", "createdAt"],
+    ["schemaId", "snapshotId", "content", "createdAt"],
     ["createdBy"],
     "$.snapshot",
   );
@@ -108,21 +106,7 @@ export function validateExperimentSnapshotV2(
     throw validationErrorV2("$.snapshot.schemaId", "schema identity mismatch");
   }
   requiredPortableIdV2(snapshot.snapshotId, "$.snapshot.snapshotId");
-  if (snapshot.kind !== "publication" && snapshot.kind !== "article") {
-    throw validationErrorV2(
-      "$.snapshot.kind",
-      "must be publication or article",
-    );
-  }
   assertExperimentContentV2(snapshot.content, "$.snapshot.content");
-  if (snapshot.kind === "article") {
-    assertPlacementBriefingV2(snapshot.briefing, "$.snapshot.briefing");
-    assertBriefingReferencesContentV2(
-      snapshot.briefing,
-      snapshot.content,
-      "$.snapshot.briefing",
-    );
-  }
   isoTimestampV2(snapshot.createdAt, "$.snapshot.createdAt");
   if (hasOwnV2(snapshot, "createdBy")) {
     requiredPortableIdV2(snapshot.createdBy, "$.snapshot.createdBy");
@@ -755,7 +739,14 @@ export function validateExperimentPlacementV2(
   ) as ExperimentPlacementV2;
   assertRequiredOptionalKeysV2(
     placement,
-    ["schemaId", "placementId", "snapshotId", "titleOverride", "caption"],
+    [
+      "schemaId",
+      "placementId",
+      "snapshotId",
+      "briefing",
+      "titleOverride",
+      "caption",
+    ],
     [],
     "$.placement",
   );
@@ -764,6 +755,7 @@ export function validateExperimentPlacementV2(
   }
   requiredPortableIdV2(placement.placementId, "$.placement.placementId");
   requiredPortableIdV2(placement.snapshotId, "$.placement.snapshotId");
+  assertPlacementBriefingV2(placement.briefing, "$.placement.briefing");
   if (placement.titleOverride !== null) {
     requiredTrimmedStringV2(
       placement.titleOverride,
@@ -795,12 +787,11 @@ export function validateExperimentPlacementAgainstSnapshotV2(
       "does not match the pinned snapshot",
     );
   }
-  if (snapshot.kind !== "article") {
-    throw validationErrorV2(
-      "$.placement.snapshotId",
-      "must pin an article Snapshot",
-    );
-  }
+  assertBriefingReferencesContentV2(
+    placement.briefing,
+    snapshot.content,
+    "$.placement.briefing",
+  );
   return placement;
 }
 

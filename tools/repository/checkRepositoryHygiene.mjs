@@ -99,6 +99,7 @@ const requiredTrackedPaths = [
   "engine/myocardium/MainWireIntegratedModelOutputRegistryV3.ts",
   "engine/myocardium/MainWireIntegratedModelRuntimeV3.ts",
   "engine/myocardium/MainWireIntegratedModelSessionV3.ts",
+  "engine/myocardium/experiments/MainWireIntegratedModelSnapshotAdmissionV3.ts",
   "engine/myocardium/experiments/MainWireIntegratedModelSnapshotQualificationV3.ts",
   "studio/application/authoring/StudioExperimentAuthoringApplicationV2.ts",
   "studio/application/authoring/StudioExperimentDataV2.ts",
@@ -116,6 +117,9 @@ const requiredTrackedPaths = [
   "studio/workers/StudioSimulationWorkerProtocolV2.ts",
   "studio/workers/StudioSimulationWorkerRuntimeV2.ts",
   "studio/workers/StudioSimulationWorkerV2.ts",
+  "supabase/config.toml",
+  "supabase/migrations/20260806000100_model_release_spine.sql",
+  "supabase/migrations/20260806000200_content_release_spine.sql",
   "tools/registry/verifyMainWireIntegratedStudioModelV3.ts",
 ];
 const portableTextExtensions = new Set([

@@ -22,7 +22,6 @@ import type { StudioArticleExperimentBlockV2 } from "@/studio/contracts/v2/artic
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-  type ArticleExperimentSnapshotV2,
   type ExperimentPlacementBriefingV2,
   type ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
@@ -37,13 +36,11 @@ import { WorkbenchScenarioPresentationSampleStoreV3 } from "@/components/workben
 
 const NOOP = () => {};
 
-function snapshotV3(): ArticleExperimentSnapshotV2 {
+function snapshotV3(): ExperimentSnapshotV2 {
   return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-    kind: "article",
     snapshotId: "snapshot/reader",
     createdAt: "2026-08-02T00:00:00.000Z",
-    briefing: briefingV3(),
     content: {
       modelId: "model/exact-reader-v3",
       scenarios: [
@@ -117,6 +114,7 @@ function blockV3(): StudioArticleExperimentBlockV2 {
       schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
       placementId: "placement/reader",
       snapshotId: "snapshot/reader",
+      briefing: briefingV3(),
       titleOverride: null,
       caption: null,
     },
@@ -169,17 +167,10 @@ function renderExperimentV3(
   );
 }
 
-function twoGraphSnapshotV3(): ArticleExperimentSnapshotV2 {
+function twoGraphSnapshotV3(): ExperimentSnapshotV2 {
   const snapshot = snapshotV3();
   return {
     ...snapshot,
-    briefing: {
-      ...snapshot.briefing,
-      graphs: [
-        ...snapshot.briefing.graphs,
-        { paneId: "pane/pv", order: 1, emphasis: "supporting" },
-      ],
-    },
     content: {
       ...snapshot.content,
       surface: {
@@ -205,7 +196,20 @@ function twoGraphSnapshotV3(): ArticleExperimentSnapshotV2 {
 }
 
 function twoGraphBlockV3(): StudioArticleExperimentBlockV2 {
-  return blockV3();
+  const block = blockV3();
+  return {
+    ...block,
+    placement: {
+      ...block.placement,
+      briefing: {
+        ...block.placement.briefing,
+        graphs: [
+          ...block.placement.briefing.graphs,
+          { paneId: "pane/pv", order: 1, emphasis: "supporting" },
+        ],
+      },
+    },
+  };
 }
 
 function structuralAnalysisV3(scenarioId: string): StudioSimulationAnalysisV2 {
@@ -707,18 +711,21 @@ describe("Article Reader V3 experiment anchor", () => {
     const block = blockV3();
     const snapshot = snapshotV3();
     const html = renderExperimentV3({
-      block,
-      snapshot: {
-        ...snapshot,
-        briefing: {
-          ...snapshot.briefing,
-          graphs: [{
-            paneId: "pane/missing",
-            order: 0,
-            emphasis: "primary",
-          }],
+      block: {
+        ...block,
+        placement: {
+          ...block.placement,
+          briefing: {
+            ...block.placement.briefing,
+            graphs: [{
+              paneId: "pane/missing",
+              order: 0,
+              emphasis: "primary",
+            }],
+          },
         },
       },
+      snapshot,
       contract: contractV3(),
       live: true,
     });

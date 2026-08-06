@@ -32,7 +32,7 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact development release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-35
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-36
 ```
 
 It pins:
@@ -50,7 +50,8 @@ It pins:
   complete-beat metrics;
 - four unit-safe graph constructors: pressure sweep, flow sweep,
   pressure-volume, and on-demand bilateral Guyton/Starling orientation; and
-- the purpose-specific Article/Publication Snapshot gate.
+- one public-executable Snapshot admission shared by Article placement and
+  standalone publication.
 
 There is no Parameter catalog or durable `ParameterSet`. The seven registered
 numeric controls are the only public input authority. Each control resolves in
@@ -73,13 +74,13 @@ materializes the executable bundle from them; arbitrary bytes cannot be paired
 with source-created functions. Browser clients load that committed admitted
 artifact and do not rehash it during load or execution.
 
-The model-pinned Snapshot gate restores the frozen candidate exactly and then
-selects a profile from the capture purpose. Article capture advances a detached
-fork for one complete regular-sinus cycle, requires the canonical finite,
-conservation, event-identity, and MCS-off checks, and preserves the click-time
-checkpoint; settlement is not required or claimed. Publication runs the strict
-periodic qualification protocol, accepts only period-1 convergence, and emits
-a fresh terminal settled checkpoint. Experiment Save remains allowed for an
+The model-pinned Snapshot admission is purpose-neutral. It restores the frozen
+candidate exactly, verifies checkpoint round-trip identity, finishes the open
+cycle/window on a detached fork, advances one complete regular-sinus cycle,
+and applies the canonical finite, conservation, event-identity, and MCS-off
+checks. It preserves the click-time checkpoint byte-for-byte. Settlement is
+neither required nor claimed, and the same admission runs before Article
+placement and standalone publication. Experiment Save remains allowed for an
 unsettled state.
 
 The live Worker exposes correlated accepted-boundary Experiment capture to the
@@ -127,14 +128,14 @@ Numerical convergence, conservation, replay identity, and focused mechanism
 checks do not establish physiological or clinical validity. Settlement and
 numerical-health status are computed at runtime and are not durable content. An
 explicit Experiment Save captures an exact accepted-boundary checkpoint but
-makes no qualification claim. Article Snapshot creation requires numerical
-safety while retaining its atomic click-time checkpoint; it makes no settlement
-claim. Publication Snapshot creation captures fresh period-1-settled
-checkpoints. Neither path persists status flags or assessment objects.
+makes no admission claim. Every immutable Snapshot must pass the same numerical
+admission while retaining its atomic click-time checkpoint; neither Article
+placement nor publication claims settlement. No path persists status flags or
+assessment objects.
 
 The development package's underlying engine claim remains
-`releaseReady: false` and `simulationReady: false`. Passing the candidate
-Snapshot gate does not change that claim.
+`releaseReady: false` and `simulationReady: false`. Passing Snapshot admission
+does not change that claim.
 
 Literature and validation boundaries for the retained V3 mechanisms are
 documented in

@@ -13,41 +13,41 @@ import {
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import { canonicalJsonStringify } from "@/engine/integrity";
 
-export const MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_VERIFICATION_V3_ID =
-  "main-wire-integrated-article-capture-numerical-safety-v1" as const;
+export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID =
+  "main-wire-integrated-public-executable-snapshot-admission-v1" as const;
 
-export const MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_NOMINAL_DT_SEC_V3 =
+export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_NOMINAL_DT_SEC_V3 =
   0.002 as const;
 
-export type MainWireIntegratedModelArticleCaptureVerificationResultV3 =
+export type MainWireIntegratedModelSnapshotAdmissionResultV3 =
   | Readonly<{
       status: "accepted";
-      verificationId:
-        typeof MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_VERIFICATION_V3_ID;
+      admissionId:
+        typeof MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID;
     }>
   | Readonly<{
       status: "rejected";
-      verificationId:
-        typeof MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_VERIFICATION_V3_ID;
+      admissionId:
+        typeof MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID;
       reason: string;
     }>;
 
 /**
- * Detached numerical-safety check for an Article capture.
+ * Detached public-executable admission for every immutable Snapshot.
  *
- * It deliberately does not establish settlement or physiological validity.
- * The click-time checkpoint is restored exactly, advanced through the open
- * cycle plus one complete regular-sinus cycle, and checked by the canonical
- * finite/conservation/event machinery. The original checkpoint remains the
- * immutable Article capture when this verifier passes.
+ * Admission deliberately establishes neither settlement nor physiological
+ * validity. It restores the atomic click-time checkpoint exactly, advances a
+ * fork through the open cycle plus one complete regular-sinus cycle, and uses
+ * the canonical finite/conservation/event machinery. The original candidate
+ * remains byte-for-byte the Snapshot content when this verifier passes.
  */
-export async function verifyMainWireIntegratedModelArticleCaptureV3(
+export async function admitMainWireIntegratedModelSnapshotV3(
   input: Readonly<{
     candidateCheckpoint: unknown;
     hemodynamicResearchInputs:
       MainWireIntegratedModelHemodynamicResearchInputsV3;
   }>,
-): Promise<MainWireIntegratedModelArticleCaptureVerificationResultV3> {
+): Promise<MainWireIntegratedModelSnapshotAdmissionResultV3> {
   try {
     const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
       input.hemodynamicResearchInputs,
@@ -75,13 +75,13 @@ export async function verifyMainWireIntegratedModelArticleCaptureV3(
       alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
         fixture,
         restored,
-        MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_NOMINAL_DT_SEC_V3,
+        MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_NOMINAL_DT_SEC_V3,
       );
     const cycle = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       fixture,
       alignment.terminalAcceptedState,
       1,
-      MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_NOMINAL_DT_SEC_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_NOMINAL_DT_SEC_V3,
     );
     assertNoRepeatedAcceptedEventIdsV3([
       ...alignment.acceptedAtrialCaptureIds,
@@ -116,14 +116,12 @@ export async function verifyMainWireIntegratedModelArticleCaptureV3(
     }
     return Object.freeze({
       status: "accepted" as const,
-      verificationId:
-        MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_VERIFICATION_V3_ID,
+      admissionId: MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID,
     });
   } catch (error) {
     return Object.freeze({
       status: "rejected" as const,
-      verificationId:
-        MAIN_WIRE_INTEGRATED_MODEL_ARTICLE_CAPTURE_VERIFICATION_V3_ID,
+      admissionId: MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID,
       reason: error instanceof Error ? error.message : String(error),
     });
   }

@@ -1145,29 +1145,25 @@ export class StudioSimulationWorkerRuntimeV2 {
         `experiment/session/${request.runtimeSessionId}`,
         request.surface,
       );
-      const created = request.snapshotKind === "article"
-        ? await context.authoring.createSnapshot({
-            kind: "article",
-            content: candidateContent,
-            briefing: request.briefing,
-          })
+      const created = request.snapshotSource === "session"
+        ? await context.authoring.createSnapshot({ content: candidateContent })
         : await this.#createPublicationSnapshotFromSavedHead(
             context,
             candidateContent,
           );
       snapshot = validateExperimentSnapshotV2(created);
       if (
-        snapshot.kind !== request.snapshotKind
-        || snapshot.content.modelId !== context.runtime.contract.modelId
+        snapshot.content.modelId !== context.runtime.contract.modelId
       ) {
         throw new FatalWorkerStateErrorV2(
           "simulation worker Snapshot commit returned inconsistent identity",
         );
       }
-      assertSnapshotChangedCheckpointsOnlyV2(
-        candidateContent,
-        snapshot.content,
-      );
+      if (!samePortableValueV2(candidateContent, snapshot.content)) {
+        throw new FatalWorkerStateErrorV2(
+          "simulation worker Snapshot admission changed captured content",
+        );
+      }
       this.#assertAcceptedFrameUnchanged(
         context.frame,
         "Snapshot creation",
@@ -1199,20 +1195,21 @@ export class StudioSimulationWorkerRuntimeV2 {
     const experimentId = this.#authoringExperimentId;
     if (experimentId === undefined) {
       throw new Error(
-        "Publication Snapshot requires a saved Experiment authoring seed",
+        "Publishing requires a saved Experiment authoring seed",
       );
     }
     const experiment = await context.authoring.readExperiment(experimentId);
     if (experiment === null) {
       throw new Error(
-        "Publication Snapshot saved Experiment is no longer available",
+        "The saved Experiment required for publishing is no longer available",
       );
     }
     return context.authoring.createSnapshot({
-      kind: "publication",
-      experimentId,
-      expectedVersion: experiment.version,
       content: candidateContent,
+      savedExperiment: {
+        experimentId,
+        expectedVersion: experiment.version,
+      },
     });
   }
 
@@ -1621,7 +1618,7 @@ function assertExactRuntimeV2(
     || runtime.snapshotGate?.modelId !== modelId
     || runtime.snapshotGate.snapshotGateId
       !== runtime.contract.snapshotGateId
-    || typeof runtime.snapshotGate.qualifyFrozenCandidate !== "function"
+    || typeof runtime.snapshotGate.admitFrozenCandidate !== "function"
     || runtime.fixtureAdapter?.modelId !== modelId
     || runtime.fixtureAdapter.fixtureSchemaId
       !== runtime.contract.fixtureSchemaId
@@ -1825,37 +1822,6 @@ function assertCapturedDesiredContentAtBoundaryV2(
     ) {
       throw new Error(
         "accepted-boundary capture changed Scenario identity, fixture, or clocks",
-      );
-    }
-  }
-}
-
-function assertSnapshotChangedCheckpointsOnlyV2(
-  candidate: ExperimentContentV2,
-  qualified: ExperimentContentV2,
-): void {
-  if (
-    candidate.modelId !== qualified.modelId
-    || !samePortableValueV2(candidate.surface, qualified.surface)
-    || candidate.scenarios.length !== qualified.scenarios.length
-  ) {
-    throw new FatalWorkerStateErrorV2(
-      "simulation worker Snapshot gate changed authored content",
-    );
-  }
-  for (let index = 0; index < candidate.scenarios.length; index += 1) {
-    const before = candidate.scenarios[index]!;
-    const after = qualified.scenarios[index]!;
-    if (
-      before.scenarioId !== after.scenarioId
-      || before.label !== after.label
-      || !samePortableValueV2(
-        before.capture.fixture,
-        after.capture.fixture,
-      )
-    ) {
-      throw new FatalWorkerStateErrorV2(
-        "simulation worker Snapshot gate changed Scenario authored content",
       );
     }
   }

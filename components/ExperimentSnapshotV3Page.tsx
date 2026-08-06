@@ -20,13 +20,15 @@ import {
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
-  type ArticleExperimentSnapshotV2,
   type ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import {
   StudioBrowserContentStoreV3,
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
+import {
+  createStudioSupabaseContentRepositoryV1,
+} from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 
 export function ExperimentSnapshotV3Page() {
   const location = useLocation();
@@ -51,7 +53,14 @@ function ExperimentSnapshotV3Resource({
   const locale = localeFromPathname(pathname);
   const navigate = useNavigate();
   const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
-  const [snapshot] = React.useState<ExperimentSnapshotV2 | null>(() => {
+  const remoteRepository = React.useMemo(
+    createStudioSupabaseContentRepositoryV1,
+    [],
+  );
+  const [snapshot, setSnapshot] = React.useState<
+    ExperimentSnapshotV2 | null | undefined
+  >(() => {
+    if (remoteRepository !== null) return undefined;
     if (snapshotId === undefined) return null;
     try {
       return store.readSnapshot(snapshotId);
@@ -59,23 +68,29 @@ function ExperimentSnapshotV3Resource({
       return null;
     }
   });
-  const readerSnapshot = React.useMemo<ArticleExperimentSnapshotV2 | null>(() => {
-    if (snapshot === null) return null;
-    if (snapshot.kind === "article") return snapshot;
-    return Object.freeze({
-      schemaId: snapshot.schemaId,
-      snapshotId: snapshot.snapshotId,
-      kind: "article" as const,
-      content: snapshot.content,
-      briefing: defaultArticleBriefingV3(snapshot),
-      createdAt: snapshot.createdAt,
-      ...(snapshot.createdBy === undefined
-        ? {}
-        : { createdBy: snapshot.createdBy }),
-    });
-  }, [snapshot]);
+  const briefing = React.useMemo(() =>
+    snapshot === null || snapshot === undefined
+      ? null
+      : defaultArticleBriefingV3(snapshot), [snapshot]);
   const [contract, setContract] = React.useState<ModelContractV2 | null>(null);
   const [expanded, setExpanded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (remoteRepository === null) return undefined;
+    let current = true;
+    if (snapshotId === undefined) {
+      setSnapshot(null);
+      return undefined;
+    }
+    void remoteRepository.readSnapshot(snapshotId).then((next) => {
+      if (current) setSnapshot(next);
+    }).catch(() => {
+      if (current) setSnapshot(null);
+    });
+    return () => {
+      current = false;
+    };
+  }, [remoteRepository, snapshotId]);
 
   React.useEffect(() => {
     let current = true;
@@ -83,6 +98,7 @@ function ExperimentSnapshotV3Resource({
       if (
         current
         && snapshot !== null
+        && snapshot !== undefined
         && composition.contract.modelId === snapshot.content.modelId
       ) {
         setContract(composition.contract);
@@ -114,8 +130,8 @@ function ExperimentSnapshotV3Resource({
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="hidden sm:inline">{t("nav.workbench")}</span>
         </Link>
-        <span className="min-w-0 flex-1 truncate text-center font-mono text-[10px] text-wb-subtle">
-          {snapshot?.snapshotId ?? ""}
+        <span className="min-w-0 flex-1 truncate text-center text-xs text-wb-muted">
+          {snapshot?.content.scenarios[0]?.label ?? ""}
         </span>
         {snapshot !== null && (
           <button
@@ -137,7 +153,11 @@ function ExperimentSnapshotV3Resource({
       </header>
 
       <main className="mx-auto w-full max-w-[1080px] px-5 pb-24 pt-10 sm:px-8 sm:pt-14">
-        {snapshot === null ? (
+        {snapshot === undefined ? (
+          <div className="py-20 text-center text-sm text-wb-muted" role="status">
+            {t("snapshotReader.loading")}
+          </div>
+        ) : snapshot === null ? (
           <div className="py-20 text-center">
             <h1 className="text-2xl font-semibold tracking-tight">{t("snapshotReader.missingTitle")}</h1>
             <p className="mt-3 text-sm text-wb-muted">{t("snapshotReader.missingDescription")}</p>
@@ -157,7 +177,7 @@ function ExperimentSnapshotV3Resource({
                 </p>
               )}
             </header>
-            {readerSnapshot !== null && <ArticleReaderExperimentV3
+            {briefing !== null && <ArticleReaderExperimentV3
               block={Object.freeze({
                 blockId: `snapshot-view-${snapshot.snapshotId}`,
                 kind: "experiment",
@@ -165,11 +185,12 @@ function ExperimentSnapshotV3Resource({
                   schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
                   placementId: `snapshot-view-${snapshot.snapshotId}`,
                   snapshotId: snapshot.snapshotId,
+                  briefing,
                   titleOverride: null,
                   caption: null,
                 }),
               })}
-              snapshot={readerSnapshot}
+              snapshot={snapshot}
               contract={contract}
               live
               expandedPresentation={expanded ? "fullscreen" : null}

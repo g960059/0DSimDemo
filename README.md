@@ -31,27 +31,28 @@ ExperimentSession (ephemeral, mutable; operated in Workbench)
 Experiment (explicitly saved, mutable by version-checked Save)
   └─ ExperimentContent
 
-ExperimentSnapshot (immutable, qualified)
-  ├─ PublicationSnapshot = complete content
-  └─ ArticleSnapshot = complete content + Briefing
+ExperimentSnapshot (neutral, immutable, admitted)
+  └─ ExperimentContent
 
-ExperimentPlacement = snapshotId + caption
+ExperimentPublication = public pointer → snapshotId
+ExperimentPlacement = snapshotId + Briefing + title/caption
 ```
 
 主な判断:
 
 - `modelId` は equations、runtime、solver、fixture schema、checkpoint
-  codec、catalog、snapshot gate を固定する exact immutable identity
+  codec、catalog、Snapshot admission を固定する exact immutable identity
 - package integrity は registry 登録時にのみ検査し、client runtime は
   registry を信頼する
 - parameter変更 action はfixtureへ反映された時点で役目を終え、durable
   `ParameterSet` は作らない
 - Preset、Experiment、Snapshot の Scenario は `fixture + checkpoint` を一体で持つ
-- Experiment は未settledでも保存でき、Snapshot作成時だけsettlementとminimum
-  numerical gateを要求する
+- Experiment は未settledでも保存でき、Snapshot admissionはdetached forkで
+  exact restore、1周期のfinite/conservation/event検査を行う
+- admissionはsettlementを要求せず、captureしたcheckpointを書き換えない
 - immutable版は数値revisionではなく`snapshotId`で識別する
-- Snapshotはsource/parent/head lineageを持たない
-- 記事内PlacementはBriefingを内包したArticle Snapshotを直接pinする
+- portable Snapshotはsource/parent/head lineageや用途kindを持たない
+- 記事内PlacementがBriefingを所有し、中立なSnapshotをpinする
 - `/experiments/new`はIDを持たず、最初の明示Save成功時だけ`experimentId`を発行する
 - Snapshot/PV/Starlingはatomic capture後すぐliveを再開し、上限付きwarm Worker poolで処理する
 - Workbenchを開くだけではMy Experimentsへ保存しない
@@ -68,10 +69,10 @@ ExperimentPlacement = snapshotId + caption
 2. exact development `modelId`でregistry admission境界へ接続
 3. registryを信頼するclient catalogからdefault modelとして解決
 4. generic Worker経由でWorkbenchのlive simulationをautostart
-5. period-1 convergenceとminimum numerical条件を確認するSnapshot gateを接続
-6. explicit Saveで全Scenarioの`fixture + checkpoint`を保存し、qualified
+5. 全Snapshot共通のone-cycle public-executable admissionを接続
+6. explicit Saveで全Scenarioの`fixture + checkpoint`を保存し、admitted
    Snapshotを作成するauthoring bridgeを接続
-7. role-specific Briefing、Article Editor / Library / ReaderとSnapshotをpinする
+7. Placement-owned Briefing、Article Editor / Library / ReaderとSnapshot pinを接続
    Placementを接続
 8. 記事内で中央のPlacementだけをlive ownerにし、そのBriefingで可視な全Scenarioを
    persistent Worker laneで同時実行
@@ -82,9 +83,14 @@ ExperimentPlacement = snapshotId + caption
 
 1. graph complexityを含む表示extentの重み付けと、非active Placement向けの
    disposable one-beat replay cache
-2. 過去のexact model releaseを選択・保持できるmulti-release catalog
-3. publication/server境界と共有権限
+2. 過去のexact model releaseを動的に解決するmulti-release loader
+3. production redirect、Google OAuth、匿名利用のabuse control、定期GCを設定
 4. その後に公式Preset、Experiment、記事、Lessonを制作
+
+Supabaseを設定したbuildでは、Experiment / Snapshot / Articleのread/write、
+publication pointer、exact model registryをremote backendが一貫して所有します。
+browser storeはSupabase未設定のtest/development fallbackに限定され、dual-writeは
+行いません。
 
 それ以前のcase catalog、lesson document、numeric Experiment revision、
 Working Set / Reader Brief、certification artifactは製品データの正典では
@@ -149,6 +155,7 @@ studio/infrastructure/model/  exact model registry implementation
 studio/integrations/          exact model-specific Studio adapters
 studio/composition/           registry/default application composition
 studio/workers/               generic live simulation Worker boundary
+supabase/                      Auth・registry・content release spine
 engine/                       numerical model/runtime
 docs/studio/                  Studioの現行設計
 docs/myocardium/              V3研究・検証ドキュメント
@@ -160,7 +167,7 @@ __tests__/                    application/runtime tests
 
 - 新しいStudio機能はV2 contractsを経由する
 - 旧構造へfallback、dual-write、compatibility aliasを追加しない
-- model behavior、schema、codec、catalog、gateが変わる場合は新しい
+- model behavior、schema、codec、catalog、admissionが変わる場合は新しい
   `modelId`を登録する
 - official contentはregistered exact modelを必ずpinする
 - 古い設計が必要な場合は現行ツリーへ戻さず、Git履歴を参照する

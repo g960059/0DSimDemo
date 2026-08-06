@@ -62,7 +62,19 @@
   },
   "accountAccess": {
     "title": "Log in to CircleHeart",
-    "preRelease": "Account access is being prepared and will become available when the authentication service is connected."
+    "description": "Open your saved simulations and articles from another device.",
+    "retainAnonymous": "Keep what you saved on this device by linking an email or Google account.",
+    "email": "Email address",
+    "emailPlaceholder": "you@example.com",
+    "continueWithEmail": "Continue with email",
+    "continueWithGoogle": "Continue with Google",
+    "sending": "Sending…",
+    "redirecting": "Opening Google…",
+    "or": "or",
+    "magicLinkSent": "Check your email",
+    "magicLinkSentDescription": "Open the link in the message to log in without a password.",
+    "noPassword": "CircleHeart does not store passwords. Log in with an email link or Google.",
+    "unconfigured": "The authentication service is not configured."
   },
   "accountSettings": {
     "eyebrow": "ACCOUNT",
@@ -165,21 +177,21 @@
       "saveError": "Could not save",
       "publish": "Publish",
       "publishing": "Publishing…",
-      "publishDescription": "Create a qualified Publication Snapshot and expose it as this saved simulation's release.",
+      "publishDescription": "Check the current numerical state and make it this saved simulation's public version.",
       "publishRequiresSave": "Save this simulation before publishing.",
       "publishRequiresClean": "Save the current simulation changes before publishing.",
       "briefing": "Brief",
       "briefingTitle": "Article briefing",
       "briefingDescription": "Choose the Scenarios, graphs, outputs, and controls to carry into an article.",
-      "briefingSnapshotNotice": "The Briefing is frozen when the Article Snapshot is created. After returning to the editor, save the article to persist its Placement.",
-      "briefingSourceChanged": "The source simulation changed after this Briefing opened. Close and reopen it before creating the Snapshot.",
-      "briefingChangedDuringSnapshot": "The Briefing changed while the Snapshot was being created. Review it and create the Snapshot again.",
-      "createSnapshot": "Create Snapshot",
-      "createSnapshotForArticle": "Create Snapshot and add to article",
-      "creatingSnapshot": "Creating Snapshot…",
-      "snapshotCreated": "Snapshot created",
-      "snapshotError": "Could not create Snapshot",
-      "snapshotNotReady": "The live simulation is not ready to create a Snapshot yet.",
+      "briefingSnapshotNotice": "Adding this simulation freezes its presentation and allowed interactions. Save the article after returning to the editor.",
+      "briefingSourceChanged": "The source simulation changed after this briefing opened. Close and reopen it before adding the simulation.",
+      "briefingChangedDuringSnapshot": "The article selection changed during checking. Review it and add the simulation again.",
+      "createSnapshot": "Freeze current state",
+      "createSnapshotForArticle": "Add to article",
+      "creatingSnapshot": "Checking numerical state…",
+      "snapshotCreated": "Current state frozen",
+      "snapshotError": "Could not freeze the current state",
+      "snapshotNotReady": "The live simulation is not ready to be frozen safely yet.",
       "snapshotBusy": "Another simulation operation is still running. Try again when it finishes.",
       "close": "Close",
       "cancel": "Cancel",
@@ -365,7 +377,7 @@
     "emptyBriefing": "This placement intentionally includes no panes.",
     "panes": "panes",
     "scenarioCount": "{{count}} scenario(s)",
-    "snapshotCount": "{{count}} Snapshot(s) available",
+    "snapshotCount": "{{count}} frozen simulation(s)",
     "status": {
       "idle": "",
       "dirty": "Unsaved",
@@ -375,19 +387,19 @@
     },
     "snapshotPicker": {
       "title": "Insert a simulation",
-      "description": "Each placement pins one immutable Article Snapshot. Changing its Briefing creates a new Snapshot.",
+      "description": "Choose a simulation to pin in this article. Presentation and allowed interactions are edited per placement.",
       "listLabel": "Available simulations",
       "createExperiment": "Create a new simulation",
       "createExperimentHint": "Edit the simulation, choose what the article should show, then return here."
     },
     "emptySnapshots": {
-      "title": "No Snapshots yet",
+      "title": "No simulations are ready to place yet",
       "description": "Compose a simulation and place it in the article as pinned data. Saving the simulation is optional.",
       "openWorkbench": "Open simulation",
       "createExperiment": "Create simulation"
     },
     "missingSnapshot": {
-      "title": "This pinned Snapshot is unavailable"
+      "title": "This pinned simulation is unavailable"
     },
     "invalidBriefing": "This placement Briefing cannot be loaded safely.",
     "briefing": {
@@ -434,6 +446,7 @@
     "eyebrow": "GUIDED EXPLORATION",
     "heading": "Articles",
     "description": "Combine writing with pinned simulations to communicate circulatory physiology.",
+    "loading": "Loading your articles…",
     "emptyTitle": "No articles yet",
     "emptyDescription": "Create an article, then add simulations when they help the explanation.",
     "saved": "Saved articles",
@@ -444,6 +457,7 @@
     "read": "Read"
   },
   "articleReader": {
+    "loading": "Loading article…",
     "backToArticles": "All articles",
     "edit": "Edit article",
     "untitled": "Untitled article",
@@ -479,6 +493,7 @@
     "noControlTarget": "Not available for this scenario"
   },
   "snapshotReader": {
+    "loading": "Loading simulation…",
     "eyebrow": "SIMULATION SNAPSHOT",
     "editInWorkbench": "Edit as a simulation",
     "missingTitle": "Snapshot not found",
