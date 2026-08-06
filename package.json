@@ -15,6 +15,7 @@
     "test:fast": "node tools/testing/runFastVitest.mjs",
     "test:pr": "CIRCLEHEART_TEST_SUITE_LABEL='PR smoke suite' CIRCLEHEART_VITEST_CONFIG=vitest.pr.config.ts node tools/testing/runFastVitest.mjs",
     "test:browser": "playwright test",
+    "test:supabase": "supabase test db --local supabase/tests/database",
     "test:related": "vitest related --run --config vitest.fast.config.ts",
     "test:suites:audit": "vitest run --config vitest.fast.config.ts __tests__/testSuiteManifest.test.ts",
     "test:regression": "vitest run --config vitest.regression.config.ts",

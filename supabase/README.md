@@ -115,9 +115,33 @@ Adds the production operating boundary around semantic writes:
 - same-account quota checks are serialized to prevent concurrent bypass; and
 - Supabase Cron calls bounded content GC every 15 minutes.
 
-The database quota limits storage amplification by one anonymous identity. It
-does not replace Supabase Auth's IP-based anonymous-sign-in limit or production
-CAPTCHA/Turnstile.
+The mutation quota limits write-rate amplification by one anonymous identity.
+It does not replace Supabase Auth's IP-based anonymous-sign-in limit or
+production CAPTCHA/Turnstile.
+
+### `20260806000600_content_bounds_and_receipts.sql`
+
+Hardens immutable storage and response-loss recovery:
+
+- operation receipts store payload digests and compact identity responses;
+- the browser may safely replay the same operation UUID after a lost response;
+- Experiment/Article JSON has explicit byte ceilings;
+- anonymous identities have row and aggregate-byte storage quotas;
+- new unreferenced Snapshot handoffs retain a 24-hour recovery window; and
+- operation receipts expire after 24 hours.
+
+### `20260806000700_content_summary_pages.sql`
+
+Replaces the pre-release unbounded list transports with cursor-paginated
+summary pages. Experiment, Snapshot, and Article lists contain titles, counts,
+timestamps, publication pointers, and model identity only; fixture,
+checkpoint, Surface, and Article blocks are loaded solely through the existing
+detail reads when a user opens or selects one item.
+
+### `20260806000800_summary_cursor_precision.sql`
+
+Preserves PostgreSQL microsecond precision in summary continuation cursors so
+updates within one millisecond cannot be skipped between pages.
 
 ## Auth policy
 
@@ -160,6 +184,14 @@ same operation and canonical request returns its committed result. Reusing the
 ID with different input is rejected. Mutable resources additionally require an
 expected version.
 
+The browser retains an unacknowledged operation ID for the exact semantic
+request for 24 hours, including in same-tab session storage, so a response-loss
+retry cannot create a second immutable revision. Database receipts keep
+SHA-256 request fingerprints and compact identity results rather than copying
+Experiment/Article/Snapshot JSON. Experiment content is capped at 8 MiB,
+Article content at 2 MiB, and anonymous identities have bounded row and 64 MiB
+immutable-storage quotas in addition to mutation-rate limits.
+
 `commit_admitted_experiment_snapshot_v1` is a persistence boundary, not a
 numerical verifier. The browser must first receive the sealed result of the
 exact model's common Snapshot admission Worker. This protects ordinary product
@@ -184,22 +216,26 @@ get_model_release_v1
 read_public_experiment_v1
 read_public_article_v1
 read_experiment_snapshot_v1
-list_my_experiments_v1
+list_my_experiment_summaries_v1
 read_my_experiment_v1
-list_my_experiment_snapshots_v1
-list_my_articles_v1
+list_my_snapshot_summaries_v1
+list_my_article_summaries_v1
 read_article_v1
-list_public_experiments_v1
-list_public_articles_v1
+list_public_experiment_summaries_v1
+list_public_article_summaries_v1
 ```
 
 A Snapshot is readable by its owner, through the current public Experiment
 pointer, or through a published Article content reference. Private draft
 Article references do not make a Snapshot public.
 
+Summary calls accept a bounded page size and stable `(timestamp, id)` cursor.
+They never return complete numerical state; detail RPCs remain reference- and
+ownership-authorized independently.
+
 ## Retention and scheduled GC
 
-Newly committed Snapshots receive a short grace period. Publication retains
+Newly committed Snapshots receive a 24-hour handoff grace period. Publication retains
 them explicitly; Article references retain them relationally. Unpublish and
 soft delete release those pointers; deleted roots and otherwise unreachable
 immutable content are eligible for physical collection after one hour. A
@@ -217,10 +253,18 @@ Supabase Cron job at a 15-minute interval; job history is available in
 
 ## Release registration
 
-CI builds the deterministic model artifact and verifies the repository lock
-before calling `register_model_release_v1` with service-role authority. If the
-manifest or bytes change, CI must assign a new exact `modelId`; registry
-registration rejects rebinding an existing ID.
+CI builds the deterministic **numerical execution** artifact and verifies its
+repository lock before calling `register_model_release_v1` with service-role
+authority. If that contract or those bytes change, CI must assign a new exact
+`modelId`; registry registration rejects rebinding an existing ID. Studio
+admission policy, presentation catalogs, UI, Auth, database, Article, and
+hosting releases are versioned separately and must not churn `modelId`.
+
+The currently registered `development-36` artifact is the final transitional
+bundle whose lock still includes Snapshot admission. It changed from 35
+because admission semantics changed in the same commit, not because Supabase
+was introduced. Keep 36 immutable; split the package boundary before minting
+the next numerical model release.
 
 After the exact release files are committed, a maintainer with an authenticated
 Supabase CLI session publishes the artifact and registry row without exposing a

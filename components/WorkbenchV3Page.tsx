@@ -27,6 +27,7 @@ import {
 } from "react-router-dom";
 import { useAppTheme } from "@/appTheme";
 import { useUnsavedChangesGuardV3 } from "@/components/useUnsavedChangesGuardV3";
+import { useSiteAccountSessionV3 } from "@/components/site/SiteAccountSessionV3";
 
 import {
   WorkbenchDockview,
@@ -244,6 +245,7 @@ const WorkbenchV3Session = ({
 }: Readonly<{ initialExperimentId: string | null }>) => {
   const { t } = useTranslation();
   const { appTheme, setAppTheme } = useAppTheme();
+  const { authIdentity } = useSiteAccountSessionV3();
   const { locale } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -1786,6 +1788,15 @@ const WorkbenchV3Session = ({
     setSnapshotPurpose(null);
     if (
       options.kind === "publication"
+      && remoteContentRepository !== null
+      && authIdentity.kind !== "account"
+    ) {
+      setSnapshotError(t("workbench.editor.publishRequiresLinkedAccount"));
+      setSnapshotState("error");
+      return null;
+    }
+    if (
+      options.kind === "publication"
       && (experimentRef.current === null || saveState !== "clean")
     ) {
       setSnapshotError(t(
@@ -1968,6 +1979,7 @@ const WorkbenchV3Session = ({
       }
     }
   }, [
+    authIdentity.kind,
     backgroundWorkerPool,
     experimentIndex,
     experimentRecord,

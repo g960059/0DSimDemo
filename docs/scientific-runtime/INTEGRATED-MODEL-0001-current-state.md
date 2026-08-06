@@ -50,7 +50,7 @@ It pins:
   complete-beat metrics;
 - four unit-safe graph constructors: pressure sweep, flow sweep,
   pressure-volume, and on-demand bilateral Guyton/Starling orientation; and
-- one public-executable Snapshot admission shared by Article placement and
+- one public-executable Snapshot admission policy shared by Article placement and
   standalone publication.
 
 There is no Parameter catalog or durable `ParameterSet`. The seven registered
@@ -74,7 +74,7 @@ materializes the executable bundle from them; arbitrary bytes cannot be paired
 with source-created functions. Browser clients load that committed admitted
 artifact and do not rehash it during load or execution.
 
-The model-pinned Snapshot admission is purpose-neutral. It restores the frozen
+The model-compatible Snapshot admission policy is purpose-neutral. It restores the frozen
 candidate exactly, verifies checkpoint round-trip identity, finishes the open
 cycle/window on a detached fork, advances one complete regular-sinus cycle,
 and applies the canonical finite, conservation, event-identity, and MCS-off
@@ -82,6 +82,12 @@ checks. It preserves the click-time checkpoint byte-for-byte. Settlement is
 neither required nor claimed, and the same admission runs before Article
 placement and standalone publication. Experiment Save remains allowed for an
 unsettled state.
+
+Snapshot admission is a Studio product policy, not part of future numerical
+`modelId` identity. `development-36` remains an immutable transitional bundle
+that still co-packages this policy; the next exact-model release boundary must
+separate the numerical executable artifact from admission and presentation so
+non-numerical product work does not mint a new model ID.
 
 The live Worker exposes correlated accepted-boundary Experiment capture to the
 main-thread authoring application. Explicit Save captures each Scenario's

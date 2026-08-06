@@ -22,7 +22,6 @@ import { isLocale, type Locale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
-import type { ExperimentV2 } from "@/studio/contracts/v2/content";
 import { StudioBrowserContentStoreV3 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
   StudioBrowserExperimentIndexV3,
@@ -35,7 +34,8 @@ import {
 
 type WorkbenchSelectorItemV3 = Readonly<{
   record: StudioBrowserExperimentRecordV3;
-  experiment: ExperimentV2 | null;
+  modelId: string;
+  version: number;
 }>;
 
 type WorkbenchSelectorStateV3 =
@@ -71,20 +71,21 @@ export function WorkbenchSelectorV3Page() {
     try {
       const composition = await loadStudioDefaultClientCompositionV2();
       if (remoteRepository !== null) {
-        const resources = await remoteRepository.listMyExperiments();
+        const resources = (await remoteRepository.listMyExperiments()).items;
         setState({
           kind: "ready",
           currentModelId: composition.defaultModelId,
           items: Object.freeze(resources.map((resource) => Object.freeze({
             record: Object.freeze({
               schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
-              experimentId: resource.experiment.experimentId,
+              experimentId: resource.experimentId,
               title: resource.title,
               createdAt: resource.createdAt,
               updatedAt: resource.updatedAt,
               publishedSnapshotId: resource.publishedSnapshotId,
             }),
-            experiment: resource.experiment,
+            modelId: resource.modelId,
+            version: resource.version,
           }))),
         });
         return;
@@ -113,14 +114,11 @@ export function WorkbenchSelectorV3Page() {
           );
         }
       }
-      const experimentById = new Map(experiments.map((experiment) => [
-        experiment.experimentId,
-        experiment,
-      ]));
       const items = Object.freeze(experiments
         .map((experiment) => Object.freeze({
           record: experimentIndex.read(experiment.experimentId)!,
-          experiment: experimentById.get(experiment.experimentId) ?? null,
+          modelId: experiment.content.modelId,
+          version: experiment.version,
         }))
         .sort((left, right) =>
           right.record.updatedAt.localeCompare(left.record.updatedAt)));
@@ -254,13 +252,11 @@ export function WorkbenchSelectorV3Page() {
           )}
           {state.kind === "ready" && state.items.length > 0 && (
             <ul className="divide-y divide-wb-line/80 border-y border-wb-line/80">
-              {state.items.map(({ record, experiment }) => {
-                const availability = experiment === null
-                  ? "available"
-                  : classifyExperimentAvailabilityV3(
-                    experiment.content.modelId,
-                    state.currentModelId,
-                  );
+              {state.items.map(({ record, modelId, version }) => {
+                const availability = classifyExperimentAvailabilityV3(
+                  modelId,
+                  state.currentModelId,
+                );
                 return (
                   <li
                     key={record.experimentId}
@@ -334,7 +330,7 @@ export function WorkbenchSelectorV3Page() {
                         type="button"
                         onClick={() => void deleteWorkbench(
                           record.experimentId,
-                          experiment?.version ?? 0,
+                          version,
                         )}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-danger-soft hover:text-wb-danger active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-danger"
                         aria-label={t("workbench.selector.delete")}

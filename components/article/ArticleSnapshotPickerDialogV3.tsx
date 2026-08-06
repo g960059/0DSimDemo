@@ -5,16 +5,19 @@ import { Link, useLocation } from "react-router-dom";
 
 import { experimentSnapshotHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
-import type {
-  ExperimentSnapshotV2,
-} from "@/studio/contracts/v2/content";
+export type ArticleSnapshotPickerItemV3 = Readonly<{
+  snapshotId: string;
+  title: string;
+  createdAt: string;
+  paneCount: number;
+}>;
 
 export type ArticleSnapshotPickerDialogV3Props = Readonly<{
   open: boolean;
-  snapshots: readonly ExperimentSnapshotV2[];
+  snapshots: readonly ArticleSnapshotPickerItemV3[];
   onCreateExperiment: () => void;
   onClose: () => void;
-  onSelect: (snapshot: ExperimentSnapshotV2) => void;
+  onSelect: (snapshot: ArticleSnapshotPickerItemV3) => void | Promise<void>;
 }>;
 
 export function ArticleSnapshotPickerDialogV3({
@@ -28,6 +31,9 @@ export function ArticleSnapshotPickerDialogV3({
   const dialogRef = React.useRef<HTMLDialogElement | null>(null);
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
+  const [selectingSnapshotId, setSelectingSnapshotId] = React.useState<
+    string | null
+  >(null);
 
   React.useEffect(() => {
     const dialog = dialogRef.current;
@@ -104,9 +110,17 @@ export function ArticleSnapshotPickerDialogV3({
               <li key={snapshot.snapshotId} className="flex items-center gap-1">
                 <button
                   type="button"
+                  disabled={selectingSnapshotId !== null}
                   onClick={() => {
-                    onSelect(snapshot);
-                    onClose();
+                    setSelectingSnapshotId(snapshot.snapshotId);
+                    void Promise.resolve(onSelect(snapshot)).then(() => {
+                      onClose();
+                    }).catch(() => {
+                      // The Editor owns the localized load error and keeps the
+                      // picker open so the user can retry another Snapshot.
+                    }).finally(() => {
+                      setSelectingSnapshotId(null);
+                    });
                   }}
                   className="group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-3 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                 >
@@ -115,8 +129,7 @@ export function ArticleSnapshotPickerDialogV3({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">
-                      {snapshot.content.scenarios[0]?.label
-                        ?? t("workbench.selector.untitled")}
+                      {snapshot.title || t("workbench.selector.untitled")}
                     </span>
                     <span className="mt-0.5 block truncate text-[10px] text-wb-subtle">
                       {new Intl.DateTimeFormat(locale, {
@@ -127,9 +140,7 @@ export function ArticleSnapshotPickerDialogV3({
                     </span>
                   </span>
                   <span className="shrink-0 text-[10px] text-wb-subtle">
-                    {snapshot.content.surface.graphPanes.length
-                      + snapshot.content.surface.outputPanes.length
-                      + snapshot.content.surface.controlPanes.length} {t("articleEditor.panes")}
+                    {snapshot.paneCount} {t("articleEditor.panes")}
                   </span>
                   <Check className="h-4 w-4 shrink-0 text-wb-subtle opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
                 </button>

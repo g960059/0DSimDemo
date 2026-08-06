@@ -180,6 +180,7 @@
       "publishDescription": "Check the current numerical state and make it this saved simulation's public version.",
       "publishRequiresSave": "Save this simulation before publishing.",
       "publishRequiresClean": "Save the current simulation changes before publishing.",
+      "publishRequiresLinkedAccount": "Link an email or Google account before publishing.",
       "briefing": "Brief",
       "briefingTitle": "Article briefing",
       "briefingDescription": "Choose the Scenarios, graphs, outputs, and controls to carry into an article.",

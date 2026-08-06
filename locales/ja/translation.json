@@ -180,6 +180,7 @@
       "publishDescription": "現在の状態を数値確認し、保存済みシミュレーションの公開内容として固定します。",
       "publishRequiresSave": "公開する前にシミュレーションを保存してください。",
       "publishRequiresClean": "現在のシミュレーションの変更を保存してから公開してください。",
+      "publishRequiresLinkedAccount": "公開するにはメールまたはGoogleアカウントを連携してください。",
       "briefing": "Brief",
       "briefingTitle": "記事用Briefing",
       "briefingDescription": "記事へ持ち込むScenario、graph、output、controlを選びます。",

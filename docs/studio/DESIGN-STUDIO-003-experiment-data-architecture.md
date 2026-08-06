@@ -130,9 +130,20 @@ One exact `modelId` pins every result-affecting execution contract:
 - runtime, solver, and event-boundary behavior;
 - fixture schema and control mapping;
 - checkpoint codec and exact restore behavior;
-- output units and aggregation semantics;
-- graph catalog; and
-- Snapshot admission behavior.
+- existing output/control identity, units, and semantics.
+
+It does **not** identify the Studio application release. Snapshot admission,
+publication policy, graph composition/presentation catalogs, Reader UI,
+Briefing, database schema, Auth, and hosting are independently versioned
+product concerns. Changing any of those without changing numerical execution
+must not mint another `modelId`.
+
+`development-36` still co-packages the admission implementation in its exact
+artifact and therefore legitimately changed under the old package-wide lock.
+That release is not rebound or renumbered. Before the next numerical release,
+the registry package boundary must separate the numerical executable contract
+from the Studio admission/presentation package so ordinary application work
+cannot churn exact model identity.
 
 Integrity hashes remain inside CI, the model registry, artifact storage, and
 model-owned corruption checks. Registration is idempotent for identical bytes
@@ -240,6 +251,15 @@ publication additionally proves that model, Scenario identity/order, fixture,
 and Surface still match the explicitly saved Experiment head. Click-time
 checkpoints may be newer than the saved checkpoints.
 
+The default capture is the atomic click-time cohort. A background Worker may
+pre-run admission for that exact detached cohort, but it must not silently
+substitute an independently advanced “latest steady” checkpoint: separate
+Scenario jobs can have different model times, and the result would no longer
+be what the author captured. A future steady-anchor cache is valid only when
+all Scenarios come from one atomic cohort and its `modelId`, fixture, and input
+epoch still match; selecting such an anchor must be an explicit capture
+semantic rather than an incidental performance optimization.
+
 ### 7.4 Common Snapshot admission
 
 Admission answers only: “Can this exact capture be restored and executed
@@ -250,7 +270,7 @@ safely as an interactive public simulation?” For Main Wire V3 it:
 3. finishes the already-open cycle/window on the detached fork;
 4. advances one complete canonical cycle;
 5. checks finite values, conservation tolerances, event identity, and the
-   model-pinned mechanical-support constraints; and
+   model-compatible mechanical-support constraints; and
 6. verifies a terminal checkpoint round trip.
 
 Admission never replaces the captured checkpoint. It does not require or
@@ -317,6 +337,11 @@ the original result for the same request or rejects reuse with different data.
 Experiment and Article Saves use expected-version compare-and-swap and never
 auto-merge.
 
+List routes return cursor-paginated summaries only. Complete fixture,
+checkpoint, Surface, and Article blocks are resolved through separately
+authorized detail reads when an item is opened or selected; opening a library
+must never download every stored numerical checkpoint.
+
 Anonymous Auth is created at the first backend Save, not when a visitor merely
 opens or forks a public simulation. Anonymous users can retain private work and
 later link magic-link email or Google identity. Publishing requires a linked
@@ -338,8 +363,9 @@ mutable channel such as `default`.
 ## 9. Retention and deletion
 
 Snapshots are retained while referenced by a public Experiment or any retained
-Article content. A newly admitted but unreferenced Snapshot receives a short
-grace period so a failed handoff can retry. Scheduled GC removes expired
+Article content. A newly admitted but unreferenced Snapshot receives a 24-hour
+handoff grace so a failed handoff can retry. Operation receipts use the same
+24-hour lifetime. Scheduled GC removes expired
 unreferenced Snapshots, unreachable immutable content, and old idempotency
 receipts in bounded batches.
 
@@ -376,8 +402,8 @@ browser Web Workers remain the interactive numerical owner.
    unless a new numerical capture is intentionally requested.
 8. Experiment Save may be unsettled and requires no admission.
 9. Opening or forking a Session creates no durable Experiment.
-10. Model integrity is enforced at CI/registry admission, not rehashed by each
-    client.
+10. Numerical model integrity is enforced at CI/registry admission, not
+    rehashed by each client.
 11. All backend writes are semantic, authenticated, idempotent, and
     version-checked where the resource is mutable.
 12. Device layout and live status never leak into portable content.

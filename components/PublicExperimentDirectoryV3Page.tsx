@@ -74,25 +74,25 @@ export function PublicExperimentDirectoryV3Page() {
           </section>
         ) : (
           <ul className="mt-12 divide-y divide-wb-line/70 border-t border-wb-line/70">
-            {state.experiments.map(({ record, snapshot }) => (
-              <li key={record.experimentId}>
+            {state.experiments.map((experiment) => (
+              <li key={experiment.record.experimentId}>
                 <Link
                   to={experimentSnapshotHref({
                     locale,
-                    snapshotId: snapshot.snapshotId,
+                    snapshotId: experiment.snapshotId,
                   })}
                   className="group -mx-3 flex min-h-24 items-center gap-5 rounded-xl px-3 py-5 transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.995] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-base font-semibold tracking-tight text-wb-text">
-                      {record.title}
+                      {experiment.record.title}
                     </span>
                     <span className="mt-1 block text-xs leading-5 text-wb-subtle">
                       {t("home.simulationMeta", {
-                        count: snapshot.content.scenarios.length,
+                        count: experiment.scenarioCount,
                         date: new Intl.DateTimeFormat(locale, {
                           dateStyle: "medium",
-                        }).format(new Date(record.updatedAt)),
+                        }).format(new Date(experiment.record.updatedAt)),
                       })}
                     </span>
                   </span>

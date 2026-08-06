@@ -13,9 +13,6 @@ import {
   type PublicCatalogV3,
 } from "@/components/site/PublicCatalogV3";
 import {
-  publicArticleExcerptV3,
-} from "@/components/site/PublicCatalogPresentationV3";
-import {
   articleReaderHref,
   articlesHref,
   experimentSnapshotHref,
@@ -82,19 +79,19 @@ export const Home = () => {
               moreLabel={t("home.moreExperiments")}
               moreHref={experimentsHref(locale)}
             >
-              {catalog.experiments.slice(0, 4).map(({ record, snapshot }) => (
+              {catalog.experiments.slice(0, 4).map((experiment) => (
                 <HomeCatalogLinkV3
-                  key={record.experimentId}
-                  title={record.title}
+                  key={experiment.record.experimentId}
+                  title={experiment.record.title}
                   supportingText={t("home.simulationMeta", {
-                    count: snapshot.content.scenarios.length,
+                    count: experiment.scenarioCount,
                     date: new Intl.DateTimeFormat(locale, {
                       dateStyle: "medium",
-                    }).format(new Date(record.updatedAt)),
+                    }).format(new Date(experiment.record.updatedAt)),
                   })}
                   to={experimentSnapshotHref({
                     locale,
-                    snapshotId: snapshot.snapshotId,
+                    snapshotId: experiment.snapshotId,
                   })}
                 />
               ))}
@@ -111,8 +108,7 @@ export const Home = () => {
                 <HomeCatalogLinkV3
                   key={article.articleId}
                   title={article.title}
-                  supportingText={publicArticleExcerptV3(article.blocks)
-                    ?? t("home.articleFallback")}
+                  supportingText={article.excerpt ?? t("home.articleFallback")}
                   to={articleReaderHref({
                     articleId: article.articleId,
                     locale,

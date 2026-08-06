@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ExperimentContentV2 } from "@/studio/contracts/v2/content";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 
 describe("Studio Supabase boundary V1", () => {
+  afterEach(() => vi.unstubAllGlobals());
   it("accepts only a complete public browser configuration", () => {
     expect(readStudioSupabaseConfigurationV1({})).toBeNull();
     expect(() => readStudioSupabaseConfigurationV1({
@@ -105,6 +106,63 @@ describe("Studio Supabase boundary V1", () => {
       p_expected_version: null,
       p_model_id: "model/exact-v3",
     }));
+  });
+
+  it("reuses the same operation ID when an acknowledged response may have been lost", async () => {
+    const stored = new Map<string, string>();
+    vi.stubGlobal("sessionStorage", {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => stored.set(key, value),
+      removeItem: (key: string) => stored.delete(key),
+    });
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({
+        data: null,
+        error: new Error("network response lost"),
+      })
+      .mockResolvedValueOnce({
+        data: {
+          experimentId: "8d8f9f03-e81d-4dc7-8320-7f71367a63c4",
+          version: 0,
+        },
+        error: null,
+      });
+    const client = {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: "author" } } },
+          error: null,
+        }),
+      },
+      rpc,
+    } as unknown as SupabaseClient;
+    const command = {
+      experimentId: null,
+      expectedVersion: null,
+      title: "Baseline",
+      content: experimentContentV1(),
+    } as const;
+
+    await expect(
+      new StudioSupabaseContentRepositoryV1(client).saveExperiment(command),
+    ).rejects.toThrow(
+      /network response lost/,
+    );
+    // A fresh repository instance represents a reload in the same browser
+    // tab; session storage must carry the unacknowledged operation UUID.
+    await expect(
+      new StudioSupabaseContentRepositoryV1(client).saveExperiment(command),
+    ).resolves.toMatchObject({
+      experimentId: "8d8f9f03-e81d-4dc7-8320-7f71367a63c4",
+      version: 0,
+      content: command.content,
+    });
+
+    const firstOperationId = rpc.mock.calls[0]?.[1]?.p_operation_id;
+    const retriedOperationId = rpc.mock.calls[1]?.[1]?.p_operation_id;
+    expect(firstOperationId).toEqual(expect.any(String));
+    expect(retriedOperationId).toBe(firstOperationId);
+    expect(stored.size).toBe(0);
   });
 });
 

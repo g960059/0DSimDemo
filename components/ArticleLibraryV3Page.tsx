@@ -15,7 +15,6 @@ import {
   newArticleEditorHref,
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
-import type { StudioArticleDraftV2 } from "@/studio/contracts/v2/article";
 import {
   StudioBrowserContentStoreV3,
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
@@ -24,7 +23,10 @@ import {
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 
 type ArticleLibraryItemV3 = Readonly<{
-  article: StudioArticleDraftV2;
+  articleId: string;
+  version: number;
+  visibility: "draft" | "public";
+  title: string;
   updatedAt: string | null;
 }>;
 
@@ -53,12 +55,18 @@ export function ArticleLibraryV3Page() {
   const readArticleItems = React.useCallback(async () => {
     const items: readonly ArticleLibraryItemV3[] = remoteRepository === null
       ? store.listArticles().map((article) => Object.freeze({
-          article,
+          articleId: article.articleId,
+          version: article.draftVersion,
+          visibility: article.visibility,
+          title: article.title,
           updatedAt: null,
         }))
-      : (await remoteRepository.listMyArticles()).map((resource) =>
+      : (await remoteRepository.listMyArticles()).items.map((resource) =>
           Object.freeze({
-            article: resource.article,
+            articleId: resource.articleId,
+            version: resource.version,
+            visibility: resource.visibility,
+            title: resource.title,
             updatedAt: resource.updatedAt,
           }));
     return Object.freeze([...items].sort((left, right) => {
@@ -67,7 +75,7 @@ export function ArticleLibraryV3Page() {
       }
       if (left.updatedAt !== null) return -1;
       if (right.updatedAt !== null) return 1;
-      return left.article.title.localeCompare(right.article.title);
+      return left.title.localeCompare(right.title);
     }));
   }, [remoteRepository, store]);
 
@@ -85,7 +93,7 @@ export function ArticleLibraryV3Page() {
     };
   }, [readArticleItems]);
 
-  const deleteArticle = React.useCallback(async (article: StudioArticleDraftV2) => {
+  const deleteArticle = React.useCallback(async (article: ArticleLibraryItemV3) => {
     if (!window.confirm(t("articleLibrary.deleteConfirm"))) return;
     setActionError(null);
     setDeletingArticleId(article.articleId);
@@ -95,7 +103,7 @@ export function ArticleLibraryV3Page() {
       } else {
         await remoteRepository.deleteArticle(
           article.articleId,
-          article.draftVersion,
+          article.version,
         );
       }
       setState({ kind: "ready", items: await readArticleItems() });
@@ -162,7 +170,8 @@ export function ArticleLibraryV3Page() {
           </section>
         ) : (
           <ul className="mt-10 divide-y divide-wb-line" aria-label={t("articleLibrary.saved") }>
-            {state.items.map(({ article, updatedAt }) => {
+            {state.items.map((article) => {
+              const { updatedAt } = article;
               return (
                 <li key={article.articleId} className="group py-5 sm:py-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -175,7 +184,7 @@ export function ArticleLibraryV3Page() {
                           ? "text-wb-accent"
                           : "text-wb-muted"}
                         >
-                          {article.visibility === "public"
+                        {article.visibility === "public"
                             ? t("articleLibrary.statusPublic")
                             : t("articleLibrary.statusDraft")}
                         </span>

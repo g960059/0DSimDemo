@@ -6,9 +6,6 @@ import { Link, useLocation } from "react-router-dom";
 import { articleReaderHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import { readPublicCatalogAsyncV3 } from "@/components/site/PublicCatalogV3";
-import {
-  publicArticleExcerptV3,
-} from "@/components/site/PublicCatalogPresentationV3";
 
 export function PublicArticleDirectoryV3Page() {
   const { t } = useTranslation();
@@ -73,8 +70,7 @@ export function PublicArticleDirectoryV3Page() {
                       {article.title}
                     </span>
                     <span className="mt-1 block truncate text-xs leading-5 text-wb-subtle">
-                      {publicArticleExcerptV3(article.blocks)
-                        ?? t("publicArticles.articleFallback")}
+                      {article.excerpt ?? t("publicArticles.articleFallback")}
                     </span>
                   </span>
                   <ArrowUpRight className="h-4 w-4 shrink-0 text-wb-subtle transition-[color,transform] duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-wb-text motion-reduce:transform-none" aria-hidden="true" />

@@ -14,17 +14,29 @@ import type { StudioBrowserExperimentRecordV3 } from "@/studio/infrastructure/br
 describe("public catalog V3", () => {
   it("exposes public Articles and valid published Snapshot pointers only", () => {
     const publicArticle = {
+      schemaId: "circleheart-studio-article-draft-v2",
       articleId: "article-public",
+      draftVersion: 0,
+      locale: "en",
       title: "Public",
       visibility: "public",
+      blocks: [],
     } as StudioArticleDraftV2;
     const draftArticle = {
+      schemaId: "circleheart-studio-article-draft-v2",
       articleId: "article-draft",
+      draftVersion: 0,
+      locale: "en",
       title: "Draft",
       visibility: "draft",
+      blocks: [],
     } as StudioArticleDraftV2;
     const publication = {
       snapshotId: "snapshot-publication",
+      content: {
+        modelId: "model/test",
+        scenarios: [{ scenarioId: "scenario/test" }],
+      },
     } as unknown as ExperimentSnapshotV2;
     const records = [
       experimentRecord("experiment-public", publication.snapshotId),

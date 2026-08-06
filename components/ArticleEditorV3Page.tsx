@@ -32,6 +32,7 @@ import {
 } from "@/components/article/reader/ArticleReaderExperimentV3";
 import {
   ArticleSnapshotPickerDialogV3,
+  type ArticleSnapshotPickerItemV3,
 } from "@/components/article/ArticleSnapshotPickerDialogV3";
 import {
   createArticleExperimentBlockV3,
@@ -177,6 +178,9 @@ export function ArticleEditorV3Page() {
   const [snapshots, setSnapshots] = React.useState<
     readonly ExperimentSnapshotV2[]
   >([]);
+  const [snapshotPickerItems, setSnapshotPickerItems] = React.useState<
+    readonly ArticleSnapshotPickerItemV3[]
+  >([]);
   const [draft, setDraft] = React.useState<StudioArticleDraftV2>(() =>
     createEmptyArticleDraftV3(locale, t("articleEditor.untitled")));
   const draftRef = React.useRef(draft);
@@ -292,11 +296,20 @@ export function ArticleEditorV3Page() {
   React.useEffect(() => {
     let current = true;
     const load = async () => {
-      const nextSnapshots = remoteRepository === null
+      const localSnapshots = remoteRepository === null
         ? store.listSnapshots()
-        : await remoteRepository.listMySnapshots();
+        : Object.freeze([]);
+      const nextSnapshotPickerItems = remoteRepository === null
+        ? localSnapshots.map(snapshotPickerItemFromSnapshotV3)
+        : (await remoteRepository.listMySnapshots()).items.map((summary) =>
+            Object.freeze({
+              snapshotId: summary.snapshotId,
+              title: summary.title,
+              createdAt: summary.createdAt,
+              paneCount: summary.paneCount,
+            }));
       if (!current) return;
-      setSnapshots(Object.freeze([...nextSnapshots]
+      setSnapshotPickerItems(Object.freeze([...nextSnapshotPickerItems]
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))));
 
       const routeKey = articleEditorRouteKeyV3(routeArticleId);
@@ -330,7 +343,20 @@ export function ArticleEditorV3Page() {
         });
         nextDraft = resolution.draft;
       }
+      const referencedSnapshotIds = [...new Set(nextDraft.blocks.flatMap(
+        (block) => block.kind === "experiment"
+          ? [block.placement.snapshotId]
+          : [],
+      ))];
+      const nextSnapshots = remoteRepository === null
+        ? localSnapshots.filter((snapshot) =>
+            referencedSnapshotIds.includes(snapshot.snapshotId))
+        : (await Promise.all(referencedSnapshotIds.map((snapshotId) =>
+            remoteRepository.readSnapshot(snapshotId))))
+            .filter((snapshot): snapshot is ExperimentSnapshotV2 =>
+              snapshot !== null);
       if (!current) return;
+      setSnapshots(Object.freeze(nextSnapshots));
       hydratedRouteKeyRef.current = routeKey;
       setHydratedRouteKey(routeKey);
       pendingReturnedSnapshotIdRef.current = null;
@@ -531,11 +557,22 @@ export function ArticleEditorV3Page() {
       // tab reloads before then, this exact immutable Snapshot can be inserted
       // again instead of silently losing the returned Placement.
       pendingReturnedSnapshotIdRef.current = pending.snapshotId;
-      const nextSnapshots = remoteRepository === null
-        ? store.listSnapshots()
-        : await remoteRepository.listMySnapshots();
+      const nextSnapshotPickerItems = remoteRepository === null
+        ? store.listSnapshots().map(snapshotPickerItemFromSnapshotV3)
+        : (await remoteRepository.listMySnapshots()).items.map((summary) =>
+            Object.freeze({
+              snapshotId: summary.snapshotId,
+              title: summary.title,
+              createdAt: summary.createdAt,
+              paneCount: summary.paneCount,
+            }));
       if (current) {
-        setSnapshots(Object.freeze([...nextSnapshots]
+        setSnapshots((existing) => Object.freeze([
+          snapshot,
+          ...existing.filter((candidate) =>
+            candidate.snapshotId !== snapshot.snapshotId),
+        ]));
+        setSnapshotPickerItems(Object.freeze([...nextSnapshotPickerItems]
           .sort((left, right) => right.createdAt.localeCompare(left.createdAt))));
       }
     };
@@ -790,6 +827,31 @@ export function ArticleEditorV3Page() {
     setPickerOpen(false);
   };
 
+  const selectSnapshotForArticleV3 = async (
+    item: ArticleSnapshotPickerItemV3,
+  ): Promise<void> => {
+    try {
+      const cached = snapshots.find((snapshot) =>
+        snapshot.snapshotId === item.snapshotId) ?? null;
+      const snapshot = cached ?? (remoteRepository === null
+        ? store.readSnapshot(item.snapshotId)
+        : await remoteRepository.readSnapshot(item.snapshotId));
+      if (snapshot === null) {
+        throw new Error(`Snapshot not found: ${item.snapshotId}`);
+      }
+      setSnapshots((existing) => Object.freeze([
+        snapshot,
+        ...existing.filter((candidate) =>
+          candidate.snapshotId !== snapshot.snapshotId),
+      ]));
+      addExperiment(snapshot);
+    } catch (cause) {
+      setStatus("error");
+      setError(errorMessageV3(cause));
+      throw cause;
+    }
+  };
+
   const articleSnapshotById = React.useMemo(
     () => new Map(snapshots.map((snapshot) => [snapshot.snapshotId, snapshot])),
     [snapshots],
@@ -912,7 +974,7 @@ export function ArticleEditorV3Page() {
             </p>
           )}
 
-          {snapshots.length === 0 && (
+          {snapshotPickerItems.length === 0 && (
             <div className="mt-8 rounded-xl bg-wb-soft px-4 py-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
               <div>
                 <p className="text-sm font-medium">{t("articleEditor.emptySnapshots.title")}</p>
@@ -1144,14 +1206,14 @@ export function ArticleEditorV3Page() {
 
       <ArticleSnapshotPickerDialogV3
         open={pickerOpen}
-        snapshots={snapshots}
+        snapshots={snapshotPickerItems}
         onCreateExperiment={createExperimentFromArticleV3}
         onClose={() => {
           pendingExperimentInsertIndexRef.current = null;
           pendingExperimentReplacementBlockIdRef.current = null;
           setPickerOpen(false);
         }}
-        onSelect={addExperiment}
+        onSelect={selectSnapshotForArticleV3}
       />
     </div>
   );
@@ -1513,6 +1575,19 @@ function normalizeArticleDraftV3(draft: StudioArticleDraftV2): StudioArticleDraf
       };
     }),
   };
+}
+
+function snapshotPickerItemFromSnapshotV3(
+  snapshot: ExperimentSnapshotV2,
+): ArticleSnapshotPickerItemV3 {
+  return Object.freeze({
+    snapshotId: snapshot.snapshotId,
+    title: snapshot.content.scenarios[0]?.label ?? "Untitled",
+    createdAt: snapshot.createdAt,
+    paneCount: snapshot.content.surface.graphPanes.length
+      + snapshot.content.surface.outputPanes.length
+      + snapshot.content.surface.controlPanes.length,
+  });
 }
 
 function errorMessageV3(error: unknown): string {

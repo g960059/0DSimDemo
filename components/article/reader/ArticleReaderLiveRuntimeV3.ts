@@ -13,6 +13,10 @@ import {
   WorkbenchScenarioPresentationSampleStoreV3,
 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
 import {
+  WorkbenchBackgroundWorkerPoolV3,
+  type WorkbenchBackgroundWorkerPoolPortV3,
+} from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
+import {
   DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 
@@ -75,6 +79,7 @@ export type ArticleReaderLiveRuntimeDependenciesV3 = Readonly<{
   visibleScenarioIds?: readonly string[];
   structuralAnalyses?: readonly ArticleReaderStructuralAnalysisRequestV3[];
   sampleStore?: WorkbenchScenarioPresentationSampleStoreV3;
+  backgroundWorkerPool?: WorkbenchBackgroundWorkerPoolPortV3;
   createRuntime?: (
     input: ArticleReaderParallelRuntimeFactoryInputV3,
   ) => ArticleReaderParallelRuntimeV3;
@@ -95,6 +100,7 @@ export class ArticleReaderLiveRuntimeV3 {
   readonly #createRuntime: NonNullable<
     ArticleReaderLiveRuntimeDependenciesV3["createRuntime"]
   >;
+  readonly #ownedBackgroundWorkerPool: WorkbenchBackgroundWorkerPoolV3 | null;
   readonly #listeners = new Set<() => void>();
   readonly #structuralHistoryDepthByAnalysisId: ReadonlyMap<string, number>;
   #state: ArticleReaderLiveRuntimeStateV3;
@@ -130,12 +136,24 @@ export class ArticleReaderLiveRuntimeV3 {
       );
     this.sampleStore = dependencies.sampleStore
       ?? new WorkbenchScenarioPresentationSampleStoreV3();
-    this.#createRuntime = dependencies.createRuntime
-      ?? ((input) => new WorkbenchParallelScenarioRuntimeV3({
-        ...input,
-        resolveAnalysisExecutionPlan:
-          DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
-      }));
+    if (dependencies.createRuntime === undefined) {
+      this.#ownedBackgroundWorkerPool =
+        dependencies.backgroundWorkerPool === undefined
+          ? new WorkbenchBackgroundWorkerPoolV3()
+          : null;
+      const backgroundWorkerPool = dependencies.backgroundWorkerPool
+        ?? this.#ownedBackgroundWorkerPool!;
+      this.#createRuntime = (input) =>
+        new WorkbenchParallelScenarioRuntimeV3({
+          ...input,
+          backgroundWorkerPool,
+          resolveAnalysisExecutionPlan:
+            DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
+        });
+    } else {
+      this.#ownedBackgroundWorkerPool = null;
+      this.#createRuntime = dependencies.createRuntime;
+    }
     this.#state = Object.freeze({
       status: "idle",
       snapshotId: snapshot.snapshotId,
@@ -589,6 +607,7 @@ export class ArticleReaderLiveRuntimeV3 {
         // effect-cleanup rejection.
       }
     }
+    this.#ownedBackgroundWorkerPool?.dispose();
   }
 
   #acceptsFrames(): boolean {

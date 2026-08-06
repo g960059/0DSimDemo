@@ -1,5 +1,7 @@
 import type { StudioArticleDraftV2 } from "@/studio/contracts/v2/article";
-import type { ExperimentSnapshotV2 } from "@/studio/contracts/v2/content";
+import {
+  publicArticleExcerptV3,
+} from "@/components/site/PublicCatalogPresentationV3";
 import { StudioBrowserContentStoreV3 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
   StudioBrowserExperimentIndexV3,
@@ -12,11 +14,21 @@ import {
 
 export type PublicExperimentCatalogItemV3 = Readonly<{
   record: StudioBrowserExperimentRecordV3;
-  snapshot: ExperimentSnapshotV2;
+  snapshotId: string;
+  modelId: string;
+  scenarioCount: number;
+}>;
+
+export type PublicArticleCatalogItemV3 = Readonly<{
+  articleId: string;
+  locale: string;
+  title: string;
+  excerpt: string | null;
+  publishedAt: string;
 }>;
 
 export type PublicCatalogV3 = Readonly<{
-  articles: readonly StudioArticleDraftV2[];
+  articles: readonly PublicArticleCatalogItemV3[];
   experiments: readonly PublicExperimentCatalogItemV3[];
 }>;
 
@@ -46,6 +58,7 @@ export function readPublicCatalogV3(
   const articles = Object.freeze(
     store.listArticles()
       .filter(({ visibility }) => visibility === "public")
+      .map((article) => localPublicArticleSummaryV3(article))
       .sort((left, right) => left.title.localeCompare(right.title)),
   );
   const experiments = Object.freeze(
@@ -54,7 +67,12 @@ export function readPublicCatalogV3(
         if (record.publishedSnapshotId === null) return [];
         const snapshot = snapshotById.get(record.publishedSnapshotId);
         if (snapshot === undefined) return [];
-        return [Object.freeze({ record, snapshot })];
+        return [Object.freeze({
+          record,
+          snapshotId: snapshot.snapshotId,
+          modelId: snapshot.content.modelId,
+          scenarioCount: snapshot.content.scenarios.length,
+        })];
       })
       .sort((left, right) =>
         right.record.updatedAt.localeCompare(left.record.updatedAt)),
@@ -66,22 +84,38 @@ export function readPublicCatalogV3(
 export async function readPublicCatalogAsyncV3(): Promise<PublicCatalogV3> {
   const remote = createStudioSupabaseContentRepositoryV1();
   if (remote === null) return readPublicCatalogV3();
-  const [articles, resources] = await Promise.all([
+  const [articlePage, experimentPage] = await Promise.all([
     remote.listPublicArticles(),
     remote.listPublicExperiments(),
   ]);
   return Object.freeze({
-    articles,
-    experiments: Object.freeze(resources.map((resource) => Object.freeze({
+    articles: articlePage.items,
+    experiments: Object.freeze(experimentPage.items.map((resource) => Object.freeze({
       record: Object.freeze({
         schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
         experimentId: resource.experimentId,
         title: resource.title,
         createdAt: resource.publishedAt,
         updatedAt: resource.publishedAt,
-        publishedSnapshotId: resource.snapshot.snapshotId,
+        publishedSnapshotId: resource.snapshotId,
       }),
-      snapshot: resource.snapshot,
+      snapshotId: resource.snapshotId,
+      modelId: resource.modelId,
+      scenarioCount: resource.scenarioCount,
     }))),
+  });
+}
+
+function localPublicArticleSummaryV3(
+  article: StudioArticleDraftV2,
+): PublicArticleCatalogItemV3 {
+  return Object.freeze({
+    articleId: article.articleId,
+    locale: article.locale,
+    title: article.title,
+    excerpt: publicArticleExcerptV3(article.blocks),
+    // Browser fallback has no publication clock; keep its immutable content
+    // usable without manufacturing backend provenance.
+    publishedAt: new Date(0).toISOString(),
   });
 }
