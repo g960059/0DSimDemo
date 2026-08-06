@@ -74,14 +74,18 @@ materializes the executable bundle from them; arbitrary bytes cannot be paired
 with source-created functions. Browser clients load that committed admitted
 artifact and do not rehash it during load or execution.
 
-The model-compatible Snapshot admission policy is purpose-neutral. It restores the frozen
-candidate exactly, verifies checkpoint round-trip identity, finishes the open
+The model-compatible Snapshot admission policy is purpose-neutral. Before
+admission, Workbench freezes the click-time model/fixture/input intent and may
+reuse one detached post-control steady candidate shared with PV/Starling. That
+runtime-only candidate observes bounded beat-to-beat output closure; it is not
+formal period-1 qualification. Admission then restores the selected candidate
+exactly, verifies checkpoint round-trip identity, finishes the open
 cycle/window on a detached fork, advances one complete regular-sinus cycle,
 and applies the canonical finite, conservation, event-identity, and MCS-off
-checks. It preserves the click-time checkpoint byte-for-byte. Settlement is
-neither required nor claimed, and the same admission runs before Article
-placement and standalone publication. Experiment Save remains allowed for an
-unsettled state.
+checks. It preserves the selected candidate checkpoint byte-for-byte.
+Settlement is neither required nor claimed, and the same admission runs before
+Article placement and standalone publication. Experiment Save remains an exact
+current-live capture and is allowed for an unsettled state.
 
 Snapshot admission is a Studio product policy, not part of future numerical
 `modelId` identity. `development-36` remains an immutable transitional bundle
@@ -95,10 +99,11 @@ current fixture and exact checkpoint; accepted steps between saves remain
 ephemeral Worker state and are never written at the numerical step rate.
 
 The systemic and pulmonary return panes request one read-only analysis only
-when needed. They freeze one accepted step and show a structural
+when needed. They freeze one accepted input target, reuse or complete its
+single-flight detached steady candidate, and show a structural
 volume-constrained orientation plus its operating point. The same on-demand
-request captures that exact boundary once, initializes two disposable analysis
-Workers, and runs hypovolemic and hypervolemic fixed-TBV continuations in
+request initializes two disposable analysis Workers from that exact candidate
+checkpoint, and runs hypovolemic and hypervolemic fixed-TBV continuations in
 parallel while the persistent live Worker resumes. Their actual progressive
 points are merged into one responsive Starling preview. Its short
 warm-up/measurement protocol is explicitly unsettled and is not qualified
@@ -135,9 +140,9 @@ checks do not establish physiological or clinical validity. Settlement and
 numerical-health status are computed at runtime and are not durable content. An
 explicit Experiment Save captures an exact accepted-boundary checkpoint but
 makes no admission claim. Every immutable Snapshot must pass the same numerical
-admission while retaining its atomic click-time checkpoint; neither Article
-placement nor publication claims settlement. No path persists status flags or
-assessment objects.
+admission while retaining its selected exact steady-candidate checkpoint;
+neither Article placement nor publication claims settlement. No path persists
+candidate diagnostics, status flags, or assessment objects.
 
 The development package's underlying engine claim remains
 `releaseReady: false` and `simulationReady: false`. Passing Snapshot admission

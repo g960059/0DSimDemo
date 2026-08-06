@@ -13,6 +13,8 @@ import {
   StudioSimulationWorkerClientV2,
   type StudioSimulationWorkerAdmittedSnapshotCommitV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
+import { studioCanonicalJsonStringify } from
+  "@/studio/infrastructure/json/StudioCanonicalJson";
 import type {
   WorkbenchBackgroundJobPriorityV3,
   WorkbenchBackgroundWorkerPoolPortV3,
@@ -122,7 +124,25 @@ export class WorkbenchParallelAuthoringCoordinatorV3 {
             "Publishing requires an explicitly saved Experiment",
           );
         }
-        await initializeFromExperimentV3(client, input, input.experiment);
+        assertSameSavedProjectionV3(input.experiment, input);
+        // Publication is authorized by the clean saved projection, but the
+        // immutable Snapshot owns the detached steady-candidate checkpoints.
+        // The authoring application intentionally compares model, Surface,
+        // Scenario identity/order/label, and fixture while allowing newer
+        // exact checkpoints for the same saved parameter target.
+        const candidateExperiment = validateExperimentV2({
+          ...input.experiment,
+          content: {
+            modelId: input.modelId,
+            scenarios: input.scenarios,
+            surface: input.surface,
+          },
+        });
+        await initializeFromExperimentV3(
+          client,
+          input,
+          candidateExperiment,
+        );
       } else {
         await initializeTransientAuthoringV3(client, input);
       }
@@ -152,6 +172,36 @@ export class WorkbenchParallelAuthoringCoordinatorV3 {
       return await operation(client);
     } finally {
       client.terminate();
+    }
+  }
+}
+
+function assertSameSavedProjectionV3(
+  saved: ExperimentV2,
+  candidate: ValidatedAuthoringInputV3,
+): void {
+  if (
+    saved.content.modelId !== candidate.modelId
+    || studioCanonicalJsonStringify(saved.content.surface)
+      !== studioCanonicalJsonStringify(candidate.surface)
+    || saved.content.scenarios.length !== candidate.scenarios.length
+  ) {
+    throw new Error(
+      "Publishing candidate differs from the clean saved Experiment projection",
+    );
+  }
+  for (let index = 0; index < candidate.scenarios.length; index += 1) {
+    const durable = saved.content.scenarios[index]!;
+    const selected = candidate.scenarios[index]!;
+    if (
+      durable.scenarioId !== selected.scenarioId
+      || durable.label !== selected.label
+      || studioCanonicalJsonStringify(durable.capture.fixture)
+        !== studioCanonicalJsonStringify(selected.capture.fixture)
+    ) {
+      throw new Error(
+        "Publishing candidate differs from the clean saved Experiment projection",
+      );
     }
   }
 }

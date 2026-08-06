@@ -5,9 +5,22 @@ import {
 export type WorkbenchBackgroundJobPriorityV3 =
   | "snapshot"
   | "save"
-  | "analysis";
+  | "analysis"
+  | "prewarm";
+
+export type WorkbenchBackgroundJobHandleV3<T> = Readonly<{
+  promise: Promise<T>;
+  /** Raises a queued job's urgency. Running jobs are already leased. */
+  promote(priority: WorkbenchBackgroundJobPriorityV3): void;
+  /** Cancels only a job that has not yet acquired numerical authority. */
+  cancel(): boolean;
+}>;
 
 export type WorkbenchBackgroundWorkerPoolPortV3 = Readonly<{
+  schedule<T>(
+    priority: WorkbenchBackgroundJobPriorityV3,
+    operation: (client: StudioSimulationWorkerClientV2) => Promise<T>,
+  ): WorkbenchBackgroundJobHandleV3<T>;
   run<T>(
     priority: WorkbenchBackgroundJobPriorityV3,
     operation: (client: StudioSimulationWorkerClientV2) => Promise<T>,
@@ -20,14 +33,16 @@ export type WorkbenchBackgroundWorkerBudgetV3 = Readonly<{
 }>;
 
 type WaitingJobV3 = Readonly<{
-  priority: WorkbenchBackgroundJobPriorityV3;
+  token: symbol;
   sequence: number;
   resolve(client: StudioSimulationWorkerClientV2): void;
   reject(error: Error): void;
-}>;
+}> & {
+  priority: WorkbenchBackgroundJobPriorityV3;
+};
 
 const PRIORITY_ORDER_V3: Readonly<Record<WorkbenchBackgroundJobPriorityV3, number>> =
-  Object.freeze({ snapshot: 0, save: 1, analysis: 2 });
+  Object.freeze({ snapshot: 0, save: 1, analysis: 2, prewarm: 3 });
 
 /**
  * Bounded pool of pre-created, uninitialized numerical Workers.
@@ -46,6 +61,7 @@ export class WorkbenchBackgroundWorkerPoolV3
   readonly #maxSize: number;
   readonly #idle: StudioSimulationWorkerClientV2[] = [];
   readonly #leased = new Set<StudioSimulationWorkerClientV2>();
+  readonly #foregroundBurst = new Set<StudioSimulationWorkerClientV2>();
   readonly #waiting: WaitingJobV3[] = [];
   #sequence = 0;
   #disposed = false;
@@ -67,12 +83,28 @@ export class WorkbenchBackgroundWorkerPoolV3
     priority: WorkbenchBackgroundJobPriorityV3,
     operation: (client: StudioSimulationWorkerClientV2) => Promise<T>,
   ): Promise<T> {
-    const client = await this.#acquire(priority);
-    try {
-      return await operation(client);
-    } finally {
-      this.#release(client);
-    }
+    return await this.schedule(priority, operation).promise;
+  }
+
+  schedule<T>(
+    priority: WorkbenchBackgroundJobPriorityV3,
+    operation: (client: StudioSimulationWorkerClientV2) => Promise<T>,
+  ): WorkbenchBackgroundJobHandleV3<T> {
+    requirePriorityV3(priority);
+    const token = Symbol("workbench-background-job");
+    const promise = (async () => {
+      const client = await this.#acquire(priority, token);
+      try {
+        return await operation(client);
+      } finally {
+        this.#release(client);
+      }
+    })();
+    return Object.freeze({
+      promise,
+      promote: (nextPriority) => this.#promote(token, nextPriority),
+      cancel: () => this.#cancel(token),
+    });
   }
 
   dispose(): void {
@@ -83,10 +115,12 @@ export class WorkbenchBackgroundWorkerPoolV3
     for (const client of this.#idle.splice(0)) terminateClientV3(client);
     for (const client of this.#leased) terminateClientV3(client);
     this.#leased.clear();
+    this.#foregroundBurst.clear();
   }
 
   async #acquire(
     priority: WorkbenchBackgroundJobPriorityV3,
+    token: symbol,
   ): Promise<StudioSimulationWorkerClientV2> {
     if (this.#disposed) {
       throw new Error("Workbench background Worker pool is disposed");
@@ -96,50 +130,108 @@ export class WorkbenchBackgroundWorkerPoolV3
       this.#leased.add(idle);
       return idle;
     }
-    if (this.#leased.size < this.#maxSize) {
+    if (this.#regularLeaseCount() < this.#maxSize) {
       const created = this.#createClient();
       this.#leased.add(created);
       return created;
     }
+    if (this.#canLeaseForegroundBurst(priority)) {
+      const created = this.#createClient();
+      this.#leased.add(created);
+      this.#foregroundBurst.add(created);
+      return created;
+    }
     return await new Promise<StudioSimulationWorkerClientV2>(
       (resolve, reject) => {
-        this.#waiting.push(Object.freeze({
+        this.#waiting.push({
+          token,
           priority,
           sequence: this.#sequence++,
           resolve,
           reject: (error) => reject(error),
-        }));
-        this.#waiting.sort((left, right) =>
-          PRIORITY_ORDER_V3[left.priority] - PRIORITY_ORDER_V3[right.priority]
-          || left.sequence - right.sequence);
+        });
+        this.#sortWaiting();
       },
     );
   }
 
   #release(client: StudioSimulationWorkerClientV2): void {
     if (!this.#leased.delete(client)) return;
+    this.#foregroundBurst.delete(client);
     terminateClientV3(client);
     if (this.#disposed) return;
+    this.#dispatchWaiting();
+    this.#replenishWarmWorkers();
+  }
 
+  #promote(
+    token: symbol,
+    priority: WorkbenchBackgroundJobPriorityV3,
+  ): void {
+    requirePriorityV3(priority);
+    const waiting = this.#waiting.find((candidate) => candidate.token === token);
+    if (
+      waiting === undefined
+      || PRIORITY_ORDER_V3[priority] >= PRIORITY_ORDER_V3[waiting.priority]
+    ) return;
+    waiting.priority = priority;
+    this.#sortWaiting();
+    this.#dispatchWaiting();
+  }
+
+  #cancel(token: symbol): boolean {
+    const index = this.#waiting.findIndex((candidate) => candidate.token === token);
+    if (index < 0) return false;
+    const [waiting] = this.#waiting.splice(index, 1);
+    waiting!.reject(new WorkbenchBackgroundJobCancelledErrorV3());
+    return true;
+  }
+
+  #dispatchWaiting(): void {
+    if (this.#disposed) return;
     while (this.#waiting.length > 0) {
-      const waiting = this.#waiting.shift()!;
+      const waiting = this.#waiting[0]!;
+      const regularLeaseAvailable = this.#regularLeaseCount() < this.#maxSize;
+      const burstLeaseAvailable = this.#canLeaseForegroundBurst(
+        waiting.priority,
+      );
+      if (!regularLeaseAvailable && !burstLeaseAvailable) return;
+      this.#waiting.shift();
       try {
         const replacement = this.#createClient();
         this.#leased.add(replacement);
+        if (!regularLeaseAvailable) this.#foregroundBurst.add(replacement);
         waiting.resolve(replacement);
-        return;
       } catch (error) {
         waiting.reject(errorAsErrorV3(error));
       }
     }
-    this.#replenishWarmWorkers();
+  }
+
+  #canLeaseForegroundBurst(
+    priority: WorkbenchBackgroundJobPriorityV3,
+  ): boolean {
+    return (priority === "snapshot" || priority === "save")
+      && this.#foregroundBurst.size === 0
+      && this.#regularLeaseCount() >= this.#maxSize
+      && this.#leased.size < Math.min(8, this.#maxSize + 1);
+  }
+
+  #regularLeaseCount(): number {
+    return this.#leased.size - this.#foregroundBurst.size;
+  }
+
+  #sortWaiting(): void {
+    this.#waiting.sort((left, right) =>
+      PRIORITY_ORDER_V3[left.priority] - PRIORITY_ORDER_V3[right.priority]
+      || left.sequence - right.sequence);
   }
 
   #replenishWarmWorkers(): void {
     if (this.#disposed) return;
     while (
       this.#idle.length < this.#warmSize
-      && this.#idle.length + this.#leased.size < this.#maxSize
+      && this.#idle.length + this.#regularLeaseCount() < this.#maxSize
     ) {
       try {
         this.#idle.push(this.#createClient());
@@ -149,6 +241,13 @@ export class WorkbenchBackgroundWorkerPoolV3
         break;
       }
     }
+  }
+}
+
+export class WorkbenchBackgroundJobCancelledErrorV3 extends Error {
+  constructor() {
+    super("Workbench background job was cancelled before it started");
+    this.name = "WorkbenchBackgroundJobCancelledErrorV3";
   }
 }
 
@@ -187,6 +286,14 @@ function requireWorkerBudgetV3(
     || budget.maxSize > 8
   ) {
     throw new Error("Workbench background Worker budget is invalid");
+  }
+}
+
+function requirePriorityV3(
+  priority: WorkbenchBackgroundJobPriorityV3,
+): void {
+  if (!(priority in PRIORITY_ORDER_V3)) {
+    throw new Error("Workbench background Worker priority is invalid");
   }
 }
 

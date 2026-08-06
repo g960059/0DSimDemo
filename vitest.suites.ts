@@ -6,7 +6,7 @@
  */
 
 export const FAST_SUITE_FILE_BUDGET = 96;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 42;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 43;
 
 export const fastTests = [
   "__tests__/appTheme.test.ts",
@@ -67,6 +67,7 @@ export const fastTests = [
   "__tests__/workbenchBackgroundWorkerPoolV3.test.ts",
   "__tests__/workbenchParallelAuthoringCoordinatorV3.test.ts",
   "__tests__/workbenchParallelScenarioRuntimeV3.test.ts",
+  "__tests__/workbenchScenarioSteadyCandidateCoordinatorV3.test.ts",
   "__tests__/workbenchV3Dockview.test.tsx",
   "__tests__/workbenchV3CanvasRenderers.test.ts",
   "__tests__/workbenchLiveSchedulerV3.test.ts",
@@ -128,6 +129,7 @@ export const prSmokeTests = [
   "__tests__/workbenchBackgroundWorkerPoolV3.test.ts",
   "__tests__/workbenchParallelAuthoringCoordinatorV3.test.ts",
   "__tests__/workbenchParallelScenarioRuntimeV3.test.ts",
+  "__tests__/workbenchScenarioSteadyCandidateCoordinatorV3.test.ts",
   "__tests__/workbenchV3Dockview.test.tsx",
   "__tests__/workbenchV3CanvasRenderers.test.ts",
   "__tests__/workbenchLiveSchedulerV3.test.ts",

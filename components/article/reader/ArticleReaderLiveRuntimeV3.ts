@@ -395,7 +395,7 @@ export class ArticleReaderLiveRuntimeV3 {
               onProgress: (analysis) => {
                 if (
                   this.#runtime !== runtime
-                  || !articleReaderAnalysisMatchesExactBoundaryV3(
+                  || !articleReaderAnalysisMatchesInputTargetV3(
                     analysis,
                     frame,
                     input.analysisId,
@@ -413,13 +413,13 @@ export class ArticleReaderLiveRuntimeV3 {
                 });
               },
             });
-            if (!articleReaderAnalysisMatchesExactBoundaryV3(
+            if (!articleReaderAnalysisMatchesInputTargetV3(
               analysis,
               frame,
               input.analysisId,
             )) {
               throw new Error(
-                "Article Reader analysis did not match the requested accepted boundary",
+                "Article Reader analysis did not match the requested input target",
               );
             }
             return Object.freeze({ key, analysis, error: null });
@@ -685,7 +685,7 @@ export function articleReaderAnalysisKeyV3(
   return JSON.stringify([scenarioId, analysisId]);
 }
 
-export function articleReaderAnalysisMatchesExactBoundaryV3(
+export function articleReaderAnalysisMatchesInputTargetV3(
   analysis: StudioSimulationAnalysisV2,
   frame: StudioSimulationFrameV2,
   analysisId: string,
@@ -694,9 +694,7 @@ export function articleReaderAnalysisMatchesExactBoundaryV3(
     && analysis.modelId === frame.modelId
     && analysis.runtimeSessionId === frame.runtimeSessionId
     && analysis.scenarioId === frame.scenarioId
-    && analysis.inputEpoch === frame.inputEpoch
-    && analysis.sourceAcceptedRevision === frame.acceptedRevision
-    && Object.is(analysis.sourceAcceptedTimeSec, frame.acceptedTimeSec);
+    && analysis.inputEpoch === frame.inputEpoch;
 }
 
 export function archiveArticleReaderAnalysesV3(

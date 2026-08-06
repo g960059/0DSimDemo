@@ -26,22 +26,28 @@ used as implementation context.
 There is no production user data and no compatibility obligation. The product
 therefore has one direct cutover. The exact integrated V3 development package
 is registered, resolved as the default, and running through persistent Scenario
-Workers. Workbench Save, common one-cycle Snapshot admission, repeated pinned
+Workers. Workbench Save, shared post-control steady candidates for structural
+analysis and Snapshot capture, common one-cycle Snapshot admission, repeated pinned
 Snapshot placement with Placement-owned Briefing, role-specific Article Editor,
 canonical resource routes, the ID-less `/experiments/new` first-Save transition,
 on-demand background Worker pool, and the pinned-Snapshot Reader are connected.
-Reader now includes borderless
-inflow, graph-count right peek/fullscreen, mobile graph swipe, one-live
-scheduling, play/pause, and explicit control binding. The remaining sequence
-is:
+Reader now includes borderless inflow, graph-count right peek/fullscreen,
+mobile graph swipe, one-live scheduling, play/pause, and explicit control
+binding. The remaining release-spine sequence is:
 
-1. add weighted presentation promotion and labelled disposable one-beat previews;
-2. retain every referenced exact release in client and Worker catalogs before
-   introducing the next exact model release;
-3. configure production OAuth/redirects, anonymous-save abuse controls, and
-   scheduled garbage collection; and
-4. only then author official Scenario Presets, Experiments, published articles,
-   and Lesson pages.
+1. measure Snapshot candidate/admission p50 and p95, tune only from evidence,
+   and keep local/linked Supabase migration parity as a deploy gate;
+2. make the backend validate the complete portable Studio envelope and keep
+   public publication admin-only until the public trust boundary is server-
+   authoritative;
+3. retain and dynamically load every referenced exact release in both client
+   and Worker before introducing the next numerical `modelId`;
+4. configure production OAuth redirects, Turnstile/anonymous-save abuse
+   controls, paginated management UI, and scheduled unreferenced-Snapshot GC;
+5. perform bounded contract-preserving refactors and rename formal multi-load
+   PV analysis claims where the UI currently overstates ESPVR/EDPVR; and
+6. only then extend small numerical surfaces and author official Scenario
+   Presets, Experiments, published articles, and Lesson pages.
 
 The Supabase release/content spine, semantic RPCs, anonymous-first Save, and
 server publication/access-control boundary are connected. A configured build

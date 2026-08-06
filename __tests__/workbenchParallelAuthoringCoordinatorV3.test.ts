@@ -154,14 +154,21 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
   it("returns the Worker's sealed admitted Snapshot commit unchanged", async () => {
     const durableScenario = scenarioV3(
       "scenario/baseline",
-      "Durable Baseline",
+      "Baseline",
       3,
     );
-    const liveScenario = scenarioV3(
-      "scenario/baseline",
-      "Live Baseline",
+    const laterCheckpoint = scenarioV3(
+      durableScenario.scenarioId,
+      durableScenario.label,
       31,
-    );
+    ).capture.checkpoint;
+    const liveScenario: ExperimentScenarioV2 = {
+      ...durableScenario,
+      capture: {
+        fixture: durableScenario.capture.fixture,
+        checkpoint: laterCheckpoint,
+      },
+    };
     const experiment = experimentV3({
       version: 9,
       scenarios: [durableScenario],
@@ -183,11 +190,19 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
 
     expect(created).toBe(commit);
     expect(client.initialize).toHaveBeenCalledWith(expect.objectContaining({
-      scenarioId: durableScenario.scenarioId,
-      scenarioLabel: durableScenario.label,
-      fixture: durableScenario.capture.fixture,
-      checkpoint: durableScenario.capture.checkpoint,
-      authoringSeed: { experiment },
+      scenarioId: liveScenario.scenarioId,
+      scenarioLabel: liveScenario.label,
+      fixture: liveScenario.capture.fixture,
+      checkpoint: liveScenario.capture.checkpoint,
+      authoringSeed: {
+        experiment: expect.objectContaining({
+          experimentId: experiment.experimentId,
+          version: experiment.version,
+          content: expect.objectContaining({
+            scenarios: [liveScenario],
+          }),
+        }),
+      },
     }));
     expect(client.createSnapshot).toHaveBeenCalledWith({
       runtimeSessionId: "runtime/authoring-1",
@@ -196,6 +211,34 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
       snapshotSource: "saved-experiment",
     });
     expect(client.terminate).toHaveBeenCalledOnce();
+  });
+
+  it("rejects publication when authored content differs from the saved projection", async () => {
+    const durableScenario = scenarioV3(
+      "scenario/baseline",
+      "Baseline",
+      3,
+    );
+    const experiment = experimentV3({
+      version: 9,
+      scenarios: [durableScenario],
+    });
+    const changedFixture = scenarioV3(
+      durableScenario.scenarioId,
+      durableScenario.label,
+      31,
+    );
+    const client = clientDoubleV3();
+    const coordinator = new WorkbenchParallelAuthoringCoordinatorV3(
+      () => client as unknown as StudioSimulationWorkerClientV2,
+    );
+
+    await expect(coordinator.createSnapshot(snapshotInputV3({
+      scenarios: [changedFixture],
+      activeScenarioId: changedFixture.scenarioId,
+      experiment,
+    }))).rejects.toThrow(/clean saved Experiment projection/);
+    expect(client.initialize).not.toHaveBeenCalled();
   });
 
   it("terminates a transient client when an authoring operation rejects", async () => {

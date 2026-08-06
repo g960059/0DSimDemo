@@ -74,6 +74,51 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
     pool.dispose();
   });
 
+  it("keeps regular capacity usable while one Save burst is running", async () => {
+    const pool = new WorkbenchBackgroundWorkerPoolV3(
+      { warmSize: 0, maxSize: 1 },
+      () => ({ terminate: vi.fn() }) as unknown as
+        StudioSimulationWorkerClientV2,
+    );
+    let releaseAnalysis!: () => void;
+    let releaseSave!: () => void;
+    const analysisGate = new Promise<void>((resolve) => {
+      releaseAnalysis = resolve;
+    });
+    const saveGate = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    const events: string[] = [];
+
+    const analysis = pool.run("analysis", async () => {
+      events.push("analysis:start");
+      await analysisGate;
+      events.push("analysis:end");
+    });
+    const save = pool.run("save", async () => {
+      events.push("save:start");
+      await saveGate;
+      events.push("save:end");
+    });
+    await Promise.resolve();
+    releaseAnalysis();
+    await analysis;
+
+    await pool.run("analysis", async () => {
+      events.push("analysis:next");
+    });
+    expect(events).toEqual([
+      "analysis:start",
+      "save:start",
+      "analysis:end",
+      "analysis:next",
+    ]);
+
+    releaseSave();
+    await save;
+    pool.dispose();
+  });
+
   it("derives a conservative bounded budget from logical CPU count", () => {
     expect(resolveWorkbenchBackgroundWorkerBudgetV3(1)).toEqual({
       warmSize: 1,

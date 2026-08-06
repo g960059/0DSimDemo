@@ -28,8 +28,13 @@ import {
   type WorkbenchLiveSchedulerTimerV3,
 } from "./WorkbenchLiveSchedulerV3";
 import type {
+  WorkbenchBackgroundJobPriorityV3,
   WorkbenchBackgroundWorkerPoolPortV3,
 } from "./WorkbenchBackgroundWorkerPoolV3";
+import {
+  WorkbenchScenarioSteadyCandidateCoordinatorV3,
+  type WorkbenchSteadyCandidateSourceV3,
+} from "./WorkbenchScenarioSteadyCandidateCoordinatorV3";
 import { randomPortableTokenV3 } from "./randomPortableTokenV3";
 
 // One short visual deadline lets independently completing Scenario Workers
@@ -119,6 +124,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   ) => WorkbenchParallelScenarioRuntimeClientV3;
   readonly #backgroundWorkerPool:
     WorkbenchBackgroundWorkerPoolPortV3 | undefined;
+  readonly #steadyCandidates:
+    WorkbenchScenarioSteadyCandidateCoordinatorV3 | undefined;
   readonly #resolveAnalysisExecutionPlan:
     StudioSimulationAnalysisExecutionPlanResolverV2;
   readonly #createScheduler: (
@@ -152,6 +159,11 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#createAnalysisClient = dependencies.createAnalysisClient
       ?? (() => new StudioSimulationWorkerClientV2());
     this.#backgroundWorkerPool = dependencies.backgroundWorkerPool;
+    this.#steadyCandidates = dependencies.backgroundWorkerPool === undefined
+      ? undefined
+      : new WorkbenchScenarioSteadyCandidateCoordinatorV3(
+          dependencies.backgroundWorkerPool,
+        );
     this.#resolveAnalysisExecutionPlan = dependencies.resolveAnalysisExecutionPlan
       ?? (() => null);
     this.#createScheduler = dependencies.createScheduler
@@ -196,6 +208,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }
     this.#activeScenarioId = input.activeScenarioId;
     this.#state = "active";
+    await Promise.all([...this.#lanes.values()].map((lane) =>
+      this.#prewarmLane(lane)));
     return this.currentState();
   }
 
@@ -269,6 +283,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       }
       this.#lanes.set(seed.scenarioId, lane);
       this.#activeScenarioId = seed.scenarioId;
+      await this.#prewarmLane(lane);
       if (this.#playing) lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
       return this.currentState();
     } finally {
@@ -318,6 +333,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }
     const lane = this.#requiredLane(scenarioId);
     this.#lanes.delete(scenarioId);
+    this.#steadyCandidates?.invalidateScenario(scenarioId);
     if (this.#activeScenarioId === scenarioId) {
       this.#activeScenarioId = this.#lanes.keys().next().value ?? null;
     }
@@ -339,6 +355,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       runtimeSessionId: lane.runtimeSessionId,
     });
     lane.latestFrame = frame;
+    await this.#prewarmLane(lane);
     return frame;
   }
 
@@ -368,25 +385,33 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       ) throw new Error("parallel Scenario analysis source clocks are stale");
 
       const source = await this.#captureScenario(input.scenarioId);
-      const checkpoint = source.capture.checkpoint;
       if (
-        checkpoint.acceptedRevision !== input.expectedAcceptedRevision
-        || checkpoint.acceptedTimeSec !== input.expectedAcceptedTimeSec
+        source.capture.checkpoint.acceptedRevision
+          !== input.expectedAcceptedRevision
+        || source.capture.checkpoint.acceptedTimeSec
+          !== input.expectedAcceptedTimeSec
       ) throw new Error("parallel Scenario analysis capture clocks differ");
 
       // The exact source tuple is now detached from the live lane. Resume it
-      // before a warm Worker is leased or initialized; queueing and numerical
-      // analysis must never extend the visible pause.
+      // before the shared steady candidate is awaited or another Worker is
+      // leased; queueing and numerical work must never extend the visible pause.
       this.resumeScenario(input.scenarioId);
       input.onLiveLaneReleased?.();
+
+      const sourceForAnalysis = await this.#resolveSteadyCandidate(
+        source,
+        sourceFrame.inputEpoch,
+        "analysis",
+      );
+      const checkpoint = sourceForAnalysis.capture.checkpoint;
 
       const remap = (analysis: StudioSimulationAnalysisV2) =>
         validateStudioSimulationAnalysisV2({
           ...analysis,
           runtimeSessionId: lane.runtimeSessionId,
           inputEpoch: input.expectedInputEpoch,
-          sourceAcceptedRevision: input.expectedAcceptedRevision,
-          sourceAcceptedTimeSec: input.expectedAcceptedTimeSec,
+          sourceAcceptedRevision: checkpoint.acceptedRevision,
+          sourceAcceptedTimeSec: checkpoint.acceptedTimeSec,
         }, "$.parallelScenarioAnalysis");
       const latestByPartition = new Map<string | undefined,
         StudioSimulationAnalysisV2>();
@@ -418,8 +443,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
                 expectedModelId: this.#expectedModelId,
                 runtimeSessionId,
                 scenarioId: input.scenarioId,
-                scenarioLabel: source.label,
-                fixture: source.capture.fixture,
+                scenarioLabel: sourceForAnalysis.label,
+                fixture: sourceForAnalysis.capture.fixture,
                 checkpoint,
               });
               const analysis = await client.requestAnalysis({
@@ -498,6 +523,37 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     });
   }
 
+  /**
+   * Resolves the detached intent cohort to the best single-flight steady
+   * candidates for the same exact model, Scenario fixtures, and input epochs.
+   * The live lanes are never advanced or paused by this operation.
+   */
+  async resolveSteadyScenarioCaptures(
+    captures: StudioSimulationWorkerScenarioCapturesV2,
+    priority: Extract<WorkbenchBackgroundJobPriorityV3, "snapshot"> = "snapshot",
+  ): Promise<StudioSimulationWorkerScenarioCapturesV2> {
+    this.#requireActive();
+    if (this.#steadyCandidates === undefined) return captures;
+    const scenarios = await Promise.all(captures.scenarios.map(async (scenario) => {
+      const lane = this.#requiredLane(scenario.scenarioId);
+      const candidate = await this.#steadyCandidates!.resolve({
+        modelId: this.#expectedModelId,
+        inputEpoch: lane.latestFrame.inputEpoch,
+        scenario,
+      }, priority);
+      return Object.freeze({
+        ...candidate.scenario,
+        // Labels are authored presentation metadata, not numerical candidate
+        // identity. Preserve a rename without recomputing the same state.
+        label: scenario.label,
+      });
+    }));
+    return Object.freeze({
+      activeScenarioId: captures.activeScenarioId,
+      scenarios: Object.freeze(scenarios),
+    });
+  }
+
   playAll(): void {
     // Async UI continuations may still hold this pool after a lane failure has
     // already fail-closed it. Resuming a discarded authority is intentionally
@@ -551,6 +607,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (this.#state === "terminated") return;
     this.#state = "terminated";
     this.#playing = false;
+    this.#steadyCandidates?.dispose();
     this.#cancelPendingFlush();
     this.#pendingFrames = [];
     for (const client of this.#analysisClients) client.terminate();
@@ -565,6 +622,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (this.#state === "terminated") return;
     this.#state = "terminated";
     this.#playing = false;
+    this.#steadyCandidates?.dispose();
     this.#cancelPendingFlush();
     this.#pendingFrames = [];
     for (const client of this.#analysisClients) client.terminate();
@@ -642,6 +700,45 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       scenarioId,
       label: lane.descriptor.label,
       capture: scenario.capture,
+    });
+  }
+
+  async #prewarmLane(lane: WorkbenchParallelScenarioLaneV3): Promise<void> {
+    if (this.#steadyCandidates === undefined) return;
+    const scenario = await this.#captureScenario(
+      lane.descriptor.scenarioId,
+    );
+    this.#steadyCandidates.prewarm(
+      this.#steadyCandidateSource(lane, scenario),
+    );
+  }
+
+  async #resolveSteadyCandidate(
+    scenario: ExperimentScenarioV2,
+    inputEpoch: number,
+    priority: Extract<WorkbenchBackgroundJobPriorityV3, "analysis">,
+  ): Promise<ExperimentScenarioV2> {
+    if (this.#steadyCandidates === undefined) return scenario;
+    const lane = this.#requiredLane(scenario.scenarioId);
+    const candidate = await this.#steadyCandidates.resolve(
+      this.#steadyCandidateSource(lane, scenario, inputEpoch),
+      priority,
+    );
+    return Object.freeze({
+      ...candidate.scenario,
+      label: scenario.label,
+    });
+  }
+
+  #steadyCandidateSource(
+    lane: WorkbenchParallelScenarioLaneV3,
+    scenario: ExperimentScenarioV2,
+    inputEpoch = lane.latestFrame.inputEpoch,
+  ): WorkbenchSteadyCandidateSourceV3 {
+    return Object.freeze({
+      modelId: this.#expectedModelId,
+      inputEpoch,
+      scenario,
     });
   }
 

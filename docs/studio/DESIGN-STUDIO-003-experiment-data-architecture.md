@@ -231,17 +231,20 @@ Save captures every Scenario's current fixture and exact accepted checkpoint,
 then stores the complete content. Save does not require settlement or Snapshot
 admission. Accepted steps are never written at the numerical step rate.
 
-### 7.3 Atomic Snapshot capture
+### 7.3 Snapshot intent capture and shared steady candidate
 
 Both Article placement and standalone publication use the same sequence:
 
 ```text
 brief user action
-  → freeze Scenario/Surface intent
-  → pause live lanes only for one accepted-boundary atomic capture
-  → copy fixture + checkpoint for every Scenario
+  → freeze model / Scenario order / fixture / input epoch / Surface intent
+  → pause live lanes only for one accepted-boundary exact capture
+  → copy the current fixture + checkpoint for every Scenario
   → immediately resume live lanes
-  → hand the detached candidate to a bounded warm Worker
+  → resolve one Scenario/input-epoch single-flight steady candidate
+       ├─ reuse post-control background candidate when available
+       └─ otherwise advance the detached capture in a warm Worker
+  → seal the resulting exact fixture + checkpoint tuple
   → common Snapshot admission
   → insert one neutral immutable ExperimentSnapshot
 ```
@@ -249,20 +252,36 @@ brief user action
 Article authoring may capture directly from an unsaved Session. Standalone
 publication additionally proves that model, Scenario identity/order, fixture,
 and Surface still match the explicitly saved Experiment head. Click-time
-checkpoints may be newer than the saved checkpoints.
+checkpoints and selected steady-candidate checkpoints may be newer than the
+saved checkpoints. The saved head authorizes the authored projection; it does
+not force publication to rewind to its older numerical clock.
 
-The default capture is the atomic click-time cohort. A background Worker may
-pre-run admission for that exact detached cohort, but it must not silently
-substitute an independently advanced “latest steady” checkpoint: separate
-Scenario jobs can have different model times, and the result would no longer
-be what the author captured. A future steady-anchor cache is valid only when
-all Scenarios come from one atomic cohort and its `modelId`, fixture, and input
-epoch still match; selecting such an anchor must be an explicit capture
-semantic rather than an incidental performance optimization.
+The click boundary freezes authored **intent**, not one cross-Scenario model
+time. Scenarios are independent simulations and already own independent exact
+clocks. Each detached fork may therefore advance to its best candidate while
+preserving the frozen exact `modelId`, Scenario identity/order, fixture, and
+input epoch. A later control change creates another input epoch and cannot
+reuse the previous candidate.
+
+Workbench observes complete-cycle output closure for up to a bounded number of
+cycles. This is an ephemeral acceleration heuristic named a *steady
+candidate*. It is neither the model's formal period-1 qualification nor a
+durable settlement assertion. PV/Starling analyses start from the same
+candidate and may apply stricter model-owned convergence. Snapshot admission
+still independently verifies executable safety. Candidate diagnostics and
+settlement status are never written into Experiment or Snapshot content.
+
+Candidate work is single-flight per Scenario/input epoch. Speculative post-
+control prewarm has the lowest pool priority, analysis may promote it, and an
+explicit Snapshot promotes it to foreground priority. The pool remains bounded
+for normal work; explicit Save or Snapshot may use one temporary burst Worker
+so two already-running bidirectional analysis lanes cannot place the author's
+explicit action behind an entire sweep. Persistent live Scenario Workers are
+outside this pool and never stop for detached candidate computation.
 
 ### 7.4 Common Snapshot admission
 
-Admission answers only: “Can this exact capture be restored and executed
+Admission answers only: “Can this selected exact candidate be restored and executed
 safely as an interactive public simulation?” For Main Wire V3 it:
 
 1. exact-restores the candidate checkpoint;
@@ -273,7 +292,7 @@ safely as an interactive public simulation?” For Main Wire V3 it:
    model-compatible mechanical-support constraints; and
 6. verifies a terminal checkpoint round trip.
 
-Admission never replaces the captured checkpoint. It does not require or
+Admission never replaces the selected candidate checkpoint. It does not require or
 persist settlement, and it does not establish physiological validity,
 clinical validity, certification, or release readiness. Those runtime and
 scientific concepts remain available in human-facing model information and
