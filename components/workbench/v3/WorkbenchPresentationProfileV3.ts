@@ -5,6 +5,7 @@ export type WorkbenchPresentationProfileV3 = Readonly<{
   maximumBatchSteps: number;
   preferredBatchSteps: number;
   presentationIntervalMs: number;
+  maximumPresentationBatchFrames: number;
 }>;
 
 export const WORKBENCH_BALANCED_PRESENTATION_PROFILE_V3:
@@ -16,14 +17,21 @@ export const WORKBENCH_BALANCED_PRESENTATION_PROFILE_V3:
     // 32 ms wall-clock gate can miss by jitter and accidentally combine two
     // batches into one ~64 ms visual jump.
     presentationIntervalMs: 0,
+    maximumPresentationBatchFrames: 16,
   });
 
 export const WORKBENCH_SMOOTH_PRESENTATION_PROFILE_V3:
   WorkbenchPresentationProfileV3 = Object.freeze({
     name: "smooth",
-    maximumBatchSteps: 8,
-    preferredBatchSteps: 8,
-    presentationIntervalMs: 0,
+    // One 16-step request amortizes structured-clone and validation overhead
+    // across 32 ms of exact model time. The scheduler then publishes the
+    // already-accepted prefix in two ordered eight-frame slices so Canvas can
+    // refresh near 60 Hz without asking the numerical Worker to run twice as
+    // many request/response cycles.
+    maximumBatchSteps: 16,
+    preferredBatchSteps: 16,
+    presentationIntervalMs: 16,
+    maximumPresentationBatchFrames: 8,
   });
 
 /**

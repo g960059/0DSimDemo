@@ -6,10 +6,23 @@ export type WorkbenchPerformanceMetricSnapshotV3 = Readonly<{
   latestMs: number;
 }>;
 
+export type WorkbenchPerformanceValueSnapshotV3 = Readonly<{
+  count: number;
+  mean: number;
+  recentMean: number;
+  p05: number;
+  p95: number;
+  minimum: number;
+  maximum: number;
+  latest: number;
+}>;
+
 export type WorkbenchPerformanceSnapshotV3 = Readonly<{
   enabled: boolean;
   capturedAtMs: number;
   metrics: Readonly<Record<string, WorkbenchPerformanceMetricSnapshotV3>>;
+  values: Readonly<Record<string, WorkbenchPerformanceValueSnapshotV3>>;
+  counters: Readonly<Record<string, number>>;
 }>;
 
 type WorkbenchPerformanceMetricStateV3 = {
@@ -19,6 +32,24 @@ type WorkbenchPerformanceMetricStateV3 = {
   latestMs: number;
   recentMs: number[];
 };
+
+type WorkbenchPerformanceValueStateV3 = {
+  count: number;
+  total: number;
+  minimum: number;
+  maximum: number;
+  latest: number;
+  recent: number[];
+};
+
+export type WorkbenchPerformanceRecorderV3 = Readonly<{
+  enabled: boolean;
+  nowMs(): number;
+  recordDuration(metric: string, durationMs: number): void;
+  recordEventInterval(metric: string): void;
+  recordValue(metric: string, value: number): void;
+  incrementCounter(metric: string, amount?: number): void;
+}>;
 
 const WORKBENCH_PERFORMANCE_RECENT_SAMPLE_LIMIT_V3 = 240;
 export const WORKBENCH_PERFORMANCE_DIAGNOSTICS_ELEMENT_ID_V3 =
@@ -32,6 +63,8 @@ export class WorkbenchPerformanceDiagnosticsV3 {
   readonly #enabled: boolean;
   readonly #nowMs: () => number;
   readonly #metrics = new Map<string, WorkbenchPerformanceMetricStateV3>();
+  readonly #values = new Map<string, WorkbenchPerformanceValueStateV3>();
+  readonly #counters = new Map<string, number>();
   readonly #lastEventAtMs = new Map<string, number>();
 
   constructor(input: Readonly<{
@@ -82,6 +115,42 @@ export class WorkbenchPerformanceDiagnosticsV3 {
     this.#metrics.set(metric, current);
   }
 
+  /** Records one finite unitless or domain-specific diagnostic value. */
+  recordValue(metric: string, value: number): void {
+    if (
+      !this.#enabled
+      || metric.trim().length === 0
+      || !Number.isFinite(value)
+    ) return;
+    const current = this.#values.get(metric) ?? {
+      count: 0,
+      total: 0,
+      minimum: value,
+      maximum: value,
+      latest: value,
+      recent: [],
+    };
+    current.count += 1;
+    current.total += value;
+    current.minimum = Math.min(current.minimum, value);
+    current.maximum = Math.max(current.maximum, value);
+    current.latest = value;
+    current.recent.push(value);
+    trimRecentSamplesV3(current.recent);
+    this.#values.set(metric, current);
+  }
+
+  /** Increments a session-local event counter without retaining event data. */
+  incrementCounter(metric: string, amount = 1): void {
+    if (
+      !this.#enabled
+      || metric.trim().length === 0
+      || !Number.isFinite(amount)
+      || amount <= 0
+    ) return;
+    this.#counters.set(metric, (this.#counters.get(metric) ?? 0) + amount);
+  }
+
   /** Records the wall-clock interval between consecutive meaningful events. */
   recordEventInterval(metric: string): void {
     if (!this.#enabled || metric.trim().length === 0) return;
@@ -95,6 +164,8 @@ export class WorkbenchPerformanceDiagnosticsV3 {
 
   reset(): void {
     this.#metrics.clear();
+    this.#values.clear();
+    this.#counters.clear();
     this.#lastEventAtMs.clear();
   }
 
@@ -120,6 +191,26 @@ export class WorkbenchPerformanceDiagnosticsV3 {
           })];
         }),
       )),
+      values: Object.freeze(Object.fromEntries(
+        [...this.#values].map(([metric, state]) => {
+          const ordered = [...state.recent]
+            .sort((left, right) => left - right);
+          return [metric, Object.freeze({
+            count: state.count,
+            mean: state.count === 0 ? 0 : state.total / state.count,
+            recentMean: state.recent.length === 0
+              ? 0
+              : state.recent.reduce((sum, value) => sum + value, 0)
+                / state.recent.length,
+            p05: percentile05V3(ordered),
+            p95: percentile95V3(ordered),
+            minimum: state.minimum,
+            maximum: state.maximum,
+            latest: state.latest,
+          })];
+        }),
+      )),
+      counters: Object.freeze(Object.fromEntries(this.#counters)),
     });
   }
 }
@@ -155,6 +246,25 @@ export function recordWorkbenchPerformanceEventIntervalV3(
   workbenchPerformanceDiagnosticsV3.recordEventInterval(metric);
 }
 
+export function recordWorkbenchPerformanceValueV3(
+  metric: string,
+  value: number,
+): void {
+  workbenchPerformanceDiagnosticsV3.recordValue(metric, value);
+}
+
+export function incrementWorkbenchPerformanceCounterV3(
+  metric: string,
+  amount = 1,
+): void {
+  workbenchPerformanceDiagnosticsV3.incrementCounter(metric, amount);
+}
+
+export function getWorkbenchPerformanceRecorderV3():
+  WorkbenchPerformanceRecorderV3 {
+  return workbenchPerformanceDiagnosticsV3;
+}
+
 export function getWorkbenchPerformanceSnapshotV3():
   WorkbenchPerformanceSnapshotV3 {
   return workbenchPerformanceDiagnosticsV3.snapshot();
@@ -172,6 +282,30 @@ export function workbenchPerformanceDiagnosticsRequestedV3(
 
 function defaultPerformanceNowV3(): number {
   return typeof performance === "undefined" ? Date.now() : performance.now();
+}
+
+function trimRecentSamplesV3(samples: number[]): void {
+  if (samples.length <= WORKBENCH_PERFORMANCE_RECENT_SAMPLE_LIMIT_V3) return;
+  samples.splice(
+    0,
+    samples.length - WORKBENCH_PERFORMANCE_RECENT_SAMPLE_LIMIT_V3,
+  );
+}
+
+function percentile95V3(ordered: readonly number[]): number {
+  if (ordered.length === 0) return 0;
+  return ordered[Math.min(
+    ordered.length - 1,
+    Math.ceil(ordered.length * 0.95) - 1,
+  )] ?? 0;
+}
+
+function percentile05V3(ordered: readonly number[]): number {
+  if (ordered.length === 0) return 0;
+  return ordered[Math.max(
+    0,
+    Math.floor(ordered.length * 0.05),
+  )] ?? 0;
 }
 
 function exposeWorkbenchPerformanceDiagnosticsV3(): void {

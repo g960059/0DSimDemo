@@ -41,9 +41,10 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     expect(state.activeScenarioId).toBe("scenario/comparison");
     expect(harness.schedulers.get("scenario/baseline")?.dependencies)
       .toMatchObject({
-        maximumBatchSteps: 8,
-        preferredBatchSteps: 8,
-        presentationIntervalMs: 0,
+        maximumBatchSteps: 16,
+        preferredBatchSteps: 16,
+        presentationIntervalMs: 16,
+        maximumPresentationBatchFrames: 8,
       });
 
     harness.runtime.playAll();

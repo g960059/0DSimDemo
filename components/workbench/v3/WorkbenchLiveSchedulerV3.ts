@@ -1,7 +1,6 @@
 import {
-  recordWorkbenchPerformanceDurationV3,
-  recordWorkbenchPerformanceEventIntervalV3,
-  workbenchPerformanceDiagnosticsEnabledV3,
+  getWorkbenchPerformanceRecorderV3,
+  type WorkbenchPerformanceRecorderV3,
 } from "./WorkbenchPerformanceDiagnosticsV3";
 
 export type WorkbenchLiveSchedulerTimerV3 = ReturnType<typeof setTimeout>;
@@ -32,7 +31,15 @@ export type WorkbenchLiveSchedulerDependenciesV3<TFrame> = Readonly<{
    * accepted 2 ms state. Pending accepted frames are never discarded.
    */
   presentationIntervalMs?: number;
+  /**
+   * Maximum accepted prefix published in one paced presentation callback.
+   * Frames beyond this boundary remain queued in exact accepted order.
+   */
+  maximumPresentationBatchFrames?: number;
   maximumPendingPresentationFrames?: number;
+  /** Ephemeral diagnostic identity; it never crosses a durable boundary. */
+  diagnosticLaneId?: string;
+  performanceRecorder?: WorkbenchPerformanceRecorderV3;
 }>;
 
 /**
@@ -57,16 +64,22 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
   readonly #preferredBatchSteps: number;
   readonly #maximumCatchUpSec: number;
   readonly #presentationIntervalMs: number;
+  readonly #maximumPresentationBatchFrames: number;
   readonly #maximumPendingPresentationFrames: number;
+  readonly #diagnosticMetricPrefix: string;
+  readonly #performance: WorkbenchPerformanceRecorderV3;
 
   #running = false;
   #disposed = false;
   #anchorWallMs = 0;
   #anchorModelTimeSec = 0;
   #acceptedModelTimeSec = 0;
-  #timer: WorkbenchLiveSchedulerTimerV3 | undefined;
+  #pumpTimer: WorkbenchLiveSchedulerTimerV3 | undefined;
+  #presentationTimer: WorkbenchLiveSchedulerTimerV3 | undefined;
   #inFlight: Promise<void> | undefined;
   #lastPresentationWallMs = 0;
+  #lastRatioWallMs = 0;
+  #lastRatioModelTimeSec = 0;
   #pendingPresentationFrames: TFrame[] = [];
 
   constructor(dependencies: WorkbenchLiveSchedulerDependenciesV3<TFrame>) {
@@ -87,8 +100,16 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
       ?? this.#maximumBatchSteps;
     this.#maximumCatchUpSec = dependencies.maximumCatchUpSec ?? 0.25;
     this.#presentationIntervalMs = dependencies.presentationIntervalMs ?? 32;
+    this.#maximumPresentationBatchFrames =
+      dependencies.maximumPresentationBatchFrames
+      ?? this.#maximumBatchSteps;
     this.#maximumPendingPresentationFrames =
       dependencies.maximumPendingPresentationFrames ?? 64;
+    this.#diagnosticMetricPrefix = dependencies.diagnosticLaneId === undefined
+      ? "scheduler.unscoped"
+      : `scheduler.${dependencies.diagnosticLaneId}`;
+    this.#performance = dependencies.performanceRecorder
+      ?? getWorkbenchPerformanceRecorderV3();
     if (
       !Number.isFinite(this.#presentationDtSec)
       || this.#presentationDtSec <= 0
@@ -101,6 +122,8 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
       || this.#maximumCatchUpSec < this.#presentationDtSec
       || !Number.isFinite(this.#presentationIntervalMs)
       || this.#presentationIntervalMs < 0
+      || !Number.isSafeInteger(this.#maximumPresentationBatchFrames)
+      || this.#maximumPresentationBatchFrames < 1
       || !Number.isSafeInteger(this.#maximumPendingPresentationFrames)
       || this.#maximumPendingPresentationFrames < 1
     ) {
@@ -121,14 +144,17 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
     this.#anchorModelTimeSec = acceptedModelTimeSec;
     this.#anchorWallMs = this.#nowMs();
     this.#lastPresentationWallMs = this.#anchorWallMs;
+    this.#lastRatioWallMs = this.#anchorWallMs;
+    this.#lastRatioModelTimeSec = acceptedModelTimeSec;
     this.#running = true;
     this.#queuePump(0);
   }
 
   async pause(): Promise<void> {
     this.#running = false;
-    this.#cancelTimer();
+    this.#cancelPumpTimer();
     await this.#inFlight;
+    this.#cancelPresentationTimer();
     this.#flushPresentationFrames(this.#nowMs());
   }
 
@@ -152,6 +178,8 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
     this.#acceptedModelTimeSec = acceptedModelTimeSec;
     this.#anchorModelTimeSec = acceptedModelTimeSec;
     this.#anchorWallMs = this.#nowMs();
+    this.#lastRatioWallMs = this.#anchorWallMs;
+    this.#lastRatioModelTimeSec = acceptedModelTimeSec;
     if (this.#running) this.#queuePump(0);
   }
 
@@ -159,15 +187,20 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#running = false;
-    this.#cancelTimer();
+    this.#cancelPumpTimer();
+    this.#cancelPresentationTimer();
     await this.#inFlight;
     this.#pendingPresentationFrames = [];
   }
 
   #queuePump(delayMs: number): void {
-    if (!this.#running || this.#disposed || this.#timer !== undefined) return;
-    this.#timer = this.#schedule(() => {
-      this.#timer = undefined;
+    if (
+      !this.#running
+      || this.#disposed
+      || this.#pumpTimer !== undefined
+    ) return;
+    this.#pumpTimer = this.#schedule(() => {
+      this.#pumpTimer = undefined;
       this.#pump();
     }, Math.max(0, Math.ceil(delayMs)));
   }
@@ -185,9 +218,23 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
       targetModelTimeSec - this.#acceptedModelTimeSec
         > this.#maximumCatchUpSec
     ) {
+      const overloadLagMs = (
+        targetModelTimeSec - this.#acceptedModelTimeSec
+      ) * 1_000;
+      if (this.#performance.enabled) {
+        this.#performance.recordDuration(
+          `${this.#diagnosticMetricPrefix}.overload-lag`,
+          overloadLagMs,
+        );
+        this.#performance.incrementCounter(
+          `${this.#diagnosticMetricPrefix}.overload-reanchors`,
+        );
+      }
       this.#anchorModelTimeSec = this.#acceptedModelTimeSec;
       this.#anchorWallMs = nowMs;
       targetModelTimeSec = this.#acceptedModelTimeSec;
+      this.#lastRatioWallMs = nowMs;
+      this.#lastRatioModelTimeSec = this.#acceptedModelTimeSec;
     }
     const dueSec = targetModelTimeSec - this.#acceptedModelTimeSec;
     const dueSteps = Math.floor(
@@ -201,14 +248,30 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
       return;
     }
     const stepCount = Math.min(this.#maximumBatchSteps, dueSteps);
-    const diagnosticsEnabled = workbenchPerformanceDiagnosticsEnabledV3();
+    const diagnosticsEnabled = this.#performance.enabled;
     const roundTripStartedAtMs = diagnosticsEnabled ? this.#nowMs() : 0;
+    if (diagnosticsEnabled) {
+      this.#performance.recordValue(
+        `${this.#diagnosticMetricPrefix}.requested-batch-steps`,
+        stepCount,
+      );
+      if (stepCount > this.#preferredBatchSteps) {
+        this.#performance.incrementCounter(
+          `${this.#diagnosticMetricPrefix}.catch-up-batches`,
+        );
+      }
+    }
     const operation = this.#advance(stepCount)
       .then((frames) => {
         if (diagnosticsEnabled) {
-          recordWorkbenchPerformanceDurationV3(
+          const completedAtMs = this.#nowMs();
+          this.#performance.recordDuration(
             "scheduler.worker-round-trip",
-            this.#nowMs() - roundTripStartedAtMs,
+            completedAtMs - roundTripStartedAtMs,
+          );
+          this.#performance.recordDuration(
+            `${this.#diagnosticMetricPrefix}.worker-round-trip`,
+            completedAtMs - roundTripStartedAtMs,
           );
         }
         if (frames.length !== stepCount) {
@@ -222,21 +285,34 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
         if (!(acceptedTimeSec > this.#acceptedModelTimeSec)) {
           throw new Error("Workbench Worker model time did not advance");
         }
+        const completedAtMs = this.#nowMs();
+        const wallDeltaMs = completedAtMs - this.#lastRatioWallMs;
+        const modelDeltaSec = acceptedTimeSec - this.#lastRatioModelTimeSec;
+        if (diagnosticsEnabled && wallDeltaMs > 0 && modelDeltaSec >= 0) {
+          this.#performance.recordValue(
+            `${this.#diagnosticMetricPrefix}.model-time-ratio`,
+            modelDeltaSec / (wallDeltaMs / 1_000),
+          );
+        }
+        this.#lastRatioWallMs = completedAtMs;
+        this.#lastRatioModelTimeSec = acceptedTimeSec;
         this.#acceptedModelTimeSec = acceptedTimeSec;
+        const currentTargetModelTimeSec = this.#anchorModelTimeSec
+          + (completedAtMs - this.#anchorWallMs) / 1_000;
+        if (diagnosticsEnabled) {
+          this.#performance.recordDuration(
+            `${this.#diagnosticMetricPrefix}.model-wall-lag`,
+            Math.max(0, currentTargetModelTimeSec - acceptedTimeSec) * 1_000,
+          );
+        }
         this.#pendingPresentationFrames.push(...frames);
         const presentationWallMs = this.#nowMs();
-        if (
-          presentationWallMs - this.#lastPresentationWallMs
-            >= this.#presentationIntervalMs
-          || this.#pendingPresentationFrames.length
-            >= this.#maximumPendingPresentationFrames
-        ) {
-          this.#flushPresentationFrames(presentationWallMs);
-        }
+        this.#publishOrSchedulePresentation(presentationWallMs);
       })
       .catch((error) => {
         this.#running = false;
-        this.#cancelTimer();
+        this.#cancelPumpTimer();
+        this.#cancelPresentationTimer();
         if (!this.#disposed) {
           // A later Worker failure must not hide frames that were already
           // accepted successfully. Publish that exact prefix before exposing
@@ -252,21 +328,78 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
     this.#inFlight = operation;
   }
 
-  #cancelTimer(): void {
-    if (this.#timer === undefined) return;
-    this.#cancel(this.#timer);
-    this.#timer = undefined;
+  #cancelPumpTimer(): void {
+    if (this.#pumpTimer === undefined) return;
+    this.#cancel(this.#pumpTimer);
+    this.#pumpTimer = undefined;
   }
 
-  #flushPresentationFrames(presentationWallMs: number): void {
+  #cancelPresentationTimer(): void {
+    if (this.#presentationTimer === undefined) return;
+    this.#cancel(this.#presentationTimer);
+    this.#presentationTimer = undefined;
+  }
+
+  #publishOrSchedulePresentation(nowMs: number): void {
     if (this.#pendingPresentationFrames.length === 0) return;
-    const frames = Object.freeze(this.#pendingPresentationFrames.slice());
-    this.#pendingPresentationFrames = [];
+    const saturated = this.#pendingPresentationFrames.length
+      >= this.#maximumPendingPresentationFrames;
+    if (
+      this.#presentationIntervalMs === 0
+      || saturated
+      || nowMs - this.#lastPresentationWallMs
+        >= this.#presentationIntervalMs
+    ) {
+      this.#cancelPresentationTimer();
+      this.#flushPresentationFrames(
+        nowMs,
+        saturated
+          ? this.#pendingPresentationFrames.length
+          : this.#maximumPresentationBatchFrames,
+      );
+    }
+    if (
+      this.#pendingPresentationFrames.length === 0
+      || this.#presentationTimer !== undefined
+      || !this.#running
+      || this.#disposed
+    ) return;
+    const remainingMs = Math.max(
+      0,
+      this.#presentationIntervalMs
+        - (this.#nowMs() - this.#lastPresentationWallMs),
+    );
+    this.#presentationTimer = this.#schedule(() => {
+      this.#presentationTimer = undefined;
+      if (!this.#running || this.#disposed) return;
+      this.#publishOrSchedulePresentation(this.#nowMs());
+    }, Math.ceil(remainingMs));
+  }
+
+  #flushPresentationFrames(
+    presentationWallMs: number,
+    maximumFrames = Number.POSITIVE_INFINITY,
+  ): void {
+    if (this.#pendingPresentationFrames.length === 0) return;
+    const frameCount = Math.min(
+      this.#pendingPresentationFrames.length,
+      maximumFrames,
+    );
+    const frames = Object.freeze(
+      this.#pendingPresentationFrames.slice(0, frameCount),
+    );
+    this.#pendingPresentationFrames =
+      this.#pendingPresentationFrames.slice(frameCount);
     this.#lastPresentationWallMs = presentationWallMs;
     this.#onFrames(frames);
-    recordWorkbenchPerformanceEventIntervalV3(
-      "scheduler.presentation-delivery-interval",
-    );
+    if (this.#performance.enabled) {
+      this.#performance.recordEventInterval(
+        "scheduler.presentation-delivery-interval",
+      );
+      this.#performance.recordEventInterval(
+        `${this.#diagnosticMetricPrefix}.presentation-delivery-interval`,
+      );
+    }
   }
 }
 

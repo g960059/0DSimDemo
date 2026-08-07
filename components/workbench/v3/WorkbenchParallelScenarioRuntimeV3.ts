@@ -33,6 +33,7 @@ import {
 import {
   recordWorkbenchPerformanceDurationV3,
   recordWorkbenchPerformanceEventIntervalV3,
+  recordWorkbenchPerformanceValueV3,
   workbenchPerformanceDiagnosticsEnabledV3,
   workbenchPerformanceNowV3,
 } from "./WorkbenchPerformanceDiagnosticsV3";
@@ -697,10 +698,13 @@ export class WorkbenchParallelScenarioRuntimeV3 {
           this.#enqueueFrames(frames);
         },
         onError: (error) => this.#fail(seed.scenarioId, error),
+        diagnosticLaneId: seed.scenarioId,
         maximumBatchSteps: this.#presentationProfile.maximumBatchSteps,
         preferredBatchSteps: this.#presentationProfile.preferredBatchSteps,
         presentationIntervalMs:
           this.#presentationProfile.presentationIntervalMs,
+        maximumPresentationBatchFrames:
+          this.#presentationProfile.maximumPresentationBatchFrames,
       });
       lane = {
         descriptor: Object.freeze({
@@ -780,6 +784,24 @@ export class WorkbenchParallelScenarioRuntimeV3 {
 
   #enqueueFrames(frames: readonly StudioSimulationFrameV2[]): void {
     if (frames.length === 0 || this.#state !== "active") return;
+    if (workbenchPerformanceDiagnosticsEnabledV3()) {
+      const terminal = frames.at(-1)!;
+      const outputs = Object.values(terminal.outputs);
+      const valueCount = outputs.reduce((count, output) =>
+        count + (Array.isArray(output.value) ? output.value.length : 1), 0);
+      recordWorkbenchPerformanceValueV3(
+        `runtime.${terminal.scenarioId}.batch-frame-count`,
+        frames.length,
+      );
+      recordWorkbenchPerformanceValueV3(
+        `runtime.${terminal.scenarioId}.outputs-per-frame`,
+        outputs.length,
+      );
+      recordWorkbenchPerformanceValueV3(
+        `runtime.${terminal.scenarioId}.values-per-frame`,
+        valueCount,
+      );
+    }
     if (
       this.#pendingFrames.length === 0
       && workbenchPerformanceDiagnosticsEnabledV3()
