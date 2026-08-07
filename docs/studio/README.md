@@ -17,6 +17,10 @@ is its active product-IA companion for standalone Experiments, article
 Placements, role-specific Briefings, responsive Reader presentation, and
 canonical routes. It does not redefine numerical identity or persistence.
 
+[DESIGN-STUDIO-005-live-graph-performance.md](DESIGN-STUDIO-005-live-graph-performance.md)
+defines the scientific-safe presentation pipeline, opt-in browser diagnostics,
+and cadence A/B contract for Workbench and Reader graphs.
+
 Superseded Studio V1 design and vertical-slice specifications were removed
 from the working tree. They remain available in Git history, but must not be
 used as implementation context.

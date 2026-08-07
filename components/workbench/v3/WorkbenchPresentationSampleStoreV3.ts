@@ -12,6 +12,12 @@ import type {
   WorkbenchAcceptedScalarSampleV3,
   WorkbenchScalarSampleV3,
 } from "./WorkbenchScalarSampleV3";
+import {
+  recordWorkbenchPerformanceDurationV3,
+  recordWorkbenchPerformanceEventIntervalV3,
+  workbenchPerformanceDiagnosticsEnabledV3,
+  workbenchPerformanceNowV3,
+} from "./WorkbenchPerformanceDiagnosticsV3";
 
 const EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3:
   readonly WorkbenchScalarSampleV3[] = Object.freeze([]);
@@ -33,6 +39,21 @@ const EMPTY_WORKBENCH_ORBIT_HISTORY_V3:
 export type WorkbenchScenarioOrbitHistoryV3 = Readonly<
   Record<string, readonly WorkbenchOrbitHistoryEpochV3[]>
 >;
+
+export type WorkbenchSweepPresentationSnapshotV3 = Readonly<{
+  renderer: "sweep";
+  samplesByScenarioId: WorkbenchScenarioPresentationSamplesV3;
+}>;
+
+export type WorkbenchPressureVolumePresentationSnapshotV3 = Readonly<{
+  renderer: "pressure-volume";
+  exactOrbitSamplesByScenarioId: WorkbenchScenarioPresentationSamplesV3;
+  orbitHistoryByScenarioId: WorkbenchScenarioOrbitHistoryV3;
+}>;
+
+export type WorkbenchSampledGraphPresentationSnapshotV3 =
+  | WorkbenchSweepPresentationSnapshotV3
+  | WorkbenchPressureVolumePresentationSnapshotV3;
 
 export const WORKBENCH_PRESENTATION_HISTORY_MAX_DEPTH_V3 = 3;
 
@@ -59,6 +80,8 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
   readonly #options: WorkbenchPresentationBufferOptionsV3;
   readonly #exactOrbitOptions: WorkbenchExactOrbitBufferOptionsV3;
   readonly #listeners = new Set<() => void>();
+  readonly #sweepListeners = new Set<() => void>();
+  readonly #pressureVolumeListeners = new Set<() => void>();
   readonly #clocks = new Map<string, WorkbenchScenarioPresentationClockV3>();
   #samplesByScenarioId: WorkbenchScenarioPresentationSamplesV3 =
     emptyScenarioPresentationSnapshotV3();
@@ -66,6 +89,16 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
     emptyScenarioPresentationSnapshotV3();
   #orbitHistoryByScenarioId: WorkbenchScenarioOrbitHistoryV3 =
     emptyScenarioOrbitHistorySnapshotV3();
+  #sweepSnapshot: WorkbenchSweepPresentationSnapshotV3 = Object.freeze({
+    renderer: "sweep",
+    samplesByScenarioId: this.#samplesByScenarioId,
+  });
+  #pressureVolumeSnapshot: WorkbenchPressureVolumePresentationSnapshotV3 =
+    Object.freeze({
+      renderer: "pressure-volume",
+      exactOrbitSamplesByScenarioId: this.#exactOrbitSamplesByScenarioId,
+      orbitHistoryByScenarioId: this.#orbitHistoryByScenarioId,
+    });
 
   constructor(options: WorkbenchScenarioPresentationStoreOptionsV3 = {}) {
     const {
@@ -94,9 +127,28 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
   readonly getOrbitHistorySnapshot = ():
     WorkbenchScenarioOrbitHistoryV3 => this.#orbitHistoryByScenarioId;
 
+  readonly getPressureVolumeSnapshot = ():
+    WorkbenchPressureVolumePresentationSnapshotV3 =>
+      this.#pressureVolumeSnapshot;
+
+  readonly getSweepSnapshot = (): WorkbenchSweepPresentationSnapshotV3 =>
+    this.#sweepSnapshot;
+
   readonly subscribe = (listener: () => void): (() => void) => {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
+  };
+
+  readonly subscribeSweep = (listener: () => void): (() => void) => {
+    this.#sweepListeners.add(listener);
+    return () => this.#sweepListeners.delete(listener);
+  };
+
+  readonly subscribePressureVolume = (
+    listener: () => void,
+  ): (() => void) => {
+    this.#pressureVolumeListeners.add(listener);
+    return () => this.#pressureVolumeListeners.delete(listener);
   };
 
   getScenarioSnapshot(
@@ -132,6 +184,10 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
     scenarioId: string;
     samples: readonly WorkbenchAcceptedScalarSampleV3[];
   }>[]): void {
+    const diagnosticsEnabled = workbenchPerformanceDiagnosticsEnabledV3();
+    const startedAtMs = diagnosticsEnabled
+      ? workbenchPerformanceNowV3()
+      : 0;
     const nextSweep = createScenarioPresentationSnapshotV3(
       this.#samplesByScenarioId,
     );
@@ -192,7 +248,18 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
     this.#samplesByScenarioId = Object.freeze(nextSweep);
     this.#exactOrbitSamplesByScenarioId = Object.freeze(nextExact);
     this.#orbitHistoryByScenarioId = Object.freeze(nextHistory);
+    this.#refreshSweepSnapshot();
+    this.#refreshPressureVolumeSnapshot();
     this.#notify();
+    if (diagnosticsEnabled) {
+      recordWorkbenchPerformanceDurationV3(
+        "presentation.store-append",
+        workbenchPerformanceNowV3() - startedAtMs,
+      );
+      recordWorkbenchPerformanceEventIntervalV3(
+        "presentation.store-commit-interval",
+      );
+    }
   }
 
   /** Clears one Scenario while retaining its identity in the cache map. */
@@ -217,6 +284,8 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
     this.#exactOrbitSamplesByScenarioId =
       emptyScenarioPresentationSnapshotV3();
     this.#orbitHistoryByScenarioId = emptyScenarioOrbitHistorySnapshotV3();
+    this.#refreshSweepSnapshot();
+    this.#refreshPressureVolumeSnapshot();
     this.#clocks.clear();
     this.#notify();
   }
@@ -238,6 +307,8 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
       this.#orbitHistoryByScenarioId,
       scenarioId,
     );
+    this.#refreshSweepSnapshot();
+    this.#refreshPressureVolumeSnapshot();
     this.#clocks.delete(scenarioId);
     this.#notify();
     return true;
@@ -275,7 +346,9 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
   }
 
   get subscriberCount(): number {
-    return this.#listeners.size;
+    return this.#listeners.size
+      + this.#sweepListeners.size
+      + this.#pressureVolumeListeners.size;
   }
 
   #replaceScenarioState(
@@ -299,6 +372,8 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
     this.#samplesByScenarioId = Object.freeze(nextSweep);
     this.#exactOrbitSamplesByScenarioId = Object.freeze(nextExact);
     this.#orbitHistoryByScenarioId = Object.freeze(nextHistory);
+    this.#refreshSweepSnapshot();
+    this.#refreshPressureVolumeSnapshot();
     this.#notify();
   }
 
@@ -347,6 +422,23 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
 
   #notify(): void {
     for (const listener of this.#listeners) listener();
+    for (const listener of this.#sweepListeners) listener();
+    for (const listener of this.#pressureVolumeListeners) listener();
+  }
+
+  #refreshPressureVolumeSnapshot(): void {
+    this.#pressureVolumeSnapshot = Object.freeze({
+      renderer: "pressure-volume",
+      exactOrbitSamplesByScenarioId: this.#exactOrbitSamplesByScenarioId,
+      orbitHistoryByScenarioId: this.#orbitHistoryByScenarioId,
+    });
+  }
+
+  #refreshSweepSnapshot(): void {
+    this.#sweepSnapshot = Object.freeze({
+      renderer: "sweep",
+      samplesByScenarioId: this.#samplesByScenarioId,
+    });
   }
 }
 
@@ -354,9 +446,38 @@ export function useWorkbenchScenarioPresentationSamplesV3(
   store: WorkbenchScenarioPresentationSampleStoreV3,
 ): WorkbenchScenarioPresentationSamplesV3 {
   return React.useSyncExternalStore(
-    store.subscribe,
+    store.subscribeSweep,
     store.getSnapshot,
     store.getSnapshot,
+  );
+}
+
+export function useWorkbenchPressureVolumePresentationSamplesV3(
+  store: WorkbenchScenarioPresentationSampleStoreV3,
+): WorkbenchPressureVolumePresentationSnapshotV3 {
+  return React.useSyncExternalStore(
+    store.subscribePressureVolume,
+    store.getPressureVolumeSnapshot,
+    store.getPressureVolumeSnapshot,
+  );
+}
+
+export function useWorkbenchSampledGraphPresentationSamplesV3(
+  store: WorkbenchScenarioPresentationSampleStoreV3,
+  renderer: "sweep" | "pressure-volume",
+): WorkbenchSampledGraphPresentationSnapshotV3 {
+  const subscribe: (listener: () => void) => () => void =
+    renderer === "sweep"
+      ? store.subscribeSweep
+      : store.subscribePressureVolume;
+  const getSnapshot: () => WorkbenchSampledGraphPresentationSnapshotV3 =
+    renderer === "sweep"
+      ? store.getSweepSnapshot
+      : store.getPressureVolumeSnapshot;
+  return React.useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getSnapshot,
   );
 }
 

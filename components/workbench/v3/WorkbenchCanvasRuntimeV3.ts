@@ -1,6 +1,41 @@
 import React from "react";
 
+import {
+  recordWorkbenchPerformanceDurationV3,
+  recordWorkbenchPerformanceEventIntervalV3,
+  workbenchPerformanceDiagnosticsEnabledV3,
+  workbenchPerformanceNowV3,
+} from "./WorkbenchPerformanceDiagnosticsV3";
+
 export const WORKBENCH_MAXIMUM_CANVAS_PIXEL_RATIO_V3 = 2;
+
+const WORKBENCH_CANVAS_THEME_CACHE_V3 = new WeakMap<
+  HTMLElement,
+  Map<string, readonly string[]>
+>();
+
+/** Reads a Canvas palette once per element/theme/variable set. */
+export function readWorkbenchCanvasThemeVariablesV3(
+  element: HTMLElement | null,
+  variables: readonly (readonly [name: string, fallback: string])[],
+): readonly string[] {
+  if (element === null || typeof getComputedStyle !== "function") {
+    return Object.freeze(variables.map(([, fallback]) => fallback));
+  }
+  const themeId = element.closest<HTMLElement>("[data-app-theme]")
+    ?.dataset.appTheme ?? "";
+  const cacheKey = `${themeId}\u001f${variables.map(([name]) => name).join("\u001f")}`;
+  const elementCache = WORKBENCH_CANVAS_THEME_CACHE_V3.get(element)
+    ?? new Map<string, readonly string[]>();
+  const cached = elementCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+  const styles = getComputedStyle(element);
+  const values = Object.freeze(variables.map(([name, fallback]) =>
+    styles.getPropertyValue(name).trim() || fallback));
+  elementCache.set(cacheKey, values);
+  WORKBENCH_CANVAS_THEME_CACHE_V3.set(element, elementCache);
+  return values;
+}
 
 export function boundedCanvasPixelRatioV3(value: number): number {
   if (!Number.isFinite(value)) return 1;
@@ -48,6 +83,7 @@ export function useResponsiveCanvasFrameV3(
     width: number,
     height: number,
   ) => void,
+  diagnosticKey = "canvas",
 ): void {
   const drawRef = React.useRef(draw);
   const scheduleRef = React.useRef<(() => void) | null>(null);
@@ -80,6 +116,10 @@ export function useResponsiveCanvasFrameV3(
     };
 
     const render = () => {
+      const diagnosticsEnabled = workbenchPerformanceDiagnosticsEnabledV3();
+      const startedAtMs = diagnosticsEnabled
+        ? workbenchPerformanceNowV3()
+        : 0;
       const pixelRatio = boundedCanvasPixelRatioV3(
         window.devicePixelRatio || 1,
       );
@@ -90,6 +130,15 @@ export function useResponsiveCanvasFrameV3(
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       context.clearRect(0, 0, width, height);
       drawRef.current(context, width, height);
+      if (diagnosticsEnabled) {
+        recordWorkbenchPerformanceDurationV3(
+          `canvas.${diagnosticKey}.draw`,
+          workbenchPerformanceNowV3() - startedAtMs,
+        );
+        recordWorkbenchPerformanceEventIntervalV3(
+          `canvas.${diagnosticKey}.display-interval`,
+        );
+      }
     };
     const frameScheduler = createWorkbenchCanvasFrameSchedulerV3(render);
     const schedule = frameScheduler.schedule;
@@ -119,7 +168,7 @@ export function useResponsiveCanvasFrameV3(
       window.removeEventListener("resize", handleWindowResize);
       frameScheduler.dispose();
     };
-  }, [canvasRef, containerRef]);
+  }, [canvasRef, containerRef, diagnosticKey]);
 }
 
 export function scaleLinearV3(

@@ -39,6 +39,13 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
         checkpoint: expect.objectContaining({ acceptedRevision: 4 }),
       }));
     expect(state.activeScenarioId).toBe("scenario/comparison");
+    expect(harness.schedulers.get("scenario/baseline")?.dependencies)
+      .toMatchObject({
+        maximumBatchSteps: 16,
+        preferredBatchSteps: 16,
+        presentationIntervalMs: 16,
+        maximumPresentationBatchFrames: 8,
+      });
 
     harness.runtime.playAll();
     expect([...harness.schedulers.values()].every(({ running }) => running))
@@ -271,6 +278,23 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     ]);
     expect(harness.runtime.latestFrame("scenario/baseline").acceptedRevision)
       .toBe(2);
+  });
+
+  it("publishes one Scenario directly without an unnecessary merge deadline", async () => {
+    const harness = harnessV3();
+    await harness.runtime.initialize({
+      scenarios: [seedV3("scenario/baseline", "Baseline", 0)],
+      activeScenarioId: "scenario/baseline",
+    });
+    harness.schedulers.get("scenario/baseline")!.emit([
+      frameV3("scenario/baseline", 1),
+      frameV3("scenario/baseline", 2),
+    ]);
+
+    expect(harness.flushCallbacks).toEqual([]);
+    expect(harness.onFrames).toHaveBeenCalledOnce();
+    expect(harness.onFrames.mock.calls[0]![0].map(({ acceptedRevision }) =>
+      acceptedRevision)).toEqual([1, 2]);
   });
 
   it("duplicates from the source lane's exact capture and keeps labels in the pool", async () => {

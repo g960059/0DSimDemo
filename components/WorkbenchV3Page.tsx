@@ -154,11 +154,16 @@ import {
   reconcileWorkbenchGraphColorsV3,
   resolveWorkbenchBackgroundWorkerBudgetV3,
   resolveWorkbenchGraphTraceStyleV3,
+  recordWorkbenchPerformanceDurationV3,
+  recordWorkbenchPerformanceEventIntervalV3,
   structuralReturnOrientationFromPayloadV3,
-  useWorkbenchScenarioExactOrbitSamplesV3,
-  useWorkbenchScenarioOrbitHistoryV3,
-  useWorkbenchScenarioPresentationSamplesV3,
+  useWorkbenchSampledGraphPresentationSamplesV3,
   updateWorkbenchScenarioBaseColorV3,
+  workbenchPresentationOutputSelectionV3,
+  type WorkbenchScenarioOrbitHistoryV3,
+  type WorkbenchScenarioPresentationSamplesV3,
+  workbenchPerformanceDiagnosticsEnabledV3,
+  workbenchPerformanceNowV3,
 } from "@/components/workbench/v3";
 import { WorkbenchParallelAuthoringCoordinatorV3 } from "@/components/workbench/v3/WorkbenchParallelAuthoringCoordinatorV3";
 import {
@@ -212,6 +217,39 @@ type WorkbenchRuntimeRestartFeedbackV3 = Readonly<{
 }>;
 
 const WORKBENCH_ROOT_FRAME_INTERVAL_SEC_V3 = 0.1;
+const EMPTY_WORKBENCH_SCENARIO_PRESENTATION_SAMPLES_V3 = Object.freeze(
+  Object.create(null),
+) as WorkbenchScenarioPresentationSamplesV3;
+const EMPTY_WORKBENCH_SCENARIO_ORBIT_HISTORY_V3 = Object.freeze(
+  Object.create(null),
+) as WorkbenchScenarioOrbitHistoryV3;
+
+const recordWorkbenchReactCommitV3: React.ProfilerOnRenderCallback = (
+  _id,
+  _phase,
+  actualDuration,
+) => {
+  recordWorkbenchPerformanceDurationV3(
+    "react.workbench-area-commit",
+    actualDuration,
+  );
+  recordWorkbenchPerformanceEventIntervalV3(
+    "react.workbench-area-commit-interval",
+  );
+};
+
+function WorkbenchPerformanceProfilerV3({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return workbenchPerformanceDiagnosticsEnabledV3() ? (
+    <React.Profiler
+      id="workbench-area-v3"
+      onRender={recordWorkbenchReactCommitV3}
+    >
+      {children}
+    </React.Profiler>
+  ) : children;
+}
 const EMPTY_WORKBENCH_GRAPH_HISTORY_V3 = Object.freeze([] as never[]);
 
 export function resolveWorkbenchInitialSaveStateV3(
@@ -737,7 +775,16 @@ const WorkbenchV3Session = ({
         resolveAnalysisExecutionPlan: composition.analysisExecutionPlan,
         onFrames: (frames) => {
           if (cancelled) return;
-          appendFramesV3(frames, presentationSampleStore);
+          appendFramesV3(
+            frames,
+            presentationSampleStore,
+            surfaceRef.current === null
+              ? undefined
+              : workbenchPresentationOutputSelectionV3(
+                  composition.contract,
+                  surfaceRef.current,
+                ),
+          );
           const activeId = activeScenarioIdRef.current;
           const frame =
             activeId === null
@@ -2512,7 +2559,8 @@ const WorkbenchV3Session = ({
           </button>
         </section>
       ) : (
-        <WorkbenchAreaLayoutV3
+        <WorkbenchPerformanceProfilerV3>
+          <WorkbenchAreaLayoutV3
           className="min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(420px,55vh)_260px_minmax(560px,70vh)] overflow-y-auto lg:overflow-hidden"
           inspectorResizeLabel={t("workbench.live.resizeInspectorArea")}
           outputResizeLabel={t("workbench.live.resizeOutputArea")}
@@ -2780,7 +2828,8 @@ const WorkbenchV3Session = ({
               }}
             />
           </div>
-        </WorkbenchAreaLayoutV3>
+          </WorkbenchAreaLayoutV3>
+        </WorkbenchPerformanceProfilerV3>
       )}
 
       {contract !== null && surface !== null && paneSettings !== null && (
@@ -3638,14 +3687,26 @@ function SampledGraphPaneBodyV3({
   visibleScenarioIds: readonly string[];
 }>) {
   const { appTheme } = useAppTheme();
-  const samplesByScenarioId =
-    useWorkbenchScenarioPresentationSamplesV3(sampleStore);
+  const graphPresentation = useWorkbenchSampledGraphPresentationSamplesV3(
+    sampleStore,
+    graph.renderer,
+  );
+  const samplesByScenarioId = graphPresentation.renderer === "sweep"
+    ? graphPresentation.samplesByScenarioId
+    : EMPTY_WORKBENCH_SCENARIO_PRESENTATION_SAMPLES_V3;
   const exactOrbitSamplesByScenarioId =
-    useWorkbenchScenarioExactOrbitSamplesV3(sampleStore);
+    graphPresentation.renderer === "pressure-volume"
+      ? graphPresentation.exactOrbitSamplesByScenarioId
+      : EMPTY_WORKBENCH_SCENARIO_PRESENTATION_SAMPLES_V3;
   const orbitHistoryByScenarioId =
-    useWorkbenchScenarioOrbitHistoryV3(sampleStore);
-  const displayedSeries = [...pane.series].sort(
-    (left, right) => left.order - right.order,
+    graphPresentation.renderer === "pressure-volume"
+      ? graphPresentation.orbitHistoryByScenarioId
+      : EMPTY_WORKBENCH_SCENARIO_ORBIT_HISTORY_V3;
+  const displayedSeries = React.useMemo(
+    () => Object.freeze([...pane.series].sort(
+      (left, right) => left.order - right.order,
+    )),
+    [pane.series],
   );
   const authoredScenarioCount = scenarios.length;
   const cyclePhaseOutputId = workbenchModelCyclePhaseOutputIdV3(contract);
@@ -3886,22 +3947,40 @@ function pressureVolumeRelationSideV3(
   return null;
 }
 
+const RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3 = new WeakMap<
+  StudioSimulationAnalysisV2,
+  Map<"left" | "right", MainWireIntegratedModelRapidPressureVolumeRelationV3 | null>
+>();
+
 function rapidPressureVolumeRelationFromAnalysisV3(
   analysis: StudioSimulationAnalysisV2 | undefined,
   side: "left" | "right",
 ): MainWireIntegratedModelRapidPressureVolumeRelationV3 | undefined {
+  if (analysis === undefined) return undefined;
+  const cached = RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3
+    .get(analysis)
+    ?.get(side);
+  if (cached !== undefined) return cached ?? undefined;
   const orientation = structuralReturnOrientationFromPayloadV3(
-    analysis?.payload,
+    analysis.payload,
     side,
   );
-  if (orientation === null) return undefined;
+  let relation: MainWireIntegratedModelRapidPressureVolumeRelationV3 | null =
+    null;
   try {
-    return buildMainWireIntegratedModelRapidPressureVolumeRelationV3(
-      orientation.starlingLocus,
-    );
+    if (orientation !== null) {
+      relation = buildMainWireIntegratedModelRapidPressureVolumeRelationV3(
+        orientation.starlingLocus,
+      );
+    }
   } catch {
-    return undefined;
+    relation = null;
   }
+  const analysisCache = RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.get(analysis)
+    ?? new Map();
+  analysisCache.set(side, relation);
+  RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.set(analysis, analysisCache);
+  return relation ?? undefined;
 }
 
 function workbenchModelCyclePhaseOutputIdV3(
@@ -4792,33 +4871,44 @@ export function cloneWorkbenchControlValuesV3(
 function appendFramesV3(
   frames: readonly StudioSimulationFrameV2[],
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3,
+  selectedOutputIds?: ReadonlySet<string>,
 ): void {
+  const diagnosticsEnabled = workbenchPerformanceDiagnosticsEnabledV3();
+  const startedAtMs = diagnosticsEnabled ? workbenchPerformanceNowV3() : 0;
   const framesByScenarioId = new Map<string, StudioSimulationFrameV2[]>();
   for (const frame of frames) {
     const grouped = framesByScenarioId.get(frame.scenarioId) ?? [];
     grouped.push(frame);
     framesByScenarioId.set(frame.scenarioId, grouped);
   }
-  sampleStore.appendMany(
-    [...framesByScenarioId].map(([scenarioId, scenarioFrames]) => ({
+  const entries = [...framesByScenarioId].map(
+    ([scenarioId, scenarioFrames]) => ({
       scenarioId,
       samples: scenarioFrames.map((frame) =>
         Object.freeze({
           inputEpoch: frame.inputEpoch,
           acceptedRevision: frame.acceptedRevision,
           acceptedTimeSec: frame.acceptedTimeSec,
-          values: Object.freeze(
-            Object.fromEntries(
-              Object.entries(frame.outputs).map(([outputId, output]) => [
-                outputId,
-                scalarAvailableOutputV3(output),
-              ]),
-            ),
-          ),
+          values: Object.freeze(Object.fromEntries(
+            (selectedOutputIds === undefined
+              ? Object.keys(frame.outputs)
+              : [...selectedOutputIds]
+            ).map((outputId) => [
+              outputId,
+              scalarAvailableOutputV3(frame.outputs[outputId]),
+            ]),
+          )),
         }),
       ),
-    })),
+    }),
   );
+  if (diagnosticsEnabled) {
+    recordWorkbenchPerformanceDurationV3(
+      "presentation.frame-materialization",
+      workbenchPerformanceNowV3() - startedAtMs,
+    );
+  }
+  sampleStore.appendMany(entries);
 }
 
 function scalarAvailableOutputV3(

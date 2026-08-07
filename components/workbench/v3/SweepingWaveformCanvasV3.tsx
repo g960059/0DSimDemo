@@ -11,6 +11,7 @@ import {
 } from "./WorkbenchScalarSampleV3";
 import {
   scaleLinearV3,
+  readWorkbenchCanvasThemeVariablesV3,
   useResponsiveCanvasFrameV3,
 } from "./WorkbenchCanvasRuntimeV3";
 import {
@@ -321,7 +322,7 @@ export function SweepingWaveformCanvasV3(
   const [hiddenLegendSelections, setHiddenLegendSelections] =
     React.useState<readonly WorkbenchChartLegendSelectionV3[]>([]);
   const legendSelection = hoveredLegendSelection;
-  const traces = React.useMemo<readonly WorkbenchWaveformTraceV3[]>(
+  const resolvedTraces = React.useMemo<readonly WorkbenchWaveformTraceV3[]>(
     () => props.traces ?? props.series.map((item) => Object.freeze({
       scenarioId: "current-scenario",
       scenarioLabel: "Current",
@@ -333,6 +334,7 @@ export function SweepingWaveformCanvasV3(
     })),
     [props.samples, props.series, props.traces],
   );
+  const traces = useStableWorkbenchWaveformTracesV3(resolvedTraces);
   const activeScenarioId = props.traces === undefined
     ? "current-scenario"
     : props.activeScenarioId;
@@ -489,7 +491,12 @@ export function SweepingWaveformCanvasV3(
     windowSec,
   ]);
 
-  useResponsiveCanvasFrameV3(containerRef, canvasRef, draw);
+  useResponsiveCanvasFrameV3(
+    containerRef,
+    canvasRef,
+    draw,
+    "sweeping-waveform",
+  );
 
   return (
     <div
@@ -522,6 +529,38 @@ export function SweepingWaveformCanvasV3(
       </div>
     </div>
   );
+}
+
+/** Retains descriptor identity across unrelated Workbench root renders. */
+function useStableWorkbenchWaveformTracesV3(
+  next: readonly WorkbenchWaveformTraceV3[],
+): readonly WorkbenchWaveformTraceV3[] {
+  const currentRef = React.useRef<readonly WorkbenchWaveformTraceV3[]>(next);
+  const current = currentRef.current;
+  if (
+    current.length !== next.length
+    || current.some((trace, index) =>
+      !sameWorkbenchWaveformTraceV3(trace, next[index]!))
+  ) {
+    currentRef.current = next;
+  }
+  return currentRef.current;
+}
+
+function sameWorkbenchWaveformTraceV3(
+  left: WorkbenchWaveformTraceV3,
+  right: WorkbenchWaveformTraceV3,
+): boolean {
+  return left.scenarioId === right.scenarioId
+    && left.scenarioLabel === right.scenarioLabel
+    && left.scenarioStatus === right.scenarioStatus
+    && left.scenarioColor === right.scenarioColor
+    && left.scenarioStyleIndex === right.scenarioStyleIndex
+    && left.samples === right.samples
+    && left.outputId === right.outputId
+    && left.signalLabel === right.signalLabel
+    && left.signalColor === right.signalColor
+    && left.cyclePhaseOutputId === right.cyclePhaseOutputId;
 }
 
 function waveformLegendDescriptorV3(trace: WorkbenchWaveformTraceV3) {
@@ -701,24 +740,15 @@ function waveformAxisTitleV3(
 }
 
 function readCanvasThemeV3(element: HTMLElement | null): CanvasThemeV3 {
-  if (element === null || typeof getComputedStyle !== "function") {
-    return fallbackCanvasThemeV3();
-  }
-  const styles = getComputedStyle(element);
-  const read = (name: string, fallback: string) =>
-    styles.getPropertyValue(name).trim() || fallback;
+  const [grid, axis, text] = readWorkbenchCanvasThemeVariablesV3(element, [
+    ["--wb-border", "rgba(148, 163, 184, 0.18)"],
+    ["--wb-border-strong", "rgba(148, 163, 184, 0.48)"],
+    ["--wb-text-muted", "#94a3b8"],
+  ]);
   return Object.freeze({
-    grid: read("--wb-border", "rgba(148, 163, 184, 0.18)"),
-    axis: read("--wb-border-strong", "rgba(148, 163, 184, 0.48)"),
-    text: read("--wb-text-muted", "#94a3b8"),
-  });
-}
-
-function fallbackCanvasThemeV3(): CanvasThemeV3 {
-  return Object.freeze({
-    grid: "rgba(148, 163, 184, 0.18)",
-    axis: "rgba(148, 163, 184, 0.48)",
-    text: "#94a3b8",
+    grid: grid!,
+    axis: axis!,
+    text: text!,
   });
 }
 

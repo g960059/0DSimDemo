@@ -18,6 +18,7 @@ import {
 } from "./SweepingWaveformCanvasV3";
 import {
   scaleLinearV3,
+  readWorkbenchCanvasThemeVariablesV3,
   useResponsiveCanvasFrameV3,
 } from "./WorkbenchCanvasRuntimeV3";
 import {
@@ -433,7 +434,7 @@ export function PressureVolumeLoopCanvasV3(
   const [hiddenLegendSelections, setHiddenLegendSelections] =
     React.useState<readonly WorkbenchChartLegendSelectionV3[]>([]);
   const legendSelection = hoveredLegendSelection;
-  const traces = React.useMemo<readonly WorkbenchPressureVolumeTraceV3[]>(
+  const resolvedTraces = React.useMemo<readonly WorkbenchPressureVolumeTraceV3[]>(
     () => {
       if (props.traces !== undefined) return props.traces;
       const chamberLabel = props.chamberLabel ?? "LV";
@@ -461,6 +462,7 @@ export function PressureVolumeLoopCanvasV3(
       props.volumeOutputId,
     ],
   );
+  const traces = useStableWorkbenchPressureVolumeTracesV3(resolvedTraces);
   const legendModel = React.useMemo(
     () => buildWorkbenchTraceLegendModelV3(traces.map((trace) => ({
       traceKey: workbenchTraceLegendKeyV3(trace.scenarioId, trace.chamberId),
@@ -742,6 +744,7 @@ export function PressureVolumeLoopCanvasV3(
     containerRef,
     canvasRef,
     draw,
+    "pressure-volume-loop",
   );
 
   const anyRapidRelation = renderedTraces.some(({ rapidRelation }) =>
@@ -827,6 +830,67 @@ export function PressureVolumeLoopCanvasV3(
       </div>
     </div>
   );
+}
+
+/**
+ * Upstream pane composition is intentionally declarative and may allocate
+ * wrappers during unrelated status renders. Preserve the last semantically
+ * identical descriptor graph so PV projection memoization remains effective.
+ */
+function useStableWorkbenchPressureVolumeTracesV3(
+  next: readonly WorkbenchPressureVolumeTraceV3[],
+): readonly WorkbenchPressureVolumeTraceV3[] {
+  const currentRef = React.useRef<readonly WorkbenchPressureVolumeTraceV3[]>(
+    next,
+  );
+  const current = currentRef.current;
+  if (
+    current.length !== next.length
+    || current.some((trace, index) =>
+      !sameWorkbenchPressureVolumeTraceV3(trace, next[index]!))
+  ) {
+    currentRef.current = next;
+  }
+  return currentRef.current;
+}
+
+function sameWorkbenchPressureVolumeTraceV3(
+  left: WorkbenchPressureVolumeTraceV3,
+  right: WorkbenchPressureVolumeTraceV3,
+): boolean {
+  return left.scenarioId === right.scenarioId
+    && left.scenarioLabel === right.scenarioLabel
+    && left.scenarioStatus === right.scenarioStatus
+    && left.scenarioColor === right.scenarioColor
+    && left.scenarioStyleIndex === right.scenarioStyleIndex
+    && left.samples === right.samples
+    && shallowIdentityArrayEqualV3(
+      left.historySampleSets ?? [],
+      right.historySampleSets ?? [],
+    )
+    && left.volumeOutputId === right.volumeOutputId
+    && left.pressureOutputId === right.pressureOutputId
+    && left.pressureBasis === right.pressureBasis
+    && left.cyclePhaseOutputId === right.cyclePhaseOutputId
+    && left.chamberId === right.chamberId
+    && left.chamberLabel === right.chamberLabel
+    && left.chamberColor === right.chamberColor
+    && left.rapidPressureVolumeRelation
+      === right.rapidPressureVolumeRelation
+    && shallowIdentityArrayEqualV3(
+      left.rapidPressureVolumeRelationHistory ?? [],
+      right.rapidPressureVolumeRelationHistory ?? [],
+    )
+    && left.rapidPressureVolumeRelationPending
+      === right.rapidPressureVolumeRelationPending;
+}
+
+function shallowIdentityArrayEqualV3<T>(
+  left: readonly T[],
+  right: readonly T[],
+): boolean {
+  return left.length === right.length
+    && left.every((value, index) => value === right[index]);
 }
 
 function pvLegendDescriptorV3(trace: WorkbenchPressureVolumeTraceV3) {
@@ -1196,24 +1260,15 @@ function drawPvLeadingCapV3(
 }
 
 function readPvCanvasThemeV3(element: HTMLElement | null): PvCanvasThemeV3 {
-  if (element === null || typeof getComputedStyle !== "function") {
-    return fallbackPvCanvasThemeV3();
-  }
-  const styles = getComputedStyle(element);
-  const read = (name: string, fallback: string) =>
-    styles.getPropertyValue(name).trim() || fallback;
+  const [grid, axis, text] = readWorkbenchCanvasThemeVariablesV3(element, [
+    ["--wb-border", "rgba(148, 163, 184, 0.18)"],
+    ["--wb-border-strong", "rgba(148, 163, 184, 0.48)"],
+    ["--wb-text-muted", "#94a3b8"],
+  ]);
   return Object.freeze({
-    grid: read("--wb-border", "rgba(148, 163, 184, 0.18)"),
-    axis: read("--wb-border-strong", "rgba(148, 163, 184, 0.48)"),
-    text: read("--wb-text-muted", "#94a3b8"),
-  });
-}
-
-function fallbackPvCanvasThemeV3(): PvCanvasThemeV3 {
-  return Object.freeze({
-    grid: "rgba(148, 163, 184, 0.18)",
-    axis: "rgba(148, 163, 184, 0.48)",
-    text: "#94a3b8",
+    grid: grid!,
+    axis: axis!,
+    text: text!,
   });
 }
 
