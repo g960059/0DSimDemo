@@ -1634,6 +1634,17 @@ const WorkbenchV3Session = ({
           updateSurface((current) =>
             reconcileWorkbenchSurfaceScenariosV3(current, next.scenarios),
           );
+          // A duplicate has the same exact fixture + checkpoint and therefore
+          // the same model-owned structural result at creation time. Reuse the
+          // immutable analysis payload under the duplicate lane identity. A
+          // later parameter edit archives this result as visible history while
+          // the changed target is recomputed, instead of forcing low-core
+          // devices to serialize an identical analysis before first paint.
+          replaceAnalysisByKeyV3(cloneWorkbenchScenarioAnalysesV3(
+            analysisByKeyRef.current,
+            intent.sourceScenarioId,
+            next.frame,
+          ));
           if (sourceValues !== undefined) {
             controlValuesByScenarioRef.current = {
               ...controlValuesByScenarioRef.current,
@@ -1651,6 +1662,7 @@ const WorkbenchV3Session = ({
     [
       markExperimentDirtyV3,
       presentationSampleStore,
+      replaceAnalysisByKeyV3,
       runScenarioOperationV3,
       updateSurface,
     ],
@@ -4236,6 +4248,47 @@ export function workbenchAnalysisHistoryKeyV3(
   analysisId: string,
 ): string {
   return JSON.stringify([scenarioId, analysisId]);
+}
+
+/**
+ * Rebinds immutable analysis payloads when an exact Scenario is duplicated.
+ * The result remains runtime-only presentation/analysis state; it never enters
+ * a Snapshot qualification decision or a durable Experiment capture.
+ */
+export function cloneWorkbenchScenarioAnalysesV3(
+  current: Readonly<Record<string, StudioSimulationAnalysisV2>>,
+  sourceScenarioId: string,
+  targetFrame: StudioSimulationFrameV2,
+): Readonly<Record<string, StudioSimulationAnalysisV2>> {
+  const sourceAnalyses = Object.values(current).filter(({ scenarioId }) =>
+    scenarioId === sourceScenarioId);
+  if (sourceAnalyses.length === 0) return current;
+  const cloned = sourceAnalyses.map((analysis) => {
+    const targetAnalysis = Object.freeze({
+      ...analysis,
+      modelId: targetFrame.modelId,
+      runtimeSessionId: targetFrame.runtimeSessionId,
+      scenarioId: targetFrame.scenarioId,
+      inputEpoch: targetFrame.inputEpoch,
+      // Preserve the original analysis source clock: the relation was already
+      // accepted for this unchanged parameter target, but was not recomputed at
+      // the duplicate's current accepted revision. The presentation contract
+      // treats validated payloads as immutable, so sharing one does not share
+      // mutable numerical Scenario state.
+      payload: analysis.payload,
+    }) satisfies StudioSimulationAnalysisV2;
+    return Object.freeze([
+      workbenchAnalysisHistoryKeyV3(
+        targetFrame.scenarioId,
+        analysis.analysisId,
+      ),
+      targetAnalysis,
+    ] as const);
+  });
+  return Object.freeze({
+    ...current,
+    ...Object.fromEntries(cloned),
+  });
 }
 
 export function workbenchAnalysisMatchesFrameEpochV3(

@@ -228,10 +228,10 @@ ten-minute retained-memory soak.
 
 The 2026-08-07 production-preview regression run on the M5 Max development
 device passed all three enforced profiles. Post-control/background-contention
-root model-time ratios were 0.995× for four reference-desktop Scenarios, 1.003×
-for two constrained-desktop proxy Scenarios, and 0.983× for two mobile-layout
+root model-time ratios were 0.987× for four reference-desktop Scenarios, 0.984×
+for two constrained-desktop proxy Scenarios, and 0.987× for two mobile-layout
 proxy Scenarios. The corresponding control-to-visible-result measurements were
-127 ms, 203 ms, and 172 ms. These numbers establish repeatable headroom on the
+131 ms, 204 ms, and 180 ms. These numbers establish repeatable headroom on the
 development host; the throttled results remain proxies, not physical-device
 qualification.
 
@@ -288,3 +288,11 @@ preempt speculative prewarm at the cap. Promotion protects a prewarm that has
 become the exact candidate needed by Snapshot or Save, so useful work is reused
 rather than restarted. Pool capacity, queue depth, active Workers, cancellation,
 preemption, and burst leases are included in diagnostic reports.
+
+An exact Scenario duplicate initially reuses its source Scenario's immutable
+structural-analysis payload under the duplicate runtime identity. The fixture
+and checkpoint are identical at that boundary, so immediately recomputing the
+same relation would only consume a constrained device's sole analysis lane.
+Once the duplicate target changes, the inherited relation becomes visual
+history and a fresh model-owned analysis progressively replaces it. This reuse
+is runtime presentation state only and never qualifies or persists a Snapshot.

@@ -6,6 +6,7 @@ import "@/i18n";
 
 import {
   archiveWorkbenchAnalysesV3,
+  cloneWorkbenchScenarioAnalysesV3,
   cloneWorkbenchControlValuesV3,
   createWorkbenchBriefingSnapshotV3,
   reconcileWorkbenchBriefingV3,
@@ -467,6 +468,29 @@ describe("V3 Dockview Workbench", () => {
         inputEpoch: 5,
       }),
     ).toBe(false);
+
+    const duplicateFrame = {
+      ...frame,
+      runtimeSessionId: "runtime/duplicate",
+      scenarioId: "scenario/duplicate",
+      acceptedRevision: 201,
+      acceptedTimeSec: 0.402,
+    } as StudioSimulationFrameV2;
+    const cloned = cloneWorkbenchScenarioAnalysesV3(
+      { [keyA]: current },
+      "scenario/a",
+      duplicateFrame,
+    );
+    const duplicate = cloned[workbenchAnalysisHistoryKeyV3(
+      "scenario/duplicate",
+      "analysis/systemic",
+    )]!;
+    expect(workbenchAnalysisMatchesFrameEpochV3(
+      duplicate,
+      duplicateFrame,
+    )).toBe(true);
+    expect(duplicate.payload).toBe(current.payload);
+    expect(cloned[keyA]).toBe(current);
   });
 
   it("selects every analysis-backed pane that retains visual history", async () => {
