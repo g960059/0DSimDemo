@@ -442,8 +442,10 @@ export function resolveWorkbenchBackgroundWorkerBudgetV3(
     ? Math.max(1, Math.floor(hardwareConcurrency))
     : 8;
   // Four or more logical cores can run the two directional analysis branches
-  // together when the live Scenario count leaves headroom. Smaller devices
-  // keep one background numerical lane so presentation remains authoritative.
+  // together when the live Scenario count leaves headroom. High-core devices
+  // can also serve another Scenario's analysis or an explicit capture without
+  // serializing everything behind those two branches. The live-lane-aware
+  // effective cap below still reserves a core for UI/browser composition.
   const maxSize = logicalCores < 4
     ? 1
     : Math.min(4, Math.max(2, Math.floor(logicalCores / 4)));

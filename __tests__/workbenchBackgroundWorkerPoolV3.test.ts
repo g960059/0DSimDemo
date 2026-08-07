@@ -137,6 +137,14 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
       warmSize: 2,
       maxSize: 2,
     });
+    expect(resolveWorkbenchBackgroundWorkerBudgetV3(12)).toEqual({
+      warmSize: 2,
+      maxSize: 3,
+    });
+    expect(resolveWorkbenchBackgroundWorkerBudgetV3(16)).toEqual({
+      warmSize: 2,
+      maxSize: 4,
+    });
     expect(resolveWorkbenchBackgroundWorkerBudgetV3(64)).toEqual({
       warmSize: 2,
       maxSize: 4,
@@ -163,6 +171,35 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
     handle.promote("analysis");
     await expect(handle.promise).resolves.toBe("done");
     expect(events).toEqual(["started"]);
+    pool.dispose();
+  });
+
+  it("uses bounded surplus capacity on a high-core device", async () => {
+    const events: number[] = [];
+    let releaseActive!: () => void;
+    const activeGate = new Promise<void>((resolve) => {
+      releaseActive = resolve;
+    });
+    const pool = new WorkbenchBackgroundWorkerPoolV3(
+      { warmSize: 0, maxSize: 4 },
+      () => ({ terminate: vi.fn() }) as unknown as
+        StudioSimulationWorkerClientV2,
+      16,
+    );
+    pool.setLiveScenarioCount(4);
+
+    const handles = Array.from({ length: 5 }, (_, index) =>
+      pool.schedule("analysis", async () => {
+        events.push(index);
+        if (index < 4) await activeGate;
+        return index;
+      }));
+    await Promise.resolve();
+    expect(events).toEqual([0, 1, 2, 3]);
+
+    releaseActive();
+    await expect(Promise.all(handles.map(({ promise }) => promise)))
+      .resolves.toEqual([0, 1, 2, 3, 4]);
     pool.dispose();
   });
 

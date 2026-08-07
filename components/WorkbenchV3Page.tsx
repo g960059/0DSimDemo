@@ -217,6 +217,7 @@ type WorkbenchRuntimeRestartFeedbackV3 = Readonly<{
 }>;
 
 const WORKBENCH_ROOT_FRAME_INTERVAL_SEC_V3 = 0.1;
+const WORKBENCH_ANALYSIS_PROGRESS_COMMIT_INTERVAL_MS_V3 = 400;
 const EMPTY_WORKBENCH_SCENARIO_PRESENTATION_SAMPLES_V3 = Object.freeze(
   Object.create(null),
 ) as WorkbenchScenarioPresentationSamplesV3;
@@ -441,6 +442,10 @@ const WorkbenchV3Session = ({
   const analysisByKeyRef = React.useRef<
     Readonly<Record<string, StudioSimulationAnalysisV2>>
   >({});
+  const queuedAnalysisProgressByKeyRef = React.useRef(
+    new Map<string, StudioSimulationAnalysisV2>(),
+  );
+  const analysisProgressCommitTimerRef = React.useRef<number | null>(null);
   const contentStoreRef = React.useRef<StudioBrowserContentStoreV3 | null>(
     null,
   );
@@ -490,32 +495,80 @@ const WorkbenchV3Session = ({
     [],
   );
 
-  const commitAnalysisV3 = React.useCallback(
-    (analysis: StudioSimulationAnalysisV2) => {
+  const commitAnalysesV3 = React.useCallback(
+    (analyses: readonly StudioSimulationAnalysisV2[]) => {
       const runtime = runtimeRef.current;
-      let frame: StudioSimulationFrameV2 | null = null;
-      if (runtime !== null) {
-        try {
-          frame = runtime.latestFrame(analysis.scenarioId);
-        } catch {
-          return;
+      const accepted: Array<readonly [string, StudioSimulationAnalysisV2]> = [];
+      for (const analysis of analyses) {
+        let frame: StudioSimulationFrameV2 | null = null;
+        if (runtime !== null) {
+          try {
+            frame = runtime.latestFrame(analysis.scenarioId);
+          } catch {
+            continue;
+          }
+        }
+        if (workbenchAnalysisMatchesFrameEpochV3(analysis, frame)) {
+          accepted.push(Object.freeze([
+            workbenchAnalysisHistoryKeyV3(
+              analysis.scenarioId,
+              analysis.analysisId,
+            ),
+            analysis,
+          ]));
         }
       }
-      if (workbenchAnalysisMatchesFrameEpochV3(analysis, frame)) {
-        const key = workbenchAnalysisHistoryKeyV3(
-          analysis.scenarioId,
-          analysis.analysisId,
-        );
-        replaceAnalysisByKeyV3(
-          Object.freeze({
-            ...analysisByKeyRef.current,
-            [key]: analysis,
-          }),
-        );
-      }
+      if (accepted.length === 0) return;
+      replaceAnalysisByKeyV3(Object.freeze({
+        ...analysisByKeyRef.current,
+        ...Object.fromEntries(accepted),
+      }));
     },
     [replaceAnalysisByKeyV3],
   );
+
+  const commitAnalysisV3 = React.useCallback(
+    (analysis: StudioSimulationAnalysisV2) => {
+      queuedAnalysisProgressByKeyRef.current.delete(
+        workbenchAnalysisHistoryKeyV3(
+          analysis.scenarioId,
+          analysis.analysisId,
+        ),
+      );
+      commitAnalysesV3([analysis]);
+    },
+    [commitAnalysesV3],
+  );
+
+  const queueAnalysisProgressV3 = React.useCallback(
+    (analysis: StudioSimulationAnalysisV2) => {
+      queuedAnalysisProgressByKeyRef.current.set(
+        workbenchAnalysisHistoryKeyV3(
+          analysis.scenarioId,
+          analysis.analysisId,
+        ),
+        analysis,
+      );
+      if (analysisProgressCommitTimerRef.current !== null) return;
+      analysisProgressCommitTimerRef.current = window.setTimeout(() => {
+        analysisProgressCommitTimerRef.current = null;
+        const pending = Object.freeze([
+          ...queuedAnalysisProgressByKeyRef.current.values(),
+        ]);
+        queuedAnalysisProgressByKeyRef.current.clear();
+        commitAnalysesV3(pending);
+      }, WORKBENCH_ANALYSIS_PROGRESS_COMMIT_INTERVAL_MS_V3);
+    },
+    [commitAnalysesV3],
+  );
+
+  React.useEffect(() => () => {
+    if (analysisProgressCommitTimerRef.current !== null) {
+      window.clearTimeout(analysisProgressCommitTimerRef.current);
+      analysisProgressCommitTimerRef.current = null;
+    }
+    queuedAnalysisProgressByKeyRef.current.clear();
+  }, []);
 
   const updateWorkbenchBriefingV3 = React.useCallback(
     (next: ExperimentPlacementBriefingV2) => {
@@ -1370,7 +1423,7 @@ const WorkbenchV3Session = ({
                   expectedInputEpoch: acceptedFrame.inputEpoch,
                   expectedAcceptedRevision: acceptedFrame.acceptedRevision,
                   expectedAcceptedTimeSec: acceptedFrame.acceptedTimeSec,
-                  onProgress: commitAnalysisV3,
+                  onProgress: queueAnalysisProgressV3,
                   onLiveLaneReleased: markLiveLaneReleased,
                 });
                 commitAnalysisV3(analysis);
@@ -1429,7 +1482,7 @@ const WorkbenchV3Session = ({
       })();
       return true;
     },
-    [commitAnalysisV3],
+    [commitAnalysisV3, queueAnalysisProgressV3],
   );
 
   const adoptScenarioStateV3 = React.useCallback(

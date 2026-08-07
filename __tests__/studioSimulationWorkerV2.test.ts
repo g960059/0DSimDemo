@@ -505,6 +505,40 @@ describe("Studio simulation worker V2 protocol", () => {
     })).toThrow(/finite/);
   });
 
+  it("trusts the Worker-validated body only for progressive analysis", () => {
+    const nestedPayloadGetter = vi.fn(() => [{ pressure: 2, flow: 4 }]);
+    const payload: Record<string, unknown> = {};
+    Object.defineProperty(payload, "curve", {
+      enumerable: true,
+      get: nestedPayloadGetter,
+    });
+    const trustedPayload = payload as unknown as
+      StudioSimulationAnalysisV2["payload"];
+    const progress = analysisProgressResponseV2(
+      9,
+      analysisV2({ payload: trustedPayload }),
+    );
+    const response = validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(
+      progress,
+    );
+
+    expect(response).toMatchObject({
+      requestId: 9,
+      status: "ok",
+      kind: "analysis-progress",
+      analysis: { analysisId: "analysis/guyton-starling-v1" },
+    });
+    expect(nestedPayloadGetter).not.toHaveBeenCalled();
+    if (response.status === "ok" && response.kind === "analysis-progress") {
+      expect(response.analysis.payload).toBe(payload);
+    }
+
+    expect(() => validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(
+      analysisResultResponseV2(10, analysisV2({ payload: trustedPayload })),
+    )).toThrow(/enumerable data property/);
+    expect(nestedPayloadGetter).not.toHaveBeenCalled();
+  });
+
   it("rejects malformed response fields without invoking accessors", () => {
     const getter = vi.fn(() => frameV2());
     const accessor: Record<string, unknown> = {

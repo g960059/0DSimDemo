@@ -53,8 +53,17 @@ the output map is a plain data object. It does not recursively clone, freeze,
 or revalidate each already-validated output record on every presentation
 batch.
 
-This exception applies only to exact live advances emitted by the bundled
-runtime. Initialize, control, analysis, capture, Snapshot, authoring, storage,
+The same narrow exception applies to progressive analysis updates emitted by
+the bundled runtime. Their envelope, protocol correlation, model/runtime/
+Scenario identity, input epoch, and source clock are checked on the main
+thread, while the already Worker-validated growing payload is reused. The final
+analysis result still goes through the full deep validator. React receives at
+most one coalesced progressive analysis commit per analysis key every 400 ms;
+the final result commits immediately. This keeps an incremental curve visible
+without making every newly appended point a main-thread deep-validation and
+render boundary.
+
+Initialize, control, final analysis, capture, Snapshot, authoring, storage,
 registry, and other lifecycle responses continue through the full deep
 validator. The client also retains its expected identity and monotonic-clock
 checks before accepting an advanced batch. Public protocol validation remains
@@ -219,10 +228,10 @@ ten-minute retained-memory soak.
 
 The 2026-08-07 production-preview regression run on the M5 Max development
 device passed all three enforced profiles. Post-control/background-contention
-root model-time ratios were 0.979× for four reference-desktop Scenarios, 0.994×
-for two constrained-desktop proxy Scenarios, and 0.993× for two mobile-layout
+root model-time ratios were 0.995× for four reference-desktop Scenarios, 1.003×
+for two constrained-desktop proxy Scenarios, and 0.983× for two mobile-layout
 proxy Scenarios. The corresponding control-to-visible-result measurements were
-130 ms, 193 ms, and 167 ms. These numbers establish repeatable headroom on the
+127 ms, 203 ms, and 172 ms. These numbers establish repeatable headroom on the
 development host; the throttled results remain proxies, not physical-device
 qualification.
 
@@ -258,6 +267,14 @@ for the main thread and browser composition. Speculative capacity is therefore:
 ```text
 min(configured pool cap, max(0, C - L - 1))
 ```
+
+The configured cap scales from one Worker below four logical cores, to two on
+ordinary machines, three from twelve cores, and four from sixteen cores. Thus
+high-performance devices can run both directional analysis branches while
+serving another Scenario analysis or an explicit capture. This is not an
+unconditional hardware-wide fan-out: the live-Scenario-aware formula above
+continues to protect foreground numerical lanes and browser composition, and
+the cap never exceeds four.
 
 This can become zero on a constrained device: speculative settlement waits
 instead of competing with presentation. An explicit user operation always has

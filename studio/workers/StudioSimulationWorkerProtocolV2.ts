@@ -1440,13 +1440,41 @@ export function validateStudioSimulationWorkerResponseV2(
  * The Worker runtime fully validates each adapter frame before constructing
  * this response. The main thread therefore needs transport shape, identity,
  * clock and request correlation checks, not another deep ownership pass over
- * all output records. Every non-advance response still uses the full decoder
- * because it crosses an authoring, analysis, capture or lifecycle boundary.
+ * all output records. Progressive analysis messages receive the same treatment:
+ * the Worker has already validated the growing payload and the final analysis
+ * result still crosses the full decoder. Authoring, capture, lifecycle and
+ * final-analysis responses continue to use the full decoder.
  */
 export function validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(
   value: unknown,
 ): StudioSimulationWorkerResponseV2 {
   const envelope = dataRecordV2(value, "$.response");
+  if (
+    envelope.status === "ok"
+    && envelope.kind === "analysis-progress"
+  ) {
+    const response = exactDataRecordV2(envelope, [
+      "analysis",
+      "kind",
+      "protocol",
+      "requestId",
+      "status",
+    ], [], "$.response");
+    assertProtocolV2(response.protocol, "$.response.protocol");
+    return Object.freeze({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: responseRequestIdV2(
+        response.requestId,
+        "$.response.requestId",
+      ),
+      status: "ok",
+      kind: "analysis-progress",
+      analysis: validateTrustedRuntimeAnalysisHeaderV2(
+        response.analysis,
+        "$.response.analysis",
+      ),
+    });
+  }
   if (
     envelope.status !== "ok"
     || envelope.kind !== "advanced"
@@ -1925,6 +1953,45 @@ function validateTrustedRuntimeFrameHeaderV2(
   );
   trustedPlainDataRecordV2(frame.outputs, `${path}.outputs`);
   return frame as unknown as StudioSimulationFrameV2;
+}
+
+function validateTrustedRuntimeAnalysisHeaderV2(
+  value: unknown,
+  path: string,
+): StudioSimulationAnalysisV2 {
+  const analysis = exactDataRecordV2(value, [
+    "analysisId",
+    "inputEpoch",
+    "modelId",
+    "payload",
+    "runtimeSessionId",
+    "scenarioId",
+    "sourceAcceptedRevision",
+    "sourceAcceptedTimeSec",
+  ], [], path);
+  validateStudioSimulationPortableIdV2(analysis.modelId, `${path}.modelId`);
+  validateStudioSimulationPortableIdV2(
+    analysis.runtimeSessionId,
+    `${path}.runtimeSessionId`,
+  );
+  validateStudioSimulationPortableIdV2(
+    analysis.scenarioId,
+    `${path}.scenarioId`,
+  );
+  validateStudioSimulationPortableIdV2(
+    analysis.analysisId,
+    `${path}.analysisId`,
+  );
+  nonnegativeSafeIntegerV2(analysis.inputEpoch, `${path}.inputEpoch`);
+  nonnegativeSafeIntegerV2(
+    analysis.sourceAcceptedRevision,
+    `${path}.sourceAcceptedRevision`,
+  );
+  nonnegativeFiniteNumberV2(
+    analysis.sourceAcceptedTimeSec,
+    `${path}.sourceAcceptedTimeSec`,
+  );
+  return analysis as unknown as StudioSimulationAnalysisV2;
 }
 
 function trustedPlainDataRecordV2(
