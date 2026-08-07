@@ -21,7 +21,17 @@ await main();
 async function main(): Promise<void> {
   const options = parseArgumentsV1(process.argv.slice(2));
   const manifest = readManifestV1(options.manifestPath);
-  if (options.previousPath !== null) {
+  if (manifest.predecessorSurfaceReleaseId === null) {
+    if (options.previousPath !== null) {
+      throw new Error("A root Model Surface must not declare --previous");
+    }
+  } else {
+    if (options.previousPath === null) {
+      throw new Error(
+        `Model Surface ${manifest.surfaceReleaseId} requires --previous for `
+          + manifest.predecessorSurfaceReleaseId,
+      );
+    }
     assertAdditiveModelSurfaceUpgradeV1(
       readManifestV1(options.previousPath),
       manifest,

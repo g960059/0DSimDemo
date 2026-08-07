@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(19);
+select plan(28);
 
 select lives_ok(
   $$
@@ -28,6 +28,17 @@ select is(
     where model_id = 'model/lifecycle-test-v1'),
   'dev',
   'Exact release starts as dev'
+);
+
+select throws_ok(
+  $$
+    select public.register_model_release_succession_v1(
+      'model/lifecycle-test-v1', 'model/lifecycle-test-v1', 'drop-in'
+    )
+  $$,
+  '22023',
+  'only successor lineage is available until drop-in evidence verification exists',
+  'Unverified drop-in succession cannot be registered'
 );
 
 select throws_ok(
@@ -74,15 +85,22 @@ select lives_ok(
   $$
     select public.register_model_surface_release_v1(
       'surface/lifecycle-test-v1',
+      'surface-series/lifecycle-test',
+      null,
       'model/lifecycle-test',
       'Lifecycle surface',
       '{
         "schemaId":"circleheart-studio-model-surface-release-v1",
         "surfaceReleaseId":"surface/lifecycle-test-v1",
+        "surfaceSeriesId":"surface-series/lifecycle-test",
+        "predecessorSurfaceReleaseId":null,
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Lifecycle surface",
-        "requiredCapabilities":[],
-        "controlCatalog":[],
+        "controlCatalog":[{
+          "controlId":"control/tbv",
+          "preferredPresentation":"slider",
+          "requiredCapabilities":["control/control/tbv"]
+        }],
         "derivedOutputCatalog":[],
         "graphCatalog":[],
         "knobCatalog":[],
@@ -105,15 +123,22 @@ select lives_ok(
   $$
     select public.register_model_surface_release_v1(
       'surface/lifecycle-test-v1',
+      'surface-series/lifecycle-test',
+      null,
       'model/lifecycle-test',
       'Lifecycle surface',
       '{
         "schemaId":"circleheart-studio-model-surface-release-v1",
         "surfaceReleaseId":"surface/lifecycle-test-v1",
+        "surfaceSeriesId":"surface-series/lifecycle-test",
+        "predecessorSurfaceReleaseId":null,
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Lifecycle surface",
-        "requiredCapabilities":[],
-        "controlCatalog":[],
+        "controlCatalog":[{
+          "controlId":"control/tbv",
+          "preferredPresentation":"slider",
+          "requiredCapabilities":["control/control/tbv"]
+        }],
         "derivedOutputCatalog":[],
         "graphCatalog":[],
         "knobCatalog":[],
@@ -143,6 +168,183 @@ select lives_ok(
     )
   $$,
   'Dev Surface may serve research'
+);
+
+select throws_ok(
+  $$
+    select public.register_model_surface_release_v1(
+      'surface/lifecycle-test-bad-v2',
+      'surface-series/lifecycle-test',
+      'surface/lifecycle-test-v1',
+      'model/lifecycle-test',
+      'Invalid shrinking surface',
+      '{
+        "schemaId":"circleheart-studio-model-surface-release-v1",
+        "surfaceReleaseId":"surface/lifecycle-test-bad-v2",
+        "surfaceSeriesId":"surface-series/lifecycle-test",
+        "predecessorSurfaceReleaseId":"surface/lifecycle-test-v1",
+        "modelFamilyId":"model/lifecycle-test",
+        "displayName":"Invalid shrinking surface",
+        "controlCatalog":[],
+        "derivedOutputCatalog":[],
+        "graphCatalog":[],
+        "knobCatalog":[],
+        "protocolCatalog":[]
+      }'::jsonb,
+      'lifecycle-test'
+    )
+  $$,
+  '22023',
+  'model surface upgrade cannot remove or redefine controlCatalog',
+  'Registry rejects a Surface that removes a predecessor item'
+);
+
+select throws_ok(
+  $$
+    select public.register_model_surface_release_v1(
+      'surface/lifecycle-test-redefined-v2',
+      'surface-series/lifecycle-test',
+      'surface/lifecycle-test-v1',
+      'model/lifecycle-test',
+      'Invalid redefined surface',
+      '{
+        "schemaId":"circleheart-studio-model-surface-release-v1",
+        "surfaceReleaseId":"surface/lifecycle-test-redefined-v2",
+        "surfaceSeriesId":"surface-series/lifecycle-test",
+        "predecessorSurfaceReleaseId":"surface/lifecycle-test-v1",
+        "modelFamilyId":"model/lifecycle-test",
+        "displayName":"Invalid redefined surface",
+        "controlCatalog":[{
+          "controlId":"control/tbv",
+          "preferredPresentation":"slider",
+          "requiredCapabilities":["control/control/tbv"],
+          "laterMetadata":"not byte-equivalent"
+        }],
+        "derivedOutputCatalog":[],
+        "graphCatalog":[],
+        "knobCatalog":[],
+        "protocolCatalog":[]
+      }'::jsonb,
+      'lifecycle-test'
+    )
+  $$,
+  '22023',
+  'model surface upgrade cannot remove or redefine controlCatalog',
+  'Registry requires an existing Surface item to remain exactly identical'
+);
+
+select lives_ok(
+  $$
+    select public.register_model_surface_release_v1(
+      'surface/lifecycle-test-v2',
+      'surface-series/lifecycle-test',
+      'surface/lifecycle-test-v1',
+      'model/lifecycle-test',
+      'Lifecycle surface v2',
+      '{
+        "schemaId":"circleheart-studio-model-surface-release-v1",
+        "surfaceReleaseId":"surface/lifecycle-test-v2",
+        "surfaceSeriesId":"surface-series/lifecycle-test",
+        "predecessorSurfaceReleaseId":"surface/lifecycle-test-v1",
+        "modelFamilyId":"model/lifecycle-test",
+        "displayName":"Lifecycle surface v2",
+        "controlCatalog":[{
+          "controlId":"control/tbv",
+          "preferredPresentation":"slider",
+          "requiredCapabilities":["control/control/tbv"]
+        }],
+        "derivedOutputCatalog":[],
+        "graphCatalog":[],
+        "knobCatalog":[],
+        "protocolCatalog":[{
+          "protocolId":"protocol/fluid",
+          "requiredCapabilities":["control/control/tbv"],
+          "steps":[{"atSec":0,"actions":[{
+            "controlId":"control/tbv","value":5250
+          }]}]
+        }]
+      }'::jsonb,
+      'lifecycle-test'
+    )
+  $$,
+  'Registry accepts an additive Surface successor'
+);
+
+select lives_ok(
+  $$
+    select public.register_model_surface_release_v1(
+      'surface/lifecycle-test-v3',
+      'surface-series/lifecycle-test',
+      'surface/lifecycle-test-v2',
+      'model/lifecycle-test',
+      'Lifecycle surface v3',
+      '{
+        "schemaId":"circleheart-studio-model-surface-release-v1",
+        "surfaceReleaseId":"surface/lifecycle-test-v3",
+        "surfaceSeriesId":"surface-series/lifecycle-test",
+        "predecessorSurfaceReleaseId":"surface/lifecycle-test-v2",
+        "modelFamilyId":"model/lifecycle-test",
+        "displayName":"Lifecycle surface v3",
+        "controlCatalog":[{
+          "controlId":"control/tbv",
+          "preferredPresentation":"slider",
+          "requiredCapabilities":["control/control/tbv"]
+        }],
+        "derivedOutputCatalog":[],
+        "graphCatalog":[],
+        "knobCatalog":[],
+        "protocolCatalog":[{
+          "protocolId":"protocol/fluid",
+          "requiredCapabilities":["control/control/tbv"],
+          "steps":[{"atSec":0,"actions":[{
+            "controlId":"control/tbv","value":5250
+          }]}]
+        }]
+      }'::jsonb,
+      'lifecycle-test'
+    )
+  $$,
+  'Registry accepts the next linear Surface successor'
+);
+
+select throws_ok(
+  $$
+    select public.set_model_surface_release_channel_v1(
+      'model/lifecycle-test', 'research', 'surface/lifecycle-test-v3'
+    )
+  $$,
+  '40001',
+  'model surface channel research expected predecessor surface/lifecycle-test-v2, found surface/lifecycle-test-v1',
+  'Channel compare-and-swap rejects a skipped predecessor'
+);
+
+select lives_ok(
+  $$
+    select public.set_model_surface_release_channel_v1(
+      'model/lifecycle-test', 'research', 'surface/lifecycle-test-v2'
+    )
+  $$,
+  'Channel advances to its immediate Surface successor'
+);
+
+select lives_ok(
+  $$
+    select public.set_model_surface_release_channel_v1(
+      'model/lifecycle-test', 'research', 'surface/lifecycle-test-v3'
+    )
+  $$,
+  'Channel advances linearly without a lost update'
+);
+
+select is(
+  (
+    select surface_release_id
+    from public.get_model_surface_release_channel_v1(
+      'model/lifecycle-test', 'research'
+    )
+  ),
+  'surface/lifecycle-test-v3',
+  'Research channel resolves the CAS-admitted Surface tip'
 );
 
 select lives_ok(

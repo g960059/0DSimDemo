@@ -193,9 +193,10 @@ describe("Studio Supabase boundary V1", () => {
     const manifest = {
       schemaId: STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
       surfaceReleaseId: "surface/main-wire-v1",
+      surfaceSeriesId: "surface-series/main-wire",
+      predecessorSurfaceReleaseId: null,
       modelFamilyId: model.modelFamilyId,
       displayName: "Main Wire Surface",
-      requiredCapabilities: [],
       controlCatalog: [],
       derivedOutputCatalog: [],
       graphCatalog: [],
@@ -210,11 +211,21 @@ describe("Studio Supabase boundary V1", () => {
 
     await expect(resolver.resolveChannel("research", model)).resolves.toEqual({
       manifest,
+      materialized: {
+        surfaceReleaseId: manifest.surfaceReleaseId,
+        modelFamilyId: manifest.modelFamilyId,
+        controlCatalog: [],
+        derivedOutputCatalog: [],
+        graphCatalog: [],
+        knobCatalog: [],
+        protocolCatalog: [],
+      },
       stage: "dev",
     });
     const resolvedSurface = await resolver.resolveChannel("research", model);
     expect(Object.isFrozen(resolvedSurface.manifest)).toBe(true);
     expect(Object.isFrozen(resolvedSurface.manifest.controlCatalog)).toBe(true);
+    expect(Object.isFrozen(resolvedSurface.materialized)).toBe(true);
     expect(call).toHaveBeenCalledWith(
       "get_model_surface_release_channel_v1",
       {
@@ -234,6 +245,35 @@ describe("Studio Supabase boundary V1", () => {
     });
     await expect(resolver.resolveChannel("default", model))
       .rejects.toThrow(/must match model family/);
+
+    const newerSurface = {
+      ...manifest,
+      surfaceReleaseId: "surface/main-wire-v2",
+      predecessorSurfaceReleaseId: manifest.surfaceReleaseId,
+      graphCatalog: [{
+        graphId: "graph.future-signal",
+        renderer: "sweep",
+        seriesCatalog: [{
+          kind: "scalar",
+          seriesId: "future-signal",
+          outputId: "signal/future",
+        }],
+        defaultSeriesIds: ["future-signal"],
+        requiredCapabilities: ["output/signal/future"],
+      }],
+    } as const;
+    call.mockResolvedValueOnce({
+      data: [{ manifest: newerSurface, stage: "stable" }],
+      error: null,
+    });
+    const historicalModelSurface = await resolver.resolveChannel(
+      "research",
+      model,
+    );
+    expect(historicalModelSurface.manifest.surfaceReleaseId)
+      .toBe(newerSurface.surfaceReleaseId);
+    expect(historicalModelSurface.manifest.graphCatalog).toHaveLength(1);
+    expect(historicalModelSurface.materialized.graphCatalog).toEqual([]);
   });
 
   it("creates an anonymous account only when a Save asks for authentication", async () => {

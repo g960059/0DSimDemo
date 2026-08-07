@@ -114,7 +114,15 @@ async function createRegistryClientCompositionV2(
   channel: StudioReleaseChannelV1 = "default",
 ): Promise<StudioClientCompositionV2> {
   const resolver = studioSupabaseModelReleaseResolverV1();
-  if (resolver === null) return createStudioDefaultClientCompositionV2();
+  if (resolver === null) {
+    if (channel === "research") {
+      throw new Error(
+        "Research model registry is unavailable; Model Lab will not fall back "
+          + "to the bundled default model",
+      );
+    }
+    return createStudioDefaultClientCompositionV2();
+  }
   const release = modelId === undefined
     ? await resolver.resolveChannel(channel)
     : await resolver.resolveExactModel(modelId);

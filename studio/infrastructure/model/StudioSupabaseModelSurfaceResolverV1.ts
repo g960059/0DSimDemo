@@ -2,15 +2,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import type {
+  MaterializedModelSurfaceV1,
   ModelSurfaceReleaseManifestV1,
   StudioReleaseChannelV1,
   StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
-  assertModelSurfaceCompatibleV1,
   assertModelSurfaceReleaseManifestV1,
   assertStudioReleaseChannelV1,
   assertStudioReleaseStageV1,
+  materializeModelSurfaceForModelV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
   readStudioSupabaseConfigurationV1,
@@ -19,6 +20,7 @@ import {
 
 export type StudioResolvedModelSurfaceV1 = Readonly<{
   manifest: ModelSurfaceReleaseManifestV1;
+  materialized: MaterializedModelSurfaceV1;
   stage: StudioReleaseStageV1;
 }>;
 
@@ -120,7 +122,7 @@ export class StudioSupabaseModelSurfaceResolverV1 {
     }
     const row = rowValue as Record<string, unknown>;
     assertModelSurfaceReleaseManifestV1(row.manifest);
-    assertModelSurfaceCompatibleV1(
+    const materialized = materializeModelSurfaceForModelV1(
       row.manifest,
       model,
       this.#studioCapabilities,
@@ -128,6 +130,7 @@ export class StudioSupabaseModelSurfaceResolverV1 {
     assertStudioReleaseStageV1(row.stage, "$.surfaceRelease.stage");
     return Object.freeze({
       manifest: ownSurfaceManifestV1(row.manifest),
+      materialized: ownSurfaceMaterializationV1(materialized),
       stage: row.stage,
     });
   }
@@ -170,6 +173,14 @@ function ownSurfaceManifestV1(
 ): ModelSurfaceReleaseManifestV1 {
   return deepFreezeSurfaceV1(
     structuredClone(value) as ModelSurfaceReleaseManifestV1,
+  );
+}
+
+function ownSurfaceMaterializationV1(
+  value: MaterializedModelSurfaceV1,
+): MaterializedModelSurfaceV1 {
+  return deepFreezeSurfaceV1(
+    structuredClone(value) as MaterializedModelSurfaceV1,
   );
 }
 

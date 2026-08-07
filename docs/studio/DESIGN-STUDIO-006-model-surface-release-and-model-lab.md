@@ -48,7 +48,7 @@ an executable identity and never replaces `modelId`. There is no additional
 The next standard ABI uses `ExactModelKernelManifestV3`. Its exact-key shape
 contains:
 
-- `modelId`, `modelFamilyId`, and a human display name;
+- `modelId` and `modelFamilyId`;
 - equations, runtime, and solver definitions;
 - fixture schema and checkpoint codec;
 - primitive control definitions and primitive signal definitions;
@@ -77,8 +77,9 @@ adapter. The first standard-ABI successor adopts the smaller kernel boundary.
 ```ts
 type ModelSurfaceReleaseManifestV1 = Readonly<{
   surfaceReleaseId: string;
+  surfaceSeriesId: string;
+  predecessorSurfaceReleaseId: string | null;
   modelFamilyId: string;
-  requiredCapabilities: readonly string[];
   controlCatalog: readonly SurfaceControl[];
   derivedOutputCatalog: readonly DerivedOutput[];
   graphCatalog: readonly GraphDefinition[];
@@ -87,18 +88,42 @@ type ModelSurfaceReleaseManifestV1 = Readonly<{
 }>;
 ```
 
-Before use, the client validates the immutable Surface and verifies every
-required capability, primitive control reference, output dependency, graph
-series, Knob target, and protocol action against the pinned exact model.
-Derived calculations resolve through an immutable, versioned Studio
-derivation registry. Every `derivationId` must have a matching declared
-`derivation/<id>` capability; a Surface can never introduce executable code or
-silently reinterpret an existing derived output.
+Every control, derived output, graph, Knob, and protocol declares its own
+`requiredCapabilities`. Before use, the resolver validates the immutable
+Surface and materializes only the items supported by the pinned exact model
+and Studio build. Adding a graph that requires a new primitive signal therefore
+hides that graph from an older family member; it does not reject the whole
+Surface. Existing content fails only when it explicitly references an item that
+cannot be materialized for its pinned model.
+The registered manifest remains byte-exact; the filtered runtime
+materialization is a separate value and cannot masquerade as the manifest named
+by `surfaceReleaseId`.
 
-Within one stable Surface line, additions are append-only. An existing control,
-output, graph, Knob, protocol, or required capability cannot be removed or
-changed. The registry compares existing definitions structurally; changing
-semantics requires a new Surface release and never mutates an old row.
+Derived calculations resolve through an immutable, versioned Studio
+derivation registry. Every derived item must declare its
+`derivation/<derivationId>` capability. The implementation consumes the full
+Worker-side accepted-substep primitive stream, including event-clipped
+substeps; it must not derive scientific metrics from decimated presentation
+frames. An existing derivation ID is permanently behavior-immutable and remains
+loadable in future Studio builds. Changed behavior requires a new derivation ID
+and repository checks must prevent deletion of any released implementation.
+A Surface can never introduce executable code or silently reinterpret an
+existing derived output.
+
+Within one `surfaceSeriesId`, additions are append-only. Every non-root release
+names its immediate `predecessorSurfaceReleaseId`. An existing control, output,
+graph, Knob, or protocol cannot be removed or changed. Supabase fetches and
+structurally compares the predecessor inside the registration transaction;
+the publish tool performs the same detailed check before registration. Channel
+movement is a compare-and-swap operation and accepts only the current pointer's
+immediate successor. Changing semantics requires a new Surface series and never
+mutates an old row.
+
+Protocols are declaration-only until their runtime contract is implemented.
+Before first use, that contract must define accepted-boundary action timing,
+input-epoch changes, interruption, and what an in-progress protocol contributes
+to fixture/checkpoint capture. A protocol definition alone does not imply that
+unexecuted future actions are part of a Snapshot.
 
 The executable registry boundary is:
 
@@ -111,16 +136,24 @@ npm run publish:registry:model-surface -- \
   [--stage dev|stable] [--channel default|research]
 ```
 
-Registration starts at `dev`. A default-channel move therefore requires the
+`--previous` is forbidden for a root release and mandatory for every manifest
+that names a predecessor. Registration starts at `dev`. A default-channel move
+therefore requires the
 explicit `--stage stable --channel default` combination. The publisher rejects
 an uncommitted manifest, while Supabase rejects a reused `surfaceReleaseId`
-whose immutable manifest differs.
+whose immutable manifest differs, a non-additive successor, a forked series,
+or a stale channel transition.
 
-Authored content may eventually pin `surfaceReleaseId` when it depends on a
-Surface definition unavailable from its historical exact package. During the
+During the
 `development-36` compatibility period, its embedded V2 catalogs remain the
 runtime authority. The parallel V3/V1 contracts are introduced now so the
-next exact ABI can cut over without rebinding the historical package.
+next exact ABI can cut over without rebinding the historical package. That
+cutover is not complete until mutable Experiments resolve the latest compatible
+Surface, immutable Snapshots pin the exact `surfaceReleaseId`, public gates
+require both the exact model and pinned Surface to be `stable`, and an
+end-to-end test proves an older exact Experiment can open after an additive
+Surface release. Until then, this PR is registry scaffolding rather than a
+claim that the Workbench already consumes Surface releases.
 
 ## 4. Lifecycle and channels
 
@@ -165,6 +198,8 @@ profile and Snapshot identity does not carry one.
 The sole lab route is `/dev/model-lab`.
 
 - It resolves the `research` channel and pins the returned exact model.
+- It fails closed when the research registry is unavailable; it never silently
+  runs the bundled default model under a Model Lab label.
 - It uses the same Workbench and Worker architecture as ordinary Sessions.
 - Private Experiment Save and neutral Snapshot creation are permitted.
 - Public Experiment publication is absent in the Lab UI and rejected by the
@@ -173,16 +208,16 @@ The sole lab route is `/dev/model-lab`.
   as ephemeral runtime state; it is not a second “pre-lab” product or stage.
 - The route is available in development builds and can be explicitly enabled
   in production with `VITE_MODEL_LAB_ENABLED=1` for controlled research use.
+  The production flag must remain off until research-channel reads are protected
+  by an authenticated research-access policy.
 
 ## 7. Succession and migration
 
-An explicit immutable succession relation may declare:
+An explicit immutable succession relation currently declares only `successor`:
+conceptual lineage. `drop-in` is deliberately rejected until registration can
+require a verifier version and immutable evidence artifact/digest.
 
-- `drop-in`: registry CI has proved the stated fixture/checkpoint/catalog
-  compatibility; or
-- `successor`: conceptual lineage only.
-
-Neither grade silently rewrites stored content. A user chooses upgrade/clone,
+A succession edge never silently rewrites stored content. A user chooses upgrade/clone,
 which creates new content pinned to the target `modelId` and records migration
 provenance outside portable numerical identity. Old content stays loadable.
 
@@ -220,7 +255,9 @@ model_surface_release_channels       family + default | research
 model_release_successions            explicit lineage
 ```
 
-Service-role RPCs register immutable rows, advance lifecycle monotonically,
+Surface rows include a series and immediate predecessor; registry admission
+enforces exact-definition append-only growth and channel CAS. Service-role RPCs
+register immutable rows, advance lifecycle monotonically,
 and move allowed channels. Browser RPCs can only read. Database triggers reject
 both Experiment publication and Article publication when any referenced
 Snapshot is not pinned to a `stable` exact model. Snapshot creation itself is
@@ -230,9 +267,11 @@ allowed for `dev`, so research work remains saveable without becoming public.
 
 1. `modelId` identifies the exact numerical kernel, not Studio presentation.
 2. `surfaceReleaseId` cannot redefine primitive model semantics.
-3. `default` serves only `stable`; `research` never serves `retired`.
-4. Retired exact releases remain available to already-pinned content.
-5. One common admission service owns every Snapshot insertion path.
-6. No Snapshot admission profile enters model identity or portable content.
-7. Model Lab is one Workbench surface, not a separate data model.
-8. Official-content rebuilds and user migrations are explicit.
+3. An additive Surface successor cannot remove or redefine an existing item.
+4. Unsupported new items are filtered per item, not by rejecting the Surface.
+5. `default` serves only `stable`; `research` never serves `retired`.
+6. Retired exact releases remain available to already-pinned content.
+7. One common admission service owns every Snapshot insertion path.
+8. No Snapshot admission profile enters model identity or portable content.
+9. Model Lab is one Workbench surface, not a separate data model.
+10. Official-content rebuilds and user migrations are explicit.

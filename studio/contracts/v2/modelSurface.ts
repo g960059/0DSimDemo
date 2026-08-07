@@ -36,7 +36,6 @@ export type ExactModelKernelManifestV3 = Readonly<{
   schemaId: typeof STUDIO_EXACT_MODEL_KERNEL_V3_SCHEMA_ID;
   modelId: string;
   modelFamilyId: string;
-  displayName: string;
   equations: StudioJsonObjectV2;
   runtime: StudioJsonObjectV2;
   solver: StudioJsonObjectV2;
@@ -50,12 +49,18 @@ export type ExactModelKernelManifestV3 = Readonly<{
 export type ModelSurfaceControlDefinitionV1 = Readonly<{
   controlId: string;
   preferredPresentation: "slider" | "buttons";
+  requiredCapabilities: readonly string[];
 }>;
 
 export type ModelSurfaceDerivedOutputDefinitionV1 =
   MetricOutputDefinitionV2 & Readonly<{
     derivationId: string;
+    requiredCapabilities: readonly string[];
   }>;
+
+export type ModelSurfaceGraphDefinitionV1 = GraphDefinitionV2 & Readonly<{
+  requiredCapabilities: readonly string[];
+}>;
 
 export type ModelSurfaceKnobTargetV1 = Readonly<{
   controlId: string;
@@ -70,6 +75,8 @@ export type ModelSurfaceKnobDefinitionV1 = Readonly<{
   maximum: number;
   step: number;
   defaultValue: number;
+  neutralAtDefault: boolean;
+  requiredCapabilities: readonly string[];
   targets: readonly ModelSurfaceKnobTargetV1[];
 }>;
 
@@ -85,6 +92,7 @@ export type ModelSurfaceProtocolStepV1 = Readonly<{
 
 export type ModelSurfaceProtocolDefinitionV1 = Readonly<{
   protocolId: string;
+  requiredCapabilities: readonly string[];
   steps: readonly ModelSurfaceProtocolStepV1[];
 }>;
 
@@ -95,12 +103,28 @@ export type ModelSurfaceProtocolDefinitionV1 = Readonly<{
 export type ModelSurfaceReleaseManifestV1 = Readonly<{
   schemaId: typeof STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID;
   surfaceReleaseId: string;
+  surfaceSeriesId: string;
+  predecessorSurfaceReleaseId: string | null;
   modelFamilyId: string;
   displayName: string;
-  requiredCapabilities: readonly string[];
   controlCatalog: readonly ModelSurfaceControlDefinitionV1[];
   derivedOutputCatalog: readonly ModelSurfaceDerivedOutputDefinitionV1[];
-  graphCatalog: readonly GraphDefinitionV2[];
+  graphCatalog: readonly ModelSurfaceGraphDefinitionV1[];
+  knobCatalog: readonly ModelSurfaceKnobDefinitionV1[];
+  protocolCatalog: readonly ModelSurfaceProtocolDefinitionV1[];
+}>;
+
+/**
+ * Runtime projection of one immutable release for one pinned exact model.
+ * It intentionally does not masquerade as the registered manifest: filtering
+ * unsupported additions must never change the bytes named by surfaceReleaseId.
+ */
+export type MaterializedModelSurfaceV1 = Readonly<{
+  surfaceReleaseId: string;
+  modelFamilyId: string;
+  controlCatalog: readonly ModelSurfaceControlDefinitionV1[];
+  derivedOutputCatalog: readonly ModelSurfaceDerivedOutputDefinitionV1[];
+  graphCatalog: readonly ModelSurfaceGraphDefinitionV1[];
   knobCatalog: readonly ModelSurfaceKnobDefinitionV1[];
   protocolCatalog: readonly ModelSurfaceProtocolDefinitionV1[];
 }>;
@@ -115,7 +139,6 @@ export class ModelSurfaceValidationErrorV1 extends Error {
 const KERNEL_KEYS_V3 = Object.freeze([
   "capabilities",
   "checkpointCodec",
-  "displayName",
   "equations",
   "fixtureSchema",
   "modelFamilyId",
@@ -134,10 +157,11 @@ const SURFACE_KEYS_V1 = Object.freeze([
   "graphCatalog",
   "knobCatalog",
   "modelFamilyId",
+  "predecessorSurfaceReleaseId",
   "protocolCatalog",
-  "requiredCapabilities",
   "schemaId",
   "surfaceReleaseId",
+  "surfaceSeriesId",
 ]);
 
 export function assertStudioReleaseStageV1(
@@ -181,7 +205,6 @@ export function assertExactModelKernelManifestV3(
     kernel.modelFamilyId,
     "$.kernel.modelFamilyId",
   );
-  assertDisplayNameV1(kernel.displayName, "$.kernel.displayName");
   assertNonemptyObjectV1(kernel.equations, "$.kernel.equations");
   assertNonemptyObjectV1(kernel.runtime, "$.kernel.runtime");
   assertNonemptyObjectV1(kernel.solver, "$.kernel.solver");
@@ -247,35 +270,66 @@ export function assertModelSurfaceReleaseManifestV1(
     "$.surfaceRelease.surfaceReleaseId",
   );
   assertPortableModelIdentifierV2(
+    surface.surfaceSeriesId,
+    "$.surfaceRelease.surfaceSeriesId",
+  );
+  if (surface.predecessorSurfaceReleaseId !== null) {
+    assertPortableModelIdentifierV2(
+      surface.predecessorSurfaceReleaseId,
+      "$.surfaceRelease.predecessorSurfaceReleaseId",
+    );
+    if (surface.predecessorSurfaceReleaseId === surface.surfaceReleaseId) {
+      throw new ModelSurfaceValidationErrorV1(
+        "$.surfaceRelease.predecessorSurfaceReleaseId",
+        "must not refer to the release itself",
+      );
+    }
+  }
+  assertPortableModelIdentifierV2(
     surface.modelFamilyId,
     "$.surfaceRelease.modelFamilyId",
   );
   assertDisplayNameV1(surface.displayName, "$.surfaceRelease.displayName");
-  assertUniqueIdArrayV1(
-    surface.requiredCapabilities,
-    "$.surfaceRelease.requiredCapabilities",
-  );
   assertSurfaceControlCatalogV1(surface.controlCatalog);
   assertDerivedOutputCatalogV1(surface.derivedOutputCatalog);
   assertSurfaceGraphCatalogV1(
     surface.graphCatalog,
     surface.derivedOutputCatalog,
   );
-  const requiredCapabilities = new Set(
-    surface.requiredCapabilities as readonly string[],
-  );
   (surface.derivedOutputCatalog as readonly ModelSurfaceDerivedOutputDefinitionV1[])
     .forEach((output, index) => {
       const capability = derivationCapabilityV1(output.derivationId);
+      const requiredCapabilities = new Set(output.requiredCapabilities);
       if (!requiredCapabilities.has(capability)) {
         throw new ModelSurfaceValidationErrorV1(
-          `$.surfaceRelease.derivedOutputCatalog[${index}].derivationId`,
+          `$.surfaceRelease.derivedOutputCatalog[${index}].requiredCapabilities`,
           `requires capability ${capability}`,
         );
       }
+      const derivedIds = new Set(
+        (surface.derivedOutputCatalog as readonly ModelSurfaceDerivedOutputDefinitionV1[])
+          .map(({ outputId }) => outputId),
+      );
+      output.dependencies.forEach((dependency) => {
+        const dependencyCapability = outputCapabilityV1(dependency);
+        if (
+          !derivedIds.has(dependency)
+          && !requiredCapabilities.has(dependencyCapability)
+        ) {
+          throw new ModelSurfaceValidationErrorV1(
+            `$.surfaceRelease.derivedOutputCatalog[${index}].requiredCapabilities`,
+            `requires capability ${dependencyCapability}`,
+          );
+        }
+      });
     });
-  (surface.graphCatalog as readonly GraphDefinitionV2[]).forEach(
+  const derivedIds = new Set(
+    (surface.derivedOutputCatalog as readonly ModelSurfaceDerivedOutputDefinitionV1[])
+      .map(({ outputId }) => outputId),
+  );
+  (surface.graphCatalog as readonly ModelSurfaceGraphDefinitionV1[]).forEach(
     (graph, index) => {
+      const requiredCapabilities = new Set(graph.requiredCapabilities);
       if (
         graph.renderer === "structural-return"
         && !requiredCapabilities.has(analysisCapabilityV1(graph.analysisId))
@@ -285,6 +339,15 @@ export function assertModelSurfaceReleaseManifestV1(
           `requires capability ${analysisCapabilityV1(graph.analysisId)}`,
         );
       }
+      graphOutputIdsV1([graph]).forEach((outputId) => {
+        const capability = outputCapabilityV1(outputId);
+        if (!derivedIds.has(outputId) && !requiredCapabilities.has(capability)) {
+          throw new ModelSurfaceValidationErrorV1(
+            `$.surfaceRelease.graphCatalog[${index}].requiredCapabilities`,
+            `requires capability ${capability}`,
+          );
+        }
+      });
     },
   );
   assertKnobCatalogV1(surface.knobCatalog);
@@ -312,14 +375,15 @@ export function modelCapabilitiesFromContractV1(
 }
 
 /**
- * Fail-closed compatibility check used before a Surface can appear in an
- * authoring menu. It does not mutate or widen the exact model contract.
+ * Materializes the items supported by one pinned exact model. A capability
+ * added for a newer family member hides only the new item; it never makes the
+ * complete Surface unavailable to historical exact content.
  */
-export function assertModelSurfaceCompatibleV1(
+export function materializeModelSurfaceForModelV1(
   surface: ModelSurfaceReleaseManifestV1,
   model: ModelContractV2,
   additionalCapabilities: readonly string[] = [],
-): void {
+): MaterializedModelSurfaceV1 {
   assertModelSurfaceReleaseManifestV1(surface);
   if (surface.modelFamilyId !== model.modelFamilyId) {
     throw new ModelSurfaceValidationErrorV1(
@@ -331,67 +395,120 @@ export function assertModelSurfaceCompatibleV1(
     model,
     additionalCapabilities,
   );
-  for (const required of surface.requiredCapabilities) {
-    if (!capabilities.has(required)) {
-      throw new ModelSurfaceValidationErrorV1(
-        "$.surfaceRelease.requiredCapabilities",
-        `model lacks capability ${required}`,
-      );
-    }
-  }
   const controls = new Map(
     model.controlCatalog.map((definition) => [definition.controlId, definition]),
   );
-  surface.controlCatalog.forEach(({ controlId }, index) => {
-    if (!controls.has(controlId)) {
+  const controlCatalog = surface.controlCatalog.filter((item) =>
+    requirementsSatisfiedV1(item.requiredCapabilities, capabilities)
+    && controls.has(item.controlId));
+  const availableOutputs = new Set(
+    model.outputCatalog.map(({ outputId }) => outputId),
+  );
+  const derivedOutputCatalog: ModelSurfaceDerivedOutputDefinitionV1[] = [];
+  const remainingDerived = [...surface.derivedOutputCatalog];
+  let addedOutput = true;
+  while (addedOutput) {
+    addedOutput = false;
+    for (let index = remainingDerived.length - 1; index >= 0; index -= 1) {
+      const output = remainingDerived[index]!;
+      if (
+        availableOutputs.has(output.outputId)
+        || !requirementsSatisfiedV1(output.requiredCapabilities, capabilities)
+        || output.dependencies.some((dependency) =>
+          !availableOutputs.has(dependency))
+      ) continue;
+      derivedOutputCatalog.push(output);
+      availableOutputs.add(output.outputId);
+      remainingDerived.splice(index, 1);
+      addedOutput = true;
+    }
+  }
+  const derivedOrder = new Map(
+    surface.derivedOutputCatalog.map(({ outputId }, index) => [outputId, index]),
+  );
+  derivedOutputCatalog.sort((left, right) =>
+    derivedOrder.get(left.outputId)! - derivedOrder.get(right.outputId)!);
+  const graphCatalog = surface.graphCatalog.filter((graph) =>
+    requirementsSatisfiedV1(graph.requiredCapabilities, capabilities)
+    && [...graphOutputIdsV1([graph])].every((outputId) =>
+      availableOutputs.has(outputId)));
+  const knobCatalog = surface.knobCatalog.filter((knob) =>
+    requirementsSatisfiedV1(knob.requiredCapabilities, capabilities)
+    && knobCompatibilityIssueV1(knob, controls) === undefined);
+  const protocolCatalog = surface.protocolCatalog.filter((protocol) =>
+    requirementsSatisfiedV1(protocol.requiredCapabilities, capabilities)
+    && protocolCompatibilityIssueV1(protocol, controls) === undefined);
+  return Object.freeze({
+    surfaceReleaseId: surface.surfaceReleaseId,
+    modelFamilyId: surface.modelFamilyId,
+    controlCatalog: Object.freeze(controlCatalog),
+    derivedOutputCatalog: Object.freeze(derivedOutputCatalog),
+    graphCatalog: Object.freeze(graphCatalog),
+    knobCatalog: Object.freeze(knobCatalog),
+    protocolCatalog: Object.freeze(protocolCatalog),
+  });
+}
+
+/** Requires every declared item to be usable by one exact model. */
+export function assertModelSurfaceCompatibleV1(
+  surface: ModelSurfaceReleaseManifestV1,
+  model: ModelContractV2,
+  additionalCapabilities: readonly string[] = [],
+): void {
+  assertModelSurfaceReleaseManifestV1(surface);
+  const capabilities = modelCapabilitiesFromContractV1(
+    model,
+    additionalCapabilities,
+  );
+  const controls = new Map(
+    model.controlCatalog.map((definition) => [definition.controlId, definition]),
+  );
+  surface.knobCatalog.forEach((knob, index) => {
+    if (!requirementsSatisfiedV1(knob.requiredCapabilities, capabilities)) return;
+    const issue = knobCompatibilityIssueV1(knob, controls);
+    if (issue !== undefined) {
       throw new ModelSurfaceValidationErrorV1(
-        `$.surfaceRelease.controlCatalog[${index}].controlId`,
-        `unknown primitive control ${controlId}`,
+        `$.surfaceRelease.knobCatalog[${index}]`,
+        issue,
       );
     }
   });
-  surface.knobCatalog.forEach((knob, knobIndex) => {
-    knob.targets.forEach(({ controlId }, targetIndex) => {
-      if (!controls.has(controlId)) {
-        throw new ModelSurfaceValidationErrorV1(
-          `$.surfaceRelease.knobCatalog[${knobIndex}].targets[${targetIndex}].controlId`,
-          `unknown primitive control ${controlId}`,
-        );
-      }
-    });
+  surface.protocolCatalog.forEach((protocol, index) => {
+    if (!requirementsSatisfiedV1(protocol.requiredCapabilities, capabilities)) {
+      return;
+    }
+    const issue = protocolCompatibilityIssueV1(protocol, controls);
+    if (issue !== undefined) {
+      throw new ModelSurfaceValidationErrorV1(
+        `$.surfaceRelease.protocolCatalog[${index}]`,
+        issue,
+      );
+    }
   });
-  surface.protocolCatalog.forEach((protocol, protocolIndex) => {
-    protocol.steps.forEach((step, stepIndex) => {
-      step.actions.forEach((action, actionIndex) => {
-        const control = controls.get(action.controlId);
-        const path = `$.surfaceRelease.protocolCatalog[${protocolIndex}]`
-          + `.steps[${stepIndex}].actions[${actionIndex}]`;
-        if (control === undefined) {
-          throw new ModelSurfaceValidationErrorV1(
-            `${path}.controlId`,
-            `unknown primitive control ${action.controlId}`,
-          );
-        }
-        const issue = studioNumericControlValueIssueV2(action.value, control);
-        if (issue !== undefined) {
-          throw new ModelSurfaceValidationErrorV1(`${path}.value`, issue);
-        }
-      });
-    });
-  });
-  const outputs = [
-    ...model.outputCatalog,
-    ...surface.derivedOutputCatalog.map(stripDerivationV1),
-  ];
-  const outputCatalog = assertOutputCatalogV2(
-    outputs,
-    "$.surfaceRelease.composedOutputCatalog",
+  const materialized = materializeModelSurfaceForModelV1(
+    surface,
+    model,
+    additionalCapabilities,
   );
-  assertGraphCatalogV2(
-    surface.graphCatalog,
-    "$.surfaceRelease.graphCatalog",
-    outputCatalog,
-  );
+  const catalogs = [
+    ["controlCatalog", surface.controlCatalog, materialized.controlCatalog],
+    [
+      "derivedOutputCatalog",
+      surface.derivedOutputCatalog,
+      materialized.derivedOutputCatalog,
+    ],
+    ["graphCatalog", surface.graphCatalog, materialized.graphCatalog],
+    ["knobCatalog", surface.knobCatalog, materialized.knobCatalog],
+    ["protocolCatalog", surface.protocolCatalog, materialized.protocolCatalog],
+  ] as const;
+  const incompatible = catalogs.find(([, declared, supported]) =>
+    declared.length !== supported.length);
+  if (incompatible !== undefined) {
+    throw new ModelSurfaceValidationErrorV1(
+      `$.surfaceRelease.${incompatible[0]}`,
+      "contains an item unsupported by the pinned exact model",
+    );
+  }
 }
 
 /** Existing semantic IDs must remain byte-equivalent; only additions survive. */
@@ -407,15 +524,18 @@ export function assertAdditiveModelSurfaceUpgradeV1(
       "an additive Surface upgrade cannot change model family",
     );
   }
-  const nextCapabilities = new Set(next.requiredCapabilities);
-  previous.requiredCapabilities.forEach((capability) => {
-    if (!nextCapabilities.has(capability)) {
-      throw new ModelSurfaceValidationErrorV1(
-        "$.surfaceRelease.requiredCapabilities",
-        `cannot remove capability ${capability}`,
-      );
-    }
-  });
+  if (previous.surfaceSeriesId !== next.surfaceSeriesId) {
+    throw new ModelSurfaceValidationErrorV1(
+      "$.surfaceRelease.surfaceSeriesId",
+      "an additive Surface upgrade cannot change series",
+    );
+  }
+  if (next.predecessorSurfaceReleaseId !== previous.surfaceReleaseId) {
+    throw new ModelSurfaceValidationErrorV1(
+      "$.surfaceRelease.predecessorSurfaceReleaseId",
+      `must be ${previous.surfaceReleaseId}`,
+    );
+  }
   assertCatalogExtensionV1(
     previous.controlCatalog,
     next.controlCatalog,
@@ -476,9 +596,24 @@ function assertSurfaceControlCatalogV1(value: unknown): void {
   value.forEach((entry, index) => {
     const path = `$.surfaceRelease.controlCatalog[${index}]`;
     assertRecordV1(entry, path);
-    assertExactKeysV1(entry, ["controlId", "preferredPresentation"], path);
+    assertExactKeysV1(entry, [
+      "controlId",
+      "preferredPresentation",
+      "requiredCapabilities",
+    ], path);
     assertPortableModelIdentifierV2(entry.controlId, `${path}.controlId`);
     assertUniqueCatalogIdV1(ids, entry.controlId, `${path}.controlId`);
+    const requiredCapabilities = assertUniqueIdArrayV1(
+      entry.requiredCapabilities,
+      `${path}.requiredCapabilities`,
+    );
+    const controlCapability = controlCapabilityV1(entry.controlId);
+    if (!requiredCapabilities.has(controlCapability)) {
+      throw new ModelSurfaceValidationErrorV1(
+        `${path}.requiredCapabilities`,
+        `requires capability ${controlCapability}`,
+      );
+    }
     if (
       entry.preferredPresentation !== "slider"
       && entry.preferredPresentation !== "buttons"
@@ -507,6 +642,7 @@ function assertDerivedOutputCatalogV1(value: unknown): void {
       "derivationId",
       "kind",
       "outputId",
+      "requiredCapabilities",
       "scope",
       "shape",
       "unit",
@@ -514,6 +650,10 @@ function assertDerivedOutputCatalogV1(value: unknown): void {
     assertPortableModelIdentifierV2(entry.outputId, `${path}.outputId`);
     assertPortableModelIdentifierV2(entry.derivationId, `${path}.derivationId`);
     assertUniqueCatalogIdV1(ids, entry.outputId, `${path}.outputId`);
+    assertUniqueIdArrayV1(
+      entry.requiredCapabilities,
+      `${path}.requiredCapabilities`,
+    );
     if (entry.kind !== "metric") {
       throw new ModelSurfaceValidationErrorV1(`${path}.kind`, 'must be "metric"');
     }
@@ -583,7 +723,19 @@ function assertSurfaceGraphCatalogV1(
     outputs,
     "$.surfaceRelease.graphValidationOutputs",
   );
-  assertGraphCatalogV2(value, "$.surfaceRelease.graphCatalog", catalog);
+  value.forEach((entry, index) => {
+    const path = `$.surfaceRelease.graphCatalog[${index}]`;
+    assertRecordV1(entry, path);
+    assertUniqueIdArrayV1(
+      entry.requiredCapabilities,
+      `${path}.requiredCapabilities`,
+    );
+  });
+  assertGraphCatalogV2(
+    value.map(stripGraphRequirementsV1),
+    "$.surfaceRelease.graphCatalog",
+    catalog,
+  );
 }
 
 function assertKnobCatalogV1(value: unknown): void {
@@ -602,12 +754,24 @@ function assertKnobCatalogV1(value: unknown): void {
       "knobId",
       "maximum",
       "minimum",
+      "neutralAtDefault",
+      "requiredCapabilities",
       "step",
       "targets",
       "unit",
     ], path);
     assertPortableModelIdentifierV2(entry.knobId, `${path}.knobId`);
     assertUniqueCatalogIdV1(ids, entry.knobId, `${path}.knobId`);
+    if (typeof entry.neutralAtDefault !== "boolean") {
+      throw new ModelSurfaceValidationErrorV1(
+        `${path}.neutralAtDefault`,
+        "must be a boolean",
+      );
+    }
+    const requiredCapabilities = assertUniqueIdArrayV1(
+      entry.requiredCapabilities,
+      `${path}.requiredCapabilities`,
+    );
     assertControlCatalogV2([{
       controlId: entry.knobId,
       valueType: "number",
@@ -631,6 +795,13 @@ function assertKnobCatalogV1(value: unknown): void {
       assertExactKeysV1(target, ["controlId", "offset", "scale"], targetPath);
       assertPortableModelIdentifierV2(target.controlId, `${targetPath}.controlId`);
       assertUniqueCatalogIdV1(targetIds, target.controlId, `${targetPath}.controlId`);
+      const controlCapability = controlCapabilityV1(target.controlId);
+      if (!requiredCapabilities.has(controlCapability)) {
+        throw new ModelSurfaceValidationErrorV1(
+          `${path}.requiredCapabilities`,
+          `requires capability ${controlCapability}`,
+        );
+      }
       assertFiniteNumberV1(target.scale, `${targetPath}.scale`);
       assertFiniteNumberV1(target.offset, `${targetPath}.offset`);
     });
@@ -648,9 +819,17 @@ function assertProtocolCatalogV1(value: unknown): void {
   value.forEach((entry, index) => {
     const path = `$.surfaceRelease.protocolCatalog[${index}]`;
     assertRecordV1(entry, path);
-    assertExactKeysV1(entry, ["protocolId", "steps"], path);
+    assertExactKeysV1(
+      entry,
+      ["protocolId", "requiredCapabilities", "steps"],
+      path,
+    );
     assertPortableModelIdentifierV2(entry.protocolId, `${path}.protocolId`);
     assertUniqueCatalogIdV1(ids, entry.protocolId, `${path}.protocolId`);
+    const requiredCapabilities = assertUniqueIdArrayV1(
+      entry.requiredCapabilities,
+      `${path}.requiredCapabilities`,
+    );
     if (!Array.isArray(entry.steps) || entry.steps.length === 0) {
       throw new ModelSurfaceValidationErrorV1(
         `${path}.steps`,
@@ -683,6 +862,13 @@ function assertProtocolCatalogV1(value: unknown): void {
         assertExactKeysV1(action, ["controlId", "value"], actionPath);
         assertPortableModelIdentifierV2(action.controlId, `${actionPath}.controlId`);
         assertUniqueCatalogIdV1(controls, action.controlId, `${actionPath}.controlId`);
+        const controlCapability = controlCapabilityV1(action.controlId);
+        if (!requiredCapabilities.has(controlCapability)) {
+          throw new ModelSurfaceValidationErrorV1(
+            `${path}.requiredCapabilities`,
+            `requires capability ${controlCapability}`,
+          );
+        }
         assertFiniteNumberV1(action.value, `${actionPath}.value`);
       });
     });
@@ -729,6 +915,69 @@ function stripDerivationV1(
     scope: value.scope,
     dependencies: Object.freeze([...value.dependencies]),
   });
+}
+
+function stripGraphRequirementsV1(
+  value: unknown,
+): GraphDefinitionV2 {
+  assertRecordV1(value, "$.surfaceRelease.graphCatalog[]");
+  const { requiredCapabilities: _requiredCapabilities, ...graph } = value;
+  return graph as GraphDefinitionV2;
+}
+
+function requirementsSatisfiedV1(
+  required: readonly string[],
+  capabilities: ReadonlySet<string>,
+): boolean {
+  return required.every((capability) => capabilities.has(capability));
+}
+
+function knobCompatibilityIssueV1(
+  knob: ModelSurfaceKnobDefinitionV1,
+  controls: ReadonlyMap<string, ControlDefinitionV2>,
+): string | undefined {
+  for (const target of knob.targets) {
+    const control = controls.get(target.controlId);
+    if (control === undefined) return `unknown primitive control ${target.controlId}`;
+    for (const knobValue of [
+      knob.minimum,
+      knob.maximum,
+      knob.defaultValue,
+    ]) {
+      const mapped = target.scale * knobValue + target.offset;
+      const issue = studioNumericControlValueIssueV2(mapped, control);
+      if (issue !== undefined) {
+        return `${target.controlId} mapping at ${knobValue} ${issue}`;
+      }
+    }
+    if (knob.neutralAtDefault) {
+      const mappedDefault = target.scale * knob.defaultValue + target.offset;
+      const tolerance = Number.EPSILON * 32
+        * Math.max(1, Math.abs(mappedDefault), Math.abs(control.defaultValue));
+      if (Math.abs(mappedDefault - control.defaultValue) > tolerance) {
+        return `${target.controlId} mapping must reproduce primitive default `
+          + `${control.defaultValue}`;
+      }
+    }
+  }
+  return undefined;
+}
+
+function protocolCompatibilityIssueV1(
+  protocol: ModelSurfaceProtocolDefinitionV1,
+  controls: ReadonlyMap<string, ControlDefinitionV2>,
+): string | undefined {
+  for (const step of protocol.steps) {
+    for (const action of step.actions) {
+      const control = controls.get(action.controlId);
+      if (control === undefined) {
+        return `unknown primitive control ${action.controlId}`;
+      }
+      const issue = studioNumericControlValueIssueV2(action.value, control);
+      if (issue !== undefined) return `${action.controlId} action ${issue}`;
+    }
+  }
+  return undefined;
 }
 
 function assertCatalogExtensionV1<

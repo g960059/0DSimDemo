@@ -42,6 +42,9 @@ alter table studio.model_release_channels
 
 create table studio.model_surface_releases (
   surface_release_id text primary key,
+  surface_series_id text not null,
+  predecessor_surface_release_id text unique
+    references studio.model_surface_releases(surface_release_id) on delete restrict,
   model_family_id text not null,
   display_name text not null,
   manifest jsonb not null,
@@ -50,6 +53,14 @@ create table studio.model_surface_releases (
   constraint model_surface_releases_id_nonempty check (
     surface_release_id = btrim(surface_release_id)
     and char_length(surface_release_id) > 0
+  ),
+  constraint model_surface_releases_series_nonempty check (
+    surface_series_id = btrim(surface_series_id)
+    and char_length(surface_series_id) > 0
+  ),
+  constraint model_surface_releases_predecessor_not_self check (
+    predecessor_surface_release_id is null
+    or predecessor_surface_release_id <> surface_release_id
   ),
   constraint model_surface_releases_family_nonempty check (
     model_family_id = btrim(model_family_id)
@@ -63,7 +74,17 @@ create table studio.model_surface_releases (
     jsonb_typeof(manifest) = 'object'
     and manifest ->> 'schemaId' = 'circleheart-studio-model-surface-release-v1'
     and manifest ->> 'surfaceReleaseId' = surface_release_id
+    and manifest ->> 'surfaceSeriesId' = surface_series_id
     and manifest ->> 'modelFamilyId' = model_family_id
+    and manifest ->> 'displayName' = display_name
+    and manifest ? 'predecessorSurfaceReleaseId'
+    and manifest ->> 'predecessorSurfaceReleaseId'
+      is not distinct from predecessor_surface_release_id
+    and jsonb_typeof(manifest -> 'controlCatalog') = 'array'
+    and jsonb_typeof(manifest -> 'derivedOutputCatalog') = 'array'
+    and jsonb_typeof(manifest -> 'graphCatalog') = 'array'
+    and jsonb_typeof(manifest -> 'knobCatalog') = 'array'
+    and jsonb_typeof(manifest -> 'protocolCatalog') = 'array'
   ),
   constraint model_surface_releases_source_commit check (
     source_commit = btrim(source_commit)
@@ -105,11 +126,11 @@ create table studio.model_release_successions (
   constraint model_release_succession_not_self
     check (from_model_id <> to_model_id),
   constraint model_release_succession_grade
-    check (grade in ('drop-in', 'successor'))
+    check (grade = 'successor')
 );
 
 comment on table studio.model_release_successions is
-  'Explicit model lineage only. It never silently repins existing content; drop-in qualification must be established by registry CI before insertion.';
+  'Explicit conceptual lineage only. It never silently repins existing content. Evidence-backed drop-in qualification is intentionally unavailable until its verifier exists.';
 
 create trigger model_surface_releases_are_immutable
 before update or delete on studio.model_surface_releases
@@ -307,8 +328,76 @@ as $$
   where channel.channel = p_channel and availability.loadable;
 $$;
 
+create or replace function studio.assert_additive_model_surface_upgrade_v1(
+  p_previous_manifest jsonb,
+  p_next_manifest jsonb
+)
+returns void
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  catalog_name text;
+  catalog_id_key text;
+begin
+  foreach catalog_name in array array[
+    'controlCatalog',
+    'derivedOutputCatalog',
+    'graphCatalog',
+    'knobCatalog',
+    'protocolCatalog'
+  ]
+  loop
+    catalog_id_key := case catalog_name
+      when 'controlCatalog' then 'controlId'
+      when 'derivedOutputCatalog' then 'outputId'
+      when 'graphCatalog' then 'graphId'
+      when 'knobCatalog' then 'knobId'
+      when 'protocolCatalog' then 'protocolId'
+    end;
+    if exists (
+      select 1
+      from pg_catalog.jsonb_array_elements(
+        p_next_manifest -> catalog_name
+      ) as next_item(value)
+      where pg_catalog.jsonb_typeof(next_item.value) <> 'object'
+        or nullif(pg_catalog.btrim(next_item.value ->> catalog_id_key), '') is null
+    ) or exists (
+      select 1
+      from pg_catalog.jsonb_array_elements(
+        p_next_manifest -> catalog_name
+      ) as next_item(value)
+      group by next_item.value ->> catalog_id_key
+      having count(*) > 1
+    ) then
+      raise exception 'model surface % contains invalid or duplicate item IDs',
+        catalog_name using errcode = '22023';
+    end if;
+    if exists (
+      select 1
+      from pg_catalog.jsonb_array_elements(
+        p_previous_manifest -> catalog_name
+      ) as previous_item(value)
+      where not exists (
+        select 1
+        from pg_catalog.jsonb_array_elements(
+          p_next_manifest -> catalog_name
+        ) as next_item(value)
+        where next_item.value = previous_item.value
+      )
+    ) then
+      raise exception 'model surface upgrade cannot remove or redefine %',
+        catalog_name using errcode = '22023';
+    end if;
+  end loop;
+end;
+$$;
+
 create or replace function public.register_model_surface_release_v1(
   p_surface_release_id text,
+  p_surface_series_id text,
+  p_predecessor_surface_release_id text,
   p_model_family_id text,
   p_display_name text,
   p_manifest jsonb,
@@ -321,15 +410,22 @@ set search_path = ''
 as $$
 declare
   existing studio.model_surface_releases%rowtype;
+  predecessor studio.model_surface_releases%rowtype;
 begin
   perform pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended('model-surface:' || p_surface_release_id, 0)
+    pg_catalog.hashtextextended('model-surface-series:' || p_surface_series_id, 0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('model-surface-release:' || p_surface_release_id, 0)
   );
   select * into existing
   from studio.model_surface_releases
   where surface_release_id = p_surface_release_id;
   if found then
-    if existing.model_family_id is not distinct from p_model_family_id
+    if existing.surface_series_id is not distinct from p_surface_series_id
+      and existing.predecessor_surface_release_id
+        is not distinct from p_predecessor_surface_release_id
+      and existing.model_family_id is not distinct from p_model_family_id
       and existing.display_name is not distinct from p_display_name
       and existing.manifest is not distinct from p_manifest
     then
@@ -341,14 +437,46 @@ begin
     raise exception 'surface_release_id % is already registered with different content',
       p_surface_release_id using errcode = '23505';
   end if;
+  if p_predecessor_surface_release_id is null then
+    if exists (
+      select 1 from studio.model_surface_releases
+      where surface_series_id = p_surface_series_id
+    ) then
+      raise exception 'model surface series % already has a root release',
+        p_surface_series_id using errcode = '23505';
+    end if;
+  else
+    select * into predecessor
+    from studio.model_surface_releases
+    where surface_release_id = p_predecessor_surface_release_id
+    for share;
+    if not found then
+      raise exception 'predecessor model surface release % is not registered',
+        p_predecessor_surface_release_id using errcode = '23503';
+    end if;
+    if predecessor.surface_series_id <> p_surface_series_id
+      or predecessor.model_family_id <> p_model_family_id
+    then
+      raise exception 'model surface predecessor must share series and model family'
+        using errcode = '22023';
+    end if;
+    perform studio.assert_additive_model_surface_upgrade_v1(
+      predecessor.manifest,
+      p_manifest
+    );
+  end if;
   insert into studio.model_surface_releases (
     surface_release_id,
+    surface_series_id,
+    predecessor_surface_release_id,
     model_family_id,
     display_name,
     manifest,
     source_commit
   ) values (
     p_surface_release_id,
+    p_surface_series_id,
+    p_predecessor_surface_release_id,
     p_model_family_id,
     p_display_name,
     p_manifest,
@@ -408,13 +536,24 @@ as $$
 declare
   release_family text;
   release_stage text;
+  release_predecessor text;
+  current_surface_release_id text;
 begin
   if p_channel not in ('default', 'research') then
     raise exception 'unsupported model surface channel %', p_channel
       using errcode = '22023';
   end if;
-  select release.model_family_id, availability.stage
-  into release_family, release_stage
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      'model-surface-channel:' || p_model_family_id || ':' || p_channel,
+      0
+    )
+  );
+  select
+    release.model_family_id,
+    availability.stage,
+    release.predecessor_surface_release_id
+  into release_family, release_stage, release_predecessor
   from studio.model_surface_releases as release
   join studio.model_surface_release_availability as availability
     on availability.surface_release_id = release.surface_release_id
@@ -433,12 +572,29 @@ begin
     raise exception 'model surface release % at stage % cannot serve channel %',
       p_surface_release_id, release_stage, p_channel using errcode = '22023';
   end if;
+  select surface_release_id into current_surface_release_id
+  from studio.model_surface_release_channels
+  where model_family_id = p_model_family_id and channel = p_channel
+  for update;
+  if found then
+    if current_surface_release_id = p_surface_release_id then
+      return;
+    end if;
+    if release_predecessor is distinct from current_surface_release_id then
+      raise exception 'model surface channel % expected predecessor %, found %',
+        p_channel, release_predecessor, current_surface_release_id
+        using errcode = '40001';
+    end if;
+    update studio.model_surface_release_channels
+    set surface_release_id = p_surface_release_id, updated_at = now()
+    where model_family_id = p_model_family_id and channel = p_channel;
+    return;
+  end if;
   insert into studio.model_surface_release_channels (
     model_family_id, channel, surface_release_id
   ) values (
     p_model_family_id, p_channel, p_surface_release_id
-  ) on conflict (model_family_id, channel) do update
-  set surface_release_id = excluded.surface_release_id, updated_at = now();
+  );
 end;
 $$;
 
@@ -516,6 +672,10 @@ declare
   to_family text;
   existing_grade text;
 begin
+  if p_grade <> 'successor' then
+    raise exception 'only successor lineage is available until drop-in evidence verification exists'
+      using errcode = '22023';
+  end if;
   select model_family_id into from_family
   from studio.model_releases where model_id = p_from_model_id;
   select model_family_id into to_family
@@ -621,9 +781,13 @@ grant execute on function public.get_model_release_v3(text)
 revoke all on function public.get_model_release_channel_v3(text) from public;
 grant execute on function public.get_model_release_channel_v3(text)
   to anon, authenticated;
-revoke all on function public.register_model_surface_release_v1(text, text, text, jsonb, text)
+revoke all on function public.register_model_surface_release_v1(
+  text, text, text, text, text, jsonb, text
+)
   from public, anon, authenticated;
-grant execute on function public.register_model_surface_release_v1(text, text, text, jsonb, text)
+grant execute on function public.register_model_surface_release_v1(
+  text, text, text, text, text, jsonb, text
+)
   to service_role;
 revoke all on function public.set_model_surface_release_stage_v1(text, text)
   from public, anon, authenticated;

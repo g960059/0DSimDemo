@@ -9,6 +9,7 @@ import type {
   StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
+  assertAdditiveModelSurfaceUpgradeV1,
   assertModelSurfaceReleaseManifestV1,
   assertStudioReleaseChannelV1,
   assertStudioReleaseStageV1,
@@ -32,8 +33,36 @@ async function main(): Promise<void> {
   const secret = projectServiceRoleJwtV1(options.projectRef);
   const baseUrl = `https://${options.projectRef}.supabase.co`;
 
+  if (manifest.predecessorSurfaceReleaseId !== null) {
+    const predecessorRows = await rpcV1(
+      baseUrl,
+      secret,
+      "get_model_surface_release_v1",
+      { p_surface_release_id: manifest.predecessorSurfaceReleaseId },
+    );
+    if (!Array.isArray(predecessorRows) || predecessorRows.length !== 1) {
+      throw new Error(
+        `Predecessor Model Surface ${manifest.predecessorSurfaceReleaseId} `
+          + "is unavailable",
+      );
+    }
+    const predecessorRow = predecessorRows[0];
+    if (
+      predecessorRow === null
+      || typeof predecessorRow !== "object"
+      || Array.isArray(predecessorRow)
+    ) {
+      throw new Error("Predecessor Model Surface row is invalid");
+    }
+    const predecessor = (predecessorRow as Record<string, unknown>).manifest;
+    assertModelSurfaceReleaseManifestV1(predecessor);
+    assertAdditiveModelSurfaceUpgradeV1(predecessor, manifest);
+  }
+
   await rpcV1(baseUrl, secret, "register_model_surface_release_v1", {
     p_surface_release_id: manifest.surfaceReleaseId,
+    p_surface_series_id: manifest.surfaceSeriesId,
+    p_predecessor_surface_release_id: manifest.predecessorSurfaceReleaseId,
     p_model_family_id: manifest.modelFamilyId,
     p_display_name: manifest.displayName,
     p_manifest: manifest,

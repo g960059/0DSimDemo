@@ -18,6 +18,7 @@ import {
   assertStudioReleaseStageV1,
   controlCapabilityV1,
   derivationCapabilityV1,
+  materializeModelSurfaceForModelV1,
   outputCapabilityV1,
   type ExactModelKernelManifestV3,
   type ModelSurfaceReleaseManifestV1,
@@ -584,6 +585,11 @@ describe("exact model kernel and Model Surface release boundaries", () => {
     leakedGraph.graphCatalog = [];
     expect(() => assertExactModelKernelManifestV3(leakedGraph))
       .toThrow(/keys must be exactly|must contain exactly/);
+
+    const leakedDisplayName = structuredClone(kernel) as any;
+    leakedDisplayName.displayName = "Presentation metadata";
+    expect(() => assertExactModelKernelManifestV3(leakedDisplayName))
+      .toThrow(/keys must be exactly|must contain exactly/);
   });
 
   it("validates a separately released Surface against exact capabilities", () => {
@@ -596,15 +602,25 @@ describe("exact model kernel and Model Surface release boundaries", () => {
     ])).not.toThrow();
 
     const incompatible = structuredClone(surface) as any;
-    incompatible.requiredCapabilities.push("output/not-supplied");
+    incompatible.derivedOutputCatalog[0].requiredCapabilities.push(
+      "output/not-supplied",
+    );
     expect(() => assertModelSurfaceCompatibleV1(incompatible, model, [
       derivationCapabilityV1("derivation/stroke-work-v1"),
     ]))
-      .toThrow(/lacks capability/);
+      .toThrow(/unsupported by the pinned exact model/);
+    const materialized = materializeModelSurfaceForModelV1(
+      incompatible,
+      model,
+      [derivationCapabilityV1("derivation/stroke-work-v1")],
+    );
+    expect(materialized.controlCatalog).toHaveLength(1);
+    expect(materialized.derivedOutputCatalog).toHaveLength(0);
+    expect(materialized.graphCatalog).toHaveLength(0);
 
     const unresolvedDerivation = structuredClone(surface) as any;
-    unresolvedDerivation.requiredCapabilities =
-      unresolvedDerivation.requiredCapabilities.filter(
+    unresolvedDerivation.derivedOutputCatalog[0].requiredCapabilities =
+      unresolvedDerivation.derivedOutputCatalog[0].requiredCapabilities.filter(
         (capability: string) => !capability.startsWith("derivation/"),
       );
     expect(() => assertModelSurfaceReleaseManifestV1(unresolvedDerivation))
@@ -615,8 +631,10 @@ describe("exact model kernel and Model Surface release boundaries", () => {
     const previous = makeSurfaceManifestV1();
     const added = structuredClone(previous) as any;
     added.surfaceReleaseId = "surface/circulation-reference-v2";
+    added.predecessorSurfaceReleaseId = previous.surfaceReleaseId;
     added.protocolCatalog.push({
       protocolId: "protocol/fluid-challenge",
+      requiredCapabilities: [controlCapabilityV1("control.tbv")],
       steps: [{
         atSec: 0,
         actions: [{ controlId: "control.tbv", value: 5_250 }],
@@ -635,6 +653,40 @@ describe("exact model kernel and Model Surface release boundaries", () => {
     removed.graphCatalog = [];
     expect(() => assertAdditiveModelSurfaceUpgradeV1(previous, removed))
       .toThrow(/cannot remove/);
+
+    const wrongPredecessor = structuredClone(added) as any;
+    wrongPredecessor.predecessorSurfaceReleaseId = "surface/wrong-v1";
+    expect(() => assertAdditiveModelSurfaceUpgradeV1(
+      previous,
+      wrongPredecessor,
+    )).toThrow(/predecessorSurfaceReleaseId/);
+  });
+
+  it("rejects unsafe Knob domains and enforces declared neutral defaults", () => {
+    const model = deriveModelContractFromManifestV2(makeManifestV2());
+    const outsideDomain = structuredClone(makeSurfaceManifestV1()) as any;
+    outsideDomain.knobCatalog[0].targets[0].scale = 2;
+    expect(() => assertModelSurfaceCompatibleV1(
+      outsideDomain,
+      model,
+      [derivationCapabilityV1("derivation/stroke-work-v1")],
+    )).toThrow(/mapping at 7000 must be within/);
+
+    const nonneutral = structuredClone(makeSurfaceManifestV1()) as any;
+    nonneutral.knobCatalog[0].targets[0].scale = 0.5;
+    nonneutral.knobCatalog[0].targets[0].offset = 2_000;
+    expect(() => assertModelSurfaceCompatibleV1(
+      nonneutral,
+      model,
+      [derivationCapabilityV1("derivation/stroke-work-v1")],
+    )).toThrow(/must reproduce primitive default/);
+
+    nonneutral.knobCatalog[0].neutralAtDefault = false;
+    expect(() => assertModelSurfaceCompatibleV1(
+      nonneutral,
+      model,
+      [derivationCapabilityV1("derivation/stroke-work-v1")],
+    )).not.toThrow();
   });
 
   it("exposes only the agreed lifecycle vocabulary", () => {
@@ -674,7 +726,6 @@ function makeKernelManifestV3(): ExactModelKernelManifestV3 {
     schemaId: STUDIO_EXACT_MODEL_KERNEL_V3_SCHEMA_ID,
     modelId: legacy.modelId,
     modelFamilyId: legacy.modelFamilyId,
-    displayName: legacy.displayName,
     equations: legacy.equations,
     runtime: legacy.runtime,
     solver: legacy.solver,
@@ -693,16 +744,14 @@ function makeSurfaceManifestV1(): ModelSurfaceReleaseManifestV1 {
   return {
     schemaId: STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
     surfaceReleaseId: "surface/circulation-reference-v1",
+    surfaceSeriesId: "surface-series/circulation-reference",
+    predecessorSurfaceReleaseId: null,
     modelFamilyId: "circulation-reference",
     displayName: "Reference circulation Surface",
-    requiredCapabilities: [
-      controlCapabilityV1("control.tbv"),
-      outputCapabilityV1("hemodynamics.pressure.lv"),
-      derivationCapabilityV1("derivation/stroke-work-v1"),
-    ],
     controlCatalog: [{
       controlId: "control.tbv",
       preferredPresentation: "slider",
+      requiredCapabilities: [controlCapabilityV1("control.tbv")],
     }],
     derivedOutputCatalog: [{
       outputId: "hemodynamics.stroke-work",
@@ -712,6 +761,10 @@ function makeSurfaceManifestV1(): ModelSurfaceReleaseManifestV1 {
       scope: "beat",
       dependencies: ["hemodynamics.pressure.lv"],
       derivationId: "derivation/stroke-work-v1",
+      requiredCapabilities: [
+        outputCapabilityV1("hemodynamics.pressure.lv"),
+        derivationCapabilityV1("derivation/stroke-work-v1"),
+      ],
     }],
     graphCatalog: [{
       graphId: "graph.stroke-work",
@@ -722,6 +775,7 @@ function makeSurfaceManifestV1(): ModelSurfaceReleaseManifestV1 {
         outputId: "hemodynamics.stroke-work",
       }],
       defaultSeriesIds: ["stroke-work"],
+      requiredCapabilities: [],
     }],
     knobCatalog: [{
       knobId: "knob/volume",
@@ -730,6 +784,8 @@ function makeSurfaceManifestV1(): ModelSurfaceReleaseManifestV1 {
       maximum: 7_000,
       step: 10,
       defaultValue: 5_000,
+      neutralAtDefault: true,
+      requiredCapabilities: [controlCapabilityV1("control.tbv")],
       targets: [{ controlId: "control.tbv", scale: 1, offset: 0 }],
     }],
     protocolCatalog: [],
