@@ -6,8 +6,11 @@ import "@/i18n";
 
 import {
   archiveWorkbenchAnalysesV3,
+  cloneWorkbenchAnalysisForScenarioV3,
+  cloneWorkbenchScenarioAnalysesV3,
   cloneWorkbenchControlValuesV3,
   createWorkbenchBriefingSnapshotV3,
+  invalidateWorkbenchScenarioAnalysisEquivalenceV3,
   reconcileWorkbenchBriefingV3,
   resolveWorkbenchBriefingEditorChangeV3,
   resolveWorkbenchInitialBriefingV3,
@@ -467,6 +470,51 @@ describe("V3 Dockview Workbench", () => {
         inputEpoch: 5,
       }),
     ).toBe(false);
+
+    const duplicateFrame = {
+      ...frame,
+      runtimeSessionId: "runtime/duplicate",
+      scenarioId: "scenario/duplicate",
+      acceptedRevision: 201,
+      acceptedTimeSec: 0.402,
+    } as StudioSimulationFrameV2;
+    const cloned = cloneWorkbenchScenarioAnalysesV3(
+      { [keyA]: current },
+      "scenario/a",
+      duplicateFrame,
+    );
+    const duplicate = cloned[workbenchAnalysisHistoryKeyV3(
+      "scenario/duplicate",
+      "analysis/systemic",
+    )]!;
+    expect(workbenchAnalysisMatchesFrameEpochV3(
+      duplicate,
+      duplicateFrame,
+    )).toBe(true);
+    expect(duplicate.payload).toBe(current.payload);
+    expect(cloned[keyA]).toBe(current);
+
+    const lateDuplicate = cloneWorkbenchAnalysisForScenarioV3(
+      current,
+      duplicateFrame,
+    );
+    expect(lateDuplicate).toEqual(duplicate);
+    const equivalence = new Map([
+      ["scenario/duplicate", "scenario/a"],
+      ["scenario/other-copy", "scenario/a"],
+    ]);
+    invalidateWorkbenchScenarioAnalysisEquivalenceV3(
+      equivalence,
+      new Set(["scenario/duplicate"]),
+    );
+    expect(equivalence).toEqual(new Map([
+      ["scenario/other-copy", "scenario/a"],
+    ]));
+    invalidateWorkbenchScenarioAnalysisEquivalenceV3(
+      equivalence,
+      new Set(["scenario/a"]),
+    );
+    expect(equivalence.size).toBe(0);
   });
 
   it("selects every analysis-backed pane that retains visual history", async () => {

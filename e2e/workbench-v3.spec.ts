@@ -17,6 +17,17 @@ test.beforeEach(async ({ page }, testInfo) => {
     await page.goto("/ja/me/experiments");
     return;
   }
+  if (testInfo.title.includes("baseline duplication stays independent")) {
+    // Keep this liveness regression reproducible on high-core developer Macs:
+    // two live lanes leave one serialized background slot on the supported
+    // four-logical-core tier, matching the constrained CI/device contract.
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "hardwareConcurrency", {
+        configurable: true,
+        get: () => 4,
+      });
+    });
+  }
   await page.goto("/ja/experiments/new");
   const root = page.getByTestId("v3-dockview-workbench");
   await expect(root).toBeVisible();
@@ -516,9 +527,14 @@ test("@desktop baseline duplication stays independent and requires explicit save
   await expect(systemicResistance).toHaveValue("1.01");
 
   await page.getByText("PV loop", { exact: true }).click();
+  // The edit above invalidates any relation Worker forked for the duplicate's
+  // old input epoch. On a one-slot background tier that stale sweep must be
+  // cancelled, otherwise it can sit ahead of the current target indefinitely.
+  // This is a liveness/epoch assertion; the separate benchmark owns general
+  // live-throughput budgets.
   await expect(
     page.locator('[data-chart-kind="pressure-volume-loop-v3"]'),
-  ).toHaveAttribute("data-pv-relation-trace-count", "2", {
+  ).toHaveAttribute("data-pv-current-relation-trace-count", "2", {
     timeout: 60_000,
   });
 

@@ -13,6 +13,11 @@ import {
   type WorkbenchLiveSchedulerDependenciesV3,
   type WorkbenchLiveSchedulerTimerV3,
 } from "@/components/workbench/v3/WorkbenchLiveSchedulerV3";
+import type {
+  WorkbenchBackgroundJobHandleV3,
+  WorkbenchBackgroundJobPriorityV3,
+  WorkbenchBackgroundWorkerPoolPortV3,
+} from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
 
 describe("WorkbenchParallelScenarioRuntimeV3", () => {
   it("creates one persistent Worker and scheduler for every Scenario", async () => {
@@ -53,6 +58,49 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     await harness.runtime.pauseAll();
     expect([...harness.schedulers.values()].every(({ running }) => !running))
       .toBe(true);
+  });
+
+  it("reports live lane membership to the shared background QoS budget", async () => {
+    const liveScenarioCounts: number[] = [];
+    const backgroundWorkerPool = {
+      setLiveScenarioCount: (count) => liveScenarioCounts.push(count),
+      schedule: () => {
+        throw new Error("background operation is not expected");
+      },
+      run: async () => {
+        throw new Error("background operation is not expected");
+      },
+    } satisfies WorkbenchBackgroundWorkerPoolPortV3;
+    const harness = harnessV3(vi.fn(), backgroundWorkerPool);
+
+    await harness.runtime.initialize({
+      scenarios: [
+        seedV3("scenario/baseline", "Baseline", 0),
+        seedV3("scenario/comparison", "Comparison", 0),
+      ],
+      activeScenarioId: "scenario/baseline",
+    });
+    // Initialization reserves both lanes while their Workers are being built,
+    // then releases that reservation until playback actually starts.
+    expect(liveScenarioCounts).toContain(2);
+    expect(liveScenarioCounts.at(-1)).toBe(0);
+
+    harness.runtime.playAll();
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+
+    await harness.runtime.addScenario(
+      seedV3("scenario/third", "Third", 0),
+    );
+    expect(liveScenarioCounts.at(-1)).toBe(3);
+
+    await harness.runtime.deleteScenario("scenario/third");
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+    await harness.runtime.pauseAll();
+    expect(liveScenarioCounts.at(-1)).toBe(0);
+    harness.runtime.playAll();
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+    harness.runtime.terminate();
+    expect(liveScenarioCounts.at(-1)).toBe(0);
   });
 
   it("pauses one analysis lane while sibling Scenarios remain live", async () => {
@@ -123,6 +171,88 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       sourceAcceptedRevision: 0,
     });
     expect(analysisClient.terminate).toHaveBeenCalledOnce();
+  });
+
+  it("cancels obsolete Scenario analysis before applying a new control input", async () => {
+    const cancelled = vi.fn();
+    const scheduled = vi.fn();
+    const schedule = <T>(
+      _priority: WorkbenchBackgroundJobPriorityV3,
+      _operation: (
+        client: import("@/studio/workers/StudioSimulationWorkerClientV2")
+          .StudioSimulationWorkerClientV2,
+      ) => Promise<T>,
+    ): WorkbenchBackgroundJobHandleV3<T> => {
+      scheduled();
+      let rejectJob!: (reason: Error) => void;
+      let cancellationAccepted = false;
+      const promise = new Promise<T>((_resolve, reject) => {
+        rejectJob = reject;
+      });
+      return Object.freeze({
+        promise,
+        promote: () => undefined,
+        cancel: () => {
+          if (cancellationAccepted) return false;
+          cancellationAccepted = true;
+          cancelled();
+          rejectJob(new Error("analysis cancelled after input change"));
+          return true;
+        },
+      });
+    };
+    const backgroundWorkerPool = {
+      setLiveScenarioCount: () => undefined,
+      schedule,
+      run: async <T>(
+        priority: WorkbenchBackgroundJobPriorityV3,
+        operation: (
+          client: import("@/studio/workers/StudioSimulationWorkerClientV2")
+            .StudioSimulationWorkerClientV2,
+        ) => Promise<T>,
+      ) => await schedule(priority, operation).promise,
+    } satisfies WorkbenchBackgroundWorkerPoolPortV3;
+    const harness = harnessV3(vi.fn(), backgroundWorkerPool);
+    await harness.runtime.initialize({
+      scenarios: [seedV3("scenario/baseline", "Baseline", 0)],
+      activeScenarioId: "scenario/baseline",
+    });
+
+    const pendingAnalysis = harness.runtime.requestAnalysis({
+      scenarioId: "scenario/baseline",
+      analysisId: "analysis/guyton-starling",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+    });
+    await vi.waitFor(() => expect(scheduled).toHaveBeenCalledOnce());
+    const liveClient = harness.clients.get("scenario/baseline")!;
+    liveClient.applyControl
+      .mockRejectedValueOnce(new Error("control rejected"));
+    await expect(harness.runtime.applyControl({
+      scenarioId: "scenario/baseline",
+      controlId: "control/systemic-resistance",
+      value: 1.01,
+      expectedInputEpoch: 0,
+    })).rejects.toThrow("control rejected");
+    expect(cancelled).not.toHaveBeenCalled();
+
+    liveClient.applyControl
+      .mockResolvedValueOnce(Object.freeze({
+        ...frameV3("scenario/baseline", 1),
+        inputEpoch: 1,
+      }));
+
+    await expect(harness.runtime.applyControl({
+      scenarioId: "scenario/baseline",
+      controlId: "control/systemic-resistance",
+      value: 1.01,
+      expectedInputEpoch: 0,
+    })).resolves.toMatchObject({ inputEpoch: 1 });
+    expect(cancelled).toHaveBeenCalledOnce();
+    await expect(pendingAnalysis).rejects.toThrow(
+      "analysis cancelled after input change",
+    );
   });
 
   it("starts hypovolemic and hypervolemic analysis Workers from one exact capture", async () => {
@@ -552,7 +682,10 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
   });
 });
 
-function harnessV3(onError = vi.fn<(error: Error) => void>()) {
+function harnessV3(
+  onError = vi.fn<(error: Error) => void>(),
+  backgroundWorkerPool?: WorkbenchBackgroundWorkerPoolPortV3,
+) {
   const clients = new Map<string, ReturnType<typeof clientV3>>();
   const analysisClients = new Map<string, ReturnType<typeof clientV3>>();
   const schedulers = new Map<string, FakeSchedulerV3>();
@@ -585,6 +718,7 @@ function harnessV3(onError = vi.fn<(error: Error) => void>()) {
     cancelFrameFlush: () => undefined,
     onFrames,
     onError,
+    ...(backgroundWorkerPool === undefined ? {} : { backgroundWorkerPool }),
   });
   // Factories are lazy: provision deterministic analysis doubles for the
   // assertions before the request allocates one.

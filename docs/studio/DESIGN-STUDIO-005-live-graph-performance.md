@@ -37,6 +37,11 @@ read the latest validated frame directly. If an author adds a new graph item,
 its live history begins with subsequent exact frames; no synthetic backfill is
 created.
 
+Renderer-specific subscriptions prevent an unrelated graph family from
+rebuilding its projection, but that split is not the dominant measured saving
+on its own. Stable selector identities, authored-output materialization, and
+avoiding redundant root commits account for most of the current reduction.
+
 ## Trusted live transport boundary
 
 The bundled persistent Worker is the authority for a live simulation lane. It
@@ -53,8 +58,17 @@ the output map is a plain data object. It does not recursively clone, freeze,
 or revalidate each already-validated output record on every presentation
 batch.
 
-This exception applies only to exact live advances emitted by the bundled
-runtime. Initialize, control, analysis, capture, Snapshot, authoring, storage,
+The same narrow exception applies to progressive analysis updates emitted by
+the bundled runtime. Their envelope, protocol correlation, model/runtime/
+Scenario identity, input epoch, and source clock are checked on the main
+thread, while the already Worker-validated growing payload is reused. The final
+analysis result still goes through the full deep validator. React receives at
+most one coalesced progressive analysis commit per analysis key every 400 ms;
+the final result commits immediately. This keeps an incremental curve visible
+without making every newly appended point a main-thread deep-validation and
+render boundary.
+
+Initialize, control, final analysis, capture, Snapshot, authoring, storage,
 registry, and other lifecycle responses continue through the full deep
 validator. The client also retains its expected identity and monotonic-clock
 checks before accepting an advanced batch. Public protocol validation remains
@@ -168,3 +182,148 @@ commits, or Worker transport—is the dominant budget.
 - Pausing flushes the accepted prefix; resume never rewinds or duplicates it.
 - Theme changes and unrelated root status commits do not recreate unchanged
   graph projections.
+
+## Reproducible target-tier harness
+
+Performance is measured separately from ordinary browser correctness tests.
+The explicit production-preview harness builds the exact current branch,
+creates the profile's target live Scenario count (four on the reference
+desktop and two on constrained/mobile proxies), measures a concurrent-analysis
+window, applies a real control change, and then measures the period in which
+the new steady-state candidate competes for background capacity:
+
+```bash
+npm run benchmark:workbench:live
+```
+
+It runs three serialized Chromium profiles:
+
+| Profile | Layout | CPU treatment | Purpose |
+| --- | --- | --- | --- |
+| `reference-desktop` | 1440 × 900 | native | developer-machine regression |
+| `constrained-desktop-proxy` | 1280 × 800 | 4× CDP throttle, 4 logical cores | reproducible two-Scenario low-end proxy |
+| `mobile-layout-proxy` | 390 × 844 | 4× CDP throttle, 4 logical cores | two-Scenario mobile layout plus CPU-contention proxy |
+
+Each run attaches a JSON report containing every rolling diagnostic, per-lane
+model-time ratio, Worker round trip, Canvas paint/display cadence, overload
+events, control-to-visible-result latency, browser heap counters, environment,
+and the evaluated budget. Budgets are reported by default. This harness is not
+wired into pull-request or `main` GitHub Actions: absolute wall-clock budgets
+calibrated on the reference device would be structurally flaky on shared
+runners. To enforce them explicitly as a local reference-device check:
+
+```bash
+npm run verify:workbench:performance
+```
+
+Useful bounded overrides are:
+
+```bash
+CIRCLEHEART_PERF_SCENARIOS=4 \
+CIRCLEHEART_PERF_WARMUP_MS=10000 \
+CIRCLEHEART_PERF_SAMPLE_MS=30000 \
+npm run benchmark:workbench:live -- --project=constrained-desktop-proxy
+```
+
+CDP throttling is only a regression proxy. It does not emulate memory
+bandwidth, thermal behavior, mobile GPU composition, browser power policy, or
+big.LITTLE scheduling and therefore cannot establish a device-support claim.
+Before claiming a tier, repeat the diagnostic run on named physical devices
+and record browser version, logical cores, memory, battery/thermal state,
+Scenario count, viewport, model-time ratios, long-tail latency, and a minimum
+ten-minute retained-memory soak.
+
+The 2026-08-07 production-preview regression run on the M5 Max development
+device passed all three enforced profiles. Post-control/background-contention
+root model-time ratios were 0.985× for four reference-desktop Scenarios, 0.989×
+for two constrained-desktop proxy Scenarios, and 0.986× for two mobile-layout
+proxy Scenarios. The corresponding control-to-visible-result measurements were
+136 ms, 206 ms, and 159 ms. These numbers establish repeatable headroom on the
+development host; the throttled results remain proxies, not physical-device
+qualification.
+
+The initial qualification matrix is deliberately honest:
+
+| Target tier | Required live Scenarios | Additional stress run |
+| --- | ---: | ---: |
+| contemporary desktop | 4 | 4 plus active structural analysis |
+| ordinary/low-end laptop or tablet | 2 | 4 |
+| contemporary phone | 2 | 4 |
+| older constrained phone | 1 | 2 |
+
+The application does not expose a performance mode and does not silently pause
+or replace a Scenario with replay. All authored Scenarios remain exact live
+lanes. The matrix only distinguishes what has been physically qualified; a
+four-Scenario mobile claim is promoted only after the four-lane stress run
+meets the same scientific and interaction targets.
+
+## Background numerical QoS
+
+Live Scenario Workers own the foreground numerical experience. Snapshot,
+responsive PV support, Guyton/Starling continuation, and steady-candidate
+production share one bounded pool of single-use background Workers. The pool
+uses this priority order:
+
+```text
+Snapshot → explicit Save → visible analysis → speculative prewarm
+```
+
+For `C` logical cores and `L` live Scenario lanes, one logical core is reserved
+for the main thread and browser composition. Speculative capacity is therefore:
+
+```text
+min(configured pool cap, max(0, C - L - 1))
+```
+
+The configured cap scales from one Worker below four logical cores, to two on
+ordinary machines, three from twelve cores, and four from sixteen cores. Thus
+high-performance devices can run both directional analysis branches while
+serving another Scenario analysis or an explicit capture. This is not an
+unconditional hardware-wide fan-out: the live-Scenario-aware formula above
+continues to protect foreground numerical lanes and browser composition, and
+the cap never exceeds four.
+
+This can become zero on a constrained device: speculative settlement waits
+instead of competing with presentation. An explicit user operation always has
+one serialized background lane available. Snapshot/Save may use one bounded
+burst only when real logical-core headroom remains. No operation changes the
+accepted 2 ms model step.
+
+Changing a Scenario target cancels that Scenario's queued analysis partitions
+and terminates any running analysis/prewarm Worker forked from the old input
+epoch. Those results can no longer pass the epoch boundary, so allowing them to
+finish would only block the replacement PV/Starling result on a serialized
+device. An explicit analysis can likewise preempt speculative prewarm at the
+cap. Promotion protects a prewarm that has become the exact candidate needed by
+Snapshot or Save, so useful work is reused rather than restarted. Pool capacity,
+queue depth, active Workers, cancellation, preemption, and burst leases are
+included in diagnostic reports.
+
+Queue priority alone does not terminate an already-running, still-current
+visible analysis. The input-epoch cancellation above is narrower: a parameter
+change has made that analysis impossible to admit, so there is nothing valid to
+resume. Snapshot/Save can use a bounded burst when the device has real headroom,
+but on a one-background-lane device either may wait for a still-current analysis
+operation. Making that current responsive analysis preemptible requires an
+explicit cancel-and-resume contract for all of its partitions; treating every
+analysis, including author-requested formal analysis, as a disposable Worker
+would leave partial UI state and wasted queued partitions. That resumable
+distinction is a separate follow-up rather than an implicit promise of this
+pool.
+
+Only schedulers that are actually running count as live lanes. Initialization
+reserves its future lanes before their Workers start, playback reserves them
+before the first batch request, and an explicit pause returns that capacity to
+background work. Scenario membership by itself does not keep a paused
+Workbench artificially constrained.
+
+An exact Scenario duplicate reuses its source Scenario's immutable structural-
+analysis payload under the duplicate runtime identity. If duplication happens
+before that analysis finishes, later source progress/final results propagate to
+the still-equivalent duplicate as they arrive. The fixture and checkpoint are
+identical at the duplication boundary, so waiting for a second identical
+relation would only consume a constrained device's sole analysis lane. A
+control change on either side breaks the equivalence before a new result can be
+shared; the inherited relation then becomes visual history while the changed
+target is recomputed. This reuse is runtime presentation state only and never
+qualifies or persists a Snapshot.

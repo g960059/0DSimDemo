@@ -753,8 +753,16 @@ export function PressureVolumeLoopCanvasV3(
     rapidRelation?.analysisMode === "formal-periodic");
   const formalAnalysisSelected =
     props.analysisMode === "formal-periodic" || anyFormalRelation;
-  const rapidRelationTraceCount = renderedTraces.filter(({ rapidRelation }) =>
-    rapidRelation !== null).length;
+  const currentRapidRelationTraceCount = renderedTraces.filter(
+    ({ rapidRelation }) => rapidRelation !== null,
+  ).length;
+  // A prior relation remains intentionally visible while a changed Scenario
+  // is recomputed. Count what the reader can actually see, rather than making
+  // tests and assistive diagnostics treat that stable history as absent.
+  const visibleRapidRelationTraceCount = renderedTraces.filter(
+    ({ rapidRelation, rapidRelationHistory }) =>
+      rapidRelation !== null || rapidRelationHistory.length > 0,
+  ).length;
   const relationStatus = anyFormalRelation
     ? "Formal periodic fixed-TBV multi-load ESPVR / EDPVR analysis · not clinical validation"
     : formalAnalysisSelected
@@ -785,7 +793,9 @@ export function PressureVolumeLoopCanvasV3(
             MAIN_WIRE_INTEGRATED_MODEL_RAPID_PRESSURE_VOLUME_RELATION_SEMANTICS_V3
           : "unavailable"
       }
-      data-pv-relation-trace-count={rapidRelationTraceCount}
+      data-pv-current-relation-trace-count={currentRapidRelationTraceCount}
+      data-pv-relation-trace-count={visibleRapidRelationTraceCount}
+      data-pv-loop-trace-count={visibleRenderedTraces.length}
       data-rapid-pv-relation-pending={
         rapidRelationPending ? "true" : "false"
       }

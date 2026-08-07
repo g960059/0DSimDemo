@@ -45,12 +45,8 @@ export function workbenchPresentationOutputSelectionV3(
     }
   }
   if (sweepPresent) {
-    for (const graph of contract.graphCatalog) {
-      if (graph.renderer !== "pressure-volume") continue;
-      const cyclePhaseOutputId = graph.seriesCatalog[0]?.cyclePhaseOutputId;
-      if (cyclePhaseOutputId !== undefined) outputIds.add(cyclePhaseOutputId);
-      break;
-    }
+    const cyclePhaseOutputId = workbenchModelCyclePhaseOutputIdV3(contract);
+    if (cyclePhaseOutputId !== undefined) outputIds.add(cyclePhaseOutputId);
   }
 
   const selection = outputIds as ReadonlySet<string>;
@@ -62,4 +58,16 @@ export function workbenchPresentationOutputSelectionV3(
     contractCache,
   );
   return selection;
+}
+
+/** Canonical model-emitted phase used to segment every sweeping trace. */
+export function workbenchModelCyclePhaseOutputIdV3(
+  contract: ModelContractV2,
+): string | undefined {
+  for (const graph of contract.graphCatalog) {
+    if (graph.renderer !== "pressure-volume") continue;
+    const cyclePhaseOutputId = graph.seriesCatalog[0]?.cyclePhaseOutputId;
+    if (cyclePhaseOutputId !== undefined) return cyclePhaseOutputId;
+  }
+  return undefined;
 }

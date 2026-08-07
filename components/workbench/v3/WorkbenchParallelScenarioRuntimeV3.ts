@@ -42,6 +42,7 @@ import {
   type WorkbenchPresentationProfileV3,
 } from "./WorkbenchPresentationProfileV3";
 import type {
+  WorkbenchBackgroundJobHandleV3,
   WorkbenchBackgroundWorkerPoolPortV3,
 } from "./WorkbenchBackgroundWorkerPoolV3";
 import {
@@ -159,6 +160,10 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   readonly #analysisClients = new Set<
     WorkbenchParallelScenarioRuntimeClientV3
   >();
+  readonly #analysisJobsByScenario = new Map<
+    string,
+    Set<WorkbenchBackgroundJobHandleV3<unknown>>
+  >();
   readonly #pendingScenarioIds = new Set<string>();
   #state: ParallelRuntimeStateV3 = "new";
   #activeScenarioId: string | null = null;
@@ -207,6 +212,10 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }
     validateScenarioSeedsV3(input.scenarios, input.activeScenarioId);
     this.#state = "initializing";
+    // Reserve the live-lane budget before module Workers start. This prevents
+    // speculative settlement from filling the device while initial Scenario
+    // lanes are coming online.
+    this.#syncBackgroundWorkerBudget(input.scenarios.length);
     const results = await Promise.allSettled(input.scenarios.map((seed) =>
       this.#createLane(seed)));
     const failures = results.filter(
@@ -217,6 +226,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         if (result.status === "fulfilled") terminateLaneV3(result.value);
       }
       this.#state = "terminated";
+      this.#syncBackgroundWorkerBudget(0);
       const reason = failures[0]?.reason;
       throw errorAsErrorV3(
         reason ?? "parallel Scenario runtime was terminated during initialization",
@@ -227,6 +237,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         this.#lanes.set(result.value.descriptor.scenarioId, result.value);
       }
     }
+    this.#syncBackgroundWorkerBudget();
     this.#activeScenarioId = input.activeScenarioId;
     this.#state = "active";
     return this.currentState();
@@ -290,6 +301,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       );
     }
     this.#pendingScenarioIds.add(seed.scenarioId);
+    this.#syncBackgroundWorkerBudget();
     try {
       const lane = await this.#createLane(seed);
       if (this.#state !== "active") {
@@ -306,6 +318,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       return this.currentState();
     } finally {
       this.#pendingScenarioIds.delete(seed.scenarioId);
+      this.#syncBackgroundWorkerBudget();
     }
   }
 
@@ -350,7 +363,9 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       throw new Error("parallel Scenario runtime cannot delete its last Scenario");
     }
     const lane = this.#requiredLane(scenarioId);
+    this.#cancelScenarioAnalysisJobs(scenarioId);
     this.#lanes.delete(scenarioId);
+    this.#syncBackgroundWorkerBudget();
     this.#steadyCandidates?.invalidateScenario(scenarioId);
     if (this.#activeScenarioId === scenarioId) {
       this.#activeScenarioId = this.#lanes.keys().next().value ?? null;
@@ -373,6 +388,13 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       runtimeSessionId: lane.runtimeSessionId,
     });
     lane.latestFrame = frame;
+    // Every queued/running analysis was forked from the old input epoch. Letting
+    // it finish cannot produce an admissible result and, on a one-slot device,
+    // can keep the current PV/Starling request behind minutes of stale work.
+    // Cancel only after the control was accepted: a rejected edit leaves the
+    // old input (and its analysis) valid. Unrelated Scenario work and explicit
+    // Save/Snapshot jobs retain their normal QoS contract.
+    this.#cancelScenarioAnalysisJobs(input.scenarioId);
     await this.#prewarmLane(lane);
     return frame;
   }
@@ -506,7 +528,13 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     operation: (client: WorkbenchParallelScenarioRuntimeClientV3) => Promise<T>,
   ): Promise<T> {
     if (this.#backgroundWorkerPool !== undefined) {
-      return await this.#backgroundWorkerPool.run("analysis", operation);
+      const handle = this.#backgroundWorkerPool.schedule("analysis", operation);
+      this.#trackScenarioAnalysisJob(scenarioId, handle);
+      try {
+        return await handle.promise;
+      } finally {
+        this.#untrackScenarioAnalysisJob(scenarioId, handle);
+      }
     }
     const client = this.#createAnalysisClient(scenarioId, analysisPartition);
     try {
@@ -590,10 +618,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#requireActive();
     if (this.#playing) return;
     this.#playing = true;
+    // Reserve foreground capacity before schedulers start requesting batches;
+    // otherwise paused-time speculation can briefly overfill the device.
+    this.#syncBackgroundWorkerBudget(
+      this.#lanes.size + this.#pendingScenarioIds.size,
+    );
     try {
       for (const lane of this.#lanes.values()) {
         lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
       }
+      this.#syncBackgroundWorkerBudget();
     } catch (error) {
       this.#fail(null, errorAsErrorV3(error));
     }
@@ -603,9 +637,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (this.#state === "terminated") return;
     this.#requireActive();
     this.#playing = false;
-    await Promise.all([...this.#lanes.values()].map(({ scheduler }) =>
-      scheduler.pause()));
-    this.#flushFrames();
+    try {
+      await Promise.all([...this.#lanes.values()].map(({ scheduler }) =>
+        scheduler.pause()));
+      this.#flushFrames();
+    } finally {
+      // A paused Workbench has no foreground numerical lanes. Give its idle
+      // cores back to explicit analysis/prewarm instead of charging Scenario
+      // membership as if every scheduler were still running.
+      this.#syncBackgroundWorkerBudget();
+    }
   }
 
   /** Pauses and drains only one numerical lane; sibling Scenarios stay live. */
@@ -619,6 +660,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     const lane = this.#requiredLane(scenarioId);
     await lane.scheduler.pause();
     this.#flushFrames();
+    this.#syncBackgroundWorkerBudget();
     return lane.latestFrame;
   }
 
@@ -628,7 +670,14 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#requireActive();
     const lane = this.#requiredLane(scenarioId);
     if (lane.scheduler.running) return;
-    lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
+    this.#syncBackgroundWorkerBudget(
+      this.#runningLaneCount() + this.#pendingScenarioIds.size + 1,
+    );
+    try {
+      lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
+    } finally {
+      this.#syncBackgroundWorkerBudget();
+    }
   }
 
   terminate(): void {
@@ -636,6 +685,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#state = "terminated";
     this.#playing = false;
     this.#steadyCandidates?.dispose();
+    this.#cancelAllAnalysisJobs();
     this.#cancelPendingFlush();
     this.#pendingFrames = [];
     for (const client of this.#analysisClients) client.terminate();
@@ -643,6 +693,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     for (const lane of this.#lanes.values()) terminateLaneV3(lane);
     this.#lanes.clear();
     this.#pendingScenarioIds.clear();
+    this.#syncBackgroundWorkerBudget(0);
     this.#activeScenarioId = null;
   }
 
@@ -651,6 +702,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#state = "terminated";
     this.#playing = false;
     this.#steadyCandidates?.dispose();
+    this.#cancelAllAnalysisJobs();
     this.#cancelPendingFlush();
     this.#pendingFrames = [];
     for (const client of this.#analysisClients) client.terminate();
@@ -658,6 +710,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     const lanes = [...this.#lanes.values()];
     this.#lanes.clear();
     this.#pendingScenarioIds.clear();
+    this.#syncBackgroundWorkerBudget(0);
     this.#activeScenarioId = null;
     await Promise.allSettled(lanes.map(({ scheduler }) => scheduler.dispose()));
     for (const { client } of lanes) client.terminate();
@@ -847,6 +900,54 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (this.#frameFlushTimer === undefined) return;
     this.#cancelFrameFlush(this.#frameFlushTimer);
     this.#frameFlushTimer = undefined;
+  }
+
+  #syncBackgroundWorkerBudget(
+    liveScenarioCount = this.#runningLaneCount()
+      + this.#pendingScenarioIds.size,
+  ): void {
+    this.#backgroundWorkerPool?.setLiveScenarioCount(liveScenarioCount);
+  }
+
+  #trackScenarioAnalysisJob<T>(
+    scenarioId: string,
+    handle: WorkbenchBackgroundJobHandleV3<T>,
+  ): void {
+    const jobs = this.#analysisJobsByScenario.get(scenarioId) ?? new Set();
+    jobs.add(handle as WorkbenchBackgroundJobHandleV3<unknown>);
+    this.#analysisJobsByScenario.set(scenarioId, jobs);
+  }
+
+  #untrackScenarioAnalysisJob<T>(
+    scenarioId: string,
+    handle: WorkbenchBackgroundJobHandleV3<T>,
+  ): void {
+    const jobs = this.#analysisJobsByScenario.get(scenarioId);
+    if (jobs === undefined) return;
+    jobs.delete(handle as WorkbenchBackgroundJobHandleV3<unknown>);
+    if (jobs.size === 0) this.#analysisJobsByScenario.delete(scenarioId);
+  }
+
+  #cancelScenarioAnalysisJobs(scenarioId: string): void {
+    const jobs = this.#analysisJobsByScenario.get(scenarioId);
+    if (jobs === undefined) return;
+    this.#analysisJobsByScenario.delete(scenarioId);
+    for (const job of jobs) job.cancel();
+  }
+
+  #cancelAllAnalysisJobs(): void {
+    const scenarioIds = [...this.#analysisJobsByScenario.keys()];
+    for (const scenarioId of scenarioIds) {
+      this.#cancelScenarioAnalysisJobs(scenarioId);
+    }
+  }
+
+  #runningLaneCount(): number {
+    let count = 0;
+    for (const { scheduler } of this.#lanes.values()) {
+      if (scheduler.running) count += 1;
+    }
+    return count;
   }
 
   #fail(failingScenarioId: string | null, error: Error): void {

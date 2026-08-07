@@ -159,6 +159,7 @@ import {
   structuralReturnOrientationFromPayloadV3,
   useWorkbenchSampledGraphPresentationSamplesV3,
   updateWorkbenchScenarioBaseColorV3,
+  workbenchModelCyclePhaseOutputIdV3,
   workbenchPresentationOutputSelectionV3,
   type WorkbenchScenarioOrbitHistoryV3,
   type WorkbenchScenarioPresentationSamplesV3,
@@ -217,6 +218,7 @@ type WorkbenchRuntimeRestartFeedbackV3 = Readonly<{
 }>;
 
 const WORKBENCH_ROOT_FRAME_INTERVAL_SEC_V3 = 0.1;
+const WORKBENCH_ANALYSIS_PROGRESS_COMMIT_INTERVAL_MS_V3 = 400;
 const EMPTY_WORKBENCH_SCENARIO_PRESENTATION_SAMPLES_V3 = Object.freeze(
   Object.create(null),
 ) as WorkbenchScenarioPresentationSamplesV3;
@@ -441,6 +443,13 @@ const WorkbenchV3Session = ({
   const analysisByKeyRef = React.useRef<
     Readonly<Record<string, StudioSimulationAnalysisV2>>
   >({});
+  const equivalentAnalysisSourceByScenarioRef = React.useRef(
+    new Map<string, string>(),
+  );
+  const queuedAnalysisProgressByKeyRef = React.useRef(
+    new Map<string, StudioSimulationAnalysisV2>(),
+  );
+  const analysisProgressCommitTimerRef = React.useRef<number | null>(null);
   const contentStoreRef = React.useRef<StudioBrowserContentStoreV3 | null>(
     null,
   );
@@ -490,32 +499,103 @@ const WorkbenchV3Session = ({
     [],
   );
 
-  const commitAnalysisV3 = React.useCallback(
-    (analysis: StudioSimulationAnalysisV2) => {
+  const commitAnalysesV3 = React.useCallback(
+    (analyses: readonly StudioSimulationAnalysisV2[]) => {
       const runtime = runtimeRef.current;
-      let frame: StudioSimulationFrameV2 | null = null;
-      if (runtime !== null) {
-        try {
-          frame = runtime.latestFrame(analysis.scenarioId);
-        } catch {
-          return;
+      const accepted: Array<readonly [string, StudioSimulationAnalysisV2]> = [];
+      for (const analysis of analyses) {
+        let frame: StudioSimulationFrameV2 | null = null;
+        if (runtime !== null) {
+          try {
+            frame = runtime.latestFrame(analysis.scenarioId);
+          } catch {
+            continue;
+          }
+        }
+        if (workbenchAnalysisMatchesFrameEpochV3(analysis, frame)) {
+          accepted.push(Object.freeze([
+            workbenchAnalysisHistoryKeyV3(
+              analysis.scenarioId,
+              analysis.analysisId,
+            ),
+            analysis,
+          ]));
+          if (runtime !== null) {
+            for (const [targetScenarioId, sourceScenarioId] of
+              equivalentAnalysisSourceByScenarioRef.current) {
+              if (sourceScenarioId !== analysis.scenarioId) continue;
+              let targetFrame: StudioSimulationFrameV2;
+              try {
+                targetFrame = runtime.latestFrame(targetScenarioId);
+              } catch {
+                continue;
+              }
+              const cloned = cloneWorkbenchAnalysisForScenarioV3(
+                analysis,
+                targetFrame,
+              );
+              accepted.push(Object.freeze([
+                workbenchAnalysisHistoryKeyV3(
+                  cloned.scenarioId,
+                  cloned.analysisId,
+                ),
+                cloned,
+              ]));
+            }
+          }
         }
       }
-      if (workbenchAnalysisMatchesFrameEpochV3(analysis, frame)) {
-        const key = workbenchAnalysisHistoryKeyV3(
-          analysis.scenarioId,
-          analysis.analysisId,
-        );
-        replaceAnalysisByKeyV3(
-          Object.freeze({
-            ...analysisByKeyRef.current,
-            [key]: analysis,
-          }),
-        );
-      }
+      if (accepted.length === 0) return;
+      replaceAnalysisByKeyV3(Object.freeze({
+        ...analysisByKeyRef.current,
+        ...Object.fromEntries(accepted),
+      }));
     },
     [replaceAnalysisByKeyV3],
   );
+
+  const commitAnalysisV3 = React.useCallback(
+    (analysis: StudioSimulationAnalysisV2) => {
+      queuedAnalysisProgressByKeyRef.current.delete(
+        workbenchAnalysisHistoryKeyV3(
+          analysis.scenarioId,
+          analysis.analysisId,
+        ),
+      );
+      commitAnalysesV3([analysis]);
+    },
+    [commitAnalysesV3],
+  );
+
+  const queueAnalysisProgressV3 = React.useCallback(
+    (analysis: StudioSimulationAnalysisV2) => {
+      queuedAnalysisProgressByKeyRef.current.set(
+        workbenchAnalysisHistoryKeyV3(
+          analysis.scenarioId,
+          analysis.analysisId,
+        ),
+        analysis,
+      );
+      if (analysisProgressCommitTimerRef.current !== null) return;
+      analysisProgressCommitTimerRef.current = window.setTimeout(() => {
+        analysisProgressCommitTimerRef.current = null;
+        const pending = Object.freeze([
+          ...queuedAnalysisProgressByKeyRef.current.values(),
+        ]);
+        queuedAnalysisProgressByKeyRef.current.clear();
+        commitAnalysesV3(pending);
+      }, WORKBENCH_ANALYSIS_PROGRESS_COMMIT_INTERVAL_MS_V3);
+    },
+    [commitAnalysesV3],
+  );
+
+  React.useEffect(() => () => {
+    if (analysisProgressCommitTimerRef.current !== null) {
+      window.clearTimeout(analysisProgressCommitTimerRef.current);
+      analysisProgressCommitTimerRef.current = null;
+    }
+    queuedAnalysisProgressByKeyRef.current.clear();
+  }, []);
 
   const updateWorkbenchBriefingV3 = React.useCallback(
     (next: ExperimentPlacementBriefingV2) => {
@@ -741,6 +821,7 @@ const WorkbenchV3Session = ({
       setControlError(null);
       setPendingControlId(null);
       replaceAnalysisByKeyV3({});
+      equivalentAnalysisSourceByScenarioRef.current.clear();
       setAnalysisHistoryByKey({});
       setPendingAnalysisKeys([]);
       setAnalysisCapturePending(false);
@@ -1217,6 +1298,10 @@ const WorkbenchV3Session = ({
           );
         }
         const targetScenarioIds = new Set(uniqueScenarioIds);
+        invalidateWorkbenchScenarioAnalysisEquivalenceV3(
+          equivalentAnalysisSourceByScenarioRef.current,
+          targetScenarioIds,
+        );
         replaceAnalysisByKeyV3(filterWorkbenchAnalysesByScenarioIdsV3(
           analysisByKeyRef.current,
           new Set(scenarios
@@ -1370,7 +1455,7 @@ const WorkbenchV3Session = ({
                   expectedInputEpoch: acceptedFrame.inputEpoch,
                   expectedAcceptedRevision: acceptedFrame.acceptedRevision,
                   expectedAcceptedTimeSec: acceptedFrame.acceptedTimeSec,
-                  onProgress: commitAnalysisV3,
+                  onProgress: queueAnalysisProgressV3,
                   onLiveLaneReleased: markLiveLaneReleased,
                 });
                 commitAnalysisV3(analysis);
@@ -1429,7 +1514,7 @@ const WorkbenchV3Session = ({
       })();
       return true;
     },
-    [commitAnalysisV3],
+    [commitAnalysisV3, queueAnalysisProgressV3],
   );
 
   const adoptScenarioStateV3 = React.useCallback(
@@ -1444,6 +1529,13 @@ const WorkbenchV3Session = ({
       const retainedScenarioIds = new Set(
         next.scenarios.map(({ scenarioId }) => scenarioId),
       );
+      for (const [targetScenarioId, sourceScenarioId] of
+        equivalentAnalysisSourceByScenarioRef.current) {
+        if (
+          !retainedScenarioIds.has(targetScenarioId)
+          || !retainedScenarioIds.has(sourceScenarioId)
+        ) equivalentAnalysisSourceByScenarioRef.current.delete(targetScenarioId);
+      }
       replaceAnalysisByKeyV3(
         filterWorkbenchAnalysesByScenarioIdsV3(
           analysisByKeyRef.current,
@@ -1581,6 +1673,25 @@ const WorkbenchV3Session = ({
           updateSurface((current) =>
             reconcileWorkbenchSurfaceScenariosV3(current, next.scenarios),
           );
+          // A duplicate has the same exact fixture + checkpoint and therefore
+          // the same model-owned structural result at creation time. Reuse the
+          // immutable analysis payload under the duplicate lane identity. A
+          // later parameter edit archives this result as visible history while
+          // the changed target is recomputed, instead of forcing low-core
+          // devices to serialize an identical analysis before first paint.
+          replaceAnalysisByKeyV3(cloneWorkbenchScenarioAnalysesV3(
+            analysisByKeyRef.current,
+            intent.sourceScenarioId,
+            next.frame,
+          ));
+          const sourceScenarioId =
+            equivalentAnalysisSourceByScenarioRef.current.get(
+              intent.sourceScenarioId,
+            ) ?? intent.sourceScenarioId;
+          equivalentAnalysisSourceByScenarioRef.current.set(
+            intent.scenarioId,
+            sourceScenarioId,
+          );
           if (sourceValues !== undefined) {
             controlValuesByScenarioRef.current = {
               ...controlValuesByScenarioRef.current,
@@ -1598,6 +1709,7 @@ const WorkbenchV3Session = ({
     [
       markExperimentDirtyV3,
       presentationSampleStore,
+      replaceAnalysisByKeyV3,
       runScenarioOperationV3,
       updateSurface,
     ],
@@ -3983,17 +4095,6 @@ function rapidPressureVolumeRelationFromAnalysisV3(
   return relation ?? undefined;
 }
 
-function workbenchModelCyclePhaseOutputIdV3(
-  contract: ModelContractV2,
-): string | undefined {
-  for (const graph of contract.graphCatalog) {
-    if (graph.renderer !== "pressure-volume") continue;
-    const cyclePhaseOutputId = graph.seriesCatalog[0]?.cyclePhaseOutputId;
-    if (cyclePhaseOutputId !== undefined) return cyclePhaseOutputId;
-  }
-  return undefined;
-}
-
 type StructuralReturnScenarioTraceV3 = Readonly<{
   scenarioId: string;
   scenarioLabel: string;
@@ -4183,6 +4284,69 @@ export function workbenchAnalysisHistoryKeyV3(
   analysisId: string,
 ): string {
   return JSON.stringify([scenarioId, analysisId]);
+}
+
+/**
+ * Rebinds immutable analysis payloads when an exact Scenario is duplicated.
+ * The result remains runtime-only presentation/analysis state; it never enters
+ * a Snapshot qualification decision or a durable Experiment capture.
+ */
+export function cloneWorkbenchScenarioAnalysesV3(
+  current: Readonly<Record<string, StudioSimulationAnalysisV2>>,
+  sourceScenarioId: string,
+  targetFrame: StudioSimulationFrameV2,
+): Readonly<Record<string, StudioSimulationAnalysisV2>> {
+  const sourceAnalyses = Object.values(current).filter(({ scenarioId }) =>
+    scenarioId === sourceScenarioId);
+  if (sourceAnalyses.length === 0) return current;
+  const cloned = sourceAnalyses.map((analysis) => {
+    const targetAnalysis = cloneWorkbenchAnalysisForScenarioV3(
+      analysis,
+      targetFrame,
+    );
+    return Object.freeze([
+      workbenchAnalysisHistoryKeyV3(
+        targetFrame.scenarioId,
+        analysis.analysisId,
+      ),
+      targetAnalysis,
+    ] as const);
+  });
+  return Object.freeze({
+    ...current,
+    ...Object.fromEntries(cloned),
+  });
+}
+
+export function cloneWorkbenchAnalysisForScenarioV3(
+  analysis: StudioSimulationAnalysisV2,
+  targetFrame: StudioSimulationFrameV2,
+): StudioSimulationAnalysisV2 {
+  return Object.freeze({
+    ...analysis,
+    modelId: targetFrame.modelId,
+    runtimeSessionId: targetFrame.runtimeSessionId,
+    scenarioId: targetFrame.scenarioId,
+    inputEpoch: targetFrame.inputEpoch,
+    // Preserve the original analysis source clock: the relation was already
+    // accepted for this unchanged parameter target, but was not recomputed at
+    // the duplicate's current accepted revision. The presentation contract
+    // treats validated payloads as immutable, so sharing one does not share
+    // mutable numerical Scenario state.
+    payload: analysis.payload,
+  }) satisfies StudioSimulationAnalysisV2;
+}
+
+export function invalidateWorkbenchScenarioAnalysisEquivalenceV3(
+  sourceByTarget: Map<string, string>,
+  changedScenarioIds: ReadonlySet<string>,
+): void {
+  for (const [targetScenarioId, sourceScenarioId] of sourceByTarget) {
+    if (
+      changedScenarioIds.has(targetScenarioId)
+      || changedScenarioIds.has(sourceScenarioId)
+    ) sourceByTarget.delete(targetScenarioId);
+  }
 }
 
 export function workbenchAnalysisMatchesFrameEpochV3(
