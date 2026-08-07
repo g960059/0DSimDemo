@@ -37,6 +37,11 @@ read the latest validated frame directly. If an author adds a new graph item,
 its live history begins with subsequent exact frames; no synthetic backfill is
 created.
 
+Renderer-specific subscriptions prevent an unrelated graph family from
+rebuilding its projection, but that split is not the dominant measured saving
+on its own. Stable selector identities, authored-output materialization, and
+avoiding redundant root commits account for most of the current reduction.
+
 ## Trusted live transport boundary
 
 The bundled persistent Worker is the authority for a live simulation lane. It
@@ -202,8 +207,10 @@ It runs three serialized Chromium profiles:
 Each run attaches a JSON report containing every rolling diagnostic, per-lane
 model-time ratio, Worker round trip, Canvas paint/display cadence, overload
 events, control-to-visible-result latency, browser heap counters, environment,
-and the evaluated budget. Budgets are reported by default. To turn them into a
-local release gate:
+and the evaluated budget. Budgets are reported by default. This harness is not
+wired into pull-request or `main` GitHub Actions: absolute wall-clock budgets
+calibrated on the reference device would be structurally flaky on shared
+runners. To enforce them explicitly as a local reference-device check:
 
 ```bash
 npm run verify:workbench:performance
@@ -228,10 +235,10 @@ ten-minute retained-memory soak.
 
 The 2026-08-07 production-preview regression run on the M5 Max development
 device passed all three enforced profiles. Post-control/background-contention
-root model-time ratios were 0.987× for four reference-desktop Scenarios, 0.984×
-for two constrained-desktop proxy Scenarios, and 0.987× for two mobile-layout
+root model-time ratios were 0.985× for four reference-desktop Scenarios, 0.989×
+for two constrained-desktop proxy Scenarios, and 0.986× for two mobile-layout
 proxy Scenarios. The corresponding control-to-visible-result measurements were
-131 ms, 204 ms, and 180 ms. These numbers establish repeatable headroom on the
+136 ms, 206 ms, and 159 ms. These numbers establish repeatable headroom on the
 development host; the throttled results remain proxies, not physical-device
 qualification.
 
@@ -289,10 +296,28 @@ become the exact candidate needed by Snapshot or Save, so useful work is reused
 rather than restarted. Pool capacity, queue depth, active Workers, cancellation,
 preemption, and burst leases are included in diagnostic reports.
 
-An exact Scenario duplicate initially reuses its source Scenario's immutable
-structural-analysis payload under the duplicate runtime identity. The fixture
-and checkpoint are identical at that boundary, so immediately recomputing the
-same relation would only consume a constrained device's sole analysis lane.
-Once the duplicate target changes, the inherited relation becomes visual
-history and a fresh model-owned analysis progressively replaces it. This reuse
-is runtime presentation state only and never qualifies or persists a Snapshot.
+Queue priority orders waiting work; it does not terminate an already-running
+visible analysis. Snapshot/Save can use a bounded burst when the device has real
+headroom, but on a one-background-lane device either may wait for the current
+analysis operation. Making responsive analysis preemptible requires an explicit
+cancel-and-resume contract for all of its partitions; treating every analysis,
+including author-requested formal analysis, as a disposable Worker would leave
+partial UI state and wasted queued partitions. That resumable distinction is a
+separate follow-up rather than an implicit promise of this pool.
+
+Only schedulers that are actually running count as live lanes. Initialization
+reserves its future lanes before their Workers start, playback reserves them
+before the first batch request, and an explicit pause returns that capacity to
+background work. Scenario membership by itself does not keep a paused
+Workbench artificially constrained.
+
+An exact Scenario duplicate reuses its source Scenario's immutable structural-
+analysis payload under the duplicate runtime identity. If duplication happens
+before that analysis finishes, later source progress/final results propagate to
+the still-equivalent duplicate as they arrive. The fixture and checkpoint are
+identical at the duplication boundary, so waiting for a second identical
+relation would only consume a constrained device's sole analysis lane. A
+control change on either side breaks the equivalence before a new result can be
+shared; the inherited relation then becomes visual history while the changed
+target is recomputed. This reuse is runtime presentation state only and never
+qualifies or persists a Snapshot.

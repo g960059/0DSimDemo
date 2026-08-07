@@ -22,16 +22,24 @@ export function readWorkbenchCanvasThemeVariablesV3(
   if (element === null || typeof getComputedStyle !== "function") {
     return Object.freeze(variables.map(([, fallback]) => fallback));
   }
-  const themeId = element.closest<HTMLElement>("[data-app-theme]")
-    ?.dataset.appTheme ?? "";
+  const themeRoot = element.closest<HTMLElement>("[data-app-theme]");
+  const themeId = themeRoot?.dataset.appTheme ?? "";
   const cacheKey = `${themeId}\u001f${variables.map(([name]) => name).join("\u001f")}`;
   const elementCache = WORKBENCH_CANVAS_THEME_CACHE_V3.get(element)
     ?? new Map<string, readonly string[]>();
   const cached = elementCache.get(cacheKey);
   if (cached !== undefined) return cached;
   const styles = getComputedStyle(element);
-  const values = Object.freeze(variables.map(([name, fallback]) =>
-    styles.getPropertyValue(name).trim() || fallback));
+  let allVariablesResolved = themeRoot !== null && themeId.length > 0;
+  const values = Object.freeze(variables.map(([name, fallback]) => {
+    const resolved = styles.getPropertyValue(name).trim();
+    if (resolved.length === 0) allVariablesResolved = false;
+    return resolved || fallback;
+  }));
+  // A first Canvas paint can race stylesheet/theme application. A fallback is
+  // safe for that paint, but caching it would pin the wrong palette until the
+  // component remounts. Cache only a fully resolved authored theme.
+  if (!allVariablesResolved) return values;
   elementCache.set(cacheKey, values);
   WORKBENCH_CANVAS_THEME_CACHE_V3.set(element, elementCache);
   return values;

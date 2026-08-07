@@ -599,10 +599,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#requireActive();
     if (this.#playing) return;
     this.#playing = true;
+    // Reserve foreground capacity before schedulers start requesting batches;
+    // otherwise paused-time speculation can briefly overfill the device.
+    this.#syncBackgroundWorkerBudget(
+      this.#lanes.size + this.#pendingScenarioIds.size,
+    );
     try {
       for (const lane of this.#lanes.values()) {
         lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
       }
+      this.#syncBackgroundWorkerBudget();
     } catch (error) {
       this.#fail(null, errorAsErrorV3(error));
     }
@@ -612,9 +618,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (this.#state === "terminated") return;
     this.#requireActive();
     this.#playing = false;
-    await Promise.all([...this.#lanes.values()].map(({ scheduler }) =>
-      scheduler.pause()));
-    this.#flushFrames();
+    try {
+      await Promise.all([...this.#lanes.values()].map(({ scheduler }) =>
+        scheduler.pause()));
+      this.#flushFrames();
+    } finally {
+      // A paused Workbench has no foreground numerical lanes. Give its idle
+      // cores back to explicit analysis/prewarm instead of charging Scenario
+      // membership as if every scheduler were still running.
+      this.#syncBackgroundWorkerBudget();
+    }
   }
 
   /** Pauses and drains only one numerical lane; sibling Scenarios stay live. */
@@ -628,6 +641,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     const lane = this.#requiredLane(scenarioId);
     await lane.scheduler.pause();
     this.#flushFrames();
+    this.#syncBackgroundWorkerBudget();
     return lane.latestFrame;
   }
 
@@ -637,7 +651,14 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#requireActive();
     const lane = this.#requiredLane(scenarioId);
     if (lane.scheduler.running) return;
-    lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
+    this.#syncBackgroundWorkerBudget(
+      this.#runningLaneCount() + this.#pendingScenarioIds.size + 1,
+    );
+    try {
+      lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
+    } finally {
+      this.#syncBackgroundWorkerBudget();
+    }
   }
 
   terminate(): void {
@@ -861,9 +882,18 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   }
 
   #syncBackgroundWorkerBudget(
-    liveScenarioCount = this.#lanes.size + this.#pendingScenarioIds.size,
+    liveScenarioCount = this.#runningLaneCount()
+      + this.#pendingScenarioIds.size,
   ): void {
     this.#backgroundWorkerPool?.setLiveScenarioCount(liveScenarioCount);
+  }
+
+  #runningLaneCount(): number {
+    let count = 0;
+    for (const { scheduler } of this.#lanes.values()) {
+      if (scheduler.running) count += 1;
+    }
+    return count;
   }
 
   #fail(failingScenarioId: string | null, error: Error): void {

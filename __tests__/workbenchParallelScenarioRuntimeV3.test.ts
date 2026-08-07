@@ -78,6 +78,12 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       ],
       activeScenarioId: "scenario/baseline",
     });
+    // Initialization reserves both lanes while their Workers are being built,
+    // then releases that reservation until playback actually starts.
+    expect(liveScenarioCounts).toContain(2);
+    expect(liveScenarioCounts.at(-1)).toBe(0);
+
+    harness.runtime.playAll();
     expect(liveScenarioCounts.at(-1)).toBe(2);
 
     await harness.runtime.addScenario(
@@ -86,6 +92,10 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     expect(liveScenarioCounts.at(-1)).toBe(3);
 
     await harness.runtime.deleteScenario("scenario/third");
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+    await harness.runtime.pauseAll();
+    expect(liveScenarioCounts.at(-1)).toBe(0);
+    harness.runtime.playAll();
     expect(liveScenarioCounts.at(-1)).toBe(2);
     harness.runtime.terminate();
     expect(liveScenarioCounts.at(-1)).toBe(0);

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   WORKBENCH_PRESENTATION_SAMPLE_CAPACITY_V3,
@@ -25,6 +25,7 @@ import {
   numericTicksV3,
   orderedFiniteWorkbenchSamplesV3,
   projectHistoricalPvEpochV3,
+  readWorkbenchCanvasThemeVariablesV3,
   workbenchHistoryAlphaV3,
   deriveWorkbenchScenarioItemColorV3,
   reconcileWorkbenchGraphColorsV3,
@@ -32,6 +33,7 @@ import {
   starlingCurvePointsV3,
   starlingPresentationFocusV3,
   updateWorkbenchScenarioBaseColorV3,
+  workbenchModelCyclePhaseOutputIdV3,
   workbenchPresentationOutputSelectionV3,
   type WorkbenchPvPointV3,
   type WorkbenchScalarSampleV3,
@@ -69,6 +71,29 @@ const sampleV3 = (
   });
 
 describe("V3-neutral Workbench Canvas helpers", () => {
+  it("does not pin a fallback palette before authored theme variables resolve", () => {
+    let resolved = "";
+    const getComputedStyle = vi.fn(() => ({
+      getPropertyValue: () => resolved,
+    }));
+    vi.stubGlobal("getComputedStyle", getComputedStyle);
+    const themeRoot = { dataset: { appTheme: "dark" } };
+    const element = {
+      closest: () => themeRoot,
+    } as unknown as HTMLElement;
+    const variables = [["--wb-chart-grid", "fallback"]] as const;
+
+    expect(readWorkbenchCanvasThemeVariablesV3(element, variables))
+      .toEqual(["fallback"]);
+    resolved = "#123456";
+    expect(readWorkbenchCanvasThemeVariablesV3(element, variables))
+      .toEqual(["#123456"]);
+    expect(readWorkbenchCanvasThemeVariablesV3(element, variables))
+      .toEqual(["#123456"]);
+    expect(getComputedStyle).toHaveBeenCalledTimes(2);
+    vi.unstubAllGlobals();
+  });
+
   it("focuses the Starling viewport on the confirmed downturn and ignores history extremes", () => {
     const orientation = structuralOrientationV3([
       [-1, 0.2],
@@ -777,6 +802,8 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       "volume.lv",
     ]);
     expect(selected.has("pressure.ao")).toBe(false);
+    expect(workbenchModelCyclePhaseOutputIdV3(contract))
+      .toBe("clock.cycle-phase");
     expect(workbenchPresentationOutputSelectionV3(contract, surface))
       .toBe(selected);
   });

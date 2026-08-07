@@ -159,6 +159,7 @@ import {
   structuralReturnOrientationFromPayloadV3,
   useWorkbenchSampledGraphPresentationSamplesV3,
   updateWorkbenchScenarioBaseColorV3,
+  workbenchModelCyclePhaseOutputIdV3,
   workbenchPresentationOutputSelectionV3,
   type WorkbenchScenarioOrbitHistoryV3,
   type WorkbenchScenarioPresentationSamplesV3,
@@ -442,6 +443,9 @@ const WorkbenchV3Session = ({
   const analysisByKeyRef = React.useRef<
     Readonly<Record<string, StudioSimulationAnalysisV2>>
   >({});
+  const equivalentAnalysisSourceByScenarioRef = React.useRef(
+    new Map<string, string>(),
+  );
   const queuedAnalysisProgressByKeyRef = React.useRef(
     new Map<string, StudioSimulationAnalysisV2>(),
   );
@@ -516,6 +520,29 @@ const WorkbenchV3Session = ({
             ),
             analysis,
           ]));
+          if (runtime !== null) {
+            for (const [targetScenarioId, sourceScenarioId] of
+              equivalentAnalysisSourceByScenarioRef.current) {
+              if (sourceScenarioId !== analysis.scenarioId) continue;
+              let targetFrame: StudioSimulationFrameV2;
+              try {
+                targetFrame = runtime.latestFrame(targetScenarioId);
+              } catch {
+                continue;
+              }
+              const cloned = cloneWorkbenchAnalysisForScenarioV3(
+                analysis,
+                targetFrame,
+              );
+              accepted.push(Object.freeze([
+                workbenchAnalysisHistoryKeyV3(
+                  cloned.scenarioId,
+                  cloned.analysisId,
+                ),
+                cloned,
+              ]));
+            }
+          }
         }
       }
       if (accepted.length === 0) return;
@@ -794,6 +821,7 @@ const WorkbenchV3Session = ({
       setControlError(null);
       setPendingControlId(null);
       replaceAnalysisByKeyV3({});
+      equivalentAnalysisSourceByScenarioRef.current.clear();
       setAnalysisHistoryByKey({});
       setPendingAnalysisKeys([]);
       setAnalysisCapturePending(false);
@@ -1270,6 +1298,10 @@ const WorkbenchV3Session = ({
           );
         }
         const targetScenarioIds = new Set(uniqueScenarioIds);
+        invalidateWorkbenchScenarioAnalysisEquivalenceV3(
+          equivalentAnalysisSourceByScenarioRef.current,
+          targetScenarioIds,
+        );
         replaceAnalysisByKeyV3(filterWorkbenchAnalysesByScenarioIdsV3(
           analysisByKeyRef.current,
           new Set(scenarios
@@ -1497,6 +1529,13 @@ const WorkbenchV3Session = ({
       const retainedScenarioIds = new Set(
         next.scenarios.map(({ scenarioId }) => scenarioId),
       );
+      for (const [targetScenarioId, sourceScenarioId] of
+        equivalentAnalysisSourceByScenarioRef.current) {
+        if (
+          !retainedScenarioIds.has(targetScenarioId)
+          || !retainedScenarioIds.has(sourceScenarioId)
+        ) equivalentAnalysisSourceByScenarioRef.current.delete(targetScenarioId);
+      }
       replaceAnalysisByKeyV3(
         filterWorkbenchAnalysesByScenarioIdsV3(
           analysisByKeyRef.current,
@@ -1645,6 +1684,14 @@ const WorkbenchV3Session = ({
             intent.sourceScenarioId,
             next.frame,
           ));
+          const sourceScenarioId =
+            equivalentAnalysisSourceByScenarioRef.current.get(
+              intent.sourceScenarioId,
+            ) ?? intent.sourceScenarioId;
+          equivalentAnalysisSourceByScenarioRef.current.set(
+            intent.scenarioId,
+            sourceScenarioId,
+          );
           if (sourceValues !== undefined) {
             controlValuesByScenarioRef.current = {
               ...controlValuesByScenarioRef.current,
@@ -4048,17 +4095,6 @@ function rapidPressureVolumeRelationFromAnalysisV3(
   return relation ?? undefined;
 }
 
-function workbenchModelCyclePhaseOutputIdV3(
-  contract: ModelContractV2,
-): string | undefined {
-  for (const graph of contract.graphCatalog) {
-    if (graph.renderer !== "pressure-volume") continue;
-    const cyclePhaseOutputId = graph.seriesCatalog[0]?.cyclePhaseOutputId;
-    if (cyclePhaseOutputId !== undefined) return cyclePhaseOutputId;
-  }
-  return undefined;
-}
-
 type StructuralReturnScenarioTraceV3 = Readonly<{
   scenarioId: string;
   scenarioLabel: string;
@@ -4264,19 +4300,10 @@ export function cloneWorkbenchScenarioAnalysesV3(
     scenarioId === sourceScenarioId);
   if (sourceAnalyses.length === 0) return current;
   const cloned = sourceAnalyses.map((analysis) => {
-    const targetAnalysis = Object.freeze({
-      ...analysis,
-      modelId: targetFrame.modelId,
-      runtimeSessionId: targetFrame.runtimeSessionId,
-      scenarioId: targetFrame.scenarioId,
-      inputEpoch: targetFrame.inputEpoch,
-      // Preserve the original analysis source clock: the relation was already
-      // accepted for this unchanged parameter target, but was not recomputed at
-      // the duplicate's current accepted revision. The presentation contract
-      // treats validated payloads as immutable, so sharing one does not share
-      // mutable numerical Scenario state.
-      payload: analysis.payload,
-    }) satisfies StudioSimulationAnalysisV2;
+    const targetAnalysis = cloneWorkbenchAnalysisForScenarioV3(
+      analysis,
+      targetFrame,
+    );
     return Object.freeze([
       workbenchAnalysisHistoryKeyV3(
         targetFrame.scenarioId,
@@ -4289,6 +4316,37 @@ export function cloneWorkbenchScenarioAnalysesV3(
     ...current,
     ...Object.fromEntries(cloned),
   });
+}
+
+export function cloneWorkbenchAnalysisForScenarioV3(
+  analysis: StudioSimulationAnalysisV2,
+  targetFrame: StudioSimulationFrameV2,
+): StudioSimulationAnalysisV2 {
+  return Object.freeze({
+    ...analysis,
+    modelId: targetFrame.modelId,
+    runtimeSessionId: targetFrame.runtimeSessionId,
+    scenarioId: targetFrame.scenarioId,
+    inputEpoch: targetFrame.inputEpoch,
+    // Preserve the original analysis source clock: the relation was already
+    // accepted for this unchanged parameter target, but was not recomputed at
+    // the duplicate's current accepted revision. The presentation contract
+    // treats validated payloads as immutable, so sharing one does not share
+    // mutable numerical Scenario state.
+    payload: analysis.payload,
+  }) satisfies StudioSimulationAnalysisV2;
+}
+
+export function invalidateWorkbenchScenarioAnalysisEquivalenceV3(
+  sourceByTarget: Map<string, string>,
+  changedScenarioIds: ReadonlySet<string>,
+): void {
+  for (const [targetScenarioId, sourceScenarioId] of sourceByTarget) {
+    if (
+      changedScenarioIds.has(targetScenarioId)
+      || changedScenarioIds.has(sourceScenarioId)
+    ) sourceByTarget.delete(targetScenarioId);
+  }
 }
 
 export function workbenchAnalysisMatchesFrameEpochV3(
