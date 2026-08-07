@@ -264,8 +264,13 @@ admission service, and emits immutable content plus a reviewed build report.
 Scenario IDs/labels, absolute control assignments, the authored Surface, and
 scientific assertion IDs. It cannot encode a checkpoint, `modelId`, channel,
 stage, or admission profile. Repository recipes are checked with
-`verify:content:official-recipe`; no official content is seeded until the
-corresponding numerical and editorial review is ready.
+`verify:content:official-recipe`. A source recipe may exist before its exact
+model is ready, but it cannot produce a Snapshot or publication. The stronger
+`verify:content:official-readiness` boundary binds it to an explicit Standard
+exact-kernel manifest and Surface, resolves every authored item and assertion,
+and still performs no numerical run or write. The first source recipe and its
+release gates are governed by
+[CONTENT-0001](../content/CONTENT-0001-pv-loop-basics-pilot.md).
 
 Changing the default model therefore means rebuilding and reviewing official
 content, not silently repinning it. User content is never rebuilt by this

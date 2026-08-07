@@ -61,6 +61,7 @@ export const fastTests = [
   "__tests__/studioExperimentDataV2.test.ts",
   "__tests__/studioFixtureReducerV2.test.ts",
   "__tests__/studioModelRegistryV2.test.ts",
+  "__tests__/studioOfficialContentBuildPlanV1.test.ts",
   "__tests__/studioSimulationWorkerV2.test.ts",
   "__tests__/studioSupabaseBoundaryV1.test.ts",
   "__tests__/testSuiteManifest.test.ts",

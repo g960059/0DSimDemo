@@ -1,0 +1,58 @@
+{
+  "schemaId": "circleheart-studio-model-surface-release-v1",
+  "surfaceReleaseId": "circleheart.main-wire.surface.standard-v1",
+  "surfaceSeriesId": "circleheart.main-wire.surface.standard",
+  "predecessorSurfaceReleaseId": null,
+  "modelFamilyId": "circleheart.main-wire-integrated-transaction",
+  "displayName": "Main Wire V3",
+  "controlCatalog": [
+    {
+      "controlId": "hemodynamics.total-blood-volume-ml",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/hemodynamics.total-blood-volume-ml"
+      ]
+    },
+    {
+      "controlId": "hemodynamics.systemic-resistance",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/hemodynamics.systemic-resistance"
+      ]
+    },
+    {
+      "controlId": "myocardium.contractility",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/myocardium.contractility"
+      ]
+    }
+  ],
+  "derivedOutputCatalog": [],
+  "graphCatalog": [
+    {
+      "graphId": "hemodynamics.pressure-volume",
+      "renderer": "pressure-volume",
+      "seriesCatalog": [
+        {
+          "kind": "pressure-volume",
+          "seriesId": "LV",
+          "volumeOutputId": "hemodynamics.volume.LV",
+          "pressureOutputId": "hemodynamics.pressure.transmural.LV",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        }
+      ],
+      "defaultSeriesIds": [
+        "LV"
+      ],
+      "requiredCapabilities": [
+        "output/hemodynamics.volume.LV",
+        "output/hemodynamics.pressure.transmural.LV",
+        "output/rhythm.phase.regular-sinus"
+      ]
+    }
+  ],
+  "knobCatalog": [],
+  "protocolCatalog": []
+}

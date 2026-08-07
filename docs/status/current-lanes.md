@@ -1,7 +1,7 @@
 # Development lane routing
 
 Status: compact pointer index
-Updated: 2026-07-31
+Updated: 2026-08-07
 
 This file does not record experiment history or merge ordering. GitHub pull
 requests, Git history, and versioned evidence artifacts are the sources for
@@ -13,6 +13,19 @@ The active product lane is the pre-release Studio experiment architecture:
 
 - [Studio index](../studio/README.md)
 - [experiment data architecture](../studio/DESIGN-STUDIO-003-experiment-data-architecture.md)
+- [model release and Surface architecture](../studio/DESIGN-STUDIO-006-model-surface-release-and-model-lab.md)
+
+The active acceptance milestone is content-first rather than another
+standalone infrastructure lane:
+
+- [CONTENT-0001: PV loop basics pilot](../content/CONTENT-0001-pv-loop-basics-pilot.md)
+- source recipe: `content/official/pv-loop-basics-v1.experiment.json`
+
+That article is the release test for the first Standard-ABI exact model,
+compatible stable Surface, executable model-family assertions, common
+Snapshot admission, Article placement, and Reader-to-Experiment-Session path.
+No narrower infrastructure PR is complete unless it removes a named blocker
+from that path.
 
 The removed Workbench implementation is available in Git history. It is not a
 persistence, ownership, or compatibility boundary for Studio V2.
@@ -29,3 +42,10 @@ claim. A status document must not promote an archived diagnostic result into
 scientific acceptance.
 
 Superseded lane diaries and implementation history live only in Git history.
+
+## Deferred until CONTENT-0001 passes
+
+Baroreflex, patient fitting, broad official-case generation, drop-in
+succession, generalized migration UI, and further Workbench QoS work are not
+on the critical path. They may not displace the first article without a newly
+recorded product or scientific blocker.

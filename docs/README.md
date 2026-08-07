@@ -10,6 +10,7 @@ assistant transcripts, and plans that no longer constrain the implementation.
 | Area | Entry point | Status |
 |---|---|---|
 | Studio V2 | [studio/README.md](studio/README.md) | Authoritative pre-release Experiment architecture |
+| Official content | [CONTENT-0001](content/CONTENT-0001-pv-loop-basics-pilot.md) | First vertical-slice acceptance plan |
 | Scientific runtime | [scientific-runtime/README.md](scientific-runtime/README.md) | Active Model Platform boundary |
 | Myocardium model | [myocardium/README.md](myocardium/README.md) | Current V3 contracts and numerical evidence |
 | Cross-lane routing | [status/current-lanes.md](status/current-lanes.md) | Compact pointer index |

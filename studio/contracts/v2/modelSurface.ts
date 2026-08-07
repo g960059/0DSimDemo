@@ -10,6 +10,7 @@ import type {
 import {
   assertControlCatalogV2,
   assertGraphCatalogV2,
+  assertModelContractV2,
   assertOutputCatalogV2,
   assertPortableModelIdentifierV2,
   assertPortableStudioJsonObjectV2,
@@ -21,6 +22,8 @@ export const STUDIO_EXACT_MODEL_KERNEL_V3_SCHEMA_ID =
   "circleheart-studio-exact-model-kernel-v3" as const;
 export const STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID =
   "circleheart-studio-model-surface-release-v1" as const;
+export const STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1 =
+  "circleheart.studio.common-snapshot-admission.v1" as const;
 
 export type StudioReleaseStageV1 = "dev" | "stable" | "retired";
 export type StudioReleaseChannelV1 = "default" | "research";
@@ -131,6 +134,11 @@ export type MaterializedModelSurfaceV1 = Readonly<{
   graphCatalog: readonly ModelSurfaceGraphDefinitionV1[];
   knobCatalog: readonly ModelSurfaceKnobDefinitionV1[];
   protocolCatalog: readonly ModelSurfaceProtocolDefinitionV1[];
+}>;
+
+export type ComposedStandardModelContractV1 = Readonly<{
+  contract: ModelContractV2;
+  surface: MaterializedModelSurfaceV1;
 }>;
 
 export class ModelSurfaceValidationErrorV1 extends Error {
@@ -376,6 +384,64 @@ export function modelCapabilitiesFromContractV1(
     }
   });
   return capabilities;
+}
+
+/**
+ * Compatibility projection used while the product contract remains
+ * `ModelContractV2`. Numerical identity comes only from the exact kernel;
+ * display/catalog data comes from one immutable Surface, and Snapshot
+ * admission names the single Studio service rather than the model artifact.
+ */
+export function composeStandardModelContractV1(
+  kernelValue: unknown,
+  surfaceValue: unknown,
+  studioCapabilities: readonly string[] = [],
+): ComposedStandardModelContractV1 {
+  assertExactModelKernelManifestV3(kernelValue);
+  assertModelSurfaceReleaseManifestV1(surfaceValue);
+  const kernel = kernelValue;
+  const surfaceRelease = surfaceValue;
+  if (kernel.modelFamilyId !== surfaceRelease.modelFamilyId) {
+    throw new ModelSurfaceValidationErrorV1(
+      "$.surfaceRelease.modelFamilyId",
+      `must match exact model family ${kernel.modelFamilyId}`,
+    );
+  }
+  const kernelContract: ModelContractV2 = Object.freeze({
+    modelId: kernel.modelId,
+    modelFamilyId: kernel.modelFamilyId,
+    displayName: surfaceRelease.displayName,
+    fixtureSchemaId: kernel.fixtureSchema.fixtureSchemaId,
+    checkpointCodecId: kernel.checkpointCodec.checkpointCodecId,
+    snapshotGateId: STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1,
+    controlCatalog: kernel.primitiveControlCatalog,
+    outputCatalog: kernel.primitiveSignalCatalog,
+    graphCatalog: Object.freeze([]),
+  });
+  assertModelContractV2(kernelContract);
+  const materialized = materializeModelSurfaceForModelV1(
+    surfaceRelease,
+    kernelContract,
+    Object.freeze([...kernel.capabilities, ...studioCapabilities]),
+  );
+  const exposedControlIds = new Set(
+    materialized.controlCatalog.map(({ controlId }) => controlId),
+  );
+  const contract: ModelContractV2 = Object.freeze({
+    ...kernelContract,
+    controlCatalog: Object.freeze(kernel.primitiveControlCatalog.filter(
+      ({ controlId }) => exposedControlIds.has(controlId),
+    )),
+    outputCatalog: Object.freeze([
+      ...kernel.primitiveSignalCatalog,
+      ...materialized.derivedOutputCatalog.map(stripDerivationV1),
+    ]),
+    graphCatalog: Object.freeze(
+      materialized.graphCatalog.map(stripGraphRequirementsV1),
+    ),
+  });
+  assertModelContractV2(contract);
+  return Object.freeze({ contract, surface: materialized });
 }
 
 /**
