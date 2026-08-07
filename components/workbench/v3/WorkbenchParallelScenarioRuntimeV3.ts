@@ -42,6 +42,7 @@ import {
   type WorkbenchPresentationProfileV3,
 } from "./WorkbenchPresentationProfileV3";
 import type {
+  WorkbenchBackgroundJobHandleV3,
   WorkbenchBackgroundWorkerPoolPortV3,
 } from "./WorkbenchBackgroundWorkerPoolV3";
 import {
@@ -158,6 +159,10 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   readonly #lanes = new Map<string, WorkbenchParallelScenarioLaneV3>();
   readonly #analysisClients = new Set<
     WorkbenchParallelScenarioRuntimeClientV3
+  >();
+  readonly #analysisJobsByScenario = new Map<
+    string,
+    Set<WorkbenchBackgroundJobHandleV3<unknown>>
   >();
   readonly #pendingScenarioIds = new Set<string>();
   #state: ParallelRuntimeStateV3 = "new";
@@ -358,6 +363,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       throw new Error("parallel Scenario runtime cannot delete its last Scenario");
     }
     const lane = this.#requiredLane(scenarioId);
+    this.#cancelScenarioAnalysisJobs(scenarioId);
     this.#lanes.delete(scenarioId);
     this.#syncBackgroundWorkerBudget();
     this.#steadyCandidates?.invalidateScenario(scenarioId);
@@ -382,6 +388,13 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       runtimeSessionId: lane.runtimeSessionId,
     });
     lane.latestFrame = frame;
+    // Every queued/running analysis was forked from the old input epoch. Letting
+    // it finish cannot produce an admissible result and, on a one-slot device,
+    // can keep the current PV/Starling request behind minutes of stale work.
+    // Cancel only after the control was accepted: a rejected edit leaves the
+    // old input (and its analysis) valid. Unrelated Scenario work and explicit
+    // Save/Snapshot jobs retain their normal QoS contract.
+    this.#cancelScenarioAnalysisJobs(input.scenarioId);
     await this.#prewarmLane(lane);
     return frame;
   }
@@ -515,7 +528,13 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     operation: (client: WorkbenchParallelScenarioRuntimeClientV3) => Promise<T>,
   ): Promise<T> {
     if (this.#backgroundWorkerPool !== undefined) {
-      return await this.#backgroundWorkerPool.run("analysis", operation);
+      const handle = this.#backgroundWorkerPool.schedule("analysis", operation);
+      this.#trackScenarioAnalysisJob(scenarioId, handle);
+      try {
+        return await handle.promise;
+      } finally {
+        this.#untrackScenarioAnalysisJob(scenarioId, handle);
+      }
     }
     const client = this.#createAnalysisClient(scenarioId, analysisPartition);
     try {
@@ -666,6 +685,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#state = "terminated";
     this.#playing = false;
     this.#steadyCandidates?.dispose();
+    this.#cancelAllAnalysisJobs();
     this.#cancelPendingFlush();
     this.#pendingFrames = [];
     for (const client of this.#analysisClients) client.terminate();
@@ -682,6 +702,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#state = "terminated";
     this.#playing = false;
     this.#steadyCandidates?.dispose();
+    this.#cancelAllAnalysisJobs();
     this.#cancelPendingFlush();
     this.#pendingFrames = [];
     for (const client of this.#analysisClients) client.terminate();
@@ -886,6 +907,39 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       + this.#pendingScenarioIds.size,
   ): void {
     this.#backgroundWorkerPool?.setLiveScenarioCount(liveScenarioCount);
+  }
+
+  #trackScenarioAnalysisJob<T>(
+    scenarioId: string,
+    handle: WorkbenchBackgroundJobHandleV3<T>,
+  ): void {
+    const jobs = this.#analysisJobsByScenario.get(scenarioId) ?? new Set();
+    jobs.add(handle as WorkbenchBackgroundJobHandleV3<unknown>);
+    this.#analysisJobsByScenario.set(scenarioId, jobs);
+  }
+
+  #untrackScenarioAnalysisJob<T>(
+    scenarioId: string,
+    handle: WorkbenchBackgroundJobHandleV3<T>,
+  ): void {
+    const jobs = this.#analysisJobsByScenario.get(scenarioId);
+    if (jobs === undefined) return;
+    jobs.delete(handle as WorkbenchBackgroundJobHandleV3<unknown>);
+    if (jobs.size === 0) this.#analysisJobsByScenario.delete(scenarioId);
+  }
+
+  #cancelScenarioAnalysisJobs(scenarioId: string): void {
+    const jobs = this.#analysisJobsByScenario.get(scenarioId);
+    if (jobs === undefined) return;
+    this.#analysisJobsByScenario.delete(scenarioId);
+    for (const job of jobs) job.cancel();
+  }
+
+  #cancelAllAnalysisJobs(): void {
+    const scenarioIds = [...this.#analysisJobsByScenario.keys()];
+    for (const scenarioId of scenarioIds) {
+      this.#cancelScenarioAnalysisJobs(scenarioId);
+    }
   }
 
   #runningLaneCount(): number {

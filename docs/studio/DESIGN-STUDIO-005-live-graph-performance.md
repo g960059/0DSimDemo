@@ -289,21 +289,27 @@ one serialized background lane available. Snapshot/Save may use one bounded
 burst only when real logical-core headroom remains. No operation changes the
 accepted 2 ms model step.
 
-Changing a Scenario target cancels obsolete queued work and terminates an
-already-running obsolete prewarm Worker. An explicit analysis can likewise
-preempt speculative prewarm at the cap. Promotion protects a prewarm that has
-become the exact candidate needed by Snapshot or Save, so useful work is reused
-rather than restarted. Pool capacity, queue depth, active Workers, cancellation,
-preemption, and burst leases are included in diagnostic reports.
+Changing a Scenario target cancels that Scenario's queued analysis partitions
+and terminates any running analysis/prewarm Worker forked from the old input
+epoch. Those results can no longer pass the epoch boundary, so allowing them to
+finish would only block the replacement PV/Starling result on a serialized
+device. An explicit analysis can likewise preempt speculative prewarm at the
+cap. Promotion protects a prewarm that has become the exact candidate needed by
+Snapshot or Save, so useful work is reused rather than restarted. Pool capacity,
+queue depth, active Workers, cancellation, preemption, and burst leases are
+included in diagnostic reports.
 
-Queue priority orders waiting work; it does not terminate an already-running
-visible analysis. Snapshot/Save can use a bounded burst when the device has real
-headroom, but on a one-background-lane device either may wait for the current
-analysis operation. Making responsive analysis preemptible requires an explicit
-cancel-and-resume contract for all of its partitions; treating every analysis,
-including author-requested formal analysis, as a disposable Worker would leave
-partial UI state and wasted queued partitions. That resumable distinction is a
-separate follow-up rather than an implicit promise of this pool.
+Queue priority alone does not terminate an already-running, still-current
+visible analysis. The input-epoch cancellation above is narrower: a parameter
+change has made that analysis impossible to admit, so there is nothing valid to
+resume. Snapshot/Save can use a bounded burst when the device has real headroom,
+but on a one-background-lane device either may wait for a still-current analysis
+operation. Making that current responsive analysis preemptible requires an
+explicit cancel-and-resume contract for all of its partitions; treating every
+analysis, including author-requested formal analysis, as a disposable Worker
+would leave partial UI state and wasted queued partitions. That resumable
+distinction is a separate follow-up rather than an implicit promise of this
+pool.
 
 Only schedulers that are actually running count as live lanes. Initialization
 reserves its future lanes before their Workers start, playback reserves them
