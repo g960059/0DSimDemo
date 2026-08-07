@@ -1433,6 +1433,65 @@ export function validateStudioSimulationWorkerResponseV2(
   throw protocolErrorV2("$.response.kind", "has an invalid response kind");
 }
 
+/**
+ * Decodes the hot `advanced` response emitted by the bundled dedicated
+ * simulation Worker without re-walking every already-validated output.
+ *
+ * The Worker runtime fully validates each adapter frame before constructing
+ * this response. The main thread therefore needs transport shape, identity,
+ * clock and request correlation checks, not another deep ownership pass over
+ * all output records. Every non-advance response still uses the full decoder
+ * because it crosses an authoring, analysis, capture or lifecycle boundary.
+ */
+export function validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(
+  value: unknown,
+): StudioSimulationWorkerResponseV2 {
+  const envelope = dataRecordV2(value, "$.response");
+  if (
+    envelope.status !== "ok"
+    || envelope.kind !== "advanced"
+  ) {
+    return validateStudioSimulationWorkerResponseV2(value);
+  }
+  const response = exactDataRecordV2(envelope, [
+    "frames",
+    "kind",
+    "protocol",
+    "requestId",
+    "status",
+  ], [], "$.response");
+  assertProtocolV2(response.protocol, "$.response.protocol");
+  const requestId = responseRequestIdV2(
+    response.requestId,
+    "$.response.requestId",
+  );
+  const frameValues = arrayDataValuesV2(
+    response.frames,
+    "$.response.frames",
+  );
+  if (
+    frameValues.length < 1
+    || frameValues.length > STUDIO_SIMULATION_WORKER_MAX_ADVANCE_STEPS_V2
+  ) {
+    throw protocolErrorV2(
+      "$.response.frames",
+      `must contain 1-${STUDIO_SIMULATION_WORKER_MAX_ADVANCE_STEPS_V2} frames`,
+    );
+  }
+  const frames = frameValues.map((frame, index) =>
+    validateTrustedRuntimeFrameHeaderV2(
+      frame,
+      `$.response.frames[${index}]`,
+    ));
+  return Object.freeze({
+    protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+    requestId,
+    status: "ok",
+    kind: "advanced",
+    frames: Object.freeze(frames),
+  });
+}
+
 /** Extracts correlation without invoking accessors on an invalid message. */
 export function studioSimulationWorkerRequestIdFromUnknownV2(
   value: unknown,
@@ -1831,6 +1890,59 @@ function portableErrorMessageV2(value: unknown, path: string): string {
   }
   assertUnicodeScalarSequenceV2(value, path);
   return value;
+}
+
+function validateTrustedRuntimeFrameHeaderV2(
+  value: unknown,
+  path: string,
+): StudioSimulationFrameV2 {
+  const frame = exactDataRecordV2(value, [
+    "acceptedRevision",
+    "acceptedTimeSec",
+    "inputEpoch",
+    "modelId",
+    "outputs",
+    "runtimeSessionId",
+    "scenarioId",
+  ], [], path);
+  validateStudioSimulationPortableIdV2(frame.modelId, `${path}.modelId`);
+  validateStudioSimulationPortableIdV2(
+    frame.runtimeSessionId,
+    `${path}.runtimeSessionId`,
+  );
+  validateStudioSimulationPortableIdV2(
+    frame.scenarioId,
+    `${path}.scenarioId`,
+  );
+  nonnegativeSafeIntegerV2(frame.inputEpoch, `${path}.inputEpoch`);
+  nonnegativeSafeIntegerV2(
+    frame.acceptedRevision,
+    `${path}.acceptedRevision`,
+  );
+  nonnegativeFiniteNumberV2(
+    frame.acceptedTimeSec,
+    `${path}.acceptedTimeSec`,
+  );
+  trustedPlainDataRecordV2(frame.outputs, `${path}.outputs`);
+  return frame as unknown as StudioSimulationFrameV2;
+}
+
+function trustedPlainDataRecordV2(
+  value: unknown,
+  path: string,
+): Record<string, unknown> {
+  if (
+    value === null
+    || typeof value !== "object"
+    || Array.isArray(value)
+  ) {
+    throw protocolErrorV2(path, "must be a plain data object");
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw protocolErrorV2(path, "must not use a custom prototype");
+  }
+  return value as Record<string, unknown>;
 }
 
 function dataRecordV2(value: unknown, path: string): Record<string, unknown> {

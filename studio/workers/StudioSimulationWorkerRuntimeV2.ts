@@ -58,7 +58,7 @@ import {
   type StudioSimulationWorkerResponseV2,
   studioSimulationWorkerRequestIdFromUnknownV2,
   validateStudioSimulationWorkerRequestV2,
-  validateStudioSimulationWorkerResponseV2,
+  validateStudioSimulationWorkerResponseFromTrustedRuntimeV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 
 const DEFAULT_WORKER_QUEUE_CAPACITY_V2 = 2;
@@ -1522,7 +1522,8 @@ export class StudioSimulationWorkerRuntimeV2 {
   }
 
   #postResponse(value: unknown): void {
-    const response = validateStudioSimulationWorkerResponseV2(value);
+    const response =
+      validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(value);
     this.#port.postMessage(response);
   }
 
@@ -1560,13 +1561,14 @@ export class StudioSimulationWorkerRuntimeV2 {
     while (this.#queue.length > 0) {
       const request = this.#queue.shift()!;
       try {
-        const response = validateStudioSimulationWorkerResponseV2({
-          protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
-          requestId: request.requestId,
-          status: "error",
-          fatal: true,
-          message: portableErrorMessageV2(message),
-        });
+        const response =
+          validateStudioSimulationWorkerResponseFromTrustedRuntimeV2({
+            protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+            requestId: request.requestId,
+            status: "error",
+            fatal: true,
+            message: portableErrorMessageV2(message),
+          });
         this.#port.postMessage(response);
       } catch {
         break;
