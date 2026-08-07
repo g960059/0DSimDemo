@@ -36,7 +36,7 @@ import {
   createStudioSimulationRequestAnalysisRequestV2,
   createStudioSimulationSaveExperimentRequestV2,
   createStudioSimulationSelectScenarioRequestV2,
-  validateStudioSimulationWorkerResponseV2,
+  validateStudioSimulationWorkerResponseFromTrustedRuntimeV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 
 const WORKER_RESPONSE_TIMEOUT_MS_V2 = 30_000;
@@ -887,7 +887,9 @@ export class StudioSimulationWorkerClientV2 {
   readonly #onMessage = (event: MessageEvent<unknown>): void => {
     let response: StudioSimulationWorkerResponseV2;
     try {
-      response = validateStudioSimulationWorkerResponseV2(event.data);
+      response = validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(
+        event.data,
+      );
     } catch (error) {
       this.#terminateWith(errorAsErrorV2(error));
       return;

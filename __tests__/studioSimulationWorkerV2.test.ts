@@ -41,6 +41,7 @@ import {
   createStudioSimulationSaveExperimentRequestV2,
   createStudioSimulationSelectScenarioRequestV2,
   validateStudioSimulationWorkerRequestV2,
+  validateStudioSimulationWorkerResponseFromTrustedRuntimeV2,
   validateStudioSimulationWorkerResponseV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 import {
@@ -415,6 +416,93 @@ describe("Studio simulation worker V2 protocol", () => {
       ...controlAppliedResponseV2(4, frameV2({ inputEpoch: 1 })),
       fixture: {},
     })).toThrow(/fields must match exactly/);
+  });
+
+  it("trusts only the already-validated output body on advanced responses", () => {
+    const nestedOutputGetter = vi.fn(() => outputV2("pressure.lv", 120));
+    const outputs: Record<string, unknown> = {};
+    Object.defineProperty(outputs, "pressure.lv", {
+      enumerable: true,
+      get: nestedOutputGetter,
+    });
+    const response =
+      validateStudioSimulationWorkerResponseFromTrustedRuntimeV2({
+        protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+        requestId: 8,
+        status: "ok",
+        kind: "advanced",
+        frames: [{
+          modelId: "model/main-wire-v3-r1",
+          runtimeSessionId: "runtime/session-1",
+          scenarioId: "scenario/baseline",
+          inputEpoch: 0,
+          acceptedRevision: 8,
+          acceptedTimeSec: 0.016,
+          outputs,
+        }],
+      });
+
+    expect(response).toMatchObject({
+      requestId: 8,
+      status: "ok",
+      kind: "advanced",
+      frames: [{ acceptedRevision: 8, acceptedTimeSec: 0.016 }],
+    });
+    expect(nestedOutputGetter).not.toHaveBeenCalled();
+    if (response.status === "ok" && response.kind === "advanced") {
+      expect(response.frames[0]?.outputs).toBe(outputs);
+    }
+
+    expect(() => validateStudioSimulationWorkerResponseV2({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: 8,
+      status: "ok",
+      kind: "advanced",
+      frames: [{
+        modelId: "model/main-wire-v3-r1",
+        runtimeSessionId: "runtime/session-1",
+        scenarioId: "scenario/baseline",
+        inputEpoch: 0,
+        acceptedRevision: 8,
+        acceptedTimeSec: 0.016,
+        outputs,
+      }],
+    })).toThrow(/enumerable data property/);
+    expect(nestedOutputGetter).not.toHaveBeenCalled();
+  });
+
+  it("keeps exact transport checks on trusted advanced responses", () => {
+    const advanced = {
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: 8,
+      status: "ok",
+      kind: "advanced",
+      frames: [frameV2({ acceptedRevision: 8, acceptedTimeSec: 0.016 })],
+    } as const;
+
+    expect(() => validateStudioSimulationWorkerResponseFromTrustedRuntimeV2({
+      ...advanced,
+      frames: [{ ...advanced.frames[0], unexpected: true }],
+    })).toThrow(/fields must match exactly/);
+    expect(() => validateStudioSimulationWorkerResponseFromTrustedRuntimeV2({
+      ...advanced,
+      frames: [{ ...advanced.frames[0], acceptedTimeSec: Number.NaN }],
+    })).toThrow(/finite/);
+    expect(() => validateStudioSimulationWorkerResponseFromTrustedRuntimeV2({
+      ...advanced,
+      frames: [{
+        ...advanced.frames[0],
+        outputs: Object.create({ inherited: true }) as Record<string, unknown>,
+      }],
+    })).toThrow(/custom prototype/);
+
+    expect(() => validateStudioSimulationWorkerResponseFromTrustedRuntimeV2({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: 9,
+      status: "ok",
+      kind: "initialized",
+      frame: frameV2({ acceptedTimeSec: Number.NaN }),
+    })).toThrow(/finite/);
   });
 
   it("rejects malformed response fields without invoking accessors", () => {

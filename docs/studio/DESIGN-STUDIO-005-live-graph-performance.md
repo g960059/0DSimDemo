@@ -37,6 +37,42 @@ read the latest validated frame directly. If an author adds a new graph item,
 its live history begins with subsequent exact frames; no synthetic backfill is
 created.
 
+## Trusted live transport boundary
+
+The bundled persistent Worker is the authority for a live simulation lane. It
+fully validates every adapter frame before that frame enters the transport
+response. Repeating the same recursive ownership pass both while posting the
+response and again on the main thread scales with every output value in every
+frame, even though the Worker has already established their validity.
+
+The hot `advanced` response therefore uses a narrower trusted decoder on both
+sides of the dedicated-Worker boundary. It still validates the exact response
+and frame keys, protocol and request correlation, model/runtime/Scenario
+identity, input epoch, accepted revision, accepted time, frame count, and that
+the output map is a plain data object. It does not recursively clone, freeze,
+or revalidate each already-validated output record on every presentation
+batch.
+
+This exception applies only to exact live advances emitted by the bundled
+runtime. Initialize, control, analysis, capture, Snapshot, authoring, storage,
+registry, and other lifecycle responses continue through the full deep
+validator. The client also retains its expected identity and monotonic-clock
+checks before accepting an advanced batch. Public protocol validation remains
+deep by default.
+
+This is a validation-cost reduction, not yet a compact binary transport: the
+Worker still sends structured-cloned object frames. A transferred typed-array
+batch remains a later option if target-device measurements show structured
+clone or allocation to be the remaining bottleneck.
+
+An isolated production-preview reference run on the M5 Max development device
+measured about 30 ms Worker round-trip p95 and 1.04× recent model-time ratio for
+one live Scenario. With four simultaneous live Scenarios, recent ratios were
+about 1.03–1.04× per lane, per-lane Worker round-trip p95 was about 33–35 ms,
+Canvas draw p95 was about 1.3 ms, and a Heart-rate edit reached the visible
+output in about 108 ms. These are regression references only; target-tier
+device traces remain required for low-end and mobile support claims.
+
 ## Diagnostic mode
 
 Diagnostics are off by default and retain timings only—never frames, outputs,
