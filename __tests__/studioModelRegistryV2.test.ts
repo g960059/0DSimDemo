@@ -8,6 +8,21 @@ import {
   type RegisteredModelPackageManifestV2,
 } from "@/studio/contracts/v2/model";
 import {
+  STUDIO_EXACT_MODEL_KERNEL_V3_SCHEMA_ID,
+  STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
+  assertAdditiveModelSurfaceUpgradeV1,
+  assertExactModelKernelManifestV3,
+  assertModelSurfaceCompatibleV1,
+  assertModelSurfaceReleaseManifestV1,
+  assertStudioReleaseChannelV1,
+  assertStudioReleaseStageV1,
+  controlCapabilityV1,
+  derivationCapabilityV1,
+  outputCapabilityV1,
+  type ExactModelKernelManifestV3,
+  type ModelSurfaceReleaseManifestV1,
+} from "@/studio/contracts/v2/modelSurface";
+import {
   InMemoryRegisteredModelStoreV2,
   RegisteredModelConflictErrorV2,
   RegisteredModelValidationErrorV2,
@@ -554,6 +569,85 @@ describe("InMemoryRegisteredModelStoreV2", () => {
   });
 });
 
+describe("exact model kernel and Model Surface release boundaries", () => {
+  it("keeps Snapshot admission and presentation catalogs outside exact identity", () => {
+    const kernel = makeKernelManifestV3();
+
+    expect(() => assertExactModelKernelManifestV3(kernel)).not.toThrow();
+
+    const leakedAdmission = structuredClone(kernel) as any;
+    leakedAdmission.snapshotGate = { gateId: "admission/forbidden" };
+    expect(() => assertExactModelKernelManifestV3(leakedAdmission))
+      .toThrow(/keys must be exactly|must contain exactly/);
+
+    const leakedGraph = structuredClone(kernel) as any;
+    leakedGraph.graphCatalog = [];
+    expect(() => assertExactModelKernelManifestV3(leakedGraph))
+      .toThrow(/keys must be exactly|must contain exactly/);
+  });
+
+  it("validates a separately released Surface against exact capabilities", () => {
+    const model = deriveModelContractFromManifestV2(makeManifestV2());
+    const surface = makeSurfaceManifestV1();
+
+    expect(() => assertModelSurfaceReleaseManifestV1(surface)).not.toThrow();
+    expect(() => assertModelSurfaceCompatibleV1(surface, model, [
+      derivationCapabilityV1("derivation/stroke-work-v1"),
+    ])).not.toThrow();
+
+    const incompatible = structuredClone(surface) as any;
+    incompatible.requiredCapabilities.push("output/not-supplied");
+    expect(() => assertModelSurfaceCompatibleV1(incompatible, model, [
+      derivationCapabilityV1("derivation/stroke-work-v1"),
+    ]))
+      .toThrow(/lacks capability/);
+
+    const unresolvedDerivation = structuredClone(surface) as any;
+    unresolvedDerivation.requiredCapabilities =
+      unresolvedDerivation.requiredCapabilities.filter(
+        (capability: string) => !capability.startsWith("derivation/"),
+      );
+    expect(() => assertModelSurfaceReleaseManifestV1(unresolvedDerivation))
+      .toThrow(/requires capability derivation\//);
+  });
+
+  it("allows append-only Surface growth but rejects mutation or deletion", () => {
+    const previous = makeSurfaceManifestV1();
+    const added = structuredClone(previous) as any;
+    added.surfaceReleaseId = "surface/circulation-reference-v2";
+    added.protocolCatalog.push({
+      protocolId: "protocol/fluid-challenge",
+      steps: [{
+        atSec: 0,
+        actions: [{ controlId: "control.tbv", value: 5_250 }],
+      }],
+    });
+
+    expect(() => assertAdditiveModelSurfaceUpgradeV1(previous, added))
+      .not.toThrow();
+
+    const changed = structuredClone(added) as any;
+    changed.controlCatalog[0].preferredPresentation = "buttons";
+    expect(() => assertAdditiveModelSurfaceUpgradeV1(previous, changed))
+      .toThrow(/cannot change existing definition/);
+
+    const removed = structuredClone(added) as any;
+    removed.graphCatalog = [];
+    expect(() => assertAdditiveModelSurfaceUpgradeV1(previous, removed))
+      .toThrow(/cannot remove/);
+  });
+
+  it("exposes only the agreed lifecycle vocabulary", () => {
+    expect(() => assertStudioReleaseStageV1("dev")).not.toThrow();
+    expect(() => assertStudioReleaseStageV1("stable")).not.toThrow();
+    expect(() => assertStudioReleaseStageV1("retired")).not.toThrow();
+    expect(() => assertStudioReleaseStageV1("preview")).toThrow();
+    expect(() => assertStudioReleaseChannelV1("default")).not.toThrow();
+    expect(() => assertStudioReleaseChannelV1("research")).not.toThrow();
+    expect(() => assertStudioReleaseChannelV1("nightly")).toThrow();
+  });
+});
+
 function registerV2(
   store: InMemoryRegisteredModelStoreV2,
   manifest: RegisteredModelPackageManifestV2,
@@ -569,6 +663,77 @@ function registerV2(
       return executables;
     },
   });
+}
+
+function makeKernelManifestV3(): ExactModelKernelManifestV3 {
+  const legacy = makeManifestV2();
+  const control = legacy.catalogs.controlCatalog[0]!;
+  const signal = legacy.catalogs.outputCatalog[0]!;
+  if (signal.kind !== "signal") throw new Error("test signal missing");
+  return {
+    schemaId: STUDIO_EXACT_MODEL_KERNEL_V3_SCHEMA_ID,
+    modelId: legacy.modelId,
+    modelFamilyId: legacy.modelFamilyId,
+    displayName: legacy.displayName,
+    equations: legacy.equations,
+    runtime: legacy.runtime,
+    solver: legacy.solver,
+    fixtureSchema: legacy.fixtureSchema,
+    checkpointCodec: legacy.checkpointCodec,
+    primitiveControlCatalog: [control],
+    primitiveSignalCatalog: [signal],
+    capabilities: [
+      controlCapabilityV1(control.controlId),
+      outputCapabilityV1(signal.outputId),
+    ],
+  };
+}
+
+function makeSurfaceManifestV1(): ModelSurfaceReleaseManifestV1 {
+  return {
+    schemaId: STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
+    surfaceReleaseId: "surface/circulation-reference-v1",
+    modelFamilyId: "circulation-reference",
+    displayName: "Reference circulation Surface",
+    requiredCapabilities: [
+      controlCapabilityV1("control.tbv"),
+      outputCapabilityV1("hemodynamics.pressure.lv"),
+      derivationCapabilityV1("derivation/stroke-work-v1"),
+    ],
+    controlCatalog: [{
+      controlId: "control.tbv",
+      preferredPresentation: "slider",
+    }],
+    derivedOutputCatalog: [{
+      outputId: "hemodynamics.stroke-work",
+      kind: "metric",
+      unit: "mmHg mL",
+      shape: "scalar",
+      scope: "beat",
+      dependencies: ["hemodynamics.pressure.lv"],
+      derivationId: "derivation/stroke-work-v1",
+    }],
+    graphCatalog: [{
+      graphId: "graph.stroke-work",
+      renderer: "sweep",
+      seriesCatalog: [{
+        kind: "scalar",
+        seriesId: "stroke-work",
+        outputId: "hemodynamics.stroke-work",
+      }],
+      defaultSeriesIds: ["stroke-work"],
+    }],
+    knobCatalog: [{
+      knobId: "knob/volume",
+      unit: "mL",
+      minimum: 3_000,
+      maximum: 7_000,
+      step: 10,
+      defaultValue: 5_000,
+      targets: [{ controlId: "control.tbv", scale: 1, offset: 0 }],
+    }],
+    protocolCatalog: [],
+  };
 }
 
 function executableArtifactV2(modelId: string): Uint8Array {

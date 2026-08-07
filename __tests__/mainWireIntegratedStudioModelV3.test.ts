@@ -134,6 +134,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       "contract",
       "defaultFixture",
       "defaultModelId",
+      "releaseStage",
     ]);
     expect("authoring" in composition).toBe(false);
     expect("runtime" in composition).toBe(false);

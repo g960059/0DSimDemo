@@ -9,7 +9,7 @@ const EXPERIMENT_ID_ALLOCATION_ATTEMPTS_V3 = 32;
 export type ExperimentIdentityTokenFactoryV3 = () => string;
 export type ExperimentAvailabilityV3 =
   | "current-default"
-  | "historical-loadable"
+  | "exact-loadable"
   | "unavailable-model";
 
 /**
@@ -73,7 +73,7 @@ export function classifyExperimentAvailabilityV3(
   if (!exactModelIsLoadable) return "unavailable-model";
   return savedModelId === currentDefaultModelId
     ? "current-default"
-    : "historical-loadable";
+    : "exact-loadable";
 }
 
 /** Resolves registry metadata only; callers must not fetch executable bytes. */

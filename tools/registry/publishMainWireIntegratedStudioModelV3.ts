@@ -66,6 +66,14 @@ async function main(): Promise<void> {
     p_default_fixture: modelPackage.defaultFixture,
     p_analysis_profile_id: "main-wire-integrated-v3",
   });
+  // Registration is always dev. This specialized command publishes the
+  // already-admitted production default, so lifecycle promotion is explicit
+  // and precedes the channel move. Generic research releases use their own
+  // registry command and must not acquire stable status accidentally.
+  await rpc(baseUrl, secret, "set_model_release_stage_v1", {
+    p_model_id: modelPackage.manifest.modelId,
+    p_stage: "stable",
+  });
   await rpc(baseUrl, secret, "set_model_release_channel_v1", {
     p_channel: "default",
     p_model_id: modelPackage.manifest.modelId,

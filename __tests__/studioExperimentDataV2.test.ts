@@ -5,8 +5,12 @@ import {
   STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_V2_SCHEMA_ID,
+  STUDIO_OFFICIAL_EXPERIMENT_RECIPE_V1_SCHEMA_ID,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
 } from "@/studio/contracts/v2/content";
+import {
+  validateOfficialExperimentRecipeV1,
+} from "@/studio/application/authoring/StudioOfficialContentRecipeV1";
 import {
   assertExperimentContentMatchesModelV2,
   createScenarioPresetCaptureClonerV2,
@@ -998,6 +1002,48 @@ describe("Studio Experiment data V2", () => {
       .toThrow(StudioExperimentDataValidationErrorV2);
     expect(() => validateExperimentV2(cyclic))
       .toThrow(/cyclic JSON/);
+  });
+
+  it("keeps official recipes model-family scoped and channel-free", () => {
+    const caller = {
+      schemaId: STUDIO_OFFICIAL_EXPERIMENT_RECIPE_V1_SCHEMA_ID,
+      recipeId: "official/normal-adult-v1",
+      modelFamilyId: "model/main-wire",
+      title: "Normal adult circulation",
+      description: "Official baseline recipe.",
+      scenarios: [{
+        scenarioId: "scenario/baseline",
+        label: "Baseline",
+        controlAssignments: [{
+          controlId: "catalog.control/svr",
+          value: 1,
+        }],
+      }],
+      surface: contentV2().surface,
+      scientificAssertionIds: ["assertion/normal-adult-envelope-v1"],
+    };
+
+    const recipe = validateOfficialExperimentRecipeV1(caller);
+    expect(recipe).toMatchObject({
+      recipeId: "official/normal-adult-v1",
+      modelFamilyId: "model/main-wire",
+    });
+    expect(recipe).not.toHaveProperty("modelId");
+    expect(recipe).not.toHaveProperty("channel");
+    expect(Object.isFrozen(recipe)).toBe(true);
+    expect(Object.isFrozen(recipe.scenarios[0]!.controlAssignments)).toBe(true);
+
+    caller.scenarios[0]!.controlAssignments[0]!.value = 1.5;
+    expect(recipe.scenarios[0]!.controlAssignments[0]!.value).toBe(1);
+
+    expect(() => validateOfficialExperimentRecipeV1({
+      ...caller,
+      modelId: "model/exact-must-not-enter-recipe",
+    })).toThrow(/keys must be exactly/);
+    expect(() => validateOfficialExperimentRecipeV1({
+      ...caller,
+      channel: "default",
+    })).toThrow(/keys must be exactly/);
   });
 });
 

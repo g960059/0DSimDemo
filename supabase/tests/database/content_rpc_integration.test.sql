@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(15);
+select plan(16);
 
 insert into auth.users (
   id,
@@ -64,6 +64,9 @@ insert into studio.model_releases (
   repeat('b', 64),
   'integration-test'
 );
+
+insert into studio.model_release_availability (model_id, stage)
+values ('model/integration-test-v1', 'stable');
 
 select pg_catalog.set_config(
   'request.jwt.claims',
@@ -235,6 +238,78 @@ select is(
   ),
   null::timestamptz,
   'Published Snapshot is retained without an expiry'
+);
+
+insert into studio.model_releases (
+  model_id,
+  model_family_id,
+  display_name,
+  manifest,
+  artifact_path,
+  artifact_sha256,
+  registry_fingerprint,
+  source_commit
+) values (
+  'model/integration-test-dev-v2',
+  'model/integration-test',
+  'Integration test dev model',
+  '{"modelId":"model/integration-test-dev-v2"}'::jsonb,
+  'models/integration-test-dev-v2.mjs',
+  repeat('c', 64),
+  repeat('d', 64),
+  'integration-test-dev'
+);
+insert into studio.model_release_availability (model_id)
+values ('model/integration-test-dev-v2');
+
+insert into rpc_state (key, value)
+select 'dev-save', public.save_experiment_v1(
+  '20000000-0000-0000-0000-000000000007',
+  null,
+  null,
+  'Development model experiment',
+  'model/integration-test-dev-v2',
+  '{
+    "modelId":"model/integration-test-dev-v2",
+    "scenarios":[{
+      "scenarioId":"scenario/dev",
+      "label":"Development",
+      "capture":{"fixture":{"control":1},"checkpoint":{"acceptedTimeSec":1}}
+    }],
+    "surface":{}
+  }'::jsonb
+);
+insert into rpc_state (key, value)
+select 'dev-snapshot', public.commit_admitted_experiment_snapshot_v1(
+  '20000000-0000-0000-0000-000000000008',
+  null,
+  'model/integration-test-dev-v2',
+  '{
+    "modelId":"model/integration-test-dev-v2",
+    "scenarios":[{
+      "scenarioId":"scenario/dev",
+      "label":"Development",
+      "capture":{"fixture":{"control":1},"checkpoint":{"acceptedTimeSec":2}}
+    }],
+    "surface":{}
+  }'::jsonb,
+  ((select value ->> 'experimentId' from rpc_state where key = 'dev-save'))::uuid,
+  0
+);
+
+select throws_ok(
+  $$
+    select public.publish_experiment_v1(
+      '20000000-0000-0000-0000-000000000009',
+      ((select value ->> 'experimentId' from rpc_state where key = 'dev-save'))::uuid,
+      0,
+      ((select value ->> 'snapshotId' from rpc_state where key = 'dev-snapshot'))::uuid,
+      'development-model-must-not-publish'
+    )
+  $$,
+  '22023',
+  'Only stable model releases may be published (found dev)',
+  'Dev model content may be saved and captured but not published'
 );
 
 select public.unpublish_experiment_v1(

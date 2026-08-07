@@ -12,6 +12,8 @@ Experiment and an Article Placement both point to that same Snapshot type.
 This document owns persistence, numerical-capture, model-release, and backend
 boundaries. `DESIGN-STUDIO-004-reader-briefing-experiment-ia.md` owns Article,
 Briefing, Reader, navigation, and presentation IA.
+`DESIGN-STUDIO-006-model-surface-release-and-model-lab.md` owns the exact
+kernel/Model Surface split, release lifecycle, channels, and Model Lab.
 
 The application has no production users or durable production database.
 Superseded schemas are removed rather than migrated. Git history, not live
@@ -124,13 +126,13 @@ Domain identities are opaque IDs, not content hashes:
 modelId, experimentId, snapshotId, scenarioId, articleId, placementId
 ```
 
-One exact `modelId` pins every result-affecting execution contract:
+One exact `modelId` pins every result-affecting numerical execution contract:
 
 - equations and parameter semantics;
 - runtime, solver, and event-boundary behavior;
 - fixture schema and control mapping;
 - checkpoint codec and exact restore behavior;
-- existing output/control identity, units, and semantics.
+- primitive output/control identity, units, and semantics.
 
 It does **not** identify the Studio application release. Snapshot admission,
 publication policy, graph composition/presentation catalogs, Reader UI,
@@ -138,12 +140,11 @@ Briefing, database schema, Auth, and hosting are independently versioned
 product concerns. Changing any of those without changing numerical execution
 must not mint another `modelId`.
 
-`development-36` still co-packages the admission implementation in its exact
-artifact and therefore legitimately changed under the old package-wide lock.
-That release is not rebound or renumbered. Before the next numerical release,
-the registry package boundary must separate the numerical executable contract
-from the Studio admission/presentation package so ordinary application work
-cannot churn exact model identity.
+`development-36` still co-packages admission and presentation catalogs under
+its old package-wide lock. That immutable historical release is not rebound or
+renumbered. The next standard ABI uses `ExactModelKernelManifestV3` and a
+separate immutable `ModelSurfaceReleaseManifestV1`, so ordinary graph, derived
+output, Knob, protocol, and Studio admission work cannot churn `modelId`.
 
 Integrity hashes remain inside CI, the model registry, artifact storage, and
 model-owned corruption checks. Registration is idempotent for identical bytes
@@ -199,12 +200,16 @@ field rather than creating a second source of truth.
 - the Worker downloads only that artifact, selects the immutable module ABI,
   validates executable/manifest identity bindings, and creates the exact
   runtime;
-- a missing, retired, malformed, or unsupported release fails closed. The
+- a missing, emergency-disabled, malformed, or unsupported release fails closed. The
   loader never substitutes the current default for historical content.
+
+Lifecycle stage does not change historical readability. A `retired` release
+loses channel/publication eligibility but remains exact-loadable for existing
+content. `loadable=false` is reserved for an unsafe artifact.
 
 The saved-Experiment directory resolves only the small registry projection for
 each distinct stored `modelId`. It classifies entries as current-default,
-historical-loadable, or unavailable; it never treats “not the current default”
+exact-loadable, or unavailable; it never treats “not the current default”
 as evidence of unavailability and never downloads executable artifacts merely
 to render the list.
 
@@ -219,7 +224,7 @@ React StrictMode remounts and multiple new-Session navigations. A page reload
 resolves a moved default channel. This avoids changing numerical defaults
 halfway through one authoring visit.
 
-Analysis profile IDs are immutable semantic identifiers. Existing
+Analysis execution IDs are immutable semantic identifiers. Existing
 `main-wire-integrated-v3` semantics must not be overwritten; future analysis
 implementations receive a new explicitly versioned profile ID.
 
@@ -404,7 +409,11 @@ an internal `studio` schema and semantic RPCs:
 ```text
 model_releases (immutable)
 model_release_availability
-model_release_channels
+model_release_channels                  default | research
+model_surface_releases (immutable)
+model_surface_release_availability
+model_surface_release_channels          default | research per family
+model_release_successions
 
 experiment_contents (immutable JSONB)
 experiments ───────────────→ current_content_id
@@ -462,8 +471,10 @@ Exact executable artifacts are uploaded by the trusted release command to the
 public `model-releases` Storage bucket before registry admission. The object
 path is immutable and model-scoped. Ordinary clients may download it but have
 no upload or registry-write authority. The release command verifies existing
-bytes before reusing a path, registers the exact release, and only then moves a
-mutable channel such as `default`.
+bytes before reusing a path and registers the exact release. It promotes a
+release to `stable` before moving `default`; `research` may point at `dev` or
+`stable`. Public Experiment and Article publication is rejected unless every
+referenced Snapshot uses a `stable` exact model.
 
 ## 9. Retention and deletion
 
@@ -514,3 +525,6 @@ browser Web Workers remain the interactive numerical owner.
 12. Device layout and live status never leak into portable content.
 13. Existing content resolves its stored exact model; it never falls back to a
     channel-selected model after load failure.
+14. Snapshot admission is one Studio service, not a model/content profile.
+15. `default` is stable-only; `research` is dev-or-stable; `retired` is
+    historical-only.

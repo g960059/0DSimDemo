@@ -4,6 +4,10 @@ import type {
 import type {
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
+import type {
+  StudioReleaseChannelV1,
+  StudioReleaseStageV1,
+} from "@/studio/contracts/v2/modelSurface";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import type {
   StudioModelWorkerReleaseTicketV2,
@@ -45,6 +49,7 @@ typeof MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
 
 export type StudioClientCompositionV2 = Readonly<{
   defaultModelId: string;
+  releaseStage: StudioReleaseStageV1;
   defaultFixture: StudioJsonValueV2;
   contract: ModelContractV2;
   analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
@@ -66,6 +71,10 @@ let browserCompositionPromiseV2:
   Promise<StudioDefaultClientCompositionV2> | undefined;
 const browserExactCompositionPromisesV2 = new Map<
   string,
+  Promise<StudioClientCompositionV2>
+>();
+const browserChannelCompositionPromisesV2 = new Map<
+  StudioReleaseChannelV1,
   Promise<StudioClientCompositionV2>
 >();
 
@@ -93,6 +102,7 @@ Promise<StudioDefaultClientCompositionV2> {
   }
   return Object.freeze({
     defaultModelId: DEFAULT_STUDIO_MODEL_ID_V2,
+    releaseStage: "stable",
     defaultFixture: admittedPackage.defaultFixture,
     contract,
     analysisExecutionPlan: DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
@@ -101,14 +111,16 @@ Promise<StudioDefaultClientCompositionV2> {
 
 async function createRegistryClientCompositionV2(
   modelId?: string,
+  channel: StudioReleaseChannelV1 = "default",
 ): Promise<StudioClientCompositionV2> {
   const resolver = studioSupabaseModelReleaseResolverV1();
   if (resolver === null) return createStudioDefaultClientCompositionV2();
   const release = modelId === undefined
-    ? await resolver.resolveChannel("default")
+    ? await resolver.resolveChannel(channel)
     : await resolver.resolveExactModel(modelId);
   return Object.freeze({
     defaultModelId: release.contract.modelId,
+    releaseStage: release.stage,
     defaultFixture: release.defaultFixture,
     contract: release.contract,
     analysisExecutionPlan: analysisExecutionPlanForProfileV2(
@@ -116,6 +128,26 @@ async function createRegistryClientCompositionV2(
     ),
     workerReleaseTicket: release.ticket,
   });
+}
+
+/**
+ * Resolves one of the two mutable launch pointers and immediately pins the
+ * returned exact modelId. Existing content continues to use the exact loader.
+ */
+export function loadStudioModelChannelClientCompositionV2(
+  channel: StudioReleaseChannelV1,
+): Promise<StudioClientCompositionV2> {
+  if (channel === "default") return loadStudioDefaultClientCompositionV2();
+  const cached = browserChannelCompositionPromisesV2.get(channel);
+  if (cached !== undefined) return cached;
+  const pending = createRegistryClientCompositionV2(undefined, channel);
+  browserChannelCompositionPromisesV2.set(channel, pending);
+  void pending.catch(() => {
+    if (browserChannelCompositionPromisesV2.get(channel) === pending) {
+      browserChannelCompositionPromisesV2.delete(channel);
+    }
+  });
+  return pending;
 }
 
 /** Worker-only exact runtime; its model host must never be mistaken for the

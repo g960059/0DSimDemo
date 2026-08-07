@@ -83,6 +83,30 @@ export function validateExperimentContentV2(
   return content;
 }
 
+/** Owns a checkpoint-free authored Surface against an explicit Scenario set. */
+export function validateExperimentSurfaceV2(
+  value: unknown,
+  scenarioIdValues: readonly string[],
+): ExperimentSurfaceV2 {
+  const surface = clonePortableJsonV2(value, "$.surface") as ExperimentSurfaceV2;
+  if (
+    scenarioIdValues.length === 0
+    || scenarioIdValues.length > STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2
+  ) {
+    throw validationErrorV2(
+      "$.scenarioIds",
+      `must contain 1-${STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2} Scenario IDs`,
+    );
+  }
+  const scenarioIds = new Set<string>();
+  scenarioIdValues.forEach((scenarioId, index) => {
+    const owned = requiredPortableIdV2(scenarioId, `$.scenarioIds[${index}]`);
+    assertUniqueIdV2(scenarioIds, owned, `$.scenarioIds[${index}]`);
+  });
+  assertExperimentSurfaceV2(surface, "$.surface", scenarioIds);
+  return surface;
+}
+
 /**
  * Validates and takes ownership of an immutable Experiment snapshot.
  *

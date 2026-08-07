@@ -10,7 +10,7 @@ It does not own equations, solver internals, or model-specific state.
 ## Source of truth
 
 [DESIGN-STUDIO-003-experiment-data-architecture.md](DESIGN-STUDIO-003-experiment-data-architecture.md)
-is the only active Studio data-architecture document.
+is the canonical Experiment/Snapshot persistence and capture contract.
 
 [DESIGN-STUDIO-004-reader-briefing-experiment-ia.md](DESIGN-STUDIO-004-reader-briefing-experiment-ia.md)
 is its active product-IA companion for standalone Experiments, article
@@ -20,6 +20,11 @@ canonical routes. It does not redefine numerical identity or persistence.
 [DESIGN-STUDIO-005-live-graph-performance.md](DESIGN-STUDIO-005-live-graph-performance.md)
 defines the scientific-safe presentation pipeline, opt-in browser diagnostics,
 and cadence A/B contract for Workbench and Reader graphs.
+
+[DESIGN-STUDIO-006-model-surface-release-and-model-lab.md](DESIGN-STUDIO-006-model-surface-release-and-model-lab.md)
+defines the exact numerical kernel/Model Surface split, the `dev | stable |
+retired` lifecycle, the `default | research` channels, common Snapshot
+admission, explicit succession, and the single Model Lab.
 
 Superseded Studio V1 design and vertical-slice specifications were removed
 from the working tree. They remain available in Git history, but must not be
@@ -56,6 +61,10 @@ binding. The remaining release-spine sequence is:
    PV analysis claims where the UI currently overstates ESPVR/EDPVR; and
 6. only then extend small numerical surfaces and author official Scenario
    Presets, Experiments, published articles, and Lesson pages.
+
+The release-spine implementation already provides an immutable Model Surface
+validator/publisher and a channel-free official Experiment recipe validator.
+These are boundaries for future reviewed content, not seeded examples.
 
 The Supabase release/content spine, semantic RPCs, anonymous-first Save, and
 server publication/access-control boundary are connected. A configured build

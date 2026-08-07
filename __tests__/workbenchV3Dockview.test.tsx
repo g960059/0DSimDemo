@@ -11,6 +11,8 @@ import {
   cloneWorkbenchControlValuesV3,
   createWorkbenchBriefingSnapshotV3,
   invalidateWorkbenchScenarioAnalysisEquivalenceV3,
+  modelLabEnabledV3,
+  workbenchPublicationAvailableV3,
   reconcileWorkbenchBriefingV3,
   resolveWorkbenchBriefingEditorChangeV3,
   resolveWorkbenchInitialBriefingV3,
@@ -86,6 +88,30 @@ import { modelLimitationsAcknowledgementKey } from "@/components/ModelLimitation
 import { commitWorkbenchTransientAuthoringResultV3 } from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 
 describe("V3 Dockview Workbench", () => {
+  it("keeps the single Model Lab development-only unless explicitly enabled", () => {
+    expect(modelLabEnabledV3({ PROD: false })).toBe(true);
+    expect(modelLabEnabledV3({ PROD: true })).toBe(false);
+    expect(modelLabEnabledV3({
+      PROD: true,
+      VITE_MODEL_LAB_ENABLED: "1",
+    })).toBe(true);
+  });
+
+  it("keeps dev releases saveable but outside public publication", () => {
+    expect(workbenchPublicationAvailableV3({
+      modelLab: false,
+      releaseStage: "stable",
+    })).toBe(true);
+    expect(workbenchPublicationAvailableV3({
+      modelLab: false,
+      releaseStage: "dev",
+    })).toBe(false);
+    expect(workbenchPublicationAvailableV3({
+      modelLab: true,
+      releaseStage: "stable",
+    })).toBe(false);
+  });
+
   it("discloses human model information without implementation identities", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const contract = composition.contract;
