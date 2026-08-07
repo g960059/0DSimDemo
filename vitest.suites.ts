@@ -67,6 +67,7 @@ export const fastTests = [
   "__tests__/workbenchBackgroundWorkerPoolV3.test.ts",
   "__tests__/workbenchParallelAuthoringCoordinatorV3.test.ts",
   "__tests__/workbenchParallelScenarioRuntimeV3.test.ts",
+  "__tests__/workbenchRuntimeObservabilityV3.test.ts",
   "__tests__/workbenchScenarioSteadyCandidateCoordinatorV3.test.ts",
   "__tests__/workbenchV3Dockview.test.tsx",
   "__tests__/workbenchV3CanvasRenderers.test.ts",

@@ -151,7 +151,11 @@ import {
   SweepingWaveformCanvasV3,
   WorkbenchScenarioPresentationSampleStoreV3,
   WorkbenchBackgroundWorkerPoolV3,
+  observeWorkbenchSnapshotPhaseV3,
+  observeWorkbenchSnapshotSynchronousPhaseV3,
+  observeWorkbenchSnapshotTotalV3,
   reconcileWorkbenchGraphColorsV3,
+  reportWorkbenchRuntimeObservationV3,
   resolveWorkbenchBackgroundWorkerBudgetV3,
   resolveWorkbenchGraphTraceStyleV3,
   structuralReturnOrientationFromPayloadV3,
@@ -159,6 +163,7 @@ import {
   useWorkbenchScenarioOrbitHistoryV3,
   useWorkbenchScenarioPresentationSamplesV3,
   updateWorkbenchScenarioBaseColorV3,
+  workbenchRuntimeNowMsV3,
 } from "@/components/workbench/v3";
 import { WorkbenchParallelAuthoringCoordinatorV3 } from "@/components/workbench/v3/WorkbenchParallelAuthoringCoordinatorV3";
 import {
@@ -439,6 +444,11 @@ const WorkbenchV3Session = ({
   React.useEffect(() => {
     const pool = new WorkbenchBackgroundWorkerPoolV3(
       resolveWorkbenchBackgroundWorkerBudgetV3(),
+      undefined,
+      {
+        nowMs: workbenchRuntimeNowMsV3,
+        observe: reportWorkbenchRuntimeObservationV3,
+      },
     );
     setBackgroundWorkerPool(pool);
     return () => pool.dispose();
@@ -734,6 +744,8 @@ const WorkbenchV3Session = ({
           ? {}
           : { releaseTicket: composition.workerReleaseTicket }),
         backgroundWorkerPool,
+        runtimeNowMs: workbenchRuntimeNowMsV3,
+        observeRuntime: reportWorkbenchRuntimeObservationV3,
         resolveAnalysisExecutionPlan: composition.analysisExecutionPlan,
         onFrames: (frames) => {
           if (cancelled) return;
@@ -1865,23 +1877,39 @@ const WorkbenchV3Session = ({
     setSnapshotPurpose(options.kind);
     setSnapshotState("creating");
     setSnapshotError(null);
+    const observationContext = Object.freeze({
+      purpose: options.kind,
+      scenarioCount: runtime.scenarioCount,
+    });
+    const snapshotStartedAtMs = workbenchRuntimeNowMsV3();
+    let snapshotOutcome: "completed" | "failed" = "failed";
     try {
-      await runtime.pauseAll();
-      let captures: StudioSimulationWorkerScenarioCapturesV2;
-      try {
-        captures = await runtime.captureScenarios();
-      } finally {
-        // The exact fixture + checkpoint tuple is now owned by the background
-        // job. Resume every live lane before bounded admission so Snapshot
-        // creation never freezes the visible simulation for that work.
-        if (playingIntentRef.current && !document.hidden) runtime.playAll();
-      }
+      let captures = await observeWorkbenchSnapshotPhaseV3(
+        observationContext,
+        "intent-capture",
+        async () => {
+          await runtime.pauseAll();
+          try {
+            return await runtime.captureScenarios();
+          } finally {
+            // The exact fixture + checkpoint tuple is now owned by the
+            // background job. Resume every live lane before bounded admission
+            // so Snapshot creation never freezes the visible simulation for
+            // that work.
+            if (playingIntentRef.current && !document.hidden) runtime.playAll();
+          }
+        },
+      );
       // Freeze authored intent at the click boundary, then opportunistically
       // reuse an exact cycle-boundary candidate already produced for the same
       // input epoch. Candidate convergence is never awaited here: the exact
       // click capture is the fallback and common Snapshot admission remains
       // the safety authority before persistence.
-      captures = runtime.selectBestAvailableScenarioCaptures(captures);
+      captures = observeWorkbenchSnapshotSynchronousPhaseV3(
+        observationContext,
+        "candidate-selection",
+        () => runtime.selectBestAvailableScenarioCaptures(captures),
+      );
       if (
         options.kind === "article"
         && !workbenchBriefingSourceScenariosMatchV3(
@@ -1907,15 +1935,19 @@ const WorkbenchV3Session = ({
         experimentId: publicationExperiment?.experimentId ?? null,
         runtimeSessionId: `workbench-admission-${randomPortableTokenV3()}`,
       };
-      const created = options.kind === "article"
-        ? await coordinator.createSnapshot({
-            ...authoringInput,
-            snapshotSource: "session",
-          })
-        : await coordinator.createSnapshot({
-            ...authoringInput,
-            snapshotSource: "saved-experiment",
-          });
+      const created = await observeWorkbenchSnapshotPhaseV3(
+        observationContext,
+        "admission",
+        () => options.kind === "article"
+          ? coordinator.createSnapshot({
+              ...authoringInput,
+              snapshotSource: "session",
+            })
+          : coordinator.createSnapshot({
+              ...authoringInput,
+              snapshotSource: "saved-experiment",
+            }),
+      );
       if (
         options.kind === "article"
         && surfaceMutationRevisionRef.current
@@ -1930,66 +1962,81 @@ const WorkbenchV3Session = ({
       ) {
         throw new Error(t("workbench.editor.briefingChangedDuringSnapshot"));
       }
-      const persistedSnapshot = remoteContentRepository === null
-        ? contentStore!.saveSnapshotCommit(
-            created,
-            {
-              modelId: authoringInput.modelId,
-              scenarios: authoringInput.scenarios,
-              surface: authoringInput.surface,
-            },
-            options.kind === "publication" && publicationExperiment !== null
-              ? {
-                  experimentId: publicationExperiment.experimentId,
-                  expectedVersion: publicationExperiment.version,
-                }
-              : undefined,
-          ).snapshot
-        : await remoteContentRepository.commitSnapshot({
-            admitted: created,
-            ...(options.kind === "publication" && publicationExperiment !== null
-              ? {
-                  sourceExperiment: {
+      const persistedSnapshot = await observeWorkbenchSnapshotPhaseV3(
+        observationContext,
+        "persistence",
+        () => remoteContentRepository === null
+          ? contentStore!.saveSnapshotCommit(
+              created,
+              {
+                modelId: authoringInput.modelId,
+                scenarios: authoringInput.scenarios,
+                surface: authoringInput.surface,
+              },
+              options.kind === "publication" && publicationExperiment !== null
+                ? {
                     experimentId: publicationExperiment.experimentId,
                     expectedVersion: publicationExperiment.version,
-                  },
-                }
-              : {}),
-          });
-      if (options.kind === "publication" && experimentRef.current !== null) {
-        if (remoteContentRepository !== null) {
-          await remoteContentRepository.publishExperiment({
-            experimentId: experimentRef.current.experimentId,
-            expectedVersion: experimentRef.current.version,
-            snapshotId: persistedSnapshot.snapshotId,
-            publicSlug: publicExperimentSlugV3(
-              experimentRef.current.experimentId,
-            ),
-          });
-        }
-        const nowIso = new Date().toISOString();
-        const remotePublishedResource = remoteContentRepository === null
-          ? null
-          : await remoteContentRepository.readMyExperiment(
-              experimentRef.current.experimentId,
-            );
-        if (
-          remoteContentRepository !== null
-          && remotePublishedResource === null
-        ) {
-          throw new Error("Published Experiment could not be read back");
-        }
-        const nextRecord = remoteContentRepository === null
-          ? experimentIndex.publish({
-              experimentId: experimentRef.current.experimentId,
-              snapshotId: persistedSnapshot.snapshotId,
-              nowIso,
-            })
-          : remoteExperimentRecordV3(remotePublishedResource!);
-        setExperimentRecord(nextRecord);
+                  }
+                : undefined,
+            ).snapshot
+          : remoteContentRepository.commitSnapshot({
+              admitted: created,
+              ...(options.kind === "publication"
+                  && publicationExperiment !== null
+                ? {
+                    sourceExperiment: {
+                      experimentId: publicationExperiment.experimentId,
+                      expectedVersion: publicationExperiment.version,
+                    },
+                  }
+                : {}),
+            }),
+      );
+      const experimentToPublish = options.kind === "publication"
+        ? experimentRef.current
+        : null;
+      if (experimentToPublish !== null) {
+        await observeWorkbenchSnapshotPhaseV3(
+          observationContext,
+          "publication",
+          async () => {
+            if (remoteContentRepository !== null) {
+              await remoteContentRepository.publishExperiment({
+                experimentId: experimentToPublish.experimentId,
+                expectedVersion: experimentToPublish.version,
+                snapshotId: persistedSnapshot.snapshotId,
+                publicSlug: publicExperimentSlugV3(
+                  experimentToPublish.experimentId,
+                ),
+              });
+            }
+            const nowIso = new Date().toISOString();
+            const remotePublishedResource = remoteContentRepository === null
+              ? null
+              : await remoteContentRepository.readMyExperiment(
+                  experimentToPublish.experimentId,
+                );
+            if (
+              remoteContentRepository !== null
+              && remotePublishedResource === null
+            ) {
+              throw new Error("Published Experiment could not be read back");
+            }
+            const nextRecord = remoteContentRepository === null
+              ? experimentIndex.publish({
+                  experimentId: experimentToPublish.experimentId,
+                  snapshotId: persistedSnapshot.snapshotId,
+                  nowIso,
+                })
+              : remoteExperimentRecordV3(remotePublishedResource!);
+            setExperimentRecord(nextRecord);
+          },
+        );
       }
       setSnapshotCount((count) => count + 1);
       setSnapshotState("created");
+      snapshotOutcome = "completed";
       return persistedSnapshot;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1997,6 +2044,11 @@ const WorkbenchV3Session = ({
       setSnapshotState("error");
       return null;
     } finally {
+      observeWorkbenchSnapshotTotalV3(
+        observationContext,
+        snapshotStartedAtMs,
+        snapshotOutcome,
+      );
       exclusiveOperationRef.current = null;
       const latest = latestFrameRef.current;
       if (

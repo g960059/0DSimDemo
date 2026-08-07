@@ -11,11 +11,19 @@ import { studioCanonicalJsonStringify } from
 import type { StudioSimulationWorkerClientV2 } from
   "@/studio/workers/StudioSimulationWorkerClientV2";
 
-import type {
-  WorkbenchBackgroundJobHandleV3,
-  WorkbenchBackgroundJobPriorityV3,
-  WorkbenchBackgroundWorkerPoolPortV3,
+import {
+  WorkbenchBackgroundJobCancelledErrorV3,
+  type WorkbenchBackgroundJobHandleV3,
+  type WorkbenchBackgroundJobPriorityV3,
+  type WorkbenchBackgroundWorkerPoolPortV3,
 } from "./WorkbenchBackgroundWorkerPoolV3";
+import {
+  elapsedWorkbenchRuntimeMsV3,
+  emitWorkbenchRuntimeObservationV3,
+  workbenchRuntimeNowMsV3,
+  type WorkbenchRuntimeClockV3,
+  type WorkbenchRuntimeObserverV3,
+} from "./WorkbenchRuntimeObservabilityV3";
 import { randomPortableTokenV3 } from "./randomPortableTokenV3";
 
 const CYCLE_PHASE_OUTPUT_ID_V3 = "rhythm.phase.regular-sinus";
@@ -50,7 +58,19 @@ type CandidateRecordV3 = {
   handle: WorkbenchBackgroundJobHandleV3<WorkbenchSteadyCandidateV3>;
   promise: Promise<WorkbenchSteadyCandidateV3>;
   latest: WorkbenchSteadyCandidateV3 | null;
+  latestProducedAtMs: number | null;
+  startedAtMs: number;
+  requestedPriority: Extract<
+    WorkbenchBackgroundJobPriorityV3,
+    "analysis" | "prewarm" | "snapshot"
+  >;
 };
+
+export type WorkbenchScenarioSteadyCandidateCoordinatorDependenciesV3 =
+  Readonly<{
+    nowMs?: WorkbenchRuntimeClockV3;
+    observe?: WorkbenchRuntimeObserverV3;
+  }>;
 
 /**
  * Runtime-only single-flight cache for a Scenario's current parameter target.
@@ -64,11 +84,18 @@ type CandidateRecordV3 = {
  */
 export class WorkbenchScenarioSteadyCandidateCoordinatorV3 {
   readonly #pool: WorkbenchBackgroundWorkerPoolPortV3;
+  readonly #nowMs: WorkbenchRuntimeClockV3;
+  readonly #observe: WorkbenchRuntimeObserverV3 | undefined;
   readonly #records = new Map<string, CandidateRecordV3>();
   #disposed = false;
 
-  constructor(pool: WorkbenchBackgroundWorkerPoolPortV3) {
+  constructor(
+    pool: WorkbenchBackgroundWorkerPoolPortV3,
+    dependencies: WorkbenchScenarioSteadyCandidateCoordinatorDependenciesV3 = {},
+  ) {
     this.#pool = pool;
+    this.#nowMs = dependencies.nowMs ?? workbenchRuntimeNowMsV3;
+    this.#observe = dependencies.observe;
   }
 
   prewarm(source: WorkbenchSteadyCandidateSourceV3): void {
@@ -91,6 +118,34 @@ export class WorkbenchScenarioSteadyCandidateCoordinatorV3 {
     if (this.#disposed) return null;
     const record = this.#records.get(source.scenario.scenarioId);
     return record?.key === candidateKeyV3(source) ? record.latest : null;
+  }
+
+  selectBestAvailable(
+    source: WorkbenchSteadyCandidateSourceV3,
+    consumer: "snapshot" | "analysis",
+  ): WorkbenchSteadyCandidateV3 | null {
+    const record = this.#disposed
+      ? undefined
+      : this.#records.get(source.scenario.scenarioId);
+    const matching = record?.key === candidateKeyV3(source) ? record : undefined;
+    const candidate = matching?.latest ?? null;
+    emitWorkbenchRuntimeObservationV3(this.#observe, {
+      kind: "steady-candidate-selection",
+      consumer,
+      result: candidate === null ? "click-capture-fallback" : "reused",
+      scenarioId: source.scenario.scenarioId,
+      inputEpoch: source.inputEpoch,
+      candidateAgeMs: candidate === null
+          || matching === undefined
+          || matching.latestProducedAtMs === null
+        ? null
+        : elapsedWorkbenchRuntimeMsV3(
+            matching.latestProducedAtMs,
+            this.#nowMs(),
+          ),
+      convergence: candidate?.convergence ?? null,
+    });
+    return candidate;
   }
 
   async resolve(
@@ -135,11 +190,13 @@ export class WorkbenchScenarioSteadyCandidateCoordinatorV3 {
       previous.handle.cancel();
     }
 
+    const startedAtMs = this.#nowMs();
     let record!: CandidateRecordV3;
     const handle = this.#pool.schedule(priority, (client) =>
       computeSteadyCandidateV3(client, source, (candidate) => {
         if (this.#records.get(source.scenario.scenarioId) === record) {
           record.latest = candidate;
+          record.latestProducedAtMs = this.#nowMs();
         }
       }));
     record = {
@@ -147,18 +204,50 @@ export class WorkbenchScenarioSteadyCandidateCoordinatorV3 {
       handle,
       promise: Promise.resolve(undefined as never),
       latest: null,
+      latestProducedAtMs: null,
+      startedAtMs,
+      requestedPriority: priority,
     };
     record.promise = handle.promise
       .then((candidate) => {
         if (this.#records.get(source.scenario.scenarioId) === record) {
           record.latest = candidate;
+          record.latestProducedAtMs = this.#nowMs();
         }
+        emitWorkbenchRuntimeObservationV3(this.#observe, {
+          kind: "steady-candidate-computation",
+          scenarioId: source.scenario.scenarioId,
+          inputEpoch: source.inputEpoch,
+          requestedPriority: record.requestedPriority,
+          durationMs: elapsedWorkbenchRuntimeMsV3(
+            record.startedAtMs,
+            this.#nowMs(),
+          ),
+          outcome: "completed",
+          convergence: candidate.convergence,
+          completedCycleCount: candidate.completedCycleCount,
+        });
         return candidate;
       })
       .catch((error) => {
         if (this.#records.get(source.scenario.scenarioId) === record) {
           this.#records.delete(source.scenario.scenarioId);
         }
+        emitWorkbenchRuntimeObservationV3(this.#observe, {
+          kind: "steady-candidate-computation",
+          scenarioId: source.scenario.scenarioId,
+          inputEpoch: source.inputEpoch,
+          requestedPriority: record.requestedPriority,
+          durationMs: elapsedWorkbenchRuntimeMsV3(
+            record.startedAtMs,
+            this.#nowMs(),
+          ),
+          outcome: error instanceof WorkbenchBackgroundJobCancelledErrorV3
+            ? "cancelled"
+            : "failed",
+          convergence: null,
+          completedCycleCount: null,
+        });
         throw error;
       });
     this.#records.set(source.scenario.scenarioId, record);

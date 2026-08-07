@@ -11,4 +11,5 @@ export * from "./WorkbenchPresentationSampleBufferV3";
 export * from "./WorkbenchPresentationSampleStoreV3";
 export * from "./WorkbenchParallelAuthoringCoordinatorV3";
 export * from "./WorkbenchParallelScenarioRuntimeV3";
+export * from "./WorkbenchRuntimeObservabilityV3";
 export * from "./WorkbenchScalarSampleV3";

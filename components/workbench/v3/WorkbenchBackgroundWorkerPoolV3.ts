@@ -1,6 +1,14 @@
 import {
   StudioSimulationWorkerClientV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
+import {
+  elapsedWorkbenchRuntimeMsV3,
+  emitWorkbenchRuntimeObservationV3,
+  workbenchRuntimeNowMsV3,
+  type WorkbenchBackgroundWorkerLeaseKindV3,
+  type WorkbenchRuntimeClockV3,
+  type WorkbenchRuntimeObserverV3,
+} from "./WorkbenchRuntimeObservabilityV3";
 
 export type WorkbenchBackgroundJobPriorityV3 =
   | "snapshot"
@@ -32,14 +40,30 @@ export type WorkbenchBackgroundWorkerBudgetV3 = Readonly<{
   maxSize: number;
 }>;
 
-type WaitingJobV3 = Readonly<{
+export type WorkbenchBackgroundWorkerPoolDependenciesV3 = Readonly<{
+  nowMs?: WorkbenchRuntimeClockV3;
+  observe?: WorkbenchRuntimeObserverV3;
+}>;
+
+type BackgroundJobContextV3 = {
   token: symbol;
   sequence: number;
-  resolve(client: StudioSimulationWorkerClientV2): void;
-  reject(error: Error): void;
-}> & {
+  scheduledPriority: WorkbenchBackgroundJobPriorityV3;
   priority: WorkbenchBackgroundJobPriorityV3;
+  scheduledAtMs: number;
+  queueDepthAtSchedule: number;
 };
+
+type BackgroundWorkerLeaseV3 = Readonly<{
+  client: StudioSimulationWorkerClientV2;
+  kind: WorkbenchBackgroundWorkerLeaseKindV3;
+}>;
+
+type WaitingJobV3 = Readonly<{
+  context: BackgroundJobContextV3;
+  resolve(lease: BackgroundWorkerLeaseV3): void;
+  reject(error: Error): void;
+}>;
 
 const PRIORITY_ORDER_V3: Readonly<Record<WorkbenchBackgroundJobPriorityV3, number>> =
   Object.freeze({ snapshot: 0, save: 1, analysis: 2, prewarm: 3 });
@@ -57,6 +81,8 @@ const PRIORITY_ORDER_V3: Readonly<Record<WorkbenchBackgroundJobPriorityV3, numbe
 export class WorkbenchBackgroundWorkerPoolV3
   implements WorkbenchBackgroundWorkerPoolPortV3 {
   readonly #createClient: () => StudioSimulationWorkerClientV2;
+  readonly #nowMs: WorkbenchRuntimeClockV3;
+  readonly #observe: WorkbenchRuntimeObserverV3 | undefined;
   readonly #warmSize: number;
   readonly #maxSize: number;
   readonly #idle: StudioSimulationWorkerClientV2[] = [];
@@ -71,11 +97,14 @@ export class WorkbenchBackgroundWorkerPoolV3
       resolveWorkbenchBackgroundWorkerBudgetV3(),
     createClient: () => StudioSimulationWorkerClientV2 =
       () => new StudioSimulationWorkerClientV2(),
+    dependencies: WorkbenchBackgroundWorkerPoolDependenciesV3 = {},
   ) {
     requireWorkerBudgetV3(budget);
     this.#warmSize = budget.warmSize;
     this.#maxSize = budget.maxSize;
     this.#createClient = createClient;
+    this.#nowMs = dependencies.nowMs ?? workbenchRuntimeNowMsV3;
+    this.#observe = dependencies.observe;
     this.#replenishWarmWorkers();
   }
 
@@ -91,19 +120,49 @@ export class WorkbenchBackgroundWorkerPoolV3
     operation: (client: StudioSimulationWorkerClientV2) => Promise<T>,
   ): WorkbenchBackgroundJobHandleV3<T> {
     requirePriorityV3(priority);
-    const token = Symbol("workbench-background-job");
+    const context: BackgroundJobContextV3 = {
+      token: Symbol("workbench-background-job"),
+      sequence: this.#sequence++,
+      scheduledPriority: priority,
+      priority,
+      scheduledAtMs: this.#nowMs(),
+      queueDepthAtSchedule: 0,
+    };
     const promise = (async () => {
-      const client = await this.#acquire(priority, token);
+      let lease: BackgroundWorkerLeaseV3 | null = null;
+      let startedAtMs: number | null = null;
       try {
-        return await operation(client);
+        lease = await this.#acquire(context);
+        startedAtMs = this.#nowMs();
+        const result = await operation(lease.client);
+        this.#observeTerminalJob(
+          context,
+          lease.kind,
+          startedAtMs,
+          "completed",
+        );
+        return result;
+      } catch (error) {
+        this.#observeTerminalJob(
+          context,
+          lease?.kind ?? null,
+          startedAtMs,
+          error instanceof WorkbenchBackgroundJobCancelledErrorV3
+            ? "cancelled"
+            : "failed",
+        );
+        throw error;
       } finally {
-        this.#release(client);
+        if (lease !== null) this.#release(lease.client);
       }
     })();
     return Object.freeze({
       promise,
-      promote: (nextPriority) => this.#promote(token, nextPriority),
-      cancel: () => this.#cancel(token),
+      promote: (nextPriority) => this.#promote(
+        context.token,
+        nextPriority,
+      ),
+      cancel: () => this.#cancel(context.token),
     });
   }
 
@@ -119,34 +178,32 @@ export class WorkbenchBackgroundWorkerPoolV3
   }
 
   async #acquire(
-    priority: WorkbenchBackgroundJobPriorityV3,
-    token: symbol,
-  ): Promise<StudioSimulationWorkerClientV2> {
+    context: BackgroundJobContextV3,
+  ): Promise<BackgroundWorkerLeaseV3> {
     if (this.#disposed) {
       throw new Error("Workbench background Worker pool is disposed");
     }
     const idle = this.#idle.pop();
     if (idle !== undefined) {
       this.#leased.add(idle);
-      return idle;
+      return Object.freeze({ client: idle, kind: "warm" });
     }
     if (this.#regularLeaseCount() < this.#maxSize) {
       const created = this.#createClient();
       this.#leased.add(created);
-      return created;
+      return Object.freeze({ client: created, kind: "regular" });
     }
-    if (this.#canLeaseForegroundBurst(priority)) {
+    if (this.#canLeaseForegroundBurst(context.priority)) {
       const created = this.#createClient();
       this.#leased.add(created);
       this.#foregroundBurst.add(created);
-      return created;
+      return Object.freeze({ client: created, kind: "foreground-burst" });
     }
-    return await new Promise<StudioSimulationWorkerClientV2>(
+    return await new Promise<BackgroundWorkerLeaseV3>(
       (resolve, reject) => {
+        context.queueDepthAtSchedule = this.#waiting.length + 1;
         this.#waiting.push({
-          token,
-          priority,
-          sequence: this.#sequence++,
+          context,
           resolve,
           reject: (error) => reject(error),
         });
@@ -169,18 +226,23 @@ export class WorkbenchBackgroundWorkerPoolV3
     priority: WorkbenchBackgroundJobPriorityV3,
   ): void {
     requirePriorityV3(priority);
-    const waiting = this.#waiting.find((candidate) => candidate.token === token);
+    const waiting = this.#waiting.find(
+      (candidate) => candidate.context.token === token,
+    );
     if (
       waiting === undefined
-      || PRIORITY_ORDER_V3[priority] >= PRIORITY_ORDER_V3[waiting.priority]
+      || PRIORITY_ORDER_V3[priority]
+        >= PRIORITY_ORDER_V3[waiting.context.priority]
     ) return;
-    waiting.priority = priority;
+    waiting.context.priority = priority;
     this.#sortWaiting();
     this.#dispatchWaiting();
   }
 
   #cancel(token: symbol): boolean {
-    const index = this.#waiting.findIndex((candidate) => candidate.token === token);
+    const index = this.#waiting.findIndex(
+      (candidate) => candidate.context.token === token,
+    );
     if (index < 0) return false;
     const [waiting] = this.#waiting.splice(index, 1);
     waiting!.reject(new WorkbenchBackgroundJobCancelledErrorV3());
@@ -193,7 +255,7 @@ export class WorkbenchBackgroundWorkerPoolV3
       const waiting = this.#waiting[0]!;
       const regularLeaseAvailable = this.#regularLeaseCount() < this.#maxSize;
       const burstLeaseAvailable = this.#canLeaseForegroundBurst(
-        waiting.priority,
+        waiting.context.priority,
       );
       if (!regularLeaseAvailable && !burstLeaseAvailable) return;
       this.#waiting.shift();
@@ -201,7 +263,10 @@ export class WorkbenchBackgroundWorkerPoolV3
         const replacement = this.#createClient();
         this.#leased.add(replacement);
         if (!regularLeaseAvailable) this.#foregroundBurst.add(replacement);
-        waiting.resolve(replacement);
+        waiting.resolve(Object.freeze({
+          client: replacement,
+          kind: regularLeaseAvailable ? "regular" : "foreground-burst",
+        }));
       } catch (error) {
         waiting.reject(errorAsErrorV3(error));
       }
@@ -223,8 +288,39 @@ export class WorkbenchBackgroundWorkerPoolV3
 
   #sortWaiting(): void {
     this.#waiting.sort((left, right) =>
-      PRIORITY_ORDER_V3[left.priority] - PRIORITY_ORDER_V3[right.priority]
-      || left.sequence - right.sequence);
+      PRIORITY_ORDER_V3[left.context.priority]
+        - PRIORITY_ORDER_V3[right.context.priority]
+      || left.context.sequence - right.context.sequence);
+  }
+
+  #observeTerminalJob(
+    context: BackgroundJobContextV3,
+    leaseKind: WorkbenchBackgroundWorkerLeaseKindV3 | null,
+    startedAtMs: number | null,
+    outcome: "completed" | "failed" | "cancelled",
+  ): void {
+    const finishedAtMs = this.#nowMs();
+    const queueDurationMs = elapsedWorkbenchRuntimeMsV3(
+      context.scheduledAtMs,
+      startedAtMs ?? finishedAtMs,
+    );
+    emitWorkbenchRuntimeObservationV3(this.#observe, {
+      kind: "background-worker-job",
+      scheduledPriority: context.scheduledPriority,
+      finalPriority: context.priority,
+      promoted: context.scheduledPriority !== context.priority,
+      leaseKind,
+      queueDepthAtSchedule: context.queueDepthAtSchedule,
+      queueDurationMs,
+      executionDurationMs: startedAtMs === null
+        ? null
+        : elapsedWorkbenchRuntimeMsV3(startedAtMs, finishedAtMs),
+      totalDurationMs: elapsedWorkbenchRuntimeMsV3(
+        context.scheduledAtMs,
+        finishedAtMs,
+      ),
+      outcome,
+    });
   }
 
   #replenishWarmWorkers(): void {

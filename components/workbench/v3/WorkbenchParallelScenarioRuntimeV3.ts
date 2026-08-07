@@ -37,6 +37,10 @@ import {
   WorkbenchScenarioSteadyCandidateCoordinatorV3,
   type WorkbenchSteadyCandidateSourceV3,
 } from "./WorkbenchScenarioSteadyCandidateCoordinatorV3";
+import type {
+  WorkbenchRuntimeClockV3,
+  WorkbenchRuntimeObserverV3,
+} from "./WorkbenchRuntimeObservabilityV3";
 import { randomPortableTokenV3 } from "./randomPortableTokenV3";
 
 // One short visual deadline lets independently completing Scenario Workers
@@ -87,6 +91,8 @@ export type WorkbenchParallelScenarioRuntimeDependenciesV3 = Readonly<{
     analysisPartition?: string,
   ) => WorkbenchParallelScenarioRuntimeClientV3;
   backgroundWorkerPool?: WorkbenchBackgroundWorkerPoolPortV3;
+  runtimeNowMs?: WorkbenchRuntimeClockV3;
+  observeRuntime?: WorkbenchRuntimeObserverV3;
   resolveAnalysisExecutionPlan?:
     StudioSimulationAnalysisExecutionPlanResolverV2;
   createScheduler?: (
@@ -168,6 +174,14 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       ? undefined
       : new WorkbenchScenarioSteadyCandidateCoordinatorV3(
           dependencies.backgroundWorkerPool,
+          {
+            ...(dependencies.runtimeNowMs === undefined
+              ? {}
+              : { nowMs: dependencies.runtimeNowMs }),
+            ...(dependencies.observeRuntime === undefined
+              ? {}
+              : { observe: dependencies.observeRuntime }),
+          },
         );
     this.#resolveAnalysisExecutionPlan = dependencies.resolveAnalysisExecutionPlan
       ?? (() => null);
@@ -548,7 +562,10 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         inputEpoch: lane.latestFrame.inputEpoch,
         scenario,
       } satisfies WorkbenchSteadyCandidateSourceV3;
-      const candidate = this.#steadyCandidates!.bestAvailable(source);
+      const candidate = this.#steadyCandidates!.selectBestAvailable(
+        source,
+        "snapshot",
+      );
       if (candidate === null) {
         this.#steadyCandidates!.prewarm(source);
         return scenario;
@@ -734,8 +751,9 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   ): ExperimentScenarioV2 {
     if (this.#steadyCandidates === undefined) return scenario;
     const lane = this.#requiredLane(scenario.scenarioId);
-    const candidate = this.#steadyCandidates.bestAvailable(
+    const candidate = this.#steadyCandidates.selectBestAvailable(
       this.#steadyCandidateSource(lane, scenario, inputEpoch),
+      "analysis",
     );
     if (candidate === null) return scenario;
     return Object.freeze({

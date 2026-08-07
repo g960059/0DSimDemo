@@ -7,6 +7,9 @@ import {
 import type {
   StudioSimulationWorkerClientV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
+import type {
+  WorkbenchRuntimeObservationV3,
+} from "@/components/workbench/v3/WorkbenchRuntimeObservabilityV3";
 
 describe("WorkbenchBackgroundWorkerPoolV3", () => {
   it("keeps only uninitialized Workers warm and replaces each used lease", async () => {
@@ -136,5 +139,81 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
       warmSize: 2,
       maxSize: 4,
     });
+  });
+
+  it("observes queue and execution latency without changing the job result", async () => {
+    const observations: WorkbenchRuntimeObservationV3[] = [];
+    const clock = vi.fn()
+      .mockReturnValueOnce(100)
+      .mockReturnValueOnce(103)
+      .mockReturnValueOnce(113);
+    const pool = new WorkbenchBackgroundWorkerPoolV3(
+      { warmSize: 0, maxSize: 1 },
+      () => ({ terminate: vi.fn() }) as unknown as
+        StudioSimulationWorkerClientV2,
+      {
+        nowMs: clock,
+        observe: (observation) => observations.push(observation),
+      },
+    );
+
+    await expect(pool.run("analysis", async () => "result"))
+      .resolves.toBe("result");
+
+    expect(observations).toEqual([{
+      kind: "background-worker-job",
+      scheduledPriority: "analysis",
+      finalPriority: "analysis",
+      promoted: false,
+      leaseKind: "regular",
+      queueDepthAtSchedule: 0,
+      queueDurationMs: 3,
+      executionDurationMs: 10,
+      totalDurationMs: 13,
+      outcome: "completed",
+    }]);
+    pool.dispose();
+  });
+
+  it("observes cancellation before a queued job acquires numerical authority", async () => {
+    const observations: WorkbenchRuntimeObservationV3[] = [];
+    let nowMs = 0;
+    let releaseActive!: () => void;
+    const activeGate = new Promise<void>((resolve) => {
+      releaseActive = resolve;
+    });
+    const pool = new WorkbenchBackgroundWorkerPoolV3(
+      { warmSize: 0, maxSize: 1 },
+      () => ({ terminate: vi.fn() }) as unknown as
+        StudioSimulationWorkerClientV2,
+      {
+        nowMs: () => nowMs,
+        observe: (observation) => observations.push(observation),
+      },
+    );
+    const active = pool.run("analysis", async () => await activeGate);
+    await Promise.resolve();
+    nowMs = 5;
+    const queued = pool.schedule("prewarm", async () => undefined);
+    nowMs = 17;
+    expect(queued.cancel()).toBe(true);
+    await expect(queued.promise).rejects.toThrow(/cancelled before it started/);
+
+    const cancelled = observations.find((observation) =>
+      observation.kind === "background-worker-job"
+      && observation.outcome === "cancelled");
+    expect(cancelled).toMatchObject({
+      scheduledPriority: "prewarm",
+      finalPriority: "prewarm",
+      leaseKind: null,
+      queueDepthAtSchedule: 1,
+      queueDurationMs: 12,
+      executionDurationMs: null,
+      totalDurationMs: 12,
+    });
+
+    releaseActive();
+    await active;
+    pool.dispose();
   });
 });

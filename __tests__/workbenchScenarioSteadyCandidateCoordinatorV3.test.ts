@@ -10,6 +10,9 @@ import type { StudioSimulationFrameV2 } from
   "@/studio/contracts/v2/simulation";
 import type { StudioSimulationWorkerClientV2 } from
   "@/studio/workers/StudioSimulationWorkerClientV2";
+import type {
+  WorkbenchRuntimeObservationV3,
+} from "@/components/workbench/v3/WorkbenchRuntimeObservabilityV3";
 
 describe("WorkbenchScenarioSteadyCandidateCoordinatorV3", () => {
   it("promotes one queued prewarm into a foreground Snapshot burst and reuses it", async () => {
@@ -77,6 +80,56 @@ describe("WorkbenchScenarioSteadyCandidateCoordinatorV3", () => {
     expect(second).not.toBe(first);
     expect(clients.filter((client) => client.initialize.mock.calls.length > 0))
       .toHaveLength(2);
+    coordinator.dispose();
+    pool.dispose();
+  });
+
+  it("observes Snapshot candidate reuse and click-capture fallback by input epoch", async () => {
+    const observations: WorkbenchRuntimeObservationV3[] = [];
+    let nowMs = 10;
+    const pool = new WorkbenchBackgroundWorkerPoolV3(
+      { warmSize: 0, maxSize: 1 },
+      () => steadyClientV3() as unknown as StudioSimulationWorkerClientV2,
+    );
+    const coordinator = new WorkbenchScenarioSteadyCandidateCoordinatorV3(
+      pool,
+      {
+        nowMs: () => nowMs,
+        observe: (observation) => observations.push(observation),
+      },
+    );
+    const source = sourceV3(4);
+
+    await coordinator.resolve(source, "analysis");
+    nowMs = 37;
+    expect(coordinator.selectBestAvailable(source, "snapshot")).not.toBeNull();
+    expect(coordinator.selectBestAvailable(sourceV3(5), "snapshot")).toBeNull();
+
+    const selections = observations.filter((observation) =>
+      observation.kind === "steady-candidate-selection");
+    expect(selections).toEqual([
+      expect.objectContaining({
+        consumer: "snapshot",
+        result: "reused",
+        inputEpoch: 4,
+        candidateAgeMs: 27,
+        convergence: "observed-period1",
+      }),
+      expect.objectContaining({
+        consumer: "snapshot",
+        result: "click-capture-fallback",
+        inputEpoch: 5,
+        candidateAgeMs: null,
+        convergence: null,
+      }),
+    ]);
+    expect(observations).toContainEqual(expect.objectContaining({
+      kind: "steady-candidate-computation",
+      inputEpoch: 4,
+      requestedPriority: "analysis",
+      outcome: "completed",
+      convergence: "observed-period1",
+    }));
     coordinator.dispose();
     pool.dispose();
   });

@@ -365,6 +365,34 @@ bidirectional analysis lanes cannot place the author's explicit action behind
 an entire sweep. Persistent live Scenario Workers are outside this pool and
 never stop for detached candidate computation.
 
+#### 7.3.1 Runtime observation boundary
+
+Candidate and Snapshot latency are runtime operations, not scientific or
+durable content. Workbench therefore emits one bounded, vendor-neutral browser
+observation contract for:
+
+- background Worker queue, execution, cancellation, promotion, and burst-lease
+  duration;
+- steady-candidate computation and Snapshot/analysis reuse versus click-capture
+  fallback;
+- Snapshot intent-capture, candidate-selection, admission, persistence,
+  publication, and total duration.
+
+The browser event is
+`circleheart:workbench-runtime-observation-v3`. It contains durations,
+priority, outcome, opaque Scenario identity, and input epoch only. It never
+contains fixture/checkpoint payloads, outputs, labels, Article content, user
+identity, or accepted numerical state. The event is not sent over the network
+by Studio. Browser QA or a later telemetry adapter may collect it, and the
+bounded `WorkbenchRuntimeObservationBufferV3` summarizes p50/p95 distributions
+and candidate reuse rate without becoming runtime authority.
+
+Observation failures are swallowed. They cannot change scheduling, admission,
+or persistence. Observations are never written into Experiment, Snapshot,
+Briefing, or Supabase rows. Performance budgets must be set only after
+representative desktop, mobile Safari, one-Scenario, and four-Scenario samples
+have been collected.
+
 ### 7.4 Common Snapshot admission
 
 Admission answers only: “Can this selected exact candidate be restored and executed

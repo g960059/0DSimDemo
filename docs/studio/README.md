@@ -39,8 +39,10 @@ Reader now includes borderless inflow, graph-count right peek/fullscreen,
 mobile graph swipe, one-live scheduling, play/pause, and explicit control
 binding. The remaining release-spine sequence is:
 
-1. measure Snapshot candidate/admission p50 and p95, tune only from evidence,
-   and keep local/linked Supabase migration parity as a deploy gate;
+1. collect Snapshot candidate/admission p50 and p95 through the connected
+   vendor-neutral runtime observation contract, establish budgets from
+   representative devices, tune only from that evidence, and keep local/linked
+   Supabase migration parity as a deploy gate;
 2. make the backend validate the complete portable Studio envelope and keep
    public publication admin-only until the public trust boundary is server-
    authoritative;
