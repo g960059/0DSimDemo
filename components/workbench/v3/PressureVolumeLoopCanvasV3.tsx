@@ -795,6 +795,7 @@ export function PressureVolumeLoopCanvasV3(
       }
       data-pv-current-relation-trace-count={currentRapidRelationTraceCount}
       data-pv-relation-trace-count={visibleRapidRelationTraceCount}
+      data-pv-loop-trace-count={visibleRenderedTraces.length}
       data-rapid-pv-relation-pending={
         rapidRelationPending ? "true" : "false"
       }
