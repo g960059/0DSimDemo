@@ -536,8 +536,8 @@ as $$
 declare
   release_family text;
   release_stage text;
-  release_predecessor text;
   current_surface_release_id text;
+  current_is_ancestor boolean;
 begin
   if p_channel not in ('default', 'research') then
     raise exception 'unsupported model surface channel %', p_channel
@@ -551,9 +551,8 @@ begin
   );
   select
     release.model_family_id,
-    availability.stage,
-    release.predecessor_surface_release_id
-  into release_family, release_stage, release_predecessor
+    availability.stage
+  into release_family, release_stage
   from studio.model_surface_releases as release
   join studio.model_surface_release_availability as availability
     on availability.surface_release_id = release.surface_release_id
@@ -580,9 +579,28 @@ begin
     if current_surface_release_id = p_surface_release_id then
       return;
     end if;
-    if release_predecessor is distinct from current_surface_release_id then
-      raise exception 'model surface channel % expected predecessor %, found %',
-        p_channel, release_predecessor, current_surface_release_id
+    select exists (
+      with recursive lineage as (
+        select
+          release.surface_release_id,
+          release.predecessor_surface_release_id
+        from studio.model_surface_releases as release
+        where release.surface_release_id = p_surface_release_id
+        union all
+        select
+          predecessor.surface_release_id,
+          predecessor.predecessor_surface_release_id
+        from studio.model_surface_releases as predecessor
+        join lineage as child
+          on predecessor.surface_release_id = child.predecessor_surface_release_id
+      )
+      select 1
+      from lineage
+      where surface_release_id = current_surface_release_id
+    ) into current_is_ancestor;
+    if not current_is_ancestor then
+      raise exception 'model surface channel % current release % is not an ancestor of %',
+        p_channel, current_surface_release_id, p_surface_release_id
         using errcode = '40001';
     end if;
     update studio.model_surface_release_channels
@@ -715,8 +733,10 @@ set search_path = ''
 as $$
 declare
   release_stage text;
+  release_loadable boolean;
 begin
-  select availability.stage into release_stage
+  select availability.stage, availability.loadable
+  into release_stage, release_loadable
   from studio.experiment_snapshots as snapshot
   join studio.experiment_contents as content
     on content.content_id = snapshot.content_id
@@ -725,6 +745,9 @@ begin
   where snapshot.snapshot_id = p_snapshot_id;
   if release_stage is null then
     raise exception 'Snapshot model release is unavailable' using errcode = '23503';
+  end if;
+  if not release_loadable then
+    raise exception 'Snapshot model release is disabled' using errcode = '22023';
   end if;
   if release_stage <> 'stable' then
     raise exception 'Only stable model releases may be published (found %)',

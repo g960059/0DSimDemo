@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(16);
+select plan(17);
 
 insert into auth.users (
   id,
@@ -336,6 +336,29 @@ select ok(
   ),
   'Unpublished Snapshot receives the explicit one-hour recovery window'
 );
+
+update studio.model_release_availability
+set loadable = false
+where model_id = 'model/integration-test-v1';
+
+select throws_ok(
+  $$
+    select public.publish_experiment_v1(
+      '20000000-0000-0000-0000-000000000010',
+      ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid,
+      0,
+      ((select value ->> 'snapshotId' from rpc_state where key = 'snapshot'))::uuid,
+      'disabled-model-must-not-publish'
+    )
+  $$,
+  '22023',
+  'Snapshot model release is disabled',
+  'Emergency-disabled exact models cannot create new publications'
+);
+
+update studio.model_release_availability
+set loadable = true
+where model_id = 'model/integration-test-v1';
 
 select pg_catalog.set_config(
   'request.jwt.claims',

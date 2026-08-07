@@ -662,7 +662,7 @@ describe("exact model kernel and Model Surface release boundaries", () => {
     )).toThrow(/predecessorSurfaceReleaseId/);
   });
 
-  it("rejects unsafe Knob domains and enforces declared neutral defaults", () => {
+  it("rejects unsafe affine Knob domains, lattices, and non-neutral defaults", () => {
     const model = deriveModelContractFromManifestV2(makeManifestV2());
     const outsideDomain = structuredClone(makeSurfaceManifestV1()) as any;
     outsideDomain.knobCatalog[0].targets[0].scale = 2;
@@ -673,20 +673,97 @@ describe("exact model kernel and Model Surface release boundaries", () => {
     )).toThrow(/mapping at 7000 must be within/);
 
     const nonneutral = structuredClone(makeSurfaceManifestV1()) as any;
-    nonneutral.knobCatalog[0].targets[0].scale = 0.5;
-    nonneutral.knobCatalog[0].targets[0].offset = 2_000;
+    nonneutral.knobCatalog[0].minimum = 4_000;
+    nonneutral.knobCatalog[0].maximum = 6_000;
+    nonneutral.knobCatalog[0].targets[0].offset = 10;
     expect(() => assertModelSurfaceCompatibleV1(
       nonneutral,
       model,
       [derivationCapabilityV1("derivation/stroke-work-v1")],
     )).toThrow(/must reproduce primitive default/);
 
-    nonneutral.knobCatalog[0].neutralAtDefault = false;
+    const offLattice = structuredClone(makeSurfaceManifestV1()) as any;
+    offLattice.knobCatalog[0].minimum = 0;
+    offLattice.knobCatalog[0].maximum = 2;
+    offLattice.knobCatalog[0].step = 1;
+    offLattice.knobCatalog[0].defaultValue = 0;
+    offLattice.knobCatalog[0].targets[0].scale = 5;
+    offLattice.knobCatalog[0].targets[0].offset = 5_000;
     expect(() => assertModelSurfaceCompatibleV1(
-      nonneutral,
+      offLattice,
       model,
       [derivationCapabilityV1("derivation/stroke-work-v1")],
-    )).not.toThrow();
+    )).toThrow(/does not preserve the target step lattice/);
+
+    const zeroScale = structuredClone(makeSurfaceManifestV1()) as any;
+    zeroScale.knobCatalog[0].targets[0].scale = 0;
+    expect(() => assertModelSurfaceReleaseManifestV1(zeroScale))
+      .toThrow(/scale.*must not be zero/);
+  });
+
+  it("rejects derived output IDs that collide with exact-model outputs", () => {
+    const model = deriveModelContractFromManifestV2(makeManifestV2());
+    const surface = structuredClone(makeSurfaceManifestV1()) as any;
+    surface.derivedOutputCatalog[0].outputId = "hemodynamics.ef";
+    surface.graphCatalog[0].seriesCatalog[0].outputId = "hemodynamics.ef";
+
+    expect(() => materializeModelSurfaceForModelV1(
+      surface,
+      model,
+      [derivationCapabilityV1("derivation/stroke-work-v1")],
+    )).toThrow(/derived output ID hemodynamics\.ef collides/);
+  });
+
+  it("validates materialized graph units against actual exact outputs", () => {
+    const manifest = structuredClone(makeManifestV2()) as any;
+    manifest.catalogs.outputCatalog.push({
+      outputId: "hemodynamics.flow.aorta",
+      kind: "signal",
+      unit: "L/min",
+      shape: "scalar",
+      sampling: "accepted-step",
+    }, {
+      outputId: "hemodynamics.pressure.vector",
+      kind: "signal",
+      unit: "mmHg",
+      shape: "vector",
+      sampling: "accepted-step",
+    });
+    const model = deriveModelContractFromManifestV2(manifest);
+    const surface = structuredClone(makeSurfaceManifestV1()) as any;
+    surface.derivedOutputCatalog = [];
+    surface.graphCatalog = [{
+      graphId: "graph.mixed-units",
+      renderer: "sweep",
+      seriesCatalog: [{
+        kind: "scalar",
+        seriesId: "pressure",
+        outputId: "hemodynamics.pressure.lv",
+      }, {
+        kind: "scalar",
+        seriesId: "flow",
+        outputId: "hemodynamics.flow.aorta",
+      }],
+      defaultSeriesIds: ["pressure", "flow"],
+      requiredCapabilities: [
+        outputCapabilityV1("hemodynamics.pressure.lv"),
+        outputCapabilityV1("hemodynamics.flow.aorta"),
+      ],
+    }];
+
+    expect(() => assertModelSurfaceReleaseManifestV1(surface)).not.toThrow();
+    expect(() => materializeModelSurfaceForModelV1(surface, model))
+      .toThrow(/sweep series must share one unit/);
+
+    const vectorSurface = structuredClone(makeSurfaceManifestV1()) as any;
+    vectorSurface.derivedOutputCatalog = [];
+    vectorSurface.graphCatalog[0].seriesCatalog[0].outputId =
+      "hemodynamics.pressure.vector";
+    vectorSurface.graphCatalog[0].requiredCapabilities = [
+      outputCapabilityV1("hemodynamics.pressure.vector"),
+    ];
+    expect(() => materializeModelSurfaceForModelV1(vectorSurface, model))
+      .toThrow(/must be scalar/);
   });
 
   it("exposes only the agreed lifecycle vocabulary", () => {
@@ -778,13 +855,13 @@ function makeSurfaceManifestV1(): ModelSurfaceReleaseManifestV1 {
       requiredCapabilities: [],
     }],
     knobCatalog: [{
+      kind: "affine-numeric",
       knobId: "knob/volume",
       unit: "mL",
       minimum: 3_000,
       maximum: 7_000,
       step: 10,
       defaultValue: 5_000,
-      neutralAtDefault: true,
       requiredCapabilities: [controlCapabilityV1("control.tbv")],
       targets: [{ controlId: "control.tbv", scale: 1, offset: 0 }],
     }],

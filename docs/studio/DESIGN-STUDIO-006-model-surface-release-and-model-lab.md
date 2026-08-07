@@ -97,7 +97,15 @@ Surface. Existing content fails only when it explicitly references an item that
 cannot be materialized for its pinned model.
 The registered manifest remains byte-exact; the filtered runtime
 materialization is a separate value and cannot masquerade as the manifest named
-by `surfaceReleaseId`.
+by `surfaceReleaseId`. Materialization revalidates graph scalar/vector shape and
+unit compatibility against the actual exact-model and derived-output catalogs;
+the synthetic registry validation catalog is not runtime authority.
+
+An exact-model output ID is reserved throughout its model family. A derived
+output may not reuse it as an emulation or fallback: such a collision is
+rejected rather than silently substituting one meaning for another. Released
+Surface item IDs are also never reused with a new meaning in another Surface
+series. A new meaning receives a new ID.
 
 Derived calculations resolve through an immutable, versioned Studio
 derivation registry. Every derived item must declare its
@@ -110,14 +118,28 @@ and repository checks must prevent deletion of any released implementation.
 A Surface can never introduce executable code or silently reinterpret an
 existing derived output.
 
+V1 Knobs are explicitly `affine-numeric`. Their nonzero affine mapping must
+keep the full authored domain on every target control's numeric domain and step
+lattice, and the Knob default must reproduce every primitive-control default.
+Thus every V1 Knob is neutral when merely added. A non-neutral intervention is
+a Preset, Protocol, or official-content recipe, not a Knob initialization mode.
+
 Within one `surfaceSeriesId`, additions are append-only. Every non-root release
 names its immediate `predecessorSurfaceReleaseId`. An existing control, output,
 graph, Knob, or protocol cannot be removed or changed. Supabase fetches and
 structurally compares the predecessor inside the registration transaction;
 the publish tool performs the same detailed check before registration. Channel
-movement is a compare-and-swap operation and accepts only the current pointer's
-immediate successor. Changing semantics requires a new Surface series and never
-mutates an old row.
+movement is a compare-and-swap operation and accepts only a descendant of the
+current pointer in the same series. It may skip an abandoned `dev` intermediate;
+only the selected target must satisfy the channel's stage rule. Backward moves,
+cross-series moves, and unrelated pointers fail closed. Changing semantics
+requires a new Surface series and never mutates an old row.
+
+Surface registration is a reviewed release act, not an exploration medium.
+Because a series is linear and append-only, an accidentally admitted item
+cannot later be removed from that series; exploratory manifests stay outside
+the registry until reviewed. A `dev` release may be abandoned and skipped by a
+channel, but any registered descendants still inherit all of its definitions.
 
 Protocols are declaration-only until their runtime contract is implemented.
 Before first use, that contract must define accepted-boundary action timing,
@@ -148,8 +170,9 @@ During the
 `development-36` compatibility period, its embedded V2 catalogs remain the
 runtime authority. The parallel V3/V1 contracts are introduced now so the
 next exact ABI can cut over without rebinding the historical package. That
-cutover is not complete until mutable Experiments resolve the latest compatible
-Surface, immutable Snapshots pin the exact `surfaceReleaseId`, public gates
+cutover is not complete until a mutable Experiment pins `surfaceSeriesId` and
+resolves the latest compatible release in that series, an immutable Snapshot
+pins the exact `surfaceReleaseId`, public gates
 require both the exact model and pinned Surface to be `stable`, and an
 end-to-end test proves an older exact Experiment can open after an additive
 Surface release. Until then, this PR is registry scaffolding rather than a
@@ -162,14 +185,21 @@ There are exactly three release stages:
 | Stage | Meaning | Private Save/Snapshot | Public publication |
 | --- | --- | --- | --- |
 | `dev` | under active evaluation | yes | no |
-| `stable` | approved for ordinary users | yes | yes |
-| `retired` | historical resolution only | existing content only | no new publication |
+| `stable` | operationally approved for ordinary product use | yes | yes |
+| `retired` | removed from new selection; retained for exact history | yes, when explicitly pinned | no new publication |
 
 Allowed transitions are `dev → stable`, `dev → retired`, and
 `stable → retired`. `retired` is terminal. Retirement removes mutable channel
-pointers but does not make historical exact content unreadable. The separate
-emergency `loadable=false` registry switch remains available for a genuinely
-unsafe artifact.
+pointers but does not make historical exact content unreadable. Explicitly
+pinned private content may still be opened, forked, saved, and captured. The
+separate emergency `loadable=false` registry switch is reserved for a genuinely
+unsafe artifact; it disables loading and blocks new publication independently
+of lifecycle stage.
+
+`stable` is a release-operational and product-publication decision. It does not
+assert physiological truth, clinical validation, settlement, or scientific
+fitness for a particular use; those claims remain in model validation and
+official-content review.
 
 There are exactly two channels:
 
@@ -203,7 +233,7 @@ The sole lab route is `/dev/model-lab`.
 - It uses the same Workbench and Worker architecture as ordinary Sessions.
 - Private Experiment Save and neutral Snapshot creation are permitted.
 - Public Experiment publication is absent in the Lab UI and rejected by the
-  database unless the Snapshot's exact model is `stable`.
+  database unless the Snapshot's exact model is both `stable` and loadable.
 - An unregistered local/dirty build may later be injected into this same Lab
   as ephemeral runtime state; it is not a second “pre-lab” product or stage.
 - The route is available in development builds and can be explicitly enabled
@@ -260,18 +290,26 @@ enforces exact-definition append-only growth and channel CAS. Service-role RPCs
 register immutable rows, advance lifecycle monotonically,
 and move allowed channels. Browser RPCs can only read. Database triggers reject
 both Experiment publication and Article publication when any referenced
-Snapshot is not pinned to a `stable` exact model. Snapshot creation itself is
-allowed for `dev`, so research work remains saveable without becoming public.
+Snapshot is not pinned to a `stable`, loadable exact model. After Surface
+cutover, the same gate also requires the Snapshot-pinned Surface release to be
+`stable`. Snapshot creation itself is allowed for `dev`, so research work
+remains saveable without becoming public.
 
 ## 10. Binding invariants
 
 1. `modelId` identifies the exact numerical kernel, not Studio presentation.
 2. `surfaceReleaseId` cannot redefine primitive model semantics.
 3. An additive Surface successor cannot remove or redefine an existing item.
-4. Unsupported new items are filtered per item, not by rejecting the Surface.
-5. `default` serves only `stable`; `research` never serves `retired`.
-6. Retired exact releases remain available to already-pinned content.
-7. One common admission service owns every Snapshot insertion path.
-8. No Snapshot admission profile enters model identity or portable content.
-9. Model Lab is one Workbench surface, not a separate data model.
-10. Official-content rebuilds and user migrations are explicit.
+4. Derived output IDs never collide with exact-model outputs, and released item
+   IDs never acquire a new meaning in another series.
+5. Unsupported new items are filtered per item; retained graphs are revalidated
+   against the actual materialized output shapes and units.
+6. Mutable Experiments pin a Surface series; immutable Snapshots pin one exact
+   Surface release.
+7. `default` serves only `stable`; `research` never serves `retired`.
+8. Retired releases remain available to explicitly pinned private content;
+   emergency-disabled releases do not create new publications.
+9. One common admission service owns every Snapshot insertion path.
+10. No Snapshot admission profile enters model identity or portable content.
+11. Model Lab is one Workbench surface, not a separate data model.
+12. Official-content rebuilds and user migrations are explicit.

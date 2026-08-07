@@ -68,17 +68,21 @@ export type ModelSurfaceKnobTargetV1 = Readonly<{
   offset: number;
 }>;
 
-export type ModelSurfaceKnobDefinitionV1 = Readonly<{
+export type ModelSurfaceAffineNumericKnobDefinitionV1 = Readonly<{
+  kind: "affine-numeric";
   knobId: string;
   unit: string;
   minimum: number;
   maximum: number;
   step: number;
   defaultValue: number;
-  neutralAtDefault: boolean;
   requiredCapabilities: readonly string[];
   targets: readonly ModelSurfaceKnobTargetV1[];
 }>;
+
+/** V1 exposes one explicit mapping kind; future kinds extend this union. */
+export type ModelSurfaceKnobDefinitionV1 =
+  ModelSurfaceAffineNumericKnobDefinitionV1;
 
 export type ModelSurfaceProtocolActionV1 = Readonly<{
   controlId: string;
@@ -398,6 +402,17 @@ export function materializeModelSurfaceForModelV1(
   const controls = new Map(
     model.controlCatalog.map((definition) => [definition.controlId, definition]),
   );
+  const primitiveOutputIds = new Set(
+    model.outputCatalog.map(({ outputId }) => outputId),
+  );
+  surface.derivedOutputCatalog.forEach((output, index) => {
+    if (primitiveOutputIds.has(output.outputId)) {
+      throw new ModelSurfaceValidationErrorV1(
+        `$.surfaceRelease.derivedOutputCatalog[${index}].outputId`,
+        `derived output ID ${output.outputId} collides with an exact-model output`,
+      );
+    }
+  });
   const controlCatalog = surface.controlCatalog.filter((item) =>
     requirementsSatisfiedV1(item.requiredCapabilities, capabilities)
     && controls.has(item.controlId));
@@ -432,6 +447,11 @@ export function materializeModelSurfaceForModelV1(
     requirementsSatisfiedV1(graph.requiredCapabilities, capabilities)
     && [...graphOutputIdsV1([graph])].every((outputId) =>
       availableOutputs.has(outputId)));
+  assertMaterializedGraphCatalogV1(
+    graphCatalog,
+    model.outputCatalog,
+    derivedOutputCatalog,
+  );
   const knobCatalog = surface.knobCatalog.filter((knob) =>
     requirementsSatisfiedV1(knob.requiredCapabilities, capabilities)
     && knobCompatibilityIssueV1(knob, controls) === undefined);
@@ -751,23 +771,23 @@ function assertKnobCatalogV1(value: unknown): void {
     assertRecordV1(entry, path);
     assertExactKeysV1(entry, [
       "defaultValue",
+      "kind",
       "knobId",
       "maximum",
       "minimum",
-      "neutralAtDefault",
       "requiredCapabilities",
       "step",
       "targets",
       "unit",
     ], path);
-    assertPortableModelIdentifierV2(entry.knobId, `${path}.knobId`);
-    assertUniqueCatalogIdV1(ids, entry.knobId, `${path}.knobId`);
-    if (typeof entry.neutralAtDefault !== "boolean") {
+    if (entry.kind !== "affine-numeric") {
       throw new ModelSurfaceValidationErrorV1(
-        `${path}.neutralAtDefault`,
-        "must be a boolean",
+        `${path}.kind`,
+        'must be "affine-numeric"',
       );
     }
+    assertPortableModelIdentifierV2(entry.knobId, `${path}.knobId`);
+    assertUniqueCatalogIdV1(ids, entry.knobId, `${path}.knobId`);
     const requiredCapabilities = assertUniqueIdArrayV1(
       entry.requiredCapabilities,
       `${path}.requiredCapabilities`,
@@ -802,7 +822,13 @@ function assertKnobCatalogV1(value: unknown): void {
           `requires capability ${controlCapability}`,
         );
       }
-      assertFiniteNumberV1(target.scale, `${targetPath}.scale`);
+      const scale = assertFiniteNumberV1(target.scale, `${targetPath}.scale`);
+      if (scale === 0) {
+        throw new ModelSurfaceValidationErrorV1(
+          `${targetPath}.scale`,
+          "must not be zero",
+        );
+      }
       assertFiniteNumberV1(target.offset, `${targetPath}.offset`);
     });
   });
@@ -950,17 +976,51 @@ function knobCompatibilityIssueV1(
         return `${target.controlId} mapping at ${knobValue} ${issue}`;
       }
     }
-    if (knob.neutralAtDefault) {
-      const mappedDefault = target.scale * knob.defaultValue + target.offset;
-      const tolerance = Number.EPSILON * 32
-        * Math.max(1, Math.abs(mappedDefault), Math.abs(control.defaultValue));
-      if (Math.abs(mappedDefault - control.defaultValue) > tolerance) {
-        return `${target.controlId} mapping must reproduce primitive default `
-          + `${control.defaultValue}`;
-      }
+    // An affine map preserves every allowed stop iff the first stop and one
+    // adjacent stop both land on the target lattice. Endpoints/default above
+    // additionally prove the mapped domain and authored neutral position.
+    const adjacentKnobValue = knob.minimum + knob.step;
+    const adjacentMapped = target.scale * adjacentKnobValue + target.offset;
+    const adjacentIssue = studioNumericControlValueIssueV2(
+      adjacentMapped,
+      control,
+    );
+    if (adjacentIssue !== undefined) {
+      return `${target.controlId} mapping does not preserve the target step `
+        + `lattice: ${adjacentIssue}`;
+    }
+    const mappedDefault = target.scale * knob.defaultValue + target.offset;
+    const tolerance = Number.EPSILON * 32
+      * Math.max(1, Math.abs(mappedDefault), Math.abs(control.defaultValue));
+    if (Math.abs(mappedDefault - control.defaultValue) > tolerance) {
+      return `${target.controlId} mapping must reproduce primitive default `
+        + `${control.defaultValue}`;
     }
   }
   return undefined;
+}
+
+function assertMaterializedGraphCatalogV1(
+  graphs: readonly ModelSurfaceGraphDefinitionV1[],
+  exactOutputs: ModelContractV2["outputCatalog"],
+  derivedOutputs: readonly ModelSurfaceDerivedOutputDefinitionV1[],
+): void {
+  try {
+    const actualOutputs = assertOutputCatalogV2(
+      [...exactOutputs, ...derivedOutputs.map(stripDerivationV1)],
+      "$.materializedSurface.outputCatalog",
+    );
+    assertGraphCatalogV2(
+      graphs.map(stripGraphRequirementsV1),
+      "$.materializedSurface.graphCatalog",
+      actualOutputs,
+    );
+  } catch (error) {
+    throw new ModelSurfaceValidationErrorV1(
+      "$.materializedSurface.graphCatalog",
+      error instanceof Error ? error.message : "actual output validation failed",
+    );
+  }
 }
 
 function protocolCompatibilityIssueV1(

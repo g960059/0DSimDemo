@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(28);
+select plan(30);
 
 select lives_ok(
   $$
@@ -307,33 +307,24 @@ select lives_ok(
   'Registry accepts the next linear Surface successor'
 );
 
-select throws_ok(
+select lives_ok(
   $$
     select public.set_model_surface_release_channel_v1(
       'model/lifecycle-test', 'research', 'surface/lifecycle-test-v3'
     )
   $$,
-  '40001',
-  'model surface channel research expected predecessor surface/lifecycle-test-v2, found surface/lifecycle-test-v1',
-  'Channel compare-and-swap rejects a skipped predecessor'
+  'Channel may advance directly to a descendant Surface release'
 );
 
-select lives_ok(
+select throws_ok(
   $$
     select public.set_model_surface_release_channel_v1(
       'model/lifecycle-test', 'research', 'surface/lifecycle-test-v2'
     )
   $$,
-  'Channel advances to its immediate Surface successor'
-);
-
-select lives_ok(
-  $$
-    select public.set_model_surface_release_channel_v1(
-      'model/lifecycle-test', 'research', 'surface/lifecycle-test-v3'
-    )
-  $$,
-  'Channel advances linearly without a lost update'
+  '40001',
+  'model surface channel research current release surface/lifecycle-test-v3 is not an ancestor of surface/lifecycle-test-v2',
+  'Channel compare-and-swap rejects regression to an ancestor'
 );
 
 select is(
@@ -365,6 +356,31 @@ select lives_ok(
   'Stable Surface may become default'
 );
 
+select lives_ok(
+  $$
+    select public.set_model_surface_release_stage_v1(
+      'surface/lifecycle-test-v3', 'stable'
+    )
+  $$,
+  'A later additive Surface may promote independently'
+);
+
+select is(
+  (select stage from studio.model_surface_release_availability
+    where surface_release_id = 'surface/lifecycle-test-v2'),
+  'dev',
+  'An abandoned intermediate Surface may remain dev'
+);
+
+select lives_ok(
+  $$
+    select public.set_model_surface_release_channel_v1(
+      'model/lifecycle-test', 'default', 'surface/lifecycle-test-v3'
+    )
+  $$,
+  'Default may advance to a stable descendant across a dev intermediate'
+);
+
 select is(
   (
     select surface_release_id
@@ -372,8 +388,8 @@ select is(
       'model/lifecycle-test', 'default'
     )
   ),
-  'surface/lifecycle-test-v1',
-  'Surface channel resolves the immutable release'
+  'surface/lifecycle-test-v3',
+  'Surface channel resolves the admitted descendant release'
 );
 
 select lives_ok(

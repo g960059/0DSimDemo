@@ -474,7 +474,9 @@ no upload or registry-write authority. The release command verifies existing
 bytes before reusing a path and registers the exact release. It promotes a
 release to `stable` before moving `default`; `research` may point at `dev` or
 `stable`. Public Experiment and Article publication is rejected unless every
-referenced Snapshot uses a `stable` exact model.
+referenced Snapshot uses a `stable`, loadable exact model. After the Model
+Surface cutover defined by DESIGN-STUDIO-006, each Snapshot also pins a
+`stable` Surface release for publication.
 
 ## 9. Retention and deletion
 
@@ -527,4 +529,4 @@ browser Web Workers remain the interactive numerical owner.
     channel-selected model after load failure.
 14. Snapshot admission is one Studio service, not a model/content profile.
 15. `default` is stable-only; `research` is dev-or-stable; `retired` is
-    historical-only.
+    historical-only; emergency-disabled releases cannot be newly published.
