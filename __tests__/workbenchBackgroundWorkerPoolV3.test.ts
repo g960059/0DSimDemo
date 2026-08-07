@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  WorkbenchBackgroundJobCancelledErrorV3,
   WorkbenchBackgroundWorkerPoolV3,
   resolveWorkbenchBackgroundWorkerBudgetV3,
 } from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
@@ -125,6 +126,10 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
       maxSize: 1,
     });
     expect(resolveWorkbenchBackgroundWorkerBudgetV3(2)).toEqual({
+      warmSize: 1,
+      maxSize: 1,
+    });
+    expect(resolveWorkbenchBackgroundWorkerBudgetV3(4)).toEqual({
       warmSize: 2,
       maxSize: 2,
     });
@@ -137,4 +142,99 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
       maxSize: 4,
     });
   });
+
+  it("keeps speculative settlement queued when live lanes consume the device", async () => {
+    const events: string[] = [];
+    const pool = new WorkbenchBackgroundWorkerPoolV3(
+      { warmSize: 0, maxSize: 2 },
+      () => ({ terminate: vi.fn() }) as unknown as
+        StudioSimulationWorkerClientV2,
+      4,
+    );
+    pool.setLiveScenarioCount(4);
+
+    const handle = pool.schedule("prewarm", async () => {
+      events.push("started");
+      return "done";
+    });
+    await Promise.resolve();
+    expect(events).toEqual([]);
+
+    handle.promote("analysis");
+    await expect(handle.promise).resolves.toBe("done");
+    expect(events).toEqual(["started"]);
+    pool.dispose();
+  });
+
+  it("cancels a running single-use Worker instead of retaining stale prewarm", async () => {
+    const clients: ReturnType<typeof cancellableClientV3>[] = [];
+    const pool = new WorkbenchBackgroundWorkerPoolV3(
+      { warmSize: 0, maxSize: 1 },
+      () => {
+        const client = cancellableClientV3();
+        clients.push(client);
+        return client as unknown as StudioSimulationWorkerClientV2;
+      },
+      4,
+    );
+    const handle = pool.schedule("prewarm", async (client) =>
+      await (client as unknown as ReturnType<typeof cancellableClientV3>).wait());
+    await Promise.resolve();
+
+    expect(handle.cancel()).toBe(true);
+    await expect(handle.promise).rejects.toBeInstanceOf(
+      WorkbenchBackgroundJobCancelledErrorV3,
+    );
+    expect(clients[0]!.terminate).toHaveBeenCalled();
+
+    await expect(pool.run("analysis", async () => "fresh"))
+      .resolves.toBe("fresh");
+    expect(clients).toHaveLength(2);
+    pool.dispose();
+  });
+
+  it("preempts running prewarm when explicit analysis needs its only lane", async () => {
+    const clients: ReturnType<typeof cancellableClientV3>[] = [];
+    const events: string[] = [];
+    const pool = new WorkbenchBackgroundWorkerPoolV3(
+      { warmSize: 0, maxSize: 1 },
+      () => {
+        const client = cancellableClientV3();
+        clients.push(client);
+        return client as unknown as StudioSimulationWorkerClientV2;
+      },
+      4,
+    );
+    const prewarm = pool.schedule("prewarm", async (client) => {
+      events.push("prewarm:start");
+      return await (client as unknown as ReturnType<
+        typeof cancellableClientV3
+      >).wait();
+    });
+    await Promise.resolve();
+
+    const analysis = pool.run("analysis", async () => {
+      events.push("analysis:start");
+      return "analysis";
+    });
+    await expect(prewarm.promise).rejects.toBeInstanceOf(
+      WorkbenchBackgroundJobCancelledErrorV3,
+    );
+    await expect(analysis).resolves.toBe("analysis");
+    expect(events).toEqual(["prewarm:start", "analysis:start"]);
+    pool.dispose();
+  });
 });
+
+function cancellableClientV3() {
+  let rejectWait: ((error: Error) => void) | undefined;
+  return {
+    wait: () => new Promise<void>((_resolve, reject) => {
+      rejectWait = reject;
+    }),
+    terminate: vi.fn(() => {
+      rejectWait?.(new Error("test Worker terminated"));
+      rejectWait = undefined;
+    }),
+  };
+}

@@ -207,6 +207,10 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }
     validateScenarioSeedsV3(input.scenarios, input.activeScenarioId);
     this.#state = "initializing";
+    // Reserve the live-lane budget before module Workers start. This prevents
+    // speculative settlement from filling the device while initial Scenario
+    // lanes are coming online.
+    this.#syncBackgroundWorkerBudget(input.scenarios.length);
     const results = await Promise.allSettled(input.scenarios.map((seed) =>
       this.#createLane(seed)));
     const failures = results.filter(
@@ -217,6 +221,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         if (result.status === "fulfilled") terminateLaneV3(result.value);
       }
       this.#state = "terminated";
+      this.#syncBackgroundWorkerBudget(0);
       const reason = failures[0]?.reason;
       throw errorAsErrorV3(
         reason ?? "parallel Scenario runtime was terminated during initialization",
@@ -227,6 +232,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         this.#lanes.set(result.value.descriptor.scenarioId, result.value);
       }
     }
+    this.#syncBackgroundWorkerBudget();
     this.#activeScenarioId = input.activeScenarioId;
     this.#state = "active";
     return this.currentState();
@@ -290,6 +296,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       );
     }
     this.#pendingScenarioIds.add(seed.scenarioId);
+    this.#syncBackgroundWorkerBudget();
     try {
       const lane = await this.#createLane(seed);
       if (this.#state !== "active") {
@@ -306,6 +313,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       return this.currentState();
     } finally {
       this.#pendingScenarioIds.delete(seed.scenarioId);
+      this.#syncBackgroundWorkerBudget();
     }
   }
 
@@ -351,6 +359,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }
     const lane = this.#requiredLane(scenarioId);
     this.#lanes.delete(scenarioId);
+    this.#syncBackgroundWorkerBudget();
     this.#steadyCandidates?.invalidateScenario(scenarioId);
     if (this.#activeScenarioId === scenarioId) {
       this.#activeScenarioId = this.#lanes.keys().next().value ?? null;
@@ -643,6 +652,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     for (const lane of this.#lanes.values()) terminateLaneV3(lane);
     this.#lanes.clear();
     this.#pendingScenarioIds.clear();
+    this.#syncBackgroundWorkerBudget(0);
     this.#activeScenarioId = null;
   }
 
@@ -658,6 +668,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     const lanes = [...this.#lanes.values()];
     this.#lanes.clear();
     this.#pendingScenarioIds.clear();
+    this.#syncBackgroundWorkerBudget(0);
     this.#activeScenarioId = null;
     await Promise.allSettled(lanes.map(({ scheduler }) => scheduler.dispose()));
     for (const { client } of lanes) client.terminate();
@@ -847,6 +858,12 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (this.#frameFlushTimer === undefined) return;
     this.#cancelFrameFlush(this.#frameFlushTimer);
     this.#frameFlushTimer = undefined;
+  }
+
+  #syncBackgroundWorkerBudget(
+    liveScenarioCount = this.#lanes.size + this.#pendingScenarioIds.size,
+  ): void {
+    this.#backgroundWorkerPool?.setLiveScenarioCount(liveScenarioCount);
   }
 
   #fail(failingScenarioId: string | null, error: Error): void {

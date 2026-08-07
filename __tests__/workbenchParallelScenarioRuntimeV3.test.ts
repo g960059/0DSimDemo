@@ -13,6 +13,9 @@ import {
   type WorkbenchLiveSchedulerDependenciesV3,
   type WorkbenchLiveSchedulerTimerV3,
 } from "@/components/workbench/v3/WorkbenchLiveSchedulerV3";
+import type {
+  WorkbenchBackgroundWorkerPoolPortV3,
+} from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
 
 describe("WorkbenchParallelScenarioRuntimeV3", () => {
   it("creates one persistent Worker and scheduler for every Scenario", async () => {
@@ -53,6 +56,39 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     await harness.runtime.pauseAll();
     expect([...harness.schedulers.values()].every(({ running }) => !running))
       .toBe(true);
+  });
+
+  it("reports live lane membership to the shared background QoS budget", async () => {
+    const liveScenarioCounts: number[] = [];
+    const backgroundWorkerPool = {
+      setLiveScenarioCount: (count) => liveScenarioCounts.push(count),
+      schedule: () => {
+        throw new Error("background operation is not expected");
+      },
+      run: async () => {
+        throw new Error("background operation is not expected");
+      },
+    } satisfies WorkbenchBackgroundWorkerPoolPortV3;
+    const harness = harnessV3(vi.fn(), backgroundWorkerPool);
+
+    await harness.runtime.initialize({
+      scenarios: [
+        seedV3("scenario/baseline", "Baseline", 0),
+        seedV3("scenario/comparison", "Comparison", 0),
+      ],
+      activeScenarioId: "scenario/baseline",
+    });
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+
+    await harness.runtime.addScenario(
+      seedV3("scenario/third", "Third", 0),
+    );
+    expect(liveScenarioCounts.at(-1)).toBe(3);
+
+    await harness.runtime.deleteScenario("scenario/third");
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+    harness.runtime.terminate();
+    expect(liveScenarioCounts.at(-1)).toBe(0);
   });
 
   it("pauses one analysis lane while sibling Scenarios remain live", async () => {
@@ -552,7 +588,10 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
   });
 });
 
-function harnessV3(onError = vi.fn<(error: Error) => void>()) {
+function harnessV3(
+  onError = vi.fn<(error: Error) => void>(),
+  backgroundWorkerPool?: WorkbenchBackgroundWorkerPoolPortV3,
+) {
   const clients = new Map<string, ReturnType<typeof clientV3>>();
   const analysisClients = new Map<string, ReturnType<typeof clientV3>>();
   const schedulers = new Map<string, FakeSchedulerV3>();
@@ -585,6 +624,7 @@ function harnessV3(onError = vi.fn<(error: Error) => void>()) {
     cancelFrameFlush: () => undefined,
     onFrames,
     onError,
+    ...(backgroundWorkerPool === undefined ? {} : { backgroundWorkerPool }),
   });
   // Factories are lazy: provision deterministic analysis doubles for the
   // assertions before the request allocates one.
