@@ -168,3 +168,106 @@ commits, or Worker transport—is the dominant budget.
 - Pausing flushes the accepted prefix; resume never rewinds or duplicates it.
 - Theme changes and unrelated root status commits do not recreate unchanged
   graph projections.
+
+## Reproducible target-tier harness
+
+Performance is measured separately from ordinary browser correctness tests.
+The explicit production-preview harness builds the exact current branch,
+creates the profile's target live Scenario count (four on the reference
+desktop and two on constrained/mobile proxies), measures a concurrent-analysis
+window, applies a real control change, and then measures the period in which
+the new steady-state candidate competes for background capacity:
+
+```bash
+npm run benchmark:workbench:live
+```
+
+It runs three serialized Chromium profiles:
+
+| Profile | Layout | CPU treatment | Purpose |
+| --- | --- | --- | --- |
+| `reference-desktop` | 1440 × 900 | native | developer-machine regression |
+| `constrained-desktop-proxy` | 1280 × 800 | 4× CDP throttle, 4 logical cores | reproducible two-Scenario low-end proxy |
+| `mobile-layout-proxy` | 390 × 844 | 4× CDP throttle, 4 logical cores | two-Scenario mobile layout plus CPU-contention proxy |
+
+Each run attaches a JSON report containing every rolling diagnostic, per-lane
+model-time ratio, Worker round trip, Canvas paint/display cadence, overload
+events, control-to-visible-result latency, browser heap counters, environment,
+and the evaluated budget. Budgets are reported by default. To turn them into a
+local release gate:
+
+```bash
+npm run verify:workbench:performance
+```
+
+Useful bounded overrides are:
+
+```bash
+CIRCLEHEART_PERF_SCENARIOS=4 \
+CIRCLEHEART_PERF_WARMUP_MS=10000 \
+CIRCLEHEART_PERF_SAMPLE_MS=30000 \
+npm run benchmark:workbench:live -- --project=constrained-desktop-proxy
+```
+
+CDP throttling is only a regression proxy. It does not emulate memory
+bandwidth, thermal behavior, mobile GPU composition, browser power policy, or
+big.LITTLE scheduling and therefore cannot establish a device-support claim.
+Before claiming a tier, repeat the diagnostic run on named physical devices
+and record browser version, logical cores, memory, battery/thermal state,
+Scenario count, viewport, model-time ratios, long-tail latency, and a minimum
+ten-minute retained-memory soak.
+
+The 2026-08-07 production-preview regression run on the M5 Max development
+device passed all three enforced profiles. Post-control/background-contention
+root model-time ratios were 0.979× for four reference-desktop Scenarios, 0.994×
+for two constrained-desktop proxy Scenarios, and 0.993× for two mobile-layout
+proxy Scenarios. The corresponding control-to-visible-result measurements were
+130 ms, 193 ms, and 167 ms. These numbers establish repeatable headroom on the
+development host; the throttled results remain proxies, not physical-device
+qualification.
+
+The initial qualification matrix is deliberately honest:
+
+| Target tier | Required live Scenarios | Additional stress run |
+| --- | ---: | ---: |
+| contemporary desktop | 4 | 4 plus active structural analysis |
+| ordinary/low-end laptop or tablet | 2 | 4 |
+| contemporary phone | 2 | 4 |
+| older constrained phone | 1 | 2 |
+
+The application does not expose a performance mode and does not silently pause
+or replace a Scenario with replay. All authored Scenarios remain exact live
+lanes. The matrix only distinguishes what has been physically qualified; a
+four-Scenario mobile claim is promoted only after the four-lane stress run
+meets the same scientific and interaction targets.
+
+## Background numerical QoS
+
+Live Scenario Workers own the foreground numerical experience. Snapshot,
+responsive PV support, Guyton/Starling continuation, and steady-candidate
+production share one bounded pool of single-use background Workers. The pool
+uses this priority order:
+
+```text
+Snapshot → explicit Save → visible analysis → speculative prewarm
+```
+
+For `C` logical cores and `L` live Scenario lanes, one logical core is reserved
+for the main thread and browser composition. Speculative capacity is therefore:
+
+```text
+min(configured pool cap, max(0, C - L - 1))
+```
+
+This can become zero on a constrained device: speculative settlement waits
+instead of competing with presentation. An explicit user operation always has
+one serialized background lane available. Snapshot/Save may use one bounded
+burst only when real logical-core headroom remains. No operation changes the
+accepted 2 ms model step.
+
+Changing a Scenario target cancels obsolete queued work and terminates an
+already-running obsolete prewarm Worker. An explicit analysis can likewise
+preempt speculative prewarm at the cap. Promotion protects a prewarm that has
+become the exact candidate needed by Snapshot or Save, so useful work is reused
+rather than restarted. Pool capacity, queue depth, active Workers, cancellation,
+preemption, and burst leases are included in diagnostic reports.
