@@ -19,7 +19,6 @@ import type {
   CreateExperimentSnapshotCommandV2,
   CreateExperimentCommandV2,
   ExperimentDesiredContentV2,
-  ExperimentSnapshotAdmissionResultV2,
   ExperimentSnapshotIdFactoryPortV2,
   ForkExperimentCommandV2,
   SaveExperimentCommandV2,
@@ -36,25 +35,21 @@ import type {
 import type {
   ExperimentVersionV2,
 } from "@/studio/contracts/v2/ids";
+import {
+  StudioExperimentSnapshotAdmissionProtocolErrorV2,
+  StudioExperimentSnapshotAdmissionRejectedErrorV2,
+  studioSnapshotAdmissionServiceV1,
+} from "./StudioSnapshotAdmissionServiceV1";
+
+export {
+  StudioExperimentSnapshotAdmissionProtocolErrorV2,
+  StudioExperimentSnapshotAdmissionRejectedErrorV2,
+} from "./StudioSnapshotAdmissionServiceV1";
 
 export class StudioExperimentAuthoringConflictErrorV2 extends Error {
   constructor(message: string) {
     super(`Studio Experiment authoring conflict: ${message}`);
     this.name = "StudioExperimentAuthoringConflictErrorV2";
-  }
-}
-
-export class StudioExperimentSnapshotAdmissionRejectedErrorV2 extends Error {
-  constructor(reason: string) {
-    super(`Studio Experiment Snapshot admission rejected: ${reason}`);
-    this.name = "StudioExperimentSnapshotAdmissionRejectedErrorV2";
-  }
-}
-
-export class StudioExperimentSnapshotAdmissionProtocolErrorV2 extends Error {
-  constructor(message: string) {
-    super(`Studio Experiment Snapshot admission returned an invalid result: ${message}`);
-    this.name = "StudioExperimentSnapshotAdmissionProtocolErrorV2";
   }
 }
 
@@ -86,7 +81,7 @@ type AdmittedSnapshotCommitInternalV2 = Readonly<{
  * `saveExperiment` accepts checkpoint-free desired content. Fixture-changing Saves
  * delegate complete accepted-boundary capture to the exact model runtime;
  * Surface/label/order-only Saves reuse the current matching checkpoints. The
- * admission gate verifies public executability without changing the captured
+ * common Studio admission service verifies public executability without changing the captured
  * checkpoint; this application owns frozen-candidate identity and repository
  * visibility. A Snapshot may come directly from an ephemeral Experiment
  * Session. A standalone Publication workflow may additionally require a
@@ -317,18 +312,14 @@ export class StudioExperimentAuthoringApplicationV2 {
       adapter,
     );
 
-    // Admission always verifies the exact detached/frozen candidate on a
-    // fork. It cannot manufacture a settled replacement checkpoint.
-    const gateResult = await runtime.snapshotGate.admitFrozenCandidate({
+    // Both Article Briefing and standalone publication pass through this one
+    // Studio-owned boundary. The legacy exact-model gate is only an adapter;
+    // admission cannot manufacture a settled replacement checkpoint.
+    await studioSnapshotAdmissionServiceV1.admitFrozenCandidate({
+      legacyAdapter: runtime.snapshotGate,
       model,
       content: candidateContent,
     });
-    assertSnapshotAdmissionResultEnvelopeV2(gateResult);
-    if (gateResult.status === "rejected") {
-      throw new StudioExperimentSnapshotAdmissionRejectedErrorV2(
-        gateResult.reason,
-      );
-    }
 
     const snapshotId = this.#snapshotIds.nextSnapshotId();
     const snapshot = validateExperimentSnapshotV2({
@@ -495,52 +486,6 @@ function assertExperimentCaptureResultEnvelopeV2(
   ) {
     throw new StudioExperimentCaptureMutationErrorV2(
       "result must contain exactly content and confirmation",
-    );
-  }
-}
-
-function assertSnapshotAdmissionResultEnvelopeV2(
-  value: unknown,
-): asserts value is ExperimentSnapshotAdmissionResultV2 {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
-      "result must be an object",
-    );
-  }
-  const record = value as Record<string, unknown>;
-  if (record.status === "passed") {
-    assertAdmissionResultKeysV2(record, ["status"]);
-    return;
-  }
-  if (record.status === "rejected") {
-    assertAdmissionResultKeysV2(record, ["status", "reason"]);
-    if (
-      typeof record.reason !== "string"
-      || record.reason.trim().length === 0
-    ) {
-      throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
-        "rejected result must contain a non-empty reason",
-      );
-    }
-    return;
-  }
-  throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
-    'status must be exactly "passed" or "rejected"',
-  );
-}
-
-function assertAdmissionResultKeysV2(
-  value: Record<string, unknown>,
-  expected: readonly string[],
-): void {
-  const actual = Object.keys(value).sort();
-  const required = [...expected].sort();
-  if (
-    actual.length !== required.length
-    || actual.some((key, index) => key !== required[index])
-  ) {
-    throw new StudioExperimentSnapshotAdmissionProtocolErrorV2(
-      `fields must be exactly ${required.join(", ")}`,
     );
   }
 }

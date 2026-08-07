@@ -44,6 +44,9 @@ insert into studio.model_releases (
   'summary-test'
 );
 
+insert into studio.model_release_availability (model_id, stage)
+values ('model/summary-test-v1', 'stable');
+
 create temporary table summary_state (
   key text primary key,
   value jsonb not null

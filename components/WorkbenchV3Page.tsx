@@ -84,6 +84,7 @@ import {
 import { isLocale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
+  loadStudioModelChannelClientCompositionV2,
   loadStudioModelClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
@@ -118,6 +119,7 @@ import type {
   ModelContractV2,
   StructuralReturnGraphDefinitionV2,
 } from "@/studio/contracts/v2/model";
+import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
 import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
@@ -277,21 +279,62 @@ export function shouldConfirmWorkbenchDiscardV3(input: Readonly<{
     || input.hasUncapturedBriefingChanges;
 }
 
+export function modelLabEnabledV3(
+  environment: Pick<ImportMetaEnv, "PROD" | "VITE_MODEL_LAB_ENABLED"> =
+    import.meta.env,
+): boolean {
+  return !environment.PROD || environment.VITE_MODEL_LAB_ENABLED === "1";
+}
+
+export function workbenchPublicationAvailableV3(input: Readonly<{
+  modelLab: boolean;
+  releaseStage: StudioReleaseStageV1;
+}>): boolean {
+  return !input.modelLab && input.releaseStage === "stable";
+}
+
 export const WorkbenchV3Page = () => {
   const { experimentId, locale } = useParams();
   const selectedLocale = isLocale(locale) ? locale : undefined;
   if (experimentId === "new") {
-    return <WorkbenchV3Session initialExperimentId={null} />;
+    return <WorkbenchV3Session initialExperimentId={null} launchChannel="default" />;
   }
   if (!isOpaqueExperimentIdV3(experimentId)) {
     return <Navigate to={myExperimentsHref(selectedLocale)} replace />;
   }
-  return <WorkbenchV3Session initialExperimentId={experimentId} />;
+  return (
+    <WorkbenchV3Session
+      initialExperimentId={experimentId}
+      launchChannel="default"
+    />
+  );
+};
+
+/** One internal lab: research-channel releases may be explored and saved, but
+ * public publication remains a stable-stage workflow. */
+export const WorkbenchModelLabV3Page = () => {
+  const { locale } = useParams();
+  if (!modelLabEnabledV3()) {
+    return <Navigate to={homeHref(isLocale(locale) ? locale : undefined)} replace />;
+  }
+  return (
+    <WorkbenchV3Session
+      initialExperimentId={null}
+      launchChannel="research"
+      modelLab
+    />
+  );
 };
 
 const WorkbenchV3Session = ({
   initialExperimentId,
-}: Readonly<{ initialExperimentId: string | null }>) => {
+  launchChannel,
+  modelLab = false,
+}: Readonly<{
+  initialExperimentId: string | null;
+  launchChannel: "default" | "research";
+  modelLab?: boolean;
+}>) => {
   const { t } = useTranslation();
   const { appTheme, setAppTheme } = useAppTheme();
   const { authIdentity } = useSiteAccountSessionV3();
@@ -355,6 +398,9 @@ const WorkbenchV3Session = ({
   const [status, setStatus] = React.useState<WorkbenchStatusV3>({
     kind: "loading",
   });
+  const [releaseStage, setReleaseStage] = React.useState<StudioReleaseStageV1>(
+    "stable",
+  );
   const [presentationSampleStore] = React.useState(
     () => new WorkbenchScenarioPresentationSampleStoreV3(),
   );
@@ -683,7 +729,9 @@ const WorkbenchV3Session = ({
       let composition: StudioClientCompositionV2;
       try {
         composition = initialContent === undefined
-          ? await loadStudioDefaultClientCompositionV2()
+          ? launchChannel === "default"
+            ? await loadStudioDefaultClientCompositionV2()
+            : await loadStudioModelChannelClientCompositionV2(launchChannel)
           : await loadStudioModelClientCompositionV2(initialContent.modelId);
       } catch (error) {
         if (
@@ -701,6 +749,7 @@ const WorkbenchV3Session = ({
         throw error;
       }
       if (cancelled) return;
+      setReleaseStage(composition.releaseStage);
       workerReleaseTicketRef.current = composition.workerReleaseTicket;
       const record = storedExperiment === null
         ? null
@@ -983,6 +1032,7 @@ const WorkbenchV3Session = ({
   }, [
     backgroundWorkerPool,
     location.search,
+    launchChannel,
     navigate,
     presentationSampleStore,
     replaceAnalysisByKeyV3,
@@ -2394,6 +2444,7 @@ const WorkbenchV3Session = ({
       }`}
       data-testid="v3-dockview-workbench"
       data-playback={isPlaying ? "playing" : "paused"}
+      data-model-lab={modelLab ? "true" : undefined}
       {...rootRuntimeData}
     >
       <header className="workbench-app-header flex min-h-12 shrink-0 items-center gap-2 px-2.5 py-1.5 sm:px-3">
@@ -2458,6 +2509,14 @@ const WorkbenchV3Session = ({
         </div>
         <RuntimeStatusV3 status={status} />
         <div className="flex shrink-0 items-center gap-0.5">
+          {modelLab && (
+            <span
+              className="hidden rounded-full bg-wb-accent/10 px-2 py-1 text-[11px] font-semibold text-wb-accent sm:inline"
+              data-testid="workbench-model-lab-label-v3"
+            >
+              Model Lab
+            </span>
+          )}
           {contract !== null && (
             <WorkbenchSimulationInfoV3
               currentModelId={contract.modelId}
@@ -2516,7 +2575,7 @@ const WorkbenchV3Session = ({
               </span>
             </button>
           )}
-          <button
+          {workbenchPublicationAvailableV3({ modelLab, releaseStage }) && <button
             type="button"
             className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-not-allowed disabled:opacity-40"
             disabled={
@@ -2545,7 +2604,7 @@ const WorkbenchV3Session = ({
                 ? t("workbench.editor.publishing")
                 : t("workbench.editor.publish")}
             </span>
-          </button>
+          </button>}
           <button
             type="button"
             className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-wait disabled:opacity-40"

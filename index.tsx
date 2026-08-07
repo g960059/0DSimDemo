@@ -16,6 +16,11 @@ const WorkbenchV3Page = React.lazy(
     default: module.WorkbenchV3Page,
   })),
 );
+const WorkbenchModelLabV3Page = React.lazy(
+  () => import('./components/WorkbenchV3Page').then((module) => ({
+    default: module.WorkbenchModelLabV3Page,
+  })),
+);
 const WorkbenchSelectorV3Page = React.lazy(
   () => import('./components/WorkbenchSelectorV3Page').then((module) => ({
     default: module.WorkbenchSelectorV3Page,
@@ -100,6 +105,14 @@ const appRoutes = () => (
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading V3 Workbench…" />}>
           <WorkbenchV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="dev/model-lab"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading Model Lab…" />}>
+          <WorkbenchModelLabV3Page />
         </React.Suspense>
       )}
     />

@@ -97,7 +97,7 @@
       "emptyTitle": "No saved simulations",
       "emptyDescription": "Start a new simulation, then save it when you want to keep it.",
       "untitled": "Untitled simulation",
-      "historical": "Earlier mathematical model",
+      "exactModel": "Pinned mathematical model",
       "unavailable": "The mathematical model required by this simulation is currently unavailable. Its saved content remains intact.",
       "delete": "Delete simulation",
       "deleteConfirm": "Delete this saved simulation? Content already pinned in articles remains available. This cannot be undone.",

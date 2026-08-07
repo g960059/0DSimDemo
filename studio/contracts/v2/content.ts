@@ -16,6 +16,8 @@ export const STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID =
   "circleheart-studio-experiment-placement-v2" as const;
 export const STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID =
   "circleheart-studio-scenario-preset-v2" as const;
+export const STUDIO_OFFICIAL_EXPERIMENT_RECIPE_V1_SCHEMA_ID =
+  "circleheart-studio-official-experiment-recipe-v1" as const;
 export const STUDIO_SWEEP_WINDOW_DEFAULT_SEC_V2 = 2;
 export const STUDIO_SWEEP_WINDOW_MIN_SEC_V2 = 1;
 export const STUDIO_SWEEP_WINDOW_MAX_SEC_V2 = 6;
@@ -31,6 +33,37 @@ export const STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2 = 4;
 
 export type SurfacePaneIdV2 = string;
 export type ScenarioPresetIdV2 = string;
+
+export type OfficialRecipeControlAssignmentV1 = Readonly<{
+  controlId: string;
+  value: number;
+}>;
+
+export type OfficialRecipeScenarioV1 = Readonly<{
+  scenarioId: ScenarioIdV2;
+  label: string;
+  controlAssignments: readonly OfficialRecipeControlAssignmentV1[];
+}>;
+
+/**
+ * Git-authored source for official content.
+ *
+ * It intentionally has no modelId, channel, stage, checkpoint, or admission
+ * profile. The build command receives one exact model and one compatible
+ * Model Surface, starts from that release's registered default fixture,
+ * applies absolute assignments, captures, and admits ordinary immutable
+ * content through the shared Snapshot path.
+ */
+export type OfficialExperimentRecipeV1 = Readonly<{
+  schemaId: typeof STUDIO_OFFICIAL_EXPERIMENT_RECIPE_V1_SCHEMA_ID;
+  recipeId: string;
+  modelFamilyId: string;
+  title: string;
+  description: string;
+  scenarios: readonly OfficialRecipeScenarioV1[];
+  surface: ExperimentSurfaceV2;
+  scientificAssertionIds: readonly string[];
+}>;
 
 /**
  * The model-owned fixture and its exact checkpoint are captured together.

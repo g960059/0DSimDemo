@@ -92,7 +92,7 @@ select ok(
 select lives_ok(
   $$
     select public.set_model_release_channel_v1(
-      'dynamic-loader-test',
+      'research',
       'model/dynamic-loader-test-v1'
     )
   $$,
@@ -102,7 +102,7 @@ select lives_ok(
 select results_eq(
   $$
     select model_id, module_abi, analysis_profile_id
-    from public.get_model_release_channel_v2('dynamic-loader-test')
+    from public.get_model_release_channel_v2('research')
   $$,
   $$
     values (

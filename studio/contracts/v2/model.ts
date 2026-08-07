@@ -693,7 +693,7 @@ function copyArrayByIndexV2<TValue>(
   return mapArrayByIndexV2(value, (entry) => entry);
 }
 
-function assertControlCatalogV2(
+export function assertControlCatalogV2(
   value: unknown,
   path: string,
 ): void {
@@ -800,7 +800,7 @@ function assertControlCatalogV2(
   }
 }
 
-type ValidatedOutputCatalogV2 = Readonly<{
+export type ValidatedOutputCatalogV2 = Readonly<{
   ids: ReadonlySet<string>;
   definitionsById: ReadonlyMap<string, Readonly<{
     shape: "scalar" | "vector";
@@ -808,7 +808,7 @@ type ValidatedOutputCatalogV2 = Readonly<{
   }>>;
 }>;
 
-function assertOutputCatalogV2(
+export function assertOutputCatalogV2(
   value: unknown,
   path: string,
 ): ValidatedOutputCatalogV2 {
@@ -950,7 +950,7 @@ function assertOutputCatalogV2(
   return Object.freeze({ ids, definitionsById });
 }
 
-function assertGraphCatalogV2(
+export function assertGraphCatalogV2(
   value: unknown,
   path: string,
   outputCatalog: ValidatedOutputCatalogV2,

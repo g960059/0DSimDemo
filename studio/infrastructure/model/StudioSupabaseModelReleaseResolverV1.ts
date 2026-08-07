@@ -8,6 +8,12 @@ import {
   assertPortableStudioJsonObjectV2,
   deriveModelContractFromManifestV2,
 } from "@/studio/contracts/v2/model";
+import type { StudioReleaseChannelV1 } from "@/studio/contracts/v2/modelSurface";
+import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
+import {
+  assertStudioReleaseChannelV1,
+  assertStudioReleaseStageV1,
+} from "@/studio/contracts/v2/modelSurface";
 import type { StudioJsonObjectV2 } from "@/studio/contracts/v2/json";
 import type {
   StudioModelWorkerReleaseTicketV2,
@@ -26,6 +32,7 @@ export type StudioResolvedModelReleaseV1 = Readonly<{
   contract: ModelContractV2;
   defaultFixture: StudioJsonObjectV2;
   analysisProfileId: string;
+  stage: StudioReleaseStageV1;
   ticket: StudioModelWorkerReleaseTicketV2;
 }>;
 
@@ -36,7 +43,7 @@ export type StudioModelReleaseRpcResultV1 = Readonly<{
 
 export interface StudioModelReleaseRpcPortV1 {
   call(
-    functionName: "get_model_release_v2" | "get_model_release_channel_v2",
+    functionName: "get_model_release_v3" | "get_model_release_channel_v3",
     parameters: Readonly<Record<string, string>>,
   ): Promise<StudioModelReleaseRpcResultV1>;
 }
@@ -95,9 +102,12 @@ export class StudioSupabaseModelReleaseResolverV1 {
     return pending;
   }
 
-  async resolveChannel(channel: string): Promise<StudioResolvedModelReleaseV1> {
+  async resolveChannel(
+    channel: StudioReleaseChannelV1,
+  ): Promise<StudioResolvedModelReleaseV1> {
+    assertStudioReleaseChannelV1(channel);
     const resolved = await this.#readOne(
-      "get_model_release_channel_v2",
+      "get_model_release_channel_v3",
       Object.freeze({ p_channel: channel }),
     );
     const cached = this.#releasePromises.get(resolved.contract.modelId);
@@ -108,7 +118,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
   }
 
   async #readOne(
-    functionName: "get_model_release_v2" | "get_model_release_channel_v2",
+    functionName: "get_model_release_v3" | "get_model_release_channel_v3",
     parameters: Readonly<Record<string, string>>,
   ): Promise<StudioResolvedModelReleaseV1> {
     const result = await this.#rpc.call(functionName, parameters);
@@ -123,7 +133,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
 
   async #readExactModel(modelId: string): Promise<StudioResolvedModelReleaseV1> {
     const result = await this.#rpc.call(
-      "get_model_release_v2",
+      "get_model_release_v3",
       Object.freeze({ p_model_id: modelId }),
     );
     if (result.error !== null) {
@@ -170,6 +180,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
       row.analysis_profile_id,
       "analysis_profile_id",
     );
+    assertStudioReleaseStageV1(row.stage, "$.stage");
     const ticket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId,
@@ -181,6 +192,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
       contract: deriveModelContractFromManifestV2(ticket.manifest),
       defaultFixture,
       analysisProfileId,
+      stage: row.stage,
       ticket,
     });
   }

@@ -65,6 +65,28 @@ afterEach(() => {
 });
 
 describe("registered Main Wire Integrated Studio Model V3", () => {
+  it("fails closed when Model Lab cannot resolve the research registry", async () => {
+    vi.resetModules();
+    vi.doMock(
+      "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
+      () => ({ studioSupabaseModelReleaseResolverV1: () => null }),
+    );
+
+    try {
+      const composition = await import(
+        "@/studio/composition/StudioDefaultCompositionV2"
+      );
+      await expect(
+        composition.loadStudioModelChannelClientCompositionV2("research"),
+      ).rejects.toThrow(/will not fall back to the bundled default model/);
+    } finally {
+      vi.doUnmock(
+        "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
+      );
+      vi.resetModules();
+    }
+  });
+
   it("retries the shared browser composition after a transient rejection", async () => {
     vi.resetModules();
     let attempts = 0;
@@ -134,6 +156,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       "contract",
       "defaultFixture",
       "defaultModelId",
+      "releaseStage",
     ]);
     expect("authoring" in composition).toBe(false);
     expect("runtime" in composition).toBe(false);

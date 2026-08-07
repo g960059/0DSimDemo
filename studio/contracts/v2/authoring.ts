@@ -99,8 +99,9 @@ export type CreateExperimentSnapshotCommandV2 =
   }>;
 
 /**
- * Ephemeral result of applying the exact model's public-executable admission
- * gate to one frozen candidate. Admission verifies the candidate on a fork;
+ * Ephemeral result of applying the common Studio public-executable admission
+ * service to one frozen candidate. A legacy exact-model gate may serve as the
+ * adapter for historical packages. Admission verifies the candidate on a fork;
  * it cannot replace or otherwise mutate the captured content.
  */
 export type ExperimentSnapshotAdmissionResultV2 =

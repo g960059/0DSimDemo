@@ -17,6 +17,12 @@ import {
   StudioSupabaseModelReleaseResolverV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import {
+  StudioSupabaseModelSurfaceResolverV1,
+} from "@/studio/infrastructure/model/StudioSupabaseModelSurfaceResolverV1";
+import {
+  STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
+} from "@/studio/contracts/v2/modelSurface";
+import {
   createMainWireIntegratedStudioModelPackageV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
 
@@ -52,6 +58,7 @@ describe("Studio Supabase boundary V1", () => {
         module_abi: "legacy-main-wire-v3-development-36",
         default_fixture: modelPackage.defaultFixture,
         analysis_profile_id: "main-wire-integrated-v3",
+        stage: "stable",
       }],
       error: null,
     });
@@ -67,6 +74,7 @@ describe("Studio Supabase boundary V1", () => {
       contract: { modelId: modelPackage.manifest.modelId },
       defaultFixture: modelPackage.defaultFixture,
       analysisProfileId: "main-wire-integrated-v3",
+      stage: "stable",
       ticket: {
         modelId: modelPackage.manifest.modelId,
         moduleAbi: "legacy-main-wire-v3-development-36",
@@ -101,6 +109,7 @@ describe("Studio Supabase boundary V1", () => {
       module_abi: moduleAbi,
       default_fixture: modelPackage.defaultFixture,
       analysis_profile_id: "main-wire-integrated-v3",
+      stage: "stable",
     });
     let channelRow = row(
       modelA,
@@ -108,10 +117,10 @@ describe("Studio Supabase boundary V1", () => {
       "legacy-main-wire-v3-development-36",
     );
     const call = vi.fn(async (
-      functionName: "get_model_release_v2" | "get_model_release_channel_v2",
+      functionName: "get_model_release_v3" | "get_model_release_channel_v3",
       parameters: Readonly<Record<string, string>>,
     ) => ({
-      data: [functionName === "get_model_release_channel_v2"
+      data: [functionName === "get_model_release_channel_v3"
         ? channelRow
         : parameters.p_model_id === modelA
           ? row(
@@ -153,9 +162,118 @@ describe("Studio Supabase boundary V1", () => {
     });
     expect(call).toHaveBeenCalledOnce();
     expect(call).toHaveBeenCalledWith(
-      "get_model_release_v2",
+      "get_model_release_v3",
       { p_model_id: "model/historical-a" },
     );
+  });
+
+  it("resolves a Surface separately and rejects a family mismatch", async () => {
+    const modelPackage = createMainWireIntegratedStudioModelPackageV3();
+    const exact = new StudioSupabaseModelReleaseResolverV1({
+      rpc: {
+        call: vi.fn().mockResolvedValue({
+          data: [{
+            model_id: modelPackage.manifest.modelId,
+            model_family_id: modelPackage.manifest.modelFamilyId,
+            display_name: modelPackage.manifest.displayName,
+            manifest: modelPackage.manifest,
+            artifact_path: "model-releases/exact/model.mjs",
+            module_abi: "legacy-main-wire-v3-development-36",
+            default_fixture: modelPackage.defaultFixture,
+            analysis_profile_id: "main-wire-integrated-v3",
+            stage: "stable",
+          }],
+          error: null,
+        }),
+      },
+      supabaseOrigin: "https://project.supabase.co",
+    });
+    const model = (await exact.resolveExactModel(modelPackage.manifest.modelId))
+      .contract;
+    const manifest = {
+      schemaId: STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
+      surfaceReleaseId: "surface/main-wire-v1",
+      surfaceSeriesId: "surface-series/main-wire",
+      predecessorSurfaceReleaseId: null,
+      modelFamilyId: model.modelFamilyId,
+      displayName: "Main Wire Surface",
+      controlCatalog: [],
+      derivedOutputCatalog: [],
+      graphCatalog: [],
+      knobCatalog: [],
+      protocolCatalog: [],
+    } as const;
+    const call = vi.fn().mockResolvedValue({
+      data: [{ manifest, stage: "dev" }],
+      error: null,
+    });
+    const resolver = new StudioSupabaseModelSurfaceResolverV1({ rpc: { call } });
+
+    await expect(resolver.resolveChannel("research", model)).resolves.toEqual({
+      manifest,
+      materialized: {
+        surfaceReleaseId: manifest.surfaceReleaseId,
+        modelFamilyId: manifest.modelFamilyId,
+        controlCatalog: [],
+        derivedOutputCatalog: [],
+        graphCatalog: [],
+        knobCatalog: [],
+        protocolCatalog: [],
+      },
+      stage: "dev",
+    });
+    const resolvedSurface = await resolver.resolveChannel("research", model);
+    expect(Object.isFrozen(resolvedSurface.manifest)).toBe(true);
+    expect(Object.isFrozen(resolvedSurface.manifest.controlCatalog)).toBe(true);
+    expect(Object.isFrozen(resolvedSurface.materialized)).toBe(true);
+    expect(call).toHaveBeenCalledWith(
+      "get_model_surface_release_channel_v1",
+      {
+        p_model_family_id: model.modelFamilyId,
+        p_channel: "research",
+      },
+    );
+
+    const wrongFamily = {
+      ...manifest,
+      surfaceReleaseId: "surface/other-v1",
+      modelFamilyId: "model/other-family",
+    };
+    call.mockResolvedValueOnce({
+      data: [{ manifest: wrongFamily, stage: "stable" }],
+      error: null,
+    });
+    await expect(resolver.resolveChannel("default", model))
+      .rejects.toThrow(/must match model family/);
+
+    const newerSurface = {
+      ...manifest,
+      surfaceReleaseId: "surface/main-wire-v2",
+      predecessorSurfaceReleaseId: manifest.surfaceReleaseId,
+      graphCatalog: [{
+        graphId: "graph.future-signal",
+        renderer: "sweep",
+        seriesCatalog: [{
+          kind: "scalar",
+          seriesId: "future-signal",
+          outputId: "signal/future",
+        }],
+        defaultSeriesIds: ["future-signal"],
+        requiredCapabilities: ["output/signal/future"],
+      }],
+    } as const;
+    call.mockResolvedValueOnce({
+      data: [{ manifest: newerSurface, stage: "stable" }],
+      error: null,
+    });
+    const historicalModelSurface = await resolver.resolveChannel(
+      "research",
+      model,
+    );
+    expect(historicalModelSurface.manifest.surfaceReleaseId)
+      .toBe(newerSurface.surfaceReleaseId);
+    expect(historicalModelSurface.manifest.graphCatalog).toHaveLength(1);
+    expect(historicalModelSurface.materialized.graphCatalog).toEqual([]);
   });
 
   it("creates an anonymous account only when a Save asks for authentication", async () => {

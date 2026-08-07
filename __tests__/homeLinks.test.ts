@@ -99,7 +99,7 @@ describe('homeLinks', () => {
       'model/exact-a',
       'model/exact-b',
       true,
-    )).toBe('historical-loadable');
+    )).toBe('exact-loadable');
     expect(classifyExperimentAvailabilityV3(
       'model/exact-a',
       'model/exact-b',
@@ -126,7 +126,7 @@ describe('homeLinks', () => {
 
     expect([...availability]).toEqual([
       ['model/current', 'current-default'],
-      ['model/historical', 'historical-loadable'],
+      ['model/historical', 'exact-loadable'],
       ['model/missing', 'unavailable-model'],
     ]);
     expect(requested).toEqual(['model/historical', 'model/missing']);

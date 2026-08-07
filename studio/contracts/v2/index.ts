@@ -5,6 +5,7 @@ export * from "./executable";
 export * from "./ids";
 export * from "./json";
 export * from "./model";
+export * from "./modelSurface";
 export * from "./preview";
 export * from "./runtime";
 export * from "./simulation";

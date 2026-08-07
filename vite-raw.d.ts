@@ -8,6 +8,7 @@ interface ImportMetaEnv {
   readonly PROD: boolean;
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string;
+  readonly VITE_MODEL_LAB_ENABLED?: string;
 }
 
 interface ImportMeta {

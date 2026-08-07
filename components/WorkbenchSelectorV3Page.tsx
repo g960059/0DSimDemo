@@ -308,11 +308,11 @@ export function WorkbenchSelectorV3Page() {
                             </span>
                           </>
                         )}
-                        {availability === "historical-loadable" && (
+                        {availability === "exact-loadable" && (
                           <>
                             <span aria-hidden="true">·</span>
                             <span className="truncate text-wb-subtle">
-                              {t("workbench.selector.historical")}
+                              {t("workbench.selector.exactModel")}
                             </span>
                           </>
                         )}
