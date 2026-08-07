@@ -30,6 +30,16 @@ import {
   type WorkbenchLiveSchedulerDependenciesV3,
   type WorkbenchLiveSchedulerTimerV3,
 } from "./WorkbenchLiveSchedulerV3";
+import {
+  recordWorkbenchPerformanceDurationV3,
+  recordWorkbenchPerformanceEventIntervalV3,
+  workbenchPerformanceDiagnosticsEnabledV3,
+  workbenchPerformanceNowV3,
+} from "./WorkbenchPerformanceDiagnosticsV3";
+import {
+  resolveWorkbenchPresentationProfileV3,
+  type WorkbenchPresentationProfileV3,
+} from "./WorkbenchPresentationProfileV3";
 import type {
   WorkbenchBackgroundWorkerPoolPortV3,
 } from "./WorkbenchBackgroundWorkerPoolV3";
@@ -99,6 +109,7 @@ export type WorkbenchParallelScenarioRuntimeDependenciesV3 = Readonly<{
     delayMs: number,
   ) => WorkbenchLiveSchedulerTimerV3;
   cancelFrameFlush?: (timer: WorkbenchLiveSchedulerTimerV3) => void;
+  presentationProfile?: WorkbenchPresentationProfileV3;
 }>;
 
 type ParallelRuntimeStateV3 =
@@ -142,6 +153,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     delayMs: number,
   ) => WorkbenchLiveSchedulerTimerV3;
   readonly #cancelFrameFlush: (timer: WorkbenchLiveSchedulerTimerV3) => void;
+  readonly #presentationProfile: WorkbenchPresentationProfileV3;
   readonly #lanes = new Map<string, WorkbenchParallelScenarioLaneV3>();
   readonly #analysisClients = new Set<
     WorkbenchParallelScenarioRuntimeClientV3
@@ -152,6 +164,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   #playing = false;
   #pendingFrames: StudioSimulationFrameV2[] = [];
   #frameFlushTimer: WorkbenchLiveSchedulerTimerV3 | undefined;
+  #frameCoalescingStartedAtMs: number | undefined;
   #failed = false;
 
   constructor(dependencies: WorkbenchParallelScenarioRuntimeDependenciesV3) {
@@ -180,6 +193,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       ?? ((callback, delayMs) => setTimeout(callback, delayMs));
     this.#cancelFrameFlush = dependencies.cancelFrameFlush
       ?? ((timer) => clearTimeout(timer));
+    this.#presentationProfile = dependencies.presentationProfile
+      ?? resolveWorkbenchPresentationProfileV3();
   }
 
   async initialize(input: Readonly<{
@@ -682,6 +697,10 @@ export class WorkbenchParallelScenarioRuntimeV3 {
           this.#enqueueFrames(frames);
         },
         onError: (error) => this.#fail(seed.scenarioId, error),
+        maximumBatchSteps: this.#presentationProfile.maximumBatchSteps,
+        preferredBatchSteps: this.#presentationProfile.preferredBatchSteps,
+        presentationIntervalMs:
+          this.#presentationProfile.presentationIntervalMs,
       });
       lane = {
         descriptor: Object.freeze({
@@ -761,7 +780,21 @@ export class WorkbenchParallelScenarioRuntimeV3 {
 
   #enqueueFrames(frames: readonly StudioSimulationFrameV2[]): void {
     if (frames.length === 0 || this.#state !== "active") return;
+    if (
+      this.#pendingFrames.length === 0
+      && workbenchPerformanceDiagnosticsEnabledV3()
+    ) {
+      this.#frameCoalescingStartedAtMs = workbenchPerformanceNowV3();
+    }
     this.#pendingFrames.push(...frames);
+    // There is nothing to align when only one numerical lane exists. Avoid a
+    // second 16 ms timer after the scheduler has already formed one exact
+    // presentation batch.
+    if (this.#lanes.size <= 1) {
+      this.#cancelPendingFlush();
+      this.#flushFrames();
+      return;
+    }
     if (this.#frameFlushTimer !== undefined) return;
     this.#frameFlushTimer = this.#scheduleFrameFlush(() => {
       this.#frameFlushTimer = undefined;
@@ -773,7 +806,19 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (this.#pendingFrames.length === 0) return;
     const frames = Object.freeze(this.#pendingFrames.slice());
     this.#pendingFrames = [];
-    if (this.#state === "active") this.#onFrames(frames);
+    if (this.#state === "active") {
+      this.#onFrames(frames);
+      recordWorkbenchPerformanceEventIntervalV3(
+        "runtime.presentation-commit-interval",
+      );
+      if (this.#frameCoalescingStartedAtMs !== undefined) {
+        recordWorkbenchPerformanceDurationV3(
+          "runtime.frame-coalescing",
+          workbenchPerformanceNowV3() - this.#frameCoalescingStartedAtMs,
+        );
+      }
+    }
+    this.#frameCoalescingStartedAtMs = undefined;
   }
 
   #cancelPendingFlush(): void {

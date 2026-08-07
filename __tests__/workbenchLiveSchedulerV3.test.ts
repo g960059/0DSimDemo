@@ -4,6 +4,15 @@ import {
   WorkbenchLiveSchedulerV3,
   type WorkbenchLiveSchedulerTimerV3,
 } from "@/components/workbench/v3/WorkbenchLiveSchedulerV3";
+import {
+  WorkbenchPerformanceDiagnosticsV3,
+  workbenchPerformanceDiagnosticsRequestedV3,
+} from "@/components/workbench/v3/WorkbenchPerformanceDiagnosticsV3";
+import {
+  WORKBENCH_BALANCED_PRESENTATION_PROFILE_V3,
+  WORKBENCH_SMOOTH_PRESENTATION_PROFILE_V3,
+  resolveWorkbenchPresentationProfileV3,
+} from "@/components/workbench/v3/WorkbenchPresentationProfileV3";
 
 type Frame = Readonly<{ acceptedTimeSec: number }>;
 
@@ -269,6 +278,56 @@ describe("WorkbenchLiveSchedulerV3", () => {
     expect(scheduler.running).toBe(false);
     await scheduler.dispose();
     expect(events).toHaveLength(3);
+  });
+});
+
+describe("Workbench presentation performance controls V3", () => {
+  it("aggregates duration and event-interval metrics without frame payloads", () => {
+    let nowMs = 0;
+    const diagnostics = new WorkbenchPerformanceDiagnosticsV3({
+      enabled: true,
+      nowMs: () => nowMs,
+    });
+    diagnostics.recordDuration("canvas.sweep.draw", 1);
+    diagnostics.recordDuration("canvas.sweep.draw", 2);
+    diagnostics.recordDuration("canvas.sweep.draw", 10);
+    diagnostics.recordEventInterval("canvas.sweep.display-interval");
+    nowMs = 16;
+    diagnostics.recordEventInterval("canvas.sweep.display-interval");
+    nowMs = 33;
+    diagnostics.recordEventInterval("canvas.sweep.display-interval");
+
+    expect(diagnostics.snapshot().metrics).toMatchObject({
+      "canvas.sweep.draw": {
+        count: 3,
+        meanMs: 13 / 3,
+        p95Ms: 10,
+        maximumMs: 10,
+        latestMs: 10,
+      },
+      "canvas.sweep.display-interval": {
+        count: 2,
+        meanMs: 16.5,
+        p95Ms: 17,
+        maximumMs: 17,
+        latestMs: 17,
+      },
+    });
+
+    diagnostics.reset();
+    expect(diagnostics.snapshot().metrics).toEqual({});
+  });
+
+  it("keeps diagnostics opt-in and resolves the exact-data cadence A/B flag", () => {
+    expect(workbenchPerformanceDiagnosticsRequestedV3("?workbenchPerf=1"))
+      .toBe(true);
+    expect(workbenchPerformanceDiagnosticsRequestedV3("?workbenchPerf=0"))
+      .toBe(false);
+    expect(resolveWorkbenchPresentationProfileV3(""))
+      .toBe(WORKBENCH_SMOOTH_PRESENTATION_PROFILE_V3);
+    expect(resolveWorkbenchPresentationProfileV3(
+      "?workbenchPresentation=balanced",
+    )).toBe(WORKBENCH_BALANCED_PRESENTATION_PROFILE_V3);
   });
 });
 

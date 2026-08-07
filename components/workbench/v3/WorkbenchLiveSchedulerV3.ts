@@ -1,3 +1,9 @@
+import {
+  recordWorkbenchPerformanceDurationV3,
+  recordWorkbenchPerformanceEventIntervalV3,
+  workbenchPerformanceDiagnosticsEnabledV3,
+} from "./WorkbenchPerformanceDiagnosticsV3";
+
 export type WorkbenchLiveSchedulerTimerV3 = ReturnType<typeof setTimeout>;
 
 export type WorkbenchLiveSchedulerDependenciesV3<TFrame> = Readonly<{
@@ -195,8 +201,16 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
       return;
     }
     const stepCount = Math.min(this.#maximumBatchSteps, dueSteps);
+    const diagnosticsEnabled = workbenchPerformanceDiagnosticsEnabledV3();
+    const roundTripStartedAtMs = diagnosticsEnabled ? this.#nowMs() : 0;
     const operation = this.#advance(stepCount)
       .then((frames) => {
+        if (diagnosticsEnabled) {
+          recordWorkbenchPerformanceDurationV3(
+            "scheduler.worker-round-trip",
+            this.#nowMs() - roundTripStartedAtMs,
+          );
+        }
         if (frames.length !== stepCount) {
           throw new Error(
             `Workbench Worker returned ${frames.length} frames for `
@@ -250,6 +264,9 @@ export class WorkbenchLiveSchedulerV3<TFrame> {
     this.#pendingPresentationFrames = [];
     this.#lastPresentationWallMs = presentationWallMs;
     this.#onFrames(frames);
+    recordWorkbenchPerformanceEventIntervalV3(
+      "scheduler.presentation-delivery-interval",
+    );
   }
 }
 

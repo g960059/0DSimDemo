@@ -8,6 +8,7 @@ import type {
 import { mainWireIntegratedModelStarlingDescendingLimbV3 } from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
 import {
   scaleLinearV3,
+  readWorkbenchCanvasThemeVariablesV3,
   useResponsiveCanvasFrameV3,
 } from "./WorkbenchCanvasRuntimeV3";
 import { workbenchHistoryAlphaV3 } from "./WorkbenchChartTraceStyleV3";
@@ -400,7 +401,12 @@ export function GuytonStarlingComparisonCanvasV3({
     },
     [domain, side, traces],
   );
-  useResponsiveCanvasFrameV3(containerRef, canvasRef, draw);
+  useResponsiveCanvasFrameV3(
+    containerRef,
+    canvasRef,
+    draw,
+    "guyton-starling",
+  );
 
   const sideLabel =
     side === "right" ? "Systemic venous return" : "Pulmonary venous return";
@@ -947,13 +953,15 @@ function drawFillingPressureMarkerV3(
 }
 
 function readThemeV3(element: HTMLElement | null): CanvasThemeV3 {
-  const style = element === null ? null : getComputedStyle(element);
-  const color = (name: string, fallback: string) =>
-    style?.getPropertyValue(name).trim() || fallback;
+  const [grid, axis, text] = readWorkbenchCanvasThemeVariablesV3(element, [
+    ["--wb-grid", "rgba(148, 163, 184, 0.14)"],
+    ["--wb-axis", "rgba(148, 163, 184, 0.38)"],
+    ["--wb-muted", "rgba(203, 213, 225, 0.72)"],
+  ]);
   return Object.freeze({
-    grid: color("--wb-grid", "rgba(148, 163, 184, 0.14)"),
-    axis: color("--wb-axis", "rgba(148, 163, 184, 0.38)"),
-    text: color("--wb-muted", "rgba(203, 213, 225, 0.72)"),
+    grid: grid!,
+    axis: axis!,
+    text: text!,
   });
 }
 

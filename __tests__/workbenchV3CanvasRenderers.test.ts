@@ -32,6 +32,7 @@ import {
   starlingCurvePointsV3,
   starlingPresentationFocusV3,
   updateWorkbenchScenarioBaseColorV3,
+  workbenchPresentationOutputSelectionV3,
   type WorkbenchPvPointV3,
   type WorkbenchScalarSampleV3,
 } from "@/components/workbench/v3";
@@ -40,6 +41,7 @@ import type {
   ExperimentSurfaceGraphPaneV2,
   ExperimentSurfaceV2,
 } from "@/studio/contracts/v2/content";
+import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 
 const TEST_CYCLE_PHASE_OUTPUT_ID_V3 = "custom.clock/cycle-fraction";
 
@@ -701,6 +703,82 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     expect(store.cloneScenario("missing", "copy")).toBe(false);
     expect(notifications).toBe(6);
     unsubscribe();
+  });
+
+  it("exposes one renderer-specific subscription and one stable PV snapshot", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    let sweepNotifications = 0;
+    let pressureVolumeNotifications = 0;
+    const unsubscribeSweep = store.subscribeSweep(() => {
+      sweepNotifications += 1;
+    });
+    const unsubscribePressureVolume = store.subscribePressureVolume(() => {
+      pressureVolumeNotifications += 1;
+    });
+
+    store.append("baseline", [sampleV3(0.002, 0.01, { pressure: 12 })]);
+
+    expect(sweepNotifications).toBe(1);
+    expect(pressureVolumeNotifications).toBe(1);
+    expect(store.getSweepSnapshot()).toMatchObject({ renderer: "sweep" });
+    const pressureVolume = store.getPressureVolumeSnapshot();
+    expect(pressureVolume).toMatchObject({ renderer: "pressure-volume" });
+    expect(pressureVolume.exactOrbitSamplesByScenarioId.baseline)
+      .toHaveLength(1);
+    expect(store.getPressureVolumeSnapshot()).toBe(pressureVolume);
+
+    unsubscribeSweep();
+    unsubscribePressureVolume();
+  });
+
+  it("retains graph-owned outputs without materializing the whole model catalog", () => {
+    const contract = {
+      graphCatalog: [
+        {
+          graphId: "graph/pressure",
+          renderer: "sweep",
+          seriesCatalog: [
+            { kind: "scalar", seriesId: "LVP", outputId: "pressure.lv" },
+            { kind: "scalar", seriesId: "AoP", outputId: "pressure.ao" },
+          ],
+        },
+        {
+          graphId: "graph/pv",
+          renderer: "pressure-volume",
+          seriesCatalog: [{
+            kind: "pressure-volume",
+            seriesId: "LV",
+            volumeOutputId: "volume.lv",
+            pressureOutputId: "pressure.lv.transmural",
+            pressureBasis: "transmural",
+            cyclePhaseOutputId: "clock.cycle-phase",
+          }],
+        },
+      ],
+    } as unknown as ModelContractV2;
+    const surface = {
+      graphPanes: [
+        {
+          graphId: "graph/pressure",
+          series: [{ seriesId: "LVP", label: "LVP", order: 0 }],
+        },
+        {
+          graphId: "graph/pv",
+          series: [{ seriesId: "LV", label: "LV", order: 0 }],
+        },
+      ],
+    } as unknown as ExperimentSurfaceV2;
+
+    const selected = workbenchPresentationOutputSelectionV3(contract, surface);
+    expect([...selected].sort()).toEqual([
+      "clock.cycle-phase",
+      "pressure.lv",
+      "pressure.lv.transmural",
+      "volume.lv",
+    ]);
+    expect(selected.has("pressure.ao")).toBe(false);
+    expect(workbenchPresentationOutputSelectionV3(contract, surface))
+      .toBe(selected);
   });
 
   it("retains exact 2 ms PV samples without presentation bucketing", () => {
