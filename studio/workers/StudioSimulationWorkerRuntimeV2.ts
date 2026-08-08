@@ -895,11 +895,13 @@ export class StudioSimulationWorkerRuntimeV2 {
   async #captureAllScenarios(
     experimentId: string,
     surface: ExperimentSurfaceV2,
+    surfaceSeriesId?: string,
   ): Promise<ExperimentContentV2> {
     const runtime = this.#requiredExactRuntime();
     const physicalRuntimeSessionId = this.#requiredPhysicalRuntimeSessionId();
     const desiredContent = validateExperimentDesiredContentForModelV2({
       modelId: runtime.contract.modelId,
+      ...(surfaceSeriesId === undefined ? {} : { surfaceSeriesId }),
       scenarios: this.#scenarioOrder.map((scenarioId) => ({
         scenarioId,
         label: this.#requiredScenarioLabel(scenarioId),
@@ -1042,6 +1044,9 @@ export class StudioSimulationWorkerRuntimeV2 {
     }
     const desiredContent = validateExperimentDesiredContentForModelV2({
       modelId: context.runtime.contract.modelId,
+      ...(request.surfaceSeriesId === undefined
+        ? {}
+        : { surfaceSeriesId: request.surfaceSeriesId }),
       scenarios: this.#scenarioOrder.map((scenarioId) => ({
         scenarioId,
         label: this.#requiredScenarioLabel(scenarioId),
@@ -1157,12 +1162,19 @@ export class StudioSimulationWorkerRuntimeV2 {
       const candidateContent = await this.#captureAllScenarios(
         `experiment/session/${request.runtimeSessionId}`,
         request.surface,
+        request.surfaceSeriesId,
       );
       const created = request.snapshotSource === "session"
-        ? await context.authoring.createSnapshot({ content: candidateContent })
+        ? await context.authoring.createSnapshot({
+            content: candidateContent,
+            ...(request.surfaceReleaseId === undefined
+              ? {}
+              : { surfaceReleaseId: request.surfaceReleaseId }),
+          })
         : await this.#createPublicationSnapshotFromSavedHead(
             context,
             candidateContent,
+            request.surfaceReleaseId,
           );
       snapshot = validateExperimentSnapshotV2(created);
       if (
@@ -1204,6 +1216,7 @@ export class StudioSimulationWorkerRuntimeV2 {
   async #createPublicationSnapshotFromSavedHead(
     context: StudioSimulationWorkerAuthoringContextV2,
     candidateContent: ExperimentContentV2,
+    surfaceReleaseId?: string,
   ): Promise<ExperimentSnapshotV2> {
     const experimentId = this.#authoringExperimentId;
     if (experimentId === undefined) {
@@ -1219,6 +1232,7 @@ export class StudioSimulationWorkerRuntimeV2 {
     }
     return context.authoring.createSnapshot({
       content: candidateContent,
+      ...(surfaceReleaseId === undefined ? {} : { surfaceReleaseId }),
       savedExperiment: {
         experimentId,
         expectedVersion: experiment.version,
@@ -1760,10 +1774,30 @@ async function captureFirstExperimentContentV2(input: Readonly<{
     experimentId: input.experimentId,
     correlation: input.correlation,
   });
-  const content = validateExperimentContentForModelV2(
+  const capturedContent = validateExperimentContentForModelV2(
     result.content,
     input.runtime.contract,
   );
+  if (
+    capturedContent.surfaceSeriesId !== undefined
+    && capturedContent.surfaceSeriesId
+      !== input.desiredContent.surfaceSeriesId
+  ) {
+    throw new Error(
+      "Experiment capture changed the Studio-owned Surface series",
+    );
+  }
+  // Exact-model capture adapters own numerical state only. Reattach the
+  // Studio-owned mutable Surface-series pin after validating that an adapter
+  // did not try to substitute a different series. This mirrors the main
+  // authoring application boundary and keeps first Save / Snapshot assembly
+  // from silently degrading Standard-ABI content to the historical V2 shape.
+  const content = validateExperimentContentForModelV2({
+    ...capturedContent,
+    ...(input.desiredContent.surfaceSeriesId === undefined
+      ? {}
+      : { surfaceSeriesId: input.desiredContent.surfaceSeriesId }),
+  }, input.runtime.contract);
   assertCapturedDesiredContentAtBoundaryV2(
     input.desiredContent,
     content,

@@ -68,6 +68,28 @@ insert into studio.model_releases (
 insert into studio.model_release_availability (model_id, stage)
 values ('model/integration-test-v1', 'stable');
 
+insert into studio.model_surface_releases (
+  surface_release_id, surface_series_id, predecessor_surface_release_id,
+  model_family_id, display_name, manifest, source_commit
+) values (
+  'surface/integration-test-v1', 'surface-series/integration-test', null,
+  'model/integration-test', 'Integration test Surface',
+  '{
+    "schemaId":"circleheart-studio-model-surface-release-v1",
+    "surfaceReleaseId":"surface/integration-test-v1",
+    "surfaceSeriesId":"surface-series/integration-test",
+    "predecessorSurfaceReleaseId":null,
+    "modelFamilyId":"model/integration-test",
+    "displayName":"Integration test Surface",
+    "controlCatalog":[],"derivedOutputCatalog":[],"graphCatalog":[],
+    "knobCatalog":[],"protocolCatalog":[]
+  }'::jsonb,
+  'integration-test'
+);
+insert into studio.model_surface_release_availability (
+  surface_release_id, stage
+) values ('surface/integration-test-v1', 'stable');
+
 select pg_catalog.set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated","is_anonymous":false}',
@@ -88,6 +110,7 @@ select 'save', public.save_experiment_v1(
   'model/integration-test-v1',
   '{
     "modelId":"model/integration-test-v1",
+    "surfaceSeriesId":"surface-series/integration-test",
     "scenarios":[{
       "scenarioId":"scenario/baseline",
       "label":"Baseline",
@@ -136,6 +159,7 @@ select is(
     'model/integration-test-v1',
     '{
       "modelId":"model/integration-test-v1",
+      "surfaceSeriesId":"surface-series/integration-test",
       "scenarios":[{
         "scenarioId":"scenario/baseline",
         "label":"Baseline",
@@ -164,6 +188,7 @@ select throws_ok(
       'model/integration-test-v1',
       '{
         "modelId":"model/integration-test-v1",
+        "surfaceSeriesId":"surface-series/integration-test",
         "scenarios":[{
           "scenarioId":"scenario/baseline",
           "label":"Baseline",
@@ -185,6 +210,7 @@ select 'snapshot', public.commit_admitted_experiment_snapshot_v1(
   'model/integration-test-v1',
   '{
     "modelId":"model/integration-test-v1",
+    "surfaceSeriesId":"surface-series/integration-test",
     "scenarios":[{
       "scenarioId":"scenario/baseline",
       "label":"Baseline",
@@ -192,6 +218,7 @@ select 'snapshot', public.commit_admitted_experiment_snapshot_v1(
     }],
     "surface":{}
   }'::jsonb,
+  'surface/integration-test-v1',
   ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid,
   0
 );
@@ -293,6 +320,7 @@ select 'dev-snapshot', public.commit_admitted_experiment_snapshot_v1(
     }],
     "surface":{}
   }'::jsonb,
+  null,
   ((select value ->> 'experimentId' from rpc_state where key = 'dev-save'))::uuid,
   0
 );
@@ -389,6 +417,7 @@ select ok(
     'model/integration-test-v1',
     '{
       "modelId":"model/integration-test-v1",
+      "surfaceSeriesId":"surface-series/integration-test",
       "scenarios":[{
         "scenarioId":"scenario/anonymous",
         "label":"Anonymous",

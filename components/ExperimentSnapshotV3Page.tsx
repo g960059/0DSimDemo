@@ -16,7 +16,7 @@ import {
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import {
-  loadStudioModelClientCompositionV2,
+  loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import {
@@ -99,7 +99,11 @@ function ExperimentSnapshotV3Resource({
       setComposition(null);
       return undefined;
     }
-    void loadStudioModelClientCompositionV2(snapshot.content.modelId).then((next) => {
+    void loadStudioSnapshotClientCompositionV2(
+      snapshot.content.modelId,
+      snapshot.content.surfaceSeriesId,
+      snapshot.surfaceReleaseId,
+    ).then((next) => {
       if (current) setComposition(next);
     }).catch(() => {
       // The immutable Snapshot stays readable when its exact release is not

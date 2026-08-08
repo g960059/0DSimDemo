@@ -956,7 +956,7 @@ describe("Studio Experiment data V2", () => {
         (candidate) => {
           candidate.content.assessment = {};
         },
-        /keys must be exactly/,
+        /field set mismatch/,
       ],
       [
         "function payload",

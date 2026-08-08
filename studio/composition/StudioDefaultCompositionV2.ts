@@ -33,6 +33,9 @@ import {
 import {
   studioSupabaseModelReleaseResolverV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
+import type {
+  StudioModelSurfacePinV1,
+} from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import {
   createMainWireIntegratedStudioExecutableReleaseV3 as
     createAdmittedMainWireIntegratedStudioExecutableReleaseV3,
@@ -68,6 +71,7 @@ export type StudioClientCompositionV2 = Readonly<{
   analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
   workerReleaseTicket?: StudioModelWorkerReleaseTicketV2;
   surfaceReleaseId?: string;
+  surfaceSeriesId?: string;
   surfaceStage?: StudioReleaseStageV1;
 }>;
 
@@ -88,6 +92,14 @@ const browserExactCompositionPromisesV2 = new Map<
   string,
   Promise<StudioClientCompositionV2>
 >();
+const browserExperimentCompositionPromisesV2 = new Map<
+  string,
+  Promise<StudioClientCompositionV2>
+>();
+const browserSnapshotCompositionPromisesV2 = new Map<
+  string,
+  Promise<StudioClientCompositionV2>
+>();
 const browserChannelCompositionPromisesV2 = new Map<
   StudioReleaseChannelV1,
   Promise<StudioClientCompositionV2>
@@ -103,6 +115,8 @@ let browserLocalStandardModelLabCompositionPromiseV1:
 export function invalidateStudioClientCompositionCachesV2(): void {
   browserCompositionPromiseV2 = undefined;
   browserExactCompositionPromisesV2.clear();
+  browserExperimentCompositionPromisesV2.clear();
+  browserSnapshotCompositionPromisesV2.clear();
   browserChannelCompositionPromisesV2.clear();
 }
 
@@ -140,6 +154,7 @@ Promise<StudioDefaultClientCompositionV2> {
 async function createRegistryClientCompositionV2(
   modelId?: string,
   channel: StudioReleaseChannelV1 = "default",
+  surfacePin?: StudioModelSurfacePinV1,
 ): Promise<StudioClientCompositionV2> {
   const resolver = studioSupabaseModelReleaseResolverV1();
   if (resolver === null) {
@@ -153,7 +168,7 @@ async function createRegistryClientCompositionV2(
   }
   const release = modelId === undefined
     ? await resolver.resolveChannel(channel)
-    : await resolver.resolveExactModel(modelId);
+    : await resolver.resolveExactModel(modelId, surfacePin);
   return Object.freeze({
     defaultModelId: release.contract.modelId,
     releaseStage: release.stage,
@@ -166,6 +181,9 @@ async function createRegistryClientCompositionV2(
     ...(release.surfaceReleaseId === undefined
       ? {}
       : { surfaceReleaseId: release.surfaceReleaseId }),
+    ...(release.surfaceSeriesId === undefined
+      ? {}
+      : { surfaceSeriesId: release.surfaceSeriesId }),
     ...(release.surfaceStage === undefined
       ? {}
       : { surfaceStage: release.surfaceStage }),
@@ -237,6 +255,7 @@ Promise<StudioClientCompositionV2> {
         resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
       workerReleaseTicket,
       surfaceReleaseId: composed.surface.surfaceReleaseId,
+      surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
       surfaceStage: "dev" as const,
     });
   });
@@ -338,6 +357,76 @@ export function loadStudioModelClientCompositionV2(
   void pending.catch(() => {
     if (browserExactCompositionPromisesV2.get(modelId) === pending) {
       browserExactCompositionPromisesV2.delete(modelId);
+    }
+  });
+  return pending;
+}
+
+/** Mutable content follows additive releases in its pinned Surface series. */
+export function loadStudioExperimentClientCompositionV2(
+  modelId: string,
+  surfaceSeriesId?: string,
+): Promise<StudioClientCompositionV2> {
+  if (surfaceSeriesId === undefined) {
+    return loadStudioModelClientCompositionV2(modelId);
+  }
+  const key = `${modelId}\u0000${surfaceSeriesId}`;
+  const cached = browserExperimentCompositionPromisesV2.get(key);
+  if (cached !== undefined) return cached;
+  const pending = createRegistryClientCompositionV2(modelId, "default", {
+    kind: "series",
+    surfaceSeriesId,
+  }).then((composition) => {
+    if (
+      composition.contract.modelId !== modelId
+      || composition.surfaceSeriesId !== surfaceSeriesId
+    ) {
+      throw new Error("Experiment Surface series resolution changed identity");
+    }
+    return composition;
+  });
+  browserExperimentCompositionPromisesV2.set(key, pending);
+  void pending.catch(() => {
+    if (browserExperimentCompositionPromisesV2.get(key) === pending) {
+      browserExperimentCompositionPromisesV2.delete(key);
+    }
+  });
+  return pending;
+}
+
+/** Immutable content always reloads the exact Surface sealed by its Snapshot. */
+export function loadStudioSnapshotClientCompositionV2(
+  modelId: string,
+  surfaceSeriesId?: string,
+  surfaceReleaseId?: string,
+): Promise<StudioClientCompositionV2> {
+  if (surfaceSeriesId === undefined && surfaceReleaseId === undefined) {
+    return loadStudioModelClientCompositionV2(modelId);
+  }
+  if (surfaceSeriesId === undefined || surfaceReleaseId === undefined) {
+    return Promise.reject(new Error("Snapshot Surface pin is incomplete"));
+  }
+  const key = `${modelId}\u0000${surfaceReleaseId}`;
+  const cached = browserSnapshotCompositionPromisesV2.get(key);
+  if (cached !== undefined) return cached;
+  const pending = createRegistryClientCompositionV2(modelId, "default", {
+    kind: "release",
+    surfaceSeriesId,
+    surfaceReleaseId,
+  }).then((composition) => {
+    if (
+      composition.contract.modelId !== modelId
+      || composition.surfaceSeriesId !== surfaceSeriesId
+      || composition.surfaceReleaseId !== surfaceReleaseId
+    ) {
+      throw new Error("Snapshot exact Surface resolution changed identity");
+    }
+    return composition;
+  });
+  browserSnapshotCompositionPromisesV2.set(key, pending);
+  void pending.catch(() => {
+    if (browserSnapshotCompositionPromisesV2.get(key) === pending) {
+      browserSnapshotCompositionPromisesV2.delete(key);
     }
   });
   return pending;

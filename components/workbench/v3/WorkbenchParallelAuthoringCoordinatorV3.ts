@@ -28,6 +28,9 @@ export type WorkbenchParallelAuthoringClientFactoryV3 =
 
 export type WorkbenchParallelAuthoringInputV3 = Readonly<{
   modelId: string;
+  surfaceSeriesId?: string;
+  /** Exact presentation contract; supplied only for immutable Snapshot work. */
+  surfaceReleaseId?: string;
   releaseTicket?: StudioModelWorkerReleaseTicketV2;
   /** Exact captures gathered from the live lane Workers, in UI order. */
   scenarios: readonly ExperimentScenarioV2[];
@@ -47,6 +50,8 @@ export type WorkbenchParallelSnapshotAuthoringInputV3 =
 
 type ValidatedAuthoringInputV3 = Readonly<{
   modelId: string;
+  surfaceSeriesId?: string;
+  surfaceReleaseId?: string;
   releaseTicket?: StudioModelWorkerReleaseTicketV2;
   scenarios: readonly ExperimentScenarioV2[];
   activeScenario: ExperimentScenarioV2;
@@ -91,6 +96,9 @@ export class WorkbenchParallelAuthoringCoordinatorV3 {
           scenarioId: input.activeScenario.scenarioId,
           experimentId: input.experimentId,
           surface: input.surface,
+          ...(input.surfaceSeriesId === undefined
+            ? {}
+            : { surfaceSeriesId: input.surfaceSeriesId }),
           expectedVersion: null,
         });
       }
@@ -99,6 +107,9 @@ export class WorkbenchParallelAuthoringCoordinatorV3 {
         ...input.experiment,
         content: {
           modelId: input.modelId,
+          ...(input.surfaceSeriesId === undefined
+            ? {}
+            : { surfaceSeriesId: input.surfaceSeriesId }),
           scenarios: input.scenarios,
           surface: input.surface,
         },
@@ -113,6 +124,9 @@ export class WorkbenchParallelAuthoringCoordinatorV3 {
         scenarioId: input.activeScenario.scenarioId,
         experimentId: input.experimentId,
         surface: input.surface,
+        ...(input.surfaceSeriesId === undefined
+          ? {}
+          : { surfaceSeriesId: input.surfaceSeriesId }),
         expectedVersion: input.experiment.version,
       });
     });
@@ -121,6 +135,14 @@ export class WorkbenchParallelAuthoringCoordinatorV3 {
   async createSnapshot(
     inputValue: WorkbenchParallelSnapshotAuthoringInputV3,
   ): Promise<StudioSimulationWorkerAdmittedSnapshotCommitV2> {
+    if (
+      (inputValue.surfaceSeriesId === undefined)
+      !== (inputValue.surfaceReleaseId === undefined)
+    ) {
+      throw new Error(
+        "Snapshot authoring requires matching Surface series and release pins",
+      );
+    }
     const input = validateAuthoringInputV3(inputValue);
     return await this.#withClient("snapshot", async (client) => {
       if (inputValue.snapshotSource === "saved-experiment") {
@@ -139,6 +161,9 @@ export class WorkbenchParallelAuthoringCoordinatorV3 {
           ...input.experiment,
           content: {
             modelId: input.modelId,
+            ...(input.surfaceSeriesId === undefined
+              ? {}
+              : { surfaceSeriesId: input.surfaceSeriesId }),
             scenarios: input.scenarios,
             surface: input.surface,
           },
@@ -157,6 +182,12 @@ export class WorkbenchParallelAuthoringCoordinatorV3 {
         runtimeSessionId: input.runtimeSessionId,
         scenarioId: input.activeScenario.scenarioId,
         surface: input.surface,
+        ...(input.surfaceSeriesId === undefined
+          ? {}
+          : { surfaceSeriesId: input.surfaceSeriesId }),
+        ...(input.surfaceReleaseId === undefined
+          ? {}
+          : { surfaceReleaseId: input.surfaceReleaseId }),
       };
       return await client.createSnapshot({
         ...base,
@@ -187,6 +218,7 @@ function assertSameSavedProjectionV3(
 ): void {
   if (
     saved.content.modelId !== candidate.modelId
+    || saved.content.surfaceSeriesId !== candidate.surfaceSeriesId
     || studioCanonicalJsonStringify(saved.content.surface)
       !== studioCanonicalJsonStringify(candidate.surface)
     || saved.content.scenarios.length !== candidate.scenarios.length
@@ -354,6 +386,9 @@ function validateAuthoringInputV3(
 
   const validatedContent = validateExperimentContentV2({
     modelId: input.modelId,
+    ...(input.surfaceSeriesId === undefined
+      ? {}
+      : { surfaceSeriesId: input.surfaceSeriesId }),
     scenarios: input.scenarios,
     surface: input.surface,
   });
@@ -368,6 +403,12 @@ function validateAuthoringInputV3(
 
   return Object.freeze({
     modelId: validatedContent.modelId,
+    ...(validatedContent.surfaceSeriesId === undefined
+      ? {}
+      : { surfaceSeriesId: validatedContent.surfaceSeriesId }),
+    ...(input.surfaceReleaseId === undefined
+      ? {}
+      : { surfaceReleaseId: input.surfaceReleaseId }),
     ...(input.releaseTicket === undefined
       ? {}
       : { releaseTicket: input.releaseTicket }),

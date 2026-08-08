@@ -2,7 +2,7 @@
 
 Status: authoritative pre-release contract; direct cutover
 
-Date: 2026-08-07
+Date: 2026-08-08
 
 Decision: keep exact numerical identity small and permanent, release the
 authoring/analysis Surface independently, use only three lifecycle stages and
@@ -166,17 +166,24 @@ an uncommitted manifest, while Supabase rejects a reused `surfaceReleaseId`
 whose immutable manifest differs, a non-additive successor, a forked series,
 or a stale channel transition.
 
-During the
-`development-36` compatibility period, its embedded V2 catalogs remain the
-runtime authority. The parallel V3/V1 contracts are introduced now so the
-next exact ABI can cut over without rebinding the historical package. That
-cutover is not complete until a mutable Experiment pins `surfaceSeriesId` and
-resolves the latest compatible release in that series, an immutable Snapshot
-pins the exact `surfaceReleaseId`, public gates
-require both the exact model and pinned Surface to be `stable`, and an
-end-to-end test proves an older exact Experiment can open after an additive
-Surface release. Until then, this PR is registry scaffolding rather than a
-claim that the Workbench already consumes Surface releases.
+Historical `development-36` content keeps its embedded V2 catalogs and remains
+loadable without a Surface pin. The Standard ABI is cut over directly:
+
+- a mutable Experiment pins `surfaceSeriesId` and resolves the latest
+  non-retired release in that series whenever it is opened;
+- an immutable Snapshot pins the exact `surfaceReleaseId` used at capture;
+- public Experiment and Article publication require both the exact model and
+  pinned Surface release to be `stable`; and
+- the browser boundary test proves that an old exact Experiment reopens on an
+  additive Surface successor while an existing Snapshot remains on its exact
+  prior release.
+
+Surface identity is Studio-owned. Accepted-boundary capture adapters freeze
+numerical Scenario state and do not need to embed a Surface series into the
+exact-model artifact. The authoring boundary atomically rejoins the captured
+fixture/checkpoint with the already-resolved Surface pin. Presentation release
+work therefore does not change exact artifact bytes or require a new
+`modelId`.
 
 ## 4. Lifecycle and channels
 
@@ -235,10 +242,10 @@ does not add a development-only persistence type.
 The sole lab route is `/dev/model-lab`. Its leftmost Home action returns to
 `/dev`, while `/dev` itself uses the ordinary site header.
 
-- The current pre-cutover Lab boots the explicitly bundled Standard-ABI local
-  exact model and Surface and pins both identities. A registered research
-  channel remains visible in `/dev` and becomes the Lab source only when that
-  cutover is made explicitly.
+- The Lab resolves the Supabase `research` channel and immediately pins the
+  returned Standard-ABI exact model and Surface identities. The checked-in
+  local Standard composition remains visible in `/dev` as a development
+  diagnostic, not as an implicit fallback for the Lab.
 - Research-channel inspection fails closed when its registry is unavailable;
   it never presents the bundled default model as a research-channel result.
 - It uses the same Workbench and Worker architecture as ordinary Sessions.
@@ -322,10 +329,9 @@ enforces exact-definition append-only growth and channel CAS. Service-role RPCs
 register immutable rows, advance lifecycle monotonically,
 and move allowed channels. Browser RPCs can only read. Database triggers reject
 both Experiment publication and Article publication when any referenced
-Snapshot is not pinned to a `stable`, loadable exact model. After Surface
-cutover, the same gate also requires the Snapshot-pinned Surface release to be
-`stable`. Snapshot creation itself is allowed for `dev`, so research work
-remains saveable without becoming public.
+Snapshot is not pinned to a `stable`, loadable exact model and a `stable` exact
+Surface release. Snapshot creation itself is allowed for `dev`, so research
+work remains saveable without becoming public.
 
 ## 10. Binding invariants
 

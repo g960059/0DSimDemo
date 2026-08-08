@@ -264,7 +264,7 @@ export class StudioExperimentAuthoringApplicationV2 {
     assertCommandKeysV2(
       command,
       ["content"],
-      ["createdBy", "savedExperiment"],
+      ["createdBy", "savedExperiment", "surfaceReleaseId"],
       "CreateSnapshot",
     );
     if (
@@ -276,6 +276,16 @@ export class StudioExperimentAuthoringApplicationV2 {
       );
     }
     const candidateContent = command.content;
+    if (
+      (candidateContent.surfaceSeriesId === undefined)
+        !== (command.surfaceReleaseId === undefined)
+    ) {
+      throw new StudioExperimentAuthoringConflictErrorV2(
+        "CreateSnapshot requires an exact Surface release for Surface-pinned content "
+          + `(series=${candidateContent.surfaceSeriesId === undefined ? "absent" : "present"}, `
+          + `release=${command.surfaceReleaseId === undefined ? "absent" : "present"})`,
+      );
+    }
     if (command.savedExperiment !== undefined) {
       assertCommandKeysV2(
         command.savedExperiment,
@@ -325,6 +335,9 @@ export class StudioExperimentAuthoringApplicationV2 {
     const snapshot = validateExperimentSnapshotV2({
       schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
       snapshotId,
+      ...(command.surfaceReleaseId === undefined
+        ? {}
+        : { surfaceReleaseId: command.surfaceReleaseId }),
       content: candidateContent,
       createdAt: this.#clock.nowIso(),
       ...(command.createdBy === undefined
@@ -430,7 +443,22 @@ async function captureDesiredContentAtAcceptedBoundaryV2(input: Readonly<{
     experimentId: input.experimentId,
     correlation,
   });
-  return captureResult.content;
+  if (
+    captureResult.content.surfaceSeriesId !== undefined
+    && captureResult.content.surfaceSeriesId
+      !== input.desiredContent.surfaceSeriesId
+  ) {
+    throw new StudioExperimentCaptureMutationErrorV2("surfaceSeriesId");
+  }
+  // Surface identity is Studio-owned metadata. Exact-model capture adapters
+  // freeze numerical Scenario state and the authored presentation projection;
+  // they do not need to know which registry series supplied that projection.
+  return {
+    ...captureResult.content,
+    ...(input.desiredContent.surfaceSeriesId === undefined
+      ? {}
+      : { surfaceSeriesId: input.desiredContent.surfaceSeriesId }),
+  };
 }
 
 /**
@@ -470,6 +498,9 @@ function reuseMatchingScenarioCapturesV2(
   });
   return {
     modelId: desired.modelId,
+    ...(desired.surfaceSeriesId === undefined
+      ? {}
+      : { surfaceSeriesId: desired.surfaceSeriesId }),
     scenarios,
     surface: desired.surface,
   };
@@ -535,6 +566,9 @@ function assertCapturedDesiredContentV2(
   if (desired.modelId !== captured.modelId) {
     throw mutationError("modelId");
   }
+  if (desired.surfaceSeriesId !== captured.surfaceSeriesId) {
+    throw mutationError("surfaceSeriesId");
+  }
   if (!samePortableValueV2(desired.surface, captured.surface)) {
     throw mutationError("Surface");
   }
@@ -565,6 +599,9 @@ function assertSameAuthoredProjectionV2(
 ): void {
   if (saved.modelId !== candidate.modelId) {
     throw mutationError("modelId");
+  }
+  if (saved.surfaceSeriesId !== candidate.surfaceSeriesId) {
+    throw mutationError("surfaceSeriesId");
   }
   if (!samePortableValueV2(saved.surface, candidate.surface)) {
     throw mutationError("Surface");

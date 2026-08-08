@@ -44,8 +44,20 @@ export type StudioResolvedModelReleaseV1 = Readonly<{
   stage: StudioReleaseStageV1;
   ticket: StudioModelWorkerReleaseTicketV2;
   surfaceReleaseId?: string;
+  surfaceSeriesId?: string;
   surfaceStage?: StudioReleaseStageV1;
 }>;
+
+export type StudioModelSurfacePinV1 =
+  | Readonly<{
+      kind: "series";
+      surfaceSeriesId: string;
+    }>
+  | Readonly<{
+      kind: "release";
+      surfaceSeriesId: string;
+      surfaceReleaseId: string;
+    }>;
 
 export type StudioModelReleaseRpcResultV1 = Readonly<{
   data: unknown;
@@ -103,14 +115,22 @@ export class StudioSupabaseModelReleaseResolverV1 {
     this.#surfaceResolver = dependencies.surfaceResolver ?? null;
   }
 
-  resolveExactModel(modelId: string): Promise<StudioResolvedModelReleaseV1> {
-    const cached = this.#releasePromises.get(modelId);
+  resolveExactModel(
+    modelId: string,
+    surfacePin?: StudioModelSurfacePinV1,
+  ): Promise<StudioResolvedModelReleaseV1> {
+    const cacheKey = surfacePin === undefined
+      ? modelId
+      : surfacePin.kind === "series"
+        ? `${modelId}\u0000series\u0000${surfacePin.surfaceSeriesId}`
+        : `${modelId}\u0000release\u0000${surfacePin.surfaceReleaseId}`;
+    const cached = this.#releasePromises.get(cacheKey);
     if (cached !== undefined) return cached;
-    const pending = this.#readExactModel(modelId);
-    this.#releasePromises.set(modelId, pending);
+    const pending = this.#readExactModel(modelId, surfacePin);
+    this.#releasePromises.set(cacheKey, pending);
     void pending.catch(() => {
-      if (this.#releasePromises.get(modelId) === pending) {
-        this.#releasePromises.delete(modelId);
+      if (this.#releasePromises.get(cacheKey) === pending) {
+        this.#releasePromises.delete(cacheKey);
       }
     });
     return pending;
@@ -147,7 +167,10 @@ export class StudioSupabaseModelReleaseResolverV1 {
     return this.#ownReleaseRow(result.data[0], surfaceChannel);
   }
 
-  async #readExactModel(modelId: string): Promise<StudioResolvedModelReleaseV1> {
+  async #readExactModel(
+    modelId: string,
+    surfacePin?: StudioModelSurfacePinV1,
+  ): Promise<StudioResolvedModelReleaseV1> {
     const result = await this.#rpc.call(
       "get_model_release_v3",
       Object.freeze({ p_model_id: modelId }),
@@ -166,7 +189,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
       );
     }
     try {
-      return await this.#ownReleaseRow(result.data[0]);
+      return await this.#ownReleaseRow(result.data[0], undefined, surfacePin);
     } catch (error) {
       throw new StudioExactModelUnavailableErrorV1(
         modelId,
@@ -179,6 +202,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
   async #ownReleaseRow(
     value: unknown,
     requestedSurfaceChannel?: StudioReleaseChannelV1,
+    surfacePin?: StudioModelSurfacePinV1,
   ): Promise<StudioResolvedModelReleaseV1> {
     if (value === null || typeof value !== "object" || Array.isArray(value)) {
       throw new Error("Exact model registry returned an invalid row");
@@ -208,12 +232,27 @@ export class StudioSupabaseModelReleaseResolverV1 {
       if (this.#surfaceResolver === null) {
         throw new Error("Standard exact model requires the Model Surface registry");
       }
-      const surfaceChannel = requestedSurfaceChannel
-        ?? (row.stage === "dev" ? "research" : "default");
-      const surface = await this.#surfaceResolver.resolveChannelManifest(
-        surfaceChannel,
-        kernel.modelFamilyId,
-      );
+      const surface = surfacePin?.kind === "release"
+        ? await this.#surfaceResolver.resolveExactSurfaceManifest(
+            surfacePin.surfaceReleaseId,
+            kernel.modelFamilyId,
+          )
+        : surfacePin?.kind === "series"
+          ? await this.#surfaceResolver.resolveLatestSeriesManifest(
+              surfacePin.surfaceSeriesId,
+              kernel.modelFamilyId,
+            )
+          : await this.#surfaceResolver.resolveChannelManifest(
+              requestedSurfaceChannel
+                ?? (row.stage === "dev" ? "research" : "default"),
+              kernel.modelFamilyId,
+            );
+      if (
+        surfacePin !== undefined
+        && surface.manifest.surfaceSeriesId !== surfacePin.surfaceSeriesId
+      ) {
+        throw new Error("Pinned Model Surface belongs to another series");
+      }
       const composed = composeStandardModelContractV1(
         kernel,
         surface.manifest,
@@ -233,6 +272,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
         stage: row.stage,
         ticket,
         surfaceReleaseId: composed.surface.surfaceReleaseId,
+        surfaceSeriesId: surface.manifest.surfaceSeriesId,
         surfaceStage: surface.stage,
       });
     }

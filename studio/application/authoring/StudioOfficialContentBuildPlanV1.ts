@@ -6,6 +6,7 @@ import type {
   ModelSurfaceReleaseManifestV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
+  assertModelSurfaceReleaseManifestV1,
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import type {
@@ -31,6 +32,7 @@ import type {
 export type StudioOfficialExperimentBuildPlanV1 = Readonly<{
   recipe: OfficialExperimentRecipeV1;
   modelId: string;
+  surfaceSeriesId: string;
   surfaceReleaseId: string;
   assertionIds: readonly string[];
 }>;
@@ -56,9 +58,11 @@ export function prepareStudioOfficialExperimentBuildPlanV1(input: Readonly<{
   studioCapabilities?: readonly string[];
 }>): StudioOfficialExperimentBuildPlanV1 {
   const recipe = validateOfficialExperimentRecipeV1(input.recipe);
+  assertModelSurfaceReleaseManifestV1(input.surfaceRelease);
+  const surfaceRelease = input.surfaceRelease;
   const composed = composeStandardModelContractV1(
     input.kernel,
-    input.surfaceRelease,
+    surfaceRelease,
     input.studioCapabilities ?? Object.freeze([]),
   );
   if (recipe.modelFamilyId !== composed.contract.modelFamilyId) {
@@ -73,6 +77,7 @@ export function prepareStudioOfficialExperimentBuildPlanV1(input: Readonly<{
   // fixture only after this dependency gate succeeds.
   validateExperimentDesiredContentForModelV2({
     modelId: composed.contract.modelId,
+    surfaceSeriesId: surfaceRelease.surfaceSeriesId,
     scenarios: recipe.scenarios.map((scenario) => ({
       scenarioId: scenario.scenarioId,
       label: scenario.label,
@@ -116,6 +121,7 @@ export function prepareStudioOfficialExperimentBuildPlanV1(input: Readonly<{
   return Object.freeze({
     recipe,
     modelId: composed.contract.modelId,
+    surfaceSeriesId: surfaceRelease.surfaceSeriesId,
     surfaceReleaseId: composed.surface.surfaceReleaseId,
     assertionIds: Object.freeze(assertions.map(({ assertionId }) => assertionId)),
   });

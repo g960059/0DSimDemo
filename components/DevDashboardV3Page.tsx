@@ -24,9 +24,11 @@ import {
 } from "@/studio/application/dev/StudioDevAccessV1";
 import {
   loadStudioDefaultClientCompositionV2,
+  loadStudioExperimentClientCompositionV2,
   loadStudioLocalStandardModelLabClientCompositionV1,
   loadStudioModelChannelClientCompositionV2,
   loadStudioModelClientCompositionV2,
+  loadStudioSnapshotClientCompositionV2,
   invalidateStudioClientCompositionCachesV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
@@ -46,6 +48,7 @@ import {
 type DevExperimentItemV3 = Readonly<{
   experimentId: string;
   modelId: string;
+  surfaceSeriesId?: string;
   title: string;
   scenarioCount: number;
   version: number;
@@ -64,6 +67,8 @@ type DevArticleItemV3 = Readonly<{
 type DevSnapshotItemV3 = Readonly<{
   snapshotId: string;
   modelId: string;
+  surfaceSeriesId?: string;
+  surfaceReleaseId?: string;
   title: string;
   scenarioCount: number;
   paneCount: number;
@@ -82,6 +87,7 @@ export type DevModelCandidateV3 = Readonly<{
   stage: StudioReleaseStageV1 | null;
   surfaceReleaseId: string | null;
   source: DevModelSourceV3;
+  resolutionKey?: string;
   available: boolean;
 }>;
 
@@ -128,16 +134,17 @@ export function mergeDevModelCandidatesV3(
   const byModelId = new Map<string, {
     modelId: string;
     displayName: string;
-    resolutions: Map<DevModelSourceV3, DevModelResolutionV3>;
+    resolutions: Map<string, DevModelResolutionV3>;
     available: boolean;
   }>();
   for (const candidate of candidates) {
+    const resolutionKey = candidate.resolutionKey ?? candidate.source;
     const existing = byModelId.get(candidate.modelId);
     if (existing === undefined) {
       byModelId.set(candidate.modelId, {
         modelId: candidate.modelId,
         displayName: candidate.displayName,
-        resolutions: new Map([[candidate.source, Object.freeze({
+        resolutions: new Map([[resolutionKey, Object.freeze({
           source: candidate.source,
           stage: candidate.stage,
           surfaceReleaseId: candidate.surfaceReleaseId,
@@ -147,7 +154,7 @@ export function mergeDevModelCandidatesV3(
       });
       continue;
     }
-    existing.resolutions.set(candidate.source, Object.freeze({
+    existing.resolutions.set(resolutionKey, Object.freeze({
       source: candidate.source,
       stage: candidate.stage,
       surfaceReleaseId: candidate.surfaceReleaseId,
@@ -161,10 +168,12 @@ export function mergeDevModelCandidatesV3(
   const merged = [...byModelId.values()].map((item) => Object.freeze({
     modelId: item.modelId,
     displayName: item.displayName,
-    resolutions: Object.freeze(MODEL_SOURCE_ORDER_V3.flatMap((source) => {
-      const resolution = item.resolutions.get(source);
-      return resolution === undefined ? [] : [resolution];
-    })),
+    resolutions: Object.freeze([...item.resolutions.values()].sort(
+      (left, right) => MODEL_SOURCE_ORDER_V3.indexOf(left.source)
+        - MODEL_SOURCE_ORDER_V3.indexOf(right.source)
+        || (left.surfaceReleaseId ?? "")
+          .localeCompare(right.surfaceReleaseId ?? ""),
+    )),
     available: item.available,
   })).sort((left, right) => {
     const leftRank = Math.min(...left.resolutions.map(({ source }) =>
@@ -386,9 +395,11 @@ export function DevDashboardV3Page() {
                       </span>
                     </div>
                     <div className="mt-2 grid gap-1.5">
-                      {model.resolutions.map((resolution) => (
+                      {model.resolutions.map((resolution, resolutionIndex) => (
                         <div
-                          key={resolution.source}
+                          key={`${resolution.source}-${
+                            resolution.surfaceReleaseId ?? resolutionIndex
+                          }`}
                           className="flex min-w-0 flex-wrap items-center gap-1.5"
                         >
                           <span className="rounded-md bg-wb-hover px-1.5 py-0.5 text-[10px] text-wb-muted">
@@ -513,6 +524,9 @@ async function loadDevDashboardV3(input: Readonly<{
       return Object.freeze({
         experimentId: experiment.experimentId,
         modelId: experiment.content.modelId,
+        ...(experiment.content.surfaceSeriesId === undefined
+          ? {}
+          : { surfaceSeriesId: experiment.content.surfaceSeriesId }),
         title: record.title,
         scenarioCount: experiment.content.scenarios.length,
         version: experiment.version,
@@ -530,6 +544,12 @@ async function loadDevDashboardV3(input: Readonly<{
     snapshots = input.store.listSnapshots().map((snapshot) => Object.freeze({
       snapshotId: snapshot.snapshotId,
       modelId: snapshot.content.modelId,
+      ...(snapshot.content.surfaceSeriesId === undefined
+        ? {}
+        : { surfaceSeriesId: snapshot.content.surfaceSeriesId }),
+      ...(snapshot.surfaceReleaseId === undefined
+        ? {}
+        : { surfaceReleaseId: snapshot.surfaceReleaseId }),
       title: snapshot.content.scenarios[0]?.label ?? input.untitled,
       scenarioCount: snapshot.content.scenarios.length,
       paneCount: paneCountV3(snapshot.content.surface),
@@ -544,6 +564,9 @@ async function loadDevDashboardV3(input: Readonly<{
     experiments = experimentPage.items.map((item) => Object.freeze({
       experimentId: item.experimentId,
       modelId: item.modelId,
+      ...(item.surfaceSeriesId === undefined
+        ? {}
+        : { surfaceSeriesId: item.surfaceSeriesId }),
       title: item.title,
       scenarioCount: item.scenarioCount,
       version: item.version,
@@ -560,6 +583,12 @@ async function loadDevDashboardV3(input: Readonly<{
     snapshots = snapshotPage.items.map((item) => Object.freeze({
       snapshotId: item.snapshotId,
       modelId: item.modelId,
+      ...(item.surfaceSeriesId === undefined
+        ? {}
+        : { surfaceSeriesId: item.surfaceSeriesId }),
+      ...(item.surfaceReleaseId === undefined
+        ? {}
+        : { surfaceReleaseId: item.surfaceReleaseId }),
       title: item.title,
       scenarioCount: item.scenarioCount,
       paneCount: item.paneCount,
@@ -570,11 +599,18 @@ async function loadDevDashboardV3(input: Readonly<{
   experiments = sortByNewestV3(experiments, (item) => item.updatedAt);
   articles = sortByNewestV3(articles, (item) => item.updatedAt);
   snapshots = sortByNewestV3(snapshots, (item) => item.createdAt);
-  const referencedModelIds = Object.freeze([...new Set([
-    ...experiments.map((item) => item.modelId),
-    ...snapshots.map((item) => item.modelId),
-  ])]);
-  const models = await loadDevModelsV3(referencedModelIds);
+  const referencedModels = Object.freeze([
+    ...experiments.map((item) => Object.freeze({
+      modelId: item.modelId,
+      surfaceSeriesId: item.surfaceSeriesId,
+    })),
+    ...snapshots.map((item) => Object.freeze({
+      modelId: item.modelId,
+      surfaceSeriesId: item.surfaceSeriesId,
+      surfaceReleaseId: item.surfaceReleaseId,
+    })),
+  ]);
+  const models = await loadDevModelsV3(referencedModels);
   return Object.freeze({
     kind: "ready",
     storage: input.remoteRepository === null ? "browser" : "supabase",
@@ -586,7 +622,11 @@ async function loadDevDashboardV3(input: Readonly<{
 }
 
 async function loadDevModelsV3(
-  referencedModelIds: readonly string[],
+  referencedModels: readonly Readonly<{
+    modelId: string;
+    surfaceSeriesId?: string;
+    surfaceReleaseId?: string;
+  }>[],
 ): Promise<readonly DevModelItemV3[]> {
   const channelProbes: readonly Readonly<{
     source: Exclude<DevModelSourceV3, "referenced">;
@@ -609,29 +649,45 @@ async function loadDevModelsV3(
     channelProbes.map(({ promise }) => promise),
   );
   const candidates: DevModelCandidateV3[] = [];
-  const resolvedByModelId = new Map<string, StudioClientCompositionV2>();
   settledChannels.forEach((result, index) => {
     if (result.status !== "fulfilled") return;
     const composition = result.value;
-    resolvedByModelId.set(composition.defaultModelId, composition);
     candidates.push(modelCandidateV3(
       composition,
       channelProbes[index]!.source,
     ));
   });
-  const referenced = await Promise.all(referencedModelIds.map(async (modelId) => {
-    const known = resolvedByModelId.get(modelId);
-    if (known !== undefined) return modelCandidateV3(known, "referenced");
+  const distinctReferences = [...new Map(referencedModels.map((reference) => [
+    `${reference.modelId}\u0000${reference.surfaceSeriesId ?? ""}\u0000${
+      reference.surfaceReleaseId ?? ""
+    }`,
+    reference,
+  ])).entries()];
+  const referenced = await Promise.all(distinctReferences.map(async (
+    [resolutionKey, reference],
+  ) => {
     try {
-      const composition = await loadStudioModelClientCompositionV2(modelId);
-      return modelCandidateV3(composition, "referenced");
+      const composition = reference.surfaceReleaseId !== undefined
+        ? await loadStudioSnapshotClientCompositionV2(
+            reference.modelId,
+            reference.surfaceSeriesId,
+            reference.surfaceReleaseId,
+          )
+        : reference.surfaceSeriesId !== undefined
+          ? await loadStudioExperimentClientCompositionV2(
+              reference.modelId,
+              reference.surfaceSeriesId,
+            )
+          : await loadStudioModelClientCompositionV2(reference.modelId);
+      return modelCandidateV3(composition, "referenced", resolutionKey);
     } catch {
       return Object.freeze({
-        modelId,
-        displayName: modelId,
+        modelId: reference.modelId,
+        displayName: reference.modelId,
         stage: null,
-        surfaceReleaseId: null,
+        surfaceReleaseId: reference.surfaceReleaseId ?? null,
         source: "referenced" as const,
+        resolutionKey,
         available: false,
       });
     }
@@ -643,6 +699,7 @@ async function loadDevModelsV3(
 function modelCandidateV3(
   composition: StudioClientCompositionV2,
   source: DevModelSourceV3,
+  resolutionKey?: string,
 ): DevModelCandidateV3 {
   return Object.freeze({
     modelId: composition.defaultModelId,
@@ -650,6 +707,7 @@ function modelCandidateV3(
     stage: composition.releaseStage,
     surfaceReleaseId: composition.surfaceReleaseId ?? null,
     source,
+    ...(resolutionKey === undefined ? {} : { resolutionKey }),
     available: true,
   });
 }

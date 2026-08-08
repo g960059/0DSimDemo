@@ -88,9 +88,9 @@ import {
 import { isLocale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
-  loadStudioLocalStandardModelLabClientCompositionV1,
+  loadStudioExperimentClientCompositionV2,
   loadStudioModelChannelClientCompositionV2,
-  loadStudioModelClientCompositionV2,
+  loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import {
@@ -490,6 +490,8 @@ const WorkbenchV3Session = ({
   const workerReleaseTicketRef = React.useRef<
     StudioModelWorkerReleaseTicketV2 | undefined
   >(undefined);
+  const surfaceSeriesIdRef = React.useRef<string | undefined>(undefined);
+  const surfaceReleaseIdRef = React.useRef<string | undefined>(undefined);
   const translationRef = React.useRef(t);
   const analysisByKeyRef = React.useRef<
     Readonly<Record<string, StudioSimulationAnalysisV2>>
@@ -733,13 +735,20 @@ const WorkbenchV3Session = ({
       const initialContent = storedExperiment?.content ?? sourceSnapshot?.content;
       let composition: StudioClientCompositionV2;
       try {
-        composition = initialContent === undefined
-          ? modelLab
-            ? await loadStudioLocalStandardModelLabClientCompositionV1()
+        composition = storedExperiment !== null
+          ? await loadStudioExperimentClientCompositionV2(
+              storedExperiment.content.modelId,
+              storedExperiment.content.surfaceSeriesId,
+            )
+          : sourceSnapshot !== null
+            ? await loadStudioSnapshotClientCompositionV2(
+                sourceSnapshot.content.modelId,
+                sourceSnapshot.content.surfaceSeriesId,
+                sourceSnapshot.surfaceReleaseId,
+              )
             : launchChannel === "default"
             ? await loadStudioDefaultClientCompositionV2()
             : await loadStudioModelChannelClientCompositionV2(launchChannel)
-          : await loadStudioModelClientCompositionV2(initialContent.modelId);
       } catch (error) {
         if (
           initialContent !== undefined
@@ -758,6 +767,8 @@ const WorkbenchV3Session = ({
       if (cancelled) return;
       setReleaseStage(composition.releaseStage);
       workerReleaseTicketRef.current = composition.workerReleaseTicket;
+      surfaceSeriesIdRef.current = composition.surfaceSeriesId;
+      surfaceReleaseIdRef.current = composition.surfaceReleaseId;
       const record = storedExperiment === null
         ? null
         : remoteExperimentResource === null
@@ -838,6 +849,8 @@ const WorkbenchV3Session = ({
         snapshot: createWorkbenchBriefingSnapshotV3({
           defaultTitle: experimentTitleRef.current,
           modelId: composition.defaultModelId,
+          surfaceSeriesId: composition.surfaceSeriesId,
+          surfaceReleaseId: composition.surfaceReleaseId,
           scenarios: candidateScenarioDescriptors,
           surface: nextSurface,
         }),
@@ -1856,6 +1869,9 @@ const WorkbenchV3Session = ({
       const currentExperiment = experimentRef.current;
       const submittedCandidateContent = {
         modelId: frame.modelId,
+        ...(surfaceSeriesIdRef.current === undefined
+          ? {}
+          : { surfaceSeriesId: surfaceSeriesIdRef.current }),
         scenarios: captures.scenarios,
         surface: submittedSurface,
       };
@@ -1890,6 +1906,9 @@ const WorkbenchV3Session = ({
         );
         const assembled = await coordinator.saveExperiment({
           modelId: frame.modelId,
+          ...(surfaceSeriesIdRef.current === undefined
+            ? {}
+            : { surfaceSeriesId: surfaceSeriesIdRef.current }),
           ...(workerReleaseTicketRef.current === undefined
             ? {}
             : { releaseTicket: workerReleaseTicketRef.current }),
@@ -2113,6 +2132,12 @@ const WorkbenchV3Session = ({
       );
       const authoringInput = {
         modelId: frame.modelId,
+        ...(surfaceSeriesIdRef.current === undefined
+          ? {}
+          : { surfaceSeriesId: surfaceSeriesIdRef.current }),
+        ...(surfaceReleaseIdRef.current === undefined
+          ? {}
+          : { surfaceReleaseId: surfaceReleaseIdRef.current }),
         ...(workerReleaseTicketRef.current === undefined
           ? {}
           : { releaseTicket: workerReleaseTicketRef.current }),
@@ -2151,6 +2176,9 @@ const WorkbenchV3Session = ({
             created,
             {
               modelId: authoringInput.modelId,
+              ...(authoringInput.surfaceSeriesId === undefined
+                ? {}
+                : { surfaceSeriesId: authoringInput.surfaceSeriesId }),
               scenarios: authoringInput.scenarios,
               surface: authoringInput.surface,
             },
@@ -2385,6 +2413,8 @@ const WorkbenchV3Session = ({
     const capture = createWorkbenchBriefingSnapshotV3({
       defaultTitle: experimentTitleRef.current,
       modelId: contract.modelId,
+      surfaceSeriesId: surfaceSeriesIdRef.current,
+      surfaceReleaseId: surfaceReleaseIdRef.current,
       scenarios: currentScenarios,
       surface: currentSurface,
     });
@@ -3245,6 +3275,8 @@ export function createWorkbenchBriefingSnapshotV3(
   input: Readonly<{
     defaultTitle?: string;
     modelId: string;
+    surfaceSeriesId?: string;
+    surfaceReleaseId?: string;
     scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
     surface: ExperimentSurfaceV2;
   }>,
@@ -3258,6 +3290,9 @@ export function createWorkbenchBriefingSnapshotV3(
   );
   const content = Object.freeze({
     modelId: input.modelId,
+    ...(input.surfaceSeriesId === undefined
+      ? {}
+      : { surfaceSeriesId: input.surfaceSeriesId }),
     scenarios: Object.freeze(
       input.scenarios.map((scenario) =>
         Object.freeze({
@@ -3280,6 +3315,9 @@ export function createWorkbenchBriefingSnapshotV3(
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
     snapshotId: "snapshot/workbench-briefing-composer",
     createdAt: "1970-01-01T00:00:00.000Z",
+    ...(input.surfaceReleaseId === undefined
+      ? {}
+      : { surfaceReleaseId: input.surfaceReleaseId }),
     content,
   });
 }

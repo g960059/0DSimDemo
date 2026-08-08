@@ -42,6 +42,7 @@ export type ExperimentDesiredScenarioV2 = Readonly<{
 
 export type ExperimentDesiredContentV2 = Readonly<{
   modelId: ModelIdV2;
+  surfaceSeriesId?: string;
   scenarios: readonly ExperimentDesiredScenarioV2[];
   surface: ExperimentSurfaceV2;
 }>;
@@ -86,6 +87,8 @@ export type CreateExperimentSnapshotCommandV2 =
   Readonly<{
     /** Complete frozen candidate captured from an Experiment Session. */
     content: ExperimentContentV2;
+    /** Exact Surface release resolved before the capture boundary. */
+    surfaceReleaseId?: string;
     /**
      * Present only when the workflow requires a clean, explicitly saved
      * Experiment head (currently standalone Publication). It constrains the

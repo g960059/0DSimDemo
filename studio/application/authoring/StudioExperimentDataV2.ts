@@ -123,7 +123,7 @@ export function validateExperimentSnapshotV2(
   assertRequiredOptionalKeysV2(
     snapshot,
     ["schemaId", "snapshotId", "content", "createdAt"],
-    ["createdBy"],
+    ["createdBy", "surfaceReleaseId"],
     "$.snapshot",
   );
   if (snapshot.schemaId !== STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID) {
@@ -131,6 +131,21 @@ export function validateExperimentSnapshotV2(
   }
   requiredPortableIdV2(snapshot.snapshotId, "$.snapshot.snapshotId");
   assertExperimentContentV2(snapshot.content, "$.snapshot.content");
+  if (snapshot.surfaceReleaseId !== undefined) {
+    requiredPortableIdV2(
+      snapshot.surfaceReleaseId,
+      "$.snapshot.surfaceReleaseId",
+    );
+  }
+  if (
+    (snapshot.content.surfaceSeriesId === undefined)
+      !== (snapshot.surfaceReleaseId === undefined)
+  ) {
+    throw validationErrorV2(
+      "$.snapshot.surfaceReleaseId",
+      "must be present exactly when content.surfaceSeriesId is present",
+    );
+  }
   isoTimestampV2(snapshot.createdAt, "$.snapshot.createdAt");
   if (hasOwnV2(snapshot, "createdBy")) {
     requiredPortableIdV2(snapshot.createdBy, "$.snapshot.createdBy");
@@ -979,8 +994,19 @@ function assertExperimentContentV2(
   content: ExperimentContentV2,
   path: string,
 ): void {
-  assertExactKeysV2(content, ["modelId", "scenarios", "surface"], path);
+  assertRequiredOptionalKeysV2(
+    content,
+    ["modelId", "scenarios", "surface"],
+    ["surfaceSeriesId"],
+    path,
+  );
   requiredPortableIdV2(content.modelId, `${path}.modelId`);
+  if (content.surfaceSeriesId !== undefined) {
+    requiredPortableIdV2(
+      content.surfaceSeriesId,
+      `${path}.surfaceSeriesId`,
+    );
+  }
   if (!Array.isArray(content.scenarios) || content.scenarios.length === 0) {
     throw validationErrorV2(`${path}.scenarios`, "must be a nonempty array");
   }
@@ -1005,8 +1031,19 @@ function assertExperimentDesiredContentV2(
   desiredContent: ExperimentDesiredContentV2,
   path: string,
 ): void {
-  assertExactKeysV2(desiredContent, ["modelId", "scenarios", "surface"], path);
+  assertRequiredOptionalKeysV2(
+    desiredContent,
+    ["modelId", "scenarios", "surface"],
+    ["surfaceSeriesId"],
+    path,
+  );
   requiredPortableIdV2(desiredContent.modelId, `${path}.modelId`);
+  if (desiredContent.surfaceSeriesId !== undefined) {
+    requiredPortableIdV2(
+      desiredContent.surfaceSeriesId,
+      `${path}.surfaceSeriesId`,
+    );
+  }
   if (
     !Array.isArray(desiredContent.scenarios) ||
     desiredContent.scenarios.length === 0

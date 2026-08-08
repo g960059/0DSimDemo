@@ -8,6 +8,12 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
+import {
+  assertStudioReleaseChannelV1,
+  assertStudioReleaseStageV1,
+  type StudioReleaseChannelV1,
+  type StudioReleaseStageV1,
+} from "@/studio/contracts/v2/modelSurface";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -25,7 +31,7 @@ const lockPath = path.join(
 await main();
 
 async function main(): Promise<void> {
-  const projectRef = projectRefArgument(process.argv.slice(2));
+  const options = parsePublishArgumentsV3(process.argv.slice(2));
   assertReleaseFilesCommitted();
 
   const exactRelease = createCircleHeartExactModelReleaseV1();
@@ -36,8 +42,8 @@ async function main(): Promise<void> {
     throw new Error("Registry lock and exact manifest modelId differ");
   }
 
-  const secret = projectServiceRoleJwt(projectRef);
-  const baseUrl = `https://${projectRef}.supabase.co`;
+  const secret = projectServiceRoleJwt(options.projectRef);
+  const baseUrl = `https://${options.projectRef}.supabase.co`;
   const objectName = `${exactRelease.manifest.modelId}/main-wire-integrated-standard-v1.mjs`;
   const artifactRegistryPath = `model-releases/${objectName}`;
   await uploadImmutableArtifact({
@@ -66,32 +72,80 @@ async function main(): Promise<void> {
       MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
     p_analysis_profile_id: "main-wire-integrated-standard-v1",
   });
-  // Registration is always dev. This specialized command publishes the
-  // already-admitted production default, so lifecycle promotion is explicit
-  // and precedes the channel move. Generic research releases use their own
-  // registry command and must not acquire stable status accidentally.
-  await rpc(baseUrl, secret, "set_model_release_stage_v1", {
-    p_model_id: exactRelease.manifest.modelId,
-    p_stage: "stable",
-  });
-  await rpc(baseUrl, secret, "set_model_release_channel_v1", {
-    p_channel: "default",
-    p_model_id: exactRelease.manifest.modelId,
-  });
+  if (options.stage === "stable") {
+    await rpc(baseUrl, secret, "set_model_release_stage_v1", {
+      p_model_id: exactRelease.manifest.modelId,
+      p_stage: options.stage,
+    });
+  }
+  if (options.channel !== null) {
+    await rpc(baseUrl, secret, "set_model_release_channel_v1", {
+      p_channel: options.channel,
+      p_model_id: exactRelease.manifest.modelId,
+    });
+  }
   process.stdout.write(
-    `Published Standard exact model ${exactRelease.manifest.modelId} to ${projectRef}\n`,
+    `Published Standard exact model ${exactRelease.manifest.modelId} to `
+      + `${options.projectRef} as ${options.stage}${options.channel === null
+        ? ""
+        : ` on ${options.channel}`}\n`,
   );
 }
 
-function projectRefArgument(args: readonly string[]): string {
-  if (
-    args.length !== 2
-    || args[0] !== "--project-ref"
-    || !/^[a-z0-9]{20}$/.test(args[1] ?? "")
-  ) {
-    throw new Error("Usage: --project-ref <20-character Supabase project ref>");
+type PublishOptionsV3 = Readonly<{
+  projectRef: string;
+  stage: Exclude<StudioReleaseStageV1, "retired">;
+  channel: StudioReleaseChannelV1 | null;
+}>;
+
+export function parseMainWireModelPublishArgumentsV3(
+  args: readonly string[],
+): PublishOptionsV3 {
+  const values = new Map<string, string>();
+  for (let index = 0; index < args.length; index += 2) {
+    const key = args[index];
+    const value = args[index + 1];
+    if (
+      key === undefined
+      || value === undefined
+      || !["--project-ref", "--stage", "--channel"].includes(key)
+      || values.has(key)
+    ) {
+      throw modelPublishUsageErrorV3();
+    }
+    values.set(key, value);
   }
-  return args[1]!;
+  const projectRef = values.get("--project-ref");
+  const stage = values.get("--stage");
+  if (projectRef === undefined || !/^[a-z0-9]{20}$/.test(projectRef)) {
+    throw modelPublishUsageErrorV3();
+  }
+  if (stage === undefined) throw modelPublishUsageErrorV3();
+  assertStudioReleaseStageV1(stage, "--stage");
+  if (stage === "retired") {
+    throw new Error("A new exact model cannot be published directly as retired");
+  }
+  const channelValue = values.get("--channel");
+  let channel: StudioReleaseChannelV1 | null = null;
+  if (channelValue !== undefined) {
+    assertStudioReleaseChannelV1(channelValue, "--channel");
+    channel = channelValue;
+  }
+  if (channel === "default" && stage !== "stable") {
+    throw new Error("The default channel requires an explicit stable release");
+  }
+  return Object.freeze({ projectRef, stage, channel });
+}
+
+function parsePublishArgumentsV3(args: readonly string[]): PublishOptionsV3 {
+  return parseMainWireModelPublishArgumentsV3(args);
+}
+
+function modelPublishUsageErrorV3(): Error {
+  return new Error(
+    "Usage: --project-ref <20-character Supabase project ref> "
+      + "--stage <dev|stable> [--channel <default|research>]",
+  );
 }
 
 function assertReleaseFilesCommitted(): void {
