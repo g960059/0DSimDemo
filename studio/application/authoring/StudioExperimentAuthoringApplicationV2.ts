@@ -281,7 +281,9 @@ export class StudioExperimentAuthoringApplicationV2 {
         !== (command.surfaceReleaseId === undefined)
     ) {
       throw new StudioExperimentAuthoringConflictErrorV2(
-        "CreateSnapshot requires an exact Surface release for Surface-pinned content",
+        "CreateSnapshot requires an exact Surface release for Surface-pinned content "
+          + `(series=${candidateContent.surfaceSeriesId === undefined ? "absent" : "present"}, `
+          + `release=${command.surfaceReleaseId === undefined ? "absent" : "present"})`,
       );
     }
     if (command.savedExperiment !== undefined) {

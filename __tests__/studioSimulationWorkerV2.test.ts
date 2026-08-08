@@ -971,6 +971,7 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
+      surfaceSeriesId: "surface-series/main-wire-standard",
       surface: surfaceV2(),
       expectedVersion: null,
       expectedInputEpoch: 0,
@@ -978,10 +979,22 @@ describe("Studio simulation worker V2 runtime", () => {
       expectedAcceptedTimeSec: 0,
     }));
     await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      requestId: 2,
+      status: "ok",
+      kind: "experiment-saved",
+      experiment: {
+        content: {
+          surfaceSeriesId: "surface-series/main-wire-standard",
+        },
+      },
+    });
     harness.runtime.enqueue(createStudioSimulationCreateSnapshotRequestV2(3, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioIds: ["scenario/baseline"],
+      surfaceSeriesId: "surface-series/main-wire-standard",
+      surfaceReleaseId: "surface-release/main-wire-standard-r1",
       surface: surfaceV2(),
       snapshotSource: "saved-experiment",
       expectedInputEpoch: 0,
@@ -990,7 +1003,6 @@ describe("Studio simulation worker V2 runtime", () => {
     }));
     await harness.runtime.whenIdle();
 
-    expect(admitFrozenCandidate).toHaveBeenCalledTimes(1);
     const response = harness.port.messages.at(-1);
     expect(response).toMatchObject({
       requestId: 3,
@@ -998,7 +1010,9 @@ describe("Studio simulation worker V2 runtime", () => {
       kind: "snapshot-created",
       snapshot: {
         snapshotId: "snapshot/worker-test/1",
+        surfaceReleaseId: "surface-release/main-wire-standard-r1",
         content: {
+          surfaceSeriesId: "surface-series/main-wire-standard",
           scenarios: [{
             capture: {
               checkpoint: {
@@ -1011,6 +1025,7 @@ describe("Studio simulation worker V2 runtime", () => {
         createdAt: "2026-08-01T00:00:00.000Z",
       },
     });
+    expect(admitFrozenCandidate).toHaveBeenCalledTimes(1);
     expect(response).not.toHaveProperty("experiment");
     expect(JSON.stringify(response)).not.toMatch(
       /admission|qualification|numericalHealth|certification|gateResult/,

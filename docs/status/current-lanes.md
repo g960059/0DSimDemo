@@ -27,11 +27,19 @@ Snapshot admission, Article placement, and Reader-to-Experiment-Session path.
 No narrower infrastructure PR is complete unless it removes a named blocker
 from that path.
 
-The local numerical slice is now executable: the Standard exact model,
-compatible Surface, four-Scenario recipe runner, three model-owned assertions,
-common Snapshot admission, and the bidirectional fixed-TBV ESPVR/EDPVR analysis
-path pass together. The remaining acceptance work is stable registry
-publication, Article/Reader vertical QA, and the supervised learner pilot.
+The Standard-ABI cutover now runs through the product boundary. The Standard
+exact model and its first Surface are registered in the remote `dev` / `research`
+lane; mutable Experiments follow their Surface series, immutable Snapshots pin
+the exact Surface release, and publication checks both release stages. A real
+browser Article handoff has captured a Surface-pinned Snapshot and saved the
+first development draft for the PV-loop pilot. The numerical slice, four-
+Scenario recipe runner, three model-owned assertions, common Snapshot
+admission, and bidirectional fixed-TBV ESPVR/EDPVR path pass together.
+
+The remaining acceptance work is deliberate promotion of the exact model and
+Surface to `stable` / `default`, final public Article/Reader QA, and the
+supervised learner pilot. Development content is evidence for that promotion;
+it is not itself a stable publication.
 
 Development QA uses one compact `/dev` inventory for Experiments, Articles,
 Snapshots, and active/referenced models. `/dev/model-lab` remains the only

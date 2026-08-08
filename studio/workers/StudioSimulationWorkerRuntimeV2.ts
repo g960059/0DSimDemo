@@ -1774,10 +1774,30 @@ async function captureFirstExperimentContentV2(input: Readonly<{
     experimentId: input.experimentId,
     correlation: input.correlation,
   });
-  const content = validateExperimentContentForModelV2(
+  const capturedContent = validateExperimentContentForModelV2(
     result.content,
     input.runtime.contract,
   );
+  if (
+    capturedContent.surfaceSeriesId !== undefined
+    && capturedContent.surfaceSeriesId
+      !== input.desiredContent.surfaceSeriesId
+  ) {
+    throw new Error(
+      "Experiment capture changed the Studio-owned Surface series",
+    );
+  }
+  // Exact-model capture adapters own numerical state only. Reattach the
+  // Studio-owned mutable Surface-series pin after validating that an adapter
+  // did not try to substitute a different series. This mirrors the main
+  // authoring application boundary and keeps first Save / Snapshot assembly
+  // from silently degrading Standard-ABI content to the historical V2 shape.
+  const content = validateExperimentContentForModelV2({
+    ...capturedContent,
+    ...(input.desiredContent.surfaceSeriesId === undefined
+      ? {}
+      : { surfaceSeriesId: input.desiredContent.surfaceSeriesId }),
+  }, input.runtime.contract);
   assertCapturedDesiredContentAtBoundaryV2(
     input.desiredContent,
     content,
