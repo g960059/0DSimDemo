@@ -300,6 +300,12 @@ export type ExperimentSurfaceV2 = Readonly<{
 
 export type ExperimentContentV2 = Readonly<{
   modelId: ModelIdV2;
+  /**
+   * Mutable authoring follows additive releases within this immutable Surface
+   * series. Historical V2 packages may omit it during the compatibility
+   * window; every Standard-ABI Experiment must persist it.
+   */
+  surfaceSeriesId?: string;
   scenarios: readonly ExperimentScenarioV2[];
   surface: ExperimentSurfaceV2;
 }>;
@@ -330,6 +336,8 @@ export type ExperimentV2 = Readonly<{
 export type ExperimentSnapshotV2 = Readonly<{
   schemaId: typeof STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID;
   snapshotId: ExperimentSnapshotIdV2;
+  /** Exact authoring/analysis Surface sealed with this immutable capture. */
+  surfaceReleaseId?: string;
   content: ExperimentContentV2;
   createdAt: string;
   createdBy?: string;

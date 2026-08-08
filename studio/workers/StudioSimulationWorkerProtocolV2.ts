@@ -84,6 +84,7 @@ export type StudioSimulationWorkerSaveExperimentInputV2 = Readonly<{
   scenarioId: string;
   experimentId: string;
   surface: ExperimentSurfaceV2;
+  surfaceSeriesId?: string;
   expectedVersion: number | null;
 }>;
 
@@ -141,6 +142,8 @@ type StudioSimulationWorkerCreateSnapshotBaseInputV2 = Readonly<{
   runtimeSessionId: string;
   scenarioId: string;
   surface: ExperimentSurfaceV2;
+  surfaceSeriesId?: string;
+  surfaceReleaseId?: string;
 }>;
 
 export type StudioSimulationWorkerCreateSnapshotInputV2 =
@@ -201,6 +204,7 @@ export type StudioSimulationWorkerRequestV2 =
       scenarioId: string;
       experimentId: string;
       surface: ExperimentSurfaceV2;
+      surfaceSeriesId?: string;
       /** Complete Experiment Scenario identity set used to validate Surface refs. */
       scenarioIds: readonly string[];
       expectedVersion: number | null;
@@ -281,6 +285,8 @@ export type StudioSimulationWorkerRequestV2 =
       runtimeSessionId: string;
       scenarioId: string;
       surface: ExperimentSurfaceV2;
+      surfaceSeriesId?: string;
+      surfaceReleaseId?: string;
       /** Complete Scenario identity set used to validate Surface refs. */
       scenarioIds: readonly string[];
       snapshotSource: "saved-experiment" | "session";
@@ -501,7 +507,7 @@ export function createStudioSimulationSaveExperimentRequestV2(
     "runtimeSessionId",
     "scenarioId",
     "surface",
-  ], ["scenarioIds"], "$.saveExperiment");
+  ], ["scenarioIds", "surfaceSeriesId"], "$.saveExperiment");
   const scenarioIds = input.scenarioIds === undefined
     ? [input.scenarioId]
     : input.scenarioIds;
@@ -513,6 +519,9 @@ export function createStudioSimulationSaveExperimentRequestV2(
     scenarioId: input.scenarioId,
     experimentId: input.experimentId,
     surface: input.surface,
+    ...(input.surfaceSeriesId === undefined
+      ? {}
+      : { surfaceSeriesId: input.surfaceSeriesId }),
     scenarioIds,
     expectedVersion: input.expectedVersion,
     expectedInputEpoch: input.expectedInputEpoch,
@@ -680,7 +689,7 @@ export function createStudioSimulationCreateSnapshotRequestV2(
     "scenarioIds",
     "snapshotSource",
     "surface",
-  ], [], "$.createSnapshot");
+  ], ["surfaceSeriesId", "surfaceReleaseId"], "$.createSnapshot");
   return validateStudioSimulationWorkerRequestV2({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId,
@@ -689,6 +698,12 @@ export function createStudioSimulationCreateSnapshotRequestV2(
     scenarioId: input.scenarioId,
     scenarioIds: input.scenarioIds,
     surface: input.surface,
+    ...(input.surfaceSeriesId === undefined
+      ? {}
+      : { surfaceSeriesId: input.surfaceSeriesId }),
+    ...(input.surfaceReleaseId === undefined
+      ? {}
+      : { surfaceReleaseId: input.surfaceReleaseId }),
     snapshotSource: input.snapshotSource,
     expectedInputEpoch: input.expectedInputEpoch,
     expectedAcceptedRevision: input.expectedAcceptedRevision,
@@ -916,7 +931,7 @@ export function validateStudioSimulationWorkerRequestV2(
       "scenarioId",
       "scenarioIds",
       "surface",
-    ], [], "$.request");
+    ], ["surfaceSeriesId"], "$.request");
     const runtimeSessionId = validateStudioSimulationPortableIdV2(
       request.runtimeSessionId,
       "$.request.runtimeSessionId",
@@ -945,6 +960,14 @@ export function validateStudioSimulationWorkerRequestV2(
         scenarioIds,
         "$.request.surface",
       ),
+      ...(request.surfaceSeriesId === undefined
+        ? {}
+        : {
+            surfaceSeriesId: validateStudioSimulationPortableIdV2(
+              request.surfaceSeriesId,
+              "$.request.surfaceSeriesId",
+            ),
+          }),
       scenarioIds,
       expectedVersion: nullableNonnegativeSafeIntegerV2(
         request.expectedVersion,
@@ -1158,7 +1181,7 @@ export function validateStudioSimulationWorkerRequestV2(
       "scenarioIds",
       "snapshotSource",
       "surface",
-    ], [], "$.request");
+    ], ["surfaceSeriesId", "surfaceReleaseId"], "$.request");
     const runtimeSessionId = validateStudioSimulationPortableIdV2(
       request.runtimeSessionId,
       "$.request.runtimeSessionId",
@@ -1181,6 +1204,15 @@ export function validateStudioSimulationWorkerRequestV2(
       request.snapshotSource,
       "$.request.snapshotSource",
     );
+    if (
+      (request.surfaceSeriesId === undefined)
+      !== (request.surfaceReleaseId === undefined)
+    ) {
+      throw new Error(
+        "$.request.surfaceReleaseId must be present exactly when "
+          + "surfaceSeriesId is present",
+      );
+    }
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
@@ -1189,6 +1221,22 @@ export function validateStudioSimulationWorkerRequestV2(
       scenarioId,
       scenarioIds,
       surface,
+      ...(request.surfaceSeriesId === undefined
+        ? {}
+        : {
+            surfaceSeriesId: validateStudioSimulationPortableIdV2(
+              request.surfaceSeriesId,
+              "$.request.surfaceSeriesId",
+            ),
+          }),
+      ...(request.surfaceReleaseId === undefined
+        ? {}
+        : {
+            surfaceReleaseId: validateStudioSimulationPortableIdV2(
+              request.surfaceReleaseId,
+              "$.request.surfaceReleaseId",
+            ),
+          }),
       snapshotSource,
       expectedInputEpoch: nonnegativeSafeIntegerV2(
         request.expectedInputEpoch,

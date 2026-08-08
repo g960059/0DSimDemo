@@ -32,6 +32,43 @@ import type {
 import * as studioPublic from "@/studio";
 
 describe("Studio Experiment authoring V2", () => {
+  it("keeps Studio-owned Surface pins outside exact-model capture", async () => {
+    const { application } = harnessV2();
+    const surfaceSeriesId = "surface-series/main-wire-standard";
+    const surfaceReleaseId = "surface-release/main-wire-standard-r1";
+    const initial = {
+      ...contentV2(0, 0),
+      surfaceSeriesId,
+    };
+    await application.createExperiment({
+      experimentId: "experiment/main",
+      content: initial,
+    });
+    const desired = {
+      ...desiredContentV2(),
+      surfaceSeriesId,
+    };
+
+    const saved = await application.saveExperiment({
+      experimentId: "experiment/main",
+      expectedVersion: 0,
+      desiredContent: desired,
+      captureCorrelation: captureCorrelationV2(desired),
+    });
+    expect(saved.content.surfaceSeriesId).toBe(surfaceSeriesId);
+
+    const snapshot = await application.createSnapshot({
+      content: saved.content,
+      surfaceReleaseId,
+      savedExperiment: {
+        experimentId: saved.experimentId,
+        expectedVersion: saved.version,
+      },
+    });
+    expect(snapshot.surfaceReleaseId).toBe(surfaceReleaseId);
+    expect(snapshot.content.surfaceSeriesId).toBe(surfaceSeriesId);
+  });
+
   it("captures checkpoint-free Save intent at an accepted boundary", async () => {
     const { application } = harnessV2(undefined, {
       captureAcceptedCandidate(input) {

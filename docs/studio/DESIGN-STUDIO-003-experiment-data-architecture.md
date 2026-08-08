@@ -2,7 +2,7 @@
 
 Status: authoritative pre-release contract; direct cutover
 
-Date: 2026-08-06
+Date: 2026-08-08
 
 Decision: one `ExperimentContent` shape crosses three deliberately different
 lifecycle boundaries: an ephemeral `ExperimentSession`, an explicitly saved
@@ -85,6 +85,8 @@ numerically admitted. Separate outer contracts prevent those invalid states.
 ```ts
 type ExperimentContent = Readonly<{
   modelId: string;
+  /** Required for Standard ABI; omitted only by historical V2 content. */
+  surfaceSeriesId?: string;
   scenarios: readonly ExperimentScenario[];
   surface: ExperimentSurface;
 }>;
@@ -99,6 +101,8 @@ type Experiment = Readonly<{
 type ExperimentSnapshot = Readonly<{
   schemaId: "circleheart-studio-experiment-snapshot-v2";
   snapshotId: string;
+  /** Present exactly when content.surfaceSeriesId is present. */
+  surfaceReleaseId?: string;
   content: ExperimentContent;
   createdAt: string;
   createdBy?: string;
@@ -191,8 +195,9 @@ field rather than creating a second source of truth.
 
 - `/experiments/new` resolves the `default` channel once, then immediately
   pins the returned `modelId` for the Session.
-- an existing Experiment or Snapshot resolves its stored exact `modelId`
-  directly and never follows a channel;
+- an existing Experiment resolves its stored exact `modelId` and latest
+  non-retired release in its stored Surface series; a Snapshot resolves both
+  its exact `modelId` and exact `surfaceReleaseId`; neither follows a channel;
 - one Article may resolve several exact releases, one per distinct pinned
   `modelId` among its Snapshots;
 - the main thread derives the public contract from the returned manifest and
@@ -474,9 +479,8 @@ no upload or registry-write authority. The release command verifies existing
 bytes before reusing a path and registers the exact release. It promotes a
 release to `stable` before moving `default`; `research` may point at `dev` or
 `stable`. Public Experiment and Article publication is rejected unless every
-referenced Snapshot uses a `stable`, loadable exact model. After the Model
-Surface cutover defined by DESIGN-STUDIO-006, each Snapshot also pins a
-`stable` Surface release for publication.
+referenced Snapshot uses a `stable`, loadable exact model and pins a `stable`
+exact Surface release, as defined by DESIGN-STUDIO-006.
 
 ## 9. Retention and deletion
 
@@ -510,7 +514,9 @@ browser Web Workers remain the interactive numerical owner.
 ## 11. Required invariants
 
 1. Every durable Scenario carries fixture and exact checkpoint together.
-2. Every Experiment and Snapshot pins one exact registered `modelId`.
+2. Every Experiment and Snapshot pins one exact registered `modelId`;
+   Standard Experiments additionally pin one Surface series and Standard
+   Snapshots one exact release in that same series.
 3. Snapshot rows are insert-only and neutral; no purpose, Briefing, status, or
    qualification payload is stored in them.
 4. The same admission implementation is used before every Snapshot insert.

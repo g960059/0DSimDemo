@@ -38,7 +38,8 @@ export interface StudioModelSurfaceRpcPortV1 {
   call(
     functionName:
       | "get_model_surface_release_v1"
-      | "get_model_surface_release_channel_v1",
+      | "get_model_surface_release_channel_v1"
+      | "get_model_surface_series_latest_v1",
     parameters: Readonly<Record<string, string>>,
   ): Promise<StudioModelSurfaceRpcResultV1>;
 }
@@ -88,6 +89,29 @@ export class StudioSupabaseModelSurfaceResolverV1 {
     return pending;
   }
 
+  resolveExactSurfaceManifest(
+    surfaceReleaseId: string,
+    modelFamilyId: string,
+  ): Promise<StudioResolvedModelSurfaceManifestV1> {
+    return this.#readManifestOne(
+      "get_model_surface_release_v1",
+      Object.freeze({ p_surface_release_id: surfaceReleaseId }),
+      modelFamilyId,
+      surfaceReleaseId,
+    );
+  }
+
+  resolveLatestSeriesManifest(
+    surfaceSeriesId: string,
+    modelFamilyId: string,
+  ): Promise<StudioResolvedModelSurfaceManifestV1> {
+    return this.#readManifestOne(
+      "get_model_surface_series_latest_v1",
+      Object.freeze({ p_surface_series_id: surfaceSeriesId }),
+      modelFamilyId,
+    );
+  }
+
   resolveChannel(
     channel: StudioReleaseChannelV1,
     model: ModelContractV2,
@@ -113,13 +137,26 @@ export class StudioSupabaseModelSurfaceResolverV1 {
     modelFamilyId: string,
   ): Promise<StudioResolvedModelSurfaceManifestV1> {
     assertStudioReleaseChannelV1(channel);
-    const result = await this.#rpc.call(
+    return this.#readManifestOne(
       "get_model_surface_release_channel_v1",
       Object.freeze({
         p_model_family_id: modelFamilyId,
         p_channel: channel,
       }),
+      modelFamilyId,
     );
+  }
+
+  async #readManifestOne(
+    functionName:
+      | "get_model_surface_release_v1"
+      | "get_model_surface_release_channel_v1"
+      | "get_model_surface_series_latest_v1",
+    parameters: Readonly<Record<string, string>>,
+    modelFamilyId: string,
+    expectedSurfaceReleaseId?: string,
+  ): Promise<StudioResolvedModelSurfaceManifestV1> {
+    const result = await this.#rpc.call(functionName, parameters);
     if (result.error !== null) {
       throw new Error(
         `Model Surface registry lookup failed: ${result.error.message}`,
@@ -141,6 +178,12 @@ export class StudioSupabaseModelSurfaceResolverV1 {
     if (row.manifest.modelFamilyId !== modelFamilyId) {
       throw new Error("Model Surface registry returned another model family");
     }
+    if (
+      expectedSurfaceReleaseId !== undefined
+      && row.manifest.surfaceReleaseId !== expectedSurfaceReleaseId
+    ) {
+      throw new Error("Model Surface registry returned another release");
+    }
     assertStudioReleaseStageV1(row.stage, "$.surfaceRelease.stage");
     return Object.freeze({
       manifest: ownSurfaceManifestV1(row.manifest),
@@ -151,7 +194,8 @@ export class StudioSupabaseModelSurfaceResolverV1 {
   async #readOne(
     functionName:
       | "get_model_surface_release_v1"
-      | "get_model_surface_release_channel_v1",
+      | "get_model_surface_release_channel_v1"
+      | "get_model_surface_series_latest_v1",
     parameters: Readonly<Record<string, string>>,
     model: ModelContractV2,
   ): Promise<StudioResolvedModelSurfaceV1> {

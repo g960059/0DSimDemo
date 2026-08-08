@@ -895,11 +895,13 @@ export class StudioSimulationWorkerRuntimeV2 {
   async #captureAllScenarios(
     experimentId: string,
     surface: ExperimentSurfaceV2,
+    surfaceSeriesId?: string,
   ): Promise<ExperimentContentV2> {
     const runtime = this.#requiredExactRuntime();
     const physicalRuntimeSessionId = this.#requiredPhysicalRuntimeSessionId();
     const desiredContent = validateExperimentDesiredContentForModelV2({
       modelId: runtime.contract.modelId,
+      ...(surfaceSeriesId === undefined ? {} : { surfaceSeriesId }),
       scenarios: this.#scenarioOrder.map((scenarioId) => ({
         scenarioId,
         label: this.#requiredScenarioLabel(scenarioId),
@@ -1042,6 +1044,9 @@ export class StudioSimulationWorkerRuntimeV2 {
     }
     const desiredContent = validateExperimentDesiredContentForModelV2({
       modelId: context.runtime.contract.modelId,
+      ...(request.surfaceSeriesId === undefined
+        ? {}
+        : { surfaceSeriesId: request.surfaceSeriesId }),
       scenarios: this.#scenarioOrder.map((scenarioId) => ({
         scenarioId,
         label: this.#requiredScenarioLabel(scenarioId),
@@ -1157,12 +1162,19 @@ export class StudioSimulationWorkerRuntimeV2 {
       const candidateContent = await this.#captureAllScenarios(
         `experiment/session/${request.runtimeSessionId}`,
         request.surface,
+        request.surfaceSeriesId,
       );
       const created = request.snapshotSource === "session"
-        ? await context.authoring.createSnapshot({ content: candidateContent })
+        ? await context.authoring.createSnapshot({
+            content: candidateContent,
+            ...(request.surfaceReleaseId === undefined
+              ? {}
+              : { surfaceReleaseId: request.surfaceReleaseId }),
+          })
         : await this.#createPublicationSnapshotFromSavedHead(
             context,
             candidateContent,
+            request.surfaceReleaseId,
           );
       snapshot = validateExperimentSnapshotV2(created);
       if (
@@ -1204,6 +1216,7 @@ export class StudioSimulationWorkerRuntimeV2 {
   async #createPublicationSnapshotFromSavedHead(
     context: StudioSimulationWorkerAuthoringContextV2,
     candidateContent: ExperimentContentV2,
+    surfaceReleaseId?: string,
   ): Promise<ExperimentSnapshotV2> {
     const experimentId = this.#authoringExperimentId;
     if (experimentId === undefined) {
@@ -1219,6 +1232,7 @@ export class StudioSimulationWorkerRuntimeV2 {
     }
     return context.authoring.createSnapshot({
       content: candidateContent,
+      ...(surfaceReleaseId === undefined ? {} : { surfaceReleaseId }),
       savedExperiment: {
         experimentId,
         expectedVersion: experiment.version,

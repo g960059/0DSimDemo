@@ -47,6 +47,28 @@ insert into studio.model_releases (
 insert into studio.model_release_availability (model_id, stage)
 values ('model/summary-test-v1', 'stable');
 
+insert into studio.model_surface_releases (
+  surface_release_id, surface_series_id, predecessor_surface_release_id,
+  model_family_id, display_name, manifest, source_commit
+) values (
+  'surface/summary-test-v1', 'surface-series/summary-test', null,
+  'model/summary-test', 'Summary test Surface',
+  '{
+    "schemaId":"circleheart-studio-model-surface-release-v1",
+    "surfaceReleaseId":"surface/summary-test-v1",
+    "surfaceSeriesId":"surface-series/summary-test",
+    "predecessorSurfaceReleaseId":null,
+    "modelFamilyId":"model/summary-test",
+    "displayName":"Summary test Surface",
+    "controlCatalog":[],"derivedOutputCatalog":[],"graphCatalog":[],
+    "knobCatalog":[],"protocolCatalog":[]
+  }'::jsonb,
+  'summary-test'
+);
+insert into studio.model_surface_release_availability (
+  surface_release_id, stage
+) values ('surface/summary-test-v1', 'stable');
+
 create temporary table summary_state (
   key text primary key,
   value jsonb not null
@@ -55,12 +77,15 @@ create temporary table summary_state (
 with inserted as (
   insert into studio.experiment_contents (
     model_id,
+    surface_series_id,
     content,
     created_by
   ) values (
     'model/summary-test-v1',
+    'surface-series/summary-test',
     '{
       "modelId":"model/summary-test-v1",
+      "surfaceSeriesId":"surface-series/summary-test",
       "scenarios":[{
         "scenarioId":"scenario/baseline",
         "label":"Baseline",
@@ -116,11 +141,13 @@ insert into studio.experiment_snapshots (
   snapshot_id,
   owner_id,
   content_id,
+  surface_release_id,
   created_at
 ) values (
   '32000000-0000-0000-0000-000000000001',
   '30000000-0000-0000-0000-000000000001',
   ((select value ->> 'contentId' from summary_state where key = 'content'))::uuid,
+  'surface/summary-test-v1',
   '2026-08-06 00:01:00+00'
 );
 

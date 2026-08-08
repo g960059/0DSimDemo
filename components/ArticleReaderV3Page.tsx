@@ -11,7 +11,7 @@ import {
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import {
-  loadStudioModelClientCompositionV2,
+  loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import type {
@@ -45,7 +45,7 @@ type ArticleReaderContractStateV3 =
   | Readonly<{ kind: "loading" }>
   | Readonly<{
       kind: "ready";
-      compositionByModelId: ReadonlyMap<string, StudioClientCompositionV2>;
+      compositionBySnapshotId: ReadonlyMap<string, StudioClientCompositionV2>;
       errors: readonly string[];
     }>;
 
@@ -292,20 +292,22 @@ function ArticleReaderV3Resource({
   React.useEffect(() => {
     if (content.kind !== "ready") return undefined;
     let current = true;
-    const modelIds = [...new Set(
-      [...content.snapshots.values()].map(({ content }) => content.modelId),
-    )];
+    const snapshots = [...content.snapshots.values()];
     setContractState({ kind: "loading" });
-    void Promise.allSettled(modelIds.map(async (modelId) => Object.freeze({
-      modelId,
-      composition: await loadStudioModelClientCompositionV2(modelId),
+    void Promise.allSettled(snapshots.map(async (snapshot) => Object.freeze({
+      snapshotId: snapshot.snapshotId,
+      composition: await loadStudioSnapshotClientCompositionV2(
+        snapshot.content.modelId,
+        snapshot.content.surfaceSeriesId,
+        snapshot.surfaceReleaseId,
+      ),
     }))).then((results) => {
       if (!current) return;
       const compositions = new Map<string, StudioClientCompositionV2>();
       const errors: string[] = [];
       for (const result of results) {
         if (result.status === "fulfilled") {
-          compositions.set(result.value.modelId, result.value.composition);
+          compositions.set(result.value.snapshotId, result.value.composition);
         } else {
           errors.push(
             result.reason instanceof Error
@@ -316,7 +318,7 @@ function ArticleReaderV3Resource({
       }
       setContractState({
         kind: "ready",
-        compositionByModelId: compositions,
+        compositionBySnapshotId: compositions,
         errors: Object.freeze(errors),
       });
     });
@@ -429,8 +431,8 @@ function ArticleReaderV3Resource({
             const runtimeComposition = snapshot === null
               || contractState.kind !== "ready"
               ? null
-              : contractState.compositionByModelId.get(
-                  snapshot.content.modelId,
+              : contractState.compositionBySnapshotId.get(
+                  snapshot.snapshotId,
                 ) ?? null;
             const isLive = expandedPlacement === null
               ? activePlacementId === block.placement.placementId

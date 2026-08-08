@@ -59,7 +59,7 @@ import {
   StudioArticleExperimentAuthoringHandoffStoreV3,
 } from "@/studio/infrastructure/browser/StudioArticleExperimentAuthoringHandoffV3";
 import {
-  loadStudioModelClientCompositionV2,
+  loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { useUnsavedChangesGuardV3 } from "@/components/useUnsavedChangesGuardV3";
@@ -207,7 +207,7 @@ export function ArticleEditorV3Page() {
   const pendingExperimentReplacementBlockIdRef = React.useRef<string | null>(null);
   const pendingReturnedSnapshotIdRef = React.useRef<string | null>(null);
   const slashReplacementIndexRef = React.useRef<number | null>(null);
-  const [compositionByModelId, setCompositionByModelId] = React.useState<
+  const [compositionBySnapshotId, setCompositionBySnapshotId] = React.useState<
     ReadonlyMap<string, StudioClientCompositionV2>
   >(() => new Map());
   const [peekBlockId, setPeekBlockId] = React.useState<string | null>(null);
@@ -285,15 +285,18 @@ export function ArticleEditorV3Page() {
 
   React.useEffect(() => {
     let current = true;
-    const modelIds = [...new Set(snapshots.map(({ content }) => content.modelId))];
-    void Promise.allSettled(modelIds.map(async (modelId) => Object.freeze({
-      modelId,
-      composition: await loadStudioModelClientCompositionV2(modelId),
+    void Promise.allSettled(snapshots.map(async (snapshot) => Object.freeze({
+      snapshotId: snapshot.snapshotId,
+      composition: await loadStudioSnapshotClientCompositionV2(
+        snapshot.content.modelId,
+        snapshot.content.surfaceSeriesId,
+        snapshot.surfaceReleaseId,
+      ),
     }))).then((results) => {
       if (!current) return;
-      setCompositionByModelId(new Map(results.flatMap((result) =>
+      setCompositionBySnapshotId(new Map(results.flatMap((result) =>
         result.status === "fulfilled"
-          ? [[result.value.modelId, result.value.composition] as const]
+          ? [[result.value.snapshotId, result.value.composition] as const]
           : [])));
     });
     return () => {
@@ -1013,7 +1016,7 @@ export function ArticleEditorV3Page() {
                 : null;
               const placementContract = placementSnapshot === null
                 ? null
-                : compositionByModelId.get(placementSnapshot.content.modelId)
+                : compositionBySnapshotId.get(placementSnapshot.snapshotId)
                     ?.contract ?? null;
               return (
                 <ArticleBlockShellV3
@@ -1180,11 +1183,11 @@ export function ArticleEditorV3Page() {
           <ArticleReaderExperimentV3
             block={selectedPeek.block}
             snapshot={selectedPeek.snapshot}
-            contract={compositionByModelId.get(
-              selectedPeek.snapshot.content.modelId,
+            contract={compositionBySnapshotId.get(
+              selectedPeek.snapshot.snapshotId,
             )?.contract ?? null}
-            runtimeComposition={compositionByModelId.get(
-              selectedPeek.snapshot.content.modelId,
+            runtimeComposition={compositionBySnapshotId.get(
+              selectedPeek.snapshot.snapshotId,
             ) ?? null}
             live
             expandedPresentation="peek"

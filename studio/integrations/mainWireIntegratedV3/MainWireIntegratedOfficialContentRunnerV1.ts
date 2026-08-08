@@ -141,6 +141,7 @@ export async function buildMainWireOfficialExperimentV1(input: Readonly<{
 
   const content: ExperimentContentV2 = validateExperimentContentForModelV2({
     modelId: plan.modelId,
+    surfaceSeriesId: plan.surfaceSeriesId,
     scenarios: scenarioBuilds.map(({ scenario, fixture, run }) => ({
       scenarioId: scenario.scenarioId,
       label: scenario.label,
@@ -173,6 +174,7 @@ export async function buildMainWireOfficialExperimentV1(input: Readonly<{
     snapshotId,
     content,
     createdAt: input.createdAt,
+    surfaceReleaseId: plan.surfaceReleaseId,
   });
   return Object.freeze({
     runnerId: MAIN_WIRE_OFFICIAL_CONTENT_RUNNER_V1_ID,

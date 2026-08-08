@@ -25,6 +25,10 @@ import {
 import {
   createMainWireIntegratedStudioModelPackageV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
+import standardClientDescriptorV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
+import standardSurfaceReleaseV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-standard-v1.json";
 
 describe("Studio Supabase boundary V1", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -278,6 +282,91 @@ describe("Studio Supabase boundary V1", () => {
       .toBe(newerSurface.surfaceReleaseId);
     expect(historicalModelSurface.manifest.graphCatalog).toHaveLength(1);
     expect(historicalModelSurface.materialized.graphCatalog).toEqual([]);
+  });
+
+  it("reopens a mutable Standard Experiment on the latest additive Surface while a Snapshot stays exact", async () => {
+    const surfaceV1 = structuredClone(standardSurfaceReleaseV1) as any;
+    const surfaceV2 = {
+      ...structuredClone(surfaceV1),
+      surfaceReleaseId: "circleheart.main-wire.surface.standard-v2-test",
+      predecessorSurfaceReleaseId: surfaceV1.surfaceReleaseId,
+      controlCatalog: [...surfaceV1.controlCatalog, {
+        controlId: "hemodynamics.pulmonary-resistance",
+        preferredPresentation: "slider",
+        requiredCapabilities: [
+          "control/hemodynamics.pulmonary-resistance",
+        ],
+      }],
+    };
+    let latestSurface = surfaceV1;
+    const surfaceCall = vi.fn(async (
+      functionName: string,
+      parameters: Readonly<Record<string, string>>,
+    ) => ({
+      data: [{
+        manifest: functionName === "get_model_surface_release_v1"
+          ? parameters.p_surface_release_id === surfaceV1.surfaceReleaseId
+            ? surfaceV1
+            : surfaceV2
+          : latestSurface,
+        stage: "dev",
+      }],
+      error: null,
+    }));
+    const exactCall = vi.fn().mockResolvedValue({
+      data: [{
+        model_id: standardClientDescriptorV1.manifest.modelId,
+        model_family_id: standardClientDescriptorV1.manifest.modelFamilyId,
+        display_name: "Main Wire Standard",
+        manifest: standardClientDescriptorV1.manifest,
+        artifact_path: "model-releases/exact/standard.mjs",
+        module_abi: "circleheart-exact-model-esm-v1",
+        default_fixture: standardClientDescriptorV1.defaultFixture,
+        analysis_profile_id: "main-wire-integrated-v3",
+        stage: "dev",
+      }],
+      error: null,
+    });
+    const createResolver = () => new StudioSupabaseModelReleaseResolverV1({
+      rpc: { call: exactCall },
+      supabaseOrigin: "https://project.supabase.co",
+      surfaceResolver: new StudioSupabaseModelSurfaceResolverV1({
+        rpc: { call: surfaceCall as any },
+      }),
+    });
+    const seriesPin = {
+      kind: "series" as const,
+      surfaceSeriesId: surfaceV1.surfaceSeriesId,
+    };
+
+    const firstOpen = await createResolver().resolveExactModel(
+      standardClientDescriptorV1.manifest.modelId,
+      seriesPin,
+    );
+    expect(firstOpen.surfaceReleaseId).toBe(surfaceV1.surfaceReleaseId);
+
+    latestSurface = surfaceV2;
+    const reopened = await createResolver().resolveExactModel(
+      standardClientDescriptorV1.manifest.modelId,
+      seriesPin,
+    );
+    expect(reopened.surfaceReleaseId).toBe(surfaceV2.surfaceReleaseId);
+    expect(reopened.contract.controlCatalog.some((control) =>
+      control.controlId === "hemodynamics.pulmonary-resistance"))
+      .toBe(true);
+
+    const frozenSnapshot = await createResolver().resolveExactModel(
+      standardClientDescriptorV1.manifest.modelId,
+      {
+        kind: "release",
+        surfaceSeriesId: surfaceV1.surfaceSeriesId,
+        surfaceReleaseId: surfaceV1.surfaceReleaseId,
+      },
+    );
+    expect(frozenSnapshot.surfaceReleaseId).toBe(surfaceV1.surfaceReleaseId);
+    expect(frozenSnapshot.contract.controlCatalog.some((control) =>
+      control.controlId === "hemodynamics.pulmonary-resistance"))
+      .toBe(false);
   });
 
   it("creates an anonymous account only when a Save asks for authentication", async () => {

@@ -177,6 +177,7 @@ type ExpectedResponseV2 =
       runtimeSessionId: string;
       experimentId: string;
       surface: ExperimentSurfaceV2;
+      surfaceSeriesId?: string;
       expectedVersion: number | null;
       priorExperiment: ExperimentV2 | undefined;
     }>
@@ -184,6 +185,8 @@ type ExpectedResponseV2 =
       kind: "snapshot-created";
       modelId: string;
       surface: ExperimentSurfaceV2;
+      surfaceSeriesId?: string;
+      surfaceReleaseId?: string;
       scenarioIds: readonly string[];
     }>
   | Readonly<{
@@ -658,6 +661,9 @@ export class StudioSimulationWorkerClientV2 {
         runtimeSessionId: this.#runtimeSessionId,
         experimentId: request.experimentId,
         surface: request.surface,
+        ...(request.surfaceSeriesId === undefined
+          ? {}
+          : { surfaceSeriesId: request.surfaceSeriesId }),
         expectedVersion: request.expectedVersion,
         priorExperiment,
       });
@@ -780,6 +786,12 @@ export class StudioSimulationWorkerClientV2 {
         kind: "snapshot-created",
         modelId: this.#modelId,
         surface: request.surface,
+        ...(request.surfaceSeriesId === undefined
+          ? {}
+          : { surfaceSeriesId: request.surfaceSeriesId }),
+        ...(request.surfaceReleaseId === undefined
+          ? {}
+          : { surfaceReleaseId: request.surfaceReleaseId }),
         scenarioIds: request.scenarioIds,
       }, this.#snapshotAdmissionTimeoutMs);
       if (response.status !== "ok" || response.kind !== "snapshot-created") {
@@ -1078,6 +1090,7 @@ function assertExpectedResponseV2(
       experiment.experimentId !== expected.experimentId
       || experiment.version !== expectedVersion
       || experiment.content.modelId !== expected.modelId
+      || experiment.content.surfaceSeriesId !== expected.surfaceSeriesId
       || experiment.content.scenarios.length < 1
       || !samePortableValueV2(experiment.content.surface, expected.surface)
     ) {
@@ -1135,6 +1148,8 @@ function assertExpectedResponseV2(
     );
     if (
       snapshot.content.modelId !== expected.modelId
+      || snapshot.content.surfaceSeriesId !== expected.surfaceSeriesId
+      || snapshot.surfaceReleaseId !== expected.surfaceReleaseId
       || !samePortableValueV2(snapshot.content.surface, expected.surface)
       || !samePortableValueV2(snapshotScenarioIds, expected.scenarioIds)
     ) {
