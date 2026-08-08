@@ -19,6 +19,7 @@ describe("site shell V3", () => {
     expect(routeOwnsApplicationChrome("/articles/article-one/edit")).toBe(true);
     expect(routeOwnsApplicationChrome("/experiments/new")).toBe(true);
     expect(routeOwnsApplicationChrome("/experiments/experiment-one")).toBe(true);
+    expect(routeOwnsApplicationChrome("/dev/model-lab")).toBe(true);
     expect(routeOwnsApplicationChrome("/snapshots/snapshot-one")).toBe(true);
   });
 

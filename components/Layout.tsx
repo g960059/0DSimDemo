@@ -15,6 +15,7 @@ import {
  * directory, Home, and account-management pages share the stable site shell.
  */
 export function routeOwnsApplicationChrome(pathname: string): boolean {
+  if (pathname === "/dev/model-lab") return true;
   if (pathname.startsWith("/snapshots/")) return true;
   if (/^\/experiments\/(?:new|[^/]+)$/.test(pathname)) return true;
   return /^\/articles\/(?:new|[^/]+)\/edit$/.test(pathname);

@@ -8,10 +8,15 @@ import {
 } from "@/studio/application/authoring/StudioOfficialContentBuildPlanV1";
 import {
   STUDIO_EXACT_MODEL_KERNEL_V3_SCHEMA_ID,
+  analysisCapabilityV1,
   controlCapabilityV1,
   outputCapabilityV1,
   type ExactModelKernelManifestV3,
 } from "@/studio/contracts/v2/modelSurface";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+  MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
   MAIN_WIRE_PV_LOOP_AFTERLOAD_ASSERTION_ID_V1,
   MAIN_WIRE_PV_LOOP_CONTRACTILITY_ASSERTION_ID_V1,
@@ -203,6 +208,12 @@ function kernelV1(): ExactModelKernelManifestV3 {
     capabilities: [
       ...controls.map(({ controlId }) => controlCapabilityV1(controlId)),
       ...signals.map(({ outputId }) => outputCapabilityV1(outputId)),
+      analysisCapabilityV1(
+        MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+      ),
+      analysisCapabilityV1(
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+      ),
     ],
   };
 }

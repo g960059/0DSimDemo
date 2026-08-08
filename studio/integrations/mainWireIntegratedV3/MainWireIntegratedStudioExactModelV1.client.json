@@ -2,7 +2,7 @@
   "schemaId": "circleheart-standard-exact-model-client-descriptor-v1",
   "manifest": {
     "schemaId": "circleheart-studio-exact-model-kernel-v3",
-    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-1",
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-2",
     "modelFamilyId": "circleheart.main-wire-integrated-transaction",
     "equations": {
       "transactionId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3",
@@ -461,7 +461,9 @@
       "output/coronary.flow.inlet.LCx",
       "output/coronary.flow.inlet.RCA",
       "output/device.LVAD.flow",
-      "output/rhythm.phase.regular-sinus"
+      "output/rhythm.phase.regular-sinus",
+      "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
+      "analysis/main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1"
     ]
   },
   "defaultFixture": {

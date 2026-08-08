@@ -231,6 +231,12 @@ The sole lab route is `/dev/model-lab`.
 - It fails closed when the research registry is unavailable; it never silently
   runs the bundled default model under a Model Lab label.
 - It uses the same Workbench and Worker architecture as ordinary Sessions.
+- Its Standard exact release advertises and executes the responsive and formal
+  fixed-TBV analysis capabilities used to derive the multi-load ESPVR/EDPVR
+  envelopes. The main-thread coordinator applies the same bidirectional Worker
+  plan as ordinary Sessions; the live lane is not advanced by either branch.
+- The Workbench owns the Lab's contextual header, so the global discovery/auth
+  header is not rendered a second time on this route.
 - Private Experiment Save and neutral Snapshot creation are permitted.
 - Public Experiment publication is absent in the Lab UI and rejected by the
   database unless the Snapshot's exact model is both `stable` and loadable.

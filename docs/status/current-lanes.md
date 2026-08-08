@@ -29,9 +29,9 @@ from that path.
 
 The local numerical slice is now executable: the Standard exact model,
 compatible Surface, four-Scenario recipe runner, three model-owned assertions,
-and common Snapshot admission pass together. The remaining acceptance work is
-stable registry publication, Article/Reader vertical QA, and the supervised
-learner pilot.
+common Snapshot admission, and the bidirectional fixed-TBV ESPVR/EDPVR analysis
+path pass together. The remaining acceptance work is stable registry
+publication, Article/Reader vertical QA, and the supervised learner pilot.
 
 The removed Workbench implementation is available in Git history. It is not a
 persistence, ownership, or compatibility boundary for Studio V2.

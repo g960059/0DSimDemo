@@ -64,7 +64,7 @@ async function main(): Promise<void> {
     p_module_abi: "circleheart-exact-model-esm-v1",
     p_default_fixture:
       MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-    p_analysis_profile_id: "standard-no-model-analysis-v1",
+    p_analysis_profile_id: "main-wire-integrated-standard-v1",
   });
   // Registration is always dev. This specialized command publishes the
   // already-admitted production default, so lifecycle promotion is explicit

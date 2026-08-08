@@ -49,7 +49,9 @@
       "requiredCapabilities": [
         "output/hemodynamics.volume.LV",
         "output/hemodynamics.pressure.transmural.LV",
-        "output/rhythm.phase.regular-sinus"
+        "output/rhythm.phase.regular-sinus",
+        "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
+        "analysis/main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1"
       ]
     }
   ],

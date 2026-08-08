@@ -222,8 +222,8 @@ Promise<StudioClientCompositionV2> {
       releaseStage: "dev" as const,
       defaultFixture: standardClientDescriptorV1.defaultFixture,
       contract: composed.contract,
-      analysisExecutionPlan: (() => null) as
-        StudioSimulationAnalysisExecutionPlanResolverV2,
+      analysisExecutionPlan:
+        resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
       workerReleaseTicket,
       surfaceReleaseId: composed.surface.surfaceReleaseId,
       surfaceStage: "dev" as const,
@@ -339,6 +339,9 @@ function analysisExecutionPlanForProfileV2(
     return () => null;
   }
   if (profileId === "main-wire-integrated-v3") {
+    return resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
+  }
+  if (profileId === "main-wire-integrated-standard-v1") {
     return resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
   }
   throw new Error(`Unsupported Studio analysis profile ${profileId}`);

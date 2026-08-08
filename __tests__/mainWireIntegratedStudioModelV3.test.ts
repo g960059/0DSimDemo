@@ -18,6 +18,10 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID,
   MainWireIntegratedModelSessionV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
@@ -59,6 +63,12 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   MainWireIntegratedStudioStandardRuntimeHostV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV3";
+import {
+  resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
 
 const EMPTY_SURFACE_V2: ExperimentSurfaceV2 = Object.freeze({
   graphPanes: Object.freeze([]),
@@ -284,6 +294,14 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     ]);
     expect(legacy.contract.modelId).toBe(legacyModelId);
     expect(standard.contract.modelId).toBe(standardModelId);
+    expect(standard.contract.graphCatalog).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          graphId: "hemodynamics.pressure-volume",
+          renderer: "pressure-volume",
+        }),
+      ]),
+    );
     expect(legacy).not.toBe(standard);
     await expect(loader.load(legacyTicket)).resolves.toBe(legacy);
     await expect(loader.load(standardTicket)).resolves.toBe(standard);
@@ -737,6 +755,58 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
         expect(Number.isFinite(output.value)).toBe(true);
       }
     }
+    host.closeSession(runtimeSessionId);
+  }, 120_000);
+
+  it("connects Standard PV analysis to the bidirectional fixed-TBV plan", async () => {
+    const plan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+      MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+    );
+    expect(plan?.partitions).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+    ]);
+
+    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-pv-analysis";
+    const scenarioId = "scenario/baseline";
+    await host.createSession(runtimeSessionId, [{
+      scenarioId,
+      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    }]);
+    const source = host.currentFrame(runtimeSessionId, scenarioId);
+    const analysis = await host.requestAnalysis(
+      runtimeSessionId,
+      scenarioId,
+      MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+      source.inputEpoch,
+      source.acceptedRevision,
+      source.acceptedTimeSec,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+    );
+    const payload = analysis.payload as unknown as Readonly<{
+      left: Readonly<{
+        starlingLocus: Readonly<{
+          status: string;
+          points: readonly Readonly<{
+            ventricularPressureVolumeLoop: readonly unknown[];
+          }>[];
+        }>;
+      }>;
+    }>;
+
+    expect(analysis).toMatchObject({
+      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+      runtimeSessionId,
+      scenarioId,
+      analysisId: MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+    });
+    expect(payload.left.starlingLocus.status)
+      .toBe("responsive-fixed-tbv-preview");
+    expect(payload.left.starlingLocus.points.length).toBeGreaterThan(2);
+    expect(payload.left.starlingLocus.points.every((point) =>
+      point.ventricularPressureVolumeLoop.length >= 12)).toBe(true);
+    expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(source);
     host.closeSession(runtimeSessionId);
   }, 120_000);
 

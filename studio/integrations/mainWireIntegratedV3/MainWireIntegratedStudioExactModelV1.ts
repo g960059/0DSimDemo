@@ -1,6 +1,15 @@
 import { MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID } from
   "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+  MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import {
+  buildMainWireIntegratedModelGuytonStarlingOrientationV3,
+} from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
   validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
@@ -19,6 +28,11 @@ import {
   mainWireIntegratedModelPresentationTargetTimeSecV3,
   type MainWireIntegratedModelPresentationAdvanceV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
+import {
+  runMainWireIntegratedModelFormalPressureVolumeProtocolV3,
+  runMainWireIntegratedModelResponsiveStarlingProtocolV3,
+  type MainWireIntegratedModelResponsiveStarlingPartitionV3,
+} from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID } from
   "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
@@ -57,6 +71,9 @@ import type { StudioControlActionV2, StudioFixturePatchV2 } from
 import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
+} from "@/studio/contracts/v2/simulation";
+import {
+  validateAndOwnStudioSimulationPortableJsonV2,
 } from "@/studio/contracts/v2/simulation";
 import {
   cloneAndFreezeStudioJson,
@@ -315,9 +332,12 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     expectedInputEpoch: number,
     expectedAcceptedRevision: number,
     expectedAcceptedTimeSec: number,
+    analysisPartition?: string,
+    onProgress?: (analysis: StudioSimulationAnalysisV2) => void,
   ): Promise<StudioSimulationAnalysisV2> {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    const accepted = scenario.modelSession.currentAcceptedState();
+    const observation = scenario.modelSession.observe();
+    const accepted = observation.acceptedState;
     if (
       scenario.inputEpoch !== expectedInputEpoch
       || accepted.revision !== expectedAcceptedRevision
@@ -325,7 +345,72 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     ) {
       throw new Error("Standard analysis source clocks are stale");
     }
-    throw new Error(`Standard exact model analysis is not registered: ${analysisId}`);
+    if (
+      analysisId !== MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID
+      && analysisId
+        !== MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
+    ) {
+      throw new Error(`Standard exact model analysis is not registered: ${analysisId}`);
+    }
+    const responsivePartition:
+      MainWireIntegratedModelResponsiveStarlingPartitionV3 | undefined =
+      analysisPartition === undefined
+        ? undefined
+        : analysisPartition
+            === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3
+          || analysisPartition
+            === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3
+          ? analysisPartition
+          : (() => {
+              throw new Error(
+                `Standard analysis partition is not registered: ${analysisPartition}`,
+              );
+            })();
+    const toAnalysis = (
+      starling: Awaited<ReturnType<
+        typeof runMainWireIntegratedModelResponsiveStarlingProtocolV3
+      >> | Awaited<ReturnType<
+        typeof runMainWireIntegratedModelFormalPressureVolumeProtocolV3
+      >> | null,
+    ): StudioSimulationAnalysisV2 => {
+      const payload = validateAndOwnStudioSimulationPortableJsonV2(
+        buildMainWireIntegratedModelGuytonStarlingOrientationV3(
+          starling?.anchorObservation ?? observation,
+          scenario.fixture.hemodynamicResearchInputs,
+          starling === null
+            ? undefined
+            : Object.freeze({
+                right: starling.right,
+                left: starling.left,
+              }),
+        ),
+        "$.mainWireIntegratedStandardAnalysis.payload",
+      );
+      return Object.freeze({
+        modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+        runtimeSessionId,
+        scenarioId,
+        inputEpoch: scenario.inputEpoch,
+        sourceAcceptedRevision: accepted.revision,
+        sourceAcceptedTimeSec: accepted.acceptedTimeSec,
+        analysisId,
+        payload,
+      });
+    };
+    const starling = analysisId
+        === MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
+      ? await runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
+          scenario.modelSession,
+          scenario.fixture.hemodynamicResearchInputs,
+          (progress) => onProgress?.(toAnalysis(progress)),
+          responsivePartition,
+        )
+      : runMainWireIntegratedModelResponsiveStarlingProtocolV3(
+          scenario.modelSession,
+          (progress) => onProgress?.(toAnalysis(progress)),
+          responsivePartition,
+        );
+    return toAnalysis(starling);
   }
 
   async captureDesiredContent(input: Readonly<{
@@ -538,6 +623,8 @@ ExactModelKernelManifestV3 {
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1
         .map(({ outputId }) => `output/${outputId}`),
+      `analysis/${MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID}`,
+      `analysis/${MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID}`,
     ]),
   });
   assertExactModelKernelManifestV3(manifest);
@@ -700,6 +787,8 @@ function standardExecutableBundleV1(
       expectedInputEpoch: number;
       expectedAcceptedRevision: number;
       expectedAcceptedTimeSec: number;
+      analysisPartition?: string;
+      onProgress?: (analysis: StudioSimulationAnalysisV2) => void;
     }>) => host.requestAnalysis(
       input.runtimeSessionId,
       input.scenarioId,
@@ -707,6 +796,8 @@ function standardExecutableBundleV1(
       input.expectedInputEpoch,
       input.expectedAcceptedRevision,
       input.expectedAcceptedTimeSec,
+      input.analysisPartition,
+      input.onProgress,
     ),
     replaceFixture: (input: Readonly<{
       runtimeSessionId: string;
