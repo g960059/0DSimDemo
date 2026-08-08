@@ -5,6 +5,15 @@ import {
   assertPortableModelIdentifierV2,
   assertRegisteredModelPackageManifestV2,
 } from "./model";
+import type {
+  ExactModelKernelManifestV3,
+  ModelSurfaceReleaseManifestV1,
+} from "./modelSurface";
+import {
+  assertExactModelKernelManifestV3,
+  assertModelSurfaceReleaseManifestV1,
+  composeStandardModelContractV1,
+} from "./modelSurface";
 
 export const STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID =
   "circleheart-studio-model-worker-release-ticket-v2" as const;
@@ -18,13 +27,26 @@ export type RegisteredModelModuleAbiV2 =
   /** Exports createCircleHeartExactModelReleaseV1 -> manifest + executables. */
   | "circleheart-exact-model-esm-v1";
 
-export type StudioModelWorkerReleaseTicketV2 = Readonly<{
+export type StudioLegacyModelWorkerReleaseTicketV2 = Readonly<{
   schemaId: typeof STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID;
   modelId: string;
   manifest: RegisteredModelPackageManifestV2;
-  moduleAbi: RegisteredModelModuleAbiV2;
+  moduleAbi: "legacy-main-wire-v3-development-36";
   artifactUrl: string;
 }>;
+
+export type StudioStandardModelWorkerReleaseTicketV2 = Readonly<{
+  schemaId: typeof STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID;
+  modelId: string;
+  manifest: ExactModelKernelManifestV3;
+  surfaceRelease: ModelSurfaceReleaseManifestV1;
+  moduleAbi: "circleheart-exact-model-esm-v1";
+  artifactUrl: string;
+}>;
+
+export type StudioModelWorkerReleaseTicketV2 =
+  | StudioLegacyModelWorkerReleaseTicketV2
+  | StudioStandardModelWorkerReleaseTicketV2;
 
 export class StudioModelReleaseValidationErrorV2 extends Error {
   constructor(path: string, message: string) {
@@ -37,13 +59,28 @@ export class StudioModelReleaseValidationErrorV2 extends Error {
 export function validateStudioModelWorkerReleaseTicketV2(
   value: unknown,
 ): StudioModelWorkerReleaseTicketV2 {
-  const record = exactPlainRecordV2(value, [
-    "artifactUrl",
-    "manifest",
-    "modelId",
-    "moduleAbi",
-    "schemaId",
-  ], "$");
+  const envelope = plainRecordV2(value, "$");
+  const moduleAbi = validateRegisteredModelModuleAbiV2(
+    envelope.moduleAbi,
+    "$.moduleAbi",
+  );
+  const record = exactPlainRecordV2(value, moduleAbi ===
+      "circleheart-exact-model-esm-v1"
+    ? [
+        "artifactUrl",
+        "manifest",
+        "modelId",
+        "moduleAbi",
+        "schemaId",
+        "surfaceRelease",
+      ]
+    : [
+        "artifactUrl",
+        "manifest",
+        "modelId",
+        "moduleAbi",
+        "schemaId",
+      ], "$");
   if (record.schemaId !== STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID) {
     throw new StudioModelReleaseValidationErrorV2(
       "$.schemaId",
@@ -51,6 +88,32 @@ export function validateStudioModelWorkerReleaseTicketV2(
     );
   }
   assertPortableModelIdentifierV2(record.modelId, "$.modelId");
+  const artifactUrl = validateArtifactUrlV2(
+    record.artifactUrl,
+    "$.artifactUrl",
+  );
+  if (moduleAbi === "circleheart-exact-model-esm-v1") {
+    assertExactModelKernelManifestV3(record.manifest);
+    assertModelSurfaceReleaseManifestV1(record.surfaceRelease);
+    if (record.manifest.modelId !== record.modelId) {
+      throw new StudioModelReleaseValidationErrorV2(
+        "$.manifest.modelId",
+        "must match the release ticket modelId",
+      );
+    }
+    // The ticket pins one immutable, compatible Surface. Recompose at every
+    // trust boundary so a caller cannot smuggle a mismatched presentation
+    // contract beside an otherwise valid numerical kernel.
+    composeStandardModelContractV1(record.manifest, record.surfaceRelease);
+    return Object.freeze({
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId: record.modelId,
+      manifest: ownPortableValueV2(record.manifest),
+      surfaceRelease: ownPortableValueV2(record.surfaceRelease),
+      moduleAbi,
+      artifactUrl,
+    });
+  }
   assertRegisteredModelPackageManifestV2(record.manifest);
   if (record.manifest.modelId !== record.modelId) {
     throw new StudioModelReleaseValidationErrorV2(
@@ -58,18 +121,10 @@ export function validateStudioModelWorkerReleaseTicketV2(
       "must match the release ticket modelId",
     );
   }
-  const moduleAbi = validateRegisteredModelModuleAbiV2(
-    record.moduleAbi,
-    "$.moduleAbi",
-  );
-  const artifactUrl = validateArtifactUrlV2(
-    record.artifactUrl,
-    "$.artifactUrl",
-  );
   return Object.freeze({
     schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
     modelId: record.modelId,
-    manifest: ownPortableManifestV2(record.manifest),
+    manifest: ownPortableValueV2(record.manifest),
     moduleAbi,
     artifactUrl,
   });
@@ -130,16 +185,8 @@ function exactPlainRecordV2(
   expectedKeys: readonly string[],
   path: string,
 ): Record<string, unknown> {
-  if (
-    value === null
-    || typeof value !== "object"
-    || Array.isArray(value)
-    || (Object.getPrototypeOf(value) !== Object.prototype
-      && Object.getPrototypeOf(value) !== null)
-  ) {
-    throw new StudioModelReleaseValidationErrorV2(path, "must be a plain object");
-  }
-  const actualKeys = Object.keys(value).sort();
+  const record = plainRecordV2(value, path);
+  const actualKeys = Object.keys(record).sort();
   const sortedExpected = [...expectedKeys].sort();
   if (
     actualKeys.length !== sortedExpected.length
@@ -150,6 +197,22 @@ function exactPlainRecordV2(
       `keys must be exactly ${sortedExpected.join(", ")}`,
     );
   }
+  return record;
+}
+
+function plainRecordV2(
+  value: unknown,
+  path: string,
+): Record<string, unknown> {
+  if (
+    value === null
+    || typeof value !== "object"
+    || Array.isArray(value)
+    || (Object.getPrototypeOf(value) !== Object.prototype
+      && Object.getPrototypeOf(value) !== null)
+  ) {
+    throw new StudioModelReleaseValidationErrorV2(path, "must be a plain object");
+  }
   return value as Record<string, unknown>;
 }
 
@@ -159,11 +222,9 @@ function isLoopbackHostV2(hostname: string): boolean {
     || hostname === "[::1]";
 }
 
-function ownPortableManifestV2(
-  value: RegisteredModelPackageManifestV2,
-): RegisteredModelPackageManifestV2 {
+function ownPortableValueV2<TValue>(value: TValue): TValue {
   return deepFreezeV2(
-    JSON.parse(JSON.stringify(value)) as RegisteredModelPackageManifestV2,
+    JSON.parse(JSON.stringify(value)) as TValue,
   );
 }
 

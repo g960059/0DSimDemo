@@ -75,15 +75,20 @@ import {
   isOpaqueExperimentIdV3,
 } from "@/studio/infrastructure/browser/StudioExperimentIdentityV3";
 import {
+  devDashboardHref,
   articleEditorHref,
   experimentDetailHref,
   homeHref,
   myExperimentsHref,
   newExperimentHref,
 } from "@/homeLinks";
+import {
+  studioDevSurfacesEnabledV1,
+} from "@/studio/application/dev/StudioDevAccessV1";
 import { isLocale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
+  loadStudioLocalStandardModelLabClientCompositionV1,
   loadStudioModelChannelClientCompositionV2,
   loadStudioModelClientCompositionV2,
   type StudioClientCompositionV2,
@@ -283,7 +288,7 @@ export function modelLabEnabledV3(
   environment: Pick<ImportMetaEnv, "PROD" | "VITE_MODEL_LAB_ENABLED"> =
     import.meta.env,
 ): boolean {
-  return !environment.PROD || environment.VITE_MODEL_LAB_ENABLED === "1";
+  return studioDevSurfacesEnabledV1(environment);
 }
 
 export function workbenchPublicationAvailableV3(input: Readonly<{
@@ -729,7 +734,9 @@ const WorkbenchV3Session = ({
       let composition: StudioClientCompositionV2;
       try {
         composition = initialContent === undefined
-          ? launchChannel === "default"
+          ? modelLab
+            ? await loadStudioLocalStandardModelLabClientCompositionV1()
+            : launchChannel === "default"
             ? await loadStudioDefaultClientCompositionV2()
             : await loadStudioModelChannelClientCompositionV2(launchChannel)
           : await loadStudioModelClientCompositionV2(initialContent.modelId);
@@ -2450,7 +2457,9 @@ const WorkbenchV3Session = ({
       <header className="workbench-app-header flex min-h-12 shrink-0 items-center gap-2 px-2.5 py-1.5 sm:px-3">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <Link
-            to={articleAuthoringContext !== null
+            to={modelLab
+              ? devDashboardHref(resolvedLocale)
+              : articleAuthoringContext !== null
               ? articleEditorHref({
                   articleId: articleAuthoringContext.articleId,
                   locale: resolvedLocale,
@@ -2461,12 +2470,15 @@ const WorkbenchV3Session = ({
                 )}
             className="workbench-header-action inline-flex h-9 w-9 shrink-0 items-center justify-center"
             aria-label={t(
-              articleAuthoringContext === null && experimentSessionContext === null
+              modelLab
+                ? "devDashboard.returnFromModelLab"
+                : articleAuthoringContext === null && experimentSessionContext === null
                 ? "workbench.editor.home"
                 : "workbench.editor.returnToArticle",
             )}
           >
-            {articleAuthoringContext === null && experimentSessionContext === null
+            {modelLab
+              || (articleAuthoringContext === null && experimentSessionContext === null)
               ? <Home className="h-4 w-4" aria-hidden="true" />
               : <ArrowLeft className="h-4 w-4" aria-hidden="true" />}
           </Link>

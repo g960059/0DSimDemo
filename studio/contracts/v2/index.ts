@@ -8,4 +8,5 @@ export * from "./model";
 export * from "./modelSurface";
 export * from "./preview";
 export * from "./runtime";
+export * from "./scientificAssertion";
 export * from "./simulation";

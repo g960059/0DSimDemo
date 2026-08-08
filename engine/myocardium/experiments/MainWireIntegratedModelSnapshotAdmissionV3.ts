@@ -46,11 +46,13 @@ export async function admitMainWireIntegratedModelSnapshotV3(
     candidateCheckpoint: unknown;
     hemodynamicResearchInputs:
       MainWireIntegratedModelHemodynamicResearchInputsV3;
+    ventricularContractilityScale?: number;
   }>,
 ): Promise<MainWireIntegratedModelSnapshotAdmissionResultV3> {
   try {
     const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
       input.hemodynamicResearchInputs,
+      input.ventricularContractilityScale ?? 1,
     );
     const context =
       createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(

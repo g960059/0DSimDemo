@@ -225,12 +225,30 @@ profile and Snapshot identity does not carry one.
 
 ## 6. One Model Lab
 
-The sole lab route is `/dev/model-lab`.
+Development inspection has one intentionally small entry point: `/dev`. It
+lists the current developer's Experiments, Articles, neutral Snapshots, and the
+exact models that are active in Model Lab/channels or referenced by that
+content. It is an inventory, not a second content repository or administration
+product. The list reuses the ordinary browser/Supabase content repositories and
+does not add a development-only persistence type.
 
-- It resolves the `research` channel and pins the returned exact model.
-- It fails closed when the research registry is unavailable; it never silently
-  runs the bundled default model under a Model Lab label.
+The sole lab route is `/dev/model-lab`. Its leftmost Home action returns to
+`/dev`, while `/dev` itself uses the ordinary site header.
+
+- The current pre-cutover Lab boots the explicitly bundled Standard-ABI local
+  exact model and Surface and pins both identities. A registered research
+  channel remains visible in `/dev` and becomes the Lab source only when that
+  cutover is made explicitly.
+- Research-channel inspection fails closed when its registry is unavailable;
+  it never presents the bundled default model as a research-channel result.
 - It uses the same Workbench and Worker architecture as ordinary Sessions.
+- Its Standard exact release advertises and executes the responsive and formal
+  fixed-TBV analysis capabilities used to derive the multi-load ESPVR/EDPVR
+  envelopes. The main-thread coordinator applies the same bidirectional Worker
+  plan as ordinary Sessions; the live lane is not advanced by either branch.
+- The Workbench owns the Lab's contextual header, so the global discovery/auth
+  header is not rendered a second time on this route. The `/dev` inventory uses
+  global chrome and therefore does not duplicate contextual Workbench chrome.
 - Private Experiment Save and neutral Snapshot creation are permitted.
 - Public Experiment publication is absent in the Lab UI and rejected by the
   database unless the Snapshot's exact model is both `stable` and loadable.
@@ -264,8 +282,22 @@ admission service, and emits immutable content plus a reviewed build report.
 Scenario IDs/labels, absolute control assignments, the authored Surface, and
 scientific assertion IDs. It cannot encode a checkpoint, `modelId`, channel,
 stage, or admission profile. Repository recipes are checked with
-`verify:content:official-recipe`; no official content is seeded until the
-corresponding numerical and editorial review is ready.
+`verify:content:official-recipe`. A source recipe may exist before its exact
+model is ready, but it cannot produce a Snapshot or publication. The stronger
+`verify:content:official-readiness` boundary binds it to an explicit Standard
+exact-kernel manifest and Surface, resolves every authored item and assertion,
+and still performs no numerical run or write. The first source recipe and its
+release gates are governed by
+[CONTENT-0001](../content/CONTENT-0001-pv-loop-basics-pilot.md).
+
+`build:content:official:main-wire` is the first family-specific numerical
+runner. It builds the registered default fixture, applies each recipe's
+absolute control assignments, advances every Scenario to a model-owned
+periodic candidate, evaluates immutable assertion implementations from full
+accepted-step/beat evidence, and calls the common Snapshot admission service.
+It emits a deterministic build artifact but performs no registry, database, or
+publication write. A successful local build is required evidence, not
+permission to bypass the exact-model and Surface lifecycle gates.
 
 Changing the default model therefore means rebuilding and reviewing official
 content, not silently repinning it. User content is never rebuilt by this

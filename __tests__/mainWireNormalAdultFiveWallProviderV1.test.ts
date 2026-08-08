@@ -17,6 +17,7 @@ import {
   asMainWireFiveWallFreeCalciumDriveV1,
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   createMainWireNormalAdultFiveWallMaterialKernelsV1,
+  createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularContractilityScaleV1,
   type MainWireNormalAdultWallMaterialReadbackV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import type {
@@ -36,6 +37,42 @@ import {
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 
 describe("main-wire normal-adult five-wall provider adapter V1", () => {
+  it("scales only the three ventricular Land materials through the bounded contractility seam", () => {
+    const canonical = createMainWireNormalAdultFiveWallMaterialKernelsV1();
+    const identity =
+      createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularContractilityScaleV1(1);
+    const increased =
+      createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularContractilityScaleV1(1.2);
+
+    for (const atrium of ["LA", "RA"] as const) {
+      expect(identity[atrium].parameterIdentityHash)
+        .toBe(canonical[atrium].parameterIdentityHash);
+      expect(increased[atrium].parameterIdentityHash)
+        .toBe(canonical[atrium].parameterIdentityHash);
+    }
+    for (const ventricle of ["LVFW", "SEP", "RVFW"] as const) {
+      expect(identity[ventricle].parameterIdentityHash)
+        .toBe(canonical[ventricle].parameterIdentityHash);
+      expect(increased[ventricle].parameterIdentityHash)
+        .not.toBe(canonical[ventricle].parameterIdentityHash);
+      const baseline = canonical[ventricle].initializeColdAtFixedInput({
+        fiberLogStrain: 0.08,
+        freeCalciumUM: 0.8,
+      });
+      const stronger = increased[ventricle].initializeColdAtFixedInput({
+        fiberLogStrain: 0.08,
+        freeCalciumUM: 0.8,
+      });
+      expect(wallReadback(stronger.readback).landActiveKirchhoffStressPa)
+        .toBeGreaterThan(
+          wallReadback(baseline.readback).landActiveKirchhoffStressPa,
+        );
+    }
+    expect(() =>
+      createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularContractilityScaleV1(2))
+      .toThrow(/contractility scale/i);
+  });
+
   it("cold-starts the canonical actual Land/SLS/Moyer/Klotz provider", () => {
     const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
     const coldDrive = asMainWireFiveWallFreeCalciumDriveV1(

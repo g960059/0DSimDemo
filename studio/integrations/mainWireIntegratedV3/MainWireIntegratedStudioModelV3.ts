@@ -75,11 +75,16 @@ import {
 } from "@/studio/infrastructure/json/StudioCanonicalJson";
 import type { RegisterExactModelPackageInputV2 } from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
 import { importExactExecutableArtifactModuleV2 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
+  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+} from "./MainWireIntegratedStudioModelIdentityV3";
 
-export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
-  "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-36" as const;
-export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 =
-  "circleheart.main-wire-integrated-transaction" as const;
+export {
+  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
+  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+} from "./MainWireIntegratedStudioModelIdentityV3";
+
 export const MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3 =
   "hot-path-lean" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_FIXTURE_SCHEMA_ID_V3 =

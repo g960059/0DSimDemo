@@ -33,6 +33,46 @@
     "accountSettings": "Account settings",
     "logout": "Log out"
   },
+  "devDashboard": {
+    "eyebrow": "DEVELOPMENT",
+    "title": "Development content",
+    "description": "Review simulations, articles, Snapshots, and Models currently in development in one place.",
+    "openModelLab": "Open Model Lab",
+    "returnFromModelLab": "Back to development content",
+    "refresh": "Refresh inventory",
+    "loading": "Loading development content…",
+    "error": "Development content could not be loaded.",
+    "empty": "Nothing here yet",
+    "source": "Storage: {{source}}",
+    "storage": {
+      "browser": "This browser",
+      "supabase": "Supabase"
+    },
+    "experiments": "Simulations",
+    "articles": "Articles",
+    "snapshots": "Snapshots",
+    "models": "Models",
+    "draft": "Draft",
+    "public": "Public",
+    "published": "Published",
+    "local": "This browser",
+    "scenarios": "Scenarios: {{count}}",
+    "panes": "Panes: {{count}}",
+    "available": "Available",
+    "unavailable": "Unavailable",
+    "stage": {
+      "dev": "Dev",
+      "stable": "Stable",
+      "retired": "Retired",
+      "unknown": "Available"
+    },
+    "modelSource": {
+      "default": "Default",
+      "research": "Research",
+      "model-lab": "Model Lab",
+      "referenced": "Used by content"
+    }
+  },
   "home": {
     "headline": "Learn circulation by moving it.",
     "lead": "Explore circulatory physiology and build interactive simulations.",

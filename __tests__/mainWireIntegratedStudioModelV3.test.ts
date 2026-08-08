@@ -18,6 +18,10 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID,
   MainWireIntegratedModelSessionV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
@@ -29,9 +33,6 @@ import {
 import type {
   ExperimentSurfaceV2,
 } from "@/studio/contracts/v2/content";
-import type {
-  RegisteredModelPackageManifestV2,
-} from "@/studio/contracts/v2/model";
 import {
   InMemoryRegisteredModelStoreV2,
 } from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
@@ -51,6 +52,23 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
 import mainWireIntegratedStudioExecutableArtifactV3 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs?raw";
+import mainWireIntegratedStudioStandardArtifactV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.artifact.mjs?raw";
+import mainWireIntegratedStudioStandardClientV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
+import mainWireIntegratedStudioStandardSurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-standard-v1.json";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+  MainWireIntegratedStudioStandardRuntimeHostV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV3";
+import {
+  resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
 
 const EMPTY_SURFACE_V2: ExperimentSurfaceV2 = Object.freeze({
   graphPanes: Object.freeze([]),
@@ -233,19 +251,11 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
   it("loads legacy and standard ABI releases independently and fails closed", async () => {
     const modelPackage = createMainWireIntegratedStudioModelPackageV3();
     const legacyModelId = modelPackage.manifest.modelId;
-    const standardModelId = legacyModelId.replace(
-      "development-36",
-      "standard-abi-test-1",
-    );
-    const standardManifest = Object.freeze({
-      ...JSON.parse(JSON.stringify(modelPackage.manifest)),
-      modelId: standardModelId,
-    }) as RegisteredModelPackageManifestV2;
+    const standardModelId = mainWireIntegratedStudioStandardClientV1
+      .manifest.modelId;
+    const standardManifest = mainWireIntegratedStudioStandardClientV1.manifest;
     const legacyBytes = exactExecutableArtifactBytesV3();
-    const standardBytes = standardExecutableArtifactBytesV3(
-      legacyModelId,
-      standardModelId,
-    );
+    const standardBytes = standardExecutableArtifactBytesV3();
     const artifactByUrl = new Map<string, Uint8Array>([
       ["https://registry.example/model-releases/legacy.mjs", legacyBytes],
       ["https://registry.example/model-releases/standard.mjs", standardBytes],
@@ -273,6 +283,7 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId: standardModelId,
       manifest: standardManifest,
+      surfaceRelease: mainWireIntegratedStudioStandardSurfaceV1,
       moduleAbi: "circleheart-exact-model-esm-v1",
       artifactUrl: "https://registry.example/model-releases/standard.mjs",
     } as const;
@@ -283,6 +294,14 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     ]);
     expect(legacy.contract.modelId).toBe(legacyModelId);
     expect(standard.contract.modelId).toBe(standardModelId);
+    expect(standard.contract.graphCatalog).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          graphId: "hemodynamics.pressure-volume",
+          renderer: "pressure-volume",
+        }),
+      ]),
+    );
     expect(legacy).not.toBe(standard);
     await expect(loader.load(legacyTicket)).resolves.toBe(legacy);
     await expect(loader.load(standardTicket)).resolves.toBe(standard);
@@ -300,7 +319,10 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       ...standardTicket,
       manifest: {
         ...standardManifest,
-        displayName: `${standardManifest.displayName} mismatch`,
+        runtime: {
+          ...standardManifest.runtime,
+          scope: `${standardManifest.runtime.scope}-mismatch`,
+        },
       },
     })).rejects.toThrow(
       /manifest does not match the registry/,
@@ -310,8 +332,8 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       async () => artifactFetchResponseV3(legacyBytes),
     );
     await expect(missingExportLoader.load({
-      ...legacyTicket,
-      moduleAbi: "circleheart-exact-model-esm-v1",
+      ...standardTicket,
+      artifactUrl: legacyTicket.artifactUrl,
     })).rejects.toThrow(/createCircleHeartExactModelReleaseV1/);
 
     const missingArtifactLoader = new DynamicExactModelRuntimeLoaderV2(
@@ -692,6 +714,102 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     host.closeSession(runtimeSessionId);
   }, 120_000);
 
+  it("warm-starts Standard contractility at the accepted clock and keeps advancing", async () => {
+    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-contractility-warm-start";
+    const scenarioId = "scenario/baseline";
+    await host.createSession(runtimeSessionId, [{
+      scenarioId,
+      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    }]);
+
+    let before = host.currentFrame(runtimeSessionId, scenarioId);
+    for (let ordinal = 1; ordinal <= 50; ordinal += 1) {
+      before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
+    }
+    const warmed = await host.applyControl(
+      runtimeSessionId,
+      scenarioId,
+      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1
+        .ventricularContractilityScale,
+      1.2,
+      0,
+    );
+    expect(warmed).toMatchObject({
+      inputEpoch: 1,
+      acceptedRevision: before.acceptedRevision,
+      acceptedTimeSec: before.acceptedTimeSec,
+    });
+    expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(warmed);
+
+    const advanced = host.advanceOnePresentationStep(
+      runtimeSessionId,
+      scenarioId,
+    );
+    expect(advanced.inputEpoch).toBe(1);
+    expect(advanced.acceptedTimeSec).toBeGreaterThan(
+      warmed.acceptedTimeSec,
+    );
+    for (const output of Object.values(advanced.outputs)) {
+      if (output.value !== null) {
+        expect(Number.isFinite(output.value)).toBe(true);
+      }
+    }
+    host.closeSession(runtimeSessionId);
+  }, 120_000);
+
+  it("connects Standard PV analysis to the bidirectional fixed-TBV plan", async () => {
+    const plan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+      MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+    );
+    expect(plan?.partitions).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+    ]);
+
+    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-pv-analysis";
+    const scenarioId = "scenario/baseline";
+    await host.createSession(runtimeSessionId, [{
+      scenarioId,
+      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    }]);
+    const source = host.currentFrame(runtimeSessionId, scenarioId);
+    const analysis = await host.requestAnalysis(
+      runtimeSessionId,
+      scenarioId,
+      MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+      source.inputEpoch,
+      source.acceptedRevision,
+      source.acceptedTimeSec,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+    );
+    const payload = analysis.payload as unknown as Readonly<{
+      left: Readonly<{
+        starlingLocus: Readonly<{
+          status: string;
+          points: readonly Readonly<{
+            ventricularPressureVolumeLoop: readonly unknown[];
+          }>[];
+        }>;
+      }>;
+    }>;
+
+    expect(analysis).toMatchObject({
+      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+      runtimeSessionId,
+      scenarioId,
+      analysisId: MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+    });
+    expect(payload.left.starlingLocus.status)
+      .toBe("responsive-fixed-tbv-preview");
+    expect(payload.left.starlingLocus.points.length).toBeGreaterThan(2);
+    expect(payload.left.starlingLocus.points.every((point) =>
+      point.ventricularPressureVolumeLoop.length >= 12)).toBe(true);
+    expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(source);
+    host.closeSession(runtimeSessionId);
+  }, 120_000);
+
   it("warm-starts every control endpoint and emits finite accepted-step outputs", async () => {
     const host = new MainWireIntegratedStudioRuntimeHostV3();
     const inputKeys = Object.keys(
@@ -958,20 +1076,10 @@ function exactExecutableArtifactBytesV3(): Uint8Array {
   );
 }
 
-function standardExecutableArtifactBytesV3(
-  legacyModelId: string,
-  standardModelId: string,
-): Uint8Array {
-  const standardSource = mainWireIntegratedStudioExecutableArtifactV3
-    .replaceAll(legacyModelId, standardModelId)
-    + `\nexport function createCircleHeartExactModelReleaseV1() {
-  const legacyRelease = createMainWireIntegratedStudioExecutableReleaseV3();
-  return Object.freeze({
-    manifest: legacyRelease.manifest,
-    executables: legacyRelease.executables,
-  });
-}\n`;
-  return new TextEncoder().encode(standardSource);
+function standardExecutableArtifactBytesV3(): Uint8Array {
+  return new TextEncoder().encode(
+    mainWireIntegratedStudioStandardArtifactV1,
+  );
 }
 
 function artifactFetchResponseV3(bytes: Uint8Array): Readonly<{

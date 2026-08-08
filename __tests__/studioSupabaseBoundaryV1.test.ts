@@ -128,7 +128,7 @@ describe("Studio Supabase boundary V1", () => {
               modelPackage.manifest,
               "legacy-main-wire-v3-development-36",
             )
-          : row(modelB, manifestB, "circleheart-exact-model-esm-v1")],
+          : row(modelB, manifestB, "legacy-main-wire-v3-development-36")],
       error: null,
     }));
     const resolver = new StudioSupabaseModelReleaseResolverV1({
@@ -139,7 +139,11 @@ describe("Studio Supabase boundary V1", () => {
     const exactA = await resolver.resolveExactModel(modelA);
     expect((await resolver.resolveChannel("default")).contract.modelId)
       .toBe(modelA);
-    channelRow = row(modelB, manifestB, "circleheart-exact-model-esm-v1");
+    channelRow = row(
+      modelB,
+      manifestB,
+      "legacy-main-wire-v3-development-36",
+    );
     expect((await resolver.resolveChannel("default")).contract.modelId)
       .toBe(modelB);
     await expect(resolver.resolveExactModel(modelA)).resolves.toBe(exactA);

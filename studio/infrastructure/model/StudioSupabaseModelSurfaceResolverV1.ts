@@ -24,6 +24,11 @@ export type StudioResolvedModelSurfaceV1 = Readonly<{
   stage: StudioReleaseStageV1;
 }>;
 
+export type StudioResolvedModelSurfaceManifestV1 = Readonly<{
+  manifest: ModelSurfaceReleaseManifestV1;
+  stage: StudioReleaseStageV1;
+}>;
+
 export type StudioModelSurfaceRpcResultV1 = Readonly<{
   data: unknown;
   error: Readonly<{ message: string }> | null;
@@ -96,6 +101,51 @@ export class StudioSupabaseModelSurfaceResolverV1 {
       }),
       model,
     );
+  }
+
+  /**
+   * Standard exact-model composition needs the immutable Surface manifest
+   * before it has a renderer-facing ModelContract. This family-only read is
+   * immediately followed by `composeStandardModelContractV1` at the caller.
+   */
+  async resolveChannelManifest(
+    channel: StudioReleaseChannelV1,
+    modelFamilyId: string,
+  ): Promise<StudioResolvedModelSurfaceManifestV1> {
+    assertStudioReleaseChannelV1(channel);
+    const result = await this.#rpc.call(
+      "get_model_surface_release_channel_v1",
+      Object.freeze({
+        p_model_family_id: modelFamilyId,
+        p_channel: channel,
+      }),
+    );
+    if (result.error !== null) {
+      throw new Error(
+        `Model Surface registry lookup failed: ${result.error.message}`,
+      );
+    }
+    if (!Array.isArray(result.data) || result.data.length !== 1) {
+      throw new Error("Model Surface release is unavailable");
+    }
+    const rowValue = result.data[0];
+    if (
+      rowValue === null
+      || typeof rowValue !== "object"
+      || Array.isArray(rowValue)
+    ) {
+      throw new Error("Model Surface registry returned an invalid row");
+    }
+    const row = rowValue as Record<string, unknown>;
+    assertModelSurfaceReleaseManifestV1(row.manifest);
+    if (row.manifest.modelFamilyId !== modelFamilyId) {
+      throw new Error("Model Surface registry returned another model family");
+    }
+    assertStudioReleaseStageV1(row.stage, "$.surfaceRelease.stage");
+    return Object.freeze({
+      manifest: ownSurfaceManifestV1(row.manifest),
+      stage: row.stage,
+    });
   }
 
   async #readOne(

@@ -12,12 +12,21 @@ import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import type {
   StudioModelWorkerReleaseTicketV2,
 } from "@/studio/contracts/v2/release";
+import {
+  STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+  validateStudioModelWorkerReleaseTicketV2,
+} from "@/studio/contracts/v2/release";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
 } from "@/studio/contracts/v2/simulation";
 import {
   deriveModelContractFromManifestV2,
 } from "@/studio/contracts/v2/model";
+import {
+  assertExactModelKernelManifestV3,
+  assertModelSurfaceReleaseManifestV1,
+  composeStandardModelContractV1,
+} from "@/studio/contracts/v2/modelSurface";
 import {
   TrustedRegisteredModelClientCatalogV2,
 } from "@/studio/infrastructure/model/TrustedRegisteredModelClientCatalogV2";
@@ -42,6 +51,10 @@ import type {
 import {
   resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
+import standardClientDescriptorV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
+import standardSurfaceReleaseV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-standard-v1.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
 typeof MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
@@ -54,6 +67,8 @@ export type StudioClientCompositionV2 = Readonly<{
   contract: ModelContractV2;
   analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
   workerReleaseTicket?: StudioModelWorkerReleaseTicketV2;
+  surfaceReleaseId?: string;
+  surfaceStage?: StudioReleaseStageV1;
 }>;
 
 export type StudioDefaultClientCompositionV2 = StudioClientCompositionV2;
@@ -77,6 +92,19 @@ const browserChannelCompositionPromisesV2 = new Map<
   StudioReleaseChannelV1,
   Promise<StudioClientCompositionV2>
 >();
+let browserLocalStandardModelLabCompositionPromiseV1:
+  Promise<StudioClientCompositionV2> | undefined;
+
+/**
+ * Development inventory refreshes must observe channel and lifecycle moves
+ * made after the SPA first resolved them. Ordinary Sessions keep their pinned
+ * composition; clearing these lookup Promises cannot mutate a running Worker.
+ */
+export function invalidateStudioClientCompositionCachesV2(): void {
+  browserCompositionPromiseV2 = undefined;
+  browserExactCompositionPromisesV2.clear();
+  browserChannelCompositionPromisesV2.clear();
+}
 
 /**
  * Loads the one registry-admitted development release into the hash-free
@@ -135,6 +163,12 @@ async function createRegistryClientCompositionV2(
       release.analysisProfileId,
     ),
     workerReleaseTicket: release.ticket,
+    ...(release.surfaceReleaseId === undefined
+      ? {}
+      : { surfaceReleaseId: release.surfaceReleaseId }),
+    ...(release.surfaceStage === undefined
+      ? {}
+      : { surfaceStage: release.surfaceStage }),
   });
 }
 
@@ -153,6 +187,63 @@ export function loadStudioModelChannelClientCompositionV2(
   void pending.catch(() => {
     if (browserChannelCompositionPromisesV2.get(channel) === pending) {
       browserChannelCompositionPromisesV2.delete(channel);
+    }
+  });
+  return pending;
+}
+
+/**
+ * Explicit local Standard-ABI composition for the one development Model Lab.
+ * The browser receives only the admitted manifest/fixture projection; the
+ * persistent Worker imports and owns the numerical artifact.
+ */
+export function loadStudioLocalStandardModelLabClientCompositionV1():
+Promise<StudioClientCompositionV2> {
+  if (browserLocalStandardModelLabCompositionPromiseV1 !== undefined) {
+    return browserLocalStandardModelLabCompositionPromiseV1;
+  }
+  const pending = Promise.resolve().then(() => {
+    if (
+      standardClientDescriptorV1.schemaId
+      !== "circleheart-standard-exact-model-client-descriptor-v1"
+    ) {
+      throw new Error("Standard Model Lab client descriptor identity mismatch");
+    }
+    assertExactModelKernelManifestV3(standardClientDescriptorV1.manifest);
+    assertModelSurfaceReleaseManifestV1(standardSurfaceReleaseV1);
+    const composed = composeStandardModelContractV1(
+      standardClientDescriptorV1.manifest,
+      standardSurfaceReleaseV1,
+    );
+    const artifactUrl = new URL(
+      "../integrations/mainWireIntegratedV3/"
+        + "MainWireIntegratedStudioExactModelV1.artifact.mjs",
+      import.meta.url,
+    ).href;
+    const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId: composed.contract.modelId,
+      manifest: standardClientDescriptorV1.manifest,
+      surfaceRelease: standardSurfaceReleaseV1,
+      moduleAbi: "circleheart-exact-model-esm-v1",
+      artifactUrl,
+    });
+    return Object.freeze({
+      defaultModelId: composed.contract.modelId,
+      releaseStage: "dev" as const,
+      defaultFixture: standardClientDescriptorV1.defaultFixture,
+      contract: composed.contract,
+      analysisExecutionPlan:
+        resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
+      workerReleaseTicket,
+      surfaceReleaseId: composed.surface.surfaceReleaseId,
+      surfaceStage: "dev" as const,
+    });
+  });
+  browserLocalStandardModelLabCompositionPromiseV1 = pending;
+  void pending.catch(() => {
+    if (browserLocalStandardModelLabCompositionPromiseV1 === pending) {
+      browserLocalStandardModelLabCompositionPromiseV1 = undefined;
     }
   });
   return pending;
@@ -255,7 +346,13 @@ export function loadStudioModelClientCompositionV2(
 function analysisExecutionPlanForProfileV2(
   profileId: string,
 ): StudioSimulationAnalysisExecutionPlanResolverV2 {
+  if (profileId === "standard-no-model-analysis-v1") {
+    return () => null;
+  }
   if (profileId === "main-wire-integrated-v3") {
+    return resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
+  }
+  if (profileId === "main-wire-integrated-standard-v1") {
     return resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
   }
   throw new Error(`Unsupported Studio analysis profile ${profileId}`);
