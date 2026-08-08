@@ -33,6 +33,11 @@ common Snapshot admission, and the bidirectional fixed-TBV ESPVR/EDPVR analysis
 path pass together. The remaining acceptance work is stable registry
 publication, Article/Reader vertical QA, and the supervised learner pilot.
 
+Development QA uses one compact `/dev` inventory for Experiments, Articles,
+Snapshots, and active/referenced models. `/dev/model-lab` remains the only
+Model Lab and returns to that inventory; no parallel development content store
+or management IA is being introduced.
+
 The removed Workbench implementation is available in Git history. It is not a
 persistence, ownership, or compatibility boundary for Studio V2.
 

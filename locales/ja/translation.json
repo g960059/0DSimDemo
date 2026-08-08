@@ -33,6 +33,46 @@
     "accountSettings": "アカウント設定",
     "logout": "ログアウト"
   },
+  "devDashboard": {
+    "eyebrow": "DEVELOPMENT",
+    "title": "開発コンテンツ",
+    "description": "作成中のシミュレーション、記事、Snapshot、利用中のModelを一箇所で確認します。",
+    "openModelLab": "Model Labを開く",
+    "returnFromModelLab": "開発コンテンツへ戻る",
+    "refresh": "一覧を更新",
+    "loading": "開発コンテンツを読み込んでいます…",
+    "error": "開発コンテンツを読み込めませんでした。",
+    "empty": "まだありません",
+    "source": "保存先: {{source}}",
+    "storage": {
+      "browser": "このブラウザ",
+      "supabase": "Supabase"
+    },
+    "experiments": "シミュレーション",
+    "articles": "記事",
+    "snapshots": "Snapshots",
+    "models": "Models",
+    "draft": "下書き",
+    "public": "公開",
+    "published": "公開済み",
+    "local": "このブラウザ",
+    "scenarios": "Scenario: {{count}}",
+    "panes": "Pane: {{count}}",
+    "available": "利用可能",
+    "unavailable": "利用不可",
+    "stage": {
+      "dev": "Dev",
+      "stable": "Stable",
+      "retired": "Retired",
+      "unknown": "Available"
+    },
+    "modelSource": {
+      "default": "Default",
+      "research": "Research",
+      "model-lab": "Model Lab",
+      "referenced": "Contentで使用"
+    }
+  },
   "home": {
     "headline": "循環動態を、動かして学ぶ。",
     "lead": "循環動態を探索し、シミュレーションを組み立てます。",

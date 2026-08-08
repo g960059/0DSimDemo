@@ -5,11 +5,13 @@ import {
   articleEditorHref,
   articlePlacementHref,
   articleReaderHref,
+  devDashboardHref,
   experimentDetailHref,
   experimentsHref,
   experimentSnapshotHref,
   homeHref,
   loginHref,
+  modelLabHref,
   myArticlesHref,
   myExperimentsHref,
   newArticleEditorHref,
@@ -33,6 +35,8 @@ describe('homeLinks', () => {
     expect(myArticlesHref()).toBe('/ja/me/articles');
     expect(accountSettingsHref()).toBe('/ja/me/settings');
     expect(loginHref()).toBe('/ja/login');
+    expect(devDashboardHref()).toBe('/ja/dev');
+    expect(modelLabHref()).toBe('/ja/dev/model-lab');
   });
 
   it('always prefixes localized hrefs', () => {
@@ -42,6 +46,8 @@ describe('homeLinks', () => {
     expect(experimentsHref('ja')).toBe('/ja/experiments');
     expect(myExperimentsHref('en')).toBe('/en/me/experiments');
     expect(myArticlesHref('en')).toBe('/en/me/articles');
+    expect(devDashboardHref('en')).toBe('/en/dev');
+    expect(modelLabHref('en')).toBe('/en/dev/model-lab');
   });
 
   it('builds a URL-safe Experiment detail route without deriving identity from a model', () => {

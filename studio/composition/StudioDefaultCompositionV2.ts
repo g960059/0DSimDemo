@@ -96,6 +96,17 @@ let browserLocalStandardModelLabCompositionPromiseV1:
   Promise<StudioClientCompositionV2> | undefined;
 
 /**
+ * Development inventory refreshes must observe channel and lifecycle moves
+ * made after the SPA first resolved them. Ordinary Sessions keep their pinned
+ * composition; clearing these lookup Promises cannot mutate a running Worker.
+ */
+export function invalidateStudioClientCompositionCachesV2(): void {
+  browserCompositionPromiseV2 = undefined;
+  browserExactCompositionPromisesV2.clear();
+  browserChannelCompositionPromisesV2.clear();
+}
+
+/**
  * Loads the one registry-admitted development release into the hash-free
  * client catalog. Startup intentionally creates no Preset, Experiment,
  * Snapshot, Placement, or Lesson content.

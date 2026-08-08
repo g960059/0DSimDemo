@@ -225,18 +225,30 @@ profile and Snapshot identity does not carry one.
 
 ## 6. One Model Lab
 
-The sole lab route is `/dev/model-lab`.
+Development inspection has one intentionally small entry point: `/dev`. It
+lists the current developer's Experiments, Articles, neutral Snapshots, and the
+exact models that are active in Model Lab/channels or referenced by that
+content. It is an inventory, not a second content repository or administration
+product. The list reuses the ordinary browser/Supabase content repositories and
+does not add a development-only persistence type.
 
-- It resolves the `research` channel and pins the returned exact model.
-- It fails closed when the research registry is unavailable; it never silently
-  runs the bundled default model under a Model Lab label.
+The sole lab route is `/dev/model-lab`. Its leftmost Home action returns to
+`/dev`, while `/dev` itself uses the ordinary site header.
+
+- The current pre-cutover Lab boots the explicitly bundled Standard-ABI local
+  exact model and Surface and pins both identities. A registered research
+  channel remains visible in `/dev` and becomes the Lab source only when that
+  cutover is made explicitly.
+- Research-channel inspection fails closed when its registry is unavailable;
+  it never presents the bundled default model as a research-channel result.
 - It uses the same Workbench and Worker architecture as ordinary Sessions.
 - Its Standard exact release advertises and executes the responsive and formal
   fixed-TBV analysis capabilities used to derive the multi-load ESPVR/EDPVR
   envelopes. The main-thread coordinator applies the same bidirectional Worker
   plan as ordinary Sessions; the live lane is not advanced by either branch.
 - The Workbench owns the Lab's contextual header, so the global discovery/auth
-  header is not rendered a second time on this route.
+  header is not rendered a second time on this route. The `/dev` inventory uses
+  global chrome and therefore does not duplicate contextual Workbench chrome.
 - Private Experiment Save and neutral Snapshot creation are permitted.
 - Public Experiment publication is absent in the Lab UI and rejected by the
   database unless the Snapshot's exact model is both `stable` and loadable.

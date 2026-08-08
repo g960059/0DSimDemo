@@ -15,11 +15,13 @@ describe("site shell V3", () => {
     expect(routeOwnsApplicationChrome("/articles/article-one")).toBe(false);
     expect(routeOwnsApplicationChrome("/me/articles")).toBe(false);
     expect(routeOwnsApplicationChrome("/me/experiments")).toBe(false);
+    expect(routeOwnsApplicationChrome("/dev")).toBe(false);
     expect(routeOwnsApplicationChrome("/articles/new/edit")).toBe(true);
     expect(routeOwnsApplicationChrome("/articles/article-one/edit")).toBe(true);
     expect(routeOwnsApplicationChrome("/experiments/new")).toBe(true);
     expect(routeOwnsApplicationChrome("/experiments/experiment-one")).toBe(true);
     expect(routeOwnsApplicationChrome("/dev/model-lab")).toBe(true);
+    expect(routeOwnsApplicationChrome("/dev/model-lab/")).toBe(true);
     expect(routeOwnsApplicationChrome("/snapshots/snapshot-one")).toBe(true);
   });
 

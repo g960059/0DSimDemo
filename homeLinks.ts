@@ -39,6 +39,13 @@ export const accountSettingsHref = (locale?: Locale) =>
 
 export const loginHref = (locale?: Locale) => prefixPath("/login", locale);
 
+/** Compact inventory for development content and model releases in use. */
+export const devDashboardHref = (locale?: Locale) => prefixPath("/dev", locale);
+
+/** The single development/research Workbench. */
+export const modelLabHref = (locale?: Locale) =>
+  prefixPath("/dev/model-lab", locale);
+
 export const articleEditorHref = ({
   articleId,
   locale,
