@@ -113,6 +113,19 @@ export type MainWireNormalAdultFiveWallProviderV1 =
 
 export type MainWireNormalAdultLaSlsModeV1 = "on" | "exact-off";
 
+/**
+ * Bounded global ventricular active-tension scale used by the Standard Studio
+ * ABI. The scale owns one honest material operation: Land 2017 `Tref` is
+ * changed together for LVFW, SEP, and RVFW. The shared septum means this is
+ * deliberately not presented as an independent LV- or RV-only inotropy knob.
+ */
+export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_CONTRACTILITY_SCALE_RANGE_V1 =
+  Object.freeze({
+    minimum: 0.75,
+    maximum: 1.33,
+    defaultValue: 1,
+  });
+
 export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1 =
   Object.freeze([
     "baseline",
@@ -167,6 +180,36 @@ MainWireNormalAdultFiveWallProviderV1 {
   ));
 }
 
+/**
+ * Creates the continuous, bounded contractility variant used by the exact
+ * Standard model. Passive material, geometry, calcium ownership, SLS, and the
+ * atria remain unchanged; only ventricular Land `Tref` is scaled.
+ */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularContractilityScaleV1(
+  requestedScale: number,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const profile = continuousVentricularContractilityProfileV1(requestedScale);
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    profile.equilibriumPassive,
+    profile.wallMaterial,
+    profile.identitySuffix,
+  );
+}
+
+export function createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularContractilityScaleV1(
+  requestedScale: number,
+): MainWireFiveWallRecordV1<
+  MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
+> {
+  const profile = continuousVentricularContractilityProfileV1(requestedScale);
+  return createMaterialKernelsFromMaterial(
+    "on",
+    profile.equilibriumPassive,
+    profile.wallMaterial,
+  );
+}
+
 export function createMainWireNormalAdultFiveWallMaterialKernelsV1(
   laSlsMode: MainWireNormalAdultLaSlsModeV1 = "on",
 ):
@@ -209,9 +252,61 @@ type ResolvedVentricularMaterialProfileV1 = Readonly<{
   wallMaterial: LandSlsWallMaterialParamsV1;
 }>;
 
+type ContinuousVentricularContractilityProfileV1 = Readonly<{
+  equilibriumPassive: CompiledEquilibriumOneFiberPassiveV1;
+  wallMaterial: LandSlsWallMaterialParamsV1;
+  identitySuffix: string;
+}>;
+
+function continuousVentricularContractilityProfileV1(
+  requestedScale: number,
+): ContinuousVentricularContractilityProfileV1 {
+  const scale = validateVentricularContractilityScaleV1(requestedScale);
+  const baseline =
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
+  if (scale === 1) {
+    return Object.freeze({
+      equilibriumPassive:
+        NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+      wallMaterial: baseline,
+      identitySuffix: "",
+    });
+  }
+  const scaleIdentity = canonicalScaleIdentityV1(scale);
+  return Object.freeze({
+    equilibriumPassive:
+      NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    wallMaterial: Object.freeze({
+      ...baseline,
+      parameterSetId:
+        `${baseline.parameterSetId}-ventricular-contractility-${scaleIdentity}`,
+      landEquationParameters: scaledVentricularLandTrefForScale(
+        `ventricular-contractility-${scaleIdentity}`,
+        scale,
+        "bounded global ventricular contractility control",
+      ),
+    }),
+    identitySuffix: `-ventricular-contractility-${scaleIdentity}`,
+  });
+}
+
 function createMaterialKernels(
   laSlsMode: MainWireNormalAdultLaSlsModeV1,
   ventricularProfile: ResolvedVentricularMaterialProfileV1,
+): MainWireFiveWallRecordV1<
+  MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
+> {
+  return createMaterialKernelsFromMaterial(
+    laSlsMode,
+    ventricularProfile.equilibriumPassive,
+    ventricularProfile.wallMaterial,
+  );
+}
+
+function createMaterialKernelsFromMaterial(
+  laSlsMode: MainWireNormalAdultLaSlsModeV1,
+  ventricularEquilibriumPassive: CompiledEquilibriumOneFiberPassiveV1,
+  ventricularWallMaterial: LandSlsWallMaterialParamsV1,
 ): MainWireFiveWallRecordV1<
   MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
 > {
@@ -221,10 +316,10 @@ function createMaterialKernels(
     const isAtrium = wallId === "LA" || wallId === "RA";
     const passive = isAtrium
       ? createMoyerPassiveEvaluator(prior.passive.atrial.compiled)
-      : createKlotzPassiveEvaluator(ventricularProfile.equilibriumPassive);
+      : createKlotzPassiveEvaluator(ventricularEquilibriumPassive);
     const baseParams = isAtrium
       ? prior.active.wallMaterialByWall[wallId]
-      : ventricularProfile.wallMaterial;
+      : ventricularWallMaterial;
     const materialParams = wallId === "LA" && laSlsMode === "exact-off"
       ? exactLaSlsOffParams(baseParams)
       : baseParams;
@@ -241,15 +336,33 @@ function createNormalAdultProvider(
   laSlsMode: MainWireNormalAdultLaSlsModeV1,
   ventricularProfile: ResolvedVentricularMaterialProfileV1,
 ): MainWireNormalAdultFiveWallProviderV1 {
-  const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
-  assertNormalAdultFiveWallPriorV1(prior);
   const researchSuffix = ventricularProfile.point.pointId === "baseline"
     ? ""
     : `-source-research-${ventricularProfile.point.pointId}`;
+  return createNormalAdultProviderFromMaterial(
+    laSlsMode,
+    ventricularProfile.equilibriumPassive,
+    ventricularProfile.wallMaterial,
+    researchSuffix,
+  );
+}
+
+function createNormalAdultProviderFromMaterial(
+  laSlsMode: MainWireNormalAdultLaSlsModeV1,
+  ventricularEquilibriumPassive: CompiledEquilibriumOneFiberPassiveV1,
+  ventricularWallMaterial: LandSlsWallMaterialParamsV1,
+  identitySuffix: string,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
+  assertNormalAdultFiveWallPriorV1(prior);
   return createMainWireFiveWallLandTriSegProviderV1(Object.freeze({
     parameterSetId:
-      `${prior.priorId}-${laSlsMode === "on" ? "canonical" : "la-sls-exact-off"}${researchSuffix}`,
-    materialByWall: createMaterialKernels(laSlsMode, ventricularProfile),
+      `${prior.priorId}-${laSlsMode === "on" ? "canonical" : "la-sls-exact-off"}${identitySuffix}`,
+    materialByWall: createMaterialKernelsFromMaterial(
+      laSlsMode,
+      ventricularEquilibriumPassive,
+      ventricularWallMaterial,
+    ),
     atria: Object.freeze({
       LA: atrialGeometry("LA"),
       RA: atrialGeometry("RA"),
@@ -339,6 +452,18 @@ function scaledVentricularLandTref(
   pointId: "ventricular-tref-low" | "ventricular-tref-high",
   scale: number,
 ): Land2017SourceParameterSet {
+  return scaledVentricularLandTrefForScale(
+    pointId,
+    scale,
+    "fixed source-research envelope",
+  );
+}
+
+function scaledVentricularLandTrefForScale(
+  identitySuffix: string,
+  scale: number,
+  provenanceLabel: string,
+): Land2017SourceParameterSet {
   const baseline =
     NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularLand;
   const values = Object.freeze({
@@ -346,7 +471,7 @@ function scaledVentricularLandTref(
     Tref: baseline.values.Tref * scale,
   });
   const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> = {
-    parameterSetId: `${baseline.parameterSetId}-${pointId}`,
+    parameterSetId: `${baseline.parameterSetId}-${identitySuffix}`,
     sourceId: baseline.sourceId,
     doi: baseline.doi,
     values,
@@ -356,7 +481,7 @@ function scaledVentricularLandTref(
         ? Object.freeze({
           ...entry,
           location:
-            `${entry.location}; fixed source-research envelope scale ${scale}`,
+            `${entry.location}; ${provenanceLabel} scale ${scale}`,
           original: Object.freeze({ ...entry.original }),
           runtime: Object.freeze({ ...entry.runtime, value: values.Tref }),
         })
@@ -372,6 +497,28 @@ function scaledVentricularLandTref(
     ...hashInput,
     parameterSetStableHash: stableLandParameterHash(hashInput),
   });
+}
+
+function validateVentricularContractilityScaleV1(value: number): number {
+  const range =
+    MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_CONTRACTILITY_SCALE_RANGE_V1;
+  if (
+    typeof value !== "number"
+    || !Number.isFinite(value)
+    || Object.is(value, -0)
+    || value < range.minimum
+    || value > range.maximum
+  ) {
+    throw new Error(
+      "ventricular contractility scale must be finite within "
+        + `[${range.minimum}, ${range.maximum}]`,
+    );
+  }
+  return value;
+}
+
+function canonicalScaleIdentityV1(value: number): string {
+  return value.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function exactLaSlsOffParams(

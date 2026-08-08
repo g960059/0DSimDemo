@@ -18,19 +18,27 @@ graph, capability, and assertion before starting expensive numerical work:
 ```sh
 npm run verify:content:official-readiness -- \
   --recipe content/official/<recipe>.json \
-  --kernel path/to/exact-kernel.json \
+  --kernel path/to/exact-kernel-or-client-descriptor.json \
   --surface path/to/model-surface.json
 ```
 
 Readiness is not publication: it deliberately performs no settlement,
 Snapshot admission, artifact emission, or database write.
 
-The future build command binds a validated recipe to an explicitly selected
-exact model and compatible Model Surface, starts from the release's registered
-default fixture, captures through the normal Worker path, and passes the same
-Snapshot admission service used by user authoring. Build output and reports are
-generated artifacts; recipe sources remain independent of the current
-`default` or `research` pointer.
+The first Main Wire numerical runner is:
+
+```sh
+npm run build:content:official:main-wire -- \
+  --recipe content/official/pv-loop-basics-v1.experiment.json \
+  --output dist/official/pv-loop-basics-v1.build.json
+```
+
+It binds the validated recipe to the admitted local Standard exact model and
+compatible Model Surface, starts from the release's registered default fixture,
+settles and evaluates model-owned assertions, and passes the same Snapshot
+admission service used by authoring. Build output and reports are generated
+artifacts; recipe sources remain independent of the current `default` or
+`research` pointer. It does not publish or write to the registry/database.
 
 The first reviewed source is `pv-loop-basics-v1.experiment.json`. It is not a
 published Snapshot and cannot be built against the legacy `development-36`

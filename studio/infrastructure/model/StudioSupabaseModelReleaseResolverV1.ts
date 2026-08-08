@@ -8,11 +8,16 @@ import {
   assertPortableStudioJsonObjectV2,
   deriveModelContractFromManifestV2,
 } from "@/studio/contracts/v2/model";
-import type { StudioReleaseChannelV1 } from "@/studio/contracts/v2/modelSurface";
-import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
+import type {
+  ExactModelKernelManifestV3,
+  StudioReleaseChannelV1,
+  StudioReleaseStageV1,
+} from "@/studio/contracts/v2/modelSurface";
 import {
+  assertExactModelKernelManifestV3,
   assertStudioReleaseChannelV1,
   assertStudioReleaseStageV1,
+  composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import type { StudioJsonObjectV2 } from "@/studio/contracts/v2/json";
 import type {
@@ -27,6 +32,10 @@ import {
   readStudioSupabaseConfigurationV1,
   studioSupabaseClientV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseClientV1";
+import {
+  StudioSupabaseModelSurfaceResolverV1,
+  studioSupabaseModelSurfaceResolverV1,
+} from "@/studio/infrastructure/model/StudioSupabaseModelSurfaceResolverV1";
 
 export type StudioResolvedModelReleaseV1 = Readonly<{
   contract: ModelContractV2;
@@ -34,6 +43,8 @@ export type StudioResolvedModelReleaseV1 = Readonly<{
   analysisProfileId: string;
   stage: StudioReleaseStageV1;
   ticket: StudioModelWorkerReleaseTicketV2;
+  surfaceReleaseId?: string;
+  surfaceStage?: StudioReleaseStageV1;
 }>;
 
 export type StudioModelReleaseRpcResultV1 = Readonly<{
@@ -79,14 +90,17 @@ export class StudioExactModelUnavailableErrorV1 extends Error {
 export class StudioSupabaseModelReleaseResolverV1 {
   readonly #rpc: StudioModelReleaseRpcPortV1;
   readonly #supabaseOrigin: string;
+  readonly #surfaceResolver: StudioSupabaseModelSurfaceResolverV1 | null;
   readonly #releasePromises = new Map<string, Promise<StudioResolvedModelReleaseV1>>();
 
   constructor(dependencies: Readonly<{
     rpc: StudioModelReleaseRpcPortV1;
     supabaseOrigin: string;
+    surfaceResolver?: StudioSupabaseModelSurfaceResolverV1 | null;
   }>) {
     this.#rpc = dependencies.rpc;
     this.#supabaseOrigin = validateSupabaseOriginV1(dependencies.supabaseOrigin);
+    this.#surfaceResolver = dependencies.surfaceResolver ?? null;
   }
 
   resolveExactModel(modelId: string): Promise<StudioResolvedModelReleaseV1> {
@@ -109,6 +123,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
     const resolved = await this.#readOne(
       "get_model_release_channel_v3",
       Object.freeze({ p_channel: channel }),
+      channel,
     );
     const cached = this.#releasePromises.get(resolved.contract.modelId);
     if (cached !== undefined) return cached;
@@ -120,6 +135,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
   async #readOne(
     functionName: "get_model_release_v3" | "get_model_release_channel_v3",
     parameters: Readonly<Record<string, string>>,
+    surfaceChannel?: StudioReleaseChannelV1,
   ): Promise<StudioResolvedModelReleaseV1> {
     const result = await this.#rpc.call(functionName, parameters);
     if (result.error !== null) {
@@ -128,7 +144,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
     if (!Array.isArray(result.data) || result.data.length !== 1) {
       throw new Error("Exact model release is unavailable");
     }
-    return this.#ownReleaseRow(result.data[0]);
+    return this.#ownReleaseRow(result.data[0], surfaceChannel);
   }
 
   async #readExactModel(modelId: string): Promise<StudioResolvedModelReleaseV1> {
@@ -150,7 +166,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
       );
     }
     try {
-      return this.#ownReleaseRow(result.data[0]);
+      return await this.#ownReleaseRow(result.data[0]);
     } catch (error) {
       throw new StudioExactModelUnavailableErrorV1(
         modelId,
@@ -160,7 +176,10 @@ export class StudioSupabaseModelReleaseResolverV1 {
     }
   }
 
-  #ownReleaseRow(value: unknown): StudioResolvedModelReleaseV1 {
+  async #ownReleaseRow(
+    value: unknown,
+    requestedSurfaceChannel?: StudioReleaseChannelV1,
+  ): Promise<StudioResolvedModelReleaseV1> {
     if (value === null || typeof value !== "object" || Array.isArray(value)) {
       throw new Error("Exact model registry returned an invalid row");
     }
@@ -181,12 +200,48 @@ export class StudioSupabaseModelReleaseResolverV1 {
       "analysis_profile_id",
     );
     assertStudioReleaseStageV1(row.stage, "$.stage");
+    const artifactUrl = publicArtifactUrlV1(this.#supabaseOrigin, artifactPath);
+    if (moduleAbi === "circleheart-exact-model-esm-v1") {
+      assertExactModelKernelManifestV3(row.manifest);
+      const kernel = ownJsonObjectV1(row.manifest) as
+        unknown as ExactModelKernelManifestV3;
+      if (this.#surfaceResolver === null) {
+        throw new Error("Standard exact model requires the Model Surface registry");
+      }
+      const surfaceChannel = requestedSurfaceChannel
+        ?? (row.stage === "dev" ? "research" : "default");
+      const surface = await this.#surfaceResolver.resolveChannelManifest(
+        surfaceChannel,
+        kernel.modelFamilyId,
+      );
+      const composed = composeStandardModelContractV1(
+        kernel,
+        surface.manifest,
+      );
+      const ticket = validateStudioModelWorkerReleaseTicketV2({
+        schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+        modelId,
+        manifest: kernel,
+        surfaceRelease: surface.manifest,
+        moduleAbi,
+        artifactUrl,
+      });
+      return Object.freeze({
+        contract: composed.contract,
+        defaultFixture,
+        analysisProfileId,
+        stage: row.stage,
+        ticket,
+        surfaceReleaseId: composed.surface.surfaceReleaseId,
+        surfaceStage: surface.stage,
+      });
+    }
     const ticket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId,
       manifest: row.manifest as RegisteredModelPackageManifestV2,
       moduleAbi,
-      artifactUrl: publicArtifactUrlV1(this.#supabaseOrigin, artifactPath),
+      artifactUrl,
     });
     return Object.freeze({
       contract: deriveModelContractFromManifestV2(ticket.manifest),
@@ -210,6 +265,7 @@ StudioSupabaseModelReleaseResolverV1 | null {
     : new StudioSupabaseModelReleaseResolverV1({
         rpc: supabaseRpcPortV1(client),
         supabaseOrigin: configuration.url,
+        surfaceResolver: studioSupabaseModelSurfaceResolverV1(),
       });
   return sharedResolverV1;
 }

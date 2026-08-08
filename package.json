@@ -13,6 +13,7 @@
     "publish:registry:model-surface": "vite-node --script tools/registry/publishModelSurfaceReleaseV1.ts",
     "verify:content:official-recipe": "vite-node --script tools/content/verifyOfficialExperimentRecipeV1.ts",
     "verify:content:official-readiness": "vite-node --script tools/content/verifyOfficialExperimentBuildReadinessV1.ts",
+    "build:content:official:main-wire": "vite-node --script tools/content/buildMainWireOfficialExperimentV1.ts",
     "preview": "vite preview",
     "check:repository-hygiene": "node tools/repository/checkRepositoryHygiene.mjs",
     "test": "npm run test:fast",

@@ -739,6 +739,43 @@ export function cloneWholeHeartMechanicsAcceptedStateV1<TState, TDrive>(
   return auditAcceptedState(provider, state).state;
 }
 
+/**
+ * Transfers one accepted mechanics state between two parameterizations of the
+ * same provider and state schema without changing its accepted clock or
+ * material memory.
+ *
+ * This is the explicit accepted-boundary seam for a warm parameter change.
+ * The source is fully audited with its owning provider, serialized through the
+ * source codec, decoded through the target codec, and then re-stamped with the
+ * target provider identity. A different provider implementation or state
+ * schema is never treated as warm-start compatible.
+ */
+export function rebindWholeHeartMechanicsAcceptedStateV1<TState, TDrive>(
+  sourceProvider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  targetProvider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  state: WholeHeartMechanicsAcceptedStateV1<TState>,
+): WholeHeartMechanicsAcceptedStateV1<TState> {
+  validateProvider(sourceProvider);
+  validateProvider(targetProvider);
+  if (
+    sourceProvider.providerId !== targetProvider.providerId
+    || sourceProvider.stateSchemaVersion !== targetProvider.stateSchemaVersion
+  ) {
+    throw new Error(
+      "whole-heart mechanics warm rebind requires one provider and state schema",
+    );
+  }
+  const source = auditAcceptedState(sourceProvider, state);
+  return acceptedState(targetProvider, {
+    revision: source.state.revision,
+    timeSec: source.state.acceptedTimeSec,
+    volumesMl: source.state.acceptedVolumesMl,
+    materialState: targetProvider.stateCodec.decode(
+      source.encodedMaterialState,
+    ),
+  });
+}
+
 /** JSON.stringify(checkpoint) is the stable contract snapshot payload. */
 export function checkpointWholeHeartMechanicsStateV1<TState, TDrive>(
   provider: WholeHeartMechanicsProviderV1<TState, TDrive>,

@@ -7,15 +7,25 @@ import { fileURLToPath } from "node:url";
 import { build } from "vite";
 
 import {
+  composeStandardModelContractV1,
+} from "@/studio/contracts/v2/modelSurface";
+import {
+  validateExecutableBundleV2,
+} from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
+import {
   studioCanonicalJsonStringify,
 } from "@/studio/infrastructure/json/StudioCanonicalJson";
 import {
-  InMemoryRegisteredModelStoreV2,
-} from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
+  importExactExecutableArtifactModuleV2,
+} from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3,
-  createMainWireIntegratedStudioModelPackageV3,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1,
+  createCircleHeartExactModelReleaseV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
+import mainWireIntegratedStandardSurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-standard-v1.json";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -23,19 +33,32 @@ const repositoryRoot = path.resolve(
 );
 const entryPath = path.join(
   repositoryRoot,
-  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.ts",
+  "studio/integrations/mainWireIntegratedV3/"
+    + "MainWireIntegratedStudioExactModelV1.entry.ts",
 );
 const lockRelativePath =
-  "studio/integrations/mainWireIntegratedV3/registry-admission-lock.json";
+  "studio/integrations/mainWireIntegratedV3/"
+    + "standard-registry-admission-lock.json";
 const lockPath = path.join(repositoryRoot, lockRelativePath);
 const artifactRelativePath =
-  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs";
+  "studio/integrations/mainWireIntegratedV3/"
+    + "MainWireIntegratedStudioExactModelV1.artifact.mjs";
 const artifactPath = path.join(repositoryRoot, artifactRelativePath);
+const clientDescriptorRelativePath =
+  "studio/integrations/mainWireIntegratedV3/"
+    + "MainWireIntegratedStudioExactModelV1.client.json";
+const clientDescriptorPath = path.join(repositoryRoot, clientDescriptorRelativePath);
 
 type RegistryAdmissionLock = Readonly<{
-  schemaId: "circleheart-main-wire-integrated-v3-registry-admission-lock-v1";
+  schemaId: "circleheart-standard-exact-model-registry-admission-lock-v1";
   modelId: string;
   packageSha256: string;
+}>;
+
+type StandardClientDescriptorV1 = Readonly<{
+  schemaId: "circleheart-standard-exact-model-client-descriptor-v1";
+  manifest: ReturnType<typeof createCircleHeartExactModelReleaseV1>["manifest"];
+  defaultFixture: typeof MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1;
 }>;
 
 await main();
@@ -46,55 +69,84 @@ async function main(): Promise<void> {
   if (args.length > 0 && !updateRequested) {
     fail("the only supported argument is --write");
   }
-  const modelPackage = createMainWireIntegratedStudioModelPackageV3();
+  const sourceRelease = createCircleHeartExactModelReleaseV1();
   const artifact = await buildExactArtifact();
   const deterministicRebuild = await buildExactArtifact();
   if (!sameBytes(artifact, deterministicRebuild)) {
-    fail("two clean exact artifact builds emitted different bytes");
+    fail("two clean Standard artifact builds emitted different bytes");
   }
   const canonicalManifest = studioCanonicalJsonStringify(
-    modelPackage.manifest,
+    sourceRelease.manifest,
   );
   const packageSha256 = exactPackageSha256(canonicalManifest, artifact);
-
-  await assertRegistryAdmission(modelPackage, artifact);
+  await assertArtifactAdmission(artifact, canonicalManifest);
 
   if (updateRequested) {
     updateArtifactAndLock(
-      modelPackage.manifest.modelId,
+      sourceRelease.manifest.modelId,
       packageSha256,
       artifact,
+      Object.freeze({
+        schemaId: "circleheart-standard-exact-model-client-descriptor-v1",
+        manifest: sourceRelease.manifest,
+        defaultFixture:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      }),
     );
     console.log(
-      `Wrote exact V3 registry artifact and lock: `
-        + `${modelPackage.manifest.modelId} (${packageSha256})`,
+      `Wrote Standard exact artifact and lock: `
+        + `${sourceRelease.manifest.modelId} (${packageSha256})`,
     );
     return;
   }
 
+  if (
+    !existsSync(artifactPath)
+    || !existsSync(lockPath)
+    || !existsSync(clientDescriptorPath)
+  ) {
+    fail(
+      "committed Standard artifact, lock, or client descriptor is missing; "
+        + "run with --write",
+    );
+  }
   const committedArtifact = readFileSync(artifactPath);
   if (!sameBytes(committedArtifact, artifact)) {
     fail(
       `${artifactRelativePath} differs from the deterministic exact build; `
-        + "assign a new modelId and regenerate the artifact and lock",
+        + "assign a new modelId and regenerate artifact and lock",
     );
   }
   assertUtf8RoundTrip(committedArtifact);
   const currentLock = parseLock(
     readFileSync(lockPath, "utf8"),
-    "current lock",
+    "current Standard lock",
   );
-  if (currentLock.modelId !== modelPackage.manifest.modelId) {
-    fail(
-      `lock modelId ${currentLock.modelId} differs from manifest modelId `
-        + modelPackage.manifest.modelId,
-    );
+  if (currentLock.modelId !== sourceRelease.manifest.modelId) {
+    fail("Standard lock modelId differs from the kernel manifest");
   }
   if (currentLock.packageSha256 !== packageSha256) {
     fail(
-      `exact package digest changed for ${modelPackage.manifest.modelId}; `
-        + `computed ${packageSha256}. Assign a new modelId and replace the `
-        + "registry admission artifact and lock in the same change",
+      `exact package digest changed for ${currentLock.modelId}; assign a new `
+        + "modelId and replace artifact and lock together",
+    );
+  }
+  const currentClientDescriptor = parseClientDescriptor(
+    readFileSync(clientDescriptorPath, "utf8"),
+    "current Standard client descriptor",
+  );
+  const expectedClientDescriptor: StandardClientDescriptorV1 = Object.freeze({
+    schemaId: "circleheart-standard-exact-model-client-descriptor-v1",
+    manifest: sourceRelease.manifest,
+    defaultFixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+  });
+  if (
+    studioCanonicalJsonStringify(currentClientDescriptor)
+    !== studioCanonicalJsonStringify(expectedClientDescriptor)
+  ) {
+    fail(
+      `${clientDescriptorRelativePath} differs from the admitted Standard `
+        + "kernel and fixture; run with --write",
     );
   }
 
@@ -112,9 +164,8 @@ async function main(): Promise<void> {
       );
     }
   }
-
   console.log(
-    `Exact V3 registry admission verified: ${currentLock.modelId} `
+    `Standard exact registry admission verified: ${currentLock.modelId} `
       + `(${packageSha256})`,
   );
 }
@@ -123,20 +174,13 @@ async function buildExactArtifact(): Promise<Uint8Array> {
   const result = await build({
     configFile: false,
     logLevel: "silent",
-    // The admitted artifact is the dedicated live numerical Worker build.
-    // Pin its existing identity-stamped lean tier at compile time so browser
-    // execution cannot silently fall back to the source/test default. The
-    // tier changes defensive recomputation only; full-vs-lean lockstep tests
-    // prove identical accepted frames and checkpoints.
     define: {
       "import.meta.env.VITE_CIRCLEHEART_HOT_PATH_INTEGRITY":
         JSON.stringify(
-          MAIN_WIRE_INTEGRATED_STUDIO_HOT_PATH_INTEGRITY_TIER_V3,
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1,
         ),
     },
-    resolve: {
-      alias: { "@": repositoryRoot },
-    },
+    resolve: { alias: { "@": repositoryRoot } },
     build: {
       target: "es2022",
       minify: false,
@@ -145,81 +189,183 @@ async function buildExactArtifact(): Promise<Uint8Array> {
       lib: {
         entry: entryPath,
         formats: ["es"],
-        fileName: () => "main-wire-integrated-studio-model-v3.mjs",
+        fileName: () => "main-wire-integrated-standard-v1.mjs",
       },
-      rollupOptions: {
-        output: {
-          inlineDynamicImports: true,
-        },
-      },
+      rollupOptions: { output: { inlineDynamicImports: true } },
     },
   });
-  const rollupOutputs = Array.isArray(result) ? result : [result];
+  const outputs = Array.isArray(result) ? result : [result];
   if (
-    rollupOutputs.length !== 1
-    || rollupOutputs[0] === undefined
-    || !("output" in rollupOutputs[0])
+    outputs.length !== 1
+    || outputs[0] === undefined
+    || !("output" in outputs[0])
   ) {
-    fail("exact model build unexpectedly entered watch mode");
+    fail("Standard exact build unexpectedly entered watch mode");
   }
-  const chunks = rollupOutputs[0].output.filter(
-    (item) => item.type === "chunk",
-  );
+  const chunks = outputs[0].output.filter((item) => item.type === "chunk");
   if (chunks.length !== 1 || chunks[0] === undefined) {
-    fail(`exact model build emitted ${chunks.length} JavaScript chunks`);
+    fail(`Standard exact build emitted ${chunks.length} JavaScript chunks`);
   }
   if (
     chunks[0].imports.length !== 0
     || chunks[0].dynamicImports.length !== 0
   ) {
-    fail("exact model build must be one self-contained ESM artifact");
+    fail("Standard exact build must be one self-contained ESM artifact");
   }
   return new TextEncoder().encode(chunks[0].code);
 }
 
-async function assertRegistryAdmission(
-  modelPackage: ReturnType<
-    typeof createMainWireIntegratedStudioModelPackageV3
-  >,
+async function assertArtifactAdmission(
   artifact: Uint8Array,
+  canonicalManifest: string,
 ): Promise<void> {
-  const registry = new InMemoryRegisteredModelStoreV2();
-  const admitted = await registry.registerExactPackage(
-    modelPackage.createRegistryAdmission(artifact),
-  );
-  if (admitted.modelId !== modelPackage.manifest.modelId) {
-    fail("registry admitted a model other than the exact artifact modelId");
+  const namespace = await importExactExecutableArtifactModuleV2(artifact);
+  const factory = namespace.createCircleHeartExactModelReleaseV1;
+  if (typeof factory !== "function") {
+    fail("artifact does not export createCircleHeartExactModelReleaseV1");
   }
+  const value: unknown = await factory();
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("artifact factory returned a non-object release");
+  }
+  const release = value as Record<string, unknown>;
   if (
-    registry.resolveExactRuntime(admitted.modelId).contract.modelId
-      !== admitted.modelId
+    studioCanonicalJsonStringify(release.manifest) !== canonicalManifest
   ) {
-    fail("registry runtime differs from the exact admitted model");
+    fail("artifact kernel manifest differs from the source release");
   }
+  const sourceRelease = createCircleHeartExactModelReleaseV1();
+  const composed = composeStandardModelContractV1(
+    sourceRelease.manifest,
+    mainWireIntegratedStandardSurfaceV1,
+  );
+  const executables = release.executables as
+    ReturnType<typeof createCircleHeartExactModelReleaseV1>["executables"];
+  validateExecutableBundleV2(executables, composed.contract);
+  executables.fixtureAdapter.validateCompleteFixture({
+    context: {
+      scenarioId: "scenario/standard-registry-verification",
+      modelId: composed.contract.modelId,
+    },
+    fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+  });
+  const runtimeSessionId = "session/standard-registry-verification";
+  const scenarioId = "scenario/standard-registry-verification";
+  await executables.simulationAdapter.createSession({
+    runtimeSessionId,
+    scenarios: [{
+      scenarioId,
+      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    }],
+  });
+  const frame = await executables.simulationAdapter
+    .advanceOnePresentationStep({ runtimeSessionId, scenarioId });
+  if (
+    frame.modelId !== composed.contract.modelId
+    || frame.acceptedTimeSec !== 0.002
+  ) {
+    fail("artifact runtime failed its accepted-frame smoke check");
+  }
+  const warmed = await executables.simulationAdapter.applyControl({
+    runtimeSessionId,
+    scenarioId,
+    controlId:
+      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1
+        .ventricularContractilityScale,
+    value: 1.2,
+    expectedInputEpoch: 0,
+  });
+  if (
+    warmed.inputEpoch !== 1
+    || warmed.acceptedRevision !== frame.acceptedRevision
+    || warmed.acceptedTimeSec !== frame.acceptedTimeSec
+  ) {
+    fail("artifact runtime failed its contractility warm-start smoke check");
+  }
+  const continued = await executables.simulationAdapter
+    .advanceOnePresentationStep({ runtimeSessionId, scenarioId });
+  if (
+    continued.inputEpoch !== 1
+    || continued.acceptedTimeSec <= warmed.acceptedTimeSec
+  ) {
+    fail("artifact runtime did not advance after contractility warm start");
+  }
+  executables.simulationAdapter.disposeSession(runtimeSessionId);
 }
 
 function updateArtifactAndLock(
   modelId: string,
   packageSha256: string,
   artifact: Uint8Array,
+  clientDescriptor: StandardClientDescriptorV1,
 ): void {
   if (existsSync(lockPath)) {
-    const priorLock = parseLock(readFileSync(lockPath, "utf8"), "current lock");
+    const prior = parseLock(readFileSync(lockPath, "utf8"), "current lock");
     if (
-      priorLock.modelId === modelId
-      && priorLock.packageSha256 !== packageSha256
+      prior.modelId === modelId
+      && prior.packageSha256 !== packageSha256
+      && standardAdmissionFilesAreTracked()
     ) {
-      fail(
-        `refusing to replace changed artifact bytes under immutable modelId ${modelId}`,
-      );
+      fail(`refusing to replace changed bytes under immutable modelId ${modelId}`);
     }
   }
   writeFileSync(artifactPath, artifact);
   writeFileSync(lockPath, `${JSON.stringify({
-    schemaId: "circleheart-main-wire-integrated-v3-registry-admission-lock-v1",
+    schemaId: "circleheart-standard-exact-model-registry-admission-lock-v1",
     modelId,
     packageSha256,
   }, null, 2)}\n`, "utf8");
+  writeFileSync(
+    clientDescriptorPath,
+    `${JSON.stringify(clientDescriptor, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+function standardAdmissionFilesAreTracked(): boolean {
+  return [
+    artifactRelativePath,
+    lockRelativePath,
+    clientDescriptorRelativePath,
+  ].some((relativePath) => {
+    try {
+      execFileSync(
+        "git",
+        ["ls-files", "--error-unmatch", "--", relativePath],
+        { cwd: repositoryRoot, stdio: "ignore" },
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
+
+function parseClientDescriptor(
+  text: string,
+  label: string,
+): StandardClientDescriptorV1 {
+  const parsed: unknown = JSON.parse(text);
+  if (
+    parsed === null
+    || typeof parsed !== "object"
+    || Array.isArray(parsed)
+    || Object.getPrototypeOf(parsed) !== Object.prototype
+  ) {
+    fail(`${label} must be a JSON object`);
+  }
+  const record = parsed as Record<string, unknown>;
+  const expected = ["defaultFixture", "manifest", "schemaId"];
+  const keys = Object.keys(record).sort();
+  if (
+    keys.length !== expected.length
+    || keys.some((key, index) => key !== expected[index])
+    || record.schemaId
+      !== "circleheart-standard-exact-model-client-descriptor-v1"
+  ) {
+    fail(`${label} is invalid`);
+  }
+  return parsed as StandardClientDescriptorV1;
 }
 
 function assertUtf8RoundTrip(artifact: Uint8Array): void {
@@ -227,31 +373,26 @@ function assertUtf8RoundTrip(artifact: Uint8Array): void {
   try {
     source = new TextDecoder("utf-8", { fatal: true }).decode(artifact);
   } catch {
-    fail("exact executable artifact must be valid UTF-8 ESM source");
+    fail("Standard executable artifact must be valid UTF-8");
   }
   if (!sameBytes(new TextEncoder().encode(source), artifact)) {
-    fail("exact executable artifact does not round-trip as UTF-8 bytes");
+    fail("Standard executable artifact does not round-trip as UTF-8");
   }
-}
-
-function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
-  return left.byteLength === right.byteLength
-    && left.every((value, index) => value === right[index]);
 }
 
 function exactPackageSha256(
-  canonicalManifestValue: string,
-  executableArtifact: Uint8Array,
+  canonicalManifest: string,
+  artifact: Uint8Array,
 ): string {
-  const manifestBytes = new TextEncoder().encode(canonicalManifestValue);
+  const manifestBytes = new TextEncoder().encode(canonicalManifest);
   const framed = new Uint8Array(
-    8 + manifestBytes.byteLength + executableArtifact.byteLength,
+    8 + manifestBytes.byteLength + artifact.byteLength,
   );
   const lengths = new DataView(framed.buffer, framed.byteOffset, 8);
   lengths.setUint32(0, manifestBytes.byteLength, false);
-  lengths.setUint32(4, executableArtifact.byteLength, false);
+  lengths.setUint32(4, artifact.byteLength, false);
   framed.set(manifestBytes, 8);
-  framed.set(executableArtifact, 8 + manifestBytes.byteLength);
+  framed.set(artifact, 8 + manifestBytes.byteLength);
   return createHash("sha256").update(framed).digest("hex");
 }
 
@@ -266,23 +407,18 @@ function parseLock(text: string, label: string): RegistryAdmissionLock {
     fail(`${label} must be a JSON object`);
   }
   const record = parsed as Record<string, unknown>;
-  const keys = Object.keys(record).sort();
   const expected = ["modelId", "packageSha256", "schemaId"];
+  const keys = Object.keys(record).sort();
   if (
     keys.length !== expected.length
     || keys.some((key, index) => key !== expected[index])
-  ) {
-    fail(`${label} must contain exactly ${expected.join(", ")}`);
-  }
-  if (
-    record.schemaId
-      !== "circleheart-main-wire-integrated-v3-registry-admission-lock-v1"
+    || record.schemaId
+      !== "circleheart-standard-exact-model-registry-admission-lock-v1"
     || typeof record.modelId !== "string"
-    || !/^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/.test(record.modelId)
     || typeof record.packageSha256 !== "string"
     || !/^[0-9a-f]{64}$/.test(record.packageSha256)
   ) {
-    fail(`${label} contains an invalid identity or digest`);
+    fail(`${label} is invalid`);
   }
   return Object.freeze({
     schemaId: record.schemaId,
@@ -293,22 +429,31 @@ function parseLock(text: string, label: string): RegistryAdmissionLock {
 
 function readPriorLock(baseRef: string): RegistryAdmissionLock | null {
   try {
-    execFileSync(
-      "git",
-      ["cat-file", "-e", `${baseRef}:${lockRelativePath}`],
-      { cwd: repositoryRoot, stdio: "ignore" },
-    );
+    execFileSync("git", ["cat-file", "-e", `${baseRef}:${lockRelativePath}`], {
+      cwd: repositoryRoot,
+      stdio: "ignore",
+    });
   } catch {
     return null;
   }
-  const text = execFileSync(
+  return parseLock(execFileSync(
     "git",
     ["show", `${baseRef}:${lockRelativePath}`],
-    { cwd: repositoryRoot, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
-  );
-  return parseLock(text, `registry lock at ${baseRef}`);
+    {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "inherit"],
+    },
+  ), `registry lock at ${baseRef}`);
+}
+
+function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
+  return left.byteLength === right.byteLength
+    && left.every((value, index) => value === right[index]);
 }
 
 function fail(message: string): never {
-  throw new Error(`Main Wire Integrated V3 registry verification failed: ${message}`);
+  throw new Error(
+    `Main Wire Standard registry verification failed: ${message}`,
+  );
 }

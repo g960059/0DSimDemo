@@ -32,9 +32,11 @@ export async function createMainWireIntegratedModelRuntimeV3(
   hemodynamicResearchInputs:
   MainWireIntegratedModelHemodynamicResearchInputsV3 =
     MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  ventricularContractilityScale = 1,
 ): Promise<MainWireIntegratedModelRuntimeV3> {
   return createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
     hemodynamicResearchInputs,
+    ventricularContractilityScale,
   );
 }
 

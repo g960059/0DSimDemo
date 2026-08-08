@@ -16,6 +16,7 @@ import {
   evaluateWholeHeartMechanicsTrialV1,
   initializeWholeHeartMechanicsColdV1,
   prepareWholeHeartMechanicsStepV1,
+  rebindWholeHeartMechanicsAcceptedStateV1,
   restoreWholeHeartMechanicsStateV1,
   sealPreparedWholeHeartMechanicsCandidateProbeV1,
   type WholeHeartMechanicsChamberValuesV1,
@@ -135,6 +136,52 @@ describe("whole-heart mechanics transaction contract v1", () => {
     };
     expect(() => restoreWholeHeartMechanicsStateV1(changedParameters, checkpoint))
       .toThrow(/identity mismatch/);
+  });
+
+  it("rebinds accepted material memory only across a compatible provider schema", () => {
+    const sourceProvider = testProvider();
+    const cold = coldStart(sourceProvider).acceptedState;
+    const source = commitWholeHeartMechanicsTrialV1(
+      sourceProvider,
+      cold,
+      trial(
+        sourceProvider,
+        cold,
+        { LA: 70, LV: 125, RA: 65, RV: 110 },
+      ),
+    );
+    const targetProvider = {
+      ...testProvider(),
+      parameterSetId: "joint-test-mechanics-contractility-1.2",
+      parameterIdentityHash: "effective-parameters-contractility-1.2",
+    };
+
+    const rebound = rebindWholeHeartMechanicsAcceptedStateV1(
+      sourceProvider,
+      targetProvider,
+      source,
+    );
+    expect(rebound).toMatchObject({
+      revision: source.revision,
+      acceptedTimeSec: source.acceptedTimeSec,
+      acceptedVolumesMl: source.acceptedVolumesMl,
+      providerId: targetProvider.providerId,
+      parameterSetId: targetProvider.parameterSetId,
+      parameterIdentityHash: targetProvider.parameterIdentityHash,
+      stateSchemaVersion: targetProvider.stateSchemaVersion,
+    });
+    expect(rebound.materialState).toEqual(source.materialState);
+    expect(rebound.materialState).not.toBe(source.materialState);
+    expect(() => rebindWholeHeartMechanicsAcceptedStateV1(
+      sourceProvider,
+      { ...targetProvider, providerId: "other-mechanics-provider" },
+      source,
+    )).toThrow(/one provider and state schema/);
+    expect(() => rebindWholeHeartMechanicsAcceptedStateV1(
+      sourceProvider,
+      { ...targetProvider, stateSchemaVersion: 99 },
+      source,
+    )).toThrow(/one provider and state schema/);
   });
 
   it("keeps circulation ownership outside the mechanics provider surface", () => {

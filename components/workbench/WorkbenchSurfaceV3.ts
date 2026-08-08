@@ -232,6 +232,7 @@ export function createDefaultExperimentSurfaceV3(
     "rhythm.heart-rate-bpm",
     "hemodynamics.total-blood-volume-ml",
     "hemodynamics.systemic-resistance",
+    "myocardium.contractility",
     "hemodynamics.venous-tone",
     "ventilation.peep-cm-h2o",
   ]);

@@ -272,6 +272,15 @@ and still performs no numerical run or write. The first source recipe and its
 release gates are governed by
 [CONTENT-0001](../content/CONTENT-0001-pv-loop-basics-pilot.md).
 
+`build:content:official:main-wire` is the first family-specific numerical
+runner. It builds the registered default fixture, applies each recipe's
+absolute control assignments, advances every Scenario to a model-owned
+periodic candidate, evaluates immutable assertion implementations from full
+accepted-step/beat evidence, and calls the common Snapshot admission service.
+It emits a deterministic build artifact but performs no registry, database, or
+publication write. A successful local build is required evidence, not
+permission to bypass the exact-model and Surface lifecycle gates.
+
 Changing the default model therefore means rebuilding and reviewing official
 content, not silently repinning it. User content is never rebuilt by this
 pipeline.

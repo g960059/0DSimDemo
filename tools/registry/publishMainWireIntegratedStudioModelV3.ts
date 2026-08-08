@@ -5,8 +5,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  createMainWireIntegratedStudioModelPackageV3,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+  createCircleHeartExactModelReleaseV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -14,11 +15,11 @@ const repositoryRoot = path.resolve(
 );
 const artifactPath = path.join(
   repositoryRoot,
-  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs",
+  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.artifact.mjs",
 );
 const lockPath = path.join(
   repositoryRoot,
-  "studio/integrations/mainWireIntegratedV3/registry-admission-lock.json",
+  "studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json",
 );
 
 await main();
@@ -27,17 +28,17 @@ async function main(): Promise<void> {
   const projectRef = projectRefArgument(process.argv.slice(2));
   assertReleaseFilesCommitted();
 
-  const modelPackage = createMainWireIntegratedStudioModelPackageV3();
+  const exactRelease = createCircleHeartExactModelReleaseV1();
   const artifact = readFileSync(artifactPath);
   const artifactSha256 = sha256(artifact);
   const lock = parseLock(readFileSync(lockPath, "utf8"));
-  if (lock.modelId !== modelPackage.manifest.modelId) {
+  if (lock.modelId !== exactRelease.manifest.modelId) {
     throw new Error("Registry lock and exact manifest modelId differ");
   }
 
   const secret = projectServiceRoleJwt(projectRef);
   const baseUrl = `https://${projectRef}.supabase.co`;
-  const objectName = `${modelPackage.manifest.modelId}/main-wire-integrated-studio-model-v3.mjs`;
+  const objectName = `${exactRelease.manifest.modelId}/main-wire-integrated-standard-v1.mjs`;
   const artifactRegistryPath = `model-releases/${objectName}`;
   await uploadImmutableArtifact({
     artifact,
@@ -52,34 +53,33 @@ async function main(): Promise<void> {
     encoding: "utf8",
   }).trim();
   await rpc(baseUrl, secret, "register_model_release_v2", {
-    p_model_id: modelPackage.manifest.modelId,
-    p_model_family_id: modelPackage.manifest.modelFamilyId,
-    p_display_name: modelPackage.manifest.displayName,
-    p_manifest: modelPackage.manifest,
+    p_model_id: exactRelease.manifest.modelId,
+    p_model_family_id: exactRelease.manifest.modelFamilyId,
+    p_display_name: "Main Wire V3",
+    p_manifest: exactRelease.manifest,
     p_artifact_path: artifactRegistryPath,
     p_artifact_sha256: artifactSha256,
     p_registry_fingerprint: lock.packageSha256,
     p_source_commit: sourceCommit,
-    // development-36 is immutable and predates the generic ESM ABI. This is
-    // loader metadata only; it does not alter its artifact or exact modelId.
-    p_module_abi: "legacy-main-wire-v3-development-36",
-    p_default_fixture: modelPackage.defaultFixture,
-    p_analysis_profile_id: "main-wire-integrated-v3",
+    p_module_abi: "circleheart-exact-model-esm-v1",
+    p_default_fixture:
+      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    p_analysis_profile_id: "standard-no-model-analysis-v1",
   });
   // Registration is always dev. This specialized command publishes the
   // already-admitted production default, so lifecycle promotion is explicit
   // and precedes the channel move. Generic research releases use their own
   // registry command and must not acquire stable status accidentally.
   await rpc(baseUrl, secret, "set_model_release_stage_v1", {
-    p_model_id: modelPackage.manifest.modelId,
+    p_model_id: exactRelease.manifest.modelId,
     p_stage: "stable",
   });
   await rpc(baseUrl, secret, "set_model_release_channel_v1", {
     p_channel: "default",
-    p_model_id: modelPackage.manifest.modelId,
+    p_model_id: exactRelease.manifest.modelId,
   });
   process.stdout.write(
-    `Published exact model ${modelPackage.manifest.modelId} to ${projectRef}\n`,
+    `Published Standard exact model ${exactRelease.manifest.modelId} to ${projectRef}\n`,
   );
 }
 
@@ -95,20 +95,13 @@ function projectRefArgument(args: readonly string[]): string {
 }
 
 function assertReleaseFilesCommitted(): void {
-  const status = execFileSync("git", [
-    "status",
-    "--porcelain",
-    "--",
-    "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.ts",
-    "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs",
-    "studio/integrations/mainWireIntegratedV3/registry-admission-lock.json",
-  ], {
+  const status = execFileSync("git", ["status", "--porcelain"], {
     cwd: repositoryRoot,
     encoding: "utf8",
   }).trim();
   if (status.length > 0) {
     throw new Error(
-      "Commit the exact model manifest, artifact, and registry lock before publishing",
+      "Commit the complete Standard release worktree before publishing",
     );
   }
 }

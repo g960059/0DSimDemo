@@ -21,6 +21,9 @@ import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
+  rebindWholeHeartMechanicsAcceptedStateV1,
+} from "@/engine/myocardium/wholeHeartMechanicsContractV1";
+import {
   rebindAcceptedComposedRegularSinusStateV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
 
@@ -37,8 +40,10 @@ type AcceptedState = MainWireIntegratedModelAcceptedStateV3<
  *
  * Vascular, resistance, and respiratory edits preserve the complete accepted
  * state. A TBV edit changes only the SV/VC reservoir volumes at the same
- * boundary. A heart-rate edit preserves the remaining sinus phase and resets
- * only the cycle-length-owned coronary measurement window at that boundary.
+ * boundary. A mechanics-parameter edit rebinds the same material memory to the
+ * compatible target provider. A heart-rate edit preserves the remaining sinus
+ * phase and resets only the cycle-length-owned coronary measurement window at
+ * that boundary.
  */
 export function warmStartMainWireIntegratedModelV3(input: Readonly<{
   source: AcceptedState;
@@ -68,6 +73,29 @@ export function warmStartMainWireIntegratedModelV3(input: Readonly<{
   const targetCycleSec = targetRuntime.cycleLengthSec;
   let coronary = adapted.coronary;
   let composedRhythm = adapted.composedRhythm;
+  if (
+    coronary.mechanics.providerId !== targetRuntime.provider.providerId
+    || coronary.mechanics.parameterSetId
+      !== targetRuntime.provider.parameterSetId
+    || coronary.mechanics.parameterIdentityHash
+      !== targetRuntime.provider.parameterIdentityHash
+    || coronary.mechanics.stateSchemaVersion
+      !== targetRuntime.provider.stateSchemaVersion
+  ) {
+    const base = mainWireFiveWallCoronaryBaseStateV2(coronary);
+    coronary = wrapMainWireFiveWallCoronaryAcceptedStateV3(
+      Object.freeze({
+        ...base,
+        mechanics: rebindWholeHeartMechanicsAcceptedStateV1(
+          sourceRuntime.provider,
+          targetRuntime.provider,
+          base.mechanics,
+        ),
+      }),
+      coronary.coronaryAutoregulationBinding,
+      coronary.coronaryAutoregulation,
+    );
+  }
   if (sourceCycleSec !== targetCycleSec) {
     composedRhythm = rebindAcceptedComposedRegularSinusStateV2(
       composedRhythm,

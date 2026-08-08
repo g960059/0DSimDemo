@@ -1,7 +1,7 @@
 # Development lane routing
 
 Status: compact pointer index
-Updated: 2026-08-07
+Updated: 2026-08-08
 
 This file does not record experiment history or merge ordering. GitHub pull
 requests, Git history, and versioned evidence artifacts are the sources for
@@ -26,6 +26,12 @@ compatible stable Surface, executable model-family assertions, common
 Snapshot admission, Article placement, and Reader-to-Experiment-Session path.
 No narrower infrastructure PR is complete unless it removes a named blocker
 from that path.
+
+The local numerical slice is now executable: the Standard exact model,
+compatible Surface, four-Scenario recipe runner, three model-owned assertions,
+and common Snapshot admission pass together. The remaining acceptance work is
+stable registry publication, Article/Reader vertical QA, and the supervised
+learner pilot.
 
 The removed Workbench implementation is available in Git history. It is not a
 persistence, ownership, or compatibility boundary for Studio V2.

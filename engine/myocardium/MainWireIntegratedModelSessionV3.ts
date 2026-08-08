@@ -186,9 +186,11 @@ export class MainWireIntegratedModelSessionV3 {
     hemodynamicResearchInputs:
     MainWireIntegratedModelHemodynamicResearchInputsV3 =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    ventricularContractilityScale = 1,
   ): Promise<MainWireIntegratedModelSessionV3> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       hemodynamicResearchInputs,
+      ventricularContractilityScale,
     );
     return new MainWireIntegratedModelSessionV3(
       runtime,
@@ -202,9 +204,11 @@ export class MainWireIntegratedModelSessionV3 {
     hemodynamicResearchInputs:
     MainWireIntegratedModelHemodynamicResearchInputsV3 =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    ventricularContractilityScale = 1,
   ): Promise<MainWireIntegratedModelSessionV3> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       hemodynamicResearchInputs,
+      ventricularContractilityScale,
     );
     const acceptedState = await restoreMainWireIntegratedModelV3(
       mainWireIntegratedModelCheckpointContextV3(
@@ -236,9 +240,11 @@ export class MainWireIntegratedModelSessionV3 {
   async warmStartWithHemodynamicResearchInputs(
     hemodynamicResearchInputs:
     MainWireIntegratedModelHemodynamicResearchInputsV3,
+    ventricularContractilityScale = 1,
   ): Promise<MainWireIntegratedModelSessionV3> {
     const targetRuntime = await createMainWireIntegratedModelRuntimeV3(
       hemodynamicResearchInputs,
+      ventricularContractilityScale,
     );
     const acceptedState = warmStartMainWireIntegratedModelV3({
       source: this.acceptedState,

@@ -1,0 +1,489 @@
+{
+  "schemaId": "circleheart-standard-exact-model-client-descriptor-v1",
+  "manifest": {
+    "schemaId": "circleheart-studio-exact-model-kernel-v3",
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-1",
+    "modelFamilyId": "circleheart.main-wire-integrated-transaction",
+    "equations": {
+      "transactionId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3",
+      "coronaryOwner": "main-wire-five-wall-coronary-transaction-v3",
+      "rhythmOwner": "accepted-composed-rhythm-transaction-v2",
+      "dynamicMechanicalSupportOwner": "circleheart-dynamic-mechanical-support-network-v1",
+      "ventricularContractilityOwner": "land-2017-tref-global-lvfw-sep-rvfw-scale-v1"
+    },
+    "runtime": {
+      "numericalSessionId": "main-wire-integrated-model-session-v3",
+      "presentationDtSec": 0.002,
+      "hotPathIntegrityTier": "hot-path-lean",
+      "acceptedBoundaryCapture": true,
+      "fixtureChangeSemantics": "atomic-accepted-state-warm-start-same-clock-new-fixture-epoch",
+      "scope": "regular-sinus-normal-coronary-all-off-zero-inertance-with-bounded-standard-controls"
+    },
+    "solver": {
+      "candidateSemantics": "event-limited-atomic-composed-rhythm-coronary-dynamic-mcs",
+      "acceptedStateMutation": false,
+      "failureRollback": "previous-accepted-tuple"
+    },
+    "fixtureSchema": {
+      "fixtureSchemaId": "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1",
+      "definition": {
+        "schemaId": "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1",
+        "exactKeys": [
+          "schemaId",
+          "rhythm",
+          "coronary",
+          "dynamicMechanicalSupport",
+          "hemodynamicResearchInputs",
+          "ventricularContractilityScale"
+        ],
+        "hemodynamicResearchInputRanges": {
+          "systemicResistance": {
+            "minimum": 0.75,
+            "maximum": 1.25,
+            "step": 0.01
+          },
+          "pulmonaryResistance": {
+            "minimum": 0.45,
+            "maximum": 0.8,
+            "step": 0.005
+          },
+          "venousTone": {
+            "minimum": 0.1,
+            "maximum": 0.2,
+            "step": 0.005
+          },
+          "arterialStiffness": {
+            "minimum": 0.5,
+            "maximum": 1,
+            "step": 0.01
+          },
+          "heartRateBpm": {
+            "minimum": 40,
+            "maximum": 100,
+            "step": 1
+          },
+          "totalBloodVolumeMl": {
+            "minimum": 4800,
+            "maximum": 7000,
+            "step": 50
+          },
+          "peepCmH2O": {
+            "minimum": 0,
+            "maximum": 20,
+            "step": 1
+          }
+        },
+        "ventricularContractilityScaleRange": {
+          "minimum": 0.75,
+          "maximum": 1.33,
+          "defaultValue": 1
+        }
+      }
+    },
+    "checkpointCodec": {
+      "checkpointCodecId": "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v1",
+      "definition": {
+        "checkpointId": "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v5",
+        "schemaVersion": 5,
+        "fixturePairing": "regular-sinus-all-off-and-complete-standard-fixture-identity",
+        "restoreSemantics": "exact-no-migration-no-clock-rebase"
+      }
+    },
+    "primitiveControlCatalog": [
+      {
+        "controlId": "hemodynamics.systemic-resistance",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.25,
+        "step": 0.01,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "hemodynamics.pulmonary-resistance",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.45,
+        "maximum": 0.8,
+        "step": 0.005,
+        "defaultValue": 0.625,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "hemodynamics.venous-tone",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.1,
+        "maximum": 0.2,
+        "step": 0.005,
+        "defaultValue": 0.15,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "hemodynamics.arterial-stiffness",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 1,
+        "step": 0.01,
+        "defaultValue": 0.75,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "rhythm.heart-rate-bpm",
+        "valueType": "number",
+        "unit": "bpm",
+        "minimum": 40,
+        "maximum": 100,
+        "step": 1,
+        "defaultValue": 60,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "hemodynamics.total-blood-volume-ml",
+        "valueType": "number",
+        "unit": "mL",
+        "minimum": 4800,
+        "maximum": 7000,
+        "step": 50,
+        "defaultValue": 5600,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "ventilation.peep-cm-h2o",
+        "valueType": "number",
+        "unit": "cmH2O",
+        "minimum": 0,
+        "maximum": 20,
+        "step": 1,
+        "defaultValue": 0,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.contractility",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      }
+    ],
+    "primitiveSignalCatalog": [
+      {
+        "outputId": "hemodynamics.volume.LA",
+        "kind": "signal",
+        "unit": "mL",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.volume.LV",
+        "kind": "signal",
+        "unit": "mL",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.volume.RA",
+        "kind": "signal",
+        "unit": "mL",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.volume.RV",
+        "kind": "signal",
+        "unit": "mL",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.LA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.LV",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.RA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.RV",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.LA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.LV",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.RA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.RV",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.Ao",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.SA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.PA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.PVein",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.VC",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.valve.MV",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.valve.AoV",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.valve.TV",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.valve.PV",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.systemic.SA_Art",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.pulmonary.PA_PArt",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.venous.VC_RA",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.venous.PVein_LA",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "pericardium.pressure.excess",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "respiration.pressure.pleural",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "respiration.pressure.alveolar",
+        "kind": "signal",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "rhythm.heart-rate.instantaneous",
+        "kind": "signal",
+        "unit": "bpm",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.total",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.inlet.LAD",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.inlet.LCx",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.inlet.RCA",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "device.LVAD.flow",
+        "kind": "signal",
+        "unit": "mL/s",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "rhythm.phase.regular-sinus",
+        "kind": "signal",
+        "unit": "1",
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      }
+    ],
+    "capabilities": [
+      "control/hemodynamics.systemic-resistance",
+      "control/hemodynamics.pulmonary-resistance",
+      "control/hemodynamics.venous-tone",
+      "control/hemodynamics.arterial-stiffness",
+      "control/rhythm.heart-rate-bpm",
+      "control/hemodynamics.total-blood-volume-ml",
+      "control/ventilation.peep-cm-h2o",
+      "control/myocardium.contractility",
+      "output/hemodynamics.volume.LA",
+      "output/hemodynamics.volume.LV",
+      "output/hemodynamics.volume.RA",
+      "output/hemodynamics.volume.RV",
+      "output/hemodynamics.pressure.absolute.LA",
+      "output/hemodynamics.pressure.absolute.LV",
+      "output/hemodynamics.pressure.absolute.RA",
+      "output/hemodynamics.pressure.absolute.RV",
+      "output/hemodynamics.pressure.transmural.LA",
+      "output/hemodynamics.pressure.transmural.LV",
+      "output/hemodynamics.pressure.transmural.RA",
+      "output/hemodynamics.pressure.transmural.RV",
+      "output/hemodynamics.pressure.absolute.Ao",
+      "output/hemodynamics.pressure.absolute.SA",
+      "output/hemodynamics.pressure.absolute.PA",
+      "output/hemodynamics.pressure.absolute.PVein",
+      "output/hemodynamics.pressure.absolute.VC",
+      "output/hemodynamics.flow.valve.MV",
+      "output/hemodynamics.flow.valve.AoV",
+      "output/hemodynamics.flow.valve.TV",
+      "output/hemodynamics.flow.valve.PV",
+      "output/hemodynamics.flow.systemic.SA_Art",
+      "output/hemodynamics.flow.pulmonary.PA_PArt",
+      "output/hemodynamics.flow.venous.VC_RA",
+      "output/hemodynamics.flow.venous.PVein_LA",
+      "output/pericardium.pressure.excess",
+      "output/respiration.pressure.pleural",
+      "output/respiration.pressure.alveolar",
+      "output/rhythm.heart-rate.instantaneous",
+      "output/coronary.flow.total",
+      "output/coronary.flow.inlet.LAD",
+      "output/coronary.flow.inlet.LCx",
+      "output/coronary.flow.inlet.RCA",
+      "output/device.LVAD.flow",
+      "output/rhythm.phase.regular-sinus"
+    ]
+  },
+  "defaultFixture": {
+    "schemaId": "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1",
+    "rhythm": {
+      "mode": "regular-sinus-v3"
+    },
+    "coronary": {
+      "diseaseProfile": "normal-coronary-v2"
+    },
+    "dynamicMechanicalSupport": {
+      "mode": "all-off-zero-inertance-v3"
+    },
+    "hemodynamicResearchInputs": {
+      "systemicResistance": 1,
+      "pulmonaryResistance": 0.625,
+      "venousTone": 0.15,
+      "arterialStiffness": 0.75,
+      "heartRateBpm": 60,
+      "totalBloodVolumeMl": 5600,
+      "peepCmH2O": 0
+    },
+    "ventricularContractilityScale": 1
+  }
+}

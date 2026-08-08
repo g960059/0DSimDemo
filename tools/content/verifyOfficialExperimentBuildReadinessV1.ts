@@ -26,9 +26,13 @@ const repositoryRoot = path.resolve(
 const options = parseArgumentsV1(process.argv.slice(2));
 const recipeValue = readRepositoryJsonV1(options.recipePath, "Official recipe");
 const recipe = validateOfficialExperimentRecipeV1(recipeValue);
+const exactKernelInput = readRepositoryJsonV1(
+  options.kernelPath,
+  "Exact kernel manifest or client descriptor",
+);
 const plan = prepareStudioOfficialExperimentBuildPlanV1({
   recipe,
-  kernel: readRepositoryJsonV1(options.kernelPath, "Exact kernel manifest"),
+  kernel: exactKernelManifestInputV1(exactKernelInput),
   surfaceRelease: readRepositoryJsonV1(
     options.surfacePath,
     "Model Surface manifest",
@@ -80,9 +84,29 @@ function parseArgumentsV1(args: readonly string[]): OptionsV1 {
 
 function usageErrorV1(): Error {
   return new Error(
-    "Usage: --recipe <repo-relative.json> --kernel <repo-relative.json> "
+    "Usage: --recipe <repo-relative.json> "
+      + "--kernel <exact-kernel-or-client-descriptor.json> "
       + "--surface <repo-relative.json>",
   );
+}
+
+function exactKernelManifestInputV1(value: unknown): unknown {
+  if (
+    value !== null
+    && typeof value === "object"
+    && !Array.isArray(value)
+    && Object.getPrototypeOf(value) === Object.prototype
+  ) {
+    const record = value as Record<string, unknown>;
+    if (
+      record.schemaId
+        === "circleheart-standard-exact-model-client-descriptor-v1"
+      && record.manifest !== undefined
+    ) {
+      return record.manifest;
+    }
+  }
+  return value;
 }
 
 function readRepositoryJsonV1(inputPath: string, label: string): unknown {

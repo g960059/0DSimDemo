@@ -6,6 +6,12 @@ import type {
   RegisteredModelPackageManifestV2,
 } from "@/studio/contracts/v2/model";
 import type {
+  ExactModelKernelManifestV3,
+} from "@/studio/contracts/v2/modelSurface";
+import {
+  composeStandardModelContractV1,
+} from "@/studio/contracts/v2/modelSurface";
+import type {
   StudioModelWorkerReleaseTicketV2,
 } from "@/studio/contracts/v2/release";
 import {
@@ -17,6 +23,10 @@ import {
 import {
   TrustedRegisteredModelClientCatalogV2,
 } from "@/studio/infrastructure/model/TrustedRegisteredModelClientCatalogV2";
+import {
+  freezeExactRuntimeV2,
+  validateExecutableBundleV2,
+} from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
 import {
   studioCanonicalJsonStringify,
 } from "@/studio/infrastructure/json/StudioCanonicalJson";
@@ -101,11 +111,19 @@ export class DynamicExactModelRuntimeLoaderV2 {
     ) {
       throw new Error("Exact model artifact manifest does not match the registry");
     }
-    const registry = new TrustedRegisteredModelClientCatalogV2([{
-      manifest: ticket.manifest,
-      executables: release.executables,
-    }]);
-    return registry.resolveExactRuntime(ticket.modelId);
+    if (ticket.moduleAbi === "legacy-main-wire-v3-development-36") {
+      const registry = new TrustedRegisteredModelClientCatalogV2([{
+        manifest: ticket.manifest,
+        executables: release.executables,
+      }]);
+      return registry.resolveExactRuntime(ticket.modelId);
+    }
+    const composed = composeStandardModelContractV1(
+      ticket.manifest,
+      ticket.surfaceRelease,
+    );
+    validateExecutableBundleV2(release.executables, composed.contract);
+    return freezeExactRuntimeV2(release.executables, composed.contract);
   }
 }
 
@@ -122,7 +140,7 @@ function exactExecutableReleaseRecordV2(
   value: unknown,
   moduleAbi: StudioModelWorkerReleaseTicketV2["moduleAbi"],
 ): Readonly<{
-  manifest: RegisteredModelPackageManifestV2;
+  manifest: RegisteredModelPackageManifestV2 | ExactModelKernelManifestV3;
   executables: RegisteredModelExecutableBundleV2;
 }> {
   if (
@@ -158,7 +176,8 @@ function exactExecutableReleaseRecordV2(
     }
   }
   return Object.freeze({
-    manifest: record.manifest as RegisteredModelPackageManifestV2,
+    manifest: record.manifest as
+      RegisteredModelPackageManifestV2 | ExactModelKernelManifestV3,
     executables: record.executables as RegisteredModelExecutableBundleV2,
   });
 }

@@ -1,6 +1,7 @@
 # CONTENT-0001 — PV loop basics pilot
 
-Status: binding content acceptance plan; not yet published
+Status: binding content acceptance plan; local numerical slice implemented;
+not yet registered or published
 
 Date: 2026-08-07
 
@@ -154,3 +155,27 @@ review note that classifies findings as “fix before article 2” or “backlog
 Baroreflex, patient fitting, broad official-case catalogs, drop-in succession,
 and generalized clinical claims are outside this milestone. They are not
 prerequisites for publishing this bounded open-loop lesson.
+
+## 11. Current implementation checkpoint
+
+The repository now contains the first Standard-ABI exact model and compatible
+Model Surface needed by this lesson. The exact model adds a bounded global
+ventricular-contractility primitive while leaving the historical
+`development-36` release untouched. Its Workbench control transition preserves
+the accepted revision, time, circulation state, and mechanics material memory;
+the compatible target provider owns the subsequent accepted steps.
+
+The first model-family runner is executable with:
+
+```sh
+npm run build:content:official:main-wire -- \
+  --recipe content/official/pv-loop-basics-v1.experiment.json \
+  --output dist/official/pv-loop-basics-v1.build.json
+```
+
+It runs all four Scenarios numerically, obtains periodic candidates, evaluates
+the three assertions from model-owned beat evidence, calls common Snapshot
+admission for every Scenario, and writes a deterministic immutable build
+artifact. This is local acceptance evidence only. The exact release and Surface
+remain `dev`; stable registry admission, Article publication, Reader QA, and
+the learner pilot are still required by section 8.

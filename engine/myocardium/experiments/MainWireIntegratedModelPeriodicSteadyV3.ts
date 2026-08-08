@@ -64,7 +64,9 @@ import {
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import { createMainWireNormalAdultCommonPericardiumV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
-import { createCanonicalMainWireNormalAdultFiveWallProviderV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  createMainWireNormalAdultFiveWallProviderWithVentricularContractilityScaleV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
@@ -116,6 +118,8 @@ export type MainWireIntegratedModelPeriodicSteadyOptionsV3 = Readonly<{
   nominalDtSec: number;
   maximumCycleCount?: number;
   executionPurpose?: MainWireIntegratedModelPeriodicExecutionPurposeV3;
+  hemodynamicResearchInputs?: MainWireIntegratedModelHemodynamicResearchInputsV3;
+  ventricularContractilityScale?: number;
 }>;
 
 export type MainWireIntegratedModelPeriodicTerminalTraceSampleV3 = Readonly<{
@@ -133,6 +137,10 @@ export type MainWireIntegratedModelPeriodicTerminalTraceSampleV3 = Readonly<{
     Ao: number;
     PA: number;
     PVein: number;
+  }>;
+  transmuralPressureMmHg: Readonly<{
+    LV: number;
+    RV: number;
   }>;
   valveFlowMlPerSec: Readonly<{
     MV: number;
@@ -289,7 +297,7 @@ export type MainWireIntegratedModelPeriodicSteadyResultV3 = Readonly<{
 }>;
 
 type Provider = ReturnType<
-  typeof createCanonicalMainWireNormalAdultFiveWallProviderV1
+  typeof createMainWireNormalAdultFiveWallProviderWithVentricularContractilityScaleV1
 >;
 type WallState = MainWireNormalAdultFiveWallMechanicsStateV1;
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<WallState>;
@@ -303,12 +311,16 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
   requestedHemodynamicResearchInputs:
   MainWireIntegratedModelHemodynamicResearchInputsV3 =
     MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  ventricularContractilityScale = 1,
 ) {
   const hemodynamicResearchInputs =
     validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
       requestedHemodynamicResearchInputs,
     );
-  const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularContractilityScaleV1(
+      ventricularContractilityScale,
+    );
   const canonicalRuntime = normalAdultMainWireRuntimeV1();
   const cycleLengthSec = 60 / hemodynamicResearchInputs.heartRateBpm;
   const peepMmHg = hemodynamicResearchInputs.peepCmH2O * 0.7355592401;
@@ -387,6 +399,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
   assertAllOffAcceptedQ(cold.acceptedState);
   return Object.freeze({
     hemodynamicResearchInputs,
+    ventricularContractilityScale,
     provider,
     runtime,
     pericardium,
@@ -404,7 +417,10 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
   options: MainWireIntegratedModelPeriodicSteadyOptionsV3,
 ): Promise<MainWireIntegratedModelPeriodicSteadyResultV3> {
   const resolved = resolveOptions(options);
-  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    resolved.hemodynamicResearchInputs,
+    resolved.ventricularContractilityScale,
+  );
   const protocolIdentityHash = await sha256CanonicalJsonHex(
     Object.freeze({
       experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
@@ -1224,6 +1240,10 @@ function traceSample(
       PA: pressures.PA,
       PVein: pressures.PVein,
     },
+    transmuralPressureMmHg: {
+      LV: base.mechanicsTrial.transmuralPressuresMmHg.LV,
+      RV: base.mechanicsTrial.transmuralPressuresMmHg.RV,
+    },
     valveFlowMlPerSec: {
       MV: valves.MV.flowMlPerSec,
       AoV: valves.AoV.flowMlPerSec,
@@ -1473,7 +1493,13 @@ function resolveOptions(
   if (
     keys.some(
       (key) =>
-        !["nominalDtSec", "maximumCycleCount", "executionPurpose"].includes(
+        ![
+          "nominalDtSec",
+          "maximumCycleCount",
+          "executionPurpose",
+          "hemodynamicResearchInputs",
+          "ventricularContractilityScale",
+        ].includes(
           key,
         ),
     )
@@ -1512,6 +1538,13 @@ function resolveOptions(
     nominalDtSec: options.nominalDtSec,
     maximumCycleCount,
     executionPurpose,
+    hemodynamicResearchInputs:
+      validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+        options.hemodynamicResearchInputs ??
+          MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      ),
+    ventricularContractilityScale:
+      options.ventricularContractilityScale ?? 1,
   });
 }
 

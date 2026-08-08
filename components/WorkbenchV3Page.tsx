@@ -84,6 +84,7 @@ import {
 import { isLocale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
+  loadStudioLocalStandardModelLabClientCompositionV1,
   loadStudioModelChannelClientCompositionV2,
   loadStudioModelClientCompositionV2,
   type StudioClientCompositionV2,
@@ -729,7 +730,9 @@ const WorkbenchV3Session = ({
       let composition: StudioClientCompositionV2;
       try {
         composition = initialContent === undefined
-          ? launchChannel === "default"
+          ? modelLab
+            ? await loadStudioLocalStandardModelLabClientCompositionV1()
+            : launchChannel === "default"
             ? await loadStudioDefaultClientCompositionV2()
             : await loadStudioModelChannelClientCompositionV2(launchChannel)
           : await loadStudioModelClientCompositionV2(initialContent.modelId);
