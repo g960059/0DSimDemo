@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(17);
+select plan(19);
 
 insert into auth.users (
   id,
@@ -297,6 +297,30 @@ insert into studio.model_releases (
 insert into studio.model_release_availability (model_id)
 values ('model/integration-test-dev-v2');
 
+select throws_ok(
+  $$
+    select public.save_experiment_v1(
+      '20000000-0000-0000-0000-000000000011',
+      null,
+      null,
+      'Surface-less content must fail',
+      'model/integration-test-dev-v2',
+      '{
+        "modelId":"model/integration-test-dev-v2",
+        "scenarios":[{
+          "scenarioId":"scenario/dev",
+          "label":"Development",
+          "capture":{"fixture":{"control":1},"checkpoint":{"acceptedTimeSec":1}}
+        }],
+        "surface":{}
+      }'::jsonb
+    )
+  $$,
+  '22023',
+  'Standard Experiment content must pin a Surface series',
+  'Surface-less Experiment content is rejected at the authority boundary'
+);
+
 insert into rpc_state (key, value)
 select 'dev-save', public.save_experiment_v1(
   '20000000-0000-0000-0000-000000000007',
@@ -306,6 +330,7 @@ select 'dev-save', public.save_experiment_v1(
   'model/integration-test-dev-v2',
   '{
     "modelId":"model/integration-test-dev-v2",
+    "surfaceSeriesId":"surface-series/integration-test",
     "scenarios":[{
       "scenarioId":"scenario/dev",
       "label":"Development",
@@ -314,6 +339,33 @@ select 'dev-save', public.save_experiment_v1(
     "surface":{}
   }'::jsonb
 );
+
+select throws_ok(
+  $$
+    select public.commit_admitted_experiment_snapshot_v1(
+      '20000000-0000-0000-0000-000000000012',
+      null,
+      'model/integration-test-dev-v2',
+      '{
+        "modelId":"model/integration-test-dev-v2",
+        "surfaceSeriesId":"surface-series/integration-test",
+        "scenarios":[{
+          "scenarioId":"scenario/dev",
+          "label":"Development",
+          "capture":{"fixture":{"control":1},"checkpoint":{"acceptedTimeSec":2}}
+        }],
+        "surface":{}
+      }'::jsonb,
+      null,
+      ((select value ->> 'experimentId' from rpc_state where key = 'dev-save'))::uuid,
+      0
+    )
+  $$,
+  '22023',
+  'Standard Snapshot must pin a Surface release',
+  'Surface-less Snapshot capture is rejected at the authority boundary'
+);
+
 insert into rpc_state (key, value)
 select 'dev-snapshot', public.commit_admitted_experiment_snapshot_v1(
   '20000000-0000-0000-0000-000000000008',
@@ -321,6 +373,7 @@ select 'dev-snapshot', public.commit_admitted_experiment_snapshot_v1(
   'model/integration-test-dev-v2',
   '{
     "modelId":"model/integration-test-dev-v2",
+    "surfaceSeriesId":"surface-series/integration-test",
     "scenarios":[{
       "scenarioId":"scenario/dev",
       "label":"Development",
@@ -328,7 +381,7 @@ select 'dev-snapshot', public.commit_admitted_experiment_snapshot_v1(
     }],
     "surface":{}
   }'::jsonb,
-  null,
+  'surface/integration-test-v1',
   ((select value ->> 'experimentId' from rpc_state where key = 'dev-save'))::uuid,
   0
 );

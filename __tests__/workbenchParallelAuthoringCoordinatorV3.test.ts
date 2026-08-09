@@ -18,6 +18,11 @@ import {
   type WorkbenchParallelAuthoringInputV3,
   type WorkbenchParallelSnapshotAuthoringInputV3,
 } from "@/components/workbench/v3/WorkbenchParallelAuthoringCoordinatorV3";
+import {
+  STANDARD_TEST_RELEASE_TICKET_V1,
+  STANDARD_TEST_SURFACE_RELEASE_ID_V1,
+  STANDARD_TEST_SURFACE_SERIES_ID_V1,
+} from "./helpers/standardReleaseTicketV1";
 
 describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
   it("seeds an existing Experiment with the latest ordered lane captures", async () => {
@@ -73,6 +78,7 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
       runtimeSessionId: "runtime/authoring-1",
       scenarioId: "scenario/comparison",
       experimentId: "experiment/workbench",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface: nextSurface,
       expectedVersion: 7,
     });
@@ -104,6 +110,7 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
     expect(saved).toBe(savedExperiment);
     expect(client.initialize).toHaveBeenCalledWith({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/authoring-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -207,6 +214,8 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
     expect(client.createSnapshot).toHaveBeenCalledWith({
       runtimeSessionId: "runtime/authoring-1",
       scenarioId: "scenario/baseline",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       surface: surfaceV3("Workbench note"),
       snapshotSource: "saved-experiment",
     });
@@ -302,6 +311,8 @@ describe("WorkbenchParallelAuthoringCoordinatorV3", () => {
     expect(client.createSnapshot).toHaveBeenCalledWith({
       runtimeSessionId: "runtime/authoring-1",
       scenarioId: "scenario/baseline",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       surface: surfaceV3("Workbench note"),
       snapshotSource: "session",
     });
@@ -328,6 +339,8 @@ function inputV3(
 ): WorkbenchParallelAuthoringInputV3 {
   return {
     modelId: "model/main-wire-v3-r1",
+    surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+    releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
     scenarios: [scenarioV3("scenario/baseline", "Baseline", 1)],
     activeScenarioId: "scenario/baseline",
     surface: surfaceV3("Workbench note"),
@@ -343,6 +356,7 @@ function snapshotInputV3(
 ): WorkbenchParallelSnapshotAuthoringInputV3 {
   return {
     ...inputV3(overrides),
+    surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
     snapshotSource: "saved-experiment",
   };
 }
@@ -386,6 +400,7 @@ function experimentV3(input: Readonly<{
     version: input.version,
     content: {
       modelId: "model/main-wire-v3-r1",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       scenarios: input.scenarios,
       surface: input.surface ?? surfaceV3("Workbench note"),
     },
@@ -399,6 +414,7 @@ function snapshotV3(
   return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
     snapshotId,
+    surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
     content: experiment.content,
     createdAt: "2026-08-01T00:00:00.000Z",
   };

@@ -29,10 +29,17 @@ import type {
   ControlDefinitionV2,
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
+import type { StudioClientCompositionV2 } from
+  "@/studio/composition/StudioDefaultCompositionV2";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import type { UseArticleReaderLiveRuntimeResultV3 } from "@/components/article/reader/useArticleReaderLiveRuntimeV3";
 import { articleReaderAnalysisKeyV3 } from "@/components/article/reader/ArticleReaderLiveRuntimeV3";
 import { WorkbenchScenarioPresentationSampleStoreV3 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
+import {
+  STANDARD_TEST_RELEASE_TICKET_V1,
+  STANDARD_TEST_SURFACE_RELEASE_ID_V1,
+  STANDARD_TEST_SURFACE_SERIES_ID_V1,
+} from "@/__tests__/helpers/standardReleaseTicketV1";
 
 const NOOP = () => {};
 
@@ -40,9 +47,11 @@ function snapshotV3(): ExperimentSnapshotV2 {
   return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
     snapshotId: "snapshot/reader",
+    surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
     createdAt: "2026-08-02T00:00:00.000Z",
     content: {
-      modelId: "model/exact-reader-v3",
+      modelId: STANDARD_TEST_RELEASE_TICKET_V1.modelId,
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       scenarios: [
         scenarioV3("scenario/baseline", "Baseline"),
         scenarioV3("scenario/comparison", "Comparison"),
@@ -123,11 +132,13 @@ function blockV3(): StudioArticleExperimentBlockV2 {
 
 function contractV3(): ModelContractV2 {
   return {
-    modelId: "model/exact-reader-v3",
-    modelFamilyId: "model-family/main-wire-v3",
+    modelId: STANDARD_TEST_RELEASE_TICKET_V1.modelId,
+    modelFamilyId: STANDARD_TEST_RELEASE_TICKET_V1.manifest.modelFamilyId,
     displayName: "Reader exact model",
-    fixtureSchemaId: "fixture/reader-v3",
-    checkpointCodecId: "checkpoint/reader-v3",
+    fixtureSchemaId:
+      STANDARD_TEST_RELEASE_TICKET_V1.manifest.fixtureSchema.fixtureSchemaId,
+    checkpointCodecId:
+      STANDARD_TEST_RELEASE_TICKET_V1.manifest.checkpointCodec.checkpointCodecId,
     snapshotGateId: "gate/reader-v3",
     controlCatalog: [],
     outputCatalog: [],
@@ -140,6 +151,21 @@ function contractV3(): ModelContractV2 {
       },
     ],
   };
+}
+
+function runtimeCompositionV3(): StudioClientCompositionV2 {
+  const contract = contractV3();
+  return Object.freeze({
+    defaultModelId: contract.modelId,
+    releaseStage: "stable",
+    defaultFixture: Object.freeze({}),
+    contract,
+    analysisExecutionPlan: () => null,
+    workerReleaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+    surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
+    surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+    surfaceStage: "stable",
+  });
 }
 
 function renderExperimentV3(
@@ -156,6 +182,7 @@ function renderExperimentV3(
       block={input.block ?? blockV3()}
       snapshot={input.snapshot}
       contract={input.contract ?? null}
+      runtimeComposition={runtimeCompositionV3()}
       live={input.live ?? false}
       expandedPresentation={null}
       forceInline={input.forceInline ?? false}
@@ -214,7 +241,7 @@ function twoGraphBlockV3(): StudioArticleExperimentBlockV2 {
 
 function structuralAnalysisV3(scenarioId: string): StudioSimulationAnalysisV2 {
   return Object.freeze({
-    modelId: "model/exact-reader-v3",
+    modelId: STANDARD_TEST_RELEASE_TICKET_V1.modelId,
     runtimeSessionId: `runtime/${scenarioId}`,
     scenarioId,
     inputEpoch: 0,

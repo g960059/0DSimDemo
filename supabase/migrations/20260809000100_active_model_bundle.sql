@@ -86,8 +86,12 @@ begin
     raise exception 'source Experiment and expected version must be supplied together'
       using errcode = '22023';
   end if;
-  if (surface_series_id is null) <> (p_surface_release_id is null) then
-    raise exception 'Snapshot Surface series and release pins must be supplied together'
+  if surface_series_id is null or btrim(surface_series_id) = '' then
+    raise exception 'Standard Snapshot content must pin a Surface series'
+      using errcode = '22023';
+  end if;
+  if p_surface_release_id is null or btrim(p_surface_release_id) = '' then
+    raise exception 'Standard Snapshot must pin a Surface release'
       using errcode = '22023';
   end if;
   request_body := jsonb_build_object(
@@ -155,9 +159,9 @@ begin
     'schemaId', 'circleheart-studio-experiment-snapshot-v2',
     'snapshotId', target_snapshot_id,
     'content', p_content,
+    'surfaceReleaseId', p_surface_release_id,
     'createdAt', to_char(created_time at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
-  ) || case when p_surface_release_id is null then '{}'::jsonb else
-    jsonb_build_object('surfaceReleaseId', p_surface_release_id) end;
+  );
   return studio.finish_operation_v1(actor, p_operation_id, result_body);
 end;
 $$;
@@ -502,18 +506,18 @@ begin
     limit p_limit
   )
   select jsonb_build_object(
-    'items', coalesce(jsonb_agg((jsonb_build_object(
+    'items', coalesce(jsonb_agg(jsonb_build_object(
       'experimentId', experiment_id,
       'version', version,
       'modelId', model_id,
+      'surfaceSeriesId', surface_series_id,
       'title', title,
       'scenarioCount', scenario_count,
       'createdAt', to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
       'updatedAt', to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
       'publishedSnapshotId', published_snapshot_id,
       'publicSlug', public_slug
-    ) || case when surface_series_id is null then '{}'::jsonb else
-      jsonb_build_object('surfaceSeriesId', surface_series_id) end)
+    )
       order by updated_at desc, experiment_id desc), '[]'::jsonb),
     'nextCursor', case when count(*) = p_limit then (
       select jsonb_build_object(
@@ -569,17 +573,16 @@ begin
     limit p_limit
   )
   select jsonb_build_object(
-    'items', coalesce(jsonb_agg((jsonb_build_object(
+    'items', coalesce(jsonb_agg(jsonb_build_object(
       'snapshotId', snapshot_id,
       'modelId', model_id,
+      'surfaceSeriesId', surface_series_id,
+      'surfaceReleaseId', surface_release_id,
       'title', title,
       'scenarioCount', scenario_count,
       'paneCount', pane_count,
       'createdAt', to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
-    ) || case when surface_series_id is null then '{}'::jsonb else
-      jsonb_build_object('surfaceSeriesId', surface_series_id) end
-      || case when surface_release_id is null then '{}'::jsonb else
-      jsonb_build_object('surfaceReleaseId', surface_release_id) end)
+    )
       order by created_at desc, snapshot_id desc), '[]'::jsonb),
     'nextCursor', case when count(*) = p_limit then (
       select jsonb_build_object(
@@ -910,9 +913,9 @@ CREATE OR REPLACE FUNCTION "public"."read_experiment_snapshot_v1"("p_snapshot_id
     'schemaId', 'circleheart-studio-experiment-snapshot-v2',
     'snapshotId', snapshot.snapshot_id,
     'content', content.content,
+    'surfaceReleaseId', snapshot.surface_release_id,
     'createdAt', to_char(snapshot.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
-  ) || case when snapshot.surface_release_id is null then '{}'::jsonb else
-    jsonb_build_object('surfaceReleaseId', snapshot.surface_release_id) end
+  )
   from studio.experiment_snapshots as snapshot
   join studio.experiment_contents as content
     on content.content_id = snapshot.content_id
@@ -990,9 +993,9 @@ CREATE OR REPLACE FUNCTION "public"."read_public_experiment_v1"("p_public_slug" 
       'schemaId', 'circleheart-studio-experiment-snapshot-v2',
       'snapshotId', snapshot.snapshot_id,
       'content', content.content,
+      'surfaceReleaseId', snapshot.surface_release_id,
       'createdAt', to_char(snapshot.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
-    ) || case when snapshot.surface_release_id is null then '{}'::jsonb else
-      jsonb_build_object('surfaceReleaseId', snapshot.surface_release_id) end
+    )
   )
   from studio.experiment_publications as publication
   join studio.experiments as experiment
@@ -1301,6 +1304,10 @@ declare
   result_body jsonb;
 begin
   if actor is null then raise exception 'authentication required' using errcode = '28000'; end if;
+  if surface_series_id is null or btrim(surface_series_id) = '' then
+    raise exception 'Standard Experiment content must pin a Surface series'
+      using errcode = '22023';
+  end if;
   request_body := jsonb_build_object(
     'experimentId', p_experiment_id,
     'expectedVersion', p_expected_version,
@@ -2163,6 +2170,37 @@ $$;
 ALTER FUNCTION "studio"."guard_experiment_publication_model_v1"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "studio"."guard_experiment_content_surface_series_v1"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO ''
+    AS $$
+declare
+  content_model_family_id text;
+begin
+  select model.model_family_id
+  into content_model_family_id
+  from studio.model_releases as model
+  where model.model_id = new.model_id;
+  if not found then
+    raise exception 'Experiment exact model is unavailable' using errcode = '23503';
+  end if;
+  if not exists (
+    select 1
+    from studio.model_surface_releases as release
+    where release.surface_series_id = new.surface_series_id
+      and release.model_family_id = content_model_family_id
+  ) then
+    raise exception 'Experiment Surface series is incompatible with its exact model'
+      using errcode = '22023';
+  end if;
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION "studio"."guard_experiment_content_surface_series_v1"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "studio"."guard_snapshot_surface_pin_v1"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     SET "search_path" TO ''
@@ -2181,11 +2219,6 @@ begin
   if not found then
     raise exception 'Snapshot content is unavailable' using errcode = '23503';
   end if;
-  if (content_series_id is null) <> (new.surface_release_id is null) then
-    raise exception 'Snapshot Surface series and release pins must be supplied together'
-      using errcode = '22023';
-  end if;
-  if content_series_id is null then return new; end if;
   select release.surface_series_id, release.model_family_id
   into release_series_id, release_model_family_id
   from studio.model_surface_releases as release
@@ -2632,17 +2665,18 @@ CREATE TABLE IF NOT EXISTS "studio"."experiment_contents" (
     "content_size_bytes" bigint DEFAULT 0 NOT NULL,
     "created_by" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "surface_series_id" "text",
+    "surface_series_id" "text" NOT NULL,
     CONSTRAINT "experiment_contents_object" CHECK ((("jsonb_typeof"("content") = 'object'::"text") AND (("content" ->> 'modelId'::"text") = "model_id") AND ("jsonb_typeof"(("content" -> 'scenarios'::"text")) = 'array'::"text") AND (("jsonb_array_length"(("content" -> 'scenarios'::"text")) >= 1) AND ("jsonb_array_length"(("content" -> 'scenarios'::"text")) <= 4)) AND ("jsonb_typeof"(("content" -> 'surface'::"text")) = 'object'::"text"))),
     CONSTRAINT "experiment_contents_size" CHECK ((("content_size_bytes" >= 1) AND ("content_size_bytes" <= 8388608))),
-    CONSTRAINT "experiment_contents_surface_series_pin" CHECK (((("content" ? 'surfaceSeriesId'::"text") = ("surface_series_id" IS NOT NULL)) AND (NOT (("content" ->> 'surfaceSeriesId'::"text") IS DISTINCT FROM "surface_series_id"))))
+    CONSTRAINT "experiment_contents_surface_series_nonempty" CHECK ((("surface_series_id" = "btrim"("surface_series_id")) AND ("char_length"("surface_series_id") > 0))),
+    CONSTRAINT "experiment_contents_surface_series_pin" CHECK ((("content" ? 'surfaceSeriesId'::"text") AND (NOT (("content" ->> 'surfaceSeriesId'::"text") IS DISTINCT FROM "surface_series_id"))))
 );
 
 
 ALTER TABLE "studio"."experiment_contents" OWNER TO "postgres";
 
 
-COMMENT ON COLUMN "studio"."experiment_contents"."surface_series_id" IS 'Mutable Experiment presentation lineage. Historical V2 compatibility rows may be null; Standard-ABI content must pin a Surface series.';
+COMMENT ON COLUMN "studio"."experiment_contents"."surface_series_id" IS 'Required mutable Experiment presentation lineage for the Standard ABI.';
 
 
 
@@ -2688,7 +2722,8 @@ CREATE TABLE IF NOT EXISTS "studio"."experiment_snapshots" (
     "owner_id" "uuid" NOT NULL,
     "content_id" "uuid" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "surface_release_id" "text"
+    "surface_release_id" "text" NOT NULL,
+    CONSTRAINT "experiment_snapshots_surface_release_nonempty" CHECK ((("surface_release_id" = "btrim"("surface_release_id")) AND ("char_length"("surface_release_id") > 0)))
 );
 
 
@@ -2699,7 +2734,7 @@ COMMENT ON TABLE "studio"."experiment_snapshots" IS 'Neutral immutable admitted 
 
 
 
-COMMENT ON COLUMN "studio"."experiment_snapshots"."surface_release_id" IS 'Exact immutable presentation contract captured with a Standard-ABI Snapshot. Historical V2 compatibility rows may be null.';
+COMMENT ON COLUMN "studio"."experiment_snapshots"."surface_release_id" IS 'Required exact immutable presentation contract captured with every Standard Snapshot.';
 
 
 
@@ -3075,6 +3110,9 @@ CREATE OR REPLACE TRIGGER "experiment_contents_are_immutable" BEFORE UPDATE ON "
 CREATE OR REPLACE TRIGGER "experiment_contents_measure_size" BEFORE INSERT ON "studio"."experiment_contents" FOR EACH ROW EXECUTE FUNCTION "studio"."set_jsonb_size_v1"();
 
 
+CREATE OR REPLACE TRIGGER "experiment_content_surface_series_is_compatible" BEFORE INSERT ON "studio"."experiment_contents" FOR EACH ROW EXECUTE FUNCTION "studio"."guard_experiment_content_surface_series_v1"();
+
+
 
 CREATE OR REPLACE TRIGGER "experiment_publication_requires_stable_model" BEFORE INSERT OR UPDATE OF "current_snapshot_id" ON "studio"."experiment_publications" FOR EACH ROW EXECUTE FUNCTION "studio"."guard_experiment_publication_model_v1"();
 
@@ -3322,6 +3360,31 @@ ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
 
 
 
+
+
+INSERT INTO "storage"."buckets" (
+  "id",
+  "name",
+  "public",
+  "file_size_limit",
+  "allowed_mime_types"
+) VALUES (
+  'model-releases',
+  'model-releases',
+  true,
+  10485760,
+  ARRAY['application/javascript', 'text/javascript']
+) ON CONFLICT ("id") DO UPDATE
+SET "public" = EXCLUDED."public",
+    "file_size_limit" = EXCLUDED."file_size_limit",
+    "allowed_mime_types" = EXCLUDED."allowed_mime_types";
+
+
+SELECT "cron"."schedule"(
+  'circleheart-content-gc-v1',
+  '*/15 * * * *',
+  'select studio.gc_unreferenced_content_v1(500);'
+);
 
 
 GRANT USAGE ON SCHEMA "public" TO "postgres";

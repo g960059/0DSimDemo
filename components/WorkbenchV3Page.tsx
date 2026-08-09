@@ -920,9 +920,7 @@ const WorkbenchV3Session = ({
             );
       runtime = new WorkbenchParallelScenarioRuntimeV3({
         expectedModelId: composition.defaultModelId,
-        ...(composition.workerReleaseTicket === undefined
-          ? {}
-          : { releaseTicket: composition.workerReleaseTicket }),
+        releaseTicket: composition.workerReleaseTicket,
         backgroundWorkerPool,
         resolveAnalysisExecutionPlan: composition.analysisExecutionPlan,
         onFrames: (frames) => {
@@ -1871,9 +1869,9 @@ const WorkbenchV3Session = ({
       const currentExperiment = experimentRef.current;
       const submittedCandidateContent = {
         modelId: frame.modelId,
-        ...(surfaceSeriesIdRef.current === undefined
-          ? {}
-          : { surfaceSeriesId: surfaceSeriesIdRef.current }),
+        surfaceSeriesId: requiredWorkbenchSurfaceSeriesIdV3(
+          surfaceSeriesIdRef.current,
+        ),
         scenarios: captures.scenarios,
         surface: submittedSurface,
       };
@@ -1908,12 +1906,12 @@ const WorkbenchV3Session = ({
         );
         const assembled = await coordinator.saveExperiment({
           modelId: frame.modelId,
-          ...(surfaceSeriesIdRef.current === undefined
-            ? {}
-            : { surfaceSeriesId: surfaceSeriesIdRef.current }),
-          ...(workerReleaseTicketRef.current === undefined
-            ? {}
-            : { releaseTicket: workerReleaseTicketRef.current }),
+          surfaceSeriesId: requiredWorkbenchSurfaceSeriesIdV3(
+            surfaceSeriesIdRef.current,
+          ),
+          releaseTicket: requiredWorkbenchReleaseTicketV3(
+            workerReleaseTicketRef.current,
+          ),
           scenarios: captures.scenarios,
           activeScenarioId: captures.activeScenarioId,
           experiment: currentExperiment,
@@ -2136,15 +2134,15 @@ const WorkbenchV3Session = ({
       );
       const authoringInput = {
         modelId: frame.modelId,
-        ...(surfaceSeriesIdRef.current === undefined
-          ? {}
-          : { surfaceSeriesId: surfaceSeriesIdRef.current }),
-        ...(surfaceReleaseIdRef.current === undefined
-          ? {}
-          : { surfaceReleaseId: surfaceReleaseIdRef.current }),
-        ...(workerReleaseTicketRef.current === undefined
-          ? {}
-          : { releaseTicket: workerReleaseTicketRef.current }),
+        surfaceSeriesId: requiredWorkbenchSurfaceSeriesIdV3(
+          surfaceSeriesIdRef.current,
+        ),
+        surfaceReleaseId: requiredWorkbenchSurfaceReleaseIdV3(
+          surfaceReleaseIdRef.current,
+        ),
+        releaseTicket: requiredWorkbenchReleaseTicketV3(
+          workerReleaseTicketRef.current,
+        ),
         scenarios: captures.scenarios,
         activeScenarioId: captures.activeScenarioId,
         surface: submittedSurface,
@@ -2180,9 +2178,7 @@ const WorkbenchV3Session = ({
             created,
             {
               modelId: authoringInput.modelId,
-              ...(authoringInput.surfaceSeriesId === undefined
-                ? {}
-                : { surfaceSeriesId: authoringInput.surfaceSeriesId }),
+              surfaceSeriesId: authoringInput.surfaceSeriesId,
               scenarios: authoringInput.scenarios,
               surface: authoringInput.surface,
             },
@@ -3282,8 +3278,8 @@ export function createWorkbenchBriefingSnapshotV3(
   input: Readonly<{
     defaultTitle?: string;
     modelId: string;
-    surfaceSeriesId?: string;
-    surfaceReleaseId?: string;
+    surfaceSeriesId: string;
+    surfaceReleaseId: string;
     scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
     surface: ExperimentSurfaceV2;
   }>,
@@ -3297,9 +3293,7 @@ export function createWorkbenchBriefingSnapshotV3(
   );
   const content = Object.freeze({
     modelId: input.modelId,
-    ...(input.surfaceSeriesId === undefined
-      ? {}
-      : { surfaceSeriesId: input.surfaceSeriesId }),
+    surfaceSeriesId: input.surfaceSeriesId,
     scenarios: Object.freeze(
       input.scenarios.map((scenario) =>
         Object.freeze({
@@ -3322,9 +3316,7 @@ export function createWorkbenchBriefingSnapshotV3(
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
     snapshotId: "snapshot/workbench-briefing-composer",
     createdAt: "1970-01-01T00:00:00.000Z",
-    ...(input.surfaceReleaseId === undefined
-      ? {}
-      : { surfaceReleaseId: input.surfaceReleaseId }),
+    surfaceReleaseId: input.surfaceReleaseId,
     content,
   });
 }
@@ -5275,6 +5267,33 @@ function remoteExperimentRecordV3(
 
 function publicExperimentSlugV3(experimentId: string): string {
   return `simulation-${experimentId.toLocaleLowerCase()}`;
+}
+
+function requiredWorkbenchSurfaceSeriesIdV3(
+  value: string | undefined,
+): string {
+  if (value === undefined) {
+    throw new Error("Workbench Standard Surface series is unavailable");
+  }
+  return value;
+}
+
+function requiredWorkbenchSurfaceReleaseIdV3(
+  value: string | undefined,
+): string {
+  if (value === undefined) {
+    throw new Error("Workbench Standard Surface release is unavailable");
+  }
+  return value;
+}
+
+function requiredWorkbenchReleaseTicketV3(
+  value: StudioModelWorkerReleaseTicketV2 | undefined,
+): StudioModelWorkerReleaseTicketV2 {
+  if (value === undefined) {
+    throw new Error("Workbench Standard Worker release ticket is unavailable");
+  }
+  return value;
 }
 
 export default WorkbenchV3Page;

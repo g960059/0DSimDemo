@@ -61,107 +61,30 @@ passwords, secret keys, and CLI access tokens must never enter Vite variables.
 
 ## Migrations
 
-### `20260806000100_model_release_spine.sql`
-
-Creates the private exact-model registry:
-
-- immutable `studio.model_releases`;
-- mutable release availability;
-- idempotent service-role registration;
-- same-`modelId`/different-contract rejection; and
-- a hash-free exact-release client lookup.
-
-Artifact SHA-256 and registry fingerprint are registry/CI metadata. Studio
-domain objects and ordinary clients use only the exact `modelId`.
-
-### `20260806000200_content_release_spine.sql`
-
-Creates:
-
-- profiles and idempotency receipts;
-- immutable Experiment and Article content rows;
-- mutable Experiment and Article resource heads;
-- neutral immutable Experiment Snapshots;
-- backend-only saved-Experiment Snapshot provenance;
-- Experiment and Article publication pointers;
-- Article-owned Placement/Briefing reference projection; and
-- bounded unreferenced-content GC.
-
-The portable `ExperimentSnapshot` is materialized from `experiment_contents`.
-`content_id`, the `experiment_snapshot_sources` provenance relation, and
-retention rows are backend concerns
-and are not returned as domain identity.
-
-### `20260806000300_content_read_api.sql`
-
-Adds authenticated owner reads for Experiments, Snapshots, and Articles plus
-public Experiment/Article catalog reads. Snapshot authorization remains
-reference-based: owner access, current public Experiment publication, or a
-published Article Placement.
-
-### `20260806000400_model_release_storage.sql`
-
-Creates the public, read-only-to-clients `model-releases` bucket for exact
-executable modules. Upload and registry registration remain trusted release
-operations; clients receive no object-write policy.
-
-### `20260806000500_content_operations.sql`
-
-Adds the production operating boundary around semantic writes:
-
-- anonymous accounts may perform at most 60 mutations per minute and 600 per
-  rolling 24 hours;
-- idempotent replay is checked before quota consumption;
-- same-account quota checks are serialized to prevent concurrent bypass; and
-- Supabase Cron calls bounded content GC every 15 minutes.
-
-The mutation quota limits write-rate amplification by one anonymous identity.
-It does not replace Supabase Auth's IP-based anonymous-sign-in limit or
-production CAPTCHA/Turnstile.
-
-### `20260806000600_content_bounds_and_receipts.sql`
-
-Hardens immutable storage and response-loss recovery:
-
-- operation receipts store payload digests and compact identity responses;
-- the browser may safely replay the same operation UUID after a lost response;
-- Experiment/Article JSON has explicit byte ceilings;
-- anonymous identities have row and aggregate-byte storage quotas;
-- new unreferenced Snapshot handoffs retain a 24-hour recovery window; and
-- operation receipts expire after 24 hours.
-
-### `20260806000700_content_summary_pages.sql`
-
-Replaces the pre-release unbounded list transports with cursor-paginated
-summary pages. Experiment, Snapshot, and Article lists contain titles, counts,
-timestamps, publication pointers, and model identity only; fixture,
-checkpoint, Surface, and Article blocks are loaded solely through the existing
-detail reads when a user opens or selects one item.
-
-### `20260806000800_summary_cursor_precision.sql`
-
-Preserves PostgreSQL microsecond precision in summary continuation cursors so
-updates within one millisecond cannot be skipped between pages.
-
 ### `20260809000100_active_model_bundle.sql`
 
-Removes the transitional generic model/Surface channel tables and RPCs, then
-adds one atomic singleton launch pointer:
+This is the only Studio migration. Before the first user, the former
+development sequence was deliberately squashed into one Standard-only
+baseline. It creates:
 
-- one stable, loadable Standard-ABI exact `modelId` plus one stable compatible
-  `surfaceReleaseId`;
-- compare-and-swap replacement with a monotonic bundle version;
-- one public read returning both immutable manifests coherently; and
-- retirement guards requiring the active pair to be replaced first.
+- immutable exact-model and Surface registries with explicit lifecycle;
+- one atomic active exact-model + Surface bundle pointer;
+- required Surface-series pins on every mutable Experiment and required exact
+  Surface-release pins on every Snapshot;
+- owner/private and public content reads, semantic write RPCs, idempotency,
+  quotas, publication guards, retention, and bounded garbage collection;
+- the public, client-read-only `model-releases` Storage bucket; and
+- a 15-minute Supabase Cron schedule for bounded content GC.
 
 Mutable content resolves a Surface by series lineage rather than timestamp.
 Stable/retired exact models see stable Surfaces only; dev exact models may
 reopen dev Surface successors without leaking those definitions into ordinary
 stable content.
 
-The older channel objects remain visible only in migration history so an
-already-linked pre-release project can upgrade deterministically; they do not
-exist in the resulting schema.
+Artifact digests and registry fingerprints stay registry/CI metadata. Portable
+domain objects use exact `modelId`, `surfaceSeriesId`, and
+`surfaceReleaseId`; they never expose storage paths, codecs, or hashes as
+product identity.
 
 ## Auth policy
 

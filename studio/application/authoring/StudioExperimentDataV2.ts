@@ -122,8 +122,8 @@ export function validateExperimentSnapshotV2(
   ) as ExperimentSnapshotV2;
   assertRequiredOptionalKeysV2(
     snapshot,
-    ["schemaId", "snapshotId", "content", "createdAt"],
-    ["createdBy", "surfaceReleaseId"],
+    ["schemaId", "snapshotId", "surfaceReleaseId", "content", "createdAt"],
+    ["createdBy"],
     "$.snapshot",
   );
   if (snapshot.schemaId !== STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID) {
@@ -131,21 +131,10 @@ export function validateExperimentSnapshotV2(
   }
   requiredPortableIdV2(snapshot.snapshotId, "$.snapshot.snapshotId");
   assertExperimentContentV2(snapshot.content, "$.snapshot.content");
-  if (snapshot.surfaceReleaseId !== undefined) {
-    requiredPortableIdV2(
-      snapshot.surfaceReleaseId,
-      "$.snapshot.surfaceReleaseId",
-    );
-  }
-  if (
-    (snapshot.content.surfaceSeriesId === undefined)
-      !== (snapshot.surfaceReleaseId === undefined)
-  ) {
-    throw validationErrorV2(
-      "$.snapshot.surfaceReleaseId",
-      "must be present exactly when content.surfaceSeriesId is present",
-    );
-  }
+  requiredPortableIdV2(
+    snapshot.surfaceReleaseId,
+    "$.snapshot.surfaceReleaseId",
+  );
   isoTimestampV2(snapshot.createdAt, "$.snapshot.createdAt");
   if (hasOwnV2(snapshot, "createdBy")) {
     requiredPortableIdV2(snapshot.createdBy, "$.snapshot.createdBy");
@@ -996,17 +985,12 @@ function assertExperimentContentV2(
 ): void {
   assertRequiredOptionalKeysV2(
     content,
-    ["modelId", "scenarios", "surface"],
-    ["surfaceSeriesId"],
+    ["modelId", "surfaceSeriesId", "scenarios", "surface"],
+    [],
     path,
   );
   requiredPortableIdV2(content.modelId, `${path}.modelId`);
-  if (content.surfaceSeriesId !== undefined) {
-    requiredPortableIdV2(
-      content.surfaceSeriesId,
-      `${path}.surfaceSeriesId`,
-    );
-  }
+  requiredPortableIdV2(content.surfaceSeriesId, `${path}.surfaceSeriesId`);
   if (!Array.isArray(content.scenarios) || content.scenarios.length === 0) {
     throw validationErrorV2(`${path}.scenarios`, "must be a nonempty array");
   }
@@ -1033,17 +1017,15 @@ function assertExperimentDesiredContentV2(
 ): void {
   assertRequiredOptionalKeysV2(
     desiredContent,
-    ["modelId", "scenarios", "surface"],
-    ["surfaceSeriesId"],
+    ["modelId", "surfaceSeriesId", "scenarios", "surface"],
+    [],
     path,
   );
   requiredPortableIdV2(desiredContent.modelId, `${path}.modelId`);
-  if (desiredContent.surfaceSeriesId !== undefined) {
-    requiredPortableIdV2(
-      desiredContent.surfaceSeriesId,
-      `${path}.surfaceSeriesId`,
-    );
-  }
+  requiredPortableIdV2(
+    desiredContent.surfaceSeriesId,
+    `${path}.surfaceSeriesId`,
+  );
   if (
     !Array.isArray(desiredContent.scenarios) ||
     desiredContent.scenarios.length === 0

@@ -47,6 +47,11 @@ import {
 import {
   StudioSimulationWorkerRuntimeV2,
 } from "@/studio/workers/StudioSimulationWorkerRuntimeV2";
+import {
+  STANDARD_TEST_RELEASE_TICKET_V1,
+  STANDARD_TEST_SURFACE_RELEASE_ID_V1,
+  STANDARD_TEST_SURFACE_SERIES_ID_V1,
+} from "./helpers/standardReleaseTicketV1";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -64,6 +69,7 @@ describe("Studio simulation worker V2 protocol", () => {
       requestId: 1,
       kind: "initialize",
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -98,6 +104,10 @@ describe("Studio simulation worker V2 protocol", () => {
 
   it("rejects unknown, explicitly undefined, accessor, and poisoned request data", () => {
     const base = initializeRequestV2(1);
+    const withoutReleaseTicket = { ...base } as Record<string, unknown>;
+    delete withoutReleaseTicket.releaseTicket;
+    expect(() => validateStudioSimulationWorkerRequestV2(withoutReleaseTicket))
+      .toThrow(/releaseTicket|fields must match exactly/);
     expect(() => validateStudioSimulationWorkerRequestV2({
       ...base,
       targetGeneration: 4,
@@ -288,6 +298,7 @@ describe("Studio simulation worker V2 protocol", () => {
     const experiment = experimentV2();
     const initialize = createStudioSimulationInitializeRequestV2(1, {
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -305,6 +316,7 @@ describe("Studio simulation worker V2 protocol", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface,
       expectedVersion: null,
       expectedInputEpoch: 0,
@@ -324,6 +336,8 @@ describe("Studio simulation worker V2 protocol", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioIds: ["scenario/baseline"],
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       surface: surfaceV2(),
       snapshotSource: "saved-experiment",
       expectedInputEpoch: 0,
@@ -361,6 +375,7 @@ describe("Studio simulation worker V2 protocol", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface: surfaceV2(),
       expectedVersion: null,
       expectedInputEpoch: 0,
@@ -823,6 +838,7 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface: surfaceV2(),
       expectedVersion: null,
       expectedInputEpoch: 1,
@@ -861,6 +877,7 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface: surfaceV2("Updated note"),
       expectedVersion: 0,
       expectedInputEpoch: 1,
@@ -904,6 +921,7 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface: surfaceV2(),
       expectedVersion: null,
       expectedInputEpoch: 0,
@@ -915,6 +933,7 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface: surfaceV2(),
       expectedVersion: 9,
       expectedInputEpoch: 0,
@@ -933,6 +952,7 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/forged",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface: surfaceV2(),
       expectedVersion: 0,
       expectedInputEpoch: 0,
@@ -971,7 +991,7 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
-      surfaceSeriesId: "surface-series/main-wire-standard",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface: surfaceV2(),
       expectedVersion: null,
       expectedInputEpoch: 0,
@@ -985,7 +1005,7 @@ describe("Studio simulation worker V2 runtime", () => {
       kind: "experiment-saved",
       experiment: {
         content: {
-          surfaceSeriesId: "surface-series/main-wire-standard",
+          surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
         },
       },
     });
@@ -993,8 +1013,8 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioIds: ["scenario/baseline"],
-      surfaceSeriesId: "surface-series/main-wire-standard",
-      surfaceReleaseId: "surface-release/main-wire-standard-r1",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       surface: surfaceV2(),
       snapshotSource: "saved-experiment",
       expectedInputEpoch: 0,
@@ -1010,9 +1030,9 @@ describe("Studio simulation worker V2 runtime", () => {
       kind: "snapshot-created",
       snapshot: {
         snapshotId: "snapshot/worker-test/1",
-        surfaceReleaseId: "surface-release/main-wire-standard-r1",
+        surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
         content: {
-          surfaceSeriesId: "surface-series/main-wire-standard",
+          surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
           scenarios: [{
             capture: {
               checkpoint: {
@@ -1046,6 +1066,7 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface: surfaceV2(),
       expectedVersion: null,
       expectedInputEpoch: 0,
@@ -1057,6 +1078,8 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioIds: ["scenario/baseline"],
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       surface: surfaceV2(),
       snapshotSource: "saved-experiment",
       expectedInputEpoch: 0,
@@ -1076,6 +1099,7 @@ describe("Studio simulation worker V2 runtime", () => {
     const seeded = experimentV2();
     mismatched.runtime.enqueue(createStudioSimulationInitializeRequestV2(1, {
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -1097,6 +1121,7 @@ describe("Studio simulation worker V2 runtime", () => {
     const seeded = experimentV2(4);
     harness.runtime.enqueue(createStudioSimulationInitializeRequestV2(1, {
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -1115,6 +1140,7 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface: surfaceV2("Resumed note"),
       expectedVersion: 4,
       expectedInputEpoch: 0,
@@ -1506,6 +1532,7 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
     };
     harness.runtime.enqueue(createStudioSimulationInitializeRequestV2(1, {
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/comparison",
       scenarioLabel: "Comparison",
@@ -1654,6 +1681,7 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
       scenarioId: "scenario/from-preset",
       scenarioIds: ["scenario/from-preset", "scenario/copy"],
       experimentId: "experiment/multi",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surface: { ...surfaceV2(), controlPanes: [] },
       expectedVersion: null,
       expectedInputEpoch: 0,
@@ -2193,6 +2221,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2273,6 +2302,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2372,6 +2402,7 @@ describe("Studio simulation worker V2 client", () => {
     const fixture = { value: 1 };
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2404,6 +2435,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2465,6 +2497,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2510,6 +2543,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2610,6 +2644,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2619,6 +2654,7 @@ describe("Studio simulation worker V2 client", () => {
     await initialized;
 
     const savedPromise = client.saveExperiment({
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
@@ -2641,6 +2677,7 @@ describe("Studio simulation worker V2 client", () => {
     await expect(savedPromise).resolves.toEqual(savedExperiment);
 
     await expect(client.saveExperiment({
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
@@ -2651,6 +2688,8 @@ describe("Studio simulation worker V2 client", () => {
     expect(transport.terminate).not.toHaveBeenCalled();
 
     const snapshotPromise = client.createSnapshot({
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       surface: surfaceV2(),
@@ -2664,6 +2703,7 @@ describe("Studio simulation worker V2 client", () => {
     const snapshot = {
       schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
       snapshotId: "snapshot/client-test/1",
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       content: admittedContent,
       createdAt: "2026-08-01T00:00:00.000Z",
     };
@@ -2685,6 +2725,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2694,6 +2735,7 @@ describe("Studio simulation worker V2 client", () => {
     await initialized;
 
     const rejected = client.saveExperiment({
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
@@ -2727,6 +2769,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2760,6 +2803,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2810,6 +2854,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
       const initialized = client.initialize({
         expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
         runtimeSessionId: "runtime/session-1",
         scenarioId: "scenario/baseline",
         scenarioLabel: "Baseline",
@@ -2824,6 +2869,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2855,6 +2901,7 @@ describe("Studio simulation worker V2 client", () => {
     });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2881,6 +2928,7 @@ describe("Studio simulation worker V2 client", () => {
     });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2890,6 +2938,7 @@ describe("Studio simulation worker V2 client", () => {
     await initialized;
 
     const saved = client.saveExperiment({
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       experimentId: "experiment/main",
@@ -2907,6 +2956,8 @@ describe("Studio simulation worker V2 client", () => {
     await saved;
 
     const snapshot = client.createSnapshot({
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       surface: surfaceV2(),
@@ -2927,6 +2978,7 @@ describe("Studio simulation worker V2 client", () => {
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -2972,6 +3024,7 @@ describe("Studio simulation worker V2 client/runtime terminal integration", () =
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: adapter.modelId,
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -3023,6 +3076,7 @@ describe("Studio simulation worker V2 client/runtime terminal integration", () =
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: adapter.modelId,
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -3070,6 +3124,7 @@ describe("Studio simulation worker V2 client/runtime terminal integration", () =
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
     const initialized = client.initialize({
       expectedModelId: adapter.modelId,
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       scenarioLabel: "Baseline",
@@ -3166,6 +3221,7 @@ function experimentV2(version = 4): ExperimentV2 {
     version,
     content: {
       modelId: "model/main-wire-v3-r1",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       scenarios: [{
         scenarioId: "scenario/baseline",
         label: "Baseline",
@@ -3210,6 +3266,7 @@ function initializeRequestV2(
 ) {
   return createStudioSimulationInitializeRequestV2(requestId, {
     expectedModelId,
+    releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
     runtimeSessionId: "runtime/session-1",
     scenarioId: "scenario/baseline",
     scenarioLabel: "Baseline",

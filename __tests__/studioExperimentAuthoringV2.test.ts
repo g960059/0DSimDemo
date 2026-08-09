@@ -7,6 +7,7 @@ import {
   StudioExperimentSnapshotAdmissionRejectedErrorV2,
 } from "@/studio/application/authoring/StudioExperimentAuthoringApplicationV2";
 import type {
+  ExperimentCapturedContentV2,
   ExperimentDesiredContentV2,
   ExperimentSnapshotAdmissionPortV2,
   ExperimentSnapshotAdmissionResultV2,
@@ -30,6 +31,9 @@ import type {
   RegisteredModelCaptureAdapterV2,
 } from "@/studio/contracts/v2/model";
 import * as studioPublic from "@/studio";
+
+const TEST_SURFACE_SERIES_ID_V2 = "surface-series/main-wire-standard";
+const TEST_SURFACE_RELEASE_ID_V2 = "surface-release/main-wire-standard-r1";
 
 describe("Studio Experiment authoring V2", () => {
   it("keeps Studio-owned Surface pins outside exact-model capture", async () => {
@@ -67,6 +71,28 @@ describe("Studio Experiment authoring V2", () => {
     });
     expect(snapshot.surfaceReleaseId).toBe(surfaceReleaseId);
     expect(snapshot.content.surfaceSeriesId).toBe(surfaceSeriesId);
+  });
+
+  it("rejects an exact-model capture that tries to mint Surface lineage", async () => {
+    const { application } = harnessV2(undefined, {
+      captureAcceptedCandidate(input) {
+        const result = captureResultV2(input) as any;
+        result.content.surfaceSeriesId = "surface-series/injected";
+        return Promise.resolve(result);
+      },
+    });
+    await application.createExperiment({
+      experimentId: "experiment/main",
+      content: contentV2(0, 0),
+    });
+    const desired = desiredContentV2();
+
+    await expect(application.saveExperiment({
+      experimentId: "experiment/main",
+      expectedVersion: 0,
+      desiredContent: desired,
+      captureCorrelation: captureCorrelationV2(desired),
+    })).rejects.toThrow(/must not own surfaceSeriesId/);
   });
 
   it("captures checkpoint-free Save intent at an accepted boundary", async () => {
@@ -363,6 +389,7 @@ describe("Studio Experiment authoring V2", () => {
     };
 
     await expect(application.createSnapshot({
+      surfaceReleaseId: TEST_SURFACE_RELEASE_ID_V2,
       content: edited,
       savedExperiment: {
         experimentId: "experiment/main",
@@ -370,13 +397,17 @@ describe("Studio Experiment authoring V2", () => {
       },
     })).rejects.toThrow(/not the clean saved Experiment head/);
     await expect(application.createSnapshot({
+      surfaceReleaseId: TEST_SURFACE_RELEASE_ID_V2,
       content: savedContent,
       savedExperiment: {
         experimentId: "experiment/missing",
         expectedVersion: 0,
       },
     })).rejects.toThrow(/Experiment not found/);
-    await expect(application.createSnapshot({ content: savedContent }))
+    await expect(application.createSnapshot({
+      content: savedContent,
+      surfaceReleaseId: TEST_SURFACE_RELEASE_ID_V2,
+    }))
       .resolves.toMatchObject({ content: savedContent });
     expect(repository.snapshotCount).toBe(1);
   });
@@ -390,12 +421,16 @@ describe("Studio Experiment authoring V2", () => {
       },
     });
     const content = contentV2(0, 0);
-    await application.createSnapshot({ content });
+    await application.createSnapshot({
+      content,
+      surfaceReleaseId: TEST_SURFACE_RELEASE_ID_V2,
+    });
     await application.createExperiment({
       experimentId: "experiment/common-admission",
       content,
     });
     await application.createSnapshot({
+      surfaceReleaseId: TEST_SURFACE_RELEASE_ID_V2,
       content,
       savedExperiment: {
         experimentId: "experiment/common-admission",
@@ -411,7 +446,10 @@ describe("Studio Experiment authoring V2", () => {
         return Promise.resolve({ status: "rejected", reason: "unsafe" });
       },
     });
-    await expect(rejected.application.createSnapshot({ content: contentV2(0, 0) }))
+    await expect(rejected.application.createSnapshot({
+      content: contentV2(0, 0),
+      surfaceReleaseId: TEST_SURFACE_RELEASE_ID_V2,
+    }))
       .rejects.toBeInstanceOf(StudioExperimentSnapshotAdmissionRejectedErrorV2);
     expect(rejected.repository.snapshotCount).toBe(0);
 
@@ -425,7 +463,10 @@ describe("Studio Experiment authoring V2", () => {
           return Promise.resolve(malformed as any);
         },
       });
-      await expect(harness.application.createSnapshot({ content: contentV2(0, 0) }))
+      await expect(harness.application.createSnapshot({
+        content: contentV2(0, 0),
+        surfaceReleaseId: TEST_SURFACE_RELEASE_ID_V2,
+      }))
         .rejects.toBeInstanceOf(StudioExperimentSnapshotAdmissionProtocolErrorV2);
       expect(harness.repository.snapshotCount).toBe(0);
     }
@@ -515,12 +556,14 @@ describe("Studio Experiment authoring V2", () => {
       qualification: true,
     } as any)).rejects.toThrow(/SaveExperiment field set mismatch/);
     await expect(application.createSnapshot({
+      surfaceReleaseId: TEST_SURFACE_RELEASE_ID_V2,
       content: contentV2(0, 0),
       purpose: "publication",
       parentSnapshotId: null,
       verificationPassed: true,
     } as any)).rejects.toThrow(/CreateSnapshot field set mismatch/);
     await expect(application.createSnapshot({
+      surfaceReleaseId: TEST_SURFACE_RELEASE_ID_V2,
       content: contentV2(0, 0),
       createdBy: undefined,
     } as any)).rejects.toThrow(/must be omitted or contain an ID/);
@@ -688,6 +731,7 @@ describe("Studio Experiment authoring V2", () => {
       expectedHeadSnapshotId: null,
     });
     await expect(application.createSnapshot({
+      surfaceReleaseId: TEST_SURFACE_RELEASE_ID_V2,
       content: first.content,
       savedExperiment: {
         experimentId: "experiment/main",
@@ -839,6 +883,7 @@ async function createSnapshotForExperimentV2(
     throw new Error(`Experiment not found: ${input.experimentId}`);
   }
   return application.createSnapshot({
+    surfaceReleaseId: TEST_SURFACE_RELEASE_ID_V2,
     content: experiment.content,
     savedExperiment: {
       experimentId: input.experimentId,
@@ -912,6 +957,7 @@ function desiredContentV2(): ExperimentDesiredContentV2 {
   const content = contentV2(0, 0);
   return {
     modelId: content.modelId,
+    surfaceSeriesId: content.surfaceSeriesId,
     scenarios: content.scenarios.map((scenario) => ({
       scenarioId: scenario.scenarioId,
       label: scenario.label,
@@ -968,7 +1014,7 @@ function captureDesiredContentV2(
   desiredContent: ExperimentDesiredContentV2,
   acceptedRevision = 1,
   acceptedTimeSec = 0.25,
-): ExperimentContentV2 {
+): ExperimentCapturedContentV2 {
   return {
     modelId: desiredContent.modelId,
     scenarios: desiredContent.scenarios.map((scenario) => ({
@@ -995,6 +1041,7 @@ function contentV2(
 ): ExperimentContentV2 {
   return {
     modelId: "model/main-wire-v3-r1",
+    surfaceSeriesId: TEST_SURFACE_SERIES_ID_V2,
     scenarios: [{
       scenarioId: "scenario/baseline",
       label: "Baseline",
@@ -1088,9 +1135,7 @@ function replaceCheckpointV2(
   };
 }
 
-function mutableContentV2(
-  content: ExperimentContentV2,
-): any {
+function mutableContentV2<T>(content: T): any {
   return JSON.parse(JSON.stringify(content));
 }
 

@@ -118,13 +118,21 @@ describe('homeLinks', () => {
     const requested: string[] = [];
     const availability = await resolveExperimentAvailabilityV3({
       savedExperiments: [
-        { experimentId: 'experiment/current', modelId: 'model/current' },
+        {
+          experimentId: 'experiment/current',
+          modelId: 'model/current',
+          surfaceSeriesId: 'surface/current',
+        },
         {
           experimentId: 'experiment/historical-a',
           modelId: 'model/historical',
           surfaceSeriesId: 'surface/historical',
         },
-        { experimentId: 'experiment/missing', modelId: 'model/missing' },
+        {
+          experimentId: 'experiment/missing',
+          modelId: 'model/missing',
+          surfaceSeriesId: 'surface/missing',
+        },
         {
           experimentId: 'experiment/historical-b',
           modelId: 'model/historical',
@@ -133,7 +141,7 @@ describe('homeLinks', () => {
       ],
       activeModelId: 'model/current',
       async resolveExperiment(modelId, surfaceSeriesId) {
-        requested.push(`${modelId}:${surfaceSeriesId ?? ''}`);
+        requested.push(`${modelId}:${surfaceSeriesId}`);
         if (modelId === 'model/missing') throw new Error('not loadable');
       },
     });
@@ -145,8 +153,9 @@ describe('homeLinks', () => {
       ['experiment/historical-b', 'exact-loadable'],
     ]);
     expect(requested).toEqual([
+      'model/current:surface/current',
       'model/historical:surface/historical',
-      'model/missing:',
+      'model/missing:surface/missing',
     ]);
   });
 });

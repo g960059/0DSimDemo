@@ -131,7 +131,7 @@ describe("Studio Supabase boundary V1", () => {
         artifact_path: "model-releases/exact/standard.mjs",
         module_abi: "circleheart-exact-model-esm-v1",
         default_fixture: standardClientDescriptorV1.defaultFixture,
-        analysis_profile_id: "main-wire-integrated-v3",
+        analysis_profile_id: "main-wire-integrated-standard-v1",
         model_stage: "stable",
         surface_release_id: standardSurfaceReleaseV1.surfaceReleaseId,
         surface_manifest: standardSurfaceReleaseV1,
@@ -188,7 +188,7 @@ describe("Studio Supabase boundary V1", () => {
       artifact_path: `model-releases/exact/${encodeURIComponent(modelId)}.mjs`,
       module_abi: moduleAbi,
       default_fixture: standardClientDescriptorV1.defaultFixture,
-      analysis_profile_id: "main-wire-integrated-v3",
+      analysis_profile_id: "main-wire-integrated-standard-v1",
       stage: "stable",
     });
     const activeRow = (releaseRow: ReturnType<typeof row>, version: number) => ({
@@ -259,7 +259,10 @@ describe("Studio Supabase boundary V1", () => {
       supabaseOrigin: "https://project.supabase.co",
     });
 
-    const failure = await resolver.resolveExactModel("model/historical-a")
+    const failure = await resolver.resolveExactModel("model/historical-a", {
+      kind: "series",
+      surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
+    })
       .catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(StudioExactModelUnavailableErrorV1);
     expect(failure).toMatchObject({
@@ -412,7 +415,7 @@ describe("Studio Supabase boundary V1", () => {
         artifact_path: "model-releases/exact/standard.mjs",
         module_abi: "circleheart-exact-model-esm-v1",
         default_fixture: standardClientDescriptorV1.defaultFixture,
-        analysis_profile_id: "main-wire-integrated-v3",
+        analysis_profile_id: "main-wire-integrated-standard-v1",
         stage: "dev",
       }],
       error: null,
@@ -692,6 +695,7 @@ describe("Studio Supabase boundary V1", () => {
 function experimentContentV1(): ExperimentContentV2 {
   return {
     modelId: "model/exact-v3",
+    surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
     scenarios: [{
       scenarioId: "scenario/baseline",
       label: "Baseline",

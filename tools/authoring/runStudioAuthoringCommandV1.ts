@@ -102,24 +102,16 @@ function createAuthoringModelPortV1(
   });
   return Object.freeze({
     async resolveModel(input) {
-      if (
-        input.surfaceReleaseId !== undefined
-        && input.surfaceSeriesId === undefined
-      ) {
-        throw new Error("Exact Surface release requires its Surface series");
-      }
-      const surfacePin = input.surfaceReleaseId !== undefined
+      const surfacePin = input.surfaceReleaseId !== null
         ? {
             kind: "release" as const,
-            surfaceSeriesId: input.surfaceSeriesId!,
+            surfaceSeriesId: input.surfaceSeriesId,
             surfaceReleaseId: input.surfaceReleaseId,
           }
-        : input.surfaceSeriesId !== undefined
-          ? {
-              kind: "series" as const,
-              surfaceSeriesId: input.surfaceSeriesId,
-            }
-          : undefined;
+        : {
+            kind: "series" as const,
+            surfaceSeriesId: input.surfaceSeriesId,
+          };
       return (await exactModels.resolveExactModel(
         input.modelId,
         surfacePin,

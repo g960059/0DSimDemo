@@ -26,6 +26,11 @@ import {
 import {
   STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
+import {
+  STANDARD_TEST_RELEASE_TICKET_V1,
+  STANDARD_TEST_SURFACE_RELEASE_ID_V1,
+  STANDARD_TEST_SURFACE_SERIES_ID_V1,
+} from "./helpers/standardReleaseTicketV1";
 
 class MemoryStorageV3 {
   readonly values = new Map<string, string>();
@@ -79,6 +84,7 @@ function experimentV3(input: Readonly<{
     version: input.version ?? 0,
     content: {
       modelId: input.modelId ?? "model/exact-v3",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       scenarios: [{
         scenarioId: "scenario/baseline",
         label: "Baseline",
@@ -138,6 +144,7 @@ function snapshotV3(
   return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
     snapshotId: input.snapshotId ?? "snapshot/browser-store-1",
+    surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
     content: experiment.content,
     createdAt: "2026-08-01T00:00:00.000Z",
   };
@@ -155,6 +162,7 @@ async function admittedCommitV3(
   const scenario = experiment.content.scenarios[0]!;
   const initialized = client.initialize({
     expectedModelId: experiment.content.modelId,
+    releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
     runtimeSessionId: "runtime/browser-store-test",
     scenarioId: scenario.scenarioId,
     scenarioLabel: scenario.label,
@@ -182,6 +190,8 @@ async function admittedCommitV3(
   const pending = client.createSnapshot({
     runtimeSessionId: frame.runtimeSessionId,
     scenarioId: frame.scenarioId,
+    surfaceSeriesId: experiment.content.surfaceSeriesId,
+    surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
     surface: experiment.content.surface,
     snapshotSource: input.source ?? "session",
   });
@@ -319,6 +329,7 @@ describe("Studio browser content store V3", () => {
     expect(Object.keys(saved.snapshot)).toEqual([
       "schemaId",
       "snapshotId",
+      "surfaceReleaseId",
       "content",
       "createdAt",
     ]);

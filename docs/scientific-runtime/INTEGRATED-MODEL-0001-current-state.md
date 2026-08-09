@@ -32,7 +32,7 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-5
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-6
 ```
 
 It pins:

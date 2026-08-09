@@ -55,7 +55,7 @@ export type StudioRemoteExperimentSummaryV1 = Readonly<{
   experimentId: string;
   version: number;
   modelId: string;
-  surfaceSeriesId?: string;
+  surfaceSeriesId: string;
   title: string;
   scenarioCount: number;
   createdAt: string;
@@ -67,8 +67,8 @@ export type StudioRemoteExperimentSummaryV1 = Readonly<{
 export type StudioRemoteSnapshotSummaryV1 = Readonly<{
   snapshotId: string;
   modelId: string;
-  surfaceSeriesId?: string;
-  surfaceReleaseId?: string;
+  surfaceSeriesId: string;
+  surfaceReleaseId: string;
   title: string;
   scenarioCount: number;
   paneCount: number;
@@ -179,7 +179,7 @@ export class StudioSupabaseContentRepositoryV1 {
         p_snapshot_id: null,
         p_model_id: candidate.content.modelId,
         p_content: candidate.content,
-        p_surface_release_id: candidate.surfaceReleaseId ?? null,
+        p_surface_release_id: candidate.surfaceReleaseId,
         p_source_experiment_id: input.sourceExperiment?.experimentId ?? null,
         p_expected_experiment_version:
           input.sourceExperiment?.expectedVersion ?? null,
@@ -194,9 +194,7 @@ export class StudioSupabaseContentRepositoryV1 {
       snapshotId: requiredStringV1(result.snapshotId, "snapshotId"),
       content: candidate.content,
       createdAt: isoTimestampV1(result.createdAt, "createdAt"),
-      ...(candidate.surfaceReleaseId === undefined
-        ? {}
-        : { surfaceReleaseId: candidate.surfaceReleaseId }),
+      surfaceReleaseId: candidate.surfaceReleaseId,
     });
   }
 
@@ -459,14 +457,10 @@ function validateExperimentSummaryV1(
     experimentId: requiredStringV1(record.experimentId, "experimentId"),
     version: nonnegativeIntegerV1(record.version, "version"),
     modelId: requiredStringV1(record.modelId, "modelId"),
-    ...(record.surfaceSeriesId === undefined
-      ? {}
-      : {
-          surfaceSeriesId: requiredStringV1(
-            record.surfaceSeriesId,
-            "surfaceSeriesId",
-          ),
-        }),
+    surfaceSeriesId: requiredStringV1(
+      record.surfaceSeriesId,
+      "surfaceSeriesId",
+    ),
     title: requiredStringV1(record.title, "title"),
     scenarioCount: nonnegativeIntegerV1(record.scenarioCount, "scenarioCount"),
     createdAt: isoTimestampV1(record.createdAt, "createdAt"),
@@ -486,22 +480,14 @@ function validateSnapshotSummaryV1(
   return Object.freeze({
     snapshotId: requiredStringV1(record.snapshotId, "snapshotId"),
     modelId: requiredStringV1(record.modelId, "modelId"),
-    ...(record.surfaceSeriesId === undefined
-      ? {}
-      : {
-          surfaceSeriesId: requiredStringV1(
-            record.surfaceSeriesId,
-            "surfaceSeriesId",
-          ),
-        }),
-    ...(record.surfaceReleaseId === undefined
-      ? {}
-      : {
-          surfaceReleaseId: requiredStringV1(
-            record.surfaceReleaseId,
-            "surfaceReleaseId",
-          ),
-        }),
+    surfaceSeriesId: requiredStringV1(
+      record.surfaceSeriesId,
+      "surfaceSeriesId",
+    ),
+    surfaceReleaseId: requiredStringV1(
+      record.surfaceReleaseId,
+      "surfaceReleaseId",
+    ),
     title: requiredStringV1(record.title, "title"),
     scenarioCount: nonnegativeIntegerV1(record.scenarioCount, "scenarioCount"),
     paneCount: nonnegativeIntegerV1(record.paneCount, "paneCount"),

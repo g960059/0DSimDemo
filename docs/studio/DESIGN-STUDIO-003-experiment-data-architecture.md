@@ -85,8 +85,8 @@ numerically admitted. Separate outer contracts prevent those invalid states.
 ```ts
 type ExperimentContent = Readonly<{
   modelId: string;
-  /** Required for Standard ABI; omitted only by historical V2 content. */
-  surfaceSeriesId?: string;
+  /** Mutable presentation lineage resolved within the pinned model family. */
+  surfaceSeriesId: string;
   scenarios: readonly ExperimentScenario[];
   surface: ExperimentSurface;
 }>;
@@ -101,8 +101,8 @@ type Experiment = Readonly<{
 type ExperimentSnapshot = Readonly<{
   schemaId: "circleheart-studio-experiment-snapshot-v2";
   snapshotId: string;
-  /** Present exactly when content.surfaceSeriesId is present. */
-  surfaceReleaseId?: string;
+  /** Exact immutable presentation contract captured with the Snapshot. */
+  surfaceReleaseId: string;
   content: ExperimentContent;
   createdAt: string;
   createdBy?: string;

@@ -85,7 +85,7 @@ export type StudioSimulationWorkerPortV2 = Readonly<{
 export type StudioSimulationWorkerRuntimeDependenciesV2 = Readonly<{
   loadExactRuntime(input: Readonly<{
     expectedModelId: string;
-    releaseTicket?: Extract<
+    releaseTicket: Extract<
       StudioSimulationWorkerRequestV2,
       { kind: "initialize" }
     >["releaseTicket"];
@@ -122,6 +122,8 @@ export class StudioSimulationWorkerRuntimeV2 {
   #disposeEnqueued = false;
   #highestRequestId = 0;
   #exactRuntime: ResolvedExactModelRuntimeV2 | undefined;
+  #surfaceSeriesId: string | undefined;
+  #surfaceReleaseId: string | undefined;
   #adapter: RegisteredModelSimulationAdapterV2 | undefined;
   #fixtureReducer: StudioFixtureReducerFacadeV2 | undefined;
   #authoring: StudioExperimentAuthoringFacadeV2 | undefined;
@@ -321,9 +323,7 @@ export class StudioSimulationWorkerRuntimeV2 {
     try {
       exactRuntime = await this.#loadExactRuntime(Object.freeze({
         expectedModelId: request.expectedModelId,
-        ...(request.releaseTicket === undefined
-          ? {}
-          : { releaseTicket: request.releaseTicket }),
+        releaseTicket: request.releaseTicket,
       }));
       if (this.#portClosed || this.#state !== "initializing") return;
       assertExactRuntimeV2(exactRuntime);
@@ -392,6 +392,8 @@ export class StudioSimulationWorkerRuntimeV2 {
         return;
       }
       this.#exactRuntime = exactRuntime;
+      this.#surfaceSeriesId = request.releaseTicket.surfaceRelease.surfaceSeriesId;
+      this.#surfaceReleaseId = request.releaseTicket.surfaceRelease.surfaceReleaseId;
       this.#adapter = adapter;
       this.#fixtureReducer = createStudioFixtureReducerV2(models);
       this.#authoring = authoringStack.application;
@@ -895,13 +897,12 @@ export class StudioSimulationWorkerRuntimeV2 {
   async #captureAllScenarios(
     experimentId: string,
     surface: ExperimentSurfaceV2,
-    surfaceSeriesId?: string,
   ): Promise<ExperimentContentV2> {
     const runtime = this.#requiredExactRuntime();
     const physicalRuntimeSessionId = this.#requiredPhysicalRuntimeSessionId();
     const desiredContent = validateExperimentDesiredContentForModelV2({
       modelId: runtime.contract.modelId,
-      ...(surfaceSeriesId === undefined ? {} : { surfaceSeriesId }),
+      surfaceSeriesId: this.#requiredSurfaceSeriesId(),
       scenarios: this.#scenarioOrder.map((scenarioId) => ({
         scenarioId,
         label: this.#requiredScenarioLabel(scenarioId),
@@ -1044,9 +1045,7 @@ export class StudioSimulationWorkerRuntimeV2 {
     }
     const desiredContent = validateExperimentDesiredContentForModelV2({
       modelId: context.runtime.contract.modelId,
-      ...(request.surfaceSeriesId === undefined
-        ? {}
-        : { surfaceSeriesId: request.surfaceSeriesId }),
+      surfaceSeriesId: request.surfaceSeriesId,
       scenarios: this.#scenarioOrder.map((scenarioId) => ({
         scenarioId,
         label: this.#requiredScenarioLabel(scenarioId),
@@ -1054,6 +1053,9 @@ export class StudioSimulationWorkerRuntimeV2 {
       })),
       surface: request.surface,
     }, context.runtime.contract);
+    if (request.surfaceSeriesId !== this.#requiredSurfaceSeriesId()) {
+      throw new Error("simulation worker Save Surface series pin changed");
+    }
     assertExperimentDesiredFixturesMatchModelV2(
       desiredContent,
       context.runtime.contract,
@@ -1162,14 +1164,17 @@ export class StudioSimulationWorkerRuntimeV2 {
       const candidateContent = await this.#captureAllScenarios(
         `experiment/session/${request.runtimeSessionId}`,
         request.surface,
-        request.surfaceSeriesId,
       );
+      if (
+        request.surfaceSeriesId !== this.#requiredSurfaceSeriesId()
+        || request.surfaceReleaseId !== this.#requiredSurfaceReleaseId()
+      ) {
+        throw new Error("simulation worker Snapshot Surface pin changed");
+      }
       const created = request.snapshotSource === "session"
         ? await context.authoring.createSnapshot({
             content: candidateContent,
-            ...(request.surfaceReleaseId === undefined
-              ? {}
-              : { surfaceReleaseId: request.surfaceReleaseId }),
+            surfaceReleaseId: request.surfaceReleaseId,
           })
         : await this.#createPublicationSnapshotFromSavedHead(
             context,
@@ -1216,7 +1221,7 @@ export class StudioSimulationWorkerRuntimeV2 {
   async #createPublicationSnapshotFromSavedHead(
     context: StudioSimulationWorkerAuthoringContextV2,
     candidateContent: ExperimentContentV2,
-    surfaceReleaseId?: string,
+    surfaceReleaseId: string,
   ): Promise<ExperimentSnapshotV2> {
     const experimentId = this.#authoringExperimentId;
     if (experimentId === undefined) {
@@ -1232,7 +1237,7 @@ export class StudioSimulationWorkerRuntimeV2 {
     }
     return context.authoring.createSnapshot({
       content: candidateContent,
-      ...(surfaceReleaseId === undefined ? {} : { surfaceReleaseId }),
+      surfaceReleaseId,
       savedExperiment: {
         experimentId,
         expectedVersion: experiment.version,
@@ -1312,6 +1317,20 @@ export class StudioSimulationWorkerRuntimeV2 {
       );
     }
     return this.#exactRuntime;
+  }
+
+  #requiredSurfaceSeriesId(): string {
+    if (this.#surfaceSeriesId === undefined) {
+      throw new FatalWorkerStateErrorV2("simulation worker Surface series is unavailable");
+    }
+    return this.#surfaceSeriesId;
+  }
+
+  #requiredSurfaceReleaseId(): string {
+    if (this.#surfaceReleaseId === undefined) {
+      throw new FatalWorkerStateErrorV2("simulation worker Surface release is unavailable");
+    }
+    return this.#surfaceReleaseId;
   }
 
   #requiredActiveScenarioId(): string {
@@ -1594,6 +1613,8 @@ export class StudioSimulationWorkerRuntimeV2 {
 
   #clearSession(): void {
     this.#exactRuntime = undefined;
+    this.#surfaceSeriesId = undefined;
+    this.#surfaceReleaseId = undefined;
     this.#adapter = undefined;
     this.#fixtureReducer = undefined;
     this.#authoring = undefined;
@@ -1774,29 +1795,18 @@ async function captureFirstExperimentContentV2(input: Readonly<{
     experimentId: input.experimentId,
     correlation: input.correlation,
   });
-  const capturedContent = validateExperimentContentForModelV2(
+  const capturedContent = exactDataResultV2(
     result.content,
-    input.runtime.contract,
+    ["modelId", "scenarios", "surface"],
+    "Experiment capture content",
   );
-  if (
-    capturedContent.surfaceSeriesId !== undefined
-    && capturedContent.surfaceSeriesId
-      !== input.desiredContent.surfaceSeriesId
-  ) {
-    throw new Error(
-      "Experiment capture changed the Studio-owned Surface series",
-    );
-  }
   // Exact-model capture adapters own numerical state only. Reattach the
-  // Studio-owned mutable Surface-series pin after validating that an adapter
-  // did not try to substitute a different series. This mirrors the main
-  // authoring application boundary and keeps first Save / Snapshot assembly
-  // from silently degrading Standard-ABI content to the historical V2 shape.
+  // Studio-owned mutable Surface-series pin before validating the complete
+  // durable Standard content. An adapter-supplied pin is rejected by the exact
+  // field set above.
   const content = validateExperimentContentForModelV2({
     ...capturedContent,
-    ...(input.desiredContent.surfaceSeriesId === undefined
-      ? {}
-      : { surfaceSeriesId: input.desiredContent.surfaceSeriesId }),
+    surfaceSeriesId: input.desiredContent.surfaceSeriesId,
   }, input.runtime.contract);
   assertCapturedDesiredContentAtBoundaryV2(
     input.desiredContent,

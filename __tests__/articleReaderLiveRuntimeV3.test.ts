@@ -24,6 +24,11 @@ import {
 import type {
   WorkbenchParallelScenarioSeedV3,
 } from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
+import {
+  STANDARD_TEST_RELEASE_TICKET_V1,
+  STANDARD_TEST_SURFACE_RELEASE_ID_V1,
+  STANDARD_TEST_SURFACE_SERIES_ID_V1,
+} from "./helpers/standardReleaseTicketV1";
 
 describe("ArticleReaderLiveRuntimeV3", () => {
   it("restores only the visible Scenario authority and starts those lanes", async () => {
@@ -74,15 +79,19 @@ describe("ArticleReaderLiveRuntimeV3", () => {
   it("rejects empty, duplicate, unknown, and hidden initial Scenario authority", () => {
     const snapshot = snapshotV3();
     expect(() => new ArticleReaderLiveRuntimeV3(snapshot, {
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       visibleScenarioIds: [],
     })).toThrow(/at least one visible Scenario/);
     expect(() => new ArticleReaderLiveRuntimeV3(snapshot, {
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       visibleScenarioIds: ["scenario/one", "scenario/one"],
     })).toThrow(/duplicate/);
     expect(() => new ArticleReaderLiveRuntimeV3(snapshot, {
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       visibleScenarioIds: ["scenario/missing"],
     })).toThrow(/not in the pinned Snapshot/);
     expect(() => new ArticleReaderLiveRuntimeV3(snapshot, {
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       visibleScenarioIds: ["scenario/one"],
       initialActiveScenarioId: "scenario/two",
     })).toThrow(/active Scenario is not in the visible Scenario scope/);
@@ -564,9 +573,11 @@ function snapshotV3(): ExperimentSnapshotV2 {
   return Object.freeze({
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
     snapshotId: "snapshot/reader-live-v3",
+    surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
     createdAt: "2026-08-02T00:00:00.000Z",
     content: Object.freeze({
       modelId: "model/exact-reader-v3",
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       scenarios: Object.freeze([
         scenarioV3("scenario/one", "One", 0),
         scenarioV3("scenario/two", "Two", 1),

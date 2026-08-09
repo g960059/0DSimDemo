@@ -18,9 +18,6 @@ const dynamicRuntimeLoader = new DynamicExactModelRuntimeLoaderV2();
 const workerRuntime = new StudioSimulationWorkerRuntimeV2({
   port: workerPort,
   async loadExactRuntime(input) {
-    if (input.releaseTicket === undefined) {
-      throw new Error("Standard exact model requires a registry release ticket");
-    }
     if (input.releaseTicket.modelId !== input.expectedModelId) {
       throw new Error("Worker release ticket does not match the requested model");
     }

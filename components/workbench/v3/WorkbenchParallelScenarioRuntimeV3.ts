@@ -88,7 +88,7 @@ type WorkbenchParallelScenarioLaneV3 = {
 
 export type WorkbenchParallelScenarioRuntimeDependenciesV3 = Readonly<{
   expectedModelId: string;
-  releaseTicket?: StudioModelWorkerReleaseTicketV2;
+  releaseTicket: StudioModelWorkerReleaseTicketV2;
   onFrames(frames: readonly StudioSimulationFrameV2[]): void;
   onError(error: Error): void;
   createClient?: (
@@ -129,7 +129,7 @@ type ParallelRuntimeStateV3 =
  */
 export class WorkbenchParallelScenarioRuntimeV3 {
   readonly #expectedModelId: string;
-  readonly #releaseTicket: StudioModelWorkerReleaseTicketV2 | undefined;
+  readonly #releaseTicket: StudioModelWorkerReleaseTicketV2;
   readonly #onFrames: (frames: readonly StudioSimulationFrameV2[]) => void;
   readonly #onError: (error: Error) => void;
   readonly #createClient: (
@@ -480,9 +480,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
                 `workbench-analysis-${randomPortableTokenV3()}`;
               const initialFrame = await client.initialize({
                 expectedModelId: this.#expectedModelId,
-                ...(this.#releaseTicket === undefined
-                  ? {}
-                  : { releaseTicket: this.#releaseTicket }),
+                releaseTicket: this.#releaseTicket,
                 runtimeSessionId,
                 scenarioId: input.scenarioId,
                 scenarioLabel: sourceForAnalysis.label,
@@ -586,9 +584,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       const lane = this.#requiredLane(scenario.scenarioId);
       const source = {
         modelId: this.#expectedModelId,
-        ...(this.#releaseTicket === undefined
-          ? {}
-          : { releaseTicket: this.#releaseTicket }),
+        releaseTicket: this.#releaseTicket,
         inputEpoch: lane.latestFrame.inputEpoch,
         scenario,
       } satisfies WorkbenchSteadyCandidateSourceV3;
@@ -724,9 +720,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     try {
       const initialFrame = await client.initialize({
         expectedModelId: this.#expectedModelId,
-        ...(this.#releaseTicket === undefined
-          ? {}
-          : { releaseTicket: this.#releaseTicket }),
+        releaseTicket: this.#releaseTicket,
         runtimeSessionId,
         scenarioId: seed.scenarioId,
         scenarioLabel: seed.label,
@@ -827,9 +821,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   ): WorkbenchSteadyCandidateSourceV3 {
     return Object.freeze({
       modelId: this.#expectedModelId,
-      ...(this.#releaseTicket === undefined
-        ? {}
-        : { releaseTicket: this.#releaseTicket }),
+      releaseTicket: this.#releaseTicket,
       inputEpoch,
       scenario,
     });

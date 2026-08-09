@@ -10,6 +10,8 @@ import type { StudioSimulationFrameV2 } from
   "@/studio/contracts/v2/simulation";
 import type { StudioSimulationWorkerClientV2 } from
   "@/studio/workers/StudioSimulationWorkerClientV2";
+import { STANDARD_TEST_RELEASE_TICKET_V1 } from
+  "./helpers/standardReleaseTicketV1";
 
 describe("WorkbenchScenarioSteadyCandidateCoordinatorV3", () => {
   it("promotes one queued prewarm into a foreground Snapshot burst and reuses it", async () => {
@@ -137,6 +139,7 @@ function steadyClientV3() {
 function sourceV3(inputEpoch: number) {
   return {
     modelId: "model/main-wire-v3-r1",
+    releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
     inputEpoch,
     scenario: {
       scenarioId: "scenario/baseline",

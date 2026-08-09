@@ -42,7 +42,7 @@ export type ExperimentDesiredScenarioV2 = Readonly<{
 
 export type ExperimentDesiredContentV2 = Readonly<{
   modelId: ModelIdV2;
-  surfaceSeriesId?: string;
+  surfaceSeriesId: string;
   scenarios: readonly ExperimentDesiredScenarioV2[];
   surface: ExperimentSurfaceV2;
 }>;
@@ -78,8 +78,18 @@ export type ExperimentCaptureConfirmationV2 = Readonly<{
   scenarios: readonly ExperimentScenarioCaptureCorrelationV2[];
 }>;
 
+/**
+ * Exact-model capture output before Studio attaches registry-owned Surface
+ * lineage. The numerical artifact may confirm the authored Surface bytes, but
+ * it must not own or mint a Surface-series identity.
+ */
+export type ExperimentCapturedContentV2 = Omit<
+  ExperimentContentV2,
+  "surfaceSeriesId"
+>;
+
 export type ExperimentCaptureResultV2 = Readonly<{
-  content: ExperimentContentV2;
+  content: ExperimentCapturedContentV2;
   confirmation: ExperimentCaptureConfirmationV2;
 }>;
 
@@ -88,7 +98,7 @@ export type CreateExperimentSnapshotCommandV2 =
     /** Complete frozen candidate captured from an Experiment Session. */
     content: ExperimentContentV2;
     /** Exact Surface release resolved before the capture boundary. */
-    surfaceReleaseId?: string;
+    surfaceReleaseId: string;
     /**
      * Present only when the workflow requires a clean, explicitly saved
      * Experiment head (currently standalone Publication). It constrains the
@@ -103,9 +113,8 @@ export type CreateExperimentSnapshotCommandV2 =
 
 /**
  * Ephemeral result of applying the common Studio public-executable admission
- * service to one frozen candidate. A legacy exact-model gate may serve as the
- * adapter for historical packages. Admission verifies the candidate on a fork;
- * it cannot replace or otherwise mutate the captured content.
+ * service to one frozen candidate. Admission verifies the candidate on a
+ * fork; it cannot replace or otherwise mutate the captured content.
  */
 export type ExperimentSnapshotAdmissionResultV2 =
   | Readonly<{

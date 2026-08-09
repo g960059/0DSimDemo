@@ -18,6 +18,9 @@ import type {
   WorkbenchBackgroundJobPriorityV3,
   WorkbenchBackgroundWorkerPoolPortV3,
 } from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
+import {
+  STANDARD_TEST_RELEASE_TICKET_V1,
+} from "./helpers/standardReleaseTicketV1";
 
 describe("WorkbenchParallelScenarioRuntimeV3", () => {
   it("creates one persistent Worker and scheduler for every Scenario", async () => {
@@ -264,6 +267,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     const onLiveLaneReleased = vi.fn();
     let scheduler: FakeSchedulerV3 | null = null;
     const runtime = new WorkbenchParallelScenarioRuntimeV3({
+    releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       expectedModelId: "model/main-wire-v3-r1",
       createRuntimeSessionId: (scenarioId) => `runtime/${scenarioId}`,
       createClient: () => liveClient as unknown as
@@ -551,6 +555,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     const clients = new Map<string, ReturnType<typeof clientV3>>();
     const stalePoolFlushes: Array<() => void> = [];
     const runtime = new WorkbenchParallelScenarioRuntimeV3({
+    releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       expectedModelId: "model/main-wire-v3-r1",
       createRuntimeSessionId: (scenarioId) => `runtime/${scenarioId}`,
       createClient: (scenarioId) => {
@@ -642,6 +647,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       clientV3("scenario/baseline") as unknown as
         WorkbenchParallelScenarioRuntimeClientV3);
     const runtime = new WorkbenchParallelScenarioRuntimeV3({
+    releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       expectedModelId: "model/main-wire-v3-r1",
       createClient,
       createRuntimeSessionId: () => {
@@ -692,6 +698,7 @@ function harnessV3(
   const flushCallbacks: Array<() => void> = [];
   const onFrames = vi.fn<(frames: readonly StudioSimulationFrameV2[]) => void>();
   const runtime = new WorkbenchParallelScenarioRuntimeV3({
+    releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
     expectedModelId: "model/main-wire-v3-r1",
     createRuntimeSessionId: (scenarioId) => `runtime/${scenarioId}`,
     createClient: (scenarioId) => {

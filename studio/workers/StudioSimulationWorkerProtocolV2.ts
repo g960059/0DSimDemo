@@ -50,7 +50,7 @@ export type StudioSimulationWorkerInitializeInputV2 = Readonly<{
   scenarioId: string;
   scenarioLabel: string;
   fixture: StudioJsonValueV2;
-  releaseTicket?: StudioModelWorkerReleaseTicketV2;
+  releaseTicket: StudioModelWorkerReleaseTicketV2;
   checkpoint?: ScenarioCheckpointV2;
   authoringSeed?: StudioSimulationWorkerAuthoringSeedV2;
 }>;
@@ -84,7 +84,7 @@ export type StudioSimulationWorkerSaveExperimentInputV2 = Readonly<{
   scenarioId: string;
   experimentId: string;
   surface: ExperimentSurfaceV2;
-  surfaceSeriesId?: string;
+  surfaceSeriesId: string;
   expectedVersion: number | null;
 }>;
 
@@ -142,8 +142,8 @@ type StudioSimulationWorkerCreateSnapshotBaseInputV2 = Readonly<{
   runtimeSessionId: string;
   scenarioId: string;
   surface: ExperimentSurfaceV2;
-  surfaceSeriesId?: string;
-  surfaceReleaseId?: string;
+  surfaceSeriesId: string;
+  surfaceReleaseId: string;
 }>;
 
 export type StudioSimulationWorkerCreateSnapshotInputV2 =
@@ -162,7 +162,7 @@ export type StudioSimulationWorkerRequestV2 =
       scenarioId: string;
       scenarioLabel: string;
       fixture: StudioJsonValueV2;
-      releaseTicket?: StudioModelWorkerReleaseTicketV2;
+      releaseTicket: StudioModelWorkerReleaseTicketV2;
       checkpoint?: ScenarioCheckpointV2;
       authoringSeed?: StudioSimulationWorkerAuthoringSeedV2;
     }>
@@ -204,7 +204,7 @@ export type StudioSimulationWorkerRequestV2 =
       scenarioId: string;
       experimentId: string;
       surface: ExperimentSurfaceV2;
-      surfaceSeriesId?: string;
+      surfaceSeriesId: string;
       /** Complete Experiment Scenario identity set used to validate Surface refs. */
       scenarioIds: readonly string[];
       expectedVersion: number | null;
@@ -285,8 +285,8 @@ export type StudioSimulationWorkerRequestV2 =
       runtimeSessionId: string;
       scenarioId: string;
       surface: ExperimentSurfaceV2;
-      surfaceSeriesId?: string;
-      surfaceReleaseId?: string;
+      surfaceSeriesId: string;
+      surfaceReleaseId: string;
       /** Complete Scenario identity set used to validate Surface refs. */
       scenarioIds: readonly string[];
       snapshotSource: "saved-experiment" | "session";
@@ -393,10 +393,11 @@ export function createStudioSimulationInitializeRequestV2(
   const input = exactDataRecordV2(value, [
     "expectedModelId",
     "fixture",
+    "releaseTicket",
     "runtimeSessionId",
     "scenarioId",
     "scenarioLabel",
-  ], ["authoringSeed", "checkpoint", "releaseTicket"], "$.initialize");
+  ], ["authoringSeed", "checkpoint"], "$.initialize");
   return validateStudioSimulationWorkerRequestV2({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId,
@@ -406,9 +407,7 @@ export function createStudioSimulationInitializeRequestV2(
     scenarioId: input.scenarioId,
     scenarioLabel: input.scenarioLabel,
     fixture: input.fixture,
-    ...(Object.prototype.hasOwnProperty.call(input, "releaseTicket")
-      ? { releaseTicket: input.releaseTicket }
-      : {}),
+    releaseTicket: input.releaseTicket,
     ...(Object.prototype.hasOwnProperty.call(input, "checkpoint")
       ? { checkpoint: input.checkpoint }
       : {}),
@@ -506,8 +505,9 @@ export function createStudioSimulationSaveExperimentRequestV2(
     "experimentId",
     "runtimeSessionId",
     "scenarioId",
+    "surfaceSeriesId",
     "surface",
-  ], ["scenarioIds", "surfaceSeriesId"], "$.saveExperiment");
+  ], ["scenarioIds"], "$.saveExperiment");
   const scenarioIds = input.scenarioIds === undefined
     ? [input.scenarioId]
     : input.scenarioIds;
@@ -519,9 +519,7 @@ export function createStudioSimulationSaveExperimentRequestV2(
     scenarioId: input.scenarioId,
     experimentId: input.experimentId,
     surface: input.surface,
-    ...(input.surfaceSeriesId === undefined
-      ? {}
-      : { surfaceSeriesId: input.surfaceSeriesId }),
+    surfaceSeriesId: input.surfaceSeriesId,
     scenarioIds,
     expectedVersion: input.expectedVersion,
     expectedInputEpoch: input.expectedInputEpoch,
@@ -689,7 +687,9 @@ export function createStudioSimulationCreateSnapshotRequestV2(
     "scenarioIds",
     "snapshotSource",
     "surface",
-  ], ["surfaceSeriesId", "surfaceReleaseId"], "$.createSnapshot");
+    "surfaceReleaseId",
+    "surfaceSeriesId",
+  ], [], "$.createSnapshot");
   return validateStudioSimulationWorkerRequestV2({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId,
@@ -698,12 +698,8 @@ export function createStudioSimulationCreateSnapshotRequestV2(
     scenarioId: input.scenarioId,
     scenarioIds: input.scenarioIds,
     surface: input.surface,
-    ...(input.surfaceSeriesId === undefined
-      ? {}
-      : { surfaceSeriesId: input.surfaceSeriesId }),
-    ...(input.surfaceReleaseId === undefined
-      ? {}
-      : { surfaceReleaseId: input.surfaceReleaseId }),
+    surfaceSeriesId: input.surfaceSeriesId,
+    surfaceReleaseId: input.surfaceReleaseId,
     snapshotSource: input.snapshotSource,
     expectedInputEpoch: input.expectedInputEpoch,
     expectedAcceptedRevision: input.expectedAcceptedRevision,
@@ -743,11 +739,12 @@ export function validateStudioSimulationWorkerRequestV2(
       "fixture",
       "kind",
       "protocol",
+      "releaseTicket",
       "requestId",
       "runtimeSessionId",
       "scenarioId",
       "scenarioLabel",
-    ], ["authoringSeed", "checkpoint", "releaseTicket"], "$.request");
+    ], ["authoringSeed", "checkpoint"], "$.request");
     const scenario = validateStudioSimulationScenarioInputV2({
       scenarioId: request.scenarioId,
       fixture: request.fixture,
@@ -773,13 +770,9 @@ export function validateStudioSimulationWorkerRequestV2(
         "$.request.scenarioLabel",
       ),
       fixture: scenario.fixture,
-      ...(Object.prototype.hasOwnProperty.call(request, "releaseTicket")
-        ? {
-            releaseTicket: validateStudioModelWorkerReleaseTicketV2(
-              request.releaseTicket,
-            ),
-          }
-        : {}),
+      releaseTicket: validateStudioModelWorkerReleaseTicketV2(
+        request.releaseTicket,
+      ),
       ...(scenario.checkpoint === undefined
         ? {}
         : { checkpoint: scenario.checkpoint }),
@@ -931,7 +924,8 @@ export function validateStudioSimulationWorkerRequestV2(
       "scenarioId",
       "scenarioIds",
       "surface",
-    ], ["surfaceSeriesId"], "$.request");
+      "surfaceSeriesId",
+    ], [], "$.request");
     const runtimeSessionId = validateStudioSimulationPortableIdV2(
       request.runtimeSessionId,
       "$.request.runtimeSessionId",
@@ -960,14 +954,10 @@ export function validateStudioSimulationWorkerRequestV2(
         scenarioIds,
         "$.request.surface",
       ),
-      ...(request.surfaceSeriesId === undefined
-        ? {}
-        : {
-            surfaceSeriesId: validateStudioSimulationPortableIdV2(
-              request.surfaceSeriesId,
-              "$.request.surfaceSeriesId",
-            ),
-          }),
+      surfaceSeriesId: validateStudioSimulationPortableIdV2(
+        request.surfaceSeriesId,
+        "$.request.surfaceSeriesId",
+      ),
       scenarioIds,
       expectedVersion: nullableNonnegativeSafeIntegerV2(
         request.expectedVersion,
@@ -1181,7 +1171,9 @@ export function validateStudioSimulationWorkerRequestV2(
       "scenarioIds",
       "snapshotSource",
       "surface",
-    ], ["surfaceSeriesId", "surfaceReleaseId"], "$.request");
+      "surfaceReleaseId",
+      "surfaceSeriesId",
+    ], [], "$.request");
     const runtimeSessionId = validateStudioSimulationPortableIdV2(
       request.runtimeSessionId,
       "$.request.runtimeSessionId",
@@ -1204,15 +1196,6 @@ export function validateStudioSimulationWorkerRequestV2(
       request.snapshotSource,
       "$.request.snapshotSource",
     );
-    if (
-      (request.surfaceSeriesId === undefined)
-      !== (request.surfaceReleaseId === undefined)
-    ) {
-      throw new Error(
-        "$.request.surfaceReleaseId must be present exactly when "
-          + "surfaceSeriesId is present",
-      );
-    }
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
@@ -1221,22 +1204,14 @@ export function validateStudioSimulationWorkerRequestV2(
       scenarioId,
       scenarioIds,
       surface,
-      ...(request.surfaceSeriesId === undefined
-        ? {}
-        : {
-            surfaceSeriesId: validateStudioSimulationPortableIdV2(
-              request.surfaceSeriesId,
-              "$.request.surfaceSeriesId",
-            ),
-          }),
-      ...(request.surfaceReleaseId === undefined
-        ? {}
-        : {
-            surfaceReleaseId: validateStudioSimulationPortableIdV2(
-              request.surfaceReleaseId,
-              "$.request.surfaceReleaseId",
-            ),
-          }),
+      surfaceSeriesId: validateStudioSimulationPortableIdV2(
+        request.surfaceSeriesId,
+        "$.request.surfaceSeriesId",
+      ),
+      surfaceReleaseId: validateStudioSimulationPortableIdV2(
+        request.surfaceReleaseId,
+        "$.request.surfaceReleaseId",
+      ),
       snapshotSource,
       expectedInputEpoch: nonnegativeSafeIntegerV2(
         request.expectedInputEpoch,
@@ -1876,6 +1851,7 @@ function protocolValidationContentV2(
 ): ExperimentContentV2 {
   return {
     modelId: "model/protocol-validation",
+    surfaceSeriesId: "surface-series/protocol-validation",
     scenarios: scenarioIds.map((scenarioId, index) => ({
       scenarioId,
       label: `Protocol validation ${index + 1}`,

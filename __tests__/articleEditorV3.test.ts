@@ -35,9 +35,11 @@ function snapshotV3(): ExperimentSnapshotV2 {
   return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
     snapshotId: "snapshot/article-preview",
+    surfaceReleaseId: "surface/article-preview-v1",
     createdAt: "2026-08-01T00:00:00.000Z",
     content: {
       modelId: "model/exact-v3",
+      surfaceSeriesId: "surface-series/article-preview",
       scenarios: [
         scenarioV3("scenario/baseline", "Baseline"),
         scenarioV3("scenario/comparison", "Comparison"),

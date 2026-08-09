@@ -47,10 +47,10 @@ export type StudioClientCompositionV2 = Readonly<{
   defaultFixture: StudioJsonValueV2;
   contract: ModelContractV2;
   analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
-  workerReleaseTicket?: StudioModelWorkerReleaseTicketV2;
-  surfaceReleaseId?: string;
-  surfaceSeriesId?: string;
-  surfaceStage?: StudioReleaseStageV1;
+  workerReleaseTicket: StudioModelWorkerReleaseTicketV2;
+  surfaceReleaseId: string;
+  surfaceSeriesId: string;
+  surfaceStage: StudioReleaseStageV1;
   activeBundleVersion?: number;
 }>;
 
@@ -61,10 +61,6 @@ export const DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2 =
 
 let browserCompositionPromiseV2:
   Promise<StudioDefaultClientCompositionV2> | undefined;
-const browserExactCompositionPromisesV2 = new Map<
-  string,
-  Promise<StudioClientCompositionV2>
->();
 const browserExperimentCompositionPromisesV2 = new Map<
   string,
   Promise<StudioClientCompositionV2>
@@ -84,7 +80,6 @@ let browserLocalStandardModelLabCompositionPromiseV1:
 export function invalidateStudioClientCompositionCachesV2(): void {
   invalidateStudioSupabaseModelReleaseResolverCacheV1();
   browserCompositionPromiseV2 = undefined;
-  browserExactCompositionPromisesV2.clear();
   browserExperimentCompositionPromisesV2.clear();
   browserSnapshotCompositionPromisesV2.clear();
 }
@@ -93,6 +88,9 @@ async function createRegistryClientCompositionV2(
   modelId?: string,
   surfacePin?: StudioModelSurfacePinV1,
 ): Promise<StudioClientCompositionV2> {
+  if (modelId !== undefined && surfacePin === undefined) {
+    throw new Error("Exact model resolution requires a Surface pin");
+  }
   const resolver = studioSupabaseModelReleaseResolverV1();
   if (resolver === null) {
     if (modelId === undefined) {
@@ -112,16 +110,13 @@ async function createRegistryClientCompositionV2(
       // exact identity.
       return loadStudioLocalStandardModelLabClientCompositionV1();
     }
-    if (modelId === DEFAULT_STUDIO_MODEL_ID_V2 && surfacePin === undefined) {
-      return loadStudioLocalStandardClientCompositionV1();
-    }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
     );
   }
   const release = modelId === undefined
     ? await resolver.resolveActiveBundle()
-    : await resolver.resolveExactModel(modelId, surfacePin);
+    : await resolver.resolveExactModel(modelId, surfacePin!);
   return Object.freeze({
     defaultModelId: release.contract.modelId,
     releaseStage: release.stage,
@@ -131,15 +126,9 @@ async function createRegistryClientCompositionV2(
       release.analysisProfileId,
     ),
     workerReleaseTicket: release.ticket,
-    ...(release.surfaceReleaseId === undefined
-      ? {}
-      : { surfaceReleaseId: release.surfaceReleaseId }),
-    ...(release.surfaceSeriesId === undefined
-      ? {}
-      : { surfaceSeriesId: release.surfaceSeriesId }),
-    ...(release.surfaceStage === undefined
-      ? {}
-      : { surfaceStage: release.surfaceStage }),
+    surfaceReleaseId: release.surfaceReleaseId,
+    surfaceSeriesId: release.surfaceSeriesId,
+    surfaceStage: release.surfaceStage,
     ...(release.activeBundleVersion === undefined
       ? {}
       : { activeBundleVersion: release.activeBundleVersion }),
@@ -239,37 +228,11 @@ Promise<StudioDefaultClientCompositionV2> {
   return pending;
 }
 
-/** Existing content pins its exact modelId and never follows the active bundle. */
-export function loadStudioModelClientCompositionV2(
-  modelId: string,
-): Promise<StudioClientCompositionV2> {
-  const cached = browserExactCompositionPromisesV2.get(modelId);
-  if (cached !== undefined) return cached;
-  const pending = createRegistryClientCompositionV2(modelId).then(
-    (composition) => {
-      if (composition.contract.modelId !== modelId) {
-        throw new Error("Exact model registry returned another modelId");
-      }
-      return composition;
-    },
-  );
-  browserExactCompositionPromisesV2.set(modelId, pending);
-  void pending.catch(() => {
-    if (browserExactCompositionPromisesV2.get(modelId) === pending) {
-      browserExactCompositionPromisesV2.delete(modelId);
-    }
-  });
-  return pending;
-}
-
 /** Mutable content follows additive releases in its pinned Surface series. */
 export function loadStudioExperimentClientCompositionV2(
   modelId: string,
-  surfaceSeriesId?: string,
+  surfaceSeriesId: string,
 ): Promise<StudioClientCompositionV2> {
-  if (surfaceSeriesId === undefined) {
-    return loadStudioModelClientCompositionV2(modelId);
-  }
   const key = `${modelId}\u0000${surfaceSeriesId}`;
   const cached = browserExperimentCompositionPromisesV2.get(key);
   if (cached !== undefined) return cached;
@@ -297,15 +260,9 @@ export function loadStudioExperimentClientCompositionV2(
 /** Immutable content always reloads the exact Surface sealed by its Snapshot. */
 export function loadStudioSnapshotClientCompositionV2(
   modelId: string,
-  surfaceSeriesId?: string,
-  surfaceReleaseId?: string,
+  surfaceSeriesId: string,
+  surfaceReleaseId: string,
 ): Promise<StudioClientCompositionV2> {
-  if (surfaceSeriesId === undefined && surfaceReleaseId === undefined) {
-    return loadStudioModelClientCompositionV2(modelId);
-  }
-  if (surfaceSeriesId === undefined || surfaceReleaseId === undefined) {
-    return Promise.reject(new Error("Snapshot Surface pin is incomplete"));
-  }
   const key = `${modelId}\u0000${surfaceReleaseId}`;
   const cached = browserSnapshotCompositionPromisesV2.get(key);
   if (cached !== undefined) return cached;
@@ -337,9 +294,6 @@ function analysisExecutionPlanForProfileV2(
 ): StudioSimulationAnalysisExecutionPlanResolverV2 {
   if (profileId === "standard-no-model-analysis-v1") {
     return () => null;
-  }
-  if (profileId === "main-wire-integrated-v3") {
-    return resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
   }
   if (profileId === "main-wire-integrated-standard-v1") {
     return resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;

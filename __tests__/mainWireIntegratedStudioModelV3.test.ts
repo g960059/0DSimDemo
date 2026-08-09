@@ -12,6 +12,7 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
 import {
+  assertExactModelKernelManifestV3,
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
@@ -56,6 +57,13 @@ afterEach(() => {
 });
 
 describe("Standard Main Wire Integrated Studio exact model", () => {
+  it("requires the complete Standard kernel catalog contract", () => {
+    const { modelMetricCatalog: _removed, ...withoutMetricCatalog } =
+      mainWireIntegratedStudioStandardClientV1.manifest;
+    expect(() => assertExactModelKernelManifestV3(withoutMetricCatalog))
+      .toThrow(/modelMetricCatalog|keys must be exactly/);
+  });
+
   it("uses the committed Standard bundle when Supabase is unconfigured", async () => {
     vi.resetModules();
     vi.doMock(
@@ -104,8 +112,9 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         surfaceSeriesId:
           mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
       });
-      await expect(composition.loadStudioModelClientCompositionV2(
+      await expect(composition.loadStudioExperimentClientCompositionV2(
         "model/pre-standard",
+        mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
       )).rejects.toThrow(/cannot resolve the requested exact model/);
     } finally {
       vi.doUnmock(
@@ -304,6 +313,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         model,
         desiredContent: {
           modelId: release.manifest.modelId,
+          surfaceSeriesId:
+            mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
           scenarios: [{
             scenarioId,
             label: "Baseline",
@@ -327,7 +338,11 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     });
     await expect(release.executables.snapshotGate.admitFrozenCandidate({
       model,
-      content: captured.content,
+      content: {
+        ...captured.content,
+        surfaceSeriesId:
+          mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+      },
     })).resolves.toEqual({ status: "passed" });
     expect(captured.content.scenarios[0]!.capture.checkpoint).toEqual(checkpoint);
     simulation.disposeSession(runtimeSessionId);

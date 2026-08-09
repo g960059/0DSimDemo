@@ -79,7 +79,7 @@ export function classifyExperimentAvailabilityV3(
 export type SavedExperimentReleaseIdentityV3 = Readonly<{
   experimentId: string;
   modelId: string;
-  surfaceSeriesId?: string;
+  surfaceSeriesId: string;
 }>;
 
 /** Resolves registry metadata only; callers must not fetch executable bytes. */
@@ -89,7 +89,7 @@ export async function resolveExperimentAvailabilityV3(
     activeModelId: string;
     resolveExperiment(
       modelId: string,
-      surfaceSeriesId?: string,
+      surfaceSeriesId: string,
     ): Promise<unknown>;
   }>,
 ): Promise<ReadonlyMap<string, ExperimentAvailabilityV3>> {
@@ -99,9 +99,9 @@ export async function resolveExperimentAvailabilityV3(
   });
   const uniqueReleases = [...releaseKeys.values()];
   const results = await Promise.allSettled(uniqueReleases.map(async (saved) => {
-    if (saved.modelId !== input.activeModelId || saved.surfaceSeriesId !== undefined) {
-      await input.resolveExperiment(saved.modelId, saved.surfaceSeriesId);
-    }
+    // The active exact model does not imply that every saved Surface series is
+    // resolvable. Verify the complete saved release identity for every row.
+    await input.resolveExperiment(saved.modelId, saved.surfaceSeriesId);
     return saved;
   }));
   const availabilityByRelease = new Map<string, ExperimentAvailabilityV3>();
@@ -126,7 +126,7 @@ export async function resolveExperimentAvailabilityV3(
 function releaseIdentityKeyV3(
   saved: Pick<SavedExperimentReleaseIdentityV3, "modelId" | "surfaceSeriesId">,
 ): string {
-  return `${saved.modelId}\u0000${saved.surfaceSeriesId ?? ""}`;
+  return `${saved.modelId}\u0000${saved.surfaceSeriesId}`;
 }
 
 function randomExperimentTokenV3(): string {

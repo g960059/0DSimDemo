@@ -75,19 +75,29 @@ export type ArticleReaderParallelRuntimeFactoryInputV3 = Readonly<{
   onError(error: Error): void;
 }>;
 
-export type ArticleReaderLiveRuntimeDependenciesV3 = Readonly<{
+type ArticleReaderLiveRuntimeCommonDependenciesV3 = Readonly<{
   initialActiveScenarioId?: string;
   visibleScenarioIds?: readonly string[];
   structuralAnalyses?: readonly ArticleReaderStructuralAnalysisRequestV3[];
   sampleStore?: WorkbenchScenarioPresentationSampleStoreV3;
   backgroundWorkerPool?: WorkbenchBackgroundWorkerPoolPortV3;
-  releaseTicket?: StudioModelWorkerReleaseTicketV2;
   resolveAnalysisExecutionPlan?:
     StudioSimulationAnalysisExecutionPlanResolverV2;
-  createRuntime?: (
-    input: ArticleReaderParallelRuntimeFactoryInputV3,
-  ) => ArticleReaderParallelRuntimeV3;
 }>;
+
+export type ArticleReaderLiveRuntimeDependenciesV3 =
+  ArticleReaderLiveRuntimeCommonDependenciesV3 & (
+    | Readonly<{
+        createRuntime?: undefined;
+        releaseTicket: StudioModelWorkerReleaseTicketV2;
+      }>
+    | Readonly<{
+        createRuntime(
+          input: ArticleReaderParallelRuntimeFactoryInputV3,
+        ): ArticleReaderParallelRuntimeV3;
+        releaseTicket?: never;
+      }>
+  );
 
 /**
  * Ephemeral live owner for one focused Article Placement.
@@ -116,7 +126,7 @@ export class ArticleReaderLiveRuntimeV3 {
 
   constructor(
     snapshot: ExperimentSnapshotV2,
-    dependencies: ArticleReaderLiveRuntimeDependenciesV3 = {},
+    dependencies: ArticleReaderLiveRuntimeDependenciesV3,
   ) {
     if (snapshot.content.scenarios.length === 0) {
       throw new Error("Article Reader live runtime requires at least one Scenario");
@@ -150,9 +160,7 @@ export class ArticleReaderLiveRuntimeV3 {
       this.#createRuntime = (input) =>
         new WorkbenchParallelScenarioRuntimeV3({
           ...input,
-          ...(dependencies.releaseTicket === undefined
-            ? {}
-            : { releaseTicket: dependencies.releaseTicket }),
+          releaseTicket: dependencies.releaseTicket,
           backgroundWorkerPool,
           resolveAnalysisExecutionPlan:
             dependencies.resolveAnalysisExecutionPlan ?? (() => null),

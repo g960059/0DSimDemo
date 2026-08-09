@@ -41,9 +41,9 @@ export type StudioResolvedModelReleaseV1 = Readonly<{
   analysisProfileId: string;
   stage: StudioReleaseStageV1;
   ticket: StudioModelWorkerReleaseTicketV2;
-  surfaceReleaseId?: string;
-  surfaceSeriesId?: string;
-  surfaceStage?: StudioReleaseStageV1;
+  surfaceReleaseId: string;
+  surfaceSeriesId: string;
+  surfaceStage: StudioReleaseStageV1;
   activeBundleVersion?: number;
 }>;
 
@@ -125,13 +125,11 @@ export class StudioSupabaseModelReleaseResolverV1 {
 
   resolveExactModel(
     modelId: string,
-    surfacePin?: StudioModelSurfacePinV1,
+    surfacePin: StudioModelSurfacePinV1,
   ): Promise<StudioResolvedModelReleaseV1> {
-    const cacheKey = surfacePin === undefined
-      ? modelId
-      : surfacePin.kind === "series"
-        ? `${modelId}\u0000series\u0000${surfacePin.surfaceSeriesId}`
-        : `${modelId}\u0000release\u0000${surfacePin.surfaceReleaseId}`;
+    const cacheKey = surfacePin.kind === "series"
+      ? `${modelId}\u0000series\u0000${surfacePin.surfaceSeriesId}`
+      : `${modelId}\u0000release\u0000${surfacePin.surfaceReleaseId}`;
     const cached = this.#releasePromises.get(cacheKey);
     if (cached !== undefined) return cached;
     const pending = this.#readExactModel(modelId, surfacePin);
@@ -188,7 +186,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
 
   async #readExactModel(
     modelId: string,
-    surfacePin?: StudioModelSurfacePinV1,
+    surfacePin: StudioModelSurfacePinV1,
   ): Promise<StudioResolvedModelReleaseV1> {
     const result = await this.#rpc.call(
       "get_model_release_v1",

@@ -87,6 +87,10 @@ import {
 import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { modelLimitationsAcknowledgementKey } from "@/components/ModelLimitations";
 import { commitWorkbenchTransientAuthoringResultV3 } from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
+import {
+  STANDARD_TEST_SURFACE_RELEASE_ID_V1,
+  STANDARD_TEST_SURFACE_SERIES_ID_V1,
+} from "./helpers/standardReleaseTicketV1";
 
 describe("V3 Dockview Workbench", () => {
   it("keeps the single Model Lab development-only unless explicitly enabled", () => {
@@ -167,6 +171,8 @@ describe("V3 Dockview Workbench", () => {
 
   it("preloads Placement Briefing independently from its neutral Snapshot", () => {
     const snapshot = createWorkbenchBriefingSnapshotV3({
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       modelId: "model/main-wire-v3",
       scenarios: [{ scenarioId: "scenario/a", label: "A" }],
       surface: {
@@ -198,6 +204,8 @@ describe("V3 Dockview Workbench", () => {
 
   it("treats a changed Scenario collection as a stale frozen Briefing source", () => {
     const snapshot = createWorkbenchBriefingSnapshotV3({
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       modelId: "model/main-wire-v3",
       scenarios: [
         { scenarioId: "scenario/a", label: "A" },
@@ -926,6 +934,8 @@ describe("V3 Dockview Workbench", () => {
     const surface = createDefaultExperimentSurfaceV3(composition.contract);
     const snapshot = createWorkbenchBriefingSnapshotV3({
       defaultTitle: "Workbench experiment",
+      surfaceSeriesId: composition.surfaceSeriesId,
+      surfaceReleaseId: composition.surfaceReleaseId,
       modelId: composition.contract.modelId,
       scenarios: [
         { scenarioId: "scenario/default", label: "Baseline" },
@@ -1018,6 +1028,8 @@ describe("V3 Dockview Workbench", () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const surface = createDefaultExperimentSurfaceV3(composition.contract);
     const snapshot = createWorkbenchBriefingSnapshotV3({
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       modelId: composition.contract.modelId,
       scenarios: [
         { scenarioId: "scenario/default", label: "Baseline" },
@@ -1078,6 +1090,8 @@ describe("V3 Dockview Workbench", () => {
       }],
     };
     const snapshot = createWorkbenchBriefingSnapshotV3({
+      surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+      surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
       modelId: composition.contract.modelId,
       scenarios: [
         { scenarioId: "scenario/default", label: "Baseline" },
