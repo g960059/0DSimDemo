@@ -139,6 +139,17 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
           mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
         surfaceStage: "dev",
       });
+      await expect(composition.loadStudioModelClientCompositionV2(
+        MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+      )).resolves.toMatchObject({
+        defaultModelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+        contract: {
+          modelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+        },
+      });
+      await expect(composition.loadStudioModelClientCompositionV2(
+        "model/unregistered-local-exact",
+      )).rejects.toThrow(/cannot resolve the requested exact model/);
     } finally {
       vi.doUnmock(
         "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",

@@ -1,5 +1,5 @@
-import { MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID } from
-  "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID } from
+  "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
@@ -88,7 +88,7 @@ import {
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 =
   "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 =
-  "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v1" as const;
+  "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1 =
   "hot-path-lean" as const;
 
@@ -230,7 +230,7 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
             fixture.hemodynamicResearchInputs,
             fixture.ventricularContractilityScale,
           )
-        : await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
+        : await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
             checkpoint.payload,
             fixture.hemodynamicResearchInputs,
             fixture.ventricularContractilityScale,
@@ -480,7 +480,7 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       return Object.freeze({ desired, correlation, current });
     });
     const payloads = await Promise.all(
-      candidates.map(({ current }) => current.modelSession.checkpointOperational()),
+      candidates.map(({ current }) => current.modelSession.checkpointStandardExact()),
     );
     const scenarios = candidates.map(({ desired, correlation, current }, index) => {
       if (current.inputEpoch !== correlation.expectedInputEpoch) {
@@ -629,8 +629,8 @@ ExactModelKernelManifestV3 {
     checkpointCodec: Object.freeze({
       checkpointCodecId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1,
       definition: Object.freeze({
-        checkpointId: MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
-        schemaVersion: 5,
+        checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
+        schemaVersion: 1,
         fixturePairing:
           "regular-sinus-all-off-and-complete-standard-fixture-identity",
         restoreSemantics: "exact-no-migration-no-clock-rebase",
@@ -709,7 +709,7 @@ function standardExecutableBundleV1(
       const fixture = validateAndOwnStandardFixtureV1(input.capture.fixture);
       const checkpoint = validateScenarioCheckpointV1(input.capture.checkpoint);
       const restored = await MainWireIntegratedModelSessionV3
-        .restoreOperationalCheckpoint(
+        .restoreStandardExactCheckpoint(
           checkpoint.payload,
           fixture.hemodynamicResearchInputs,
           fixture.ventricularContractilityScale,
@@ -721,7 +721,7 @@ function standardExecutableBundleV1(
       ) {
         throw new Error("Standard exact checkpoint restore clock mismatch");
       }
-      const roundTrip = await restored.checkpointOperational();
+      const roundTrip = await restored.checkpointStandardExact();
       if (studioCanonicalJsonStringify(roundTrip)
         !== studioCanonicalJsonStringify(checkpoint.payload)) {
         throw new Error("Standard exact checkpoint restore is not canonical");

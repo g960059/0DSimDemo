@@ -26,6 +26,9 @@ import {
   mainWireIntegratedModelPresentationTargetTimeSecV3,
   type MainWireIntegratedModelPresentationAdvanceV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
+} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -320,6 +323,38 @@ describe("MainWireIntegratedModelSessionV3", () => {
     expect(offGridRestored.currentAcceptedState()).toEqual(
       uninterrupted.currentAcceptedState(),
     );
+  }, 120_000);
+
+  it("continues exact beat outputs across a Standard checkpoint", async () => {
+    const uninterrupted = await MainWireIntegratedModelSessionV3.create();
+    advanceSessionThroughOrdinal(uninterrupted, 500);
+    const checkpoint = await uninterrupted.checkpointStandardExact();
+    expect(checkpoint).toMatchObject({
+      checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
+      schemaVersion: 1,
+      revision: uninterrupted.currentAcceptedState().revision,
+      acceptedTimeSec: 1,
+    });
+
+    const restored = await MainWireIntegratedModelSessionV3
+      .restoreStandardExactCheckpoint(
+        JSON.parse(canonicalJsonStringify(checkpoint)),
+      );
+    expect(canonicalJsonStringify(await restored.checkpointStandardExact()))
+      .toBe(canonicalJsonStringify(checkpoint));
+    expect(restored.observe().completedBeatMetrics)
+      .toEqual(uninterrupted.observe().completedBeatMetrics);
+
+    for (let ordinal = 501; ordinal <= 813; ordinal += 1) {
+      const target = mainWireIntegratedModelPresentationTargetTimeSecV3(ordinal);
+      expectAdvanced(uninterrupted.advanceToPresentationTime(target));
+      expectAdvanced(restored.advanceToPresentationTime(target));
+    }
+    expect(restored.currentAcceptedState())
+      .toEqual(uninterrupted.currentAcceptedState());
+    expect(restored.observe().completedBeatMetrics).not.toBeNull();
+    expect(restored.observe().completedBeatMetrics)
+      .toEqual(uninterrupted.observe().completedBeatMetrics);
   }, 120_000);
 
   // These cases pin independent defences at two layers. Collapsing them into

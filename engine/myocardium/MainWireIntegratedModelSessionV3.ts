@@ -36,6 +36,11 @@ import {
   type MainWireIntegratedModelCompletedBeatMetricsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import {
+  checkpointMainWireIntegratedModelStandardV1,
+  restoreMainWireIntegratedModelStandardV1,
+  type MainWireIntegratedModelStandardCheckpointV1,
+} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
+import {
   respiratoryExternalPressuresV1,
 } from "@/engine/core/circulationGraphKernelV1";
 import {
@@ -63,10 +68,11 @@ export type MainWireIntegratedModelObservationV3 = Readonly<{
     | "cold"
     | "presentation-target"
     | "operational-checkpoint-restore"
+    | "standard-exact-checkpoint-restore"
     | "fixed-tbv-protocol-fork"
     | "hemodynamic-input-warm-start";
   acceptedState: AcceptedState;
-  /** Null at cold start and after operational checkpoint restore. */
+  /** Null at cold start and after either checkpoint restore. */
   lastAcceptedStep: SuccessfulStep | null;
   /** Algebraic environment values at the exact accepted clock. */
   runtimeSignals: Readonly<{
@@ -146,8 +152,7 @@ export class MainWireIntegratedModelSessionV3 {
   private acceptedState: AcceptedState;
   private lastAcceptedStep: SuccessfulStep | null;
   private lastPresentationObservation: MainWireIntegratedModelObservationV3;
-  private readonly beatAccumulator =
-    new MainWireIntegratedModelBeatAccumulatorV3();
+  private readonly beatAccumulator: MainWireIntegratedModelBeatAccumulatorV3;
   private completedBeatMetrics:
     MainWireIntegratedModelCompletedBeatMetricsV3 | null = null;
 
@@ -156,6 +161,11 @@ export class MainWireIntegratedModelSessionV3 {
     acceptedState: AcceptedState,
     observationSource:
       MainWireIntegratedModelObservationV3["source"],
+    exactBeatState?: Readonly<{
+      beatAccumulator: MainWireIntegratedModelBeatAccumulatorV3;
+      completedBeatMetrics:
+        MainWireIntegratedModelCompletedBeatMetricsV3 | null;
+    }>,
   ) {
     validateMainWireIntegratedModelAcceptedStateV3(
       acceptedState,
@@ -173,12 +183,15 @@ export class MainWireIntegratedModelSessionV3 {
     this.dynamicMechanicalSupportConfig = runtime.config;
     this.acceptedState = acceptedState;
     this.lastAcceptedStep = null;
+    this.beatAccumulator = exactBeatState?.beatAccumulator
+      ?? new MainWireIntegratedModelBeatAccumulatorV3();
+    this.completedBeatMetrics = exactBeatState?.completedBeatMetrics ?? null;
     this.lastPresentationObservation = observation(
       observationSource,
       acceptedState,
       null,
       runtime,
-      null,
+      this.completedBeatMetrics,
     );
   }
 
@@ -221,6 +234,36 @@ export class MainWireIntegratedModelSessionV3 {
       runtime,
       acceptedState,
       "operational-checkpoint-restore",
+    );
+  }
+
+  /**
+   * Restores the Standard exact checkpoint, including the accepted-substep
+   * beat accumulator and last completed beat exposed by the exact output ABI.
+   */
+  static async restoreStandardExactCheckpoint(
+    checkpoint: unknown,
+    hemodynamicResearchInputs:
+    MainWireIntegratedModelHemodynamicResearchInputsV3 =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    ventricularContractilityScale = 1,
+  ): Promise<MainWireIntegratedModelSessionV3> {
+    const runtime = await createMainWireIntegratedModelRuntimeV3(
+      hemodynamicResearchInputs,
+      ventricularContractilityScale,
+    );
+    const restored = await restoreMainWireIntegratedModelStandardV1(
+      mainWireIntegratedModelCheckpointContextV3(
+        runtime,
+        runtime.cold.acceptedState,
+      ),
+      checkpoint,
+    );
+    return new MainWireIntegratedModelSessionV3(
+      runtime,
+      restored.acceptedState,
+      "standard-exact-checkpoint-restore",
+      restored,
     );
   }
 
@@ -299,6 +342,20 @@ export class MainWireIntegratedModelSessionV3 {
     return checkpointMainWireIntegratedModelV3(
       this.checkpointContext(),
       this.acceptedState,
+    );
+  }
+
+  /**
+   * Captures every state element that affects the Standard exact output ABI.
+   * The legacy operational checkpoint intentionally remains unchanged.
+   */
+  async checkpointStandardExact():
+  Promise<MainWireIntegratedModelStandardCheckpointV1> {
+    return checkpointMainWireIntegratedModelStandardV1(
+      this.checkpointContext(),
+      this.acceptedState,
+      this.beatAccumulator,
+      this.completedBeatMetrics,
     );
   }
 

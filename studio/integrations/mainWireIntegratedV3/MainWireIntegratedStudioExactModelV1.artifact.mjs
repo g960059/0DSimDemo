@@ -25304,6 +25304,828 @@ function nonnegativeFinite(value, label) {
   }
   return value;
 }
+const MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID = "main-wire-integrated-model-accepted-step-beat-metrics-v1";
+const MAIN_WIRE_INTEGRATED_MODEL_BEAT_ACCUMULATOR_CHECKPOINT_V3_ID = "main-wire-integrated-model-beat-accumulator-checkpoint-v1";
+class MainWireIntegratedModelBeatAccumulatorV3 {
+  #active = null;
+  static restore(input) {
+    const checkpoint = ownBeatAccumulatorCheckpointV3(input);
+    const accumulator = new MainWireIntegratedModelBeatAccumulatorV3();
+    accumulator.#active = checkpoint.active === null ? null : ownActiveBeatV3(checkpoint.active);
+    return accumulator;
+  }
+  checkpoint() {
+    return Object.freeze({
+      checkpointId: MAIN_WIRE_INTEGRATED_MODEL_BEAT_ACCUMULATOR_CHECKPOINT_V3_ID,
+      schemaVersion: 1,
+      active: this.#active === null ? null : Object.freeze(ownActiveBeatV3(this.#active))
+    });
+  }
+  accept(step) {
+    const sample = sampleFromStepV3(step);
+    if (this.#active !== null) integrateSampleV3(this.#active, sample);
+    const capture = step.composedRhythmCandidate.capturedAtrialActivation;
+    if (capture === null) return null;
+    const completed = this.#active === null ? null : completeBeatV3(this.#active, capture.capturedActivationId, sample.timeSec);
+    this.#active = beginBeatV3(capture.capturedActivationId, sample);
+    return completed;
+  }
+}
+function validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3(input) {
+  const record = plainExactRecordV3(input, [
+    "metricsId",
+    "startAtrialCaptureId",
+    "endAtrialCaptureId",
+    "startTimeSec",
+    "endTimeSec",
+    "durationSec",
+    "meanAorticPressureMmHg",
+    "systolicAorticPressureMmHg",
+    "diastolicAorticPressureMmHg",
+    "pulseAorticPressureMmHg",
+    "meanPulmonaryArterialPressureMmHg",
+    "meanLeftAtrialPressureMmHg",
+    "meanRightAtrialPressureMmHg",
+    "maximumLeftVentricularVolumeMl",
+    "minimumLeftVentricularVolumeMl",
+    "leftVentricularPressureVolumeLandmarks",
+    "rightVentricularPressureVolumeLandmarks",
+    "extremaLeftVentricularStrokeVolumeMl",
+    "extremaLeftVentricularEjectionFraction01",
+    "nativeLeftCardiacOutputLPerMin",
+    "nativeRightCardiacOutputLPerMin",
+    "systemicVenousReturnLPerMin",
+    "pulmonaryVenousReturnLPerMin",
+    "systemicTissueOutputLPerMin",
+    "pulmonaryOutputLPerMin"
+  ], "integrated V3 completed beat metrics");
+  if (record.metricsId !== MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID) {
+    throw new Error("integrated V3 completed beat metrics identity is invalid");
+  }
+  const startAtrialCaptureId = requiredStringV3(
+    record.startAtrialCaptureId,
+    "integrated V3 completed beat start capture ID"
+  );
+  const endAtrialCaptureId = requiredStringV3(
+    record.endAtrialCaptureId,
+    "integrated V3 completed beat end capture ID"
+  );
+  const startTimeSec = nonnegativeFiniteV3(
+    record.startTimeSec,
+    "integrated V3 completed beat start time"
+  );
+  const endTimeSec = nonnegativeFiniteV3(
+    record.endTimeSec,
+    "integrated V3 completed beat end time"
+  );
+  const durationSec = positiveFiniteV3(
+    record.durationSec,
+    "integrated V3 completed beat duration"
+  );
+  if (endTimeSec <= startTimeSec || endTimeSec - startTimeSec !== durationSec) {
+    throw new Error("integrated V3 completed beat clocks are inconsistent");
+  }
+  return Object.freeze({
+    metricsId: MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID,
+    startAtrialCaptureId,
+    endAtrialCaptureId,
+    startTimeSec,
+    endTimeSec,
+    durationSec,
+    meanAorticPressureMmHg: finiteV3(
+      record.meanAorticPressureMmHg,
+      "integrated V3 completed beat mean aortic pressure"
+    ),
+    systolicAorticPressureMmHg: finiteV3(
+      record.systolicAorticPressureMmHg,
+      "integrated V3 completed beat systolic aortic pressure"
+    ),
+    diastolicAorticPressureMmHg: finiteV3(
+      record.diastolicAorticPressureMmHg,
+      "integrated V3 completed beat diastolic aortic pressure"
+    ),
+    pulseAorticPressureMmHg: finiteV3(
+      record.pulseAorticPressureMmHg,
+      "integrated V3 completed beat pulse aortic pressure"
+    ),
+    meanPulmonaryArterialPressureMmHg: finiteV3(
+      record.meanPulmonaryArterialPressureMmHg,
+      "integrated V3 completed beat mean pulmonary pressure"
+    ),
+    meanLeftAtrialPressureMmHg: finiteV3(
+      record.meanLeftAtrialPressureMmHg,
+      "integrated V3 completed beat mean left atrial pressure"
+    ),
+    meanRightAtrialPressureMmHg: finiteV3(
+      record.meanRightAtrialPressureMmHg,
+      "integrated V3 completed beat mean right atrial pressure"
+    ),
+    maximumLeftVentricularVolumeMl: finiteV3(
+      record.maximumLeftVentricularVolumeMl,
+      "integrated V3 completed beat maximum LV volume"
+    ),
+    minimumLeftVentricularVolumeMl: finiteV3(
+      record.minimumLeftVentricularVolumeMl,
+      "integrated V3 completed beat minimum LV volume"
+    ),
+    leftVentricularPressureVolumeLandmarks: ownVentricularLandmarksV3(
+      record.leftVentricularPressureVolumeLandmarks,
+      "integrated V3 completed beat left ventricular landmarks"
+    ),
+    rightVentricularPressureVolumeLandmarks: ownVentricularLandmarksV3(
+      record.rightVentricularPressureVolumeLandmarks,
+      "integrated V3 completed beat right ventricular landmarks"
+    ),
+    extremaLeftVentricularStrokeVolumeMl: finiteV3(
+      record.extremaLeftVentricularStrokeVolumeMl,
+      "integrated V3 completed beat LV stroke volume"
+    ),
+    extremaLeftVentricularEjectionFraction01: finiteV3(
+      record.extremaLeftVentricularEjectionFraction01,
+      "integrated V3 completed beat LV ejection fraction"
+    ),
+    nativeLeftCardiacOutputLPerMin: finiteV3(
+      record.nativeLeftCardiacOutputLPerMin,
+      "integrated V3 completed beat native left output"
+    ),
+    nativeRightCardiacOutputLPerMin: finiteV3(
+      record.nativeRightCardiacOutputLPerMin,
+      "integrated V3 completed beat native right output"
+    ),
+    systemicVenousReturnLPerMin: finiteV3(
+      record.systemicVenousReturnLPerMin,
+      "integrated V3 completed beat systemic venous return"
+    ),
+    pulmonaryVenousReturnLPerMin: finiteV3(
+      record.pulmonaryVenousReturnLPerMin,
+      "integrated V3 completed beat pulmonary venous return"
+    ),
+    systemicTissueOutputLPerMin: finiteV3(
+      record.systemicTissueOutputLPerMin,
+      "integrated V3 completed beat systemic tissue output"
+    ),
+    pulmonaryOutputLPerMin: finiteV3(
+      record.pulmonaryOutputLPerMin,
+      "integrated V3 completed beat pulmonary output"
+    )
+  });
+}
+function sampleFromStepV3(step) {
+  const circulation = step.coronaryStep.baseStep.circulationTrial;
+  const coronary = step.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics;
+  const sample = Object.freeze({
+    timeSec: step.acceptedState.acceptedTimeSec,
+    aorticPressureMmHg: circulation.nodeAbsolutePressuresMmHg.Ao,
+    pulmonaryArterialPressureMmHg: circulation.nodeAbsolutePressuresMmHg.PA,
+    leftAtrialPressureMmHg: circulation.nodeAbsolutePressuresMmHg.LA,
+    rightAtrialPressureMmHg: circulation.nodeAbsolutePressuresMmHg.RA,
+    leftVentricularVolumeMl: step.acceptedState.coronary.circulation.nodeVolumesMl.LV,
+    rightVentricularVolumeMl: step.acceptedState.coronary.circulation.nodeVolumesMl.RV,
+    leftVentricularTransmuralPressureMmHg: step.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg.LV,
+    rightVentricularTransmuralPressureMmHg: step.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg.RV,
+    aorticValveFlowMlPerSec: circulation.valveEvaluations.AoV.flowMlPerSec,
+    pulmonaryValveFlowMlPerSec: circulation.valveEvaluations.PV.flowMlPerSec,
+    systemicVenousReturnMlPerSec: circulation.edgeFlowsMlPerSec.VC_RA + coronary.commonCoronaryVenousOutletFlowMlPerSec,
+    pulmonaryVenousReturnMlPerSec: circulation.edgeFlowsMlPerSec.PVein_LA,
+    systemicTissueFlowMlPerSec: circulation.edgeFlowsMlPerSec.SA_Art,
+    pulmonaryFlowMlPerSec: circulation.edgeFlowsMlPerSec.PA_PArt
+  });
+  for (const [name, value] of Object.entries(sample)) {
+    if (!Number.isFinite(value)) {
+      throw new Error(`integrated V3 beat sample ${name} is not finite`);
+    }
+  }
+  return sample;
+}
+function beginBeatV3(startAtrialCaptureId, sample) {
+  const leftLandmark = pressureVolumeLandmarkFromSampleV3(
+    sample,
+    "left",
+    "maximum-volume"
+  );
+  const rightLandmark = pressureVolumeLandmarkFromSampleV3(
+    sample,
+    "right",
+    "maximum-volume"
+  );
+  return {
+    startAtrialCaptureId,
+    startTimeSec: sample.timeSec,
+    previous: sample,
+    aorticPressureIntegralMmHgSec: 0,
+    pulmonaryArterialPressureIntegralMmHgSec: 0,
+    leftAtrialPressureIntegralMmHgSec: 0,
+    rightAtrialPressureIntegralMmHgSec: 0,
+    forwardAorticVolumeMl: 0,
+    forwardPulmonaryValveVolumeMl: 0,
+    systemicVenousReturnVolumeMl: 0,
+    pulmonaryVenousReturnVolumeMl: 0,
+    systemicTissueVolumeMl: 0,
+    pulmonaryVolumeMl: 0,
+    maximumAorticPressureMmHg: sample.aorticPressureMmHg,
+    minimumAorticPressureMmHg: sample.aorticPressureMmHg,
+    maximumLeftVentricularVolumeMl: sample.leftVentricularVolumeMl,
+    minimumLeftVentricularVolumeMl: sample.leftVentricularVolumeMl,
+    maximumLeftVentricularLandmark: leftLandmark,
+    minimumLeftVentricularLandmark: Object.freeze({
+      ...leftLandmark,
+      event: "minimum-volume-fallback"
+    }),
+    maximumRightVentricularLandmark: rightLandmark,
+    minimumRightVentricularLandmark: Object.freeze({
+      ...rightLandmark,
+      event: "minimum-volume-fallback"
+    }),
+    leftSemilunarClosureLandmark: null,
+    rightSemilunarClosureLandmark: null
+  };
+}
+function integrateSampleV3(active, next) {
+  const previous = active.previous;
+  const dtSec = next.timeSec - previous.timeSec;
+  if (!Number.isFinite(dtSec) || dtSec <= 0) {
+    throw new Error("integrated V3 beat sample clock did not advance");
+  }
+  active.aorticPressureIntegralMmHgSec += trapezoidV3(
+    previous.aorticPressureMmHg,
+    next.aorticPressureMmHg,
+    dtSec
+  );
+  active.pulmonaryArterialPressureIntegralMmHgSec += trapezoidV3(
+    previous.pulmonaryArterialPressureMmHg,
+    next.pulmonaryArterialPressureMmHg,
+    dtSec
+  );
+  active.leftAtrialPressureIntegralMmHgSec += trapezoidV3(
+    previous.leftAtrialPressureMmHg,
+    next.leftAtrialPressureMmHg,
+    dtSec
+  );
+  active.rightAtrialPressureIntegralMmHgSec += trapezoidV3(
+    previous.rightAtrialPressureMmHg,
+    next.rightAtrialPressureMmHg,
+    dtSec
+  );
+  active.forwardAorticVolumeMl += trapezoidV3(
+    Math.max(0, previous.aorticValveFlowMlPerSec),
+    Math.max(0, next.aorticValveFlowMlPerSec),
+    dtSec
+  );
+  active.forwardPulmonaryValveVolumeMl += trapezoidV3(
+    Math.max(0, previous.pulmonaryValveFlowMlPerSec),
+    Math.max(0, next.pulmonaryValveFlowMlPerSec),
+    dtSec
+  );
+  active.systemicVenousReturnVolumeMl += trapezoidV3(
+    previous.systemicVenousReturnMlPerSec,
+    next.systemicVenousReturnMlPerSec,
+    dtSec
+  );
+  active.pulmonaryVenousReturnVolumeMl += trapezoidV3(
+    previous.pulmonaryVenousReturnMlPerSec,
+    next.pulmonaryVenousReturnMlPerSec,
+    dtSec
+  );
+  active.systemicTissueVolumeMl += trapezoidV3(
+    previous.systemicTissueFlowMlPerSec,
+    next.systemicTissueFlowMlPerSec,
+    dtSec
+  );
+  active.pulmonaryVolumeMl += trapezoidV3(
+    previous.pulmonaryFlowMlPerSec,
+    next.pulmonaryFlowMlPerSec,
+    dtSec
+  );
+  active.maximumAorticPressureMmHg = Math.max(
+    active.maximumAorticPressureMmHg,
+    next.aorticPressureMmHg
+  );
+  active.minimumAorticPressureMmHg = Math.min(
+    active.minimumAorticPressureMmHg,
+    next.aorticPressureMmHg
+  );
+  active.maximumLeftVentricularVolumeMl = Math.max(
+    active.maximumLeftVentricularVolumeMl,
+    next.leftVentricularVolumeMl
+  );
+  active.minimumLeftVentricularVolumeMl = Math.min(
+    active.minimumLeftVentricularVolumeMl,
+    next.leftVentricularVolumeMl
+  );
+  if (next.leftVentricularVolumeMl > active.maximumLeftVentricularLandmark.volumeMl) {
+    active.maximumLeftVentricularLandmark = pressureVolumeLandmarkFromSampleV3(
+      next,
+      "left",
+      "maximum-volume"
+    );
+  }
+  if (next.leftVentricularVolumeMl < active.minimumLeftVentricularLandmark.volumeMl) {
+    active.minimumLeftVentricularLandmark = pressureVolumeLandmarkFromSampleV3(
+      next,
+      "left",
+      "minimum-volume-fallback"
+    );
+  }
+  if (next.rightVentricularVolumeMl > active.maximumRightVentricularLandmark.volumeMl) {
+    active.maximumRightVentricularLandmark = pressureVolumeLandmarkFromSampleV3(
+      next,
+      "right",
+      "maximum-volume"
+    );
+  }
+  if (next.rightVentricularVolumeMl < active.minimumRightVentricularLandmark.volumeMl) {
+    active.minimumRightVentricularLandmark = pressureVolumeLandmarkFromSampleV3(
+      next,
+      "right",
+      "minimum-volume-fallback"
+    );
+  }
+  if (previous.aorticValveFlowMlPerSec > 1e-6 && next.aorticValveFlowMlPerSec <= 1e-6) {
+    active.leftSemilunarClosureLandmark = interpolateValveClosureV3(
+      previous,
+      next,
+      "left",
+      previous.aorticValveFlowMlPerSec,
+      next.aorticValveFlowMlPerSec
+    );
+  }
+  if (previous.pulmonaryValveFlowMlPerSec > 1e-6 && next.pulmonaryValveFlowMlPerSec <= 1e-6) {
+    active.rightSemilunarClosureLandmark = interpolateValveClosureV3(
+      previous,
+      next,
+      "right",
+      previous.pulmonaryValveFlowMlPerSec,
+      next.pulmonaryValveFlowMlPerSec
+    );
+  }
+  active.previous = next;
+}
+function completeBeatV3(active, endAtrialCaptureId, endTimeSec) {
+  const durationSec = endTimeSec - active.startTimeSec;
+  if (!Number.isFinite(durationSec) || durationSec <= 0) {
+    throw new Error("integrated V3 completed beat duration is invalid");
+  }
+  const strokeVolumeMl = active.maximumLeftVentricularVolumeMl - active.minimumLeftVentricularVolumeMl;
+  const ejectionFraction01 = strokeVolumeMl / active.maximumLeftVentricularVolumeMl;
+  const meanFlowToLPerMin = (volumeMl) => volumeMl / durationSec * 60 / 1e3;
+  const completed = Object.freeze({
+    metricsId: MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID,
+    startAtrialCaptureId: active.startAtrialCaptureId,
+    endAtrialCaptureId,
+    startTimeSec: active.startTimeSec,
+    endTimeSec,
+    durationSec,
+    meanAorticPressureMmHg: active.aorticPressureIntegralMmHgSec / durationSec,
+    systolicAorticPressureMmHg: active.maximumAorticPressureMmHg,
+    diastolicAorticPressureMmHg: active.minimumAorticPressureMmHg,
+    pulseAorticPressureMmHg: active.maximumAorticPressureMmHg - active.minimumAorticPressureMmHg,
+    meanPulmonaryArterialPressureMmHg: active.pulmonaryArterialPressureIntegralMmHgSec / durationSec,
+    meanLeftAtrialPressureMmHg: active.leftAtrialPressureIntegralMmHgSec / durationSec,
+    meanRightAtrialPressureMmHg: active.rightAtrialPressureIntegralMmHgSec / durationSec,
+    maximumLeftVentricularVolumeMl: active.maximumLeftVentricularVolumeMl,
+    minimumLeftVentricularVolumeMl: active.minimumLeftVentricularVolumeMl,
+    leftVentricularPressureVolumeLandmarks: Object.freeze({
+      pressureBasis: "transmural",
+      endDiastolic: active.maximumLeftVentricularLandmark,
+      endSystolic: active.leftSemilunarClosureLandmark ?? active.minimumLeftVentricularLandmark
+    }),
+    rightVentricularPressureVolumeLandmarks: Object.freeze({
+      pressureBasis: "transmural",
+      endDiastolic: active.maximumRightVentricularLandmark,
+      endSystolic: active.rightSemilunarClosureLandmark ?? active.minimumRightVentricularLandmark
+    }),
+    extremaLeftVentricularStrokeVolumeMl: strokeVolumeMl,
+    extremaLeftVentricularEjectionFraction01: ejectionFraction01,
+    nativeLeftCardiacOutputLPerMin: meanFlowToLPerMin(active.forwardAorticVolumeMl),
+    nativeRightCardiacOutputLPerMin: meanFlowToLPerMin(active.forwardPulmonaryValveVolumeMl),
+    systemicVenousReturnLPerMin: meanFlowToLPerMin(active.systemicVenousReturnVolumeMl),
+    pulmonaryVenousReturnLPerMin: meanFlowToLPerMin(active.pulmonaryVenousReturnVolumeMl),
+    systemicTissueOutputLPerMin: meanFlowToLPerMin(active.systemicTissueVolumeMl),
+    pulmonaryOutputLPerMin: meanFlowToLPerMin(active.pulmonaryVolumeMl)
+  });
+  for (const [name, value] of Object.entries(completed)) {
+    if (typeof value === "number" && !Number.isFinite(value)) {
+      throw new Error(`integrated V3 completed beat metric ${name} is not finite`);
+    }
+  }
+  return completed;
+}
+function trapezoidV3(left, right, dtSec) {
+  return 0.5 * (left + right) * dtSec;
+}
+function pressureVolumeLandmarkFromSampleV3(sample, side, event) {
+  return Object.freeze({
+    volumeMl: side === "left" ? sample.leftVentricularVolumeMl : sample.rightVentricularVolumeMl,
+    pressureMmHg: side === "left" ? sample.leftVentricularTransmuralPressureMmHg : sample.rightVentricularTransmuralPressureMmHg,
+    event
+  });
+}
+function ownBeatAccumulatorCheckpointV3(input) {
+  const record = plainExactRecordV3(input, [
+    "checkpointId",
+    "schemaVersion",
+    "active"
+  ], "integrated V3 beat accumulator checkpoint");
+  if (record.checkpointId !== MAIN_WIRE_INTEGRATED_MODEL_BEAT_ACCUMULATOR_CHECKPOINT_V3_ID || record.schemaVersion !== 1) {
+    throw new Error("unsupported integrated V3 beat accumulator checkpoint");
+  }
+  return Object.freeze({
+    checkpointId: MAIN_WIRE_INTEGRATED_MODEL_BEAT_ACCUMULATOR_CHECKPOINT_V3_ID,
+    schemaVersion: 1,
+    active: record.active === null ? null : ownActiveBeatV3(record.active)
+  });
+}
+function ownActiveBeatV3(input) {
+  const record = plainExactRecordV3(input, [
+    "startAtrialCaptureId",
+    "startTimeSec",
+    "previous",
+    "aorticPressureIntegralMmHgSec",
+    "pulmonaryArterialPressureIntegralMmHgSec",
+    "leftAtrialPressureIntegralMmHgSec",
+    "rightAtrialPressureIntegralMmHgSec",
+    "forwardAorticVolumeMl",
+    "forwardPulmonaryValveVolumeMl",
+    "systemicVenousReturnVolumeMl",
+    "pulmonaryVenousReturnVolumeMl",
+    "systemicTissueVolumeMl",
+    "pulmonaryVolumeMl",
+    "maximumAorticPressureMmHg",
+    "minimumAorticPressureMmHg",
+    "maximumLeftVentricularVolumeMl",
+    "minimumLeftVentricularVolumeMl",
+    "maximumLeftVentricularLandmark",
+    "minimumLeftVentricularLandmark",
+    "maximumRightVentricularLandmark",
+    "minimumRightVentricularLandmark",
+    "leftSemilunarClosureLandmark",
+    "rightSemilunarClosureLandmark"
+  ], "integrated V3 active beat checkpoint");
+  const startTimeSec = nonnegativeFiniteV3(
+    record.startTimeSec,
+    "integrated V3 active beat start time"
+  );
+  const previous = ownBeatSampleV3(record.previous);
+  if (previous.timeSec < startTimeSec) {
+    throw new Error("integrated V3 active beat sample precedes its start");
+  }
+  return {
+    startAtrialCaptureId: requiredStringV3(
+      record.startAtrialCaptureId,
+      "integrated V3 active beat capture ID"
+    ),
+    startTimeSec,
+    previous,
+    aorticPressureIntegralMmHgSec: finiteV3(
+      record.aorticPressureIntegralMmHgSec,
+      "integrated V3 active beat aortic pressure integral"
+    ),
+    pulmonaryArterialPressureIntegralMmHgSec: finiteV3(
+      record.pulmonaryArterialPressureIntegralMmHgSec,
+      "integrated V3 active beat pulmonary pressure integral"
+    ),
+    leftAtrialPressureIntegralMmHgSec: finiteV3(
+      record.leftAtrialPressureIntegralMmHgSec,
+      "integrated V3 active beat left atrial pressure integral"
+    ),
+    rightAtrialPressureIntegralMmHgSec: finiteV3(
+      record.rightAtrialPressureIntegralMmHgSec,
+      "integrated V3 active beat right atrial pressure integral"
+    ),
+    forwardAorticVolumeMl: finiteV3(
+      record.forwardAorticVolumeMl,
+      "integrated V3 active beat forward aortic volume"
+    ),
+    forwardPulmonaryValveVolumeMl: finiteV3(
+      record.forwardPulmonaryValveVolumeMl,
+      "integrated V3 active beat forward pulmonary volume"
+    ),
+    systemicVenousReturnVolumeMl: finiteV3(
+      record.systemicVenousReturnVolumeMl,
+      "integrated V3 active beat systemic venous return volume"
+    ),
+    pulmonaryVenousReturnVolumeMl: finiteV3(
+      record.pulmonaryVenousReturnVolumeMl,
+      "integrated V3 active beat pulmonary venous return volume"
+    ),
+    systemicTissueVolumeMl: finiteV3(
+      record.systemicTissueVolumeMl,
+      "integrated V3 active beat systemic tissue volume"
+    ),
+    pulmonaryVolumeMl: finiteV3(
+      record.pulmonaryVolumeMl,
+      "integrated V3 active beat pulmonary volume"
+    ),
+    maximumAorticPressureMmHg: finiteV3(
+      record.maximumAorticPressureMmHg,
+      "integrated V3 active beat maximum aortic pressure"
+    ),
+    minimumAorticPressureMmHg: finiteV3(
+      record.minimumAorticPressureMmHg,
+      "integrated V3 active beat minimum aortic pressure"
+    ),
+    maximumLeftVentricularVolumeMl: finiteV3(
+      record.maximumLeftVentricularVolumeMl,
+      "integrated V3 active beat maximum LV volume"
+    ),
+    minimumLeftVentricularVolumeMl: finiteV3(
+      record.minimumLeftVentricularVolumeMl,
+      "integrated V3 active beat minimum LV volume"
+    ),
+    maximumLeftVentricularLandmark: ownPressureVolumeLandmarkV3(
+      record.maximumLeftVentricularLandmark,
+      "integrated V3 active beat maximum LV landmark",
+      ["maximum-volume"]
+    ),
+    minimumLeftVentricularLandmark: ownPressureVolumeLandmarkV3(
+      record.minimumLeftVentricularLandmark,
+      "integrated V3 active beat minimum LV landmark",
+      ["minimum-volume-fallback"]
+    ),
+    maximumRightVentricularLandmark: ownPressureVolumeLandmarkV3(
+      record.maximumRightVentricularLandmark,
+      "integrated V3 active beat maximum RV landmark",
+      ["maximum-volume"]
+    ),
+    minimumRightVentricularLandmark: ownPressureVolumeLandmarkV3(
+      record.minimumRightVentricularLandmark,
+      "integrated V3 active beat minimum RV landmark",
+      ["minimum-volume-fallback"]
+    ),
+    leftSemilunarClosureLandmark: record.leftSemilunarClosureLandmark === null ? null : ownPressureVolumeLandmarkV3(
+      record.leftSemilunarClosureLandmark,
+      "integrated V3 active beat left semilunar closure",
+      ["semilunar-valve-closure"]
+    ),
+    rightSemilunarClosureLandmark: record.rightSemilunarClosureLandmark === null ? null : ownPressureVolumeLandmarkV3(
+      record.rightSemilunarClosureLandmark,
+      "integrated V3 active beat right semilunar closure",
+      ["semilunar-valve-closure"]
+    )
+  };
+}
+function ownBeatSampleV3(input) {
+  const record = plainExactRecordV3(input, [
+    "timeSec",
+    "aorticPressureMmHg",
+    "pulmonaryArterialPressureMmHg",
+    "leftAtrialPressureMmHg",
+    "rightAtrialPressureMmHg",
+    "leftVentricularVolumeMl",
+    "rightVentricularVolumeMl",
+    "leftVentricularTransmuralPressureMmHg",
+    "rightVentricularTransmuralPressureMmHg",
+    "aorticValveFlowMlPerSec",
+    "pulmonaryValveFlowMlPerSec",
+    "systemicVenousReturnMlPerSec",
+    "pulmonaryVenousReturnMlPerSec",
+    "systemicTissueFlowMlPerSec",
+    "pulmonaryFlowMlPerSec"
+  ], "integrated V3 beat sample checkpoint");
+  return Object.freeze({
+    timeSec: nonnegativeFiniteV3(
+      record.timeSec,
+      "integrated V3 beat sample time"
+    ),
+    aorticPressureMmHg: finiteV3(record.aorticPressureMmHg, "aortic pressure"),
+    pulmonaryArterialPressureMmHg: finiteV3(
+      record.pulmonaryArterialPressureMmHg,
+      "pulmonary arterial pressure"
+    ),
+    leftAtrialPressureMmHg: finiteV3(
+      record.leftAtrialPressureMmHg,
+      "left atrial pressure"
+    ),
+    rightAtrialPressureMmHg: finiteV3(
+      record.rightAtrialPressureMmHg,
+      "right atrial pressure"
+    ),
+    leftVentricularVolumeMl: finiteV3(
+      record.leftVentricularVolumeMl,
+      "left ventricular volume"
+    ),
+    rightVentricularVolumeMl: finiteV3(
+      record.rightVentricularVolumeMl,
+      "right ventricular volume"
+    ),
+    leftVentricularTransmuralPressureMmHg: finiteV3(
+      record.leftVentricularTransmuralPressureMmHg,
+      "left ventricular transmural pressure"
+    ),
+    rightVentricularTransmuralPressureMmHg: finiteV3(
+      record.rightVentricularTransmuralPressureMmHg,
+      "right ventricular transmural pressure"
+    ),
+    aorticValveFlowMlPerSec: finiteV3(
+      record.aorticValveFlowMlPerSec,
+      "aortic valve flow"
+    ),
+    pulmonaryValveFlowMlPerSec: finiteV3(
+      record.pulmonaryValveFlowMlPerSec,
+      "pulmonary valve flow"
+    ),
+    systemicVenousReturnMlPerSec: finiteV3(
+      record.systemicVenousReturnMlPerSec,
+      "systemic venous return"
+    ),
+    pulmonaryVenousReturnMlPerSec: finiteV3(
+      record.pulmonaryVenousReturnMlPerSec,
+      "pulmonary venous return"
+    ),
+    systemicTissueFlowMlPerSec: finiteV3(
+      record.systemicTissueFlowMlPerSec,
+      "systemic tissue flow"
+    ),
+    pulmonaryFlowMlPerSec: finiteV3(
+      record.pulmonaryFlowMlPerSec,
+      "pulmonary flow"
+    )
+  });
+}
+function ownVentricularLandmarksV3(input, label) {
+  const record = plainExactRecordV3(
+    input,
+    ["pressureBasis", "endDiastolic", "endSystolic"],
+    label
+  );
+  if (record.pressureBasis !== "transmural") {
+    throw new Error(`${label} pressure basis is invalid`);
+  }
+  return Object.freeze({
+    pressureBasis: "transmural",
+    endDiastolic: ownPressureVolumeLandmarkV3(
+      record.endDiastolic,
+      `${label} end diastolic`,
+      ["maximum-volume"]
+    ),
+    endSystolic: ownPressureVolumeLandmarkV3(
+      record.endSystolic,
+      `${label} end systolic`,
+      ["semilunar-valve-closure", "minimum-volume-fallback"]
+    )
+  });
+}
+function ownPressureVolumeLandmarkV3(input, label, allowedEvents) {
+  const record = plainExactRecordV3(
+    input,
+    ["volumeMl", "pressureMmHg", "event"],
+    label
+  );
+  if (!allowedEvents.includes(
+    record.event
+  )) {
+    throw new Error(`${label} event is invalid`);
+  }
+  return Object.freeze({
+    volumeMl: finiteV3(record.volumeMl, `${label} volume`),
+    pressureMmHg: finiteV3(record.pressureMmHg, `${label} pressure`),
+    event: record.event
+  });
+}
+function plainExactRecordV3(input, keys, label) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error(`${label} must be a plain object`);
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error(`${label} must be a plain object`);
+  }
+  const ownKeys = Reflect.ownKeys(input);
+  if (ownKeys.some((key) => typeof key !== "string")) {
+    throw new Error(`${label} contains a non-string key`);
+  }
+  const actual = [...ownKeys].sort();
+  const expected = [...keys].sort();
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new Error(`${label} has an unexpected field set`);
+  }
+  return input;
+}
+function requiredStringV3(value, label) {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`${label} must be a nonempty string`);
+  }
+  return value;
+}
+function finiteV3(value, label) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${label} must be finite`);
+  }
+  return value;
+}
+function nonnegativeFiniteV3(value, label) {
+  const owned = finiteV3(value, label);
+  if (owned < 0) throw new Error(`${label} must be nonnegative`);
+  return owned;
+}
+function positiveFiniteV3(value, label) {
+  const owned = finiteV3(value, label);
+  if (owned <= 0) throw new Error(`${label} must be positive`);
+  return owned;
+}
+function interpolateValveClosureV3(previous, next, side, previousFlowMlPerSec, nextFlowMlPerSec) {
+  const denominator = previousFlowMlPerSec - nextFlowMlPerSec;
+  const ratio = denominator > 1e-12 ? Math.max(0, Math.min(1, previousFlowMlPerSec / denominator)) : 1;
+  const interpolate = (left, right) => left + ratio * (right - left);
+  return Object.freeze({
+    volumeMl: side === "left" ? interpolate(
+      previous.leftVentricularVolumeMl,
+      next.leftVentricularVolumeMl
+    ) : interpolate(
+      previous.rightVentricularVolumeMl,
+      next.rightVentricularVolumeMl
+    ),
+    pressureMmHg: side === "left" ? interpolate(
+      previous.leftVentricularTransmuralPressureMmHg,
+      next.leftVentricularTransmuralPressureMmHg
+    ) : interpolate(
+      previous.rightVentricularTransmuralPressureMmHg,
+      next.rightVentricularTransmuralPressureMmHg
+    ),
+    event: "semilunar-valve-closure"
+  });
+}
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID = "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v1";
+async function checkpointMainWireIntegratedModelStandardV1(context, state, beatAccumulator, completedBeatMetrics) {
+  const beatAccumulatorCheckpoint = beatAccumulator.checkpoint();
+  const capturedCompletedBeatMetrics = completedBeatMetrics;
+  const numericalCheckpoint = await checkpointMainWireIntegratedModelV3(
+    context,
+    state
+  );
+  const payload = Object.freeze({
+    checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
+    schemaVersion: 1,
+    revision: state.revision,
+    acceptedTimeSec: state.acceptedTimeSec,
+    numericalCheckpoint,
+    beatAccumulator: beatAccumulatorCheckpoint,
+    completedBeatMetrics: capturedCompletedBeatMetrics
+  });
+  return Object.freeze({
+    ...payload,
+    checkpointSha256: await sha256CanonicalJsonHex(payload)
+  });
+}
+async function restoreMainWireIntegratedModelStandardV1(context, input) {
+  assertStandardCheckpointEnvelopeV1(input);
+  const checkpoint = input;
+  const { checkpointSha256, ...payload } = checkpoint;
+  if (await sha256CanonicalJsonHex(payload) !== checkpointSha256) {
+    throw new Error("integrated Standard checkpoint SHA-256 mismatch");
+  }
+  if (checkpoint.numericalCheckpoint.revision !== checkpoint.revision || checkpoint.numericalCheckpoint.acceptedTimeSec !== checkpoint.acceptedTimeSec) {
+    throw new Error("integrated Standard checkpoint owner clocks differ");
+  }
+  const acceptedState2 = await restoreMainWireIntegratedModelV3(
+    context,
+    checkpoint.numericalCheckpoint
+  );
+  const beatAccumulator = MainWireIntegratedModelBeatAccumulatorV3.restore(
+    checkpoint.beatAccumulator
+  );
+  const completedBeatMetrics = checkpoint.completedBeatMetrics === null ? null : validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3(
+    checkpoint.completedBeatMetrics
+  );
+  return Object.freeze({
+    acceptedState: acceptedState2,
+    beatAccumulator,
+    completedBeatMetrics
+  });
+}
+function assertStandardCheckpointEnvelopeV1(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("integrated Standard checkpoint must be a plain object");
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error("integrated Standard checkpoint must be a plain object");
+  }
+  const keys = Reflect.ownKeys(input);
+  const expected = [
+    "checkpointId",
+    "schemaVersion",
+    "revision",
+    "acceptedTimeSec",
+    "numericalCheckpoint",
+    "beatAccumulator",
+    "completedBeatMetrics",
+    "checkpointSha256"
+  ].sort();
+  if (keys.some((key) => typeof key !== "string") || keys.length !== expected.length || keys.sort().some((key, index) => key !== expected[index])) {
+    throw new Error("integrated Standard checkpoint has unexpected fields");
+  }
+  const checkpoint = input;
+  if (checkpoint.checkpointId !== MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID || checkpoint.schemaVersion !== 1) {
+    throw new Error("unsupported integrated Standard checkpoint schema");
+  }
+  if (typeof checkpoint.revision !== "number" || !Number.isSafeInteger(checkpoint.revision) || checkpoint.revision < 0 || typeof checkpoint.acceptedTimeSec !== "number" || !Number.isFinite(checkpoint.acceptedTimeSec) || checkpoint.acceptedTimeSec < 0) {
+    throw new Error("integrated Standard checkpoint clock is invalid");
+  }
+  if (typeof checkpoint.checkpointSha256 !== "string" || !/^[0-9a-f]{64}$/.test(checkpoint.checkpointSha256)) {
+    throw new Error("integrated Standard checkpoint SHA-256 is invalid");
+  }
+}
 const MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID = "main-wire-integrated-v3-guyton-starling-structural-orientation-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID = "main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3 = "hypovolemic";
@@ -30078,291 +30900,6 @@ function forkVenousReservoirVolumesV3(sourceVolumesMl, runtime, targetDeltaMl) {
     VC: changed.VC
   });
 }
-const MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID = "main-wire-integrated-model-accepted-step-beat-metrics-v1";
-class MainWireIntegratedModelBeatAccumulatorV3 {
-  #active = null;
-  accept(step) {
-    const sample = sampleFromStepV3(step);
-    if (this.#active !== null) integrateSampleV3(this.#active, sample);
-    const capture = step.composedRhythmCandidate.capturedAtrialActivation;
-    if (capture === null) return null;
-    const completed = this.#active === null ? null : completeBeatV3(this.#active, capture.capturedActivationId, sample.timeSec);
-    this.#active = beginBeatV3(capture.capturedActivationId, sample);
-    return completed;
-  }
-}
-function sampleFromStepV3(step) {
-  const circulation = step.coronaryStep.baseStep.circulationTrial;
-  const coronary = step.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics;
-  const sample = Object.freeze({
-    timeSec: step.acceptedState.acceptedTimeSec,
-    aorticPressureMmHg: circulation.nodeAbsolutePressuresMmHg.Ao,
-    pulmonaryArterialPressureMmHg: circulation.nodeAbsolutePressuresMmHg.PA,
-    leftAtrialPressureMmHg: circulation.nodeAbsolutePressuresMmHg.LA,
-    rightAtrialPressureMmHg: circulation.nodeAbsolutePressuresMmHg.RA,
-    leftVentricularVolumeMl: step.acceptedState.coronary.circulation.nodeVolumesMl.LV,
-    rightVentricularVolumeMl: step.acceptedState.coronary.circulation.nodeVolumesMl.RV,
-    leftVentricularTransmuralPressureMmHg: step.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg.LV,
-    rightVentricularTransmuralPressureMmHg: step.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg.RV,
-    aorticValveFlowMlPerSec: circulation.valveEvaluations.AoV.flowMlPerSec,
-    pulmonaryValveFlowMlPerSec: circulation.valveEvaluations.PV.flowMlPerSec,
-    systemicVenousReturnMlPerSec: circulation.edgeFlowsMlPerSec.VC_RA + coronary.commonCoronaryVenousOutletFlowMlPerSec,
-    pulmonaryVenousReturnMlPerSec: circulation.edgeFlowsMlPerSec.PVein_LA,
-    systemicTissueFlowMlPerSec: circulation.edgeFlowsMlPerSec.SA_Art,
-    pulmonaryFlowMlPerSec: circulation.edgeFlowsMlPerSec.PA_PArt
-  });
-  for (const [name, value] of Object.entries(sample)) {
-    if (!Number.isFinite(value)) {
-      throw new Error(`integrated V3 beat sample ${name} is not finite`);
-    }
-  }
-  return sample;
-}
-function beginBeatV3(startAtrialCaptureId, sample) {
-  const leftLandmark = pressureVolumeLandmarkFromSampleV3(
-    sample,
-    "left",
-    "maximum-volume"
-  );
-  const rightLandmark = pressureVolumeLandmarkFromSampleV3(
-    sample,
-    "right",
-    "maximum-volume"
-  );
-  return {
-    startAtrialCaptureId,
-    startTimeSec: sample.timeSec,
-    previous: sample,
-    aorticPressureIntegralMmHgSec: 0,
-    pulmonaryArterialPressureIntegralMmHgSec: 0,
-    leftAtrialPressureIntegralMmHgSec: 0,
-    rightAtrialPressureIntegralMmHgSec: 0,
-    forwardAorticVolumeMl: 0,
-    forwardPulmonaryValveVolumeMl: 0,
-    systemicVenousReturnVolumeMl: 0,
-    pulmonaryVenousReturnVolumeMl: 0,
-    systemicTissueVolumeMl: 0,
-    pulmonaryVolumeMl: 0,
-    maximumAorticPressureMmHg: sample.aorticPressureMmHg,
-    minimumAorticPressureMmHg: sample.aorticPressureMmHg,
-    maximumLeftVentricularVolumeMl: sample.leftVentricularVolumeMl,
-    minimumLeftVentricularVolumeMl: sample.leftVentricularVolumeMl,
-    maximumLeftVentricularLandmark: leftLandmark,
-    minimumLeftVentricularLandmark: Object.freeze({
-      ...leftLandmark,
-      event: "minimum-volume-fallback"
-    }),
-    maximumRightVentricularLandmark: rightLandmark,
-    minimumRightVentricularLandmark: Object.freeze({
-      ...rightLandmark,
-      event: "minimum-volume-fallback"
-    }),
-    leftSemilunarClosureLandmark: null,
-    rightSemilunarClosureLandmark: null
-  };
-}
-function integrateSampleV3(active, next) {
-  const previous = active.previous;
-  const dtSec = next.timeSec - previous.timeSec;
-  if (!Number.isFinite(dtSec) || dtSec <= 0) {
-    throw new Error("integrated V3 beat sample clock did not advance");
-  }
-  active.aorticPressureIntegralMmHgSec += trapezoidV3(
-    previous.aorticPressureMmHg,
-    next.aorticPressureMmHg,
-    dtSec
-  );
-  active.pulmonaryArterialPressureIntegralMmHgSec += trapezoidV3(
-    previous.pulmonaryArterialPressureMmHg,
-    next.pulmonaryArterialPressureMmHg,
-    dtSec
-  );
-  active.leftAtrialPressureIntegralMmHgSec += trapezoidV3(
-    previous.leftAtrialPressureMmHg,
-    next.leftAtrialPressureMmHg,
-    dtSec
-  );
-  active.rightAtrialPressureIntegralMmHgSec += trapezoidV3(
-    previous.rightAtrialPressureMmHg,
-    next.rightAtrialPressureMmHg,
-    dtSec
-  );
-  active.forwardAorticVolumeMl += trapezoidV3(
-    Math.max(0, previous.aorticValveFlowMlPerSec),
-    Math.max(0, next.aorticValveFlowMlPerSec),
-    dtSec
-  );
-  active.forwardPulmonaryValveVolumeMl += trapezoidV3(
-    Math.max(0, previous.pulmonaryValveFlowMlPerSec),
-    Math.max(0, next.pulmonaryValveFlowMlPerSec),
-    dtSec
-  );
-  active.systemicVenousReturnVolumeMl += trapezoidV3(
-    previous.systemicVenousReturnMlPerSec,
-    next.systemicVenousReturnMlPerSec,
-    dtSec
-  );
-  active.pulmonaryVenousReturnVolumeMl += trapezoidV3(
-    previous.pulmonaryVenousReturnMlPerSec,
-    next.pulmonaryVenousReturnMlPerSec,
-    dtSec
-  );
-  active.systemicTissueVolumeMl += trapezoidV3(
-    previous.systemicTissueFlowMlPerSec,
-    next.systemicTissueFlowMlPerSec,
-    dtSec
-  );
-  active.pulmonaryVolumeMl += trapezoidV3(
-    previous.pulmonaryFlowMlPerSec,
-    next.pulmonaryFlowMlPerSec,
-    dtSec
-  );
-  active.maximumAorticPressureMmHg = Math.max(
-    active.maximumAorticPressureMmHg,
-    next.aorticPressureMmHg
-  );
-  active.minimumAorticPressureMmHg = Math.min(
-    active.minimumAorticPressureMmHg,
-    next.aorticPressureMmHg
-  );
-  active.maximumLeftVentricularVolumeMl = Math.max(
-    active.maximumLeftVentricularVolumeMl,
-    next.leftVentricularVolumeMl
-  );
-  active.minimumLeftVentricularVolumeMl = Math.min(
-    active.minimumLeftVentricularVolumeMl,
-    next.leftVentricularVolumeMl
-  );
-  if (next.leftVentricularVolumeMl > active.maximumLeftVentricularLandmark.volumeMl) {
-    active.maximumLeftVentricularLandmark = pressureVolumeLandmarkFromSampleV3(
-      next,
-      "left",
-      "maximum-volume"
-    );
-  }
-  if (next.leftVentricularVolumeMl < active.minimumLeftVentricularLandmark.volumeMl) {
-    active.minimumLeftVentricularLandmark = pressureVolumeLandmarkFromSampleV3(
-      next,
-      "left",
-      "minimum-volume-fallback"
-    );
-  }
-  if (next.rightVentricularVolumeMl > active.maximumRightVentricularLandmark.volumeMl) {
-    active.maximumRightVentricularLandmark = pressureVolumeLandmarkFromSampleV3(
-      next,
-      "right",
-      "maximum-volume"
-    );
-  }
-  if (next.rightVentricularVolumeMl < active.minimumRightVentricularLandmark.volumeMl) {
-    active.minimumRightVentricularLandmark = pressureVolumeLandmarkFromSampleV3(
-      next,
-      "right",
-      "minimum-volume-fallback"
-    );
-  }
-  if (previous.aorticValveFlowMlPerSec > 1e-6 && next.aorticValveFlowMlPerSec <= 1e-6) {
-    active.leftSemilunarClosureLandmark = interpolateValveClosureV3(
-      previous,
-      next,
-      "left",
-      previous.aorticValveFlowMlPerSec,
-      next.aorticValveFlowMlPerSec
-    );
-  }
-  if (previous.pulmonaryValveFlowMlPerSec > 1e-6 && next.pulmonaryValveFlowMlPerSec <= 1e-6) {
-    active.rightSemilunarClosureLandmark = interpolateValveClosureV3(
-      previous,
-      next,
-      "right",
-      previous.pulmonaryValveFlowMlPerSec,
-      next.pulmonaryValveFlowMlPerSec
-    );
-  }
-  active.previous = next;
-}
-function completeBeatV3(active, endAtrialCaptureId, endTimeSec) {
-  const durationSec = endTimeSec - active.startTimeSec;
-  if (!Number.isFinite(durationSec) || durationSec <= 0) {
-    throw new Error("integrated V3 completed beat duration is invalid");
-  }
-  const strokeVolumeMl = active.maximumLeftVentricularVolumeMl - active.minimumLeftVentricularVolumeMl;
-  const ejectionFraction01 = strokeVolumeMl / active.maximumLeftVentricularVolumeMl;
-  const meanFlowToLPerMin = (volumeMl) => volumeMl / durationSec * 60 / 1e3;
-  const completed = Object.freeze({
-    metricsId: MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID,
-    startAtrialCaptureId: active.startAtrialCaptureId,
-    endAtrialCaptureId,
-    startTimeSec: active.startTimeSec,
-    endTimeSec,
-    durationSec,
-    meanAorticPressureMmHg: active.aorticPressureIntegralMmHgSec / durationSec,
-    systolicAorticPressureMmHg: active.maximumAorticPressureMmHg,
-    diastolicAorticPressureMmHg: active.minimumAorticPressureMmHg,
-    pulseAorticPressureMmHg: active.maximumAorticPressureMmHg - active.minimumAorticPressureMmHg,
-    meanPulmonaryArterialPressureMmHg: active.pulmonaryArterialPressureIntegralMmHgSec / durationSec,
-    meanLeftAtrialPressureMmHg: active.leftAtrialPressureIntegralMmHgSec / durationSec,
-    meanRightAtrialPressureMmHg: active.rightAtrialPressureIntegralMmHgSec / durationSec,
-    maximumLeftVentricularVolumeMl: active.maximumLeftVentricularVolumeMl,
-    minimumLeftVentricularVolumeMl: active.minimumLeftVentricularVolumeMl,
-    leftVentricularPressureVolumeLandmarks: Object.freeze({
-      pressureBasis: "transmural",
-      endDiastolic: active.maximumLeftVentricularLandmark,
-      endSystolic: active.leftSemilunarClosureLandmark ?? active.minimumLeftVentricularLandmark
-    }),
-    rightVentricularPressureVolumeLandmarks: Object.freeze({
-      pressureBasis: "transmural",
-      endDiastolic: active.maximumRightVentricularLandmark,
-      endSystolic: active.rightSemilunarClosureLandmark ?? active.minimumRightVentricularLandmark
-    }),
-    extremaLeftVentricularStrokeVolumeMl: strokeVolumeMl,
-    extremaLeftVentricularEjectionFraction01: ejectionFraction01,
-    nativeLeftCardiacOutputLPerMin: meanFlowToLPerMin(active.forwardAorticVolumeMl),
-    nativeRightCardiacOutputLPerMin: meanFlowToLPerMin(active.forwardPulmonaryValveVolumeMl),
-    systemicVenousReturnLPerMin: meanFlowToLPerMin(active.systemicVenousReturnVolumeMl),
-    pulmonaryVenousReturnLPerMin: meanFlowToLPerMin(active.pulmonaryVenousReturnVolumeMl),
-    systemicTissueOutputLPerMin: meanFlowToLPerMin(active.systemicTissueVolumeMl),
-    pulmonaryOutputLPerMin: meanFlowToLPerMin(active.pulmonaryVolumeMl)
-  });
-  for (const [name, value] of Object.entries(completed)) {
-    if (typeof value === "number" && !Number.isFinite(value)) {
-      throw new Error(`integrated V3 completed beat metric ${name} is not finite`);
-    }
-  }
-  return completed;
-}
-function trapezoidV3(left, right, dtSec) {
-  return 0.5 * (left + right) * dtSec;
-}
-function pressureVolumeLandmarkFromSampleV3(sample, side, event) {
-  return Object.freeze({
-    volumeMl: side === "left" ? sample.leftVentricularVolumeMl : sample.rightVentricularVolumeMl,
-    pressureMmHg: side === "left" ? sample.leftVentricularTransmuralPressureMmHg : sample.rightVentricularTransmuralPressureMmHg,
-    event
-  });
-}
-function interpolateValveClosureV3(previous, next, side, previousFlowMlPerSec, nextFlowMlPerSec) {
-  const denominator = previousFlowMlPerSec - nextFlowMlPerSec;
-  const ratio = denominator > 1e-12 ? Math.max(0, Math.min(1, previousFlowMlPerSec / denominator)) : 1;
-  const interpolate = (left, right) => left + ratio * (right - left);
-  return Object.freeze({
-    volumeMl: side === "left" ? interpolate(
-      previous.leftVentricularVolumeMl,
-      next.leftVentricularVolumeMl
-    ) : interpolate(
-      previous.rightVentricularVolumeMl,
-      next.rightVentricularVolumeMl
-    ),
-    pressureMmHg: side === "left" ? interpolate(
-      previous.leftVentricularTransmuralPressureMmHg,
-      next.leftVentricularTransmuralPressureMmHg
-    ) : interpolate(
-      previous.rightVentricularTransmuralPressureMmHg,
-      next.rightVentricularTransmuralPressureMmHg
-    ),
-    event: "semilunar-valve-closure"
-  });
-}
 function warmStartMainWireIntegratedModelV3(input) {
   const { source, sourceRuntime, targetRuntime } = input;
   validateMainWireIntegratedModelAcceptedStateV3(
@@ -30447,9 +30984,8 @@ function mainWireIntegratedModelPresentationTargetTimeSecV3(presentationOrdinal)
   return presentationOrdinal * MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3;
 }
 class MainWireIntegratedModelSessionV3 {
-  constructor(runtime, acceptedState2, observationSource) {
+  constructor(runtime, acceptedState2, observationSource, exactBeatState) {
     this.sessionId = MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID;
-    this.beatAccumulator = new MainWireIntegratedModelBeatAccumulatorV3();
     this.completedBeatMetrics = null;
     validateMainWireIntegratedModelAcceptedStateV3(
       acceptedState2,
@@ -30467,12 +31003,14 @@ class MainWireIntegratedModelSessionV3 {
     this.dynamicMechanicalSupportConfig = runtime.config;
     this.acceptedState = acceptedState2;
     this.lastAcceptedStep = null;
+    this.beatAccumulator = exactBeatState?.beatAccumulator ?? new MainWireIntegratedModelBeatAccumulatorV3();
+    this.completedBeatMetrics = exactBeatState?.completedBeatMetrics ?? null;
     this.lastPresentationObservation = observation(
       observationSource,
       acceptedState2,
       null,
       runtime,
-      null
+      this.completedBeatMetrics
     );
   }
   static async create(hemodynamicResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1) {
@@ -30502,6 +31040,29 @@ class MainWireIntegratedModelSessionV3 {
       runtime,
       acceptedState2,
       "operational-checkpoint-restore"
+    );
+  }
+  /**
+   * Restores the Standard exact checkpoint, including the accepted-substep
+   * beat accumulator and last completed beat exposed by the exact output ABI.
+   */
+  static async restoreStandardExactCheckpoint(checkpoint, hemodynamicResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1) {
+    const runtime = await createMainWireIntegratedModelRuntimeV3(
+      hemodynamicResearchInputs,
+      ventricularContractilityScale
+    );
+    const restored = await restoreMainWireIntegratedModelStandardV1(
+      mainWireIntegratedModelCheckpointContextV3(
+        runtime,
+        runtime.cold.acceptedState
+      ),
+      checkpoint
+    );
+    return new MainWireIntegratedModelSessionV3(
+      runtime,
+      restored.acceptedState,
+      "standard-exact-checkpoint-restore",
+      restored
     );
   }
   currentAcceptedState() {
@@ -30565,6 +31126,18 @@ class MainWireIntegratedModelSessionV3 {
     return checkpointMainWireIntegratedModelV3(
       this.checkpointContext(),
       this.acceptedState
+    );
+  }
+  /**
+   * Captures every state element that affects the Standard exact output ABI.
+   * The legacy operational checkpoint intentionally remains unchanged.
+   */
+  async checkpointStandardExact() {
+    return checkpointMainWireIntegratedModelStandardV1(
+      this.checkpointContext(),
+      this.acceptedState,
+      this.beatAccumulator,
+      this.completedBeatMetrics
     );
   }
   /**
@@ -32972,10 +33545,10 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-3";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-4";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v1";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1 = "hot-path-lean";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1 = Object.freeze({
   systemicResistance: "hemodynamics.systemic-resistance",
@@ -33051,7 +33624,7 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
       const modelSession = checkpoint === void 0 ? await MainWireIntegratedModelSessionV3.create(
         fixture.hemodynamicResearchInputs,
         fixture.ventricularContractilityScale
-      ) : await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
+      ) : await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
         checkpoint.payload,
         fixture.hemodynamicResearchInputs,
         fixture.ventricularContractilityScale
@@ -33214,7 +33787,7 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
       return Object.freeze({ desired, correlation, current });
     });
     const payloads = await Promise.all(
-      candidates.map(({ current }) => current.modelSession.checkpointOperational())
+      candidates.map(({ current }) => current.modelSession.checkpointStandardExact())
     );
     const scenarios = candidates.map(({ desired, correlation, current }, index) => {
       if (current.inputEpoch !== correlation.expectedInputEpoch) {
@@ -33339,8 +33912,8 @@ function createMainWireIntegratedStudioExactKernelV1() {
     checkpointCodec: Object.freeze({
       checkpointCodecId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1,
       definition: Object.freeze({
-        checkpointId: MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
-        schemaVersion: 5,
+        checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
+        schemaVersion: 1,
         fixturePairing: "regular-sinus-all-off-and-complete-standard-fixture-identity",
         restoreSemantics: "exact-no-migration-no-clock-rebase"
       })
@@ -33401,7 +33974,7 @@ function standardExecutableBundleV1(host) {
       assertStandardModelV1(input.model);
       const fixture = validateAndOwnStandardFixtureV1(input.capture.fixture);
       const checkpoint = validateScenarioCheckpointV1(input.capture.checkpoint);
-      const restored = await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
+      const restored = await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
         checkpoint.payload,
         fixture.hemodynamicResearchInputs,
         fixture.ventricularContractilityScale
@@ -33410,7 +33983,7 @@ function standardExecutableBundleV1(host) {
       if (accepted.revision !== checkpoint.acceptedRevision || accepted.acceptedTimeSec !== checkpoint.acceptedTimeSec) {
         throw new Error("Standard exact checkpoint restore clock mismatch");
       }
-      const roundTrip = await restored.checkpointOperational();
+      const roundTrip = await restored.checkpointStandardExact();
       if (studioCanonicalJsonStringify(roundTrip) !== studioCanonicalJsonStringify(checkpoint.payload)) {
         throw new Error("Standard exact checkpoint restore is not canonical");
       }

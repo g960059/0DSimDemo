@@ -170,7 +170,12 @@ async function createRegistryClientCompositionV2(
       // silently substituting the legacy bundled default.
       return loadStudioLocalStandardModelLabClientCompositionV1();
     }
-    return createStudioDefaultClientCompositionV2();
+    if (modelId === DEFAULT_STUDIO_MODEL_ID_V2 && surfacePin === undefined) {
+      return createStudioDefaultClientCompositionV2();
+    }
+    throw new Error(
+      "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
+    );
   }
   const release = modelId === undefined
     ? await resolver.resolveActiveBundle()
@@ -346,7 +351,7 @@ export function loadStudioModelClientCompositionV2(
 ): Promise<StudioClientCompositionV2> {
   if (modelId === DEFAULT_STUDIO_MODEL_ID_V2) {
     const resolver = studioSupabaseModelReleaseResolverV1();
-    if (resolver === null) return loadStudioDefaultClientCompositionV2();
+    if (resolver === null) return createStudioDefaultClientCompositionV2();
   }
   const cached = browserExactCompositionPromisesV2.get(modelId);
   if (cached !== undefined) return cached;

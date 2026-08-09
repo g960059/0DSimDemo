@@ -63,6 +63,11 @@ It cannot contain graph catalogs, Studio-derived metrics, Knobs, protocols,
 labels, colors, Snapshot policy, Article behavior, or product policy.
 Model-owned metrics are the narrow exception: their accumulation and meaning
 are executable numerical behavior and therefore belong to the exact contract.
+Once exposed there, their in-progress accepted-substep accumulator and latest
+completed beat are also exact checkpoint state. A Standard checkpoint restores
+both alongside the numerical accepted state so one pinned checkpoint has one
+future exact-output continuation; the historical operational checkpoint codec
+remains unchanged for its already released model.
 Exact-key validation rejects presentation and product fields.
 
 A changed state topology, result-affecting path, parameter meaning, primitive
