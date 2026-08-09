@@ -41,26 +41,9 @@ select throws_ok(
   'Unverified drop-in succession cannot be registered'
 );
 
-select throws_ok(
-  $$select public.set_model_release_channel_v1('default', 'model/lifecycle-test-v1')$$,
-  '22023',
-  'model release model/lifecycle-test-v1 at stage dev cannot serve channel default',
-  'Dev exact release cannot become default'
-);
-
-select lives_ok(
-  $$select public.set_model_release_channel_v1('research', 'model/lifecycle-test-v1')$$,
-  'Dev exact release may serve research'
-);
-
 select lives_ok(
   $$select public.set_model_release_stage_v1('model/lifecycle-test-v1', 'stable')$$,
   'Dev exact release can promote to stable'
-);
-
-select lives_ok(
-  $$select public.set_model_release_channel_v1('default', 'model/lifecycle-test-v1')$$,
-  'Stable exact release may become default'
 );
 
 select is(
@@ -70,15 +53,6 @@ select is(
   ),
   'stable',
   'Exact read exposes immutable release lifecycle without changing the ticket'
-);
-
-select is(
-  (
-    select stage
-    from public.get_model_release_channel_v3('default')
-  ),
-  'stable',
-  'Channel read exposes the resolved release stage'
 );
 
 select lives_ok(
@@ -152,22 +126,13 @@ select lives_ok(
 
 select throws_ok(
   $$
-    select public.set_model_surface_release_channel_v1(
-      'model/lifecycle-test', 'default', 'surface/lifecycle-test-v1'
+    select public.set_active_model_bundle_v1(
+      null, 'model/lifecycle-test-v1', 'surface/lifecycle-test-v1'
     )
   $$,
   '22023',
-  'model surface release surface/lifecycle-test-v1 at stage dev cannot serve channel default',
-  'Dev Surface cannot become default'
-);
-
-select lives_ok(
-  $$
-    select public.set_model_surface_release_channel_v1(
-      'model/lifecycle-test', 'research', 'surface/lifecycle-test-v1'
-    )
-  $$,
-  'Dev Surface may serve research'
+  'active Model Surface release surface/lifecycle-test-v1 must be stable, not dev',
+  'A dev Surface cannot become the active bundle'
 );
 
 select throws_ok(
@@ -273,14 +238,14 @@ select lives_ok(
 select lives_ok(
   $$
     select public.register_model_surface_release_v1(
-      'surface/lifecycle-test-v3',
+      'surface/lifecycle-test-final',
       'surface-series/lifecycle-test',
       'surface/lifecycle-test-v2',
       'model/lifecycle-test',
       'Lifecycle surface v3',
       '{
         "schemaId":"circleheart-studio-model-surface-release-v1",
-        "surfaceReleaseId":"surface/lifecycle-test-v3",
+        "surfaceReleaseId":"surface/lifecycle-test-final",
         "surfaceSeriesId":"surface-series/lifecycle-test",
         "predecessorSurfaceReleaseId":"surface/lifecycle-test-v2",
         "modelFamilyId":"model/lifecycle-test",
@@ -307,35 +272,34 @@ select lives_ok(
   'Registry accepts the next linear Surface successor'
 );
 
-select lives_ok(
-  $$
-    select public.set_model_surface_release_channel_v1(
-      'model/lifecycle-test', 'research', 'surface/lifecycle-test-v3'
-    )
-  $$,
-  'Channel may advance directly to a descendant Surface release'
-);
-
-select throws_ok(
-  $$
-    select public.set_model_surface_release_channel_v1(
-      'model/lifecycle-test', 'research', 'surface/lifecycle-test-v2'
-    )
-  $$,
-  '40001',
-  'model surface channel research current release surface/lifecycle-test-v3 is not an ancestor of surface/lifecycle-test-v2',
-  'Channel compare-and-swap rejects regression to an ancestor'
-);
+do $$
+begin
+  perform public.register_model_release_v2(
+    'model/lifecycle-dev-v1',
+    'model/lifecycle-test',
+    'Dev lifecycle model',
+    '{"modelId":"model/lifecycle-dev-v1"}'::jsonb,
+    'model-releases/model/lifecycle-dev-v1.mjs',
+    repeat('7', 64),
+    repeat('8', 64),
+    'lifecycle-test',
+    'circleheart-exact-model-esm-v1',
+    '{"schemaId":"fixture/lifecycle-v1"}'::jsonb,
+    'analysis/lifecycle-v1'
+  );
+end;
+$$;
 
 select is(
   (
     select surface_release_id
-    from public.get_model_surface_release_channel_v1(
-      'model/lifecycle-test', 'research'
+    from public.get_model_surface_series_latest_v1(
+      'surface-series/lifecycle-test',
+      'model/lifecycle-dev-v1'
     )
   ),
-  'surface/lifecycle-test-v3',
-  'Research channel resolves the CAS-admitted Surface tip'
+  'surface/lifecycle-test-final',
+  'A saved dev-model Experiment can reopen on its deepest dev Surface'
 );
 
 select lives_ok(
@@ -347,22 +311,143 @@ select lives_ok(
   'Surface promotes from dev to stable'
 );
 
-select lives_ok(
+select is(
+  (
+    select surface_release_id
+    from public.get_model_surface_series_latest_v1(
+      'surface-series/lifecycle-test',
+      'model/lifecycle-test-v1'
+    )
+  ),
+  'surface/lifecycle-test-v1',
+  'A mutable Experiment ignores newer dev Surface successors'
+);
+
+do $$
+begin
+  perform public.register_model_release_v1(
+    'model/lifecycle-incomplete-v1',
+    'model/lifecycle-test',
+    'Incomplete lifecycle model',
+    '{"modelId":"model/lifecycle-incomplete-v1"}'::jsonb,
+    'model-releases/model/lifecycle-incomplete-v1.mjs',
+    repeat('3', 64),
+    repeat('4', 64),
+    'lifecycle-test'
+  );
+  perform public.set_model_release_stage_v1(
+    'model/lifecycle-incomplete-v1', 'stable'
+  );
+end;
+$$;
+
+select throws_ok(
   $$
-    select public.set_model_surface_release_channel_v1(
-      'model/lifecycle-test', 'default', 'surface/lifecycle-test-v1'
+    select public.set_active_model_bundle_v1(
+      null,
+      'model/lifecycle-incomplete-v1',
+      'surface/lifecycle-test-v1'
     )
   $$,
-  'Stable Surface may become default'
+  '23503',
+  'active model release model/lifecycle-incomplete-v1 is not registered and loadable',
+  'An exact release without launch-module metadata cannot become active'
+);
+
+do $$
+begin
+  perform public.register_model_release_v2(
+    'model/lifecycle-legacy-v1',
+    'model/lifecycle-test',
+    'Legacy lifecycle model',
+    '{"modelId":"model/lifecycle-legacy-v1"}'::jsonb,
+    'model-releases/model/lifecycle-legacy-v1.mjs',
+    repeat('5', 64),
+    repeat('6', 64),
+    'lifecycle-test',
+    'legacy-main-wire-v3-development-36',
+    '{"schemaId":"fixture/lifecycle-v1"}'::jsonb,
+    'analysis/lifecycle-v1'
+  );
+  perform public.set_model_release_stage_v1(
+    'model/lifecycle-legacy-v1', 'stable'
+  );
+end;
+$$;
+
+select throws_ok(
+  $$
+    select public.set_active_model_bundle_v1(
+      null,
+      'model/lifecycle-legacy-v1',
+      'surface/lifecycle-test-v1'
+    )
+  $$,
+  '22023',
+  'active model release model/lifecycle-legacy-v1 must use the Standard module ABI, not legacy-main-wire-v3-development-36',
+  'An active model/Surface bundle requires the Standard module ABI'
+);
+
+select lives_ok(
+  $$
+    select public.set_active_model_bundle_v1(
+      null, 'model/lifecycle-test-v1', 'surface/lifecycle-test-v1'
+    )
+  $$,
+  'The first stable exact-model and Surface pair becomes active atomically'
+);
+
+select is(
+  (select bundle_version from public.get_active_model_bundle_v1()),
+  0::bigint,
+  'The first active bundle starts at version zero'
+);
+
+select is(
+  (select model_id from public.get_active_model_bundle_v1()),
+  'model/lifecycle-test-v1',
+  'Active bundle resolves the exact model in one read'
+);
+
+select throws_ok(
+  $$
+    select public.set_active_model_bundle_v1(
+      7, 'model/lifecycle-test-v1', 'surface/lifecycle-test-v1'
+    )
+  $$,
+  '40001',
+  'active model bundle version conflict',
+  'Active bundle update rejects a stale expected version'
+);
+
+select lives_ok(
+  $$
+    select public.set_active_model_bundle_v1(
+      0, 'model/lifecycle-test-v1', 'surface/lifecycle-test-v1'
+    )
+  $$,
+  'An idempotent active-bundle retry keeps the same version'
 );
 
 select lives_ok(
   $$
     select public.set_model_surface_release_stage_v1(
-      'surface/lifecycle-test-v3', 'stable'
+      'surface/lifecycle-test-final', 'stable'
     )
   $$,
   'A later additive Surface may promote independently'
+);
+
+select is(
+  (
+    select surface_release_id
+    from public.get_model_surface_series_latest_v1(
+      'surface-series/lifecycle-test',
+      'model/lifecycle-test-v1'
+    )
+  ),
+  'surface/lifecycle-test-final',
+  'A mutable Experiment follows the deepest stable additive Surface even when its ID sorts earlier'
 );
 
 select is(
@@ -374,44 +459,35 @@ select is(
 
 select lives_ok(
   $$
-    select public.set_model_surface_release_channel_v1(
-      'model/lifecycle-test', 'default', 'surface/lifecycle-test-v3'
+    select public.set_active_model_bundle_v1(
+      0, 'model/lifecycle-test-v1', 'surface/lifecycle-test-final'
     )
   $$,
-  'Default may advance to a stable descendant across a dev intermediate'
+  'Active bundle may move atomically to a later stable Surface'
 );
 
 select is(
-  (
-    select surface_release_id
-    from public.get_model_surface_release_channel_v1(
-      'model/lifecycle-test', 'default'
-    )
-  ),
-  'surface/lifecycle-test-v3',
-  'Surface channel resolves the admitted descendant release'
-);
-
-select lives_ok(
-  $$select public.set_model_release_stage_v1('model/lifecycle-test-v1', 'retired')$$,
-  'Stable exact release can retire'
-);
-
-select is(
-  (
-    select count(*)::integer
-    from studio.model_release_channels
-    where model_id = 'model/lifecycle-test-v1'
-  ),
-  0,
-  'Retirement removes mutable channel pointers'
+  (select surface_release_id from public.get_active_model_bundle_v1()),
+  'surface/lifecycle-test-final',
+  'Active bundle read resolves the updated Surface'
 );
 
 select throws_ok(
-  $$select public.set_model_release_stage_v1('model/lifecycle-test-v1', 'stable')$$,
-  '22023',
-  'model release model/lifecycle-test-v1 cannot move from retired to stable',
-  'Retired release cannot return to stable'
+  $$select public.set_model_release_stage_v1('model/lifecycle-test-v1', 'retired')$$,
+  '55000',
+  'active model release must be replaced before retirement',
+  'The active exact model cannot retire before an atomic replacement'
+);
+
+select throws_ok(
+  $$
+    select public.set_model_surface_release_stage_v1(
+      'surface/lifecycle-test-final', 'retired'
+    )
+  $$,
+  '55000',
+  'active Model Surface release must be replaced before retirement',
+  'The active Surface cannot retire before an atomic replacement'
 );
 
 select * from finish();

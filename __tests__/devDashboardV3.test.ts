@@ -9,15 +9,26 @@ import {
 } from "@/studio/application/dev/StudioDevAccessV1";
 
 describe("development dashboard V3", () => {
-  it("deduplicates one exact model across channels and content references", () => {
+  it("deduplicates one exact model across launch and content references", () => {
     const candidates: readonly DevModelCandidateV3[] = [
-      candidate("model/standard", "Main Wire V3", "stable", "default"),
+      candidate("model/standard", "Main Wire V3", "stable", "active"),
       candidate("model/standard", "Main Wire V3", "stable", "model-lab"),
       candidate("model/standard", "Main Wire V3", "stable", "referenced"),
-      candidate("model/research", "Research V3", "dev", "research"),
+      candidate("model/local", "Local V3", "dev", "model-lab"),
     ];
 
     expect(mergeDevModelCandidatesV3(candidates)).toEqual([
+      {
+        modelId: "model/local",
+        displayName: "Local V3",
+        resolutions: [{
+          source: "model-lab",
+          stage: "dev",
+          surfaceReleaseId: "surface/local",
+          available: true,
+        }],
+        available: true,
+      },
       {
         modelId: "model/standard",
         displayName: "Main Wire V3",
@@ -25,11 +36,11 @@ describe("development dashboard V3", () => {
           {
             source: "model-lab",
             stage: "stable",
-            surfaceReleaseId: "surface/default",
+            surfaceReleaseId: "surface/local",
             available: true,
           },
           {
-            source: "default",
+            source: "active",
             stage: "stable",
             surfaceReleaseId: "surface/default",
             available: true,
@@ -41,17 +52,6 @@ describe("development dashboard V3", () => {
             available: true,
           },
         ],
-        available: true,
-      },
-      {
-        modelId: "model/research",
-        displayName: "Research V3",
-        resolutions: [{
-          source: "research",
-          stage: "dev",
-          surfaceReleaseId: "surface/research",
-          available: true,
-        }],
         available: true,
       },
     ]);
@@ -80,22 +80,22 @@ describe("development dashboard V3", () => {
 
   it("preserves source-specific Surface resolutions for one exact model", () => {
     expect(mergeDevModelCandidatesV3([
-      candidate("model/shared", "Shared", "stable", "default"),
-      candidate("model/shared", "Shared", "dev", "research"),
+      candidate("model/shared", "Shared", "stable", "active"),
+      candidate("model/shared", "Shared", "dev", "model-lab"),
     ])).toEqual([{
       modelId: "model/shared",
       displayName: "Shared",
       resolutions: [
         {
-          source: "default",
-          stage: "stable",
-          surfaceReleaseId: "surface/default",
+          source: "model-lab",
+          stage: "dev",
+          surfaceReleaseId: "surface/local",
           available: true,
         },
         {
-          source: "research",
-          stage: "dev",
-          surfaceReleaseId: "surface/research",
+          source: "active",
+          stage: "stable",
+          surfaceReleaseId: "surface/default",
           available: true,
         },
       ],
@@ -123,8 +123,8 @@ function candidate(
     modelId,
     displayName,
     stage,
-    surfaceReleaseId: source === "research"
-      ? "surface/research"
+    surfaceReleaseId: source === "model-lab"
+      ? "surface/local"
       : "surface/default",
     source,
     available: true,

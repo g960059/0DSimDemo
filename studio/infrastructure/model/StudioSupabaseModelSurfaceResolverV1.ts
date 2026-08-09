@@ -4,12 +4,10 @@ import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import type {
   MaterializedModelSurfaceV1,
   ModelSurfaceReleaseManifestV1,
-  StudioReleaseChannelV1,
   StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
   assertModelSurfaceReleaseManifestV1,
-  assertStudioReleaseChannelV1,
   assertStudioReleaseStageV1,
   materializeModelSurfaceForModelV1,
 } from "@/studio/contracts/v2/modelSurface";
@@ -38,7 +36,6 @@ export interface StudioModelSurfaceRpcPortV1 {
   call(
     functionName:
       | "get_model_surface_release_v1"
-      | "get_model_surface_release_channel_v1"
       | "get_model_surface_series_latest_v1",
     parameters: Readonly<Record<string, string>>,
   ): Promise<StudioModelSurfaceRpcResultV1>;
@@ -104,44 +101,13 @@ export class StudioSupabaseModelSurfaceResolverV1 {
   resolveLatestSeriesManifest(
     surfaceSeriesId: string,
     modelFamilyId: string,
+    modelId: string,
   ): Promise<StudioResolvedModelSurfaceManifestV1> {
     return this.#readManifestOne(
       "get_model_surface_series_latest_v1",
-      Object.freeze({ p_surface_series_id: surfaceSeriesId }),
-      modelFamilyId,
-    );
-  }
-
-  resolveChannel(
-    channel: StudioReleaseChannelV1,
-    model: ModelContractV2,
-  ): Promise<StudioResolvedModelSurfaceV1> {
-    assertStudioReleaseChannelV1(channel);
-    return this.#readOne(
-      "get_model_surface_release_channel_v1",
       Object.freeze({
-        p_model_family_id: model.modelFamilyId,
-        p_channel: channel,
-      }),
-      model,
-    );
-  }
-
-  /**
-   * Standard exact-model composition needs the immutable Surface manifest
-   * before it has a renderer-facing ModelContract. This family-only read is
-   * immediately followed by `composeStandardModelContractV1` at the caller.
-   */
-  async resolveChannelManifest(
-    channel: StudioReleaseChannelV1,
-    modelFamilyId: string,
-  ): Promise<StudioResolvedModelSurfaceManifestV1> {
-    assertStudioReleaseChannelV1(channel);
-    return this.#readManifestOne(
-      "get_model_surface_release_channel_v1",
-      Object.freeze({
-        p_model_family_id: modelFamilyId,
-        p_channel: channel,
+        p_surface_series_id: surfaceSeriesId,
+        p_model_id: modelId,
       }),
       modelFamilyId,
     );
@@ -150,7 +116,6 @@ export class StudioSupabaseModelSurfaceResolverV1 {
   async #readManifestOne(
     functionName:
       | "get_model_surface_release_v1"
-      | "get_model_surface_release_channel_v1"
       | "get_model_surface_series_latest_v1",
     parameters: Readonly<Record<string, string>>,
     modelFamilyId: string,
@@ -194,7 +159,6 @@ export class StudioSupabaseModelSurfaceResolverV1 {
   async #readOne(
     functionName:
       | "get_model_surface_release_v1"
-      | "get_model_surface_release_channel_v1"
       | "get_model_surface_series_latest_v1",
     parameters: Readonly<Record<string, string>>,
     model: ModelContractV2,

@@ -69,7 +69,7 @@ are deliberately not labelled EDV/ESV because they are not yet tied to named
 valve events.
 
 Registry admission performs the one-time exact manifest/artifact integrity
-check. New Sessions resolve the default channel once; existing Experiments and
+check. New Sessions resolve the active model/Surface bundle once; existing Experiments and
 Snapshots resolve their stored exact `modelId`. The trusted Worker loader then
 evaluates that release's self-contained module bytes and materializes the
 executable bundle from them; arbitrary bytes cannot be paired with

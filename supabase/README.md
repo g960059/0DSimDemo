@@ -66,10 +66,10 @@ passwords, secret keys, and CLI access tokens must never enter Vite variables.
 Creates the private exact-model registry:
 
 - immutable `studio.model_releases`;
-- mutable availability and default-channel pointers;
+- mutable release availability;
 - idempotent service-role registration;
 - same-`modelId`/different-contract rejection; and
-- a hash-free client channel lookup.
+- a hash-free exact-release client lookup.
 
 Artifact SHA-256 and registry fingerprint are registry/CI metadata. Studio
 domain objects and ordinary clients use only the exact `modelId`.
@@ -143,6 +143,26 @@ detail reads when a user opens or selects one item.
 Preserves PostgreSQL microsecond precision in summary continuation cursors so
 updates within one millisecond cannot be skipped between pages.
 
+### `20260809000100_active_model_bundle.sql`
+
+Removes the transitional generic model/Surface channel tables and RPCs, then
+adds one atomic singleton launch pointer:
+
+- one stable, loadable Standard-ABI exact `modelId` plus one stable compatible
+  `surfaceReleaseId`;
+- compare-and-swap replacement with a monotonic bundle version;
+- one public read returning both immutable manifests coherently; and
+- retirement guards requiring the active pair to be replaced first.
+
+Mutable content resolves a Surface by series lineage rather than timestamp.
+Stable/retired exact models see stable Surfaces only; dev exact models may
+reopen dev Surface successors without leaking those definitions into ordinary
+stable content.
+
+The older channel objects remain visible only in migration history so an
+already-linked pre-release project can upgrade deterministically; they do not
+exist in the resulting schema.
+
 ## Auth policy
 
 Supported product flows are:
@@ -211,10 +231,12 @@ Briefing are projected by the database from those blocks into
 Public reads use:
 
 ```text
-get_model_release_channel_v1
+get_active_model_bundle_v1
 get_model_release_v1
-get_model_release_channel_v2
 get_model_release_v2
+get_model_release_v3
+get_model_surface_release_v1
+get_model_surface_series_latest_v1
 read_public_experiment_v1
 read_public_article_v1
 read_experiment_snapshot_v1
@@ -279,18 +301,33 @@ Registry metadata is the sole authority for the default fixture. Analysis
 profile IDs are immutable; changed analysis semantics require another profile
 ID rather than rebinding an existing release.
 
-After the exact release files are committed, a maintainer with an authenticated
-Supabase CLI session publishes the artifact and registry row without exposing a
-secret to the browser or shell output:
+After the exact release and Surface files are committed, a maintainer with an
+authenticated Supabase CLI session publishes immutable registry rows without
+exposing a secret to the browser or shell output:
 
 ```bash
-npm run publish:registry:main-wire-v3 -- --project-ref <project-ref>
+npm run publish:registry:main-wire-v3 -- \
+  --project-ref <project-ref> --stage <dev|stable>
+
+npm run publish:registry:model-surface -- \
+  --project-ref <project-ref> --manifest <surface.json> \
+  --stage <dev|stable>
 ```
 
-After registration, a trusted release process may move a channel such as
-`development` or `stable` using `set_model_release_channel_v1`. Ordinary
-clients resolve the channel, then pin the returned exact `modelId` in every new
-ExperimentSession. Existing content never follows the channel.
+Registration never changes the ordinary launch target. After both rows are
+stable and compatible, a trusted operator replaces the singleton active bundle
+with an explicit compare-and-swap:
+
+```bash
+npm run activate:registry:model-bundle -- \
+  --project-ref <project-ref> --model-id <modelId> \
+  --surface-release-id <surfaceReleaseId> \
+  --expected-version <none|integer>
+```
+
+New Experiment Sessions resolve that exact model/Surface pair atomically and
+then pin it. Existing content keeps its stored exact model and Surface pins;
+it never follows later active-bundle replacements.
 
 ## Deferred work
 

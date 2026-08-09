@@ -22,7 +22,7 @@ import {
   classifyExperimentAvailabilityV3,
   createOpaqueExperimentIdV3,
   isOpaqueExperimentIdV3,
-  resolveExperimentAvailabilityByModelIdV3,
+  resolveExperimentAvailabilityV3,
 } from '@/studio/infrastructure/browser/StudioExperimentIdentityV3';
 
 describe('homeLinks', () => {
@@ -95,12 +95,12 @@ describe('homeLinks', () => {
       .toBe('experiment-opaque_token_123');
   });
 
-  it('never treats the current default as a fallback for another exact model', () => {
+  it('never treats the active model as a fallback for another exact model', () => {
     expect(classifyExperimentAvailabilityV3(
       'model/exact-a',
       'model/exact-a',
       true,
-    )).toBe('current-default');
+    )).toBe('active-model');
     expect(classifyExperimentAvailabilityV3(
       'model/exact-a',
       'model/exact-b',
@@ -116,25 +116,37 @@ describe('homeLinks', () => {
 
   it('distinguishes a loadable historical model from an unavailable one', async () => {
     const requested: string[] = [];
-    const availability = await resolveExperimentAvailabilityByModelIdV3({
-      savedModelIds: [
-        'model/current',
-        'model/historical',
-        'model/missing',
-        'model/historical',
+    const availability = await resolveExperimentAvailabilityV3({
+      savedExperiments: [
+        { experimentId: 'experiment/current', modelId: 'model/current' },
+        {
+          experimentId: 'experiment/historical-a',
+          modelId: 'model/historical',
+          surfaceSeriesId: 'surface/historical',
+        },
+        { experimentId: 'experiment/missing', modelId: 'model/missing' },
+        {
+          experimentId: 'experiment/historical-b',
+          modelId: 'model/historical',
+          surfaceSeriesId: 'surface/historical',
+        },
       ],
-      currentDefaultModelId: 'model/current',
-      async resolveExactModel(modelId) {
-        requested.push(modelId);
+      activeModelId: 'model/current',
+      async resolveExperiment(modelId, surfaceSeriesId) {
+        requested.push(`${modelId}:${surfaceSeriesId ?? ''}`);
         if (modelId === 'model/missing') throw new Error('not loadable');
       },
     });
 
     expect([...availability]).toEqual([
-      ['model/current', 'current-default'],
-      ['model/historical', 'exact-loadable'],
-      ['model/missing', 'unavailable-model'],
+      ['experiment/current', 'active-model'],
+      ['experiment/historical-a', 'exact-loadable'],
+      ['experiment/missing', 'unavailable-model'],
+      ['experiment/historical-b', 'exact-loadable'],
     ]);
-    expect(requested).toEqual(['model/historical', 'model/missing']);
+    expect(requested).toEqual([
+      'model/historical:surface/historical',
+      'model/missing:',
+    ]);
   });
 });

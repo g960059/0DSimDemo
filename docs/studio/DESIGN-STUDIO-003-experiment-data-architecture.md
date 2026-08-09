@@ -13,7 +13,7 @@ This document owns persistence, numerical-capture, model-release, and backend
 boundaries. `DESIGN-STUDIO-004-reader-briefing-experiment-ia.md` owns Article,
 Briefing, Reader, navigation, and presentation IA.
 `DESIGN-STUDIO-006-model-surface-release-and-model-lab.md` owns the exact
-kernel/Model Surface split, release lifecycle, channels, and Model Lab.
+kernel/Model Surface split, release lifecycle, active bundle, and Model Lab.
 
 The application has no production users or durable production database.
 Superseded schemas are removed rather than migrated. Git history, not live
@@ -156,7 +156,7 @@ and rejects the same `modelId` with a different manifest or artifact. Ordinary
 clients resolve `modelId` through the trusted registry and do not rehash the
 package at runtime.
 
-The registry keeps old exact releases loadable. Changing the default channel
+The registry keeps old exact releases loadable. Replacing the active bundle
 affects only new Sessions. Existing Experiments and Snapshots remain pinned to
 their stored `modelId`; migration or cloning is explicit.
 
@@ -193,11 +193,13 @@ single authority. The immutable `development-36` artifact still returns its
 legacy `defaultFixture`, but the dynamic loader ignores that compatibility
 field rather than creating a second source of truth.
 
-- `/experiments/new` resolves the `default` channel once, then immediately
-  pins the returned `modelId` for the Session.
-- an existing Experiment resolves its stored exact `modelId` and latest
-  non-retired release in its stored Surface series; a Snapshot resolves both
-  its exact `modelId` and exact `surfaceReleaseId`; neither follows a channel;
+- `/experiments/new` resolves the active model/Surface bundle once, then
+  immediately pins both returned identities for the Session.
+- an existing Experiment resolves its stored exact `modelId` and deepest
+  compatible release in its stored Surface series. A stable/retired exact
+  model sees stable Surfaces only; a dev exact model may reopen a dev Surface
+  successor. A Snapshot resolves both its exact `modelId` and exact
+  `surfaceReleaseId`; neither follows the active bundle;
 - one Article may resolve several exact releases, one per distinct pinned
   `modelId` among its Snapshots;
 - the main thread derives the public contract from the returned manifest and
@@ -206,27 +208,27 @@ field rather than creating a second source of truth.
   validates executable/manifest identity bindings, and creates the exact
   runtime;
 - a missing, emergency-disabled, malformed, or unsupported release fails closed. The
-  loader never substitutes the current default for historical content.
+  loader never substitutes the active model for historical content.
 
 Lifecycle stage does not change historical readability. A `retired` release
-loses channel/publication eligibility but remains exact-loadable for existing
-content. `loadable=false` is reserved for an unsafe artifact.
+cannot remain active or back a new publication, but remains exact-loadable for
+existing content. `loadable=false` is reserved for an unsafe artifact.
 
 The saved-Experiment directory resolves only the small registry projection for
-each distinct stored `modelId`. It classifies entries as current-default,
-exact-loadable, or unavailable; it never treats “not the current default”
+each distinct stored `modelId`. It classifies entries as active-model,
+exact-loadable, or unavailable; it never treats “not the active model”
 as evidence of unavailability and never downloads executable artifacts merely
 to render the list.
 
-Exact-model promises are cached by `modelId` for a page lifetime. Mutable
-channel pointers are not used as runtime cache keys. Browser HTTP caching may
+Exact-model promises are cached by `modelId` for a page lifetime. The mutable
+active-bundle pointer is not used as a runtime cache key. Browser HTTP caching may
 reuse immutable artifact bytes; no durable Experiment field stores URL, ABI,
 cache state, or a digest. A cached Worker runtime also remembers the canonical
 ticket and rejects a second URL, ABI, or manifest for the same `modelId`.
 
-The default composition is pinned for one loaded application page, including
+The active composition is pinned for one loaded application page, including
 React StrictMode remounts and multiple new-Session navigations. A page reload
-resolves a moved default channel. This avoids changing numerical defaults
+resolves a replaced active bundle. This avoids changing numerical defaults
 halfway through one authoring visit.
 
 Analysis execution IDs are immutable semantic identifiers. Existing
@@ -414,10 +416,9 @@ an internal `studio` schema and semantic RPCs:
 ```text
 model_releases (immutable)
 model_release_availability
-model_release_channels                  default | research
 model_surface_releases (immutable)
 model_surface_release_availability
-model_surface_release_channels          default | research per family
+active_model_bundle                     singleton exact model + Surface CAS pointer
 model_release_successions
 
 experiment_contents (immutable JSONB)
@@ -476,9 +477,10 @@ Exact executable artifacts are uploaded by the trusted release command to the
 public `model-releases` Storage bucket before registry admission. The object
 path is immutable and model-scoped. Ordinary clients may download it but have
 no upload or registry-write authority. The release command verifies existing
-bytes before reusing a path and registers the exact release. It promotes a
-release to `stable` before moving `default`; `research` may point at `dev` or
-`stable`. Public Experiment and Article publication is rejected unless every
+bytes before reusing a path and registers the exact release. It promotes the
+Standard-ABI exact release and compatible Surface to `stable` before atomically
+replacing the singleton active bundle. Public Experiment and Article
+publication is rejected unless every
 referenced Snapshot uses a `stable`, loadable exact model and pins a `stable`
 exact Surface release, as defined by DESIGN-STUDIO-006.
 
@@ -531,8 +533,9 @@ browser Web Workers remain the interactive numerical owner.
 11. All backend writes are semantic, authenticated, idempotent, and
     version-checked where the resource is mutable.
 12. Device layout and live status never leak into portable content.
-13. Existing content resolves its stored exact model; it never falls back to a
-    channel-selected model after load failure.
+13. Existing content resolves its stored exact model; it never falls back to
+    the active model after load failure.
 14. Snapshot admission is one Studio service, not a model/content profile.
-15. `default` is stable-only; `research` is dev-or-stable; `retired` is
-    historical-only; emergency-disabled releases cannot be newly published.
+15. The active bundle contains one stable, loadable exact model and one stable
+    Surface from the same model family; emergency-disabled releases cannot be
+    newly published.

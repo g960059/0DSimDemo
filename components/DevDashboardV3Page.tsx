@@ -26,7 +26,6 @@ import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
   loadStudioLocalStandardModelLabClientCompositionV1,
-  loadStudioModelChannelClientCompositionV2,
   loadStudioModelClientCompositionV2,
   loadStudioSnapshotClientCompositionV2,
   invalidateStudioClientCompositionCachesV2,
@@ -76,8 +75,7 @@ type DevSnapshotItemV3 = Readonly<{
 }>;
 
 export type DevModelSourceV3 =
-  | "default"
-  | "research"
+  | "active"
   | "model-lab"
   | "referenced";
 
@@ -121,12 +119,11 @@ type DevDashboardStateV3 =
 
 const MODEL_SOURCE_ORDER_V3: readonly DevModelSourceV3[] = Object.freeze([
   "model-lab",
-  "default",
-  "research",
+  "active",
   "referenced",
 ]);
 
-/** Deduplicates channel and content references without inventing another
+/** Deduplicates launch and content references without inventing another
  * durable model identity for this intentionally small development view. */
 export function mergeDevModelCandidatesV3(
   candidates: readonly DevModelCandidateV3[],
@@ -628,33 +625,29 @@ async function loadDevModelsV3(
     surfaceReleaseId?: string;
   }>[],
 ): Promise<readonly DevModelItemV3[]> {
-  const channelProbes: readonly Readonly<{
+  const launchProbes: readonly Readonly<{
     source: Exclude<DevModelSourceV3, "referenced">;
     promise: Promise<StudioClientCompositionV2>;
   }>[] = Object.freeze([
     Object.freeze({
-      source: "default",
+      source: "active",
       promise: loadStudioDefaultClientCompositionV2(),
-    }),
-    Object.freeze({
-      source: "research",
-      promise: loadStudioModelChannelClientCompositionV2("research"),
     }),
     Object.freeze({
       source: "model-lab",
       promise: loadStudioLocalStandardModelLabClientCompositionV1(),
     }),
   ]);
-  const settledChannels = await Promise.allSettled(
-    channelProbes.map(({ promise }) => promise),
+  const settledLaunches = await Promise.allSettled(
+    launchProbes.map(({ promise }) => promise),
   );
   const candidates: DevModelCandidateV3[] = [];
-  settledChannels.forEach((result, index) => {
+  settledLaunches.forEach((result, index) => {
     if (result.status !== "fulfilled") return;
     const composition = result.value;
     candidates.push(modelCandidateV3(
       composition,
-      channelProbes[index]!.source,
+      launchProbes[index]!.source,
     ));
   });
   const distinctReferences = [...new Map(referencedModels.map((reference) => [

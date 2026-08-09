@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(8);
+select plan(6);
 
 select lives_ok(
   $$
@@ -87,31 +87,6 @@ select ok(
     from public.get_model_release_v2('model/dynamic-loader-test-v1') as release
   ) ?| array['artifact_sha256', 'registry_fingerprint', 'source_commit'],
   'Browser release lookup does not expose registry integrity metadata'
-);
-
-select lives_ok(
-  $$
-    select public.set_model_release_channel_v1(
-      'research',
-      'model/dynamic-loader-test-v1'
-    )
-  $$,
-  'A channel can point to the loadable exact release'
-);
-
-select results_eq(
-  $$
-    select model_id, module_abi, analysis_profile_id
-    from public.get_model_release_channel_v2('research')
-  $$,
-  $$
-    values (
-      'model/dynamic-loader-test-v1'::text,
-      'circleheart-exact-model-esm-v1'::text,
-      'analysis/test-v1'::text
-    )
-  $$,
-  'Channel resolution returns one immediately pinnable exact release'
 );
 
 select * from finish();

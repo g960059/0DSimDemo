@@ -83,24 +83,52 @@ afterEach(() => {
 });
 
 describe("registered Main Wire Integrated Studio Model V3", () => {
-  it("fails closed when Model Lab cannot resolve the research registry", async () => {
+  it("exposes only the explicit local Model Lab launch path", async () => {
     vi.resetModules();
     vi.doMock(
       "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
       () => ({ studioSupabaseModelReleaseResolverV1: () => null }),
     );
+    vi.doMock("@/studio/contracts/v2/release", async () => {
+      const actual = await vi.importActual<typeof import(
+        "@/studio/contracts/v2/release"
+      )>("@/studio/contracts/v2/release");
+      return {
+        ...actual,
+        // Vitest evaluates import.meta.url as file:. Browser builds resolve the
+        // exact same artifact URL to HTTP(S), whose validation is covered by
+        // the release-contract suite. This test is about fallback identity.
+        validateStudioModelWorkerReleaseTicketV2: (value: unknown) => value,
+      };
+    });
 
     try {
       const composition = await import(
         "@/studio/composition/StudioDefaultCompositionV2"
       );
-      await expect(
-        composition.loadStudioModelChannelClientCompositionV2("research"),
-      ).rejects.toThrow(/will not fall back to the bundled default model/);
+      expect(composition.loadStudioLocalStandardModelLabClientCompositionV1)
+        .toBeTypeOf("function");
+      expect(composition).not.toHaveProperty(
+        "loadStudioModelChannelClientCompositionV2",
+      );
+      await expect(composition.loadStudioExperimentClientCompositionV2(
+        mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+        mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+      )).resolves.toMatchObject({
+        defaultModelId:
+          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+        releaseStage: "dev",
+        surfaceReleaseId:
+          mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
+        surfaceSeriesId:
+          mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+        surfaceStage: "dev",
+      });
     } finally {
       vi.doUnmock(
         "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
       );
+      vi.doUnmock("@/studio/contracts/v2/release");
       vi.resetModules();
     }
   });

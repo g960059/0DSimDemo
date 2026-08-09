@@ -8,13 +8,13 @@ const EXPERIMENT_ID_ALLOCATION_ATTEMPTS_V3 = 32;
 
 export type ExperimentIdentityTokenFactoryV3 = () => string;
 export type ExperimentAvailabilityV3 =
-  | "current-default"
+  | "active-model"
   | "exact-loadable"
   | "unavailable-model";
 
 /**
  * Experiment identity is deliberately independent from model identity and the
- * currently configured default. `/experiments/new` has no Experiment identity;
+ * currently active model. `/experiments/new` has no Experiment identity;
  * allocation happens only inside the first explicit Save transaction.
  */
 export function createOpaqueExperimentIdV3(
@@ -67,43 +67,66 @@ export function requireOpaqueExperimentIdV3(
 
 export function classifyExperimentAvailabilityV3(
   savedModelId: string,
-  currentDefaultModelId: string,
+  activeModelId: string,
   exactModelIsLoadable: boolean,
 ): ExperimentAvailabilityV3 {
   if (!exactModelIsLoadable) return "unavailable-model";
-  return savedModelId === currentDefaultModelId
-    ? "current-default"
+  return savedModelId === activeModelId
+    ? "active-model"
     : "exact-loadable";
 }
 
+export type SavedExperimentReleaseIdentityV3 = Readonly<{
+  experimentId: string;
+  modelId: string;
+  surfaceSeriesId?: string;
+}>;
+
 /** Resolves registry metadata only; callers must not fetch executable bytes. */
-export async function resolveExperimentAvailabilityByModelIdV3(
+export async function resolveExperimentAvailabilityV3(
   input: Readonly<{
-    savedModelIds: readonly string[];
-    currentDefaultModelId: string;
-    resolveExactModel(modelId: string): Promise<unknown>;
+    savedExperiments: readonly SavedExperimentReleaseIdentityV3[];
+    activeModelId: string;
+    resolveExperiment(
+      modelId: string,
+      surfaceSeriesId?: string,
+    ): Promise<unknown>;
   }>,
 ): Promise<ReadonlyMap<string, ExperimentAvailabilityV3>> {
-  const modelIds = [...new Set(input.savedModelIds)];
-  const results = await Promise.allSettled(modelIds.map(async (modelId) => {
-    if (modelId !== input.currentDefaultModelId) {
-      await input.resolveExactModel(modelId);
+  const releaseKeys = new Map<string, SavedExperimentReleaseIdentityV3>();
+  input.savedExperiments.forEach((saved) => {
+    releaseKeys.set(releaseIdentityKeyV3(saved), saved);
+  });
+  const uniqueReleases = [...releaseKeys.values()];
+  const results = await Promise.allSettled(uniqueReleases.map(async (saved) => {
+    if (saved.modelId !== input.activeModelId || saved.surfaceSeriesId !== undefined) {
+      await input.resolveExperiment(saved.modelId, saved.surfaceSeriesId);
     }
-    return modelId;
+    return saved;
   }));
-  const availabilityByModelId = new Map<string, ExperimentAvailabilityV3>();
+  const availabilityByRelease = new Map<string, ExperimentAvailabilityV3>();
   results.forEach((result, index) => {
-    const modelId = modelIds[index]!;
-    availabilityByModelId.set(
-      modelId,
+    const saved = uniqueReleases[index]!;
+    availabilityByRelease.set(
+      releaseIdentityKeyV3(saved),
       classifyExperimentAvailabilityV3(
-        modelId,
-        input.currentDefaultModelId,
+        saved.modelId,
+        input.activeModelId,
         result.status === "fulfilled",
       ),
     );
   });
-  return availabilityByModelId;
+  return new Map(input.savedExperiments.map((saved) => [
+    saved.experimentId,
+    availabilityByRelease.get(releaseIdentityKeyV3(saved))
+      ?? "unavailable-model",
+  ]));
+}
+
+function releaseIdentityKeyV3(
+  saved: Pick<SavedExperimentReleaseIdentityV3, "modelId" | "surfaceSeriesId">,
+): string {
+  return `${saved.modelId}\u0000${saved.surfaceSeriesId ?? ""}`;
 }
 
 function randomExperimentTokenV3(): string {

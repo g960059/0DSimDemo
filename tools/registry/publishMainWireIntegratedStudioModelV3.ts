@@ -9,9 +9,7 @@ import {
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
-  assertStudioReleaseChannelV1,
   assertStudioReleaseStageV1,
-  type StudioReleaseChannelV1,
   type StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 
@@ -78,24 +76,15 @@ async function main(): Promise<void> {
       p_stage: options.stage,
     });
   }
-  if (options.channel !== null) {
-    await rpc(baseUrl, secret, "set_model_release_channel_v1", {
-      p_channel: options.channel,
-      p_model_id: exactRelease.manifest.modelId,
-    });
-  }
   process.stdout.write(
     `Published Standard exact model ${exactRelease.manifest.modelId} to `
-      + `${options.projectRef} as ${options.stage}${options.channel === null
-        ? ""
-        : ` on ${options.channel}`}\n`,
+      + `${options.projectRef} as ${options.stage}\n`,
   );
 }
 
 type PublishOptionsV3 = Readonly<{
   projectRef: string;
   stage: Exclude<StudioReleaseStageV1, "retired">;
-  channel: StudioReleaseChannelV1 | null;
 }>;
 
 export function parseMainWireModelPublishArgumentsV3(
@@ -108,7 +97,7 @@ export function parseMainWireModelPublishArgumentsV3(
     if (
       key === undefined
       || value === undefined
-      || !["--project-ref", "--stage", "--channel"].includes(key)
+      || !["--project-ref", "--stage"].includes(key)
       || values.has(key)
     ) {
       throw modelPublishUsageErrorV3();
@@ -125,16 +114,7 @@ export function parseMainWireModelPublishArgumentsV3(
   if (stage === "retired") {
     throw new Error("A new exact model cannot be published directly as retired");
   }
-  const channelValue = values.get("--channel");
-  let channel: StudioReleaseChannelV1 | null = null;
-  if (channelValue !== undefined) {
-    assertStudioReleaseChannelV1(channelValue, "--channel");
-    channel = channelValue;
-  }
-  if (channel === "default" && stage !== "stable") {
-    throw new Error("The default channel requires an explicit stable release");
-  }
-  return Object.freeze({ projectRef, stage, channel });
+  return Object.freeze({ projectRef, stage });
 }
 
 function parsePublishArgumentsV3(args: readonly string[]): PublishOptionsV3 {
@@ -144,7 +124,7 @@ function parsePublishArgumentsV3(args: readonly string[]): PublishOptionsV3 {
 function modelPublishUsageErrorV3(): Error {
   return new Error(
     "Usage: --project-ref <20-character Supabase project ref> "
-      + "--stage <dev|stable> [--channel <default|research>]",
+      + "--stage <dev|stable>",
   );
 }
 
