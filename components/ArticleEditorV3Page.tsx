@@ -53,6 +53,7 @@ import {
 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
   createStudioSupabaseContentRepositoryV1,
+  type StudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
   createArticleExperimentSessionTokenV3,
@@ -65,6 +66,11 @@ import {
 import { useUnsavedChangesGuardV3 } from "@/components/useUnsavedChangesGuardV3";
 
 type EditorSaveStatusV3 = "idle" | "dirty" | "saving" | "saved" | "error";
+
+type ArticleRemoteAuthoringRepositoryV3 = Pick<
+  StudioSupabaseContentRepositoryV1,
+  "publishArticle" | "readArticle" | "unpublishArticle"
+>;
 
 const ARTICLE_EDITOR_PEEK_FRACTION_STORAGE_KEY_V3 =
   "circleheart.article-editor.peek-fraction.v1";
@@ -91,6 +97,46 @@ export function articleEditorPeekFractionForPointerV3(
   return clampArticleEditorPeekFractionV3(
     (shellLeft + shellWidth - pointerClientX) / shellWidth,
   );
+}
+
+export async function synchronizeRemoteArticlePublicationV3(input: Readonly<{
+  repository: ArticleRemoteAuthoringRepositoryV3;
+  saved: StudioArticleDraftV2;
+  candidate: StudioArticleDraftV2;
+  wasPublished: boolean;
+}>): Promise<Readonly<{
+  article: StudioArticleDraftV2;
+  published: boolean;
+}>> {
+  if (input.candidate.visibility === "draft" && !input.wasPublished) {
+    return Object.freeze({ article: input.saved, published: false });
+  }
+  if (input.candidate.visibility === "public") {
+    await input.repository.publishArticle({
+      articleId: input.saved.articleId,
+      expectedVersion: input.saved.draftVersion,
+      publicSlug: publicArticleSlugV3(input.saved.articleId),
+    });
+  } else if (input.wasPublished) {
+    await input.repository.unpublishArticle(
+      input.saved.articleId,
+      input.saved.draftVersion,
+    );
+  }
+
+  // Publication is a second authority commit. Re-read after moving (or
+  // removing) the pointer so callers never replace the requested state with
+  // the pre-publication draft returned by saveArticle().
+  const authoritative = await input.repository.readArticle(
+    input.saved.articleId,
+  );
+  if (authoritative === null) {
+    throw new Error("Saved Article could not be read after publication update");
+  }
+  return Object.freeze({
+    article: authoritative,
+    published: authoritative.visibility === "public",
+  });
 }
 
 function initialArticleEditorPeekFractionV3(): number {
@@ -429,20 +475,15 @@ export function ArticleEditorV3Page() {
         // the next explicit retry cannot write against a stale version.
         remotelySaved = saved;
         remoteSavedArticleIdRef.current = saved.articleId;
-        if (candidate.visibility === "public") {
-          await remoteRepository.publishArticle({
-            articleId: saved.articleId,
-            expectedVersion: saved.draftVersion,
-            publicSlug: publicArticleSlugV3(saved.articleId),
-          });
-          remotePublishedRef.current = true;
-        } else if (remotePublishedRef.current) {
-          await remoteRepository.unpublishArticle(
-            saved.articleId,
-            saved.draftVersion,
-          );
-          remotePublishedRef.current = false;
-        }
+        const publication = await synchronizeRemoteArticlePublicationV3({
+          repository: remoteRepository,
+          saved,
+          candidate,
+          wasPublished: remotePublishedRef.current,
+        });
+        saved = publication.article;
+        remotelySaved = publication.article;
+        remotePublishedRef.current = publication.published;
       } else {
         const isInitialSave = store.readArticle(candidate.articleId) === null;
         const normalized = normalizeArticleDraftV3({

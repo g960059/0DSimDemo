@@ -1,6 +1,6 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import i18n from "@/i18n";
 import {
@@ -8,6 +8,7 @@ import {
   articleEditorRouteKeyV3,
   insertArticleBlockV3,
   resolveArticleEditorRouteDraftV3,
+  synchronizeRemoteArticlePublicationV3,
 } from "@/components/ArticleEditorV3Page";
 import {
   ArticleBriefingEditorV3,
@@ -182,6 +183,42 @@ function focusedBriefingV3(): ExperimentPlacementBriefingV2 {
 }
 
 describe("Article Editor V3 briefing", () => {
+  it("adopts publication authority after moving the Article pointer", async () => {
+    const saved = Object.freeze({
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: "6368328d-c852-4440-aa15-07dea45f7753",
+      draftVersion: 2,
+      visibility: "draft" as const,
+      locale: "ja",
+      title: "Publication readback",
+      blocks: Object.freeze([]),
+    });
+    const published = Object.freeze({
+      ...saved,
+      visibility: "public" as const,
+    });
+    const repository = {
+      publishArticle: vi.fn().mockResolvedValue(undefined),
+      readArticle: vi.fn().mockResolvedValue(published),
+      unpublishArticle: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const result = await synchronizeRemoteArticlePublicationV3({
+      repository,
+      saved,
+      candidate: { ...saved, visibility: "public" },
+      wasPublished: false,
+    });
+
+    expect(repository.publishArticle).toHaveBeenCalledWith({
+      articleId: saved.articleId,
+      expectedVersion: saved.draftVersion,
+      publicSlug: "article-6368328d-c852-4440-aa15-07dea45f7753",
+    });
+    expect(repository.readArticle).toHaveBeenCalledWith(saved.articleId);
+    expect(result).toEqual({ article: published, published: true });
+  });
+
   it("keeps an existing Article inert until its exact route is hydrated", () => {
     expect(articleEditorRouteHydratedV3(null, "article-existing")).toBe(false);
     expect(articleEditorRouteHydratedV3("new", "article-existing")).toBe(false);
