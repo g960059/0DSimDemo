@@ -2,20 +2,19 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(30);
+select plan(28);
 
 select lives_ok(
   $$
-    select public.register_model_release_v2(
+    select public.register_model_release_v1(
       'model/lifecycle-test-v1',
       'model/lifecycle-test',
       'Lifecycle test',
-      '{"modelId":"model/lifecycle-test-v1"}'::jsonb,
+      '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/lifecycle-test-v1","modelFamilyId":"model/lifecycle-test"}'::jsonb,
       'model-releases/model/lifecycle-test-v1.mjs',
       repeat('1', 64),
       repeat('2', 64),
       'lifecycle-test',
-      'circleheart-exact-model-esm-v1',
       '{"schemaId":"fixture/lifecycle-v1"}'::jsonb,
       'analysis/lifecycle-v1'
     )
@@ -49,7 +48,7 @@ select lives_ok(
 select is(
   (
     select stage
-    from public.get_model_release_v3('model/lifecycle-test-v1')
+    from public.get_model_release_v1('model/lifecycle-test-v1')
   ),
   'stable',
   'Exact read exposes immutable release lifecycle without changing the ticket'
@@ -274,16 +273,15 @@ select lives_ok(
 
 do $$
 begin
-  perform public.register_model_release_v2(
+  perform public.register_model_release_v1(
     'model/lifecycle-dev-v1',
     'model/lifecycle-test',
     'Dev lifecycle model',
-    '{"modelId":"model/lifecycle-dev-v1"}'::jsonb,
+    '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/lifecycle-dev-v1","modelFamilyId":"model/lifecycle-test"}'::jsonb,
     'model-releases/model/lifecycle-dev-v1.mjs',
     repeat('7', 64),
     repeat('8', 64),
     'lifecycle-test',
-    'circleheart-exact-model-esm-v1',
     '{"schemaId":"fixture/lifecycle-v1"}'::jsonb,
     'analysis/lifecycle-v1'
   );
@@ -321,71 +319,6 @@ select is(
   ),
   'surface/lifecycle-test-v1',
   'A mutable Experiment ignores newer dev Surface successors'
-);
-
-do $$
-begin
-  perform public.register_model_release_v1(
-    'model/lifecycle-incomplete-v1',
-    'model/lifecycle-test',
-    'Incomplete lifecycle model',
-    '{"modelId":"model/lifecycle-incomplete-v1"}'::jsonb,
-    'model-releases/model/lifecycle-incomplete-v1.mjs',
-    repeat('3', 64),
-    repeat('4', 64),
-    'lifecycle-test'
-  );
-  perform public.set_model_release_stage_v1(
-    'model/lifecycle-incomplete-v1', 'stable'
-  );
-end;
-$$;
-
-select throws_ok(
-  $$
-    select public.set_active_model_bundle_v1(
-      null,
-      'model/lifecycle-incomplete-v1',
-      'surface/lifecycle-test-v1'
-    )
-  $$,
-  '23503',
-  'active model release model/lifecycle-incomplete-v1 is not registered and loadable',
-  'An exact release without launch-module metadata cannot become active'
-);
-
-do $$
-begin
-  perform public.register_model_release_v2(
-    'model/lifecycle-legacy-v1',
-    'model/lifecycle-test',
-    'Legacy lifecycle model',
-    '{"modelId":"model/lifecycle-legacy-v1"}'::jsonb,
-    'model-releases/model/lifecycle-legacy-v1.mjs',
-    repeat('5', 64),
-    repeat('6', 64),
-    'lifecycle-test',
-    'legacy-main-wire-v3-development-36',
-    '{"schemaId":"fixture/lifecycle-v1"}'::jsonb,
-    'analysis/lifecycle-v1'
-  );
-  perform public.set_model_release_stage_v1(
-    'model/lifecycle-legacy-v1', 'stable'
-  );
-end;
-$$;
-
-select throws_ok(
-  $$
-    select public.set_active_model_bundle_v1(
-      null,
-      'model/lifecycle-legacy-v1',
-      'surface/lifecycle-test-v1'
-    )
-  $$,
-  '22023',
-  'active model release model/lifecycle-legacy-v1 must use the Standard module ABI, not legacy-main-wire-v3-development-36',
-  'An active model/Surface bundle requires the Standard module ABI'
 );
 
 select lives_ok(

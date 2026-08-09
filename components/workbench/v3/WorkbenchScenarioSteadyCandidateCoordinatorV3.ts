@@ -30,7 +30,7 @@ const STABLE_NORMALIZED_DELTA_V3 = 1e-3;
 
 export type WorkbenchSteadyCandidateSourceV3 = Readonly<{
   modelId: string;
-  releaseTicket?: StudioModelWorkerReleaseTicketV2;
+  releaseTicket: StudioModelWorkerReleaseTicketV2;
   inputEpoch: number;
   scenario: ExperimentScenarioV2;
 }>;
@@ -174,9 +174,7 @@ async function computeSteadyCandidateV3(
   const runtimeSessionId = `workbench-steady-${randomPortableTokenV3()}`;
   const initialFrame = await client.initialize({
     expectedModelId: source.modelId,
-    ...(source.releaseTicket === undefined
-      ? {}
-      : { releaseTicket: source.releaseTicket }),
+    releaseTicket: source.releaseTicket,
     runtimeSessionId,
     scenarioId: source.scenario.scenarioId,
     scenarioLabel: source.scenario.label,

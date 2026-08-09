@@ -126,8 +126,9 @@ export interface StudioAuthoringRepositoryPortV1 {
 export interface StudioAuthoringModelPortV1 {
   resolveModel(input: Readonly<{
     modelId: string;
-    surfaceSeriesId?: string;
-    surfaceReleaseId?: string;
+    surfaceSeriesId: string;
+    /** Null resolves the mutable series; a value resolves an exact Snapshot Surface. */
+    surfaceReleaseId: string | null;
   }>): Promise<ModelContractV2>;
 }
 
@@ -315,9 +316,8 @@ export async function executeStudioAuthoringCommandV1(
       });
       const model = await models.resolveModel({
         modelId: content.modelId,
-        ...(content.surfaceSeriesId === undefined
-          ? {}
-          : { surfaceSeriesId: content.surfaceSeriesId }),
+        surfaceSeriesId: content.surfaceSeriesId,
+        surfaceReleaseId: null,
       });
       assertExperimentContentMatchesModelV2(content, model);
       return repository.saveExperiment({
@@ -370,12 +370,8 @@ async function assertArticleMatchesAuthorityV1(
     );
     const model = await models.resolveModel({
       modelId: snapshot.content.modelId,
-      ...(snapshot.content.surfaceSeriesId === undefined
-        ? {}
-        : { surfaceSeriesId: snapshot.content.surfaceSeriesId }),
-      ...(snapshot.surfaceReleaseId === undefined
-        ? {}
-        : { surfaceReleaseId: snapshot.surfaceReleaseId }),
+      surfaceSeriesId: snapshot.content.surfaceSeriesId,
+      surfaceReleaseId: snapshot.surfaceReleaseId,
     });
     assertExperimentContentMatchesModelV2(snapshot.content, model);
     assertExperimentBriefingMatchesModelV2(placement.briefing, model);

@@ -44,7 +44,7 @@ async function assertActivatableBundleV1(
   options: ActiveModelBundleOptionsV1,
 ): Promise<void> {
   const model = singleRowV1(
-    await rpcV1(baseUrl, secret, "get_model_release_v3", {
+    await rpcV1(baseUrl, secret, "get_model_release_v1", {
       p_model_id: options.modelId,
     }),
     "Exact model",

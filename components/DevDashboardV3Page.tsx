@@ -26,7 +26,6 @@ import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
   loadStudioLocalStandardModelLabClientCompositionV1,
-  loadStudioModelClientCompositionV2,
   loadStudioSnapshotClientCompositionV2,
   invalidateStudioClientCompositionCachesV2,
   type StudioClientCompositionV2,
@@ -47,7 +46,7 @@ import {
 type DevExperimentItemV3 = Readonly<{
   experimentId: string;
   modelId: string;
-  surfaceSeriesId?: string;
+  surfaceSeriesId: string;
   title: string;
   scenarioCount: number;
   version: number;
@@ -66,8 +65,8 @@ type DevArticleItemV3 = Readonly<{
 type DevSnapshotItemV3 = Readonly<{
   snapshotId: string;
   modelId: string;
-  surfaceSeriesId?: string;
-  surfaceReleaseId?: string;
+  surfaceSeriesId: string;
+  surfaceReleaseId: string;
   title: string;
   scenarioCount: number;
   paneCount: number;
@@ -521,9 +520,7 @@ async function loadDevDashboardV3(input: Readonly<{
       return Object.freeze({
         experimentId: experiment.experimentId,
         modelId: experiment.content.modelId,
-        ...(experiment.content.surfaceSeriesId === undefined
-          ? {}
-          : { surfaceSeriesId: experiment.content.surfaceSeriesId }),
+        surfaceSeriesId: experiment.content.surfaceSeriesId,
         title: record.title,
         scenarioCount: experiment.content.scenarios.length,
         version: experiment.version,
@@ -541,12 +538,8 @@ async function loadDevDashboardV3(input: Readonly<{
     snapshots = input.store.listSnapshots().map((snapshot) => Object.freeze({
       snapshotId: snapshot.snapshotId,
       modelId: snapshot.content.modelId,
-      ...(snapshot.content.surfaceSeriesId === undefined
-        ? {}
-        : { surfaceSeriesId: snapshot.content.surfaceSeriesId }),
-      ...(snapshot.surfaceReleaseId === undefined
-        ? {}
-        : { surfaceReleaseId: snapshot.surfaceReleaseId }),
+      surfaceSeriesId: snapshot.content.surfaceSeriesId,
+      surfaceReleaseId: snapshot.surfaceReleaseId,
       title: snapshot.content.scenarios[0]?.label ?? input.untitled,
       scenarioCount: snapshot.content.scenarios.length,
       paneCount: paneCountV3(snapshot.content.surface),
@@ -561,9 +554,7 @@ async function loadDevDashboardV3(input: Readonly<{
     experiments = experimentPage.items.map((item) => Object.freeze({
       experimentId: item.experimentId,
       modelId: item.modelId,
-      ...(item.surfaceSeriesId === undefined
-        ? {}
-        : { surfaceSeriesId: item.surfaceSeriesId }),
+      surfaceSeriesId: item.surfaceSeriesId,
       title: item.title,
       scenarioCount: item.scenarioCount,
       version: item.version,
@@ -580,12 +571,8 @@ async function loadDevDashboardV3(input: Readonly<{
     snapshots = snapshotPage.items.map((item) => Object.freeze({
       snapshotId: item.snapshotId,
       modelId: item.modelId,
-      ...(item.surfaceSeriesId === undefined
-        ? {}
-        : { surfaceSeriesId: item.surfaceSeriesId }),
-      ...(item.surfaceReleaseId === undefined
-        ? {}
-        : { surfaceReleaseId: item.surfaceReleaseId }),
+      surfaceSeriesId: item.surfaceSeriesId,
+      surfaceReleaseId: item.surfaceReleaseId,
       title: item.title,
       scenarioCount: item.scenarioCount,
       paneCount: item.paneCount,
@@ -600,6 +587,7 @@ async function loadDevDashboardV3(input: Readonly<{
     ...experiments.map((item) => Object.freeze({
       modelId: item.modelId,
       surfaceSeriesId: item.surfaceSeriesId,
+      surfaceReleaseId: null,
     })),
     ...snapshots.map((item) => Object.freeze({
       modelId: item.modelId,
@@ -621,8 +609,8 @@ async function loadDevDashboardV3(input: Readonly<{
 async function loadDevModelsV3(
   referencedModels: readonly Readonly<{
     modelId: string;
-    surfaceSeriesId?: string;
-    surfaceReleaseId?: string;
+    surfaceSeriesId: string;
+    surfaceReleaseId: string | null;
   }>[],
 ): Promise<readonly DevModelItemV3[]> {
   const launchProbes: readonly Readonly<{
@@ -660,18 +648,16 @@ async function loadDevModelsV3(
     [resolutionKey, reference],
   ) => {
     try {
-      const composition = reference.surfaceReleaseId !== undefined
+      const composition = reference.surfaceReleaseId !== null
         ? await loadStudioSnapshotClientCompositionV2(
             reference.modelId,
             reference.surfaceSeriesId,
             reference.surfaceReleaseId,
           )
-        : reference.surfaceSeriesId !== undefined
-          ? await loadStudioExperimentClientCompositionV2(
-              reference.modelId,
-              reference.surfaceSeriesId,
-            )
-          : await loadStudioModelClientCompositionV2(reference.modelId);
+        : await loadStudioExperimentClientCompositionV2(
+            reference.modelId,
+            reference.surfaceSeriesId,
+          );
       return modelCandidateV3(composition, "referenced", resolutionKey);
     } catch {
       return Object.freeze({
@@ -698,7 +684,7 @@ function modelCandidateV3(
     modelId: composition.defaultModelId,
     displayName: composition.contract.displayName,
     stage: composition.releaseStage,
-    surfaceReleaseId: composition.surfaceReleaseId ?? null,
+    surfaceReleaseId: composition.surfaceReleaseId,
     source,
     ...(resolutionKey === undefined ? {} : { resolutionKey }),
     available: true,

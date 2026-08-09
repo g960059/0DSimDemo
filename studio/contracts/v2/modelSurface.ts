@@ -28,7 +28,7 @@ export const STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1 =
 export type StudioReleaseStageV1 = "dev" | "stable" | "retired";
 
 /**
- * Exact numerical identity for the standard ABI after development-36.
+ * Exact numerical identity for the Standard executable ABI.
  *
  * Presentation catalogs and Snapshot admission are deliberately impossible to
  * encode in this shape. Adding either would fail exact-key validation rather
@@ -45,12 +45,8 @@ export type ExactModelKernelManifestV3 = Readonly<{
   checkpointCodec: RegisteredModelCheckpointCodecV2;
   primitiveControlCatalog: readonly ControlDefinitionV2[];
   primitiveSignalCatalog: readonly SignalOutputDefinitionV2[];
-  /**
-   * Metrics accumulated by the exact numerical Session from accepted
-   * substeps. Older V3 manifests predate this additive field and therefore
-   * resolve it as an empty catalog.
-   */
-  modelMetricCatalog?: readonly MetricOutputDefinitionV2[];
+  /** Metrics accumulated by the exact Session from accepted substeps. */
+  modelMetricCatalog: readonly MetricOutputDefinitionV2[];
   capabilities: readonly string[];
 }>;
 
@@ -200,8 +196,8 @@ export function assertExactModelKernelManifestV3(
   assertPortableStudioJsonObjectV2(value, "$.kernel");
   assertRequiredAndOptionalKeysV1(
     value,
-    KERNEL_KEYS_V3.filter((key) => key !== "modelMetricCatalog"),
-    ["modelMetricCatalog"],
+    KERNEL_KEYS_V3,
+    [],
     "$.kernel",
   );
   const kernel = value as unknown as Record<string, unknown>;
@@ -244,7 +240,7 @@ export function assertExactModelKernelManifestV3(
       "must contain primitive signals only",
     );
   }
-  const metrics = kernel.modelMetricCatalog ?? [];
+  const metrics = kernel.modelMetricCatalog;
   if (!Array.isArray(metrics) || metrics.some((metric) =>
     metric === null
     || typeof metric !== "object"
@@ -433,7 +429,7 @@ export function composeStandardModelContractV1(
     controlCatalog: kernel.primitiveControlCatalog,
     outputCatalog: Object.freeze([
       ...kernel.primitiveSignalCatalog,
-      ...(kernel.modelMetricCatalog ?? []),
+      ...kernel.modelMetricCatalog,
     ]),
     graphCatalog: Object.freeze([]),
   });
@@ -453,7 +449,7 @@ export function composeStandardModelContractV1(
     )),
     outputCatalog: Object.freeze([
       ...kernel.primitiveSignalCatalog,
-      ...(kernel.modelMetricCatalog ?? []),
+      ...kernel.modelMetricCatalog,
       ...materialized.derivedOutputCatalog.map(stripDerivationV1),
     ]),
     graphCatalog: Object.freeze(

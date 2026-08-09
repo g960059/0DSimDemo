@@ -24,9 +24,8 @@ import {
 import {
   STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
 } from "@/studio/contracts/v2/modelSurface";
-import {
-  createMainWireIntegratedStudioModelPackageV3,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
+import { composeStandardModelContractV1 } from
+  "@/studio/contracts/v2/modelSurface";
 import standardClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
@@ -53,37 +52,57 @@ describe("Studio Supabase boundary V1", () => {
   });
 
   it("resolves a hash-free exact model ticket and owns its launch fixture", async () => {
-    const modelPackage = createMainWireIntegratedStudioModelPackageV3();
     const call = vi.fn().mockResolvedValue({
       data: [{
-        model_id: modelPackage.manifest.modelId,
-        model_family_id: modelPackage.manifest.modelFamilyId,
-        display_name: modelPackage.manifest.displayName,
-        manifest: modelPackage.manifest,
+        model_id: standardClientDescriptorV1.manifest.modelId,
+        model_family_id: standardClientDescriptorV1.manifest.modelFamilyId,
+        display_name: "Main Wire Standard",
+        manifest: standardClientDescriptorV1.manifest,
         artifact_path: "model-releases/exact/model.mjs",
-        module_abi: "legacy-main-wire-v3-development-36",
-        default_fixture: modelPackage.defaultFixture,
-        analysis_profile_id: "main-wire-integrated-v3",
+        module_abi: "circleheart-exact-model-esm-v1",
+        default_fixture: standardClientDescriptorV1.defaultFixture,
+        analysis_profile_id: "main-wire-integrated-standard-v1",
         stage: "stable",
       }],
+      error: null,
+    });
+    const surfaceCall = vi.fn().mockResolvedValue({
+      data: [{ manifest: standardSurfaceReleaseV1, stage: "stable" }],
       error: null,
     });
     const resolver = new StudioSupabaseModelReleaseResolverV1({
       rpc: { call },
       supabaseOrigin: "https://project.supabase.co/path-is-ignored",
+      surfaceResolver: new StudioSupabaseModelSurfaceResolverV1({
+        rpc: { call: surfaceCall },
+      }),
     });
+    const surfacePin = {
+      kind: "release" as const,
+      surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
+      surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
+    };
 
-    const first = resolver.resolveExactModel(modelPackage.manifest.modelId);
-    expect(resolver.resolveExactModel(modelPackage.manifest.modelId)).toBe(first);
+    const first = resolver.resolveExactModel(
+      standardClientDescriptorV1.manifest.modelId,
+      surfacePin,
+    );
+    expect(resolver.resolveExactModel(
+      standardClientDescriptorV1.manifest.modelId,
+      surfacePin,
+    )).toBe(first);
     const resolved = await first;
     expect(resolved).toMatchObject({
-      contract: { modelId: modelPackage.manifest.modelId },
-      defaultFixture: modelPackage.defaultFixture,
-      analysisProfileId: "main-wire-integrated-v3",
+      contract: { modelId: standardClientDescriptorV1.manifest.modelId },
+      defaultFixture: standardClientDescriptorV1.defaultFixture,
+      analysisProfileId: "main-wire-integrated-standard-v1",
       stage: "stable",
       ticket: {
-        modelId: modelPackage.manifest.modelId,
-        moduleAbi: "legacy-main-wire-v3-development-36",
+        modelId: standardClientDescriptorV1.manifest.modelId,
+        moduleAbi: "circleheart-exact-model-esm-v1",
+        surfaceRelease: {
+          surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
+        },
         artifactUrl:
           "https://project.supabase.co/storage/v1/object/public/model-releases/exact/model.mjs",
       },
@@ -94,7 +113,10 @@ describe("Studio Supabase boundary V1", () => {
     expect(call).toHaveBeenCalledOnce();
 
     resolver.invalidate();
-    await resolver.resolveExactModel(modelPackage.manifest.modelId);
+    await resolver.resolveExactModel(
+      standardClientDescriptorV1.manifest.modelId,
+      surfacePin,
+    );
     expect(call).toHaveBeenCalledTimes(2);
   });
 
@@ -109,7 +131,7 @@ describe("Studio Supabase boundary V1", () => {
         artifact_path: "model-releases/exact/standard.mjs",
         module_abi: "circleheart-exact-model-esm-v1",
         default_fixture: standardClientDescriptorV1.defaultFixture,
-        analysis_profile_id: "main-wire-integrated-v3",
+        analysis_profile_id: "main-wire-integrated-standard-v1",
         model_stage: "stable",
         surface_release_id: standardSurfaceReleaseV1.surfaceReleaseId,
         surface_manifest: standardSurfaceReleaseV1,
@@ -145,14 +167,14 @@ describe("Studio Supabase boundary V1", () => {
   });
 
   it("keeps an old exact release pinned after the active bundle moves", async () => {
-    const modelPackage = createMainWireIntegratedStudioModelPackageV3();
-    const modelA = modelPackage.manifest.modelId;
-    const modelB = standardClientDescriptorV1.manifest.modelId;
+    const modelA = standardClientDescriptorV1.manifest.modelId;
+    const modelB = `${modelA}-successor-b`;
     const modelC = `${modelB}-successor-test`;
-    const manifestB = {
+    const manifestA = {
       ...JSON.parse(JSON.stringify(standardClientDescriptorV1.manifest)),
-      modelId: modelB,
+      modelId: modelA,
     };
+    const manifestB = { ...manifestA, modelId: modelB };
     const manifestC = { ...manifestB, modelId: modelC };
     const row = (
       modelId: string,
@@ -160,15 +182,13 @@ describe("Studio Supabase boundary V1", () => {
       moduleAbi: string,
     ) => ({
       model_id: modelId,
-      model_family_id: modelPackage.manifest.modelFamilyId,
+      model_family_id: standardClientDescriptorV1.manifest.modelFamilyId,
       display_name: "Main Wire",
       manifest,
       artifact_path: `model-releases/exact/${encodeURIComponent(modelId)}.mjs`,
       module_abi: moduleAbi,
-      default_fixture: modelId === modelA
-        ? modelPackage.defaultFixture
-        : standardClientDescriptorV1.defaultFixture,
-      analysis_profile_id: "main-wire-integrated-v3",
+      default_fixture: standardClientDescriptorV1.defaultFixture,
+      analysis_profile_id: "main-wire-integrated-standard-v1",
       stage: "stable",
     });
     const activeRow = (releaseRow: ReturnType<typeof row>, version: number) => ({
@@ -185,17 +205,13 @@ describe("Studio Supabase boundary V1", () => {
       "circleheart-exact-model-esm-v1",
     ), 0);
     const call = vi.fn(async (
-      functionName: "get_model_release_v3" | "get_active_model_bundle_v1",
+      functionName: "get_model_release_v1" | "get_active_model_bundle_v1",
       parameters: Readonly<Record<string, string>>,
     ) => ({
       data: [functionName === "get_active_model_bundle_v1"
         ? bundleRow
-        : parameters.p_model_id === modelA
-          ? row(
-              modelA,
-              modelPackage.manifest,
-              "legacy-main-wire-v3-development-36",
-            )
+          : parameters.p_model_id === modelA
+          ? row(modelA, manifestA, "circleheart-exact-model-esm-v1")
           : parameters.p_model_id === modelB
             ? row(modelB, manifestB, "circleheart-exact-model-esm-v1")
             : row(modelC, manifestC, "circleheart-exact-model-esm-v1")],
@@ -204,9 +220,21 @@ describe("Studio Supabase boundary V1", () => {
     const resolver = new StudioSupabaseModelReleaseResolverV1({
       rpc: { call },
       supabaseOrigin: "https://project.supabase.co",
+      surfaceResolver: new StudioSupabaseModelSurfaceResolverV1({
+        rpc: {
+          call: vi.fn().mockResolvedValue({
+            data: [{ manifest: standardSurfaceReleaseV1, stage: "stable" }],
+            error: null,
+          }),
+        },
+      }),
     });
 
-    const exactA = await resolver.resolveExactModel(modelA);
+    const exactA = await resolver.resolveExactModel(modelA, {
+      kind: "release",
+      surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
+      surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
+    });
     expect((await resolver.resolveActiveBundle()).contract.modelId)
       .toBe(modelB);
     bundleRow = activeRow(row(
@@ -216,7 +244,11 @@ describe("Studio Supabase boundary V1", () => {
     ), 1);
     expect((await resolver.resolveActiveBundle()).contract.modelId)
       .toBe(modelC);
-    await expect(resolver.resolveExactModel(modelA)).resolves.toBe(exactA);
+    await expect(resolver.resolveExactModel(modelA, {
+      kind: "release",
+      surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
+      surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
+    })).resolves.toBe(exactA);
     expect(exactA.contract.modelId).toBe(modelA);
   });
 
@@ -227,7 +259,10 @@ describe("Studio Supabase boundary V1", () => {
       supabaseOrigin: "https://project.supabase.co",
     });
 
-    const failure = await resolver.resolveExactModel("model/historical-a")
+    const failure = await resolver.resolveExactModel("model/historical-a", {
+      kind: "series",
+      surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
+    })
       .catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(StudioExactModelUnavailableErrorV1);
     expect(failure).toMatchObject({
@@ -236,34 +271,16 @@ describe("Studio Supabase boundary V1", () => {
     });
     expect(call).toHaveBeenCalledOnce();
     expect(call).toHaveBeenCalledWith(
-      "get_model_release_v3",
+      "get_model_release_v1",
       { p_model_id: "model/historical-a" },
     );
   });
 
   it("resolves a Surface separately and rejects a family mismatch", async () => {
-    const modelPackage = createMainWireIntegratedStudioModelPackageV3();
-    const exact = new StudioSupabaseModelReleaseResolverV1({
-      rpc: {
-        call: vi.fn().mockResolvedValue({
-          data: [{
-            model_id: modelPackage.manifest.modelId,
-            model_family_id: modelPackage.manifest.modelFamilyId,
-            display_name: modelPackage.manifest.displayName,
-            manifest: modelPackage.manifest,
-            artifact_path: "model-releases/exact/model.mjs",
-            module_abi: "legacy-main-wire-v3-development-36",
-            default_fixture: modelPackage.defaultFixture,
-            analysis_profile_id: "main-wire-integrated-v3",
-            stage: "stable",
-          }],
-          error: null,
-        }),
-      },
-      supabaseOrigin: "https://project.supabase.co",
-    });
-    const model = (await exact.resolveExactModel(modelPackage.manifest.modelId))
-      .contract;
+    const model = composeStandardModelContractV1(
+      standardClientDescriptorV1.manifest,
+      standardSurfaceReleaseV1,
+    ).contract;
     const manifest = {
       schemaId: STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
       surfaceReleaseId: "surface/main-wire-v1",
@@ -398,7 +415,7 @@ describe("Studio Supabase boundary V1", () => {
         artifact_path: "model-releases/exact/standard.mjs",
         module_abi: "circleheart-exact-model-esm-v1",
         default_fixture: standardClientDescriptorV1.defaultFixture,
-        analysis_profile_id: "main-wire-integrated-v3",
+        analysis_profile_id: "main-wire-integrated-standard-v1",
         stage: "dev",
       }],
       error: null,
@@ -678,6 +695,7 @@ describe("Studio Supabase boundary V1", () => {
 function experimentContentV1(): ExperimentContentV2 {
   return {
     modelId: "model/exact-v3",
+    surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
     scenarios: [{
       scenarioId: "scenario/baseline",
       label: "Baseline",

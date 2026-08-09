@@ -1,7 +1,4 @@
 import type {
-  ResolvedExactModelRuntimeV2,
-} from "@/studio/contracts/v2/executable";
-import type {
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
 import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
@@ -17,16 +14,10 @@ import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
 } from "@/studio/contracts/v2/simulation";
 import {
-  deriveModelContractFromManifestV2,
-} from "@/studio/contracts/v2/model";
-import {
   assertExactModelKernelManifestV3,
   assertModelSurfaceReleaseManifestV1,
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
-import {
-  TrustedRegisteredModelClientCatalogV2,
-} from "@/studio/infrastructure/model/TrustedRegisteredModelClientCatalogV2";
 import {
   invalidateStudioSupabaseModelReleaseResolverCacheV1,
   studioSupabaseModelReleaseResolverV1,
@@ -35,31 +26,20 @@ import type {
   StudioModelSurfacePinV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import {
-  createMainWireIntegratedStudioExecutableReleaseV3 as
-    createAdmittedMainWireIntegratedStudioExecutableReleaseV3,
-  createMainWireIntegratedStudioModelPackageV3 as
-    createAdmittedMainWireIntegratedStudioModelPackageV3,
-  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 as
-    ADMITTED_MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
-} from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs";
-import type {
-  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
-  MainWireIntegratedStudioExecutableReleaseV3,
-  MainWireIntegratedStudioFixtureV3,
-  MainWireIntegratedStudioModelPackageV3,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
-import {
   resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+} from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
 import standardClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
-typeof MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
-  ADMITTED_MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3;
+typeof MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 =
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1;
 
 export type StudioClientCompositionV2 = Readonly<{
   defaultModelId: string;
@@ -67,10 +47,10 @@ export type StudioClientCompositionV2 = Readonly<{
   defaultFixture: StudioJsonValueV2;
   contract: ModelContractV2;
   analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
-  workerReleaseTicket?: StudioModelWorkerReleaseTicketV2;
-  surfaceReleaseId?: string;
-  surfaceSeriesId?: string;
-  surfaceStage?: StudioReleaseStageV1;
+  workerReleaseTicket: StudioModelWorkerReleaseTicketV2;
+  surfaceReleaseId: string;
+  surfaceSeriesId: string;
+  surfaceStage: StudioReleaseStageV1;
   activeBundleVersion?: number;
 }>;
 
@@ -79,18 +59,8 @@ export type StudioDefaultClientCompositionV2 = StudioClientCompositionV2;
 export const DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2 =
   resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
 
-export type StudioDefaultWorkerCompositionV2 = Readonly<{
-  defaultModelId: typeof DEFAULT_STUDIO_MODEL_ID_V2;
-  defaultFixture: MainWireIntegratedStudioFixtureV3;
-  runtime: ResolvedExactModelRuntimeV2;
-}>;
-
 let browserCompositionPromiseV2:
   Promise<StudioDefaultClientCompositionV2> | undefined;
-const browserExactCompositionPromisesV2 = new Map<
-  string,
-  Promise<StudioClientCompositionV2>
->();
 const browserExperimentCompositionPromisesV2 = new Map<
   string,
   Promise<StudioClientCompositionV2>
@@ -110,46 +80,17 @@ let browserLocalStandardModelLabCompositionPromiseV1:
 export function invalidateStudioClientCompositionCachesV2(): void {
   invalidateStudioSupabaseModelReleaseResolverCacheV1();
   browserCompositionPromiseV2 = undefined;
-  browserExactCompositionPromisesV2.clear();
   browserExperimentCompositionPromisesV2.clear();
   browserSnapshotCompositionPromisesV2.clear();
-}
-
-/**
- * Loads the one registry-admitted development release into the hash-free
- * client catalog. Startup intentionally creates no Preset, Experiment,
- * Snapshot, Placement, or Lesson content.
- *
- * Authoring remains outside this main-thread composition. The persistent
- * Worker loads the exact runtime below and owns both live simulation and the
- * accepted-boundary Experiment/Snapshot bridge against that single runtime host.
- */
-export async function createStudioDefaultClientCompositionV2():
-Promise<StudioDefaultClientCompositionV2> {
-  // The main thread needs only the registry's public package projection. It
-  // must not instantiate the numerical executable bundle owned by the Worker.
-  const admittedPackage =
-    createAdmittedMainWireIntegratedStudioModelPackageV3() as
-      MainWireIntegratedStudioModelPackageV3;
-  const contract = deriveModelContractFromManifestV2(
-    admittedPackage.manifest,
-  );
-  if (contract.modelId !== DEFAULT_STUDIO_MODEL_ID_V2) {
-    throw new Error("Studio default model registration returned another model");
-  }
-  return Object.freeze({
-    defaultModelId: DEFAULT_STUDIO_MODEL_ID_V2,
-    releaseStage: "stable",
-    defaultFixture: admittedPackage.defaultFixture,
-    contract,
-    analysisExecutionPlan: DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
-  });
 }
 
 async function createRegistryClientCompositionV2(
   modelId?: string,
   surfacePin?: StudioModelSurfacePinV1,
 ): Promise<StudioClientCompositionV2> {
+  if (modelId !== undefined && surfacePin === undefined) {
+    throw new Error("Exact model resolution requires a Surface pin");
+  }
   const resolver = studioSupabaseModelReleaseResolverV1();
   if (resolver === null) {
     if (modelId === undefined) {
@@ -164,14 +105,10 @@ async function createRegistryClientCompositionV2(
         || surfacePin.surfaceReleaseId === standardSurfaceReleaseV1.surfaceReleaseId
       )
     ) {
-      // The unconfigured browser repository is intentionally local-only, but
-      // a Model Lab Save must still reopen through the ordinary Experiment
-      // route. Reuse the exact committed local Standard bundle rather than
-      // silently substituting the legacy bundled default.
+      // The unconfigured browser repository is intentionally local-only.
+      // Reuse the one committed Standard bundle without inventing another
+      // exact identity.
       return loadStudioLocalStandardModelLabClientCompositionV1();
-    }
-    if (modelId === DEFAULT_STUDIO_MODEL_ID_V2 && surfacePin === undefined) {
-      return createStudioDefaultClientCompositionV2();
     }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
@@ -179,7 +116,7 @@ async function createRegistryClientCompositionV2(
   }
   const release = modelId === undefined
     ? await resolver.resolveActiveBundle()
-    : await resolver.resolveExactModel(modelId, surfacePin);
+    : await resolver.resolveExactModel(modelId, surfacePin!);
   return Object.freeze({
     defaultModelId: release.contract.modelId,
     releaseStage: release.stage,
@@ -189,15 +126,9 @@ async function createRegistryClientCompositionV2(
       release.analysisProfileId,
     ),
     workerReleaseTicket: release.ticket,
-    ...(release.surfaceReleaseId === undefined
-      ? {}
-      : { surfaceReleaseId: release.surfaceReleaseId }),
-    ...(release.surfaceSeriesId === undefined
-      ? {}
-      : { surfaceSeriesId: release.surfaceSeriesId }),
-    ...(release.surfaceStage === undefined
-      ? {}
-      : { surfaceStage: release.surfaceStage }),
+    surfaceReleaseId: release.surfaceReleaseId,
+    surfaceSeriesId: release.surfaceSeriesId,
+    surfaceStage: release.surfaceStage,
     ...(release.activeBundleVersion === undefined
       ? {}
       : { activeBundleVersion: release.activeBundleVersion }),
@@ -278,54 +209,6 @@ function localStandardArtifactUrlV1(): string {
     : resolved.href;
 }
 
-/** Worker-only exact runtime; its model host must never be mistaken for the
- * main-thread authoring owner. */
-export async function createStudioDefaultWorkerCompositionV2():
-Promise<StudioDefaultWorkerCompositionV2> {
-  const resolved = await resolveDefaultWorkerReleaseV2();
-  return Object.freeze({
-    defaultModelId: DEFAULT_STUDIO_MODEL_ID_V2,
-    defaultFixture: resolved.defaultFixture,
-    runtime: resolved.registry.resolveExactRuntime(DEFAULT_STUDIO_MODEL_ID_V2),
-  });
-}
-
-async function resolveDefaultWorkerReleaseV2() {
-  // The Worker trusts the registry-admitted distribution and imports its
-  // committed artifact as ordinary ESM. Exact-byte evaluation belongs to
-  // registry admission/CI, not to every client startup. The generated JS
-  // loses TypeScript's non-empty fixture-path tuple annotation, so this cast
-  // restores the source release type before the registry revalidates it.
-  const admittedRelease =
-    createAdmittedMainWireIntegratedStudioExecutableReleaseV3() as unknown as
-      MainWireIntegratedStudioExecutableReleaseV3;
-  const registry = new TrustedRegisteredModelClientCatalogV2([
-    {
-      manifest: admittedRelease.manifest,
-      executables: admittedRelease.executables,
-    },
-  ]);
-  const contract = registry.resolveContract(DEFAULT_STUDIO_MODEL_ID_V2);
-  if (contract.modelId !== DEFAULT_STUDIO_MODEL_ID_V2) {
-    throw new Error("Studio default model registration returned another model");
-  }
-  const fixtureValidation = registry.resolveExactRuntime(DEFAULT_STUDIO_MODEL_ID_V2)
-    .fixtureAdapter.validateCompleteFixture({
-      context: {
-        scenarioId: "scenario/default-composition",
-        modelId: DEFAULT_STUDIO_MODEL_ID_V2,
-      },
-      fixture: admittedRelease.defaultFixture,
-    });
-  if (fixtureValidation !== undefined) {
-    throw new Error("Studio default fixture validator must be synchronous");
-  }
-  return Object.freeze({
-    defaultFixture: admittedRelease.defaultFixture,
-    registry,
-  });
-}
-
 /** One active-bundle composition shared across StrictMode remounts. */
 export function loadStudioDefaultClientCompositionV2():
 Promise<StudioDefaultClientCompositionV2> {
@@ -345,41 +228,11 @@ Promise<StudioDefaultClientCompositionV2> {
   return pending;
 }
 
-/** Existing content pins its exact modelId and never follows the active bundle. */
-export function loadStudioModelClientCompositionV2(
-  modelId: string,
-): Promise<StudioClientCompositionV2> {
-  if (modelId === DEFAULT_STUDIO_MODEL_ID_V2) {
-    const resolver = studioSupabaseModelReleaseResolverV1();
-    if (resolver === null) return createStudioDefaultClientCompositionV2();
-  }
-  const cached = browserExactCompositionPromisesV2.get(modelId);
-  if (cached !== undefined) return cached;
-  const pending = createRegistryClientCompositionV2(modelId).then(
-    (composition) => {
-      if (composition.contract.modelId !== modelId) {
-        throw new Error("Exact model registry returned another modelId");
-      }
-      return composition;
-    },
-  );
-  browserExactCompositionPromisesV2.set(modelId, pending);
-  void pending.catch(() => {
-    if (browserExactCompositionPromisesV2.get(modelId) === pending) {
-      browserExactCompositionPromisesV2.delete(modelId);
-    }
-  });
-  return pending;
-}
-
 /** Mutable content follows additive releases in its pinned Surface series. */
 export function loadStudioExperimentClientCompositionV2(
   modelId: string,
-  surfaceSeriesId?: string,
+  surfaceSeriesId: string,
 ): Promise<StudioClientCompositionV2> {
-  if (surfaceSeriesId === undefined) {
-    return loadStudioModelClientCompositionV2(modelId);
-  }
   const key = `${modelId}\u0000${surfaceSeriesId}`;
   const cached = browserExperimentCompositionPromisesV2.get(key);
   if (cached !== undefined) return cached;
@@ -407,15 +260,9 @@ export function loadStudioExperimentClientCompositionV2(
 /** Immutable content always reloads the exact Surface sealed by its Snapshot. */
 export function loadStudioSnapshotClientCompositionV2(
   modelId: string,
-  surfaceSeriesId?: string,
-  surfaceReleaseId?: string,
+  surfaceSeriesId: string,
+  surfaceReleaseId: string,
 ): Promise<StudioClientCompositionV2> {
-  if (surfaceSeriesId === undefined && surfaceReleaseId === undefined) {
-    return loadStudioModelClientCompositionV2(modelId);
-  }
-  if (surfaceSeriesId === undefined || surfaceReleaseId === undefined) {
-    return Promise.reject(new Error("Snapshot Surface pin is incomplete"));
-  }
   const key = `${modelId}\u0000${surfaceReleaseId}`;
   const cached = browserSnapshotCompositionPromisesV2.get(key);
   if (cached !== undefined) return cached;
@@ -447,9 +294,6 @@ function analysisExecutionPlanForProfileV2(
 ): StudioSimulationAnalysisExecutionPlanResolverV2 {
   if (profileId === "standard-no-model-analysis-v1") {
     return () => null;
-  }
-  if (profileId === "main-wire-integrated-v3") {
-    return resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
   }
   if (profileId === "main-wire-integrated-standard-v1") {
     return resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;

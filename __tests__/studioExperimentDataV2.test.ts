@@ -143,6 +143,18 @@ describe("Studio Experiment data V2", () => {
     expect(validateExperimentSnapshotV2(withoutActor).createdBy).toBeUndefined();
   });
 
+  it("rejects durable Standard content without exact Surface identity", () => {
+    const withoutSeries = experimentV2() as Record<string, any>;
+    delete withoutSeries.content.surfaceSeriesId;
+    expect(() => validateExperimentV2(withoutSeries))
+      .toThrow(/surfaceSeriesId|field set mismatch/);
+
+    const withoutRelease = snapshotV2() as Record<string, any>;
+    delete withoutRelease.surfaceReleaseId;
+    expect(() => validateExperimentSnapshotV2(withoutRelease))
+      .toThrow(/surfaceReleaseId|field set mismatch/);
+  });
+
   it("models role panes, authored presentation metadata and exactly one note", () => {
     const validated = validateExperimentV2(experimentV2());
     expect(validated.content.surface).toEqual({
@@ -1022,6 +1034,7 @@ function captureV2() {
 function contentV2() {
   return {
     modelId: "model/main-wire-v3",
+    surfaceSeriesId: "surface-series/main-wire-standard",
     scenarios: [{
       scenarioId: "scenario/baseline",
       label: "Baseline",
@@ -1082,6 +1095,7 @@ function desiredContentV2() {
   const content = contentV2();
   return {
     modelId: content.modelId,
+    surfaceSeriesId: content.surfaceSeriesId,
     scenarios: content.scenarios.map((scenario) => ({
       scenarioId: scenario.scenarioId,
       label: scenario.label,
@@ -1104,6 +1118,7 @@ function snapshotV2() {
   return {
     schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
     snapshotId: "snapshot/3",
+    surfaceReleaseId: "surface-release/main-wire-standard-r1",
     content: contentV2(),
     createdAt: "2026-07-31T03:04:05.000Z",
     createdBy: "user/author",

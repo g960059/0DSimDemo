@@ -37,7 +37,7 @@ import {
 type WorkbenchSelectorItemV3 = Readonly<{
   record: StudioBrowserExperimentRecordV3;
   modelId: string;
-  surfaceSeriesId?: string;
+  surfaceSeriesId: string;
   version: number;
 }>;
 
@@ -85,9 +85,7 @@ export function WorkbenchSelectorV3Page() {
             publishedSnapshotId: resource.publishedSnapshotId,
           }),
           modelId: resource.modelId,
-          ...(resource.surfaceSeriesId === undefined
-            ? {}
-            : { surfaceSeriesId: resource.surfaceSeriesId }),
+          surfaceSeriesId: resource.surfaceSeriesId,
           version: resource.version,
         })));
         setState({
@@ -98,9 +96,7 @@ export function WorkbenchSelectorV3Page() {
               savedExperiments: items.map((item) => ({
                 experimentId: item.record.experimentId,
                 modelId: item.modelId,
-                ...(item.surfaceSeriesId === undefined
-                  ? {}
-                  : { surfaceSeriesId: item.surfaceSeriesId }),
+                surfaceSeriesId: item.surfaceSeriesId,
               })),
               activeModelId: composition.defaultModelId,
               resolveExperiment: loadStudioExperimentClientCompositionV2,
@@ -137,9 +133,7 @@ export function WorkbenchSelectorV3Page() {
         .map((experiment) => Object.freeze({
           record: experimentIndex.read(experiment.experimentId)!,
           modelId: experiment.content.modelId,
-          ...(experiment.content.surfaceSeriesId === undefined
-            ? {}
-            : { surfaceSeriesId: experiment.content.surfaceSeriesId }),
+          surfaceSeriesId: experiment.content.surfaceSeriesId,
           version: experiment.version,
         }))
         .sort((left, right) =>
@@ -152,9 +146,7 @@ export function WorkbenchSelectorV3Page() {
             savedExperiments: items.map((item) => ({
               experimentId: item.record.experimentId,
               modelId: item.modelId,
-              ...(item.surfaceSeriesId === undefined
-                ? {}
-                : { surfaceSeriesId: item.surfaceSeriesId }),
+              surfaceSeriesId: item.surfaceSeriesId,
             })),
             activeModelId: composition.defaultModelId,
             resolveExperiment: loadStudioExperimentClientCompositionV2,

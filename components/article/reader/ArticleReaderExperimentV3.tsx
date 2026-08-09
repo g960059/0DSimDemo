@@ -15,9 +15,6 @@ import { ModelLimitations } from "@/components/ModelLimitations";
 import type {
   StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
-import {
-  DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
-} from "@/studio/composition/StudioDefaultCompositionV2";
 
 import {
   articleBriefingPresentationV3,
@@ -401,17 +398,10 @@ function ArticleReaderLiveOwnerV3({
   );
   const runtime = useArticleReaderLiveRuntimeV3(
     snapshot,
+    requiredArticleReaderRuntimeCompositionV3(runtimeComposition),
     briefing.scenarioScope.initialFocusScenarioId,
     briefing.scenarioScope.visibleScenarioIds,
     structuralAnalyses,
-    {
-      ...(runtimeComposition?.workerReleaseTicket === undefined
-        ? {}
-        : { releaseTicket: runtimeComposition.workerReleaseTicket }),
-      resolveAnalysisExecutionPlan:
-        runtimeComposition?.analysisExecutionPlan
-        ?? DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
-    },
   );
   const detail = (
     <ArticleReaderLiveDetailV3
@@ -1858,6 +1848,22 @@ function formatReaderValueV3(value: number): string {
 
 function readerErrorMessageV3(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
+}
+
+function requiredArticleReaderRuntimeCompositionV3(
+  composition: StudioClientCompositionV2 | null,
+): Readonly<{
+  releaseTicket: StudioClientCompositionV2["workerReleaseTicket"];
+  resolveAnalysisExecutionPlan:
+    StudioClientCompositionV2["analysisExecutionPlan"];
+}> {
+  if (composition === null) {
+    throw new Error("Article Reader Standard runtime composition is unavailable");
+  }
+  return Object.freeze({
+    releaseTicket: composition.workerReleaseTicket,
+    resolveAnalysisExecutionPlan: composition.analysisExecutionPlan,
+  });
 }
 
 export function articleReaderBoundedHistoryV3<T>(

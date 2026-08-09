@@ -86,7 +86,7 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
-} from "./MainWireIntegratedStudioModelIdentityV3";
+} from "./MainWireIntegratedStudioModelIdentityV1";
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 =
   "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1" as const;
@@ -195,7 +195,7 @@ const STANDARD_EXACT_OUTPUT_IDS_V1 = new Set([
   ...STANDARD_MODEL_METRIC_DEFINITIONS_V1.map(({ outputId }) => outputId),
 ]);
 
-/** Standard numerical runtime. Legacy development-36 remains artifact-only. */
+/** Standard numerical runtime used by every Studio Session. */
 export class MainWireIntegratedStudioStandardRuntimeHostV1 {
   readonly #sessions = new Map<string, RuntimeSessionV1>();
   readonly #retiredSessionIds = new Set<string>();

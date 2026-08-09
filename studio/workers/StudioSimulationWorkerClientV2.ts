@@ -177,7 +177,7 @@ type ExpectedResponseV2 =
       runtimeSessionId: string;
       experimentId: string;
       surface: ExperimentSurfaceV2;
-      surfaceSeriesId?: string;
+      surfaceSeriesId: string;
       expectedVersion: number | null;
       priorExperiment: ExperimentV2 | undefined;
     }>
@@ -185,8 +185,8 @@ type ExpectedResponseV2 =
       kind: "snapshot-created";
       modelId: string;
       surface: ExperimentSurfaceV2;
-      surfaceSeriesId?: string;
-      surfaceReleaseId?: string;
+      surfaceSeriesId: string;
+      surfaceReleaseId: string;
       scenarioIds: readonly string[];
     }>
   | Readonly<{
@@ -661,9 +661,7 @@ export class StudioSimulationWorkerClientV2 {
         runtimeSessionId: this.#runtimeSessionId,
         experimentId: request.experimentId,
         surface: request.surface,
-        ...(request.surfaceSeriesId === undefined
-          ? {}
-          : { surfaceSeriesId: request.surfaceSeriesId }),
+        surfaceSeriesId: request.surfaceSeriesId,
         expectedVersion: request.expectedVersion,
         priorExperiment,
       });
@@ -786,12 +784,8 @@ export class StudioSimulationWorkerClientV2 {
         kind: "snapshot-created",
         modelId: this.#modelId,
         surface: request.surface,
-        ...(request.surfaceSeriesId === undefined
-          ? {}
-          : { surfaceSeriesId: request.surfaceSeriesId }),
-        ...(request.surfaceReleaseId === undefined
-          ? {}
-          : { surfaceReleaseId: request.surfaceReleaseId }),
+        surfaceSeriesId: request.surfaceSeriesId,
+        surfaceReleaseId: request.surfaceReleaseId,
         scenarioIds: request.scenarioIds,
       }, this.#snapshotAdmissionTimeoutMs);
       if (response.status !== "ok" || response.kind !== "snapshot-created") {

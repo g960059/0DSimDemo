@@ -18,6 +18,7 @@ import {
 import type {
   CreateExperimentSnapshotCommandV2,
   CreateExperimentCommandV2,
+  ExperimentCapturedContentV2,
   ExperimentDesiredContentV2,
   ExperimentSnapshotIdFactoryPortV2,
   ForkExperimentCommandV2,
@@ -263,8 +264,8 @@ export class StudioExperimentAuthoringApplicationV2 {
   ): Promise<ExperimentSnapshotV2> {
     assertCommandKeysV2(
       command,
-      ["content"],
-      ["createdBy", "savedExperiment", "surfaceReleaseId"],
+      ["content", "surfaceReleaseId"],
+      ["createdBy", "savedExperiment"],
       "CreateSnapshot",
     );
     if (
@@ -276,16 +277,6 @@ export class StudioExperimentAuthoringApplicationV2 {
       );
     }
     const candidateContent = command.content;
-    if (
-      (candidateContent.surfaceSeriesId === undefined)
-        !== (command.surfaceReleaseId === undefined)
-    ) {
-      throw new StudioExperimentAuthoringConflictErrorV2(
-        "CreateSnapshot requires an exact Surface release for Surface-pinned content "
-          + `(series=${candidateContent.surfaceSeriesId === undefined ? "absent" : "present"}, `
-          + `release=${command.surfaceReleaseId === undefined ? "absent" : "present"})`,
-      );
-    }
     if (command.savedExperiment !== undefined) {
       assertCommandKeysV2(
         command.savedExperiment,
@@ -323,10 +314,10 @@ export class StudioExperimentAuthoringApplicationV2 {
     );
 
     // Both Article Briefing and standalone publication pass through this one
-    // Studio-owned boundary. The legacy exact-model gate is only an adapter;
-    // admission cannot manufacture a settled replacement checkpoint.
+    // Studio-owned boundary. Admission cannot manufacture a settled
+    // replacement checkpoint.
     await studioSnapshotAdmissionServiceV1.admitFrozenCandidate({
-      legacyAdapter: runtime.snapshotGate,
+      adapter: runtime.snapshotGate,
       model,
       content: candidateContent,
     });
@@ -335,9 +326,7 @@ export class StudioExperimentAuthoringApplicationV2 {
     const snapshot = validateExperimentSnapshotV2({
       schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
       snapshotId,
-      ...(command.surfaceReleaseId === undefined
-        ? {}
-        : { surfaceReleaseId: command.surfaceReleaseId }),
+      surfaceReleaseId: command.surfaceReleaseId,
       content: candidateContent,
       createdAt: this.#clock.nowIso(),
       ...(command.createdBy === undefined
@@ -443,21 +432,20 @@ async function captureDesiredContentAtAcceptedBoundaryV2(input: Readonly<{
     experimentId: input.experimentId,
     correlation,
   });
-  if (
-    captureResult.content.surfaceSeriesId !== undefined
-    && captureResult.content.surfaceSeriesId
-      !== input.desiredContent.surfaceSeriesId
-  ) {
-    throw new StudioExperimentCaptureMutationErrorV2("surfaceSeriesId");
+  if (Object.prototype.hasOwnProperty.call(
+    captureResult.content,
+    "surfaceSeriesId",
+  )) {
+    throw new StudioExperimentCaptureMutationErrorV2(
+      "exact-model capture must not own surfaceSeriesId",
+    );
   }
   // Surface identity is Studio-owned metadata. Exact-model capture adapters
   // freeze numerical Scenario state and the authored presentation projection;
   // they do not need to know which registry series supplied that projection.
   return {
     ...captureResult.content,
-    ...(input.desiredContent.surfaceSeriesId === undefined
-      ? {}
-      : { surfaceSeriesId: input.desiredContent.surfaceSeriesId }),
+    surfaceSeriesId: input.desiredContent.surfaceSeriesId,
   };
 }
 
@@ -498,9 +486,7 @@ function reuseMatchingScenarioCapturesV2(
   });
   return {
     modelId: desired.modelId,
-    ...(desired.surfaceSeriesId === undefined
-      ? {}
-      : { surfaceSeriesId: desired.surfaceSeriesId }),
+    surfaceSeriesId: desired.surfaceSeriesId,
     scenarios,
     surface: desired.surface,
   };
@@ -508,7 +494,10 @@ function reuseMatchingScenarioCapturesV2(
 
 function assertExperimentCaptureResultEnvelopeV2(
   value: unknown,
-): asserts value is Readonly<{ content: ExperimentContentV2; confirmation: unknown }> {
+): asserts value is Readonly<{
+  content: ExperimentCapturedContentV2;
+  confirmation: unknown;
+}> {
   if (
     value === null
     || typeof value !== "object"

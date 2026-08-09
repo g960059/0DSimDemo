@@ -13,9 +13,6 @@ import {
   studioNumericControlValueIssueV2,
 } from "./control";
 
-export const STUDIO_REGISTERED_MODEL_PACKAGE_V2_SCHEMA_ID =
-  "circleheart-studio-registered-model-package-v2" as const;
-
 /**
  * The public model contract is an allowlisted identity/reference projection
  * for the V2 foundation. Registry package metadata, build identities, release
@@ -133,56 +130,6 @@ export type RegisteredModelCheckpointCodecV2 = Readonly<{
   definition: StudioJsonObjectV2;
 }>;
 
-export type RegisteredModelSnapshotGateV2 = Readonly<{
-  snapshotGateId: string;
-  definition: StudioJsonObjectV2;
-}>;
-
-export type RegisteredModelCatalogsV2 = Readonly<{
-  controlCatalog: readonly ControlDefinitionV2[];
-  outputCatalog: readonly OutputDefinitionV2[];
-  graphCatalog: readonly GraphDefinitionV2[];
-}>;
-
-/**
- * The one normative, fail-closed source of truth admitted by the registry.
- * The public ModelContract is derived from this manifest; callers cannot
- * submit a second contract that might disagree with the package.
- */
-export type RegisteredModelPackageManifestV2 = Readonly<{
-  schemaId: typeof STUDIO_REGISTERED_MODEL_PACKAGE_V2_SCHEMA_ID;
-  modelId: ModelIdV2;
-  modelFamilyId: ModelFamilyIdV2;
-  displayName: string;
-  equations: StudioJsonObjectV2;
-  runtime: StudioJsonObjectV2;
-  solver: StudioJsonObjectV2;
-  fixtureSchema: RegisteredModelFixtureSchemaV2;
-  checkpointCodec: RegisteredModelCheckpointCodecV2;
-  snapshotGate: RegisteredModelSnapshotGateV2;
-  catalogs: RegisteredModelCatalogsV2;
-}>;
-
-/**
- * Server/loader package resolution returns the immutable manifest, never the
- * registry's content digest.
- */
-export type ResolvedModelPackageV2 = Readonly<{
-  contract: ModelContractV2;
-  manifest: RegisteredModelPackageManifestV2;
-}>;
-
-/** Least-authority, hash-free contract lookup used by Studio applications. */
-export interface RegisteredModelContractResolverPortV2 {
-  resolveContract(modelId: ModelIdV2): ModelContractV2;
-}
-
-/** Server/loader lookup that may also materialize the registered package. */
-export interface RegisteredModelResolverPortV2
-extends RegisteredModelContractResolverPortV2 {
-  resolvePackage(modelId: ModelIdV2): ResolvedModelPackageV2;
-}
-
 /**
  * Exact-model executable seam for opaque fixture/checkpoint validation.
  * Identity fields are checked against the registered public contract before
@@ -220,24 +167,6 @@ const MODEL_CONTRACT_KEYS_V2 = Object.freeze([
   "modelId",
   "outputCatalog",
   "snapshotGateId",
-]);
-const MODEL_MANIFEST_KEYS_V2 = Object.freeze([
-  "catalogs",
-  "checkpointCodec",
-  "displayName",
-  "equations",
-  "fixtureSchema",
-  "modelFamilyId",
-  "modelId",
-  "runtime",
-  "schemaId",
-  "snapshotGate",
-  "solver",
-]);
-const MODEL_CATALOG_KEYS_V2 = Object.freeze([
-  "controlCatalog",
-  "graphCatalog",
-  "outputCatalog",
 ]);
 const CONTROL_KEYS_V2 = Object.freeze([
   "changeSemantics",
@@ -340,159 +269,6 @@ export function assertModelContractV2(
     "$.graphCatalog",
     outputCatalog,
   );
-}
-
-export function assertRegisteredModelPackageManifestV2(
-  value: unknown,
-): asserts value is RegisteredModelPackageManifestV2 {
-  assertPortableStudioJsonObjectV2(value, "$.manifest");
-  assertExactKeysV2(value, "$.manifest", MODEL_MANIFEST_KEYS_V2);
-  if (value.schemaId !== STUDIO_REGISTERED_MODEL_PACKAGE_V2_SCHEMA_ID) {
-    throw new ModelContractValidationErrorV2(
-      "$.manifest.schemaId",
-      "schema identity mismatch",
-    );
-  }
-  assertPortableModelIdentifierV2(value.modelId, "$.manifest.modelId");
-  assertPortableModelIdentifierV2(
-    value.modelFamilyId,
-    "$.manifest.modelFamilyId",
-  );
-  assertNonEmptyTrimmedStringV2(
-    value.displayName,
-    "$.manifest.displayName",
-    512,
-  );
-  assertNonEmptyDefinitionObjectV2(value.equations, "$.manifest.equations");
-  assertNonEmptyDefinitionObjectV2(value.runtime, "$.manifest.runtime");
-  assertNonEmptyDefinitionObjectV2(value.solver, "$.manifest.solver");
-  assertManifestDefinitionV2(
-    value.fixtureSchema,
-    "$.manifest.fixtureSchema",
-    "fixtureSchemaId",
-  );
-  assertManifestDefinitionV2(
-    value.checkpointCodec,
-    "$.manifest.checkpointCodec",
-    "checkpointCodecId",
-  );
-  assertManifestDefinitionV2(
-    value.snapshotGate,
-    "$.manifest.snapshotGate",
-    "snapshotGateId",
-  );
-  assertExactKeysV2(value.catalogs, "$.manifest.catalogs", MODEL_CATALOG_KEYS_V2);
-  const catalogs = value.catalogs as unknown as RegisteredModelCatalogsV2;
-  assertControlCatalogV2(
-    catalogs.controlCatalog,
-    "$.manifest.catalogs.controlCatalog",
-  );
-  const outputCatalog = assertOutputCatalogV2(
-    catalogs.outputCatalog,
-    "$.manifest.catalogs.outputCatalog",
-  );
-  assertGraphCatalogV2(
-    catalogs.graphCatalog,
-    "$.manifest.catalogs.graphCatalog",
-    outputCatalog,
-  );
-}
-
-export function deriveModelContractFromManifestV2(
-  manifestValue: unknown,
-): ModelContractV2 {
-  assertRegisteredModelPackageManifestV2(manifestValue);
-  const manifest = manifestValue;
-  const contract: ModelContractV2 = Object.freeze({
-    modelId: manifest.modelId,
-    modelFamilyId: manifest.modelFamilyId,
-    displayName: manifest.displayName,
-    fixtureSchemaId: manifest.fixtureSchema.fixtureSchemaId,
-    checkpointCodecId: manifest.checkpointCodec.checkpointCodecId,
-    snapshotGateId: manifest.snapshotGate.snapshotGateId,
-    controlCatalog: Object.freeze(mapArrayByIndexV2(
-      manifest.catalogs.controlCatalog,
-      (control) => Object.freeze({
-        changeSemantics: control.changeSemantics,
-        controlId: control.controlId,
-        defaultValue: control.defaultValue,
-        maximum: control.maximum,
-        minimum: control.minimum,
-        step: control.step,
-        unit: control.unit,
-        valueType: control.valueType,
-      }),
-    )),
-    outputCatalog: Object.freeze(mapArrayByIndexV2(
-      manifest.catalogs.outputCatalog,
-      (output) => output.kind === "signal"
-        ? Object.freeze({
-          outputId: output.outputId,
-          kind: output.kind,
-          unit: output.unit,
-          shape: output.shape,
-          sampling: output.sampling,
-        })
-        : Object.freeze({
-          outputId: output.outputId,
-          kind: output.kind,
-          unit: output.unit,
-          shape: output.shape,
-          scope: output.scope,
-          dependencies: Object.freeze(copyArrayByIndexV2(output.dependencies)),
-        }),
-    )),
-    graphCatalog: Object.freeze(mapArrayByIndexV2(
-      manifest.catalogs.graphCatalog,
-      (graph) => {
-        if (graph.renderer === "sweep") {
-          return Object.freeze({
-            graphId: graph.graphId,
-            renderer: graph.renderer,
-            seriesCatalog: Object.freeze(mapArrayByIndexV2(
-              graph.seriesCatalog,
-              (series) => Object.freeze({
-                kind: series.kind,
-                seriesId: series.seriesId,
-                outputId: series.outputId,
-              }),
-            )),
-            defaultSeriesIds: Object.freeze(copyArrayByIndexV2(
-              graph.defaultSeriesIds,
-            )),
-          });
-        }
-        if (graph.renderer === "structural-return") {
-          return Object.freeze({
-            graphId: graph.graphId,
-            renderer: graph.renderer,
-            analysisId: graph.analysisId,
-            side: graph.side,
-          });
-        }
-        return Object.freeze({
-          graphId: graph.graphId,
-          renderer: graph.renderer,
-          seriesCatalog: Object.freeze(mapArrayByIndexV2(
-            graph.seriesCatalog,
-            (series) => Object.freeze({
-              kind: series.kind,
-              seriesId: series.seriesId,
-              volumeOutputId: series.volumeOutputId,
-              pressureOutputId: series.pressureOutputId,
-              pressureBasis: series.pressureBasis,
-              cyclePhaseOutputId: series.cyclePhaseOutputId,
-            }),
-          )),
-          defaultSeriesIds: Object.freeze(copyArrayByIndexV2(
-            graph.defaultSeriesIds,
-          )),
-        });
-      },
-    )),
-  });
-  assertModelContractV2(contract);
-  return contract;
 }
 
 export function assertCaptureAdapterMatchesModelV2(
@@ -1284,37 +1060,6 @@ function assertAcyclicMetricDependenciesV2(
     visited.add(outputId);
   };
   metrics.forEach(({ outputId }) => visit(outputId));
-}
-
-function assertManifestDefinitionV2(
-  value: unknown,
-  path: string,
-  idKey: "fixtureSchemaId" | "checkpointCodecId" | "snapshotGateId",
-): void {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new ModelContractValidationErrorV2(path, "must be an object");
-  }
-  assertExactKeysV2(value, path, ["definition", idKey].sort());
-  const record = value as Record<string, unknown>;
-  assertPortableModelIdentifierV2(record[idKey], `${path}.${idKey}`);
-  assertNonEmptyDefinitionObjectV2(record.definition, `${path}.definition`);
-}
-
-function assertNonEmptyDefinitionObjectV2(
-  value: unknown,
-  path: string,
-): asserts value is StudioJsonObjectV2 {
-  if (
-    value === null
-    || typeof value !== "object"
-    || Array.isArray(value)
-    || Object.keys(value).length === 0
-  ) {
-    throw new ModelContractValidationErrorV2(
-      path,
-      "must be a non-empty portable JSON object",
-    );
-  }
 }
 
 function assertExactKeysV2(

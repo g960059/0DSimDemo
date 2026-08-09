@@ -22,19 +22,17 @@ export class StudioExperimentSnapshotAdmissionProtocolErrorV2 extends Error {
 /**
  * The one Studio-owned admission boundary for both Article Briefing and
  * standalone Experiment publication.
- *
- * development-36 still exposes its old model-package gate, so that executable
- * is passed as a legacy adapter here. New exact-model ABIs can replace the
- * adapter without adding an admission profile to model identity or authored
- * content.
+ * The executable adapter belongs to the Standard exact release. Admission
+ * remains a Studio policy boundary rather than authored content or model
+ * identity.
  */
 export class StudioSnapshotAdmissionServiceV1 {
   async admitFrozenCandidate(input: Readonly<{
-    legacyAdapter: ExperimentSnapshotAdmissionPortV2;
+    adapter: ExperimentSnapshotAdmissionPortV2;
     model: ModelContractV2;
     content: ExperimentContentV2;
   }>): Promise<void> {
-    const result = await input.legacyAdapter.admitFrozenCandidate({
+    const result = await input.adapter.admitFrozenCandidate({
       model: input.model,
       content: input.content,
     });

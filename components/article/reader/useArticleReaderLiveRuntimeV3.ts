@@ -43,14 +43,14 @@ export type UseArticleReaderLiveRuntimeResultV3 = Readonly<{
  */
 export function useArticleReaderLiveRuntimeV3(
   snapshot: ExperimentSnapshotV2,
-  initialActiveScenarioId?: string,
-  visibleScenarioIds?: readonly string[],
-  structuralAnalyses: readonly ArticleReaderStructuralAnalysisRequestV3[] = [],
-  exactModel?: Readonly<{
-    releaseTicket?: StudioModelWorkerReleaseTicketV2;
+  exactModel: Readonly<{
+    releaseTicket: StudioModelWorkerReleaseTicketV2;
     resolveAnalysisExecutionPlan?:
       StudioSimulationAnalysisExecutionPlanResolverV2;
   }>,
+  initialActiveScenarioId?: string,
+  visibleScenarioIds?: readonly string[],
+  structuralAnalyses: readonly ArticleReaderStructuralAnalysisRequestV3[] = [],
 ): UseArticleReaderLiveRuntimeResultV3 {
   const requestedScopeKey = JSON.stringify(visibleScenarioIds ?? null);
   const validatedVisibleScenarioIds = React.useMemo(
@@ -82,9 +82,7 @@ export function useArticleReaderLiveRuntimeV3(
       visibleScenarioIds: validatedVisibleScenarioIds,
       structuralAnalyses,
       sampleStore,
-      ...(exactModel?.releaseTicket === undefined
-        ? {}
-        : { releaseTicket: exactModel.releaseTicket }),
+      releaseTicket: exactModel.releaseTicket,
       ...(exactModel?.resolveAnalysisExecutionPlan === undefined
         ? {}
         : {

@@ -226,6 +226,7 @@ function modelsV1(): StudioAuthoringModelPortV1 {
 function contentV1() {
   return {
     modelId: "model/example",
+    surfaceSeriesId: "surface-series/example",
     scenarios: [{
       scenarioId: "scenario/baseline",
       label: "Baseline",

@@ -32,16 +32,20 @@ insert into studio.model_releases (
   artifact_path,
   artifact_sha256,
   registry_fingerprint,
-  source_commit
+  source_commit,
+  default_fixture,
+  analysis_profile_id
 ) values (
   'model/summary-test-v1',
   'model/summary-test',
   'Summary test model',
-  '{"modelId":"model/summary-test-v1"}'::jsonb,
+  '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/summary-test-v1","modelFamilyId":"model/summary-test"}'::jsonb,
   'models/summary-test-v1.mjs',
   repeat('c', 64),
   repeat('d', 64),
-  'summary-test'
+  'summary-test',
+  '{"schemaId":"fixture/summary-test-v1"}'::jsonb,
+  'analysis/summary-test-v1'
 );
 
 insert into studio.model_release_availability (model_id, stage)

@@ -33116,8 +33116,8 @@ function assertExactModelKernelManifestV3(value) {
   assertPortableStudioJsonObjectV2(value, "$.kernel");
   assertRequiredAndOptionalKeysV1(
     value,
-    KERNEL_KEYS_V3.filter((key) => key !== "modelMetricCatalog"),
-    ["modelMetricCatalog"],
+    KERNEL_KEYS_V3,
+    [],
     "$.kernel"
   );
   const kernel = value;
@@ -33157,7 +33157,7 @@ function assertExactModelKernelManifestV3(value) {
       "must contain primitive signals only"
     );
   }
-  const metrics = kernel.modelMetricCatalog ?? [];
+  const metrics = kernel.modelMetricCatalog;
   if (!Array.isArray(metrics) || metrics.some((metric) => metric === null || typeof metric !== "object" || metric.kind !== "metric")) {
     throw new ModelSurfaceValidationErrorV1(
       "$.kernel.modelMetricCatalog",
@@ -33551,7 +33551,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-5";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-6";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

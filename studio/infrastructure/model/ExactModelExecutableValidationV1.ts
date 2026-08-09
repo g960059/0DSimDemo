@@ -1,0 +1,187 @@
+import type { ModelContractV2 } from "@/studio/contracts/v2/model";
+import { assertCaptureAdapterMatchesModelV2 } from "@/studio/contracts/v2/model";
+import type {
+  RegisteredModelExecutableBundleV2,
+  ResolvedExactModelRuntimeV2,
+} from "@/studio/contracts/v2/executable";
+
+export class ExactModelExecutableValidationErrorV1 extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExactModelExecutableValidationErrorV1";
+  }
+}
+
+export function validateExecutableBundleV2(
+  bundle: RegisteredModelExecutableBundleV2,
+  model: ModelContractV2,
+): void {
+  if (bundle === null || typeof bundle !== "object") {
+    throw new ExactModelExecutableValidationErrorV1(
+      "executable bundle must be an object",
+    );
+  }
+  assertExactExecutableKeysV1(bundle, [
+    "modelId",
+    "fixtureSchemaId",
+    "checkpointCodecId",
+    "snapshotGateId",
+    "captureAdapter",
+    "experimentCapture",
+    "snapshotGate",
+    "fixtureAdapter",
+    "simulationAdapter",
+  ], "executable bundle");
+  assertExactExecutableKeysV1(bundle.captureAdapter, [
+    "modelId",
+    "fixtureSchemaId",
+    "checkpointCodecId",
+    "validateFixture",
+    "validateCapture",
+  ], "capture adapter");
+  assertExactExecutableKeysV1(bundle.experimentCapture, [
+    "modelId",
+    "fixtureSchemaId",
+    "checkpointCodecId",
+    "captureAcceptedCandidate",
+  ], "Experiment capture adapter");
+  assertExactExecutableKeysV1(bundle.snapshotGate, [
+    "modelId",
+    "snapshotGateId",
+    "admitFrozenCandidate",
+  ], "Snapshot gate adapter");
+  assertExactExecutableKeysV1(bundle.fixtureAdapter, [
+    "modelId",
+    "fixtureSchemaId",
+    "validateCompleteFixture",
+    ...(bundle.fixtureAdapter.reduceControlAction === undefined
+      ? []
+      : ["reduceControlAction"]),
+  ], "fixture adapter");
+  assertExactExecutableKeysV1(bundle.simulationAdapter, [
+    "modelId",
+    "fixtureSchemaId",
+    "checkpointCodecId",
+    "createSession",
+    "disposeSession",
+    "currentFrame",
+    "advanceOnePresentationStep",
+    "applyControl",
+    "requestAnalysis",
+    "replaceFixture",
+    "currentInputEpoch",
+  ], "simulation adapter");
+  if (
+    bundle.modelId !== model.modelId
+    || bundle.fixtureSchemaId !== model.fixtureSchemaId
+    || bundle.checkpointCodecId !== model.checkpointCodecId
+    || bundle.snapshotGateId !== model.snapshotGateId
+  ) {
+    throw new ExactModelExecutableValidationErrorV1(
+      "executable bundle identity must exactly match its manifest",
+    );
+  }
+  assertCaptureAdapterMatchesModelV2(bundle.captureAdapter, model);
+  if (
+    bundle.experimentCapture?.modelId !== model.modelId
+    || bundle.experimentCapture.fixtureSchemaId !== model.fixtureSchemaId
+    || bundle.experimentCapture.checkpointCodecId !== model.checkpointCodecId
+    || typeof bundle.experimentCapture.captureAcceptedCandidate !== "function"
+    || bundle.snapshotGate?.modelId !== model.modelId
+    || bundle.snapshotGate.snapshotGateId !== model.snapshotGateId
+    || typeof bundle.snapshotGate.admitFrozenCandidate !== "function"
+    || bundle.fixtureAdapter?.modelId !== model.modelId
+    || bundle.fixtureAdapter.fixtureSchemaId !== model.fixtureSchemaId
+    || typeof bundle.fixtureAdapter.validateCompleteFixture !== "function"
+    || bundle.simulationAdapter?.modelId !== model.modelId
+    || bundle.simulationAdapter.fixtureSchemaId !== model.fixtureSchemaId
+    || bundle.simulationAdapter.checkpointCodecId !== model.checkpointCodecId
+    || typeof bundle.simulationAdapter.createSession !== "function"
+    || typeof bundle.simulationAdapter.disposeSession !== "function"
+    || typeof bundle.simulationAdapter.currentFrame !== "function"
+    || typeof bundle.simulationAdapter.advanceOnePresentationStep !== "function"
+    || typeof bundle.simulationAdapter.applyControl !== "function"
+    || typeof bundle.simulationAdapter.requestAnalysis !== "function"
+    || typeof bundle.simulationAdapter.replaceFixture !== "function"
+    || typeof bundle.simulationAdapter.currentInputEpoch !== "function"
+    || (
+      bundle.fixtureAdapter.reduceControlAction !== undefined
+      && typeof bundle.fixtureAdapter.reduceControlAction !== "function"
+    )
+  ) {
+    throw new ExactModelExecutableValidationErrorV1(
+      "every executable adapter must exactly match the manifest identities",
+    );
+  }
+}
+
+export function freezeExactRuntimeV2(
+  bundle: RegisteredModelExecutableBundleV2,
+  contract: ModelContractV2,
+): ResolvedExactModelRuntimeV2 {
+  return Object.freeze({
+    contract,
+    captureAdapter: Object.freeze({
+      modelId: bundle.captureAdapter.modelId,
+      fixtureSchemaId: bundle.captureAdapter.fixtureSchemaId,
+      checkpointCodecId: bundle.captureAdapter.checkpointCodecId,
+      validateFixture: bundle.captureAdapter.validateFixture,
+      validateCapture: bundle.captureAdapter.validateCapture,
+    }),
+    experimentCapture: Object.freeze({
+      modelId: bundle.experimentCapture.modelId,
+      fixtureSchemaId: bundle.experimentCapture.fixtureSchemaId,
+      checkpointCodecId: bundle.experimentCapture.checkpointCodecId,
+      captureAcceptedCandidate: bundle.experimentCapture.captureAcceptedCandidate,
+    }),
+    snapshotGate: Object.freeze({
+      modelId: bundle.snapshotGate.modelId,
+      snapshotGateId: bundle.snapshotGate.snapshotGateId,
+      admitFrozenCandidate: bundle.snapshotGate.admitFrozenCandidate,
+    }),
+    fixtureAdapter: Object.freeze({
+      modelId: bundle.fixtureAdapter.modelId,
+      fixtureSchemaId: bundle.fixtureAdapter.fixtureSchemaId,
+      validateCompleteFixture: bundle.fixtureAdapter.validateCompleteFixture,
+      ...(bundle.fixtureAdapter.reduceControlAction === undefined
+        ? {}
+        : { reduceControlAction: bundle.fixtureAdapter.reduceControlAction }),
+    }),
+    simulationAdapter: Object.freeze({
+      modelId: bundle.simulationAdapter.modelId,
+      fixtureSchemaId: bundle.simulationAdapter.fixtureSchemaId,
+      checkpointCodecId: bundle.simulationAdapter.checkpointCodecId,
+      createSession: bundle.simulationAdapter.createSession,
+      disposeSession: bundle.simulationAdapter.disposeSession,
+      currentFrame: bundle.simulationAdapter.currentFrame,
+      advanceOnePresentationStep:
+        bundle.simulationAdapter.advanceOnePresentationStep,
+      applyControl: bundle.simulationAdapter.applyControl,
+      requestAnalysis: bundle.simulationAdapter.requestAnalysis,
+      replaceFixture: bundle.simulationAdapter.replaceFixture,
+      currentInputEpoch: bundle.simulationAdapter.currentInputEpoch,
+    }),
+  });
+}
+
+function assertExactExecutableKeysV1(
+  value: unknown,
+  expected: readonly string[],
+  name: string,
+): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new ExactModelExecutableValidationErrorV1(
+      `${name} must be an object`,
+    );
+  }
+  const actual = Object.keys(value).sort();
+  const required = [...expected].sort();
+  if (
+    actual.length !== required.length
+    || actual.some((key, index) => key !== required[index])
+  ) {
+    throw new ExactModelExecutableValidationErrorV1(
+      `${name} must contain exactly ${required.join(", ")}`,
+    );
+  }
+}
