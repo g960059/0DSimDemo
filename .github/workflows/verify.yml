@@ -88,8 +88,9 @@ jobs:
           fi
         env:
           # Shared runners are markedly slower on the exact V3 hot-path and
-          # session tests. Keep the 60 s local gate while allowing CI variance.
-          CIRCLEHEART_FAST_TEST_BUDGET_MS: 180000
+          # session tests. Keep the 60 s local gate while allowing CI variance;
+          # this remains a runaway-process guard rather than a performance gate.
+          CIRCLEHEART_FAST_TEST_BUDGET_MS: 300000
 
       - name: Verify exact V3 snapshot qualification
         if: github.event_name == 'pull_request'
