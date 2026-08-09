@@ -26,9 +26,11 @@ Standard-bundle launch and is not a release stage or alternate Editor/Reader.
 It is ephemeral and cannot Save, capture a Snapshot, Brief, or publish. Durable
 content is authored only through the ordinary active-model Session.
 
-The first Standard Surface is intentionally limited to the CONTENT-0001 PV
-loop teaching slice. Activating that bundle is an explicit pilot acceptance
-step, not a claim that the full legacy Workbench catalog has reached parity.
+The checked-in Standard Workbench Surface now owns the complete ordinary
+catalog: all supported controls and outputs plus pressure, flow, PV and
+Guyton/Starling graphs. CONTENT-0001 still authors a deliberately small
+Experiment Surface, but it no longer requires a separate limited model
+Surface or a legacy catalog fallback.
 
 The Git official-recipe runner and generic launch channels were removed. AI
 assistance starts with typed list/read (including exact Snapshot detail),

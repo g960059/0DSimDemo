@@ -55,7 +55,7 @@ import {
 import standardClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-standard-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
 typeof MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
@@ -152,6 +152,9 @@ async function createRegistryClientCompositionV2(
 ): Promise<StudioClientCompositionV2> {
   const resolver = studioSupabaseModelReleaseResolverV1();
   if (resolver === null) {
+    if (modelId === undefined) {
+      return loadStudioLocalStandardClientCompositionV1();
+    }
     if (
       modelId === standardClientDescriptorV1.manifest.modelId
       && surfacePin !== undefined
@@ -167,7 +170,12 @@ async function createRegistryClientCompositionV2(
       // silently substituting the legacy bundled default.
       return loadStudioLocalStandardModelLabClientCompositionV1();
     }
-    return createStudioDefaultClientCompositionV2();
+    if (modelId === DEFAULT_STUDIO_MODEL_ID_V2 && surfacePin === undefined) {
+      return createStudioDefaultClientCompositionV2();
+    }
+    throw new Error(
+      "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
+    );
   }
   const release = modelId === undefined
     ? await resolver.resolveActiveBundle()
@@ -201,7 +209,7 @@ async function createRegistryClientCompositionV2(
  * The browser receives only the admitted manifest/fixture projection; the
  * persistent Worker imports and owns the numerical artifact.
  */
-export function loadStudioLocalStandardModelLabClientCompositionV1():
+export function loadStudioLocalStandardClientCompositionV1():
 Promise<StudioClientCompositionV2> {
   if (browserLocalStandardModelLabCompositionPromiseV1 !== undefined) {
     return browserLocalStandardModelLabCompositionPromiseV1;
@@ -219,11 +227,7 @@ Promise<StudioClientCompositionV2> {
       standardClientDescriptorV1.manifest,
       standardSurfaceReleaseV1,
     );
-    const artifactUrl = new URL(
-      "../integrations/mainWireIntegratedV3/"
-        + "MainWireIntegratedStudioExactModelV1.artifact.mjs",
-      import.meta.url,
-    ).href;
+    const artifactUrl = localStandardArtifactUrlV1();
     const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId: composed.contract.modelId,
@@ -252,6 +256,26 @@ Promise<StudioClientCompositionV2> {
     }
   });
   return pending;
+}
+
+/** Model Lab and the unconfigured local Workbench share one exact bundle. */
+export const loadStudioLocalStandardModelLabClientCompositionV1 =
+  loadStudioLocalStandardClientCompositionV1;
+
+function localStandardArtifactUrlV1(): string {
+  const loopbackBase = "http://127.0.0.1/";
+  const resolved = new URL(
+    "../integrations/mainWireIntegratedV3/"
+      + "MainWireIntegratedStudioExactModelV1.artifact.mjs",
+    import.meta.url,
+  );
+  // Vitest resolves import.meta.url against the filesystem. A file: URL
+  // must never cross the Worker ticket boundary; the tests do not fetch it,
+  // and production/dev browser builds always resolve the emitted asset from
+  // their HTTPS or loopback HTTP origin.
+  return resolved.protocol === "file:"
+    ? new URL("__circleheart_local_standard_artifact__.mjs", loopbackBase).href
+    : resolved.href;
 }
 
 /** Worker-only exact runtime; its model host must never be mistaken for the
@@ -327,7 +351,7 @@ export function loadStudioModelClientCompositionV2(
 ): Promise<StudioClientCompositionV2> {
   if (modelId === DEFAULT_STUDIO_MODEL_ID_V2) {
     const resolver = studioSupabaseModelReleaseResolverV1();
-    if (resolver === null) return loadStudioDefaultClientCompositionV2();
+    if (resolver === null) return createStudioDefaultClientCompositionV2();
   }
   const cached = browserExactCompositionPromisesV2.get(modelId);
   if (cached !== undefined) return cached;

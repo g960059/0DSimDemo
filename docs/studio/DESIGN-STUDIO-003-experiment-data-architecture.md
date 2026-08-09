@@ -136,7 +136,9 @@ One exact `modelId` pins every result-affecting numerical execution contract:
 - runtime, solver, and event-boundary behavior;
 - fixture schema and control mapping;
 - checkpoint codec and exact restore behavior;
-- primitive output/control identity, units, and semantics.
+- primitive signal/control identity, units, and semantics; and
+- model-owned beat/window metrics accumulated from accepted numerical
+  substeps.
 
 It does **not** identify the Studio application release. Snapshot admission,
 publication policy, graph composition/presentation catalogs, Reader UI,
@@ -146,9 +148,13 @@ must not mint another `modelId`.
 
 `development-36` still co-packages admission and presentation catalogs under
 its old package-wide lock. That immutable historical release is not rebound or
-renumbered. The next standard ABI uses `ExactModelKernelManifestV3` and a
-separate immutable `ModelSurfaceReleaseManifestV1`, so ordinary graph, derived
-output, Knob, protocol, and Studio admission work cannot churn `modelId`.
+renumbered and is never selected for a new Session. The active Standard ABI
+uses `ExactModelKernelManifestV3` and a separate immutable
+`ModelSurfaceReleaseManifestV1`, so ordinary graph, Studio-derived output,
+Knob, protocol, and admission work cannot churn `modelId`. A metric computed
+inside the exact numerical Session from accepted substeps remains model-owned;
+changing its semantics is a numerical-contract change and does mint a new
+`modelId`.
 
 Integrity hashes remain inside CI, the model registry, artifact storage, and
 model-owned corruption checks. Registration is idempotent for identical bytes
@@ -236,8 +242,9 @@ Analysis execution IDs are immutable semantic identifiers. Existing
 implementations receive a new explicitly versioned profile ID.
 
 `development-36` keeps its committed artifact byte-for-byte and is attached to
-the legacy ABI only in registry metadata. The standard ABI is reserved for the
-next exact release boundary. Neither operation changes its existing modelId.
+the legacy ABI only in registry metadata. New Workbench and ExperimentSession
+launches use the Standard ABI exclusively; the legacy ABI exists only for an
+explicit historical pin. Neither operation changes the historical modelId.
 
 Before public deployment, the release gate must exercise module-Worker Blob
 ESM import and Storage CORS in Playwright WebKit plus real Safari/iOS Safari.

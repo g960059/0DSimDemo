@@ -1,0 +1,182 @@
+{
+  "schemaId": "circleheart-studio-model-surface-release-v1",
+  "surfaceReleaseId": "circleheart.main-wire.surface.workbench-v1",
+  "surfaceSeriesId": "circleheart.main-wire.surface.workbench",
+  "predecessorSurfaceReleaseId": null,
+  "modelFamilyId": "circleheart.main-wire-integrated-transaction",
+  "displayName": "Main Wire V3",
+  "controlCatalog": [
+    {
+      "controlId": "rhythm.heart-rate-bpm",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/rhythm.heart-rate-bpm"]
+    },
+    {
+      "controlId": "hemodynamics.total-blood-volume-ml",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/hemodynamics.total-blood-volume-ml"]
+    },
+    {
+      "controlId": "hemodynamics.systemic-resistance",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/hemodynamics.systemic-resistance"]
+    },
+    {
+      "controlId": "myocardium.contractility",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.contractility"]
+    },
+    {
+      "controlId": "hemodynamics.venous-tone",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/hemodynamics.venous-tone"]
+    },
+    {
+      "controlId": "ventilation.peep-cm-h2o",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/ventilation.peep-cm-h2o"]
+    },
+    {
+      "controlId": "hemodynamics.pulmonary-resistance",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/hemodynamics.pulmonary-resistance"]
+    },
+    {
+      "controlId": "hemodynamics.arterial-stiffness",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/hemodynamics.arterial-stiffness"]
+    }
+  ],
+  "derivedOutputCatalog": [],
+  "graphCatalog": [
+    {
+      "graphId": "hemodynamics.pressure.waveform",
+      "renderer": "sweep",
+      "seriesCatalog": [
+        { "kind": "scalar", "seriesId": "LVP", "outputId": "hemodynamics.pressure.absolute.LV" },
+        { "kind": "scalar", "seriesId": "LAP", "outputId": "hemodynamics.pressure.absolute.LA" },
+        { "kind": "scalar", "seriesId": "AoP", "outputId": "hemodynamics.pressure.absolute.Ao" },
+        { "kind": "scalar", "seriesId": "RAP", "outputId": "hemodynamics.pressure.absolute.RA" },
+        { "kind": "scalar", "seriesId": "RVP", "outputId": "hemodynamics.pressure.absolute.RV" },
+        { "kind": "scalar", "seriesId": "PAP", "outputId": "hemodynamics.pressure.absolute.PA" },
+        { "kind": "scalar", "seriesId": "PVeinP", "outputId": "hemodynamics.pressure.absolute.PVein" },
+        { "kind": "scalar", "seriesId": "VCP", "outputId": "hemodynamics.pressure.absolute.VC" },
+        { "kind": "scalar", "seriesId": "Pperi", "outputId": "pericardium.pressure.excess" },
+        { "kind": "scalar", "seriesId": "Ppl", "outputId": "respiration.pressure.pleural" },
+        { "kind": "scalar", "seriesId": "Palv", "outputId": "respiration.pressure.alveolar" }
+      ],
+      "defaultSeriesIds": ["LVP", "LAP", "AoP"],
+      "requiredCapabilities": [
+        "output/hemodynamics.pressure.absolute.LV",
+        "output/hemodynamics.pressure.absolute.LA",
+        "output/hemodynamics.pressure.absolute.Ao",
+        "output/hemodynamics.pressure.absolute.RA",
+        "output/hemodynamics.pressure.absolute.RV",
+        "output/hemodynamics.pressure.absolute.PA",
+        "output/hemodynamics.pressure.absolute.PVein",
+        "output/hemodynamics.pressure.absolute.VC",
+        "output/pericardium.pressure.excess",
+        "output/respiration.pressure.pleural",
+        "output/respiration.pressure.alveolar"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.flow.waveform",
+      "renderer": "sweep",
+      "seriesCatalog": [
+        { "kind": "scalar", "seriesId": "MV", "outputId": "hemodynamics.flow.valve.MV" },
+        { "kind": "scalar", "seriesId": "AoV", "outputId": "hemodynamics.flow.valve.AoV" },
+        { "kind": "scalar", "seriesId": "TV", "outputId": "hemodynamics.flow.valve.TV" },
+        { "kind": "scalar", "seriesId": "PV", "outputId": "hemodynamics.flow.valve.PV" },
+        { "kind": "scalar", "seriesId": "Coronary", "outputId": "coronary.flow.total" },
+        { "kind": "scalar", "seriesId": "LAD", "outputId": "coronary.flow.inlet.LAD" },
+        { "kind": "scalar", "seriesId": "LCx", "outputId": "coronary.flow.inlet.LCx" },
+        { "kind": "scalar", "seriesId": "RCA", "outputId": "coronary.flow.inlet.RCA" },
+        { "kind": "scalar", "seriesId": "LVAD", "outputId": "device.LVAD.flow" },
+        { "kind": "scalar", "seriesId": "SA_Art", "outputId": "hemodynamics.flow.systemic.SA_Art" },
+        { "kind": "scalar", "seriesId": "PA_PArt", "outputId": "hemodynamics.flow.pulmonary.PA_PArt" },
+        { "kind": "scalar", "seriesId": "VC_RA", "outputId": "hemodynamics.flow.venous.VC_RA" },
+        { "kind": "scalar", "seriesId": "PVein_LA", "outputId": "hemodynamics.flow.venous.PVein_LA" }
+      ],
+      "defaultSeriesIds": ["MV", "AoV", "TV", "PV"],
+      "requiredCapabilities": [
+        "output/hemodynamics.flow.valve.MV",
+        "output/hemodynamics.flow.valve.AoV",
+        "output/hemodynamics.flow.valve.TV",
+        "output/hemodynamics.flow.valve.PV",
+        "output/coronary.flow.total",
+        "output/coronary.flow.inlet.LAD",
+        "output/coronary.flow.inlet.LCx",
+        "output/coronary.flow.inlet.RCA",
+        "output/device.LVAD.flow",
+        "output/hemodynamics.flow.systemic.SA_Art",
+        "output/hemodynamics.flow.pulmonary.PA_PArt",
+        "output/hemodynamics.flow.venous.VC_RA",
+        "output/hemodynamics.flow.venous.PVein_LA"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.pressure-volume",
+      "renderer": "pressure-volume",
+      "seriesCatalog": [
+        {
+          "kind": "pressure-volume",
+          "seriesId": "LV",
+          "volumeOutputId": "hemodynamics.volume.LV",
+          "pressureOutputId": "hemodynamics.pressure.transmural.LV",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        },
+        {
+          "kind": "pressure-volume",
+          "seriesId": "RV",
+          "volumeOutputId": "hemodynamics.volume.RV",
+          "pressureOutputId": "hemodynamics.pressure.transmural.RV",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        },
+        {
+          "kind": "pressure-volume",
+          "seriesId": "RA",
+          "volumeOutputId": "hemodynamics.volume.RA",
+          "pressureOutputId": "hemodynamics.pressure.transmural.RA",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        },
+        {
+          "kind": "pressure-volume",
+          "seriesId": "LA",
+          "volumeOutputId": "hemodynamics.volume.LA",
+          "pressureOutputId": "hemodynamics.pressure.transmural.LA",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        }
+      ],
+      "defaultSeriesIds": ["LV"],
+      "requiredCapabilities": [
+        "output/hemodynamics.volume.LV",
+        "output/hemodynamics.pressure.transmural.LV",
+        "output/hemodynamics.volume.RV",
+        "output/hemodynamics.pressure.transmural.RV",
+        "output/hemodynamics.volume.RA",
+        "output/hemodynamics.pressure.transmural.RA",
+        "output/hemodynamics.volume.LA",
+        "output/hemodynamics.pressure.transmural.LA",
+        "output/rhythm.phase.regular-sinus",
+        "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
+        "analysis/main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.guyton-starling",
+      "renderer": "structural-return",
+      "analysisId": "main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
+      "side": "both",
+      "requiredCapabilities": [
+        "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1"
+      ]
+    }
+  ],
+  "knobCatalog": [],
+  "protocolCatalog": []
+}

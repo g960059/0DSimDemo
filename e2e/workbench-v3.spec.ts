@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
 const registryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../studio/integrations/mainWireIntegratedV3/registry-admission-lock.json",
+  "../studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json",
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
 
@@ -674,7 +674,7 @@ test("@mobile 390px Workbench uses one graph tab group and keeps controls reacha
   ).toBeVisible();
   await expect(
     settings.getByRole("button", { name: /項目を並べ替え:/ }),
-  ).toHaveCount(5);
+  ).toHaveCount(6);
   await expect(
     settings.getByRole("button", { name: /Paneから外す:/ }),
   ).toHaveCount(0);

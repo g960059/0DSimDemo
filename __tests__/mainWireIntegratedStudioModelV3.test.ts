@@ -34,6 +34,9 @@ import type {
   ExperimentSurfaceV2,
 } from "@/studio/contracts/v2/content";
 import {
+  composeStandardModelContractV1,
+} from "@/studio/contracts/v2/modelSurface";
+import {
   InMemoryRegisteredModelStoreV2,
 } from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
 import {
@@ -57,11 +60,12 @@ import mainWireIntegratedStudioStandardArtifactV1 from
 import mainWireIntegratedStudioStandardClientV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import mainWireIntegratedStudioStandardSurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-standard-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   MainWireIntegratedStudioStandardRuntimeHostV1,
+  createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
@@ -69,6 +73,9 @@ import {
 import {
   resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
+import {
+  createDefaultExperimentSurfaceV3,
+} from "@/components/workbench/WorkbenchSurfaceV3";
 
 const EMPTY_SURFACE_V2: ExperimentSurfaceV2 = Object.freeze({
   graphPanes: Object.freeze([]),
@@ -111,6 +118,15 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       expect(composition).not.toHaveProperty(
         "loadStudioModelChannelClientCompositionV2",
       );
+      await expect(composition.loadStudioDefaultClientCompositionV2())
+        .resolves.toMatchObject({
+          defaultModelId:
+            mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+          surfaceReleaseId:
+            mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
+          surfaceSeriesId:
+            mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+        });
       await expect(composition.loadStudioExperimentClientCompositionV2(
         mainWireIntegratedStudioStandardClientV1.manifest.modelId,
         mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
@@ -124,6 +140,17 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
           mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
         surfaceStage: "dev",
       });
+      await expect(composition.loadStudioModelClientCompositionV2(
+        MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+      )).resolves.toMatchObject({
+        defaultModelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+        contract: {
+          modelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+        },
+      });
+      await expect(composition.loadStudioModelClientCompositionV2(
+        "model/unregistered-local-exact",
+      )).rejects.toThrow(/cannot resolve the requested exact model/);
     } finally {
       vi.doUnmock(
         "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
@@ -137,25 +164,38 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
     vi.resetModules();
     let attempts = 0;
     vi.doMock(
-      "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs",
+      "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
+      () => ({ studioSupabaseModelReleaseResolverV1: () => null }),
+    );
+    vi.doMock(
+      "@/studio/contracts/v2/modelSurface",
       async () => {
         const actual = await vi.importActual<typeof import(
-          "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs"
+          "@/studio/contracts/v2/modelSurface"
         )>(
-          "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs",
+          "@/studio/contracts/v2/modelSurface",
         );
         return {
           ...actual,
-          createMainWireIntegratedStudioModelPackageV3() {
+          assertExactModelKernelManifestV3(value: unknown) {
             attempts += 1;
             if (attempts === 1) {
-              throw new Error("transient artifact delivery failure");
+              throw new Error("transient Standard manifest delivery failure");
             }
-            return actual.createMainWireIntegratedStudioModelPackageV3();
+            return actual.assertExactModelKernelManifestV3(value);
           },
         };
       },
     );
+    vi.doMock("@/studio/contracts/v2/release", async () => {
+      const actual = await vi.importActual<typeof import(
+        "@/studio/contracts/v2/release"
+      )>("@/studio/contracts/v2/release");
+      return {
+        ...actual,
+        validateStudioModelWorkerReleaseTicketV2: (value: unknown) => value,
+      };
+    });
 
     try {
       const composition = await import(
@@ -163,19 +203,22 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       );
       const first = composition.loadStudioDefaultClientCompositionV2();
       expect(composition.loadStudioDefaultClientCompositionV2()).toBe(first);
-      await expect(first).rejects.toThrow(/transient artifact delivery/);
+      await expect(first).rejects.toThrow(/transient Standard manifest/);
 
       const second = composition.loadStudioDefaultClientCompositionV2();
       expect(second).not.toBe(first);
       expect(composition.loadStudioDefaultClientCompositionV2()).toBe(second);
       await expect(second).resolves.toMatchObject({
-        defaultModelId: MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
+        defaultModelId:
+          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
       });
       expect(attempts).toBe(2);
     } finally {
       vi.doUnmock(
-        "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs",
+        "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
       );
+      vi.doUnmock("@/studio/contracts/v2/modelSurface");
+      vi.doUnmock("@/studio/contracts/v2/release");
       vi.resetModules();
     }
   });
@@ -784,6 +827,133 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       }
     }
     host.closeSession(runtimeSessionId);
+  }, 120_000);
+
+  it("composes the complete Workbench catalog and emits model-owned beat metrics", async () => {
+    const composed = composeStandardModelContractV1(
+      mainWireIntegratedStudioStandardClientV1.manifest,
+      mainWireIntegratedStudioStandardSurfaceV1,
+    );
+    expect(composed.contract.controlCatalog.map(({ controlId }) => controlId))
+      .toEqual(Object.values(MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1));
+    expect(composed.contract.outputCatalog.map(({ outputId }) => outputId))
+      .toEqual(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3);
+    expect(composed.contract.graphCatalog.map(({ graphId }) => graphId))
+      .toEqual([
+        "hemodynamics.pressure.waveform",
+        "hemodynamics.flow.waveform",
+        "hemodynamics.pressure-volume",
+        "hemodynamics.guyton-starling",
+      ]);
+
+    const workbenchSurface = createDefaultExperimentSurfaceV3(
+      composed.contract,
+    );
+    expect(workbenchSurface.graphPanes.map(({ graphId }) => graphId)).toEqual([
+      "hemodynamics.pressure.waveform",
+      "hemodynamics.pressure-volume",
+    ]);
+    expect(workbenchSurface.outputPanes[0]?.items.map(({ outputId }) => outputId))
+      .toEqual([
+        "rhythm.heart-rate.instantaneous",
+        "hemodynamics.output.native-left",
+        "hemodynamics.pressure.mean.Ao",
+        "hemodynamics.ejection-fraction.LV-extrema",
+        "hemodynamics.pressure.mean.LA",
+      ]);
+    expect(workbenchSurface.controlPanes[0]?.items).toHaveLength(6);
+
+    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-workbench-parity";
+    const scenarioId = "scenario/baseline";
+    await host.createSession(runtimeSessionId, [{
+      scenarioId,
+      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    }]);
+    let frame = host.currentFrame(runtimeSessionId, scenarioId);
+    // A completed metric needs two captured atrial boundaries: the first
+    // opens the accumulator and the next closes the accepted-substep beat.
+    // Cover even the exposed 40 bpm control floor rather than assuming the
+    // default fixture's initial rhythm phase.
+    for (let ordinal = 0; ordinal < 1_700; ordinal += 1) {
+      frame = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
+      if (frame.outputs["hemodynamics.output.native-left"]?.value !== null) {
+        break;
+      }
+    }
+    for (const outputId of [
+      "hemodynamics.output.native-left",
+      "hemodynamics.pressure.mean.Ao",
+      "hemodynamics.ejection-fraction.LV-extrema",
+      "hemodynamics.pressure.mean.LA",
+    ]) {
+      expect(frame.outputs[outputId]).toMatchObject({
+        outputId,
+        availability: "available",
+        quality: "accepted-derived",
+        value: expect.any(Number),
+      });
+    }
+    host.closeSession(runtimeSessionId);
+  }, 120_000);
+
+  it("admits a captured Standard exact checkpoint without discarding beat state", async () => {
+    const release = createCircleHeartExactModelReleaseV1();
+    const model = composeStandardModelContractV1(
+      release.manifest,
+      mainWireIntegratedStudioStandardSurfaceV1,
+    ).contract;
+    const simulation = release.executables.simulationAdapter;
+    const runtimeSessionId = "session/standard-snapshot-admission";
+    const scenarioId = "scenario/baseline";
+    await simulation.createSession({
+      runtimeSessionId,
+      scenarios: [{
+        scenarioId,
+        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      }],
+    });
+    for (let ordinal = 0; ordinal < 500; ordinal += 1) {
+      await simulation.advanceOnePresentationStep({
+        runtimeSessionId,
+        scenarioId,
+      });
+    }
+
+    const captured = await release.executables.experimentCapture
+      .captureAcceptedCandidate({
+        experimentId: "experiment/standard-snapshot-admission",
+        model,
+        desiredContent: {
+          modelId: release.manifest.modelId,
+          scenarios: [{
+            scenarioId,
+            label: "Baseline",
+            fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+          }],
+          surface: EMPTY_SURFACE_V2,
+        },
+        correlation: {
+          runtimeSessionId,
+          scenarios: [{ scenarioId, expectedInputEpoch: 0 }],
+        },
+      });
+    const checkpoint = captured.content.scenarios[0]!.capture.checkpoint;
+    expect(checkpoint.payload).toMatchObject({
+      checkpointId:
+        "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v1",
+      numericalCheckpoint: expect.objectContaining({
+        revision: checkpoint.acceptedRevision,
+        acceptedTimeSec: checkpoint.acceptedTimeSec,
+      }),
+    });
+
+    await expect(release.executables.snapshotGate.admitFrozenCandidate({
+      model,
+      content: captured.content,
+    })).resolves.toEqual({ status: "passed" });
+    expect(captured.content.scenarios[0]!.capture.checkpoint).toEqual(checkpoint);
+    simulation.disposeSession(runtimeSessionId);
   }, 120_000);
 
   it("connects Standard PV analysis to the bidirectional fixed-TBV plan", async () => {
