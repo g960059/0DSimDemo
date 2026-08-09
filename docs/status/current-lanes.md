@@ -1,70 +1,53 @@
 # Development lane routing
 
 Status: compact pointer index
-Updated: 2026-08-08
 
-This file does not record experiment history or merge ordering. GitHub pull
-requests, Git history, and versioned evidence artifacts are the sources for
-those facts.
+Updated: 2026-08-09
+
+This file does not record merge history. GitHub, Git history and versioned
+evidence artifacts remain the authority for completed work.
 
 ## Studio
 
-The active product lane is the pre-release Studio experiment architecture:
+Active contracts:
 
 - [Studio index](../studio/README.md)
-- [experiment data architecture](../studio/DESIGN-STUDIO-003-experiment-data-architecture.md)
-- [model release and Surface architecture](../studio/DESIGN-STUDIO-006-model-surface-release-and-model-lab.md)
-
-The active acceptance milestone is content-first rather than another
-standalone infrastructure lane:
-
+- [Experiment data architecture](../studio/DESIGN-STUDIO-003-experiment-data-architecture.md)
+- [Model/Surface and assisted authoring](../studio/DESIGN-STUDIO-006-model-surface-release-and-model-lab.md)
 - [CONTENT-0001: PV loop basics pilot](../content/CONTENT-0001-pv-loop-basics-pilot.md)
-- source recipe: `content/official/pv-loop-basics-v1.experiment.json`
 
-That article is the release test for the first Standard-ABI exact model,
-compatible stable Surface, executable model-family assertions, common
-Snapshot admission, Article placement, and Reader-to-Experiment-Session path.
-No narrower infrastructure PR is complete unless it removes a named blocker
-from that path.
+The current product milestone is a real bounded Article made through the
+ordinary Experiment Session and Article Editor, not another parallel content
+pipeline. The active Standard model and Surface are selected atomically for
+new Sessions. Existing Experiments and Snapshots retain their stored pins.
 
-The Standard-ABI cutover now runs through the product boundary. The Standard
-exact model and its first Surface are registered in the remote `dev` / `research`
-lane; mutable Experiments follow their Surface series, immutable Snapshots pin
-the exact Surface release, and publication checks both release stages. A real
-browser Article handoff has captured a Surface-pinned Snapshot and saved the
-first development draft for the PV-loop pilot. The numerical slice, four-
-Scenario recipe runner, three model-owned assertions, common Snapshot
-admission, and bidirectional fixed-TBV ESPVR/EDPVR path pass together.
+`/dev` remains one compact inventory. `/dev/model-lab` is one explicit local
+Standard-bundle launch and is not a release stage or alternate Editor/Reader.
+It is ephemeral and cannot Save, capture a Snapshot, Brief, or publish. Durable
+content is authored only through the ordinary active-model Session.
 
-The remaining acceptance work is deliberate promotion of the exact model and
-Surface to `stable` / `default`, final public Article/Reader QA, and the
-supervised learner pilot. Development content is evidence for that promotion;
-it is not itself a stable publication.
+The first Standard Surface is intentionally limited to the CONTENT-0001 PV
+loop teaching slice. Activating that bundle is an explicit pilot acceptance
+step, not a claim that the full legacy Workbench catalog has reached parity.
 
-Development QA uses one compact `/dev` inventory for Experiments, Articles,
-Snapshots, and active/referenced models. `/dev/model-lab` remains the only
-Model Lab and returns to that inventory; no parallel development content store
-or management IA is being introduced.
+The Git official-recipe runner and generic launch channels were removed. AI
+assistance starts with typed list/read (including exact Snapshot detail),
+model-aware presentation/Article save, and publish commands against normal user
+content. Numerical Scenario mutation, fitting and Snapshot capture are added
+only after real authoring repetition defines their execution-host contract.
 
-The removed Workbench implementation is available in Git history. It is not a
-persistence, ownership, or compatibility boundary for Studio V2.
-
-## Model Platform
+## Model platform
 
 The host-neutral runtime and evidence boundaries remain canonical:
 
 - [scientific runtime](../scientific-runtime/README.md)
 - [myocardium lane](../myocardium/README.md)
 
-Use the current implementation and current V3 tests to determine a model
-claim. A status document must not promote an archived diagnostic result into
-scientific acceptance.
-
-Superseded lane diaries and implementation history live only in Git history.
+Use current implementations and V3 tests to determine model claims. A status
+document must not promote a diagnostic result into scientific acceptance.
 
 ## Deferred until CONTENT-0001 passes
 
-Baroreflex, patient fitting, broad official-case generation, drop-in
-succession, generalized migration UI, and further Workbench QoS work are not
-on the critical path. They may not displace the first article without a newly
-recorded product or scientific blocker.
+Baroreflex, patient fitting, broad case generation, drop-in succession,
+generalized migration UI and speculative authoring automation may not displace
+the first Article without a newly recorded product or scientific blocker.

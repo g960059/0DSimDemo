@@ -26,7 +26,6 @@ export const STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1 =
   "circleheart.studio.common-snapshot-admission.v1" as const;
 
 export type StudioReleaseStageV1 = "dev" | "stable" | "retired";
-export type StudioReleaseChannelV1 = "default" | "research";
 
 /**
  * Exact numerical identity for the standard ABI after development-36.
@@ -184,18 +183,6 @@ export function assertStudioReleaseStageV1(
     throw new ModelSurfaceValidationErrorV1(
       path,
       'must be "dev", "stable", or "retired"',
-    );
-  }
-}
-
-export function assertStudioReleaseChannelV1(
-  value: unknown,
-  path = "$.channel",
-): asserts value is StudioReleaseChannelV1 {
-  if (value !== "default" && value !== "research") {
-    throw new ModelSurfaceValidationErrorV1(
-      path,
-      'must be "default" or "research"',
     );
   }
 }

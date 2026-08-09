@@ -67,8 +67,7 @@
       "unknown": "Available"
     },
     "modelSource": {
-      "default": "Default",
-      "research": "Research",
+      "active": "Active",
       "model-lab": "Model Lab",
       "referenced": "Used by content"
     }

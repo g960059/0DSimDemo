@@ -89,7 +89,7 @@ import { isLocale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
-  loadStudioModelChannelClientCompositionV2,
+  loadStudioLocalStandardModelLabClientCompositionV1,
   loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
@@ -298,25 +298,30 @@ export function workbenchPublicationAvailableV3(input: Readonly<{
   return !input.modelLab && input.releaseStage === "stable";
 }
 
+/**
+ * Model Lab is a local numerical validation launch, not another content
+ * authoring authority. Durable content starts from the ordinary active-model
+ * Experiment Session so its exact identity can be resolved again later.
+ */
+export function workbenchDurableContentAvailableV3(input: Readonly<{
+  modelLab: boolean;
+}>): boolean {
+  return !input.modelLab;
+}
+
 export const WorkbenchV3Page = () => {
   const { experimentId, locale } = useParams();
   const selectedLocale = isLocale(locale) ? locale : undefined;
   if (experimentId === "new") {
-    return <WorkbenchV3Session initialExperimentId={null} launchChannel="default" />;
+    return <WorkbenchV3Session initialExperimentId={null} />;
   }
   if (!isOpaqueExperimentIdV3(experimentId)) {
     return <Navigate to={myExperimentsHref(selectedLocale)} replace />;
   }
-  return (
-    <WorkbenchV3Session
-      initialExperimentId={experimentId}
-      launchChannel="default"
-    />
-  );
+  return <WorkbenchV3Session initialExperimentId={experimentId} />;
 };
 
-/** One internal lab: research-channel releases may be explored and saved, but
- * public publication remains a stable-stage workflow. */
+/** One explicit local lab for an unreleased Standard model/Surface bundle. */
 export const WorkbenchModelLabV3Page = () => {
   const { locale } = useParams();
   if (!modelLabEnabledV3()) {
@@ -325,7 +330,6 @@ export const WorkbenchModelLabV3Page = () => {
   return (
     <WorkbenchV3Session
       initialExperimentId={null}
-      launchChannel="research"
       modelLab
     />
   );
@@ -333,11 +337,9 @@ export const WorkbenchModelLabV3Page = () => {
 
 const WorkbenchV3Session = ({
   initialExperimentId,
-  launchChannel,
   modelLab = false,
 }: Readonly<{
   initialExperimentId: string | null;
-  launchChannel: "default" | "research";
   modelLab?: boolean;
 }>) => {
   const { t } = useTranslation();
@@ -746,9 +748,9 @@ const WorkbenchV3Session = ({
                 sourceSnapshot.content.surfaceSeriesId,
                 sourceSnapshot.surfaceReleaseId,
               )
-            : launchChannel === "default"
-            ? await loadStudioDefaultClientCompositionV2()
-            : await loadStudioModelChannelClientCompositionV2(launchChannel)
+            : modelLab
+              ? await loadStudioLocalStandardModelLabClientCompositionV1()
+              : await loadStudioDefaultClientCompositionV2()
       } catch (error) {
         if (
           initialContent !== undefined
@@ -1052,7 +1054,6 @@ const WorkbenchV3Session = ({
   }, [
     backgroundWorkerPool,
     location.search,
-    launchChannel,
     navigate,
     presentationSampleStore,
     replaceAnalysisByKeyV3,
@@ -1834,6 +1835,7 @@ const WorkbenchV3Session = ({
   );
 
   const saveExperimentV3 = React.useCallback(async () => {
+    if (!workbenchDurableContentAvailableV3({ modelLab })) return;
     const runtime = runtimeRef.current;
     const frame = latestFrameRef.current;
     const contentStore = contentStoreRef.current;
@@ -2023,6 +2025,7 @@ const WorkbenchV3Session = ({
     experimentRecord,
     experimentTitle,
     location.search,
+    modelLab,
     navigate,
     remoteContentRepository,
     resolvedLocale,
@@ -2040,6 +2043,7 @@ const WorkbenchV3Session = ({
           sourceBriefingMutationRevision: number;
         }>,
   ): Promise<ExperimentSnapshotV2 | null> => {
+    if (!workbenchDurableContentAvailableV3({ modelLab })) return null;
     setSnapshotPurpose(null);
     if (
       options.kind === "publication"
@@ -2256,6 +2260,7 @@ const WorkbenchV3Session = ({
     backgroundWorkerPool,
     experimentIndex,
     experimentRecord,
+    modelLab,
     remoteContentRepository,
     saveState,
     t,
@@ -2312,6 +2317,7 @@ const WorkbenchV3Session = ({
   ]);
 
   React.useEffect(() => {
+    if (!workbenchDurableContentAvailableV3({ modelLab })) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
@@ -2320,7 +2326,7 @@ const WorkbenchV3Session = ({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [saveExperimentV3]);
+  }, [modelLab, saveExperimentV3]);
 
   const discardArticleHandoffV3 = React.useCallback(() => {
     if (articleAuthoringContext !== null) articleExperimentHandoff.clear();
@@ -2332,11 +2338,12 @@ const WorkbenchV3Session = ({
     experimentSessionHandoff,
   ]);
   useUnsavedChangesGuardV3({
-    enabled: shouldConfirmWorkbenchDiscardV3({
-      hasUnsavedContentChanges,
-      hasUncommittedTitleChanges,
-      hasUncapturedBriefingChanges,
-    }),
+    enabled: workbenchDurableContentAvailableV3({ modelLab })
+      && shouldConfirmWorkbenchDiscardV3({
+        hasUnsavedContentChanges,
+        hasUncommittedTitleChanges,
+        hasUncapturedBriefingChanges,
+      }),
     message: t("common.unsavedChanges"),
     onConfirmedDiscard: discardArticleHandoffV3,
   });
@@ -2603,7 +2610,7 @@ const WorkbenchV3Session = ({
           >
             <FileText className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
-          {articleLinked && (
+          {!modelLab && articleLinked && (
             <button
               type="button"
               className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:opacity-40"
@@ -2647,7 +2654,7 @@ const WorkbenchV3Session = ({
                 : t("workbench.editor.publish")}
             </span>
           </button>}
-          <button
+          {workbenchDurableContentAvailableV3({ modelLab }) && <button
             type="button"
             className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-wait disabled:opacity-40"
             disabled={status.kind !== "live" || runtimeOperationPending}
@@ -2670,7 +2677,7 @@ const WorkbenchV3Session = ({
                   ? t("workbench.editor.saved")
                   : t("workbench.editor.save")}
             </span>
-          </button>
+          </button>}
           {status.kind === "live" && (
             <button
               type="button"

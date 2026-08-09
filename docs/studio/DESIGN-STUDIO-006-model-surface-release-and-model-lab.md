@@ -1,19 +1,19 @@
-# CircleHeart Studio — exact model, Model Surface, and Model Lab
+# CircleHeart Studio — exact model, Model Surface, active bundle, and authoring
 
 Status: authoritative pre-release contract; direct cutover
 
-Date: 2026-08-08
+Date: 2026-08-09
 
 Decision: keep exact numerical identity small and permanent, release the
-authoring/analysis Surface independently, use only three lifecycle stages and
-two launch channels, and provide one Model Lab. Snapshot admission remains one
-Studio service rather than a release/profile dimension.
+authoring/analysis Surface independently, retain only `dev | stable | retired`,
+launch new ordinary Sessions from one atomic active model/Surface bundle, and
+author real content through the ordinary product with a narrow AI-assist API.
 
 This document refines the model-release boundary in
 `DESIGN-STUDIO-003-experiment-data-architecture.md`. It does not redefine
 Experiment, Snapshot, Placement, or Briefing.
 
-## 1. The release spine
+## 1. Identity layers
 
 ```text
 Exact model kernel                    immutable modelId
@@ -25,329 +25,239 @@ Exact model kernel                    immutable modelId
   executable artifact
 
 Model Surface                         immutable surfaceReleaseId
-  exposed control selection
+  exposed controls
   derived outputs
-  graph definitions
+  graphs
   Knobs
   protocols
 
-Official content recipe              immutable recipeId in Git
-  scenario construction actions
-  authored Surface composition
-  scientific assertions
-       ↓ build against one exact model + one Surface
-  ExperimentSnapshot / Article content
+Active model bundle                   singleton CAS pointer
+  one stable, loadable modelId
+  one stable, compatible surfaceReleaseId
+  used only when a new ordinary Session starts
+
+Experiment / Snapshot / Article       ordinary Supabase content
+  authored in the same UI used by every author
+  optionally read or changed through the same typed authoring API
 ```
 
-`modelFamilyId` groups compatible releases of one conceptual model. It is not
-an executable identity and never replaces `modelId`. There is no additional
-`releaseId` below `modelId`.
+`modelFamilyId` groups compatible exact releases. It is not executable
+identity. The active bundle is operational selection, not content identity:
+existing Experiments and Snapshots keep their stored exact/series pins.
 
 ## 2. Exact numerical identity
 
-The next standard ABI uses `ExactModelKernelManifestV3`. Its exact-key shape
-contains:
+`ExactModelKernelManifestV3` contains only the numerical contract:
 
 - `modelId` and `modelFamilyId`;
-- equations, runtime, and solver definitions;
+- equations, runtime and solver definitions;
 - fixture schema and checkpoint codec;
-- primitive control definitions and primitive signal definitions;
+- primitive controls and primitive signals;
 - explicit capabilities; and
-- the registered executable artifact bytes, guarded by registry integrity.
+- the registered executable artifact guarded at registry admission.
 
-It cannot contain Snapshot admission, graph catalogs, derived metrics, Knobs,
-protocols, labels, colors, Article behavior, or product policy. Exact-key
+It cannot contain graph catalogs, derived metrics, Knobs, protocols, labels,
+colors, Snapshot policy, Article behavior, or product policy. Exact-key
 validation rejects those fields.
 
-A new state variable, result-affecting topology/path, changed parameter
-semantics, changed default-on behavior, changed primitive output semantics, or
-changed numerical algorithm requires a new `modelId`. A default-off feature
-still changes the executable/state/checkpoint contract and therefore receives
-a new `modelId`; “off by default” is not an identity exemption.
+A changed state topology, result-affecting path, parameter meaning, primitive
+output meaning, event/solver semantics, or executable bytes receives a new
+`modelId`. A default-off numerical feature still changes the executable and
+checkpoint contract and therefore also receives a new `modelId`.
 
-The committed `development-36` artifact predates this split. Its bytes,
-manifest, modelId, and legacy ABI remain untouched. The common Snapshot
-admission service treats the gate exported by that artifact as a compatibility
-adapter. The first standard-ABI successor adopts the smaller kernel boundary.
+## 3. Model Surface
 
-## 3. Model Surface release
+`ModelSurfaceReleaseManifestV1` is immutable and family-scoped. Every item
+declares `requiredCapabilities`. Runtime materialization retains only items
+supported by the pinned exact model and Studio build. A new graph requiring a
+new signal is therefore absent for an older family member; it does not make the
+entire Surface unusable.
 
-`ModelSurfaceReleaseManifestV1` is immutable and family-scoped. It contains:
+Within one `surfaceSeriesId`, releases are append-only. Each successor names
+its predecessor. Registry admission compares the predecessor structurally in
+the same transaction: an existing item cannot be removed or redefined. Surface
+registration is a reviewed release action, not an exploration medium.
 
-```ts
-type ModelSurfaceReleaseManifestV1 = Readonly<{
-  surfaceReleaseId: string;
-  surfaceSeriesId: string;
-  predecessorSurfaceReleaseId: string | null;
-  modelFamilyId: string;
-  controlCatalog: readonly SurfaceControl[];
-  derivedOutputCatalog: readonly DerivedOutput[];
-  graphCatalog: readonly GraphDefinition[];
-  knobCatalog: readonly KnobDefinition[];
-  protocolCatalog: readonly ProtocolDefinition[];
-}>;
-```
+Exact-model output IDs are reserved throughout the family. Derived outputs may
+not reuse them. A released Surface item ID never acquires a new meaning.
+Derivations are immutable and versioned, consume the full accepted-substep
+stream in the Worker, and never derive scientific values from decimated UI
+frames.
 
-Every control, derived output, graph, Knob, and protocol declares its own
-`requiredCapabilities`. Before use, the resolver validates the immutable
-Surface and materializes only the items supported by the pinned exact model
-and Studio build. Adding a graph that requires a new primitive signal therefore
-hides that graph from an older family member; it does not reject the whole
-Surface. Existing content fails only when it explicitly references an item that
-cannot be materialized for its pinned model.
-The registered manifest remains byte-exact; the filtered runtime
-materialization is a separate value and cannot masquerade as the manifest named
-by `surfaceReleaseId`. Materialization revalidates graph scalar/vector shape and
-unit compatibility against the actual exact-model and derived-output catalogs;
-the synthetic registry validation catalog is not runtime authority.
+V1 Knobs are affine numeric mappings. Their complete domain must map inside
+every primitive target domain, and their default must reproduce primitive
+defaults. A non-neutral intervention belongs in a Scenario/Preset/Protocol,
+not in Knob initialization.
 
-An exact-model output ID is reserved throughout its model family. A derived
-output may not reuse it as an emulation or fallback: such a collision is
-rejected rather than silently substituting one meaning for another. Released
-Surface item IDs are also never reused with a new meaning in another Surface
-series. A new meaning receives a new ID.
+Protocols remain declaration-only until accepted-boundary timing,
+input-epoch, interruption and capture semantics are implemented.
 
-Derived calculations resolve through an immutable, versioned Studio
-derivation registry. Every derived item must declare its
-`derivation/<derivationId>` capability. The implementation consumes the full
-Worker-side accepted-substep primitive stream, including event-clipped
-substeps; it must not derive scientific metrics from decimated presentation
-frames. An existing derivation ID is permanently behavior-immutable and remains
-loadable in future Studio builds. Changed behavior requires a new derivation ID
-and repository checks must prevent deletion of any released implementation.
-A Surface can never introduce executable code or silently reinterpret an
-existing derived output.
-
-V1 Knobs are explicitly `affine-numeric`. Their nonzero affine mapping must
-keep the full authored domain on every target control's numeric domain and step
-lattice, and the Knob default must reproduce every primitive-control default.
-Thus every V1 Knob is neutral when merely added. A non-neutral intervention is
-a Preset, Protocol, or official-content recipe, not a Knob initialization mode.
-
-Within one `surfaceSeriesId`, additions are append-only. Every non-root release
-names its immediate `predecessorSurfaceReleaseId`. An existing control, output,
-graph, Knob, or protocol cannot be removed or changed. Supabase fetches and
-structurally compares the predecessor inside the registration transaction;
-the publish tool performs the same detailed check before registration. Channel
-movement is a compare-and-swap operation and accepts only a descendant of the
-current pointer in the same series. It may skip an abandoned `dev` intermediate;
-only the selected target must satisfy the channel's stage rule. Backward moves,
-cross-series moves, and unrelated pointers fail closed. Changing semantics
-requires a new Surface series and never mutates an old row.
-
-Surface registration is a reviewed release act, not an exploration medium.
-Because a series is linear and append-only, an accidentally admitted item
-cannot later be removed from that series; exploratory manifests stay outside
-the registry until reviewed. A `dev` release may be abandoned and skipped by a
-channel, but any registered descendants still inherit all of its definitions.
-
-Protocols are declaration-only until their runtime contract is implemented.
-Before first use, that contract must define accepted-boundary action timing,
-input-epoch changes, interruption, and what an in-progress protocol contributes
-to fixture/checkpoint capture. A protocol definition alone does not imply that
-unexecuted future actions are part of a Snapshot.
-
-The executable registry boundary is:
+Registry tools are deliberately separate from activation:
 
 ```sh
-npm run verify:registry:model-surface -- \
-  --manifest path/to/surface.json [--previous path/to/prior-surface.json]
+npm run publish:registry:main-wire-v3 -- \
+  --project-ref <ref> --stage <dev|stable>
 
 npm run publish:registry:model-surface -- \
-  --project-ref <ref> --manifest path/to/surface.json \
-  [--stage dev|stable] [--channel default|research]
+  --project-ref <ref> --manifest <surface.json> --stage <dev|stable>
+
+npm run activate:registry:model-bundle -- \
+  --project-ref <ref> --model-id <modelId> \
+  --surface-release-id <surfaceReleaseId> \
+  --expected-version <none|integer>
 ```
 
-`--previous` is forbidden for a root release and mandatory for every manifest
-that names a predecessor. Registration starts at `dev`. A default-channel move
-therefore requires the
-explicit `--stage stable --channel default` combination. The publisher rejects
-an uncommitted manifest, while Supabase rejects a reused `surfaceReleaseId`
-whose immutable manifest differs, a non-additive successor, a forked series,
-or a stale channel transition.
+Publishing immutable rows never changes what new users launch. Activation is
+one explicit CAS operation after both rows are stable and compatible.
 
-Historical `development-36` content keeps its embedded V2 catalogs and remains
-loadable without a Surface pin. The Standard ABI is cut over directly:
+## 4. Lifecycle and active selection
 
-- a mutable Experiment pins `surfaceSeriesId` and resolves the latest
-  non-retired release in that series whenever it is opened;
-- an immutable Snapshot pins the exact `surfaceReleaseId` used at capture;
-- public Experiment and Article publication require both the exact model and
-  pinned Surface release to be `stable`; and
-- the browser boundary test proves that an old exact Experiment reopens on an
-  additive Surface successor while an existing Snapshot remains on its exact
-  prior release.
-
-Surface identity is Studio-owned. Accepted-boundary capture adapters freeze
-numerical Scenario state and do not need to embed a Surface series into the
-exact-model artifact. The authoring boundary atomically rejoins the captured
-fixture/checkpoint with the already-resolved Surface pin. Presentation release
-work therefore does not change exact artifact bytes or require a new
-`modelId`.
-
-## 4. Lifecycle and channels
-
-There are exactly three release stages:
+There are exactly three stages:
 
 | Stage | Meaning | Private Save/Snapshot | Public publication |
 | --- | --- | --- | --- |
-| `dev` | under active evaluation | yes | no |
-| `stable` | operationally approved for ordinary product use | yes | yes |
-| `retired` | removed from new selection; retained for exact history | yes, when explicitly pinned | no new publication |
+| `dev` | under evaluation | yes | no |
+| `stable` | approved for ordinary product use | yes | yes |
+| `retired` | unavailable for new selection, retained for history | explicitly pinned only | no new publication |
 
 Allowed transitions are `dev → stable`, `dev → retired`, and
-`stable → retired`. `retired` is terminal. Retirement removes mutable channel
-pointers but does not make historical exact content unreadable. Explicitly
-pinned private content may still be opened, forked, saved, and captured. The
-separate emergency `loadable=false` registry switch is reserved for a genuinely
-unsafe artifact; it disables loading and blocks new publication independently
-of lifecycle stage.
+`stable → retired`; `retired` is terminal. `loadable=false` is an independent
+emergency stop.
 
-`stable` is a release-operational and product-publication decision. It does not
-assert physiological truth, clinical validation, settlement, or scientific
-fitness for a particular use; those claims remain in model validation and
-official-content review.
+There is no generic `default`, `research`, release or publication channel.
+`studio.active_model_bundle` is one singleton row containing a coherent exact
+model and Surface pair plus a monotonically increasing version. It enforces:
 
-There are exactly two channels:
+1. exact model exists, is loadable, `stable`, and uses the Standard module ABI;
+2. Surface exists and is `stable`;
+3. both have the same `modelFamilyId`;
+4. replacement is compare-and-swap; and
+5. an active row cannot retire until another pair replaces it.
 
-- `default`: must point at a `stable` exact release/Surface and is resolved by
-  new ordinary Sessions;
-- `research`: may point at `dev` or `stable` and is resolved by Model Lab.
+`get_active_model_bundle_v1()` returns both manifests in one read. A new
+ordinary Session resolves this once and immediately pins the returned IDs.
+Mutable Experiments resolve the deepest compatible member of their stored
+Surface series by lineage, never registration time or ID sorting. Stable and
+retired exact models see stable Surface releases only; a dev exact model may
+reopen its dev Surface successors. Immutable Snapshots resolve their exact
+Surface release.
 
-Channel resolution is launch-time only. The returned immutable IDs are pinned
-immediately. Existing Experiments and Snapshots never follow a moved channel.
+## 5. Snapshot admission
 
-## 5. Snapshot admission is not a profile
+There is no author-selectable admission profile. Article Briefing and
+standalone publication use the same `StudioSnapshotAdmissionServiceV1`.
+Admission checks exact restore/round-trip, finite/conservation behavior, event
+identity and bounded executable verification. It does not claim settlement,
+clinical validity, physiological validity, or certification.
 
-There is no `SnapshotAdmissionProfile` domain object, release axis, database
-table, or content field. Article Briefing capture and standalone Experiment
-publication call the same `StudioSnapshotAdmissionServiceV1`.
-
-Admission is a product safety invariant: exact restore/round-trip, finite and
-conservation checks, event identity, and bounded executable verification. It
-does not establish physiological validation or settlement and cannot replace
-the frozen checkpoint. If the implementation later changes incompatibly, an
-internal receipt/version may be logged operationally; authors never choose a
-profile and Snapshot identity does not carry one.
+Snapshot creation is a numerical execution operation. A tool may automate it
+only through a real browser, Node, or future Cloud execution host that owns the
+same Worker capture and admission contracts. Supplying arbitrary fixture and
+checkpoint JSON directly to persistence is not an authoring shortcut.
 
 ## 6. One Model Lab
 
-Development inspection has one intentionally small entry point: `/dev`. It
-lists the current developer's Experiments, Articles, neutral Snapshots, and the
-exact models that are active in Model Lab/channels or referenced by that
-content. It is an inventory, not a second content repository or administration
-product. The list reuses the ordinary browser/Supabase content repositories and
-does not add a development-only persistence type.
+`/dev` is a compact developer inventory. `/dev/model-lab` is the sole Model
+Lab and uses the same Experiment Session UI and Worker architecture as the
+product.
 
-The sole lab route is `/dev/model-lab`. Its leftmost Home action returns to
-`/dev`, while `/dev` itself uses the ordinary site header.
+The Lab launches one explicit checked-in local Standard model/Surface bundle.
+It does not resolve a research channel, silently substitute the active model,
+or introduce another content repository. Its Home action returns to `/dev`.
+It is an ephemeral validation Session: Save, Snapshot, Briefing and publication
+are unavailable. Durable authoring starts from the ordinary active-model
+Experiment Session. This prevents a dirty local artifact from minting durable
+content under an already released exact `modelId`.
 
-- The Lab resolves the Supabase `research` channel and immediately pins the
-  returned Standard-ABI exact model and Surface identities. The checked-in
-  local Standard composition remains visible in `/dev` as a development
-  diagnostic, not as an implicit fallback for the Lab.
-- Research-channel inspection fails closed when its registry is unavailable;
-  it never presents the bundled default model as a research-channel result.
-- It uses the same Workbench and Worker architecture as ordinary Sessions.
-- Its Standard exact release advertises and executes the responsive and formal
-  fixed-TBV analysis capabilities used to derive the multi-load ESPVR/EDPVR
-  envelopes. The main-thread coordinator applies the same bidirectional Worker
-  plan as ordinary Sessions; the live lane is not advanced by either branch.
-- The Workbench owns the Lab's contextual header, so the global discovery/auth
-  header is not rendered a second time on this route. The `/dev` inventory uses
-  global chrome and therefore does not duplicate contextual Workbench chrome.
-- Private Experiment Save and neutral Snapshot creation are permitted.
-- Public Experiment publication is absent in the Lab UI and rejected by the
-  database unless the Snapshot's exact model is both `stable` and loadable.
-- An unregistered local/dirty build may later be injected into this same Lab
-  as ephemeral runtime state; it is not a second “pre-lab” product or stage.
-- The route is available in development builds and can be explicitly enabled
-  in production with `VITE_MODEL_LAB_ENABLED=1` for controlled research use.
-  The production flag must remain off until research-channel reads are protected
-  by an authenticated research-access policy.
+The initial checked-in Standard Surface is deliberately the bounded
+CONTENT-0001 acceptance slice (LV PV loop plus its teaching controls), not a
+claim of legacy Workbench catalog parity. It must not become the production
+active bundle until the CONTENT-0001 acceptance checks are reviewed.
 
-## 7. Succession and migration
+## 7. Ordinary content and AI assistance
 
-An explicit immutable succession relation currently declares only `successor`:
-conceptual lineage. `drop-in` is deliberately rejected until registration can
-require a verifier version and immutable evidence artifact/digest.
+Official and user-authored Experiments/Articles use the same Supabase drafts,
+Snapshots, publication RPCs, Editors and Readers. There is no Git recipe type,
+recipe runner, generated official-content database, or separate development
+Editor/Reader.
 
-A succession edge never silently rewrites stored content. A user chooses upgrade/clone,
-which creates new content pinned to the target `modelId` and records migration
-provenance outside portable numerical identity. Old content stays loadable.
+The first content is intentionally made through the normal UI with iterative
+human/AI review. Only repeated operations observed during that work become
+automation. The initial typed command seam supports:
 
-## 8. Official content recipes
+- listing and reading the author's Experiments, Snapshots and Articles;
+- saving Article drafts;
+- changing an Experiment title/presentation Surface without changing numerical
+  Scenario captures; and
+- publishing an already admitted Snapshot or Article through semantic RPCs.
 
-Official Presets, Experiments, and Articles are authored as model-family
-recipes in Git rather than hand-maintained database objects. A recipe does not
-contain a mutable channel or exact `modelId`. The build command receives an
-exact `modelId` and Surface release, applies absolute control assignments,
-runs model-owned settlement/scientific assertions, calls the same Snapshot
-admission service, and emits immutable content plus a reviewed build report.
+Commands use a normal author session and an `sb_publishable_` key. Service-role
+keys, including legacy service-role JWTs, are rejected. Every command carries a
+UUID `commandId`; mutation commands reuse it as the backend idempotency key, so
+an identical retry cannot duplicate an Article or Experiment. There is an
+optional policy hook for future confirmations, but the current local AI
+workflow is allow-by-default as requested. Safety remains in schema validation,
+exact model/Surface-aware presentation and Briefing checks, Snapshot admission,
+CAS, RLS and backend publication gates.
 
-`OfficialExperimentRecipeV1` is the first checked source boundary. It owns
-Scenario IDs/labels, absolute control assignments, the authored Surface, and
-scientific assertion IDs. It cannot encode a checkpoint, `modelId`, channel,
-stage, or admission profile. Repository recipes are checked with
-`verify:content:official-recipe`. A source recipe may exist before its exact
-model is ready, but it cannot produce a Snapshot or publication. The stronger
-`verify:content:official-readiness` boundary binds it to an explicit Standard
-exact-kernel manifest and Surface, resolves every authored item and assertion,
-and still performs no numerical run or write. The first source recipe and its
-release gates are governed by
-[CONTENT-0001](../content/CONTENT-0001-pv-loop-basics-pilot.md).
+The CLI is:
 
-`build:content:official:main-wire` is the first family-specific numerical
-runner. It builds the registered default fixture, applies each recipe's
-absolute control assignments, advances every Scenario to a model-owned
-periodic candidate, evaluates immutable assertion implementations from full
-accepted-step/beat evidence, and calls the common Snapshot admission service.
-It emits a deterministic build artifact but performs no registry, database, or
-publication write. A successful local build is required evidence, not
-permission to bypass the exact-model and Surface lifecycle gates.
+```sh
+npm run author:content -- --command path/to/command.json
+```
 
-Changing the default model therefore means rebuilding and reviewing official
-content, not silently repinning it. User content is never rebuilt by this
-pipeline.
+It consumes `circleheart-studio-authoring-command-v1` JSON and emits JSON.
+The executable action inventory and authentication contract live in
+[`tools/authoring/README.md`](../../tools/authoring/README.md).
+Authentication is supplied through local environment variables; credentials
+never enter a command document. The initial CLI expects a currently valid
+author access-token pair. Refresh-token persistence for long-running unattended
+automation is deliberately deferred rather than printing rotated credentials.
 
-## 9. Database authority
+Scenario creation, parameter search/fitting, and Snapshot capture are deferred
+until several real authoring sessions reveal the required operations. Their
+future implementation extends the same command service with an execution-host
+port. It must warm-start from valid capture state, apply hierarchical bounded
+changes, evaluate requested outputs/morphology/V&V, and admit the resulting
+Snapshot before persistence. It must not introduce `ParameterSet`, mutable
+Snapshot, or a second Experiment data model.
+
+## 8. Database authority
 
 Supabase owns:
 
 ```text
 model_releases                       immutable exact packages
-model_release_availability           stage + emergency loadable switch
-model_release_channels               default | research
+model_release_availability           stage + loadable
 model_surface_releases               immutable Surface manifests
 model_surface_release_availability   stage
-model_surface_release_channels       family + default | research
+active_model_bundle                  singleton model + Surface CAS pointer
 model_release_successions            explicit lineage
+
+experiments / experiment_contents / experiment_snapshots
+experiment_publications
+articles / article_contents / article_publications
+operation_receipts / profiles
 ```
 
-Surface rows include a series and immediate predecessor; registry admission
-enforces exact-definition append-only growth and channel CAS. Service-role RPCs
-register immutable rows, advance lifecycle monotonically,
-and move allowed channels. Browser RPCs can only read. Database triggers reject
-both Experiment publication and Article publication when any referenced
-Snapshot is not pinned to a `stable`, loadable exact model and a `stable` exact
-Surface release. Snapshot creation itself is allowed for `dev`, so research
-work remains saveable without becoming public.
+Generic channel tables and RPCs are removed. Publication triggers continue to
+require a stable, loadable exact model and stable pinned Surface for every
+published Snapshot.
 
-## 10. Binding invariants
+## 9. Binding invariants
 
-1. `modelId` identifies the exact numerical kernel, not Studio presentation.
+1. `modelId` identifies exact numerical meaning, not presentation.
 2. `surfaceReleaseId` cannot redefine primitive model semantics.
-3. An additive Surface successor cannot remove or redefine an existing item.
-4. Derived output IDs never collide with exact-model outputs, and released item
-   IDs never acquire a new meaning in another series.
-5. Unsupported new items are filtered per item; retained graphs are revalidated
-   against the actual materialized output shapes and units.
-6. Mutable Experiments pin a Surface series; immutable Snapshots pin one exact
-   Surface release.
-7. `default` serves only `stable`; `research` never serves `retired`.
-8. Retired releases remain available to explicitly pinned private content;
-   emergency-disabled releases do not create new publications.
+3. Surface successors are append-only and item capabilities degrade per item.
+4. New Sessions resolve one atomic active bundle; existing content never
+   follows that pointer.
+5. Mutable Experiments pin a Surface series; Snapshots pin one release.
+6. `dev | stable | retired` are the only lifecycle states.
+7. Active rows are stable and cannot retire before replacement.
+8. Model Lab is an explicit local launch, not a release lifecycle phase.
 9. One common admission service owns every Snapshot insertion path.
-10. No Snapshot admission profile enters model identity or portable content.
-11. Model Lab is one Workbench surface, not a separate data model.
-12. Official-content rebuilds and user migrations are explicit.
+10. Normal UI and AI commands share one content authority and data model.
+11. AI commands default to no interactive approval, but cannot bypass RLS,
+    CAS, model validation, Snapshot admission or publication gates.
+12. Automation is added from observed authoring repetition, not speculative
+    parallel workflow machinery.

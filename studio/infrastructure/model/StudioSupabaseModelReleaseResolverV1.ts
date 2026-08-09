@@ -10,12 +10,12 @@ import {
 } from "@/studio/contracts/v2/model";
 import type {
   ExactModelKernelManifestV3,
-  StudioReleaseChannelV1,
+  ModelSurfaceReleaseManifestV1,
   StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
   assertExactModelKernelManifestV3,
-  assertStudioReleaseChannelV1,
+  assertModelSurfaceReleaseManifestV1,
   assertStudioReleaseStageV1,
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
@@ -46,6 +46,7 @@ export type StudioResolvedModelReleaseV1 = Readonly<{
   surfaceReleaseId?: string;
   surfaceSeriesId?: string;
   surfaceStage?: StudioReleaseStageV1;
+  activeBundleVersion?: number;
 }>;
 
 export type StudioModelSurfacePinV1 =
@@ -66,7 +67,7 @@ export type StudioModelReleaseRpcResultV1 = Readonly<{
 
 export interface StudioModelReleaseRpcPortV1 {
   call(
-    functionName: "get_model_release_v3" | "get_model_release_channel_v3",
+    functionName: "get_model_release_v3" | "get_active_model_bundle_v1",
     parameters: Readonly<Record<string, string>>,
   ): Promise<StudioModelReleaseRpcResultV1>;
 }
@@ -96,8 +97,8 @@ export class StudioExactModelUnavailableErrorV1 extends Error {
 
 /**
  * Hash-free browser projection of the trusted exact-model registry.
- * Exact model promises are cached for the page lifetime; channel pointers are
- * deliberately resolved afresh and immediately pinned to the returned ID.
+ * Exact model promises are cached for the page lifetime. The active bundle is
+ * resolved atomically and only once by each new Session composition.
  */
 export class StudioSupabaseModelReleaseResolverV1 {
   readonly #rpc: StudioModelReleaseRpcPortV1;
@@ -113,6 +114,15 @@ export class StudioSupabaseModelReleaseResolverV1 {
     this.#rpc = dependencies.rpc;
     this.#supabaseOrigin = validateSupabaseOriginV1(dependencies.supabaseOrigin);
     this.#surfaceResolver = dependencies.surfaceResolver ?? null;
+  }
+
+  /**
+   * Drops page-lifetime read promises without mutating any composition already
+   * handed to a running Session. A later mutable Experiment open can then
+   * observe a newer additive Surface in its pinned series.
+   */
+  invalidate(): void {
+    this.#releasePromises.clear();
   }
 
   resolveExactModel(
@@ -136,35 +146,46 @@ export class StudioSupabaseModelReleaseResolverV1 {
     return pending;
   }
 
-  async resolveChannel(
-    channel: StudioReleaseChannelV1,
-  ): Promise<StudioResolvedModelReleaseV1> {
-    assertStudioReleaseChannelV1(channel);
-    const resolved = await this.#readOne(
-      "get_model_release_channel_v3",
-      Object.freeze({ p_channel: channel }),
-      channel,
+  async resolveActiveBundle(): Promise<StudioResolvedModelReleaseV1> {
+    const result = await this.#rpc.call(
+      "get_active_model_bundle_v1",
+      Object.freeze({}),
     );
-    const cached = this.#releasePromises.get(resolved.contract.modelId);
-    if (cached !== undefined) return cached;
-    const owned = Promise.resolve(resolved);
-    this.#releasePromises.set(resolved.contract.modelId, owned);
-    return owned;
-  }
-
-  async #readOne(
-    functionName: "get_model_release_v3" | "get_model_release_channel_v3",
-    parameters: Readonly<Record<string, string>>,
-    surfaceChannel?: StudioReleaseChannelV1,
-  ): Promise<StudioResolvedModelReleaseV1> {
-    const result = await this.#rpc.call(functionName, parameters);
     if (result.error !== null) {
-      throw new Error(`Exact model registry lookup failed: ${result.error.message}`);
+      throw new Error(`Active model bundle lookup failed: ${result.error.message}`);
     }
     if (!Array.isArray(result.data) || result.data.length !== 1) {
-      throw new Error("Exact model release is unavailable");
+      throw new Error("Active model bundle is unavailable");
     }
-    return this.#ownReleaseRow(result.data[0], surfaceChannel);
+    const value = result.data[0];
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Active model bundle returned an invalid row");
+    }
+    const row = value as Record<string, unknown>;
+    const bundleVersion = nonnegativeIntegerV1(
+      row.bundle_version,
+      "bundle_version",
+    );
+    assertModelSurfaceReleaseManifestV1(row.surface_manifest);
+    assertStudioReleaseStageV1(row.surface_stage, "$.surface_stage");
+    if (row.model_stage !== "stable" || row.surface_stage !== "stable") {
+      throw new Error("Active model bundle must contain stable releases");
+    }
+    if (row.module_abi !== "circleheart-exact-model-esm-v1") {
+      throw new Error("Active model bundle must use the Standard module ABI");
+    }
+    if (row.surface_manifest.surfaceReleaseId !== row.surface_release_id) {
+      throw new Error("Active model bundle Surface identity mismatch");
+    }
+    return this.#ownReleaseRow(
+      Object.freeze({ ...row, stage: row.model_stage }),
+      undefined,
+      Object.freeze({
+        manifest: row.surface_manifest,
+        stage: row.surface_stage,
+      }),
+      bundleVersion,
+    );
   }
 
   async #readExactModel(
@@ -189,7 +210,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
       );
     }
     try {
-      return await this.#ownReleaseRow(result.data[0], undefined, surfacePin);
+      return await this.#ownReleaseRow(result.data[0], surfacePin);
     } catch (error) {
       throw new StudioExactModelUnavailableErrorV1(
         modelId,
@@ -201,8 +222,12 @@ export class StudioSupabaseModelReleaseResolverV1 {
 
   async #ownReleaseRow(
     value: unknown,
-    requestedSurfaceChannel?: StudioReleaseChannelV1,
     surfacePin?: StudioModelSurfacePinV1,
+    activeSurface?: Readonly<{
+      manifest: ModelSurfaceReleaseManifestV1;
+      stage: StudioReleaseStageV1;
+    }>,
+    activeBundleVersion?: number,
   ): Promise<StudioResolvedModelReleaseV1> {
     if (value === null || typeof value !== "object" || Array.isArray(value)) {
       throw new Error("Exact model registry returned an invalid row");
@@ -229,24 +254,25 @@ export class StudioSupabaseModelReleaseResolverV1 {
       assertExactModelKernelManifestV3(row.manifest);
       const kernel = ownJsonObjectV1(row.manifest) as
         unknown as ExactModelKernelManifestV3;
-      if (this.#surfaceResolver === null) {
+      if (activeSurface === undefined && this.#surfaceResolver === null) {
         throw new Error("Standard exact model requires the Model Surface registry");
       }
-      const surface = surfacePin?.kind === "release"
-        ? await this.#surfaceResolver.resolveExactSurfaceManifest(
+      const surface = activeSurface ?? (surfacePin?.kind === "release"
+        ? await this.#surfaceResolver!.resolveExactSurfaceManifest(
             surfacePin.surfaceReleaseId,
             kernel.modelFamilyId,
           )
-        : surfacePin?.kind === "series"
-          ? await this.#surfaceResolver.resolveLatestSeriesManifest(
+          : surfacePin?.kind === "series"
+          ? await this.#surfaceResolver!.resolveLatestSeriesManifest(
               surfacePin.surfaceSeriesId,
               kernel.modelFamilyId,
+              kernel.modelId,
             )
-          : await this.#surfaceResolver.resolveChannelManifest(
-              requestedSurfaceChannel
-                ?? (row.stage === "dev" ? "research" : "default"),
-              kernel.modelFamilyId,
-            );
+          : (() => {
+              throw new Error(
+                "Standard exact model requires an exact or series Surface pin",
+              );
+            })());
       if (
         surfacePin !== undefined
         && surface.manifest.surfaceSeriesId !== surfacePin.surfaceSeriesId
@@ -274,6 +300,9 @@ export class StudioSupabaseModelReleaseResolverV1 {
         surfaceReleaseId: composed.surface.surfaceReleaseId,
         surfaceSeriesId: surface.manifest.surfaceSeriesId,
         surfaceStage: surface.stage,
+        ...(activeBundleVersion === undefined
+          ? {}
+          : { activeBundleVersion }),
       });
     }
     const ticket = validateStudioModelWorkerReleaseTicketV2({
@@ -289,8 +318,18 @@ export class StudioSupabaseModelReleaseResolverV1 {
       analysisProfileId,
       stage: row.stage,
       ticket,
+      ...(activeBundleVersion === undefined
+        ? {}
+        : { activeBundleVersion }),
     });
   }
+}
+
+function nonnegativeIntegerV1(value: unknown, field: string): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    throw new Error(`Exact model registry returned invalid ${field}`);
+  }
+  return value as number;
 }
 
 let sharedResolverV1: StudioSupabaseModelReleaseResolverV1 | null | undefined;
@@ -308,6 +347,10 @@ StudioSupabaseModelReleaseResolverV1 | null {
         surfaceResolver: studioSupabaseModelSurfaceResolverV1(),
       });
   return sharedResolverV1;
+}
+
+export function invalidateStudioSupabaseModelReleaseResolverCacheV1(): void {
+  sharedResolverV1?.invalidate();
 }
 
 function supabaseRpcPortV1(client: SupabaseClient): StudioModelReleaseRpcPortV1 {

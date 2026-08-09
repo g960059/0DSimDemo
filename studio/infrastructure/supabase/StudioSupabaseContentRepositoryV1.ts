@@ -9,7 +9,6 @@ import {
   validateExperimentV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {
-  STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
   type StudioArticleDraftV2,
 } from "@/studio/contracts/v2/article";
 import {
@@ -112,13 +111,30 @@ export function createStudioSupabaseContentRepositoryV1():
   return client === null ? null : new StudioSupabaseContentRepositoryV1(client);
 }
 
+export type StudioSupabaseContentRepositoryOptionsV1 = Readonly<{
+  /** Fixed semantic operation UUID for a one-command Node/AI process. */
+  fixedMutationOperationId?: string;
+}>;
+
 export class StudioSupabaseContentRepositoryV1 {
   readonly #client: SupabaseClient;
   readonly #pendingOperationIds = new Map<string, string>();
+  readonly #fixedMutationOperationId?: string;
+  #fixedMutationRequest: string | undefined;
 
-  constructor(client: SupabaseClient | null = studioSupabaseClientV1()) {
+  constructor(
+    client: SupabaseClient | null = studioSupabaseClientV1(),
+    options: StudioSupabaseContentRepositoryOptionsV1 = {},
+  ) {
     if (client === null) throw new Error("Supabase is not configured");
     this.#client = client;
+    if (
+      options.fixedMutationOperationId !== undefined
+      && !isUuidV1(options.fixedMutationOperationId)
+    ) {
+      throw new Error("Fixed mutation operation ID must be a UUID");
+    }
+    this.#fixedMutationOperationId = options.fixedMutationOperationId;
   }
 
   async saveExperiment(input: Readonly<{
@@ -199,15 +215,16 @@ export class StudioSupabaseContentRepositoryV1 {
       p_blocks: article.blocks,
     });
     const result = recordV1(data, "save_article_v1 result");
-    return validateStudioArticleDraftV2({
-      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
-      articleId: requiredStringV1(result.articleId, "articleId"),
-      draftVersion: nonnegativeIntegerV1(result.version, "version"),
-      visibility: article.visibility,
-      locale: article.locale,
-      title: article.title,
-      blocks: article.blocks,
-    });
+    const articleId = requiredStringV1(result.articleId, "articleId");
+    nonnegativeIntegerV1(result.version, "version");
+    // Publication state is backend authority. In particular, an AI-authored
+    // payload must not make the command result claim `public` when the Article
+    // has only been saved as a private draft.
+    const saved = await this.readArticle(articleId);
+    if (saved === null) {
+      throw new Error("Saved Article could not be read from authority");
+    }
+    return saved;
   }
 
   async publishExperiment(input: Readonly<{
@@ -391,8 +408,20 @@ export class StudioSupabaseContentRepositoryV1 {
       functionName,
       args,
     });
+    if (
+      this.#fixedMutationRequest !== undefined
+      && this.#fixedMutationRequest !== canonicalRequest
+    ) {
+      throw new Error(
+        "A fixed-operation repository may execute only one semantic mutation",
+      );
+    }
+    if (this.#fixedMutationOperationId !== undefined) {
+      this.#fixedMutationRequest = canonicalRequest;
+    }
     const storageKey = await pendingOperationStorageKeyV1(canonicalRequest);
-    const operationId = this.#pendingOperationIds.get(canonicalRequest)
+    const operationId = this.#fixedMutationOperationId
+      ?? this.#pendingOperationIds.get(canonicalRequest)
       ?? readPendingOperationIdV1(storageKey)
       ?? operationIdV1();
     this.#pendingOperationIds.set(canonicalRequest, operationId);
@@ -573,6 +602,10 @@ function operationIdV1(): string {
     throw new Error("This browser cannot create an idempotent operation ID");
   }
   return globalThis.crypto.randomUUID();
+}
+
+function isUuidV1(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 const STUDIO_PENDING_OPERATION_PREFIX_V1 =

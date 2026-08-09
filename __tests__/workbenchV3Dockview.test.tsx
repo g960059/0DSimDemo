@@ -12,6 +12,7 @@ import {
   createWorkbenchBriefingSnapshotV3,
   invalidateWorkbenchScenarioAnalysisEquivalenceV3,
   modelLabEnabledV3,
+  workbenchDurableContentAvailableV3,
   workbenchPublicationAvailableV3,
   reconcileWorkbenchBriefingV3,
   resolveWorkbenchBriefingEditorChangeV3,
@@ -97,7 +98,9 @@ describe("V3 Dockview Workbench", () => {
     })).toBe(true);
   });
 
-  it("keeps dev releases saveable but outside public publication", () => {
+  it("keeps ordinary dev Sessions private and Model Lab ephemeral", () => {
+    expect(workbenchDurableContentAvailableV3({ modelLab: false })).toBe(true);
+    expect(workbenchDurableContentAvailableV3({ modelLab: true })).toBe(false);
     expect(workbenchPublicationAvailableV3({
       modelLab: false,
       releaseStage: "stable",

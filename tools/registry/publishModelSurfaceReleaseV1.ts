@@ -5,13 +5,11 @@ import { fileURLToPath } from "node:url";
 
 import type {
   ModelSurfaceReleaseManifestV1,
-  StudioReleaseChannelV1,
   StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
   assertAdditiveModelSurfaceUpgradeV1,
   assertModelSurfaceReleaseManifestV1,
-  assertStudioReleaseChannelV1,
   assertStudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 
@@ -74,18 +72,9 @@ async function main(): Promise<void> {
       p_stage: options.stage,
     });
   }
-  if (options.channel !== null) {
-    await rpcV1(baseUrl, secret, "set_model_surface_release_channel_v1", {
-      p_model_family_id: manifest.modelFamilyId,
-      p_channel: options.channel,
-      p_surface_release_id: manifest.surfaceReleaseId,
-    });
-  }
   process.stdout.write(
     `Published Model Surface ${manifest.surfaceReleaseId} as `
-      + `${options.stage}${options.channel === null
-        ? ""
-        : ` on ${options.channel}`}\n`,
+      + `${options.stage}\n`,
   );
 }
 
@@ -93,7 +82,6 @@ type PublishOptionsV1 = Readonly<{
   projectRef: string;
   manifestPath: string;
   stage: StudioReleaseStageV1;
-  channel: StudioReleaseChannelV1 | null;
 }>;
 
 export function parseModelSurfacePublishArgumentsV1(
@@ -106,7 +94,7 @@ export function parseModelSurfacePublishArgumentsV1(
     if (
       key === undefined
       || value === undefined
-      || !["--project-ref", "--manifest", "--stage", "--channel"].includes(key)
+      || !["--project-ref", "--manifest", "--stage"].includes(key)
       || values.has(key)
     ) {
       throw usageErrorV1();
@@ -128,20 +116,10 @@ export function parseModelSurfacePublishArgumentsV1(
   if (stageValue === "retired") {
     throw new Error("A new Model Surface cannot be published directly as retired");
   }
-  const channelValue = values.get("--channel");
-  let channel: StudioReleaseChannelV1 | null = null;
-  if (channelValue !== undefined) {
-    assertStudioReleaseChannelV1(channelValue, "--channel");
-    channel = channelValue;
-  }
-  if (channel === "default" && stageValue !== "stable") {
-    throw new Error("The default channel requires --stage stable");
-  }
   return Object.freeze({
     projectRef,
     manifestPath,
     stage: stageValue,
-    channel,
   });
 }
 
@@ -152,7 +130,7 @@ function parseArgumentsV1(args: readonly string[]): PublishOptionsV1 {
 function usageErrorV1(): Error {
   return new Error(
     "Usage: --project-ref <ref> --manifest <repo-relative.json> "
-      + "[--stage dev|stable] [--channel default|research]",
+      + "[--stage dev|stable]",
   );
 }
 

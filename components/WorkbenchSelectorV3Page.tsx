@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import {
-  resolveExperimentAvailabilityByModelIdV3,
+  resolveExperimentAvailabilityV3,
   type ExperimentAvailabilityV3,
 } from "@/studio/infrastructure/browser/StudioExperimentIdentityV3";
 import {
@@ -22,7 +22,7 @@ import {
 import { isLocale, type Locale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
-  loadStudioModelClientCompositionV2,
+  loadStudioExperimentClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { StudioBrowserContentStoreV3 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
 import {
@@ -37,6 +37,7 @@ import {
 type WorkbenchSelectorItemV3 = Readonly<{
   record: StudioBrowserExperimentRecordV3;
   modelId: string;
+  surfaceSeriesId?: string;
   version: number;
 }>;
 
@@ -45,7 +46,7 @@ type WorkbenchSelectorStateV3 =
   | Readonly<{
       kind: "ready";
       items: readonly WorkbenchSelectorItemV3[];
-      availabilityByModelId: ReadonlyMap<string, ExperimentAvailabilityV3>;
+      availabilityByExperimentId: ReadonlyMap<string, ExperimentAvailabilityV3>;
     }>
   | Readonly<{ kind: "error"; message: string }>;
 
@@ -84,16 +85,25 @@ export function WorkbenchSelectorV3Page() {
             publishedSnapshotId: resource.publishedSnapshotId,
           }),
           modelId: resource.modelId,
+          ...(resource.surfaceSeriesId === undefined
+            ? {}
+            : { surfaceSeriesId: resource.surfaceSeriesId }),
           version: resource.version,
         })));
         setState({
           kind: "ready",
           items,
-          availabilityByModelId: await resolveExperimentAvailabilityByModelIdV3(
+          availabilityByExperimentId: await resolveExperimentAvailabilityV3(
             {
-              savedModelIds: items.map(({ modelId }) => modelId),
-              currentDefaultModelId: composition.defaultModelId,
-              resolveExactModel: loadStudioModelClientCompositionV2,
+              savedExperiments: items.map((item) => ({
+                experimentId: item.record.experimentId,
+                modelId: item.modelId,
+                ...(item.surfaceSeriesId === undefined
+                  ? {}
+                  : { surfaceSeriesId: item.surfaceSeriesId }),
+              })),
+              activeModelId: composition.defaultModelId,
+              resolveExperiment: loadStudioExperimentClientCompositionV2,
             },
           ),
         });
@@ -127,6 +137,9 @@ export function WorkbenchSelectorV3Page() {
         .map((experiment) => Object.freeze({
           record: experimentIndex.read(experiment.experimentId)!,
           modelId: experiment.content.modelId,
+          ...(experiment.content.surfaceSeriesId === undefined
+            ? {}
+            : { surfaceSeriesId: experiment.content.surfaceSeriesId }),
           version: experiment.version,
         }))
         .sort((left, right) =>
@@ -134,11 +147,17 @@ export function WorkbenchSelectorV3Page() {
       setState({
         kind: "ready",
         items,
-        availabilityByModelId: await resolveExperimentAvailabilityByModelIdV3(
+        availabilityByExperimentId: await resolveExperimentAvailabilityV3(
           {
-            savedModelIds: items.map(({ modelId }) => modelId),
-            currentDefaultModelId: composition.defaultModelId,
-            resolveExactModel: loadStudioModelClientCompositionV2,
+            savedExperiments: items.map((item) => ({
+              experimentId: item.record.experimentId,
+              modelId: item.modelId,
+              ...(item.surfaceSeriesId === undefined
+                ? {}
+                : { surfaceSeriesId: item.surfaceSeriesId }),
+            })),
+            activeModelId: composition.defaultModelId,
+            resolveExperiment: loadStudioExperimentClientCompositionV2,
           },
         ),
       });
@@ -267,8 +286,10 @@ export function WorkbenchSelectorV3Page() {
           )}
           {state.kind === "ready" && state.items.length > 0 && (
             <ul className="divide-y divide-wb-line/80 border-y border-wb-line/80">
-              {state.items.map(({ record, modelId, version }) => {
-                const availability = state.availabilityByModelId.get(modelId)
+              {state.items.map(({ record, version }) => {
+                const availability = state.availabilityByExperimentId.get(
+                  record.experimentId,
+                )
                   ?? "unavailable-model";
                 return (
                   <li

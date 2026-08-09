@@ -67,8 +67,7 @@
       "unknown": "Available"
     },
     "modelSource": {
-      "default": "Default",
-      "research": "Research",
+      "active": "使用中",
       "model-lab": "Model Lab",
       "referenced": "Contentで使用"
     }

@@ -4,10 +4,7 @@ import type {
 import type {
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
-import type {
-  StudioReleaseChannelV1,
-  StudioReleaseStageV1,
-} from "@/studio/contracts/v2/modelSurface";
+import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import type {
   StudioModelWorkerReleaseTicketV2,
@@ -31,6 +28,7 @@ import {
   TrustedRegisteredModelClientCatalogV2,
 } from "@/studio/infrastructure/model/TrustedRegisteredModelClientCatalogV2";
 import {
+  invalidateStudioSupabaseModelReleaseResolverCacheV1,
   studioSupabaseModelReleaseResolverV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import type {
@@ -73,6 +71,7 @@ export type StudioClientCompositionV2 = Readonly<{
   surfaceReleaseId?: string;
   surfaceSeriesId?: string;
   surfaceStage?: StudioReleaseStageV1;
+  activeBundleVersion?: number;
 }>;
 
 export type StudioDefaultClientCompositionV2 = StudioClientCompositionV2;
@@ -100,24 +99,20 @@ const browserSnapshotCompositionPromisesV2 = new Map<
   string,
   Promise<StudioClientCompositionV2>
 >();
-const browserChannelCompositionPromisesV2 = new Map<
-  StudioReleaseChannelV1,
-  Promise<StudioClientCompositionV2>
->();
 let browserLocalStandardModelLabCompositionPromiseV1:
   Promise<StudioClientCompositionV2> | undefined;
 
 /**
- * Development inventory refreshes must observe channel and lifecycle moves
- * made after the SPA first resolved them. Ordinary Sessions keep their pinned
- * composition; clearing these lookup Promises cannot mutate a running Worker.
+ * Development inventory refreshes must observe active-bundle and lifecycle
+ * moves made after the SPA first resolved them. Ordinary Sessions keep their
+ * pinned composition; clearing these Promises cannot mutate a running Worker.
  */
 export function invalidateStudioClientCompositionCachesV2(): void {
+  invalidateStudioSupabaseModelReleaseResolverCacheV1();
   browserCompositionPromiseV2 = undefined;
   browserExactCompositionPromisesV2.clear();
   browserExperimentCompositionPromisesV2.clear();
   browserSnapshotCompositionPromisesV2.clear();
-  browserChannelCompositionPromisesV2.clear();
 }
 
 /**
@@ -153,21 +148,29 @@ Promise<StudioDefaultClientCompositionV2> {
 
 async function createRegistryClientCompositionV2(
   modelId?: string,
-  channel: StudioReleaseChannelV1 = "default",
   surfacePin?: StudioModelSurfacePinV1,
 ): Promise<StudioClientCompositionV2> {
   const resolver = studioSupabaseModelReleaseResolverV1();
   if (resolver === null) {
-    if (channel === "research") {
-      throw new Error(
-        "Research model registry is unavailable; Model Lab will not fall back "
-          + "to the bundled default model",
-      );
+    if (
+      modelId === standardClientDescriptorV1.manifest.modelId
+      && surfacePin !== undefined
+      && surfacePin.surfaceSeriesId === standardSurfaceReleaseV1.surfaceSeriesId
+      && (
+        surfacePin.kind !== "release"
+        || surfacePin.surfaceReleaseId === standardSurfaceReleaseV1.surfaceReleaseId
+      )
+    ) {
+      // The unconfigured browser repository is intentionally local-only, but
+      // a Model Lab Save must still reopen through the ordinary Experiment
+      // route. Reuse the exact committed local Standard bundle rather than
+      // silently substituting the legacy bundled default.
+      return loadStudioLocalStandardModelLabClientCompositionV1();
     }
     return createStudioDefaultClientCompositionV2();
   }
   const release = modelId === undefined
-    ? await resolver.resolveChannel(channel)
+    ? await resolver.resolveActiveBundle()
     : await resolver.resolveExactModel(modelId, surfacePin);
   return Object.freeze({
     defaultModelId: release.contract.modelId,
@@ -187,27 +190,10 @@ async function createRegistryClientCompositionV2(
     ...(release.surfaceStage === undefined
       ? {}
       : { surfaceStage: release.surfaceStage }),
+    ...(release.activeBundleVersion === undefined
+      ? {}
+      : { activeBundleVersion: release.activeBundleVersion }),
   });
-}
-
-/**
- * Resolves one of the two mutable launch pointers and immediately pins the
- * returned exact modelId. Existing content continues to use the exact loader.
- */
-export function loadStudioModelChannelClientCompositionV2(
-  channel: StudioReleaseChannelV1,
-): Promise<StudioClientCompositionV2> {
-  if (channel === "default") return loadStudioDefaultClientCompositionV2();
-  const cached = browserChannelCompositionPromisesV2.get(channel);
-  if (cached !== undefined) return cached;
-  const pending = createRegistryClientCompositionV2(undefined, channel);
-  browserChannelCompositionPromisesV2.set(channel, pending);
-  void pending.catch(() => {
-    if (browserChannelCompositionPromisesV2.get(channel) === pending) {
-      browserChannelCompositionPromisesV2.delete(channel);
-    }
-  });
-  return pending;
 }
 
 /**
@@ -316,7 +302,7 @@ async function resolveDefaultWorkerReleaseV2() {
   });
 }
 
-/** One browser composition shared across StrictMode remounts. */
+/** One active-bundle composition shared across StrictMode remounts. */
 export function loadStudioDefaultClientCompositionV2():
 Promise<StudioDefaultClientCompositionV2> {
   if (browserCompositionPromiseV2 !== undefined) {
@@ -335,7 +321,7 @@ Promise<StudioDefaultClientCompositionV2> {
   return pending;
 }
 
-/** Existing content pins its exact modelId and never follows a channel. */
+/** Existing content pins its exact modelId and never follows the active bundle. */
 export function loadStudioModelClientCompositionV2(
   modelId: string,
 ): Promise<StudioClientCompositionV2> {
@@ -373,7 +359,7 @@ export function loadStudioExperimentClientCompositionV2(
   const key = `${modelId}\u0000${surfaceSeriesId}`;
   const cached = browserExperimentCompositionPromisesV2.get(key);
   if (cached !== undefined) return cached;
-  const pending = createRegistryClientCompositionV2(modelId, "default", {
+  const pending = createRegistryClientCompositionV2(modelId, {
     kind: "series",
     surfaceSeriesId,
   }).then((composition) => {
@@ -409,7 +395,7 @@ export function loadStudioSnapshotClientCompositionV2(
   const key = `${modelId}\u0000${surfaceReleaseId}`;
   const cached = browserSnapshotCompositionPromisesV2.get(key);
   if (cached !== undefined) return cached;
-  const pending = createRegistryClientCompositionV2(modelId, "default", {
+  const pending = createRegistryClientCompositionV2(modelId, {
     kind: "release",
     surfaceSeriesId,
     surfaceReleaseId,

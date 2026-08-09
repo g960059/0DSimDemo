@@ -14,7 +14,6 @@ import {
   assertExactModelKernelManifestV3,
   assertModelSurfaceCompatibleV1,
   assertModelSurfaceReleaseManifestV1,
-  assertStudioReleaseChannelV1,
   assertStudioReleaseStageV1,
   controlCapabilityV1,
   derivationCapabilityV1,
@@ -771,9 +770,6 @@ describe("exact model kernel and Model Surface release boundaries", () => {
     expect(() => assertStudioReleaseStageV1("stable")).not.toThrow();
     expect(() => assertStudioReleaseStageV1("retired")).not.toThrow();
     expect(() => assertStudioReleaseStageV1("preview")).toThrow();
-    expect(() => assertStudioReleaseChannelV1("default")).not.toThrow();
-    expect(() => assertStudioReleaseChannelV1("research")).not.toThrow();
-    expect(() => assertStudioReleaseChannelV1("nightly")).toThrow();
   });
 });
 
