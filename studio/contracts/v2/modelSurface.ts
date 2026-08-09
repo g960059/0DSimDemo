@@ -45,6 +45,12 @@ export type ExactModelKernelManifestV3 = Readonly<{
   checkpointCodec: RegisteredModelCheckpointCodecV2;
   primitiveControlCatalog: readonly ControlDefinitionV2[];
   primitiveSignalCatalog: readonly SignalOutputDefinitionV2[];
+  /**
+   * Metrics accumulated by the exact numerical Session from accepted
+   * substeps. Older V3 manifests predate this additive field and therefore
+   * resolve it as an empty catalog.
+   */
+  modelMetricCatalog?: readonly MetricOutputDefinitionV2[];
   capabilities: readonly string[];
 }>;
 
@@ -154,6 +160,7 @@ const KERNEL_KEYS_V3 = Object.freeze([
   "fixtureSchema",
   "modelFamilyId",
   "modelId",
+  "modelMetricCatalog",
   "primitiveControlCatalog",
   "primitiveSignalCatalog",
   "runtime",
@@ -191,7 +198,12 @@ export function assertExactModelKernelManifestV3(
   value: unknown,
 ): asserts value is ExactModelKernelManifestV3 {
   assertPortableStudioJsonObjectV2(value, "$.kernel");
-  assertExactKeysV1(value, KERNEL_KEYS_V3, "$.kernel");
+  assertRequiredAndOptionalKeysV1(
+    value,
+    KERNEL_KEYS_V3.filter((key) => key !== "modelMetricCatalog"),
+    ["modelMetricCatalog"],
+    "$.kernel",
+  );
   const kernel = value as unknown as Record<string, unknown>;
   if (kernel.schemaId !== STUDIO_EXACT_MODEL_KERNEL_V3_SCHEMA_ID) {
     throw new ModelSurfaceValidationErrorV1(
@@ -232,6 +244,21 @@ export function assertExactModelKernelManifestV3(
       "must contain primitive signals only",
     );
   }
+  const metrics = kernel.modelMetricCatalog ?? [];
+  if (!Array.isArray(metrics) || metrics.some((metric) =>
+    metric === null
+    || typeof metric !== "object"
+    || (metric as Record<string, unknown>).kind !== "metric")) {
+    throw new ModelSurfaceValidationErrorV1(
+      "$.kernel.modelMetricCatalog",
+      "must contain exact model-owned metrics only",
+    );
+  }
+  assertOutputCatalogV2(
+    [...signals as readonly SignalOutputDefinitionV2[],
+      ...metrics as readonly MetricOutputDefinitionV2[]],
+    "$.kernel.modelOutputCatalog",
+  );
   const capabilities = assertUniqueIdArrayV1(
     kernel.capabilities,
     "$.kernel.capabilities",
@@ -240,6 +267,8 @@ export function assertExactModelKernelManifestV3(
     ...(kernel.primitiveControlCatalog as readonly ControlDefinitionV2[])
       .map(({ controlId }) => controlCapabilityV1(controlId)),
     ...(signals as readonly SignalOutputDefinitionV2[])
+      .map(({ outputId }) => outputCapabilityV1(outputId)),
+    ...(metrics as readonly MetricOutputDefinitionV2[])
       .map(({ outputId }) => outputCapabilityV1(outputId)),
   ];
   for (const capability of required) {
@@ -402,7 +431,10 @@ export function composeStandardModelContractV1(
     checkpointCodecId: kernel.checkpointCodec.checkpointCodecId,
     snapshotGateId: STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1,
     controlCatalog: kernel.primitiveControlCatalog,
-    outputCatalog: kernel.primitiveSignalCatalog,
+    outputCatalog: Object.freeze([
+      ...kernel.primitiveSignalCatalog,
+      ...(kernel.modelMetricCatalog ?? []),
+    ]),
     graphCatalog: Object.freeze([]),
   });
   assertModelContractV2(kernelContract);
@@ -421,6 +453,7 @@ export function composeStandardModelContractV1(
     )),
     outputCatalog: Object.freeze([
       ...kernel.primitiveSignalCatalog,
+      ...(kernel.modelMetricCatalog ?? []),
       ...materialized.derivedOutputCatalog.map(stripDerivationV1),
     ]),
     graphCatalog: Object.freeze(
@@ -1205,6 +1238,35 @@ function assertExactKeysV1(
     throw new ModelSurfaceValidationErrorV1(
       path,
       `keys must be exactly ${expected.join(", ")}`,
+    );
+  }
+}
+
+function assertRequiredAndOptionalKeysV1(
+  value: unknown,
+  requiredKeys: readonly string[],
+  optionalKeys: readonly string[],
+  path: string,
+): void {
+  assertRecordV1(value, path);
+  const actual = Object.keys(value);
+  const required = new Set(requiredKeys);
+  const allowed = new Set([...requiredKeys, ...optionalKeys]);
+  const missing = requiredKeys.filter((key) => !actual.includes(key));
+  const unexpected = actual.filter((key) => !allowed.has(key));
+  if (missing.length > 0 || unexpected.length > 0) {
+    throw new ModelSurfaceValidationErrorV1(
+      path,
+      `keys must contain exactly ${[...required].sort().join(", ")}`
+        + (optionalKeys.length === 0
+          ? ""
+          : ` with optional ${[...optionalKeys].sort().join(", ")}`)
+        + (missing.length === 0
+          ? ""
+          : `; missing ${missing.sort().join(", ")}`)
+        + (unexpected.length === 0
+          ? ""
+          : `; unexpected ${unexpected.sort().join(", ")}`),
     );
   }
 }

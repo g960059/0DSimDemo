@@ -30,7 +30,7 @@ import {
 import standardClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-standard-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
 
 describe("Studio Supabase boundary V1", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -148,7 +148,7 @@ describe("Studio Supabase boundary V1", () => {
     const modelPackage = createMainWireIntegratedStudioModelPackageV3();
     const modelA = modelPackage.manifest.modelId;
     const modelB = standardClientDescriptorV1.manifest.modelId;
-    const modelC = modelB.replace("standard-2", "standard-3-test");
+    const modelC = `${modelB}-successor-test`;
     const manifestB = {
       ...JSON.parse(JSON.stringify(standardClientDescriptorV1.manifest)),
       modelId: modelB,
@@ -358,13 +358,19 @@ describe("Studio Supabase boundary V1", () => {
     const surfaceV1 = structuredClone(standardSurfaceReleaseV1) as any;
     const surfaceV2 = {
       ...structuredClone(surfaceV1),
-      surfaceReleaseId: "circleheart.main-wire.surface.standard-v2-test",
+      surfaceReleaseId: "circleheart.main-wire.surface.workbench-v2-test",
       predecessorSurfaceReleaseId: surfaceV1.surfaceReleaseId,
-      controlCatalog: [...surfaceV1.controlCatalog, {
-        controlId: "hemodynamics.pulmonary-resistance",
-        preferredPresentation: "slider",
+      graphCatalog: [...surfaceV1.graphCatalog, {
+        graphId: "hemodynamics.pressure.aortic-focus",
+        renderer: "sweep",
+        seriesCatalog: [{
+          kind: "scalar",
+          seriesId: "AoP",
+          outputId: "hemodynamics.pressure.absolute.Ao",
+        }],
+        defaultSeriesIds: ["AoP"],
         requiredCapabilities: [
-          "control/hemodynamics.pulmonary-resistance",
+          "output/hemodynamics.pressure.absolute.Ao",
         ],
       }],
     };
@@ -421,8 +427,8 @@ describe("Studio Supabase boundary V1", () => {
       seriesPin,
     );
     expect(reopened.surfaceReleaseId).toBe(surfaceV2.surfaceReleaseId);
-    expect(reopened.contract.controlCatalog.some((control) =>
-      control.controlId === "hemodynamics.pulmonary-resistance"))
+    expect(reopened.contract.graphCatalog.some((graph) =>
+      graph.graphId === "hemodynamics.pressure.aortic-focus"))
       .toBe(true);
     expect(surfaceCall).toHaveBeenCalledWith(
       "get_model_surface_series_latest_v1",
@@ -441,8 +447,8 @@ describe("Studio Supabase boundary V1", () => {
       },
     );
     expect(frozenSnapshot.surfaceReleaseId).toBe(surfaceV1.surfaceReleaseId);
-    expect(frozenSnapshot.contract.controlCatalog.some((control) =>
-      control.controlId === "hemodynamics.pulmonary-resistance"))
+    expect(frozenSnapshot.contract.graphCatalog.some((graph) =>
+      graph.graphId === "hemodynamics.pressure.aortic-focus"))
       .toBe(false);
   });
 

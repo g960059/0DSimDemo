@@ -2,7 +2,7 @@
   "schemaId": "circleheart-standard-exact-model-client-descriptor-v1",
   "manifest": {
     "schemaId": "circleheart-studio-exact-model-kernel-v3",
-    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-2",
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-3",
     "modelFamilyId": "circleheart.main-wire-integrated-transaction",
     "equations": {
       "transactionId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3",
@@ -418,6 +418,151 @@
         "sampling": "accepted-step"
       }
     ],
+    "modelMetricCatalog": [
+      {
+        "outputId": "hemodynamics.pressure.mean.Ao",
+        "kind": "metric",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.Ao"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.systolic.Ao",
+        "kind": "metric",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.Ao"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.diastolic.Ao",
+        "kind": "metric",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.Ao"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.pulse.Ao",
+        "kind": "metric",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.systolic.Ao",
+          "hemodynamics.pressure.diastolic.Ao"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.mean.PA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.PA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.mean.LA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.LA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.mean.RA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.RA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.volume.maximum.LV",
+        "kind": "metric",
+        "unit": "mL",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.volume.minimum.LV",
+        "kind": "metric",
+        "unit": "mL",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.stroke-volume.LV-extrema",
+        "kind": "metric",
+        "unit": "mL",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.maximum.LV",
+          "hemodynamics.volume.minimum.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.ejection-fraction.LV-extrema",
+        "kind": "metric",
+        "unit": "1",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.maximum.LV",
+          "hemodynamics.volume.minimum.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.output.native-left",
+        "kind": "metric",
+        "unit": "L/min",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.AoV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.output.systemic-tissue",
+        "kind": "metric",
+        "unit": "L/min",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.systemic.SA_Art"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.output.pulmonary",
+        "kind": "metric",
+        "unit": "L/min",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.pulmonary.PA_PArt"
+        ]
+      }
+    ],
     "capabilities": [
       "control/hemodynamics.systemic-resistance",
       "control/hemodynamics.pulmonary-resistance",
@@ -462,6 +607,20 @@
       "output/coronary.flow.inlet.RCA",
       "output/device.LVAD.flow",
       "output/rhythm.phase.regular-sinus",
+      "output/hemodynamics.pressure.mean.Ao",
+      "output/hemodynamics.pressure.systolic.Ao",
+      "output/hemodynamics.pressure.diastolic.Ao",
+      "output/hemodynamics.pressure.pulse.Ao",
+      "output/hemodynamics.pressure.mean.PA",
+      "output/hemodynamics.pressure.mean.LA",
+      "output/hemodynamics.pressure.mean.RA",
+      "output/hemodynamics.volume.maximum.LV",
+      "output/hemodynamics.volume.minimum.LV",
+      "output/hemodynamics.stroke-volume.LV-extrema",
+      "output/hemodynamics.ejection-fraction.LV-extrema",
+      "output/hemodynamics.output.native-left",
+      "output/hemodynamics.output.systemic-tissue",
+      "output/hemodynamics.output.pulmonary",
       "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
       "analysis/main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1"
     ]

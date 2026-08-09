@@ -589,6 +589,28 @@ describe("exact model kernel and Model Surface release boundaries", () => {
     leakedDisplayName.displayName = "Presentation metadata";
     expect(() => assertExactModelKernelManifestV3(leakedDisplayName))
       .toThrow(/keys must be exactly|must contain exactly/);
+
+    const withModelMetric = structuredClone(kernel) as any;
+    withModelMetric.modelMetricCatalog = [{
+      outputId: "hemodynamics.pressure.mean.lv",
+      kind: "metric",
+      unit: "mmHg",
+      shape: "scalar",
+      scope: "beat",
+      dependencies: ["hemodynamics.pressure.lv"],
+    }];
+    withModelMetric.capabilities.push(
+      outputCapabilityV1("hemodynamics.pressure.mean.lv"),
+    );
+    expect(() => assertExactModelKernelManifestV3(withModelMetric))
+      .not.toThrow();
+
+    const unknownDependency = structuredClone(withModelMetric) as any;
+    unknownDependency.modelMetricCatalog[0].dependencies = [
+      "hemodynamics.pressure.unknown",
+    ];
+    expect(() => assertExactModelKernelManifestV3(unknownDependency))
+      .toThrow(/unknown output dependency/);
   });
 
   it("validates a separately released Surface against exact capabilities", () => {

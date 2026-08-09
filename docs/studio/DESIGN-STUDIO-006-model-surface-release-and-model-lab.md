@@ -22,6 +22,7 @@ Exact model kernel                    immutable modelId
   fixture schema and control binding
   checkpoint codec and restore
   primitive controls and signals
+  model-owned accepted-substep metrics
   executable artifact
 
 Model Surface                         immutable surfaceReleaseId
@@ -53,12 +54,16 @@ existing Experiments and Snapshots keep their stored exact/series pins.
 - equations, runtime and solver definitions;
 - fixture schema and checkpoint codec;
 - primitive controls and primitive signals;
+- model-owned metrics accumulated by the numerical Session from accepted
+  substeps;
 - explicit capabilities; and
 - the registered executable artifact guarded at registry admission.
 
-It cannot contain graph catalogs, derived metrics, Knobs, protocols, labels,
-colors, Snapshot policy, Article behavior, or product policy. Exact-key
-validation rejects those fields.
+It cannot contain graph catalogs, Studio-derived metrics, Knobs, protocols,
+labels, colors, Snapshot policy, Article behavior, or product policy.
+Model-owned metrics are the narrow exception: their accumulation and meaning
+are executable numerical behavior and therefore belong to the exact contract.
+Exact-key validation rejects presentation and product fields.
 
 A changed state topology, result-affecting path, parameter meaning, primitive
 output meaning, event/solver semantics, or executable bytes receives a new
@@ -169,10 +174,13 @@ are unavailable. Durable authoring starts from the ordinary active-model
 Experiment Session. This prevents a dirty local artifact from minting durable
 content under an already released exact `modelId`.
 
-The initial checked-in Standard Surface is deliberately the bounded
-CONTENT-0001 acceptance slice (LV PV loop plus its teaching controls), not a
-claim of legacy Workbench catalog parity. It must not become the production
-active bundle until the CONTENT-0001 acceptance checks are reviewed.
+The checked-in Workbench Surface is the complete ordinary product surface: all
+eight supported controls, pressure and flow waveforms, four-chamber PV loops,
+and Guyton/Starling structural analysis. The exact model supplies every raw
+signal and its accepted-substep beat metrics. New local and registry-backed
+Workbench Sessions therefore compose through the same Standard contract.
+The earlier LV-only acceptance Surface used a different immutable series and
+is not a second runtime authority.
 
 ## 7. Ordinary content and AI assistance
 
@@ -261,3 +269,5 @@ published Snapshot.
     CAS, model validation, Snapshot admission or publication gates.
 12. Automation is added from observed authoring repetition, not speculative
     parallel workflow machinery.
+13. A new Workbench/ExperimentSession never composes catalogs from the legacy
+    `development-36` package; that artifact is historical exact-load only.

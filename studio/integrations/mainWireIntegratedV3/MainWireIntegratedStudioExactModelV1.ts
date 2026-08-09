@@ -55,6 +55,7 @@ import type { RegisteredModelExecutableBundleV2 } from
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import type {
   ControlDefinitionV2,
+  MetricOutputDefinitionV2,
   ModelContractV2,
   SignalOutputDefinitionV2,
 } from "@/studio/contracts/v2/model";
@@ -172,6 +173,24 @@ const STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1 = Object.freeze(
 const STANDARD_PRIMITIVE_SIGNAL_IDS_V1 = new Set(
   STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1.map(({ outputId }) => outputId),
 );
+
+const STANDARD_MODEL_METRIC_DEFINITIONS_V1 = Object.freeze(
+  MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3
+    .filter((definition) => definition.kind === "metric")
+    .map((definition): MetricOutputDefinitionV2 => Object.freeze({
+      outputId: definition.outputId,
+      kind: "metric",
+      unit: definition.unit,
+      shape: "scalar",
+      scope: "beat",
+      dependencies: Object.freeze([...(definition.dependencies ?? [])]),
+    })),
+);
+
+const STANDARD_EXACT_OUTPUT_IDS_V1 = new Set([
+  ...STANDARD_PRIMITIVE_SIGNAL_IDS_V1,
+  ...STANDARD_MODEL_METRIC_DEFINITIONS_V1.map(({ outputId }) => outputId),
+]);
 
 /** Standard numerical runtime. Legacy development-36 remains artifact-only. */
 export class MainWireIntegratedStudioStandardRuntimeHostV1 {
@@ -619,9 +638,12 @@ ExactModelKernelManifestV3 {
     }),
     primitiveControlCatalog,
     primitiveSignalCatalog: STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1,
+    modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1
+        .map(({ outputId }) => `output/${outputId}`),
+      ...STANDARD_MODEL_METRIC_DEFINITIONS_V1
         .map(({ outputId }) => `output/${outputId}`),
       `analysis/${MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID}`,
       `analysis/${MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID}`,
@@ -1011,7 +1033,7 @@ function standardFrameV1(input: Readonly<{
 }>): StudioSimulationFrameV2 {
   const outputs = Object.fromEntries(
     Object.values(input.projected.values)
-      .filter(({ outputId }) => STANDARD_PRIMITIVE_SIGNAL_IDS_V1.has(outputId))
+      .filter(({ outputId }) => STANDARD_EXACT_OUTPUT_IDS_V1.has(outputId))
       .map((value) => [value.outputId, Object.freeze({
         outputId: value.outputId,
         value: value.value,

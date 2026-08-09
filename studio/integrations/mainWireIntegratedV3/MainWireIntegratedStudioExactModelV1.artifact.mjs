@@ -32526,6 +32526,7 @@ const KERNEL_KEYS_V3 = Object.freeze([
   "fixtureSchema",
   "modelFamilyId",
   "modelId",
+  "modelMetricCatalog",
   "primitiveControlCatalog",
   "primitiveSignalCatalog",
   "runtime",
@@ -32534,7 +32535,12 @@ const KERNEL_KEYS_V3 = Object.freeze([
 ]);
 function assertExactModelKernelManifestV3(value) {
   assertPortableStudioJsonObjectV2(value, "$.kernel");
-  assertExactKeysV1(value, KERNEL_KEYS_V3, "$.kernel");
+  assertRequiredAndOptionalKeysV1(
+    value,
+    KERNEL_KEYS_V3.filter((key) => key !== "modelMetricCatalog"),
+    ["modelMetricCatalog"],
+    "$.kernel"
+  );
   const kernel = value;
   if (kernel.schemaId !== STUDIO_EXACT_MODEL_KERNEL_V3_SCHEMA_ID) {
     throw new ModelSurfaceValidationErrorV1(
@@ -32572,13 +32578,28 @@ function assertExactModelKernelManifestV3(value) {
       "must contain primitive signals only"
     );
   }
+  const metrics = kernel.modelMetricCatalog ?? [];
+  if (!Array.isArray(metrics) || metrics.some((metric) => metric === null || typeof metric !== "object" || metric.kind !== "metric")) {
+    throw new ModelSurfaceValidationErrorV1(
+      "$.kernel.modelMetricCatalog",
+      "must contain exact model-owned metrics only"
+    );
+  }
+  assertOutputCatalogV2(
+    [
+      ...signals,
+      ...metrics
+    ],
+    "$.kernel.modelOutputCatalog"
+  );
   const capabilities = assertUniqueIdArrayV1(
     kernel.capabilities,
     "$.kernel.capabilities"
   );
   const required = [
     ...kernel.primitiveControlCatalog.map(({ controlId }) => controlCapabilityV1(controlId)),
-    ...signals.map(({ outputId }) => outputCapabilityV1(outputId))
+    ...signals.map(({ outputId }) => outputCapabilityV1(outputId)),
+    ...metrics.map(({ outputId }) => outputCapabilityV1(outputId))
   ];
   for (const capability of required) {
     if (!capabilities.has(capability)) {
@@ -32631,6 +32652,20 @@ function assertExactKeysV1(value, keys, path) {
     throw new ModelSurfaceValidationErrorV1(
       path,
       `keys must be exactly ${expected.join(", ")}`
+    );
+  }
+}
+function assertRequiredAndOptionalKeysV1(value, requiredKeys, optionalKeys, path) {
+  assertRecordV1(value, path);
+  const actual = Object.keys(value);
+  const required = new Set(requiredKeys);
+  const allowed = /* @__PURE__ */ new Set([...requiredKeys, ...optionalKeys]);
+  const missing = requiredKeys.filter((key) => !actual.includes(key));
+  const unexpected = actual.filter((key) => !allowed.has(key));
+  if (missing.length > 0 || unexpected.length > 0) {
+    throw new ModelSurfaceValidationErrorV1(
+      path,
+      `keys must contain exactly ${[...required].sort().join(", ")}` + (optionalKeys.length === 0 ? "" : ` with optional ${[...optionalKeys].sort().join(", ")}`) + (missing.length === 0 ? "" : `; missing ${missing.sort().join(", ")}`) + (unexpected.length === 0 ? "" : `; unexpected ${unexpected.sort().join(", ")}`)
     );
   }
 }
@@ -32937,7 +32972,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-2";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-3";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v1";
@@ -32980,6 +33015,20 @@ const STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1 = Object.freeze(
 const STANDARD_PRIMITIVE_SIGNAL_IDS_V1 = new Set(
   STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1.map(({ outputId }) => outputId)
 );
+const STANDARD_MODEL_METRIC_DEFINITIONS_V1 = Object.freeze(
+  MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.filter((definition2) => definition2.kind === "metric").map((definition2) => Object.freeze({
+    outputId: definition2.outputId,
+    kind: "metric",
+    unit: definition2.unit,
+    shape: "scalar",
+    scope: "beat",
+    dependencies: Object.freeze([...definition2.dependencies ?? []])
+  }))
+);
+const STANDARD_EXACT_OUTPUT_IDS_V1 = /* @__PURE__ */ new Set([
+  ...STANDARD_PRIMITIVE_SIGNAL_IDS_V1,
+  ...STANDARD_MODEL_METRIC_DEFINITIONS_V1.map(({ outputId }) => outputId)
+]);
 class MainWireIntegratedStudioStandardRuntimeHostV1 {
   #sessions = /* @__PURE__ */ new Map();
   #retiredSessionIds = /* @__PURE__ */ new Set();
@@ -33298,9 +33347,11 @@ function createMainWireIntegratedStudioExactKernelV1() {
     }),
     primitiveControlCatalog,
     primitiveSignalCatalog: STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1,
+    modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1.map(({ outputId }) => `output/${outputId}`),
+      ...STANDARD_MODEL_METRIC_DEFINITIONS_V1.map(({ outputId }) => `output/${outputId}`),
       `analysis/${MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID}`,
       `analysis/${MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID}`
     ])
@@ -33596,7 +33647,7 @@ function validateScenarioCheckpointV1(value) {
 }
 function standardFrameV1(input) {
   const outputs = Object.fromEntries(
-    Object.values(input.projected.values).filter(({ outputId }) => STANDARD_PRIMITIVE_SIGNAL_IDS_V1.has(outputId)).map((value) => [value.outputId, Object.freeze({
+    Object.values(input.projected.values).filter(({ outputId }) => STANDARD_EXACT_OUTPUT_IDS_V1.has(outputId)).map((value) => [value.outputId, Object.freeze({
       outputId: value.outputId,
       value: value.value,
       availability: value.availability,

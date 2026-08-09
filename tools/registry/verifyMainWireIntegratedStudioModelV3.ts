@@ -25,7 +25,7 @@ import {
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import mainWireIntegratedStandardSurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-standard-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
