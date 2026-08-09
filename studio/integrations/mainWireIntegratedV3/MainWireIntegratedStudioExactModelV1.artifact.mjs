@@ -26068,15 +26068,9 @@ async function checkpointMainWireIntegratedModelStandardV1(context, state, beatA
   });
 }
 async function restoreMainWireIntegratedModelStandardV1(context, input) {
-  assertStandardCheckpointEnvelopeV1(input);
-  const checkpoint = input;
-  const { checkpointSha256, ...payload } = checkpoint;
-  if (await sha256CanonicalJsonHex(payload) !== checkpointSha256) {
-    throw new Error("integrated Standard checkpoint SHA-256 mismatch");
-  }
-  if (checkpoint.numericalCheckpoint.revision !== checkpoint.revision || checkpoint.numericalCheckpoint.acceptedTimeSec !== checkpoint.acceptedTimeSec) {
-    throw new Error("integrated Standard checkpoint owner clocks differ");
-  }
+  const checkpoint = await validateMainWireIntegratedModelStandardCheckpointV1(
+    input
+  );
   const acceptedState2 = await restoreMainWireIntegratedModelV3(
     context,
     checkpoint.numericalCheckpoint
@@ -26092,6 +26086,18 @@ async function restoreMainWireIntegratedModelStandardV1(context, input) {
     beatAccumulator,
     completedBeatMetrics
   });
+}
+async function validateMainWireIntegratedModelStandardCheckpointV1(input) {
+  assertStandardCheckpointEnvelopeV1(input);
+  const checkpoint = input;
+  const { checkpointSha256, ...payload } = checkpoint;
+  if (await sha256CanonicalJsonHex(payload) !== checkpointSha256) {
+    throw new Error("integrated Standard checkpoint SHA-256 mismatch");
+  }
+  if (checkpoint.numericalCheckpoint.revision !== checkpoint.revision || checkpoint.numericalCheckpoint.acceptedTimeSec !== checkpoint.acceptedTimeSec) {
+    throw new Error("integrated Standard checkpoint owner clocks differ");
+  }
+  return checkpoint;
 }
 function assertStandardCheckpointEnvelopeV1(input) {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
@@ -33545,7 +33551,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-4";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-5";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";
@@ -34077,8 +34083,11 @@ function standardExecutableBundleV1(host) {
             capture: scenario.capture
           });
           const fixture = validateAndOwnStandardFixtureV1(scenario.capture.fixture);
+          const standardCheckpoint = await validateMainWireIntegratedModelStandardCheckpointV1(
+            scenario.capture.checkpoint.payload
+          );
           const admission = await admitMainWireIntegratedModelSnapshotV3({
-            candidateCheckpoint: scenario.capture.checkpoint.payload,
+            candidateCheckpoint: standardCheckpoint.numericalCheckpoint,
             hemodynamicResearchInputs: fixture.hemodynamicResearchInputs,
             ventricularContractilityScale: fixture.ventricularContractilityScale
           });

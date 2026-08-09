@@ -1,4 +1,7 @@
-import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID } from
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
+  validateMainWireIntegratedModelStandardCheckpointV1,
+} from
   "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
@@ -864,8 +867,12 @@ function standardExecutableBundleV1(
             capture: scenario.capture,
           });
           const fixture = validateAndOwnStandardFixtureV1(scenario.capture.fixture);
+          const standardCheckpoint =
+            await validateMainWireIntegratedModelStandardCheckpointV1(
+              scenario.capture.checkpoint.payload,
+            );
           const admission = await admitMainWireIntegratedModelSnapshotV3({
-            candidateCheckpoint: scenario.capture.checkpoint.payload,
+            candidateCheckpoint: standardCheckpoint.numericalCheckpoint,
             hemodynamicResearchInputs: fixture.hemodynamicResearchInputs,
             ventricularContractilityScale:
               fixture.ventricularContractilityScale,

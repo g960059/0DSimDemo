@@ -65,6 +65,7 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   MainWireIntegratedStudioStandardRuntimeHostV1,
+  createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
@@ -894,6 +895,65 @@ describe("registered Main Wire Integrated Studio Model V3", () => {
       });
     }
     host.closeSession(runtimeSessionId);
+  }, 120_000);
+
+  it("admits a captured Standard exact checkpoint without discarding beat state", async () => {
+    const release = createCircleHeartExactModelReleaseV1();
+    const model = composeStandardModelContractV1(
+      release.manifest,
+      mainWireIntegratedStudioStandardSurfaceV1,
+    ).contract;
+    const simulation = release.executables.simulationAdapter;
+    const runtimeSessionId = "session/standard-snapshot-admission";
+    const scenarioId = "scenario/baseline";
+    await simulation.createSession({
+      runtimeSessionId,
+      scenarios: [{
+        scenarioId,
+        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      }],
+    });
+    for (let ordinal = 0; ordinal < 500; ordinal += 1) {
+      await simulation.advanceOnePresentationStep({
+        runtimeSessionId,
+        scenarioId,
+      });
+    }
+
+    const captured = await release.executables.experimentCapture
+      .captureAcceptedCandidate({
+        experimentId: "experiment/standard-snapshot-admission",
+        model,
+        desiredContent: {
+          modelId: release.manifest.modelId,
+          scenarios: [{
+            scenarioId,
+            label: "Baseline",
+            fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+          }],
+          surface: EMPTY_SURFACE_V2,
+        },
+        correlation: {
+          runtimeSessionId,
+          scenarios: [{ scenarioId, expectedInputEpoch: 0 }],
+        },
+      });
+    const checkpoint = captured.content.scenarios[0]!.capture.checkpoint;
+    expect(checkpoint.payload).toMatchObject({
+      checkpointId:
+        "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v1",
+      numericalCheckpoint: expect.objectContaining({
+        revision: checkpoint.acceptedRevision,
+        acceptedTimeSec: checkpoint.acceptedTimeSec,
+      }),
+    });
+
+    await expect(release.executables.snapshotGate.admitFrozenCandidate({
+      model,
+      content: captured.content,
+    })).resolves.toEqual({ status: "passed" });
+    expect(captured.content.scenarios[0]!.capture.checkpoint).toEqual(checkpoint);
+    simulation.disposeSession(runtimeSessionId);
   }, 120_000);
 
   it("connects Standard PV analysis to the bidirectional fixed-TBV plan", async () => {

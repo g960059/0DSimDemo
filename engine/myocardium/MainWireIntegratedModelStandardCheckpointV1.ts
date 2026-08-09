@@ -73,19 +73,9 @@ export async function restoreMainWireIntegratedModelStandardV1<TWallState>(
   context: MainWireIntegratedModelCheckpointContextV3<TWallState>,
   input: unknown,
 ): Promise<RestoredMainWireIntegratedModelStandardCheckpointV1<TWallState>> {
-  assertStandardCheckpointEnvelopeV1(input);
-  const checkpoint = input;
-  const { checkpointSha256, ...payload } = checkpoint;
-  if (await sha256CanonicalJsonHex(payload) !== checkpointSha256) {
-    throw new Error("integrated Standard checkpoint SHA-256 mismatch");
-  }
-  if (
-    checkpoint.numericalCheckpoint.revision !== checkpoint.revision
-    || checkpoint.numericalCheckpoint.acceptedTimeSec
-      !== checkpoint.acceptedTimeSec
-  ) {
-    throw new Error("integrated Standard checkpoint owner clocks differ");
-  }
+  const checkpoint = await validateMainWireIntegratedModelStandardCheckpointV1(
+    input,
+  );
   const acceptedState = await restoreMainWireIntegratedModelV3(
     context,
     checkpoint.numericalCheckpoint,
@@ -103,6 +93,31 @@ export async function restoreMainWireIntegratedModelStandardV1<TWallState>(
     beatAccumulator,
     completedBeatMetrics,
   });
+}
+
+/**
+ * Validates the Standard exact wrapper before another exact-model boundary
+ * reads its nested numerical checkpoint. Numerical checkpoint semantics stay
+ * owned by the legacy V5 codec; the wrapper additionally owns exact beat
+ * accumulator state and binds both layers to one accepted clock and digest.
+ */
+export async function validateMainWireIntegratedModelStandardCheckpointV1(
+  input: unknown,
+): Promise<MainWireIntegratedModelStandardCheckpointV1> {
+  assertStandardCheckpointEnvelopeV1(input);
+  const checkpoint = input;
+  const { checkpointSha256, ...payload } = checkpoint;
+  if (await sha256CanonicalJsonHex(payload) !== checkpointSha256) {
+    throw new Error("integrated Standard checkpoint SHA-256 mismatch");
+  }
+  if (
+    checkpoint.numericalCheckpoint.revision !== checkpoint.revision
+    || checkpoint.numericalCheckpoint.acceptedTimeSec
+      !== checkpoint.acceptedTimeSec
+  ) {
+    throw new Error("integrated Standard checkpoint owner clocks differ");
+  }
+  return checkpoint;
 }
 
 function assertStandardCheckpointEnvelopeV1(
