@@ -29,10 +29,10 @@ actual integrated V3 accepted state. Its Dockview graph, output, and control
 role areas are derived from the registered model catalogs and share one
 page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 
-The current exact development release is:
+The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.development-36
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-5
 ```
 
 It pins:
@@ -40,12 +40,13 @@ It pins:
 - regular-sinus rhythm;
 - normal-coronary configuration;
 - all-off, zero-inertance mechanical support;
-- seven model-owned warm-start inputs: systemic and pulmonary resistance, venous
-  tone, arterial stiffness, regular-sinus heart rate, fixed total blood
-  volume, and PEEP;
+- eight model-owned warm-start inputs: systemic and pulmonary resistance,
+  venous tone, arterial stiffness, regular-sinus heart rate, fixed total blood
+  volume, PEEP, and ventricular contractility scale;
 - the validation-stamped `hot-path-lean` Worker execution tier, whose accepted
   frames and exact checkpoints are locked against `full-invariant` execution;
-- the integrated V3 exact checkpoint codec v5;
+- the Standard exact checkpoint codec v2, which wraps the numerical checkpoint
+  together with in-progress beat-metric accumulation;
 - 49 registered outputs: 35 accepted-state/accepted-step signals and 14
   complete-beat metrics;
 - four unit-safe graph constructors: pressure sweep, flow sweep,
@@ -74,9 +75,8 @@ Snapshots resolve their stored exact `modelId`. The trusted Worker loader then
 evaluates that release's self-contained module bytes and materializes the
 executable bundle from them; arbitrary bytes cannot be paired with
 source-created functions. Browser clients trust the registry response and do
-not rehash the artifact during load or execution. `development-36` uses a
-registry-only legacy ABI adapter, leaving its committed bytes and modelId
-unchanged.
+not rehash the artifact during load or execution. There is one executable ABI:
+`circleheart-exact-model-esm-v1`.
 
 The model-compatible Snapshot admission policy is purpose-neutral. Before
 admission, Workbench freezes the click-time model/fixture/input intent and may
@@ -93,11 +93,9 @@ Settlement is neither required nor claimed, and the same admission runs before
 Article placement and standalone publication. Experiment Save remains an exact
 current-live capture and is allowed for an unsettled state.
 
-Snapshot admission is a Studio product policy, not part of future numerical
-`modelId` identity. `development-36` remains an immutable transitional bundle
-that still co-packages this policy; the next exact-model release boundary must
-separate the numerical executable artifact from admission and presentation so
-non-numerical product work does not mint a new model ID.
+Snapshot admission is a Studio product policy rather than `modelId` identity.
+Presentation lives in the separately versioned Model Surface, so ordinary
+graph, Briefing, and admission work does not mint a new numerical model ID.
 
 The live Worker exposes correlated accepted-boundary Experiment capture to the
 main-thread authoring application. Explicit Save captures each Scenario's

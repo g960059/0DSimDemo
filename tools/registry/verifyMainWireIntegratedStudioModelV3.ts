@@ -11,7 +11,7 @@ import {
 } from "@/studio/contracts/v2/modelSurface";
 import {
   validateExecutableBundleV2,
-} from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
+} from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
   studioCanonicalJsonStringify,
 } from "@/studio/infrastructure/json/StudioCanonicalJson";

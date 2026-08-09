@@ -2,11 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
   ModelContractV2,
-  RegisteredModelPackageManifestV2,
 } from "@/studio/contracts/v2/model";
 import {
   assertPortableStudioJsonObjectV2,
-  deriveModelContractFromManifestV2,
 } from "@/studio/contracts/v2/model";
 import type {
   ExactModelKernelManifestV3,
@@ -67,7 +65,7 @@ export type StudioModelReleaseRpcResultV1 = Readonly<{
 
 export interface StudioModelReleaseRpcPortV1 {
   call(
-    functionName: "get_model_release_v3" | "get_active_model_bundle_v1",
+    functionName: "get_model_release_v1" | "get_active_model_bundle_v1",
     parameters: Readonly<Record<string, string>>,
   ): Promise<StudioModelReleaseRpcResultV1>;
 }
@@ -193,7 +191,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
     surfacePin?: StudioModelSurfacePinV1,
   ): Promise<StudioResolvedModelReleaseV1> {
     const result = await this.#rpc.call(
-      "get_model_release_v3",
+      "get_model_release_v1",
       Object.freeze({ p_model_id: modelId }),
     );
     if (result.error !== null) {
@@ -250,74 +248,55 @@ export class StudioSupabaseModelReleaseResolverV1 {
     );
     assertStudioReleaseStageV1(row.stage, "$.stage");
     const artifactUrl = publicArtifactUrlV1(this.#supabaseOrigin, artifactPath);
-    if (moduleAbi === "circleheart-exact-model-esm-v1") {
-      assertExactModelKernelManifestV3(row.manifest);
-      const kernel = ownJsonObjectV1(row.manifest) as
-        unknown as ExactModelKernelManifestV3;
-      if (activeSurface === undefined && this.#surfaceResolver === null) {
-        throw new Error("Standard exact model requires the Model Surface registry");
-      }
-      const surface = activeSurface ?? (surfacePin?.kind === "release"
-        ? await this.#surfaceResolver!.resolveExactSurfaceManifest(
-            surfacePin.surfaceReleaseId,
-            kernel.modelFamilyId,
-          )
-          : surfacePin?.kind === "series"
-          ? await this.#surfaceResolver!.resolveLatestSeriesManifest(
-              surfacePin.surfaceSeriesId,
-              kernel.modelFamilyId,
-              kernel.modelId,
-            )
-          : (() => {
-              throw new Error(
-                "Standard exact model requires an exact or series Surface pin",
-              );
-            })());
-      if (
-        surfacePin !== undefined
-        && surface.manifest.surfaceSeriesId !== surfacePin.surfaceSeriesId
-      ) {
-        throw new Error("Pinned Model Surface belongs to another series");
-      }
-      const composed = composeStandardModelContractV1(
-        kernel,
-        surface.manifest,
-      );
-      const ticket = validateStudioModelWorkerReleaseTicketV2({
-        schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
-        modelId,
-        manifest: kernel,
-        surfaceRelease: surface.manifest,
-        moduleAbi,
-        artifactUrl,
-      });
-      return Object.freeze({
-        contract: composed.contract,
-        defaultFixture,
-        analysisProfileId,
-        stage: row.stage,
-        ticket,
-        surfaceReleaseId: composed.surface.surfaceReleaseId,
-        surfaceSeriesId: surface.manifest.surfaceSeriesId,
-        surfaceStage: surface.stage,
-        ...(activeBundleVersion === undefined
-          ? {}
-          : { activeBundleVersion }),
-      });
+    assertExactModelKernelManifestV3(row.manifest);
+    const kernel = ownJsonObjectV1(row.manifest) as
+      unknown as ExactModelKernelManifestV3;
+    if (activeSurface === undefined && this.#surfaceResolver === null) {
+      throw new Error("Standard exact model requires the Model Surface registry");
     }
+    const surface = activeSurface ?? (surfacePin?.kind === "release"
+      ? await this.#surfaceResolver!.resolveExactSurfaceManifest(
+          surfacePin.surfaceReleaseId,
+          kernel.modelFamilyId,
+        )
+      : surfacePin?.kind === "series"
+        ? await this.#surfaceResolver!.resolveLatestSeriesManifest(
+            surfacePin.surfaceSeriesId,
+            kernel.modelFamilyId,
+            kernel.modelId,
+          )
+        : (() => {
+            throw new Error(
+              "Standard exact model requires an exact or series Surface pin",
+            );
+          })());
+    if (
+      surfacePin !== undefined
+      && surface.manifest.surfaceSeriesId !== surfacePin.surfaceSeriesId
+    ) {
+      throw new Error("Pinned Model Surface belongs to another series");
+    }
+    const composed = composeStandardModelContractV1(
+      kernel,
+      surface.manifest,
+    );
     const ticket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId,
-      manifest: row.manifest as RegisteredModelPackageManifestV2,
+      manifest: kernel,
+      surfaceRelease: surface.manifest,
       moduleAbi,
       artifactUrl,
     });
     return Object.freeze({
-      contract: deriveModelContractFromManifestV2(ticket.manifest),
+      contract: composed.contract,
       defaultFixture,
       analysisProfileId,
       stage: row.stage,
       ticket,
+      surfaceReleaseId: composed.surface.surfaceReleaseId,
+      surfaceSeriesId: surface.manifest.surfaceSeriesId,
+      surfaceStage: surface.stage,
       ...(activeBundleVersion === undefined
         ? {}
         : { activeBundleVersion }),

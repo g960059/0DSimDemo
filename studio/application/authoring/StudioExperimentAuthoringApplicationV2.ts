@@ -326,7 +326,7 @@ export class StudioExperimentAuthoringApplicationV2 {
     // Studio-owned boundary. The legacy exact-model gate is only an adapter;
     // admission cannot manufacture a settled replacement checkpoint.
     await studioSnapshotAdmissionServiceV1.admitFrozenCandidate({
-      legacyAdapter: runtime.snapshotGate,
+      adapter: runtime.snapshotGate,
       model,
       content: candidateContent,
     });

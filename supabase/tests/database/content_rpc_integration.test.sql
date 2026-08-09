@@ -53,16 +53,20 @@ insert into studio.model_releases (
   artifact_path,
   artifact_sha256,
   registry_fingerprint,
-  source_commit
+  source_commit,
+  default_fixture,
+  analysis_profile_id
 ) values (
   'model/integration-test-v1',
   'model/integration-test',
   'Integration test model',
-  '{"modelId":"model/integration-test-v1"}'::jsonb,
+  '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/integration-test-v1","modelFamilyId":"model/integration-test"}'::jsonb,
   'models/integration-test-v1.mjs',
   repeat('a', 64),
   repeat('b', 64),
-  'integration-test'
+  'integration-test',
+  '{"schemaId":"fixture/integration-test-v1"}'::jsonb,
+  'analysis/integration-test-v1'
 );
 
 insert into studio.model_release_availability (model_id, stage)
@@ -275,16 +279,20 @@ insert into studio.model_releases (
   artifact_path,
   artifact_sha256,
   registry_fingerprint,
-  source_commit
+  source_commit,
+  default_fixture,
+  analysis_profile_id
 ) values (
   'model/integration-test-dev-v2',
   'model/integration-test',
   'Integration test dev model',
-  '{"modelId":"model/integration-test-dev-v2"}'::jsonb,
+  '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/integration-test-dev-v2","modelFamilyId":"model/integration-test"}'::jsonb,
   'models/integration-test-dev-v2.mjs',
   repeat('c', 64),
   repeat('d', 64),
-  'integration-test-dev'
+  'integration-test-dev',
+  '{"schemaId":"fixture/integration-test-v1"}'::jsonb,
+  'analysis/integration-test-v1'
 );
 insert into studio.model_release_availability (model_id)
 values ('model/integration-test-dev-v2');

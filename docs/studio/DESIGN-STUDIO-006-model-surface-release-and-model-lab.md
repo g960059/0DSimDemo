@@ -274,5 +274,5 @@ published Snapshot.
     CAS, model validation, Snapshot admission or publication gates.
 12. Automation is added from observed authoring repetition, not speculative
     parallel workflow machinery.
-13. A new Workbench/ExperimentSession never composes catalogs from the legacy
-    `development-36` package; that artifact is historical exact-load only.
+13. Workbench/ExperimentSession accepts only the Standard exact-model ABI;
+    unsupported historical package shapes fail closed.

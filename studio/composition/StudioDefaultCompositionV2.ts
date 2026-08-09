@@ -1,7 +1,4 @@
 import type {
-  ResolvedExactModelRuntimeV2,
-} from "@/studio/contracts/v2/executable";
-import type {
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
 import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
@@ -17,16 +14,10 @@ import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
 } from "@/studio/contracts/v2/simulation";
 import {
-  deriveModelContractFromManifestV2,
-} from "@/studio/contracts/v2/model";
-import {
   assertExactModelKernelManifestV3,
   assertModelSurfaceReleaseManifestV1,
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
-import {
-  TrustedRegisteredModelClientCatalogV2,
-} from "@/studio/infrastructure/model/TrustedRegisteredModelClientCatalogV2";
 import {
   invalidateStudioSupabaseModelReleaseResolverCacheV1,
   studioSupabaseModelReleaseResolverV1,
@@ -35,31 +26,20 @@ import type {
   StudioModelSurfacePinV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import {
-  createMainWireIntegratedStudioExecutableReleaseV3 as
-    createAdmittedMainWireIntegratedStudioExecutableReleaseV3,
-  createMainWireIntegratedStudioModelPackageV3 as
-    createAdmittedMainWireIntegratedStudioModelPackageV3,
-  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 as
-    ADMITTED_MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
-} from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3.artifact.mjs";
-import type {
-  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3,
-  MainWireIntegratedStudioExecutableReleaseV3,
-  MainWireIntegratedStudioFixtureV3,
-  MainWireIntegratedStudioModelPackageV3,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelV3";
-import {
   resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+} from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
 import standardClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
-typeof MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3 =
-  ADMITTED_MAIN_WIRE_INTEGRATED_STUDIO_MODEL_ID_V3;
+typeof MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 =
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1;
 
 export type StudioClientCompositionV2 = Readonly<{
   defaultModelId: string;
@@ -78,12 +58,6 @@ export type StudioDefaultClientCompositionV2 = StudioClientCompositionV2;
 
 export const DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2 =
   resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
-
-export type StudioDefaultWorkerCompositionV2 = Readonly<{
-  defaultModelId: typeof DEFAULT_STUDIO_MODEL_ID_V2;
-  defaultFixture: MainWireIntegratedStudioFixtureV3;
-  runtime: ResolvedExactModelRuntimeV2;
-}>;
 
 let browserCompositionPromiseV2:
   Promise<StudioDefaultClientCompositionV2> | undefined;
@@ -115,37 +89,6 @@ export function invalidateStudioClientCompositionCachesV2(): void {
   browserSnapshotCompositionPromisesV2.clear();
 }
 
-/**
- * Loads the one registry-admitted development release into the hash-free
- * client catalog. Startup intentionally creates no Preset, Experiment,
- * Snapshot, Placement, or Lesson content.
- *
- * Authoring remains outside this main-thread composition. The persistent
- * Worker loads the exact runtime below and owns both live simulation and the
- * accepted-boundary Experiment/Snapshot bridge against that single runtime host.
- */
-export async function createStudioDefaultClientCompositionV2():
-Promise<StudioDefaultClientCompositionV2> {
-  // The main thread needs only the registry's public package projection. It
-  // must not instantiate the numerical executable bundle owned by the Worker.
-  const admittedPackage =
-    createAdmittedMainWireIntegratedStudioModelPackageV3() as
-      MainWireIntegratedStudioModelPackageV3;
-  const contract = deriveModelContractFromManifestV2(
-    admittedPackage.manifest,
-  );
-  if (contract.modelId !== DEFAULT_STUDIO_MODEL_ID_V2) {
-    throw new Error("Studio default model registration returned another model");
-  }
-  return Object.freeze({
-    defaultModelId: DEFAULT_STUDIO_MODEL_ID_V2,
-    releaseStage: "stable",
-    defaultFixture: admittedPackage.defaultFixture,
-    contract,
-    analysisExecutionPlan: DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
-  });
-}
-
 async function createRegistryClientCompositionV2(
   modelId?: string,
   surfacePin?: StudioModelSurfacePinV1,
@@ -164,14 +107,13 @@ async function createRegistryClientCompositionV2(
         || surfacePin.surfaceReleaseId === standardSurfaceReleaseV1.surfaceReleaseId
       )
     ) {
-      // The unconfigured browser repository is intentionally local-only, but
-      // a Model Lab Save must still reopen through the ordinary Experiment
-      // route. Reuse the exact committed local Standard bundle rather than
-      // silently substituting the legacy bundled default.
+      // The unconfigured browser repository is intentionally local-only.
+      // Reuse the one committed Standard bundle without inventing another
+      // exact identity.
       return loadStudioLocalStandardModelLabClientCompositionV1();
     }
     if (modelId === DEFAULT_STUDIO_MODEL_ID_V2 && surfacePin === undefined) {
-      return createStudioDefaultClientCompositionV2();
+      return loadStudioLocalStandardClientCompositionV1();
     }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
@@ -278,54 +220,6 @@ function localStandardArtifactUrlV1(): string {
     : resolved.href;
 }
 
-/** Worker-only exact runtime; its model host must never be mistaken for the
- * main-thread authoring owner. */
-export async function createStudioDefaultWorkerCompositionV2():
-Promise<StudioDefaultWorkerCompositionV2> {
-  const resolved = await resolveDefaultWorkerReleaseV2();
-  return Object.freeze({
-    defaultModelId: DEFAULT_STUDIO_MODEL_ID_V2,
-    defaultFixture: resolved.defaultFixture,
-    runtime: resolved.registry.resolveExactRuntime(DEFAULT_STUDIO_MODEL_ID_V2),
-  });
-}
-
-async function resolveDefaultWorkerReleaseV2() {
-  // The Worker trusts the registry-admitted distribution and imports its
-  // committed artifact as ordinary ESM. Exact-byte evaluation belongs to
-  // registry admission/CI, not to every client startup. The generated JS
-  // loses TypeScript's non-empty fixture-path tuple annotation, so this cast
-  // restores the source release type before the registry revalidates it.
-  const admittedRelease =
-    createAdmittedMainWireIntegratedStudioExecutableReleaseV3() as unknown as
-      MainWireIntegratedStudioExecutableReleaseV3;
-  const registry = new TrustedRegisteredModelClientCatalogV2([
-    {
-      manifest: admittedRelease.manifest,
-      executables: admittedRelease.executables,
-    },
-  ]);
-  const contract = registry.resolveContract(DEFAULT_STUDIO_MODEL_ID_V2);
-  if (contract.modelId !== DEFAULT_STUDIO_MODEL_ID_V2) {
-    throw new Error("Studio default model registration returned another model");
-  }
-  const fixtureValidation = registry.resolveExactRuntime(DEFAULT_STUDIO_MODEL_ID_V2)
-    .fixtureAdapter.validateCompleteFixture({
-      context: {
-        scenarioId: "scenario/default-composition",
-        modelId: DEFAULT_STUDIO_MODEL_ID_V2,
-      },
-      fixture: admittedRelease.defaultFixture,
-    });
-  if (fixtureValidation !== undefined) {
-    throw new Error("Studio default fixture validator must be synchronous");
-  }
-  return Object.freeze({
-    defaultFixture: admittedRelease.defaultFixture,
-    registry,
-  });
-}
-
 /** One active-bundle composition shared across StrictMode remounts. */
 export function loadStudioDefaultClientCompositionV2():
 Promise<StudioDefaultClientCompositionV2> {
@@ -349,10 +243,6 @@ Promise<StudioDefaultClientCompositionV2> {
 export function loadStudioModelClientCompositionV2(
   modelId: string,
 ): Promise<StudioClientCompositionV2> {
-  if (modelId === DEFAULT_STUDIO_MODEL_ID_V2) {
-    const resolver = studioSupabaseModelReleaseResolverV1();
-    if (resolver === null) return createStudioDefaultClientCompositionV2();
-  }
   const cached = browserExactCompositionPromisesV2.get(modelId);
   if (cached !== undefined) return cached;
   const pending = createRegistryClientCompositionV2(modelId).then(

@@ -146,10 +146,7 @@ Briefing, database schema, Auth, and hosting are independently versioned
 product concerns. Changing any of those without changing numerical execution
 must not mint another `modelId`.
 
-`development-36` still co-packages admission and presentation catalogs under
-its old package-wide lock. That immutable historical release is not rebound or
-renumbered and is never selected for a new Session. The active Standard ABI
-uses `ExactModelKernelManifestV3` and a separate immutable
+The Standard ABI uses `ExactModelKernelManifestV3` and a separate immutable
 `ModelSurfaceReleaseManifestV1`, so ordinary graph, Studio-derived output,
 Knob, protocol, and admission work cannot churn `modelId`. A metric computed
 inside the exact numerical Session from accepted substeps remains model-owned;
@@ -174,11 +171,10 @@ It resolves one small, hash-free launch projection from Supabase:
 ```ts
 type ModelWorkerReleaseTicket = Readonly<{
   modelId: string;
-  manifest: RegisteredModelPackageManifest;
-  moduleAbi:
-    | "legacy-main-wire-v3-development-36"
-    | "circleheart-exact-model-esm-v1";
+  manifest: ExactModelKernelManifestV3;
+  moduleAbi: "circleheart-exact-model-esm-v1";
   artifactUrl: string;
+  surfaceRelease: ModelSurfaceReleaseManifestV1;
 }>;
 ```
 
@@ -186,7 +182,7 @@ The same immutable registry launch contract also owns the default fixture and
 an `analysisProfileId`. These are launch inputs, not identity. The exact
 manifest and artifact bytes remain the authority for numerical behavior.
 
-The standard module ABI exports only the executable release:
+The Standard module ABI exports only the executable release:
 
 ```ts
 export function createCircleHeartExactModelReleaseV1() {
@@ -195,9 +191,7 @@ export function createCircleHeartExactModelReleaseV1() {
 ```
 
 The default fixture is intentionally absent. Registry launch metadata is its
-single authority. The immutable `development-36` artifact still returns its
-legacy `defaultFixture`, but the dynamic loader ignores that compatibility
-field rather than creating a second source of truth.
+single authority.
 
 - `/experiments/new` resolves the active model/Surface bundle once, then
   immediately pins both returned identities for the Session.
@@ -210,7 +204,7 @@ field rather than creating a second source of truth.
   `modelId` among its Snapshots;
 - the main thread derives the public contract from the returned manifest and
   sends the validated release ticket with Worker initialization;
-- the Worker downloads only that artifact, selects the immutable module ABI,
+- the Worker downloads only that artifact, applies the Standard module ABI,
   validates executable/manifest identity bindings, and creates the exact
   runtime;
 - a missing, emergency-disabled, malformed, or unsupported release fails closed. The
@@ -240,11 +234,6 @@ halfway through one authoring visit.
 Analysis execution IDs are immutable semantic identifiers. Existing
 `main-wire-integrated-v3` semantics must not be overwritten; future analysis
 implementations receive a new explicitly versioned profile ID.
-
-`development-36` keeps its committed artifact byte-for-byte and is attached to
-the legacy ABI only in registry metadata. New Workbench and ExperimentSession
-launches use the Standard ABI exclusively; the legacy ABI exists only for an
-explicit historical pin. Neither operation changes the historical modelId.
 
 Before public deployment, the release gate must exercise module-Worker Blob
 ESM import and Storage CORS in Playwright WebKit plus real Safari/iOS Safari.

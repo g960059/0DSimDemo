@@ -28,7 +28,7 @@ export const STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1 =
 export type StudioReleaseStageV1 = "dev" | "stable" | "retired";
 
 /**
- * Exact numerical identity for the standard ABI after development-36.
+ * Exact numerical identity for the Standard executable ABI.
  *
  * Presentation catalogs and Snapshot admission are deliberately impossible to
  * encode in this shape. Adding either would fail exact-key validation rather

@@ -62,29 +62,29 @@ describe("Studio V2 dependency boundary", () => {
   it("keeps the Supabase spine aligned with neutral Snapshots and Placement-owned Briefing", () => {
     const migration = readFileSync(path.resolve(
       process.cwd(),
-      "supabase/migrations/20260806000200_content_release_spine.sql",
-    ), "utf8");
+      "supabase/migrations/20260809000100_active_model_bundle.sql",
+    ), "utf8").replaceAll('"', "").toLowerCase();
     const snapshotTable = sqlBlock(
       migration,
-      "create table studio.experiment_snapshots",
+      "create table if not exists studio.experiment_snapshots",
       "comment on table studio.experiment_snapshots",
     );
     const placementProjection = sqlBlock(
       migration,
-      "create table studio.article_snapshot_refs",
+      "create table if not exists studio.article_snapshot_refs",
       "comment on table studio.article_snapshot_refs",
     );
     const articleSave = sqlBlock(
       migration,
       "create or replace function public.save_article_v1",
-      "create or replace function public.publish_article_v1",
+      "alter function public.save_article_v1",
     );
 
     expect(snapshotTable).not.toMatch(/\bkind\b|\bbriefing\b|qualification|settlement/);
     expect(snapshotTable).toContain("content_id uuid not null");
     expect(snapshotTable).not.toContain("source_experiment_id");
     expect(migration).toContain(
-      "create table studio.experiment_snapshot_sources",
+      "create table if not exists studio.experiment_snapshot_sources",
     );
     expect(placementProjection).toContain("briefing jsonb not null");
     expect(articleSave).toContain("project_article_snapshot_refs_v1");

@@ -3,9 +3,6 @@ import type {
   ResolvedExactModelRuntimeV2,
 } from "@/studio/contracts/v2/executable";
 import type {
-  RegisteredModelPackageManifestV2,
-} from "@/studio/contracts/v2/model";
-import type {
   ExactModelKernelManifestV3,
 } from "@/studio/contracts/v2/modelSurface";
 import {
@@ -21,12 +18,9 @@ import {
   importExactExecutableArtifactModuleV2,
 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 import {
-  TrustedRegisteredModelClientCatalogV2,
-} from "@/studio/infrastructure/model/TrustedRegisteredModelClientCatalogV2";
-import {
   freezeExactRuntimeV2,
   validateExecutableBundleV2,
-} from "@/studio/infrastructure/model/InMemoryRegisteredModelStoreV2";
+} from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
   studioCanonicalJsonStringify,
 } from "@/studio/infrastructure/json/StudioCanonicalJson";
@@ -98,25 +92,18 @@ export class DynamicExactModelRuntimeLoaderV2 {
     const namespace = await importExactExecutableArtifactModuleV2(
       new Uint8Array(buffer),
     );
-    const exportName = factoryExportNameV2(ticket);
+    const exportName = "createCircleHeartExactModelReleaseV1";
     const factory = namespace[exportName];
     if (typeof factory !== "function") {
       throw new Error(`Exact model artifact does not export ${exportName}`);
     }
     const produced = await factory();
-    const release = exactExecutableReleaseRecordV2(produced, ticket.moduleAbi);
+    const release = exactExecutableReleaseRecordV2(produced);
     if (
       studioCanonicalJsonStringify(release.manifest)
       !== studioCanonicalJsonStringify(ticket.manifest)
     ) {
       throw new Error("Exact model artifact manifest does not match the registry");
-    }
-    if (ticket.moduleAbi === "legacy-main-wire-v3-development-36") {
-      const registry = new TrustedRegisteredModelClientCatalogV2([{
-        manifest: ticket.manifest,
-        executables: release.executables,
-      }]);
-      return registry.resolveExactRuntime(ticket.modelId);
     }
     const composed = composeStandardModelContractV1(
       ticket.manifest,
@@ -127,20 +114,10 @@ export class DynamicExactModelRuntimeLoaderV2 {
   }
 }
 
-function factoryExportNameV2(ticket: StudioModelWorkerReleaseTicketV2): string {
-  switch (ticket.moduleAbi) {
-    case "legacy-main-wire-v3-development-36":
-      return "createMainWireIntegratedStudioExecutableReleaseV3";
-    case "circleheart-exact-model-esm-v1":
-      return "createCircleHeartExactModelReleaseV1";
-  }
-}
-
 function exactExecutableReleaseRecordV2(
   value: unknown,
-  moduleAbi: StudioModelWorkerReleaseTicketV2["moduleAbi"],
 ): Readonly<{
-  manifest: RegisteredModelPackageManifestV2 | ExactModelKernelManifestV3;
+  manifest: ExactModelKernelManifestV3;
   executables: RegisteredModelExecutableBundleV2;
 }> {
   if (
@@ -154,9 +131,7 @@ function exactExecutableReleaseRecordV2(
   }
   const record = value as Record<string, unknown>;
   const keys = Object.keys(record).sort();
-  const expected = moduleAbi === "legacy-main-wire-v3-development-36"
-    ? ["defaultFixture", "executables", "manifest"]
-    : ["executables", "manifest"];
+  const expected = ["executables", "manifest"];
   if (
     keys.length !== expected.length
     || keys.some((key, index) => key !== expected[index])
@@ -176,8 +151,7 @@ function exactExecutableReleaseRecordV2(
     }
   }
   return Object.freeze({
-    manifest: record.manifest as
-      RegisteredModelPackageManifestV2 | ExactModelKernelManifestV3,
+    manifest: record.manifest as ExactModelKernelManifestV3,
     executables: record.executables as RegisteredModelExecutableBundleV2,
   });
 }

@@ -233,8 +233,6 @@ Public reads use:
 ```text
 get_active_model_bundle_v1
 get_model_release_v1
-get_model_release_v2
-get_model_release_v3
 get_model_surface_release_v1
 get_model_surface_series_latest_v1
 read_public_experiment_v1
@@ -271,31 +269,24 @@ select studio.gc_unreferenced_content_v1(500);
 
 The function removes only bounded batches of expired soft-deleted roots,
 unreferenced Snapshots, unreachable immutable content, and expired idempotency
-receipts. `20260806000500_content_operations.sql` registers the production
+receipts. The pre-release baseline migration registers the production
 Supabase Cron job at a 15-minute interval; job history is available in
 `cron.job_run_details`.
 
 ## Release registration
 
 CI builds the deterministic **numerical execution** artifact and verifies its
-repository lock before calling `register_model_release_v2` with service-role
+repository lock before calling `register_model_release_v1` with service-role
 authority. If that contract or those bytes change, CI must assign a new exact
 `modelId`; registry registration rejects rebinding an existing ID. Studio
 admission policy, presentation catalogs, UI, Auth, database, Article, and
 hosting releases are versioned separately and must not churn `modelId`.
 
-The currently registered `development-36` artifact is the final transitional
-bundle whose lock still includes Snapshot admission. It changed from 35
-because admission semantics changed in the same commit, not because Supabase
-was introduced. Keep 36 immutable; split the package boundary before minting
-the next numerical model release.
-
-V2 registration adds immutable loader metadata: module ABI, default fixture,
-and an analysis-profile ID. Public V2 reads return those values with the
+The registry accepts only the Standard exact-model manifest. Immutable launch
+metadata consists of the default fixture and an analysis-profile ID and is
+stored with the exact release row. Public reads return those values with the
 manifest and public Storage path, but continue to hide artifact SHA,
-fingerprint, and source commit. `development-36` is backfilled with its legacy
-ABI without changing its artifact, repository lock, or modelId. Future exact
-artifacts use `circleheart-exact-model-esm-v1` and export
+fingerprint, and source commit. Exact artifacts export
 `createCircleHeartExactModelReleaseV1() -> { manifest, executables }`.
 Registry metadata is the sole authority for the default fixture. Analysis
 profile IDs are immutable; changed analysis semantics require another profile
@@ -329,12 +320,30 @@ New Experiment Sessions resolve that exact model/Surface pair atomically and
 then pin it. Existing content keeps its stored exact model and Surface pins;
 it never follows later active-bundle replacements.
 
+## Pre-release baseline rollout
+
+The repository intentionally contains one current-state Studio migration.
+Earlier pre-release migrations and legacy model-loader tables/RPCs were
+squashed before any user content existed. A Supabase project that previously
+applied those development migrations must therefore be treated as disposable:
+
+1. verify that Auth, Experiment, Snapshot, Article, and publication row counts
+   are zero;
+2. export any registry metadata that must be re-published;
+3. reset or recreate the development project from the checked-in baseline;
+4. publish the current Standard exact model and Surface; and
+5. activate that stable pair with the compare-and-swap command above.
+
+Do not repair migration history in place on a project containing user data.
+After the first real user is admitted, all schema changes are forward-only
+migrations and this pre-release reset exception ends.
+
 ## Deferred work
 
 - configure production email delivery and Google OAuth credentials;
 - enable production CAPTCHA/Turnstile for anonymous sign-in;
-- exercise retained historical loading when the first standard-ABI successor
-  to `development-36` is registered;
+- exercise retained exact loading when the first Standard successor is
+  registered;
 - verify Worker Blob ESM import and Storage CORS in WebKit and real Safari/iOS
   Safari before public deployment;
 - keep immutable artifacts write/delete restricted, forbid path reuse, audit

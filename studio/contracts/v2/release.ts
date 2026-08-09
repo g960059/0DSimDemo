@@ -1,9 +1,5 @@
-import type {
-  RegisteredModelPackageManifestV2,
-} from "./model";
 import {
   assertPortableModelIdentifierV2,
-  assertRegisteredModelPackageManifestV2,
 } from "./model";
 import type {
   ExactModelKernelManifestV3,
@@ -22,18 +18,8 @@ export const STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID =
  * Artifact entry-point contract. It is loader metadata, not model identity.
  * Changing executable behaviour still requires a new immutable `modelId`.
  */
-export type RegisteredModelModuleAbiV2 =
-  | "legacy-main-wire-v3-development-36"
-  /** Exports createCircleHeartExactModelReleaseV1 -> manifest + executables. */
-  | "circleheart-exact-model-esm-v1";
-
-export type StudioLegacyModelWorkerReleaseTicketV2 = Readonly<{
-  schemaId: typeof STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID;
-  modelId: string;
-  manifest: RegisteredModelPackageManifestV2;
-  moduleAbi: "legacy-main-wire-v3-development-36";
-  artifactUrl: string;
-}>;
+/** Exports createCircleHeartExactModelReleaseV1 -> manifest + executables. */
+export type RegisteredModelModuleAbiV2 = "circleheart-exact-model-esm-v1";
 
 export type StudioStandardModelWorkerReleaseTicketV2 = Readonly<{
   schemaId: typeof STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID;
@@ -45,8 +31,7 @@ export type StudioStandardModelWorkerReleaseTicketV2 = Readonly<{
 }>;
 
 export type StudioModelWorkerReleaseTicketV2 =
-  | StudioLegacyModelWorkerReleaseTicketV2
-  | StudioStandardModelWorkerReleaseTicketV2;
+  StudioStandardModelWorkerReleaseTicketV2;
 
 export class StudioModelReleaseValidationErrorV2 extends Error {
   constructor(path: string, message: string) {
@@ -64,23 +49,14 @@ export function validateStudioModelWorkerReleaseTicketV2(
     envelope.moduleAbi,
     "$.moduleAbi",
   );
-  const record = exactPlainRecordV2(value, moduleAbi ===
-      "circleheart-exact-model-esm-v1"
-    ? [
-        "artifactUrl",
-        "manifest",
-        "modelId",
-        "moduleAbi",
-        "schemaId",
-        "surfaceRelease",
-      ]
-    : [
-        "artifactUrl",
-        "manifest",
-        "modelId",
-        "moduleAbi",
-        "schemaId",
-      ], "$");
+  const record = exactPlainRecordV2(value, [
+    "artifactUrl",
+    "manifest",
+    "modelId",
+    "moduleAbi",
+    "schemaId",
+    "surfaceRelease",
+  ], "$");
   if (record.schemaId !== STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID) {
     throw new StudioModelReleaseValidationErrorV2(
       "$.schemaId",
@@ -92,39 +68,23 @@ export function validateStudioModelWorkerReleaseTicketV2(
     record.artifactUrl,
     "$.artifactUrl",
   );
-  if (moduleAbi === "circleheart-exact-model-esm-v1") {
-    assertExactModelKernelManifestV3(record.manifest);
-    assertModelSurfaceReleaseManifestV1(record.surfaceRelease);
-    if (record.manifest.modelId !== record.modelId) {
-      throw new StudioModelReleaseValidationErrorV2(
-        "$.manifest.modelId",
-        "must match the release ticket modelId",
-      );
-    }
-    // The ticket pins one immutable, compatible Surface. Recompose at every
-    // trust boundary so a caller cannot smuggle a mismatched presentation
-    // contract beside an otherwise valid numerical kernel.
-    composeStandardModelContractV1(record.manifest, record.surfaceRelease);
-    return Object.freeze({
-      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
-      modelId: record.modelId,
-      manifest: ownPortableValueV2(record.manifest),
-      surfaceRelease: ownPortableValueV2(record.surfaceRelease),
-      moduleAbi,
-      artifactUrl,
-    });
-  }
-  assertRegisteredModelPackageManifestV2(record.manifest);
+  assertExactModelKernelManifestV3(record.manifest);
+  assertModelSurfaceReleaseManifestV1(record.surfaceRelease);
   if (record.manifest.modelId !== record.modelId) {
     throw new StudioModelReleaseValidationErrorV2(
       "$.manifest.modelId",
       "must match the release ticket modelId",
     );
   }
+  // The ticket pins one immutable, compatible Surface. Recompose at every
+  // trust boundary so a caller cannot smuggle a mismatched presentation
+  // contract beside an otherwise valid numerical kernel.
+  composeStandardModelContractV1(record.manifest, record.surfaceRelease);
   return Object.freeze({
     schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
     modelId: record.modelId,
     manifest: ownPortableValueV2(record.manifest),
+    surfaceRelease: ownPortableValueV2(record.surfaceRelease),
     moduleAbi,
     artifactUrl,
   });
@@ -134,10 +94,7 @@ export function validateRegisteredModelModuleAbiV2(
   value: unknown,
   path = "$.moduleAbi",
 ): RegisteredModelModuleAbiV2 {
-  if (
-    value !== "legacy-main-wire-v3-development-36"
-    && value !== "circleheart-exact-model-esm-v1"
-  ) {
+  if (value !== "circleheart-exact-model-esm-v1") {
     throw new StudioModelReleaseValidationErrorV2(
       path,
       "unsupported exact-model module ABI",

@@ -56,7 +56,7 @@ async function main(): Promise<void> {
     cwd: repositoryRoot,
     encoding: "utf8",
   }).trim();
-  await rpc(baseUrl, secret, "register_model_release_v2", {
+  await rpc(baseUrl, secret, "register_model_release_v1", {
     p_model_id: exactRelease.manifest.modelId,
     p_model_family_id: exactRelease.manifest.modelFamilyId,
     p_display_name: "Main Wire V3",
@@ -65,7 +65,6 @@ async function main(): Promise<void> {
     p_artifact_sha256: artifactSha256,
     p_registry_fingerprint: lock.packageSha256,
     p_source_commit: sourceCommit,
-    p_module_abi: "circleheart-exact-model-esm-v1",
     p_default_fixture:
       MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
     p_analysis_profile_id: "main-wire-integrated-standard-v1",
