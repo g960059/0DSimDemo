@@ -16,6 +16,7 @@ import {
   Sun,
   Undo2,
   Upload,
+  X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -79,6 +80,7 @@ import {
   articleEditorHref,
   experimentDetailHref,
   homeHref,
+  loginHref,
   myExperimentsHref,
   newExperimentHref,
 } from "@/homeLinks";
@@ -2709,6 +2711,38 @@ const WorkbenchV3Session = ({
           <span className="min-w-0 break-words">
             {t("workbench.editor.saveError")}: {saveError}
           </span>
+        </div>
+      )}
+
+      {snapshotError !== null && !briefingOpen && (
+        <div
+          role="alert"
+          className="flex shrink-0 items-start gap-2 border-b border-wb-warning/25 bg-wb-warning-soft px-3 py-2 text-xs leading-5 text-wb-text"
+          data-testid="workbench-snapshot-error-v3"
+        >
+          <AlertTriangle
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-wb-warning"
+            aria-hidden="true"
+          />
+          <span className="min-w-0 flex-1 break-words">
+            {t("workbench.editor.snapshotError")}: {snapshotError}
+          </span>
+          {snapshotError === t("workbench.editor.publishRequiresLinkedAccount") && (
+            <Link
+              to={loginHref(resolvedLocale)}
+              className="shrink-0 font-semibold text-wb-accent hover:underline"
+            >
+              {t("siteHeader.login")}
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => setSnapshotError(null)}
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text"
+            aria-label={t("common.close")}
+          >
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
         </div>
       )}
 
