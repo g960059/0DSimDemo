@@ -348,7 +348,7 @@
       "historyDepth": "Previous states",
       "historyDepthHint": "0–3 completed parameter states",
       "formalPressureVolumeAnalysis": "Formal ESPVR / EDPVR analysis",
-        "formalPressureVolumeAnalysisHint": "Qualifies full-state period-1 closure at every fixed-TBV load before fitting. Substantially slower.",
+      "formalPressureVolumeAnalysisHint": "Qualifies full-state period-1 closure at every fixed-TBV load before fitting. Substantially slower.",
       "windowSec": "Waveform window",
       "windowSecHint": "1–6 seconds in 0.5 second steps",
       "items": "Items",
@@ -383,7 +383,7 @@
   "articleEditor": {
     "untitled": "Untitled article",
     "title": "Article title",
-    "titlePlaceholder": "Article title",
+    "titlePlaceholder": "Untitled",
     "draft": "Draft",
     "publish": "Publish",
     "published": "Published",
@@ -400,7 +400,7 @@
     "paragraphPlaceholder": "Write your explanation…",
     "addBlock": "Add content block",
     "blockHandle": "Block actions",
-    "slashHint": "Click or type “/” to add content",
+    "slashHint": "Click to start writing (press “/” for blocks)",
     "addHeading": "Heading",
     "addParagraph": "Paragraph",
     "addExperiment": "Simulation",
@@ -422,7 +422,8 @@
       "dirty": "Unsaved",
       "saving": "Saving…",
       "saved": "Saved",
-      "error": "Save failed"
+      "error": "Save failed",
+      "retry": "Retry"
     },
     "snapshotPicker": {
       "title": "Insert a simulation",
@@ -477,6 +478,28 @@
       "graph": "Graph",
       "output": "Output",
       "control": "Control"
+    },
+    "subheading": "Subheading",
+    "subheadingPlaceholder": "Subheading",
+    "addSubheading": "Subheading",
+    "turnInto": "Turn into",
+    "insertMenu": {
+      "searchPlaceholder": "Search blocks…",
+      "empty": "No matching blocks",
+      "paragraphHint": "Plain text paragraph",
+      "headingHint": "Section heading",
+      "subheadingHint": "Smaller heading",
+      "experimentHint": "Place a pinned simulation"
+    },
+    "publishMenu": {
+      "label": "Publish",
+      "draftTitle": "Publish this article",
+      "draftDescription": "Anyone with the link can read the article once published. Changes are saved automatically and appear on the public page.",
+      "publish": "Publish",
+      "publishedTitle": "Published",
+      "publishedDescription": "This article is public. Changes are saved automatically and appear on the public page.",
+      "view": "View public page",
+      "unpublish": "Unpublish"
     }
   },
   "articleLibrary": {

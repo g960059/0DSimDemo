@@ -4,9 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import i18n from "@/i18n";
 import {
+  adoptSavedArticleDraftV3,
+  articleBlockDropBoundaryV3,
   articleEditorRouteHydratedV3,
   articleEditorRouteKeyV3,
+  articleHeadingShortcutV3,
+  filterArticleInsertOptionsV3,
   insertArticleBlockV3,
+  moveArticleBlockToBoundaryV3,
   resolveArticleEditorRouteDraftV3,
   synchronizeRemoteArticlePublicationV3,
 } from "@/components/ArticleEditorV3Page";
@@ -263,6 +268,114 @@ describe("Article Editor V3 briefing", () => {
     expect(html).toContain('data-reader-presentation="peek"');
     expect(html).toContain("Baseline");
     expect(html).not.toContain(i18n.t("articleEditor.staticDataNotice"));
+  });
+
+  it("keeps edits typed during an autosave round-trip while adopting identity", () => {
+    const candidate = Object.freeze({
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: "article-local",
+      draftVersion: 0,
+      visibility: "draft" as const,
+      locale: "ja",
+      title: "Before",
+      blocks: Object.freeze([]),
+    });
+    const saved = Object.freeze({
+      ...candidate,
+      articleId: "article-durable",
+      draftVersion: 4,
+      title: "Before",
+    });
+
+    const clean = adoptSavedArticleDraftV3({
+      saved,
+      candidate,
+      current: candidate,
+    });
+    expect(clean.clean).toBe(true);
+    expect(clean.draft).toBe(saved);
+
+    const editedDuringFlight = Object.freeze({
+      ...candidate,
+      title: "After more typing",
+    });
+    const merged = adoptSavedArticleDraftV3({
+      saved,
+      candidate,
+      current: editedDuringFlight,
+    });
+    expect(merged.clean).toBe(false);
+    expect(merged.draft.title).toBe("After more typing");
+    expect(merged.draft.articleId).toBe("article-durable");
+    expect(merged.draft.draftVersion).toBe(4);
+  });
+
+  it("converts Markdown heading prefixes typed into a Paragraph", () => {
+    expect(articleHeadingShortcutV3("# ")).toEqual({ level: 2, rest: "" });
+    expect(articleHeadingShortcutV3("# 圧波形")).toEqual({
+      level: 2,
+      rest: "圧波形",
+    });
+    expect(articleHeadingShortcutV3("## detail")).toEqual({
+      level: 3,
+      rest: "detail",
+    });
+    expect(articleHeadingShortcutV3("#no-space")).toBeNull();
+    expect(articleHeadingShortcutV3("### too deep")).toBeNull();
+    expect(articleHeadingShortcutV3("plain")).toBeNull();
+  });
+
+  it("moves blocks to drag-and-drop boundaries with no-op detection", () => {
+    const blocks = Object.freeze([
+      { blockId: "block/a", kind: "paragraph" as const, text: "A" },
+      { blockId: "block/b", kind: "paragraph" as const, text: "B" },
+      { blockId: "block/c", kind: "paragraph" as const, text: "C" },
+    ]);
+
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/a", 3)
+      .map(({ blockId }) => blockId)).toEqual([
+      "block/b",
+      "block/c",
+      "block/a",
+    ]);
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/c", 0)
+      .map(({ blockId }) => blockId)).toEqual([
+      "block/c",
+      "block/a",
+      "block/b",
+    ]);
+    // Dropping onto either boundary that surrounds the source is a no-op.
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/b", 1)).toBe(blocks);
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/b", 2)).toBe(blocks);
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/missing", 0)).toBe(blocks);
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/a", 99)
+      .map(({ blockId }) => blockId)).toEqual([
+      "block/b",
+      "block/c",
+      "block/a",
+    ]);
+    expect(Object.isFrozen(moveArticleBlockToBoundaryV3(blocks, "block/a", 3)))
+      .toBe(true);
+  });
+
+  it("targets the boundary nearest to the pointer while dragging", () => {
+    expect(articleBlockDropBoundaryV3(2, 100, 40, 110)).toBe(2);
+    expect(articleBlockDropBoundaryV3(2, 100, 40, 130)).toBe(3);
+  });
+
+  it("filters insert-menu options by label and latin keywords", () => {
+    const options = Object.freeze([
+      { kind: "paragraph", label: "本文", keywords: ["text", "paragraph"] },
+      { kind: "heading", label: "見出し", keywords: ["heading", "h2"] },
+      { kind: "experiment", label: "シミュレーション", keywords: ["simulation"] },
+    ]);
+
+    expect(filterArticleInsertOptionsV3(options, "")).toEqual(options);
+    expect(filterArticleInsertOptionsV3(options, "見出")
+      .map(({ kind }) => kind)).toEqual(["heading"]);
+    expect(filterArticleInsertOptionsV3(options, "SIM")
+      .map(({ kind }) => kind)).toEqual(["experiment"]);
+    expect(filterArticleInsertOptionsV3(options, "nothing")).toEqual([]);
   });
 
   it("inserts a Notion-style block at the requested document boundary", () => {

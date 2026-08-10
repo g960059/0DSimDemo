@@ -11,41 +11,60 @@ test("@desktop Article Editor supports Notion-style block authoring", async ({
   await page.goto("/ja/articles/new/edit");
   await expect(page.getByTestId("article-editor-v3")).toBeVisible();
 
+  // Clicking the empty writing area starts a focused paragraph directly.
   await page.getByRole("button", {
-    name: "クリックするか「/」でコンテンツを追加",
+    name: "クリックして書き始める（「/」でブロックを選択）",
   }).click();
-  await page.getByRole("menuitem", { name: "本文" }).click();
-
   const paragraphs = page.getByRole("textbox", { name: "本文" });
   await expect(paragraphs).toHaveCount(1);
   await paragraphs.first().fill("循環動態を比較します。");
   await paragraphs.first().press("Enter");
   await expect(paragraphs).toHaveCount(2);
 
-  // Slash changes the current empty block type; it must not leave a second
-  // empty paragraph behind or insert an extra block at another boundary.
+  // Slash opens the searchable insert menu and changes the current empty
+  // block type; it must not leave a second empty paragraph behind or insert
+  // an extra block at another boundary.
   await paragraphs.last().press("/");
-  await page.getByRole("menuitem", { name: "見出し" }).click();
+  const insertMenu = page.getByTestId("article-insert-menu-v3");
+  await expect(insertMenu).toBeVisible();
+  await insertMenu.getByRole("menuitem", { name: "見出し", exact: true }).click();
   await expect(paragraphs).toHaveCount(1);
-  const heading = page.getByRole("textbox", { name: "見出し" });
+  const heading = page.getByRole("textbox", { name: "見出し", exact: true });
   await expect(heading).toHaveCount(1);
   await heading.fill("圧波形");
 
-  await page.getByRole("button", { name: "保存", exact: true }).click();
+  // Markdown shortcut: "## " converts a paragraph into a subheading.
+  await heading.press("Enter");
+  await expect(paragraphs).toHaveCount(2);
+  await paragraphs.last().pressSequentially("## ");
+  const subheading = page.getByRole("textbox", { name: "小見出し", exact: true });
+  await expect(subheading).toHaveCount(1);
+  await expect(paragraphs).toHaveCount(1);
+  await subheading.fill("早期の変化");
+
+  // The document autosaves: the route adopts the durable Article identity
+  // and the header reports the persisted state without a manual save.
   await expect(page).toHaveURL(new RegExp(
     `/ja/articles/${ARTICLE_RESOURCE_ID}/edit$`,
-  ));
+  ), { timeout: 15_000 });
+  await expect(page.getByTestId("article-editor-status-v3"))
+    .toContainText("保存済み", { timeout: 15_000 });
   await page.reload();
   await expect(page.getByRole("textbox", { name: "本文" }))
     .toHaveValue("循環動態を比較します。");
-  await expect(page.getByRole("textbox", { name: "見出し" }))
+  await expect(page.getByRole("textbox", { name: "見出し", exact: true }))
     .toHaveValue("圧波形");
+  await expect(page.getByRole("textbox", { name: "小見出し", exact: true }))
+    .toHaveValue("早期の変化");
 
+  // Simulations insert through the same slash menu.
   await page.getByRole("button", {
-    name: "コンテンツを追加",
-    exact: true,
-  }).last().click();
-  await page.getByRole("menuitem", { name: "シミュレーション" }).click();
+    name: "クリックして書き始める（「/」でブロックを選択）",
+  }).click();
+  await expect(paragraphs).toHaveCount(2);
+  await paragraphs.last().press("/");
+  await expect(insertMenu).toBeVisible();
+  await insertMenu.getByRole("menuitem", { name: "シミュレーション" }).click();
   const picker = page.getByTestId("article-snapshot-picker-v3");
   await expect(picker).toBeVisible();
   await picker.getByRole("button", {

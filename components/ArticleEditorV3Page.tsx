@@ -1,15 +1,19 @@
 import React from "react";
 import {
   ArrowLeft,
-  Check,
+  BookOpen,
   ChevronDown,
   ChevronUp,
+  ExternalLink,
   FlaskConical,
+  Globe,
   GripVertical,
   Heading2,
+  Heading3,
+  Loader2,
   Pilcrow,
   Plus,
-  Save,
+  Search,
   Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -22,6 +26,7 @@ import {
 
 import {
   articleEditorHref,
+  articleReaderHref,
   myArticlesHref,
   newExperimentHref,
 } from "@/homeLinks";
@@ -77,6 +82,9 @@ const ARTICLE_EDITOR_PEEK_FRACTION_STORAGE_KEY_V3 =
 const ARTICLE_EDITOR_PEEK_DEFAULT_FRACTION_V3 = 0.46;
 const ARTICLE_EDITOR_PEEK_MIN_FRACTION_V3 = 0.3;
 const ARTICLE_EDITOR_PEEK_MAX_FRACTION_V3 = 0.64;
+
+/** Notion-style continuous persistence: edits commit shortly after the pause. */
+export const ARTICLE_EDITOR_AUTOSAVE_DELAY_MS_V3 = 1000;
 
 export function clampArticleEditorPeekFractionV3(value: number): number {
   if (!Number.isFinite(value)) return ARTICLE_EDITOR_PEEK_DEFAULT_FRACTION_V3;
@@ -206,6 +214,103 @@ export function resolveArticleEditorRouteDraftV3(input: Readonly<{
   });
 }
 
+/**
+ * Reconciles a durable save with the Draft as it stands when the save
+ * resolves. Autosave runs while the author keeps typing, so edits made during
+ * the round-trip must never be replaced by the persisted (older) content.
+ * The durable identity and concurrency version are always adopted.
+ */
+export function adoptSavedArticleDraftV3(input: Readonly<{
+  saved: StudioArticleDraftV2;
+  candidate: StudioArticleDraftV2;
+  current: StudioArticleDraftV2;
+}>): Readonly<{ draft: StudioArticleDraftV2; clean: boolean }> {
+  if (input.current === input.candidate) {
+    return Object.freeze({ draft: input.saved, clean: true });
+  }
+  return Object.freeze({
+    draft: Object.freeze({
+      ...input.current,
+      articleId: input.saved.articleId,
+      draftVersion: input.saved.draftVersion,
+    }),
+    clean: false,
+  });
+}
+
+/**
+ * Markdown-style prefixes convert a Paragraph while typing:
+ * `# ` becomes a section heading, `## ` becomes a subheading.
+ * The Article title itself plays the H1 role, so levels start at 2.
+ */
+export function articleHeadingShortcutV3(
+  text: string,
+): Readonly<{ level: 2 | 3; rest: string }> | null {
+  if (text.startsWith("## ")) {
+    return Object.freeze({ level: 3 as const, rest: text.slice(3) });
+  }
+  if (text.startsWith("# ")) {
+    return Object.freeze({ level: 2 as const, rest: text.slice(2) });
+  }
+  return null;
+}
+
+/** Maps a pointer position over a block to the boundary it targets. */
+export function articleBlockDropBoundaryV3(
+  index: number,
+  rectTop: number,
+  rectHeight: number,
+  clientY: number,
+): number {
+  return clientY < rectTop + rectHeight / 2 ? index : index + 1;
+}
+
+/**
+ * Moves a block to a document boundary (0..blocks.length), the drag-and-drop
+ * insertion-line semantic. Returns the same array when nothing changes.
+ */
+export function moveArticleBlockToBoundaryV3(
+  blocks: readonly StudioArticleBlockV2[],
+  blockId: string,
+  boundary: number,
+): readonly StudioArticleBlockV2[] {
+  const sourceIndex = blocks.findIndex((block) => block.blockId === blockId);
+  if (sourceIndex < 0) return blocks;
+  const clamped = Math.max(0, Math.min(boundary, blocks.length));
+  const targetIndex = clamped > sourceIndex ? clamped - 1 : clamped;
+  if (targetIndex === sourceIndex) return blocks;
+  const next = [...blocks];
+  const [moved] = next.splice(sourceIndex, 1);
+  if (moved === undefined) return blocks;
+  next.splice(targetIndex, 0, moved);
+  return Object.freeze(next);
+}
+
+export function filterArticleInsertOptionsV3<Option extends Readonly<{
+  label: string;
+  keywords: readonly string[];
+}>>(options: readonly Option[], query: string): readonly Option[] {
+  const normalized = query.trim().toLowerCase();
+  if (normalized.length === 0) return options;
+  return options.filter((option) =>
+    option.label.toLowerCase().includes(normalized)
+    || option.keywords.some((keyword) =>
+        keyword.toLowerCase().includes(normalized)));
+}
+
+type ArticleTextBlockKindV3 = "paragraph" | "heading" | "subheading";
+
+type ArticleInsertMenuStateV3 = Readonly<{
+  anchorBlockId: string;
+  insertionIndex: number;
+  replaceBlockId: string | null;
+}>;
+
+type ArticleEditorFocusRequestV3 = Readonly<{
+  blockId: string;
+  caret: "start" | "end" | number;
+}>;
+
 export function ArticleEditorV3Page() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -230,6 +335,8 @@ export function ArticleEditorV3Page() {
   const [draft, setDraft] = React.useState<StudioArticleDraftV2>(() =>
     createEmptyArticleDraftV3(locale, t("articleEditor.untitled")));
   const draftRef = React.useRef(draft);
+  const routeArticleIdRef = React.useRef(routeArticleId);
+  routeArticleIdRef.current = routeArticleId;
   const remoteSavedArticleIdRef = React.useRef<string | null>(null);
   const remotePublishedRef = React.useRef(false);
   const hydratedRouteKeyRef = React.useRef<string | null>(
@@ -243,16 +350,21 @@ export function ArticleEditorV3Page() {
   const [status, setStatus] = React.useState<EditorSaveStatusV3>("idle");
   const [hasUnsavedArticleChanges, setHasUnsavedArticleChanges] =
     React.useState(false);
+  const hasUnsavedRef = React.useRef(false);
+  const saveChainRef = React.useRef<Promise<unknown>>(Promise.resolve());
   const [error, setError] = React.useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = React.useState(false);
-  const [insertMenuIndex, setInsertMenuIndex] = React.useState<number | null>(null);
+  const [insertMenu, setInsertMenu] =
+    React.useState<ArticleInsertMenuStateV3 | null>(null);
   const [blockMenuId, setBlockMenuId] = React.useState<string | null>(null);
+  const [publishMenuOpen, setPublishMenuOpen] = React.useState(false);
   const [draggedBlockId, setDraggedBlockId] = React.useState<string | null>(null);
-  const [focusBlockId, setFocusBlockId] = React.useState<string | null>(null);
+  const [dropBoundary, setDropBoundary] = React.useState<number | null>(null);
+  const [focusRequest, setFocusRequest] =
+    React.useState<ArticleEditorFocusRequestV3 | null>(null);
   const pendingExperimentInsertIndexRef = React.useRef<number | null>(null);
   const pendingExperimentReplacementBlockIdRef = React.useRef<string | null>(null);
   const pendingReturnedSnapshotIdRef = React.useRef<string | null>(null);
-  const slashReplacementIndexRef = React.useRef<number | null>(null);
   const [compositionBySnapshotId, setCompositionBySnapshotId] = React.useState<
     ReadonlyMap<string, StudioClientCompositionV2>
   >(() => new Map());
@@ -420,6 +532,7 @@ export function ArticleEditorV3Page() {
       draftRef.current = nextDraft;
       setDraft(nextDraft);
       setStatus("idle");
+      hasUnsavedRef.current = false;
       setHasUnsavedArticleChanges(false);
       setError(null);
     };
@@ -443,21 +556,30 @@ export function ArticleEditorV3Page() {
     update: (current: StudioArticleDraftV2) => StudioArticleDraftV2,
   ) => {
     const next = update(draftRef.current);
+    if (next === draftRef.current) return;
     draftRef.current = next;
     setDraft(next);
     setStatus("dirty");
+    hasUnsavedRef.current = true;
     setHasUnsavedArticleChanges(true);
     setError(null);
   }, []);
 
-  const saveDraft = React.useCallback(async ():
+  const performSaveV3 = React.useCallback(async ():
     Promise<StudioArticleDraftV2 | null> => {
-    if (!routeHydrated) return null;
+    if (!articleEditorRouteHydratedV3(
+      hydratedRouteKeyRef.current,
+      routeArticleIdRef.current,
+    )) return null;
+    const candidate = draftRef.current;
+    const alreadyPersisted = remoteRepository !== null
+      ? remoteSavedArticleIdRef.current !== null
+      : store.readArticle(candidate.articleId) !== null;
+    if (!hasUnsavedRef.current && alreadyPersisted) return candidate;
     setStatus("saving");
     setError(null);
     let remotelySaved: StudioArticleDraftV2 | null = null;
     try {
-      const candidate = draftRef.current;
       let saved: StudioArticleDraftV2;
       if (remoteRepository !== null) {
         const persistedArticleId = remoteSavedArticleIdRef.current;
@@ -503,11 +625,23 @@ export function ArticleEditorV3Page() {
         }
         pendingReturnedSnapshotIdRef.current = null;
       }
-      draftRef.current = saved;
-      setDraft(saved);
-      setStatus("saved");
-      setHasUnsavedArticleChanges(false);
-      if (routeArticleId !== saved.articleId) {
+      // The author may have kept typing while the save round-trip was in
+      // flight. Never replace those newer edits with the persisted content.
+      const adoption = adoptSavedArticleDraftV3({
+        saved,
+        candidate,
+        current: draftRef.current,
+      });
+      draftRef.current = adoption.draft;
+      setDraft(adoption.draft);
+      setStatus(adoption.clean ? "saved" : "dirty");
+      hasUnsavedRef.current = !adoption.clean;
+      setHasUnsavedArticleChanges(!adoption.clean);
+      if (routeArticleIdRef.current !== saved.articleId) {
+        // Claim the canonical route as already hydrated so the route effect
+        // keeps the in-memory Draft instead of re-reading (and replacing) it.
+        hydratedRouteKeyRef.current = saved.articleId;
+        setHydratedRouteKey(saved.articleId);
         navigate(articleEditorHref({ articleId: saved.articleId, locale }), {
           replace: true,
         });
@@ -515,8 +649,13 @@ export function ArticleEditorV3Page() {
       return saved;
     } catch (cause) {
       if (remotelySaved !== null) {
+        const adoption = adoptSavedArticleDraftV3({
+          saved: remotelySaved,
+          candidate,
+          current: draftRef.current,
+        });
         const adopted = Object.freeze({
-          ...remotelySaved,
+          ...adoption.draft,
           // Keep the author's requested visibility visible. The error state
           // communicates that moving the publication pointer is still
           // pending; the Article body itself is already durable.
@@ -524,8 +663,11 @@ export function ArticleEditorV3Page() {
         }) satisfies StudioArticleDraftV2;
         draftRef.current = adopted;
         setDraft(adopted);
+        hasUnsavedRef.current = true;
         setHasUnsavedArticleChanges(true);
-        if (routeArticleId !== adopted.articleId) {
+        if (routeArticleIdRef.current !== adopted.articleId) {
+          hydratedRouteKeyRef.current = adopted.articleId;
+          setHydratedRouteKey(adopted.articleId);
           navigate(articleEditorHref({
             articleId: adopted.articleId,
             locale,
@@ -540,11 +682,24 @@ export function ArticleEditorV3Page() {
     articleExperimentHandoff,
     locale,
     navigate,
-    routeArticleId,
     remoteRepository,
-    routeHydrated,
     store,
   ]);
+
+  /** All saves share one serialized chain so autosave and explicit saves never interleave. */
+  const saveDraft = React.useCallback((): Promise<StudioArticleDraftV2 | null> => {
+    const run = saveChainRef.current.then(() => performSaveV3());
+    saveChainRef.current = run;
+    return run;
+  }, [performSaveV3]);
+
+  React.useEffect(() => {
+    if (status !== "dirty" || !routeHydrated) return undefined;
+    const timer = window.setTimeout(() => {
+      void saveDraft();
+    }, ARTICLE_EDITOR_AUTOSAVE_DELAY_MS_V3);
+    return () => window.clearTimeout(timer);
+  }, [draft, routeHydrated, saveDraft, status]);
 
   const insertExperimentSnapshotV3 = React.useCallback((input: Readonly<{
     insertionIndex: number;
@@ -702,29 +857,37 @@ export function ArticleEditorV3Page() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        saveDraft();
+        void saveDraft();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [saveDraft]);
 
+  const closeInsertMenuV3 = React.useCallback((restoreFocus: boolean) => {
+    if (insertMenu === null) return;
+    if (restoreFocus && insertMenu.replaceBlockId !== null) {
+      setFocusRequest({ blockId: insertMenu.replaceBlockId, caret: "end" });
+    }
+    setInsertMenu(null);
+  }, [insertMenu]);
+
   React.useEffect(() => {
-    if (insertMenuIndex === null && blockMenuId === null) return;
+    if (insertMenu === null && blockMenuId === null && !publishMenuOpen) return;
     const closeMenus = (event: PointerEvent) => {
       const target = event.target;
       if (target instanceof Element && target.closest("[data-article-block-menu]")) {
         return;
       }
-      setInsertMenuIndex(null);
+      setInsertMenu(null);
       setBlockMenuId(null);
-      slashReplacementIndexRef.current = null;
+      setPublishMenuOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      setInsertMenuIndex(null);
+      closeInsertMenuV3(true);
       setBlockMenuId(null);
-      slashReplacementIndexRef.current = null;
+      setPublishMenuOpen(false);
     };
     document.addEventListener("pointerdown", closeMenus);
     window.addEventListener("keydown", closeOnEscape);
@@ -732,7 +895,7 @@ export function ArticleEditorV3Page() {
       document.removeEventListener("pointerdown", closeMenus);
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [blockMenuId, insertMenuIndex]);
+  }, [blockMenuId, closeInsertMenuV3, insertMenu, publishMenuOpen]);
 
   const updateBlock = (index: number, block: StudioArticleBlockV2) => {
     updateDraft((current) => ({
@@ -759,69 +922,91 @@ export function ArticleEditorV3Page() {
     });
   };
 
-  const moveBlockTo = (blockId: string, targetIndex: number) => {
-    updateDraft((current) => {
-      const sourceIndex = current.blocks.findIndex((block) =>
-        block.blockId === blockId);
-      if (sourceIndex < 0 || sourceIndex === targetIndex) return current;
-      const blocks = [...current.blocks];
-      const [moved] = blocks.splice(sourceIndex, 1);
-      if (moved === undefined) return current;
-      blocks.splice(Math.max(0, Math.min(targetIndex, blocks.length)), 0, moved);
-      return { ...current, blocks };
-    });
-  };
-
-  const addTextBlock = (
-    kind: "heading" | "paragraph",
-    index = draftRef.current.blocks.length,
+  const insertTextBlockV3 = (
+    kind: ArticleTextBlockKindV3,
+    insertionIndex: number,
+    replaceBlockId: string | null,
   ) => {
     const blockId = portableEditorIdV3("block");
-    const replaceCurrent = slashReplacementIndexRef.current === index;
     let focusTargetId = blockId;
     updateDraft((current) => {
-      const currentBlock = current.blocks[index];
-      if (
-        replaceCurrent
-        && currentBlock !== undefined
-        && currentBlock.kind !== "experiment"
-        && currentBlock.text.length === 0
-      ) {
-        focusTargetId = currentBlock.blockId;
-        const blocks = [...current.blocks];
-        blocks[index] = kind === "heading"
-          ? {
-              blockId: currentBlock.blockId,
-              kind: "heading" as const,
-              level: 2 as const,
-              text: "",
-            }
-          : {
-              blockId: currentBlock.blockId,
-              kind: "paragraph" as const,
-              text: "",
-            };
-        return { ...current, blocks };
+      const template = kind === "paragraph"
+        ? { blockId, kind: "paragraph" as const, text: "" }
+        : {
+            blockId,
+            kind: "heading" as const,
+            level: kind === "heading" ? 2 as const : 3 as const,
+            text: "",
+          };
+      if (replaceBlockId !== null) {
+        const replacementIndex = current.blocks.findIndex((candidate) =>
+          candidate.blockId === replaceBlockId);
+        const replacement = current.blocks[replacementIndex];
+        if (
+          replacementIndex >= 0
+          && replacement !== undefined
+          && replacement.kind !== "experiment"
+          && replacement.text.length === 0
+        ) {
+          focusTargetId = replacement.blockId;
+          const blocks = [...current.blocks];
+          blocks[replacementIndex] = { ...template, blockId: replacement.blockId };
+          return { ...current, blocks };
+        }
       }
       return {
         ...current,
-        blocks: insertArticleBlockV3(current.blocks, index, kind === "heading"
-          ? {
-            blockId,
-            kind: "heading" as const,
-            level: 2 as const,
-            text: "",
-          }
-          : {
-            blockId,
-            kind: "paragraph" as const,
-            text: "",
-          }),
+        blocks: insertArticleBlockV3(current.blocks, insertionIndex, template),
       };
     });
-    slashReplacementIndexRef.current = null;
-    setInsertMenuIndex(null);
-    setFocusBlockId(focusTargetId);
+    setFocusRequest({ blockId: focusTargetId, caret: "end" });
+  };
+
+  const convertTextBlockV3 = (blockId: string, target: ArticleTextBlockKindV3) => {
+    updateDraft((current) => {
+      const index = current.blocks.findIndex((candidate) =>
+        candidate.blockId === blockId);
+      const block = current.blocks[index];
+      if (block === undefined || block.kind === "experiment") return current;
+      const converted: StudioArticleBlockV2 = target === "paragraph"
+        ? { blockId: block.blockId, kind: "paragraph", text: block.text }
+        : {
+            blockId: block.blockId,
+            kind: "heading",
+            level: target === "heading" ? 2 : 3,
+            text: block.text,
+          };
+      if (
+        converted.kind === block.kind
+        && (converted.kind === "paragraph"
+          || (block.kind === "heading" && converted.level === block.level))
+      ) return current;
+      const blocks = [...current.blocks];
+      blocks[index] = converted;
+      return { ...current, blocks };
+    });
+    setBlockMenuId(null);
+    setFocusRequest({ blockId, caret: "end" });
+  };
+
+  const applyHeadingShortcutV3 = (
+    index: number,
+    blockId: string,
+    shortcut: Readonly<{ level: 2 | 3; rest: string }>,
+  ) => {
+    updateDraft((current) => {
+      const block = current.blocks[index];
+      if (block === undefined || block.kind !== "paragraph") return current;
+      const blocks = [...current.blocks];
+      blocks[index] = {
+        blockId: block.blockId,
+        kind: "heading",
+        level: shortcut.level,
+        text: shortcut.rest,
+      };
+      return { ...current, blocks };
+    });
+    setFocusRequest({ blockId, caret: "end" });
   };
 
   const splitTextBlock = (index: number, offset: number) => {
@@ -845,26 +1030,96 @@ export function ArticleEditorV3Page() {
       blocks.splice(index + 1, 0, nextBlock);
       return { ...current, blocks };
     });
-    setFocusBlockId(nextBlockId);
+    setFocusRequest({ blockId: nextBlockId, caret: "start" });
   };
 
   const removeEmptyTextBlock = (index: number) => {
     const previous = draftRef.current.blocks[index - 1];
     removeBlock(index);
     if (previous !== undefined && previous.kind !== "experiment") {
-      setFocusBlockId(previous.blockId);
+      setFocusRequest({ blockId: previous.blockId, caret: "end" });
     }
   };
 
-  const openExperimentPickerAt = (index: number) => {
-    pendingExperimentInsertIndexRef.current = index;
-    pendingExperimentReplacementBlockIdRef.current =
-      slashReplacementIndexRef.current === index
-        ? draftRef.current.blocks[index]?.blockId ?? null
-        : null;
-    slashReplacementIndexRef.current = null;
-    setInsertMenuIndex(null);
-    setPickerOpen(true);
+  const mergeTextBlockIntoPreviousV3 = (index: number) => {
+    const blocks = draftRef.current.blocks;
+    const block = blocks[index];
+    const previous = blocks[index - 1];
+    if (
+      block === undefined || block.kind === "experiment"
+      || previous === undefined || previous.kind === "experiment"
+    ) return;
+    const caret = previous.text.length;
+    updateDraft((current) => {
+      const mergeBlock = current.blocks[index];
+      const mergeTarget = current.blocks[index - 1];
+      if (
+        mergeBlock === undefined || mergeBlock.kind === "experiment"
+        || mergeTarget === undefined || mergeTarget.kind === "experiment"
+      ) return current;
+      const merged = [...current.blocks];
+      merged[index - 1] = {
+        ...mergeTarget,
+        text: mergeTarget.text + mergeBlock.text,
+      };
+      merged.splice(index, 1);
+      return { ...current, blocks: merged };
+    });
+    setFocusRequest({ blockId: previous.blockId, caret });
+  };
+
+  const focusNearestTextBlockV3 = (fromIndex: number, direction: -1 | 1) => {
+    const blocks = draftRef.current.blocks;
+    for (
+      let index = fromIndex + direction;
+      index >= 0 && index < blocks.length;
+      index += direction
+    ) {
+      const candidate = blocks[index];
+      if (candidate !== undefined && candidate.kind !== "experiment") {
+        setFocusRequest({
+          blockId: candidate.blockId,
+          caret: direction === -1 ? "end" : "start",
+        });
+        return;
+      }
+    }
+  };
+
+  const startWritingAtEndV3 = () => {
+    const blocks = draftRef.current.blocks;
+    const last = blocks[blocks.length - 1];
+    if (
+      last !== undefined
+      && last.kind !== "experiment"
+      && last.text.length === 0
+    ) {
+      setFocusRequest({ blockId: last.blockId, caret: "end" });
+      return;
+    }
+    insertTextBlockV3("paragraph", blocks.length, null);
+  };
+
+  const openInsertMenuFromSlashV3 = (index: number, blockId: string) => {
+    setBlockMenuId(null);
+    setInsertMenu({
+      anchorBlockId: blockId,
+      insertionIndex: index,
+      replaceBlockId: blockId,
+    });
+  };
+
+  const handleInsertOptionV3 = (kind: ArticleInsertOptionKindV3) => {
+    if (insertMenu === null) return;
+    if (kind === "experiment") {
+      pendingExperimentInsertIndexRef.current = insertMenu.insertionIndex;
+      pendingExperimentReplacementBlockIdRef.current = insertMenu.replaceBlockId;
+      setInsertMenu(null);
+      setPickerOpen(true);
+      return;
+    }
+    insertTextBlockV3(kind, insertMenu.insertionIndex, insertMenu.replaceBlockId);
+    setInsertMenu(null);
   };
 
   const addExperiment = (snapshot: ExperimentSnapshotV2) => {
@@ -904,6 +1159,30 @@ export function ArticleEditorV3Page() {
     }
   };
 
+  const setArticleVisibilityV3 = (visibility: "draft" | "public") => {
+    updateDraft((current) => current.visibility === visibility
+      ? current
+      : { ...current, visibility });
+    void saveDraft();
+  };
+
+  const commitBlockDropV3 = () => {
+    if (draggedBlockId !== null && dropBoundary !== null) {
+      const blockId = draggedBlockId;
+      const boundary = dropBoundary;
+      updateDraft((current) => {
+        const blocks = moveArticleBlockToBoundaryV3(
+          current.blocks,
+          blockId,
+          boundary,
+        );
+        return blocks === current.blocks ? current : { ...current, blocks };
+      });
+    }
+    setDraggedBlockId(null);
+    setDropBoundary(null);
+  };
+
   const articleSnapshotById = React.useMemo(
     () => new Map(snapshots.map((snapshot) => [snapshot.snapshotId, snapshot])),
     [snapshots],
@@ -922,17 +1201,22 @@ export function ArticleEditorV3Page() {
   }, [closeEditorPeekV3, peekBlockId, selectedPeek]);
   const persistedArticle = routeArticleId !== undefined
     && routeArticleId !== "new";
-  const savedClean = persistedArticle
-    && !hasUnsavedArticleChanges
-    && status !== "saving"
-    && status !== "error";
+  const draggedBlockIndex = draggedBlockId === null
+    ? -1
+    : draft.blocks.findIndex((block) => block.blockId === draggedBlockId);
+  const visibleDropBoundary = dropBoundary !== null
+    && draggedBlockIndex >= 0
+    && dropBoundary !== draggedBlockIndex
+    && dropBoundary !== draggedBlockIndex + 1
+    ? dropBoundary
+    : null;
 
   return (
     <div
       className="flex h-full min-h-0 flex-col overflow-hidden bg-wb-app text-wb-text"
       data-testid="article-editor-v3"
     >
-      <header className="z-20 flex h-12 shrink-0 items-center gap-2 bg-wb-header px-2.5 shadow-[inset_0_-1px_0_var(--wb-border)] sm:px-4">
+      <header className="z-30 flex h-12 shrink-0 items-center gap-1 bg-wb-header px-2.5 shadow-[inset_0_-1px_0_var(--wb-border)] sm:px-4">
         <Link
           to={myArticlesHref(locale)}
           aria-label={t("articleReader.backToArticles")}
@@ -942,53 +1226,38 @@ export function ArticleEditorV3Page() {
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         </Link>
         <span className="min-w-0 flex-1" />
-        <button
-          type="button"
-          role="switch"
-          aria-checked={draft.visibility === "public"}
-          aria-label={t("articleEditor.publicToggle")}
-          disabled={status === "saving" || !routeHydrated}
-          onClick={() => updateDraft((current) => ({
-            ...current,
-            visibility: current.visibility === "public" ? "draft" : "public",
-          }))}
-          className="inline-flex min-h-8 shrink-0 items-center gap-2 rounded-lg px-1.5 text-[11px] font-semibold text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:px-2"
-        >
-          <span
-            aria-hidden="true"
-            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-150 ${draft.visibility === "public" ? "bg-wb-primary" : "bg-wb-line"}`}
+        <ArticleEditorSaveStatusV3
+          persisted={persistedArticle}
+          status={status}
+          onRetry={() => {
+            void saveDraft();
+          }}
+        />
+        {persistedArticle && (
+          <a
+            href={articleReaderHref({ articleId: draft.articleId, locale })}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={t("articleEditor.preview")}
+            title={t("articleEditor.preview")}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
           >
-            <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-150 ${draft.visibility === "public" ? "translate-x-[1.125rem]" : "translate-x-0.5"}`}
-            />
-          </span>
-          <span className="hidden sm:inline">
-            {t(draft.visibility === "public"
-              ? "articleEditor.published"
-              : "articleEditor.publish")}
-          </span>
-        </button>
-        {savedClean ? (
-          <span
-            className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg bg-wb-primary px-3 text-[11px] font-semibold text-white"
-            role="status"
-          >
-            <Check className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("articleEditor.status.saved")}
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={saveDraft}
-            disabled={status === "saving" || !routeHydrated}
-            className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg bg-wb-primary px-3 text-[11px] font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          >
-            <Save className="h-3.5 w-3.5" aria-hidden="true" />
-            {status === "saving"
-              ? t("articleEditor.status.saving")
-              : t("articleEditor.save")}
-          </button>
+            <BookOpen className="h-4 w-4" aria-hidden="true" />
+          </a>
         )}
+        <ArticlePublishMenuV3
+          articleHref={articleReaderHref({ articleId: draft.articleId, locale })}
+          disabled={!routeHydrated}
+          open={publishMenuOpen}
+          saving={status === "saving"}
+          visibility={draft.visibility}
+          onToggleOpen={() => {
+            setInsertMenu(null);
+            setBlockMenuId(null);
+            setPublishMenuOpen((current) => !current);
+          }}
+          onSetVisibility={setArticleVisibilityV3}
+        />
       </header>
 
       <div
@@ -1015,6 +1284,25 @@ export function ArticleEditorV3Page() {
               ...current,
               title: event.currentTarget.value,
             }))}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                const first = draftRef.current.blocks[0];
+                if (first !== undefined && first.kind !== "experiment") {
+                  setFocusRequest({ blockId: first.blockId, caret: "start" });
+                } else {
+                  insertTextBlockV3("paragraph", 0, null);
+                }
+                return;
+              }
+              if (event.key === "ArrowDown") {
+                const blocks = draftRef.current.blocks;
+                if (blocks.some((block) => block.kind !== "experiment")) {
+                  event.preventDefault();
+                  focusNearestTextBlockV3(-1, 1);
+                }
+              }
+            }}
             placeholder={t("articleEditor.titlePlaceholder")}
             aria-label={t("articleEditor.title")}
             className="w-full bg-transparent text-3xl font-bold leading-tight tracking-[-0.025em] text-wb-text outline-none placeholder:text-wb-subtle sm:text-[2.5rem]"
@@ -1026,8 +1314,10 @@ export function ArticleEditorV3Page() {
             </p>
           )}
 
-          {snapshotPickerItems.length === 0 && (
-            <div className="mt-8 rounded-xl bg-wb-soft px-4 py-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+          {routeHydrated
+            && draft.blocks.length === 0
+            && snapshotPickerItems.length === 0 && (
+            <div className="mt-8 rounded-xl bg-wb-soft/60 px-4 py-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
               <div>
                 <p className="text-sm font-medium">{t("articleEditor.emptySnapshots.title")}</p>
                 <p className="mt-1 text-xs leading-5 text-wb-muted">
@@ -1050,7 +1340,7 @@ export function ArticleEditorV3Page() {
             </div>
           )}
 
-          <div className="mt-12" data-testid="article-blocks-v3">
+          <div className="mt-6" data-testid="article-blocks-v3">
             {draft.blocks.map((block, index) => {
               const placementSnapshot = block.kind === "experiment"
                 ? articleSnapshotById.get(block.placement.snapshotId) ?? null
@@ -1059,6 +1349,11 @@ export function ArticleEditorV3Page() {
                 ? null
                 : compositionBySnapshotId.get(placementSnapshot.snapshotId)
                     ?.contract ?? null;
+              const previousBlock = draft.blocks[index - 1];
+              const hasTextAbove = draft.blocks.slice(0, index)
+                .some((candidate) => candidate.kind !== "experiment");
+              const hasTextBelow = draft.blocks.slice(index + 1)
+                .some((candidate) => candidate.kind !== "experiment");
               return (
                 <ArticleBlockShellV3
                   key={block.blockId}
@@ -1066,22 +1361,40 @@ export function ArticleEditorV3Page() {
                   blockKind={block.kind}
                   index={index}
                   total={draft.blocks.length}
-                  insertMenuOpen={insertMenuIndex === index}
+                  insertMenuOpen={insertMenu?.anchorBlockId === block.blockId}
                   blockMenuOpen={blockMenuId === block.blockId}
-                  onToggleInsertMenu={() => {
+                  dragging={draggedBlockId === block.blockId}
+                  dropIndicator={visibleDropBoundary === index
+                    ? "top"
+                    : index === draft.blocks.length - 1
+                        && visibleDropBoundary === draft.blocks.length
+                      ? "bottom"
+                      : null}
+                  onOpenInsertMenu={() => {
                     setBlockMenuId(null);
-                    slashReplacementIndexRef.current = null;
-                    setInsertMenuIndex((current) => current === index ? null : index);
+                    setInsertMenu((current) =>
+                      current?.anchorBlockId === block.blockId
+                        ? null
+                        : {
+                            anchorBlockId: block.blockId,
+                            insertionIndex: index + 1,
+                            replaceBlockId: null,
+                          });
                   }}
+                  onSelectInsertOption={handleInsertOptionV3}
+                  onCloseInsertMenu={() => closeInsertMenuV3(true)}
                   onToggleBlockMenu={() => {
-                    setInsertMenuIndex(null);
+                    setInsertMenu(null);
                     setBlockMenuId((current) => current === block.blockId
                       ? null
                       : block.blockId);
                   }}
-                  onInsertHeading={() => addTextBlock("heading", index)}
-                  onInsertParagraph={() => addTextBlock("paragraph", index)}
-                  onInsertExperiment={() => openExperimentPickerAt(index)}
+                  convertTarget={block.kind === "experiment"
+                    ? null
+                    : block.kind === "paragraph"
+                      ? "paragraph"
+                      : block.level === 2 ? "heading" : "subheading"}
+                  onConvert={(target) => convertTextBlockV3(block.blockId, target)}
                   onMove={(direction) => {
                     moveBlock(index, direction);
                     setBlockMenuId(null);
@@ -1090,11 +1403,19 @@ export function ArticleEditorV3Page() {
                     removeBlock(index);
                     setBlockMenuId(null);
                   }}
-                  onDragStart={() => setDraggedBlockId(block.blockId)}
-                  onDrop={() => {
-                    if (draggedBlockId !== null) moveBlockTo(draggedBlockId, index);
-                    setDraggedBlockId(null);
+                  onDragStart={() => {
+                    setInsertMenu(null);
+                    setBlockMenuId(null);
+                    setDraggedBlockId(block.blockId);
                   }}
+                  onDragEnd={() => {
+                    setDraggedBlockId(null);
+                    setDropBoundary(null);
+                  }}
+                  onDragOverBoundary={(boundary) => {
+                    if (draggedBlockId !== null) setDropBoundary(boundary);
+                  }}
+                  onDrop={commitBlockDropV3}
                 >
                   {block.kind === "experiment" ? (
                     <ArticleExperimentPlacementV3
@@ -1113,15 +1434,28 @@ export function ArticleEditorV3Page() {
                   ) : (
                     <ArticleTextBlockV3
                       block={block}
-                      focusRequested={focusBlockId === block.blockId}
-                      onFocusHandled={() => setFocusBlockId(null)}
+                      focusCaret={focusRequest?.blockId === block.blockId
+                        ? focusRequest.caret
+                        : null}
+                      onFocusHandled={() => setFocusRequest(null)}
                       onChange={(next) => updateBlock(index, next)}
+                      onHeadingShortcut={(shortcut) =>
+                        applyHeadingShortcutV3(index, block.blockId, shortcut)}
                       onDeleteEmpty={() => removeEmptyTextBlock(index)}
-                      onOpenInsertMenu={() => {
-                        slashReplacementIndexRef.current = index;
-                        setBlockMenuId(null);
-                        setInsertMenuIndex(index);
-                      }}
+                      onMergeWithPrevious={
+                        previousBlock !== undefined
+                          && previousBlock.kind !== "experiment"
+                          ? () => mergeTextBlockIntoPreviousV3(index)
+                          : undefined
+                      }
+                      onFocusPrevious={hasTextAbove
+                        ? () => focusNearestTextBlockV3(index, -1)
+                        : undefined}
+                      onFocusNext={hasTextBelow
+                        ? () => focusNearestTextBlockV3(index, 1)
+                        : undefined}
+                      onOpenInsertMenu={() =>
+                        openInsertMenuFromSlashV3(index, block.blockId)}
                       onSplit={(offset) => splitTextBlock(index, offset)}
                     />
                   )}
@@ -1130,21 +1464,28 @@ export function ArticleEditorV3Page() {
             })}
           </div>
 
-          <ArticleBlockInsertionV3
-            index={draft.blocks.length}
-            open={insertMenuIndex === draft.blocks.length}
-            empty={draft.blocks.length === 0}
-            onToggle={() => {
-              setBlockMenuId(null);
-              slashReplacementIndexRef.current = null;
-              setInsertMenuIndex((current) => current === draft.blocks.length
-                ? null
-                : draft.blocks.length);
+          <button
+            type="button"
+            aria-label={t("articleEditor.slashHint")}
+            data-testid="article-end-writing-area-v3"
+            onClick={startWritingAtEndV3}
+            onDragOver={(event) => {
+              if (draggedBlockId === null) return;
+              event.preventDefault();
+              setDropBoundary(draft.blocks.length);
             }}
-            onInsertHeading={() => addTextBlock("heading")}
-            onInsertParagraph={() => addTextBlock("paragraph")}
-            onInsertExperiment={() => openExperimentPickerAt(draft.blocks.length)}
-          />
+            onDrop={(event) => {
+              event.preventDefault();
+              commitBlockDropV3();
+            }}
+            className={`block w-full cursor-text rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${draft.blocks.length === 0 ? "py-2" : "min-h-28 py-3"}`}
+          >
+            {draft.blocks.length === 0 && (
+              <span className="text-[15px] leading-7 text-wb-subtle">
+                {t("articleEditor.slashHint")}
+              </span>
+            )}
+          </button>
         </article>
       </main>
 
@@ -1279,42 +1620,209 @@ export function ArticleEditorV3Page() {
   );
 }
 
+function ArticleEditorSaveStatusV3({
+  persisted,
+  status,
+  onRetry,
+}: Readonly<{
+  persisted: boolean;
+  status: EditorSaveStatusV3;
+  onRetry: () => void;
+}>) {
+  const { t } = useTranslation();
+  const label = status === "saving"
+    ? t("articleEditor.status.saving")
+    : status === "dirty"
+      ? t("articleEditor.status.dirty")
+      : status === "error"
+        ? t("articleEditor.status.error")
+        : persisted || status === "saved"
+          ? t("articleEditor.status.saved")
+          : "";
+  return (
+    <div
+      role="status"
+      data-testid="article-editor-status-v3"
+      className={`flex min-w-0 shrink-0 items-center gap-1.5 px-1.5 text-[11px] ${status === "error" ? "text-wb-danger" : "text-wb-subtle"}`}
+    >
+      {status === "saving" && (
+        <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+      )}
+      <span className="truncate">{label}</span>
+      {status === "error" && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="shrink-0 rounded-md px-1.5 py-0.5 font-semibold text-wb-accent transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        >
+          {t("articleEditor.status.retry")}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ArticlePublishMenuV3({
+  articleHref,
+  disabled,
+  open,
+  saving,
+  visibility,
+  onToggleOpen,
+  onSetVisibility,
+}: Readonly<{
+  articleHref: string;
+  disabled: boolean;
+  open: boolean;
+  saving: boolean;
+  visibility: "draft" | "public";
+  onToggleOpen: () => void;
+  onSetVisibility: (visibility: "draft" | "public") => void;
+}>) {
+  const { t } = useTranslation();
+  const published = visibility === "public";
+  return (
+    <div className="relative shrink-0" data-article-block-menu>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={onToggleOpen}
+        data-testid="article-publish-button-v3"
+        className={`inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${published ? "text-wb-accent hover:bg-wb-accent-soft" : "bg-wb-primary text-white hover:bg-wb-primary-hover"}`}
+      >
+        {published ? (
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-wb-accent" />
+        ) : (
+          <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+        )}
+        {published
+          ? t("articleEditor.published")
+          : t("articleEditor.publishMenu.label")}
+      </button>
+      {open && (
+        <div
+          role="dialog"
+          aria-label={t("articleEditor.publishMenu.label")}
+          data-testid="article-publish-menu-v3"
+          className="absolute right-0 top-10 z-50 w-72 rounded-xl bg-wb-panel p-4 shadow-[0_16px_48px_rgba(0,0,0,0.22)] ring-1 ring-wb-line/70"
+        >
+          {published ? (
+            <>
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <span aria-hidden="true" className="h-2 w-2 rounded-full bg-wb-accent" />
+                {t("articleEditor.publishMenu.publishedTitle")}
+              </p>
+              <p className="mt-1.5 text-xs leading-5 text-wb-muted">
+                {t("articleEditor.publishMenu.publishedDescription")}
+              </p>
+              <a
+                href={articleHref}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex min-h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-wb-soft px-3 text-xs font-semibold text-wb-text transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              >
+                {t("articleEditor.publishMenu.view")}
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => onSetVisibility("draft")}
+                className="mt-2 inline-flex min-h-8 w-full items-center justify-center rounded-lg px-3 text-xs font-semibold text-wb-danger transition-[background-color,transform] duration-150 hover:bg-wb-danger-soft active:scale-[0.98] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              >
+                {saving
+                  ? t("articleEditor.status.saving")
+                  : t("articleEditor.publishMenu.unpublish")}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold">
+                {t("articleEditor.publishMenu.draftTitle")}
+              </p>
+              <p className="mt-1.5 text-xs leading-5 text-wb-muted">
+                {t("articleEditor.publishMenu.draftDescription")}
+              </p>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => onSetVisibility("public")}
+                className="mt-3 inline-flex min-h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-wb-primary px-3 text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.98] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              >
+                <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+                {saving
+                  ? t("articleEditor.status.saving")
+                  : t("articleEditor.publishMenu.publish")}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ArticleTextBlockV3({
   block,
-  focusRequested,
+  focusCaret,
   onChange,
   onDeleteEmpty,
   onFocusHandled,
+  onFocusNext,
+  onFocusPrevious,
+  onHeadingShortcut,
+  onMergeWithPrevious,
   onOpenInsertMenu,
   onSplit,
 }: Readonly<{
   block: Exclude<StudioArticleBlockV2, StudioArticleExperimentBlockV2>;
-  focusRequested: boolean;
+  focusCaret: "start" | "end" | number | null;
   onChange: (block: Exclude<StudioArticleBlockV2, StudioArticleExperimentBlockV2>) => void;
   onDeleteEmpty: () => void;
   onFocusHandled: () => void;
+  onFocusNext?: (() => void) | undefined;
+  onFocusPrevious?: (() => void) | undefined;
+  onHeadingShortcut: (shortcut: Readonly<{ level: 2 | 3; rest: string }>) => void;
+  onMergeWithPrevious?: (() => void) | undefined;
   onOpenInsertMenu: () => void;
   onSplit: (offset: number) => void;
 }>) {
   const { t } = useTranslation();
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const subheading = block.kind === "heading" && block.level === 3;
 
   React.useLayoutEffect(() => {
     const element = textareaRef.current;
     if (element === null) return;
     element.style.height = "0px";
-    element.style.height = `${Math.max(element.scrollHeight, block.kind === "heading" ? 52 : 48)}px`;
-  }, [block.kind, block.text]);
+    const minHeight = block.kind === "heading"
+      ? (subheading ? 44 : 52)
+      : 48;
+    element.style.height = `${Math.max(element.scrollHeight, minHeight)}px`;
+  }, [block.kind, block.text, subheading]);
 
   React.useEffect(() => {
-    if (!focusRequested) return;
+    if (focusCaret === null) return;
     const element = textareaRef.current;
     if (element !== null) {
       element.focus();
-      element.setSelectionRange(element.value.length, element.value.length);
+      const position = focusCaret === "end"
+        ? element.value.length
+        : focusCaret === "start"
+          ? 0
+          : Math.max(0, Math.min(focusCaret, element.value.length));
+      element.setSelectionRange(position, position);
     }
     onFocusHandled();
-  }, [focusRequested, onFocusHandled]);
+  }, [focusCaret, onFocusHandled]);
+
+  const accessibleName = block.kind === "heading"
+    ? (subheading
+        ? t("articleEditor.subheading")
+        : t("articleEditor.heading"))
+    : t("articleEditor.paragraph");
 
   return (
     <div className="relative py-1" data-article-block-kind={block.kind}>
@@ -1322,16 +1830,58 @@ function ArticleTextBlockV3({
         ref={textareaRef}
         rows={1}
         value={block.text}
-        onChange={(event) => onChange({ ...block, text: event.currentTarget.value })}
+        onChange={(event) => {
+          const value = event.currentTarget.value;
+          if (block.kind === "paragraph") {
+            const shortcut = articleHeadingShortcutV3(value);
+            if (shortcut !== null) {
+              onHeadingShortcut(shortcut);
+              return;
+            }
+          }
+          onChange({ ...block, text: value });
+        }}
         onKeyDown={(event) => {
+          const element = event.currentTarget;
           if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
-            onSplit(event.currentTarget.selectionStart ?? block.text.length);
+            onSplit(element.selectionStart ?? block.text.length);
             return;
           }
-          if (event.key === "Backspace" && block.text.length === 0) {
+          if (event.key === "Backspace") {
+            if (block.text.length === 0) {
+              event.preventDefault();
+              onDeleteEmpty();
+              return;
+            }
+            if (
+              element.selectionStart === 0
+              && element.selectionEnd === 0
+              && onMergeWithPrevious !== undefined
+            ) {
+              event.preventDefault();
+              onMergeWithPrevious();
+              return;
+            }
+          }
+          if (
+            event.key === "ArrowUp"
+            && element.selectionStart === 0
+            && element.selectionEnd === 0
+            && onFocusPrevious !== undefined
+          ) {
             event.preventDefault();
-            onDeleteEmpty();
+            onFocusPrevious();
+            return;
+          }
+          if (
+            event.key === "ArrowDown"
+            && element.selectionStart === block.text.length
+            && element.selectionEnd === block.text.length
+            && onFocusNext !== undefined
+          ) {
+            event.preventDefault();
+            onFocusNext();
             return;
           }
           if (event.key === "/" && block.text.length === 0) {
@@ -1340,13 +1890,15 @@ function ArticleTextBlockV3({
           }
         }}
         placeholder={block.kind === "heading"
-          ? t("articleEditor.headingPlaceholder")
+          ? (subheading
+              ? t("articleEditor.subheadingPlaceholder")
+              : t("articleEditor.headingPlaceholder"))
           : t("articleEditor.paragraphPlaceholder")}
-        aria-label={block.kind === "heading"
-          ? t("articleEditor.heading")
-          : t("articleEditor.paragraph")}
+        aria-label={accessibleName}
         className={`block w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-wb-subtle ${block.kind === "heading"
-          ? "text-2xl font-bold leading-[1.35] tracking-tight"
+          ? (subheading
+              ? "text-lg font-semibold leading-[1.4] tracking-tight"
+              : "text-2xl font-bold leading-[1.35] tracking-tight")
           : "text-[15px] leading-7 text-wb-muted focus:text-wb-text"}`}
       />
     </div>
@@ -1361,14 +1913,19 @@ function ArticleBlockShellV3({
   total,
   insertMenuOpen,
   blockMenuOpen,
-  onToggleInsertMenu,
+  convertTarget,
+  dragging,
+  dropIndicator,
+  onOpenInsertMenu,
+  onSelectInsertOption,
+  onCloseInsertMenu,
   onToggleBlockMenu,
-  onInsertHeading,
-  onInsertParagraph,
-  onInsertExperiment,
+  onConvert,
   onMove,
   onRemove,
   onDragStart,
+  onDragEnd,
+  onDragOverBoundary,
   onDrop,
 }: Readonly<{
   blockId: string;
@@ -1378,27 +1935,47 @@ function ArticleBlockShellV3({
   total: number;
   insertMenuOpen: boolean;
   blockMenuOpen: boolean;
-  onToggleInsertMenu: () => void;
+  convertTarget: ArticleTextBlockKindV3 | null;
+  dragging: boolean;
+  dropIndicator: "top" | "bottom" | null;
+  onOpenInsertMenu: () => void;
+  onSelectInsertOption: (kind: ArticleInsertOptionKindV3) => void;
+  onCloseInsertMenu: () => void;
   onToggleBlockMenu: () => void;
-  onInsertHeading: () => void;
-  onInsertParagraph: () => void;
-  onInsertExperiment: () => void;
+  onConvert: (target: ArticleTextBlockKindV3) => void;
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
   onDragStart: () => void;
+  onDragEnd: () => void;
+  onDragOverBoundary: (boundary: number) => void;
   onDrop: () => void;
 }>) {
   const { t } = useTranslation();
   return (
     <div
-      className={`group/article-block relative -ml-10 pl-10 ${blockKind === "experiment" ? "my-7" : "my-3"}`}
+      className={`group/article-block relative -ml-5 pl-5 transition-opacity duration-150 sm:-ml-14 sm:pl-14 ${blockKind === "experiment" ? "my-7" : "my-0.5"} ${dragging ? "opacity-40" : ""}`}
       data-article-block-id={blockId}
-      onDragOver={(event) => event.preventDefault()}
+      onDragOver={(event) => {
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        onDragOverBoundary(articleBlockDropBoundaryV3(
+          index,
+          rect.top,
+          rect.height,
+          event.clientY,
+        ));
+      }}
       onDrop={(event) => {
         event.preventDefault();
         onDrop();
       }}
     >
+      {dropIndicator !== null && (
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-x-0 left-5 z-20 h-[3px] rounded-full bg-wb-accent sm:left-14 ${dropIndicator === "top" ? "-top-[2px]" : "-bottom-[2px]"}`}
+        />
+      )}
       <div
         className="absolute left-0 top-1 z-30 flex items-center text-wb-subtle opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-focus-within/article-block:opacity-100 sm:group-hover/article-block:opacity-100"
         data-article-block-menu
@@ -1409,8 +1986,8 @@ function ArticleBlockShellV3({
           aria-haspopup="menu"
           aria-expanded={insertMenuOpen}
           title={t("articleEditor.addBlock")}
-          onClick={onToggleInsertMenu}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          onClick={onOpenInsertMenu}
+          className="hidden h-7 w-7 items-center justify-center rounded-md transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:inline-flex"
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
@@ -1427,26 +2004,60 @@ function ArticleBlockShellV3({
             event.dataTransfer.setData("text/plain", blockId);
             onDragStart();
           }}
-          className="inline-flex h-7 w-6 cursor-grab items-center justify-center rounded-md transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:cursor-grabbing active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          onDragEnd={onDragEnd}
+          className="inline-flex h-6 w-5 cursor-grab items-center justify-center rounded-md transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:cursor-grabbing active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:h-7 sm:w-6"
         >
           <GripVertical className="h-3.5 w-3.5" />
         </button>
         {insertMenuOpen && (
-          <ArticleBlockTypeMenuV3
+          <ArticleInsertMenuV3
             className="left-0 top-8"
-            onInsertHeading={onInsertHeading}
-            onInsertParagraph={onInsertParagraph}
-            onInsertExperiment={onInsertExperiment}
+            onClose={onCloseInsertMenu}
+            onSelect={onSelectInsertOption}
           />
         )}
         {blockMenuOpen && (
           <div
-            className="absolute left-7 top-8 z-40 w-44 rounded-xl bg-wb-panel p-1.5 text-xs shadow-[0_16px_48px_rgba(0,0,0,0.22)] ring-1 ring-wb-line/70"
+            className="absolute left-7 top-8 z-40 w-48 rounded-xl bg-wb-panel p-1.5 text-xs shadow-[0_16px_48px_rgba(0,0,0,0.22)] ring-1 ring-wb-line/70"
             role="menu"
             aria-label={t("articleEditor.blockHandle")}
           >
+            {convertTarget !== null && (
+              <>
+                <p className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wide text-wb-subtle">
+                  {t("articleEditor.turnInto")}
+                </p>
+                {convertTarget !== "paragraph" && (
+                  <BlockMenuActionV3
+                    autoFocus
+                    label={t("articleEditor.addParagraph")}
+                    onClick={() => onConvert("paragraph")}
+                  >
+                    <Pilcrow className="h-3.5 w-3.5" />
+                  </BlockMenuActionV3>
+                )}
+                {convertTarget !== "heading" && (
+                  <BlockMenuActionV3
+                    autoFocus={convertTarget === "paragraph"}
+                    label={t("articleEditor.addHeading")}
+                    onClick={() => onConvert("heading")}
+                  >
+                    <Heading2 className="h-3.5 w-3.5" />
+                  </BlockMenuActionV3>
+                )}
+                {convertTarget !== "subheading" && (
+                  <BlockMenuActionV3
+                    label={t("articleEditor.addSubheading")}
+                    onClick={() => onConvert("subheading")}
+                  >
+                    <Heading3 className="h-3.5 w-3.5" />
+                  </BlockMenuActionV3>
+                )}
+                <div className="mx-2 my-1.5 h-px bg-wb-line/70" aria-hidden="true" />
+              </>
+            )}
             <BlockMenuActionV3
-              autoFocus
+              autoFocus={convertTarget === null}
               disabled={index === 0}
               label={t("articleEditor.moveUp")}
               onClick={() => onMove(-1)}
@@ -1475,89 +2086,154 @@ function ArticleBlockShellV3({
   );
 }
 
-function ArticleBlockInsertionV3({
-  empty,
-  index,
-  open,
-  onToggle,
-  onInsertHeading,
-  onInsertParagraph,
-  onInsertExperiment,
-}: Readonly<{
-  empty: boolean;
-  index: number;
-  open: boolean;
-  onToggle: () => void;
-  onInsertHeading: () => void;
-  onInsertParagraph: () => void;
-  onInsertExperiment: () => void;
-}>) {
-  const { t } = useTranslation();
-  return (
-    <div
-      className={`relative mt-3 -ml-10 pl-10 ${empty ? "py-10" : "py-3"}`}
-      data-article-block-menu
-      data-insertion-index={index}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="group inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-xs text-wb-subtle transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-muted active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-      >
-        <Plus className="h-4 w-4" />
-        <span>{empty ? t("articleEditor.slashHint") : t("articleEditor.addBlock")}</span>
-      </button>
-      {open && (
-        <ArticleBlockTypeMenuV3
-          className="left-10 top-12"
-          onInsertHeading={onInsertHeading}
-          onInsertParagraph={onInsertParagraph}
-          onInsertExperiment={onInsertExperiment}
-        />
-      )}
-    </div>
-  );
-}
+export type ArticleInsertOptionKindV3 =
+  | "paragraph"
+  | "heading"
+  | "subheading"
+  | "experiment";
 
-function ArticleBlockTypeMenuV3({
+type ArticleInsertMenuOptionV3 = Readonly<{
+  kind: ArticleInsertOptionKindV3;
+  label: string;
+  hint: string;
+  keywords: readonly string[];
+}>;
+
+const ARTICLE_INSERT_OPTION_ICONS_V3: Readonly<Record<
+  ArticleInsertOptionKindV3,
+  React.ComponentType<Readonly<{ className?: string }>>
+>> = {
+  paragraph: Pilcrow,
+  heading: Heading2,
+  subheading: Heading3,
+  experiment: FlaskConical,
+};
+
+function ArticleInsertMenuV3({
   className,
-  onInsertHeading,
-  onInsertParagraph,
-  onInsertExperiment,
+  onClose,
+  onSelect,
 }: Readonly<{
   className: string;
-  onInsertHeading: () => void;
-  onInsertParagraph: () => void;
-  onInsertExperiment: () => void;
+  onClose: () => void;
+  onSelect: (kind: ArticleInsertOptionKindV3) => void;
 }>) {
   const { t } = useTranslation();
+  const [query, setQuery] = React.useState("");
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const options = React.useMemo<readonly ArticleInsertMenuOptionV3[]>(() => [
+    {
+      kind: "paragraph",
+      label: t("articleEditor.addParagraph"),
+      hint: t("articleEditor.insertMenu.paragraphHint"),
+      keywords: ["text", "paragraph", "p", "honbun"],
+    },
+    {
+      kind: "heading",
+      label: t("articleEditor.addHeading"),
+      hint: t("articleEditor.insertMenu.headingHint"),
+      keywords: ["heading", "h2", "midashi", "#"],
+    },
+    {
+      kind: "subheading",
+      label: t("articleEditor.addSubheading"),
+      hint: t("articleEditor.insertMenu.subheadingHint"),
+      keywords: ["subheading", "h3", "komidashi", "##"],
+    },
+    {
+      kind: "experiment",
+      label: t("articleEditor.addExperiment"),
+      hint: t("articleEditor.insertMenu.experimentHint"),
+      keywords: ["simulation", "experiment", "sim", "graph"],
+    },
+  ], [t]);
+  const filtered = filterArticleInsertOptionsV3(options, query);
+  const clampedActiveIndex = Math.min(
+    activeIndex,
+    Math.max(0, filtered.length - 1),
+  );
+
   return (
     <div
-      className={`absolute z-50 w-52 rounded-xl bg-wb-panel p-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.22)] ring-1 ring-wb-line/70 ${className}`}
+      className={`absolute z-50 w-64 rounded-xl bg-wb-panel p-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.22)] ring-1 ring-wb-line/70 ${className}`}
       role="menu"
       aria-label={t("articleEditor.addBlock")}
+      data-testid="article-insert-menu-v3"
     >
-      <BlockMenuActionV3
-        autoFocus
-        label={t("articleEditor.addParagraph")}
-        onClick={onInsertParagraph}
-      >
-        <Pilcrow className="h-4 w-4" />
-      </BlockMenuActionV3>
-      <BlockMenuActionV3
-        label={t("articleEditor.addHeading")}
-        onClick={onInsertHeading}
-      >
-        <Heading2 className="h-4 w-4" />
-      </BlockMenuActionV3>
-      <BlockMenuActionV3
-        label={t("articleEditor.addExperiment")}
-        onClick={onInsertExperiment}
-      >
-        <FlaskConical className="h-4 w-4" />
-      </BlockMenuActionV3>
+      <div className="flex items-center gap-2 border-b border-wb-line/70 px-2.5 pb-2 pt-1">
+        <Search className="h-3.5 w-3.5 shrink-0 text-wb-subtle" aria-hidden="true" />
+        <input
+          autoFocus
+          type="text"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.currentTarget.value);
+            setActiveIndex(0);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              setActiveIndex((current) =>
+                filtered.length === 0 ? 0 : (current + 1) % filtered.length);
+              return;
+            }
+            if (event.key === "ArrowUp") {
+              event.preventDefault();
+              setActiveIndex((current) => filtered.length === 0
+                ? 0
+                : (current - 1 + filtered.length) % filtered.length);
+              return;
+            }
+            if (event.key === "Enter") {
+              event.preventDefault();
+              const active = filtered[clampedActiveIndex];
+              if (active !== undefined) onSelect(active.kind);
+              return;
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              onClose();
+            }
+          }}
+          placeholder={t("articleEditor.insertMenu.searchPlaceholder")}
+          aria-label={t("articleEditor.insertMenu.searchPlaceholder")}
+          className="w-full bg-transparent text-xs text-wb-text outline-none placeholder:text-wb-subtle"
+        />
+      </div>
+      <div className="pt-1.5">
+        {filtered.length === 0 && (
+          <p className="px-2.5 py-3 text-xs text-wb-subtle">
+            {t("articleEditor.insertMenu.empty")}
+          </p>
+        )}
+        {filtered.map((option, optionIndex) => {
+          const Icon = ARTICLE_INSERT_OPTION_ICONS_V3[option.kind];
+          const active = optionIndex === clampedActiveIndex;
+          return (
+            <button
+              key={option.kind}
+              type="button"
+              role="menuitem"
+              aria-label={option.label}
+              onClick={() => onSelect(option.kind)}
+              onPointerEnter={() => setActiveIndex(optionIndex)}
+              className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-[background-color] duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${active ? "bg-wb-hover" : ""}`}
+            >
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-wb-soft text-wb-muted">
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-medium text-wb-text">
+                  {option.label}
+                </span>
+                <span className="block truncate text-[10px] text-wb-subtle">
+                  {option.hint}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
