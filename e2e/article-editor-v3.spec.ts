@@ -5,6 +5,34 @@ const UUID_RESOURCE_ID =
 const ARTICLE_RESOURCE_ID =
   `(?:${UUID_RESOURCE_ID}|article-[A-Za-z0-9_-]+)`;
 
+test("@desktop Article Peek keeps its resize divider on the surface edge", async ({
+  page,
+}) => {
+  await page.goto("/ja/articles/new/edit");
+  const split = page.locator(".article-reader-split");
+  await split.evaluate((element) => {
+    element.setAttribute("data-peek-open", "true");
+    element.setAttribute("data-peek-dragging", "true");
+    (element as HTMLElement).style.setProperty(
+      "--article-reader-peek-width",
+      "46%",
+    );
+  });
+
+  const divider = page.getByTestId("article-editor-peek-divider-v3");
+  const panel = page.getByTestId("article-editor-peek-column-v3");
+  const [dividerBox, panelBox] = await Promise.all([
+    divider.boundingBox(),
+    panel.boundingBox(),
+  ]);
+  expect(dividerBox).not.toBeNull();
+  expect(panelBox).not.toBeNull();
+  if (dividerBox === null || panelBox === null) return;
+
+  const dividerCenter = dividerBox.x + dividerBox.width / 2;
+  expect(Math.abs(panelBox.x - dividerCenter)).toBeLessThanOrEqual(0.5);
+});
+
 test("@desktop Article Editor preserves native text editing semantics", async ({
   page,
 }) => {

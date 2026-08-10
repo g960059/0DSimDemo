@@ -417,7 +417,12 @@ body[data-app-theme="light"] {
 
 .article-reader-split[data-peek-open="true"]
   .article-reader-peek-column {
-  inline-size: calc(var(--article-reader-peek-width, 46%) - 0.75rem);
+  /*
+   * The requested width includes the floating panel's outer 0.375rem inset.
+   * The 0.75rem divider is an overlaid hit target centered on this left edge;
+   * subtracting it here made the visible divider lead the panel by 0.375rem.
+   */
+  inline-size: calc(var(--article-reader-peek-width, 46%) - 0.375rem);
   opacity: 1;
   pointer-events: auto;
   transform: translateX(0);
