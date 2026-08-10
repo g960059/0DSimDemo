@@ -5,6 +5,7 @@ import {
   CircleAlert,
   FlaskConical,
   Maximize2,
+  Minimize2,
   Pause,
   Play,
   X,
@@ -77,11 +78,14 @@ export type ArticleReaderExperimentV3Props = Readonly<{
   live: boolean;
   expandedPresentation: ArticleReaderExpandedPresentationV3 | null;
   peekPortalHost?: HTMLElement | null;
+  peekMaximized?: boolean;
   forceInline?: boolean;
   onActivate(): void;
   onDeactivate(): void;
   onExpand(presentation: ArticleReaderExpandedPresentationV3): void;
   onClose(): void;
+  onOpenExperimentSession?(): void;
+  onPeekMaximizedChange?(maximized: boolean): void;
   onTitleCommit?(title: string): void;
 }>;
 
@@ -111,11 +115,14 @@ export function ArticleReaderExperimentV3({
   live,
   expandedPresentation,
   peekPortalHost = null,
+  peekMaximized = false,
   forceInline = false,
   onActivate,
   onDeactivate,
   onExpand,
   onClose,
+  onOpenExperimentSession,
+  onPeekMaximizedChange,
   onTitleCommit,
 }: ArticleReaderExperimentV3Props) {
   const { t } = useTranslation();
@@ -211,12 +218,15 @@ export function ArticleReaderExperimentV3({
           expandedPresentation={expandedPresentation}
           forceInline={forceInline}
           peekPortalHost={peekPortalHost}
+          peekMaximized={peekMaximized}
           presentation={presentation}
           snapshot={snapshot}
           title={title}
           onTitleCommit={onTitleCommit}
           onExpand={onExpand}
           onClose={onClose}
+          onOpenExperimentSession={onOpenExperimentSession}
+          onPeekMaximizedChange={onPeekMaximizedChange}
         />
       ) : (
         <ArticleReaderStaticExperimentV3
@@ -370,11 +380,14 @@ function ArticleReaderLiveOwnerV3({
   expandedPresentation,
   forceInline,
   peekPortalHost,
+  peekMaximized,
   presentation,
   snapshot,
   title,
   onExpand,
   onClose,
+  onOpenExperimentSession,
+  onPeekMaximizedChange,
   onTitleCommit,
 }: Readonly<{
   briefing: ExperimentPlacementBriefingV2;
@@ -383,11 +396,14 @@ function ArticleReaderLiveOwnerV3({
   expandedPresentation: ArticleReaderExpandedPresentationV3 | null;
   forceInline: boolean;
   peekPortalHost: HTMLElement | null;
+  peekMaximized: boolean;
   presentation: ArticleReaderPresentationV3;
   snapshot: ExperimentSnapshotV2;
   title: string;
   onExpand(presentation: ArticleReaderExpandedPresentationV3): void;
   onClose(): void;
+  onOpenExperimentSession?(): void;
+  onPeekMaximizedChange?(maximized: boolean): void;
   onTitleCommit?(title: string): void;
 }>) {
   const { t } = useTranslation();
@@ -416,11 +432,20 @@ function ArticleReaderLiveOwnerV3({
   React.useEffect(() => {
     if (expandedPresentation === null) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      if (
+        expandedPresentation === "peek"
+        && peekMaximized
+        && onPeekMaximizedChange !== undefined
+      ) {
+        onPeekMaximizedChange(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [expandedPresentation, onClose]);
+  }, [expandedPresentation, onClose, onPeekMaximizedChange, peekMaximized]);
 
   if (expandedPresentation === null) {
     if (forceInline || presentation === "inflow") return detail;
@@ -448,9 +473,13 @@ function ArticleReaderLiveOwnerV3({
     if (peekPortalHost === null) return null;
     return createPortal(
       <ArticleReaderExperimentPeekPanelV3
+        maximized={peekMaximized}
         title={title}
         onClose={onClose}
-        onFullscreen={() => onExpand("fullscreen")}
+        onOpenExperimentSession={onOpenExperimentSession}
+        onToggleMaximized={onPeekMaximizedChange === undefined
+          ? undefined
+          : () => onPeekMaximizedChange(!peekMaximized)}
         onTitleCommit={onTitleCommit}
       >
         {detail}
@@ -459,7 +488,10 @@ function ArticleReaderLiveOwnerV3({
     );
   }
   return createPortal(
-    <ArticleReaderExperimentDrawerV3 onClose={onClose}>
+    <ArticleReaderExperimentDrawerV3
+      onClose={onClose}
+      onOpenExperimentSession={onOpenExperimentSession}
+    >
       {detail}
     </ArticleReaderExperimentDrawerV3>,
     document.body,
@@ -1481,17 +1513,21 @@ export function articleReaderControlInstanceIdV3(
  * Non-modal Reader companion surface. The page owns its width and motion so
  * opening Peek changes the available article measure instead of covering it.
  */
-function ArticleReaderExperimentPeekPanelV3({
+export function ArticleReaderExperimentPeekPanelV3({
   children,
+  maximized,
   title,
   onClose,
-  onFullscreen,
+  onOpenExperimentSession,
+  onToggleMaximized,
   onTitleCommit,
 }: Readonly<{
   children: React.ReactNode;
+  maximized: boolean;
   title: string;
   onClose(): void;
-  onFullscreen(): void;
+  onOpenExperimentSession?(): void;
+  onToggleMaximized?(): void;
   onTitleCommit?(title: string): void;
 }>) {
   const { t } = useTranslation();
@@ -1520,6 +1556,7 @@ function ArticleReaderExperimentPeekPanelV3({
       className="flex h-full min-w-0 flex-col bg-wb-panel text-wb-text"
       data-testid="article-reader-experiment-peek-v3"
       data-reader-presentation="peek"
+      data-peek-maximized={maximized ? "true" : "false"}
     >
       <header className="flex h-12 shrink-0 items-center gap-3 px-4">
         {onTitleCommit === undefined ? (
@@ -1556,15 +1593,39 @@ function ArticleReaderExperimentPeekPanelV3({
             }}
           />
         )}
-        <button
-          type="button"
-          onClick={onFullscreen}
-          aria-label={t("articleReader.openFullscreen")}
-          title={t("articleReader.openFullscreen")}
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-        >
-          <Maximize2 className="h-4 w-4" aria-hidden="true" />
-        </button>
+        {onOpenExperimentSession !== undefined && (
+          <button
+            type="button"
+            onClick={onOpenExperimentSession}
+            aria-label={onTitleCommit === undefined
+              ? t("articleReader.openExperimentSession")
+              : t("articleReader.editBriefing")}
+            title={onTitleCommit === undefined
+              ? t("articleReader.openExperimentSession")
+              : t("articleReader.editBriefing")}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          >
+            <FlaskConical className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
+        {onToggleMaximized !== undefined && (
+          <button
+            type="button"
+            onClick={onToggleMaximized}
+            aria-pressed={maximized}
+            aria-label={maximized
+              ? t("articleReader.restoreSplitView")
+              : t("articleReader.openFullscreen")}
+            title={maximized
+              ? t("articleReader.restoreSplitView")
+              : t("articleReader.openFullscreen")}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          >
+            {maximized
+              ? <Minimize2 className="h-4 w-4" aria-hidden="true" />
+              : <Maximize2 className="h-4 w-4" aria-hidden="true" />}
+          </button>
+        )}
         <button
           type="button"
           onClick={onClose}
@@ -1583,9 +1644,11 @@ function ArticleReaderExperimentPeekPanelV3({
 function ArticleReaderExperimentDrawerV3({
   children,
   onClose,
+  onOpenExperimentSession,
 }: Readonly<{
   children: React.ReactNode;
   onClose(): void;
+  onOpenExperimentSession?(): void;
 }>) {
   const { t } = useTranslation();
   const dialogRef = React.useRef<HTMLElement>(null);
@@ -1662,6 +1725,17 @@ function ArticleReaderExperimentDrawerV3({
           >
             {t("articleReader.drawerTitle")}
           </h2>
+          {onOpenExperimentSession !== undefined && (
+            <button
+              type="button"
+              onClick={onOpenExperimentSession}
+              aria-label={t("articleReader.openExperimentSession")}
+              title={t("articleReader.openExperimentSession")}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+            >
+              <FlaskConical className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

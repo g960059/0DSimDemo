@@ -455,6 +455,7 @@ export function ArticleEditorV3Page() {
   const [peekFraction, setPeekFraction] = React.useState(
     initialArticleEditorPeekFractionV3,
   );
+  const [peekMaximized, setPeekMaximized] = React.useState(false);
 
   const saveRouteKey = articleEditorRouteKeyV3(routeArticleId);
   React.useLayoutEffect(() => {
@@ -482,10 +483,12 @@ export function ArticleEditorV3Page() {
 
   const openEditorPeekV3 = React.useCallback((blockId: string) => {
     cancelPeekCloseTimer();
+    setPeekMaximized(false);
     setPeekBlockId(blockId);
   }, [cancelPeekCloseTimer]);
 
   const closeEditorPeekV3 = React.useCallback(() => {
+    setPeekMaximized(false);
     setPeekOpen(false);
     cancelPeekCloseTimer();
     peekCloseTimerRef.current = window.setTimeout(() => {
@@ -510,6 +513,7 @@ export function ArticleEditorV3Page() {
   const resizePeekFromPointer = React.useCallback((clientX: number) => {
     const bounds = splitRef.current?.getBoundingClientRect();
     if (bounds === undefined) return;
+    setPeekMaximized(false);
     pendingPeekFractionRef.current = articleEditorPeekFractionForPointerV3(
       bounds.left,
       bounds.width,
@@ -1480,8 +1484,11 @@ export function ArticleEditorV3Page() {
         data-peek-mounted={peekBlockId === null ? "false" : "true"}
         data-peek-open={peekOpen ? "true" : "false"}
         data-peek-dragging={peekDragging ? "true" : "false"}
+        data-peek-maximized={peekMaximized ? "true" : "false"}
         style={{
-          "--article-reader-peek-width": `${peekFraction * 100}%`,
+          "--article-reader-peek-width": peekMaximized
+            ? "100%"
+            : `${peekFraction * 100}%`,
         } as React.CSSProperties}
       >
       <main
@@ -1729,14 +1736,15 @@ export function ArticleEditorV3Page() {
         aria-orientation="vertical"
         aria-label={t("articleReader.resizeExperiment")}
         aria-valuemin={Math.round(ARTICLE_EDITOR_PEEK_MIN_FRACTION_V3 * 100)}
-        aria-valuemax={Math.round(ARTICLE_EDITOR_PEEK_MAX_FRACTION_V3 * 100)}
-        aria-valuenow={Math.round(peekFraction * 100)}
+        aria-valuemax={100}
+        aria-valuenow={peekMaximized ? 100 : Math.round(peekFraction * 100)}
         tabIndex={peekOpen ? 0 : -1}
         className="article-reader-peek-divider group relative z-10 shrink-0 touch-none outline-none"
         data-testid="article-editor-peek-divider-v3"
         onPointerDown={(event) => {
           if (event.button !== 0) return;
           event.preventDefault();
+          setPeekMaximized(false);
           event.currentTarget.setPointerCapture(event.pointerId);
           peekDraggingRef.current = true;
           setPeekDragging(true);
@@ -1762,11 +1770,24 @@ export function ArticleEditorV3Page() {
           setPeekDragging(false);
         }}
         onKeyDown={(event) => {
+          if (event.key === "End") {
+            event.preventDefault();
+            setPeekMaximized(true);
+            return;
+          }
           let next: number | null = null;
-          if (event.key === "ArrowLeft") next = peekFraction + 0.025;
-          else if (event.key === "ArrowRight") next = peekFraction - 0.025;
-          else if (event.key === "Home") next = ARTICLE_EDITOR_PEEK_MIN_FRACTION_V3;
-          else if (event.key === "End") next = ARTICLE_EDITOR_PEEK_MAX_FRACTION_V3;
+          if (event.key === "ArrowLeft") {
+            if (peekMaximized) return;
+            next = peekFraction + 0.025;
+          } else if (event.key === "ArrowRight") {
+            setPeekMaximized(false);
+            next = peekMaximized
+              ? ARTICLE_EDITOR_PEEK_MAX_FRACTION_V3
+              : peekFraction - 0.025;
+          } else if (event.key === "Home") {
+            setPeekMaximized(false);
+            next = ARTICLE_EDITOR_PEEK_MIN_FRACTION_V3;
+          }
           if (next === null) return;
           event.preventDefault();
           const clamped = clampArticleEditorPeekFractionV3(next);
@@ -1784,7 +1805,7 @@ export function ArticleEditorV3Page() {
       <aside
         aria-hidden={!peekOpen}
         aria-label={t("articleReader.drawerTitle")}
-        className="article-reader-peek-column min-w-0 shrink-0 overflow-hidden bg-wb-panel"
+        className="article-reader-peek-column min-w-0 shrink-0 overflow-hidden"
         data-testid="article-editor-peek-column-v3"
         inert={!peekOpen}
       >
@@ -1809,18 +1830,20 @@ export function ArticleEditorV3Page() {
             live
             expandedPresentation="peek"
             peekPortalHost={peekPortalHost}
+            peekMaximized={peekMaximized}
             onActivate={() => undefined}
             onDeactivate={() => undefined}
             onClose={closeEditorPeekV3}
-            onExpand={(presentation) => {
-              if (presentation !== "fullscreen") return;
-              startArticleExperimentSessionV3({
+            onExpand={() => undefined}
+            onOpenExperimentSession={() => {
+              void startArticleExperimentSessionV3({
                 insertionIndex: selectedPeek.index,
                 replacementBlockId: selectedPeek.block.blockId,
                 snapshotId: selectedPeek.block.placement.snapshotId,
                 briefing: selectedPeek.block.placement.briefing,
               });
             }}
+            onPeekMaximizedChange={setPeekMaximized}
             onTitleCommit={(title) => {
               const normalized = title.trim();
               const fallback = selectedPeek.block.placement.briefing.defaultTitle;

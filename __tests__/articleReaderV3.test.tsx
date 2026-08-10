@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import "@/i18n";
 import {
+  ArticleReaderExperimentPeekPanelV3,
   ArticleReaderExperimentV3,
   ArticleReaderControlV3,
   ArticleReaderOutputsV3,
@@ -326,6 +327,41 @@ function readerRuntimeStubV3(
 }
 
 describe("Article Reader V3 experiment anchor", () => {
+  it("separates in-place Peek maximization from Experiment Session navigation", () => {
+    const splitHtml = renderToStaticMarkup(
+      <ArticleReaderExperimentPeekPanelV3
+        maximized={false}
+        title="Hemodynamic comparison"
+        onClose={NOOP}
+        onOpenExperimentSession={NOOP}
+        onToggleMaximized={NOOP}
+      >
+        <p>Live detail</p>
+      </ArticleReaderExperimentPeekPanelV3>,
+    );
+    const maximizedHtml = renderToStaticMarkup(
+      <ArticleReaderExperimentPeekPanelV3
+        maximized
+        title="Hemodynamic comparison"
+        onClose={NOOP}
+        onOpenExperimentSession={NOOP}
+        onToggleMaximized={NOOP}
+        onTitleCommit={NOOP}
+      >
+        <p>Live detail</p>
+      </ArticleReaderExperimentPeekPanelV3>,
+    );
+
+    expect(splitHtml).toContain('data-peek-maximized="false"');
+    expect(splitHtml).toContain('aria-pressed="false"');
+    expect(splitHtml).toContain("シミュレーションを詳しく開く");
+    expect(splitHtml).toContain("シミュレーションを画面いっぱいに表示");
+    expect(maximizedHtml).toContain('data-peek-maximized="true"');
+    expect(maximizedHtml).toContain('aria-pressed="true"');
+    expect(maximizedHtml).toContain("記事との分割表示に戻す");
+    expect(maximizedHtml).toContain("ExperimentSessionでBriefingを編集");
+  });
+
   it("keeps Peek resizing bounded while tracking the divider one-to-one", () => {
     expect(articleReaderPeekFractionForPointerV3(100, 1_000, 600)).toBe(0.5);
     expect(articleReaderPeekFractionForPointerV3(100, 1_000, -500)).toBe(0.64);
