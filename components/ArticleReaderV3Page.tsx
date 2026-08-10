@@ -7,6 +7,11 @@ import {
   type ArticleReaderExpandedPresentationV3,
 } from "@/components/article/reader/ArticleReaderExperimentV3";
 import {
+  ArticleDividerPresentationV3,
+  ArticleEquationPresentationV3,
+  ArticleImagePresentationV3,
+} from "@/components/article/ArticleRichBlockV3";
+import {
   newExperimentHref,
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
@@ -425,6 +430,31 @@ function ArticleReaderV3Resource({
                 >
                   {block.text}
                 </p>
+              );
+            }
+            if (block.kind === "equation") {
+              return (
+                <ArticleEquationPresentationV3
+                  key={block.blockId}
+                  block={block}
+                  className="my-8"
+                />
+              );
+            }
+            if (block.kind === "image") {
+              return (
+                <ArticleImagePresentationV3
+                  key={block.blockId}
+                  block={block}
+                />
+              );
+            }
+            if (block.kind === "divider") {
+              return (
+                <ArticleDividerPresentationV3
+                  key={block.blockId}
+                  block={block}
+                />
               );
             }
             const snapshot = content.snapshots.get(block.placement.snapshotId) ?? null;

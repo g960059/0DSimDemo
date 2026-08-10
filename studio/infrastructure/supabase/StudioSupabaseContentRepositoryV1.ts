@@ -225,6 +225,42 @@ export class StudioSupabaseContentRepositoryV1 {
     return saved;
   }
 
+  /**
+   * Stores an immutable, publicly readable Article image under the owner's
+   * namespace. Public URLs keep Reader rendering independent of an auth
+   * session; overwrite is intentionally disabled because published Article
+   * versions may continue to reference the original object.
+   */
+  async uploadArticleImage(file: File): Promise<string> {
+    const session = await ensureStudioAuthenticatedForSaveV1(this.#client);
+    if (session.user.is_anonymous === true) {
+      throw new Error("Sign in before uploading an Article image");
+    }
+    const extension = articleImageExtensionV1(file.type);
+    if (extension === null) {
+      throw new Error("Article images must be PNG, JPEG, WebP, GIF, or AVIF");
+    }
+    if (file.size <= 0 || file.size > 8 * 1024 * 1024) {
+      throw new Error("Article images must be between 1 byte and 8 MB");
+    }
+    const objectPath = `${session.user.id}/${crypto.randomUUID()}.${extension}`;
+    const uploaded = await this.#client.storage
+      .from("article-images")
+      .upload(objectPath, file, {
+        cacheControl: "31536000",
+        contentType: file.type,
+        upsert: false,
+      });
+    if (uploaded.error !== null) throw uploaded.error;
+    const publicUrl = this.#client.storage
+      .from("article-images")
+      .getPublicUrl(objectPath).data.publicUrl;
+    if (!publicUrl.startsWith("https://")) {
+      throw new Error("Article image storage returned an invalid public URL");
+    }
+    return publicUrl;
+  }
+
   async publishExperiment(input: Readonly<{
     experimentId: string;
     expectedVersion: number;
@@ -431,6 +467,17 @@ export class StudioSupabaseContentRepositoryV1 {
     this.#pendingOperationIds.delete(canonicalRequest);
     removePendingOperationIdV1(storageKey, operationId);
     return data;
+  }
+}
+
+function articleImageExtensionV1(mimeType: string): string | null {
+  switch (mimeType) {
+    case "image/png": return "png";
+    case "image/jpeg": return "jpg";
+    case "image/webp": return "webp";
+    case "image/gif": return "gif";
+    case "image/avif": return "avif";
+    default: return null;
   }
 }
 

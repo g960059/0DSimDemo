@@ -41,7 +41,7 @@ export function validateStudioArticleDraftV2(value: unknown): StudioArticleDraft
     failV2("$.article.visibility", "must be draft or public");
   }
   trimmedNonemptyV2(draft.locale, "$.article.locale", 64);
-  trimmedNonemptyV2(draft.title, "$.article.title", 240);
+  authoredStringV2(draft.title, "$.article.title", 240);
   if (!Array.isArray(draft.blocks)) {
     failV2("$.article.blocks", "must be an array");
   }
@@ -71,13 +71,38 @@ function assertArticleBlockV2(block: StudioArticleBlockV2, path: string): void {
     if (block.level !== 2 && block.level !== 3) {
       failV2(`${path}.level`, "must be 2 or 3");
     }
-    trimmedNonemptyV2(block.text, `${path}.text`, 500);
+    authoredStringV2(block.text, `${path}.text`, 500);
     return;
   }
   if (block.kind === "paragraph") {
     exactKeysV2(block, ["blockId", "kind", "text"], path);
     portableIdV2(block.blockId, `${path}.blockId`);
-    trimmedV2(block.text, `${path}.text`, 20_000);
+    authoredStringV2(block.text, `${path}.text`, 20_000);
+    return;
+  }
+  if (block.kind === "equation") {
+    exactKeysV2(block, ["blockId", "expression", "kind"], path);
+    portableIdV2(block.blockId, `${path}.blockId`);
+    authoredStringV2(block.expression, `${path}.expression`, 5_000);
+    return;
+  }
+  if (block.kind === "image") {
+    exactKeysV2(block, [
+      "altText",
+      "blockId",
+      "caption",
+      "kind",
+      "url",
+    ], path);
+    portableIdV2(block.blockId, `${path}.blockId`);
+    articleImageUrlV2(block.url, `${path}.url`);
+    authoredStringV2(block.altText, `${path}.altText`, 1_000);
+    authoredStringV2(block.caption, `${path}.caption`, 2_000);
+    return;
+  }
+  if (block.kind === "divider") {
+    exactKeysV2(block, ["blockId", "kind"], path);
+    portableIdV2(block.blockId, `${path}.blockId`);
     return;
   }
   if (block.kind === "experiment") {
@@ -129,6 +154,34 @@ function trimmedV2(value: unknown, path: string, maximum: number): void {
   ) {
     failV2(path, `must be a trimmed string of at most ${maximum} characters`);
   }
+}
+
+/**
+ * Mutable Article text is an exact authoring value, not normalized metadata.
+ * In particular, autosave must preserve a trailing space while the author
+ * pauses between words and empty blocks while they are still being edited.
+ */
+function authoredStringV2(value: unknown, path: string, maximum: number): void {
+  if (typeof value !== "string" || value.length > maximum) {
+    failV2(path, `must be a string of at most ${maximum} characters`);
+  }
+}
+
+function articleImageUrlV2(value: unknown, path: string): void {
+  authoredStringV2(value, path, 4_096);
+  if (value === "") return;
+  let url: URL;
+  try {
+    url = new URL(value as string);
+  } catch {
+    failV2(path, "must be an HTTPS URL or a loopback HTTP URL");
+  }
+  if (url.protocol === "https:") return;
+  if (
+    url.protocol === "http:"
+    && (url.hostname === "127.0.0.1" || url.hostname === "localhost")
+  ) return;
+  failV2(path, "must be an HTTPS URL or a loopback HTTP URL");
 }
 
 function failV2(path: string, message: string): never {

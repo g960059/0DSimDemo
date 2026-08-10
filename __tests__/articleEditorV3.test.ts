@@ -8,17 +8,27 @@ import {
   articleBlockDropBoundaryV3,
   articleEditorRouteHydratedV3,
   articleEditorRouteKeyV3,
+  articleEditorInputIsComposingV3,
+  articleEditorRetryActionV3,
   articleHeadingShortcutV3,
+  articleEditorSaveScopeIsCurrentV3,
   filterArticleInsertOptionsV3,
   insertArticleBlockV3,
   moveArticleBlockToBoundaryV3,
+  prepareArticleDraftForSaveV3,
   resolveArticleEditorRouteDraftV3,
+  splitArticleTextSelectionV3,
   synchronizeRemoteArticlePublicationV3,
 } from "@/components/ArticleEditorV3Page";
 import {
   ArticleBriefingEditorV3,
   ArticleExperimentPlacementV3,
 } from "@/components/article/ArticleExperimentPlacementV3";
+import {
+  ArticleDividerPresentationV3,
+  ArticleEquationPresentationV3,
+  ArticleImagePresentationV3,
+} from "@/components/article/ArticleRichBlockV3";
 import {
   articleBriefingPresentationV3,
   createArticleExperimentBlockV3,
@@ -30,6 +40,9 @@ import {
   STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
   type StudioArticleDraftV2,
 } from "@/studio/contracts/v2/article";
+import {
+  validateStudioArticleDraftV2,
+} from "@/studio/application/authoring/StudioArticleDataV2";
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
@@ -188,6 +201,53 @@ function focusedBriefingV3(): ExperimentPlacementBriefingV2 {
 }
 
 describe("Article Editor V3 briefing", () => {
+  it("invalidates an in-flight save when its route scope is discarded", () => {
+    expect(articleEditorSaveScopeIsCurrentV3({
+      currentGeneration: 4,
+      currentRouteKey: "new",
+      mounted: true,
+      startedGeneration: 4,
+      startedRouteKey: "new",
+    })).toBe(true);
+    expect(articleEditorSaveScopeIsCurrentV3({
+      currentGeneration: 5,
+      currentRouteKey: "new",
+      mounted: true,
+      startedGeneration: 4,
+      startedRouteKey: "new",
+    })).toBe(false);
+    expect(articleEditorSaveScopeIsCurrentV3({
+      currentGeneration: 4,
+      currentRouteKey: "article/elsewhere",
+      mounted: true,
+      startedGeneration: 4,
+      startedRouteKey: "new",
+    })).toBe(false);
+  });
+
+  it("retries only save failures and dismisses clean operation errors", () => {
+    expect(articleEditorRetryActionV3({
+      alreadyPersisted: true,
+      hasUnsaved: true,
+      routeHydrated: true,
+    })).toBe("save");
+    expect(articleEditorRetryActionV3({
+      alreadyPersisted: true,
+      hasUnsaved: false,
+      routeHydrated: true,
+    })).toBe("dismiss-saved");
+    expect(articleEditorRetryActionV3({
+      alreadyPersisted: false,
+      hasUnsaved: false,
+      routeHydrated: true,
+    })).toBe("dismiss-idle");
+    expect(articleEditorRetryActionV3({
+      alreadyPersisted: false,
+      hasUnsaved: false,
+      routeHydrated: false,
+    })).toBe("reload");
+  });
+
   it("adopts publication authority after moving the Article pointer", async () => {
     const saved = Object.freeze({
       schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
@@ -308,6 +368,147 @@ describe("Article Editor V3 briefing", () => {
     expect(merged.draft.title).toBe("After more typing");
     expect(merged.draft.articleId).toBe("article-durable");
     expect(merged.draft.draftVersion).toBe(4);
+  });
+
+  it("preserves in-progress author whitespace through autosave validation", () => {
+    const authored = {
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: "article/autosave-whitespace",
+      draftVersion: 2,
+      visibility: "draft" as const,
+      locale: "ja",
+      title: "PV loop ",
+      blocks: [{
+        blockId: "block/heading",
+        kind: "heading" as const,
+        level: 2 as const,
+        text: "前負荷 ",
+      }, {
+        blockId: "block/paragraph",
+        kind: "paragraph" as const,
+        text: "Stroke volume ",
+      }, {
+        blockId: "block/empty-heading",
+        kind: "heading" as const,
+        level: 3 as const,
+        text: "",
+      }],
+    } satisfies StudioArticleDraftV2;
+
+    const saved = validateStudioArticleDraftV2(
+      prepareArticleDraftForSaveV3(authored),
+    );
+
+    expect(saved.title).toBe("PV loop ");
+    expect(saved.blocks.map((block) =>
+      block.kind === "heading" || block.kind === "paragraph"
+        ? block.text
+        : null)).toEqual([
+      "前負荷 ",
+      "Stroke volume ",
+      "",
+    ]);
+  });
+
+  it("validates and renders portable equation, image, and divider blocks", () => {
+    const rich = validateStudioArticleDraftV2({
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: "article/rich-blocks",
+      draftVersion: 0,
+      visibility: "draft",
+      locale: "ja",
+      title: "Rich blocks",
+      blocks: [{
+        blockId: "block/equation",
+        kind: "equation",
+        expression: "CO = HR \\times SV",
+      }, {
+        blockId: "block/image",
+        kind: "image",
+        url: "https://example.com/pv-loop.png",
+        altText: "左室圧容積ループ",
+        caption: "前負荷変化",
+      }, {
+        blockId: "block/divider",
+        kind: "divider",
+      }],
+    });
+    const [equation, image, divider] = rich.blocks;
+    expect(equation?.kind).toBe("equation");
+    expect(image?.kind).toBe("image");
+    expect(divider?.kind).toBe("divider");
+    if (equation?.kind !== "equation"
+      || image?.kind !== "image"
+      || divider?.kind !== "divider") throw new Error("rich block mismatch");
+
+    const equationHtml = renderToStaticMarkup(React.createElement(
+      ArticleEquationPresentationV3,
+      { block: equation },
+    ));
+    const imageHtml = renderToStaticMarkup(React.createElement(
+      ArticleImagePresentationV3,
+      { block: image },
+    ));
+    const dividerHtml = renderToStaticMarkup(React.createElement(
+      ArticleDividerPresentationV3,
+      { block: divider },
+    ));
+    expect(equationHtml).toContain("katex");
+    expect(equationHtml).toContain("MathML");
+    expect(imageHtml).toContain("pv-loop.png");
+    expect(imageHtml).toContain("左室圧容積ループ");
+    expect(dividerHtml).toContain("<hr");
+  });
+
+  it("rejects unsafe image URLs and hidden rich-block fields", () => {
+    const base = {
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: "article/bad-rich-block",
+      draftVersion: 0,
+      visibility: "draft",
+      locale: "ja",
+      title: "Invalid",
+    };
+    expect(() => validateStudioArticleDraftV2({
+      ...base,
+      blocks: [{
+        blockId: "block/image",
+        kind: "image",
+        url: "javascript:alert(1)",
+        altText: "",
+        caption: "",
+      }],
+    })).toThrow(/HTTPS URL/);
+    expect(() => validateStudioArticleDraftV2({
+      ...base,
+      blocks: [{
+        blockId: "block/divider",
+        kind: "divider",
+        style: "secret",
+      }],
+    })).toThrow(/keys must be exactly/);
+  });
+
+  it("treats IME confirmation as text input rather than an editor command", () => {
+    expect(articleEditorInputIsComposingV3({ isComposing: true })).toBe(true);
+    expect(articleEditorInputIsComposingV3({ keyCode: 229 })).toBe(true);
+    expect(articleEditorInputIsComposingV3({
+      isComposing: false,
+      keyCode: 13,
+    })).toBe(false);
+  });
+
+  it("replaces the complete selected range when Enter splits a text block", () => {
+    expect(splitArticleTextSelectionV3({
+      text: "abcdef",
+      selectionStart: 2,
+      selectionEnd: 4,
+    })).toEqual({ before: "ab", after: "ef" });
+    expect(splitArticleTextSelectionV3({
+      text: "abcdef",
+      selectionStart: 3,
+      selectionEnd: 3,
+    })).toEqual({ before: "abc", after: "def" });
   });
 
   it("converts Markdown heading prefixes typed into a Paragraph", () => {

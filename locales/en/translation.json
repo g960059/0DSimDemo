@@ -403,6 +403,9 @@
     "slashHint": "Click to start writing (press “/” for blocks)",
     "addHeading": "Heading",
     "addParagraph": "Paragraph",
+    "addEquation": "Equation",
+    "addImage": "Image",
+    "addDivider": "Divider",
     "addExperiment": "Simulation",
     "removeBlock": "Remove block",
     "moveUp": "Move block up",
@@ -483,12 +486,31 @@
     "subheadingPlaceholder": "Subheading",
     "addSubheading": "Subheading",
     "turnInto": "Turn into",
+    "equation": {
+      "label": "TeX equation",
+      "placeholder": "e.g. E = mc^2",
+      "previewHint": "Enter TeX to preview the equation"
+    },
+    "image": {
+      "upload": "Upload image",
+      "uploading": "Uploading…",
+      "url": "Image URL",
+      "urlPlaceholder": "Or paste an image URL",
+      "invalidUrl": "Enter an HTTPS image URL",
+      "altText": "Alt text",
+      "altPlaceholder": "Briefly describe the image",
+      "caption": "Caption",
+      "captionPlaceholder": "Optional context"
+    },
     "insertMenu": {
       "searchPlaceholder": "Search blocks…",
       "empty": "No matching blocks",
       "paragraphHint": "Plain text paragraph",
       "headingHint": "Section heading",
       "subheadingHint": "Smaller heading",
+      "equationHint": "Render display math from TeX",
+      "imageHint": "Upload an image or insert by URL",
+      "dividerHint": "Visually separate sections",
       "experimentHint": "Place a pinned simulation"
     },
     "publishMenu": {

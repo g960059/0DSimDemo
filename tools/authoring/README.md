@@ -73,6 +73,14 @@ article.publish
   { articleId, expectedVersion, publicSlug }
 ```
 
+`article.save` uses the same portable block document as the visual Editor.
+Supported block kinds are `paragraph`, `heading`, `equation`, `image`,
+`divider`, and `experiment`. Equations store display TeX in `expression`.
+Images reference an immutable HTTPS asset with `url`, `altText`, and
+`caption`; local file paths and data URLs are rejected. The visual Editor can
+upload image files to the owner's Article asset bucket, while CLI authors may
+reference an asset that has already been uploaded.
+
 Read the current resource first and copy its current version into a mutation.
 Presentation and Article saves are validated against the pinned exact model,
 Surface and referenced Snapshots. Publication accepts only a Snapshot that has

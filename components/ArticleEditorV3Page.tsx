@@ -10,11 +10,15 @@ import {
   GripVertical,
   Heading2,
   Heading3,
+  Image as ImageIcon,
   Loader2,
+  Minus,
   Pilcrow,
   Plus,
   Search,
+  Sigma,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -33,6 +37,11 @@ import {
 import { localeFromPathname } from "@/localeRouting";
 import { ArticleExperimentPlacementV3 } from "@/components/article/ArticleExperimentPlacementV3";
 import {
+  ArticleDividerPresentationV3,
+  ArticleEquationPresentationV3,
+  ArticleImagePresentationV3,
+} from "@/components/article/ArticleRichBlockV3";
+import {
   ArticleReaderExperimentV3,
 } from "@/components/article/reader/ArticleReaderExperimentV3";
 import {
@@ -47,7 +56,10 @@ import {
   STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
   type StudioArticleBlockV2,
   type StudioArticleDraftV2,
-  type StudioArticleExperimentBlockV2,
+  type StudioArticleEquationBlockV2,
+  type StudioArticleHeadingBlockV2,
+  type StudioArticleImageBlockV2,
+  type StudioArticleParagraphBlockV2,
 } from "@/studio/contracts/v2/article";
 import type {
   ExperimentPlacementBriefingV2,
@@ -298,7 +310,70 @@ export function filterArticleInsertOptionsV3<Option extends Readonly<{
         keyword.toLowerCase().includes(normalized)));
 }
 
+/** IME confirmation keys are text input, never editor commands. */
+export function articleEditorInputIsComposingV3(input: Readonly<{
+  isComposing?: boolean;
+  keyCode?: number;
+}>): boolean {
+  return input.isComposing === true || input.keyCode === 229;
+}
+
+export function articleEditorSaveScopeIsCurrentV3(input: Readonly<{
+  currentGeneration: number;
+  currentRouteKey: string;
+  mounted: boolean;
+  startedGeneration: number;
+  startedRouteKey: string;
+}>): boolean {
+  return input.mounted
+    && input.currentGeneration === input.startedGeneration
+    && input.currentRouteKey === input.startedRouteKey;
+}
+
+export function articleEditorRetryActionV3(input: Readonly<{
+  alreadyPersisted: boolean;
+  hasUnsaved: boolean;
+  routeHydrated: boolean;
+}>): "dismiss-idle" | "dismiss-saved" | "reload" | "save" {
+  if (!input.routeHydrated) return "reload";
+  if (input.hasUnsaved) return "save";
+  return input.alreadyPersisted ? "dismiss-saved" : "dismiss-idle";
+}
+
+/**
+ * Splits around the complete browser selection. A selected range is replaced
+ * by the block boundary, matching a conventional text editor's Enter key.
+ */
+export function splitArticleTextSelectionV3(input: Readonly<{
+  text: string;
+  selectionStart: number;
+  selectionEnd: number;
+}>): Readonly<{ before: string; after: string }> {
+  const start = Math.max(0, Math.min(
+    input.selectionStart,
+    input.selectionEnd,
+    input.text.length,
+  ));
+  const end = Math.max(start, Math.min(
+    Math.max(input.selectionStart, input.selectionEnd),
+    input.text.length,
+  ));
+  return Object.freeze({
+    before: input.text.slice(0, start),
+    after: input.text.slice(end),
+  });
+}
+
 type ArticleTextBlockKindV3 = "paragraph" | "heading" | "subheading";
+type StudioArticleTextBlockV2 =
+  | StudioArticleHeadingBlockV2
+  | StudioArticleParagraphBlockV2;
+
+function isArticleTextBlockV3(
+  block: StudioArticleBlockV2,
+): block is StudioArticleTextBlockV2 {
+  return block.kind === "heading" || block.kind === "paragraph";
+}
 
 type ArticleInsertMenuStateV3 = Readonly<{
   anchorBlockId: string;
@@ -352,6 +427,11 @@ export function ArticleEditorV3Page() {
     React.useState(false);
   const hasUnsavedRef = React.useRef(false);
   const saveChainRef = React.useRef<Promise<unknown>>(Promise.resolve());
+  const saveScopeRef = React.useRef({
+    generation: 0,
+    mounted: true,
+    routeKey: articleEditorRouteKeyV3(routeArticleId),
+  });
   const [error, setError] = React.useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [insertMenu, setInsertMenu] =
@@ -375,6 +455,18 @@ export function ArticleEditorV3Page() {
   const [peekFraction, setPeekFraction] = React.useState(
     initialArticleEditorPeekFractionV3,
   );
+
+  const saveRouteKey = articleEditorRouteKeyV3(routeArticleId);
+  React.useLayoutEffect(() => {
+    const scope = saveScopeRef.current;
+    scope.generation += 1;
+    scope.mounted = true;
+    scope.routeKey = saveRouteKey;
+    return () => {
+      scope.generation += 1;
+      scope.mounted = false;
+    };
+  }, [saveRouteKey]);
   const [peekDragging, setPeekDragging] = React.useState(false);
   const splitRef = React.useRef<HTMLDivElement>(null);
   const peekCloseTimerRef = React.useRef<number | null>(null);
@@ -571,11 +663,29 @@ export function ArticleEditorV3Page() {
       hydratedRouteKeyRef.current,
       routeArticleIdRef.current,
     )) return null;
+    const startedRouteKey = articleEditorRouteKeyV3(
+      routeArticleIdRef.current,
+    );
+    const startedGeneration = saveScopeRef.current.generation;
+    const saveStillBelongsToThisRouteV3 = () => {
+      const scope = saveScopeRef.current;
+      return articleEditorSaveScopeIsCurrentV3({
+        currentGeneration: scope.generation,
+        currentRouteKey: articleEditorRouteKeyV3(routeArticleIdRef.current),
+        mounted: scope.mounted,
+        startedGeneration,
+        startedRouteKey,
+      }) && scope.routeKey === startedRouteKey;
+    };
     const candidate = draftRef.current;
     const alreadyPersisted = remoteRepository !== null
       ? remoteSavedArticleIdRef.current !== null
       : store.readArticle(candidate.articleId) !== null;
-    if (!hasUnsavedRef.current && alreadyPersisted) return candidate;
+    if (!hasUnsavedRef.current && alreadyPersisted) {
+      setStatus("saved");
+      setError(null);
+      return candidate;
+    }
     setStatus("saving");
     setError(null);
     let remotelySaved: StudioArticleDraftV2 | null = null;
@@ -583,7 +693,7 @@ export function ArticleEditorV3Page() {
       let saved: StudioArticleDraftV2;
       if (remoteRepository !== null) {
         const persistedArticleId = remoteSavedArticleIdRef.current;
-        const normalized = normalizeArticleDraftV3(candidate);
+        const normalized = prepareArticleDraftForSaveV3(candidate);
         saved = await remoteRepository.saveArticle({
           articleId: persistedArticleId,
           expectedVersion: persistedArticleId === null
@@ -591,6 +701,7 @@ export function ArticleEditorV3Page() {
             : candidate.draftVersion,
           article: normalized,
         });
+        if (!saveStillBelongsToThisRouteV3()) return null;
         // Saving Article content and moving its publication pointer are two
         // semantic commits. Retain the new durable version even when the
         // latter is rejected (for example, while the owner is anonymous), so
@@ -603,17 +714,19 @@ export function ArticleEditorV3Page() {
           candidate,
           wasPublished: remotePublishedRef.current,
         });
+        if (!saveStillBelongsToThisRouteV3()) return null;
         saved = publication.article;
         remotelySaved = publication.article;
         remotePublishedRef.current = publication.published;
       } else {
         const isInitialSave = store.readArticle(candidate.articleId) === null;
-        const normalized = normalizeArticleDraftV3({
+        const normalized = prepareArticleDraftForSaveV3({
           ...candidate,
           draftVersion: isInitialSave ? 0 : candidate.draftVersion + 1,
         });
         saved = store.saveArticle(normalized);
       }
+      if (!saveStillBelongsToThisRouteV3()) return null;
       const pendingSnapshotId = pendingReturnedSnapshotIdRef.current;
       if (pendingSnapshotId !== null) {
         const pendingHandoff = articleExperimentHandoff.read();
@@ -648,6 +761,7 @@ export function ArticleEditorV3Page() {
       }
       return saved;
     } catch (cause) {
+      if (!saveStillBelongsToThisRouteV3()) return null;
       if (remotelySaved !== null) {
         const adoption = adoptSavedArticleDraftV3({
           saved: remotelySaved,
@@ -722,7 +836,7 @@ export function ArticleEditorV3Page() {
         && replacement !== undefined
         && (
           replacement.kind === "experiment"
-          || replacement.text.length === 0
+          || (isArticleTextBlockV3(replacement) && replacement.text.length === 0)
         )
       ) {
         const blocks = [...current.blocks];
@@ -805,10 +919,17 @@ export function ArticleEditorV3Page() {
     articleExperimentHandoff.clear();
     pendingReturnedSnapshotIdRef.current = null;
   }, [articleExperimentHandoff]);
+  const discardUnsavedArticleV3 = React.useCallback(() => {
+    // A save that was already in flight may still complete after the author
+    // confirms navigation. Invalidate its UI scope immediately so it cannot
+    // adopt the old Draft or navigate back to the canonical Article route.
+    saveScopeRef.current.generation += 1;
+    discardPendingReturnedSnapshotV3();
+  }, [discardPendingReturnedSnapshotV3]);
   useUnsavedChangesGuardV3({
     enabled: hasUnsavedArticleChanges,
     message: t("common.unsavedChanges"),
-    onConfirmedDiscard: discardPendingReturnedSnapshotV3,
+    onConfirmedDiscard: discardUnsavedArticleV3,
   });
 
   const startArticleExperimentSessionV3 = React.useCallback(async (input: Readonly<{
@@ -945,7 +1066,7 @@ export function ArticleEditorV3Page() {
         if (
           replacementIndex >= 0
           && replacement !== undefined
-          && replacement.kind !== "experiment"
+          && isArticleTextBlockV3(replacement)
           && replacement.text.length === 0
         ) {
           focusTargetId = replacement.blockId;
@@ -962,12 +1083,71 @@ export function ArticleEditorV3Page() {
     setFocusRequest({ blockId: focusTargetId, caret: "end" });
   };
 
+  const insertRichArticleBlockV3 = (
+    kind: "equation" | "image" | "divider",
+    insertionIndex: number,
+    replaceBlockId: string | null,
+  ) => {
+    const generatedBlockId = portableEditorIdV3("block");
+    const template: StudioArticleBlockV2 = kind === "equation"
+      ? { blockId: generatedBlockId, kind, expression: "" }
+      : kind === "image"
+        ? {
+            blockId: generatedBlockId,
+            kind,
+            url: "",
+            altText: "",
+            caption: "",
+          }
+        : { blockId: generatedBlockId, kind };
+    let insertedBlockId = generatedBlockId;
+    let trailingParagraphId: string | null = null;
+    updateDraft((current) => {
+      let blocks = [...current.blocks];
+      let resolvedIndex = Math.max(0, Math.min(insertionIndex, blocks.length));
+      if (replaceBlockId !== null) {
+        const replacementIndex = blocks.findIndex((candidate) =>
+          candidate.blockId === replaceBlockId);
+        const replacement = blocks[replacementIndex];
+        if (
+          replacementIndex >= 0
+          && replacement !== undefined
+          && isArticleTextBlockV3(replacement)
+          && replacement.text.length === 0
+        ) {
+          insertedBlockId = replacement.blockId;
+          blocks[replacementIndex] = { ...template, blockId: replacement.blockId };
+          resolvedIndex = replacementIndex + 1;
+        } else {
+          blocks.splice(resolvedIndex, 0, template);
+          resolvedIndex += 1;
+        }
+      } else {
+        blocks.splice(resolvedIndex, 0, template);
+        resolvedIndex += 1;
+      }
+      if (kind === "divider") {
+        trailingParagraphId = portableEditorIdV3("block");
+        blocks.splice(resolvedIndex, 0, {
+          blockId: trailingParagraphId,
+          kind: "paragraph",
+          text: "",
+        });
+      }
+      return { ...current, blocks: Object.freeze(blocks) };
+    });
+    setFocusRequest({
+      blockId: trailingParagraphId ?? insertedBlockId,
+      caret: "start",
+    });
+  };
+
   const convertTextBlockV3 = (blockId: string, target: ArticleTextBlockKindV3) => {
     updateDraft((current) => {
       const index = current.blocks.findIndex((candidate) =>
         candidate.blockId === blockId);
       const block = current.blocks[index];
-      if (block === undefined || block.kind === "experiment") return current;
+      if (block === undefined || !isArticleTextBlockV3(block)) return current;
       const converted: StudioArticleBlockV2 = target === "paragraph"
         ? { blockId: block.blockId, kind: "paragraph", text: block.text }
         : {
@@ -1009,17 +1189,23 @@ export function ArticleEditorV3Page() {
     setFocusRequest({ blockId, caret: "end" });
   };
 
-  const splitTextBlock = (index: number, offset: number) => {
+  const splitTextBlock = (
+    index: number,
+    selectionStart: number,
+    selectionEnd: number,
+  ) => {
     const nextBlockId = portableEditorIdV3("block");
     updateDraft((current) => {
       const currentBlock = current.blocks[index];
       if (
         currentBlock === undefined
-        || currentBlock.kind === "experiment"
+        || !isArticleTextBlockV3(currentBlock)
       ) return current;
-      const splitOffset = Math.max(0, Math.min(offset, currentBlock.text.length));
-      const before = currentBlock.text.slice(0, splitOffset);
-      const after = currentBlock.text.slice(splitOffset);
+      const { before, after } = splitArticleTextSelectionV3({
+        text: currentBlock.text,
+        selectionStart,
+        selectionEnd,
+      });
       const nextBlock = {
         blockId: nextBlockId,
         kind: "paragraph" as const,
@@ -1036,7 +1222,7 @@ export function ArticleEditorV3Page() {
   const removeEmptyTextBlock = (index: number) => {
     const previous = draftRef.current.blocks[index - 1];
     removeBlock(index);
-    if (previous !== undefined && previous.kind !== "experiment") {
+    if (previous !== undefined && isArticleTextBlockV3(previous)) {
       setFocusRequest({ blockId: previous.blockId, caret: "end" });
     }
   };
@@ -1046,16 +1232,16 @@ export function ArticleEditorV3Page() {
     const block = blocks[index];
     const previous = blocks[index - 1];
     if (
-      block === undefined || block.kind === "experiment"
-      || previous === undefined || previous.kind === "experiment"
+      block === undefined || !isArticleTextBlockV3(block)
+      || previous === undefined || !isArticleTextBlockV3(previous)
     ) return;
     const caret = previous.text.length;
     updateDraft((current) => {
       const mergeBlock = current.blocks[index];
       const mergeTarget = current.blocks[index - 1];
       if (
-        mergeBlock === undefined || mergeBlock.kind === "experiment"
-        || mergeTarget === undefined || mergeTarget.kind === "experiment"
+        mergeBlock === undefined || !isArticleTextBlockV3(mergeBlock)
+        || mergeTarget === undefined || !isArticleTextBlockV3(mergeTarget)
       ) return current;
       const merged = [...current.blocks];
       merged[index - 1] = {
@@ -1076,7 +1262,7 @@ export function ArticleEditorV3Page() {
       index += direction
     ) {
       const candidate = blocks[index];
-      if (candidate !== undefined && candidate.kind !== "experiment") {
+      if (candidate !== undefined && isArticleTextBlockV3(candidate)) {
         setFocusRequest({
           blockId: candidate.blockId,
           caret: direction === -1 ? "end" : "start",
@@ -1091,7 +1277,7 @@ export function ArticleEditorV3Page() {
     const last = blocks[blocks.length - 1];
     if (
       last !== undefined
-      && last.kind !== "experiment"
+      && isArticleTextBlockV3(last)
       && last.text.length === 0
     ) {
       setFocusRequest({ blockId: last.blockId, caret: "end" });
@@ -1118,7 +1304,15 @@ export function ArticleEditorV3Page() {
       setPickerOpen(true);
       return;
     }
-    insertTextBlockV3(kind, insertMenu.insertionIndex, insertMenu.replaceBlockId);
+    if (kind === "paragraph" || kind === "heading" || kind === "subheading") {
+      insertTextBlockV3(kind, insertMenu.insertionIndex, insertMenu.replaceBlockId);
+    } else {
+      insertRichArticleBlockV3(
+        kind,
+        insertMenu.insertionIndex,
+        insertMenu.replaceBlockId,
+      );
+    }
     setInsertMenu(null);
   };
 
@@ -1165,6 +1359,28 @@ export function ArticleEditorV3Page() {
       : { ...current, visibility });
     void saveDraft();
   };
+
+  const retryEditorErrorV3 = React.useCallback(() => {
+    const alreadyPersisted = remoteRepository !== null
+      ? remoteSavedArticleIdRef.current !== null
+      : store.readArticle(draftRef.current.articleId) !== null;
+    const action = articleEditorRetryActionV3({
+      alreadyPersisted,
+      hasUnsaved: hasUnsavedRef.current,
+      routeHydrated,
+    });
+    if (action === "reload") {
+      window.location.reload();
+    } else if (action === "save") {
+      void saveDraft();
+    } else {
+      // Errors from optional operations (for example reading a selected
+      // Snapshot) are not save failures. Dismiss them without creating or
+      // rewriting an otherwise clean Article.
+      setStatus(action === "dismiss-saved" ? "saved" : "idle");
+      setError(null);
+    }
+  }, [remoteRepository, routeHydrated, saveDraft, store]);
 
   const commitBlockDropV3 = () => {
     if (draggedBlockId !== null && dropBoundary !== null) {
@@ -1229,9 +1445,7 @@ export function ArticleEditorV3Page() {
         <ArticleEditorSaveStatusV3
           persisted={persistedArticle}
           status={status}
-          onRetry={() => {
-            void saveDraft();
-          }}
+          onRetry={retryEditorErrorV3}
         />
         {persistedArticle && (
           <a
@@ -1285,10 +1499,11 @@ export function ArticleEditorV3Page() {
               title: event.currentTarget.value,
             }))}
             onKeyDown={(event) => {
+              if (articleEditorInputIsComposingV3(event.nativeEvent)) return;
               if (event.key === "Enter") {
                 event.preventDefault();
                 const first = draftRef.current.blocks[0];
-                if (first !== undefined && first.kind !== "experiment") {
+                if (first !== undefined && isArticleTextBlockV3(first)) {
                   setFocusRequest({ blockId: first.blockId, caret: "start" });
                 } else {
                   insertTextBlockV3("paragraph", 0, null);
@@ -1297,7 +1512,7 @@ export function ArticleEditorV3Page() {
               }
               if (event.key === "ArrowDown") {
                 const blocks = draftRef.current.blocks;
-                if (blocks.some((block) => block.kind !== "experiment")) {
+                if (blocks.some(isArticleTextBlockV3)) {
                   event.preventDefault();
                   focusNearestTextBlockV3(-1, 1);
                 }
@@ -1351,9 +1566,9 @@ export function ArticleEditorV3Page() {
                     ?.contract ?? null;
               const previousBlock = draft.blocks[index - 1];
               const hasTextAbove = draft.blocks.slice(0, index)
-                .some((candidate) => candidate.kind !== "experiment");
+                .some(isArticleTextBlockV3);
               const hasTextBelow = draft.blocks.slice(index + 1)
-                .some((candidate) => candidate.kind !== "experiment");
+                .some(isArticleTextBlockV3);
               return (
                 <ArticleBlockShellV3
                   key={block.blockId}
@@ -1389,7 +1604,7 @@ export function ArticleEditorV3Page() {
                       ? null
                       : block.blockId);
                   }}
-                  convertTarget={block.kind === "experiment"
+                  convertTarget={!isArticleTextBlockV3(block)
                     ? null
                     : block.kind === "paragraph"
                       ? "paragraph"
@@ -1431,6 +1646,25 @@ export function ArticleEditorV3Page() {
                       onRemove={() => removeBlock(index)}
                       onMove={(direction) => moveBlock(index, direction)}
                     />
+                  ) : block.kind === "equation" ? (
+                    <ArticleEquationBlockEditorV3
+                      block={block}
+                      focus={focusRequest?.blockId === block.blockId}
+                      onFocusHandled={() => setFocusRequest(null)}
+                      onChange={(next) => updateBlock(index, next)}
+                    />
+                  ) : block.kind === "image" ? (
+                    <ArticleImageBlockEditorV3
+                      block={block}
+                      focus={focusRequest?.blockId === block.blockId}
+                      onFocusHandled={() => setFocusRequest(null)}
+                      onChange={(next) => updateBlock(index, next)}
+                      onUpload={remoteRepository === null
+                        ? undefined
+                        : (file) => remoteRepository.uploadArticleImage(file)}
+                    />
+                  ) : block.kind === "divider" ? (
+                    <ArticleDividerPresentationV3 block={block} className="my-5" />
                   ) : (
                     <ArticleTextBlockV3
                       block={block}
@@ -1444,7 +1678,7 @@ export function ArticleEditorV3Page() {
                       onDeleteEmpty={() => removeEmptyTextBlock(index)}
                       onMergeWithPrevious={
                         previousBlock !== undefined
-                          && previousBlock.kind !== "experiment"
+                          && isArticleTextBlockV3(previousBlock)
                           ? () => mergeTextBlockIntoPreviousV3(index)
                           : undefined
                       }
@@ -1456,7 +1690,8 @@ export function ArticleEditorV3Page() {
                         : undefined}
                       onOpenInsertMenu={() =>
                         openInsertMenuFromSlashV3(index, block.blockId)}
-                      onSplit={(offset) => splitTextBlock(index, offset)}
+                      onSplit={(selectionStart, selectionEnd) =>
+                        splitTextBlock(index, selectionStart, selectionEnd)}
                     />
                   )}
                 </ArticleBlockShellV3>
@@ -1764,6 +1999,215 @@ function ArticlePublishMenuV3({
   );
 }
 
+function ArticleEquationBlockEditorV3({
+  block,
+  focus,
+  onChange,
+  onFocusHandled,
+}: Readonly<{
+  block: StudioArticleEquationBlockV2;
+  focus: boolean;
+  onChange: (block: StudioArticleEquationBlockV2) => void;
+  onFocusHandled: () => void;
+}>) {
+  const { t } = useTranslation();
+  const inputRef = React.useRef<HTMLTextAreaElement | null>(null);
+  React.useEffect(() => {
+    if (!focus) return;
+    inputRef.current?.focus();
+    onFocusHandled();
+  }, [focus, onFocusHandled]);
+  return (
+    <div
+      className="my-3 rounded-xl bg-wb-soft/55 px-4 py-3.5 focus-within:bg-wb-soft"
+      data-article-block-kind="equation"
+    >
+      <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-wb-subtle">
+        {t("articleEditor.equation.label")}
+        <textarea
+          ref={inputRef}
+          rows={2}
+          value={block.expression}
+          onChange={(event) => onChange({
+            ...block,
+            expression: event.currentTarget.value,
+          })}
+          placeholder={t("articleEditor.equation.placeholder")}
+          spellCheck={false}
+          className="mt-2 block min-h-14 w-full resize-y bg-transparent font-mono text-sm font-normal normal-case leading-6 tracking-normal text-wb-text outline-none placeholder:text-wb-subtle"
+        />
+      </label>
+      {block.expression.length === 0 ? (
+        <p className="border-t border-wb-line/60 pt-3 text-center text-xs text-wb-subtle">
+          {t("articleEditor.equation.previewHint")}
+        </p>
+      ) : (
+        <ArticleEquationPresentationV3
+          block={block}
+          className="border-t border-wb-line/60 pt-4"
+        />
+      )}
+    </div>
+  );
+}
+
+function articleImageEditorUrlAllowedV3(value: string): boolean {
+  if (value.length === 0) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:"
+      || (url.protocol === "http:"
+        && (url.hostname === "localhost" || url.hostname === "127.0.0.1"));
+  } catch {
+    return false;
+  }
+}
+
+function ArticleImageBlockEditorV3({
+  block,
+  focus,
+  onChange,
+  onFocusHandled,
+  onUpload,
+}: Readonly<{
+  block: StudioArticleImageBlockV2;
+  focus: boolean;
+  onChange: (block: StudioArticleImageBlockV2) => void;
+  onFocusHandled: () => void;
+  onUpload?: ((file: File) => Promise<string>) | undefined;
+}>) {
+  const { t } = useTranslation();
+  const fileRef = React.useRef<HTMLInputElement | null>(null);
+  const urlRef = React.useRef<HTMLInputElement | null>(null);
+  const [urlDraft, setUrlDraft] = React.useState(block.url);
+  const [uploading, setUploading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  React.useEffect(() => setUrlDraft(block.url), [block.url]);
+  React.useEffect(() => {
+    if (!focus) return;
+    urlRef.current?.focus();
+    onFocusHandled();
+  }, [focus, onFocusHandled]);
+
+  const commitUrl = () => {
+    const next = urlDraft.trim();
+    if (!articleImageEditorUrlAllowedV3(next)) {
+      setError(t("articleEditor.image.invalidUrl"));
+      return;
+    }
+    setError(null);
+    if (next !== block.url) onChange({ ...block, url: next });
+  };
+
+  const upload = async (file: File) => {
+    if (onUpload === undefined) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const url = await onUpload(file);
+      setUrlDraft(url);
+      onChange({ ...block, url });
+    } catch (cause) {
+      setError(errorMessageV3(cause));
+    } finally {
+      setUploading(false);
+      if (fileRef.current !== null) fileRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="my-4" data-article-block-kind="image">
+      {block.url.length > 0 && (
+        <ArticleImagePresentationV3 block={block} className="my-4" />
+      )}
+      <div className="rounded-xl bg-wb-soft/55 px-4 py-3.5 focus-within:bg-wb-soft">
+        <div className="flex flex-wrap items-center gap-2">
+          {onUpload !== undefined && (
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  if (file !== undefined) void upload(file);
+                }}
+              />
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => fileRef.current?.click()}
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-wb-panel px-3 text-xs font-semibold text-wb-text shadow-sm ring-1 ring-wb-line/70 hover:bg-wb-hover disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              >
+                {uploading
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Upload className="h-3.5 w-3.5" />}
+                {uploading
+                  ? t("articleEditor.image.uploading")
+                  : t("articleEditor.image.upload")}
+              </button>
+            </>
+          )}
+          <label className="min-w-52 flex-1">
+            <span className="sr-only">{t("articleEditor.image.url")}</span>
+            <input
+              ref={urlRef}
+              type="url"
+              value={urlDraft}
+              onChange={(event) => {
+                setUrlDraft(event.currentTarget.value);
+                setError(null);
+              }}
+              onBlur={commitUrl}
+              onKeyDown={(event) => {
+                if (articleEditorInputIsComposingV3(event.nativeEvent)) return;
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitUrl();
+                }
+              }}
+              placeholder={t("articleEditor.image.urlPlaceholder")}
+              className="min-h-8 w-full rounded-lg bg-wb-panel px-3 text-xs text-wb-text outline-none ring-1 ring-wb-line/70 placeholder:text-wb-subtle focus:ring-2 focus:ring-wb-accent"
+            />
+          </label>
+        </div>
+        {error !== null && (
+          <p className="mt-2 text-xs text-wb-danger" role="alert">{error}</p>
+        )}
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <label className="text-[11px] font-medium text-wb-muted">
+            {t("articleEditor.image.altText")}
+            <input
+              type="text"
+              value={block.altText}
+              onChange={(event) => onChange({
+                ...block,
+                altText: event.currentTarget.value,
+              })}
+              placeholder={t("articleEditor.image.altPlaceholder")}
+              className="mt-1 block min-h-8 w-full rounded-lg bg-wb-panel px-3 text-xs text-wb-text outline-none ring-1 ring-wb-line/70 placeholder:text-wb-subtle focus:ring-2 focus:ring-wb-accent"
+            />
+          </label>
+          <label className="text-[11px] font-medium text-wb-muted">
+            {t("articleEditor.image.caption")}
+            <input
+              type="text"
+              value={block.caption}
+              onChange={(event) => onChange({
+                ...block,
+                caption: event.currentTarget.value,
+              })}
+              placeholder={t("articleEditor.image.captionPlaceholder")}
+              className="mt-1 block min-h-8 w-full rounded-lg bg-wb-panel px-3 text-xs text-wb-text outline-none ring-1 ring-wb-line/70 placeholder:text-wb-subtle focus:ring-2 focus:ring-wb-accent"
+            />
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ArticleTextBlockV3({
   block,
   focusCaret,
@@ -1777,9 +2221,9 @@ function ArticleTextBlockV3({
   onOpenInsertMenu,
   onSplit,
 }: Readonly<{
-  block: Exclude<StudioArticleBlockV2, StudioArticleExperimentBlockV2>;
+  block: StudioArticleTextBlockV2;
   focusCaret: "start" | "end" | number | null;
-  onChange: (block: Exclude<StudioArticleBlockV2, StudioArticleExperimentBlockV2>) => void;
+  onChange: (block: StudioArticleTextBlockV2) => void;
   onDeleteEmpty: () => void;
   onFocusHandled: () => void;
   onFocusNext?: (() => void) | undefined;
@@ -1787,7 +2231,7 @@ function ArticleTextBlockV3({
   onHeadingShortcut: (shortcut: Readonly<{ level: 2 | 3; rest: string }>) => void;
   onMergeWithPrevious?: (() => void) | undefined;
   onOpenInsertMenu: () => void;
-  onSplit: (offset: number) => void;
+  onSplit: (selectionStart: number, selectionEnd: number) => void;
 }>) {
   const { t } = useTranslation();
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
@@ -1842,10 +2286,14 @@ function ArticleTextBlockV3({
           onChange({ ...block, text: value });
         }}
         onKeyDown={(event) => {
+          if (articleEditorInputIsComposingV3(event.nativeEvent)) return;
           const element = event.currentTarget;
           if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
-            onSplit(element.selectionStart ?? block.text.length);
+            onSplit(
+              element.selectionStart ?? block.text.length,
+              element.selectionEnd ?? block.text.length,
+            );
             return;
           }
           if (event.key === "Backspace") {
@@ -1953,7 +2401,15 @@ function ArticleBlockShellV3({
   const { t } = useTranslation();
   return (
     <div
-      className={`group/article-block relative -ml-5 pl-5 transition-opacity duration-150 sm:-ml-14 sm:pl-14 ${blockKind === "experiment" ? "my-7" : "my-0.5"} ${dragging ? "opacity-40" : ""}`}
+      className={`group/article-block relative -ml-5 pl-5 transition-opacity duration-150 sm:-ml-14 sm:pl-14 ${blockKind === "experiment"
+        ? "my-7"
+        : blockKind === "image"
+          ? "my-6"
+          : blockKind === "divider"
+            ? "my-5"
+            : blockKind === "equation"
+              ? "my-3"
+              : "my-0.5"} ${dragging ? "opacity-40" : ""}`}
       data-article-block-id={blockId}
       onDragOver={(event) => {
         event.preventDefault();
@@ -2090,6 +2546,9 @@ export type ArticleInsertOptionKindV3 =
   | "paragraph"
   | "heading"
   | "subheading"
+  | "equation"
+  | "image"
+  | "divider"
   | "experiment";
 
 type ArticleInsertMenuOptionV3 = Readonly<{
@@ -2106,6 +2565,9 @@ const ARTICLE_INSERT_OPTION_ICONS_V3: Readonly<Record<
   paragraph: Pilcrow,
   heading: Heading2,
   subheading: Heading3,
+  equation: Sigma,
+  image: ImageIcon,
+  divider: Minus,
   experiment: FlaskConical,
 };
 
@@ -2141,6 +2603,24 @@ function ArticleInsertMenuV3({
       keywords: ["subheading", "h3", "komidashi", "##"],
     },
     {
+      kind: "equation",
+      label: t("articleEditor.addEquation"),
+      hint: t("articleEditor.insertMenu.equationHint"),
+      keywords: ["equation", "math", "formula", "tex", "latex", "数式"],
+    },
+    {
+      kind: "image",
+      label: t("articleEditor.addImage"),
+      hint: t("articleEditor.insertMenu.imageHint"),
+      keywords: ["image", "photo", "picture", "figure", "画像"],
+    },
+    {
+      kind: "divider",
+      label: t("articleEditor.addDivider"),
+      hint: t("articleEditor.insertMenu.dividerHint"),
+      keywords: ["divider", "separator", "line", "hr", "区切り"],
+    },
+    {
       kind: "experiment",
       label: t("articleEditor.addExperiment"),
       hint: t("articleEditor.insertMenu.experimentHint"),
@@ -2171,6 +2651,7 @@ function ArticleInsertMenuV3({
             setActiveIndex(0);
           }}
           onKeyDown={(event) => {
+            if (articleEditorInputIsComposingV3(event.nativeEvent)) return;
             if (event.key === "ArrowDown") {
               event.preventDefault();
               setActiveIndex((current) =>
@@ -2291,13 +2772,14 @@ function createEmptyArticleDraftV3(locale: string, title: string): StudioArticle
   });
 }
 
-function normalizeArticleDraftV3(draft: StudioArticleDraftV2): StudioArticleDraftV2 {
+export function prepareArticleDraftForSaveV3(
+  draft: StudioArticleDraftV2,
+): StudioArticleDraftV2 {
   return {
     ...draft,
-    title: draft.title.trim(),
     blocks: draft.blocks.map((block) => {
-      if (block.kind === "heading" || block.kind === "paragraph") {
-        return { ...block, text: block.text.trim() };
+      if (block.kind !== "experiment") {
+        return block;
       }
       const caption = block.placement.caption?.trim() ?? "";
       const titleOverride = block.placement.titleOverride?.trim() ?? "";

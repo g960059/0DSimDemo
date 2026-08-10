@@ -48,6 +48,7 @@
     "@supabase/supabase-js": "^2.112.1",
     "dockview": "^6.6.1",
     "i18next": "^26.3.1",
+    "katex": "^0.18.3",
     "lucide-react": "^1.17.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

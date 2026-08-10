@@ -596,6 +596,47 @@ describe("Studio Supabase boundary V1", () => {
     );
   });
 
+  it("uploads immutable Article images below the signed-in owner's folder", async () => {
+    const upload = vi.fn().mockResolvedValue({ data: {}, error: null });
+    const getPublicUrl = vi.fn((path: string) => ({
+      data: {
+        publicUrl: `https://project.supabase.co/storage/v1/object/public/article-images/${path}`,
+      },
+    }));
+    const from = vi.fn().mockReturnValue({ upload, getPublicUrl });
+    const client = {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: {
+            session: {
+              user: { id: "author-id", is_anonymous: false },
+            },
+          },
+          error: null,
+        }),
+      },
+      storage: { from },
+    } as unknown as SupabaseClient;
+    const file = new File([new Uint8Array([1, 2, 3])], "loop.png", {
+      type: "image/png",
+    });
+
+    const url = await new StudioSupabaseContentRepositoryV1(client)
+      .uploadArticleImage(file);
+
+    expect(from).toHaveBeenCalledWith("article-images");
+    expect(upload).toHaveBeenCalledWith(
+      expect.stringMatching(/^author-id\/[0-9a-f-]+\.png$/),
+      file,
+      {
+        cacheControl: "31536000",
+        contentType: "image/png",
+        upsert: false,
+      },
+    );
+    expect(url).toMatch(/\/article-images\/author-id\/.+\.png$/);
+  });
+
   it("reuses the same operation ID when an acknowledged response may have been lost", async () => {
     const stored = new Map<string, string>();
     vi.stubGlobal("sessionStorage", {
