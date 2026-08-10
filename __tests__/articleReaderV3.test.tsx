@@ -505,6 +505,7 @@ describe("Article Reader V3 experiment anchor", () => {
 
     expect(html).toContain('data-reader-placement-live="true"');
     expect(html).toMatch(/<figure class="min-w-0"(?:\s[^>]*)?>/);
+    expect(html).toContain('data-experiment-graph-presentation="article"');
     expect(html).not.toContain("article-reader-experiment-drawer-v3");
     expect(html).not.toContain("min-w-0 px-4 pb-10");
   });
@@ -661,6 +662,8 @@ describe("Article Reader V3 experiment anchor", () => {
 
     expect(html).toContain("grid grid-cols-1");
     expect(html).toContain("sm:grid-cols-2");
+    expect(html).toContain('data-experiment-output-presentation="article"');
+    expect(html).toContain("workbench-output-item");
     expect(html).not.toContain("grid grid-cols-2 gap");
   });
 
@@ -711,6 +714,8 @@ describe("Article Reader V3 experiment anchor", () => {
     );
 
     const invalidButton = html.match(/<button[^>]*>Invalid<\/button>/)?.[0];
+    expect(html).toContain("workbench-control-row");
+    expect(html).toContain("workbench-control-segments");
     expect(invalidButton).toContain("disabled");
     expect(invalidButton).toContain("step lattice");
   });
