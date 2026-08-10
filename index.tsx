@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Navigate, Routes, Route, useLocation, useParams } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import './index.css';
+import 'katex/dist/katex.min.css';
 import './i18n';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SiteAccountSessionProviderV3 } from './components/site/SiteAccountSessionV3';

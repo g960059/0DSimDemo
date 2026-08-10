@@ -165,6 +165,26 @@ describe("Studio authoring command V1", () => {
       },
     })).toThrow(/identity\/version must match/);
   });
+
+  it("rejects unsafe image URLs in AI-authored Article blocks", () => {
+    const command = articleSaveCommandV1();
+    expect(() => validateStudioAuthoringCommandV1({
+      ...command,
+      input: {
+        ...command.input,
+        article: {
+          ...command.input.article,
+          blocks: [{
+            blockId: "block/image",
+            kind: "image",
+            url: "file:///tmp/private.png",
+            altText: "",
+            caption: "",
+          }],
+        },
+      },
+    })).toThrow(/HTTPS URL/);
+  });
 });
 
 function articleSaveCommandV1() {
@@ -188,7 +208,20 @@ function articleV1() {
     visibility: "draft" as const,
     locale: "ja",
     title: "PV loopの基礎",
-    blocks: [],
+    blocks: [{
+      blockId: "block/equation",
+      kind: "equation" as const,
+      expression: "CO = HR \\times SV",
+    }, {
+      blockId: "block/image",
+      kind: "image" as const,
+      url: "https://example.com/pv-loop.png",
+      altText: "PV loop",
+      caption: "Baseline",
+    }, {
+      blockId: "block/divider",
+      kind: "divider" as const,
+    }],
   };
 }
 

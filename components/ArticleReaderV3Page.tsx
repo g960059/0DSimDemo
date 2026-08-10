@@ -7,6 +7,11 @@ import {
   type ArticleReaderExpandedPresentationV3,
 } from "@/components/article/reader/ArticleReaderExperimentV3";
 import {
+  ArticleDividerPresentationV3,
+  ArticleEquationPresentationV3,
+  ArticleImagePresentationV3,
+} from "@/components/article/ArticleRichBlockV3";
+import {
   newExperimentHref,
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
@@ -150,6 +155,7 @@ function ArticleReaderV3Resource({
   const [peekFraction, setPeekFraction] = React.useState(
     initialArticleReaderPeekFractionV3,
   );
+  const [peekMaximized, setPeekMaximized] = React.useState(false);
   const [peekDragging, setPeekDragging] = React.useState(false);
   const splitRef = React.useRef<HTMLDivElement>(null);
   const peekCloseTimerRef = React.useRef<number | null>(null);
@@ -236,6 +242,7 @@ function ArticleReaderV3Resource({
     presentation: ArticleReaderExpandedPresentationV3,
   ) => {
     cancelPeekCloseTimer();
+    setPeekMaximized(false);
     setExpandedPlacement(Object.freeze({ placementId, presentation }));
     if (presentation !== "peek") setPeekOpen(false);
   }, [cancelPeekCloseTimer]);
@@ -248,6 +255,7 @@ function ArticleReaderV3Resource({
   }, [cancelPeekCloseTimer, peekOpen]);
 
   const closeExpandedPlacement = React.useCallback(() => {
+    setPeekMaximized(false);
     if (expandedPlacement?.presentation !== "peek") {
       setExpandedPlacement(null);
       return;
@@ -277,6 +285,7 @@ function ArticleReaderV3Resource({
   const resizePeekFromPointer = React.useCallback((clientX: number) => {
     const bounds = splitRef.current?.getBoundingClientRect();
     if (bounds === undefined) return;
+    setPeekMaximized(false);
     pendingPeekFractionRef.current = articleReaderPeekFractionForPointerV3(
       bounds.left,
       bounds.width,
@@ -383,8 +392,11 @@ function ArticleReaderV3Resource({
         }
         data-peek-open={peekOpen ? "true" : "false"}
         data-peek-dragging={peekDragging ? "true" : "false"}
+        data-peek-maximized={peekMaximized ? "true" : "false"}
         style={{
-          "--article-reader-peek-width": `${peekFraction * 100}%`,
+          "--article-reader-peek-width": peekMaximized
+            ? "100%"
+            : `${peekFraction * 100}%`,
         } as React.CSSProperties}
       >
         <div
@@ -427,6 +439,31 @@ function ArticleReaderV3Resource({
                 </p>
               );
             }
+            if (block.kind === "equation") {
+              return (
+                <ArticleEquationPresentationV3
+                  key={block.blockId}
+                  block={block}
+                  className="my-8"
+                />
+              );
+            }
+            if (block.kind === "image") {
+              return (
+                <ArticleImagePresentationV3
+                  key={block.blockId}
+                  block={block}
+                />
+              );
+            }
+            if (block.kind === "divider") {
+              return (
+                <ArticleDividerPresentationV3
+                  key={block.blockId}
+                  block={block}
+                />
+              );
+            }
             const snapshot = content.snapshots.get(block.placement.snapshotId) ?? null;
             const runtimeComposition = snapshot === null
               || contractState.kind !== "ready"
@@ -451,6 +488,7 @@ function ArticleReaderV3Resource({
                 live={isLive}
                 expandedPresentation={expandedPresentation}
                 peekPortalHost={peekPortalHost}
+                peekMaximized={peekMaximized}
                 onActivate={() => setActivePlacementId(block.placement.placementId)}
                 onDeactivate={() => setActivePlacementId((current) =>
                   articleReaderPlacementAfterCenterExitV3(
@@ -458,10 +496,6 @@ function ArticleReaderV3Resource({
                     block.placement.placementId,
                   ))}
                 onExpand={(presentation) => {
-                  if (presentation === "fullscreen") {
-                    openExperimentSessionV3(block.placement.snapshotId);
-                    return;
-                  }
                   setActivePlacementId(block.placement.placementId);
                   openExpandedPlacement(
                     block.placement.placementId,
@@ -469,6 +503,9 @@ function ArticleReaderV3Resource({
                   );
                 }}
                 onClose={closeExpandedPlacement}
+                onOpenExperimentSession={() =>
+                  openExperimentSessionV3(block.placement.snapshotId)}
+                onPeekMaximizedChange={setPeekMaximized}
               />
             );
           })}
@@ -487,17 +524,18 @@ function ArticleReaderV3Resource({
           aria-orientation="vertical"
           aria-label={t("articleReader.resizeExperiment")}
           aria-valuemin={Math.round(ARTICLE_READER_PEEK_MIN_FRACTION_V3 * 100)}
-          aria-valuemax={Math.round(ARTICLE_READER_PEEK_MAX_FRACTION_V3 * 100)}
-          aria-valuenow={Math.round(peekFraction * 100)}
+          aria-valuemax={100}
+          aria-valuenow={peekMaximized ? 100 : Math.round(peekFraction * 100)}
           aria-valuetext={t("articleReader.experimentWidth", {
-            percent: Math.round(peekFraction * 100),
+            percent: peekMaximized ? 100 : Math.round(peekFraction * 100),
           })}
           tabIndex={peekOpen ? 0 : -1}
-          className="article-reader-peek-divider group relative z-10 shrink-0 touch-none outline-none"
+          className="article-reader-peek-divider group z-10 shrink-0 touch-none outline-none"
           data-testid="article-reader-peek-divider-v3"
           onPointerDown={(event) => {
             if (event.button !== 0) return;
             event.preventDefault();
+            setPeekMaximized(false);
             event.currentTarget.setPointerCapture(event.pointerId);
             peekDraggingRef.current = true;
             setPeekDragging(true);
@@ -524,13 +562,24 @@ function ArticleReaderV3Resource({
             setPeekDragging(false);
           }}
           onKeyDown={(event) => {
+            if (event.key === "End") {
+              event.preventDefault();
+              setPeekMaximized(true);
+              return;
+            }
             let next: number | null = null;
-            if (event.key === "ArrowLeft") next = peekFraction + 0.025;
-            else if (event.key === "ArrowRight") next = peekFraction - 0.025;
+            if (event.key === "ArrowLeft") {
+              if (peekMaximized) return;
+              next = peekFraction + 0.025;
+            } else if (event.key === "ArrowRight") {
+              setPeekMaximized(false);
+              next = peekMaximized
+                ? ARTICLE_READER_PEEK_MAX_FRACTION_V3
+                : peekFraction - 0.025;
+            }
             else if (event.key === "Home") {
+              setPeekMaximized(false);
               next = ARTICLE_READER_PEEK_MIN_FRACTION_V3;
-            } else if (event.key === "End") {
-              next = ARTICLE_READER_PEEK_MAX_FRACTION_V3;
             }
             if (next === null) return;
             event.preventDefault();
@@ -549,11 +598,15 @@ function ArticleReaderV3Resource({
         <aside
           aria-hidden={!peekOpen}
           aria-label={t("articleReader.drawerTitle")}
-          className="article-reader-peek-column min-w-0 shrink-0 overflow-hidden bg-wb-panel"
+          className="article-reader-peek-column min-w-0 shrink-0 overflow-hidden"
           data-testid="article-reader-peek-column-v3"
           inert={!peekOpen}
           onTransitionEnd={(event) => {
-            if (event.currentTarget !== event.target || peekOpen) return;
+            if (
+              event.currentTarget !== event.target
+              || event.propertyName !== "inline-size"
+              || peekOpen
+            ) return;
             finishPeekClose();
           }}
         >

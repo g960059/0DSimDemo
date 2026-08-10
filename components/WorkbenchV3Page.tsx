@@ -14,7 +14,6 @@ import {
   RefreshCw,
   Save,
   Sun,
-  Undo2,
   Upload,
   X,
 } from "lucide-react";
@@ -37,6 +36,13 @@ import {
 import { WorkbenchAreaLayoutV3 } from "@/components/workbench/WorkbenchAreaLayoutV3";
 import { WorkbenchBriefingComposerV3 } from "@/components/workbench/WorkbenchBriefingComposerV3";
 import { WorkbenchPaneBindingButtonV3 } from "@/components/workbench/WorkbenchPaneBindingV3";
+import {
+  ExperimentGraphPresentationV3,
+  ExperimentNumericControlV3,
+  ExperimentOutputGridV3,
+} from "@/components/workbench/ExperimentPanePresentationV3";
+export { resolveControlDraftCommitV3 } from
+  "@/components/workbench/ExperimentPanePresentationV3";
 import {
   defaultArticleBriefingV3,
   materializeSurfaceControlPaneBindingV3,
@@ -102,7 +108,6 @@ import type {
   StudioModelWorkerReleaseTicketV2,
 } from "@/studio/contracts/v2/release";
 import type {
-  ExperimentControlPresentationV2,
   ExperimentSurfaceControlPaneV2,
   ExperimentSurfaceGraphPaneV2,
   ExperimentSurfaceOutputPaneV2,
@@ -4102,14 +4107,17 @@ function SampledGraphPaneBodyV3({
       });
     const traces = tracesForBindings(bindings);
     return (
-      <div className="h-full min-h-0 bg-wb-app p-3">
+      <ExperimentGraphPresentationV3
+        variant="pane"
+        canvasClassName="h-full min-h-0"
+      >
         <PressureVolumeLoopCanvasV3
           analysisMode={
             pane.pressureVolumeAnalysisMode ?? "responsive-preview"
           }
           traces={traces}
         />
-      </div>
+      </ExperimentGraphPresentationV3>
     );
   }
   const bindings = displayedSeries.flatMap((series) => {
@@ -4178,7 +4186,10 @@ function SampledGraphPaneBodyV3({
     });
   const traces = tracesForScenarios(scenarios);
   return (
-    <div className="h-full min-h-0 bg-wb-app p-3">
+    <ExperimentGraphPresentationV3
+      variant="pane"
+      canvasClassName="h-full min-h-0"
+    >
       <SweepingWaveformCanvasV3
         activeScenarioId={activeScenarioId}
         includeZero={outputs.every(
@@ -4189,7 +4200,7 @@ function SampledGraphPaneBodyV3({
         unitLabel={commonUnit}
         windowSec={pane.windowSec ?? WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3}
       />
-    </div>
+    </ExperimentGraphPresentationV3>
   );
 }
 
@@ -4351,45 +4362,48 @@ function StructuralReturnGraphPaneV3({
   const pending = traces.some((trace) => trace.pending);
   const error = traces.find((trace) => trace.error !== null)?.error ?? null;
   return (
-    <div
-      className="relative h-full min-h-0 overflow-auto bg-wb-app p-3"
+    <ExperimentGraphPresentationV3
+      variant="pane"
+      canvasClassName="relative h-full min-h-0 overflow-auto"
       data-analysis-error={error ?? undefined}
       data-analysis-pending={pending ? "true" : "false"}
     >
-      {traces.length === 0 ? (
-        <div className="flex h-full min-h-52 items-center justify-center text-xs text-wb-subtle">
-          {t("workbench.live.scenarioHidden")}
-        </div>
-      ) : comparisonTraces.length === 0 ? (
-        <div className="flex h-full min-h-52 items-center justify-center px-5 text-center text-xs text-wb-muted">
-          {pending
-            ? t("workbench.live.analysisRunning")
-            : (error ??
-              (acceptedStepAvailable
-                ? t("workbench.live.analysisUnavailable")
-                : t("workbench.live.firstAcceptedStep")))}
-        </div>
-      ) : (
-        <GuytonStarlingComparisonCanvasV3
-          recalculatingLabel={t("workbench.live.analysisRecalculating")}
-          traces={comparisonTraces}
-        />
-      )}
-      {traces.map(({ analysis, scenarioId }) =>
-        analysis === undefined ? null : (
-          <span
-            key={scenarioId}
-            className="sr-only"
-            data-analysis-scenario-id={scenarioId}
-            data-analysis-input-epoch={analysis.inputEpoch}
-            data-analysis-boundary-status="current-input-epoch"
-          >
-            {analysis.sourceAcceptedRevision}@
-            {analysis.sourceAcceptedTimeSec.toFixed(3)}
-          </span>
-        ),
-      )}
-    </div>
+      <>
+        {traces.length === 0 ? (
+          <div className="flex h-full min-h-52 items-center justify-center text-xs text-wb-subtle">
+            {t("workbench.live.scenarioHidden")}
+          </div>
+        ) : comparisonTraces.length === 0 ? (
+          <div className="flex h-full min-h-52 items-center justify-center px-5 text-center text-xs text-wb-muted">
+            {pending
+              ? t("workbench.live.analysisRunning")
+              : (error ??
+                (acceptedStepAvailable
+                  ? t("workbench.live.analysisUnavailable")
+                  : t("workbench.live.firstAcceptedStep")))}
+          </div>
+        ) : (
+          <GuytonStarlingComparisonCanvasV3
+            recalculatingLabel={t("workbench.live.analysisRecalculating")}
+            traces={comparisonTraces}
+          />
+        )}
+        {traces.map(({ analysis, scenarioId }) =>
+          analysis === undefined ? null : (
+            <span
+              key={scenarioId}
+              className="sr-only"
+              data-analysis-scenario-id={scenarioId}
+              data-analysis-input-epoch={analysis.inputEpoch}
+              data-analysis-boundary-status="current-input-epoch"
+            >
+              {analysis.sourceAcceptedRevision}@
+              {analysis.sourceAcceptedTimeSec.toFixed(3)}
+            </span>
+          ),
+        )}
+      </>
+    </ExperimentGraphPresentationV3>
   );
 }
 
@@ -4731,41 +4745,24 @@ function OutputPaneBodyV3({
         testId={`output-pane-binding-${pane.paneId}`}
         visible={showBinding}
       />
-      <div className="workbench-output-grid grid min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] overflow-auto px-2 pb-2">
-        {selected.length === 0 ? (
-          <p className="p-4 text-xs text-wb-subtle">
-            {t("workbench.live.noSelectedOutputs")}
-          </p>
-        ) : (
-          selected.map(({ definition: output, item }) => {
-            const value = frame?.outputs[item.outputId];
-            const scalar = scalarAvailableOutputV3(value);
-            return (
-              <div
-                key={item.outputId}
-                className="workbench-output-item min-w-0 px-2.5 py-2"
-                data-output-availability={value?.availability ?? "unavailable"}
-                data-output-quality={value?.quality ?? "not-assessed"}
-              >
-                <p className="workbench-output-label truncate">
-                  {item.label}
-                </p>
-                <p className="workbench-output-value mt-0.5 tabular-nums">
-                  {scalar === null ? "—" : scalar.toFixed(2)}
-                  <span className="workbench-output-unit ml-1">
-                    {output.unit}
-                  </span>
-                </p>
-                {value?.quality === "not-assessed" && (
-                  <p className="mt-1 text-[9px] text-wb-warning">
-                    {t("workbench.live.outputNotAssessed")}
-                  </p>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+      <ExperimentOutputGridV3
+        variant="pane"
+        emptyMessage={t("workbench.live.noSelectedOutputs")}
+        items={selected.map(({ definition: output, item }) => {
+          const outputValue = frame?.outputs[item.outputId];
+          return {
+            itemId: item.outputId,
+            label: item.label,
+            value: scalarAvailableOutputV3(outputValue),
+            unit: output.unit,
+            availability: outputValue?.availability ?? "unavailable",
+            quality: outputValue?.quality ?? "not-assessed",
+            ...(outputValue?.quality === "not-assessed"
+              ? { qualityNotice: t("workbench.live.outputNotAssessed") }
+              : {}),
+          };
+        })}
+      />
     </div>
   );
 }
@@ -4857,7 +4854,7 @@ function ControlPaneBodyV3({
         ) : (
           <div className="workbench-control-list">
             {presentedControls.map(({ definition: control, item, value, mixed }) => (
-              <NumericControlV3
+              <ExperimentNumericControlV3
                 key={control.controlId}
                 control={control}
                 disabled={
@@ -4890,247 +4887,6 @@ function ControlPaneBodyV3({
       </div>
     </section>
   );
-}
-
-function NumericControlV3({
-  control,
-  disabled,
-  label,
-  mixed,
-  onCommit,
-  pending,
-  presentation,
-  value,
-}: Readonly<{
-  control: ControlDefinitionV2;
-  disabled: boolean;
-  label: string;
-  mixed: boolean;
-  onCommit: (value: number) => Promise<boolean>;
-  pending: boolean;
-  presentation: ExperimentControlPresentationV2;
-  value: number;
-}>) {
-  const { t } = useTranslation();
-  const precision = controlStepPrecisionV3(control.step);
-  const formatValue = React.useCallback(
-    (candidate: number) => candidate.toFixed(precision),
-    [precision],
-  );
-  const [draft, setDraft] = React.useState(value);
-  const [draftText, setDraftText] = React.useState(() => formatValue(value));
-  React.useEffect(() => {
-    setDraft(value);
-    setDraftText(formatValue(value));
-  }, [formatValue, value]);
-  const commit = async (candidate: number) => {
-    const result = await resolveControlDraftCommitV3({
-      acceptedValue: value,
-      candidate,
-      control,
-      onCommit,
-    });
-    setDraft(result.displayValue);
-    setDraftText(formatValue(result.displayValue));
-  };
-  const changed = mixed || workbenchControlValueChangedV3(value, control);
-  const displayUnit = workbenchControlDisplayUnitV3(control.unit);
-  const valueInputCharacters = workbenchControlInputCharactersV3(
-    control,
-    draftText,
-    precision,
-  );
-  const progress = workbenchControlRangeProgressV3(draft, control);
-  return (
-    <div
-      className="workbench-control-row"
-      data-control-presentation={presentation.kind}
-      aria-busy={pending}
-    >
-      <p className="workbench-control-label" title={label}>{label}</p>
-
-      <div className="workbench-control-widget">
-        {presentation.kind === "buttons" ? (
-          <div
-            className="workbench-control-segments"
-            role="group"
-            aria-label={label}
-          >
-            {presentation.options.map((option) => {
-              const active = !mixed && option.value === value;
-              return (
-                <button
-                  key={`${option.label}:${option.value}`}
-                  type="button"
-                  aria-pressed={active}
-                  data-active={active ? "true" : "false"}
-                  disabled={disabled}
-                  title={`${option.value.toFixed(precision)} ${displayUnit}`}
-                  className="workbench-control-segment"
-                  onClick={() => void commit(option.value)}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <input
-            className="workbench-control-range"
-            style={{
-              "--workbench-control-progress": `${progress}%`,
-            } as React.CSSProperties}
-            type="range"
-            min={control.minimum}
-            max={control.maximum}
-            step={control.step}
-            value={draft}
-            disabled={disabled}
-            aria-label={label}
-            title={`${control.minimum}–${control.maximum} ${displayUnit}`}
-            onChange={(event) => {
-              const nextValue = Number(event.currentTarget.value);
-              setDraft(nextValue);
-              setDraftText(formatValue(nextValue));
-            }}
-            onPointerUp={() => void commit(draft)}
-            onKeyUp={(event) => {
-              if (
-                [
-                  "ArrowDown",
-                  "ArrowLeft",
-                  "ArrowRight",
-                  "ArrowUp",
-                  "End",
-                  "Home",
-                  "PageDown",
-                  "PageUp",
-                ].includes(event.key)
-              ) {
-                void commit(draft);
-              }
-            }}
-          />
-        )}
-      </div>
-
-      <div className="workbench-control-value">
-        <span
-          className="workbench-control-pending-slot"
-          aria-hidden="true"
-        >
-          {pending && <span className="workbench-control-pending-dot" />}
-        </span>
-        {pending && (
-          <span className="sr-only" role="status">
-            {t("workbench.live.applying")}
-          </span>
-        )}
-        {mixed ? (
-          <span className="workbench-control-mixed">
-            {t("workbench.live.mixedValue")}
-          </span>
-        ) : presentation.kind === "buttons" ? (
-          <output className="workbench-control-output">
-            <span>{formatValue(value)}</span>
-            <span className="workbench-control-unit">{displayUnit}</span>
-          </output>
-        ) : (
-          <label className="workbench-control-number-group">
-            <span className="sr-only">{t("workbench.live.exactControlValue", { label })}</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              spellCheck={false}
-              value={draftText}
-              disabled={disabled}
-              style={{ width: `${valueInputCharacters}ch` }}
-              className="workbench-control-number"
-              aria-label={`${t("workbench.live.exactControlValue", { label })} ${displayUnit}`}
-              onChange={(event) => {
-                const nextText = event.currentTarget.value;
-                setDraftText(nextText);
-                const parsed = Number(nextText);
-                if (nextText.length > 0 && Number.isFinite(parsed)) {
-                  setDraft(parsed);
-                }
-              }}
-              onBlur={() => {
-                const parsed = Number(draftText);
-                if (!Number.isFinite(parsed)) {
-                  setDraft(value);
-                  setDraftText(formatValue(value));
-                  return;
-                }
-                void commit(parsed);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-                if (event.key === "Escape") {
-                  setDraft(value);
-                  setDraftText(formatValue(value));
-                  event.currentTarget.blur();
-                }
-              }}
-            />
-            <span className="workbench-control-unit">
-              {displayUnit}
-            </span>
-          </label>
-        )}
-        <button
-          type="button"
-          className="workbench-control-reset"
-          aria-label={`${t("workbench.live.resetControl")}: ${label}`}
-          title={t("workbench.live.resetControl")}
-          disabled={disabled || !changed}
-          onClick={() => {
-            setDraft(control.defaultValue);
-            setDraftText(formatValue(control.defaultValue));
-            void commit(control.defaultValue);
-          }}
-        >
-          <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function workbenchControlDisplayUnitV3(unit: string): string {
-  return unit === "1" ? "×" : unit;
-}
-
-function workbenchControlInputCharactersV3(
-  control: ControlDefinitionV2,
-  draftText: string,
-  precision: number,
-): number {
-  const longest = Math.max(
-    draftText.length,
-    control.minimum.toFixed(precision).length,
-    control.maximum.toFixed(precision).length,
-    control.defaultValue.toFixed(precision).length,
-  );
-  return Math.max(3, Math.min(10, longest));
-}
-
-function workbenchControlRangeProgressV3(
-  value: number,
-  control: ControlDefinitionV2,
-): number {
-  const span = control.maximum - control.minimum;
-  if (!(span > 0)) return 0;
-  return Math.max(0, Math.min(100, ((value - control.minimum) / span) * 100));
-}
-
-function workbenchControlValueChangedV3(
-  value: number,
-  control: ControlDefinitionV2,
-): boolean {
-  return Math.abs(value - control.defaultValue) >
-    Math.max(Math.abs(control.step) * 1e-6, 1e-12);
 }
 
 function PaneLoadingV3() {
@@ -5239,51 +4995,6 @@ function withoutRecordKeysV3(
       Object.entries(record).filter(([candidate]) => !removed.has(candidate)),
     ),
   );
-}
-
-export type ControlDraftCommitResultV3 = Readonly<{
-  accepted: boolean;
-  displayValue: number;
-}>;
-
-export async function resolveControlDraftCommitV3({
-  acceptedValue,
-  candidate,
-  control,
-  onCommit,
-}: Readonly<{
-  acceptedValue: number;
-  candidate: number;
-  control: ControlDefinitionV2;
-  onCommit: (value: number) => Promise<boolean>;
-}>): Promise<ControlDraftCommitResultV3> {
-  const normalized = normalizeControlValueV3(candidate, control);
-  if (normalized === acceptedValue) {
-    return Object.freeze({ accepted: true, displayValue: acceptedValue });
-  }
-  const accepted = await onCommit(normalized);
-  return Object.freeze({
-    accepted,
-    displayValue: accepted ? normalized : acceptedValue,
-  });
-}
-
-function normalizeControlValueV3(
-  value: number,
-  control: ControlDefinitionV2,
-): number {
-  const clamped = Math.min(control.maximum, Math.max(control.minimum, value));
-  const steps = Math.round((clamped - control.minimum) / control.step);
-  const snapped = control.minimum + steps * control.step;
-  return Number(
-    snapped.toFixed(Math.min(12, controlStepPrecisionV3(control.step) + 2)),
-  );
-}
-
-function controlStepPrecisionV3(step: number): number {
-  const text = step.toString();
-  if (text.includes("e-")) return Math.min(6, Number(text.split("e-")[1]));
-  return Math.min(6, text.split(".")[1]?.length ?? 0);
 }
 
 function remoteExperimentRecordV3(

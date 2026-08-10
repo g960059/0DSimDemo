@@ -20,6 +20,30 @@ export type StudioArticleParagraphBlockV2 = Readonly<{
   text: string;
 }>;
 
+/** Display-math authored as portable TeX and rendered by the shared Reader. */
+export type StudioArticleEquationBlockV2 = Readonly<{
+  blockId: StudioArticleBlockIdV2;
+  kind: "equation";
+  expression: string;
+}>;
+
+/**
+ * Durable image presentation. Uploaded assets and explicit embeds share the
+ * same HTTPS URL contract so UI and AI authoring use one portable block.
+ */
+export type StudioArticleImageBlockV2 = Readonly<{
+  blockId: StudioArticleBlockIdV2;
+  kind: "image";
+  url: string;
+  altText: string;
+  caption: string;
+}>;
+
+export type StudioArticleDividerBlockV2 = Readonly<{
+  blockId: StudioArticleBlockIdV2;
+  kind: "divider";
+}>;
+
 /**
  * A Placement is nested under the article block that owns it. The same pinned
  * Snapshot may be placed more than once, in one or several articles, without
@@ -34,6 +58,9 @@ export type StudioArticleExperimentBlockV2 = Readonly<{
 export type StudioArticleBlockV2 =
   | StudioArticleHeadingBlockV2
   | StudioArticleParagraphBlockV2
+  | StudioArticleEquationBlockV2
+  | StudioArticleImageBlockV2
+  | StudioArticleDividerBlockV2
   | StudioArticleExperimentBlockV2;
 
 /** Mutable editor document. `draftVersion` is concurrency only. */

@@ -348,7 +348,7 @@
       "historyDepth": "変更前の状態",
       "historyDepthHint": "完了したパラメータ状態を0〜3件表示",
       "formalPressureVolumeAnalysis": "Formal ESPVR / EDPVR解析",
-        "formalPressureVolumeAnalysisHint": "各fixed-TBV loadで完全stateのP1周期収束を確認してからfitします。計算時間は長くなります。",
+      "formalPressureVolumeAnalysisHint": "各fixed-TBV loadで完全stateのP1周期収束を確認してからfitします。計算時間は長くなります。",
       "windowSec": "表示時間幅",
       "windowSecHint": "1〜6秒、0.5秒刻み",
       "items": "Items",
@@ -383,7 +383,7 @@
   "articleEditor": {
     "untitled": "名称未設定の記事",
     "title": "記事タイトル",
-    "titlePlaceholder": "記事タイトル",
+    "titlePlaceholder": "無題",
     "draft": "下書き",
     "publish": "公開する",
     "published": "公開中",
@@ -400,9 +400,12 @@
     "paragraphPlaceholder": "解説を書きます…",
     "addBlock": "コンテンツを追加",
     "blockHandle": "ブロック操作",
-    "slashHint": "クリックするか「/」でコンテンツを追加",
+    "slashHint": "クリックして書き始める（「/」でブロックを選択）",
     "addHeading": "見出し",
     "addParagraph": "本文",
+    "addEquation": "数式",
+    "addImage": "画像",
+    "addDivider": "区切り線",
     "addExperiment": "シミュレーション",
     "removeBlock": "ブロックを削除",
     "moveUp": "ブロックを上へ",
@@ -422,7 +425,8 @@
       "dirty": "未保存",
       "saving": "保存中…",
       "saved": "保存済み",
-      "error": "保存失敗"
+      "error": "保存に失敗",
+      "retry": "再試行"
     },
     "snapshotPicker": {
       "title": "シミュレーションを挿入",
@@ -477,6 +481,47 @@
       "graph": "Graph",
       "output": "Output",
       "control": "Control"
+    },
+    "subheading": "小見出し",
+    "subheadingPlaceholder": "小見出し",
+    "addSubheading": "小見出し",
+    "turnInto": "変換",
+    "equation": {
+      "label": "TeX 数式",
+      "placeholder": "例: E = mc^2",
+      "previewHint": "TeXを入力すると数式をプレビューします"
+    },
+    "image": {
+      "upload": "画像をアップロード",
+      "uploading": "アップロード中…",
+      "url": "画像URL",
+      "urlPlaceholder": "または画像URLを貼り付け",
+      "invalidUrl": "HTTPSの画像URLを入力してください",
+      "altText": "代替テキスト",
+      "altPlaceholder": "画像の内容を簡潔に説明",
+      "caption": "キャプション",
+      "captionPlaceholder": "補足説明（任意）"
+    },
+    "insertMenu": {
+      "searchPlaceholder": "ブロックを検索…",
+      "empty": "一致するブロックがありません",
+      "paragraphHint": "プレーンテキストの段落",
+      "headingHint": "セクションの見出し",
+      "subheadingHint": "小さめの見出し",
+      "equationHint": "TeXで数式を表示",
+      "imageHint": "画像をアップロードまたはURLで挿入",
+      "dividerHint": "内容の区切りを追加",
+      "experimentHint": "シミュレーションを記事に配置"
+    },
+    "publishMenu": {
+      "label": "公開",
+      "draftTitle": "この記事を公開",
+      "draftDescription": "公開すると、リンクを知っている全員が記事を読めます。変更は自動保存され、公開ページに反映されます。",
+      "publish": "公開する",
+      "publishedTitle": "公開中",
+      "publishedDescription": "この記事は公開されています。変更は自動保存され、公開ページに反映されます。",
+      "view": "公開ページを表示",
+      "unpublish": "公開を解除"
     }
   },
   "articleLibrary": {
@@ -513,7 +558,10 @@
     "modelMainWireV3": "MW V3",
     "modelExact": "数理モデル",
     "drawerTitle": "シミュレーション",
-    "openFullscreen": "全画面で表示",
+    "openFullscreen": "シミュレーションを画面いっぱいに表示",
+    "restoreSplitView": "記事との分割表示に戻す",
+    "openExperimentSession": "シミュレーションを詳しく開く",
+    "editBriefing": "ExperimentSessionでBriefingを編集",
     "closeDrawer": "シミュレーションを閉じる",
     "resizeExperiment": "記事とシミュレーションの表示幅を変更",
     "experimentWidth": "シミュレーションの幅 {{percent}}%",

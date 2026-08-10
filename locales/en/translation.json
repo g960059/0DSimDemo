@@ -348,7 +348,7 @@
       "historyDepth": "Previous states",
       "historyDepthHint": "0–3 completed parameter states",
       "formalPressureVolumeAnalysis": "Formal ESPVR / EDPVR analysis",
-        "formalPressureVolumeAnalysisHint": "Qualifies full-state period-1 closure at every fixed-TBV load before fitting. Substantially slower.",
+      "formalPressureVolumeAnalysisHint": "Qualifies full-state period-1 closure at every fixed-TBV load before fitting. Substantially slower.",
       "windowSec": "Waveform window",
       "windowSecHint": "1–6 seconds in 0.5 second steps",
       "items": "Items",
@@ -383,7 +383,7 @@
   "articleEditor": {
     "untitled": "Untitled article",
     "title": "Article title",
-    "titlePlaceholder": "Article title",
+    "titlePlaceholder": "Untitled",
     "draft": "Draft",
     "publish": "Publish",
     "published": "Published",
@@ -400,9 +400,12 @@
     "paragraphPlaceholder": "Write your explanation…",
     "addBlock": "Add content block",
     "blockHandle": "Block actions",
-    "slashHint": "Click or type “/” to add content",
+    "slashHint": "Click to start writing (press “/” for blocks)",
     "addHeading": "Heading",
     "addParagraph": "Paragraph",
+    "addEquation": "Equation",
+    "addImage": "Image",
+    "addDivider": "Divider",
     "addExperiment": "Simulation",
     "removeBlock": "Remove block",
     "moveUp": "Move block up",
@@ -422,7 +425,8 @@
       "dirty": "Unsaved",
       "saving": "Saving…",
       "saved": "Saved",
-      "error": "Save failed"
+      "error": "Save failed",
+      "retry": "Retry"
     },
     "snapshotPicker": {
       "title": "Insert a simulation",
@@ -477,6 +481,47 @@
       "graph": "Graph",
       "output": "Output",
       "control": "Control"
+    },
+    "subheading": "Subheading",
+    "subheadingPlaceholder": "Subheading",
+    "addSubheading": "Subheading",
+    "turnInto": "Turn into",
+    "equation": {
+      "label": "TeX equation",
+      "placeholder": "e.g. E = mc^2",
+      "previewHint": "Enter TeX to preview the equation"
+    },
+    "image": {
+      "upload": "Upload image",
+      "uploading": "Uploading…",
+      "url": "Image URL",
+      "urlPlaceholder": "Or paste an image URL",
+      "invalidUrl": "Enter an HTTPS image URL",
+      "altText": "Alt text",
+      "altPlaceholder": "Briefly describe the image",
+      "caption": "Caption",
+      "captionPlaceholder": "Optional context"
+    },
+    "insertMenu": {
+      "searchPlaceholder": "Search blocks…",
+      "empty": "No matching blocks",
+      "paragraphHint": "Plain text paragraph",
+      "headingHint": "Section heading",
+      "subheadingHint": "Smaller heading",
+      "equationHint": "Render display math from TeX",
+      "imageHint": "Upload an image or insert by URL",
+      "dividerHint": "Visually separate sections",
+      "experimentHint": "Place a pinned simulation"
+    },
+    "publishMenu": {
+      "label": "Publish",
+      "draftTitle": "Publish this article",
+      "draftDescription": "Anyone with the link can read the article once published. Changes are saved automatically and appear on the public page.",
+      "publish": "Publish",
+      "publishedTitle": "Published",
+      "publishedDescription": "This article is public. Changes are saved automatically and appear on the public page.",
+      "view": "View public page",
+      "unpublish": "Unpublish"
     }
   },
   "articleLibrary": {
@@ -513,7 +558,10 @@
     "modelMainWireV3": "MW V3",
     "modelExact": "Exact model",
     "drawerTitle": "Simulation",
-    "openFullscreen": "Open fullscreen",
+    "openFullscreen": "Fill the screen with the simulation",
+    "restoreSplitView": "Return to the article split view",
+    "openExperimentSession": "Open the detailed simulation",
+    "editBriefing": "Edit the Briefing in Experiment Session",
     "closeDrawer": "Close simulation",
     "resizeExperiment": "Resize article and simulation",
     "experimentWidth": "Simulation width {{percent}}%",

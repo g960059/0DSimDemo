@@ -4,16 +4,31 @@ import { describe, expect, it, vi } from "vitest";
 
 import i18n from "@/i18n";
 import {
+  adoptSavedArticleDraftV3,
+  articleBlockDropBoundaryV3,
   articleEditorRouteHydratedV3,
   articleEditorRouteKeyV3,
+  articleEditorInputIsComposingV3,
+  articleEditorRetryActionV3,
+  articleHeadingShortcutV3,
+  articleEditorSaveScopeIsCurrentV3,
+  filterArticleInsertOptionsV3,
   insertArticleBlockV3,
+  moveArticleBlockToBoundaryV3,
+  prepareArticleDraftForSaveV3,
   resolveArticleEditorRouteDraftV3,
+  splitArticleTextSelectionV3,
   synchronizeRemoteArticlePublicationV3,
 } from "@/components/ArticleEditorV3Page";
 import {
   ArticleBriefingEditorV3,
   ArticleExperimentPlacementV3,
 } from "@/components/article/ArticleExperimentPlacementV3";
+import {
+  ArticleDividerPresentationV3,
+  ArticleEquationPresentationV3,
+  ArticleImagePresentationV3,
+} from "@/components/article/ArticleRichBlockV3";
 import {
   articleBriefingPresentationV3,
   createArticleExperimentBlockV3,
@@ -25,6 +40,9 @@ import {
   STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
   type StudioArticleDraftV2,
 } from "@/studio/contracts/v2/article";
+import {
+  validateStudioArticleDraftV2,
+} from "@/studio/application/authoring/StudioArticleDataV2";
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
@@ -183,6 +201,53 @@ function focusedBriefingV3(): ExperimentPlacementBriefingV2 {
 }
 
 describe("Article Editor V3 briefing", () => {
+  it("invalidates an in-flight save when its route scope is discarded", () => {
+    expect(articleEditorSaveScopeIsCurrentV3({
+      currentGeneration: 4,
+      currentRouteKey: "new",
+      mounted: true,
+      startedGeneration: 4,
+      startedRouteKey: "new",
+    })).toBe(true);
+    expect(articleEditorSaveScopeIsCurrentV3({
+      currentGeneration: 5,
+      currentRouteKey: "new",
+      mounted: true,
+      startedGeneration: 4,
+      startedRouteKey: "new",
+    })).toBe(false);
+    expect(articleEditorSaveScopeIsCurrentV3({
+      currentGeneration: 4,
+      currentRouteKey: "article/elsewhere",
+      mounted: true,
+      startedGeneration: 4,
+      startedRouteKey: "new",
+    })).toBe(false);
+  });
+
+  it("retries only save failures and dismisses clean operation errors", () => {
+    expect(articleEditorRetryActionV3({
+      alreadyPersisted: true,
+      hasUnsaved: true,
+      routeHydrated: true,
+    })).toBe("save");
+    expect(articleEditorRetryActionV3({
+      alreadyPersisted: true,
+      hasUnsaved: false,
+      routeHydrated: true,
+    })).toBe("dismiss-saved");
+    expect(articleEditorRetryActionV3({
+      alreadyPersisted: false,
+      hasUnsaved: false,
+      routeHydrated: true,
+    })).toBe("dismiss-idle");
+    expect(articleEditorRetryActionV3({
+      alreadyPersisted: false,
+      hasUnsaved: false,
+      routeHydrated: false,
+    })).toBe("reload");
+  });
+
   it("adopts publication authority after moving the Article pointer", async () => {
     const saved = Object.freeze({
       schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
@@ -263,6 +328,255 @@ describe("Article Editor V3 briefing", () => {
     expect(html).toContain('data-reader-presentation="peek"');
     expect(html).toContain("Baseline");
     expect(html).not.toContain(i18n.t("articleEditor.staticDataNotice"));
+  });
+
+  it("keeps edits typed during an autosave round-trip while adopting identity", () => {
+    const candidate = Object.freeze({
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: "article-local",
+      draftVersion: 0,
+      visibility: "draft" as const,
+      locale: "ja",
+      title: "Before",
+      blocks: Object.freeze([]),
+    });
+    const saved = Object.freeze({
+      ...candidate,
+      articleId: "article-durable",
+      draftVersion: 4,
+      title: "Before",
+    });
+
+    const clean = adoptSavedArticleDraftV3({
+      saved,
+      candidate,
+      current: candidate,
+    });
+    expect(clean.clean).toBe(true);
+    expect(clean.draft).toBe(saved);
+
+    const editedDuringFlight = Object.freeze({
+      ...candidate,
+      title: "After more typing",
+    });
+    const merged = adoptSavedArticleDraftV3({
+      saved,
+      candidate,
+      current: editedDuringFlight,
+    });
+    expect(merged.clean).toBe(false);
+    expect(merged.draft.title).toBe("After more typing");
+    expect(merged.draft.articleId).toBe("article-durable");
+    expect(merged.draft.draftVersion).toBe(4);
+  });
+
+  it("preserves in-progress author whitespace through autosave validation", () => {
+    const authored = {
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: "article/autosave-whitespace",
+      draftVersion: 2,
+      visibility: "draft" as const,
+      locale: "ja",
+      title: "PV loop ",
+      blocks: [{
+        blockId: "block/heading",
+        kind: "heading" as const,
+        level: 2 as const,
+        text: "前負荷 ",
+      }, {
+        blockId: "block/paragraph",
+        kind: "paragraph" as const,
+        text: "Stroke volume ",
+      }, {
+        blockId: "block/empty-heading",
+        kind: "heading" as const,
+        level: 3 as const,
+        text: "",
+      }],
+    } satisfies StudioArticleDraftV2;
+
+    const saved = validateStudioArticleDraftV2(
+      prepareArticleDraftForSaveV3(authored),
+    );
+
+    expect(saved.title).toBe("PV loop ");
+    expect(saved.blocks.map((block) =>
+      block.kind === "heading" || block.kind === "paragraph"
+        ? block.text
+        : null)).toEqual([
+      "前負荷 ",
+      "Stroke volume ",
+      "",
+    ]);
+  });
+
+  it("validates and renders portable equation, image, and divider blocks", () => {
+    const rich = validateStudioArticleDraftV2({
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: "article/rich-blocks",
+      draftVersion: 0,
+      visibility: "draft",
+      locale: "ja",
+      title: "Rich blocks",
+      blocks: [{
+        blockId: "block/equation",
+        kind: "equation",
+        expression: "CO = HR \\times SV",
+      }, {
+        blockId: "block/image",
+        kind: "image",
+        url: "https://example.com/pv-loop.png",
+        altText: "左室圧容積ループ",
+        caption: "前負荷変化",
+      }, {
+        blockId: "block/divider",
+        kind: "divider",
+      }],
+    });
+    const [equation, image, divider] = rich.blocks;
+    expect(equation?.kind).toBe("equation");
+    expect(image?.kind).toBe("image");
+    expect(divider?.kind).toBe("divider");
+    if (equation?.kind !== "equation"
+      || image?.kind !== "image"
+      || divider?.kind !== "divider") throw new Error("rich block mismatch");
+
+    const equationHtml = renderToStaticMarkup(React.createElement(
+      ArticleEquationPresentationV3,
+      { block: equation },
+    ));
+    const imageHtml = renderToStaticMarkup(React.createElement(
+      ArticleImagePresentationV3,
+      { block: image },
+    ));
+    const dividerHtml = renderToStaticMarkup(React.createElement(
+      ArticleDividerPresentationV3,
+      { block: divider },
+    ));
+    expect(equationHtml).toContain("katex");
+    expect(equationHtml).toContain("MathML");
+    expect(imageHtml).toContain("pv-loop.png");
+    expect(imageHtml).toContain("左室圧容積ループ");
+    expect(dividerHtml).toContain("<hr");
+  });
+
+  it("rejects unsafe image URLs and hidden rich-block fields", () => {
+    const base = {
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: "article/bad-rich-block",
+      draftVersion: 0,
+      visibility: "draft",
+      locale: "ja",
+      title: "Invalid",
+    };
+    expect(() => validateStudioArticleDraftV2({
+      ...base,
+      blocks: [{
+        blockId: "block/image",
+        kind: "image",
+        url: "javascript:alert(1)",
+        altText: "",
+        caption: "",
+      }],
+    })).toThrow(/HTTPS URL/);
+    expect(() => validateStudioArticleDraftV2({
+      ...base,
+      blocks: [{
+        blockId: "block/divider",
+        kind: "divider",
+        style: "secret",
+      }],
+    })).toThrow(/keys must be exactly/);
+  });
+
+  it("treats IME confirmation as text input rather than an editor command", () => {
+    expect(articleEditorInputIsComposingV3({ isComposing: true })).toBe(true);
+    expect(articleEditorInputIsComposingV3({ keyCode: 229 })).toBe(true);
+    expect(articleEditorInputIsComposingV3({
+      isComposing: false,
+      keyCode: 13,
+    })).toBe(false);
+  });
+
+  it("replaces the complete selected range when Enter splits a text block", () => {
+    expect(splitArticleTextSelectionV3({
+      text: "abcdef",
+      selectionStart: 2,
+      selectionEnd: 4,
+    })).toEqual({ before: "ab", after: "ef" });
+    expect(splitArticleTextSelectionV3({
+      text: "abcdef",
+      selectionStart: 3,
+      selectionEnd: 3,
+    })).toEqual({ before: "abc", after: "def" });
+  });
+
+  it("converts Markdown heading prefixes typed into a Paragraph", () => {
+    expect(articleHeadingShortcutV3("# ")).toEqual({ level: 2, rest: "" });
+    expect(articleHeadingShortcutV3("# 圧波形")).toEqual({
+      level: 2,
+      rest: "圧波形",
+    });
+    expect(articleHeadingShortcutV3("## detail")).toEqual({
+      level: 3,
+      rest: "detail",
+    });
+    expect(articleHeadingShortcutV3("#no-space")).toBeNull();
+    expect(articleHeadingShortcutV3("### too deep")).toBeNull();
+    expect(articleHeadingShortcutV3("plain")).toBeNull();
+  });
+
+  it("moves blocks to drag-and-drop boundaries with no-op detection", () => {
+    const blocks = Object.freeze([
+      { blockId: "block/a", kind: "paragraph" as const, text: "A" },
+      { blockId: "block/b", kind: "paragraph" as const, text: "B" },
+      { blockId: "block/c", kind: "paragraph" as const, text: "C" },
+    ]);
+
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/a", 3)
+      .map(({ blockId }) => blockId)).toEqual([
+      "block/b",
+      "block/c",
+      "block/a",
+    ]);
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/c", 0)
+      .map(({ blockId }) => blockId)).toEqual([
+      "block/c",
+      "block/a",
+      "block/b",
+    ]);
+    // Dropping onto either boundary that surrounds the source is a no-op.
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/b", 1)).toBe(blocks);
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/b", 2)).toBe(blocks);
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/missing", 0)).toBe(blocks);
+    expect(moveArticleBlockToBoundaryV3(blocks, "block/a", 99)
+      .map(({ blockId }) => blockId)).toEqual([
+      "block/b",
+      "block/c",
+      "block/a",
+    ]);
+    expect(Object.isFrozen(moveArticleBlockToBoundaryV3(blocks, "block/a", 3)))
+      .toBe(true);
+  });
+
+  it("targets the boundary nearest to the pointer while dragging", () => {
+    expect(articleBlockDropBoundaryV3(2, 100, 40, 110)).toBe(2);
+    expect(articleBlockDropBoundaryV3(2, 100, 40, 130)).toBe(3);
+  });
+
+  it("filters insert-menu options by label and latin keywords", () => {
+    const options = Object.freeze([
+      { kind: "paragraph", label: "本文", keywords: ["text", "paragraph"] },
+      { kind: "heading", label: "見出し", keywords: ["heading", "h2"] },
+      { kind: "experiment", label: "シミュレーション", keywords: ["simulation"] },
+    ]);
+
+    expect(filterArticleInsertOptionsV3(options, "")).toEqual(options);
+    expect(filterArticleInsertOptionsV3(options, "見出")
+      .map(({ kind }) => kind)).toEqual(["heading"]);
+    expect(filterArticleInsertOptionsV3(options, "SIM")
+      .map(({ kind }) => kind)).toEqual(["experiment"]);
+    expect(filterArticleInsertOptionsV3(options, "nothing")).toEqual([]);
   });
 
   it("inserts a Notion-style block at the requested document boundary", () => {
