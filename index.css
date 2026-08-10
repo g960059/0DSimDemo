@@ -350,7 +350,7 @@ body[data-app-theme="light"] {
 
 .article-reader-peek-divider {
   position: fixed;
-  inset-block: 0;
+  inset-block: 0.375rem;
   inset-inline-end: calc(var(--article-reader-peek-width, 46%) - 0.375rem);
   z-index: 89;
   inline-size: 0;

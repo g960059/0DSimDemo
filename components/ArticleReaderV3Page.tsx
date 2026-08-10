@@ -530,7 +530,7 @@ function ArticleReaderV3Resource({
             percent: peekMaximized ? 100 : Math.round(peekFraction * 100),
           })}
           tabIndex={peekOpen ? 0 : -1}
-          className="article-reader-peek-divider group relative z-10 shrink-0 touch-none outline-none"
+          className="article-reader-peek-divider group z-10 shrink-0 touch-none outline-none"
           data-testid="article-reader-peek-divider-v3"
           onPointerDown={(event) => {
             if (event.button !== 0) return;

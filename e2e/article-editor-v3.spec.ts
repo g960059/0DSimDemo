@@ -31,6 +31,8 @@ test("@desktop Article Peek keeps its resize divider on the surface edge", async
 
   const dividerCenter = dividerBox.x + dividerBox.width / 2;
   expect(Math.abs(panelBox.x - dividerCenter)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(panelBox.y - dividerBox.y)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(panelBox.height - dividerBox.height)).toBeLessThanOrEqual(0.5);
 });
 
 test("@desktop Article Editor preserves native text editing semantics", async ({
