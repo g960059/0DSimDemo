@@ -1,11 +1,15 @@
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import {
   chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
+  rmSync,
+  statSync,
   unlinkSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
@@ -80,6 +84,95 @@ export type StudioAuthoringEstablishedSessionV1 = Readonly<{
   session: StudioAuthoringAuthSessionV1;
   source: StudioAuthoringSessionSourceV1;
 }>;
+
+const AUTHORING_PROFILE_LOCK_STALE_MS_V1 = 60_000;
+const AUTHORING_PROFILE_LOCK_TIMEOUT_MS_V1 = 30_000;
+// The longest supported numerical authoring command may consume ten minutes.
+// Keep a five-minute margin so an externally managed, non-persisted token does
+// not expire after expensive work but before its authority mutation.
+const HEADLESS_ACCESS_TOKEN_MINIMUM_TTL_SEC_V1 = 900;
+
+/**
+ * Serializes the one-time refresh-token rotation performed by independent AI
+ * tool processes. The lock is intentionally held only while authentication is
+ * restored and the rotated token is persisted; numerical work never holds it.
+ */
+export async function withStudioAuthoringProfileLockV1<T>(input: Readonly<{
+  profileName: string;
+  environment?: NodeJS.ProcessEnv;
+  timeoutMs?: number;
+  staleMs?: number;
+}>, operation: () => Promise<T>): Promise<T> {
+  const profileName = requireStudioAuthoringProfileNameV1(input.profileName);
+  const root = defaultStudioAuthoringConfigDirectoryV1(
+    input.environment ?? process.env,
+  );
+  const locks = path.join(root, "locks");
+  const lockPath = path.join(locks, `${profileName}.lock`);
+  const timeoutMs = boundedLockDurationV1(
+    input.timeoutMs ?? AUTHORING_PROFILE_LOCK_TIMEOUT_MS_V1,
+    "authoring lock timeout",
+  );
+  const staleMs = boundedLockDurationV1(
+    input.staleMs ?? AUTHORING_PROFILE_LOCK_STALE_MS_V1,
+    "authoring stale-lock duration",
+  );
+  mkdirSync(locks, { recursive: true, mode: 0o700 });
+  chmodSync(root, 0o700);
+  chmodSync(locks, 0o700);
+  const startedAt = Date.now();
+  const ownerToken = randomUUID();
+  for (;;) {
+    try {
+      mkdirSync(lockPath, { mode: 0o700 });
+      try {
+        writeFileSync(
+          path.join(lockPath, "owner.json"),
+          `${JSON.stringify({
+            pid: process.pid,
+            ownerToken,
+            acquiredAt: new Date().toISOString(),
+          })}\n`,
+          { encoding: "utf8", mode: 0o600, flag: "wx" },
+        );
+      } catch (error) {
+        rmSync(lockPath, { recursive: true, force: true });
+        throw error;
+      }
+      break;
+    } catch (error) {
+      if (!isAlreadyExistsV1(error)) throw error;
+      if (isStaleAuthoringLockV1(lockPath, staleMs)) {
+        quarantineStaleAuthoringLockV1(lockPath);
+        continue;
+      }
+      if (Date.now() - startedAt >= timeoutMs) {
+        throw new Error(
+          `Authoring profile '${profileName}' is busy in another process`,
+        );
+      }
+      await delayV1(50 + Math.floor(Math.random() * 50));
+    }
+  }
+  const heartbeatMs = Math.max(10, Math.min(5_000, Math.floor(staleMs / 3)));
+  const heartbeat = setInterval(() => {
+    if (!authoringLockOwnedByV1(lockPath, ownerToken)) return;
+    try {
+      const now = new Date();
+      utimesSync(lockPath, now, now);
+    } catch {
+      // A missing path means ownership was already lost. The token check in
+      // finally prevents this process from deleting a successor's lock.
+    }
+  }, heartbeatMs);
+  heartbeat.unref();
+  try {
+    return await operation();
+  } finally {
+    clearInterval(heartbeat);
+    removeOwnedAuthoringLockV1(lockPath, ownerToken);
+  }
+}
 
 export function requireStudioAuthoringProfileNameV1(value: string): string {
   if (!PROFILE_NAME_V1.test(value)) {
@@ -168,12 +261,22 @@ export async function establishStudioAuthoringSessionV1(input: Readonly<{
   const profileName = requireStudioAuthoringProfileNameV1(input.profileName);
   const headless = readStudioAuthoringHeadlessSessionV1(input.environment);
   if (headless !== null) {
+    assertFreshHeadlessAccessTokenV1(headless.accessToken);
     const result = await input.auth.setSession({
       access_token: headless.accessToken,
       refresh_token: headless.refreshToken,
     });
+    const session = requireAuthorSessionV1(result, input.storedProfile);
+    if (
+      session.access_token !== headless.accessToken
+      || session.refresh_token !== headless.refreshToken
+    ) {
+      throw new Error(
+        "The headless token pair was rotated unexpectedly; provide a fresh pair from the external token manager",
+      );
+    }
     return Object.freeze({
-      session: requireAuthorSessionV1(result, input.storedProfile),
+      session,
       source: "environment",
     });
   }
@@ -197,6 +300,40 @@ export async function establishStudioAuthoringSessionV1(input: Readonly<{
   // value before any content command is allowed to mutate durable state.
   input.refreshTokens.write(profileName, session.refresh_token);
   return Object.freeze({ session, source: "keychain" });
+}
+
+function assertFreshHeadlessAccessTokenV1(accessToken: string): void {
+  const segments = accessToken.split(".");
+  if (segments.length !== 3 || segments[1] === undefined) {
+    throw new Error(
+      "Headless authoring requires a JWT access token with an explicit expiry",
+    );
+  }
+  let payload: unknown;
+  try {
+    payload = JSON.parse(
+      Buffer.from(segments[1], "base64url").toString("utf8"),
+    ) as unknown;
+  } catch {
+    throw new Error(
+      "Headless authoring access token has an invalid JWT payload",
+    );
+  }
+  const expiry = isRecordV1(payload) ? payload.exp : undefined;
+  if (
+    typeof expiry !== "number"
+    || !Number.isSafeInteger(expiry)
+    || expiry <= Math.floor(Date.now() / 1_000)
+      + HEADLESS_ACCESS_TOKEN_MINIMUM_TTL_SEC_V1
+  ) {
+    throw new Error(
+      `Headless authoring requires an access token valid for at least ${HEADLESS_ACCESS_TOKEN_MINIMUM_TTL_SEC_V1} more seconds; refresh it in the external token manager`,
+    );
+  }
+}
+
+function isRecordV1(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 export async function revokeAndRemoveStudioAuthoringSessionV1(
@@ -400,6 +537,94 @@ export function defaultStudioAuthoringConfigDirectoryV1(
   const xdg = environment.XDG_CONFIG_HOME;
   return path.join(xdg === undefined ? path.join(os.homedir(), ".config") : xdg,
     "circleheart", "authoring");
+}
+
+function boundedLockDurationV1(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > 10 * 60_000) {
+    throw new Error(`${label} must be an integer between 1 and 600000 ms`);
+  }
+  return value;
+}
+
+function isAlreadyExistsV1(error: unknown): boolean {
+  return error !== null
+    && typeof error === "object"
+    && "code" in error
+    && (error as { code?: unknown }).code === "EEXIST";
+}
+
+function isStaleAuthoringLockV1(lockPath: string, staleMs: number): boolean {
+  try {
+    if (Date.now() - statSync(lockPath).mtimeMs < staleMs) return false;
+    const owner = readAuthoringLockOwnerV1(lockPath);
+    return owner === null || !isProcessAliveV1(owner.pid);
+  } catch {
+    return false;
+  }
+}
+
+function readAuthoringLockOwnerV1(
+  lockPath: string,
+): Readonly<{ pid: number; ownerToken: string }> | null {
+  try {
+    const parsed = JSON.parse(
+      readFileSync(path.join(lockPath, "owner.json"), "utf8"),
+    ) as unknown;
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+    const record = parsed as Record<string, unknown>;
+    if (
+      !Number.isSafeInteger(record.pid)
+      || (record.pid as number) < 1
+      || typeof record.ownerToken !== "string"
+      || !/^[0-9a-f-]{36}$/i.test(record.ownerToken)
+    ) {
+      return null;
+    }
+    return Object.freeze({
+      pid: record.pid as number,
+      ownerToken: record.ownerToken,
+    });
+  } catch {
+    return null;
+  }
+}
+
+function isProcessAliveV1(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error !== null
+      && typeof error === "object"
+      && "code" in error
+      && (error as { code?: unknown }).code === "EPERM";
+  }
+}
+
+function authoringLockOwnedByV1(lockPath: string, ownerToken: string): boolean {
+  return readAuthoringLockOwnerV1(lockPath)?.ownerToken === ownerToken;
+}
+
+function removeOwnedAuthoringLockV1(lockPath: string, ownerToken: string): void {
+  if (!authoringLockOwnedByV1(lockPath, ownerToken)) return;
+  rmSync(lockPath, { recursive: true, force: true });
+}
+
+function quarantineStaleAuthoringLockV1(lockPath: string): void {
+  const quarantinePath = `${lockPath}.stale-${process.pid}-${randomUUID()}`;
+  try {
+    renameSync(lockPath, quarantinePath);
+  } catch (error) {
+    if (isAlreadyExistsV1(error) || !existsSync(lockPath)) return;
+    throw error;
+  }
+  rmSync(quarantinePath, { recursive: true, force: true });
+}
+
+function delayV1(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function validateStudioAuthoringProjectV1(

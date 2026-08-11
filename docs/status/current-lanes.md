@@ -2,7 +2,7 @@
 
 Status: compact pointer index
 
-Updated: 2026-08-09
+Updated: 2026-08-11
 
 This file does not record merge history. GitHub, Git history and versioned
 evidence artifacts remain the authority for completed work.
@@ -33,10 +33,11 @@ Experiment Surface, but it no longer requires a separate limited model
 Surface or a legacy catalog fallback.
 
 The Git official-recipe runner and generic launch channels were removed. AI
-assistance starts with typed list/read (including exact Snapshot detail),
-model-aware presentation/Article save, and publish commands against normal user
-content. Numerical Scenario mutation, fitting and Snapshot capture are added
-only after real authoring repetition defines their execution-host contract.
+assistance now uses the ordinary author account and a typed machine protocol:
+model discovery, explicit Scenario add/update/remove operations, ephemeral
+preview, exact-pinned apply, saved-head Snapshot seal, Briefing placement,
+targeted Article block patches and standalone publication. Fitting and broad
+search remain deferred to a future non-persistent `study.run` boundary.
 
 ## Model platform
 

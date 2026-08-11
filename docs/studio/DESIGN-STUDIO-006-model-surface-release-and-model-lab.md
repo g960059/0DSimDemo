@@ -199,19 +199,39 @@ human/AI review. Only repeated operations observed during that work become
 automation. The initial typed command seam supports:
 
 - listing and reading the author's Experiments, Snapshots and Articles;
-- saving Article drafts;
+- discovering the active or saved exact Model/Surface contract;
+- previewing and applying explicit Scenario additions, updates and removals;
+- sealing the saved Experiment head through the same admission service used by
+  the product;
+- projecting an immutable Snapshot into an Article Briefing;
+- patching named Article blocks without resending the unrelated draft;
 - changing an Experiment title/presentation Surface without changing numerical
   Scenario captures; and
-- publishing an already admitted Snapshot or Article through semantic RPCs.
+- publishing an admitted Snapshot or Article through separate semantic RPCs.
 
 Commands use a normal author session and an `sb_publishable_` key. Service-role
 keys, including legacy service-role JWTs, are rejected. Every command carries a
 UUID `commandId`; mutation commands reuse it as the backend idempotency key, so
-an identical retry cannot duplicate an Article or Experiment. There is an
+the backend permanently binds it to the canonical command SHA-256 and retains
+the compact committed result independently of the ordinary 24-hour operation
+receipt. An identical retry therefore cannot duplicate an Article, Experiment
+or Snapshot even after general receipt GC; the same UUID with changed semantics
+is rejected. There is an
 optional policy hook for future confirmations, but the current local AI
 workflow is allow-by-default as requested. Safety remains in schema validation,
 exact model/Surface-aware presentation and Briefing checks, Snapshot admission,
 CAS, RLS and backend publication gates.
+
+Numerical authoring is a two-step protocol. `experiment.preview` resolves and
+returns an exact `modelId` / `surfaceSeriesId` / `surfaceReleaseId` pin, explicit
+Scenario diff, bounded execution plan and selected observations.
+`experiment.apply` accepts that exact, digest-protected plan. Omitted Scenarios
+retain their fixture and checkpoint; deletion is always an explicit `remove`
+operation. Only additions and control-bearing updates advance numerically, and
+the preview reports them as `advancedScenarioIds`. A retry uses the same
+`commandId`, and the CLI reads the actor-scoped operation receipt before
+repeating numerical work. Publication is never an implicit consequence of
+preview, apply, Snapshot seal or Briefing placement.
 
 The CLI is:
 
@@ -229,20 +249,33 @@ profile, the rotating refresh token is held in macOS Keychain, and access
 tokens remain in memory. Every refresh rotation is persisted before a durable
 authoring command may execute. Credentials never enter a command document or
 stdout. A complete access/refresh token pair remains an explicit, non-persisted
-headless override. The credential provider is a local Node boundary shared by
+headless override. Its access JWT must remain valid for at least fifteen minutes;
+the CLI never refreshes that pair because a rotated one-time refresh token
+cannot be returned safely on stdout. An external token manager must supply a
+fresh pair. The credential provider is a local Node boundary shared by
 the CLI and a future local MCP adapter; MCP must not introduce another token
 store or authoring authority, and must serialize refresh rotation per profile
 before serving concurrent requests. Logout best-effort revokes the CLI session
 and always removes the local Keychain credential without touching the browser
 session.
 
-Scenario creation, parameter search/fitting, and Snapshot capture are deferred
-until several real authoring sessions reveal the required operations. Their
-future implementation extends the same command service with an execution-host
-port. It must warm-start from valid capture state, apply hierarchical bounded
-changes, evaluate requested outputs/morphology/V&V, and admit the resulting
-Snapshot before persistence. It must not introduce `ParameterSet`, mutable
-Snapshot, or a second Experiment data model.
+The first numerical CLI executes only the reviewed Standard artifact checked
+into the installed CircleHeart source tree and verifies it against the registry
+manifest. It does not evaluate downloaded exact-model JavaScript in the same
+Node process that holds author credentials. Historical or dynamic executable
+models require a future tokenless, permission-restricted subprocess boundary.
+
+The backend is authoritative for identity, ownership, immutable pins, CAS and
+publication eligibility. The shared browser/CLI numerical admission service is
+a first-party product quality gate, not cryptographic attestation against a
+hostile authenticated client calling a raw RPC. A future server-verified claim
+requires a trusted execution service and signed admission receipt.
+
+Large parameter search, fitting and V&V loops are deferred to a separate,
+non-persistent `study.run` protocol. Optimizer trials must not become durable
+Experiments. Only an explicitly selected candidate may cross the normal
+preview/apply/seal boundary. This preserves the single Experiment and immutable
+Snapshot data model.
 
 ## 8. Database authority
 

@@ -21,6 +21,10 @@ import {
   studioCanonicalJsonStringify,
 } from "@/studio/infrastructure/json/StudioCanonicalJson";
 import {
+  assertStudioAdmittedSnapshotCommitV1,
+  type StudioAdmittedSnapshotCommitV1,
+} from "@/studio/application/authoring/StudioAdmittedSnapshotCommitV1";
+import {
   assertStudioSimulationWorkerAdmittedSnapshotCommitV2,
   type StudioSimulationWorkerAdmittedSnapshotCommitV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
@@ -49,6 +53,15 @@ export type StudioSummaryPageV1<T> = Readonly<{
 export type StudioSummaryPageRequestV1 = Readonly<{
   limit?: number;
   cursor?: StudioSummaryCursorV1 | null;
+}>;
+
+export type StudioAuthoringOperationReceiptV1 = Readonly<{
+  operationId: string;
+  operationKind: string;
+  status: "running" | "committed";
+  result: Readonly<Record<string, unknown>> | null;
+  createdAt: string;
+  completedAt: string | null;
 }>;
 
 export type StudioRemoteExperimentSummaryV1 = Readonly<{
@@ -116,6 +129,20 @@ export type StudioSupabaseContentRepositoryOptionsV1 = Readonly<{
   fixedMutationOperationId?: string;
 }>;
 
+/**
+ * The backend acknowledged a mutation, but the returned/read-back value did
+ * not satisfy the local contract. AI callers must treat the commit as durable
+ * and recover by reading authority state, never by minting another mutation.
+ */
+export class StudioSupabaseMutationAcknowledgedErrorV1 extends Error {
+  readonly authoringCommitState = "confirmed" as const;
+
+  constructor(message: string, cause: unknown) {
+    super(message, { cause });
+    this.name = "StudioSupabaseMutationAcknowledgedErrorV1";
+  }
+}
+
 export class StudioSupabaseContentRepositoryV1 {
   readonly #client: SupabaseClient;
   readonly #pendingOperationIds = new Map<string, string>();
@@ -152,24 +179,35 @@ export class StudioSupabaseContentRepositoryV1 {
       p_model_id: content.modelId,
       p_content: content,
     });
-    const result = recordV1(data, "save_experiment_v1 result");
-    return validateExperimentV2({
-      schemaId: STUDIO_EXPERIMENT_V2_SCHEMA_ID,
-      experimentId: requiredStringV1(result.experimentId, "experimentId"),
-      version: nonnegativeIntegerV1(result.version, "version"),
-      content,
-    });
+    return parseAcknowledgedMutationResultV1(
+      "Saved Experiment response failed local validation",
+      () => {
+        const result = recordV1(data, "save_experiment_v1 result");
+        return validateExperimentV2({
+          schemaId: STUDIO_EXPERIMENT_V2_SCHEMA_ID,
+          experimentId: requiredStringV1(result.experimentId, "experimentId"),
+          version: nonnegativeIntegerV1(result.version, "version"),
+          content,
+        });
+      },
+    );
   }
 
   async commitSnapshot(input: Readonly<{
-    admitted: StudioSimulationWorkerAdmittedSnapshotCommitV2;
+    admitted:
+      | StudioAdmittedSnapshotCommitV1
+      | StudioSimulationWorkerAdmittedSnapshotCommitV2;
     sourceExperiment?: Readonly<{
       experimentId: string;
       expectedVersion: number;
     }>;
   }>): Promise<ExperimentSnapshotV2> {
     await ensureStudioAuthenticatedForSaveV1(this.#client);
-    assertStudioSimulationWorkerAdmittedSnapshotCommitV2(input.admitted);
+    try {
+      assertStudioAdmittedSnapshotCommitV1(input.admitted);
+    } catch {
+      assertStudioSimulationWorkerAdmittedSnapshotCommitV2(input.admitted);
+    }
     const candidate = input.admitted.snapshot;
     const data = await this.#mutationRpc(
       "commit_admitted_experiment_snapshot_v1",
@@ -185,17 +223,22 @@ export class StudioSupabaseContentRepositoryV1 {
           input.sourceExperiment?.expectedVersion ?? null,
       },
     );
-    const result = recordV1(
-      data,
-      "commit_admitted_experiment_snapshot_v1 result",
+    return parseAcknowledgedMutationResultV1(
+      "Committed Snapshot response failed local validation",
+      () => {
+        const result = recordV1(
+          data,
+          "commit_admitted_experiment_snapshot_v1 result",
+        );
+        return validateExperimentSnapshotV2({
+          schemaId: requiredStringV1(result.schemaId, "schemaId"),
+          snapshotId: requiredStringV1(result.snapshotId, "snapshotId"),
+          content: candidate.content,
+          createdAt: isoTimestampV1(result.createdAt, "createdAt"),
+          surfaceReleaseId: candidate.surfaceReleaseId,
+        });
+      },
     );
-    return validateExperimentSnapshotV2({
-      schemaId: requiredStringV1(result.schemaId, "schemaId"),
-      snapshotId: requiredStringV1(result.snapshotId, "snapshotId"),
-      content: candidate.content,
-      createdAt: isoTimestampV1(result.createdAt, "createdAt"),
-      surfaceReleaseId: candidate.surfaceReleaseId,
-    });
   }
 
   async saveArticle(input: Readonly<{
@@ -212,17 +255,24 @@ export class StudioSupabaseContentRepositoryV1 {
       p_title: article.title,
       p_blocks: article.blocks,
     });
-    const result = recordV1(data, "save_article_v1 result");
-    const articleId = requiredStringV1(result.articleId, "articleId");
-    nonnegativeIntegerV1(result.version, "version");
-    // Publication state is backend authority. In particular, an AI-authored
-    // payload must not make the command result claim `public` when the Article
-    // has only been saved as a private draft.
-    const saved = await this.readArticle(articleId);
-    if (saved === null) {
-      throw new Error("Saved Article could not be read from authority");
+    try {
+      const result = recordV1(data, "save_article_v1 result");
+      const articleId = requiredStringV1(result.articleId, "articleId");
+      nonnegativeIntegerV1(result.version, "version");
+      // Publication state is backend authority. In particular, an AI-authored
+      // payload must not make the command result claim `public` when the
+      // Article has only been saved as a private draft.
+      const saved = await this.readArticle(articleId);
+      if (saved === null) {
+        throw new Error("Saved Article could not be read from authority");
+      }
+      return saved;
+    } catch (error) {
+      throw acknowledgedMutationErrorV1(
+        "Saved Article could not be read back from authority",
+        error,
+      );
     }
-    return saved;
   }
 
   /**
@@ -391,6 +441,42 @@ export class StudioSupabaseContentRepositoryV1 {
     return data === null ? null : validateStudioArticleDraftV2(data);
   }
 
+  async readMyAuthoringOperationReceipt(
+    operationId: string,
+  ): Promise<StudioAuthoringOperationReceiptV1 | null> {
+    if (!isUuidV1(operationId)) {
+      throw new Error("Authoring operation ID must be a UUID");
+    }
+    const data = await this.#rpc("read_my_authoring_operation_receipt_v1", {
+      p_operation_id: operationId,
+    });
+    return parseAuthoringOperationReceiptV1(data);
+  }
+
+  async claimMyAuthoringCommand(input: Readonly<{
+    commandId: string;
+    action: string;
+    commandDigest: string;
+  }>): Promise<StudioAuthoringOperationReceiptV1 | null> {
+    if (!isUuidV1(input.commandId)) {
+      throw new Error("Authoring command ID must be a UUID");
+    }
+    if (!/^[a-z][a-z0-9.-]{0,79}$/.test(input.action)) {
+      throw new Error("Authoring command action is invalid");
+    }
+    if (!/^[0-9a-f]{64}$/.test(input.commandDigest)) {
+      throw new Error("Authoring command digest must be lowercase SHA-256");
+    }
+    return parseAuthoringOperationReceiptV1(await this.#rpc(
+      "claim_my_authoring_command_v1",
+      {
+        p_command_id: input.commandId,
+        p_command_action: input.action,
+        p_command_digest: input.commandDigest,
+      },
+    ));
+  }
+
   async listPublicExperiments(
     request: StudioSummaryPageRequestV1 = {},
   ): Promise<StudioSummaryPageV1<StudioPublicExperimentSummaryV1>> {
@@ -468,6 +554,33 @@ export class StudioSupabaseContentRepositoryV1 {
     removePendingOperationIdV1(storageKey, operationId);
     return data;
   }
+}
+
+function parseAuthoringOperationReceiptV1(
+  value: unknown,
+): StudioAuthoringOperationReceiptV1 | null {
+  if (value === null) return null;
+  const record = recordV1(value, "Authoring operation receipt");
+  const status = requiredStringV1(record.status, "status");
+  if (status !== "running" && status !== "committed") {
+    throw new Error("Authoring operation receipt status is unsupported");
+  }
+  const result = record.result === null
+    ? null
+    : Object.freeze({ ...recordV1(record.result, "result") });
+  if ((status === "committed") !== (result !== null)) {
+    throw new Error("Authoring operation receipt result is inconsistent");
+  }
+  return Object.freeze({
+    operationId: requiredStringV1(record.operationId, "operationId"),
+    operationKind: requiredStringV1(record.operationKind, "operationKind"),
+    status,
+    result,
+    createdAt: isoTimestampV1(record.createdAt, "createdAt"),
+    completedAt: record.completedAt === null
+      ? null
+      : isoTimestampV1(record.completedAt, "completedAt"),
+  });
 }
 
 function articleImageExtensionV1(mimeType: string): string | null {
@@ -741,6 +854,26 @@ function sessionStorageV1(): Storage | null {
   } catch {
     return null;
   }
+}
+
+function parseAcknowledgedMutationResultV1<T>(
+  message: string,
+  parse: () => T,
+): T {
+  try {
+    return parse();
+  } catch (error) {
+    throw acknowledgedMutationErrorV1(message, error);
+  }
+}
+
+function acknowledgedMutationErrorV1(
+  message: string,
+  cause: unknown,
+): StudioSupabaseMutationAcknowledgedErrorV1 {
+  return cause instanceof StudioSupabaseMutationAcknowledgedErrorV1
+    ? cause
+    : new StudioSupabaseMutationAcknowledgedErrorV1(message, cause);
 }
 
 function recordV1(value: unknown, label: string): Record<string, unknown> {

@@ -125,6 +125,7 @@ export const prSmokeTests = [
   "__tests__/studioFixtureReducerV2.test.ts",
   "__tests__/studioSimulationWorkerV2.test.ts",
   "__tests__/studioSupabaseBoundaryV1.test.ts",
+  "__tests__/studioNumericalAuthoringV1.test.ts",
   "__tests__/testSuiteManifest.test.ts",
   "__tests__/workbenchBackgroundWorkerPoolV3.test.ts",
   "__tests__/workbenchParallelAuthoringCoordinatorV3.test.ts",
@@ -136,6 +137,7 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/studioNumericalAuthoringV1.test.ts",
   "__tests__/acceptedEventTriggeredIabpActuatorCheckpointV1.test.ts",
   "__tests__/acceptedEventTriggeredIabpActuatorOwnerV1.test.ts",
   "__tests__/acceptedAfAtrialSourceOwnerCheckpointV1.test.ts",

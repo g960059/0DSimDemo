@@ -1,141 +1,232 @@
-# Studio authoring commands
+# AI-assisted Studio authoring
 
-This CLI lets a local AI or developer repeat ordinary Studio content actions.
-It uses the same Supabase user authority, CAS versions, model-aware validation,
-Snapshot admission boundary and publication RPCs as the product UI.
+This CLI is a machine-oriented seam for Codex, Claude Code and comparable
+local assistants. Clinicians continue to use the visual Experiment Session and
+Article Editor. The CLI drives the same user-owned Supabase drafts, exact model
+contracts, immutable Snapshots, Briefings and publication RPCs.
 
-It is not a numerical back door. Scenario mutation, parameter fitting and
-Snapshot capture stay in the Experiment Session until a real repeated workflow
-defines their execution-host contract.
+It is deliberately not a second content system and does not use a service-role
+credential. Every write runs as the signed-in author under RLS and optimistic
+concurrency.
 
 ## Authentication
 
-The normal local workflow uses Google OAuth with PKCE. Add this exact URL to
-the Supabase Auth redirect allow list once:
+The normal local workflow uses Google OAuth with PKCE. Add this exact redirect
+URL to the Supabase Auth allow list:
 
 ```text
 http://127.0.0.1:43921/auth/callback
 ```
 
-For the first login, provide the project URL and publishable key to the local
-process, then sign in with the same Google account used by the web product:
+First login:
 
 ```sh
 export CIRCLEHEART_SUPABASE_URL="https://PROJECT.supabase.co"
 export CIRCLEHEART_SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."
-npm run author:login -- --profile official
+npm --silent run author:login -- --profile official
 ```
 
-The project metadata and user identity are saved as a non-secret local profile.
-The only durable credential, the rotating Supabase refresh token, is stored in
-macOS Keychain under `dev.circleheart.authoring.refresh-token.v1`. Access tokens
-are kept in memory only and tokens are never printed. Subsequent commands do
-not need exported project variables:
+The profile stores only project metadata and user identity. Its rotating
+refresh token is stored in macOS Keychain under
+`dev.circleheart.authoring.refresh-token.v1`; access tokens remain in memory
+and are never printed. Commands serialize refresh-token restoration per
+profile so concurrent assistant processes cannot race token rotation.
 
 ```sh
-npm run author:status -- --profile official
-npm run author:logout -- --profile official
+npm --silent run author:status -- --profile official
+npm --silent run author:logout -- --profile official
 ```
 
-`status` refreshes the Supabase session and safely persists the rotated token.
-`logout` attempts to revoke that CLI session at Supabase, then removes the
-local Keychain credential even if the network is unavailable. It does not sign
-the separate browser session out.
+Auth commands use the same machine-I/O discipline as content commands: exactly
+one JSON object is written to stdout and progress is written to stderr. Success
+uses `circleheart-studio-authoring-auth-result-v1` with `ok:true`; failure uses
+`circleheart-studio-authoring-auth-error-v1` with `ok:false` plus stable
+`error.code`, `category`, `retryable`, and `recovery` fields. Assistants must
+follow those fields rather than parsing human-readable messages.
 
-`--profile` defaults to `default`. Profiles allow deliberately separate local
-identities or projects without making a second Google account mandatory.
-Authorization to publish remains a backend role/RLS decision rather than a
-property of the local credential.
+`--profile` defaults to `default`. Separate profiles are useful for separate
+users or projects, but an “official account” is not a privileged credential;
+publication authority remains a backend role/RLS decision.
 
-Like other developer CLIs, this Keychain use provides encrypted-at-rest
-storage for the current macOS user; it is not an app-exclusive enclave against
-other processes already running as that user.
+The optional headless access/refresh-token pair is supported for explicitly
+managed automation. Both values are required together and are never
+persisted. The access JWT must have at least fifteen minutes remaining; the CLI
+fails before `setSession` instead of rotating and then losing a one-time
+refresh token. The external token manager owns renewal and must provide a
+fresh pair. Service-role keys, secret keys and legacy service-role JWTs are
+rejected; only an `sb_publishable_` key may configure the CLI.
 
-Use `--no-open` with `author:login` to print the OAuth URL without launching a
-browser. `CIRCLEHEART_AUTHOR_CONFIG_HOME` may override the non-secret profile
-directory for isolated development or tests.
+## Machine discovery and envelopes
 
-For CI or an explicitly managed headless process, the existing token-pair
-override remains available:
+Assistants should discover the current protocol instead of copying examples:
 
 ```sh
-export CIRCLEHEART_SUPABASE_URL="https://PROJECT.supabase.co"
-export CIRCLEHEART_SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."
-export CIRCLEHEART_AUTHOR_ACCESS_TOKEN="..."
-export CIRCLEHEART_AUTHOR_REFRESH_TOKEN="..."
+npm --silent run author:content -- --describe
 ```
 
-Both token values are required together and are not persisted. The project URL
-and publishable key are also required unless the selected saved profile already
-supplies them. Never put credentials in a command file. Service-role/secret
-keys and legacy service-role JWTs are rejected; only an `sb_publishable_` key
-may configure this user-authorized CLI.
+The discovery document includes strict nested JSON Schemas for command inputs,
+preview plans, Scenario operations, Article blocks, result envelopes and error
+recovery fields. Treat it as the executable contract; examples in this README
+are explanatory only.
 
-Run one command at a time for a given profile. A future long-lived local MCP
-adapter must reuse this credential provider and serialize refresh-token
-rotation per profile before it introduces concurrent requests.
-
-## Run
+For execution:
 
 ```sh
-npm run author:content -- \
+npm --silent run author:content -- \
   --profile official \
   --command /absolute/path/to/command.json
 ```
 
-Each file has exactly this envelope:
+Use `npm --silent`: npm's own banner is otherwise mixed into stdout. The CLI
+process itself writes exactly one JSON object to stdout. Progress and
+diagnostics go to stderr. Success and failure envelopes include `commandId`
+and `action`; failures additionally expose a stable category, retryability and
+whether the commit state is known.
+
+`error.category`, `error.commitState` and `error.recovery` are the recovery
+authority for assistants. In particular, `commitState:"confirmed"` means read
+the target state and never repeat the mutation; `unknown` means call
+`operation.read` with the same `commandId` before retrying the byte-identical
+command. Do not infer recovery behavior from human-readable `message` text.
+
+Every command file has this outer shape:
 
 ```json
 {
   "schemaId": "circleheart-studio-authoring-command-v1",
   "commandId": "3a3dd8a7-d8ad-48d4-9e23-6826c8a9fb6e",
   "action": "experiment.list",
-  "input": { "limit": 50 }
+  "input": { "cursor": null, "limit": 50 }
 }
 ```
 
-Reuse the same UUID when retrying the same mutation after an uncertain
-response. It is also the backend idempotency key.
+List actions return `nextCursor`. Pass that object unchanged as the next
+command's `input.cursor`; use `null` for the first page. Assistants must page
+until `nextCursor` is `null` rather than assuming the first 100 rows are the
+complete authoring inventory.
 
-## Actions
+Do not place credentials in command files.
 
-Read-only actions:
+## Numerical Experiment workflow
+
+Numerical mutation is a two-step protocol:
+
+1. `model.describe` discovers controls, outputs, graphs and exact identity.
+2. `experiment.preview` runs an ephemeral simulation and returns the exact
+   model/Surface pin, a SHA-256 apply plan, explicit Scenario diff and selected
+   output observations.
+3. The assistant reviews the diff and observations.
+4. `experiment.apply` submits that exact returned plan. It reruns from the
+   same exact pins and uses CAS when updating a saved Experiment.
+5. `snapshot.seal` seals the saved head at its stored accepted checkpoint. It
+   never performs a hidden time advance.
+6. `article.briefing.place` projects selected graphs, outputs and controls from
+   that immutable Snapshot into an Article.
+
+Scenario changes are explicit operations:
 
 ```text
-experiment.list  { limit }
-experiment.read  { experimentId }
-snapshot.list    { limit }
-snapshot.read    { snapshotId }
-article.list     { limit }
-article.read     { articleId }
+add     { scenarioId, label, sourceScenarioId, controls[] }
+update  { scenarioId, label|null, controls[] }
+remove  { scenarioId }
 ```
 
-Mutation actions:
+Omitting a saved Scenario means “preserve its fixture and checkpoint”, not
+“delete it”. Only a newly added Scenario or an update with control assignments
+advances numerically during apply; a label-only edit does not retime it. The
+preview diff exposes these as `advancedScenarioIds`. Controls are absolute
+semantic assignments. A new Scenario may start from the exact release default
+fixture or clone one saved Scenario checkpoint as a warm start.
+
+Every preview supplies a bounded execution budget:
 
 ```text
-experiment.presentation.save
-  { experimentId, expectedVersion, title, surface }
-
-experiment.publish
-  { experimentId, expectedVersion, snapshotId, publicSlug }
-
-article.save
-  { articleId, expectedVersion, article }
-  # both identity fields are null for a new Article
-
-article.publish
-  { articleId, expectedVersion, publicSlug }
+advanceSeconds        simulated time to run before capture
+maxPresentationSteps  deterministic work ceiling
+wallClockTimeoutMs    process-time ceiling
 ```
 
-`article.save` uses the same portable block document as the visual Editor.
+The current CLI intentionally executes only the reviewed Standard artifact
+checked into the installed CircleHeart source tree. Registry manifests and
+Surface releases are still matched exactly. A future multi-model CLI must run
+downloaded executable artifacts inside a tokenless, permission-restricted
+subprocess before historical/dynamic model execution is enabled.
+
+## Article workflow
+
+`article.save` creates or replaces a complete portable block draft.
+`article.blocks.patch` is preferred for assistant revisions: it applies
+explicit `replace`, `insert-after` or `remove` operations to named block IDs
+without resending unrelated content. `article.briefing.place` uses explicit
+placement targets (`replace`, `insert-after`, `append`) and deterministic IDs
+derived from `commandId`: `placement/authoring/<commandId>` and
+`block/authoring/<commandId>`. These IDs remain recoverable even when an exact
+retry returns only the compact authority receipt.
+
 Supported block kinds are `paragraph`, `heading`, `equation`, `image`,
-`divider`, and `experiment`. Equations store display TeX in `expression`.
-Images reference an immutable HTTPS asset with `url`, `altText`, and
-`caption`; local file paths and data URLs are rejected. The visual Editor can
-upload image files to the owner's Article asset bucket, while CLI authors may
-reference an asset that has already been uploaded.
+`divider` and `experiment`. Equations store display TeX. Saved or published
+images should reference immutable HTTPS assets. An empty URL is allowed while
+drafting and loopback HTTP is allowed only for local development; local file
+paths and data URLs are rejected.
 
-Read the current resource first and copy its current version into a mutation.
-Presentation and Article saves are validated against the pinned exact model,
-Surface and referenced Snapshots. Publication accepts only a Snapshot that has
-already passed the common numerical admission path.
+## Action inventory
+
+Read/discovery:
+
+```text
+experiment.list       experiment.read
+snapshot.list         snapshot.read
+article.list          article.read
+operation.read        model.describe
+experiment.preview
+```
+
+Mutations:
+
+```text
+experiment.apply
+experiment.presentation.save
+snapshot.seal
+article.briefing.place
+article.blocks.patch
+experiment.publish
+article.save
+article.publish
+```
+
+Publication is always a separate explicit action. Preview, apply, Snapshot
+seal and Briefing never publish content.
+
+## Retry protocol
+
+Reuse the same UUID only when retrying the same mutation after an uncertain
+transport response. Before any work, the backend permanently binds that UUID
+to the canonical command SHA-256. The normal operation receipt is retained for
+24 hours, while the binding keeps the compact committed result so an identical
+retry remains replayable after receipt GC. Before recomputing an expensive
+mutation, the CLI claims that binding and reads its actor-scoped result:
+
+- `committed`: return the compact durable result without repeating work;
+- `running`: stop and query `operation.read`;
+- absent: execute the command.
+
+Never reuse one `commandId` for a different semantic request. For a new
+decision, mint a new UUID. Reusing it with another action or payload fails
+closed even if the original operation receipt has expired.
+
+## Trust boundary
+
+RLS, ownership, CAS, immutable exact pins and publication constraints are
+backend authority. Numerical admission in this CLI is the same first-party
+quality gate used by the product client; it prevents ordinary product code
+from persisting a raw unchecked Snapshot, but it is not a cryptographic proof
+against a hostile authenticated client calling Supabase directly.
+
+A future “server verified” claim requires a trusted Cloud Run/Edge admission
+service and a signed receipt. Until then, UI/Article limitations must describe
+Snapshots as numerical simulation artifacts rather than clinically validated
+or server-certified results.
+
+Large search, fitting and V&V loops should eventually use a separate
+non-persistent `study.run` protocol. Optimizer trials must not become durable
+Experiments; only an explicitly selected candidate crosses preview/apply/seal.
