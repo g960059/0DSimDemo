@@ -26,10 +26,10 @@ All current controls have
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | `hemodynamics.systemic-resistance` | `systemicResistance` | 1 | 0.75 | 1.00 | 1.25 | 0.01 |
 | `hemodynamics.pulmonary-resistance` | `pulmonaryResistance` | 1 | 0.45 | 0.625 | 0.80 | 0.005 |
-| `hemodynamics.venous-tone` | `venousTone` | 1 | 0.10 | 0.15 | 0.20 | 0.005 |
+| `hemodynamics.venous-tone` | `venousTone` | 1 | 0.00 | 0.15 | 1.00 | 0.01 |
 | `hemodynamics.arterial-stiffness` | `arterialStiffness` | 1 | 0.50 | 0.75 | 1.00 | 0.01 |
 | `rhythm.heart-rate-bpm` | `heartRateBpm` | bpm | 40 | 60 | 100 | 1 |
-| `hemodynamics.total-blood-volume-ml` | `totalBloodVolumeMl` | mL | 4800 | 5600 | 7000 | 50 |
+| `hemodynamics.total-blood-volume-ml` | `totalBloodVolumeMl` | mL | 4200 | 5600 | 7000 | 50 |
 | `ventilation.peep-cm-h2o` | `peepCmH2O` | cmH2O | 0 | 0 | 20 | 1 |
 
 Heart rate owns the regular-sinus cycle length, exact-event calcium conversion,

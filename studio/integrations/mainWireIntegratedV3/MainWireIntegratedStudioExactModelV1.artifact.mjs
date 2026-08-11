@@ -5731,8 +5731,10 @@ function buildNodes() {
     { name: "SA", kind: "arterial", Vu: 0, P0: 50, Vs: 400, x0: 400 * Math.log1p(85 / 50) },
     { name: "Art", kind: "arterial", Vu: 0, P0: 45, Vs: 120, x0: 120 * Math.log1p(70 / 45) },
     { name: "Cap", kind: "linear", Vu: 0, C: 15, x0: 15 * 25 },
-    { name: "SV", kind: "venousPressure", Vu: 1590.909, venousToneGain: 350, Ccoll: 15, Copen: 130, Cdist: 35, Popen: -2, Pstiff: 16, dOpen: 1.5, dStiff: 4, x0: 6 },
-    { name: "VC", kind: "venousPressure", ext: "pth", Vu: 159.091, venousToneGain: 60, Ccoll: 5, Copen: 45, Cdist: 12, Popen: -1, Pstiff: 12, dOpen: 1, dStiff: 3, x0: 4 },
+    // Preserve effective Vu exactly at the canonical venous tone (0.15),
+    // while exposing a finite systemic venous reserve for intervention work.
+    { name: "SV", kind: "venousPressure", Vu: 1653.909, venousToneGain: 770, Ccoll: 15, Copen: 130, Cdist: 35, Popen: -2, Pstiff: 16, dOpen: 1.5, dStiff: 4, x0: 6 },
+    { name: "VC", kind: "venousPressure", ext: "pth", Vu: 169.591, venousToneGain: 130, Ccoll: 5, Copen: 45, Cdist: 12, Popen: -1, Pstiff: 12, dOpen: 1, dStiff: 3, x0: 4 },
     { name: "PA", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 60, x0: 60 * Math.log1p(16 / 20) },
     { name: "PArt", kind: "arterial", ext: "pth", Vu: 0, P0: 20, Vs: 90, x0: 90 * Math.log1p(13 / 20) },
     { name: "PCap", kind: "venousPressure", ext: "palv", Vu: 105, Ccoll: 1, Copen: 2, Cdist: 1, Popen: 0, Pstiff: 14, dOpen: 1, dStiff: 3, x0: 8 },
@@ -24974,9 +24976,9 @@ const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 = Object.freeze(
     step: 5e-3
   }),
   venousTone: Object.freeze({
-    minimum: 0.1,
-    maximum: 0.2,
-    step: 5e-3
+    minimum: 0,
+    maximum: 1,
+    step: 0.01
   }),
   arterialStiffness: Object.freeze({
     minimum: 0.5,
@@ -24989,7 +24991,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 = Object.freeze(
     step: 1
   }),
   totalBloodVolumeMl: Object.freeze({
-    minimum: 4800,
+    minimum: 4200,
     maximum: 7e3,
     step: 50
   }),
@@ -33551,7 +33553,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-6";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-7";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

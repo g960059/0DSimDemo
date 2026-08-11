@@ -26,8 +26,10 @@ export type MainWireIntegratedModelHemodynamicResearchInputRangeV3 =
   }>;
 
 /**
- * Deliberately narrow research ranges around the canonical construction.
- * They are executable input limits, not clinical reference intervals.
+ * Executable research ranges for the canonical construction. They are not
+ * clinical reference intervals. The venous-tone and blood-volume bounds are
+ * wide enough to expose finite stressed-volume reserve and compensated versus
+ * uncompensated hemorrhage without entering the known low-volume failure band.
  */
 export const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 =
   Object.freeze({
@@ -42,9 +44,9 @@ export const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 =
       step: 0.005,
     }),
     venousTone: Object.freeze({
-      minimum: 0.1,
-      maximum: 0.2,
-      step: 0.005,
+      minimum: 0,
+      maximum: 1,
+      step: 0.01,
     }),
     arterialStiffness: Object.freeze({
       minimum: 0.5,
@@ -57,7 +59,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 =
       step: 1,
     }),
     totalBloodVolumeMl: Object.freeze({
-      minimum: 4_800,
+      minimum: 4_200,
       maximum: 7_000,
       step: 50,
     }),
