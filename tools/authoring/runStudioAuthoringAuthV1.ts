@@ -13,9 +13,9 @@ import {
   requireStudioAuthoringProfileNameV1,
   resolveStudioAuthoringProjectV1,
   revokeAndRemoveStudioAuthoringSessionV1,
+  withStudioAuthoringProfileLockV1,
   type StudioAuthoringProfileStoreV1,
   type StudioAuthoringProfileV1,
-  type StudioAuthoringRefreshTokenStoreV1,
 } from "@/studio/infrastructure/auth/StudioLocalAuthoringCredentialsV1";
 import {
   openStudioAuthoringBrowserV1,
@@ -30,15 +30,35 @@ export type StudioAuthoringAuthArgumentsV1 = Readonly<{
   openBrowser: boolean;
 }>;
 
+let authCommandContextV1: Readonly<{
+  action: StudioAuthoringAuthActionV1 | null;
+  profileName: string | null;
+}> = Object.freeze({ action: null, profileName: null });
+
 if (
   process.argv[1] !== undefined
   && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
 ) {
-  await main();
+  try {
+    await main();
+  } catch (error) {
+    process.stdout.write(`${JSON.stringify({
+      schemaId: "circleheart-studio-authoring-auth-error-v1",
+      ok: false,
+      action: authCommandContextV1.action,
+      profileName: authCommandContextV1.profileName,
+      error: classifyStudioAuthoringAuthErrorV1(error),
+    })}\n`);
+    process.exitCode = 1;
+  }
 }
 
 async function main(): Promise<void> {
   const args = parseStudioAuthoringAuthArgumentsV1(process.argv.slice(2));
+  authCommandContextV1 = Object.freeze({
+    action: args.action,
+    profileName: args.profileName,
+  });
   assertStudioAuthoringAuthActionEnvironmentV1(
     args,
     process.env,
@@ -46,35 +66,36 @@ async function main(): Promise<void> {
   );
   const profiles = new FileStudioAuthoringProfileStoreV1();
   const refreshTokens = new MacOSKeychainAuthoringRefreshTokenStoreV1();
-  const storedProfile = readStudioAuthoringProfileForAuthActionV1({
-    action: args.action,
-    profileName: args.profileName,
-    profiles,
-    refreshTokens,
-  });
 
   if (args.action === "logout") {
-    if (storedProfile === null) {
-      refreshTokens.delete(args.profileName);
-      writeSafeResultV1({
+    const revoked = await withStudioAuthoringProfileLockV1({
+      profileName: args.profileName,
+      environment: process.env,
+    }, async () => {
+      const storedProfile = readStudioAuthoringProfileForAuthActionV1({
         action: args.action,
         profileName: args.profileName,
-        signedIn: false,
-        remoteRevoked: false,
+        profiles,
       });
-      return;
-    }
-    const project = resolveStudioAuthoringProjectV1({
-      environment: {},
-      storedProfile,
-      allowProfileReplacement: false,
-    });
-    const client = createAuthoringAuthClientV1(project);
-    const revoked = await revokeAndRemoveStudioAuthoringSessionV1({
-      auth: client.auth,
-      profileName: args.profileName,
-      storedProfile,
-      refreshTokens,
+      if (storedProfile === null) {
+        // Corrupt or absent non-secret metadata must not trap the Keychain
+        // credential. Keep this deletion inside the same profile lock as
+        // refresh-token rotation so logout cannot race a credential write.
+        refreshTokens.delete(args.profileName);
+        return Object.freeze({ remoteRevoked: false });
+      }
+      const project = resolveStudioAuthoringProjectV1({
+        environment: {},
+        storedProfile,
+        allowProfileReplacement: false,
+      });
+      const client = createAuthoringAuthClientV1(project);
+      return revokeAndRemoveStudioAuthoringSessionV1({
+        auth: client.auth,
+        profileName: args.profileName,
+        storedProfile,
+        refreshTokens,
+      });
     });
     writeSafeResultV1({
       action: args.action,
@@ -86,54 +107,75 @@ async function main(): Promise<void> {
   }
 
   if (args.action === "status") {
-    const headlessSession = readStudioAuthoringHeadlessSessionV1(process.env);
-    const signedOutReason = classifyStudioAuthoringSignedOutReasonV1({
-      hasHeadlessSession: headlessSession !== null,
-      hasProfile: storedProfile !== null,
-      hasRefreshToken: headlessSession !== null
-        || (
-          storedProfile !== null
-          && refreshTokens.read(args.profileName) !== null
-        ),
-    });
-    if (signedOutReason !== null) {
-      writeSafeResultV1({
+    const status = await withStudioAuthoringProfileLockV1({
+      profileName: args.profileName,
+      environment: process.env,
+    }, async () => {
+      // Status may refresh a stored credential. Keep profile read, Keychain
+      // read/rotation, project resolution and session establishment inside one
+      // lock so a concurrent login cannot splice two different identities.
+      const storedProfile = readStudioAuthoringProfileForAuthActionV1({
         action: args.action,
         profileName: args.profileName,
-        signedIn: false,
-        reason: signedOutReason,
+        profiles,
       });
-      return;
-    }
+      const headlessSession = readStudioAuthoringHeadlessSessionV1(process.env);
+      const signedOutReason = classifyStudioAuthoringSignedOutReasonV1({
+        hasHeadlessSession: headlessSession !== null,
+        hasProfile: storedProfile !== null,
+        hasRefreshToken: headlessSession !== null
+          || (
+            storedProfile !== null
+            && refreshTokens.read(args.profileName) !== null
+          ),
+      });
+      if (signedOutReason !== null) {
+        return Object.freeze({
+          action: args.action,
+          profileName: args.profileName,
+          signedIn: false as const,
+          reason: signedOutReason,
+        });
+      }
+      const project = resolveStudioAuthoringProjectV1({
+        environment: process.env,
+        storedProfile,
+        allowProfileReplacement: false,
+      });
+      const client = createAuthoringAuthClientV1(project);
+      const established = await establishStudioAuthoringSessionV1({
+        auth: client.auth,
+        environment: process.env,
+        profileName: args.profileName,
+        storedProfile,
+        refreshTokens,
+      });
+      return Object.freeze({
+        action: args.action,
+        profileName: args.profileName,
+        signedIn: true as const,
+        source: established.source,
+        userId: established.session.user.id,
+        email: established.session.user.email ?? null,
+        supabaseUrl: project.url,
+        expiresAt: established.session.expires_at ?? null,
+      });
+    });
+    writeSafeResultV1(status);
+    return;
   }
 
+  const storedProfile = readStudioAuthoringProfileForAuthActionV1({
+    action: args.action,
+    profileName: args.profileName,
+    profiles,
+  });
   const project = resolveStudioAuthoringProjectV1({
     environment: process.env,
     storedProfile,
-    allowProfileReplacement: args.action === "login",
+    allowProfileReplacement: true,
   });
   const client = createAuthoringAuthClientV1(project);
-
-  if (args.action === "status") {
-    const established = await establishStudioAuthoringSessionV1({
-      auth: client.auth,
-      environment: process.env,
-      profileName: args.profileName,
-      storedProfile,
-      refreshTokens,
-    });
-    writeSafeResultV1({
-      action: args.action,
-      profileName: args.profileName,
-      signedIn: true,
-      source: established.source,
-      userId: established.session.user.id,
-      email: established.session.user.email ?? null,
-      supabaseUrl: project.url,
-      expiresAt: established.session.expires_at ?? null,
-    });
-    return;
-  }
 
   const callback = await startStudioAuthoringLoopbackV1();
   try {
@@ -167,8 +209,26 @@ async function main(): Promise<void> {
     try {
       // Profile metadata is non-secret. Writing it before the Keychain secret
       // makes an interrupted login fail safely as a signed-out profile.
-      profiles.write(profile);
-      refreshTokens.write(args.profileName, exchange.data.session.refresh_token);
+      await withStudioAuthoringProfileLockV1({
+        profileName: args.profileName,
+        environment: process.env,
+      }, async () => {
+        const currentProfile = readStudioAuthoringProfileForAuthActionV1({
+          action: args.action,
+          profileName: args.profileName,
+          profiles,
+        });
+        if (!sameStudioAuthoringProfileGenerationV1(
+          storedProfile,
+          currentProfile,
+        )) {
+          throw new Error(
+            `Authoring profile '${args.profileName}' changed while Google sign-in was in progress`,
+          );
+        }
+        profiles.write(profile);
+        refreshTokens.write(args.profileName, exchange.data.session.refresh_token);
+      });
     } catch (error) {
       // Do not leave a live CLI session behind when local persistence fails.
       await client.auth.signOut({ scope: "local" });
@@ -187,18 +247,30 @@ async function main(): Promise<void> {
   }
 }
 
+function sameStudioAuthoringProfileGenerationV1(
+  left: StudioAuthoringProfileV1 | null,
+  right: StudioAuthoringProfileV1 | null,
+): boolean {
+  if (left === null || right === null) return left === right;
+  return left.schemaId === right.schemaId
+    && left.profileName === right.profileName
+    && left.supabaseUrl === right.supabaseUrl
+    && left.publishableKey === right.publishableKey
+    && left.userId === right.userId
+    && left.email === right.email
+    && left.updatedAt === right.updatedAt;
+}
+
 export function readStudioAuthoringProfileForAuthActionV1(input: Readonly<{
   action: StudioAuthoringAuthActionV1;
   profileName: string;
   profiles: StudioAuthoringProfileStoreV1;
-  refreshTokens: StudioAuthoringRefreshTokenStoreV1;
 }>): StudioAuthoringProfileV1 | null {
   try {
     return input.profiles.read(input.profileName);
   } catch (error) {
     if (input.action !== "logout") throw error;
-    // A damaged non-secret profile must never trap its secret in Keychain.
-    input.refreshTokens.delete(input.profileName);
+    // The caller performs credential deletion while holding the profile lock.
     return null;
   }
 }
@@ -293,9 +365,105 @@ function usageV1(): Error {
   );
 }
 
+export function classifyStudioAuthoringAuthErrorV1(error: unknown): Readonly<{
+  code: string;
+  category:
+    | "validation"
+    | "configuration"
+    | "platform"
+    | "authentication"
+    | "conflict"
+    | "transport"
+    | "internal";
+  retryable: boolean;
+  recovery:
+    | "fix-arguments"
+    | "configure-project"
+    | "remove-headless-override"
+    | "use-headless-token-pair"
+    | "login-again"
+    | "retry-same-auth-action"
+    | "report-bug";
+  message: string;
+}> {
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+  if (/^usage:/.test(lower)) {
+    return Object.freeze({
+      code: "AUTHORING_AUTH_ARGUMENTS_INVALID",
+      category: "validation",
+      retryable: false,
+      recovery: "fix-arguments",
+      message,
+    });
+  }
+  if (/requires macos keychain/.test(lower)) {
+    return Object.freeze({
+      code: "AUTHORING_AUTH_PLATFORM_UNSUPPORTED",
+      category: "platform",
+      retryable: false,
+      recovery: "use-headless-token-pair",
+      message,
+    });
+  }
+  if (/headless token override is active|cannot revoke a non-persisted headless/.test(lower)) {
+    return Object.freeze({
+      code: "AUTHORING_AUTH_HEADLESS_OVERRIDE_ACTIVE",
+      category: "configuration",
+      retryable: false,
+      recovery: "remove-headless-override",
+      message,
+    });
+  }
+  if (/authoring profile .* is busy in another process/.test(lower)) {
+    return Object.freeze({
+      code: "AUTHORING_AUTH_PROFILE_BUSY",
+      category: "conflict",
+      retryable: true,
+      recovery: "retry-same-auth-action",
+      message,
+    });
+  }
+  if (/supabase|publishable|project.*match|https or loopback/.test(lower)) {
+    return Object.freeze({
+      code: "AUTHORING_AUTH_PROJECT_CONFIGURATION_INVALID",
+      category: "configuration",
+      retryable: false,
+      recovery: "configure-project",
+      message,
+    });
+  }
+  if (/refresh token|invalid.*token|session.*not returned|sign-in|oauth|credential|keychain/.test(lower)) {
+    return Object.freeze({
+      code: "AUTHORING_AUTH_SESSION_INVALID",
+      category: "authentication",
+      retryable: false,
+      recovery: "login-again",
+      message,
+    });
+  }
+  if (/failed to fetch|network|econn|enotfound|socket|connection|timeout/.test(lower)) {
+    return Object.freeze({
+      code: "AUTHORING_AUTH_TRANSPORT_UNAVAILABLE",
+      category: "transport",
+      retryable: true,
+      recovery: "retry-same-auth-action",
+      message,
+    });
+  }
+  return Object.freeze({
+    code: "AUTHORING_AUTH_INTERNAL_ERROR",
+    category: "internal",
+    retryable: false,
+    recovery: "report-bug",
+    message,
+  });
+}
+
 function writeSafeResultV1(result: Readonly<Record<string, unknown>>): void {
   process.stdout.write(`${JSON.stringify({
     schemaId: "circleheart-studio-authoring-auth-result-v1",
+    ok: true,
     ...result,
   }, null, 2)}\n`);
 }

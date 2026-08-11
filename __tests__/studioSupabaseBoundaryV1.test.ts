@@ -13,6 +13,7 @@ import {
 } from "@/studio/infrastructure/supabase/StudioSupabaseClientV1";
 import {
   StudioSupabaseContentRepositoryV1,
+  StudioSupabaseMutationAcknowledgedErrorV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
   StudioExactModelUnavailableErrorV1,
@@ -730,6 +731,92 @@ describe("Studio Supabase boundary V1", () => {
 
     expect(rpc.mock.calls.map((call) => call[1]?.p_operation_id))
       .toEqual([operationId, operationId]);
+  });
+
+  it("marks an invalid acknowledged mutation response as durably committed", async () => {
+    const client = {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { user: { id: "author" } } },
+          error: null,
+        }),
+      },
+      rpc: vi.fn().mockResolvedValue({
+        data: { experimentId: null, version: 0 },
+        error: null,
+      }),
+    } as unknown as SupabaseClient;
+
+    const result = new StudioSupabaseContentRepositoryV1(client)
+      .saveExperiment({
+        experimentId: null,
+        expectedVersion: null,
+        title: "Baseline",
+        content: experimentContentV1(),
+      });
+    await expect(result).rejects.toBeInstanceOf(
+      StudioSupabaseMutationAcknowledgedErrorV1,
+    );
+    await expect(result).rejects.toMatchObject({
+      authoringCommitState: "confirmed",
+    });
+  });
+
+  it("reads one actor-scoped authoring operation receipt", async () => {
+    const operationId = "44444444-4444-4444-8444-444444444444";
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        operationId,
+        operationKind: "save-experiment-v1",
+        status: "committed",
+        result: {
+          experimentId: "8d8f9f03-e81d-4dc7-8320-7f71367a63c4",
+          version: 0,
+        },
+        createdAt: "2026-08-11T00:00:00.000Z",
+        completedAt: "2026-08-11T00:00:01.000Z",
+      },
+      error: null,
+    });
+    const client = { rpc } as unknown as SupabaseClient;
+
+    await expect(new StudioSupabaseContentRepositoryV1(client)
+      .readMyAuthoringOperationReceipt(operationId)).resolves.toEqual({
+        operationId,
+        operationKind: "save-experiment-v1",
+        status: "committed",
+        result: {
+          experimentId: "8d8f9f03-e81d-4dc7-8320-7f71367a63c4",
+          version: 0,
+        },
+        createdAt: "2026-08-11T00:00:00.000Z",
+        completedAt: "2026-08-11T00:00:01.000Z",
+      });
+    expect(rpc).toHaveBeenCalledWith(
+      "read_my_authoring_operation_receipt_v1",
+      { p_operation_id: operationId },
+    );
+  });
+
+  it("claims one canonical AI command before replaying its operation receipt", async () => {
+    const commandId = "45454545-4545-4545-8545-454545454545";
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
+    const client = { rpc } as unknown as SupabaseClient;
+
+    await expect(new StudioSupabaseContentRepositoryV1(client)
+      .claimMyAuthoringCommand({
+        commandId,
+        action: "experiment.apply",
+        commandDigest: "a".repeat(64),
+      })).resolves.toBeNull();
+    expect(rpc).toHaveBeenCalledWith(
+      "claim_my_authoring_command_v1",
+      {
+        p_command_id: commandId,
+        p_command_action: "experiment.apply",
+        p_command_digest: "a".repeat(64),
+      },
+    );
   });
 });
 

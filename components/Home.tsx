@@ -13,6 +13,7 @@ import {
   type PublicCatalogV3,
 } from "@/components/site/PublicCatalogV3";
 import {
+  authoringCliDocsHref,
   articleReaderHref,
   articlesHref,
   experimentSnapshotHref,
@@ -128,6 +129,9 @@ export const Home = () => {
           </Link>
           <Link className="hover:text-wb-text" to={articlesHref(locale)}>
             {t("nav.articles")}
+          </Link>
+          <Link className="hover:text-wb-text" to={authoringCliDocsHref(locale)}>
+            AI Authoring CLI
           </Link>
         </div>
       </footer>

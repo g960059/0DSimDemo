@@ -14,20 +14,27 @@ import {
   resolveStudioAuthoringProjectV1,
   revokeAndRemoveStudioAuthoringSessionV1,
   STUDIO_AUTHORING_KEYCHAIN_SERVICE_V1,
+  withStudioAuthoringProfileLockV1,
   type StudioAuthoringAuthSessionV1,
   type StudioAuthoringRefreshTokenStoreV1,
 } from "@/studio/infrastructure/auth/StudioLocalAuthoringCredentialsV1";
 import {
   assertStudioAuthoringAuthActionEnvironmentV1,
+  classifyStudioAuthoringAuthErrorV1,
   classifyStudioAuthoringSignedOutReasonV1,
   parseStudioAuthoringAuthArgumentsV1,
   readStudioAuthoringProfileForAuthActionV1,
 } from
   "@/tools/authoring/runStudioAuthoringAuthV1";
-import { parseStudioAuthoringContentArgumentsV1 } from
+import {
+  classifyAuthoringErrorV1,
+  parseStudioAuthoringContentArgumentsV1,
+} from
   "@/tools/authoring/runStudioAuthoringCommandV1";
 import { startStudioAuthoringLoopbackV1 } from
   "@/tools/authoring/StudioAuthoringLoopbackOAuthV1";
+import { StudioArticleDataValidationErrorV2 } from
+  "@/studio/application/authoring/StudioArticleDataV2";
 import { parseActiveModelBundleArgumentsV1 } from
   "@/tools/registry/activateModelBundleV1";
 
@@ -40,6 +47,17 @@ const SESSION_V1: StudioAuthoringAuthSessionV1 = Object.freeze({
     email: "author@example.com",
     is_anonymous: false,
   }),
+});
+
+const HEADLESS_ACCESS_TOKEN_V1 = [
+  Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url"),
+  Buffer.from(JSON.stringify({ exp: 2_000_000_000 })).toString("base64url"),
+  "test-signature",
+].join(".");
+const HEADLESS_SESSION_V1: StudioAuthoringAuthSessionV1 = Object.freeze({
+  ...SESSION_V1,
+  access_token: HEADLESS_ACCESS_TOKEN_V1,
+  refresh_token: "headless-refresh",
 });
 
 describe("Studio authoring and release CLIs", () => {
@@ -116,6 +134,83 @@ describe("Studio authoring and release CLIs", () => {
       const raw = readFileSync(path.join(directory, "official.json"), "utf8");
       expect(raw).not.toContain(SESSION_V1.access_token);
       expect(raw).not.toContain(SESSION_V1.refresh_token);
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("serializes refresh-token rotation for one authoring profile", async () => {
+    const directory = mkdtempSync(path.join(os.tmpdir(), "circleheart-author-lock-"));
+    const environment = {
+      CIRCLEHEART_AUTHOR_CONFIG_HOME: directory,
+    };
+    let releaseFirst!: () => void;
+    const firstMayFinish = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const events: string[] = [];
+    try {
+      const first = withStudioAuthoringProfileLockV1({
+        profileName: "official",
+        environment,
+      }, async () => {
+        events.push("first-enter");
+        await firstMayFinish;
+        events.push("first-exit");
+      });
+      while (!events.includes("first-enter")) await Promise.resolve();
+      const second = withStudioAuthoringProfileLockV1({
+        profileName: "official",
+        environment,
+      }, async () => {
+        events.push("second-enter");
+      });
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      expect(events).toEqual(["first-enter"]);
+      releaseFirst();
+      await Promise.all([first, second]);
+      expect(events).toEqual(["first-enter", "first-exit", "second-enter"]);
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
+  });
+
+  it("does not steal a live profile lock after its stale interval", async () => {
+    const directory = mkdtempSync(path.join(os.tmpdir(), "circleheart-author-heartbeat-"));
+    const environment = {
+      CIRCLEHEART_AUTHOR_CONFIG_HOME: directory,
+    };
+    let releaseFirst!: () => void;
+    const firstMayFinish = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const events: string[] = [];
+    try {
+      const first = withStudioAuthoringProfileLockV1({
+        profileName: "official",
+        environment,
+        staleMs: 30,
+        timeoutMs: 1_000,
+      }, async () => {
+        events.push("first-enter");
+        await firstMayFinish;
+        events.push("first-exit");
+      });
+      while (!events.includes("first-enter")) await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      const second = withStudioAuthoringProfileLockV1({
+        profileName: "official",
+        environment,
+        staleMs: 30,
+        timeoutMs: 1_000,
+      }, async () => {
+        events.push("second-enter");
+      });
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      expect(events).toEqual(["first-enter"]);
+      releaseFirst();
+      await Promise.all([first, second]);
+      expect(events).toEqual(["first-enter", "first-exit", "second-enter"]);
     } finally {
       rmSync(directory, { force: true, recursive: true });
     }
@@ -202,7 +297,7 @@ describe("Studio authoring and release CLIs", () => {
     };
     const auth = {
       setSession: vi.fn(async () => ({
-        data: { session: SESSION_V1 },
+        data: { session: HEADLESS_SESSION_V1 },
         error: null,
       })),
       refreshSession: vi.fn(),
@@ -211,7 +306,7 @@ describe("Studio authoring and release CLIs", () => {
     const result = await establishStudioAuthoringSessionV1({
       auth,
       environment: {
-        CIRCLEHEART_AUTHOR_ACCESS_TOKEN: "headless-access",
+        CIRCLEHEART_AUTHOR_ACCESS_TOKEN: HEADLESS_ACCESS_TOKEN_V1,
         CIRCLEHEART_AUTHOR_REFRESH_TOKEN: "headless-refresh",
       },
       profileName: "default",
@@ -220,11 +315,53 @@ describe("Studio authoring and release CLIs", () => {
     });
     expect(result.source).toBe("environment");
     expect(auth.setSession).toHaveBeenCalledWith({
-      access_token: "headless-access",
+      access_token: HEADLESS_ACCESS_TOKEN_V1,
       refresh_token: "headless-refresh",
     });
     expect(refreshTokens.read).not.toHaveBeenCalled();
     expect(refreshTokens.write).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale or unexpectedly rotated headless token pairs", async () => {
+    const expiredAccessToken = [
+      Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url"),
+      Buffer.from(JSON.stringify({ exp: 1 })).toString("base64url"),
+      "test-signature",
+    ].join(".");
+    const setSession = vi.fn(async () => ({
+      data: { session: SESSION_V1 },
+      error: null,
+    }));
+    const base = {
+      auth: {
+        setSession,
+        refreshSession: vi.fn(),
+        signOut: vi.fn(),
+      },
+      profileName: "default",
+      storedProfile: null,
+      refreshTokens: {
+        read: vi.fn(),
+        write: vi.fn(),
+        delete: vi.fn(),
+      },
+    } as const;
+    await expect(establishStudioAuthoringSessionV1({
+      ...base,
+      environment: {
+        CIRCLEHEART_AUTHOR_ACCESS_TOKEN: expiredAccessToken,
+        CIRCLEHEART_AUTHOR_REFRESH_TOKEN: "headless-refresh",
+      },
+    })).rejects.toThrow(/valid for at least 900 more seconds/);
+    expect(setSession).not.toHaveBeenCalled();
+
+    await expect(establishStudioAuthoringSessionV1({
+      ...base,
+      environment: {
+        CIRCLEHEART_AUTHOR_ACCESS_TOKEN: HEADLESS_ACCESS_TOKEN_V1,
+        CIRCLEHEART_AUTHOR_REFRESH_TOKEN: "headless-refresh",
+      },
+    })).rejects.toThrow(/rotated unexpectedly/);
   });
 
   it("does not rotate a Keychain credential after a failed refresh", async () => {
@@ -406,6 +543,7 @@ describe("Studio authoring and release CLIs", () => {
     expect(parseStudioAuthoringContentArgumentsV1([
       "--profile", "official", "--command", "command.json",
     ])).toEqual({
+      mode: "execute",
       commandPath: path.resolve(process.cwd(), "command.json"),
       profileName: "official",
     });
@@ -415,6 +553,177 @@ describe("Studio authoring and release CLIs", () => {
     expect(() => parseStudioAuthoringContentArgumentsV1([
       "--command", "--profile",
     ])).toThrow(/Usage/);
+  });
+
+  it("classifies auth failures for machine recovery", () => {
+    expect(classifyStudioAuthoringAuthErrorV1(
+      new Error("Usage: <login|status|logout>"),
+    )).toMatchObject({
+      code: "AUTHORING_AUTH_ARGUMENTS_INVALID",
+      category: "validation",
+      recovery: "fix-arguments",
+    });
+    expect(classifyStudioAuthoringAuthErrorV1(
+      new Error("Interactive authoring login currently requires macOS Keychain"),
+    )).toMatchObject({
+      code: "AUTHORING_AUTH_PLATFORM_UNSUPPORTED",
+      category: "platform",
+      recovery: "use-headless-token-pair",
+    });
+    expect(classifyStudioAuthoringAuthErrorV1(
+      new Error("fetch failed: connection reset"),
+    )).toMatchObject({
+      code: "AUTHORING_AUTH_TRANSPORT_UNAVAILABLE",
+      category: "transport",
+      retryable: true,
+      recovery: "retry-same-auth-action",
+    });
+    expect(classifyStudioAuthoringAuthErrorV1(
+      new Error("Authoring profile 'official' is busy in another process"),
+    )).toMatchObject({
+      code: "AUTHORING_AUTH_PROFILE_BUSY",
+      category: "conflict",
+      retryable: true,
+      recovery: "retry-same-auth-action",
+    });
+  });
+
+  it("classifies AI recovery errors without mistaking authoring for auth", () => {
+    expect(classifyAuthoringErrorV1(
+      new StudioArticleDataValidationErrorV2(
+        "$.article.blocks[0].blocks[0].kind",
+        "experiments and nested accordions are not allowed here",
+      ),
+    )).toMatchObject({
+      code: "AUTHORING_VALIDATION_FAILED",
+      category: "validation",
+      retryable: false,
+      commitState: "none",
+      recovery: "fix-command",
+    });
+    expect(classifyAuthoringErrorV1(Object.assign(
+      new Error("command_id was already used for a different authoring command"),
+      { code: "23505" },
+    ))).toMatchObject({
+      code: "AUTHORING_COMMAND_ID_CONFLICT",
+      category: "conflict",
+      retryable: false,
+      commitState: "none",
+      recovery: "mint-new-command-id",
+    });
+    expect(classifyAuthoringErrorV1(Object.assign(
+      new Error("operation_id was already used for a different request"),
+      { code: "23505" },
+    ))).toMatchObject({
+      code: "AUTHORING_OPERATION_ID_CONFLICT",
+      category: "conflict",
+      retryable: false,
+      commitState: "unknown",
+      recovery: "read-authority-state",
+    });
+    expect(classifyAuthoringErrorV1(
+      new Error("Authoring profile 'official' is busy in another process"),
+    )).toMatchObject({
+      code: "AUTHORING_PROFILE_BUSY",
+      category: "conflict",
+      retryable: true,
+      commitState: "none",
+      recovery: "retry-same-command",
+    });
+    expect(classifyAuthoringErrorV1(
+      new Error("Authoring numerical execution exceeded maxPresentationSteps"),
+    )).toMatchObject({
+      code: "AUTHORING_NUMERICAL_BUDGET_EXCEEDED",
+      category: "numerical",
+      retryable: false,
+      commitState: "none",
+      recovery: "reduce-work-or-wait",
+    });
+    expect(classifyAuthoringErrorV1(
+      new Error("fetch failed: connection reset"),
+    )).toMatchObject({
+      code: "AUTHORING_OPERATION_UNCERTAIN",
+      category: "transport",
+      retryable: true,
+      commitState: "unknown",
+      recovery: "inspect-operation-then-retry-same-command",
+    });
+    expect(classifyAuthoringErrorV1(
+      new Error("fetch failed: connection reset"),
+      { phase: "execution", mutation: false },
+    )).toMatchObject({
+      code: "AUTHORING_TRANSPORT_UNAVAILABLE",
+      category: "transport",
+      retryable: true,
+      commitState: "none",
+      recovery: "retry-same-command",
+    });
+    expect(classifyAuthoringErrorV1(Object.assign(
+      new Error("duplicate key value violates unique constraint public_slug"),
+      { code: "23505" },
+    ))).toMatchObject({
+      code: "AUTHORING_UNIQUE_VALUE_CONFLICT",
+      category: "conflict",
+      commitState: "none",
+      recovery: "fix-command",
+    });
+    expect(classifyAuthoringErrorV1(Object.assign(
+      new Error("new row violates check constraint article_publications_slug"),
+      { code: "23514" },
+    ))).toMatchObject({
+      code: "AUTHORING_CONSTRAINT_VALIDATION_FAILED",
+      category: "validation",
+      commitState: "none",
+      recovery: "fix-command",
+    });
+    expect(classifyAuthoringErrorV1(Object.assign(
+      new Error("permission denied"),
+      { code: "42501" },
+    ))).toMatchObject({
+      code: "AUTHORING_AUTHORIZATION_DENIED",
+      category: "authorization",
+      recovery: "request-access",
+    });
+    expect(classifyAuthoringErrorV1(Object.assign(
+      new Error("resource missing"),
+      { code: "P0002" },
+    ))).toMatchObject({
+      code: "AUTHORING_RESOURCE_NOT_FOUND",
+      category: "not-found",
+      recovery: "refresh-authority-state",
+    });
+    expect(classifyAuthoringErrorV1(
+      new Error("Snapshot is unavailable"),
+    )).toMatchObject({
+      code: "AUTHORING_RESOURCE_NOT_FOUND",
+      category: "not-found",
+      recovery: "refresh-authority-state",
+    });
+    expect(classifyAuthoringErrorV1(Object.assign(
+      new Error("mutation quota exceeded"),
+      { code: "54000" },
+    ))).toMatchObject({
+      code: "AUTHORING_QUOTA_EXCEEDED",
+      category: "quota",
+      recovery: "reduce-work-or-wait",
+    });
+    expect(classifyAuthoringErrorV1(
+      new Error("Headless authoring requires an access token valid for at least 900 more seconds"),
+      { phase: "authentication", mutation: true },
+    )).toMatchObject({
+      code: "AUTHORING_HEADLESS_TOKEN_REFRESH_REQUIRED",
+      category: "authentication",
+      commitState: "none",
+      recovery: "refresh-headless-token",
+    });
+    expect(classifyAuthoringErrorV1(Object.assign(
+      new Error("Saved Article could not be read back from authority"),
+      { authoringCommitState: "confirmed" },
+    ))).toMatchObject({
+      code: "AUTHORING_COMMIT_CONFIRMED_RESPONSE_INVALID",
+      commitState: "confirmed",
+      recovery: "read-authority-state",
+    });
   });
 
   it("fails before OAuth off macOS and never misreports headless logout", () => {
@@ -465,19 +774,15 @@ describe("Studio authoring and release CLIs", () => {
   });
 
   it("lets logout remove a credential even when profile metadata is corrupt", () => {
-    const remove = vi.fn();
     expect(readStudioAuthoringProfileForAuthActionV1({
       action: "logout",
       profileName: "official",
       profiles: { read: () => { throw new Error("corrupt"); }, write: vi.fn() },
-      refreshTokens: { read: vi.fn(), write: vi.fn(), delete: remove },
     })).toBeNull();
-    expect(remove).toHaveBeenCalledWith("official");
     expect(() => readStudioAuthoringProfileForAuthActionV1({
       action: "status",
       profileName: "official",
       profiles: { read: () => { throw new Error("corrupt"); }, write: vi.fn() },
-      refreshTokens: { read: vi.fn(), write: vi.fn(), delete: vi.fn() },
     })).toThrow(/corrupt/);
   });
 

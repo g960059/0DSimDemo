@@ -410,7 +410,7 @@ export class StudioExperimentAuthoringApplicationV2 {
   }
 }
 
-async function captureDesiredContentAtAcceptedBoundaryV2(input: Readonly<{
+export async function captureDesiredContentAtAcceptedBoundaryV2(input: Readonly<{
   runtime: ResolvedExactModelRuntimeV2;
   experimentId: string;
   desiredContent: ExperimentDesiredContentV2;
@@ -547,7 +547,7 @@ function assertAuthoringVersionV2(
   }
 }
 
-function assertCapturedDesiredContentV2(
+export function assertCapturedDesiredContentV2(
   desired: ExperimentDesiredContentV2,
   captured: ExperimentContentV2,
   mutationError: (message: string) => Error,

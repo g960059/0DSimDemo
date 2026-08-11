@@ -406,6 +406,9 @@
     "addEquation": "Equation",
     "addImage": "Image",
     "addDivider": "Divider",
+    "addAccordion": "Accordion",
+    "addQuiz": "Quiz",
+    "addLink": "Link",
     "addExperiment": "Simulation",
     "removeBlock": "Remove block",
     "moveUp": "Move block up",
@@ -502,6 +505,32 @@
       "caption": "Caption",
       "captionPlaceholder": "Optional context"
     },
+    "accordion": {
+      "title": "Accordion title",
+      "titlePlaceholder": "Go deeper",
+      "addContent": "Add inside accordion"
+    },
+    "quiz": {
+      "label": "Knowledge check",
+      "question": "Question",
+      "questionPlaceholder": "What should the reader check?",
+      "choicePlaceholder": "Choice {{index}}",
+      "correctChoice": "Mark choice {{index}} correct",
+      "addChoice": "Add choice",
+      "removeChoice": "Remove choice",
+      "explanation": "Explanation",
+      "explanationPlaceholder": "Explain the answer and relevant clinical caveats"
+    },
+    "link": {
+      "label": "Article link",
+      "text": "Label",
+      "textPlaceholder": "Continue to the next article",
+      "url": "Destination",
+      "urlPlaceholder": "/en/articles/... or https://...",
+      "invalidUrl": "Enter an in-app path or an HTTPS URL",
+      "description": "Description",
+      "descriptionPlaceholder": "What the linked page covers (optional)"
+    },
     "insertMenu": {
       "searchPlaceholder": "Search blocks…",
       "empty": "No matching blocks",
@@ -511,6 +540,9 @@
       "equationHint": "Render display math from TeX",
       "imageHint": "Upload an image or insert by URL",
       "dividerHint": "Visually separate sections",
+      "accordionHint": "Progressively disclose advanced detail",
+      "quizHint": "Add a multiple-choice knowledge check",
+      "linkHint": "Link to another article or series start",
       "experimentHint": "Place a pinned simulation"
     },
     "publishMenu": {
@@ -581,7 +613,14 @@
     "unavailableSnapshot": "The pinned simulation is unavailable.",
     "invalidBriefing": "This placement Briefing cannot be loaded safely.",
     "unavailableModel": "This snapshot's exact model release is not available in this client.",
-    "noControlTarget": "Not available for this scenario"
+    "noControlTarget": "Not available for this scenario",
+    "quiz": {
+      "label": "Knowledge check",
+      "check": "Check answer",
+      "correct": "Correct",
+      "incorrect": "Not quite—try once more",
+      "retry": "Answer again"
+    }
   },
   "snapshotReader": {
     "loading": "Loading simulation…",

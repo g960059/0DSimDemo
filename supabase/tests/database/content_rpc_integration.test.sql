@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(19);
+select plan(33);
 
 insert into auth.users (
   id,
@@ -94,6 +94,31 @@ insert into studio.model_surface_release_availability (
   surface_release_id, stage
 ) values ('surface/integration-test-v1', 'stable');
 
+insert into studio.model_surface_releases (
+  surface_release_id, surface_series_id, predecessor_surface_release_id,
+  model_family_id, display_name, manifest, source_commit
+) values (
+  'surface/integration-alternate-v1',
+  'surface-series/integration-alternate',
+  null,
+  'model/integration-test',
+  'Integration alternate Surface',
+  '{
+    "schemaId":"circleheart-studio-model-surface-release-v1",
+    "surfaceReleaseId":"surface/integration-alternate-v1",
+    "surfaceSeriesId":"surface-series/integration-alternate",
+    "predecessorSurfaceReleaseId":null,
+    "modelFamilyId":"model/integration-test",
+    "displayName":"Integration alternate Surface",
+    "controlCatalog":[],"derivedOutputCatalog":[],"graphCatalog":[],
+    "knobCatalog":[],"protocolCatalog":[]
+  }'::jsonb,
+  'integration-test'
+);
+insert into studio.model_surface_release_availability (
+  surface_release_id, stage
+) values ('surface/integration-alternate-v1', 'stable');
+
 select pg_catalog.set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated","is_anonymous":false}',
@@ -103,6 +128,16 @@ select pg_catalog.set_config(
 create temporary table rpc_state (
   key text primary key,
   value jsonb not null
+);
+
+select is(
+  public.claim_my_authoring_command_v1(
+    '20000000-0000-0000-0000-000000000001',
+    'experiment.apply',
+    repeat('c', 64)
+  ),
+  null::jsonb,
+  'An AI command reserves its UUID before the content mutation begins'
 );
 
 insert into rpc_state (key, value)
@@ -155,6 +190,47 @@ select matches(
 );
 
 select is(
+  public.read_my_authoring_operation_receipt_v1(
+    '20000000-0000-0000-0000-000000000001'
+  ) ->> 'status',
+  'committed',
+  'The author can read a committed AI authoring operation receipt'
+);
+
+select is(
+  public.claim_my_authoring_command_v1(
+    '20000000-0000-0000-0000-000000000001',
+    'experiment.apply',
+    repeat('c', 64)
+  ) ->> 'status',
+  'committed',
+  'An AI command claim returns its already committed operation receipt'
+);
+
+select is(
+  public.claim_my_authoring_command_v1(
+    '20000000-0000-0000-0000-000000000001',
+    'experiment.apply',
+    repeat('c', 64)
+  ) ->> 'status',
+  'committed',
+  'The same canonical AI command claim is idempotent'
+);
+
+select throws_ok(
+  $$
+    select public.claim_my_authoring_command_v1(
+      '20000000-0000-0000-0000-000000000001',
+      'experiment.apply',
+      repeat('d', 64)
+    )
+  $$,
+  '23505',
+  'command_id was already used for a different authoring command',
+  'A command UUID cannot be rebound to different semantic input'
+);
+
+select is(
   public.save_experiment_v1(
     '20000000-0000-0000-0000-000000000001',
     null,
@@ -182,6 +258,147 @@ select is(
   'Exact operation replay creates no duplicate immutable content'
 );
 
+insert into studio.operation_receipts (
+  actor_id,
+  operation_id,
+  operation_kind,
+  request,
+  status,
+  result,
+  completed_at
+) values (
+  '10000000-0000-0000-0000-000000000001',
+  '20000000-0000-0000-0000-000000000014',
+  'save-article-v1',
+  '{}'::jsonb,
+  'committed',
+  '{"articleId":"30000000-0000-0000-0000-000000000014"}'::jsonb,
+  now()
+);
+
+select throws_ok(
+  $$
+    select public.claim_my_authoring_command_v1(
+      '20000000-0000-0000-0000-000000000014',
+      'article.save',
+      repeat('f', 64)
+    )
+  $$,
+  '23505',
+  'command_id already belongs to an unbound content operation',
+  'An AI command cannot adopt an older unbound content receipt'
+);
+
+insert into studio.operation_receipts (
+  actor_id,
+  operation_id,
+  operation_kind,
+  request,
+  status,
+  created_at
+) values (
+  '10000000-0000-0000-0000-000000000001',
+  '20000000-0000-0000-0000-000000000015',
+  'save-experiment-v1',
+  '{}'::jsonb,
+  'running',
+  '2026-08-11T00:00:00.000Z'
+);
+
+insert into studio.authoring_command_bindings (
+  actor_id,
+  command_id,
+  command_action,
+  command_digest,
+  created_at
+) values (
+  '10000000-0000-0000-0000-000000000001',
+  '20000000-0000-0000-0000-000000000015',
+  'experiment.apply',
+  repeat('a', 64),
+  '2026-08-11T00:00:01.000Z'
+);
+
+update studio.operation_receipts
+set status = 'committed',
+    result = '{"experimentId":"30000000-0000-0000-0000-000000000015","version":0}'::jsonb,
+    completed_at = '2026-08-11T00:00:02.000Z'
+where actor_id = '10000000-0000-0000-0000-000000000001'
+  and operation_id = '20000000-0000-0000-0000-000000000015';
+
+select is(
+  (
+    select committed_operation_kind
+    from studio.authoring_command_bindings
+    where actor_id = '10000000-0000-0000-0000-000000000001'
+      and command_id = '20000000-0000-0000-0000-000000000015'
+  ),
+  null::text,
+  'A late concurrent command binding cannot adopt an earlier operation on commit'
+);
+
+select throws_ok(
+  $$
+    select public.claim_my_authoring_command_v1(
+      '20000000-0000-0000-0000-000000000015',
+      'experiment.apply',
+      repeat('a', 64)
+    )
+  $$,
+  '23505',
+  'command_id already belongs to an unbound content operation',
+  'A retry fails closed after the concurrent unbound-operation race'
+);
+
+delete from studio.operation_receipts
+where actor_id = '10000000-0000-0000-0000-000000000001'
+  and operation_id = '20000000-0000-0000-0000-000000000001';
+
+select is(
+  public.claim_my_authoring_command_v1(
+    '20000000-0000-0000-0000-000000000001',
+    'experiment.apply',
+    repeat('c', 64)
+  ) ->> 'status',
+  'committed',
+  'A bound AI command remains replayable after general receipt GC'
+);
+
+insert into studio.authoring_command_bindings (
+  actor_id,
+  command_id,
+  command_action,
+  command_digest,
+  created_at
+) values (
+  '10000000-0000-0000-0000-000000000001',
+  '20000000-0000-0000-0000-000000000016',
+  'article.save',
+  repeat('b', 64),
+  now() - interval '31 days'
+);
+
+select is(
+  public.claim_my_authoring_command_v1(
+    '20000000-0000-0000-0000-000000000017',
+    'article.save',
+    repeat('d', 64)
+  ),
+  null::jsonb,
+  'A new command is accepted after lazily expiring unrelated old bindings'
+);
+
+select is(
+  (
+    select count(*)
+    from studio.authoring_command_bindings
+    where actor_id = '10000000-0000-0000-0000-000000000001'
+      and command_id = '20000000-0000-0000-0000-000000000016'
+  ),
+  0::bigint,
+  'Expired command bindings cannot permanently consume the actor history quota'
+);
+
 select throws_ok(
   $$
     select public.save_experiment_v1(
@@ -205,6 +422,32 @@ select throws_ok(
   '40001',
   'Experiment version conflict',
   'Stale compare-and-swap is rejected'
+);
+
+select throws_ok(
+  $$
+    select public.commit_admitted_experiment_snapshot_v1(
+      '20000000-0000-0000-0000-000000000016',
+      null,
+      'model/integration-test-v1',
+      '{
+        "modelId":"model/integration-test-v1",
+        "surfaceSeriesId":"surface-series/integration-alternate",
+        "scenarios":[{
+          "scenarioId":"scenario/baseline",
+          "label":"Baseline",
+          "capture":{"fixture":{"control":1},"checkpoint":{"acceptedTimeSec":2}}
+        }],
+        "surface":{}
+      }'::jsonb,
+      'surface/integration-alternate-v1',
+      ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid,
+      0
+    )
+  $$,
+  '22023',
+  'Snapshot candidate is not the clean saved Experiment head',
+  'A Snapshot cannot switch the saved Experiment to another Surface series'
 );
 
 insert into rpc_state (key, value)
@@ -456,6 +699,14 @@ select pg_catalog.set_config(
 );
 
 select is(
+  public.read_my_authoring_operation_receipt_v1(
+    '20000000-0000-0000-0000-000000000001'
+  ),
+  null::jsonb,
+  'Another authenticated actor cannot read the operation receipt'
+);
+
+select is(
   public.read_my_experiment_v1(
     ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid
   ),
@@ -467,6 +718,19 @@ select pg_catalog.set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-0000-0000-000000000003","role":"authenticated","is_anonymous":true}',
   true
+);
+
+select throws_ok(
+  $$
+    select public.claim_my_authoring_command_v1(
+      '20000000-0000-0000-0000-000000000013',
+      'article.save',
+      repeat('e', 64)
+    )
+  $$,
+  '42501',
+  'AI authoring command claims require a signed-in user',
+  'Anonymous readers cannot allocate permanent AI command bindings'
 );
 
 select ok(

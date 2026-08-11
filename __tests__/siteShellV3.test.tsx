@@ -16,6 +16,7 @@ describe("site shell V3", () => {
     expect(routeOwnsApplicationChrome("/me/articles")).toBe(false);
     expect(routeOwnsApplicationChrome("/me/experiments")).toBe(false);
     expect(routeOwnsApplicationChrome("/dev")).toBe(false);
+    expect(routeOwnsApplicationChrome("/docs/authoring-cli")).toBe(false);
     expect(routeOwnsApplicationChrome("/articles/new/edit")).toBe(true);
     expect(routeOwnsApplicationChrome("/articles/article-one/edit")).toBe(true);
     expect(routeOwnsApplicationChrome("/experiments/new")).toBe(true);

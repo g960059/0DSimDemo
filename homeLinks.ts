@@ -39,6 +39,10 @@ export const accountSettingsHref = (locale?: Locale) =>
 
 export const loginHref = (locale?: Locale) => prefixPath("/login", locale);
 
+/** Public guide for the machine-oriented local authoring seam. */
+export const authoringCliDocsHref = (locale?: Locale) =>
+  prefixPath("/docs/authoring-cli", locale);
+
 /** Compact inventory for development content and model releases in use. */
 export const devDashboardHref = (locale?: Locale) => prefixPath("/dev", locale);
 

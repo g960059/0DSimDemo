@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   accountSettingsHref,
+  authoringCliDocsHref,
   articlesHref,
   articleEditorHref,
   articlePlacementHref,
@@ -35,6 +36,7 @@ describe('homeLinks', () => {
     expect(myArticlesHref()).toBe('/ja/me/articles');
     expect(accountSettingsHref()).toBe('/ja/me/settings');
     expect(loginHref()).toBe('/ja/login');
+    expect(authoringCliDocsHref()).toBe('/ja/docs/authoring-cli');
     expect(devDashboardHref()).toBe('/ja/dev');
     expect(modelLabHref()).toBe('/ja/dev/model-lab');
   });
@@ -43,6 +45,7 @@ describe('homeLinks', () => {
     expect(experimentsHref('en')).toBe('/en/experiments');
     expect(articlesHref('en')).toBe('/en/articles');
     expect(homeHref('en')).toBe('/en');
+    expect(authoringCliDocsHref('en')).toBe('/en/docs/authoring-cli');
     expect(experimentsHref('ja')).toBe('/ja/experiments');
     expect(myExperimentsHref('en')).toBe('/en/me/experiments');
     expect(myArticlesHref('en')).toBe('/en/me/articles');
