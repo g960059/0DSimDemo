@@ -72,6 +72,11 @@ const AccountSettingsV3Page = React.lazy(
     default: module.AccountSettingsV3Page,
   })),
 );
+const AuthoringCliDocsV3Page = React.lazy(
+  () => import('./components/AuthoringCliDocsV3Page').then((module) => ({
+    default: module.AuthoringCliDocsV3Page,
+  })),
+);
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -183,6 +188,14 @@ const appRoutes = () => (
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading settings…" />}>
           <AccountSettingsV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="docs/authoring-cli"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading Authoring CLI guide…" />}>
+          <AuthoringCliDocsV3Page />
         </React.Suspense>
       )}
     />
