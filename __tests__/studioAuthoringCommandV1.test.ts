@@ -133,12 +133,40 @@ describe("Studio authoring command V1", () => {
     )?.article?.properties?.blocks?.items?.oneOf as Array<Record<string, any>>;
     const imageBlock = articleBlocks.find((branch) =>
       branch.properties?.kind?.const === "image");
+    const accordionBlock = articleBlocks.find((branch) =>
+      branch.properties?.kind?.const === "accordion");
+    const quizBlock = articleBlocks.find((branch) =>
+      branch.properties?.kind?.const === "quiz");
+    const linkBlock = articleBlocks.find((branch) =>
+      branch.properties?.kind?.const === "link");
     expect(imageBlock?.properties?.url).toMatchObject({
       oneOf: expect.arrayContaining([
         { const: "" },
         expect.objectContaining({
           format: "uri",
           pattern: expect.stringContaining("https://"),
+        }),
+      ]),
+    });
+    expect(accordionBlock?.properties?.blocks).toMatchObject({
+      maxItems: 100,
+      items: {
+        oneOf: expect.not.arrayContaining([
+          expect.objectContaining({
+            properties: { kind: { const: "experiment" } },
+          }),
+        ]),
+      },
+    });
+    expect(quizBlock?.properties?.choices).toMatchObject({
+      minItems: 2,
+      maxItems: 8,
+      items: { additionalProperties: false },
+    });
+    expect(linkBlock?.properties?.href).toMatchObject({
+      oneOf: expect.arrayContaining([
+        expect.objectContaining({
+          pattern: expect.stringContaining("\\\\\\u0000"),
         }),
       ]),
     });
@@ -547,6 +575,31 @@ function articleV1() {
     }, {
       blockId: "block/divider",
       kind: "divider" as const,
+    }, {
+      blockId: "block/accordion",
+      kind: "accordion" as const,
+      title: "臨床での解釈",
+      blocks: [{
+        blockId: "block/accordion/paragraph",
+        kind: "paragraph" as const,
+        text: "複数の指標を統合して読みます。",
+      }],
+    }, {
+      blockId: "block/quiz",
+      kind: "quiz" as const,
+      question: "後負荷が上がると一回拍出量は？",
+      choices: [{ choiceId: "choice/decrease", label: "低下" }, {
+        choiceId: "choice/increase",
+        label: "上昇",
+      }],
+      correctChoiceId: "choice/decrease",
+      explanation: "急性の後負荷上昇では駆出が減ります。",
+    }, {
+      blockId: "block/link",
+      kind: "link" as const,
+      href: "/ja/articles/series-introduction",
+      label: "シリーズ冒頭へ",
+      description: "基礎から読み直します。",
     }],
   };
 }

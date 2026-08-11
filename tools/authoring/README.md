@@ -164,10 +164,16 @@ derived from `commandId`: `placement/authoring/<commandId>` and
 retry returns only the compact authority receipt.
 
 Supported block kinds are `paragraph`, `heading`, `equation`, `image`,
-`divider` and `experiment`. Equations store display TeX. Saved or published
-images should reference immutable HTTPS assets. An empty URL is allowed while
-drafting and loopback HTTP is allowed only for local development; local file
-paths and data URLs are rejected.
+`divider`, `accordion`, `quiz`, `link` and `experiment`. Equations store
+display TeX. Accordions contain portable heading, paragraph, equation, image,
+divider, quiz and link blocks; nested accordions and hidden live Experiments
+are intentionally rejected. Quizzes are single-answer, Reader-local formative
+checks whose response state is never persisted. Link blocks accept app-relative
+paths for another Article or series start, immutable HTTPS destinations, and
+loopback HTTP only during local development. Saved or published images should
+reference immutable HTTPS assets. Empty image/link destinations are allowed
+while drafting; local file paths, protocol-relative URLs and data URLs are
+rejected.
 
 ## Action inventory
 
@@ -200,10 +206,12 @@ seal and Briefing never publish content.
 ## Retry protocol
 
 Reuse the same UUID only when retrying the same mutation after an uncertain
-transport response. Before any work, the backend permanently binds that UUID
-to the canonical command SHA-256. The normal operation receipt is retained for
-24 hours, while the binding keeps the compact committed result so an identical
-retry remains replayable after receipt GC. Before recomputing an expensive
+transport response. Before any work, the backend durably binds that UUID
+to the canonical command SHA-256 for a minimum 30-day replay window. The normal
+operation receipt is retained for 24 hours, while the binding keeps the compact
+committed result so an identical retry remains replayable after receipt GC.
+Unrelated history older than 30 days is lazily expired when a new command is
+claimed, avoiding a lifetime account lock. Before recomputing an expensive
 mutation, the CLI claims that binding and reads its actor-scoped result:
 
 - `committed`: return the compact durable result without repeating work;
@@ -212,7 +220,9 @@ mutation, the CLI claims that binding and reads its actor-scoped result:
 
 Never reuse one `commandId` for a different semantic request. For a new
 decision, mint a new UUID. Reusing it with another action or payload fails
-closed even if the original operation receipt has expired.
+closed throughout the retained replay window. If recovery is attempted after
+30 days, read authority state before deciding whether any new mutation is
+needed.
 
 ## Trust boundary
 

@@ -7,9 +7,12 @@ import {
   type ArticleReaderExpandedPresentationV3,
 } from "@/components/article/reader/ArticleReaderExperimentV3";
 import {
+  ArticleAccordionPresentationV3,
   ArticleDividerPresentationV3,
   ArticleEquationPresentationV3,
   ArticleImagePresentationV3,
+  ArticleLinkPresentationV3,
+  ArticleQuizPresentationV3,
 } from "@/components/article/ArticleRichBlockV3";
 import {
   newExperimentHref,
@@ -463,6 +466,15 @@ function ArticleReaderV3Resource({
                   block={block}
                 />
               );
+            }
+            if (block.kind === "link") {
+              return <ArticleLinkPresentationV3 key={block.blockId} block={block} />;
+            }
+            if (block.kind === "quiz") {
+              return <ArticleQuizPresentationV3 key={block.blockId} block={block} />;
+            }
+            if (block.kind === "accordion") {
+              return <ArticleAccordionPresentationV3 key={block.blockId} block={block} />;
             }
             const snapshot = content.snapshots.get(block.placement.snapshotId) ?? null;
             const runtimeComposition = snapshot === null

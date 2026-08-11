@@ -406,6 +406,9 @@
     "addEquation": "数式",
     "addImage": "画像",
     "addDivider": "区切り線",
+    "addAccordion": "折りたたみ",
+    "addQuiz": "クイズ",
+    "addLink": "リンク",
     "addExperiment": "シミュレーション",
     "removeBlock": "ブロックを削除",
     "moveUp": "ブロックを上へ",
@@ -502,6 +505,32 @@
       "caption": "キャプション",
       "captionPlaceholder": "補足説明（任意）"
     },
+    "accordion": {
+      "title": "折りたたみのタイトル",
+      "titlePlaceholder": "さらに詳しく",
+      "addContent": "折りたたみ内に追加"
+    },
+    "quiz": {
+      "label": "理解度チェック",
+      "question": "問題",
+      "questionPlaceholder": "読者に確認したいことを書きます",
+      "choicePlaceholder": "選択肢 {{index}}",
+      "correctChoice": "選択肢 {{index}} を正解にする",
+      "addChoice": "選択肢を追加",
+      "removeChoice": "選択肢を削除",
+      "explanation": "解説",
+      "explanationPlaceholder": "正解の理由や臨床上の注意点"
+    },
+    "link": {
+      "label": "記事リンク",
+      "text": "表示名",
+      "textPlaceholder": "次の記事へ",
+      "url": "リンク先",
+      "urlPlaceholder": "/ja/articles/... または https://...",
+      "invalidUrl": "記事内パス、またはHTTPSのURLを入力してください",
+      "description": "説明",
+      "descriptionPlaceholder": "リンク先で学べる内容（任意）"
+    },
     "insertMenu": {
       "searchPlaceholder": "ブロックを検索…",
       "empty": "一致するブロックがありません",
@@ -511,6 +540,9 @@
       "equationHint": "TeXで数式を表示",
       "imageHint": "画像をアップロードまたはURLで挿入",
       "dividerHint": "内容の区切りを追加",
+      "accordionHint": "詳しい解説を段階的に開示",
+      "quizHint": "選択式の理解度チェック",
+      "linkHint": "別の記事やシリーズ冒頭へ案内",
       "experimentHint": "シミュレーションを記事に配置"
     },
     "publishMenu": {
@@ -581,7 +613,14 @@
     "unavailableSnapshot": "固定されたシミュレーションを読み込めません。",
     "invalidBriefing": "この配置のBriefingを安全に読み込めません。",
     "unavailableModel": "このSnapshotのexact model releaseは、このclientでは利用できません。",
-    "noControlTarget": "現在のScenarioは対象外"
+    "noControlTarget": "現在のScenarioは対象外",
+    "quiz": {
+      "label": "理解度チェック",
+      "check": "回答を確認",
+      "correct": "正解です",
+      "incorrect": "もう一度考えてみましょう",
+      "retry": "もう一度回答する"
+    }
   },
   "snapshotReader": {
     "loading": "シミュレーションを読み込んでいます…",

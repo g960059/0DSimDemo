@@ -25,9 +25,12 @@ import {
   ArticleExperimentPlacementV3,
 } from "@/components/article/ArticleExperimentPlacementV3";
 import {
+  ArticleAccordionPresentationV3,
   ArticleDividerPresentationV3,
   ArticleEquationPresentationV3,
   ArticleImagePresentationV3,
+  ArticleLinkPresentationV3,
+  ArticleQuizPresentationV3,
 } from "@/components/article/ArticleRichBlockV3";
 import {
   articleBriefingPresentationV3,
@@ -458,6 +461,137 @@ describe("Article Editor V3 briefing", () => {
     expect(imageHtml).toContain("pv-loop.png");
     expect(imageHtml).toContain("左室圧容積ループ");
     expect(dividerHtml).toContain("<hr");
+  });
+
+  it("validates and renders progressive disclosure, quiz, and Article links", () => {
+    const rich = validateStudioArticleDraftV2({
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: "article/progressive-blocks",
+      draftVersion: 0,
+      visibility: "draft",
+      locale: "ja",
+      title: "Progressive blocks",
+      blocks: [{
+        blockId: "block/accordion",
+        kind: "accordion",
+        title: "循環器専門医向け",
+        blocks: [{
+          blockId: "block/accordion-text",
+          kind: "paragraph",
+          text: "平均循環充満圧を詳しく考えます。",
+        }, {
+          blockId: "block/accordion-link",
+          kind: "link",
+          href: "/ja/articles/venous-return",
+          label: "静脈還流の記事へ",
+          description: "シリーズの冒頭から読む",
+        }],
+      }, {
+        blockId: "block/quiz",
+        kind: "quiz",
+        question: "輸液で最初に増えるのは？",
+        choices: [{ choiceId: "choice/stressed", label: "stressed volume" }, {
+          choiceId: "choice/resistance",
+          label: "体血管抵抗",
+        }],
+        correctChoiceId: "choice/stressed",
+        explanation: "静脈還流の圧較差が増えます。",
+      }, {
+        blockId: "block/link",
+        kind: "link",
+        href: "https://example.com/series",
+        label: "シリーズを最初から読む",
+        description: "前負荷の基礎へ戻ります",
+      }],
+    });
+    const [accordion, quiz, link] = rich.blocks;
+    if (accordion?.kind !== "accordion" || quiz?.kind !== "quiz" || link?.kind !== "link") {
+      throw new Error("progressive block mismatch");
+    }
+    const accordionHtml = renderToStaticMarkup(React.createElement(
+      ArticleAccordionPresentationV3,
+      { block: accordion },
+    ));
+    const quizHtml = renderToStaticMarkup(React.createElement(
+      ArticleQuizPresentationV3,
+      { block: quiz },
+    ));
+    const linkHtml = renderToStaticMarkup(React.createElement(
+      ArticleLinkPresentationV3,
+      { block: link },
+    ));
+    expect(accordionHtml).toContain("<details");
+    expect(accordionHtml).toContain("平均循環充満圧");
+    expect(quizHtml).toContain("type=\"radio\"");
+    expect(quizHtml).toContain("輸液で最初に増える");
+    expect(linkHtml).toContain("https://example.com/series");
+  });
+
+  it("rejects invalid quiz answers, nested accordions, and unsafe links", () => {
+    const base = {
+      schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+      articleId: "article/invalid-progressive",
+      draftVersion: 0,
+      visibility: "draft",
+      locale: "ja",
+      title: "Invalid progressive",
+    };
+    expect(() => validateStudioArticleDraftV2({
+      ...base,
+      blocks: [{
+        blockId: "block/quiz",
+        kind: "quiz",
+        question: "Question",
+        choices: [{ choiceId: "choice/a", label: "A" }, {
+          choiceId: "choice/b", label: "B",
+        }],
+        correctChoiceId: "choice/missing",
+        explanation: "",
+      }],
+    })).toThrow(/must identify one of the choices/);
+    expect(() => validateStudioArticleDraftV2({
+      ...base,
+      blocks: [{
+        blockId: "block/accordion",
+        kind: "accordion",
+        title: "Detail",
+        blocks: [{
+          blockId: "block/nested",
+          kind: "accordion",
+          title: "Nested",
+          blocks: [],
+        }],
+      }],
+    })).toThrow(/nested accordions/);
+    expect(() => validateStudioArticleDraftV2({
+      ...base,
+      blocks: [{
+        blockId: "block/link",
+        kind: "link",
+        href: "javascript:alert(1)",
+        label: "Unsafe",
+        description: "",
+      }],
+    })).toThrow(/app-relative path/);
+    expect(() => validateStudioArticleDraftV2({
+      ...base,
+      blocks: [{
+        blockId: "block/link",
+        kind: "link",
+        href: "/\\evil.example",
+        label: "Looks internal",
+        description: "",
+      }],
+    })).toThrow(/app-relative path/);
+    expect(() => validateStudioArticleDraftV2({
+      ...base,
+      blocks: [{
+        blockId: "block/accordion",
+        kind: "accordion",
+        title: "Detail",
+        blocks: [null],
+      }],
+    })).toThrow(/blocks\[0\]: must be an object/);
   });
 
   it("rejects unsafe image URLs and hidden rich-block fields", () => {

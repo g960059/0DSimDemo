@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(31);
+select plan(33);
 
 insert into auth.users (
   id,
@@ -362,6 +362,41 @@ select is(
   ) ->> 'status',
   'committed',
   'A bound AI command remains replayable after general receipt GC'
+);
+
+insert into studio.authoring_command_bindings (
+  actor_id,
+  command_id,
+  command_action,
+  command_digest,
+  created_at
+) values (
+  '10000000-0000-0000-0000-000000000001',
+  '20000000-0000-0000-0000-000000000016',
+  'article.save',
+  repeat('b', 64),
+  now() - interval '31 days'
+);
+
+select is(
+  public.claim_my_authoring_command_v1(
+    '20000000-0000-0000-0000-000000000017',
+    'article.save',
+    repeat('d', 64)
+  ),
+  null::jsonb,
+  'A new command is accepted after lazily expiring unrelated old bindings'
+);
+
+select is(
+  (
+    select count(*)
+    from studio.authoring_command_bindings
+    where actor_id = '10000000-0000-0000-0000-000000000001'
+      and command_id = '20000000-0000-0000-0000-000000000016'
+  ),
+  0::bigint,
+  'Expired command bindings cannot permanently consume the actor history quota'
 );
 
 select throws_ok(

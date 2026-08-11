@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ExternalLink,
   KeyRound,
+  ListCollapse,
   ShieldCheck,
   TerminalSquare,
   Workflow,
@@ -29,7 +30,7 @@ const copy = {
     principles: [
       ["同じ権限", "ブラウザと同じGoogle / Supabaseユーザーとして動作し、service-role keyは受け付けません。"],
       ["機械可読", "stdoutは常に1つのJSON envelopeです。進捗と診断だけをstderrへ出します。"],
-      ["安全な再試行", "write commandはcommandIdへ永久に束縛されます。応答が失われても、同じJSONを同じcommandIdで再実行できます。"],
+      ["安全な再試行", "write commandは最低30日間commandIdへ束縛されます。応答が失われても、同じJSONを同じcommandIdで再実行できます。"],
       ["公開は明示的", "保存・Snapshot化・Briefing配置・公開は別actionです。previewや保存が勝手に公開へ進むことはありません。"],
     ],
     setupTitle: "1. ログイン",
@@ -50,6 +51,9 @@ const copy = {
     recoveryTitle: "4. エラーからの回復",
     recoveryBody:
       "assistantは人間向けmessageを解析せず、error.code・commitState・recoveryだけに従います。transport failureでcommitStateがunknownならoperation.readを行い、未commitと確認できたときだけbyte-identicalなcommandを再実行します。semantic requestを変更する場合は、新しいcommandIdが必要です。",
+    blocksTitle: "Article block契約",
+    blocksBody:
+      "paragraph・heading・equation・image・divider・accordion・quiz・link・experimentをUIと同じportable blockとして操作できます。accordion内にも文章・見出し・数式・画像・区切り線・quiz・linkを配置できますが、隠れたsimulation起動を避けるためExperimentとaccordionの再帰は許可しません。quizの回答はReader内だけに保持され、サーバーへ保存されません。linkは別記事やシリーズ冒頭への相対URLにも対応します。",
     commandsTitle: "主なaction",
     readLabel: "Read / discovery",
     writeLabel: "Explicit mutations",
@@ -68,7 +72,7 @@ const copy = {
     principles: [
       ["Same authority", "It acts as the same Google / Supabase user as the browser and rejects service-role keys."],
       ["Machine-readable", "stdout is exactly one JSON envelope. Only progress and diagnostics use stderr."],
-      ["Safe retries", "Each write is permanently bound to its commandId. After a lost response, retry the identical JSON with the identical commandId."],
+      ["Safe retries", "Each write remains bound to its commandId for at least 30 days. After a lost response, retry the identical JSON with the identical commandId."],
       ["Explicit publication", "Save, Snapshot seal, Briefing placement, and publication are separate actions. Preview and save never publish implicitly."],
     ],
     setupTitle: "1. Sign in",
@@ -89,6 +93,9 @@ const copy = {
     recoveryTitle: "4. Recover from errors",
     recoveryBody:
       "Assistants must follow error.code, commitState, and recovery rather than parsing the human message. If a transport failure reports an unknown commit state, call operation.read and retry the byte-identical command only after confirming it is uncommitted. A changed semantic request requires a new commandId.",
+    blocksTitle: "Article block contract",
+    blocksBody:
+      "The UI and CLI share portable paragraph, heading, equation, image, divider, accordion, quiz, link, and experiment blocks. Accordions may contain prose, headings, equations, images, dividers, quizzes, and links, but not nested accordions or hidden live Experiments. Quiz answers remain Reader-local and are never persisted. Link blocks accept app-relative destinations for another Article or a series start.",
     commandsTitle: "Core actions",
     readLabel: "Read / discovery",
     writeLabel: "Explicit mutations",
@@ -189,6 +196,17 @@ export function AuthoringCliDocsV3Page() {
 
         <DocsSection icon={ShieldCheck} title={text.recoveryTitle}>
           <p className="max-w-3xl text-sm leading-7 text-wb-muted">{text.recoveryBody}</p>
+        </DocsSection>
+
+        <DocsSection icon={ListCollapse} title={text.blocksTitle}>
+          <p className="max-w-3xl text-sm leading-7 text-wb-muted">{text.blocksBody}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {["paragraph", "heading", "equation", "image", "divider", "accordion", "quiz", "link", "experiment"].map((kind) => (
+              <code key={kind} className="rounded-md bg-wb-hover px-2.5 py-1.5 text-xs text-wb-muted">
+                {kind}
+              </code>
+            ))}
+          </div>
         </DocsSection>
 
         <DocsSection icon={TerminalSquare} title={text.commandsTitle}>

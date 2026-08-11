@@ -700,16 +700,62 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     object(["blockId", "mode"], { mode: { const: "replace" }, blockId: id }),
     object(["blockId", "mode"], { mode: { const: "insert-after" }, blockId: id }),
   ] });
-  const articleBlock = Object.freeze({ oneOf: [
+  const articleQuizChoice = object(["choiceId", "label"], {
+    choiceId: id,
+    label: { type: "string", maxLength: 1_000 },
+  });
+  const articleLinkBlock = object([
+    "blockId", "description", "href", "kind", "label",
+  ], {
+    blockId: id,
+    kind: { const: "link" },
+    href: { oneOf: [
+      { const: "" },
+      {
+        type: "string",
+        maxLength: 4_096,
+        pattern: String.raw`^/(?!/)(?!.*[\\\u0000-\u001F\u007F])`,
+      },
+      {
+        type: "string",
+        format: "uri",
+        maxLength: 4_096,
+        pattern: "^(?:https://|http://(?:localhost|127\\.0\\.0\\.1)(?=[:/?#]|$))",
+      },
+    ] },
+    label: { type: "string", maxLength: 500 },
+    description: { type: "string", maxLength: 2_000 },
+  });
+  const articleQuizBlock = object([
+    "blockId", "choices", "correctChoiceId", "explanation", "kind",
+    "question",
+  ], {
+    blockId: id,
+    kind: { const: "quiz" },
+    question: { type: "string", maxLength: 2_000 },
+    choices: {
+      type: "array",
+      minItems: 2,
+      maxItems: 8,
+      items: articleQuizChoice,
+    },
+    correctChoiceId: id,
+    explanation: { type: "string", maxLength: 10_000 },
+  });
+  const articleAccordionContentBlock = Object.freeze({ oneOf: [
     object(["blockId", "kind", "level", "text"], {
       blockId: id, kind: { const: "heading" }, level: { enum: [2, 3] },
-      text: { type: "string" },
+      text: { type: "string", maxLength: 500 },
     }),
     object(["blockId", "kind", "text"], {
-      blockId: id, kind: { const: "paragraph" }, text: { type: "string" },
+      blockId: id,
+      kind: { const: "paragraph" },
+      text: { type: "string", maxLength: 20_000 },
     }),
     object(["blockId", "expression", "kind"], {
-      blockId: id, kind: { const: "equation" }, expression: { type: "string" },
+      blockId: id,
+      kind: { const: "equation" },
+      expression: { type: "string", maxLength: 5_000 },
     }),
     object(["altText", "blockId", "caption", "kind", "url"], {
       blockId: id,
@@ -723,10 +769,26 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
           pattern: "^(?:https://|http://(?:localhost|127\\.0\\.0\\.1)(?=[:/?#]|$))",
         },
       ] },
-      altText: { type: "string" }, caption: { type: "string" },
+      altText: { type: "string", maxLength: 1_000 },
+      caption: { type: "string", maxLength: 2_000 },
     }),
     object(["blockId", "kind"], {
       blockId: id, kind: { const: "divider" },
+    }),
+    articleLinkBlock,
+    articleQuizBlock,
+  ] });
+  const articleBlock = Object.freeze({ oneOf: [
+    ...articleAccordionContentBlock.oneOf,
+    object(["blockId", "blocks", "kind", "title"], {
+      blockId: id,
+      kind: { const: "accordion" },
+      title: { type: "string", maxLength: 500 },
+      blocks: {
+        type: "array",
+        maxItems: 100,
+        items: articleAccordionContentBlock,
+      },
     }),
     object(["blockId", "kind", "placement"], {
       blockId: id, kind: { const: "experiment" }, placement: experimentPlacement,
@@ -1094,7 +1156,7 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
       concurrency: "one-refresh-token-rotation-per-profile",
       numericalMutation: "preview-exact-plan-then-apply",
       publication: "standalone-explicit-action",
-      commandIdentity: "commandId-is-permanently-bound-to-canonical-command-sha256",
+      commandIdentity: "commandId-is-bound-to-canonical-command-sha256-for-at-least-30-days",
       errorRecovery: {
         "fix-command": "correct input against the action JSON Schema and mint a new commandId",
         "mint-new-command-id": "preserve the old command file and mint a UUID for the new semantic request",

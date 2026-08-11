@@ -11,6 +11,9 @@ import {
   validateStudioAuthoringCommandV1,
 } from "@/studio/application/authoring/StudioAuthoringCommandV1";
 import {
+  StudioArticleDataValidationErrorV2,
+} from "@/studio/application/authoring/StudioArticleDataV2";
+import {
   StudioSupabaseModelReleaseResolverV1,
   type StudioModelReleaseRpcPortV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
@@ -306,6 +309,16 @@ export function classifyAuthoringErrorV1(
       retryable: false,
       commitState: "confirmed",
       recovery: "read-authority-state",
+      message,
+    });
+  }
+  if (error instanceof StudioArticleDataValidationErrorV2) {
+    return Object.freeze({
+      code: "AUTHORING_VALIDATION_FAILED",
+      category: "validation",
+      retryable: false,
+      commitState: "none",
+      recovery: "fix-command",
       message,
     });
   }

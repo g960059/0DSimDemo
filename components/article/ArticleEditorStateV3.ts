@@ -247,7 +247,9 @@ function normalizedBriefingTitleV3(
   return fallback.length > 0 ? fallback : "Simulation";
 }
 
-export function portableEditorIdV3(kind: "block" | "placement" | "article"): string {
+export function portableEditorIdV3(
+  kind: "block" | "placement" | "article" | "choice",
+): string {
   const random = typeof globalThis.crypto?.randomUUID === "function"
     ? globalThis.crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;

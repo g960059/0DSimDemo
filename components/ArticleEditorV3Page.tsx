@@ -11,6 +11,9 @@ import {
   Heading2,
   Heading3,
   Image as ImageIcon,
+  Link2,
+  ListCollapse,
+  ListChecks,
   Loader2,
   Minus,
   Pilcrow,
@@ -37,9 +40,12 @@ import {
 import { localeFromPathname } from "@/localeRouting";
 import { ArticleExperimentPlacementV3 } from "@/components/article/ArticleExperimentPlacementV3";
 import {
+  ArticleAccordionPresentationV3,
   ArticleDividerPresentationV3,
   ArticleEquationPresentationV3,
   ArticleImagePresentationV3,
+  ArticleLinkPresentationV3,
+  ArticleQuizPresentationV3,
 } from "@/components/article/ArticleRichBlockV3";
 import {
   ArticleReaderExperimentV3,
@@ -54,12 +60,16 @@ import {
 } from "@/components/article/ArticleEditorStateV3";
 import {
   STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+  type StudioArticleAccordionBlockV2,
+  type StudioArticleAccordionContentBlockV2,
   type StudioArticleBlockV2,
   type StudioArticleDraftV2,
   type StudioArticleEquationBlockV2,
   type StudioArticleHeadingBlockV2,
   type StudioArticleImageBlockV2,
+  type StudioArticleLinkBlockV2,
   type StudioArticleParagraphBlockV2,
+  type StudioArticleQuizBlockV2,
 } from "@/studio/contracts/v2/article";
 import type {
   ExperimentPlacementBriefingV2,
@@ -1088,22 +1098,12 @@ export function ArticleEditorV3Page() {
   };
 
   const insertRichArticleBlockV3 = (
-    kind: "equation" | "image" | "divider",
+    kind: "equation" | "image" | "divider" | "accordion" | "quiz" | "link",
     insertionIndex: number,
     replaceBlockId: string | null,
   ) => {
     const generatedBlockId = portableEditorIdV3("block");
-    const template: StudioArticleBlockV2 = kind === "equation"
-      ? { blockId: generatedBlockId, kind, expression: "" }
-      : kind === "image"
-        ? {
-            blockId: generatedBlockId,
-            kind,
-            url: "",
-            altText: "",
-            caption: "",
-          }
-        : { blockId: generatedBlockId, kind };
+    const template = createRichArticleBlockTemplateV3(kind, generatedBlockId);
     let insertedBlockId = generatedBlockId;
     let trailingParagraphId: string | null = null;
     updateDraft((current) => {
@@ -1672,6 +1672,30 @@ export function ArticleEditorV3Page() {
                     />
                   ) : block.kind === "divider" ? (
                     <ArticleDividerPresentationV3 block={block} className="my-5" />
+                  ) : block.kind === "link" ? (
+                    <ArticleLinkBlockEditorV3
+                      block={block}
+                      focus={focusRequest?.blockId === block.blockId}
+                      onFocusHandled={() => setFocusRequest(null)}
+                      onChange={(next) => updateBlock(index, next)}
+                    />
+                  ) : block.kind === "quiz" ? (
+                    <ArticleQuizBlockEditorV3
+                      block={block}
+                      focus={focusRequest?.blockId === block.blockId}
+                      onFocusHandled={() => setFocusRequest(null)}
+                      onChange={(next) => updateBlock(index, next)}
+                    />
+                  ) : block.kind === "accordion" ? (
+                    <ArticleAccordionBlockEditorV3
+                      block={block}
+                      focus={focusRequest?.blockId === block.blockId}
+                      onFocusHandled={() => setFocusRequest(null)}
+                      onChange={(next) => updateBlock(index, next)}
+                      onUpload={remoteRepository === null
+                        ? undefined
+                        : (file) => remoteRepository.uploadArticleImage(file)}
+                    />
                   ) : (
                     <ArticleTextBlockV3
                       block={block}
@@ -2231,6 +2255,455 @@ function ArticleImageBlockEditorV3({
   );
 }
 
+function ArticleLinkBlockEditorV3({
+  block,
+  focus,
+  onChange,
+  onFocusHandled,
+}: Readonly<{
+  block: StudioArticleLinkBlockV2;
+  focus: boolean;
+  onChange: (block: StudioArticleLinkBlockV2) => void;
+  onFocusHandled: () => void;
+}>) {
+  const { t } = useTranslation();
+  const labelRef = React.useRef<HTMLInputElement | null>(null);
+  const [hrefDraft, setHrefDraft] = React.useState(block.href);
+  const [hrefError, setHrefError] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    setHrefDraft(block.href);
+  }, [block.href]);
+  React.useEffect(() => {
+    if (!focus) return;
+    labelRef.current?.focus();
+    onFocusHandled();
+  }, [focus, onFocusHandled]);
+  const commitHref = () => {
+    const href = hrefDraft.trim();
+    if (!articleLinkEditorHrefAllowedV3(href)) {
+      setHrefError(t("articleEditor.link.invalidUrl"));
+      return;
+    }
+    setHrefError(null);
+    setHrefDraft(href);
+    if (href !== block.href) onChange({ ...block, href });
+  };
+  return (
+    <div className="my-4" data-article-block-kind="link">
+      <ArticleLinkPresentationV3 block={block} className="my-3" />
+      <div className="rounded-xl bg-wb-soft/55 px-4 py-3.5 focus-within:bg-wb-soft">
+        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-wb-subtle">
+          <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+          {t("articleEditor.link.label")}
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <label className="text-[11px] font-medium text-wb-muted">
+            {t("articleEditor.link.text")}
+            <input
+              ref={labelRef}
+              type="text"
+              value={block.label}
+              onChange={(event) => onChange({ ...block, label: event.currentTarget.value })}
+              placeholder={t("articleEditor.link.textPlaceholder")}
+              className="mt-1 block min-h-9 w-full rounded-lg bg-wb-panel px-3 text-xs text-wb-text outline-none ring-1 ring-wb-line/70 placeholder:text-wb-subtle focus:ring-2 focus:ring-wb-accent"
+            />
+          </label>
+          <label className="text-[11px] font-medium text-wb-muted">
+            {t("articleEditor.link.url")}
+            <input
+              type="text"
+              value={hrefDraft}
+              onChange={(event) => {
+                const href = event.currentTarget.value;
+                setHrefDraft(href);
+                setHrefError(null);
+                if (articleLinkEditorHrefAllowedV3(href)) {
+                  onChange({ ...block, href });
+                }
+              }}
+              onBlur={commitHref}
+              onKeyDown={(event) => {
+                if (articleEditorInputIsComposingV3(event.nativeEvent)) return;
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitHref();
+                }
+              }}
+              placeholder={t("articleEditor.link.urlPlaceholder")}
+              className="mt-1 block min-h-9 w-full rounded-lg bg-wb-panel px-3 font-mono text-xs text-wb-text outline-none ring-1 ring-wb-line/70 placeholder:text-wb-subtle focus:ring-2 focus:ring-wb-accent"
+            />
+          </label>
+        </div>
+        {hrefError !== null && (
+          <p className="mt-2 text-xs text-wb-danger" role="alert">{hrefError}</p>
+        )}
+        <label className="mt-2 block text-[11px] font-medium text-wb-muted">
+          {t("articleEditor.link.description")}
+          <input
+            type="text"
+            value={block.description}
+            onChange={(event) => onChange({
+              ...block,
+              description: event.currentTarget.value,
+            })}
+            placeholder={t("articleEditor.link.descriptionPlaceholder")}
+            className="mt-1 block min-h-9 w-full rounded-lg bg-wb-panel px-3 text-xs text-wb-text outline-none ring-1 ring-wb-line/70 placeholder:text-wb-subtle focus:ring-2 focus:ring-wb-accent"
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function articleLinkEditorHrefAllowedV3(value: string): boolean {
+  if (value.length === 0) return true;
+  if (
+    value.startsWith("/")
+    && !value.startsWith("//")
+    && !/[\\\u0000-\u001f\u007f]/.test(value)
+  ) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:"
+      || (url.protocol === "http:"
+        && (url.hostname === "localhost" || url.hostname === "127.0.0.1"));
+  } catch {
+    return false;
+  }
+}
+
+function ArticleQuizBlockEditorV3({
+  block,
+  focus,
+  onChange,
+  onFocusHandled,
+}: Readonly<{
+  block: StudioArticleQuizBlockV2;
+  focus: boolean;
+  onChange: (block: StudioArticleQuizBlockV2) => void;
+  onFocusHandled: () => void;
+}>) {
+  const { t } = useTranslation();
+  const questionRef = React.useRef<HTMLTextAreaElement | null>(null);
+  React.useEffect(() => {
+    if (!focus) return;
+    questionRef.current?.focus();
+    onFocusHandled();
+  }, [focus, onFocusHandled]);
+  const updateChoice = (choiceId: string, label: string) => onChange({
+    ...block,
+    choices: Object.freeze(block.choices.map((choice) =>
+      choice.choiceId === choiceId ? { ...choice, label } : choice)),
+  });
+  return (
+    <div
+      className="my-4 rounded-xl bg-wb-soft/55 px-4 py-4 focus-within:bg-wb-soft"
+      data-article-block-kind="quiz"
+    >
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-wb-subtle">
+        <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
+        {t("articleEditor.quiz.label")}
+      </div>
+      <label className="mt-3 block text-[11px] font-medium text-wb-muted">
+        {t("articleEditor.quiz.question")}
+        <textarea
+          ref={questionRef}
+          rows={2}
+          value={block.question}
+          onChange={(event) => onChange({ ...block, question: event.currentTarget.value })}
+          placeholder={t("articleEditor.quiz.questionPlaceholder")}
+          className="mt-1 block min-h-14 w-full resize-y rounded-lg bg-wb-panel px-3 py-2 text-sm leading-6 text-wb-text outline-none ring-1 ring-wb-line/70 placeholder:text-wb-subtle focus:ring-2 focus:ring-wb-accent"
+        />
+      </label>
+      <div className="mt-3 space-y-2">
+        {block.choices.map((choice, index) => (
+          <div key={choice.choiceId} className="flex items-center gap-2">
+            <input
+              type="radio"
+              name={`editor-correct-${block.blockId}`}
+              checked={block.correctChoiceId === choice.choiceId}
+              onChange={() => onChange({ ...block, correctChoiceId: choice.choiceId })}
+              aria-label={t("articleEditor.quiz.correctChoice", { index: index + 1 })}
+              className="h-4 w-4 shrink-0 accent-[var(--wb-accent)]"
+            />
+            <input
+              type="text"
+              value={choice.label}
+              onChange={(event) => updateChoice(choice.choiceId, event.currentTarget.value)}
+              placeholder={t("articleEditor.quiz.choicePlaceholder", { index: index + 1 })}
+              className="min-h-9 min-w-0 flex-1 rounded-lg bg-wb-panel px-3 text-xs text-wb-text outline-none ring-1 ring-wb-line/70 placeholder:text-wb-subtle focus:ring-2 focus:ring-wb-accent"
+            />
+            <button
+              type="button"
+              disabled={block.choices.length <= 2}
+              onClick={() => {
+                const choices = block.choices.filter((candidate) =>
+                  candidate.choiceId !== choice.choiceId);
+                onChange({
+                  ...block,
+                  choices: Object.freeze(choices),
+                  correctChoiceId: block.correctChoiceId === choice.choiceId
+                    ? choices[0]?.choiceId ?? block.correctChoiceId
+                    : block.correctChoiceId,
+                });
+              }}
+              aria-label={t("articleEditor.quiz.removeChoice")}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-subtle transition-[background-color,color,transform] duration-150 hover:bg-wb-hover hover:text-wb-danger active:scale-[0.96] disabled:pointer-events-none disabled:opacity-25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        disabled={block.choices.length >= 8}
+        onClick={() => onChange({
+          ...block,
+          choices: Object.freeze([...block.choices, {
+            choiceId: portableEditorIdV3("choice"),
+            label: "",
+          }]),
+        })}
+        className="mt-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-muted transition-[background-color,color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+        {t("articleEditor.quiz.addChoice")}
+      </button>
+      <label className="mt-3 block text-[11px] font-medium text-wb-muted">
+        {t("articleEditor.quiz.explanation")}
+        <textarea
+          rows={3}
+          value={block.explanation}
+          onChange={(event) => onChange({ ...block, explanation: event.currentTarget.value })}
+          placeholder={t("articleEditor.quiz.explanationPlaceholder")}
+          className="mt-1 block min-h-16 w-full resize-y rounded-lg bg-wb-panel px-3 py-2 text-xs leading-6 text-wb-text outline-none ring-1 ring-wb-line/70 placeholder:text-wb-subtle focus:ring-2 focus:ring-wb-accent"
+        />
+      </label>
+    </div>
+  );
+}
+
+function ArticleAccordionBlockEditorV3({
+  block,
+  focus,
+  onChange,
+  onFocusHandled,
+  onUpload,
+}: Readonly<{
+  block: StudioArticleAccordionBlockV2;
+  focus: boolean;
+  onChange: (block: StudioArticleAccordionBlockV2) => void;
+  onFocusHandled: () => void;
+  onUpload?: ((file: File) => Promise<string>) | undefined;
+}>) {
+  const { t } = useTranslation();
+  const titleRef = React.useRef<HTMLInputElement | null>(null);
+  const [insertOpen, setInsertOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (!focus) return;
+    titleRef.current?.focus();
+    onFocusHandled();
+  }, [focus, onFocusHandled]);
+  const updateNested = (
+    index: number,
+    next: StudioArticleAccordionContentBlockV2,
+  ) => {
+    const blocks = [...block.blocks];
+    blocks[index] = next;
+    onChange({ ...block, blocks: Object.freeze(blocks) });
+  };
+  const moveNested = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= block.blocks.length) return;
+    const blocks = [...block.blocks];
+    const [item] = blocks.splice(index, 1);
+    if (item === undefined) return;
+    blocks.splice(target, 0, item);
+    onChange({ ...block, blocks: Object.freeze(blocks) });
+  };
+  return (
+    <div
+      className="my-5 rounded-xl bg-wb-soft/60 px-4 py-4 sm:px-5"
+      data-article-block-kind="accordion"
+    >
+      <label className="flex items-center gap-2.5">
+        <ListCollapse className="h-4 w-4 shrink-0 text-wb-accent" aria-hidden="true" />
+        <span className="sr-only">{t("articleEditor.accordion.title")}</span>
+        <input
+          ref={titleRef}
+          type="text"
+          value={block.title}
+          onChange={(event) => onChange({ ...block, title: event.currentTarget.value })}
+          placeholder={t("articleEditor.accordion.titlePlaceholder")}
+          className="min-h-9 min-w-0 flex-1 bg-transparent text-sm font-semibold text-wb-text outline-none placeholder:text-wb-subtle"
+        />
+      </label>
+      <div className="mt-3 border-t border-wb-line/60 pt-2">
+        {block.blocks.map((nested, index) => (
+          <div
+            key={nested.blockId}
+            className="group/nested relative border-b border-wb-line/45 py-3 last:border-b-0"
+          >
+            <div className="mb-1 flex justify-end gap-0.5 opacity-100 sm:absolute sm:right-0 sm:top-2 sm:opacity-0 sm:transition-opacity sm:duration-150 sm:group-focus-within/nested:opacity-100 sm:group-hover/nested:opacity-100">
+              <NestedBlockActionV3
+                disabled={index === 0}
+                label={t("articleEditor.moveUp")}
+                onClick={() => moveNested(index, -1)}
+              >
+                <ChevronUp className="h-3 w-3" />
+              </NestedBlockActionV3>
+              <NestedBlockActionV3
+                disabled={index === block.blocks.length - 1}
+                label={t("articleEditor.moveDown")}
+                onClick={() => moveNested(index, 1)}
+              >
+                <ChevronDown className="h-3 w-3" />
+              </NestedBlockActionV3>
+              <NestedBlockActionV3
+                label={t("articleEditor.removeBlock")}
+                onClick={() => onChange({
+                  ...block,
+                  blocks: Object.freeze(block.blocks.filter((_, candidateIndex) =>
+                    candidateIndex !== index)),
+                })}
+              >
+                <Trash2 className="h-3 w-3" />
+              </NestedBlockActionV3>
+            </div>
+            <ArticleAccordionNestedEditorV3
+              block={nested}
+              onChange={(next) => updateNested(index, next)}
+              onUpload={onUpload}
+            />
+          </div>
+        ))}
+        <div className="relative mt-2">
+          <button
+            type="button"
+            disabled={block.blocks.length >= 100}
+            aria-expanded={insertOpen}
+            onClick={() => setInsertOpen((current) => !current)}
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-muted transition-[background-color,color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("articleEditor.accordion.addContent")}
+          </button>
+          {insertOpen && (
+            <ArticleInsertMenuV3
+              className="bottom-9 left-0"
+              allowedKinds={ARTICLE_ACCORDION_INSERT_KINDS_V3}
+              onClose={() => setInsertOpen(false)}
+              onSelect={(kind) => {
+                const nested = createAccordionContentTemplateV3(kind);
+                if (nested !== null) {
+                  onChange({
+                    ...block,
+                    blocks: Object.freeze([...block.blocks, nested]),
+                  });
+                }
+                setInsertOpen(false);
+              }}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NestedBlockActionV3({
+  children,
+  disabled = false,
+  label,
+  onClick,
+}: Readonly<{
+  children: React.ReactNode;
+  disabled?: boolean;
+  label: string;
+  onClick: () => void;
+}>) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-wb-subtle transition-[background-color,color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] disabled:pointer-events-none disabled:opacity-25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+    >
+      {children}
+    </button>
+  );
+}
+
+function ArticleAccordionNestedEditorV3({
+  block,
+  onChange,
+  onUpload,
+}: Readonly<{
+  block: StudioArticleAccordionContentBlockV2;
+  onChange: (block: StudioArticleAccordionContentBlockV2) => void;
+  onUpload?: ((file: File) => Promise<string>) | undefined;
+}>) {
+  const { t } = useTranslation();
+  if (block.kind === "paragraph" || block.kind === "heading") {
+    return (
+      <textarea
+        rows={block.kind === "heading" ? 1 : 3}
+        value={block.text}
+        onChange={(event) => onChange({ ...block, text: event.currentTarget.value })}
+        placeholder={block.kind === "heading"
+          ? t("articleEditor.subheadingPlaceholder")
+          : t("articleEditor.paragraphPlaceholder")}
+        className={`block w-full resize-y bg-transparent pr-0 text-wb-text outline-none placeholder:text-wb-subtle sm:pr-24 ${block.kind === "heading" ? "min-h-9 text-sm font-semibold" : "min-h-16 text-sm leading-7"}`}
+      />
+    );
+  }
+  if (block.kind === "equation") {
+    return (
+      <ArticleEquationBlockEditorV3
+        block={block}
+        focus={false}
+        onFocusHandled={() => undefined}
+        onChange={onChange}
+      />
+    );
+  }
+  if (block.kind === "image") {
+    return (
+      <ArticleImageBlockEditorV3
+        block={block}
+        focus={false}
+        onFocusHandled={() => undefined}
+        onChange={onChange}
+        onUpload={onUpload}
+      />
+    );
+  }
+  if (block.kind === "divider") {
+    return <ArticleDividerPresentationV3 block={block} className="my-4" />;
+  }
+  if (block.kind === "link") {
+    return (
+      <ArticleLinkBlockEditorV3
+        block={block}
+        focus={false}
+        onFocusHandled={() => undefined}
+        onChange={onChange}
+      />
+    );
+  }
+  return (
+    <ArticleQuizBlockEditorV3
+      block={block}
+      focus={false}
+      onFocusHandled={() => undefined}
+      onChange={onChange}
+    />
+  );
+}
+
 function ArticleTextBlockV3({
   block,
   focusCaret,
@@ -2428,6 +2901,8 @@ function ArticleBlockShellV3({
         ? "my-7"
         : blockKind === "image"
           ? "my-6"
+          : blockKind === "accordion" || blockKind === "quiz" || blockKind === "link"
+            ? "my-5"
           : blockKind === "divider"
             ? "my-5"
             : blockKind === "equation"
@@ -2572,6 +3047,9 @@ export type ArticleInsertOptionKindV3 =
   | "equation"
   | "image"
   | "divider"
+  | "accordion"
+  | "quiz"
+  | "link"
   | "experiment";
 
 type ArticleInsertMenuOptionV3 = Readonly<{
@@ -2591,14 +3069,30 @@ const ARTICLE_INSERT_OPTION_ICONS_V3: Readonly<Record<
   equation: Sigma,
   image: ImageIcon,
   divider: Minus,
+  accordion: ListCollapse,
+  quiz: ListChecks,
+  link: Link2,
   experiment: FlaskConical,
 };
 
+const ARTICLE_ACCORDION_INSERT_KINDS_V3 = Object.freeze([
+  "paragraph",
+  "heading",
+  "subheading",
+  "equation",
+  "image",
+  "divider",
+  "quiz",
+  "link",
+] satisfies readonly ArticleInsertOptionKindV3[]);
+
 function ArticleInsertMenuV3({
+  allowedKinds,
   className,
   onClose,
   onSelect,
 }: Readonly<{
+  allowedKinds?: readonly ArticleInsertOptionKindV3[];
   className: string;
   onClose: () => void;
   onSelect: (kind: ArticleInsertOptionKindV3) => void;
@@ -2644,13 +3138,35 @@ function ArticleInsertMenuV3({
       keywords: ["divider", "separator", "line", "hr", "区切り"],
     },
     {
+      kind: "accordion",
+      label: t("articleEditor.addAccordion"),
+      hint: t("articleEditor.insertMenu.accordionHint"),
+      keywords: ["accordion", "details", "disclosure", "advanced", "補足", "詳細"],
+    },
+    {
+      kind: "quiz",
+      label: t("articleEditor.addQuiz"),
+      hint: t("articleEditor.insertMenu.quizHint"),
+      keywords: ["quiz", "question", "choice", "check", "問題", "確認"],
+    },
+    {
+      kind: "link",
+      label: t("articleEditor.addLink"),
+      hint: t("articleEditor.insertMenu.linkHint"),
+      keywords: ["link", "article", "series", "url", "リンク", "記事"],
+    },
+    {
       kind: "experiment",
       label: t("articleEditor.addExperiment"),
       hint: t("articleEditor.insertMenu.experimentHint"),
       keywords: ["simulation", "experiment", "sim", "graph"],
     },
   ], [t]);
-  const filtered = filterArticleInsertOptionsV3(options, query);
+  const allowed = React.useMemo(() => allowedKinds === undefined
+    ? options
+    : options.filter((option) => allowedKinds.includes(option.kind)),
+  [allowedKinds, options]);
+  const filtered = filterArticleInsertOptionsV3(allowed, query);
   const clampedActiveIndex = Math.min(
     activeIndex,
     Math.max(0, filtered.length - 1),
@@ -2770,6 +3286,71 @@ function BlockMenuActionV3({
       {label}
     </button>
   );
+}
+
+function createRichArticleBlockTemplateV3(
+  kind: "equation" | "image" | "divider" | "accordion" | "quiz" | "link",
+  blockId: string,
+): StudioArticleBlockV2 {
+  if (kind === "equation") return { blockId, kind, expression: "" };
+  if (kind === "image") {
+    return { blockId, kind, url: "", altText: "", caption: "" };
+  }
+  if (kind === "divider") return { blockId, kind };
+  if (kind === "link") {
+    return { blockId, kind, href: "", label: "", description: "" };
+  }
+  if (kind === "quiz") {
+    const firstChoiceId = portableEditorIdV3("choice");
+    const secondChoiceId = portableEditorIdV3("choice");
+    return {
+      blockId,
+      kind,
+      question: "",
+      choices: Object.freeze([
+        { choiceId: firstChoiceId, label: "" },
+        { choiceId: secondChoiceId, label: "" },
+      ]),
+      correctChoiceId: firstChoiceId,
+      explanation: "",
+    };
+  }
+  return {
+    blockId,
+    kind,
+    title: "",
+    blocks: Object.freeze([{
+      blockId: portableEditorIdV3("block"),
+      kind: "paragraph",
+      text: "",
+    }]),
+  };
+}
+
+function createAccordionContentTemplateV3(
+  kind: ArticleInsertOptionKindV3,
+): StudioArticleAccordionContentBlockV2 | null {
+  const blockId = portableEditorIdV3("block");
+  if (kind === "paragraph") return { blockId, kind, text: "" };
+  if (kind === "heading" || kind === "subheading") {
+    return {
+      blockId,
+      kind: "heading",
+      level: kind === "heading" ? 2 : 3,
+      text: "",
+    };
+  }
+  if (
+    kind === "equation"
+    || kind === "image"
+    || kind === "divider"
+    || kind === "quiz"
+    || kind === "link"
+  ) {
+    return createRichArticleBlockTemplateV3(kind, blockId) as
+      StudioArticleAccordionContentBlockV2;
+  }
+  return null;
 }
 
 export function insertArticleBlockV3(

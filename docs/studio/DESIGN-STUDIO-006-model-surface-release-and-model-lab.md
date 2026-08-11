@@ -212,11 +212,13 @@ automation. The initial typed command seam supports:
 Commands use a normal author session and an `sb_publishable_` key. Service-role
 keys, including legacy service-role JWTs, are rejected. Every command carries a
 UUID `commandId`; mutation commands reuse it as the backend idempotency key, so
-the backend permanently binds it to the canonical command SHA-256 and retains
-the compact committed result independently of the ordinary 24-hour operation
-receipt. An identical retry therefore cannot duplicate an Article, Experiment
-or Snapshot even after general receipt GC; the same UUID with changed semantics
-is rejected. There is an
+the backend binds it to the canonical command SHA-256 for a minimum 30-day
+replay window and retains the compact committed result independently of the
+ordinary 24-hour operation receipt. An identical retry therefore cannot
+duplicate an Article, Experiment or Snapshot after general receipt GC during
+that window; the same UUID with changed semantics is rejected. Unrelated older
+bindings are lazily expired by a new claim so history quotas cannot permanently
+lock the authoring account. There is an
 optional policy hook for future confirmations, but the current local AI
 workflow is allow-by-default as requested. Safety remains in schema validation,
 exact model/Surface-aware presentation and Briefing checks, Snapshot admission,

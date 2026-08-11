@@ -1,5 +1,6 @@
 import {
   STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
+  type StudioArticleAccordionContentBlockV2,
   type StudioArticleBlockV2,
   type StudioArticleDraftV2,
 } from "@/studio/contracts/v2/article";
@@ -50,8 +51,17 @@ export function validateStudioArticleDraftV2(value: unknown): StudioArticleDraft
   draft.blocks.forEach((block, index) => {
     const path = `$.article.blocks[${index}]`;
     assertArticleBlockV2(block, path);
-    if (blockIds.has(block.blockId)) failV2(`${path}.blockId`, "duplicate block ID");
-    blockIds.add(block.blockId);
+    registerBlockIdV2(block.blockId, path, blockIds);
+    if (block.kind === "accordion") {
+      if (block.blocks.length > 100) {
+        failV2(`${path}.blocks`, "must contain at most 100 blocks");
+      }
+      block.blocks.forEach((nested, nestedIndex) => {
+        const nestedPath = `${path}.blocks[${nestedIndex}]`;
+        assertAccordionContentBlockV2(nested, nestedPath);
+        registerBlockIdV2(nested.blockId, nestedPath, blockIds);
+      });
+    }
     if (block.kind === "experiment") {
       const placement = validateExperimentPlacementV2(block.placement);
       if (placementIds.has(placement.placementId)) {
@@ -61,6 +71,27 @@ export function validateStudioArticleDraftV2(value: unknown): StudioArticleDraft
     }
   });
   return draft;
+}
+
+function registerBlockIdV2(
+  blockId: string,
+  path: string,
+  blockIds: Set<string>,
+): void {
+  if (blockIds.has(blockId)) failV2(`${path}.blockId`, "duplicate block ID");
+  blockIds.add(blockId);
+}
+
+function assertAccordionContentBlockV2(
+  block: StudioArticleAccordionContentBlockV2,
+  path: string,
+): void {
+  recordV2(block, path);
+  const candidate = block as StudioArticleBlockV2;
+  if (candidate.kind === "experiment" || candidate.kind === "accordion") {
+    failV2(`${path}.kind`, "experiments and nested accordions are not allowed here");
+  }
+  assertArticleBlockV2(candidate, path);
 }
 
 function assertArticleBlockV2(block: StudioArticleBlockV2, path: string): void {
@@ -103,6 +134,55 @@ function assertArticleBlockV2(block: StudioArticleBlockV2, path: string): void {
   if (block.kind === "divider") {
     exactKeysV2(block, ["blockId", "kind"], path);
     portableIdV2(block.blockId, `${path}.blockId`);
+    return;
+  }
+  if (block.kind === "link") {
+    exactKeysV2(block, ["blockId", "description", "href", "kind", "label"], path);
+    portableIdV2(block.blockId, `${path}.blockId`);
+    articleLinkHrefV2(block.href, `${path}.href`);
+    authoredStringV2(block.label, `${path}.label`, 500);
+    authoredStringV2(block.description, `${path}.description`, 2_000);
+    return;
+  }
+  if (block.kind === "quiz") {
+    exactKeysV2(block, [
+      "blockId",
+      "choices",
+      "correctChoiceId",
+      "explanation",
+      "kind",
+      "question",
+    ], path);
+    portableIdV2(block.blockId, `${path}.blockId`);
+    authoredStringV2(block.question, `${path}.question`, 2_000);
+    authoredStringV2(block.explanation, `${path}.explanation`, 10_000);
+    if (!Array.isArray(block.choices) || block.choices.length < 2 || block.choices.length > 8) {
+      failV2(`${path}.choices`, "must contain between 2 and 8 choices");
+    }
+    const choiceIds = new Set<string>();
+    block.choices.forEach((choice, index) => {
+      const choicePath = `${path}.choices[${index}]`;
+      exactKeysV2(choice, ["choiceId", "label"], choicePath);
+      portableIdV2(choice.choiceId, `${choicePath}.choiceId`);
+      authoredStringV2(choice.label, `${choicePath}.label`, 1_000);
+      if (choiceIds.has(choice.choiceId)) {
+        failV2(`${choicePath}.choiceId`, "duplicate choice ID");
+      }
+      choiceIds.add(choice.choiceId);
+    });
+    portableIdV2(block.correctChoiceId, `${path}.correctChoiceId`);
+    if (!choiceIds.has(block.correctChoiceId)) {
+      failV2(`${path}.correctChoiceId`, "must identify one of the choices");
+    }
+    return;
+  }
+  if (block.kind === "accordion") {
+    exactKeysV2(block, ["blockId", "blocks", "kind", "title"], path);
+    portableIdV2(block.blockId, `${path}.blockId`);
+    authoredStringV2(block.title, `${path}.title`, 500);
+    if (!Array.isArray(block.blocks)) {
+      failV2(`${path}.blocks`, "must be an array");
+    }
     return;
   }
   if (block.kind === "experiment") {
@@ -182,6 +262,28 @@ function articleImageUrlV2(value: unknown, path: string): void {
     && (url.hostname === "127.0.0.1" || url.hostname === "localhost")
   ) return;
   failV2(path, "must be an HTTPS URL or a loopback HTTP URL");
+}
+
+function articleLinkHrefV2(value: unknown, path: string): void {
+  authoredStringV2(value, path, 4_096);
+  if (typeof value !== "string" || value.length === 0) return;
+  if (
+    value.startsWith("/")
+    && !value.startsWith("//")
+    && !/[\\\u0000-\u001f\u007f]/.test(value)
+  ) return;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    failV2(path, "must be an app-relative path, HTTPS URL, or loopback HTTP URL");
+  }
+  if (url.protocol === "https:") return;
+  if (
+    url.protocol === "http:"
+    && (url.hostname === "127.0.0.1" || url.hostname === "localhost")
+  ) return;
+  failV2(path, "must be an app-relative path, HTTPS URL, or loopback HTTP URL");
 }
 
 function failV2(path: string, message: string): never {

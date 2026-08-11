@@ -44,6 +44,51 @@ export type StudioArticleDividerBlockV2 = Readonly<{
   kind: "divider";
 }>;
 
+/** Portable navigation to another Article, a series landing point, or HTTPS source. */
+export type StudioArticleLinkBlockV2 = Readonly<{
+  blockId: StudioArticleBlockIdV2;
+  kind: "link";
+  href: string;
+  label: string;
+  description: string;
+}>;
+
+export type StudioArticleQuizChoiceV2 = Readonly<{
+  choiceId: string;
+  label: string;
+}>;
+
+/** Reader-local formative question. Answers are never persisted or graded remotely. */
+export type StudioArticleQuizBlockV2 = Readonly<{
+  blockId: StudioArticleBlockIdV2;
+  kind: "quiz";
+  question: string;
+  choices: readonly StudioArticleQuizChoiceV2[];
+  correctChoiceId: string;
+  explanation: string;
+}>;
+
+/**
+ * Rich content allowed inside one progressive-disclosure block. Experiments
+ * and nested accordions stay top-level so hidden live runtimes cannot start
+ * accidentally and authoring never becomes recursively ambiguous.
+ */
+export type StudioArticleAccordionContentBlockV2 =
+  | StudioArticleHeadingBlockV2
+  | StudioArticleParagraphBlockV2
+  | StudioArticleEquationBlockV2
+  | StudioArticleImageBlockV2
+  | StudioArticleDividerBlockV2
+  | StudioArticleLinkBlockV2
+  | StudioArticleQuizBlockV2;
+
+export type StudioArticleAccordionBlockV2 = Readonly<{
+  blockId: StudioArticleBlockIdV2;
+  kind: "accordion";
+  title: string;
+  blocks: readonly StudioArticleAccordionContentBlockV2[];
+}>;
+
 /**
  * A Placement is nested under the article block that owns it. The same pinned
  * Snapshot may be placed more than once, in one or several articles, without
@@ -61,6 +106,9 @@ export type StudioArticleBlockV2 =
   | StudioArticleEquationBlockV2
   | StudioArticleImageBlockV2
   | StudioArticleDividerBlockV2
+  | StudioArticleLinkBlockV2
+  | StudioArticleQuizBlockV2
+  | StudioArticleAccordionBlockV2
   | StudioArticleExperimentBlockV2;
 
 /** Mutable editor document. `draftVersion` is concurrency only. */

@@ -33,6 +33,8 @@ import {
   "@/tools/authoring/runStudioAuthoringCommandV1";
 import { startStudioAuthoringLoopbackV1 } from
   "@/tools/authoring/StudioAuthoringLoopbackOAuthV1";
+import { StudioArticleDataValidationErrorV2 } from
+  "@/studio/application/authoring/StudioArticleDataV2";
 import { parseActiveModelBundleArgumentsV1 } from
   "@/tools/registry/activateModelBundleV1";
 
@@ -587,6 +589,18 @@ describe("Studio authoring and release CLIs", () => {
   });
 
   it("classifies AI recovery errors without mistaking authoring for auth", () => {
+    expect(classifyAuthoringErrorV1(
+      new StudioArticleDataValidationErrorV2(
+        "$.article.blocks[0].blocks[0].kind",
+        "experiments and nested accordions are not allowed here",
+      ),
+    )).toMatchObject({
+      code: "AUTHORING_VALIDATION_FAILED",
+      category: "validation",
+      retryable: false,
+      commitState: "none",
+      recovery: "fix-command",
+    });
     expect(classifyAuthoringErrorV1(Object.assign(
       new Error("command_id was already used for a different authoring command"),
       { code: "23505" },
