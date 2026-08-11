@@ -123,6 +123,10 @@ describe("main-wire normal-adult blood-volume operating point V1", () => {
     const runtimeBefore = JSON.stringify(runtime);
     const coldSeed = resolveNonCoronaryCirculationColdSeedV1(runtime);
     const targetsMl = [
+      4_200 - MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1
+        .pinnedExcludedCoronaryColdSeedVolumeMl,
+      4_500 - MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1
+        .pinnedExcludedCoronaryColdSeedVolumeMl,
       coldSeed.fixedTotalBloodVolumeMl,
       0.9 * MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1
         .fixedTotalBloodVolumeMl,
@@ -158,18 +162,24 @@ describe("main-wire normal-adult blood-volume operating point V1", () => {
           .toBe(coldSeed.nodeVolumesMl[nodeName]);
       }
     }
+    const hypovolemic = resolveMainWireNormalAdultBloodVolumeProtocolTargetV1(
+      runtime,
+      4_200 - MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1
+        .pinnedExcludedCoronaryColdSeedVolumeMl,
+    );
+    expect(hypovolemic.audit.addedBloodVolumeMl).toBeLessThan(0);
+    expect(hypovolemic.audit.sharedTransmuralPressureOffsetMmHg).toBeLessThan(0);
     expect(JSON.stringify(runtime)).toBe(runtimeBefore);
   });
 
-  it("rejects non-finite, non-positive, and below-cold-seed protocol TBV targets", () => {
+  it("rejects non-finite, non-positive, and unsupported protocol TBV targets", () => {
     const runtime = normalAdultMainWireRuntimeV1();
-    const coldSeed = resolveNonCoronaryCirculationColdSeedV1(runtime);
     for (const targetMl of [
       0,
       -1,
       Number.NaN,
       Number.POSITIVE_INFINITY,
-      coldSeed.fixedTotalBloodVolumeMl - 1,
+      1_000,
     ]) {
       expect(() => resolveMainWireNormalAdultBloodVolumeProtocolTargetV1(
         runtime,
