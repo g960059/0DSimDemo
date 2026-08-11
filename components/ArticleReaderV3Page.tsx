@@ -406,10 +406,10 @@ function ArticleReaderV3Resource({
           className="article-reader-article-pane min-w-0 flex-1 overflow-y-auto overscroll-contain"
           data-testid="article-reader-article-pane-v3"
         >
-          <main className="mx-auto w-full max-w-[920px] px-5 pb-28 pt-12 sm:px-8 sm:pt-16">
-            <article>
-          <header className="mb-12 sm:mb-16">
-            <h1 className="text-[clamp(2rem,5vw,3.35rem)] font-bold leading-[1.14] tracking-[-0.035em] text-wb-text">
+          <main className="article-document-shell">
+            <article className="article-document">
+          <header className="article-document-header">
+            <h1 className="article-title">
               {content.article.title || t("articleReader.untitled")}
             </h1>
           </header>
@@ -425,8 +425,8 @@ function ArticleReaderV3Resource({
                 <Heading
                   key={block.blockId}
                   className={block.level === 2
-                    ? "mb-5 mt-14 text-2xl font-bold leading-tight tracking-[-0.02em] sm:text-3xl"
-                    : "mb-4 mt-10 text-xl font-bold leading-tight tracking-[-0.015em]"}
+                    ? "article-heading-2"
+                    : "article-heading-3"}
                 >
                   {block.text}
                 </Heading>
@@ -436,7 +436,7 @@ function ArticleReaderV3Resource({
               return (
                 <p
                   key={block.blockId}
-                  className="my-6 whitespace-pre-wrap text-[15px] leading-8 text-wb-text sm:text-base sm:leading-8"
+                  className="article-paragraph whitespace-pre-wrap"
                 >
                   {block.text}
                 </p>
@@ -496,6 +496,9 @@ function ArticleReaderV3Resource({
                 block={block}
                 snapshot={snapshot}
                 contract={runtimeComposition?.contract ?? null}
+                contractAvailability={contractState.kind === "loading"
+                  ? "loading"
+                  : runtimeComposition === null ? "unavailable" : "ready"}
                 runtimeComposition={runtimeComposition}
                 live={isLive}
                 expandedPresentation={expandedPresentation}
