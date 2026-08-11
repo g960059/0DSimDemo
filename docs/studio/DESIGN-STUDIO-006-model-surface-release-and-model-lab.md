@@ -216,16 +216,25 @@ CAS, RLS and backend publication gates.
 The CLI is:
 
 ```sh
-npm run author:content -- --command path/to/command.json
+npm run author:login -- --profile official
+npm run author:content -- --profile official --command path/to/command.json
 ```
 
 It consumes `circleheart-studio-authoring-command-v1` JSON and emits JSON.
 The executable action inventory and authentication contract live in
 [`tools/authoring/README.md`](../../tools/authoring/README.md).
-Authentication is supplied through local environment variables; credentials
-never enter a command document. The initial CLI expects a currently valid
-author access-token pair. Refresh-token persistence for long-running unattended
-automation is deliberately deferred rather than printing rotated credentials.
+Authentication uses the same Google/Supabase user authority as the product.
+The PKCE callback is loopback-only, project metadata is a non-secret local
+profile, the rotating refresh token is held in macOS Keychain, and access
+tokens remain in memory. Every refresh rotation is persisted before a durable
+authoring command may execute. Credentials never enter a command document or
+stdout. A complete access/refresh token pair remains an explicit, non-persisted
+headless override. The credential provider is a local Node boundary shared by
+the CLI and a future local MCP adapter; MCP must not introduce another token
+store or authoring authority, and must serialize refresh rotation per profile
+before serving concurrent requests. Logout best-effort revokes the CLI session
+and always removes the local Keychain credential without touching the browser
+session.
 
 Scenario creation, parameter search/fitting, and Snapshot capture are deferred
 until several real authoring sessions reveal the required operations. Their

@@ -10,23 +10,77 @@ defines their execution-host contract.
 
 ## Authentication
 
-Set these only in the local process environment:
+The normal local workflow uses Google OAuth with PKCE. Add this exact URL to
+the Supabase Auth redirect allow list once:
 
 ```text
-CIRCLEHEART_SUPABASE_URL
-CIRCLEHEART_SUPABASE_PUBLISHABLE_KEY   # must start sb_publishable_
-CIRCLEHEART_AUTHOR_ACCESS_TOKEN
-CIRCLEHEART_AUTHOR_REFRESH_TOKEN
+http://127.0.0.1:43921/auth/callback
 ```
 
-Never put credentials in a command file. Service-role/secret keys and legacy
-service-role JWTs are rejected. The initial CLI expects a currently valid user
-token pair; it does not persist a rotated refresh token.
+For the first login, provide the project URL and publishable key to the local
+process, then sign in with the same Google account used by the web product:
+
+```sh
+export CIRCLEHEART_SUPABASE_URL="https://PROJECT.supabase.co"
+export CIRCLEHEART_SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."
+npm run author:login -- --profile official
+```
+
+The project metadata and user identity are saved as a non-secret local profile.
+The only durable credential, the rotating Supabase refresh token, is stored in
+macOS Keychain under `dev.circleheart.authoring.refresh-token.v1`. Access tokens
+are kept in memory only and tokens are never printed. Subsequent commands do
+not need exported project variables:
+
+```sh
+npm run author:status -- --profile official
+npm run author:logout -- --profile official
+```
+
+`status` refreshes the Supabase session and safely persists the rotated token.
+`logout` attempts to revoke that CLI session at Supabase, then removes the
+local Keychain credential even if the network is unavailable. It does not sign
+the separate browser session out.
+
+`--profile` defaults to `default`. Profiles allow deliberately separate local
+identities or projects without making a second Google account mandatory.
+Authorization to publish remains a backend role/RLS decision rather than a
+property of the local credential.
+
+Like other developer CLIs, this Keychain use provides encrypted-at-rest
+storage for the current macOS user; it is not an app-exclusive enclave against
+other processes already running as that user.
+
+Use `--no-open` with `author:login` to print the OAuth URL without launching a
+browser. `CIRCLEHEART_AUTHOR_CONFIG_HOME` may override the non-secret profile
+directory for isolated development or tests.
+
+For CI or an explicitly managed headless process, the existing token-pair
+override remains available:
+
+```sh
+export CIRCLEHEART_SUPABASE_URL="https://PROJECT.supabase.co"
+export CIRCLEHEART_SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."
+export CIRCLEHEART_AUTHOR_ACCESS_TOKEN="..."
+export CIRCLEHEART_AUTHOR_REFRESH_TOKEN="..."
+```
+
+Both token values are required together and are not persisted. The project URL
+and publishable key are also required unless the selected saved profile already
+supplies them. Never put credentials in a command file. Service-role/secret
+keys and legacy service-role JWTs are rejected; only an `sb_publishable_` key
+may configure this user-authorized CLI.
+
+Run one command at a time for a given profile. A future long-lived local MCP
+adapter must reuse this credential provider and serialize refresh-token
+rotation per profile before it introduces concurrent requests.
 
 ## Run
 
 ```sh
-npm run author:content -- --command /absolute/path/to/command.json
+npm run author:content -- \
+  --profile official \
+  --command /absolute/path/to/command.json
 ```
 
 Each file has exactly this envelope:

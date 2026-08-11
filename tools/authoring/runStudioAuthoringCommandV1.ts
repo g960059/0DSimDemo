@@ -20,6 +20,14 @@ import {
 import {
   StudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
+import {
+  DEFAULT_STUDIO_AUTHORING_PROFILE_V1,
+  establishStudioAuthoringSessionV1,
+  FileStudioAuthoringProfileStoreV1,
+  MacOSKeychainAuthoringRefreshTokenStoreV1,
+  requireStudioAuthoringProfileNameV1,
+  resolveStudioAuthoringProjectV1,
+} from "@/studio/infrastructure/auth/StudioLocalAuthoringCredentialsV1";
 
 if (
   process.argv[1] !== undefined
@@ -29,11 +37,18 @@ if (
 }
 
 async function main(): Promise<void> {
-  const commandPath = parseCommandPathV1(process.argv.slice(2));
+  const args = parseStudioAuthoringContentArgumentsV1(process.argv.slice(2));
   const command = validateStudioAuthoringCommandV1(
-    JSON.parse(readFileSync(commandPath, "utf8")) as unknown,
+    JSON.parse(readFileSync(args.commandPath, "utf8")) as unknown,
   );
-  const configuration = readAuthoringConfigurationV1(process.env);
+  const profiles = new FileStudioAuthoringProfileStoreV1();
+  const refreshTokens = new MacOSKeychainAuthoringRefreshTokenStoreV1();
+  const storedProfile = profiles.read(args.profileName);
+  const configuration = resolveStudioAuthoringProjectV1({
+    environment: process.env,
+    storedProfile,
+    allowProfileReplacement: false,
+  });
   const client = createClient(
     configuration.url,
     configuration.publishableKey,
@@ -45,13 +60,13 @@ async function main(): Promise<void> {
       },
     },
   );
-  const session = await client.auth.setSession({
-    access_token: configuration.accessToken,
-    refresh_token: configuration.refreshToken,
+  await establishStudioAuthoringSessionV1({
+    auth: client.auth,
+    environment: process.env,
+    profileName: args.profileName,
+    storedProfile,
+    refreshTokens,
   });
-  if (session.error !== null || session.data.session === null) {
-    throw session.error ?? new Error("Authoring session could not be restored");
-  }
   const result = await executeStudioAuthoringCommandV1(
     new StudioSupabaseContentRepositoryV1(client, {
       fixedMutationOperationId: command.commandId,
@@ -120,56 +135,42 @@ function createAuthoringModelPortV1(
   });
 }
 
-export type StudioAuthoringCliConfigurationV1 = Readonly<{
-  url: string;
-  publishableKey: string;
-  accessToken: string;
-  refreshToken: string;
+export type StudioAuthoringContentArgumentsV1 = Readonly<{
+  commandPath: string;
+  profileName: string;
 }>;
 
-export function readAuthoringConfigurationV1(
-  environment: NodeJS.ProcessEnv,
-): StudioAuthoringCliConfigurationV1 {
-  const url = requiredV1(
-    environment.CIRCLEHEART_SUPABASE_URL ?? environment.VITE_SUPABASE_URL,
-    "CIRCLEHEART_SUPABASE_URL",
-  );
-  const parsedUrl = new URL(url);
-  if (parsedUrl.protocol !== "https:" && !["127.0.0.1", "localhost"].includes(parsedUrl.hostname)) {
-    throw new Error("Authoring Supabase URL must use HTTPS or loopback HTTP");
+export function parseStudioAuthoringContentArgumentsV1(
+  args: readonly string[],
+): StudioAuthoringContentArgumentsV1 {
+  let commandPath: string | null = null;
+  let profileName: string = DEFAULT_STUDIO_AUTHORING_PROFILE_V1;
+  let sawProfile = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--command" && commandPath === null) {
+      const candidate = args[index + 1];
+      if (candidate === undefined || candidate.startsWith("--")) {
+        throw contentUsageV1();
+      }
+      commandPath = path.resolve(process.cwd(), candidate);
+      index += 1;
+      continue;
+    }
+    if (arg === "--profile" && !sawProfile) {
+      const candidate = args[index + 1];
+      if (candidate === undefined) throw contentUsageV1();
+      profileName = requireStudioAuthoringProfileNameV1(candidate);
+      sawProfile = true;
+      index += 1;
+      continue;
+    }
+    throw contentUsageV1();
   }
-  const publishableKey = requiredV1(
-    environment.CIRCLEHEART_SUPABASE_PUBLISHABLE_KEY
-      ?? environment.VITE_SUPABASE_PUBLISHABLE_KEY,
-    "CIRCLEHEART_SUPABASE_PUBLISHABLE_KEY",
-  );
-  if (!publishableKey.startsWith("sb_publishable_")) {
-    throw new Error("Authoring CLI requires an sb_publishable_ key");
-  }
-  return Object.freeze({
-    url: parsedUrl.origin,
-    publishableKey,
-    accessToken: requiredV1(
-      environment.CIRCLEHEART_AUTHOR_ACCESS_TOKEN,
-      "CIRCLEHEART_AUTHOR_ACCESS_TOKEN",
-    ),
-    refreshToken: requiredV1(
-      environment.CIRCLEHEART_AUTHOR_REFRESH_TOKEN,
-      "CIRCLEHEART_AUTHOR_REFRESH_TOKEN",
-    ),
-  });
+  if (commandPath === null) throw contentUsageV1();
+  return Object.freeze({ commandPath, profileName });
 }
 
-function parseCommandPathV1(args: readonly string[]): string {
-  if (args.length !== 2 || args[0] !== "--command" || args[1] === undefined) {
-    throw new Error("Usage: --command <command.json>");
-  }
-  return path.resolve(process.cwd(), args[1]);
-}
-
-function requiredV1(value: string | undefined, name: string): string {
-  if (value === undefined || value.length === 0 || value !== value.trim()) {
-    throw new Error(`${name} is required`);
-  }
-  return value;
+function contentUsageV1(): Error {
+  return new Error("Usage: --command <command.json> [--profile <name>]");
 }
