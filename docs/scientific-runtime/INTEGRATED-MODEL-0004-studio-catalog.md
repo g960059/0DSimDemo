@@ -40,10 +40,10 @@ converted once into the runtime's mmHg pressure basis. This exact release has
 no respiratory oscillation owner, so PEEP changes the constant alveolar level
 and its defined pleural coupling, not a fabricated ventilator waveform.
 
-The fixed-TBV range begins above the cold partition's minimum constructible
-volume. During a live edit, TBV reuses the current accepted boundary and moves
-only the SV/VC reservoir volumes. Lower preload exploration remains available
-to the explicitly labelled ephemeral fixed-TBV Starling fork.
+The fixed-TBV range is portable across cold starts, live accepted-state edits,
+checkpoints, and immutable Snapshots. The initializer changes only the shared
+SV/VC transmural-pressure offset and remains within the shipped venous PV-law
+domain. During a live edit, TBV still reuses the current accepted boundary.
 
 ## Signal Output Catalog
 

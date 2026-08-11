@@ -14993,9 +14993,6 @@ function resolveBloodVolumeOperatingPoint(runtime, identity, requireCanonicalFul
   if (graph.scope.coronaryBloodVolumeIncluded !== false || graph.nodes.length !== NON_CORONARY_NODE_NAMES_V1.length) throw new Error("blood-volume operating point topology scope mismatch");
   const coldSeed = resolveNonCoronaryCirculationColdSeedV1(runtime);
   const targetAdditionalVolumeMl = identity.fixedTotalBloodVolumeMl - coldSeed.fixedTotalBloodVolumeMl;
-  if (targetAdditionalVolumeMl < -TARGET_TOLERANCE_ML) {
-    throw new Error("fixed normal-adult TBV cannot be constructed by adding SV/VC volume");
-  }
   const baselineTransmuralPressuresMmHg = Object.freeze({
     SV: baselineTransmuralPressureMmHg(
       "SV",
@@ -15010,7 +15007,7 @@ function resolveBloodVolumeOperatingPoint(runtime, identity, requireCanonicalFul
       graph
     )
   });
-  const sharedTransmuralPressureOffsetMmHg = targetAdditionalVolumeMl <= TARGET_TOLERANCE_ML ? 0 : solveSharedTransmuralPressureOffsetMmHg(
+  const sharedTransmuralPressureOffsetMmHg = Math.abs(targetAdditionalVolumeMl) <= TARGET_TOLERANCE_ML ? 0 : solveSharedTransmuralPressureOffsetMmHg(
     coldSeed.nodeVolumesMl,
     targetAdditionalVolumeMl,
     runtime,
@@ -15124,12 +15121,28 @@ function solveSharedTransmuralPressureOffsetMmHg(coldSeedVolumesMl, targetAdditi
     runtime,
     graph
   ) - coldSeedVolumesMl[nodeName], 0);
-  let lowerMmHg = 0;
-  let upperMmHg = 1;
-  while (addedVolumeAtOffsetMl(upperMmHg) < targetAdditionalVolumeMl) {
-    upperMmHg *= 2;
-    if (upperMmHg > 256) {
-      throw new Error("fixed normal-adult TBV exceeds SV/VC PV-law support");
+  let lowerMmHg;
+  let upperMmHg;
+  if (targetAdditionalVolumeMl > 0) {
+    lowerMmHg = 0;
+    upperMmHg = 1;
+    while (addedVolumeAtOffsetMl(upperMmHg) < targetAdditionalVolumeMl) {
+      upperMmHg *= 2;
+      if (upperMmHg > 256) {
+        throw new Error("fixed normal-adult TBV exceeds SV/VC PV-law support");
+      }
+    }
+  } else {
+    upperMmHg = 0;
+    const minimumSharedOffsetMmHg = Math.max(...ADJUSTED_NODES.map(
+      (nodeName) => MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.minimum - baselineTransmuralPressuresMmHg[nodeName]
+    ));
+    lowerMmHg = Math.max(-1, minimumSharedOffsetMmHg);
+    while (addedVolumeAtOffsetMl(lowerMmHg) > targetAdditionalVolumeMl) {
+      if (lowerMmHg === minimumSharedOffsetMmHg) {
+        throw new Error("fixed normal-adult TBV falls below SV/VC PV-law support");
+      }
+      lowerMmHg = Math.max(2 * lowerMmHg, minimumSharedOffsetMmHg);
     }
   }
   for (let iteration = 0; iteration < 96; iteration += 1) {
@@ -33553,7 +33566,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-7";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-8";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

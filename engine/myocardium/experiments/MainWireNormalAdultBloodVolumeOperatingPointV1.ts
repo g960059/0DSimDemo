@@ -13,7 +13,10 @@ import {
   vascularPvLawFromNodeV1,
   vascularTransmuralPressureFromPhysicalVolumeV1,
 } from "@/engine/core/circulationGraphKernelV1";
-import { stressedVolumeFromPtm } from "@/engine/vascularPv";
+import {
+  MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG,
+  stressedVolumeFromPtm,
+} from "@/engine/vascularPv";
 
 export const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1_ID =
   "main-wire-normal-adult-blood-volume-operating-point-v1" as const;
@@ -127,8 +130,8 @@ const PRESSURE_AUDIT_TOLERANCE_MMHG = 1e-8;
 /**
  * Resolve the canonical noncoronary operating point without changing any
  * vascular law, tone, resistance, chamber cold volume, or material parameter.
- * Only SV and VC receive volume, and both receive the same transmural-pressure
- * offset under their current main-wire PV laws.
+ * Only SV and VC exchange volume with the target ledger, and both receive the
+ * same transmural-pressure offset under their current main-wire PV laws.
  */
 export function resolveMainWireNormalAdultBloodVolumeOperatingPointV1(
   runtime: NonCoronaryCirculationRuntimeParamsV1,
@@ -240,10 +243,6 @@ function resolveBloodVolumeOperatingPoint(
   const coldSeed = resolveNonCoronaryCirculationColdSeedV1(runtime);
   const targetAdditionalVolumeMl = identity.fixedTotalBloodVolumeMl
     - coldSeed.fixedTotalBloodVolumeMl;
-  if (targetAdditionalVolumeMl < -TARGET_TOLERANCE_ML) {
-    throw new Error("fixed normal-adult TBV cannot be constructed by adding SV/VC volume");
-  }
-
   const baselineTransmuralPressuresMmHg = Object.freeze({
     SV: baselineTransmuralPressureMmHg(
       "SV",
@@ -258,7 +257,7 @@ function resolveBloodVolumeOperatingPoint(
       graph,
     ),
   });
-  const sharedTransmuralPressureOffsetMmHg = targetAdditionalVolumeMl
+  const sharedTransmuralPressureOffsetMmHg = Math.abs(targetAdditionalVolumeMl)
       <= TARGET_TOLERANCE_ML
     ? 0
     : solveSharedTransmuralPressureOffsetMmHg(
@@ -446,12 +445,29 @@ function solveSharedTransmuralPressureOffsetMmHg(
       )
       - coldSeedVolumesMl[nodeName], 0);
 
-  let lowerMmHg = 0;
-  let upperMmHg = 1;
-  while (addedVolumeAtOffsetMl(upperMmHg) < targetAdditionalVolumeMl) {
-    upperMmHg *= 2;
-    if (upperMmHg > 256) {
-      throw new Error("fixed normal-adult TBV exceeds SV/VC PV-law support");
+  let lowerMmHg: number;
+  let upperMmHg: number;
+  if (targetAdditionalVolumeMl > 0) {
+    lowerMmHg = 0;
+    upperMmHg = 1;
+    while (addedVolumeAtOffsetMl(upperMmHg) < targetAdditionalVolumeMl) {
+      upperMmHg *= 2;
+      if (upperMmHg > 256) {
+        throw new Error("fixed normal-adult TBV exceeds SV/VC PV-law support");
+      }
+    }
+  } else {
+    upperMmHg = 0;
+    const minimumSharedOffsetMmHg = Math.max(...ADJUSTED_NODES.map(
+      (nodeName) => MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.minimum
+        - baselineTransmuralPressuresMmHg[nodeName],
+    ));
+    lowerMmHg = Math.max(-1, minimumSharedOffsetMmHg);
+    while (addedVolumeAtOffsetMl(lowerMmHg) > targetAdditionalVolumeMl) {
+      if (lowerMmHg === minimumSharedOffsetMmHg) {
+        throw new Error("fixed normal-adult TBV falls below SV/VC PV-law support");
+      }
+      lowerMmHg = Math.max(2 * lowerMmHg, minimumSharedOffsetMmHg);
     }
   }
   for (let iteration = 0; iteration < 96; iteration += 1) {

@@ -32,17 +32,18 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-7
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-8
 ```
 
-Standard-7 widens the executable venous-tone range to `0.00–1.00` and the
-fixed-total-blood-volume lower bound to `4200 mL` for explicit hemorrhage and
-finite stressed-volume-reserve experiments. Systemic-vein and vena-cava
-unstressed-volume offsets were changed together with their tone gains so the
-effective unstressed volumes at the canonical default tone `0.15` remain
-exactly equal to Standard-6. This is a new exact numerical release because
-off-default behavior changed; the wider ranges are research controls, not
-clinical reference intervals or a validated shock-stage model.
+Standard-8 completes the portable hemorrhage envelope introduced in
+Standard-7. The shared systemic-vein/vena-cava pressure-offset initializer now
+supports negative as well as positive offsets within the shipped venous PV-law
+domain. A saved fixture can therefore cold-start at every advertised fixed
+total-blood-volume value down to `4200 mL`; live and restored sessions now share
+the same lower boundary. The canonical default state and Standard-7's
+baseline-neutral venous-tone reserve are unchanged. These wider ranges are
+research controls, not clinical reference intervals or a validated shock-stage
+model.
 
 It pins:
 

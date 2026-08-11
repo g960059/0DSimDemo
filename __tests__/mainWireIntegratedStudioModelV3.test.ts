@@ -106,6 +106,27 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     })).toThrow(/totalBloodVolumeMl/);
   });
 
+  it("cold-starts a portable fixture at the advertised hypovolemic boundary", async () => {
+    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-hypovolemic-cold-start";
+    const scenarioId = "scenario/hypovolemia-4200";
+    const fixture = Object.freeze({
+      ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      hemodynamicResearchInputs: Object.freeze({
+        ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1
+          .hemodynamicResearchInputs,
+        totalBloodVolumeMl: 4_200,
+      }),
+    });
+    await expect(host.createSession(runtimeSessionId, [{ scenarioId, fixture }]))
+      .resolves.toBeUndefined();
+    expect(host.currentFrame(runtimeSessionId, scenarioId)).toMatchObject({
+      scenarioId,
+      acceptedTimeSec: 0,
+    });
+    host.closeSession(runtimeSessionId);
+  });
+
   it("requires the complete Standard kernel catalog contract", () => {
     const { modelMetricCatalog: _removed, ...withoutMetricCatalog } =
       mainWireIntegratedStudioStandardClientV1.manifest;
