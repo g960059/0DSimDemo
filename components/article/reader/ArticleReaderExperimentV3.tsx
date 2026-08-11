@@ -78,6 +78,7 @@ export type ArticleReaderExperimentV3Props = Readonly<{
   block: StudioArticleExperimentBlockV2;
   snapshot: ExperimentSnapshotV2 | null;
   contract: ModelContractV2 | null;
+  contractAvailability?: "loading" | "ready" | "unavailable";
   runtimeComposition?: StudioClientCompositionV2 | null;
   live: boolean;
   expandedPresentation: ArticleReaderExpandedPresentationV3 | null;
@@ -115,6 +116,7 @@ export function ArticleReaderExperimentV3({
   block,
   snapshot,
   contract,
+  contractAvailability = contract === null ? "unavailable" : "ready",
   runtimeComposition = null,
   live,
   expandedPresentation,
@@ -210,7 +212,7 @@ export function ArticleReaderExperimentV3({
     <section
       ref={rootRef}
       id={`placement-${block.placement.placementId}`}
-      className="my-12 scroll-mt-24"
+      className="article-wide-block my-12 scroll-mt-24"
       data-reader-placement-id={block.placement.placementId}
       data-reader-placement-live={live}
     >
@@ -235,7 +237,7 @@ export function ArticleReaderExperimentV3({
       ) : (
         <ArticleReaderStaticExperimentV3
           briefing={briefing}
-          interactive={contract !== null}
+          availability={contractAvailability}
           presentation={presentation}
           snapshot={snapshot}
           title={title}
@@ -261,7 +263,7 @@ export function ArticleReaderExperimentV3({
 
 function ArticleReaderStaticExperimentV3({
   briefing,
-  interactive,
+  availability,
   presentation,
   snapshot,
   title,
@@ -269,7 +271,7 @@ function ArticleReaderStaticExperimentV3({
   onOpen,
 }: Readonly<{
   briefing: ExperimentPlacementBriefingV2;
-  interactive: boolean;
+  availability: "loading" | "ready" | "unavailable";
   presentation: ArticleReaderPresentationV3;
   snapshot: ExperimentSnapshotV2;
   title: string;
@@ -278,7 +280,22 @@ function ArticleReaderStaticExperimentV3({
 }>) {
   const { t } = useTranslation();
   const graphs = [...briefing.graphs].sort(compareOrderV3);
-  if (!interactive) {
+  if (availability === "loading") {
+    return (
+      <div className="py-5" data-reader-model-loading="true" aria-live="polite">
+        <p className="text-sm font-semibold tracking-tight text-wb-text">
+          {title}
+        </p>
+        <div className="mt-3 h-1.5 w-36 overflow-hidden rounded-full bg-wb-soft">
+          <span className="block h-full w-1/2 animate-pulse rounded-full bg-wb-accent/55 motion-reduce:animate-none" />
+        </div>
+        <p className="mt-2 text-xs leading-5 text-wb-subtle">
+          {t("articleReader.preparingSimulation")}
+        </p>
+      </div>
+    );
+  }
+  if (availability === "unavailable") {
     return (
       <div className="py-5" data-reader-model-unavailable="true">
         <p className="text-sm font-semibold tracking-tight text-wb-text">
@@ -432,6 +449,13 @@ function ArticleReaderLiveOwnerV3({
       snapshot={snapshot}
     />
   );
+  const anchorStatus = runtime.state.status === "failed"
+    ? t("articleReader.failed")
+    : runtime.state.status === "playing"
+      ? t("articleReader.live")
+      : runtime.state.status === "paused"
+        ? t("articleReader.paused")
+        : t("articleReader.starting");
 
   React.useEffect(() => {
     if (expandedPresentation === null) return undefined;
@@ -457,15 +481,7 @@ function ArticleReaderLiveOwnerV3({
       <ArticleReaderPeekAnchorV3
         presentation={presentation}
         title={title}
-        status={
-          runtime.state.status === "failed"
-            ? t("articleReader.failed")
-            : runtime.state.status === "playing"
-              ? t("articleReader.live")
-              : runtime.state.status === "paused"
-                ? t("articleReader.paused")
-                : t("articleReader.starting")
-        }
+        status={anchorStatus}
         onOpen={() => onExpand(
           presentation === "fullscreen" ? "fullscreen" : "peek",
         )}
@@ -475,20 +491,31 @@ function ArticleReaderLiveOwnerV3({
   if (typeof document === "undefined") return null;
   if (expandedPresentation === "peek") {
     if (peekPortalHost === null) return null;
-    return createPortal(
-      <ArticleReaderExperimentPeekPanelV3
-        maximized={peekMaximized}
-        title={title}
-        onClose={onClose}
-        onOpenExperimentSession={onOpenExperimentSession}
-        onToggleMaximized={onPeekMaximizedChange === undefined
-          ? undefined
-          : () => onPeekMaximizedChange(!peekMaximized)}
-        onTitleCommit={onTitleCommit}
-      >
-        {detail}
-      </ArticleReaderExperimentPeekPanelV3>,
-      peekPortalHost,
+    return (
+      <>
+        <ArticleReaderPeekAnchorV3
+          active
+          presentation={presentation === "fullscreen" ? "fullscreen" : "peek"}
+          title={title}
+          status={anchorStatus}
+          onOpen={onClose}
+        />
+        {createPortal(
+          <ArticleReaderExperimentPeekPanelV3
+            maximized={peekMaximized}
+            title={title}
+            onClose={onClose}
+            onOpenExperimentSession={onOpenExperimentSession}
+            onToggleMaximized={onPeekMaximizedChange === undefined
+              ? undefined
+              : () => onPeekMaximizedChange(!peekMaximized)}
+            onTitleCommit={onTitleCommit}
+          >
+            {detail}
+          </ArticleReaderExperimentPeekPanelV3>,
+          peekPortalHost,
+        )}
+      </>
     );
   }
   return createPortal(
@@ -503,11 +530,13 @@ function ArticleReaderLiveOwnerV3({
 }
 
 function ArticleReaderPeekAnchorV3({
+  active = false,
   presentation,
   status,
   title,
   onOpen,
 }: Readonly<{
+  active?: boolean;
   presentation: Exclude<ArticleReaderPresentationV3, "inflow">;
   status: string;
   title: string;
@@ -518,18 +547,24 @@ function ArticleReaderPeekAnchorV3({
     <button
       type="button"
       onClick={onOpen}
-      aria-label={t("articleReader.openExperiment")}
-      className="group flex w-full items-center gap-4 rounded-lg px-1 py-5 text-left transition-[color,background-color,transform] duration-150 hover:bg-wb-hover/40 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+      aria-label={t(active
+        ? "articleReader.closeDrawer"
+        : "articleReader.openExperiment")}
+      aria-pressed={active}
+      className="article-reader-peek-anchor group flex min-h-24 w-full items-center gap-5 rounded-2xl px-5 py-5 text-left outline-none sm:px-6"
+      data-reader-peek-active={active ? "true" : "false"}
       data-reader-presentation={presentation}
     >
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-base font-semibold tracking-tight text-wb-text">
+        <span className="block truncate text-[17px] font-semibold leading-7 tracking-[-0.012em] text-wb-text">
           {title}
         </span>
-        <span className="mt-1 block text-[11px] text-wb-subtle">{status}</span>
+        <span className="mt-1.5 block text-[13px] leading-5 text-wb-subtle">
+          {status}
+        </span>
       </span>
       <ChevronRight
-        className="h-4 w-4 shrink-0 text-wb-subtle transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-wb-text"
+        className="article-reader-peek-anchor-icon h-4 w-4 shrink-0 text-wb-subtle"
         aria-hidden="true"
       />
     </button>

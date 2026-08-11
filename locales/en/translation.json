@@ -613,6 +613,7 @@
     "unavailableSnapshot": "The pinned simulation is unavailable.",
     "invalidBriefing": "This placement Briefing cannot be loaded safely.",
     "unavailableModel": "This snapshot's exact model release is not available in this client.",
+    "preparingSimulation": "Preparing the simulation.",
     "noControlTarget": "Not available for this scenario",
     "quiz": {
       "label": "Knowledge check",

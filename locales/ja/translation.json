@@ -613,6 +613,7 @@
     "unavailableSnapshot": "固定されたシミュレーションを読み込めません。",
     "invalidBriefing": "この配置のBriefingを安全に読み込めません。",
     "unavailableModel": "このSnapshotのexact model releaseは、このclientでは利用できません。",
+    "preparingSimulation": "シミュレーションを準備しています。",
     "noControlTarget": "現在のScenarioは対象外",
     "quiz": {
       "label": "理解度チェック",

@@ -420,6 +420,7 @@ export function ArticleEditorV3Page() {
   const [draft, setDraft] = React.useState<StudioArticleDraftV2>(() =>
     createEmptyArticleDraftV3(locale, t("articleEditor.untitled")));
   const draftRef = React.useRef(draft);
+  const titleRef = React.useRef<HTMLTextAreaElement | null>(null);
   const routeArticleIdRef = React.useRef(routeArticleId);
   routeArticleIdRef.current = routeArticleId;
   const remoteSavedArticleIdRef = React.useRef<string | null>(null);
@@ -657,6 +658,13 @@ export function ArticleEditorV3Page() {
     hydratedRouteKey,
     routeArticleId,
   );
+
+  React.useLayoutEffect(() => {
+    const element = titleRef.current;
+    if (element === null) return;
+    element.style.height = "0px";
+    element.style.height = `${Math.max(element.scrollHeight, 64)}px`;
+  }, [draft.title]);
 
   const updateDraft = React.useCallback((
     update: (current: StudioArticleDraftV2) => StudioArticleDraftV2,
@@ -1497,9 +1505,10 @@ export function ArticleEditorV3Page() {
         data-route-hydrated={routeHydrated ? "true" : "false"}
         inert={!routeHydrated}
       >
-        <article className="mx-auto w-full max-w-[760px] px-5 pb-40 pt-14 sm:px-8 sm:pt-20">
-          <input
-            type="text"
+        <article className="article-document article-document-shell">
+          <textarea
+            ref={titleRef}
+            rows={1}
             value={draft.title}
             onChange={(event) => updateDraft((current) => ({
               ...current,
@@ -1527,7 +1536,7 @@ export function ArticleEditorV3Page() {
             }}
             placeholder={t("articleEditor.titlePlaceholder")}
             aria-label={t("articleEditor.title")}
-            className="w-full bg-transparent text-3xl font-bold leading-tight tracking-[-0.025em] text-wb-text outline-none placeholder:text-wb-subtle sm:text-[2.5rem]"
+            className="article-title block w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-wb-subtle"
           />
 
           {error !== null && (
@@ -2841,9 +2850,9 @@ function ArticleTextBlockV3({
         aria-label={accessibleName}
         className={`block w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-wb-subtle ${block.kind === "heading"
           ? (subheading
-              ? "text-lg font-semibold leading-[1.4] tracking-tight"
-              : "text-2xl font-bold leading-[1.35] tracking-tight")
-          : "text-[15px] leading-7 text-wb-muted focus:text-wb-text"}`}
+              ? "article-heading-3"
+              : "article-heading-2")
+          : "article-paragraph"}`}
       />
     </div>
   );
@@ -2907,7 +2916,7 @@ function ArticleBlockShellV3({
             ? "my-5"
             : blockKind === "equation"
               ? "my-3"
-              : "my-0.5"} ${dragging ? "opacity-40" : ""}`}
+              : "my-0.5"} ${blockKind === "experiment" ? "article-wide-block" : ""} ${dragging ? "opacity-40" : ""}`}
       data-article-block-id={blockId}
       onDragOver={(event) => {
         event.preventDefault();

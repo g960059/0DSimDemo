@@ -106,15 +106,15 @@ export function ArticleLinkPresentationV3({
       href={block.href}
       target={external ? "_blank" : undefined}
       rel={external ? "noreferrer" : undefined}
-      className={`group/link my-7 flex items-center justify-between gap-5 rounded-xl bg-wb-soft/65 px-4 py-3.5 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${className}`}
+      className={`group/link my-8 flex items-center justify-between gap-5 border-y border-wb-line/70 px-1 py-4 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover/45 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${className}`}
       data-testid="article-link-v3"
     >
       <span className="min-w-0">
-        <span className="block text-sm font-semibold leading-6 text-wb-text">
+        <span className="block text-[15px] font-semibold leading-6 text-wb-text">
           {block.label}
         </span>
         {block.description.length > 0 && (
-          <span className="mt-0.5 block text-xs leading-5 text-wb-muted">
+          <span className="mt-1 block text-[13px] leading-5 text-wb-muted">
             {block.description}
           </span>
         )}
@@ -148,7 +148,7 @@ export function ArticleQuizPresentationV3({
   const correct = selectedChoiceId === block.correctChoiceId;
   return (
     <section
-      className={`my-9 rounded-2xl bg-wb-soft/60 px-5 py-5 sm:px-6 ${className}`}
+      className={`relative my-10 overflow-hidden rounded-xl border border-wb-line/60 bg-wb-soft/50 px-5 py-5 before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-wb-accent sm:px-6 sm:py-6 ${className}`}
       data-testid="article-quiz-v3"
     >
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-wb-accent">
@@ -156,10 +156,10 @@ export function ArticleQuizPresentationV3({
         {t("articleReader.quiz.label")}
       </div>
       <fieldset className="mt-3">
-        <legend className="text-base font-semibold leading-7 text-wb-text">
+        <legend className="text-[17px] font-semibold leading-8 text-wb-text">
           {block.question}
         </legend>
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 divide-y divide-wb-line/65 overflow-hidden rounded-xl border border-wb-line/65 bg-wb-panel/65">
           {block.choices.map((choice) => {
             const selected = selectedChoiceId === choice.choiceId;
             const choiceCorrect = choice.choiceId === block.correctChoiceId;
@@ -169,11 +169,11 @@ export function ArticleQuizPresentationV3({
                 ? "bg-wb-danger/10 ring-1 ring-inset ring-wb-danger/35"
                 : selected
                   ? "bg-wb-panel ring-1 ring-inset ring-wb-accent/55"
-                  : "bg-wb-panel/75 hover:bg-wb-hover";
+                  : "hover:bg-wb-hover";
             return (
               <label
                 key={choice.choiceId}
-                className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm leading-6 transition-[background-color,box-shadow,transform] duration-150 active:scale-[0.99] ${resolvedClass}`}
+                className={`flex min-h-12 cursor-pointer items-center gap-3 px-3.5 py-2.5 text-[15px] leading-6 transition-[background-color,box-shadow] duration-150 ${resolvedClass}`}
               >
                 <input
                   type="radio"
@@ -241,18 +241,18 @@ export function ArticleAccordionPresentationV3({
 }>) {
   return (
     <details
-      className={`group/accordion my-8 rounded-xl bg-wb-soft/60 open:bg-wb-soft/80 ${className}`}
+      className={`group/accordion my-9 border-y border-wb-line/70 bg-transparent open:bg-wb-soft/35 ${className}`}
       data-testid="article-accordion-v3"
       open={defaultOpen}
     >
-      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2.5 px-4 py-3 text-sm font-semibold leading-6 text-wb-text outline-none marker:hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wb-accent [&::-webkit-details-marker]:hidden">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-1 py-3.5 text-base font-semibold leading-7 text-wb-text outline-none marker:hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wb-accent [&::-webkit-details-marker]:hidden">
         <ChevronRight
-          className="h-4 w-4 shrink-0 text-wb-subtle transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-open/accordion:rotate-90"
+          className="order-2 ml-auto h-4 w-4 shrink-0 text-wb-subtle transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-open/accordion:rotate-90"
           aria-hidden="true"
         />
         {block.title}
       </summary>
-      <div className="border-t border-wb-line/55 px-5 pb-5 pt-1 sm:px-6">
+      <div className="border-t border-wb-line/55 px-2 pb-5 pt-1 sm:px-3">
         {block.blocks.map((nested) => (
           <ArticleAccordionContentPresentationV3
             key={nested.blockId}
@@ -277,7 +277,7 @@ function ArticleAccordionContentPresentationV3({
   }
   if (block.kind === "paragraph") {
     return (
-      <p className="my-4 whitespace-pre-wrap text-sm leading-7 text-wb-text">
+      <p className="my-4 whitespace-pre-wrap text-[15px] leading-7 text-wb-text sm:text-base sm:leading-8">
         {block.text}
       </p>
     );

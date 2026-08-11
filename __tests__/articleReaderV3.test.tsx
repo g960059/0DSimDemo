@@ -174,6 +174,7 @@ function renderExperimentV3(
     block?: StudioArticleExperimentBlockV2;
     snapshot: ExperimentSnapshotV2 | null;
     contract?: ModelContractV2 | null;
+    contractAvailability?: "loading" | "ready" | "unavailable";
     live?: boolean;
     forceInline?: boolean;
   }>,
@@ -183,6 +184,7 @@ function renderExperimentV3(
       block={input.block ?? blockV3()}
       snapshot={input.snapshot}
       contract={input.contract ?? null}
+      contractAvailability={input.contractAvailability}
       runtimeComposition={runtimeCompositionV3()}
       live={input.live ?? false}
       expandedPresentation={null}
@@ -496,6 +498,18 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).not.toContain('<button type="button"');
   });
 
+  it("keeps model resolution quiet while the simulation is still loading", () => {
+    const html = renderExperimentV3({
+      snapshot: snapshotV3(),
+      contractAvailability: "loading",
+    });
+
+    expect(html).toContain('data-reader-model-loading="true"');
+    expect(html).toContain("シミュレーションを準備しています。");
+    expect(html).not.toContain('data-reader-model-unavailable="true"');
+    expect(html).not.toContain('<button type="button"');
+  });
+
   it("admits one selected graph to the inline live structure", () => {
     const html = renderExperimentV3({
       snapshot: snapshotV3(),
@@ -729,6 +743,9 @@ describe("Article Reader V3 experiment anchor", () => {
     });
 
     expect(html).toContain('data-reader-presentation="peek"');
+    expect(html).toContain("article-reader-peek-anchor");
+    expect(html).toContain('data-reader-peek-active="false"');
+    expect(html).toContain('aria-pressed="false"');
     expect(html).toContain("Reader experiment");
     expect(html).not.toContain("Live experiment");
     expect(html).not.toContain("MW V3");
