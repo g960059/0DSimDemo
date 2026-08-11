@@ -4,6 +4,12 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import { buildNodes } from "@/engine/core/topology";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
 import {
@@ -57,6 +63,49 @@ afterEach(() => {
 });
 
 describe("Standard Main Wire Integrated Studio exact model", () => {
+  it("exposes hemorrhage reserve without moving the canonical baseline", () => {
+    const ranges = MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3;
+    expect(ranges.venousTone).toEqual({
+      minimum: 0,
+      maximum: 1,
+      step: 0.01,
+    });
+    expect(ranges.totalBloodVolumeMl).toEqual({
+      minimum: 4_200,
+      maximum: 7_000,
+      step: 50,
+    });
+
+    const baselineTone =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3
+        .venousTone;
+    const nodes = buildNodes();
+    const systemicVein = nodes.find(({ name }) => name === "SV");
+    const venaCava = nodes.find(({ name }) => name === "VC");
+    expect(systemicVein).toMatchObject({ Vu: 1_653.909, venousToneGain: 770 });
+    expect(venaCava).toMatchObject({ Vu: 169.591, venousToneGain: 130 });
+    expect(
+      systemicVein!.Vu! - systemicVein!.venousToneGain! * baselineTone,
+    ).toBeCloseTo(1_590.909 - 350 * baselineTone, 12);
+    expect(
+      venaCava!.Vu! - venaCava!.venousToneGain! * baselineTone,
+    ).toBeCloseTo(159.091 - 60 * baselineTone, 12);
+
+    expect(() => validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3({
+      ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      venousTone: 1,
+      totalBloodVolumeMl: 4_200,
+    })).not.toThrow();
+    expect(() => validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3({
+      ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      venousTone: 1.01,
+    })).toThrow(/venousTone/);
+    expect(() => validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3({
+      ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      totalBloodVolumeMl: 4_199,
+    })).toThrow(/totalBloodVolumeMl/);
+  });
+
   it("requires the complete Standard kernel catalog contract", () => {
     const { modelMetricCatalog: _removed, ...withoutMetricCatalog } =
       mainWireIntegratedStudioStandardClientV1.manifest;

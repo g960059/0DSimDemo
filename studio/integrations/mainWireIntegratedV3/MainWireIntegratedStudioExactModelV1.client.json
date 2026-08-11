@@ -2,7 +2,7 @@
   "schemaId": "circleheart-standard-exact-model-client-descriptor-v1",
   "manifest": {
     "schemaId": "circleheart-studio-exact-model-kernel-v3",
-    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-6",
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-7",
     "modelFamilyId": "circleheart.main-wire-integrated-transaction",
     "equations": {
       "transactionId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3",
@@ -48,9 +48,9 @@
             "step": 0.005
           },
           "venousTone": {
-            "minimum": 0.1,
-            "maximum": 0.2,
-            "step": 0.005
+            "minimum": 0,
+            "maximum": 1,
+            "step": 0.01
           },
           "arterialStiffness": {
             "minimum": 0.5,
@@ -63,7 +63,7 @@
             "step": 1
           },
           "totalBloodVolumeMl": {
-            "minimum": 4800,
+            "minimum": 4200,
             "maximum": 7000,
             "step": 50
           },
@@ -114,9 +114,9 @@
         "controlId": "hemodynamics.venous-tone",
         "valueType": "number",
         "unit": "1",
-        "minimum": 0.1,
-        "maximum": 0.2,
-        "step": 0.005,
+        "minimum": 0,
+        "maximum": 1,
+        "step": 0.01,
         "defaultValue": 0.15,
         "changeSemantics": "accepted-state-warm-start"
       },
@@ -144,7 +144,7 @@
         "controlId": "hemodynamics.total-blood-volume-ml",
         "valueType": "number",
         "unit": "mL",
-        "minimum": 4800,
+        "minimum": 4200,
         "maximum": 7000,
         "step": 50,
         "defaultValue": 5600,

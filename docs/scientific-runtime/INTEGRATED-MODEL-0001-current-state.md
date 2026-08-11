@@ -32,8 +32,17 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-6
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-7
 ```
+
+Standard-7 widens the executable venous-tone range to `0.00–1.00` and the
+fixed-total-blood-volume lower bound to `4200 mL` for explicit hemorrhage and
+finite stressed-volume-reserve experiments. Systemic-vein and vena-cava
+unstressed-volume offsets were changed together with their tone gains so the
+effective unstressed volumes at the canonical default tone `0.15` remain
+exactly equal to Standard-6. This is a new exact numerical release because
+off-default behavior changed; the wider ranges are research controls, not
+clinical reference intervals or a validated shock-stage model.
 
 It pins:
 
@@ -54,7 +63,7 @@ It pins:
 - one public-executable Snapshot admission policy shared by Article placement and
   standalone publication.
 
-There is no Parameter catalog or durable `ParameterSet`. The seven registered
+There is no Parameter catalog or durable `ParameterSet`. The eight registered
 numeric controls are the only public input authority. Each control resolves in
 the model-owned reducer, rebuilds a complete portable fixture, and atomically
 starts its next input epoch from the current accepted `(revision, t, state)`
