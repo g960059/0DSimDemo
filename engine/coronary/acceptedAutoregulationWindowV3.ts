@@ -635,7 +635,16 @@ function stampAutoregulationStateBindingV3(
   state: CoronaryAcceptedAutoregulationStateV3,
   binding: CoronaryAutoregulationWindowBindingV3,
 ): void {
-  if (!validationStampIssuanceEligibleV1(state, binding)) return;
+  // Every caller either completed the full exported validator or owns the
+  // private freezeState constructor. That constructor recursively replaces
+  // every state record with frozen copies, so only the externally supplied
+  // binding still needs the generic immutable-data proof here. Disabled-stamp
+  // verification continues to prevent issuance.
+  if (
+    !validationStampReuseEligibleV1()
+    || !Object.isFrozen(state)
+    || !validationStampIssuanceEligibleV1(binding)
+  ) return;
   const bindings = VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.get(state)
     ?? new WeakSet<object>();
   bindings.add(binding);

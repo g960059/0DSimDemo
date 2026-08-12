@@ -3,6 +3,10 @@ import {
   type SourceImpulseV2,
 } from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
 import { canonicalJsonStringify } from "@/engine/integrity";
+import {
+  validationStampIssuanceEligibleV1,
+  validationStampReuseEligibleV1,
+} from "@/engine/validationStampModeV1";
 
 /**
  * Minimal regular atrial source clock used by the composed rhythm boundary.
@@ -102,6 +106,11 @@ const CONFIG_INPUT_KEYS = Object.freeze([
   "cycleLengthSec",
 ] as const);
 
+const VALIDATED_REGULAR_ATRIAL_CONFIGURATIONS_V1 =
+  new WeakSet<RegularAtrialSourceConfigurationV1>();
+const VALIDATED_REGULAR_ATRIAL_STATES_V1 =
+  new WeakSet<AcceptedRegularAtrialSourceStateV1>();
+
 export function createRegularAtrialSourceConfigurationV1(
   input: RegularAtrialSourceConfigurationInputV1,
 ): RegularAtrialSourceConfigurationV1 {
@@ -120,6 +129,10 @@ export function createRegularAtrialSourceConfigurationV1(
 export function validateRegularAtrialSourceConfigurationV1(
   configuration: RegularAtrialSourceConfigurationV1,
 ): void {
+  if (
+    validationStampReuseEligibleV1()
+    && VALIDATED_REGULAR_ATRIAL_CONFIGURATIONS_V1.has(configuration)
+  ) return;
   const record = requirePlainRecord(configuration, "regular atrial source configuration");
   requireExactKeys(record, ["configurationSchemaId", "schemaVersion", ...CONFIG_INPUT_KEYS], "regular atrial source configuration");
   if (configuration.configurationSchemaId !== REGULAR_ATRIAL_SOURCE_CONFIGURATION_V1_ID || configuration.schemaVersion !== 1) {
@@ -135,6 +148,9 @@ export function validateRegularAtrialSourceConfigurationV1(
   });
   if (canonicalJsonStringify(configuration) !== canonicalJsonStringify(rebuilt)) {
     throw new Error("regular atrial source configuration is not canonical");
+  }
+  if (validationStampIssuanceEligibleV1(configuration)) {
+    VALIDATED_REGULAR_ATRIAL_CONFIGURATIONS_V1.add(configuration);
   }
 }
 
@@ -252,6 +268,10 @@ export function maximumAcceptedRegularAtrialSourceStepV1(
 export function validateAcceptedRegularAtrialSourceStateV1(
   state: AcceptedRegularAtrialSourceStateV1,
 ): void {
+  if (
+    validationStampReuseEligibleV1()
+    && VALIDATED_REGULAR_ATRIAL_STATES_V1.has(state)
+  ) return;
   const record = requirePlainRecord(state, "accepted regular atrial source state");
   requireExactKeys(record, ["stateSchemaId", "schemaVersion", "configuration", "initialAcceptedTimeSec", "initialFirstFutureActivationTimeSec", "initialFirstSourceSequence", "revision", "acceptedTimeSec", "nextActivationTimeSec", "nextSourceSequence", "emittedSourceImpulseCount", "capturedPacResetCount", "capturedPacPreserveCount"], "accepted regular atrial source state");
   if (state.stateSchemaId !== ACCEPTED_REGULAR_ATRIAL_SOURCE_STATE_V1_ID || state.schemaVersion !== 1 || !Object.isFrozen(state)) throw new Error("accepted regular atrial source state schema or immutability is invalid");
@@ -268,6 +288,9 @@ export function validateAcceptedRegularAtrialSourceStateV1(
   requireNonnegativeSafeInteger(state.capturedPacPreserveCount, "capturedPacPreserveCount");
   if (revision < emitted || nextSequence !== firstSequence + emitted) throw new Error("regular atrial source counters are inconsistent");
   if (!(requireNonnegativeFinite(state.nextActivationTimeSec, "nextActivationTimeSec") > accepted)) throw new Error("next regular atrial activation must remain future");
+  if (validationStampIssuanceEligibleV1(state)) {
+    VALIDATED_REGULAR_ATRIAL_STATES_V1.add(state);
+  }
 }
 
 function framedId(namespace: string, fields: readonly (string | number)[]): string {

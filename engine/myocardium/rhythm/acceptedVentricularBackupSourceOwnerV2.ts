@@ -8,6 +8,10 @@ import {
   type SourceImpulseV2,
 } from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
 import { canonicalJsonStringify } from "@/engine/integrity";
+import {
+  validationStampIssuanceEligibleV1,
+  validationStampReuseEligibleV1,
+} from "@/engine/validationStampModeV1";
 
 /**
  * Accepted ventricular backup-source clock for intrinsic escape and simple VVI.
@@ -360,6 +364,11 @@ const STATE_KEYS = Object.freeze([
   "lastIntrinsicEscapeAttemptResult",
   "lastVviPacingAttemptResult",
 ] as const);
+
+const VALIDATED_VENTRICULAR_BACKUP_CONFIGURATIONS_V2 =
+  new WeakSet<AcceptedVentricularBackupSourceConfigurationV2>();
+const VALIDATED_VENTRICULAR_BACKUP_STATES_V2 =
+  new WeakSet<AcceptedVentricularBackupSourceStateV2>();
 const PROPOSAL_KEYS = Object.freeze([
   "proposalSchemaId",
   "schemaVersion",
@@ -486,6 +495,10 @@ export function createAcceptedVentricularBackupSourceConfigurationV2(
 export function validateAcceptedVentricularBackupSourceConfigurationV2(
   configuration: AcceptedVentricularBackupSourceConfigurationV2,
 ): void {
+  if (
+    validationStampReuseEligibleV1()
+    && VALIDATED_VENTRICULAR_BACKUP_CONFIGURATIONS_V2.has(configuration)
+  ) return;
   const record = requirePlainRecord(configuration, "ventricular backup configuration");
   requireExactKeys(record, CONFIGURATION_KEYS, "ventricular backup configuration");
   if (
@@ -520,6 +533,9 @@ export function validateAcceptedVentricularBackupSourceConfigurationV2(
   });
   if (canonicalJsonStringify(configuration) !== canonicalJsonStringify(rebuilt)) {
     throw new Error("ventricular backup configuration is not canonical");
+  }
+  if (validationStampIssuanceEligibleV1(configuration)) {
+    VALIDATED_VENTRICULAR_BACKUP_CONFIGURATIONS_V2.add(configuration);
   }
 }
 
@@ -964,6 +980,10 @@ export function limitAcceptedVentricularBackupSourceCandidateTimeV2(
 export function validateAcceptedVentricularBackupSourceStateV2(
   state: AcceptedVentricularBackupSourceStateV2,
 ): void {
+  if (
+    validationStampReuseEligibleV1()
+    && VALIDATED_VENTRICULAR_BACKUP_STATES_V2.has(state)
+  ) return;
   const record = requirePlainRecord(state, "accepted ventricular backup state");
   requireExactKeys(record, STATE_KEYS, "accepted ventricular backup state");
   if (
@@ -1115,6 +1135,9 @@ export function validateAcceptedVentricularBackupSourceStateV2(
     ) throw new Error("unadvanced ventricular backup state does not match initial seed");
   } else if (!(acceptedTime > initialTime)) {
     throw new Error("advanced ventricular backup state must advance time");
+  }
+  if (validationStampIssuanceEligibleV1(state)) {
+    VALIDATED_VENTRICULAR_BACKUP_STATES_V2.add(state);
   }
 }
 
