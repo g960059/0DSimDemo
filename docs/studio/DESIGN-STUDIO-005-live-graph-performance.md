@@ -87,13 +87,30 @@ complete exact frames or checkpoints. The Worker still constructs and fully
 validates each exact accepted frame before projection; this change reduces
 cross-thread allocation and clone cost rather than numerical work.
 
-An isolated production-preview reference run on the M5 Max development device
-measured about 30 ms Worker round-trip p95 and 1.04× recent model-time ratio for
-one live Scenario. With four simultaneous live Scenarios, recent ratios were
-about 1.03–1.04× per lane, per-lane Worker round-trip p95 was about 33–35 ms,
-Canvas draw p95 was about 1.3 ms, and a Heart-rate edit reached the visible
-output in about 108 ms. These are regression references only; target-tier
-device traces remain required for low-end and mobile support claims.
+## Exact numerical hot path
+
+Presentation work cannot compensate for a Worker that produces exact accepted
+steps slower than model time. The Standard-9 executable therefore retains
+successful validation proofs only for exact immutable identities whose entire
+plain-data graph is transitively frozen. Mutable values, restored copies,
+failed or partial validation, and stamp-disabled verification always miss and
+take the complete validator path. The full-invariant reference remains
+bit-identical to the shipped lean tier for accepted states and checkpoints.
+
+A direct same-process comparison of the committed Standard-8 and Standard-9
+artifacts on the M5 Max development host measured four 200-step runs. Mean
+accepted-step time fell from about `1.51 ms` to `1.24 ms` (about 18%). The two
+artifacts then produced identical accepted clocks and all 49 output records for
+1,000 presentation steps through `2.0 s`, including completed-beat metrics.
+This is exact-artifact regression evidence, not a phone throughput claim.
+
+The remaining CPU profile is distributed across dense linear solves, coronary
+Jacobian and hydraulics evaluation, five-wall/TriSeg mechanics, material-state
+ownership checks, and allocation/GC. No remaining presentation-only switch can
+turn a physical phone running the kernel at `0.1×` into a real-time exact lane.
+A larger improvement must optimize those numerical kernels (with a new exact
+release and parity evidence) rather than silently enlarge `dt`, interpolate
+scientific states, or derive metrics from decimated presentation data.
 
 ## Diagnostic mode
 
@@ -269,14 +286,16 @@ and record browser version, logical cores, memory, battery/thermal state,
 Scenario count, viewport, model-time ratios, long-tail latency, and a minimum
 ten-minute retained-memory soak.
 
-The 2026-08-07 production-preview regression run on the M5 Max development
-device passed all three enforced profiles. Post-control/background-contention
-root model-time ratios were 0.985× for four reference-desktop Scenarios, 0.989×
-for two constrained-desktop proxy Scenarios, and 0.986× for two mobile-layout
-proxy Scenarios. The corresponding control-to-visible-result measurements were
-136 ms, 206 ms, and 159 ms. These numbers establish repeatable headroom on the
-development host; the throttled results remain proxies, not physical-device
-qualification.
+The 2026-08-12 Standard-9 production-preview regression run on the M5 Max
+development device passed all three enforced profiles. Post-control/background-
+contention root model-time ratios were 0.982× for four reference-desktop
+Scenarios, 0.995× for two constrained-desktop proxy Scenarios, and 0.981× for
+two mobile-layout proxy Scenarios. The corresponding control-to-visible-result
+measurements were 136 ms, 234 ms, and 193 ms. Main-thread calibration measured
+about 4.1–4.3× slowdown in both proxy profiles while their dedicated Workers
+remained about 1.0–1.06×, confirming that these runs establish renderer/layout
+headroom on the development host but do not qualify physical phone numerical
+throughput.
 
 The initial qualification matrix is deliberately honest:
 

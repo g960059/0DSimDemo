@@ -32,16 +32,22 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-8
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-9
 ```
 
-Standard-8 completes the portable hemorrhage envelope introduced in
-Standard-7. The shared systemic-vein/vena-cava pressure-offset initializer now
-supports negative as well as positive offsets within the shipped venous PV-law
-domain. A saved fixture can therefore cold-start at every advertised fixed
-total-blood-volume value down to `4200 mL`; live and restored sessions now share
-the same lower boundary. The canonical default state and Standard-7's
-baseline-neutral venous-tone reserve are unchanged. These wider ranges are
+Standard-9 preserves Standard-8's equations, controls, checkpoint meaning, and
+accepted numerical sequence while reducing repeated validation work inside the
+accepted-step hot path. Fully validated, transitively frozen model-owned values
+carry an in-process identity proof that can be reused; mutable, partially
+validated, failed, or externally supplied values still take the complete
+validator path. A stamp-disabled reference run remains the canonical
+counterfactual and is required to produce the same accepted frames and exact
+checkpoints. The exact executable bytes changed, so this optimization receives
+a new `modelId` even though its scientific and physiological meaning did not.
+
+Standard-8's portable hemorrhage envelope remains intact: the shared
+systemic-vein/vena-cava pressure-offset initializer supports the advertised
+fixed total-blood-volume range down to `4200 mL`. These wider ranges remain
 research controls, not clinical reference intervals or a validated shock-stage
 model.
 

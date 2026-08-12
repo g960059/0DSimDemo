@@ -1169,16 +1169,32 @@ function environmentValidationStampModeV1() {
 }
 let selectedMode = environmentValidationStampModeV1();
 let reuseEnabled = selectedMode === "validation-stamps-enabled";
+const transitivelyFrozenPlainDataProofsV1 = /* @__PURE__ */ new WeakSet();
 function validationStampReuseEligibleV1() {
   return reuseEnabled;
 }
 function validationStampIssuanceEligibleV1(...values2) {
   return reuseEnabled && values2.every((value) => isTransitivelyFrozenPlainDataV1(value));
 }
-function isTransitivelyFrozenPlainDataV1(value, seen = /* @__PURE__ */ new WeakSet()) {
+function isTransitivelyFrozenPlainDataV1(value) {
+  const visited = /* @__PURE__ */ new Set();
+  const result = inspectTransitivelyFrozenPlainDataV1(
+    value,
+    /* @__PURE__ */ new WeakSet(),
+    visited
+  );
+  if (result) {
+    for (const item of visited) {
+      transitivelyFrozenPlainDataProofsV1.add(item);
+    }
+  }
+  return result;
+}
+function inspectTransitivelyFrozenPlainDataV1(value, seen, visited) {
   if (value === null) return true;
   if (typeof value === "function") return false;
   if (typeof value !== "object") return true;
+  if (transitivelyFrozenPlainDataProofsV1.has(value)) return true;
   if (seen.has(value)) return true;
   if (!Object.isFrozen(value)) return false;
   const prototype = Object.getPrototypeOf(value);
@@ -1186,9 +1202,14 @@ function isTransitivelyFrozenPlainDataV1(value, seen = /* @__PURE__ */ new WeakS
     return false;
   }
   seen.add(value);
+  visited.add(value);
   for (const key of Reflect.ownKeys(value)) {
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (descriptor === void 0 || !("value" in descriptor) || !isTransitivelyFrozenPlainDataV1(descriptor.value, seen)) {
+    if (descriptor === void 0 || !("value" in descriptor) || !inspectTransitivelyFrozenPlainDataV1(
+      descriptor.value,
+      seen,
+      visited
+    )) {
       return false;
     }
   }
@@ -2049,7 +2070,7 @@ function hasDynamicMechanicalSupportValidationStampV1(state, profile, config) {
   return VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state)?.some((stamp) => stamp.profile === profile && stamp.config === config) ?? false;
 }
 function stampDynamicMechanicalSupportAcceptedStateV1(state, profile, config) {
-  if (!LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state) || !validationStampIssuanceEligibleV1(state, profile, config)) return;
+  if (!LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state) || !validationStampReuseEligibleV1() || !Object.isFrozen(state) || !validationStampIssuanceEligibleV1(profile, config)) return;
   const existing = VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state) ?? [];
   if (existing.some((stamp) => stamp.profile === profile && stamp.config === config)) return;
   VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.set(
@@ -4469,14 +4490,22 @@ function initialCoronaryToneStateV2(prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR
   ));
 }
 function coronaryConfigurationFingerprintV2(value) {
+  if (value !== null && typeof value === "object" && coronaryConfigurationFingerprintProofsV2.has(value)) {
+    return coronaryConfigurationFingerprintProofsV2.get(value);
+  }
   const canonical = canonicalJsonV2(value);
   let hash = 2166136261;
   for (let index = 0; index < canonical.length; index += 1) {
     hash ^= canonical.charCodeAt(index);
     hash = Math.imul(hash, 16777619) >>> 0;
   }
-  return `fnv1a32-${hash.toString(16).padStart(8, "0")}`;
+  const fingerprint = `fnv1a32-${hash.toString(16).padStart(8, "0")}`;
+  if (value !== null && typeof value === "object" && isTransitivelyFrozenPlainDataV1(value)) {
+    coronaryConfigurationFingerprintProofsV2.set(value, fingerprint);
+  }
+  return fingerprint;
 }
+const coronaryConfigurationFingerprintProofsV2 = /* @__PURE__ */ new WeakMap();
 function coronaryTopologyPriorFingerprintV2(prior) {
   return coronaryConfigurationFingerprintV2(prior);
 }
@@ -4726,7 +4755,11 @@ function validateCoronaryTopologyPriorV2(prior) {
     }
   }
 }
+const validatedCoronaryTopologiesV2 = /* @__PURE__ */ new WeakSet();
 function validateCoronaryTopologyV2(topology) {
+  if (validationStampReuseEligibleV1() && validatedCoronaryTopologiesV2.has(topology)) {
+    return;
+  }
   if (topology.topologyId !== CORONARY_TOPOLOGY_ID_V2) {
     throw new RangeError("coronary V2 topology identity is invalid");
   }
@@ -4759,6 +4792,9 @@ function validateCoronaryTopologyV2(topology) {
     if (edge.flowLawDirectionality !== "signed" || edge.inertanceMmHgSec2PerMl !== null) {
       throw new RangeError(`${edge.edgeId} must be signed and inertance-free`);
     }
+  }
+  if (validationStampIssuanceEligibleV1(topology)) {
+    validatedCoronaryTopologiesV2.add(topology);
   }
 }
 const NORMAL_ADULT_CORONARY_AUTOREGULATION_PRIOR_V2 = Object.freeze({
@@ -5367,7 +5403,7 @@ function hasAutoregulationStateBindingStampV3(state, binding) {
   return VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.get(state)?.has(binding) ?? false;
 }
 function stampAutoregulationStateBindingV3(state, binding) {
-  if (!validationStampIssuanceEligibleV1(state, binding)) return;
+  if (!validationStampReuseEligibleV1() || !Object.isFrozen(state) || !validationStampIssuanceEligibleV1(binding)) return;
   const bindings = VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.get(state) ?? /* @__PURE__ */ new WeakSet();
   bindings.add(binding);
   VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.set(state, bindings);
@@ -9144,6 +9180,9 @@ function evaluateAllCoronaryImpV1(input, prior = NORMAL_ADULT_CORONARY_IMP_COUPL
   ));
 }
 function validateCoronaryImpPriorV1(prior) {
+  if (validationStampReuseEligibleV1() && validatedCoronaryImpPriorsV1.has(prior)) {
+    return;
+  }
   const epi = prior.layerDepthFromEpicardium01.subepicardial;
   const endo = prior.layerDepthFromEpicardium01.subendocardial;
   if (!(epi > 0 && epi < endo && endo < 1)) {
@@ -9175,7 +9214,11 @@ function validateCoronaryImpPriorV1(prior) {
       throw new RangeError(`${territoryId} active-stress pressure gain must be non-negative`);
     }
   }
+  if (validationStampIssuanceEligibleV1(prior)) {
+    validatedCoronaryImpPriorsV1.add(prior);
+  }
 }
+const validatedCoronaryImpPriorsV1 = /* @__PURE__ */ new WeakSet();
 function assertFinite$2(name, value) {
   if (!Number.isFinite(value)) throw new RangeError(`${name} must be finite`);
 }
@@ -16914,9 +16957,8 @@ function validatedMainWireFiveWallCoronaryBaseStateV2(state) {
   );
   const baseState = mainWireFiveWallCoronaryBaseStateV2(state);
   validateMainWireFiveWallCoronaryAcceptedStateV2(baseState);
-  if (Object.isFrozen(state) && Object.isFrozen(state.circulation) && Object.isFrozen(state.coronary) && Object.isFrozen(state.mechanics) && validationStampIssuanceEligibleV1(
-    state.coronaryAutoregulationBinding,
-    state.coronaryAutoregulation
+  if (Object.isFrozen(state) && Object.isFrozen(state.circulation) && Object.isFrozen(state.coronary) && Object.isFrozen(state.mechanics) && validationStampReuseEligibleV1() && Object.isFrozen(state.coronaryAutoregulation) && validationStampIssuanceEligibleV1(
+    state.coronaryAutoregulationBinding
   )) {
     validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
       state,
@@ -20106,6 +20148,8 @@ const CONFIG_INPUT_KEYS = Object.freeze([
   "rhythmClass",
   "cycleLengthSec"
 ]);
+const VALIDATED_REGULAR_ATRIAL_CONFIGURATIONS_V1 = /* @__PURE__ */ new WeakSet();
+const VALIDATED_REGULAR_ATRIAL_STATES_V1 = /* @__PURE__ */ new WeakSet();
 function createRegularAtrialSourceConfigurationV1(input) {
   requireExactKeys$7(requirePlainRecord$7(input, "regular atrial source configuration input"), CONFIG_INPUT_KEYS, "regular atrial source configuration input");
   return Object.freeze({
@@ -20119,6 +20163,7 @@ function createRegularAtrialSourceConfigurationV1(input) {
   });
 }
 function validateRegularAtrialSourceConfigurationV1(configuration) {
+  if (validationStampReuseEligibleV1() && VALIDATED_REGULAR_ATRIAL_CONFIGURATIONS_V1.has(configuration)) return;
   const record = requirePlainRecord$7(configuration, "regular atrial source configuration");
   requireExactKeys$7(record, ["configurationSchemaId", "schemaVersion", ...CONFIG_INPUT_KEYS], "regular atrial source configuration");
   if (configuration.configurationSchemaId !== REGULAR_ATRIAL_SOURCE_CONFIGURATION_V1_ID || configuration.schemaVersion !== 1) {
@@ -20134,6 +20179,9 @@ function validateRegularAtrialSourceConfigurationV1(configuration) {
   });
   if (canonicalJsonStringify(configuration) !== canonicalJsonStringify(rebuilt)) {
     throw new Error("regular atrial source configuration is not canonical");
+  }
+  if (validationStampIssuanceEligibleV1(configuration)) {
+    VALIDATED_REGULAR_ATRIAL_CONFIGURATIONS_V1.add(configuration);
   }
 }
 function initializeAcceptedRegularAtrialSourceStateV1(configuration, input) {
@@ -20219,6 +20267,7 @@ function evaluateAcceptedRegularAtrialSourceCandidateV1(state, candidateTimeSec,
   });
 }
 function validateAcceptedRegularAtrialSourceStateV1(state) {
+  if (validationStampReuseEligibleV1() && VALIDATED_REGULAR_ATRIAL_STATES_V1.has(state)) return;
   const record = requirePlainRecord$7(state, "accepted regular atrial source state");
   requireExactKeys$7(record, ["stateSchemaId", "schemaVersion", "configuration", "initialAcceptedTimeSec", "initialFirstFutureActivationTimeSec", "initialFirstSourceSequence", "revision", "acceptedTimeSec", "nextActivationTimeSec", "nextSourceSequence", "emittedSourceImpulseCount", "capturedPacResetCount", "capturedPacPreserveCount"], "accepted regular atrial source state");
   if (state.stateSchemaId !== ACCEPTED_REGULAR_ATRIAL_SOURCE_STATE_V1_ID || state.schemaVersion !== 1 || !Object.isFrozen(state)) throw new Error("accepted regular atrial source state schema or immutability is invalid");
@@ -20235,6 +20284,9 @@ function validateAcceptedRegularAtrialSourceStateV1(state) {
   requireNonnegativeSafeInteger$4(state.capturedPacPreserveCount, "capturedPacPreserveCount");
   if (revision < emitted || nextSequence !== firstSequence + emitted) throw new Error("regular atrial source counters are inconsistent");
   if (!(requireNonnegativeFinite$6(state.nextActivationTimeSec, "nextActivationTimeSec") > accepted)) throw new Error("next regular atrial activation must remain future");
+  if (validationStampIssuanceEligibleV1(state)) {
+    VALIDATED_REGULAR_ATRIAL_STATES_V1.add(state);
+  }
 }
 function framedId$2(namespace, fields) {
   return `${namespace}:${fields.map((field) => `${String(field).length}:${String(field)}`).join("")}`;
@@ -21034,6 +21086,8 @@ const STATE_KEYS$1 = Object.freeze([
   "lastIntrinsicEscapeAttemptResult",
   "lastVviPacingAttemptResult"
 ]);
+const VALIDATED_VENTRICULAR_BACKUP_CONFIGURATIONS_V2 = /* @__PURE__ */ new WeakSet();
+const VALIDATED_VENTRICULAR_BACKUP_STATES_V2 = /* @__PURE__ */ new WeakSet();
 const PROPOSAL_KEYS = Object.freeze([
   "proposalSchemaId",
   "schemaVersion",
@@ -21138,6 +21192,7 @@ function createAcceptedVentricularBackupSourceConfigurationV2(input) {
   return configuration;
 }
 function validateAcceptedVentricularBackupSourceConfigurationV2(configuration) {
+  if (validationStampReuseEligibleV1() && VALIDATED_VENTRICULAR_BACKUP_CONFIGURATIONS_V2.has(configuration)) return;
   const record = requirePlainRecord$4(configuration, "ventricular backup configuration");
   requireExactKeys$4(record, CONFIGURATION_KEYS$1, "ventricular backup configuration");
   if (configuration.configurationSchemaId !== ACCEPTED_VENTRICULAR_BACKUP_SOURCE_CONFIGURATION_V2_ID || configuration.schemaVersion !== 2) throw new Error("ventricular backup configuration schema is invalid");
@@ -21164,6 +21219,9 @@ function validateAcceptedVentricularBackupSourceConfigurationV2(configuration) {
   });
   if (canonicalJsonStringify(configuration) !== canonicalJsonStringify(rebuilt)) {
     throw new Error("ventricular backup configuration is not canonical");
+  }
+  if (validationStampIssuanceEligibleV1(configuration)) {
+    VALIDATED_VENTRICULAR_BACKUP_CONFIGURATIONS_V2.add(configuration);
   }
 }
 function initializeAcceptedVentricularBackupSourceStateV2(configuration, input) {
@@ -21473,6 +21531,7 @@ function evaluateAcceptedVentricularBackupSourceCandidateV2(acceptedState2, prop
   });
 }
 function validateAcceptedVentricularBackupSourceStateV2(state) {
+  if (validationStampReuseEligibleV1() && VALIDATED_VENTRICULAR_BACKUP_STATES_V2.has(state)) return;
   const record = requirePlainRecord$4(state, "accepted ventricular backup state");
   requireExactKeys$4(record, STATE_KEYS$1, "accepted ventricular backup state");
   if (state.stateSchemaId !== ACCEPTED_VENTRICULAR_BACKUP_SOURCE_STATE_V2_ID || state.schemaVersion !== 2) throw new Error("accepted ventricular backup state schema is invalid");
@@ -21595,6 +21654,9 @@ function validateAcceptedVentricularBackupSourceStateV2(state) {
     if (nextEscape !== initialEscape || nextVvi !== initialVvi || escapeAttempts !== 0 || paceAttempts !== 0 || feedbackCount !== 0) throw new Error("unadvanced ventricular backup state does not match initial seed");
   } else if (!(acceptedTime > initialTime)) {
     throw new Error("advanced ventricular backup state must advance time");
+  }
+  if (validationStampIssuanceEligibleV1(state)) {
+    VALIDATED_VENTRICULAR_BACKUP_STATES_V2.add(state);
   }
 }
 function sourceImpulse(state, kind, sequence, activationTimeSec) {
@@ -23434,7 +23496,7 @@ function validateAcceptedComposedRhythmTransactionBoundaryV2(state) {
   validateAcceptedComposedRhythmTransactionStateV2(state);
 }
 function stampInternallyValidatedAcceptedComposedRhythmStateV2(state) {
-  if (validationStampIssuanceEligibleV1(state)) {
+  if (validationStampReuseEligibleV1() && Object.isFrozen(state)) {
     internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
   }
 }
@@ -33566,7 +33628,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-8";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-9";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";
