@@ -20,7 +20,7 @@ Snapshot qualification.
 
 ```text
 persistent Scenario Worker
-  → exact accepted frame batch
+  → selected-signal typed-array batch + complete terminal frame
     → optional multi-Scenario commit coalescing
       → graph-owned scalar materialization
         → renderer-specific presentation store subscription
@@ -50,13 +50,20 @@ response. Repeating the same recursive ownership pass both while posting the
 response and again on the main thread scales with every output value in every
 frame, even though the Worker has already established their validity.
 
-The hot `advanced` response therefore uses a narrower trusted decoder on both
-sides of the dedicated-Worker boundary. It still validates the exact response
-and frame keys, protocol and request correlation, model/runtime/Scenario
-identity, input epoch, accepted revision, accepted time, frame count, and that
-the output map is a plain data object. It does not recursively clone, freeze,
-or revalidate each already-validated output record on every presentation
-batch.
+Scientific and background operations retain the complete `advanced` response.
+The foreground scheduler instead requests `advance-presentation`. Each batch
+transfers accepted revisions and times, selected scalar values, and compact
+availability/quality state as typed arrays. The final accepted step also
+carries one complete validated frame. Latest-value consumers therefore retain
+the full model output boundary while intermediate graph samples no longer
+structured-clone every unrelated output object.
+
+The compact response validates exact keys, protocol and request correlation,
+model/runtime/Scenario identity, input epoch, every accepted clock, matrix
+dimensions, scalar finiteness/null sentinels, output-state codes, selected
+output identity, and exact agreement between the final scalar row and complete
+terminal frame. Transferred buffers are reused only on the trusted bundled
+Worker path. The public decoder copies them before returning ownership.
 
 The same narrow exception applies to progressive analysis updates emitted by
 the bundled runtime. Their envelope, protocol correlation, model/runtime/
@@ -74,10 +81,11 @@ validator. The client also retains its expected identity and monotonic-clock
 checks before accepting an advanced batch. Public protocol validation remains
 deep by default.
 
-This is a validation-cost reduction, not yet a compact binary transport: the
-Worker still sends structured-cloned object frames. A transferred typed-array
-batch remains a later option if target-device measurements show structured
-clone or allocation to be the remaining bottleneck.
+The compact transport is presentation-only. Settlement, analyses, capture,
+Snapshot qualification, control commits, and authoring continue to consume
+complete exact frames or checkpoints. The Worker still constructs and fully
+validates each exact accepted frame before projection; this change reduces
+cross-thread allocation and clone cost rather than numerical work.
 
 An isolated production-preview reference run on the M5 Max development device
 measured about 30 ms Worker round-trip p95 and 1.04× recent model-time ratio for
@@ -114,11 +122,13 @@ The snapshot includes:
 - scheduler and runtime presentation intervals;
 - multi-Scenario coalescing duration;
 - frame-to-scalar materialization and presentation-store append duration;
-- Workbench-area React commit duration and interval; and
-- Canvas draw duration and meaningful display interval by renderer.
+- Workbench-area React commit duration and interval;
+- Canvas draw duration and meaningful display interval by renderer;
 - per-Scenario model-time/wall-time ratio and model-to-wall lag;
-- bounded catch-up batch and active overload re-anchor counts; and
-- frame, output and primitive-value counts at the Worker delivery boundary.
+- bounded catch-up batch and active overload re-anchor counts;
+- frame, output and primitive-value counts at the Worker delivery boundary; and
+- selected output count and transferred typed-array bytes for each foreground
+  presentation request.
 
 Duration metrics report count, mean, rolling p95, maximum, and latest
 duration. Unitless values additionally report lifetime mean, rolling mean,
@@ -136,10 +146,10 @@ This preserves every accepted sample while keeping Worker throughput and Canvas
 refresh cadence independent.
 
 The scheduler can issue a bounded catch-up request, but the default profile does
-not currently use it. Measurements with the object-frame protocol showed that
-enlarging an already-late request can amplify response latency. Catch-up should
-be reconsidered after the compact presentation protocol makes per-frame
-transport cost predictable.
+not currently use it. Measurements with the former object-frame protocol
+showed that enlarging an already-late request can amplify response latency.
+Catch-up remains disabled until target-device traces establish a safe bound
+with the compact protocol.
 
 The production-preview A/B measurement on the M5 Max reference development
 device is a regression control, not evidence of low-end or mobile support. It
@@ -174,11 +184,13 @@ commits, or Worker transport—is the dominant budget.
 ### Article live projection
 
 An Article Placement runs the same exact numerical model and receives the same
-validated Worker frames as its source Experiment. The Reader projection must
-not turn that scientific equivalence into avoidable presentation work:
+accepted selected signals and complete terminal frames as its source
+Experiment. The Reader projection must not turn that scientific equivalence
+into avoidable presentation work:
 
-- only outputs selected by the sealed graph and output Briefing are retained in
-  the rolling UI history; the exact Worker frame itself remains complete;
+- only outputs selected by the sealed graph and output Briefing cross the hot
+  intermediate transport and enter rolling UI history; every batch terminal
+  remains a complete exact Worker frame;
 - each mounted graph subscribes only to the presentation store it renders
   (sweep or pressure-volume), while structural graphs subscribe to neither;
 - an off-screen graph keeps its authored dimensions but does not mount a Canvas

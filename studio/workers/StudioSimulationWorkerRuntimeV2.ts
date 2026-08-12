@@ -60,6 +60,10 @@ import {
   validateStudioSimulationWorkerRequestV2,
   validateStudioSimulationWorkerResponseFromTrustedRuntimeV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
+import {
+  createStudioSimulationPresentationBatchV2,
+  studioSimulationPresentationBatchTransferablesV2,
+} from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
 const DEFAULT_WORKER_QUEUE_CAPACITY_V2 = 2;
 const EMPTY_WORKER_CAPTURE_SURFACE_V2: ExperimentSurfaceV2 = Object.freeze({
@@ -78,7 +82,10 @@ export type StudioSimulationWorkerRuntimeStateV2 =
   | "failed";
 
 export type StudioSimulationWorkerPortV2 = Readonly<{
-  postMessage(message: StudioSimulationWorkerResponseV2): void;
+  postMessage(
+    message: StudioSimulationWorkerResponseV2,
+    transfer?: Transferable[],
+  ): void;
   close(): void;
 }>;
 
@@ -275,6 +282,9 @@ export class StudioSimulationWorkerRuntimeV2 {
       case "advance":
         await this.#advance(request);
         return;
+      case "advance-presentation":
+        await this.#advancePresentation(request);
+        return;
       case "apply-control":
         await this.#applyControl(request);
         return;
@@ -470,6 +480,49 @@ export class StudioSimulationWorkerRuntimeV2 {
     } catch (error) {
       throw new FatalWorkerStateErrorV2(
         `simulation worker advance failed: ${errorMessageV2(error)}`,
+      );
+    }
+  }
+
+  async #advancePresentation(
+    request: Extract<
+      StudioSimulationWorkerRequestV2,
+      { kind: "advance-presentation" }
+    >,
+  ): Promise<void> {
+    const adapter = this.#requiredActiveAdapter(
+      request.runtimeSessionId,
+      request.scenarioId,
+    );
+    const physicalRuntimeSessionId = this.#requiredPhysicalRuntimeSessionId();
+    try {
+      const frames: StudioSimulationFrameV2[] = [];
+      for (let index = 0; index < request.stepCount; index += 1) {
+        const frame = this.#validateAdapterFrame(
+          await adapter.advanceOnePresentationStep({
+            runtimeSessionId: physicalRuntimeSessionId,
+            scenarioId: request.scenarioId,
+          }),
+        );
+        assertNonRegressingFrameV2(this.#lastFrame, frame);
+        this.#lastFrame = frame;
+        this.#scenarioFrames.set(request.scenarioId, frame);
+        frames.push(frame);
+      }
+      const batch = createStudioSimulationPresentationBatchV2(
+        frames,
+        request.presentationOutputIds,
+      );
+      this.#postResponse({
+        protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+        requestId: request.requestId,
+        status: "ok",
+        kind: "presentation-advanced",
+        batch,
+      }, [...studioSimulationPresentationBatchTransferablesV2(batch)]);
+    } catch (error) {
+      throw new FatalWorkerStateErrorV2(
+        `simulation worker presentation advance failed: ${errorMessageV2(error)}`,
       );
     }
   }
@@ -1554,10 +1607,10 @@ export class StudioSimulationWorkerRuntimeV2 {
     }
   }
 
-  #postResponse(value: unknown): void {
+  #postResponse(value: unknown, transfer?: Transferable[]): void {
     const response =
       validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(value);
-    this.#port.postMessage(response);
+    this.#port.postMessage(response, transfer);
   }
 
   #safePostError(

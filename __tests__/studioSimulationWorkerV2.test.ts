@@ -29,6 +29,7 @@ import {
   STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
   createStudioSimulationAddScenarioFromPresetRequestV2,
   createStudioSimulationApplyControlRequestV2,
+  createStudioSimulationAdvancePresentationRequestV2,
   createStudioSimulationAdvanceRequestV2,
   createStudioSimulationCreateSnapshotRequestV2,
   createStudioSimulationDeleteScenarioRequestV2,
@@ -44,6 +45,9 @@ import {
   validateStudioSimulationWorkerResponseFromTrustedRuntimeV2,
   validateStudioSimulationWorkerResponseV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
+import {
+  createStudioSimulationPresentationBatchV2,
+} from "@/studio/workers/StudioSimulationPresentationBatchV2";
 import {
   StudioSimulationWorkerRuntimeV2,
 } from "@/studio/workers/StudioSimulationWorkerRuntimeV2";
@@ -169,6 +173,23 @@ describe("Studio simulation worker V2 protocol", () => {
       ...createStudioSimulationDisposeRequestV2(1, "runtime/session-1"),
       scenarioId: undefined,
     })).toThrow(/fields must match exactly/);
+
+    expect(createStudioSimulationAdvancePresentationRequestV2(2, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 4,
+      presentationOutputIds: ["pressure.lv", "phase.cycle"],
+    })).toMatchObject({
+      kind: "advance-presentation",
+      stepCount: 4,
+      presentationOutputIds: ["pressure.lv", "phase.cycle"],
+    });
+    expect(() => createStudioSimulationAdvancePresentationRequestV2(2, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 4,
+      presentationOutputIds: ["pressure.lv", "pressure.lv"],
+    })).toThrow(/must be unique/);
   });
 
   it("validates exact semantic control requests and finite scalar values", () => {
@@ -520,6 +541,89 @@ describe("Studio simulation worker V2 protocol", () => {
     })).toThrow(/finite/);
   });
 
+  it("validates compact presentation batches without copying trusted buffers", () => {
+    const batch = createStudioSimulationPresentationBatchV2([
+      frameV2({
+        acceptedRevision: 1,
+        acceptedTimeSec: 0.002,
+        outputs: { "pressure.lv": outputV2("pressure.lv", 91) },
+      }),
+      frameV2({
+        acceptedRevision: 2,
+        acceptedTimeSec: 0.004,
+        outputs: { "pressure.lv": outputV2("pressure.lv", 92) },
+      }),
+    ], ["pressure.lv"]);
+    const trusted = validateStudioSimulationWorkerResponseFromTrustedRuntimeV2({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: 9,
+      status: "ok",
+      kind: "presentation-advanced",
+      batch,
+    });
+    expect(trusted).toMatchObject({
+      requestId: 9,
+      kind: "presentation-advanced",
+      batch: {
+        outputIds: ["pressure.lv"],
+        terminalFrame: { acceptedRevision: 2 },
+      },
+    });
+    if (trusted.status !== "ok" || trusted.kind !== "presentation-advanced") {
+      throw new Error("expected a compact presentation response");
+    }
+    expect(trusted.batch.outputValues).toBe(batch.outputValues);
+    expect(trusted.batch.acceptedRevisions).toBe(batch.acceptedRevisions);
+
+    const owned = validateStudioSimulationWorkerResponseV2({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: 9,
+      status: "ok",
+      kind: "presentation-advanced",
+      batch,
+    });
+    if (owned.status !== "ok" || owned.kind !== "presentation-advanced") {
+      throw new Error("expected an owned compact presentation response");
+    }
+    expect(owned.batch.outputValues).not.toBe(batch.outputValues);
+    expect([...owned.batch.outputValues]).toEqual([91, 92]);
+  });
+
+  it("rejects malformed compact presentation matrix and terminal correlation", () => {
+    const batch = createStudioSimulationPresentationBatchV2([
+      frameV2({
+        acceptedRevision: 1,
+        acceptedTimeSec: 0.002,
+        outputs: { "pressure.lv": outputV2("pressure.lv", 91) },
+      }),
+    ], ["pressure.lv"]);
+    const response = {
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: 9,
+      status: "ok",
+      kind: "presentation-advanced",
+      batch,
+    } as const;
+    expect(() => validateStudioSimulationWorkerResponseV2({
+      ...response,
+      batch: { ...batch, outputValues: new Float64Array() },
+    })).toThrow(/matrix dimensions/);
+    expect(() => validateStudioSimulationWorkerResponseV2({
+      ...response,
+      batch: { ...batch, outputStates: new Uint8Array([9]) },
+    })).toThrow(/invalid output state/);
+    expect(() => validateStudioSimulationWorkerResponseV2({
+      ...response,
+      batch: {
+        ...batch,
+        terminalFrame: {
+          ...batch.terminalFrame,
+          acceptedRevision: 2,
+        },
+      },
+    })).toThrow(/terminal frame must match/);
+  });
+
   it("trusts the Worker-validated body only for progressive analysis", () => {
     const nestedPayloadGetter = vi.fn(() => [{ pressure: 2, flow: 4 }]);
     const payload: Record<string, unknown> = {};
@@ -652,6 +756,48 @@ describe("Studio simulation worker V2 runtime", () => {
         { acceptedRevision: 2 },
       ],
     });
+  });
+
+  it("transfers only selected intermediate signals plus one terminal frame", async () => {
+    const harness = runtimeHarnessV2();
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(
+      2,
+      {
+        runtimeSessionId: "runtime/session-1",
+        scenarioId: "scenario/baseline",
+        stepCount: 2,
+        presentationOutputIds: ["pressure.lv"],
+      },
+    ));
+    await harness.runtime.whenIdle();
+
+    const response = harness.port.messages.at(-1);
+    expect(response).toMatchObject({
+      requestId: 2,
+      status: "ok",
+      kind: "presentation-advanced",
+      batch: {
+        outputIds: ["pressure.lv"],
+        terminalFrame: { acceptedRevision: 2 },
+      },
+    });
+    expect(harness.port.transfers.at(-1)).toHaveLength(4);
+    if (
+      response === null
+      || typeof response !== "object"
+      || !("batch" in response)
+    ) {
+      throw new Error("expected compact presentation batch");
+    }
+    const batch = response.batch as {
+      acceptedRevisions: Float64Array;
+      outputValues: Float64Array;
+    };
+    expect([...batch.acceptedRevisions]).toEqual([1, 2]);
+    expect([...batch.outputValues]).toEqual([80, 80]);
   });
 
   it("atomically rejects stale controls and commits one epoch on success", async () => {
@@ -2430,6 +2576,63 @@ describe("Studio simulation worker V2 client", () => {
     await expect(advanced).resolves.toHaveLength(1);
   });
 
+  it("materializes compact presentation rows and preserves the terminal frame", async () => {
+    const transport = new FakeWorkerTransportV2();
+    const client = createStudioSimulationWorkerClientForTestV2({ transport });
+    const initialized = client.initialize({
+      expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      scenarioLabel: "Baseline",
+      fixture: { value: 1 },
+    });
+    transport.emitMessage(initializedResponseV2(1));
+    await initialized;
+
+    const advanced = client.advancePresentation({
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 2,
+      presentationOutputIds: ["pressure.lv"],
+    });
+    expect(transport.messages.at(-1)).toMatchObject({
+      kind: "advance-presentation",
+      presentationOutputIds: ["pressure.lv"],
+    });
+    const terminalFrame = frameV2({
+      acceptedRevision: 2,
+      acceptedTimeSec: 0.004,
+      outputs: {
+        "pressure.lv": outputV2("pressure.lv", 92),
+        "latest-only": outputV2("latest-only", 7),
+      },
+    });
+    transport.emitMessage({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: 2,
+      status: "ok",
+      kind: "presentation-advanced",
+      batch: createStudioSimulationPresentationBatchV2([
+        frameV2({
+          acceptedRevision: 1,
+          acceptedTimeSec: 0.002,
+          outputs: { "pressure.lv": outputV2("pressure.lv", 91) },
+        }),
+        terminalFrame,
+      ], ["pressure.lv"]),
+    });
+    const frames = await advanced;
+    expect(frames).toHaveLength(2);
+    expect(frames[0]).toMatchObject({
+      acceptedRevision: 1,
+      outputs: { "pressure.lv": { value: 91 } },
+    });
+    expect(frames[0]?.outputs["latest-only"]).toBeUndefined();
+    expect(frames[1]).toBe(terminalFrame);
+    expect(frames[1]?.outputs["latest-only"]?.value).toBe(7);
+  });
+
   it("applies a semantic control and advances the client epoch exactly once", async () => {
     const transport = new FakeWorkerTransportV2();
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
@@ -3441,8 +3644,10 @@ function runtimeHarnessV2(overrides: Readonly<{
   };
   const port = {
     messages: [] as unknown[],
-    postMessage: vi.fn((message: unknown) => {
+    transfers: [] as Transferable[][],
+    postMessage: vi.fn((message: unknown, transfer?: Transferable[]) => {
       port.messages.push(message);
+      port.transfers.push(transfer ?? []);
     }),
     close: vi.fn(),
   };

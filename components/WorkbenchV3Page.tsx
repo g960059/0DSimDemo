@@ -930,6 +930,13 @@ const WorkbenchV3Session = ({
         releaseTicket: composition.workerReleaseTicket,
         backgroundWorkerPool,
         resolveAnalysisExecutionPlan: composition.analysisExecutionPlan,
+        presentationOutputIds: () =>
+          surfaceRef.current === null
+            ? Object.freeze([])
+            : workbenchPresentationOutputSelectionV3(
+                composition.contract,
+                surfaceRef.current,
+              ),
         onFrames: (frames) => {
           if (cancelled) return;
           appendFramesV3(
@@ -944,11 +951,9 @@ const WorkbenchV3Session = ({
           );
           const activeId = activeScenarioIdRef.current;
           const frame =
-            activeId === null
+            activeId === null || runtime === undefined
               ? undefined
-              : [...frames]
-                  .reverse()
-                  .find(({ scenarioId }) => scenarioId === activeId);
+              : runtime.latestFrame(activeId);
           if (frame === undefined) return;
           latestFrameRef.current = frame;
           if (

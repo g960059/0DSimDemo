@@ -171,6 +171,8 @@ export class ArticleReaderLiveRuntimeV3 {
           ...input,
           releaseTicket: dependencies.releaseTicket,
           backgroundWorkerPool,
+          presentationOutputIds: () =>
+            this.#presentationOutputIds ?? Object.freeze([]),
           resolveAnalysisExecutionPlan:
             dependencies.resolveAnalysisExecutionPlan ?? (() => null),
         });

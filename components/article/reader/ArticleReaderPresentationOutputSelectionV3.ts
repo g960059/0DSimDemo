@@ -8,9 +8,9 @@ import {
 } from "@/components/workbench/v3/WorkbenchPresentationOutputSelectionV3";
 
 /**
- * Selects the scalar history needed by one Article Placement. The numerical
- * Worker frame remains exact and complete; this only avoids copying unrelated
- * outputs into the six-second UI history on every accepted step.
+ * Selects the scalar history needed by one Article Placement. Intermediate
+ * presentation rows carry only this exact subset; every batch terminal remains
+ * a complete model frame for latest-value and authoring correlation.
  */
 export function articleReaderPresentationOutputSelectionV3(
   contract: ModelContractV2,
