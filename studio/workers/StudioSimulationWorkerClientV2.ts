@@ -9,6 +9,7 @@ import type {
 } from "@/studio/contracts/v2/simulation";
 import {
   type StudioSimulationWorkerAddScenarioFromPresetInputV2,
+  type StudioSimulationWorkerAdvancePresentationInputV2,
   type StudioSimulationWorkerApplyControlInputV2,
   type StudioSimulationWorkerCreateSnapshotInputV2,
   type StudioSimulationWorkerDeleteScenarioInputV2,
@@ -25,6 +26,7 @@ import {
   type StudioSimulationWorkerSelectScenarioInputV2,
   createStudioSimulationAddScenarioFromPresetRequestV2,
   createStudioSimulationApplyControlRequestV2,
+  createStudioSimulationAdvancePresentationRequestV2,
   createStudioSimulationAdvanceRequestV2,
   createStudioSimulationCreateSnapshotRequestV2,
   createStudioSimulationDeleteScenarioRequestV2,
@@ -38,6 +40,9 @@ import {
   createStudioSimulationSelectScenarioRequestV2,
   validateStudioSimulationWorkerResponseFromTrustedRuntimeV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
+import {
+  materializeStudioSimulationPresentationFramesV2,
+} from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
 const WORKER_RESPONSE_TIMEOUT_MS_V2 = 30_000;
 /**
@@ -145,6 +150,17 @@ type ExpectedResponseV2 =
       stepCount: number;
     }>
   | Readonly<{
+      kind: "presentation-advanced";
+      modelId: string;
+      runtimeSessionId: string;
+      scenarioId: string;
+      inputEpoch: number;
+      minimumAcceptedRevision: number;
+      minimumAcceptedTimeSec: number;
+      stepCount: number;
+      presentationOutputIds: readonly string[];
+    }>
+  | Readonly<{
       kind: "control-applied";
       modelId: string;
       runtimeSessionId: string;
@@ -237,6 +253,7 @@ export class StudioSimulationWorkerClientV2 {
   #acceptedTimeSec: number | undefined;
   #operationInFlight:
     | "advance"
+    | "advance-presentation"
     | "apply-control"
     | "request-analysis"
     | "read-scenarios"
@@ -398,6 +415,69 @@ export class StudioSimulationWorkerClientV2 {
       this.#acceptedRevision = last.acceptedRevision;
       this.#acceptedTimeSec = last.acceptedTimeSec;
       return response.frames;
+    } catch (error) {
+      this.#terminateWith(errorAsErrorV2(error));
+      throw error;
+    } finally {
+      this.#operationInFlight = undefined;
+    }
+  }
+
+  async advancePresentation(
+    input: StudioSimulationWorkerAdvancePresentationInputV2,
+  ): Promise<readonly StudioSimulationFrameV2[]> {
+    if (
+      this.#state !== "active"
+      || this.#runtimeSessionId === undefined
+      || this.#scenarioId === undefined
+      || this.#scenarioIds === undefined
+      || this.#modelId === undefined
+      || this.#inputEpoch === undefined
+      || this.#acceptedRevision === undefined
+      || this.#acceptedTimeSec === undefined
+    ) {
+      throw new Error("simulation worker client is not active");
+    }
+    if (this.#operationInFlight !== undefined) {
+      throw new Error("simulation worker client already has an operation in flight");
+    }
+    const request = createStudioSimulationAdvancePresentationRequestV2(
+      this.#allocateRequestId(),
+      input,
+    );
+    if (
+      request.runtimeSessionId !== this.#runtimeSessionId
+      || request.scenarioId !== this.#scenarioId
+    ) {
+      throw new Error("simulation worker client session identity mismatch");
+    }
+
+    this.#operationInFlight = "advance-presentation";
+    try {
+      const response = await this.#postRequest(request, {
+        kind: "presentation-advanced",
+        modelId: this.#modelId,
+        runtimeSessionId: this.#runtimeSessionId,
+        scenarioId: this.#scenarioId,
+        inputEpoch: this.#inputEpoch,
+        minimumAcceptedRevision: this.#acceptedRevision,
+        minimumAcceptedTimeSec: this.#acceptedTimeSec,
+        stepCount: request.stepCount,
+        presentationOutputIds: request.presentationOutputIds,
+      });
+      if (response.status !== "ok" || response.kind !== "presentation-advanced") {
+        throw new Error(
+          "simulation worker returned another presentation advance response",
+        );
+      }
+      const frames = materializeStudioSimulationPresentationFramesV2(
+        response.batch,
+      );
+      const last = frames[frames.length - 1]!;
+      this.#inputEpoch = last.inputEpoch;
+      this.#acceptedRevision = last.acceptedRevision;
+      this.#acceptedTimeSec = last.acceptedTimeSec;
+      return frames;
     } catch (error) {
       this.#terminateWith(errorAsErrorV2(error));
       throw error;
@@ -1045,6 +1125,49 @@ function assertExpectedResponseV2(
       }
       acceptedRevision = frame.acceptedRevision;
       acceptedTimeSec = frame.acceptedTimeSec;
+    }
+    return;
+  }
+  if (
+    response.kind === "presentation-advanced"
+    && expected.kind === "presentation-advanced"
+  ) {
+    const { batch } = response;
+    if (
+      batch.acceptedRevisions.length !== expected.stepCount
+      || batch.acceptedTimesSec.length !== expected.stepCount
+      || batch.outputIds.length !== expected.presentationOutputIds.length
+      || batch.outputIds.some(
+        (outputId, index) =>
+          outputId !== expected.presentationOutputIds[index],
+      )
+    ) {
+      throw new Error("simulation worker presentation batch shape mismatch");
+    }
+    assertFrameIdentityV2(
+      batch.terminalFrame,
+      expected.runtimeSessionId,
+      expected.scenarioId,
+      expected.modelId,
+    );
+    let acceptedRevision = expected.minimumAcceptedRevision;
+    let acceptedTimeSec = expected.minimumAcceptedTimeSec;
+    for (let index = 0; index < expected.stepCount; index += 1) {
+      const revision = batch.acceptedRevisions[index]!;
+      const timeSec = batch.acceptedTimesSec[index]!;
+      if (
+        revision < acceptedRevision
+        || timeSec < acceptedTimeSec
+      ) {
+        throw new Error(
+          "simulation worker presentation batch sequence regressed",
+        );
+      }
+      acceptedRevision = revision;
+      acceptedTimeSec = timeSec;
+    }
+    if (batch.terminalFrame.inputEpoch !== expected.inputEpoch) {
+      throw new Error("simulation worker presentation input epoch changed");
     }
     return;
   }

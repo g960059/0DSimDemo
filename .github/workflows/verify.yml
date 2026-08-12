@@ -123,7 +123,11 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Build
-        run: npm run build
+        # Browser smoke must exercise the exact bundle committed by the PR.
+        # A production-mode build resolves the already-active remote bundle,
+        # which necessarily remains on the preceding release until this PR is
+        # reviewed, merged, published, and activated.
+        run: npm run build -- --mode test
 
       - name: Run desktop and mobile Workbench smoke
         run: npm run test:browser

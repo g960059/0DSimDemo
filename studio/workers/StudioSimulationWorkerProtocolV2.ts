@@ -35,6 +35,13 @@ import {
   validateStudioSimulationPortableIdV2,
   validateStudioSimulationScenarioInputV2,
 } from "@/studio/contracts/v2/simulation";
+import type {
+  StudioSimulationPresentationBatchV2,
+} from "@/studio/workers/StudioSimulationPresentationBatchV2";
+import {
+  STUDIO_SIMULATION_PRESENTATION_OUTPUT_STATE_COUNT_V2,
+  studioSimulationPresentationOutputStateCodeV2,
+} from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
 export const STUDIO_SIMULATION_WORKER_PROTOCOL_V2 =
   "circleheart-studio-simulation-worker-protocol-v2" as const;
@@ -59,6 +66,13 @@ export type StudioSimulationWorkerAdvanceInputV2 = Readonly<{
   runtimeSessionId: string;
   scenarioId: string;
   stepCount: number;
+}>;
+
+export type StudioSimulationWorkerAdvancePresentationInputV2 = Readonly<{
+  runtimeSessionId: string;
+  scenarioId: string;
+  stepCount: number;
+  presentationOutputIds: readonly string[];
 }>;
 
 export type StudioSimulationWorkerApplyControlInputV2 = Readonly<{
@@ -173,6 +187,15 @@ export type StudioSimulationWorkerRequestV2 =
       runtimeSessionId: string;
       scenarioId: string;
       stepCount: number;
+    }>
+  | Readonly<{
+      protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
+      requestId: number;
+      kind: "advance-presentation";
+      runtimeSessionId: string;
+      scenarioId: string;
+      stepCount: number;
+      presentationOutputIds: readonly string[];
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -320,6 +343,13 @@ export type StudioSimulationWorkerResponseV2 =
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
       requestId: number;
       status: "ok";
+      kind: "presentation-advanced";
+      batch: StudioSimulationPresentationBatchV2;
+    }>
+  | Readonly<{
+      protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
+      requestId: number;
+      status: "ok";
       kind: "control-applied";
       frame: StudioSimulationFrameV2;
     }>
@@ -434,6 +464,30 @@ export function createStudioSimulationAdvanceRequestV2(
     scenarioId: input.scenarioId,
     stepCount: input.stepCount,
   }) as Extract<StudioSimulationWorkerRequestV2, { kind: "advance" }>;
+}
+
+export function createStudioSimulationAdvancePresentationRequestV2(
+  requestId: number,
+  value: unknown,
+): Extract<StudioSimulationWorkerRequestV2, { kind: "advance-presentation" }> {
+  const input = exactDataRecordV2(value, [
+    "presentationOutputIds",
+    "runtimeSessionId",
+    "scenarioId",
+    "stepCount",
+  ], [], "$.advancePresentation");
+  return validateStudioSimulationWorkerRequestV2({
+    protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+    requestId,
+    kind: "advance-presentation",
+    runtimeSessionId: input.runtimeSessionId,
+    scenarioId: input.scenarioId,
+    stepCount: input.stepCount,
+    presentationOutputIds: input.presentationOutputIds,
+  }) as Extract<
+    StudioSimulationWorkerRequestV2,
+    { kind: "advance-presentation" }
+  >;
 }
 
 export function createStudioSimulationApplyControlRequestV2(
@@ -821,6 +875,48 @@ export function validateStudioSimulationWorkerRequestV2(
         "$.request.scenarioId",
       ),
       stepCount,
+    });
+  }
+
+  if (envelope.kind === "advance-presentation") {
+    const request = exactDataRecordV2(envelope, [
+      "kind",
+      "presentationOutputIds",
+      "protocol",
+      "requestId",
+      "runtimeSessionId",
+      "scenarioId",
+      "stepCount",
+    ], [], "$.request");
+    const stepCount = request.stepCount;
+    if (
+      typeof stepCount !== "number"
+      || !Number.isSafeInteger(stepCount)
+      || stepCount < 1
+      || stepCount > STUDIO_SIMULATION_WORKER_MAX_ADVANCE_STEPS_V2
+    ) {
+      throw protocolErrorV2(
+        "$.request.stepCount",
+        `must be an integer within [1, ${STUDIO_SIMULATION_WORKER_MAX_ADVANCE_STEPS_V2}]`,
+      );
+    }
+    return Object.freeze({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId,
+      kind: "advance-presentation",
+      runtimeSessionId: validateStudioSimulationPortableIdV2(
+        request.runtimeSessionId,
+        "$.request.runtimeSessionId",
+      ),
+      scenarioId: validateStudioSimulationPortableIdV2(
+        request.scenarioId,
+        "$.request.scenarioId",
+      ),
+      stepCount,
+      presentationOutputIds: validatePresentationOutputIdsV2(
+        request.presentationOutputIds,
+        "$.request.presentationOutputIds",
+      ),
     });
   }
 
@@ -1337,6 +1433,26 @@ export function validateStudioSimulationWorkerResponseV2(
       frames: Object.freeze(frames),
     });
   }
+  if (envelope.kind === "presentation-advanced") {
+    const response = exactDataRecordV2(envelope, [
+      "batch",
+      "kind",
+      "protocol",
+      "requestId",
+      "status",
+    ], [], "$.response");
+    return Object.freeze({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId,
+      status: "ok",
+      kind: "presentation-advanced",
+      batch: validatePresentationBatchV2(
+        response.batch,
+        "$.response.batch",
+        "own",
+      ),
+    });
+  }
   if (envelope.kind === "control-applied") {
     const response = exactDataRecordV2(envelope, [
       "frame",
@@ -1495,6 +1611,33 @@ export function validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(
       analysis: validateTrustedRuntimeAnalysisHeaderV2(
         response.analysis,
         "$.response.analysis",
+      ),
+    });
+  }
+  if (
+    envelope.status === "ok"
+    && envelope.kind === "presentation-advanced"
+  ) {
+    const response = exactDataRecordV2(envelope, [
+      "batch",
+      "kind",
+      "protocol",
+      "requestId",
+      "status",
+    ], [], "$.response");
+    assertProtocolV2(response.protocol, "$.response.protocol");
+    return Object.freeze({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: responseRequestIdV2(
+        response.requestId,
+        "$.response.requestId",
+      ),
+      status: "ok",
+      kind: "presentation-advanced",
+      batch: validatePresentationBatchV2(
+        response.batch,
+        "$.response.batch",
+        "trusted",
       ),
     });
   }
@@ -1942,6 +2085,229 @@ function portableErrorMessageV2(value: unknown, path: string): string {
   }
   assertUnicodeScalarSequenceV2(value, path);
   return value;
+}
+
+const MAXIMUM_PRESENTATION_OUTPUT_COUNT_V2 = 512;
+
+function validatePresentationOutputIdsV2(
+  value: unknown,
+  path: string,
+): readonly string[] {
+  const values = arrayDataValuesV2(value, path);
+  if (values.length > MAXIMUM_PRESENTATION_OUTPUT_COUNT_V2) {
+    throw protocolErrorV2(
+      path,
+      `must contain at most ${MAXIMUM_PRESENTATION_OUTPUT_COUNT_V2} outputs`,
+    );
+  }
+  const ids = new Set<string>();
+  const result = values.map((entry, index) => {
+    const outputId = validateStudioSimulationPortableIdV2(
+      entry,
+      `${path}[${index}]`,
+    );
+    if (ids.has(outputId)) {
+      throw protocolErrorV2(`${path}[${index}]`, "must be unique");
+    }
+    ids.add(outputId);
+    return outputId;
+  });
+  return Object.freeze(result);
+}
+
+function validatePresentationBatchV2(
+  value: unknown,
+  path: string,
+  ownership: "own" | "trusted",
+): StudioSimulationPresentationBatchV2 {
+  const batch = exactDataRecordV2(value, [
+    "acceptedRevisions",
+    "acceptedTimesSec",
+    "outputIds",
+    "outputStates",
+    "outputValues",
+    "terminalFrame",
+  ], [], path);
+  const outputIds = validatePresentationOutputIdsV2(
+    batch.outputIds,
+    `${path}.outputIds`,
+  );
+  const receivedAcceptedRevisions = typedArrayV2(
+    batch.acceptedRevisions,
+    Float64Array,
+    `${path}.acceptedRevisions`,
+  );
+  const receivedAcceptedTimesSec = typedArrayV2(
+    batch.acceptedTimesSec,
+    Float64Array,
+    `${path}.acceptedTimesSec`,
+  );
+  const receivedOutputStates = typedArrayV2(
+    batch.outputStates,
+    Uint8Array,
+    `${path}.outputStates`,
+  );
+  const receivedOutputValues = typedArrayV2(
+    batch.outputValues,
+    Float64Array,
+    `${path}.outputValues`,
+  );
+  // The public decoder owns its result. Copy before inspecting scalar content
+  // so a caller cannot mutate a shared or otherwise aliased view between
+  // validation and ownership transfer. Trusted Worker responses retain their
+  // zero-copy path after the structured-clone boundary.
+  const acceptedRevisions = ownership === "own"
+    ? new Float64Array(receivedAcceptedRevisions)
+    : receivedAcceptedRevisions;
+  const acceptedTimesSec = ownership === "own"
+    ? new Float64Array(receivedAcceptedTimesSec)
+    : receivedAcceptedTimesSec;
+  const outputStates = ownership === "own"
+    ? new Uint8Array(receivedOutputStates)
+    : receivedOutputStates;
+  const outputValues = ownership === "own"
+    ? new Float64Array(receivedOutputValues)
+    : receivedOutputValues;
+  const frameCount = acceptedRevisions.length;
+  if (
+    frameCount < 1
+    || frameCount > STUDIO_SIMULATION_WORKER_MAX_ADVANCE_STEPS_V2
+    || acceptedTimesSec.length !== frameCount
+  ) {
+    throw protocolErrorV2(
+      path,
+      `must contain 1-${STUDIO_SIMULATION_WORKER_MAX_ADVANCE_STEPS_V2} aligned clocks`,
+    );
+  }
+  const scalarCount = frameCount * outputIds.length;
+  if (
+    outputStates.length !== scalarCount
+    || outputValues.length !== scalarCount
+  ) {
+    throw protocolErrorV2(
+      path,
+      "scalar matrix dimensions must match clocks and outputIds",
+    );
+  }
+  let priorRevision = -1;
+  let priorTimeSec = -1;
+  for (let index = 0; index < frameCount; index += 1) {
+    const revision = acceptedRevisions[index]!;
+    const timeSec = acceptedTimesSec[index]!;
+    nonnegativeSafeIntegerV2(revision, `${path}.acceptedRevisions[${index}]`);
+    nonnegativeFiniteNumberV2(timeSec, `${path}.acceptedTimesSec[${index}]`);
+    if (revision < priorRevision || timeSec < priorTimeSec) {
+      throw protocolErrorV2(path, "accepted clocks must not regress");
+    }
+    priorRevision = revision;
+    priorTimeSec = timeSec;
+  }
+  for (let index = 0; index < scalarCount; index += 1) {
+    const state = outputStates[index]!;
+    if (state >= STUDIO_SIMULATION_PRESENTATION_OUTPUT_STATE_COUNT_V2) {
+      throw protocolErrorV2(
+        `${path}.outputStates[${index}]`,
+        "has an invalid output state",
+      );
+    }
+    const scalar = outputValues[index]!;
+    if (
+      (!Number.isFinite(scalar) && !Number.isNaN(scalar))
+      || Object.is(scalar, -0)
+    ) {
+      throw protocolErrorV2(
+        `${path}.outputValues[${index}]`,
+        "must be a finite number or the null sentinel",
+      );
+    }
+  }
+
+  const terminalFrame = ownership === "own"
+    ? validateStudioSimulationFrameV2(
+        batch.terminalFrame,
+        `${path}.terminalFrame`,
+      )
+    : validateTrustedRuntimeFrameHeaderV2(
+        batch.terminalFrame,
+        `${path}.terminalFrame`,
+      );
+  if (
+    terminalFrame.acceptedRevision !== acceptedRevisions[frameCount - 1]
+    || terminalFrame.acceptedTimeSec !== acceptedTimesSec[frameCount - 1]
+  ) {
+    throw protocolErrorV2(path, "terminal frame must match the final clock");
+  }
+  for (let outputIndex = 0; outputIndex < outputIds.length; outputIndex += 1) {
+    const outputId = outputIds[outputIndex]!;
+    const output = terminalFrame.outputs[outputId];
+    if (output === undefined || Array.isArray(output.value)) {
+      throw protocolErrorV2(
+        `${path}.terminalFrame.outputs[${JSON.stringify(outputId)}]`,
+        "must contain the selected scalar output",
+      );
+    }
+    const matrixIndex = (frameCount - 1) * outputIds.length + outputIndex;
+    const encodedValue = outputValues[matrixIndex]!;
+    if (
+      studioSimulationPresentationOutputStateCodeV2(output)
+        !== outputStates[matrixIndex]
+      || (output.value === null
+        ? !Number.isNaN(encodedValue)
+        : output.value !== encodedValue)
+    ) {
+      throw protocolErrorV2(
+        `${path}.terminalFrame.outputs[${JSON.stringify(outputId)}]`,
+        "must match the final scalar row",
+      );
+    }
+  }
+
+  return Object.freeze({
+    outputIds,
+    acceptedRevisions,
+    acceptedTimesSec,
+    outputStates,
+    outputValues,
+    terminalFrame,
+  });
+}
+
+function typedArrayV2(
+  value: unknown,
+  constructor: Float64ArrayConstructor,
+  path: string,
+): Float64Array;
+function typedArrayV2(
+  value: unknown,
+  constructor: Uint8ArrayConstructor,
+  path: string,
+): Uint8Array;
+function typedArrayV2(
+  value: unknown,
+  constructor: Float64ArrayConstructor | Uint8ArrayConstructor,
+  path: string,
+): Float64Array | Uint8Array {
+  if (!(value instanceof constructor)) {
+    throw protocolErrorV2(path, `must be a ${constructor.name}`);
+  }
+  if (Object.getPrototypeOf(value) !== constructor.prototype) {
+    throw protocolErrorV2(path, "must not use a custom prototype");
+  }
+  if (!(value.buffer instanceof ArrayBuffer)) {
+    throw protocolErrorV2(path, "must use an owned ArrayBuffer");
+  }
+  if (
+    "resizable" in value.buffer
+    && (value.buffer as ArrayBuffer & { readonly resizable: boolean }).resizable
+  ) {
+    throw protocolErrorV2(path, "must not use a resizable ArrayBuffer");
+  }
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== "string" || !/^(0|[1-9][0-9]*)$/.test(key)) {
+      throw protocolErrorV2(path, "must not have custom properties");
+    }
+  }
+  return value as Float64Array | Uint8Array;
 }
 
 function validateTrustedRuntimeFrameHeaderV2(

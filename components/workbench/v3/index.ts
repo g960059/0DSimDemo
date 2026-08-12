@@ -10,6 +10,7 @@ export * from "./WorkbenchExactOrbitSampleBufferV3";
 export * from "./WorkbenchPresentationSampleBufferV3";
 export * from "./WorkbenchPresentationSampleStoreV3";
 export * from "./WorkbenchPerformanceDiagnosticsV3";
+export * from "./WorkbenchPerformanceReportV3";
 export * from "./WorkbenchPresentationProfileV3";
 export * from "./WorkbenchPresentationOutputSelectionV3";
 export * from "./WorkbenchParallelAuthoringCoordinatorV3";

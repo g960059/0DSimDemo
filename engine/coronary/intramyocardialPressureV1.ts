@@ -9,6 +9,10 @@ import {
   type CoronaryTerritoryLayerRecordV1,
   type CoronaryTerritoryRecordV1,
 } from "@/engine/coronary/typesV1";
+import {
+  validationStampIssuanceEligibleV1,
+  validationStampReuseEligibleV1,
+} from "@/engine/validationStampModeV1";
 
 export const PASCAL_PER_MMHG_V1 = 133.322;
 
@@ -192,6 +196,12 @@ export function evaluateAllCoronaryImpV1(
 export function validateCoronaryImpPriorV1(
   prior: CoronaryImpCouplingPriorV1,
 ): void {
+  if (
+    validationStampReuseEligibleV1()
+    && validatedCoronaryImpPriorsV1.has(prior)
+  ) {
+    return;
+  }
   const epi = prior.layerDepthFromEpicardium01.subepicardial;
   const endo = prior.layerDepthFromEpicardium01.subendocardial;
   if (!(epi > 0 && epi < endo && endo < 1)) {
@@ -224,7 +234,13 @@ export function validateCoronaryImpPriorV1(
       throw new RangeError(`${territoryId} active-stress pressure gain must be non-negative`);
     }
   }
+  if (validationStampIssuanceEligibleV1(prior)) {
+    validatedCoronaryImpPriorsV1.add(prior);
+  }
 }
+
+const validatedCoronaryImpPriorsV1 =
+  new WeakSet<CoronaryImpCouplingPriorV1>();
 
 function assertFinite(name: string, value: number): void {
   if (!Number.isFinite(value)) throw new RangeError(`${name} must be finite`);

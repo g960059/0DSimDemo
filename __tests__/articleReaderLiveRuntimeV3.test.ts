@@ -199,6 +199,26 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       .toMatchObject({ values: { pressure: 44 } });
   });
 
+  it("does not retain control-boundary outputs outside the authored presentation selection", async () => {
+    const snapshot = snapshotV3();
+    const harness = runtimeHarnessV3(snapshot);
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, {
+      createRuntime: harness.createRuntime,
+      presentationOutputIds: new Set<string>(),
+    });
+    await controller.start();
+
+    await controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
+      controlId: "control/svr",
+      scenarioIds: ["scenario/one"],
+      value: 44,
+    });
+
+    expect(controller.sampleStore.getScenarioSnapshot("scenario/one"))
+      .toEqual([]);
+  });
+
   it("drains only each analysis source lane without pausing all Scenarios", async () => {
     const snapshot = snapshotV3();
     const harness = runtimeHarnessV3(snapshot, { advanceOnPause: true });
@@ -566,6 +586,38 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       vector: null,
       unassessed: null,
     });
+  });
+
+  it("retains only Placement-selected output histories", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    const base = frameV3("scenario/one", 1, 8);
+    appendArticleReaderFramesV3([{
+      ...base,
+      outputs: {
+        pressure: base.outputs.pressure!,
+        unrelated: {
+          outputId: "unrelated",
+          value: 99,
+          availability: "available",
+          quality: "accepted-derived",
+        },
+      },
+    }], store, new Set(["pressure"]));
+
+    expect(store.getScenarioSnapshot("scenario/one").at(-1)?.values).toEqual({
+      pressure: 8,
+    });
+  });
+
+  it("does not invalidate the presentation store for analysis-only Placements", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    appendArticleReaderFramesV3(
+      [frameV3("scenario/one", 1, 8)],
+      store,
+      new Set(),
+    );
+
+    expect(store.scenarioCount).toBe(0);
   });
 });
 

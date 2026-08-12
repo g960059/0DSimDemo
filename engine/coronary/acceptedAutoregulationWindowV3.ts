@@ -635,6 +635,9 @@ function stampAutoregulationStateBindingV3(
   state: CoronaryAcceptedAutoregulationStateV3,
   binding: CoronaryAutoregulationWindowBindingV3,
 ): void {
+  // A successful semantic validation is not itself an immutability proof:
+  // public callers can supply an outer-frozen state with mutable descendants.
+  // Prove the complete state/binding graph before retaining identity reuse.
   if (!validationStampIssuanceEligibleV1(state, binding)) return;
   const bindings = VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.get(state)
     ?? new WeakSet<object>();

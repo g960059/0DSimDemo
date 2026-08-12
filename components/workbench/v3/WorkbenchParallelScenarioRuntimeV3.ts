@@ -66,6 +66,7 @@ export type WorkbenchParallelScenarioSeedV3 = Readonly<{
 export type WorkbenchParallelScenarioRuntimeClientV3 = Pick<
   StudioSimulationWorkerClientV2,
   | "advance"
+  | "advancePresentation"
   | "applyControl"
   | "initialize"
   | "readScenarios"
@@ -84,6 +85,7 @@ type WorkbenchParallelScenarioLaneV3 = {
   client: WorkbenchParallelScenarioRuntimeClientV3;
   scheduler: WorkbenchParallelScenarioSchedulerV3;
   latestFrame: StudioSimulationFrameV2;
+  completeOutputIds: ReadonlySet<string>;
 };
 
 export type WorkbenchParallelScenarioRuntimeDependenciesV3 = Readonly<{
@@ -112,6 +114,8 @@ export type WorkbenchParallelScenarioRuntimeDependenciesV3 = Readonly<{
   ) => WorkbenchLiveSchedulerTimerV3;
   cancelFrameFlush?: (timer: WorkbenchLiveSchedulerTimerV3) => void;
   presentationProfile?: WorkbenchPresentationProfileV3;
+  /** Current authored scalar signals needed between complete terminal frames. */
+  presentationOutputIds?: () => ReadonlySet<string> | readonly string[];
 }>;
 
 type ParallelRuntimeStateV3 =
@@ -156,6 +160,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   ) => WorkbenchLiveSchedulerTimerV3;
   readonly #cancelFrameFlush: (timer: WorkbenchLiveSchedulerTimerV3) => void;
   readonly #presentationProfile: WorkbenchPresentationProfileV3;
+  readonly #presentationOutputIds:
+    () => ReadonlySet<string> | readonly string[];
   readonly #lanes = new Map<string, WorkbenchParallelScenarioLaneV3>();
   readonly #analysisClients = new Set<
     WorkbenchParallelScenarioRuntimeClientV3
@@ -201,6 +207,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       ?? ((timer) => clearTimeout(timer));
     this.#presentationProfile = dependencies.presentationProfile
       ?? resolveWorkbenchPresentationProfileV3();
+    this.#presentationOutputIds = dependencies.presentationOutputIds
+      ?? (() => Object.freeze([]));
   }
 
   async initialize(input: Readonly<{
@@ -265,6 +273,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   latestFrame(scenarioId: string): StudioSimulationFrameV2 {
     this.#requireActive();
     return this.#requiredLane(scenarioId).latestFrame;
+  }
+
+  /**
+   * Non-throwing frame lookup for asynchronous presentation callbacks.
+   * A queued visual slice may arrive after its Scenario was deleted; that is
+   * normal cancellation, not a runtime failure.
+   */
+  maybeLatestFrame(scenarioId: string): StudioSimulationFrameV2 | undefined {
+    if (this.#state !== "active") return undefined;
+    return this.#lanes.get(scenarioId)?.latestFrame;
   }
 
   currentState(): StudioSimulationWorkerScenarioStateV2 {
@@ -731,17 +749,42 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       });
       let lane: WorkbenchParallelScenarioLaneV3 | undefined;
       const scheduler = this.#createScheduler(seed.scenarioId, {
-        advance: (stepCount) => client.advance({
-          runtimeSessionId,
-          scenarioId: seed.scenarioId,
-          stepCount,
-        }),
+        advance: (stepCount) => {
+          const presentationOutputIds = Object.freeze([
+            ...new Set(this.#presentationOutputIds()),
+          ]);
+          if (workbenchPerformanceDiagnosticsEnabledV3()) {
+            const typedArrayBytes = stepCount * 16
+              + stepCount * presentationOutputIds.length * 9;
+            recordWorkbenchPerformanceValueV3(
+              "worker.presentation-selected-output-count",
+              presentationOutputIds.length,
+            );
+            recordWorkbenchPerformanceValueV3(
+              "worker.presentation-typed-array-bytes",
+              typedArrayBytes,
+            );
+            recordWorkbenchPerformanceValueV3(
+              `worker.lane.${seed.scenarioId}.presentation-typed-array-bytes`,
+              typedArrayBytes,
+            );
+          }
+          return client.advancePresentation({
+            runtimeSessionId,
+            scenarioId: seed.scenarioId,
+            stepCount,
+            presentationOutputIds,
+          });
+        },
         acceptedTimeSec: (frame) => frame.acceptedTimeSec,
         onFrames: (frames) => {
           if (this.#state !== "active") return;
-          const last = frames.at(-1);
-          if (last === undefined || lane === undefined) return;
-          lane.latestFrame = last;
+          if (frames.length === 0 || lane === undefined) return;
+          const complete = [...frames].reverse().find((frame) =>
+            [...lane!.completeOutputIds].every((outputId) =>
+              Object.prototype.hasOwnProperty.call(frame.outputs, outputId),
+            ));
+          if (complete !== undefined) lane.latestFrame = complete;
           this.#enqueueFrames(frames);
         },
         onError: (error) => this.#fail(seed.scenarioId, error),
@@ -762,6 +805,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         client,
         scheduler,
         latestFrame: initialFrame,
+        completeOutputIds: new Set(Object.keys(initialFrame.outputs)),
       };
       return lane;
     } catch (error) {

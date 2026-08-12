@@ -11,6 +11,11 @@
  * over the no-Family-B full tier, to those restored constructor checks. Before
  * the harness fix, a full-requested `sequenceHashV3` run silently selected
  * lean, so older measurements made through that utility are not tier evidence.
+ * On the 2026-08-12 mobile-performance lane, retaining immutable validation
+ * proofs reduced four local lean runs from
+ * 1.419/1.418/1.443/1.432 to 1.200/1.195/1.193/1.198 ms per accepted step,
+ * about 16% by the means. This is development-host profiling evidence, not a
+ * target-phone qualification result.
  *
  * Tier-selected sites:
  *
@@ -50,14 +55,23 @@
  *   issuance means "fully validated". A copied, restored, mutable, or hand-built
  *   configuration misses. The state WeakSet accepts only a transitively frozen
  *   state: initialization means fully validated, a full-tier candidate means
- *   independently validated, and a lean candidate means constructed here from
- *   owner candidates. A state clone/restore misses. There are no mutable
+ *   independently validated, and a lean candidate means constructed and
+ *   recursively frozen here from owner candidates. The private issuer uses
+ *   that provenance instead of re-walking the just-built graph. A state
+ *   clone/restore misses. There are no mutable
  *   descendants to re-check on an identity hit.
+ * - The regular atrial and ventricular backup owners retain successful
+ *   exported-validator proofs for exact configuration/state identities only
+ *   when the complete graph is transitively frozen plain data. Copies,
+ *   restores, mutable descendants, and stamp-disabled verification miss.
  * - Dynamic MCS stamps a transitively frozen profile identity and exact live
  *   state/profile/config triples. Profile factory issuance means constructed
  *   from validated copied fields; validator issuance means fully validated.
  *   State factory and hydraulic-candidate issuance mean constructed here with
- *   live-factory provenance; validator issuance means structurally validated
+ *   live-factory provenance. Those private constructors freeze every state
+ *   descendant and therefore prove the new state without a second recursive
+ *   walk, while the profile/config identities retain their generic
+ *   transitive-frozen proof. Validator issuance means structurally validated
  *   against that context. Restores retain live provenance but receive no
  *   context stamp. A clone, restore, profile/config substitution, mutable
  *   descendant, or non-live state misses; no mutable descendant is skipped on
@@ -69,6 +83,10 @@
  *   lean candidate issuance means constructed here. A clone, restore, binding
  *   substitution, or mutable descendant misses. The supplied outer
  *   clock/revision is re-checked even on a state/binding hit.
+ * - Static coronary IMP priors and topology identities retain successful
+ *   exported-validator proofs only after the complete immutable graph passes.
+ *   The canonical coronary fingerprint likewise memoizes only a transitively
+ *   frozen graph; mutable scientific inputs are always recomputed.
  * - The integrated V3 WeakMap keys the exact outer accepted tuple and records
  *   exact rhythm-configuration/dynamic-profile/dynamic-config triples. Only the
  *   private wrapper can seed an entry: in full the seed means the entire tuple
@@ -83,7 +101,10 @@
  *   fingerprints, remain the responsibility of their downstream sites.
  * - The coronary V3-to-V2 view cache is issued only after the exact V3 object
  *   and reconstructed V2 view pass their validators, the V3 wrapper surfaces
- *   are frozen, and the autoregulation binding/state are transitively frozen.
+ *   are frozen, and the exact autoregulation state/binding pair has just passed
+ *   its exported validation. Its private constructor freezes every accepted
+ *   state record; the generic immutable-data proof is retained for the
+ *   external binding identity.
  *   It does not claim the embedded mechanics graph is transitively frozen. A
  *   hit reuses the cached V2 view without re-checking mutable descendants at
  *   this site. A clone/restore misses by V3 identity; this cache has no context

@@ -63,6 +63,54 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       .toBe(true);
   });
 
+  it("keeps latest-value state on complete terminal frames between visual slices", async () => {
+    const client = clientV3("scenario/baseline");
+    const completeOutputs = {
+      selected: scalarOutputV3("selected", 1),
+      "latest-only": scalarOutputV3("latest-only", 7),
+    };
+    client.initialize.mockResolvedValue(frameV3(
+      "scenario/baseline",
+      0,
+      completeOutputs,
+    ));
+    let scheduler: FakeSchedulerV3 | undefined;
+    const runtime = new WorkbenchParallelScenarioRuntimeV3({
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+      expectedModelId: "model/main-wire-v3-r1",
+      createRuntimeSessionId: (scenarioId) => `runtime/${scenarioId}`,
+      createClient: () => client as unknown as
+        WorkbenchParallelScenarioRuntimeClientV3,
+      createScheduler: (_scenarioId, dependencies) => {
+        scheduler = new FakeSchedulerV3(dependencies);
+        return scheduler;
+      },
+      onFrames: vi.fn(),
+      onError: vi.fn(),
+    });
+    await runtime.initialize({
+      scenarios: [seedV3("scenario/baseline", "Baseline", 0)],
+      activeScenarioId: "scenario/baseline",
+    });
+
+    scheduler!.emit([frameV3("scenario/baseline", 1, {
+      selected: scalarOutputV3("selected", 2),
+    })]);
+    expect(runtime.latestFrame("scenario/baseline")).toMatchObject({
+      acceptedRevision: 0,
+      outputs: { "latest-only": { value: 7 } },
+    });
+
+    scheduler!.emit([frameV3("scenario/baseline", 2, {
+      selected: scalarOutputV3("selected", 3),
+      "latest-only": scalarOutputV3("latest-only", 8),
+    })]);
+    expect(runtime.latestFrame("scenario/baseline")).toMatchObject({
+      acceptedRevision: 2,
+      outputs: { "latest-only": { value: 8 } },
+    });
+  });
+
   it("reports live lane membership to the shared background QoS budget", async () => {
     const liveScenarioCounts: number[] = [];
     const backgroundWorkerPool = {
@@ -504,6 +552,10 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     const deletedScheduler = harness.schedulers.get("scenario/comparison")!;
     const next = await harness.runtime.deleteScenario("scenario/comparison");
     expect(next.activeScenarioId).toBe("scenario/baseline");
+    expect(harness.runtime.maybeLatestFrame("scenario/comparison"))
+      .toBeUndefined();
+    expect(harness.runtime.maybeLatestFrame("scenario/baseline"))
+      .toBeDefined();
     expect(deletedScheduler.dispose).toHaveBeenCalledOnce();
     expect(comparisonClient.terminate).toHaveBeenCalledOnce();
   });
@@ -561,7 +613,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       createClient: (scenarioId) => {
         const client = clientV3(scenarioId);
         let acceptedRevision = 0;
-        client.advance.mockImplementation(async (input) => {
+        client.advancePresentation.mockImplementation(async (input) => {
           if (scenarioId === "scenario/comparison") {
             throw new Error("comparison failed");
           }
@@ -815,11 +867,16 @@ class ParallelSchedulerClockV3 {
 
 function clientV3(scenarioId: string) {
   let clock = 0;
-  return {
-    advance: vi.fn(async (stepCount: number) => Array.from(
+  const advance = async (input: number | { stepCount: number }) => {
+    const stepCount = typeof input === "number" ? input : input.stepCount;
+    return Array.from(
       { length: stepCount },
       () => frameV3(scenarioId, clock += 1),
-    )),
+    );
+  };
+  return {
+    advance: vi.fn(advance),
+    advancePresentation: vi.fn(advance),
     applyControl: vi.fn(),
     initialize: vi.fn(async (input: { checkpoint?: { acceptedRevision: number } }) => {
       clock = input.checkpoint?.acceptedRevision ?? 0;
@@ -865,6 +922,7 @@ function checkpointV3(clock: number) {
 function frameV3(
   scenarioId: string,
   acceptedRevision: number,
+  outputs: StudioSimulationFrameV2["outputs"] = {},
 ): StudioSimulationFrameV2 {
   return {
     runtimeSessionId: `runtime/${scenarioId}`,
@@ -873,7 +931,16 @@ function frameV3(
     inputEpoch: 0,
     acceptedRevision,
     acceptedTimeSec: acceptedRevision * 0.002,
-    outputs: {},
+    outputs,
+  };
+}
+
+function scalarOutputV3(outputId: string, value: number) {
+  return {
+    outputId,
+    value,
+    availability: "available" as const,
+    quality: "authoritative-state" as const,
   };
 }
 

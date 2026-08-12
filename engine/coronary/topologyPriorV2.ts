@@ -19,6 +19,11 @@ import {
   type CoronaryToneStateV2,
 } from "@/engine/coronary/typesV2";
 import { NORMAL_ADULT_FIVE_WALL_PRIOR_V1 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
+import {
+  isTransitivelyFrozenPlainDataV1,
+  validationStampIssuanceEligibleV1,
+  validationStampReuseEligibleV1,
+} from "@/engine/validationStampModeV1";
 
 export const CORONARY_TOPOLOGY_ID_V2 =
   "main-wire-coronary-three-territory-two-layer-two-compliance-v2" as const;
@@ -1422,14 +1427,33 @@ export function initialCoronaryToneStateV2(
  * order while retaining every numeric prior that changes the equations.
  */
 export function coronaryConfigurationFingerprintV2(value: unknown): string {
+  if (
+    value !== null
+    && typeof value === "object"
+    && validationStampReuseEligibleV1()
+    && coronaryConfigurationFingerprintProofsV2.has(value)
+  ) {
+    return coronaryConfigurationFingerprintProofsV2.get(value)!;
+  }
   const canonical = canonicalJsonV2(value);
   let hash = 0x811c9dc5;
   for (let index = 0; index < canonical.length; index += 1) {
     hash ^= canonical.charCodeAt(index);
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
-  return `fnv1a32-${hash.toString(16).padStart(8, "0")}`;
+  const fingerprint = `fnv1a32-${hash.toString(16).padStart(8, "0")}`;
+  if (
+    value !== null
+    && typeof value === "object"
+    && validationStampReuseEligibleV1()
+    && isTransitivelyFrozenPlainDataV1(value)
+  ) {
+    coronaryConfigurationFingerprintProofsV2.set(value, fingerprint);
+  }
+  return fingerprint;
 }
+
+const coronaryConfigurationFingerprintProofsV2 = new WeakMap<object, string>();
 
 export function coronaryTopologyPriorFingerprintV2(
   prior: CoronaryTopologyPriorV2,
@@ -1741,7 +1765,15 @@ export function validateCoronaryTopologyPriorV2(
   }
 }
 
+const validatedCoronaryTopologiesV2 = new WeakSet<CoronaryTopologyV2>();
+
 export function validateCoronaryTopologyV2(topology: CoronaryTopologyV2): void {
+  if (
+    validationStampReuseEligibleV1()
+    && validatedCoronaryTopologiesV2.has(topology)
+  ) {
+    return;
+  }
   if (topology.topologyId !== CORONARY_TOPOLOGY_ID_V2) {
     throw new RangeError("coronary V2 topology identity is invalid");
   }
@@ -1788,5 +1820,8 @@ export function validateCoronaryTopologyV2(topology: CoronaryTopologyV2): void {
     ) {
       throw new RangeError(`${edge.edgeId} must be signed and inertance-free`);
     }
+  }
+  if (validationStampIssuanceEligibleV1(topology)) {
+    validatedCoronaryTopologiesV2.add(topology);
   }
 }

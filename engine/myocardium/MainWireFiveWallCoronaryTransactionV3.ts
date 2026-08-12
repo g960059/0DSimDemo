@@ -399,10 +399,7 @@ function validatedMainWireFiveWallCoronaryBaseStateV2<TWallState>(
     && Object.isFrozen(state.circulation)
     && Object.isFrozen(state.coronary)
     && Object.isFrozen(state.mechanics)
-    && validationStampIssuanceEligibleV1(
-      state.coronaryAutoregulationBinding,
-      state.coronaryAutoregulation,
-    )
+    && validationStampIssuanceEligibleV1(state)
   ) {
     validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
       state,

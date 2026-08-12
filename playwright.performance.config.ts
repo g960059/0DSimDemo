@@ -3,9 +3,10 @@ import { defineConfig } from "@playwright/test";
 /**
  * Explicit, production-preview performance harness.
  *
- * CPU throttling is a reproducible regression proxy, not a claim about a real
- * phone or low-end laptop. Device qualification still requires the same run on
- * named physical hardware as documented in DESIGN-STUDIO-005.
+ * CDP CPU throttling is a main-thread/layout regression proxy. Chromium does
+ * not reliably apply it to dedicated numerical Workers, so every report probes
+ * and records main-thread and Worker slowdown separately. Device qualification
+ * requires the in-product diagnostic on named physical hardware.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -39,7 +40,7 @@ export default defineConfig({
       use: { viewport: { width: 1280, height: 800 } },
     },
     {
-      name: "mobile-layout-proxy",
+      name: "mobile-main-thread-layout-proxy",
       use: { viewport: { width: 390, height: 844 } },
     },
   ],

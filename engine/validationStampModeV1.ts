@@ -32,6 +32,13 @@ function environmentValidationStampModeV1(): ValidationStampModeV1 {
 let selectedMode = environmentValidationStampModeV1();
 let reuseEnabled = selectedMode === "validation-stamps-enabled";
 
+// A successfully proved graph is immutable by construction: every reachable
+// object is frozen, plain data, and exposes data properties only. Retaining
+// that proof by identity is therefore safe for the lifetime of this module and
+// avoids walking the same large, static configuration graph on every accepted
+// numerical step. Failed and partially visited graphs are never cached.
+const transitivelyFrozenPlainDataProofsV1 = new WeakSet<object>();
+
 /** The effective validation-stamp mode for this module instance. */
 export function validationStampModeV1(): ValidationStampModeV1 {
   return selectedMode;
@@ -78,11 +85,33 @@ export function validationStampIssuanceEligibleV1(
  */
 export function isTransitivelyFrozenPlainDataV1(
   value: unknown,
-  seen = new WeakSet<object>(),
+): boolean {
+  const visited = new Set<object>();
+  const result = inspectTransitivelyFrozenPlainDataV1(
+    value,
+    new WeakSet<object>(),
+    visited,
+  );
+  if (result && validationStampReuseEligibleV1()) {
+    for (const item of visited) {
+      transitivelyFrozenPlainDataProofsV1.add(item);
+    }
+  }
+  return result;
+}
+
+function inspectTransitivelyFrozenPlainDataV1(
+  value: unknown,
+  seen: WeakSet<object>,
+  visited: Set<object>,
 ): boolean {
   if (value === null) return true;
   if (typeof value === "function") return false;
   if (typeof value !== "object") return true;
+  if (
+    validationStampReuseEligibleV1()
+    && transitivelyFrozenPlainDataProofsV1.has(value)
+  ) return true;
   if (seen.has(value)) return true;
   if (!Object.isFrozen(value)) return false;
   const prototype = Object.getPrototypeOf(value);
@@ -94,12 +123,17 @@ export function isTransitivelyFrozenPlainDataV1(
     return false;
   }
   seen.add(value);
+  visited.add(value);
   for (const key of Reflect.ownKeys(value)) {
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     if (
       descriptor === undefined
       || !("value" in descriptor)
-      || !isTransitivelyFrozenPlainDataV1(descriptor.value, seen)
+      || !inspectTransitivelyFrozenPlainDataV1(
+        descriptor.value,
+        seen,
+        visited,
+      )
     ) {
       return false;
     }

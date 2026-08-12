@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 
 import { useAppTheme } from "@/appTheme";
 import { SiteHeaderV3 } from "@/components/site/SiteHeaderV3";
+import { WorkbenchPerformanceReportV3 } from
+  "@/components/workbench/v3/WorkbenchPerformanceReportV3";
 import {
   localeFromPathname,
   setPreferredLocale,
@@ -44,6 +46,7 @@ export const Layout = () => {
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <Outlet />
       </div>
+      <WorkbenchPerformanceReportV3 />
     </div>
   );
 };

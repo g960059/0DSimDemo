@@ -481,6 +481,28 @@ export function useWorkbenchSampledGraphPresentationSamplesV3(
   );
 }
 
+/**
+ * One subscription per rendered graph. Structural graphs intentionally pass
+ * null and therefore do not re-render on unrelated accepted scalar samples.
+ */
+export function useWorkbenchOptionalSampledGraphPresentationSamplesV3(
+  store: WorkbenchScenarioPresentationSampleStoreV3,
+  renderer: "sweep" | "pressure-volume" | null,
+): WorkbenchSampledGraphPresentationSnapshotV3 | null {
+  const subscribe: (listener: () => void) => () => void = renderer === null
+    ? NOOP_WORKBENCH_PRESENTATION_SUBSCRIBE_V3
+    : renderer === "sweep"
+      ? store.subscribeSweep
+      : store.subscribePressureVolume;
+  const getSnapshot: () => WorkbenchSampledGraphPresentationSnapshotV3 | null =
+    renderer === null
+      ? EMPTY_WORKBENCH_SAMPLED_GRAPH_SNAPSHOT_V3
+      : renderer === "sweep"
+        ? store.getSweepSnapshot
+        : store.getPressureVolumeSnapshot;
+  return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
 export function useWorkbenchScenarioExactOrbitSamplesV3(
   store: WorkbenchScenarioPresentationSampleStoreV3,
 ): WorkbenchScenarioPresentationSamplesV3 {
@@ -506,6 +528,9 @@ function emptyScenarioPresentationSnapshotV3():
   return Object.freeze(Object.create(null)) as
     WorkbenchScenarioPresentationSamplesV3;
 }
+
+const NOOP_WORKBENCH_PRESENTATION_SUBSCRIBE_V3 = () => () => undefined;
+const EMPTY_WORKBENCH_SAMPLED_GRAPH_SNAPSHOT_V3 = () => null;
 
 function createScenarioPresentationSnapshotV3(
   current: WorkbenchScenarioPresentationSamplesV3,

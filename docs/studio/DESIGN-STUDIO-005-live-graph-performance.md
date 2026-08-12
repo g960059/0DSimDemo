@@ -20,7 +20,7 @@ Snapshot qualification.
 
 ```text
 persistent Scenario Worker
-  → exact accepted frame batch
+  → selected-signal typed-array batch + complete terminal frame
     → optional multi-Scenario commit coalescing
       → graph-owned scalar materialization
         → renderer-specific presentation store subscription
@@ -50,13 +50,20 @@ response. Repeating the same recursive ownership pass both while posting the
 response and again on the main thread scales with every output value in every
 frame, even though the Worker has already established their validity.
 
-The hot `advanced` response therefore uses a narrower trusted decoder on both
-sides of the dedicated-Worker boundary. It still validates the exact response
-and frame keys, protocol and request correlation, model/runtime/Scenario
-identity, input epoch, accepted revision, accepted time, frame count, and that
-the output map is a plain data object. It does not recursively clone, freeze,
-or revalidate each already-validated output record on every presentation
-batch.
+Scientific and background operations retain the complete `advanced` response.
+The foreground scheduler instead requests `advance-presentation`. Each batch
+transfers accepted revisions and times, selected scalar values, and compact
+availability/quality state as typed arrays. The final accepted step also
+carries one complete validated frame. Latest-value consumers therefore retain
+the full model output boundary while intermediate graph samples no longer
+structured-clone every unrelated output object.
+
+The compact response validates exact keys, protocol and request correlation,
+model/runtime/Scenario identity, input epoch, every accepted clock, matrix
+dimensions, scalar finiteness/null sentinels, output-state codes, selected
+output identity, and exact agreement between the final scalar row and complete
+terminal frame. Transferred buffers are reused only on the trusted bundled
+Worker path. The public decoder copies them before returning ownership.
 
 The same narrow exception applies to progressive analysis updates emitted by
 the bundled runtime. Their envelope, protocol correlation, model/runtime/
@@ -74,18 +81,36 @@ validator. The client also retains its expected identity and monotonic-clock
 checks before accepting an advanced batch. Public protocol validation remains
 deep by default.
 
-This is a validation-cost reduction, not yet a compact binary transport: the
-Worker still sends structured-cloned object frames. A transferred typed-array
-batch remains a later option if target-device measurements show structured
-clone or allocation to be the remaining bottleneck.
+The compact transport is presentation-only. Settlement, analyses, capture,
+Snapshot qualification, control commits, and authoring continue to consume
+complete exact frames or checkpoints. The Worker still constructs and fully
+validates each exact accepted frame before projection; this change reduces
+cross-thread allocation and clone cost rather than numerical work.
 
-An isolated production-preview reference run on the M5 Max development device
-measured about 30 ms Worker round-trip p95 and 1.04× recent model-time ratio for
-one live Scenario. With four simultaneous live Scenarios, recent ratios were
-about 1.03–1.04× per lane, per-lane Worker round-trip p95 was about 33–35 ms,
-Canvas draw p95 was about 1.3 ms, and a Heart-rate edit reached the visible
-output in about 108 ms. These are regression references only; target-tier
-device traces remain required for low-end and mobile support claims.
+## Exact numerical hot path
+
+Presentation work cannot compensate for a Worker that produces exact accepted
+steps slower than model time. The Standard-10 executable therefore retains
+successful validation proofs only for exact immutable identities whose entire
+plain-data graph is transitively frozen. Mutable values, restored copies,
+failed or partial validation, and stamp-disabled verification always miss and
+take the complete validator path. The full-invariant reference remains
+bit-identical to the shipped lean tier for accepted states and checkpoints.
+
+A direct same-process comparison of the committed Standard-8 and Standard-10
+artifacts on the M5 Max development host measured four 200-step runs. Mean
+accepted-step time fell from about `2.42 ms` to `2.02 ms` (about 16.6%). The two
+artifacts then produced identical accepted clocks and all 49 output records for
+1,000 presentation steps through `2.0 s`, including completed-beat metrics.
+This is exact-artifact regression evidence, not a phone throughput claim.
+
+The remaining CPU profile is distributed across dense linear solves, coronary
+Jacobian and hydraulics evaluation, five-wall/TriSeg mechanics, material-state
+ownership checks, and allocation/GC. No remaining presentation-only switch can
+turn a physical phone running the kernel at `0.1×` into a real-time exact lane.
+A larger improvement must optimize those numerical kernels (with a new exact
+release and parity evidence) rather than silently enlarge `dt`, interpolate
+scientific states, or derive metrics from decimated presentation data.
 
 ## Diagnostic mode
 
@@ -98,7 +123,10 @@ Open a Workbench with:
 /ja/experiments/new?workbenchPerf=1
 ```
 
-Then inspect or reset the rolling metrics in browser developer tools:
+On a physical phone, tap the opt-in **Perf** button and copy the JSON report.
+The report contains coarse device capabilities and aggregate timings only; it
+never contains article text, fixtures, checkpoints, or output values. Desktop
+developer tools may also inspect or reset the same rolling metrics:
 
 ```js
 window.__circleHeartWorkbenchPerfV3.snapshot()
@@ -111,11 +139,13 @@ The snapshot includes:
 - scheduler and runtime presentation intervals;
 - multi-Scenario coalescing duration;
 - frame-to-scalar materialization and presentation-store append duration;
-- Workbench-area React commit duration and interval; and
-- Canvas draw duration and meaningful display interval by renderer.
+- Workbench-area React commit duration and interval;
+- Canvas draw duration and meaningful display interval by renderer;
 - per-Scenario model-time/wall-time ratio and model-to-wall lag;
-- bounded catch-up batch and active overload re-anchor counts; and
-- frame, output and primitive-value counts at the Worker delivery boundary.
+- bounded catch-up batch and active overload re-anchor counts;
+- frame, output and primitive-value counts at the Worker delivery boundary; and
+- selected output count and transferred typed-array bytes for each foreground
+  presentation request.
 
 Duration metrics report count, mean, rolling p95, maximum, and latest
 duration. Unitless values additionally report lifetime mean, rolling mean,
@@ -133,10 +163,10 @@ This preserves every accepted sample while keeping Worker throughput and Canvas
 refresh cadence independent.
 
 The scheduler can issue a bounded catch-up request, but the default profile does
-not currently use it. Measurements with the object-frame protocol showed that
-enlarging an already-late request can amplify response latency. Catch-up should
-be reconsidered after the compact presentation protocol makes per-frame
-transport cost predictable.
+not currently use it. Measurements with the former object-frame protocol
+showed that enlarging an already-late request can amplify response latency.
+Catch-up remains disabled until target-device traces establish a safe bound
+with the compact protocol.
 
 The production-preview A/B measurement on the M5 Max reference development
 device is a regression control, not evidence of low-end or mobile support. It
@@ -167,6 +197,26 @@ comparison and consider a bounded Canvas presentation clock that drains
 already-accepted exact samples. Do not introduce WebGL or OffscreenCanvas until
 diagnostics show Canvas raster time—not allocations, projection, React
 commits, or Worker transport—is the dominant budget.
+
+### Article live projection
+
+An Article Placement runs the same exact numerical model and receives the same
+accepted selected signals and complete terminal frames as its source
+Experiment. The Reader projection must not turn that scientific equivalence
+into avoidable presentation work:
+
+- only outputs selected by the sealed graph and output Briefing cross the hot
+  intermediate transport and enter rolling UI history; every batch terminal
+  remains a complete exact Worker frame;
+- each mounted graph subscribes only to the presentation store it renders
+  (sweep or pressure-volume), while structural graphs subscribe to neither;
+- an off-screen graph keeps its authored dimensions but does not mount a Canvas
+  or acquire an automatic PV/structural-analysis owner; and
+- visibility only changes presentation ownership. It never pauses, rewinds,
+  decimates, or substitutes the live numerical lane.
+
+This boundary reduces allocations, React commits, Canvas work, and competing
+background analyses in long Articles without changing accepted steps or values.
 
 ## Acceptance targets
 
@@ -201,8 +251,8 @@ It runs three serialized Chromium profiles:
 | Profile | Layout | CPU treatment | Purpose |
 | --- | --- | --- | --- |
 | `reference-desktop` | 1440 × 900 | native | developer-machine regression |
-| `constrained-desktop-proxy` | 1280 × 800 | 4× CDP throttle, 4 logical cores | reproducible two-Scenario low-end proxy |
-| `mobile-layout-proxy` | 390 × 844 | 4× CDP throttle, 4 logical cores | two-Scenario mobile layout plus CPU-contention proxy |
+| `constrained-desktop-proxy` | 1280 × 800 | 4× CDP **main-thread** throttle, 4 reported logical cores | reproducible renderer/layout contention proxy |
+| `mobile-main-thread-layout-proxy` | 390 × 844 | 4× CDP **main-thread** throttle, 4 reported logical cores | mobile layout and renderer contention only |
 
 Each run attaches a JSON report containing every rolling diagnostic, per-lane
 model-time ratio, Worker round trip, Canvas paint/display cadence, overload
@@ -225,22 +275,29 @@ CIRCLEHEART_PERF_SAMPLE_MS=30000 \
 npm run benchmark:workbench:live -- --project=constrained-desktop-proxy
 ```
 
-CDP throttling is only a regression proxy. It does not emulate memory
-bandwidth, thermal behavior, mobile GPU composition, browser power policy, or
-big.LITTLE scheduling and therefore cannot establish a device-support claim.
+Each report includes a small calibration loop on both the renderer main thread
+and a dedicated Worker. Current Chromium CDP throttling slows the former but
+does not reliably slow the latter. The proxy therefore makes **no claim** about
+the numerical throughput of a phone. It also does not emulate memory bandwidth,
+thermal behavior, mobile GPU composition, browser power policy, or big.LITTLE
+scheduling and cannot establish a device-support claim.
 Before claiming a tier, repeat the diagnostic run on named physical devices
 and record browser version, logical cores, memory, battery/thermal state,
 Scenario count, viewport, model-time ratios, long-tail latency, and a minimum
 ten-minute retained-memory soak.
 
-The 2026-08-07 production-preview regression run on the M5 Max development
-device passed all three enforced profiles. Post-control/background-contention
-root model-time ratios were 0.985× for four reference-desktop Scenarios, 0.989×
-for two constrained-desktop proxy Scenarios, and 0.986× for two mobile-layout
-proxy Scenarios. The corresponding control-to-visible-result measurements were
-136 ms, 206 ms, and 159 ms. These numbers establish repeatable headroom on the
-development host; the throttled results remain proxies, not physical-device
-qualification.
+The 2026-08-13 presentation-path production-preview regression run on the M5
+Max development device passed all three enforced profiles. This browser run
+used the then-active registry bundle; Standard-10 itself is qualified separately
+by the exact same-process comparison above. Post-control/background-contention
+root model-time ratios were 0.983× for four reference-desktop
+Scenarios, 0.996× for two constrained-desktop proxy Scenarios, and 0.992× for
+two mobile-layout proxy Scenarios. The corresponding control-to-visible-result
+measurements were 136 ms, 234 ms, and 193 ms. Main-thread calibration measured
+about 4.1–4.3× slowdown in both proxy profiles while their dedicated Workers
+remained about 1.0–1.06×, confirming that these runs establish renderer/layout
+headroom on the development host but do not qualify physical phone numerical
+throughput.
 
 The initial qualification matrix is deliberately honest:
 

@@ -9,7 +9,10 @@ import {
 } from "@/studio/workers/StudioSimulationWorkerRuntimeV2";
 
 type WorkerPortV2 = Readonly<{
-  postMessage(message: StudioSimulationWorkerResponseV2): void;
+  postMessage(
+    message: StudioSimulationWorkerResponseV2,
+    transfer?: Transferable[],
+  ): void;
   close(): void;
 }>;
 
