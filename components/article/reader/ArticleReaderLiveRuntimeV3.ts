@@ -20,6 +20,12 @@ import {
   WorkbenchBackgroundWorkerPoolV3,
   type WorkbenchBackgroundWorkerPoolPortV3,
 } from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
+import {
+  recordWorkbenchPerformanceDurationV3,
+  recordWorkbenchPerformanceValueV3,
+  workbenchPerformanceDiagnosticsEnabledV3,
+  workbenchPerformanceNowV3,
+} from "@/components/workbench/v3/WorkbenchPerformanceDiagnosticsV3";
 
 export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   status:
@@ -83,6 +89,7 @@ type ArticleReaderLiveRuntimeCommonDependenciesV3 = Readonly<{
   backgroundWorkerPool?: WorkbenchBackgroundWorkerPoolPortV3;
   resolveAnalysisExecutionPlan?:
     StudioSimulationAnalysisExecutionPlanResolverV2;
+  presentationOutputIds?: ReadonlySet<string>;
 }>;
 
 export type ArticleReaderLiveRuntimeDependenciesV3 =
@@ -117,6 +124,7 @@ export class ArticleReaderLiveRuntimeV3 {
   readonly #ownedBackgroundWorkerPool: WorkbenchBackgroundWorkerPoolV3 | null;
   readonly #listeners = new Set<() => void>();
   readonly #structuralHistoryDepthByAnalysisId: ReadonlyMap<string, number>;
+  readonly #presentationOutputIds: ReadonlySet<string> | undefined;
   #state: ArticleReaderLiveRuntimeStateV3;
   #runtime: ArticleReaderParallelRuntimeV3 | null = null;
   #startPromise: Promise<void> | null = null;
@@ -148,6 +156,7 @@ export class ArticleReaderLiveRuntimeV3 {
       normalizedArticleReaderStructuralAnalysesV3(
         dependencies.structuralAnalyses ?? [],
       );
+    this.#presentationOutputIds = dependencies.presentationOutputIds;
     this.sampleStore = dependencies.sampleStore
       ?? new WorkbenchScenarioPresentationSampleStoreV3();
     if (dependencies.createRuntime === undefined) {
@@ -205,7 +214,11 @@ export class ArticleReaderLiveRuntimeV3 {
         onFrames: (frames) => {
           if (this.#runtime !== runtime || !this.#acceptsFrames()) return;
           try {
-            appendArticleReaderFramesV3(frames, this.sampleStore);
+            appendArticleReaderFramesV3(
+              frames,
+              this.sampleStore,
+              this.#presentationOutputIds,
+            );
           } catch (error) {
             this.#fail(errorAsErrorV3(error), runtime);
           }
@@ -237,6 +250,7 @@ export class ArticleReaderLiveRuntimeV3 {
       appendArticleReaderFramesV3(
         scenarios.map(({ scenarioId }) => runtime.latestFrame(scenarioId)),
         this.sampleStore,
+        this.#presentationOutputIds,
       );
       if (this.#shouldPlayV3()) {
         runtime.playAll();
@@ -859,7 +873,11 @@ function withArticleReaderCommittedControlValueV3(
 export function appendArticleReaderFramesV3(
   frames: readonly StudioSimulationFrameV2[],
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3,
+  selectedOutputIds?: ReadonlySet<string>,
 ): void {
+  if (selectedOutputIds?.size === 0) return;
+  const diagnosticsEnabled = workbenchPerformanceDiagnosticsEnabledV3();
+  const startedAtMs = diagnosticsEnabled ? workbenchPerformanceNowV3() : 0;
   const framesByScenarioId = new Map<string, StudioSimulationFrameV2[]>();
   for (const frame of frames) {
     const grouped = framesByScenarioId.get(frame.scenarioId) ?? [];
@@ -875,19 +893,35 @@ export function appendArticleReaderFramesV3(
       inputEpoch: frame.inputEpoch,
       acceptedRevision: frame.acceptedRevision,
       acceptedTimeSec: frame.acceptedTimeSec,
-      values: Object.freeze(Object.fromEntries(Object.entries(frame.outputs).map(
-        ([outputId, output]) => [
+      values: Object.freeze(Object.fromEntries(
+        (selectedOutputIds === undefined
+          ? Object.keys(frame.outputs)
+          : [...selectedOutputIds]
+        ).map((outputId) => {
+          const output = frame.outputs[outputId];
+          return [
           outputId,
-          output.availability === "available"
+          output?.availability === "available"
             && output.quality !== "not-assessed"
             && typeof output.value === "number"
             && Number.isFinite(output.value)
             ? output.value
             : null,
-        ],
-      ))),
+          ];
+        }),
+      )),
     })),
   })));
+  if (diagnosticsEnabled) {
+    recordWorkbenchPerformanceDurationV3(
+      "article.presentation.frame-materialization",
+      workbenchPerformanceNowV3() - startedAtMs,
+    );
+    recordWorkbenchPerformanceValueV3(
+      "article.presentation.retained-output-count",
+      selectedOutputIds?.size ?? Object.keys(frames[0]?.outputs ?? {}).length,
+    );
+  }
 }
 
 function errorAsErrorV3(error: unknown): Error {

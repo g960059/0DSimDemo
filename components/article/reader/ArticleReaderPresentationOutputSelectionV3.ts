@@ -1,0 +1,57 @@
+import type {
+  ExperimentPlacementBriefingV2,
+  ExperimentSnapshotV2,
+} from "@/studio/contracts/v2/content";
+import type { ModelContractV2 } from "@/studio/contracts/v2/model";
+import {
+  workbenchModelCyclePhaseOutputIdV3,
+} from "@/components/workbench/v3/WorkbenchPresentationOutputSelectionV3";
+
+/**
+ * Selects the scalar history needed by one Article Placement. The numerical
+ * Worker frame remains exact and complete; this only avoids copying unrelated
+ * outputs into the six-second UI history on every accepted step.
+ */
+export function articleReaderPresentationOutputSelectionV3(
+  contract: ModelContractV2,
+  snapshot: ExperimentSnapshotV2,
+  briefing: ExperimentPlacementBriefingV2,
+): ReadonlySet<string> {
+  const outputIds = new Set<string>(
+    briefing.outputs.map(({ outputId }) => outputId),
+  );
+  let sweepPresent = false;
+  for (const selectedGraph of briefing.graphs) {
+    const pane = snapshot.content.surface.graphPanes.find(
+      ({ paneId }) => paneId === selectedGraph.paneId,
+    );
+    if (pane === undefined) continue;
+    const graph = contract.graphCatalog.find(
+      ({ graphId }) => graphId === pane.graphId,
+    );
+    if (graph === undefined || graph.renderer === "structural-return") continue;
+    if (graph.renderer === "sweep") sweepPresent = true;
+    const selectedSeries = selectedGraph.overrides?.series ?? pane.series;
+    for (const authoredSeries of selectedSeries) {
+      const binding = graph.seriesCatalog.find(
+        ({ seriesId }) => seriesId === authoredSeries.seriesId,
+      );
+      if (binding === undefined) continue;
+      if (graph.renderer === "sweep" && binding.kind === "scalar") {
+        outputIds.add(binding.outputId);
+      } else if (
+        graph.renderer === "pressure-volume"
+        && binding.kind === "pressure-volume"
+      ) {
+        outputIds.add(binding.volumeOutputId);
+        outputIds.add(binding.pressureOutputId);
+        outputIds.add(binding.cyclePhaseOutputId);
+      }
+    }
+  }
+  if (sweepPresent) {
+    const cyclePhaseOutputId = workbenchModelCyclePhaseOutputIdV3(contract);
+    if (cyclePhaseOutputId !== undefined) outputIds.add(cyclePhaseOutputId);
+  }
+  return outputIds as ReadonlySet<string>;
+}

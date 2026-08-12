@@ -28,6 +28,11 @@ type PerformanceProfileV3 = Readonly<{
   budget: PerformanceBudgetV3;
 }>;
 
+type ThreadCalibrationV3 = Readonly<{
+  mainThreadMs: number;
+  dedicatedWorkerMs: number;
+}>;
+
 type MeasurementWindowV3 = Readonly<{
   durationMs: number;
   modelTimeDeltaSec: number;
@@ -66,7 +71,7 @@ const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
         maximumControlLatencyMs: 250,
       }),
     }),
-    "mobile-layout-proxy": Object.freeze({
+    "mobile-main-thread-layout-proxy": Object.freeze({
       cpuThrottle: 4,
       hardwareConcurrencyOverride: 4,
       defaultScenarioCount: 2,
@@ -108,6 +113,8 @@ test("measures exact live Workbench throughput under background contention", asy
     4,
   );
   const cdp = await page.context().newCDPSession(page);
+  await page.goto("/ja?workbenchPerf=1");
+  const threadCalibrationBefore = await measureThreadCalibrationV3(page);
   await cdp.send("Emulation.setCPUThrottlingRate", {
     rate: profile.cpuThrottle,
   });
@@ -117,6 +124,17 @@ test("measures exact live Workbench throughput under background contention", asy
     });
   }
   await cdp.send("Performance.enable");
+  const threadCalibrationAfter = await measureThreadCalibrationV3(page);
+  const threadThrottleProbe = Object.freeze({
+    requestedMainThreadThrottle: profile.cpuThrottle,
+    before: threadCalibrationBefore,
+    after: threadCalibrationAfter,
+    mainThreadSlowdown:
+      threadCalibrationAfter.mainThreadMs / threadCalibrationBefore.mainThreadMs,
+    dedicatedWorkerSlowdown:
+      threadCalibrationAfter.dedicatedWorkerMs
+      / threadCalibrationBefore.dedicatedWorkerMs,
+  });
 
   await page.goto("/ja/experiments/new?workbenchPerf=1");
   const root = page.getByTestId("v3-dockview-workbench");
@@ -153,8 +171,9 @@ test("measures exact live Workbench throughput under background contention", asy
     project: testInfo.project.name,
     proxy: profile.cpuThrottle === 1
       ? "native-browser-reference"
-      : `chromium-cpu-throttle-${profile.cpuThrottle}x-cores-`
-        + profile.hardwareConcurrencyOverride,
+      : `chromium-main-thread-cpu-throttle-${profile.cpuThrottle}x-`
+        + "dedicated-worker-unthrottled",
+    threadThrottleProbe,
     scenarioCount,
     environment,
     warmupMs: WARMUP_MS_V3,
@@ -184,6 +203,9 @@ test("measures exact live Workbench throughput under background contention", asy
     scenarioCount: report.scenarioCount,
     rootModelTimeRatio:
       report.postControlContention.rootModelTimeRatio,
+    mainThreadSlowdown: report.threadThrottleProbe.mainThreadSlowdown,
+    dedicatedWorkerSlowdown:
+      report.threadThrottleProbe.dedicatedWorkerSlowdown,
     controlLatencyMs: report.controlLatencyMs,
     violations: report.violations,
     enforced: report.enforced,
@@ -221,6 +243,75 @@ async function ensureScenarioCountV3(
       .click();
     await expect(menuButtons).toHaveCount(before + 1);
   }
+}
+
+/**
+ * CDP CPU throttling applies to the renderer main thread, not reliably to a
+ * dedicated numerical Worker. Recording both prevents a layout proxy from
+ * being misreported as physical-phone compute qualification.
+ */
+async function measureThreadCalibrationV3(
+  page: Page,
+): Promise<ThreadCalibrationV3> {
+  return await page.evaluate(async () => {
+    const iterations = 4_000_000;
+    const runMain = () => {
+      const startedAt = performance.now();
+      let checksum = 0;
+      for (let index = 0; index < iterations; index += 1) {
+        checksum = Math.imul(checksum ^ index, 1_664_525) + 1_013_904_223;
+      }
+      if (!Number.isFinite(checksum)) throw new Error("invalid checksum");
+      return performance.now() - startedAt;
+    };
+    const mainSamples = [runMain(), runMain(), runMain()]
+      .sort((left, right) => left - right);
+    const source = `self.onmessage = (event) => {
+      const iterations = event.data;
+      const startedAt = performance.now();
+      let checksum = 0;
+      for (let index = 0; index < iterations; index += 1) {
+        checksum = Math.imul(checksum ^ index, 1664525) + 1013904223;
+      }
+      self.postMessage({ durationMs: performance.now() - startedAt, checksum });
+    };`;
+    const sourceUrl = URL.createObjectURL(new Blob([source], {
+      type: "text/javascript",
+    }));
+    const worker = new Worker(sourceUrl);
+    try {
+      const workerSamples: number[] = [];
+      for (let sample = 0; sample < 3; sample += 1) {
+        workerSamples.push(await new Promise<number>((resolve, reject) => {
+          const onMessage = (event: MessageEvent<Readonly<{
+            durationMs: number;
+          }>>) => {
+            cleanup();
+            resolve(event.data.durationMs);
+          };
+          const onError = (event: ErrorEvent) => {
+            cleanup();
+            reject(new Error(event.message));
+          };
+          const cleanup = () => {
+            worker.removeEventListener("message", onMessage);
+            worker.removeEventListener("error", onError);
+          };
+          worker.addEventListener("message", onMessage);
+          worker.addEventListener("error", onError);
+          worker.postMessage(iterations);
+        }));
+      }
+      workerSamples.sort((left, right) => left - right);
+      return Object.freeze({
+        mainThreadMs: mainSamples[1]!,
+        dedicatedWorkerMs: workerSamples[1]!,
+      });
+    } finally {
+      worker.terminate();
+      URL.revokeObjectURL(sourceUrl);
+    }
+  });
 }
 
 async function measureWindowV3(

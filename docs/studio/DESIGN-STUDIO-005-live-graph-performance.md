@@ -98,7 +98,10 @@ Open a Workbench with:
 /ja/experiments/new?workbenchPerf=1
 ```
 
-Then inspect or reset the rolling metrics in browser developer tools:
+On a physical phone, tap the opt-in **Perf** button and copy the JSON report.
+The report contains coarse device capabilities and aggregate timings only; it
+never contains article text, fixtures, checkpoints, or output values. Desktop
+developer tools may also inspect or reset the same rolling metrics:
 
 ```js
 window.__circleHeartWorkbenchPerfV3.snapshot()
@@ -168,6 +171,24 @@ already-accepted exact samples. Do not introduce WebGL or OffscreenCanvas until
 diagnostics show Canvas raster time—not allocations, projection, React
 commits, or Worker transport—is the dominant budget.
 
+### Article live projection
+
+An Article Placement runs the same exact numerical model and receives the same
+validated Worker frames as its source Experiment. The Reader projection must
+not turn that scientific equivalence into avoidable presentation work:
+
+- only outputs selected by the sealed graph and output Briefing are retained in
+  the rolling UI history; the exact Worker frame itself remains complete;
+- each mounted graph subscribes only to the presentation store it renders
+  (sweep or pressure-volume), while structural graphs subscribe to neither;
+- an off-screen graph keeps its authored dimensions but does not mount a Canvas
+  or acquire an automatic PV/structural-analysis owner; and
+- visibility only changes presentation ownership. It never pauses, rewinds,
+  decimates, or substitutes the live numerical lane.
+
+This boundary reduces allocations, React commits, Canvas work, and competing
+background analyses in long Articles without changing accepted steps or values.
+
 ## Acceptance targets
 
 - Numerical model-time ratio remains at or above 1× in the supported Scenario
@@ -201,8 +222,8 @@ It runs three serialized Chromium profiles:
 | Profile | Layout | CPU treatment | Purpose |
 | --- | --- | --- | --- |
 | `reference-desktop` | 1440 × 900 | native | developer-machine regression |
-| `constrained-desktop-proxy` | 1280 × 800 | 4× CDP throttle, 4 logical cores | reproducible two-Scenario low-end proxy |
-| `mobile-layout-proxy` | 390 × 844 | 4× CDP throttle, 4 logical cores | two-Scenario mobile layout plus CPU-contention proxy |
+| `constrained-desktop-proxy` | 1280 × 800 | 4× CDP **main-thread** throttle, 4 reported logical cores | reproducible renderer/layout contention proxy |
+| `mobile-main-thread-layout-proxy` | 390 × 844 | 4× CDP **main-thread** throttle, 4 reported logical cores | mobile layout and renderer contention only |
 
 Each run attaches a JSON report containing every rolling diagnostic, per-lane
 model-time ratio, Worker round trip, Canvas paint/display cadence, overload
@@ -225,9 +246,12 @@ CIRCLEHEART_PERF_SAMPLE_MS=30000 \
 npm run benchmark:workbench:live -- --project=constrained-desktop-proxy
 ```
 
-CDP throttling is only a regression proxy. It does not emulate memory
-bandwidth, thermal behavior, mobile GPU composition, browser power policy, or
-big.LITTLE scheduling and therefore cannot establish a device-support claim.
+Each report includes a small calibration loop on both the renderer main thread
+and a dedicated Worker. Current Chromium CDP throttling slows the former but
+does not reliably slow the latter. The proxy therefore makes **no claim** about
+the numerical throughput of a phone. It also does not emulate memory bandwidth,
+thermal behavior, mobile GPU composition, browser power policy, or big.LITTLE
+scheduling and cannot establish a device-support claim.
 Before claiming a tier, repeat the diagnostic run on named physical devices
 and record browser version, logical cores, memory, battery/thermal state,
 Scenario count, viewport, model-time ratios, long-tail latency, and a minimum

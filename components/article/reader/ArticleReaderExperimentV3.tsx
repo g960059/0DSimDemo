@@ -37,8 +37,7 @@ import {
   GuytonStarlingComparisonCanvasV3,
   resolveWorkbenchGraphTraceStyleV3,
   structuralReturnOrientationFromPayloadV3,
-  useWorkbenchScenarioExactOrbitSamplesV3,
-  useWorkbenchScenarioOrbitHistoryV3,
+  useWorkbenchOptionalSampledGraphPresentationSamplesV3,
   useWorkbenchScenarioPresentationSamplesV3,
   type WorkbenchPressureVolumeTraceV3,
 } from "@/components/workbench/v3";
@@ -72,6 +71,9 @@ import {
   articleReaderAnalysisKeyV3,
   type ArticleReaderStructuralAnalysisRequestV3,
 } from "./ArticleReaderLiveRuntimeV3";
+import {
+  articleReaderPresentationOutputSelectionV3,
+} from "./ArticleReaderPresentationOutputSelectionV3";
 import { useArticleReaderLiveRuntimeV3 } from "./useArticleReaderLiveRuntimeV3";
 
 export type ArticleReaderExperimentV3Props = Readonly<{
@@ -433,12 +435,21 @@ function ArticleReaderLiveOwnerV3({
     snapshot,
     contract,
   );
+  const presentationOutputIds = React.useMemo(
+    () => articleReaderPresentationOutputSelectionV3(
+      contract,
+      snapshot,
+      briefing,
+    ),
+    [briefing, contract, snapshot],
+  );
   const runtime = useArticleReaderLiveRuntimeV3(
     snapshot,
     requiredArticleReaderRuntimeCompositionV3(runtimeComposition),
     briefing.scenarioScope.initialFocusScenarioId,
     briefing.scenarioScope.visibleScenarioIds,
     structuralAnalyses,
+    presentationOutputIds,
   );
   const detail = (
     <ArticleReaderLiveDetailV3
@@ -702,24 +713,21 @@ function ArticleReaderLiveDetailV3({
             }`}
           >
             {[...briefing.graphs].sort(compareOrderV3).map((graph) => (
-              <div
+              <ArticleReaderLiveGraphViewportV3
                 key={graph.paneId}
                 className={
                   !inline && briefing.graphs.length > 1
                     ? "w-[88vw] max-w-[720px] shrink-0 snap-center xl:w-auto xl:max-w-none"
                     : "min-w-0"
                 }
-              >
-                <ArticleReaderLiveGraphV3
-                  activeScenarioId={runtime.state.activeScenarioId}
-                  briefing={graph}
-                  contract={contract}
-                  playbackRunning={playing}
-                  runtime={runtime}
-                  snapshot={snapshot}
-                  visibleScenarioIds={briefing.scenarioScope.visibleScenarioIds}
-                />
-              </div>
+                activeScenarioId={runtime.state.activeScenarioId}
+                briefing={graph}
+                contract={contract}
+                playbackRunning={playing}
+                runtime={runtime}
+                snapshot={snapshot}
+                visibleScenarioIds={briefing.scenarioScope.visibleScenarioIds}
+              />
             ))}
           </div>
 
@@ -737,6 +745,78 @@ function ArticleReaderLiveDetailV3({
             />
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+function ArticleReaderLiveGraphViewportV3({
+  activeScenarioId,
+  briefing,
+  className,
+  contract,
+  playbackRunning,
+  runtime,
+  snapshot,
+  visibleScenarioIds,
+}: Readonly<{
+  activeScenarioId: string;
+  briefing: ExperimentPlacementBriefingGraphV2;
+  className: string;
+  contract: ModelContractV2;
+  playbackRunning: boolean;
+  runtime: ArticleReaderRuntimeHookV3;
+  snapshot: ExperimentSnapshotV2;
+  visibleScenarioIds: readonly string[];
+}>) {
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const observerAvailable = typeof IntersectionObserver !== "undefined";
+  const [renderActive, setRenderActive] = React.useState(!observerAvailable);
+
+  React.useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") {
+      setRenderActive(true);
+      return undefined;
+    }
+    const element = rootRef.current;
+    if (element === null) return undefined;
+    const observer = new IntersectionObserver((entries) => {
+      const active = entries.some((entry) =>
+        entry.isIntersecting && entry.intersectionRatio >= 0.12
+      );
+      setRenderActive((current) => current === active ? current : active);
+    }, {
+      rootMargin: "80px 0px",
+      threshold: [0, 0.12],
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const label = resolveArticleReaderGraphPresentationV3(snapshot, briefing)?.label
+    ?? "Graph";
+  return (
+    <div
+      ref={rootRef}
+      className={className}
+      data-reader-graph-render-active={renderActive ? "true" : "false"}
+    >
+      {renderActive ? (
+        <ArticleReaderLiveGraphV3
+          activeScenarioId={activeScenarioId}
+          briefing={briefing}
+          contract={contract}
+          playbackRunning={playbackRunning}
+          runtime={runtime}
+          snapshot={snapshot}
+          visibleScenarioIds={visibleScenarioIds}
+        />
+      ) : (
+        <div
+          className="min-h-[clamp(18rem,43vw,32rem)]"
+          aria-label={label}
+          data-reader-graph-placeholder="true"
+        />
       )}
     </div>
   );
@@ -761,16 +841,18 @@ function ArticleReaderLiveGraphV3({
 }>) {
   const { appTheme } = useAppTheme();
   const sampleStore = runtime.sampleStore;
-  const samples = useWorkbenchScenarioPresentationSamplesV3(sampleStore);
-  const exactOrbits = useWorkbenchScenarioExactOrbitSamplesV3(sampleStore);
-  const orbitHistory = useWorkbenchScenarioOrbitHistoryV3(sampleStore);
   const resolved = resolveArticleReaderGraphPresentationV3(snapshot, briefing);
-  if (resolved === null) return null;
-  const { pane } = resolved;
-  const graph = contract.graphCatalog.find(
-    ({ graphId }) => graphId === pane.graphId,
+  const pane = resolved?.pane;
+  const graph = pane === undefined
+    ? undefined
+    : contract.graphCatalog.find(({ graphId }) => graphId === pane.graphId);
+  const sampledPresentation = useWorkbenchOptionalSampledGraphPresentationSamplesV3(
+    sampleStore,
+    graph?.renderer === "sweep" || graph?.renderer === "pressure-volume"
+      ? graph.renderer
+      : null,
   );
-  if (graph === undefined) return null;
+  if (resolved === null || pane === undefined || graph === undefined) return null;
   const series = resolved.series;
   const paneScenarioIds = resolveWorkbenchGraphScenarioIdsV3(
     pane,
@@ -818,6 +900,9 @@ function ArticleReaderLiveGraphV3({
       (scenario) => scenario.scenarioId === scenarioId,
     );
   if (graph.renderer === "pressure-volume") {
+    if (sampledPresentation?.renderer !== "pressure-volume") return null;
+    const exactOrbits = sampledPresentation.exactOrbitSamplesByScenarioId;
+    const orbitHistory = sampledPresentation.orbitHistoryByScenarioId;
     const bindings = series.flatMap((selectedSeries) => {
       const binding = graph.seriesCatalog.find(
         ({ seriesId }) => seriesId === selectedSeries.seriesId,
@@ -895,6 +980,8 @@ function ArticleReaderLiveGraphV3({
     );
   }
   if (graph.renderer !== "sweep") return null;
+  if (sampledPresentation?.renderer !== "sweep") return null;
+  const samples = sampledPresentation.samplesByScenarioId;
   const bindings = series.flatMap((selectedSeries) => {
     const binding = graph.seriesCatalog.find(
       ({ seriesId }) => seriesId === selectedSeries.seriesId,

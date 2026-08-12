@@ -567,6 +567,38 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       unassessed: null,
     });
   });
+
+  it("retains only Placement-selected output histories", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    const base = frameV3("scenario/one", 1, 8);
+    appendArticleReaderFramesV3([{
+      ...base,
+      outputs: {
+        pressure: base.outputs.pressure!,
+        unrelated: {
+          outputId: "unrelated",
+          value: 99,
+          availability: "available",
+          quality: "accepted-derived",
+        },
+      },
+    }], store, new Set(["pressure"]));
+
+    expect(store.getScenarioSnapshot("scenario/one").at(-1)?.values).toEqual({
+      pressure: 8,
+    });
+  });
+
+  it("does not invalidate the presentation store for analysis-only Placements", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    appendArticleReaderFramesV3(
+      [frameV3("scenario/one", 1, 8)],
+      store,
+      new Set(),
+    );
+
+    expect(store.scenarioCount).toBe(0);
+  });
 });
 
 function snapshotV3(): ExperimentSnapshotV2 {

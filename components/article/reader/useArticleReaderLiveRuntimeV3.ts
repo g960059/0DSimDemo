@@ -51,6 +51,7 @@ export function useArticleReaderLiveRuntimeV3(
   initialActiveScenarioId?: string,
   visibleScenarioIds?: readonly string[],
   structuralAnalyses: readonly ArticleReaderStructuralAnalysisRequestV3[] = [],
+  presentationOutputIds?: ReadonlySet<string>,
 ): UseArticleReaderLiveRuntimeResultV3 {
   const requestedScopeKey = JSON.stringify(visibleScenarioIds ?? null);
   const validatedVisibleScenarioIds = React.useMemo(
@@ -62,9 +63,14 @@ export function useArticleReaderLiveRuntimeV3(
   );
   const visibleScopeKey = JSON.stringify(validatedVisibleScenarioIds);
   const structuralAnalysisKey = JSON.stringify(structuralAnalyses);
+  const presentationOutputKey = JSON.stringify(
+    presentationOutputIds === undefined
+      ? null
+      : [...presentationOutputIds].sort(),
+  );
   const sampleStore = React.useMemo(
     () => new WorkbenchScenarioPresentationSampleStoreV3(),
-    [snapshot.snapshotId, visibleScopeKey],
+    [presentationOutputKey, snapshot.snapshotId, visibleScopeKey],
   );
   const controllerRef = React.useRef<ArticleReaderLiveRuntimeV3 | null>(null);
   const [state, setState] = React.useState<ArticleReaderLiveRuntimeStateV3>(() =>
@@ -81,6 +87,9 @@ export function useArticleReaderLiveRuntimeV3(
         : { initialActiveScenarioId }),
       visibleScenarioIds: validatedVisibleScenarioIds,
       structuralAnalyses,
+      ...(presentationOutputIds === undefined
+        ? {}
+        : { presentationOutputIds }),
       sampleStore,
       releaseTicket: exactModel.releaseTicket,
       ...(exactModel?.resolveAnalysisExecutionPlan === undefined
@@ -118,6 +127,7 @@ export function useArticleReaderLiveRuntimeV3(
     sampleStore,
     snapshot,
     structuralAnalysisKey,
+    presentationOutputKey,
     visibleScopeKey,
     exactModel?.releaseTicket,
     exactModel?.resolveAnalysisExecutionPlan,

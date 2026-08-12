@@ -35,6 +35,9 @@ import type { StudioClientCompositionV2 } from
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import type { UseArticleReaderLiveRuntimeResultV3 } from "@/components/article/reader/useArticleReaderLiveRuntimeV3";
 import { articleReaderAnalysisKeyV3 } from "@/components/article/reader/ArticleReaderLiveRuntimeV3";
+import {
+  articleReaderPresentationOutputSelectionV3,
+} from "@/components/article/reader/ArticleReaderPresentationOutputSelectionV3";
 import { WorkbenchScenarioPresentationSampleStoreV3 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
 import {
   STANDARD_TEST_RELEASE_TICKET_V1,
@@ -329,6 +332,84 @@ function readerRuntimeStubV3(
 }
 
 describe("Article Reader V3 experiment anchor", () => {
+  it("selects only graph and output-card histories for one Placement", () => {
+    const snapshot = snapshotV3();
+    const selectedSnapshot: ExperimentSnapshotV2 = {
+      ...snapshot,
+      content: {
+        ...snapshot.content,
+        surface: {
+          ...snapshot.content.surface,
+          graphPanes: [{
+            paneId: "pane/sweep",
+            role: "graph",
+            label: "Pressure",
+            order: 0,
+            priority: 10,
+            graphId: "graph/sweep",
+            scenarioScope: { mode: "visible-scenarios" },
+            excludedTraces: [],
+            windowSec: 2,
+            series: [{
+              seriesId: "series/pressure",
+              label: "Pressure",
+              order: 0,
+            }],
+          }],
+          outputPanes: [],
+          controlPanes: [],
+          note: { text: "" },
+        },
+      },
+    };
+    const contract: ModelContractV2 = {
+      ...contractV3(),
+      outputCatalog: [{
+        outputId: "output/pressure",
+        kind: "signal",
+        unit: "mmHg",
+        shape: "scalar",
+        sampling: "accepted-step",
+      }, {
+        outputId: "output/co",
+        kind: "metric",
+        unit: "L/min",
+        shape: "scalar",
+        scope: "instant",
+        dependencies: [],
+      }],
+      graphCatalog: [{
+        graphId: "graph/sweep",
+        renderer: "sweep",
+        defaultSeriesIds: ["series/pressure"],
+        seriesCatalog: [{
+          kind: "scalar",
+          seriesId: "series/pressure",
+          outputId: "output/pressure",
+        }],
+      }],
+    };
+    const briefing: ExperimentPlacementBriefingV2 = {
+      ...briefingV3(),
+      graphs: [{ paneId: "pane/sweep", order: 0, emphasis: "primary" }],
+      outputs: [{
+        sourcePaneId: "pane/outputs",
+        outputId: "output/co",
+        scenarioId: "scenario/comparison",
+        label: "CO",
+        order: 0,
+      }],
+    };
+
+    expect([
+      ...articleReaderPresentationOutputSelectionV3(
+        contract,
+        selectedSnapshot,
+        briefing,
+      ),
+    ].sort()).toEqual(["output/co", "output/pressure"]);
+  });
+
   it("separates in-place Peek maximization from Experiment Session navigation", () => {
     const splitHtml = renderToStaticMarkup(
       <ArticleReaderExperimentPeekPanelV3
