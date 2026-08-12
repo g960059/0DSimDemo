@@ -92,7 +92,7 @@ export function isTransitivelyFrozenPlainDataV1(
     new WeakSet<object>(),
     visited,
   );
-  if (result) {
+  if (result && validationStampReuseEligibleV1()) {
     for (const item of visited) {
       transitivelyFrozenPlainDataProofsV1.add(item);
     }
@@ -108,7 +108,10 @@ function inspectTransitivelyFrozenPlainDataV1(
   if (value === null) return true;
   if (typeof value === "function") return false;
   if (typeof value !== "object") return true;
-  if (transitivelyFrozenPlainDataProofsV1.has(value)) return true;
+  if (
+    validationStampReuseEligibleV1()
+    && transitivelyFrozenPlainDataProofsV1.has(value)
+  ) return true;
   if (seen.has(value)) return true;
   if (!Object.isFrozen(value)) return false;
   const prototype = Object.getPrototypeOf(value);

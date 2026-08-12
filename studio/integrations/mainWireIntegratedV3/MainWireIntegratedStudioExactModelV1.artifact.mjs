@@ -1183,7 +1183,7 @@ function isTransitivelyFrozenPlainDataV1(value) {
     /* @__PURE__ */ new WeakSet(),
     visited
   );
-  if (result) {
+  if (result && validationStampReuseEligibleV1()) {
     for (const item of visited) {
       transitivelyFrozenPlainDataProofsV1.add(item);
     }
@@ -1194,7 +1194,7 @@ function inspectTransitivelyFrozenPlainDataV1(value, seen, visited) {
   if (value === null) return true;
   if (typeof value === "function") return false;
   if (typeof value !== "object") return true;
-  if (transitivelyFrozenPlainDataProofsV1.has(value)) return true;
+  if (validationStampReuseEligibleV1() && transitivelyFrozenPlainDataProofsV1.has(value)) return true;
   if (seen.has(value)) return true;
   if (!Object.isFrozen(value)) return false;
   const prototype = Object.getPrototypeOf(value);
@@ -2070,7 +2070,7 @@ function hasDynamicMechanicalSupportValidationStampV1(state, profile, config) {
   return VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state)?.some((stamp) => stamp.profile === profile && stamp.config === config) ?? false;
 }
 function stampDynamicMechanicalSupportAcceptedStateV1(state, profile, config) {
-  if (!LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state) || !validationStampReuseEligibleV1() || !Object.isFrozen(state) || !validationStampIssuanceEligibleV1(profile, config)) return;
+  if (!LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state) || !validationStampIssuanceEligibleV1(state, profile, config)) return;
   const existing = VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state) ?? [];
   if (existing.some((stamp) => stamp.profile === profile && stamp.config === config)) return;
   VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.set(
@@ -4490,7 +4490,7 @@ function initialCoronaryToneStateV2(prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR
   ));
 }
 function coronaryConfigurationFingerprintV2(value) {
-  if (value !== null && typeof value === "object" && coronaryConfigurationFingerprintProofsV2.has(value)) {
+  if (value !== null && typeof value === "object" && validationStampReuseEligibleV1() && coronaryConfigurationFingerprintProofsV2.has(value)) {
     return coronaryConfigurationFingerprintProofsV2.get(value);
   }
   const canonical = canonicalJsonV2(value);
@@ -4500,7 +4500,7 @@ function coronaryConfigurationFingerprintV2(value) {
     hash = Math.imul(hash, 16777619) >>> 0;
   }
   const fingerprint = `fnv1a32-${hash.toString(16).padStart(8, "0")}`;
-  if (value !== null && typeof value === "object" && isTransitivelyFrozenPlainDataV1(value)) {
+  if (value !== null && typeof value === "object" && validationStampReuseEligibleV1() && isTransitivelyFrozenPlainDataV1(value)) {
     coronaryConfigurationFingerprintProofsV2.set(value, fingerprint);
   }
   return fingerprint;
@@ -5403,7 +5403,7 @@ function hasAutoregulationStateBindingStampV3(state, binding) {
   return VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.get(state)?.has(binding) ?? false;
 }
 function stampAutoregulationStateBindingV3(state, binding) {
-  if (!validationStampReuseEligibleV1() || !Object.isFrozen(state) || !validationStampIssuanceEligibleV1(binding)) return;
+  if (!validationStampIssuanceEligibleV1(state, binding)) return;
   const bindings = VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.get(state) ?? /* @__PURE__ */ new WeakSet();
   bindings.add(binding);
   VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.set(state, bindings);
@@ -16957,9 +16957,7 @@ function validatedMainWireFiveWallCoronaryBaseStateV2(state) {
   );
   const baseState = mainWireFiveWallCoronaryBaseStateV2(state);
   validateMainWireFiveWallCoronaryAcceptedStateV2(baseState);
-  if (Object.isFrozen(state) && Object.isFrozen(state.circulation) && Object.isFrozen(state.coronary) && Object.isFrozen(state.mechanics) && validationStampReuseEligibleV1() && Object.isFrozen(state.coronaryAutoregulation) && validationStampIssuanceEligibleV1(
-    state.coronaryAutoregulationBinding
-  )) {
+  if (Object.isFrozen(state) && Object.isFrozen(state.circulation) && Object.isFrozen(state.coronary) && Object.isFrozen(state.mechanics) && validationStampIssuanceEligibleV1(state)) {
     validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
       state,
       baseState
@@ -23496,7 +23494,7 @@ function validateAcceptedComposedRhythmTransactionBoundaryV2(state) {
   validateAcceptedComposedRhythmTransactionStateV2(state);
 }
 function stampInternallyValidatedAcceptedComposedRhythmStateV2(state) {
-  if (validationStampReuseEligibleV1() && Object.isFrozen(state)) {
+  if (validationStampIssuanceEligibleV1(state)) {
     internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
   }
 }
@@ -33628,7 +33626,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-9";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-10";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

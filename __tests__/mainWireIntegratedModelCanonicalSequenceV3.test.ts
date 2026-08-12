@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   captureMainWireIntegratedModelSequenceV3,
@@ -31,6 +31,29 @@ describe("main-wire integrated V3 canonical accepted sequence", () => {
     expect(isTransitivelyFrozenPlainDataV1(cyclic)).toBe(true);
     expect(isTransitivelyFrozenPlainDataV1(Object.freeze(new Date(0))))
       .toBe(false);
+  });
+
+  it("bypasses retained transitive proofs while validation stamps are disabled", () => {
+    const frozen = Object.freeze({
+      nested: Object.freeze({ value: 1 }),
+    });
+    expect(isTransitivelyFrozenPlainDataV1(frozen)).toBe(true);
+
+    const previous = validationStampModeV1();
+    const originalIsFrozen = Object.isFrozen;
+    let rootChecks = 0;
+    const isFrozen = vi.spyOn(Object, "isFrozen").mockImplementation((value) => {
+      if (value === frozen) rootChecks += 1;
+      return originalIsFrozen(value);
+    });
+    selectValidationStampModeV1("validation-stamps-disabled");
+    try {
+      expect(isTransitivelyFrozenPlainDataV1(frozen)).toBe(true);
+      expect(rootChecks).toBeGreaterThan(0);
+    } finally {
+      selectValidationStampModeV1(previous);
+      isFrozen.mockRestore();
+    }
   });
 
   it("pins every accepted state over the first canonical second", () => {

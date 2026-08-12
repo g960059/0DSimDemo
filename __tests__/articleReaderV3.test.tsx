@@ -377,6 +377,13 @@ describe("Article Reader V3 experiment anchor", () => {
         shape: "scalar",
         scope: "instant",
         dependencies: [],
+      }, {
+        outputId: "output/vector",
+        kind: "metric",
+        unit: "1",
+        shape: "vector",
+        scope: "instant",
+        dependencies: [],
       }],
       graphCatalog: [{
         graphId: "graph/sweep",
@@ -398,6 +405,12 @@ describe("Article Reader V3 experiment anchor", () => {
         scenarioId: "scenario/comparison",
         label: "CO",
         order: 0,
+      }, {
+        sourcePaneId: "pane/outputs",
+        outputId: "output/vector",
+        scenarioId: "scenario/comparison",
+        label: "Vector",
+        order: 1,
       }],
     };
 

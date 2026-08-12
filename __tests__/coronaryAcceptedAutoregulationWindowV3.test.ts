@@ -315,6 +315,32 @@ describe("accepted physical-time coronary autoregulation window V3", () => {
     )).toThrow(/Qm time integral keys mismatch/);
   });
 
+  it("never stamps an outer-frozen state that retains a mutable descendant", () => {
+    const initial = createCoronaryAcceptedAutoregulationStateV3(binding, {
+      acceptedTimeSec: 0,
+      revision: 0,
+    });
+    const mutableQm = structuredClone(
+      initial.qmTimeIntegralMlByTerritoryLayer,
+    ) as Record<string, Record<string, number>>;
+    const outerFrozen = Object.freeze({
+      ...initial,
+      qmTimeIntegralMlByTerritoryLayer: mutableQm,
+    }) as typeof initial;
+
+    validateCoronaryAcceptedAutoregulationStateV3(binding, outerFrozen, {
+      acceptedTimeSec: 0,
+      maximumRevision: 0,
+    });
+    mutableQm.LAD!.subepicardial = Number.NaN;
+
+    expect(() => validateCoronaryAcceptedAutoregulationStateV3(
+      binding,
+      outerFrozen,
+      { acceptedTimeSec: 0, maximumRevision: 0 },
+    )).toThrow(/Qm time integral.*finite/);
+  });
+
   it("binds accepted step count exactly to the enclosing revision", () => {
     const initial = createCoronaryAcceptedAutoregulationStateV3(binding, {
       acceptedTimeSec: 0,

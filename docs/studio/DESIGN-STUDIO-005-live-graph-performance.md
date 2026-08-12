@@ -90,16 +90,16 @@ cross-thread allocation and clone cost rather than numerical work.
 ## Exact numerical hot path
 
 Presentation work cannot compensate for a Worker that produces exact accepted
-steps slower than model time. The Standard-9 executable therefore retains
+steps slower than model time. The Standard-10 executable therefore retains
 successful validation proofs only for exact immutable identities whose entire
 plain-data graph is transitively frozen. Mutable values, restored copies,
 failed or partial validation, and stamp-disabled verification always miss and
 take the complete validator path. The full-invariant reference remains
 bit-identical to the shipped lean tier for accepted states and checkpoints.
 
-A direct same-process comparison of the committed Standard-8 and Standard-9
+A direct same-process comparison of the committed Standard-8 and Standard-10
 artifacts on the M5 Max development host measured four 200-step runs. Mean
-accepted-step time fell from about `1.51 ms` to `1.24 ms` (about 18%). The two
+accepted-step time fell from about `2.42 ms` to `2.02 ms` (about 16.6%). The two
 artifacts then produced identical accepted clocks and all 49 output records for
 1,000 presentation steps through `2.0 s`, including completed-beat metrics.
 This is exact-artifact regression evidence, not a phone throughput claim.
@@ -286,10 +286,12 @@ and record browser version, logical cores, memory, battery/thermal state,
 Scenario count, viewport, model-time ratios, long-tail latency, and a minimum
 ten-minute retained-memory soak.
 
-The 2026-08-12 Standard-9 production-preview regression run on the M5 Max
-development device passed all three enforced profiles. Post-control/background-
-contention root model-time ratios were 0.982× for four reference-desktop
-Scenarios, 0.995× for two constrained-desktop proxy Scenarios, and 0.981× for
+The 2026-08-13 presentation-path production-preview regression run on the M5
+Max development device passed all three enforced profiles. This browser run
+used the then-active registry bundle; Standard-10 itself is qualified separately
+by the exact same-process comparison above. Post-control/background-contention
+root model-time ratios were 0.983× for four reference-desktop
+Scenarios, 0.996× for two constrained-desktop proxy Scenarios, and 0.992× for
 two mobile-layout proxy Scenarios. The corresponding control-to-visible-result
 measurements were 136 ms, 234 ms, and 193 ms. Main-thread calibration measured
 about 4.1–4.3× slowdown in both proxy profiles while their dedicated Workers

@@ -1430,6 +1430,7 @@ export function coronaryConfigurationFingerprintV2(value: unknown): string {
   if (
     value !== null
     && typeof value === "object"
+    && validationStampReuseEligibleV1()
     && coronaryConfigurationFingerprintProofsV2.has(value)
   ) {
     return coronaryConfigurationFingerprintProofsV2.get(value)!;
@@ -1444,6 +1445,7 @@ export function coronaryConfigurationFingerprintV2(value: unknown): string {
   if (
     value !== null
     && typeof value === "object"
+    && validationStampReuseEligibleV1()
     && isTransitivelyFrozenPlainDataV1(value)
   ) {
     coronaryConfigurationFingerprintProofsV2.set(value, fingerprint);

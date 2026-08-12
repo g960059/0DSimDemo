@@ -399,15 +399,7 @@ function validatedMainWireFiveWallCoronaryBaseStateV2<TWallState>(
     && Object.isFrozen(state.circulation)
     && Object.isFrozen(state.coronary)
     && Object.isFrozen(state.mechanics)
-    // The exact autoregulation state/binding pair completed its exported
-    // validation immediately above. Reuse-disabled verification prevents the
-    // outer proof from being retained; enabled mode only needs to prove the
-    // immutable external binding again, not re-walk the new accepted state.
-    && validationStampReuseEligibleV1()
-    && Object.isFrozen(state.coronaryAutoregulation)
-    && validationStampIssuanceEligibleV1(
-      state.coronaryAutoregulationBinding,
-    )
+    && validationStampIssuanceEligibleV1(state)
   ) {
     validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
       state,

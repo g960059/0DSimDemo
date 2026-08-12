@@ -562,7 +562,11 @@ export class ArticleReaderLiveRuntimeV3 {
         });
       }));
       if (this.#runtime !== runtime) return;
-      appendArticleReaderFramesV3(frames, this.sampleStore);
+      appendArticleReaderFramesV3(
+        frames,
+        this.sampleStore,
+        this.#presentationOutputIds,
+      );
       const committedControlValues = withArticleReaderCommittedControlValueV3(
         this.#state.committedControlValues,
         input.scenarioIds,

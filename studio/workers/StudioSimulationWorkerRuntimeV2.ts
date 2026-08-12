@@ -495,6 +495,23 @@ export class StudioSimulationWorkerRuntimeV2 {
       request.scenarioId,
     );
     const physicalRuntimeSessionId = this.#requiredPhysicalRuntimeSessionId();
+    const currentFrame = this.#scenarioFrames.get(request.scenarioId);
+    if (currentFrame === undefined) {
+      throw new Error("simulation worker presentation Scenario is unavailable");
+    }
+    for (const outputId of request.presentationOutputIds) {
+      const output = currentFrame.outputs[outputId];
+      if (output === undefined) {
+        // Invalid presentation projection is a recoverable request error. It
+        // must not advance numerical time or poison the persistent Worker.
+        throw new Error(`presentation output ${outputId} is unavailable`);
+      }
+      if (output.value !== null && typeof output.value !== "number") {
+        throw new Error(
+          `presentation output ${outputId} must be a scalar or null`,
+        );
+      }
+    }
     try {
       const frames: StudioSimulationFrameV2[] = [];
       for (let index = 0; index < request.stepCount; index += 1) {

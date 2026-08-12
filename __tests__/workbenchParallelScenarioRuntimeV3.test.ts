@@ -552,6 +552,10 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     const deletedScheduler = harness.schedulers.get("scenario/comparison")!;
     const next = await harness.runtime.deleteScenario("scenario/comparison");
     expect(next.activeScenarioId).toBe("scenario/baseline");
+    expect(harness.runtime.maybeLatestFrame("scenario/comparison"))
+      .toBeUndefined();
+    expect(harness.runtime.maybeLatestFrame("scenario/baseline"))
+      .toBeDefined();
     expect(deletedScheduler.dispose).toHaveBeenCalledOnce();
     expect(comparisonClient.terminate).toHaveBeenCalledOnce();
   });

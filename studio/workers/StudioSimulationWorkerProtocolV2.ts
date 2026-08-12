@@ -2132,26 +2132,42 @@ function validatePresentationBatchV2(
     batch.outputIds,
     `${path}.outputIds`,
   );
-  const acceptedRevisions = typedArrayV2(
+  const receivedAcceptedRevisions = typedArrayV2(
     batch.acceptedRevisions,
     Float64Array,
     `${path}.acceptedRevisions`,
   );
-  const acceptedTimesSec = typedArrayV2(
+  const receivedAcceptedTimesSec = typedArrayV2(
     batch.acceptedTimesSec,
     Float64Array,
     `${path}.acceptedTimesSec`,
   );
-  const outputStates = typedArrayV2(
+  const receivedOutputStates = typedArrayV2(
     batch.outputStates,
     Uint8Array,
     `${path}.outputStates`,
   );
-  const outputValues = typedArrayV2(
+  const receivedOutputValues = typedArrayV2(
     batch.outputValues,
     Float64Array,
     `${path}.outputValues`,
   );
+  // The public decoder owns its result. Copy before inspecting scalar content
+  // so a caller cannot mutate a shared or otherwise aliased view between
+  // validation and ownership transfer. Trusted Worker responses retain their
+  // zero-copy path after the structured-clone boundary.
+  const acceptedRevisions = ownership === "own"
+    ? new Float64Array(receivedAcceptedRevisions)
+    : receivedAcceptedRevisions;
+  const acceptedTimesSec = ownership === "own"
+    ? new Float64Array(receivedAcceptedTimesSec)
+    : receivedAcceptedTimesSec;
+  const outputStates = ownership === "own"
+    ? new Uint8Array(receivedOutputStates)
+    : receivedOutputStates;
+  const outputValues = ownership === "own"
+    ? new Float64Array(receivedOutputValues)
+    : receivedOutputValues;
   const frameCount = acceptedRevisions.length;
   if (
     frameCount < 1
@@ -2248,18 +2264,10 @@ function validatePresentationBatchV2(
 
   return Object.freeze({
     outputIds,
-    acceptedRevisions: ownership === "own"
-      ? new Float64Array(acceptedRevisions)
-      : acceptedRevisions,
-    acceptedTimesSec: ownership === "own"
-      ? new Float64Array(acceptedTimesSec)
-      : acceptedTimesSec,
-    outputStates: ownership === "own"
-      ? new Uint8Array(outputStates)
-      : outputStates,
-    outputValues: ownership === "own"
-      ? new Float64Array(outputValues)
-      : outputValues,
+    acceptedRevisions,
+    acceptedTimesSec,
+    outputStates,
+    outputValues,
     terminalFrame,
   });
 }
@@ -2284,6 +2292,15 @@ function typedArrayV2(
   }
   if (Object.getPrototypeOf(value) !== constructor.prototype) {
     throw protocolErrorV2(path, "must not use a custom prototype");
+  }
+  if (!(value.buffer instanceof ArrayBuffer)) {
+    throw protocolErrorV2(path, "must use an owned ArrayBuffer");
+  }
+  if (
+    "resizable" in value.buffer
+    && (value.buffer as ArrayBuffer & { readonly resizable: boolean }).resizable
+  ) {
+    throw protocolErrorV2(path, "must not use a resizable ArrayBuffer");
   }
   for (const key of Reflect.ownKeys(value)) {
     if (typeof key !== "string" || !/^(0|[1-9][0-9]*)$/.test(key)) {

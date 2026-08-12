@@ -199,6 +199,26 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       .toMatchObject({ values: { pressure: 44 } });
   });
 
+  it("does not retain control-boundary outputs outside the authored presentation selection", async () => {
+    const snapshot = snapshotV3();
+    const harness = runtimeHarnessV3(snapshot);
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, {
+      createRuntime: harness.createRuntime,
+      presentationOutputIds: new Set<string>(),
+    });
+    await controller.start();
+
+    await controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
+      controlId: "control/svr",
+      scenarioIds: ["scenario/one"],
+      value: 44,
+    });
+
+    expect(controller.sampleStore.getScenarioSnapshot("scenario/one"))
+      .toEqual([]);
+  });
+
   it("drains only each analysis source lane without pausing all Scenarios", async () => {
     const snapshot = snapshotV3();
     const harness = runtimeHarnessV3(snapshot, { advanceOnPause: true });

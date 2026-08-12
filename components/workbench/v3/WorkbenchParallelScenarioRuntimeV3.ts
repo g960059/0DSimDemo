@@ -275,6 +275,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     return this.#requiredLane(scenarioId).latestFrame;
   }
 
+  /**
+   * Non-throwing frame lookup for asynchronous presentation callbacks.
+   * A queued visual slice may arrive after its Scenario was deleted; that is
+   * normal cancellation, not a runtime failure.
+   */
+  maybeLatestFrame(scenarioId: string): StudioSimulationFrameV2 | undefined {
+    if (this.#state !== "active") return undefined;
+    return this.#lanes.get(scenarioId)?.latestFrame;
+  }
+
   currentState(): StudioSimulationWorkerScenarioStateV2 {
     return Object.freeze({
       activeScenarioId: this.#requiredActiveScenarioId(),

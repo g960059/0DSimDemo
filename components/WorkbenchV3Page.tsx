@@ -953,7 +953,7 @@ const WorkbenchV3Session = ({
           const frame =
             activeId === null || runtime === undefined
               ? undefined
-              : runtime.latestFrame(activeId);
+              : runtime.maybeLatestFrame(activeId);
           if (frame === undefined) return;
           latestFrameRef.current = frame;
           if (

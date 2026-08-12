@@ -17,9 +17,17 @@ export function articleReaderPresentationOutputSelectionV3(
   snapshot: ExperimentSnapshotV2,
   briefing: ExperimentPlacementBriefingV2,
 ): ReadonlySet<string> {
-  const outputIds = new Set<string>(
-    briefing.outputs.map(({ outputId }) => outputId),
+  const scalarOutputIds = new Set(
+    contract.outputCatalog
+      .filter(({ shape }) => shape === "scalar")
+      .map(({ outputId }) => outputId),
   );
+  const outputIds = new Set<string>();
+  for (const { outputId } of briefing.outputs) {
+    // Vector values remain available in each complete terminal frame, but the
+    // compact presentation history intentionally transports scalar rows only.
+    if (scalarOutputIds.has(outputId)) outputIds.add(outputId);
+  }
   let sweepPresent = false;
   for (const selectedGraph of briefing.graphs) {
     const pane = snapshot.content.surface.graphPanes.find(

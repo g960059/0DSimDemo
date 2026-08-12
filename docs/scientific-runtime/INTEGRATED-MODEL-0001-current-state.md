@@ -32,10 +32,10 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-9
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-10
 ```
 
-Standard-9 preserves Standard-8's equations, controls, checkpoint meaning, and
+Standard-10 preserves Standard-8's equations, controls, checkpoint meaning, and
 accepted numerical sequence while reducing repeated validation work inside the
 accepted-step hot path. Fully validated, transitively frozen model-owned values
 carry an in-process identity proof that can be reused; mutable, partially

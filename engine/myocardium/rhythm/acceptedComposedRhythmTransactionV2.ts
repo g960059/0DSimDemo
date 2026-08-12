@@ -1316,12 +1316,7 @@ export function validateAcceptedComposedRhythmTransactionBoundaryV2(
 function stampInternallyValidatedAcceptedComposedRhythmStateV2(
   state: AcceptedComposedRhythmTransactionStateV2,
 ): void {
-  // Every caller is a private constructor that deep-freezes the complete
-  // state graph. Full mode independently validates that graph first; lean
-  // mode deliberately trusts the constructor provenance documented in the
-  // hot-path integrity inventory. Reuse-disabled verification still prevents
-  // issuance entirely.
-  if (validationStampReuseEligibleV1() && Object.isFrozen(state)) {
+  if (validationStampIssuanceEligibleV1(state)) {
     internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
   }
 }

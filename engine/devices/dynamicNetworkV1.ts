@@ -1366,12 +1366,7 @@ function stampDynamicMechanicalSupportAcceptedStateV1(
 ): void {
   if (
     !LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state)
-    || !validationStampReuseEligibleV1()
-    || !Object.isFrozen(state)
-    // The live-state constructor owns and freezes every state descendant.
-    // Only the externally supplied binding identities still need the generic
-    // transitive proof before this private state/context stamp can be issued.
-    || !validationStampIssuanceEligibleV1(profile, config)
+    || !validationStampIssuanceEligibleV1(state, profile, config)
   ) return;
   const existing =
     VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state) ?? [];

@@ -589,6 +589,27 @@ describe("Studio simulation worker V2 protocol", () => {
     expect([...owned.batch.outputValues]).toEqual([91, 92]);
   });
 
+  it("rejects shared compact transport buffers", () => {
+    const batch = createStudioSimulationPresentationBatchV2([
+      frameV2({
+        acceptedRevision: 1,
+        acceptedTimeSec: 0.002,
+        outputs: { "pressure.lv": outputV2("pressure.lv", 91) },
+      }),
+    ], ["pressure.lv"]);
+    if (typeof SharedArrayBuffer === "function") {
+      const sharedValues = new Float64Array(new SharedArrayBuffer(8));
+      sharedValues[0] = 91;
+      expect(() => validateStudioSimulationWorkerResponseV2({
+        protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+        requestId: 10,
+        status: "ok",
+        kind: "presentation-advanced",
+        batch: { ...batch, outputValues: sharedValues },
+      })).toThrow(/owned ArrayBuffer/);
+    }
+  });
+
   it("rejects malformed compact presentation matrix and terminal correlation", () => {
     const batch = createStudioSimulationPresentationBatchV2([
       frameV2({
@@ -784,7 +805,6 @@ describe("Studio simulation worker V2 runtime", () => {
         terminalFrame: { acceptedRevision: 2 },
       },
     });
-    expect(harness.port.transfers.at(-1)).toHaveLength(4);
     if (
       response === null
       || typeof response !== "object"
@@ -794,10 +814,92 @@ describe("Studio simulation worker V2 runtime", () => {
     }
     const batch = response.batch as {
       acceptedRevisions: Float64Array;
+      acceptedTimesSec: Float64Array;
+      outputStates: Uint8Array;
       outputValues: Float64Array;
     };
+    expect(harness.port.transfers.at(-1)).toEqual([
+      batch.acceptedRevisions.buffer,
+      batch.acceptedTimesSec.buffer,
+      batch.outputStates.buffer,
+      batch.outputValues.buffer,
+    ]);
     expect([...batch.acceptedRevisions]).toEqual([1, 2]);
     expect([...batch.outputValues]).toEqual([80, 80]);
+  });
+
+  it("rejects an unknown presentation output without advancing or killing the Worker", async () => {
+    const harness = runtimeHarnessV2();
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(
+      2,
+      {
+        runtimeSessionId: "runtime/session-1",
+        scenarioId: "scenario/baseline",
+        stepCount: 1,
+        presentationOutputIds: ["pressure.unknown"],
+      },
+    ));
+    await harness.runtime.whenIdle();
+
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      requestId: 2,
+      status: "error",
+      fatal: false,
+      message: expect.stringMatching(/presentation output.*unavailable/),
+    });
+    expect(harness.adapter.advanceOnePresentationStep).not.toHaveBeenCalled();
+    expect(harness.runtime.state).toBe("active");
+
+    harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(3, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 1,
+    }));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      requestId: 3,
+      status: "ok",
+      kind: "advanced",
+    });
+  });
+
+  it("rejects a vector presentation output before advancing or killing the Worker", async () => {
+    const vectorFrame = frameV2({
+      outputs: {
+        "valid.vector": outputV2("valid.vector", [1, 2]),
+      },
+    });
+    const advanceOnePresentationStep = vi.fn(() =>
+      Promise.resolve(vectorFrame));
+    const harness = runtimeHarnessV2({
+      currentFrame: vi.fn(() => vectorFrame),
+      advanceOnePresentationStep,
+    });
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(
+      2,
+      {
+        runtimeSessionId: "runtime/session-1",
+        scenarioId: "scenario/baseline",
+        stepCount: 1,
+        presentationOutputIds: ["valid.vector"],
+      },
+    ));
+    await harness.runtime.whenIdle();
+
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      requestId: 2,
+      status: "error",
+      fatal: false,
+      message: expect.stringMatching(/must be a scalar or null/),
+    });
+    expect(advanceOnePresentationStep).not.toHaveBeenCalled();
+    expect(harness.runtime.state).toBe("active");
   });
 
   it("atomically rejects stale controls and commits one epoch on success", async () => {
