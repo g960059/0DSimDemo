@@ -15,6 +15,9 @@ import {
   type MainWireIntegratedModelPresentationAdvanceV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
+  MainWireFlatAuthoritativeReferenceSessionV1,
+} from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
+import {
   createFlatNumericalStateBufferV1,
   createFlatNumericalStateLayoutV1,
   createFlatNumericalStringTableV1,
@@ -55,7 +58,6 @@ export type MainWireFlatReferenceAdvanceResultV1 = Readonly<{
   terminalRevision: number;
   phaseTimingsMs: Readonly<{
     oracleAdvance: number;
-    flatMirrorWrite: number;
     outputProjection: number;
     total: number;
   }>;
@@ -77,18 +79,20 @@ export type MainWireFlatReferenceOracleV1 = Pick<
 >;
 
 /**
- * Phase 1a vertical slice. The current V3 session remains the scientific
- * oracle while ownership outside that oracle is already integer-tick, flat,
- * double-buffered and typed-page based. This class is not a released model.
+ * Non-production vertical slice. The default path owns the complete accepted
+ * transaction through MainWireFlatAuthoritativeReferenceSessionV1 and writes
+ * integer-tick output pages directly. A flattened object snapshot is produced
+ * only on explicit diagnostic request, never once per presentation tick.
+ * Test-only injected oracles remain available to falsify failure atomicity.
  */
 export class MainWireFlatReferenceKernelV1 {
   readonly kernelId = MAIN_WIRE_FLAT_REFERENCE_KERNEL_V1_ID;
 
   readonly #oracle: MainWireFlatReferenceOracleV1;
   readonly #layout: FlatNumericalStateLayoutV1;
-  readonly #stringTable = createFlatNumericalStringTableV1();
-  #currentState: FlatNumericalStateBufferV1;
-  #candidateState: FlatNumericalStateBufferV1;
+  #acceptedState: ReturnType<
+    MainWireFlatReferenceOracleV1["currentAcceptedState"]
+  >;
   #acceptedTick: number;
   #acceptedRevision: number;
   #poisonedReason: string | null = null;
@@ -96,23 +100,13 @@ export class MainWireFlatReferenceKernelV1 {
   private constructor(oracle: MainWireFlatReferenceOracleV1) {
     this.#oracle = oracle;
     const accepted = oracle.currentAcceptedState();
+    this.#acceptedState = accepted;
     this.#acceptedTick = presentationTickForAcceptedTime(accepted.acceptedTimeSec);
     this.#acceptedRevision = accepted.revision;
     this.#layout = createFlatNumericalStateLayoutV1(
       MAIN_WIRE_FLAT_REFERENCE_STATE_LAYOUT_V1_ID,
       accepted,
     );
-    this.#currentState = createFlatNumericalStateBufferV1(this.#layout);
-    this.#candidateState = createFlatNumericalStateBufferV1(this.#layout);
-    writeFlatNumericalStateV1(
-      this.#layout,
-      accepted,
-      this.#currentState,
-      this.#stringTable,
-    );
-    this.#candidateState.continuous.set(this.#currentState.continuous);
-    this.#candidateState.booleans.set(this.#currentState.booleans);
-    this.#candidateState.strings.set(this.#currentState.strings);
   }
 
   static async create(
@@ -121,7 +115,7 @@ export class MainWireFlatReferenceKernelV1 {
     ventricularContractilityScale = 1,
   ): Promise<MainWireFlatReferenceKernelV1> {
     return new MainWireFlatReferenceKernelV1(
-      await MainWireIntegratedModelSessionV3.create(
+      await MainWireFlatAuthoritativeReferenceSessionV1.create(
         inputs,
         ventricularContractilityScale,
       ),
@@ -140,13 +134,21 @@ export class MainWireFlatReferenceKernelV1 {
   }
 
   snapshotCurrentFlatState(): MainWireFlatReferenceStateSnapshotV1 {
+    const buffer = createFlatNumericalStateBufferV1(this.#layout);
+    const stringTable = createFlatNumericalStringTableV1();
+    writeFlatNumericalStateV1(
+      this.#layout,
+      this.#acceptedState,
+      buffer,
+      stringTable,
+    );
     return Object.freeze({
       acceptedTick: this.#acceptedTick,
       acceptedRevision: this.#acceptedRevision,
-      continuous: this.#currentState.continuous.slice(),
-      booleans: this.#currentState.booleans.slice(),
-      strings: this.#currentState.strings.slice(),
-      stringTable: Object.freeze([...this.#stringTable.valuesByCode]),
+      continuous: buffer.continuous,
+      booleans: buffer.booleans,
+      strings: buffer.strings,
+      stringTable: Object.freeze([...stringTable.valuesByCode]),
     });
   }
 
@@ -174,7 +176,6 @@ export class MainWireFlatReferenceKernelV1 {
 
     const startedAt = performance.now();
     let oracleAdvanceMs = 0;
-    let flatMirrorWriteMs = 0;
     let outputProjectionMs = 0;
 
     for (let pageIndex = 0; pageIndex < sampleCount; pageIndex += 1) {
@@ -226,18 +227,6 @@ export class MainWireFlatReferenceKernelV1 {
 
       try {
         phaseStartedAt = performance.now();
-        writeFlatNumericalStateV1(
-          this.#layout,
-          advance.observation.acceptedState,
-          this.#candidateState,
-          this.#stringTable,
-        );
-        const previous = this.#currentState;
-        this.#currentState = this.#candidateState;
-        this.#candidateState = previous;
-        flatMirrorWriteMs += performance.now() - phaseStartedAt;
-
-        phaseStartedAt = performance.now();
         const values = projectMainWireIntegratedModelSelectedValuesV3(
           advance.observation,
           outputPlan.outputIds,
@@ -255,6 +244,7 @@ export class MainWireFlatReferenceKernelV1 {
 
       destination.acceptedTicks[pageIndex] = nextTick;
       destination.acceptedRevisions[pageIndex] = advance.acceptedRevision;
+      this.#acceptedState = advance.observation.acceptedState;
       this.#acceptedTick = nextTick;
       this.#acceptedRevision = advance.acceptedRevision;
     }
@@ -265,7 +255,6 @@ export class MainWireFlatReferenceKernelV1 {
       terminalRevision: this.#acceptedRevision,
       phaseTimingsMs: Object.freeze({
         oracleAdvance: oracleAdvanceMs,
-        flatMirrorWrite: flatMirrorWriteMs,
         outputProjection: outputProjectionMs,
         total: performance.now() - startedAt,
       }),

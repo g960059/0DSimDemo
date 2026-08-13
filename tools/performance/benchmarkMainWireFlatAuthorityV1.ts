@@ -12,6 +12,11 @@ import {
   createMainWireIntegratedModelRuntimeV3,
 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
 import {
+  limitMainWireAcceptedTypedCandidateTimeV1,
+  readMainWireAcceptedTypedClockV1,
+  stageMainWireAcceptedTypedCalciumCandidateV1,
+} from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
+import {
   createMainWireAcceptedTypedStateManifestV1,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
 import {
@@ -36,6 +41,8 @@ let objectDurationMs = 0;
 let flatDurationMs = 0;
 let typedStageDurationMs = 0;
 let typedRehydrateDurationMs = 0;
+let typedBoundaryDurationMs = 0;
+let typedCalciumCandidateDurationMs = 0;
 
 for (let tick = 1; tick <= WARMUP_TICKS + MEASURED_TICKS; tick += 1) {
   const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
@@ -69,15 +76,38 @@ for (let tick = 1; tick <= WARMUP_TICKS + MEASURED_TICKS; tick += 1) {
   typedImage.rehydrateStaged();
   const rehydratedAt = performance.now();
   typedImage.promote();
+  const cursor = typedImage.currentCursor();
+  const boundaryStartedAt = performance.now();
+  const clock = readMainWireAcceptedTypedClockV1(cursor);
+  const nextBoundary = limitMainWireAcceptedTypedCandidateTimeV1(
+    cursor,
+    mainWireIntegratedModelPresentationTargetTimeSecV3(tick + 1),
+    null,
+  );
+  const boundaryFinishedAt = performance.now();
+  const candidateCursor = typedImage.beginCandidateFromCurrent();
+  stageMainWireAcceptedTypedCalciumCandidateV1(
+    cursor,
+    candidateCursor,
+    nextBoundary.candidateTimeSec,
+  );
+  typedImage.abort();
+  const candidateFinishedAt = performance.now();
   if (tick > WARMUP_TICKS) {
     typedStageDurationMs += stagedAt - stageStartedAt;
     typedRehydrateDurationMs += rehydratedAt - stagedAt;
+    typedBoundaryDurationMs += boundaryFinishedAt - boundaryStartedAt;
+    typedCalciumCandidateDurationMs +=
+      candidateFinishedAt - boundaryFinishedAt;
   }
   if (
     resolvedObjectResult.acceptedRevision !== flatResult.acceptedRevision
     || resolvedObjectResult.acceptedTimeSec !== flatResult.acceptedTimeSec
   ) {
     throw new Error("flat authority benchmark accepted clock diverged");
+  }
+  if (clock.acceptedTimeSec !== resolvedObjectResult.acceptedTimeSec) {
+    throw new Error("typed boundary benchmark accepted clock diverged");
   }
 }
 
@@ -114,6 +144,10 @@ process.stdout.write(`${JSON.stringify({
       typedStageDurationMs / MEASURED_TICKS,
     rehydrateMeanMsPerPresentationTick:
       typedRehydrateDurationMs / MEASURED_TICKS,
+    boundaryMeanMsPerPresentationTick:
+      typedBoundaryDurationMs / MEASURED_TICKS,
+    calciumCandidateMeanMsPerPresentationTick:
+      typedCalciumCandidateDurationMs / MEASURED_TICKS,
     report: typedImage.report(),
   },
 }, null, 2)}\n`);

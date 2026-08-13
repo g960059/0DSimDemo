@@ -31,6 +31,11 @@ export type FlatNumericalStateLayoutV1 = Readonly<{
   containers: readonly FlatNumericalContainerV1[];
 }>;
 
+export type FlatNumericalStateLayoutOptionsV1 = Readonly<{
+  /** Model-owned ordinary arrays whose exact length is part of the layout. */
+  fixedArrayPointers?: readonly string[];
+}>;
+
 /** Mutable storage owned by one numerical authority. */
 export type FlatNumericalStateBufferV1 = Readonly<{
   continuous: Float64Array;
@@ -50,6 +55,7 @@ export type FlatNumericalStringTableV1 = Readonly<{
 export function createFlatNumericalStateLayoutV1(
   layoutId: string,
   referenceState: unknown,
+  options: FlatNumericalStateLayoutOptionsV1 = {},
 ): FlatNumericalStateLayoutV1 {
   if (layoutId.trim().length === 0) {
     throw new Error("Flat numerical state layoutId is empty");
@@ -59,6 +65,18 @@ export function createFlatNumericalStateLayoutV1(
   const stringSlots: FlatNumericalSlotV1[] = [];
   const excludedDynamicRoots: FlatNumericalSlotV1[] = [];
   const containers: FlatNumericalContainerV1[] = [];
+  const fixedArrayPointers = new Set(
+    options.fixedArrayPointers?.map((value) => {
+      if (typeof value !== "string" || !value.startsWith("/")) {
+        throw new Error("Flat numerical fixed-array pointer is invalid");
+      }
+      return value;
+    }) ?? [],
+  );
+  if (fixedArrayPointers.size !== (options.fixedArrayPointers?.length ?? 0)) {
+    throw new Error("Flat numerical fixed-array pointer is duplicated");
+  }
+  const admittedFixedArrayPointers = new Set<string>();
 
   visit(referenceState, [], {
     continuousSlots,
@@ -66,7 +84,16 @@ export function createFlatNumericalStateLayoutV1(
     stringSlots,
     excludedDynamicRoots,
     containers,
+    fixedArrayPointers,
+    admittedFixedArrayPointers,
   });
+  for (const fixedArrayPointer of fixedArrayPointers) {
+    if (!admittedFixedArrayPointers.has(fixedArrayPointer)) {
+      throw new Error(
+        `Flat numerical fixed-array ${fixedArrayPointer} is unavailable`,
+      );
+    }
+  }
   if (continuousSlots.length === 0) {
     throw new Error("Flat numerical state contains no continuous slots");
   }
@@ -203,6 +230,8 @@ function visit(
     stringSlots: FlatNumericalSlotV1[];
     excludedDynamicRoots: FlatNumericalSlotV1[];
     containers: FlatNumericalContainerV1[];
+    fixedArrayPointers: ReadonlySet<string>;
+    admittedFixedArrayPointers: Set<string>;
   },
 ): void {
   if (typeof value === "number") {
@@ -225,7 +254,21 @@ function visit(
     return;
   }
   if (Array.isArray(value)) {
-    destination.excludedDynamicRoots.push(slot(path));
+    const pathPointer = pointer(path);
+    if (!destination.fixedArrayPointers.has(pathPointer)) {
+      destination.excludedDynamicRoots.push(slot(path));
+      return;
+    }
+    assertDataProperties(value, path, true);
+    const keys = Array.from({ length: value.length }, (_, index) => String(index));
+    if (!sameStrings(Object.keys(value), keys)) {
+      throw new Error(`Flat numerical state ${pathPointer} changed array shape`);
+    }
+    destination.containers.push(container(path, "array", keys));
+    destination.admittedFixedArrayPointers.add(pathPointer);
+    for (let index = 0; index < value.length; index += 1) {
+      visit(value[index], [...path, index], destination);
+    }
     return;
   }
   if (isNumericTypedArray(value)) {

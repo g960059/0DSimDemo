@@ -312,23 +312,24 @@ object solver and an object boundary adapter.
 #### Phase 1b.2b.1 — complete transactional typed image (implemented reference)
 
 The complete accepted topology is now represented by two lifetime-fixed,
-model-owned `ArrayBuffer` images. Each image is exactly `267,668` bytes and
+model-owned `ArrayBuffer` images. Each image is exactly `267,708` bytes and
 contains:
 
-- 440 `f64` slots and four boolean slots at versioned fixed offsets;
+- 450 `f64` slots and four boolean slots at versioned fixed offsets;
 - 205 string offset/length pairs backed by a fixed `128 KiB` UTF-8 arena;
-- 45 dynamic-root offset/length pairs backed by a separate fixed `128 KiB`
+- 40 dynamic-root offset/length pairs backed by a separate fixed `128 KiB`
   canonical arena; and
-- the 158-container shape contract and fingerprint `fnv1a32-9657ecbf`.
+- the 163-container shape contract and fingerprint `fnv1a32-b2a14bb3`.
 
 Dynamic roots are explicit cut points rather than an escape from bounded
-ownership. In the current Standard state they comprise fixed two-element
-calcium arrays, bounded rhythm queues observed at length zero or one, optional
-rhythm state, and inactive optional device projections. Strings are rewritten
-inside the inactive arena each transaction; no lifetime interning table
-survives. Inspection also identifies the high-cardinality mechanics
-fingerprint as a recomputable diagnostic and activation/transaction labels as
-candidates for bounded model-owned codes in the direct kernel.
+ownership. The five two-component exact-event calcium states are declared as
+fixed model arrays, so all ten components receive direct `f64` slots. The
+remaining roots comprise bounded rhythm queues observed at length zero or
+one, optional rhythm state, and inactive optional device projections. Strings
+are rewritten inside the inactive arena each transaction; no lifetime
+interning table survives. Inspection also identifies the high-cardinality
+mechanics fingerprint as a recomputable diagnostic and activation/transaction
+labels as candidates for bounded model-owned codes in the direct kernel.
 
 Staging first validates the complete fixed container topology, then writes
 only the inactive image. Invalid finite values, changed keys/prototypes,
@@ -345,15 +346,15 @@ returned directly by the preceding solve. This makes the complete typed image
 the accepted-state authority, while leaving the registered exact Session and
 artifacts unchanged.
 
-This is still not a production speedup. A representative 512-tick alternating
-diagnostic measured about `2.38 ms/tick` for the released object Session and
-`4.66 ms/tick` for the typed-authority reference (`1.96x`). Isolated typed
-image staging measured about `0.202 ms/presentation tick`, and rehydration
-about `0.060 ms/presentation tick`. String and dynamic high-water usage were
-`6,789` and `4,199` bytes respectively, far below their fixed capacities.
-The remaining overhead is dominated by rebuilding and fully revalidating the
-legacy object owner graph, not by the typed page itself. These figures are
-machine-specific diagnostics, not gates.
+This is still not a production speedup. The latest representative 512-tick
+alternating diagnostic measured about `2.47 ms/tick` for the released object
+Session and `4.58 ms/tick` for the typed-authority reference (`1.85x`).
+Isolated typed-image staging measured about `0.215 ms/presentation tick`, and
+rehydration about `0.067 ms/presentation tick`. String and dynamic high-water
+usage were `6,789` and `4,084` bytes respectively, far below their fixed
+capacities. The remaining overhead is dominated by rebuilding and fully
+revalidating the legacy object owner graph, not by the typed page itself.
+These figures are machine-specific diagnostics, not gates.
 
 #### Phase 1b.2b.2a — authoritative boundary cursor (implemented reference)
 
@@ -361,7 +362,7 @@ The active typed image now exposes a read-only live cursor rather than an
 `ArrayBuffer` or typed-array view. The cursor follows the atomic active-index
 swap and permits generated slot reads only; it cannot mutate either image.
 The Main Wire binding admits that cursor only when its layout ID and complete
-manifest fingerprint match `fnv1a32-9657ecbf`.
+manifest fingerprint match `fnv1a32-b2a14bb3`.
 
 The reference Session now reads the outer accepted clock and revision from
 fixed slots and computes its next coronary/rhythm boundary from the active
@@ -383,11 +384,41 @@ This slice moves scheduling authority, not the nonlinear solve. The existing
 object transaction still regenerates and validates its own boundary internally
 and produces an object candidate before the inactive typed image admits it.
 A representative 512-tick diagnostic measured about `2.47 ms/tick` for the
-released Session and `4.55 ms/tick` for the typed reference (`1.85x`); isolated
-typed image staging and rehydration were about `0.215 ms/tick` and
-`0.066 ms/tick`. The small change relative to Phase 1b.2b.1 is expected because
-duplicate legacy transaction work remains. These figures are diagnostics, not
-performance gates.
+released Session and `4.58 ms/tick` for the typed reference (`1.85x`); isolated
+typed-image staging and rehydration were about `0.215 ms/tick` and
+`0.067 ms/tick`. Direct fixed-slot boundary selection measured about
+`0.0075 ms/tick`, while copying current into the inactive image and staging all
+five calcium owners measured about `0.0105 ms/tick`. The small change relative
+to Phase 1b.2b.1 is expected because duplicate legacy transaction work
+remains. These figures are diagnostics, not performance gates.
+
+The generic image also admits a generation-bound candidate cursor. Beginning a
+candidate copies current bytes once into the inactive image; direct fixed
+`f64`/boolean writes then allocate no state object and cannot touch active
+storage. Abort, promotion, or a later candidate generation permanently
+invalidates the old cursor. Strings and dynamic roots remain copied and
+read-only at this stage; their writers require explicit bounded tagged layouts
+rather than an implicit variable arena mutation API.
+
+Exact-event calcium is the first state owner to use that write surface. Its ten
+fixed state slots advance directly from the active image into the inactive
+candidate using the existing exact two-decay event law and only deposits due
+at the accepted candidate boundary. Across 96 evolving boundaries, including
+electrical/calcium events, both the fixed-slot calcium readback and candidate
+state match the existing composed-rhythm owner exactly. The complete
+composed-rhythm transaction still owns queue scheduling, capture, and commit;
+this slice does not claim that rhythm is flat yet.
+
+The non-production Worker vertical slice now creates the typed-authority
+Session by default. Its older Phase 1a lifetime string table and per-tick full
+flat mirror have been removed from the execution loop; a legacy-shaped flat
+snapshot is projected only when a diagnostic explicitly requests it. In a
+512-tick/6-output diagnostic, the released Session measured about
+`2.41 ms/tick`, the complete typed-authority Worker reference about
+`4.52 ms/tick`, and output-page projection only about `1.42 ms` in total across
+all 512 ticks. This isolates the remaining cost in the legacy object
+transaction and typed admission—not Canvas, output selection, transfer, or the
+retired mirror.
 
 #### Phase 1b.2b.2b — direct solver-owned typed state (next)
 

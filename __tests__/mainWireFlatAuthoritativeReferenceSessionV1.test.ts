@@ -11,6 +11,11 @@ import {
   createMainWireIntegratedModelRuntimeV3,
 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
 import {
+  createNoExternalAtrialSourceBatchV2,
+  evaluateAcceptedComposedRhythmTransactionCandidateV2,
+} from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
+import {
+  evaluateMainWireIntegratedModelCalciumDriveV3,
   limitMainWireIntegratedModelCandidateTimeV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
@@ -27,8 +32,10 @@ import {
   MainWireFlatAuthoritativeReferenceSessionV1,
 } from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
 import {
+  evaluateMainWireAcceptedTypedCalciumDriveV1,
   limitMainWireAcceptedTypedCandidateTimeV1,
   readMainWireAcceptedTypedClockV1,
+  stageMainWireAcceptedTypedCalciumCandidateV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
 import {
   createMainWireAcceptedTypedStateManifestV1,
@@ -199,6 +206,52 @@ describe("TransactionalScalarSlotsV1", () => {
 });
 
 describe("TransactionalTypedStateImageV1", () => {
+  it("promotes model-declared fixed arrays into typed slots", () => {
+    const initial = Object.freeze({
+      pair: Object.freeze([1, 2] as const),
+      queue: Object.freeze([] as readonly number[]),
+    });
+    const manifest = createTransactionalTypedStateManifestV1(
+      "test-fixed-array-state",
+      initial,
+      8,
+      64,
+      { fixedArrayPointers: ["/pair"] },
+    );
+    expect(manifest.numericalLayout).toMatchObject({
+      continuousSlots: { length: 2 },
+      excludedDynamicRoots: [{ pointer: "/queue" }],
+      containers: expect.arrayContaining([
+        expect.objectContaining({ pointer: "/pair", kind: "array" }),
+      ]),
+    });
+    const image = new TransactionalTypedStateImageV1(manifest, initial);
+    expect(image.rehydrateCurrent()).toEqual(initial);
+    expect(() => image.stage(Object.freeze({
+      pair: Object.freeze([3] as const),
+      queue: Object.freeze([] as readonly number[]),
+    }) as unknown as typeof initial)).toThrow("changed array shape");
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-missing-fixed-array",
+      initial,
+      8,
+      64,
+      { fixedArrayPointers: ["/missing"] },
+    )).toThrow("fixed-array /missing is unavailable");
+
+    const emptyStringState = Object.freeze({ value: 0, label: "" });
+    const emptyStringImage = new TransactionalTypedStateImageV1(
+      createTransactionalTypedStateManifestV1(
+        "test-empty-string-state",
+        emptyStringState,
+        1,
+        1,
+      ),
+      emptyStringState,
+    );
+    expect(emptyStringImage.currentCursor().readString(0)).toBe("");
+  });
+
   it("round-trips all leaf classes and keeps failed candidates inactive", () => {
     type State = Readonly<{
       value: number;
@@ -276,16 +329,40 @@ describe("TransactionalTypedStateImageV1", () => {
     expect(image.rehydrateCurrent()).toEqual(candidate);
     expect(image.report()).toMatchObject({ commitCount: 1, staged: false });
 
+    const directCandidate = image.beginCandidateFromCurrent();
+    expect(directCandidate.readContinuous(valueSlot)).toBe(4);
+    directCandidate.writeContinuous(valueSlot, 8);
+    directCandidate.writeBoolean(0, false);
+    expect(image.rehydrateCurrent()).toEqual(candidate);
+    expect(image.rehydrateStaged()).toEqual({
+      ...candidate,
+      value: 8,
+      enabled: false,
+    });
+    expect(() => directCandidate.writeContinuous(valueSlot, Number.NaN))
+      .toThrow("must be finite");
+    image.abort();
+    expect(() => directCandidate.readContinuous(valueSlot)).toThrow("is stale");
+    expect(image.rehydrateCurrent()).toEqual(candidate);
+
+    const promotedCandidate = image.beginCandidateFromCurrent();
+    promotedCandidate.writeContinuous(valueSlot, 9);
+    image.promote();
+    expect(() => promotedCandidate.writeContinuous(valueSlot, 10))
+      .toThrow("is stale");
+    expect(cursor.readContinuous(valueSlot)).toBe(9);
+    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 9 });
+
     const escaped = image.snapshot();
     escaped.continuous[0] = 99;
     escaped.stringBytes[0] = 0;
-    expect(image.rehydrateCurrent()).toEqual(candidate);
+    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 9 });
 
     expect(() => image.stage(Object.freeze({
       ...candidate,
       unexpected: 1,
     }) as State)).toThrow("changed record shape");
-    expect(image.rehydrateCurrent()).toEqual(candidate);
+    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 9 });
     expect(image.report().staged).toBe(false);
 
     const extendedSamples = new Float64Array([5, 6]);
@@ -297,7 +374,7 @@ describe("TransactionalTypedStateImageV1", () => {
       ...candidate,
       fixed: Object.freeze({ samples: extendedSamples }),
     }))).toThrow("changed typed-array shape");
-    expect(image.rehydrateCurrent()).toEqual(candidate);
+    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 9 });
 
     const alternatePrototype = Object.create(null) as { constructor: ObjectConstructor };
     alternatePrototype.constructor = Object;
@@ -310,13 +387,13 @@ describe("TransactionalTypedStateImageV1", () => {
       ...candidate,
       fixed: foreignFixed,
     }))).toThrow("changed record prototype");
-    expect(image.rehydrateCurrent()).toEqual(candidate);
+    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 9 });
 
     expect(() => image.stage(Object.freeze({
       ...candidate,
       label: "bad\ud800",
     }))).toThrow("unpaired surrogate");
-    expect(image.rehydrateCurrent()).toEqual(candidate);
+    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 9 });
     expect(image.report().staged).toBe(false);
 
     expect(() => image.stage(Object.freeze({
@@ -324,8 +401,8 @@ describe("TransactionalTypedStateImageV1", () => {
       queue: Object.freeze(Array.from({ length: 20 }, (_, index) =>
         Object.freeze({ id: `impulse-${index}`, at: index / 10 }))),
     }))).toThrow("dynamic arena capacity exceeded");
-    expect(image.rehydrateCurrent()).toEqual(candidate);
-    expect(image.report()).toMatchObject({ commitCount: 1, staged: false });
+    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 9 });
+    expect(image.report()).toMatchObject({ commitCount: 2, staged: false });
   });
 });
 
@@ -346,6 +423,9 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         acceptedTimeSec: state.acceptedTimeSec,
         revision: state.revision,
       });
+      expect(evaluateMainWireAcceptedTypedCalciumDriveV1(cursor)).toEqual(
+        evaluateMainWireIntegratedModelCalciumDriveV3(state.composedRhythm),
+      );
       const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
       const actual = limitMainWireAcceptedTypedCandidateTimeV1(
         cursor,
@@ -363,6 +443,26 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         runtime.config,
       );
       expect(actual).toEqual(expected);
+      const typedCandidate = image.beginCandidateFromCurrent();
+      stageMainWireAcceptedTypedCalciumCandidateV1(
+        cursor,
+        typedCandidate,
+        actual.candidateTimeSec,
+      );
+      const objectCandidate =
+        evaluateAcceptedComposedRhythmTransactionCandidateV2(
+          state.composedRhythm,
+          {
+            candidateTimeSec: actual.candidateTimeSec,
+            externalAtrialSourceBatch: createNoExternalAtrialSourceBatchV2(
+              actual.candidateTimeSec,
+            ),
+          },
+        );
+      expect(
+        image.rehydrateStaged().composedRhythm.calciumStateByWall,
+      ).toEqual(objectCandidate.candidateState.calciumStateByWall);
+      image.abort();
       expect(oracle.advanceToPresentationTime(target).status).toBe("advanced");
     }
   }, 30_000);
@@ -408,14 +508,14 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const initialReport = reference.authorityReport();
     expect(initialReport).toMatchObject({
       authorityId: "main-wire-integrated-accepted-typed-state-authority-v1",
-      fingerprint: "fnv1a32-9657ecbf",
-      bufferByteLength: 267_668,
+      fingerprint: "fnv1a32-b2a14bb3",
+      bufferByteLength: 267_708,
       fixedImageCount: 2,
-      continuousSlotCount: 440,
+      continuousSlotCount: 450,
       booleanSlotCount: 4,
       stringSlotCount: 205,
-      dynamicRootCount: 45,
-      containerCount: 158,
+      dynamicRootCount: 40,
+      containerCount: 163,
       commitCount: 0,
       poisonedReason: null,
     });

@@ -8,6 +8,7 @@ import {
   readFlatNumericalStatePathV1,
   type FlatNumericalPathSegmentV1,
   type FlatNumericalStateLayoutV1,
+  type FlatNumericalStateLayoutOptionsV1,
 } from "@/engine/vnext/FlatNumericalStateV1";
 
 export const TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID =
@@ -35,6 +36,10 @@ type TypedStateNodeV1 =
   | Readonly<{
     kind: "typed-array";
     constructorTag: NumericTypedArrayTagV1;
+    items: readonly TypedStateNodeV1[];
+  }>
+  | Readonly<{
+    kind: "array";
     items: readonly TypedStateNodeV1[];
   }>;
 
@@ -128,6 +133,21 @@ export type TransactionalTypedStateCurrentCursorV1 = Readonly<{
   readDynamic(slotIndex: number): unknown;
 }>;
 
+/**
+ * Generation-bound writer for the inactive candidate image. V1 intentionally
+ * permits direct writes only for fixed numerical leaves; strings and dynamic
+ * roots remain copied from current until their model owners receive bounded
+ * tagged layouts.
+ */
+export type TransactionalTypedStateCandidateCursorV1 = Readonly<{
+  layoutId: string;
+  fingerprint: string;
+  readContinuous(slotIndex: number): number;
+  writeContinuous(slotIndex: number, value: number): void;
+  readBoolean(slotIndex: number): boolean;
+  writeBoolean(slotIndex: number, value: boolean): void;
+}>;
+
 type MutableImageV1 = Readonly<{
   buffer: ArrayBuffer;
   continuous: Float64Array;
@@ -148,12 +168,14 @@ export function createTransactionalTypedStateManifestV1(
   referenceState: unknown,
   stringArenaCapacityBytes: number,
   dynamicArenaCapacityBytes: number,
+  layoutOptions: FlatNumericalStateLayoutOptionsV1 = {},
 ): TransactionalTypedStateManifestV1 {
   assertArenaCapacity(stringArenaCapacityBytes, "string");
   assertArenaCapacity(dynamicArenaCapacityBytes, "dynamic");
   const numericalLayout = createFlatNumericalStateLayoutV1(
     layoutId,
     referenceState,
+    layoutOptions,
   );
   const rootNode = compileNode(referenceState, [], numericalLayout);
   const imageLayout = createImageLayout(
@@ -198,6 +220,7 @@ export class TransactionalTypedStateImageV1<TState> {
   #currentDynamicBytes = 0;
   #highWaterStringBytes = 0;
   #highWaterDynamicBytes = 0;
+  #candidateGeneration = 0;
 
   constructor(
     manifest: TransactionalTypedStateManifestV1,
@@ -244,6 +267,37 @@ export class TransactionalTypedStateImageV1<TState> {
     this.#stagedStringBytes = stringBytes;
     this.#stagedDynamicBytes = dynamicBytes;
     this.#staged = true;
+  }
+
+  /**
+   * Copies current into inactive storage once, then returns a cursor that can
+   * update fixed slots without allocating candidate objects. The caller must
+   * still rehydrate/validate before promotion during this reference phase.
+   */
+  beginCandidateFromCurrent(): TransactionalTypedStateCandidateCursorV1 {
+    if (this.#staged) {
+      throw new Error("Transactional typed state already has a staged candidate");
+    }
+    const current = this.#images[this.#activeIndex];
+    const candidate = this.#images[this.inactiveIndex()];
+    new Uint8Array(candidate.buffer).set(new Uint8Array(current.buffer));
+    this.#stagedStringBytes = this.#currentStringBytes;
+    this.#stagedDynamicBytes = this.#currentDynamicBytes;
+    this.#staged = true;
+    this.#candidateGeneration += 1;
+    const generation = this.#candidateGeneration;
+    return Object.freeze({
+      layoutId: this.#manifest.layoutId,
+      fingerprint: this.#manifest.fingerprint,
+      readContinuous: (slotIndex: number) =>
+        this.readCandidateContinuous(generation, slotIndex),
+      writeContinuous: (slotIndex: number, value: number) =>
+        this.writeCandidateContinuous(generation, slotIndex, value),
+      readBoolean: (slotIndex: number) =>
+        this.readCandidateBoolean(generation, slotIndex),
+      writeBoolean: (slotIndex: number, value: boolean) =>
+        this.writeCandidateBoolean(generation, slotIndex, value),
+    });
   }
 
   promote(): void {
@@ -368,7 +422,7 @@ export class TransactionalTypedStateImageV1<TState> {
     const image = this.#images[this.#activeIndex];
     const offset = image.stringMetadata[slotIndex * 2]!;
     const length = image.stringMetadata[slotIndex * 2 + 1]!;
-    assertArenaSlice(offset, length, this.#currentStringBytes, "string");
+    assertArenaSlice(offset, length, this.#currentStringBytes, "string", true);
     return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
   }
 
@@ -385,6 +439,76 @@ export class TransactionalTypedStateImageV1<TState> {
     return decodeCanonicalFlatDataV1(
       image.dynamicArena.subarray(offset, offset + length),
     );
+  }
+
+  private readCandidateContinuous(
+    generation: number,
+    slotIndex: number,
+  ): number {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous candidate",
+    );
+    return this.#images[this.inactiveIndex()].continuous[slotIndex]!;
+  }
+
+  private writeCandidateContinuous(
+    generation: number,
+    slotIndex: number,
+    value: number,
+  ): void {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous candidate",
+    );
+    if (!Number.isFinite(value)) {
+      throw new Error(
+        "Transactional typed state candidate continuous value must be finite",
+      );
+    }
+    this.#images[this.inactiveIndex()].continuous[slotIndex] = value;
+  }
+
+  private readCandidateBoolean(
+    generation: number,
+    slotIndex: number,
+  ): boolean {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean candidate",
+    );
+    return this.#images[this.inactiveIndex()].booleans[slotIndex] === 1;
+  }
+
+  private writeCandidateBoolean(
+    generation: number,
+    slotIndex: number,
+    value: boolean,
+  ): void {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean candidate",
+    );
+    if (typeof value !== "boolean") {
+      throw new Error(
+        "Transactional typed state candidate boolean value must be boolean",
+      );
+    }
+    this.#images[this.inactiveIndex()].booleans[slotIndex] = value ? 1 : 0;
+  }
+
+  private assertCandidateGeneration(generation: number): void {
+    if (!this.#staged || generation !== this.#candidateGeneration) {
+      throw new Error("Transactional typed state candidate cursor is stale");
+    }
   }
 }
 
@@ -407,12 +531,13 @@ function assertArenaSlice(
   length: number,
   usedBytes: number,
   owner: string,
+  allowEmpty = false,
 ): void {
   if (
     !Number.isSafeInteger(offset)
     || !Number.isSafeInteger(length)
     || offset < 0
-    || length < 1
+    || length < (allowEmpty ? 0 : 1)
     || offset + length > usedBytes
   ) {
     throw new Error(`Transactional typed state current ${owner} slice is invalid`);
@@ -535,6 +660,10 @@ function rehydrateNode(node: TypedStateNodeV1, image: MutableImageV1): unknown {
       }
       return array;
     }
+    case "array":
+      return Object.freeze(
+        node.items.map((item) => rehydrateNode(item, image)),
+      );
     case "record": {
       const record = node.nullPrototype
         ? Object.create(null) as Record<string, unknown>
@@ -584,6 +713,13 @@ function compileNode(
       kind: "typed-array" as const,
       constructorTag: value.constructor.name as NumericTypedArrayTagV1,
       items: Object.freeze(items),
+    });
+  }
+  if (Array.isArray(value)) {
+    return Object.freeze({
+      kind: "array" as const,
+      items: Object.freeze(value.map((item, index) =>
+        compileNode(item, [...path, index], layout))),
     });
   }
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {

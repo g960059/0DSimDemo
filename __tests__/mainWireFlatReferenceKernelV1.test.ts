@@ -129,7 +129,6 @@ describe("MainWireFlatReferenceKernelV1", () => {
         terminalTick,
       });
       expect(result.phaseTimingsMs.oracleAdvance).toBeGreaterThanOrEqual(0);
-      expect(result.phaseTimingsMs.flatMirrorWrite).toBeGreaterThanOrEqual(0);
 
       for (let pageIndex = 0; pageIndex < batchSize; pageIndex += 1) {
         const tick = firstTick + pageIndex;

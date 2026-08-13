@@ -4,11 +4,21 @@ import type {
 import type {
   AcceptedComposedRhythmTransactionCandidateTimeLimitV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
+import type {
+  MainWireFiveWallFreeCalciumDriveV1,
+} from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
+import {
+  advanceExactEventCalciumV1,
+  type ExactEventCalciumEventV1,
+  type ExactEventCalciumParametersV1,
+  type ExactEventCalciumStateV1,
+} from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
 import {
   MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
   MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
 import type {
+  TransactionalTypedStateCandidateCursorV1,
   TransactionalTypedStateCurrentCursorV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
 
@@ -22,25 +32,25 @@ export type MainWireAcceptedTypedClockV1 = Readonly<{
 
 type Boundary = Readonly<{ owner: string; timeSec: number }>;
 
-// Generated against fnv1a32-9657ecbf. The manifest admission in
+// Generated against fnv1a32-b2a14bb3. The manifest admission in
 // MainWireAcceptedTypedStateV1 rejects any topology change before these slots
 // can be observed.
 const F64 = Object.freeze({
   acceptedTimeSec: 0,
   composedAcceptedTimeSec: 2,
   authoredEctopyCursor: 8,
-  regularAtrialNextActivationTimeSec: 144,
-  composedRevision: 148,
-  ventricularBackupNextIntrinsicEscapeDueTimeSec: 163,
-  ventricularBackupNextVviPaceDueTimeSec: 164,
-  coronaryAcceptedTimeSec: 198,
-  autoregulationWindowIndex: 276,
-  autoregulationWindowOriginAcceptedTimeSec: 277,
-  autoregulationWindowStartAcceptedTimeSec: 278,
-  autoregulationWindowDurationSec: 280,
-  autoregulationBindingOriginAcceptedTimeSec: 281,
-  coronaryRevision: 343,
-  revision: 439,
+  regularAtrialNextActivationTimeSec: 154,
+  composedRevision: 158,
+  ventricularBackupNextIntrinsicEscapeDueTimeSec: 173,
+  ventricularBackupNextVviPaceDueTimeSec: 174,
+  coronaryAcceptedTimeSec: 208,
+  autoregulationWindowIndex: 286,
+  autoregulationWindowOriginAcceptedTimeSec: 287,
+  autoregulationWindowStartAcceptedTimeSec: 288,
+  autoregulationWindowDurationSec: 290,
+  autoregulationBindingOriginAcceptedTimeSec: 291,
+  coronaryRevision: 353,
+  revision: 449,
 });
 
 const STRING = Object.freeze({
@@ -50,10 +60,18 @@ const STRING = Object.freeze({
 const DYNAMIC = Object.freeze({
   authoredEctopyEvents: 0,
   authoredVentricularPacingReplayState: 1,
-  pendingCalciumDeposits: 16,
-  pendingDistalVentricularImpulses: 17,
-  pendingProximalAvOutputs: 18,
+  pendingCalciumDeposits: 11,
+  pendingDistalVentricularImpulses: 12,
+  pendingProximalAvOutputs: 13,
 });
+
+const CALCIUM = Object.freeze({
+  LA: Object.freeze({ state: [13, 14], parameters: [34, 35, 36, 37] }),
+  LVFW: Object.freeze({ state: [15, 16], parameters: [38, 39, 40, 41] }),
+  RA: Object.freeze({ state: [17, 18], parameters: [42, 43, 44, 45] }),
+  RVFW: Object.freeze({ state: [19, 20], parameters: [46, 47, 48, 49] }),
+  SEP: Object.freeze({ state: [21, 22], parameters: [50, 51, 52, 53] }),
+} as const);
 
 /** Reads the authoritative outer clock without rebuilding the object graph. */
 export function readMainWireAcceptedTypedClockV1(
@@ -182,6 +200,101 @@ export function limitMainWireAcceptedTypedCandidateTimeV1(
       && boundaryTime === coronaryCappedEndTimeSec
       && coronaryWindowMaximumStepSec <= requestedStepSec + tolerance,
   });
+}
+
+/** Exact-event calcium readback from ten fixed state slots. */
+export function evaluateMainWireAcceptedTypedCalciumDriveV1(
+  cursor: TransactionalTypedStateCurrentCursorV1,
+): MainWireFiveWallFreeCalciumDriveV1 {
+  assertCursor(cursor);
+  const values = Object.fromEntries(
+    (Object.keys(CALCIUM) as (keyof typeof CALCIUM)[]).map((wall) => {
+      const slots = CALCIUM[wall];
+      const riseDrive = cursor.readContinuous(slots.state[0]);
+      const decayDrive = cursor.readContinuous(slots.state[1]);
+      const gain = cursor.readContinuous(slots.parameters[0]);
+      const calciumRestUM = cursor.readContinuous(slots.parameters[1]);
+      const freeCalciumUM = calciumRestUM + gain * (decayDrive - riseDrive);
+      if (!Number.isFinite(freeCalciumUM) || freeCalciumUM < 0) {
+        throw new Error(`Main Wire typed ${wall} calcium is invalid`);
+      }
+      return [wall, freeCalciumUM];
+    }),
+  ) as MainWireFiveWallFreeCalciumDriveV1["freeCalciumUMByWall"];
+  return Object.freeze({ freeCalciumUMByWall: Object.freeze(values) });
+}
+
+/**
+ * First direct state-owner write: exact-event calcium advances from fixed
+ * current slots into a generation-bound inactive candidate cursor. Other
+ * owners remain byte-identical until their own typed transaction runs.
+ */
+export function stageMainWireAcceptedTypedCalciumCandidateV1(
+  current: TransactionalTypedStateCurrentCursorV1,
+  candidate: TransactionalTypedStateCandidateCursorV1,
+  candidateTimeSec: number,
+): void {
+  assertCursor(current);
+  assertCandidateCursor(candidate);
+  const startTimeSec = finiteNonnegative(
+    current.readContinuous(F64.composedAcceptedTimeSec),
+    "calcium start time",
+  );
+  const endTimeSec = finiteNonnegative(
+    candidateTimeSec,
+    "calcium candidate time",
+  );
+  if (!(endTimeSec > startTimeSec)) {
+    throw new Error("Main Wire typed calcium candidate must advance");
+  }
+  const pendingDeposits = requiredArray(
+    current.readDynamic(DYNAMIC.pendingCalciumDeposits),
+    "pending calcium deposits",
+  );
+
+  for (const wall of Object.keys(CALCIUM) as (keyof typeof CALCIUM)[]) {
+    const slots = CALCIUM[wall];
+    const state = Object.freeze([
+      current.readContinuous(slots.state[0]),
+      current.readContinuous(slots.state[1]),
+    ]) as ExactEventCalciumStateV1;
+    const parameters = Object.freeze({
+      calciumGainUMPerUnitDrive:
+        current.readContinuous(slots.parameters[0]),
+      calciumRestUM: current.readContinuous(slots.parameters[1]),
+      tauDecaySec: current.readContinuous(slots.parameters[2]),
+      tauRiseSec: current.readContinuous(slots.parameters[3]),
+    }) satisfies ExactEventCalciumParametersV1;
+    const events = pendingDeposits.flatMap((deposit): ExactEventCalciumEventV1[] => {
+      const record = requiredRecord(deposit, "pending calcium deposit");
+      const depositTimeSec = numberProperty(
+        record,
+        "depositTimeSec",
+        "pending calcium deposit",
+      );
+      if (depositTimeSec !== endTimeSec) return [];
+      const strengths = requiredRecord(
+        ownValue(record, "strengthByWall"),
+        "pending calcium strengths",
+      );
+      return [Object.freeze({
+        timeSec: depositTimeSec,
+        strength: finiteNonnegative(
+          ownValue(strengths, wall),
+          `pending ${wall} calcium strength`,
+        ),
+      })];
+    });
+    const next = advanceExactEventCalciumV1(
+      state,
+      startTimeSec,
+      endTimeSec,
+      events,
+      parameters,
+    );
+    candidate.writeContinuous(slots.state[0], next[0]);
+    candidate.writeContinuous(slots.state[1], next[1]);
+  }
 }
 
 function limitTypedRhythmBoundary(
@@ -420,5 +533,17 @@ function assertCursor(cursor: TransactionalTypedStateCurrentCursorV1): void {
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT
   ) {
     throw new Error("Main Wire typed boundary cursor has the wrong layout");
+  }
+}
+
+function assertCandidateCursor(
+  cursor: TransactionalTypedStateCandidateCursorV1,
+): void {
+  if (
+    cursor.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID
+    || cursor.fingerprint
+      !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT
+  ) {
+    throw new Error("Main Wire typed candidate cursor has the wrong layout");
   }
 }
