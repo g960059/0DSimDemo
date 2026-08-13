@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   CORONARY_CONSERVED_VOLUME_NODE_IDS_V1,
   CORONARY_EDGE_IDS_V1,
+  CORONARY_LAYER_IDS_V1,
+  CORONARY_TERRITORY_IDS_V1,
   NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1,
   NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V1,
   buildCoronaryTopologyV1,
   coronaryColdSeedBloodVolumeMlV1,
   evaluateAllCoronaryImpV1,
+  evaluateAllCoronaryImpPressureV1,
   evaluateCollapsibleIntramyocardialPvV1,
   evaluateCoronaryImpV1,
   evaluateSignedLinearQuadraticLossV1,
@@ -306,6 +309,36 @@ describe("mechanics-driven coronary intramyocardial pressure", () => {
       .toBeLessThan(all.LAD.subendocardial.intramyocardialPressureMmHg);
     expect(all.RCA.subendocardial.intramyocardialPressureMmHg)
       .toBeLessThan(all.LCx.subendocardial.intramyocardialPressureMmHg);
+  });
+
+  it("keeps solver-only pressure projections bit-identical to detailed IMP evaluations", () => {
+    const detailed = evaluateAllCoronaryImpV1(mechanicsInput);
+    const cavity = evaluateAllCoronaryImpPressureV1(
+      mechanicsInput,
+      "cavity-induced",
+    );
+    const total = evaluateAllCoronaryImpPressureV1(
+      mechanicsInput,
+      "intramyocardial",
+    );
+    for (const territoryId of CORONARY_TERRITORY_IDS_V1) {
+      for (const layerId of CORONARY_LAYER_IDS_V1) {
+        expect(cavity[territoryId][layerId]).toBe(
+          detailed[territoryId][layerId]
+            .cavityInducedExtracellularPressureMmHg,
+        );
+        expect(total[territoryId][layerId]).toBe(
+          detailed[territoryId][layerId].intramyocardialPressureMmHg,
+        );
+      }
+    }
+  });
+
+  it("fails closed on an unsupported solver pressure projection", () => {
+    expect(() => evaluateAllCoronaryImpPressureV1(
+      mechanicsInput,
+      "unsupported" as "intramyocardial",
+    )).toThrow(/unsupported coronary IMP pressure component/);
   });
 
   it("orients septal depth toward LV for LAD and toward RV for RCA", () => {

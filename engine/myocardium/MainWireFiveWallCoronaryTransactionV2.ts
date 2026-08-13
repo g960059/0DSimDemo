@@ -51,8 +51,7 @@ import {
   type MainWireCoronaryWallNumbersV2,
 } from "@/engine/coronary/mainWireCoronaryBoundaryV2";
 import {
-  evaluateAllCoronaryImpV1,
-  type CoronaryImpEvaluationV1,
+  evaluateAllCoronaryImpPressureV1,
 } from "@/engine/coronary/intramyocardialPressureV1";
 import {
   evaluateMainWireCoronaryMechanicsCouplingV1,
@@ -589,8 +588,9 @@ export function initializeMainWireFiveWallCoronaryV2<TWallState>(
         ...(impMechanism === "source-cep-land-active"
           ? {
             sourceIntramyocardialPressureMmHgByTerritoryLayer:
-              intramyocardialPressureRecord(
-                evaluateAllCoronaryImpV1(preliminaryCoupling.input),
+              evaluateAllCoronaryImpPressureV1(
+                preliminaryCoupling.input,
+                "intramyocardial",
               ),
           }
           : {}),
@@ -1335,8 +1335,9 @@ function evaluatePreparedCandidateMechanicsV2<TWallState>(
     ...(impMechanism === "source-cep-land-active"
       ? {
         sourceIntramyocardialPressureMmHgByTerritoryLayer:
-          intramyocardialPressureRecord(
-            evaluateAllCoronaryImpV1(coronaryMechanicsCoupling.input),
+          evaluateAllCoronaryImpPressureV1(
+            coronaryMechanicsCoupling.input,
+            "intramyocardial",
           ),
       }
       : {}),
@@ -1507,8 +1508,9 @@ function buildCoronaryBoundaryDirectionsV2<TWallState>(
         ...(impMechanism === "source-cep-land-active"
           ? {
             sourceIntramyocardialPressureMmHgByTerritoryLayer:
-              intramyocardialPressureRecord(
-                evaluateAllCoronaryImpV1(coronaryMechanicsCoupling.input),
+              evaluateAllCoronaryImpPressureV1(
+                coronaryMechanicsCoupling.input,
+                "intramyocardial",
               ),
           }
           : {}),
@@ -1596,8 +1598,9 @@ function buildCoronaryBoundaryDirectionsV2<TWallState>(
           ...(impMechanism === "source-cep-land-active"
             ? {
               sourceIntramyocardialPressureMmHgByTerritoryLayer:
-                intramyocardialPressureRecord(
-                  evaluateAllCoronaryImpV1(coronaryMechanicsCoupling.input),
+                evaluateAllCoronaryImpPressureV1(
+                  coronaryMechanicsCoupling.input,
+                  "intramyocardial",
                 ),
             }
             : {}),
@@ -2101,22 +2104,6 @@ function absoluteAorticPressureMmHg(
     runtime.vascular,
     "adaptive-volume-tolerance",
   );
-}
-
-function intramyocardialPressureRecord(
-  evaluations: CoronaryTerritoryLayerRecordV2<CoronaryImpEvaluationV1>,
-): CoronaryTerritoryLayerRecordV2<number> {
-  return Object.freeze(Object.fromEntries(
-    CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
-      territoryId,
-      Object.freeze(Object.fromEntries(
-        CORONARY_LAYER_IDS_V2.map((layerId) => [
-          layerId,
-          evaluations[territoryId][layerId].intramyocardialPressureMmHg,
-        ]),
-      )) as CoronaryLayerRecordV2<number>,
-    ]),
-  )) as CoronaryTerritoryLayerRecordV2<number>;
 }
 
 function coronaryBloodVolumeMl(

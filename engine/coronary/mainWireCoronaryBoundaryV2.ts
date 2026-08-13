@@ -3,7 +3,7 @@ import type {
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
   NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1,
-  evaluateAllCoronaryImpV1,
+  evaluateAllCoronaryImpPressureV1,
   type CoronaryMechanicsInputV1,
 } from "@/engine/coronary/intramyocardialPressureV1";
 import {
@@ -119,7 +119,7 @@ export function resolveMainWireCoronaryBoundaryV2(
   validateShorteningPrior(shorteningPrior);
 
   const cep = impMechanism !== "source-cep-land-active"
-    ? evaluateAllCoronaryImpV1({
+    ? evaluateAllCoronaryImpPressureV1({
       externalPressureMmHg: sample.mechanicsInput.externalPressureMmHg,
       chamberTransmuralPressureMmHg:
         sample.mechanicsInput.chamberTransmuralPressureMmHg,
@@ -128,7 +128,7 @@ export function resolveMainWireCoronaryBoundaryV2(
         SEP: 0,
         RVFW: 0,
       }),
-    })
+    }, "cavity-induced")
     : null;
   const shorteningPressure = impMechanism === "cep-shortening-induced"
     ? evaluateMainWireCoronaryShorteningImpV2(
@@ -143,7 +143,7 @@ export function resolveMainWireCoronaryBoundaryV2(
       (territoryId) => [territoryId, Object.fromEntries(
         CORONARY_LAYER_IDS_V2.map((layerId) => [
           layerId,
-          cep[territoryId][layerId].cavityInducedExtracellularPressureMmHg
+          cep[territoryId][layerId]
           + (shorteningPressure?.[territoryId] ?? 0),
         ]),
       )],
