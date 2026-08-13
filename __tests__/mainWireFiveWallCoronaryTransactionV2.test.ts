@@ -73,8 +73,15 @@ import {
 import {
   advanceMainWireFiveWallCoupledNewtonV1,
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+  solveMainWireFiveWallCoupledNewtonPredictedV1,
   solveMainWireFiveWallCoupledNewtonShadowV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
+import {
+  createMainWireFiveWallCoupledPredictorWorkspaceV1,
+  prepareMainWireFiveWallCoupledPredictionV1,
+  recordAcceptedMainWireFiveWallCoupledSolutionV1,
+  reportMainWireFiveWallCoupledPredictorV1,
+} from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
 import {
   MainWireFlatCoupledAcceptedStateV1,
 } from "@/engine/vnext/coupled/MainWireFlatCoupledAcceptedStateV1";
@@ -935,6 +942,111 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       context,
       converged.solution,
     )).toThrow(/context differs from accepted authority/);
+  }, 60_000);
+
+  it("uses only admitted sequential roots to predict the next coupled solve", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const runtime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+    const stepInput = Object.freeze({
+      dtSec: 0.002,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const authority = new MainWireFlatCoupledAcceptedStateV1(
+      cold.acceptedState,
+    );
+    const predictor = createMainWireFiveWallCoupledPredictorWorkspaceV1();
+    const predictedSolver =
+      createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    const baselineSolver =
+      createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    const options = Object.freeze({
+      maximumAcceptedStepsPerJacobian: 2,
+      analyticJacobianPolicy: "require-complete" as const,
+    });
+    let predictedJacobianEvaluations = 0;
+    let baselineJacobianEvaluations = 0;
+    let fallbackCount = 0;
+
+    for (let stepIndex = 0; stepIndex < 200; stepIndex += 1) {
+      const previous = authority.materializeAcceptedObjectBridge(provider);
+      const context = prepareMainWireFiveWallCoupledResidualContextV1(
+        provider,
+        previous,
+        stepInput,
+      );
+      const predicted = solveMainWireFiveWallCoupledNewtonPredictedV1(
+        context,
+        options,
+        predictedSolver,
+        predictor,
+      );
+      const baseline = solveMainWireFiveWallCoupledNewtonShadowV1(
+        context,
+        options,
+        baselineSolver,
+      );
+      expect(predicted.solver.result.status).toBe("converged");
+      expect(baseline.result.status).toBe("converged");
+      if (
+        predicted.solver.result.status !== "converged"
+        || baseline.result.status !== "converged"
+      ) throw new Error(`coupled predictor failed at step ${stepIndex}`);
+      fallbackCount += predicted.fallbackUsed ? 1 : 0;
+      predictedJacobianEvaluations +=
+        predicted.solver.result.jacobianEvaluationCount;
+      baselineJacobianEvaluations += baseline.result.jacobianEvaluationCount;
+      for (let index = 0; index < context.dimension; index += 1) {
+        expect(predicted.solver.result.solution[index]).toBeCloseTo(
+          baseline.result.solution[index]!,
+          7,
+        );
+      }
+      authority.stageConvergedSolution(
+        context,
+        predicted.solver.result.solution,
+      );
+      authority.promote();
+      recordAcceptedMainWireFiveWallCoupledSolutionV1(
+        context,
+        predicted.solver.result.solution,
+        predictor,
+      );
+    }
+
+    const report = reportMainWireFiveWallCoupledPredictorV1(predictor);
+    expect(report.predictionCount).toBe(199);
+    expect(report.contextFallbackCount).toBe(1);
+    expect(fallbackCount).toBe(0);
+    expect(predictedJacobianEvaluations).toBeLessThan(
+      baselineJacobianEvaluations,
+    );
+
+    const discontinuousContext = prepareMainWireFiveWallCoupledResidualContextV1(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+    expect(prepareMainWireFiveWallCoupledPredictionV1(
+      discontinuousContext,
+      predictor,
+    ).mode).toBe("context");
+    expect(reportMainWireFiveWallCoupledPredictorV1(predictor)).toMatchObject({
+      hasAcceptedPair: false,
+      contextFallbackCount: 2,
+      resetCount: 1,
+    });
   }, 60_000);
 
   it("keeps accepted flat bytes unchanged across rejection and abort", () => {

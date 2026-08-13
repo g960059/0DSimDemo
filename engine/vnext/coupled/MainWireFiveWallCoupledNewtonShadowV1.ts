@@ -19,11 +19,21 @@ import {
   type FlatCoupledNewtonWorkspaceV1,
   type FlatCoupledSystemV1,
 } from "@/engine/vnext/coupled/FlatCoupledNewtonV1";
+import {
+  prepareMainWireFiveWallCoupledPredictionV1,
+  type MainWireFiveWallCoupledPredictorWorkspaceV1,
+} from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
 
 export const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID =
   "main-wire-five-wall-coupled-newton-shadow-v1" as const;
 
 export type MainWireFiveWallCoupledNewtonShadowOptionsV1 = Readonly<{
+  /**
+   * Optional caller-owned seed for this synchronous solve. It changes only
+   * the Newton starting point; the model-owned residual, admissibility, and
+   * convergence gates remain authoritative.
+   */
+  initialGuessMl?: Float64Array;
   maximumIterations?: number;
   maximumLineSearchBacktracks?: number;
   maximumAcceptedStepsPerJacobian?: number;
@@ -44,6 +54,13 @@ export type MainWireFiveWallCoupledNewtonShadowResultV1 = Readonly<{
   nonCoronaryAnalyticBlockAssemblyCount: number;
   dependentSvContinuityResidualMl: number | null;
   result: FlatCoupledNewtonResultV1;
+}>;
+
+export type MainWireFiveWallCoupledPredictedSolveResultV1 = Readonly<{
+  predictionMode: "context" | "linear-extrapolation";
+  extrapolationScale: number;
+  fallbackUsed: boolean;
+  solver: MainWireFiveWallCoupledNewtonShadowResultV1;
 }>;
 
 export type MainWireFiveWallCoupledNewtonAdvanceResultV1<TWallState> =
@@ -412,7 +429,7 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1<TWallState = unknown>
   }
   const result = solveFlatCoupledSystemV1(
     system,
-    context.initialUnknownsMl,
+    options.initialGuessMl ?? context.initialUnknownsMl,
     Object.freeze({
       maximumIterations: options.maximumIterations ?? 12,
       maximumLineSearchBacktracks:
@@ -446,6 +463,59 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1<TWallState = unknown>
   } finally {
     storage.inUse = false;
   }
+}
+
+/**
+ * Uses the accepted-trajectory predictor as a performance hint only. If the
+ * extrapolated seed cannot converge, the exact same model-owned solve is
+ * retried from the context seed. Neither attempt mutates accepted state or
+ * predictor history.
+ */
+export function solveMainWireFiveWallCoupledNewtonPredictedV1<
+  TWallState = unknown,
+>(
+  context: MainWireFiveWallCoupledResidualContextV1<TWallState>,
+  options: MainWireFiveWallCoupledNewtonShadowOptionsV1,
+  solverWorkspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+  predictorWorkspace: MainWireFiveWallCoupledPredictorWorkspaceV1,
+): MainWireFiveWallCoupledPredictedSolveResultV1 {
+  const prediction = prepareMainWireFiveWallCoupledPredictionV1(
+    context,
+    predictorWorkspace,
+  );
+  const primary = solveMainWireFiveWallCoupledNewtonShadowV1(
+    context,
+    Object.freeze({
+      ...options,
+      initialGuessMl: prediction.initialGuessMl,
+    }),
+    solverWorkspace,
+  );
+  if (
+    primary.result.status === "converged"
+    || prediction.mode === "context"
+  ) {
+    return Object.freeze({
+      predictionMode: prediction.mode,
+      extrapolationScale: prediction.extrapolationScale,
+      fallbackUsed: false,
+      solver: primary,
+    });
+  }
+  const fallback = solveMainWireFiveWallCoupledNewtonShadowV1(
+    context,
+    Object.freeze({
+      ...options,
+      initialGuessMl: context.initialUnknownsMl,
+    }),
+    solverWorkspace,
+  );
+  return Object.freeze({
+    predictionMode: prediction.mode,
+    extrapolationScale: prediction.extrapolationScale,
+    fallbackUsed: true,
+    solver: fallback,
+  });
 }
 
 /**

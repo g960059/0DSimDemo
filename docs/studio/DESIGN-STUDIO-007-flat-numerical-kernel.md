@@ -945,8 +945,8 @@ coronary Newton iterations, and fifteen implicit-sensitivity solves with one
 coupled nonlinear solve. Full Newton remains the reference. The tested
 modified-Newton candidate may reuse a validated Jacobian for one subsequent
 accepted update, but production use still requires the full branch, trajectory,
-rollback, and checkpoint gates. A predictor, higher-order integrator, or WASM
-may be evaluated only after this baseline identifies their marginal value.
+rollback, and checkpoint gates. Higher-order integration or WASM may be
+evaluated only after this baseline identifies their marginal value.
 
 The old nested runtime is a test oracle, not the production fallback. A six-
 case corpus freezes 500 accepted steps for baseline, low preload, high
@@ -997,6 +997,31 @@ that no accepted circulation/mechanics scalar required by the next step is
 missing from the image. It does not count as the final hot path: the bridge is
 named, documented, and measured as a cold migration boundary and must be
 deleted from per-step execution before cutover.
+
+The first trajectory optimization uses the last two **admitted** 30-volume
+roots to linearly predict the next Newton seed. Prediction is not accepted
+state and changes no equation, timestep, bound, residual tolerance, or
+component-owned convergence law. History advances only after the exact root
+has been staged and the complete flat image promoted. A restore, parameter
+change, revision/time discontinuity, or mismatch with the current accepted
+root clears the history. An extrapolation outside the open per-volume and
+dependent-SV domain is geometrically damped and ultimately falls back to the
+context seed; a predicted solve that fails also retries from that seed.
+
+In one 1,000-step sequential host diagnostic after 100 warm-up steps, the
+context-seeded coupled path required mean `3.171` Newton updates and `1.958`
+Jacobian evaluations per accepted step. The accepted-root predictor reduced
+those to `1.987` and `1.240`, respectively. Median complete flat-step time
+fell from `0.549 ms` to `0.419 ms`; against the independently advancing nested
+oracle, the measured median speedup rose from `1.335x` to `1.766x`. All 1,099
+eligible warm-up/measured predictions were admitted without damping or solver
+fallback in that run. A separate 200-step regression solves every context
+from both seeds, requires branch agreement inside the established numerical
+corridor, records history only after promotion, and proves a discontinuous
+cold context falls back and resets. These host numbers establish marginal
+value, not the production phone gate. Cross-step Jacobian reuse remains a
+separate experiment and must be residual-gated rather than implied by the
+predictor result.
 
 ### Phase 3 — strict scalar WASM
 
