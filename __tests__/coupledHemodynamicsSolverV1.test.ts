@@ -164,6 +164,32 @@ describe("coupled hemodynamics solver V1 infrastructure", () => {
     expect(result.message).toBe("component admission unavailable");
   });
 
+  it("accepts a line-search trial that satisfies the component convergence law", () => {
+    const system: FlatCoupledSystemV1 = Object.freeze({
+      dimension: 1,
+      evaluateResidual: (unknowns, destination) => {
+        destination[0] = unknowns[0]! <= 0.5 ? 1 : 1.05;
+      },
+      isResidualConverged: (unknowns, residual) =>
+        unknowns[0]! > 0.5 && Math.abs(residual[0]!) <= 1.05,
+      evaluateJacobian: (_unknowns, destination) => {
+        destination[0] = -1;
+      },
+    });
+    const result = solveFlatCoupledSystemV1(
+      system,
+      new Float64Array([0.5]),
+      defaultOptions(1),
+    );
+
+    expect(result.status).toBe("converged");
+    if (result.status !== "converged") throw new Error(result.message);
+    expect(result.iterations).toBe(1);
+    expect(result.solution[0]).toBe(1.5);
+    expect(result.residualInfinityNorm).toBe(1.05);
+    expect(result.lineSearchBacktrackCount).toBe(0);
+  });
+
   it("keeps a coupled linear conservation boundary inside every line-search trial", () => {
     const dimension = 2;
     const root = new Float64Array([0.45, 0.45]);

@@ -165,6 +165,7 @@ export function solveFlatCoupledSystemV1(
     iteration += 1) {
     const residualInfinityNorm = infinityNorm(residual);
     let residualConverged: boolean;
+    const residualMerit = residualInfinityNorm;
     try {
       residualConverged = system.isResidualConverged === undefined
         ? residualInfinityNorm <= options.residualInfinityTolerance
@@ -275,6 +276,7 @@ export function solveFlatCoupledSystemV1(
     );
     let accepted = false;
     let lastError = "no residual-decreasing admissible candidate";
+    let minimumTrialMerit = Number.POSITIVE_INFINITY;
     for (let backtrack = 0;
       backtrack <= options.maximumLineSearchBacktracks;
       backtrack += 1) {
@@ -287,10 +289,23 @@ export function solveFlatCoupledSystemV1(
         system.evaluateResidual(trial, trialResidual);
         residualEvaluationCount += 1;
         requireFiniteVector(trialResidual, "line-search coupled residual");
+        const trialMerit = infinityNorm(trialResidual);
+        let componentConverged = false;
+        if (system.isResidualConverged !== undefined) {
+          componentConverged = system.isResidualConverged(
+            trial,
+            trialResidual,
+          );
+        }
+        minimumTrialMerit = Math.min(minimumTrialMerit, trialMerit);
+        if (typeof componentConverged !== "boolean") {
+          throw new TypeError("coupled convergence gate must return a boolean");
+        }
         if (
-          infinityNorm(trialResidual)
-          <= (1 - options.armijoCoefficient * stepLength)
-            * residualInfinityNorm
+          componentConverged
+          || trialMerit
+            <= (1 - options.armijoCoefficient * stepLength)
+              * residualMerit
         ) {
           current.set(trial);
           residual.set(trialResidual);
@@ -308,7 +323,9 @@ export function solveFlatCoupledSystemV1(
     if (!accepted) {
       return failure(
         "line-search",
-        `flat coupled Newton line search failed: ${lastError}`,
+        `flat coupled Newton line search failed: ${lastError}; `
+          + `current merit ${residualMerit}; minimum trial merit `
+          + `${minimumTrialMerit}`,
         current,
         iteration,
         residualInfinityNorm,
