@@ -1183,6 +1183,49 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
             }
           }
           expect(maximumSchurDifference).toBeLessThan(2e-6);
+
+          const armijoAtValveTransition =
+            solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
+              promotedContext,
+              Object.freeze({ initialGuess: eventSeed }),
+              promotedWorkspace,
+            );
+          expect(armijoAtValveTransition.result.status).toBe("failed");
+          if (armijoAtValveTransition.result.status !== "failed") {
+            throw new Error(
+              "baseline valve-transition Armijo oracle unexpectedly converged",
+            );
+          }
+          expect(armijoAtValveTransition.result.reason).toBe("line-search");
+
+          const doglegAtValveTransition =
+            solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
+              promotedContext,
+              Object.freeze({
+                initialGuess: eventSeed,
+                globalization: "scaled-powell-dogleg",
+              }),
+              promotedWorkspace,
+            );
+          expect(doglegAtValveTransition.globalizationId).toBe(
+            "flat-coupled-scaled-powell-dogleg-v1",
+          );
+          if (doglegAtValveTransition.result.status !== "converged") {
+            throw new Error(doglegAtValveTransition.result.message);
+          }
+          expect(doglegAtValveTransition.result.status).toBe("converged");
+          expect(doglegAtValveTransition.result.iterations)
+            .toBeLessThanOrEqual(32);
+          expect(doglegAtValveTransition.rejectedTrustRegionTrialCount)
+            .toBeGreaterThan(0);
+          for (let index = 0; index < 30; index += 1) {
+            expect(doglegAtValveTransition.result.solution[index])
+              .toBeCloseTo(condensedSolution[index]!, 7);
+          }
+          expect(doglegAtValveTransition.result.solution[30])
+            .toBeCloseTo(localMechanics.scaledInternalCoordinates[0], 7);
+          expect(doglegAtValveTransition.result.solution[31])
+            .toBeCloseTo(localMechanics.scaledInternalCoordinates[1], 7);
         }
         if (stepIndex % 125 === 0) {
           const analyticJacobian = new Float64Array(32 * 32);

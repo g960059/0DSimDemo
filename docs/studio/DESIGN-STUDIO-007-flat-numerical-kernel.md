@@ -857,6 +857,30 @@ benefit. Reopening that decision requires an active-set or trust-region method
 that passes the same six-case free-running gates; fallback by loosening
 residuals or silently changing the 2 ms backward-Euler equation is forbidden.
 
+A separate scaled Powell-dogleg executable now tests the missing
+globalization mechanism without changing that authority decision. It forms
+`r_s = S_r^-1 r` and `A = S_r^-1 J S_x`, computes the Newton and Cauchy steps
+in normalized unknown coordinates, and selects their dogleg intersection with
+a deterministic trust radius. Actual residual evaluations, not the linear
+model, decide the reduction ratio. The scalar least-squares merit is only a
+trial-selection device: a candidate is accepted as converged only when the
+existing component-owned non-coronary, coronary, and mechanics gates pass.
+A stationary non-root therefore fails closed. Open volume bounds and the
+dependent-SV directional limit are applied before every trial evaluation.
+
+At the frozen baseline step-18 valve transition, the former Armijo solve still
+fails as a falsifiable oracle while the dogleg solve crosses the same branch
+surface, passes the unchanged component gates within 32 updates, and matches
+the independently condensed 30-volume root plus locally eliminated TriSeg
+coordinates to seven decimal places. The gate also confirms that a rejected
+trust-region trial was required; a disguised full-Newton success would not
+satisfy it. This establishes that trust-region globalization addresses the
+known event, but it does **not** promote the 32-row system. Full six-case
+free-running trajectory, event-order, rollback, and checkpoint-continuation
+gates remain prerequisites. Until those pass with a measured benefit, the
+dogleg implementation is a shadow solver and the 30-volume condensation is the
+P=1 production candidate.
+
 The first executable uses one deterministic damped semismooth Newton and a
 fixed row-major `Float64Array` Jacobian with partial-pivot dense LU. At 30–32
 unknowns, the roughly 10,000 floating-point operations of dense factorization

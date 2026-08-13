@@ -2,12 +2,19 @@ import type {
   MainWireFiveWallPromotedMechanicsResidualContextV1,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 import {
+  FLAT_COUPLED_NEWTON_V1_ID,
   createFlatCoupledNewtonWorkspaceV1,
   solveFlatCoupledSystemV1,
   type FlatCoupledNewtonResultV1,
   type FlatCoupledNewtonWorkspaceV1,
   type FlatCoupledSystemV1,
 } from "@/engine/vnext/coupled/FlatCoupledNewtonV1";
+import {
+  FLAT_COUPLED_SCALED_POWELL_DOGLEG_V1_ID,
+  createFlatCoupledDoglegWorkspaceV1,
+  solveFlatCoupledSystemWithDoglegV1,
+  type FlatCoupledDoglegWorkspaceV1,
+} from "@/engine/vnext/coupled/FlatCoupledDoglegV1";
 
 export const MAIN_WIRE_FIVE_WALL_PROMOTED_MECHANICS_NEWTON_SHADOW_V1_ID =
   "main-wire-five-wall-promoted-mechanics-newton-shadow-v1" as const;
@@ -19,6 +26,8 @@ export type MainWireFiveWallPromotedMechanicsNewtonShadowOptionsV1 = Readonly<{
   finiteDifferenceRelativeStep?: number;
   updateInfinityTolerance?: number;
   jacobianMode?: "central-difference" | "analytic";
+  globalization?: "armijo-newton" | "scaled-powell-dogleg";
+  initialTrustRegionRadius?: number;
 }>;
 
 export type MainWireFiveWallPromotedMechanicsNewtonShadowResultV1 = Readonly<{
@@ -27,6 +36,12 @@ export type MainWireFiveWallPromotedMechanicsNewtonShadowResultV1 = Readonly<{
   jacobianResidualEvaluationCount: number;
   analyticJacobianAssemblyCount: number;
   dependentSvContinuityResidualMl: number | null;
+  globalizationId:
+    | typeof FLAT_COUPLED_NEWTON_V1_ID
+    | typeof FLAT_COUPLED_SCALED_POWELL_DOGLEG_V1_ID;
+  rejectedTrustRegionTrialCount: number;
+  trustRegionContractionCount: number;
+  trustRegionExpansionCount: number;
   result: FlatCoupledNewtonResultV1;
 }>;
 
@@ -45,6 +60,7 @@ type PromotedMechanicsWorkspaceStorageV1 = {
   readonly unknownScales: Float64Array;
   readonly residualScales: Float64Array;
   readonly newton: FlatCoupledNewtonWorkspaceV1;
+  readonly dogleg: FlatCoupledDoglegWorkspaceV1;
   inUse: boolean;
 };
 
@@ -70,6 +86,7 @@ MainWireFiveWallPromotedMechanicsNewtonShadowWorkspaceV1 {
     unknownScales: new Float64Array(dimension),
     residualScales: new Float64Array(dimension),
     newton: createFlatCoupledNewtonWorkspaceV1(dimension),
+    dogleg: createFlatCoupledDoglegWorkspaceV1(dimension),
     inUse: false,
   });
   return workspace;
@@ -182,10 +199,7 @@ export function solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
         storage.residualScales[index] = 1;
       }
     }
-    const result = solveFlatCoupledSystemV1(
-      system,
-      options.initialGuess ?? context.initialUnknowns,
-      Object.freeze({
+    const commonOptions = Object.freeze({
         maximumIterations: options.maximumIterations ?? 12,
         maximumLineSearchBacktracks:
           options.maximumLineSearchBacktracks ?? 24,
@@ -199,7 +213,28 @@ export function solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
         residualScaleByEquation: storage.residualScales,
         lowerBoundByUnknown: context.lowerBounds,
         upperBoundByUnknown: context.upperBounds,
-      }),
+      });
+    const globalization = options.globalization ?? "armijo-newton";
+    const dogleg = globalization === "scaled-powell-dogleg"
+      ? solveFlatCoupledSystemWithDoglegV1(
+        system,
+        options.initialGuess ?? context.initialUnknowns,
+        Object.freeze({
+          ...commonOptions,
+          maximumIterations: options.maximumIterations ?? 32,
+          initialTrustRegionRadius: options.initialTrustRegionRadius ?? 2,
+          maximumTrustRegionRadius: 64,
+          minimumTrustRegionRadius: 1e-12,
+          maximumTrustRegionTrialsPerIteration: 24,
+          acceptanceRatio: 1e-4,
+        }),
+        storage.dogleg,
+      )
+      : null;
+    const result = dogleg?.result ?? solveFlatCoupledSystemV1(
+      system,
+      options.initialGuess ?? context.initialUnknowns,
+      commonOptions,
       storage.newton,
     );
     const dependentSvContinuityResidualMl = result.status === "converged"
@@ -211,6 +246,11 @@ export function solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
       jacobianResidualEvaluationCount,
       analyticJacobianAssemblyCount,
       dependentSvContinuityResidualMl,
+      globalizationId: dogleg?.solverId ?? FLAT_COUPLED_NEWTON_V1_ID,
+      rejectedTrustRegionTrialCount: dogleg?.rejectedTrialCount ?? 0,
+      trustRegionContractionCount:
+        dogleg?.trustRegionContractionCount ?? 0,
+      trustRegionExpansionCount: dogleg?.trustRegionExpansionCount ?? 0,
       result,
     });
   } finally {

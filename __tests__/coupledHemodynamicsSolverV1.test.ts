@@ -11,6 +11,11 @@ import {
   type FlatCoupledSystemV1,
 } from "@/engine/vnext/coupled/FlatCoupledNewtonV1";
 import {
+  createFlatCoupledDoglegWorkspaceV1,
+  solveFlatCoupledSystemWithDoglegV1,
+  type FlatCoupledDoglegOptionsV1,
+} from "@/engine/vnext/coupled/FlatCoupledDoglegV1";
+import {
   createFlatDenseLuWorkspaceV1,
   factorFlatDenseMatrixV1,
   solveFactoredFlatDenseSystemV1,
@@ -237,6 +242,88 @@ describe("coupled hemodynamics solver V1 infrastructure", () => {
     expect(result.solution[0]).toBeCloseTo(root[0]!, 10);
     expect(result.solution[1]).toBeCloseTo(root[1]!, 10);
   });
+
+  it("converges the same cross-block root with a scaled Powell dogleg", () => {
+    const root = Float64Array.from(
+      { length: DIMENSION },
+      (_, index) => 0.75 + index * 0.01,
+    );
+    const system = manufacturedCoupledSystem(root);
+    const initial = Float64Array.from(root, (value, index) =>
+      value + (index % 2 === 0 ? 0.18 : -0.14));
+    const initialBeforeSolve = initial.slice();
+    const solved = solveFlatCoupledSystemWithDoglegV1(
+      system,
+      initial,
+      defaultDoglegOptions(DIMENSION),
+      createFlatCoupledDoglegWorkspaceV1(DIMENSION),
+    );
+
+    expect(solved.solverId).toBe("flat-coupled-scaled-powell-dogleg-v1");
+    expect(solved.result.status).toBe("converged");
+    if (solved.result.status !== "converged") {
+      throw new Error(solved.result.message);
+    }
+    expect(Array.from(initial)).toEqual(Array.from(initialBeforeSolve));
+    expect(solved.result.residualInfinityNorm).toBeLessThan(1e-11);
+    for (let index = 0; index < DIMENSION; index += 1) {
+      expect(solved.result.solution[index]).toBeCloseTo(root[index]!, 9);
+    }
+  });
+
+  it("keeps component convergence authoritative over trust-region merit", () => {
+    const system: FlatCoupledSystemV1 = Object.freeze({
+      dimension: 1,
+      evaluateResidual: (unknowns, destination) => {
+        destination[0] = unknowns[0]! <= 0.5 ? 1 : 1.05;
+      },
+      isResidualConverged: (unknowns, residual) =>
+        unknowns[0]! > 0.5 && Math.abs(residual[0]!) <= 1.05,
+      evaluateJacobian: (_unknowns, destination) => {
+        destination[0] = -1;
+      },
+    });
+    const solved = solveFlatCoupledSystemWithDoglegV1(
+      system,
+      new Float64Array([0.5]),
+      defaultDoglegOptions(1),
+    );
+
+    expect(solved.result.status).toBe("converged");
+    if (solved.result.status !== "converged") {
+      throw new Error(solved.result.message);
+    }
+    expect(solved.result.iterations).toBe(1);
+    expect(solved.result.solution[0]).toBe(1.5);
+    expect(solved.result.residualInfinityNorm).toBe(1.05);
+    expect(solved.rejectedTrialCount).toBe(0);
+  });
+
+  it("does not accept a non-root stationary least-squares point", () => {
+    const system: FlatCoupledSystemV1 = Object.freeze({
+      dimension: 1,
+      evaluateResidual: (_unknowns, destination) => {
+        destination[0] = 1;
+      },
+      isResidualConverged: () => false,
+      evaluateJacobian: (_unknowns, destination) => {
+        destination[0] = 0;
+      },
+    });
+    const solved = solveFlatCoupledSystemWithDoglegV1(
+      system,
+      new Float64Array([0.5]),
+      defaultDoglegOptions(1),
+    );
+
+    expect(solved.result.status).toBe("failed");
+    if (solved.result.status !== "failed") {
+      throw new Error("stationary non-root unexpectedly converged");
+    }
+    expect(solved.result.reason).toBe("singular-jacobian");
+    expect(solved.rejectedTrialCount).toBeGreaterThan(0);
+    expect(solved.trustRegionContractionCount).toBeGreaterThan(0);
+  });
 });
 
 function diagonallyDominantMatrix(dimension: number): Float64Array {
@@ -305,5 +392,18 @@ function defaultOptions(dimension: number): FlatCoupledNewtonOptionsV1 {
     residualScaleByEquation: new Float64Array(dimension).fill(1),
     lowerBoundByUnknown: new Float64Array(dimension).fill(0.01),
     upperBoundByUnknown: new Float64Array(dimension).fill(4),
+  });
+}
+
+function defaultDoglegOptions(
+  dimension: number,
+): FlatCoupledDoglegOptionsV1 {
+  return Object.freeze({
+    ...defaultOptions(dimension),
+    initialTrustRegionRadius: 2,
+    maximumTrustRegionRadius: 32,
+    minimumTrustRegionRadius: 1e-12,
+    maximumTrustRegionTrialsPerIteration: 16,
+    acceptanceRatio: 1e-4,
   });
 }
