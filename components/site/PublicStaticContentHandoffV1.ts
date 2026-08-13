@@ -7,9 +7,16 @@ export function completePublicStaticContentHandoffV1(): void {
   const clientRoot = document.getElementById("root");
   const staticRoot = document.getElementById("public-static-root");
   if (clientRoot === null || staticRoot === null) return;
+  const documentScrollTop = window.scrollY;
 
   window.requestAnimationFrame(() => {
     clientRoot.hidden = false;
     staticRoot.remove();
+    const scrollHost = clientRoot.querySelector<HTMLElement>(
+      '[data-public-static-scroll-host="true"]',
+    );
+    if (scrollHost !== null && documentScrollTop > 0) {
+      scrollHost.scrollTop = documentScrollTop;
+    }
   });
 }
