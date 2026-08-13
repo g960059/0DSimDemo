@@ -355,7 +355,41 @@ The remaining overhead is dominated by rebuilding and fully revalidating the
 legacy object owner graph, not by the typed page itself. These figures are
 machine-specific diagnostics, not gates.
 
-#### Phase 1b.2b.2 — direct solver-owned typed state (next)
+#### Phase 1b.2b.2a — authoritative boundary cursor (implemented reference)
+
+The active typed image now exposes a read-only live cursor rather than an
+`ArrayBuffer` or typed-array view. The cursor follows the atomic active-index
+swap and permits generated slot reads only; it cannot mutate either image.
+The Main Wire binding admits that cursor only when its layout ID and complete
+manifest fingerprint match `fnv1a32-9657ecbf`.
+
+The reference Session now reads the outer accepted clock and revision from
+fixed slots and computes its next coronary/rhythm boundary from the active
+typed image. The direct limiter uses fixed offsets for owner clocks, the
+autoregulation window, regular atrial activation, and ventricular backup. It
+decodes only the five bounded dynamic roots that can contribute an event
+boundary: authored ectopy, authored ventricular pacing, proximal AV output,
+distal ventricular impulse, and calcium-deposit queues. It also proves that
+the outer, composed-rhythm, and coronary clocks/revisions agree before every
+scheduling decision.
+
+The typed limiter is compared field-for-field with the admitted object limiter
+over 96 evolving presentation boundaries. The complete 1,024-tick/all-output
+oracle and exact checkpoint-continuation gates remain unchanged. The injected
+test authority deliberately falls back to the original object limiter, so
+authority-failure tests do not gain an accidental typed precondition.
+
+This slice moves scheduling authority, not the nonlinear solve. The existing
+object transaction still regenerates and validates its own boundary internally
+and produces an object candidate before the inactive typed image admits it.
+A representative 512-tick diagnostic measured about `2.47 ms/tick` for the
+released Session and `4.55 ms/tick` for the typed reference (`1.85x`); isolated
+typed image staging and rehydration were about `0.215 ms/tick` and
+`0.066 ms/tick`. The small change relative to Phase 1b.2b.1 is expected because
+duplicate legacy transaction work remains. These figures are diagnostics, not
+performance gates.
+
+#### Phase 1b.2b.2b — direct solver-owned typed state (next)
 
 Before production cutover, move each state owner and the solver from object
 property access to generated typed offsets/tags. Replace hot

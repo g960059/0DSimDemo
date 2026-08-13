@@ -113,6 +113,21 @@ export type TransactionalTypedStateImageSnapshotV1 = Readonly<{
   dynamicBytes: Uint8Array;
 }>;
 
+/**
+ * Read-only, live cursor over whichever fixed image is currently accepted.
+ * It never exposes an ArrayBuffer or typed-array view, so a caller cannot
+ * mutate the transaction authority. Slot numbers are bound by the manifest
+ * fingerprint and are intended to be generated into a model-owned cursor.
+ */
+export type TransactionalTypedStateCurrentCursorV1 = Readonly<{
+  layoutId: string;
+  fingerprint: string;
+  readContinuous(slotIndex: number): number;
+  readBoolean(slotIndex: number): boolean;
+  readString(slotIndex: number): string;
+  readDynamic(slotIndex: number): unknown;
+}>;
+
 type MutableImageV1 = Readonly<{
   buffer: ArrayBuffer;
   continuous: Float64Array;
@@ -173,6 +188,7 @@ export class TransactionalTypedStateImageV1<TState> {
 
   readonly #manifest: TransactionalTypedStateManifestV1;
   readonly #images: readonly [MutableImageV1, MutableImageV1];
+  readonly #currentCursor: TransactionalTypedStateCurrentCursorV1;
   #activeIndex: 0 | 1 = 0;
   #commitCount = 0;
   #staged = false;
@@ -192,6 +208,18 @@ export class TransactionalTypedStateImageV1<TState> {
       createImage(manifest),
       createImage(manifest),
     ]);
+    this.#currentCursor = Object.freeze({
+      layoutId: manifest.layoutId,
+      fingerprint: manifest.fingerprint,
+      readContinuous: (slotIndex: number) =>
+        this.readCurrentContinuous(slotIndex),
+      readBoolean: (slotIndex: number) =>
+        this.readCurrentBoolean(slotIndex),
+      readString: (slotIndex: number) =>
+        this.readCurrentString(slotIndex),
+      readDynamic: (slotIndex: number) =>
+        this.readCurrentDynamic(slotIndex),
+    });
     this.stage(initialState);
     this.promote();
     this.#commitCount = 0;
@@ -260,6 +288,10 @@ export class TransactionalTypedStateImageV1<TState> {
     ) as TState;
   }
 
+  currentCursor(): TransactionalTypedStateCurrentCursorV1 {
+    return this.#currentCursor;
+  }
+
   snapshot(): TransactionalTypedStateImageSnapshotV1 {
     const image = this.#images[this.#activeIndex];
     return Object.freeze({
@@ -299,6 +331,91 @@ export class TransactionalTypedStateImageV1<TState> {
 
   private inactiveIndex(): 0 | 1 {
     return this.#activeIndex === 0 ? 1 : 0;
+  }
+
+  private readCurrentContinuous(slotIndex: number): number {
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous",
+    );
+    const value = this.#images[this.#activeIndex].continuous[slotIndex]!;
+    if (!Number.isFinite(value)) {
+      throw new Error("Transactional typed state current continuous slot is not finite");
+    }
+    return value;
+  }
+
+  private readCurrentBoolean(slotIndex: number): boolean {
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean",
+    );
+    const value = this.#images[this.#activeIndex].booleans[slotIndex]!;
+    if (value !== 0 && value !== 1) {
+      throw new Error("Transactional typed state current boolean slot is invalid");
+    }
+    return value === 1;
+  }
+
+  private readCurrentString(slotIndex: number): string {
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string",
+    );
+    const image = this.#images[this.#activeIndex];
+    const offset = image.stringMetadata[slotIndex * 2]!;
+    const length = image.stringMetadata[slotIndex * 2 + 1]!;
+    assertArenaSlice(offset, length, this.#currentStringBytes, "string");
+    return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
+  }
+
+  private readCurrentDynamic(slotIndex: number): unknown {
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.excludedDynamicRoots.length,
+      "dynamic",
+    );
+    const image = this.#images[this.#activeIndex];
+    const offset = image.dynamicMetadata[slotIndex * 2]!;
+    const length = image.dynamicMetadata[slotIndex * 2 + 1]!;
+    assertArenaSlice(offset, length, this.#currentDynamicBytes, "dynamic");
+    return decodeCanonicalFlatDataV1(
+      image.dynamicArena.subarray(offset, offset + length),
+    );
+  }
+}
+
+function assertSlotIndex(
+  slotIndex: number,
+  slotCount: number,
+  owner: string,
+): void {
+  if (
+    !Number.isSafeInteger(slotIndex)
+    || slotIndex < 0
+    || slotIndex >= slotCount
+  ) {
+    throw new Error(`Transactional typed state ${owner} slot index is invalid`);
+  }
+}
+
+function assertArenaSlice(
+  offset: number,
+  length: number,
+  usedBytes: number,
+  owner: string,
+): void {
+  if (
+    !Number.isSafeInteger(offset)
+    || !Number.isSafeInteger(length)
+    || offset < 0
+    || length < 1
+    || offset + length > usedBytes
+  ) {
+    throw new Error(`Transactional typed state current ${owner} slice is invalid`);
   }
 }
 

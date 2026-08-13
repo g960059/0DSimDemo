@@ -58,6 +58,11 @@ import {
   createMainWireAcceptedScalarSlotManifestV1,
 } from "@/engine/vnext/MainWireAcceptedScalarSlotsV1";
 import {
+  limitMainWireAcceptedTypedCandidateTimeV1,
+  readMainWireAcceptedTypedClockV1,
+  type MainWireAcceptedTypedClockV1,
+} from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
+import {
   MainWireAcceptedTypedStateAuthorityV1,
   type MainWireAcceptedTypedStateAuthorityReportV1,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
@@ -271,22 +276,23 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     targetTimeSec: number,
   ): MainWireIntegratedModelPresentationAdvanceV3 {
     this.#acceptedState = this.#authority.current();
+    let acceptedClock = this.currentAcceptedClock();
     if (!Number.isFinite(targetTimeSec) || targetTimeSec < 0) {
       throw new Error(
         "Main Wire flat reference presentation target time is invalid",
       );
     }
-    if (targetTimeSec < this.#acceptedState.acceptedTimeSec) {
+    if (targetTimeSec < acceptedClock.acceptedTimeSec) {
       throw new Error(
         "Main Wire flat reference target precedes accepted time",
       );
     }
-    if (targetTimeSec === this.#acceptedState.acceptedTimeSec) {
+    if (targetTimeSec === acceptedClock.acceptedTimeSec) {
       return Object.freeze({
         status: "already-at-target" as const,
         presentationTimeSec: targetTimeSec,
-        acceptedTimeSec: this.#acceptedState.acceptedTimeSec,
-        acceptedRevision: this.#acceptedState.revision,
+        acceptedTimeSec: acceptedClock.acceptedTimeSec,
+        acceptedRevision: acceptedClock.revision,
         internalAcceptedSubstepCount: 0 as const,
         observation: this.#lastPresentationObservation,
       });
@@ -297,7 +303,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     let substepCount = 0;
     const substeps: MainWireIntegratedModelSubstepRecordV3[] = [];
 
-    while (this.#acceptedState.acceptedTimeSec !== targetTimeSec) {
+    while (acceptedClock.acceptedTimeSec !== targetTimeSec) {
       if (
         substepCount
           >= MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3
@@ -312,17 +318,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
 
       let limit;
       try {
-        limit = limitMainWireIntegratedModelCandidateTimeV3(
-          this.#acceptedState,
-          targetTimeSec,
-          {
-            configuration: this.#rhythmInput.configuration,
-            externalAfNextBoundaryTimeSec:
-              this.#rhythmInput.externalAfNextBoundaryTimeSec,
-          },
-          this.#runtime.profile,
-          this.#dynamicMechanicalSupportConfig,
-        );
+        limit = this.limitCandidateTime(targetTimeSec);
       } catch (error) {
         if (!isNonadvancingLimiterError(error)) throw error;
         return this.failedAdvance(
@@ -333,7 +329,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         );
       }
 
-      if (!(limit.candidateTimeSec > this.#acceptedState.acceptedTimeSec)) {
+      if (!(limit.candidateTimeSec > acceptedClock.acceptedTimeSec)) {
         return this.failedAdvance(
           "candidate-time-did-not-advance",
           "Main Wire flat reference candidate time did not advance",
@@ -382,6 +378,15 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       }
       this.#scalarSlots.promote();
       this.#acceptedState = committedState;
+      acceptedClock = this.currentAcceptedClock();
+      if (
+        acceptedClock.acceptedTimeSec !== committedState.acceptedTimeSec
+        || acceptedClock.revision !== committedState.revision
+      ) {
+        throw new Error(
+          "Main Wire flat reference typed clock differs from committed adapter",
+        );
+      }
       const committedResult = Object.freeze({
         ...result,
         acceptedState: committedState,
@@ -402,7 +407,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       }));
     }
 
-    if (this.#acceptedState.acceptedTimeSec !== targetTimeSec) {
+    if (acceptedClock.acceptedTimeSec !== targetTimeSec) {
       return this.failedAdvance(
         "integrated-promotion-rejected",
         "Main Wire flat reference did not land on its presentation target",
@@ -419,7 +424,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       );
     }
     const acceptedRevisionSpanFromPrevious =
-      this.#acceptedState.revision - previousPresentationRevision;
+      acceptedClock.revision - previousPresentationRevision;
     if (acceptedRevisionSpanFromPrevious < 1) {
       return this.failedAdvance(
         "integrated-promotion-rejected",
@@ -445,8 +450,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     return Object.freeze({
       status: "advanced" as const,
       presentationTimeSec: targetTimeSec,
-      acceptedTimeSec: this.#acceptedState.acceptedTimeSec,
-      acceptedRevision: this.#acceptedState.revision,
+      acceptedTimeSec: acceptedClock.acceptedTimeSec,
+      acceptedRevision: acceptedClock.revision,
       acceptedRevisionSpanFromPrevious,
       internalAcceptedSubstepCount: substepCount,
       boundaryClippedSubstepCount:
@@ -515,6 +520,39 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     });
   }
 
+  private currentAcceptedClock(): MainWireAcceptedTypedClockV1 {
+    if (this.#typedAuthority !== null) {
+      return readMainWireAcceptedTypedClockV1(
+        this.#typedAuthority.currentCursor(),
+      );
+    }
+    return Object.freeze({
+      acceptedTimeSec: this.#acceptedState.acceptedTimeSec,
+      revision: this.#acceptedState.revision,
+    });
+  }
+
+  private limitCandidateTime(targetTimeSec: number) {
+    if (this.#typedAuthority !== null) {
+      return limitMainWireAcceptedTypedCandidateTimeV1(
+        this.#typedAuthority.currentCursor(),
+        targetTimeSec,
+        this.#rhythmInput.externalAfNextBoundaryTimeSec,
+      );
+    }
+    return limitMainWireIntegratedModelCandidateTimeV3(
+      this.#acceptedState,
+      targetTimeSec,
+      {
+        configuration: this.#rhythmInput.configuration,
+        externalAfNextBoundaryTimeSec:
+          this.#rhythmInput.externalAfNextBoundaryTimeSec,
+      },
+      this.#runtime.profile,
+      this.#dynamicMechanicalSupportConfig,
+    );
+  }
+
   private failedAdvance(
     reason: AdvanceFailureReason,
     message: string,
@@ -524,12 +562,13 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     MainWireIntegratedModelPresentationAdvanceV3,
     { status: "failed" }
   > {
+    const acceptedClock = this.currentAcceptedClock();
     return Object.freeze({
       status: "failed" as const,
       reason,
       message,
-      acceptedTimeSec: this.#acceptedState.acceptedTimeSec,
-      acceptedRevision: this.#acceptedState.revision,
+      acceptedTimeSec: acceptedClock.acceptedTimeSec,
+      acceptedRevision: acceptedClock.revision,
       partiallyAdvanced: substeps.length > 0,
       internalAcceptedSubstepCount: substeps.length,
       boundaryClippedSubstepCount:

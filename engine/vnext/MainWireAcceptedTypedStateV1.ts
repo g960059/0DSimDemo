@@ -15,6 +15,7 @@ import {
 import {
   createTransactionalTypedStateManifestV1,
   TransactionalTypedStateImageV1,
+  type TransactionalTypedStateCurrentCursorV1,
   type TransactionalTypedStateImageReportV1,
   type TransactionalTypedStateImageSnapshotV1,
   type TransactionalTypedStateManifestV1,
@@ -157,6 +158,12 @@ export class MainWireAcceptedTypedStateAuthorityV1
   snapshotImage(): TransactionalTypedStateImageSnapshotV1 {
     this.assertHealthy();
     return this.#image.snapshot();
+  }
+
+  /** Hot model-owned reads follow the active image after every promotion. */
+  currentCursor(): TransactionalTypedStateCurrentCursorV1 {
+    this.assertHealthy();
+    return this.#image.currentCursor();
   }
 
   /** Cold-boundary proof that the cached solver adapter still matches storage. */

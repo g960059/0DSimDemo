@@ -8,6 +8,12 @@ import {
   mainWireIntegratedModelPresentationTargetTimeSecV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
+  createMainWireIntegratedModelRuntimeV3,
+} from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
+import {
+  limitMainWireIntegratedModelCandidateTimeV3,
+} from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
+import {
   decodeCanonicalFlatCheckpointV1,
   decodeCanonicalFlatDataV1,
   encodeCanonicalFlatCheckpointV1,
@@ -20,6 +26,13 @@ import {
 import {
   MainWireFlatAuthoritativeReferenceSessionV1,
 } from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
+import {
+  limitMainWireAcceptedTypedCandidateTimeV1,
+  readMainWireAcceptedTypedClockV1,
+} from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
+import {
+  createMainWireAcceptedTypedStateManifestV1,
+} from "@/engine/vnext/MainWireAcceptedTypedStateV1";
 import {
   createTransactionalScalarSlotManifestV1,
   TransactionalScalarSlotsV1,
@@ -210,6 +223,24 @@ describe("TransactionalTypedStateImageV1", () => {
       128,
     );
     const image = new TransactionalTypedStateImageV1(manifest, initial);
+    const cursor = image.currentCursor();
+    const valueSlot = manifest.numericalLayout.continuousSlots.findIndex(
+      ({ pointer }) => pointer === "/value",
+    );
+    const labelSlot = manifest.numericalLayout.stringSlots.findIndex(
+      ({ pointer }) => pointer === "/label",
+    );
+    const optionalSlot = manifest.numericalLayout.excludedDynamicRoots.findIndex(
+      ({ pointer }) => pointer === "/optional",
+    );
+    const queueSlot = manifest.numericalLayout.excludedDynamicRoots.findIndex(
+      ({ pointer }) => pointer === "/queue",
+    );
+    expect(cursor.readContinuous(valueSlot)).toBe(1);
+    expect(cursor.readBoolean(0)).toBe(false);
+    expect(cursor.readString(labelSlot)).toBe("initial");
+    expect(cursor.readDynamic(optionalSlot)).toBeNull();
+    expect(cursor.readDynamic(queueSlot)).toEqual([]);
     expect(image.rehydrateCurrent()).toEqual(initial);
     expect(image.report()).toMatchObject({
       continuousSlotCount: 3,
@@ -230,9 +261,18 @@ describe("TransactionalTypedStateImageV1", () => {
       queue: Object.freeze([Object.freeze({ id: "impulse-1", at: 0.25 })]),
     });
     image.stage(candidate);
+    expect(cursor.readContinuous(valueSlot)).toBe(1);
+    expect(cursor.readString(labelSlot)).toBe("initial");
     expect(image.rehydrateCurrent()).toEqual(initial);
     expect(image.rehydrateStaged()).toEqual(candidate);
     image.promote();
+    expect(image.currentCursor()).toBe(cursor);
+    expect(cursor.readContinuous(valueSlot)).toBe(4);
+    expect(cursor.readBoolean(0)).toBe(true);
+    expect(cursor.readString(labelSlot)).toBe("next");
+    const escapedOptional = cursor.readDynamic(optionalSlot) as { count: number };
+    expect(escapedOptional).toEqual({ count: 7 });
+    expect(() => cursor.readContinuous(-1)).toThrow("slot index is invalid");
     expect(image.rehydrateCurrent()).toEqual(candidate);
     expect(image.report()).toMatchObject({ commitCount: 1, staged: false });
 
@@ -290,6 +330,43 @@ describe("TransactionalTypedStateImageV1", () => {
 });
 
 describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
+  it("matches the admitted object limiter from direct typed boundary slots", async () => {
+    const runtime = await createMainWireIntegratedModelRuntimeV3();
+    const oracle = await MainWireIntegratedModelSessionV3.create();
+    for (let tick = 1; tick <= 96; tick += 1) {
+      const state = oracle.currentAcceptedState();
+      const image = new TransactionalTypedStateImageV1(
+        createMainWireAcceptedTypedStateManifestV1(
+          runtime.cold.acceptedState,
+        ),
+        state,
+      );
+      const cursor = image.currentCursor();
+      expect(readMainWireAcceptedTypedClockV1(cursor)).toEqual({
+        acceptedTimeSec: state.acceptedTimeSec,
+        revision: state.revision,
+      });
+      const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
+      const actual = limitMainWireAcceptedTypedCandidateTimeV1(
+        cursor,
+        target,
+        null,
+      );
+      const expected = limitMainWireIntegratedModelCandidateTimeV3(
+        state,
+        target,
+        {
+          configuration: runtime.rhythm.configuration,
+          externalAfNextBoundaryTimeSec: null,
+        },
+        runtime.profile,
+        runtime.config,
+      );
+      expect(actual).toEqual(expected);
+      expect(oracle.advanceToPresentationTime(target).status).toBe("advanced");
+    }
+  }, 30_000);
+
   it("forbids continuation after a post-solver authority failure", async () => {
     let commitCalls = 0;
     let poisoned = false;
