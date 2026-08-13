@@ -21,6 +21,7 @@ export type PublicExperimentCatalogItemV3 = Readonly<{
 
 export type PublicArticleCatalogItemV3 = Readonly<{
   articleId: string;
+  publicSlug: string;
   locale: string;
   title: string;
   excerpt: string | null;
@@ -118,6 +119,9 @@ function localPublicArticleSummaryV3(
 ): PublicArticleCatalogItemV3 {
   return Object.freeze({
     articleId: article.articleId,
+    // The browser-only fallback has no publication alias table. Its durable
+    // Article identity is therefore also the only reversible Reader route.
+    publicSlug: article.articleId,
     locale: article.locale,
     title: article.title,
     excerpt: publicArticleExcerptV3(article.blocks),

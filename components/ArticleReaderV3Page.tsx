@@ -15,9 +15,13 @@ import {
   ArticleQuizPresentationV3,
 } from "@/components/article/ArticleRichBlockV3";
 import {
+  articleReaderHref,
   newExperimentHref,
 } from "@/homeLinks";
-import { localeFromPathname } from "@/localeRouting";
+import {
+  completePublicStaticContentHandoffV1,
+} from "@/components/site/PublicStaticContentHandoffV1";
+import { isLocale, localeFromPathname } from "@/localeRouting";
 import {
   loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
@@ -25,6 +29,9 @@ import {
 import type {
   StudioArticleDraftV2,
 } from "@/studio/contracts/v2/article";
+import {
+  publishedArticleDraftProjectionV1,
+} from "@/studio/application/publication/StudioPublishedArticleV1";
 import type {
   ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
@@ -44,6 +51,7 @@ type ArticleReaderContentStateV3 =
   | Readonly<{
       kind: "ready";
       article: StudioArticleDraftV2;
+      canonicalPublicSlug: string | null;
       snapshots: ReadonlyMap<string, ExperimentSnapshotV2>;
     }>
   | Readonly<{ kind: "missing" }>
@@ -132,6 +140,7 @@ function ArticleReaderV3Resource({
 }>) {
   const { t } = useTranslation();
   const locale = localeFromPathname(pathname);
+  const authoredPreview = /\/articles\/[^/]+\/preview\/?$/.test(pathname);
   const navigate = useNavigate();
   const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
   const remoteRepository = React.useMemo(
@@ -172,9 +181,14 @@ function ArticleReaderV3Resource({
         setContent({ kind: "missing" });
         return;
       }
-      const article = remoteRepository === null
-        ? store.readArticle(articleId)
-        : await remoteRepository.readArticle(articleId);
+      const publishedArticle = authoredPreview || remoteRepository === null
+        ? null
+        : await remoteRepository.readPublishedArticle(articleId);
+      const article = publishedArticle === null
+        ? remoteRepository === null
+          ? store.readArticle(articleId)
+          : await remoteRepository.readArticle(articleId)
+        : publishedArticleDraftProjectionV1(publishedArticle);
       if (!current) return;
       if (article === null) {
         setContent({ kind: "missing" });
@@ -193,6 +207,7 @@ function ArticleReaderV3Resource({
         setContent({
           kind: "ready",
           article,
+          canonicalPublicSlug: publishedArticle?.publicSlug ?? null,
           snapshots: new Map(snapshots.map((snapshot) => [
             snapshot.snapshotId,
             snapshot,
@@ -211,7 +226,23 @@ function ArticleReaderV3Resource({
     return () => {
       current = false;
     };
-  }, [articleId, remoteRepository, store]);
+  }, [articleId, authoredPreview, remoteRepository, store]);
+  React.useEffect(() => {
+    if (content.kind === "ready") {
+      completePublicStaticContentHandoffV1();
+    }
+  }, [content.kind]);
+  React.useEffect(() => {
+    if (
+      content.kind !== "ready"
+      || content.canonicalPublicSlug === null
+      || articleId === content.canonicalPublicSlug
+    ) return;
+    navigate(articleReaderHref({
+      articleId: content.canonicalPublicSlug,
+      locale: isLocale(content.article.locale) ? content.article.locale : locale,
+    }), { replace: true });
+  }, [articleId, content, locale, navigate]);
   const openExperimentSessionV3 = React.useCallback((snapshotId: string) => {
     const sessionToken = createExperimentSessionTokenV3();
     experimentSessionHandoff.begin({

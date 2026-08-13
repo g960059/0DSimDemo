@@ -11,7 +11,7 @@ import { Link, useLocation } from "react-router-dom";
 
 import {
   articleEditorHref,
-  articleReaderHref,
+  articlePreviewHref,
   newArticleEditorHref,
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
@@ -209,7 +209,7 @@ export function ArticleLibraryV3Page() {
                         {t("articleLibrary.edit")}
                       </Link>
                       <Link
-                        to={articleReaderHref({ articleId: article.articleId, locale })}
+                        to={articlePreviewHref({ articleId: article.articleId, locale })}
                         className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-accent transition-[color,background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                       >
                         {t("articleLibrary.read")}

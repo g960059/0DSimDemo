@@ -29,6 +29,7 @@ dist-ssr
 *.sln
 *.sw?
 dist/
+dist-public-content/
 /artifacts/
 
 # machine-local Claude Code permissions (do not track)

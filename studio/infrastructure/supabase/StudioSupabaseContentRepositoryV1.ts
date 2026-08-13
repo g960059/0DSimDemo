@@ -12,6 +12,10 @@ import {
   type StudioArticleDraftV2,
 } from "@/studio/contracts/v2/article";
 import {
+  type StudioPublishedArticleV1,
+  validateStudioPublishedArticleV1,
+} from "@/studio/application/publication/StudioPublishedArticleV1";
+import {
   STUDIO_EXPERIMENT_V2_SCHEMA_ID,
   type ExperimentContentV2,
   type ExperimentSnapshotV2,
@@ -439,6 +443,16 @@ export class StudioSupabaseContentRepositoryV1 {
   async readArticle(articleId: string): Promise<StudioArticleDraftV2 | null> {
     const data = await this.#rpc("read_article_v1", { p_article_id: articleId });
     return data === null ? null : validateStudioArticleDraftV2(data);
+  }
+
+  /** Resolves either the canonical public slug or a legacy public UUID route. */
+  async readPublishedArticle(
+    routeKey: string,
+  ): Promise<StudioPublishedArticleV1 | null> {
+    const data = await this.#rpc("read_public_article_route_v1", {
+      p_article_route_key: routeKey,
+    });
+    return data === null ? null : validateStudioPublishedArticleV1(data);
   }
 
   async readMyAuthoringOperationReceipt(

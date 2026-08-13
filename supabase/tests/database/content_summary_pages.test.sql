@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(21);
 
 insert into auth.users (
   id,
@@ -338,6 +338,61 @@ select throws_ok(
   '22023',
   'List page limit must be within [1, 100]',
   'Summary page size is bounded'
+);
+
+insert into summary_state (key, value)
+select 'public-article-route-slug', public.read_public_article_route_v1(
+  'summary-public-article'
+);
+
+select is(
+  (select value ->> 'articleContentId' from summary_state where key = 'public-article-route-slug'),
+  (select value ->> 'articleContentId' from summary_state where key = 'article-content'),
+  'Public Article slug resolves the immutable publication content'
+);
+
+select is(
+  public.read_public_article_route_v1(
+    '33000000-0000-0000-0000-000000000001'
+  ) ->> 'publicSlug',
+  'summary-public-article',
+  'A public Article UUID remains a redirectable legacy route key'
+);
+
+select throws_like(
+  $$
+    update studio.article_publications
+    set public_slug = '33000000-0000-0000-0000-000000000001'
+    where article_id = '33000000-0000-0000-0000-000000000001'
+  $$,
+  '%article_publications_slug%',
+  'A UUID-shaped slug cannot hijack another Article legacy route'
+);
+
+select is(
+  (select value ->> 'schemaId' from summary_state where key = 'public-article-route-slug'),
+  'circleheart-studio-published-article-v1',
+  'Public Article projection carries an explicit schema identity'
+);
+
+select ok(
+  not (select value from summary_state where key = 'public-article-route-slug') ? 'ownerId',
+  'Public Article projection never exposes ownership metadata'
+);
+
+select is(
+  public.read_public_article_route_v1(
+    '33000000-0000-0000-0000-000000000099'
+  ),
+  null::jsonb,
+  'Unpublished or missing Article routes return null'
+);
+
+select throws_ok(
+  $$ select public.read_public_article_route_v1('../draft') $$,
+  '22023',
+  'Public Article route key is invalid',
+  'Public Article route rejects path-like input'
 );
 
 select * from finish();

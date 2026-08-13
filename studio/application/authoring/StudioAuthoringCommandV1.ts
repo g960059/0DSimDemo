@@ -324,6 +324,9 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     minLength: 3,
     maxLength: 96,
     pattern: "^[a-z0-9][a-z0-9-]{2,95}$",
+    not: {
+      pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    },
   });
   const nullableId = Object.freeze({ type: ["string", "null"], minLength: 1 });
   const version = Object.freeze({ type: "integer", minimum: 0 });
@@ -1908,9 +1911,12 @@ function uuidV1(value: unknown, path: string): string {
 
 function publicSlugV1(value: unknown, path: string): string {
   const text = trimmedV1(value, path);
-  if (!/^[a-z0-9][a-z0-9-]{2,95}$/.test(text)) {
+  if (
+    !/^[a-z0-9][a-z0-9-]{2,95}$/.test(text)
+    || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(text)
+  ) {
     throw new Error(
-      `${path} must be 3-96 lowercase alphanumeric or hyphen characters`,
+      `${path} must be a non-UUID slug of 3-96 lowercase alphanumeric or hyphen characters`,
     );
   }
   return text;

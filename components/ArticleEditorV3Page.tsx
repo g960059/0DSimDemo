@@ -33,6 +33,7 @@ import {
 
 import {
   articleEditorHref,
+  articlePreviewHref,
   articleReaderHref,
   myArticlesHref,
   newExperimentHref,
@@ -1461,7 +1462,7 @@ export function ArticleEditorV3Page() {
         />
         {persistedArticle && (
           <a
-            href={articleReaderHref({ articleId: draft.articleId, locale })}
+            href={articlePreviewHref({ articleId: draft.articleId, locale })}
             target="_blank"
             rel="noreferrer"
             aria-label={t("articleEditor.preview")}

@@ -9,6 +9,9 @@ import {
   publicArticlesForLocaleV3,
   readPublicCatalogAsyncV3,
 } from "@/components/site/PublicCatalogV3";
+import {
+  completePublicStaticContentHandoffV1,
+} from "@/components/site/PublicStaticContentHandoffV1";
 
 export function PublicArticleDirectoryV3Page() {
   const { t } = useTranslation();
@@ -35,6 +38,11 @@ export function PublicArticleDirectoryV3Page() {
       current = false;
     };
   }, []);
+  React.useEffect(() => {
+    if (state.kind === "ready") {
+      completePublicStaticContentHandoffV1();
+    }
+  }, [state.kind]);
 
   const articles = state.kind === "ready"
     ? publicArticlesForLocaleV3(state.articles, locale)
@@ -69,7 +77,7 @@ export function PublicArticleDirectoryV3Page() {
             {articles.map((article) => (
               <li key={article.articleId}>
                 <Link
-                  to={articleReaderHref({ articleId: article.articleId, locale })}
+                  to={articleReaderHref({ articleId: article.publicSlug, locale })}
                   className="group flex h-full min-w-0 flex-col rounded-2xl border border-wb-line bg-wb-panel p-5 transition-[background-color,border-color,box-shadow] duration-150 hover:border-wb-line-strong hover:bg-wb-hover/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                 >
                   <span className="line-clamp-3 break-words text-base font-bold leading-6 tracking-[-0.015em] text-wb-text">

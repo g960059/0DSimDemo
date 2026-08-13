@@ -31,6 +31,11 @@ defines the no-compatibility flat-kernel cutover, typed Compute Worker ABI,
 physical-phone performance gates, and the ordered path through coupled solves,
 WASM, multipatch, autonomic reflexes, oxygen delivery, and multirate domains.
 
+[DESIGN-STUDIO-008-public-content-delivery.md](DESIGN-STUDIO-008-public-content-delivery.md)
+defines canonical server-rendered public Article HTML, Markdown, JSON,
+discovery metadata, caching and deployment while private authoring and the
+simulation runtime remain client-rendered.
+
 Superseded Studio V1 design and vertical-slice specifications were removed
 from the working tree. They remain available in Git history, but must not be
 used as implementation context.

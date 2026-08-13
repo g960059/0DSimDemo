@@ -29,10 +29,6 @@
         "source": "!/@(assets)/**",
         "headers": [
           {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          },
-          {
             "key": "X-Content-Type-Options",
             "value": "nosniff"
           },
@@ -45,9 +41,128 @@
             "value": "camera=(), microphone=(), geolocation=()"
           }
         ]
+      },
+      {
+        "source": "/",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/@(ja|en)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/@(ja|en)/@(experiments|snapshots|login|me|dev|docs)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/@(ja|en)/@(experiments|snapshots|login|me|dev|docs)/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/@(ja|en)/@(me|dev)/**",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/@(ja|en)/articles/*/edit",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/@(ja|en)/articles/*/preview",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
       }
     ],
     "rewrites": [
+      {
+        "source": "/@(ja|en)/articles/*/@(edit|preview)",
+        "destination": "/index.html"
+      },
+      {
+        "source": "/robots.txt",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/sitemap.xml",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/api/v1/public/articles/*",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/@(ja|en)/articles",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/@(ja|en)/articles/*",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
       {
         "source": "**",
         "destination": "/index.html"

@@ -58,6 +58,9 @@ describe("public catalog V3", () => {
     expect(catalog.articles.map(({ articleId }) => articleId)).toEqual([
       "article-public",
     ]);
+    expect(catalog.articles.map(({ publicSlug }) => publicSlug)).toEqual([
+      "article-public",
+    ]);
     expect(catalog.experiments.map(({ record }) => record.experimentId))
       .toEqual(["experiment-public"]);
   });
