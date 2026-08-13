@@ -12,6 +12,9 @@ import {
   mainWireIntegratedModelPresentationTargetTimeSecV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
+  mainWireFiveWallCoronaryBaseStateV2,
+} from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV3";
+import {
   createMainWireIntegratedModelRuntimeV3,
 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
 import {
@@ -51,6 +54,9 @@ import {
   MainWireFlatAuthoritativeReferenceSessionV1,
 } from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
 import {
+  MainWireFlatCoupledAcceptedStateV1,
+} from "@/engine/vnext/coupled/MainWireFlatCoupledAcceptedStateV1";
+import {
   createMainWireAcceptedTypedBoundaryBindingV1,
   evaluateMainWireAcceptedTypedCalciumDriveV1,
   limitMainWireAcceptedTypedCandidateTimeV1,
@@ -61,6 +67,25 @@ import {
   stageMainWireAcceptedTypedRegularAtrialCandidateV1,
   stageMainWireAcceptedTypedResolvedCandidateV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
+import {
+  createMainWireAcceptedTypedHemodynamicBindingV1,
+  createMainWireAcceptedTypedHemodynamicDestinationV1,
+  MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1,
+  readMainWireAcceptedTypedHemodynamicIntoV1,
+  stageMainWireAcceptedTypedCoupledCandidateV1,
+} from "@/engine/vnext/MainWireAcceptedTypedHemodynamicV1";
+import {
+  CORONARY_LAYER_IDS_V2,
+  CORONARY_TERRITORY_IDS_V2,
+} from "@/engine/coronary/typesV2";
+import {
+  MAIN_WIRE_FIVE_WALL_IDS_V1,
+} from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
+import {
+  NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
+  NON_CORONARY_NODE_NAMES_V1,
+  NON_CORONARY_VALVE_NAMES_V1,
+} from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   createMainWireAcceptedTypedStateManifestV1,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
@@ -929,6 +954,137 @@ describe("TransactionalTypedStateImageV1", () => {
 });
 
 describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
+  it("binds the complete coupled hemodynamic view to the full typed authority", async () => {
+    const oracle = await MainWireIntegratedModelSessionV3.create();
+    const initial = oracle.currentAcceptedState();
+    const manifest = createMainWireAcceptedTypedStateManifestV1(initial);
+    const image = new TransactionalTypedStateImageV1(manifest, initial);
+    const cursor = image.currentCursor();
+    const binding = createMainWireAcceptedTypedHemodynamicBindingV1(manifest);
+    const actual = createMainWireAcceptedTypedHemodynamicDestinationV1();
+    readMainWireAcceptedTypedHemodynamicIntoV1(cursor, binding, actual);
+
+    const reference = new MainWireFlatCoupledAcceptedStateV1(
+      mainWireFiveWallCoronaryBaseStateV2(initial.coronary),
+    ).snapshot();
+    const layout = MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1;
+    expect(actual[layout.acceptedTime]).toBe(reference.acceptedTimeSec);
+    expect(actual[layout.revision]).toBe(reference.revision);
+    expect(actual[layout.fixedTotalBloodVolume]).toBe(
+      reference.fixedGlobalTotalBloodVolumeMl,
+    );
+    expect(actual.slice(
+      layout.nonCoronaryVolumes,
+      layout.dynamicEdgeFlows,
+    )).toEqual(reference.nonCoronaryNodeVolumesMl);
+    expect(actual.slice(layout.dynamicEdgeFlows, layout.valveOpenings))
+      .toEqual(reference.dynamicEdgeFlowsMlPerSec);
+    expect(actual.slice(layout.valveOpenings, layout.coronaryVolumes))
+      .toEqual(reference.valveOpeningFractions01);
+    expect(actual.slice(layout.coronaryVolumes, layout.coronaryTone))
+      .toEqual(reference.coronaryConservedVolumesMl);
+    let toneIndex = layout.coronaryTone;
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      for (const layerId of CORONARY_LAYER_IDS_V2) {
+        expect(actual[toneIndex]).toBe(
+          reference.coronaryToneResistanceScaleByTerritoryLayer[territoryId][
+            layerId
+          ],
+        );
+        toneIndex += 1;
+      }
+    }
+    let wallIndex = layout.wallState;
+    for (const wallId of MAIN_WIRE_FIVE_WALL_IDS_V1) {
+      const wall = reference.mechanicsMaterialState.wallStateByWall[wallId];
+      expect(actual.slice(wallIndex, wallIndex + layout.landStateLength))
+        .toEqual(wall.landState);
+      wallIndex += layout.landStateLength;
+      expect(actual[wallIndex++]).toBe(wall.slsState.viscousLogStrain);
+      expect(actual[wallIndex++]).toBe(wall.previousFiberLogStrain);
+      expect(actual[wallIndex++]).toBe(wall.previousFreeCalciumUM);
+    }
+    expect(actual[layout.triSeg]).toBe(
+      reference.mechanicsMaterialState.trisegCoordinates
+        .septalMidwallCapVolumeM3,
+    );
+    expect(actual[layout.triSeg + 1]).toBe(
+      reference.mechanicsMaterialState.trisegCoordinates.junctionRadiusM,
+    );
+    expect(Array.from(actual.slice(layout.mvc, layout.mvc + 7))).toEqual([
+      reference.mvcReferenceState.reference.referenceFiberLogStrainByWall.LVFW,
+      reference.mvcReferenceState.reference.referenceFiberLogStrainByWall.SEP,
+      reference.mvcReferenceState.reference.referenceFiberLogStrainByWall.RVFW,
+      reference.mvcReferenceState.referenceAcceptedTimeSec,
+      reference.mvcReferenceState.referenceRevision,
+      reference.mvcReferenceState.mitralForwardFlowActive ? 1 : 0,
+      reference.mvcReferenceState.acceptedMitralClosureEventCount,
+    ]);
+
+    const target = mainWireIntegratedModelPresentationTargetTimeSecV3(1);
+    expect(oracle.advanceToPresentationTime(target).status).toBe("advanced");
+    const advanced = oracle.currentAcceptedState();
+    image.stage(advanced);
+    image.promote();
+    readMainWireAcceptedTypedHemodynamicIntoV1(cursor, binding, actual);
+    expect(actual[layout.acceptedTime]).toBe(advanced.acceptedTimeSec);
+    expect(actual[layout.revision]).toBe(advanced.revision);
+    expect(actual[layout.acceptedTime]).toBeGreaterThan(initial.acceptedTimeSec);
+  });
+
+  it("stages the coupled partition into the global inactive image without aliases", async () => {
+    const oracle = await MainWireIntegratedModelSessionV3.create();
+    const initial = oracle.currentAcceptedState();
+    const manifest = createMainWireAcceptedTypedStateManifestV1(initial);
+    const image = new TransactionalTypedStateImageV1(manifest, initial);
+    const binding = createMainWireAcceptedTypedHemodynamicBindingV1(manifest);
+    const candidateCursor = image.beginCandidateFromCurrent();
+    const scratch = createMainWireAcceptedTypedHemodynamicDestinationV1();
+    const coronary = initial.coronary;
+    const nonCoronaryNodeVolumesMl = new Float64Array(
+      NON_CORONARY_NODE_NAMES_V1.map(
+        (nodeId) => coronary.circulation.nodeVolumesMl[nodeId],
+      ),
+    );
+    const dynamicEdgeFlowsMlPerSec = new Float64Array(
+      NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map(
+        (edgeId) => coronary.circulation.dynamicEdgeFlowsMlPerSec[edgeId],
+      ),
+    );
+    stageMainWireAcceptedTypedCoupledCandidateV1(
+      candidateCursor,
+      binding,
+      Object.freeze({
+        candidateTimeSec: coronary.acceptedTimeSec,
+        candidateRevision: coronary.revision,
+        fixedGlobalTotalBloodVolumeMl:
+          coronary.fixedGlobalTotalBloodVolumeMl,
+        nonCoronaryNodeVolumesMl,
+        dynamicEdgeFlowsMlPerSec,
+        valveStates: Object.freeze(NON_CORONARY_VALVE_NAMES_V1.map(
+          (valveId) => Object.freeze({
+            leafletOpeningFraction01:
+              coronary.circulation.valveStates[valveId]
+                .leafletOpeningFraction01,
+          }),
+        )),
+        coronaryVolumesMl: coronary.coronary.volumeMlByNode,
+        coronaryToneResistanceScaleByTerritoryLayer:
+          coronary.coronary.toneResistanceScaleByTerritoryLayer,
+        mechanicsCandidateVolumesMl: coronary.mechanics.acceptedVolumesMl,
+        mechanicsMaterialState: coronary.mechanics.materialState,
+        mvcReferenceState: coronary.mvcReferenceState,
+      }),
+      scratch,
+    );
+    scratch.fill(Number.NaN);
+    nonCoronaryNodeVolumesMl.fill(Number.NaN);
+    dynamicEdgeFlowsMlPerSec.fill(Number.NaN);
+    expect(image.rehydrateStaged().coronary).toEqual(coronary);
+    image.abort();
+    expect(image.report().staged).toBe(false);
+  });
+
   it("keeps authored events external while typing both mutable schedules", async () => {
     const oracle = await MainWireIntegratedModelSessionV3.create();
     const accepted = oracle.currentAcceptedState();
