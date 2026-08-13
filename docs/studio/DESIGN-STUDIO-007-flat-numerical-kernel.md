@@ -49,6 +49,15 @@ reported model-time ratio. The main thread and Canvas are not the limiting
 resource. The exact Worker kernel is chronically slower than real time on this
 device.
 
+A second iPhone 16 Pro Max report after the packed Standard ABI isolated the
+same bottleneck more sharply. Numerical `presentation-advance` averaged
+`42.20 ms` (p95 `52 ms`) for `32 ms` of model time, while Worker preparation
+averaged only `0.10 ms`. Round trip averaged `42.99 ms`, model-time ratio
+averaged `0.731`, lag p95 remained `248 ms`, and the scheduler re-anchored 25
+times in about 25 seconds. The selected six-output page was only `1,120`
+bytes. Transport, validation, projection, Canvas, and storage are therefore
+not credible explanations for the remaining deficit.
+
 Accepted-step counters further locate the work. A representative settled run
 averages roughly three outer circulation candidates, four coronary Newton
 iterations, ten hydraulic residual evaluations, three mechanics evaluations,
@@ -173,6 +182,63 @@ Implement one Scenario and one patch with the same equations, step size, solver
 order, and tolerances as the current kernel. Change layout, ownership, and ABI
 only. The purpose is to prove that the typed boundary and flat state preserve
 science before changing nonlinear algebra.
+
+#### Phase 1a — reference bridge (implemented, not release-ready)
+
+The first vertical slice deliberately keeps `MainWireIntegratedModelSessionV3`
+as the scientific oracle. Around it, the new reference bridge establishes:
+
+- an integer presentation tick as its external clock;
+- deterministic semantic slot discovery for fixed-topology numerical state;
+- current/candidate flat buffers swapped only after a successful oracle step;
+- one caller-owned `ArrayBuffer` containing tick, revision, output-state, and
+  scalar-output views;
+- an exact-key Worker command/result seam that transfers that one buffer in
+  and out without duplicate-buffer transfer lists;
+- phase telemetry separating oracle advance, flat mirror write, and output
+  projection.
+
+The 1,024-tick parity gate crosses multiple rhythm boundaries and the first
+completed-beat metric transition, compares every registered output at every
+tick, and compares the terminal fixed-topology flat mirror against an
+independent oracle Session. Invalid output-plan/page input is rejected before
+numerical advance. The current reference layout contains
+440 `f64` leaves, four boolean leaves, 205 string leaves, and reports 45
+nullable or variable-array roots that still require explicit tagged/bounded
+storage. A representative 576-tick process accumulated 695 distinct string
+values, confirming that transaction/owner labels cannot remain an interning
+Map in the authoritative hot state.
+
+A local 512-step diagnostic measured about `2.27 ms/step` for the oracle path
+and `2.42 ms/step` for the reference bridge (about 1.065x total). Mirror writes
+accounted for about `66.8 ms` over all 512 steps and selected-output projection
+about `1.0 ms`. These values are diagnostic, machine-specific, and not a
+performance gate. They show that the fixed typed portion is structurally
+bounded and, more importantly, that the bridge does not conceal the dominant
+solver cost. The typed presentation page and the fixed numeric/boolean buffers
+are bounded; the Phase 1a bridge as a whole is deliberately **not** bounded
+because its
+provisional string interning table grows with transaction/owner labels and is
+cloned during mirror writes. Phase 1b must replace those hot strings with
+bounded model-owned codes before this path can become authoritative.
+
+Phase 1a does **not** mint a model release, define the binary checkpoint, make
+flat arrays the solver authority, or claim the phone target. Ordinary arrays
+and nullable subtrees are reported but excluded from this provisional mirror;
+the active object Session still owns them. An unexpected mirror/projection
+failure after an oracle step poisons the bridge and forbids continuation; it
+does not pretend to roll the oracle back. This avoids pretending that a
+generic object flattener is the final model schema or production transaction
+authority.
+
+#### Phase 1b — authoritative flat scalar state
+
+Before any production cutover, define the model-owned slot manifest for all 45
+dynamic roots, replace hot strings with bounded enum/owner codes, and move the
+accepted/candidate transaction itself onto those typed regions. The object
+Session then becomes test-oracle code only. Failure atomicity, event order,
+beat accumulation, controls, analysis forks, and checkpoint continuation must
+pass against the Phase 0 corpus before Phase 2 changes solver algebra.
 
 ### Phase 2 — one coupled nonlinear solve
 
