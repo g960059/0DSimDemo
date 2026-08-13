@@ -13,6 +13,10 @@ import {
   type CoronaryBackwardEulerScratchWorkspaceV2,
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
+  CORONARY_LAYER_IDS_V2,
+  CORONARY_TERRITORY_IDS_V2,
+} from "@/engine/coronary/typesV2";
+import {
   createNonCoronaryBackwardEulerScratchWorkspaceV1,
   type NonCoronaryAcceptedNumericalSourceV1,
   type NonCoronaryBackwardEulerScratchWorkspaceV1,
@@ -28,6 +32,10 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import type {
+  CoronaryAcceptedAutoregulationStateV3,
+  CoronaryAutoregulationWindowControlV3,
+} from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import {
   projectMainWireIntegratedModelSelectedValuesV3,
   type MainWireIntegratedModelOutputIdV3,
@@ -107,6 +115,7 @@ import type {
   TransactionalTypedStateCandidateCursorV1,
   TransactionalTypedStateCompletionPlanV1,
   TransactionalTypedStateCurrentCursorV1,
+  TransactionalTypedStatePromotionPlanV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
 
 export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_SESSION_V1_ID =
@@ -181,6 +190,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     NonCoronaryAcceptedNumericalSourceV1 | undefined;
   readonly #directCompletionPlan:
     TransactionalTypedStateCompletionPlanV1 | null;
+  readonly #modelOwnedPromotionPlan:
+    TransactionalTypedStatePromotionPlanV1 | null;
   readonly #coronaryScratchWorkspace:
     CoronaryBackwardEulerScratchWorkspaceV2;
   readonly #nonCoronaryScratchWorkspace:
@@ -308,6 +319,19 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           continuous: directRetainedContinuousSlots,
           booleans:
             this.#typedHemodynamicBinding?.solverRetainedBooleanSlots ?? [],
+        });
+    this.#modelOwnedPromotionPlan = this.#typedAuthority === null
+      ? null
+      : this.#typedAuthority.createModelOwnedPromotionPlan({
+          continuous: directRetainedContinuousSlots,
+          booleans:
+            this.#typedHemodynamicBinding?.solverRetainedBooleanSlots ?? [],
+          strings: this.#typedHemodynamicBinding === null
+            ? []
+            : [
+                this.#typedHemodynamicBinding
+                  .mechanicsMaterialFingerprintStringSlot,
+              ],
         });
     this.#acceptedState = this.#authority.current();
     this.#lastAcceptedStep = null;
@@ -657,13 +681,32 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           );
         }
         if (this.#typedAuthority !== null) {
-          committedState = this.#typedAuthority.tryCommitExactDirectCandidate(
-            result.acceptedState,
-            this.requiredDirectCompletionPlan(),
-          ) ?? this.#typedAuthority.commitDirectCandidate(
-            result.acceptedState,
-            this.requiredDirectCompletionPlan(),
-          );
+          const previousAutoregulation = this.#acceptedState.coronary
+            .coronaryAutoregulation;
+          const candidateAutoregulation = result.acceptedState.coronary
+            .coronaryAutoregulation;
+          const modelOwnedCandidate =
+            !hasDiscreteRhythmTransition(result.composedRhythmCandidate)
+            && !result.coronaryStep.autoregulationWindowCompleted
+            && autoregulationControlsUnchanged(
+              previousAutoregulation,
+              candidateAutoregulation,
+            );
+          committedState = (
+            modelOwnedCandidate
+              ? this.#typedAuthority.tryCommitModelOwnedDirectCandidate(
+                  result.acceptedState,
+                  this.requiredModelOwnedPromotionPlan(),
+                  this.requiredDirectCompletionPlan(),
+                )
+              : null
+          ) ?? this.#typedAuthority.tryCommitExactDirectCandidate(
+              result.acceptedState,
+              this.requiredDirectCompletionPlan(),
+            ) ?? this.#typedAuthority.commitDirectCandidate(
+              result.acceptedState,
+              this.requiredDirectCompletionPlan(),
+            );
           directCandidateOpen = false;
         } else {
           committedState = this.#authority.commit(result.acceptedState);
@@ -882,6 +925,14 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     return this.#directCompletionPlan;
   }
 
+  private requiredModelOwnedPromotionPlan():
+    TransactionalTypedStatePromotionPlanV1 {
+    if (this.#modelOwnedPromotionPlan === null) {
+      throw new Error("Flat reference model-owned promotion plan is unavailable");
+    }
+    return this.#modelOwnedPromotionPlan;
+  }
+
   private failedAdvance(
     reason: AdvanceFailureReason,
     message: string,
@@ -942,6 +993,59 @@ function observation(
     }),
     completedBeatMetrics,
   });
+}
+
+function hasDiscreteRhythmTransition(
+  candidate: MainWireIntegratedModelStepSuccessV3<WallState>["composedRhythmCandidate"],
+): boolean {
+  return candidate.capturedAtrialActivation !== null
+    || candidate.capturedVentricularActivation !== null
+    || candidate.pacSinusClockPolicyApplied !== null
+    || candidate.proximalAvOutputDecision !== null
+    || candidate.ventricularIntervalStrengthCandidate !== null
+    || candidate.conditionalVviAttempted
+    || candidate.dueProximalAvOutputs.length > 0
+    || candidate.distalGateDecisions.length > 0
+    || candidate.deliveredCalciumDeposits.length > 0
+    || candidate.scheduledCalciumDeposits.length > 0
+    || candidate.regularAtrialSourceCandidate?.sourceImpulse !== null
+    || candidate.authoredEctopyTrial.sourceImpulses.length > 0
+    || (candidate.authoredVentricularPacingReplayTrial?.sourceImpulses.length
+      ?? 0) > 0;
+}
+
+function autoregulationControlsUnchanged(
+  previous: CoronaryAcceptedAutoregulationStateV3,
+  candidate: CoronaryAcceptedAutoregulationStateV3,
+): boolean {
+  return optionalAutoregulationControlEqual(
+    previous.windowControl,
+    candidate.windowControl,
+  ) && optionalAutoregulationControlEqual(
+    previous.desiredControl,
+    candidate.desiredControl,
+  );
+}
+
+function optionalAutoregulationControlEqual(
+  left: CoronaryAutoregulationWindowControlV3 | null,
+  right: CoronaryAutoregulationWindowControlV3 | null,
+): boolean {
+  if (left === null || right === null) return left === right;
+  if (left.controlId !== right.controlId) return false;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      if (
+        left.demandScaleByTerritoryLayer[territoryId][layerId]
+          !== right.demandScaleByTerritoryLayer[territoryId][layerId]
+        || left.hyperemia01ByTerritoryLayer[territoryId][layerId]
+          !== right.hyperemia01ByTerritoryLayer[territoryId][layerId]
+        || left.effectiveMinimumToneScaleByTerritoryLayer[territoryId][layerId]
+          !== right.effectiveMinimumToneScaleByTerritoryLayer[territoryId][layerId]
+      ) return false;
+    }
+  }
+  return true;
 }
 
 function isNonadvancingLimiterError(error: unknown): boolean {

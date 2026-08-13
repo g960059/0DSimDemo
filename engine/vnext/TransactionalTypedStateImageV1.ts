@@ -19,6 +19,8 @@ export const TRANSACTIONAL_TYPED_STATE_MANIFEST_V1_SCHEMA_ID =
   "circleheart-transactional-typed-state-manifest-v1" as const;
 export const TRANSACTIONAL_TYPED_STATE_COMPLETION_PLAN_V1_SCHEMA_ID =
   "circleheart-transactional-typed-state-completion-plan-v1" as const;
+export const TRANSACTIONAL_TYPED_STATE_PROMOTION_PLAN_V1_SCHEMA_ID =
+  "circleheart-transactional-typed-state-promotion-plan-v1" as const;
 
 const MAX_ARENA_CAPACITY_BYTES = 16 * 1024 * 1024;
 const UTF8_ENCODER = new TextEncoder();
@@ -158,6 +160,7 @@ export type TransactionalTypedStateImageReportV1 = Readonly<{
   externalImmutableCanonicalMatchCount: number;
   directCompletionReaderPlanUseCount: number;
   directExactCandidateMatchCount: number;
+  modelOwnedPromotionCount: number;
   staged: boolean;
 }>;
 
@@ -231,6 +234,29 @@ export type TransactionalTypedStateCompletionPlanV1 = Readonly<{
   retainedBooleanSlots: readonly number[];
 }>;
 
+export type TransactionalTypedStateRequiredWritesV1 = Readonly<{
+  continuous?: readonly number[];
+  nullableContinuous?: readonly number[];
+  booleans?: readonly number[];
+  strings?: readonly number[];
+}>;
+
+/**
+ * Model-owned proof obligation for a direct typed transaction. Unlike a
+ * completion plan, this plan does not describe which object leaves to copy:
+ * every listed slot must have been explicitly written through the current
+ * generation-bound candidate cursor before promotion.
+ */
+export type TransactionalTypedStatePromotionPlanV1 = Readonly<{
+  schemaId: typeof TRANSACTIONAL_TYPED_STATE_PROMOTION_PLAN_V1_SCHEMA_ID;
+  layoutId: string;
+  fingerprint: string;
+  requiredContinuousSlots: readonly number[];
+  requiredNullableContinuousSlots: readonly number[];
+  requiredBooleanSlots: readonly number[];
+  requiredStringSlots: readonly number[];
+}>;
+
 type MutableImageV1 = Readonly<{
   buffer: ArrayBuffer;
   continuous: Float64Array;
@@ -256,6 +282,14 @@ type CompletionPlanInternalV1 = Readonly<{
   readers: DirectCompletionReadersV1;
 }>;
 
+type PromotionPlanInternalV1 = Readonly<{
+  manifest: TransactionalTypedStateManifestV1;
+  requiredContinuous: readonly number[];
+  requiredNullableContinuous: readonly number[];
+  requiredBooleans: readonly number[];
+  requiredStrings: readonly number[];
+}>;
+
 type DirectPathReaderV1 = (root: unknown) => unknown;
 
 type DirectCompletionReadersV1 = Readonly<{
@@ -277,6 +311,10 @@ const EXTERNAL_IMMUTABLE_CANONICAL_BYTES = new WeakMap<
 const COMPLETION_PLAN_INTERNALS = new WeakMap<
   TransactionalTypedStateCompletionPlanV1,
   CompletionPlanInternalV1
+>();
+const PROMOTION_PLAN_INTERNALS = new WeakMap<
+  TransactionalTypedStatePromotionPlanV1,
+  PromotionPlanInternalV1
 >();
 
 /**
@@ -410,11 +448,16 @@ export class TransactionalTypedStateImageV1<TState> {
   #highWaterStringBytes = 0;
   #highWaterDynamicBytes = 0;
   readonly #highWaterBoundedArrayLengths: Uint32Array;
+  readonly #candidateWrittenContinuous: Uint8Array;
+  readonly #candidateWrittenNullableContinuous: Uint8Array;
+  readonly #candidateWrittenBooleans: Uint8Array;
+  readonly #candidateWrittenStrings: Uint8Array;
   #candidateGeneration = 0;
   #externalImmutableIdentityMatchCount = 0;
   #externalImmutableCanonicalMatchCount = 0;
   #directCompletionReaderPlanUseCount = 0;
   #directExactCandidateMatchCount = 0;
+  #modelOwnedPromotionCount = 0;
 
   constructor(
     manifest: TransactionalTypedStateManifestV1,
@@ -433,6 +476,18 @@ export class TransactionalTypedStateImageV1<TState> {
       admitDirectCompletionCandidate ?? null;
     this.#highWaterBoundedArrayLengths = new Uint32Array(
       manifest.numericalLayout.boundedArrayRoots.length,
+    );
+    this.#candidateWrittenContinuous = new Uint8Array(
+      manifest.numericalLayout.continuousSlots.length,
+    );
+    this.#candidateWrittenNullableContinuous = new Uint8Array(
+      manifest.numericalLayout.nullableContinuousSlots.length,
+    );
+    this.#candidateWrittenBooleans = new Uint8Array(
+      manifest.numericalLayout.booleanSlots.length,
+    );
+    this.#candidateWrittenStrings = new Uint8Array(
+      manifest.numericalLayout.stringSlots.length,
     );
     this.#images = Object.freeze([
       createImage(manifest),
@@ -501,6 +556,10 @@ export class TransactionalTypedStateImageV1<TState> {
     this.#stagedStringBytes = this.#currentStringBytes;
     this.#stagedDynamicBytes = this.#currentDynamicBytes;
     this.#staged = true;
+    this.#candidateWrittenContinuous.fill(0);
+    this.#candidateWrittenNullableContinuous.fill(0);
+    this.#candidateWrittenBooleans.fill(0);
+    this.#candidateWrittenStrings.fill(0);
     this.#candidateGeneration += 1;
     const generation = this.#candidateGeneration;
     return Object.freeze({
@@ -569,6 +628,142 @@ export class TransactionalTypedStateImageV1<TState> {
       readers: compileDirectCompletionReaders(this.#manifest),
     }));
     return plan;
+  }
+
+  /**
+   * Compiles the exact slots a model-owned direct transaction must write.
+   * The WeakMap binding makes a structurally copied or hand-built plan
+   * unusable, just like the completion plan above.
+   */
+  createPromotionPlan(
+    required: TransactionalTypedStateRequiredWritesV1,
+  ): TransactionalTypedStatePromotionPlanV1 {
+    const requiredContinuous = requiredSlotIndices(
+      required.continuous,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous",
+    );
+    const requiredNullableContinuous = requiredSlotIndices(
+      required.nullableContinuous,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous",
+    );
+    const requiredBooleans = requiredSlotIndices(
+      required.booleans,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean",
+    );
+    const requiredStrings = requiredSlotIndices(
+      required.strings,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string",
+    );
+    const plan = Object.freeze({
+      schemaId: TRANSACTIONAL_TYPED_STATE_PROMOTION_PLAN_V1_SCHEMA_ID,
+      layoutId: this.#manifest.layoutId,
+      fingerprint: this.#manifest.fingerprint,
+      requiredContinuousSlots: requiredContinuous,
+      requiredNullableContinuousSlots: requiredNullableContinuous,
+      requiredBooleanSlots: requiredBooleans,
+      requiredStringSlots: requiredStrings,
+    });
+    PROMOTION_PLAN_INTERNALS.set(plan, Object.freeze({
+      manifest: this.#manifest,
+      requiredContinuous,
+      requiredNullableContinuous,
+      requiredBooleans,
+      requiredStrings,
+    }));
+    return plan;
+  }
+
+  /**
+   * Seals and promotes one model-owned typed candidate. The common lean path
+   * validates the already model-admitted object identity and explicit slot
+   * coverage without comparing it leaf-by-leaf with the image. Full-invariant
+   * callers additionally pass an audit plan; a mismatch then leaves the
+   * candidate staged so exhaustive event-boundary completion can take over.
+   */
+  tryPromoteCandidateWithRequiredWrites(
+    candidate: TState,
+    promotionPlan: TransactionalTypedStatePromotionPlanV1,
+    exactAuditPlan?: TransactionalTypedStateCompletionPlanV1,
+  ): TState | null {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    const admittedCandidate = this.#admitDirectCompletionCandidate === null
+      ? candidate
+      : this.#admitDirectCompletionCandidate(candidate);
+    if (admittedCandidate !== candidate) {
+      throw new Error(
+        "Transactional typed state direct admission changed candidate identity",
+      );
+    }
+    const internal = PROMOTION_PLAN_INTERNALS.get(promotionPlan);
+    if (
+      internal === undefined
+      || internal.manifest !== this.#manifest
+      || promotionPlan.layoutId !== this.#manifest.layoutId
+      || promotionPlan.fingerprint !== this.#manifest.fingerprint
+    ) {
+      throw new Error(
+        "Transactional typed state promotion plan has the wrong layout",
+      );
+    }
+    assertRequiredCandidateWrites(
+      internal.requiredContinuous,
+      this.#candidateWrittenContinuous,
+      "continuous",
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredNullableContinuous,
+      this.#candidateWrittenNullableContinuous,
+      "nullable continuous",
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredBooleans,
+      this.#candidateWrittenBooleans,
+      "boolean",
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredStrings,
+      this.#candidateWrittenStrings,
+      "string",
+    );
+    if (exactAuditPlan !== undefined) {
+      const audit = COMPLETION_PLAN_INTERNALS.get(exactAuditPlan);
+      if (
+        audit === undefined
+        || audit.manifest !== this.#manifest
+        || exactAuditPlan.layoutId !== this.#manifest.layoutId
+        || exactAuditPlan.fingerprint !== this.#manifest.fingerprint
+      ) {
+        throw new Error(
+          "Transactional typed state exact audit plan has the wrong layout",
+        );
+      }
+      const candidateImage = this.#images[this.inactiveIndex()];
+      this.assertExternalImmutableRootsMatch(
+        candidate,
+        audit.readers.externalImmutable,
+        candidateImage,
+      );
+      if (!imageExactlyMatchesObject(
+        this.#manifest,
+        candidate,
+        candidateImage,
+        audit.readers,
+        this.#stagedStringBytes,
+        this.#stagedDynamicBytes,
+      )) {
+        return null;
+      }
+      this.#directExactCandidateMatchCount += 1;
+    }
+    this.promote();
+    this.#modelOwnedPromotionCount += 1;
+    return admittedCandidate;
   }
 
   /**
@@ -840,6 +1035,7 @@ export class TransactionalTypedStateImageV1<TState> {
       directCompletionReaderPlanUseCount:
         this.#directCompletionReaderPlanUseCount,
       directExactCandidateMatchCount: this.#directExactCandidateMatchCount,
+      modelOwnedPromotionCount: this.#modelOwnedPromotionCount,
       staged: this.#staged,
     });
   }
@@ -1044,6 +1240,7 @@ export class TransactionalTypedStateImageV1<TState> {
       );
     }
     this.#images[this.inactiveIndex()].continuous[slotIndex] = value;
+    this.#candidateWrittenContinuous[slotIndex] = 1;
   }
 
   private readCandidateNullableContinuous(
@@ -1082,6 +1279,7 @@ export class TransactionalTypedStateImageV1<TState> {
     if (value === null) {
       image.nullableContinuous[slotIndex] = 0;
       image.nullableContinuousPresent[slotIndex] = 0;
+      this.#candidateWrittenNullableContinuous[slotIndex] = 1;
       return;
     }
     if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -1091,6 +1289,7 @@ export class TransactionalTypedStateImageV1<TState> {
     }
     image.nullableContinuous[slotIndex] = value;
     image.nullableContinuousPresent[slotIndex] = 1;
+    this.#candidateWrittenNullableContinuous[slotIndex] = 1;
   }
 
   private readCandidateBoolean(
@@ -1123,6 +1322,7 @@ export class TransactionalTypedStateImageV1<TState> {
       );
     }
     this.#images[this.inactiveIndex()].booleans[slotIndex] = value ? 1 : 0;
+    this.#candidateWrittenBooleans[slotIndex] = 1;
   }
 
   private readCandidateString(
@@ -1171,6 +1371,7 @@ export class TransactionalTypedStateImageV1<TState> {
         "Transactional typed state candidate string byte length changed",
       );
     }
+    this.#candidateWrittenStrings[slotIndex] = 1;
   }
 
   private assertCandidateGeneration(generation: number): void {
@@ -1433,6 +1634,39 @@ function retainedSlotSet(
     retained.add(slotIndex);
   }
   return retained;
+}
+
+function requiredSlotIndices(
+  slots: readonly number[] | undefined,
+  slotCount: number,
+  owner: string,
+): readonly number[] {
+  const required = new Set<number>();
+  for (const slotIndex of slots ?? []) {
+    assertSlotIndex(slotIndex, slotCount, `${owner} required`);
+    if (required.has(slotIndex)) {
+      throw new Error(
+        `Transactional typed state ${owner} required slot is duplicated`,
+      );
+    }
+    required.add(slotIndex);
+  }
+  return Object.freeze([...required]);
+}
+
+function assertRequiredCandidateWrites(
+  requiredSlots: readonly number[],
+  writtenSlots: Uint8Array,
+  owner: string,
+): void {
+  for (const slotIndex of requiredSlots) {
+    if (writtenSlots[slotIndex] !== 1) {
+      throw new Error(
+        `Transactional typed state required ${owner} slot ${slotIndex} `
+          + "was not written in this candidate generation",
+      );
+    }
+  }
 }
 
 function complementSlotIndices(

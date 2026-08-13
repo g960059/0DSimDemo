@@ -38,6 +38,9 @@ import {
   measureCanonicalFlatDataV1,
 } from "@/engine/vnext/CanonicalFlatDataV1";
 import {
+  fullHotPathInvariantsEnabledV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
   createTransactionalTypedStateManifestV1,
   TransactionalTypedStateImageV1,
   type TransactionalTypedStateCandidateCursorV1,
@@ -46,6 +49,8 @@ import {
   type TransactionalTypedStateImageReportV1,
   type TransactionalTypedStateImageSnapshotV1,
   type TransactionalTypedStateManifestV1,
+  type TransactionalTypedStatePromotionPlanV1,
+  type TransactionalTypedStateRequiredWritesV1,
   type TransactionalTypedStateRetainedSlotsV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
 
@@ -258,6 +263,8 @@ export type MainWireAcceptedTypedStateAuthorityReportV1 = Readonly<
     directCandidateCommitCount: number;
     directCandidateExactCommitCount: number;
     directCandidateMirrorReuseCount: number;
+    modelOwnedCandidateCommitCount: number;
+    modelOwnedExactAuditCount: number;
   }
 >;
 
@@ -443,6 +450,8 @@ export class MainWireAcceptedTypedStateAuthorityV1
   #directCandidateCommitCount = 0;
   #directCandidateExactCommitCount = 0;
   #directCandidateMirrorReuseCount = 0;
+  #modelOwnedCandidateCommitCount = 0;
+  #modelOwnedExactAuditCount = 0;
 
   constructor(
     coldAcceptedState: AcceptedState,
@@ -511,6 +520,54 @@ export class MainWireAcceptedTypedStateAuthorityV1
   ): TransactionalTypedStateCompletionPlanV1 {
     this.assertHealthy();
     return this.#image.createCompletionPlan(retained);
+  }
+
+  /** Compiles model-owned required-write coverage outside the accepted loop. */
+  createModelOwnedPromotionPlan(
+    required: TransactionalTypedStateRequiredWritesV1,
+  ): TransactionalTypedStatePromotionPlanV1 {
+    this.assertHealthy();
+    return this.#image.createPromotionPlan(required);
+  }
+
+  /**
+   * Promotes an event-free model-owned candidate without a 484-leaf object
+   * comparison in the lean production tier. Full-invariant runs retain that
+   * comparison as an oracle and return null on a mismatch so the caller can
+   * execute exhaustive event-boundary completion.
+   */
+  tryCommitModelOwnedDirectCandidate(
+    adapterCandidate: AcceptedState,
+    promotionPlan: TransactionalTypedStatePromotionPlanV1,
+    auditPlan: TransactionalTypedStateCompletionPlanV1,
+  ): AcceptedState | null {
+    this.assertHealthy();
+    try {
+      const auditEnabled = fullHotPathInvariantsEnabledV1();
+      const admittedMirror = this.#image.tryPromoteCandidateWithRequiredWrites(
+        adapterCandidate,
+        promotionPlan,
+        auditEnabled ? auditPlan : undefined,
+      );
+      if (admittedMirror === null) return null;
+      this.#currentState = admittedMirror;
+      this.#directCandidateCommitCount += 1;
+      this.#directCandidateMirrorReuseCount += 1;
+      this.#modelOwnedCandidateCommitCount += 1;
+      if (auditEnabled) {
+        this.#directCandidateExactCommitCount += 1;
+        this.#modelOwnedExactAuditCount += 1;
+      }
+      return admittedMirror;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `model-owned candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: `
+          + this.#poisonedReason,
+      );
+    }
   }
 
   /**
@@ -594,6 +651,8 @@ export class MainWireAcceptedTypedStateAuthorityV1
       directCandidateCommitCount: this.#directCandidateCommitCount,
       directCandidateExactCommitCount: this.#directCandidateExactCommitCount,
       directCandidateMirrorReuseCount: this.#directCandidateMirrorReuseCount,
+      modelOwnedCandidateCommitCount: this.#modelOwnedCandidateCommitCount,
+      modelOwnedExactAuditCount: this.#modelOwnedExactAuditCount,
     });
   }
 

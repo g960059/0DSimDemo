@@ -1119,14 +1119,34 @@ That result deliberately did **not** qualify the migration as a speedup. One
 alternating 512-tick host diagnostic measured about `2.06 ms/tick` for the
 nested object authority and `2.15 ms/tick` for the integrated typed reference
 (`1.045x` overhead), despite eliminating exhaustive completion on 98.5% of
-commits. The reference still constructs a complete accepted object and then
-walks all fixed/string/optional leaves to prove equality before promotion.
-Therefore the next performance boundary is not another retained-slot list: it
-is a model-owned typed candidate admission that validates component clocks,
-conservation, event ownership, and solver residuals directly, promotes once,
-and materializes the public object only for observation/checkpoint/capture.
-Until that boundary exists, the integrated Session remains a parity oracle and
-must not replace the active release.
+commits.
+
+The next reference slice now makes those 98.5% ordinary commits model-owned.
+A manifest-bound promotion plan records every continuous, boolean, and
+fixed-width string slot that the solver and continuous owners must explicitly
+write during the current candidate generation. The inactive image tracks those
+writes in preallocated bitmaps. Promotion rejects any missing write before the
+buffer index can change. Full-invariant runs additionally compare the entire
+typed candidate with the admitted object oracle; lean runs skip that 484-leaf
+comparison. Rhythm transitions, queue changes, nullable-event records,
+autoregulation control changes, and window rollover still use the exhaustive
+completion path. A 1,024-tick lean/full pair remained inside the all-49-output
+scientific corridor, and the lean authority promoted `1,017` ordinary
+candidates with only `15` event completions. Three local lean profiles measured
+about `0.871`, `0.925`, and `0.937 ms/tick`, compared with roughly
+`0.93–0.96 ms/tick` before this slice. This is a real but modest host gain;
+noise overlaps it, so it is not a production gate.
+
+The reference still constructs a complete accepted object before that typed
+promotion. Therefore the next performance boundary is no longer another
+retained-slot or comparison optimization: it is a model-owned typed candidate
+admission that evaluates the selected 30-volume root, applies coronary
+autoregulation and rhythm/device owners, validates clocks/conservation/event
+ownership directly, and promotes the single global image without first
+materializing the public object graph. Public objects must then exist only at
+observation, checkpoint, capture, and explicit debug-oracle boundaries. Until
+that boundary exists, the integrated Session remains a parity oracle and must
+not replace the active release.
 
 The first trajectory optimization uses only **admitted** 30-volume roots to
 predict the next Newton seed. The first eligible step uses a first-order

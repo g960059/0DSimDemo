@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  hotPathIntegrityTierV1,
+  selectHotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
   selectValidationStampModeV1,
   validationStampModeV1,
 } from "@/engine/validationStampModeV1";
@@ -867,6 +871,44 @@ describe("TransactionalTypedStateImageV1", () => {
     expect(() => directCandidate.readContinuous(valueSlot)).toThrow("is stale");
     expect(image.rehydrateCurrent()).toEqual(candidate);
 
+    const requiredWritePlan = image.createPromotionPlan({
+      continuous: [valueSlot],
+      booleans: [0],
+      strings: [labelSlot],
+    });
+    const incompleteModelOwned = image.beginCandidateFromCurrent();
+    incompleteModelOwned.writeContinuous(valueSlot, 10);
+    incompleteModelOwned.writeBoolean(0, true);
+    expect(() => image.tryPromoteCandidateWithRequiredWrites(
+      { ...candidate, value: 10 },
+      requiredWritePlan,
+    )).toThrow("required string slot");
+    image.abort();
+    expect(image.rehydrateCurrent()).toEqual(candidate);
+
+    const completeModelOwned = image.beginCandidateFromCurrent();
+    completeModelOwned.writeContinuous(valueSlot, 10);
+    completeModelOwned.writeBoolean(0, true);
+    completeModelOwned.writeStringSameByteLength(labelSlot, "next");
+    expect(image.tryPromoteCandidateWithRequiredWrites(
+      { ...candidate, value: 10 },
+      requiredWritePlan,
+    )).toEqual({ ...candidate, value: 10 });
+    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 10 });
+    expect(image.report().modelOwnedPromotionCount).toBe(1);
+
+    const forgedPlan = { ...requiredWritePlan };
+    const forgedCandidate = image.beginCandidateFromCurrent();
+    forgedCandidate.writeContinuous(valueSlot, 11);
+    forgedCandidate.writeBoolean(0, true);
+    forgedCandidate.writeStringSameByteLength(labelSlot, "next");
+    expect(() => image.tryPromoteCandidateWithRequiredWrites(
+      { ...candidate, value: 11 },
+      forgedPlan,
+    )).toThrow("promotion plan has the wrong layout");
+    image.abort();
+    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 10 });
+
     expect(() => image.createCompletionPlan({
       continuous: [valueSlot, valueSlot],
     })).toThrow("retained slot is duplicated");
@@ -877,11 +919,11 @@ describe("TransactionalTypedStateImageV1", () => {
       continuous: [valueSlot],
     });
     expect(() => image.completeCandidateFromObject(
-      { ...candidate, value: 8 },
+      { ...candidate, value: 10 },
       valueOnlyCompletionPlan,
     )).toThrow("differs from adapter");
     image.abort();
-    expect(image.rehydrateCurrent()).toEqual(candidate);
+    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 10 });
 
     const promotedCandidate = image.beginCandidateFromCurrent();
     promotedCandidate.writeContinuous(valueSlot, 9);
@@ -948,7 +990,7 @@ describe("TransactionalTypedStateImageV1", () => {
         Object.freeze({ id: `impulse-${index}`, at: index / 10 }))),
     }))).toThrow("dynamic arena capacity exceeded");
     expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 9 });
-    expect(image.report()).toMatchObject({ commitCount: 2, staged: false });
+    expect(image.report()).toMatchObject({ commitCount: 3, staged: false });
     expect(image.report().directCompletionReaderPlanUseCount).toBe(0);
     expect(image.report().directExactCandidateMatchCount).toBe(0);
   });
@@ -1481,8 +1523,11 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       directCandidateCommitCount: 0,
       directCandidateExactCommitCount: 0,
       directCandidateMirrorReuseCount: 0,
+      modelOwnedCandidateCommitCount: 0,
+      modelOwnedExactAuditCount: 0,
       directCompletionReaderPlanUseCount: 0,
       directExactCandidateMatchCount: 0,
+      modelOwnedPromotionCount: 0,
     });
     const escapedState = reference.currentAcceptedState();
     const escapedTypedArray = firstFloat64Array(escapedState);
@@ -1535,6 +1580,15 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     expect(finalReport.directCandidateExactCommitCount).toBeGreaterThan(
       finalReport.commitCount * 0.95,
     );
+    expect(finalReport.modelOwnedCandidateCommitCount).toBeGreaterThan(
+      finalReport.commitCount * 0.95,
+    );
+    expect(finalReport.modelOwnedExactAuditCount).toBe(
+      finalReport.modelOwnedCandidateCommitCount,
+    );
+    expect(finalReport.modelOwnedPromotionCount).toBe(
+      finalReport.modelOwnedCandidateCommitCount,
+    );
     expect(finalReport.directCompletionReaderPlanUseCount).toBeLessThan(
       finalReport.commitCount * 0.05,
     );
@@ -1585,6 +1639,48 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       );
     expect(completedBeatRestore.observe().completedBeatMetrics)
       .toEqual(reference.observe().completedBeatMetrics);
+  }, 120_000);
+
+  it("keeps lean model-owned promotion scientifically equivalent", async () => {
+    const previousTier = hotPathIntegrityTierV1();
+    selectHotPathIntegrityTierV1("hot-path-lean");
+    try {
+      const reference = await MainWireFlatAuthoritativeReferenceSessionV1.create();
+      const oracle = await MainWireIntegratedModelSessionV3.create();
+      for (let tick = 1; tick <= 1_024; tick += 1) {
+        const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
+        const actual = reference.advanceToPresentationTime(target);
+        const expected = oracle.advanceToPresentationTime(target);
+        expect(actual.status).toBe("advanced");
+        expect(expected.status).toBe("advanced");
+        if (actual.status !== "advanced" || expected.status !== "advanced") {
+          throw new Error(`lean reference or oracle failed at tick ${tick}`);
+        }
+        expect(actual.acceptedRevision).toBe(expected.acceptedRevision);
+        expectProjectedValuesScientificallyEquivalent(
+          projectMainWireIntegratedModelSelectedValuesV3(
+            actual.observation,
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          ),
+          projectMainWireIntegratedModelSelectedValuesV3(
+            expected.observation,
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          ),
+        );
+      }
+      const report = reference.authorityReport();
+      expect(report.modelOwnedCandidateCommitCount).toBeGreaterThan(
+        report.commitCount * 0.95,
+      );
+      expect(report.modelOwnedExactAuditCount).toBe(0);
+      expect(report.directExactCandidateMatchCount).toBeLessThan(
+        report.commitCount * 0.05,
+      );
+      expect(decodeCanonicalFlatDataV1(reference.snapshotAcceptedStateBytes()))
+        .toEqual(reference.currentAcceptedState());
+    } finally {
+      selectHotPathIntegrityTierV1(previousTier);
+    }
   }, 120_000);
 
   it("keeps direct mirror admission exact when validation stamps are disabled", async () => {
