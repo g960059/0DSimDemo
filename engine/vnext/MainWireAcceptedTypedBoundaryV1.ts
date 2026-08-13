@@ -60,6 +60,9 @@ type ContinuousBinding = Readonly<{
 
 type DynamicBinding = Readonly<{
   authoredVentricularPacingReplayState: number;
+}>;
+
+type BoundedArrayBinding = Readonly<{
   pendingCalciumDeposits: number;
   pendingDistalVentricularImpulses: number;
   pendingProximalAvOutputs: number;
@@ -70,6 +73,7 @@ export type MainWireAcceptedTypedBoundaryBindingV1 = Readonly<{
   fingerprint: typeof MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT;
   continuous: ContinuousBinding;
   dynamic: DynamicBinding;
+  boundedArray: BoundedArrayBinding;
   calcium: Readonly<Record<CalciumWall, Readonly<{
     state: readonly [number, number];
   }>>>;
@@ -136,14 +140,16 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
       manifest,
       "/composedRhythm/authoredVentricularPacingReplayState",
     ),
+  });
+  const boundedArray = Object.freeze({
     pendingCalciumDeposits:
-      dynamicSlot(manifest, "/composedRhythm/pendingCalciumDeposits"),
-    pendingDistalVentricularImpulses: dynamicSlot(
+      boundedArraySlot(manifest, "/composedRhythm/pendingCalciumDeposits"),
+    pendingDistalVentricularImpulses: boundedArraySlot(
       manifest,
       "/composedRhythm/pendingDistalVentricularImpulses",
     ),
     pendingProximalAvOutputs:
-      dynamicSlot(manifest, "/composedRhythm/pendingProximalAvOutputs"),
+      boundedArraySlot(manifest, "/composedRhythm/pendingProximalAvOutputs"),
   });
   const calcium = Object.freeze(Object.fromEntries(CALCIUM_WALLS.map((wall) => [
     wall,
@@ -177,6 +183,7 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
     fingerprint: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
     continuous,
     dynamic,
+    boundedArray,
     calcium,
     directContinuousSlots: Object.freeze([...clockSlots, ...calciumSlots]),
   });
@@ -401,7 +408,7 @@ export function stageMainWireAcceptedTypedCalciumCandidateV1(
     throw new Error("Main Wire typed calcium candidate must advance");
   }
   const pendingDeposits = requiredArray(
-    current.readDynamic(binding.dynamic.pendingCalciumDeposits),
+    current.readBoundedArray(binding.boundedArray.pendingCalciumDeposits),
     "pending calcium deposits",
   );
 
@@ -531,14 +538,16 @@ function limitTypedRhythmBoundary(
 
   pushFirstArrayBoundary(
     boundaries,
-    cursor.readDynamic(binding.dynamic.pendingProximalAvOutputs),
+    cursor.readBoundedArray(binding.boundedArray.pendingProximalAvOutputs),
     "pending-proximal-av-output",
     "proximalArrivalTimeSec",
     acceptedTimeSec,
   );
   pushFirstArrayBoundary(
     boundaries,
-    cursor.readDynamic(binding.dynamic.pendingDistalVentricularImpulses),
+    cursor.readBoundedArray(
+      binding.boundedArray.pendingDistalVentricularImpulses,
+    ),
     "pending-distal-ventricular-impulse",
     "activationTimeSec",
     acceptedTimeSec,
@@ -557,7 +566,7 @@ function limitTypedRhythmBoundary(
   ));
   pushFirstArrayBoundary(
     boundaries,
-    cursor.readDynamic(binding.dynamic.pendingCalciumDeposits),
+    cursor.readBoundedArray(binding.boundedArray.pendingCalciumDeposits),
     "pending-calcium-deposit",
     "depositTimeSec",
     acceptedTimeSec,
@@ -728,6 +737,17 @@ function dynamicSlot(
     manifest.numericalLayout.excludedDynamicRoots,
     pointer,
     "dynamic",
+  );
+}
+
+function boundedArraySlot(
+  manifest: TransactionalTypedStateManifestV1,
+  pointer: string,
+): number {
+  return requiredBindingSlot(
+    manifest.numericalLayout.boundedArrayRoots,
+    pointer,
+    "bounded array",
   );
 }
 

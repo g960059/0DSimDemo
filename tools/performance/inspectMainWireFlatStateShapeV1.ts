@@ -32,13 +32,11 @@ for (let tick = 0; tick <= 1_024; tick += 1) {
     }
   }
   const state = session.currentAcceptedState();
-  for (const root of layout.excludedDynamicRoots) {
-    const value = root.path.reduce<unknown>((current, segment) => {
-      if (current === null || typeof current !== "object") {
-        throw new Error(`${root.pointer} is unavailable`);
-      }
-      return (current as Record<string | number, unknown>)[segment];
-    }, state);
+  for (const root of [
+    ...layout.boundedArrayRoots,
+    ...layout.excludedDynamicRoots,
+  ]) {
+    const value = readPath(state, root.path);
     const entry = observed.get(root.pointer) ?? {
       pointer: root.pointer,
       kinds: new Set<string>(),
@@ -62,16 +60,7 @@ for (let tick = 0; tick <= 1_024; tick += 1) {
     observed.set(root.pointer, entry);
   }
   for (const slot of layout.stringSlots) {
-    if (
-      slot.optionalRecordRootIndex !== null
-      && layout.optionalRecordRoots[slot.optionalRecordRootIndex] !== undefined
-      && readPath(
-        state,
-        layout.optionalRecordRoots[slot.optionalRecordRootIndex]!.path,
-      ) === null
-    ) {
-      continue;
-    }
+    if (slotIsUnavailable(state, slot)) continue;
     const value = readPath(state, slot.path);
     if (typeof value !== "string") {
       throw new Error(`${slot.pointer} is not a string`);
@@ -95,6 +84,7 @@ process.stdout.write(`${JSON.stringify({
     nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
     nullableStringSlotCount: layout.nullableStringSlots.length,
     optionalRecordRootCount: layout.optionalRecordRoots.length,
+    boundedArrayRootCount: layout.boundedArrayRoots.length,
     booleanSlotCount: layout.booleanSlots.length,
     stringSlotCount: layout.stringSlots.length,
     dynamicRootCount: layout.excludedDynamicRoots.length,
@@ -120,6 +110,9 @@ process.stdout.write(`${JSON.stringify({
     )),
     optionalRecord: Object.fromEntries(layout.optionalRecordRoots.map(
       ({ pointer }, index) => [pointer, index],
+    )),
+    boundedArray: Object.fromEntries(layout.boundedArrayRoots.map(
+      ({ pointer, capacity }, index) => [pointer, { index, capacity }],
     )),
     boolean: Object.fromEntries(layout.booleanSlots.map(
       ({ pointer }, index) => [pointer, index],
@@ -163,4 +156,33 @@ function readPath(
     }
     return (current as Record<string | number, unknown>)[segment];
   }, root);
+}
+
+function slotIsUnavailable(
+  state: unknown,
+  slot: Readonly<{
+    optionalRecordRootIndex: number | null;
+    boundedArrayRootIndex: number | null;
+    boundedArrayItemIndex: number | null;
+  }>,
+): boolean {
+  if (slot.optionalRecordRootIndex !== null) {
+    const root = layout.optionalRecordRoots[slot.optionalRecordRootIndex];
+    if (root === undefined) {
+      throw new Error("shape inspection optional-record owner is invalid");
+    }
+    if (readPath(state, root.path) === null) return true;
+  }
+  if (slot.boundedArrayRootIndex !== null) {
+    const root = layout.boundedArrayRoots[slot.boundedArrayRootIndex];
+    if (root === undefined || slot.boundedArrayItemIndex === null) {
+      throw new Error("shape inspection bounded-array owner is invalid");
+    }
+    const value = readPath(state, root.path);
+    if (!Array.isArray(value)) {
+      throw new Error(`${root.pointer} is not an array`);
+    }
+    return slot.boundedArrayItemIndex >= value.length;
+  }
+  return false;
 }

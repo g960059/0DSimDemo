@@ -313,18 +313,20 @@ object solver and an object boundary adapter.
 
 The complete accepted topology is now represented by two lifetime-fixed,
 model-owned `ArrayBuffer` images plus manifest-owned immutable configuration
-bindings. Each mutable image is exactly `35,612` bytes and contains:
+bindings. Each mutable image is exactly `38,688` bytes and contains:
 
-- 301 ordinary `f64` slots, six nullable-`f64` value/presence pairs, and two
+- 477 ordinary `f64` slots, six nullable-`f64` value/presence pairs, and two
   boolean slots at versioned fixed offsets;
-- 36 required and six nullable string offset/length entries backed by a fixed
+- 228 required and 22 nullable string offset/length entries backed by a fixed
   `16 KiB` UTF-8 arena;
 - five optional fixed-shape records, each represented by one presence byte plus
   ordinary typed leaves;
-- four dynamic-root offset/length pairs backed by a separate fixed `16 KiB`
-  canonical arena; and
-- the 98-container mutable shape contract and fingerprint
-  `fnv1a32-71f7e088`.
+- three bounded rhythm queues, each represented by one `u32` length plus 16
+  fixed typed item slots;
+- one remaining dynamic-root offset/length pair backed by a separate fixed
+  `16 KiB` canonical arena; and
+- the 162-container mutable shape contract and fingerprint
+  `fnv1a32-daf804b7`.
 
 Twelve deeply frozen model-owned object roots are intentionally retained
 outside the hot images: the composed-rhythm configuration (`5,506` canonical
@@ -348,13 +350,23 @@ nullable records: the backup owner's latest activation, its intrinsic and VVI
 attempt results, the coronary autoregulation window control, and ventricular
 interval-deposit metadata. Their 48 numeric leaves, 30 required strings, four
 nullable strings, and nested records reside in fixed slots and are never
-canonical dynamic payloads. The remaining four roots are three rhythm queues
-and authored ventricular pacing replay state. Strings are
+canonical dynamic payloads. The three rhythm queues now use explicit fixed
+item layouts and length tags; only authored ventricular pacing replay state
+remains a canonical dynamic root. Strings are
 rewritten inside the inactive arena each transaction; no
 lifetime interning table survives. Inspection still identifies the
 high-cardinality mechanics fingerprint as a recomputable diagnostic and the
 remaining activation labels as candidates for bounded model-owned codes in the
 direct kernel.
+
+The queue capacity of 16 is a **Phase-reference admission bound**, not a
+scientific maximum. The default 1,024-tick trace exercised all three queues and
+observed a high-water length of one for each. That proves the normal reference
+path fits the storage, but does not prove that an arbitrarily dense authored
+protocol does. Production cutover therefore requires either a model-owned
+capacity argument covering admitted authoring inputs or a different bounded
+event-storage design. High-water length is reported per queue so the evidence
+cannot be replaced by an implicit assumption.
 
 Staging first validates the complete mutable fixed container topology and the
 cold-root identity/canonical bindings, then writes only the inactive image.
@@ -374,16 +386,17 @@ the accepted-state authority, while leaving the registered exact Session and
 artifacts unchanged.
 
 This is still not a production speedup. The latest representative 512-tick
-alternating diagnostic measured about `2.43 ms/tick` for the released object
-Session and `3.44 ms/tick` for the typed-authority reference (`1.42x`). Across
+alternating diagnostic measured about `2.40 ms/tick` for the released object
+Session and `3.42 ms/tick` for the typed-authority reference (`1.42x`). Across
 580 accepted commits, all 32,536 immutable-value checks used the identity/value
 fast path and none used canonical fallback. An intentionally
 independent-runtime projection diagnostic, whose equal object configurations
-do not share identity, measured about `0.64 ms/presentation tick`; rehydration
-measured about `0.026 ms/presentation tick`. String and dynamic high-water
-usage were `1,642` and `1,200` bytes respectively, inside their fixed `16 KiB`
-capacities. The lower dynamic high-water mark is direct evidence that the five
-optional records no longer enter canonical payload storage. The remaining
+do not share identity, measured about `0.66 ms/presentation tick`; rehydration
+measured about `0.020 ms/presentation tick`. String and dynamic high-water
+usage were `1,930` and `1` bytes respectively, inside their fixed `16 KiB`
+capacities. The dynamic high-water mark is direct evidence that the five
+optional records and three rhythm queues no longer enter canonical payload
+storage. The remaining
 overhead is dominated by rebuilding and fully
 revalidating the legacy object owner graph, not by the typed page itself. These
 figures are machine-specific diagnostics, not gates.
@@ -394,7 +407,7 @@ The active typed image now exposes a read-only live cursor rather than an
 `ArrayBuffer` or typed-array view. The cursor follows the atomic active-index
 swap and permits generated slot reads only; it cannot mutate either image.
 The Main Wire binding admits that cursor only when its layout ID and complete
-manifest fingerprint match `fnv1a32-71f7e088`. Every hot slot is resolved by
+manifest fingerprint match `fnv1a32-daf804b7`. Every hot slot is resolved by
 semantic pointer once from that manifest; numerical indices are not duplicated
 as hand-maintained source constants. The accepted loop performs no pointer or
 string lookup after construction.
@@ -403,9 +416,9 @@ The reference Session now reads the outer accepted clock and revision from
 fixed slots and computes its next coronary/rhythm boundary from the active
 typed image. The direct limiter uses manifest-bound indices for owner clocks, the
 autoregulation window, regular atrial activation, and ventricular backup. It
-decodes only the four bounded dynamic roots that can contribute an event
-boundary: authored ventricular pacing, proximal AV output, distal ventricular
-impulse, and calcium-deposit queues. Authored ectopy events come from the
+reads proximal AV output, distal ventricular impulse, and calcium-deposit
+queues from their fixed typed slots and length tags. Only authored ventricular
+pacing remains in the canonical dynamic arena. Authored ectopy events come from the
 already admitted immutable rhythm configuration. It also proves that
 the outer, composed-rhythm, and coronary clocks/revisions agree before every
 scheduling decision. Immutable atrial-source mode and exact-calcium parameters
@@ -424,11 +437,11 @@ slots as well as the ten calcium state slots before the legacy object
 transaction runs. The object transaction still regenerates and validates its
 own boundary internally, but admission requires its clock and calcium result to
 match the already-staged typed values bit-for-bit and cannot overwrite them.
-A representative 512-tick diagnostic measured about `2.43 ms/tick` for the
-released Session and `3.44 ms/tick` for the typed reference (`1.42x`). Direct
-fixed-slot boundary selection measured about `0.0065 ms/tick`, while copying
+A representative 512-tick diagnostic measured about `2.40 ms/tick` for the
+released Session and `3.42 ms/tick` for the typed reference (`1.42x`). Direct
+fixed-slot boundary selection measured about `0.0060 ms/tick`, while copying
 current into the inactive image and staging all five calcium owners measured
-about `0.0062 ms/tick`. The improvement comes from removing immutable
+about `0.0057 ms/tick`. The improvement comes from removing immutable
 configuration traversal from each accepted transaction; duplicate legacy solve
 and mutable-owner work remains. These figures are diagnostics, not performance
 gates.

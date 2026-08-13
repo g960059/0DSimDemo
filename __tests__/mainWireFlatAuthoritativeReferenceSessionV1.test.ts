@@ -635,6 +635,12 @@ describe("TransactionalTypedStateImageV1", () => {
     image.stage(two);
     image.promote();
     expect(cursor.readBoundedArray(0)).toEqual(two.queue);
+    expect(image.report().boundedArrays).toEqual([{
+      pointer: "/queue",
+      capacity: 2,
+      currentLength: 2,
+      highWaterLength: 2,
+    }]);
     const escaped = image.snapshot();
     escaped.boundedArrayLengths[0] = 0;
     expect(image.rehydrateCurrent()).toEqual(two);
@@ -642,6 +648,10 @@ describe("TransactionalTypedStateImageV1", () => {
     image.stage(Object.freeze({ value: 4, queue: Object.freeze([]) }));
     image.promote();
     expect(cursor.readBoundedArray(0)).toEqual([]);
+    expect(image.report().boundedArrays[0]).toMatchObject({
+      currentLength: 0,
+      highWaterLength: 2,
+    });
     expect(() => image.stage(Object.freeze({
       value: 5,
       queue: Object.freeze([two.queue[0]!, two.queue[1]!, two.queue[0]!]),
@@ -974,18 +984,19 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const initialReport = reference.authorityReport();
     expect(initialReport).toMatchObject({
       authorityId: "main-wire-integrated-accepted-typed-state-authority-v1",
-      fingerprint: "fnv1a32-71f7e088",
-      bufferByteLength: 35_612,
+      fingerprint: "fnv1a32-daf804b7",
+      bufferByteLength: 38_688,
       fixedImageCount: 2,
-      continuousSlotCount: 301,
+      continuousSlotCount: 477,
       nullableContinuousSlotCount: 6,
-      nullableStringSlotCount: 6,
+      nullableStringSlotCount: 22,
       optionalRecordRootCount: 5,
+      boundedArrayRootCount: 3,
       booleanSlotCount: 2,
-      stringSlotCount: 36,
-      dynamicRootCount: 4,
+      stringSlotCount: 228,
+      dynamicRootCount: 1,
       externalImmutableRootCount: 56,
-      containerCount: 98,
+      containerCount: 162,
       commitCount: 0,
       externalImmutableIdentityMatchCount: 56,
       externalImmutableCanonicalMatchCount: 0,
@@ -1052,6 +1063,26 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     expect(finalReport.highWaterDynamicBytes).toBeLessThanOrEqual(
       finalReport.dynamicArenaCapacityBytes,
     );
+    expect(finalReport.boundedArrays).toEqual([
+      {
+        pointer: "/composedRhythm/pendingCalciumDeposits",
+        capacity: 16,
+        currentLength: 0,
+        highWaterLength: 1,
+      },
+      {
+        pointer: "/composedRhythm/pendingDistalVentricularImpulses",
+        capacity: 16,
+        currentLength: 0,
+        highWaterLength: 1,
+      },
+      {
+        pointer: "/composedRhythm/pendingProximalAvOutputs",
+        capacity: 16,
+        currentLength: 0,
+        highWaterLength: 1,
+      },
+    ]);
     expect(finalReport.poisonedReason).toBeNull();
     expect(reference.scalarSlotsReport()).toMatchObject({
       commitCount: finalReport.commitCount,

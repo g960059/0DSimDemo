@@ -20,6 +20,17 @@ import {
   type VentricularIntervalStrengthDepositMetadataV1,
 } from "@/engine/myocardium/rhythm/acceptedVentricularIntervalStrengthOwnerV1";
 import {
+  COMPOSED_RHYTHM_PENDING_CALCIUM_DEPOSIT_V2_ID,
+  COMPOSED_RHYTHM_PENDING_PROXIMAL_AV_OUTPUT_V2_ID,
+  type ComposedRhythmPendingCalciumDepositV2,
+  type ComposedRhythmPendingProximalAvOutputV2,
+} from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
+import {
+  ELECTRICAL_CAPTURE_PRIORITY_V2,
+  SOURCE_IMPULSE_V2_ID,
+  type SourceImpulseV2,
+} from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
+import {
   encodeCanonicalFlatDataIntoV1,
   measureCanonicalFlatDataV1,
 } from "@/engine/vnext/CanonicalFlatDataV1";
@@ -39,24 +50,33 @@ export const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID =
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID =
   "main-wire-integrated-accepted-typed-state-v1" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT =
-  "fnv1a32-71f7e088" as const;
+  "fnv1a32-daf804b7" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1 =
   16 * 1024;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1 =
   16 * 1024;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 35_612 as const;
+/**
+ * Phase-reference admission bound, not yet a production scientific maximum.
+ * Production cutover requires a model-owned queue-capacity argument or a
+ * different storage strategy for authored extreme protocols.
+ */
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1 =
+  16 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 38_688 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 =
-  301 as const;
+  477 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 =
   6 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1 =
-  6 as const;
+  22 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1 =
   5 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOUNDED_ARRAY_ROOT_COUNT_V1 =
+  3 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 2 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 36 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 4 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 98 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 228 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 1 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 162 as const;
 
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
   "/composedRhythm/calciumStateByWall/LA",
@@ -154,6 +174,11 @@ const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1 =
     "/composedRhythm/ventricularBackupState/lastVviPacingAttemptResult/capturedActivationId",
     "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/upstreamCapturedActivationId",
     "/composedRhythm/ventricularIntervalStrengthState/lastDepositMetadata/capturedVentricularActivation/upstreamCapturedActivationId",
+    ...Array.from(
+      { length: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1 },
+      (_, index) =>
+        `/composedRhythm/pendingDistalVentricularImpulses/${index}/parentCapturedActivationId`,
+    ),
   ]);
 
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1:
@@ -171,6 +196,38 @@ VentricularBackupSourceAttemptResultV2 = Object.freeze({
 
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTOREGULATION_CONTROL_TEMPLATE_V1 =
   createDefaultCoronaryAutoregulationWindowControlV3();
+
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_PROXIMAL_QUEUE_ITEM_TEMPLATE_V1:
+ComposedRhythmPendingProximalAvOutputV2 = Object.freeze({
+  pendingSchemaId: COMPOSED_RHYTHM_PENDING_PROXIMAL_AV_OUTPUT_V2_ID,
+  proximalAvOutputId: "template-proximal-av-output",
+  parentCapturedAtrialActivationId: "template-atrial-activation",
+  proximalArrivalTimeSec: 0,
+});
+
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_DISTAL_QUEUE_ITEM_TEMPLATE_V1:
+SourceImpulseV2 = Object.freeze({
+  impulseSchemaId: SOURCE_IMPULSE_V2_ID,
+  schemaVersion: 2,
+  sourceImpulseId: "template-distal-source-impulse",
+  parentCapturedActivationId: null,
+  chamber: "ventricular",
+  sourceKind: "av-output",
+  capturePriority: ELECTRICAL_CAPTURE_PRIORITY_V2["av-output"],
+  sourceId: "template-distal-source",
+  sourceSequence: 0,
+  activationTimeSec: 0,
+});
+
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_CALCIUM_QUEUE_ITEM_TEMPLATE_V1:
+ComposedRhythmPendingCalciumDepositV2 = Object.freeze({
+  pendingSchemaId: COMPOSED_RHYTHM_PENDING_CALCIUM_DEPOSIT_V2_ID,
+  depositId: "template-calcium-deposit",
+  depositClass: "ventricular",
+  parentCapturedActivationId: "template-ventricular-activation",
+  depositTimeSec: 0,
+  strengthByWall: Object.freeze({ LA: 0, RA: 0, LVFW: 0, SEP: 0, RVFW: 0 }),
+});
 
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<
   MainWireNormalAdultFiveWallMechanicsStateV1
@@ -236,6 +293,26 @@ export function createMainWireAcceptedTypedStateManifestV1(
           ),
         },
       ],
+      boundedArrayTemplates: [
+        {
+          pointer: "/composedRhythm/pendingProximalAvOutputs",
+          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
+          itemTemplate:
+            MAIN_WIRE_ACCEPTED_TYPED_STATE_PROXIMAL_QUEUE_ITEM_TEMPLATE_V1,
+        },
+        {
+          pointer: "/composedRhythm/pendingDistalVentricularImpulses",
+          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
+          itemTemplate:
+            MAIN_WIRE_ACCEPTED_TYPED_STATE_DISTAL_QUEUE_ITEM_TEMPLATE_V1,
+        },
+        {
+          pointer: "/composedRhythm/pendingCalciumDeposits",
+          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
+          itemTemplate:
+            MAIN_WIRE_ACCEPTED_TYPED_STATE_CALCIUM_QUEUE_ITEM_TEMPLATE_V1,
+        },
+      ],
     },
   );
   const layout = manifest.numericalLayout;
@@ -252,6 +329,8 @@ export function createMainWireAcceptedTypedStateManifestV1(
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1
     || layout.optionalRecordRoots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1
+    || layout.boundedArrayRoots.length
+      !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOUNDED_ARRAY_ROOT_COUNT_V1
     || layout.booleanSlots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1
     || layout.stringSlots.length
@@ -269,6 +348,7 @@ export function createMainWireAcceptedTypedStateManifestV1(
         + `${layout.nullableContinuousSlots.length}/`
         + `${layout.nullableStringSlots.length}/`
         + `${layout.optionalRecordRoots.length}/`
+        + `${layout.boundedArrayRoots.length}/`
         + `${layout.booleanSlots.length}/`
         + `${layout.stringSlots.length}/${layout.excludedDynamicRoots.length}/`
         + `${layout.externalImmutableRoots.length}/${layout.containers.length})`,

@@ -142,6 +142,12 @@ export type TransactionalTypedStateImageReportV1 = Readonly<{
   currentDynamicBytes: number;
   highWaterStringBytes: number;
   highWaterDynamicBytes: number;
+  boundedArrays: readonly Readonly<{
+    pointer: string;
+    capacity: number;
+    currentLength: number;
+    highWaterLength: number;
+  }>[];
   activeBufferIndex: 0 | 1;
   commitCount: number;
   externalImmutableIdentityMatchCount: number;
@@ -333,6 +339,7 @@ export class TransactionalTypedStateImageV1<TState> {
   #currentDynamicBytes = 0;
   #highWaterStringBytes = 0;
   #highWaterDynamicBytes = 0;
+  readonly #highWaterBoundedArrayLengths: Uint32Array;
   #candidateGeneration = 0;
   #externalImmutableIdentityMatchCount = 0;
   #externalImmutableCanonicalMatchCount = 0;
@@ -342,6 +349,9 @@ export class TransactionalTypedStateImageV1<TState> {
     initialState: TState,
   ) {
     this.#manifest = manifest;
+    this.#highWaterBoundedArrayLengths = new Uint32Array(
+      manifest.numericalLayout.boundedArrayRoots.length,
+    );
     this.#images = Object.freeze([
       createImage(manifest),
       createImage(manifest),
@@ -502,6 +512,13 @@ export class TransactionalTypedStateImageV1<TState> {
       this.#highWaterDynamicBytes,
       this.#currentDynamicBytes,
     );
+    const currentLengths = this.#images[this.#activeIndex].boundedArrayLengths;
+    for (let index = 0; index < currentLengths.length; index += 1) {
+      this.#highWaterBoundedArrayLengths[index] = Math.max(
+        this.#highWaterBoundedArrayLengths[index]!,
+        currentLengths[index]!,
+      );
+    }
     this.#staged = false;
     this.#commitCount += 1;
   }
@@ -577,6 +594,14 @@ export class TransactionalTypedStateImageV1<TState> {
       currentDynamicBytes: this.#currentDynamicBytes,
       highWaterStringBytes: this.#highWaterStringBytes,
       highWaterDynamicBytes: this.#highWaterDynamicBytes,
+      boundedArrays: Object.freeze(layout.boundedArrayRoots.map((root, index) =>
+        Object.freeze({
+          pointer: root.pointer,
+          capacity: root.capacity,
+          currentLength:
+            this.#images[this.#activeIndex].boundedArrayLengths[index]!,
+          highWaterLength: this.#highWaterBoundedArrayLengths[index]!,
+        }))),
       activeBufferIndex: this.#activeIndex,
       commitCount: this.#commitCount,
       externalImmutableIdentityMatchCount:
