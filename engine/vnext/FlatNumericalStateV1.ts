@@ -26,6 +26,8 @@ export type FlatNumericalStateLayoutV1 = Readonly<{
   continuousSlots: readonly FlatNumericalSlotV1[];
   booleanSlots: readonly FlatNumericalSlotV1[];
   stringSlots: readonly FlatNumericalSlotV1[];
+  /** Deeply immutable model-owned roots retained outside the hot images. */
+  externalImmutableRoots: readonly FlatNumericalSlotV1[];
   /** Nullable or variable-array roots reserved for explicit tagged layouts later. */
   excludedDynamicRoots: readonly FlatNumericalSlotV1[];
   containers: readonly FlatNumericalContainerV1[];
@@ -34,6 +36,8 @@ export type FlatNumericalStateLayoutV1 = Readonly<{
 export type FlatNumericalStateLayoutOptionsV1 = Readonly<{
   /** Model-owned ordinary arrays whose exact length is part of the layout. */
   fixedArrayPointers?: readonly string[];
+  /** Deeply immutable roots whose identity is not part of accepted evolution. */
+  externalImmutablePointers?: readonly string[];
 }>;
 
 /** Mutable storage owned by one numerical authority. */
@@ -63,6 +67,7 @@ export function createFlatNumericalStateLayoutV1(
   const continuousSlots: FlatNumericalSlotV1[] = [];
   const booleanSlots: FlatNumericalSlotV1[] = [];
   const stringSlots: FlatNumericalSlotV1[] = [];
+  const externalImmutableRoots: FlatNumericalSlotV1[] = [];
   const excludedDynamicRoots: FlatNumericalSlotV1[] = [];
   const containers: FlatNumericalContainerV1[] = [];
   const fixedArrayPointers = new Set(
@@ -77,20 +82,35 @@ export function createFlatNumericalStateLayoutV1(
     throw new Error("Flat numerical fixed-array pointer is duplicated");
   }
   const admittedFixedArrayPointers = new Set<string>();
+  const externalImmutablePointers = pointerSet(
+    options.externalImmutablePointers,
+    "external-immutable",
+  );
+  const admittedExternalImmutablePointers = new Set<string>();
 
   visit(referenceState, [], {
     continuousSlots,
     booleanSlots,
     stringSlots,
+    externalImmutableRoots,
     excludedDynamicRoots,
     containers,
     fixedArrayPointers,
     admittedFixedArrayPointers,
+    externalImmutablePointers,
+    admittedExternalImmutablePointers,
   });
   for (const fixedArrayPointer of fixedArrayPointers) {
     if (!admittedFixedArrayPointers.has(fixedArrayPointer)) {
       throw new Error(
         `Flat numerical fixed-array ${fixedArrayPointer} is unavailable`,
+      );
+    }
+  }
+  for (const externalImmutablePointer of externalImmutablePointers) {
+    if (!admittedExternalImmutablePointers.has(externalImmutablePointer)) {
+      throw new Error(
+        `Flat numerical external-immutable ${externalImmutablePointer} is unavailable`,
       );
     }
   }
@@ -103,6 +123,7 @@ export function createFlatNumericalStateLayoutV1(
     continuousSlots: Object.freeze(continuousSlots),
     booleanSlots: Object.freeze(booleanSlots),
     stringSlots: Object.freeze(stringSlots),
+    externalImmutableRoots: Object.freeze(externalImmutableRoots),
     excludedDynamicRoots: Object.freeze(excludedDynamicRoots),
     containers: Object.freeze(containers),
   });
@@ -228,12 +249,26 @@ function visit(
     continuousSlots: FlatNumericalSlotV1[];
     booleanSlots: FlatNumericalSlotV1[];
     stringSlots: FlatNumericalSlotV1[];
+    externalImmutableRoots: FlatNumericalSlotV1[];
     excludedDynamicRoots: FlatNumericalSlotV1[];
     containers: FlatNumericalContainerV1[];
     fixedArrayPointers: ReadonlySet<string>;
     admittedFixedArrayPointers: Set<string>;
+    externalImmutablePointers: ReadonlySet<string>;
+    admittedExternalImmutablePointers: Set<string>;
   },
 ): void {
+  const pathPointer = pointer(path);
+  if (destination.externalImmutablePointers.has(pathPointer)) {
+    if (value === null || typeof value !== "object") {
+      throw new Error(
+        `Flat numerical external-immutable ${pathPointer} must be an object root`,
+      );
+    }
+    destination.externalImmutableRoots.push(slot(path));
+    destination.admittedExternalImmutablePointers.add(pathPointer);
+    return;
+  }
   if (typeof value === "number") {
     if (!Number.isFinite(value)) {
       throw new Error(`Flat numerical state ${pointer(path)} must be finite`);
@@ -254,7 +289,6 @@ function visit(
     return;
   }
   if (Array.isArray(value)) {
-    const pathPointer = pointer(path);
     if (!destination.fixedArrayPointers.has(pathPointer)) {
       destination.excludedDynamicRoots.push(slot(path));
       return;
@@ -295,6 +329,28 @@ function visit(
     return;
   }
   throw new Error(`Flat numerical state ${pointer(path)} has an unsupported leaf`);
+}
+
+function pointerSet(
+  pointers: readonly string[] | undefined,
+  owner: string,
+): ReadonlySet<string> {
+  const values = new Set(
+    pointers?.map((value) => {
+      if (
+        typeof value !== "string"
+        || value === "/"
+        || !value.startsWith("/")
+      ) {
+        throw new Error(`Flat numerical ${owner} pointer is invalid`);
+      }
+      return value;
+    }) ?? [],
+  );
+  if (values.size !== (pointers?.length ?? 0)) {
+    throw new Error(`Flat numerical ${owner} pointer is duplicated`);
+  }
+  return values;
 }
 
 function assertContainerShape(value: unknown, expected: FlatNumericalContainerV1): void {

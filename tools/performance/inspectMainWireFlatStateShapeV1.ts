@@ -79,7 +79,30 @@ process.stdout.write(`${JSON.stringify({
     booleanSlotCount: layout.booleanSlots.length,
     stringSlotCount: layout.stringSlots.length,
     dynamicRootCount: layout.excludedDynamicRoots.length,
+    externalImmutableRoots: manifest.externalImmutableRoots.map(
+      ({ pointer, canonicalByteLength }) => ({
+        pointer,
+        canonicalByteLength,
+      }),
+    ),
     containerCount: layout.containers.length,
+  },
+  slotBindings: {
+    continuous: Object.fromEntries(layout.continuousSlots.map(
+      ({ pointer }, index) => [pointer, index],
+    )),
+    boolean: Object.fromEntries(layout.booleanSlots.map(
+      ({ pointer }, index) => [pointer, index],
+    )),
+    string: Object.fromEntries(layout.stringSlots.map(
+      ({ pointer }, index) => [pointer, index],
+    )),
+    dynamic: Object.fromEntries(layout.excludedDynamicRoots.map(
+      ({ pointer }, index) => [pointer, index],
+    )),
+    externalImmutable: Object.fromEntries(layout.externalImmutableRoots.map(
+      ({ pointer }, index) => [pointer, index],
+    )),
   },
   roots: [...observed.values()].map((entry) => ({
     pointer: entry.pointer,

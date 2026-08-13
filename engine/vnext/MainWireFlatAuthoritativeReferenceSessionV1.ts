@@ -357,6 +357,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             current,
             candidate,
             limit.candidateTimeSec,
+            this.#rhythmInput.configuration.calciumParametersByWall,
           );
         } catch (error) {
           if (directCandidateOpen) {
@@ -591,6 +592,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       return limitMainWireAcceptedTypedCandidateTimeV1(
         this.#typedAuthority.currentCursor(),
         targetTimeSec,
+        this.#rhythmInput.configuration,
         this.#rhythmInput.externalAfNextBoundaryTimeSec,
       );
     }

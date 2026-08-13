@@ -207,6 +207,85 @@ describe("TransactionalScalarSlotsV1", () => {
 });
 
 describe("TransactionalTypedStateImageV1", () => {
+  it("keeps declared frozen configuration roots outside hot images", () => {
+    type State = Readonly<{
+      value: number;
+      configuration: Readonly<{
+        label: string;
+        nested: Readonly<{ gain: number }>;
+      }>;
+    }>;
+    const configuration = Object.freeze({
+      label: "stable",
+      nested: Object.freeze({ gain: 2 }),
+    });
+    const initial: State = Object.freeze({ value: 1, configuration });
+    const manifest = createTransactionalTypedStateManifestV1(
+      "test-external-immutable-state",
+      initial,
+      1,
+      1,
+      { externalImmutablePointers: ["/configuration"] },
+    );
+    expect(manifest.numericalLayout).toMatchObject({
+      continuousSlots: [{ pointer: "/value" }],
+      stringSlots: [],
+      externalImmutableRoots: [{ pointer: "/configuration" }],
+    });
+    const image = new TransactionalTypedStateImageV1(manifest, initial);
+    expect(image.rehydrateCurrent()).toEqual(initial);
+    expect(image.rehydrateCurrent().configuration).toBe(configuration);
+    expect(image.report()).toMatchObject({
+      externalImmutableRootCount: 1,
+      externalImmutableIdentityMatchCount: 1,
+      externalImmutableCanonicalMatchCount: 0,
+    });
+
+    image.stage(Object.freeze({ value: 2, configuration }));
+    image.promote();
+    const equivalentConfiguration = Object.freeze({
+      label: "stable",
+      nested: Object.freeze({ gain: 2 }),
+    });
+    image.stage(Object.freeze({
+      value: 3,
+      configuration: equivalentConfiguration,
+    }));
+    image.promote();
+    expect(image.rehydrateCurrent().configuration).toBe(configuration);
+    expect(image.report()).toMatchObject({
+      externalImmutableIdentityMatchCount: 2,
+      externalImmutableCanonicalMatchCount: 1,
+    });
+    expect(() => image.stage(Object.freeze({
+      value: 4,
+      configuration: Object.freeze({
+        label: "changed",
+        nested: Object.freeze({ gain: 2 }),
+      }),
+    }))).toThrow("external immutable /configuration changed");
+    expect(image.report().staged).toBe(false);
+    expect(image.report()).toMatchObject({
+      externalImmutableIdentityMatchCount: 2,
+      externalImmutableCanonicalMatchCount: 1,
+    });
+
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-mutable-external-state",
+      { value: 1, configuration: { gain: 2 } },
+      1,
+      1,
+      { externalImmutablePointers: ["/configuration"] },
+    )).toThrow("external immutable /configuration must be frozen");
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-missing-external-state",
+      initial,
+      1,
+      1,
+      { externalImmutablePointers: ["/missing"] },
+    )).toThrow("external-immutable /missing is unavailable");
+  });
+
   it("promotes model-declared fixed arrays into typed slots", () => {
     const initial = Object.freeze({
       pair: Object.freeze([1, 2] as const),
@@ -437,13 +516,17 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         acceptedTimeSec: state.acceptedTimeSec,
         revision: state.revision,
       });
-      expect(evaluateMainWireAcceptedTypedCalciumDriveV1(cursor)).toEqual(
+      expect(evaluateMainWireAcceptedTypedCalciumDriveV1(
+        cursor,
+        runtime.rhythm.configuration.calciumParametersByWall,
+      )).toEqual(
         evaluateMainWireIntegratedModelCalciumDriveV3(state.composedRhythm),
       );
       const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
       const actual = limitMainWireAcceptedTypedCandidateTimeV1(
         cursor,
         target,
+        runtime.rhythm.configuration,
         null,
       );
       const expected = limitMainWireIntegratedModelCandidateTimeV3(
@@ -467,6 +550,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         cursor,
         typedCandidate,
         actual.candidateTimeSec,
+        runtime.rhythm.configuration.calciumParametersByWall,
       );
       const objectCandidate =
         evaluateAcceptedComposedRhythmTransactionCandidateV2(
@@ -543,15 +627,18 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const initialReport = reference.authorityReport();
     expect(initialReport).toMatchObject({
       authorityId: "main-wire-integrated-accepted-typed-state-authority-v1",
-      fingerprint: "fnv1a32-b2a14bb3",
-      bufferByteLength: 267_708,
+      fingerprint: "fnv1a32-0da8be93",
+      bufferByteLength: 265_548,
       fixedImageCount: 2,
-      continuousSlotCount: 450,
-      booleanSlotCount: 4,
-      stringSlotCount: 205,
-      dynamicRootCount: 40,
-      containerCount: 163,
+      continuousSlotCount: 297,
+      booleanSlotCount: 3,
+      stringSlotCount: 109,
+      dynamicRootCount: 19,
+      externalImmutableRootCount: 3,
+      containerCount: 97,
       commitCount: 0,
+      externalImmutableIdentityMatchCount: 3,
+      externalImmutableCanonicalMatchCount: 0,
       poisonedReason: null,
       directCandidateCommitCount: 0,
     });
@@ -605,6 +692,10 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     expect(finalReport.directCandidateCommitCount).toBe(
       finalReport.commitCount,
     );
+    expect(finalReport.externalImmutableIdentityMatchCount).toBe(
+      (finalReport.commitCount + 1) * 3,
+    );
+    expect(finalReport.externalImmutableCanonicalMatchCount).toBe(0);
     expect(finalReport.highWaterStringBytes).toBeLessThanOrEqual(
       finalReport.stringArenaCapacityBytes,
     );
@@ -641,6 +732,11 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const restored =
       await MainWireFlatAuthoritativeReferenceSessionV1
         .restoreCanonicalBinary(first);
+    const restoredInitialReport = restored.authorityReport();
+    expect(
+      restoredInitialReport.externalImmutableIdentityMatchCount
+        + restoredInitialReport.externalImmutableCanonicalMatchCount,
+    ).toBe(3);
     expect(restored.currentAcceptedState()).toEqual(source.currentAcceptedState());
 
     for (let tick = 378; tick <= 544; tick += 1) {

@@ -1,6 +1,7 @@
 import {
   decodeCanonicalFlatDataV1,
   encodeCanonicalFlatDataIntoV1,
+  measureCanonicalFlatDataV1,
 } from "@/engine/vnext/CanonicalFlatDataV1";
 import {
   assertFlatNumericalStateShapeV1,
@@ -25,6 +26,7 @@ type TypedStateNodeV1 =
   | Readonly<{ kind: "boolean"; slotIndex: number }>
   | Readonly<{ kind: "string"; slotIndex: number }>
   | Readonly<{ kind: "dynamic"; slotIndex: number }>
+  | Readonly<{ kind: "external"; slotIndex: number }>
   | Readonly<{
     kind: "record";
     nullPrototype: boolean;
@@ -75,6 +77,13 @@ type TypedStateImageLayoutV1 = Readonly<{
   bufferByteLength: number;
 }>;
 
+export type TransactionalTypedStateExternalImmutableRootV1 = Readonly<{
+  path: readonly FlatNumericalPathSegmentV1[];
+  pointer: string;
+  value: unknown;
+  canonicalByteLength: number;
+}>;
+
 export type TransactionalTypedStateManifestV1 = Readonly<{
   schemaId: typeof TRANSACTIONAL_TYPED_STATE_MANIFEST_V1_SCHEMA_ID;
   layoutId: string;
@@ -83,6 +92,8 @@ export type TransactionalTypedStateManifestV1 = Readonly<{
   stringArenaCapacityBytes: number;
   dynamicArenaCapacityBytes: number;
   bufferByteLength: number;
+  externalImmutableRoots:
+    readonly TransactionalTypedStateExternalImmutableRootV1[];
   rootNode: TypedStateNodeV1;
   imageLayout: TypedStateImageLayoutV1;
 }>;
@@ -95,6 +106,7 @@ export type TransactionalTypedStateImageReportV1 = Readonly<{
   booleanSlotCount: number;
   stringSlotCount: number;
   dynamicRootCount: number;
+  externalImmutableRootCount: number;
   containerCount: number;
   fixedImageCount: 2;
   bufferByteLength: number;
@@ -106,6 +118,8 @@ export type TransactionalTypedStateImageReportV1 = Readonly<{
   highWaterDynamicBytes: number;
   activeBufferIndex: 0 | 1;
   commitCount: number;
+  externalImmutableIdentityMatchCount: number;
+  externalImmutableCanonicalMatchCount: number;
   staged: boolean;
 }>;
 
@@ -163,10 +177,16 @@ type MutableImageV1 = Readonly<{
   dynamicArena: Uint8Array;
 }>;
 
+const EXTERNAL_IMMUTABLE_CANONICAL_BYTES = new WeakMap<
+  TransactionalTypedStateManifestV1,
+  readonly Uint8Array[]
+>();
+
 /**
- * Compiles one exact, model-owned state topology. Fixed leaves receive typed
- * slots. Nullable or variable-array roots receive bounded canonical payload
- * slots, so they cannot grow memory for the lifetime of a Session.
+ * Compiles one exact, model-owned state topology. Mutable fixed leaves receive
+ * typed slots. Nullable or variable-array roots receive bounded canonical
+ * payload slots. Explicit deeply frozen configuration roots remain outside the
+ * images and are rebound only after identity or canonical-equality admission.
  */
 export function createTransactionalTypedStateManifestV1(
   layoutId: string,
@@ -183,6 +203,20 @@ export function createTransactionalTypedStateManifestV1(
     layoutOptions,
   );
   const rootNode = compileNode(referenceState, [], numericalLayout);
+  const externalImmutableRoots = numericalLayout.externalImmutableRoots.map(
+    (root) => {
+      const value = readFlatNumericalStatePathV1(referenceState, root.path);
+      assertTransitivelyFrozenData(value, root.pointer, new Set<object>());
+      const canonicalBytes = encodeCanonicalBytes(value);
+      return Object.freeze({
+        path: root.path,
+        pointer: root.pointer,
+        value,
+        canonicalByteLength: canonicalBytes.byteLength,
+        canonicalBytes,
+      });
+    },
+  );
   const imageLayout = createImageLayout(
     numericalLayout,
     stringArenaCapacityBytes,
@@ -193,7 +227,7 @@ export function createTransactionalTypedStateManifestV1(
     stringArenaCapacityBytes,
     dynamicArenaCapacityBytes,
   );
-  return Object.freeze({
+  const manifest = Object.freeze({
     schemaId: TRANSACTIONAL_TYPED_STATE_MANIFEST_V1_SCHEMA_ID,
     layoutId,
     fingerprint,
@@ -201,14 +235,25 @@ export function createTransactionalTypedStateManifestV1(
     stringArenaCapacityBytes,
     dynamicArenaCapacityBytes,
     bufferByteLength: imageLayout.bufferByteLength,
+    externalImmutableRoots: Object.freeze(
+      externalImmutableRoots.map(({ canonicalBytes: _canonicalBytes, ...root }) =>
+        Object.freeze(root)),
+    ),
     rootNode,
     imageLayout,
   });
+  EXTERNAL_IMMUTABLE_CANONICAL_BYTES.set(
+    manifest,
+    Object.freeze(externalImmutableRoots.map(({ canonicalBytes }) =>
+      canonicalBytes)),
+  );
+  return manifest;
 }
 
 /**
- * Two fixed ArrayBuffers form a transaction boundary. `stage` writes only the
- * inactive image; `promote` is an infallible index swap after all validation.
+ * Two fixed ArrayBuffers plus manifest-owned immutable cold roots form a
+ * transaction boundary. `stage` writes only the inactive image; `promote` is
+ * an infallible index swap after all validation.
  */
 export class TransactionalTypedStateImageV1<TState> {
   readonly authorityId = TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID;
@@ -226,6 +271,8 @@ export class TransactionalTypedStateImageV1<TState> {
   #highWaterStringBytes = 0;
   #highWaterDynamicBytes = 0;
   #candidateGeneration = 0;
+  #externalImmutableIdentityMatchCount = 0;
+  #externalImmutableCanonicalMatchCount = 0;
 
   constructor(
     manifest: TransactionalTypedStateManifestV1,
@@ -257,6 +304,7 @@ export class TransactionalTypedStateImageV1<TState> {
     if (this.#staged) {
       throw new Error("Transactional typed state already has a staged candidate");
     }
+    this.assertExternalImmutableRootsMatch(candidate);
     assertFlatNumericalStateShapeV1(
       this.#manifest.numericalLayout,
       candidate,
@@ -318,6 +366,7 @@ export class TransactionalTypedStateImageV1<TState> {
     if (!this.#staged) {
       throw new Error("Transactional typed state has no staged candidate");
     }
+    this.assertExternalImmutableRootsMatch(candidate);
     assertFlatNumericalStateShapeV1(
       this.#manifest.numericalLayout,
       candidate,
@@ -388,6 +437,7 @@ export class TransactionalTypedStateImageV1<TState> {
     return rehydrateNode(
       this.#manifest.rootNode,
       this.#images[this.#activeIndex],
+      this.#manifest.externalImmutableRoots,
     ) as TState;
   }
 
@@ -398,6 +448,7 @@ export class TransactionalTypedStateImageV1<TState> {
     return rehydrateNode(
       this.#manifest.rootNode,
       this.#images[this.inactiveIndex()],
+      this.#manifest.externalImmutableRoots,
     ) as TState;
   }
 
@@ -427,6 +478,7 @@ export class TransactionalTypedStateImageV1<TState> {
       booleanSlotCount: layout.booleanSlots.length,
       stringSlotCount: layout.stringSlots.length,
       dynamicRootCount: layout.excludedDynamicRoots.length,
+      externalImmutableRootCount: layout.externalImmutableRoots.length,
       containerCount: layout.containers.length,
       fixedImageCount: 2 as const,
       bufferByteLength: this.#manifest.bufferByteLength,
@@ -438,8 +490,52 @@ export class TransactionalTypedStateImageV1<TState> {
       highWaterDynamicBytes: this.#highWaterDynamicBytes,
       activeBufferIndex: this.#activeIndex,
       commitCount: this.#commitCount,
+      externalImmutableIdentityMatchCount:
+        this.#externalImmutableIdentityMatchCount,
+      externalImmutableCanonicalMatchCount:
+        this.#externalImmutableCanonicalMatchCount,
       staged: this.#staged,
     });
+  }
+
+  private assertExternalImmutableRootsMatch(candidate: TState): void {
+    const expectedBytes = EXTERNAL_IMMUTABLE_CANONICAL_BYTES.get(
+      this.#manifest,
+    );
+    if (expectedBytes === undefined) {
+      throw new Error(
+        "Transactional typed state external immutable manifest is unavailable",
+      );
+    }
+    let identityMatches = 0;
+    let canonicalMatches = 0;
+    for (
+      let index = 0;
+      index < this.#manifest.externalImmutableRoots.length;
+      index += 1
+    ) {
+      const expected = this.#manifest.externalImmutableRoots[index]!;
+      const actual = readFlatNumericalStatePathV1(candidate, expected.path);
+      if (actual === expected.value) {
+        identityMatches += 1;
+        continue;
+      }
+      assertTransitivelyFrozenData(actual, expected.pointer, new Set<object>());
+      const actualBytes = encodeCanonicalBytes(actual);
+      const referenceBytes = expectedBytes[index]!;
+      if (
+        actualBytes.byteLength !== referenceBytes.byteLength
+        || !actualBytes.every((value, byteIndex) =>
+          value === referenceBytes[byteIndex])
+      ) {
+        throw new Error(
+          `Transactional typed state external immutable ${expected.pointer} changed`,
+        );
+      }
+      canonicalMatches += 1;
+    }
+    this.#externalImmutableIdentityMatchCount += identityMatches;
+    this.#externalImmutableCanonicalMatchCount += canonicalMatches;
   }
 
   private inactiveIndex(): 0 | 1 {
@@ -748,7 +844,12 @@ function writeDynamicRoots(
   return byteOffset;
 }
 
-function rehydrateNode(node: TypedStateNodeV1, image: MutableImageV1): unknown {
+function rehydrateNode(
+  node: TypedStateNodeV1,
+  image: MutableImageV1,
+  externalImmutableRoots:
+    readonly TransactionalTypedStateExternalImmutableRootV1[],
+): unknown {
   switch (node.kind) {
     case "f64":
       return image.continuous[node.slotIndex]!;
@@ -766,10 +867,16 @@ function rehydrateNode(node: TypedStateNodeV1, image: MutableImageV1): unknown {
         image.dynamicArena.subarray(offset, offset + length),
       );
     }
+    case "external":
+      return externalImmutableRoots[node.slotIndex]!.value;
     case "typed-array": {
       const array = createNumericTypedArray(node.constructorTag, node.items.length);
       for (let index = 0; index < node.items.length; index += 1) {
-        const value = rehydrateNode(node.items[index]!, image);
+        const value = rehydrateNode(
+          node.items[index]!,
+          image,
+          externalImmutableRoots,
+        );
         if (typeof value !== "number") {
           throw new Error("Transactional typed state typed-array item is not numeric");
         }
@@ -779,14 +886,19 @@ function rehydrateNode(node: TypedStateNodeV1, image: MutableImageV1): unknown {
     }
     case "array":
       return Object.freeze(
-        node.items.map((item) => rehydrateNode(item, image)),
+        node.items.map((item) =>
+          rehydrateNode(item, image, externalImmutableRoots)),
       );
     case "record": {
       const record = node.nullPrototype
         ? Object.create(null) as Record<string, unknown>
         : {} as Record<string, unknown>;
       for (const entry of node.entries) {
-        record[entry.key] = rehydrateNode(entry.node, image);
+        record[entry.key] = rehydrateNode(
+          entry.node,
+          image,
+          externalImmutableRoots,
+        );
       }
       return Object.freeze(record);
     }
@@ -799,6 +911,13 @@ function compileNode(
   layout: FlatNumericalStateLayoutV1,
 ): TypedStateNodeV1 {
   const pathPointer = pointer(path);
+  const externalIndex = slotIndex(
+    layout.externalImmutableRoots,
+    pathPointer,
+  );
+  if (externalIndex !== -1) {
+    return Object.freeze({ kind: "external" as const, slotIndex: externalIndex });
+  }
   const dynamicIndex = slotIndex(layout.excludedDynamicRoots, pathPointer);
   if (dynamicIndex !== -1) {
     return Object.freeze({ kind: "dynamic" as const, slotIndex: dynamicIndex });
@@ -1008,6 +1127,81 @@ function assertWellFormedString(value: string, pathPointer: string): void {
   }
 }
 
+function encodeCanonicalBytes(value: unknown): Uint8Array {
+  const bytes = new Uint8Array(measureCanonicalFlatDataV1(value));
+  const length = encodeCanonicalFlatDataIntoV1(value, bytes);
+  if (length !== bytes.byteLength) {
+    throw new Error(
+      "Transactional typed state canonical immutable length changed",
+    );
+  }
+  return bytes;
+}
+
+function assertTransitivelyFrozenData(
+  value: unknown,
+  pathPointer: string,
+  visited: Set<object>,
+): void {
+  if (value === null || typeof value !== "object") return;
+  if (visited.has(value)) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} is cyclic`,
+    );
+  }
+  if (!Object.isFrozen(value)) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} must be frozen`,
+    );
+  }
+  visited.add(value);
+  if (Object.getOwnPropertySymbols(value).length !== 0) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} has symbol keys`,
+    );
+  }
+  if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} must be plain data`,
+    );
+  }
+  const array = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (
+    !array
+    && prototype !== Object.prototype
+    && prototype !== null
+  ) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} has an unsupported prototype`,
+    );
+  }
+  for (const key of Object.getOwnPropertyNames(value)) {
+    if (array && key === "length") continue;
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (
+      descriptor === undefined
+      || !("value" in descriptor)
+      || !descriptor.enumerable
+    ) {
+      throw new Error(
+        `Transactional typed state external immutable ${pathPointer}/${key} is not plain data`,
+      );
+    }
+  }
+  for (const key of Object.keys(value)) {
+    const childPointer = `${pathPointer}/${key
+      .replaceAll("~", "~0")
+      .replaceAll("/", "~1")}`;
+    assertTransitivelyFrozenData(
+      requiredOwnValue(value, key, []),
+      childPointer,
+      visited,
+    );
+  }
+  visited.delete(value);
+}
+
 function assertArenaCapacity(capacity: number, owner: string): void {
   if (
     !Number.isSafeInteger(capacity)
@@ -1041,6 +1235,9 @@ function manifestFingerprint(
     ...layout.continuousSlots.map(({ pointer: value }) => `f64:${value}`),
     ...layout.booleanSlots.map(({ pointer: value }) => `bool:${value}`),
     ...layout.stringSlots.map(({ pointer: value }) => `string:${value}`),
+    ...layout.externalImmutableRoots.map(
+      ({ pointer: value }) => `external-immutable:${value}`,
+    ),
     ...layout.excludedDynamicRoots.map(({ pointer: value }) => `dynamic:${value}`),
     ...layout.containers.map((container) => [
       "container",

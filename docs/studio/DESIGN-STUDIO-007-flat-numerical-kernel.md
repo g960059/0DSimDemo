@@ -309,17 +309,27 @@ evidence that direct fixed-slot writes are not the phone bottleneck, but it is
 not a product speedup: the reference Session still pays for the existing
 object solver and an object boundary adapter.
 
-#### Phase 1b.2b.1 — complete transactional typed image (implemented reference)
+#### Phase 1b.2b.1 — transactional typed image and cold bindings (implemented reference)
 
 The complete accepted topology is now represented by two lifetime-fixed,
-model-owned `ArrayBuffer` images. Each image is exactly `267,708` bytes and
-contains:
+model-owned `ArrayBuffer` images plus manifest-owned immutable configuration
+bindings. Each mutable image is exactly `265,548` bytes and contains:
 
-- 450 `f64` slots and four boolean slots at versioned fixed offsets;
-- 205 string offset/length pairs backed by a fixed `128 KiB` UTF-8 arena;
-- 40 dynamic-root offset/length pairs backed by a separate fixed `128 KiB`
+- 297 `f64` slots and three boolean slots at versioned fixed offsets;
+- 109 string offset/length pairs backed by a fixed `128 KiB` UTF-8 arena;
+- 19 dynamic-root offset/length pairs backed by a separate fixed `128 KiB`
   canonical arena; and
-- the 163-container shape contract and fingerprint `fnv1a32-b2a14bb3`.
+- the 97-container mutable shape contract and fingerprint
+  `fnv1a32-0da8be93`.
+
+Three deeply frozen model-owned roots are intentionally retained outside the
+hot images: the composed-rhythm configuration (`5,506` canonical bytes), MCS
+inertance profile (`2,501` bytes), and MCS structural projection (`4,265`
+bytes). They are configuration, not evolving accepted state. Exact root paths
+are fingerprinted. Manifest creation proves transitive freezing and stores a
+private canonical reference; hot admission accepts only the same frozen
+identity, while checkpoint restoration may take a canonical-equality fallback.
+Rehydration reattaches the admitted frozen roots without rebuilding them.
 
 Dynamic roots are explicit cut points rather than an escape from bounded
 ownership. The five two-component exact-event calcium states are declared as
@@ -331,8 +341,9 @@ interning table survives. Inspection also identifies the high-cardinality
 mechanics fingerprint as a recomputable diagnostic and activation/transaction
 labels as candidates for bounded model-owned codes in the direct kernel.
 
-Staging first validates the complete fixed container topology, then writes
-only the inactive image. Invalid finite values, changed keys/prototypes,
+Staging first validates the complete mutable fixed container topology and the
+cold-root identity/canonical bindings, then writes only the inactive image.
+Invalid finite values, changed keys/prototypes,
 unpaired UTF-16, malformed dynamic data, or either arena exceeding capacity
 fail before promotion. Promotion is an infallible active-index swap. Public
 snapshots are detached copies. Tests cover null-to-record and empty-to-one-item
@@ -347,13 +358,16 @@ the accepted-state authority, while leaving the registered exact Session and
 artifacts unchanged.
 
 This is still not a production speedup. The latest representative 512-tick
-alternating diagnostic measured about `2.45 ms/tick` for the released object
-Session and `4.53 ms/tick` for the typed-authority reference (`1.85x`).
-Isolated typed-image staging measured about `0.211 ms/presentation tick`, and
-rehydration about `0.065 ms/presentation tick`. String and dynamic high-water
-usage were `6,789` and `4,084` bytes respectively, far below their fixed
-capacities. The remaining overhead is dominated by rebuilding and fully
-revalidating the legacy object owner graph, not by the typed page itself.
+alternating diagnostic measured about `2.40 ms/tick` for the released object
+Session and `3.58 ms/tick` for the typed-authority reference (`1.49x`). Across
+580 accepted commits, all 1,743 cold-root checks used the identity fast path and
+none used canonical fallback. An intentionally independent-runtime projection
+diagnostic, whose equal configurations do not share identity, measured about
+`0.519 ms/presentation tick` including three canonical fallback comparisons;
+rehydration measured about `0.045 ms/presentation tick`. String and dynamic
+high-water usage fell to `3,842` and `4,059` bytes respectively, far below
+their fixed capacities. The remaining overhead is dominated by rebuilding and
+fully revalidating the legacy object owner graph, not by the typed page itself.
 These figures are machine-specific diagnostics, not gates.
 
 #### Phase 1b.2b.2a — authoritative boundary cursor (implemented reference)
@@ -362,7 +376,7 @@ The active typed image now exposes a read-only live cursor rather than an
 `ArrayBuffer` or typed-array view. The cursor follows the atomic active-index
 swap and permits generated slot reads only; it cannot mutate either image.
 The Main Wire binding admits that cursor only when its layout ID and complete
-manifest fingerprint match `fnv1a32-b2a14bb3`.
+manifest fingerprint match `fnv1a32-0da8be93`.
 
 The reference Session now reads the outer accepted clock and revision from
 fixed slots and computes its next coronary/rhythm boundary from the active
@@ -372,7 +386,9 @@ decodes only the five bounded dynamic roots that can contribute an event
 boundary: authored ectopy, authored ventricular pacing, proximal AV output,
 distal ventricular impulse, and calcium-deposit queues. It also proves that
 the outer, composed-rhythm, and coronary clocks/revisions agree before every
-scheduling decision.
+scheduling decision. Immutable atrial-source mode and exact-calcium parameters
+come from the separately admitted cold rhythm configuration rather than being
+duplicated in hot state slots.
 
 The typed limiter is compared field-for-field with the admitted object limiter
 over 96 evolving presentation boundaries. The complete 1,024-tick/all-output
@@ -386,14 +402,14 @@ slots as well as the ten calcium state slots before the legacy object
 transaction runs. The object transaction still regenerates and validates its
 own boundary internally, but admission requires its clock and calcium result to
 match the already-staged typed values bit-for-bit and cannot overwrite them.
-A representative 512-tick diagnostic measured about `2.45 ms/tick` for the
-released Session and `4.53 ms/tick` for the typed reference (`1.85x`); isolated
-typed-image staging and rehydration were about `0.211 ms/tick` and
-`0.065 ms/tick`. Direct fixed-slot boundary selection measured about
-`0.0071 ms/tick`, while copying current into the inactive image and staging all
-five calcium owners measured about `0.0090 ms/tick`. The small change relative
-to Phase 1b.2b.1 is expected because duplicate legacy transaction work
-remains. These figures are diagnostics, not performance gates.
+A representative 512-tick diagnostic measured about `2.40 ms/tick` for the
+released Session and `3.58 ms/tick` for the typed reference (`1.49x`). Direct
+fixed-slot boundary selection measured about `0.0063 ms/tick`, while copying
+current into the inactive image and staging all five calcium owners measured
+about `0.0095 ms/tick`. The improvement comes from removing immutable
+configuration traversal from each accepted transaction; duplicate legacy solve
+and mutable-owner work remains. These figures are diagnostics, not performance
+gates.
 
 The generic image also admits a generation-bound candidate cursor. Beginning a
 candidate copies current bytes once into the inactive image; direct fixed
@@ -422,7 +438,7 @@ flat mirror have been removed from the execution loop; a legacy-shaped flat
 snapshot is projected only when a diagnostic explicitly requests it. In a
 512-tick/6-output diagnostic, the released Session measured about
 `2.37 ms/tick`, the complete typed-authority Worker reference about
-`4.48 ms/tick`, and output-page projection only about `1.45 ms` in total across
+`3.59 ms/tick`, and output-page projection only about `1.35 ms` in total across
 all 512 ticks. This isolates the remaining cost in the legacy object
 transaction and typed admission—not Canvas, output selection, transfer, or the
 retired mirror.

@@ -2,7 +2,9 @@ import type {
   MainWireIntegratedModelCandidateTimeLimitV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import type {
+  AcceptedComposedRhythmTransactionConfigurationV2,
   AcceptedComposedRhythmTransactionCandidateTimeLimitV2,
+  ComposedRhythmCalciumParametersByWallV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
 import type {
   MainWireFiveWallFreeCalciumDriveV1,
@@ -32,45 +34,41 @@ export type MainWireAcceptedTypedClockV1 = Readonly<{
 
 type Boundary = Readonly<{ owner: string; timeSec: number }>;
 
-// Generated against fnv1a32-b2a14bb3. The manifest admission in
+// Generated against fnv1a32-0da8be93. The manifest admission in
 // MainWireAcceptedTypedStateV1 rejects any topology change before these slots
 // can be observed.
 const F64 = Object.freeze({
   acceptedTimeSec: 0,
   composedAcceptedTimeSec: 2,
   authoredEctopyCursor: 8,
-  regularAtrialNextActivationTimeSec: 154,
-  composedRevision: 158,
-  ventricularBackupNextIntrinsicEscapeDueTimeSec: 173,
-  ventricularBackupNextVviPaceDueTimeSec: 174,
-  coronaryAcceptedTimeSec: 208,
-  autoregulationWindowIndex: 286,
-  autoregulationWindowOriginAcceptedTimeSec: 287,
-  autoregulationWindowStartAcceptedTimeSec: 288,
-  autoregulationWindowDurationSec: 290,
-  autoregulationBindingOriginAcceptedTimeSec: 291,
-  coronaryRevision: 353,
-  revision: 449,
-});
-
-const STRING = Object.freeze({
-  atrialSourceMode: 7,
+  regularAtrialNextActivationTimeSec: 91,
+  composedRevision: 95,
+  ventricularBackupNextIntrinsicEscapeDueTimeSec: 110,
+  ventricularBackupNextVviPaceDueTimeSec: 111,
+  coronaryAcceptedTimeSec: 145,
+  autoregulationWindowIndex: 223,
+  autoregulationWindowOriginAcceptedTimeSec: 224,
+  autoregulationWindowStartAcceptedTimeSec: 225,
+  autoregulationWindowDurationSec: 227,
+  autoregulationBindingOriginAcceptedTimeSec: 228,
+  coronaryRevision: 290,
+  revision: 296,
 });
 
 const DYNAMIC = Object.freeze({
   authoredEctopyEvents: 0,
   authoredVentricularPacingReplayState: 1,
-  pendingCalciumDeposits: 11,
-  pendingDistalVentricularImpulses: 12,
-  pendingProximalAvOutputs: 13,
+  pendingCalciumDeposits: 7,
+  pendingDistalVentricularImpulses: 8,
+  pendingProximalAvOutputs: 9,
 });
 
 const CALCIUM = Object.freeze({
-  LA: Object.freeze({ state: [13, 14], parameters: [34, 35, 36, 37] }),
-  LVFW: Object.freeze({ state: [15, 16], parameters: [38, 39, 40, 41] }),
-  RA: Object.freeze({ state: [17, 18], parameters: [42, 43, 44, 45] }),
-  RVFW: Object.freeze({ state: [19, 20], parameters: [46, 47, 48, 49] }),
-  SEP: Object.freeze({ state: [21, 22], parameters: [50, 51, 52, 53] }),
+  LA: Object.freeze({ state: [13, 14] }),
+  LVFW: Object.freeze({ state: [15, 16] }),
+  RA: Object.freeze({ state: [17, 18] }),
+  RVFW: Object.freeze({ state: [19, 20] }),
+  SEP: Object.freeze({ state: [21, 22] }),
 } as const);
 
 export const MAIN_WIRE_ACCEPTED_TYPED_CALCIUM_CONTINUOUS_SLOTS_V1 =
@@ -164,6 +162,7 @@ export function stageMainWireAcceptedTypedClockCandidateV1(
 export function limitMainWireAcceptedTypedCandidateTimeV1(
   cursor: TransactionalTypedStateCurrentCursorV1,
   requestedCandidateTimeSec: number,
+  configuration: AcceptedComposedRhythmTransactionConfigurationV2,
   externalAfNextBoundaryTimeSec: number | null,
 ): MainWireIntegratedModelCandidateTimeLimitV3 {
   const clock = readMainWireAcceptedTypedClockV1(cursor);
@@ -230,6 +229,7 @@ export function limitMainWireAcceptedTypedCandidateTimeV1(
     cursor,
     clock.acceptedTimeSec,
     coronaryCappedEndTimeSec,
+    configuration.atrialSource.mode,
     externalAfNextBoundaryTimeSec,
   );
   const boundaryTime = rhythm.boundaryTimeSec;
@@ -255,6 +255,7 @@ export function limitMainWireAcceptedTypedCandidateTimeV1(
 /** Exact-event calcium readback from ten fixed state slots. */
 export function evaluateMainWireAcceptedTypedCalciumDriveV1(
   cursor: TransactionalTypedStateCurrentCursorV1,
+  parametersByWall: ComposedRhythmCalciumParametersByWallV2,
 ): MainWireFiveWallFreeCalciumDriveV1 {
   assertCursor(cursor);
   const values = Object.fromEntries(
@@ -262,8 +263,9 @@ export function evaluateMainWireAcceptedTypedCalciumDriveV1(
       const slots = CALCIUM[wall];
       const riseDrive = cursor.readContinuous(slots.state[0]);
       const decayDrive = cursor.readContinuous(slots.state[1]);
-      const gain = cursor.readContinuous(slots.parameters[0]);
-      const calciumRestUM = cursor.readContinuous(slots.parameters[1]);
+      const parameters = parametersByWall[wall];
+      const gain = parameters.calciumGainUMPerUnitDrive;
+      const calciumRestUM = parameters.calciumRestUM;
       const freeCalciumUM = calciumRestUM + gain * (decayDrive - riseDrive);
       if (!Number.isFinite(freeCalciumUM) || freeCalciumUM < 0) {
         throw new Error(`Main Wire typed ${wall} calcium is invalid`);
@@ -283,6 +285,7 @@ export function stageMainWireAcceptedTypedCalciumCandidateV1(
   current: TransactionalTypedStateCurrentCursorV1,
   candidate: TransactionalTypedStateCandidateCursorV1,
   candidateTimeSec: number,
+  parametersByWall: ComposedRhythmCalciumParametersByWallV2,
 ): void {
   assertCursor(current);
   assertCandidateCursor(candidate);
@@ -308,13 +311,7 @@ export function stageMainWireAcceptedTypedCalciumCandidateV1(
       current.readContinuous(slots.state[0]),
       current.readContinuous(slots.state[1]),
     ]) as ExactEventCalciumStateV1;
-    const parameters = Object.freeze({
-      calciumGainUMPerUnitDrive:
-        current.readContinuous(slots.parameters[0]),
-      calciumRestUM: current.readContinuous(slots.parameters[1]),
-      tauDecaySec: current.readContinuous(slots.parameters[2]),
-      tauRiseSec: current.readContinuous(slots.parameters[3]),
-    }) satisfies ExactEventCalciumParametersV1;
+    const parameters: ExactEventCalciumParametersV1 = parametersByWall[wall];
     const events = pendingDeposits.flatMap((deposit): ExactEventCalciumEventV1[] => {
       const record = requiredRecord(deposit, "pending calcium deposit");
       const depositTimeSec = numberProperty(
@@ -351,10 +348,10 @@ function limitTypedRhythmBoundary(
   cursor: TransactionalTypedStateCurrentCursorV1,
   acceptedTimeSec: number,
   requestedCandidateTimeSec: number,
+  atrialSourceMode: "regular" | "external-af",
   externalAfNextBoundaryTimeSec: number | null,
 ): AcceptedComposedRhythmTransactionCandidateTimeLimitV2 {
   const boundaries: Boundary[] = [];
-  const atrialSourceMode = cursor.readString(STRING.atrialSourceMode);
   if (atrialSourceMode === "regular") {
     boundaries.push(boundary(
       "regular-atrial-source",

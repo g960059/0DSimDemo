@@ -28,18 +28,18 @@ export const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID =
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID =
   "main-wire-integrated-accepted-typed-state-v1" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT =
-  "fnv1a32-b2a14bb3" as const;
+  "fnv1a32-0da8be93" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1 =
   128 * 1024;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1 =
   128 * 1024;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 267_708 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 265_548 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 =
-  450 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 4 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 205 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 40 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 163 as const;
+  297 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 3 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 109 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 19 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 97 as const;
 
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
   "/composedRhythm/calciumStateByWall/LA",
@@ -48,6 +48,13 @@ const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
   "/composedRhythm/calciumStateByWall/RVFW",
   "/composedRhythm/calciumStateByWall/SEP",
 ]);
+
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1 =
+  Object.freeze([
+    "/composedRhythm/configuration",
+    "/dynamicMechanicalSupport/inertanceProfileSnapshot",
+    "/dynamicMechanicalSupport/structuralHydraulicProjection",
+  ]);
 
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<
   MainWireNormalAdultFiveWallMechanicsStateV1
@@ -73,6 +80,8 @@ export function createMainWireAcceptedTypedStateManifestV1(
     {
       fixedArrayPointers:
         MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1,
+      externalImmutablePointers:
+        MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1,
     },
   );
   const layout = manifest.numericalLayout;
@@ -87,6 +96,7 @@ export function createMainWireAcceptedTypedStateManifestV1(
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1
     || layout.stringSlots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1
+    || layout.externalImmutableRoots.length !== 3
     || layout.excludedDynamicRoots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1
     || layout.containers.length
@@ -97,7 +107,7 @@ export function createMainWireAcceptedTypedStateManifestV1(
         + `(${manifest.fingerprint}; ${manifest.bufferByteLength}; `
         + `${layout.continuousSlots.length}/${layout.booleanSlots.length}/`
         + `${layout.stringSlots.length}/${layout.excludedDynamicRoots.length}/`
-        + `${layout.containers.length})`,
+        + `${layout.externalImmutableRoots.length}/${layout.containers.length})`,
     );
   }
   return manifest;
@@ -105,8 +115,9 @@ export function createMainWireAcceptedTypedStateManifestV1(
 
 /**
  * Model-owned transactional authority. The solver still produces an object
- * candidate in Phase 1b.2b.1, but only the rehydrated inactive typed image can
- * be promoted and observed by the next accepted transaction.
+ * adapter in Phase 1b.2b.2a, but only the rehydrated inactive typed image plus
+ * its admitted immutable cold roots can be promoted and observed by the next
+ * accepted transaction.
  */
 export class MainWireAcceptedTypedStateAuthorityV1
   implements AcceptedStateAuthorityV1<AcceptedState> {

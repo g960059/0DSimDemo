@@ -83,6 +83,7 @@ for (let tick = 1; tick <= WARMUP_TICKS + MEASURED_TICKS; tick += 1) {
   const nextBoundary = limitMainWireAcceptedTypedCandidateTimeV1(
     cursor,
     mainWireIntegratedModelPresentationTargetTimeSecV3(tick + 1),
+    runtime.rhythm.configuration,
     null,
   );
   const boundaryFinishedAt = performance.now();
@@ -96,6 +97,7 @@ for (let tick = 1; tick <= WARMUP_TICKS + MEASURED_TICKS; tick += 1) {
     cursor,
     candidateCursor,
     nextBoundary.candidateTimeSec,
+    runtime.rhythm.configuration.calciumParametersByWall,
   );
   typedImage.abort();
   const candidateFinishedAt = performance.now();
