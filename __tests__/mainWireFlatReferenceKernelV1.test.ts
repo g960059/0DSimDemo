@@ -212,11 +212,15 @@ describe("MainWireFlatReferenceKernelV1", () => {
     expect(flatNumericalStateBuffersEqualV1(
       {
         continuous: after.continuous,
+        nullableContinuous: after.nullableContinuous,
+        nullableContinuousPresent: after.nullableContinuousPresent,
         booleans: after.booleans,
         strings: after.strings,
       },
       {
         continuous: before.continuous,
+        nullableContinuous: before.nullableContinuous,
+        nullableContinuousPresent: before.nullableContinuousPresent,
         booleans: before.booleans,
         strings: before.strings,
       },

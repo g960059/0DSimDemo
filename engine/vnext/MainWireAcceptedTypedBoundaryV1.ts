@@ -22,6 +22,7 @@ import {
 import type {
   TransactionalTypedStateCandidateCursorV1,
   TransactionalTypedStateCurrentCursorV1,
+  TransactionalTypedStateManifestV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
 
 export const MAIN_WIRE_ACCEPTED_TYPED_BOUNDARY_V1_ID =
@@ -34,85 +35,176 @@ export type MainWireAcceptedTypedClockV1 = Readonly<{
 
 type Boundary = Readonly<{ owner: string; timeSec: number }>;
 
-// Generated against fnv1a32-0da8be93. The manifest admission in
-// MainWireAcceptedTypedStateV1 rejects any topology change before these slots
-// can be observed.
-const F64 = Object.freeze({
-  acceptedTimeSec: 0,
-  composedAcceptedTimeSec: 2,
-  authoredEctopyCursor: 8,
-  regularAtrialNextActivationTimeSec: 91,
-  composedRevision: 95,
-  ventricularBackupNextIntrinsicEscapeDueTimeSec: 110,
-  ventricularBackupNextVviPaceDueTimeSec: 111,
-  coronaryAcceptedTimeSec: 145,
-  autoregulationWindowIndex: 223,
-  autoregulationWindowOriginAcceptedTimeSec: 224,
-  autoregulationWindowStartAcceptedTimeSec: 225,
-  autoregulationWindowDurationSec: 227,
-  autoregulationBindingOriginAcceptedTimeSec: 228,
-  coronaryRevision: 290,
-  revision: 296,
-});
+const CALCIUM_WALLS = Object.freeze([
+  "LA", "LVFW", "RA", "RVFW", "SEP",
+] as const);
+type CalciumWall = (typeof CALCIUM_WALLS)[number];
 
-const DYNAMIC = Object.freeze({
-  authoredEctopyEvents: 0,
-  authoredVentricularPacingReplayState: 1,
-  pendingCalciumDeposits: 7,
-  pendingDistalVentricularImpulses: 8,
-  pendingProximalAvOutputs: 9,
-});
+type ContinuousBinding = Readonly<{
+  acceptedTimeSec: number;
+  composedAcceptedTimeSec: number;
+  authoredEctopyCursor: number;
+  regularAtrialNextActivationTimeSec: number;
+  composedRevision: number;
+  ventricularBackupNextIntrinsicEscapeDueTimeSec: number;
+  ventricularBackupNextVviPaceDueTimeSec: number;
+  coronaryAcceptedTimeSec: number;
+  autoregulationWindowIndex: number;
+  autoregulationWindowOriginAcceptedTimeSec: number;
+  autoregulationWindowStartAcceptedTimeSec: number;
+  autoregulationWindowDurationSec: number;
+  autoregulationBindingOriginAcceptedTimeSec: number;
+  coronaryRevision: number;
+  revision: number;
+}>;
 
-const CALCIUM = Object.freeze({
-  LA: Object.freeze({ state: [13, 14] }),
-  LVFW: Object.freeze({ state: [15, 16] }),
-  RA: Object.freeze({ state: [17, 18] }),
-  RVFW: Object.freeze({ state: [19, 20] }),
-  SEP: Object.freeze({ state: [21, 22] }),
-} as const);
+type DynamicBinding = Readonly<{
+  authoredVentricularPacingReplayState: number;
+  pendingCalciumDeposits: number;
+  pendingDistalVentricularImpulses: number;
+  pendingProximalAvOutputs: number;
+}>;
 
-export const MAIN_WIRE_ACCEPTED_TYPED_CALCIUM_CONTINUOUS_SLOTS_V1 =
-  Object.freeze(
-    (Object.keys(CALCIUM) as (keyof typeof CALCIUM)[])
-      .flatMap((wall) => [...CALCIUM[wall].state]),
-  );
+export type MainWireAcceptedTypedBoundaryBindingV1 = Readonly<{
+  layoutId: typeof MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID;
+  fingerprint: typeof MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT;
+  continuous: ContinuousBinding;
+  dynamic: DynamicBinding;
+  calcium: Readonly<Record<CalciumWall, Readonly<{
+    state: readonly [number, number];
+  }>>>;
+  directContinuousSlots: readonly number[];
+}>;
 
-export const MAIN_WIRE_ACCEPTED_TYPED_CLOCK_CONTINUOUS_SLOTS_V1 = Object.freeze([
-  F64.acceptedTimeSec,
-  F64.composedAcceptedTimeSec,
-  F64.coronaryAcceptedTimeSec,
-  F64.composedRevision,
-  F64.coronaryRevision,
-  F64.revision,
-]);
-
-export const MAIN_WIRE_ACCEPTED_TYPED_DIRECT_CONTINUOUS_SLOTS_V1 =
-  Object.freeze([
-    ...MAIN_WIRE_ACCEPTED_TYPED_CLOCK_CONTINUOUS_SLOTS_V1,
-    ...MAIN_WIRE_ACCEPTED_TYPED_CALCIUM_CONTINUOUS_SLOTS_V1,
+/** Resolves model paths once; the accepted hot loop performs no string lookup. */
+export function createMainWireAcceptedTypedBoundaryBindingV1(
+  manifest: TransactionalTypedStateManifestV1,
+): MainWireAcceptedTypedBoundaryBindingV1 {
+  if (
+    manifest.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID
+    || manifest.fingerprint
+      !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT
+  ) {
+    throw new Error("Main Wire typed boundary manifest identity is unsupported");
+  }
+  const continuous = Object.freeze({
+    acceptedTimeSec: continuousSlot(manifest, "/acceptedTimeSec"),
+    composedAcceptedTimeSec:
+      continuousSlot(manifest, "/composedRhythm/acceptedTimeSec"),
+    authoredEctopyCursor:
+      continuousSlot(manifest, "/composedRhythm/authoredEctopyState/cursor"),
+    regularAtrialNextActivationTimeSec: continuousSlot(
+      manifest,
+      "/composedRhythm/regularAtrialSourceState/nextActivationTimeSec",
+    ),
+    composedRevision: continuousSlot(manifest, "/composedRhythm/revision"),
+    ventricularBackupNextIntrinsicEscapeDueTimeSec: continuousSlot(
+      manifest,
+      "/composedRhythm/ventricularBackupState/nextIntrinsicEscapeDueTimeSec",
+    ),
+    ventricularBackupNextVviPaceDueTimeSec: continuousSlot(
+      manifest,
+      "/composedRhythm/ventricularBackupState/nextVviPaceDueTimeSec",
+    ),
+    coronaryAcceptedTimeSec:
+      continuousSlot(manifest, "/coronary/acceptedTimeSec"),
+    autoregulationWindowIndex: continuousSlot(
+      manifest,
+      "/coronary/coronaryAutoregulation/windowIndex",
+    ),
+    autoregulationWindowOriginAcceptedTimeSec: continuousSlot(
+      manifest,
+      "/coronary/coronaryAutoregulation/windowOriginAcceptedTimeSec",
+    ),
+    autoregulationWindowStartAcceptedTimeSec: continuousSlot(
+      manifest,
+      "/coronary/coronaryAutoregulation/windowStartAcceptedTimeSec",
+    ),
+    autoregulationWindowDurationSec: continuousSlot(
+      manifest,
+      "/coronary/coronaryAutoregulationBinding/windowPolicy/durationSec",
+    ),
+    autoregulationBindingOriginAcceptedTimeSec: continuousSlot(
+      manifest,
+      "/coronary/coronaryAutoregulationBinding/windowPolicy/originAcceptedTimeSec",
+    ),
+    coronaryRevision: continuousSlot(manifest, "/coronary/revision"),
+    revision: continuousSlot(manifest, "/revision"),
+  });
+  const dynamic = Object.freeze({
+    authoredVentricularPacingReplayState: dynamicSlot(
+      manifest,
+      "/composedRhythm/authoredVentricularPacingReplayState",
+    ),
+    pendingCalciumDeposits:
+      dynamicSlot(manifest, "/composedRhythm/pendingCalciumDeposits"),
+    pendingDistalVentricularImpulses: dynamicSlot(
+      manifest,
+      "/composedRhythm/pendingDistalVentricularImpulses",
+    ),
+    pendingProximalAvOutputs:
+      dynamicSlot(manifest, "/composedRhythm/pendingProximalAvOutputs"),
+  });
+  const calcium = Object.freeze(Object.fromEntries(CALCIUM_WALLS.map((wall) => [
+    wall,
+    Object.freeze({
+      state: Object.freeze([
+        continuousSlot(
+          manifest,
+          `/composedRhythm/calciumStateByWall/${wall}/0`,
+        ),
+        continuousSlot(
+          manifest,
+          `/composedRhythm/calciumStateByWall/${wall}/1`,
+        ),
+      ]) as readonly [number, number],
+    }),
+  ])) as Record<CalciumWall, Readonly<{
+    state: readonly [number, number];
+  }>>);
+  const clockSlots = Object.freeze([
+    continuous.acceptedTimeSec,
+    continuous.composedAcceptedTimeSec,
+    continuous.coronaryAcceptedTimeSec,
+    continuous.composedRevision,
+    continuous.coronaryRevision,
+    continuous.revision,
   ]);
+  const calciumSlots = Object.freeze(CALCIUM_WALLS.flatMap((wall) =>
+    [...calcium[wall].state]));
+  return Object.freeze({
+    layoutId: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
+    fingerprint: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
+    continuous,
+    dynamic,
+    calcium,
+    directContinuousSlots: Object.freeze([...clockSlots, ...calciumSlots]),
+  });
+}
 
 /** Reads the authoritative outer clock without rebuilding the object graph. */
 export function readMainWireAcceptedTypedClockV1(
   cursor: TransactionalTypedStateCurrentCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
 ): MainWireAcceptedTypedClockV1 {
-  assertCursor(cursor);
+  assertCursor(cursor, binding);
+  const f64 = binding.continuous;
   const acceptedTimeSec = finiteNonnegative(
-    cursor.readContinuous(F64.acceptedTimeSec),
+    cursor.readContinuous(f64.acceptedTimeSec),
     "outer accepted time",
   );
   const revision = nonnegativeSafeInteger(
-    cursor.readContinuous(F64.revision),
+    cursor.readContinuous(f64.revision),
     "outer revision",
   );
   const composedAcceptedTimeSec = cursor.readContinuous(
-    F64.composedAcceptedTimeSec,
+    f64.composedAcceptedTimeSec,
   );
   const coronaryAcceptedTimeSec = cursor.readContinuous(
-    F64.coronaryAcceptedTimeSec,
+    f64.coronaryAcceptedTimeSec,
   );
-  const composedRevision = cursor.readContinuous(F64.composedRevision);
-  const coronaryRevision = cursor.readContinuous(F64.coronaryRevision);
+  const composedRevision = cursor.readContinuous(f64.composedRevision);
+  const coronaryRevision = cursor.readContinuous(f64.coronaryRevision);
   if (
     composedAcceptedTimeSec !== acceptedTimeSec
     || coronaryAcceptedTimeSec !== acceptedTimeSec
@@ -128,11 +220,13 @@ export function readMainWireAcceptedTypedClockV1(
 export function stageMainWireAcceptedTypedClockCandidateV1(
   current: TransactionalTypedStateCurrentCursorV1,
   candidate: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
   candidateTimeSec: number,
 ): MainWireAcceptedTypedClockV1 {
-  assertCursor(current);
-  assertCandidateCursor(candidate);
-  const previous = readMainWireAcceptedTypedClockV1(current);
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
+  const previous = readMainWireAcceptedTypedClockV1(current, binding);
+  const f64 = binding.continuous;
   const acceptedTimeSec = finiteNonnegative(
     candidateTimeSec,
     "clock candidate time",
@@ -144,12 +238,12 @@ export function stageMainWireAcceptedTypedClockCandidateV1(
     throw new Error("Main Wire typed clock revision cannot increment safely");
   }
   const revision = previous.revision + 1;
-  candidate.writeContinuous(F64.acceptedTimeSec, acceptedTimeSec);
-  candidate.writeContinuous(F64.composedAcceptedTimeSec, acceptedTimeSec);
-  candidate.writeContinuous(F64.coronaryAcceptedTimeSec, acceptedTimeSec);
-  candidate.writeContinuous(F64.revision, revision);
-  candidate.writeContinuous(F64.composedRevision, revision);
-  candidate.writeContinuous(F64.coronaryRevision, revision);
+  candidate.writeContinuous(f64.acceptedTimeSec, acceptedTimeSec);
+  candidate.writeContinuous(f64.composedAcceptedTimeSec, acceptedTimeSec);
+  candidate.writeContinuous(f64.coronaryAcceptedTimeSec, acceptedTimeSec);
+  candidate.writeContinuous(f64.revision, revision);
+  candidate.writeContinuous(f64.composedRevision, revision);
+  candidate.writeContinuous(f64.coronaryRevision, revision);
   return Object.freeze({ acceptedTimeSec, revision });
 }
 
@@ -161,11 +255,13 @@ export function stageMainWireAcceptedTypedClockCandidateV1(
  */
 export function limitMainWireAcceptedTypedCandidateTimeV1(
   cursor: TransactionalTypedStateCurrentCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
   requestedCandidateTimeSec: number,
   configuration: AcceptedComposedRhythmTransactionConfigurationV2,
   externalAfNextBoundaryTimeSec: number | null,
 ): MainWireIntegratedModelCandidateTimeLimitV3 {
-  const clock = readMainWireAcceptedTypedClockV1(cursor);
+  const clock = readMainWireAcceptedTypedClockV1(cursor, binding);
+  const f64 = binding.continuous;
   const requestedCandidateTime = finiteNonnegative(
     requestedCandidateTimeSec,
     "requested candidate time",
@@ -175,19 +271,19 @@ export function limitMainWireAcceptedTypedCandidateTimeV1(
   }
 
   const windowIndex = nonnegativeSafeInteger(
-    cursor.readContinuous(F64.autoregulationWindowIndex),
+    cursor.readContinuous(f64.autoregulationWindowIndex),
     "autoregulation window index",
   );
   const stateWindowOrigin = finiteNonnegative(
-    cursor.readContinuous(F64.autoregulationWindowOriginAcceptedTimeSec),
+    cursor.readContinuous(f64.autoregulationWindowOriginAcceptedTimeSec),
     "autoregulation state window origin",
   );
   const bindingWindowOrigin = finiteNonnegative(
-    cursor.readContinuous(F64.autoregulationBindingOriginAcceptedTimeSec),
+    cursor.readContinuous(f64.autoregulationBindingOriginAcceptedTimeSec),
     "autoregulation binding window origin",
   );
   const windowDurationSec = positiveFinite(
-    cursor.readContinuous(F64.autoregulationWindowDurationSec),
+    cursor.readContinuous(f64.autoregulationWindowDurationSec),
     "autoregulation window duration",
   );
   if (stateWindowOrigin !== bindingWindowOrigin) {
@@ -196,7 +292,7 @@ export function limitMainWireAcceptedTypedCandidateTimeV1(
   const expectedWindowStart = bindingWindowOrigin
     + windowIndex * windowDurationSec;
   if (
-    cursor.readContinuous(F64.autoregulationWindowStartAcceptedTimeSec)
+    cursor.readContinuous(f64.autoregulationWindowStartAcceptedTimeSec)
       !== expectedWindowStart
   ) {
     throw new Error("Main Wire typed autoregulation window start diverged");
@@ -227,9 +323,10 @@ export function limitMainWireAcceptedTypedCandidateTimeV1(
 
   const rhythm = limitTypedRhythmBoundary(
     cursor,
+    binding,
     clock.acceptedTimeSec,
     coronaryCappedEndTimeSec,
-    configuration.atrialSource.mode,
+    configuration,
     externalAfNextBoundaryTimeSec,
   );
   const boundaryTime = rhythm.boundaryTimeSec;
@@ -255,12 +352,13 @@ export function limitMainWireAcceptedTypedCandidateTimeV1(
 /** Exact-event calcium readback from ten fixed state slots. */
 export function evaluateMainWireAcceptedTypedCalciumDriveV1(
   cursor: TransactionalTypedStateCurrentCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
   parametersByWall: ComposedRhythmCalciumParametersByWallV2,
 ): MainWireFiveWallFreeCalciumDriveV1 {
-  assertCursor(cursor);
+  assertCursor(cursor, binding);
   const values = Object.fromEntries(
-    (Object.keys(CALCIUM) as (keyof typeof CALCIUM)[]).map((wall) => {
-      const slots = CALCIUM[wall];
+    CALCIUM_WALLS.map((wall) => {
+      const slots = binding.calcium[wall];
       const riseDrive = cursor.readContinuous(slots.state[0]);
       const decayDrive = cursor.readContinuous(slots.state[1]);
       const parameters = parametersByWall[wall];
@@ -284,13 +382,15 @@ export function evaluateMainWireAcceptedTypedCalciumDriveV1(
 export function stageMainWireAcceptedTypedCalciumCandidateV1(
   current: TransactionalTypedStateCurrentCursorV1,
   candidate: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
   candidateTimeSec: number,
   parametersByWall: ComposedRhythmCalciumParametersByWallV2,
 ): void {
-  assertCursor(current);
-  assertCandidateCursor(candidate);
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
+  const f64 = binding.continuous;
   const startTimeSec = finiteNonnegative(
-    current.readContinuous(F64.composedAcceptedTimeSec),
+    current.readContinuous(f64.composedAcceptedTimeSec),
     "calcium start time",
   );
   const endTimeSec = finiteNonnegative(
@@ -301,12 +401,12 @@ export function stageMainWireAcceptedTypedCalciumCandidateV1(
     throw new Error("Main Wire typed calcium candidate must advance");
   }
   const pendingDeposits = requiredArray(
-    current.readDynamic(DYNAMIC.pendingCalciumDeposits),
+    current.readDynamic(binding.dynamic.pendingCalciumDeposits),
     "pending calcium deposits",
   );
 
-  for (const wall of Object.keys(CALCIUM) as (keyof typeof CALCIUM)[]) {
-    const slots = CALCIUM[wall];
+  for (const wall of CALCIUM_WALLS) {
+    const slots = binding.calcium[wall];
     const state = Object.freeze([
       current.readContinuous(slots.state[0]),
       current.readContinuous(slots.state[1]),
@@ -346,16 +446,20 @@ export function stageMainWireAcceptedTypedCalciumCandidateV1(
 
 function limitTypedRhythmBoundary(
   cursor: TransactionalTypedStateCurrentCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
   acceptedTimeSec: number,
   requestedCandidateTimeSec: number,
-  atrialSourceMode: "regular" | "external-af",
+  configuration: AcceptedComposedRhythmTransactionConfigurationV2,
   externalAfNextBoundaryTimeSec: number | null,
 ): AcceptedComposedRhythmTransactionCandidateTimeLimitV2 {
   const boundaries: Boundary[] = [];
+  const atrialSourceMode = configuration.atrialSource.mode;
   if (atrialSourceMode === "regular") {
     boundaries.push(boundary(
       "regular-atrial-source",
-      cursor.readContinuous(F64.regularAtrialNextActivationTimeSec),
+      cursor.readContinuous(
+        binding.continuous.regularAtrialNextActivationTimeSec,
+      ),
       acceptedTimeSec,
     ));
     if (externalAfNextBoundaryTimeSec !== null) {
@@ -375,11 +479,11 @@ function limitTypedRhythmBoundary(
   }
 
   const authoredEctopyEvents = requiredArray(
-    cursor.readDynamic(DYNAMIC.authoredEctopyEvents),
+    configuration.authoredEctopySchedule.events,
     "authored ectopy events",
   );
   const authoredEctopyCursor = nonnegativeSafeInteger(
-    cursor.readContinuous(F64.authoredEctopyCursor),
+    cursor.readContinuous(binding.continuous.authoredEctopyCursor),
     "authored ectopy cursor",
   );
   const ectopy = authoredEctopyEvents[authoredEctopyCursor];
@@ -392,7 +496,7 @@ function limitTypedRhythmBoundary(
   }
 
   const authoredPacing = cursor.readDynamic(
-    DYNAMIC.authoredVentricularPacingReplayState,
+    binding.dynamic.authoredVentricularPacingReplayState,
   );
   if (authoredPacing !== null) {
     const pacingRecord = requiredRecord(
@@ -427,14 +531,14 @@ function limitTypedRhythmBoundary(
 
   pushFirstArrayBoundary(
     boundaries,
-    cursor.readDynamic(DYNAMIC.pendingProximalAvOutputs),
+    cursor.readDynamic(binding.dynamic.pendingProximalAvOutputs),
     "pending-proximal-av-output",
     "proximalArrivalTimeSec",
     acceptedTimeSec,
   );
   pushFirstArrayBoundary(
     boundaries,
-    cursor.readDynamic(DYNAMIC.pendingDistalVentricularImpulses),
+    cursor.readDynamic(binding.dynamic.pendingDistalVentricularImpulses),
     "pending-distal-ventricular-impulse",
     "activationTimeSec",
     acceptedTimeSec,
@@ -443,15 +547,17 @@ function limitTypedRhythmBoundary(
     "ventricular-backup",
     Math.min(
       cursor.readContinuous(
-        F64.ventricularBackupNextIntrinsicEscapeDueTimeSec,
+        binding.continuous.ventricularBackupNextIntrinsicEscapeDueTimeSec,
       ),
-      cursor.readContinuous(F64.ventricularBackupNextVviPaceDueTimeSec),
+      cursor.readContinuous(
+        binding.continuous.ventricularBackupNextVviPaceDueTimeSec,
+      ),
     ),
     acceptedTimeSec,
   ));
   pushFirstArrayBoundary(
     boundaries,
-    cursor.readDynamic(DYNAMIC.pendingCalciumDeposits),
+    cursor.readDynamic(binding.dynamic.pendingCalciumDeposits),
     "pending-calcium-deposit",
     "depositTimeSec",
     acceptedTimeSec,
@@ -573,11 +679,16 @@ function timeTolerance(left: number, right: number): number {
     * Math.max(1, Math.abs(left), Math.abs(right));
 }
 
-function assertCursor(cursor: TransactionalTypedStateCurrentCursorV1): void {
+function assertCursor(
+  cursor: TransactionalTypedStateCurrentCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
+): void {
   if (
     cursor.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID
     || cursor.fingerprint
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT
+    || cursor.layoutId !== binding.layoutId
+    || cursor.fingerprint !== binding.fingerprint
   ) {
     throw new Error("Main Wire typed boundary cursor has the wrong layout");
   }
@@ -585,12 +696,54 @@ function assertCursor(cursor: TransactionalTypedStateCurrentCursorV1): void {
 
 function assertCandidateCursor(
   cursor: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
 ): void {
   if (
     cursor.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID
     || cursor.fingerprint
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT
+    || cursor.layoutId !== binding.layoutId
+    || cursor.fingerprint !== binding.fingerprint
   ) {
     throw new Error("Main Wire typed candidate cursor has the wrong layout");
   }
+}
+
+function continuousSlot(
+  manifest: TransactionalTypedStateManifestV1,
+  pointer: string,
+): number {
+  return requiredBindingSlot(
+    manifest.numericalLayout.continuousSlots,
+    pointer,
+    "continuous",
+  );
+}
+
+function dynamicSlot(
+  manifest: TransactionalTypedStateManifestV1,
+  pointer: string,
+): number {
+  return requiredBindingSlot(
+    manifest.numericalLayout.excludedDynamicRoots,
+    pointer,
+    "dynamic",
+  );
+}
+
+function requiredBindingSlot(
+  slots: readonly Readonly<{ pointer: string }>[],
+  pointer: string,
+  owner: string,
+): number {
+  const matches: number[] = [];
+  for (let index = 0; index < slots.length; index += 1) {
+    if (slots[index]?.pointer === pointer) matches.push(index);
+  }
+  if (matches.length !== 1) {
+    throw new Error(
+      `Main Wire typed ${owner} binding ${pointer} must resolve exactly once`,
+    );
+  }
+  return matches[0]!;
 }

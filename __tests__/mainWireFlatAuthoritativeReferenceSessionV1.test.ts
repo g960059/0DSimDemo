@@ -32,6 +32,7 @@ import {
   MainWireFlatAuthoritativeReferenceSessionV1,
 } from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
 import {
+  createMainWireAcceptedTypedBoundaryBindingV1,
   evaluateMainWireAcceptedTypedCalciumDriveV1,
   limitMainWireAcceptedTypedCandidateTimeV1,
   readMainWireAcceptedTypedClockV1,
@@ -284,6 +285,28 @@ describe("TransactionalTypedStateImageV1", () => {
       1,
       { externalImmutablePointers: ["/missing"] },
     )).toThrow("external-immutable /missing is unavailable");
+
+    const scalarInitial: Readonly<{ value: number; mode: string }> =
+      Object.freeze({ value: 1, mode: "fixed" });
+    const scalarManifest = createTransactionalTypedStateManifestV1(
+      "test-external-immutable-scalar",
+      scalarInitial,
+      1,
+      1,
+      { externalImmutablePointers: ["/mode"] },
+    );
+    const scalarImage = new TransactionalTypedStateImageV1(
+      scalarManifest,
+      scalarInitial,
+    );
+    expect(scalarManifest.numericalLayout).toMatchObject({
+      stringSlots: [],
+      externalImmutableRoots: [{ pointer: "/mode" }],
+    });
+    expect(() => scalarImage.stage(Object.freeze({
+      value: 2,
+      mode: "changed",
+    }))).toThrow("external immutable /mode changed");
   });
 
   it("promotes model-declared fixed arrays into typed slots", () => {
@@ -330,6 +353,54 @@ describe("TransactionalTypedStateImageV1", () => {
       emptyStringState,
     );
     expect(emptyStringImage.currentCursor().readString(0)).toBe("");
+  });
+
+  it("stores declared nullable numeric leaves as tagged typed slots", () => {
+    type State = Readonly<{ value: number; optionalTimeSec: number | null }>;
+    const initial: State = Object.freeze({ value: 1, optionalTimeSec: null });
+    const manifest = createTransactionalTypedStateManifestV1(
+      "test-nullable-continuous-state",
+      initial,
+      1,
+      1,
+      { nullableContinuousPointers: ["/optionalTimeSec"] },
+    );
+    expect(manifest.numericalLayout).toMatchObject({
+      nullableContinuousSlots: [{ pointer: "/optionalTimeSec" }],
+      excludedDynamicRoots: [],
+    });
+    const image = new TransactionalTypedStateImageV1(manifest, initial);
+    const cursor = image.currentCursor();
+    expect(cursor.readNullableContinuous(0)).toBeNull();
+    expect(image.rehydrateCurrent()).toEqual(initial);
+
+    image.stage(Object.freeze({ value: 2, optionalTimeSec: 0.25 }));
+    image.promote();
+    expect(cursor.readNullableContinuous(0)).toBe(0.25);
+    expect(image.rehydrateCurrent()).toEqual({
+      value: 2,
+      optionalTimeSec: 0.25,
+    });
+
+    const direct = image.beginCandidateFromCurrent();
+    direct.writeNullableContinuous(0, null);
+    expect(direct.readNullableContinuous(0)).toBeNull();
+    expect(image.rehydrateStaged()).toEqual({ value: 2, optionalTimeSec: null });
+    expect(() => direct.writeNullableContinuous(0, Number.NaN))
+      .toThrow("value is invalid");
+    image.abort();
+
+    expect(() => image.stage(Object.freeze({
+      value: 3,
+      optionalTimeSec: "invalid",
+    }) as unknown as State)).toThrow("must be null or finite");
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-missing-nullable-continuous",
+      initial,
+      1,
+      1,
+      { nullableContinuousPointers: ["/missing"] },
+    )).toThrow("nullable-continuous /missing is unavailable");
   });
 
   it("round-trips all leaf classes and keeps failed candidates inactive", () => {
@@ -505,19 +576,22 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const oracle = await MainWireIntegratedModelSessionV3.create();
     for (let tick = 1; tick <= 96; tick += 1) {
       const state = oracle.currentAcceptedState();
+      const manifest = createMainWireAcceptedTypedStateManifestV1(
+        runtime.cold.acceptedState,
+      );
       const image = new TransactionalTypedStateImageV1(
-        createMainWireAcceptedTypedStateManifestV1(
-          runtime.cold.acceptedState,
-        ),
+        manifest,
         state,
       );
       const cursor = image.currentCursor();
-      expect(readMainWireAcceptedTypedClockV1(cursor)).toEqual({
+      const binding = createMainWireAcceptedTypedBoundaryBindingV1(manifest);
+      expect(readMainWireAcceptedTypedClockV1(cursor, binding)).toEqual({
         acceptedTimeSec: state.acceptedTimeSec,
         revision: state.revision,
       });
       expect(evaluateMainWireAcceptedTypedCalciumDriveV1(
         cursor,
+        binding,
         runtime.rhythm.configuration.calciumParametersByWall,
       )).toEqual(
         evaluateMainWireIntegratedModelCalciumDriveV3(state.composedRhythm),
@@ -525,6 +599,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
       const actual = limitMainWireAcceptedTypedCandidateTimeV1(
         cursor,
+        binding,
         target,
         runtime.rhythm.configuration,
         null,
@@ -544,11 +619,13 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       const candidateClock = stageMainWireAcceptedTypedClockCandidateV1(
         cursor,
         typedCandidate,
+        binding,
         actual.candidateTimeSec,
       );
       stageMainWireAcceptedTypedCalciumCandidateV1(
         cursor,
         typedCandidate,
+        binding,
         actual.candidateTimeSec,
         runtime.rhythm.configuration.calciumParametersByWall,
       );
@@ -627,17 +704,18 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const initialReport = reference.authorityReport();
     expect(initialReport).toMatchObject({
       authorityId: "main-wire-integrated-accepted-typed-state-authority-v1",
-      fingerprint: "fnv1a32-0da8be93",
-      bufferByteLength: 265_548,
+      fingerprint: "fnv1a32-9f176efc",
+      bufferByteLength: 34_984,
       fixedImageCount: 2,
-      continuousSlotCount: 297,
-      booleanSlotCount: 3,
-      stringSlotCount: 109,
-      dynamicRootCount: 19,
-      externalImmutableRootCount: 3,
-      containerCount: 97,
+      continuousSlotCount: 253,
+      nullableContinuousSlotCount: 6,
+      booleanSlotCount: 2,
+      stringSlotCount: 6,
+      dynamicRootCount: 11,
+      externalImmutableRootCount: 56,
+      containerCount: 80,
       commitCount: 0,
-      externalImmutableIdentityMatchCount: 3,
+      externalImmutableIdentityMatchCount: 56,
       externalImmutableCanonicalMatchCount: 0,
       poisonedReason: null,
       directCandidateCommitCount: 0,
@@ -693,7 +771,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       finalReport.commitCount,
     );
     expect(finalReport.externalImmutableIdentityMatchCount).toBe(
-      (finalReport.commitCount + 1) * 3,
+      (finalReport.commitCount + 1) * 56,
     );
     expect(finalReport.externalImmutableCanonicalMatchCount).toBe(0);
     expect(finalReport.highWaterStringBytes).toBeLessThanOrEqual(
@@ -736,7 +814,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     expect(
       restoredInitialReport.externalImmutableIdentityMatchCount
         + restoredInitialReport.externalImmutableCanonicalMatchCount,
-    ).toBe(3);
+    ).toBe(56);
     expect(restored.currentAcceptedState()).toEqual(source.currentAcceptedState());
 
     for (let tick = 378; tick <= 544; tick += 1) {

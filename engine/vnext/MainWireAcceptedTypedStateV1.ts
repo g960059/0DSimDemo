@@ -28,18 +28,20 @@ export const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID =
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID =
   "main-wire-integrated-accepted-typed-state-v1" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT =
-  "fnv1a32-0da8be93" as const;
+  "fnv1a32-9f176efc" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1 =
-  128 * 1024;
+  16 * 1024;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1 =
-  128 * 1024;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 265_548 as const;
+  16 * 1024;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 34_984 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 =
-  297 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 3 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 109 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 19 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 97 as const;
+  253 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 =
+  6 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 2 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 6 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 11 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 80 as const;
 
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
   "/composedRhythm/calciumStateByWall/LA",
@@ -49,11 +51,84 @@ const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
   "/composedRhythm/calciumStateByWall/SEP",
 ]);
 
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1 =
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_ROOT_POINTERS_V1 =
   Object.freeze([
     "/composedRhythm/configuration",
+    "/composedRhythm/regularAtrialSourceState/configuration",
+    "/composedRhythm/authoredEctopyState/configuration",
+    "/composedRhythm/electricalCaptureState/configuration",
+    "/composedRhythm/proximalAvGateState/configuration",
+    "/composedRhythm/distalGateState/configuration",
+    "/composedRhythm/ventricularBackupState/configuration",
+    "/composedRhythm/ventricularBackupState/initialCaptureSeed",
+    "/composedRhythm/ventricularIntervalStrengthState/configuration",
+    "/composedRhythm/ventricularIntervalStrengthState/initialPriorAcceptedVentricularActivation",
     "/dynamicMechanicalSupport/inertanceProfileSnapshot",
     "/dynamicMechanicalSupport/structuralHydraulicProjection",
+  ]);
+
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONSTANT_STRING_POINTERS_V1 =
+  Object.freeze([
+    "/composedRhythm/authoredEctopyState/stateSchemaId",
+    "/composedRhythm/distalGateState/stateSchemaId",
+    "/composedRhythm/electricalCaptureState/atrialGate/chamber",
+    "/composedRhythm/electricalCaptureState/atrialGate/gateInstanceId",
+    "/composedRhythm/electricalCaptureState/atrialGate/gateStateSchemaId",
+    "/composedRhythm/electricalCaptureState/stateSchemaId",
+    "/composedRhythm/electricalCaptureState/ventricularGate/chamber",
+    "/composedRhythm/electricalCaptureState/ventricularGate/gateInstanceId",
+    "/composedRhythm/electricalCaptureState/ventricularGate/gateStateSchemaId",
+    "/composedRhythm/proximalAvGateState/stateSchemaId",
+    "/composedRhythm/regularAtrialSourceState/stateSchemaId",
+    "/composedRhythm/stateSchemaId",
+    "/composedRhythm/ventricularBackupState/stateSchemaId",
+    "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/activationSchemaId",
+    "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/chamber",
+    "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/gateInstanceId",
+    "/composedRhythm/ventricularIntervalStrengthState/stateSchemaId",
+    "/coronary/circulation/transactionId",
+    "/coronary/coronaryAutoregulation/desiredControl/controlId",
+    "/coronary/coronaryAutoregulation/stateId",
+    "/coronary/coronaryAutoregulationBinding/bindingId",
+    "/coronary/coronaryAutoregulationBinding/flowObservable",
+    "/coronary/coronaryAutoregulationBinding/law",
+    "/coronary/coronaryAutoregulationBinding/perfusionPressureObservable",
+    "/coronary/coronaryAutoregulationBinding/priorFingerprint",
+    "/coronary/coronaryAutoregulationBinding/windowPolicy/interpretation",
+    "/coronary/coronaryAutoregulationBinding/windowPolicy/kind",
+    "/coronary/coronaryAutoregulationBinding/windowPolicy/quadrature",
+    "/coronary/coronaryBinding/boundaryResolverId",
+    "/coronary/coronaryBinding/collapseHydraulicsFingerprint",
+    "/coronary/coronaryBinding/impMechanism",
+    "/coronary/coronaryBinding/mvcReferenceSemantics",
+    "/coronary/coronaryBinding/priorFingerprint",
+    "/coronary/coronaryBinding/shorteningImpPriorFingerprint",
+    "/coronary/coronaryBinding/topologyId",
+    "/coronary/mechanics/contractId",
+    "/coronary/mechanics/parameterIdentityHash",
+    "/coronary/mechanics/parameterSetId",
+    "/coronary/mechanics/providerId",
+    "/coronary/transactionId",
+    "/dynamicMechanicalSupport/networkId",
+    "/dynamicMechanicalSupport/stateSchemaId",
+    "/dynamicMechanicalSupport/unitSystemId",
+    "/transactionId",
+  ]);
+
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1 =
+  Object.freeze([
+    ...MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_ROOT_POINTERS_V1,
+    ...MAIN_WIRE_ACCEPTED_TYPED_STATE_CONSTANT_STRING_POINTERS_V1,
+  ]);
+
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1 =
+  Object.freeze([
+    "/composedRhythm/distalGateState/lastPassedProximalArrivalTimeSec",
+    "/composedRhythm/distalGateState/lastVentricularImpulseTimeSec",
+    "/composedRhythm/electricalCaptureState/atrialGate/lastCapturedActivationTimeSec",
+    "/composedRhythm/electricalCaptureState/lastAcceptedImpulseBatchTimeSec",
+    "/composedRhythm/proximalAvGateState/lastConductedAtrialActivationTimeSec",
+    "/composedRhythm/proximalAvGateState/lastProximalAvOutputTimeSec",
   ]);
 
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<
@@ -82,6 +157,8 @@ export function createMainWireAcceptedTypedStateManifestV1(
         MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1,
       externalImmutablePointers:
         MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1,
+      nullableContinuousPointers:
+        MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1,
     },
   );
   const layout = manifest.numericalLayout;
@@ -92,11 +169,13 @@ export function createMainWireAcceptedTypedStateManifestV1(
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1
     || layout.continuousSlots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1
+    || layout.nullableContinuousSlots.length
+      !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1
     || layout.booleanSlots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1
     || layout.stringSlots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1
-    || layout.externalImmutableRoots.length !== 3
+    || layout.externalImmutableRoots.length !== 56
     || layout.excludedDynamicRoots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1
     || layout.containers.length
@@ -105,7 +184,9 @@ export function createMainWireAcceptedTypedStateManifestV1(
     throw new Error(
       "Main Wire accepted typed-state layout changed without a new version "
         + `(${manifest.fingerprint}; ${manifest.bufferByteLength}; `
-        + `${layout.continuousSlots.length}/${layout.booleanSlots.length}/`
+        + `${layout.continuousSlots.length}/`
+        + `${layout.nullableContinuousSlots.length}/`
+        + `${layout.booleanSlots.length}/`
         + `${layout.stringSlots.length}/${layout.excludedDynamicRoots.length}/`
         + `${layout.externalImmutableRoots.length}/${layout.containers.length})`,
     );
@@ -123,6 +204,7 @@ export class MainWireAcceptedTypedStateAuthorityV1
   implements AcceptedStateAuthorityV1<AcceptedState> {
   readonly authorityId = MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID;
 
+  readonly #manifest: TransactionalTypedStateManifestV1;
   readonly #image: TransactionalTypedStateImageV1<AcceptedState>;
   readonly #ownDecoded: AcceptedStateValidatorV1<AcceptedState>;
   #currentState: AcceptedState;
@@ -137,8 +219,11 @@ export class MainWireAcceptedTypedStateAuthorityV1
   ) {
     validate(initialState);
     this.#ownDecoded = ownDecoded;
+    this.#manifest = createMainWireAcceptedTypedStateManifestV1(
+      coldAcceptedState,
+    );
     this.#image = new TransactionalTypedStateImageV1(
-      createMainWireAcceptedTypedStateManifestV1(coldAcceptedState),
+      this.#manifest,
       initialState,
     );
     this.#currentState = this.ownAndValidate(this.#image.rehydrateCurrent());
@@ -147,6 +232,12 @@ export class MainWireAcceptedTypedStateAuthorityV1
   current(): AcceptedState {
     this.assertHealthy();
     return this.#currentState;
+  }
+
+  /** Immutable model-owned layout used to bind hot-path slots once. */
+  manifest(): TransactionalTypedStateManifestV1 {
+    this.assertHealthy();
+    return this.#manifest;
   }
 
   snapshot(): AcceptedState {

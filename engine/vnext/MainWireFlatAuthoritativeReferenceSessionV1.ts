@@ -59,11 +59,12 @@ import {
   createMainWireAcceptedScalarSlotManifestV1,
 } from "@/engine/vnext/MainWireAcceptedScalarSlotsV1";
 import {
+  createMainWireAcceptedTypedBoundaryBindingV1,
   limitMainWireAcceptedTypedCandidateTimeV1,
-  MAIN_WIRE_ACCEPTED_TYPED_DIRECT_CONTINUOUS_SLOTS_V1,
   readMainWireAcceptedTypedClockV1,
   stageMainWireAcceptedTypedCalciumCandidateV1,
   stageMainWireAcceptedTypedClockCandidateV1,
+  type MainWireAcceptedTypedBoundaryBindingV1,
   type MainWireAcceptedTypedClockV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
 import {
@@ -120,6 +121,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   readonly #authority: AcceptedStateAuthorityV1<AcceptedState>;
   readonly #typedAuthority:
     MainWireAcceptedTypedStateAuthorityV1 | null;
+  readonly #typedBoundaryBinding:
+    MainWireAcceptedTypedBoundaryBindingV1 | null;
   readonly #scalarSlots: TransactionalScalarSlotsV1<AcceptedState>;
   #acceptedState: AcceptedState;
   #lastAcceptedStep: SuccessfulStep | null;
@@ -180,6 +183,11 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       this.#authority instanceof MainWireAcceptedTypedStateAuthorityV1
       ? this.#authority
       : null;
+    this.#typedBoundaryBinding = this.#typedAuthority === null
+      ? null
+      : createMainWireAcceptedTypedBoundaryBindingV1(
+          this.#typedAuthority.manifest(),
+        );
     this.#acceptedState = this.#authority.current();
     this.#scalarSlots = new TransactionalScalarSlotsV1(
       createMainWireAcceptedScalarSlotManifestV1(
@@ -351,11 +359,13 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           stageMainWireAcceptedTypedClockCandidateV1(
             current,
             candidate,
+            this.requiredTypedBoundaryBinding(),
             limit.candidateTimeSec,
           );
           stageMainWireAcceptedTypedCalciumCandidateV1(
             current,
             candidate,
+            this.requiredTypedBoundaryBinding(),
             limit.candidateTimeSec,
             this.#rhythmInput.configuration.calciumParametersByWall,
           );
@@ -418,7 +428,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             result.acceptedState,
             {
               continuous:
-                MAIN_WIRE_ACCEPTED_TYPED_DIRECT_CONTINUOUS_SLOTS_V1,
+                this.requiredTypedBoundaryBinding().directContinuousSlots,
             },
           );
         } else {
@@ -579,6 +589,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     if (this.#typedAuthority !== null) {
       return readMainWireAcceptedTypedClockV1(
         this.#typedAuthority.currentCursor(),
+        this.requiredTypedBoundaryBinding(),
       );
     }
     return Object.freeze({
@@ -591,6 +602,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     if (this.#typedAuthority !== null) {
       return limitMainWireAcceptedTypedCandidateTimeV1(
         this.#typedAuthority.currentCursor(),
+        this.requiredTypedBoundaryBinding(),
         targetTimeSec,
         this.#rhythmInput.configuration,
         this.#rhythmInput.externalAfNextBoundaryTimeSec,
@@ -607,6 +619,14 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       this.#runtime.profile,
       this.#dynamicMechanicalSupportConfig,
     );
+  }
+
+  private requiredTypedBoundaryBinding():
+    MainWireAcceptedTypedBoundaryBindingV1 {
+    if (this.#typedBoundaryBinding === null) {
+      throw new Error("Flat reference Session has no typed boundary binding");
+    }
+    return this.#typedBoundaryBinding;
   }
 
   private failedAdvance(

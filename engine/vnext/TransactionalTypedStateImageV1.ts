@@ -23,6 +23,7 @@ const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 
 type TypedStateNodeV1 =
   | Readonly<{ kind: "f64"; slotIndex: number }>
+  | Readonly<{ kind: "nullable-f64"; slotIndex: number }>
   | Readonly<{ kind: "boolean"; slotIndex: number }>
   | Readonly<{ kind: "string"; slotIndex: number }>
   | Readonly<{ kind: "dynamic"; slotIndex: number }>
@@ -69,6 +70,8 @@ type NumericTypedArrayTagV1 =
 
 type TypedStateImageLayoutV1 = Readonly<{
   continuousByteOffset: number;
+  nullableContinuousByteOffset: number;
+  nullableContinuousPresenceByteOffset: number;
   booleanByteOffset: number;
   stringMetadataByteOffset: number;
   dynamicMetadataByteOffset: number;
@@ -103,6 +106,7 @@ export type TransactionalTypedStateImageReportV1 = Readonly<{
   layoutId: string;
   fingerprint: string;
   continuousSlotCount: number;
+  nullableContinuousSlotCount: number;
   booleanSlotCount: number;
   stringSlotCount: number;
   dynamicRootCount: number;
@@ -125,6 +129,8 @@ export type TransactionalTypedStateImageReportV1 = Readonly<{
 
 export type TransactionalTypedStateImageSnapshotV1 = Readonly<{
   continuous: Float64Array;
+  nullableContinuous: Float64Array;
+  nullableContinuousPresent: Uint8Array;
   booleans: Uint8Array;
   stringMetadata: Uint32Array;
   stringBytes: Uint8Array;
@@ -142,6 +148,7 @@ export type TransactionalTypedStateCurrentCursorV1 = Readonly<{
   layoutId: string;
   fingerprint: string;
   readContinuous(slotIndex: number): number;
+  readNullableContinuous(slotIndex: number): number | null;
   readBoolean(slotIndex: number): boolean;
   readString(slotIndex: number): string;
   readDynamic(slotIndex: number): unknown;
@@ -158,6 +165,8 @@ export type TransactionalTypedStateCandidateCursorV1 = Readonly<{
   fingerprint: string;
   readContinuous(slotIndex: number): number;
   writeContinuous(slotIndex: number, value: number): void;
+  readNullableContinuous(slotIndex: number): number | null;
+  writeNullableContinuous(slotIndex: number, value: number | null): void;
   readBoolean(slotIndex: number): boolean;
   writeBoolean(slotIndex: number, value: boolean): void;
 }>;
@@ -170,6 +179,8 @@ export type TransactionalTypedStateRetainedSlotsV1 = Readonly<{
 type MutableImageV1 = Readonly<{
   buffer: ArrayBuffer;
   continuous: Float64Array;
+  nullableContinuous: Float64Array;
+  nullableContinuousPresent: Uint8Array;
   booleans: Uint8Array;
   stringMetadata: Uint32Array;
   dynamicMetadata: Uint32Array;
@@ -288,6 +299,8 @@ export class TransactionalTypedStateImageV1<TState> {
       fingerprint: manifest.fingerprint,
       readContinuous: (slotIndex: number) =>
         this.readCurrentContinuous(slotIndex),
+      readNullableContinuous: (slotIndex: number) =>
+        this.readCurrentNullableContinuous(slotIndex),
       readBoolean: (slotIndex: number) =>
         this.readCurrentBoolean(slotIndex),
       readString: (slotIndex: number) =>
@@ -311,6 +324,7 @@ export class TransactionalTypedStateImageV1<TState> {
     );
     const candidateImage = this.#images[this.inactiveIndex()];
     writeFixedLeaves(this.#manifest, candidate, candidateImage);
+    writeNullableContinuousLeaves(this.#manifest, candidate, candidateImage);
     const stringBytes = writeStrings(this.#manifest, candidate, candidateImage);
     const dynamicBytes = writeDynamicRoots(
       this.#manifest,
@@ -346,6 +360,10 @@ export class TransactionalTypedStateImageV1<TState> {
         this.readCandidateContinuous(generation, slotIndex),
       writeContinuous: (slotIndex: number, value: number) =>
         this.writeCandidateContinuous(generation, slotIndex, value),
+      readNullableContinuous: (slotIndex: number) =>
+        this.readCandidateNullableContinuous(generation, slotIndex),
+      writeNullableContinuous: (slotIndex: number, value: number | null) =>
+        this.writeCandidateNullableContinuous(generation, slotIndex, value),
       readBoolean: (slotIndex: number) =>
         this.readCandidateBoolean(generation, slotIndex),
       writeBoolean: (slotIndex: number, value: boolean) =>
@@ -396,6 +414,7 @@ export class TransactionalTypedStateImageV1<TState> {
       retainedContinuous,
       retainedBooleans,
     );
+    writeNullableContinuousLeaves(this.#manifest, candidate, candidateImage);
     this.#stagedStringBytes = writeStrings(
       this.#manifest,
       candidate,
@@ -460,6 +479,8 @@ export class TransactionalTypedStateImageV1<TState> {
     const image = this.#images[this.#activeIndex];
     return Object.freeze({
       continuous: image.continuous.slice(),
+      nullableContinuous: image.nullableContinuous.slice(),
+      nullableContinuousPresent: image.nullableContinuousPresent.slice(),
       booleans: image.booleans.slice(),
       stringMetadata: image.stringMetadata.slice(),
       stringBytes: image.stringArena.slice(0, this.#currentStringBytes),
@@ -475,6 +496,7 @@ export class TransactionalTypedStateImageV1<TState> {
       layoutId: this.#manifest.layoutId,
       fingerprint: this.#manifest.fingerprint,
       continuousSlotCount: layout.continuousSlots.length,
+      nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
       booleanSlotCount: layout.booleanSlots.length,
       stringSlotCount: layout.stringSlots.length,
       dynamicRootCount: layout.excludedDynamicRoots.length,
@@ -555,6 +577,29 @@ export class TransactionalTypedStateImageV1<TState> {
     return value;
   }
 
+  private readCurrentNullableContinuous(slotIndex: number): number | null {
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous",
+    );
+    const image = this.#images[this.#activeIndex];
+    const present = image.nullableContinuousPresent[slotIndex]!;
+    if (present === 0) return null;
+    if (present !== 1) {
+      throw new Error(
+        "Transactional typed state nullable continuous presence is invalid",
+      );
+    }
+    const value = image.nullableContinuous[slotIndex]!;
+    if (!Number.isFinite(value)) {
+      throw new Error(
+        "Transactional typed state nullable continuous slot is not finite",
+      );
+    }
+    return value;
+  }
+
   private readCurrentBoolean(slotIndex: number): boolean {
     assertSlotIndex(
       slotIndex,
@@ -626,6 +671,53 @@ export class TransactionalTypedStateImageV1<TState> {
       );
     }
     this.#images[this.inactiveIndex()].continuous[slotIndex] = value;
+  }
+
+  private readCandidateNullableContinuous(
+    generation: number,
+    slotIndex: number,
+  ): number | null {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous candidate",
+    );
+    const image = this.#images[this.inactiveIndex()];
+    const present = image.nullableContinuousPresent[slotIndex]!;
+    if (present === 0) return null;
+    if (present !== 1 || !Number.isFinite(image.nullableContinuous[slotIndex])) {
+      throw new Error(
+        "Transactional typed state nullable continuous candidate is invalid",
+      );
+    }
+    return image.nullableContinuous[slotIndex]!;
+  }
+
+  private writeCandidateNullableContinuous(
+    generation: number,
+    slotIndex: number,
+    value: number | null,
+  ): void {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous candidate",
+    );
+    const image = this.#images[this.inactiveIndex()];
+    if (value === null) {
+      image.nullableContinuous[slotIndex] = 0;
+      image.nullableContinuousPresent[slotIndex] = 0;
+      return;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(
+        "Transactional typed state nullable continuous candidate value is invalid",
+      );
+    }
+    image.nullableContinuous[slotIndex] = value;
+    image.nullableContinuousPresent[slotIndex] = 1;
   }
 
   private readCandidateBoolean(
@@ -781,6 +873,30 @@ function retainedSlotSet(
   return retained;
 }
 
+function writeNullableContinuousLeaves(
+  manifest: TransactionalTypedStateManifestV1,
+  state: unknown,
+  destination: MutableImageV1,
+): void {
+  const slots = manifest.numericalLayout.nullableContinuousSlots;
+  for (let index = 0; index < slots.length; index += 1) {
+    const slot = slots[index]!;
+    const value = readFlatNumericalStatePathV1(state, slot.path);
+    if (value === null) {
+      destination.nullableContinuous[index] = 0;
+      destination.nullableContinuousPresent[index] = 0;
+      continue;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(
+        `Transactional typed state ${slot.pointer} must be null or finite`,
+      );
+    }
+    destination.nullableContinuous[index] = value;
+    destination.nullableContinuousPresent[index] = 1;
+  }
+}
+
 function writeStrings(
   manifest: TransactionalTypedStateManifestV1,
   state: unknown,
@@ -853,6 +969,16 @@ function rehydrateNode(
   switch (node.kind) {
     case "f64":
       return image.continuous[node.slotIndex]!;
+    case "nullable-f64": {
+      const present = image.nullableContinuousPresent[node.slotIndex]!;
+      if (present === 0) return null;
+      if (present !== 1) {
+        throw new Error(
+          "Transactional typed state nullable continuous presence is invalid",
+        );
+      }
+      return image.nullableContinuous[node.slotIndex]!;
+    }
     case "boolean":
       return image.booleans[node.slotIndex] === 1;
     case "string": {
@@ -917,6 +1043,16 @@ function compileNode(
   );
   if (externalIndex !== -1) {
     return Object.freeze({ kind: "external" as const, slotIndex: externalIndex });
+  }
+  const nullableContinuousIndex = slotIndex(
+    layout.nullableContinuousSlots,
+    pathPointer,
+  );
+  if (nullableContinuousIndex !== -1) {
+    return Object.freeze({
+      kind: "nullable-f64" as const,
+      slotIndex: nullableContinuousIndex,
+    });
   }
   const dynamicIndex = slotIndex(layout.excludedDynamicRoots, pathPointer);
   if (dynamicIndex !== -1) {
@@ -986,6 +1122,11 @@ function createImageLayout(
   let offset = 0;
   const continuousByteOffset = align(offset, 8);
   offset = continuousByteOffset + layout.continuousSlots.length * 8;
+  const nullableContinuousByteOffset = align(offset, 8);
+  offset = nullableContinuousByteOffset
+    + layout.nullableContinuousSlots.length * 8;
+  const nullableContinuousPresenceByteOffset = offset;
+  offset += layout.nullableContinuousSlots.length;
   const booleanByteOffset = offset;
   offset += layout.booleanSlots.length;
   const stringMetadataByteOffset = align(offset, 4);
@@ -999,6 +1140,8 @@ function createImageLayout(
   offset += dynamicArenaCapacityBytes;
   return Object.freeze({
     continuousByteOffset,
+    nullableContinuousByteOffset,
+    nullableContinuousPresenceByteOffset,
     booleanByteOffset,
     stringMetadataByteOffset,
     dynamicMetadataByteOffset,
@@ -1018,6 +1161,16 @@ function createImage(manifest: TransactionalTypedStateManifestV1): MutableImageV
       buffer,
       offsets.continuousByteOffset,
       layout.continuousSlots.length,
+    ),
+    nullableContinuous: new Float64Array(
+      buffer,
+      offsets.nullableContinuousByteOffset,
+      layout.nullableContinuousSlots.length,
+    ),
+    nullableContinuousPresent: new Uint8Array(
+      buffer,
+      offsets.nullableContinuousPresenceByteOffset,
+      layout.nullableContinuousSlots.length,
     ),
     booleans: new Uint8Array(
       buffer,
@@ -1233,6 +1386,9 @@ function manifestFingerprint(
     `string-capacity:${stringCapacity}`,
     `dynamic-capacity:${dynamicCapacity}`,
     ...layout.continuousSlots.map(({ pointer: value }) => `f64:${value}`),
+    ...layout.nullableContinuousSlots.map(
+      ({ pointer: value }) => `nullable-f64:${value}`,
+    ),
     ...layout.booleanSlots.map(({ pointer: value }) => `bool:${value}`),
     ...layout.stringSlots.map(({ pointer: value }) => `string:${value}`),
     ...layout.externalImmutableRoots.map(

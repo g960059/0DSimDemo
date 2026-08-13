@@ -110,6 +110,7 @@ process.stdout.write(`${JSON.stringify({
   selectedOutputCount: plan.outputIds.length,
   stateLayout: {
     continuousSlotCount: layout.continuousSlots.length,
+    nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
     booleanSlotCount: layout.booleanSlots.length,
     stringSlotCount: layout.stringSlots.length,
     excludedDynamicRootCount: layout.excludedDynamicRoots.length,

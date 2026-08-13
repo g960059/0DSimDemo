@@ -76,6 +76,7 @@ process.stdout.write(`${JSON.stringify({
     layoutId: manifest.layoutId,
     fingerprint: manifest.fingerprint,
     continuousSlotCount: layout.continuousSlots.length,
+    nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
     booleanSlotCount: layout.booleanSlots.length,
     stringSlotCount: layout.stringSlots.length,
     dynamicRootCount: layout.excludedDynamicRoots.length,
@@ -91,6 +92,11 @@ process.stdout.write(`${JSON.stringify({
     continuous: Object.fromEntries(layout.continuousSlots.map(
       ({ pointer }, index) => [pointer, index],
     )),
+    nullableContinuous: Object.fromEntries(
+      layout.nullableContinuousSlots.map(
+        ({ pointer }, index) => [pointer, index],
+      ),
+    ),
     boolean: Object.fromEntries(layout.booleanSlots.map(
       ({ pointer }, index) => [pointer, index],
     )),

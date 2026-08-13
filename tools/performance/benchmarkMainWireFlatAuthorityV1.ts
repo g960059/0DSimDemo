@@ -12,6 +12,7 @@ import {
   createMainWireIntegratedModelRuntimeV3,
 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
 import {
+  createMainWireAcceptedTypedBoundaryBindingV1,
   limitMainWireAcceptedTypedCandidateTimeV1,
   readMainWireAcceptedTypedClockV1,
   stageMainWireAcceptedTypedCalciumCandidateV1,
@@ -33,10 +34,15 @@ const MEASURED_TICKS = 512;
 const objectSession = await MainWireIntegratedModelSessionV3.create();
 const flatSession = await MainWireFlatAuthoritativeReferenceSessionV1.create();
 const runtime = await createMainWireIntegratedModelRuntimeV3();
-const typedImage = new TransactionalTypedStateImageV1(
-  createMainWireAcceptedTypedStateManifestV1(runtime.cold.acceptedState),
+const typedManifest = createMainWireAcceptedTypedStateManifestV1(
   runtime.cold.acceptedState,
 );
+const typedImage = new TransactionalTypedStateImageV1(
+  typedManifest,
+  runtime.cold.acceptedState,
+);
+const typedBoundaryBinding =
+  createMainWireAcceptedTypedBoundaryBindingV1(typedManifest);
 
 let objectDurationMs = 0;
 let flatDurationMs = 0;
@@ -79,9 +85,10 @@ for (let tick = 1; tick <= WARMUP_TICKS + MEASURED_TICKS; tick += 1) {
   typedImage.promote();
   const cursor = typedImage.currentCursor();
   const boundaryStartedAt = performance.now();
-  const clock = readMainWireAcceptedTypedClockV1(cursor);
+  const clock = readMainWireAcceptedTypedClockV1(cursor, typedBoundaryBinding);
   const nextBoundary = limitMainWireAcceptedTypedCandidateTimeV1(
     cursor,
+    typedBoundaryBinding,
     mainWireIntegratedModelPresentationTargetTimeSecV3(tick + 1),
     runtime.rhythm.configuration,
     null,
@@ -91,11 +98,13 @@ for (let tick = 1; tick <= WARMUP_TICKS + MEASURED_TICKS; tick += 1) {
   stageMainWireAcceptedTypedClockCandidateV1(
     cursor,
     candidateCursor,
+    typedBoundaryBinding,
     nextBoundary.candidateTimeSec,
   );
   stageMainWireAcceptedTypedCalciumCandidateV1(
     cursor,
     candidateCursor,
+    typedBoundaryBinding,
     nextBoundary.candidateTimeSec,
     runtime.rhythm.configuration.calciumParametersByWall,
   );

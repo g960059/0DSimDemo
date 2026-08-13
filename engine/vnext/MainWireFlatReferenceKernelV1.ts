@@ -67,6 +67,8 @@ export type MainWireFlatReferenceStateSnapshotV1 = Readonly<{
   acceptedTick: number;
   acceptedRevision: number;
   continuous: Float64Array;
+  nullableContinuous: Float64Array;
+  nullableContinuousPresent: Uint8Array;
   booleans: Uint8Array;
   strings: Uint32Array;
   stringTable: readonly string[];
@@ -146,6 +148,8 @@ export class MainWireFlatReferenceKernelV1 {
       acceptedTick: this.#acceptedTick,
       acceptedRevision: this.#acceptedRevision,
       continuous: buffer.continuous,
+      nullableContinuous: buffer.nullableContinuous,
+      nullableContinuousPresent: buffer.nullableContinuousPresent,
       booleans: buffer.booleans,
       strings: buffer.strings,
       stringTable: Object.freeze([...stringTable.valuesByCode]),
