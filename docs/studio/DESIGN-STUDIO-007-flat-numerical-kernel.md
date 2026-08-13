@@ -695,6 +695,17 @@ whole-kernel speed delta was distinguishable from development-host load, so
 these changes narrow hot allocation and repeated work without claiming phone
 qualification.
 
+Standard-19 snapshots the immutable vascular PV laws once per BE trial and
+retains each candidate's exact paired primal pressure and constitutive tangent.
+The analytic Jacobian consumes that tangent rather than repeating the same
+adaptive inverse at the same node and candidate; the conservative companion
+also shares the Ao pair. Law-based and node-based APIs are bit-identical under
+both inverse policies. Five alternating local 512-tick diagnostics moved the
+typed-reference median from about `2.489` to `2.458 ms/tick` and the object
+Session median by about 1.5%. This reduces repeated constitutive work while
+leaving solver order, residual algebra, saturation branches, and accepted
+state unchanged.
+
 Failure atomicity, event order, beat accumulation, controls, analysis forks,
 and checkpoint continuation must pass against the Phase 0 corpus before Phase
 2 changes solver algebra.

@@ -9,11 +9,11 @@ import {
   nonValveEdgeLossAndPressureDerivativesV1,
   respiratoryExternalPressuresV1,
   vascularPvLawFromNodeV1,
-  vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1,
-  vascularTransmuralPressureFromPhysicalVolumeV1,
+  vascularTransmuralPressureAndVolumeTangentFromLawV1,
   type BaseEdgeLossRuntimeParameterViewV1,
   type RespiratoryExternalPressuresV1,
   type RespiratoryPressureParameterViewV1,
+  type VascularTransmuralPressureAndVolumeTangentV1,
   type VascularPvRuntimeParameterViewV1,
 } from "@/engine/core/circulationGraphKernelV1";
 import type { EdgeSpec, NodeSpec } from "@/engine/core/topology";
@@ -30,7 +30,10 @@ import {
   type MainWireQuasiSteadyOrificeValveEvaluationV2,
   type MainWireQuasiSteadyOrificeValveStateV2,
 } from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
-import { stressedVolumeFromPtm } from "@/engine/vascularPv";
+import {
+  stressedVolumeFromPtm,
+  type VascularPvLaw,
+} from "@/engine/vascularPv";
 import { evaluateIabpV1 } from "@/engine/devices/iabpV1";
 import {
   evaluateDynamicMechanicalSupportHydraulicsV1,
@@ -598,6 +601,7 @@ type ConservativeCompanionCandidateEvaluationInternalV1<TCompanionTrial> =
 type CandidateEvaluation<TEvaluation, TCompanionTrial = never> = Readonly<{
   nodeVolumesMl: NodeRecord<number>;
   nodeAbsolutePressuresMmHg: NodeRecord<number>;
+  vascularPressureTangentMmHgPerMl: NodeRecord<number>;
   edgeFlowsMlPerSec: EdgeRecord<number>;
   dynamicEdgeFlowsMlPerSec: DynamicEdgeRecord<number>;
   valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV2>;
@@ -614,6 +618,10 @@ type CandidateEvaluation<TEvaluation, TCompanionTrial = never> = Readonly<{
   continuityResidualMlByNode: NodeRecord<number>;
   scaledIndependentResidual: readonly number[];
 }>;
+
+type NonCoronaryVascularPvLawsV1 = Readonly<
+  Partial<Record<NonCoronaryNodeNameV1, VascularPvLaw>>
+>;
 
 type JacobianUsageDiagnosticsV1 = {
   analyticAssemblyCount: number;
@@ -981,9 +989,6 @@ const EDGE_FLOW_SCRATCH_V1 = new Float64Array(
 const NODE_RATE_SCRATCH_V1 = new Float64Array(
   NON_CORONARY_NODE_NAMES_V1.length,
 );
-const VASCULAR_PRESSURE_TANGENT_SCRATCH_V1 = new Float64Array(
-  NON_CORONARY_NODE_NAMES_V1.length,
-);
 
 /**
  * The non-coronary topology is a pure function of the authoritative graph and
@@ -1029,6 +1034,30 @@ NonCoronaryCirculationGraphV1 {
     edgeIndex: uniqueIndex(edges),
     scope: NON_CORONARY_CIRCULATION_SCOPE_V1,
   });
+}
+
+function snapshotNonCoronaryVascularPvLawsV1(
+  graph: NonCoronaryCirculationGraphV1,
+  params: VascularPvRuntimeParameterViewV1,
+): NonCoronaryVascularPvLawsV1 {
+  const laws: Partial<Record<NonCoronaryNodeNameV1, VascularPvLaw>> = {};
+  for (const node of graph.nodes) {
+    const name = node.name as NonCoronaryNodeNameV1;
+    if (isChamberName(name)) continue;
+    laws[name] = Object.freeze(vascularPvLawFromNodeV1(node, params));
+  }
+  return Object.freeze(laws);
+}
+
+function requiredVascularPvLawV1(
+  laws: NonCoronaryVascularPvLawsV1,
+  name: NonCoronaryNodeNameV1,
+): VascularPvLaw {
+  const law = laws[name];
+  if (law === undefined) {
+    throw new Error(`vascular node ${name} has no snapshotted PV law`);
+  }
+  return law;
 }
 
 /**
@@ -1164,6 +1193,10 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
     candidateTimeSec,
     input.runtime.respiratory,
   );
+  const vascularPvLaws = snapshotNonCoronaryVascularPvLawsV1(
+    graph,
+    input.runtime.vascular,
+  );
   const mechanicsCache: CandidateMechanicsCache<TEvaluation> = {
     values: [],
     jacobianUsage: {
@@ -1199,6 +1232,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
       volumeScales,
       candidateTimeSec,
       respiratoryExternalPressures,
+      vascularPvLaws,
       mechanicsCache,
     );
   } catch (error) {
@@ -1294,6 +1328,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
               volumeScales,
               candidateTimeSec,
               respiratoryExternalPressures,
+              vascularPvLaws,
               mechanicsCache,
             ).scaledIndependentResidual,
             scaledUnknowns,
@@ -1316,6 +1351,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
             volumeScales,
             candidateTimeSec,
             respiratoryExternalPressures,
+            vascularPvLaws,
             mechanicsCache,
           ).scaledIndependentResidual,
           scaledUnknowns,
@@ -1433,6 +1469,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
           volumeScales,
           candidateTimeSec,
           respiratoryExternalPressures,
+          vascularPvLaws,
           mechanicsCache,
         );
         const trialResidualNorm = infinityNorm(
@@ -1684,6 +1721,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
   volumeScales: readonly number[],
   candidateTimeSec: number,
   respiratoryExternalPressures: RespiratoryExternalPressuresV1,
+  vascularPvLaws: NonCoronaryVascularPvLawsV1,
   mechanicsCache: CandidateMechanicsCache<TEvaluation>,
 ): CandidateEvaluation<TEvaluation, TCompanionTrial> {
   // Preserve the immutable no-companion candidate reconstruction and failure
@@ -1714,6 +1752,12 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     chamberVolumesMl,
     candidateTimeSec,
   );
+  const aoPressureAndTangent =
+    vascularTransmuralPressureAndVolumeTangentFromLawV1(
+      requiredVascularPvLawV1(vascularPvLaws, "Ao"),
+      candidateIndependentNodeVolumesMl.Ao,
+      "adaptive-volume-tolerance",
+    );
   const conservativeCompanion = input.conservativeCompanion === undefined
     ? null
     : evaluateConservativeCompanionSameCandidate(
@@ -1725,6 +1769,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       mechanics,
       candidateTimeSec,
       respiratoryExternalPressures,
+      aoPressureAndTangent,
     );
   const nonCoronaryCandidateBloodVolumeMl = conservativeCompanion === null
     ? previous.totalBloodVolumeMl
@@ -1756,20 +1801,35 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
         dynamicSupportTiming,
       )
       : null;
+  const vascularPressureTangentMmHgPerMl = {} as Record<
+    NonCoronaryNodeNameV1,
+    number
+  >;
   const nodeAbsolutePressuresMmHg = nodeRecord((name) => {
-    if (isChamberName(name)) return mechanics.absolutePressuresMmHg[name];
+    if (isChamberName(name)) {
+      vascularPressureTangentMmHgPerMl[name] = 0;
+      return mechanics.absolutePressuresMmHg[name];
+    }
     const node = graph.nodes[graph.nodeIndex.get(name)!];
-    const ptmMmHg = vascularTransmuralPressureFromPhysicalVolumeV1(
-      node,
-      nodeVolumesMl[name] + (name === "SA" ? iabp?.balloonVolumeMl ?? 0 : 0),
-      input.runtime.vascular,
-      "adaptive-volume-tolerance",
-    );
+    const physicalVolumeMl = nodeVolumesMl[name]
+      + (name === "SA" ? iabp?.balloonVolumeMl ?? 0 : 0);
+    const pressureAndTangent = name === "Ao"
+      ? aoPressureAndTangent
+      : vascularTransmuralPressureAndVolumeTangentFromLawV1(
+          requiredVascularPvLawV1(vascularPvLaws, name),
+          physicalVolumeMl,
+          "adaptive-volume-tolerance",
+        );
+    vascularPressureTangentMmHgPerMl[name] =
+      pressureAndTangent.dTransmuralPressureDPhysicalVolumeMmHgPerMl;
     const ext = respiratoryExternalPressureFromFrameV1(
       respiratoryKind(node.ext),
       respiratoryExternalPressures,
     );
-    return requireFinite(ptmMmHg + ext, `${name} absolute pressure`);
+    return requireFinite(
+      pressureAndTangent.transmuralPressureMmHg + ext,
+      `${name} absolute pressure`,
+    );
   });
   const mechanicalSupport = input.mechanicalSupport === undefined
       || supportTiming === null
@@ -1942,6 +2002,9 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
   return Object.freeze({
     nodeVolumesMl,
     nodeAbsolutePressuresMmHg,
+    vascularPressureTangentMmHgPerMl: Object.freeze(
+      vascularPressureTangentMmHgPerMl,
+    ),
     edgeFlowsMlPerSec,
     dynamicEdgeFlowsMlPerSec: copyDynamicEdgeRecord(
       dynamicFlows as DynamicEdgeRecord<number>,
@@ -1976,26 +2039,20 @@ function evaluateConservativeCompanionSameCandidate<
   mechanics: NonCoronaryCandidateMechanicsResultV1<TEvaluation>,
   candidateTimeSec: number,
   respiratoryExternalPressures: RespiratoryExternalPressuresV1,
+  aoPressureAndTangent: VascularTransmuralPressureAndVolumeTangentV1,
 ): ConservativeCompanionCandidateEvaluationInternalV1<TCompanionTrial> {
   const adapter = input.conservativeCompanion;
   if (adapter === undefined) {
     throw new Error("conservative companion adapter is unavailable");
   }
   const aoNode = graph.nodes[graph.nodeIndex.get("Ao")!];
-  const aoPaired =
-    vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
-      aoNode,
-      candidateIndependentNodeVolumesMl.Ao,
-      input.runtime.vascular,
-      "adaptive-volume-tolerance",
-    );
   const aoExternalPressureMmHg = respiratoryExternalPressureFromFrameV1(
     respiratoryKind(aoNode.ext),
     respiratoryExternalPressures,
   );
   const boundaryAbsolutePressuresMmHg = Object.freeze({
     Ao: requireFinite(
-      aoPaired.transmuralPressureMmHg + aoExternalPressureMmHg,
+      aoPressureAndTangent.transmuralPressureMmHg + aoExternalPressureMmHg,
       "Ao companion boundary pressure",
     ),
     RA: requireFinite(
@@ -2006,7 +2063,7 @@ function evaluateConservativeCompanionSameCandidate<
   const boundaryPressureTangent = mechanics.absolutePressureTangent === undefined
     ? null
     : companionBoundaryPressureTangentByScaledIndependentVolume(
-      aoPaired.dTransmuralPressureDPhysicalVolumeMmHgPerMl,
+      aoPressureAndTangent.dTransmuralPressureDPhysicalVolumeMmHgPerMl,
       mechanics.absolutePressureTangent,
       volumeScales,
     );
@@ -2191,36 +2248,6 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
     throw new Error("circulation volume-scale count is incompatible");
   }
   const size = INDEPENDENT_NODE_NAMES.length;
-  // Chamber nodes are skipped below, so the buffer has to start at zero for
-  // them exactly as a freshly constructed `Float64Array` would. It is read only
-  // inside this function.
-  if (VASCULAR_PRESSURE_TANGENT_SCRATCH_V1.length !== graph.nodes.length) {
-    throw new Error("circulation node count is incompatible with the scratch vector");
-  }
-  const vascularPressureTangentByNodeIndex = VASCULAR_PRESSURE_TANGENT_SCRATCH_V1;
-  vascularPressureTangentByNodeIndex.fill(0);
-  for (const node of graph.nodes) {
-    const name = node.name as NonCoronaryNodeNameV1;
-    if (isChamberName(name)) continue;
-    const paired =
-      vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
-        node,
-        current.nodeVolumesMl[name]
-          + (name === "SA"
-            ? current.mechanicalSupport?.iabp.balloonVolumeMl
-              ?? current.dynamicMechanicalSupport?.iabp.balloonVolumeMl
-              ?? 0
-            : 0),
-        input.runtime.vascular,
-        "adaptive-volume-tolerance",
-      );
-    const pressureTangentMmHgPerMl =
-      paired.dTransmuralPressureDPhysicalVolumeMmHgPerMl;
-    requireFinite(pressureTangentMmHgPerMl, `${name} vascular pressure tangent`);
-    vascularPressureTangentByNodeIndex[graph.nodeIndex.get(name)!] =
-      pressureTangentMmHgPerMl;
-  }
-
   const jacobian = reusableJacobian ?? createSquareMatrixV1(size);
   if (
     jacobian.length !== size
@@ -2283,8 +2310,10 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
       return;
     }
 
-    const pressureTangentMmHgPerMl =
-      vascularPressureTangentByNodeIndex[graph.nodeIndex.get(pressureNode)!]!;
+    const pressureTangentMmHgPerMl = requireFinite(
+      current.vascularPressureTangentMmHgPerMl[pressureNode],
+      `${pressureNode} vascular pressure tangent`,
+    );
     if (pressureNode === DEPENDENT_NODE) {
       // Fixed global TBV: dV_SV/dx_j = -s_j - dV_companion/dx_j.
       for (let column = 0; column < size; column += 1) {

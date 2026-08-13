@@ -32,10 +32,24 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-18
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-19
 ```
 
-Standard-18 preserves Standard-17's equations, controls, checkpoint meaning,
+Standard-19 preserves Standard-18's equations, controls, checkpoint meaning,
+and accepted numerical sequence while removing a duplicate vascular
+pressure-volume inverse from each analytic-Jacobian iteration. Each BE trial
+snapshots its vascular laws once. Candidate evaluation obtains the exact
+paired primal pressure and active-branch tangent from that law; the analytic
+Jacobian consumes the retained tangent instead of inverting the same node at
+the same candidate a second time. The conservative coronary companion shares
+the same Ao pair. Both adaptive and fixed-32 law/node APIs are bit-identical
+for every vascular node in the shipped graph, including saturation branches.
+Five alternating 512-tick development-host runs reduced the typed-reference
+median from about `2.489` to `2.458 ms/tick` (about 1.2%) and the object-Session
+median by about 1.5%. This is a measured removal of repeated constitutive work,
+not an iPhone qualification.
+
+Standard-18 had preserved Standard-17's equations, controls, checkpoint meaning,
 and accepted numerical sequence while reducing per-candidate infrastructure
 around the non-coronary solve. The Session binds its typed accepted-state
 source once rather than once per accepted substep, and that source fills the
