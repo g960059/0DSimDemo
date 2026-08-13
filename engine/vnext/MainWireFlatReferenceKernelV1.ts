@@ -69,6 +69,8 @@ export type MainWireFlatReferenceStateSnapshotV1 = Readonly<{
   continuous: Float64Array;
   nullableContinuous: Float64Array;
   nullableContinuousPresent: Uint8Array;
+  nullableStrings: Uint32Array;
+  nullableStringsPresent: Uint8Array;
   booleans: Uint8Array;
   strings: Uint32Array;
   stringTable: readonly string[];
@@ -150,6 +152,8 @@ export class MainWireFlatReferenceKernelV1 {
       continuous: buffer.continuous,
       nullableContinuous: buffer.nullableContinuous,
       nullableContinuousPresent: buffer.nullableContinuousPresent,
+      nullableStrings: buffer.nullableStrings,
+      nullableStringsPresent: buffer.nullableStringsPresent,
       booleans: buffer.booleans,
       strings: buffer.strings,
       stringTable: Object.freeze([...stringTable.valuesByCode]),

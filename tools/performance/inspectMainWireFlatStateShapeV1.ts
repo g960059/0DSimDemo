@@ -47,7 +47,18 @@ for (let tick = 0; tick <= 1_024; tick += 1) {
     };
     entry.kinds.add(value === null ? "null" : Array.isArray(value) ? "array" : typeof value);
     if (Array.isArray(value)) entry.lengths.add(value.length);
-    if (entry.samples.length < 3) entry.samples.push(value);
+    const informativeArray = Array.isArray(value) && value.length > 0;
+    if (
+      entry.samples.length < 3
+      || (
+        informativeArray
+        && !entry.samples.some((sample) =>
+          Array.isArray(sample) && sample.length > 0)
+      )
+    ) {
+      if (entry.samples.length === 3) entry.samples.pop();
+      entry.samples.push(value);
+    }
     observed.set(root.pointer, entry);
   }
   for (const slot of layout.stringSlots) {
@@ -77,6 +88,7 @@ process.stdout.write(`${JSON.stringify({
     fingerprint: manifest.fingerprint,
     continuousSlotCount: layout.continuousSlots.length,
     nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
+    nullableStringSlotCount: layout.nullableStringSlots.length,
     booleanSlotCount: layout.booleanSlots.length,
     stringSlotCount: layout.stringSlots.length,
     dynamicRootCount: layout.excludedDynamicRoots.length,
@@ -97,6 +109,9 @@ process.stdout.write(`${JSON.stringify({
         ({ pointer }, index) => [pointer, index],
       ),
     ),
+    nullableString: Object.fromEntries(layout.nullableStringSlots.map(
+      ({ pointer }, index) => [pointer, index],
+    )),
     boolean: Object.fromEntries(layout.booleanSlots.map(
       ({ pointer }, index) => [pointer, index],
     )),

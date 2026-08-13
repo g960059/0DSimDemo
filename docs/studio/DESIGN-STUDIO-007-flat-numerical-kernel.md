@@ -313,15 +313,16 @@ object solver and an object boundary adapter.
 
 The complete accepted topology is now represented by two lifetime-fixed,
 model-owned `ArrayBuffer` images plus manifest-owned immutable configuration
-bindings. Each mutable image is exactly `34,984` bytes and contains:
+bindings. Each mutable image is exactly `34,988` bytes and contains:
 
 - 253 ordinary `f64` slots, six nullable-`f64` value/presence pairs, and two
   boolean slots at versioned fixed offsets;
-- six string offset/length pairs backed by a fixed `16 KiB` UTF-8 arena;
-- 11 dynamic-root offset/length pairs backed by a separate fixed `16 KiB`
+- six required and two nullable string offset/length entries backed by a fixed
+  `16 KiB` UTF-8 arena;
+- nine dynamic-root offset/length pairs backed by a separate fixed `16 KiB`
   canonical arena; and
 - the 80-container mutable shape contract and fingerprint
-  `fnv1a32-9f176efc`.
+  `fnv1a32-99df72aa`.
 
 Twelve deeply frozen model-owned object roots are intentionally retained
 outside the hot images: the composed-rhythm configuration (`5,506` canonical
@@ -338,10 +339,11 @@ fallback. Rehydration reattaches the admitted values without rebuilding them.
 Dynamic roots are explicit cut points rather than an escape from bounded
 ownership. The five two-component exact-event calcium states are declared as
 fixed model arrays, so all ten components receive direct `f64` slots. Six
-optional owner clocks use explicit presence bytes plus `f64` values instead of
-canonical payloads. The remaining 11 roots comprise three bounded rhythm
-queues, optional rhythm records/identifiers, and one autoregulation control
-record. Strings are rewritten inside the inactive arena each transaction; no
+optional owner clocks use explicit presence bytes plus `f64` values, and two
+optional activation identifiers use nullable UTF-8 entries, instead of
+canonical payloads. The remaining nine roots comprise three bounded rhythm
+queues, optional rhythm records, and one autoregulation control record. Strings
+are rewritten inside the inactive arena each transaction; no
 lifetime interning table survives. Inspection still identifies the
 high-cardinality mechanics fingerprint as a recomputable diagnostic and the
 remaining activation labels as candidates for bounded model-owned codes in the
@@ -364,14 +366,14 @@ the accepted-state authority, while leaving the registered exact Session and
 artifacts unchanged.
 
 This is still not a production speedup. The latest representative 512-tick
-alternating diagnostic measured about `2.45 ms/tick` for the released object
-Session and `3.49 ms/tick` for the typed-authority reference (`1.43x`). Across
+alternating diagnostic measured about `2.39 ms/tick` for the released object
+Session and `3.40 ms/tick` for the typed-authority reference (`1.42x`). Across
 580 accepted commits, all 32,536 immutable-value checks used the identity/value
 fast path and none used canonical fallback. An intentionally
 independent-runtime projection diagnostic, whose equal object configurations
-do not share identity, measured about `0.64 ms/presentation tick`; rehydration
-measured about `0.034 ms/presentation tick`. String and dynamic high-water
-usage were `272` and `3,999` bytes respectively, inside their fixed `16 KiB`
+do not share identity, measured about `0.63 ms/presentation tick`; rehydration
+measured about `0.033 ms/presentation tick`. String and dynamic high-water
+usage were `578` and `3,683` bytes respectively, inside their fixed `16 KiB`
 capacities. The remaining overhead is dominated by rebuilding and fully
 revalidating the legacy object owner graph, not by the typed page itself. These
 figures are machine-specific diagnostics, not gates.
@@ -382,7 +384,7 @@ The active typed image now exposes a read-only live cursor rather than an
 `ArrayBuffer` or typed-array view. The cursor follows the atomic active-index
 swap and permits generated slot reads only; it cannot mutate either image.
 The Main Wire binding admits that cursor only when its layout ID and complete
-manifest fingerprint match `fnv1a32-9f176efc`. Every hot slot is resolved by
+manifest fingerprint match `fnv1a32-99df72aa`. Every hot slot is resolved by
 semantic pointer once from that manifest; numerical indices are not duplicated
 as hand-maintained source constants. The accepted loop performs no pointer or
 string lookup after construction.
@@ -412,8 +414,8 @@ slots as well as the ten calcium state slots before the legacy object
 transaction runs. The object transaction still regenerates and validates its
 own boundary internally, but admission requires its clock and calcium result to
 match the already-staged typed values bit-for-bit and cannot overwrite them.
-A representative 512-tick diagnostic measured about `2.45 ms/tick` for the
-released Session and `3.49 ms/tick` for the typed reference (`1.43x`). Direct
+A representative 512-tick diagnostic measured about `2.39 ms/tick` for the
+released Session and `3.40 ms/tick` for the typed reference (`1.42x`). Direct
 fixed-slot boundary selection measured about `0.0065 ms/tick`, while copying
 current into the inactive image and staging all five calcium owners measured
 about `0.0061 ms/tick`. The improvement comes from removing immutable

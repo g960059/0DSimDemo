@@ -28,19 +28,21 @@ export const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID =
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID =
   "main-wire-integrated-accepted-typed-state-v1" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT =
-  "fnv1a32-9f176efc" as const;
+  "fnv1a32-99df72aa" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1 =
   16 * 1024;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1 =
   16 * 1024;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 34_984 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 34_988 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 =
   253 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 =
   6 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1 =
+  2 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 2 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 6 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 11 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 9 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 80 as const;
 
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
@@ -131,6 +133,12 @@ const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1 =
     "/composedRhythm/proximalAvGateState/lastProximalAvOutputTimeSec",
   ]);
 
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1 =
+  Object.freeze([
+    "/composedRhythm/electricalCaptureState/atrialGate/lastCapturedActivationId",
+    "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/upstreamCapturedActivationId",
+  ]);
+
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<
   MainWireNormalAdultFiveWallMechanicsStateV1
 >;
@@ -159,6 +167,8 @@ export function createMainWireAcceptedTypedStateManifestV1(
         MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1,
       nullableContinuousPointers:
         MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1,
+      nullableStringPointers:
+        MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1,
     },
   );
   const layout = manifest.numericalLayout;
@@ -171,6 +181,8 @@ export function createMainWireAcceptedTypedStateManifestV1(
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1
     || layout.nullableContinuousSlots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1
+    || layout.nullableStringSlots.length
+      !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1
     || layout.booleanSlots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1
     || layout.stringSlots.length
@@ -186,6 +198,7 @@ export function createMainWireAcceptedTypedStateManifestV1(
         + `(${manifest.fingerprint}; ${manifest.bufferByteLength}; `
         + `${layout.continuousSlots.length}/`
         + `${layout.nullableContinuousSlots.length}/`
+        + `${layout.nullableStringSlots.length}/`
         + `${layout.booleanSlots.length}/`
         + `${layout.stringSlots.length}/${layout.excludedDynamicRoots.length}/`
         + `${layout.externalImmutableRoots.length}/${layout.containers.length})`,

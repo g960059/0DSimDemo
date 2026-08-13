@@ -111,6 +111,7 @@ process.stdout.write(`${JSON.stringify({
   stateLayout: {
     continuousSlotCount: layout.continuousSlots.length,
     nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
+    nullableStringSlotCount: layout.nullableStringSlots.length,
     booleanSlotCount: layout.booleanSlots.length,
     stringSlotCount: layout.stringSlots.length,
     excludedDynamicRootCount: layout.excludedDynamicRoots.length,

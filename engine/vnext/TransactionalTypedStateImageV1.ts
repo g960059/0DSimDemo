@@ -24,6 +24,7 @@ const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 type TypedStateNodeV1 =
   | Readonly<{ kind: "f64"; slotIndex: number }>
   | Readonly<{ kind: "nullable-f64"; slotIndex: number }>
+  | Readonly<{ kind: "nullable-string"; slotIndex: number }>
   | Readonly<{ kind: "boolean"; slotIndex: number }>
   | Readonly<{ kind: "string"; slotIndex: number }>
   | Readonly<{ kind: "dynamic"; slotIndex: number }>
@@ -74,6 +75,8 @@ type TypedStateImageLayoutV1 = Readonly<{
   nullableContinuousPresenceByteOffset: number;
   booleanByteOffset: number;
   stringMetadataByteOffset: number;
+  nullableStringMetadataByteOffset: number;
+  nullableStringPresenceByteOffset: number;
   dynamicMetadataByteOffset: number;
   stringArenaByteOffset: number;
   dynamicArenaByteOffset: number;
@@ -107,6 +110,7 @@ export type TransactionalTypedStateImageReportV1 = Readonly<{
   fingerprint: string;
   continuousSlotCount: number;
   nullableContinuousSlotCount: number;
+  nullableStringSlotCount: number;
   booleanSlotCount: number;
   stringSlotCount: number;
   dynamicRootCount: number;
@@ -133,6 +137,8 @@ export type TransactionalTypedStateImageSnapshotV1 = Readonly<{
   nullableContinuousPresent: Uint8Array;
   booleans: Uint8Array;
   stringMetadata: Uint32Array;
+  nullableStringMetadata: Uint32Array;
+  nullableStringPresent: Uint8Array;
   stringBytes: Uint8Array;
   dynamicMetadata: Uint32Array;
   dynamicBytes: Uint8Array;
@@ -149,6 +155,7 @@ export type TransactionalTypedStateCurrentCursorV1 = Readonly<{
   fingerprint: string;
   readContinuous(slotIndex: number): number;
   readNullableContinuous(slotIndex: number): number | null;
+  readNullableString(slotIndex: number): string | null;
   readBoolean(slotIndex: number): boolean;
   readString(slotIndex: number): string;
   readDynamic(slotIndex: number): unknown;
@@ -183,6 +190,8 @@ type MutableImageV1 = Readonly<{
   nullableContinuousPresent: Uint8Array;
   booleans: Uint8Array;
   stringMetadata: Uint32Array;
+  nullableStringMetadata: Uint32Array;
+  nullableStringPresent: Uint8Array;
   dynamicMetadata: Uint32Array;
   stringArena: Uint8Array;
   dynamicArena: Uint8Array;
@@ -301,6 +310,8 @@ export class TransactionalTypedStateImageV1<TState> {
         this.readCurrentContinuous(slotIndex),
       readNullableContinuous: (slotIndex: number) =>
         this.readCurrentNullableContinuous(slotIndex),
+      readNullableString: (slotIndex: number) =>
+        this.readCurrentNullableString(slotIndex),
       readBoolean: (slotIndex: number) =>
         this.readCurrentBoolean(slotIndex),
       readString: (slotIndex: number) =>
@@ -483,6 +494,8 @@ export class TransactionalTypedStateImageV1<TState> {
       nullableContinuousPresent: image.nullableContinuousPresent.slice(),
       booleans: image.booleans.slice(),
       stringMetadata: image.stringMetadata.slice(),
+      nullableStringMetadata: image.nullableStringMetadata.slice(),
+      nullableStringPresent: image.nullableStringPresent.slice(),
       stringBytes: image.stringArena.slice(0, this.#currentStringBytes),
       dynamicMetadata: image.dynamicMetadata.slice(),
       dynamicBytes: image.dynamicArena.slice(0, this.#currentDynamicBytes),
@@ -497,6 +510,7 @@ export class TransactionalTypedStateImageV1<TState> {
       fingerprint: this.#manifest.fingerprint,
       continuousSlotCount: layout.continuousSlots.length,
       nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
+      nullableStringSlotCount: layout.nullableStringSlots.length,
       booleanSlotCount: layout.booleanSlots.length,
       stringSlotCount: layout.stringSlots.length,
       dynamicRootCount: layout.excludedDynamicRoots.length,
@@ -611,6 +625,28 @@ export class TransactionalTypedStateImageV1<TState> {
       throw new Error("Transactional typed state current boolean slot is invalid");
     }
     return value === 1;
+  }
+
+  private readCurrentNullableString(slotIndex: number): string | null {
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.nullableStringSlots.length,
+      "nullable string",
+    );
+    const image = this.#images[this.#activeIndex];
+    const present = image.nullableStringPresent[slotIndex]!;
+    if (present === 0) return null;
+    if (present !== 1) {
+      throw new Error(
+        "Transactional typed state nullable string presence is invalid",
+      );
+    }
+    const offset = image.nullableStringMetadata[slotIndex * 2]!;
+    const length = image.nullableStringMetadata[slotIndex * 2 + 1]!;
+    assertArenaSlice(offset, length, this.#currentStringBytes, "string", true);
+    return UTF8_DECODER.decode(
+      image.stringArena.subarray(offset, offset + length),
+    );
   }
 
   private readCurrentString(slotIndex: number): string {
@@ -923,6 +959,35 @@ function writeStrings(
     destination.stringMetadata[index * 2 + 1] = result.written;
     byteOffset += result.written;
   }
+  for (
+    let index = 0;
+    index < manifest.numericalLayout.nullableStringSlots.length;
+    index += 1
+  ) {
+    const slot = manifest.numericalLayout.nullableStringSlots[index]!;
+    const value = readFlatNumericalStatePathV1(state, slot.path);
+    if (value === null) {
+      destination.nullableStringMetadata[index * 2] = 0;
+      destination.nullableStringMetadata[index * 2 + 1] = 0;
+      destination.nullableStringPresent[index] = 0;
+      continue;
+    }
+    if (typeof value !== "string") {
+      throw new Error(
+        `Transactional typed state ${slot.pointer} must be null or a string`,
+      );
+    }
+    assertWellFormedString(value, slot.pointer);
+    const target = destination.stringArena.subarray(byteOffset);
+    const result = UTF8_ENCODER.encodeInto(value, target);
+    if (result.read !== value.length) {
+      throw new Error("Transactional typed state string arena capacity exceeded");
+    }
+    destination.nullableStringMetadata[index * 2] = byteOffset;
+    destination.nullableStringMetadata[index * 2 + 1] = result.written;
+    destination.nullableStringPresent[index] = 1;
+    byteOffset += result.written;
+  }
   return byteOffset;
 }
 
@@ -978,6 +1043,20 @@ function rehydrateNode(
         );
       }
       return image.nullableContinuous[node.slotIndex]!;
+    }
+    case "nullable-string": {
+      const present = image.nullableStringPresent[node.slotIndex]!;
+      if (present === 0) return null;
+      if (present !== 1) {
+        throw new Error(
+          "Transactional typed state nullable string presence is invalid",
+        );
+      }
+      const offset = image.nullableStringMetadata[node.slotIndex * 2]!;
+      const length = image.nullableStringMetadata[node.slotIndex * 2 + 1]!;
+      return UTF8_DECODER.decode(
+        image.stringArena.subarray(offset, offset + length),
+      );
     }
     case "boolean":
       return image.booleans[node.slotIndex] === 1;
@@ -1052,6 +1131,16 @@ function compileNode(
     return Object.freeze({
       kind: "nullable-f64" as const,
       slotIndex: nullableContinuousIndex,
+    });
+  }
+  const nullableStringIndex = slotIndex(
+    layout.nullableStringSlots,
+    pathPointer,
+  );
+  if (nullableStringIndex !== -1) {
+    return Object.freeze({
+      kind: "nullable-string" as const,
+      slotIndex: nullableStringIndex,
     });
   }
   const dynamicIndex = slotIndex(layout.excludedDynamicRoots, pathPointer);
@@ -1131,6 +1220,11 @@ function createImageLayout(
   offset += layout.booleanSlots.length;
   const stringMetadataByteOffset = align(offset, 4);
   offset = stringMetadataByteOffset + layout.stringSlots.length * 2 * 4;
+  const nullableStringMetadataByteOffset = align(offset, 4);
+  offset = nullableStringMetadataByteOffset
+    + layout.nullableStringSlots.length * 2 * 4;
+  const nullableStringPresenceByteOffset = offset;
+  offset += layout.nullableStringSlots.length;
   const dynamicMetadataByteOffset = align(offset, 4);
   offset = dynamicMetadataByteOffset
     + layout.excludedDynamicRoots.length * 2 * 4;
@@ -1144,6 +1238,8 @@ function createImageLayout(
     nullableContinuousPresenceByteOffset,
     booleanByteOffset,
     stringMetadataByteOffset,
+    nullableStringMetadataByteOffset,
+    nullableStringPresenceByteOffset,
     dynamicMetadataByteOffset,
     stringArenaByteOffset,
     dynamicArenaByteOffset,
@@ -1181,6 +1277,16 @@ function createImage(manifest: TransactionalTypedStateManifestV1): MutableImageV
       buffer,
       offsets.stringMetadataByteOffset,
       layout.stringSlots.length * 2,
+    ),
+    nullableStringMetadata: new Uint32Array(
+      buffer,
+      offsets.nullableStringMetadataByteOffset,
+      layout.nullableStringSlots.length * 2,
+    ),
+    nullableStringPresent: new Uint8Array(
+      buffer,
+      offsets.nullableStringPresenceByteOffset,
+      layout.nullableStringSlots.length,
     ),
     dynamicMetadata: new Uint32Array(
       buffer,
@@ -1388,6 +1494,9 @@ function manifestFingerprint(
     ...layout.continuousSlots.map(({ pointer: value }) => `f64:${value}`),
     ...layout.nullableContinuousSlots.map(
       ({ pointer: value }) => `nullable-f64:${value}`,
+    ),
+    ...layout.nullableStringSlots.map(
+      ({ pointer: value }) => `nullable-string:${value}`,
     ),
     ...layout.booleanSlots.map(({ pointer: value }) => `bool:${value}`),
     ...layout.stringSlots.map(({ pointer: value }) => `string:${value}`),

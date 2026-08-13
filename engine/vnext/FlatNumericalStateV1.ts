@@ -26,6 +26,8 @@ export type FlatNumericalStateLayoutV1 = Readonly<{
   continuousSlots: readonly FlatNumericalSlotV1[];
   /** Explicit nullable numeric leaves represented by value + presence slots. */
   nullableContinuousSlots: readonly FlatNumericalSlotV1[];
+  /** Explicit nullable string leaves represented by code + presence slots. */
+  nullableStringSlots: readonly FlatNumericalSlotV1[];
   booleanSlots: readonly FlatNumericalSlotV1[];
   stringSlots: readonly FlatNumericalSlotV1[];
   /** Deeply immutable model-owned roots retained outside the hot images. */
@@ -42,6 +44,8 @@ export type FlatNumericalStateLayoutOptionsV1 = Readonly<{
   externalImmutablePointers?: readonly string[];
   /** Null reference leaves that may evolve to finite numbers. */
   nullableContinuousPointers?: readonly string[];
+  /** Null reference leaves that may evolve to strings. */
+  nullableStringPointers?: readonly string[];
 }>;
 
 /** Mutable storage owned by one numerical authority. */
@@ -49,6 +53,8 @@ export type FlatNumericalStateBufferV1 = Readonly<{
   continuous: Float64Array;
   nullableContinuous: Float64Array;
   nullableContinuousPresent: Uint8Array;
+  nullableStrings: Uint32Array;
+  nullableStringsPresent: Uint8Array;
   booleans: Uint8Array;
   strings: Uint32Array;
 }>;
@@ -72,6 +78,7 @@ export function createFlatNumericalStateLayoutV1(
   }
   const continuousSlots: FlatNumericalSlotV1[] = [];
   const nullableContinuousSlots: FlatNumericalSlotV1[] = [];
+  const nullableStringSlots: FlatNumericalSlotV1[] = [];
   const booleanSlots: FlatNumericalSlotV1[] = [];
   const stringSlots: FlatNumericalSlotV1[] = [];
   const externalImmutableRoots: FlatNumericalSlotV1[] = [];
@@ -99,10 +106,16 @@ export function createFlatNumericalStateLayoutV1(
     "nullable-continuous",
   );
   const admittedNullableContinuousPointers = new Set<string>();
+  const nullableStringPointers = pointerSet(
+    options.nullableStringPointers,
+    "nullable-string",
+  );
+  const admittedNullableStringPointers = new Set<string>();
 
   visit(referenceState, [], {
     continuousSlots,
     nullableContinuousSlots,
+    nullableStringSlots,
     booleanSlots,
     stringSlots,
     externalImmutableRoots,
@@ -114,6 +127,8 @@ export function createFlatNumericalStateLayoutV1(
     admittedExternalImmutablePointers,
     nullableContinuousPointers,
     admittedNullableContinuousPointers,
+    nullableStringPointers,
+    admittedNullableStringPointers,
   });
   for (const fixedArrayPointer of fixedArrayPointers) {
     if (!admittedFixedArrayPointers.has(fixedArrayPointer)) {
@@ -136,6 +151,13 @@ export function createFlatNumericalStateLayoutV1(
       );
     }
   }
+  for (const nullableStringPointer of nullableStringPointers) {
+    if (!admittedNullableStringPointers.has(nullableStringPointer)) {
+      throw new Error(
+        `Flat numerical nullable-string ${nullableStringPointer} is unavailable`,
+      );
+    }
+  }
   if (continuousSlots.length === 0) {
     throw new Error("Flat numerical state contains no continuous slots");
   }
@@ -144,6 +166,7 @@ export function createFlatNumericalStateLayoutV1(
     layoutId,
     continuousSlots: Object.freeze(continuousSlots),
     nullableContinuousSlots: Object.freeze(nullableContinuousSlots),
+    nullableStringSlots: Object.freeze(nullableStringSlots),
     booleanSlots: Object.freeze(booleanSlots),
     stringSlots: Object.freeze(stringSlots),
     externalImmutableRoots: Object.freeze(externalImmutableRoots),
@@ -161,6 +184,8 @@ export function createFlatNumericalStateBufferV1(
       new Float64Array(layout.nullableContinuousSlots.length),
     nullableContinuousPresent:
       new Uint8Array(layout.nullableContinuousSlots.length),
+    nullableStrings: new Uint32Array(layout.nullableStringSlots.length),
+    nullableStringsPresent: new Uint8Array(layout.nullableStringSlots.length),
     booleans: new Uint8Array(layout.booleanSlots.length),
     strings: new Uint32Array(layout.stringSlots.length),
   });
@@ -196,6 +221,10 @@ export function writeFlatNumericalStateV1(
   );
   const nullableContinuousPresent = new Uint8Array(
     layout.nullableContinuousSlots.length,
+  );
+  const nullableStrings = new Uint32Array(layout.nullableStringSlots.length);
+  const nullableStringsPresent = new Uint8Array(
+    layout.nullableStringSlots.length,
   );
   const booleans = new Uint8Array(layout.booleanSlots.length);
   const strings = new Uint32Array(layout.stringSlots.length);
@@ -239,6 +268,21 @@ export function writeFlatNumericalStateV1(
     }
     booleans[index] = value ? 1 : 0;
   }
+  for (let index = 0; index < layout.nullableStringSlots.length; index += 1) {
+    const slot = layout.nullableStringSlots[index]!;
+    const value = requiredPathValue(state, slot.path);
+    if (value === null) {
+      nullableStrings[index] = 0;
+      nullableStringsPresent[index] = 0;
+    } else if (typeof value === "string") {
+      nullableStrings[index] = internString(stagedStringTable, value);
+      nullableStringsPresent[index] = 1;
+    } else {
+      throw new Error(
+        `Flat numerical state ${slot.pointer} must be null or a string`,
+      );
+    }
+  }
   for (let index = 0; index < layout.stringSlots.length; index += 1) {
     const slot = layout.stringSlots[index]!;
     const value = requiredPathValue(state, slot.path);
@@ -250,6 +294,8 @@ export function writeFlatNumericalStateV1(
   destination.continuous.set(continuous);
   destination.nullableContinuous.set(nullableContinuous);
   destination.nullableContinuousPresent.set(nullableContinuousPresent);
+  destination.nullableStrings.set(nullableStrings);
+  destination.nullableStringsPresent.set(nullableStringsPresent);
   destination.booleans.set(booleans);
   destination.strings.set(strings);
   stringTable.codeByValue.clear();
@@ -297,6 +343,11 @@ export function flatNumericalStateBuffersEqualV1(
       left.nullableContinuousPresent,
       right.nullableContinuousPresent,
     )
+    && typedArraysEqual(left.nullableStrings, right.nullableStrings)
+    && typedArraysEqual(
+      left.nullableStringsPresent,
+      right.nullableStringsPresent,
+    )
     && typedArraysEqual(left.booleans, right.booleans)
     && typedArraysEqual(left.strings, right.strings);
 }
@@ -307,6 +358,7 @@ function visit(
   destination: {
     continuousSlots: FlatNumericalSlotV1[];
     nullableContinuousSlots: FlatNumericalSlotV1[];
+    nullableStringSlots: FlatNumericalSlotV1[];
     booleanSlots: FlatNumericalSlotV1[];
     stringSlots: FlatNumericalSlotV1[];
     externalImmutableRoots: FlatNumericalSlotV1[];
@@ -318,6 +370,8 @@ function visit(
     admittedExternalImmutablePointers: Set<string>;
     nullableContinuousPointers: ReadonlySet<string>;
     admittedNullableContinuousPointers: Set<string>;
+    nullableStringPointers: ReadonlySet<string>;
+    admittedNullableStringPointers: Set<string>;
   },
 ): void {
   const pathPointer = pointer(path);
@@ -344,6 +398,16 @@ function visit(
     }
     destination.nullableContinuousSlots.push(slot(path));
     destination.admittedNullableContinuousPointers.add(pathPointer);
+    return;
+  }
+  if (destination.nullableStringPointers.has(pathPointer)) {
+    if (value !== null) {
+      throw new Error(
+        `Flat numerical nullable-string ${pathPointer} reference must be null`,
+      );
+    }
+    destination.nullableStringSlots.push(slot(path));
+    destination.admittedNullableStringPointers.add(pathPointer);
     return;
   }
   if (typeof value === "number") {
@@ -551,6 +615,8 @@ function assertBufferMatchesLayout(
       !== layout.nullableContinuousSlots.length
     || buffer.nullableContinuousPresent.length
       !== layout.nullableContinuousSlots.length
+    || buffer.nullableStrings.length !== layout.nullableStringSlots.length
+    || buffer.nullableStringsPresent.length !== layout.nullableStringSlots.length
     || buffer.booleans.length !== layout.booleanSlots.length
     || buffer.strings.length !== layout.stringSlots.length
   ) {

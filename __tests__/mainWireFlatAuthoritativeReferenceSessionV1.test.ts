@@ -403,6 +403,54 @@ describe("TransactionalTypedStateImageV1", () => {
     )).toThrow("nullable-continuous /missing is unavailable");
   });
 
+  it("stores declared nullable strings without canonical dynamic payloads", () => {
+    type State = Readonly<{ value: number; optionalId: string | null }>;
+    const initial: State = Object.freeze({ value: 1, optionalId: null });
+    const manifest = createTransactionalTypedStateManifestV1(
+      "test-nullable-string-state",
+      initial,
+      32,
+      1,
+      { nullableStringPointers: ["/optionalId"] },
+    );
+    expect(manifest.numericalLayout).toMatchObject({
+      nullableStringSlots: [{ pointer: "/optionalId" }],
+      excludedDynamicRoots: [],
+    });
+    const image = new TransactionalTypedStateImageV1(manifest, initial);
+    const cursor = image.currentCursor();
+    expect(cursor.readNullableString(0)).toBeNull();
+    expect(image.rehydrateCurrent()).toEqual(initial);
+
+    image.stage(Object.freeze({ value: 2, optionalId: "capture:1" }));
+    image.promote();
+    expect(cursor.readNullableString(0)).toBe("capture:1");
+    expect(image.rehydrateCurrent()).toEqual({
+      value: 2,
+      optionalId: "capture:1",
+    });
+
+    image.stage(Object.freeze({ value: 3, optionalId: "" }));
+    image.promote();
+    expect(cursor.readNullableString(0)).toBe("");
+    expect(image.rehydrateCurrent()).toEqual({ value: 3, optionalId: "" });
+
+    image.stage(Object.freeze({ value: 4, optionalId: null }));
+    image.promote();
+    expect(cursor.readNullableString(0)).toBeNull();
+    expect(() => image.stage(Object.freeze({
+      value: 5,
+      optionalId: 1,
+    }) as unknown as State)).toThrow("must be null or a string");
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-missing-nullable-string",
+      initial,
+      32,
+      1,
+      { nullableStringPointers: ["/missing"] },
+    )).toThrow("nullable-string /missing is unavailable");
+  });
+
   it("round-trips all leaf classes and keeps failed candidates inactive", () => {
     type State = Readonly<{
       value: number;
@@ -704,14 +752,15 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const initialReport = reference.authorityReport();
     expect(initialReport).toMatchObject({
       authorityId: "main-wire-integrated-accepted-typed-state-authority-v1",
-      fingerprint: "fnv1a32-9f176efc",
-      bufferByteLength: 34_984,
+      fingerprint: "fnv1a32-99df72aa",
+      bufferByteLength: 34_988,
       fixedImageCount: 2,
       continuousSlotCount: 253,
       nullableContinuousSlotCount: 6,
+      nullableStringSlotCount: 2,
       booleanSlotCount: 2,
       stringSlotCount: 6,
-      dynamicRootCount: 11,
+      dynamicRootCount: 9,
       externalImmutableRootCount: 56,
       containerCount: 80,
       commitCount: 0,
