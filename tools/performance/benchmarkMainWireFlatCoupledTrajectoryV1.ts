@@ -42,6 +42,10 @@ import {
 
 const measuredSteps = integerArgument("--steps", 1_000);
 const warmupSteps = integerArgument("--warmup", 100);
+const maximumAcceptedStepsPerJacobian = integerArgument(
+  "--max-accepted-steps-per-jacobian",
+  2,
+);
 const initialGuessPolicy = stringArgument(
   "--initial-guess",
   ["context", "linear-predictor"] as const,
@@ -120,7 +124,7 @@ for (let step = -warmupSteps; step < measuredSteps; step += 1) {
   );
   const preparedAt = performance.now();
   const solverOptions = Object.freeze({
-    maximumAcceptedStepsPerJacobian: 2,
+    maximumAcceptedStepsPerJacobian,
     analyticJacobianPolicy: "require-complete" as const,
   });
   const predicted = initialGuessPolicy === "linear-predictor"
@@ -189,6 +193,7 @@ process.stdout.write(`${JSON.stringify(Object.freeze({
   claim: "local-development-diagnostic-not-supported-hardware-gate",
   warmupSteps,
   measuredSteps,
+  maximumAcceptedStepsPerJacobian,
   initialGuessPolicy,
   flat: flatSummary,
   flatBridge: summarize(bridgeMs),

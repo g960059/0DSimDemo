@@ -1020,8 +1020,21 @@ from both seeds, requires branch agreement inside the established numerical
 corridor, records history only after promotion, and proves a discontinuous
 cold context falls back and resets. These host numbers establish marginal
 value, not the production phone gate. Cross-step Jacobian reuse remains a
-separate experiment and must be residual-gated rather than implied by the
-predictor result.
+separate concern rather than an implied consequence of the predictor result.
+
+A residual-gated cross-step factor experiment then used the preceding
+factored Jacobian for at most the first update and rebuilt it on any failed
+line search or stagnation. All 1,099 eligible attempts produced an accepted
+residual-decreasing update, reducing fresh Jacobian evaluations to mean
+`1.032` per step. It nevertheless increased mean Newton updates from `1.987`
+to `2.163` and measured `0.424 ms` median flat-step time (`1.742x` over the
+nested observation) rather than the predictor-only run's `0.419 ms`
+(`1.766x`). Raising intra-solve modified-Newton reuse from two to three updates
+similarly reduced Jacobian builds but increased iteration count and did not
+improve time. Both implementations were removed. Jacobian assembly is now
+cheap enough that a stale direction's extra residual/update work cancels its
+savings at one patch; future reuse requires a materially better update such
+as a tested low-rank quasi-Newton correction, not simple factor retention.
 
 ### Phase 3 — strict scalar WASM
 
