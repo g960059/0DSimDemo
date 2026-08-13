@@ -73,6 +73,7 @@ import {
 } from "@/engine/vnext/CanonicalFlatDataV1";
 import {
   createMainWireAcceptedTypedBoundaryBindingV1,
+  createMainWireAcceptedTypedNonCoronaryNumericalSourceV1,
   limitMainWireAcceptedTypedCandidateTimeV1,
   readMainWireAcceptedTypedClockV1,
   stageMainWireAcceptedTypedAuthoredScheduleCandidateV1,
@@ -523,6 +524,12 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           },
           this.#coronaryScratchWorkspace,
           this.#nonCoronaryScratchWorkspace,
+          directCurrentCursor === null
+            ? undefined
+            : createMainWireAcceptedTypedNonCoronaryNumericalSourceV1(
+              directCurrentCursor,
+              this.requiredTypedBoundaryBinding(),
+            ),
         );
       } catch (error) {
         if (directCandidateOpen) {

@@ -32,15 +32,26 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-15
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-16
 ```
 
-Standard-15 preserves Standard-14's equations, controls, checkpoint meaning,
-and accepted numerical sequence while compiling the immutable coefficients of
-each pure-data nonlinear venous pressure-volume inverse once per synchronous
-solve. The shipped fixed-32 bisection still visits the same midpoint sequence
-and the canonical 500-step accepted-state hash is unchanged. Mutable or
-accessor-backed public laws retain the complete dynamic evaluation path.
+Standard-16 preserves Standard-15's equations, controls, checkpoint meaning,
+and accepted numerical sequence while introducing a fail-closed typed
+accepted-state read seam for the non-coronary nonlinear solver. The flat
+reference runtime resolves the relevant fixed slots once, copies them into the
+solver's reusable numerical workspace, and compares every scalar exactly with
+the admitted rollback object before use. A divergent typed clock, TBV, volume,
+dynamic flow, or valve opening is rejected before candidate evaluation. This
+is an ownership-boundary milestone rather than a performance claim: paired
+development-host measurements were about 1–2% slower while both authorities
+are deliberately cross-checked. The next slice removes the duplicate object
+authority rather than weakening that check in place.
+
+Standard-15 had already compiled the immutable coefficients of each pure-data
+nonlinear venous pressure-volume inverse once per synchronous solve. The
+shipped fixed-32 bisection still visits the same midpoint sequence and the
+canonical 500-step accepted-state hash is unchanged. Mutable or accessor-backed
+public laws retain the complete dynamic evaluation path.
 Standard-14 had already compiled direct typed-completion readers and added an
 exact all-rotary-support-off path. Disabled circuits still emit fresh
 pressure-dependent diagnostics, while their canonical zero accepted flow,

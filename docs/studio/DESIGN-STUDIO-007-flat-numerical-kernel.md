@@ -650,7 +650,7 @@ SHA-256 remained byte-identical. This is a small scaling-oriented removal of
 repeated transcendental work, not an iPhone qualification or a replacement for
 the direct solver-owned typed-state work below.
 
-#### Phase 1b.2b.2b — direct solver-owned typed state (next)
+#### Phase 1b.2b.2b — direct solver-owned typed state (in progress)
 
 Before production cutover, move each state owner and the solver from object
 property access to generated typed offsets/tags. Replace hot
@@ -661,6 +661,18 @@ the attested object mirror. Move that remaining work onto generated typed
 offsets/tags so rehydration is needed only at cold start, checkpoint restore,
 diagnostics, or an explicit boundary adapter. The object Session then becomes
 test-oracle code only.
+
+The first Standard-16 slice makes that transition explicit for the
+non-coronary solver's accepted clock, TBV, 15 node volumes, two dynamic-edge
+flows, and four valve openings. A model-owned binding resolves their typed
+slots once and stages them into reusable solver arrays. During this migration
+the rollback object is still retained and every staged scalar is compared with
+it exactly before Newton evaluation. This deliberately costs about 1–2% on the
+development host; it proves the boundary and its rejection behavior, but is
+not presented as a speedup. A later model release may remove that duplicate
+authority only after the typed owner independently satisfies the full
+accepted-state and checkpoint corpus.
+
 Failure atomicity, event order, beat accumulation, controls, analysis forks,
 and checkpoint continuation must pass against the Phase 0 corpus before Phase
 2 changes solver algebra.

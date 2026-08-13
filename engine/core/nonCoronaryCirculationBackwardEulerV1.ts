@@ -80,6 +80,18 @@ export const NON_CORONARY_VALVE_NAMES_V1 = Object.freeze([
 export type NonCoronaryValveNameV1 =
   (typeof NON_CORONARY_VALVE_NAMES_V1)[number];
 
+const NON_CORONARY_NODE_INDEX_BY_NAME_V1 = Object.freeze(Object.fromEntries(
+  NON_CORONARY_NODE_NAMES_V1.map((name, index) => [name, index]),
+) as Record<NonCoronaryNodeNameV1, number>);
+const NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1 = Object.freeze(
+  Object.fromEntries(
+    NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((name, index) => [name, index]),
+  ) as Record<NonCoronaryDynamicEdgeNameV1, number>,
+);
+const NON_CORONARY_VALVE_INDEX_BY_NAME_V1 = Object.freeze(Object.fromEntries(
+  NON_CORONARY_VALVE_NAMES_V1.map((name, index) => [name, index]),
+) as Record<NonCoronaryValveNameV1, number>);
+
 export const NON_CORONARY_CIRCULATION_SCOPE_V1 = Object.freeze({
   topologySource: "main-wire-buildNodes-buildEdges" as const,
   dynamicsOwner: "independent-experimental-backward-euler" as const,
@@ -714,6 +726,26 @@ const MAX_FAILURE_DIAGNOSTIC_MESSAGE_CHARACTERS = 1024;
 
 export const NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID =
   "circleheart-noncoronary-backward-euler-scratch-workspace-v1" as const;
+export const NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID =
+  "circleheart-noncoronary-accepted-numerical-source-v1" as const;
+
+/**
+ * Internal numerical read seam for an already-admitted accepted-state image.
+ * The object accepted state remains the rollback and validation authority;
+ * every supplied scalar is compared exactly before the solver can consume it.
+ */
+export type NonCoronaryAcceptedNumericalSourceV1 = Readonly<{
+  sourceId: typeof NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID;
+  readInto(
+    nodeVolumesMl: Float64Array,
+    dynamicEdgeFlowsMlPerSec: Float64Array,
+    valveOpeningFractions01: Float64Array,
+  ): Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    totalBloodVolumeMl: number;
+  }>;
+}>;
 
 /**
  * Opaque allocation workspace for one synchronous outer circulation solve.
@@ -734,7 +766,26 @@ type NonCoronaryBackwardEulerScratchStorageV1 = {
   readonly linearRight: number[];
   readonly linearMatrix: number[][];
   readonly linearSolution: number[];
+  readonly previousNumerical: MutablePreviousAcceptedNumericalStateV1;
   inUse: boolean;
+};
+
+type PreviousAcceptedNumericalStateV1 = Readonly<{
+  revision: number;
+  acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
+  nodeVolumesMl: Float64Array;
+  dynamicEdgeFlowsMlPerSec: Float64Array;
+  valveOpeningFractions01: Float64Array;
+}>;
+
+type MutablePreviousAcceptedNumericalStateV1 = {
+  revision: number;
+  acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
+  readonly nodeVolumesMl: Float64Array;
+  readonly dynamicEdgeFlowsMlPerSec: Float64Array;
+  readonly valveOpeningFractions01: Float64Array;
 };
 
 const NON_CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V1 = new WeakMap<
@@ -763,6 +814,16 @@ NonCoronaryBackwardEulerScratchWorkspaceV1 {
     linearRight: Array<number>(independentNodeCount).fill(0),
     linearMatrix: createSquareMatrixV1(independentNodeCount),
     linearSolution: Array<number>(independentNodeCount).fill(0),
+    previousNumerical: {
+      revision: 0,
+      acceptedTimeSec: 0,
+      totalBloodVolumeMl: 0,
+      nodeVolumesMl: new Float64Array(NON_CORONARY_NODE_NAMES_V1.length),
+      dynamicEdgeFlowsMlPerSec:
+        new Float64Array(NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length),
+      valveOpeningFractions01:
+        new Float64Array(NON_CORONARY_VALVE_NAMES_V1.length),
+    },
     inUse: false,
   });
   return workspace;
@@ -787,6 +848,12 @@ function borrowNonCoronaryBackwardEulerScratchWorkspaceV1(
     || storage.linearRight.length !== INDEPENDENT_NODE_NAMES.length
     || storage.linearMatrix.length !== INDEPENDENT_NODE_NAMES.length
     || storage.linearSolution.length !== INDEPENDENT_NODE_NAMES.length
+    || storage.previousNumerical.nodeVolumesMl.length
+      !== NON_CORONARY_NODE_NAMES_V1.length
+    || storage.previousNumerical.dynamicEdgeFlowsMlPerSec.length
+      !== NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length
+    || storage.previousNumerical.valveOpeningFractions01.length
+      !== NON_CORONARY_VALVE_NAMES_V1.length
   ) {
     throw new RangeError(
       "non-coronary backward-Euler scratch workspace topology mismatch",
@@ -805,6 +872,114 @@ function releaseNonCoronaryBackwardEulerScratchWorkspaceV1(
   storage: NonCoronaryBackwardEulerScratchStorageV1,
 ): void {
   storage.inUse = false;
+}
+
+function stagePreviousAcceptedNumericalStateV1(
+  previous: NonCoronaryCirculationAcceptedStateV1,
+  scratchStorage: NonCoronaryBackwardEulerScratchStorageV1 | null,
+  source: NonCoronaryAcceptedNumericalSourceV1 | undefined,
+): PreviousAcceptedNumericalStateV1 {
+  const numerical = scratchStorage?.previousNumerical ?? {
+    revision: previous.revision,
+    acceptedTimeSec: previous.acceptedTimeSec,
+    totalBloodVolumeMl: previous.totalBloodVolumeMl,
+    nodeVolumesMl: new Float64Array(NON_CORONARY_NODE_NAMES_V1.length),
+    dynamicEdgeFlowsMlPerSec:
+      new Float64Array(NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length),
+    valveOpeningFractions01:
+      new Float64Array(NON_CORONARY_VALVE_NAMES_V1.length),
+  };
+  numerical.revision = previous.revision;
+  numerical.acceptedTimeSec = previous.acceptedTimeSec;
+  numerical.totalBloodVolumeMl = previous.totalBloodVolumeMl;
+  if (source !== undefined) {
+    if (source.sourceId !== NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID) {
+      throw new Error("non-coronary accepted numerical source is unsupported");
+    }
+    const header = source.readInto(
+      numerical.nodeVolumesMl,
+      numerical.dynamicEdgeFlowsMlPerSec,
+      numerical.valveOpeningFractions01,
+    );
+    numerical.revision = header.revision;
+    numerical.acceptedTimeSec = header.acceptedTimeSec;
+    numerical.totalBloodVolumeMl = header.totalBloodVolumeMl;
+    assertPreviousAcceptedNumericalParityV1(previous, numerical);
+    return numerical;
+  }
+  for (let index = 0; index < NON_CORONARY_NODE_NAMES_V1.length; index += 1) {
+    numerical.nodeVolumesMl[index] = previous.nodeVolumesMl[
+      NON_CORONARY_NODE_NAMES_V1[index]!
+    ];
+  }
+  for (
+    let index = 0;
+    index < NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length;
+    index += 1
+  ) {
+    numerical.dynamicEdgeFlowsMlPerSec[index] =
+      previous.dynamicEdgeFlowsMlPerSec[
+      NON_CORONARY_DYNAMIC_EDGE_NAMES_V1[index]!
+    ];
+  }
+  for (let index = 0; index < NON_CORONARY_VALVE_NAMES_V1.length; index += 1) {
+    numerical.valveOpeningFractions01[index] = previous.valveStates[
+      NON_CORONARY_VALVE_NAMES_V1[index]!
+    ].leafletOpeningFraction01;
+  }
+  return numerical;
+}
+
+function assertPreviousAcceptedNumericalParityV1(
+  previous: NonCoronaryCirculationAcceptedStateV1,
+  numerical: PreviousAcceptedNumericalStateV1,
+): void {
+  if (
+    numerical.revision !== previous.revision
+    || !Object.is(numerical.acceptedTimeSec, previous.acceptedTimeSec)
+    || !Object.is(
+      numerical.totalBloodVolumeMl,
+      previous.totalBloodVolumeMl,
+    )
+  ) {
+    throw new Error(
+      "non-coronary accepted numerical source clock or TBV diverged",
+    );
+  }
+  for (let index = 0; index < NON_CORONARY_NODE_NAMES_V1.length; index += 1) {
+    const name = NON_CORONARY_NODE_NAMES_V1[index]!;
+    if (!Object.is(numerical.nodeVolumesMl[index], previous.nodeVolumesMl[name])) {
+      throw new Error(
+        `non-coronary accepted numerical source ${name} volume diverged`,
+      );
+    }
+  }
+  for (
+    let index = 0;
+    index < NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length;
+    index += 1
+  ) {
+    const name = NON_CORONARY_DYNAMIC_EDGE_NAMES_V1[index]!;
+    if (!Object.is(
+      numerical.dynamicEdgeFlowsMlPerSec[index],
+      previous.dynamicEdgeFlowsMlPerSec[name],
+    )) {
+      throw new Error(
+        `non-coronary accepted numerical source ${name} flow diverged`,
+      );
+    }
+  }
+  for (let index = 0; index < NON_CORONARY_VALVE_NAMES_V1.length; index += 1) {
+    const name = NON_CORONARY_VALVE_NAMES_V1[index]!;
+    if (!Object.is(
+      numerical.valveOpeningFractions01[index],
+      previous.valveStates[name].leafletOpeningFraction01,
+    )) {
+      throw new Error(
+        `non-coronary accepted numerical source ${name} opening diverged`,
+      );
+    }
+  }
 }
 
 let cachedGraphV1: NonCoronaryCirculationGraphV1 | null = null;
@@ -934,6 +1109,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
   TCompanionTrial = never,
 >(
   input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+  previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
 ): NonCoronaryCirculationTrialResultV1<TEvaluation, TCompanionTrial> {
   // A malformed accepted state is a programmer/checkpoint error and cannot
   // provide a trustworthy rollback target.
@@ -980,6 +1156,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
       graph,
       options,
       scratchStorage,
+      previousAcceptedNumericalSource,
     );
   } finally {
     if (scratchStorage !== null) {
@@ -996,9 +1173,16 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
   graph: NonCoronaryCirculationGraphV1,
   options: Required<NonCoronaryCirculationNewtonOptionsV1>,
   scratchStorage: NonCoronaryBackwardEulerScratchStorageV1 | null,
+  previousAcceptedNumericalSource:
+    NonCoronaryAcceptedNumericalSourceV1 | undefined,
 ): NonCoronaryCirculationTrialResultV1<TEvaluation, TCompanionTrial> {
   const previous = input.previousAcceptedState;
-  const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
+  const previousNumerical = stagePreviousAcceptedNumericalStateV1(
+    previous,
+    scratchStorage,
+    previousAcceptedNumericalSource,
+  );
+  const candidateTimeSec = previousNumerical.acceptedTimeSec + input.dtSec;
   const mechanicsCache: CandidateMechanicsCache<TEvaluation> = {
     values: new Map(),
     jacobianUsage: {
@@ -1013,11 +1197,11 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
     uniqueCandidateCount: 0,
   };
   const volumeScales = independentVolumeScales(
-    previous.nodeVolumesMl,
+    previousNumerical.nodeVolumesMl,
     scratchStorage?.volumeScales,
   );
   let scaledUnknowns = independentVolumesToScaled(
-    previous.nodeVolumesMl,
+    previousNumerical.nodeVolumesMl,
     volumeScales,
     scratchStorage?.scaledUnknowns,
   );
@@ -1029,6 +1213,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
     current = evaluateCandidate(
       graph,
       input,
+      previousNumerical,
       scaledUnknowns,
       volumeScales,
       candidateTimeSec,
@@ -1048,7 +1233,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
     const residualNorm = infinityNorm(current.scaledIndependentResidual);
     const mixedContinuityResidual = mixedContinuityResidualAudit(
       current,
-      previous.nodeVolumesMl,
+      previousNumerical.nodeVolumesMl,
       options.absoluteContinuityResidualToleranceMl,
       options.scaledResidualInfinityTolerance,
     );
@@ -1077,7 +1262,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
         ),
@@ -1095,7 +1280,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
@@ -1121,6 +1306,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
             (candidate) => evaluateCandidate(
               graph,
               input,
+              previousNumerical,
               candidate,
               volumeScales,
               candidateTimeSec,
@@ -1141,6 +1327,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
           (candidate) => evaluateCandidate(
             graph,
             input,
+            previousNumerical,
             candidate,
             volumeScales,
             candidateTimeSec,
@@ -1162,7 +1349,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
@@ -1198,7 +1385,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
@@ -1220,7 +1407,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
@@ -1256,6 +1443,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
         const evaluation = evaluateCandidate(
           graph,
           input,
+          previousNumerical,
           candidateUnknowns,
           volumeScales,
           candidateTimeSec,
@@ -1326,7 +1514,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
@@ -1505,12 +1693,12 @@ export function restoreNonCoronaryCirculationStateV1(
 function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
   graph: NonCoronaryCirculationGraphV1,
   input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+  previous: PreviousAcceptedNumericalStateV1,
   scaledIndependentVolumes: readonly number[],
   volumeScales: readonly number[],
   candidateTimeSec: number,
   mechanicsCache: CandidateMechanicsCache<TEvaluation>,
 ): CandidateEvaluation<TEvaluation, TCompanionTrial> {
-  const previous = input.previousAcceptedState;
   // Preserve the immutable no-companion candidate reconstruction and failure
   // ordering exactly; the independent-only prepass exists solely for the
   // companion branch, where SV depends on the companion candidate volume.
@@ -1664,7 +1852,12 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     if (edge.kind === "valve") {
       const valveName = name as NonCoronaryValveNameV1;
       const evaluation = stepMainWireQuasiSteadyOrificeValveV2(
-        previous.valveStates[valveName],
+        {
+          leafletOpeningFraction01:
+            previous.valveOpeningFractions01[
+              NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]
+            ]!,
+        },
         {
           dtSec: input.dtSec,
           upstreamPressureMmHg: upstreamPressure,
@@ -1713,7 +1906,9 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       );
       const flow = solveSignedLinearQuadraticFlowV1(
         gradientMmHg + inertance
-          * previous.dynamicEdgeFlowsMlPerSec[dynamicName] / input.dtSec,
+          * previous.dynamicEdgeFlowsMlPerSec[
+            NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[dynamicName]
+          ]! / input.dtSec,
         losses.resistanceMmHgSecPerMl + inertance / input.dtSec,
         losses.quadraticLossMmHgSec2PerMl2,
       );
@@ -1757,7 +1952,9 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       mechanicalSupport ?? dynamicMechanicalSupport,
       name,
     );
-    return nodeVolumesMl[name] - previous.nodeVolumesMl[name]
+    return nodeVolumesMl[name] - previous.nodeVolumesMl[
+      NON_CORONARY_NODE_INDEX_BY_NAME_V1[name]
+    ]!
       - input.dtSec * (localRates[localIndex]! + companionRate + supportRate);
   });
   const scaledIndependentResidual = Object.freeze(
@@ -2649,7 +2846,7 @@ function independentNodeVolumesFromNodeRecord(
 }
 
 function independentVolumesToScaled(
-  volumes: NodeRecord<number>,
+  volumes: Float64Array,
   scales: readonly number[],
   destination?: number[],
 ): readonly number[] {
@@ -2659,7 +2856,9 @@ function independentVolumesToScaled(
     throw new Error("circulation scaled-volume scratch has wrong length");
   }
   for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
-    values[index] = volumes[INDEPENDENT_NODE_NAMES[index]!]
+    values[index] = volumes[
+      NON_CORONARY_NODE_INDEX_BY_NAME_V1[INDEPENDENT_NODE_NAMES[index]!]
+    ]!
       / scales[index]!;
   }
   return destination === undefined ? Object.freeze(values) : values;
@@ -2672,7 +2871,7 @@ function independentVolumesToScaled(
  */
 function mixedContinuityResidualAudit<TEvaluation, TCompanionTrial>(
   evaluation: CandidateEvaluation<TEvaluation, TCompanionTrial>,
-  referenceVolumesMl: NodeRecord<number>,
+  referenceVolumesMl: Float64Array,
   absoluteToleranceMl: number,
   scaledTolerance: number,
 ): MixedContinuityResidualAudit {
@@ -2681,7 +2880,7 @@ function mixedContinuityResidualAudit<TEvaluation, TCompanionTrial>(
     const absoluteResidualMl = Math.abs(residualMl);
     const toleranceMl = absoluteToleranceMl + scaledTolerance * Math.max(
       10,
-      Math.abs(referenceVolumesMl[node]),
+      Math.abs(referenceVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[node]]!),
     );
     return Object.freeze({
       node,
@@ -2702,7 +2901,7 @@ function mixedContinuityResidualAudit<TEvaluation, TCompanionTrial>(
 }
 
 function independentVolumeScales(
-  volumes: NodeRecord<number>,
+  volumes: Float64Array,
   destination?: number[],
 ): readonly number[] {
   const values = destination
@@ -2713,7 +2912,9 @@ function independentVolumeScales(
   for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
     values[index] = Math.max(
       10,
-      Math.abs(volumes[INDEPENDENT_NODE_NAMES[index]!]!),
+      Math.abs(volumes[
+        NON_CORONARY_NODE_INDEX_BY_NAME_V1[INDEPENDENT_NODE_NAMES[index]!]
+      ]!),
     );
   }
   return destination === undefined ? Object.freeze(values) : values;
@@ -2870,7 +3071,7 @@ function trialDiagnostics<TEvaluation, TCompanionTrial>(
   lineSearchBacktracks: number,
   residualNorm: number,
   evaluation: CandidateEvaluation<TEvaluation, TCompanionTrial>,
-  previous: NonCoronaryCirculationAcceptedStateV1,
+  previous: PreviousAcceptedNumericalStateV1,
   options: Required<NonCoronaryCirculationNewtonOptionsV1>,
   mechanicsCache: CandidateMechanicsCache<TEvaluation>,
   failureNewtonTrace: readonly NonCoronaryNewtonFailureTraceEntryV1[] = [],

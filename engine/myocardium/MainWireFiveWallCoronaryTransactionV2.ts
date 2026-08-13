@@ -5,6 +5,7 @@ import {
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
   NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
   type NonCoronaryAbsoluteChamberPressureTangentV1,
+  type NonCoronaryAcceptedNumericalSourceV1,
   type NonCoronaryCandidateMechanicsResultV1,
   type NonCoronaryBackwardEulerScratchWorkspaceV1,
   type NonCoronaryCirculationAcceptedStateV1,
@@ -684,6 +685,7 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
   coronaryScratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
   nonCoronaryScratchWorkspace?:
     NonCoronaryBackwardEulerScratchWorkspaceV1,
+  previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
 ): MainWireFiveWallCoronaryStepResultV2<TWallState> {
   validateAcceptedTuple(previous);
   requirePositiveFinite(input.dtSec, "dtSec");
@@ -854,7 +856,7 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
         });
       },
     }),
-  });
+  }, previousAcceptedNumericalSource);
   const circulationTrial = attachEvaluationCountersV2(
     rawCirculationTrial,
     evaluationCounters,

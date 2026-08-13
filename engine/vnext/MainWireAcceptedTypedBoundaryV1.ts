@@ -1,6 +1,13 @@
 import type {
   MainWireIntegratedModelCandidateTimeLimitV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
+import {
+  NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
+  NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
+  NON_CORONARY_NODE_NAMES_V1,
+  NON_CORONARY_VALVE_NAMES_V1,
+  type NonCoronaryAcceptedNumericalSourceV1,
+} from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import type {
   DynamicMechanicalSupportAcceptedStateV1,
 } from "@/engine/devices/dynamicNetworkV1";
@@ -108,6 +115,15 @@ type BoundedArrayBinding = Readonly<{
   pendingProximalAvOutputs: number;
 }>;
 
+type NonCoronaryAcceptedNumericalBindingV1 = Readonly<{
+  revision: number;
+  acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
+  nodeVolumesMl: readonly number[];
+  dynamicEdgeFlowsMlPerSec: readonly number[];
+  valveOpeningFractions01: readonly number[];
+}>;
+
 export type MainWireAcceptedTypedBoundaryBindingV1 = Readonly<{
   layoutId: typeof MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID;
   fingerprint: typeof MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT;
@@ -116,6 +132,7 @@ export type MainWireAcceptedTypedBoundaryBindingV1 = Readonly<{
   calcium: Readonly<Record<CalciumWall, Readonly<{
     state: readonly [number, number];
   }>>>;
+  nonCoronaryAcceptedNumerical: NonCoronaryAcceptedNumericalBindingV1;
   directContinuousSlots: readonly number[];
   authoredVentricularPacingContinuousSlots: readonly number[];
   regularAtrialSourceContinuousSlots: readonly number[];
@@ -235,6 +252,34 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
   ])) as Record<CalciumWall, Readonly<{
     state: readonly [number, number];
   }>>);
+  const nonCoronaryAcceptedNumerical = Object.freeze({
+    revision: continuousSlot(manifest, "/coronary/circulation/revision"),
+    acceptedTimeSec: continuousSlot(
+      manifest,
+      "/coronary/circulation/acceptedTimeSec",
+    ),
+    totalBloodVolumeMl: continuousSlot(
+      manifest,
+      "/coronary/circulation/totalBloodVolumeMl",
+    ),
+    nodeVolumesMl: Object.freeze(NON_CORONARY_NODE_NAMES_V1.map((name) =>
+      continuousSlot(
+        manifest,
+        `/coronary/circulation/nodeVolumesMl/${name}`,
+      ))),
+    dynamicEdgeFlowsMlPerSec: Object.freeze(
+      NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((name) => continuousSlot(
+        manifest,
+        `/coronary/circulation/dynamicEdgeFlowsMlPerSec/${name}`,
+      )),
+    ),
+    valveOpeningFractions01: Object.freeze(
+      NON_CORONARY_VALVE_NAMES_V1.map((name) => continuousSlot(
+        manifest,
+        `/coronary/circulation/valveStates/${name}/leafletOpeningFraction01`,
+      )),
+    ),
+  });
   const clockSlots = Object.freeze([
     continuous.acceptedTimeSec,
     continuous.composedAcceptedTimeSec,
@@ -280,6 +325,7 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
     continuous,
     boundedArray,
     calcium,
+    nonCoronaryAcceptedNumerical,
     directContinuousSlots: Object.freeze([
       ...clockSlots,
       ...calciumSlots,
@@ -288,6 +334,64 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
     authoredVentricularPacingContinuousSlots,
     regularAtrialSourceContinuousSlots,
     postSolverContinuousSlots,
+  });
+}
+
+/**
+ * Binds the live accepted typed image to the non-coronary solver read seam.
+ * The solver rechecks every scalar against its admitted rollback object before
+ * use, so this adapter cannot silently substitute a different accepted state.
+ */
+export function createMainWireAcceptedTypedNonCoronaryNumericalSourceV1(
+  cursor: TransactionalTypedStateCurrentCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
+): NonCoronaryAcceptedNumericalSourceV1 {
+  assertCursor(cursor, binding);
+  const slots = binding.nonCoronaryAcceptedNumerical;
+  return Object.freeze({
+    sourceId: NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
+    readInto(
+      nodeVolumesMl: Float64Array,
+      dynamicEdgeFlowsMlPerSec: Float64Array,
+      valveOpeningFractions01: Float64Array,
+    ) {
+      assertCursor(cursor, binding);
+      if (
+        nodeVolumesMl.length !== slots.nodeVolumesMl.length
+        || dynamicEdgeFlowsMlPerSec.length
+          !== slots.dynamicEdgeFlowsMlPerSec.length
+        || valveOpeningFractions01.length
+          !== slots.valveOpeningFractions01.length
+      ) {
+        throw new Error(
+          "Main Wire typed non-coronary numerical destination has wrong shape",
+        );
+      }
+      for (let index = 0; index < nodeVolumesMl.length; index += 1) {
+        nodeVolumesMl[index] = cursor.readContinuous(
+          slots.nodeVolumesMl[index]!,
+        );
+      }
+      for (
+        let index = 0;
+        index < dynamicEdgeFlowsMlPerSec.length;
+        index += 1
+      ) {
+        dynamicEdgeFlowsMlPerSec[index] = cursor.readContinuous(
+          slots.dynamicEdgeFlowsMlPerSec[index]!,
+        );
+      }
+      for (let index = 0; index < valveOpeningFractions01.length; index += 1) {
+        valveOpeningFractions01[index] = cursor.readContinuous(
+          slots.valveOpeningFractions01[index]!,
+        );
+      }
+      return Object.freeze({
+        revision: cursor.readContinuous(slots.revision),
+        acceptedTimeSec: cursor.readContinuous(slots.acceptedTimeSec),
+        totalBloodVolumeMl: cursor.readContinuous(slots.totalBloodVolumeMl),
+      });
+    },
   });
 }
 

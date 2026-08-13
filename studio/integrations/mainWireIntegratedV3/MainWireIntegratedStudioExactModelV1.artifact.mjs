@@ -7251,6 +7251,17 @@ const NON_CORONARY_VALVE_NAMES_V1 = Object.freeze([
   "TV",
   "PV"
 ]);
+const NON_CORONARY_NODE_INDEX_BY_NAME_V1 = Object.freeze(Object.fromEntries(
+  NON_CORONARY_NODE_NAMES_V1.map((name, index) => [name, index])
+));
+const NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1 = Object.freeze(
+  Object.fromEntries(
+    NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((name, index) => [name, index])
+  )
+);
+const NON_CORONARY_VALVE_INDEX_BY_NAME_V1 = Object.freeze(Object.fromEntries(
+  NON_CORONARY_VALVE_NAMES_V1.map((name, index) => [name, index])
+));
 const NON_CORONARY_CIRCULATION_SCOPE_V1 = Object.freeze({
   topologySource: "main-wire-buildNodes-buildEdges",
   dynamicsOwner: "independent-experimental-backward-euler",
@@ -7383,7 +7394,7 @@ function borrowNonCoronaryBackwardEulerScratchWorkspaceV1(workspace) {
   if (storage === void 0) {
     throw new TypeError("non-coronary backward-Euler scratch workspace is foreign");
   }
-  if (workspace.schemaId !== NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID || workspace.topologyId !== NON_CORONARY_CIRCULATION_BE_V1_ID || workspace.independentNodeCount !== INDEPENDENT_NODE_NAMES.length || storage.volumeScales.length !== INDEPENDENT_NODE_NAMES.length || storage.scaledUnknowns.length !== INDEPENDENT_NODE_NAMES.length || storage.candidateUnknowns.length !== INDEPENDENT_NODE_NAMES.length || storage.analyticJacobian.length !== INDEPENDENT_NODE_NAMES.length || storage.linearRight.length !== INDEPENDENT_NODE_NAMES.length || storage.linearMatrix.length !== INDEPENDENT_NODE_NAMES.length || storage.linearSolution.length !== INDEPENDENT_NODE_NAMES.length) {
+  if (workspace.schemaId !== NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID || workspace.topologyId !== NON_CORONARY_CIRCULATION_BE_V1_ID || workspace.independentNodeCount !== INDEPENDENT_NODE_NAMES.length || storage.volumeScales.length !== INDEPENDENT_NODE_NAMES.length || storage.scaledUnknowns.length !== INDEPENDENT_NODE_NAMES.length || storage.candidateUnknowns.length !== INDEPENDENT_NODE_NAMES.length || storage.analyticJacobian.length !== INDEPENDENT_NODE_NAMES.length || storage.linearRight.length !== INDEPENDENT_NODE_NAMES.length || storage.linearMatrix.length !== INDEPENDENT_NODE_NAMES.length || storage.linearSolution.length !== INDEPENDENT_NODE_NAMES.length || storage.previousNumerical.nodeVolumesMl.length !== NON_CORONARY_NODE_NAMES_V1.length || storage.previousNumerical.dynamicEdgeFlowsMlPerSec.length !== NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length || storage.previousNumerical.valveOpeningFractions01.length !== NON_CORONARY_VALVE_NAMES_V1.length) {
     throw new RangeError(
       "non-coronary backward-Euler scratch workspace topology mismatch"
     );
@@ -7398,6 +7409,29 @@ function borrowNonCoronaryBackwardEulerScratchWorkspaceV1(workspace) {
 }
 function releaseNonCoronaryBackwardEulerScratchWorkspaceV1(storage) {
   storage.inUse = false;
+}
+function stagePreviousAcceptedNumericalStateV1(previous, scratchStorage, source) {
+  const numerical = scratchStorage?.previousNumerical ?? {
+    revision: previous.revision,
+    acceptedTimeSec: previous.acceptedTimeSec,
+    totalBloodVolumeMl: previous.totalBloodVolumeMl,
+    nodeVolumesMl: new Float64Array(NON_CORONARY_NODE_NAMES_V1.length),
+    dynamicEdgeFlowsMlPerSec: new Float64Array(NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length),
+    valveOpeningFractions01: new Float64Array(NON_CORONARY_VALVE_NAMES_V1.length)
+  };
+  numerical.revision = previous.revision;
+  numerical.acceptedTimeSec = previous.acceptedTimeSec;
+  numerical.totalBloodVolumeMl = previous.totalBloodVolumeMl;
+  for (let index = 0; index < NON_CORONARY_NODE_NAMES_V1.length; index += 1) {
+    numerical.nodeVolumesMl[index] = previous.nodeVolumesMl[NON_CORONARY_NODE_NAMES_V1[index]];
+  }
+  for (let index = 0; index < NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length; index += 1) {
+    numerical.dynamicEdgeFlowsMlPerSec[index] = previous.dynamicEdgeFlowsMlPerSec[NON_CORONARY_DYNAMIC_EDGE_NAMES_V1[index]];
+  }
+  for (let index = 0; index < NON_CORONARY_VALVE_NAMES_V1.length; index += 1) {
+    numerical.valveOpeningFractions01[index] = previous.valveStates[NON_CORONARY_VALVE_NAMES_V1[index]].leafletOpeningFraction01;
+  }
+  return numerical;
 }
 let cachedGraphV1 = null;
 const EDGE_FLOW_SCRATCH_V1 = new Float64Array(
@@ -7470,7 +7504,7 @@ function createInitialNonCoronaryCirculationStateV1(input) {
     valveStates
   });
 }
-function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
+function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input, previousAcceptedNumericalSource) {
   validateAcceptedState$2(input.previousAcceptedState);
   let graph;
   let options;
@@ -7510,7 +7544,8 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
       input,
       graph,
       options,
-      scratchStorage
+      scratchStorage,
+      previousAcceptedNumericalSource
     );
   } finally {
     if (scratchStorage !== null) {
@@ -7518,9 +7553,13 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
     }
   }
 }
-function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph, options, scratchStorage) {
+function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph, options, scratchStorage, previousAcceptedNumericalSource) {
   const previous = input.previousAcceptedState;
-  const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
+  const previousNumerical = stagePreviousAcceptedNumericalStateV1(
+    previous,
+    scratchStorage
+  );
+  const candidateTimeSec = previousNumerical.acceptedTimeSec + input.dtSec;
   const mechanicsCache = {
     values: /* @__PURE__ */ new Map(),
     jacobianUsage: {
@@ -7535,11 +7574,11 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
     uniqueCandidateCount: 0
   };
   const volumeScales = independentVolumeScales(
-    previous.nodeVolumesMl,
+    previousNumerical.nodeVolumesMl,
     scratchStorage?.volumeScales
   );
   let scaledUnknowns = independentVolumesToScaled(
-    previous.nodeVolumesMl,
+    previousNumerical.nodeVolumesMl,
     volumeScales,
     scratchStorage?.scaledUnknowns
   );
@@ -7551,6 +7590,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
     current = evaluateCandidate$1(
       graph,
       input,
+      previousNumerical,
       scaledUnknowns,
       volumeScales,
       candidateTimeSec,
@@ -7569,7 +7609,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
     const residualNorm = infinityNorm$2(current.scaledIndependentResidual);
     const mixedContinuityResidual = mixedContinuityResidualAudit(
       current,
-      previous.nodeVolumesMl,
+      previousNumerical.nodeVolumesMl,
       options.absoluteContinuityResidualToleranceMl,
       options.scaledResidualInfinityTolerance
     );
@@ -7597,7 +7637,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache
         )
@@ -7615,7 +7655,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace)
@@ -7638,6 +7678,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
             (candidate) => evaluateCandidate$1(
               graph,
               input,
+              previousNumerical,
               candidate,
               volumeScales,
               candidateTimeSec,
@@ -7658,6 +7699,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
           (candidate) => evaluateCandidate$1(
             graph,
             input,
+            previousNumerical,
             candidate,
             volumeScales,
             candidateTimeSec,
@@ -7679,7 +7721,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace)
@@ -7708,7 +7750,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace)
@@ -7727,7 +7769,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace)
@@ -7748,6 +7790,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
         const evaluation = evaluateCandidate$1(
           graph,
           input,
+          previousNumerical,
           candidateUnknowns,
           volumeScales,
           candidateTimeSec,
@@ -7808,7 +7851,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
@@ -7892,8 +7935,7 @@ function restoreNonCoronaryCirculationStateV1(checkpoint, rebase) {
     valveStates: checkpoint.state.valveStates
   });
 }
-function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScales, candidateTimeSec, mechanicsCache) {
-  const previous = input.previousAcceptedState;
+function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, volumeScales, candidateTimeSec, mechanicsCache) {
   const legacyNodeVolumesMl = input.conservativeCompanion === void 0 ? scaledToNodeVolumes(
     scaledIndependentVolumes,
     volumeScales,
@@ -8011,7 +8053,9 @@ function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScale
     if (edge.kind === "valve") {
       const valveName = name;
       const evaluation = stepMainWireQuasiSteadyOrificeValveV2(
-        previous.valveStates[valveName],
+        {
+          leafletOpeningFraction01: previous.valveOpeningFractions01[NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]]
+        },
         {
           dtSec: input.dtSec,
           upstreamPressureMmHg: upstreamPressure,
@@ -8057,7 +8101,7 @@ function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScale
         `${name} inertanceMmHgSec2PerMl`
       );
       const flow = solveSignedLinearQuadraticFlowV1(
-        gradientMmHg + inertance * previous.dynamicEdgeFlowsMlPerSec[dynamicName] / input.dtSec,
+        gradientMmHg + inertance * previous.dynamicEdgeFlowsMlPerSec[NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[dynamicName]] / input.dtSec,
         losses.resistanceMmHgSecPerMl + inertance / input.dtSec,
         losses.quadraticLossMmHgSec2PerMl2
       );
@@ -8092,7 +8136,7 @@ function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScale
       mechanicalSupport ?? dynamicMechanicalSupport,
       name
     );
-    return nodeVolumesMl[name] - previous.nodeVolumesMl[name] - input.dtSec * (localRates[localIndex] + companionRate + supportRate);
+    return nodeVolumesMl[name] - previous.nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[name]] - input.dtSec * (localRates[localIndex] + companionRate + supportRate);
   });
   const scaledIndependentResidual = Object.freeze(
     INDEPENDENT_NODE_NAMES.map((name, index) => continuityResidualMlByNode[name] / volumeScales[index])
@@ -8717,7 +8761,7 @@ function independentVolumesToScaled(volumes, scales, destination) {
     throw new Error("circulation scaled-volume scratch has wrong length");
   }
   for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
-    values2[index] = volumes[INDEPENDENT_NODE_NAMES[index]] / scales[index];
+    values2[index] = volumes[NON_CORONARY_NODE_INDEX_BY_NAME_V1[INDEPENDENT_NODE_NAMES[index]]] / scales[index];
   }
   return destination === void 0 ? Object.freeze(values2) : values2;
 }
@@ -8727,7 +8771,7 @@ function mixedContinuityResidualAudit(evaluation, referenceVolumesMl, absoluteTo
     const absoluteResidualMl = Math.abs(residualMl);
     const toleranceMl = absoluteToleranceMl + scaledTolerance * Math.max(
       10,
-      Math.abs(referenceVolumesMl[node])
+      Math.abs(referenceVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[node]])
     );
     return Object.freeze({
       node,
@@ -8751,7 +8795,7 @@ function independentVolumeScales(volumes, destination) {
   for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
     values2[index] = Math.max(
       10,
-      Math.abs(volumes[INDEPENDENT_NODE_NAMES[index]])
+      Math.abs(volumes[NON_CORONARY_NODE_INDEX_BY_NAME_V1[INDEPENDENT_NODE_NAMES[index]]])
     );
   }
   return destination === void 0 ? Object.freeze(values2) : values2;
@@ -15928,7 +15972,7 @@ function initializeMainWireFiveWallCoronaryV2(input) {
     pressureLadderDiagnostics
   });
 }
-function stepMainWireFiveWallCoronaryV2(provider, previous, input, coronaryScratchWorkspace, nonCoronaryScratchWorkspace) {
+function stepMainWireFiveWallCoronaryV2(provider, previous, input, coronaryScratchWorkspace, nonCoronaryScratchWorkspace, previousAcceptedNumericalSource) {
   validateAcceptedTuple(previous);
   requirePositiveFinite$c(input.dtSec, "dtSec");
   const prior = input.coronaryPrior ?? MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2;
@@ -16066,7 +16110,7 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input, coronaryScrat
         });
       }
     })
-  });
+  }, previousAcceptedNumericalSource);
   const circulationTrial = attachEvaluationCountersV2(
     rawCirculationTrial,
     evaluationCounters
@@ -17423,7 +17467,7 @@ function maximumMainWireFiveWallCoronaryStepDurationFromValidatedStateV3(state) 
     state.acceptedTimeSec
   );
 }
-function stepMainWireFiveWallCoronaryV3(provider, previous, input, coronaryScratchWorkspace, nonCoronaryScratchWorkspace) {
+function stepMainWireFiveWallCoronaryV3(provider, previous, input, coronaryScratchWorkspace, nonCoronaryScratchWorkspace, previousAcceptedNumericalSource) {
   const basePrevious = validatedMainWireFiveWallCoronaryBaseStateV2(previous);
   const maximumDtSec = maximumMainWireFiveWallCoronaryStepDurationFromValidatedStateV3(
     previous
@@ -17439,7 +17483,8 @@ function stepMainWireFiveWallCoronaryV3(provider, previous, input, coronaryScrat
     basePrevious,
     input,
     coronaryScratchWorkspace,
-    nonCoronaryScratchWorkspace
+    nonCoronaryScratchWorkspace,
+    previousAcceptedNumericalSource
   );
   if (baseStep.converged === false) {
     return Object.freeze({
@@ -24714,7 +24759,7 @@ function limitMainWireIntegratedModelCandidateTimeFromValidatedStateV3(previous,
     coronaryWindowAndRhythmBoundaryTie: boundaryTime !== null && boundaryTime === coronaryCappedEndTimeSec && coronaryWindowMaximumStepSec <= requestedStepSec + tolerance
   });
 }
-function stepMainWireIntegratedModelV3(provider, previous, input, coronaryScratchWorkspace, nonCoronaryScratchWorkspace) {
+function stepMainWireIntegratedModelV3(provider, previous, input, coronaryScratchWorkspace, nonCoronaryScratchWorkspace, previousAcceptedNumericalSource) {
   let candidateTimeLimit;
   let composedRhythmCandidate;
   let coronaryStep;
@@ -24777,7 +24822,8 @@ function stepMainWireIntegratedModelV3(provider, previous, input, coronaryScratc
         dynamicMechanicalSupport
       },
       coronaryScratchWorkspace,
-      nonCoronaryScratchWorkspace
+      nonCoronaryScratchWorkspace,
+      previousAcceptedNumericalSource
     );
     if (coronaryStep.converged === false) {
       return failure(
@@ -34252,7 +34298,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-15";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-16";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

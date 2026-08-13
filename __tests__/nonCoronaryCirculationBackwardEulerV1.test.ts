@@ -11,6 +11,7 @@ import {
 import {
   NON_CORONARY_CIRCULATION_SCOPE_V1,
   NON_CORONARY_CIRCULATION_UNITS_V1,
+  NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
   NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
   NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
   NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
@@ -32,6 +33,7 @@ import {
   type NonCoronaryChamberPressuresMmHgV1,
   type NonCoronaryCirculationAcceptedStateV1,
   type NonCoronaryCirculationRuntimeParamsV1,
+  type NonCoronaryAcceptedNumericalSourceV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import { initialMainWireQuasiSteadyOrificeValveStateV2 } from
   "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
@@ -242,6 +244,77 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       ...input,
       scratchWorkspace: structuredClone(workspace),
     })).toThrow(/scratch workspace is foreign/);
+  });
+
+  it("admits an exact typed numerical source and rejects scalar divergence before solving", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    let readCount = 0;
+    const source = Object.freeze({
+      sourceId: NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
+      readInto(
+        nodeVolumesMl: Float64Array,
+        dynamicEdgeFlowsMlPerSec: Float64Array,
+        valveOpeningFractions01: Float64Array,
+      ) {
+        readCount += 1;
+        NON_CORONARY_NODE_NAMES_V1.forEach((name, index) => {
+          nodeVolumesMl[index] = initial.nodeVolumesMl[name];
+        });
+        NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.forEach((name, index) => {
+          dynamicEdgeFlowsMlPerSec[index] =
+            initial.dynamicEdgeFlowsMlPerSec[name];
+        });
+        NON_CORONARY_VALVE_NAMES_V1.forEach((name, index) => {
+          valveOpeningFractions01[index] =
+            initial.valveStates[name].leafletOpeningFraction01;
+        });
+        return Object.freeze({
+          revision: initial.revision,
+          acceptedTimeSec: initial.acceptedTimeSec,
+          totalBloodVolumeMl: initial.totalBloodVolumeMl,
+        });
+      },
+    }) satisfies NonCoronaryAcceptedNumericalSourceV1;
+    const input = Object.freeze({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics:
+        coupledElasticMechanicsCallback(initial, true),
+      scratchWorkspace: createNonCoronaryBackwardEulerScratchWorkspaceV1(),
+    });
+    const sourced = evaluateNonCoronaryCirculationBackwardEulerTrialV1(
+      input,
+      source,
+    );
+    const baseline = evaluateNonCoronaryCirculationBackwardEulerTrialV1(input);
+    expect(sourced).toEqual(baseline);
+    expect(readCount).toBe(1);
+
+    const divergent = Object.freeze({
+      ...source,
+      readInto(
+        nodeVolumesMl: Float64Array,
+        dynamicEdgeFlowsMlPerSec: Float64Array,
+        valveOpeningFractions01: Float64Array,
+      ) {
+        const header = source.readInto(
+          nodeVolumesMl,
+          dynamicEdgeFlowsMlPerSec,
+          valveOpeningFractions01,
+        );
+        nodeVolumesMl[0] += 1;
+        return header;
+      },
+    }) satisfies NonCoronaryAcceptedNumericalSourceV1;
+    expect(() => evaluateNonCoronaryCirculationBackwardEulerTrialV1(
+      input,
+      divergent,
+    )).toThrow(/LV volume diverged/);
   });
 
   it("keeps all competent main-wire valves non-regurgitant under adverse gradients", () => {
