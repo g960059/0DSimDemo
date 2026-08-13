@@ -19,6 +19,9 @@ import {
   type MainWireIntegratedModelStepResultV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import type {
+  NonCoronaryAcceptedNumericalSourceV1,
+} from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+import type {
   MainWireFiveWallFreeCalciumDriveV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import type {
@@ -36,6 +39,11 @@ export const MAIN_WIRE_INTEGRATED_COUPLED_STEP_V1_ID =
 
 export type MainWireIntegratedCoupledStepOptionsV1<TWallState> = Readonly<{
   solver?: MainWireFiveWallCoupledNewtonShadowOptionsV1;
+  /**
+   * Live read seam over the admitted typed image. The component solver
+   * compares every value exactly with its rollback object before use.
+   */
+  previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1;
   /**
    * Synchronous migration seam into the global inactive typed image. The
    * borrow is context-owned and must not escape this callback.
@@ -80,6 +88,7 @@ export function stepMainWireIntegratedModelCoupledV1<TWallState>(
         provider,
         mainWireFiveWallCoronaryBaseStateV2(coronaryPrevious),
         baseInput as MainWireFiveWallCoronaryStepInputV2,
+        options.previousAcceptedNumericalSource,
       );
       const solver = solveMainWireFiveWallCoupledNewtonShadowV1(
         context,

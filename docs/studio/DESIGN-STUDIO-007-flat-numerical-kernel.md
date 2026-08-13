@@ -1170,6 +1170,25 @@ The next deletion boundary is preparation of the following coupled context
 from the active global typed image, followed by lazy public materialization at
 observation, checkpoint, capture, or explicit full-invariant audit boundaries.
 
+That preparation boundary now has two narrower construction seams. The
+non-coronary evaluator reads the accepted clock, TBV, volumes, dynamic flows,
+and valve openings directly from the active typed image, then requires exact
+agreement with the still-present rollback object before solving. The coronary
+evaluator snapshots accepted volumes, tone, disease, collapse, and topology
+once per accepted step and owns one reusable hydraulic page. An exactly
+identical candidate-volume/boundary tuple therefore shares one hydraulic
+evaluation between residual and analytic-linearization assembly; mutable
+scratch never escapes the opaque evaluator. Canonical trials and admitted
+state continue through the existing component finalizers.
+
+These seams reduce repeated validation and hydraulic reconstruction, but they
+are not independently performance-positive at one patch. A local lean profile
+after both changes measured about `0.941 ms/tick`, overlapping the preceding
+`0.934 ms/tick` reference. Their value is ownership and scaling: the next
+ordinary-tick path can prepare from the sole typed authority and stage a
+converged root without reviving public accepted state. Until that path removes
+public finalization, no runtime speedup is claimed.
+
 The first trajectory optimization uses only **admitted** 30-volume roots to
 predict the next Newton seed. The first eligible step uses a first-order
 accepted displacement. Once three accepted roots exist, the selected policy

@@ -1387,6 +1387,7 @@ export function prepareNonCoronaryCandidateEvaluatorV1<
   TCompanionTrial = never,
 >(
   input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+  previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
 ): NonCoronaryPreparedCandidateEvaluatorV1<TEvaluation, TCompanionTrial> {
   validateAcceptedState(input.previousAcceptedState);
   requirePositive(input.dtSec, "dtSec");
@@ -1413,7 +1414,7 @@ export function prepareNonCoronaryCandidateEvaluatorV1<
   const previous = stagePreviousAcceptedNumericalStateV1(
     input.previousAcceptedState,
     null,
-    undefined,
+    previousAcceptedNumericalSource,
   );
   const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
   const respiratoryExternalPressures = respiratoryExternalPressuresV1(

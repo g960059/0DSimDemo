@@ -227,6 +227,31 @@ export type CoronaryBackwardEulerCandidateLinearizationDestinationV2 =
     dCommonVenousOutletFlowDBoundary: Float64Array;
   }>;
 
+export const CORONARY_PREPARED_COUPLED_EVALUATOR_V2_ID =
+  "circleheart-coronary-prepared-coupled-evaluator-v2" as const;
+
+/**
+ * Opaque, one-accepted-step evaluator for the global coupled solver. It owns
+ * one mutable hydraulic page and may reuse it only for an exactly identical
+ * candidate-volume/boundary tuple. Accepted state never aliases that page.
+ */
+export type CoronaryPreparedCoupledEvaluatorV2 = Readonly<{
+  schemaId: typeof CORONARY_PREPARED_COUPLED_EVALUATOR_V2_ID;
+  nodeCount: number;
+}>;
+
+export type CoronaryPreparedCoupledEvaluatorReportV2 = Readonly<{
+  hydraulicEvaluationCount: number;
+  exactCandidateCacheHitCount: number;
+}>;
+
+export type CoronaryPreparedCoupledEvaluatorInputV2 = Readonly<{
+  dtSec: number;
+  disease?: CoronaryDiseaseInputV2;
+  collapseHydraulics?: CoronaryCollapseHydraulicsPriorV2;
+  solverOptions?: Partial<CoronaryBackwardEulerSolverOptionsV2>;
+}>;
+
 export type CoronaryImplicitBoundaryDirectionV2 = Readonly<{
   /** Positive central-difference half step in the caller's scaled variable. */
   scaledStep: number;
@@ -457,10 +482,33 @@ type MutableHydraulicEvaluationV2 = {
   focalStenosisLoss: number[];
 };
 
+type CoronaryPreparedCoupledEvaluatorStorageV2 = {
+  readonly previousVolumesMl: Float64Array;
+  readonly toneResistanceScaleByTerritoryLayer: CoronaryToneStateV2;
+  readonly dtSec: number;
+  readonly disease: CoronaryDiseaseInputV2;
+  readonly collapseHydraulics: CoronaryCollapseHydraulicsPriorV2;
+  readonly minimumVolumeFractionOfReference: number;
+  readonly topology: CoronaryTopologyV2;
+  readonly topologyPlan: CompiledCoronaryTopologyPlanV2;
+  readonly edgeIndexById: Readonly<Record<CoronaryEdgeIdV2, number>>;
+  readonly hydraulics: MutableHydraulicEvaluationV2;
+  readonly cachedCandidateVolumesMl: Float64Array;
+  readonly cachedBoundary: Float64Array;
+  cacheValid: boolean;
+  hydraulicEvaluationCount: number;
+  exactCandidateCacheHitCount: number;
+};
+
+const CORONARY_PREPARED_COUPLED_EVALUATOR_STORAGE_V2 =
+  new WeakMap<object, CoronaryPreparedCoupledEvaluatorStorageV2>();
+
 type ResidualEvaluationV2 = Readonly<{
   residual: number[];
   hydraulics: MutableHydraulicEvaluationV2;
 }>;
+
+type CoronaryNumericalVectorV2 = readonly number[] | Float64Array;
 
 type MutableDenseLinearFactorizationV2 = {
   upper: number[][];
@@ -894,6 +942,397 @@ export function materializeCoronaryBackwardEulerCandidateTrialV2(
  * seam; accepted state and public diagnostics continue to use the canonical
  * probe/trial APIs.
  */
+export function prepareCoronaryCoupledCandidateEvaluatorV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryPreparedCoupledEvaluatorInputV2,
+  prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+): CoronaryPreparedCoupledEvaluatorV2 {
+  validateAcceptedStateV2(previousAcceptedState, topology);
+  validateCoronaryTopologyV2(topology);
+  if (!Number.isFinite(input.dtSec) || input.dtSec <= 0) {
+    throw new RangeError("prepared coronary V2 dt must be positive and finite");
+  }
+  const disease = copyCoronaryDiseaseInputV2(
+    input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
+  );
+  const collapseHydraulics = copyCoronaryCollapseHydraulicsV2(
+    input.collapseHydraulics
+      ?? buildCoronaryCollapseHydraulicsPriorV2(topology),
+  );
+  const options = resolveSolverOptionsV2(input.solverOptions);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const edgeIndexById = buildCoronaryEdgeIndexV2(topology);
+  const handle = Object.freeze({
+    schemaId: CORONARY_PREPARED_COUPLED_EVALUATOR_V2_ID,
+    nodeCount: topology.nodes.length,
+  }) satisfies CoronaryPreparedCoupledEvaluatorV2;
+  CORONARY_PREPARED_COUPLED_EVALUATOR_STORAGE_V2.set(handle, {
+    previousVolumesMl: Float64Array.from(
+      volumeRecordToArrayV2(previousAcceptedState.volumeMlByNode),
+    ),
+    toneResistanceScaleByTerritoryLayer: copyCoronaryToneStateV2(
+      previousAcceptedState.toneResistanceScaleByTerritoryLayer,
+    ),
+    dtSec: input.dtSec,
+    disease,
+    collapseHydraulics,
+    minimumVolumeFractionOfReference:
+      options.minimumVolumeFractionOfReference,
+    topology,
+    topologyPlan: compileCoronaryTopologyPlanV2(topology),
+    edgeIndexById,
+    hydraulics: createMutableHydraulicEvaluationV2(topology, edgeIndexById),
+    cachedCandidateVolumesMl: new Float64Array(topology.nodes.length),
+    cachedBoundary: new Float64Array(
+      CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length,
+    ),
+    cacheValid: false,
+    hydraulicEvaluationCount: 0,
+    exactCandidateCacheHitCount: 0,
+  });
+  return handle;
+}
+
+export function writePreparedCoronaryCoupledCandidateResidualV2(
+  evaluator: CoronaryPreparedCoupledEvaluatorV2,
+  boundary: CoronaryHydraulicBoundaryInputV2,
+  candidateVolumesMl: Float64Array,
+  destinationResidualMl: Float64Array,
+  destinationBoundaryFlowMlPerSec: Float64Array,
+  destinationAutoregulationHydraulics?: Float64Array,
+): void {
+  const storage = preparedCoupledEvaluatorStorageV2(evaluator);
+  requireTypedLengthV2(
+    destinationResidualMl,
+    storage.topology.nodes.length,
+    "destinationResidualMl",
+  );
+  requireTypedLengthV2(
+    destinationBoundaryFlowMlPerSec,
+    CORONARY_BOUNDARY_FLOW_OBSERVABLE_IDS_V2.length,
+    "destinationBoundaryFlowMlPerSec",
+  );
+  if (destinationAutoregulationHydraulics !== undefined) {
+    requireTypedLengthV2(
+      destinationAutoregulationHydraulics,
+      CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
+      "destinationAutoregulationHydraulics",
+    );
+  }
+  const hydraulics = evaluatePreparedCoronaryHydraulicsV2(
+    storage,
+    boundary,
+    candidateVolumesMl,
+  );
+  writePreparedCoronaryResidualV2(
+    storage,
+    candidateVolumesMl,
+    hydraulics,
+    destinationResidualMl,
+  );
+  writePreparedCoronaryBoundaryFlowsV2(
+    hydraulics,
+    destinationBoundaryFlowMlPerSec,
+  );
+  if (destinationAutoregulationHydraulics !== undefined) {
+    writePreparedCoronaryAutoregulationHydraulicsV2(
+      hydraulics,
+      destinationAutoregulationHydraulics,
+    );
+  }
+}
+
+export function writePreparedCoronaryCoupledCandidateLinearizationV2(
+  evaluator: CoronaryPreparedCoupledEvaluatorV2,
+  boundary: CoronaryHydraulicBoundaryInputV2,
+  candidateVolumesMl: Float64Array,
+  destination: CoronaryBackwardEulerCandidateLinearizationDestinationV2,
+): void {
+  const storage = preparedCoupledEvaluatorStorageV2(evaluator);
+  const dimension = storage.topology.nodes.length;
+  const boundaryDimension =
+    CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+  requireTypedLengthV2(destination.residualMl, dimension, "residualMl");
+  requireTypedLengthV2(
+    destination.dResidualDVolume,
+    dimension * dimension,
+    "dResidualDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dResidualDBoundary,
+    dimension * boundaryDimension,
+    "dResidualDBoundary",
+  );
+  requireTypedLengthV2(
+    destination.dTotalInletFlowDVolume,
+    dimension,
+    "dTotalInletFlowDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dCommonVenousOutletFlowDVolume,
+    dimension,
+    "dCommonVenousOutletFlowDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dTotalInletFlowDBoundary,
+    boundaryDimension,
+    "dTotalInletFlowDBoundary",
+  );
+  requireTypedLengthV2(
+    destination.dCommonVenousOutletFlowDBoundary,
+    boundaryDimension,
+    "dCommonVenousOutletFlowDBoundary",
+  );
+  const hydraulics = evaluatePreparedCoronaryHydraulicsV2(
+    storage,
+    boundary,
+    candidateVolumesMl,
+  );
+  writePreparedCoronaryResidualV2(
+    storage,
+    candidateVolumesMl,
+    hydraulics,
+    destination.residualMl,
+  );
+  analyticSparseCoronaryVolumeJacobianV2(
+    candidateVolumesMl,
+    hydraulics,
+    storage.dtSec,
+    storage.topology,
+    storage.collapseHydraulics,
+    undefined,
+    destination.dTotalInletFlowDVolume,
+    destination.dCommonVenousOutletFlowDVolume,
+    destination.dResidualDVolume,
+  );
+  writeAnalyticCoronaryBoundaryColumnsV2(
+    hydraulics,
+    storage.dtSec,
+    storage.topology,
+    destination.dResidualDBoundary,
+    destination.dTotalInletFlowDBoundary,
+    destination.dCommonVenousOutletFlowDBoundary,
+  );
+}
+
+export function inspectPreparedCoronaryCoupledEvaluatorV2(
+  evaluator: CoronaryPreparedCoupledEvaluatorV2,
+): CoronaryPreparedCoupledEvaluatorReportV2 {
+  const storage = preparedCoupledEvaluatorStorageV2(evaluator);
+  return Object.freeze({
+    hydraulicEvaluationCount: storage.hydraulicEvaluationCount,
+    exactCandidateCacheHitCount: storage.exactCandidateCacheHitCount,
+  });
+}
+
+function preparedCoupledEvaluatorStorageV2(
+  evaluator: CoronaryPreparedCoupledEvaluatorV2,
+): CoronaryPreparedCoupledEvaluatorStorageV2 {
+  if (
+    evaluator.schemaId !== CORONARY_PREPARED_COUPLED_EVALUATOR_V2_ID
+    || evaluator.nodeCount !== CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length
+  ) {
+    throw new TypeError("prepared coronary coupled evaluator is unsupported");
+  }
+  const storage = CORONARY_PREPARED_COUPLED_EVALUATOR_STORAGE_V2.get(
+    evaluator,
+  );
+  if (storage === undefined) {
+    throw new TypeError("prepared coronary coupled evaluator is foreign");
+  }
+  return storage;
+}
+
+function evaluatePreparedCoronaryHydraulicsV2(
+  storage: CoronaryPreparedCoupledEvaluatorStorageV2,
+  boundary: CoronaryHydraulicBoundaryInputV2,
+  candidateVolumesMl: Float64Array,
+): MutableHydraulicEvaluationV2 {
+  requireTypedLengthV2(
+    candidateVolumesMl,
+    storage.topology.nodes.length,
+    "candidateVolumesMl",
+  );
+  validateBoundaryV2(boundary);
+  validateVolumesV2(
+    candidateVolumesMl,
+    storage.topology,
+    storage.minimumVolumeFractionOfReference,
+  );
+  let same = storage.cacheValid;
+  for (let index = 0; same && index < candidateVolumesMl.length; index += 1) {
+    same = Object.is(
+      candidateVolumesMl[index],
+      storage.cachedCandidateVolumesMl[index],
+    );
+  }
+  same = same && coronaryBoundaryMatchesPackedV2(
+    boundary,
+    storage.cachedBoundary,
+  );
+  if (same) {
+    storage.exactCandidateCacheHitCount += 1;
+    return storage.hydraulics;
+  }
+  evaluateHydraulicsInternalV2(
+    candidateVolumesMl,
+    storage.toneResistanceScaleByTerritoryLayer,
+    boundary,
+    storage.disease,
+    storage.topology,
+    storage.edgeIndexById,
+    storage.collapseHydraulics,
+    storage.hydraulics,
+    storage.topologyPlan,
+  );
+  storage.cachedCandidateVolumesMl.set(candidateVolumesMl);
+  writeCoronaryBoundaryIntoPackedV2(boundary, storage.cachedBoundary);
+  storage.cacheValid = true;
+  storage.hydraulicEvaluationCount += 1;
+  return storage.hydraulics;
+}
+
+function writePreparedCoronaryResidualV2(
+  storage: CoronaryPreparedCoupledEvaluatorStorageV2,
+  candidateVolumesMl: Float64Array,
+  hydraulics: MutableHydraulicEvaluationV2,
+  destinationResidualMl: Float64Array,
+): void {
+  for (let index = 0; index < candidateVolumesMl.length; index += 1) {
+    destinationResidualMl[index] = candidateVolumesMl[index]!
+      - storage.previousVolumesMl[index]!;
+  }
+  accumulateFlowContinuityV2(
+    destinationResidualMl,
+    hydraulics.flowByEdge,
+    storage.dtSec,
+    storage.topology,
+    storage.topologyPlan,
+  );
+}
+
+function writePreparedCoronaryBoundaryFlowsV2(
+  hydraulics: MutableHydraulicEvaluationV2,
+  destination: Float64Array,
+): void {
+  let totalInletFlowMlPerSec = 0;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    totalInletFlowMlPerSec += hydraulics.flowByEdge[
+      hydraulics.edgeIndexById[`Ao_${territoryId}.Art`]
+    ]!;
+  }
+  destination[0] = totalInletFlowMlPerSec;
+  destination[1] = hydraulics.flowByEdge[
+    hydraulics.edgeIndexById.CV_RA
+  ]!;
+}
+
+function writePreparedCoronaryAutoregulationHydraulicsV2(
+  hydraulics: MutableHydraulicEvaluationV2,
+  destination: Float64Array,
+): void {
+  let observableIndex = 0;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      destination[observableIndex++] = hydraulics.flowByEdge[
+        hydraulics.edgeIndexById[
+          `${territoryId}.IM.Art.${layerId}_${territoryId}.IM.Ven.${layerId}`
+        ]
+      ]!;
+    }
+  }
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    destination[observableIndex++] = hydraulics.postLesionPressure[
+      territoryIndexV2(territoryId)
+    ]!;
+  }
+  destination[observableIndex] = hydraulics.pressureByNode[
+    hydraulicPressureIndexV2("CV")
+  ]!;
+}
+
+function coronaryBoundaryMatchesPackedV2(
+  boundary: CoronaryHydraulicBoundaryInputV2,
+  values: Float64Array,
+): boolean {
+  if (
+    !Object.is(values[0], boundary.absoluteAorticPressureMmHg)
+    || !Object.is(values[1], boundary.absoluteRightAtrialPressureMmHg)
+    || !Object.is(values[2], boundary.perivascularExternalPressureMmHg)
+  ) return false;
+  let index = 3;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      if (!Object.is(
+        values[index++],
+        boundary.intramyocardialPressureMmHgByTerritoryLayer[territoryId][
+          layerId
+        ],
+      )) return false;
+    }
+  }
+  return true;
+}
+
+function writeCoronaryBoundaryIntoPackedV2(
+  boundary: CoronaryHydraulicBoundaryInputV2,
+  values: Float64Array,
+): void {
+  values[0] = boundary.absoluteAorticPressureMmHg;
+  values[1] = boundary.absoluteRightAtrialPressureMmHg;
+  values[2] = boundary.perivascularExternalPressureMmHg;
+  let index = 3;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      values[index++] = boundary
+        .intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId];
+    }
+  }
+}
+
+function copyCoronaryToneStateV2(
+  tone: CoronaryToneStateV2,
+): CoronaryToneStateV2 {
+  return territoryLayerRecordV2(
+    (territoryId, layerId) => tone[territoryId][layerId],
+  );
+}
+
+function copyCoronaryDiseaseInputV2(
+  disease: CoronaryDiseaseInputV2,
+): CoronaryDiseaseInputV2 {
+  return Object.freeze(Object.fromEntries(
+    CORONARY_TERRITORY_IDS_V2.map((territoryId) => {
+      const territory = disease[territoryId];
+      return [territoryId, Object.freeze({
+        focalStenosisAdditionalLinearResistanceMmHgSecPerMl:
+          territory.focalStenosisAdditionalLinearResistanceMmHgSecPerMl,
+        focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2:
+          territory.focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2,
+        layers: Object.freeze(Object.fromEntries(
+          CORONARY_LAYER_IDS_V2.map((layerId) => [
+            layerId,
+            Object.freeze({ ...territory.layers[layerId] }),
+          ]),
+        )),
+      })];
+    }),
+  )) as CoronaryDiseaseInputV2;
+}
+
+function copyCoronaryCollapseHydraulicsV2(
+  collapse: CoronaryCollapseHydraulicsPriorV2,
+): CoronaryCollapseHydraulicsPriorV2 {
+  return Object.freeze({
+    ...collapse,
+    hydraulicAreaReferenceVolumeMlByNode: Object.freeze({
+      ...collapse.hydraulicAreaReferenceVolumeMlByNode,
+    }),
+  });
+}
+
 export function writeCoronaryBackwardEulerCandidateResidualV2(
   previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
   input: CoronaryBackwardEulerTrialInputV2,
@@ -2061,7 +2500,7 @@ export class CoronaryBackwardEulerTransactionV2 {
 }
 
 function evaluateHydraulicsInternalV2(
-  volumes: readonly number[],
+  volumes: CoronaryNumericalVectorV2,
   tone: CoronaryToneStateV2,
   boundary: CoronaryHydraulicBoundaryInputV2,
   disease: CoronaryDiseaseInputV2,
@@ -2452,7 +2891,7 @@ function accumulateFlowContinuityV2(
  * pattern. Collapse resistance tangents can add only an edge endpoint column.
  */
 function analyticSparseCoronaryVolumeJacobianV2(
-  candidate: readonly number[],
+  candidate: CoronaryNumericalVectorV2,
   hydraulics: MutableHydraulicEvaluationV2,
   dtSec: number,
   topology: CoronaryTopologyV2,
@@ -2462,7 +2901,7 @@ function analyticSparseCoronaryVolumeJacobianV2(
   dCommonVenousOutletFlowDVolumeDestination?: Float64Array,
 ): number[][];
 function analyticSparseCoronaryVolumeJacobianV2(
-  candidate: readonly number[],
+  candidate: CoronaryNumericalVectorV2,
   hydraulics: MutableHydraulicEvaluationV2,
   dtSec: number,
   topology: CoronaryTopologyV2,
@@ -2473,7 +2912,7 @@ function analyticSparseCoronaryVolumeJacobianV2(
   rowMajorDestination: Float64Array,
 ): null;
 function analyticSparseCoronaryVolumeJacobianV2(
-  candidate: readonly number[],
+  candidate: CoronaryNumericalVectorV2,
   hydraulics: MutableHydraulicEvaluationV2,
   dtSec: number,
   topology: CoronaryTopologyV2,
@@ -3190,14 +3629,15 @@ function validateAcceptedStateV2(
 }
 
 function validateVolumesV2(
-  volumes: readonly number[],
+  volumes: CoronaryNumericalVectorV2,
   topology: CoronaryTopologyV2,
   minimumReferenceFraction: number,
 ): void {
   if (volumes.length !== CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length) {
     throw new RangeError("coronary V2 state must own exactly sixteen volumes");
   }
-  volumes.forEach((volume, index) => {
+  for (let index = 0; index < volumes.length; index += 1) {
+    const volume = volumes[index]!;
     const minimum = topology.nodes[index].pressureVolume.referenceVolumeMl
       * minimumReferenceFraction;
     if (!Number.isFinite(volume) || volume <= minimum) {
@@ -3205,7 +3645,7 @@ function validateVolumesV2(
         `${CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]} volume is outside positive domain`,
       );
     }
-  });
+  }
 }
 
 function validateTrialInputV2(input: CoronaryBackwardEulerTrialInputV2): void {

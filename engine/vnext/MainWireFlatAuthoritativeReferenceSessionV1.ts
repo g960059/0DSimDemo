@@ -606,6 +606,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             stepInput,
             this.#coupledNewtonWorkspace,
             Object.freeze({
+              previousAcceptedNumericalSource:
+                this.#nonCoronaryAcceptedNumericalSource ?? undefined,
               onConvergedCandidate: (candidateBorrow) => {
                 if (
                   directCandidateCursor === null

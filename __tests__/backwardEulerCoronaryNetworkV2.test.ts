@@ -26,11 +26,15 @@ import {
   evaluateCoronaryHydraulicsV2,
   disableCoronaryCollapseHydraulicsV2,
   initializePressureLadderCoronaryStateV2,
+  inspectPreparedCoronaryCoupledEvaluatorV2,
   mapFocalDiameterStenosisV2,
   materializeCoronaryBackwardEulerCandidateTrialV2,
+  prepareCoronaryCoupledCandidateEvaluatorV2,
   solveCoronaryBackwardEulerTrialV2,
   writeCoronaryBackwardEulerCandidateResidualV2,
   writeCoronaryBackwardEulerCandidateLinearizationV2,
+  writePreparedCoronaryCoupledCandidateLinearizationV2,
+  writePreparedCoronaryCoupledCandidateResidualV2,
   type CoronaryAcceptedHydraulicStateV2,
   type CoronaryBackwardEulerTrialInputV2,
   type CoronaryBackwardEulerTrialV2,
@@ -595,6 +599,58 @@ describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
     expect(boundaryFlows[1]).toBe(
       probe.hydraulics.commonCoronaryVenousOutletFlowMlPerSec,
     );
+    const prepared = prepareCoronaryCoupledCandidateEvaluatorV2(
+      initialized.acceptedState,
+      input,
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      topology,
+    );
+    const candidateVolumes = Float64Array.from(
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map(
+        (nodeId) => trial.candidateAcceptedState.volumeMlByNode[nodeId],
+      ),
+    );
+    const preparedResidual = new Float64Array(residual.length);
+    const preparedBoundaryFlows = new Float64Array(2);
+    writePreparedCoronaryCoupledCandidateResidualV2(
+      prepared,
+      input.boundary,
+      candidateVolumes,
+      preparedResidual,
+      preparedBoundaryFlows,
+    );
+    expect(Array.from(preparedResidual)).toEqual(Array.from(residual));
+    expect(Array.from(preparedBoundaryFlows)).toEqual(
+      Array.from(boundaryFlows),
+    );
+    const preparedLinearization = candidateLinearizationDestination();
+    const canonicalLinearization = candidateLinearizationDestination();
+    writePreparedCoronaryCoupledCandidateLinearizationV2(
+      prepared,
+      input.boundary,
+      candidateVolumes,
+      preparedLinearization,
+    );
+    writeCoronaryBackwardEulerCandidateLinearizationV2(
+      initialized.acceptedState,
+      input,
+      trial.candidateAcceptedState.volumeMlByNode,
+      canonicalLinearization,
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      topology,
+    );
+    expect(preparedLinearization).toEqual(canonicalLinearization);
+    expect(inspectPreparedCoronaryCoupledEvaluatorV2(prepared)).toEqual({
+      hydraulicEvaluationCount: 1,
+      exactCandidateCacheHitCount: 1,
+    });
+    expect(() => writePreparedCoronaryCoupledCandidateResidualV2(
+      Object.freeze({ ...prepared }),
+      input.boundary,
+      candidateVolumes,
+      preparedResidual,
+      preparedBoundaryFlows,
+    )).toThrow(/foreign/);
     expect(() => writeCoronaryBackwardEulerCandidateResidualV2(
       initialized.acceptedState,
       input,

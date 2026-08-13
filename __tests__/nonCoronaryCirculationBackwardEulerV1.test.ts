@@ -969,7 +969,29 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       input,
       independentVolumes,
     );
-    const prepared = prepareNonCoronaryCandidateEvaluatorV1(input);
+    let typedReadCount = 0;
+    const source = Object.freeze({
+      sourceId: NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
+      readInto(destination) {
+        typedReadCount += 1;
+        NON_CORONARY_NODE_NAMES_V1.forEach((name, index) => {
+          destination.nodeVolumesMl[index] = fixture.state.nodeVolumesMl[name];
+        });
+        NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.forEach((name, index) => {
+          destination.dynamicEdgeFlowsMlPerSec[index] =
+            fixture.state.dynamicEdgeFlowsMlPerSec[name];
+        });
+        NON_CORONARY_VALVE_NAMES_V1.forEach((name, index) => {
+          destination.valveOpeningFractions01[index] = fixture.state
+            .valveStates[name].leafletOpeningFraction01;
+        });
+        destination.revision = fixture.state.revision;
+        destination.acceptedTimeSec = fixture.state.acceptedTimeSec;
+        destination.totalBloodVolumeMl = fixture.state.totalBloodVolumeMl;
+      },
+    }) satisfies NonCoronaryAcceptedNumericalSourceV1;
+    const prepared = prepareNonCoronaryCandidateEvaluatorV1(input, source);
+    expect(typedReadCount).toBe(1);
     const observed = withPreparedNonCoronaryCandidateV1(
       prepared,
       independentVolumes,
@@ -1030,6 +1052,17 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       independentVolumes,
       () => null,
     )).toThrow(/foreign/);
+
+    expect(() => prepareNonCoronaryCandidateEvaluatorV1(
+      input,
+      Object.freeze({
+        ...source,
+        readInto(destination) {
+          source.readInto(destination);
+          destination.dynamicEdgeFlowsMlPerSec[0] += 1;
+        },
+      }),
+    )).toThrow(/Ao_SA flow diverged/);
   });
 
   it("couples a pure same-candidate companion through the global TBV ledger and companion-aware commit", () => {

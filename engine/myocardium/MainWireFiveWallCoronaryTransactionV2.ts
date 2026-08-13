@@ -45,10 +45,13 @@ import {
   computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2,
   evaluateCoronaryBackwardEulerCandidateProbeV2,
   initializePressureLadderCoronaryStateV2,
+  prepareCoronaryCoupledCandidateEvaluatorV2,
   materializeCoronaryBackwardEulerCandidateTrialV2,
   solveCoronaryBackwardEulerTrialV2,
   writeCoronaryBackwardEulerCandidateResidualV2,
   writeCoronaryBackwardEulerCandidateLinearizationV2,
+  writePreparedCoronaryCoupledCandidateResidualV2,
+  writePreparedCoronaryCoupledCandidateLinearizationV2,
   type CoronaryAcceptedHydraulicStateV2,
   type CoronaryBackwardEulerScratchWorkspaceV2,
   type CoronaryBackwardEulerSolverOptionsV2,
@@ -877,6 +880,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
   >,
   previous: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
   input: MainWireFiveWallCoronaryStepInputV2,
+  previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
 ): MainWireFiveWallCoupledResidualContextV1<TWallState> {
   validateAcceptedTuple(previous);
   requirePositiveFinite(input.dtSec, "dtSec");
@@ -1030,6 +1034,20 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
   const coronaryAutoregulationHydraulicObservables = new Float64Array(
     CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
   );
+  const preparedCoronary = prepareCoronaryCoupledCandidateEvaluatorV2(
+    previous.coronary,
+    Object.freeze({
+      dtSec: input.dtSec,
+      disease: input.coronaryDisease ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
+      collapseHydraulics,
+      solverOptions: input.coronarySolverOptions,
+    }),
+    prior,
+    topology,
+  );
+  const candidateCoronaryVolumesMl = new Float64Array(
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length,
+  );
   let coronaryResidualAvailable = false;
   let candidateBoundary: CoronaryHydraulicBoundaryInputV2 | null = null;
   const preparedNonCoronary = prepareNonCoronaryCandidateEvaluatorV1({
@@ -1067,21 +1085,19 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           previous.mvcReferenceState.reference,
           shorteningImpPrior,
         );
-        writeCoronaryBackwardEulerCandidateResidualV2(
-          previous.coronary,
-          Object.freeze({
-            dtSec: input.dtSec,
-            boundary,
-            disease: input.coronaryDisease
-              ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
-            collapseHydraulics,
-            solverOptions: input.coronarySolverOptions,
-          }),
-          candidateCoronaryVolumes,
+        for (let index = 0;
+          index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+          index += 1) {
+          candidateCoronaryVolumesMl[index] = candidateCoronaryVolumes[
+            CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]!
+          ];
+        }
+        writePreparedCoronaryCoupledCandidateResidualV2(
+          preparedCoronary,
+          boundary,
+          candidateCoronaryVolumesMl,
           coronaryResidual,
           coronaryBoundaryFlowMlPerSec,
-          prior,
-          topology,
           coronaryAutoregulationHydraulicObservables,
         );
         coronaryResidualAvailable = true;
@@ -1100,7 +1116,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         });
       },
     }),
-  });
+  }, previousAcceptedNumericalSource);
   type CoupledNonCoronaryCandidateView = Readonly<{
     candidateTimeSec: number;
     nodeVolumesMl: Float64Array;
@@ -1668,20 +1684,19 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           localNonCoronaryLinearization,
         );
       }
-      writeCoronaryBackwardEulerCandidateLinearizationV2(
-        previous.coronary,
-        Object.freeze({
-          dtSec: input.dtSec,
-          boundary: candidate.boundary,
-          disease: input.coronaryDisease
-            ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
-          collapseHydraulics,
-          solverOptions: input.coronarySolverOptions,
-        }),
-        candidate.candidateCoronaryVolumes,
+      for (let index = 0;
+        index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+        index += 1) {
+        candidateCoronaryVolumesMl[index] =
+          candidate.candidateCoronaryVolumes[
+            CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]!
+          ];
+      }
+      writePreparedCoronaryCoupledCandidateLinearizationV2(
+        preparedCoronary,
+        candidate.boundary,
+        candidateCoronaryVolumesMl,
         coronaryDestination,
-        prior,
-        topology,
       );
       const probe = candidate.nonCoronaryProbe;
       const chamberTangent = probe.absoluteChamberPressureTangent;
