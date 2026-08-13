@@ -222,6 +222,7 @@ export type CoronaryBackwardEulerImplicitSensitivityRequestV2 = Readonly<{
   topology?: CoronaryTopologyV2;
   baseTrial: CoronaryBackwardEulerTrialV2;
   boundaryDirections: readonly CoronaryImplicitBoundaryDirectionV2[];
+  scratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2;
 }>;
 
 export type CoronaryPressureLadderInitializerOptionsV2 = Readonly<{
@@ -406,6 +407,30 @@ type ResidualEvaluationV2 = Readonly<{
   hydraulics: MutableHydraulicEvaluationV2;
 }>;
 
+type MutableDenseLinearFactorizationV2 = {
+  upper: number[][];
+  stages: Array<{
+    pivotRow: number;
+    factorByRow: number[];
+  }>;
+};
+
+function createSquareMatrixV2(size: number): number[][] {
+  return Array.from({ length: size }, () => Array<number>(size).fill(0));
+}
+
+function createMutableDenseLinearFactorizationV2(
+  size: number,
+): MutableDenseLinearFactorizationV2 {
+  return {
+    upper: createSquareMatrixV2(size),
+    stages: Array.from({ length: size }, () => ({
+      pivotRow: 0,
+      factorByRow: Array<number>(size).fill(0),
+    })),
+  };
+}
+
 /**
  * Opaque, session-owned scratch storage for repeated backward-Euler trials.
  *
@@ -425,6 +450,12 @@ type CoronaryBackwardEulerScratchStorageV2 = {
   readonly edgeIds: readonly CoronaryEdgeIdV2[];
   readonly previous: number[];
   readonly minimumVolumes: number[];
+  readonly jacobian: number[][];
+  readonly pressureDerivativeByVolume: number[];
+  readonly linearRhs: number[];
+  readonly linearFactorization: MutableDenseLinearFactorizationV2;
+  readonly transformedLinearRhs: number[];
+  readonly linearSolution: number[];
   readonly residualEvaluations: Array<{
     residual: number[];
     hydraulics: MutableHydraulicEvaluationV2;
@@ -455,6 +486,14 @@ export function createCoronaryBackwardEulerScratchWorkspaceV2(
     edgeIds: Object.freeze(topology.edges.map((edge) => edge.edgeId)),
     previous: Array<number>(topology.nodes.length).fill(0),
     minimumVolumes: Array<number>(topology.nodes.length).fill(0),
+    jacobian: createSquareMatrixV2(topology.nodes.length),
+    pressureDerivativeByVolume:
+      Array<number>(topology.nodes.length).fill(0),
+    linearRhs: Array<number>(topology.nodes.length).fill(0),
+    linearFactorization:
+      createMutableDenseLinearFactorizationV2(topology.nodes.length),
+    transformedLinearRhs: Array<number>(topology.nodes.length).fill(0),
+    linearSolution: Array<number>(topology.nodes.length).fill(0),
     residualEvaluations: [],
     residualEvaluationCursor: 0,
     inUse: false,
@@ -838,10 +877,17 @@ function solveCoronaryBackwardEulerTrialInternalV2(
       input.dtSec,
       topology,
       collapseHydraulics,
+      scratchStorage ?? undefined,
     );
+    const linearRhs = scratchStorage?.linearRhs
+      ?? Array<number>(evaluated.residual.length).fill(0);
+    for (let index = 0; index < evaluated.residual.length; index += 1) {
+      linearRhs[index] = -evaluated.residual[index];
+    }
     const step = solveDenseLinearSystemV2(
       jacobian,
-      evaluated.residual.map((value) => -value),
+      linearRhs,
+      scratchStorage ?? undefined,
     );
     const maximumStep = maximumPositiveStepV2(
       candidate,
@@ -928,6 +974,32 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
   const prior = request.prior ?? NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2;
   const topology = request.topology ?? buildCoronaryTopologyV2(prior);
   validateCoronaryTopologyV2(topology);
+  const scratchStorage = request.scratchWorkspace === undefined
+    ? null
+    : borrowCoronaryBackwardEulerScratchWorkspaceV2(
+      request.scratchWorkspace,
+      topology,
+    );
+  try {
+    return computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
+      request,
+      prior,
+      topology,
+      scratchStorage,
+    );
+  } finally {
+    if (scratchStorage !== null) {
+      releaseCoronaryBackwardEulerScratchWorkspaceV2(scratchStorage);
+    }
+  }
+}
+
+function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
+  request: CoronaryBackwardEulerImplicitSensitivityRequestV2,
+  prior: CoronaryTopologyPriorV2,
+  topology: CoronaryTopologyV2,
+  scratchStorage: CoronaryBackwardEulerScratchStorageV2 | null,
+): CoronaryBackwardEulerImplicitDirectionalSensitivitiesV2 {
   validateAcceptedStateV2(request.previousAcceptedState, topology);
   validateTrialInputV2(request.trialInput);
   if (request.boundaryDirections.length === 0) {
@@ -1008,6 +1080,13 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       topology,
       options.minimumVolumeFractionOfReference,
     );
+    const reusableEvaluation = scratchStorage === null
+      ? null
+      : nextCoronaryResidualEvaluationV2(
+        scratchStorage,
+        topology,
+        edgeIndex,
+      );
     const hydraulics = evaluateHydraulicsInternalV2(
       candidateVolumes,
       request.previousAcceptedState.toneResistanceScaleByTerritoryLayer,
@@ -1016,10 +1095,13 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       topology,
       edgeIndex,
       collapseHydraulics,
+      reusableEvaluation?.hydraulics,
     );
-    const residual = candidateVolumes.map(
-      (volume, index) => volume - previous[index],
-    );
+    const residual = reusableEvaluation?.residual
+      ?? Array<number>(candidateVolumes.length).fill(0);
+    for (let index = 0; index < candidateVolumes.length; index += 1) {
+      residual[index] = candidateVolumes[index] - previous[index];
+    }
     accumulateFlowContinuityV2(
       residual,
       hydraulics.flowByEdge,
@@ -1061,8 +1143,12 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       request.trialInput.dtSec,
       topology,
       collapseHydraulics,
+      scratchStorage ?? undefined,
     );
-    jacobianFactorization = factorDenseLinearSystemV2(jacobian);
+    jacobianFactorization = factorDenseLinearSystemV2(
+      jacobian,
+      scratchStorage?.linearFactorization,
+    );
   }
 
   for (
@@ -1092,9 +1178,16 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       dResidualDScaledVariable,
       "coronary boundary residual directional derivative",
     );
+    const linearRhs = scratchStorage?.linearRhs
+      ?? Array<number>(dResidualDScaledVariable.length).fill(0);
+    for (let index = 0; index < dResidualDScaledVariable.length; index += 1) {
+      linearRhs[index] = -dResidualDScaledVariable[index];
+    }
     const dVolume = solveFactoredDenseLinearSystemV2(
       jacobianFactorization,
-      dResidualDScaledVariable.map((value) => -value),
+      linearRhs,
+      scratchStorage?.transformedLinearRhs,
+      scratchStorage?.linearSolution,
     );
     implicitLinearSolveCount += 1;
     requireFiniteVectorV2(
@@ -1680,10 +1773,18 @@ function analyticSparseCoronaryVolumeJacobianV2(
   dtSec: number,
   topology: CoronaryTopologyV2,
   collapseHydraulics: CoronaryCollapseHydraulicsPriorV2,
+  scratchStorage?: CoronaryBackwardEulerScratchStorageV2,
 ): number[][] {
   const n = candidate.length;
-  const jacobian = Array.from({ length: n }, () => Array<number>(n).fill(0));
-  const dPressureDVolumeMmHgPerMl = topology.nodes.map((node, nodeIndex) => {
+  const jacobian = scratchStorage?.jacobian ?? createSquareMatrixV2(n);
+  if (jacobian.length !== n || jacobian.some((row) => row.length !== n)) {
+    throw new RangeError("coronary analytic Jacobian destination differs");
+  }
+  jacobian.forEach((row) => row.fill(0));
+  const dPressureDVolumeMmHgPerMl =
+    scratchStorage?.pressureDerivativeByVolume
+    ?? Array<number>(n).fill(0);
+  topology.nodes.forEach((node, nodeIndex) => {
     const compliance = evaluateCrefAnchoredCollapsiblePvV2(
       candidate[nodeIndex],
       node.pressureVolume,
@@ -1693,12 +1794,14 @@ function analyticSparseCoronaryVolumeJacobianV2(
         `${node.nodeId} coronary pressure-volume compliance is not positive and finite`,
       );
     }
-    return 1 / compliance;
+    dPressureDVolumeMmHgPerMl[nodeIndex] = 1 / compliance;
   });
   for (let diagonal = 0; diagonal < n; diagonal += 1) {
     jacobian[diagonal][diagonal] = 1;
   }
 
+  const flowNumeratorDerivativeColumn = Array<number>(n).fill(0);
+  const flowNumeratorDerivative = Array<number>(n).fill(0);
   topology.edges.forEach((edge, edgeIndex) => {
     const flow = hydraulics.flowByEdge[edgeIndex];
     const linearResistance = hydraulics.linearResistanceByEdge[edgeIndex];
@@ -1711,15 +1814,25 @@ function analyticSparseCoronaryVolumeJacobianV2(
         edge.edgeId,
       );
 
-    const flowNumeratorDerivativeByColumn = new Map<number, number>();
+    let flowNumeratorDerivativeCount = 0;
     const accumulateFlowNumeratorDerivative = (
       column: number,
       derivative: number,
     ): void => {
-      flowNumeratorDerivativeByColumn.set(
-        column,
-        (flowNumeratorDerivativeByColumn.get(column) ?? 0) + derivative,
-      );
+      let existingIndex = -1;
+      for (let index = 0; index < flowNumeratorDerivativeCount; index += 1) {
+        if (flowNumeratorDerivativeColumn[index] === column) {
+          existingIndex = index;
+          break;
+        }
+      }
+      if (existingIndex === -1) {
+        flowNumeratorDerivativeColumn[flowNumeratorDerivativeCount] = column;
+        flowNumeratorDerivative[flowNumeratorDerivativeCount] = derivative;
+        flowNumeratorDerivativeCount += 1;
+      } else {
+        flowNumeratorDerivative[existingIndex] += derivative;
+      }
     };
     if (isConservedNodeV2(edge.upstreamNodeId)) {
       const column = CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId];
@@ -1782,12 +1895,13 @@ function analyticSparseCoronaryVolumeJacobianV2(
     const downstreamRow = isConservedNodeV2(edge.downstreamNodeId)
       ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
       : null;
-    for (
-      const [column, flowNumeratorDerivative]
-      of flowNumeratorDerivativeByColumn
-    ) {
+    for (let derivativeIndex = 0;
+      derivativeIndex < flowNumeratorDerivativeCount;
+      derivativeIndex += 1) {
+      const column = flowNumeratorDerivativeColumn[derivativeIndex];
       const dFlowDVolume =
-        flowNumeratorDerivative / dPressureLossDFlowMmHgSecPerMl;
+        flowNumeratorDerivative[derivativeIndex]
+        / dPressureLossDFlowMmHgSecPerMl;
       if (upstreamRow !== null) {
         jacobian[upstreamRow][column] += dtSec * dFlowDVolume;
       }
@@ -2046,10 +2160,16 @@ function lineSearchV2(
 function solveDenseLinearSystemV2(
   matrix: readonly (readonly number[])[],
   rhs: readonly number[],
+  scratchStorage?: CoronaryBackwardEulerScratchStorageV2,
 ): number[] {
   return solveFactoredDenseLinearSystemV2(
-    factorDenseLinearSystemV2(matrix),
+    factorDenseLinearSystemV2(
+      matrix,
+      scratchStorage?.linearFactorization,
+    ),
     rhs,
+    scratchStorage?.transformedLinearRhs,
+    scratchStorage?.linearSolution,
   );
 }
 
@@ -2068,16 +2188,26 @@ type DenseLinearFactorizationV2 = Readonly<{
  */
 function factorDenseLinearSystemV2(
   matrix: readonly (readonly number[])[],
+  destination?: MutableDenseLinearFactorizationV2,
 ): DenseLinearFactorizationV2 {
   const n = matrix.length;
-  const upper = matrix.map((row) => row.slice());
-  const stages: Array<{
-    pivotRow: number;
-    factorByRow: number[];
-  }> = [];
+  const factorization = destination
+    ?? createMutableDenseLinearFactorizationV2(n);
+  const { upper, stages } = factorization;
+  if (
+    upper.length !== n
+    || upper.some((row) => row.length !== n)
+    || stages.length !== n
+    || stages.some((stage) => stage.factorByRow.length !== n)
+  ) {
+    throw new RangeError("coronary V2 factorization destination differs");
+  }
   for (let row = 0; row < n; row += 1) {
-    if (upper[row]!.length !== n) {
+    if (matrix[row]!.length !== n) {
       throw new RangeError("coronary V2 linear system matrix must be square");
+    }
+    for (let column = 0; column < n; column += 1) {
+      upper[row]![column] = matrix[row]![column]!;
     }
   }
   for (let column = 0; column < n; column += 1) {
@@ -2095,7 +2225,10 @@ function factorDenseLinearSystemV2(
       );
     }
     [upper[column], upper[pivotRow]] = [upper[pivotRow]!, upper[column]!];
-    const factorByRow = Array<number>(n).fill(0);
+    const stage = stages[column]!;
+    stage.pivotRow = pivotRow;
+    const factorByRow = stage.factorByRow;
+    factorByRow.fill(0);
     for (let row = column + 1; row < n; row += 1) {
       const factor = upper[row]![column]! / upper[column]![column]!;
       factorByRow[row] = factor;
@@ -2104,14 +2237,15 @@ function factorDenseLinearSystemV2(
         upper[row]![j] -= factor * upper[column]![j]!;
       }
     }
-    stages.push({ pivotRow, factorByRow });
   }
-  return { upper, stages };
+  return factorization;
 }
 
 function solveFactoredDenseLinearSystemV2(
   factorization: DenseLinearFactorizationV2,
   rhs: readonly number[],
+  transformedRhsDestination?: number[],
+  solutionDestination?: number[],
 ): number[] {
   const n = rhs.length;
   if (
@@ -2122,7 +2256,16 @@ function solveFactoredDenseLinearSystemV2(
       "coronary V2 factorization and right-hand side dimensions differ",
     );
   }
-  const transformedRhs = rhs.slice();
+  const transformedRhs = transformedRhsDestination ?? Array<number>(n).fill(0);
+  const solution = solutionDestination ?? Array<number>(n).fill(0);
+  if (transformedRhs.length !== n || solution.length !== n) {
+    throw new RangeError(
+      "coronary V2 linear solution destination dimensions differ",
+    );
+  }
+  for (let index = 0; index < n; index += 1) {
+    transformedRhs[index] = rhs[index]!;
+  }
   for (let column = 0; column < n; column += 1) {
     const stage = factorization.stages[column]!;
     [transformedRhs[column], transformedRhs[stage.pivotRow]] =
@@ -2131,7 +2274,7 @@ function solveFactoredDenseLinearSystemV2(
       transformedRhs[row] -= stage.factorByRow[row]! * transformedRhs[column]!;
     }
   }
-  const solution = Array<number>(n).fill(0);
+  solution.fill(0);
   for (let row = n - 1; row >= 0; row -= 1) {
     let value = transformedRhs[row]!;
     for (let column = row + 1; column < n; column += 1) {

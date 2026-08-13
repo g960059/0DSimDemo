@@ -463,11 +463,14 @@ Only frozen copied trial data can leave the solve. Foreign handles, concurrent
 reuse, and a different node/edge order fail closed. Twelve evolving pressure
 boundaries are required to match the allocation-owning solver bit-for-bit, and
 previously returned trials must remain unchanged after later workspace reuse.
-A local 2,048-tick coronary-only diagnostic measured about `0.055 ms/tick`
-with the workspace versus `0.058 ms/tick` without it (`0.95x`). This is an
-allocation-control foundation for solver-owned typed state, not a claimed
-Workbench speedup; whole-transaction timing remains dominated by repeated
-coupled Newton work.
+A later local 2,048-tick coronary-only diagnostic, after adding reusable
+Jacobian, LU, and implicit-sensitivity right-hand-side storage, measured
+`0.054–0.055 ms/tick` with the workspace versus about `0.061 ms/tick`
+without it (`0.88–0.90x`). Three paired full lean-tier reference runs moved
+from `2.17–2.23 ms/tick` without this Session resource to
+`2.15–2.18 ms/tick` with it. This is an allocation-control foundation for
+solver-owned typed state, not a claimed Workbench speedup; whole-transaction
+timing remains dominated by repeated coupled Newton work.
 
 The generic image also admits a generation-bound candidate cursor. Beginning a
 candidate copies current bytes once into the inactive image; direct fixed

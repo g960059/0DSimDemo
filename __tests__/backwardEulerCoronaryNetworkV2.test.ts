@@ -419,6 +419,15 @@ describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
         baseTrial,
         boundaryDirections: directions,
       });
+    const workspaceImplicit =
+      computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2({
+        previousAcceptedState: initialized.acceptedState,
+        trialInput: baseInput,
+        baseTrial,
+        boundaryDirections: directions,
+        scratchWorkspace: createCoronaryBackwardEulerScratchWorkspaceV2(),
+      });
+    expect(workspaceImplicit).toEqual(implicit);
     const companionShape: NonCoronaryConservativeCompanionSensitivitiesV1 =
       implicit.conservativeCompanionSensitivities;
     expect(companionShape

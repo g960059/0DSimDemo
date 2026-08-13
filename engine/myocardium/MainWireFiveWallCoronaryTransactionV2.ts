@@ -760,6 +760,7 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
             topology,
             baseTrial: coronaryTrial,
             boundaryDirections,
+            scratchWorkspace: coronaryScratchWorkspace,
           });
         if (
           evaluationCounters !== null
