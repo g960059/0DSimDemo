@@ -4031,6 +4031,21 @@ function evaluateCrefAnchoredCollapsiblePvV2(volumeMl, prior) {
     complianceMlPerMmHg: prior.referenceVolumeMl / dPressureDNormalizedVolume
   });
 }
+function evaluateCrefAnchoredCollapsiblePressureV2(volumeMl, prior) {
+  if (!Number.isFinite(volumeMl) || volumeMl <= 0) {
+    throw new RangeError("volumeMl must be positive and finite");
+  }
+  const normalizedVolume = volumeMl / prior.referenceVolumeMl;
+  return prior.pressureScaleMmHg * (normalizedVolume ** prior.expansionExponent - normalizedVolume ** -prior.collapseExponent);
+}
+function evaluateCrefAnchoredCollapsibleComplianceV2(volumeMl, prior) {
+  if (!Number.isFinite(volumeMl) || volumeMl <= 0) {
+    throw new RangeError("volumeMl must be positive and finite");
+  }
+  const normalizedVolume = volumeMl / prior.referenceVolumeMl;
+  const dPressureDNormalizedVolume = prior.pressureScaleMmHg * (prior.expansionExponent * normalizedVolume ** (prior.expansionExponent - 1) + prior.collapseExponent * normalizedVolume ** (-prior.collapseExponent - 1));
+  return prior.referenceVolumeMl / dPressureDNormalizedVolume;
+}
 function invertCrefAnchoredCollapsiblePvV2(transmuralPressureMmHg, prior) {
   if (!Number.isFinite(transmuralPressureMmHg)) {
     throw new RangeError("transmuralPressureMmHg must be finite");
@@ -9520,37 +9535,48 @@ function requireInteger(value, label) {
   }
   return value;
 }
-function evaluateVolumeDependentCoronaryResistanceV1(volumeMl, prior) {
-  validateVolumeDependentCoronaryResistancePriorV1(prior);
-  if (!Number.isFinite(volumeMl) || volumeMl < 0) {
-    throw new RangeError("hydraulic vascular volume must be non-negative and finite");
-  }
-  const normalizedVolume = volumeMl / prior.referenceVolumeMl;
+function evaluateVolumeDependentCoronaryResistanceScaleV1(volumeMl, referenceVolumeMl, residualHydraulicAreaFraction) {
+  validateVolumeDependentCoronaryResistanceScalarsV1(
+    volumeMl,
+    referenceVolumeMl,
+    residualHydraulicAreaFraction
+  );
+  const normalizedVolume = volumeMl / referenceVolumeMl;
   const x = Math.min(1, Math.max(0, normalizedVolume));
   const patentFraction01 = x * x * (3 - 2 * x);
-  const residualArea = prior.residualHydraulicAreaFraction;
-  const hydraulicAreaFraction = residualArea + (1 - residualArea) * patentFraction01;
+  const hydraulicAreaFraction = residualHydraulicAreaFraction + (1 - residualHydraulicAreaFraction) * patentFraction01;
+  return 1 / hydraulicAreaFraction ** 2;
+}
+function evaluateVolumeDependentCoronaryResistanceScaleIntoV1(volumeMl, referenceVolumeMl, residualHydraulicAreaFraction, destination) {
+  validateVolumeDependentCoronaryResistanceScalarsV1(
+    volumeMl,
+    referenceVolumeMl,
+    residualHydraulicAreaFraction
+  );
+  if (destination.length !== 2) {
+    throw new RangeError("collapse scalar destination must contain two slots");
+  }
+  const normalizedVolume = volumeMl / referenceVolumeMl;
+  const x = Math.min(1, Math.max(0, normalizedVolume));
+  const patentFraction01 = x * x * (3 - 2 * x);
+  const hydraulicAreaFraction = residualHydraulicAreaFraction + (1 - residualHydraulicAreaFraction) * patentFraction01;
   const resistanceScale = 1 / hydraulicAreaFraction ** 2;
   const dPatentFractionDx = normalizedVolume > 0 && normalizedVolume < 1 ? 6 * x * (1 - x) : 0;
-  const dScaleDx = dPatentFractionDx === 0 ? 0 : -2 * (1 - residualArea) * dPatentFractionDx / hydraulicAreaFraction ** 3;
-  const dResistanceDVolumeMmHgSecPerMl2 = prior.referenceResistanceMmHgSecPerMl * dScaleDx / prior.referenceVolumeMl;
-  const maximumResistanceScale = 1 / residualArea ** 2;
-  return Object.freeze({
-    resistanceMmHgSecPerMl: prior.referenceResistanceMmHgSecPerMl * resistanceScale,
-    resistanceScale,
-    dResistanceDVolumeMmHgSecPerMl2,
-    maximumResistanceScale
-  });
+  const dScaleDx = dPatentFractionDx === 0 ? 0 : -2 * (1 - residualHydraulicAreaFraction) * dPatentFractionDx / hydraulicAreaFraction ** 3;
+  destination[0] = resistanceScale;
+  destination[1] = dScaleDx / referenceVolumeMl;
 }
-function validateVolumeDependentCoronaryResistancePriorV1(prior) {
-  if (!Number.isFinite(prior.referenceResistanceMmHgSecPerMl) || prior.referenceResistanceMmHgSecPerMl <= 0) {
-    throw new RangeError("reference coronary resistance must be positive and finite");
+function validateVolumeDependentCoronaryResistanceScalarsV1(volumeMl, referenceVolumeMl, residualHydraulicAreaFraction) {
+  if (!Number.isFinite(volumeMl) || volumeMl < 0) {
+    throw new RangeError(
+      "hydraulic vascular volume must be non-negative and finite"
+    );
   }
-  if (!Number.isFinite(prior.referenceVolumeMl) || prior.referenceVolumeMl <= 0) {
-    throw new RangeError("reference hydraulic volume must be positive and finite");
+  if (!Number.isFinite(referenceVolumeMl) || referenceVolumeMl <= 0) {
+    throw new RangeError("hydraulic reference volume must be positive and finite");
   }
-  if (!Number.isFinite(prior.residualHydraulicAreaFraction) || prior.residualHydraulicAreaFraction <= 0 || prior.residualHydraulicAreaFraction >= 1) {
-    throw new RangeError("residual hydraulic area fraction must lie in (0, 1)");
+  if (!Number.isFinite(residualHydraulicAreaFraction) || residualHydraulicAreaFraction <= 0 || residualHydraulicAreaFraction > 1) {
+    throw new RangeError("residual hydraulic area fraction must lie in (0, 1]");
   }
 }
 const PASCAL_PER_MMHG_V1 = 133.322;
@@ -9709,6 +9735,17 @@ function evaluateSignedLinearQuadraticLossV1(flowMlPerSec, linearResistanceMmHgS
     dPressureLossDFlowMmHgSecPerMl: linearResistanceMmHgSecPerMl + 2 * quadraticResistanceMmHgSec2PerMl2 * Math.abs(flowMlPerSec),
     dissipatedPowerMmHgMlPerSec: pressureLossMmHg * flowMlPerSec
   });
+}
+function evaluateSignedLinearQuadraticPressureLossV1(flowMlPerSec, linearResistanceMmHgSecPerMl, quadraticResistanceMmHgSec2PerMl2) {
+  if (!Number.isFinite(flowMlPerSec)) {
+    throw new RangeError("flow must be finite");
+  }
+  if (!Number.isFinite(linearResistanceMmHgSecPerMl) || linearResistanceMmHgSecPerMl < 0 || !Number.isFinite(quadraticResistanceMmHgSec2PerMl2) || quadraticResistanceMmHgSec2PerMl2 < 0) {
+    throw new RangeError(
+      "linear and quadratic loss coefficients must be finite and non-negative"
+    );
+  }
+  return linearResistanceMmHgSecPerMl * flowMlPerSec + quadraticResistanceMmHgSec2PerMl2 * Math.abs(flowMlPerSec) * flowMlPerSec;
 }
 const NORMAL_VASODILATORY_TONE_MINIMUM_SCALE_V2 = 4 / 45;
 const NORMAL_CORONARY_TONE_MAXIMUM_SCALE_V2 = 2;
@@ -9982,7 +10019,8 @@ function solveCoronaryBackwardEulerTrialInternalV2(previousAcceptedState, input,
       topology,
       edgeIndex,
       collapseHydraulics,
-      reusableEvaluation?.hydraulics
+      reusableEvaluation?.hydraulics,
+      scratchStorage?.topologyPlan
     );
     const residual = reusableEvaluation?.residual ?? Array(candidate2.length).fill(0);
     for (let index = 0; index < candidate2.length; index += 1) {
@@ -9992,7 +10030,8 @@ function solveCoronaryBackwardEulerTrialInternalV2(previousAcceptedState, input,
       residual,
       hydraulics.flowByEdge,
       input.dtSec,
-      topology
+      topology,
+      scratchStorage?.topologyPlan
     );
     return { residual, hydraulics };
   };
@@ -10191,7 +10230,8 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
       topology,
       edgeIndex,
       collapseHydraulics,
-      reusableEvaluation?.hydraulics
+      reusableEvaluation?.hydraulics,
+      scratchStorage?.topologyPlan
     );
     const residual = reusableEvaluation?.residual ?? Array(candidateVolumes.length).fill(0);
     for (let index = 0; index < candidateVolumes.length; index += 1) {
@@ -10201,7 +10241,8 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
       residual,
       hydraulics.flowByEdge,
       request.trialInput.dtSec,
-      topology
+      topology,
+      scratchStorage?.topologyPlan
     );
     return { residual, hydraulics };
   };
@@ -10257,7 +10298,8 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
       base2.hydraulics,
       direction,
       request.trialInput.dtSec,
-      topology
+      topology,
+      scratchStorage ?? void 0
     );
     requireFiniteVectorV2(
       dResidualDScaledVariable,
@@ -10437,7 +10479,7 @@ class CoronaryBackwardEulerTransactionV2 {
     }
   }
 }
-function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology, edgeIndexById, collapseHydraulics, destination) {
+function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology, edgeIndexById, collapseHydraulics, destination, topologyPlan) {
   validateVolumesV2(volumes, topology, 0);
   const evaluated = destination ?? createMutableHydraulicEvaluationV2(topology, edgeIndexById);
   if (evaluated.pressureByNode.length !== HYDRAULIC_NODE_IDS_V2.length || evaluated.transmuralPressureByNode.length !== topology.nodes.length || evaluated.flowByEdge.length !== topology.edges.length || evaluated.linearResistanceByEdge.length !== topology.edges.length || evaluated.quadraticResistanceByEdge.length !== topology.edges.length || evaluated.dissipatedPowerByEdge.length !== topology.edges.length || evaluated.effectiveTone.length !== CORONARY_TERRITORY_IDS_V2.length || evaluated.effectiveTone.some((layers) => layers.length !== CORONARY_LAYER_IDS_V2.length) || evaluated.postLesionPressure.length !== CORONARY_TERRITORY_IDS_V2.length || evaluated.focalStenosisLoss.length !== CORONARY_TERRITORY_IDS_V2.length) {
@@ -10465,17 +10507,20 @@ function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology
   focalStenosisLoss.fill(0);
   pressureByNode[hydraulicPressureIndexV2("Ao")] = boundary.absoluteAorticPressureMmHg;
   pressureByNode[hydraulicPressureIndexV2("RA")] = boundary.absoluteRightAtrialPressureMmHg;
-  for (const node of topology.nodes) {
-    const nodeIndex = CANONICAL_NODE_INDEX_V2[node.nodeId];
-    const transmural = evaluateCrefAnchoredCollapsiblePvV2(
+  for (let nodeIndex = 0; nodeIndex < topology.nodes.length; nodeIndex += 1) {
+    const node = topology.nodes[nodeIndex];
+    const transmural = evaluateCrefAnchoredCollapsiblePressureV2(
       volumes[nodeIndex],
       node.pressureVolume
-    ).transmuralPressureMmHg;
+    );
     transmuralPressureByNode[nodeIndex] = transmural;
-    pressureByNode[hydraulicPressureIndexV2(node.nodeId)] = externalPressureForNodeV2(node, boundary) + transmural;
+    pressureByNode[1 + nodeIndex] = externalPressureForNodeV2(node, boundary) + transmural;
   }
-  for (const edge of topology.edges) {
-    const edgeIndex = edgeIndexById[edge.edgeId];
+  for (let topologyEdgeIndex = 0; topologyEdgeIndex < topology.edges.length; topologyEdgeIndex += 1) {
+    const edge = topology.edges[topologyEdgeIndex];
+    const edgeIndex = topologyPlan === void 0 ? edgeIndexById[edge.edgeId] : topologyEdgeIndex;
+    const upstreamConservedIndex = topologyPlan === void 0 ? isConservedNodeV2(edge.upstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId] : -1 : topologyPlan.upstreamConservedIndexByEdge[topologyEdgeIndex];
+    const downstreamConservedIndex = topologyPlan === void 0 ? isConservedNodeV2(edge.downstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId] : -1 : topologyPlan.downstreamConservedIndexByEdge[topologyEdgeIndex];
     let linearResistance = edge.referenceResistanceMmHgSecPerMl;
     let quadraticResistance = 0;
     if (edge.kind === "micro-proximal-arteriolar") {
@@ -10486,39 +10531,31 @@ function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology
         layerDisease.vasodilatoryToneMinimumResistanceScale
       );
       effectiveTone[territoryIndexV2(owner.territoryId)][layerIndexV2(owner.layerId)] = effective;
-      const c1Volume = volumes[CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]];
-      linearResistance *= effective * layerDisease.structuralR1ResistanceScale * collapseScaleForNodeV2(c1Volume, nodeByIdV2(
-        edge.downstreamNodeId,
-        topology
-      ), collapseHydraulics);
+      const c1Volume = volumes[downstreamConservedIndex];
+      linearResistance *= effective * layerDisease.structuralR1ResistanceScale * collapseScaleForNodeV2(
+        c1Volume,
+        topology.nodes[downstreamConservedIndex],
+        collapseHydraulics
+      );
     } else if (edge.kind === "micro-intermediate-capillary") {
       const owner = edge.structuralCmdOwner;
-      const upstreamNode = nodeByIdV2(
-        edge.upstreamNodeId,
-        topology
-      );
-      const downstreamNode = nodeByIdV2(
-        edge.downstreamNodeId,
-        topology
-      );
+      const upstreamNode = topology.nodes[upstreamConservedIndex];
+      const downstreamNode = topology.nodes[downstreamConservedIndex];
       const upstreamScale = collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[upstreamNode.nodeId]],
+        volumes[upstreamConservedIndex],
         upstreamNode,
         collapseHydraulics
       );
       const downstreamScale = collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[downstreamNode.nodeId]],
+        volumes[downstreamConservedIndex],
         downstreamNode,
         collapseHydraulics
       );
       linearResistance *= disease[owner.territoryId].layers[owner.layerId].structuralRmResistanceScale * Math.sqrt(upstreamScale * downstreamScale);
     } else if (edge.kind === "micro-distal-venular") {
-      const upstreamNode = nodeByIdV2(
-        edge.upstreamNodeId,
-        topology
-      );
+      const upstreamNode = topology.nodes[upstreamConservedIndex];
       linearResistance *= collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[upstreamNode.nodeId]],
+        volumes[upstreamConservedIndex],
         upstreamNode,
         collapseHydraulics
       );
@@ -10527,13 +10564,15 @@ function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology
       linearResistance += disease[territoryId].focalStenosisAdditionalLinearResistanceMmHgSecPerMl;
       quadraticResistance = disease[territoryId].focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2;
     }
-    const pressureDrop = pressureByNode[hydraulicPressureIndexV2(edge.upstreamNodeId)] - pressureByNode[hydraulicPressureIndexV2(edge.downstreamNodeId)];
+    const upstreamPressureIndex = topologyPlan === void 0 ? hydraulicPressureIndexV2(edge.upstreamNodeId) : topologyPlan.upstreamPressureIndexByEdge[topologyEdgeIndex];
+    const downstreamPressureIndex = topologyPlan === void 0 ? hydraulicPressureIndexV2(edge.downstreamNodeId) : topologyPlan.downstreamPressureIndexByEdge[topologyEdgeIndex];
+    const pressureDrop = pressureByNode[upstreamPressureIndex] - pressureByNode[downstreamPressureIndex];
     const flow = solveSignedLinearQuadraticFlowV2(
       pressureDrop,
       linearResistance,
       quadraticResistance
     );
-    const totalLoss = evaluateSignedLinearQuadraticLossV1(
+    const totalPressureLoss = evaluateSignedLinearQuadraticPressureLossV1(
       flow,
       linearResistance,
       quadraticResistance
@@ -10541,15 +10580,15 @@ function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology
     flowByEdge[edgeIndex] = flow;
     linearResistanceByEdge[edgeIndex] = linearResistance;
     quadraticResistanceByEdge[edgeIndex] = quadraticResistance;
-    dissipatedPowerByEdge[edgeIndex] = totalLoss.dissipatedPowerMmHgMlPerSec;
+    dissipatedPowerByEdge[edgeIndex] = totalPressureLoss * flow;
     if (edge.kind === "large-arterial") {
       const territoryId = edge.territoryId;
       const territoryIndex = territoryIndexV2(territoryId);
-      const focalLoss = evaluateSignedLinearQuadraticLossV1(
+      const focalLoss = evaluateSignedLinearQuadraticPressureLossV1(
         flow,
         disease[territoryId].focalStenosisAdditionalLinearResistanceMmHgSecPerMl,
         disease[territoryId].focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2
-      ).pressureLossMmHg;
+      );
       focalStenosisLoss[territoryIndex] = focalLoss;
       postLesionPressure[territoryIndex] = boundary.absoluteAorticPressureMmHg - focalLoss;
     }
@@ -10648,28 +10687,25 @@ function externalPressureForNodeV2(node, boundary) {
   return boundary.perivascularExternalPressureMmHg;
 }
 function collapseScaleForNodeV2(volumeMl, node, prior) {
-  return evaluateCollapseScaleAndDerivativeForNodeV2(
+  if (prior.mode === "disabled-mechanism-ablation") return 1;
+  return evaluateVolumeDependentCoronaryResistanceScaleV1(
     volumeMl,
-    node,
-    prior
-  ).resistanceScale;
+    prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
+    prior.residualHydraulicAreaFraction
+  );
 }
-function evaluateCollapseScaleAndDerivativeForNodeV2(volumeMl, node, prior) {
+function evaluateCollapseScaleAndDerivativeForNodeIntoV2(volumeMl, node, prior, destination) {
   if (prior.mode === "disabled-mechanism-ablation") {
-    return {
-      resistanceScale: 1,
-      dResistanceScaleDVolumePerMl: 0
-    };
+    destination[0] = 1;
+    destination[1] = 0;
+    return;
   }
-  const evaluated = evaluateVolumeDependentCoronaryResistanceV1(volumeMl, {
-    referenceResistanceMmHgSecPerMl: 1,
-    referenceVolumeMl: prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
-    residualHydraulicAreaFraction: prior.residualHydraulicAreaFraction
-  });
-  return {
-    resistanceScale: evaluated.resistanceScale,
-    dResistanceScaleDVolumePerMl: evaluated.dResistanceDVolumeMmHgSecPerMl2
-  };
+  evaluateVolumeDependentCoronaryResistanceScaleIntoV1(
+    volumeMl,
+    prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
+    prior.residualHydraulicAreaFraction,
+    destination
+  );
 }
 function nodeByIdV2(nodeId, topology) {
   const node = topology.nodes[CANONICAL_NODE_INDEX_V2[nodeId]];
@@ -10683,14 +10719,16 @@ function flowContinuityRateV2(flowByEdge, topology) {
   accumulateFlowContinuityV2(residual, flowByEdge, 1, topology);
   return residual;
 }
-function accumulateFlowContinuityV2(residual, flowByEdge, scale, topology) {
+function accumulateFlowContinuityV2(residual, flowByEdge, scale, topology, topologyPlan) {
   topology.edges.forEach((edge, edgeIndex) => {
     const flow = flowByEdge[edgeIndex];
-    if (isConservedNodeV2(edge.upstreamNodeId)) {
-      residual[CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]] += scale * flow;
+    const upstreamIndex = topologyPlan === void 0 ? isConservedNodeV2(edge.upstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId] : -1 : topologyPlan.upstreamConservedIndexByEdge[edgeIndex];
+    const downstreamIndex = topologyPlan === void 0 ? isConservedNodeV2(edge.downstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId] : -1 : topologyPlan.downstreamConservedIndexByEdge[edgeIndex];
+    if (upstreamIndex >= 0) {
+      residual[upstreamIndex] += scale * flow;
     }
-    if (isConservedNodeV2(edge.downstreamNodeId)) {
-      residual[CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]] -= scale * flow;
+    if (downstreamIndex >= 0) {
+      residual[downstreamIndex] -= scale * flow;
     }
   });
 }
@@ -10703,10 +10741,10 @@ function analyticSparseCoronaryVolumeJacobianV2(candidate, hydraulics, dtSec, to
   jacobian.forEach((row) => row.fill(0));
   const dPressureDVolumeMmHgPerMl = scratchStorage?.pressureDerivativeByVolume ?? Array(n).fill(0);
   topology.nodes.forEach((node, nodeIndex) => {
-    const compliance = evaluateCrefAnchoredCollapsiblePvV2(
+    const compliance = evaluateCrefAnchoredCollapsibleComplianceV2(
       candidate[nodeIndex],
       node.pressureVolume
-    ).complianceMlPerMmHg;
+    );
     if (!Number.isFinite(compliance) || compliance <= 0) {
       throw new Error(
         `${node.nodeId} coronary pressure-volume compliance is not positive and finite`
@@ -10717,8 +10755,9 @@ function analyticSparseCoronaryVolumeJacobianV2(candidate, hydraulics, dtSec, to
   for (let diagonal = 0; diagonal < n; diagonal += 1) {
     jacobian[diagonal][diagonal] = 1;
   }
-  const flowNumeratorDerivativeColumn = Array(n).fill(0);
-  const flowNumeratorDerivative = Array(n).fill(0);
+  const flowNumeratorDerivativeColumn = scratchStorage?.flowNumeratorDerivativeColumn ?? Array(n).fill(0);
+  const flowNumeratorDerivative = scratchStorage?.flowNumeratorDerivative ?? Array(n).fill(0);
+  const collapseScaleAndDerivative = scratchStorage?.collapseScaleAndDerivative ?? Array(2).fill(0);
   topology.edges.forEach((edge, edgeIndex) => {
     const flow = hydraulics.flowByEdge[edgeIndex];
     const linearResistance = hydraulics.linearResistanceByEdge[edgeIndex];
@@ -10746,28 +10785,31 @@ function analyticSparseCoronaryVolumeJacobianV2(candidate, hydraulics, dtSec, to
         flowNumeratorDerivative[existingIndex] += derivative;
       }
     };
-    if (isConservedNodeV2(edge.upstreamNodeId)) {
-      const column = CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId];
+    const upstreamConservedIndex = scratchStorage === void 0 ? isConservedNodeV2(edge.upstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId] : -1 : scratchStorage.topologyPlan.upstreamConservedIndexByEdge[edgeIndex];
+    const downstreamConservedIndex = scratchStorage === void 0 ? isConservedNodeV2(edge.downstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId] : -1 : scratchStorage.topologyPlan.downstreamConservedIndexByEdge[edgeIndex];
+    if (upstreamConservedIndex >= 0) {
+      const column = upstreamConservedIndex;
       accumulateFlowNumeratorDerivative(
         column,
         dPressureDVolumeMmHgPerMl[column]
       );
     }
-    if (isConservedNodeV2(edge.downstreamNodeId)) {
-      const column = CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId];
+    if (downstreamConservedIndex >= 0) {
+      const column = downstreamConservedIndex;
       accumulateFlowNumeratorDerivative(
         column,
         -dPressureDVolumeMmHgPerMl[column]
       );
     }
-    const accumulateCollapseResistanceDerivative = (nodeId, logarithmicResistanceFactor) => {
-      const column = CANONICAL_NODE_INDEX_V2[nodeId];
-      const collapse = evaluateCollapseScaleAndDerivativeForNodeV2(
+    const accumulateCollapseResistanceDerivative = (nodeIndex, logarithmicResistanceFactor) => {
+      const column = nodeIndex;
+      evaluateCollapseScaleAndDerivativeForNodeIntoV2(
         candidate[column],
-        nodeByIdV2(nodeId, topology),
-        collapseHydraulics
+        topology.nodes[nodeIndex],
+        collapseHydraulics,
+        collapseScaleAndDerivative
       );
-      const dLinearResistanceDVolume = logarithmicResistanceFactor * linearResistance * collapse.dResistanceScaleDVolumePerMl / collapse.resistanceScale;
+      const dLinearResistanceDVolume = logarithmicResistanceFactor * linearResistance * collapseScaleAndDerivative[1] / collapseScaleAndDerivative[0];
       accumulateFlowNumeratorDerivative(
         column,
         -flow * dLinearResistanceDVolume
@@ -10775,26 +10817,26 @@ function analyticSparseCoronaryVolumeJacobianV2(candidate, hydraulics, dtSec, to
     };
     if (edge.kind === "micro-proximal-arteriolar") {
       accumulateCollapseResistanceDerivative(
-        edge.downstreamNodeId,
+        downstreamConservedIndex,
         1
       );
     } else if (edge.kind === "micro-intermediate-capillary") {
       accumulateCollapseResistanceDerivative(
-        edge.upstreamNodeId,
+        upstreamConservedIndex,
         0.5
       );
       accumulateCollapseResistanceDerivative(
-        edge.downstreamNodeId,
+        downstreamConservedIndex,
         0.5
       );
     } else if (edge.kind === "micro-distal-venular") {
       accumulateCollapseResistanceDerivative(
-        edge.upstreamNodeId,
+        upstreamConservedIndex,
         1
       );
     }
-    const upstreamRow = isConservedNodeV2(edge.upstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId] : null;
-    const downstreamRow = isConservedNodeV2(edge.downstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId] : null;
+    const upstreamRow = upstreamConservedIndex >= 0 ? upstreamConservedIndex : null;
+    const downstreamRow = downstreamConservedIndex >= 0 ? downstreamConservedIndex : null;
     for (let derivativeIndex = 0; derivativeIndex < flowNumeratorDerivativeCount; derivativeIndex += 1) {
       const column = flowNumeratorDerivativeColumn[derivativeIndex];
       const dFlowDVolume = flowNumeratorDerivative[derivativeIndex] / dPressureLossDFlowMmHgSecPerMl;
@@ -10815,10 +10857,10 @@ function analyticCoronaryObservableDirectionalDerivativesV2(candidate, dVolume, 
   const boundaryDerivative = centralCoronaryBoundaryDirectionalDerivativeV2(direction);
   const conservedNodeAbsolutePressureDerivative = (nodeId) => {
     const nodeIndex = CANONICAL_NODE_INDEX_V2[nodeId];
-    const compliance = evaluateCrefAnchoredCollapsiblePvV2(
+    const compliance = evaluateCrefAnchoredCollapsibleComplianceV2(
       candidate[nodeIndex],
       nodeByIdV2(nodeId, topology).pressureVolume
-    ).complianceMlPerMmHg;
+    );
     if (!Number.isFinite(compliance) || compliance <= 0) {
       throw new Error(
         `${nodeId} coronary pressure-volume compliance is not positive and finite`
@@ -10861,7 +10903,7 @@ function analyticCoronaryObservableDirectionalDerivativesV2(candidate, dVolume, 
     commonVenousOutletDerivative
   };
 }
-function analyticCoronaryBoundaryResidualDirectionalDerivativeV2(hydraulics, direction, dtSec, topology) {
+function analyticCoronaryBoundaryResidualDirectionalDerivativeV2(hydraulics, direction, dtSec, topology, scratchStorage) {
   const boundaryDerivative = centralCoronaryBoundaryDirectionalDerivativeV2(direction);
   const absolutePressureDerivative = (nodeId) => {
     if (nodeId === "Ao") {
@@ -10875,21 +10917,24 @@ function analyticCoronaryBoundaryResidualDirectionalDerivativeV2(hydraulics, dir
       boundaryDerivative
     );
   };
-  const flowDerivative = topology.edges.map((edge, edgeIndex) => {
+  const flowDerivative = scratchStorage?.boundaryFlowDerivative ?? Array(topology.edges.length).fill(0);
+  topology.edges.forEach((edge, edgeIndex) => {
     const pressureDropDerivative = absolutePressureDerivative(edge.upstreamNodeId) - absolutePressureDerivative(edge.downstreamNodeId);
-    return pressureDropDerivative / coronaryPressureFlowTangentV2(
+    flowDerivative[edgeIndex] = pressureDropDerivative / coronaryPressureFlowTangentV2(
       hydraulics.flowByEdge[edgeIndex],
       hydraulics.linearResistanceByEdge[edgeIndex],
       hydraulics.quadraticResistanceByEdge[edgeIndex],
       edge.edgeId
     );
   });
-  const residualDerivative = Array(topology.nodes.length).fill(0);
+  const residualDerivative = scratchStorage?.boundaryResidualDerivative ?? Array(topology.nodes.length).fill(0);
+  residualDerivative.fill(0);
   accumulateFlowContinuityV2(
     residualDerivative,
     flowDerivative,
     dtSec,
-    topology
+    topology,
+    scratchStorage?.topologyPlan
   );
   requireFiniteVectorV2(
     residualDerivative,
@@ -34424,7 +34469,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-22";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-23";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

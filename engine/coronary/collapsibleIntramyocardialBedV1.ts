@@ -109,6 +109,86 @@ export function evaluateVolumeDependentCoronaryResistanceV1(
   });
 }
 
+/**
+ * Scalar collapse projection for an already identified reference volume.
+ * This keeps the public diagnostic evaluator above intact while allowing a
+ * nonlinear residual probe to avoid allocating a prior and result record.
+ */
+export function evaluateVolumeDependentCoronaryResistanceScaleV1(
+  volumeMl: number,
+  referenceVolumeMl: number,
+  residualHydraulicAreaFraction: number,
+): number {
+  validateVolumeDependentCoronaryResistanceScalarsV1(
+    volumeMl,
+    referenceVolumeMl,
+    residualHydraulicAreaFraction,
+  );
+  const normalizedVolume = volumeMl / referenceVolumeMl;
+  const x = Math.min(1, Math.max(0, normalizedVolume));
+  const patentFraction01 = x * x * (3 - 2 * x);
+  const hydraulicAreaFraction = residualHydraulicAreaFraction
+    + (1 - residualHydraulicAreaFraction) * patentFraction01;
+  return 1 / (hydraulicAreaFraction ** 2);
+}
+
+/**
+ * Write the collapse scale and its volume derivative into caller-owned
+ * storage. Slots are `[resistanceScale, dResistanceScaleDVolumePerMl]`.
+ */
+export function evaluateVolumeDependentCoronaryResistanceScaleIntoV1(
+  volumeMl: number,
+  referenceVolumeMl: number,
+  residualHydraulicAreaFraction: number,
+  destination: number[],
+): void {
+  validateVolumeDependentCoronaryResistanceScalarsV1(
+    volumeMl,
+    referenceVolumeMl,
+    residualHydraulicAreaFraction,
+  );
+  if (destination.length !== 2) {
+    throw new RangeError("collapse scalar destination must contain two slots");
+  }
+  const normalizedVolume = volumeMl / referenceVolumeMl;
+  const x = Math.min(1, Math.max(0, normalizedVolume));
+  const patentFraction01 = x * x * (3 - 2 * x);
+  const hydraulicAreaFraction = residualHydraulicAreaFraction
+    + (1 - residualHydraulicAreaFraction) * patentFraction01;
+  const resistanceScale = 1 / (hydraulicAreaFraction ** 2);
+  const dPatentFractionDx = normalizedVolume > 0 && normalizedVolume < 1
+    ? 6 * x * (1 - x)
+    : 0;
+  const dScaleDx = dPatentFractionDx === 0
+    ? 0
+    : -2 * (1 - residualHydraulicAreaFraction) * dPatentFractionDx
+      / (hydraulicAreaFraction ** 3);
+  destination[0] = resistanceScale;
+  destination[1] = dScaleDx / referenceVolumeMl;
+}
+
+function validateVolumeDependentCoronaryResistanceScalarsV1(
+  volumeMl: number,
+  referenceVolumeMl: number,
+  residualHydraulicAreaFraction: number,
+): void {
+  if (!Number.isFinite(volumeMl) || volumeMl < 0) {
+    throw new RangeError(
+      "hydraulic vascular volume must be non-negative and finite",
+    );
+  }
+  if (!Number.isFinite(referenceVolumeMl) || referenceVolumeMl <= 0) {
+    throw new RangeError("hydraulic reference volume must be positive and finite");
+  }
+  if (
+    !Number.isFinite(residualHydraulicAreaFraction)
+    || residualHydraulicAreaFraction <= 0
+    || residualHydraulicAreaFraction > 1
+  ) {
+    throw new RangeError("residual hydraulic area fraction must lie in (0, 1]");
+  }
+}
+
 export function validateCollapsibleIntramyocardialPvPriorV1(
   prior: CollapsibleIntramyocardialPvPriorV1,
 ): void {

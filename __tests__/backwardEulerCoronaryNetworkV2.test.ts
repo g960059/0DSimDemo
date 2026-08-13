@@ -215,6 +215,46 @@ describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
     }
   });
 
+  it("compiles reordered edge incidence without changing repeated trials", () => {
+    const topology = reversedEdgeTopology();
+    const workspace = createCoronaryBackwardEulerScratchWorkspaceV2(topology);
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    let oracleState = initialized.acceptedState;
+    let workspaceState = initialized.acceptedState;
+
+    for (let stepIndex = 0; stepIndex < 8; stepIndex += 1) {
+      const boundary = Object.freeze({
+        ...DIASTOLIC_BOUNDARY_V2,
+        absoluteAorticPressureMmHg: 92 + 9 * Math.sin(stepIndex / 2),
+        absoluteRightAtrialPressureMmHg: 4.5 + 0.7 * Math.cos(stepIndex / 3),
+      });
+      const input = Object.freeze({
+        dtSec: 0.002,
+        boundary,
+        evaluationCounterCollection: "enabled" as const,
+      });
+      const oracle = solveCoronaryBackwardEulerTrialV2(
+        oracleState,
+        input,
+        NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+        topology,
+      );
+      const compiled = solveCoronaryBackwardEulerTrialV2(
+        workspaceState,
+        input,
+        NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+        topology,
+        workspace,
+      );
+
+      expect(compiled).toEqual(oracle);
+      oracleState = oracle.candidateAcceptedState;
+      workspaceState = compiled.candidateAcceptedState;
+    }
+  });
+
   it("rejects foreign or mismatched scratch and releases a workspace after failure", () => {
     const topology = buildCoronaryTopologyV2();
     const initialized = initializePressureLadderCoronaryStateV2({

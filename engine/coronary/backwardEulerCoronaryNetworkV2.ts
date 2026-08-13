@@ -1,5 +1,6 @@
 import {
-  evaluateVolumeDependentCoronaryResistanceV1,
+  evaluateVolumeDependentCoronaryResistanceScaleIntoV1,
+  evaluateVolumeDependentCoronaryResistanceScaleV1,
 } from "@/engine/coronary/collapsibleIntramyocardialBedV1";
 import {
   NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
@@ -7,7 +8,8 @@ import {
   coronaryConfigurationFingerprintV2,
   coronaryColdSeedBloodVolumeMlV2,
   coronaryTopologyPriorFingerprintV2,
-  evaluateCrefAnchoredCollapsiblePvV2,
+  evaluateCrefAnchoredCollapsibleComplianceV2,
+  evaluateCrefAnchoredCollapsiblePressureV2,
   initialCoronaryToneStateV2,
   invertCrefAnchoredCollapsiblePvV2,
   validateCoronaryTopologyV2,
@@ -29,6 +31,7 @@ import {
   type CoronaryToneStateV2,
 } from "@/engine/coronary/typesV2";
 import {
+  evaluateSignedLinearQuadraticPressureLossV1,
   evaluateSignedLinearQuadraticLossV1,
   mapYoungTsaiCoronaryStenosisV1,
   type YoungTsaiCoronaryStenosisGeometryV1,
@@ -415,6 +418,45 @@ type MutableDenseLinearFactorizationV2 = {
   }>;
 };
 
+type CompiledCoronaryTopologyPlanV2 = Readonly<{
+  upstreamPressureIndexByEdge: Int8Array;
+  downstreamPressureIndexByEdge: Int8Array;
+  upstreamConservedIndexByEdge: Int8Array;
+  downstreamConservedIndexByEdge: Int8Array;
+}>;
+
+function compileCoronaryTopologyPlanV2(
+  topology: CoronaryTopologyV2,
+): CompiledCoronaryTopologyPlanV2 {
+  const edgeCount = topology.edges.length;
+  const upstreamPressureIndexByEdge = new Int8Array(edgeCount);
+  const downstreamPressureIndexByEdge = new Int8Array(edgeCount);
+  const upstreamConservedIndexByEdge = new Int8Array(edgeCount);
+  const downstreamConservedIndexByEdge = new Int8Array(edgeCount);
+  upstreamConservedIndexByEdge.fill(-1);
+  downstreamConservedIndexByEdge.fill(-1);
+  topology.edges.forEach((edge, edgeIndex) => {
+    upstreamPressureIndexByEdge[edgeIndex] =
+      hydraulicPressureIndexV2(edge.upstreamNodeId);
+    downstreamPressureIndexByEdge[edgeIndex] =
+      hydraulicPressureIndexV2(edge.downstreamNodeId);
+    if (isConservedNodeV2(edge.upstreamNodeId)) {
+      upstreamConservedIndexByEdge[edgeIndex] =
+        CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId];
+    }
+    if (isConservedNodeV2(edge.downstreamNodeId)) {
+      downstreamConservedIndexByEdge[edgeIndex] =
+        CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId];
+    }
+  });
+  return Object.freeze({
+    upstreamPressureIndexByEdge,
+    downstreamPressureIndexByEdge,
+    upstreamConservedIndexByEdge,
+    downstreamConservedIndexByEdge,
+  });
+}
+
 function createSquareMatrixV2(size: number): number[][] {
   return Array.from({ length: size }, () => Array<number>(size).fill(0));
 }
@@ -448,10 +490,16 @@ export type CoronaryBackwardEulerScratchWorkspaceV2 = Readonly<{
 type CoronaryBackwardEulerScratchStorageV2 = {
   readonly nodeIds: readonly CoronaryConservedVolumeNodeIdV2[];
   readonly edgeIds: readonly CoronaryEdgeIdV2[];
+  readonly topologyPlan: CompiledCoronaryTopologyPlanV2;
   readonly previous: number[];
   readonly minimumVolumes: number[];
   readonly jacobian: number[][];
   readonly pressureDerivativeByVolume: number[];
+  readonly collapseScaleAndDerivative: number[];
+  readonly flowNumeratorDerivativeColumn: number[];
+  readonly flowNumeratorDerivative: number[];
+  readonly boundaryFlowDerivative: number[];
+  readonly boundaryResidualDerivative: number[];
   readonly linearRhs: number[];
   readonly linearFactorization: MutableDenseLinearFactorizationV2;
   readonly transformedLinearRhs: number[];
@@ -484,11 +532,18 @@ export function createCoronaryBackwardEulerScratchWorkspaceV2(
   CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2.set(workspace, {
     nodeIds: Object.freeze(topology.nodes.map((node) => node.nodeId)),
     edgeIds: Object.freeze(topology.edges.map((edge) => edge.edgeId)),
+    topologyPlan: compileCoronaryTopologyPlanV2(topology),
     previous: Array<number>(topology.nodes.length).fill(0),
     minimumVolumes: Array<number>(topology.nodes.length).fill(0),
     jacobian: createSquareMatrixV2(topology.nodes.length),
     pressureDerivativeByVolume:
       Array<number>(topology.nodes.length).fill(0),
+    collapseScaleAndDerivative: Array<number>(2).fill(0),
+    flowNumeratorDerivativeColumn:
+      Array<number>(topology.nodes.length).fill(0),
+    flowNumeratorDerivative: Array<number>(topology.nodes.length).fill(0),
+    boundaryFlowDerivative: Array<number>(topology.edges.length).fill(0),
+    boundaryResidualDerivative: Array<number>(topology.nodes.length).fill(0),
     linearRhs: Array<number>(topology.nodes.length).fill(0),
     linearFactorization:
       createMutableDenseLinearFactorizationV2(topology.nodes.length),
@@ -840,6 +895,7 @@ function solveCoronaryBackwardEulerTrialInternalV2(
       edgeIndex,
       collapseHydraulics,
       reusableEvaluation?.hydraulics,
+      scratchStorage?.topologyPlan,
     );
     const residual = reusableEvaluation?.residual
       ?? Array<number>(candidate.length).fill(0);
@@ -851,6 +907,7 @@ function solveCoronaryBackwardEulerTrialInternalV2(
       hydraulics.flowByEdge,
       input.dtSec,
       topology,
+      scratchStorage?.topologyPlan,
     );
     return { residual, hydraulics };
   };
@@ -1096,6 +1153,7 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
       edgeIndex,
       collapseHydraulics,
       reusableEvaluation?.hydraulics,
+      scratchStorage?.topologyPlan,
     );
     const residual = reusableEvaluation?.residual
       ?? Array<number>(candidateVolumes.length).fill(0);
@@ -1107,6 +1165,7 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
       hydraulics.flowByEdge,
       request.trialInput.dtSec,
       topology,
+      scratchStorage?.topologyPlan,
     );
     return { residual, hydraulics };
   };
@@ -1173,6 +1232,7 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
         direction,
         request.trialInput.dtSec,
         topology,
+        scratchStorage ?? undefined,
       );
     requireFiniteVectorV2(
       dResidualDScaledVariable,
@@ -1401,6 +1461,7 @@ function evaluateHydraulicsInternalV2(
   edgeIndexById: Readonly<Record<CoronaryEdgeIdV2, number>>,
   collapseHydraulics: CoronaryCollapseHydraulicsPriorV2,
   destination?: MutableHydraulicEvaluationV2,
+  topologyPlan?: CompiledCoronaryTopologyPlanV2,
 ): MutableHydraulicEvaluationV2 {
   validateVolumesV2(volumes, topology, 0);
   const evaluated = destination
@@ -1445,19 +1506,34 @@ function evaluateHydraulicsInternalV2(
     boundary.absoluteAorticPressureMmHg;
   pressureByNode[hydraulicPressureIndexV2("RA")] =
     boundary.absoluteRightAtrialPressureMmHg;
-  for (const node of topology.nodes) {
-    const nodeIndex = CANONICAL_NODE_INDEX_V2[node.nodeId];
-    const transmural = evaluateCrefAnchoredCollapsiblePvV2(
+  for (let nodeIndex = 0; nodeIndex < topology.nodes.length; nodeIndex += 1) {
+    const node = topology.nodes[nodeIndex];
+    const transmural = evaluateCrefAnchoredCollapsiblePressureV2(
       volumes[nodeIndex],
       node.pressureVolume,
-    ).transmuralPressureMmHg;
+    );
     transmuralPressureByNode[nodeIndex] = transmural;
-    pressureByNode[hydraulicPressureIndexV2(node.nodeId)] =
+    pressureByNode[1 + nodeIndex] =
       externalPressureForNodeV2(node, boundary) + transmural;
   }
 
-  for (const edge of topology.edges) {
-    const edgeIndex = edgeIndexById[edge.edgeId];
+  for (let topologyEdgeIndex = 0;
+    topologyEdgeIndex < topology.edges.length;
+    topologyEdgeIndex += 1) {
+    const edge = topology.edges[topologyEdgeIndex];
+    const edgeIndex = topologyPlan === undefined
+      ? edgeIndexById[edge.edgeId]
+      : topologyEdgeIndex;
+    const upstreamConservedIndex = topologyPlan === undefined
+      ? isConservedNodeV2(edge.upstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]
+        : -1
+      : topologyPlan.upstreamConservedIndexByEdge[topologyEdgeIndex];
+    const downstreamConservedIndex = topologyPlan === undefined
+      ? isConservedNodeV2(edge.downstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
+        : -1
+      : topologyPlan.downstreamConservedIndexByEdge[topologyEdgeIndex];
     let linearResistance = edge.referenceResistanceMmHgSecPerMl;
     let quadraticResistance = 0;
     if (edge.kind === "micro-proximal-arteriolar") {
@@ -1469,44 +1545,34 @@ function evaluateHydraulicsInternalV2(
       );
       effectiveTone[territoryIndexV2(owner.territoryId)][layerIndexV2(owner.layerId)] =
         effective;
-      const c1Volume = volumes[
-        CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2]
-      ];
+      const c1Volume = volumes[downstreamConservedIndex];
       linearResistance *= effective
         * layerDisease.structuralR1ResistanceScale
-        * collapseScaleForNodeV2(c1Volume, nodeByIdV2(
-          edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
-          topology,
-        ), collapseHydraulics);
+        * collapseScaleForNodeV2(
+          c1Volume,
+          topology.nodes[downstreamConservedIndex],
+          collapseHydraulics,
+        );
     } else if (edge.kind === "micro-intermediate-capillary") {
       const owner = edge.structuralCmdOwner!;
-      const upstreamNode = nodeByIdV2(
-        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
-        topology,
-      );
-      const downstreamNode = nodeByIdV2(
-        edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
-        topology,
-      );
+      const upstreamNode = topology.nodes[upstreamConservedIndex];
+      const downstreamNode = topology.nodes[downstreamConservedIndex];
       const upstreamScale = collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[upstreamNode.nodeId]],
+        volumes[upstreamConservedIndex],
         upstreamNode,
         collapseHydraulics,
       );
       const downstreamScale = collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[downstreamNode.nodeId]],
+        volumes[downstreamConservedIndex],
         downstreamNode,
         collapseHydraulics,
       );
       linearResistance *= disease[owner.territoryId].layers[owner.layerId]
         .structuralRmResistanceScale * Math.sqrt(upstreamScale * downstreamScale);
     } else if (edge.kind === "micro-distal-venular") {
-      const upstreamNode = nodeByIdV2(
-        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
-        topology,
-      );
+      const upstreamNode = topology.nodes[upstreamConservedIndex];
       linearResistance *= collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[upstreamNode.nodeId]],
+        volumes[upstreamConservedIndex],
         upstreamNode,
         collapseHydraulics,
       );
@@ -1517,15 +1583,20 @@ function evaluateHydraulicsInternalV2(
       quadraticResistance = disease[territoryId]
         .focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2;
     }
-    const pressureDrop =
-      pressureByNode[hydraulicPressureIndexV2(edge.upstreamNodeId)]
-      - pressureByNode[hydraulicPressureIndexV2(edge.downstreamNodeId)];
+    const upstreamPressureIndex = topologyPlan === undefined
+      ? hydraulicPressureIndexV2(edge.upstreamNodeId)
+      : topologyPlan.upstreamPressureIndexByEdge[topologyEdgeIndex];
+    const downstreamPressureIndex = topologyPlan === undefined
+      ? hydraulicPressureIndexV2(edge.downstreamNodeId)
+      : topologyPlan.downstreamPressureIndexByEdge[topologyEdgeIndex];
+    const pressureDrop = pressureByNode[upstreamPressureIndex]
+      - pressureByNode[downstreamPressureIndex];
     const flow = solveSignedLinearQuadraticFlowV2(
       pressureDrop,
       linearResistance,
       quadraticResistance,
     );
-    const totalLoss = evaluateSignedLinearQuadraticLossV1(
+    const totalPressureLoss = evaluateSignedLinearQuadraticPressureLossV1(
       flow,
       linearResistance,
       quadraticResistance,
@@ -1533,17 +1604,17 @@ function evaluateHydraulicsInternalV2(
     flowByEdge[edgeIndex] = flow;
     linearResistanceByEdge[edgeIndex] = linearResistance;
     quadraticResistanceByEdge[edgeIndex] = quadraticResistance;
-    dissipatedPowerByEdge[edgeIndex] = totalLoss.dissipatedPowerMmHgMlPerSec;
+    dissipatedPowerByEdge[edgeIndex] = totalPressureLoss * flow;
     if (edge.kind === "large-arterial") {
       const territoryId = edge.territoryId!;
       const territoryIndex = territoryIndexV2(territoryId);
-      const focalLoss = evaluateSignedLinearQuadraticLossV1(
+      const focalLoss = evaluateSignedLinearQuadraticPressureLossV1(
         flow,
         disease[territoryId]
           .focalStenosisAdditionalLinearResistanceMmHgSecPerMl,
         disease[territoryId]
           .focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2,
-      ).pressureLossMmHg;
+      );
       focalStenosisLoss[territoryIndex] = focalLoss;
       postLesionPressure[territoryIndex] =
         boundary.absoluteAorticPressureMmHg - focalLoss;
@@ -1690,37 +1761,31 @@ function collapseScaleForNodeV2(
   node: CoronaryConservedVolumeNodeSpecV2,
   prior: CoronaryCollapseHydraulicsPriorV2,
 ): number {
-  return evaluateCollapseScaleAndDerivativeForNodeV2(
+  if (prior.mode === "disabled-mechanism-ablation") return 1;
+  return evaluateVolumeDependentCoronaryResistanceScaleV1(
     volumeMl,
-    node,
-    prior,
-  ).resistanceScale;
+    prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
+    prior.residualHydraulicAreaFraction,
+  );
 }
 
-function evaluateCollapseScaleAndDerivativeForNodeV2(
+function evaluateCollapseScaleAndDerivativeForNodeIntoV2(
   volumeMl: number,
   node: CoronaryConservedVolumeNodeSpecV2,
   prior: CoronaryCollapseHydraulicsPriorV2,
-): Readonly<{
-  resistanceScale: number;
-  dResistanceScaleDVolumePerMl: number;
-}> {
+  destination: number[],
+): void {
   if (prior.mode === "disabled-mechanism-ablation") {
-    return {
-      resistanceScale: 1,
-      dResistanceScaleDVolumePerMl: 0,
-    };
+    destination[0] = 1;
+    destination[1] = 0;
+    return;
   }
-  const evaluated = evaluateVolumeDependentCoronaryResistanceV1(volumeMl, {
-    referenceResistanceMmHgSecPerMl: 1,
-    referenceVolumeMl: prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
-    residualHydraulicAreaFraction: prior.residualHydraulicAreaFraction,
-  });
-  return {
-    resistanceScale: evaluated.resistanceScale,
-    dResistanceScaleDVolumePerMl:
-      evaluated.dResistanceDVolumeMmHgSecPerMl2,
-  };
+  evaluateVolumeDependentCoronaryResistanceScaleIntoV1(
+    volumeMl,
+    prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
+    prior.residualHydraulicAreaFraction,
+    destination,
+  );
 }
 
 function nodeByIdV2(
@@ -1748,14 +1813,25 @@ function accumulateFlowContinuityV2(
   flowByEdge: readonly number[],
   scale: number,
   topology: CoronaryTopologyV2,
+  topologyPlan?: CompiledCoronaryTopologyPlanV2,
 ): void {
   topology.edges.forEach((edge, edgeIndex) => {
     const flow = flowByEdge[edgeIndex];
-    if (isConservedNodeV2(edge.upstreamNodeId)) {
-      residual[CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]] += scale * flow;
+    const upstreamIndex = topologyPlan === undefined
+      ? isConservedNodeV2(edge.upstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]
+        : -1
+      : topologyPlan.upstreamConservedIndexByEdge[edgeIndex];
+    const downstreamIndex = topologyPlan === undefined
+      ? isConservedNodeV2(edge.downstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
+        : -1
+      : topologyPlan.downstreamConservedIndexByEdge[edgeIndex];
+    if (upstreamIndex >= 0) {
+      residual[upstreamIndex] += scale * flow;
     }
-    if (isConservedNodeV2(edge.downstreamNodeId)) {
-      residual[CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]] -= scale * flow;
+    if (downstreamIndex >= 0) {
+      residual[downstreamIndex] -= scale * flow;
     }
   });
 }
@@ -1785,10 +1861,10 @@ function analyticSparseCoronaryVolumeJacobianV2(
     scratchStorage?.pressureDerivativeByVolume
     ?? Array<number>(n).fill(0);
   topology.nodes.forEach((node, nodeIndex) => {
-    const compliance = evaluateCrefAnchoredCollapsiblePvV2(
+    const compliance = evaluateCrefAnchoredCollapsibleComplianceV2(
       candidate[nodeIndex],
       node.pressureVolume,
-    ).complianceMlPerMmHg;
+    );
     if (!Number.isFinite(compliance) || compliance <= 0) {
       throw new Error(
         `${node.nodeId} coronary pressure-volume compliance is not positive and finite`,
@@ -1800,8 +1876,13 @@ function analyticSparseCoronaryVolumeJacobianV2(
     jacobian[diagonal][diagonal] = 1;
   }
 
-  const flowNumeratorDerivativeColumn = Array<number>(n).fill(0);
-  const flowNumeratorDerivative = Array<number>(n).fill(0);
+  const flowNumeratorDerivativeColumn =
+    scratchStorage?.flowNumeratorDerivativeColumn
+    ?? Array<number>(n).fill(0);
+  const flowNumeratorDerivative = scratchStorage?.flowNumeratorDerivative
+    ?? Array<number>(n).fill(0);
+  const collapseScaleAndDerivative =
+    scratchStorage?.collapseScaleAndDerivative ?? Array<number>(2).fill(0);
   topology.edges.forEach((edge, edgeIndex) => {
     const flow = hydraulics.flowByEdge[edgeIndex];
     const linearResistance = hydraulics.linearResistanceByEdge[edgeIndex];
@@ -1834,15 +1915,25 @@ function analyticSparseCoronaryVolumeJacobianV2(
         flowNumeratorDerivative[existingIndex] += derivative;
       }
     };
-    if (isConservedNodeV2(edge.upstreamNodeId)) {
-      const column = CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId];
+    const upstreamConservedIndex = scratchStorage === undefined
+      ? isConservedNodeV2(edge.upstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]
+        : -1
+      : scratchStorage.topologyPlan.upstreamConservedIndexByEdge[edgeIndex];
+    const downstreamConservedIndex = scratchStorage === undefined
+      ? isConservedNodeV2(edge.downstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
+        : -1
+      : scratchStorage.topologyPlan.downstreamConservedIndexByEdge[edgeIndex];
+    if (upstreamConservedIndex >= 0) {
+      const column = upstreamConservedIndex;
       accumulateFlowNumeratorDerivative(
         column,
         dPressureDVolumeMmHgPerMl[column],
       );
     }
-    if (isConservedNodeV2(edge.downstreamNodeId)) {
-      const column = CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId];
+    if (downstreamConservedIndex >= 0) {
+      const column = downstreamConservedIndex;
       accumulateFlowNumeratorDerivative(
         column,
         -dPressureDVolumeMmHgPerMl[column],
@@ -1850,19 +1941,20 @@ function analyticSparseCoronaryVolumeJacobianV2(
     }
 
     const accumulateCollapseResistanceDerivative = (
-      nodeId: CoronaryConservedVolumeNodeIdV2,
+      nodeIndex: number,
       logarithmicResistanceFactor: number,
     ): void => {
-      const column = CANONICAL_NODE_INDEX_V2[nodeId];
-      const collapse = evaluateCollapseScaleAndDerivativeForNodeV2(
+      const column = nodeIndex;
+      evaluateCollapseScaleAndDerivativeForNodeIntoV2(
         candidate[column],
-        nodeByIdV2(nodeId, topology),
+        topology.nodes[nodeIndex],
         collapseHydraulics,
+        collapseScaleAndDerivative,
       );
       const dLinearResistanceDVolume =
         logarithmicResistanceFactor * linearResistance
-        * collapse.dResistanceScaleDVolumePerMl
-        / collapse.resistanceScale;
+        * collapseScaleAndDerivative[1]
+        / collapseScaleAndDerivative[0];
       accumulateFlowNumeratorDerivative(
         column,
         -flow * dLinearResistanceDVolume,
@@ -1870,30 +1962,30 @@ function analyticSparseCoronaryVolumeJacobianV2(
     };
     if (edge.kind === "micro-proximal-arteriolar") {
       accumulateCollapseResistanceDerivative(
-        edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        downstreamConservedIndex,
         1,
       );
     } else if (edge.kind === "micro-intermediate-capillary") {
       accumulateCollapseResistanceDerivative(
-        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        upstreamConservedIndex,
         0.5,
       );
       accumulateCollapseResistanceDerivative(
-        edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        downstreamConservedIndex,
         0.5,
       );
     } else if (edge.kind === "micro-distal-venular") {
       accumulateCollapseResistanceDerivative(
-        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        upstreamConservedIndex,
         1,
       );
     }
 
-    const upstreamRow = isConservedNodeV2(edge.upstreamNodeId)
-      ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]
+    const upstreamRow = upstreamConservedIndex >= 0
+      ? upstreamConservedIndex
       : null;
-    const downstreamRow = isConservedNodeV2(edge.downstreamNodeId)
-      ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
+    const downstreamRow = downstreamConservedIndex >= 0
+      ? downstreamConservedIndex
       : null;
     for (let derivativeIndex = 0;
       derivativeIndex < flowNumeratorDerivativeCount;
@@ -1939,10 +2031,10 @@ function analyticCoronaryObservableDirectionalDerivativesV2(
     nodeId: CoronaryConservedVolumeNodeIdV2,
   ): number => {
     const nodeIndex = CANONICAL_NODE_INDEX_V2[nodeId];
-    const compliance = evaluateCrefAnchoredCollapsiblePvV2(
+    const compliance = evaluateCrefAnchoredCollapsibleComplianceV2(
       candidate[nodeIndex],
       nodeByIdV2(nodeId, topology).pressureVolume,
-    ).complianceMlPerMmHg;
+    );
     if (!Number.isFinite(compliance) || compliance <= 0) {
       throw new Error(
         `${nodeId} coronary pressure-volume compliance is not positive and finite`,
@@ -1997,6 +2089,7 @@ function analyticCoronaryBoundaryResidualDirectionalDerivativeV2(
   direction: CoronaryImplicitBoundaryDirectionV2,
   dtSec: number,
   topology: CoronaryTopologyV2,
+  scratchStorage?: CoronaryBackwardEulerScratchStorageV2,
 ): number[] {
   const boundaryDerivative =
     centralCoronaryBoundaryDirectionalDerivativeV2(direction);
@@ -2014,23 +2107,29 @@ function analyticCoronaryBoundaryResidualDirectionalDerivativeV2(
       boundaryDerivative,
     );
   };
-  const flowDerivative = topology.edges.map((edge, edgeIndex) => {
+  const flowDerivative = scratchStorage?.boundaryFlowDerivative
+    ?? Array<number>(topology.edges.length).fill(0);
+  topology.edges.forEach((edge, edgeIndex) => {
     const pressureDropDerivative =
       absolutePressureDerivative(edge.upstreamNodeId)
       - absolutePressureDerivative(edge.downstreamNodeId);
-    return pressureDropDerivative / coronaryPressureFlowTangentV2(
+    flowDerivative[edgeIndex] =
+      pressureDropDerivative / coronaryPressureFlowTangentV2(
       hydraulics.flowByEdge[edgeIndex],
       hydraulics.linearResistanceByEdge[edgeIndex],
       hydraulics.quadraticResistanceByEdge[edgeIndex],
       edge.edgeId,
-    );
+      );
   });
-  const residualDerivative = Array<number>(topology.nodes.length).fill(0);
+  const residualDerivative = scratchStorage?.boundaryResidualDerivative
+    ?? Array<number>(topology.nodes.length).fill(0);
+  residualDerivative.fill(0);
   accumulateFlowContinuityV2(
     residualDerivative,
     flowDerivative,
     dtSec,
     topology,
+    scratchStorage?.topologyPlan,
   );
   requireFiniteVectorV2(
     residualDerivative,

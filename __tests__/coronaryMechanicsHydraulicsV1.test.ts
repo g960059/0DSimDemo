@@ -13,6 +13,9 @@ import {
   evaluateCollapsibleIntramyocardialPvV1,
   evaluateCoronaryImpV1,
   evaluateSignedLinearQuadraticLossV1,
+  evaluateSignedLinearQuadraticPressureLossV1,
+  evaluateVolumeDependentCoronaryResistanceScaleIntoV1,
+  evaluateVolumeDependentCoronaryResistanceScaleV1,
   evaluateVolumeDependentCoronaryResistanceV1,
   initialCoronaryToneStateV1,
   mapYoungTsaiCoronaryStenosisV1,
@@ -464,6 +467,31 @@ describe("collapsible intramyocardial PV and volume-dependent resistance", () =>
       resistance.dResistanceDVolumeMmHgSecPerMl2,
       7,
     );
+
+    const unitResistancePrior = Object.freeze({
+      ...resistancePrior,
+      referenceResistanceMmHgSecPerMl: 1,
+    });
+    const unitResistance = evaluateVolumeDependentCoronaryResistanceV1(
+      volume,
+      unitResistancePrior,
+    );
+    const scalarDestination = [Number.NaN, Number.NaN];
+    evaluateVolumeDependentCoronaryResistanceScaleIntoV1(
+      volume,
+      resistancePrior.referenceVolumeMl,
+      resistancePrior.residualHydraulicAreaFraction,
+      scalarDestination,
+    );
+    expect(evaluateVolumeDependentCoronaryResistanceScaleV1(
+      volume,
+      resistancePrior.referenceVolumeMl,
+      resistancePrior.residualHydraulicAreaFraction,
+    )).toBe(unitResistance.resistanceScale);
+    expect(scalarDestination).toEqual([
+      unitResistance.resistanceScale,
+      unitResistance.dResistanceDVolumeMmHgSecPerMl2,
+    ]);
   });
 
   it("owns compression resistance without a second distension-driven hyperemic gain", () => {
@@ -513,6 +541,10 @@ describe("Young-Tsai-style coronary stenosis loss", () => {
     const B = coefficients.additionalQuadraticResistanceMmHgSec2PerMl2;
     const forward = evaluateSignedLinearQuadraticLossV1(2.3, R, B);
     const reverse = evaluateSignedLinearQuadraticLossV1(-2.3, R, B);
+    expect(evaluateSignedLinearQuadraticPressureLossV1(2.3, R, B))
+      .toBe(forward.pressureLossMmHg);
+    expect(evaluateSignedLinearQuadraticPressureLossV1(-2.3, R, B))
+      .toBe(reverse.pressureLossMmHg);
     expect(reverse.pressureLossMmHg).toBeCloseTo(-forward.pressureLossMmHg, 12);
     expect(forward.dissipatedPowerMmHgMlPerSec).toBeGreaterThan(0);
     expect(reverse.dissipatedPowerMmHgMlPerSec).toBeGreaterThan(0);

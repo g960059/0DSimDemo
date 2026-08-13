@@ -32,10 +32,23 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-22
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-23
 ```
 
-Standard-22 preserves Standard-21's equations, controls, checkpoint meaning,
+Standard-23 preserves Standard-22's equations, controls, checkpoint meaning,
+accepted sequence, and public diagnostic records while compiling the immutable
+coronary edge incidence into private fixed indices. Repeated hydraulic,
+continuity, analytic-Jacobian, and implicit-sensitivity evaluations reuse those
+indices and solver-owned scalar scratch instead of rebuilding endpoint lookups
+and short-lived constitutive result records. The optimized path is tested
+against an allocation-owning oracle for both canonical and reversed edge
+orders, including repeated evolving boundaries. A local 2,048-tick coronary
+diagnostic measured `0.0374 ms/tick` with the compiled workspace versus
+`0.0472 ms/tick` without it (`0.79x`). Three alternating whole-kernel host
+pairs favored Standard-23 by roughly 0.5–3.5%, with a paired-ratio median near
+`0.99`; this is a local hot-path improvement, not an iPhone qualification.
+
+Standard-22 had preserved Standard-21's equations, controls, checkpoint meaning,
 accepted sequence, and public named-record API while changing the two internal
 candidate pages to fixed-index numerical storage. Node volume/pressure,
 vascular tangent, native/dynamic edge flow, valve slot, node-rate, continuity,

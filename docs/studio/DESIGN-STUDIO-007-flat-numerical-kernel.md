@@ -739,6 +739,20 @@ faster in five pairs, with a paired-ratio median near `0.94`; one pair was a
 severe concurrent-load outlier. This supports the fixed-offset direction but
 does not replace an iPhone device gate.
 
+Standard-23 applies the same fixed-topology principle inside the coronary
+backward-Euler solve without changing its residuals or Newton ordering. The
+Session-owned workspace compiles edge pressure endpoints and conserved-node
+incidence into private typed indices, retains scalar derivative and boundary
+scratch, and calls scalar projections of the unchanged collapsible-PV,
+collapse-resistance, and signed-loss laws when the paired diagnostic record is
+not consumed. Public hydraulic and trial records remain detached and frozen.
+Canonical and reversed edge orders must both match the allocation-owning path
+over repeated evolving boundaries. A local 2,048-tick coronary diagnostic
+measured `0.0374 ms/tick` with that workspace versus `0.0472 ms/tick` without
+it (`0.79x`). Three alternating whole-kernel host pairs favored the candidate
+by about 0.5–3.5% with a paired-ratio median near `0.99`; the smaller and
+load-sensitive end-to-end delta is not an iPhone device qualification.
+
 Failure atomicity, event order, beat accumulation, controls, analysis forks,
 and checkpoint continuation must pass against the Phase 0 corpus before Phase
 2 changes solver algebra.
