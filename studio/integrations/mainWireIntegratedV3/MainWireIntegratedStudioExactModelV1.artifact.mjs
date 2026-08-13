@@ -432,6 +432,12 @@ function createDynamicRotaryPumpAcceptedFlowStateV1(deviceId, acceptedFlowMlPerS
     acceptedFlowMlPerSec
   });
 }
+const DISABLED_ACCEPTED_FLOW_STATE_BY_DEVICE_V1 = Object.freeze({
+  LVAD: createDynamicRotaryPumpAcceptedFlowStateV1("LVAD", 0),
+  IMPELLA: createDynamicRotaryPumpAcceptedFlowStateV1("IMPELLA", 0),
+  VA_ECMO: createDynamicRotaryPumpAcceptedFlowStateV1("VA_ECMO", 0),
+  VV_ECMO: createDynamicRotaryPumpAcceptedFlowStateV1("VV_ECMO", 0)
+});
 function evaluateDynamicRotaryPumpV1(deviceId, config, previousAcceptedState, input) {
   validateDeviceId$1(deviceId);
   validateRotaryPumpConfigV1(config, deviceId);
@@ -653,10 +659,7 @@ function inactiveEvaluation(constraintOwner, deviceId, config, previousFlowMlPer
     pressureRiseRequiredMmHg,
     idealPumpHeadMmHg: 0,
     previousAcceptedFlowMlPerSec: previousFlowMlPerSec,
-    candidateAcceptedState: createDynamicRotaryPumpAcceptedFlowStateV1(
-      deviceId,
-      0
-    ),
+    candidateAcceptedState: DISABLED_ACCEPTED_FLOW_STATE_BY_DEVICE_V1[deviceId],
     flowMlPerSec: 0,
     flowLMin: 0,
     unrestrictedFlowMlPerSec: 0,
@@ -1225,6 +1228,35 @@ const SHA256_HEX = /^[0-9a-f]{64}$/;
 const LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES = /* @__PURE__ */ new WeakSet();
 const VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES = /* @__PURE__ */ new WeakSet();
 const VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS = /* @__PURE__ */ new WeakMap();
+const CONFIGURED_PUMP_RECORD_CACHE_V1 = /* @__PURE__ */ new WeakMap();
+const ZERO_DEVICE_NUMBERS_V1 = Object.freeze({
+  LVAD: 0,
+  IMPELLA: 0,
+  VA_ECMO: 0,
+  VV_ECMO: 0
+});
+const ZERO_NODE_NUMBERS_V1 = Object.freeze({
+  LV: 0,
+  Ao: 0,
+  SA: 0,
+  RA: 0,
+  VC: 0
+});
+const ZERO_NODE_JACOBIAN_V1 = Object.freeze({
+  LV: ZERO_NODE_NUMBERS_V1,
+  Ao: ZERO_NODE_NUMBERS_V1,
+  SA: ZERO_NODE_NUMBERS_V1,
+  RA: ZERO_NODE_NUMBERS_V1,
+  VC: ZERO_NODE_NUMBERS_V1
+});
+const ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1 = ZERO_DEVICE_NUMBERS_V1;
+const ZERO_PREVIOUS_FLOW_JACOBIAN_V1 = Object.freeze({
+  LV: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  Ao: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  SA: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  RA: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  VC: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1
+});
 function createDynamicMechanicalSupportDeviceProfileBindingV1(input) {
   assertExactKeys$a(
     input,
@@ -1440,6 +1472,16 @@ function evaluateDynamicMechanicalSupportHydraulicsV1(config, profile, previousA
       inletVolumeMl: input.nodeVolumeMl?.[configs[deviceId].inletNode]
     }
   ));
+  if (rotaryPumpCommandsAreAllDisabled(config)) {
+    return evaluateAllRotaryPumpsDisabled(
+      config,
+      profile,
+      previousAcceptedState,
+      input,
+      dtSec,
+      pump
+    );
+  }
   const candidateAcceptedState = createAcceptedStateFromOwnedBinding(
     previousAcceptedState.inertanceProfileSnapshot,
     previousAcceptedState.structuralHydraulicProjection,
@@ -1505,9 +1547,7 @@ function evaluateDynamicMechanicalSupportHydraulicsV1(config, profile, previousA
     unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
     profileId: ownedProfile.profileId,
     profileBindingSha256: ownedProfile.profileBindingSha256,
-    deviceProfileBindingByDevice: copyDeviceProfileBindingRecord(
-      ownedProfile.deviceProfileBindingByDevice
-    ),
+    deviceProfileBindingByDevice: ownedProfile.deviceProfileBindingByDevice,
     dtSec,
     pump,
     iabp: evaluateIabpV1(config.iabp, input),
@@ -1526,6 +1566,51 @@ function evaluateDynamicMechanicalSupportHydraulicsV1(config, profile, previousA
     previousFlowJacobianConservationResidual: previousFlowConservation
   });
 }
+function evaluateAllRotaryPumpsDisabled(config, profile, previousAcceptedState, input, dtSec, pump) {
+  const acceptedFlowsAreCanonicalZero = ROTARY_SUPPORT_DEVICE_IDS_V1.every(
+    (deviceId) => previousAcceptedState.acceptedFlowMlPerSec[deviceId] === 0
+  );
+  const candidateAcceptedState = acceptedFlowsAreCanonicalZero ? previousAcceptedState : createAcceptedStateFromOwnedBinding(
+    previousAcceptedState.inertanceProfileSnapshot,
+    previousAcceptedState.structuralHydraulicProjection,
+    ZERO_DEVICE_NUMBERS_V1
+  );
+  if (!acceptedFlowsAreCanonicalZero) {
+    stampConstructedDynamicMechanicalSupportAcceptedStateV1(
+      candidateAcceptedState,
+      profile,
+      config
+    );
+  }
+  const ownedProfile = previousAcceptedState.inertanceProfileSnapshot;
+  return Object.freeze({
+    modelId: MECHANICAL_SUPPORT_MODEL_V1_ID,
+    networkId: DYNAMIC_MECHANICAL_SUPPORT_NETWORK_V1_ID,
+    unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
+    profileId: ownedProfile.profileId,
+    profileBindingSha256: ownedProfile.profileBindingSha256,
+    deviceProfileBindingByDevice: ownedProfile.deviceProfileBindingByDevice,
+    dtSec,
+    pump,
+    iabp: evaluateIabpV1(config.iabp, input),
+    candidateAcceptedState,
+    nodeNetVolumeRateMlPerSec: ZERO_NODE_NUMBERS_V1,
+    dNodeNetVolumeRateDNodePressureMlPerSecPerMmHg: ZERO_NODE_JACOBIAN_V1,
+    dNodeNetVolumeRateDNodeVolumePerSec: ZERO_NODE_JACOBIAN_V1,
+    dNodeNetVolumeRateDPreviousDeviceFlow: ZERO_PREVIOUS_FLOW_JACOBIAN_V1,
+    constraintReactionMmHgByDevice: ZERO_DEVICE_NUMBERS_V1,
+    constraintImpulseMmHgSecByDevice: ZERO_DEVICE_NUMBERS_V1,
+    totalLeftHeartBypassFlowLMin: 0,
+    totalExtracorporealFlowLMin: 0,
+    conservationResidualMlPerSec: 0,
+    pressureJacobianConservationResidualMlPerSecPerMmHg: ZERO_NODE_NUMBERS_V1,
+    volumeJacobianConservationResidualPerSec: ZERO_NODE_NUMBERS_V1,
+    previousFlowJacobianConservationResidual: ZERO_DEVICE_NUMBERS_V1
+  });
+}
+function rotaryPumpCommandsAreAllDisabled(config) {
+  return !config.lvad.enabled && !config.impella.enabled && !config.vaEcmo.enabled && !config.vvEcmo.enabled;
+}
 function configuredPumpRecord(config) {
   return Object.freeze({
     LVAD: config.lvad,
@@ -1535,8 +1620,12 @@ function configuredPumpRecord(config) {
   });
 }
 function configuredPumpRecordFromOwnedStructure(config, projection) {
+  if (Object.isFrozen(config) && Object.isFrozen(projection)) {
+    const cached = CONFIGURED_PUMP_RECORD_CACHE_V1.get(projection)?.get(config);
+    if (cached !== void 0) return cached;
+  }
   const commands = configuredPumpRecord(config);
-  return deviceRecord((deviceId) => {
+  const configured = deviceRecord((deviceId) => {
     const command = commands[deviceId];
     const structural = projection.byDevice[deviceId];
     return Object.freeze({
@@ -1555,6 +1644,15 @@ function configuredPumpRecordFromOwnedStructure(config, projection) {
       forwardFlowEvidenceDomain: structural.forwardFlowEvidenceDomain
     });
   });
+  if (Object.isFrozen(config) && Object.isFrozen(projection)) {
+    let byConfig = CONFIGURED_PUMP_RECORD_CACHE_V1.get(projection);
+    if (byConfig === void 0) {
+      byConfig = /* @__PURE__ */ new WeakMap();
+      CONFIGURED_PUMP_RECORD_CACHE_V1.set(projection, byConfig);
+    }
+    byConfig.set(config, configured);
+  }
+  return configured;
 }
 function copyDeviceStructuralHydraulics(deviceId, config, wholeConfig) {
   return Object.freeze({
@@ -34099,7 +34197,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-13";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-14";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

@@ -32,17 +32,20 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-13
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-14
 ```
 
-Standard-13 preserves Standard-12's equations, controls, checkpoint meaning,
-and accepted numerical sequence while moving more accepted-state ownership and
-candidate completion into the typed authority. It also reuses coronary solver
-scratch, seals only selected mechanics candidates, projects coronary pressure
-without constructing diagnostic trees, and removes temporary result-record
-allocations. These are execution and ownership changes rather than new
-physiological claims, but the exact artifact bytes changed and therefore
-receive a new `modelId`.
+Standard-14 preserves Standard-13's equations, controls, checkpoint meaning,
+and accepted numerical sequence while compiling direct typed-completion readers
+and adding an exact all-rotary-support-off path. Disabled circuits still emit
+fresh pressure-dependent diagnostics, while their canonical zero accepted flow,
+node-rate, and Jacobian storage is shared. Standard-13 had already moved more
+accepted-state ownership and candidate completion into the typed authority,
+reused coronary solver scratch, sealed only selected mechanics candidates,
+projected coronary pressure without diagnostic trees, and removed temporary
+result-record allocations. These are execution and ownership changes rather
+than new physiological claims, but the exact artifact bytes changed and
+therefore receive a new `modelId`.
 
 Fully validated, transitively frozen model-owned values still carry the
 Standard-10 in-process identity proof. Mutable, partially validated, failed,

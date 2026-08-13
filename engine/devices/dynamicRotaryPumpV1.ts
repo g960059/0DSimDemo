@@ -122,6 +122,22 @@ export function createDynamicRotaryPumpAcceptedFlowStateV1(
 }
 
 /**
+ * A disabled circuit is absent topology and therefore always proposes the
+ * same canonical zero accepted-flow state. Sharing these deeply frozen values
+ * removes four short-lived objects from every all-off Newton candidate while
+ * preserving the exact public state content.
+ */
+const DISABLED_ACCEPTED_FLOW_STATE_BY_DEVICE_V1 = Object.freeze({
+  LVAD: createDynamicRotaryPumpAcceptedFlowStateV1("LVAD", 0),
+  IMPELLA: createDynamicRotaryPumpAcceptedFlowStateV1("IMPELLA", 0),
+  VA_ECMO: createDynamicRotaryPumpAcceptedFlowStateV1("VA_ECMO", 0),
+  VV_ECMO: createDynamicRotaryPumpAcceptedFlowStateV1("VV_ECMO", 0),
+}) satisfies Readonly<Record<
+  RotarySupportDeviceIdV1,
+  DynamicRotaryPumpAcceptedFlowStateV1
+>>;
+
+/**
  * Backward-Euler rotary-pump flow law with the accepted q_n statically
  * condensed into one signed linear-quadratic root:
  *
@@ -447,10 +463,7 @@ function inactiveEvaluation(
     pressureRiseRequiredMmHg,
     idealPumpHeadMmHg: 0,
     previousAcceptedFlowMlPerSec: previousFlowMlPerSec,
-    candidateAcceptedState: createDynamicRotaryPumpAcceptedFlowStateV1(
-      deviceId,
-      0,
-    ),
+    candidateAcceptedState: DISABLED_ACCEPTED_FLOW_STATE_BY_DEVICE_V1[deviceId],
     flowMlPerSec: 0,
     flowLMin: 0,
     unrestrictedFlowMlPerSec: 0,

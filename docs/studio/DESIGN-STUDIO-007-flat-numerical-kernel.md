@@ -623,6 +623,19 @@ lower). The equations, solver order, typed image bytes, checkpoint, and all 49
 outputs remain exact. These values are development-host diagnostics, not phone
 qualification.
 
+The reference bridge now has an exact all-rotary-support-off path as well.
+Disabled LVAD, Impella, VA-ECMO, and VV-ECMO circuits still publish fresh
+pressure-dependent diagnostic readback for every candidate, while their
+canonical zero flow state, zero node-rate vectors, and zero Jacobians reuse
+deeply frozen storage. The immutable config/structural projection pair also
+owns a cold compiled pump record. If any rotary device is enabled, evaluation
+uses the original complete dynamic-network path; IABP timing remains evaluated
+in both paths. Three 1,024-tick local measurements were `1.241–1.255 ms/tick`
+versus `1.269–1.293 ms/tick` at the preceding reader-plan revision (roughly
+2–4% lower). All-off and mixed-device unit gates, the 1,024-tick 49-output
+corpus, and checkpoint continuation remain exact. This is another development
+host result rather than an iPhone qualification result.
+
 #### Phase 1b.2b.2b — direct solver-owned typed state (next)
 
 Before production cutover, move each state owner and the solver from object

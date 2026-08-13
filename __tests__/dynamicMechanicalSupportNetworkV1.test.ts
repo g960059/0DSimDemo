@@ -129,6 +129,41 @@ describe("dynamic four-device mechanical-support network V1", () => {
     expect(previous).toEqual(previousSnapshot);
   });
 
+  it("reuses immutable zero network storage after all disabled flows settle", () => {
+    const config = createMechanicalSupportConfigV1();
+    const profile = profileWith(inertance({ pumpInternalMmHgSec2PerMl: 0.1 }));
+    const previous = acceptedWith(config, profile, {
+      LVAD: 0,
+      IMPELLA: 0,
+      VA_ECMO: 0,
+      VV_ECMO: 0,
+    });
+    const first = evaluateDynamicMechanicalSupportHydraulicsV1(
+      config,
+      profile,
+      previous,
+      HYDRAULIC_INPUT,
+    );
+    const second = evaluateDynamicMechanicalSupportHydraulicsV1(
+      config,
+      profile,
+      previous,
+      withNodePressure(HYDRAULIC_INPUT, "Ao", 20),
+    );
+
+    expect(first.candidateAcceptedState).toBe(previous);
+    expect(second.candidateAcceptedState).toBe(previous);
+    expect(second.nodeNetVolumeRateMlPerSec)
+      .toBe(first.nodeNetVolumeRateMlPerSec);
+    expect(second.dNodeNetVolumeRateDNodePressureMlPerSecPerMmHg)
+      .toBe(first.dNodeNetVolumeRateDNodePressureMlPerSecPerMmHg);
+    expect(second.dNodeNetVolumeRateDPreviousDeviceFlow)
+      .toBe(first.dNodeNetVolumeRateDPreviousDeviceFlow);
+    expect(second.pump.LVAD.outletPressureMmHg).toBe(100);
+    expect(second.pump.LVAD.pressureRiseRequiredMmHg)
+      .not.toBe(first.pump.LVAD.pressureRiseRequiredMmHg);
+  });
+
   it("routes a mixed dynamic network conservatively from one immutable q_n record", () => {
     const config = mixedConfig();
     const profile = profileWith(inertance({
