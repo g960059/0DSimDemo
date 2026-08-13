@@ -12,6 +12,7 @@ import {
   initializeAcceptedComposedRhythmTransactionStateV2,
   limitAcceptedComposedRhythmTransactionCandidateTimeV2,
   rollbackAcceptedComposedRhythmTransactionCandidateV2,
+  validateAcceptedComposedRhythmTransactionBoundaryV2,
   type AcceptedComposedRhythmTransactionConfigurationV2,
   type AcceptedComposedRhythmTransactionStateV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
@@ -317,6 +318,50 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
       selectValidationStampModeV1(previousStampMode);
     }
     expect(validationStampModeV1()).toBe(previousStampMode);
+  });
+
+  it("reuses a restored immutable state proof only after complete boundary validation", async () => {
+    const { configuration, state } = fixture({ firstRegularTimeSec: 10 });
+    const checkpoint = await checkpointAcceptedComposedRhythmTransactionStateV2(
+      state,
+    );
+    const restored = await restoreAcceptedComposedRhythmTransactionStateV2(
+      JSON.parse(JSON.stringify(checkpoint)),
+      configuration,
+    );
+
+    withHotPathIntegrityTierV1("hot-path-lean", () => {
+      const candidate = evaluateAt(restored, 0.1);
+      expect(
+        commitAcceptedComposedRhythmTransactionCandidateV2(
+          restored,
+          candidate,
+        ),
+      ).toBe(candidate.candidateState);
+    });
+  });
+
+  it("never stamps an outer-frozen state with mutable descendants", () => {
+    const original = fixture({ firstRegularTimeSec: 10 }).state;
+    const mutableLvfwCalcium = [
+      ...original.calciumStateByWall.LVFW,
+    ] as [number, number];
+    const mutable = Object.freeze({
+      ...original,
+      calciumStateByWall: {
+        ...original.calciumStateByWall,
+        LVFW: mutableLvfwCalcium,
+      },
+    }) as unknown as {
+      calciumStateByWall: { LVFW: [number, number] };
+    } & AcceptedComposedRhythmTransactionStateV2;
+
+    validateAcceptedComposedRhythmTransactionBoundaryV2(mutable);
+    mutable.calciumStateByWall.LVFW[0] = Number.NaN;
+
+    expect(() =>
+      validateAcceptedComposedRhythmTransactionBoundaryV2(mutable)
+    ).toThrow(/state\[0\] must be nonnegative and finite/);
   });
 
   it("returns the exact owned endpoint without exposing a re-addable duration", () => {

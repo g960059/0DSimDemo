@@ -1301,7 +1301,11 @@ export function validateAcceptedComposedRhythmTransactionStateV2(
  * the persistent constant-time path in either tier. Because every reachable
  * data property is frozen and no mutable built-in prototype is eligible, the
  * proof remains true after the state escapes. Restored and hand-built states
- * take the complete exported validator.
+ * take the complete exported validator once and may earn the same persistent
+ * identity proof only after that validation succeeds and the entire reachable
+ * graph independently proves transitively frozen plain data. An outer-frozen
+ * state with any mutable descendant remains ineligible and is revalidated on
+ * every boundary crossing.
  */
 export function validateAcceptedComposedRhythmTransactionBoundaryV2(
   state: AcceptedComposedRhythmTransactionStateV2,
@@ -1311,6 +1315,7 @@ export function validateAcceptedComposedRhythmTransactionBoundaryV2(
     && internallyValidatedAcceptedComposedRhythmStatesV2.has(state)
   ) return;
   validateAcceptedComposedRhythmTransactionStateV2(state);
+  stampInternallyValidatedAcceptedComposedRhythmStateV2(state);
 }
 
 function stampInternallyValidatedAcceptedComposedRhythmStateV2(

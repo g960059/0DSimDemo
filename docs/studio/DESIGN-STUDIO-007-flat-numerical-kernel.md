@@ -372,14 +372,19 @@ returned directly by the preceding solve. This makes the complete typed image
 the accepted-state authority, while leaving the registered exact Session and
 artifacts unchanged.
 
-This is still not a production speedup. The latest representative 512-tick
-alternating diagnostic measured about `2.40 ms/tick` for the released object
-Session and `3.42 ms/tick` for the typed-authority reference (`1.42x`). Across
-580 accepted commits, all 32,536 immutable-value checks used the identity/value
-fast path and none used canonical fallback. An intentionally
+This is still not a production speedup. After allowing a restored, rehydrated,
+transitively frozen composed-rhythm state to retain its complete boundary proof,
+the latest representative 512-tick alternating diagnostic measured about
+`1.45 ms/tick` for the released object Session and `2.13 ms/tick` for the
+typed-authority reference (`1.47x`). The same diagnostic was about
+`3.42 ms/tick` before that migration-layer revalidation was removed. Across 580
+accepted commits, all 32,536 immutable-value checks used the identity/value fast
+path and none used canonical fallback. An outer-frozen state with a mutable
+calcium descendant remains ineligible for the proof and is revalidated after
+mutation. An intentionally
 independent-runtime projection diagnostic, whose equal object configurations
-do not share identity, measured about `0.65 ms/presentation tick`; rehydration
-measured about `0.021 ms/presentation tick`. String high-water usage was
+do not share identity, measured about `0.68 ms/presentation tick`; rehydration
+measured about `0.020 ms/presentation tick`. String high-water usage was
 `1,930` bytes inside its fixed `16 KiB` capacity. Dynamic high-water usage and
 capacity are both zero: every currently admitted mutable root has explicit
 typed storage. The remaining
@@ -439,14 +444,16 @@ This post-solver emission does not recompute capture or hydraulics. It verifies
 the rhythm lineage and counter deltas, preserves signed reverse pump flow, and
 copies the exact accepted solver result so that the next step need not recover
 those values through object re-encoding.
-A representative 512-tick diagnostic measured about `2.40 ms/tick` for the
-released Session and `3.42 ms/tick` for the typed reference (`1.42x`). Direct
-fixed-slot boundary selection measured about `0.0053 ms/tick`, while copying
-current into the inactive image and staging all five calcium owners measured
-about `0.0056 ms/tick`. The improvement comes from removing immutable
-configuration traversal from each accepted transaction; duplicate legacy solve
-and mutable-owner work remains. These figures are diagnostics, not performance
-gates.
+A representative 512-tick diagnostic after proof reuse measured about
+`1.45 ms/tick` for the released Session and `2.13 ms/tick` for the typed
+reference (`1.47x`). Direct fixed-slot boundary validation measured about
+`0.0058 ms/tick`; rehydration measured about `0.020 ms/tick`. Copying current
+into the inactive image and completing the still-object-backed writable slots
+remains the largest migration-layer cost at about `0.68 ms/tick`. The earlier
+`3.42 ms/tick` typed measurement additionally paid for full composed-rhythm
+canonical revalidation after every rehydration. Duplicate legacy solve and
+object-to-image completion remain; these figures are diagnostics, not
+performance gates.
 
 The generic image also admits a generation-bound candidate cursor. Beginning a
 candidate copies current bytes once into the inactive image; direct fixed
