@@ -1215,32 +1215,55 @@ function snapshotMaterialState<TState, TDrive>(
 }
 
 function fingerprintSerializable(value: WholeHeartMechanicsSerializableValueV1): string {
-  const text = canonicalSerializableString(value);
-  let hash = 0x811c9dc5;
+  const hash = updateCanonicalSerializableHash(value, 0x811c9dc5);
+  return hash.toString(16).padStart(8, "0");
+}
+
+/**
+ * Streams the exact canonical JSON code units into FNV-1a without allocating
+ * the complete serialized mechanics state on every accepted substep. Leaf
+ * JSON spellings and sorted-key order remain byte-for-byte identical to the
+ * former recursive string builder, so released fingerprints do not change.
+ */
+function updateCanonicalSerializableHash(
+  value: WholeHeartMechanicsSerializableValueV1,
+  initialHash: number,
+): number {
+  if (value === null || typeof value === "boolean" || typeof value === "string") {
+    return updateFnv1aString(initialHash, JSON.stringify(value));
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("cannot fingerprint a non-finite number");
+    return updateFnv1aString(initialHash, JSON.stringify(value));
+  }
+  if (Array.isArray(value)) {
+    let hash = updateFnv1aString(initialHash, "[");
+    for (let index = 0; index < value.length; index += 1) {
+      if (index !== 0) hash = updateFnv1aString(hash, ",");
+      hash = updateCanonicalSerializableHash(value[index]!, hash);
+    }
+    return updateFnv1aString(hash, "]");
+  }
+  const record = value as { readonly [key: string]: WholeHeartMechanicsSerializableValueV1 };
+  const keys = Object.keys(record).sort();
+  let hash = updateFnv1aString(initialHash, "{");
+  for (let index = 0; index < keys.length; index += 1) {
+    if (index !== 0) hash = updateFnv1aString(hash, ",");
+    const key = keys[index]!;
+    hash = updateFnv1aString(hash, JSON.stringify(key));
+    hash = updateFnv1aString(hash, ":");
+    hash = updateCanonicalSerializableHash(record[key]!, hash);
+  }
+  return updateFnv1aString(hash, "}");
+}
+
+function updateFnv1aString(initialHash: number, text: string): number {
+  let hash = initialHash;
   for (let index = 0; index < text.length; index += 1) {
     hash ^= text.charCodeAt(index);
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
-  return hash.toString(16).padStart(8, "0");
-}
-
-function canonicalSerializableString(
-  value: WholeHeartMechanicsSerializableValueV1,
-): string {
-  if (value === null || typeof value === "boolean" || typeof value === "string") {
-    return JSON.stringify(value);
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error("cannot fingerprint a non-finite number");
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalSerializableString).join(",")}]`;
-  }
-  const record = value as { readonly [key: string]: WholeHeartMechanicsSerializableValueV1 };
-  return `{${Object.keys(record).sort().map((key) =>
-    `${JSON.stringify(key)}:${canonicalSerializableString(record[key]!)}`
-  ).join(",")}}`;
+  return hash;
 }
 
 function copyChambers(

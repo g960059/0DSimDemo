@@ -256,6 +256,7 @@ export type MainWireAcceptedTypedStateAuthorityReportV1 = Readonly<
     authorityId: typeof MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID;
     poisonedReason: string | null;
     directCandidateCommitCount: number;
+    directCandidateExactCommitCount: number;
     directCandidateMirrorReuseCount: number;
   }
 >;
@@ -440,6 +441,7 @@ export class MainWireAcceptedTypedStateAuthorityV1
   #currentState: AcceptedState;
   #poisonedReason: string | null = null;
   #directCandidateCommitCount = 0;
+  #directCandidateExactCommitCount = 0;
   #directCandidateMirrorReuseCount = 0;
 
   constructor(
@@ -544,6 +546,39 @@ export class MainWireAcceptedTypedStateAuthorityV1
     }
   }
 
+  /**
+   * Promotes without generic object completion only when every byte already
+   * equals the internally admitted adapter. A null result leaves the staged
+   * transaction open for exhaustive completion at an event boundary.
+   */
+  tryCommitExactDirectCandidate(
+    adapterCandidate: AcceptedState,
+    plan: TransactionalTypedStateCompletionPlanV1,
+  ): AcceptedState | null {
+    this.assertHealthy();
+    try {
+      const admittedMirror = this.#image.matchCandidateExactlyAgainstObject(
+        adapterCandidate,
+        plan,
+      );
+      if (admittedMirror === null) return null;
+      this.#image.promote();
+      this.#currentState = admittedMirror;
+      this.#directCandidateCommitCount += 1;
+      this.#directCandidateExactCommitCount += 1;
+      this.#directCandidateMirrorReuseCount += 1;
+      return admittedMirror;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `exact direct candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: `
+          + this.#poisonedReason,
+      );
+    }
+  }
+
   /** Expected solver rejection abandons the inactive candidate without poison. */
   abortDirectCandidate(): void {
     this.assertHealthy();
@@ -557,6 +592,7 @@ export class MainWireAcceptedTypedStateAuthorityV1
       authorityId: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID,
       poisonedReason: this.#poisonedReason,
       directCandidateCommitCount: this.#directCandidateCommitCount,
+      directCandidateExactCommitCount: this.#directCandidateExactCommitCount,
       directCandidateMirrorReuseCount: this.#directCandidateMirrorReuseCount,
     });
   }

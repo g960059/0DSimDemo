@@ -1,6 +1,13 @@
 import type {
   MainWireIntegratedModelCandidateTimeLimitV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
+import type {
+  CoronaryAcceptedAutoregulationStateV3,
+} from "@/engine/coronary/acceptedAutoregulationWindowV3";
+import {
+  CORONARY_LAYER_IDS_V2,
+  CORONARY_TERRITORY_IDS_V2,
+} from "@/engine/coronary/typesV2";
 import {
   NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
   NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
@@ -96,6 +103,16 @@ type ContinuousBinding = Readonly<{
   authoredVentricularPacing: AuthoredScheduleContinuousBinding;
   regularAtrial: RegularAtrialContinuousBinding;
   resolvedRhythm: ResolvedRhythmContinuousBinding;
+  electricalCaptureAcceptedTimeSec: number;
+  ventricularBackupAcceptedTimeSec: number;
+  ventricularBackupRevision: number;
+  autoregulationAcceptedDurationSec: number;
+  autoregulationAcceptedStepCount: number;
+  autoregulationQmTimeIntegral:
+    Readonly<Record<(typeof CORONARY_TERRITORY_IDS_V2)[number],
+      Readonly<Record<(typeof CORONARY_LAYER_IDS_V2)[number], number>>>>;
+  autoregulationPerfusionPressureTimeIntegral:
+    Readonly<Record<(typeof CORONARY_TERRITORY_IDS_V2)[number], number>>;
   dynamicMechanicalSupport: DynamicMechanicalSupportContinuousBinding;
   composedRevision: number;
   ventricularBackupNextIntrinsicEscapeDueTimeSec: number;
@@ -181,6 +198,52 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
         "/composedRhythm/deliveredCalciumDepositCount",
       ),
     }),
+    electricalCaptureAcceptedTimeSec: continuousSlot(
+      manifest,
+      "/composedRhythm/electricalCaptureState/acceptedTimeSec",
+    ),
+    ventricularBackupAcceptedTimeSec: continuousSlot(
+      manifest,
+      "/composedRhythm/ventricularBackupState/acceptedTimeSec",
+    ),
+    ventricularBackupRevision: continuousSlot(
+      manifest,
+      "/composedRhythm/ventricularBackupState/revision",
+    ),
+    autoregulationAcceptedDurationSec: continuousSlot(
+      manifest,
+      "/coronary/coronaryAutoregulation/acceptedDurationSec",
+    ),
+    autoregulationAcceptedStepCount: continuousSlot(
+      manifest,
+      "/coronary/coronaryAutoregulation/acceptedStepCount",
+    ),
+    autoregulationQmTimeIntegral: Object.freeze(Object.fromEntries(
+      CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+        territoryId,
+        Object.freeze(Object.fromEntries(CORONARY_LAYER_IDS_V2.map((layerId) => [
+          layerId,
+          continuousSlot(
+            manifest,
+            "/coronary/coronaryAutoregulation/"
+              + "qmTimeIntegralMlByTerritoryLayer/"
+              + `${territoryId}/${layerId}`,
+          ),
+        ])) as Record<(typeof CORONARY_LAYER_IDS_V2)[number], number>),
+      ]),
+    ) as Record<(typeof CORONARY_TERRITORY_IDS_V2)[number],
+      Readonly<Record<(typeof CORONARY_LAYER_IDS_V2)[number], number>>>),
+    autoregulationPerfusionPressureTimeIntegral: Object.freeze(
+      Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+        territoryId,
+        continuousSlot(
+          manifest,
+          "/coronary/coronaryAutoregulation/"
+            + "perfusionPressureTimeIntegralMmHgSecByTerritory/"
+            + territoryId,
+        ),
+      ])) as Record<(typeof CORONARY_TERRITORY_IDS_V2)[number], number>,
+    ),
     dynamicMechanicalSupport: Object.freeze(
       Object.fromEntries(
         ROTARY_SUPPORT_DEVICE_IDS_V1.map((deviceId) => [
@@ -316,6 +379,17 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
     continuous.resolvedRhythm.acceptedAtrialCaptureCount,
     continuous.resolvedRhythm.acceptedVentricularCaptureCount,
     continuous.resolvedRhythm.deliveredCalciumDepositCount,
+    continuous.electricalCaptureAcceptedTimeSec,
+    continuous.ventricularBackupAcceptedTimeSec,
+    continuous.ventricularBackupRevision,
+    continuous.autoregulationAcceptedDurationSec,
+    continuous.autoregulationAcceptedStepCount,
+    ...CORONARY_TERRITORY_IDS_V2.flatMap((territoryId) => [
+      ...CORONARY_LAYER_IDS_V2.map(
+        (layerId) => continuous.autoregulationQmTimeIntegral[territoryId][layerId],
+      ),
+      continuous.autoregulationPerfusionPressureTimeIntegral[territoryId],
+    ]),
     ...ROTARY_SUPPORT_DEVICE_IDS_V1.map(
       (deviceId) => continuous.dynamicMechanicalSupport[deviceId],
     ),
@@ -921,6 +995,77 @@ export function stageMainWireAcceptedTypedResolvedCandidateV1(
       finiteNumber(
         ownValue(flowRecord, deviceId),
         `dynamic mechanical support ${deviceId} accepted flow`,
+      ),
+    );
+  }
+}
+
+/**
+ * Stages the continuously changing rhythm clocks and accepted coronary-window
+ * integrals. Discrete rhythm queues, optional event records, tone changes,
+ * and window rollover metadata remain on event-boundary completion.
+ */
+export function stageMainWireAcceptedTypedContinuousOwnerCandidateV1(
+  candidate: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
+  rhythmCandidate: AcceptedComposedRhythmTransactionCandidateV2,
+  autoregulation: CoronaryAcceptedAutoregulationStateV3,
+): void {
+  assertCandidateCursor(candidate, binding);
+  const state = rhythmCandidate.candidateState;
+  if (
+    state.acceptedTimeSec !== rhythmCandidate.candidateTimeSec
+    || state.revision !== rhythmCandidate.candidateRevision
+    || state.electricalCaptureState.acceptedTimeSec !== state.acceptedTimeSec
+    || state.ventricularBackupState.acceptedTimeSec !== state.acceptedTimeSec
+    || state.ventricularBackupState.revision !== state.revision
+  ) {
+    throw new Error("Main Wire typed continuous rhythm owner clocks diverged");
+  }
+  const slots = binding.continuous;
+  candidate.writeContinuous(
+    slots.electricalCaptureAcceptedTimeSec,
+    state.electricalCaptureState.acceptedTimeSec,
+  );
+  candidate.writeContinuous(
+    slots.ventricularBackupAcceptedTimeSec,
+    state.ventricularBackupState.acceptedTimeSec,
+  );
+  candidate.writeContinuous(
+    slots.ventricularBackupRevision,
+    state.ventricularBackupState.revision,
+  );
+  candidate.writeContinuous(
+    slots.autoregulationAcceptedDurationSec,
+    finiteNonnegative(
+      autoregulation.acceptedDurationSec,
+      "autoregulation accepted duration",
+    ),
+  );
+  candidate.writeContinuous(
+    slots.autoregulationAcceptedStepCount,
+    nonnegativeSafeInteger(
+      autoregulation.acceptedStepCount,
+      "autoregulation accepted step count",
+    ),
+  );
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      candidate.writeContinuous(
+        slots.autoregulationQmTimeIntegral[territoryId][layerId],
+        finiteNumber(
+          autoregulation.qmTimeIntegralMlByTerritoryLayer[territoryId][layerId],
+          `autoregulation ${territoryId}/${layerId} Qm integral`,
+        ),
+      );
+    }
+    candidate.writeContinuous(
+      slots.autoregulationPerfusionPressureTimeIntegral[territoryId],
+      finiteNumber(
+        autoregulation.perfusionPressureTimeIntegralMmHgSecByTerritory[
+          territoryId
+        ],
+        `autoregulation ${territoryId} pressure integral`,
       ),
     );
   }

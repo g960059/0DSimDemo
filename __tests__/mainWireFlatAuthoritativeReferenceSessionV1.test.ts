@@ -950,6 +950,7 @@ describe("TransactionalTypedStateImageV1", () => {
     expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 9 });
     expect(image.report()).toMatchObject({ commitCount: 2, staged: false });
     expect(image.report().directCompletionReaderPlanUseCount).toBe(0);
+    expect(image.report().directExactCandidateMatchCount).toBe(0);
   });
 });
 
@@ -1478,8 +1479,10 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       externalImmutableCanonicalMatchCount: 0,
       poisonedReason: null,
       directCandidateCommitCount: 0,
+      directCandidateExactCommitCount: 0,
       directCandidateMirrorReuseCount: 0,
       directCompletionReaderPlanUseCount: 0,
+      directExactCandidateMatchCount: 0,
     });
     const escapedState = reference.currentAcceptedState();
     const escapedTypedArray = firstFloat64Array(escapedState);
@@ -1523,11 +1526,27 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     expect(finalReport.directCandidateMirrorReuseCount).toBe(
       finalReport.commitCount,
     );
-    expect(finalReport.directCompletionReaderPlanUseCount).toBe(
+    expect(
+      finalReport.directCandidateExactCommitCount
+      + finalReport.directCompletionReaderPlanUseCount,
+    ).toBe(
       finalReport.commitCount,
     );
+    expect(finalReport.directCandidateExactCommitCount).toBeGreaterThan(
+      finalReport.commitCount * 0.95,
+    );
+    expect(finalReport.directCompletionReaderPlanUseCount).toBeLessThan(
+      finalReport.commitCount * 0.05,
+    );
+    expect(finalReport.directExactCandidateMatchCount).toBe(
+      finalReport.directCandidateExactCommitCount,
+    );
     expect(finalReport.externalImmutableIdentityMatchCount).toBe(
-      (finalReport.commitCount + 1) * 56,
+      (
+        finalReport.commitCount
+        + finalReport.directCompletionReaderPlanUseCount
+        + 1
+      ) * 56,
     );
     expect(finalReport.externalImmutableCanonicalMatchCount).toBe(0);
     expect(finalReport.highWaterStringBytes).toBeLessThanOrEqual(
@@ -1595,8 +1614,10 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       );
       expect(reference.authorityReport()).toMatchObject({
         directCandidateCommitCount: 1,
+        directCandidateExactCommitCount: 0,
         directCandidateMirrorReuseCount: 1,
         directCompletionReaderPlanUseCount: 1,
+        directExactCandidateMatchCount: 0,
         poisonedReason: null,
       });
       expect(reference.currentAcceptedState())

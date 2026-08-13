@@ -1102,6 +1102,32 @@ missing from the image. It does not count as the final hot path: the bridge is
 named, documented, and measured as a cold migration boundary and must be
 deleted from per-step execution before cutover.
 
+The integrated reference Session now stages all continuously changing owners
+that were still visible outside that 100-scalar partition into the existing
+global typed image: electrical-capture and ventricular-backup clocks,
+coronary-window duration/count/integrals, redundant circulation and mechanics
+volumes, and the fixed-width mechanics fingerprint. A manifest-wide 1,024-tick
+diagnostic classifies every changing slot and fails if an unclassified hot
+owner appears. In the baseline run, `1,017` of `1,032` accepted commits were
+already byte-exact after owner staging; only `15` rhythm/window event commits
+needed the exhaustive object completion path. The complete all-49-output
+trajectory remained inside the existing scientific corridor, with maximum
+relative output difference about `1.92e-9` versus the nested oracle, and exact
+checkpoint continuation still passed.
+
+That result deliberately did **not** qualify the migration as a speedup. One
+alternating 512-tick host diagnostic measured about `2.06 ms/tick` for the
+nested object authority and `2.15 ms/tick` for the integrated typed reference
+(`1.045x` overhead), despite eliminating exhaustive completion on 98.5% of
+commits. The reference still constructs a complete accepted object and then
+walks all fixed/string/optional leaves to prove equality before promotion.
+Therefore the next performance boundary is not another retained-slot list: it
+is a model-owned typed candidate admission that validates component clocks,
+conservation, event ownership, and solver residuals directly, promotes once,
+and materializes the public object only for observation/checkpoint/capture.
+Until that boundary exists, the integrated Session remains a parity oracle and
+must not replace the active release.
+
 The first trajectory optimization uses only **admitted** 30-volume roots to
 predict the next Newton seed. The first eligible step uses a first-order
 accepted displacement. Once three accepted roots exist, the selected policy

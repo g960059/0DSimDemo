@@ -157,6 +157,7 @@ export type TransactionalTypedStateImageReportV1 = Readonly<{
   externalImmutableIdentityMatchCount: number;
   externalImmutableCanonicalMatchCount: number;
   directCompletionReaderPlanUseCount: number;
+  directExactCandidateMatchCount: number;
   staged: boolean;
 }>;
 
@@ -208,6 +209,13 @@ export type TransactionalTypedStateCandidateCursorV1 = Readonly<{
   writeNullableContinuous(slotIndex: number, value: number | null): void;
   readBoolean(slotIndex: number): boolean;
   writeBoolean(slotIndex: number, value: boolean): void;
+  readString(slotIndex: number): string;
+  /**
+   * Replaces one already allocated string slice without moving arena metadata.
+   * Model-owned hot fields such as fixed-width fingerprints use this path;
+   * variable-length event identifiers remain on exhaustive completion.
+   */
+  writeStringSameByteLength(slotIndex: number, value: string): void;
 }>;
 
 export type TransactionalTypedStateRetainedSlotsV1 = Readonly<{
@@ -406,6 +414,7 @@ export class TransactionalTypedStateImageV1<TState> {
   #externalImmutableIdentityMatchCount = 0;
   #externalImmutableCanonicalMatchCount = 0;
   #directCompletionReaderPlanUseCount = 0;
+  #directExactCandidateMatchCount = 0;
 
   constructor(
     manifest: TransactionalTypedStateManifestV1,
@@ -509,6 +518,14 @@ export class TransactionalTypedStateImageV1<TState> {
         this.readCandidateBoolean(generation, slotIndex),
       writeBoolean: (slotIndex: number, value: boolean) =>
         this.writeCandidateBoolean(generation, slotIndex, value),
+      readString: (slotIndex: number) =>
+        this.readCandidateString(generation, slotIndex),
+      writeStringSameByteLength: (slotIndex: number, value: string) =>
+        this.writeCandidateStringSameByteLength(
+          generation,
+          slotIndex,
+          value,
+        ),
     });
   }
 
@@ -658,6 +675,57 @@ export class TransactionalTypedStateImageV1<TState> {
     return admittedCandidate;
   }
 
+  /**
+   * Proves that every staged byte already represents one internally admitted
+   * adapter. No candidate data is written here. A mismatch returns null and
+   * leaves the transaction open so the caller may run exhaustive completion.
+   */
+  matchCandidateExactlyAgainstObject(
+    candidate: TState,
+    plan: TransactionalTypedStateCompletionPlanV1,
+  ): TState | null {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    const admittedCandidate = this.#admitDirectCompletionCandidate === null
+      ? candidate
+      : this.#admitDirectCompletionCandidate(candidate);
+    if (admittedCandidate !== candidate) {
+      throw new Error(
+        "Transactional typed state direct admission changed candidate identity",
+      );
+    }
+    const internal = COMPLETION_PLAN_INTERNALS.get(plan);
+    if (
+      internal === undefined
+      || internal.manifest !== this.#manifest
+      || plan.layoutId !== this.#manifest.layoutId
+      || plan.fingerprint !== this.#manifest.fingerprint
+    ) {
+      throw new Error(
+        "Transactional typed state completion plan has the wrong layout",
+      );
+    }
+    const candidateImage = this.#images[this.inactiveIndex()];
+    this.assertExternalImmutableRootsMatch(
+      candidate,
+      internal.readers.externalImmutable,
+      candidateImage,
+    );
+    if (!imageExactlyMatchesObject(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      internal.readers,
+      this.#stagedStringBytes,
+      this.#stagedDynamicBytes,
+    )) {
+      return null;
+    }
+    this.#directExactCandidateMatchCount += 1;
+    return admittedCandidate;
+  }
+
   promote(): void {
     if (!this.#staged) {
       throw new Error("Transactional typed state has no staged candidate");
@@ -771,6 +839,7 @@ export class TransactionalTypedStateImageV1<TState> {
         this.#externalImmutableCanonicalMatchCount,
       directCompletionReaderPlanUseCount:
         this.#directCompletionReaderPlanUseCount,
+      directExactCandidateMatchCount: this.#directExactCandidateMatchCount,
       staged: this.#staged,
     });
   }
@@ -1056,6 +1125,54 @@ export class TransactionalTypedStateImageV1<TState> {
     this.#images[this.inactiveIndex()].booleans[slotIndex] = value ? 1 : 0;
   }
 
+  private readCandidateString(
+    generation: number,
+    slotIndex: number,
+  ): string {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string candidate",
+    );
+    return decodeStringSlot(
+      this.#images[this.inactiveIndex()],
+      slotIndex,
+      this.#stagedStringBytes,
+    );
+  }
+
+  private writeCandidateStringSameByteLength(
+    generation: number,
+    slotIndex: number,
+    value: string,
+  ): void {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string candidate",
+    );
+    assertWellFormedString(value, "candidate string");
+    const image = this.#images[this.inactiveIndex()];
+    const offset = image.stringMetadata[slotIndex * 2]!;
+    const length = image.stringMetadata[slotIndex * 2 + 1]!;
+    assertArenaSlice(
+      offset,
+      length,
+      this.#stagedStringBytes,
+      "string candidate",
+      true,
+    );
+    const target = image.stringArena.subarray(offset, offset + length);
+    const result = UTF8_ENCODER.encodeInto(value, target);
+    if (result.read !== value.length || result.written !== length) {
+      throw new Error(
+        "Transactional typed state candidate string byte length changed",
+      );
+    }
+  }
+
   private assertCandidateGeneration(generation: number): void {
     if (!this.#staged || generation !== this.#candidateGeneration) {
       throw new Error("Transactional typed state candidate cursor is stale");
@@ -1176,6 +1293,128 @@ function assertRetainedFixedLeavesMatch(
       );
     }
   }
+}
+
+function imageExactlyMatchesObject(
+  manifest: TransactionalTypedStateManifestV1,
+  state: unknown,
+  image: MutableImageV1,
+  readers: DirectCompletionReadersV1,
+  stringBytes: number,
+  dynamicBytes: number,
+): boolean {
+  const layout = manifest.numericalLayout;
+  for (let index = 0; index < layout.optionalRecordRoots.length; index += 1) {
+    const present = readers.optionalRecords[index]!(state) !== null;
+    if (image.optionalRecordPresent[index] !== (present ? 1 : 0)) return false;
+  }
+  for (let index = 0; index < layout.boundedArrayRoots.length; index += 1) {
+    const value = readers.boundedArrays[index]!(state);
+    if (
+      !Array.isArray(value)
+      || value.length !== image.boundedArrayLengths[index]
+    ) return false;
+  }
+  for (let index = 0; index < layout.continuousSlots.length; index += 1) {
+    const slot = layout.continuousSlots[index]!;
+    if (layoutEntryAbsent(layout, state, slot, image)) continue;
+    const value = readers.continuous[index]!(state);
+    if (
+      typeof value !== "number"
+      || !Number.isFinite(value)
+      || !Object.is(image.continuous[index], value)
+    ) return false;
+  }
+  for (
+    let index = 0;
+    index < layout.nullableContinuousSlots.length;
+    index += 1
+  ) {
+    const slot = layout.nullableContinuousSlots[index]!;
+    if (layoutEntryAbsent(layout, state, slot, image)) continue;
+    const value = readers.nullableContinuous[index]!(state);
+    const present = image.nullableContinuousPresent[index]!;
+    if (value === null) {
+      if (present !== 0) return false;
+      continue;
+    }
+    if (
+      typeof value !== "number"
+      || !Number.isFinite(value)
+      || present !== 1
+      || !Object.is(image.nullableContinuous[index], value)
+    ) return false;
+  }
+  for (let index = 0; index < layout.booleanSlots.length; index += 1) {
+    const slot = layout.booleanSlots[index]!;
+    if (layoutEntryAbsent(layout, state, slot, image)) continue;
+    const value = readers.booleans[index]!(state);
+    if (
+      typeof value !== "boolean"
+      || image.booleans[index] !== (value ? 1 : 0)
+    ) return false;
+  }
+  for (let index = 0; index < layout.stringSlots.length; index += 1) {
+    const slot = layout.stringSlots[index]!;
+    if (layoutEntryAbsent(layout, state, slot, image)) continue;
+    const value = readers.strings[index]!(state);
+    if (
+      typeof value !== "string"
+      || decodeStringSlot(image, index, stringBytes) !== value
+    ) return false;
+  }
+  for (
+    let index = 0;
+    index < layout.nullableStringSlots.length;
+    index += 1
+  ) {
+    const slot = layout.nullableStringSlots[index]!;
+    if (layoutEntryAbsent(layout, state, slot, image)) continue;
+    const value = readers.nullableStrings[index]!(state);
+    const present = image.nullableStringPresent[index]!;
+    if (value === null) {
+      if (present !== 0) return false;
+      continue;
+    }
+    if (typeof value !== "string" || present !== 1) return false;
+    const offset = image.nullableStringMetadata[index * 2]!;
+    const length = image.nullableStringMetadata[index * 2 + 1]!;
+    assertArenaSlice(offset, length, stringBytes, "nullable string", true);
+    if (
+      UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length))
+        !== value
+    ) return false;
+  }
+  for (let index = 0; index < layout.excludedDynamicRoots.length; index += 1) {
+    const slot = layout.excludedDynamicRoots[index]!;
+    if (layoutEntryAbsent(layout, state, slot, image)) continue;
+    const value = readers.dynamicRoots[index]!(state);
+    const expectedLength = measureCanonicalFlatDataV1(value);
+    const offset = image.dynamicMetadata[index * 2]!;
+    const length = image.dynamicMetadata[index * 2 + 1]!;
+    if (length !== expectedLength) return false;
+    assertArenaSlice(offset, length, dynamicBytes, "dynamic");
+    const expected = new Uint8Array(expectedLength);
+    if (encodeCanonicalFlatDataIntoV1(value, expected) !== expectedLength) {
+      throw new Error("Transactional typed state dynamic length changed");
+    }
+    const actual = image.dynamicArena.subarray(offset, offset + length);
+    if (!expected.every((byte, byteIndex) => byte === actual[byteIndex])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function decodeStringSlot(
+  image: MutableImageV1,
+  slotIndex: number,
+  usedBytes: number,
+): string {
+  const offset = image.stringMetadata[slotIndex * 2]!;
+  const length = image.stringMetadata[slotIndex * 2 + 1]!;
+  assertArenaSlice(offset, length, usedBytes, "string", true);
+  return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
 }
 
 function retainedSlotSet(

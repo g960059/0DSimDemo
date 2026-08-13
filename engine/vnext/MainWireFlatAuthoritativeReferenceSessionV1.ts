@@ -80,6 +80,7 @@ import {
   stageMainWireAcceptedTypedAuthoredScheduleCandidateV1,
   stageMainWireAcceptedTypedCalciumCandidateV1,
   stageMainWireAcceptedTypedClockCandidateV1,
+  stageMainWireAcceptedTypedContinuousOwnerCandidateV1,
   stageMainWireAcceptedTypedRegularAtrialCandidateV1,
   stageMainWireAcceptedTypedResolvedCandidateV1,
   type MainWireAcceptedTypedBoundaryBindingV1,
@@ -648,13 +649,22 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             result.composedRhythmCandidate,
             result.dynamicMechanicalSupportTrial.candidateAcceptedState,
           );
+          stageMainWireAcceptedTypedContinuousOwnerCandidateV1(
+            directCandidateCursor,
+            this.requiredTypedBoundaryBinding(),
+            result.composedRhythmCandidate,
+            result.acceptedState.coronary.coronaryAutoregulation,
+          );
         }
         if (this.#typedAuthority !== null) {
-          directCandidateOpen = false;
-          committedState = this.#typedAuthority.commitDirectCandidate(
+          committedState = this.#typedAuthority.tryCommitExactDirectCandidate(
+            result.acceptedState,
+            this.requiredDirectCompletionPlan(),
+          ) ?? this.#typedAuthority.commitDirectCandidate(
             result.acceptedState,
             this.requiredDirectCompletionPlan(),
           );
+          directCandidateOpen = false;
         } else {
           committedState = this.#authority.commit(result.acceptedState);
         }

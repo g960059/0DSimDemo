@@ -97,6 +97,11 @@ export type MainWireAcceptedTypedHemodynamicBindingV1 = Readonly<{
   /** Canonical 100-f64 view; the MVC-active position is supplied separately. */
   canonicalContinuousSlots: readonly (number | null)[];
   mvcActiveBooleanSlot: number;
+  circulationTotalBloodVolumeSlot: number;
+  mechanicsAcceptedVolumeSlots: Readonly<
+    Record<"LA" | "LV" | "RA" | "RV", number>
+  >;
+  mechanicsMaterialFingerprintStringSlot: number;
   ownerClocks: readonly OwnerClockBindingV1[];
   coupledContinuousSlots: readonly number[];
   coupledBooleanSlots: readonly number[];
@@ -237,8 +242,27 @@ export function createMainWireAcceptedTypedHemodynamicBindingV1(
     manifest,
     "/coronary/mvcReferenceState/mitralForwardFlowActive",
   );
+  const circulationTotalBloodVolumeSlot = continuousSlot(
+    manifest,
+    "/coronary/circulation/totalBloodVolumeMl",
+  );
+  const mechanicsAcceptedVolumeSlots = Object.freeze(Object.fromEntries(
+    (["LA", "LV", "RA", "RV"] as const).map((chamberId) => [
+      chamberId,
+      continuousSlot(
+        manifest,
+        `/coronary/mechanics/acceptedVolumesMl/${chamberId}`,
+      ),
+    ]),
+  ) as Record<"LA" | "LV" | "RA" | "RV", number>);
+  const mechanicsMaterialFingerprintStringSlot = stringSlot(
+    manifest,
+    "/coronary/mechanics/materialStateFingerprint",
+  );
   const coupledContinuousSlots = Object.freeze(Array.from(new Set([
     ...slots.filter((slot): slot is number => slot !== null),
+    circulationTotalBloodVolumeSlot,
+    ...Object.values(mechanicsAcceptedVolumeSlots),
     ...ownerClocks.flatMap((clock) => [
       clock.acceptedTimeSec,
       clock.revision,
@@ -260,6 +284,9 @@ export function createMainWireAcceptedTypedHemodynamicBindingV1(
     fingerprint: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
     canonicalContinuousSlots: Object.freeze(slots),
     mvcActiveBooleanSlot,
+    circulationTotalBloodVolumeSlot,
+    mechanicsAcceptedVolumeSlots,
+    mechanicsMaterialFingerprintStringSlot,
     ownerClocks,
     coupledContinuousSlots,
     coupledBooleanSlots: Object.freeze([mvcActiveBooleanSlot]),
@@ -344,6 +371,15 @@ export function stageMainWireAcceptedTypedCoupledCandidateV1(
     );
     candidateCursor.writeContinuous(clock.revision, candidate.candidateRevision);
   }
+  writeRedundantAcceptedVolumes(
+    candidateCursor,
+    binding,
+    candidate.nonCoronaryNodeVolumesMl.reduce(
+      (sum, volumeMl) => sum + volumeMl,
+      0,
+    ),
+    candidate.mechanicsCandidateVolumesMl,
+  );
 }
 
 /**
@@ -423,6 +459,43 @@ export function stageMainWireAcceptedTypedCoupledStateV1(
     state.acceptedTimeSec,
     state.revision,
   );
+  writeRedundantAcceptedVolumes(
+    candidateCursor,
+    binding,
+    state.circulation.totalBloodVolumeMl,
+    state.mechanics.acceptedVolumesMl,
+  );
+  candidateCursor.writeStringSameByteLength(
+    binding.mechanicsMaterialFingerprintStringSlot,
+    state.mechanics.materialStateFingerprint,
+  );
+}
+
+function writeRedundantAcceptedVolumes(
+  candidateCursor: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedHemodynamicBindingV1,
+  totalBloodVolumeMl: number,
+  mechanicsVolumes: Readonly<Record<"LA" | "LV" | "RA" | "RV", number>>,
+): void {
+  if (!Number.isFinite(totalBloodVolumeMl) || !(totalBloodVolumeMl > 0)) {
+    throw new Error("Main Wire typed circulation TBV is invalid");
+  }
+  candidateCursor.writeContinuous(
+    binding.circulationTotalBloodVolumeSlot,
+    totalBloodVolumeMl,
+  );
+  for (const chamberId of ["LA", "LV", "RA", "RV"] as const) {
+    const value = mechanicsVolumes[chamberId];
+    if (!Number.isFinite(value) || !(value > 0)) {
+      throw new Error(
+        `Main Wire typed ${chamberId} mechanics accepted volume is invalid`,
+      );
+    }
+    candidateCursor.writeContinuous(
+      binding.mechanicsAcceptedVolumeSlots[chamberId],
+      value,
+    );
+  }
 }
 
 function writeCandidateIntoCanonicalView(
@@ -696,6 +769,13 @@ function booleanSlot(
   pointer: string,
 ): number {
   return requiredSlot(manifest.numericalLayout.booleanSlots, pointer);
+}
+
+function stringSlot(
+  manifest: TransactionalTypedStateManifestV1,
+  pointer: string,
+): number {
+  return requiredSlot(manifest.numericalLayout.stringSlots, pointer);
 }
 
 function requiredSlot(

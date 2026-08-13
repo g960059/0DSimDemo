@@ -32,6 +32,7 @@
     "profile:kernel:flat-authority": "vite-node --script tools/performance/profileMainWireFlatAuthorityV1.ts",
     "inspect:kernel:flat-state-shape": "vite-node --script tools/performance/inspectMainWireFlatStateShapeV1.ts",
     "inspect:kernel:accepted-state-identity": "vite-node --script tools/performance/inspectMainWireAcceptedStateIdentityV1.ts",
+    "inspect:kernel:typed-owner-coverage": "vite-node --script tools/performance/inspectMainWireTypedOwnerCoverageV1.ts",
     "verify:workbench:performance": "CIRCLEHEART_PERF_ENFORCE=1 npm run benchmark:workbench:live",
     "test:supabase": "supabase test db --local supabase/tests/database",
     "test:related": "vitest related --run --config vitest.fast.config.ts",
