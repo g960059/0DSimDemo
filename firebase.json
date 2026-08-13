@@ -29,10 +29,6 @@
         "source": "!/@(assets)/**",
         "headers": [
           {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          },
-          {
             "key": "X-Content-Type-Options",
             "value": "nosniff"
           },
@@ -47,38 +43,38 @@
         ]
       },
       {
-        "source": "/@(robots.txt|sitemap.xml)",
+        "source": "/",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400"
+            "value": "no-cache"
           }
         ]
       },
       {
-        "source": "/api/v1/public/articles/*",
+        "source": "/@(ja|en)",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400"
+            "value": "no-cache"
           }
         ]
       },
       {
-        "source": "/@(ja|en)/articles",
+        "source": "/@(ja|en)/@(experiments|snapshots|login|me|dev|docs)",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400"
+            "value": "no-cache"
           }
         ]
       },
       {
-        "source": "/@(ja|en)/articles/*",
+        "source": "/@(ja|en)/@(experiments|snapshots|login|me|dev|docs)/**",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400"
+            "value": "no-cache"
           }
         ]
       },
