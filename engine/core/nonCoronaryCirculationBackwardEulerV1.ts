@@ -589,6 +589,8 @@ export type NonCoronaryCirculationCandidateProbeV1<
   edgeFlowsMlPerSec: Float64Array;
   continuityResidualMlByNode: Float64Array;
   scaledIndependentResidual: Float64Array;
+  /** Same mixed continuity gate used by public candidate admission. */
+  mixedContinuityResidualInfinityNorm: number;
   /**
    * Device-off local-continuity derivative with respect to the physical
    * dependent SV volume while every independent non-coronary volume and the
@@ -1617,6 +1619,7 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
   if (typeof input.evaluateCandidateMechanics !== "function") {
     throw new Error("evaluateCandidateMechanics must be a function");
   }
+  const options = resolveNewtonOptions(input.options);
   if (!(candidateIndependentNodeVolumesMl instanceof Float64Array)
       || candidateIndependentNodeVolumesMl.length
         !== INDEPENDENT_NODE_NAMES.length) {
@@ -1719,6 +1722,12 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
       candidate.continuityResidualMlByNode.slice(),
     scaledIndependentResidual:
       candidate.scaledIndependentResidual.slice(),
+    mixedContinuityResidualInfinityNorm: mixedContinuityResidualAudit(
+      candidate,
+      previous.nodeVolumesMl,
+      options.absoluteContinuityResidualToleranceMl,
+      options.scaledResidualInfinityTolerance,
+    ).infinityNorm,
     localIndependentResidualDDependentSvVolumeMlPerMl,
     localIndependentResidualDIndependentVolumeMlPerMl,
     localIndependentResidualDAbsoluteChamberPressureMlPerMmHg,

@@ -17,7 +17,6 @@ export type MainWireFiveWallPromotedMechanicsNewtonShadowOptionsV1 = Readonly<{
   maximumIterations?: number;
   maximumLineSearchBacktracks?: number;
   finiteDifferenceRelativeStep?: number;
-  volumeResidualInfinityToleranceMl?: number;
   updateInfinityTolerance?: number;
   jacobianMode?: "central-difference" | "analytic";
 }>;
@@ -107,12 +106,6 @@ export function solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
       finiteDifferenceRelativeStep,
       "finiteDifferenceRelativeStep",
     );
-    const volumeResidualInfinityToleranceMl =
-      options.volumeResidualInfinityToleranceMl ?? 2e-9;
-    requirePositiveFinite(
-      volumeResidualInfinityToleranceMl,
-      "volumeResidualInfinityToleranceMl",
-    );
     let jacobianResidualEvaluationCount = 0;
     let analyticJacobianAssemblyCount = 0;
     const jacobianMode = options.jacobianMode
@@ -142,11 +135,7 @@ export function solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
         return availableVolumeMl / updateSum;
       },
       evaluateResidual: context.evaluateResidual,
-      isResidualConverged: (_unknowns, residual) =>
-        maximumAbsoluteRange(residual, 0, volumeDimension)
-          <= volumeResidualInfinityToleranceMl
-        && maximumAbsoluteRange(residual, volumeDimension, dimension)
-          <= context.mechanicsResidualInfinityToleranceByOneJ,
+      isResidualConverged: context.isResidualConverged,
       evaluateJacobian: (unknowns, destination) => {
         if (jacobianMode === "analytic") {
           context.writeAnalyticJacobian(unknowns, destination);
@@ -201,7 +190,8 @@ export function solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
         maximumLineSearchBacktracks:
           options.maximumLineSearchBacktracks ?? 24,
         maximumAcceptedStepsPerJacobian: 1,
-        residualInfinityTolerance: volumeResidualInfinityToleranceMl,
+        residualInfinityTolerance:
+          context.mechanicsResidualInfinityToleranceByOneJ,
         updateInfinityTolerance: options.updateInfinityTolerance ?? 1e-12,
         armijoCoefficient: 1e-4,
         minimumAbsolutePivot: 1e-14,
@@ -226,18 +216,6 @@ export function solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
   } finally {
     storage.inUse = false;
   }
-}
-
-function maximumAbsoluteRange(
-  values: Float64Array,
-  start: number,
-  end: number,
-): number {
-  let maximum = 0;
-  for (let index = start; index < end; index += 1) {
-    maximum = Math.max(maximum, Math.abs(values[index]!));
-  }
-  return maximum;
 }
 
 function sumPrefix(values: Float64Array, count: number): number {

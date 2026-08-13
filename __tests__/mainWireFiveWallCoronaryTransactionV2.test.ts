@@ -95,6 +95,7 @@ import {
   MainWireFlatCoupledAcceptedStateV1,
 } from "@/engine/vnext/coupled/MainWireFlatCoupledAcceptedStateV1";
 import {
+  createMainWireFiveWallPromotedMechanicsNewtonShadowWorkspaceV1,
   solveMainWireFiveWallPromotedMechanicsNewtonShadowV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallPromotedMechanicsNewtonShadowV1";
 import {
@@ -1022,6 +1023,198 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(Math.abs(residual[31]!)).toBeLessThanOrEqual(
       promotedContext.mechanicsResidualInfinityToleranceByOneJ,
     );
+  }, 60_000);
+
+  it("tracks the analytic 30-row root across the six-case one-second corpus", () => {
+    const condensedOptions = Object.freeze({
+      maximumAcceptedStepsPerJacobian: 2,
+      analyticJacobianPolicy: "require-complete" as const,
+    });
+
+    for (const corpusCase of MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1) {
+      const fixture =
+        createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+          corpusCase.hemodynamicResearchInputs,
+          corpusCase.ventricularContractilityScale,
+        );
+      const initial = mainWireFiveWallCoronaryBaseStateV2(
+        fixture.cold.acceptedState.coronary,
+      );
+      const stepInput = Object.freeze({
+        ...fixture.coronaryStepInput,
+        dtSec: 0.002,
+      });
+      const authority = new MainWireFlatCoupledAcceptedStateV1(initial);
+      const condensedWorkspace =
+        createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+      const promotedWorkspace =
+        createMainWireFiveWallPromotedMechanicsNewtonShadowWorkspaceV1();
+      let maximumVolumeRootDifferenceMl = 0;
+      let promotedResidualEvaluations = 0;
+      let analyticJacobianShadowCount = 0;
+
+      for (let stepIndex = 0; stepIndex < 500; stepIndex += 1) {
+        const previous = authority.materializeAcceptedObjectBridge(
+          fixture.provider,
+        );
+        const condensedContext = prepareMainWireFiveWallCoupledResidualContextV1(
+          fixture.provider,
+          previous,
+          stepInput,
+        );
+        const promotedContext =
+          prepareMainWireFiveWallPromotedMechanicsResidualContextV1(
+            fixture.provider,
+            previous,
+            stepInput,
+          );
+        const condensed = solveMainWireFiveWallCoupledNewtonShadowV1(
+          condensedContext,
+          condensedOptions,
+          condensedWorkspace,
+        );
+        if (condensed.result.status !== "converged") {
+          throw new Error(
+            `${corpusCase.caseId} condensed solve failed at step ${stepIndex}: `
+              + condensed.result.message,
+          );
+        }
+        const condensedSolution = condensed.result.solution;
+        const promotedInitialGuess = promotedContext.initialUnknowns.slice();
+        promotedInitialGuess.set(condensedSolution, 0);
+        const chamberVolumes = Object.freeze(Object.fromEntries(
+          (["LA", "LV", "RA", "RV"] as const).map((chamber) => {
+            const index = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1
+              .indexOf(chamber);
+            if (index < 0) throw new Error(`${chamber} is not independent`);
+            return [chamber, condensedSolution[index]!];
+          }),
+        )) as Readonly<{ LA: number; LV: number; RA: number; RV: number }>;
+        const numericalStep = tryPrepareMainWireFiveWallNumericalMechanicsStepV1(
+          fixture.provider,
+          Object.freeze({
+            previousAcceptedMaterialState: previous.mechanics.materialState,
+            candidateTimeSec: previous.acceptedTimeSec + stepInput.dtSec,
+            stepDtSec: stepInput.dtSec,
+            drivingInputs: Object.freeze({
+              freeCalciumUMByWall: evaluateFiveWallNormalCalciumDriveV1(
+                previous.acceptedTimeSec + stepInput.dtSec,
+                stepInput.calciumDriveParams,
+              ).freeCalciumUMByWall,
+            }),
+          }),
+        );
+        if (numericalStep === null) {
+          throw new Error("corpus provider lost its numerical mechanics seam");
+        }
+        const localMechanics =
+          evaluateMainWireFiveWallNumericalMechanicsCandidateV1(
+            numericalStep,
+            chamberVolumes,
+          );
+        promotedInitialGuess.set(
+          localMechanics.scaledInternalCoordinates,
+          condensedContext.dimension,
+        );
+        if (stepIndex % 125 === 0) {
+          const analyticJacobian = new Float64Array(32 * 32);
+          promotedContext.writeAnalyticJacobian(
+            promotedInitialGuess,
+            analyticJacobian,
+          );
+          const plus = promotedInitialGuess.slice();
+          const minus = promotedInitialGuess.slice();
+          const plusResidual = new Float64Array(32);
+          const minusResidual = new Float64Array(32);
+          let squaredDifference = 0;
+          let squaredReference = 0;
+          let maximumAbsoluteDifference = 0;
+          for (const column of [0, 3, 14, 29, 30, 31]) {
+            plus.set(promotedInitialGuess);
+            minus.set(promotedInitialGuess);
+            const halfStep = column < 14
+              ? 1e-5 * Math.max(1, Math.abs(promotedInitialGuess[column]!))
+              : column < 30
+                ? 1e-3 * Math.max(1, Math.abs(promotedInitialGuess[column]!))
+                : 1e-5;
+            plus[column] += halfStep;
+            minus[column] -= halfStep;
+            promotedContext.evaluateResidual(plus, plusResidual);
+            promotedContext.evaluateResidual(minus, minusResidual);
+            for (let row = 0; row < 32; row += 1) {
+              const reference =
+                (plusResidual[row]! - minusResidual[row]!) / (2 * halfStep);
+              const difference = analyticJacobian[row * 32 + column]!
+                - reference;
+              maximumAbsoluteDifference = Math.max(
+                maximumAbsoluteDifference,
+                Math.abs(difference),
+              );
+              squaredDifference += difference * difference;
+              squaredReference += reference * reference;
+            }
+          }
+          expect(maximumAbsoluteDifference).toBeLessThan(2e-6);
+          expect(Math.sqrt(squaredDifference / squaredReference))
+            .toBeLessThan(2e-5);
+          analyticJacobianShadowCount += 1;
+        }
+        const promoted = solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
+          promotedContext,
+          Object.freeze({ initialGuess: promotedInitialGuess }),
+          promotedWorkspace,
+        );
+        if (
+          promoted.result.status !== "converged"
+        ) {
+          const seedResidual = new Float64Array(promotedContext.dimension);
+          promotedContext.evaluateResidual(
+            promotedInitialGuess,
+            seedResidual,
+          );
+          throw new Error(
+            `${corpusCase.caseId} promoted solve failed at step ${stepIndex}: `
+              + `${promoted.result.message}; seedVolume=${Math.max(
+                ...Array.from(seedResidual.slice(0, 30), Math.abs),
+              )}; seedMechanics=${Math.max(
+                Math.abs(seedResidual[30]!),
+                Math.abs(seedResidual[31]!),
+              )}`,
+          );
+        }
+        expect(promoted.jacobianResidualEvaluationCount).toBe(0);
+        expect(promoted.analyticJacobianAssemblyCount).toBe(
+          promoted.result.jacobianEvaluationCount,
+        );
+        expect(Math.abs(promoted.dependentSvContinuityResidualMl!))
+          .toBeLessThan(1e-8);
+        promotedResidualEvaluations +=
+          promoted.result.residualEvaluationCount;
+        for (let index = 0; index < condensedContext.dimension; index += 1) {
+          const difference = Math.abs(
+            promoted.result.solution[index]!
+              - condensedSolution[index]!,
+          );
+          maximumVolumeRootDifferenceMl = Math.max(
+            maximumVolumeRootDifferenceMl,
+            difference,
+          );
+          expect(promoted.result.solution[index]).toBeCloseTo(
+            condensedSolution[index]!,
+            7,
+          );
+        }
+        authority.stageConvergedSolution(
+          condensedContext,
+          condensedSolution,
+        );
+        authority.promote();
+      }
+
+      expect(maximumVolumeRootDifferenceMl).toBeLessThan(1e-6);
+      expect(analyticJacobianShadowCount).toBe(4);
+      expect(promotedResidualEvaluations).toBeGreaterThan(0);
+    }
   }, 60_000);
 
   it("promotes one admitted 30-row root by swapping a fixed flat image", () => {

@@ -668,6 +668,10 @@ export type MainWireFiveWallPromotedMechanicsResidualContextV1 = Readonly<{
     unknowns: Float64Array,
     destinationResidual: Float64Array,
   ): void;
+  isResidualConverged(
+    unknowns: Float64Array,
+    destinationResidual: Float64Array,
+  ): boolean;
   /** Writes the complete component-owned analytic 32x32 Jacobian. */
   writeAnalyticJacobian(
     unknowns: Float64Array,
@@ -1878,6 +1882,19 @@ export function prepareMainWireFiveWallPromotedMechanicsResidualContextV1<
     input.coronarySolverOptions?.minimumVolumeFractionOfReference
     ?? DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2
       .minimumVolumeFractionOfReference;
+  const coronaryAbsoluteResidualToleranceMl =
+    input.coronarySolverOptions?.absoluteResidualToleranceMl
+    ?? DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2
+      .absoluteResidualToleranceMl;
+  const coronaryRelativeResidualTolerance =
+    input.coronarySolverOptions?.relativeResidualTolerance
+    ?? DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2
+      .relativeResidualTolerance;
+  const coronaryResidualToleranceMl = coronaryAbsoluteResidualToleranceMl
+    + coronaryRelativeResidualTolerance * Math.max(
+      1,
+      ...Object.values(previous.coronary.volumeMlByNode),
+    );
   if (
     !Number.isFinite(coronaryMinimumVolumeFractionOfReference)
     || coronaryMinimumVolumeFractionOfReference <= 0
@@ -1994,6 +2011,7 @@ export function prepareMainWireFiveWallPromotedMechanicsResidualContextV1<
       previousAcceptedState: previous.circulation,
       dtSec: input.dtSec,
       runtime: input.runtime,
+      options: input.circulationNewtonOptions,
       evaluateCandidateMechanics: (volumesMl) => {
         const candidate =
           evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1(
@@ -2500,6 +2518,26 @@ export function prepareMainWireFiveWallPromotedMechanicsResidualContextV1<
       destinationResidual: Float64Array,
     ): void => {
       evaluate(unknowns, destinationResidual);
+    },
+    isResidualConverged: (
+      unknowns: Float64Array,
+      destinationResidual: Float64Array,
+    ): boolean => {
+      const candidate = evaluate(unknowns, destinationResidual);
+      let maximumCoronaryResidualMl = 0;
+      for (let row = 0; row < coronaryDimension; row += 1) {
+        maximumCoronaryResidualMl = Math.max(
+          maximumCoronaryResidualMl,
+          Math.abs(destinationResidual[nonCoronaryDimension + row]!),
+        );
+      }
+      return candidate.nonCoronaryProbe
+        .mixedContinuityResidualInfinityNorm <= 1
+        && maximumCoronaryResidualMl <= coronaryResidualToleranceMl
+        && Math.abs(destinationResidual[volumeDimension]!)
+          <= mechanicsResidualInfinityToleranceByOneJ
+        && Math.abs(destinationResidual[volumeDimension + 1]!)
+          <= mechanicsResidualInfinityToleranceByOneJ;
     },
     writeAnalyticJacobian,
     evaluateDependentSvContinuityResidualMl: (

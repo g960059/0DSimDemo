@@ -806,6 +806,33 @@ solvers select the same root to eight decimal places. This removes all 64
 Jacobian residual probes per assembly. It is still neither an accepted-state
 authority nor an end-to-end performance claim.
 
+The promoted solve now uses the same component-owned convergence law as the
+accepted 30-volume path rather than a uniform raw-residual tolerance. The
+non-coronary rows use the node-wise mixed continuity audit, the coronary rows
+use their absolute-plus-relative volume gate, and the two mechanics rows use
+the provider's generalized-force tolerance. Over all six solver-replacement
+corpus cases for one model second each (`3,000` accepted steps), an independently
+materialized 30-volume root plus the matching local TriSeg coordinates satisfies
+the 32-row system and selects the same first 30 coordinates to seven decimal
+places (maximum absolute difference below `1e-6 mL`). Four scale-aware
+Jacobian shadows per case sample non-coronary, coronary, and both promoted
+mechanics columns; every sample remains below the same `2e-6` maximum-absolute
+and `2e-5` relative-Frobenius gates. The analytic path performs zero Jacobian
+residual probes.
+
+That trajectory gate establishes equation, root, and derivative parity; it is
+deliberately not a standalone convergence claim because each promoted solve is
+seeded with the independently verified reference root. A solve seeded from the
+previous accepted tuple, and even small perturbations of the exact root, can
+still exhaust the strictly monotone Armijo search near semismooth valve events.
+The all-central-difference oracle fails at the same event, so this is not an
+analytic-Jacobian defect. Before the 32-row system can become accepted
+authority, it needs an accepted-history predictor and a globalization rule
+that can admit a trial satisfying the complete component convergence law even
+when floating-point or branch-switching noise prevents the scalar merit from
+meeting strict Armijo decrease. Scientific residual gates must not be relaxed
+to hide that failure.
+
 The first executable uses one deterministic damped semismooth Newton and a
 fixed row-major `Float64Array` Jacobian with partial-pivot dense LU. At 30–32
 unknowns, the roughly 10,000 floating-point operations of dense factorization
