@@ -231,14 +231,141 @@ does not pretend to roll the oracle back. This avoids pretending that a
 generic object flattener is the final model schema or production transaction
 authority.
 
-#### Phase 1b — authoritative flat scalar state
+#### Phase 1b.1 — canonical accepted-state authority (implemented proof)
 
-Before any production cutover, define the model-owned slot manifest for all 45
-dynamic roots, replace hot strings with bounded enum/owner codes, and move the
-accepted/candidate transaction itself onto those typed regions. The object
-Session then becomes test-oracle code only. Failure atomicity, event order,
-beat accumulation, controls, analysis forks, and checkpoint continuation must
-pass against the Phase 0 corpus before Phase 2 changes solver algebra.
+The second reference slice moves ownership beyond a lossy fixed-leaf mirror.
+This proof slice encoded every accepted boundary, including the 45
+nullable/variable-array roots, into one canonical binary value inside two
+fixed-capacity buffers. A candidate became current only after encode, decode,
+model-owned live-state rehydration, and full accepted-state validation all
+succeeded. The buffers swapped only after that complete proof. A failed
+candidate left the accepted bytes unchanged, poisoned the authority, and
+forbade continuation.
+
+This slice establishes:
+
+- two lifetime-fixed `512 KiB` state buffers, with current length and high-water
+  telemetry rather than a growing string-interning map;
+- deterministic tags for finite numbers, booleans, strings, dense arrays,
+  plain records, null-prototype records, and numeric typed arrays;
+- sorted record keys, big-endian numeric encoding, strict UTF-8, exact-length
+  decode, accessor/cycle/prototype rejection, and bounded depth/item counts;
+- a portable checkpoint envelope containing canonical payload bytes, explicit
+  magic and length, and SHA-256 integrity;
+- exact Standard checkpoint continuation, including partial-beat accumulation
+  and the most recently completed beat;
+- detached public observations, so mutation of an escaped typed-array view
+  cannot change the bytes consumed by the next numerical step;
+- an isolated reference Session that owns the accepted transaction loop; the
+  registered V3 Session and every released exact artifact remain byte-identical.
+
+Serialized MCS state is not accepted merely because its fields have the right
+shape. Decode rebuilds the live MCS owner from the current runtime binding and
+then re-wraps the integrated state, matching the fail-closed provenance rule
+used by exact checkpoint restore. Scientific parity covers 1,024 presentation
+ticks and all 49 registered outputs at every tick. A second gate captures at a
+non-round 377th tick, restores the canonical bytes, and proves exact
+continuation through tick 544. Repeated capture of the same state is byte
+stable and one-bit payload/header tampering is rejected.
+
+This implementation is deliberately not a speedup. A local 512-tick
+alternating diagnostic measured about `2.47 ms/tick` for the released object
+authority and `5.45 ms/tick` for canonical encode/decode ownership, an overhead
+ratio of about `2.21x`. The terminal encoded state was about `33 KiB` and its
+observed high-water mark about `33.6 KiB`, both inside the fixed `512 KiB`
+capacity. These numbers are machine-specific diagnostics, not gates. They show
+that binary ownership is bounded and scientifically exact, while also
+falsifying the idea that a generic per-step object serializer is the final hot
+kernel.
+
+Phase 1b.1 remains non-production and has now been superseded as the reference
+hot accepted boundary by Phase 1b.2b.1 below. Its canonical codec remains the
+checkpoint/integrity basis and an independent proof oracle. It is not
+permission to serialize the full object graph in the final inner loop.
+
+#### Phase 1b.2a — fixed scalar slots (implemented reference)
+
+The next reference slice freezes the scalar index space before changing solver
+code. The Standard cold accepted shape deterministically admits a versioned
+manifest with fingerprint `fnv1a32-8c218aa1`: 440 finite `f64` slots and four
+boolean slots. Two lifetime-fixed typed buffer sets provide inactive-candidate
+staging and an infallible accepted swap. Staging writes no temporary arrays and
+cannot change the current slots; if full accepted-state ownership rejects the
+candidate, the staged scalar buffer is aborted rather than promoted.
+The fingerprint also binds all 158 fixed container shapes, including their
+kind, prototype class, and ordered own-key set.
+
+The manifest intentionally reports what it does **not** yet own: 45 nullable or
+variable-array roots and 205 string leaves. It does not intern those strings,
+assign provisional indices to optional values, or pretend that the scalar
+mirror is a complete checkpoint. A changed fixed path/count/fingerprint fails
+closed and requires a new model-owned layout version.
+
+The scalar staging gate runs beside the complete typed-state authority for
+1,024 ticks, stays commit-count aligned across every accepted substep, and
+remains detached from public snapshots. A local 512-tick diagnostic measured
+roughly `0.05–0.07 ms/tick` for fixed scalar staging alone. This is useful
+evidence that direct fixed-slot writes are not the phone bottleneck, but it is
+not a product speedup: the reference Session still pays for the existing
+object solver and an object boundary adapter.
+
+#### Phase 1b.2b.1 — complete transactional typed image (implemented reference)
+
+The complete accepted topology is now represented by two lifetime-fixed,
+model-owned `ArrayBuffer` images. Each image is exactly `267,668` bytes and
+contains:
+
+- 440 `f64` slots and four boolean slots at versioned fixed offsets;
+- 205 string offset/length pairs backed by a fixed `128 KiB` UTF-8 arena;
+- 45 dynamic-root offset/length pairs backed by a separate fixed `128 KiB`
+  canonical arena; and
+- the 158-container shape contract and fingerprint `fnv1a32-9657ecbf`.
+
+Dynamic roots are explicit cut points rather than an escape from bounded
+ownership. In the current Standard state they comprise fixed two-element
+calcium arrays, bounded rhythm queues observed at length zero or one, optional
+rhythm state, and inactive optional device projections. Strings are rewritten
+inside the inactive arena each transaction; no lifetime interning table
+survives. Inspection also identifies the high-cardinality mechanics
+fingerprint as a recomputable diagnostic and activation/transaction labels as
+candidates for bounded model-owned codes in the direct kernel.
+
+Staging first validates the complete fixed container topology, then writes
+only the inactive image. Invalid finite values, changed keys/prototypes,
+unpaired UTF-16, malformed dynamic data, or either arena exceeding capacity
+fail before promotion. Promotion is an infallible active-index swap. Public
+snapshots are detached copies. Tests cover null-to-record and empty-to-one-item
+queue transitions, adversarial extra keys, malformed strings, capacity
+exhaustion, typed-array escape mutation, 1,024 presentation ticks across all
+49 outputs, and exact checkpoint continuation from tick 377 through 544.
+
+The reference transaction now feeds the next solver step from a model-owned
+rehydration of the promoted typed image, rather than from the object candidate
+returned directly by the preceding solve. This makes the complete typed image
+the accepted-state authority, while leaving the registered exact Session and
+artifacts unchanged.
+
+This is still not a production speedup. A representative 512-tick alternating
+diagnostic measured about `2.38 ms/tick` for the released object Session and
+`4.66 ms/tick` for the typed-authority reference (`1.96x`). Isolated typed
+image staging measured about `0.202 ms/presentation tick`, and rehydration
+about `0.060 ms/presentation tick`. String and dynamic high-water usage were
+`6,789` and `4,199` bytes respectively, far below their fixed capacities.
+The remaining overhead is dominated by rebuilding and fully revalidating the
+legacy object owner graph, not by the typed page itself. These figures are
+machine-specific diagnostics, not gates.
+
+#### Phase 1b.2b.2 — direct solver-owned typed state (next)
+
+Before production cutover, move each state owner and the solver from object
+property access to generated typed offsets/tags. Replace hot
+transaction/fingerprint strings with bounded codes or recomputable
+diagnostics. Rehydration and complete graph validation then occur only at cold
+start, checkpoint restore, diagnostics, or an explicit boundary adapter—not
+once per accepted substep. The object Session becomes test-oracle code only.
+Failure atomicity, event order, beat accumulation, controls, analysis forks,
+and checkpoint continuation must pass against the Phase 0 corpus before Phase
+2 changes solver algebra.
 
 ### Phase 2 — one coupled nonlinear solve
 

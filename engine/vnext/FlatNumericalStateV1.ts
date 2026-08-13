@@ -1,15 +1,15 @@
 export const FLAT_NUMERICAL_STATE_LAYOUT_V1_SCHEMA_ID =
   "circleheart-flat-numerical-state-layout-v1" as const;
 
-type PathSegmentV1 = string | number;
+export type FlatNumericalPathSegmentV1 = string | number;
 
-type SlotV1 = Readonly<{
-  path: readonly PathSegmentV1[];
+export type FlatNumericalSlotV1 = Readonly<{
+  path: readonly FlatNumericalPathSegmentV1[];
   pointer: string;
 }>;
 
-type ContainerV1 = Readonly<{
-  path: readonly PathSegmentV1[];
+export type FlatNumericalContainerV1 = Readonly<{
+  path: readonly FlatNumericalPathSegmentV1[];
   pointer: string;
   kind: "array" | "record" | "typed-array";
   keys: readonly string[];
@@ -23,12 +23,12 @@ type ContainerV1 = Readonly<{
 export type FlatNumericalStateLayoutV1 = Readonly<{
   schemaId: typeof FLAT_NUMERICAL_STATE_LAYOUT_V1_SCHEMA_ID;
   layoutId: string;
-  continuousSlots: readonly SlotV1[];
-  booleanSlots: readonly SlotV1[];
-  stringSlots: readonly SlotV1[];
+  continuousSlots: readonly FlatNumericalSlotV1[];
+  booleanSlots: readonly FlatNumericalSlotV1[];
+  stringSlots: readonly FlatNumericalSlotV1[];
   /** Nullable or variable-array roots reserved for explicit tagged layouts later. */
-  excludedDynamicRoots: readonly SlotV1[];
-  containers: readonly ContainerV1[];
+  excludedDynamicRoots: readonly FlatNumericalSlotV1[];
+  containers: readonly FlatNumericalContainerV1[];
 }>;
 
 /** Mutable storage owned by one numerical authority. */
@@ -54,11 +54,11 @@ export function createFlatNumericalStateLayoutV1(
   if (layoutId.trim().length === 0) {
     throw new Error("Flat numerical state layoutId is empty");
   }
-  const continuousSlots: SlotV1[] = [];
-  const booleanSlots: SlotV1[] = [];
-  const stringSlots: SlotV1[] = [];
-  const excludedDynamicRoots: SlotV1[] = [];
-  const containers: ContainerV1[] = [];
+  const continuousSlots: FlatNumericalSlotV1[] = [];
+  const booleanSlots: FlatNumericalSlotV1[] = [];
+  const stringSlots: FlatNumericalSlotV1[] = [];
+  const excludedDynamicRoots: FlatNumericalSlotV1[] = [];
+  const containers: FlatNumericalContainerV1[] = [];
 
   visit(referenceState, [], {
     continuousSlots,
@@ -113,9 +113,7 @@ export function writeFlatNumericalStateV1(
   stringTable: FlatNumericalStringTableV1,
 ): void {
   assertBufferMatchesLayout(layout, destination);
-  for (const container of layout.containers) {
-    assertContainerShape(requiredPathValue(state, container.path), container);
-  }
+  assertFlatNumericalStateShapeV1(layout, state);
 
   const continuous = new Float64Array(layout.continuousSlots.length);
   const booleans = new Uint8Array(layout.booleanSlots.length);
@@ -163,6 +161,30 @@ export function writeFlatNumericalStateV1(
   );
 }
 
+/**
+ * Verifies every fixed-topology container before a candidate is projected.
+ * Dynamic roots are explicit cut points and are validated by their owner.
+ */
+export function assertFlatNumericalStateShapeV1(
+  layout: FlatNumericalStateLayoutV1,
+  state: unknown,
+): void {
+  for (const container of layout.containers) {
+    assertContainerShape(
+      readFlatNumericalStatePathV1(state, container.path),
+      container,
+    );
+  }
+}
+
+/** Data-only path lookup that never invokes inherited properties or accessors. */
+export function readFlatNumericalStatePathV1(
+  root: unknown,
+  path: readonly FlatNumericalPathSegmentV1[],
+): unknown {
+  return requiredPathValue(root, path);
+}
+
 export function flatNumericalStateBuffersEqualV1(
   left: FlatNumericalStateBufferV1,
   right: FlatNumericalStateBufferV1,
@@ -174,13 +196,13 @@ export function flatNumericalStateBuffersEqualV1(
 
 function visit(
   value: unknown,
-  path: readonly PathSegmentV1[],
+  path: readonly FlatNumericalPathSegmentV1[],
   destination: {
-    continuousSlots: SlotV1[];
-    booleanSlots: SlotV1[];
-    stringSlots: SlotV1[];
-    excludedDynamicRoots: SlotV1[];
-    containers: ContainerV1[];
+    continuousSlots: FlatNumericalSlotV1[];
+    booleanSlots: FlatNumericalSlotV1[];
+    stringSlots: FlatNumericalSlotV1[];
+    excludedDynamicRoots: FlatNumericalSlotV1[];
+    containers: FlatNumericalContainerV1[];
   },
 ): void {
   if (typeof value === "number") {
@@ -232,7 +254,7 @@ function visit(
   throw new Error(`Flat numerical state ${pointer(path)} has an unsupported leaf`);
 }
 
-function assertContainerShape(value: unknown, expected: ContainerV1): void {
+function assertContainerShape(value: unknown, expected: FlatNumericalContainerV1): void {
   if (expected.kind === "array") {
     if (!Array.isArray(value)) {
       throw new Error(`Flat numerical state ${expected.pointer} must remain an array`);
@@ -247,9 +269,17 @@ function assertContainerShape(value: unknown, expected: ContainerV1): void {
     if (
       !isNumericTypedArray(value)
       || value.constructor.name !== expected.prototypeTag
+      || Object.getPrototypeOf(value)
+        !== numericTypedArrayPrototype(expected.prototypeTag)
       || value.length !== expected.keys.length
     ) {
       throw new Error(`Flat numerical state ${expected.pointer} changed typed-array shape`);
+    }
+    assertDataProperties(value, expected.path, false);
+    if (!sameStrings(Object.keys(value), expected.keys)) {
+      throw new Error(
+        `Flat numerical state ${expected.pointer} changed typed-array shape`,
+      );
     }
     return;
   }
@@ -260,6 +290,13 @@ function assertContainerShape(value: unknown, expected: ContainerV1): void {
   if (prototypeTag !== expected.prototypeTag) {
     throw new Error(`Flat numerical state ${expected.pointer} changed record prototype`);
   }
+  const prototype = Object.getPrototypeOf(value);
+  if (
+    (expected.prototypeTag === "Object" && prototype !== Object.prototype)
+    || (expected.prototypeTag === null && prototype !== null)
+  ) {
+    throw new Error(`Flat numerical state ${expected.pointer} changed record prototype`);
+  }
   assertDataProperties(value, expected.path, false);
   if (!sameStrings(Object.keys(value).sort(), expected.keys)) {
     throw new Error(`Flat numerical state ${expected.pointer} changed record shape`);
@@ -268,7 +305,7 @@ function assertContainerShape(value: unknown, expected: ContainerV1): void {
 
 function assertDataProperties(
   value: object,
-  path: readonly PathSegmentV1[],
+  path: readonly FlatNumericalPathSegmentV1[],
   array: boolean,
 ): void {
   if (Object.getOwnPropertySymbols(value).length !== 0) {
@@ -290,10 +327,10 @@ function assertDataProperties(
 
 function requiredPathValue(
   root: unknown,
-  path: readonly PathSegmentV1[],
+  path: readonly FlatNumericalPathSegmentV1[],
 ): unknown {
   let current = root;
-  const traversed: PathSegmentV1[] = [];
+  const traversed: FlatNumericalPathSegmentV1[] = [];
   for (const segment of path) {
     if (current === null || typeof current !== "object") {
       throw new Error(`Flat numerical state ${pointer(path)} is unavailable`);
@@ -307,7 +344,7 @@ function requiredPathValue(
 function requiredOwnValue(
   record: object,
   key: string,
-  path: readonly PathSegmentV1[],
+  path: readonly FlatNumericalPathSegmentV1[],
 ): unknown {
   const descriptor = Object.getOwnPropertyDescriptor(record, key);
   if (descriptor === undefined || !("value" in descriptor)) {
@@ -341,17 +378,17 @@ function assertBufferMatchesLayout(
   }
 }
 
-function slot(path: readonly PathSegmentV1[]): SlotV1 {
+function slot(path: readonly FlatNumericalPathSegmentV1[]): FlatNumericalSlotV1 {
   const ownedPath = Object.freeze([...path]);
   return Object.freeze({ path: ownedPath, pointer: pointer(ownedPath) });
 }
 
 function container(
-  path: readonly PathSegmentV1[],
-  kind: ContainerV1["kind"],
+  path: readonly FlatNumericalPathSegmentV1[],
+  kind: FlatNumericalContainerV1["kind"],
   keys: readonly string[],
   prototypeTag: string | null = null,
-): ContainerV1 {
+): FlatNumericalContainerV1 {
   const ownedPath = Object.freeze([...path]);
   return Object.freeze({
     path: ownedPath,
@@ -364,7 +401,7 @@ function container(
 
 function dataRecordPrototypeTag(
   value: object,
-  path: readonly PathSegmentV1[],
+  path: readonly FlatNumericalPathSegmentV1[],
 ): string | null {
   if (
     value instanceof Date
@@ -409,7 +446,22 @@ function isNumericTypedArray(value: unknown): value is
     || value instanceof Uint8ClampedArray;
 }
 
-function pointer(path: readonly PathSegmentV1[]): string {
+function numericTypedArrayPrototype(tag: string | null): object | null {
+  switch (tag) {
+    case "Float64Array": return Float64Array.prototype;
+    case "Float32Array": return Float32Array.prototype;
+    case "Int32Array": return Int32Array.prototype;
+    case "Uint32Array": return Uint32Array.prototype;
+    case "Int16Array": return Int16Array.prototype;
+    case "Uint16Array": return Uint16Array.prototype;
+    case "Int8Array": return Int8Array.prototype;
+    case "Uint8Array": return Uint8Array.prototype;
+    case "Uint8ClampedArray": return Uint8ClampedArray.prototype;
+    default: return null;
+  }
+}
+
+function pointer(path: readonly FlatNumericalPathSegmentV1[]): string {
   if (path.length === 0) return "/";
   return `/${path.map((segment) => String(segment)
     .replaceAll("~", "~0")
