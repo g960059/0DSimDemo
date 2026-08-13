@@ -838,20 +838,31 @@ describe("TransactionalTypedStateImageV1", () => {
     expect(() => directCandidate.readContinuous(valueSlot)).toThrow("is stale");
     expect(image.rehydrateCurrent()).toEqual(candidate);
 
+    expect(() => image.createCompletionPlan({
+      continuous: [valueSlot, valueSlot],
+    })).toThrow("retained slot is duplicated");
+
     const mismatchedCandidate = image.beginCandidateFromCurrent();
     mismatchedCandidate.writeContinuous(valueSlot, 9);
+    const valueOnlyCompletionPlan = image.createCompletionPlan({
+      continuous: [valueSlot],
+    });
     expect(() => image.completeCandidateFromObject(
       { ...candidate, value: 8 },
-      { continuous: [valueSlot] },
+      valueOnlyCompletionPlan,
     )).toThrow("differs from adapter");
     image.abort();
     expect(image.rehydrateCurrent()).toEqual(candidate);
 
     const promotedCandidate = image.beginCandidateFromCurrent();
     promotedCandidate.writeContinuous(valueSlot, 9);
+    const promotedCompletionPlan = image.createCompletionPlan({
+      continuous: [valueSlot],
+      booleans: [0],
+    });
     image.completeCandidateFromObject(
       { ...candidate, value: 9 },
-      { continuous: [valueSlot], booleans: [0] },
+      promotedCompletionPlan,
     );
     image.promote();
     expect(() => promotedCandidate.writeContinuous(valueSlot, 10))

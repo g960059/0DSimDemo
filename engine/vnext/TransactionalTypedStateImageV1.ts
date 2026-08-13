@@ -17,6 +17,8 @@ export const TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID =
   "circleheart-transactional-typed-state-image-v1" as const;
 export const TRANSACTIONAL_TYPED_STATE_MANIFEST_V1_SCHEMA_ID =
   "circleheart-transactional-typed-state-manifest-v1" as const;
+export const TRANSACTIONAL_TYPED_STATE_COMPLETION_PLAN_V1_SCHEMA_ID =
+  "circleheart-transactional-typed-state-completion-plan-v1" as const;
 
 const MAX_ARENA_CAPACITY_BYTES = 16 * 1024 * 1024;
 const UTF8_ENCODER = new TextEncoder();
@@ -212,6 +214,14 @@ export type TransactionalTypedStateRetainedSlotsV1 = Readonly<{
   booleans?: readonly number[];
 }>;
 
+export type TransactionalTypedStateCompletionPlanV1 = Readonly<{
+  schemaId: typeof TRANSACTIONAL_TYPED_STATE_COMPLETION_PLAN_V1_SCHEMA_ID;
+  layoutId: string;
+  fingerprint: string;
+  retainedContinuousSlots: readonly number[];
+  retainedBooleanSlots: readonly number[];
+}>;
+
 type MutableImageV1 = Readonly<{
   buffer: ArrayBuffer;
   continuous: Float64Array;
@@ -228,9 +238,21 @@ type MutableImageV1 = Readonly<{
   dynamicArena: Uint8Array;
 }>;
 
+type CompletionPlanInternalV1 = Readonly<{
+  manifest: TransactionalTypedStateManifestV1;
+  retainedContinuous: ReadonlySet<number>;
+  retainedBooleans: ReadonlySet<number>;
+  writableContinuous: readonly number[];
+  writableBooleans: readonly number[];
+}>;
+
 const EXTERNAL_IMMUTABLE_CANONICAL_BYTES = new WeakMap<
   TransactionalTypedStateManifestV1,
   readonly Uint8Array[]
+>();
+const COMPLETION_PLAN_INTERNALS = new WeakMap<
+  TransactionalTypedStateCompletionPlanV1,
+  CompletionPlanInternalV1
 >();
 
 /**
@@ -462,23 +484,13 @@ export class TransactionalTypedStateImageV1<TState> {
   }
 
   /**
-   * Completes a directly staged candidate from a temporary object adapter.
-   * Slots already written by migrated owners are compared bit-exactly and are
-   * never overwritten; all remaining leaves and bounded arenas are populated
-   * from the adapter before cold-boundary rehydration and validation.
+   * Compiles retained-slot membership once at cold initialization. The plan is
+   * bound to this exact manifest instance and cannot be forged by structural
+   * data alone.
    */
-  completeCandidateFromObject(
-    candidate: TState,
+  createCompletionPlan(
     retained: TransactionalTypedStateRetainedSlotsV1,
-  ): void {
-    if (!this.#staged) {
-      throw new Error("Transactional typed state has no staged candidate");
-    }
-    this.assertExternalImmutableRootsMatch(candidate);
-    assertFlatNumericalStateShapeV1(
-      this.#manifest.numericalLayout,
-      candidate,
-    );
+  ): TransactionalTypedStateCompletionPlanV1 {
     const retainedContinuous = retainedSlotSet(
       retained.continuous,
       this.#manifest.numericalLayout.continuousSlots.length,
@@ -489,6 +501,58 @@ export class TransactionalTypedStateImageV1<TState> {
       this.#manifest.numericalLayout.booleanSlots.length,
       "boolean",
     );
+    const plan = Object.freeze({
+      schemaId: TRANSACTIONAL_TYPED_STATE_COMPLETION_PLAN_V1_SCHEMA_ID,
+      layoutId: this.#manifest.layoutId,
+      fingerprint: this.#manifest.fingerprint,
+      retainedContinuousSlots: Object.freeze([...retainedContinuous]),
+      retainedBooleanSlots: Object.freeze([...retainedBooleans]),
+    });
+    COMPLETION_PLAN_INTERNALS.set(plan, Object.freeze({
+      manifest: this.#manifest,
+      retainedContinuous,
+      retainedBooleans,
+      writableContinuous: complementSlotIndices(
+        this.#manifest.numericalLayout.continuousSlots.length,
+        retainedContinuous,
+      ),
+      writableBooleans: complementSlotIndices(
+        this.#manifest.numericalLayout.booleanSlots.length,
+        retainedBooleans,
+      ),
+    }));
+    return plan;
+  }
+
+  /**
+   * Completes a directly staged candidate from a temporary object adapter.
+   * Slots already written by migrated owners are compared bit-exactly and are
+   * never overwritten; all remaining leaves and bounded arenas are populated
+   * from the adapter before cold-boundary rehydration and validation.
+   */
+  completeCandidateFromObject(
+    candidate: TState,
+    plan: TransactionalTypedStateCompletionPlanV1,
+  ): void {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    this.assertExternalImmutableRootsMatch(candidate);
+    assertFlatNumericalStateShapeV1(
+      this.#manifest.numericalLayout,
+      candidate,
+    );
+    const internal = COMPLETION_PLAN_INTERNALS.get(plan);
+    if (
+      internal === undefined
+      || internal.manifest !== this.#manifest
+      || plan.layoutId !== this.#manifest.layoutId
+      || plan.fingerprint !== this.#manifest.fingerprint
+    ) {
+      throw new Error(
+        "Transactional typed state completion plan has the wrong layout",
+      );
+    }
     const candidateImage = this.#images[this.inactiveIndex()];
     writeOptionalRecordPresence(this.#manifest, candidate, candidateImage);
     writeBoundedArrayLengths(this.#manifest, candidate, candidateImage);
@@ -496,15 +560,15 @@ export class TransactionalTypedStateImageV1<TState> {
       this.#manifest,
       candidate,
       candidateImage,
-      retainedContinuous,
-      retainedBooleans,
+      internal.retainedContinuous,
+      internal.retainedBooleans,
     );
     writeFixedLeaves(
       this.#manifest,
       candidate,
       candidateImage,
-      retainedContinuous,
-      retainedBooleans,
+      internal.writableContinuous,
+      internal.writableBooleans,
     );
     writeNullableContinuousLeaves(this.#manifest, candidate, candidateImage);
     this.#stagedStringBytes = writeStrings(
@@ -951,37 +1015,38 @@ function writeFixedLeaves(
   manifest: TransactionalTypedStateManifestV1,
   state: unknown,
   destination: MutableImageV1,
-  retainedContinuous?: ReadonlySet<number>,
-  retainedBooleans?: ReadonlySet<number>,
+  writableContinuous?: readonly number[],
+  writableBooleans?: readonly number[],
 ): void {
   const layout = manifest.numericalLayout;
-  for (let index = 0; index < layout.continuousSlots.length; index += 1) {
+  const continuousCount = writableContinuous?.length
+    ?? layout.continuousSlots.length;
+  for (let position = 0; position < continuousCount; position += 1) {
+    const index = writableContinuous?.[position] ?? position;
     const slot = layout.continuousSlots[index]!;
     if (layoutEntryAbsent(layout, state, slot)) {
-      if (!retainedContinuous?.has(index)) destination.continuous[index] = 0;
+      destination.continuous[index] = 0;
       continue;
     }
     const value = readFlatNumericalStatePathV1(state, slot.path);
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new Error(`Transactional typed state ${slot.pointer} must be finite`);
     }
-    if (!retainedContinuous?.has(index)) {
-      destination.continuous[index] = value;
-    }
+    destination.continuous[index] = value;
   }
-  for (let index = 0; index < layout.booleanSlots.length; index += 1) {
+  const booleanCount = writableBooleans?.length ?? layout.booleanSlots.length;
+  for (let position = 0; position < booleanCount; position += 1) {
+    const index = writableBooleans?.[position] ?? position;
     const slot = layout.booleanSlots[index]!;
     if (layoutEntryAbsent(layout, state, slot)) {
-      if (!retainedBooleans?.has(index)) destination.booleans[index] = 0;
+      destination.booleans[index] = 0;
       continue;
     }
     const value = readFlatNumericalStatePathV1(state, slot.path);
     if (typeof value !== "boolean") {
       throw new Error(`Transactional typed state ${slot.pointer} must be boolean`);
     }
-    if (!retainedBooleans?.has(index)) {
-      destination.booleans[index] = value ? 1 : 0;
-    }
+    destination.booleans[index] = value ? 1 : 0;
   }
 }
 
@@ -1035,6 +1100,17 @@ function retainedSlotSet(
     retained.add(slotIndex);
   }
   return retained;
+}
+
+function complementSlotIndices(
+  slotCount: number,
+  retained: ReadonlySet<number>,
+): readonly number[] {
+  const writable: number[] = [];
+  for (let index = 0; index < slotCount; index += 1) {
+    if (!retained.has(index)) writable.push(index);
+  }
+  return Object.freeze(writable);
 }
 
 function writeOptionalRecordPresence(

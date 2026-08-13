@@ -73,6 +73,7 @@ import {
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
 import type {
   TransactionalTypedStateCandidateCursorV1,
+  TransactionalTypedStateCompletionPlanV1,
   TransactionalTypedStateCurrentCursorV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
 
@@ -122,7 +123,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     MainWireAcceptedTypedStateAuthorityV1 | null;
   readonly #typedBoundaryBinding:
     MainWireAcceptedTypedBoundaryBindingV1 | null;
-  readonly #directRetainedContinuousSlots: readonly number[];
+  readonly #directCompletionPlan:
+    TransactionalTypedStateCompletionPlanV1 | null;
   #acceptedState: AcceptedState;
   #lastAcceptedStep: SuccessfulStep | null;
   #lastPresentationObservation: MainWireIntegratedModelObservationV3;
@@ -187,9 +189,10 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       : createMainWireAcceptedTypedBoundaryBindingV1(
           this.#typedAuthority.manifest(),
         );
-    this.#directRetainedContinuousSlots = this.#typedBoundaryBinding === null
-      ? Object.freeze([])
-      : Object.freeze([
+    const directRetainedContinuousSlots =
+      this.#typedBoundaryBinding === null
+        ? Object.freeze([])
+        : Object.freeze([
           ...this.#typedBoundaryBinding.directContinuousSlots,
           ...(runtime.rhythm.configuration
             .authoredVentricularPacingReplay === null
@@ -201,6 +204,11 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             : []),
           ...this.#typedBoundaryBinding.postSolverContinuousSlots,
         ]);
+    this.#directCompletionPlan = this.#typedAuthority === null
+      ? null
+      : this.#typedAuthority.createDirectCompletionPlan({
+          continuous: directRetainedContinuousSlots,
+        });
     this.#acceptedState = this.#authority.current();
     this.#lastAcceptedStep = null;
     this.#beatAccumulator = exactBeatState?.beatAccumulator
@@ -471,9 +479,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           directCandidateOpen = false;
           committedState = this.#typedAuthority.commitDirectCandidate(
             result.acceptedState,
-            {
-              continuous: this.#directRetainedContinuousSlots,
-            },
+            this.requiredDirectCompletionPlan(),
           );
         } else {
           committedState = this.#authority.commit(result.acceptedState);
@@ -660,6 +666,14 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       throw new Error("Flat reference Session has no typed boundary binding");
     }
     return this.#typedBoundaryBinding;
+  }
+
+  private requiredDirectCompletionPlan():
+    TransactionalTypedStateCompletionPlanV1 {
+    if (this.#directCompletionPlan === null) {
+      throw new Error("Flat reference direct completion plan is unavailable");
+    }
+    return this.#directCompletionPlan;
   }
 
   private failedAdvance(

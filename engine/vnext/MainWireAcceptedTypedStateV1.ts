@@ -41,6 +41,7 @@ import {
   createTransactionalTypedStateManifestV1,
   TransactionalTypedStateImageV1,
   type TransactionalTypedStateCandidateCursorV1,
+  type TransactionalTypedStateCompletionPlanV1,
   type TransactionalTypedStateCurrentCursorV1,
   type TransactionalTypedStateImageReportV1,
   type TransactionalTypedStateImageSnapshotV1,
@@ -496,17 +497,25 @@ export class MainWireAcceptedTypedStateAuthorityV1
     return this.#image.beginCandidateFromCurrent();
   }
 
+  /** Compiles one model-bound retained-slot plan outside the accepted loop. */
+  createDirectCompletionPlan(
+    retained: TransactionalTypedStateRetainedSlotsV1,
+  ): TransactionalTypedStateCompletionPlanV1 {
+    this.assertHealthy();
+    return this.#image.createCompletionPlan(retained);
+  }
+
   /**
    * Admits the still-object-backed owners without overwriting migrated slots,
    * then promotes the complete validated typed candidate exactly once.
    */
   commitDirectCandidate(
     adapterCandidate: AcceptedState,
-    retained: TransactionalTypedStateRetainedSlotsV1,
+    plan: TransactionalTypedStateCompletionPlanV1,
   ): AcceptedState {
     this.assertHealthy();
     try {
-      this.#image.completeCandidateFromObject(adapterCandidate, retained);
+      this.#image.completeCandidateFromObject(adapterCandidate, plan);
       const owned = this.ownAndValidate(this.#image.rehydrateStaged());
       this.#image.promote();
       this.#currentState = owned;

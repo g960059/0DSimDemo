@@ -477,6 +477,13 @@ existing pure evaluators. The complete composed-rhythm transaction still owns
 impulse construction, queue scheduling, and electrical capture; this slice
 does not claim that rhythm is flat yet.
 
+Retained and writable fixed-slot sets are compiled once into a manifest-bound
+completion plan during Session initialization. A structural imitation is not
+accepted: the generic image keeps the plan's manifest identity and slot sets in
+private storage. Hot completion therefore performs the same bit-exact retained
+checks and writes every unmigrated leaf, but does not allocate membership sets
+or read already-checked retained paths a second time on each substep.
+
 The non-production Worker vertical slice now creates the typed-authority
 Session by default. Its older Phase 1a lifetime string table and per-tick full
 flat mirror have been removed from the execution loop; a legacy-shaped flat
