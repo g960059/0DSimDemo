@@ -1035,7 +1035,7 @@ export function evaluateAcceptedComposedRhythmTransactionCandidateV2(
   // assembled and recursively frozen above from already accepted owner
   // candidates. It therefore proves less about constructor output at this
   // site; arbitrary boundary states never receive this stamp.
-  stampInternallyValidatedAcceptedComposedRhythmStateV2(candidateState);
+  stampPrivatelyConstructedAcceptedComposedRhythmStateV2(candidateState);
   const candidate = deepFreeze({
     candidateSchemaId: ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CANDIDATE_V2_ID,
     schemaVersion: 2 as const,
@@ -1324,6 +1324,19 @@ function stampInternallyValidatedAcceptedComposedRhythmStateV2(
   if (validationStampIssuanceEligibleV1(state)) {
     internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
   }
+}
+
+/**
+ * Records provenance for the exact graph assembled and recursively frozen by
+ * the private candidate constructor above. Unlike exported-validator
+ * issuance, this path does not re-walk the graph it has just built. It is not
+ * exported and no caller-supplied state can reach it.
+ */
+function stampPrivatelyConstructedAcceptedComposedRhythmStateV2(
+  state: AcceptedComposedRhythmTransactionStateV2,
+): void {
+  if (!validationStampReuseEligibleV1()) return;
+  internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
 }
 
 function stampInternallyValidatedAcceptedComposedRhythmConfigurationV2(

@@ -314,7 +314,11 @@ export function createDynamicMechanicalSupportAcceptedStateV1(
     structuralHydraulicProjection,
     flows,
   );
-  stampDynamicMechanicalSupportAcceptedStateV1(state, profile, config);
+  stampConstructedDynamicMechanicalSupportAcceptedStateV1(
+    state,
+    profile,
+    config,
+  );
   return state;
 }
 
@@ -458,7 +462,11 @@ export function validateDynamicMechanicalSupportAcceptedStateV1(
       "dynamic mechanical-support accepted state structural hydraulic config mismatch",
     );
   }
-  stampDynamicMechanicalSupportAcceptedStateV1(state, profile, config);
+  stampValidatedDynamicMechanicalSupportAcceptedStateV1(
+    state,
+    profile,
+    config,
+  );
 }
 
 /**
@@ -512,7 +520,7 @@ export function evaluateDynamicMechanicalSupportHydraulicsV1(
   // This candidate is private same-tick output assembled from the accepted
   // state's owned immutable binding and the four validated pump candidates.
   // Only this exact state/profile/config identity proof can be reused.
-  stampDynamicMechanicalSupportAcceptedStateV1(
+  stampConstructedDynamicMechanicalSupportAcceptedStateV1(
     candidateAcceptedState,
     profile,
     config,
@@ -1359,7 +1367,7 @@ function hasDynamicMechanicalSupportValidationStampV1(
     ?? false;
 }
 
-function stampDynamicMechanicalSupportAcceptedStateV1(
+function stampValidatedDynamicMechanicalSupportAcceptedStateV1(
   state: DynamicMechanicalSupportAcceptedStateV1,
   profile: DynamicMechanicalSupportInertanceProfileV1,
   config: MechanicalSupportConfigV1,
@@ -1368,6 +1376,39 @@ function stampDynamicMechanicalSupportAcceptedStateV1(
     !LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state)
     || !validationStampIssuanceEligibleV1(state, profile, config)
   ) return;
+  recordDynamicMechanicalSupportAcceptedStateStampV1(
+    state,
+    profile,
+    config,
+  );
+}
+
+/**
+ * The live-state constructor owns and freezes every state descendant. The
+ * profile/config context must still retain its generic immutable proof, but
+ * the newly created state need not be recursively walked a second time.
+ */
+function stampConstructedDynamicMechanicalSupportAcceptedStateV1(
+  state: DynamicMechanicalSupportAcceptedStateV1,
+  profile: DynamicMechanicalSupportInertanceProfileV1,
+  config: MechanicalSupportConfigV1,
+): void {
+  if (
+    !LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state)
+    || !validationStampIssuanceEligibleV1(profile, config)
+  ) return;
+  recordDynamicMechanicalSupportAcceptedStateStampV1(
+    state,
+    profile,
+    config,
+  );
+}
+
+function recordDynamicMechanicalSupportAcceptedStateStampV1(
+  state: DynamicMechanicalSupportAcceptedStateV1,
+  profile: DynamicMechanicalSupportInertanceProfileV1,
+  config: MechanicalSupportConfigV1,
+): void {
   const existing =
     VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state) ?? [];
   if (existing.some((stamp) =>

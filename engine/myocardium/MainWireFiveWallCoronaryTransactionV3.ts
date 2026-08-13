@@ -46,7 +46,6 @@ import type {
   WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
-  validationStampIssuanceEligibleV1,
   validationStampReuseEligibleV1,
 } from "@/engine/validationStampModeV1";
 
@@ -187,7 +186,7 @@ export function initializeMainWireFiveWallCoronaryV3<TWallState>(
   );
   return Object.freeze({
     ...base,
-    acceptedState: wrapMainWireFiveWallCoronaryAcceptedStateV3(
+    acceptedState: wrapInternalMainWireFiveWallCoronaryAcceptedStateV3(
       base.acceptedState,
       binding,
       autoregulation,
@@ -288,7 +287,7 @@ export function stepMainWireFiveWallCoronaryV3<TWallState>(
       baseStep.acceptedState,
       regulation.nextToneResistanceScaleByTerritoryLayer,
     );
-    const acceptedState = wrapMainWireFiveWallCoronaryAcceptedStateV3(
+    const acceptedState = wrapInternalMainWireFiveWallCoronaryAcceptedStateV3(
       promotedBase,
       previous.coronaryAutoregulationBinding,
       regulation.nextState,
@@ -360,6 +359,33 @@ export function wrapMainWireFiveWallCoronaryAcceptedStateV3<TWallState>(
   });
 }
 
+/**
+ * Wraps only V2 accepted states returned by this module's cold/step owners and
+ * records their exact V3-to-V2 view without attempting a generic transitive
+ * immutability proof over mechanics typed arrays. Downstream V2 mechanics and
+ * material-state validators remain authoritative; external wrappers and
+ * restored identities never enter this cache through this private function.
+ */
+function wrapInternalMainWireFiveWallCoronaryAcceptedStateV3<TWallState>(
+  base: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
+  binding: CoronaryAutoregulationWindowBindingV3,
+  autoregulation: CoronaryAcceptedAutoregulationStateV3,
+): MainWireFiveWallCoronaryAcceptedStateV3<TWallState> {
+  validateMainWireFiveWallCoronaryAcceptedStateV2(base);
+  const state = wrapMainWireFiveWallCoronaryAcceptedStateV3(
+    base,
+    binding,
+    autoregulation,
+  );
+  if (validationStampReuseEligibleV1()) {
+    validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
+      state,
+      base as MainWireFiveWallCoronaryAcceptedStateV2<unknown>,
+    );
+  }
+  return state;
+}
+
 export function validateMainWireFiveWallCoronaryAcceptedStateV3<TWallState>(
   state: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
 ): void {
@@ -397,18 +423,6 @@ function validatedMainWireFiveWallCoronaryBaseStateV2<TWallState>(
   );
   const baseState = mainWireFiveWallCoronaryBaseStateV2(state);
   validateMainWireFiveWallCoronaryAcceptedStateV2(baseState);
-  if (
-    Object.isFrozen(state)
-    && Object.isFrozen(state.circulation)
-    && Object.isFrozen(state.coronary)
-    && Object.isFrozen(state.mechanics)
-    && validationStampIssuanceEligibleV1(state)
-  ) {
-    validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
-      state,
-      baseState as MainWireFiveWallCoronaryAcceptedStateV2<unknown>,
-    );
-  }
   return baseState;
 }
 

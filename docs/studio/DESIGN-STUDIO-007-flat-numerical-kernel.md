@@ -472,6 +472,19 @@ from `2.17–2.23 ms/tick` without this Session resource to
 solver-owned typed state, not a claimed Workbench speedup; whole-transaction
 timing remains dominated by repeated coupled Newton work.
 
+The same reference audit found that lean-tier private constructors still used
+the exported validation-stamp issuer, recursively re-walking graphs they had
+just copied and frozen. Constructor-only issuers now retain exact identity and
+context provenance directly for composed rhythm, coronary autoregulation, and
+dynamic support; exported validators still require the complete independent
+frozen/plain-data proof. The coronary V3-to-V2 private wrapper likewise retains
+its already-validated V2 view without attempting an impossible generic proof
+over mechanics typed arrays. Mutating a published mechanics typed array remains
+detectable by its downstream material-state fingerprint validator. Three local
+lean reference runs moved from `2.145–2.157 ms/tick` to
+`2.101–2.119 ms/tick`. Stamp-disabled verification still bypasses every private
+proof. These are development-host diagnostics, not phone qualification.
+
 The generic image also admits a generation-bound candidate cursor. Beginning a
 candidate copies current bytes once into the inactive image; direct fixed
 `f64`/boolean writes then allocate no state object and cannot touch active
