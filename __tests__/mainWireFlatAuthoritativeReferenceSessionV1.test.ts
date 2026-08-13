@@ -16,7 +16,13 @@ import {
   evaluateAcceptedComposedRhythmTransactionCandidateV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
 import {
+  createAcceptedAuthoredEctopyScheduleConfigurationV2,
+  evaluateAcceptedAuthoredEctopyScheduleTrialV2,
+  initializeAcceptedAuthoredEctopyScheduleStateV2,
+} from "@/engine/myocardium/rhythm/acceptedAuthoredEctopyScheduleV2";
+import {
   createAcceptedAuthoredVentricularPacingReplaySourceConfigurationV1,
+  evaluateAcceptedAuthoredVentricularPacingReplaySourceTrialV1,
   initializeAcceptedAuthoredVentricularPacingReplaySourceStateV1,
 } from "@/engine/myocardium/rhythm/acceptedAuthoredVentricularPacingReplaySourceV1";
 import {
@@ -41,6 +47,7 @@ import {
   evaluateMainWireAcceptedTypedCalciumDriveV1,
   limitMainWireAcceptedTypedCandidateTimeV1,
   readMainWireAcceptedTypedClockV1,
+  stageMainWireAcceptedTypedAuthoredScheduleCandidateV1,
   stageMainWireAcceptedTypedCalciumCandidateV1,
   stageMainWireAcceptedTypedClockCandidateV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
@@ -963,7 +970,7 @@ describe("TransactionalTypedStateImageV1", () => {
 });
 
 describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
-  it("keeps authored pacing events external while typing the replay cursor", async () => {
+  it("keeps authored events external while typing both mutable schedules", async () => {
     const oracle = await MainWireIntegratedModelSessionV3.create();
     const accepted = oracle.currentAcceptedState();
     const base = accepted.composedRhythm.configuration;
@@ -979,12 +986,26 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
           activationTimeSec: 0.125,
         }],
       });
+    const ectopyConfiguration =
+      createAcceptedAuthoredEctopyScheduleConfigurationV2({
+        configurationId: "typed-ectopy-configuration",
+        ownerInstanceId: "typed-ectopy-owner",
+        scheduleId: "typed-ectopy-schedule",
+        events: [{
+          eventKind: "pvc",
+          authoredEctopyId: "typed-ectopy-event-1",
+          sourceId: "typed-ectopy-source",
+          sourceSequence: 1,
+          activationTimeSec: 0.125,
+          chamber: "ventricular",
+        }],
+      });
     const configuration =
       createAcceptedComposedRhythmTransactionConfigurationV2({
         configurationId: base.configurationId,
         ownerInstanceId: base.ownerInstanceId,
         atrialSource: base.atrialSource,
-        authoredEctopySchedule: base.authoredEctopySchedule,
+        authoredEctopySchedule: ectopyConfiguration,
         authoredVentricularPacingReplay: pacingConfiguration,
         electricalCaptureOwner: base.electricalCaptureOwner,
         avGateParameters: base.avGateParameters,
@@ -1002,11 +1023,16 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         configuration.authoredVentricularPacingReplay!,
         accepted.acceptedTimeSec,
       );
+    const ectopyState = initializeAcceptedAuthoredEctopyScheduleStateV2(
+      configuration.authoredEctopySchedule,
+      accepted.acceptedTimeSec,
+    );
     const configuredAccepted = Object.freeze({
       ...accepted,
       composedRhythm: Object.freeze({
         ...accepted.composedRhythm,
         configuration,
+        authoredEctopyState: ectopyState,
         authoredVentricularPacingReplayState: pacingState,
       }),
     });
@@ -1045,8 +1071,33 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       null,
     )).toMatchObject({
       candidateTimeSec: 0.125,
-      rhythmBoundaryOwners: ["authored-ventricular-pacing-replay"],
+      rhythmBoundaryOwners: [
+        "authored-ectopy",
+        "authored-ventricular-pacing-replay",
+      ],
     });
+    const candidate = image.beginCandidateFromCurrent();
+    stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(
+      image.currentCursor(),
+      candidate,
+      binding,
+      0.125,
+      configuration,
+    );
+    const staged = image.rehydrateStaged().composedRhythm;
+    expect(staged.authoredEctopyState).toEqual(
+      evaluateAcceptedAuthoredEctopyScheduleTrialV2(
+        ectopyState,
+        0.125,
+      ).candidateState,
+    );
+    expect(staged.authoredVentricularPacingReplayState).toEqual(
+      evaluateAcceptedAuthoredVentricularPacingReplaySourceTrialV1(
+        pacingState,
+        0.125,
+      ).candidateState,
+    );
+    image.abort();
   });
 
   it("matches the admitted object limiter from direct typed boundary slots", async () => {

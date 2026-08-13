@@ -62,6 +62,7 @@ import {
   createMainWireAcceptedTypedBoundaryBindingV1,
   limitMainWireAcceptedTypedCandidateTimeV1,
   readMainWireAcceptedTypedClockV1,
+  stageMainWireAcceptedTypedAuthoredScheduleCandidateV1,
   stageMainWireAcceptedTypedCalciumCandidateV1,
   stageMainWireAcceptedTypedClockCandidateV1,
   type MainWireAcceptedTypedBoundaryBindingV1,
@@ -123,6 +124,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     MainWireAcceptedTypedStateAuthorityV1 | null;
   readonly #typedBoundaryBinding:
     MainWireAcceptedTypedBoundaryBindingV1 | null;
+  readonly #directRetainedContinuousSlots: readonly number[];
   readonly #scalarSlots: TransactionalScalarSlotsV1<AcceptedState>;
   #acceptedState: AcceptedState;
   #lastAcceptedStep: SuccessfulStep | null;
@@ -188,6 +190,16 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       : createMainWireAcceptedTypedBoundaryBindingV1(
           this.#typedAuthority.manifest(),
         );
+    this.#directRetainedContinuousSlots = this.#typedBoundaryBinding === null
+      ? Object.freeze([])
+      : Object.freeze([
+          ...this.#typedBoundaryBinding.directContinuousSlots,
+          ...(runtime.rhythm.configuration
+            .authoredVentricularPacingReplay === null
+            ? []
+            : this.#typedBoundaryBinding
+              .authoredVentricularPacingContinuousSlots),
+        ]);
     this.#acceptedState = this.#authority.current();
     this.#scalarSlots = new TransactionalScalarSlotsV1(
       createMainWireAcceptedScalarSlotManifestV1(
@@ -369,6 +381,13 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             limit.candidateTimeSec,
             this.#rhythmInput.configuration.calciumParametersByWall,
           );
+          stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(
+            current,
+            candidate,
+            this.requiredTypedBoundaryBinding(),
+            limit.candidateTimeSec,
+            this.#rhythmInput.configuration,
+          );
         } catch (error) {
           if (directCandidateOpen) {
             this.#typedAuthority.abortDirectCandidate();
@@ -427,8 +446,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           committedState = this.#typedAuthority.commitDirectCandidate(
             result.acceptedState,
             {
-              continuous:
-                this.requiredTypedBoundaryBinding().directContinuousSlots,
+              continuous: this.#directRetainedContinuousSlots,
             },
           );
         } else {

@@ -1,6 +1,9 @@
 import type {
   MainWireIntegratedModelCandidateTimeLimitV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
+import {
+  MAX_AUTHORED_VENTRICULAR_PACING_REPLAY_IMPULSES_PER_TRIAL_V1,
+} from "@/engine/myocardium/rhythm/acceptedAuthoredVentricularPacingReplaySourceV1";
 import type {
   AcceptedComposedRhythmTransactionConfigurationV2,
   AcceptedComposedRhythmTransactionCandidateTimeLimitV2,
@@ -40,11 +43,18 @@ const CALCIUM_WALLS = Object.freeze([
 ] as const);
 type CalciumWall = (typeof CALCIUM_WALLS)[number];
 
+type AuthoredScheduleContinuousBinding = Readonly<{
+  acceptedEmittedImpulseCount: number;
+  acceptedTimeSec: number;
+  cursor: number;
+  revision: number;
+}>;
+
 type ContinuousBinding = Readonly<{
   acceptedTimeSec: number;
   composedAcceptedTimeSec: number;
-  authoredEctopyCursor: number;
-  authoredVentricularPacingCursor: number;
+  authoredEctopy: AuthoredScheduleContinuousBinding;
+  authoredVentricularPacing: AuthoredScheduleContinuousBinding;
   regularAtrialNextActivationTimeSec: number;
   composedRevision: number;
   ventricularBackupNextIntrinsicEscapeDueTimeSec: number;
@@ -74,6 +84,7 @@ export type MainWireAcceptedTypedBoundaryBindingV1 = Readonly<{
     state: readonly [number, number];
   }>>>;
   directContinuousSlots: readonly number[];
+  authoredVentricularPacingContinuousSlots: readonly number[];
 }>;
 
 /** Resolves model paths once; the accepted hot loop performs no string lookup. */
@@ -91,11 +102,13 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
     acceptedTimeSec: continuousSlot(manifest, "/acceptedTimeSec"),
     composedAcceptedTimeSec:
       continuousSlot(manifest, "/composedRhythm/acceptedTimeSec"),
-    authoredEctopyCursor:
-      continuousSlot(manifest, "/composedRhythm/authoredEctopyState/cursor"),
-    authoredVentricularPacingCursor: continuousSlot(
+    authoredEctopy: authoredScheduleBinding(
       manifest,
-      "/composedRhythm/authoredVentricularPacingReplayState/cursor",
+      "/composedRhythm/authoredEctopyState",
+    ),
+    authoredVentricularPacing: authoredScheduleBinding(
+      manifest,
+      "/composedRhythm/authoredVentricularPacingReplayState",
     ),
     regularAtrialNextActivationTimeSec: continuousSlot(
       manifest,
@@ -172,13 +185,30 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
   ]);
   const calciumSlots = Object.freeze(CALCIUM_WALLS.flatMap((wall) =>
     [...calcium[wall].state]));
+  const authoredEctopySlots = Object.freeze([
+    continuous.authoredEctopy.acceptedEmittedImpulseCount,
+    continuous.authoredEctopy.acceptedTimeSec,
+    continuous.authoredEctopy.cursor,
+    continuous.authoredEctopy.revision,
+  ]);
+  const authoredVentricularPacingContinuousSlots = Object.freeze([
+    continuous.authoredVentricularPacing.acceptedEmittedImpulseCount,
+    continuous.authoredVentricularPacing.acceptedTimeSec,
+    continuous.authoredVentricularPacing.cursor,
+    continuous.authoredVentricularPacing.revision,
+  ]);
   return Object.freeze({
     layoutId: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
     fingerprint: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
     continuous,
     boundedArray,
     calcium,
-    directContinuousSlots: Object.freeze([...clockSlots, ...calciumSlots]),
+    directContinuousSlots: Object.freeze([
+      ...clockSlots,
+      ...calciumSlots,
+      ...authoredEctopySlots,
+    ]),
+    authoredVentricularPacingContinuousSlots,
   });
 }
 
@@ -444,6 +474,51 @@ export function stageMainWireAcceptedTypedCalciumCandidateV1(
   }
 }
 
+/** Advances the two finite authored schedule cursors without owner objects. */
+export function stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(
+  current: TransactionalTypedStateCurrentCursorV1,
+  candidate: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
+  candidateTimeSec: number,
+  configuration: AcceptedComposedRhythmTransactionConfigurationV2,
+): void {
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
+  const acceptedTimeSec = finiteNonnegative(
+    current.readContinuous(binding.continuous.composedAcceptedTimeSec),
+    "authored schedule accepted time",
+  );
+  const candidateTime = finiteNonnegative(
+    candidateTimeSec,
+    "authored schedule candidate time",
+  );
+  if (!(candidateTime > acceptedTimeSec)) {
+    throw new Error("Main Wire typed authored schedule candidate must advance");
+  }
+  stageAuthoredScheduleCandidate(
+    current,
+    candidate,
+    binding.continuous.authoredEctopy,
+    configuration.authoredEctopySchedule.events,
+    acceptedTimeSec,
+    candidateTime,
+    "authored ectopy",
+    null,
+  );
+  if (configuration.authoredVentricularPacingReplay !== null) {
+    stageAuthoredScheduleCandidate(
+      current,
+      candidate,
+      binding.continuous.authoredVentricularPacing,
+      configuration.authoredVentricularPacingReplay.events,
+      acceptedTimeSec,
+      candidateTime,
+      "authored ventricular pacing replay",
+      MAX_AUTHORED_VENTRICULAR_PACING_REPLAY_IMPULSES_PER_TRIAL_V1,
+    );
+  }
+}
+
 function limitTypedRhythmBoundary(
   cursor: TransactionalTypedStateCurrentCursorV1,
   binding: MainWireAcceptedTypedBoundaryBindingV1,
@@ -483,7 +558,7 @@ function limitTypedRhythmBoundary(
     "authored ectopy events",
   );
   const authoredEctopyCursor = nonnegativeSafeInteger(
-    cursor.readContinuous(binding.continuous.authoredEctopyCursor),
+    cursor.readContinuous(binding.continuous.authoredEctopy.cursor),
     "authored ectopy cursor",
   );
   const ectopy = authoredEctopyEvents[authoredEctopyCursor];
@@ -503,7 +578,7 @@ function limitTypedRhythmBoundary(
     );
     const pacingCursor = nonnegativeSafeInteger(
       cursor.readContinuous(
-        binding.continuous.authoredVentricularPacingCursor,
+        binding.continuous.authoredVentricularPacing.cursor,
       ),
       "authored ventricular pacing cursor",
     );
@@ -712,6 +787,108 @@ function continuousSlot(
     pointer,
     "continuous",
   );
+}
+
+function authoredScheduleBinding(
+  manifest: TransactionalTypedStateManifestV1,
+  rootPointer: string,
+): AuthoredScheduleContinuousBinding {
+  return Object.freeze({
+    acceptedEmittedImpulseCount: continuousSlot(
+      manifest,
+      `${rootPointer}/acceptedEmittedImpulseCount`,
+    ),
+    acceptedTimeSec: continuousSlot(
+      manifest,
+      `${rootPointer}/acceptedTimeSec`,
+    ),
+    cursor: continuousSlot(manifest, `${rootPointer}/cursor`),
+    revision: continuousSlot(manifest, `${rootPointer}/revision`),
+  });
+}
+
+function stageAuthoredScheduleCandidate(
+  current: TransactionalTypedStateCurrentCursorV1,
+  candidate: TransactionalTypedStateCandidateCursorV1,
+  slots: AuthoredScheduleContinuousBinding,
+  events: readonly unknown[],
+  expectedAcceptedTimeSec: number,
+  candidateTimeSec: number,
+  owner: string,
+  maximumDueEventCount: number | null,
+): void {
+  const acceptedTimeSec = finiteNonnegative(
+    current.readContinuous(slots.acceptedTimeSec),
+    `${owner} accepted time`,
+  );
+  if (acceptedTimeSec !== expectedAcceptedTimeSec) {
+    throw new Error(`Main Wire typed ${owner} clock diverged`);
+  }
+  const cursor = nonnegativeSafeInteger(
+    current.readContinuous(slots.cursor),
+    `${owner} cursor`,
+  );
+  if (cursor > events.length) {
+    throw new Error(`Main Wire typed ${owner} cursor exceeds its events`);
+  }
+  const candidateCursor = upperBoundAuthoredScheduleEvents(
+    events,
+    cursor,
+    candidateTimeSec,
+    owner,
+  );
+  const dueEventCount = candidateCursor - cursor;
+  if (
+    maximumDueEventCount !== null
+    && dueEventCount > maximumDueEventCount
+  ) {
+    throw new Error(
+      `Main Wire typed ${owner} exceeds its per-trial impulse bound`,
+    );
+  }
+  const emitted = nonnegativeSafeInteger(
+    current.readContinuous(slots.acceptedEmittedImpulseCount),
+    `${owner} emitted impulse count`,
+  );
+  const revision = nonnegativeSafeInteger(
+    current.readContinuous(slots.revision),
+    `${owner} revision`,
+  );
+  if (
+    emitted > Number.MAX_SAFE_INTEGER - dueEventCount
+    || revision === Number.MAX_SAFE_INTEGER
+  ) {
+    throw new Error(`Main Wire typed ${owner} counter cannot increment safely`);
+  }
+  candidate.writeContinuous(
+    slots.acceptedEmittedImpulseCount,
+    emitted + dueEventCount,
+  );
+  candidate.writeContinuous(slots.acceptedTimeSec, candidateTimeSec);
+  candidate.writeContinuous(slots.cursor, candidateCursor);
+  candidate.writeContinuous(slots.revision, revision + 1);
+}
+
+function upperBoundAuthoredScheduleEvents(
+  events: readonly unknown[],
+  initialCursor: number,
+  candidateTimeSec: number,
+  owner: string,
+): number {
+  let low = initialCursor;
+  let high = events.length;
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2);
+    const event = requiredRecord(events[middle], `${owner} event`);
+    const activationTimeSec = numberProperty(
+      event,
+      "activationTimeSec",
+      `${owner} event`,
+    );
+    if (activationTimeSec <= candidateTimeSec) low = middle + 1;
+    else high = middle;
+  }
+  return low;
 }
 
 function boundedArraySlot(
