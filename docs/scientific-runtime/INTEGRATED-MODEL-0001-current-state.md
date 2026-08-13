@@ -32,10 +32,21 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-21
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-22
 ```
 
-Standard-21 preserves Standard-20's equations, controls, checkpoint meaning,
+Standard-22 preserves Standard-21's equations, controls, checkpoint meaning,
+accepted sequence, and public named-record API while changing the two internal
+candidate pages to fixed-index numerical storage. Node volume/pressure,
+vascular tangent, native/dynamic edge flow, valve slot, node-rate, continuity,
+and scaled-residual values are written into `Float64Array` or fixed object-slot
+arrays. The solver uses the graph's already-verified node/edge ordering and
+materializes names only once for a returned public trial. Six alternating
+512-tick host pairs favored Standard-22 in five pairs; the paired-ratio median
+was about `0.94`, with one severe host-load outlier. This is evidence for the
+allocation direction, not a phone qualification.
+
+Standard-21 had preserved Standard-20's equations, controls, checkpoint meaning,
 accepted sequence, Newton selection order, and public trial ownership while
 moving the common analytic Newton path's candidate numerical records into two
 solver-owned pages. The current page is never written while line search uses

@@ -728,6 +728,17 @@ center, lower, and upper residuals. Alternating 512-tick host measurements were
 small and load-sensitive (roughly neutral to about 1% lower), so this is a
 bounded-allocation/GC-pressure step, not an iPhone qualification.
 
+Standard-22 replaces those pages' repeated name-keyed numerical records with
+fixed-index buffers. Node volumes and pressures, vascular tangents, edge and
+dynamic flows, node rates, continuity residuals, and scaled residuals use
+`Float64Array`; valve results occupy fixed arrays in the verified valve order.
+The public trial remains the same detached name-keyed object and is materialized
+once, only after convergence. The finite-difference path receives its own page
+per simultaneously retained probe. Six alternating 512-tick host pairs were
+faster in five pairs, with a paired-ratio median near `0.94`; one pair was a
+severe concurrent-load outlier. This supports the fixed-offset direction but
+does not replace an iPhone device gate.
+
 Failure atomicity, event order, beat accumulation, controls, analysis forks,
 and checkpoint continuation must pass against the Phase 0 corpus before Phase
 2 changes solver algebra.
