@@ -16,6 +16,7 @@ import type {
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import type {
   MainWireFiveWallCoupledAcceptedCandidateBorrowV1,
+  MainWireFiveWallCoronaryAcceptedStateV2,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 import {
   MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
@@ -99,6 +100,12 @@ export type MainWireAcceptedTypedHemodynamicBindingV1 = Readonly<{
   ownerClocks: readonly OwnerClockBindingV1[];
   coupledContinuousSlots: readonly number[];
   coupledBooleanSlots: readonly number[];
+  /**
+   * Leaves owned by the 30-row solver. Coronary tone is intentionally absent:
+   * the accepted autoregulation owner may change it after the hydraulic solve.
+   */
+  solverRetainedContinuousSlots: readonly number[];
+  solverRetainedBooleanSlots: readonly number[];
 }>;
 
 /**
@@ -237,6 +244,16 @@ export function createMainWireAcceptedTypedHemodynamicBindingV1(
       clock.revision,
     ]),
   ])));
+  const coronaryToneSlots = new Set(
+    slots.slice(
+      CORONARY_TONE_INDEX,
+      CORONARY_TONE_INDEX
+        + CORONARY_TERRITORY_IDS_V2.length * CORONARY_LAYER_IDS_V2.length,
+    ).filter((slot): slot is number => slot !== null),
+  );
+  const solverRetainedContinuousSlots = Object.freeze(
+    coupledContinuousSlots.filter((slot) => !coronaryToneSlots.has(slot)),
+  );
   return Object.freeze({
     viewId: MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_VIEW_V1_ID,
     layoutId: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
@@ -246,6 +263,8 @@ export function createMainWireAcceptedTypedHemodynamicBindingV1(
     ownerClocks,
     coupledContinuousSlots,
     coupledBooleanSlots: Object.freeze([mvcActiveBooleanSlot]),
+    solverRetainedContinuousSlots,
+    solverRetainedBooleanSlots: Object.freeze([mvcActiveBooleanSlot]),
   });
 }
 
@@ -327,6 +346,85 @@ export function stageMainWireAcceptedTypedCoupledCandidateV1(
   }
 }
 
+/**
+ * Object-adapter migration seam for the same solver-owned leaves. Unlike the
+ * borrow path this consumes the already finalized V2 candidate, avoiding a
+ * second residual/mechanics evaluation while public object materialization is
+ * still required for cold completion.
+ */
+export function stageMainWireAcceptedTypedCoupledStateV1(
+  candidateCursor: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedHemodynamicBindingV1,
+  state: MainWireFiveWallCoronaryAcceptedStateV2<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >,
+  scratch: Float64Array,
+): void {
+  assertCandidateCursor(candidateCursor, binding);
+  if (
+    !(scratch instanceof Float64Array)
+    || scratch.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1
+  ) {
+    throw new RangeError(
+      "Main Wire accepted typed coupled scratch must contain 100 f64s",
+    );
+  }
+  scratch[ACCEPTED_TIME_INDEX] = state.acceptedTimeSec;
+  scratch[REVISION_INDEX] = state.revision;
+  scratch[FIXED_TBV_INDEX] = state.fixedGlobalTotalBloodVolumeMl;
+  for (let index = 0; index < NON_CORONARY_NODE_NAMES_V1.length; index += 1) {
+    scratch[NON_CORONARY_INDEX + index] = state.circulation.nodeVolumesMl[
+      NON_CORONARY_NODE_NAMES_V1[index]!
+    ];
+  }
+  for (let index = 0;
+    index < NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length;
+    index += 1) {
+    scratch[DYNAMIC_EDGE_INDEX + index] =
+      state.circulation.dynamicEdgeFlowsMlPerSec[
+        NON_CORONARY_DYNAMIC_EDGE_NAMES_V1[index]!
+      ];
+  }
+  for (let index = 0; index < NON_CORONARY_VALVE_NAMES_V1.length; index += 1) {
+    scratch[VALVE_INDEX + index] = state.circulation.valveStates[
+      NON_CORONARY_VALVE_NAMES_V1[index]!
+    ].leafletOpeningFraction01;
+  }
+  for (let index = 0;
+    index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+    index += 1) {
+    scratch[CORONARY_INDEX + index] = state.coronary.volumeMlByNode[
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]!
+    ];
+  }
+  let toneIndex = CORONARY_TONE_INDEX;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      scratch[toneIndex++] =
+        state.coronary.toneResistanceScaleByTerritoryLayer[territoryId][
+          layerId
+        ];
+    }
+  }
+  writeMaterialAndMvcIntoCanonicalView(
+    state.mechanics.materialState,
+    state.mvcReferenceState,
+    scratch,
+  );
+  assertCanonicalView(scratch);
+  assertMechanicsVolumesMatch(
+    state.mechanics.acceptedVolumesMl,
+    state.circulation.nodeVolumesMl,
+  );
+  writeCanonicalViewToCandidate(candidateCursor, binding, scratch);
+  writeOwnerClocks(
+    candidateCursor,
+    binding,
+    state.acceptedTimeSec,
+    state.revision,
+  );
+}
+
 function writeCandidateIntoCanonicalView(
   candidate: MainWireFiveWallCoupledAcceptedCandidateBorrowV1<
     MainWireNormalAdultFiveWallMechanicsStateV1
@@ -361,9 +459,30 @@ function writeCandidateIntoCanonicalView(
         ];
     }
   }
+  writeMaterialAndMvcIntoCanonicalView(
+    candidate.mechanicsMaterialState,
+    candidate.mvcReferenceState,
+    destination,
+  );
+  assertMechanicsVolumesMatch(
+    candidate.mechanicsCandidateVolumesMl,
+    Object.fromEntries(NON_CORONARY_NODE_NAMES_V1.map((nodeId, index) => [
+      nodeId,
+      candidate.nonCoronaryNodeVolumesMl[index]!,
+    ])) as Readonly<Record<(typeof NON_CORONARY_NODE_NAMES_V1)[number], number>>,
+  );
+}
+
+function writeMaterialAndMvcIntoCanonicalView(
+  materialState: MainWireNormalAdultFiveWallMechanicsStateV1,
+  mvc: MainWireFiveWallCoupledAcceptedCandidateBorrowV1<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >["mvcReferenceState"],
+  destination: Float64Array,
+): void {
   let wallIndex = WALL_STATE_INDEX;
   for (const wallId of MAIN_WIRE_FIVE_WALL_IDS_V1) {
-    const wall = candidate.mechanicsMaterialState.wallStateByWall[wallId];
+    const wall = materialState.wallStateByWall[wallId];
     if (wall.landState.length !== LAND_STATE_LENGTH) {
       throw new Error(`Main Wire typed ${wallId} Land-state dimension changed`);
     }
@@ -373,11 +492,10 @@ function writeCandidateIntoCanonicalView(
     destination[wallIndex++] = wall.previousFiberLogStrain;
     destination[wallIndex++] = wall.previousFreeCalciumUM;
   }
-  destination[TRISEG_INDEX] = candidate.mechanicsMaterialState
+  destination[TRISEG_INDEX] = materialState
     .trisegCoordinates.septalMidwallCapVolumeM3;
-  destination[TRISEG_INDEX + 1] = candidate.mechanicsMaterialState
+  destination[TRISEG_INDEX + 1] = materialState
     .trisegCoordinates.junctionRadiusM;
-  const mvc = candidate.mvcReferenceState;
   destination[MVC_INDEX] =
     mvc.reference.referenceFiberLogStrainByWall.LVFW;
   destination[MVC_INDEX + 1] =
@@ -388,25 +506,50 @@ function writeCandidateIntoCanonicalView(
   destination[MVC_INDEX + 4] = mvc.referenceRevision;
   destination[MVC_ACTIVE_INDEX] = mvc.mitralForwardFlowActive ? 1 : 0;
   destination[MVC_INDEX + 6] = mvc.acceptedMitralClosureEventCount;
-  const chamberIndexes = Object.freeze({
-    LA: NON_CORONARY_NODE_NAMES_V1.indexOf("LA"),
-    LV: NON_CORONARY_NODE_NAMES_V1.indexOf("LV"),
-    RA: NON_CORONARY_NODE_NAMES_V1.indexOf("RA"),
-    RV: NON_CORONARY_NODE_NAMES_V1.indexOf("RV"),
-  });
+}
+
+function assertMechanicsVolumesMatch(
+  mechanicsVolumes: Readonly<Record<"LA" | "LV" | "RA" | "RV", number>>,
+  nodeVolumes: Readonly<Record<(typeof NON_CORONARY_NODE_NAMES_V1)[number], number>>,
+): void {
   for (const chamberId of ["LA", "LV", "RA", "RV"] as const) {
-    const nodeIndex = chamberIndexes[chamberId];
     if (
-      nodeIndex < 0
-      || !Object.is(
-        candidate.mechanicsCandidateVolumesMl[chamberId],
-        candidate.nonCoronaryNodeVolumesMl[nodeIndex],
-      )
+      !Object.is(mechanicsVolumes[chamberId], nodeVolumes[chamberId])
     ) {
       throw new Error(
         `Main Wire typed coupled ${chamberId} mechanics volume diverged`,
       );
     }
+  }
+}
+
+function writeCanonicalViewToCandidate(
+  candidateCursor: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedHemodynamicBindingV1,
+  values: Float64Array,
+): void {
+  for (let index = 0; index < values.length; index += 1) {
+    const slot = binding.canonicalContinuousSlots[index];
+    if (slot === null) {
+      candidateCursor.writeBoolean(
+        binding.mvcActiveBooleanSlot,
+        values[index] === 1,
+      );
+    } else {
+      candidateCursor.writeContinuous(slot, values[index]!);
+    }
+  }
+}
+
+function writeOwnerClocks(
+  candidateCursor: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedHemodynamicBindingV1,
+  candidateTimeSec: number,
+  candidateRevision: number,
+): void {
+  for (const clock of binding.ownerClocks) {
+    candidateCursor.writeContinuous(clock.acceptedTimeSec, candidateTimeSec);
+    candidateCursor.writeContinuous(clock.revision, candidateRevision);
   }
 }
 

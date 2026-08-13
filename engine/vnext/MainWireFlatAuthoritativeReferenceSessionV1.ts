@@ -89,6 +89,19 @@ import {
   MainWireAcceptedTypedStateAuthorityV1,
   type MainWireAcceptedTypedStateAuthorityReportV1,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
+import {
+  createMainWireAcceptedTypedHemodynamicBindingV1,
+  createMainWireAcceptedTypedHemodynamicDestinationV1,
+  stageMainWireAcceptedTypedCoupledStateV1,
+  type MainWireAcceptedTypedHemodynamicBindingV1,
+} from "@/engine/vnext/MainWireAcceptedTypedHemodynamicV1";
+import {
+  createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+  type MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+} from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
+import {
+  stepMainWireIntegratedModelCoupledV1,
+} from "@/engine/vnext/coupled/MainWireIntegratedCoupledStepV1";
 import type {
   TransactionalTypedStateCandidateCursorV1,
   TransactionalTypedStateCompletionPlanV1,
@@ -158,6 +171,11 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     MainWireAcceptedTypedStateAuthorityV1 | null;
   readonly #typedBoundaryBinding:
     MainWireAcceptedTypedBoundaryBindingV1 | null;
+  readonly #typedHemodynamicBinding:
+    MainWireAcceptedTypedHemodynamicBindingV1 | null;
+  readonly #typedHemodynamicScratch: Float64Array;
+  readonly #coupledNewtonWorkspace:
+    MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
   readonly #nonCoronaryAcceptedNumericalSource:
     NonCoronaryAcceptedNumericalSourceV1 | undefined;
   readonly #directCompletionPlan:
@@ -250,6 +268,15 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       : createMainWireAcceptedTypedBoundaryBindingV1(
           this.#typedAuthority.manifest(),
         );
+    this.#typedHemodynamicBinding = this.#typedAuthority === null
+      ? null
+      : createMainWireAcceptedTypedHemodynamicBindingV1(
+          this.#typedAuthority.manifest(),
+        );
+    this.#typedHemodynamicScratch =
+      createMainWireAcceptedTypedHemodynamicDestinationV1();
+    this.#coupledNewtonWorkspace =
+      createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
     this.#nonCoronaryAcceptedNumericalSource =
       this.#typedAuthority === null || this.#typedBoundaryBinding === null
         ? undefined
@@ -260,7 +287,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     const directRetainedContinuousSlots =
       this.#typedBoundaryBinding === null
         ? Object.freeze([])
-        : Object.freeze([
+        : Object.freeze(Array.from(new Set([
           ...this.#typedBoundaryBinding.directContinuousSlots,
           ...(runtime.rhythm.configuration
             .authoredVentricularPacingReplay === null
@@ -271,11 +298,15 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             ? this.#typedBoundaryBinding.regularAtrialSourceContinuousSlots
             : []),
           ...this.#typedBoundaryBinding.postSolverContinuousSlots,
-        ]);
+          ...(this.#typedHemodynamicBinding?.solverRetainedContinuousSlots
+            ?? []),
+        ])));
     this.#directCompletionPlan = this.#typedAuthority === null
       ? null
       : this.#typedAuthority.createDirectCompletionPlan({
           continuous: directRetainedContinuousSlots,
+          booleans:
+            this.#typedHemodynamicBinding?.solverRetainedBooleanSlots ?? [],
         });
     this.#acceptedState = this.#authority.current();
     this.#lastAcceptedStep = null;
@@ -520,22 +551,48 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       }
       let result: MainWireIntegratedModelStepResultV3<WallState>;
       try {
-        result = stepMainWireIntegratedModelV3(
-          this.#provider,
-          this.#acceptedState,
-          {
-            candidateTimeSec: limit.candidateTimeSec,
-            coronary: this.#runtime.coronaryStepInput,
-            rhythm: this.#rhythmInput,
-            dynamicMechanicalSupport: Object.freeze({
-              config: this.#dynamicMechanicalSupportConfig,
-              profile: this.#runtime.profile,
+        const stepInput = Object.freeze({
+          candidateTimeSec: limit.candidateTimeSec,
+          coronary: this.#runtime.coronaryStepInput,
+          rhythm: this.#rhythmInput,
+          dynamicMechanicalSupport: Object.freeze({
+            config: this.#dynamicMechanicalSupportConfig,
+            profile: this.#runtime.profile,
+          }),
+        });
+        result = this.#typedAuthority === null
+          ? stepMainWireIntegratedModelV3(
+            this.#provider,
+            this.#acceptedState,
+            stepInput,
+            this.#coronaryScratchWorkspace,
+            this.#nonCoronaryScratchWorkspace,
+            this.#nonCoronaryAcceptedNumericalSource,
+          )
+          : stepMainWireIntegratedModelCoupledV1(
+            this.#provider,
+            this.#acceptedState,
+            stepInput,
+            this.#coupledNewtonWorkspace,
+            Object.freeze({
+              onAcceptedBaseStep: (baseStep) => {
+                if (
+                  directCandidateCursor === null
+                  || this.#typedHemodynamicBinding === null
+                ) {
+                  throw new Error(
+                    "Main Wire coupled typed candidate cursor is missing",
+                  );
+                }
+                stageMainWireAcceptedTypedCoupledStateV1(
+                  directCandidateCursor,
+                  this.#typedHemodynamicBinding,
+                  baseStep.acceptedState,
+                  this.#typedHemodynamicScratch,
+                );
+              },
             }),
-          },
-          this.#coronaryScratchWorkspace,
-          this.#nonCoronaryScratchWorkspace,
-          this.#nonCoronaryAcceptedNumericalSource,
-        );
+          );
       } catch (error) {
         if (directCandidateOpen) {
           this.#typedAuthority?.abortDirectCandidate();

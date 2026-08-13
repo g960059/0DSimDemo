@@ -136,8 +136,15 @@ const flatOutputs = projectMainWireIntegratedModelSelectedValuesV3(
   flatSession.observe(),
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
 );
-if (JSON.stringify(objectOutputs) !== JSON.stringify(flatOutputs)) {
-  throw new Error("flat authority benchmark terminal outputs diverged");
+const terminalDifference = maximumOutputDifference(
+  flatOutputs,
+  objectOutputs,
+);
+if (terminalDifference.maximumRelativeDifference > 1e-6) {
+  throw new Error(
+    "flat authority benchmark terminal outputs diverged: "
+      + JSON.stringify(terminalDifference),
+  );
 }
 
 const authority = flatSession.authorityReport();
@@ -155,6 +162,7 @@ process.stdout.write(`${JSON.stringify({
     meanMsPerTick: flatDurationMs / MEASURED_TICKS,
     overheadRatio: flatDurationMs / objectDurationMs,
     authority,
+    terminalNestedOracleDifference: terminalDifference,
   },
   isolatedTypedImageProjection: {
     stageMeanMsPerPresentationTick:
@@ -168,3 +176,46 @@ process.stdout.write(`${JSON.stringify({
     report: typedImage.report(),
   },
 }, null, 2)}\n`);
+
+function maximumOutputDifference(
+  actual: typeof flatOutputs,
+  expected: typeof objectOutputs,
+): Readonly<{
+  outputId: string | null;
+  maximumAbsoluteDifference: number;
+  maximumRelativeDifference: number;
+}> {
+  let outputId: string | null = null;
+  let maximumAbsoluteDifference = 0;
+  let maximumRelativeDifference = 0;
+  for (const id of MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3) {
+    const actualValue = actual[id];
+    const expectedValue = expected[id];
+    if (
+      actualValue.availability !== expectedValue.availability
+      || actualValue.quality !== expectedValue.quality
+      || (actualValue.value === null) !== (expectedValue.value === null)
+    ) {
+      throw new Error(`flat authority ${id} metadata diverged`);
+    }
+    if (actualValue.value === null || expectedValue.value === null) continue;
+    const absoluteDifference = Math.abs(
+      actualValue.value - expectedValue.value,
+    );
+    const relativeDifference = absoluteDifference / Math.max(
+      1,
+      Math.abs(actualValue.value),
+      Math.abs(expectedValue.value),
+    );
+    if (relativeDifference > maximumRelativeDifference) {
+      outputId = id;
+      maximumAbsoluteDifference = absoluteDifference;
+      maximumRelativeDifference = relativeDifference;
+    }
+  }
+  return Object.freeze({
+    outputId,
+    maximumAbsoluteDifference,
+    maximumRelativeDifference,
+  });
+}

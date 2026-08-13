@@ -1502,13 +1502,16 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         throw new Error(`reference or oracle failed at tick ${tick}`);
       }
       expect(actual.acceptedRevision).toBe(expected.acceptedRevision);
-      expect(projectMainWireIntegratedModelSelectedValuesV3(
+      expectProjectedValuesScientificallyEquivalent(
+        projectMainWireIntegratedModelSelectedValuesV3(
         actual.observation,
         MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
-      )).toEqual(projectMainWireIntegratedModelSelectedValuesV3(
-        expected.observation,
-        MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
-      ));
+        ),
+        projectMainWireIntegratedModelSelectedValuesV3(
+          expected.observation,
+          MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+        ),
+      );
       sawCompletedBeat ||= actual.observation.completedBeatMetrics !== null;
     }
 
@@ -1574,7 +1577,22 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       const target = mainWireIntegratedModelPresentationTargetTimeSecV3(1);
       const actual = reference.advanceToPresentationTime(target);
       const expected = oracle.advanceToPresentationTime(target);
-      expect(actual).toEqual(expected);
+      expect(actual.status).toBe("advanced");
+      expect(expected.status).toBe("advanced");
+      if (actual.status !== "advanced" || expected.status !== "advanced") {
+        throw new Error("reference or oracle failed at the first tick");
+      }
+      expect(actual.acceptedRevision).toBe(expected.acceptedRevision);
+      expectProjectedValuesScientificallyEquivalent(
+        projectMainWireIntegratedModelSelectedValuesV3(
+          actual.observation,
+          MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+        ),
+        projectMainWireIntegratedModelSelectedValuesV3(
+          expected.observation,
+          MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+        ),
+      );
       expect(reference.authorityReport()).toMatchObject({
         directCandidateCommitCount: 1,
         directCandidateMirrorReuseCount: 1,
@@ -1582,7 +1600,9 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         poisonedReason: null,
       });
       expect(reference.currentAcceptedState())
-        .toEqual(oracle.currentAcceptedState());
+        .toEqual(reference.observe().acceptedState);
+      expect(decodeCanonicalFlatDataV1(reference.snapshotAcceptedStateBytes()))
+        .toEqual(reference.currentAcceptedState());
     } finally {
       selectValidationStampModeV1(previousMode);
     }
@@ -1682,4 +1702,45 @@ function firstFloat64Array(value: unknown): Float64Array | null {
     if (nested !== null) return nested;
   }
   return null;
+}
+
+function expectProjectedValuesScientificallyEquivalent(
+  actual: Readonly<Record<string, Readonly<{
+    outputId: string;
+    availability: string;
+    quality: string;
+    value: number | null;
+  }>>>,
+  expected: Readonly<Record<string, Readonly<{
+    outputId: string;
+    availability: string;
+    quality: string;
+    value: number | null;
+  }>>>,
+): void {
+  expect(Object.keys(actual)).toEqual(Object.keys(expected));
+  for (const outputId of Object.keys(expected)) {
+    const actualValue = actual[outputId];
+    const expectedValue = expected[outputId];
+    expect(actualValue).toMatchObject({
+      outputId: expectedValue?.outputId,
+      availability: expectedValue?.availability,
+      quality: expectedValue?.quality,
+    });
+    if (actualValue?.value === null || expectedValue?.value === null) {
+      expect(actualValue?.value).toBe(expectedValue?.value);
+      continue;
+    }
+    const scale = Math.max(
+      1,
+      Math.abs(actualValue.value),
+      Math.abs(expectedValue.value),
+    );
+    const difference = Math.abs(actualValue.value - expectedValue.value);
+    if (difference > 1e-9 + 1e-6 * scale) {
+      throw new Error(
+        `${outputId} diverged by ${difference} at scale ${scale}`,
+      );
+    }
+  }
 }

@@ -253,6 +253,37 @@ export function stepMainWireFiveWallCoronaryV3<TWallState>(
     nonCoronaryScratchWorkspace,
     previousAcceptedNumericalSource,
   );
+  return promoteMainWireFiveWallCoronaryBaseStepV3(
+    previous,
+    input,
+    baseStep,
+  );
+}
+
+/**
+ * Applies the V3 accepted-autoregulation owner to one component-admitted V2
+ * candidate. The nested reference step and the vNext statically condensed
+ * solver both enter through this exact promotion boundary, so changing the
+ * nonlinear algebra cannot fork coronary tone/window semantics.
+ */
+export function promoteMainWireFiveWallCoronaryBaseStepV3<TWallState>(
+  previous: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
+  input: MainWireFiveWallCoronaryStepInputV3,
+  baseStep: MainWireFiveWallCoronaryStepResultV2<TWallState>,
+): MainWireFiveWallCoronaryStepResultV3<TWallState> {
+  validatedMainWireFiveWallCoronaryBaseStateV2(previous);
+  const maximumDtSec =
+    maximumMainWireFiveWallCoronaryStepDurationFromValidatedStateV3(
+      previous,
+    );
+  const tolerance = 64 * Number.EPSILON
+    * Math.max(1, Math.abs(previous.acceptedTimeSec), Math.abs(input.dtSec));
+  if (!Number.isFinite(input.dtSec) || input.dtSec <= 0
+    || input.dtSec > maximumDtSec + tolerance) {
+    throw new RangeError(
+      "step dt must be positive and must not cross the autoregulation window",
+    );
+  }
   if (baseStep.converged === false) {
     return Object.freeze({
       converged: false,
