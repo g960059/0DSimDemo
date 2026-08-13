@@ -33,6 +33,8 @@ export type StudioPublishedArticleV1 = Readonly<{
 
 const UUID_V1 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const UUID_ROUTE_SHAPE_V1 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PUBLIC_SLUG_V1 = /^[a-z0-9][a-z0-9-]{2,95}$/;
 const UTC_TIMESTAMP_V1 =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/;
@@ -58,7 +60,10 @@ export function validateStudioPublishedArticleV1(
   }
   uuidV1(detached.articleId, "$.publishedArticle.articleId");
   uuidV1(detached.articleContentId, "$.publishedArticle.articleContentId");
-  if (!PUBLIC_SLUG_V1.test(detached.publicSlug)) {
+  if (
+    !PUBLIC_SLUG_V1.test(detached.publicSlug)
+    || UUID_ROUTE_SHAPE_V1.test(detached.publicSlug)
+  ) {
     failV1("$.publishedArticle.publicSlug", "must be a canonical public slug");
   }
   if (detached.locale !== "ja" && detached.locale !== "en") {

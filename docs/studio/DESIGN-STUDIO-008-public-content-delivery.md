@@ -19,6 +19,9 @@ HTML, Markdown and JSON all carry the same immutable `articleContentId` and
 derive from the same validated Article block tree. Interactive Experiment
 placements have a semantic static summary in HTML/Markdown; JavaScript replaces
 that summary with the live Reader without changing the durable content model.
+The static document lives outside React's mount root and remains visible until
+the client route has resolved; a slow or failed bundle therefore cannot replace
+readable content with a loading screen.
 
 ## Why this boundary
 
@@ -38,12 +41,17 @@ tier cannot expose drafts.
 Firebase Hosting routes only the public one-segment Article paths, public API,
 sitemap and robots to `circleheart-public-content` in `asia-northeast1`.
 `/{locale}/articles/{articleId}/edit` and every other application path continue
-to the SPA fallback.
+to the SPA fallback. Authored draft previews use
+`/{locale}/articles/{articleId}/preview`, are explicitly routed to the SPA, and
+are marked `noindex`; public one-segment Article routes are the only Article
+Reader routes sent to the render service.
 
 Canonical slug routes return `200`. A still-public UUID route or locale mismatch
 returns `308` to the canonical slug. Missing/unpublished resources return a real
 `404` with `noindex`. HTML/Markdown/JSON use `articleContentId` plus an explicit
-representation/renderer revision as a strong ETag, and a five-minute
+representation/renderer revision and the exact response-byte SHA-256 as a
+strong ETag. UUID-shaped slugs are reserved so they cannot shadow another
+Article's legacy UUID alias. Responses use a five-minute
 shared-cache lifetime with stale-while-revalidate.
 
 ## Deployment

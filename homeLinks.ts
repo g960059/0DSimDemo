@@ -69,6 +69,18 @@ export const articleReaderHref = ({
   locale?: Locale;
 }>) => prefixPath(`/articles/${encodeURIComponent(articleId)}`, locale);
 
+/** Account-scoped Reader preview for drafts and authored Article revisions. */
+export const articlePreviewHref = ({
+  articleId,
+  locale,
+}: Readonly<{
+  articleId: string;
+  locale?: Locale;
+}>) => prefixPath(
+  `/articles/${encodeURIComponent(articleId)}/preview`,
+  locale,
+);
+
 export const articlePlacementHref = ({
   articleId,
   locale,

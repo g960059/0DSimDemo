@@ -48,6 +48,8 @@ describe("Studio public content delivery V1", () => {
     });
 
     expect(rendered.documentHtml).toContain("<h1>血圧を考える</h1>");
+    expect(rendered.documentHtml).toContain('<div id="public-static-root">');
+    expect(rendered.documentHtml).toContain('<div id="root" hidden></div>');
     expect(rendered.documentHtml).toContain("血圧は何で決まるでしょうか");
     expect(rendered.documentHtml).toContain("katex-mathml");
     expect(rendered.documentHtml).toContain("<details class=\"public-static-accordion\"");
@@ -74,6 +76,10 @@ describe("Studio public content delivery V1", () => {
       ...publishedArticleV1(),
       ownerId: "should-not-cross-public-boundary",
     })).toThrow(/keys must be exactly/);
+    expect(() => validateStudioPublishedArticleV1({
+      ...publishedArticleV1(),
+      publicSlug: "11111111-1111-4111-8111-111111111111",
+    })).toThrow(/canonical public slug/);
   });
 
   it("serves canonical HTML, Markdown and JSON with one immutable ETag", async () => {
@@ -84,8 +90,8 @@ describe("Studio public content delivery V1", () => {
     );
     expect(html.status).toBe(200);
     expect(html.headers.get("content-type")).toBe("text/html; charset=utf-8");
-    expect(html.headers.get("etag")).toBe(
-      `"article-22222222-2222-4222-8222-222222222222-html-v1"`,
+    expect(html.headers.get("etag")).toMatch(
+      /^"article-22222222-2222-4222-8222-222222222222-html-v1-[0-9a-f]{64}"$/,
     );
     expect(html.headers.get("cache-control")).toContain("stale-while-revalidate");
     expect(await html.text()).toContain("血圧は何で決まるでしょうか");
@@ -96,7 +102,7 @@ describe("Studio public content delivery V1", () => {
     );
     expect(markdown.status).toBe(200);
     expect(markdown.headers.get("etag")).toContain(
-      "22222222-2222-4222-8222-222222222222-markdown-v1",
+      "22222222-2222-4222-8222-222222222222-markdown-v1-",
     );
     expect(await markdown.text()).toContain("# 血圧を考える");
 
@@ -106,12 +112,47 @@ describe("Studio public content delivery V1", () => {
     );
     expect(json.status).toBe(200);
     expect(json.headers.get("etag")).toContain(
-      "22222222-2222-4222-8222-222222222222-json-v1",
+      "22222222-2222-4222-8222-222222222222-json-v1-",
     );
     expect(await json.json()).toMatchObject({
       schemaId: STUDIO_PUBLISHED_ARTICLE_V1_SCHEMA_ID,
       articleContentId: "22222222-2222-4222-8222-222222222222",
     });
+  });
+
+  it("changes a strong ETag whenever publication bytes change", async () => {
+    const originalArticle = publishedArticleV1();
+    let currentArticle = originalArticle;
+    const dependencies = {
+      ...dependenciesV1(),
+      dataSource: Object.freeze({
+        readPublishedArticle: async () => currentArticle,
+        listPublicArticles: async () => Object.freeze({
+          items: Object.freeze([]),
+          nextCursor: null,
+        }),
+      }),
+    };
+    const first = await handleStudioPublicContentRequestV1(
+      requestV1("/ja/articles/what-determines-blood-pressure"),
+      dependencies,
+    );
+    const firstEtag = first.headers.get("etag");
+    expect(firstEtag).not.toBeNull();
+
+    currentArticle = validateStudioPublishedArticleV1({
+      ...originalArticle,
+      updatedAt: "2026-08-12T02:00:00.000Z",
+    });
+    const republished = await handleStudioPublicContentRequestV1(
+      requestV1("/ja/articles/what-determines-blood-pressure", {
+        "If-None-Match": firstEtag ?? "",
+      }),
+      dependencies,
+    );
+    expect(republished.status).toBe(200);
+    expect(republished.headers.get("etag")).not.toBe(firstEtag);
+    expect(await republished.text()).toContain("2026-08-12T02:00:00.000Z");
   });
 
   it("redirects public UUID and wrong-locale aliases to the canonical slug", async () => {
@@ -140,9 +181,13 @@ describe("Studio public content delivery V1", () => {
     expect(missing.status).toBe(404);
     expect(await missing.text()).toContain("noindex");
 
+    const initial = await handleStudioPublicContentRequestV1(
+      requestV1("/ja/articles/what-determines-blood-pressure"),
+      dependencies,
+    );
     const cached = await handleStudioPublicContentRequestV1(
       requestV1("/ja/articles/what-determines-blood-pressure", {
-        "If-None-Match": `"article-22222222-2222-4222-8222-222222222222-html-v1"`,
+        "If-None-Match": initial.headers.get("etag") ?? "",
       }),
       dependencies,
     );

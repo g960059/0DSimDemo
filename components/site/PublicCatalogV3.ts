@@ -119,7 +119,9 @@ function localPublicArticleSummaryV3(
 ): PublicArticleCatalogItemV3 {
   return Object.freeze({
     articleId: article.articleId,
-    publicSlug: `article-${article.articleId.toLocaleLowerCase()}`,
+    // The browser-only fallback has no publication alias table. Its durable
+    // Article identity is therefore also the only reversible Reader route.
+    publicSlug: article.articleId,
     locale: article.locale,
     title: article.title,
     excerpt: publicArticleExcerptV3(article.blocks),

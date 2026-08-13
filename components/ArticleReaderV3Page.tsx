@@ -18,6 +18,9 @@ import {
   articleReaderHref,
   newExperimentHref,
 } from "@/homeLinks";
+import {
+  completePublicStaticContentHandoffV1,
+} from "@/components/site/PublicStaticContentHandoffV1";
 import { isLocale, localeFromPathname } from "@/localeRouting";
 import {
   loadStudioSnapshotClientCompositionV2,
@@ -137,6 +140,7 @@ function ArticleReaderV3Resource({
 }>) {
   const { t } = useTranslation();
   const locale = localeFromPathname(pathname);
+  const authoredPreview = /\/articles\/[^/]+\/preview\/?$/.test(pathname);
   const navigate = useNavigate();
   const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
   const remoteRepository = React.useMemo(
@@ -177,7 +181,7 @@ function ArticleReaderV3Resource({
         setContent({ kind: "missing" });
         return;
       }
-      const publishedArticle = remoteRepository === null
+      const publishedArticle = authoredPreview || remoteRepository === null
         ? null
         : await remoteRepository.readPublishedArticle(articleId);
       const article = publishedArticle === null
@@ -222,7 +226,12 @@ function ArticleReaderV3Resource({
     return () => {
       current = false;
     };
-  }, [articleId, remoteRepository, store]);
+  }, [articleId, authoredPreview, remoteRepository, store]);
+  React.useEffect(() => {
+    if (content.kind === "ready") {
+      completePublicStaticContentHandoffV1();
+    }
+  }, [content.kind]);
   React.useEffect(() => {
     if (
       content.kind !== "ready"

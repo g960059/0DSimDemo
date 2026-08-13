@@ -147,7 +147,7 @@ export function injectStudioPublicDocumentV1(input: Readonly<{
     .replace(/<title>[^<]*<\/title>/, head)
     .replace(
       /<div\s+id=["']root["'][^>]*><\/div>/,
-      `<div id="root">${input.bodyHtml}</div>`,
+      `<div id="public-static-root">${input.bodyHtml}</div><div id="root" hidden></div>`,
     );
 }
 

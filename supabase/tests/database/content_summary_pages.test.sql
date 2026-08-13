@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(20);
+select plan(21);
 
 insert into auth.users (
   id,
@@ -357,6 +357,16 @@ select is(
   ) ->> 'publicSlug',
   'summary-public-article',
   'A public Article UUID remains a redirectable legacy route key'
+);
+
+select throws_like(
+  $$
+    update studio.article_publications
+    set public_slug = '33000000-0000-0000-0000-000000000001'
+    where article_id = '33000000-0000-0000-0000-000000000001'
+  $$,
+  '%article_publications_slug%',
+  'A UUID-shaped slug cannot hijack another Article legacy route'
 );
 
 select is(

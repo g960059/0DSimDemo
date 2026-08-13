@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import {
   injectStudioPublicDocumentV1,
   renderStudioPublishedArticleV1,
@@ -156,7 +158,15 @@ async function publishedArticleResponseV1(input: Readonly<{
     canonicalOrigin: input.dependencies.canonicalOrigin,
     clientTemplate: input.dependencies.clientTemplate,
   });
-  const etag = `"article-${article.articleContentId}-${input.format}-v1"`;
+  const formatBody = input.format === "html"
+    ? rendered.documentHtml
+    : input.format === "markdown"
+      ? rendered.markdown
+      : rendered.json;
+  const representationDigest = createHash("sha256")
+    .update(formatBody, "utf8")
+    .digest("hex");
+  const etag = `"article-${article.articleContentId}-${input.format}-v1-${representationDigest}"`;
   if (input.request.headers.get("if-none-match") === etag) {
     return new Response(null, {
       status: 304,
@@ -166,11 +176,6 @@ async function publishedArticleResponseV1(input: Readonly<{
       }),
     });
   }
-  const formatBody = input.format === "html"
-    ? rendered.documentHtml
-    : input.format === "markdown"
-      ? rendered.markdown
-      : rendered.json;
   const contentType = input.format === "html"
     ? "text/html; charset=utf-8"
     : input.format === "markdown"

@@ -168,6 +168,14 @@ const appRoutes = () => (
       )}
     />
     <Route
+      path="articles/:articleId/preview"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading Article preview…" />}>
+          <ArticleReaderV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
       path="articles/:articleId"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Article…" />}>

@@ -6,6 +6,7 @@ import {
   articleEditorHref,
   articlePlacementHref,
   articleReaderHref,
+  articlePreviewHref,
   devDashboardHref,
   experimentDetailHref,
   experimentsHref,
@@ -68,6 +69,8 @@ describe('homeLinks', () => {
     expect(newArticleEditorHref('ja')).toBe('/ja/articles/new/edit');
     expect(articleReaderHref({ articleId: 'article-opaque', locale: 'en' }))
       .toBe('/en/articles/article-opaque');
+    expect(articlePreviewHref({ articleId: 'article-opaque', locale: 'en' }))
+      .toBe('/en/articles/article-opaque/preview');
     expect(articleEditorHref({ articleId: 'article-opaque', locale: 'en' }))
       .toBe('/en/articles/article-opaque/edit');
     expect(articlePlacementHref({

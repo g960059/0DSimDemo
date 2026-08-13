@@ -9,6 +9,9 @@ import {
   publicArticlesForLocaleV3,
   readPublicCatalogAsyncV3,
 } from "@/components/site/PublicCatalogV3";
+import {
+  completePublicStaticContentHandoffV1,
+} from "@/components/site/PublicStaticContentHandoffV1";
 
 export function PublicArticleDirectoryV3Page() {
   const { t } = useTranslation();
@@ -35,6 +38,11 @@ export function PublicArticleDirectoryV3Page() {
       current = false;
     };
   }, []);
+  React.useEffect(() => {
+    if (state.kind === "ready") {
+      completePublicStaticContentHandoffV1();
+    }
+  }, [state.kind]);
 
   const articles = state.kind === "ready"
     ? publicArticlesForLocaleV3(state.articles, locale)
