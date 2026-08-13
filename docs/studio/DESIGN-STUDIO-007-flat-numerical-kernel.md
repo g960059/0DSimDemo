@@ -998,15 +998,18 @@ missing from the image. It does not count as the final hot path: the bridge is
 named, documented, and measured as a cold migration boundary and must be
 deleted from per-step execution before cutover.
 
-The first trajectory optimization uses the last two **admitted** 30-volume
-roots to linearly predict the next Newton seed. Prediction is not accepted
-state and changes no equation, timestep, bound, residual tolerance, or
-component-owned convergence law. History advances only after the exact root
-has been staged and the complete flat image promoted. A restore, parameter
-change, revision/time discontinuity, or mismatch with the current accepted
-root clears the history. An extrapolation outside the open per-volume and
-dependent-SV domain is geometrically damped and ultimately falls back to the
-context seed; a predicted solve that fails also retries from that seed.
+The first trajectory optimization uses only **admitted** 30-volume roots to
+predict the next Newton seed. The first eligible step uses a first-order
+accepted displacement. Once three accepted roots exist, the selected policy
+uses the second finite difference to form a quadratic extrapolation. Prediction
+is not accepted state and changes no equation, timestep, bound, residual
+tolerance, or component-owned convergence law. History advances only after
+the exact root has been staged and the complete flat image promoted. A
+restore, parameter change, revision/time discontinuity, or mismatch with the
+current accepted root clears the history. An extrapolation outside the open
+per-volume and dependent-SV domain is geometrically damped and ultimately
+falls back to the context seed; a predicted solve that fails also retries from
+that seed.
 
 In one 1,000-step sequential host diagnostic after 100 warm-up steps, the
 context-seeded coupled path required mean `3.171` Newton updates and `1.958`
@@ -1022,6 +1025,21 @@ cold context falls back and resets. These host numbers establish marginal
 value, not the production phone gate. Cross-step Jacobian reuse remains a
 separate concern rather than an implied consequence of the predictor result.
 
+The quadratic policy was then measured independently rather than inferred
+from the linear result. In a 1,000-step baseline diagnostic it reduced mean
+Newton updates from `1.987` to `1.387`, residual evaluations from `3.000` to
+`2.389`, and Jacobian evaluations from `1.240` to `1.031`. Median complete
+flat-step time fell from about `0.423 ms` to `0.329 ms`, and median speedup over
+the nested observation rose from `1.756x` to `2.224x`. One solve used the
+defined context-seed retry in that longer run; no accepted state came from a
+failed prediction. A separate 500-step run for each of baseline, low preload,
+high afterload, high PEEP, tachycardia, and high contractility reduced mean
+residual evaluations in every case (`2.926`–`3.334` linear versus
+`2.366`–`2.616` quadratic), without damping or retry. A six-case regression
+advances both predictors from their own accepted state, keeps their roots
+inside the predeclared `1e-5 mL` corridor, and requires less residual work in
+every case. These are construction cases, not clinical validation.
+
 A residual-gated cross-step factor experiment then used the preceding
 factored Jacobian for at most the first update and rebuilt it on any failed
 line search or stagnation. All 1,099 eligible attempts produced an accepted
@@ -1035,6 +1053,17 @@ improve time. Both implementations were removed. Jacobian assembly is now
 cheap enough that a stale direction's extra residual/update work cancels its
 savings at one patch; future reuse requires a materially better update such
 as a tested low-rank quasi-Newton correction, not simple factor retention.
+
+Component timing also changes the next priority. In a profiled 1,100-step
+predictor run, residual evaluation consumed about `388 ms` over `3,355` calls
+(`0.116 ms` mean), while the component-owned analytic Jacobian writers used
+about `39 ms` over `1,393` calls (`0.028 ms` mean). Convergence and dependent-SV
+checks were sub-microsecond on average. The remaining host solve is therefore
+dominated by repeated residual materialization, not dense Jacobian assembly.
+The next optimization must replace the generic public-object candidate path
+with a model-specific flat residual/mechanics evaluator that writes fixed
+numeric scratch and materializes rich readback only for the selected root. It
+must not weaken component convergence or accepted-state finalization.
 
 ### Phase 3 — strict scalar WASM
 

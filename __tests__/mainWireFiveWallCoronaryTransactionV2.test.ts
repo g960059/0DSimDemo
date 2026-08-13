@@ -53,6 +53,12 @@ import {
   evaluateFiveWallNormalCalciumDriveV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
+  createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  mainWireFiveWallCoronaryBaseStateV2,
+} from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV3";
+import {
   MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
   type MainWireFiveWallFreeCalciumDriveV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
@@ -85,6 +91,9 @@ import {
 import {
   MainWireFlatCoupledAcceptedStateV1,
 } from "@/engine/vnext/coupled/MainWireFlatCoupledAcceptedStateV1";
+import {
+  MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1,
+} from "@/engine/vnext/MainWireSolverReplacementCorpusV1";
 
 type TestState = Readonly<{ timeSec: number; volumeSumMl: number }>;
 
@@ -978,6 +987,9 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     let predictedJacobianEvaluations = 0;
     let baselineJacobianEvaluations = 0;
     let fallbackCount = 0;
+    let contextPredictionCount = 0;
+    let linearPredictionCount = 0;
+    let quadraticPredictionCount = 0;
 
     for (let stepIndex = 0; stepIndex < 200; stepIndex += 1) {
       const previous = authority.materializeAcceptedObjectBridge(provider);
@@ -991,6 +1003,7 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
         options,
         predictedSolver,
         predictor,
+        "quadratic",
       );
       const baseline = solveMainWireFiveWallCoupledNewtonShadowV1(
         context,
@@ -1004,6 +1017,11 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
         || baseline.result.status !== "converged"
       ) throw new Error(`coupled predictor failed at step ${stepIndex}`);
       fallbackCount += predicted.fallbackUsed ? 1 : 0;
+      contextPredictionCount += predicted.predictionMode === "context" ? 1 : 0;
+      linearPredictionCount += predicted.predictionMode
+        === "linear-extrapolation" ? 1 : 0;
+      quadraticPredictionCount += predicted.predictionMode
+        === "quadratic-extrapolation" ? 1 : 0;
       predictedJacobianEvaluations +=
         predicted.solver.result.jacobianEvaluationCount;
       baselineJacobianEvaluations += baseline.result.jacobianEvaluationCount;
@@ -1029,6 +1047,10 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(report.predictionCount).toBe(199);
     expect(report.contextFallbackCount).toBe(1);
     expect(fallbackCount).toBe(0);
+    expect(contextPredictionCount).toBe(1);
+    expect(linearPredictionCount).toBe(1);
+    expect(quadraticPredictionCount).toBe(198);
+    expect(report.historyDepth).toBe(3);
     expect(predictedJacobianEvaluations).toBeLessThan(
       baselineJacobianEvaluations,
     );
@@ -1047,6 +1069,125 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       contextFallbackCount: 2,
       resetCount: 1,
     });
+  }, 60_000);
+
+  it("reduces residual work without changing the admitted root branch across the six-case corpus", () => {
+    const options = Object.freeze({
+      maximumAcceptedStepsPerJacobian: 2,
+      analyticJacobianPolicy: "require-complete" as const,
+    });
+
+    for (const corpusCase of MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1) {
+      const fixture =
+        createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+          corpusCase.hemodynamicResearchInputs,
+          corpusCase.ventricularContractilityScale,
+        );
+      const initial = mainWireFiveWallCoronaryBaseStateV2(
+        fixture.cold.acceptedState.coronary,
+      );
+      const stepInput = Object.freeze({
+        ...fixture.coronaryStepInput,
+        dtSec: 0.002,
+      });
+      const linearAuthority = new MainWireFlatCoupledAcceptedStateV1(initial);
+      const quadraticAuthority =
+        new MainWireFlatCoupledAcceptedStateV1(initial);
+      const linearSolver =
+        createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+      const quadraticSolver =
+        createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+      const linearPredictor =
+        createMainWireFiveWallCoupledPredictorWorkspaceV1();
+      const quadraticPredictor =
+        createMainWireFiveWallCoupledPredictorWorkspaceV1();
+      let linearResidualEvaluations = 0;
+      let quadraticResidualEvaluations = 0;
+      let maximumRootDifferenceMl = 0;
+
+      for (let stepIndex = 0; stepIndex < 500; stepIndex += 1) {
+        const linearPrevious = linearAuthority
+          .materializeAcceptedObjectBridge(fixture.provider);
+        const quadraticPrevious = quadraticAuthority
+          .materializeAcceptedObjectBridge(fixture.provider);
+        const linearContext = prepareMainWireFiveWallCoupledResidualContextV1(
+          fixture.provider,
+          linearPrevious,
+          stepInput,
+        );
+        const quadraticContext =
+          prepareMainWireFiveWallCoupledResidualContextV1(
+            fixture.provider,
+            quadraticPrevious,
+            stepInput,
+          );
+        const linear = solveMainWireFiveWallCoupledNewtonPredictedV1(
+          linearContext,
+          options,
+          linearSolver,
+          linearPredictor,
+          "linear",
+        );
+        const quadratic = solveMainWireFiveWallCoupledNewtonPredictedV1(
+          quadraticContext,
+          options,
+          quadraticSolver,
+          quadraticPredictor,
+          "quadratic",
+        );
+        expect(linear.solver.result.status).toBe("converged");
+        expect(quadratic.solver.result.status).toBe("converged");
+        if (
+          linear.solver.result.status !== "converged"
+          || quadratic.solver.result.status !== "converged"
+        ) {
+          throw new Error(`${corpusCase.caseId} predictor solve failed`);
+        }
+        linearResidualEvaluations +=
+          linear.solver.result.residualEvaluationCount;
+        quadraticResidualEvaluations +=
+          quadratic.solver.result.residualEvaluationCount;
+        for (let index = 0; index < linearContext.dimension; index += 1) {
+          maximumRootDifferenceMl = Math.max(
+            maximumRootDifferenceMl,
+            Math.abs(
+              linear.solver.result.solution[index]!
+                - quadratic.solver.result.solution[index]!,
+            ),
+          );
+        }
+        linearAuthority.stageConvergedSolution(
+          linearContext,
+          linear.solver.result.solution,
+        );
+        quadraticAuthority.stageConvergedSolution(
+          quadraticContext,
+          quadratic.solver.result.solution,
+        );
+        linearAuthority.promote();
+        quadraticAuthority.promote();
+        recordAcceptedMainWireFiveWallCoupledSolutionV1(
+          linearContext,
+          linear.solver.result.solution,
+          linearPredictor,
+        );
+        recordAcceptedMainWireFiveWallCoupledSolutionV1(
+          quadraticContext,
+          quadratic.solver.result.solution,
+          quadraticPredictor,
+        );
+      }
+
+      expect(maximumRootDifferenceMl).toBeLessThan(1e-5);
+      expect(quadraticResidualEvaluations).toBeLessThan(
+        linearResidualEvaluations,
+      );
+      expect(reportMainWireFiveWallCoupledPredictorV1(quadraticPredictor))
+        .toMatchObject({
+          historyDepth: 3,
+          resetCount: 0,
+        });
+    }
   }, 60_000);
 
   it("keeps accepted flat bytes unchanged across rejection and abort", () => {

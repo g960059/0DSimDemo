@@ -3,7 +3,11 @@ import type {
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 
 export const MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID =
-  "main-wire-five-wall-coupled-linear-predictor-v1" as const;
+  "main-wire-five-wall-coupled-accepted-history-predictor-v1" as const;
+
+export type MainWireFiveWallCoupledPredictionOrderV1 =
+  | "linear"
+  | "quadratic";
 
 export type MainWireFiveWallCoupledPredictorWorkspaceV1 = Readonly<{
   schemaId: "circleheart-main-wire-five-wall-coupled-predictor-workspace-v1";
@@ -12,7 +16,10 @@ export type MainWireFiveWallCoupledPredictorWorkspaceV1 = Readonly<{
 
 export type MainWireFiveWallCoupledPredictionV1 = Readonly<{
   predictorId: typeof MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID;
-  mode: "context" | "linear-extrapolation";
+  mode:
+    | "context"
+    | "linear-extrapolation"
+    | "quadratic-extrapolation";
   extrapolationScale: number;
   /**
    * Synchronously borrowed storage. The next prepare/record/reset call may
@@ -24,6 +31,7 @@ export type MainWireFiveWallCoupledPredictionV1 = Readonly<{
 export type MainWireFiveWallCoupledPredictorReportV1 = Readonly<{
   predictorId: typeof MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID;
   hasAcceptedPair: boolean;
+  historyDepth: 0 | 2 | 3;
   expectedBaseRevision: number | null;
   expectedBaseAcceptedTimeSec: number | null;
   predictionCount: number;
@@ -33,10 +41,12 @@ export type MainWireFiveWallCoupledPredictorReportV1 = Readonly<{
 }>;
 
 type PredictorStorage = {
+  readonly olderAcceptedMl: Float64Array;
   readonly previousAcceptedMl: Float64Array;
   readonly currentAcceptedMl: Float64Array;
   readonly predictedMl: Float64Array;
   hasAcceptedPair: boolean;
+  historyDepth: 0 | 2 | 3;
   expectedBaseRevision: number | null;
   expectedBaseAcceptedTimeSec: number | null;
   preparedBaseRevision: number | null;
@@ -60,10 +70,12 @@ MainWireFiveWallCoupledPredictorWorkspaceV1 {
     dimension: 30 as const,
   });
   STORAGE.set(workspace, {
+    olderAcceptedMl: new Float64Array(30),
     previousAcceptedMl: new Float64Array(30),
     currentAcceptedMl: new Float64Array(30),
     predictedMl: new Float64Array(30),
     hasAcceptedPair: false,
+    historyDepth: 0,
     expectedBaseRevision: null,
     expectedBaseAcceptedTimeSec: null,
     preparedBaseRevision: null,
@@ -77,7 +89,8 @@ MainWireFiveWallCoupledPredictorWorkspaceV1 {
 }
 
 /**
- * Predicts the next implicit root from the last accepted displacement.
+ * Predicts the next implicit root from accepted first- or second-order
+ * finite differences.
  * Prediction changes no model equation or tolerance. It is used only when
  * the caller presents the exact sequential accepted state; discontinuities,
  * restores, parameter changes, and inadmissible extrapolations fall back to
@@ -86,7 +99,11 @@ MainWireFiveWallCoupledPredictorWorkspaceV1 {
 export function prepareMainWireFiveWallCoupledPredictionV1<TWallState>(
   context: MainWireFiveWallCoupledResidualContextV1<TWallState>,
   workspace: MainWireFiveWallCoupledPredictorWorkspaceV1,
+  order: MainWireFiveWallCoupledPredictionOrderV1 = "linear",
 ): MainWireFiveWallCoupledPredictionV1 {
+  if (order !== "linear" && order !== "quadratic") {
+    throw new RangeError("coupled predictor order is unsupported");
+  }
   const storage = requireStorage(workspace);
   storage.preparedBaseRevision = context.baseRevision;
   storage.preparedBaseAcceptedTimeSec = context.baseAcceptedTimeSec;
@@ -97,19 +114,24 @@ export function prepareMainWireFiveWallCoupledPredictionV1<TWallState>(
   }
 
   let scale = 1;
+  const quadratic = order === "quadratic" && storage.historyDepth === 3;
   while (scale >= 1 / 256) {
     for (let index = 0; index < workspace.dimension; index += 1) {
       const current = context.initialUnknownsMl[index]!;
-      storage.predictedMl[index] = current + scale * (
-        current - storage.previousAcceptedMl[index]!
-      );
+      const displacement = quadratic
+        ? 2 * current - 3 * storage.previousAcceptedMl[index]!
+          + storage.olderAcceptedMl[index]!
+        : current - storage.previousAcceptedMl[index]!;
+      storage.predictedMl[index] = current + scale * displacement;
     }
     if (isAdmissiblePrediction(context, storage.predictedMl)) {
       storage.predictionCount += 1;
       if (scale < 1) storage.dampedPredictionCount += 1;
       return Object.freeze({
         predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
-        mode: "linear-extrapolation" as const,
+        mode: quadratic
+          ? "quadratic-extrapolation" as const
+          : "linear-extrapolation" as const,
         extrapolationScale: scale,
         initialGuessMl: storage.predictedMl,
       });
@@ -146,9 +168,13 @@ export function recordAcceptedMainWireFiveWallCoupledSolutionV1<TWallState>(
   if (!isAdmissiblePrediction(context, acceptedSolutionMl)) {
     throw new RangeError("accepted root is outside the coupled predictor domain");
   }
+  if (storage.hasAcceptedPair) {
+    storage.olderAcceptedMl.set(storage.previousAcceptedMl);
+  }
   storage.previousAcceptedMl.set(context.initialUnknownsMl);
   storage.currentAcceptedMl.set(acceptedSolutionMl);
   storage.hasAcceptedPair = true;
+  storage.historyDepth = storage.historyDepth === 0 ? 2 : 3;
   storage.expectedBaseRevision = context.baseRevision + 1;
   storage.expectedBaseAcceptedTimeSec =
     context.baseAcceptedTimeSec + context.stepDtSec;
@@ -168,6 +194,7 @@ export function reportMainWireFiveWallCoupledPredictorV1(
   return Object.freeze({
     predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
     hasAcceptedPair: storage.hasAcceptedPair,
+    historyDepth: storage.historyDepth,
     expectedBaseRevision: storage.expectedBaseRevision,
     expectedBaseAcceptedTimeSec: storage.expectedBaseAcceptedTimeSec,
     predictionCount: storage.predictionCount,
@@ -230,6 +257,7 @@ function contextPrediction<TWallState>(
 
 function resetHistory(storage: PredictorStorage): void {
   storage.hasAcceptedPair = false;
+  storage.historyDepth = 0;
   storage.expectedBaseRevision = null;
   storage.expectedBaseAcceptedTimeSec = null;
   storage.resetCount += 1;

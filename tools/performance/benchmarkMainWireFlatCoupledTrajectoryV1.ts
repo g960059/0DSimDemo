@@ -1,4 +1,3 @@
-import { defaultParams } from "@/engine/core/params";
 import {
   createNonCoronaryBackwardEulerScratchWorkspaceV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
@@ -10,22 +9,18 @@ import {
 } from "@/engine/coronary/mainWireNormalAdultCoronaryV2";
 import { buildCoronaryTopologyV2 } from "@/engine/coronary/topologyPriorV2";
 import {
-  initializeMainWireFiveWallCoronaryV2,
   prepareMainWireFiveWallCoupledResidualContextV1,
   stepMainWireFiveWallCoronaryV2,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 import {
-  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
-} from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+  createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import {
-  createCanonicalMainWireNormalAdultFiveWallProviderV1,
-} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+  mainWireFiveWallCoronaryBaseStateV2,
+} from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV3";
 import {
-  createMainWireNormalAdultCommonPericardiumV1,
-} from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
-import {
-  MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
-} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
+  MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1,
+} from "@/engine/vnext/MainWireSolverReplacementCorpusV1";
 import {
   createMainWireFiveWallCoupledPredictorWorkspaceV1,
   recordAcceptedMainWireFiveWallCoupledSolutionV1,
@@ -48,50 +43,44 @@ const maximumAcceptedStepsPerJacobian = integerArgument(
 );
 const initialGuessPolicy = stringArgument(
   "--initial-guess",
-  ["context", "linear-predictor"] as const,
+  ["context", "accepted-history"] as const,
   "context",
 );
-const base = defaultParams();
-const runtime = Object.freeze({
-  vascular: Object.freeze({
-    venousTone: base.venousTone,
-    arterialStiffness: base.arterialStiffness,
-  }),
-  losses: Object.freeze({
-    systemicResistance: base.systemicResistance,
-    pulmonaryResistance: base.pulmonaryResistance,
-  }),
-  respiratory: Object.freeze({
-    PEEP: 0,
-    Pth0: 0,
-    respAmpTh: 0,
-    respAmpAlv: 0,
-    respRate: 0,
-  }),
-  valveResearchInput: MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
-});
-const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
-const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+const predictionOrder = stringArgument(
+  "--prediction-order",
+  ["linear", "quadratic"] as const,
+  "linear",
+);
+const componentProfileEnabled = stringArgument(
+  "--profile-components",
+  ["off", "on"] as const,
+  "off",
+) === "on";
+const corpusCaseId = stringArgument(
+  "--case",
+  MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1.map(
+    (corpusCase) => corpusCase.caseId,
+  ),
+  "baseline",
+);
+const corpusCase = MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1.find(
+  (candidate) => candidate.caseId === corpusCaseId,
+);
+if (corpusCase === undefined) throw new Error("benchmark case is unavailable");
+const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+  corpusCase.hemodynamicResearchInputs,
+  corpusCase.ventricularContractilityScale,
+);
+const provider = fixture.provider;
 const stepInput = Object.freeze({
+  ...fixture.coronaryStepInput,
   dtSec: 0.002,
-  runtime,
-  calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
-  pericardium,
 });
-const flatCold = initializeMainWireFiveWallCoronaryV2({
-  provider,
-  runtime,
-  calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
-  pericardium,
-});
-const nestedCold = initializeMainWireFiveWallCoronaryV2({
-  provider,
-  runtime,
-  calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
-  pericardium,
-});
-const flat = new MainWireFlatCoupledAcceptedStateV1(flatCold.acceptedState);
-let nested = nestedCold.acceptedState;
+const cold = mainWireFiveWallCoronaryBaseStateV2(
+  fixture.cold.acceptedState.coronary,
+);
+const flat = new MainWireFlatCoupledAcceptedStateV1(cold);
+let nested = cold;
 const coupledWorkspace = createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
 const predictorWorkspace =
   createMainWireFiveWallCoupledPredictorWorkspaceV1();
@@ -111,28 +100,86 @@ const coupledResidualEvaluations: number[] = [];
 const coupledJacobianEvaluations: number[] = [];
 const coupledLineSearchBacktracks: number[] = [];
 let predictorFallbackCount = 0;
+const componentProfile = {
+  residualMs: 0,
+  residualCalls: 0,
+  convergenceMs: 0,
+  convergenceCalls: 0,
+  jacobianComponentsMs: 0,
+  jacobianComponentsCalls: 0,
+  dependentSvMs: 0,
+  dependentSvCalls: 0,
+};
 
 for (let step = -warmupSteps; step < measuredSteps; step += 1) {
   const record = step >= 0;
   const flatStarted = performance.now();
   const previous = flat.materializeAcceptedObjectBridge(provider);
   const bridgedAt = performance.now();
-  const context = prepareMainWireFiveWallCoupledResidualContextV1(
+  const rawContext = prepareMainWireFiveWallCoupledResidualContextV1(
     provider,
     previous,
     stepInput,
   );
+  const context = componentProfileEnabled
+    ? Object.freeze({
+      ...rawContext,
+      evaluateResidualMl: (
+        unknownsMl: Float64Array,
+        destinationResidualMl: Float64Array,
+      ): void => {
+        const started = performance.now();
+        rawContext.evaluateResidualMl(unknownsMl, destinationResidualMl);
+        componentProfile.residualMs += performance.now() - started;
+        componentProfile.residualCalls += 1;
+      },
+      isResidualConverged: (
+        unknownsMl: Float64Array,
+        destinationResidualMl: Float64Array,
+      ): boolean => {
+        const started = performance.now();
+        const converged = rawContext.isResidualConverged(
+          unknownsMl,
+          destinationResidualMl,
+        );
+        componentProfile.convergenceMs += performance.now() - started;
+        componentProfile.convergenceCalls += 1;
+        return converged;
+      },
+      evaluateDependentSvContinuityResidualMl: (
+        unknownsMl: Float64Array,
+      ): number => {
+        const started = performance.now();
+        const residual = rawContext.evaluateDependentSvContinuityResidualMl(
+          unknownsMl,
+        );
+        componentProfile.dependentSvMs += performance.now() - started;
+        componentProfile.dependentSvCalls += 1;
+        return residual;
+      },
+      writeCoupledLinearizations: (
+        ...args: Parameters<typeof rawContext.writeCoupledLinearizations>
+      ): boolean => {
+        const started = performance.now();
+        const complete = rawContext.writeCoupledLinearizations(...args);
+        componentProfile.jacobianComponentsMs += performance.now() - started;
+        componentProfile.jacobianComponentsCalls += 1;
+        return complete;
+      },
+    })
+    : rawContext;
   const preparedAt = performance.now();
   const solverOptions = Object.freeze({
     maximumAcceptedStepsPerJacobian,
     analyticJacobianPolicy: "require-complete" as const,
   });
-  const predicted = initialGuessPolicy === "linear-predictor"
+  const predicted = initialGuessPolicy === "accepted-history"
     ? solveMainWireFiveWallCoupledNewtonPredictedV1(
       context,
       solverOptions,
       coupledWorkspace,
       predictorWorkspace,
+      predictionOrder,
     )
     : null;
   if (predicted?.fallbackUsed === true) predictorFallbackCount += 1;
@@ -148,7 +195,7 @@ for (let step = -warmupSteps; step < measuredSteps; step += 1) {
   }
   flat.stageConvergedSolution(context, coupled.result.solution);
   flat.promote();
-  if (initialGuessPolicy === "linear-predictor") {
+  if (initialGuessPolicy === "accepted-history") {
     recordAcceptedMainWireFiveWallCoupledSolutionV1(
       context,
       coupled.result.solution,
@@ -193,8 +240,11 @@ process.stdout.write(`${JSON.stringify(Object.freeze({
   claim: "local-development-diagnostic-not-supported-hardware-gate",
   warmupSteps,
   measuredSteps,
+  corpusCaseId,
   maximumAcceptedStepsPerJacobian,
   initialGuessPolicy,
+  predictionOrder,
+  componentProfileEnabled,
   flat: flatSummary,
   flatBridge: summarize(bridgeMs),
   flatContext: summarize(contextMs),
@@ -207,10 +257,23 @@ process.stdout.write(`${JSON.stringify(Object.freeze({
     jacobianEvaluations: summarizeCounts(coupledJacobianEvaluations),
     lineSearchBacktracks: summarizeCounts(coupledLineSearchBacktracks),
   }),
-  predictor: initialGuessPolicy === "linear-predictor"
+  predictor: initialGuessPolicy === "accepted-history"
     ? Object.freeze({
       ...reportMainWireFiveWallCoupledPredictorV1(predictorWorkspace),
       solverFallbackCount: predictorFallbackCount,
+    })
+    : null,
+  componentProfile: componentProfileEnabled
+    ? Object.freeze({
+      ...componentProfile,
+      residualMeanMs: componentProfile.residualMs
+        / componentProfile.residualCalls,
+      convergenceMeanMs: componentProfile.convergenceMs
+        / componentProfile.convergenceCalls,
+      jacobianComponentsMeanMs: componentProfile.jacobianComponentsMs
+        / componentProfile.jacobianComponentsCalls,
+      dependentSvMeanMs: componentProfile.dependentSvMs
+        / componentProfile.dependentSvCalls,
     })
     : null,
   medianSpeedup: nestedSummary.medianMs / flatSummary.medianMs,

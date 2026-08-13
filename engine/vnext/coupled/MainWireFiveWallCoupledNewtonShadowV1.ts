@@ -21,6 +21,7 @@ import {
 } from "@/engine/vnext/coupled/FlatCoupledNewtonV1";
 import {
   prepareMainWireFiveWallCoupledPredictionV1,
+  type MainWireFiveWallCoupledPredictionOrderV1,
   type MainWireFiveWallCoupledPredictorWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
 
@@ -57,7 +58,10 @@ export type MainWireFiveWallCoupledNewtonShadowResultV1 = Readonly<{
 }>;
 
 export type MainWireFiveWallCoupledPredictedSolveResultV1 = Readonly<{
-  predictionMode: "context" | "linear-extrapolation";
+  predictionMode:
+    | "context"
+    | "linear-extrapolation"
+    | "quadratic-extrapolation";
   extrapolationScale: number;
   fallbackUsed: boolean;
   solver: MainWireFiveWallCoupledNewtonShadowResultV1;
@@ -478,10 +482,12 @@ export function solveMainWireFiveWallCoupledNewtonPredictedV1<
   options: MainWireFiveWallCoupledNewtonShadowOptionsV1,
   solverWorkspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
   predictorWorkspace: MainWireFiveWallCoupledPredictorWorkspaceV1,
+  predictionOrder: MainWireFiveWallCoupledPredictionOrderV1 = "linear",
 ): MainWireFiveWallCoupledPredictedSolveResultV1 {
   const prediction = prepareMainWireFiveWallCoupledPredictionV1(
     context,
     predictorWorkspace,
+    predictionOrder,
   );
   const primary = solveMainWireFiveWallCoupledNewtonShadowV1(
     context,
