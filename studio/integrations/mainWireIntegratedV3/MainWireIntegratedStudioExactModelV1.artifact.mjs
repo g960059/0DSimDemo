@@ -7394,7 +7394,7 @@ function borrowNonCoronaryBackwardEulerScratchWorkspaceV1(workspace) {
   if (storage === void 0) {
     throw new TypeError("non-coronary backward-Euler scratch workspace is foreign");
   }
-  if (workspace.schemaId !== NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID || workspace.topologyId !== NON_CORONARY_CIRCULATION_BE_V1_ID || workspace.independentNodeCount !== INDEPENDENT_NODE_NAMES.length || storage.volumeScales.length !== INDEPENDENT_NODE_NAMES.length || storage.scaledUnknowns.length !== INDEPENDENT_NODE_NAMES.length || storage.candidateUnknowns.length !== INDEPENDENT_NODE_NAMES.length || storage.analyticJacobian.length !== INDEPENDENT_NODE_NAMES.length || storage.linearRight.length !== INDEPENDENT_NODE_NAMES.length || storage.linearMatrix.length !== INDEPENDENT_NODE_NAMES.length || storage.linearSolution.length !== INDEPENDENT_NODE_NAMES.length || storage.previousNumerical.nodeVolumesMl.length !== NON_CORONARY_NODE_NAMES_V1.length || storage.previousNumerical.dynamicEdgeFlowsMlPerSec.length !== NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length || storage.previousNumerical.valveOpeningFractions01.length !== NON_CORONARY_VALVE_NAMES_V1.length) {
+  if (workspace.schemaId !== NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID || workspace.topologyId !== NON_CORONARY_CIRCULATION_BE_V1_ID || workspace.independentNodeCount !== INDEPENDENT_NODE_NAMES.length || storage.volumeScales.length !== INDEPENDENT_NODE_NAMES.length || storage.scaledUnknowns.length !== INDEPENDENT_NODE_NAMES.length || storage.candidateUnknowns.length !== INDEPENDENT_NODE_NAMES.length || storage.analyticJacobian.length !== INDEPENDENT_NODE_NAMES.length || storage.linearRight.length !== INDEPENDENT_NODE_NAMES.length || storage.linearMatrix.length !== INDEPENDENT_NODE_NAMES.length || storage.linearSolution.length !== INDEPENDENT_NODE_NAMES.length || storage.previousNumerical.nodeVolumesMl.length !== NON_CORONARY_NODE_NAMES_V1.length || storage.previousNumerical.dynamicEdgeFlowsMlPerSec.length !== NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length || storage.previousNumerical.valveOpeningFractions01.length !== NON_CORONARY_VALVE_NAMES_V1.length || storage.candidatePages.length !== 2 || storage.candidatePages.some((page) => page.scaledIndependentResidual.length !== INDEPENDENT_NODE_NAMES.length)) {
     throw new RangeError(
       "non-coronary backward-Euler scratch workspace topology mismatch"
     );
@@ -7604,6 +7604,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
     scratchStorage?.scaledUnknowns
   );
   let current;
+  let currentCandidatePageIndex = scratchStorage === null ? null : 0;
   let acceptedLineSearchSteps = 0;
   let lineSearchBacktracks = 0;
   const failureTrace = [];
@@ -7617,7 +7618,8 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
       candidateTimeSec,
       respiratoryExternalPressures,
       vascularPvLaws,
-      mechanicsCache
+      mechanicsCache,
+      currentCandidatePageIndex === null ? void 0 : scratchStorage.candidatePages[currentCandidatePageIndex]
     );
   } catch (error) {
     return failure$1(
@@ -7805,6 +7807,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
       );
     }
     let accepted = null;
+    const trialCandidatePageIndex = currentCandidatePageIndex === null ? null : currentCandidatePageIndex === 0 ? 1 : 0;
     let stepLength = 1;
     let lastCandidateEvaluationException = null;
     let lastArmijoResidualRejection = null;
@@ -7824,7 +7827,8 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
           candidateTimeSec,
           respiratoryExternalPressures,
           vascularPvLaws,
-          mechanicsCache
+          mechanicsCache,
+          trialCandidatePageIndex === null ? void 0 : scratchStorage.candidatePages[trialCandidatePageIndex]
         );
         const trialResidualNorm = infinityNorm$2(
           evaluation.scaledIndependentResidual
@@ -7833,7 +7837,8 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
         if (trialResidualNorm <= requiredMaximumResidualNorm) {
           accepted = Object.freeze({
             scaledUnknowns: scratchStorage === null ? Object.freeze(candidateUnknowns) : candidateUnknowns,
-            evaluation
+            evaluation,
+            candidatePageIndex: trialCandidatePageIndex
           });
           traceEntry.acceptedStepLength = stepLength;
           traceEntry.acceptedTrialScaledResidualInfinityNorm = trialResidualNorm;
@@ -7898,6 +7903,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
       scaledUnknowns = scratchStorage.scaledUnknowns;
     }
     current = accepted.evaluation;
+    currentCandidatePageIndex = accepted.candidatePageIndex;
     acceptedLineSearchSteps += 1;
   }
   throw new Error("unreachable circulation Newton state");
@@ -7965,16 +7971,21 @@ function restoreNonCoronaryCirculationStateV1(checkpoint, rebase) {
     valveStates: checkpoint.state.valveStates
   });
 }
-function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, volumeScales, candidateTimeSec, respiratoryExternalPressures, vascularPvLaws, mechanicsCache) {
+function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, volumeScales, candidateTimeSec, respiratoryExternalPressures, vascularPvLaws, mechanicsCache, numericalPage) {
   const legacyNodeVolumesMl = input.conservativeCompanion === void 0 ? scaledToNodeVolumes(
     scaledIndependentVolumes,
     volumeScales,
-    previous.totalBloodVolumeMl
+    previous.totalBloodVolumeMl,
+    numericalPage?.nodeVolumesMl
   ) : null;
   const candidateIndependentNodeVolumesMl = legacyNodeVolumesMl === null ? scaledToIndependentNodeVolumes(
     scaledIndependentVolumes,
-    volumeScales
-  ) : independentNodeVolumesFromNodeRecord(legacyNodeVolumesMl);
+    volumeScales,
+    numericalPage?.independentNodeVolumesMl
+  ) : independentNodeVolumesFromNodeRecord(
+    legacyNodeVolumesMl,
+    numericalPage?.independentNodeVolumesMl
+  );
   const chamberVolumesMl = Object.freeze({
     LV: candidateIndependentNodeVolumesMl.LV,
     LA: candidateIndependentNodeVolumesMl.LA,
@@ -8006,7 +8017,8 @@ function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, v
   const nodeVolumesMl = legacyNodeVolumesMl ?? scaledToNodeVolumes(
     scaledIndependentVolumes,
     volumeScales,
-    nonCoronaryCandidateBloodVolumeMl
+    nonCoronaryCandidateBloodVolumeMl,
+    numericalPage?.nodeVolumesMl
   );
   const supportTiming = input.mechanicalSupport === void 0 ? null : mechanicalSupportTiming(
     candidateTimeSec,
@@ -8020,11 +8032,13 @@ function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, v
     input.dynamicMechanicalSupport.config.iabp,
     dynamicSupportTiming
   ) : null;
-  const vascularPressureTangentMmHgPerMl = {};
-  const nodeAbsolutePressuresMmHg = nodeRecord$1((name) => {
+  const vascularPressureTangentValues = numericalPage?.vascularPressureTangentMmHgPerMl ?? {};
+  const nodeAbsolutePressureValues = numericalPage?.nodeAbsolutePressuresMmHg ?? {};
+  for (const name of NON_CORONARY_NODE_NAMES_V1) {
     if (isChamberName(name)) {
-      vascularPressureTangentMmHgPerMl[name] = 0;
-      return mechanics.absolutePressuresMmHg[name];
+      vascularPressureTangentValues[name] = 0;
+      nodeAbsolutePressureValues[name] = mechanics.absolutePressuresMmHg[name];
+      continue;
     }
     const node = graph.nodes[graph.nodeIndex.get(name)];
     const physicalVolumeMl = nodeVolumesMl[name] + (name === "SA" ? iabp?.balloonVolumeMl ?? 0 : 0);
@@ -8032,16 +8046,18 @@ function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, v
       requiredVascularPvLawV1(vascularPvLaws, name),
       physicalVolumeMl
     );
-    vascularPressureTangentMmHgPerMl[name] = pressureAndTangent.dTransmuralPressureDPhysicalVolumeMmHgPerMl;
+    vascularPressureTangentValues[name] = pressureAndTangent.dTransmuralPressureDPhysicalVolumeMmHgPerMl;
     const ext = respiratoryExternalPressureFromFrameV1(
       respiratoryKind(node.ext),
       respiratoryExternalPressures
     );
-    return requireFinite$i(
+    nodeAbsolutePressureValues[name] = requireFinite$i(
       pressureAndTangent.transmuralPressureMmHg + ext,
       `${name} absolute pressure`
     );
-  });
+  }
+  const nodeAbsolutePressuresMmHg = numericalPage === void 0 && fullHotPathInvariantsEnabledV1() ? Object.freeze(nodeAbsolutePressureValues) : nodeAbsolutePressureValues;
+  const vascularPressureTangentMmHgPerMl = numericalPage === void 0 && fullHotPathInvariantsEnabledV1() ? Object.freeze(vascularPressureTangentValues) : vascularPressureTangentValues;
   const mechanicalSupport = input.mechanicalSupport === void 0 || supportTiming === null ? null : evaluateMechanicalSupportHydraulicsV1(
     input.mechanicalSupport.config,
     {
@@ -8085,10 +8101,11 @@ function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, v
       })
     }
   );
-  const valveEvaluations = {};
+  const valveEvaluations = numericalPage?.valveEvaluations ?? {};
+  const valveStates = numericalPage?.valveStates ?? {};
   const valveResearchInput = input.runtime.valveResearchInput;
-  const flows = {};
-  const dynamicFlows = {};
+  const flows = numericalPage?.edgeFlowsMlPerSec ?? {};
+  const dynamicFlows = numericalPage?.dynamicEdgeFlowsMlPerSec ?? {};
   for (const edge of graph.edges) {
     const name = edge.name;
     const upstreamPressure = nodeAbsolutePressuresMmHg[edge.up];
@@ -8106,6 +8123,7 @@ function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, v
         throw new Error(`${name} valve trial failed: ${evaluation.issues.join("; ")}`);
       }
       valveEvaluations[valveName] = evaluation;
+      valveStates[valveName] = evaluation.state;
       flows[name] = evaluation.flowMlPerSec;
       continue;
     }
@@ -8150,11 +8168,11 @@ function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, v
       );
     }
   }
-  const edgeFlowsMlPerSec = copyEdgeRecord(
+  const edgeFlowsMlPerSec = numericalPage === void 0 ? copyEdgeRecord(
     flows,
     "edgeFlowsMlPerSec",
     requireFinite$i
-  );
+  ) : flows;
   const localFlows = EDGE_FLOW_SCRATCH_V1;
   for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex++) {
     localFlows[edgeIndex] = edgeFlowsMlPerSec[graph.edges[edgeIndex].name];
@@ -8164,42 +8182,43 @@ function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, v
     localFlows,
     NODE_RATE_SCRATCH_V1
   );
-  const continuityResidualMlByNode = nodeRecord$1((name) => {
+  const continuityResidualValues = numericalPage?.continuityResidualMlByNode ?? {};
+  for (const name of NON_CORONARY_NODE_NAMES_V1) {
     const localIndex = graph.nodeIndex.get(name);
     const companionRate = conservativeCompanion === null ? 0 : isConservativeCompanionBoundaryNode(name) ? conservativeCompanion.outerBoundaryNetVolumeRateMlPerSec[name] : 0;
     const supportRate = mechanicalSupportNodeRateMlPerSec(
       mechanicalSupport ?? dynamicMechanicalSupport,
       name
     );
-    return nodeVolumesMl[name] - previous.nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[name]] - input.dtSec * (localRates[localIndex] + companionRate + supportRate);
-  });
-  const scaledIndependentResidual = Object.freeze(
-    scaledResidualValuesV1(
-      continuityResidualMlByNode,
-      volumeScales
-    )
+    continuityResidualValues[name] = nodeVolumesMl[name] - previous.nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[name]] - input.dtSec * (localRates[localIndex] + companionRate + supportRate);
+  }
+  const continuityResidualMlByNode = numericalPage === void 0 && fullHotPathInvariantsEnabledV1() ? Object.freeze(continuityResidualValues) : continuityResidualValues;
+  const scaledIndependentResidual = scaledResidualValuesV1(
+    continuityResidualMlByNode,
+    volumeScales,
+    numericalPage?.scaledIndependentResidual
   );
+  if (numericalPage === void 0) Object.freeze(scaledIndependentResidual);
   return Object.freeze({
     nodeVolumesMl,
     nodeAbsolutePressuresMmHg,
-    vascularPressureTangentMmHgPerMl: Object.freeze(
-      vascularPressureTangentMmHgPerMl
-    ),
+    vascularPressureTangentMmHgPerMl,
     edgeFlowsMlPerSec,
-    dynamicEdgeFlowsMlPerSec: copyDynamicEdgeRecord(
+    dynamicEdgeFlowsMlPerSec: numericalPage === void 0 ? copyDynamicEdgeRecord(
       dynamicFlows,
       "dynamicEdgeFlowsMlPerSec",
       requireFinite$i
-    ),
-    valveStates: valveRecord((name) => valveEvaluations[name].state),
-    valveEvaluations: Object.freeze({ ...valveEvaluations }),
+    ) : dynamicFlows,
+    valveStates: numericalPage === void 0 ? valveRecord((name) => valveEvaluations[name].state) : valveStates,
+    valveEvaluations: numericalPage === void 0 ? Object.freeze({ ...valveEvaluations }) : valveEvaluations,
     candidateMechanicsEvaluation: mechanics.evaluation,
     mechanicalSupport,
     dynamicMechanicalSupport,
     absoluteChamberPressureTangent: mechanics.absolutePressureTangent ?? null,
     conservativeCompanion,
     continuityResidualMlByNode,
-    scaledIndependentResidual
+    scaledIndependentResidual,
+    scratchBacked: numericalPage !== void 0
   });
 }
 function evaluateConservativeCompanionSameCandidate(graph, input, scaledIndependentVolumes, volumeScales, candidateIndependentNodeVolumesMl, mechanics, candidateTimeSec, respiratoryExternalPressures, aoPressureAndTangent) {
@@ -8633,6 +8652,28 @@ function initialNodeVolumes(graph, runtime) {
 }
 function success(previous, dtSec, candidateTimeSec, evaluation, diagnostics) {
   const companion = evaluation.conservativeCompanion;
+  const candidateNodeVolumesMl = evaluation.scratchBacked ? copyNodeRecord(
+    evaluation.nodeVolumesMl,
+    "candidateNodeVolumesMl",
+    requirePositive$4
+  ) : evaluation.nodeVolumesMl;
+  const candidateDynamicEdgeFlowsMlPerSec = evaluation.scratchBacked ? copyDynamicEdgeRecord(
+    evaluation.dynamicEdgeFlowsMlPerSec,
+    "candidateDynamicEdgeFlowsMlPerSec",
+    requireFinite$i
+  ) : evaluation.dynamicEdgeFlowsMlPerSec;
+  const candidateValveStates = evaluation.scratchBacked ? copyValveStates(evaluation.valveStates) : evaluation.valveStates;
+  const nodeAbsolutePressuresMmHg = evaluation.scratchBacked ? copyNodeRecord(
+    evaluation.nodeAbsolutePressuresMmHg,
+    "nodeAbsolutePressuresMmHg",
+    requireFinite$i
+  ) : evaluation.nodeAbsolutePressuresMmHg;
+  const edgeFlowsMlPerSec = evaluation.scratchBacked ? copyEdgeRecord(
+    evaluation.edgeFlowsMlPerSec,
+    "edgeFlowsMlPerSec",
+    requireFinite$i
+  ) : evaluation.edgeFlowsMlPerSec;
+  const valveEvaluations = evaluation.scratchBacked ? valveRecord((name) => evaluation.valveEvaluations[name]) : evaluation.valveEvaluations;
   return Object.freeze({
     converged: true,
     transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,
@@ -8640,12 +8681,12 @@ function success(previous, dtSec, candidateTimeSec, evaluation, diagnostics) {
     baseAcceptedTimeSec: previous.acceptedTimeSec,
     candidateTimeSec,
     dtSec,
-    candidateNodeVolumesMl: evaluation.nodeVolumesMl,
-    candidateDynamicEdgeFlowsMlPerSec: evaluation.dynamicEdgeFlowsMlPerSec,
-    candidateValveStates: evaluation.valveStates,
-    nodeAbsolutePressuresMmHg: evaluation.nodeAbsolutePressuresMmHg,
-    edgeFlowsMlPerSec: evaluation.edgeFlowsMlPerSec,
-    valveEvaluations: evaluation.valveEvaluations,
+    candidateNodeVolumesMl,
+    candidateDynamicEdgeFlowsMlPerSec,
+    candidateValveStates,
+    nodeAbsolutePressuresMmHg,
+    edgeFlowsMlPerSec,
+    valveEvaluations,
     candidateMechanicsEvaluation: evaluation.candidateMechanicsEvaluation,
     ...evaluation.mechanicalSupport === null ? {} : { mechanicalSupport: evaluation.mechanicalSupport },
     ...evaluation.dynamicMechanicalSupport === null ? {} : { dynamicMechanicalSupport: evaluation.dynamicMechanicalSupport },
@@ -8735,9 +8776,9 @@ function validateAcceptedState$2(state) {
     throw new Error("accepted circulation state TBV identity is stale");
   }
 }
-function scaledToNodeVolumes(scaledIndependentVolumes, scales, totalBloodVolumeMl) {
+function scaledToNodeVolumes(scaledIndependentVolumes, scales, totalBloodVolumeMl, destination) {
   if (scaledIndependentVolumes.length !== INDEPENDENT_NODE_NAMES.length || scales.length !== INDEPENDENT_NODE_NAMES.length) throw new Error("circulation independent-volume vector has wrong length");
-  const values2 = {};
+  const values2 = destination ?? {};
   let independentSum = 0;
   for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
     const value = requirePositive$4(
@@ -8751,15 +8792,15 @@ function scaledToNodeVolumes(scaledIndependentVolumes, scales, totalBloodVolumeM
     totalBloodVolumeMl - independentSum,
     `${DEPENDENT_NODE} dependent candidate volume`
   );
-  return copyNodeRecord(
+  return destination === void 0 ? copyNodeRecord(
     values2,
     "candidate nodeVolumesMl",
     requirePositive$4
-  );
+  ) : values2;
 }
-function scaledToIndependentNodeVolumes(scaledIndependentVolumes, scales) {
+function scaledToIndependentNodeVolumes(scaledIndependentVolumes, scales, destination) {
   if (scaledIndependentVolumes.length !== INDEPENDENT_NODE_NAMES.length || scales.length !== INDEPENDENT_NODE_NAMES.length) throw new Error("circulation independent-volume vector has wrong length");
-  const values2 = {};
+  const values2 = destination ?? {};
   for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
     const value = requirePositive$4(
       scaledIndependentVolumes[index] * scales[index],
@@ -8767,17 +8808,20 @@ function scaledToIndependentNodeVolumes(scaledIndependentVolumes, scales) {
     );
     values2[INDEPENDENT_NODE_NAMES[index]] = value;
   }
-  return Object.freeze(values2);
+  return destination === void 0 ? Object.freeze(values2) : values2;
 }
-function independentNodeVolumesFromNodeRecord(volumes) {
-  const independent = {};
+function independentNodeVolumesFromNodeRecord(volumes, destination) {
+  const independent = destination ?? {};
   for (const name of INDEPENDENT_NODE_NAMES) {
     independent[name] = volumes[name];
   }
-  return Object.freeze(independent);
+  return destination === void 0 ? Object.freeze(independent) : independent;
 }
-function scaledResidualValuesV1(continuityResidualMlByNode, volumeScales) {
-  const values2 = Array(INDEPENDENT_NODE_NAMES.length);
+function scaledResidualValuesV1(continuityResidualMlByNode, volumeScales, destination) {
+  const values2 = destination ?? Array(INDEPENDENT_NODE_NAMES.length);
+  if (values2.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new Error("circulation scaled-residual scratch has wrong length");
+  }
   for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
     values2[index] = continuityResidualMlByNode[INDEPENDENT_NODE_NAMES[index]] / volumeScales[index];
   }
@@ -34353,7 +34397,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-20";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-21";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

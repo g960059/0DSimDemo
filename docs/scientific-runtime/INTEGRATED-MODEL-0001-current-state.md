@@ -32,10 +32,22 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-20
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-21
 ```
 
-Standard-20 preserves Standard-19's equations, controls, checkpoint meaning,
+Standard-21 preserves Standard-20's equations, controls, checkpoint meaning,
+accepted sequence, Newton selection order, and public trial ownership while
+moving the common analytic Newton path's candidate numerical records into two
+solver-owned pages. The current page is never written while line search uses
+the other page; promotion swaps their roles only after Armijo acceptance.
+Successful and failed public trials detach all retained values before the
+workspace can be reused. Finite-difference fallback keeps independent
+allocations because it must retain center/lower/upper vectors concurrently.
+Alternating host measurements showed only a small, load-sensitive difference,
+so this is a candidate-allocation and GC-pressure foundation rather than a
+standalone speed claim.
+
+Standard-20 had preserved Standard-19's equations, controls, checkpoint meaning,
 accepted sequence, and Newton tie-breaking while removing diagnostic and
 linear-algebra container churn. Mixed-residual auditing retains only its
 single worst entry instead of freezing fifteen entries per iteration. Dense

@@ -715,6 +715,19 @@ loops rather than mapped/spread intermediates. Host timing could not separate
 this allocation cleanup from concurrent load, so it carries no standalone
 speed claim.
 
+Standard-21 gives the common analytic Newton path two reusable candidate
+numerical pages. The current candidate remains untouched while line search
+overwrites only the inactive page; accepting a step swaps page roles. Node
+volume, pressure, vascular tangent, edge/dynamic flow, valve, continuity, and
+scaled-residual records therefore live for the workspace rather than for one
+candidate evaluation. A public success or failure detaches every externally
+retained value before the workspace is released, and workspace reuse is tested
+against a structured clone of the earlier trial. Finite-difference evaluation
+continues to allocate independent vectors because it simultaneously retains
+center, lower, and upper residuals. Alternating 512-tick host measurements were
+small and load-sensitive (roughly neutral to about 1% lower), so this is a
+bounded-allocation/GC-pressure step, not an iPhone qualification.
+
 Failure atomicity, event order, beat accumulation, controls, analysis forks,
 and checkpoint continuation must pass against the Phase 0 corpus before Phase
 2 changes solver algebra.
