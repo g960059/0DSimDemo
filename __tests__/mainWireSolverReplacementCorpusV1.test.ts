@@ -6,6 +6,7 @@ import {
 } from "@/engine/vnext/MainWireSolverReplacementCorpusV1";
 import {
   captureMainWireSolverReplacementCorpusV1,
+  compareMainWireCoupledSolverShadowCorpusV1,
 } from "@/tools/performance/solverReplacementCorpusV1";
 
 describe("main-wire solver replacement corpus V1", () => {
@@ -40,4 +41,25 @@ describe("main-wire solver replacement corpus V1", () => {
         .clinicalValidationClaimed,
     ).toBe(false);
   });
+
+  it("keeps the coupled solve on the same six-case accepted branch", () => {
+    const report = compareMainWireCoupledSolverShadowCorpusV1();
+
+    expect(report.cases.map(({ caseId }) => caseId)).toEqual([
+      "baseline",
+      "low-preload",
+      "high-afterload",
+      "high-peep",
+      "tachycardia",
+      "high-contractility",
+    ]);
+    for (const result of report.cases) {
+      expect(result.acceptedStepCount).toBe(500);
+      expect(result.maximumAbsoluteVolumeDifferenceMl).toBeLessThan(1e-5);
+      expect(result.maximumAbsoluteDependentSvResidualMl).toBeLessThan(1e-8);
+      expect(result.maximumCoupledResidualInfinityNormMl).toBeLessThan(1e-8);
+      expect(result.maximumCoupledIterations).toBeLessThanOrEqual(8);
+      expect(result.meanCoupledJacobianEvaluations).toBeLessThanOrEqual(2);
+    }
+  }, 60_000);
 });

@@ -891,6 +891,18 @@ not require a different floating-point algorithm to reproduce the old bit
 path. Candidate acceptance instead uses predeclared conservation, residual,
 event, pressure, volume, flow, morphology, and checkpoint-continuation gates.
 
+The first trajectory shadow runs the coupled solve from the exact pre-step
+state beside every one of those 3,000 accepted legacy steps, using the actual
+event-limited `dt` and accepted calcium drive. All six cases complete with at
+most five coupled Newton updates. Across the corpus, the largest independent
+volume difference from the nested solution is `1.60e-8 mL`, the dependent-SV
+continuity residual remains below `1.18e-9 mL`, and the coupled residual
+infinity norm remains below `9.97e-9 mL`. Mean Jacobian evaluations range from
+`1.35` to `1.564` per accepted step. This demonstrates local branch agreement
+while the legacy state still drives the trajectory; it is not yet evidence
+that a new-solver-driven trajectory preserves event order, rollback, or
+checkpoint continuation.
+
 The solver-architecture hypothesis is itself falsifiable. The regular-sinus,
 device-off vertical slice must improve host kernel time by at least `1.8x` to
 justify productionization. An improvement below `1.3x` rejects nested-solve

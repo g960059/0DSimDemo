@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
+  createNonCoronaryBackwardEulerScratchWorkspaceV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   buildAuthoritativeCirculationGraphV1,
@@ -13,6 +14,7 @@ import { defaultParams } from "@/engine/core/params";
 import {
   CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2,
   NORMAL_CORONARY_DISEASE_INPUT_V2,
+  createCoronaryBackwardEulerScratchWorkspaceV2,
   type CoronaryDiseaseInputV2,
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
@@ -804,6 +806,102 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
         6,
       );
     });
+  }, 60_000);
+
+  it("tracks the accepted nested trajectory for one full second without branch drift", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const runtime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+    const stepInput = Object.freeze({
+      dtSec: 0.002,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const coupledWorkspace =
+      createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    const legacyCoronaryWorkspace =
+      createCoronaryBackwardEulerScratchWorkspaceV2();
+    const legacyNonCoronaryWorkspace =
+      createNonCoronaryBackwardEulerScratchWorkspaceV1();
+    let accepted = cold.acceptedState;
+    let maximumAbsoluteVolumeDifferenceMl = 0;
+    let maximumAbsoluteDependentSvResidualMl = 0;
+    let maximumCoupledIterations = 0;
+
+    for (let step = 0; step < 500; step += 1) {
+      const context = prepareMainWireFiveWallCoupledResidualContextV1(
+        provider,
+        accepted,
+        stepInput,
+      );
+      const coupled = solveMainWireFiveWallCoupledNewtonShadowV1(
+        context,
+        { maximumAcceptedStepsPerJacobian: 2 },
+        coupledWorkspace,
+      );
+      const coupledResult = coupled.result;
+      const legacy = stepMainWireFiveWallCoronaryV2(
+        provider,
+        accepted,
+        stepInput,
+        legacyCoronaryWorkspace,
+        legacyNonCoronaryWorkspace,
+      );
+
+      expect(coupledResult.status).toBe("converged");
+      expect(legacy.converged).toBe(true);
+      if (coupledResult.status !== "converged") {
+        throw new Error(`step ${step}: ${coupledResult.message}`);
+      }
+      if (legacy.converged === false) {
+        throw new Error(`step ${step}: ${legacy.message}`);
+      }
+      maximumCoupledIterations = Math.max(
+        maximumCoupledIterations,
+        coupledResult.iterations,
+      );
+      maximumAbsoluteDependentSvResidualMl = Math.max(
+        maximumAbsoluteDependentSvResidualMl,
+        Math.abs(coupled.dependentSvContinuityResidualMl!),
+      );
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.forEach((nodeId, index) => {
+        maximumAbsoluteVolumeDifferenceMl = Math.max(
+          maximumAbsoluteVolumeDifferenceMl,
+          Math.abs(
+            coupledResult.solution[index]!
+              - legacy.circulationTrial.candidateNodeVolumesMl[nodeId],
+          ),
+        );
+      });
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.forEach((nodeId, index) => {
+        maximumAbsoluteVolumeDifferenceMl = Math.max(
+          maximumAbsoluteVolumeDifferenceMl,
+          Math.abs(
+            coupledResult.solution[
+              NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
+            ]! - legacy.coronaryTrial.candidateAcceptedState
+              .volumeMlByNode[nodeId],
+          ),
+        );
+      });
+      accepted = legacy.acceptedState;
+    }
+
+    expect(accepted.acceptedTimeSec).toBeCloseTo(1, 12);
+    expect(accepted.revision).toBe(500);
+    expect(maximumCoupledIterations).toBeLessThanOrEqual(8);
+    expect(maximumAbsoluteDependentSvResidualMl).toBeLessThan(1e-8);
+    expect(maximumAbsoluteVolumeDifferenceMl).toBeLessThan(1e-6);
   }, 60_000);
 
   it("matches every analytic non-coronary/coronary column against the full residual", () => {
