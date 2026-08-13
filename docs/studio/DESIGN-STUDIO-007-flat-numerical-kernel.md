@@ -440,10 +440,14 @@ schedule slots before the legacy object transaction runs. A configured
 authored-ventricular-pacing replay adds the same four-slot
 `acceptedTimeSec / revision / cursor / emitted-count` state. Both schedule
 writers binary-search their admitted immutable event lists and advance only
-these fixed counters; they do not clone events or construct impulses. The
-object transaction still regenerates and validates its own boundary internally,
-but admission requires its clock, calcium, and authored-schedule result to
-match the already-staged typed values bit-for-bit and cannot overwrite them.
+these fixed counters; they do not clone events or construct impulses. After
+electrical capture resolves any PAC reset/preserve policy, the same candidate
+also advances all seven mutable regular-atrial clock/counter slots by its pure
+owner law. It therefore derives the post-capture state rather than copying it
+from the object candidate. The object transaction still regenerates and
+validates its own boundary internally, but admission requires its clock,
+calcium, authored-schedule, and regular-atrial result to match the already
+staged typed values bit-for-bit and cannot overwrite them.
 A representative 512-tick diagnostic measured about `2.40 ms/tick` for the
 released Session and `3.42 ms/tick` for the typed reference (`1.42x`). Direct
 fixed-slot boundary selection measured about `0.0053 ms/tick`, while copying
@@ -467,16 +471,18 @@ candidate using the existing exact two-decay event law and only deposits due
 at the accepted candidate boundary. Across 96 evolving boundaries, including
 electrical/calcium events, both the fixed-slot calcium readback and candidate
 state match the existing composed-rhythm owner exactly. On the default
-reference path these ten calcium values, six clock values, and four
-authored-ectopy schedule values are retained through complete candidate
-admission; a pacing configuration retains its four schedule values as well.
+reference path these ten calcium values, six clock values, four
+authored-ectopy schedule values, and seven regular-atrial source values are
+retained through complete candidate admission; a pacing configuration retains
+its four schedule values as well.
 The temporary object adapter must match every retained value bit-exactly and
 cannot overwrite it. Every accepted substep in the 1,024-tick oracle therefore
-promotes clock, calcium, and authored finite-schedule state from the typed
-candidate. A same-time PVC plus VVI replay regression also compares both typed
-schedule states with their existing pure evaluators. The complete
-composed-rhythm transaction still owns impulse construction, queue scheduling,
-and electrical capture; this slice does not claim that rhythm is flat yet.
+promotes clock, calcium, authored finite-schedule, and regular-source state from
+the typed candidate. A same-time captured PAC plus VVI replay regression
+compares the reset regular clock and both typed schedule states with their
+existing pure evaluators. The complete composed-rhythm transaction still owns
+impulse construction, queue scheduling, and electrical capture; this slice
+does not claim that rhythm is flat yet.
 
 The non-production Worker vertical slice now creates the typed-authority
 Session by default. Its older Phase 1a lifetime string table and per-tick full

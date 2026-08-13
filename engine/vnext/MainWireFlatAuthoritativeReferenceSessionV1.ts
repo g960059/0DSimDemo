@@ -65,6 +65,7 @@ import {
   stageMainWireAcceptedTypedAuthoredScheduleCandidateV1,
   stageMainWireAcceptedTypedCalciumCandidateV1,
   stageMainWireAcceptedTypedClockCandidateV1,
+  stageMainWireAcceptedTypedRegularAtrialCandidateV1,
   type MainWireAcceptedTypedBoundaryBindingV1,
   type MainWireAcceptedTypedClockV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
@@ -77,6 +78,10 @@ import {
   type TransactionalScalarSlotsReportV1,
   type TransactionalScalarSlotsSnapshotV1,
 } from "@/engine/vnext/TransactionalScalarSlotsV1";
+import type {
+  TransactionalTypedStateCandidateCursorV1,
+  TransactionalTypedStateCurrentCursorV1,
+} from "@/engine/vnext/TransactionalTypedStateImageV1";
 
 export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_SESSION_V1_ID =
   "main-wire-flat-authoritative-reference-session-v1" as const;
@@ -199,6 +204,9 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             ? []
             : this.#typedBoundaryBinding
               .authoredVentricularPacingContinuousSlots),
+          ...(runtime.rhythm.configuration.atrialSource.mode === "regular"
+            ? this.#typedBoundaryBinding.regularAtrialSourceContinuousSlots
+            : []),
         ]);
     this.#acceptedState = this.#authority.current();
     this.#scalarSlots = new TransactionalScalarSlotsV1(
@@ -363,10 +371,16 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       }
 
       let directCandidateOpen = false;
+      let directCurrentCursor:
+        TransactionalTypedStateCurrentCursorV1 | null = null;
+      let directCandidateCursor:
+        TransactionalTypedStateCandidateCursorV1 | null = null;
       if (this.#typedAuthority !== null) {
         try {
           const current = this.#typedAuthority.currentCursor();
           const candidate = this.#typedAuthority.beginDirectCandidate();
+          directCurrentCursor = current;
+          directCandidateCursor = candidate;
           directCandidateOpen = true;
           stageMainWireAcceptedTypedClockCandidateV1(
             current,
@@ -428,6 +442,9 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         );
       }
       if (result.acceptedState.acceptedTimeSec !== limit.candidateTimeSec) {
+        if (directCandidateOpen) {
+          this.#typedAuthority?.abortDirectCandidate();
+        }
         return this.failedAdvance(
           "integrated-promotion-rejected",
           "Main Wire flat reference accepted clock differs from candidate",
@@ -439,6 +456,24 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       let scalarCandidateOpen = false;
       let committedState: AcceptedState;
       try {
+        if (this.#typedAuthority !== null) {
+          if (
+            directCurrentCursor === null
+            || directCandidateCursor === null
+          ) {
+            throw new Error(
+              "Main Wire flat reference typed transaction cursors are missing",
+            );
+          }
+          stageMainWireAcceptedTypedRegularAtrialCandidateV1(
+            directCurrentCursor,
+            directCandidateCursor,
+            this.requiredTypedBoundaryBinding(),
+            limit.candidateTimeSec,
+            this.#rhythmInput.configuration,
+            result.composedRhythmCandidate.pacSinusClockPolicyApplied,
+          );
+        }
         this.#scalarSlots.stage(result.acceptedState);
         scalarCandidateOpen = true;
         if (this.#typedAuthority !== null) {

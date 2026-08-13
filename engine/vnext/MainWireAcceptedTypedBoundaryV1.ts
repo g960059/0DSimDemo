@@ -10,6 +10,9 @@ import type {
   ComposedRhythmCalciumParametersByWallV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
 import type {
+  CapturedPacSinusClockPolicyV1,
+} from "@/engine/myocardium/rhythm/acceptedRegularAtrialSourceOwnerV1";
+import type {
   MainWireFiveWallFreeCalciumDriveV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
@@ -50,12 +53,22 @@ type AuthoredScheduleContinuousBinding = Readonly<{
   revision: number;
 }>;
 
+type RegularAtrialContinuousBinding = Readonly<{
+  acceptedTimeSec: number;
+  capturedPacPreserveCount: number;
+  capturedPacResetCount: number;
+  emittedSourceImpulseCount: number;
+  nextActivationTimeSec: number;
+  nextSourceSequence: number;
+  revision: number;
+}>;
+
 type ContinuousBinding = Readonly<{
   acceptedTimeSec: number;
   composedAcceptedTimeSec: number;
   authoredEctopy: AuthoredScheduleContinuousBinding;
   authoredVentricularPacing: AuthoredScheduleContinuousBinding;
-  regularAtrialNextActivationTimeSec: number;
+  regularAtrial: RegularAtrialContinuousBinding;
   composedRevision: number;
   ventricularBackupNextIntrinsicEscapeDueTimeSec: number;
   ventricularBackupNextVviPaceDueTimeSec: number;
@@ -85,6 +98,7 @@ export type MainWireAcceptedTypedBoundaryBindingV1 = Readonly<{
   }>>>;
   directContinuousSlots: readonly number[];
   authoredVentricularPacingContinuousSlots: readonly number[];
+  regularAtrialSourceContinuousSlots: readonly number[];
 }>;
 
 /** Resolves model paths once; the accepted hot loop performs no string lookup. */
@@ -110,9 +124,9 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
       manifest,
       "/composedRhythm/authoredVentricularPacingReplayState",
     ),
-    regularAtrialNextActivationTimeSec: continuousSlot(
+    regularAtrial: regularAtrialBinding(
       manifest,
-      "/composedRhythm/regularAtrialSourceState/nextActivationTimeSec",
+      "/composedRhythm/regularAtrialSourceState",
     ),
     composedRevision: continuousSlot(manifest, "/composedRhythm/revision"),
     ventricularBackupNextIntrinsicEscapeDueTimeSec: continuousSlot(
@@ -197,6 +211,15 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
     continuous.authoredVentricularPacing.cursor,
     continuous.authoredVentricularPacing.revision,
   ]);
+  const regularAtrialSourceContinuousSlots = Object.freeze([
+    continuous.regularAtrial.acceptedTimeSec,
+    continuous.regularAtrial.capturedPacPreserveCount,
+    continuous.regularAtrial.capturedPacResetCount,
+    continuous.regularAtrial.emittedSourceImpulseCount,
+    continuous.regularAtrial.nextActivationTimeSec,
+    continuous.regularAtrial.nextSourceSequence,
+    continuous.regularAtrial.revision,
+  ]);
   return Object.freeze({
     layoutId: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
     fingerprint: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
@@ -209,6 +232,7 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
       ...authoredEctopySlots,
     ]),
     authoredVentricularPacingContinuousSlots,
+    regularAtrialSourceContinuousSlots,
   });
 }
 
@@ -519,6 +543,127 @@ export function stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(
   }
 }
 
+/** Advances the regular atrial clock after capture resolves any PAC policy. */
+export function stageMainWireAcceptedTypedRegularAtrialCandidateV1(
+  current: TransactionalTypedStateCurrentCursorV1,
+  candidate: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
+  candidateTimeSec: number,
+  configuration: AcceptedComposedRhythmTransactionConfigurationV2,
+  capturedPacSinusClockPolicy: CapturedPacSinusClockPolicyV1,
+): void {
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
+  if (configuration.atrialSource.mode !== "regular") {
+    if (capturedPacSinusClockPolicy !== null) {
+      throw new Error(
+        "Main Wire typed external atrial source cannot apply a PAC policy",
+      );
+    }
+    return;
+  }
+  const slots = binding.continuous.regularAtrial;
+  const acceptedTimeSec = finiteNonnegative(
+    current.readContinuous(slots.acceptedTimeSec),
+    "regular atrial accepted time",
+  );
+  const composedAcceptedTimeSec = finiteNonnegative(
+    current.readContinuous(binding.continuous.composedAcceptedTimeSec),
+    "regular atrial composed accepted time",
+  );
+  if (acceptedTimeSec !== composedAcceptedTimeSec) {
+    throw new Error("Main Wire typed regular atrial clock diverged");
+  }
+  const candidateTime = finiteNonnegative(
+    candidateTimeSec,
+    "regular atrial candidate time",
+  );
+  if (!(candidateTime > acceptedTimeSec)) {
+    throw new Error("Main Wire typed regular atrial candidate must advance");
+  }
+  const nextActivationTimeSec = finiteNonnegative(
+    current.readContinuous(slots.nextActivationTimeSec),
+    "regular atrial next activation time",
+  );
+  if (
+    !(nextActivationTimeSec > acceptedTimeSec)
+    || candidateTime > nextActivationTimeSec
+  ) {
+    throw new Error(
+      "Main Wire typed regular atrial candidate crossed its activation",
+    );
+  }
+  if (
+    capturedPacSinusClockPolicy !== null
+    && capturedPacSinusClockPolicy !== "reset"
+    && capturedPacSinusClockPolicy !== "preserve"
+  ) {
+    throw new Error("Main Wire typed regular atrial PAC policy is invalid");
+  }
+  const regularConfiguration =
+    configuration.atrialSource.regularSourceConfiguration;
+  if (
+    capturedPacSinusClockPolicy !== null
+    && regularConfiguration.rhythmClass !== "sinus"
+  ) {
+    throw new Error(
+      "Main Wire typed flutter source cannot apply a PAC clock policy",
+    );
+  }
+  const due = candidateTime === nextActivationTimeSec;
+  const revision = incrementableCounter(
+    current.readContinuous(slots.revision),
+    "regular atrial revision",
+  );
+  const nextSourceSequence = incrementableCounter(
+    current.readContinuous(slots.nextSourceSequence),
+    "regular atrial next source sequence",
+  );
+  const emittedSourceImpulseCount = incrementableCounter(
+    current.readContinuous(slots.emittedSourceImpulseCount),
+    "regular atrial emitted impulse count",
+  );
+  const capturedPacResetCount = incrementableCounter(
+    current.readContinuous(slots.capturedPacResetCount),
+    "regular atrial PAC reset count",
+  );
+  const capturedPacPreserveCount = incrementableCounter(
+    current.readContinuous(slots.capturedPacPreserveCount),
+    "regular atrial PAC preserve count",
+  );
+  const reset = capturedPacSinusClockPolicy === "reset";
+  const candidateNextActivationTimeSec = due || reset
+    ? finiteFutureTime(
+        candidateTime,
+        regularConfiguration.cycleLengthSec,
+        "regular atrial next activation time",
+      )
+    : nextActivationTimeSec;
+  candidate.writeContinuous(slots.acceptedTimeSec, candidateTime);
+  candidate.writeContinuous(
+    slots.capturedPacPreserveCount,
+    capturedPacPreserveCount
+      + (capturedPacSinusClockPolicy === "preserve" ? 1 : 0),
+  );
+  candidate.writeContinuous(
+    slots.capturedPacResetCount,
+    capturedPacResetCount + (reset ? 1 : 0),
+  );
+  candidate.writeContinuous(
+    slots.emittedSourceImpulseCount,
+    emittedSourceImpulseCount + (due ? 1 : 0),
+  );
+  candidate.writeContinuous(
+    slots.nextActivationTimeSec,
+    candidateNextActivationTimeSec,
+  );
+  candidate.writeContinuous(
+    slots.nextSourceSequence,
+    nextSourceSequence + (due ? 1 : 0),
+  );
+  candidate.writeContinuous(slots.revision, revision + 1);
+}
+
 function limitTypedRhythmBoundary(
   cursor: TransactionalTypedStateCurrentCursorV1,
   binding: MainWireAcceptedTypedBoundaryBindingV1,
@@ -533,7 +678,7 @@ function limitTypedRhythmBoundary(
     boundaries.push(boundary(
       "regular-atrial-source",
       cursor.readContinuous(
-        binding.continuous.regularAtrialNextActivationTimeSec,
+        binding.continuous.regularAtrial.nextActivationTimeSec,
       ),
       acceptedTimeSec,
     ));
@@ -807,6 +952,36 @@ function authoredScheduleBinding(
   });
 }
 
+function regularAtrialBinding(
+  manifest: TransactionalTypedStateManifestV1,
+  rootPointer: string,
+): RegularAtrialContinuousBinding {
+  return Object.freeze({
+    acceptedTimeSec: continuousSlot(manifest, `${rootPointer}/acceptedTimeSec`),
+    capturedPacPreserveCount: continuousSlot(
+      manifest,
+      `${rootPointer}/capturedPacPreserveCount`,
+    ),
+    capturedPacResetCount: continuousSlot(
+      manifest,
+      `${rootPointer}/capturedPacResetCount`,
+    ),
+    emittedSourceImpulseCount: continuousSlot(
+      manifest,
+      `${rootPointer}/emittedSourceImpulseCount`,
+    ),
+    nextActivationTimeSec: continuousSlot(
+      manifest,
+      `${rootPointer}/nextActivationTimeSec`,
+    ),
+    nextSourceSequence: continuousSlot(
+      manifest,
+      `${rootPointer}/nextSourceSequence`,
+    ),
+    revision: continuousSlot(manifest, `${rootPointer}/revision`),
+  });
+}
+
 function stageAuthoredScheduleCandidate(
   current: TransactionalTypedStateCurrentCursorV1,
   candidate: TransactionalTypedStateCandidateCursorV1,
@@ -889,6 +1064,32 @@ function upperBoundAuthoredScheduleEvents(
     else high = middle;
   }
   return low;
+}
+
+function incrementableCounter(
+  value: number,
+  field: string,
+): number {
+  const counter = nonnegativeSafeInteger(value, field);
+  if (counter === Number.MAX_SAFE_INTEGER) {
+    throw new Error(`Main Wire typed ${field} cannot increment safely`);
+  }
+  return counter;
+}
+
+function finiteFutureTime(
+  acceptedTimeSec: number,
+  durationSec: number,
+  field: string,
+): number {
+  if (!Number.isFinite(durationSec) || !(durationSec > 0)) {
+    throw new Error(`Main Wire typed ${field} duration is invalid`);
+  }
+  const future = acceptedTimeSec + durationSec;
+  if (!Number.isFinite(future) || !(future > acceptedTimeSec)) {
+    throw new Error(`Main Wire typed ${field} is not strictly future`);
+  }
+  return future;
 }
 
 function boundedArraySlot(

@@ -26,6 +26,10 @@ import {
   initializeAcceptedAuthoredVentricularPacingReplaySourceStateV1,
 } from "@/engine/myocardium/rhythm/acceptedAuthoredVentricularPacingReplaySourceV1";
 import {
+  evaluateAcceptedRegularAtrialSourceCandidateV1,
+  type CapturedPacSinusClockPolicyV1,
+} from "@/engine/myocardium/rhythm/acceptedRegularAtrialSourceOwnerV1";
+import {
   evaluateMainWireIntegratedModelCalciumDriveV3,
   limitMainWireIntegratedModelCandidateTimeV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
@@ -50,6 +54,7 @@ import {
   stageMainWireAcceptedTypedAuthoredScheduleCandidateV1,
   stageMainWireAcceptedTypedCalciumCandidateV1,
   stageMainWireAcceptedTypedClockCandidateV1,
+  stageMainWireAcceptedTypedRegularAtrialCandidateV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
 import {
   createMainWireAcceptedTypedStateManifestV1,
@@ -992,12 +997,13 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         ownerInstanceId: "typed-ectopy-owner",
         scheduleId: "typed-ectopy-schedule",
         events: [{
-          eventKind: "pvc",
+          eventKind: "pac",
           authoredEctopyId: "typed-ectopy-event-1",
           sourceId: "typed-ectopy-source",
           sourceSequence: 1,
           activationTimeSec: 0.125,
-          chamber: "ventricular",
+          chamber: "atrial",
+          sinusResetPolicy: "reset",
         }],
       });
     const configuration =
@@ -1084,6 +1090,25 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       0.125,
       configuration,
     );
+    const objectCandidate =
+      evaluateAcceptedComposedRhythmTransactionCandidateV2(
+        configuredAccepted.composedRhythm,
+        {
+          candidateTimeSec: 0.125,
+          externalAtrialSourceBatch: createNoExternalAtrialSourceBatchV2(
+            0.125,
+          ),
+        },
+      );
+    expect(objectCandidate.pacSinusClockPolicyApplied).toBe("reset");
+    stageMainWireAcceptedTypedRegularAtrialCandidateV1(
+      image.currentCursor(),
+      candidate,
+      binding,
+      0.125,
+      configuration,
+      objectCandidate.pacSinusClockPolicyApplied,
+    );
     const staged = image.rehydrateStaged().composedRhythm;
     expect(staged.authoredEctopyState).toEqual(
       evaluateAcceptedAuthoredEctopyScheduleTrialV2(
@@ -1097,7 +1122,55 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         0.125,
       ).candidateState,
     );
+    expect(staged.regularAtrialSourceState).toEqual(
+      objectCandidate.candidateState.regularAtrialSourceState,
+    );
     image.abort();
+  });
+
+  it("matches every regular atrial source clock policy in fixed slots", async () => {
+    const oracle = await MainWireIntegratedModelSessionV3.create();
+    const accepted = oracle.currentAcceptedState();
+    const regular = accepted.composedRhythm.regularAtrialSourceState;
+    expect(regular).not.toBeNull();
+    const state = regular!;
+    const beforeBoundary = state.acceptedTimeSec
+      + (state.nextActivationTimeSec - state.acceptedTimeSec) / 2;
+    const cases: readonly Readonly<{
+      candidateTimeSec: number;
+      policy: CapturedPacSinusClockPolicyV1;
+    }>[] = Object.freeze([
+      Object.freeze({ candidateTimeSec: beforeBoundary, policy: "preserve" }),
+      Object.freeze({ candidateTimeSec: beforeBoundary, policy: "reset" }),
+      Object.freeze({
+        candidateTimeSec: state.nextActivationTimeSec,
+        policy: null,
+      }),
+    ]);
+    for (const entry of cases) {
+      const manifest = createMainWireAcceptedTypedStateManifestV1(accepted);
+      const image = new TransactionalTypedStateImageV1(manifest, accepted);
+      const binding = createMainWireAcceptedTypedBoundaryBindingV1(manifest);
+      const candidate = image.beginCandidateFromCurrent();
+      stageMainWireAcceptedTypedRegularAtrialCandidateV1(
+        image.currentCursor(),
+        candidate,
+        binding,
+        entry.candidateTimeSec,
+        accepted.composedRhythm.configuration,
+        entry.policy,
+      );
+      expect(
+        image.rehydrateStaged().composedRhythm.regularAtrialSourceState,
+      ).toEqual(
+        evaluateAcceptedRegularAtrialSourceCandidateV1(
+          state,
+          entry.candidateTimeSec,
+          entry.policy,
+        ).candidateState,
+      );
+      image.abort();
+    }
   });
 
   it("matches the admitted object limiter from direct typed boundary slots", async () => {
@@ -1168,9 +1241,30 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
             ),
           },
         );
+      stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(
+        cursor,
+        typedCandidate,
+        binding,
+        actual.candidateTimeSec,
+        runtime.rhythm.configuration,
+      );
+      stageMainWireAcceptedTypedRegularAtrialCandidateV1(
+        cursor,
+        typedCandidate,
+        binding,
+        actual.candidateTimeSec,
+        runtime.rhythm.configuration,
+        objectCandidate.pacSinusClockPolicyApplied,
+      );
       expect(
         image.rehydrateStaged().composedRhythm.calciumStateByWall,
       ).toEqual(objectCandidate.candidateState.calciumStateByWall);
+      expect(
+        image.rehydrateStaged().composedRhythm.authoredEctopyState,
+      ).toEqual(objectCandidate.candidateState.authoredEctopyState);
+      expect(
+        image.rehydrateStaged().composedRhythm.regularAtrialSourceState,
+      ).toEqual(objectCandidate.candidateState.regularAtrialSourceState);
       expect(candidateClock).toEqual({
         acceptedTimeSec: objectCandidate.candidateState.acceptedTimeSec,
         revision: objectCandidate.candidateState.revision,
