@@ -156,6 +156,7 @@ export type TransactionalTypedStateImageReportV1 = Readonly<{
   commitCount: number;
   externalImmutableIdentityMatchCount: number;
   externalImmutableCanonicalMatchCount: number;
+  directCompletionReaderPlanUseCount: number;
   staged: boolean;
 }>;
 
@@ -244,6 +245,21 @@ type CompletionPlanInternalV1 = Readonly<{
   retainedBooleans: ReadonlySet<number>;
   writableContinuous: readonly number[];
   writableBooleans: readonly number[];
+  readers: DirectCompletionReadersV1;
+}>;
+
+type DirectPathReaderV1 = (root: unknown) => unknown;
+
+type DirectCompletionReadersV1 = Readonly<{
+  externalImmutable: readonly DirectPathReaderV1[];
+  optionalRecords: readonly DirectPathReaderV1[];
+  boundedArrays: readonly DirectPathReaderV1[];
+  continuous: readonly DirectPathReaderV1[];
+  nullableContinuous: readonly DirectPathReaderV1[];
+  booleans: readonly DirectPathReaderV1[];
+  strings: readonly DirectPathReaderV1[];
+  nullableStrings: readonly DirectPathReaderV1[];
+  dynamicRoots: readonly DirectPathReaderV1[];
 }>;
 
 const EXTERNAL_IMMUTABLE_CANONICAL_BYTES = new WeakMap<
@@ -389,6 +405,7 @@ export class TransactionalTypedStateImageV1<TState> {
   #candidateGeneration = 0;
   #externalImmutableIdentityMatchCount = 0;
   #externalImmutableCanonicalMatchCount = 0;
+  #directCompletionReaderPlanUseCount = 0;
 
   constructor(
     manifest: TransactionalTypedStateManifestV1,
@@ -532,6 +549,7 @@ export class TransactionalTypedStateImageV1<TState> {
         this.#manifest.numericalLayout.booleanSlots.length,
         retainedBooleans,
       ),
+      readers: compileDirectCompletionReaders(this.#manifest),
     }));
     return plan;
   }
@@ -559,13 +577,6 @@ export class TransactionalTypedStateImageV1<TState> {
         "Transactional typed state direct admission changed candidate identity",
       );
     }
-    this.assertExternalImmutableRootsMatch(candidate);
-    if (this.#admitDirectCompletionCandidate === null) {
-      assertFlatNumericalStateShapeV1(
-        this.#manifest.numericalLayout,
-        candidate,
-      );
-    }
     const internal = COMPLETION_PLAN_INTERNALS.get(plan);
     if (
       internal === undefined
@@ -578,14 +589,42 @@ export class TransactionalTypedStateImageV1<TState> {
       );
     }
     const candidateImage = this.#images[this.inactiveIndex()];
-    writeOptionalRecordPresence(this.#manifest, candidate, candidateImage);
-    writeBoundedArrayLengths(this.#manifest, candidate, candidateImage);
+    const directReaders = this.#admitDirectCompletionCandidate === null
+      ? undefined
+      : internal.readers;
+    if (directReaders === undefined) {
+      this.assertExternalImmutableRootsMatch(candidate);
+      assertFlatNumericalStateShapeV1(
+        this.#manifest.numericalLayout,
+        candidate,
+      );
+    }
+    writeOptionalRecordPresence(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders?.optionalRecords,
+    );
+    writeBoundedArrayLengths(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders?.boundedArrays,
+    );
+    if (directReaders !== undefined) {
+      this.assertExternalImmutableRootsMatch(
+        candidate,
+        directReaders.externalImmutable,
+        candidateImage,
+      );
+    }
     assertRetainedFixedLeavesMatch(
       this.#manifest,
       candidate,
       candidateImage,
       internal.retainedContinuous,
       internal.retainedBooleans,
+      directReaders,
     );
     writeFixedLeaves(
       this.#manifest,
@@ -593,18 +632,29 @@ export class TransactionalTypedStateImageV1<TState> {
       candidateImage,
       internal.writableContinuous,
       internal.writableBooleans,
+      directReaders,
     );
-    writeNullableContinuousLeaves(this.#manifest, candidate, candidateImage);
+    writeNullableContinuousLeaves(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders,
+    );
     this.#stagedStringBytes = writeStrings(
       this.#manifest,
       candidate,
       candidateImage,
+      directReaders,
     );
     this.#stagedDynamicBytes = writeDynamicRoots(
       this.#manifest,
       candidate,
       candidateImage,
+      directReaders,
     );
+    if (directReaders !== undefined) {
+      this.#directCompletionReaderPlanUseCount += 1;
+    }
     return admittedCandidate;
   }
 
@@ -719,11 +769,17 @@ export class TransactionalTypedStateImageV1<TState> {
         this.#externalImmutableIdentityMatchCount,
       externalImmutableCanonicalMatchCount:
         this.#externalImmutableCanonicalMatchCount,
+      directCompletionReaderPlanUseCount:
+        this.#directCompletionReaderPlanUseCount,
       staged: this.#staged,
     });
   }
 
-  private assertExternalImmutableRootsMatch(candidate: TState): void {
+  private assertExternalImmutableRootsMatch(
+    candidate: TState,
+    directReaders?: readonly DirectPathReaderV1[],
+    candidateImage?: MutableImageV1,
+  ): void {
     const expectedBytes = EXTERNAL_IMMUTABLE_CANONICAL_BYTES.get(
       this.#manifest,
     );
@@ -744,10 +800,13 @@ export class TransactionalTypedStateImageV1<TState> {
         this.#manifest.numericalLayout,
         candidate,
         this.#manifest.numericalLayout.externalImmutableRoots[index]!,
+        candidateImage,
       )) {
         continue;
       }
-      const actual = readFlatNumericalStatePathV1(candidate, expected.path);
+      const actual = directReaders === undefined
+        ? readFlatNumericalStatePathV1(candidate, expected.path)
+        : directReaders[index]!(candidate);
       if (actual === expected.value) {
         identityMatches += 1;
         continue;
@@ -1042,6 +1101,7 @@ function writeFixedLeaves(
   destination: MutableImageV1,
   writableContinuous?: readonly number[],
   writableBooleans?: readonly number[],
+  directReaders?: DirectCompletionReadersV1,
 ): void {
   const layout = manifest.numericalLayout;
   const continuousCount = writableContinuous?.length
@@ -1049,11 +1109,14 @@ function writeFixedLeaves(
   for (let position = 0; position < continuousCount; position += 1) {
     const index = writableContinuous?.[position] ?? position;
     const slot = layout.continuousSlots[index]!;
-    if (layoutEntryAbsent(layout, state, slot)) {
+    if (layoutEntryAbsent(layout, state, slot, directReaders === undefined
+      ? undefined
+      : destination)) {
       destination.continuous[index] = 0;
       continue;
     }
-    const value = readFlatNumericalStatePathV1(state, slot.path);
+    const value = directReaders?.continuous[index]?.(state)
+      ?? readFlatNumericalStatePathV1(state, slot.path);
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new Error(`Transactional typed state ${slot.pointer} must be finite`);
     }
@@ -1063,11 +1126,14 @@ function writeFixedLeaves(
   for (let position = 0; position < booleanCount; position += 1) {
     const index = writableBooleans?.[position] ?? position;
     const slot = layout.booleanSlots[index]!;
-    if (layoutEntryAbsent(layout, state, slot)) {
+    if (layoutEntryAbsent(layout, state, slot, directReaders === undefined
+      ? undefined
+      : destination)) {
       destination.booleans[index] = 0;
       continue;
     }
-    const value = readFlatNumericalStatePathV1(state, slot.path);
+    const value = directReaders?.booleans[index]?.(state)
+      ?? readFlatNumericalStatePathV1(state, slot.path);
     if (typeof value !== "boolean") {
       throw new Error(`Transactional typed state ${slot.pointer} must be boolean`);
     }
@@ -1081,10 +1147,12 @@ function assertRetainedFixedLeavesMatch(
   destination: MutableImageV1,
   retainedContinuous: ReadonlySet<number>,
   retainedBooleans: ReadonlySet<number>,
+  directReaders?: DirectCompletionReadersV1,
 ): void {
   for (const index of retainedContinuous) {
     const slot = manifest.numericalLayout.continuousSlots[index]!;
-    const value = readFlatNumericalStatePathV1(state, slot.path);
+    const value = directReaders?.continuous[index]?.(state)
+      ?? readFlatNumericalStatePathV1(state, slot.path);
     if (
       typeof value !== "number"
       || !Number.isFinite(value)
@@ -1097,7 +1165,8 @@ function assertRetainedFixedLeavesMatch(
   }
   for (const index of retainedBooleans) {
     const slot = manifest.numericalLayout.booleanSlots[index]!;
-    const value = readFlatNumericalStatePathV1(state, slot.path);
+    const value = directReaders?.booleans[index]?.(state)
+      ?? readFlatNumericalStatePathV1(state, slot.path);
     if (
       typeof value !== "boolean"
       || destination.booleans[index] !== (value ? 1 : 0)
@@ -1138,10 +1207,51 @@ function complementSlotIndices(
   return Object.freeze(writable);
 }
 
+/**
+ * The model-owned direct-admission callback has already proved the complete
+ * candidate synchronously. Compile its immutable topology once so completion
+ * does not restart a descriptor-checked root walk for every individual leaf.
+ * Generic staging and completion without that callback never use this plan.
+ */
+function compileDirectCompletionReaders(
+  manifest: TransactionalTypedStateManifestV1,
+): DirectCompletionReadersV1 {
+  const readers = <T extends Readonly<{
+    path: readonly FlatNumericalPathSegmentV1[];
+  }>>(entries: readonly T[]): readonly DirectPathReaderV1[] =>
+    Object.freeze(entries.map(({ path }) => compileDirectPathReader(path)));
+  const layout = manifest.numericalLayout;
+  return Object.freeze({
+    externalImmutable: readers(layout.externalImmutableRoots),
+    optionalRecords: readers(layout.optionalRecordRoots),
+    boundedArrays: readers(layout.boundedArrayRoots),
+    continuous: readers(layout.continuousSlots),
+    nullableContinuous: readers(layout.nullableContinuousSlots),
+    booleans: readers(layout.booleanSlots),
+    strings: readers(layout.stringSlots),
+    nullableStrings: readers(layout.nullableStringSlots),
+    dynamicRoots: readers(layout.excludedDynamicRoots),
+  });
+}
+
+function compileDirectPathReader(
+  path: readonly FlatNumericalPathSegmentV1[],
+): DirectPathReaderV1 {
+  const segments = Object.freeze([...path]);
+  return (root: unknown): unknown => {
+    let current = root;
+    for (const segment of segments) {
+      current = (current as Record<PropertyKey, unknown>)[segment];
+    }
+    return current;
+  };
+}
+
 function writeOptionalRecordPresence(
   manifest: TransactionalTypedStateManifestV1,
   state: unknown,
   destination: MutableImageV1,
+  directReaders?: readonly DirectPathReaderV1[],
 ): void {
   for (
     let index = 0;
@@ -1149,7 +1259,9 @@ function writeOptionalRecordPresence(
     index += 1
   ) {
     const root = manifest.numericalLayout.optionalRecordRoots[index]!;
-    const value = readFlatNumericalStatePathV1(state, root.path);
+    const value = directReaders === undefined
+      ? readFlatNumericalStatePathV1(state, root.path)
+      : directReaders[index]!(state);
     destination.optionalRecordPresent[index] = value === null ? 0 : 1;
   }
 }
@@ -1158,6 +1270,7 @@ function writeBoundedArrayLengths(
   manifest: TransactionalTypedStateManifestV1,
   state: unknown,
   destination: MutableImageV1,
+  directReaders?: readonly DirectPathReaderV1[],
 ): void {
   for (
     let index = 0;
@@ -1165,7 +1278,9 @@ function writeBoundedArrayLengths(
     index += 1
   ) {
     const root = manifest.numericalLayout.boundedArrayRoots[index]!;
-    const value = readFlatNumericalStatePathV1(state, root.path);
+    const value = directReaders === undefined
+      ? readFlatNumericalStatePathV1(state, root.path)
+      : directReaders[index]!(state);
     if (!Array.isArray(value) || value.length > root.capacity) {
       throw new Error(
         `Transactional typed state ${root.pointer} exceeds bounded-array capacity`,
@@ -1179,18 +1294,33 @@ function layoutEntryAbsent(
   layout: FlatNumericalStateLayoutV1,
   state: unknown,
   slot: FlatNumericalSlotV1,
+  candidateImage?: MutableImageV1,
 ): boolean {
   if (slot.optionalRecordRootIndex !== null) {
     const root = layout.optionalRecordRoots[slot.optionalRecordRootIndex];
     if (root === undefined) {
       throw new Error("Transactional typed state optional-record slot owner is invalid");
     }
-    if (readFlatNumericalStatePathV1(state, root.path) === null) return true;
+    if (candidateImage !== undefined) {
+      if (
+        candidateImage.optionalRecordPresent[
+          slot.optionalRecordRootIndex
+        ] === 0
+      ) return true;
+    } else if (
+      readFlatNumericalStatePathV1(state, root.path) === null
+    ) {
+      return true;
+    }
   }
   if (slot.boundedArrayRootIndex !== null) {
     const root = layout.boundedArrayRoots[slot.boundedArrayRootIndex];
     if (root === undefined || slot.boundedArrayItemIndex === null) {
       throw new Error("Transactional typed state bounded-array slot owner is invalid");
+    }
+    if (candidateImage !== undefined) {
+      return slot.boundedArrayItemIndex
+        >= candidateImage.boundedArrayLengths[slot.boundedArrayRootIndex]!;
     }
     const value = readFlatNumericalStatePathV1(state, root.path);
     if (!Array.isArray(value)) {
@@ -1207,16 +1337,24 @@ function writeNullableContinuousLeaves(
   manifest: TransactionalTypedStateManifestV1,
   state: unknown,
   destination: MutableImageV1,
+  directReaders?: DirectCompletionReadersV1,
 ): void {
   const slots = manifest.numericalLayout.nullableContinuousSlots;
   for (let index = 0; index < slots.length; index += 1) {
     const slot = slots[index]!;
-    if (layoutEntryAbsent(manifest.numericalLayout, state, slot)) {
+    if (layoutEntryAbsent(
+      manifest.numericalLayout,
+      state,
+      slot,
+      directReaders === undefined ? undefined : destination,
+    )) {
       destination.nullableContinuous[index] = 0;
       destination.nullableContinuousPresent[index] = 0;
       continue;
     }
-    const value = readFlatNumericalStatePathV1(state, slot.path);
+    const value = directReaders === undefined
+      ? readFlatNumericalStatePathV1(state, slot.path)
+      : directReaders.nullableContinuous[index]!(state);
     if (value === null) {
       destination.nullableContinuous[index] = 0;
       destination.nullableContinuousPresent[index] = 0;
@@ -1236,6 +1374,7 @@ function writeStrings(
   manifest: TransactionalTypedStateManifestV1,
   state: unknown,
   destination: MutableImageV1,
+  directReaders?: DirectCompletionReadersV1,
 ): number {
   let byteOffset = 0;
   for (
@@ -1249,13 +1388,15 @@ function writeStrings(
         manifest.numericalLayout,
         state,
         slot,
+        directReaders === undefined ? undefined : destination,
       )
     ) {
       destination.stringMetadata[index * 2] = 0;
       destination.stringMetadata[index * 2 + 1] = 0;
       continue;
     }
-    const value = readFlatNumericalStatePathV1(state, slot.path);
+    const value = directReaders?.strings[index]?.(state)
+      ?? readFlatNumericalStatePathV1(state, slot.path);
     if (typeof value !== "string") {
       throw new Error(`Transactional typed state ${slot.pointer} must be a string`);
     }
@@ -1280,6 +1421,7 @@ function writeStrings(
         manifest.numericalLayout,
         state,
         slot,
+        directReaders === undefined ? undefined : destination,
       )
     ) {
       destination.nullableStringMetadata[index * 2] = 0;
@@ -1287,7 +1429,9 @@ function writeStrings(
       destination.nullableStringPresent[index] = 0;
       continue;
     }
-    const value = readFlatNumericalStatePathV1(state, slot.path);
+    const value = directReaders === undefined
+      ? readFlatNumericalStatePathV1(state, slot.path)
+      : directReaders.nullableStrings[index]!(state);
     if (value === null) {
       destination.nullableStringMetadata[index * 2] = 0;
       destination.nullableStringMetadata[index * 2 + 1] = 0;
@@ -1317,6 +1461,7 @@ function writeDynamicRoots(
   manifest: TransactionalTypedStateManifestV1,
   state: unknown,
   destination: MutableImageV1,
+  directReaders?: DirectCompletionReadersV1,
 ): number {
   let byteOffset = 0;
   const roots = manifest.numericalLayout.excludedDynamicRoots;
@@ -1326,9 +1471,12 @@ function writeDynamicRoots(
       manifest.numericalLayout,
       state,
       slot,
+      directReaders === undefined ? undefined : destination,
     )
       ? null
-      : readFlatNumericalStatePathV1(state, slot.path);
+      : directReaders === undefined
+        ? readFlatNumericalStatePathV1(state, slot.path)
+        : directReaders.dynamicRoots[index]!(state);
     let length: number;
     try {
       length = encodeCanonicalFlatDataIntoV1(

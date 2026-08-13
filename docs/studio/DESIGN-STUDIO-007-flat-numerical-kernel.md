@@ -607,6 +607,22 @@ selected-only-seal slice measured `1.411–1.427 ms/tick`, down from
 public checkpoint, and exact 49-output corpus; it remains a development-host
 diagnostic rather than phone qualification.
 
+Direct typed completion now also compiles one manifest-bound reader plan at
+cold initialization. Only a candidate that has synchronously passed the
+model-owned private accepted-boundary admission may use it. That path resolves
+each admitted object leaf through its fixed segment list without restarting a
+descriptor-checked walk from the root for every slot; optional-record and
+bounded-array presence already staged in the inactive image determines whether
+their leaf readers run. Generic `stage`, restore, external input, and completion
+without the private model admission remain on the complete shape/accessor-safe
+path. The authority report counts successful reader-plan uses and the
+1,024-tick gate requires one use per direct commit. Three alternating 1,024-tick
+local diagnostics measured `1.277–1.290 ms/tick` with this plan versus
+`1.308–1.326 ms/tick` at the immediately preceding revision (roughly 2–4%
+lower). The equations, solver order, typed image bytes, checkpoint, and all 49
+outputs remain exact. These values are development-host diagnostics, not phone
+qualification.
+
 #### Phase 1b.2b.2b — direct solver-owned typed state (next)
 
 Before production cutover, move each state owner and the solver from object

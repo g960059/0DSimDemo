@@ -924,6 +924,7 @@ describe("TransactionalTypedStateImageV1", () => {
     }))).toThrow("dynamic arena capacity exceeded");
     expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 9 });
     expect(image.report()).toMatchObject({ commitCount: 2, staged: false });
+    expect(image.report().directCompletionReaderPlanUseCount).toBe(0);
   });
 });
 
@@ -1322,6 +1323,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       poisonedReason: null,
       directCandidateCommitCount: 0,
       directCandidateMirrorReuseCount: 0,
+      directCompletionReaderPlanUseCount: 0,
     });
     const escapedState = reference.currentAcceptedState();
     const escapedTypedArray = firstFloat64Array(escapedState);
@@ -1360,6 +1362,9 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       finalReport.commitCount,
     );
     expect(finalReport.directCandidateMirrorReuseCount).toBe(
+      finalReport.commitCount,
+    );
+    expect(finalReport.directCompletionReaderPlanUseCount).toBe(
       finalReport.commitCount,
     );
     expect(finalReport.externalImmutableIdentityMatchCount).toBe(
@@ -1417,6 +1422,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       expect(reference.authorityReport()).toMatchObject({
         directCandidateCommitCount: 1,
         directCandidateMirrorReuseCount: 1,
+        directCompletionReaderPlanUseCount: 1,
         poisonedReason: null,
       });
       expect(reference.currentAcceptedState())
