@@ -571,6 +571,27 @@ export type NonCoronaryCirculationTrialResultV1<
   | NonCoronaryCirculationTrialSuccessV1<TEvaluation, TCompanionTrial>
   | NonCoronaryCirculationTrialFailureV1;
 
+/**
+ * Detached one-candidate residual image for replacement-solver construction.
+ * Every numerical array follows the exported canonical node orders. This is a
+ * cold verification seam; the production replacement kernel owns separate
+ * flat buffers and must not call this object-materializing path per Newton
+ * iteration.
+ */
+export type NonCoronaryCirculationCandidateProbeV1<
+  TEvaluation,
+  TCompanionTrial = never,
+> = Readonly<{
+  candidateTimeSec: number;
+  candidateNodeVolumesMl: Float64Array;
+  nodeAbsolutePressuresMmHg: Float64Array;
+  edgeFlowsMlPerSec: Float64Array;
+  continuityResidualMlByNode: Float64Array;
+  scaledIndependentResidual: Float64Array;
+  candidateMechanicsEvaluation: TEvaluation;
+  candidateCompanionTrial: TCompanionTrial | null;
+}>;
+
 export function classifyNonCoronaryLineSearchRejectionOwnerV1(
   candidateEvaluationExceptionCount: number,
   armijoResidualRejectionCount: number,
@@ -1241,6 +1262,109 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
       releaseNonCoronaryBackwardEulerScratchWorkspaceV1(scratchStorage);
     }
   }
+}
+
+/**
+ * Evaluates exactly one physical 14-volume candidate without running the
+ * outer Newton loop. It exists so the new 30/32-row coupled residual can be
+ * compared against the current nested transaction before production cutover.
+ */
+export function evaluateNonCoronaryCirculationCandidateProbeV1<
+  TEvaluation,
+  TCompanionTrial = never,
+>(
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+  candidateIndependentNodeVolumesMl: Float64Array,
+  previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
+): NonCoronaryCirculationCandidateProbeV1<TEvaluation, TCompanionTrial> {
+  validateAcceptedState(input.previousAcceptedState);
+  requirePositive(input.dtSec, "dtSec");
+  validateRuntime(input.runtime);
+  validateProtocolResistanceScaleByEdge(
+    input.protocolResistanceScaleByEdge,
+  );
+  validateConservativeCompanionAdapter(input);
+  validateMechanicalSupportInput(input.mechanicalSupport);
+  validateDynamicMechanicalSupportInput(input.dynamicMechanicalSupport);
+  if (input.mechanicalSupport !== undefined
+      && input.dynamicMechanicalSupport !== undefined) {
+    throw new Error(
+      "mechanicalSupport and dynamicMechanicalSupport are mutually exclusive",
+    );
+  }
+  if (typeof input.evaluateCandidateMechanics !== "function") {
+    throw new Error("evaluateCandidateMechanics must be a function");
+  }
+  if (!(candidateIndependentNodeVolumesMl instanceof Float64Array)
+      || candidateIndependentNodeVolumesMl.length
+        !== INDEPENDENT_NODE_NAMES.length) {
+    throw new RangeError(
+      `candidate independent volumes must contain ${INDEPENDENT_NODE_NAMES.length} f64 values`,
+    );
+  }
+
+  const graph = buildNonCoronaryCirculationGraphV1();
+  const previous = stagePreviousAcceptedNumericalStateV1(
+    input.previousAcceptedState,
+    null,
+    previousAcceptedNumericalSource,
+  );
+  const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
+  const respiratoryExternalPressures = respiratoryExternalPressuresV1(
+    candidateTimeSec,
+    input.runtime.respiratory,
+  );
+  const vascularPvLaws = snapshotNonCoronaryVascularPvLawsV1(
+    graph,
+    input.runtime.vascular,
+  );
+  const volumeScales = independentVolumeScales(previous.nodeVolumesMl);
+  const scaledUnknowns = Array<number>(INDEPENDENT_NODE_NAMES.length);
+  for (let index = 0; index < scaledUnknowns.length; index += 1) {
+    const volume = requirePositive(
+      candidateIndependentNodeVolumesMl[index]!,
+      `${INDEPENDENT_NODE_NAMES[index]} candidate volume`,
+    );
+    scaledUnknowns[index] = volume / volumeScales[index]!;
+  }
+  const mechanicsCache: CandidateMechanicsCache<TEvaluation> = {
+    values: [],
+    jacobianUsage: {
+      analyticAssemblyCount: 0,
+      finiteDifferenceFallbackCount: 0,
+      finiteDifferenceShadowCount: 0,
+      maximumAbsoluteShadowDifference: null,
+      maximumRelativeFrobeniusShadowDifference: null,
+    },
+    callCount: 0,
+    hitCount: 0,
+    uniqueCandidateCount: 0,
+  };
+  const candidate = evaluateCandidate(
+    graph,
+    input,
+    previous,
+    scaledUnknowns,
+    volumeScales,
+    candidateTimeSec,
+    respiratoryExternalPressures,
+    vascularPvLaws,
+    mechanicsCache,
+  );
+  return Object.freeze({
+    candidateTimeSec,
+    candidateNodeVolumesMl: candidate.nodeVolumesMl.slice(),
+    nodeAbsolutePressuresMmHg:
+      candidate.nodeAbsolutePressuresMmHg.slice(),
+    edgeFlowsMlPerSec: candidate.edgeFlowsMlPerSec.slice(),
+    continuityResidualMlByNode:
+      candidate.continuityResidualMlByNode.slice(),
+    scaledIndependentResidual:
+      candidate.scaledIndependentResidual.slice(),
+    candidateMechanicsEvaluation: candidate.candidateMechanicsEvaluation,
+    candidateCompanionTrial:
+      candidate.conservativeCompanion?.candidateCompanionTrial ?? null,
+  });
 }
 
 function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<

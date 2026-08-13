@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import { defaultParams } from "@/engine/core/params";
@@ -31,7 +32,9 @@ import {
 import {
   MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2,
   advanceMainWireCoronaryMvcReferenceV2,
+  evaluateMainWireFiveWallCoupledResidualShadowV1,
   initializeMainWireFiveWallCoronaryV2,
+  prepareMainWireFiveWallCoupledResidualContextV1,
   stepMainWireFiveWallCoronaryV2,
   type MainWireCoronaryMvcReferenceStateV2,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
@@ -57,6 +60,9 @@ import {
   WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
+import {
+  solveMainWireFiveWallCoupledNewtonShadowV1,
+} from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
 
 type TestState = Readonly<{ timeSec: number; volumeSumMl: number }>;
 
@@ -674,6 +680,62 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     )).toBe(false);
   }, 60_000);
 
+  it("solves the canonical provider's real 30-row coupled shadow", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const runtime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+    const stepInput = Object.freeze({
+      dtSec: 0.002,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const context = prepareMainWireFiveWallCoupledResidualContextV1(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+    const coupled = solveMainWireFiveWallCoupledNewtonShadowV1(context);
+    const legacy = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+
+    expect(coupled.result.status).toBe("converged");
+    expect(legacy.converged).toBe(true);
+    if (coupled.result.status !== "converged") {
+      throw new Error(coupled.result.message);
+    }
+    if (legacy.converged === false) throw new Error(legacy.message);
+    const converged = coupled.result;
+    expect(converged.residualInfinityNorm).toBeLessThan(1e-8);
+    expect(converged.iterations).toBeLessThanOrEqual(8);
+    NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.forEach((nodeId, index) => {
+      expect(converged.solution[index]).toBeCloseTo(
+        legacy.circulationTrial.candidateNodeVolumesMl[nodeId],
+        6,
+      );
+    });
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.forEach((nodeId, index) => {
+      expect(converged.solution[
+        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
+      ]).toBeCloseTo(
+        legacy.coronaryTrial.candidateAcceptedState.volumeMlByNode[nodeId],
+        6,
+      );
+    });
+  }, 60_000);
+
   it("matches the development full-FD shadow with the implicit coronary outer Jacobian", () => {
     const provider = testLandReadbackProvider(false);
     const cold = initializeMainWireFiveWallCoronaryV2({
@@ -714,6 +776,96 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(diagnostics.jacobianMaximumRelativeFrobeniusShadowDifference!)
       .toBeLessThan(2e-6);
   }, 60_000);
+
+  it("reassembles one real 30-row residual at the nested solver candidate", () => {
+    const provider = testLandReadbackProvider(false);
+    const stepInput = Object.freeze({
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    });
+    const stepped = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+
+    expect(stepped.converged).toBe(true);
+    if (stepped.converged === false) throw new Error(stepped.message);
+    const shadow = evaluateMainWireFiveWallCoupledResidualShadowV1(
+      cold.acceptedState,
+      stepInput,
+      stepped,
+    );
+
+    expect(shadow.unknownCount).toBe(30);
+    expect(shadow.residualMl).toHaveLength(30);
+    expect(shadow.nonCoronaryMaximumAbsoluteResidualMl).toBeLessThan(1e-8);
+    expect(shadow.coronaryMaximumAbsoluteResidualMl).toBeLessThan(1e-8);
+    expect(shadow.maximumAbsoluteResidualMl).toBeLessThan(1e-8);
+    expect(shadow.candidateCoronaryBoundary).toEqual(
+      stepped.coronaryBoundary,
+    );
+  });
+
+  it("solves the real 30-row residual without either nested Newton loop", () => {
+    const provider = testLandReadbackProvider(false);
+    const stepInput = Object.freeze({
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    });
+    const context = prepareMainWireFiveWallCoupledResidualContextV1(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+    const coupled = solveMainWireFiveWallCoupledNewtonShadowV1(context);
+    const legacy = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+
+    const coupledResult = coupled.result;
+    expect(coupledResult.status).toBe("converged");
+    expect(legacy.converged).toBe(true);
+    if (coupledResult.status !== "converged") {
+      throw new Error(coupledResult.message);
+    }
+    if (legacy.converged === false) throw new Error(legacy.message);
+    expect(coupledResult.residualInfinityNorm).toBeLessThan(1e-8);
+    expect(coupled.jacobianResidualEvaluationCount).toBeGreaterThan(0);
+    expect(coupledResult.iterations).toBeLessThanOrEqual(8);
+    NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.forEach((nodeId, index) => {
+      expect(coupledResult.solution[index]).toBeCloseTo(
+        legacy.circulationTrial.candidateNodeVolumesMl[nodeId],
+        6,
+      );
+    });
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.forEach((nodeId, index) => {
+      expect(coupledResult.solution[
+        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
+      ]).toBeCloseTo(
+        legacy.coronaryTrial.candidateAcceptedState.volumeMlByNode[nodeId],
+        6,
+      );
+    });
+  }, 60_000);
 });
 
 function testLandReadbackProvider(
@@ -727,6 +879,7 @@ function testLandReadbackProvider(
     encode: (state: TestState) => Object.freeze({ ...state }),
     decode: (encoded: unknown) => Object.freeze({ ...(encoded as TestState) }),
   });
+
   const evaluate = (
     timeSec: number,
     volumes: Readonly<{ LA: number; LV: number; RA: number; RV: number }>,

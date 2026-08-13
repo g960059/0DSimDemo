@@ -759,14 +759,60 @@ and checkpoint continuation must pass against the Phase 0 corpus before Phase
 
 ### Phase 2 — one coupled nonlinear solve
 
-Express circulation, chamber mechanics, coronary hydraulics, and implicit
-dependencies as one residual system with one generated or automatic-
-differentiation Jacobian. Reuse one factorization for multiple right-hand
-sides, and exploit the block structure with a Schur or equivalent sparse solve.
+This is the primary computational intervention. Three independent design
+reviews converged on the same diagnosis: the dominant cost is the nested
+non-coronary, mechanics, and coronary solve organization, not TypeScript,
+presentation transport, or dense linear algebra at this dimension.
 
-This is the primary computational intervention. It is intended to remove the
-repeated outer candidate work and repeated sensitivity solves, not merely make
-the existing nested loops marginally faster.
+The target index-1 DAE has one stable ordering:
+
+- 14 independent non-coronary conserved volumes; dependent `SV` remains the
+  fixed-total-blood-volume algebraic elimination;
+- 16 coronary conserved volumes;
+- two TriSeg internal coordinates.
+
+Phase 2a first solves the 30-volume prefix while retaining the already-audited
+TriSeg algorithmic tangent as a static condensation. Phase 2b activates the
+two reserved TriSeg rows without renumbering either circulation block. This
+staging distinguishes errors caused by circulation/coronary coupling from
+errors caused by promoting mechanics coordinates into the global solve.
+
+The first executable uses one deterministic damped semismooth Newton and a
+fixed row-major `Float64Array` Jacobian with partial-pivot dense LU. At 30–32
+unknowns, the roughly 10,000 floating-point operations of dense factorization
+are small compared with repeated mechanics, hydraulic, and transcendental-law
+evaluation. Fixed block metadata is nevertheless preserved so multipatch can
+later use patch-local elimination and a bordered Schur solve without changing
+the component contract.
+
+Each component writes its residual and analytic tangent contribution into
+fixed destinations. A finite-difference shadow remains a development gate,
+not a production fallback. Runtime operator-overloading AD, runtime code
+generation, generic sparse libraries, and Jacobian-free Newton–Krylov are not
+part of the first slice. Build-time generated assembly becomes eligible when
+multipatch repetition makes its review and tooling cost worthwhile.
+
+The initial coupled implementation keeps the exact 2 ms backward-Euler clock,
+event clipping, closed-form valve/Land eliminations, and all accepted-state
+owners unchanged. It replaces three outer candidates, about four inner
+coronary Newton iterations, and fifteen implicit-sensitivity solves with one
+coupled nonlinear solve and one factorization per Newton iteration. A
+predictor, modified-Newton Jacobian reuse, a higher-order integrator, or WASM
+may be evaluated only after this baseline identifies their marginal value.
+
+The old nested runtime is a test oracle, not the production fallback. A six-
+case corpus freezes 500 accepted steps for baseline, low preload, high
+afterload, high PEEP, tachycardia, and high contractility before any new-solver
+output is inspected. Legacy hashes prove that the oracle did not move; they do
+not require a different floating-point algorithm to reproduce the old bit
+path. Candidate acceptance instead uses predeclared conservation, residual,
+event, pressure, volume, flow, morphology, and checkpoint-continuation gates.
+
+The solver-architecture hypothesis is itself falsifiable. The regular-sinus,
+device-off vertical slice must improve host kernel time by at least `1.8x` to
+justify productionization. An improvement below `1.3x` rejects nested-solve
+elimination as the dominant diagnosis and sends the work back to profiling
+rather than onward to WASM.
 
 ### Phase 3 — strict scalar WASM
 
@@ -777,6 +823,14 @@ wrong allocation and solver structure.
 
 WASM threads and `SharedArrayBuffer` are optional. They require a measured win
 on iOS and must not become a deployment prerequisite.
+
+JavaScript transcendental functions also require an independent portability
+experiment. The 500-step canonical sequence must be computed in V8 and WebKit
+JavaScriptCore. A mismatch establishes that current hashes promise
+within-engine determinism only; it does not by itself imply a scientific
+failure. A portable `libm` implementation or strict-f64 WASM becomes eligible
+only after that mismatch is measured and a cross-engine bit contract is shown
+to be necessary.
 
 ### Phase 4 — multipatch layout and SIMD
 
@@ -794,10 +848,32 @@ Multirate integration is a scientific-model change, not a presentation
 performance switch, and therefore receives a new exact release and dedicated
 validation.
 
+The fixed 2 ms backward-Euler method is also not assumed to be scientifically
+optimal forever. Before considering TR-BDF2, SDIRK2, or another L-stable
+second-order method, the existing dt-halving lane must quantify morphology
+effects including E/A, atrial figure-eight shape, pulmonary-venous S/D/Ar,
+and the aortic dicrotic notch. Integration-order work receives its own exact
+model release and is never combined with the first coupled-solver cutover.
+
 ## Gates
 
 The flat kernel cannot replace the current exact release until all scientific
 oracle tests pass and a physical-device report is attached to the release.
+
+The coupled-solver science gate additionally requires:
+
+- one-step candidate versus nested-oracle node-volume difference at or below
+  `1e-6 mL` for the frozen construction corpus;
+- total-blood-volume, coronary-ledger, and continuity limits at or below their
+  predeclared `1e-8 mL` gates;
+- exact scheduled-event order and rejected-step atomicity;
+- periodic-settlement and healthy morphology corridors;
+- the valve-disease robustness envelope with zero finite-difference fallback;
+- exact checkpoint continuation within the candidate exact release.
+
+The one-step comparison diagnoses whether both implementations solve the same
+equations. Free-running 500-step divergence is recorded and bounded by
+observable/morphology policy rather than by the legacy sequence hash.
 
 For the one-Scenario iPhone 16 Pro Max baseline, the initial performance goals
 are:

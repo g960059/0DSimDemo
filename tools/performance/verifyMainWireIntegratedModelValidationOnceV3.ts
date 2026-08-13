@@ -11,6 +11,10 @@ import {
 import {
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  type MainWireIntegratedModelHemodynamicResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -33,6 +37,19 @@ export type MainWireIntegratedModelTimingV3 = Readonly<{
   msPerAcceptedStep: number;
 }>;
 
+export type MainWireIntegratedModelSequenceFixtureV3 = Readonly<{
+  hemodynamicResearchInputs:
+    MainWireIntegratedModelHemodynamicResearchInputsV3;
+  ventricularContractilityScale: number;
+}>;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_SEQUENCE_FIXTURE_V3:
+MainWireIntegratedModelSequenceFixtureV3 = Object.freeze({
+  hemodynamicResearchInputs:
+    MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  ventricularContractilityScale: 1,
+});
+
 export function mainWireIntegratedModelSequenceSha256V3(
   canonicalAcceptedStates: readonly string[],
 ): string {
@@ -50,8 +67,11 @@ export function mainWireIntegratedModelSequenceSha256V3(
  */
 export function captureMainWireIntegratedModelSequenceV3(
   acceptedStepCount: number,
+  fixtureInput:
+    MainWireIntegratedModelSequenceFixtureV3 =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_SEQUENCE_FIXTURE_V3,
 ): MainWireIntegratedModelSequenceV3 {
-  const runner = createRunner();
+  const runner = createRunner(fixtureInput);
   const canonicalAcceptedStates: string[] = [];
   for (let stepIndex = 0; stepIndex < acceptedStepCount; stepIndex += 1) {
     canonicalAcceptedStates.push(canonicalJsonStringify(
@@ -66,8 +86,11 @@ export function captureMainWireIntegratedModelSequenceV3(
 
 export function timeMainWireIntegratedModelAcceptedStepsV3(
   acceptedStepCount: number,
+  fixtureInput:
+    MainWireIntegratedModelSequenceFixtureV3 =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_SEQUENCE_FIXTURE_V3,
 ): MainWireIntegratedModelTimingV3 {
-  const runner = createRunner();
+  const runner = createRunner(fixtureInput);
   const startedAt = performance.now();
   for (let stepIndex = 0; stepIndex < acceptedStepCount; stepIndex += 1) {
     runner.step();
@@ -80,8 +103,13 @@ export function timeMainWireIntegratedModelAcceptedStepsV3(
   });
 }
 
-function createRunner() {
-  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+function createRunner(
+  fixtureInput: MainWireIntegratedModelSequenceFixtureV3,
+) {
+  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    fixtureInput.hemodynamicResearchInputs,
+    fixtureInput.ventricularContractilityScale,
+  );
   let accepted: AcceptedState = fixture.cold.acceptedState;
   let nominalGridIndex = 1;
 

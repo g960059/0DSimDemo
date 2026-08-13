@@ -1,0 +1,179 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  COUPLED_HEMODYNAMICS_LAYOUT_V1,
+  coupledHemodynamicsUnknownIndexV1,
+} from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
+import {
+  createFlatCoupledNewtonWorkspaceV1,
+  solveFlatCoupledSystemV1,
+  type FlatCoupledNewtonOptionsV1,
+  type FlatCoupledSystemV1,
+} from "@/engine/vnext/coupled/FlatCoupledNewtonV1";
+import {
+  createFlatDenseLuWorkspaceV1,
+  factorFlatDenseMatrixV1,
+  solveFactoredFlatDenseSystemV1,
+} from "@/engine/vnext/coupled/FlatDenseLuV1";
+
+const DIMENSION = 32;
+
+describe("coupled hemodynamics solver V1 infrastructure", () => {
+  it("freezes a 14 + 16 + 2 layout without renumbering the condensed prefix", () => {
+    expect(COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks).toEqual({
+      nonCoronary: { start: 0, length: 14, endExclusive: 14 },
+      coronary: { start: 14, length: 16, endExclusive: 30 },
+      triSeg: { start: 30, length: 2, endExclusive: 32 },
+    });
+    expect(COUPLED_HEMODYNAMICS_LAYOUT_V1.phase2aCondensedUnknownCount)
+      .toBe(30);
+    expect(COUPLED_HEMODYNAMICS_LAYOUT_V1.totalUnknownCount).toBe(32);
+    expect(COUPLED_HEMODYNAMICS_LAYOUT_V1.dependentBloodVolumeUnknown)
+      .toBe("noncoronary.volume.SV");
+    expect(COUPLED_HEMODYNAMICS_LAYOUT_V1
+      .dependentBloodVolumeStoredInUnknownVector).toBe(false);
+    expect(coupledHemodynamicsUnknownIndexV1("coronary.volume.LAD.Art"))
+      .toBe(14);
+    expect(coupledHemodynamicsUnknownIndexV1(
+      "TriSeg.septalMidwallCapVolume",
+    )).toBe(30);
+  });
+
+  it("solves a deterministic 32-row system without mutating its matrix", () => {
+    const matrix = diagonallyDominantMatrix(DIMENSION);
+    const originalMatrix = matrix.slice();
+    const expected = Float64Array.from(
+      { length: DIMENSION },
+      (_, index) => 0.25 + index * 0.03125,
+    );
+    const rightHandSide = multiplyMatrixVector(matrix, expected);
+    const solution = new Float64Array(DIMENSION);
+    const workspace = createFlatDenseLuWorkspaceV1(DIMENSION);
+
+    expect(factorFlatDenseMatrixV1(matrix, workspace)).toBe(true);
+    solveFactoredFlatDenseSystemV1(workspace, rightHandSide, solution);
+
+    expect(Array.from(matrix)).toEqual(Array.from(originalMatrix));
+    for (let index = 0; index < DIMENSION; index += 1) {
+      expect(solution[index]).toBeCloseTo(expected[index]!, 12);
+    }
+  });
+
+  it("converges a cross-block nonlinear 32-row system", () => {
+    const root = Float64Array.from(
+      { length: DIMENSION },
+      (_, index) => 0.75 + index * 0.01,
+    );
+    const system = manufacturedCoupledSystem(root);
+    const initial = Float64Array.from(root, (value, index) =>
+      value + (index % 2 === 0 ? 0.18 : -0.14));
+    const initialBeforeSolve = initial.slice();
+    const result = solveFlatCoupledSystemV1(
+      system,
+      initial,
+      defaultOptions(DIMENSION),
+      createFlatCoupledNewtonWorkspaceV1(DIMENSION),
+    );
+
+    expect(result.status).toBe("converged");
+    if (result.status !== "converged") {
+      throw new Error(result.message);
+    }
+    expect(result.iterations).toBeGreaterThan(0);
+    expect(result.iterations).toBeLessThanOrEqual(8);
+    expect(result.residualInfinityNorm).toBeLessThan(1e-11);
+    expect(Array.from(initial)).toEqual(Array.from(initialBeforeSolve));
+    for (let index = 0; index < DIMENSION; index += 1) {
+      expect(result.solution[index]).toBeCloseTo(root[index]!, 9);
+    }
+  });
+
+  it("fails closed on a singular Jacobian and preserves the caller seed", () => {
+    const initial = new Float64Array(DIMENSION).fill(0.5);
+    const original = initial.slice();
+    const system: FlatCoupledSystemV1 = Object.freeze({
+      dimension: DIMENSION,
+      evaluateResidual: (_unknowns, destination) => destination.fill(1),
+      evaluateJacobian: (_unknowns, destination) => destination.fill(0),
+    });
+    const result = solveFlatCoupledSystemV1(
+      system,
+      initial,
+      defaultOptions(DIMENSION),
+    );
+
+    expect(result.status).toBe("failed");
+    if (result.status !== "failed") {
+      throw new Error("singular system unexpectedly converged");
+    }
+    expect(result.reason).toBe("singular-jacobian");
+    expect(Array.from(initial)).toEqual(Array.from(original));
+  });
+});
+
+function diagonallyDominantMatrix(dimension: number): Float64Array {
+  const matrix = new Float64Array(dimension * dimension);
+  for (let row = 0; row < dimension; row += 1) {
+    matrix[row * dimension + row] = 4 + row * 0.01;
+    matrix[row * dimension + ((row + 1) % dimension)] = -0.25;
+    matrix[row * dimension + ((row + 7) % dimension)] = 0.125;
+  }
+  return matrix;
+}
+
+function multiplyMatrixVector(
+  matrix: Float64Array,
+  vector: Float64Array,
+): Float64Array {
+  const dimension = vector.length;
+  const product = new Float64Array(dimension);
+  for (let row = 0; row < dimension; row += 1) {
+    let value = 0;
+    for (let column = 0; column < dimension; column += 1) {
+      value += matrix[row * dimension + column]! * vector[column]!;
+    }
+    product[row] = value;
+  }
+  return product;
+}
+
+function manufacturedCoupledSystem(
+  root: Float64Array,
+): FlatCoupledSystemV1 {
+  const coupling = 0.04;
+  const target = Float64Array.from(root, (value, row) => {
+    const neighbor = (row + 7) % root.length;
+    return value * value + coupling * root[neighbor]!;
+  });
+  return Object.freeze({
+    dimension: root.length,
+    evaluateResidual: (unknowns, destination) => {
+      for (let row = 0; row < root.length; row += 1) {
+        const neighbor = (row + 7) % root.length;
+        destination[row] = unknowns[row]! * unknowns[row]!
+          + coupling * unknowns[neighbor]! - target[row]!;
+      }
+    },
+    evaluateJacobian: (unknowns, destination) => {
+      destination.fill(0);
+      for (let row = 0; row < root.length; row += 1) {
+        destination[row * root.length + row] = 2 * unknowns[row]!;
+        destination[row * root.length + ((row + 7) % root.length)] =
+          coupling;
+      }
+    },
+  });
+}
+
+function defaultOptions(dimension: number): FlatCoupledNewtonOptionsV1 {
+  return Object.freeze({
+    maximumIterations: 12,
+    maximumLineSearchBacktracks: 12,
+    residualInfinityTolerance: 1e-12,
+    updateInfinityTolerance: 1e-14,
+    armijoCoefficient: 1e-4,
+    minimumAbsolutePivot: 1e-14,
+    lowerBoundByUnknown: new Float64Array(dimension).fill(0.01),
+    upperBoundByUnknown: new Float64Array(dimension).fill(4),
+  });
+}

@@ -175,6 +175,18 @@ export type CoronaryBackwardEulerTrialV2 = Readonly<{
   diagnostics: CoronaryBackwardEulerDiagnosticsV2;
 }>;
 
+/**
+ * Detached one-candidate residual image used to construct and verify the
+ * replacement coupled solve. Canonical vector order is
+ * `CORONARY_CONSERVED_VOLUME_NODE_IDS_V2`.
+ */
+export type CoronaryBackwardEulerCandidateProbeV2 = Readonly<{
+  candidateVolumeMlByNode: CoronaryConservedVolumeStateV2;
+  continuityResidualMlByNode: CoronaryConservedVolumeStateV2;
+  residualVectorMl: Float64Array;
+  hydraulics: CoronaryHydraulicEvaluationV2;
+}>;
+
 export type CoronaryImplicitBoundaryDirectionV2 = Readonly<{
   /** Positive central-difference half step in the caller's scaled variable. */
   scaledStep: number;
@@ -700,6 +712,65 @@ export function evaluateCoronaryHydraulicsV2(
     buildCoronaryEdgeIndexV2(topology),
     collapseHydraulics,
   ));
+}
+
+/**
+ * Evaluates one supplied 16-volume backward-Euler candidate without running
+ * the coronary Newton loop. This cold verification seam lets a global
+ * 30/32-row residual reuse the exact current hydraulic laws while the final
+ * flat component writer is developed independently.
+ */
+export function evaluateCoronaryBackwardEulerCandidateProbeV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryBackwardEulerTrialInputV2,
+  candidateVolumeMlByNode: CoronaryConservedVolumeStateV2,
+  prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+): CoronaryBackwardEulerCandidateProbeV2 {
+  validateAcceptedStateV2(previousAcceptedState, topology);
+  validateTrialInputV2(input);
+  validateCoronaryTopologyV2(topology);
+  const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
+  const collapseHydraulics = input.collapseHydraulics
+    ?? buildCoronaryCollapseHydraulicsPriorV2(topology);
+  const options = resolveSolverOptionsV2(input.solverOptions);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const edgeIndex = buildCoronaryEdgeIndexV2(topology);
+  const candidate = volumeRecordToArrayV2(candidateVolumeMlByNode);
+  const previous = volumeRecordToArrayV2(
+    previousAcceptedState.volumeMlByNode,
+  );
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference,
+  );
+  const hydraulics = evaluateHydraulicsInternalV2(
+    candidate,
+    previousAcceptedState.toneResistanceScaleByTerritoryLayer,
+    input.boundary,
+    disease,
+    topology,
+    edgeIndex,
+    collapseHydraulics,
+  );
+  const residual = Array<number>(candidate.length);
+  for (let index = 0; index < candidate.length; index += 1) {
+    residual[index] = candidate[index]! - previous[index]!;
+  }
+  accumulateFlowContinuityV2(
+    residual,
+    hydraulics.flowByEdge,
+    input.dtSec,
+    topology,
+  );
+  return Object.freeze({
+    candidateVolumeMlByNode: arrayToVolumeRecordV2(candidate),
+    continuityResidualMlByNode: arrayToVolumeRecordV2(residual),
+    residualVectorMl: Float64Array.from(residual),
+    hydraulics: freezeHydraulicEvaluationV2(hydraulics),
+  });
 }
 
 /**
