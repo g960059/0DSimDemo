@@ -19,12 +19,14 @@ export type MainWireFiveWallPromotedMechanicsNewtonShadowOptionsV1 = Readonly<{
   finiteDifferenceRelativeStep?: number;
   volumeResidualInfinityToleranceMl?: number;
   updateInfinityTolerance?: number;
+  jacobianMode?: "central-difference" | "hybrid-volume-analytic";
 }>;
 
 export type MainWireFiveWallPromotedMechanicsNewtonShadowResultV1 = Readonly<{
   solverId:
     typeof MAIN_WIRE_FIVE_WALL_PROMOTED_MECHANICS_NEWTON_SHADOW_V1_ID;
   jacobianResidualEvaluationCount: number;
+  volumeAnalyticBlockAssemblyCount: number;
   dependentSvContinuityResidualMl: number | null;
   result: FlatCoupledNewtonResultV1;
 }>;
@@ -75,11 +77,12 @@ MainWireFiveWallPromotedMechanicsNewtonShadowWorkspaceV1 {
 }
 
 /**
- * All-central-difference construction solve for the real 32-row system.
+ * Construction solve for the real 32-row system.
  *
- * This intentionally optimizes nothing. It first proves that promoting the
- * two TriSeg coordinates preserves the selected root. Component-owned block
- * assembly is a later step and remains independently shadowed by this solver.
+ * The default path assembles all thirty physical-volume columns from
+ * component-owned derivatives and central-differences only the two promoted
+ * TriSeg coordinates. The all-central-difference mode remains an independent
+ * oracle; neither path can materialize or accept a candidate.
  */
 export function solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
   context: MainWireFiveWallPromotedMechanicsResidualContextV1,
@@ -112,6 +115,9 @@ export function solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
       "volumeResidualInfinityToleranceMl",
     );
     let jacobianResidualEvaluationCount = 0;
+    let volumeAnalyticBlockAssemblyCount = 0;
+    const jacobianMode = options.jacobianMode
+      ?? "hybrid-volume-analytic";
     const system: FlatCoupledSystemV1 = Object.freeze({
       dimension,
       assertCandidateAdmissible: (unknowns) => {
@@ -143,7 +149,19 @@ export function solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
         && maximumAbsoluteRange(residual, volumeDimension, dimension)
           <= context.mechanicsResidualInfinityToleranceByOneJ,
       evaluateJacobian: (unknowns, destination) => {
-        for (let column = 0; column < dimension; column += 1) {
+        const firstFiniteDifferenceColumn =
+          jacobianMode === "hybrid-volume-analytic"
+            ? volumeDimension
+            : 0;
+        if (jacobianMode === "hybrid-volume-analytic") {
+          context.writeVolumeColumnJacobian(unknowns, destination);
+          volumeAnalyticBlockAssemblyCount += 1;
+        }
+        for (
+          let column = firstFiniteDifferenceColumn;
+          column < dimension;
+          column += 1
+        ) {
           storage.plus.set(unknowns);
           storage.minus.set(unknowns);
           const halfStep = finiteDifferenceRelativeStep
@@ -209,6 +227,7 @@ export function solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
       solverId:
         MAIN_WIRE_FIVE_WALL_PROMOTED_MECHANICS_NEWTON_SHADOW_V1_ID,
       jacobianResidualEvaluationCount,
+      volumeAnalyticBlockAssemblyCount,
       dependentSvContinuityResidualMl,
       result,
     });

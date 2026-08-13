@@ -788,8 +788,20 @@ one-step case, both seeds select the same 32-coordinate root, its first 30
 values agree with the statically condensed solution to seven decimal places,
 and its two internal coordinates agree with the independent local mechanics
 solve to eight decimal places. This establishes equation/root equivalence for
-the first case only. It provides neither an analytic 32-row assembly nor an
-accepted-state authority and makes no performance claim.
+the first case only.
+
+The next construction slice assembles all 32 residual rows for the first 30
+physical-volume columns from component-owned analytic derivatives. The
+non-coronary local block uses the fixed-internal chamber tangent, the coronary
+block uses its direct volume/boundary writers, and the final two mechanics rows
+use the provider-owned equilibrium derivative. Only the two promoted TriSeg
+coordinate columns remain central differences. The independent all-central-
+difference solver remains executable as the oracle. In the canonical one-step
+case, the analytic volume block differs from a scale-aware finite-difference
+shadow by at most `8.1e-7` absolutely and `3.0e-7` in relative Frobenius norm;
+both solvers select the same root to eight decimal places. This reduces
+Jacobian residual probes from 64 to four per assembly. It is still neither an
+accepted-state authority nor an end-to-end performance claim.
 
 The first executable uses one deterministic damped semismooth Newton and a
 fixed row-major `Float64Array` Jacobian with partial-pivot dense LU. At 30–32
@@ -1148,9 +1160,10 @@ junction radius. Ventricular strain and active-stress derivatives use a separate
 documented `3×4` row-major block. A central-difference shadow checks the complete
 `6×6` derivative, and static condensation of its two internal coordinates must
 reproduce the established four-chamber pressure tangent. The returned arrays
-are owned by one evaluation and an A→B probe cannot mutate A. This is only a
-construction interface for the future 32-variable solve; it cannot be sealed,
-committed, checkpointed, or treated as a performance improvement by itself.
+are owned by one evaluation and an A→B probe cannot mutate A. This remains a
+construction interface used by the 32-variable shadow; it cannot be sealed,
+committed, checkpointed, or treated as an accepted performance improvement by
+itself.
 
 ### Phase 3 — strict scalar WASM
 

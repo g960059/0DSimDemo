@@ -876,14 +876,66 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       );
     const initialGuess = promotedContext.initialUnknowns.slice();
     initialGuess.set(condensedSolution, 0);
+    const analyticVolumeJacobian = new Float64Array(
+      promotedContext.dimension * promotedContext.dimension,
+    );
+    promotedContext.writeVolumeColumnJacobian(
+      initialGuess,
+      analyticVolumeJacobian,
+    );
+    const plus = initialGuess.slice();
+    const minus = initialGuess.slice();
+    const plusResidual = new Float64Array(promotedContext.dimension);
+    const minusResidual = new Float64Array(promotedContext.dimension);
+    let finiteDifferenceSquaredNorm = 0;
+    let differenceSquaredNorm = 0;
+    let maximumAbsoluteDifference = 0;
+    for (let column = 0; column < promotedContext.dimension - 2; column += 1) {
+      plus.set(initialGuess);
+      minus.set(initialGuess);
+      const relativeStep = column
+          < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
+        ? 1e-5
+        : 1e-3;
+      const halfStep = relativeStep
+        * Math.max(1, Math.abs(initialGuess[column]!));
+      plus[column] += halfStep;
+      minus[column] -= halfStep;
+      promotedContext.evaluateResidual(plus, plusResidual);
+      promotedContext.evaluateResidual(minus, minusResidual);
+      for (let row = 0; row < promotedContext.dimension; row += 1) {
+        const finiteDifference =
+          (plusResidual[row]! - minusResidual[row]!) / (2 * halfStep);
+        const analytic = analyticVolumeJacobian[
+          row * promotedContext.dimension + column
+        ]!;
+        const difference = analytic - finiteDifference;
+        finiteDifferenceSquaredNorm += finiteDifference * finiteDifference;
+        differenceSquaredNorm += difference * difference;
+        maximumAbsoluteDifference = Math.max(
+          maximumAbsoluteDifference,
+          Math.abs(difference),
+        );
+      }
+    }
+    expect(maximumAbsoluteDifference).toBeLessThan(2e-6);
+    expect(Math.sqrt(
+      differenceSquaredNorm / finiteDifferenceSquaredNorm,
+    )).toBeLessThan(2e-5);
     const promoted = solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
       promotedContext,
       { initialGuess },
     );
+    const finiteDifferenceOnly =
+      solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
+        promotedContext,
+        { initialGuess, jacobianMode: "central-difference" },
+      );
     const promotedFromContext =
       solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(promotedContext);
 
     expect(promoted.result.status).toBe("converged");
+    expect(finiteDifferenceOnly.result.status).toBe("converged");
     expect(promotedFromContext.result.status).toBe("converged");
     if (promoted.result.status !== "converged") {
       throw new Error(promoted.result.message);
@@ -891,16 +943,33 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     if (promotedFromContext.result.status !== "converged") {
       throw new Error(promotedFromContext.result.message);
     }
+    if (finiteDifferenceOnly.result.status !== "converged") {
+      throw new Error(finiteDifferenceOnly.result.message);
+    }
     expect(promoted.jacobianResidualEvaluationCount).toBe(
-      2 * promotedContext.dimension
+      2 * 2
         * promoted.result.jacobianEvaluationCount,
     );
+    expect(promoted.volumeAnalyticBlockAssemblyCount).toBe(
+      promoted.result.jacobianEvaluationCount,
+    );
+    expect(finiteDifferenceOnly.jacobianResidualEvaluationCount).toBe(
+      2 * promotedContext.dimension
+        * finiteDifferenceOnly.result.jacobianEvaluationCount,
+    );
+    expect(finiteDifferenceOnly.volumeAnalyticBlockAssemblyCount).toBe(0);
     expect(Math.abs(promoted.dependentSvContinuityResidualMl!))
       .toBeLessThan(1e-8);
     for (let index = 0; index < condensedSolution.length; index += 1) {
       expect(promoted.result.solution[index]).toBeCloseTo(
         condensedSolution[index]!,
         7,
+      );
+    }
+    for (let index = 0; index < promoted.result.solution.length; index += 1) {
+      expect(promoted.result.solution[index]).toBeCloseTo(
+        finiteDifferenceOnly.result.solution[index]!,
+        8,
       );
     }
     for (let index = 0; index < promoted.result.solution.length; index += 1) {
