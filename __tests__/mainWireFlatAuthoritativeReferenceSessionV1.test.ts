@@ -11,9 +11,14 @@ import {
   createMainWireIntegratedModelRuntimeV3,
 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
 import {
+  createAcceptedComposedRhythmTransactionConfigurationV2,
   createNoExternalAtrialSourceBatchV2,
   evaluateAcceptedComposedRhythmTransactionCandidateV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
+import {
+  createAcceptedAuthoredVentricularPacingReplaySourceConfigurationV1,
+  initializeAcceptedAuthoredVentricularPacingReplaySourceStateV1,
+} from "@/engine/myocardium/rhythm/acceptedAuthoredVentricularPacingReplaySourceV1";
 import {
   evaluateMainWireIntegratedModelCalciumDriveV3,
   limitMainWireIntegratedModelCandidateTimeV3,
@@ -683,6 +688,113 @@ describe("TransactionalTypedStateImageV1", () => {
     )).toThrow("bounded-array item template must be frozen");
   });
 
+  it("rebinds optional owner configuration from an immutable source", () => {
+    type Configuration = Readonly<{
+      configurationId: string;
+      events: readonly Readonly<{ at: number }>[];
+    }>;
+    type Owner = Readonly<{
+      configuration: Configuration;
+      cursor: number;
+    }>;
+    type State = Readonly<{
+      value: number;
+      configuration: Configuration;
+      owner: Owner | null;
+    }>;
+    const configuration: Configuration = Object.freeze({
+      configurationId: "configuration-a",
+      events: Object.freeze([Object.freeze({ at: 0.25 })]),
+    });
+    const ownerTemplate = Object.freeze({
+      configuration: null,
+      cursor: 0,
+    });
+    const options = {
+      externalImmutablePointers: ["/configuration"],
+      externalImmutableAliases: [{
+        pointer: "/owner/configuration",
+        sourcePointer: "/configuration",
+      }],
+      optionalRecordTemplates: [{
+        pointer: "/owner",
+        template: ownerTemplate,
+      }],
+    } as const;
+    const absent: State = Object.freeze({
+      value: 1,
+      configuration,
+      owner: null,
+    });
+    const present: State = Object.freeze({
+      value: 2,
+      configuration,
+      owner: Object.freeze({ configuration, cursor: 1 }),
+    });
+    const absentManifest = createTransactionalTypedStateManifestV1(
+      "test-optional-external-alias",
+      absent,
+      128,
+      0,
+      options,
+    );
+    const presentManifest = createTransactionalTypedStateManifestV1(
+      "test-optional-external-alias",
+      present,
+      128,
+      0,
+      options,
+    );
+    expect(presentManifest.fingerprint).toBe(absentManifest.fingerprint);
+    expect(absentManifest.numericalLayout.externalImmutableAliases).toEqual([{
+      pointer: "/owner/configuration",
+      sourcePointer: "/configuration",
+      sourcePath: ["configuration"],
+    }]);
+
+    const image = new TransactionalTypedStateImageV1(absentManifest, absent);
+    image.stage(present);
+    image.promote();
+    const restored = image.rehydrateCurrent();
+    expect(restored).toEqual(present);
+    expect(restored.configuration).toBe(configuration);
+    expect(restored.owner?.configuration).toBe(configuration);
+
+    const wrongConfiguration: Configuration = Object.freeze({
+      configurationId: "configuration-b",
+      events: Object.freeze([Object.freeze({ at: 0.25 })]),
+    });
+    expect(() => image.stage(Object.freeze({
+      value: 3,
+      configuration,
+      owner: Object.freeze({
+        configuration: wrongConfiguration,
+        cursor: 1,
+      }),
+    }))).toThrow(
+      "external immutable /owner/configuration changed",
+    );
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-unadmitted-external-alias",
+      absent,
+      128,
+      0,
+      {
+        externalImmutableAliases: [{
+          pointer: "/owner/configuration",
+          sourcePointer: "/configuration",
+        }],
+        optionalRecordTemplates: options.optionalRecordTemplates,
+      },
+    )).toThrow("alias source /configuration is not admitted");
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-zero-dynamic-arena-with-root",
+      Object.freeze({ value: 0, dynamic: null }),
+      128,
+      0,
+    )).toThrow("dynamic roots require a positive arena capacity");
+  });
+
   it("round-trips all leaf classes and keeps failed candidates inactive", () => {
     type State = Readonly<{
       value: number;
@@ -851,6 +963,92 @@ describe("TransactionalTypedStateImageV1", () => {
 });
 
 describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
+  it("keeps authored pacing events external while typing the replay cursor", async () => {
+    const oracle = await MainWireIntegratedModelSessionV3.create();
+    const accepted = oracle.currentAcceptedState();
+    const base = accepted.composedRhythm.configuration;
+    const pacingConfiguration =
+      createAcceptedAuthoredVentricularPacingReplaySourceConfigurationV1({
+        configurationId: "typed-pacing-configuration",
+        ownerInstanceId: "typed-pacing-owner",
+        replayId: "typed-pacing-replay",
+        sourceId: "typed-pacing-source",
+        events: [{
+          pacingEventId: "typed-pacing-event-1",
+          sourceSequence: 1,
+          activationTimeSec: 0.125,
+        }],
+      });
+    const configuration =
+      createAcceptedComposedRhythmTransactionConfigurationV2({
+        configurationId: base.configurationId,
+        ownerInstanceId: base.ownerInstanceId,
+        atrialSource: base.atrialSource,
+        authoredEctopySchedule: base.authoredEctopySchedule,
+        authoredVentricularPacingReplay: pacingConfiguration,
+        electricalCaptureOwner: base.electricalCaptureOwner,
+        avGateParameters: base.avGateParameters,
+        avGateInstanceId: base.avGateInstanceId,
+        distalGate: base.distalGate,
+        ventricularBackup: base.ventricularBackup,
+        ventricularIntervalStrength: base.ventricularIntervalStrength,
+        calciumParametersByWall: base.calciumParametersByWall,
+        sinusAtrialCalciumDeposit: base.sinusAtrialCalciumDeposit,
+        pacAtrialCalciumDeposit: base.pacAtrialCalciumDeposit,
+        ventricularCalciumDeposit: base.ventricularCalciumDeposit,
+      });
+    const pacingState =
+      initializeAcceptedAuthoredVentricularPacingReplaySourceStateV1(
+        configuration.authoredVentricularPacingReplay!,
+        accepted.acceptedTimeSec,
+      );
+    const configuredAccepted = Object.freeze({
+      ...accepted,
+      composedRhythm: Object.freeze({
+        ...accepted.composedRhythm,
+        configuration,
+        authoredVentricularPacingReplayState: pacingState,
+      }),
+    });
+    const manifest = createMainWireAcceptedTypedStateManifestV1(
+      configuredAccepted,
+    );
+    expect(manifest.numericalLayout.excludedDynamicRoots).toEqual([]);
+    expect(manifest.numericalLayout.externalImmutableAliases).toEqual([{
+      pointer:
+        "/composedRhythm/authoredVentricularPacingReplayState/configuration",
+      sourcePointer:
+        "/composedRhythm/configuration/authoredVentricularPacingReplay",
+      sourcePath: [
+        "composedRhythm",
+        "configuration",
+        "authoredVentricularPacingReplay",
+      ],
+    }]);
+    const image = new TransactionalTypedStateImageV1(
+      manifest,
+      configuredAccepted,
+    );
+    const restored = image.rehydrateCurrent();
+    expect(
+      restored.composedRhythm.authoredVentricularPacingReplayState
+        ?.configuration,
+    ).toBe(
+      restored.composedRhythm.configuration.authoredVentricularPacingReplay,
+    );
+    const binding = createMainWireAcceptedTypedBoundaryBindingV1(manifest);
+    expect(limitMainWireAcceptedTypedCandidateTimeV1(
+      image.currentCursor(),
+      binding,
+      0.5,
+      configuration,
+      null,
+    )).toMatchObject({
+      candidateTimeSec: 0.125,
+      rhythmBoundaryOwners: ["authored-ventricular-pacing-replay"],
+    });
+  });
+
   it("matches the admitted object limiter from direct typed boundary slots", async () => {
     const runtime = await createMainWireIntegratedModelRuntimeV3();
     const oracle = await MainWireIntegratedModelSessionV3.create();
@@ -984,19 +1182,19 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const initialReport = reference.authorityReport();
     expect(initialReport).toMatchObject({
       authorityId: "main-wire-integrated-accepted-typed-state-authority-v1",
-      fingerprint: "fnv1a32-daf804b7",
-      bufferByteLength: 38_688,
+      fingerprint: "fnv1a32-44b16062",
+      bufferByteLength: 22_360,
       fixedImageCount: 2,
-      continuousSlotCount: 477,
+      continuousSlotCount: 484,
       nullableContinuousSlotCount: 6,
       nullableStringSlotCount: 22,
-      optionalRecordRootCount: 5,
+      optionalRecordRootCount: 6,
       boundedArrayRootCount: 3,
       booleanSlotCount: 2,
-      stringSlotCount: 228,
-      dynamicRootCount: 1,
-      externalImmutableRootCount: 56,
-      containerCount: 162,
+      stringSlotCount: 229,
+      dynamicRootCount: 0,
+      externalImmutableRootCount: 57,
+      containerCount: 163,
       commitCount: 0,
       externalImmutableIdentityMatchCount: 56,
       externalImmutableCanonicalMatchCount: 0,

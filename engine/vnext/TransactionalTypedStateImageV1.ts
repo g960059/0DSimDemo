@@ -101,6 +101,8 @@ type TypedStateImageLayoutV1 = Readonly<{
 export type TransactionalTypedStateExternalImmutableRootV1 = Readonly<{
   path: readonly FlatNumericalPathSegmentV1[];
   pointer: string;
+  bindingPath: readonly FlatNumericalPathSegmentV1[];
+  bindingPointer: string;
   value: unknown;
   canonicalByteLength: number;
 }>;
@@ -245,12 +247,20 @@ export function createTransactionalTypedStateManifestV1(
   layoutOptions: FlatNumericalStateLayoutOptionsV1 = {},
 ): TransactionalTypedStateManifestV1 {
   assertArenaCapacity(stringArenaCapacityBytes, "string");
-  assertArenaCapacity(dynamicArenaCapacityBytes, "dynamic");
+  assertArenaCapacity(dynamicArenaCapacityBytes, "dynamic", true);
   const numericalLayout = createFlatNumericalStateLayoutV1(
     layoutId,
     referenceState,
     layoutOptions,
   );
+  if (
+    numericalLayout.excludedDynamicRoots.length > 0
+    && dynamicArenaCapacityBytes === 0
+  ) {
+    throw new Error(
+      "Transactional typed state dynamic roots require a positive arena capacity",
+    );
+  }
   for (const root of numericalLayout.optionalRecordRoots) {
     assertTransitivelyFrozenData(
       root.template,
@@ -271,14 +281,26 @@ export function createTransactionalTypedStateManifestV1(
       compileBoundedArrayNode(root.itemTemplate, root.path, slotIndex, root.capacity,
         numericalLayout)),
   );
+  const aliasByPointer = new Map(
+    numericalLayout.externalImmutableAliases.map((alias) =>
+      [alias.pointer, alias] as const),
+  );
   const externalImmutableRoots = numericalLayout.externalImmutableRoots.map(
     (root) => {
-      const value = readFlatNumericalStatePathV1(referenceState, root.path);
+      const alias = aliasByPointer.get(root.pointer);
+      const bindingPath = alias?.sourcePath ?? root.path;
+      const bindingPointer = alias?.sourcePointer ?? root.pointer;
+      const value = readFlatNumericalStatePathV1(
+        referenceState,
+        bindingPath,
+      );
       assertTransitivelyFrozenData(value, root.pointer, new Set<object>());
       const canonicalBytes = encodeCanonicalBytes(value);
       return Object.freeze({
         path: root.path,
         pointer: root.pointer,
+        bindingPath,
+        bindingPointer,
         value,
         canonicalByteLength: canonicalBytes.byteLength,
         canonicalBytes,
@@ -629,6 +651,13 @@ export class TransactionalTypedStateImageV1<TState> {
       index += 1
     ) {
       const expected = this.#manifest.externalImmutableRoots[index]!;
+      if (layoutEntryAbsent(
+        this.#manifest.numericalLayout,
+        candidate,
+        this.#manifest.numericalLayout.externalImmutableRoots[index]!,
+      )) {
+        continue;
+      }
       const actual = readFlatNumericalStatePathV1(candidate, expected.path);
       if (actual === expected.value) {
         identityMatches += 1;
@@ -1764,10 +1793,14 @@ function assertTransitivelyFrozenData(
   visited.delete(value);
 }
 
-function assertArenaCapacity(capacity: number, owner: string): void {
+function assertArenaCapacity(
+  capacity: number,
+  owner: string,
+  allowZero = false,
+): void {
   if (
     !Number.isSafeInteger(capacity)
-    || capacity < 1
+    || capacity < (allowZero ? 0 : 1)
     || capacity > MAX_ARENA_CAPACITY_BYTES
   ) {
     throw new Error(`Transactional typed state ${owner} arena capacity is invalid`);
@@ -1812,6 +1845,10 @@ function manifestFingerprint(
     ...layout.stringSlots.map(({ pointer: value }) => `string:${value}`),
     ...layout.externalImmutableRoots.map(
       ({ pointer: value }) => `external-immutable:${value}`,
+    ),
+    ...layout.externalImmutableAliases.map(
+      ({ pointer: value, sourcePointer }) =>
+        `external-immutable-alias:${value}:source:${sourcePointer}`,
     ),
     ...layout.excludedDynamicRoots.map(({ pointer: value }) => `dynamic:${value}`),
     ...layout.containers.map((container) => (

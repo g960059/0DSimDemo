@@ -20,6 +20,9 @@ import {
   type VentricularIntervalStrengthDepositMetadataV1,
 } from "@/engine/myocardium/rhythm/acceptedVentricularIntervalStrengthOwnerV1";
 import {
+  ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_STATE_V1_ID,
+} from "@/engine/myocardium/rhythm/acceptedAuthoredVentricularPacingReplaySourceV1";
+import {
   COMPOSED_RHYTHM_PENDING_CALCIUM_DEPOSIT_V2_ID,
   COMPOSED_RHYTHM_PENDING_PROXIMAL_AV_OUTPUT_V2_ID,
   type ComposedRhythmPendingCalciumDepositV2,
@@ -50,11 +53,11 @@ export const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID =
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID =
   "main-wire-integrated-accepted-typed-state-v1" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT =
-  "fnv1a32-daf804b7" as const;
+  "fnv1a32-44b16062" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1 =
   16 * 1024;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1 =
-  16 * 1024;
+  0;
 /**
  * Phase-reference admission bound, not yet a production scientific maximum.
  * Production cutover requires a model-owned queue-capacity argument or a
@@ -62,21 +65,21 @@ export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1 =
  */
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1 =
   16 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 38_688 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 22_360 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 =
-  477 as const;
+  484 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 =
   6 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1 =
   22 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1 =
-  5 as const;
+  6 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOUNDED_ARRAY_ROOT_COUNT_V1 =
   3 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 2 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 228 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 1 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 162 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 229 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 0 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 163 as const;
 
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
   "/composedRhythm/calciumStateByWall/LA",
@@ -197,6 +200,20 @@ VentricularBackupSourceAttemptResultV2 = Object.freeze({
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTOREGULATION_CONTROL_TEMPLATE_V1 =
   createDefaultCoronaryAutoregulationWindowControlV3();
 
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORED_PACING_TEMPLATE_V1 =
+  Object.freeze({
+    stateSchemaId:
+      ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_STATE_V1_ID,
+    schemaVersion: 1 as const,
+    configuration: null,
+    initializedAcceptedTimeSec: 0,
+    initializedHistoryEventCount: 0,
+    revision: 0,
+    acceptedTimeSec: 0,
+    cursor: 0,
+    acceptedEmittedImpulseCount: 0,
+  });
+
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_PROXIMAL_QUEUE_ITEM_TEMPLATE_V1:
 ComposedRhythmPendingProximalAvOutputV2 = Object.freeze({
   pendingSchemaId: COMPOSED_RHYTHM_PENDING_PROXIMAL_AV_OUTPUT_V2_ID,
@@ -262,6 +279,12 @@ export function createMainWireAcceptedTypedStateManifestV1(
       optionalRecordTemplates: [
         {
           pointer:
+            "/composedRhythm/authoredVentricularPacingReplayState",
+          template:
+            MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORED_PACING_TEMPLATE_V1,
+        },
+        {
+          pointer:
             "/composedRhythm/ventricularBackupState/lastAcceptedVentricularActivation",
           template: coldAcceptedState.composedRhythm
             .ventricularIntervalStrengthState
@@ -291,6 +314,14 @@ export function createMainWireAcceptedTypedStateManifestV1(
           template: createIntervalStrengthDepositMetadataTemplateV1(
             coldAcceptedState,
           ),
+        },
+      ],
+      externalImmutableAliases: [
+        {
+          pointer:
+            "/composedRhythm/authoredVentricularPacingReplayState/configuration",
+          sourcePointer:
+            "/composedRhythm/configuration/authoredVentricularPacingReplay",
         },
       ],
       boundedArrayTemplates: [
@@ -335,7 +366,7 @@ export function createMainWireAcceptedTypedStateManifestV1(
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1
     || layout.stringSlots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1
-    || layout.externalImmutableRoots.length !== 56
+    || layout.externalImmutableRoots.length !== 57
     || layout.excludedDynamicRoots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1
     || layout.containers.length

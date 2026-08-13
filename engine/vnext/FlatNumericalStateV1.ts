@@ -46,6 +46,19 @@ export type FlatNumericalBoundedArrayTemplateV1 = Readonly<{
   itemTemplate: unknown;
 }>;
 
+export type FlatNumericalExternalImmutableAliasV1 = Readonly<{
+  /** Mutable-state field rehydrated from the immutable source binding. */
+  pointer: string;
+  /** Exact pointer at or below an admitted external-immutable root. */
+  sourcePointer: string;
+  sourcePath: readonly FlatNumericalPathSegmentV1[];
+}>;
+
+export type FlatNumericalExternalImmutableAliasInputV1 = Readonly<{
+  pointer: string;
+  sourcePointer: string;
+}>;
+
 /**
  * Deterministic structural map used by the first flat-kernel vertical slice.
  * It deliberately contains no model objects or executable callbacks.
@@ -66,6 +79,9 @@ export type FlatNumericalStateLayoutV1 = Readonly<{
   stringSlots: readonly FlatNumericalSlotV1[];
   /** Deeply immutable model-owned roots retained outside the hot images. */
   externalImmutableRoots: readonly FlatNumericalSlotV1[];
+  /** Aliases that rebind nested immutable owner configuration on rehydrate. */
+  externalImmutableAliases:
+    readonly FlatNumericalExternalImmutableAliasV1[];
   /** Nullable or variable-array roots reserved for explicit tagged layouts later. */
   excludedDynamicRoots: readonly FlatNumericalSlotV1[];
   containers: readonly FlatNumericalContainerV1[];
@@ -76,6 +92,9 @@ export type FlatNumericalStateLayoutOptionsV1 = Readonly<{
   fixedArrayPointers?: readonly string[];
   /** Deeply immutable roots whose identity is not part of accepted evolution. */
   externalImmutablePointers?: readonly string[];
+  /** Nested owner fields rebound from an admitted immutable configuration. */
+  externalImmutableAliases?:
+    readonly FlatNumericalExternalImmutableAliasInputV1[];
   /** Null reference leaves that may evolve to finite numbers. */
   nullableContinuousPointers?: readonly string[];
   /** Null reference leaves that may evolve to strings. */
@@ -138,10 +157,25 @@ export function createFlatNumericalStateLayoutV1(
     throw new Error("Flat numerical fixed-array pointer is duplicated");
   }
   const admittedFixedArrayPointers = new Set<string>();
-  const externalImmutablePointers = pointerSet(
+  const admittedExternalImmutableBindings = pointerSet(
     options.externalImmutablePointers,
     "external-immutable",
   );
+  const externalImmutableAliases = externalImmutableAliasMap(
+    options.externalImmutableAliases,
+    admittedExternalImmutableBindings,
+  );
+  const externalImmutablePointers = new Set(
+    admittedExternalImmutableBindings,
+  );
+  for (const targetPointer of externalImmutableAliases.keys()) {
+    if (externalImmutablePointers.has(targetPointer)) {
+      throw new Error(
+        "Flat numerical external-immutable alias target is duplicated",
+      );
+    }
+    externalImmutablePointers.add(targetPointer);
+  }
   const admittedExternalImmutablePointers = new Set<string>();
   const nullableContinuousPointers = pointerSet(
     options.nullableContinuousPointers,
@@ -176,6 +210,7 @@ export function createFlatNumericalStateLayoutV1(
     fixedArrayPointers,
     admittedFixedArrayPointers,
     externalImmutablePointers,
+    externalImmutableAliases,
     admittedExternalImmutablePointers,
     nullableContinuousPointers,
     admittedNullableContinuousPointers,
@@ -242,6 +277,10 @@ export function createFlatNumericalStateLayoutV1(
     booleanSlots: Object.freeze(booleanSlots),
     stringSlots: Object.freeze(stringSlots),
     externalImmutableRoots: Object.freeze(externalImmutableRoots),
+    externalImmutableAliases: Object.freeze(
+      [...externalImmutableAliases.values()].sort((left, right) =>
+        left.pointer.localeCompare(right.pointer)),
+    ),
     excludedDynamicRoots: Object.freeze(excludedDynamicRoots),
     containers: Object.freeze(containers),
   });
@@ -529,6 +568,8 @@ function visit(
     fixedArrayPointers: ReadonlySet<string>;
     admittedFixedArrayPointers: Set<string>;
     externalImmutablePointers: ReadonlySet<string>;
+    externalImmutableAliases:
+      ReadonlyMap<string, FlatNumericalExternalImmutableAliasV1>;
     admittedExternalImmutablePointers: Set<string>;
     nullableContinuousPointers: ReadonlySet<string>;
     admittedNullableContinuousPointers: Set<string>;
@@ -558,9 +599,12 @@ function visit(
         `Flat numerical optional-record ${pathPointer} may not be nested`,
       );
     }
-    if (value !== null) {
+    if (
+      value !== null
+      && (typeof value !== "object" || Array.isArray(value))
+    ) {
       throw new Error(
-        `Flat numerical optional-record ${pathPointer} reference must be null`,
+        `Flat numerical optional-record ${pathPointer} reference must be null or a record`,
       );
     }
     const nextOptionalRootIndex = destination.optionalRecordRoots.length;
@@ -632,7 +676,13 @@ function visit(
     return;
   }
   if (destination.externalImmutablePointers.has(pathPointer)) {
-    if (optionalRecordRootIndex !== null || boundedArrayRootIndex !== null) {
+    if (
+      boundedArrayRootIndex !== null
+      || (
+        optionalRecordRootIndex !== null
+        && !destination.externalImmutableAliases.has(pathPointer)
+      )
+    ) {
       throw new Error(
         `Flat numerical typed aggregate ${pathPointer} may not contain an external immutable root`,
       );
@@ -849,6 +899,52 @@ function pointerSet(
     throw new Error(`Flat numerical ${owner} pointer is duplicated`);
   }
   return values;
+}
+
+function externalImmutableAliasMap(
+  aliases: readonly FlatNumericalExternalImmutableAliasInputV1[] | undefined,
+  admittedBindings: ReadonlySet<string>,
+): ReadonlyMap<string, FlatNumericalExternalImmutableAliasV1> {
+  const values = new Map<string, FlatNumericalExternalImmutableAliasV1>();
+  for (const entry of aliases ?? []) {
+    const targetPath = pointerPath(entry.pointer, "alias target");
+    const sourcePath = pointerPath(entry.sourcePointer, "alias source");
+    if (entry.pointer === entry.sourcePointer) {
+      throw new Error("Flat numerical external-immutable alias is self-referential");
+    }
+    if (values.has(entry.pointer)) {
+      throw new Error("Flat numerical external-immutable alias target is duplicated");
+    }
+    if (![...admittedBindings].some((bindingPointer) =>
+      entry.sourcePointer === bindingPointer
+      || entry.sourcePointer.startsWith(`${bindingPointer}/`)
+    )) {
+      throw new Error(
+        `Flat numerical external-immutable alias source ${entry.sourcePointer} is not admitted`,
+      );
+    }
+    values.set(entry.pointer, Object.freeze({
+      pointer: pointer(targetPath),
+      sourcePointer: pointer(sourcePath),
+      sourcePath: Object.freeze(sourcePath),
+    }));
+  }
+  return values;
+}
+
+function pointerPath(
+  value: string,
+  owner: string,
+): FlatNumericalPathSegmentV1[] {
+  if (typeof value !== "string" || value === "/" || !value.startsWith("/")) {
+    throw new Error(`Flat numerical external-immutable ${owner} is invalid`);
+  }
+  return value.slice(1).split("/").map((segment) => {
+    if (/~(?:[^01]|$)/u.test(segment)) {
+      throw new Error(`Flat numerical external-immutable ${owner} is invalid`);
+    }
+    return segment.replaceAll("~1", "/").replaceAll("~0", "~");
+  });
 }
 
 function optionalRecordTemplateMap(

@@ -313,46 +313,48 @@ object solver and an object boundary adapter.
 
 The complete accepted topology is now represented by two lifetime-fixed,
 model-owned `ArrayBuffer` images plus manifest-owned immutable configuration
-bindings. Each mutable image is exactly `38,688` bytes and contains:
+bindings. Each mutable image is exactly `22,360` bytes and contains:
 
-- 477 ordinary `f64` slots, six nullable-`f64` value/presence pairs, and two
+- 484 ordinary `f64` slots, six nullable-`f64` value/presence pairs, and two
   boolean slots at versioned fixed offsets;
-- 228 required and 22 nullable string offset/length entries backed by a fixed
+- 229 required and 22 nullable string offset/length entries backed by a fixed
   `16 KiB` UTF-8 arena;
-- five optional fixed-shape records, each represented by one presence byte plus
+- six optional fixed-shape records, each represented by one presence byte plus
   ordinary typed leaves;
 - three bounded rhythm queues, each represented by one `u32` length plus 16
   fixed typed item slots;
-- one remaining dynamic-root offset/length pair backed by a separate fixed
-  `16 KiB` canonical arena; and
-- the 162-container mutable shape contract and fingerprint
-  `fnv1a32-daf804b7`.
+- no dynamic-root metadata or dynamic arena; and
+- the 163-container mutable shape contract and fingerprint
+  `fnv1a32-44b16062`.
 
 Twelve deeply frozen model-owned object roots are intentionally retained
 outside the hot images: the composed-rhythm configuration (`5,506` canonical
 bytes), nine duplicated rhythm-owner configurations/seeds, the MCS inertance
 profile (`2,501` bytes), and the MCS structural projection (`4,265` bytes).
 Forty-four immutable schema, owner, binding, and topology strings are also
-manifest constants rather than per-tick UTF-8 data. These values are
+manifest constants rather than per-tick UTF-8 data. One additional binding
+aliases the optional authored-pacing owner's configuration to the admitted
+composed-rhythm configuration, for 57 external-immutable layout entries in
+total. These values are
 configuration, not evolving accepted state. Exact paths are fingerprinted.
 Manifest creation proves transitive freezing for object data and stores a
 private canonical reference; hot admission accepts the same object identity or
 scalar value, while checkpoint restoration may take a canonical-equality
 fallback. Rehydration reattaches the admitted values without rebuilding them.
 
-Dynamic roots are explicit cut points rather than an escape from bounded
-ownership. The five two-component exact-event calcium states are declared as
+The five two-component exact-event calcium states are declared as
 fixed model arrays, so all ten components receive direct `f64` slots. Six
 optional owner clocks use explicit presence bytes plus `f64` values, and two
-optional activation identifiers initially used nullable UTF-8 entries instead
-of canonical payloads. The same tagged-layout rule now covers five complete
-nullable records: the backup owner's latest activation, its intrinsic and VVI
-attempt results, the coronary autoregulation window control, and ventricular
-interval-deposit metadata. Their 48 numeric leaves, 30 required strings, four
-nullable strings, and nested records reside in fixed slots and are never
-canonical dynamic payloads. The three rhythm queues now use explicit fixed
-item layouts and length tags; only authored ventricular pacing replay state
-remains a canonical dynamic root. Strings are
+optional activation identifiers use nullable UTF-8 entries. The tagged-layout
+rule covers six complete nullable records: the backup owner's latest
+activation, its intrinsic and VVI attempt results, the coronary autoregulation
+window control, ventricular interval-deposit metadata, and authored
+ventricular pacing replay state. The three rhythm queues use explicit fixed
+item layouts and length tags. The potentially 100,000-event pacing
+configuration is not copied into either image: its nested owner field is
+rehydrated as an exact alias of the already admitted immutable composed-rhythm
+configuration, while its mutable clock, revision, cursor, and counters occupy
+fixed slots. Strings are
 rewritten inside the inactive arena each transaction; no
 lifetime interning table survives. Inspection still identifies the
 high-cardinality mechanics fingerprint as a recomputable diagnostic and the
@@ -370,12 +372,13 @@ cannot be replaced by an implicit assumption.
 
 Staging first validates the complete mutable fixed container topology and the
 cold-root identity/canonical bindings, then writes only the inactive image.
-Invalid finite values, changed keys/prototypes, mutable optional-record templates,
-unpaired UTF-16, malformed dynamic data, or either arena exceeding capacity
+Invalid finite values, changed keys/prototypes, mutable optional-record
+templates, an authored-pacing configuration that differs from its admitted
+alias, unpaired UTF-16, or the string arena exceeding capacity
 fail before promotion. Promotion is an infallible active-index swap. Public
 snapshots are detached copies. Tests cover generic presence-tagged
-null-to-record transitions, empty-to-one-item queue transitions, adversarial
-extra keys, malformed strings, capacity
+null-to-record transitions, immutable aliases, empty-to-one-item queue
+transitions, adversarial extra keys, malformed strings, capacity
 exhaustion, typed-array escape mutation, 1,024 presentation ticks across all
 49 outputs, and exact checkpoint continuation from tick 377 through 544.
 
@@ -391,12 +394,11 @@ Session and `3.42 ms/tick` for the typed-authority reference (`1.42x`). Across
 580 accepted commits, all 32,536 immutable-value checks used the identity/value
 fast path and none used canonical fallback. An intentionally
 independent-runtime projection diagnostic, whose equal object configurations
-do not share identity, measured about `0.66 ms/presentation tick`; rehydration
-measured about `0.020 ms/presentation tick`. String and dynamic high-water
-usage were `1,930` and `1` bytes respectively, inside their fixed `16 KiB`
-capacities. The dynamic high-water mark is direct evidence that the five
-optional records and three rhythm queues no longer enter canonical payload
-storage. The remaining
+do not share identity, measured about `0.65 ms/presentation tick`; rehydration
+measured about `0.021 ms/presentation tick`. String high-water usage was
+`1,930` bytes inside its fixed `16 KiB` capacity. Dynamic high-water usage and
+capacity are both zero: every currently admitted mutable root has explicit
+typed storage. The remaining
 overhead is dominated by rebuilding and fully
 revalidating the legacy object owner graph, not by the typed page itself. These
 figures are machine-specific diagnostics, not gates.
@@ -407,7 +409,7 @@ The active typed image now exposes a read-only live cursor rather than an
 `ArrayBuffer` or typed-array view. The cursor follows the atomic active-index
 swap and permits generated slot reads only; it cannot mutate either image.
 The Main Wire binding admits that cursor only when its layout ID and complete
-manifest fingerprint match `fnv1a32-daf804b7`. Every hot slot is resolved by
+manifest fingerprint match `fnv1a32-44b16062`. Every hot slot is resolved by
 semantic pointer once from that manifest; numerical indices are not duplicated
 as hand-maintained source constants. The accepted loop performs no pointer or
 string lookup after construction.
@@ -417,9 +419,9 @@ fixed slots and computes its next coronary/rhythm boundary from the active
 typed image. The direct limiter uses manifest-bound indices for owner clocks, the
 autoregulation window, regular atrial activation, and ventricular backup. It
 reads proximal AV output, distal ventricular impulse, and calcium-deposit
-queues from their fixed typed slots and length tags. Only authored ventricular
-pacing remains in the canonical dynamic arena. Authored ectopy events come from the
-already admitted immutable rhythm configuration. It also proves that
+queues from their fixed typed slots and length tags. Authored ventricular
+pacing and ectopy events both come from the already admitted immutable rhythm
+configuration; their mutable cursors come from fixed typed slots. It also proves that
 the outer, composed-rhythm, and coronary clocks/revisions agree before every
 scheduling decision. Immutable atrial-source mode and exact-calcium parameters
 come from the separately admitted cold rhythm configuration rather than being
@@ -439,9 +441,9 @@ own boundary internally, but admission requires its clock and calcium result to
 match the already-staged typed values bit-for-bit and cannot overwrite them.
 A representative 512-tick diagnostic measured about `2.40 ms/tick` for the
 released Session and `3.42 ms/tick` for the typed reference (`1.42x`). Direct
-fixed-slot boundary selection measured about `0.0060 ms/tick`, while copying
+fixed-slot boundary selection measured about `0.0053 ms/tick`, while copying
 current into the inactive image and staging all five calcium owners measured
-about `0.0057 ms/tick`. The improvement comes from removing immutable
+about `0.0056 ms/tick`. The improvement comes from removing immutable
 configuration traversal from each accepted transaction; duplicate legacy solve
 and mutable-owner work remains. These figures are diagnostics, not performance
 gates.
@@ -450,9 +452,9 @@ The generic image also admits a generation-bound candidate cursor. Beginning a
 candidate copies current bytes once into the inactive image; direct fixed
 `f64`/boolean writes then allocate no state object and cannot touch active
 storage. Abort, promotion, or a later candidate generation permanently
-invalidates the old cursor. Strings and dynamic roots remain copied and
-read-only at this stage; their writers require explicit bounded tagged layouts
-rather than an implicit variable arena mutation API.
+invalidates the old cursor. Strings remain copied and read-only at this stage;
+their writers require bounded model-owned codes or an explicit cold-boundary
+operation rather than implicit variable mutation.
 
 Exact-event calcium is the first state owner to use that write surface. Its ten
 fixed state slots advance directly from the active image into the inactive

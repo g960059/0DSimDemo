@@ -44,6 +44,7 @@ type ContinuousBinding = Readonly<{
   acceptedTimeSec: number;
   composedAcceptedTimeSec: number;
   authoredEctopyCursor: number;
+  authoredVentricularPacingCursor: number;
   regularAtrialNextActivationTimeSec: number;
   composedRevision: number;
   ventricularBackupNextIntrinsicEscapeDueTimeSec: number;
@@ -58,10 +59,6 @@ type ContinuousBinding = Readonly<{
   revision: number;
 }>;
 
-type DynamicBinding = Readonly<{
-  authoredVentricularPacingReplayState: number;
-}>;
-
 type BoundedArrayBinding = Readonly<{
   pendingCalciumDeposits: number;
   pendingDistalVentricularImpulses: number;
@@ -72,7 +69,6 @@ export type MainWireAcceptedTypedBoundaryBindingV1 = Readonly<{
   layoutId: typeof MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID;
   fingerprint: typeof MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT;
   continuous: ContinuousBinding;
-  dynamic: DynamicBinding;
   boundedArray: BoundedArrayBinding;
   calcium: Readonly<Record<CalciumWall, Readonly<{
     state: readonly [number, number];
@@ -97,6 +93,10 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
       continuousSlot(manifest, "/composedRhythm/acceptedTimeSec"),
     authoredEctopyCursor:
       continuousSlot(manifest, "/composedRhythm/authoredEctopyState/cursor"),
+    authoredVentricularPacingCursor: continuousSlot(
+      manifest,
+      "/composedRhythm/authoredVentricularPacingReplayState/cursor",
+    ),
     regularAtrialNextActivationTimeSec: continuousSlot(
       manifest,
       "/composedRhythm/regularAtrialSourceState/nextActivationTimeSec",
@@ -134,12 +134,6 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
     ),
     coronaryRevision: continuousSlot(manifest, "/coronary/revision"),
     revision: continuousSlot(manifest, "/revision"),
-  });
-  const dynamic = Object.freeze({
-    authoredVentricularPacingReplayState: dynamicSlot(
-      manifest,
-      "/composedRhythm/authoredVentricularPacingReplayState",
-    ),
   });
   const boundedArray = Object.freeze({
     pendingCalciumDeposits:
@@ -182,7 +176,6 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
     layoutId: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
     fingerprint: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
     continuous,
-    dynamic,
     boundedArray,
     calcium,
     directContinuousSlots: Object.freeze([...clockSlots, ...calciumSlots]),
@@ -502,24 +495,16 @@ function limitTypedRhythmBoundary(
     ));
   }
 
-  const authoredPacing = cursor.readDynamic(
-    binding.dynamic.authoredVentricularPacingReplayState,
-  );
-  if (authoredPacing !== null) {
-    const pacingRecord = requiredRecord(
-      authoredPacing,
-      "authored ventricular pacing state",
-    );
-    const pacingConfiguration = requiredRecord(
-      ownValue(pacingRecord, "configuration"),
-      "authored ventricular pacing configuration",
-    );
+  const pacingConfiguration = configuration.authoredVentricularPacingReplay;
+  if (pacingConfiguration !== null) {
     const events = requiredArray(
-      ownValue(pacingConfiguration, "events"),
+      pacingConfiguration.events,
       "authored ventricular pacing events",
     );
     const pacingCursor = nonnegativeSafeInteger(
-      ownValue(pacingRecord, "cursor"),
+      cursor.readContinuous(
+        binding.continuous.authoredVentricularPacingCursor,
+      ),
       "authored ventricular pacing cursor",
     );
     const event = events[pacingCursor];
@@ -726,17 +711,6 @@ function continuousSlot(
     manifest.numericalLayout.continuousSlots,
     pointer,
     "continuous",
-  );
-}
-
-function dynamicSlot(
-  manifest: TransactionalTypedStateManifestV1,
-  pointer: string,
-): number {
-  return requiredBindingSlot(
-    manifest.numericalLayout.excludedDynamicRoots,
-    pointer,
-    "dynamic",
   );
 }
 
