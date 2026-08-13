@@ -885,13 +885,17 @@ gain. Production cutover is rejected until final candidate ownership and
 materialization are flat and single-pass.
 
 The first model-specific flat acceptance owner now tests that missing boundary
-without extending the generic reflective state image. It owns exactly two
-fixed 34-f64 images: accepted time, revision, fixed TBV, all 15 non-coronary
-volumes, and all 16 coronary volumes. A converged 30-row root is range-checked,
-rechecked by the component convergence law, written only into the inactive
-image, and promoted by one active-index swap. NaN rejection, explicit abort,
-stale-context rejection, and promotion are executable tests; none can mutate
-the active image before promotion.
+without extending the generic reflective state image. Its initial 34-f64
+volume-only proof has been replaced by two fixed 100-f64 images. They contain
+accepted time, revision, fixed TBV, all 15 non-coronary and 16 coronary
+volumes, two dynamic-edge flow memories, four valve opening memories, six
+coronary-tone values, all five canonical Land/SLS wall states, the two TriSeg
+coordinates, and the seven-scalar MVC shortening reference. A converged
+30-row root is range-checked and rechecked by the component convergence law;
+the selected private mechanics probe and the other component memories are
+then copied synchronously into the inactive image. Promotion remains one
+active-index swap. No public trial, generic clone, recursive fingerprint, or
+frozen accepted object graph is created on this path.
 
 Three independent 5,000-step host diagnostics measured flat-acceptance/legacy
 median pairs of `0.452/0.834 ms`, `0.444/0.818 ms`, and `0.442/0.817 ms`, for
@@ -901,16 +905,24 @@ dominates. This clears the predeclared `1.8x` host threshold and confirms that
 public-object materialization was the limiting boundary, not the coupled
 algebra.
 
+The expanded owner is parity-gated against the same converged root passed
+through the existing canonical finalizer. Non-coronary and coronary volumes,
+dynamic flows, valve openings, coronary tone, Land/SLS/TriSeg material state,
+and the MVC reference must all agree. A 1,000-step host diagnostic after the
+expansion measured flat/legacy medians of `0.459/0.840 ms` (`1.831x`), while
+flat admission was `0.005 ms` and the index swap below the timer's useful
+resolution. The result remains above the predeclared host gate even after the
+additional 66 accepted-state scalars.
+
 This owner is nevertheless a migration proof, not a complete accepted Session.
-Its context is still prepared from the old object state, and it does not yet
-own mechanics material state, valve and dynamic-flow memory, MVC reference,
-coronary tone/autoregulation, rhythm, devices, event clocks, or checkpoint
-encoding. It therefore cannot drive a multi-step trajectory by itself and is
-not eligible for a model release. The next authority slice must move those
-remaining owners into one hand-authored flat layout, prepare the next residual
-directly from the active image, and materialize public objects only at cold
-readback boundaries. The `1.8x` result authorizes that migration; it does not
-authorize production cutover.
+Its residual context is still prepared from the old object state. Rhythm,
+devices, event clocks, accepted slow autoregulation ownership, and checkpoint
+encoding also remain outside the image. It therefore cannot yet drive the
+production multi-step Session by itself and is not eligible for a model
+release. The next authority slice must prepare the next residual directly from
+the active image, add the remaining model-owned memories, and materialize
+public objects only at cold readback boundaries. The `1.8x` result authorizes
+that migration; it does not authorize production cutover.
 
 An exact `14+16` block-Schur linear solve was also implemented and measured.
 At one patch it reached only about `1.53x` over the legacy nested path because
@@ -968,10 +980,11 @@ autoregulation, checkpoint continuation, or the remaining five scenarios.
 
 The solver-architecture hypothesis is itself falsifiable. The regular-sinus,
 device-off accepted-state authority must improve host kernel time by at least
-`1.8x` to justify productionization. The current `~1.296x` result fails that
-gate and sends the work back to flat candidate ownership and profiling rather
-than onward to WASM. The solve-only `~1.805x` result keeps the coupled algebra
-as the target; it does not waive the authority-path gate.
+`1.8x` to justify productionization. The public-object authority remains only
+`~1.296x`, while the model-specific flat authority now measures `~1.831x` and
+clears the host gate. Production cutover still requires a genuinely
+flat-driven multi-step trajectory and the integrated iPhone gate; the host
+result does not waive either condition or justify a premature WASM port.
 
 ### Phase 3 — strict scalar WASM
 

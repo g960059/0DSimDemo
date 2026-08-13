@@ -9,6 +9,7 @@ import {
   withPreparedNonCoronaryCandidateV1,
   NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
+  NON_CORONARY_EDGE_NAMES_V1,
   NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
   NON_CORONARY_VALVE_NAMES_V1,
   NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
@@ -100,6 +101,7 @@ import {
   CORONARY_LAYER_IDS_V2,
   CORONARY_TERRITORY_IDS_V2,
   type CoronaryLayerRecordV2,
+  type CoronaryToneStateV2,
   type CoronaryTerritoryLayerRecordV2,
 } from "@/engine/coronary/typesV2";
 import {
@@ -124,6 +126,7 @@ import {
   inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1,
   prepareWholeHeartMechanicsStepV1,
   sealPreparedWholeHeartMechanicsCandidateProbeV1,
+  withPreparedWholeHeartMechanicsCandidateProbeMaterialStateV1,
   WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID,
   type WholeHeartMechanicsAcceptedStateV1,
   type WholeHeartMechanicsCandidateProbeV1,
@@ -538,6 +541,28 @@ export type MainWireFiveWallCoupledCandidateMaterializationV1<TWallState> =
     commonIntrathoracicPressureMmHg: number;
   }>;
 
+/**
+ * Synchronous selected-candidate borrow for a model-specific flat accepted
+ * owner. Every array and object is context-owned and may change on the next
+ * residual evaluation; a consumer must copy all retained primitive values
+ * before returning.
+ */
+export type MainWireFiveWallCoupledAcceptedCandidateBorrowV1<TWallState> =
+  Readonly<{
+    candidateTimeSec: number;
+    candidateRevision: number;
+    fixedGlobalTotalBloodVolumeMl: number;
+    nonCoronaryNodeVolumesMl: Float64Array;
+    dynamicEdgeFlowsMlPerSec: Float64Array;
+    valveStates:
+      NonCoronaryPreparedCandidateBorrowV1<unknown>["valveStates"];
+    coronaryVolumesMl: CoronaryConservedVolumeStateV2;
+    coronaryToneResistanceScaleByTerritoryLayer: CoronaryToneStateV2;
+    mechanicsCandidateVolumesMl: WholeHeartMechanicsChamberValuesV1;
+    mechanicsMaterialState: TWallState;
+    mvcReferenceState: MainWireCoronaryMvcReferenceStateV2;
+  }>;
+
 /** Cold construction context for the first real 30-row coupled solve. */
 export type MainWireFiveWallCoupledResidualContextV1<
   TWallState = unknown,
@@ -559,6 +584,12 @@ export type MainWireFiveWallCoupledResidualContextV1<
     unknownsMl: Float64Array,
     destinationResidualMl: Float64Array,
   ): boolean;
+  withConvergedCandidate<TResult>(
+    unknownsMl: Float64Array,
+    consume: (
+      candidate: MainWireFiveWallCoupledAcceptedCandidateBorrowV1<TWallState>,
+    ) => TResult,
+  ): TResult;
   evaluateDependentSvContinuityResidualMl(unknownsMl: Float64Array): number;
   materializeCandidateTrial(
     unknownsMl: Float64Array,
@@ -1350,6 +1381,78 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       materializeCandidateTrial(unknownsMl, diagnostics),
     );
   };
+  const withConvergedCandidate = <TResult>(
+    unknownsMl: Float64Array,
+    consume: (
+      candidate: MainWireFiveWallCoupledAcceptedCandidateBorrowV1<TWallState>,
+    ) => TResult,
+  ): TResult => {
+    if (typeof consume !== "function") {
+      throw new TypeError("coupled accepted-candidate consumer is required");
+    }
+    return evaluateCoupledCandidate(
+      unknownsMl,
+      coronaryLinearizationResidualScratch,
+      (candidate) => {
+        if (
+          candidate.nonCoronaryProbe.mixedContinuityResidualInfinityNorm > 1
+          || maximumAbsoluteValueV2(candidate.coronaryResidualMl)
+            > coronaryResidualToleranceMl
+        ) {
+          throw new Error(
+            "coupled accepted candidate failed component convergence",
+          );
+        }
+        const candidateRevision = previous.revision + 1;
+        const mechanics = candidate.nonCoronaryProbe
+          .candidateMechanicsEvaluation;
+        const mitralEdgeIndex = NON_CORONARY_EDGE_NAMES_V1.indexOf("MV");
+        if (mitralEdgeIndex < 0) {
+          throw new Error("mitral edge order drifted");
+        }
+        const mvcReferenceState = advanceMainWireCoronaryMvcReferenceV2(
+          previous.mvcReferenceState,
+          Object.freeze({
+            acceptedTimeSec: candidate.nonCoronaryProbe.candidateTimeSec,
+            acceptedRevision: candidateRevision,
+            mitralForwardFlowMlPerSec:
+              candidate.nonCoronaryProbe.edgeFlowsMlPerSec[mitralEdgeIndex]!,
+            effectiveFiberLogStrainByWall:
+              mechanics.coronaryMechanicsCoupling
+                .effectiveFiberLogStrainByWall,
+          }),
+        );
+        const mechanicsCandidate = mechanics.mechanicsCandidate;
+        const visit = (mechanicsMaterialState: TWallState): TResult => consume(
+          Object.freeze({
+            candidateTimeSec: candidate.nonCoronaryProbe.candidateTimeSec,
+            candidateRevision,
+            fixedGlobalTotalBloodVolumeMl:
+              previous.fixedGlobalTotalBloodVolumeMl,
+            nonCoronaryNodeVolumesMl:
+              candidate.nonCoronaryProbe.nodeVolumesMl,
+            dynamicEdgeFlowsMlPerSec:
+              candidate.nonCoronaryProbe.dynamicEdgeFlowsMlPerSec,
+            valveStates: candidate.nonCoronaryProbe.valveStates,
+            coronaryVolumesMl: candidate.candidateCoronaryVolumes,
+            coronaryToneResistanceScaleByTerritoryLayer:
+              previous.coronary.toneResistanceScaleByTerritoryLayer,
+            mechanicsCandidateVolumesMl:
+              mechanics.mechanicsView.candidateVolumesMl,
+            mechanicsMaterialState,
+            mvcReferenceState,
+          }),
+        );
+        return isWholeHeartMechanicsCandidateProbeV2(mechanicsCandidate)
+          ? withPreparedWholeHeartMechanicsCandidateProbeMaterialStateV1(
+            mechanicsStep,
+            mechanicsCandidate,
+            visit,
+          )
+          : visit(mechanicsCandidate.candidateMaterialState);
+      },
+    );
+  };
 
   return Object.freeze({
     dimension: 30 as const,
@@ -1383,6 +1486,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         && maximumAbsoluteValueV2(candidate.coronaryResidualMl)
           <= coronaryResidualToleranceMl,
     ),
+    withConvergedCandidate,
     evaluateDependentSvContinuityResidualMl: (
       unknownsMl: Float64Array,
     ): number => {

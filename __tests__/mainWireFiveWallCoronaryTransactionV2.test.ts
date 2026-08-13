@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
+  NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
+  NON_CORONARY_VALVE_NAMES_V1,
   createNonCoronaryBackwardEulerScratchWorkspaceV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
@@ -851,12 +853,23 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     );
     const before = authority.snapshot();
     authority.stageConvergedSolution(context, converged.solution);
+    const objectAuthority = context.finalizeConvergedSolution(
+      converged.solution,
+      Object.freeze({
+        iterations: converged.iterations,
+        lineSearchBacktracks: converged.lineSearchBacktrackCount,
+      }),
+    );
+    expect(objectAuthority.converged).toBe(true);
+    if (objectAuthority.converged === false) {
+      throw new Error(objectAuthority.message);
+    }
 
     expect(authority.report()).toEqual({
       authorityId: "main-wire-flat-coupled-accepted-state-v1",
       fixedBufferCount: 2,
-      slotCount: 34,
-      byteLengthPerBuffer: 34 * Float64Array.BYTES_PER_ELEMENT,
+      slotCount: 100,
+      byteLengthPerBuffer: 100 * Float64Array.BYTES_PER_ELEMENT,
       activeBufferIndex: 0,
       commitCount: 0,
       staged: true,
@@ -868,22 +881,51 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(accepted.acceptedTimeSec).toBe(0.002);
     expect(accepted.revision).toBe(1);
     expect(accepted.fixedGlobalTotalBloodVolumeMl).toBe(5600);
-    NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.forEach((nodeId, index) => {
+    NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.forEach((nodeId) => {
       const nodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(nodeId);
       expect(accepted.nonCoronaryNodeVolumesMl[nodeIndex]).toBe(
-        converged.solution[index],
+        objectAuthority.acceptedState.circulation.nodeVolumesMl[nodeId],
       );
     });
-    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.forEach((_nodeId, index) => {
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.forEach((nodeId, index) => {
       expect(accepted.coronaryConservedVolumesMl[index]).toBe(
-        converged.solution[
-          NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
-        ],
+        objectAuthority.acceptedState.coronary.volumeMlByNode[nodeId],
       );
     });
+    expect(Array.from(accepted.dynamicEdgeFlowsMlPerSec)).toEqual(
+      NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map(
+        (edgeId) => objectAuthority.acceptedState.circulation
+          .dynamicEdgeFlowsMlPerSec[edgeId],
+      ),
+    );
+    expect(Array.from(accepted.valveOpeningFractions01)).toEqual(
+      NON_CORONARY_VALVE_NAMES_V1.map(
+        (valveId) => objectAuthority.acceptedState.circulation
+          .valveStates[valveId].leafletOpeningFraction01,
+      ),
+    );
+    expect(accepted.coronaryToneResistanceScaleByTerritoryLayer).toEqual(
+      objectAuthority.acceptedState.coronary
+        .toneResistanceScaleByTerritoryLayer,
+    );
+    expect(accepted.mechanicsMaterialState).toEqual(
+      objectAuthority.acceptedState.mechanics.materialState,
+    );
+    expect(accepted.mvcReferenceState).toEqual(
+      objectAuthority.acceptedState.mvcReferenceState,
+    );
     const unknowns = new Float64Array(30);
     authority.readCurrentUnknownsInto(unknowns);
-    expect(Array.from(unknowns)).toEqual(Array.from(converged.solution));
+    expect(Array.from(unknowns)).toEqual([
+      ...NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.map(
+        (nodeId) => objectAuthority.acceptedState.circulation
+          .nodeVolumesMl[nodeId],
+      ),
+      ...CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map(
+        (nodeId) => objectAuthority.acceptedState.coronary
+          .volumeMlByNode[nodeId],
+      ),
+    ]);
     expect(authority.report()).toMatchObject({
       activeBufferIndex: 1,
       commitCount: 1,

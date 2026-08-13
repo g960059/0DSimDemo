@@ -614,6 +614,31 @@ export function inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1<
 }
 
 /**
+ * Gives one synchronous model-owned copier access to the selected probe's
+ * exclusively owned material state without minting a public trial snapshot.
+ * The borrowed state must not escape `consume`; callers may only copy its
+ * primitive fields into an independently owned accepted-state image.
+ */
+export function withPreparedWholeHeartMechanicsCandidateProbeMaterialStateV1<
+  TState,
+  TDrive,
+  TResult,
+>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+  probe: WholeHeartMechanicsCandidateProbeV1<TState, TDrive>,
+  consume: (borrowedMaterialState: TState) => TResult,
+): TResult {
+  if (typeof consume !== "function") {
+    throw new TypeError("whole-heart mechanics material consumer is required");
+  }
+  const internal = livePreparedWholeHeartMechanicsCandidateProbeInternalV1(
+    preparedStep,
+    probe,
+  );
+  return consume(internal.candidateMaterialState);
+}
+
+/**
  * Materializes the one selected candidate into the unchanged public trial.
  * A probe is live for exactly one successful seal and is bound to the exact
  * prepared-step object that created it; foreign or already-sealed probes fail.
