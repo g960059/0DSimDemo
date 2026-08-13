@@ -187,6 +187,29 @@ export type CoronaryBackwardEulerCandidateProbeV2 = Readonly<{
   hydraulics: CoronaryHydraulicEvaluationV2;
 }>;
 
+export const CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2 = Object.freeze([
+  "absoluteAorticPressureMmHg",
+  "absoluteRightAtrialPressureMmHg",
+  "perivascularExternalPressureMmHg",
+  "LAD.subepicardial",
+  "LAD.subendocardial",
+  "LCx.subepicardial",
+  "LCx.subendocardial",
+  "RCA.subepicardial",
+  "RCA.subendocardial",
+] as const);
+
+export type CoronaryBackwardEulerCandidateLinearizationDestinationV2 =
+  Readonly<{
+    residualMl: Float64Array;
+    dResidualDVolume: Float64Array;
+    dResidualDBoundary: Float64Array;
+    dTotalInletFlowDVolume: Float64Array;
+    dCommonVenousOutletFlowDVolume: Float64Array;
+    dTotalInletFlowDBoundary: Float64Array;
+    dCommonVenousOutletFlowDBoundary: Float64Array;
+  }>;
+
 export type CoronaryImplicitBoundaryDirectionV2 = Readonly<{
   /** Positive central-difference half step in the caller's scaled variable. */
   scaledStep: number;
@@ -770,6 +793,233 @@ export function evaluateCoronaryBackwardEulerCandidateProbeV2(
     continuityResidualMlByNode: arrayToVolumeRecordV2(residual),
     residualVectorMl: Float64Array.from(residual),
     hydraulics: freezeHydraulicEvaluationV2(hydraulics),
+  });
+}
+
+/**
+ * Writes one raw coronary residual linearization from one hydraulic
+ * evaluation. The nine boundary columns are ordered by
+ * `CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2`. These are direct
+ * partial derivatives, never implicit sensitivities or solved responses, so
+ * the global 30/32-row assembler can form Jcc, Jcn, and the Ao/RA companion
+ * terms without reintroducing the nested coronary Newton.
+ */
+export function writeCoronaryBackwardEulerCandidateLinearizationV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryBackwardEulerTrialInputV2,
+  candidateVolumeMlByNode: CoronaryConservedVolumeStateV2,
+  destination: CoronaryBackwardEulerCandidateLinearizationDestinationV2,
+  prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+): void {
+  validateAcceptedStateV2(previousAcceptedState, topology);
+  validateTrialInputV2(input);
+  validateCoronaryTopologyV2(topology);
+  const dimension = topology.nodes.length;
+  const boundaryDimension =
+    CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+  requireTypedLengthV2(destination.residualMl, dimension, "residualMl");
+  requireTypedLengthV2(
+    destination.dResidualDVolume,
+    dimension * dimension,
+    "dResidualDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dResidualDBoundary,
+    dimension * boundaryDimension,
+    "dResidualDBoundary",
+  );
+  requireTypedLengthV2(
+    destination.dTotalInletFlowDVolume,
+    dimension,
+    "dTotalInletFlowDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dCommonVenousOutletFlowDVolume,
+    dimension,
+    "dCommonVenousOutletFlowDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dTotalInletFlowDBoundary,
+    boundaryDimension,
+    "dTotalInletFlowDBoundary",
+  );
+  requireTypedLengthV2(
+    destination.dCommonVenousOutletFlowDBoundary,
+    boundaryDimension,
+    "dCommonVenousOutletFlowDBoundary",
+  );
+  const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
+  const collapseHydraulics = input.collapseHydraulics
+    ?? buildCoronaryCollapseHydraulicsPriorV2(topology);
+  const options = resolveSolverOptionsV2(input.solverOptions);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const candidate = volumeRecordToArrayV2(candidateVolumeMlByNode);
+  const previous = volumeRecordToArrayV2(
+    previousAcceptedState.volumeMlByNode,
+  );
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference,
+  );
+  const hydraulics = evaluateHydraulicsInternalV2(
+    candidate,
+    previousAcceptedState.toneResistanceScaleByTerritoryLayer,
+    input.boundary,
+    disease,
+    topology,
+    buildCoronaryEdgeIndexV2(topology),
+    collapseHydraulics,
+  );
+  for (let index = 0; index < dimension; index += 1) {
+    destination.residualMl[index] = candidate[index]! - previous[index]!;
+  }
+  accumulateFlowContinuityV2(
+    destination.residualMl,
+    hydraulics.flowByEdge,
+    input.dtSec,
+    topology,
+  );
+  const volumeRows = analyticSparseCoronaryVolumeJacobianV2(
+    candidate,
+    hydraulics,
+    input.dtSec,
+    topology,
+    collapseHydraulics,
+  );
+  for (let row = 0; row < dimension; row += 1) {
+    for (let column = 0; column < dimension; column += 1) {
+      destination.dResidualDVolume[row * dimension + column] =
+        volumeRows[row]![column]!;
+    }
+  }
+
+  const edgeIndex = buildCoronaryEdgeIndexV2(topology);
+  const zeroVolumeDirection = Array<number>(dimension).fill(0);
+  const zeroBoundaryDirection = boundaryLinearizationDirectionV2(
+    input.boundary,
+    -1,
+  );
+  for (let column = 0; column < dimension; column += 1) {
+    const volumeDirection = Array<number>(dimension).fill(0);
+    volumeDirection[column] = 1;
+    const observables = analyticCoronaryObservableDirectionalDerivativesV2(
+      candidate,
+      volumeDirection,
+      hydraulics,
+      zeroBoundaryDirection,
+      topology,
+      edgeIndex,
+    );
+    destination.dTotalInletFlowDVolume[column] =
+      observables.totalInletDerivative;
+    destination.dCommonVenousOutletFlowDVolume[column] =
+      observables.commonVenousOutletDerivative;
+  }
+  for (let column = 0; column < boundaryDimension; column += 1) {
+    const direction = boundaryLinearizationDirectionV2(
+      input.boundary,
+      column,
+    );
+    const residualDirection =
+      analyticCoronaryBoundaryResidualDirectionalDerivativeV2(
+        hydraulics,
+        direction,
+        input.dtSec,
+        topology,
+      );
+    for (let row = 0; row < dimension; row += 1) {
+      destination.dResidualDBoundary[
+        row * boundaryDimension + column
+      ] = residualDirection[row]!;
+    }
+    const observables = analyticCoronaryObservableDirectionalDerivativesV2(
+      candidate,
+      zeroVolumeDirection,
+      hydraulics,
+      direction,
+      topology,
+      edgeIndex,
+    );
+    destination.dTotalInletFlowDBoundary[column] =
+      observables.totalInletDerivative;
+    destination.dCommonVenousOutletFlowDBoundary[column] =
+      observables.commonVenousOutletDerivative;
+  }
+}
+
+function requireTypedLengthV2(
+  value: Float64Array,
+  expectedLength: number,
+  label: string,
+): void {
+  if (!(value instanceof Float64Array) || value.length !== expectedLength) {
+    throw new RangeError(`${label} must contain ${expectedLength} f64 values`);
+  }
+}
+
+function boundaryLinearizationDirectionV2(
+  base: CoronaryHydraulicBoundaryInputV2,
+  componentIndex: number,
+): CoronaryImplicitBoundaryDirectionV2 {
+  const shifted = (sign: -1 | 1): CoronaryHydraulicBoundaryInputV2 => ({
+    absoluteAorticPressureMmHg:
+      base.absoluteAorticPressureMmHg
+      + (componentIndex === 0 ? sign : 0),
+    absoluteRightAtrialPressureMmHg:
+      base.absoluteRightAtrialPressureMmHg
+      + (componentIndex === 1 ? sign : 0),
+    perivascularExternalPressureMmHg:
+      base.perivascularExternalPressureMmHg
+      + (componentIndex === 2 ? sign : 0),
+    intramyocardialPressureMmHgByTerritoryLayer: {
+      LAD: {
+        subepicardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.LAD.subepicardial
+          + (componentIndex === 3 ? sign : 0),
+        subendocardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.LAD.subendocardial
+          + (componentIndex === 4 ? sign : 0),
+      },
+      LCx: {
+        subepicardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.LCx.subepicardial
+          + (componentIndex === 5 ? sign : 0),
+        subendocardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.LCx.subendocardial
+          + (componentIndex === 6 ? sign : 0),
+      },
+      RCA: {
+        subepicardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.RCA.subepicardial
+          + (componentIndex === 7 ? sign : 0),
+        subendocardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.RCA.subendocardial
+          + (componentIndex === 8 ? sign : 0),
+      },
+    },
+  });
+  if (componentIndex === -1) {
+    return Object.freeze({
+      scaledStep: 1,
+      minusBoundary: base,
+      plusBoundary: base,
+    });
+  }
+  if (
+    !Number.isInteger(componentIndex)
+    || componentIndex < 0
+    || componentIndex
+      >= CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length
+  ) {
+    throw new RangeError("coronary boundary component index is invalid");
+  }
+  return Object.freeze({
+    scaledStep: 1,
+    minusBoundary: shifted(-1),
+    plusBoundary: shifted(1),
   });
 }
 
@@ -1880,7 +2130,7 @@ function flowContinuityRateV2(
 }
 
 function accumulateFlowContinuityV2(
-  residual: number[],
+  residual: number[] | Float64Array,
   flowByEdge: readonly number[],
   scale: number,
   topology: CoronaryTopologyV2,

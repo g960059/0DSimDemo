@@ -2,6 +2,15 @@ import type {
   MainWireFiveWallCoupledResidualContextV1,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 import {
+  CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2,
+} from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
+import {
+  CORONARY_CONSERVED_VOLUME_NODE_IDS_V2,
+} from "@/engine/coronary/typesV2";
+import {
+  NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
+} from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+import {
   createFlatCoupledNewtonWorkspaceV1,
   solveFlatCoupledSystemV1,
   type FlatCoupledNewtonResultV1,
@@ -17,18 +26,21 @@ export type MainWireFiveWallCoupledNewtonShadowOptionsV1 = Readonly<{
   residualInfinityToleranceMl?: number;
   updateInfinityToleranceMl?: number;
   finiteDifferenceRelativeStep?: number;
+  jacobianMode?: "central-difference" | "hybrid-coronary-analytic";
 }>;
 
 export type MainWireFiveWallCoupledNewtonShadowResultV1 = Readonly<{
   solverId: typeof MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID;
   jacobianResidualEvaluationCount: number;
+  coronaryAnalyticBlockAssemblyCount: number;
   result: FlatCoupledNewtonResultV1;
 }>;
 
 /**
- * First advancing proof of the real 30-row equations. Its central-difference
- * Jacobian intentionally favors auditability over performance. Production
- * Phase 2a replaces it with component-owned analytic tangent writers.
+ * First advancing proof of the real 30-row equations. The default hybrid
+ * keeps the 14 non-coronary columns as an auditable central-difference shadow
+ * while component writers own both blocks of the 16 coronary columns. The
+ * all-central-difference mode remains a construction oracle only.
  */
 export function solveMainWireFiveWallCoupledNewtonShadowV1(
   context: MainWireFiveWallCoupledResidualContextV1,
@@ -45,12 +57,40 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1(
   const minus = new Float64Array(dimension);
   const plusResidual = new Float64Array(dimension);
   const minusResidual = new Float64Array(dimension);
+  const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  const boundaryDimension =
+    CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+  const nonCoronaryDimension =
+    NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+  const localDependentSvColumn = new Float64Array(nonCoronaryDimension);
+  const coronaryLinearization = {
+    residualMl: new Float64Array(coronaryDimension),
+    dResidualDVolume:
+      new Float64Array(coronaryDimension * coronaryDimension),
+    dResidualDBoundary:
+      new Float64Array(coronaryDimension * boundaryDimension),
+    dTotalInletFlowDVolume: new Float64Array(coronaryDimension),
+    dCommonVenousOutletFlowDVolume: new Float64Array(coronaryDimension),
+    dTotalInletFlowDBoundary: new Float64Array(boundaryDimension),
+    dCommonVenousOutletFlowDBoundary: new Float64Array(boundaryDimension),
+  };
   let jacobianResidualEvaluationCount = 0;
+  let coronaryAnalyticBlockAssemblyCount = 0;
+  const jacobianMode = options.jacobianMode
+    ?? "hybrid-coronary-analytic";
   const system: FlatCoupledSystemV1 = Object.freeze({
     dimension,
     evaluateResidual: context.evaluateResidualMl,
     evaluateJacobian: (unknowns, destination) => {
-      for (let column = 0; column < dimension; column += 1) {
+      const finiteDifferenceColumnCount =
+        jacobianMode === "hybrid-coronary-analytic"
+          ? nonCoronaryDimension
+          : dimension;
+      for (
+        let column = 0;
+        column < finiteDifferenceColumnCount;
+        column += 1
+      ) {
         plus.set(unknowns);
         minus.set(unknowns);
         const halfStep = finiteDifferenceRelativeStep
@@ -72,6 +112,50 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1(
         for (let row = 0; row < dimension; row += 1) {
           destination[row * dimension + column] =
             (plusResidual[row]! - minusResidual[row]!) / denominator;
+        }
+      }
+      if (jacobianMode === "hybrid-coronary-analytic") {
+        context.writeCoronaryLinearization(
+          unknowns,
+          coronaryLinearization,
+          localDependentSvColumn,
+        );
+        coronaryAnalyticBlockAssemblyCount += 1;
+        const coronaryStart = nonCoronaryDimension;
+        const aoResidualRow =
+          NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("Ao");
+        const raResidualRow =
+          NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("RA");
+        if (aoResidualRow < 0 || raResidualRow < 0) {
+          throw new Error(
+            "coupled coronary block requires independent Ao and RA rows",
+          );
+        }
+        for (let row = 0; row < nonCoronaryDimension; row += 1) {
+          for (let column = 0; column < coronaryDimension; column += 1) {
+            let derivative = -localDependentSvColumn[row]!;
+            if (row === aoResidualRow) {
+              derivative += context.stepDtSec
+                * coronaryLinearization.dTotalInletFlowDVolume[column]!;
+            }
+            if (row === raResidualRow) {
+              derivative -= context.stepDtSec
+                * coronaryLinearization
+                  .dCommonVenousOutletFlowDVolume[column]!;
+            }
+            destination[row * dimension + coronaryStart + column] =
+              derivative;
+          }
+        }
+        for (let row = 0; row < coronaryDimension; row += 1) {
+          for (let column = 0; column < coronaryDimension; column += 1) {
+            destination[
+              (coronaryStart + row) * dimension
+              + coronaryStart + column
+            ] = coronaryLinearization.dResidualDVolume[
+              row * coronaryDimension + column
+            ]!;
+          }
         }
       }
     },
@@ -96,6 +180,7 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1(
   return Object.freeze({
     solverId: MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID,
     jacobianResidualEvaluationCount,
+    coronaryAnalyticBlockAssemblyCount,
     result,
   });
 }

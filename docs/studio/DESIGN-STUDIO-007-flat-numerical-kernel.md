@@ -792,6 +792,21 @@ generation, generic sparse libraries, and Jacobian-free Newton–Krylov are not
 part of the first slice. Build-time generated assembly becomes eligible when
 multipatch repetition makes its review and tooling cost worthwhile.
 
+The first Phase 2a construction slice now evaluates the real 30-row residual
+and solves it with the dense flat Newton. Its coronary writer obtains the
+16-row residual, the `16×16` fixed-boundary volume tangent, the `16×9`
+boundary tangent, and inlet/outlet observable tangents from one hydraulic
+evaluation. The first hybrid block step also assembles every non-coronary row
+of the 16 coronary-volume columns analytically, including the fixed-TBV
+dependent-`SV` chain and direct Ao/RA companion rates. Therefore a Jacobian
+assembly uses 28 full-residual probes instead of 60. At the canonical cold
+candidate, the assembled columns differ from a bisection-noise-aware central
+shadow by at most `8.8e-8` (`1.9e-6` relative Frobenius), and the hybrid and
+full-FD Newton solutions agree to nine decimal digits. This is a correctness
+and work-count milestone, not yet a runtime speed claim: the residual remains
+the cold object-materializing oracle and the 14 non-coronary columns remain
+finite-difference probes.
+
 The initial coupled implementation keeps the exact 2 ms backward-Euler clock,
 event clipping, closed-form valve/Land eliminations, and all accepted-state
 owners unchanged. It replaces three outer candidates, about four inner

@@ -588,6 +588,20 @@ export type NonCoronaryCirculationCandidateProbeV1<
   edgeFlowsMlPerSec: Float64Array;
   continuityResidualMlByNode: Float64Array;
   scaledIndependentResidual: Float64Array;
+  /**
+   * Device-off local-continuity derivative with respect to the physical
+   * dependent SV volume while every independent non-coronary volume and the
+   * companion boundary rates remain fixed. The 14 rows follow
+   * `NON_CORONARY_INDEPENDENT_NODE_NAMES_V1`.
+   *
+   * This is the `a = ∂r₀/∂V_SV` column needed by the monolithic
+   * non-coronary/coronary Jacobian. It intentionally excludes the companion's
+   * direct Ao/RA source-rate derivatives, which the coupled assembler adds
+   * separately. Device/protocol slices return null until their component
+   * writers own the corresponding tangent.
+   */
+  localIndependentResidualDDependentSvVolumeMlPerMl:
+    Float64Array | null;
   candidateMechanicsEvaluation: TEvaluation;
   candidateCompanionTrial: TCompanionTrial | null;
 }>;
@@ -1351,6 +1365,17 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
     vascularPvLaws,
     mechanicsCache,
   );
+  const localIndependentResidualDDependentSvVolumeMlPerMl =
+    input.mechanicalSupport === undefined
+      && input.dynamicMechanicalSupport === undefined
+      && input.protocolResistanceScaleByEdge === undefined
+      ? deviceOffLocalIndependentResidualDDependentSvVolumeV1(
+        graph,
+        input,
+        candidate,
+        respiratoryExternalPressures,
+      )
+      : null;
   return Object.freeze({
     candidateTimeSec,
     candidateNodeVolumesMl: candidate.nodeVolumesMl.slice(),
@@ -1361,6 +1386,7 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
       candidate.continuityResidualMlByNode.slice(),
     scaledIndependentResidual:
       candidate.scaledIndependentResidual.slice(),
+    localIndependentResidualDDependentSvVolumeMlPerMl,
     candidateMechanicsEvaluation: candidate.candidateMechanicsEvaluation,
     candidateCompanionTrial:
       candidate.conservativeCompanion?.candidateCompanionTrial ?? null,
@@ -2462,6 +2488,209 @@ function accumulateAnalyticJacobianPressureColumn(
   }
 }
 
+type EdgeFlowPressureDerivativesV1 = Readonly<{
+  upstreamMlPerSecPerMmHg: number;
+  downstreamMlPerSecPerMmHg: number;
+}>;
+
+/**
+ * Same-candidate semismooth pressure derivatives for one native circulation
+ * edge. Both the ordinary analytic Jacobian and the coupled dependent-SV
+ * column use this single branch authority so they cannot silently disagree at
+ * valve, collapse, pressure-dependent-loss, or inertance branches.
+ */
+function analyticEdgeFlowPressureDerivativesV1<
+  TEvaluation,
+  TCompanionTrial,
+>(
+  graph: NonCoronaryCirculationGraphV1,
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+  current: CandidateEvaluation<TEvaluation, TCompanionTrial>,
+  respiratoryExternalPressures: RespiratoryExternalPressuresV1,
+  edgeIndex: number,
+): EdgeFlowPressureDerivativesV1 {
+  const edge = graph.edges[edgeIndex]!;
+  const edgeName = edge.name as NonCoronaryEdgeNameV1;
+  const upstreamName = edge.up as NonCoronaryNodeNameV1;
+  const downstreamName = edge.down as NonCoronaryNodeNameV1;
+  const upstreamPressureMmHg =
+    current.nodeAbsolutePressuresMmHg[
+      NON_CORONARY_NODE_INDEX_BY_NAME_V1[upstreamName]
+    ]!;
+  const downstreamPressureMmHg =
+    current.nodeAbsolutePressuresMmHg[
+      NON_CORONARY_NODE_INDEX_BY_NAME_V1[downstreamName]
+    ]!;
+  let upstreamMlPerSecPerMmHg: number;
+  let downstreamMlPerSecPerMmHg: number;
+
+  if (edge.kind === "valve") {
+    const evaluation = current.valveEvaluations[
+      NON_CORONARY_VALVE_INDEX_BY_NAME_V1[
+        edgeName as NonCoronaryValveNameV1
+      ]
+    ]!;
+    const dFlowDGradient =
+      evaluation.dFlowDPressureGradientMlPerSecPerMmHg;
+    requireFinite(dFlowDGradient, `${edgeName} valve flow tangent`);
+    upstreamMlPerSecPerMmHg = dFlowDGradient;
+    downstreamMlPerSecPerMmHg = -dFlowDGradient;
+  } else {
+    const edgeExternalPressureMmHg = respiratoryExternalPressureFromFrameV1(
+      respiratoryKind(edge.ext),
+      respiratoryExternalPressures,
+    );
+    const downstream = downstreamEffectivePressureAndDerivativeV1({
+      edge,
+      downstreamPressureMmHg,
+      edgeExternalPressureMmHg,
+    });
+    const losses = applyProtocolResistanceScaleWithDerivatives(
+      nonValveEdgeLossAndPressureDerivativesV1({
+        edge,
+        params: input.runtime.losses,
+        upstreamPressureMmHg,
+        downstreamPressureMmHg,
+        edgeExternalPressureMmHg,
+      }),
+      protocolResistanceScaleForEdge(input, edgeName),
+    );
+    const flowMlPerSec = current.edgeFlowsMlPerSec[edgeIndex]!;
+    const signedQuadraticFlow = flowMlPerSec * Math.abs(flowMlPerSec);
+    let inertanceMmHgSec2PerMl = 0;
+    let dInertanceDUpstreamPressureSec2PerMl = 0;
+    let dInertanceDDownstreamPressureSec2PerMl = 0;
+    let previousFlowMlPerSec = flowMlPerSec;
+    if (edge.kind === "dynamic") {
+      const areaDenominator = edge.useChiResistance
+        ? Math.max(losses.areaRatio, 1e-6)
+        : 1;
+      inertanceMmHgSec2PerMl = requirePositive(
+        (edge.L ?? 0) / areaDenominator,
+        `${edgeName} inertance tangent base`,
+      );
+      if (edge.useChiResistance && losses.areaRatio > 1e-6) {
+        const inertanceAreaFactor =
+          -inertanceMmHgSec2PerMl / losses.areaRatio;
+        dInertanceDUpstreamPressureSec2PerMl = inertanceAreaFactor
+          * losses.dAreaRatioDUpstreamPressurePerMmHg;
+        dInertanceDDownstreamPressureSec2PerMl = inertanceAreaFactor
+          * losses.dAreaRatioDDownstreamPressurePerMmHg;
+      }
+      previousFlowMlPerSec = input.previousAcceptedState
+        .dynamicEdgeFlowsMlPerSec[
+          edgeName as NonCoronaryDynamicEdgeNameV1
+        ];
+    }
+    const denominator = losses.resistanceMmHgSecPerMl
+      + (edge.kind === "dynamic"
+        ? inertanceMmHgSec2PerMl / input.dtSec
+        : 0)
+      + 2 * losses.quadraticLossMmHgSec2PerMl2
+        * Math.abs(flowMlPerSec);
+    requirePositive(denominator, `${edgeName} flow tangent denominator`);
+    const dynamicInertanceFactor = edge.kind === "dynamic"
+      ? (previousFlowMlPerSec - flowMlPerSec) / input.dtSec
+      : 0;
+    upstreamMlPerSecPerMmHg = (
+      1
+      - flowMlPerSec
+        * losses.dResistanceDUpstreamPressureSecPerMl
+      - signedQuadraticFlow
+        * losses.dQuadraticLossDUpstreamPressureSec2PerMl2
+      + dynamicInertanceFactor
+        * dInertanceDUpstreamPressureSec2PerMl
+    ) / denominator;
+    downstreamMlPerSecPerMmHg = (
+      -downstream.dEffectivePressureDDownstreamPressure
+      - flowMlPerSec
+        * losses.dResistanceDDownstreamPressureSecPerMl
+      - signedQuadraticFlow
+        * losses.dQuadraticLossDDownstreamPressureSec2PerMl2
+      + dynamicInertanceFactor
+        * dInertanceDDownstreamPressureSec2PerMl
+    ) / denominator;
+  }
+  requireFinite(
+    upstreamMlPerSecPerMmHg,
+    `${edgeName} upstream pressure-flow tangent`,
+  );
+  requireFinite(
+    downstreamMlPerSecPerMmHg,
+    `${edgeName} downstream pressure-flow tangent`,
+  );
+  return Object.freeze({
+    upstreamMlPerSecPerMmHg,
+    downstreamMlPerSecPerMmHg,
+  });
+}
+
+/**
+ * Physical derivative of the 14 independent local continuity equations with
+ * respect to the dependent SV volume. Companion volume/rate derivatives are
+ * deliberately absent: the monolithic assembler owns those explicit blocks.
+ */
+function deviceOffLocalIndependentResidualDDependentSvVolumeV1<
+  TEvaluation,
+  TCompanionTrial,
+>(
+  graph: NonCoronaryCirculationGraphV1,
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+  current: CandidateEvaluation<TEvaluation, TCompanionTrial>,
+  respiratoryExternalPressures: RespiratoryExternalPressuresV1,
+): Float64Array {
+  if (
+    current.mechanicalSupport !== null
+    || current.dynamicMechanicalSupport !== null
+    || input.protocolResistanceScaleByEdge !== undefined
+  ) {
+    throw new Error(
+      "dependent-SV local tangent V1 supports only the device-off protocol-free slice",
+    );
+  }
+  const destination = new Float64Array(INDEPENDENT_NODE_NAMES.length);
+  const dependentPressureTangentMmHgPerMl = requireFinite(
+    current.vascularPressureTangentMmHgPerMl[
+      NON_CORONARY_NODE_INDEX_BY_NAME_V1[DEPENDENT_NODE]
+    ]!,
+    "SV vascular pressure tangent",
+  );
+  for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex += 1) {
+    const edge = graph.edges[edgeIndex]!;
+    const upstreamName = edge.up as NonCoronaryNodeNameV1;
+    const downstreamName = edge.down as NonCoronaryNodeNameV1;
+    if (upstreamName !== DEPENDENT_NODE && downstreamName !== DEPENDENT_NODE) {
+      continue;
+    }
+    const derivatives = analyticEdgeFlowPressureDerivativesV1(
+      graph,
+      input,
+      current,
+      respiratoryExternalPressures,
+      edgeIndex,
+    );
+    const dFlowDDependentVolume = dependentPressureTangentMmHgPerMl * (
+      (upstreamName === DEPENDENT_NODE
+        ? derivatives.upstreamMlPerSecPerMmHg
+        : 0)
+      + (downstreamName === DEPENDENT_NODE
+        ? derivatives.downstreamMlPerSecPerMmHg
+        : 0)
+    );
+    const upstreamResidualRow = INDEPENDENT_NODE_INDEX[upstreamName];
+    const downstreamResidualRow = INDEPENDENT_NODE_INDEX[downstreamName];
+    if (upstreamResidualRow !== undefined) {
+      destination[upstreamResidualRow] += input.dtSec
+        * dFlowDDependentVolume;
+    }
+    if (downstreamResidualRow !== undefined) {
+      destination[downstreamResidualRow] -= input.dtSec
+        * dFlowDDependentVolume;
+    }
+  }
+  return destination;
+}
+
 /**
  * Exact chain rule for the current BE residual, using the same candidate's
  * chamber algorithmic tangent and active vascular/edge/valve branches.
@@ -2598,114 +2827,14 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
 
   for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex += 1) {
     const edge = graph.edges[edgeIndex]!;
-    const edgeName = edge.name as NonCoronaryEdgeNameV1;
     const upstreamName = edge.up as NonCoronaryNodeNameV1;
     const downstreamName = edge.down as NonCoronaryNodeNameV1;
-    const upstreamPressureMmHg =
-      current.nodeAbsolutePressuresMmHg[
-        NON_CORONARY_NODE_INDEX_BY_NAME_V1[upstreamName]
-      ]!;
-    const downstreamPressureMmHg =
-      current.nodeAbsolutePressuresMmHg[
-        NON_CORONARY_NODE_INDEX_BY_NAME_V1[downstreamName]
-      ]!;
-    let dFlowDUpstreamPressureMlPerSecPerMmHg: number;
-    let dFlowDDownstreamPressureMlPerSecPerMmHg: number;
-
-    if (edge.kind === "valve") {
-      const evaluation = current.valveEvaluations[
-        NON_CORONARY_VALVE_INDEX_BY_NAME_V1[
-          edgeName as NonCoronaryValveNameV1
-        ]
-      ]!;
-      const dFlowDGradient =
-        evaluation.dFlowDPressureGradientMlPerSecPerMmHg;
-      requireFinite(dFlowDGradient, `${edgeName} valve flow tangent`);
-      dFlowDUpstreamPressureMlPerSecPerMmHg = dFlowDGradient;
-      dFlowDDownstreamPressureMlPerSecPerMmHg = -dFlowDGradient;
-    } else {
-      const edgeExternalPressureMmHg = respiratoryExternalPressureFromFrameV1(
-        respiratoryKind(edge.ext),
-        respiratoryExternalPressures,
-      );
-      const downstream = downstreamEffectivePressureAndDerivativeV1({
-        edge,
-        downstreamPressureMmHg,
-        edgeExternalPressureMmHg,
-      });
-      const losses = applyProtocolResistanceScaleWithDerivatives(
-        nonValveEdgeLossAndPressureDerivativesV1({
-        edge,
-        params: input.runtime.losses,
-        upstreamPressureMmHg,
-        downstreamPressureMmHg,
-        edgeExternalPressureMmHg,
-        }),
-        protocolResistanceScaleForEdge(input, edgeName),
-      );
-      const flowMlPerSec = current.edgeFlowsMlPerSec[edgeIndex]!;
-      const signedQuadraticFlow = flowMlPerSec * Math.abs(flowMlPerSec);
-      let inertanceMmHgSec2PerMl = 0;
-      let dInertanceDUpstreamPressureSec2PerMl = 0;
-      let dInertanceDDownstreamPressureSec2PerMl = 0;
-      let previousFlowMlPerSec = flowMlPerSec;
-      if (edge.kind === "dynamic") {
-        const areaDenominator = edge.useChiResistance
-          ? Math.max(losses.areaRatio, 1e-6)
-          : 1;
-        inertanceMmHgSec2PerMl = requirePositive(
-          (edge.L ?? 0) / areaDenominator,
-          `${edgeName} inertance tangent base`,
-        );
-        if (edge.useChiResistance && losses.areaRatio > 1e-6) {
-          const inertanceAreaFactor =
-            -inertanceMmHgSec2PerMl / losses.areaRatio;
-          dInertanceDUpstreamPressureSec2PerMl = inertanceAreaFactor
-            * losses.dAreaRatioDUpstreamPressurePerMmHg;
-          dInertanceDDownstreamPressureSec2PerMl = inertanceAreaFactor
-            * losses.dAreaRatioDDownstreamPressurePerMmHg;
-        }
-        previousFlowMlPerSec = input.previousAcceptedState
-          .dynamicEdgeFlowsMlPerSec[
-            edgeName as NonCoronaryDynamicEdgeNameV1
-          ];
-      }
-      const denominator = losses.resistanceMmHgSecPerMl
-        + (edge.kind === "dynamic"
-          ? inertanceMmHgSec2PerMl / input.dtSec
-          : 0)
-        + 2 * losses.quadraticLossMmHgSec2PerMl2
-          * Math.abs(flowMlPerSec);
-      requirePositive(denominator, `${edgeName} flow tangent denominator`);
-      const dynamicInertanceFactor = edge.kind === "dynamic"
-        ? (previousFlowMlPerSec - flowMlPerSec) / input.dtSec
-        : 0;
-      dFlowDUpstreamPressureMlPerSecPerMmHg = (
-        1
-        - flowMlPerSec
-          * losses.dResistanceDUpstreamPressureSecPerMl
-        - signedQuadraticFlow
-          * losses.dQuadraticLossDUpstreamPressureSec2PerMl2
-        + dynamicInertanceFactor
-          * dInertanceDUpstreamPressureSec2PerMl
-      ) / denominator;
-      dFlowDDownstreamPressureMlPerSecPerMmHg = (
-        -downstream.dEffectivePressureDDownstreamPressure
-        - flowMlPerSec
-          * losses.dResistanceDDownstreamPressureSecPerMl
-        - signedQuadraticFlow
-          * losses.dQuadraticLossDDownstreamPressureSec2PerMl2
-        + dynamicInertanceFactor
-          * dInertanceDDownstreamPressureSec2PerMl
-      ) / denominator;
-    }
-    requireFinite(
-      dFlowDUpstreamPressureMlPerSecPerMmHg,
-      `${edgeName} upstream pressure-flow tangent`,
-    );
-    requireFinite(
-      dFlowDDownstreamPressureMlPerSecPerMmHg,
-      `${edgeName} downstream pressure-flow tangent`,
+    const derivatives = analyticEdgeFlowPressureDerivativesV1(
+      graph,
+      input,
+      current,
+      respiratoryExternalPressures,
+      edgeIndex,
     );
     const upstreamResidualRow = INDEPENDENT_NODE_INDEX[upstreamName];
     const downstreamResidualRow = INDEPENDENT_NODE_INDEX[downstreamName];
@@ -2719,7 +2848,7 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
       : -input.dtSec / volumeScales[downstreamResidualRow]!;
     accumulateNodePressureChain(
       upstreamName,
-      dFlowDUpstreamPressureMlPerSecPerMmHg,
+      derivatives.upstreamMlPerSecPerMmHg,
       upstreamResidualRow,
       upstreamResidualFactor,
       downstreamResidualRow,
@@ -2727,7 +2856,7 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
     );
     accumulateNodePressureChain(
       downstreamName,
-      dFlowDDownstreamPressureMlPerSecPerMmHg,
+      derivatives.downstreamMlPerSecPerMmHg,
       upstreamResidualRow,
       upstreamResidualFactor,
       downstreamResidualRow,

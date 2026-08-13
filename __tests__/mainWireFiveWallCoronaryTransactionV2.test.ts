@@ -4,8 +4,14 @@ import {
   NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+import {
+  buildAuthoritativeCirculationGraphV1,
+  vascularPvLawFromNodeV1,
+  vascularTransmuralPressureAndVolumeTangentFromLawV1,
+} from "@/engine/core/circulationGraphKernelV1";
 import { defaultParams } from "@/engine/core/params";
 import {
+  CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2,
   NORMAL_CORONARY_DISEASE_INPUT_V2,
   type CoronaryDiseaseInputV2,
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
@@ -705,6 +711,10 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       stepInput,
     );
     const coupled = solveMainWireFiveWallCoupledNewtonShadowV1(context);
+    const finiteDifferenceOnly = solveMainWireFiveWallCoupledNewtonShadowV1(
+      context,
+      { jacobianMode: "central-difference" },
+    );
     const legacy = stepMainWireFiveWallCoronaryV2(
       provider,
       cold.acceptedState,
@@ -712,12 +722,33 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     );
 
     expect(coupled.result.status).toBe("converged");
+    expect(finiteDifferenceOnly.result.status).toBe("converged");
     expect(legacy.converged).toBe(true);
     if (coupled.result.status !== "converged") {
       throw new Error(coupled.result.message);
     }
+    if (finiteDifferenceOnly.result.status !== "converged") {
+      throw new Error(finiteDifferenceOnly.result.message);
+    }
     if (legacy.converged === false) throw new Error(legacy.message);
     const converged = coupled.result;
+    expect(coupled.coronaryAnalyticBlockAssemblyCount)
+      .toBe(converged.jacobianEvaluationCount);
+    expect(coupled.jacobianResidualEvaluationCount).toBe(
+      2 * NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
+        * converged.jacobianEvaluationCount,
+    );
+    expect(finiteDifferenceOnly.coronaryAnalyticBlockAssemblyCount).toBe(0);
+    expect(finiteDifferenceOnly.jacobianResidualEvaluationCount).toBe(
+      2 * context.dimension
+        * finiteDifferenceOnly.result.jacobianEvaluationCount,
+    );
+    for (let index = 0; index < converged.solution.length; index += 1) {
+      expect(converged.solution[index]).toBeCloseTo(
+        finiteDifferenceOnly.result.solution[index]!,
+        9,
+      );
+    }
     expect(converged.residualInfinityNorm).toBeLessThan(1e-8);
     expect(converged.iterations).toBeLessThanOrEqual(8);
     NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.forEach((nodeId, index) => {
@@ -734,6 +765,135 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
         6,
       );
     });
+  }, 60_000);
+
+  it("matches every analytic non-coronary/coronary column against the full residual", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const runtime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+    const stepInput = Object.freeze({
+      dtSec: 0.002,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const context = prepareMainWireFiveWallCoupledResidualContextV1(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+    const nonCoronaryDimension =
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+    const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+    const boundaryDimension =
+      CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+    const linearization = {
+      residualMl: new Float64Array(coronaryDimension),
+      dResidualDVolume:
+        new Float64Array(coronaryDimension * coronaryDimension),
+      dResidualDBoundary:
+        new Float64Array(coronaryDimension * boundaryDimension),
+      dTotalInletFlowDVolume: new Float64Array(coronaryDimension),
+      dCommonVenousOutletFlowDVolume:
+        new Float64Array(coronaryDimension),
+      dTotalInletFlowDBoundary: new Float64Array(boundaryDimension),
+      dCommonVenousOutletFlowDBoundary:
+        new Float64Array(boundaryDimension),
+    };
+    const dependentSvColumn = new Float64Array(nonCoronaryDimension);
+    context.writeCoronaryLinearization(
+      context.initialUnknownsMl,
+      linearization,
+      dependentSvColumn,
+    );
+    const plus = context.initialUnknownsMl.slice();
+    const minus = context.initialUnknownsMl.slice();
+    const plusResidual = new Float64Array(context.dimension);
+    const minusResidual = new Float64Array(context.dimension);
+    const aoRow = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("Ao");
+    const raRow = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("RA");
+    const dependentSvVolumeMl = cold.acceptedState
+      .fixedGlobalTotalBloodVolumeMl
+      - context.initialUnknownsMl.reduce((sum, volume) => sum + volume, 0);
+    const graph = buildAuthoritativeCirculationGraphV1();
+    const svNode = graph.nodes[graph.nodeIndex.get("SV")!]!;
+    const svLaw = vascularPvLawFromNodeV1(svNode, runtime.vascular);
+    const svPaired = vascularTransmuralPressureAndVolumeTangentFromLawV1(
+      svLaw,
+      dependentSvVolumeMl,
+      "adaptive-volume-tolerance",
+    );
+    const svPressureHalfStepMl = 0.1;
+    const svPressurePlus =
+      vascularTransmuralPressureAndVolumeTangentFromLawV1(
+        svLaw,
+        dependentSvVolumeMl + svPressureHalfStepMl,
+        "adaptive-volume-tolerance",
+      ).transmuralPressureMmHg;
+    const svPressureMinus =
+      vascularTransmuralPressureAndVolumeTangentFromLawV1(
+        svLaw,
+        dependentSvVolumeMl - svPressureHalfStepMl,
+        "adaptive-volume-tolerance",
+      ).transmuralPressureMmHg;
+    expect(svPaired.dTransmuralPressureDPhysicalVolumeMmHgPerMl).toBeCloseTo(
+      (svPressurePlus - svPressureMinus) / (2 * svPressureHalfStepMl),
+      7,
+    );
+
+    let maximumAbsoluteDifference = 0;
+    let squaredDifference = 0;
+    let squaredFiniteDifference = 0;
+    for (let column = 0; column < coronaryDimension; column += 1) {
+      plus.set(context.initialUnknownsMl);
+      minus.set(context.initialUnknownsMl);
+      const globalColumn = nonCoronaryDimension + column;
+      // The venous PV primal uses adaptive bisection. A millilitre-scale
+      // relative perturbation stays local while remaining well above its
+      // pressure-quantization floor; the production analytic tangent itself
+      // differentiates the constitutive law, not the finite bisection trace.
+      const halfStep = 1e-3 * Math.max(
+        1,
+        Math.abs(context.initialUnknownsMl[globalColumn]!),
+      );
+      plus[globalColumn] += halfStep;
+      minus[globalColumn] -= halfStep;
+      context.evaluateResidualMl(plus, plusResidual);
+      context.evaluateResidualMl(minus, minusResidual);
+      for (let row = 0; row < nonCoronaryDimension; row += 1) {
+        let analytic = -dependentSvColumn[row]!;
+        if (row === aoRow) {
+          analytic += context.stepDtSec
+            * linearization.dTotalInletFlowDVolume[column]!;
+        }
+        if (row === raRow) {
+          analytic -= context.stepDtSec
+            * linearization.dCommonVenousOutletFlowDVolume[column]!;
+        }
+        const finiteDifference = (
+          plusResidual[row]! - minusResidual[row]!
+        ) / (2 * halfStep);
+        const difference = Math.abs(analytic - finiteDifference);
+        maximumAbsoluteDifference = Math.max(
+          maximumAbsoluteDifference,
+          difference,
+        );
+        squaredDifference += difference * difference;
+        squaredFiniteDifference += finiteDifference * finiteDifference;
+      }
+    }
+    expect(maximumAbsoluteDifference).toBeLessThan(1e-6);
+    expect(Math.sqrt(squaredDifference / squaredFiniteDifference))
+      .toBeLessThan(5e-6);
   }, 60_000);
 
   it("matches the development full-FD shadow with the implicit coronary outer Jacobian", () => {
