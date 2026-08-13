@@ -1236,7 +1236,7 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(maximumAbsoluteVolumeDifferenceMl).toBeLessThan(1e-6);
   }, 60_000);
 
-  it("advances its own accepted trajectory for one second beside the nested oracle", () => {
+  it("drives one second from its flat image through the cold object bridge beside the nested oracle", () => {
     const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
     const runtime = Object.freeze({
       ...RUNTIME,
@@ -1267,17 +1267,22 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       createCoronaryBackwardEulerScratchWorkspaceV2();
     const legacyNonCoronaryWorkspace =
       createNonCoronaryBackwardEulerScratchWorkspaceV1();
-    let coupledAccepted = coupledCold.acceptedState;
+    const flatAccepted = new MainWireFlatCoupledAcceptedStateV1(
+      coupledCold.acceptedState,
+    );
     let nestedAccepted = nestedCold.acceptedState;
     let maximumAbsoluteVolumeDifferenceMl = 0;
 
     for (let stepIndex = 0; stepIndex < 500; stepIndex += 1) {
+      const coupledAccepted = flatAccepted.materializeAcceptedObjectBridge(
+        provider,
+      );
       const context = prepareMainWireFiveWallCoupledResidualContextV1(
         provider,
         coupledAccepted,
         stepInput,
       );
-      const coupled = advanceMainWireFiveWallCoupledNewtonV1(
+      const coupled = solveMainWireFiveWallCoupledNewtonShadowV1(
         context,
         { maximumAcceptedStepsPerJacobian: 2 },
         coupledWorkspace,
@@ -1289,48 +1294,48 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
         legacyCoronaryWorkspace,
         legacyNonCoronaryWorkspace,
       );
-      if (coupled.status !== "accepted") {
+      if (coupled.result.status !== "converged") {
         throw new Error(
-          `coupled step ${stepIndex} failed at ${coupled.status}${
-            "message" in coupled
-              ? `: ${coupled.message}`
-              : coupled.solver.result.status === "failed"
-              ? `: ${coupled.solver.result.reason}: ${
-                coupled.solver.result.message
-              } (residual=${coupled.solver.result.residualInfinityNorm})`
-              : ""
-          }`,
+          `coupled step ${stepIndex}: ${coupled.result.message}`,
         );
       }
       if (nested.converged === false) {
         throw new Error(`nested step ${stepIndex}: ${nested.message}`);
       }
-      expect(coupled.status).toBe("accepted");
+      expect(coupled.result.status).toBe("converged");
       expect(nested.converged).toBe(true);
-      coupledAccepted = coupled.step.acceptedState;
+      flatAccepted.stageConvergedSolution(context, coupled.result.solution);
+      flatAccepted.promote();
+      const flatSnapshot = flatAccepted.snapshot();
       nestedAccepted = nested.acceptedState;
-      NON_CORONARY_NODE_NAMES_V1.forEach((nodeId) => {
+      NON_CORONARY_NODE_NAMES_V1.forEach((nodeId, nodeIndex) => {
         maximumAbsoluteVolumeDifferenceMl = Math.max(
           maximumAbsoluteVolumeDifferenceMl,
           Math.abs(
-            coupledAccepted.circulation.nodeVolumesMl[nodeId]
+            flatSnapshot.nonCoronaryNodeVolumesMl[nodeIndex]!
               - nestedAccepted.circulation.nodeVolumesMl[nodeId],
           ),
         );
       });
-      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.forEach((nodeId) => {
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.forEach((nodeId, nodeIndex) => {
         maximumAbsoluteVolumeDifferenceMl = Math.max(
           maximumAbsoluteVolumeDifferenceMl,
           Math.abs(
-            coupledAccepted.coronary.volumeMlByNode[nodeId]
+            flatSnapshot.coronaryConservedVolumesMl[nodeIndex]!
               - nestedAccepted.coronary.volumeMlByNode[nodeId],
           ),
         );
       });
     }
 
-    expect(coupledAccepted.acceptedTimeSec).toBeCloseTo(1, 12);
-    expect(coupledAccepted.revision).toBe(500);
+    const flatTerminal = flatAccepted.snapshot();
+    const bridgedTerminal = flatAccepted.materializeAcceptedObjectBridge(
+      provider,
+    );
+    expect(flatTerminal.acceptedTimeSec).toBeCloseTo(1, 12);
+    expect(flatTerminal.revision).toBe(500);
+    expect(bridgedTerminal.acceptedTimeSec).toBeCloseTo(1, 12);
+    expect(bridgedTerminal.revision).toBe(500);
     expect(nestedAccepted.acceptedTimeSec).toBeCloseTo(1, 12);
     expect(nestedAccepted.revision).toBe(500);
     expect(maximumAbsoluteVolumeDifferenceMl).toBeLessThan(1e-5);

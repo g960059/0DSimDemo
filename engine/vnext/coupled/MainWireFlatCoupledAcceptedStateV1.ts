@@ -1,4 +1,5 @@
 import {
+  NON_CORONARY_CIRCULATION_BE_V1_ID,
   NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
   NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
@@ -20,12 +21,20 @@ import {
   MAIN_WIRE_FIVE_WALL_IDS_V1,
   type MainWireFiveWallRecordV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
-import type {
-  MainWireCoronaryMvcReferenceStateV2,
-  MainWireFiveWallCoronaryAcceptedStateV2,
-  MainWireFiveWallCoupledAcceptedCandidateBorrowV1,
-  MainWireFiveWallCoupledResidualContextV1,
+import {
+  MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID,
+  validateMainWireFiveWallCoronaryAcceptedStateV2,
+  type MainWireCoronaryMvcReferenceStateV2,
+  type MainWireFiveWallCoronaryAcceptedStateV2,
+  type MainWireFiveWallCoupledAcceptedCandidateBorrowV1,
+  type MainWireFiveWallCoupledResidualContextV1,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
+import type {
+  MainWireNormalAdultFiveWallProviderV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  materializeWholeHeartMechanicsAcceptedStateV1,
+} from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 
 export const MAIN_WIRE_FLAT_COUPLED_ACCEPTED_STATE_V1_ID =
   "main-wire-flat-coupled-accepted-state-v1" as const;
@@ -127,6 +136,7 @@ export class MainWireFlatCoupledAcceptedStateV1 {
   readonly authorityId = MAIN_WIRE_FLAT_COUPLED_ACCEPTED_STATE_V1_ID;
 
   readonly #buffers: readonly [Float64Array, Float64Array];
+  readonly #coronaryBinding: CanonicalAcceptedState["coronaryBinding"];
   #activeIndex: 0 | 1 = 0;
   #staged = false;
   #commitCount = 0;
@@ -139,6 +149,7 @@ export class MainWireFlatCoupledAcceptedStateV1 {
       MAIN_WIRE_FLAT_COUPLED_ACCEPTED_STATE_V1_SLOT_COUNT,
     );
     this.#buffers = Object.freeze([first, second]);
+    this.#coronaryBinding = Object.freeze({ ...initial.coronaryBinding });
     writeAcceptedObjectIntoImage(initial, first);
     second.set(first);
     assertImage(first);
@@ -242,6 +253,96 @@ export class MainWireFlatCoupledAcceptedStateV1 {
       mechanicsMaterialState: readMechanicsStateFromImage(current),
       mvcReferenceState: readMvcReferenceFromImage(current),
     });
+  }
+
+  /**
+   * Cold migration bridge used only to prove that this image owns enough
+   * state to drive the next coupled step. Production cutover must replace it
+   * with direct context preparation from the active image.
+   */
+  materializeAcceptedObjectBridge(
+    provider: MainWireNormalAdultFiveWallProviderV1,
+  ): CanonicalAcceptedState {
+    const image = this.currentImage();
+    assertImage(image);
+    const acceptedTimeSec = image[ACCEPTED_TIME_SLOT]!;
+    const revision = image[REVISION_SLOT]!;
+    const nodeVolumesMl = Object.freeze(Object.fromEntries(
+      NON_CORONARY_NODE_NAMES_V1.map((nodeId, index) => [
+        nodeId,
+        image[NON_CORONARY_START + index]!,
+      ]),
+    )) as CanonicalAcceptedState["circulation"]["nodeVolumesMl"];
+    const dynamicEdgeFlowsMlPerSec = Object.freeze(Object.fromEntries(
+      NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((edgeId, index) => [
+        edgeId,
+        image[DYNAMIC_EDGE_START + index]!,
+      ]),
+    )) as CanonicalAcceptedState["circulation"][
+      "dynamicEdgeFlowsMlPerSec"
+    ];
+    const valveStates = Object.freeze(Object.fromEntries(
+      NON_CORONARY_VALVE_NAMES_V1.map((valveId, index) => [
+        valveId,
+        Object.freeze({
+          leafletOpeningFraction01: image[VALVE_START + index]!,
+        }),
+      ]),
+    )) as CanonicalAcceptedState["circulation"]["valveStates"];
+    const nonCoronaryTotalBloodVolumeMl = NON_CORONARY_NODE_NAMES_V1.reduce(
+      (total, nodeId) => total + nodeVolumesMl[nodeId],
+      0,
+    );
+    const circulation = Object.freeze({
+      transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,
+      revision,
+      acceptedTimeSec,
+      totalBloodVolumeMl: nonCoronaryTotalBloodVolumeMl,
+      nodeVolumesMl,
+      dynamicEdgeFlowsMlPerSec,
+      valveStates,
+    });
+    const coronaryVolumes = Object.freeze(Object.fromEntries(
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
+        nodeId,
+        image[CORONARY_START + index]!,
+      ]),
+    )) as CanonicalAcceptedState["coronary"]["volumeMlByNode"];
+    const coronary = Object.freeze({
+      acceptedTimeSec,
+      revision,
+      volumeMlByNode: coronaryVolumes,
+      toneResistanceScaleByTerritoryLayer:
+        readCoronaryToneFromImage(image),
+    });
+    const acceptedVolumesMl = Object.freeze({
+      LA: nodeVolumesMl.LA,
+      LV: nodeVolumesMl.LV,
+      RA: nodeVolumesMl.RA,
+      RV: nodeVolumesMl.RV,
+    });
+    const mechanics = materializeWholeHeartMechanicsAcceptedStateV1(
+      provider,
+      Object.freeze({
+        revision,
+        acceptedTimeSec,
+        acceptedVolumesMl,
+        materialState: readMechanicsStateFromImage(image),
+      }),
+    );
+    const accepted = Object.freeze({
+      transactionId: MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID,
+      revision,
+      acceptedTimeSec,
+      fixedGlobalTotalBloodVolumeMl: image[FIXED_TBV_SLOT]!,
+      coronaryBinding: this.#coronaryBinding,
+      circulation,
+      coronary,
+      mechanics,
+      mvcReferenceState: readMvcReferenceFromImage(image),
+    }) satisfies CanonicalAcceptedState;
+    validateMainWireFiveWallCoronaryAcceptedStateV2(accepted);
+    return accepted;
   }
 
   report(): MainWireFlatCoupledAcceptedStateReportV1 {

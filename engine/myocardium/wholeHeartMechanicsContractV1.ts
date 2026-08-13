@@ -639,6 +639,40 @@ export function withPreparedWholeHeartMechanicsCandidateProbeMaterialStateV1<
 }
 
 /**
+ * Cold bridge from a model-owned numerical image back to the public accepted
+ * mechanics contract. It clones, encodes, fingerprints, and validates the
+ * supplied material state exactly like a checkpoint/readback boundary. This
+ * is deliberately not a hot-path primitive; a flat production authority must
+ * prepare its next candidate directly from owned numerical memory.
+ */
+export function materializeWholeHeartMechanicsAcceptedStateV1<TState, TDrive>(
+  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  input: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    acceptedVolumesMl: WholeHeartMechanicsChamberValuesV1;
+    materialState: TState;
+  }>,
+): WholeHeartMechanicsAcceptedStateV1<TState> {
+  validateProvider(provider);
+  validateInteger(input.revision, "accepted revision");
+  validateTime(input.acceptedTimeSec, "acceptedTimeSec");
+  validateVolumes(input.acceptedVolumesMl, "acceptedVolumesMl");
+  const snapshot = snapshotMaterialState(
+    provider,
+    input.materialState,
+    "cold materialized accepted state",
+  );
+  return acceptedStateFromOwnedSnapshot(provider, {
+    revision: input.revision,
+    timeSec: input.acceptedTimeSec,
+    volumesMl: input.acceptedVolumesMl,
+    materialState: snapshot.materialState,
+    materialStateFingerprint: snapshot.fingerprint,
+  });
+}
+
+/**
  * Materializes the one selected candidate into the unchanged public trial.
  * A probe is live for exactly one successful seal and is bound to the exact
  * prepared-step object that created it; foreign or already-sealed probes fail.

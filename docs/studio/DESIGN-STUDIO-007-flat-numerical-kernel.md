@@ -986,6 +986,18 @@ clears the host gate. Production cutover still requires a genuinely
 flat-driven multi-step trajectory and the integrated iPhone gate; the host
 result does not waive either condition or justify a premature WASM port.
 
+The complete 100-scalar image now also drives a 500-step, one-second accepted
+trajectory through an explicit cold object bridge. After every index swap the
+bridge reconstructs the old circulation, coronary, mechanics, and MVC public
+state, including a freshly encoded and fingerprinted mechanics snapshot; only
+that reconstructed state prepares the following coupled context. The flat
+trajectory reaches revision 500 and remains within the existing `1e-5 mL`
+volume corridor beside an independently advancing nested oracle. This proves
+that no accepted circulation/mechanics scalar required by the next step is
+missing from the image. It does not count as the final hot path: the bridge is
+named, documented, and measured as a cold migration boundary and must be
+deleted from per-step execution before cutover.
+
 ### Phase 3 — strict scalar WASM
 
 Port the proven flat scalar kernel to a strict `f64` WASM implementation if
