@@ -32,18 +32,24 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-10
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-12
 ```
 
-Standard-10 preserves Standard-8's equations, controls, checkpoint meaning, and
-accepted numerical sequence while reducing repeated validation work inside the
-accepted-step hot path. Fully validated, transitively frozen model-owned values
-carry an in-process identity proof that can be reused; mutable, partially
-validated, failed, or externally supplied values still take the complete
-validator path. A stamp-disabled reference run remains the canonical
-counterfactual and is required to produce the same accepted frames and exact
-checkpoints. The exact executable bytes changed, so this optimization receives
-a new `modelId` even though its scientific and physiological meaning did not.
+Standard-12 preserves Standard-10's equations, controls, checkpoint meaning,
+and accepted numerical sequence while declaring the required packed
+presentation ABI. Intermediate accepted steps project only authored scalar
+signals into transferable numeric buffers; the terminal step retains a full
+exact frame. The release also reuses one coronary matrix factorization across
+its sensitivity right-hand sides and caches immutable topology indexing.
+These are execution and ownership changes rather than new physiological
+claims, but the exact artifact bytes changed and therefore receive a new
+`modelId`.
+
+Fully validated, transitively frozen model-owned values still carry the
+Standard-10 in-process identity proof. Mutable, partially validated, failed,
+or externally supplied values take the complete validator path. A stamp-
+disabled reference run remains the canonical counterfactual and must produce
+the same accepted frames and exact checkpoints.
 
 Standard-8's portable hemorrhage envelope remains intact: the shared
 systemic-vein/vena-cava pressure-offset initializer supports the advertised

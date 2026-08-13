@@ -83,14 +83,25 @@ deep by default.
 
 The compact transport is presentation-only. Settlement, analyses, capture,
 Snapshot qualification, control commits, and authoring continue to consume
-complete exact frames or checkpoints. The Worker still constructs and fully
-validates each exact accepted frame before projection; this change reduces
-cross-thread allocation and clone cost rather than numerical work.
+complete exact frames or checkpoints. The pre-release Standard ABI requires a
+model-owned packed-batch operation: intermediate accepted steps write clocks
+and selected scalar outputs directly into typed arrays, while only the final
+step constructs one complete frame. Every newly minted Standard exact manifest
+declares `runtime/exact-presentation-batch-v1`, which makes the operation
+mandatory at the artifact trust boundary. Immutable pre-extension artifacts
+remain readable only for already-pinned historical Snapshots and use the old
+fully validated frame-per-step projection; active releases cannot silently
+fall back. This removes object allocation and validation proportional to every
+future primitive output without changing numerical work.
+
+Device diagnostics separately report model-owned advance/projection time and
+Worker validation/preparation time. A Worker round-trip metric alone cannot
+distinguish equation/solver cost from packing or transfer cost.
 
 ## Exact numerical hot path
 
 Presentation work cannot compensate for a Worker that produces exact accepted
-steps slower than model time. The Standard-10 executable therefore retains
+steps slower than model time. The Standard-12 executable therefore retains
 successful validation proofs only for exact immutable identities whose entire
 plain-data graph is transitively frozen. Mutable values, restored copies,
 failed or partial validation, and stamp-disabled verification always miss and
@@ -103,6 +114,15 @@ accepted-step time fell from about `2.42 ms` to `2.02 ms` (about 16.6%). The two
 artifacts then produced identical accepted clocks and all 49 output records for
 1,000 presentation steps through `2.0 s`, including completed-beat metrics.
 This is exact-artifact regression evidence, not a phone throughput claim.
+
+Before Standard-12 admission, the committed Standard-10 and generated
+Standard-12 artifacts were also run for 1,000 exact steps from the same fixture.
+All 49 output records and accepted clocks were identical through `2.0 s`. One
+alternating-order M5 Max run measured about `1.287 ms/step` versus
+`1.211 ms/step` (roughly 6.3% greater throughput) after coronary topology and
+factorization reuse. The model-owned packed projection itself measured near
+parity with repeated one-step projection on this host, confirming that it is a
+growth-safe ABI rather than the phone throughput remedy.
 
 The remaining CPU profile is distributed across dense linear solves, coronary
 Jacobian and hydraulics evaluation, five-wall/TriSeg mechanics, material-state
@@ -288,8 +308,8 @@ ten-minute retained-memory soak.
 
 The 2026-08-13 presentation-path production-preview regression run on the M5
 Max development device passed all three enforced profiles. This browser run
-used the then-active registry bundle; Standard-10 itself is qualified separately
-by the exact same-process comparison above. Post-control/background-contention
+used the then-active Standard-10 registry bundle; that release is qualified
+separately by the exact same-process comparison above. Post-control/background-contention
 root model-time ratios were 0.983× for four reference-desktop
 Scenarios, 0.996× for two constrained-desktop proxy Scenarios, and 0.992× for
 two mobile-layout proxy Scenarios. The corresponding control-to-visible-result

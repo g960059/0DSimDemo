@@ -23,6 +23,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3,
   projectMainWireIntegratedModelAdvancedFrameV3,
   projectMainWireIntegratedModelObservationV3,
+  projectMainWireIntegratedModelSelectedValuesV3,
+  type MainWireIntegratedModelOutputIdV3,
+  type MainWireIntegratedModelOutputValueV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
@@ -73,8 +76,12 @@ import {
 import type { StudioControlActionV2, StudioFixturePatchV2 } from
   "@/studio/contracts/v2/runtime";
 import type {
+  RegisteredModelPresentationBatchV2,
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
+} from "@/studio/contracts/v2/simulation";
+import {
+  STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
 } from "@/studio/contracts/v2/simulation";
 import {
   validateAndOwnStudioSimulationPortableJsonV2,
@@ -289,14 +296,7 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     scenarioId: string,
   ): StudioSimulationFrameV2 {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    const nextOrdinal = scenario.presentationOrdinal + 1;
-    const targetTimeSec = scenario.presentationOriginSec
-      + mainWireIntegratedModelPresentationTargetTimeSecV3(nextOrdinal);
-    const advance = scenario.modelSession.advanceToPresentationTime(targetTimeSec);
-    if (advance.status !== "advanced") {
-      throw new Error(advanceFailureMessageV1(advance));
-    }
-    scenario.presentationOrdinal = nextOrdinal;
+    const advance = this.#advanceScenarioPresentation(scenario);
     return standardFrameV1({
       runtimeSessionId,
       scenarioId,
@@ -305,6 +305,91 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       acceptedTimeSec: advance.acceptedTimeSec,
       projected: projectMainWireIntegratedModelAdvancedFrameV3(advance),
     });
+  }
+
+  advancePresentationBatch(
+    runtimeSessionId: string,
+    scenarioId: string,
+    stepCount: number,
+    presentationOutputIds: readonly string[],
+  ): RegisteredModelPresentationBatchV2 {
+    if (!Number.isSafeInteger(stepCount) || stepCount < 1 || stepCount > 256) {
+      throw new Error("Standard presentation batch stepCount is invalid");
+    }
+    const outputIds = validateSelectedOutputIdsV1(presentationOutputIds);
+    const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
+    const acceptedRevisions = new Float64Array(stepCount);
+    const acceptedTimesSec = new Float64Array(stepCount);
+    const outputStates = new Uint8Array(stepCount * outputIds.length);
+    const outputValues = new Float64Array(stepCount * outputIds.length);
+    let terminalFrame: StudioSimulationFrameV2 | null = null;
+    for (let index = 0; index < stepCount; index += 1) {
+      const advance = this.#advanceScenarioPresentation(scenario);
+      const terminal = index === stepCount - 1;
+      const completeValues = terminal
+        ? projectMainWireIntegratedModelAdvancedFrameV3(advance).values
+        : null;
+      const values = completeValues
+        ?? projectMainWireIntegratedModelSelectedValuesV3(
+          advance.observation,
+          outputIds,
+        );
+      acceptedRevisions[index] = advance.acceptedRevision;
+      acceptedTimesSec[index] = advance.acceptedTimeSec;
+      for (let outputIndex = 0; outputIndex < outputIds.length; outputIndex += 1) {
+        const outputId = outputIds[outputIndex]!;
+        const value = values[outputId];
+        if (value === undefined) {
+          throw new Error(`Standard presentation output ${outputId} is unavailable`);
+        }
+        const packedIndex = index * outputIds.length + outputIndex;
+        outputStates[packedIndex] = standardOutputStateCodeV1(value);
+        if (value.value === null) {
+          outputValues[packedIndex] = Number.NaN;
+        } else if (typeof value.value === "number") {
+          outputValues[packedIndex] = value.value;
+        } else {
+          throw new Error(
+            `Standard presentation output ${outputId} must be scalar or null`,
+          );
+        }
+      }
+      if (completeValues !== null) {
+        terminalFrame = standardFrameFromValuesV1({
+          runtimeSessionId,
+          scenarioId,
+          inputEpoch: scenario.inputEpoch,
+          acceptedRevision: advance.acceptedRevision,
+          acceptedTimeSec: advance.acceptedTimeSec,
+          values: completeValues,
+        });
+      }
+    }
+    if (terminalFrame === null) {
+      throw new Error("Standard presentation batch terminal frame is unavailable");
+    }
+    return Object.freeze({
+      outputIds,
+      acceptedRevisions,
+      acceptedTimesSec,
+      outputStates,
+      outputValues,
+      terminalFrame,
+    });
+  }
+
+  #advanceScenarioPresentation(
+    scenario: RuntimeScenarioV1,
+  ): Extract<MainWireIntegratedModelPresentationAdvanceV3, { status: "advanced" }> {
+    const nextOrdinal = scenario.presentationOrdinal + 1;
+    const targetTimeSec = scenario.presentationOriginSec
+      + mainWireIntegratedModelPresentationTargetTimeSecV3(nextOrdinal);
+    const advance = scenario.modelSession.advanceToPresentationTime(targetTimeSec);
+    if (advance.status !== "advanced") {
+      throw new Error(advanceFailureMessageV1(advance));
+    }
+    scenario.presentationOrdinal = nextOrdinal;
+    return advance;
   }
 
   async applyControl(
@@ -643,6 +728,7 @@ ExactModelKernelManifestV3 {
     primitiveSignalCatalog: STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1,
     modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
+      STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1
         .map(({ outputId }) => `output/${outputId}`),
@@ -792,6 +878,17 @@ function standardExecutableBundleV1(
     advanceOnePresentationStep: async (
       input: Readonly<{ runtimeSessionId: string; scenarioId: string }>,
     ) => host.advanceOnePresentationStep(input.runtimeSessionId, input.scenarioId),
+    advancePresentationBatch: async (input: Readonly<{
+      runtimeSessionId: string;
+      scenarioId: string;
+      stepCount: number;
+      presentationOutputIds: readonly string[];
+    }>) => host.advancePresentationBatch(
+      input.runtimeSessionId,
+      input.scenarioId,
+      input.stepCount,
+      input.presentationOutputIds,
+    ),
     applyControl: async (input: Readonly<{
       runtimeSessionId: string;
       scenarioId: string;
@@ -1038,8 +1135,26 @@ function standardFrameV1(input: Readonly<{
   acceptedTimeSec: number;
   projected: ReturnType<typeof projectMainWireIntegratedModelObservationV3>;
 }>): StudioSimulationFrameV2 {
+  return standardFrameFromValuesV1({
+    runtimeSessionId: input.runtimeSessionId,
+    scenarioId: input.scenarioId,
+    inputEpoch: input.inputEpoch,
+    acceptedRevision: input.acceptedRevision,
+    acceptedTimeSec: input.acceptedTimeSec,
+    values: input.projected.values,
+  });
+}
+
+function standardFrameFromValuesV1(input: Readonly<{
+  runtimeSessionId: string;
+  scenarioId: string;
+  inputEpoch: number;
+  acceptedRevision: number;
+  acceptedTimeSec: number;
+  values: Readonly<Record<string, MainWireIntegratedModelOutputValueV3>>;
+}>): StudioSimulationFrameV2 {
   const outputs = Object.fromEntries(
-    Object.values(input.projected.values)
+    Object.values(input.values)
       .filter(({ outputId }) => STANDARD_EXACT_OUTPUT_IDS_V1.has(outputId))
       .map((value) => [value.outputId, Object.freeze({
         outputId: value.outputId,
@@ -1057,6 +1172,35 @@ function standardFrameV1(input: Readonly<{
     acceptedTimeSec: input.acceptedTimeSec,
     outputs: Object.freeze(outputs),
   });
+}
+
+function validateSelectedOutputIdsV1(
+  outputIds: readonly string[],
+): readonly MainWireIntegratedModelOutputIdV3[] {
+  const seen = new Set<string>();
+  const validated = outputIds.map((outputId) => {
+    if (!STANDARD_EXACT_OUTPUT_IDS_V1.has(outputId)) {
+      throw new Error(`Standard presentation output ${outputId} is unavailable`);
+    }
+    if (seen.has(outputId)) {
+      throw new Error(`Standard presentation output ${outputId} is duplicated`);
+    }
+    seen.add(outputId);
+    return outputId as MainWireIntegratedModelOutputIdV3;
+  });
+  return Object.freeze(validated);
+}
+
+function standardOutputStateCodeV1(
+  output: MainWireIntegratedModelOutputValueV3,
+): number {
+  const availability = output.availability === "available" ? 0 : 3;
+  const quality = output.quality === "authoritative-state"
+    ? 0
+    : output.quality === "accepted-derived"
+    ? 1
+    : 2;
+  return availability + quality;
 }
 
 function assertStandardModelV1(model: ModelContractV2): void {

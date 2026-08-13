@@ -837,6 +837,9 @@ function harnessV2(
             advanceOnePresentationStep() {
               throw new Error("not used by authoring harness");
             },
+            advancePresentationBatch() {
+              throw new Error("not used by authoring harness");
+            },
             applyControl() {
               throw new Error("not used by authoring harness");
             },

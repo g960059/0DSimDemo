@@ -2,7 +2,7 @@
   "schemaId": "circleheart-standard-exact-model-client-descriptor-v1",
   "manifest": {
     "schemaId": "circleheart-studio-exact-model-kernel-v3",
-    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-10",
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-12",
     "modelFamilyId": "circleheart.main-wire-integrated-transaction",
     "equations": {
       "transactionId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3",
@@ -564,6 +564,7 @@
       }
     ],
     "capabilities": [
+      "runtime/exact-presentation-batch-v1",
       "control/hemodynamics.systemic-resistance",
       "control/hemodynamics.pulmonary-resistance",
       "control/hemodynamics.venous-tone",

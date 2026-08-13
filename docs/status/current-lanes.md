@@ -14,6 +14,7 @@ Active contracts:
 - [Studio index](../studio/README.md)
 - [Experiment data architecture](../studio/DESIGN-STUDIO-003-experiment-data-architecture.md)
 - [Model/Surface and assisted authoring](../studio/DESIGN-STUDIO-006-model-surface-release-and-model-lab.md)
+- [Flat numerical kernel and mobile performance](../studio/DESIGN-STUDIO-007-flat-numerical-kernel.md)
 - [CONTENT-0001: PV loop basics pilot](../content/CONTENT-0001-pv-loop-basics-pilot.md)
 
 The current product milestone is a real bounded Article made through the

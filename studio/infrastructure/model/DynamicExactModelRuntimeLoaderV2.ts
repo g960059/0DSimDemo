@@ -8,6 +8,9 @@ import type {
 import {
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
+import {
+  STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+} from "@/studio/contracts/v2/simulation";
 import type {
   StudioModelWorkerReleaseTicketV2,
 } from "@/studio/contracts/v2/release";
@@ -109,7 +112,11 @@ export class DynamicExactModelRuntimeLoaderV2 {
       ticket.manifest,
       ticket.surfaceRelease,
     );
-    validateExecutableBundleV2(release.executables, composed.contract);
+    validateExecutableBundleV2(release.executables, composed.contract, {
+      requiresPresentationBatch: ticket.manifest.capabilities.includes(
+        STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+      ),
+    });
     return freezeExactRuntimeV2(release.executables, composed.contract);
   }
 }

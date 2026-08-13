@@ -30,6 +30,9 @@ export const CORONARY_TOPOLOGY_ID_V2 =
 export const CORONARY_CONSTRUCTION_SEED_SCHEMA_ID_V2 =
   "main-wire-coronary-network-construction-seed-v2" as const;
 
+const coronaryTopologyByImmutablePriorV2 =
+  new WeakMap<object, CoronaryTopologyV2>();
+
 /**
  * Structural blood-volume ledger from porcine coronary morphometry.
  *
@@ -1220,6 +1223,12 @@ function edgeIdV2(
 export function buildCoronaryTopologyV2(
   prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
 ): CoronaryTopologyV2 {
+  if (
+    validationStampReuseEligibleV1()
+    && coronaryTopologyByImmutablePriorV2.has(prior)
+  ) {
+    return coronaryTopologyByImmutablePriorV2.get(prior)!;
+  }
   validateCoronaryTopologyPriorV2(prior);
   const nodes: CoronaryConservedVolumeNodeSpecV2[] = [];
   const edges: CoronaryEdgeSpecV2[] = [];
@@ -1391,7 +1400,7 @@ export function buildCoronaryTopologyV2(
     edges.map((edge, index) => [edge.edgeId, index]),
   )) as Readonly<Record<CoronaryEdgeIdV2, number>>;
 
-  return Object.freeze({
+  const topology = Object.freeze({
     topologyId: prior.topologyId,
     constructionSeedSchemaId: prior.constructionSeedSchemaId,
     nodes: Object.freeze(nodes),
@@ -1399,6 +1408,13 @@ export function buildCoronaryTopologyV2(
     nodeIndexById,
     edgeIndexById,
   });
+  if (
+    validationStampReuseEligibleV1()
+    && isTransitivelyFrozenPlainDataV1(prior)
+  ) {
+    coronaryTopologyByImmutablePriorV2.set(prior, topology);
+  }
+  return topology;
 }
 
 export function initialCoronaryToneStateV2(
@@ -1802,6 +1818,14 @@ export function validateCoronaryTopologyV2(topology: CoronaryTopologyV2): void {
     || CORONARY_EDGE_IDS_V2.some((edgeId) => !edgeIds.has(edgeId))
   ) {
     throw new RangeError("coronary V2 topology edge identity set is invalid");
+  }
+  if (
+    Object.keys(topology.edgeIndexById).length !== topology.edges.length
+    || topology.edges.some(
+      (edge, index) => topology.edgeIndexById[edge.edgeId] !== index,
+    )
+  ) {
+    throw new RangeError("coronary V2 topology edge index is not canonical");
   }
   const hydraulicNodeIds = new Set<string>([
     ...CORONARY_BOUNDARY_NODE_IDS_V2,

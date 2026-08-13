@@ -2127,6 +2127,8 @@ function validatePresentationBatchV2(
     "outputStates",
     "outputValues",
     "terminalFrame",
+    "workerAdvanceMs",
+    "workerPrepareMs",
   ], [], path);
   const outputIds = validatePresentationOutputIdsV2(
     batch.outputIds,
@@ -2262,6 +2264,15 @@ function validatePresentationBatchV2(
     }
   }
 
+  const workerAdvanceMs = nonnegativeFiniteNumberV2(
+    batch.workerAdvanceMs,
+    `${path}.workerAdvanceMs`,
+  );
+  const workerPrepareMs = nonnegativeFiniteNumberV2(
+    batch.workerPrepareMs,
+    `${path}.workerPrepareMs`,
+  );
+
   return Object.freeze({
     outputIds,
     acceptedRevisions,
@@ -2269,6 +2280,8 @@ function validatePresentationBatchV2(
     outputStates,
     outputValues,
     terminalFrame,
+    workerAdvanceMs,
+    workerPrepareMs,
   });
 }
 

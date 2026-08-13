@@ -43,6 +43,27 @@ export type StudioSimulationFrameV2 = Readonly<{
 }>;
 
 /**
+ * Model-owned packed presentation page.
+ *
+ * Exact adapters may write accepted clocks and selected scalar signals
+ * directly into transferable numeric buffers. This avoids constructing one
+ * rich frame object per 2 ms sample. The terminal frame remains complete for
+ * latest-value, control and capture correlation.
+ */
+export type RegisteredModelPresentationBatchV2 = Readonly<{
+  outputIds: readonly string[];
+  acceptedRevisions: Float64Array;
+  acceptedTimesSec: Float64Array;
+  outputStates: Uint8Array;
+  outputValues: Float64Array;
+  terminalFrame: StudioSimulationFrameV2;
+}>;
+
+/** Exact-manifest capability negotiating the optional packed presentation ABI. */
+export const STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 =
+  "runtime/exact-presentation-batch-v1" as const;
+
+/**
  * Immutable, on-demand analysis of one exact accepted simulation boundary.
  *
  * Analyses are ephemeral presentation/runtime results. They deliberately stay
@@ -105,6 +126,26 @@ export type RegisteredModelSimulationAdapterV2 = Readonly<{
     runtimeSessionId: string;
     scenarioId: ScenarioIdV2;
   }>): Promise<StudioSimulationFrameV2>;
+  /**
+   * Exact-model batch projection for the live presentation hot path.
+   *
+   * Every packed row must represent the same accepted numerical sample that a
+   * repeated `advanceOnePresentationStep` call would have produced, in the
+   * same order. The terminal frame must remain complete so capture, controls
+   * and latest-value consumers retain one authoritative model frame.
+   *
+   * This is a projection optimization, never permission to skip, interpolate
+   * or otherwise alter accepted numerical steps. Exact manifests that expose
+   * this function must declare
+   * `runtime/exact-presentation-batch-v1`. Artifacts without that capability
+   * retain the immutable frame-per-step ABI used by historical Snapshots.
+   */
+  advancePresentationBatch?(input: Readonly<{
+    runtimeSessionId: string;
+    scenarioId: ScenarioIdV2;
+    stepCount: number;
+    presentationOutputIds: readonly string[];
+  }>): Promise<RegisteredModelPresentationBatchV2>;
   /**
    * Applies one model-owned semantic control at an accepted boundary.
    *

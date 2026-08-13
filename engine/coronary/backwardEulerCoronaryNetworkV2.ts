@@ -437,14 +437,7 @@ export function buildCoronaryEdgeIndexV2(
   topology: CoronaryTopologyV2,
 ): Readonly<Record<CoronaryEdgeIdV2, number>> {
   validateCoronaryTopologyV2(topology);
-  const indexById = {} as Record<CoronaryEdgeIdV2, number>;
-  topology.edges.forEach((edge, index) => {
-    if (edge.edgeId in indexById) {
-      throw new RangeError(`duplicate coronary V2 edge ${edge.edgeId}`);
-    }
-    indexById[edge.edgeId] = index;
-  });
-  return Object.freeze(indexById);
+  return topology.edgeIndexById;
 }
 
 /**
@@ -882,6 +875,7 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
   }
   let maximumLinearizedResidual = 0;
   let jacobian: number[][] | null = null;
+  let jacobianFactorization: DenseLinearFactorizationV2 | null = null;
   if (exactZeroBoundaryDirectionCount < request.boundaryDirections.length) {
     jacobian = analyticSparseCoronaryVolumeJacobianV2(
       candidate,
@@ -890,6 +884,7 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       topology,
       collapseHydraulics,
     );
+    jacobianFactorization = factorDenseLinearSystemV2(jacobian);
   }
 
   for (
@@ -905,7 +900,7 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       dCommonVenousOutlet.push(0);
       continue;
     }
-    if (jacobian === null) {
+    if (jacobian === null || jacobianFactorization === null) {
       throw new Error("nonzero coronary direction is missing its Jacobian");
     }
     const dResidualDScaledVariable =
@@ -919,8 +914,8 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       dResidualDScaledVariable,
       "coronary boundary residual directional derivative",
     );
-    const dVolume = solveDenseLinearSystemV2(
-      jacobian,
+    const dVolume = solveFactoredDenseLinearSystemV2(
+      jacobianFactorization,
       dResidualDScaledVariable.map((value) => -value),
     );
     implicitLinearSolveCount += 1;
@@ -1858,39 +1853,97 @@ function solveDenseLinearSystemV2(
   matrix: readonly (readonly number[])[],
   rhs: readonly number[],
 ): number[] {
-  const n = rhs.length;
-  const augmented = matrix.map((row, index) => [...row, rhs[index]]);
+  return solveFactoredDenseLinearSystemV2(
+    factorDenseLinearSystemV2(matrix),
+    rhs,
+  );
+}
+
+type DenseLinearFactorizationV2 = Readonly<{
+  upper: readonly (readonly number[])[];
+  stages: readonly Readonly<{
+    pivotRow: number;
+    factorByRow: readonly number[];
+  }>[];
+}>;
+
+/**
+ * Factors one Jacobian once so all implicit boundary directions can reuse it.
+ * The recorded row swaps and elimination factors are replayed against each
+ * right-hand side in the exact order used by the former augmented solve.
+ */
+function factorDenseLinearSystemV2(
+  matrix: readonly (readonly number[])[],
+): DenseLinearFactorizationV2 {
+  const n = matrix.length;
+  const upper = matrix.map((row) => row.slice());
+  const stages: Array<{
+    pivotRow: number;
+    factorByRow: number[];
+  }> = [];
+  for (let row = 0; row < n; row += 1) {
+    if (upper[row]!.length !== n) {
+      throw new RangeError("coronary V2 linear system matrix must be square");
+    }
+  }
   for (let column = 0; column < n; column += 1) {
     let pivotRow = column;
     for (let row = column + 1; row < n; row += 1) {
-      if (Math.abs(augmented[row][column]) > Math.abs(augmented[pivotRow][column])) {
+      if (Math.abs(upper[row]![column]!) > Math.abs(upper[pivotRow]![column]!)) {
         pivotRow = row;
       }
     }
-    if (Math.abs(augmented[pivotRow][column]) < 1e-14) {
+    if (Math.abs(upper[pivotRow]![column]!) < 1e-14) {
       throw new CoronaryNetworkConvergenceErrorV2(
         "singular coronary V2 Newton Jacobian",
         Number.POSITIVE_INFINITY,
         0,
       );
     }
-    [augmented[column], augmented[pivotRow]] =
-      [augmented[pivotRow], augmented[column]];
+    [upper[column], upper[pivotRow]] = [upper[pivotRow]!, upper[column]!];
+    const factorByRow = Array<number>(n).fill(0);
     for (let row = column + 1; row < n; row += 1) {
-      const factor = augmented[row][column] / augmented[column][column];
-      augmented[row][column] = 0;
-      for (let j = column + 1; j <= n; j += 1) {
-        augmented[row][j] -= factor * augmented[column][j];
+      const factor = upper[row]![column]! / upper[column]![column]!;
+      factorByRow[row] = factor;
+      upper[row]![column] = 0;
+      for (let j = column + 1; j < n; j += 1) {
+        upper[row]![j] -= factor * upper[column]![j]!;
       }
+    }
+    stages.push({ pivotRow, factorByRow });
+  }
+  return { upper, stages };
+}
+
+function solveFactoredDenseLinearSystemV2(
+  factorization: DenseLinearFactorizationV2,
+  rhs: readonly number[],
+): number[] {
+  const n = rhs.length;
+  if (
+    factorization.upper.length !== n
+    || factorization.stages.length !== n
+  ) {
+    throw new RangeError(
+      "coronary V2 factorization and right-hand side dimensions differ",
+    );
+  }
+  const transformedRhs = rhs.slice();
+  for (let column = 0; column < n; column += 1) {
+    const stage = factorization.stages[column]!;
+    [transformedRhs[column], transformedRhs[stage.pivotRow]] =
+      [transformedRhs[stage.pivotRow]!, transformedRhs[column]!];
+    for (let row = column + 1; row < n; row += 1) {
+      transformedRhs[row] -= stage.factorByRow[row]! * transformedRhs[column]!;
     }
   }
   const solution = Array<number>(n).fill(0);
   for (let row = n - 1; row >= 0; row -= 1) {
-    let value = augmented[row][n];
+    let value = transformedRhs[row]!;
     for (let column = row + 1; column < n; column += 1) {
-      value -= augmented[row][column] * solution[column];
+      value -= factorization.upper[row]![column]! * solution[column]!;
     }
-    solution[row] = value / augmented[row][row];
+    solution[row] = value / factorization.upper[row]![row]!;
   }
   return solution;
 }

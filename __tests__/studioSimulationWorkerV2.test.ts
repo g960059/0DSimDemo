@@ -47,6 +47,7 @@ import {
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 import {
   createStudioSimulationPresentationBatchV2,
+  studioSimulationPresentationBatchTransferablesV2,
 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 import {
   StudioSimulationWorkerRuntimeV2,
@@ -566,6 +567,8 @@ describe("Studio simulation worker V2 protocol", () => {
       kind: "presentation-advanced",
       batch: {
         outputIds: ["pressure.lv"],
+        workerAdvanceMs: 0,
+        workerPrepareMs: 0,
         terminalFrame: { acceptedRevision: 2 },
       },
     });
@@ -587,6 +590,8 @@ describe("Studio simulation worker V2 protocol", () => {
     }
     expect(owned.batch.outputValues).not.toBe(batch.outputValues);
     expect([...owned.batch.outputValues]).toEqual([91, 92]);
+    expect(owned.batch.workerAdvanceMs).toBe(0);
+    expect(owned.batch.workerPrepareMs).toBe(0);
   });
 
   it("rejects shared compact transport buffers", () => {
@@ -608,6 +613,38 @@ describe("Studio simulation worker V2 protocol", () => {
         batch: { ...batch, outputValues: sharedValues },
       })).toThrow(/owned ArrayBuffer/);
     }
+  });
+
+  it("transfers one shared packed-page backing store exactly once", () => {
+    const terminalFrame = frameV2({
+      acceptedRevision: 1,
+      acceptedTimeSec: 0.002,
+      outputs: { "pressure.lv": outputV2("pressure.lv", 91) },
+    });
+    const backing = new ArrayBuffer(32);
+    const acceptedRevisions = new Float64Array(backing, 0, 1);
+    const acceptedTimesSec = new Float64Array(backing, 8, 1);
+    const outputStates = new Uint8Array(backing, 16, 1);
+    const outputValues = new Float64Array(backing, 24, 1);
+    acceptedRevisions[0] = 1;
+    acceptedTimesSec[0] = 0.002;
+    outputStates[0] = 0;
+    outputValues[0] = 91;
+
+    const transferables = studioSimulationPresentationBatchTransferablesV2({
+      outputIds: Object.freeze(["pressure.lv"]),
+      acceptedRevisions,
+      acceptedTimesSec,
+      outputStates,
+      outputValues,
+      terminalFrame,
+      workerAdvanceMs: 0,
+      workerPrepareMs: 0,
+    });
+    expect(transferables).toEqual([backing]);
+    expect(() => structuredClone({ acceptedRevisions, outputValues }, {
+      transfer: [...transferables],
+    })).not.toThrow();
   });
 
   it("rejects malformed compact presentation matrix and terminal correlation", () => {
@@ -633,6 +670,10 @@ describe("Studio simulation worker V2 protocol", () => {
       ...response,
       batch: { ...batch, outputStates: new Uint8Array([9]) },
     })).toThrow(/invalid output state/);
+    expect(() => validateStudioSimulationWorkerResponseV2({
+      ...response,
+      batch: { ...batch, workerAdvanceMs: -1 },
+    })).toThrow(/nonnegative/);
     expect(() => validateStudioSimulationWorkerResponseV2({
       ...response,
       batch: {
@@ -826,6 +867,95 @@ describe("Studio simulation worker V2 runtime", () => {
     ]);
     expect([...batch.acceptedRevisions]).toEqual([1, 2]);
     expect([...batch.outputValues]).toEqual([80, 80]);
+  });
+
+  it("uses one model-owned batch projection and retains a complete terminal frame", async () => {
+    const advancePresentationBatch = vi.fn(async (input: Readonly<{
+      runtimeSessionId: string;
+      scenarioId: string;
+      stepCount: number;
+      presentationOutputIds: readonly string[];
+    }>) => createStudioSimulationPresentationBatchV2([
+      frameV2({
+        acceptedRevision: 1,
+        acceptedTimeSec: 0.002,
+        outputs: { "pressure.lv": outputV2("pressure.lv", 81) },
+      }),
+      frameV2({
+        acceptedRevision: 2,
+        acceptedTimeSec: 0.004,
+        outputs: { "pressure.lv": outputV2("pressure.lv", 82) },
+      }),
+    ], input.presentationOutputIds));
+    const harness = runtimeHarnessV2({ advancePresentationBatch });
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(
+      2,
+      {
+        runtimeSessionId: "runtime/session-1",
+        scenarioId: "scenario/baseline",
+        stepCount: 2,
+        presentationOutputIds: ["pressure.lv"],
+      },
+    ));
+    await harness.runtime.whenIdle();
+
+    expect(advancePresentationBatch).toHaveBeenCalledOnce();
+    expect(advancePresentationBatch).toHaveBeenCalledWith({
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 2,
+      presentationOutputIds: ["pressure.lv"],
+    });
+    expect(harness.adapter.advanceOnePresentationStep).not.toHaveBeenCalled();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      requestId: 2,
+      status: "ok",
+      kind: "presentation-advanced",
+      batch: {
+        acceptedRevisions: new Float64Array([1, 2]),
+        outputValues: new Float64Array([81, 82]),
+        workerAdvanceMs: expect.any(Number),
+        workerPrepareMs: expect.any(Number),
+        terminalFrame: {
+          acceptedRevision: 2,
+          outputs: { "pressure.lv": { value: 82 } },
+        },
+      },
+    });
+  });
+
+  it("keeps immutable historical adapters on the validated frame-per-step path", async () => {
+    const harness = runtimeHarnessV2({ legacyPresentationAdapter: true });
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(
+      2,
+      {
+        runtimeSessionId: "runtime/session-1",
+        scenarioId: "scenario/baseline",
+        stepCount: 2,
+        presentationOutputIds: ["pressure.lv"],
+      },
+    ));
+    await harness.runtime.whenIdle();
+
+    expect(harness.adapter.advancePresentationBatch).toBeUndefined();
+    expect(harness.adapter.advanceOnePresentationStep).toHaveBeenCalledTimes(2);
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      requestId: 2,
+      status: "ok",
+      kind: "presentation-advanced",
+      batch: {
+        acceptedRevisions: new Float64Array([1, 2]),
+        workerAdvanceMs: expect.any(Number),
+        workerPrepareMs: expect.any(Number),
+        terminalFrame: { acceptedRevision: 2 },
+      },
+    });
   });
 
   it("rejects an unknown presentation output without advancing or killing the Worker", async () => {
@@ -2722,7 +2852,10 @@ describe("Studio simulation worker V2 client", () => {
           outputs: { "pressure.lv": outputV2("pressure.lv", 91) },
         }),
         terminalFrame,
-      ], ["pressure.lv"]),
+      ], ["pressure.lv"], {
+        workerAdvanceMs: 17.5,
+        workerPrepareMs: 0.75,
+      }),
     });
     const frames = await advanced;
     expect(frames).toHaveLength(2);
@@ -2733,6 +2866,10 @@ describe("Studio simulation worker V2 client", () => {
     expect(frames[0]?.outputs["latest-only"]).toBeUndefined();
     expect(frames[1]).toBe(terminalFrame);
     expect(frames[1]?.outputs["latest-only"]?.value).toBe(7);
+    expect(client.presentationTiming()).toEqual({
+      workerAdvanceMs: 17.5,
+      workerPrepareMs: 0.75,
+    });
   });
 
   it("applies a semantic control and advances the client epoch exactly once", async () => {
@@ -3687,11 +3824,14 @@ function outputV2(outputId: string, value: number | number[]) {
 }
 
 function runtimeHarnessV2(overrides: Readonly<{
+  legacyPresentationAdapter?: boolean;
   createSession?: RegisteredModelSimulationAdapterV2["createSession"];
   disposeSession?: RegisteredModelSimulationAdapterV2["disposeSession"];
   currentFrame?: RegisteredModelSimulationAdapterV2["currentFrame"];
   advanceOnePresentationStep?:
     RegisteredModelSimulationAdapterV2["advanceOnePresentationStep"];
+  advancePresentationBatch?:
+    RegisteredModelSimulationAdapterV2["advancePresentationBatch"];
   applyControl?: RegisteredModelSimulationAdapterV2["applyControl"];
   requestAnalysis?: RegisteredModelSimulationAdapterV2["requestAnalysis"];
   currentInputEpoch?: RegisteredModelSimulationAdapterV2["currentInputEpoch"];
@@ -3706,6 +3846,27 @@ function runtimeHarnessV2(overrides: Readonly<{
   let revision = 0;
   let inputEpoch = 0;
   let currentFrame = frameV2();
+  const advanceOnePresentationStep = overrides.advanceOnePresentationStep
+    ?? vi.fn(() => {
+      revision += 1;
+      currentFrame = frameV2({
+        inputEpoch,
+        acceptedRevision: revision,
+        acceptedTimeSec: revision / 10,
+      });
+      return Promise.resolve(currentFrame);
+    });
+  const advancePresentationBatch = overrides.advancePresentationBatch
+    ?? vi.fn(async (input) => {
+      const frames: StudioSimulationFrameV2[] = [];
+      for (let index = 0; index < input.stepCount; index += 1) {
+        frames.push(await advanceOnePresentationStep(input));
+      }
+      return createStudioSimulationPresentationBatchV2(
+        frames,
+        input.presentationOutputIds,
+      );
+    });
   const adapter: RegisteredModelSimulationAdapterV2 = {
     modelId: "model/main-wire-v3-r1",
     fixtureSchemaId: "fixture/main-wire-v3-r1",
@@ -3713,16 +3874,10 @@ function runtimeHarnessV2(overrides: Readonly<{
     createSession: overrides.createSession ?? vi.fn(() => Promise.resolve()),
     disposeSession: overrides.disposeSession ?? vi.fn(),
     currentFrame: overrides.currentFrame ?? vi.fn(() => currentFrame),
-    advanceOnePresentationStep: overrides.advanceOnePresentationStep
-      ?? vi.fn(() => {
-        revision += 1;
-        currentFrame = frameV2({
-          inputEpoch,
-          acceptedRevision: revision,
-          acceptedTimeSec: revision / 10,
-        });
-        return Promise.resolve(currentFrame);
-      }),
+    advanceOnePresentationStep,
+    ...(overrides.legacyPresentationAdapter
+      ? {}
+      : { advancePresentationBatch }),
     applyControl: overrides.applyControl ?? vi.fn((input) => {
       if (input.expectedInputEpoch !== inputEpoch) {
         return Promise.reject(new Error("stale input epoch"));

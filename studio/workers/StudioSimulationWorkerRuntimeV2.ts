@@ -39,6 +39,7 @@ import {
   assertModelContractV2,
 } from "@/studio/contracts/v2/model";
 import type {
+  RegisteredModelPresentationBatchV2,
   RegisteredModelSimulationAdapterV2,
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
@@ -62,7 +63,12 @@ import {
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 import {
   createStudioSimulationPresentationBatchV2,
+  STUDIO_SIMULATION_PRESENTATION_OUTPUT_STATE_COUNT_V2,
+  studioSimulationPresentationOutputStateCodeV2,
   studioSimulationPresentationBatchTransferablesV2,
+} from "@/studio/workers/StudioSimulationPresentationBatchV2";
+import type {
+  StudioSimulationPresentationBatchV2,
 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
 const DEFAULT_WORKER_QUEUE_CAPACITY_V2 = 2;
@@ -513,30 +519,62 @@ export class StudioSimulationWorkerRuntimeV2 {
       }
     }
     try {
-      const frames: StudioSimulationFrameV2[] = [];
-      for (let index = 0; index < request.stepCount; index += 1) {
-        const frame = this.#validateAdapterFrame(
-          await adapter.advanceOnePresentationStep({
-            runtimeSessionId: physicalRuntimeSessionId,
-            scenarioId: request.scenarioId,
-          }),
+      const workerAdvanceStartedAtMs = performance.now();
+      let workerAdvanceCompletedAtMs: number;
+      let proposedBatch: RegisteredModelPresentationBatchV2;
+      if (adapter.advancePresentationBatch !== undefined) {
+        proposedBatch = await adapter.advancePresentationBatch({
+          runtimeSessionId: physicalRuntimeSessionId,
+          scenarioId: request.scenarioId,
+          stepCount: request.stepCount,
+          presentationOutputIds: request.presentationOutputIds,
+        });
+      } else {
+        // Immutable v1 exact artifacts predate the packed extension. Preserve
+        // their frame-per-step contract only when loading historical pins;
+        // every new Standard release advertises and owns the packed path.
+        const frames: StudioSimulationFrameV2[] = [];
+        for (let index = 0; index < request.stepCount; index += 1) {
+          frames.push(this.#validateAdapterFrame(
+            await adapter.advanceOnePresentationStep({
+              runtimeSessionId: physicalRuntimeSessionId,
+              scenarioId: request.scenarioId,
+            }),
+          ));
+        }
+        proposedBatch = createStudioSimulationPresentationBatchV2(
+          frames,
+          request.presentationOutputIds,
         );
-        assertNonRegressingFrameV2(this.#lastFrame, frame);
-        this.#lastFrame = frame;
-        this.#scenarioFrames.set(request.scenarioId, frame);
-        frames.push(frame);
       }
-      const batch = createStudioSimulationPresentationBatchV2(
-        frames,
-        request.presentationOutputIds,
+      workerAdvanceCompletedAtMs = performance.now();
+      const validatedTerminalFrame = this.#validateAdapterFrame(
+        proposedBatch.terminalFrame,
       );
+      const batch = validateAdapterPresentationBatchV2(
+        proposedBatch,
+        request.presentationOutputIds,
+        request.stepCount,
+        currentFrame,
+        this.#lastFrame,
+        validatedTerminalFrame,
+      );
+      const terminalFrame = batch.terminalFrame;
+      this.#lastFrame = terminalFrame;
+      this.#scenarioFrames.set(request.scenarioId, terminalFrame);
+      const responseBatch: StudioSimulationPresentationBatchV2 = Object.freeze({
+        ...batch,
+        workerAdvanceMs:
+          workerAdvanceCompletedAtMs - workerAdvanceStartedAtMs,
+        workerPrepareMs: performance.now() - workerAdvanceCompletedAtMs,
+      });
       this.#postResponse({
         protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
         requestId: request.requestId,
         status: "ok",
         kind: "presentation-advanced",
-        batch,
-      }, [...studioSimulationPresentationBatchTransferablesV2(batch)]);
+        batch: responseBatch,
+      }, [...studioSimulationPresentationBatchTransferablesV2(responseBatch)]);
     } catch (error) {
       throw new FatalWorkerStateErrorV2(
         `simulation worker presentation advance failed: ${errorMessageV2(error)}`,
@@ -2026,6 +2064,115 @@ function physicalSessionIdV2(
   );
 }
 
+function validateAdapterPresentationBatchV2(
+  batch: RegisteredModelPresentationBatchV2,
+  selectedOutputIds: readonly string[],
+  stepCount: number,
+  currentFrame: StudioSimulationFrameV2,
+  priorFrame: StudioSimulationFrameV2 | undefined,
+  terminalFrame: StudioSimulationFrameV2,
+): RegisteredModelPresentationBatchV2 {
+  if (
+    batch === null
+    || typeof batch !== "object"
+    || !Array.isArray(batch.outputIds)
+    || !(batch.acceptedRevisions instanceof Float64Array)
+    || !(batch.acceptedTimesSec instanceof Float64Array)
+    || !(batch.outputStates instanceof Uint8Array)
+    || !(batch.outputValues instanceof Float64Array)
+  ) {
+    throw new Error("simulation adapter presentation batch is malformed");
+  }
+  if (
+    batch.outputIds.length !== selectedOutputIds.length
+    || batch.outputIds.some((outputId, index) =>
+      outputId !== selectedOutputIds[index])
+  ) {
+    throw new Error("simulation adapter presentation output order mismatch");
+  }
+  const valueCount = stepCount * selectedOutputIds.length;
+  if (
+    batch.acceptedRevisions.length !== stepCount
+    || batch.acceptedTimesSec.length !== stepCount
+    || batch.outputStates.length !== valueCount
+    || batch.outputValues.length !== valueCount
+  ) {
+    throw new Error("simulation adapter presentation batch length mismatch");
+  }
+  let previousRevision = priorFrame?.acceptedRevision ?? -1;
+  let previousTimeSec = priorFrame?.acceptedTimeSec ?? -1;
+  for (let frameIndex = 0; frameIndex < stepCount; frameIndex += 1) {
+    const revision = batch.acceptedRevisions[frameIndex]!;
+    const timeSec = batch.acceptedTimesSec[frameIndex]!;
+    if (
+      !Number.isSafeInteger(revision)
+      || revision < previousRevision
+      || !Number.isFinite(timeSec)
+      || timeSec < previousTimeSec
+    ) {
+      throw new Error("simulation adapter presentation batch clock regressed");
+    }
+    previousRevision = revision;
+    previousTimeSec = timeSec;
+  }
+  for (let index = 0; index < valueCount; index += 1) {
+    const state = batch.outputStates[index]!;
+    const value = batch.outputValues[index]!;
+    if (
+      !Number.isInteger(state)
+      || state < 0
+      || state >= STUDIO_SIMULATION_PRESENTATION_OUTPUT_STATE_COUNT_V2
+      || (!Number.isFinite(value) && !Number.isNaN(value))
+    ) {
+      throw new Error("simulation adapter presentation sample is invalid");
+    }
+  }
+  const actual = Object.keys(terminalFrame.outputs).sort();
+  const expected = Object.keys(currentFrame.outputs).sort();
+  if (
+    actual.length !== expected.length
+    || actual.some((outputId, index) => outputId !== expected[index])
+  ) {
+    throw new Error(
+      "simulation adapter terminal presentation frame is incomplete",
+    );
+  }
+  assertNonRegressingFrameV2(priorFrame, terminalFrame);
+  const terminalIndex = stepCount - 1;
+  if (
+    batch.acceptedRevisions[terminalIndex] !== terminalFrame.acceptedRevision
+    || batch.acceptedTimesSec[terminalIndex] !== terminalFrame.acceptedTimeSec
+  ) {
+    throw new Error("simulation adapter terminal presentation clock mismatch");
+  }
+  for (let outputIndex = 0; outputIndex < selectedOutputIds.length; outputIndex += 1) {
+    const outputId = selectedOutputIds[outputIndex]!;
+    const output = terminalFrame.outputs[outputId];
+    if (output === undefined || (output.value !== null && typeof output.value !== "number")) {
+      throw new Error(`presentation output ${outputId} is unavailable or non-scalar`);
+    }
+    const packedIndex = terminalIndex * selectedOutputIds.length + outputIndex;
+    const packedValue = batch.outputValues[packedIndex]!;
+    if (
+      batch.outputStates[packedIndex]
+        !== studioSimulationPresentationOutputStateCodeV2(output)
+      || (output.value === null
+        ? !Number.isNaN(packedValue)
+        : !Object.is(output.value, packedValue))
+    ) {
+      throw new Error(`presentation output ${outputId} terminal sample mismatch`);
+    }
+  }
+  return Object.freeze({
+    outputIds: Object.freeze([...batch.outputIds]),
+    acceptedRevisions: batch.acceptedRevisions,
+    acceptedTimesSec: batch.acceptedTimesSec,
+    outputStates: batch.outputStates,
+    outputValues: batch.outputValues,
+    terminalFrame,
+  });
+}
+
 function assertSimulationAdapterV2(
   adapter: RegisteredModelSimulationAdapterV2,
 ): void {
@@ -2036,6 +2183,10 @@ function assertSimulationAdapterV2(
     || typeof adapter.disposeSession !== "function"
     || typeof adapter.currentFrame !== "function"
     || typeof adapter.advanceOnePresentationStep !== "function"
+    || (
+      adapter.advancePresentationBatch !== undefined
+      && typeof adapter.advancePresentationBatch !== "function"
+    )
     || typeof adapter.applyControl !== "function"
     || typeof adapter.requestAnalysis !== "function"
     || typeof adapter.replaceFixture !== "function"

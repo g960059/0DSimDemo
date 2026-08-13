@@ -112,6 +112,11 @@ export type StudioSimulationWorkerClientOptionsV2 = Readonly<{
   snapshotAdmissionTimeoutMs?: number;
 }>;
 
+export type StudioSimulationWorkerPresentationTimingV2 = Readonly<{
+  workerAdvanceMs: number;
+  workerPrepareMs: number;
+}>;
+
 type StudioSimulationWorkerClientTestOptionsV2 = Readonly<{
   transport: StudioSimulationWorkerTransportV2;
   responseTimeoutMs?: number;
@@ -251,6 +256,8 @@ export class StudioSimulationWorkerClientV2 {
   #inputEpoch: number | undefined;
   #acceptedRevision: number | undefined;
   #acceptedTimeSec: number | undefined;
+  #lastPresentationTiming:
+    StudioSimulationWorkerPresentationTimingV2 | undefined;
   #operationInFlight:
     | "advance"
     | "advance-presentation"
@@ -453,6 +460,7 @@ export class StudioSimulationWorkerClientV2 {
     }
 
     this.#operationInFlight = "advance-presentation";
+    this.#lastPresentationTiming = undefined;
     try {
       const response = await this.#postRequest(request, {
         kind: "presentation-advanced",
@@ -473,6 +481,10 @@ export class StudioSimulationWorkerClientV2 {
       const frames = materializeStudioSimulationPresentationFramesV2(
         response.batch,
       );
+      this.#lastPresentationTiming = Object.freeze({
+        workerAdvanceMs: response.batch.workerAdvanceMs,
+        workerPrepareMs: response.batch.workerPrepareMs,
+      });
       const last = frames[frames.length - 1]!;
       this.#inputEpoch = last.inputEpoch;
       this.#acceptedRevision = last.acceptedRevision;
@@ -484,6 +496,12 @@ export class StudioSimulationWorkerClientV2 {
     } finally {
       this.#operationInFlight = undefined;
     }
+  }
+
+  /** Last correlated Worker-side timing, retained only for opt-in diagnostics. */
+  presentationTiming():
+    StudioSimulationWorkerPresentationTimingV2 | undefined {
+    return this.#lastPresentationTiming;
   }
 
   async applyControl(
@@ -1040,6 +1058,7 @@ export class StudioSimulationWorkerClientV2 {
   #terminateWith(error: Error): void {
     if (this.#state === "terminated") return;
     this.#state = "terminated";
+    this.#lastPresentationTiming = undefined;
     try {
       this.#worker.removeEventListener("message", this.#onMessage);
     } catch {
