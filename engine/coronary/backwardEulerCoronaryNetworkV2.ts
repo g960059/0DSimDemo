@@ -175,6 +175,11 @@ export type CoronaryBackwardEulerTrialV2 = Readonly<{
   diagnostics: CoronaryBackwardEulerDiagnosticsV2;
 }>;
 
+export type CoronaryExternallySolvedCandidateDiagnosticsV2 = Readonly<{
+  newtonIterations: number;
+  totalLineSearchBacktracks: number;
+}>;
+
 /**
  * Detached one-candidate residual image used to construct and verify the
  * replacement coupled solve. Canonical vector order is
@@ -802,6 +807,80 @@ export function evaluateCoronaryBackwardEulerCandidateProbeV2(
 }
 
 /**
+ * Re-evaluates an externally solved 16-volume candidate and detaches the
+ * canonical accepted-state trial without running the coronary Newton loop.
+ * The same volume domain, residual tolerance, hydraulic laws, and blood-volume
+ * ledger used by the legacy solver remain authoritative.
+ */
+export function materializeCoronaryBackwardEulerCandidateTrialV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryBackwardEulerTrialInputV2,
+  candidateVolumeMlByNode: CoronaryConservedVolumeStateV2,
+  externalDiagnostics: CoronaryExternallySolvedCandidateDiagnosticsV2,
+  prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+): CoronaryBackwardEulerTrialV2 {
+  validateAcceptedStateV2(previousAcceptedState, topology);
+  validateTrialInputV2(input);
+  validateCoronaryTopologyV2(topology);
+  requireNonnegativeIntegerV2(
+    externalDiagnostics.newtonIterations,
+    "newtonIterations",
+  );
+  requireNonnegativeIntegerV2(
+    externalDiagnostics.totalLineSearchBacktracks,
+    "totalLineSearchBacktracks",
+  );
+  const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
+  const collapseHydraulics = input.collapseHydraulics
+    ?? buildCoronaryCollapseHydraulicsPriorV2(topology);
+  const options = resolveSolverOptionsV2(input.solverOptions);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const edgeIndex = buildCoronaryEdgeIndexV2(topology);
+  const candidate = volumeRecordToArrayV2(candidateVolumeMlByNode);
+  const previous = volumeRecordToArrayV2(
+    previousAcceptedState.volumeMlByNode,
+  );
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference,
+  );
+  const hydraulics = evaluateHydraulicsInternalV2(
+    candidate,
+    previousAcceptedState.toneResistanceScaleByTerritoryLayer,
+    input.boundary,
+    disease,
+    topology,
+    edgeIndex,
+    collapseHydraulics,
+  );
+  const residual = Array<number>(candidate.length);
+  for (let index = 0; index < candidate.length; index += 1) {
+    residual[index] = candidate[index]! - previous[index]!;
+  }
+  accumulateFlowContinuityV2(
+    residual,
+    hydraulics.flowByEdge,
+    input.dtSec,
+    topology,
+  );
+  return materializeConvergedCoronaryTrialV2(
+    previousAcceptedState,
+    input,
+    candidate,
+    { residual, hydraulics },
+    options,
+    externalDiagnostics.newtonIterations,
+    externalDiagnostics.totalLineSearchBacktracks,
+    input.evaluationCounterCollection === "enabled" ? 1 : undefined,
+    topology,
+    edgeIndex,
+  );
+}
+
+/**
  * Writes the coupled solver's one-candidate residual without materializing
  * the public frozen hydraulic readback. The two boundary-flow values follow
  * `CORONARY_BOUNDARY_FLOW_OBSERVABLE_IDS_V2`. This remains a cold migration
@@ -1421,24 +1500,66 @@ function solveCoronaryBackwardEulerTrialInternalV2(
     iterations += 1;
   }
 
+  return materializeConvergedCoronaryTrialV2(
+    previousAcceptedState,
+    input,
+    candidate,
+    evaluated,
+    options,
+    iterations,
+    backtracks,
+    input.evaluationCounterCollection === "enabled"
+      ? hydraulicResidualEvaluationCount
+      : undefined,
+    topology,
+    edgeIndex,
+  );
+}
+
+function materializeConvergedCoronaryTrialV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryBackwardEulerTrialInputV2,
+  candidate: readonly number[],
+  evaluated: ResidualEvaluationV2,
+  options: CoronaryBackwardEulerSolverOptionsV2,
+  newtonIterations: number,
+  totalLineSearchBacktracks: number,
+  hydraulicResidualEvaluationCount: number | undefined,
+  topology: CoronaryTopologyV2,
+  edgeIndex: Readonly<Record<CoronaryEdgeIdV2, number>>,
+): CoronaryBackwardEulerTrialV2 {
+  const previous = volumeRecordToArrayV2(
+    previousAcceptedState.volumeMlByNode,
+  );
+  const residualNorm = infinityNormV2(evaluated.residual);
+  const convergenceTolerance = options.absoluteResidualToleranceMl
+    + options.relativeResidualTolerance * Math.max(1, ...previous);
+  if (residualNorm > convergenceTolerance) {
+    throw new CoronaryNetworkConvergenceErrorV2(
+      "externally solved coronary V2 candidate failed residual admission",
+      residualNorm,
+      newtonIterations,
+    );
+  }
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference,
+  );
   const previousTotal = sumV2(previous);
   const candidateTotal = sumV2(candidate);
   const inletFlow = totalInletFlowV2(
     evaluated.hydraulics.flowByEdge,
     edgeIndex,
   );
-  const outletFlow = evaluated.hydraulics.flowByEdge[edgeIndex.CV_RA];
+  const outletFlow = evaluated.hydraulics.flowByEdge[edgeIndex.CV_RA]!;
   const continuityResidual = arrayToVolumeRecordV2(evaluated.residual);
-  const storageRate = arrayToVolumeRecordV2(candidate.map(
-    (volume, index) => (volume - previous[index]) / input.dtSec,
+  const storageRate = arrayToVolumeRecordV2(Array.from(
+    candidate,
+    (volume, index) => (volume - previous[index]!) / input.dtSec,
   ));
   const ledgerResidual = candidateTotal - previousTotal
     - input.dtSec * (inletFlow - outletFlow);
-  validateVolumesV2(
-    candidate,
-    topology,
-    options.minimumVolumeFractionOfReference,
-  );
   const candidateAcceptedState = freezeAcceptedStateV2({
     acceptedTimeSec: previousAcceptedState.acceptedTimeSec + input.dtSec,
     revision: previousAcceptedState.revision + 1,
@@ -1446,7 +1567,6 @@ function solveCoronaryBackwardEulerTrialInternalV2(
     toneResistanceScaleByTerritoryLayer:
       previousAcceptedState.toneResistanceScaleByTerritoryLayer,
   }, topology);
-
   return Object.freeze({
     baseAcceptedRevision: previousAcceptedState.revision,
     baseAcceptedTimeSec: previousAcceptedState.acceptedTimeSec,
@@ -1454,14 +1574,13 @@ function solveCoronaryBackwardEulerTrialInternalV2(
     candidateAcceptedState,
     diagnostics: Object.freeze({
       converged: true as const,
-      newtonIterations: iterations,
-      totalLineSearchBacktracks: backtracks,
-      ...(input.evaluationCounterCollection === "enabled"
-        ? { hydraulicResidualEvaluationCount }
-        : {}),
+      newtonIterations,
+      totalLineSearchBacktracks,
+      ...(hydraulicResidualEvaluationCount === undefined
+        ? {}
+        : { hydraulicResidualEvaluationCount }),
       finalResidualInfinityNormMl: residualNorm,
-      maximumAbsoluteNodeContinuityResidualMl:
-        infinityNormV2(evaluated.residual),
+      maximumAbsoluteNodeContinuityResidualMl: residualNorm,
       continuityResidualMlByNode: continuityResidual,
       storageRateMlPerSecByNode: storageRate,
       previousCoronaryBloodVolumeMl: previousTotal,
@@ -3279,6 +3398,12 @@ function requireFiniteVectorV2(values: readonly number[], label: string): void {
       throw new RangeError(`${label}[${index}] must be finite`);
     }
   });
+}
+
+function requireNonnegativeIntegerV2(value: number, label: string): void {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new RangeError(`${label} must be a nonnegative integer`);
+  }
 }
 
 function infinityNormV2(values: readonly number[]): number {

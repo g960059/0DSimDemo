@@ -26,6 +26,7 @@ import {
   createNonCoronaryBackwardEulerScratchWorkspaceV1,
   evaluateNonCoronaryCirculationCandidateProbeV1,
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
+  materializeNonCoronaryCirculationCandidateTrialV1,
   prepareNonCoronaryCandidateEvaluatorV1,
   resolveNonCoronaryCirculationColdSeedV1,
   restoreNonCoronaryCirculationStateV1,
@@ -207,6 +208,38 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       .toBe(fixture.state.totalBloodVolumeMl);
     expect(() => commitNonCoronaryCirculationTrialV1(accepted, trial))
       .toThrow(/stale or foreign/i);
+  });
+
+  it("materializes an externally solved candidate as the canonical detached trial", () => {
+    const fixture = steadyStateFixture();
+    const input = Object.freeze({
+      previousAcceptedState: fixture.state,
+      dtSec: 0.005,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics: (_volumes: unknown, timeSec: number) =>
+        Object.freeze({
+          absolutePressuresMmHg: fixture.chamberPressures,
+          evaluation: Object.freeze({ timeSec }),
+        }),
+    });
+    const solved = evaluateNonCoronaryCirculationBackwardEulerTrialV1(input);
+    expect(solved.converged).toBe(true);
+    if (solved.converged === false) throw new Error(solved.message);
+    const materialized = materializeNonCoronaryCirculationCandidateTrialV1(
+      input,
+      Float64Array.from(
+        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
+        (nodeId) => solved.candidateNodeVolumesMl[nodeId],
+      ),
+      Object.freeze({
+        iterations: solved.diagnostics.iterations,
+        lineSearchBacktracks: solved.diagnostics.lineSearchBacktracks,
+      }),
+    );
+
+    expect(materialized).toEqual(solved);
+    expect(materialized.candidateNodeVolumesMl)
+      .not.toBe(solved.candidateNodeVolumesMl);
   });
 
   it("reuses opaque Newton scratch without changing or aliasing a trial", () => {

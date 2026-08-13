@@ -27,6 +27,7 @@ import {
   disableCoronaryCollapseHydraulicsV2,
   initializePressureLadderCoronaryStateV2,
   mapFocalDiameterStenosisV2,
+  materializeCoronaryBackwardEulerCandidateTrialV2,
   solveCoronaryBackwardEulerTrialV2,
   writeCoronaryBackwardEulerCandidateResidualV2,
   writeCoronaryBackwardEulerCandidateLinearizationV2,
@@ -514,6 +515,38 @@ describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
         2e-6,
       );
     }
+  });
+
+  it("materializes an externally solved candidate as the canonical detached trial", () => {
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const input = Object.freeze({
+      dtSec: 0.005,
+      boundary: Object.freeze({
+        ...DIASTOLIC_BOUNDARY_V2,
+        absoluteAorticPressureMmHg: 108,
+        absoluteRightAtrialPressureMmHg: 7,
+      }),
+    }) satisfies CoronaryBackwardEulerTrialInputV2;
+    const solved = solveCoronaryBackwardEulerTrialV2(
+      initialized.acceptedState,
+      input,
+    );
+    const materialized = materializeCoronaryBackwardEulerCandidateTrialV2(
+      initialized.acceptedState,
+      input,
+      solved.candidateAcceptedState.volumeMlByNode,
+      Object.freeze({
+        newtonIterations: solved.diagnostics.newtonIterations,
+        totalLineSearchBacktracks:
+          solved.diagnostics.totalLineSearchBacktracks,
+      }),
+    );
+
+    expect(materialized).toEqual(solved);
+    expect(materialized.candidateAcceptedState.volumeMlByNode)
+      .not.toBe(solved.candidateAcceptedState.volumeMlByNode);
   });
 
   it("writes the same candidate residual and boundary flows as the canonical probe", () => {

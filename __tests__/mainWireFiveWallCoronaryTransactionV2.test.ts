@@ -808,6 +808,83 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     });
   }, 60_000);
 
+  it("materializes the coupled solution through the canonical trial gates without retaining solver or probe scratch", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const runtime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+    const stepInput = Object.freeze({
+      dtSec: 0.002,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const context = prepareMainWireFiveWallCoupledResidualContextV1(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+    const coupled = solveMainWireFiveWallCoupledNewtonShadowV1(context);
+    expect(coupled.result.status).toBe("converged");
+    if (coupled.result.status !== "converged") {
+      throw new Error(coupled.result.message);
+    }
+    const solution = coupled.result.solution.slice();
+
+    const residualA = new Float64Array(context.dimension);
+    const residualB = new Float64Array(context.dimension);
+    const residualARepeated = new Float64Array(context.dimension);
+    context.evaluateResidualMl(solution, residualA);
+    const perturbed = solution.slice();
+    perturbed[0] += 1e-4;
+    context.evaluateResidualMl(perturbed, residualB);
+    context.evaluateResidualMl(solution, residualARepeated);
+    expect(Array.from(residualARepeated)).toEqual(Array.from(residualA));
+    expect(Array.from(residualB)).not.toEqual(Array.from(residualA));
+
+    const materialized = context.materializeCandidateTrial(
+      solution,
+      Object.freeze({
+        iterations: coupled.result.iterations,
+        lineSearchBacktracks: coupled.result.lineSearchBacktrackCount,
+      }),
+    );
+    const detachedSnapshot = structuredClone(materialized);
+
+    NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.forEach((nodeId, index) => {
+      expect(materialized.circulationTrial.candidateNodeVolumesMl[nodeId])
+        .toBeCloseTo(solution[index]!, 12);
+    });
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.forEach((nodeId, index) => {
+      expect(materialized.coronaryTrial.candidateAcceptedState
+        .volumeMlByNode[nodeId]).toBeCloseTo(
+          solution[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index]!,
+          12,
+        );
+    });
+    expect(materialized.circulationTrial.diagnostics.iterations)
+      .toBe(coupled.result.iterations);
+    expect(materialized.coronaryTrial.diagnostics.newtonIterations).toBe(0);
+    expect(materialized.coronaryTrial.diagnostics.totalLineSearchBacktracks)
+      .toBe(0);
+    expect(materialized.circulationTrial.diagnostics.totalBloodVolumeErrorMl)
+      .toBeCloseTo(0, 9);
+    expect(materialized.coronaryTrial.diagnostics
+      .exactBloodVolumeLedgerResidualMl).toBeCloseTo(0, 9);
+
+    solution.fill(1);
+    context.evaluateResidualMl(perturbed, residualB);
+    expect(materialized).toEqual(detachedSnapshot);
+  }, 60_000);
+
   it("tracks the accepted nested trajectory for one full second without branch drift", () => {
     const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
     const runtime = Object.freeze({
