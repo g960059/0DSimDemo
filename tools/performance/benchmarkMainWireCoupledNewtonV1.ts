@@ -32,6 +32,9 @@ import {
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
   solveMainWireFiveWallCoupledNewtonShadowV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
+import {
+  MainWireFlatCoupledAcceptedStateV1,
+} from "@/engine/vnext/coupled/MainWireFlatCoupledAcceptedStateV1";
 
 const measuredIterations = integerArgument("--iterations", 20);
 const warmupIterations = integerArgument("--warmup", 5);
@@ -87,6 +90,8 @@ const analyticWorkspace =
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
 const authorityWorkspace =
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+const flatAuthorityWorkspace =
+  createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
 const finiteDifferenceWorkspace =
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
 const legacyCoronaryWorkspace = createCoronaryBackwardEulerScratchWorkspaceV2(
@@ -103,6 +108,11 @@ const authorityPreparationSamplesMs: number[] = [];
 const authoritySolveSamplesMs: number[] = [];
 const authorityMaterializationSamplesMs: number[] = [];
 const authorityCommitSamplesMs: number[] = [];
+const flatAuthoritySamplesMs: number[] = [];
+const flatAuthorityPreparationSamplesMs: number[] = [];
+const flatAuthoritySolveSamplesMs: number[] = [];
+const flatAuthorityAdmissionSamplesMs: number[] = [];
+const flatAuthorityCommitSamplesMs: number[] = [];
 const analyticPreparationSamplesMs: number[] = [];
 const analyticSolveSamplesMs: number[] = [];
 const finiteDifferenceSamplesMs: number[] = [];
@@ -187,6 +197,51 @@ for (
     throw new Error(`coupled authority finalization failed: ${authority.message}`);
   }
 
+  // The accepted owner is Session-lifetime state. Constructing the cold
+  // owner is deliberately outside the measured step, as are legacy and
+  // object-authority cold initialization above.
+  const flatAcceptedState = runAuthority
+    ? new MainWireFlatCoupledAcceptedStateV1(cold.acceptedState)
+    : null;
+  const flatAuthorityStartedAtMs = performance.now();
+  const flatAuthorityContext = runAuthority ? createContext() : null;
+  const flatAuthorityPreparedAtMs = performance.now();
+  const flatAuthoritySolver = flatAuthorityContext === null
+    ? null
+    : solveMainWireFiveWallCoupledNewtonShadowV1(
+      flatAuthorityContext,
+      Object.freeze({
+        maximumAcceptedStepsPerJacobian,
+        analyticJacobianPolicy: "require-complete" as const,
+      }),
+      flatAuthorityWorkspace,
+    );
+  const flatAuthoritySolvedAtMs = performance.now();
+  if (flatAuthoritySolver?.result.status === "failed") {
+    throw new Error(`flat coupled authority solve failed: ${
+      flatAuthoritySolver.result.message
+    }`);
+  }
+  if (
+    flatAcceptedState !== null
+    && flatAuthorityContext !== null
+    && flatAuthoritySolver?.result.status === "converged"
+  ) {
+    flatAcceptedState.stageConvergedSolution(
+      flatAuthorityContext,
+      flatAuthoritySolver.result.solution,
+    );
+  }
+  const flatAuthorityAdmittedAtMs = performance.now();
+  if (flatAcceptedState !== null) flatAcceptedState.promote();
+  const flatAuthorityCommittedAtMs = performance.now();
+  if (
+    flatAcceptedState !== null
+    && flatAcceptedState.report().commitCount !== 1
+  ) {
+    throw new Error("flat coupled authority did not commit exactly once");
+  }
+
   const legacyStartedAtMs = performance.now();
   const legacy = runLegacy
     ? stepMainWireFiveWallCoronaryV2(
@@ -251,6 +306,23 @@ for (
         authorityFinalizedAtMs - authorityMaterializedAtMs,
       );
     }
+    if (flatAcceptedState !== null) {
+      flatAuthoritySamplesMs.push(
+        flatAuthorityCommittedAtMs - flatAuthorityStartedAtMs,
+      );
+      flatAuthorityPreparationSamplesMs.push(
+        flatAuthorityPreparedAtMs - flatAuthorityStartedAtMs,
+      );
+      flatAuthoritySolveSamplesMs.push(
+        flatAuthoritySolvedAtMs - flatAuthorityPreparedAtMs,
+      );
+      flatAuthorityAdmissionSamplesMs.push(
+        flatAuthorityAdmittedAtMs - flatAuthoritySolvedAtMs,
+      );
+      flatAuthorityCommitSamplesMs.push(
+        flatAuthorityCommittedAtMs - flatAuthorityAdmittedAtMs,
+      );
+    }
     if (legacy !== null) legacySamplesMs.push(legacyWallTimeMs);
     if (finiteDifference !== null) {
       finiteDifferenceSamplesMs.push(finiteDifferenceWallTimeMs);
@@ -268,6 +340,15 @@ const authorityMaterialization = summarizeOrNull(
   authorityMaterializationSamplesMs,
 );
 const authorityCommit = summarizeOrNull(authorityCommitSamplesMs);
+const flatAuthority = summarizeOrNull(flatAuthoritySamplesMs);
+const flatAuthorityPreparation = summarizeOrNull(
+  flatAuthorityPreparationSamplesMs,
+);
+const flatAuthoritySolve = summarizeOrNull(flatAuthoritySolveSamplesMs);
+const flatAuthorityAdmission = summarizeOrNull(
+  flatAuthorityAdmissionSamplesMs,
+);
+const flatAuthorityCommit = summarizeOrNull(flatAuthorityCommitSamplesMs);
 const analyticPreparation = summarizeOrNull(analyticPreparationSamplesMs);
 const analyticSolve = summarizeOrNull(analyticSolveSamplesMs);
 const finiteDifference = summarizeOrNull(finiteDifferenceSamplesMs);
@@ -286,6 +367,11 @@ process.stdout.write(`${JSON.stringify(Object.freeze({
   authoritySolve,
   authorityMaterialization,
   authorityCommit,
+  flatAuthority,
+  flatAuthorityPreparation,
+  flatAuthoritySolve,
+  flatAuthorityAdmission,
+  flatAuthorityCommit,
   analyticPreparation,
   analyticSolve,
   finiteDifference,
@@ -300,6 +386,13 @@ process.stdout.write(`${JSON.stringify(Object.freeze({
     authorityOverLegacyNested: authority === null || legacy === null
       ? null
       : legacy.medianWallTimeMs / authority.medianWallTimeMs,
+    flatAuthorityOverLegacyNested: flatAuthority === null || legacy === null
+      ? null
+      : legacy.medianWallTimeMs / flatAuthority.medianWallTimeMs,
+    flatAuthorityOverObjectAuthority:
+      flatAuthority === null || authority === null
+        ? null
+        : authority.medianWallTimeMs / flatAuthority.medianWallTimeMs,
   }),
   work: Object.freeze({
     analyticMeanNewtonIterations: analytic === null

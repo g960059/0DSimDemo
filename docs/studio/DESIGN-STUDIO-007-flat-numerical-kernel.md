@@ -884,6 +884,34 @@ object-oriented re-evaluation and public-trial bridge consume most of that
 gain. Production cutover is rejected until final candidate ownership and
 materialization are flat and single-pass.
 
+The first model-specific flat acceptance owner now tests that missing boundary
+without extending the generic reflective state image. It owns exactly two
+fixed 34-f64 images: accepted time, revision, fixed TBV, all 15 non-coronary
+volumes, and all 16 coronary volumes. A converged 30-row root is range-checked,
+rechecked by the component convergence law, written only into the inactive
+image, and promoted by one active-index swap. NaN rejection, explicit abort,
+stale-context rejection, and promotion are executable tests; none can mutate
+the active image before promotion.
+
+Three independent 5,000-step host diagnostics measured flat-acceptance/legacy
+median pairs of `0.452/0.834 ms`, `0.444/0.818 ms`, and `0.442/0.817 ms`, for
+speedups of `1.845x`, `1.841x`, and `1.847x`. Flat admission itself measured
+about `0.001 ms` and the index swap about `0.00004 ms`; the coupled solve still
+dominates. This clears the predeclared `1.8x` host threshold and confirms that
+public-object materialization was the limiting boundary, not the coupled
+algebra.
+
+This owner is nevertheless a migration proof, not a complete accepted Session.
+Its context is still prepared from the old object state, and it does not yet
+own mechanics material state, valve and dynamic-flow memory, MVC reference,
+coronary tone/autoregulation, rhythm, devices, event clocks, or checkpoint
+encoding. It therefore cannot drive a multi-step trajectory by itself and is
+not eligible for a model release. The next authority slice must move those
+remaining owners into one hand-authored flat layout, prepare the next residual
+directly from the active image, and materialize public objects only at cold
+readback boundaries. The `1.8x` result authorizes that migration; it does not
+authorize production cutover.
+
 An exact `14+16` block-Schur linear solve was also implemented and measured.
 At one patch it reached only about `1.53x` over the legacy nested path because
 fourteen auxiliary solves and block copying outweighed the smaller factors, so

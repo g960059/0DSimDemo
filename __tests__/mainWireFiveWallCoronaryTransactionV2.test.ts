@@ -73,6 +73,9 @@ import {
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
   solveMainWireFiveWallCoupledNewtonShadowV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
+import {
+  MainWireFlatCoupledAcceptedStateV1,
+} from "@/engine/vnext/coupled/MainWireFlatCoupledAcceptedStateV1";
 
 type TestState = Readonly<{ timeSec: number; volumeSumMl: number }>;
 
@@ -807,6 +810,140 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
         6,
       );
     });
+  }, 60_000);
+
+  it("promotes one admitted 30-row root by swapping a fixed flat image", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const runtime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+    const stepInput = Object.freeze({
+      dtSec: 0.002,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const context = prepareMainWireFiveWallCoupledResidualContextV1(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+    const coupled = solveMainWireFiveWallCoupledNewtonShadowV1(
+      context,
+      { maximumAcceptedStepsPerJacobian: 2 },
+    );
+    expect(coupled.result.status).toBe("converged");
+    if (coupled.result.status !== "converged") {
+      throw new Error(coupled.result.message);
+    }
+    const converged = coupled.result;
+
+    const authority = new MainWireFlatCoupledAcceptedStateV1(
+      cold.acceptedState,
+    );
+    const before = authority.snapshot();
+    authority.stageConvergedSolution(context, converged.solution);
+
+    expect(authority.report()).toEqual({
+      authorityId: "main-wire-flat-coupled-accepted-state-v1",
+      fixedBufferCount: 2,
+      slotCount: 34,
+      byteLengthPerBuffer: 34 * Float64Array.BYTES_PER_ELEMENT,
+      activeBufferIndex: 0,
+      commitCount: 0,
+      staged: true,
+    });
+    expect(authority.snapshot()).toEqual(before);
+
+    authority.promote();
+    const accepted = authority.snapshot();
+    expect(accepted.acceptedTimeSec).toBe(0.002);
+    expect(accepted.revision).toBe(1);
+    expect(accepted.fixedGlobalTotalBloodVolumeMl).toBe(5600);
+    NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.forEach((nodeId, index) => {
+      const nodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(nodeId);
+      expect(accepted.nonCoronaryNodeVolumesMl[nodeIndex]).toBe(
+        converged.solution[index],
+      );
+    });
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.forEach((_nodeId, index) => {
+      expect(accepted.coronaryConservedVolumesMl[index]).toBe(
+        converged.solution[
+          NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
+        ],
+      );
+    });
+    const unknowns = new Float64Array(30);
+    authority.readCurrentUnknownsInto(unknowns);
+    expect(Array.from(unknowns)).toEqual(Array.from(converged.solution));
+    expect(authority.report()).toMatchObject({
+      activeBufferIndex: 1,
+      commitCount: 1,
+      staged: false,
+    });
+    expect(() => authority.stageConvergedSolution(
+      context,
+      converged.solution,
+    )).toThrow(/context differs from accepted authority/);
+  }, 60_000);
+
+  it("keeps accepted flat bytes unchanged across rejection and abort", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const runtime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+    const stepInput = Object.freeze({
+      dtSec: 0.002,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const context = prepareMainWireFiveWallCoupledResidualContextV1(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+    const coupled = solveMainWireFiveWallCoupledNewtonShadowV1(
+      context,
+      { maximumAcceptedStepsPerJacobian: 2 },
+    );
+    expect(coupled.result.status).toBe("converged");
+    if (coupled.result.status !== "converged") {
+      throw new Error(coupled.result.message);
+    }
+
+    const authority = new MainWireFlatCoupledAcceptedStateV1(
+      cold.acceptedState,
+    );
+    const before = authority.snapshot();
+    const invalid = coupled.result.solution.slice();
+    invalid[7] = Number.NaN;
+    expect(() => authority.stageConvergedSolution(context, invalid))
+      .toThrow(/outside its admitted domain/);
+    expect(authority.snapshot()).toEqual(before);
+    expect(authority.report()).toMatchObject({ commitCount: 0, staged: false });
+
+    authority.stageConvergedSolution(context, coupled.result.solution);
+    authority.abort();
+    expect(authority.snapshot()).toEqual(before);
+    expect(authority.report()).toMatchObject({ commitCount: 0, staged: false });
+    expect(() => authority.promote()).toThrow(/no staged candidate/);
   }, 60_000);
 
   it("materializes the coupled solution through the canonical trial gates without retaining solver or probe scratch", () => {

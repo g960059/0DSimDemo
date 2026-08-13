@@ -543,6 +543,8 @@ export type MainWireFiveWallCoupledResidualContextV1<
   TWallState = unknown,
 > = Readonly<{
   dimension: 30;
+  baseRevision: number;
+  baseAcceptedTimeSec: number;
   stepDtSec: number;
   fixedGlobalTotalBloodVolumeMl: number;
   minimumDependentSvVolumeMl: number;
@@ -1351,6 +1353,8 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
 
   return Object.freeze({
     dimension: 30 as const,
+    baseRevision: previous.revision,
+    baseAcceptedTimeSec: previous.acceptedTimeSec,
     stepDtSec: input.dtSec,
     fixedGlobalTotalBloodVolumeMl:
       previous.fixedGlobalTotalBloodVolumeMl,
