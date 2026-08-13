@@ -1,6 +1,12 @@
 substitutions:
   _IMAGE: asia-northeast1-docker.pkg.dev/${PROJECT_ID}/circleheart/public-content:latest
 
+# A deployment supplies a dedicated user-managed build identity. Sending logs
+# directly to Cloud Logging keeps that identity independent from the legacy
+# Cloud Build-owned log bucket.
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 steps:
   - name: gcr.io/cloud-builders/docker
     args:

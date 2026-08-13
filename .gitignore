@@ -30,6 +30,7 @@ dist-ssr
 *.sw?
 dist/
 dist-public-content/
+/.firebase/
 /artifacts/
 
 # machine-local Claude Code permissions (do not track)
