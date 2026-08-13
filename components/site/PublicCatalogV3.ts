@@ -32,6 +32,13 @@ export type PublicCatalogV3 = Readonly<{
   experiments: readonly PublicExperimentCatalogItemV3[];
 }>;
 
+export function publicArticlesForLocaleV3(
+  articles: readonly PublicArticleCatalogItemV3[],
+  locale: string,
+): readonly PublicArticleCatalogItemV3[] {
+  return Object.freeze(articles.filter((article) => article.locale === locale));
+}
+
 type PublicCatalogContentPortV3 = Pick<
   StudioBrowserContentStoreV3,
   "listArticles" | "listSnapshots"

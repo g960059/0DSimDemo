@@ -39,7 +39,7 @@ export const Layout = () => {
 
   return (
     <div
-      className="app-root flex h-screen w-screen flex-col overflow-hidden bg-wb-app font-sans text-wb-text"
+      className="app-root flex h-screen w-full flex-col overflow-hidden bg-wb-app font-sans text-wb-text"
       data-app-theme={appTheme}
     >
       {!pageOwnsChrome && <SiteHeaderV3 />}

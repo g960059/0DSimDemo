@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { readPublicCatalogV3 } from "@/components/site/PublicCatalogV3";
+import {
+  publicArticlesForLocaleV3,
+  readPublicCatalogV3,
+} from "@/components/site/PublicCatalogV3";
 import {
   publicArticleExcerptV3,
 } from "@/components/site/PublicCatalogPresentationV3";
@@ -73,6 +76,19 @@ describe("public catalog V3", () => {
     expect(publicArticleExcerptV3(blocks)).toBe("Useful summary.");
     expect(publicArticleExcerptV3(blocks.slice(0, 1))).toBe("Heading");
     expect(publicArticleExcerptV3(blocks.slice(1, 2))).toBeNull();
+  });
+
+  it("projects public Articles for the requested content locale", () => {
+    const articles = [
+      { articleId: "article-ja", locale: "ja" },
+      { articleId: "article-en", locale: "en" },
+      { articleId: "article-ja-two", locale: "ja" },
+    ] as unknown as Parameters<typeof publicArticlesForLocaleV3>[0];
+
+    expect(publicArticlesForLocaleV3(articles, "ja").map(({ articleId }) => articleId))
+      .toEqual(["article-ja", "article-ja-two"]);
+    expect(publicArticlesForLocaleV3(articles, "en").map(({ articleId }) => articleId))
+      .toEqual(["article-en"]);
   });
 });
 
