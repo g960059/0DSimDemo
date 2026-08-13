@@ -26,7 +26,6 @@
     "benchmark:workbench:exact-presentation": "vite-node --script tools/performance/benchmarkMainWirePresentationBatchV1.ts",
     "benchmark:kernel:flat-reference": "vite-node --script tools/performance/benchmarkMainWireFlatReferenceKernelV1.ts",
     "benchmark:kernel:flat-authority": "vite-node --script tools/performance/benchmarkMainWireFlatAuthorityV1.ts",
-    "benchmark:kernel:scalar-slots": "vite-node --script tools/performance/benchmarkMainWireScalarSlotsV1.ts",
     "inspect:kernel:flat-state-shape": "vite-node --script tools/performance/inspectMainWireFlatStateShapeV1.ts",
     "inspect:kernel:accepted-state-identity": "vite-node --script tools/performance/inspectMainWireAcceptedStateIdentityV1.ts",
     "verify:workbench:performance": "CIRCLEHEART_PERF_ENFORCE=1 npm run benchmark:workbench:live",

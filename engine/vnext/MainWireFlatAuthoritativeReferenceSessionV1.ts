@@ -56,9 +56,6 @@ import {
   measureCanonicalFlatDataV1,
 } from "@/engine/vnext/CanonicalFlatDataV1";
 import {
-  createMainWireAcceptedScalarSlotManifestV1,
-} from "@/engine/vnext/MainWireAcceptedScalarSlotsV1";
-import {
   createMainWireAcceptedTypedBoundaryBindingV1,
   limitMainWireAcceptedTypedCandidateTimeV1,
   readMainWireAcceptedTypedClockV1,
@@ -74,11 +71,6 @@ import {
   MainWireAcceptedTypedStateAuthorityV1,
   type MainWireAcceptedTypedStateAuthorityReportV1,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
-import {
-  TransactionalScalarSlotsV1,
-  type TransactionalScalarSlotsReportV1,
-  type TransactionalScalarSlotsSnapshotV1,
-} from "@/engine/vnext/TransactionalScalarSlotsV1";
 import type {
   TransactionalTypedStateCandidateCursorV1,
   TransactionalTypedStateCurrentCursorV1,
@@ -131,7 +123,6 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   readonly #typedBoundaryBinding:
     MainWireAcceptedTypedBoundaryBindingV1 | null;
   readonly #directRetainedContinuousSlots: readonly number[];
-  readonly #scalarSlots: TransactionalScalarSlotsV1<AcceptedState>;
   #acceptedState: AcceptedState;
   #lastAcceptedStep: SuccessfulStep | null;
   #lastPresentationObservation: MainWireIntegratedModelObservationV3;
@@ -211,12 +202,6 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           ...this.#typedBoundaryBinding.postSolverContinuousSlots,
         ]);
     this.#acceptedState = this.#authority.current();
-    this.#scalarSlots = new TransactionalScalarSlotsV1(
-      createMainWireAcceptedScalarSlotManifestV1(
-        runtime.cold.acceptedState,
-      ),
-      this.#acceptedState,
-    );
     this.#lastAcceptedStep = null;
     this.#beatAccumulator = exactBeatState?.beatAccumulator
       ?? new MainWireIntegratedModelBeatAccumulatorV3();
@@ -455,7 +440,6 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         );
       }
 
-      let scalarCandidateOpen = false;
       let committedState: AcceptedState;
       try {
         if (this.#typedAuthority !== null) {
@@ -483,8 +467,6 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             result.dynamicMechanicalSupportTrial.candidateAcceptedState,
           );
         }
-        this.#scalarSlots.stage(result.acceptedState);
-        scalarCandidateOpen = true;
         if (this.#typedAuthority !== null) {
           directCandidateOpen = false;
           committedState = this.#typedAuthority.commitDirectCandidate(
@@ -497,13 +479,11 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           committedState = this.#authority.commit(result.acceptedState);
         }
       } catch (error) {
-        if (scalarCandidateOpen) this.#scalarSlots.abort();
         if (directCandidateOpen) {
           this.#typedAuthority?.abortDirectCandidate();
         }
         throw error;
       }
-      this.#scalarSlots.promote();
       this.#acceptedState = committedState;
       acceptedClock = this.currentAcceptedClock();
       if (
@@ -591,7 +571,6 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   async checkpointStandardExact():
   Promise<MainWireIntegratedModelStandardCheckpointV1> {
     this.#acceptedState = this.#authority.current();
-    this.#scalarSlots.assertCurrentMatches(this.#acceptedState);
     this.#typedAuthority?.assertCurrentMatches(this.#acceptedState);
     return checkpointMainWireIntegratedModelStandardV1(
       this.checkpointContext(),
@@ -625,14 +604,6 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       throw new Error("Flat reference accepted-state length changed while encoding");
     }
     return encoded;
-  }
-
-  scalarSlotsReport(): TransactionalScalarSlotsReportV1 {
-    return this.#scalarSlots.report();
-  }
-
-  snapshotScalarSlots(): TransactionalScalarSlotsSnapshotV1 {
-    return this.#scalarSlots.snapshot();
   }
 
   private checkpointContext() {

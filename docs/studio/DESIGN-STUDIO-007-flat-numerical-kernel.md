@@ -283,31 +283,15 @@ hot accepted boundary by Phase 1b.2b.1 below. Its canonical codec remains the
 checkpoint/integrity basis and an independent proof oracle. It is not
 permission to serialize the full object graph in the final inner loop.
 
-#### Phase 1b.2a — fixed scalar slots (implemented reference)
+#### Retired prototype — scalar-only shadow image
 
-The next reference slice freezes the scalar index space before changing solver
-code. The Standard cold accepted shape deterministically admits a versioned
-manifest with fingerprint `fnv1a32-8c218aa1`: 440 finite `f64` slots and four
-boolean slots. Two lifetime-fixed typed buffer sets provide inactive-candidate
-staging and an infallible accepted swap. Staging writes no temporary arrays and
-cannot change the current slots; if full accepted-state ownership rejects the
-candidate, the staged scalar buffer is aborted rather than promoted.
-The fingerprint also binds all 158 fixed container shapes, including their
-kind, prototype class, and ordered own-key set.
-
-The manifest intentionally reports what it does **not** yet own: 45 nullable or
-variable-array roots and 205 string leaves. It does not intern those strings,
-assign provisional indices to optional values, or pretend that the scalar
-mirror is a complete checkpoint. A changed fixed path/count/fingerprint fails
-closed and requires a new model-owned layout version.
-
-The scalar staging gate runs beside the complete typed-state authority for
-1,024 ticks, stays commit-count aligned across every accepted substep, and
-remains detached from public snapshots. A local 512-tick diagnostic measured
-roughly `0.05–0.07 ms/tick` for fixed scalar staging alone. This is useful
-evidence that direct fixed-slot writes are not the phone bottleneck, but it is
-not a product speedup: the reference Session still pays for the existing
-object solver and an object boundary adapter.
+An earlier Phase 1b prototype mirrored 440 scalar and four boolean leaves into
+a second pair of typed buffers. It established fixed-index feasibility, but it
+was not a complete authority and duplicated every scalar object-path traversal
+after the complete image below existed. The prototype, its benchmark command,
+and its Session shadow writes have therefore been removed. The complete typed
+image is now the only typed transaction owner; the scientific oracle remains
+the released object Session rather than a second partial state mirror.
 
 #### Phase 1b.2b.1 — transactional typed image and cold bindings (implemented reference)
 

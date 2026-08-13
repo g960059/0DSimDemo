@@ -61,10 +61,6 @@ import {
   createMainWireAcceptedTypedStateManifestV1,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
 import {
-  createTransactionalScalarSlotManifestV1,
-  TransactionalScalarSlotsV1,
-} from "@/engine/vnext/TransactionalScalarSlotsV1";
-import {
   createTransactionalTypedStateManifestV1,
   TransactionalTypedStateImageV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
@@ -163,65 +159,6 @@ describe("FlatAcceptedStateAuthorityV1", () => {
       poisonedReason: expect.stringContaining("fixed capacity"),
     });
     expect(() => authority.current()).toThrow("is poisoned");
-  });
-});
-
-describe("TransactionalScalarSlotsV1", () => {
-  it("stages into the inactive buffer and promotes atomically", () => {
-    type State = Readonly<{
-      value: number;
-      enabled: boolean;
-      diagnostic: string;
-      pending: readonly number[];
-    }>;
-    const initial: State = Object.freeze({
-      value: 1,
-      enabled: false,
-      diagnostic: "initial",
-      pending: Object.freeze([]),
-    });
-    const manifest = createTransactionalScalarSlotManifestV1(
-      "test-scalar-layout",
-      initial,
-    );
-    const slots = new TransactionalScalarSlotsV1(manifest, initial);
-    expect(slots.report()).toMatchObject({
-      continuousSlotCount: 1,
-      booleanSlotCount: 1,
-      excludedDynamicRootCount: 1,
-      excludedStringSlotCount: 1,
-      commitCount: 0,
-      staged: false,
-    });
-    const before = slots.snapshot();
-    const candidate: State = Object.freeze({
-      value: 2,
-      enabled: true,
-      diagnostic: "next",
-      pending: Object.freeze([3]),
-    });
-    slots.stage(candidate);
-    expect(slots.snapshot()).toEqual(before);
-    expect(slots.report().staged).toBe(true);
-    slots.abort();
-    expect(slots.snapshot()).toEqual(before);
-    slots.stage(candidate);
-    slots.promote();
-    expect(slots.snapshot()).toEqual({
-      continuous: new Float64Array([2]),
-      booleans: new Uint8Array([1]),
-    });
-    expect(slots.report()).toMatchObject({ commitCount: 1, staged: false });
-    slots.assertCurrentMatches(candidate);
-
-    expect(() => slots.stage(Object.freeze({
-      ...candidate,
-      value: Number.NaN,
-    }))).toThrow("must be finite");
-    expect(slots.snapshot()).toEqual({
-      continuous: new Float64Array([2]),
-      booleans: new Uint8Array([1]),
-    });
   });
 });
 
@@ -1340,10 +1277,6 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     expect(() => session.advanceToPresentationTime(target))
       .toThrow("injected candidate commit failed");
     expect(commitCalls).toBe(1);
-    expect(session.scalarSlotsReport()).toMatchObject({
-      commitCount: 0,
-      staged: false,
-    });
     expect(() => session.advanceToPresentationTime(target))
       .toThrow("injected authority is poisoned");
     expect(commitCalls).toBe(1);
@@ -1374,20 +1307,6 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       poisonedReason: null,
       directCandidateCommitCount: 0,
     });
-    expect(reference.scalarSlotsReport()).toMatchObject({
-      fingerprint: "fnv1a32-8c218aa1",
-      continuousSlotCount: 440,
-      booleanSlotCount: 4,
-      excludedDynamicRootCount: 45,
-      excludedStringSlotCount: 205,
-      containerCount: 158,
-      commitCount: 0,
-      staged: false,
-    });
-    const escapedScalarSlots = reference.snapshotScalarSlots();
-    const scalarBefore = escapedScalarSlots.continuous[0]!;
-    escapedScalarSlots.continuous[0] = scalarBefore + 10_000;
-    expect(reference.snapshotScalarSlots().continuous[0]).toBe(scalarBefore);
     const escapedState = reference.currentAcceptedState();
     const escapedTypedArray = firstFloat64Array(escapedState);
     if (escapedTypedArray === null || escapedTypedArray.length === 0) {
@@ -1455,10 +1374,6 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       },
     ]);
     expect(finalReport.poisonedReason).toBeNull();
-    expect(reference.scalarSlotsReport()).toMatchObject({
-      commitCount: finalReport.commitCount,
-      staged: false,
-    });
     expect(decodeCanonicalFlatDataV1(reference.snapshotAcceptedStateBytes()))
       .toEqual(reference.currentAcceptedState());
     expect(sawCompletedBeat).toBe(true);
