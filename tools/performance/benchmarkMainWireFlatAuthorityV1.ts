@@ -15,6 +15,7 @@ import {
   limitMainWireAcceptedTypedCandidateTimeV1,
   readMainWireAcceptedTypedClockV1,
   stageMainWireAcceptedTypedCalciumCandidateV1,
+  stageMainWireAcceptedTypedClockCandidateV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
 import {
   createMainWireAcceptedTypedStateManifestV1,
@@ -86,6 +87,11 @@ for (let tick = 1; tick <= WARMUP_TICKS + MEASURED_TICKS; tick += 1) {
   );
   const boundaryFinishedAt = performance.now();
   const candidateCursor = typedImage.beginCandidateFromCurrent();
+  stageMainWireAcceptedTypedClockCandidateV1(
+    cursor,
+    candidateCursor,
+    nextBoundary.candidateTimeSec,
+  );
   stageMainWireAcceptedTypedCalciumCandidateV1(
     cursor,
     candidateCursor,

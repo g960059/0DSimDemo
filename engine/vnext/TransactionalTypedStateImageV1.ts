@@ -148,6 +148,11 @@ export type TransactionalTypedStateCandidateCursorV1 = Readonly<{
   writeBoolean(slotIndex: number, value: boolean): void;
 }>;
 
+export type TransactionalTypedStateRetainedSlotsV1 = Readonly<{
+  continuous?: readonly number[];
+  booleans?: readonly number[];
+}>;
+
 type MutableImageV1 = Readonly<{
   buffer: ArrayBuffer;
   continuous: Float64Array;
@@ -298,6 +303,60 @@ export class TransactionalTypedStateImageV1<TState> {
       writeBoolean: (slotIndex: number, value: boolean) =>
         this.writeCandidateBoolean(generation, slotIndex, value),
     });
+  }
+
+  /**
+   * Completes a directly staged candidate from a temporary object adapter.
+   * Slots already written by migrated owners are compared bit-exactly and are
+   * never overwritten; all remaining leaves and bounded arenas are populated
+   * from the adapter before cold-boundary rehydration and validation.
+   */
+  completeCandidateFromObject(
+    candidate: TState,
+    retained: TransactionalTypedStateRetainedSlotsV1,
+  ): void {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    assertFlatNumericalStateShapeV1(
+      this.#manifest.numericalLayout,
+      candidate,
+    );
+    const retainedContinuous = retainedSlotSet(
+      retained.continuous,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous",
+    );
+    const retainedBooleans = retainedSlotSet(
+      retained.booleans,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean",
+    );
+    const candidateImage = this.#images[this.inactiveIndex()];
+    assertRetainedFixedLeavesMatch(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      retainedContinuous,
+      retainedBooleans,
+    );
+    writeFixedLeaves(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      retainedContinuous,
+      retainedBooleans,
+    );
+    this.#stagedStringBytes = writeStrings(
+      this.#manifest,
+      candidate,
+      candidateImage,
+    );
+    this.#stagedDynamicBytes = writeDynamicRoots(
+      this.#manifest,
+      candidate,
+      candidateImage,
+    );
   }
 
   promote(): void {
@@ -548,6 +607,8 @@ function writeFixedLeaves(
   manifest: TransactionalTypedStateManifestV1,
   state: unknown,
   destination: MutableImageV1,
+  retainedContinuous?: ReadonlySet<number>,
+  retainedBooleans?: ReadonlySet<number>,
 ): void {
   const layout = manifest.numericalLayout;
   for (let index = 0; index < layout.continuousSlots.length; index += 1) {
@@ -556,7 +617,9 @@ function writeFixedLeaves(
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new Error(`Transactional typed state ${slot.pointer} must be finite`);
     }
-    destination.continuous[index] = value;
+    if (!retainedContinuous?.has(index)) {
+      destination.continuous[index] = value;
+    }
   }
   for (let index = 0; index < layout.booleanSlots.length; index += 1) {
     const slot = layout.booleanSlots[index]!;
@@ -564,8 +627,62 @@ function writeFixedLeaves(
     if (typeof value !== "boolean") {
       throw new Error(`Transactional typed state ${slot.pointer} must be boolean`);
     }
-    destination.booleans[index] = value ? 1 : 0;
+    if (!retainedBooleans?.has(index)) {
+      destination.booleans[index] = value ? 1 : 0;
+    }
   }
+}
+
+function assertRetainedFixedLeavesMatch(
+  manifest: TransactionalTypedStateManifestV1,
+  state: unknown,
+  destination: MutableImageV1,
+  retainedContinuous: ReadonlySet<number>,
+  retainedBooleans: ReadonlySet<number>,
+): void {
+  for (const index of retainedContinuous) {
+    const slot = manifest.numericalLayout.continuousSlots[index]!;
+    const value = readFlatNumericalStatePathV1(state, slot.path);
+    if (
+      typeof value !== "number"
+      || !Number.isFinite(value)
+      || !Object.is(destination.continuous[index], value)
+    ) {
+      throw new Error(
+        `Transactional typed state retained ${slot.pointer} differs from adapter`,
+      );
+    }
+  }
+  for (const index of retainedBooleans) {
+    const slot = manifest.numericalLayout.booleanSlots[index]!;
+    const value = readFlatNumericalStatePathV1(state, slot.path);
+    if (
+      typeof value !== "boolean"
+      || destination.booleans[index] !== (value ? 1 : 0)
+    ) {
+      throw new Error(
+        `Transactional typed state retained ${slot.pointer} differs from adapter`,
+      );
+    }
+  }
+}
+
+function retainedSlotSet(
+  slots: readonly number[] | undefined,
+  slotCount: number,
+  owner: string,
+): ReadonlySet<number> {
+  const retained = new Set<number>();
+  for (const slotIndex of slots ?? []) {
+    assertSlotIndex(slotIndex, slotCount, `${owner} retained`);
+    if (retained.has(slotIndex)) {
+      throw new Error(
+        `Transactional typed state ${owner} retained slot is duplicated`,
+      );
+    }
+    retained.add(slotIndex);
+  }
+  return retained;
 }
 
 function writeStrings(

@@ -347,10 +347,10 @@ the accepted-state authority, while leaving the registered exact Session and
 artifacts unchanged.
 
 This is still not a production speedup. The latest representative 512-tick
-alternating diagnostic measured about `2.47 ms/tick` for the released object
-Session and `4.58 ms/tick` for the typed-authority reference (`1.85x`).
-Isolated typed-image staging measured about `0.215 ms/presentation tick`, and
-rehydration about `0.067 ms/presentation tick`. String and dynamic high-water
+alternating diagnostic measured about `2.45 ms/tick` for the released object
+Session and `4.53 ms/tick` for the typed-authority reference (`1.85x`).
+Isolated typed-image staging measured about `0.211 ms/presentation tick`, and
+rehydration about `0.065 ms/presentation tick`. String and dynamic high-water
 usage were `6,789` and `4,084` bytes respectively, far below their fixed
 capacities. The remaining overhead is dominated by rebuilding and fully
 revalidating the legacy object owner graph, not by the typed page itself.
@@ -380,15 +380,18 @@ oracle and exact checkpoint-continuation gates remain unchanged. The injected
 test authority deliberately falls back to the original object limiter, so
 authority-failure tests do not gain an accidental typed precondition.
 
-This slice moves scheduling authority, not the nonlinear solve. The existing
-object transaction still regenerates and validates its own boundary internally
-and produces an object candidate before the inactive typed image admits it.
-A representative 512-tick diagnostic measured about `2.47 ms/tick` for the
-released Session and `4.58 ms/tick` for the typed reference (`1.85x`); isolated
-typed-image staging and rehydration were about `0.215 ms/tick` and
-`0.067 ms/tick`. Direct fixed-slot boundary selection measured about
-`0.0075 ms/tick`, while copying current into the inactive image and staging all
-five calcium owners measured about `0.0105 ms/tick`. The small change relative
+This slice moves scheduling authority, not the nonlinear solve. The inactive
+typed candidate now owns the six synchronized outer/composed/coronary clock
+slots as well as the ten calcium state slots before the legacy object
+transaction runs. The object transaction still regenerates and validates its
+own boundary internally, but admission requires its clock and calcium result to
+match the already-staged typed values bit-for-bit and cannot overwrite them.
+A representative 512-tick diagnostic measured about `2.45 ms/tick` for the
+released Session and `4.53 ms/tick` for the typed reference (`1.85x`); isolated
+typed-image staging and rehydration were about `0.211 ms/tick` and
+`0.065 ms/tick`. Direct fixed-slot boundary selection measured about
+`0.0071 ms/tick`, while copying current into the inactive image and staging all
+five calcium owners measured about `0.0090 ms/tick`. The small change relative
 to Phase 1b.2b.1 is expected because duplicate legacy transaction work
 remains. These figures are diagnostics, not performance gates.
 
@@ -405,17 +408,21 @@ fixed state slots advance directly from the active image into the inactive
 candidate using the existing exact two-decay event law and only deposits due
 at the accepted candidate boundary. Across 96 evolving boundaries, including
 electrical/calcium events, both the fixed-slot calcium readback and candidate
-state match the existing composed-rhythm owner exactly. The complete
-composed-rhythm transaction still owns queue scheduling, capture, and commit;
-this slice does not claim that rhythm is flat yet.
+state match the existing composed-rhythm owner exactly. On the default
+reference path these ten calcium values and six clock values are retained
+through complete candidate admission; the temporary object adapter must match
+them bit-exactly and cannot overwrite them. Every accepted substep in the
+1,024-tick oracle therefore promotes both clock and calcium state from the typed
+candidate. The complete composed-rhythm transaction still owns queue scheduling
+and electrical capture; this slice does not claim that rhythm is flat yet.
 
 The non-production Worker vertical slice now creates the typed-authority
 Session by default. Its older Phase 1a lifetime string table and per-tick full
 flat mirror have been removed from the execution loop; a legacy-shaped flat
 snapshot is projected only when a diagnostic explicitly requests it. In a
 512-tick/6-output diagnostic, the released Session measured about
-`2.41 ms/tick`, the complete typed-authority Worker reference about
-`4.52 ms/tick`, and output-page projection only about `1.42 ms` in total across
+`2.37 ms/tick`, the complete typed-authority Worker reference about
+`4.48 ms/tick`, and output-page projection only about `1.45 ms` in total across
 all 512 ticks. This isolates the remaining cost in the legacy object
 transaction and typed admission—not Canvas, output selection, transfer, or the
 retired mirror.

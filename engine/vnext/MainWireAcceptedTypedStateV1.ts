@@ -15,10 +15,12 @@ import {
 import {
   createTransactionalTypedStateManifestV1,
   TransactionalTypedStateImageV1,
+  type TransactionalTypedStateCandidateCursorV1,
   type TransactionalTypedStateCurrentCursorV1,
   type TransactionalTypedStateImageReportV1,
   type TransactionalTypedStateImageSnapshotV1,
   type TransactionalTypedStateManifestV1,
+  type TransactionalTypedStateRetainedSlotsV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
 
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID =
@@ -55,6 +57,7 @@ export type MainWireAcceptedTypedStateAuthorityReportV1 = Readonly<
   Omit<TransactionalTypedStateImageReportV1, "authorityId"> & {
     authorityId: typeof MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID;
     poisonedReason: string | null;
+    directCandidateCommitCount: number;
   }
 >;
 
@@ -113,6 +116,7 @@ export class MainWireAcceptedTypedStateAuthorityV1
   readonly #ownDecoded: AcceptedStateValidatorV1<AcceptedState>;
   #currentState: AcceptedState;
   #poisonedReason: string | null = null;
+  #directCandidateCommitCount = 0;
 
   constructor(
     coldAcceptedState: AcceptedState,
@@ -158,12 +162,52 @@ export class MainWireAcceptedTypedStateAuthorityV1
     }
   }
 
+  /** Begins one inactive typed transaction for a migrated state owner. */
+  beginDirectCandidate(): TransactionalTypedStateCandidateCursorV1 {
+    this.assertHealthy();
+    return this.#image.beginCandidateFromCurrent();
+  }
+
+  /**
+   * Admits the still-object-backed owners without overwriting migrated slots,
+   * then promotes the complete validated typed candidate exactly once.
+   */
+  commitDirectCandidate(
+    adapterCandidate: AcceptedState,
+    retained: TransactionalTypedStateRetainedSlotsV1,
+  ): AcceptedState {
+    this.assertHealthy();
+    try {
+      this.#image.completeCandidateFromObject(adapterCandidate, retained);
+      const owned = this.ownAndValidate(this.#image.rehydrateStaged());
+      this.#image.promote();
+      this.#currentState = owned;
+      this.#directCandidateCommitCount += 1;
+      return owned;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `direct candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: `
+          + this.#poisonedReason,
+      );
+    }
+  }
+
+  /** Expected solver rejection abandons the inactive candidate without poison. */
+  abortDirectCandidate(): void {
+    this.assertHealthy();
+    this.#image.abort();
+  }
+
   report(): MainWireAcceptedTypedStateAuthorityReportV1 {
     const report = this.#image.report();
     return Object.freeze({
       ...report,
       authorityId: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID,
       poisonedReason: this.#poisonedReason,
+      directCandidateCommitCount: this.#directCandidateCommitCount,
     });
   }
 

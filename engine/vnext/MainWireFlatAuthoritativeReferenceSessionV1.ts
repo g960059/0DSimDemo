@@ -40,6 +40,7 @@ import {
   type MainWireIntegratedComposedRhythmStepContextV3,
   type MainWireIntegratedModelAcceptedStateV3,
   type MainWireIntegratedModelStepFailureReasonV3,
+  type MainWireIntegratedModelStepResultV3,
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import type {
@@ -59,7 +60,10 @@ import {
 } from "@/engine/vnext/MainWireAcceptedScalarSlotsV1";
 import {
   limitMainWireAcceptedTypedCandidateTimeV1,
+  MAIN_WIRE_ACCEPTED_TYPED_DIRECT_CONTINUOUS_SLOTS_V1,
   readMainWireAcceptedTypedClockV1,
+  stageMainWireAcceptedTypedCalciumCandidateV1,
+  stageMainWireAcceptedTypedClockCandidateV1,
   type MainWireAcceptedTypedClockV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
 import {
@@ -338,20 +342,54 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         );
       }
 
-      const result = stepMainWireIntegratedModelV3(
-        this.#provider,
-        this.#acceptedState,
-        {
-          candidateTimeSec: limit.candidateTimeSec,
-          coronary: this.#runtime.coronaryStepInput,
-          rhythm: this.#rhythmInput,
-          dynamicMechanicalSupport: Object.freeze({
-            config: this.#dynamicMechanicalSupportConfig,
-            profile: this.#runtime.profile,
-          }),
-        },
-      );
+      let directCandidateOpen = false;
+      if (this.#typedAuthority !== null) {
+        try {
+          const current = this.#typedAuthority.currentCursor();
+          const candidate = this.#typedAuthority.beginDirectCandidate();
+          directCandidateOpen = true;
+          stageMainWireAcceptedTypedClockCandidateV1(
+            current,
+            candidate,
+            limit.candidateTimeSec,
+          );
+          stageMainWireAcceptedTypedCalciumCandidateV1(
+            current,
+            candidate,
+            limit.candidateTimeSec,
+          );
+        } catch (error) {
+          if (directCandidateOpen) {
+            this.#typedAuthority.abortDirectCandidate();
+          }
+          throw error;
+        }
+      }
+      let result: MainWireIntegratedModelStepResultV3<WallState>;
+      try {
+        result = stepMainWireIntegratedModelV3(
+          this.#provider,
+          this.#acceptedState,
+          {
+            candidateTimeSec: limit.candidateTimeSec,
+            coronary: this.#runtime.coronaryStepInput,
+            rhythm: this.#rhythmInput,
+            dynamicMechanicalSupport: Object.freeze({
+              config: this.#dynamicMechanicalSupportConfig,
+              profile: this.#runtime.profile,
+            }),
+          },
+        );
+      } catch (error) {
+        if (directCandidateOpen) {
+          this.#typedAuthority?.abortDirectCandidate();
+        }
+        throw error;
+      }
       if (result.converged === false) {
+        if (directCandidateOpen) {
+          this.#typedAuthority?.abortDirectCandidate();
+        }
         return this.failedAdvance(
           result.reason,
           result.message,
@@ -368,12 +406,28 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         );
       }
 
-      this.#scalarSlots.stage(result.acceptedState);
+      let scalarCandidateOpen = false;
       let committedState: AcceptedState;
       try {
-        committedState = this.#authority.commit(result.acceptedState);
+        this.#scalarSlots.stage(result.acceptedState);
+        scalarCandidateOpen = true;
+        if (this.#typedAuthority !== null) {
+          directCandidateOpen = false;
+          committedState = this.#typedAuthority.commitDirectCandidate(
+            result.acceptedState,
+            {
+              continuous:
+                MAIN_WIRE_ACCEPTED_TYPED_DIRECT_CONTINUOUS_SLOTS_V1,
+            },
+          );
+        } else {
+          committedState = this.#authority.commit(result.acceptedState);
+        }
       } catch (error) {
-        this.#scalarSlots.abort();
+        if (scalarCandidateOpen) this.#scalarSlots.abort();
+        if (directCandidateOpen) {
+          this.#typedAuthority?.abortDirectCandidate();
+        }
         throw error;
       }
       this.#scalarSlots.promote();

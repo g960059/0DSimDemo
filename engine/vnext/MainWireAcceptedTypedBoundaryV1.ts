@@ -73,6 +73,27 @@ const CALCIUM = Object.freeze({
   SEP: Object.freeze({ state: [21, 22], parameters: [50, 51, 52, 53] }),
 } as const);
 
+export const MAIN_WIRE_ACCEPTED_TYPED_CALCIUM_CONTINUOUS_SLOTS_V1 =
+  Object.freeze(
+    (Object.keys(CALCIUM) as (keyof typeof CALCIUM)[])
+      .flatMap((wall) => [...CALCIUM[wall].state]),
+  );
+
+export const MAIN_WIRE_ACCEPTED_TYPED_CLOCK_CONTINUOUS_SLOTS_V1 = Object.freeze([
+  F64.acceptedTimeSec,
+  F64.composedAcceptedTimeSec,
+  F64.coronaryAcceptedTimeSec,
+  F64.composedRevision,
+  F64.coronaryRevision,
+  F64.revision,
+]);
+
+export const MAIN_WIRE_ACCEPTED_TYPED_DIRECT_CONTINUOUS_SLOTS_V1 =
+  Object.freeze([
+    ...MAIN_WIRE_ACCEPTED_TYPED_CLOCK_CONTINUOUS_SLOTS_V1,
+    ...MAIN_WIRE_ACCEPTED_TYPED_CALCIUM_CONTINUOUS_SLOTS_V1,
+  ]);
+
 /** Reads the authoritative outer clock without rebuilding the object graph. */
 export function readMainWireAcceptedTypedClockV1(
   cursor: TransactionalTypedStateCurrentCursorV1,
@@ -102,6 +123,35 @@ export function readMainWireAcceptedTypedClockV1(
   ) {
     throw new Error("Main Wire typed accepted owner clocks diverged");
   }
+  return Object.freeze({ acceptedTimeSec, revision });
+}
+
+/** Writes the exact six-slot outer/composed/coronary clock tuple. */
+export function stageMainWireAcceptedTypedClockCandidateV1(
+  current: TransactionalTypedStateCurrentCursorV1,
+  candidate: TransactionalTypedStateCandidateCursorV1,
+  candidateTimeSec: number,
+): MainWireAcceptedTypedClockV1 {
+  assertCursor(current);
+  assertCandidateCursor(candidate);
+  const previous = readMainWireAcceptedTypedClockV1(current);
+  const acceptedTimeSec = finiteNonnegative(
+    candidateTimeSec,
+    "clock candidate time",
+  );
+  if (!(acceptedTimeSec > previous.acceptedTimeSec)) {
+    throw new Error("Main Wire typed clock candidate must advance");
+  }
+  if (previous.revision === Number.MAX_SAFE_INTEGER) {
+    throw new Error("Main Wire typed clock revision cannot increment safely");
+  }
+  const revision = previous.revision + 1;
+  candidate.writeContinuous(F64.acceptedTimeSec, acceptedTimeSec);
+  candidate.writeContinuous(F64.composedAcceptedTimeSec, acceptedTimeSec);
+  candidate.writeContinuous(F64.coronaryAcceptedTimeSec, acceptedTimeSec);
+  candidate.writeContinuous(F64.revision, revision);
+  candidate.writeContinuous(F64.composedRevision, revision);
+  candidate.writeContinuous(F64.coronaryRevision, revision);
   return Object.freeze({ acceptedTimeSec, revision });
 }
 

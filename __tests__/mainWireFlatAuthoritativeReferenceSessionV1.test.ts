@@ -36,6 +36,7 @@ import {
   limitMainWireAcceptedTypedCandidateTimeV1,
   readMainWireAcceptedTypedClockV1,
   stageMainWireAcceptedTypedCalciumCandidateV1,
+  stageMainWireAcceptedTypedClockCandidateV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
 import {
   createMainWireAcceptedTypedStateManifestV1,
@@ -345,8 +346,21 @@ describe("TransactionalTypedStateImageV1", () => {
     expect(() => directCandidate.readContinuous(valueSlot)).toThrow("is stale");
     expect(image.rehydrateCurrent()).toEqual(candidate);
 
+    const mismatchedCandidate = image.beginCandidateFromCurrent();
+    mismatchedCandidate.writeContinuous(valueSlot, 9);
+    expect(() => image.completeCandidateFromObject(
+      { ...candidate, value: 8 },
+      { continuous: [valueSlot] },
+    )).toThrow("differs from adapter");
+    image.abort();
+    expect(image.rehydrateCurrent()).toEqual(candidate);
+
     const promotedCandidate = image.beginCandidateFromCurrent();
     promotedCandidate.writeContinuous(valueSlot, 9);
+    image.completeCandidateFromObject(
+      { ...candidate, value: 9 },
+      { continuous: [valueSlot], booleans: [0] },
+    );
     image.promote();
     expect(() => promotedCandidate.writeContinuous(valueSlot, 10))
       .toThrow("is stale");
@@ -444,6 +458,11 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       );
       expect(actual).toEqual(expected);
       const typedCandidate = image.beginCandidateFromCurrent();
+      const candidateClock = stageMainWireAcceptedTypedClockCandidateV1(
+        cursor,
+        typedCandidate,
+        actual.candidateTimeSec,
+      );
       stageMainWireAcceptedTypedCalciumCandidateV1(
         cursor,
         typedCandidate,
@@ -462,6 +481,22 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       expect(
         image.rehydrateStaged().composedRhythm.calciumStateByWall,
       ).toEqual(objectCandidate.candidateState.calciumStateByWall);
+      expect(candidateClock).toEqual({
+        acceptedTimeSec: objectCandidate.candidateState.acceptedTimeSec,
+        revision: objectCandidate.candidateState.revision,
+      });
+      expect(image.rehydrateStaged()).toMatchObject({
+        acceptedTimeSec: candidateClock.acceptedTimeSec,
+        revision: candidateClock.revision,
+        composedRhythm: {
+          acceptedTimeSec: candidateClock.acceptedTimeSec,
+          revision: candidateClock.revision,
+        },
+        coronary: {
+          acceptedTimeSec: candidateClock.acceptedTimeSec,
+          revision: candidateClock.revision,
+        },
+      });
       image.abort();
       expect(oracle.advanceToPresentationTime(target).status).toBe("advanced");
     }
@@ -518,6 +553,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       containerCount: 163,
       commitCount: 0,
       poisonedReason: null,
+      directCandidateCommitCount: 0,
     });
     expect(reference.scalarSlotsReport()).toMatchObject({
       fingerprint: "fnv1a32-8c218aa1",
@@ -566,6 +602,9 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
 
     const finalReport = reference.authorityReport();
     expect(finalReport.commitCount).toBeGreaterThanOrEqual(1_024);
+    expect(finalReport.directCandidateCommitCount).toBe(
+      finalReport.commitCount,
+    );
     expect(finalReport.highWaterStringBytes).toBeLessThanOrEqual(
       finalReport.stringArenaCapacityBytes,
     );

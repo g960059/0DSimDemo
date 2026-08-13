@@ -3,10 +3,14 @@ import {
   mainWireIntegratedModelPresentationTargetTimeSecV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
-  createFlatNumericalStateLayoutV1,
-} from "@/engine/vnext/FlatNumericalStateV1";
+  createMainWireAcceptedTypedStateManifestV1,
+} from "@/engine/vnext/MainWireAcceptedTypedStateV1";
 
 const session = await MainWireIntegratedModelSessionV3.create();
+const manifest = createMainWireAcceptedTypedStateManifestV1(
+  session.currentAcceptedState(),
+);
+const layout = manifest.numericalLayout;
 const observed = new Map<string, {
   pointer: string;
   kinds: Set<string>;
@@ -28,7 +32,6 @@ for (let tick = 0; tick <= 1_024; tick += 1) {
     }
   }
   const state = session.currentAcceptedState();
-  const layout = createFlatNumericalStateLayoutV1("shape-inspection", state);
   for (const root of layout.excludedDynamicRoots) {
     const value = root.path.reduce<unknown>((current, segment) => {
       if (current === null || typeof current !== "object") {
@@ -69,6 +72,15 @@ for (let tick = 0; tick <= 1_024; tick += 1) {
 process.stdout.write(`${JSON.stringify({
   schemaId: "circleheart-flat-state-shape-inspection-v1",
   inspectedTicks: 1_025,
+  layout: {
+    layoutId: manifest.layoutId,
+    fingerprint: manifest.fingerprint,
+    continuousSlotCount: layout.continuousSlots.length,
+    booleanSlotCount: layout.booleanSlots.length,
+    stringSlotCount: layout.stringSlots.length,
+    dynamicRootCount: layout.excludedDynamicRoots.length,
+    containerCount: layout.containers.length,
+  },
   roots: [...observed.values()].map((entry) => ({
     pointer: entry.pointer,
     kinds: [...entry.kinds].sort(),
@@ -84,9 +96,6 @@ process.stdout.write(`${JSON.stringify({
       || left.pointer.localeCompare(right.pointer)
   ),
   recordPrototypeTags: [...new Set(
-    createFlatNumericalStateLayoutV1(
-      "shape-inspection-terminal",
-      session.currentAcceptedState(),
-    ).containers.map(({ prototypeTag }) => prototypeTag),
+    layout.containers.map(({ prototypeTag }) => prototypeTag),
   )],
 }, null, 2)}\n`);
