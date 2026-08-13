@@ -66,6 +66,7 @@ import {
   stageMainWireAcceptedTypedCalciumCandidateV1,
   stageMainWireAcceptedTypedClockCandidateV1,
   stageMainWireAcceptedTypedRegularAtrialCandidateV1,
+  stageMainWireAcceptedTypedResolvedCandidateV1,
   type MainWireAcceptedTypedBoundaryBindingV1,
   type MainWireAcceptedTypedClockV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
@@ -207,6 +208,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           ...(runtime.rhythm.configuration.atrialSource.mode === "regular"
             ? this.#typedBoundaryBinding.regularAtrialSourceContinuousSlots
             : []),
+          ...this.#typedBoundaryBinding.postSolverContinuousSlots,
         ]);
     this.#acceptedState = this.#authority.current();
     this.#scalarSlots = new TransactionalScalarSlotsV1(
@@ -472,6 +474,13 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             limit.candidateTimeSec,
             this.#rhythmInput.configuration,
             result.composedRhythmCandidate.pacSinusClockPolicyApplied,
+          );
+          stageMainWireAcceptedTypedResolvedCandidateV1(
+            directCurrentCursor,
+            directCandidateCursor,
+            this.requiredTypedBoundaryBinding(),
+            result.composedRhythmCandidate,
+            result.dynamicMechanicalSupportTrial.candidateAcceptedState,
           );
         }
         this.#scalarSlots.stage(result.acceptedState);

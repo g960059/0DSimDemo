@@ -1,11 +1,19 @@
 import type {
   MainWireIntegratedModelCandidateTimeLimitV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
+import type {
+  DynamicMechanicalSupportAcceptedStateV1,
+} from "@/engine/devices/dynamicNetworkV1";
+import {
+  ROTARY_SUPPORT_DEVICE_IDS_V1,
+  type RotarySupportDeviceIdV1,
+} from "@/engine/devices/typesV1";
 import {
   MAX_AUTHORED_VENTRICULAR_PACING_REPLAY_IMPULSES_PER_TRIAL_V1,
 } from "@/engine/myocardium/rhythm/acceptedAuthoredVentricularPacingReplaySourceV1";
 import type {
   AcceptedComposedRhythmTransactionConfigurationV2,
+  AcceptedComposedRhythmTransactionCandidateV2,
   AcceptedComposedRhythmTransactionCandidateTimeLimitV2,
   ComposedRhythmCalciumParametersByWallV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
@@ -63,12 +71,24 @@ type RegularAtrialContinuousBinding = Readonly<{
   revision: number;
 }>;
 
+type ResolvedRhythmContinuousBinding = Readonly<{
+  acceptedAtrialCaptureCount: number;
+  acceptedVentricularCaptureCount: number;
+  deliveredCalciumDepositCount: number;
+}>;
+
+type DynamicMechanicalSupportContinuousBinding = Readonly<
+  Record<RotarySupportDeviceIdV1, number>
+>;
+
 type ContinuousBinding = Readonly<{
   acceptedTimeSec: number;
   composedAcceptedTimeSec: number;
   authoredEctopy: AuthoredScheduleContinuousBinding;
   authoredVentricularPacing: AuthoredScheduleContinuousBinding;
   regularAtrial: RegularAtrialContinuousBinding;
+  resolvedRhythm: ResolvedRhythmContinuousBinding;
+  dynamicMechanicalSupport: DynamicMechanicalSupportContinuousBinding;
   composedRevision: number;
   ventricularBackupNextIntrinsicEscapeDueTimeSec: number;
   ventricularBackupNextVviPaceDueTimeSec: number;
@@ -99,6 +119,7 @@ export type MainWireAcceptedTypedBoundaryBindingV1 = Readonly<{
   directContinuousSlots: readonly number[];
   authoredVentricularPacingContinuousSlots: readonly number[];
   regularAtrialSourceContinuousSlots: readonly number[];
+  postSolverContinuousSlots: readonly number[];
 }>;
 
 /** Resolves model paths once; the accepted hot loop performs no string lookup. */
@@ -127,6 +148,31 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
     regularAtrial: regularAtrialBinding(
       manifest,
       "/composedRhythm/regularAtrialSourceState",
+    ),
+    resolvedRhythm: Object.freeze({
+      acceptedAtrialCaptureCount: continuousSlot(
+        manifest,
+        "/composedRhythm/acceptedAtrialCaptureCount",
+      ),
+      acceptedVentricularCaptureCount: continuousSlot(
+        manifest,
+        "/composedRhythm/acceptedVentricularCaptureCount",
+      ),
+      deliveredCalciumDepositCount: continuousSlot(
+        manifest,
+        "/composedRhythm/deliveredCalciumDepositCount",
+      ),
+    }),
+    dynamicMechanicalSupport: Object.freeze(
+      Object.fromEntries(
+        ROTARY_SUPPORT_DEVICE_IDS_V1.map((deviceId) => [
+          deviceId,
+          continuousSlot(
+            manifest,
+            `/dynamicMechanicalSupport/acceptedFlowMlPerSec/${deviceId}`,
+          ),
+        ]),
+      ) as Record<RotarySupportDeviceIdV1, number>,
     ),
     composedRevision: continuousSlot(manifest, "/composedRhythm/revision"),
     ventricularBackupNextIntrinsicEscapeDueTimeSec: continuousSlot(
@@ -220,6 +266,14 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
     continuous.regularAtrial.nextSourceSequence,
     continuous.regularAtrial.revision,
   ]);
+  const postSolverContinuousSlots = Object.freeze([
+    continuous.resolvedRhythm.acceptedAtrialCaptureCount,
+    continuous.resolvedRhythm.acceptedVentricularCaptureCount,
+    continuous.resolvedRhythm.deliveredCalciumDepositCount,
+    ...ROTARY_SUPPORT_DEVICE_IDS_V1.map(
+      (deviceId) => continuous.dynamicMechanicalSupport[deviceId],
+    ),
+  ]);
   return Object.freeze({
     layoutId: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
     fingerprint: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
@@ -233,6 +287,7 @@ export function createMainWireAcceptedTypedBoundaryBindingV1(
     ]),
     authoredVentricularPacingContinuousSlots,
     regularAtrialSourceContinuousSlots,
+    postSolverContinuousSlots,
   });
 }
 
@@ -664,6 +719,105 @@ export function stageMainWireAcceptedTypedRegularAtrialCandidateV1(
   candidate.writeContinuous(slots.revision, revision + 1);
 }
 
+/**
+ * Emits the seven numerical values that become known only after the coupled
+ * object solver accepts its candidate. This does not solve either owner a
+ * second time: it verifies the accepted rhythm lineage and copies the exact
+ * solver-owned rotary flows into fixed typed slots.
+ */
+export function stageMainWireAcceptedTypedResolvedCandidateV1(
+  current: TransactionalTypedStateCurrentCursorV1,
+  candidate: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
+  rhythmCandidate: AcceptedComposedRhythmTransactionCandidateV2,
+  mechanicalSupportCandidate: DynamicMechanicalSupportAcceptedStateV1,
+): void {
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
+
+  const rhythm = binding.continuous.resolvedRhythm;
+  const acceptedTimeSec = finiteNonnegative(
+    current.readContinuous(binding.continuous.composedAcceptedTimeSec),
+    "resolved rhythm accepted time",
+  );
+  const baseRevision = nonnegativeSafeInteger(
+    current.readContinuous(binding.continuous.composedRevision),
+    "resolved rhythm base revision",
+  );
+  if (rhythmCandidate.startTimeSec !== acceptedTimeSec) {
+    throw new Error("Main Wire typed resolved rhythm start time diverged");
+  }
+  if (rhythmCandidate.baseRevision !== baseRevision) {
+    throw new Error("Main Wire typed resolved rhythm base revision diverged");
+  }
+  if (
+    baseRevision === Number.MAX_SAFE_INTEGER
+    || rhythmCandidate.candidateRevision !== baseRevision + 1
+  ) {
+    throw new Error("Main Wire typed resolved rhythm revision diverged");
+  }
+
+  const acceptedAtrialCaptureCount = safeCounterAdd(
+    current.readContinuous(rhythm.acceptedAtrialCaptureCount),
+    rhythmCandidate.capturedAtrialActivation === null ? 0 : 1,
+    "accepted atrial capture count",
+  );
+  const acceptedVentricularCaptureCount = safeCounterAdd(
+    current.readContinuous(rhythm.acceptedVentricularCaptureCount),
+    rhythmCandidate.capturedVentricularActivation === null ? 0 : 1,
+    "accepted ventricular capture count",
+  );
+  const deliveredCalciumDepositCount = safeCounterAdd(
+    current.readContinuous(rhythm.deliveredCalciumDepositCount),
+    requiredArray(
+      rhythmCandidate.deliveredCalciumDeposits,
+      "delivered calcium deposits",
+    ).length,
+    "delivered calcium deposit count",
+  );
+  if (
+    rhythmCandidate.candidateState.acceptedAtrialCaptureCount
+      !== acceptedAtrialCaptureCount
+    || rhythmCandidate.candidateState.acceptedVentricularCaptureCount
+      !== acceptedVentricularCaptureCount
+    || rhythmCandidate.candidateState.deliveredCalciumDepositCount
+      !== deliveredCalciumDepositCount
+  ) {
+    throw new Error("Main Wire typed resolved rhythm counters diverged");
+  }
+  candidate.writeContinuous(
+    rhythm.acceptedAtrialCaptureCount,
+    acceptedAtrialCaptureCount,
+  );
+  candidate.writeContinuous(
+    rhythm.acceptedVentricularCaptureCount,
+    acceptedVentricularCaptureCount,
+  );
+  candidate.writeContinuous(
+    rhythm.deliveredCalciumDepositCount,
+    deliveredCalciumDepositCount,
+  );
+
+  const flowRecord = requiredRecord(
+    mechanicalSupportCandidate.acceptedFlowMlPerSec,
+    "dynamic mechanical support accepted flows",
+  );
+  assertExactRecordKeys(
+    flowRecord,
+    ROTARY_SUPPORT_DEVICE_IDS_V1,
+    "dynamic mechanical support accepted flows",
+  );
+  for (const deviceId of ROTARY_SUPPORT_DEVICE_IDS_V1) {
+    candidate.writeContinuous(
+      binding.continuous.dynamicMechanicalSupport[deviceId],
+      finiteNumber(
+        ownValue(flowRecord, deviceId),
+        `dynamic mechanical support ${deviceId} accepted flow`,
+      ),
+    );
+  }
+}
+
 function limitTypedRhythmBoundary(
   cursor: TransactionalTypedStateCurrentCursorV1,
   binding: MainWireAcceptedTypedBoundaryBindingV1,
@@ -866,6 +1020,28 @@ function requiredArray(value: unknown, owner: string): readonly unknown[] {
   return value;
 }
 
+function assertExactRecordKeys(
+  value: Record<string, unknown>,
+  expectedKeys: readonly string[],
+  owner: string,
+): void {
+  const actual = Object.keys(value).sort();
+  const expected = [...expectedKeys].sort();
+  if (
+    actual.length !== expected.length
+    || actual.some((key, index) => key !== expected[index])
+  ) {
+    throw new Error(`Main Wire typed ${owner} has an unexpected field set`);
+  }
+}
+
+function finiteNumber(value: unknown, owner: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`Main Wire typed ${owner} must be finite`);
+  }
+  return value;
+}
+
 function finiteNonnegative(value: unknown, owner: string): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new Error(`Main Wire typed ${owner} must be nonnegative and finite`);
@@ -886,6 +1062,22 @@ function nonnegativeSafeInteger(value: unknown, owner: string): number {
     throw new Error(`Main Wire typed ${owner} must be a nonnegative safe integer`);
   }
   return value as number;
+}
+
+function safeCounterAdd(
+  value: unknown,
+  increment: number,
+  owner: string,
+): number {
+  const accepted = nonnegativeSafeInteger(value, owner);
+  if (!Number.isSafeInteger(increment) || increment < 0) {
+    throw new Error(`Main Wire typed ${owner} increment is invalid`);
+  }
+  const candidate = accepted + increment;
+  if (!Number.isSafeInteger(candidate)) {
+    throw new Error(`Main Wire typed ${owner} cannot increment safely`);
+  }
+  return candidate;
 }
 
 function timeTolerance(left: number, right: number): number {

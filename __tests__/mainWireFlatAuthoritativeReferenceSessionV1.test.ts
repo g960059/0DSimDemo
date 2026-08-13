@@ -55,6 +55,7 @@ import {
   stageMainWireAcceptedTypedCalciumCandidateV1,
   stageMainWireAcceptedTypedClockCandidateV1,
   stageMainWireAcceptedTypedRegularAtrialCandidateV1,
+  stageMainWireAcceptedTypedResolvedCandidateV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
 import {
   createMainWireAcceptedTypedStateManifestV1,
@@ -1109,7 +1110,24 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       configuration,
       objectCandidate.pacSinusClockPolicyApplied,
     );
-    const staged = image.rehydrateStaged().composedRhythm;
+    const dynamicMechanicalSupportCandidate = Object.freeze({
+      ...configuredAccepted.dynamicMechanicalSupport,
+      acceptedFlowMlPerSec: Object.freeze({
+        LVAD: 12.5,
+        IMPELLA: -1.25,
+        VA_ECMO: 33,
+        VV_ECMO: 0,
+      }),
+    });
+    stageMainWireAcceptedTypedResolvedCandidateV1(
+      image.currentCursor(),
+      candidate,
+      binding,
+      objectCandidate,
+      dynamicMechanicalSupportCandidate,
+    );
+    const stagedState = image.rehydrateStaged();
+    const staged = stagedState.composedRhythm;
     expect(staged.authoredEctopyState).toEqual(
       evaluateAcceptedAuthoredEctopyScheduleTrialV2(
         ectopyState,
@@ -1125,6 +1143,16 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     expect(staged.regularAtrialSourceState).toEqual(
       objectCandidate.candidateState.regularAtrialSourceState,
     );
+    expect(staged).toMatchObject({
+      acceptedAtrialCaptureCount:
+        objectCandidate.candidateState.acceptedAtrialCaptureCount,
+      acceptedVentricularCaptureCount:
+        objectCandidate.candidateState.acceptedVentricularCaptureCount,
+      deliveredCalciumDepositCount:
+        objectCandidate.candidateState.deliveredCalciumDepositCount,
+    });
+    expect(stagedState.dynamicMechanicalSupport.acceptedFlowMlPerSec)
+      .toEqual(dynamicMechanicalSupportCandidate.acceptedFlowMlPerSec);
     image.abort();
   });
 

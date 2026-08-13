@@ -447,7 +447,14 @@ owner law. It therefore derives the post-capture state rather than copying it
 from the object candidate. The object transaction still regenerates and
 validates its own boundary internally, but admission requires its clock,
 calcium, authored-schedule, and regular-atrial result to match the already
-staged typed values bit-for-bit and cannot overwrite them.
+staged typed values bit-for-bit and cannot overwrite them. Once the coupled
+solve succeeds, seven additional values are emitted from its accepted result
+into fixed slots before promotion: the three composed-rhythm capture/deposit
+counters and the accepted flow of each of the four rotary support devices.
+This post-solver emission does not recompute capture or hydraulics. It verifies
+the rhythm lineage and counter deltas, preserves signed reverse pump flow, and
+copies the exact accepted solver result so that the next step need not recover
+those values through object re-encoding.
 A representative 512-tick diagnostic measured about `2.40 ms/tick` for the
 released Session and `3.42 ms/tick` for the typed reference (`1.42x`). Direct
 fixed-slot boundary selection measured about `0.0053 ms/tick`, while copying
@@ -473,8 +480,10 @@ electrical/calcium events, both the fixed-slot calcium readback and candidate
 state match the existing composed-rhythm owner exactly. On the default
 reference path these ten calcium values, six clock values, four
 authored-ectopy schedule values, and seven regular-atrial source values are
-retained through complete candidate admission; a pacing configuration retains
-its four schedule values as well.
+retained through complete candidate admission. The three rhythm aggregate
+counters and four rotary-device accepted flows are retained after solver
+resolution as well; a pacing configuration retains its four schedule values
+in addition.
 The temporary object adapter must match every retained value bit-exactly and
 cannot overwrite it. Every accepted substep in the 1,024-tick oracle therefore
 promotes clock, calcium, authored finite-schedule, and regular-source state from
