@@ -734,6 +734,8 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     const converged = coupled.result;
     expect(coupled.coronaryAnalyticBlockAssemblyCount)
       .toBe(converged.jacobianEvaluationCount);
+    expect(coupled.coronaryBoundaryAnalyticBlockAssemblyCount)
+      .toBe(converged.jacobianEvaluationCount);
     expect(coupled.jacobianResidualEvaluationCount).toBe(
       2 * NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
         * converged.jacobianEvaluationCount,
@@ -810,11 +812,18 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
         new Float64Array(boundaryDimension),
     };
     const dependentSvColumn = new Float64Array(nonCoronaryDimension);
+    const boundaryByNonCoronary = new Float64Array(
+      boundaryDimension * nonCoronaryDimension,
+    );
     context.writeCoronaryLinearization(
       context.initialUnknownsMl,
       linearization,
       dependentSvColumn,
     );
+    expect(context.writeCoronaryBoundaryLinearization(
+      context.initialUnknownsMl,
+      boundaryByNonCoronary,
+    )).toBe(true);
     const plus = context.initialUnknownsMl.slice();
     const minus = context.initialUnknownsMl.slice();
     const plusResidual = new Float64Array(context.dimension);
@@ -894,6 +903,48 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(maximumAbsoluteDifference).toBeLessThan(1e-6);
     expect(Math.sqrt(squaredDifference / squaredFiniteDifference))
       .toBeLessThan(5e-6);
+
+    let maximumBoundaryAbsoluteDifference = 0;
+    let squaredBoundaryDifference = 0;
+    let squaredBoundaryFiniteDifference = 0;
+    for (let column = 0; column < nonCoronaryDimension; column += 1) {
+      plus.set(context.initialUnknownsMl);
+      minus.set(context.initialUnknownsMl);
+      const halfStep = 2e-6 * Math.max(
+        1,
+        Math.abs(context.initialUnknownsMl[column]!),
+      );
+      plus[column] += halfStep;
+      minus[column] -= halfStep;
+      context.evaluateResidualMl(plus, plusResidual);
+      context.evaluateResidualMl(minus, minusResidual);
+      for (let row = 0; row < coronaryDimension; row += 1) {
+        let analytic = 0;
+        for (let boundary = 0; boundary < boundaryDimension; boundary += 1) {
+          analytic += linearization.dResidualDBoundary[
+            row * boundaryDimension + boundary
+          ]! * boundaryByNonCoronary[
+            boundary * nonCoronaryDimension + column
+          ]!;
+        }
+        const finiteDifference = (
+          plusResidual[nonCoronaryDimension + row]!
+          - minusResidual[nonCoronaryDimension + row]!
+        ) / (2 * halfStep);
+        const difference = Math.abs(analytic - finiteDifference);
+        maximumBoundaryAbsoluteDifference = Math.max(
+          maximumBoundaryAbsoluteDifference,
+          difference,
+        );
+        squaredBoundaryDifference += difference * difference;
+        squaredBoundaryFiniteDifference +=
+          finiteDifference * finiteDifference;
+      }
+    }
+    expect(maximumBoundaryAbsoluteDifference).toBeLessThan(2e-6);
+    expect(Math.sqrt(
+      squaredBoundaryDifference / squaredBoundaryFiniteDifference,
+    )).toBeLessThan(2e-5);
   }, 60_000);
 
   it("matches the development full-FD shadow with the implicit coronary outer Jacobian", () => {
@@ -1010,6 +1061,7 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     if (legacy.converged === false) throw new Error(legacy.message);
     expect(coupledResult.residualInfinityNorm).toBeLessThan(1e-8);
     expect(coupled.jacobianResidualEvaluationCount).toBeGreaterThan(0);
+    expect(coupled.coronaryBoundaryAnalyticBlockAssemblyCount).toBe(0);
     expect(coupledResult.iterations).toBeLessThanOrEqual(8);
     NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.forEach((nodeId, index) => {
       expect(coupledResult.solution[index]).toBeCloseTo(

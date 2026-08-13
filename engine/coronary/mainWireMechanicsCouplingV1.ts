@@ -188,6 +188,13 @@ export function evaluateMainWireCoronaryMechanicsCouplingVentricularDirectionV1<
   });
 }
 
+/** Read the production provider's condensed ventricular boundary rows. */
+export function readMainWireFiveWallVentricularCoronaryBoundaryTangentV1(
+  readback: WholeHeartMechanicsSerializableValueV1 | null,
+): MainWireFiveWallVentricularCoronaryBoundaryTangentV1 | null {
+  return ventricularCoronaryBoundaryTangent(readback);
+}
+
 type MainWireMechanicsReadbackShapeV1 = Readonly<{
   providerModelId: string;
   effectiveFiberLogStrainByWall: Readonly<{

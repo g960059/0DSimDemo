@@ -33,6 +33,7 @@ export type MainWireFiveWallCoupledNewtonShadowResultV1 = Readonly<{
   solverId: typeof MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID;
   jacobianResidualEvaluationCount: number;
   coronaryAnalyticBlockAssemblyCount: number;
+  coronaryBoundaryAnalyticBlockAssemblyCount: number;
   result: FlatCoupledNewtonResultV1;
 }>;
 
@@ -63,6 +64,9 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1(
   const nonCoronaryDimension =
     NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
   const localDependentSvColumn = new Float64Array(nonCoronaryDimension);
+  const coronaryBoundaryLinearization = new Float64Array(
+    boundaryDimension * nonCoronaryDimension,
+  );
   const coronaryLinearization = {
     residualMl: new Float64Array(coronaryDimension),
     dResidualDVolume:
@@ -76,10 +80,32 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1(
   };
   let jacobianResidualEvaluationCount = 0;
   let coronaryAnalyticBlockAssemblyCount = 0;
+  let coronaryBoundaryAnalyticBlockAssemblyCount = 0;
   const jacobianMode = options.jacobianMode
     ?? "hybrid-coronary-analytic";
   const system: FlatCoupledSystemV1 = Object.freeze({
     dimension,
+    assertCandidateAdmissible: (unknowns) => {
+      const dependentSvVolumeMl = context.fixedGlobalTotalBloodVolumeMl
+        - sumVector(unknowns);
+      if (!(dependentSvVolumeMl > context.minimumDependentSvVolumeMl)) {
+        throw new RangeError(
+          "coupled candidate leaves no admissible dependent SV volume",
+        );
+      }
+    },
+    maximumAdmissibleStepLength: (current, update) => {
+      const updateSum = sumVector(update);
+      if (updateSum <= 0) return 1;
+      const availableVolumeMl = context.fixedGlobalTotalBloodVolumeMl
+        - context.minimumDependentSvVolumeMl - sumVector(current);
+      if (!(availableVolumeMl > 0)) {
+        throw new RangeError(
+          "coupled candidate has no dependent SV volume headroom",
+        );
+      }
+      return availableVolumeMl / updateSum;
+    },
     evaluateResidual: context.evaluateResidualMl,
     evaluateJacobian: (unknowns, destination) => {
       const finiteDifferenceColumnCount =
@@ -157,6 +183,37 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1(
             ]!;
           }
         }
+        const boundaryLinearizationAvailable =
+          context.writeCoronaryBoundaryLinearization(
+            unknowns,
+            coronaryBoundaryLinearization,
+          );
+        if (boundaryLinearizationAvailable) {
+          coronaryBoundaryAnalyticBlockAssemblyCount += 1;
+          for (let row = 0; row < coronaryDimension; row += 1) {
+            for (
+              let column = 0;
+              column < nonCoronaryDimension;
+              column += 1
+            ) {
+              let derivative = 0;
+              for (
+                let boundary = 0;
+                boundary < boundaryDimension;
+                boundary += 1
+              ) {
+                derivative += coronaryLinearization.dResidualDBoundary[
+                  row * boundaryDimension + boundary
+                ]! * coronaryBoundaryLinearization[
+                  boundary * nonCoronaryDimension + column
+                ]!;
+              }
+              destination[
+                (coronaryStart + row) * dimension + column
+              ] = derivative;
+            }
+          }
+        }
       }
     },
   });
@@ -181,6 +238,7 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1(
     solverId: MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID,
     jacobianResidualEvaluationCount,
     coronaryAnalyticBlockAssemblyCount,
+    coronaryBoundaryAnalyticBlockAssemblyCount,
     result,
   });
 }
@@ -189,4 +247,12 @@ function requirePositiveFinite(value: number, label: string): void {
   if (!Number.isFinite(value) || value <= 0) {
     throw new RangeError(`${label} must be positive and finite`);
   }
+}
+
+function sumVector(values: Float64Array): number {
+  let sum = 0;
+  for (let index = 0; index < values.length; index += 1) {
+    sum += values[index]!;
+  }
+  return sum;
 }

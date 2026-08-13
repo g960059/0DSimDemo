@@ -18,6 +18,17 @@ export type FlatCoupledSystemV1 = Readonly<{
     unknowns: Float64Array,
     rowMajorDestination: Float64Array,
   ) => void;
+  /** Additional coupled-domain gate beyond separable per-unknown bounds. */
+  assertCandidateAdmissible?: (unknowns: Float64Array) => void;
+  /**
+   * Exact upper fraction for a coupled-domain line-search direction. Values
+   * at or above one leave the full Newton step available; the solver applies
+   * its own interior safety factor when the returned limit is below one.
+   */
+  maximumAdmissibleStepLength?: (
+    current: Float64Array,
+    update: Float64Array,
+  ) => number;
 }>;
 
 export type FlatCoupledNewtonOptionsV1 = Readonly<{
@@ -207,7 +218,12 @@ export function solveFlatCoupledSystemV1(
       );
     }
 
-    let stepLength = admissibleStepLength(current, update, options);
+    let stepLength = admissibleStepLength(
+      system,
+      current,
+      update,
+      options,
+    );
     let accepted = false;
     let lastError = "no residual-decreasing admissible candidate";
     for (let backtrack = 0;
@@ -218,6 +234,7 @@ export function solveFlatCoupledSystemV1(
       }
       try {
         requireWithinBounds(trial, options);
+        system.assertCandidateAdmissible?.(trial);
         system.evaluateResidual(trial, trialResidual);
         residualEvaluationCount += 1;
         requireFiniteVector(trialResidual, "line-search coupled residual");
@@ -306,9 +323,11 @@ function validateInputs(
     }
   }
   requireWithinBounds(initialUnknowns, options);
+  system.assertCandidateAdmissible?.(initialUnknowns);
 }
 
 function admissibleStepLength(
+  system: FlatCoupledSystemV1,
   current: Float64Array,
   update: Float64Array,
   options: FlatCoupledNewtonOptionsV1,
@@ -331,6 +350,17 @@ function admissibleStepLength(
         0.99 * (options.upperBoundByUnknown[index]! - current[index]!)
           / delta,
       );
+    }
+  }
+  const coupledLimit = system.maximumAdmissibleStepLength?.(current, update);
+  if (coupledLimit !== undefined) {
+    if (!Number.isFinite(coupledLimit) || coupledLimit <= 0) {
+      throw new RangeError(
+        "coupled Newton system returned no positive admissible step",
+      );
+    }
+    if (coupledLimit < 1) {
+      stepLength = Math.min(stepLength, 0.99 * coupledLimit);
     }
   }
   if (!Number.isFinite(stepLength) || stepLength <= 0) {

@@ -585,6 +585,7 @@ export type NonCoronaryCirculationCandidateProbeV1<
   candidateTimeSec: number;
   candidateNodeVolumesMl: Float64Array;
   nodeAbsolutePressuresMmHg: Float64Array;
+  vascularPressureTangentMmHgPerMl: Float64Array;
   edgeFlowsMlPerSec: Float64Array;
   continuityResidualMlByNode: Float64Array;
   scaledIndependentResidual: Float64Array;
@@ -602,6 +603,8 @@ export type NonCoronaryCirculationCandidateProbeV1<
    */
   localIndependentResidualDDependentSvVolumeMlPerMl:
     Float64Array | null;
+  absoluteChamberPressureTangent:
+    NonCoronaryAbsoluteChamberPressureTangentV1 | null;
   candidateMechanicsEvaluation: TEvaluation;
   candidateCompanionTrial: TCompanionTrial | null;
 }>;
@@ -1381,12 +1384,16 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
     candidateNodeVolumesMl: candidate.nodeVolumesMl.slice(),
     nodeAbsolutePressuresMmHg:
       candidate.nodeAbsolutePressuresMmHg.slice(),
+    vascularPressureTangentMmHgPerMl:
+      candidate.vascularPressureTangentMmHgPerMl.slice(),
     edgeFlowsMlPerSec: candidate.edgeFlowsMlPerSec.slice(),
     continuityResidualMlByNode:
       candidate.continuityResidualMlByNode.slice(),
     scaledIndependentResidual:
       candidate.scaledIndependentResidual.slice(),
     localIndependentResidualDDependentSvVolumeMlPerMl,
+    absoluteChamberPressureTangent:
+      candidate.absoluteChamberPressureTangent,
     candidateMechanicsEvaluation: candidate.candidateMechanicsEvaluation,
     candidateCompanionTrial:
       candidate.conservativeCompanion?.candidateCompanionTrial ?? null,

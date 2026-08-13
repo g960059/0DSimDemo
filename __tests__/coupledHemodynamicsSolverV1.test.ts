@@ -109,6 +109,54 @@ describe("coupled hemodynamics solver V1 infrastructure", () => {
     expect(result.reason).toBe("singular-jacobian");
     expect(Array.from(initial)).toEqual(Array.from(original));
   });
+
+  it("keeps a coupled linear conservation boundary inside every line-search trial", () => {
+    const dimension = 2;
+    const root = new Float64Array([0.45, 0.45]);
+    let maximumObservedSum = 0;
+    let coupledLimitCount = 0;
+    const system: FlatCoupledSystemV1 = Object.freeze({
+      dimension,
+      assertCandidateAdmissible: (unknowns) => {
+        const sum = unknowns[0]! + unknowns[1]!;
+        maximumObservedSum = Math.max(maximumObservedSum, sum);
+        if (!(sum < 1)) {
+          throw new RangeError("manufactured dependent volume is exhausted");
+        }
+      },
+      maximumAdmissibleStepLength: (current, update) => {
+        coupledLimitCount += 1;
+        const delta = update[0]! + update[1]!;
+        return delta <= 0
+          ? 1
+          : (1 - current[0]! - current[1]!) / delta;
+      },
+      evaluateResidual: (unknowns, destination) => {
+        for (let index = 0; index < dimension; index += 1) {
+          destination[index] = unknowns[index]! * unknowns[index]!
+            - root[index]! * root[index]!;
+        }
+      },
+      evaluateJacobian: (unknowns, destination) => {
+        destination.fill(0);
+        for (let index = 0; index < dimension; index += 1) {
+          destination[index * dimension + index] = 2 * unknowns[index]!;
+        }
+      },
+    });
+    const result = solveFlatCoupledSystemV1(
+      system,
+      new Float64Array([0.05, 0.05]),
+      defaultOptions(dimension),
+    );
+
+    expect(result.status).toBe("converged");
+    if (result.status !== "converged") throw new Error(result.message);
+    expect(coupledLimitCount).toBeGreaterThan(0);
+    expect(maximumObservedSum).toBeLessThan(1);
+    expect(result.solution[0]).toBeCloseTo(root[0]!, 10);
+    expect(result.solution[1]).toBeCloseTo(root[1]!, 10);
+  });
 });
 
 function diagonallyDominantMatrix(dimension: number): Float64Array {

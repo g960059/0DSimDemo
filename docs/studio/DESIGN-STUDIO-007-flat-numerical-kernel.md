@@ -804,8 +804,27 @@ candidate, the assembled columns differ from a bisection-noise-aware central
 shadow by at most `8.8e-8` (`1.9e-6` relative Frobenius), and the hybrid and
 full-FD Newton solutions agree to nine decimal digits. This is a correctness
 and work-count milestone, not yet a runtime speed claim: the residual remains
-the cold object-materializing oracle and the 14 non-coronary columns remain
-finite-difference probes.
+the cold object-materializing oracle and the 14 non-coronary columns still
+provide the upper-left block through finite-difference probes.
+
+The next construction slice owns the lower-left block as well. The production
+mechanics provider exposes its already-condensed chamber pressure, ventricular
+fiber-strain, and active-stress rows. A pure boundary derivative composes
+those rows with common-pericardium, cavity-induced pressure, and shortening
+IMP derivatives to form the `9×14` boundary matrix. Multiplication by the
+coronary writer's `16×9` boundary tangent produces the `16×14` coronary-
+residual/non-coronary-volume block. Direct comparison with the real 30-row
+residual is gated at `2e-6 mL/mL` maximum absolute and `2e-5` relative
+Frobenius error. Providers that do not expose the condensed mechanics rows
+retain the finite-difference shadow; this fallback is a construction aid and
+is not eligible for the production cutover.
+
+The Newton domain now also owns physical lower bounds for all 16 coronary
+storage volumes and the coupled fixed-blood-volume inequality. The dependent
+`SV` volume is recomputed as total blood volume minus all 30 independent
+unknowns. An exact directional step limit keeps every line-search trial in
+the open positive-`SV` domain before any residual evaluation. These are
+solver admissibility conditions, not post-hoc clipping.
 
 The initial coupled implementation keeps the exact 2 ms backward-Euler clock,
 event clipping, closed-form valve/Land eliminations, and all accepted-state
