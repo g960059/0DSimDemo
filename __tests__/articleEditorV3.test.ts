@@ -297,13 +297,30 @@ describe("Article Editor V3 briefing", () => {
     expect(articleEditorRouteHydratedV3("new", "new")).toBe(true);
   });
 
-  it("shares graph-count presentation rules between Editor and Reader", () => {
+  it("shares a mobile-first Briefing complexity rule between Editor and Reader", () => {
     expect(articleBriefingPresentationV3({ graphs: [] })).toBe("inflow");
     expect(articleBriefingPresentationV3({ graphs: [{}] as never })).toBe("inflow");
     expect(articleBriefingPresentationV3({ graphs: [{}, {}] as never })).toBe("peek");
     expect(articleBriefingPresentationV3({
+      graphs: [{}] as never,
+      controls: [{}] as never,
+      outputs: [{}, {}] as never,
+    })).toBe("inflow");
+    expect(articleBriefingPresentationV3({
+      graphs: [{}] as never,
+      controls: [{}] as never,
+      outputs: [{}, {}, {}, {}] as never,
+    })).toBe("peek");
+    expect(articleBriefingPresentationV3({
+      graphs: [{}] as never,
+      scenarioScope: {
+        initialFocusScenarioId: "scenario/a",
+        visibleScenarioIds: ["scenario/a", "scenario/b", "scenario/c", "scenario/d"],
+      },
+    })).toBe("peek");
+    expect(articleBriefingPresentationV3({
       graphs: [{}, {}, {}, {}, {}] as never,
-    })).toBe("fullscreen");
+    })).toBe("peek");
   });
 
   it("renders a two-graph Editor placement as the same compact Peek anchor", () => {

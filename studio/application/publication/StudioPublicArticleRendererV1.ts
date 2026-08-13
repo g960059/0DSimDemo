@@ -16,6 +16,9 @@ import {
   formatStudioPublicArticleDateV1,
   studioPublicArticlePresentationCopyV1,
 } from "@/studio/application/publication/StudioPublicArticlePresentationV1";
+import {
+  articleBriefingPresentationV3,
+} from "@/studio/application/authoring/StudioArticleBriefingPresentationV3";
 
 export type StudioPublicArticleMetadataV1 = Readonly<{
   canonicalUrl: string;
@@ -94,7 +97,6 @@ export function renderPublicArticleBodyHtmlV1(
     `<main class="public-static-shell article-document-shell" data-public-article-content-id="${escapeHtmlAttributeV1(article.articleContentId)}">`,
     `<article class="public-static-article article-document">`,
     `<header class="article-document-header">`,
-    `<p class="article-publication-kicker">${copy.articleLabel}</p>`,
     `<h1 class="article-title">${escapeHtmlTextV1(article.title)}</h1>`,
     `<p class="article-publication-date"><span>${copy.publishedLabel}</span> <time datetime="${escapeHtmlAttributeV1(article.publishedAt)}">${escapeHtmlTextV1(formatStudioPublicArticleDateV1(article.publishedAt, article.locale))}</time></p>`,
     `</header>`,
@@ -239,13 +241,23 @@ function renderBlockHtmlV1(
     const description = block.description.length === 0
       ? ""
       : `<span>${escapeHtmlTextV1(block.description)}</span>`;
-    return `<a class="public-static-link" id="${escapeHtmlAttributeV1(anchor)}" href="${escapeHtmlAttributeV1(block.href)}"${external ? " target=\"_blank\" rel=\"noreferrer\"" : ""}><strong>${escapeHtmlTextV1(block.label)}</strong>${description}</a>`;
+    const host = publicArticleLinkHostLabelV1(block.href);
+    return `<a class="article-link-card public-static-link" id="${escapeHtmlAttributeV1(anchor)}" href="${escapeHtmlAttributeV1(block.href)}"${external ? " target=\"_blank\" rel=\"noreferrer\"" : ""}><span class="article-link-card-leading" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><path d="M8 12h8"></path></svg></span><span class="public-static-link-copy"><strong>${escapeHtmlTextV1(block.label)}</strong>${description}<span class="public-static-link-host">${escapeHtmlTextV1(host)}</span></span></a>`;
   }
   if (block.kind === "quiz") return renderQuizHtmlV1(block, anchor, locale);
   if (block.kind === "accordion") {
-    return `<details class="public-static-accordion" id="${escapeHtmlAttributeV1(anchor)}"><summary>${escapeHtmlTextV1(block.title)}</summary><div>${block.blocks.map((nested) => renderBlockHtmlV1(nested, locale)).join("\n")}</div></details>`;
+    return `<details class="article-accordion public-static-accordion" id="${escapeHtmlAttributeV1(anchor)}"><summary class="article-accordion-summary"><span class="article-accordion-toggle" aria-hidden="true">›</span>${escapeHtmlTextV1(block.title)}</summary><div>${block.blocks.map((nested) => renderBlockHtmlV1(nested, locale)).join("\n")}</div></details>`;
   }
   return renderExperimentHtmlV1(block, anchor, locale);
+}
+
+function publicArticleLinkHostLabelV1(href: string): string {
+  if (href.startsWith("/")) return "CircleHeart";
+  try {
+    return new URL(href).hostname.replace(/^www\./, "");
+  } catch {
+    return href;
+  }
 }
 
 function renderQuizHtmlV1(
@@ -275,6 +287,7 @@ function renderExperimentHtmlV1(
   locale: "ja" | "en",
 ): string {
   const { briefing } = block.placement;
+  const presentation = articleBriefingPresentationV3(briefing);
   const title = block.placement.titleOverride ?? briefing.defaultTitle;
   const graphPrefix = locale === "ja" ? "グラフ" : "Graph";
   const labels = [
@@ -296,7 +309,16 @@ function renderExperimentHtmlV1(
   const jsNote = locale === "ja"
     ? "シミュレーションを操作するにはJavaScriptを有効にしてください。"
     : "Enable JavaScript to explore this simulation.";
-  return `<section class="public-static-experiment" id="placement-${escapeHtmlAttributeV1(block.placement.placementId)}" data-block-anchor="${escapeHtmlAttributeV1(anchor)}"><p class="public-static-label">${label}</p><h2>${escapeHtmlTextV1(title)}</h2>${caption}<p>${counts}</p>${summary}<p class="public-static-js-note">${jsNote}</p></section>`;
+  if (presentation !== "inflow") {
+    const semanticSummary = [
+      label,
+      block.placement.caption,
+      counts,
+      ...labels,
+    ].filter((part): part is string => part !== null && part.length > 0).join(". ");
+    return `<section class="article-reader-peek-surface public-static-experiment public-static-experiment-${presentation}" id="placement-${escapeHtmlAttributeV1(block.placement.placementId)}" data-block-anchor="${escapeHtmlAttributeV1(anchor)}" data-reader-presentation="${presentation}"><span class="article-link-card-leading" aria-hidden="true">∿</span><span class="public-static-experiment-anchor-copy"><h2>${escapeHtmlTextV1(title)}</h2><p class="public-static-js-note">${jsNote}</p></span><span class="public-static-experiment-chevron" aria-hidden="true">›</span><span class="sr-only">${escapeHtmlTextV1(semanticSummary)}</span></section>`;
+  }
+  return `<section class="public-static-experiment public-static-experiment-${presentation}" id="placement-${escapeHtmlAttributeV1(block.placement.placementId)}" data-block-anchor="${escapeHtmlAttributeV1(anchor)}" data-reader-presentation="${presentation}"><p class="public-static-label">${label}</p><h2>${escapeHtmlTextV1(title)}</h2>${caption}<p>${counts}</p>${summary}<p class="public-static-js-note">${jsNote}</p></section>`;
 }
 
 function renderBlockMarkdownV1(

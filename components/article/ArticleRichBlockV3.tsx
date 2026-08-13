@@ -5,6 +5,7 @@ import {
   ChevronRight,
   CircleHelp,
   ExternalLink,
+  Link2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -101,15 +102,19 @@ export function ArticleLinkPresentationV3({
 }>) {
   if (block.href.length === 0 || block.label.length === 0) return null;
   const external = !block.href.startsWith("/");
+  const host = articleLinkHostLabelV3(block.href);
   return (
     <a
       href={block.href}
       target={external ? "_blank" : undefined}
       rel={external ? "noreferrer" : undefined}
-      className={`group/link my-8 flex items-center justify-between gap-5 border-y border-wb-line/70 px-1 py-4 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover/45 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${className}`}
+      className={`article-link-card group/link my-8 flex items-center gap-3.5 px-4 py-3.5 text-left transition-[border-color,background-color,box-shadow,transform] duration-150 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${className}`}
       data-testid="article-link-v3"
     >
-      <span className="min-w-0">
+      <span className="article-link-card-leading" aria-hidden="true">
+        <Link2 className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-semibold leading-6 text-wb-text">
           {block.label}
         </span>
@@ -118,6 +123,9 @@ export function ArticleLinkPresentationV3({
             {block.description}
           </span>
         )}
+        <span className="mt-1.5 block truncate text-xs leading-5 text-wb-subtle">
+          {host}
+        </span>
       </span>
       {external ? (
         <ExternalLink
@@ -241,18 +249,17 @@ export function ArticleAccordionPresentationV3({
 }>) {
   return (
     <details
-      className={`group/accordion my-9 border-y border-wb-line/70 bg-transparent open:bg-wb-soft/35 ${className}`}
+      className={`article-accordion group/accordion my-9 bg-transparent ${className}`}
       data-testid="article-accordion-v3"
       open={defaultOpen}
     >
-      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-1 py-3.5 text-base font-semibold leading-7 text-wb-text outline-none marker:hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wb-accent [&::-webkit-details-marker]:hidden">
-        <ChevronRight
-          className="order-2 ml-auto h-4 w-4 shrink-0 text-wb-subtle transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-open/accordion:rotate-90"
-          aria-hidden="true"
-        />
+      <summary className="article-accordion-summary flex min-h-14 cursor-pointer list-none items-center gap-3 px-1 py-3.5 text-base font-semibold leading-7 text-wb-text outline-none marker:hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wb-accent [&::-webkit-details-marker]:hidden">
+        <span className="article-accordion-toggle" aria-hidden="true">
+          <ChevronRight className="h-3.5 w-3.5 transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-open/accordion:rotate-90" />
+        </span>
         {block.title}
       </summary>
-      <div className="border-t border-wb-line/55 px-2 pb-5 pt-1 sm:px-3">
+      <div className="pb-5 pl-11 pr-2 pt-1">
         {block.blocks.map((nested) => (
           <ArticleAccordionContentPresentationV3
             key={nested.blockId}
@@ -262,6 +269,15 @@ export function ArticleAccordionPresentationV3({
       </div>
     </details>
   );
+}
+
+function articleLinkHostLabelV3(href: string): string {
+  if (href.startsWith("/")) return "CircleHeart";
+  try {
+    return new URL(href).hostname.replace(/^www\./, "");
+  } catch {
+    return href;
+  }
 }
 
 function ArticleAccordionContentPresentationV3({

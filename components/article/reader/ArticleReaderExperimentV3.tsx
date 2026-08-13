@@ -214,9 +214,12 @@ export function ArticleReaderExperimentV3({
     <section
       ref={rootRef}
       id={`placement-${block.placement.placementId}`}
-      className="article-wide-block my-12 scroll-mt-24"
+      className={`article-reader-placement my-12 min-w-0 scroll-mt-24 ${
+        presentation === "inflow" ? "article-reader-inflow-placement" : ""
+      }`}
       data-reader-placement-id={block.placement.placementId}
       data-reader-placement-live={live}
+      data-reader-presentation={forceInline ? undefined : presentation}
     >
       {live && contract !== null ? (
         <ArticleReaderLiveOwnerV3
@@ -458,6 +461,7 @@ function ArticleReaderLiveOwnerV3({
       inline={presentation === "inflow" && expandedPresentation === null}
       runtime={runtime}
       snapshot={snapshot}
+      title={title}
     />
   );
   const anchorStatus = runtime.state.status === "failed"
@@ -561,21 +565,38 @@ function ArticleReaderPeekAnchorV3({
       aria-label={t(active
         ? "articleReader.closeDrawer"
         : "articleReader.openExperiment")}
-      aria-pressed={active}
-      className="article-reader-peek-anchor group flex min-h-24 w-full items-center gap-5 rounded-2xl px-5 py-5 text-left outline-none sm:px-6"
+      aria-controls="article-reader-experiment-companion-v3"
+      aria-expanded={active}
+      className="article-reader-peek-anchor article-reader-peek-surface group flex min-h-20 w-full max-w-full items-center gap-3.5 rounded-xl px-4 py-4 text-left outline-none sm:px-5"
       data-reader-peek-active={active ? "true" : "false"}
       data-reader-presentation={presentation}
     >
+      <span className="article-link-card-leading" aria-hidden="true">
+        <FlaskConical className="h-4 w-4" />
+      </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[17px] font-semibold leading-7 tracking-[-0.012em] text-wb-text">
+        <span className="block truncate text-[15px] font-semibold leading-6 tracking-[-0.012em] text-wb-text sm:text-base">
           {title}
         </span>
-        <span className="mt-1.5 block text-[13px] leading-5 text-wb-subtle">
-          {status}
+        <span className="mt-0.5 flex items-center gap-1.5 text-xs leading-5 text-wb-subtle">
+          <span
+            className={`h-1.5 w-1.5 shrink-0 rounded-full ${active
+              ? "bg-wb-accent"
+              : "bg-wb-subtle"}`}
+            aria-hidden="true"
+          />
+          <span className="truncate">{status}</span>
         </span>
       </span>
+      <span className="article-reader-peek-action hidden min-h-8 items-center gap-1.5 rounded-lg border border-wb-line px-2.5 text-xs font-semibold text-wb-muted sm:inline-flex">
+        {t(active ? "articleReader.closeDrawer" : "articleReader.openExperiment")}
+        <ChevronRight
+          className="article-reader-peek-anchor-icon h-3.5 w-3.5 shrink-0 text-wb-subtle"
+          aria-hidden="true"
+        />
+      </span>
       <ChevronRight
-        className="article-reader-peek-anchor-icon h-4 w-4 shrink-0 text-wb-subtle"
+        className="article-reader-peek-anchor-icon h-4 w-4 shrink-0 text-wb-subtle sm:hidden"
         aria-hidden="true"
       />
     </button>
@@ -592,12 +613,14 @@ function ArticleReaderLiveDetailV3({
   inline,
   runtime,
   snapshot,
+  title,
 }: Readonly<{
   briefing: ExperimentPlacementBriefingV2;
   contract: ModelContractV2;
   inline: boolean;
   runtime: ArticleReaderRuntimeHookV3;
   snapshot: ExperimentSnapshotV2;
+  title: string;
 }>) {
   const { t } = useTranslation();
   const [modelDisclosureOpen, setModelDisclosureOpen] = React.useState(false);
@@ -615,7 +638,14 @@ function ArticleReaderLiveDetailV3({
     runtime.state.status === "disposed";
 
   return (
-    <div className={inline ? "min-w-0" : "min-w-0 px-4 pb-10 sm:px-6"}>
+    <div className={inline
+      ? "article-reader-inflow min-w-0 rounded-2xl border border-wb-line/70 bg-wb-panel/35 p-3 sm:p-4"
+      : "min-w-0 px-4 pb-10 sm:px-6"}>
+      {inline && (
+        <p className="mb-2 truncate text-sm font-semibold tracking-[-0.012em] text-wb-text">
+          {title}
+        </p>
+      )}
       <div
         className={`flex flex-wrap items-center gap-2 ${inline ? "mb-3" : "mb-5"}`}
       >
@@ -629,7 +659,7 @@ function ArticleReaderLiveDetailV3({
               aria-pressed={
                 runtime.state.activeScenarioId === scenario.scenarioId
               }
-              className={`min-h-8 rounded-lg px-2.5 text-[11px] font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:cursor-wait disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${
+              className={`min-h-8 rounded-lg px-2.5 text-xs font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:cursor-wait disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${
                 runtime.state.activeScenarioId === scenario.scenarioId
                   ? "bg-wb-active text-wb-text"
                   : "text-wb-muted hover:bg-wb-hover hover:text-wb-text"
@@ -639,7 +669,7 @@ function ArticleReaderLiveDetailV3({
             </button>
           ))}
         </div>
-        <span className="text-[10px] text-wb-subtle" role="status">
+        <span className="text-xs text-wb-muted" role="status">
           {runtime.state.status === "failed"
             ? t("articleReader.failed")
             : unavailable
@@ -653,7 +683,7 @@ function ArticleReaderLiveDetailV3({
         <button
           type="button"
           onClick={() => setModelDisclosureOpen(true)}
-          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-[10px] font-semibold text-wb-subtle transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
           aria-label={t("workbench.editor.validationAndLimitations")}
           title={t("workbench.editor.validationAndLimitations")}
         >
@@ -699,6 +729,7 @@ function ArticleReaderLiveDetailV3({
           {briefing.controls.length > 0 && (
             <ArticleReaderControlsV3
               briefing={briefing}
+              compact={inline}
               contract={contract}
               runtime={runtime}
               snapshot={snapshot}
@@ -723,6 +754,7 @@ function ArticleReaderLiveDetailV3({
                 activeScenarioId={runtime.state.activeScenarioId}
                 briefing={graph}
                 contract={contract}
+                inline={inline}
                 playbackRunning={playing}
                 runtime={runtime}
                 snapshot={snapshot}
@@ -740,6 +772,7 @@ function ArticleReaderLiveDetailV3({
           {briefing.outputs.length > 0 && (
             <ArticleReaderOutputsV3
               briefing={briefing}
+              compact={inline}
               contract={contract}
               sampleStore={runtime.sampleStore}
             />
@@ -755,6 +788,7 @@ function ArticleReaderLiveGraphViewportV3({
   briefing,
   className,
   contract,
+  inline,
   playbackRunning,
   runtime,
   snapshot,
@@ -764,6 +798,7 @@ function ArticleReaderLiveGraphViewportV3({
   briefing: ExperimentPlacementBriefingGraphV2;
   className: string;
   contract: ModelContractV2;
+  inline: boolean;
   playbackRunning: boolean;
   runtime: ArticleReaderRuntimeHookV3;
   snapshot: ExperimentSnapshotV2;
@@ -806,6 +841,7 @@ function ArticleReaderLiveGraphViewportV3({
           activeScenarioId={activeScenarioId}
           briefing={briefing}
           contract={contract}
+          inline={inline}
           playbackRunning={playbackRunning}
           runtime={runtime}
           snapshot={snapshot}
@@ -813,7 +849,9 @@ function ArticleReaderLiveGraphViewportV3({
         />
       ) : (
         <div
-          className="min-h-[clamp(18rem,43vw,32rem)]"
+          className={inline
+            ? "article-reader-inflow-graph"
+            : "min-h-[clamp(18rem,43vw,32rem)]"}
           aria-label={label}
           data-reader-graph-placeholder="true"
         />
@@ -826,6 +864,7 @@ function ArticleReaderLiveGraphV3({
   activeScenarioId,
   briefing,
   contract,
+  inline,
   playbackRunning,
   runtime,
   snapshot,
@@ -834,6 +873,7 @@ function ArticleReaderLiveGraphV3({
   activeScenarioId: string;
   briefing: ExperimentPlacementBriefingGraphV2;
   contract: ModelContractV2;
+  inline: boolean;
   playbackRunning: boolean;
   runtime: ArticleReaderRuntimeHookV3;
   snapshot: ExperimentSnapshotV2;
@@ -880,6 +920,7 @@ function ArticleReaderLiveGraphV3({
           authoredScenarios={snapshot.content.scenarios}
           graph={graph}
           historyDepth={resolved.historyDepth}
+          inline={inline}
           runtime={runtime}
           pane={pane}
           surface={snapshot.content.surface}
@@ -964,7 +1005,9 @@ function ArticleReaderLiveGraphV3({
         variant="article"
         label={resolved.label}
         data-reader-legend={resolved.legend}
-        canvasClassName="h-[clamp(17rem,43vw,31rem)] min-w-0"
+        canvasClassName={inline
+          ? "article-reader-inflow-graph min-w-0"
+          : "h-[clamp(17rem,43vw,31rem)] min-w-0"}
       >
           <ArticleReaderPressureVolumeCanvasV3
             analysisId={
@@ -1047,7 +1090,9 @@ function ArticleReaderLiveGraphV3({
       variant="article"
       label={resolved.label}
       data-reader-legend={resolved.legend}
-      canvasClassName="h-[clamp(16rem,39vw,28rem)] min-w-0"
+      canvasClassName={inline
+        ? "article-reader-inflow-graph min-w-0"
+        : "h-[clamp(16rem,39vw,28rem)] min-w-0"}
     >
         <SweepingWaveformCanvasV3
           activeScenarioId={activeScenarioId}
@@ -1195,6 +1240,7 @@ export function ArticleReaderStructuralReturnGraphV3({
   authoredScenarios,
   graph,
   historyDepth,
+  inline = false,
   pane,
   runtime,
   surface,
@@ -1205,6 +1251,7 @@ export function ArticleReaderStructuralReturnGraphV3({
   authoredScenarios: readonly ExperimentScenarioV2[];
   graph: StructuralReturnGraphDefinitionV2;
   historyDepth: number;
+  inline?: boolean;
   pane: ExperimentSurfaceGraphPaneV2;
   runtime: ArticleReaderRuntimeHookV3;
   surface: ExperimentSnapshotV2["content"]["surface"];
@@ -1326,7 +1373,9 @@ export function ArticleReaderStructuralReturnGraphV3({
   const firstError = traces.find(({ error }) => error !== null)?.error ?? null;
   return (
     <div
-      className="grid h-[clamp(17rem,32vw,27rem)] min-w-0"
+      className={`grid min-w-0 ${inline
+        ? "article-reader-inflow-graph"
+        : "h-[clamp(17rem,32vw,27rem)]"}`}
       data-reader-structural-scenario-count={visibleScenarios.length}
     >
       {comparisonTraces.length === 0 ? (
@@ -1364,17 +1413,19 @@ export function ArticleReaderStructuralReturnGraphV3({
 
 export function ArticleReaderOutputsV3({
   briefing,
+  compact = false,
   contract,
   sampleStore,
 }: Readonly<{
   briefing: ExperimentPlacementBriefingV2;
+  compact?: boolean;
   contract: ModelContractV2;
   sampleStore: ArticleReaderRuntimeHookV3["sampleStore"];
 }>) {
   const { t } = useTranslation();
   const samples = useWorkbenchScenarioPresentationSamplesV3(sampleStore);
   return (
-    <section className="mt-8" aria-label={t("articleReader.outputs")}>
+    <section className={compact ? "mt-5" : "mt-8"} aria-label={t("articleReader.outputs")}>
       <ExperimentOutputGridV3
         variant="article"
         items={[...briefing.outputs].sort(compareOrderV3).map((output) => {
@@ -1402,11 +1453,13 @@ export function ArticleReaderOutputsV3({
 
 function ArticleReaderControlsV3({
   briefing,
+  compact = false,
   contract,
   runtime,
   snapshot,
 }: Readonly<{
   briefing: ExperimentPlacementBriefingV2;
+  compact?: boolean;
   contract: ModelContractV2;
   runtime: ArticleReaderRuntimeHookV3;
   snapshot: ExperimentSnapshotV2;
@@ -1414,7 +1467,7 @@ function ArticleReaderControlsV3({
   const { t } = useTranslation();
   return (
     <section
-      className="workbench-control-pane mb-7"
+      className={`workbench-control-pane ${compact ? "mb-5" : "mb-7"}`}
       aria-label={t("articleReader.controls")}
     >
       <div className="workbench-control-list">
@@ -1602,6 +1655,7 @@ export function ArticleReaderExperimentPeekPanelV3({
   return (
     <section
       ref={panelRef}
+      id="article-reader-experiment-companion-v3"
       role="region"
       aria-labelledby="article-reader-peek-title-v3"
       className="flex h-full min-w-0 flex-col bg-wb-panel text-wb-text"
@@ -1762,6 +1816,7 @@ function ArticleReaderExperimentDrawerV3({
       />
       <aside
         ref={dialogRef}
+        id="article-reader-experiment-companion-v3"
         role="dialog"
         aria-modal="true"
         aria-labelledby="article-reader-drawer-title-v3"

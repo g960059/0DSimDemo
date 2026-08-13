@@ -154,7 +154,7 @@ export function ArticleExperimentPlacementV3({
           type="button"
           onClick={onEdit}
           aria-label={t("articleEditor.briefing.edit")}
-          className="group/anchor flex w-full items-center gap-4 rounded-xl bg-wb-soft/70 px-4 py-5 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover/70 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:px-5"
+          className="article-reader-peek-anchor article-reader-peek-surface group/anchor flex min-h-20 w-full items-center gap-4 rounded-xl px-4 py-4 text-left outline-none active:scale-[0.995] focus-visible:ring-2 focus-visible:ring-wb-accent sm:px-5"
         >
           <span className="min-w-0 flex-1 truncate text-sm font-semibold tracking-[-0.012em] text-wb-text">
             {placementTitle}
@@ -177,10 +177,11 @@ export function ArticleExperimentPlacementV3({
 
   return (
     <section
-      className={`group relative rounded-2xl bg-wb-soft/70 px-4 py-4 sm:px-5 sm:py-5 ${blockEditorLayout ? "my-0" : "my-8"}`}
+      className={`article-editor-inflow-preview group relative rounded-2xl border border-wb-line/60 bg-wb-soft/45 px-3 py-3 sm:px-4 sm:py-4 ${blockEditorLayout ? "my-0" : "my-8"}`}
       data-testid="article-experiment-placement-v3"
       data-snapshot-id={snapshot.snapshotId}
       data-static-preview="true"
+      data-reader-presentation={presentation}
     >
       {showBlockActions && (
         <div className="mb-3 flex justify-end">

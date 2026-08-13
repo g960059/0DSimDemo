@@ -1537,7 +1537,7 @@ export function ArticleEditorV3Page() {
             }}
             placeholder={t("articleEditor.titlePlaceholder")}
             aria-label={t("articleEditor.title")}
-            className="article-title block w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-wb-subtle"
+            className="article-title article-editor-title block w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-wb-subtle"
           />
 
           {error !== null && (
@@ -2917,7 +2917,7 @@ function ArticleBlockShellV3({
             ? "my-5"
             : blockKind === "equation"
               ? "my-3"
-              : "my-0.5"} ${blockKind === "experiment" ? "article-wide-block" : ""} ${dragging ? "opacity-40" : ""}`}
+              : "my-0.5"} ${dragging ? "opacity-40" : ""}`}
       data-article-block-id={blockId}
       onDragOver={(event) => {
         event.preventDefault();
