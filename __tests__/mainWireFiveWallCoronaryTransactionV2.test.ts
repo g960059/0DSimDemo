@@ -45,6 +45,7 @@ import {
   evaluateMainWireFiveWallCoupledResidualShadowV1,
   initializeMainWireFiveWallCoronaryV2,
   prepareMainWireFiveWallCoupledResidualContextV1,
+  prepareMainWireFiveWallPromotedMechanicsResidualContextV1,
   stepMainWireFiveWallCoronaryV2,
   type MainWireCoronaryMvcReferenceStateV2,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
@@ -60,6 +61,8 @@ import {
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV3";
 import {
   MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
+  evaluateMainWireFiveWallNumericalMechanicsCandidateV1,
+  tryPrepareMainWireFiveWallNumericalMechanicsStepV1,
   type MainWireFiveWallFreeCalciumDriveV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
@@ -91,6 +94,9 @@ import {
 import {
   MainWireFlatCoupledAcceptedStateV1,
 } from "@/engine/vnext/coupled/MainWireFlatCoupledAcceptedStateV1";
+import {
+  solveMainWireFiveWallPromotedMechanicsNewtonShadowV1,
+} from "@/engine/vnext/coupled/MainWireFiveWallPromotedMechanicsNewtonShadowV1";
 import {
   MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1,
 } from "@/engine/vnext/MainWireSolverReplacementCorpusV1";
@@ -828,6 +834,126 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
         6,
       );
     });
+  }, 60_000);
+
+  it("promotes the two TriSeg coordinates into the real 32-row shadow", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const runtime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+    const stepInput = Object.freeze({
+      dtSec: 0.002,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const condensedContext = prepareMainWireFiveWallCoupledResidualContextV1(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+    const condensed = solveMainWireFiveWallCoupledNewtonShadowV1(
+      condensedContext,
+    );
+    expect(condensed.result.status).toBe("converged");
+    if (condensed.result.status !== "converged") {
+      throw new Error(condensed.result.message);
+    }
+    const condensedSolution = condensed.result.solution;
+    const promotedContext =
+      prepareMainWireFiveWallPromotedMechanicsResidualContextV1(
+        provider,
+        cold.acceptedState,
+        stepInput,
+      );
+    const initialGuess = promotedContext.initialUnknowns.slice();
+    initialGuess.set(condensedSolution, 0);
+    const promoted = solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(
+      promotedContext,
+      { initialGuess },
+    );
+    const promotedFromContext =
+      solveMainWireFiveWallPromotedMechanicsNewtonShadowV1(promotedContext);
+
+    expect(promoted.result.status).toBe("converged");
+    expect(promotedFromContext.result.status).toBe("converged");
+    if (promoted.result.status !== "converged") {
+      throw new Error(promoted.result.message);
+    }
+    if (promotedFromContext.result.status !== "converged") {
+      throw new Error(promotedFromContext.result.message);
+    }
+    expect(promoted.jacobianResidualEvaluationCount).toBe(
+      2 * promotedContext.dimension
+        * promoted.result.jacobianEvaluationCount,
+    );
+    expect(Math.abs(promoted.dependentSvContinuityResidualMl!))
+      .toBeLessThan(1e-8);
+    for (let index = 0; index < condensedSolution.length; index += 1) {
+      expect(promoted.result.solution[index]).toBeCloseTo(
+        condensedSolution[index]!,
+        7,
+      );
+    }
+    for (let index = 0; index < promoted.result.solution.length; index += 1) {
+      expect(promotedFromContext.result.solution[index]).toBeCloseTo(
+        promoted.result.solution[index]!,
+        8,
+      );
+    }
+
+    const chamberVolumes = Object.freeze(Object.fromEntries(
+      (["LA", "LV", "RA", "RV"] as const).map((chamber) => {
+        const index = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf(chamber);
+        if (index < 0) throw new Error(`${chamber} is not independent`);
+        return [chamber, condensedSolution[index]!];
+      }),
+    )) as Readonly<{ LA: number; LV: number; RA: number; RV: number }>;
+    const numericalStep = tryPrepareMainWireFiveWallNumericalMechanicsStepV1(
+      provider,
+      Object.freeze({
+        previousAcceptedMaterialState:
+          cold.acceptedState.mechanics.materialState,
+        candidateTimeSec: stepInput.dtSec,
+        stepDtSec: stepInput.dtSec,
+        drivingInputs: Object.freeze({
+          freeCalciumUMByWall: evaluateFiveWallNormalCalciumDriveV1(
+            stepInput.dtSec,
+            FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+          ).freeCalciumUMByWall,
+        }),
+      }),
+    );
+    expect(numericalStep).not.toBeNull();
+    const locallyCondensedMechanics =
+      evaluateMainWireFiveWallNumericalMechanicsCandidateV1(
+        numericalStep!,
+        chamberVolumes,
+      );
+    expect(promoted.result.solution[30]).toBeCloseTo(
+      locallyCondensedMechanics.scaledInternalCoordinates[0],
+      8,
+    );
+    expect(promoted.result.solution[31]).toBeCloseTo(
+      locallyCondensedMechanics.scaledInternalCoordinates[1],
+      8,
+    );
+    const residual = new Float64Array(32);
+    promotedContext.evaluateResidual(promoted.result.solution, residual);
+    expect(Math.abs(residual[30]!)).toBeLessThanOrEqual(
+      promotedContext.mechanicsResidualInfinityToleranceByOneJ,
+    );
+    expect(Math.abs(residual[31]!)).toBeLessThanOrEqual(
+      promotedContext.mechanicsResidualInfinityToleranceByOneJ,
+    );
   }, 60_000);
 
   it("promotes one admitted 30-row root by swapping a fixed flat image", () => {

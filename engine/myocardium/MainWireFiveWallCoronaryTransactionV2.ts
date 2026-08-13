@@ -110,8 +110,10 @@ import {
   type FiveWallNormalCalciumDriveParamsV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
+  evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1,
   evaluateMainWireFiveWallNumericalMechanicsCandidateV1,
   tryPrepareMainWireFiveWallNumericalMechanicsStepV1,
+  type MainWireFiveWallFixedInternalMechanicsEvaluationV1,
   type MainWireFiveWallNumericalMechanicsEvaluationV1,
   type MainWireFiveWallNumericalMechanicsStepV1,
   type MainWireFiveWallFreeCalciumDriveV1,
@@ -640,6 +642,33 @@ export type MainWireFiveWallCoupledResidualContextV1<
     rowMajorNonCoronaryLocalDestination: Float64Array,
     rowMajorBoundaryByNonCoronaryVolumeDestination: Float64Array,
   ): boolean;
+}>;
+
+/**
+ * Construction-only 14 + 16 + 2 residual with explicit TriSeg coordinates.
+ *
+ * The first thirty rows are the real non-coronary/coronary backward-Euler
+ * equations. The final two rows are the provider-owned scaled TriSeg
+ * equilibrium equations. This context cannot materialize or commit an
+ * accepted candidate; it exists to prove the promoted-mechanics root before
+ * the production authority changes solver algebra.
+ */
+export type MainWireFiveWallPromotedMechanicsResidualContextV1 = Readonly<{
+  dimension: 32;
+  baseRevision: number;
+  baseAcceptedTimeSec: number;
+  stepDtSec: number;
+  fixedGlobalTotalBloodVolumeMl: number;
+  minimumDependentSvVolumeMl: number;
+  initialUnknowns: Float64Array;
+  lowerBounds: Float64Array;
+  upperBounds: Float64Array;
+  mechanicsResidualInfinityToleranceByOneJ: number;
+  evaluateResidual(
+    unknowns: Float64Array,
+    destinationResidual: Float64Array,
+  ): void;
+  evaluateDependentSvContinuityResidualMl(unknowns: Float64Array): number;
 }>;
 
 export function initializeMainWireFiveWallCoronaryV2<TWallState>(
@@ -1739,6 +1768,343 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         },
       );
     },
+  });
+}
+
+/**
+ * Prepares the first real 32-row residual without either nested Newton loop.
+ * Every candidate evaluates mechanics at the two caller-supplied scaled
+ * TriSeg coordinates, then evaluates the same circulation and coronary laws
+ * used by the 30-row context. The path is deliberately allocation-cold and
+ * finite-difference-friendly; it is a scientific shadow, not an accepted
+ * Session authority.
+ */
+export function prepareMainWireFiveWallPromotedMechanicsResidualContextV1<
+  TWallState,
+>(
+  provider: WholeHeartMechanicsProviderV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  previous: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
+  input: MainWireFiveWallCoronaryStepInputV2,
+): MainWireFiveWallPromotedMechanicsResidualContextV1 {
+  validateAcceptedTuple(previous);
+  requirePositiveFinite(input.dtSec, "dtSec");
+  if (
+    input.mechanicalSupport !== undefined
+    || input.dynamicMechanicalSupport !== undefined
+    || input.protocolResistanceScaleByEdge !== undefined
+  ) {
+    throw new Error(
+      "promoted mechanics residual supports only the device-off construction slice",
+    );
+  }
+  const prior = input.coronaryPrior
+    ?? MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2;
+  const topology = buildCoronaryTopologyV2(prior);
+  const collapseHydraulics = resolveCollapseHydraulics(
+    prior,
+    input.collapseHydraulics,
+  );
+  const impMechanism = input.impMechanism ?? DEFAULT_IMP_MECHANISM_V2;
+  const shorteningImpPrior = input.shorteningImpPrior
+    ?? NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2;
+  assertSameBinding(
+    previous.coronaryBinding,
+    buildBinding(
+      prior,
+      collapseHydraulics,
+      impMechanism,
+      shorteningImpPrior,
+    ),
+  );
+  const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
+  const calciumDrive = resolveCalciumDriveV2(
+    candidateTimeSec,
+    input.calciumDriveParams,
+    input.calciumDriveOverride,
+  );
+  const commonIntrathoracicPressure = commonIntrathoracicPressureMmHg(
+    candidateTimeSec,
+    input.runtime,
+  );
+  const numericalMechanicsStep =
+    tryPrepareMainWireFiveWallNumericalMechanicsStepV1(provider, {
+      previousAcceptedMaterialState: previous.mechanics.materialState,
+      candidateTimeSec,
+      stepDtSec: input.dtSec,
+      drivingInputs: calciumDrive,
+    });
+  if (numericalMechanicsStep === null) {
+    throw new Error(
+      "promoted mechanics residual requires the model-owned fixed-coordinate provider",
+    );
+  }
+
+  const nonCoronaryDimension =
+    NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+  const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  const volumeDimension = nonCoronaryDimension + coronaryDimension;
+  const dimension = volumeDimension + 2;
+  const initialUnknowns = new Float64Array(dimension);
+  for (let index = 0; index < nonCoronaryDimension; index += 1) {
+    initialUnknowns[index] = previous.circulation.nodeVolumesMl[
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]!
+    ];
+  }
+  for (let index = 0; index < coronaryDimension; index += 1) {
+    initialUnknowns[nonCoronaryDimension + index] =
+      previous.coronary.volumeMlByNode[
+        CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]!
+      ];
+  }
+  initialUnknowns[volumeDimension] =
+    numericalMechanicsStep.initialScaledInternalCoordinates[0];
+  initialUnknowns[volumeDimension + 1] =
+    numericalMechanicsStep.initialScaledInternalCoordinates[1];
+
+  const minimumDependentSvVolumeMl = 1e-12;
+  const lowerBounds = new Float64Array(dimension).fill(1e-12);
+  const upperBounds = new Float64Array(dimension).fill(
+    previous.fixedGlobalTotalBloodVolumeMl,
+  );
+  const coronaryMinimumVolumeFractionOfReference =
+    input.coronarySolverOptions?.minimumVolumeFractionOfReference
+    ?? DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2
+      .minimumVolumeFractionOfReference;
+  if (
+    !Number.isFinite(coronaryMinimumVolumeFractionOfReference)
+    || coronaryMinimumVolumeFractionOfReference <= 0
+    || coronaryMinimumVolumeFractionOfReference >= 1
+  ) {
+    throw new RangeError(
+      "promoted mechanics coronary minimum-volume fraction must lie in (0, 1)",
+    );
+  }
+  for (let index = 0; index < topology.nodes.length; index += 1) {
+    lowerBounds[nonCoronaryDimension + index] =
+      topology.nodes[index]!.pressureVolume.referenceVolumeMl
+        * coronaryMinimumVolumeFractionOfReference;
+  }
+  // The first coordinate is a signed cap volume. The second is a scaled
+  // radius and must remain strictly positive. Geometry evaluation remains the
+  // tighter authority for either coordinate.
+  lowerBounds[volumeDimension] = -1e6;
+  upperBounds[volumeDimension] = 1e6;
+  lowerBounds[volumeDimension + 1] = Number.EPSILON;
+  upperBounds[volumeDimension + 1] = 1e6;
+
+  const candidateIndependentVolumes = new Float64Array(nonCoronaryDimension);
+  const candidateCoronaryVolumes = Object.fromEntries(
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId) => [nodeId, 0]),
+  ) as unknown as {
+    -readonly [TNode in keyof CoronaryConservedVolumeStateV2]: number;
+  };
+  const coronaryResidual = new Float64Array(coronaryDimension);
+  const coronaryBoundaryFlowMlPerSec = new Float64Array(2);
+  const dependentResidualScratch = new Float64Array(dimension);
+  const mechanicsResidualInfinityToleranceByOneJ = 1e-9;
+
+  const evaluate = (
+    unknowns: Float64Array,
+    destinationResidual: Float64Array,
+  ): number => {
+    if (
+      !(unknowns instanceof Float64Array)
+      || unknowns.length !== dimension
+      || !(destinationResidual instanceof Float64Array)
+      || destinationResidual.length !== dimension
+    ) {
+      throw new RangeError(
+        "promoted mechanics residual requires two 32-value f64 vectors",
+      );
+    }
+    const independentVolumeSum = sumFirstValuesV2(unknowns, volumeDimension);
+    if (
+      !(previous.fixedGlobalTotalBloodVolumeMl - independentVolumeSum
+        > minimumDependentSvVolumeMl)
+    ) {
+      throw new RangeError(
+        "promoted mechanics candidate leaves no admissible dependent SV volume",
+      );
+    }
+    for (let index = 0; index < nonCoronaryDimension; index += 1) {
+      candidateIndependentVolumes[index] = unknowns[index]!;
+    }
+    for (let index = 0; index < coronaryDimension; index += 1) {
+      candidateCoronaryVolumes[
+        CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]!
+      ] = unknowns[nonCoronaryDimension + index]!;
+    }
+    const scaledInternalCoordinates = Object.freeze([
+      unknowns[volumeDimension]!,
+      unknowns[volumeDimension + 1]!,
+    ]) as readonly [number, number];
+    let fixedMechanics:
+      MainWireFiveWallFixedInternalMechanicsEvaluationV1 | null = null;
+    let boundary: CoronaryHydraulicBoundaryInputV2 | null = null;
+    let coronaryResidualAvailable = false;
+    const nonCoronaryProbe = evaluateNonCoronaryCirculationCandidateProbeV1({
+      previousAcceptedState: previous.circulation,
+      dtSec: input.dtSec,
+      runtime: input.runtime,
+      evaluateCandidateMechanics: (volumesMl) => {
+        const candidate =
+          evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1(
+            numericalMechanicsStep,
+            volumesMl,
+            scaledInternalCoordinates,
+          );
+        const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+          input.pericardium,
+          volumesMl,
+        );
+        const externalPressure = Object.freeze({
+          commonIntrathoracicPressureMmHg: commonIntrathoracicPressure,
+          commonPericardialExcessPressureMmHg:
+            pericardium.excessPressureMmHg,
+        });
+        const coronaryMechanicsCoupling =
+          evaluateMainWireCoronaryNumericalMechanicsCouplingV1(
+            Object.freeze({
+              transmuralPressuresMmHg:
+                candidate.transmuralPressuresMmHg,
+              effectiveFiberLogStrainByWall:
+                candidate.effectiveFiberLogStrainByWall,
+              activeFiberKirchhoffStressPaByWall:
+                candidate.activeFiberKirchhoffStressPaByWall,
+            }),
+            externalPressure,
+          );
+        const boundaryMechanics: MainWireCoronaryBoundaryMechanicsViewV2 =
+          Object.freeze({
+            coronaryMechanicsCoupling,
+            ...(impMechanism === "source-cep-land-active"
+              ? {
+                sourceIntramyocardialPressureMmHgByTerritoryLayer:
+                  evaluateAllCoronaryImpPressureV1(
+                    coronaryMechanicsCoupling.input,
+                    "intramyocardial",
+                  ),
+              }
+              : {}),
+          });
+        fixedMechanics = candidate;
+        return Object.freeze({
+          absolutePressuresMmHg: Object.freeze({
+            LA: candidate.transmuralPressuresMmHg.LA
+              + commonIntrathoracicPressure
+              + pericardium.excessPressureMmHg,
+            LV: candidate.transmuralPressuresMmHg.LV
+              + commonIntrathoracicPressure
+              + pericardium.excessPressureMmHg,
+            RA: candidate.transmuralPressuresMmHg.RA
+              + commonIntrathoracicPressure
+              + pericardium.excessPressureMmHg,
+            RV: candidate.transmuralPressuresMmHg.RV
+              + commonIntrathoracicPressure
+              + pericardium.excessPressureMmHg,
+          }),
+          evaluation: boundaryMechanics,
+        });
+      },
+      conservativeCompanion: Object.freeze({
+        fixedGlobalTotalBloodVolumeMl:
+          previous.fixedGlobalTotalBloodVolumeMl,
+        previousAcceptedCompanionBloodVolumeMl:
+          coronaryBloodVolumeMl(previous.coronary),
+        evaluateSameCandidate: (candidate) => {
+          const candidateBoundary = resolveCandidateCoronaryBoundaryV2(
+            candidate.boundaryAbsolutePressuresMmHg.Ao,
+            candidate.boundaryAbsolutePressuresMmHg.RA,
+            candidate.candidateMechanicsEvaluation,
+            impMechanism,
+            previous.mvcReferenceState.reference,
+            shorteningImpPrior,
+          );
+          writeCoronaryBackwardEulerCandidateResidualV2(
+            previous.coronary,
+            Object.freeze({
+              dtSec: input.dtSec,
+              boundary: candidateBoundary,
+              disease: input.coronaryDisease
+                ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
+              collapseHydraulics,
+              solverOptions: input.coronarySolverOptions,
+            }),
+            candidateCoronaryVolumes,
+            coronaryResidual,
+            coronaryBoundaryFlowMlPerSec,
+            prior,
+            topology,
+          );
+          coronaryResidualAvailable = true;
+          boundary = candidateBoundary;
+          return Object.freeze({
+            candidateCompanionBloodVolumeMl:
+              sumCoronaryVolumesV2(candidateCoronaryVolumes),
+            outerBoundaryNetVolumeRateMlPerSec: Object.freeze({
+              Ao: -coronaryBoundaryFlowMlPerSec[0]!,
+              RA: coronaryBoundaryFlowMlPerSec[1]!,
+            }),
+            candidateCompanionTrial: candidateBoundary,
+          });
+        },
+      }),
+    }, candidateIndependentVolumes);
+    if (
+      fixedMechanics === null
+      || !coronaryResidualAvailable
+      || boundary === null
+    ) {
+      throw new Error(
+        "promoted mechanics residual did not evaluate all component laws",
+      );
+    }
+    for (let index = 0; index < nonCoronaryDimension; index += 1) {
+      const nodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(
+        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]!,
+      );
+      destinationResidual[index] =
+        nonCoronaryProbe.continuityResidualMlByNode[nodeIndex]!;
+    }
+    destinationResidual.set(coronaryResidual, nonCoronaryDimension);
+    destinationResidual[volumeDimension] =
+      fixedMechanics.internalResidualByOneJ[0];
+    destinationResidual[volumeDimension + 1] =
+      fixedMechanics.internalResidualByOneJ[1];
+    const dependentSvNodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf("SV");
+    if (dependentSvNodeIndex < 0) {
+      throw new Error("dependent SV node order drifted");
+    }
+    const dependentResidual =
+      nonCoronaryProbe.continuityResidualMlByNode[dependentSvNodeIndex]!;
+    requireFinite(dependentResidual, "dependent SV continuity residual");
+    return dependentResidual;
+  };
+
+  return Object.freeze({
+    dimension: 32 as const,
+    baseRevision: previous.revision,
+    baseAcceptedTimeSec: previous.acceptedTimeSec,
+    stepDtSec: input.dtSec,
+    fixedGlobalTotalBloodVolumeMl:
+      previous.fixedGlobalTotalBloodVolumeMl,
+    minimumDependentSvVolumeMl,
+    initialUnknowns,
+    lowerBounds,
+    upperBounds,
+    mechanicsResidualInfinityToleranceByOneJ,
+    evaluateResidual: (
+      unknowns: Float64Array,
+      destinationResidual: Float64Array,
+    ): void => {
+      evaluate(unknowns, destinationResidual);
+    },
+    evaluateDependentSvContinuityResidualMl: (
+      unknowns: Float64Array,
+    ): number => evaluate(unknowns, dependentResidualScratch),
   });
 }
 
@@ -3571,6 +3937,27 @@ function coronaryBloodVolumeMl(
     (sum, nodeId) => sum + state.volumeMlByNode[nodeId],
     0,
   );
+}
+
+function sumCoronaryVolumesV2(
+  volumes: CoronaryConservedVolumeStateV2,
+): number {
+  let total = 0;
+  for (const nodeId of CORONARY_CONSERVED_VOLUME_NODE_IDS_V2) {
+    total += volumes[nodeId];
+  }
+  return total;
+}
+
+function sumFirstValuesV2(values: Float64Array, count: number): number {
+  if (!Number.isInteger(count) || count < 0 || count > values.length) {
+    throw new RangeError("vector prefix count is invalid");
+  }
+  let total = 0;
+  for (let index = 0; index < count; index += 1) {
+    total += values[index]!;
+  }
+  return total;
 }
 
 function maximumAbsoluteValueV2(values: ArrayLike<number>): number {

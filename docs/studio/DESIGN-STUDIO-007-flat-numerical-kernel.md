@@ -777,6 +777,20 @@ two reserved TriSeg rows without renumbering either circulation block. This
 staging distinguishes errors caused by circulation/coronary coupling from
 errors caused by promoting mechanics coordinates into the global solve.
 
+The first Phase 2b executable is now a construction-only 32-row residual. Its
+first 30 rows evaluate the real non-coronary and coronary backward-Euler laws,
+while mechanics is evaluated once at the caller's two scaled TriSeg
+coordinates with no local internal Newton. The final two rows are the same
+scaled generalized-force equilibrium equations used by the former local
+solve. An intentionally slow all-central-difference Newton converges both from
+the prior accepted context and from the Phase 2a volume root. On the canonical
+one-step case, both seeds select the same 32-coordinate root, its first 30
+values agree with the statically condensed solution to seven decimal places,
+and its two internal coordinates agree with the independent local mechanics
+solve to eight decimal places. This establishes equation/root equivalence for
+the first case only. It provides neither an analytic 32-row assembly nor an
+accepted-state authority and makes no performance claim.
+
 The first executable uses one deterministic damped semismooth Newton and a
 fixed row-major `Float64Array` Jacobian with partial-pivot dense LU. At 30–32
 unknowns, the roughly 10,000 floating-point operations of dense factorization
