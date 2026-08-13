@@ -885,12 +885,6 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     candidateTimeSec,
     input.runtime,
   );
-  const mechanicsStep = prepareWholeHeartMechanicsStepV1(provider, {
-    previousAcceptedState: previous.mechanics,
-    candidateTimeSec,
-    stepDtSec: input.dtSec,
-    drivingInputs: mechanicsCalciumDrive,
-  });
   const numericalMechanicsStep =
     tryPrepareMainWireFiveWallNumericalMechanicsStepV1(provider, {
       previousAcceptedMaterialState: previous.mechanics.materialState,
@@ -898,6 +892,22 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       stepDtSec: input.dtSec,
       drivingInputs: mechanicsCalciumDrive,
     });
+  let publicMechanicsStep: WholeHeartMechanicsPreparedStepV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  > | null = null;
+  const obtainPublicMechanicsStep = (): WholeHeartMechanicsPreparedStepV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  > => {
+    publicMechanicsStep ??= prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: previous.mechanics,
+      candidateTimeSec,
+      stepDtSec: input.dtSec,
+      drivingInputs: mechanicsCalciumDrive,
+    });
+    return publicMechanicsStep;
+  };
   const useMechanicsCandidateProbes =
     provider.evaluationResultOwnershipMode === "exclusive-result";
   const initialUnknownsMl = new Float64Array(30);
@@ -982,7 +992,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     runtime: input.runtime,
     evaluateCandidateMechanics: (volumesMl) =>
       evaluatePreparedCoupledCandidateMechanicsV1(
-        mechanicsStep,
+        numericalMechanicsStep === null
+          ? obtainPublicMechanicsStep()
+          : null,
         volumesMl,
         input.pericardium,
         commonIntrathoracicPressure,
@@ -1294,7 +1306,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       runtime: input.runtime,
       evaluateCandidateMechanics: (volumesMl) =>
         evaluatePreparedCandidateMechanicsV2(
-          mechanicsStep,
+          obtainPublicMechanicsStep(),
           volumesMl,
           input.pericardium,
           commonIntrathoracicPressure,
@@ -1395,7 +1407,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     return finalizeMainWireFiveWallCoronarySelectedCandidateV2(
       provider,
       previous,
-      mechanicsStep,
+      obtainPublicMechanicsStep(),
       candidate.circulationTrial,
       candidate.calciumDrive,
       candidate.commonIntrathoracicPressureMmHg,
@@ -1477,7 +1489,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         );
         return isWholeHeartMechanicsCandidateProbeV2(mechanicsCandidate)
           ? withPreparedWholeHeartMechanicsCandidateProbeMaterialStateV1(
-            mechanicsStep,
+            obtainPublicMechanicsStep(),
             mechanicsCandidate,
             visit,
           )
@@ -2537,7 +2549,7 @@ function evaluatePreparedCoupledCandidateMechanicsV1<TWallState>(
   mechanicsStep: WholeHeartMechanicsPreparedStepV1<
     TWallState,
     MainWireFiveWallFreeCalciumDriveV1
-  >,
+  > | null,
   volumesMl: WholeHeartMechanicsChamberValuesV1,
   pericardiumBinding: MainWireCommonPericardiumBindingV1,
   commonIntrathoracicPressureMmHg: number,
@@ -2552,6 +2564,9 @@ function evaluatePreparedCoupledCandidateMechanicsV1<TWallState>(
   MainWireFiveWallCoupledCandidateMechanicsEvaluationV1<TWallState>
 > {
   if (numericalMechanicsStep === null) {
+    if (mechanicsStep === null) {
+      throw new Error("generic coupled mechanics step is unavailable");
+    }
     const fallback = evaluatePreparedCandidateMechanicsV2(
       mechanicsStep,
       volumesMl,

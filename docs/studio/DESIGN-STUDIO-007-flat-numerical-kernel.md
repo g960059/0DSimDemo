@@ -1098,6 +1098,24 @@ the coupled system, and materialize detailed wall diagnostics only once for the
 selected root. No accepted-state/checkpoint schema change, looser convergence
 gate, or stale candidate reuse is implied by this optimization.
 
+A second ownership correction removes state and public-step materialization
+from that rejected-candidate path. Internal numerical TriSeg candidates retain
+their private material evaluations but do not clone a five-wall aggregate
+state. Only the converged numerical result materializes one owned candidate
+state. The generic mechanics prepared step, including its clone, canonical
+fingerprint, and serializability checks, is now created lazily only if the
+caller requests canonical trial materialization/finalization or if the provider
+does not implement the numerical seam. The exact accepted public path remains
+unchanged.
+
+Three alternating 10,000-step pairs after this change again had identical
+iteration/residual/Jacobian counts. The model-owned-to-generic paired median
+ratios were about `0.913` for complete-step median, `0.892` for solve median,
+`0.915` for complete-step p95, and `0.889` for solve p95. This is a meaningful
+host improvement, but the path still allocates geometry, constitutive,
+derivative, Hessian, and tangent object graphs for every residual candidate.
+Those allocations, not the deferred public boundary, are the next target.
+
 ### Phase 3 — strict scalar WASM
 
 Port the proven flat scalar kernel to a strict `f64` WASM implementation if

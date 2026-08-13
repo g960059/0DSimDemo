@@ -345,7 +345,12 @@ type ResolvedSolverOptionsV1 = Required<MainWireFiveWallInternalSolverOptionsV1>
 
 type CandidateEvaluationV1<TWallState> = Readonly<{
   volumesMl: WholeHeartMechanicsChamberValuesV1;
-  state: MainWireFiveWallLandTriSegStateV1<TWallState>;
+  /**
+   * Public/cold evaluations materialize an owned state immediately. Numerical
+   * candidates keep this null and materialize only the converged result.
+   */
+  state: MainWireFiveWallLandTriSegStateV1<TWallState> | null;
+  internalCoordinates: TriSegCoordinatesV1;
   geometry: TriSegGeometryV1;
   triseg: EnergyConjugateTriSegEvaluationV1;
   materialByWall: MainWireFiveWallRecordV1<
@@ -516,7 +521,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
         coldConsistencyIterations = consistency + 1;
         if (solved.converged === false) {
           return failedProviderEvaluation(
-            initialCandidate.state,
+            requireMaterializedCandidateStateV1(initialCandidate),
             initialCandidate.transmuralPressuresMmHg,
             solved,
             "cold",
@@ -558,7 +563,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
             : Number.MAX_VALUE,
         });
         return failedProviderEvaluation(
-          initialCandidate.state,
+          requireMaterializedCandidateStateV1(initialCandidate),
           initialCandidate.transmuralPressuresMmHg,
           failure,
           "cold",
@@ -567,7 +572,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
         );
       }
       return failedProviderEvaluation(
-        initialCandidate.state,
+        requireMaterializedCandidateStateV1(initialCandidate),
         initialCandidate.transmuralPressuresMmHg,
         lastSolve,
         "cold",
@@ -750,7 +755,11 @@ function numericalMechanicsEvaluationFromSolveV1<TWallState>(
     consistentTangent = undefined;
   }
   return Object.freeze({
-    candidateMaterialState: solved.candidate.state,
+    candidateMaterialState: materializeCandidateStateV1(
+      solved.candidate,
+      params,
+      "trial",
+    ),
     candidateVolumesMl: solved.candidate.volumesMl,
     transmuralPressuresMmHg: solved.candidate.transmuralPressuresMmHg,
     ...(consistentTangent === undefined
@@ -1222,28 +1231,18 @@ function evaluateCandidate<TWallState>(
       "totalAlgorithmicStressPrimitiveJ",
     );
   }
-  const state = Object.freeze({
-    // Atrial reuse hits share only private, read-only evaluations and therefore
-    // remain cloned into each whole-heart candidate. Cold and ventricular
-    // material kernels may instead transfer a newly created exclusive result;
-    // their capability promises that no later evaluation reuses or mutates it.
-    wallStateByWall: fiveWallRecord((wallId) => {
-      const kernel = params.materialByWall[wallId];
-      const canRetainExclusiveResult =
-        kernel.evaluationStateOwnershipMode === "exclusive-result"
-        && (
-          mode.kind === "cold"
-          || (wallId !== "LA" && wallId !== "RA")
-        );
-      return canRetainExclusiveResult
-        ? materialByWall[wallId].state
-        : kernel.stateCodec.clone(materialByWall[wallId].state);
-    }),
-    trisegCoordinates: Object.freeze({ ...coordinates }),
-  });
+  const state = mode.kind === "trial"
+      && mode.materialEvaluationMode === "numerical"
+    ? null
+    : materializeCandidateStateV1(
+      Object.freeze({ materialByWall, internalCoordinates: coordinates }),
+      params,
+      mode.kind,
+    );
   return Object.freeze({
     volumesMl: Object.freeze({ ...volumesMl }),
     state,
+    internalCoordinates: coordinates,
     geometry,
     triseg,
     materialByWall,
@@ -1257,6 +1256,46 @@ function evaluateCandidate<TWallState>(
     materialIterationCount,
     maximumMaterialResidualNorm,
   });
+}
+
+function materializeCandidateStateV1<TWallState>(
+  candidate: Readonly<{
+    materialByWall: MainWireFiveWallRecordV1<
+      MainWireFiveWallMaterialEvaluationV1<TWallState>
+    >;
+    internalCoordinates: TriSegCoordinatesV1;
+  }>,
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  solveMode: "cold" | "trial",
+): MainWireFiveWallLandTriSegStateV1<TWallState> {
+  return Object.freeze({
+    // Atrial reuse hits share one private evaluation across the internal
+    // TriSeg candidates. Public trial materialization therefore keeps the
+    // previous defensive-clone rule. Model-owned numerical candidates delay
+    // this work until the converged root rather than cloning at every probe.
+    wallStateByWall: fiveWallRecord((wallId) => {
+      const kernel = params.materialByWall[wallId];
+      const canRetainExclusiveResult =
+        kernel.evaluationStateOwnershipMode === "exclusive-result"
+        && (
+          solveMode === "cold"
+          || (wallId !== "LA" && wallId !== "RA")
+        );
+      return canRetainExclusiveResult
+        ? candidate.materialByWall[wallId].state
+        : kernel.stateCodec.clone(candidate.materialByWall[wallId].state);
+    }),
+    trisegCoordinates: Object.freeze({ ...candidate.internalCoordinates }),
+  });
+}
+
+function requireMaterializedCandidateStateV1<TWallState>(
+  candidate: CandidateEvaluationV1<TWallState>,
+): MainWireFiveWallLandTriSegStateV1<TWallState> {
+  if (candidate.state === null) {
+    throw new Error("public mechanics candidate state was not materialized");
+  }
+  return candidate.state;
 }
 
 function evaluateTrialAtrialMaterialWithReuse<TWallState>(
@@ -1670,7 +1709,7 @@ function successfulProviderEvaluation<TWallState>(
     readback,
   });
   return Object.freeze({
-    materialState: solved.candidate.state,
+    materialState: requireMaterializedCandidateStateV1(solved.candidate),
     transmuralPressuresMmHg: solved.candidate.transmuralPressuresMmHg,
     ...(consistentTangent === undefined
       ? {}
@@ -1703,7 +1742,7 @@ function failedProviderEvaluation<TWallState>(
     rollbackOnFailure: true,
     coldConsistencyIterations,
     coldConsistencyScaledCoordinateUpdate,
-    lastInternalCoordinates: fallback?.state.trisegCoordinates ?? null,
+    lastInternalCoordinates: fallback?.internalCoordinates ?? null,
     lastScaledAlgorithmicGeneralizedForceByOneJ:
       fallback?.scaledAlgorithmicGeneralizedForceByOneJ ?? null,
     lastRawAlgorithmicGeneralizedForce:
@@ -1743,7 +1782,7 @@ function buildReadback<TWallState>(
     solveMode,
     hiddenBloodVolumeMl: 0 as const,
     pistonVolumeApplied: false as const,
-    internalCoordinates: candidate.state.trisegCoordinates,
+    internalCoordinates: candidate.internalCoordinates,
     effectiveFiberLogStrainByWall: candidate.effectiveFiberLogStrainByWall,
     fiberKirchhoffStressPaByWall: candidate.fiberKirchhoffStressPaByWall,
     algorithmicStressPrimitiveJByWall:
