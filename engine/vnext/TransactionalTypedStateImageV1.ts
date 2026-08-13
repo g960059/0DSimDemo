@@ -8,6 +8,7 @@ import {
   createFlatNumericalStateLayoutV1,
   readFlatNumericalStatePathV1,
   type FlatNumericalPathSegmentV1,
+  type FlatNumericalSlotV1,
   type FlatNumericalStateLayoutV1,
   type FlatNumericalStateLayoutOptionsV1,
 } from "@/engine/vnext/FlatNumericalStateV1";
@@ -25,6 +26,11 @@ type TypedStateNodeV1 =
   | Readonly<{ kind: "f64"; slotIndex: number }>
   | Readonly<{ kind: "nullable-f64"; slotIndex: number }>
   | Readonly<{ kind: "nullable-string"; slotIndex: number }>
+  | Readonly<{
+    kind: "optional-record";
+    slotIndex: number;
+    value: TypedStateNodeV1;
+  }>
   | Readonly<{ kind: "boolean"; slotIndex: number }>
   | Readonly<{ kind: "string"; slotIndex: number }>
   | Readonly<{ kind: "dynamic"; slotIndex: number }>
@@ -77,6 +83,7 @@ type TypedStateImageLayoutV1 = Readonly<{
   stringMetadataByteOffset: number;
   nullableStringMetadataByteOffset: number;
   nullableStringPresenceByteOffset: number;
+  optionalRecordPresenceByteOffset: number;
   dynamicMetadataByteOffset: number;
   stringArenaByteOffset: number;
   dynamicArenaByteOffset: number;
@@ -111,6 +118,7 @@ export type TransactionalTypedStateImageReportV1 = Readonly<{
   continuousSlotCount: number;
   nullableContinuousSlotCount: number;
   nullableStringSlotCount: number;
+  optionalRecordRootCount: number;
   booleanSlotCount: number;
   stringSlotCount: number;
   dynamicRootCount: number;
@@ -139,6 +147,7 @@ export type TransactionalTypedStateImageSnapshotV1 = Readonly<{
   stringMetadata: Uint32Array;
   nullableStringMetadata: Uint32Array;
   nullableStringPresent: Uint8Array;
+  optionalRecordPresent: Uint8Array;
   stringBytes: Uint8Array;
   dynamicMetadata: Uint32Array;
   dynamicBytes: Uint8Array;
@@ -192,6 +201,7 @@ type MutableImageV1 = Readonly<{
   stringMetadata: Uint32Array;
   nullableStringMetadata: Uint32Array;
   nullableStringPresent: Uint8Array;
+  optionalRecordPresent: Uint8Array;
   dynamicMetadata: Uint32Array;
   stringArena: Uint8Array;
   dynamicArena: Uint8Array;
@@ -222,6 +232,13 @@ export function createTransactionalTypedStateManifestV1(
     referenceState,
     layoutOptions,
   );
+  for (const root of numericalLayout.optionalRecordRoots) {
+    assertTransitivelyFrozenData(
+      root.template,
+      `${root.pointer} optional-record template`,
+      new Set<object>(),
+    );
+  }
   const rootNode = compileNode(referenceState, [], numericalLayout);
   const externalImmutableRoots = numericalLayout.externalImmutableRoots.map(
     (root) => {
@@ -334,6 +351,7 @@ export class TransactionalTypedStateImageV1<TState> {
       candidate,
     );
     const candidateImage = this.#images[this.inactiveIndex()];
+    writeOptionalRecordPresence(this.#manifest, candidate, candidateImage);
     writeFixedLeaves(this.#manifest, candidate, candidateImage);
     writeNullableContinuousLeaves(this.#manifest, candidate, candidateImage);
     const stringBytes = writeStrings(this.#manifest, candidate, candidateImage);
@@ -411,6 +429,7 @@ export class TransactionalTypedStateImageV1<TState> {
       "boolean",
     );
     const candidateImage = this.#images[this.inactiveIndex()];
+    writeOptionalRecordPresence(this.#manifest, candidate, candidateImage);
     assertRetainedFixedLeavesMatch(
       this.#manifest,
       candidate,
@@ -496,6 +515,7 @@ export class TransactionalTypedStateImageV1<TState> {
       stringMetadata: image.stringMetadata.slice(),
       nullableStringMetadata: image.nullableStringMetadata.slice(),
       nullableStringPresent: image.nullableStringPresent.slice(),
+      optionalRecordPresent: image.optionalRecordPresent.slice(),
       stringBytes: image.stringArena.slice(0, this.#currentStringBytes),
       dynamicMetadata: image.dynamicMetadata.slice(),
       dynamicBytes: image.dynamicArena.slice(0, this.#currentDynamicBytes),
@@ -511,6 +531,7 @@ export class TransactionalTypedStateImageV1<TState> {
       continuousSlotCount: layout.continuousSlots.length,
       nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
       nullableStringSlotCount: layout.nullableStringSlots.length,
+      optionalRecordRootCount: layout.optionalRecordRoots.length,
       booleanSlotCount: layout.booleanSlots.length,
       stringSlotCount: layout.stringSlots.length,
       dynamicRootCount: layout.excludedDynamicRoots.length,
@@ -837,6 +858,10 @@ function writeFixedLeaves(
   const layout = manifest.numericalLayout;
   for (let index = 0; index < layout.continuousSlots.length; index += 1) {
     const slot = layout.continuousSlots[index]!;
+    if (optionalRecordAbsent(layout, state, slot)) {
+      if (!retainedContinuous?.has(index)) destination.continuous[index] = 0;
+      continue;
+    }
     const value = readFlatNumericalStatePathV1(state, slot.path);
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new Error(`Transactional typed state ${slot.pointer} must be finite`);
@@ -847,6 +872,10 @@ function writeFixedLeaves(
   }
   for (let index = 0; index < layout.booleanSlots.length; index += 1) {
     const slot = layout.booleanSlots[index]!;
+    if (optionalRecordAbsent(layout, state, slot)) {
+      if (!retainedBooleans?.has(index)) destination.booleans[index] = 0;
+      continue;
+    }
     const value = readFlatNumericalStatePathV1(state, slot.path);
     if (typeof value !== "boolean") {
       throw new Error(`Transactional typed state ${slot.pointer} must be boolean`);
@@ -909,6 +938,35 @@ function retainedSlotSet(
   return retained;
 }
 
+function writeOptionalRecordPresence(
+  manifest: TransactionalTypedStateManifestV1,
+  state: unknown,
+  destination: MutableImageV1,
+): void {
+  for (
+    let index = 0;
+    index < manifest.numericalLayout.optionalRecordRoots.length;
+    index += 1
+  ) {
+    const root = manifest.numericalLayout.optionalRecordRoots[index]!;
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    destination.optionalRecordPresent[index] = value === null ? 0 : 1;
+  }
+}
+
+function optionalRecordAbsent(
+  layout: FlatNumericalStateLayoutV1,
+  state: unknown,
+  slot: FlatNumericalSlotV1,
+): boolean {
+  if (slot.optionalRecordRootIndex === null) return false;
+  const root = layout.optionalRecordRoots[slot.optionalRecordRootIndex];
+  if (root === undefined) {
+    throw new Error("Transactional typed state optional-record slot owner is invalid");
+  }
+  return readFlatNumericalStatePathV1(state, root.path) === null;
+}
+
 function writeNullableContinuousLeaves(
   manifest: TransactionalTypedStateManifestV1,
   state: unknown,
@@ -917,6 +975,11 @@ function writeNullableContinuousLeaves(
   const slots = manifest.numericalLayout.nullableContinuousSlots;
   for (let index = 0; index < slots.length; index += 1) {
     const slot = slots[index]!;
+    if (optionalRecordAbsent(manifest.numericalLayout, state, slot)) {
+      destination.nullableContinuous[index] = 0;
+      destination.nullableContinuousPresent[index] = 0;
+      continue;
+    }
     const value = readFlatNumericalStatePathV1(state, slot.path);
     if (value === null) {
       destination.nullableContinuous[index] = 0;
@@ -945,6 +1008,17 @@ function writeStrings(
     index += 1
   ) {
     const slot = manifest.numericalLayout.stringSlots[index]!;
+    if (
+      optionalRecordAbsent(
+        manifest.numericalLayout,
+        state,
+        slot,
+      )
+    ) {
+      destination.stringMetadata[index * 2] = 0;
+      destination.stringMetadata[index * 2 + 1] = 0;
+      continue;
+    }
     const value = readFlatNumericalStatePathV1(state, slot.path);
     if (typeof value !== "string") {
       throw new Error(`Transactional typed state ${slot.pointer} must be a string`);
@@ -965,6 +1039,18 @@ function writeStrings(
     index += 1
   ) {
     const slot = manifest.numericalLayout.nullableStringSlots[index]!;
+    if (
+      optionalRecordAbsent(
+        manifest.numericalLayout,
+        state,
+        slot,
+      )
+    ) {
+      destination.nullableStringMetadata[index * 2] = 0;
+      destination.nullableStringMetadata[index * 2 + 1] = 0;
+      destination.nullableStringPresent[index] = 0;
+      continue;
+    }
     const value = readFlatNumericalStatePathV1(state, slot.path);
     if (value === null) {
       destination.nullableStringMetadata[index * 2] = 0;
@@ -1000,7 +1086,13 @@ function writeDynamicRoots(
   const roots = manifest.numericalLayout.excludedDynamicRoots;
   for (let index = 0; index < roots.length; index += 1) {
     const slot = roots[index]!;
-    const value = readFlatNumericalStatePathV1(state, slot.path);
+    const value = optionalRecordAbsent(
+      manifest.numericalLayout,
+      state,
+      slot,
+    )
+      ? null
+      : readFlatNumericalStatePathV1(state, slot.path);
     let length: number;
     try {
       length = encodeCanonicalFlatDataIntoV1(
@@ -1058,6 +1150,16 @@ function rehydrateNode(
         image.stringArena.subarray(offset, offset + length),
       );
     }
+    case "optional-record": {
+      const present = image.optionalRecordPresent[node.slotIndex]!;
+      if (present === 0) return null;
+      if (present !== 1) {
+        throw new Error(
+          "Transactional typed state optional record presence is invalid",
+        );
+      }
+      return rehydrateNode(node.value, image, externalImmutableRoots);
+    }
     case "boolean":
       return image.booleans[node.slotIndex] === 1;
     case "string": {
@@ -1114,8 +1216,27 @@ function compileNode(
   value: unknown,
   path: readonly FlatNumericalPathSegmentV1[],
   layout: FlatNumericalStateLayoutV1,
+  compilingOptionalRootIndex: number | null = null,
 ): TypedStateNodeV1 {
   const pathPointer = pointer(path);
+  const optionalRecordRootIndex = layout.optionalRecordRoots.findIndex(
+    (root) => root.pointer === pathPointer,
+  );
+  if (
+    optionalRecordRootIndex !== -1
+    && compilingOptionalRootIndex !== optionalRecordRootIndex
+  ) {
+    return Object.freeze({
+      kind: "optional-record" as const,
+      slotIndex: optionalRecordRootIndex,
+      value: compileNode(
+        layout.optionalRecordRoots[optionalRecordRootIndex]!.template,
+        path,
+        layout,
+        optionalRecordRootIndex,
+      ),
+    });
+  }
   const externalIndex = slotIndex(
     layout.externalImmutableRoots,
     pathPointer,
@@ -1168,7 +1289,12 @@ function compileNode(
   if (isNumericTypedArray(value)) {
     const items = Array.from(
       { length: value.length },
-      (_, index) => compileNode(value[index], [...path, index], layout),
+      (_, index) => compileNode(
+        value[index],
+        [...path, index],
+        layout,
+        compilingOptionalRootIndex,
+      ),
     );
     return Object.freeze({
       kind: "typed-array" as const,
@@ -1180,7 +1306,7 @@ function compileNode(
     return Object.freeze({
       kind: "array" as const,
       items: Object.freeze(value.map((item, index) =>
-        compileNode(item, [...path, index], layout))),
+        compileNode(item, [...path, index], layout, compilingOptionalRootIndex))),
     });
   }
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
@@ -1192,7 +1318,12 @@ function compileNode(
     }
     const entries = Object.keys(value).sort().map((key) => Object.freeze({
       key,
-      node: compileNode(requiredOwnValue(value, key, path), [...path, key], layout),
+      node: compileNode(
+        requiredOwnValue(value, key, path),
+        [...path, key],
+        layout,
+        compilingOptionalRootIndex,
+      ),
     }));
     return Object.freeze({
       kind: "record" as const,
@@ -1225,6 +1356,8 @@ function createImageLayout(
     + layout.nullableStringSlots.length * 2 * 4;
   const nullableStringPresenceByteOffset = offset;
   offset += layout.nullableStringSlots.length;
+  const optionalRecordPresenceByteOffset = offset;
+  offset += layout.optionalRecordRoots.length;
   const dynamicMetadataByteOffset = align(offset, 4);
   offset = dynamicMetadataByteOffset
     + layout.excludedDynamicRoots.length * 2 * 4;
@@ -1240,6 +1373,7 @@ function createImageLayout(
     stringMetadataByteOffset,
     nullableStringMetadataByteOffset,
     nullableStringPresenceByteOffset,
+    optionalRecordPresenceByteOffset,
     dynamicMetadataByteOffset,
     stringArenaByteOffset,
     dynamicArenaByteOffset,
@@ -1287,6 +1421,11 @@ function createImage(manifest: TransactionalTypedStateManifestV1): MutableImageV
       buffer,
       offsets.nullableStringPresenceByteOffset,
       layout.nullableStringSlots.length,
+    ),
+    optionalRecordPresent: new Uint8Array(
+      buffer,
+      offsets.optionalRecordPresenceByteOffset,
+      layout.optionalRecordRoots.length,
     ),
     dynamicMetadata: new Uint32Array(
       buffer,
@@ -1498,19 +1637,33 @@ function manifestFingerprint(
     ...layout.nullableStringSlots.map(
       ({ pointer: value }) => `nullable-string:${value}`,
     ),
+    ...layout.optionalRecordRoots.map(
+      ({ pointer: value }) => `optional-record:${value}`,
+    ),
     ...layout.booleanSlots.map(({ pointer: value }) => `bool:${value}`),
     ...layout.stringSlots.map(({ pointer: value }) => `string:${value}`),
     ...layout.externalImmutableRoots.map(
       ({ pointer: value }) => `external-immutable:${value}`,
     ),
     ...layout.excludedDynamicRoots.map(({ pointer: value }) => `dynamic:${value}`),
-    ...layout.containers.map((container) => [
-      "container",
-      container.pointer,
-      container.kind,
-      container.prototypeTag ?? "null",
-      container.keys.join(","),
-    ].join(":")),
+    ...layout.containers.map((container) => (
+      container.optionalRecordRootIndex === null
+        ? [
+          "container",
+          container.pointer,
+          container.kind,
+          container.prototypeTag ?? "null",
+          container.keys.join(","),
+        ]
+        : [
+          "container",
+          container.pointer,
+          container.kind,
+          container.prototypeTag ?? "null",
+          `optional-root-${container.optionalRecordRootIndex}`,
+          container.keys.join(","),
+        ]
+    ).join(":")),
   ].join("\n");
   let hash = 0x811c9dc5;
   for (const byte of UTF8_ENCODER.encode(canonical)) {

@@ -6,6 +6,7 @@ export type FlatNumericalPathSegmentV1 = string | number;
 export type FlatNumericalSlotV1 = Readonly<{
   path: readonly FlatNumericalPathSegmentV1[];
   pointer: string;
+  optionalRecordRootIndex: number | null;
 }>;
 
 export type FlatNumericalContainerV1 = Readonly<{
@@ -14,6 +15,18 @@ export type FlatNumericalContainerV1 = Readonly<{
   kind: "array" | "record" | "typed-array";
   keys: readonly string[];
   prototypeTag: string | null;
+  optionalRecordRootIndex: number | null;
+}>;
+
+export type FlatNumericalOptionalRecordRootV1 = Readonly<{
+  path: readonly FlatNumericalPathSegmentV1[];
+  pointer: string;
+  template: Readonly<Record<string, unknown>>;
+}>;
+
+export type FlatNumericalOptionalRecordTemplateV1 = Readonly<{
+  pointer: string;
+  template: Readonly<Record<string, unknown>>;
 }>;
 
 /**
@@ -28,6 +41,8 @@ export type FlatNumericalStateLayoutV1 = Readonly<{
   nullableContinuousSlots: readonly FlatNumericalSlotV1[];
   /** Explicit nullable string leaves represented by code + presence slots. */
   nullableStringSlots: readonly FlatNumericalSlotV1[];
+  /** Fixed-shape records represented by one presence byte plus typed leaves. */
+  optionalRecordRoots: readonly FlatNumericalOptionalRecordRootV1[];
   booleanSlots: readonly FlatNumericalSlotV1[];
   stringSlots: readonly FlatNumericalSlotV1[];
   /** Deeply immutable model-owned roots retained outside the hot images. */
@@ -46,6 +61,8 @@ export type FlatNumericalStateLayoutOptionsV1 = Readonly<{
   nullableContinuousPointers?: readonly string[];
   /** Null reference leaves that may evolve to strings. */
   nullableStringPointers?: readonly string[];
+  /** Null record roots that may evolve to the supplied exact fixed shape. */
+  optionalRecordTemplates?: readonly FlatNumericalOptionalRecordTemplateV1[];
 }>;
 
 /** Mutable storage owned by one numerical authority. */
@@ -55,6 +72,7 @@ export type FlatNumericalStateBufferV1 = Readonly<{
   nullableContinuousPresent: Uint8Array;
   nullableStrings: Uint32Array;
   nullableStringsPresent: Uint8Array;
+  optionalRecordPresent: Uint8Array;
   booleans: Uint8Array;
   strings: Uint32Array;
 }>;
@@ -79,6 +97,7 @@ export function createFlatNumericalStateLayoutV1(
   const continuousSlots: FlatNumericalSlotV1[] = [];
   const nullableContinuousSlots: FlatNumericalSlotV1[] = [];
   const nullableStringSlots: FlatNumericalSlotV1[] = [];
+  const optionalRecordRoots: FlatNumericalOptionalRecordRootV1[] = [];
   const booleanSlots: FlatNumericalSlotV1[] = [];
   const stringSlots: FlatNumericalSlotV1[] = [];
   const externalImmutableRoots: FlatNumericalSlotV1[] = [];
@@ -111,11 +130,16 @@ export function createFlatNumericalStateLayoutV1(
     "nullable-string",
   );
   const admittedNullableStringPointers = new Set<string>();
+  const optionalRecordTemplates = optionalRecordTemplateMap(
+    options.optionalRecordTemplates,
+  );
+  const admittedOptionalRecordPointers = new Set<string>();
 
   visit(referenceState, [], {
     continuousSlots,
     nullableContinuousSlots,
     nullableStringSlots,
+    optionalRecordRoots,
     booleanSlots,
     stringSlots,
     externalImmutableRoots,
@@ -129,6 +153,8 @@ export function createFlatNumericalStateLayoutV1(
     admittedNullableContinuousPointers,
     nullableStringPointers,
     admittedNullableStringPointers,
+    optionalRecordTemplates,
+    admittedOptionalRecordPointers,
   });
   for (const fixedArrayPointer of fixedArrayPointers) {
     if (!admittedFixedArrayPointers.has(fixedArrayPointer)) {
@@ -158,6 +184,13 @@ export function createFlatNumericalStateLayoutV1(
       );
     }
   }
+  for (const optionalRecordPointer of optionalRecordTemplates.keys()) {
+    if (!admittedOptionalRecordPointers.has(optionalRecordPointer)) {
+      throw new Error(
+        `Flat numerical optional-record ${optionalRecordPointer} is unavailable`,
+      );
+    }
+  }
   if (continuousSlots.length === 0) {
     throw new Error("Flat numerical state contains no continuous slots");
   }
@@ -167,6 +200,7 @@ export function createFlatNumericalStateLayoutV1(
     continuousSlots: Object.freeze(continuousSlots),
     nullableContinuousSlots: Object.freeze(nullableContinuousSlots),
     nullableStringSlots: Object.freeze(nullableStringSlots),
+    optionalRecordRoots: Object.freeze(optionalRecordRoots),
     booleanSlots: Object.freeze(booleanSlots),
     stringSlots: Object.freeze(stringSlots),
     externalImmutableRoots: Object.freeze(externalImmutableRoots),
@@ -186,6 +220,7 @@ export function createFlatNumericalStateBufferV1(
       new Uint8Array(layout.nullableContinuousSlots.length),
     nullableStrings: new Uint32Array(layout.nullableStringSlots.length),
     nullableStringsPresent: new Uint8Array(layout.nullableStringSlots.length),
+    optionalRecordPresent: new Uint8Array(layout.optionalRecordRoots.length),
     booleans: new Uint8Array(layout.booleanSlots.length),
     strings: new Uint32Array(layout.stringSlots.length),
   });
@@ -226,15 +261,27 @@ export function writeFlatNumericalStateV1(
   const nullableStringsPresent = new Uint8Array(
     layout.nullableStringSlots.length,
   );
+  const optionalRecordPresent = new Uint8Array(
+    layout.optionalRecordRoots.length,
+  );
   const booleans = new Uint8Array(layout.booleanSlots.length);
   const strings = new Uint32Array(layout.stringSlots.length);
   const stagedStringTable: FlatNumericalStringTableV1 = {
     codeByValue: new Map(stringTable.codeByValue),
     valuesByCode: [...stringTable.valuesByCode],
   };
+  for (let index = 0; index < layout.optionalRecordRoots.length; index += 1) {
+    const root = layout.optionalRecordRoots[index]!;
+    const value = requiredPathValue(state, root.path);
+    optionalRecordPresent[index] = value === null ? 0 : 1;
+  }
 
   for (let index = 0; index < layout.continuousSlots.length; index += 1) {
     const slot = layout.continuousSlots[index]!;
+    if (optionalRecordAbsent(layout, state, slot)) {
+      continuous[index] = 0;
+      continue;
+    }
     const value = requiredPathValue(state, slot.path);
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new Error(`Flat numerical state ${slot.pointer} must be finite`);
@@ -247,6 +294,11 @@ export function writeFlatNumericalStateV1(
     index += 1
   ) {
     const slot = layout.nullableContinuousSlots[index]!;
+    if (optionalRecordAbsent(layout, state, slot)) {
+      nullableContinuous[index] = 0;
+      nullableContinuousPresent[index] = 0;
+      continue;
+    }
     const value = requiredPathValue(state, slot.path);
     if (value === null) {
       nullableContinuous[index] = 0;
@@ -262,6 +314,10 @@ export function writeFlatNumericalStateV1(
   }
   for (let index = 0; index < layout.booleanSlots.length; index += 1) {
     const slot = layout.booleanSlots[index]!;
+    if (optionalRecordAbsent(layout, state, slot)) {
+      booleans[index] = 0;
+      continue;
+    }
     const value = requiredPathValue(state, slot.path);
     if (typeof value !== "boolean") {
       throw new Error(`Flat numerical state ${slot.pointer} must be boolean`);
@@ -270,6 +326,11 @@ export function writeFlatNumericalStateV1(
   }
   for (let index = 0; index < layout.nullableStringSlots.length; index += 1) {
     const slot = layout.nullableStringSlots[index]!;
+    if (optionalRecordAbsent(layout, state, slot)) {
+      nullableStrings[index] = 0;
+      nullableStringsPresent[index] = 0;
+      continue;
+    }
     const value = requiredPathValue(state, slot.path);
     if (value === null) {
       nullableStrings[index] = 0;
@@ -285,6 +346,10 @@ export function writeFlatNumericalStateV1(
   }
   for (let index = 0; index < layout.stringSlots.length; index += 1) {
     const slot = layout.stringSlots[index]!;
+    if (optionalRecordAbsent(layout, state, slot)) {
+      strings[index] = 0;
+      continue;
+    }
     const value = requiredPathValue(state, slot.path);
     if (typeof value !== "string") {
       throw new Error(`Flat numerical state ${slot.pointer} must be a string`);
@@ -296,6 +361,7 @@ export function writeFlatNumericalStateV1(
   destination.nullableContinuousPresent.set(nullableContinuousPresent);
   destination.nullableStrings.set(nullableStrings);
   destination.nullableStringsPresent.set(nullableStringsPresent);
+  destination.optionalRecordPresent.set(optionalRecordPresent);
   destination.booleans.set(booleans);
   destination.strings.set(strings);
   stringTable.codeByValue.clear();
@@ -317,7 +383,27 @@ export function assertFlatNumericalStateShapeV1(
   layout: FlatNumericalStateLayoutV1,
   state: unknown,
 ): void {
+  for (const root of layout.optionalRecordRoots) {
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    if (
+      value !== null
+      && (typeof value !== "object" || Array.isArray(value))
+    ) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} must be null or a record`,
+      );
+    }
+  }
   for (const container of layout.containers) {
+    if (
+      container.optionalRecordRootIndex !== null
+      && readFlatNumericalStatePathV1(
+        state,
+        layout.optionalRecordRoots[container.optionalRecordRootIndex]!.path,
+      ) === null
+    ) {
+      continue;
+    }
     assertContainerShape(
       readFlatNumericalStatePathV1(state, container.path),
       container,
@@ -348,6 +434,10 @@ export function flatNumericalStateBuffersEqualV1(
       left.nullableStringsPresent,
       right.nullableStringsPresent,
     )
+    && typedArraysEqual(
+      left.optionalRecordPresent,
+      right.optionalRecordPresent,
+    )
     && typedArraysEqual(left.booleans, right.booleans)
     && typedArraysEqual(left.strings, right.strings);
 }
@@ -359,6 +449,7 @@ function visit(
     continuousSlots: FlatNumericalSlotV1[];
     nullableContinuousSlots: FlatNumericalSlotV1[];
     nullableStringSlots: FlatNumericalSlotV1[];
+    optionalRecordRoots: FlatNumericalOptionalRecordRootV1[];
     booleanSlots: FlatNumericalSlotV1[];
     stringSlots: FlatNumericalSlotV1[];
     externalImmutableRoots: FlatNumericalSlotV1[];
@@ -372,10 +463,51 @@ function visit(
     admittedNullableContinuousPointers: Set<string>;
     nullableStringPointers: ReadonlySet<string>;
     admittedNullableStringPointers: Set<string>;
+    optionalRecordTemplates:
+      ReadonlyMap<string, Readonly<Record<string, unknown>>>;
+    admittedOptionalRecordPointers: Set<string>;
   },
+  optionalRecordRootIndex: number | null = null,
+  compilingOptionalPointer: string | null = null,
 ): void {
   const pathPointer = pointer(path);
+  const optionalTemplate = destination.optionalRecordTemplates.get(pathPointer);
+  if (
+    optionalTemplate !== undefined
+    && compilingOptionalPointer !== pathPointer
+  ) {
+    if (optionalRecordRootIndex !== null) {
+      throw new Error(
+        `Flat numerical optional-record ${pathPointer} may not be nested`,
+      );
+    }
+    if (value !== null) {
+      throw new Error(
+        `Flat numerical optional-record ${pathPointer} reference must be null`,
+      );
+    }
+    const nextOptionalRootIndex = destination.optionalRecordRoots.length;
+    destination.optionalRecordRoots.push(Object.freeze({
+      path: Object.freeze([...path]),
+      pointer: pathPointer,
+      template: optionalTemplate,
+    }));
+    destination.admittedOptionalRecordPointers.add(pathPointer);
+    visit(
+      optionalTemplate,
+      path,
+      destination,
+      nextOptionalRootIndex,
+      pathPointer,
+    );
+    return;
+  }
   if (destination.externalImmutablePointers.has(pathPointer)) {
+    if (optionalRecordRootIndex !== null) {
+      throw new Error(
+        `Flat numerical optional-record ${pathPointer} may not contain an external immutable root`,
+      );
+    }
     if (
       value === undefined
       || typeof value === "function"
@@ -386,7 +518,7 @@ function visit(
         `Flat numerical external-immutable ${pathPointer} is unsupported`,
       );
     }
-    destination.externalImmutableRoots.push(slot(path));
+    destination.externalImmutableRoots.push(slot(path, optionalRecordRootIndex));
     destination.admittedExternalImmutablePointers.add(pathPointer);
     return;
   }
@@ -396,7 +528,7 @@ function visit(
         `Flat numerical nullable-continuous ${pathPointer} reference must be null`,
       );
     }
-    destination.nullableContinuousSlots.push(slot(path));
+    destination.nullableContinuousSlots.push(slot(path, optionalRecordRootIndex));
     destination.admittedNullableContinuousPointers.add(pathPointer);
     return;
   }
@@ -406,7 +538,7 @@ function visit(
         `Flat numerical nullable-string ${pathPointer} reference must be null`,
       );
     }
-    destination.nullableStringSlots.push(slot(path));
+    destination.nullableStringSlots.push(slot(path, optionalRecordRootIndex));
     destination.admittedNullableStringPointers.add(pathPointer);
     return;
   }
@@ -414,24 +546,24 @@ function visit(
     if (!Number.isFinite(value)) {
       throw new Error(`Flat numerical state ${pointer(path)} must be finite`);
     }
-    destination.continuousSlots.push(slot(path));
+    destination.continuousSlots.push(slot(path, optionalRecordRootIndex));
     return;
   }
   if (typeof value === "boolean") {
-    destination.booleanSlots.push(slot(path));
+    destination.booleanSlots.push(slot(path, optionalRecordRootIndex));
     return;
   }
   if (typeof value === "string") {
-    destination.stringSlots.push(slot(path));
+    destination.stringSlots.push(slot(path, optionalRecordRootIndex));
     return;
   }
   if (value === null) {
-    destination.excludedDynamicRoots.push(slot(path));
+    destination.excludedDynamicRoots.push(slot(path, optionalRecordRootIndex));
     return;
   }
   if (Array.isArray(value)) {
     if (!destination.fixedArrayPointers.has(pathPointer)) {
-      destination.excludedDynamicRoots.push(slot(path));
+      destination.excludedDynamicRoots.push(slot(path, optionalRecordRootIndex));
       return;
     }
     assertDataProperties(value, path, true);
@@ -439,10 +571,22 @@ function visit(
     if (!sameStrings(Object.keys(value), keys)) {
       throw new Error(`Flat numerical state ${pathPointer} changed array shape`);
     }
-    destination.containers.push(container(path, "array", keys));
+    destination.containers.push(container(
+      path,
+      "array",
+      keys,
+      null,
+      optionalRecordRootIndex,
+    ));
     destination.admittedFixedArrayPointers.add(pathPointer);
     for (let index = 0; index < value.length; index += 1) {
-      visit(value[index], [...path, index], destination);
+      visit(
+        value[index],
+        [...path, index],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+      );
     }
     return;
   }
@@ -453,9 +597,16 @@ function visit(
       "typed-array",
       keys,
       value.constructor.name,
+      optionalRecordRootIndex,
     ));
     for (let index = 0; index < value.length; index += 1) {
-      visit(value[index], [...path, index], destination);
+      visit(
+        value[index],
+        [...path, index],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+      );
     }
     return;
   }
@@ -463,9 +614,21 @@ function visit(
     const prototypeTag = dataRecordPrototypeTag(value, path);
     assertDataProperties(value, path, false);
     const keys = Object.keys(value).sort();
-    destination.containers.push(container(path, "record", keys, prototypeTag));
+    destination.containers.push(container(
+      path,
+      "record",
+      keys,
+      prototypeTag,
+      optionalRecordRootIndex,
+    ));
     for (const key of keys) {
-      visit(requiredOwnValue(value, key, path), [...path, key], destination);
+      visit(
+        requiredOwnValue(value, key, path),
+        [...path, key],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+      );
     }
     return;
   }
@@ -492,6 +655,48 @@ function pointerSet(
     throw new Error(`Flat numerical ${owner} pointer is duplicated`);
   }
   return values;
+}
+
+function optionalRecordTemplateMap(
+  templates: readonly FlatNumericalOptionalRecordTemplateV1[] | undefined,
+): ReadonlyMap<string, Readonly<Record<string, unknown>>> {
+  const values = new Map<string, Readonly<Record<string, unknown>>>();
+  for (const entry of templates ?? []) {
+    if (
+      typeof entry.pointer !== "string"
+      || entry.pointer === "/"
+      || !entry.pointer.startsWith("/")
+    ) {
+      throw new Error("Flat numerical optional-record pointer is invalid");
+    }
+    if (
+      entry.template === null
+      || typeof entry.template !== "object"
+      || Array.isArray(entry.template)
+    ) {
+      throw new Error(
+        `Flat numerical optional-record ${entry.pointer} template is invalid`,
+      );
+    }
+    if (values.has(entry.pointer)) {
+      throw new Error("Flat numerical optional-record pointer is duplicated");
+    }
+    values.set(entry.pointer, entry.template);
+  }
+  return values;
+}
+
+function optionalRecordAbsent(
+  layout: FlatNumericalStateLayoutV1,
+  state: unknown,
+  slot: FlatNumericalSlotV1,
+): boolean {
+  if (slot.optionalRecordRootIndex === null) return false;
+  const root = layout.optionalRecordRoots[slot.optionalRecordRootIndex];
+  if (root === undefined) {
+    throw new Error("Flat numerical optional-record slot owner is invalid");
+  }
+  return readFlatNumericalStatePathV1(state, root.path) === null;
 }
 
 function assertContainerShape(value: unknown, expected: FlatNumericalContainerV1): void {
@@ -617,6 +822,7 @@ function assertBufferMatchesLayout(
       !== layout.nullableContinuousSlots.length
     || buffer.nullableStrings.length !== layout.nullableStringSlots.length
     || buffer.nullableStringsPresent.length !== layout.nullableStringSlots.length
+    || buffer.optionalRecordPresent.length !== layout.optionalRecordRoots.length
     || buffer.booleans.length !== layout.booleanSlots.length
     || buffer.strings.length !== layout.stringSlots.length
   ) {
@@ -624,9 +830,16 @@ function assertBufferMatchesLayout(
   }
 }
 
-function slot(path: readonly FlatNumericalPathSegmentV1[]): FlatNumericalSlotV1 {
+function slot(
+  path: readonly FlatNumericalPathSegmentV1[],
+  optionalRecordRootIndex: number | null = null,
+): FlatNumericalSlotV1 {
   const ownedPath = Object.freeze([...path]);
-  return Object.freeze({ path: ownedPath, pointer: pointer(ownedPath) });
+  return Object.freeze({
+    path: ownedPath,
+    pointer: pointer(ownedPath),
+    optionalRecordRootIndex,
+  });
 }
 
 function container(
@@ -634,6 +847,7 @@ function container(
   kind: FlatNumericalContainerV1["kind"],
   keys: readonly string[],
   prototypeTag: string | null = null,
+  optionalRecordRootIndex: number | null = null,
 ): FlatNumericalContainerV1 {
   const ownedPath = Object.freeze([...path]);
   return Object.freeze({
@@ -642,6 +856,7 @@ function container(
     kind,
     keys: Object.freeze([...keys]),
     prototypeTag,
+    optionalRecordRootIndex,
   });
 }
 

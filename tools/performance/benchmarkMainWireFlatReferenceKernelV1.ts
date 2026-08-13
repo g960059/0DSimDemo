@@ -112,6 +112,7 @@ process.stdout.write(`${JSON.stringify({
     continuousSlotCount: layout.continuousSlots.length,
     nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
     nullableStringSlotCount: layout.nullableStringSlots.length,
+    optionalRecordRootCount: layout.optionalRecordRoots.length,
     booleanSlotCount: layout.booleanSlots.length,
     stringSlotCount: layout.stringSlots.length,
     excludedDynamicRootCount: layout.excludedDynamicRoots.length,

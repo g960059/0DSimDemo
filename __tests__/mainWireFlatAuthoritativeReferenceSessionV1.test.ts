@@ -451,6 +451,104 @@ describe("TransactionalTypedStateImageV1", () => {
     )).toThrow("nullable-string /missing is unavailable");
   });
 
+  it("stores declared nullable fixed-shape records behind one presence tag", () => {
+    type OptionalRecord = Readonly<{
+      label: string;
+      gain: number;
+      enabled: boolean;
+      sourceId: string | null;
+      nested: Readonly<{ count: number }>;
+      pair: readonly [number, number];
+    }>;
+    type State = Readonly<{
+      value: number;
+      optional: OptionalRecord | null;
+    }>;
+    const template: OptionalRecord = Object.freeze({
+      label: "template",
+      gain: 0,
+      enabled: false,
+      sourceId: null,
+      nested: Object.freeze({ count: 0 }),
+      pair: Object.freeze([0, 0] as const),
+    });
+    const initial: State = Object.freeze({ value: 1, optional: null });
+    const manifest = createTransactionalTypedStateManifestV1(
+      "test-optional-record-state",
+      initial,
+      128,
+      1,
+      {
+        fixedArrayPointers: ["/optional/pair"],
+        nullableStringPointers: ["/optional/sourceId"],
+        optionalRecordTemplates: [{ pointer: "/optional", template }],
+      },
+    );
+    expect(manifest.numericalLayout).toMatchObject({
+      optionalRecordRoots: [{ pointer: "/optional" }],
+      nullableStringSlots: [{ pointer: "/optional/sourceId" }],
+      excludedDynamicRoots: [],
+    });
+    const image = new TransactionalTypedStateImageV1(manifest, initial);
+    expect(image.report()).toMatchObject({
+      optionalRecordRootCount: 1,
+      dynamicRootCount: 0,
+    });
+    expect(image.snapshot().optionalRecordPresent).toEqual(new Uint8Array([0]));
+    expect(image.rehydrateCurrent()).toEqual(initial);
+
+    const present: State = Object.freeze({
+      value: 2,
+      optional: Object.freeze({
+        label: "accepted",
+        gain: 1.25,
+        enabled: true,
+        sourceId: "source:1",
+        nested: Object.freeze({ count: 3 }),
+        pair: Object.freeze([4, 5] as const),
+      }),
+    });
+    image.stage(present);
+    image.promote();
+    expect(image.snapshot().optionalRecordPresent).toEqual(new Uint8Array([1]));
+    expect(image.rehydrateCurrent()).toEqual(present);
+
+    image.stage(Object.freeze({ value: 3, optional: null }));
+    image.promote();
+    expect(image.rehydrateCurrent()).toEqual({ value: 3, optional: null });
+    expect(() => image.stage(Object.freeze({
+      value: 4,
+      optional: Object.freeze({
+        ...present.optional!,
+        unexpected: true,
+      }),
+    }) as unknown as State)).toThrow("changed record shape");
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-mutable-optional-record-template",
+      initial,
+      128,
+      1,
+      {
+        optionalRecordTemplates: [{
+          pointer: "/optional",
+          template: { label: "mutable" },
+        }],
+      },
+    )).toThrow("optional-record template must be frozen");
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-missing-optional-record",
+      initial,
+      128,
+      1,
+      {
+        optionalRecordTemplates: [{
+          pointer: "/missing",
+          template: Object.freeze({ value: 0 }),
+        }],
+      },
+    )).toThrow("optional-record /missing is unavailable");
+  });
+
   it("round-trips all leaf classes and keeps failed candidates inactive", () => {
     type State = Readonly<{
       value: number;
@@ -752,17 +850,18 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const initialReport = reference.authorityReport();
     expect(initialReport).toMatchObject({
       authorityId: "main-wire-integrated-accepted-typed-state-authority-v1",
-      fingerprint: "fnv1a32-99df72aa",
-      bufferByteLength: 34_988,
+      fingerprint: "fnv1a32-dd38f349",
+      bufferByteLength: 35_372,
       fixedImageCount: 2,
-      continuousSlotCount: 253,
+      continuousSlotCount: 283,
       nullableContinuousSlotCount: 6,
-      nullableStringSlotCount: 2,
+      nullableStringSlotCount: 5,
+      optionalRecordRootCount: 4,
       booleanSlotCount: 2,
-      stringSlotCount: 6,
-      dynamicRootCount: 9,
+      stringSlotCount: 24,
+      dynamicRootCount: 5,
       externalImmutableRootCount: 56,
-      containerCount: 80,
+      containerCount: 96,
       commitCount: 0,
       externalImmutableIdentityMatchCount: 56,
       externalImmutableCanonicalMatchCount: 0,

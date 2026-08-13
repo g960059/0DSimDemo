@@ -9,6 +9,13 @@ import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
+  createDefaultCoronaryAutoregulationWindowControlV3,
+} from "@/engine/coronary/acceptedAutoregulationWindowV3";
+import {
+  VENTRICULAR_BACKUP_SOURCE_ATTEMPT_RESULT_V2_ID,
+  type VentricularBackupSourceAttemptResultV2,
+} from "@/engine/myocardium/rhythm/acceptedVentricularBackupSourceOwnerV2";
+import {
   encodeCanonicalFlatDataIntoV1,
   measureCanonicalFlatDataV1,
 } from "@/engine/vnext/CanonicalFlatDataV1";
@@ -28,22 +35,24 @@ export const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID =
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID =
   "main-wire-integrated-accepted-typed-state-v1" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT =
-  "fnv1a32-99df72aa" as const;
+  "fnv1a32-dd38f349" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1 =
   16 * 1024;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1 =
   16 * 1024;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 34_988 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 35_372 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 =
-  253 as const;
+  283 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 =
   6 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1 =
-  2 as const;
+  5 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1 =
+  4 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 2 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 6 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 9 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 80 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 24 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 5 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 96 as const;
 
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
   "/composedRhythm/calciumStateByWall/LA",
@@ -136,8 +145,27 @@ const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1 =
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1 =
   Object.freeze([
     "/composedRhythm/electricalCaptureState/atrialGate/lastCapturedActivationId",
+    "/composedRhythm/ventricularBackupState/lastAcceptedVentricularActivation/upstreamCapturedActivationId",
+    "/composedRhythm/ventricularBackupState/lastIntrinsicEscapeAttemptResult/capturedActivationId",
+    "/composedRhythm/ventricularBackupState/lastVviPacingAttemptResult/capturedActivationId",
     "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/upstreamCapturedActivationId",
   ]);
+
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1:
+VentricularBackupSourceAttemptResultV2 = Object.freeze({
+  resultSchemaId: VENTRICULAR_BACKUP_SOURCE_ATTEMPT_RESULT_V2_ID,
+  schemaVersion: 2,
+  sourceImpulseId: "template-source-impulse",
+  sourceKind: "escape",
+  sourceId: "template-source",
+  sourceSequence: 0,
+  activationTimeSec: 0,
+  outcome: "not-captured",
+  capturedActivationId: null,
+});
+
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTOREGULATION_CONTROL_TEMPLATE_V1 =
+  createDefaultCoronaryAutoregulationWindowControlV3();
 
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<
   MainWireNormalAdultFiveWallMechanicsStateV1
@@ -169,6 +197,33 @@ export function createMainWireAcceptedTypedStateManifestV1(
         MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1,
       nullableStringPointers:
         MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1,
+      optionalRecordTemplates: [
+        {
+          pointer:
+            "/composedRhythm/ventricularBackupState/lastAcceptedVentricularActivation",
+          template: coldAcceptedState.composedRhythm
+            .ventricularIntervalStrengthState
+            .initialPriorAcceptedVentricularActivation,
+        },
+        {
+          pointer:
+            "/composedRhythm/ventricularBackupState/lastIntrinsicEscapeAttemptResult",
+          template:
+            MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1,
+        },
+        {
+          pointer:
+            "/composedRhythm/ventricularBackupState/lastVviPacingAttemptResult",
+          template:
+            MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1,
+        },
+        {
+          pointer:
+            "/coronary/coronaryAutoregulation/windowControl",
+          template:
+            MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTOREGULATION_CONTROL_TEMPLATE_V1,
+        },
+      ],
     },
   );
   const layout = manifest.numericalLayout;
@@ -183,6 +238,8 @@ export function createMainWireAcceptedTypedStateManifestV1(
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1
     || layout.nullableStringSlots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1
+    || layout.optionalRecordRoots.length
+      !== MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1
     || layout.booleanSlots.length
       !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1
     || layout.stringSlots.length
@@ -199,6 +256,7 @@ export function createMainWireAcceptedTypedStateManifestV1(
         + `${layout.continuousSlots.length}/`
         + `${layout.nullableContinuousSlots.length}/`
         + `${layout.nullableStringSlots.length}/`
+        + `${layout.optionalRecordRoots.length}/`
         + `${layout.booleanSlots.length}/`
         + `${layout.stringSlots.length}/${layout.excludedDynamicRoots.length}/`
         + `${layout.externalImmutableRoots.length}/${layout.containers.length})`,

@@ -62,12 +62,17 @@ for (let tick = 0; tick <= 1_024; tick += 1) {
     observed.set(root.pointer, entry);
   }
   for (const slot of layout.stringSlots) {
-    const value = slot.path.reduce<unknown>((current, segment) => {
-      if (current === null || typeof current !== "object") {
-        throw new Error(`${slot.pointer} is unavailable`);
-      }
-      return (current as Record<string | number, unknown>)[segment];
-    }, state);
+    if (
+      slot.optionalRecordRootIndex !== null
+      && layout.optionalRecordRoots[slot.optionalRecordRootIndex] !== undefined
+      && readPath(
+        state,
+        layout.optionalRecordRoots[slot.optionalRecordRootIndex]!.path,
+      ) === null
+    ) {
+      continue;
+    }
+    const value = readPath(state, slot.path);
     if (typeof value !== "string") {
       throw new Error(`${slot.pointer} is not a string`);
     }
@@ -89,6 +94,7 @@ process.stdout.write(`${JSON.stringify({
     continuousSlotCount: layout.continuousSlots.length,
     nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
     nullableStringSlotCount: layout.nullableStringSlots.length,
+    optionalRecordRootCount: layout.optionalRecordRoots.length,
     booleanSlotCount: layout.booleanSlots.length,
     stringSlotCount: layout.stringSlots.length,
     dynamicRootCount: layout.excludedDynamicRoots.length,
@@ -110,6 +116,9 @@ process.stdout.write(`${JSON.stringify({
       ),
     ),
     nullableString: Object.fromEntries(layout.nullableStringSlots.map(
+      ({ pointer }, index) => [pointer, index],
+    )),
+    optionalRecord: Object.fromEntries(layout.optionalRecordRoots.map(
       ({ pointer }, index) => [pointer, index],
     )),
     boolean: Object.fromEntries(layout.booleanSlots.map(
@@ -143,3 +152,15 @@ process.stdout.write(`${JSON.stringify({
     layout.containers.map(({ prototypeTag }) => prototypeTag),
   )],
 }, null, 2)}\n`);
+
+function readPath(
+  root: unknown,
+  path: readonly (string | number)[],
+): unknown {
+  return path.reduce<unknown>((current, segment) => {
+    if (current === null || typeof current !== "object") {
+      throw new Error(`/${path.join("/")} is unavailable`);
+    }
+    return (current as Record<string | number, unknown>)[segment];
+  }, root);
+}
