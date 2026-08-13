@@ -30,6 +30,9 @@ anonymous Article projection as inert JSON, so the client does not fetch the
 same Article a second time before becoming interactive. Snapshot resolution
 continues in the background; the handoff occurs only after the Reader is ready
 and transfers the document scroll position into the Reader's scroll container.
+The cached first response necessarily uses anonymous chrome; account-specific
+controls may replace it only after the browser resolves an authenticated
+session.
 
 ## Why this boundary
 
