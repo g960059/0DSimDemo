@@ -828,22 +828,43 @@ the initial physical volumes and residual scales use the corresponding
 equation-volume scale; convergence tolerances, line-search merit, lower bounds,
 and returned updates remain in physical units. After convergence, an
 independent cold audit evaluates the eliminated `SV` continuity equation and
-requires its residual to remain below the declared physical tolerance. These
-are correctness and work-count milestones, not yet a runtime speed claim: the
-residual still materializes the cold object oracle and must next become a
-session-owned flat writer before production qualification.
+requires its residual to remain below the declared physical tolerance.
 
-That warning is measured rather than rhetorical. A 30-sample local diagnostic
-after warm-up measured a median `1.28 ms` for the complete analytic coupled
-solve, `18.99 ms` for the all-central-difference construction oracle, and
-`1.17 ms` for the current nested accepted step. The analytic assembly is about
-`14.8x` faster than its FD oracle but only `0.91x` as fast as the nested path.
-It therefore fails the predeclared `1.8x` productionization gate in its current
-form. The remaining hypothesis is narrower: repeated graph construction,
-validation, object snapshots, and candidate materialization around an otherwise
-cheaper coupled algebra dominate the cold bridge. The next slice must replace
-that bridge with one reusable flat residual/linearization workspace and measure
-again; moving directly to WASM would only preserve the wrong boundary.
+The first cold implementation established correctness but not a runtime win.
+A 30-sample diagnostic measured median times of `1.28 ms` for the analytic
+coupled solve, `18.99 ms` for the full central-difference oracle, and `1.17 ms`
+for the nested path. The analytic assembly was `14.8x` faster than its FD
+oracle but only `0.91x` as fast as the nested path. That result rejected
+production cutover and isolated the remaining cost to repeated graph
+construction, validation, object snapshots, and candidate materialization
+around the coupled algebra.
+
+The follow-up slice preserves the equations while replacing that cold bridge
+with session-owned scratch, a prepared non-coronary evaluator, direct typed
+coronary residual/boundary/volume writers, and dense LU that equilibrates and
+factors the caller-owned matrix in place. A modified-Newton experiment reuses
+one accepted Jacobian for at most two accepted Newton updates. The canonical
+candidate still needs three Newton updates, but now performs four residual
+evaluations and two Jacobian builds/factorizations rather than three. The
+full-Newton and modified-Newton solutions agree to eight decimal digits, their
+physical residuals remain below `1e-8`, and reuse of the same workspace is
+deterministic.
+
+The production-like benchmark gives the legacy nested solver its production
+coronary and non-coronary scratch workspaces. After 1,000 warm-up solves, three
+independent 5,000-solve runs measured coupled/legacy median pairs of
+`0.434/0.793 ms`, `0.441/0.808 ms`, and `0.441/0.805 ms`, for speedups of
+`1.827x`, `1.835x`, and `1.824x`. Thus the local host diagnostic now clears the
+predeclared `1.8x` threshold reproducibly. This is evidence that eliminating
+the nested solve is worthwhile; it is not an iPhone qualification, a full-cycle
+trajectory gate, or authorization to replace the accepted-step authority.
+
+An exact `14+16` block-Schur linear solve was also implemented and measured.
+At one patch it reached only about `1.53x` over the legacy nested path because
+fourteen auxiliary solves and block copying outweighed the smaller factors, so
+the experiment was removed. Dense `30x30` LU remains the simpler and faster
+P=1 baseline. A bordered/block solver becomes eligible again only when
+multipatch repetition changes that cost balance.
 
 The Newton domain now also owns physical lower bounds for all 16 coronary
 storage volumes and the coupled fixed-blood-volume inequality. The dependent
@@ -856,8 +877,10 @@ The initial coupled implementation keeps the exact 2 ms backward-Euler clock,
 event clipping, closed-form valve/Land eliminations, and all accepted-state
 owners unchanged. It replaces three outer candidates, about four inner
 coronary Newton iterations, and fifteen implicit-sensitivity solves with one
-coupled nonlinear solve and one factorization per Newton iteration. A
-predictor, modified-Newton Jacobian reuse, a higher-order integrator, or WASM
+coupled nonlinear solve. Full Newton remains the reference. The tested
+modified-Newton candidate may reuse a validated Jacobian for one subsequent
+accepted update, but production use still requires the full branch, trajectory,
+rollback, and checkpoint gates. A predictor, higher-order integrator, or WASM
 may be evaluated only after this baseline identifies their marginal value.
 
 The old nested runtime is a test oracle, not the production fallback. A six-

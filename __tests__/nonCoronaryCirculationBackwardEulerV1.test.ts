@@ -24,10 +24,13 @@ import {
   commitNonCoronaryCirculationTrialWithConservativeCompanionV1,
   createInitialNonCoronaryCirculationStateV1,
   createNonCoronaryBackwardEulerScratchWorkspaceV1,
+  evaluateNonCoronaryCirculationCandidateProbeV1,
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
+  prepareNonCoronaryCandidateEvaluatorV1,
   resolveNonCoronaryCirculationColdSeedV1,
   restoreNonCoronaryCirculationStateV1,
   solveSignedLinearQuadraticFlowV1,
+  withPreparedNonCoronaryCandidateV1,
   type NonCoronaryCandidateMechanicsCallbackV1,
   type NonCoronaryAbsoluteChamberPressureTangentV1,
   type NonCoronaryChamberPressuresMmHgV1,
@@ -913,6 +916,87 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     if (trial.converged === true) throw new Error("expected invalid input");
     expect(trial.reason).toBe("invalid-input");
     expect(trial.message).toMatch(/absoluteContinuityResidualToleranceMl/);
+  });
+
+  it("reuses a prepared candidate evaluator without changing the canonical probe", () => {
+    const fixture = steadyStateFixture();
+    const input = Object.freeze({
+      previousAcceptedState: fixture.state,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics:
+        coupledElasticMechanicsCallback(fixture.state, true),
+    });
+    const independentVolumes = Float64Array.from(
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.map(
+        (name) => fixture.state.nodeVolumesMl[name],
+      ),
+    );
+    const canonical = evaluateNonCoronaryCirculationCandidateProbeV1(
+      input,
+      independentVolumes,
+    );
+    const prepared = prepareNonCoronaryCandidateEvaluatorV1(input);
+    const observed = withPreparedNonCoronaryCandidateV1(
+      prepared,
+      independentVolumes,
+      (candidate, dependentSvColumn, localJacobian) => {
+        expect(() => withPreparedNonCoronaryCandidateV1(
+          prepared,
+          independentVolumes,
+          () => null,
+        )).toThrow(/already in use/);
+        return {
+          candidateTimeSec: candidate.candidateTimeSec,
+          nodeVolumesMl: Array.from(candidate.nodeVolumesMl),
+          nodeAbsolutePressuresMmHg:
+            Array.from(candidate.nodeAbsolutePressuresMmHg),
+          vascularPressureTangentMmHgPerMl:
+            Array.from(candidate.vascularPressureTangentMmHgPerMl),
+          edgeFlowsMlPerSec: Array.from(candidate.edgeFlowsMlPerSec),
+          continuityResidualMlByNode:
+            Array.from(candidate.continuityResidualMlByNode),
+          dependentSvColumn: Array.from(dependentSvColumn),
+          localJacobian: localJacobian === null
+            ? null
+            : Array.from(localJacobian),
+        };
+      },
+    );
+
+    expect(observed.candidateTimeSec).toBe(canonical.candidateTimeSec);
+    expect(observed.nodeVolumesMl).toEqual(
+      Array.from(canonical.candidateNodeVolumesMl),
+    );
+    expect(observed.nodeAbsolutePressuresMmHg).toEqual(
+      Array.from(canonical.nodeAbsolutePressuresMmHg),
+    );
+    expect(observed.vascularPressureTangentMmHgPerMl).toEqual(
+      Array.from(canonical.vascularPressureTangentMmHgPerMl),
+    );
+    expect(observed.edgeFlowsMlPerSec).toEqual(
+      Array.from(canonical.edgeFlowsMlPerSec),
+    );
+    expect(observed.continuityResidualMlByNode).toEqual(
+      Array.from(canonical.continuityResidualMlByNode),
+    );
+    expect(observed.dependentSvColumn).toEqual(
+      Array.from(
+        canonical.localIndependentResidualDDependentSvVolumeMlPerMl!,
+      ),
+    );
+    expect(observed.localJacobian).toEqual(
+      Array.from(
+        canonical.localIndependentResidualDIndependentVolumeMlPerMl!,
+      ),
+    );
+
+    const foreign = Object.freeze({ ...prepared }) as typeof prepared;
+    expect(() => withPreparedNonCoronaryCandidateV1(
+      foreign,
+      independentVolumes,
+      () => null,
+    )).toThrow(/foreign/);
   });
 
   it("couples a pure same-candidate companion through the global TBV ledger and companion-aware commit", () => {

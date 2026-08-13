@@ -67,6 +67,7 @@ import {
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
+  createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
   solveMainWireFiveWallCoupledNewtonShadowV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
 
@@ -711,6 +712,19 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       stepInput,
     );
     const coupled = solveMainWireFiveWallCoupledNewtonShadowV1(context);
+    const sharedWorkspace =
+      createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    const reusedJacobian = solveMainWireFiveWallCoupledNewtonShadowV1(
+      context,
+      { maximumAcceptedStepsPerJacobian: 2 },
+      sharedWorkspace,
+    );
+    const repeatedWithSameWorkspace =
+      solveMainWireFiveWallCoupledNewtonShadowV1(
+        context,
+        { maximumAcceptedStepsPerJacobian: 2 },
+        sharedWorkspace,
+      );
     const finiteDifferenceOnly = solveMainWireFiveWallCoupledNewtonShadowV1(
       context,
       { jacobianMode: "central-difference" },
@@ -722,16 +736,37 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     );
 
     expect(coupled.result.status).toBe("converged");
+    expect(reusedJacobian.result.status).toBe("converged");
+    expect(repeatedWithSameWorkspace.result.status).toBe("converged");
     expect(finiteDifferenceOnly.result.status).toBe("converged");
     expect(legacy.converged).toBe(true);
     if (coupled.result.status !== "converged") {
       throw new Error(coupled.result.message);
+    }
+    if (reusedJacobian.result.status !== "converged") {
+      throw new Error(reusedJacobian.result.message);
+    }
+    if (repeatedWithSameWorkspace.result.status !== "converged") {
+      throw new Error(repeatedWithSameWorkspace.result.message);
     }
     if (finiteDifferenceOnly.result.status !== "converged") {
       throw new Error(finiteDifferenceOnly.result.message);
     }
     if (legacy.converged === false) throw new Error(legacy.message);
     const converged = coupled.result;
+    expect(reusedJacobian.result.jacobianEvaluationCount).toBeLessThan(
+      converged.jacobianEvaluationCount,
+    );
+    expect(reusedJacobian.result.residualInfinityNorm).toBeLessThan(1e-8);
+    for (let index = 0; index < converged.solution.length; index += 1) {
+      expect(reusedJacobian.result.solution[index]).toBeCloseTo(
+        converged.solution[index]!,
+        8,
+      );
+      expect(repeatedWithSameWorkspace.result.solution[index]).toBe(
+        reusedJacobian.result.solution[index],
+      );
+    }
     expect(coupled.coronaryAnalyticBlockAssemblyCount)
       .toBe(converged.jacobianEvaluationCount);
     expect(coupled.coronaryBoundaryAnalyticBlockAssemblyCount)

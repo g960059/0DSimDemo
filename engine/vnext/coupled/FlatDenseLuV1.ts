@@ -27,10 +27,24 @@ export function factorFlatDenseMatrixV1(
   workspace: FlatDenseLuWorkspaceV1,
   minimumAbsolutePivot = 1e-14,
 ): boolean {
-  const { dimension, factors, pivotRowByColumn } = workspace;
+  const { dimension, factors } = workspace;
   requireMatrixLength(source, dimension, "source matrix");
   requirePositiveFinite(minimumAbsolutePivot, "minimumAbsolutePivot");
   factors.set(source);
+
+  return factorPreparedFlatDenseMatrixV1(workspace, minimumAbsolutePivot);
+}
+
+/**
+ * Factor values already written into `workspace.factors`. The caller must
+ * have validated that every entry is finite before granting this hot path.
+ */
+export function factorPreparedFlatDenseMatrixV1(
+  workspace: FlatDenseLuWorkspaceV1,
+  minimumAbsolutePivot = 1e-14,
+): boolean {
+  const { dimension, factors, pivotRowByColumn } = workspace;
+  requirePositiveFinite(minimumAbsolutePivot, "minimumAbsolutePivot");
 
   for (let column = 0; column < dimension; column += 1) {
     let pivotRow = column;
@@ -74,14 +88,29 @@ export function solveFactoredFlatDenseSystemV1(
   rightHandSide: Float64Array,
   solution: Float64Array,
 ): void {
+  const { dimension } = workspace;
+  requireVectorLength(rightHandSide, dimension, "right-hand side");
+  requireVectorLength(solution, dimension, "solution");
+
+  solvePreparedFactoredFlatDenseSystemV1(
+    workspace,
+    rightHandSide,
+    solution,
+  );
+}
+
+/** Solve with inputs already validated by the owning nonlinear solver. */
+export function solvePreparedFactoredFlatDenseSystemV1(
+  workspace: FlatDenseLuWorkspaceV1,
+  rightHandSide: Float64Array,
+  solution: Float64Array,
+): void {
   const {
     dimension,
     factors,
     pivotRowByColumn,
     transformedRightHandSide,
   } = workspace;
-  requireVectorLength(rightHandSide, dimension, "right-hand side");
-  requireVectorLength(solution, dimension, "solution");
   transformedRightHandSide.set(rightHandSide);
 
   for (let column = 0; column < dimension; column += 1) {
@@ -99,7 +128,6 @@ export function solveFactoredFlatDenseSystemV1(
     }
   }
 
-  solution.fill(0);
   for (let row = dimension - 1; row >= 0; row -= 1) {
     let value = transformedRightHandSide[row]!;
     for (let column = row + 1; column < dimension; column += 1) {

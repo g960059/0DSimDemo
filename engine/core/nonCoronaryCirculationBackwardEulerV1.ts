@@ -616,6 +616,41 @@ export type NonCoronaryCirculationCandidateProbeV1<
   candidateCompanionTrial: TCompanionTrial | null;
 }>;
 
+export const NON_CORONARY_PREPARED_CANDIDATE_EVALUATOR_V1_ID =
+  "circleheart-noncoronary-prepared-candidate-evaluator-v1" as const;
+
+/**
+ * Opaque, one-step construction workspace for the replacement coupled solver.
+ * It owns topology/runtime snapshots and mutable candidate storage; it is not
+ * accepted state, checkpoint content, or a portable model contract.
+ */
+export type NonCoronaryPreparedCandidateEvaluatorV1<
+  TEvaluation,
+  TCompanionTrial = never,
+> = Readonly<{
+  schemaId: typeof NON_CORONARY_PREPARED_CANDIDATE_EVALUATOR_V1_ID;
+  independentNodeCount: number;
+  /** Type-only invariance marker. */
+  _types?: (evaluation: TEvaluation) => TCompanionTrial;
+}>;
+
+/**
+ * Borrowed numerical view valid only during one synchronous prepared-candidate
+ * callback. Typed arrays are overwritten by the next evaluation and must not
+ * escape the callback.
+ */
+export type NonCoronaryPreparedCandidateBorrowV1<TEvaluation> = Readonly<{
+  candidateTimeSec: number;
+  nodeVolumesMl: Float64Array;
+  nodeAbsolutePressuresMmHg: Float64Array;
+  vascularPressureTangentMmHgPerMl: Float64Array;
+  edgeFlowsMlPerSec: Float64Array;
+  continuityResidualMlByNode: Float64Array;
+  absoluteChamberPressureTangent:
+    NonCoronaryAbsoluteChamberPressureTangentV1 | null;
+  candidateMechanicsEvaluation: TEvaluation;
+}>;
+
 export function classifyNonCoronaryLineSearchRejectionOwnerV1(
   candidateEvaluationExceptionCount: number,
   armijoResidualRejectionCount: number,
@@ -751,6 +786,31 @@ type CandidateMechanicsCacheEntry<TEvaluation> = {
   RA: number;
   result: NonCoronaryCandidateMechanicsResultV1<TEvaluation>;
 };
+
+type NonCoronaryPreparedCandidateStorageV1<
+  TEvaluation,
+  TCompanionTrial,
+> = {
+  readonly input:
+    NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>;
+  readonly graph: NonCoronaryCirculationGraphV1;
+  readonly previous: PreviousAcceptedNumericalStateV1;
+  readonly candidateTimeSec: number;
+  readonly respiratoryExternalPressures: RespiratoryExternalPressuresV1;
+  readonly vascularPvLaws: NonCoronaryVascularPvLawsV1;
+  readonly volumeScales: readonly number[];
+  readonly scaledUnknowns: number[];
+  readonly mechanicsCache: CandidateMechanicsCache<TEvaluation>;
+  readonly candidatePage: MutableCandidateNumericalPageV1;
+  readonly dependentSvColumn: Float64Array;
+  readonly localJacobian: Float64Array;
+  inUse: boolean;
+};
+
+const NON_CORONARY_PREPARED_CANDIDATE_STORAGE_V1 = new WeakMap<
+  object,
+  NonCoronaryPreparedCandidateStorageV1<unknown, unknown>
+>();
 
 const DEPENDENT_NODE: NonCoronaryNodeNameV1 = "SV";
 export const NON_CORONARY_INDEPENDENT_NODE_NAMES_V1 = Object.freeze(
@@ -1285,6 +1345,204 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
     if (scratchStorage !== null) {
       releaseNonCoronaryBackwardEulerScratchWorkspaceV1(scratchStorage);
     }
+  }
+}
+
+/**
+ * Prepares the invariant half of repeated same-step candidate evaluation for
+ * the monolithic replacement solver. The accepted state and runtime are
+ * validated once; each later call still validates its physical candidate.
+ */
+export function prepareNonCoronaryCandidateEvaluatorV1<
+  TEvaluation,
+  TCompanionTrial = never,
+>(
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+): NonCoronaryPreparedCandidateEvaluatorV1<TEvaluation, TCompanionTrial> {
+  validateAcceptedState(input.previousAcceptedState);
+  requirePositive(input.dtSec, "dtSec");
+  validateRuntime(input.runtime);
+  validateProtocolResistanceScaleByEdge(
+    input.protocolResistanceScaleByEdge,
+  );
+  validateConservativeCompanionAdapter(input);
+  validateMechanicalSupportInput(input.mechanicalSupport);
+  validateDynamicMechanicalSupportInput(input.dynamicMechanicalSupport);
+  if (
+    input.mechanicalSupport !== undefined
+    && input.dynamicMechanicalSupport !== undefined
+  ) {
+    throw new Error(
+      "mechanicalSupport and dynamicMechanicalSupport are mutually exclusive",
+    );
+  }
+  if (typeof input.evaluateCandidateMechanics !== "function") {
+    throw new Error("evaluateCandidateMechanics must be a function");
+  }
+  const graph = buildNonCoronaryCirculationGraphV1();
+  const previous = stagePreviousAcceptedNumericalStateV1(
+    input.previousAcceptedState,
+    null,
+    undefined,
+  );
+  const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
+  const respiratoryExternalPressures = respiratoryExternalPressuresV1(
+    candidateTimeSec,
+    input.runtime.respiratory,
+  );
+  const handle = Object.freeze({
+    schemaId: NON_CORONARY_PREPARED_CANDIDATE_EVALUATOR_V1_ID,
+    independentNodeCount: INDEPENDENT_NODE_NAMES.length,
+  }) as NonCoronaryPreparedCandidateEvaluatorV1<
+    TEvaluation,
+    TCompanionTrial
+  >;
+  const storage: NonCoronaryPreparedCandidateStorageV1<
+    TEvaluation,
+    TCompanionTrial
+  > = {
+    input,
+    graph,
+    previous,
+    candidateTimeSec,
+    respiratoryExternalPressures,
+    vascularPvLaws: snapshotNonCoronaryVascularPvLawsV1(
+      graph,
+      input.runtime.vascular,
+    ),
+    volumeScales: independentVolumeScales(previous.nodeVolumesMl),
+    scaledUnknowns: Array<number>(INDEPENDENT_NODE_NAMES.length).fill(0),
+    mechanicsCache: {
+      values: [],
+      jacobianUsage: {
+        analyticAssemblyCount: 0,
+        finiteDifferenceFallbackCount: 0,
+        finiteDifferenceShadowCount: 0,
+        maximumAbsoluteShadowDifference: null,
+        maximumRelativeFrobeniusShadowDifference: null,
+      },
+      callCount: 0,
+      hitCount: 0,
+      uniqueCandidateCount: 0,
+    },
+    candidatePage: createMutableCandidateNumericalPageV1(),
+    dependentSvColumn: new Float64Array(INDEPENDENT_NODE_NAMES.length),
+    localJacobian: new Float64Array(
+      INDEPENDENT_NODE_NAMES.length * INDEPENDENT_NODE_NAMES.length,
+    ),
+    inUse: false,
+  };
+  NON_CORONARY_PREPARED_CANDIDATE_STORAGE_V1.set(
+    handle,
+    storage as NonCoronaryPreparedCandidateStorageV1<unknown, unknown>,
+  );
+  return handle;
+}
+
+/**
+ * Evaluates one physical candidate inside a prepared synchronous borrow. The
+ * callback may copy values into its own fixed destinations but must not retain
+ * the borrowed arrays or candidate object.
+ */
+export function withPreparedNonCoronaryCandidateV1<
+  TEvaluation,
+  TCompanionTrial,
+  TResult,
+>(
+  evaluator:
+    NonCoronaryPreparedCandidateEvaluatorV1<TEvaluation, TCompanionTrial>,
+  candidateIndependentNodeVolumesMl: Float64Array,
+  consume: (
+    candidate: NonCoronaryPreparedCandidateBorrowV1<TEvaluation>,
+    localIndependentResidualDDependentSvVolumeMlPerMl: Float64Array,
+    localIndependentResidualDIndependentVolumeMlPerMl: Float64Array | null,
+  ) => TResult,
+): TResult {
+  const storage = NON_CORONARY_PREPARED_CANDIDATE_STORAGE_V1.get(
+    evaluator,
+  ) as NonCoronaryPreparedCandidateStorageV1<
+    TEvaluation,
+    TCompanionTrial
+  > | undefined;
+  if (
+    storage === undefined
+    || evaluator.schemaId
+      !== NON_CORONARY_PREPARED_CANDIDATE_EVALUATOR_V1_ID
+    || evaluator.independentNodeCount !== INDEPENDENT_NODE_NAMES.length
+  ) {
+    throw new TypeError("non-coronary prepared candidate evaluator is foreign");
+  }
+  if (storage.inUse) {
+    throw new Error("non-coronary prepared candidate evaluator is already in use");
+  }
+  if (
+    !(candidateIndependentNodeVolumesMl instanceof Float64Array)
+    || candidateIndependentNodeVolumesMl.length
+      !== INDEPENDENT_NODE_NAMES.length
+  ) {
+    throw new RangeError(
+      `candidate independent volumes must contain ${INDEPENDENT_NODE_NAMES.length} f64 values`,
+    );
+  }
+  if (typeof consume !== "function") {
+    throw new TypeError("prepared candidate consumer must be a function");
+  }
+  for (let index = 0; index < storage.scaledUnknowns.length; index += 1) {
+    storage.scaledUnknowns[index] = requirePositive(
+      candidateIndependentNodeVolumesMl[index]!,
+      `${INDEPENDENT_NODE_NAMES[index]} candidate volume`,
+    ) / storage.volumeScales[index]!;
+  }
+  storage.inUse = true;
+  try {
+    const candidate = evaluateCandidate(
+      storage.graph,
+      storage.input,
+      storage.previous,
+      storage.scaledUnknowns,
+      storage.volumeScales,
+      storage.candidateTimeSec,
+      storage.respiratoryExternalPressures,
+      storage.vascularPvLaws,
+      storage.mechanicsCache,
+      storage.candidatePage,
+    );
+    deviceOffLocalIndependentResidualDDependentSvVolumeV1(
+      storage.graph,
+      storage.input,
+      candidate,
+      storage.respiratoryExternalPressures,
+      storage.dependentSvColumn,
+    );
+    const localJacobian = candidate.absoluteChamberPressureTangent === null
+      ? null
+      : deviceOffLocalIndependentResidualDIndependentVolumesV1(
+        storage.graph,
+        storage.input,
+        candidate,
+        storage.respiratoryExternalPressures,
+        storage.localJacobian,
+      );
+    return consume(
+      Object.freeze({
+        candidateTimeSec: storage.candidateTimeSec,
+        nodeVolumesMl: candidate.nodeVolumesMl,
+        nodeAbsolutePressuresMmHg: candidate.nodeAbsolutePressuresMmHg,
+        vascularPressureTangentMmHgPerMl:
+          candidate.vascularPressureTangentMmHgPerMl,
+        edgeFlowsMlPerSec: candidate.edgeFlowsMlPerSec,
+        continuityResidualMlByNode:
+          candidate.continuityResidualMlByNode,
+        absoluteChamberPressureTangent:
+          candidate.absoluteChamberPressureTangent,
+        candidateMechanicsEvaluation:
+          candidate.candidateMechanicsEvaluation,
+      }),
+      storage.dependentSvColumn,
+      localJacobian,
+    );
+  } finally {
+    storage.inUse = false;
   }
 }
 
@@ -2665,6 +2923,7 @@ function deviceOffLocalIndependentResidualDDependentSvVolumeV1<
   input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
   current: CandidateEvaluation<TEvaluation, TCompanionTrial>,
   respiratoryExternalPressures: RespiratoryExternalPressuresV1,
+  destination = new Float64Array(INDEPENDENT_NODE_NAMES.length),
 ): Float64Array {
   if (
     current.mechanicalSupport !== null
@@ -2675,7 +2934,10 @@ function deviceOffLocalIndependentResidualDDependentSvVolumeV1<
       "dependent-SV local tangent V1 supports only the device-off protocol-free slice",
     );
   }
-  const destination = new Float64Array(INDEPENDENT_NODE_NAMES.length);
+  if (destination.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new RangeError("dependent-SV tangent destination has incompatible dimension");
+  }
+  destination.fill(0);
   const dependentPressureTangentMmHgPerMl = requireFinite(
     current.vascularPressureTangentMmHgPerMl[
       NON_CORONARY_NODE_INDEX_BY_NAME_V1[DEPENDENT_NODE]
@@ -2732,6 +2994,9 @@ function deviceOffLocalIndependentResidualDIndependentVolumesV1<
   input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
   current: CandidateEvaluation<TEvaluation, TCompanionTrial>,
   respiratoryExternalPressures: RespiratoryExternalPressuresV1,
+  destination = new Float64Array(
+    INDEPENDENT_NODE_NAMES.length * INDEPENDENT_NODE_NAMES.length,
+  ),
 ): Float64Array {
   if (
     current.mechanicalSupport !== null
@@ -2747,7 +3012,10 @@ function deviceOffLocalIndependentResidualDIndependentVolumesV1<
     throw new Error("local physical Jacobian requires chamber pressure tangents");
   }
   const size = INDEPENDENT_NODE_NAMES.length;
-  const destination = new Float64Array(size * size);
+  if (destination.length !== size * size) {
+    throw new RangeError("local physical Jacobian destination has incompatible dimension");
+  }
+  destination.fill(0);
   for (let index = 0; index < size; index += 1) {
     destination[index * size + index] = 1;
   }

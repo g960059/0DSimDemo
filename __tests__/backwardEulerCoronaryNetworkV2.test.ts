@@ -28,6 +28,7 @@ import {
   initializePressureLadderCoronaryStateV2,
   mapFocalDiameterStenosisV2,
   solveCoronaryBackwardEulerTrialV2,
+  writeCoronaryBackwardEulerCandidateResidualV2,
   writeCoronaryBackwardEulerCandidateLinearizationV2,
   type CoronaryAcceptedHydraulicStateV2,
   type CoronaryBackwardEulerTrialInputV2,
@@ -513,6 +514,63 @@ describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
         2e-6,
       );
     }
+  });
+
+  it("writes the same candidate residual and boundary flows as the canonical probe", () => {
+    const topology = buildCoronaryTopologyV2();
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const input = Object.freeze({
+      dtSec: 0.005,
+      boundary: Object.freeze({
+        ...DIASTOLIC_BOUNDARY_V2,
+        absoluteAorticPressureMmHg: 103,
+        absoluteRightAtrialPressureMmHg: 6,
+      }),
+    }) satisfies CoronaryBackwardEulerTrialInputV2;
+    const trial = solveCoronaryBackwardEulerTrialV2(
+      initialized.acceptedState,
+      input,
+    );
+    const probe = evaluateCoronaryBackwardEulerCandidateProbeV2(
+      initialized.acceptedState,
+      input,
+      trial.candidateAcceptedState.volumeMlByNode,
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      topology,
+    );
+    const residual = new Float64Array(
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length,
+    );
+    const boundaryFlows = new Float64Array(2);
+
+    writeCoronaryBackwardEulerCandidateResidualV2(
+      initialized.acceptedState,
+      input,
+      trial.candidateAcceptedState.volumeMlByNode,
+      residual,
+      boundaryFlows,
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      topology,
+    );
+
+    expect(Array.from(residual)).toEqual(Array.from(probe.residualVectorMl));
+    expect(boundaryFlows[0]).toBe(
+      probe.hydraulics.totalInletFlowMlPerSec,
+    );
+    expect(boundaryFlows[1]).toBe(
+      probe.hydraulics.commonCoronaryVenousOutletFlowMlPerSec,
+    );
+    expect(() => writeCoronaryBackwardEulerCandidateResidualV2(
+      initialized.acceptedState,
+      input,
+      trial.candidateAcceptedState.volumeMlByNode,
+      new Float64Array(residual.length - 1),
+      boundaryFlows,
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      topology,
+    )).toThrow(/destinationResidualMl/);
   });
 
   it("matches the direct boundary-residual block without an implicit solve", () => {

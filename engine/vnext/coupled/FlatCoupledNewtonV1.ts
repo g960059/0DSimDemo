@@ -1,7 +1,7 @@
 import {
   createFlatDenseLuWorkspaceV1,
-  factorFlatDenseMatrixV1,
-  solveFactoredFlatDenseSystemV1,
+  factorPreparedFlatDenseMatrixV1,
+  solvePreparedFactoredFlatDenseSystemV1,
   type FlatDenseLuWorkspaceV1,
 } from "@/engine/vnext/coupled/FlatDenseLuV1";
 
@@ -34,6 +34,8 @@ export type FlatCoupledSystemV1 = Readonly<{
 export type FlatCoupledNewtonOptionsV1 = Readonly<{
   maximumIterations: number;
   maximumLineSearchBacktracks: number;
+  /** Maximum accepted Newton updates before rebuilding and refactoring J. */
+  maximumAcceptedStepsPerJacobian?: number;
   residualInfinityTolerance: number;
   updateInfinityTolerance: number;
   armijoCoefficient: number;
@@ -116,17 +118,20 @@ export function solveFlatCoupledSystemV1(
   const {
     current,
     residual,
-    jacobian,
     rightHandSide,
     update,
     trial,
     trialResidual,
     linear,
   } = workspace;
+  const jacobian = linear.factors;
   current.set(initialUnknowns);
   let residualEvaluationCount = 0;
   let jacobianEvaluationCount = 0;
   let lineSearchBacktrackCount = 0;
+  const maximumAcceptedStepsPerJacobian =
+    options.maximumAcceptedStepsPerJacobian ?? 1;
+  let acceptedStepsSinceJacobian = maximumAcceptedStepsPerJacobian;
 
   try {
     system.evaluateResidual(current, residual);
@@ -172,44 +177,49 @@ export function solveFlatCoupledSystemV1(
       );
     }
 
-    try {
-      system.evaluateJacobian(current, jacobian);
-      jacobianEvaluationCount += 1;
-      requireFiniteVector(jacobian, "coupled Jacobian");
-      equilibrateJacobianInPlace(jacobian, options);
-    } catch (error) {
-      return failure(
-        "jacobian-evaluation",
-        errorMessage(error),
-        current,
-        iteration,
-        residualInfinityNorm,
-        residualEvaluationCount,
-        jacobianEvaluationCount,
-        lineSearchBacktrackCount,
-      );
-    }
-    if (!factorFlatDenseMatrixV1(
-      jacobian,
-      linear,
-      options.minimumAbsolutePivot,
-    )) {
-      return failure(
-        "singular-jacobian",
-        "flat coupled Newton Jacobian is singular or ill-conditioned",
-        current,
-        iteration,
-        residualInfinityNorm,
-        residualEvaluationCount,
-        jacobianEvaluationCount,
-        lineSearchBacktrackCount,
-      );
+    if (acceptedStepsSinceJacobian >= maximumAcceptedStepsPerJacobian) {
+      try {
+        system.evaluateJacobian(current, jacobian);
+        jacobianEvaluationCount += 1;
+        equilibrateJacobianInPlace(jacobian, options);
+      } catch (error) {
+        return failure(
+          "jacobian-evaluation",
+          errorMessage(error),
+          current,
+          iteration,
+          residualInfinityNorm,
+          residualEvaluationCount,
+          jacobianEvaluationCount,
+          lineSearchBacktrackCount,
+        );
+      }
+      if (!factorPreparedFlatDenseMatrixV1(
+        linear,
+        options.minimumAbsolutePivot,
+      )) {
+        return failure(
+          "singular-jacobian",
+          "flat coupled Newton Jacobian is singular or ill-conditioned",
+          current,
+          iteration,
+          residualInfinityNorm,
+          residualEvaluationCount,
+          jacobianEvaluationCount,
+          lineSearchBacktrackCount,
+        );
+      }
+      acceptedStepsSinceJacobian = 0;
     }
     for (let index = 0; index < system.dimension; index += 1) {
       rightHandSide[index] = -residual[index]!
         / options.residualScaleByEquation[index]!;
     }
-    solveFactoredFlatDenseSystemV1(linear, rightHandSide, update);
+    solvePreparedFactoredFlatDenseSystemV1(
+      linear,
+      rightHandSide,
+      update,
+    );
     for (let index = 0; index < system.dimension; index += 1) {
       update[index] *= options.unknownScaleByUnknown[index]!;
     }
@@ -255,6 +265,7 @@ export function solveFlatCoupledSystemV1(
           current.set(trial);
           residual.set(trialResidual);
           accepted = true;
+          acceptedStepsSinceJacobian += 1;
           break;
         }
         lastError = "candidate did not satisfy the Armijo residual decrease";
@@ -320,6 +331,15 @@ function validateInputs(
       || options.maximumLineSearchBacktracks < 0) {
     throw new RangeError("coupled Newton iteration limits are invalid");
   }
+  if (
+    options.maximumAcceptedStepsPerJacobian !== undefined
+    && (!Number.isInteger(options.maximumAcceptedStepsPerJacobian)
+      || options.maximumAcceptedStepsPerJacobian <= 0)
+  ) {
+    throw new RangeError(
+      "maximumAcceptedStepsPerJacobian must be a positive integer",
+    );
+  }
   requirePositiveFinite(
     options.residualInfinityTolerance,
     "residualInfinityTolerance",
@@ -361,8 +381,15 @@ function equilibrateJacobianInPlace(
   for (let row = 0; row < dimension; row += 1) {
     const inverseResidualScale = 1 / options.residualScaleByEquation[row]!;
     for (let column = 0; column < dimension; column += 1) {
-      jacobian[row * dimension + column] *=
-        options.unknownScaleByUnknown[column]! * inverseResidualScale;
+      const index = row * dimension + column;
+      const equilibrated = jacobian[index]!
+        * options.unknownScaleByUnknown[column]! * inverseResidualScale;
+      if (!Number.isFinite(equilibrated)) {
+        throw new RangeError(
+          "equilibrated coupled Jacobian must contain only finite values",
+        );
+      }
+      jacobian[index] = equilibrated;
     }
   }
 }
@@ -435,8 +462,10 @@ function requireLength(
 }
 
 function requireFiniteVector(value: Float64Array, label: string): void {
-  if (value.some((entry) => !Number.isFinite(entry))) {
-    throw new RangeError(`${label} must contain only finite values`);
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Number.isFinite(value[index]!)) {
+      throw new RangeError(`${label} must contain only finite values`);
+    }
   }
 }
 

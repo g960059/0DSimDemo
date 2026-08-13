@@ -4,6 +4,8 @@ import {
   createInitialNonCoronaryCirculationStateV1,
   evaluateNonCoronaryCirculationCandidateProbeV1,
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
+  prepareNonCoronaryCandidateEvaluatorV1,
+  withPreparedNonCoronaryCandidateV1,
   NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
   NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
@@ -23,6 +25,7 @@ import {
   type NonCoronaryCirculationTrialFailureReasonV1,
   type NonCoronaryCirculationTrialFailureV1,
   type NonCoronaryCirculationTrialSuccessV1,
+  type NonCoronaryPreparedCandidateBorrowV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   respiratoryExternalPressureForKindV1,
@@ -38,6 +41,7 @@ import {
   evaluateCoronaryBackwardEulerCandidateProbeV2,
   initializePressureLadderCoronaryStateV2,
   solveCoronaryBackwardEulerTrialV2,
+  writeCoronaryBackwardEulerCandidateResidualV2,
   writeCoronaryBackwardEulerCandidateLinearizationV2,
   type CoronaryAcceptedHydraulicStateV2,
   type CoronaryBackwardEulerScratchWorkspaceV2,
@@ -54,9 +58,11 @@ import {
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
   MAIN_WIRE_CORONARY_BOUNDARY_V2_ID,
+  MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2,
+  MAIN_WIRE_CORONARY_MECHANICS_DIRECTION_COMPONENT_IDS_V2,
   NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
-  differentiateMainWireCoronaryBoundaryV2,
   resolveMainWireCoronaryBoundaryV2,
+  writeMainWireCoronaryBoundaryDerivativeMatrixV2,
   type MainWireCoronaryBoundarySampleV2,
   type MainWireCoronaryImpMechanismV2,
   type MainWireCoronaryShorteningImpGainPriorV2,
@@ -825,18 +831,133 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     previous.fixedGlobalTotalBloodVolumeMl,
   );
   const coronaryLinearizationResidualScratch = new Float64Array(30);
-  const evaluateCoupledCandidate = (
-    unknownsMl: Float64Array,
-    destinationResidualMl: Float64Array,
-  ): Readonly<{
+  const boundaryDerivativeByMechanicsDirection = new Float64Array(
+    MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2.length
+      * MAIN_WIRE_CORONARY_MECHANICS_DIRECTION_COMPONENT_IDS_V2.length,
+  );
+  const mechanicsDirection = new Float64Array(
+    MAIN_WIRE_CORONARY_MECHANICS_DIRECTION_COMPONENT_IDS_V2.length,
+  );
+  const candidateIndependentVolumesMl = new Float64Array(
+    NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length,
+  );
+  const candidateCoronaryVolumes = Object.fromEntries(
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId) => [nodeId, 0]),
+  ) as unknown as {
+    -readonly [TNode in keyof CoronaryConservedVolumeStateV2]: number;
+  };
+  const coronaryResidual = new Float64Array(
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length,
+  );
+  const coronaryBoundaryFlowMlPerSec = new Float64Array(2);
+  let coronaryResidualAvailable = false;
+  let candidateBoundary: CoronaryHydraulicBoundaryInputV2 | null = null;
+  const preparedNonCoronary = prepareNonCoronaryCandidateEvaluatorV1({
+    previousAcceptedState: previous.circulation,
+    dtSec: input.dtSec,
+    runtime: input.runtime,
+    evaluateCandidateMechanics: (volumesMl) =>
+      evaluatePreparedCandidateMechanicsV2(
+        mechanicsStep,
+        volumesMl,
+        input.pericardium,
+        commonIntrathoracicPressure,
+        impMechanism,
+        null,
+        "candidate-center",
+        useMechanicsCandidateProbes,
+      ),
+    conservativeCompanion: Object.freeze({
+      fixedGlobalTotalBloodVolumeMl:
+        previous.fixedGlobalTotalBloodVolumeMl,
+      previousAcceptedCompanionBloodVolumeMl:
+        coronaryBloodVolumeMl(previous.coronary),
+      evaluateSameCandidate: (candidate) => {
+        const boundary = resolveCandidateCoronaryBoundaryV2(
+          candidate.boundaryAbsolutePressuresMmHg.Ao,
+          candidate.boundaryAbsolutePressuresMmHg.RA,
+          candidate.candidateMechanicsEvaluation,
+          impMechanism,
+          previous.mvcReferenceState.reference,
+          shorteningImpPrior,
+        );
+        writeCoronaryBackwardEulerCandidateResidualV2(
+          previous.coronary,
+          Object.freeze({
+            dtSec: input.dtSec,
+            boundary,
+            disease: input.coronaryDisease
+              ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
+            collapseHydraulics,
+            solverOptions: input.coronarySolverOptions,
+          }),
+          candidateCoronaryVolumes,
+          coronaryResidual,
+          coronaryBoundaryFlowMlPerSec,
+          prior,
+          topology,
+        );
+        coronaryResidualAvailable = true;
+        candidateBoundary = boundary;
+        let candidateCompanionBloodVolumeMl = 0;
+        for (const nodeId of CORONARY_CONSERVED_VOLUME_NODE_IDS_V2) {
+          candidateCompanionBloodVolumeMl += candidateCoronaryVolumes[nodeId];
+        }
+        return Object.freeze({
+          candidateCompanionBloodVolumeMl,
+          outerBoundaryNetVolumeRateMlPerSec: Object.freeze({
+            Ao: -coronaryBoundaryFlowMlPerSec[0]!,
+            RA: coronaryBoundaryFlowMlPerSec[1]!,
+          }),
+          candidateCompanionTrial: boundary,
+        });
+      },
+    }),
+  });
+  type CoupledCandidateBorrow = Readonly<{
     candidateCoronaryVolumes: CoronaryConservedVolumeStateV2;
+    coronaryResidualMl: Float64Array;
     boundary: CoronaryHydraulicBoundaryInputV2;
     localIndependentResidualDDependentSvVolumeMlPerMl: Float64Array;
-    nonCoronaryProbe: NonCoronaryCirculationCandidateProbeV1<
-      MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>,
-      unknown
+    localIndependentResidualDIndependentVolumeMlPerMl: Float64Array | null;
+    nonCoronaryProbe: NonCoronaryPreparedCandidateBorrowV1<
+      MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>
     >;
-  }> => {
+  }>;
+  const cachedUnknownsMl = new Float64Array(30);
+  let cachedCandidate: CoupledCandidateBorrow | null = null;
+  const sameAsCachedCandidate = (unknownsMl: Float64Array): boolean => {
+    if (cachedCandidate === null) return false;
+    for (let index = 0; index < unknownsMl.length; index += 1) {
+      if (!Object.is(unknownsMl[index], cachedUnknownsMl[index])) return false;
+    }
+    return true;
+  };
+  const writeCoupledResidual = (
+    candidate: CoupledCandidateBorrow,
+    destinationResidualMl: Float64Array,
+  ): void => {
+    for (
+      let index = 0;
+      index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+      index += 1
+    ) {
+      const nodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(
+        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]!,
+      );
+      destinationResidualMl[index] = candidate.nonCoronaryProbe
+        .continuityResidualMlByNode[nodeIndex]!;
+    }
+    destinationResidualMl.set(
+      candidate.coronaryResidualMl,
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length,
+    );
+  };
+  const evaluateCoupledCandidate = <TResult>(
+    unknownsMl: Float64Array,
+    destinationResidualMl: Float64Array,
+    consume: (candidate: CoupledCandidateBorrow) => TResult,
+  ): TResult => {
     if (
       !(unknownsMl instanceof Float64Array)
       || unknownsMl.length !== 30
@@ -847,113 +968,55 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         "coupled residual V1 requires two 30-value f64 vectors",
       );
     }
-    const candidateIndependentVolumesMl = unknownsMl.slice(
-      0,
-      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length,
-    );
-    const candidateCoronaryVolumes = Object.fromEntries(
-      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
-        nodeId,
-        unknownsMl[
-          NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
-        ]!,
-      ]),
-    ) as CoronaryConservedVolumeStateV2;
-    let coronaryResidual: Float64Array | null = null;
-    let candidateBoundary: CoronaryHydraulicBoundaryInputV2 | null = null;
-    const nonCoronaryProbe =
-      evaluateNonCoronaryCirculationCandidateProbeV1({
-        previousAcceptedState: previous.circulation,
-        dtSec: input.dtSec,
-        runtime: input.runtime,
-        evaluateCandidateMechanics: (volumesMl) =>
-          evaluatePreparedCandidateMechanicsV2(
-            mechanicsStep,
-            volumesMl,
-            input.pericardium,
-            commonIntrathoracicPressure,
-            impMechanism,
-            null,
-            "candidate-center",
-            useMechanicsCandidateProbes,
-          ),
-        conservativeCompanion: Object.freeze({
-          fixedGlobalTotalBloodVolumeMl:
-            previous.fixedGlobalTotalBloodVolumeMl,
-          previousAcceptedCompanionBloodVolumeMl:
-            coronaryBloodVolumeMl(previous.coronary),
-          evaluateSameCandidate: (candidate) => {
-            const boundary = resolveCandidateCoronaryBoundaryV2(
-              candidate.boundaryAbsolutePressuresMmHg.Ao,
-              candidate.boundaryAbsolutePressuresMmHg.RA,
-              candidate.candidateMechanicsEvaluation,
-              impMechanism,
-              previous.mvcReferenceState.reference,
-              shorteningImpPrior,
-            );
-            const probe = evaluateCoronaryBackwardEulerCandidateProbeV2(
-              previous.coronary,
-              Object.freeze({
-                dtSec: input.dtSec,
-                boundary,
-                disease: input.coronaryDisease
-                  ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
-                collapseHydraulics,
-                solverOptions: input.coronarySolverOptions,
-              }),
-              candidateCoronaryVolumes,
-              prior,
-              topology,
-            );
-            coronaryResidual = probe.residualVectorMl;
-            candidateBoundary = boundary;
-            return Object.freeze({
-              candidateCompanionBloodVolumeMl:
-                CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.reduce(
-                  (sum, nodeId) =>
-                    sum + candidateCoronaryVolumes[nodeId],
-                  0,
-                ),
-              outerBoundaryNetVolumeRateMlPerSec: Object.freeze({
-                Ao: -probe.hydraulics.totalInletFlowMlPerSec,
-                RA: probe.hydraulics
-                  .commonCoronaryVenousOutletFlowMlPerSec,
-              }),
-              candidateCompanionTrial: probe,
-            });
-          },
-        }),
-      }, candidateIndependentVolumesMl);
-    if (coronaryResidual === null || candidateBoundary === null) {
-      throw new Error("coupled residual V1 did not evaluate its companion");
+    if (sameAsCachedCandidate(unknownsMl)) {
+      writeCoupledResidual(cachedCandidate!, destinationResidualMl);
+      return consume(cachedCandidate!);
     }
-    const localIndependentResidualDDependentSvVolumeMlPerMl =
-      nonCoronaryProbe
-        .localIndependentResidualDDependentSvVolumeMlPerMl;
-    if (localIndependentResidualDDependentSvVolumeMlPerMl === null) {
-      throw new Error(
-        "coupled residual V1 requires the device-off dependent-SV tangent",
-      );
-    }
-    for (let index = 0;
+    for (
+      let index = 0;
       index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
-      index += 1) {
-      const nodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(
-        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]!,
-      );
-      destinationResidualMl[index] =
-        nonCoronaryProbe.continuityResidualMlByNode[nodeIndex]!;
+      index += 1
+    ) {
+      candidateIndependentVolumesMl[index] = unknownsMl[index]!;
     }
-    destinationResidualMl.set(
-      coronaryResidual,
-      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length,
+    for (
+      let index = 0;
+      index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+      index += 1
+    ) {
+      candidateCoronaryVolumes[
+        CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]!
+      ] = unknownsMl[
+        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
+      ]!;
+    }
+    coronaryResidualAvailable = false;
+    candidateBoundary = null;
+    return withPreparedNonCoronaryCandidateV1(
+      preparedNonCoronary,
+      candidateIndependentVolumesMl,
+      (
+        nonCoronaryProbe,
+        localIndependentResidualDDependentSvVolumeMlPerMl,
+        localIndependentResidualDIndependentVolumeMlPerMl,
+      ) => {
+        if (!coronaryResidualAvailable || candidateBoundary === null) {
+          throw new Error("coupled residual V1 did not evaluate its companion");
+        }
+        const candidate = Object.freeze({
+          candidateCoronaryVolumes,
+          coronaryResidualMl: coronaryResidual,
+          boundary: candidateBoundary,
+          localIndependentResidualDDependentSvVolumeMlPerMl,
+          localIndependentResidualDIndependentVolumeMlPerMl,
+          nonCoronaryProbe,
+        });
+        cachedUnknownsMl.set(unknownsMl);
+        cachedCandidate = candidate;
+        writeCoupledResidual(candidate, destinationResidualMl);
+        return consume(candidate);
+      },
     );
-    return Object.freeze({
-      candidateCoronaryVolumes,
-      boundary: candidateBoundary,
-      localIndependentResidualDDependentSvVolumeMlPerMl,
-      nonCoronaryProbe,
-    });
   };
 
   return Object.freeze({
@@ -969,23 +1032,29 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       unknownsMl: Float64Array,
       destinationResidualMl: Float64Array,
     ): void => {
-      evaluateCoupledCandidate(unknownsMl, destinationResidualMl);
+      evaluateCoupledCandidate(
+        unknownsMl,
+        destinationResidualMl,
+        () => undefined,
+      );
     },
     evaluateDependentSvContinuityResidualMl: (
       unknownsMl: Float64Array,
     ): number => {
-      const candidate = evaluateCoupledCandidate(
+      return evaluateCoupledCandidate(
         unknownsMl,
         coronaryLinearizationResidualScratch,
+        (candidate) => {
+          const dependentSvNode = NON_CORONARY_NODE_NAMES_V1.indexOf("SV");
+          if (dependentSvNode < 0) {
+            throw new Error("dependent SV node order drifted");
+          }
+          const residual = candidate.nonCoronaryProbe
+            .continuityResidualMlByNode[dependentSvNode]!;
+          requireFinite(residual, "dependent SV continuity residual");
+          return residual;
+        },
       );
-      const dependentSvNode = NON_CORONARY_NODE_NAMES_V1.indexOf("SV");
-      if (dependentSvNode < 0) {
-        throw new Error("dependent SV node order drifted");
-      }
-      const residual = candidate.nonCoronaryProbe
-        .continuityResidualMlByNode[dependentSvNode]!;
-      requireFinite(residual, "dependent SV continuity residual");
-      return residual;
     },
     writeCoupledLinearizations: (
       unknownsMl: Float64Array,
@@ -1027,15 +1096,15 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           "coronary boundary tangent destination must contain 9x14 f64 values",
         );
       }
-      const candidate = evaluateCoupledCandidate(
+      return evaluateCoupledCandidate(
         unknownsMl,
         coronaryLinearizationResidualScratch,
-      );
+        (candidate) => {
       destinationNonCoronaryDependentSvColumnMlPerMl.set(
         candidate.localIndependentResidualDDependentSvVolumeMlPerMl,
       );
-      const localNonCoronaryLinearization = candidate.nonCoronaryProbe
-        .localIndependentResidualDIndependentVolumeMlPerMl;
+      const localNonCoronaryLinearization =
+        candidate.localIndependentResidualDIndependentVolumeMlPerMl;
       if (localNonCoronaryLinearization === null) {
         rowMajorNonCoronaryLocalDestination.fill(0);
       } else {
@@ -1091,6 +1160,13 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       const pericardialPressureDerivativeMmHgPerMl =
         mechanics.pericardium.pressureDerivativePaPerM3
         * 1e-6 / PA_PER_MMHG;
+      writeMainWireCoronaryBoundaryDerivativeMatrixV2(
+        baseSample,
+        impMechanism,
+        previous.mvcReferenceState.reference,
+        boundaryDerivativeByMechanicsDirection,
+        shorteningImpPrior,
+      );
       for (let column = 0; column < nonCoronaryDimension; column += 1) {
         const node = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[column]!;
         const chamberColumn =
@@ -1102,72 +1178,72 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         const chamberNode = isChamber
           ? node as "LA" | "LV" | "RA" | "RV"
           : null;
-        const direction = Object.freeze({
-          absoluteAorticPressureMmHg: node === "Ao"
-            ? probe.vascularPressureTangentMmHgPerMl[aoNodeIndex]!
-            : 0,
-          absoluteRightAtrialPressureMmHg: chamberNode === null
-            ? 0
-            : chamberTangent.dPressureDVolumeMmHgPerMl[
-              raChamberRow
-            ]![chamberColumn]!,
-          mechanicsInput: Object.freeze({
-            externalPressureMmHg: isChamber
-              ? pericardialPressureDerivativeMmHgPerMl
-              : 0,
-            chamberTransmuralPressureMmHg: Object.freeze({
-              LV: chamberNode === null
-                ? 0
-                : transmuralTangent.LV[chamberNode],
-              RV: chamberNode === null
-                ? 0
-                : transmuralTangent.RV[chamberNode],
-            }),
-            landActiveFiberStressPaByWall: Object.freeze({
-              LVFW: isVentricle
-                ? ventricularTangent
-                  .landActiveKirchhoffStressPaPerMlByWall.LVFW[node]
-                : 0,
-              SEP: isVentricle
-                ? ventricularTangent
-                  .landActiveKirchhoffStressPaPerMlByWall.SEP[node]
-                : 0,
-              RVFW: isVentricle
-                ? ventricularTangent
-                  .landActiveKirchhoffStressPaPerMlByWall.RVFW[node]
-                : 0,
-            }),
-          }),
-          effectiveFiberLogStrainByWall: Object.freeze({
-            LVFW: isVentricle
-              ? ventricularTangent
-                .effectiveFiberLogStrainPerMlByWall.LVFW[node]
-              : 0,
-            SEP: isVentricle
-              ? ventricularTangent
-                .effectiveFiberLogStrainPerMlByWall.SEP[node]
-              : 0,
-            RVFW: isVentricle
-              ? ventricularTangent
-                .effectiveFiberLogStrainPerMlByWall.RVFW[node]
-              : 0,
-          }),
-        });
-        const derivative = differentiateMainWireCoronaryBoundaryV2(
-          baseSample,
-          direction,
-          impMechanism,
-          previous.mvcReferenceState.reference,
-          shorteningImpPrior,
-        );
-        writeCoronaryBoundaryDerivativeColumnV2(
-          boundaryDestination,
-          nonCoronaryDimension,
-          column,
-          derivative,
-        );
+        mechanicsDirection.fill(0);
+        mechanicsDirection[0] = node === "Ao"
+          ? probe.vascularPressureTangentMmHgPerMl[aoNodeIndex]!
+          : 0;
+        mechanicsDirection[1] = chamberNode === null
+          ? 0
+          : chamberTangent.dPressureDVolumeMmHgPerMl[
+            raChamberRow
+          ]![chamberColumn]!;
+        mechanicsDirection[2] = isChamber
+          ? pericardialPressureDerivativeMmHgPerMl
+          : 0;
+        mechanicsDirection[3] = chamberNode === null
+          ? 0
+          : transmuralTangent.LV[chamberNode];
+        mechanicsDirection[4] = chamberNode === null
+          ? 0
+          : transmuralTangent.RV[chamberNode];
+        mechanicsDirection[5] = isVentricle
+          ? ventricularTangent
+            .landActiveKirchhoffStressPaPerMlByWall.LVFW[node]
+          : 0;
+        mechanicsDirection[6] = isVentricle
+          ? ventricularTangent
+            .landActiveKirchhoffStressPaPerMlByWall.SEP[node]
+          : 0;
+        mechanicsDirection[7] = isVentricle
+          ? ventricularTangent
+            .landActiveKirchhoffStressPaPerMlByWall.RVFW[node]
+          : 0;
+        mechanicsDirection[8] = isVentricle
+          ? ventricularTangent
+            .effectiveFiberLogStrainPerMlByWall.LVFW[node]
+          : 0;
+        mechanicsDirection[9] = isVentricle
+          ? ventricularTangent
+            .effectiveFiberLogStrainPerMlByWall.SEP[node]
+          : 0;
+        mechanicsDirection[10] = isVentricle
+          ? ventricularTangent
+            .effectiveFiberLogStrainPerMlByWall.RVFW[node]
+          : 0;
+        for (
+          let boundaryRow = 0;
+          boundaryRow
+            < MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2.length;
+          boundaryRow += 1
+        ) {
+          let derivative = 0;
+          for (
+            let directionColumn = 0;
+            directionColumn < mechanicsDirection.length;
+            directionColumn += 1
+          ) {
+            derivative += boundaryDerivativeByMechanicsDirection[
+              boundaryRow * mechanicsDirection.length + directionColumn
+            ]! * mechanicsDirection[directionColumn]!;
+          }
+          boundaryDestination[
+            boundaryRow * nonCoronaryDimension + column
+          ] = derivative;
+        }
       }
       return true;
+        },
+      );
     },
   });
 }
@@ -2086,39 +2162,6 @@ function candidateCoronaryBoundarySampleV2(
     effectiveFiberLogStrainByWall:
       mechanics.coronaryMechanicsCoupling.effectiveFiberLogStrainByWall,
   });
-}
-
-function writeCoronaryBoundaryDerivativeColumnV2(
-  destination: Float64Array,
-  columnCount: number,
-  column: number,
-  derivative: CoronaryHydraulicBoundaryInputV2,
-): void {
-  const values = [
-    derivative.absoluteAorticPressureMmHg,
-    derivative.absoluteRightAtrialPressureMmHg,
-    derivative.perivascularExternalPressureMmHg,
-    derivative.intramyocardialPressureMmHgByTerritoryLayer.LAD
-      .subepicardial,
-    derivative.intramyocardialPressureMmHgByTerritoryLayer.LAD
-      .subendocardial,
-    derivative.intramyocardialPressureMmHgByTerritoryLayer.LCx
-      .subepicardial,
-    derivative.intramyocardialPressureMmHgByTerritoryLayer.LCx
-      .subendocardial,
-    derivative.intramyocardialPressureMmHgByTerritoryLayer.RCA
-      .subepicardial,
-    derivative.intramyocardialPressureMmHgByTerritoryLayer.RCA
-      .subendocardial,
-  ] as const;
-  if (values.length !== CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length) {
-    throw new Error("coronary boundary derivative order drifted");
-  }
-  for (let row = 0; row < values.length; row += 1) {
-    const value = values[row]!;
-    requireFinite(value, `coronary boundary derivative[${row},${column}]`);
-    destination[row * columnCount + column] = value;
-  }
 }
 
 function buildCoronaryBoundaryDirectionsV2<TWallState>(
