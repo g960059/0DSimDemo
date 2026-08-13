@@ -1116,6 +1116,74 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
           localMechanics.scaledInternalCoordinates,
           condensedContext.dimension,
         );
+        if (corpusCase.caseId === "baseline" && stepIndex === 18) {
+          const eventSeed = promotedContext.initialUnknowns.slice();
+          const eventChamberVolumes = Object.freeze(Object.fromEntries(
+            (["LA", "LV", "RA", "RV"] as const).map((chamber) => {
+              const index = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1
+                .indexOf(chamber);
+              if (index < 0) throw new Error(`${chamber} is not independent`);
+              return [chamber, eventSeed[index]!];
+            }),
+          )) as Readonly<{ LA: number; LV: number; RA: number; RV: number }>;
+          eventSeed.set(
+            evaluateMainWireFiveWallNumericalMechanicsCandidateV1(
+              numericalStep,
+              eventChamberVolumes,
+            ).scaledInternalCoordinates,
+            30,
+          );
+          const full = new Float64Array(32 * 32);
+          promotedContext.writeAnalyticJacobian(eventSeed, full);
+          const condensedFd = new Float64Array(30 * 30);
+          const plus = eventSeed.slice(0, 30);
+          const minus = eventSeed.slice(0, 30);
+          const plusResidual = new Float64Array(30);
+          const minusResidual = new Float64Array(30);
+          for (let column = 0; column < 30; column += 1) {
+            plus.set(eventSeed.subarray(0, 30));
+            minus.set(eventSeed.subarray(0, 30));
+            const halfStep = column < 14
+              ? 1e-5 * Math.max(1, Math.abs(eventSeed[column]!))
+              : 1e-3 * Math.max(1, Math.abs(eventSeed[column]!));
+            plus[column] += halfStep;
+            minus[column] -= halfStep;
+            condensedContext.evaluateResidualMl(plus, plusResidual);
+            condensedContext.evaluateResidualMl(minus, minusResidual);
+            for (let row = 0; row < 30; row += 1) {
+              condensedFd[row * 30 + column] =
+                (plusResidual[row]! - minusResidual[row]!) / (2 * halfStep);
+            }
+          }
+          const d00 = full[30 * 32 + 30]!;
+          const d01 = full[30 * 32 + 31]!;
+          const d10 = full[31 * 32 + 30]!;
+          const d11 = full[31 * 32 + 31]!;
+          const determinant = d00 * d11 - d01 * d10;
+          expect(Math.abs(determinant)).toBeGreaterThan(1e-8);
+          let maximumSchurDifference = 0;
+          for (let row = 0; row < 30; row += 1) {
+            const b0 = full[row * 32 + 30]!;
+            const b1 = full[row * 32 + 31]!;
+            for (let column = 0; column < 30; column += 1) {
+              const c0 = full[30 * 32 + column]!;
+              const c1 = full[31 * 32 + column]!;
+              const eliminated = (
+                b0 * (d11 * c0 - d01 * c1)
+                + b1 * (-d10 * c0 + d00 * c1)
+              ) / determinant;
+              maximumSchurDifference = Math.max(
+                maximumSchurDifference,
+                Math.abs(
+                  full[row * 32 + column]!
+                    - eliminated
+                    - condensedFd[row * 30 + column]!,
+                ),
+              );
+            }
+          }
+          expect(maximumSchurDifference).toBeLessThan(2e-6);
+        }
         if (stepIndex % 125 === 0) {
           const analyticJacobian = new Float64Array(32 * 32);
           promotedContext.writeAnalyticJacobian(

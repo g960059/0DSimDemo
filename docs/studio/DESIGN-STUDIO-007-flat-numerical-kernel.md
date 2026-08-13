@@ -833,6 +833,30 @@ when floating-point or branch-switching noise prevents the scalar merit from
 meeting strict Armijo decrease. Scientific residual gates must not be relaxed
 to hide that failure.
 
+The first predictor/globalization experiments narrow that failure further.
+Linear and quadratic accepted-root extrapolation, geometrically damped
+extrapolation, a component-converged line-search fast path, and one local
+TriSeg initialization at each predicted chamber-volume tuple do not carry the
+promoted system through the complete baseline valve transition. They move the
+first failure from step 16 to steps 17–18, but do not remove it. At the same
+event, static condensation of the analytic `32×32` matrix agrees with an
+independent central-difference Jacobian of the condensed 30-volume residual to
+`4.73e-7` maximum absolute error, and the mechanics `2×2` block determinant is
+well separated from zero. The construction derivative is therefore not the
+observed defect; the expanded Newton direction crosses a semismooth active-set
+boundary where strict monotone globalization is not robust.
+
+For the one-patch production candidate, the 30-volume system with the existing
+model-owned TriSeg static condensation remains the preferred authority. It is
+the exact local block elimination of the promoted equations, already clears
+the solve and flat-acceptance host gates, and is more robust at the valve
+transition. The 32-row executable remains a derivative/root oracle and the
+forward-compatible contract for future multipatch block solvers. Promoting it
+to authority now would add risk without demonstrating a measured performance
+benefit. Reopening that decision requires an active-set or trust-region method
+that passes the same six-case free-running gates; fallback by loosening
+residuals or silently changing the 2 ms backward-Euler equation is forbidden.
+
 The first executable uses one deterministic damped semismooth Newton and a
 fixed row-major `Float64Array` Jacobian with partial-pivot dense LU. At 30–32
 unknowns, the roughly 10,000 floating-point operations of dense factorization
