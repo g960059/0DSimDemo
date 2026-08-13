@@ -16,6 +16,9 @@ import {
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import {
+  hotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
   mainWireFiveWallCoronaryBaseStateV2,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV3";
 import {
@@ -273,6 +276,7 @@ const nestedSummary = nestedOracleEnabled ? summarize(nestedTotalMs) : null;
 process.stdout.write(`${JSON.stringify(Object.freeze({
   benchmarkId: "main-wire-flat-coupled-trajectory-v1",
   claim: "local-development-diagnostic-not-supported-hardware-gate",
+  integrityTier: hotPathIntegrityTierV1(),
   warmupSteps,
   measuredSteps,
   corpusCaseId,

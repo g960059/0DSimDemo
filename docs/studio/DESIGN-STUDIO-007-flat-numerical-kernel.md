@@ -1081,11 +1081,12 @@ An A→B→A regression proves that later candidate evaluations cannot mutate an
 earlier candidate or the accepted material state. Public-versus-numerical tests
 require identical pressures, condensed tangents, ventricular strains, active
 stresses, and encoded candidate material state. Three alternating pairs of
-10,000-step baseline diagnostics, after 1,000 warm-up steps and with the nested
-observation disabled, gave identical coupled iteration, residual, and Jacobian
-counts. The model-owned path was faster in all three pairs. Its paired median
-ratios were about `0.990` for complete-step median, `0.976` for solve median,
-`0.944` for complete-step p95, and `0.939` for solve p95. These machine-specific
+10,000-step baseline diagnostics, after 1,000 warm-up steps, with the nested
+observation disabled and under the default development `full-invariant` tier,
+gave identical coupled iteration, residual, and Jacobian counts. The
+model-owned path was faster in all three pairs. Its paired median ratios were
+about `0.990` for complete-step median, `0.976` for solve median, `0.944` for
+complete-step p95, and `0.939` for solve p95. These machine-specific
 measurements establish that rejected-candidate readback is real overhead,
 especially in the tail, but they also falsify it as the main remaining
 bottleneck.
@@ -1109,12 +1110,33 @@ does not implement the numerical seam. The exact accepted public path remains
 unchanged.
 
 Three alternating 10,000-step pairs after this change again had identical
-iteration/residual/Jacobian counts. The model-owned-to-generic paired median
-ratios were about `0.913` for complete-step median, `0.892` for solve median,
-`0.915` for complete-step p95, and `0.889` for solve p95. This is a meaningful
-host improvement, but the path still allocates geometry, constitutive,
-derivative, Hessian, and tangent object graphs for every residual candidate.
-Those allocations, not the deferred public boundary, are the next target.
+iteration/residual/Jacobian counts. Under the production-relevant
+`hot-path-lean` tier, the model-owned-to-generic paired median ratios were about
+`0.945` for complete-step median, `0.931` for solve median, `0.931` for
+complete-step p95, and `0.912` for solve p95. The same comparison under the
+default development `full-invariant` tier showed larger ratios of about
+`0.913`, `0.892`, `0.915`, and `0.889`, respectively, because deferred public
+validation is deliberately more expensive in that tier. The benchmark now
+reports its effective integrity tier so those two claims cannot be conflated.
+This is a meaningful host improvement, but the path still allocates geometry,
+constitutive, derivative, Hessian, and tangent object graphs for every residual
+candidate. Those allocations, not the deferred public boundary, are the next
+target.
+
+The Phase 2b construction seam now also exposes the two scaled TriSeg internal
+coordinates as explicit caller-owned unknowns. At one fixed chamber-volume and
+coordinate tuple, the model-owned provider evaluates the existing constitutive
+and geometric equations once without running its local two-variable Newton. It
+returns the two equilibrium residuals and an analytic `6×6` mechanics block:
+four transmural-pressure rows followed by two internal-equilibrium rows, with
+columns ordered as `LA`, `LV`, `RA`, `RV`, scaled septal cap volume, and scaled
+junction radius. Ventricular strain and active-stress derivatives use a separate
+documented `3×4` row-major block. A central-difference shadow checks the complete
+`6×6` derivative, and static condensation of its two internal coordinates must
+reproduce the established four-chamber pressure tangent. The returned arrays
+are owned by one evaluation and an A→B probe cannot mutate A. This is only a
+construction interface for the future 32-variable solve; it cannot be sealed,
+committed, checkpointed, or treated as a performance improvement by itself.
 
 ### Phase 3 — strict scalar WASM
 

@@ -277,6 +277,23 @@ export type MainWireFiveWallLandTriSegProviderV1<TWallState> =
 export const MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID =
   "main-wire-five-wall-numerical-mechanics-step-v1" as const;
 
+export const MAIN_WIRE_FIVE_WALL_FIXED_INTERNAL_UNKNOWN_IDS_V1 = Object.freeze([
+  "LA-volume-ml",
+  "LV-volume-ml",
+  "RA-volume-ml",
+  "RV-volume-ml",
+  "septal-midwall-cap-volume-scaled",
+  "junction-radius-scaled",
+] as const);
+
+export const MAIN_WIRE_FIVE_WALL_VENTRICULAR_FIXED_INTERNAL_DIRECTION_IDS_V1 =
+  Object.freeze([
+    "LV-volume-ml",
+    "RV-volume-ml",
+    "septal-midwall-cap-volume-scaled",
+    "junction-radius-scaled",
+  ] as const);
+
 /**
  * Opaque, one-accepted-step numerical mechanics context.
  *
@@ -293,6 +310,7 @@ export type MainWireFiveWallNumericalMechanicsStepV1<TState> = Readonly<{
   parameterIdentityHash: string;
   candidateTimeSec: number;
   stepDtSec: number;
+  initialScaledInternalCoordinates: readonly [number, number];
   /** Invariant type only; the value is never present at runtime. */
   readonly __stateType?: TState;
 }>;
@@ -301,6 +319,7 @@ export type MainWireFiveWallNumericalMechanicsEvaluationV1<TState> =
   Readonly<{
     candidateMaterialState: TState;
     candidateVolumesMl: WholeHeartMechanicsChamberValuesV1;
+    scaledInternalCoordinates: readonly [number, number];
     transmuralPressuresMmHg: WholeHeartMechanicsChamberValuesV1;
     transmuralPressureVolumeTangentMmHgPerMl?:
       WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
@@ -312,6 +331,28 @@ export type MainWireFiveWallNumericalMechanicsEvaluationV1<TState> =
     residualNorm: number;
     evaluationCounters?: MainWireFiveWallLandTriSegEvaluationCountersV1;
   }>;
+
+/**
+ * One fixed-coordinate evaluation for the 32-variable monolithic construction
+ * solver. Matrices are row-major and use the exported immutable ID orders.
+ * No local TriSeg Newton, state clone, or public readback is performed.
+ */
+export type MainWireFiveWallFixedInternalMechanicsEvaluationV1 = Readonly<{
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1;
+  scaledInternalCoordinates: readonly [number, number];
+  transmuralPressuresMmHg: WholeHeartMechanicsChamberValuesV1;
+  internalResidualByOneJ: readonly [number, number];
+  /** Four pressure rows by six fixed-internal unknown columns. */
+  transmuralPressureDerivativeRowMajor: Float64Array;
+  /** Two internal-equilibrium rows by six fixed-internal unknown columns. */
+  internalResidualDerivativeRowMajor: Float64Array;
+  effectiveFiberLogStrainByWall: MainWireFiveWallRecordV1<number>;
+  activeFiberKirchhoffStressPaByWall: MainWireFiveWallRecordV1<number>;
+  /** Three ventricular wall rows by four ventricular/internal directions. */
+  ventricularFiberStrainDerivativeRowMajor: Float64Array;
+  /** Three ventricular wall rows by four ventricular/internal directions. */
+  ventricularActiveStressDerivativeRowMajor: Float64Array;
+}>;
 
 type ErasedNumericalMechanicsEvaluationV1 =
   MainWireFiveWallNumericalMechanicsEvaluationV1<unknown>;
@@ -326,6 +367,11 @@ type ErasedNumericalProviderFactoryV1 = Readonly<{
     evaluate(
       candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
     ): ErasedNumericalMechanicsEvaluationV1;
+    evaluateAtFixedInternalCoordinates(
+      candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+      scaledInternalCoordinates: readonly [number, number],
+    ): MainWireFiveWallFixedInternalMechanicsEvaluationV1;
+    initialScaledInternalCoordinates: readonly [number, number];
   }>;
 }>;
 
@@ -338,6 +384,11 @@ const NUMERICAL_STEP_INTERNALS_V1 = new WeakMap<
     evaluate(
       candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
     ): ErasedNumericalMechanicsEvaluationV1;
+    evaluateAtFixedInternalCoordinates(
+      candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+      scaledInternalCoordinates: readonly [number, number],
+    ): MainWireFiveWallFixedInternalMechanicsEvaluationV1;
+    initialScaledInternalCoordinates: readonly [number, number];
   }>
 >();
 
@@ -657,8 +708,16 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
       const initialUnknowns = coordinatesToScaledUnknowns(
         previous.trisegCoordinates,
         params,
-      );
+      ) as readonly [number, number];
+      // Fixed-coordinate probes belong to this one prepared accepted step.
+      // Keep their atrial constitutive reuse private to that lifetime, exactly
+      // as the local TriSeg solver keeps one private reuse object per solve.
+      // The cache key includes accepted state, strain, calcium and dt, so an
+      // A→B→A probe may reuse only the matching wall evaluation.
+      const fixedInternalTrialAtrialMaterialReuse:
+        TrialAtrialMaterialReuseV1<TWallState> = { LA: null, RA: null };
       return Object.freeze({
+        initialScaledInternalCoordinates: initialUnknowns,
         evaluate: (candidateVolumesMl) => {
           validateVolumes(candidateVolumesMl);
           const solved = solveInternalCoordinates(
@@ -684,6 +743,32 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
             solved,
             params,
           ) as ErasedNumericalMechanicsEvaluationV1;
+        },
+        evaluateAtFixedInternalCoordinates: (
+          candidateVolumesMl,
+          scaledInternalCoordinates,
+        ) => {
+          validateVolumes(candidateVolumesMl);
+          const candidate = evaluateCandidate(
+            candidateVolumesMl,
+            drive,
+            scaledInternalCoordinates,
+            {
+              kind: "trial",
+              previousState: previous,
+              stepDtSec: input.stepDtSec,
+              materialEvaluationMode: "numerical",
+            },
+            params,
+            solver,
+            null,
+            fixedInternalTrialAtrialMaterialReuse,
+          );
+          return fixedInternalMechanicsEvaluationV1(
+            candidate,
+            scaledInternalCoordinates,
+            params,
+          );
         },
       });
     },
@@ -716,6 +801,8 @@ export function tryPrepareMainWireFiveWallNumericalMechanicsStepV1<TState>(
     parameterIdentityHash: provider.parameterIdentityHash,
     candidateTimeSec: input.candidateTimeSec,
     stepDtSec: input.stepDtSec,
+    initialScaledInternalCoordinates:
+      internals.initialScaledInternalCoordinates,
   });
   NUMERICAL_STEP_INTERNALS_V1.set(step, internals);
   return step;
@@ -740,6 +827,40 @@ export function evaluateMainWireFiveWallNumericalMechanicsCandidateV1<TState>(
     MainWireFiveWallNumericalMechanicsEvaluationV1<TState>;
 }
 
+/**
+ * Evaluates mechanics at caller-supplied scaled TriSeg coordinates without the
+ * provider's local two-variable Newton. This is a construction contract for
+ * the monolithic 32-variable solver, not an accepted mechanics trial.
+ */
+export function evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1<
+  TState,
+>(
+  step: MainWireFiveWallNumericalMechanicsStepV1<TState>,
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+  scaledInternalCoordinates: readonly [number, number],
+): MainWireFiveWallFixedInternalMechanicsEvaluationV1 {
+  if (
+    step.numericalStepId
+      !== MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID
+  ) {
+    throw new Error("unsupported numerical mechanics step identity");
+  }
+  if (
+    scaledInternalCoordinates.length !== 2
+    || !scaledInternalCoordinates.every(Number.isFinite)
+  ) {
+    throw new Error("fixed internal mechanics requires two finite coordinates");
+  }
+  const internals = NUMERICAL_STEP_INTERNALS_V1.get(step);
+  if (internals === undefined) {
+    throw new Error("numerical mechanics step was not minted by this runtime");
+  }
+  return internals.evaluateAtFixedInternalCoordinates(
+    candidateVolumesMl,
+    scaledInternalCoordinates,
+  );
+}
+
 function numericalMechanicsEvaluationFromSolveV1<TWallState>(
   candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
   solved: InternalSolveSuccessV1<TWallState>,
@@ -761,6 +882,10 @@ function numericalMechanicsEvaluationFromSolveV1<TWallState>(
       "trial",
     ),
     candidateVolumesMl: solved.candidate.volumesMl,
+    scaledInternalCoordinates: Object.freeze([
+      solved.scaledUnknowns[0]!,
+      solved.scaledUnknowns[1]!,
+    ]) as readonly [number, number],
     transmuralPressuresMmHg: solved.candidate.transmuralPressuresMmHg,
     ...(consistentTangent === undefined
       ? {}
@@ -779,6 +904,120 @@ function numericalMechanicsEvaluationFromSolveV1<TWallState>(
     ...(solved.evaluationCounters === undefined
       ? {}
       : { evaluationCounters: solved.evaluationCounters }),
+  });
+}
+
+function fixedInternalMechanicsEvaluationV1<TWallState>(
+  candidate: CandidateEvaluationV1<TWallState>,
+  scaledInternalCoordinates: readonly [number, number],
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+): MainWireFiveWallFixedInternalMechanicsEvaluationV1 {
+  const hessian = analyticTriSegAlgorithmicHessian(candidate, params);
+  const coordinateScales = [
+    params.internalCoordinateScales.septalMidwallCapVolumeM3,
+    params.internalCoordinateScales.junctionRadiusM,
+  ] as const;
+  const pressureDerivative = new Float64Array(4 * 6);
+  pressureDerivative[0 * 6 + 0] = atrialPressureVolumeTangentMmHgPerMl(
+    candidate.volumesMl.LA,
+    params.atria.LA,
+    candidate.fiberKirchhoffStressPaByWall.LA,
+    candidate.materialByWall.LA.algorithmicFiberTangentPa,
+  );
+  pressureDerivative[2 * 6 + 2] = atrialPressureVolumeTangentMmHgPerMl(
+    candidate.volumesMl.RA,
+    params.atria.RA,
+    candidate.fiberKirchhoffStressPaByWall.RA,
+    candidate.materialByWall.RA.algorithmicFiberTangentPa,
+  );
+  for (let ventricularPressureRow = 0;
+    ventricularPressureRow < 2;
+    ventricularPressureRow += 1) {
+    const pressureRow = ventricularPressureRow === 0 ? 1 : 3;
+    pressureDerivative[pressureRow * 6 + 1] =
+      hessian[ventricularPressureRow]![0]! * 1e-6 / PA_PER_MMHG;
+    pressureDerivative[pressureRow * 6 + 3] =
+      hessian[ventricularPressureRow]![1]! * 1e-6 / PA_PER_MMHG;
+    pressureDerivative[pressureRow * 6 + 4] =
+      hessian[ventricularPressureRow]![2]!
+      * coordinateScales[0] / PA_PER_MMHG;
+    pressureDerivative[pressureRow * 6 + 5] =
+      hessian[ventricularPressureRow]![3]!
+      * coordinateScales[1] / PA_PER_MMHG;
+  }
+  const internalResidualDerivative = new Float64Array(2 * 6);
+  for (let residualRow = 0; residualRow < 2; residualRow += 1) {
+    internalResidualDerivative[residualRow * 6 + 1] =
+      hessian[residualRow + 2]![0]!
+      * coordinateScales[residualRow]! * 1e-6 / ONE_JOULE;
+    internalResidualDerivative[residualRow * 6 + 3] =
+      hessian[residualRow + 2]![1]!
+      * coordinateScales[residualRow]! * 1e-6 / ONE_JOULE;
+    for (let coordinateColumn = 0;
+      coordinateColumn < 2;
+      coordinateColumn += 1) {
+      internalResidualDerivative[residualRow * 6 + 4 + coordinateColumn] =
+        hessian[residualRow + 2]![coordinateColumn + 2]!
+        * coordinateScales[residualRow]!
+        * coordinateScales[coordinateColumn]! / ONE_JOULE;
+    }
+  }
+  const ventricularWallIds = ["LVFW", "SEP", "RVFW"] as const;
+  const capVolumeGradientByWall = {
+    LVFW: [-1, 0, 1] as const,
+    SEP: [0, 0, 1] as const,
+    RVFW: [0, 1, 1] as const,
+  };
+  const strainDerivative = new Float64Array(3 * 4);
+  const activeStressDerivative = new Float64Array(3 * 4);
+  for (let wallIndex = 0; wallIndex < ventricularWallIds.length; wallIndex += 1) {
+    const wallId = ventricularWallIds[wallIndex]!;
+    const first = candidate.triseg.wallDerivativeByWall[wallId];
+    const capGradient = capVolumeGradientByWall[wallId];
+    strainDerivative[wallIndex * 4 + 0] = capGradient[0]
+      * first.dFiberLogStrainDCapVolumePerM3 * 1e-6;
+    strainDerivative[wallIndex * 4 + 1] = capGradient[1]
+      * first.dFiberLogStrainDCapVolumePerM3 * 1e-6;
+    strainDerivative[wallIndex * 4 + 2] = capGradient[2]
+      * first.dFiberLogStrainDCapVolumePerM3 * coordinateScales[0];
+    strainDerivative[wallIndex * 4 + 3] =
+      first.dFiberLogStrainDJunctionRadiusPerM * coordinateScales[1];
+    const activeTangent =
+      candidate.materialByWall[wallId].activeFiberAlgorithmicTangentPa;
+    for (let column = 0; column < 4; column += 1) {
+      activeStressDerivative[wallIndex * 4 + column] =
+        activeTangent * strainDerivative[wallIndex * 4 + column]!;
+    }
+  }
+  if (
+    ![
+      ...pressureDerivative,
+      ...internalResidualDerivative,
+      ...strainDerivative,
+      ...activeStressDerivative,
+    ].every(Number.isFinite)
+  ) {
+    throw new Error("fixed internal mechanics derivative is non-finite");
+  }
+  return Object.freeze({
+    candidateVolumesMl: Object.freeze({ ...candidate.volumesMl }),
+    scaledInternalCoordinates: Object.freeze([
+      scaledInternalCoordinates[0],
+      scaledInternalCoordinates[1],
+    ]) as readonly [number, number],
+    transmuralPressuresMmHg: candidate.transmuralPressuresMmHg,
+    internalResidualByOneJ: Object.freeze([
+      candidate.scaledAlgorithmicGeneralizedForceByOneJ[0]!,
+      candidate.scaledAlgorithmicGeneralizedForceByOneJ[1]!,
+    ]) as readonly [number, number],
+    transmuralPressureDerivativeRowMajor: pressureDerivative,
+    internalResidualDerivativeRowMajor: internalResidualDerivative,
+    effectiveFiberLogStrainByWall:
+      candidate.effectiveFiberLogStrainByWall,
+    activeFiberKirchhoffStressPaByWall: fiveWallRecord((wallId) =>
+      candidate.materialByWall[wallId].activeFiberKirchhoffStressPa),
+    ventricularFiberStrainDerivativeRowMajor: strainDerivative,
+    ventricularActiveStressDerivativeRowMajor: activeStressDerivative,
   });
 }
 
