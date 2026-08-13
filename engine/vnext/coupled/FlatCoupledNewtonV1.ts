@@ -38,6 +38,10 @@ export type FlatCoupledNewtonOptionsV1 = Readonly<{
   updateInfinityTolerance: number;
   armijoCoefficient: number;
   minimumAbsolutePivot: number;
+  /** Physical unknown represented by one normalized linear-solve unit. */
+  unknownScaleByUnknown: Float64Array;
+  /** Physical residual represented by one normalized linear-solve unit. */
+  residualScaleByEquation: Float64Array;
   lowerBoundByUnknown: Float64Array;
   upperBoundByUnknown: Float64Array;
 }>;
@@ -172,6 +176,7 @@ export function solveFlatCoupledSystemV1(
       system.evaluateJacobian(current, jacobian);
       jacobianEvaluationCount += 1;
       requireFiniteVector(jacobian, "coupled Jacobian");
+      equilibrateJacobianInPlace(jacobian, options);
     } catch (error) {
       return failure(
         "jacobian-evaluation",
@@ -201,9 +206,13 @@ export function solveFlatCoupledSystemV1(
       );
     }
     for (let index = 0; index < system.dimension; index += 1) {
-      rightHandSide[index] = -residual[index]!;
+      rightHandSide[index] = -residual[index]!
+        / options.residualScaleByEquation[index]!;
     }
     solveFactoredFlatDenseSystemV1(linear, rightHandSide, update);
+    for (let index = 0; index < system.dimension; index += 1) {
+      update[index] *= options.unknownScaleByUnknown[index]!;
+    }
     const updateInfinityNorm = infinityNorm(update);
     if (updateInfinityNorm <= options.updateInfinityTolerance) {
       return failure(
@@ -286,6 +295,16 @@ function validateInputs(
   requireLength(initialUnknowns, system.dimension, "initial unknowns");
   requireFiniteVector(initialUnknowns, "initial unknowns");
   requireLength(
+    options.unknownScaleByUnknown,
+    system.dimension,
+    "unknown scales",
+  );
+  requireLength(
+    options.residualScaleByEquation,
+    system.dimension,
+    "residual scales",
+  );
+  requireLength(
     options.lowerBoundByUnknown,
     system.dimension,
     "lower bounds",
@@ -316,6 +335,14 @@ function validateInputs(
     throw new RangeError("armijoCoefficient must be finite within (0, 1)");
   }
   for (let index = 0; index < system.dimension; index += 1) {
+    requirePositiveFinite(
+      options.unknownScaleByUnknown[index]!,
+      `unknownScaleByUnknown[${index}]`,
+    );
+    requirePositiveFinite(
+      options.residualScaleByEquation[index]!,
+      `residualScaleByEquation[${index}]`,
+    );
     const lower = options.lowerBoundByUnknown[index]!;
     const upper = options.upperBoundByUnknown[index]!;
     if (Number.isNaN(lower) || Number.isNaN(upper) || !(upper > lower)) {
@@ -324,6 +351,20 @@ function validateInputs(
   }
   requireWithinBounds(initialUnknowns, options);
   system.assertCandidateAdmissible?.(initialUnknowns);
+}
+
+function equilibrateJacobianInPlace(
+  jacobian: Float64Array,
+  options: FlatCoupledNewtonOptionsV1,
+): void {
+  const dimension = options.unknownScaleByUnknown.length;
+  for (let row = 0; row < dimension; row += 1) {
+    const inverseResidualScale = 1 / options.residualScaleByEquation[row]!;
+    for (let column = 0; column < dimension; column += 1) {
+      jacobian[row * dimension + column] *=
+        options.unknownScaleByUnknown[column]! * inverseResidualScale;
+    }
+  }
 }
 
 function admissibleStepLength(

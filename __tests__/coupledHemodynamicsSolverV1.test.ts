@@ -221,6 +221,8 @@ function defaultOptions(dimension: number): FlatCoupledNewtonOptionsV1 {
     updateInfinityTolerance: 1e-14,
     armijoCoefficient: 1e-4,
     minimumAbsolutePivot: 1e-14,
+    unknownScaleByUnknown: new Float64Array(dimension).fill(1),
+    residualScaleByEquation: new Float64Array(dimension).fill(1),
     lowerBoundByUnknown: new Float64Array(dimension).fill(0.01),
     upperBoundByUnknown: new Float64Array(dimension).fill(4),
   });

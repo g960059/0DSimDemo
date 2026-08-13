@@ -603,6 +603,13 @@ export type NonCoronaryCirculationCandidateProbeV1<
    */
   localIndependentResidualDDependentSvVolumeMlPerMl:
     Float64Array | null;
+  /**
+   * Physical 14x14 local-continuity tangent at fixed companion state. The
+   * fixed-TBV dependent-SV chain is included; companion volume/rate
+   * sensitivities are deliberately excluded for monolithic assembly.
+   */
+  localIndependentResidualDIndependentVolumeMlPerMl:
+    Float64Array | null;
   absoluteChamberPressureTangent:
     NonCoronaryAbsoluteChamberPressureTangentV1 | null;
   candidateMechanicsEvaluation: TEvaluation;
@@ -1379,6 +1386,18 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
         respiratoryExternalPressures,
       )
       : null;
+  const localIndependentResidualDIndependentVolumeMlPerMl =
+    input.mechanicalSupport === undefined
+      && input.dynamicMechanicalSupport === undefined
+      && input.protocolResistanceScaleByEdge === undefined
+      && candidate.absoluteChamberPressureTangent !== null
+      ? deviceOffLocalIndependentResidualDIndependentVolumesV1(
+        graph,
+        input,
+        candidate,
+        respiratoryExternalPressures,
+      )
+      : null;
   return Object.freeze({
     candidateTimeSec,
     candidateNodeVolumesMl: candidate.nodeVolumesMl.slice(),
@@ -1392,6 +1411,7 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
     scaledIndependentResidual:
       candidate.scaledIndependentResidual.slice(),
     localIndependentResidualDDependentSvVolumeMlPerMl,
+    localIndependentResidualDIndependentVolumeMlPerMl,
     absoluteChamberPressureTangent:
       candidate.absoluteChamberPressureTangent,
     candidateMechanicsEvaluation: candidate.candidateMechanicsEvaluation,
@@ -2694,6 +2714,99 @@ function deviceOffLocalIndependentResidualDDependentSvVolumeV1<
       destination[downstreamResidualRow] -= input.dtSec
         * dFlowDDependentVolume;
     }
+  }
+  return destination;
+}
+
+/**
+ * Physical local-continuity Jacobian for the first monolithic device-off
+ * slice. It differentiates native non-coronary edges and the fixed-TBV
+ * dependent-SV elimination, but intentionally does not differentiate the
+ * conservative companion. The coupled assembler owns those explicit rates.
+ */
+function deviceOffLocalIndependentResidualDIndependentVolumesV1<
+  TEvaluation,
+  TCompanionTrial,
+>(
+  graph: NonCoronaryCirculationGraphV1,
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+  current: CandidateEvaluation<TEvaluation, TCompanionTrial>,
+  respiratoryExternalPressures: RespiratoryExternalPressuresV1,
+): Float64Array {
+  if (
+    current.mechanicalSupport !== null
+    || current.dynamicMechanicalSupport !== null
+    || input.protocolResistanceScaleByEdge !== undefined
+  ) {
+    throw new Error(
+      "local physical Jacobian V1 supports only the device-off protocol-free slice",
+    );
+  }
+  const chamberTangent = current.absoluteChamberPressureTangent;
+  if (chamberTangent === null) {
+    throw new Error("local physical Jacobian requires chamber pressure tangents");
+  }
+  const size = INDEPENDENT_NODE_NAMES.length;
+  const destination = new Float64Array(size * size);
+  for (let index = 0; index < size; index += 1) {
+    destination[index * size + index] = 1;
+  }
+  const pressureDerivative = (
+    pressureNode: NonCoronaryNodeNameV1,
+    volumeColumn: number,
+  ): number => {
+    const volumeNode = INDEPENDENT_NODE_NAMES[volumeColumn]!;
+    if (isChamberName(pressureNode)) {
+      if (!isChamberName(volumeNode)) return 0;
+      const pressureRow = CHAMBER_TANGENT_INDEX[pressureNode];
+      const chamberColumn = CHAMBER_TANGENT_INDEX[volumeNode];
+      if (pressureRow === undefined || chamberColumn === undefined) {
+        throw new Error("chamber tangent ordering drifted");
+      }
+      return chamberTangent.dPressureDVolumeMmHgPerMl[
+        pressureRow
+      ]![chamberColumn]!;
+    }
+    const tangent = requireFinite(
+      current.vascularPressureTangentMmHgPerMl[
+        NON_CORONARY_NODE_INDEX_BY_NAME_V1[pressureNode]
+      ]!,
+      `${pressureNode} vascular pressure tangent`,
+    );
+    if (pressureNode === DEPENDENT_NODE) return -tangent;
+    return volumeNode === pressureNode ? tangent : 0;
+  };
+  for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex += 1) {
+    const edge = graph.edges[edgeIndex]!;
+    const upstreamName = edge.up as NonCoronaryNodeNameV1;
+    const downstreamName = edge.down as NonCoronaryNodeNameV1;
+    const derivatives = analyticEdgeFlowPressureDerivativesV1(
+      graph,
+      input,
+      current,
+      respiratoryExternalPressures,
+      edgeIndex,
+    );
+    const upstreamResidualRow = INDEPENDENT_NODE_INDEX[upstreamName];
+    const downstreamResidualRow = INDEPENDENT_NODE_INDEX[downstreamName];
+    for (let column = 0; column < size; column += 1) {
+      const dFlowDVolume =
+        derivatives.upstreamMlPerSecPerMmHg
+          * pressureDerivative(upstreamName, column)
+        + derivatives.downstreamMlPerSecPerMmHg
+          * pressureDerivative(downstreamName, column);
+      if (upstreamResidualRow !== undefined) {
+        destination[upstreamResidualRow * size + column] +=
+          input.dtSec * dFlowDVolume;
+      }
+      if (downstreamResidualRow !== undefined) {
+        destination[downstreamResidualRow * size + column] -=
+          input.dtSec * dFlowDVolume;
+      }
+    }
+  }
+  if (destination.some((value) => !Number.isFinite(value))) {
+    throw new Error("local physical Jacobian produced non-finite values");
   }
   return destination;
 }

@@ -531,13 +531,13 @@ export type MainWireFiveWallCoupledResidualContextV1 = Readonly<{
     unknownsMl: Float64Array,
     destinationResidualMl: Float64Array,
   ): void;
-  writeCoronaryLinearization(
+  evaluateDependentSvContinuityResidualMl(unknownsMl: Float64Array): number;
+  writeCoupledLinearizations(
     unknownsMl: Float64Array,
-    destination: CoronaryBackwardEulerCandidateLinearizationDestinationV2,
+    coronaryDestination:
+      CoronaryBackwardEulerCandidateLinearizationDestinationV2,
     destinationNonCoronaryDependentSvColumnMlPerMl: Float64Array,
-  ): void;
-  writeCoronaryBoundaryLinearization(
-    unknownsMl: Float64Array,
+    rowMajorNonCoronaryLocalDestination: Float64Array,
     rowMajorBoundaryByNonCoronaryVolumeDestination: Float64Array,
   ): boolean;
 }>;
@@ -971,19 +971,60 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     ): void => {
       evaluateCoupledCandidate(unknownsMl, destinationResidualMl);
     },
-    writeCoronaryLinearization: (
+    evaluateDependentSvContinuityResidualMl: (
       unknownsMl: Float64Array,
-      destination: CoronaryBackwardEulerCandidateLinearizationDestinationV2,
+    ): number => {
+      const candidate = evaluateCoupledCandidate(
+        unknownsMl,
+        coronaryLinearizationResidualScratch,
+      );
+      const dependentSvNode = NON_CORONARY_NODE_NAMES_V1.indexOf("SV");
+      if (dependentSvNode < 0) {
+        throw new Error("dependent SV node order drifted");
+      }
+      const residual = candidate.nonCoronaryProbe
+        .continuityResidualMlByNode[dependentSvNode]!;
+      requireFinite(residual, "dependent SV continuity residual");
+      return residual;
+    },
+    writeCoupledLinearizations: (
+      unknownsMl: Float64Array,
+      coronaryDestination:
+        CoronaryBackwardEulerCandidateLinearizationDestinationV2,
       destinationNonCoronaryDependentSvColumnMlPerMl: Float64Array,
-    ): void => {
+      rowMajorNonCoronaryLocalDestination: Float64Array,
+      boundaryDestination: Float64Array,
+    ): boolean => {
+      const nonCoronaryDimension =
+        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+      const boundaryDimension =
+        CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
       if (
         !(destinationNonCoronaryDependentSvColumnMlPerMl
           instanceof Float64Array)
         || destinationNonCoronaryDependentSvColumnMlPerMl.length
-          !== NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
+          !== nonCoronaryDimension
       ) {
         throw new RangeError(
           "coupled dependent-SV tangent destination must contain 14 f64 values",
+        );
+      }
+      if (
+        !(rowMajorNonCoronaryLocalDestination instanceof Float64Array)
+        || rowMajorNonCoronaryLocalDestination.length
+          !== nonCoronaryDimension * nonCoronaryDimension
+      ) {
+        throw new RangeError(
+          "local non-coronary tangent destination must contain 14x14 f64 values",
+        );
+      }
+      if (
+        !(boundaryDestination instanceof Float64Array)
+        || boundaryDestination.length
+          !== boundaryDimension * nonCoronaryDimension
+      ) {
+        throw new RangeError(
+          "coronary boundary tangent destination must contain 9x14 f64 values",
         );
       }
       const candidate = evaluateCoupledCandidate(
@@ -993,6 +1034,15 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       destinationNonCoronaryDependentSvColumnMlPerMl.set(
         candidate.localIndependentResidualDDependentSvVolumeMlPerMl,
       );
+      const localNonCoronaryLinearization = candidate.nonCoronaryProbe
+        .localIndependentResidualDIndependentVolumeMlPerMl;
+      if (localNonCoronaryLinearization === null) {
+        rowMajorNonCoronaryLocalDestination.fill(0);
+      } else {
+        rowMajorNonCoronaryLocalDestination.set(
+          localNonCoronaryLinearization,
+        );
+      }
       writeCoronaryBackwardEulerCandidateLinearizationV2(
         previous.coronary,
         Object.freeze({
@@ -1004,30 +1054,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           solverOptions: input.coronarySolverOptions,
         }),
         candidate.candidateCoronaryVolumes,
-        destination,
+        coronaryDestination,
         prior,
         topology,
-      );
-    },
-    writeCoronaryBoundaryLinearization: (
-      unknownsMl: Float64Array,
-      destination: Float64Array,
-    ): boolean => {
-      const nonCoronaryDimension =
-        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
-      const boundaryDimension =
-        CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
-      if (
-        !(destination instanceof Float64Array)
-        || destination.length !== boundaryDimension * nonCoronaryDimension
-      ) {
-        throw new RangeError(
-          "coronary boundary tangent destination must contain 9x14 f64 values",
-        );
-      }
-      const candidate = evaluateCoupledCandidate(
-        unknownsMl,
-        coronaryLinearizationResidualScratch,
       );
       const probe = candidate.nonCoronaryProbe;
       const chamberTangent = probe.absoluteChamberPressureTangent;
@@ -1043,8 +1072,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         chamberTangent === null
         || transmuralTangent === undefined
         || ventricularTangent === null
+        || localNonCoronaryLinearization === null
       ) {
-        destination.fill(0);
+        boundaryDestination.fill(0);
         return false;
       }
       const baseSample = candidateCoronaryBoundarySampleV2(
@@ -1131,7 +1161,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           shorteningImpPrior,
         );
         writeCoronaryBoundaryDerivativeColumnV2(
-          destination,
+          boundaryDestination,
           nonCoronaryDimension,
           column,
           derivative,

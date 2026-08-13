@@ -792,32 +792,46 @@ generation, generic sparse libraries, and Jacobian-free Newton–Krylov are not
 part of the first slice. Build-time generated assembly becomes eligible when
 multipatch repetition makes its review and tooling cost worthwhile.
 
-The first Phase 2a construction slice now evaluates the real 30-row residual
-and solves it with the dense flat Newton. Its coronary writer obtains the
+The Phase 2a construction solver now evaluates the real 30-row residual and
+solves it with the dense flat Newton. Its coronary writer obtains the
 16-row residual, the `16×16` fixed-boundary volume tangent, the `16×9`
 boundary tangent, and inlet/outlet observable tangents from one hydraulic
-evaluation. The first hybrid block step also assembles every non-coronary row
-of the 16 coronary-volume columns analytically, including the fixed-TBV
-dependent-`SV` chain and direct Ao/RA companion rates. Therefore a Jacobian
-assembly uses 28 full-residual probes instead of 60. At the canonical cold
-candidate, the assembled columns differ from a bisection-noise-aware central
-shadow by at most `8.8e-8` (`1.9e-6` relative Frobenius), and the hybrid and
-full-FD Newton solutions agree to nine decimal digits. This is a correctness
-and work-count milestone, not yet a runtime speed claim: the residual remains
-the cold object-materializing oracle and the 14 non-coronary columns still
-provide the upper-left block through finite-difference probes.
+evaluation. Component-owned writers assemble all four Jacobian blocks from
+one coupled candidate:
 
-The next construction slice owns the lower-left block as well. The production
-mechanics provider exposes its already-condensed chamber pressure, ventricular
-fiber-strain, and active-stress rows. A pure boundary derivative composes
-those rows with common-pericardium, cavity-induced pressure, and shortening
-IMP derivatives to form the `9×14` boundary matrix. Multiplication by the
-coronary writer's `16×9` boundary tangent produces the `16×14` coronary-
-residual/non-coronary-volume block. Direct comparison with the real 30-row
-residual is gated at `2e-6 mL/mL` maximum absolute and `2e-5` relative
-Frobenius error. Providers that do not expose the condensed mechanics rows
-retain the finite-difference shadow; this fallback is a construction aid and
-is not eligible for the production cutover.
+- the non-coronary writer provides the physical `14×14` local block,
+  including the fixed-total-volume dependent-`SV` column and native edge
+  chain, without differentiating through the legacy implicit companion solve;
+- direct coronary inlet/outlet tangents add the Ao and RA companion-rate
+  contributions to that block;
+- the same dependent-`SV` chain and direct companion-rate tangents form the
+  `14×16` upper-right block;
+- the production mechanics provider exposes its condensed chamber pressure,
+  ventricular fiber-strain, and active-stress rows, which common-pericardium,
+  cavity-pressure, and shortening-IMP derivatives compose into a `9×14`
+  boundary matrix; and
+- multiplication by the coronary writer's `16×9` boundary tangent gives the
+  `16×14` lower-left block, while its fixed-boundary `16×16` tangent supplies
+  the lower-right block.
+
+The production provider consequently needs zero full-residual finite-
+difference probes per Jacobian rather than the original 60. Providers without
+the required physical tangents retain a 14-column finite-difference shadow;
+that fallback is a construction aid and is not eligible for production
+cutover. At the canonical cold candidate, direct block comparisons with the
+real 30-row central-difference oracle are gated at `2e-6 mL/mL` maximum
+absolute and `2e-5` relative Frobenius error. The analytic and all-FD Newton
+solutions agree to nine decimal digits.
+
+Dense LU acts on a row/column-equilibrated Jacobian. Unknown scales come from
+the initial physical volumes and residual scales use the corresponding
+equation-volume scale; convergence tolerances, line-search merit, lower bounds,
+and returned updates remain in physical units. After convergence, an
+independent cold audit evaluates the eliminated `SV` continuity equation and
+requires its residual to remain below the declared physical tolerance. These
+are correctness and work-count milestones, not yet a runtime speed claim: the
+residual still materializes the cold object oracle and must next become a
+session-owned flat writer before production qualification.
 
 The Newton domain now also owns physical lower bounds for all 16 coronary
 storage volumes and the coupled fixed-blood-volume inequality. The dependent
