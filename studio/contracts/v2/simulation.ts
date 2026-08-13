@@ -59,6 +59,10 @@ export type RegisteredModelPresentationBatchV2 = Readonly<{
   terminalFrame: StudioSimulationFrameV2;
 }>;
 
+/** Exact-manifest capability negotiating the optional packed presentation ABI. */
+export const STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 =
+  "runtime/exact-presentation-batch-v1" as const;
+
 /**
  * Immutable, on-demand analysis of one exact accepted simulation boundary.
  *
@@ -131,11 +135,12 @@ export type RegisteredModelSimulationAdapterV2 = Readonly<{
    * and latest-value consumers retain one authoritative model frame.
    *
    * This is a projection optimization, never permission to skip, interpolate
-   * or otherwise alter accepted numerical steps. CircleHeart is pre-release;
-   * the Standard ABI cuts directly to this required typed boundary rather than
-   * retaining a frame-per-step compatibility path.
+   * or otherwise alter accepted numerical steps. Exact manifests that expose
+   * this function must declare
+   * `runtime/exact-presentation-batch-v1`. Artifacts without that capability
+   * retain the immutable frame-per-step ABI used by historical Snapshots.
    */
-  advancePresentationBatch(input: Readonly<{
+  advancePresentationBatch?(input: Readonly<{
     runtimeSessionId: string;
     scenarioId: ScenarioIdV2;
     stepCount: number;

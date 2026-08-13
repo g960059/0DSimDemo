@@ -81,6 +81,9 @@ import type {
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
 import {
+  STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+} from "@/studio/contracts/v2/simulation";
+import {
   validateAndOwnStudioSimulationPortableJsonV2,
 } from "@/studio/contracts/v2/simulation";
 import {
@@ -725,6 +728,7 @@ ExactModelKernelManifestV3 {
     primitiveSignalCatalog: STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1,
     modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
+      STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1
         .map(({ outputId }) => `output/${outputId}`),

@@ -157,6 +157,38 @@ describe("Studio numerical authoring V1", () => {
     });
     expect(repository.snapshot()).not.toBeNull();
   }, 30_000);
+
+  it("binds the packed extension to the immutable manifest capability", () => {
+    const release = createCircleHeartExactModelReleaseV1();
+    const composed = composeStandardModelContractV1(
+      release.manifest,
+      standardSurfaceReleaseV1,
+    );
+    const {
+      advancePresentationBatch: _packedExtension,
+      ...historicalSimulationAdapter
+    } = release.executables.simulationAdapter;
+    const historicalBundle = {
+      ...release.executables,
+      simulationAdapter: historicalSimulationAdapter,
+    } as typeof release.executables;
+
+    expect(() => validateExecutableBundleV2(
+      historicalBundle,
+      composed.contract,
+      { requiresPresentationBatch: false },
+    )).not.toThrow();
+    expect(() => validateExecutableBundleV2(
+      historicalBundle,
+      composed.contract,
+      { requiresPresentationBatch: true },
+    )).toThrow(/advancePresentationBatch/);
+    expect(() => validateExecutableBundleV2(
+      release.executables,
+      composed.contract,
+      { requiresPresentationBatch: false },
+    )).toThrow(/simulation adapter must contain exactly/);
+  });
 });
 
 function executionBudgetV1() {
@@ -173,7 +205,9 @@ function numericalModelsV1(): StudioAuthoringNumericalModelPortV1 {
     release.manifest,
     standardSurfaceReleaseV1,
   );
-  validateExecutableBundleV2(release.executables, composed.contract);
+  validateExecutableBundleV2(release.executables, composed.contract, {
+    requiresPresentationBatch: true,
+  });
   const runtime = freezeExactRuntimeV2(release.executables, composed.contract);
   const resolved = Object.freeze({
     contract: composed.contract,

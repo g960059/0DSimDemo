@@ -33372,6 +33372,7 @@ function assertNonemptyObjectV1(value, path) {
     throw new ModelSurfaceValidationErrorV1(path, "must not be empty");
   }
 }
+const STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 = "runtime/exact-presentation-batch-v1";
 const MAXIMUM_STUDIO_SIMULATION_JSON_DEPTH_V2 = 256;
 class StudioSimulationContractValidationErrorV2 extends Error {
   constructor(path, message) {
@@ -33669,7 +33670,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-11";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-12";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";
@@ -34112,6 +34113,7 @@ function createMainWireIntegratedStudioExactKernelV1() {
     primitiveSignalCatalog: STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1,
     modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
+      STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1.map(({ outputId }) => `output/${outputId}`),
       ...STANDARD_MODEL_METRIC_DEFINITIONS_V1.map(({ outputId }) => `output/${outputId}`),

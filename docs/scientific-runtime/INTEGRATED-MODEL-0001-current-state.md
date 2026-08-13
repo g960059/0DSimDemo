@@ -32,11 +32,11 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-11
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-12
 ```
 
-Standard-11 preserves Standard-10's equations, controls, checkpoint meaning,
-and accepted numerical sequence while cutting directly to the required packed
+Standard-12 preserves Standard-10's equations, controls, checkpoint meaning,
+and accepted numerical sequence while declaring the required packed
 presentation ABI. Intermediate accepted steps project only authored scalar
 signals into transferable numeric buffers; the terminal step retains a full
 exact frame. The release also reuses one coronary matrix factorization across

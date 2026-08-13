@@ -121,12 +121,15 @@ export function materializeStudioSimulationPresentationFramesV2(
 export function studioSimulationPresentationBatchTransferablesV2(
   batch: StudioSimulationPresentationBatchV2,
 ): readonly ArrayBuffer[] {
-  return Object.freeze([
+  // A future flat kernel may expose several typed views over one destination
+  // page. Transfer each backing store once so that such a valid packed page
+  // cannot fail with a duplicate-transfer DataCloneError.
+  return Object.freeze([...new Set([
     batch.acceptedRevisions.buffer,
     batch.acceptedTimesSec.buffer,
     batch.outputStates.buffer,
     batch.outputValues.buffer,
-  ]);
+  ])]);
 }
 
 export function studioSimulationPresentationOutputStateCodeV2(

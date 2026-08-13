@@ -62,6 +62,7 @@ import {
   validateStudioSimulationWorkerResponseFromTrustedRuntimeV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 import {
+  createStudioSimulationPresentationBatchV2,
   STUDIO_SIMULATION_PRESENTATION_OUTPUT_STATE_COUNT_V2,
   studioSimulationPresentationOutputStateCodeV2,
   studioSimulationPresentationBatchTransferablesV2,
@@ -520,12 +521,32 @@ export class StudioSimulationWorkerRuntimeV2 {
     try {
       const workerAdvanceStartedAtMs = performance.now();
       let workerAdvanceCompletedAtMs: number;
-      const proposedBatch = await adapter.advancePresentationBatch({
-        runtimeSessionId: physicalRuntimeSessionId,
-        scenarioId: request.scenarioId,
-        stepCount: request.stepCount,
-        presentationOutputIds: request.presentationOutputIds,
-      });
+      let proposedBatch: RegisteredModelPresentationBatchV2;
+      if (adapter.advancePresentationBatch !== undefined) {
+        proposedBatch = await adapter.advancePresentationBatch({
+          runtimeSessionId: physicalRuntimeSessionId,
+          scenarioId: request.scenarioId,
+          stepCount: request.stepCount,
+          presentationOutputIds: request.presentationOutputIds,
+        });
+      } else {
+        // Immutable v1 exact artifacts predate the packed extension. Preserve
+        // their frame-per-step contract only when loading historical pins;
+        // every new Standard release advertises and owns the packed path.
+        const frames: StudioSimulationFrameV2[] = [];
+        for (let index = 0; index < request.stepCount; index += 1) {
+          frames.push(this.#validateAdapterFrame(
+            await adapter.advanceOnePresentationStep({
+              runtimeSessionId: physicalRuntimeSessionId,
+              scenarioId: request.scenarioId,
+            }),
+          ));
+        }
+        proposedBatch = createStudioSimulationPresentationBatchV2(
+          frames,
+          request.presentationOutputIds,
+        );
+      }
       workerAdvanceCompletedAtMs = performance.now();
       const validatedTerminalFrame = this.#validateAdapterFrame(
         proposedBatch.terminalFrame,
@@ -2162,7 +2183,10 @@ function assertSimulationAdapterV2(
     || typeof adapter.disposeSession !== "function"
     || typeof adapter.currentFrame !== "function"
     || typeof adapter.advanceOnePresentationStep !== "function"
-    || typeof adapter.advancePresentationBatch !== "function"
+    || (
+      adapter.advancePresentationBatch !== undefined
+      && typeof adapter.advancePresentationBatch !== "function"
+    )
     || typeof adapter.applyControl !== "function"
     || typeof adapter.requestAnalysis !== "function"
     || typeof adapter.replaceFixture !== "function"

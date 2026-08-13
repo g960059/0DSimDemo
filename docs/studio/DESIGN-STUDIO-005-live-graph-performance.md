@@ -86,8 +86,12 @@ Snapshot qualification, control commits, and authoring continue to consume
 complete exact frames or checkpoints. The pre-release Standard ABI requires a
 model-owned packed-batch operation: intermediate accepted steps write clocks
 and selected scalar outputs directly into typed arrays, while only the final
-step constructs one complete frame. There is no frame-per-step compatibility
-fallback. This removes object allocation and validation proportional to every
+step constructs one complete frame. Every newly minted Standard exact manifest
+declares `runtime/exact-presentation-batch-v1`, which makes the operation
+mandatory at the artifact trust boundary. Immutable pre-extension artifacts
+remain readable only for already-pinned historical Snapshots and use the old
+fully validated frame-per-step projection; active releases cannot silently
+fall back. This removes object allocation and validation proportional to every
 future primitive output without changing numerical work.
 
 Device diagnostics separately report model-owned advance/projection time and
@@ -97,7 +101,7 @@ distinguish equation/solver cost from packing or transfer cost.
 ## Exact numerical hot path
 
 Presentation work cannot compensate for a Worker that produces exact accepted
-steps slower than model time. The Standard-11 executable therefore retains
+steps slower than model time. The Standard-12 executable therefore retains
 successful validation proofs only for exact immutable identities whose entire
 plain-data graph is transitively frozen. Mutable values, restored copies,
 failed or partial validation, and stamp-disabled verification always miss and
@@ -111,8 +115,8 @@ artifacts then produced identical accepted clocks and all 49 output records for
 1,000 presentation steps through `2.0 s`, including completed-beat metrics.
 This is exact-artifact regression evidence, not a phone throughput claim.
 
-Before Standard-11 admission, the committed Standard-10 and generated
-Standard-11 artifacts were also run for 1,000 exact steps from the same fixture.
+Before Standard-12 admission, the committed Standard-10 and generated
+Standard-12 artifacts were also run for 1,000 exact steps from the same fixture.
 All 49 output records and accepted clocks were identical through `2.0 s`. One
 alternating-order M5 Max run measured about `1.287 ms/step` versus
 `1.211 ms/step` (roughly 6.3% greater throughput) after coronary topology and

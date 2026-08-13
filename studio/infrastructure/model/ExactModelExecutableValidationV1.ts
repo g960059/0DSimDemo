@@ -15,6 +15,7 @@ export class ExactModelExecutableValidationErrorV1 extends Error {
 export function validateExecutableBundleV2(
   bundle: RegisteredModelExecutableBundleV2,
   model: ModelContractV2,
+  options: Readonly<{ requiresPresentationBatch: boolean }>,
 ): void {
   if (bundle === null || typeof bundle !== "object") {
     throw new ExactModelExecutableValidationErrorV1(
@@ -58,6 +59,7 @@ export function validateExecutableBundleV2(
       ? []
       : ["reduceControlAction"]),
   ], "fixture adapter");
+  const requiresPresentationBatch = options.requiresPresentationBatch;
   assertExactExecutableKeysV1(bundle.simulationAdapter, [
     "modelId",
     "fixtureSchemaId",
@@ -66,7 +68,7 @@ export function validateExecutableBundleV2(
     "disposeSession",
     "currentFrame",
     "advanceOnePresentationStep",
-    "advancePresentationBatch",
+    ...(requiresPresentationBatch ? ["advancePresentationBatch"] : []),
     "applyControl",
     "requestAnalysis",
     "replaceFixture",
@@ -101,7 +103,10 @@ export function validateExecutableBundleV2(
     || typeof bundle.simulationAdapter.disposeSession !== "function"
     || typeof bundle.simulationAdapter.currentFrame !== "function"
     || typeof bundle.simulationAdapter.advanceOnePresentationStep !== "function"
-    || typeof bundle.simulationAdapter.advancePresentationBatch !== "function"
+    || (
+      requiresPresentationBatch
+      && typeof bundle.simulationAdapter.advancePresentationBatch !== "function"
+    )
     || typeof bundle.simulationAdapter.applyControl !== "function"
     || typeof bundle.simulationAdapter.requestAnalysis !== "function"
     || typeof bundle.simulationAdapter.replaceFixture !== "function"
@@ -158,8 +163,12 @@ export function freezeExactRuntimeV2(
       currentFrame: bundle.simulationAdapter.currentFrame,
       advanceOnePresentationStep:
         bundle.simulationAdapter.advanceOnePresentationStep,
-      advancePresentationBatch:
-        bundle.simulationAdapter.advancePresentationBatch,
+      ...(bundle.simulationAdapter.advancePresentationBatch === undefined
+        ? {}
+        : {
+            advancePresentationBatch:
+              bundle.simulationAdapter.advancePresentationBatch,
+          }),
       applyControl: bundle.simulationAdapter.applyControl,
       requestAnalysis: bundle.simulationAdapter.requestAnalysis,
       replaceFixture: bundle.simulationAdapter.replaceFixture,

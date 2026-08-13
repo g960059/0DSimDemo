@@ -322,17 +322,19 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       "hemodynamics.volume.LV",
       "hemodynamics.pressure.transmural.LV",
       "rhythm.phase.regular-sinus",
+      "hemodynamics.output.native-left",
     ] as const;
-    const singleFrames = Array.from({ length: 16 }, () =>
+    const singleFrames = Array.from({ length: 1_024 }, () =>
       singleHost.advanceOnePresentationStep(singleSessionId, scenarioId));
-    const batchFrames = materializeStudioSimulationPresentationFramesV2(
-      batchHost.advancePresentationBatch(
-        batchSessionId,
-        scenarioId,
-        16,
-        selectedOutputIds,
-      ),
-    );
+    const batchFrames = Array.from({ length: 4 }, () =>
+      materializeStudioSimulationPresentationFramesV2(
+        batchHost.advancePresentationBatch(
+          batchSessionId,
+          scenarioId,
+          256,
+          selectedOutputIds,
+        ),
+      )).flat();
 
     expect(batchFrames).toHaveLength(singleFrames.length);
     for (let index = 0; index < singleFrames.length; index += 1) {
@@ -347,7 +349,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         expect(batch.outputs[outputId]).toEqual(single.outputs[outputId]);
       }
       expect(Object.keys(batch.outputs).sort()).toEqual(
-        index === batchFrames.length - 1
+        (index + 1) % 256 === 0
           ? Object.keys(single.outputs).sort()
           : [...selectedOutputIds].sort(),
       );
@@ -355,6 +357,12 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(batchFrames.at(-1)).toEqual(singleFrames.at(-1));
     expect(batchHost.currentFrame(batchSessionId, scenarioId))
       .toEqual(singleHost.currentFrame(singleSessionId, scenarioId));
+    expect(batchFrames[0]?.outputs["hemodynamics.output.native-left"]?.value)
+      .toBeNull();
+    expect(batchFrames.some((frame) =>
+      typeof frame.outputs["hemodynamics.output.native-left"]?.value
+        === "number"
+    )).toBe(true);
 
     singleHost.closeSession(singleSessionId);
     batchHost.closeSession(batchSessionId);

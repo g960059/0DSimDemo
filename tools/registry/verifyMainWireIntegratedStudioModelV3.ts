@@ -10,6 +10,9 @@ import {
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
+  STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+} from "@/studio/contracts/v2/simulation";
+import {
   validateExecutableBundleV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
@@ -241,7 +244,11 @@ async function assertArtifactAdmission(
   );
   const executables = release.executables as
     ReturnType<typeof createCircleHeartExactModelReleaseV1>["executables"];
-  validateExecutableBundleV2(executables, composed.contract);
+  validateExecutableBundleV2(executables, composed.contract, {
+    requiresPresentationBatch: sourceRelease.manifest.capabilities.includes(
+      STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+    ),
+  });
   executables.fixtureAdapter.validateCompleteFixture({
     context: {
       scenarioId: "scenario/standard-registry-verification",

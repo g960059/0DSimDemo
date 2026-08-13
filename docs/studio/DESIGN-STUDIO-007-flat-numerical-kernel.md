@@ -11,11 +11,16 @@ identity semantics.
 
 CircleHeart will not treat the current object-oriented TypeScript kernel plus
 frame-per-step adapter as the final runtime architecture. The product has no
-external users or compatibility obligation, so the next kernel is a direct
-cutover:
+external user-authored content, so the active model and all newly sealed
+content can cut over directly. Published official Snapshots are nevertheless
+immutable durability obligations until their placements are re-sealed and the
+unreferenced originals complete retention/GC:
 
 - one new exact `modelId`;
-- no dual write, legacy checkpoint decoder, or runtime fallback;
+- no dual write, legacy checkpoint decoder, or runtime fallback inside the new
+  exact release;
+- referenced historical exact artifacts remain isolated and loadable by their
+  original manifest/codec rather than being interpreted by the new kernel;
 - the current kernel retained only as a scientific test oracle until the new
   kernel passes the replacement gates;
 - one production numerical profile on every device. Device tiers may change
@@ -59,8 +64,13 @@ the physical phone cannot run the Worker in real time.
 ## Immediate Standard ABI
 
 The pre-release Standard ABI requires a model-owned
-`advancePresentationBatch` operation. There is no one-step compatibility
-fallback. For each batch the exact adapter:
+`advancePresentationBatch` operation. New active releases must advertise
+`runtime/exact-presentation-batch-v1`; the loader then requires the operation
+and never falls back. A bounded reader for immutable pre-extension artifacts
+exists solely because already-published Article Snapshots pin their exact
+model bytes. It is not a vNext design seam and must be deleted after those
+placements are re-sealed on the new kernel and the unreferenced originals have
+completed retention/GC. For each batch the exact adapter:
 
 1. advances every accepted numerical step in order;
 2. writes accepted revision and time directly to typed arrays;
@@ -236,13 +246,18 @@ kernel profile.
   nested solve and allocation structure.
 - Starting with multirate integration: couples a scientific change to an
   unproven performance hypothesis.
-- Maintaining old checkpoints or a dual runtime: no users require it, and the
-  compatibility layer would constrain the new state layout before it exists.
+- Teaching the new kernel to decode old checkpoints or running both kernels for
+  one active Scenario: no user-authored data requires it, and that compatibility
+  layer would constrain the new state layout before it exists. Exact historical
+  artifacts remain readable only while immutable published content references
+  them.
 
 ## Completion
 
 This design is complete when the flat kernel is the sole registered active
-model implementation, the current TypeScript kernel is no longer reachable in
-production, and the physical-device plus scientific gates are committed as
-release evidence. At that point transitional typed-batch adapters may be
-deleted rather than retained as a second architecture.
+model implementation, official placements have been re-sealed, unreferenced
+historical Snapshots have completed retention/GC, the current TypeScript kernel
+is no longer reachable in production, and the physical-device plus scientific
+gates are committed as release evidence. At that point transitional
+typed-batch adapters may be deleted rather than retained as a second
+architecture.
