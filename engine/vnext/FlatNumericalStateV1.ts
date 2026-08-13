@@ -7,6 +7,8 @@ export type FlatNumericalSlotV1 = Readonly<{
   path: readonly FlatNumericalPathSegmentV1[];
   pointer: string;
   optionalRecordRootIndex: number | null;
+  boundedArrayRootIndex: number | null;
+  boundedArrayItemIndex: number | null;
 }>;
 
 export type FlatNumericalContainerV1 = Readonly<{
@@ -16,6 +18,8 @@ export type FlatNumericalContainerV1 = Readonly<{
   keys: readonly string[];
   prototypeTag: string | null;
   optionalRecordRootIndex: number | null;
+  boundedArrayRootIndex: number | null;
+  boundedArrayItemIndex: number | null;
 }>;
 
 export type FlatNumericalOptionalRecordRootV1 = Readonly<{
@@ -27,6 +31,19 @@ export type FlatNumericalOptionalRecordRootV1 = Readonly<{
 export type FlatNumericalOptionalRecordTemplateV1 = Readonly<{
   pointer: string;
   template: Readonly<Record<string, unknown>>;
+}>;
+
+export type FlatNumericalBoundedArrayRootV1 = Readonly<{
+  path: readonly FlatNumericalPathSegmentV1[];
+  pointer: string;
+  capacity: number;
+  itemTemplate: unknown;
+}>;
+
+export type FlatNumericalBoundedArrayTemplateV1 = Readonly<{
+  pointer: string;
+  capacity: number;
+  itemTemplate: unknown;
 }>;
 
 /**
@@ -43,6 +60,8 @@ export type FlatNumericalStateLayoutV1 = Readonly<{
   nullableStringSlots: readonly FlatNumericalSlotV1[];
   /** Fixed-shape records represented by one presence byte plus typed leaves. */
   optionalRecordRoots: readonly FlatNumericalOptionalRecordRootV1[];
+  /** Variable-length arrays represented by one length plus fixed item slots. */
+  boundedArrayRoots: readonly FlatNumericalBoundedArrayRootV1[];
   booleanSlots: readonly FlatNumericalSlotV1[];
   stringSlots: readonly FlatNumericalSlotV1[];
   /** Deeply immutable model-owned roots retained outside the hot images. */
@@ -63,6 +82,8 @@ export type FlatNumericalStateLayoutOptionsV1 = Readonly<{
   nullableStringPointers?: readonly string[];
   /** Null record roots that may evolve to the supplied exact fixed shape. */
   optionalRecordTemplates?: readonly FlatNumericalOptionalRecordTemplateV1[];
+  /** Variable arrays with explicit capacity and one exact item shape. */
+  boundedArrayTemplates?: readonly FlatNumericalBoundedArrayTemplateV1[];
 }>;
 
 /** Mutable storage owned by one numerical authority. */
@@ -73,6 +94,7 @@ export type FlatNumericalStateBufferV1 = Readonly<{
   nullableStrings: Uint32Array;
   nullableStringsPresent: Uint8Array;
   optionalRecordPresent: Uint8Array;
+  boundedArrayLengths: Uint32Array;
   booleans: Uint8Array;
   strings: Uint32Array;
 }>;
@@ -98,6 +120,7 @@ export function createFlatNumericalStateLayoutV1(
   const nullableContinuousSlots: FlatNumericalSlotV1[] = [];
   const nullableStringSlots: FlatNumericalSlotV1[] = [];
   const optionalRecordRoots: FlatNumericalOptionalRecordRootV1[] = [];
+  const boundedArrayRoots: FlatNumericalBoundedArrayRootV1[] = [];
   const booleanSlots: FlatNumericalSlotV1[] = [];
   const stringSlots: FlatNumericalSlotV1[] = [];
   const externalImmutableRoots: FlatNumericalSlotV1[] = [];
@@ -134,12 +157,17 @@ export function createFlatNumericalStateLayoutV1(
     options.optionalRecordTemplates,
   );
   const admittedOptionalRecordPointers = new Set<string>();
+  const boundedArrayTemplates = boundedArrayTemplateMap(
+    options.boundedArrayTemplates,
+  );
+  const admittedBoundedArrayPointers = new Set<string>();
 
   visit(referenceState, [], {
     continuousSlots,
     nullableContinuousSlots,
     nullableStringSlots,
     optionalRecordRoots,
+    boundedArrayRoots,
     booleanSlots,
     stringSlots,
     externalImmutableRoots,
@@ -155,6 +183,8 @@ export function createFlatNumericalStateLayoutV1(
     admittedNullableStringPointers,
     optionalRecordTemplates,
     admittedOptionalRecordPointers,
+    boundedArrayTemplates,
+    admittedBoundedArrayPointers,
   });
   for (const fixedArrayPointer of fixedArrayPointers) {
     if (!admittedFixedArrayPointers.has(fixedArrayPointer)) {
@@ -191,22 +221,32 @@ export function createFlatNumericalStateLayoutV1(
       );
     }
   }
+  for (const boundedArrayPointer of boundedArrayTemplates.keys()) {
+    if (!admittedBoundedArrayPointers.has(boundedArrayPointer)) {
+      throw new Error(
+        `Flat numerical bounded-array ${boundedArrayPointer} is unavailable`,
+      );
+    }
+  }
   if (continuousSlots.length === 0) {
     throw new Error("Flat numerical state contains no continuous slots");
   }
-  return Object.freeze({
+  const layout = Object.freeze({
     schemaId: FLAT_NUMERICAL_STATE_LAYOUT_V1_SCHEMA_ID,
     layoutId,
     continuousSlots: Object.freeze(continuousSlots),
     nullableContinuousSlots: Object.freeze(nullableContinuousSlots),
     nullableStringSlots: Object.freeze(nullableStringSlots),
     optionalRecordRoots: Object.freeze(optionalRecordRoots),
+    boundedArrayRoots: Object.freeze(boundedArrayRoots),
     booleanSlots: Object.freeze(booleanSlots),
     stringSlots: Object.freeze(stringSlots),
     externalImmutableRoots: Object.freeze(externalImmutableRoots),
     excludedDynamicRoots: Object.freeze(excludedDynamicRoots),
     containers: Object.freeze(containers),
   });
+  assertFlatNumericalStateShapeV1(layout, referenceState);
+  return layout;
 }
 
 export function createFlatNumericalStateBufferV1(
@@ -221,6 +261,7 @@ export function createFlatNumericalStateBufferV1(
     nullableStrings: new Uint32Array(layout.nullableStringSlots.length),
     nullableStringsPresent: new Uint8Array(layout.nullableStringSlots.length),
     optionalRecordPresent: new Uint8Array(layout.optionalRecordRoots.length),
+    boundedArrayLengths: new Uint32Array(layout.boundedArrayRoots.length),
     booleans: new Uint8Array(layout.booleanSlots.length),
     strings: new Uint32Array(layout.stringSlots.length),
   });
@@ -264,6 +305,9 @@ export function writeFlatNumericalStateV1(
   const optionalRecordPresent = new Uint8Array(
     layout.optionalRecordRoots.length,
   );
+  const boundedArrayLengths = new Uint32Array(
+    layout.boundedArrayRoots.length,
+  );
   const booleans = new Uint8Array(layout.booleanSlots.length);
   const strings = new Uint32Array(layout.stringSlots.length);
   const stagedStringTable: FlatNumericalStringTableV1 = {
@@ -275,10 +319,20 @@ export function writeFlatNumericalStateV1(
     const value = requiredPathValue(state, root.path);
     optionalRecordPresent[index] = value === null ? 0 : 1;
   }
+  for (let index = 0; index < layout.boundedArrayRoots.length; index += 1) {
+    const root = layout.boundedArrayRoots[index]!;
+    const value = requiredPathValue(state, root.path);
+    if (!Array.isArray(value) || value.length > root.capacity) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} exceeds bounded-array capacity`,
+      );
+    }
+    boundedArrayLengths[index] = value.length;
+  }
 
   for (let index = 0; index < layout.continuousSlots.length; index += 1) {
     const slot = layout.continuousSlots[index]!;
-    if (optionalRecordAbsent(layout, state, slot)) {
+    if (layoutEntryAbsent(layout, state, slot)) {
       continuous[index] = 0;
       continue;
     }
@@ -294,7 +348,7 @@ export function writeFlatNumericalStateV1(
     index += 1
   ) {
     const slot = layout.nullableContinuousSlots[index]!;
-    if (optionalRecordAbsent(layout, state, slot)) {
+    if (layoutEntryAbsent(layout, state, slot)) {
       nullableContinuous[index] = 0;
       nullableContinuousPresent[index] = 0;
       continue;
@@ -314,7 +368,7 @@ export function writeFlatNumericalStateV1(
   }
   for (let index = 0; index < layout.booleanSlots.length; index += 1) {
     const slot = layout.booleanSlots[index]!;
-    if (optionalRecordAbsent(layout, state, slot)) {
+    if (layoutEntryAbsent(layout, state, slot)) {
       booleans[index] = 0;
       continue;
     }
@@ -326,7 +380,7 @@ export function writeFlatNumericalStateV1(
   }
   for (let index = 0; index < layout.nullableStringSlots.length; index += 1) {
     const slot = layout.nullableStringSlots[index]!;
-    if (optionalRecordAbsent(layout, state, slot)) {
+    if (layoutEntryAbsent(layout, state, slot)) {
       nullableStrings[index] = 0;
       nullableStringsPresent[index] = 0;
       continue;
@@ -346,7 +400,7 @@ export function writeFlatNumericalStateV1(
   }
   for (let index = 0; index < layout.stringSlots.length; index += 1) {
     const slot = layout.stringSlots[index]!;
-    if (optionalRecordAbsent(layout, state, slot)) {
+    if (layoutEntryAbsent(layout, state, slot)) {
       strings[index] = 0;
       continue;
     }
@@ -362,6 +416,7 @@ export function writeFlatNumericalStateV1(
   destination.nullableStrings.set(nullableStrings);
   destination.nullableStringsPresent.set(nullableStringsPresent);
   destination.optionalRecordPresent.set(optionalRecordPresent);
+  destination.boundedArrayLengths.set(boundedArrayLengths);
   destination.booleans.set(booleans);
   destination.strings.set(strings);
   stringTable.codeByValue.clear();
@@ -394,14 +449,28 @@ export function assertFlatNumericalStateShapeV1(
       );
     }
   }
+  for (const root of layout.boundedArrayRoots) {
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} must remain an array`,
+      );
+    }
+    assertDataProperties(value, root.path, true);
+    const keys = Array.from({ length: value.length }, (_, index) => String(index));
+    if (!sameStrings(Object.keys(value), keys)) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} changed bounded-array shape`,
+      );
+    }
+    if (value.length > root.capacity) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} exceeds bounded-array capacity`,
+      );
+    }
+  }
   for (const container of layout.containers) {
-    if (
-      container.optionalRecordRootIndex !== null
-      && readFlatNumericalStatePathV1(
-        state,
-        layout.optionalRecordRoots[container.optionalRecordRootIndex]!.path,
-      ) === null
-    ) {
+    if (layoutEntryAbsent(layout, state, container)) {
       continue;
     }
     assertContainerShape(
@@ -438,6 +507,7 @@ export function flatNumericalStateBuffersEqualV1(
       left.optionalRecordPresent,
       right.optionalRecordPresent,
     )
+    && typedArraysEqual(left.boundedArrayLengths, right.boundedArrayLengths)
     && typedArraysEqual(left.booleans, right.booleans)
     && typedArraysEqual(left.strings, right.strings);
 }
@@ -450,6 +520,7 @@ function visit(
     nullableContinuousSlots: FlatNumericalSlotV1[];
     nullableStringSlots: FlatNumericalSlotV1[];
     optionalRecordRoots: FlatNumericalOptionalRecordRootV1[];
+    boundedArrayRoots: FlatNumericalBoundedArrayRootV1[];
     booleanSlots: FlatNumericalSlotV1[];
     stringSlots: FlatNumericalSlotV1[];
     externalImmutableRoots: FlatNumericalSlotV1[];
@@ -466,9 +537,15 @@ function visit(
     optionalRecordTemplates:
       ReadonlyMap<string, Readonly<Record<string, unknown>>>;
     admittedOptionalRecordPointers: Set<string>;
+    boundedArrayTemplates:
+      ReadonlyMap<string, FlatNumericalBoundedArrayTemplateV1>;
+    admittedBoundedArrayPointers: Set<string>;
   },
   optionalRecordRootIndex: number | null = null,
   compilingOptionalPointer: string | null = null,
+  boundedArrayRootIndex: number | null = null,
+  boundedArrayItemIndex: number | null = null,
+  compilingBoundedArrayPointer: string | null = null,
 ): void {
   const pathPointer = pointer(path);
   const optionalTemplate = destination.optionalRecordTemplates.get(pathPointer);
@@ -476,7 +553,7 @@ function visit(
     optionalTemplate !== undefined
     && compilingOptionalPointer !== pathPointer
   ) {
-    if (optionalRecordRootIndex !== null) {
+    if (optionalRecordRootIndex !== null || boundedArrayRootIndex !== null) {
       throw new Error(
         `Flat numerical optional-record ${pathPointer} may not be nested`,
       );
@@ -499,13 +576,65 @@ function visit(
       destination,
       nextOptionalRootIndex,
       pathPointer,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
+      compilingBoundedArrayPointer,
     );
     return;
   }
-  if (destination.externalImmutablePointers.has(pathPointer)) {
-    if (optionalRecordRootIndex !== null) {
+  const boundedArrayTemplate = destination.boundedArrayTemplates.get(pathPointer);
+  if (
+    boundedArrayTemplate !== undefined
+    && compilingBoundedArrayPointer !== pathPointer
+  ) {
+    if (optionalRecordRootIndex !== null || boundedArrayRootIndex !== null) {
       throw new Error(
-        `Flat numerical optional-record ${pathPointer} may not contain an external immutable root`,
+        `Flat numerical bounded-array ${pathPointer} may not be nested`,
+      );
+    }
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `Flat numerical bounded-array ${pathPointer} reference must be an array`,
+      );
+    }
+    assertDataProperties(value, path, true);
+    const keys = Array.from({ length: value.length }, (_, index) => String(index));
+    if (!sameStrings(Object.keys(value), keys)) {
+      throw new Error(
+        `Flat numerical state ${pathPointer} changed bounded-array shape`,
+      );
+    }
+    if (value.length > boundedArrayTemplate.capacity) {
+      throw new Error(
+        `Flat numerical state ${pathPointer} exceeds bounded-array capacity`,
+      );
+    }
+    const nextBoundedArrayRootIndex = destination.boundedArrayRoots.length;
+    destination.boundedArrayRoots.push(Object.freeze({
+      path: Object.freeze([...path]),
+      pointer: pathPointer,
+      capacity: boundedArrayTemplate.capacity,
+      itemTemplate: boundedArrayTemplate.itemTemplate,
+    }));
+    destination.admittedBoundedArrayPointers.add(pathPointer);
+    for (let index = 0; index < boundedArrayTemplate.capacity; index += 1) {
+      visit(
+        boundedArrayTemplate.itemTemplate,
+        [...path, index],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+        nextBoundedArrayRootIndex,
+        index,
+        pathPointer,
+      );
+    }
+    return;
+  }
+  if (destination.externalImmutablePointers.has(pathPointer)) {
+    if (optionalRecordRootIndex !== null || boundedArrayRootIndex !== null) {
+      throw new Error(
+        `Flat numerical typed aggregate ${pathPointer} may not contain an external immutable root`,
       );
     }
     if (
@@ -518,7 +647,12 @@ function visit(
         `Flat numerical external-immutable ${pathPointer} is unsupported`,
       );
     }
-    destination.externalImmutableRoots.push(slot(path, optionalRecordRootIndex));
+    destination.externalImmutableRoots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
+    ));
     destination.admittedExternalImmutablePointers.add(pathPointer);
     return;
   }
@@ -528,7 +662,12 @@ function visit(
         `Flat numerical nullable-continuous ${pathPointer} reference must be null`,
       );
     }
-    destination.nullableContinuousSlots.push(slot(path, optionalRecordRootIndex));
+    destination.nullableContinuousSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
+    ));
     destination.admittedNullableContinuousPointers.add(pathPointer);
     return;
   }
@@ -538,7 +677,12 @@ function visit(
         `Flat numerical nullable-string ${pathPointer} reference must be null`,
       );
     }
-    destination.nullableStringSlots.push(slot(path, optionalRecordRootIndex));
+    destination.nullableStringSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
+    ));
     destination.admittedNullableStringPointers.add(pathPointer);
     return;
   }
@@ -546,24 +690,59 @@ function visit(
     if (!Number.isFinite(value)) {
       throw new Error(`Flat numerical state ${pointer(path)} must be finite`);
     }
-    destination.continuousSlots.push(slot(path, optionalRecordRootIndex));
+    destination.continuousSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
+    ));
     return;
   }
   if (typeof value === "boolean") {
-    destination.booleanSlots.push(slot(path, optionalRecordRootIndex));
+    destination.booleanSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
+    ));
     return;
   }
   if (typeof value === "string") {
-    destination.stringSlots.push(slot(path, optionalRecordRootIndex));
+    destination.stringSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
+    ));
     return;
   }
   if (value === null) {
-    destination.excludedDynamicRoots.push(slot(path, optionalRecordRootIndex));
+    if (boundedArrayRootIndex !== null) {
+      throw new Error(
+        `Flat numerical bounded-array item ${pathPointer} may not contain a dynamic root`,
+      );
+    }
+    destination.excludedDynamicRoots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
+    ));
     return;
   }
   if (Array.isArray(value)) {
     if (!destination.fixedArrayPointers.has(pathPointer)) {
-      destination.excludedDynamicRoots.push(slot(path, optionalRecordRootIndex));
+      if (boundedArrayRootIndex !== null) {
+        throw new Error(
+          `Flat numerical bounded-array item ${pathPointer} may not contain a dynamic root`,
+        );
+      }
+      destination.excludedDynamicRoots.push(slot(
+        path,
+        optionalRecordRootIndex,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex,
+      ));
       return;
     }
     assertDataProperties(value, path, true);
@@ -577,6 +756,8 @@ function visit(
       keys,
       null,
       optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
     ));
     destination.admittedFixedArrayPointers.add(pathPointer);
     for (let index = 0; index < value.length; index += 1) {
@@ -586,6 +767,9 @@ function visit(
         destination,
         optionalRecordRootIndex,
         compilingOptionalPointer,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex,
+        compilingBoundedArrayPointer,
       );
     }
     return;
@@ -598,6 +782,8 @@ function visit(
       keys,
       value.constructor.name,
       optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
     ));
     for (let index = 0; index < value.length; index += 1) {
       visit(
@@ -606,6 +792,9 @@ function visit(
         destination,
         optionalRecordRootIndex,
         compilingOptionalPointer,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex,
+        compilingBoundedArrayPointer,
       );
     }
     return;
@@ -620,6 +809,8 @@ function visit(
       keys,
       prototypeTag,
       optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
     ));
     for (const key of keys) {
       visit(
@@ -628,6 +819,9 @@ function visit(
         destination,
         optionalRecordRootIndex,
         compilingOptionalPointer,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex,
+        compilingBoundedArrayPointer,
       );
     }
     return;
@@ -686,17 +880,70 @@ function optionalRecordTemplateMap(
   return values;
 }
 
-function optionalRecordAbsent(
+function boundedArrayTemplateMap(
+  templates: readonly FlatNumericalBoundedArrayTemplateV1[] | undefined,
+): ReadonlyMap<string, FlatNumericalBoundedArrayTemplateV1> {
+  const values = new Map<string, FlatNumericalBoundedArrayTemplateV1>();
+  for (const entry of templates ?? []) {
+    if (
+      typeof entry.pointer !== "string"
+      || entry.pointer === "/"
+      || !entry.pointer.startsWith("/")
+    ) {
+      throw new Error("Flat numerical bounded-array pointer is invalid");
+    }
+    if (
+      !Number.isSafeInteger(entry.capacity)
+      || entry.capacity < 1
+      || entry.capacity > 0xffff_ffff
+    ) {
+      throw new Error(
+        `Flat numerical bounded-array ${entry.pointer} capacity is invalid`,
+      );
+    }
+    if (entry.itemTemplate === undefined) {
+      throw new Error(
+        `Flat numerical bounded-array ${entry.pointer} item template is invalid`,
+      );
+    }
+    if (values.has(entry.pointer)) {
+      throw new Error("Flat numerical bounded-array pointer is duplicated");
+    }
+    values.set(entry.pointer, Object.freeze({
+      pointer: entry.pointer,
+      capacity: entry.capacity,
+      itemTemplate: entry.itemTemplate,
+    }));
+  }
+  return values;
+}
+
+function layoutEntryAbsent(
   layout: FlatNumericalStateLayoutV1,
   state: unknown,
-  slot: FlatNumericalSlotV1,
+  entry: FlatNumericalSlotV1 | FlatNumericalContainerV1,
 ): boolean {
-  if (slot.optionalRecordRootIndex === null) return false;
-  const root = layout.optionalRecordRoots[slot.optionalRecordRootIndex];
-  if (root === undefined) {
-    throw new Error("Flat numerical optional-record slot owner is invalid");
+  if (entry.optionalRecordRootIndex !== null) {
+    const root = layout.optionalRecordRoots[entry.optionalRecordRootIndex];
+    if (root === undefined) {
+      throw new Error("Flat numerical optional-record slot owner is invalid");
+    }
+    if (readFlatNumericalStatePathV1(state, root.path) === null) return true;
   }
-  return readFlatNumericalStatePathV1(state, root.path) === null;
+  if (entry.boundedArrayRootIndex !== null) {
+    const root = layout.boundedArrayRoots[entry.boundedArrayRootIndex];
+    if (root === undefined || entry.boundedArrayItemIndex === null) {
+      throw new Error("Flat numerical bounded-array slot owner is invalid");
+    }
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} must remain an array`,
+      );
+    }
+    return entry.boundedArrayItemIndex >= value.length;
+  }
+  return false;
 }
 
 function assertContainerShape(value: unknown, expected: FlatNumericalContainerV1): void {
@@ -823,6 +1070,7 @@ function assertBufferMatchesLayout(
     || buffer.nullableStrings.length !== layout.nullableStringSlots.length
     || buffer.nullableStringsPresent.length !== layout.nullableStringSlots.length
     || buffer.optionalRecordPresent.length !== layout.optionalRecordRoots.length
+    || buffer.boundedArrayLengths.length !== layout.boundedArrayRoots.length
     || buffer.booleans.length !== layout.booleanSlots.length
     || buffer.strings.length !== layout.stringSlots.length
   ) {
@@ -833,12 +1081,16 @@ function assertBufferMatchesLayout(
 function slot(
   path: readonly FlatNumericalPathSegmentV1[],
   optionalRecordRootIndex: number | null = null,
+  boundedArrayRootIndex: number | null = null,
+  boundedArrayItemIndex: number | null = null,
 ): FlatNumericalSlotV1 {
   const ownedPath = Object.freeze([...path]);
   return Object.freeze({
     path: ownedPath,
     pointer: pointer(ownedPath),
     optionalRecordRootIndex,
+    boundedArrayRootIndex,
+    boundedArrayItemIndex,
   });
 }
 
@@ -848,6 +1100,8 @@ function container(
   keys: readonly string[],
   prototypeTag: string | null = null,
   optionalRecordRootIndex: number | null = null,
+  boundedArrayRootIndex: number | null = null,
+  boundedArrayItemIndex: number | null = null,
 ): FlatNumericalContainerV1 {
   const ownedPath = Object.freeze([...path]);
   return Object.freeze({
@@ -857,6 +1111,8 @@ function container(
     keys: Object.freeze([...keys]),
     prototypeTag,
     optionalRecordRootIndex,
+    boundedArrayRootIndex,
+    boundedArrayItemIndex,
   });
 }
 

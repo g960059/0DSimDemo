@@ -549,6 +549,130 @@ describe("TransactionalTypedStateImageV1", () => {
     )).toThrow("optional-record /missing is unavailable");
   });
 
+  it("stores bounded queues as one length plus fixed typed item slots", () => {
+    type QueueItem = Readonly<{
+      id: string;
+      at: number;
+      enabled: boolean;
+      parentId: string | null;
+      nested: Readonly<{ gain: number }>;
+    }>;
+    type State = Readonly<{
+      value: number;
+      queue: readonly QueueItem[];
+    }>;
+    const itemTemplate: QueueItem = Object.freeze({
+      id: "template",
+      at: 0,
+      enabled: false,
+      parentId: null,
+      nested: Object.freeze({ gain: 0 }),
+    });
+    const initial: State = Object.freeze({ value: 1, queue: Object.freeze([]) });
+    const manifest = createTransactionalTypedStateManifestV1(
+      "test-bounded-array-state",
+      initial,
+      256,
+      1,
+      {
+        nullableStringPointers: [
+          "/queue/0/parentId",
+          "/queue/1/parentId",
+        ],
+        boundedArrayTemplates: [{
+          pointer: "/queue",
+          capacity: 2,
+          itemTemplate,
+        }],
+      },
+    );
+    expect(manifest.numericalLayout).toMatchObject({
+      boundedArrayRoots: [{ pointer: "/queue", capacity: 2 }],
+      nullableStringSlots: [
+        { pointer: "/queue/0/parentId" },
+        { pointer: "/queue/1/parentId" },
+      ],
+      excludedDynamicRoots: [],
+    });
+    const image = new TransactionalTypedStateImageV1(manifest, initial);
+    const cursor = image.currentCursor();
+    expect(image.report()).toMatchObject({
+      boundedArrayRootCount: 1,
+      dynamicRootCount: 0,
+    });
+    expect(image.snapshot().boundedArrayLengths).toEqual(new Uint32Array([0]));
+    expect(cursor.readBoundedArray(0)).toEqual([]);
+
+    const one: State = Object.freeze({
+      value: 2,
+      queue: Object.freeze([Object.freeze({
+        id: "first",
+        at: 0.25,
+        enabled: true,
+        parentId: null,
+        nested: Object.freeze({ gain: 1.5 }),
+      })]),
+    });
+    image.stage(one);
+    image.promote();
+    expect(image.snapshot().boundedArrayLengths).toEqual(new Uint32Array([1]));
+    expect(cursor.readBoundedArray(0)).toEqual(one.queue);
+    expect(image.rehydrateCurrent()).toEqual(one);
+
+    const two: State = Object.freeze({
+      value: 3,
+      queue: Object.freeze([
+        one.queue[0]!,
+        Object.freeze({
+          id: "second",
+          at: 0.5,
+          enabled: false,
+          parentId: "first",
+          nested: Object.freeze({ gain: 2 }),
+        }),
+      ]),
+    });
+    image.stage(two);
+    image.promote();
+    expect(cursor.readBoundedArray(0)).toEqual(two.queue);
+    const escaped = image.snapshot();
+    escaped.boundedArrayLengths[0] = 0;
+    expect(image.rehydrateCurrent()).toEqual(two);
+
+    image.stage(Object.freeze({ value: 4, queue: Object.freeze([]) }));
+    image.promote();
+    expect(cursor.readBoundedArray(0)).toEqual([]);
+    expect(() => image.stage(Object.freeze({
+      value: 5,
+      queue: Object.freeze([two.queue[0]!, two.queue[1]!, two.queue[0]!]),
+    }))).toThrow("exceeds bounded-array capacity");
+
+    const sparse = new Array<QueueItem>(1);
+    Object.freeze(sparse);
+    expect(() => image.stage(Object.freeze({ value: 5, queue: sparse })))
+      .toThrow("changed bounded-array shape");
+    expect(() => image.stage(Object.freeze({
+      value: 5,
+      queue: Object.freeze([Object.freeze({
+        ...one.queue[0]!,
+        unexpected: true,
+      })]),
+    }) as unknown as State)).toThrow("changed record shape");
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-mutable-bounded-array-template",
+      initial,
+      256,
+      1,
+      {
+        boundedArrayTemplates: [{
+          pointer: "/queue",
+          capacity: 2,
+          itemTemplate: { id: "mutable" },
+        }],
+      },
+    )).toThrow("bounded-array item template must be frozen");
+  });
+
   it("round-trips all leaf classes and keeps failed candidates inactive", () => {
     type State = Readonly<{
       value: number;
