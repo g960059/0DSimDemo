@@ -9,6 +9,13 @@ import type {
 import type {
   StudioPublishedArticleV1,
 } from "@/studio/application/publication/StudioPublishedArticleV1";
+import {
+  renderStudioPublicArticleBootstrapV1,
+} from "@/studio/application/publication/StudioPublicArticleBootstrapV1";
+import {
+  formatStudioPublicArticleDateV1,
+  studioPublicArticlePresentationCopyV1,
+} from "@/studio/application/publication/StudioPublicArticlePresentationV1";
 
 export type StudioPublicArticleMetadataV1 = Readonly<{
   canonicalUrl: string;
@@ -38,7 +45,7 @@ export function renderStudioPublishedArticleV1(input: Readonly<{
     articleContentId: input.article.articleContentId,
     bodyHtml,
     documentHtml: injectStudioPublicDocumentV1({
-      bodyHtml,
+      bodyHtml: `${bodyHtml}\n${renderStudioPublicArticleBootstrapV1(input.article)}`,
       clientTemplate: input.clientTemplate,
       description: metadata.description,
       language: input.article.locale,
@@ -82,15 +89,14 @@ export function publicArticleDescriptionV1(
 export function renderPublicArticleBodyHtmlV1(
   article: StudioPublishedArticleV1,
 ): string {
-  const articleLabel = article.locale === "ja" ? "記事" : "Article";
-  const publishedLabel = article.locale === "ja" ? "公開" : "Published";
+  const copy = studioPublicArticlePresentationCopyV1(article.locale);
   return [
-    `<main class="public-static-shell" data-public-article-content-id="${escapeHtmlAttributeV1(article.articleContentId)}">`,
-    `<article class="public-static-article">`,
-    `<header class="public-static-header">`,
-    `<p class="public-static-kicker">${articleLabel}</p>`,
-    `<h1>${escapeHtmlTextV1(article.title)}</h1>`,
-    `<p class="public-static-date"><span>${publishedLabel}</span> <time datetime="${escapeHtmlAttributeV1(article.publishedAt)}">${escapeHtmlTextV1(displayDateV1(article.publishedAt, article.locale))}</time></p>`,
+    `<main class="public-static-shell article-document-shell" data-public-article-content-id="${escapeHtmlAttributeV1(article.articleContentId)}">`,
+    `<article class="public-static-article article-document">`,
+    `<header class="article-document-header">`,
+    `<p class="article-publication-kicker">${copy.articleLabel}</p>`,
+    `<h1 class="article-title">${escapeHtmlTextV1(article.title)}</h1>`,
+    `<p class="article-publication-date"><span>${copy.publishedLabel}</span> <time datetime="${escapeHtmlAttributeV1(article.publishedAt)}">${escapeHtmlTextV1(formatStudioPublicArticleDateV1(article.publishedAt, article.locale))}</time></p>`,
     `</header>`,
     `<div class="public-static-content">`,
     ...article.blocks.map((block) => renderBlockHtmlV1(block, article.locale)),
@@ -147,7 +153,7 @@ export function injectStudioPublicDocumentV1(input: Readonly<{
     .replace(/<title>[^<]*<\/title>/, head)
     .replace(
       /<div\s+id=["']root["'][^>]*><\/div>/,
-      `<div id="public-static-root">${input.bodyHtml}</div><div id="root" hidden></div>`,
+      `<div id="public-static-root">${publicStaticSiteHeaderHtmlV1(input.language, input.canonicalUrl)}${input.bodyHtml}</div><div id="root" hidden></div>`,
     );
 }
 
@@ -199,10 +205,11 @@ function renderBlockHtmlV1(
   const anchor = `block-${block.blockId}`;
   if (block.kind === "heading") {
     const level = block.level === 2 ? "h2" : "h3";
-    return `<${level} id="${escapeHtmlAttributeV1(anchor)}">${escapeHtmlTextV1(block.text)}</${level}>`;
+    const className = block.level === 2 ? "article-heading-2" : "article-heading-3";
+    return `<${level} class="${className}" id="${escapeHtmlAttributeV1(anchor)}">${escapeHtmlTextV1(block.text)}</${level}>`;
   }
   if (block.kind === "paragraph") {
-    return `<p id="${escapeHtmlAttributeV1(anchor)}">${escapeHtmlTextV1(block.text)}</p>`;
+    return `<p class="article-paragraph" id="${escapeHtmlAttributeV1(anchor)}">${escapeHtmlTextV1(block.text)}</p>`;
   }
   if (block.kind === "equation") {
     const equation = block.expression.length === 0
@@ -406,13 +413,6 @@ function firstMeaningfulTextV1(
   return null;
 }
 
-function displayDateV1(value: string, locale: "ja" | "en"): string {
-  return new Intl.DateTimeFormat(locale === "ja" ? "ja-JP" : "en-US", {
-    dateStyle: "medium",
-    timeZone: "UTC",
-  }).format(new Date(value));
-}
-
 function collapsedWhitespaceV1(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -439,4 +439,48 @@ function escapeHtmlAttributeV1(value: string): string {
 
 function yamlStringV1(value: string): string {
   return JSON.stringify(value);
+}
+
+function publicStaticSiteHeaderHtmlV1(
+  locale: "ja" | "en",
+  canonicalUrl: string,
+): string {
+  const canonical = new URL(canonicalUrl);
+  const alternateLocale = locale === "ja" ? "en" : "ja";
+  const alternatePath = canonical.pathname.replace(
+    /^\/(?:ja|en)(?=\/|$)/,
+    `/${alternateLocale}`,
+  );
+  const homeLabel = locale === "ja" ? "ホーム" : "Home";
+  const simulationLabel = locale === "ja" ? "シミュレーションを始める" : "Start a simulation";
+  const loginLabel = locale === "ja" ? "ログイン" : "Log in";
+  return [
+    `<header class="public-static-site-header">`,
+    `<a class="public-static-brand" href="/${locale}" aria-label="${homeLabel}">${SITE_NAME_V1}</a>`,
+    `<span class="public-static-site-header-spacer"></span>`,
+    `<nav class="public-static-language" aria-label="${locale === "ja" ? "言語" : "Language"}">`,
+    `<a${locale === "ja" ? " aria-current=\"true\"" : ""} href="${locale === "ja" ? canonical.pathname : alternatePath}">JA</a>`,
+    `<a${locale === "en" ? " aria-current=\"true\"" : ""} href="${locale === "en" ? canonical.pathname : alternatePath}">EN</a>`,
+    `</nav>`,
+    `<span class="public-static-theme-icon" aria-hidden="true"><span class="public-static-theme-sun">${sunIconHtmlV1()}</span><span class="public-static-theme-moon">${moonIconHtmlV1()}</span></span>`,
+    `<a class="public-static-primary-icon" href="/${locale}/experiments/new" aria-label="${simulationLabel}">${flaskIconHtmlV1()}</a>`,
+    `<a class="public-static-quiet-icon" href="/${locale}/login" aria-label="${loginLabel}">${loginIconHtmlV1()}</a>`,
+    `</header>`,
+  ].join("");
+}
+
+function sunIconHtmlV1(): string {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>`;
+}
+
+function moonIconHtmlV1(): string {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>`;
+}
+
+function flaskIconHtmlV1(): string {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.75 3h10.5A2 2 0 0 0 19 18l-5-9V3M7.5 15h9"></path></svg>`;
+}
+
+function loginIconHtmlV1(): string {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path></svg>`;
 }

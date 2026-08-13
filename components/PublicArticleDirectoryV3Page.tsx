@@ -49,7 +49,11 @@ export function PublicArticleDirectoryV3Page() {
     : [];
 
   return (
-    <div className="h-full overflow-y-auto bg-wb-app text-wb-text" data-testid="public-article-directory-v3">
+    <div
+      className="h-full overflow-y-auto bg-wb-app text-wb-text"
+      data-public-static-scroll-host="true"
+      data-testid="public-article-directory-v3"
+    >
       <main className="mx-auto w-full max-w-4xl px-5 py-12 sm:px-8 sm:py-16">
         <h1 className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">
           {t("publicArticles.title")}

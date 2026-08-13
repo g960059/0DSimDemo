@@ -32,6 +32,13 @@ import type {
 import {
   publishedArticleDraftProjectionV1,
 } from "@/studio/application/publication/StudioPublishedArticleV1";
+import {
+  readStudioPublicArticleBootstrapV1,
+} from "@/studio/application/publication/StudioPublicArticleBootstrapV1";
+import {
+  formatStudioPublicArticleDateV1,
+  studioPublicArticlePresentationCopyV1,
+} from "@/studio/application/publication/StudioPublicArticlePresentationV1";
 import type {
   ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
@@ -52,6 +59,7 @@ type ArticleReaderContentStateV3 =
       kind: "ready";
       article: StudioArticleDraftV2;
       canonicalPublicSlug: string | null;
+      publishedAt: string | null;
       snapshots: ReadonlyMap<string, ExperimentSnapshotV2>;
     }>
   | Readonly<{ kind: "missing" }>
@@ -151,6 +159,12 @@ function ArticleReaderV3Resource({
     () => new StudioExperimentSessionHandoffStoreV3(),
     [],
   );
+  const bootstrapArticle = React.useMemo(
+    () => authoredPreview
+      ? null
+      : readStudioPublicArticleBootstrapV1(articleId),
+    [articleId, authoredPreview],
+  );
   const [content, setContent] = React.useState<ArticleReaderContentStateV3>({
     kind: "loading",
   });
@@ -181,9 +195,10 @@ function ArticleReaderV3Resource({
         setContent({ kind: "missing" });
         return;
       }
-      const publishedArticle = authoredPreview || remoteRepository === null
-        ? null
-        : await remoteRepository.readPublishedArticle(articleId);
+      const publishedArticle = bootstrapArticle
+        ?? (authoredPreview || remoteRepository === null
+          ? null
+          : await remoteRepository.readPublishedArticle(articleId));
       const article = publishedArticle === null
         ? remoteRepository === null
           ? store.readArticle(articleId)
@@ -208,6 +223,7 @@ function ArticleReaderV3Resource({
           kind: "ready",
           article,
           canonicalPublicSlug: publishedArticle?.publicSlug ?? null,
+          publishedAt: publishedArticle?.publishedAt ?? null,
           snapshots: new Map(snapshots.map((snapshot) => [
             snapshot.snapshotId,
             snapshot,
@@ -226,7 +242,7 @@ function ArticleReaderV3Resource({
     return () => {
       current = false;
     };
-  }, [articleId, authoredPreview, remoteRepository, store]);
+  }, [articleId, authoredPreview, bootstrapArticle, remoteRepository, store]);
   React.useEffect(() => {
     if (content.kind === "ready") {
       completePublicStaticContentHandoffV1();
@@ -413,6 +429,8 @@ function ArticleReaderV3Resource({
     );
   }
 
+  const publicationCopy = studioPublicArticlePresentationCopyV1(locale);
+
   return (
     <div
       className="flex h-full min-h-0 flex-col overflow-hidden bg-wb-panel text-wb-text"
@@ -435,14 +453,28 @@ function ArticleReaderV3Resource({
       >
         <div
           className="article-reader-article-pane min-w-0 flex-1 overflow-y-auto overscroll-contain"
+          data-public-static-scroll-host="true"
           data-testid="article-reader-article-pane-v3"
         >
           <main className="article-document-shell">
             <article className="article-document">
           <header className="article-document-header">
+            {content.publishedAt !== null && (
+              <p className="article-publication-kicker">
+                {publicationCopy.articleLabel}
+              </p>
+            )}
             <h1 className="article-title">
               {content.article.title || t("articleReader.untitled")}
             </h1>
+            {content.publishedAt !== null && (
+              <p className="article-publication-date">
+                <span>{publicationCopy.publishedLabel}</span>{" "}
+                <time dateTime={content.publishedAt}>
+                  {formatStudioPublicArticleDateV1(content.publishedAt, locale)}
+                </time>
+              </p>
+            )}
           </header>
 
           {content.article.blocks.length === 0 && (

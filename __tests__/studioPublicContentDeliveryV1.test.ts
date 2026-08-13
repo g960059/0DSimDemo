@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  completePublicStaticContentHandoffV1,
+} from "@/components/site/PublicStaticContentHandoffV1";
+import {
   renderStudioPublishedArticleV1,
 } from "@/studio/application/publication/StudioPublicArticleRendererV1";
+import {
+  readStudioPublicArticleBootstrapV1,
+  renderStudioPublicArticleBootstrapV1,
+  STUDIO_PUBLIC_ARTICLE_BOOTSTRAP_V1_ELEMENT_ID,
+} from "@/studio/application/publication/StudioPublicArticleBootstrapV1";
 import {
   STUDIO_PUBLISHED_ARTICLE_V1_SCHEMA_ID,
   type StudioPublishedArticleV1,
@@ -47,16 +55,30 @@ describe("Studio public content delivery V1", () => {
       clientTemplate: TEMPLATE_V1,
     });
 
-    expect(rendered.documentHtml).toContain("<h1>血圧を考える</h1>");
+    expect(rendered.documentHtml).toContain(
+      '<h1 class="article-title">血圧を考える</h1>',
+    );
     expect(rendered.documentHtml).toContain('<div id="public-static-root">');
     expect(rendered.documentHtml).toContain('<div id="root" hidden></div>');
+    expect(rendered.documentHtml).toContain('class="public-static-site-header"');
+    expect(rendered.documentHtml).toContain('class="article-title"');
+    expect(rendered.documentHtml).toContain('class="article-paragraph"');
+    expect(rendered.documentHtml).toContain(
+      `id="${STUDIO_PUBLIC_ARTICLE_BOOTSTRAP_V1_ELEMENT_ID}"`,
+    );
     expect(rendered.documentHtml).toContain("血圧は何で決まるでしょうか");
     expect(rendered.documentHtml).toContain("katex-mathml");
     expect(rendered.documentHtml).toContain("<details class=\"public-static-accordion\"");
     expect(rendered.documentHtml).toContain("<strong>正解:</strong> 心拍出量と血管抵抗");
     expect(rendered.documentHtml).toContain("インタラクティブ・シミュレーション");
     expect(rendered.documentHtml).toContain("平均動脈圧");
-    expect(rendered.documentHtml).not.toContain("pane/internal-pressure");
+    const semanticMarkup = rendered.documentHtml.slice(
+      0,
+      rendered.documentHtml.indexOf(
+        `<script id="${STUDIO_PUBLIC_ARTICLE_BOOTSTRAP_V1_ELEMENT_ID}"`,
+      ),
+    );
+    expect(semanticMarkup).not.toContain("pane/internal-pressure");
     expect(rendered.documentHtml).toContain(
       `<link rel="canonical" href="https://www.circleheart.dev/ja/articles/what-determines-blood-pressure" />`,
     );
@@ -69,6 +91,81 @@ describe("Studio public content delivery V1", () => {
       articleContentId: "22222222-2222-4222-8222-222222222222",
       publicSlug: "what-determines-blood-pressure",
     });
+  });
+
+  it("hands the validated public projection to the matching client route", () => {
+    const article = publishedArticleV1();
+    const script = renderStudioPublicArticleBootstrapV1(article);
+    const json = script.slice(script.indexOf(">") + 1, script.lastIndexOf("<"));
+    const documentLike = {
+      getElementById: (id: string) => id === STUDIO_PUBLIC_ARTICLE_BOOTSTRAP_V1_ELEMENT_ID
+        ? { textContent: json }
+        : null,
+    } as Pick<Document, "getElementById">;
+
+    expect(readStudioPublicArticleBootstrapV1(article.publicSlug, documentLike))
+      .toEqual(article);
+    expect(readStudioPublicArticleBootstrapV1(article.articleId, documentLike))
+      .toEqual(article);
+    expect(readStudioPublicArticleBootstrapV1("another-article", documentLike))
+      .toBeNull();
+    expect(readStudioPublicArticleBootstrapV1(article.publicSlug, {
+      getElementById: () => ({ textContent: "{not-json" }),
+    } as unknown as Pick<Document, "getElementById">)).toBeNull();
+
+    const authoredClosingTag = validateStudioPublishedArticleV1({
+      ...article,
+      title: "</script><script>alert('not executable')</script>",
+    });
+    const escapedScript = renderStudioPublicArticleBootstrapV1(
+      authoredClosingTag,
+    );
+    const escapedJson = escapedScript.slice(
+      escapedScript.indexOf(">") + 1,
+      escapedScript.lastIndexOf("<"),
+    );
+    expect(escapedJson).not.toContain("<");
+    expect(JSON.parse(escapedJson)).toMatchObject({
+      title: authoredClosingTag.title,
+    });
+  });
+
+  it("preserves reading position when the interactive Reader takes over", () => {
+    const scrollHost = { scrollTop: 0 };
+    const clientRoot = {
+      hidden: true,
+      querySelector: () => scrollHost,
+    };
+    let staticRemoved = false;
+    const staticRoot = { remove: () => { staticRemoved = true; } };
+    Object.defineProperty(globalThis, "document", {
+      configurable: true,
+      value: {
+        getElementById: (id: string) => id === "root"
+          ? clientRoot
+          : id === "public-static-root" ? staticRoot : null,
+      },
+    });
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        requestAnimationFrame: (callback: FrameRequestCallback) => {
+          callback(0);
+          return 1;
+        },
+        scrollY: 420,
+      },
+    });
+
+    try {
+      completePublicStaticContentHandoffV1();
+      expect(clientRoot.hidden).toBe(false);
+      expect(staticRemoved).toBe(true);
+      expect(scrollHost.scrollTop).toBe(420);
+    } finally {
+      Reflect.deleteProperty(globalThis, "document");
+      Reflect.deleteProperty(globalThis, "window");
+    }
   });
 
   it("rejects extra public projection fields before rendering", () => {

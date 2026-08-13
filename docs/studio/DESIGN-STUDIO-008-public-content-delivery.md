@@ -23,6 +23,17 @@ The static document lives outside React's mount root and remains visible until
 the client route has resolved; a slow or failed bundle therefore cannot replace
 readable content with a loading screen.
 
+The first response and interactive Reader are two renderers of one presentation
+contract, not two designs. They share publication copy, date formatting,
+Article typography and page chrome. The HTML also embeds the already validated
+anonymous Article projection as inert JSON, so the client does not fetch the
+same Article a second time before becoming interactive. Snapshot resolution
+continues in the background; the handoff occurs only after the Reader is ready
+and transfers the document scroll position into the Reader's scroll container.
+The cached first response necessarily uses anonymous chrome; account-specific
+controls may replace it only after the browser resolves an authenticated
+session.
+
 ## Why this boundary
 
 Search engines, link unfurlers, accessibility tools and AI review clients must
