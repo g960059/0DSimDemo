@@ -66,6 +66,7 @@ export function validateExecutableBundleV2(
     "disposeSession",
     "currentFrame",
     "advanceOnePresentationStep",
+    "advancePresentationBatch",
     "applyControl",
     "requestAnalysis",
     "replaceFixture",
@@ -100,6 +101,7 @@ export function validateExecutableBundleV2(
     || typeof bundle.simulationAdapter.disposeSession !== "function"
     || typeof bundle.simulationAdapter.currentFrame !== "function"
     || typeof bundle.simulationAdapter.advanceOnePresentationStep !== "function"
+    || typeof bundle.simulationAdapter.advancePresentationBatch !== "function"
     || typeof bundle.simulationAdapter.applyControl !== "function"
     || typeof bundle.simulationAdapter.requestAnalysis !== "function"
     || typeof bundle.simulationAdapter.replaceFixture !== "function"
@@ -156,6 +158,8 @@ export function freezeExactRuntimeV2(
       currentFrame: bundle.simulationAdapter.currentFrame,
       advanceOnePresentationStep:
         bundle.simulationAdapter.advanceOnePresentationStep,
+      advancePresentationBatch:
+        bundle.simulationAdapter.advancePresentationBatch,
       applyControl: bundle.simulationAdapter.applyControl,
       requestAnalysis: bundle.simulationAdapter.requestAnalysis,
       replaceFixture: bundle.simulationAdapter.replaceFixture,

@@ -3785,6 +3785,7 @@ function deepFreeze$h(value) {
 }
 const CORONARY_TOPOLOGY_ID_V2 = "main-wire-coronary-three-territory-two-layer-two-compliance-v2";
 const CORONARY_CONSTRUCTION_SEED_SCHEMA_ID_V2 = "main-wire-coronary-network-construction-seed-v2";
+const coronaryTopologyByImmutablePriorV2 = /* @__PURE__ */ new WeakMap();
 const KASSAB_CORONARY_BLOOD_VOLUME_PRIOR_V2 = Object.freeze({
   source: "Kassab et al. 1994 porcine coronary morphometry",
   pubmedId: "7810711",
@@ -4322,6 +4323,9 @@ function edgeIdV2(upstreamNodeId, downstreamNodeId) {
   return `${upstreamNodeId}_${downstreamNodeId}`;
 }
 function buildCoronaryTopologyV2(prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2) {
+  if (validationStampReuseEligibleV1() && coronaryTopologyByImmutablePriorV2.has(prior)) {
+    return coronaryTopologyByImmutablePriorV2.get(prior);
+  }
   validateCoronaryTopologyPriorV2(prior);
   const nodes = [];
   const edges = [];
@@ -4469,7 +4473,7 @@ function buildCoronaryTopologyV2(prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2
   const edgeIndexById = Object.freeze(Object.fromEntries(
     edges.map((edge, index) => [edge.edgeId, index])
   ));
-  return Object.freeze({
+  const topology = Object.freeze({
     topologyId: prior.topologyId,
     constructionSeedSchemaId: prior.constructionSeedSchemaId,
     nodes: Object.freeze(nodes),
@@ -4477,6 +4481,10 @@ function buildCoronaryTopologyV2(prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2
     nodeIndexById,
     edgeIndexById
   });
+  if (validationStampReuseEligibleV1() && isTransitivelyFrozenPlainDataV1(prior)) {
+    coronaryTopologyByImmutablePriorV2.set(prior, topology);
+  }
+  return topology;
 }
 function initialCoronaryToneStateV2(prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2) {
   return Object.freeze(Object.fromEntries(
@@ -4780,6 +4788,11 @@ function validateCoronaryTopologyV2(topology) {
   const edgeIds = new Set(topology.edges.map((edge) => edge.edgeId));
   if (edgeIds.size !== CORONARY_EDGE_IDS_V2.length || CORONARY_EDGE_IDS_V2.some((edgeId) => !edgeIds.has(edgeId))) {
     throw new RangeError("coronary V2 topology edge identity set is invalid");
+  }
+  if (Object.keys(topology.edgeIndexById).length !== topology.edges.length || topology.edges.some(
+    (edge, index) => topology.edgeIndexById[edge.edgeId] !== index
+  )) {
+    throw new RangeError("coronary V2 topology edge index is not canonical");
   }
   const hydraulicNodeIds = /* @__PURE__ */ new Set([
     ...CORONARY_BOUNDARY_NODE_IDS_V2,
@@ -9306,14 +9319,7 @@ class CoronaryNetworkConvergenceErrorV2 extends Error {
 }
 function buildCoronaryEdgeIndexV2(topology) {
   validateCoronaryTopologyV2(topology);
-  const indexById = {};
-  topology.edges.forEach((edge, index) => {
-    if (edge.edgeId in indexById) {
-      throw new RangeError(`duplicate coronary V2 edge ${edge.edgeId}`);
-    }
-    indexById[edge.edgeId] = index;
-  });
-  return Object.freeze(indexById);
+  return topology.edgeIndexById;
 }
 function initializePressureLadderCoronaryStateV2(input, prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2, topology = buildCoronaryTopologyV2(prior)) {
   validateBoundaryV2(input.boundary);
@@ -9648,6 +9654,7 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(request)
   }
   let maximumLinearizedResidual = 0;
   let jacobian = null;
+  let jacobianFactorization = null;
   if (exactZeroBoundaryDirectionCount < request.boundaryDirections.length) {
     jacobian = analyticSparseCoronaryVolumeJacobianV2(
       candidate,
@@ -9656,6 +9663,7 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(request)
       topology,
       collapseHydraulics
     );
+    jacobianFactorization = factorDenseLinearSystemV2(jacobian);
   }
   for (let directionIndex = 0; directionIndex < request.boundaryDirections.length; directionIndex += 1) {
     const direction = request.boundaryDirections[directionIndex];
@@ -9666,7 +9674,7 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(request)
       dCommonVenousOutlet.push(0);
       continue;
     }
-    if (jacobian === null) {
+    if (jacobian === null || jacobianFactorization === null) {
       throw new Error("nonzero coronary direction is missing its Jacobian");
     }
     const dResidualDScaledVariable = analyticCoronaryBoundaryResidualDirectionalDerivativeV2(
@@ -9679,8 +9687,8 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(request)
       dResidualDScaledVariable,
       "coronary boundary residual directional derivative"
     );
-    const dVolume = solveDenseLinearSystemV2(
-      jacobian,
+    const dVolume = solveFactoredDenseLinearSystemV2(
+      jacobianFactorization,
       dResidualDScaledVariable.map((value) => -value)
     );
     implicitLinearSolveCount += 1;
@@ -10362,38 +10370,70 @@ function lineSearchV2(candidate, step, residualNorm, evaluate, maximumBacktracks
   );
 }
 function solveDenseLinearSystemV2(matrix, rhs) {
-  const n = rhs.length;
-  const augmented = matrix.map((row, index) => [...row, rhs[index]]);
+  return solveFactoredDenseLinearSystemV2(
+    factorDenseLinearSystemV2(matrix),
+    rhs
+  );
+}
+function factorDenseLinearSystemV2(matrix) {
+  const n = matrix.length;
+  const upper = matrix.map((row) => row.slice());
+  const stages = [];
+  for (let row = 0; row < n; row += 1) {
+    if (upper[row].length !== n) {
+      throw new RangeError("coronary V2 linear system matrix must be square");
+    }
+  }
   for (let column = 0; column < n; column += 1) {
     let pivotRow = column;
     for (let row = column + 1; row < n; row += 1) {
-      if (Math.abs(augmented[row][column]) > Math.abs(augmented[pivotRow][column])) {
+      if (Math.abs(upper[row][column]) > Math.abs(upper[pivotRow][column])) {
         pivotRow = row;
       }
     }
-    if (Math.abs(augmented[pivotRow][column]) < 1e-14) {
+    if (Math.abs(upper[pivotRow][column]) < 1e-14) {
       throw new CoronaryNetworkConvergenceErrorV2(
         "singular coronary V2 Newton Jacobian",
         Number.POSITIVE_INFINITY,
         0
       );
     }
-    [augmented[column], augmented[pivotRow]] = [augmented[pivotRow], augmented[column]];
+    [upper[column], upper[pivotRow]] = [upper[pivotRow], upper[column]];
+    const factorByRow = Array(n).fill(0);
     for (let row = column + 1; row < n; row += 1) {
-      const factor = augmented[row][column] / augmented[column][column];
-      augmented[row][column] = 0;
-      for (let j = column + 1; j <= n; j += 1) {
-        augmented[row][j] -= factor * augmented[column][j];
+      const factor = upper[row][column] / upper[column][column];
+      factorByRow[row] = factor;
+      upper[row][column] = 0;
+      for (let j = column + 1; j < n; j += 1) {
+        upper[row][j] -= factor * upper[column][j];
       }
+    }
+    stages.push({ pivotRow, factorByRow });
+  }
+  return { upper, stages };
+}
+function solveFactoredDenseLinearSystemV2(factorization, rhs) {
+  const n = rhs.length;
+  if (factorization.upper.length !== n || factorization.stages.length !== n) {
+    throw new RangeError(
+      "coronary V2 factorization and right-hand side dimensions differ"
+    );
+  }
+  const transformedRhs = rhs.slice();
+  for (let column = 0; column < n; column += 1) {
+    const stage = factorization.stages[column];
+    [transformedRhs[column], transformedRhs[stage.pivotRow]] = [transformedRhs[stage.pivotRow], transformedRhs[column]];
+    for (let row = column + 1; row < n; row += 1) {
+      transformedRhs[row] -= stage.factorByRow[row] * transformedRhs[column];
     }
   }
   const solution = Array(n).fill(0);
   for (let row = n - 1; row >= 0; row -= 1) {
-    let value = augmented[row][n];
+    let value = transformedRhs[row];
     for (let column = row + 1; column < n; column += 1) {
-      value -= augmented[row][column] * solution[column];
+      value -= factorization.upper[row][column] * solution[column];
     }
-    solution[row] = value / augmented[row][row];
+    solution[row] = value / factorization.upper[row][row];
   }
   return solution;
 }
@@ -26876,7 +26916,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
     "completedBeatMetrics.pulmonaryOutputLPerMin"
   )
 ]);
-Object.freeze(
+const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3 = Object.freeze(
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.map(
     ({ outputId }) => outputId
   )
@@ -26888,222 +26928,225 @@ class MainWireIntegratedModelOutputProjectionErrorV3 extends Error {
   }
 }
 function projectMainWireIntegratedModelObservationV3(observation2) {
-  const accepted = observation2.acceptedState;
-  const step = observation2.lastAcceptedStep;
-  assertObservationReadbackPairV3(observation2);
-  const values2 = {
-    "hemodynamics.volume.LA": availableValue(
-      "hemodynamics.volume.LA",
-      accepted.coronary.circulation.nodeVolumesMl.LA,
-      "authoritative-state"
-    ),
-    "hemodynamics.volume.LV": availableValue(
-      "hemodynamics.volume.LV",
-      accepted.coronary.circulation.nodeVolumesMl.LV,
-      "authoritative-state"
-    ),
-    "hemodynamics.volume.RA": availableValue(
-      "hemodynamics.volume.RA",
-      accepted.coronary.circulation.nodeVolumesMl.RA,
-      "authoritative-state"
-    ),
-    "hemodynamics.volume.RV": availableValue(
-      "hemodynamics.volume.RV",
-      accepted.coronary.circulation.nodeVolumesMl.RV,
-      "authoritative-state"
-    ),
-    "hemodynamics.pressure.absolute.LA": readbackValue(
-      "hemodynamics.pressure.absolute.LA",
-      step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.LA
-    ),
-    "hemodynamics.pressure.absolute.LV": readbackValue(
-      "hemodynamics.pressure.absolute.LV",
-      step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.LV
-    ),
-    "hemodynamics.pressure.absolute.RA": readbackValue(
-      "hemodynamics.pressure.absolute.RA",
-      step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.RA
-    ),
-    "hemodynamics.pressure.absolute.RV": readbackValue(
-      "hemodynamics.pressure.absolute.RV",
-      step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.RV
-    ),
-    "hemodynamics.pressure.transmural.LA": readbackValue(
-      "hemodynamics.pressure.transmural.LA",
-      step?.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg.LA
-    ),
-    "hemodynamics.pressure.transmural.LV": readbackValue(
-      "hemodynamics.pressure.transmural.LV",
-      step?.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg.LV
-    ),
-    "hemodynamics.pressure.transmural.RA": readbackValue(
-      "hemodynamics.pressure.transmural.RA",
-      step?.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg.RA
-    ),
-    "hemodynamics.pressure.transmural.RV": readbackValue(
-      "hemodynamics.pressure.transmural.RV",
-      step?.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg.RV
-    ),
-    "hemodynamics.pressure.absolute.Ao": readbackValue(
-      "hemodynamics.pressure.absolute.Ao",
-      step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.Ao
-    ),
-    "hemodynamics.pressure.absolute.SA": readbackValue(
-      "hemodynamics.pressure.absolute.SA",
-      step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.SA
-    ),
-    "hemodynamics.pressure.absolute.PA": readbackValue(
-      "hemodynamics.pressure.absolute.PA",
-      step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.PA
-    ),
-    "hemodynamics.pressure.absolute.PVein": readbackValue(
-      "hemodynamics.pressure.absolute.PVein",
-      step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.PVein
-    ),
-    "hemodynamics.pressure.absolute.VC": readbackValue(
-      "hemodynamics.pressure.absolute.VC",
-      step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.VC
-    ),
-    "hemodynamics.flow.valve.MV": readbackValue(
-      "hemodynamics.flow.valve.MV",
-      step?.coronaryStep.baseStep.circulationTrial.valveEvaluations.MV.flowMlPerSec
-    ),
-    "hemodynamics.flow.valve.AoV": readbackValue(
-      "hemodynamics.flow.valve.AoV",
-      step?.coronaryStep.baseStep.circulationTrial.valveEvaluations.AoV.flowMlPerSec
-    ),
-    "hemodynamics.flow.valve.TV": readbackValue(
-      "hemodynamics.flow.valve.TV",
-      step?.coronaryStep.baseStep.circulationTrial.valveEvaluations.TV.flowMlPerSec
-    ),
-    "hemodynamics.flow.valve.PV": readbackValue(
-      "hemodynamics.flow.valve.PV",
-      step?.coronaryStep.baseStep.circulationTrial.valveEvaluations.PV.flowMlPerSec
-    ),
-    "hemodynamics.flow.systemic.SA_Art": readbackValue(
-      "hemodynamics.flow.systemic.SA_Art",
-      step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.SA_Art
-    ),
-    "hemodynamics.flow.pulmonary.PA_PArt": readbackValue(
-      "hemodynamics.flow.pulmonary.PA_PArt",
-      step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.PA_PArt
-    ),
-    "hemodynamics.flow.venous.VC_RA": readbackValue(
-      "hemodynamics.flow.venous.VC_RA",
-      step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.VC_RA
-    ),
-    "hemodynamics.flow.venous.PVein_LA": readbackValue(
-      "hemodynamics.flow.venous.PVein_LA",
-      step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.PVein_LA
-    ),
-    "pericardium.pressure.excess": readbackValue(
-      "pericardium.pressure.excess",
-      step?.coronaryStep.baseStep.pericardium.excessPressureMmHg
-    ),
-    "respiration.pressure.pleural": availableValue(
-      "respiration.pressure.pleural",
-      observation2.runtimeSignals.pleuralPressureMmHg,
-      "accepted-derived"
-    ),
-    "respiration.pressure.alveolar": availableValue(
-      "respiration.pressure.alveolar",
-      observation2.runtimeSignals.alveolarPressureMmHg,
-      "accepted-derived"
-    ),
-    "rhythm.heart-rate.instantaneous": availableValue(
-      "rhythm.heart-rate.instantaneous",
-      regularSinusHeartRateBpmV3(accepted.composedRhythm),
-      "accepted-derived"
-    ),
-    "coronary.flow.total": readbackValue(
-      "coronary.flow.total",
-      step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.totalInletFlowMlPerSec
-    ),
-    "coronary.flow.inlet.LAD": readbackValue(
-      "coronary.flow.inlet.LAD",
-      step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.inletFlowMlPerSecByTerritory.LAD
-    ),
-    "coronary.flow.inlet.LCx": readbackValue(
-      "coronary.flow.inlet.LCx",
-      step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.inletFlowMlPerSecByTerritory.LCx
-    ),
-    "coronary.flow.inlet.RCA": readbackValue(
-      "coronary.flow.inlet.RCA",
-      step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.inletFlowMlPerSecByTerritory.RCA
-    ),
-    "device.LVAD.flow": availableValue(
-      "device.LVAD.flow",
-      accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD,
-      "authoritative-state"
-    ),
-    "rhythm.phase.regular-sinus": availableValue(
-      "rhythm.phase.regular-sinus",
-      regularSinusPhase01V3(accepted.composedRhythm),
-      "accepted-derived"
-    ),
-    "hemodynamics.pressure.mean.Ao": beatMetricValue(
-      "hemodynamics.pressure.mean.Ao",
-      observation2.completedBeatMetrics?.meanAorticPressureMmHg
-    ),
-    "hemodynamics.pressure.systolic.Ao": beatMetricValue(
-      "hemodynamics.pressure.systolic.Ao",
-      observation2.completedBeatMetrics?.systolicAorticPressureMmHg
-    ),
-    "hemodynamics.pressure.diastolic.Ao": beatMetricValue(
-      "hemodynamics.pressure.diastolic.Ao",
-      observation2.completedBeatMetrics?.diastolicAorticPressureMmHg
-    ),
-    "hemodynamics.pressure.pulse.Ao": beatMetricValue(
-      "hemodynamics.pressure.pulse.Ao",
-      observation2.completedBeatMetrics?.pulseAorticPressureMmHg
-    ),
-    "hemodynamics.pressure.mean.PA": beatMetricValue(
-      "hemodynamics.pressure.mean.PA",
-      observation2.completedBeatMetrics?.meanPulmonaryArterialPressureMmHg
-    ),
-    "hemodynamics.pressure.mean.LA": beatMetricValue(
-      "hemodynamics.pressure.mean.LA",
-      observation2.completedBeatMetrics?.meanLeftAtrialPressureMmHg
-    ),
-    "hemodynamics.pressure.mean.RA": beatMetricValue(
-      "hemodynamics.pressure.mean.RA",
-      observation2.completedBeatMetrics?.meanRightAtrialPressureMmHg
-    ),
-    "hemodynamics.volume.maximum.LV": beatMetricValue(
-      "hemodynamics.volume.maximum.LV",
-      observation2.completedBeatMetrics?.maximumLeftVentricularVolumeMl
-    ),
-    "hemodynamics.volume.minimum.LV": beatMetricValue(
-      "hemodynamics.volume.minimum.LV",
-      observation2.completedBeatMetrics?.minimumLeftVentricularVolumeMl
-    ),
-    "hemodynamics.stroke-volume.LV-extrema": beatMetricValue(
-      "hemodynamics.stroke-volume.LV-extrema",
-      observation2.completedBeatMetrics?.extremaLeftVentricularStrokeVolumeMl
-    ),
-    "hemodynamics.ejection-fraction.LV-extrema": beatMetricValue(
-      "hemodynamics.ejection-fraction.LV-extrema",
-      observation2.completedBeatMetrics?.extremaLeftVentricularEjectionFraction01
-    ),
-    "hemodynamics.output.native-left": beatMetricValue(
-      "hemodynamics.output.native-left",
-      observation2.completedBeatMetrics?.nativeLeftCardiacOutputLPerMin
-    ),
-    "hemodynamics.output.systemic-tissue": beatMetricValue(
-      "hemodynamics.output.systemic-tissue",
-      observation2.completedBeatMetrics?.systemicTissueOutputLPerMin
-    ),
-    "hemodynamics.output.pulmonary": beatMetricValue(
-      "hemodynamics.output.pulmonary",
-      observation2.completedBeatMetrics?.pulmonaryOutputLPerMin
-    )
-  };
+  const values2 = projectMainWireIntegratedModelSelectedValuesV3(
+    observation2,
+    MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3
+  );
   return Object.freeze({
     frameId: MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID,
     registryId: MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID,
     schemaVersion: MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_SCHEMA_VERSION,
     values: Object.freeze(values2)
   });
+}
+function projectMainWireIntegratedModelSelectedValuesV3(observation2, outputIds) {
+  assertObservationReadbackPairV3(observation2);
+  const values2 = {};
+  const seen = /* @__PURE__ */ new Set();
+  for (const outputId of outputIds) {
+    if (seen.has(outputId)) {
+      throw new MainWireIntegratedModelOutputProjectionErrorV3(
+        `selected output ${outputId} is duplicated`
+      );
+    }
+    seen.add(outputId);
+    values2[outputId] = projectMainWireIntegratedModelOutputValueV3(
+      observation2,
+      outputId
+    );
+  }
+  return Object.freeze(values2);
+}
+function projectMainWireIntegratedModelOutputValueV3(observation2, outputId) {
+  const accepted = observation2.acceptedState;
+  const step = observation2.lastAcceptedStep;
+  switch (outputId) {
+    case "hemodynamics.volume.LA":
+    case "hemodynamics.volume.LV":
+    case "hemodynamics.volume.RA":
+    case "hemodynamics.volume.RV": {
+      const chamber = outputId.slice(-2);
+      return availableValue(
+        outputId,
+        accepted.coronary.circulation.nodeVolumesMl[chamber],
+        "authoritative-state"
+      );
+    }
+    case "hemodynamics.pressure.absolute.LA":
+    case "hemodynamics.pressure.absolute.LV":
+    case "hemodynamics.pressure.absolute.RA":
+    case "hemodynamics.pressure.absolute.RV":
+    case "hemodynamics.pressure.absolute.Ao":
+    case "hemodynamics.pressure.absolute.SA":
+    case "hemodynamics.pressure.absolute.PA":
+    case "hemodynamics.pressure.absolute.PVein":
+    case "hemodynamics.pressure.absolute.VC": {
+      const node = outputId.slice("hemodynamics.pressure.absolute.".length);
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg[node]
+      );
+    }
+    case "hemodynamics.pressure.transmural.LA":
+    case "hemodynamics.pressure.transmural.LV":
+    case "hemodynamics.pressure.transmural.RA":
+    case "hemodynamics.pressure.transmural.RV": {
+      const chamber = outputId.slice(-2);
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg[chamber]
+      );
+    }
+    case "hemodynamics.flow.valve.MV":
+    case "hemodynamics.flow.valve.AoV":
+    case "hemodynamics.flow.valve.TV":
+    case "hemodynamics.flow.valve.PV": {
+      const valve = outputId.slice("hemodynamics.flow.valve.".length);
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial.valveEvaluations[valve].flowMlPerSec
+      );
+    }
+    case "hemodynamics.flow.systemic.SA_Art":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.SA_Art
+      );
+    case "hemodynamics.flow.pulmonary.PA_PArt":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.PA_PArt
+      );
+    case "hemodynamics.flow.venous.VC_RA":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.VC_RA
+      );
+    case "hemodynamics.flow.venous.PVein_LA":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.PVein_LA
+      );
+    case "pericardium.pressure.excess":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.pericardium.excessPressureMmHg
+      );
+    case "respiration.pressure.pleural":
+      return availableValue(
+        outputId,
+        observation2.runtimeSignals.pleuralPressureMmHg,
+        "accepted-derived"
+      );
+    case "respiration.pressure.alveolar":
+      return availableValue(
+        outputId,
+        observation2.runtimeSignals.alveolarPressureMmHg,
+        "accepted-derived"
+      );
+    case "rhythm.heart-rate.instantaneous":
+      return availableValue(
+        outputId,
+        regularSinusHeartRateBpmV3(accepted.composedRhythm),
+        "accepted-derived"
+      );
+    case "coronary.flow.total":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.totalInletFlowMlPerSec
+      );
+    case "coronary.flow.inlet.LAD":
+    case "coronary.flow.inlet.LCx":
+    case "coronary.flow.inlet.RCA": {
+      const territory = outputId.slice("coronary.flow.inlet.".length);
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.inletFlowMlPerSecByTerritory[territory]
+      );
+    }
+    case "device.LVAD.flow":
+      return availableValue(
+        outputId,
+        accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD,
+        "authoritative-state"
+      );
+    case "rhythm.phase.regular-sinus":
+      return availableValue(
+        outputId,
+        regularSinusPhase01V3(accepted.composedRhythm),
+        "accepted-derived"
+      );
+    case "hemodynamics.pressure.mean.Ao":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.meanAorticPressureMmHg
+      );
+    case "hemodynamics.pressure.systolic.Ao":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.systolicAorticPressureMmHg
+      );
+    case "hemodynamics.pressure.diastolic.Ao":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.diastolicAorticPressureMmHg
+      );
+    case "hemodynamics.pressure.pulse.Ao":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.pulseAorticPressureMmHg
+      );
+    case "hemodynamics.pressure.mean.PA":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.meanPulmonaryArterialPressureMmHg
+      );
+    case "hemodynamics.pressure.mean.LA":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.meanLeftAtrialPressureMmHg
+      );
+    case "hemodynamics.pressure.mean.RA":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.meanRightAtrialPressureMmHg
+      );
+    case "hemodynamics.volume.maximum.LV":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.maximumLeftVentricularVolumeMl
+      );
+    case "hemodynamics.volume.minimum.LV":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.minimumLeftVentricularVolumeMl
+      );
+    case "hemodynamics.stroke-volume.LV-extrema":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.extremaLeftVentricularStrokeVolumeMl
+      );
+    case "hemodynamics.ejection-fraction.LV-extrema":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.extremaLeftVentricularEjectionFraction01
+      );
+    case "hemodynamics.output.native-left":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.nativeLeftCardiacOutputLPerMin
+      );
+    case "hemodynamics.output.systemic-tissue":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.systemicTissueOutputLPerMin
+      );
+    case "hemodynamics.output.pulmonary":
+      return beatMetricValue(
+        outputId,
+        observation2.completedBeatMetrics?.pulmonaryOutputLPerMin
+      );
+  }
 }
 function projectMainWireIntegratedModelAdvancedFrameV3(advance) {
   if (advance.status !== "advanced") {
@@ -33626,7 +33669,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-10";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-11";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";
@@ -33746,13 +33789,7 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
   }
   advanceOnePresentationStep(runtimeSessionId, scenarioId) {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    const nextOrdinal = scenario.presentationOrdinal + 1;
-    const targetTimeSec = scenario.presentationOriginSec + mainWireIntegratedModelPresentationTargetTimeSecV3(nextOrdinal);
-    const advance = scenario.modelSession.advanceToPresentationTime(targetTimeSec);
-    if (advance.status !== "advanced") {
-      throw new Error(advanceFailureMessageV1(advance));
-    }
-    scenario.presentationOrdinal = nextOrdinal;
+    const advance = this.#advanceScenarioPresentation(scenario);
     return standardFrameV1({
       runtimeSessionId,
       scenarioId,
@@ -33761,6 +33798,78 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
       acceptedTimeSec: advance.acceptedTimeSec,
       projected: projectMainWireIntegratedModelAdvancedFrameV3(advance)
     });
+  }
+  advancePresentationBatch(runtimeSessionId, scenarioId, stepCount, presentationOutputIds) {
+    if (!Number.isSafeInteger(stepCount) || stepCount < 1 || stepCount > 256) {
+      throw new Error("Standard presentation batch stepCount is invalid");
+    }
+    const outputIds = validateSelectedOutputIdsV1(presentationOutputIds);
+    const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
+    const acceptedRevisions = new Float64Array(stepCount);
+    const acceptedTimesSec = new Float64Array(stepCount);
+    const outputStates = new Uint8Array(stepCount * outputIds.length);
+    const outputValues = new Float64Array(stepCount * outputIds.length);
+    let terminalFrame = null;
+    for (let index = 0; index < stepCount; index += 1) {
+      const advance = this.#advanceScenarioPresentation(scenario);
+      const terminal = index === stepCount - 1;
+      const completeValues = terminal ? projectMainWireIntegratedModelAdvancedFrameV3(advance).values : null;
+      const values2 = completeValues ?? projectMainWireIntegratedModelSelectedValuesV3(
+        advance.observation,
+        outputIds
+      );
+      acceptedRevisions[index] = advance.acceptedRevision;
+      acceptedTimesSec[index] = advance.acceptedTimeSec;
+      for (let outputIndex = 0; outputIndex < outputIds.length; outputIndex += 1) {
+        const outputId = outputIds[outputIndex];
+        const value = values2[outputId];
+        if (value === void 0) {
+          throw new Error(`Standard presentation output ${outputId} is unavailable`);
+        }
+        const packedIndex = index * outputIds.length + outputIndex;
+        outputStates[packedIndex] = standardOutputStateCodeV1(value);
+        if (value.value === null) {
+          outputValues[packedIndex] = Number.NaN;
+        } else if (typeof value.value === "number") {
+          outputValues[packedIndex] = value.value;
+        } else {
+          throw new Error(
+            `Standard presentation output ${outputId} must be scalar or null`
+          );
+        }
+      }
+      if (completeValues !== null) {
+        terminalFrame = standardFrameFromValuesV1({
+          runtimeSessionId,
+          scenarioId,
+          inputEpoch: scenario.inputEpoch,
+          acceptedRevision: advance.acceptedRevision,
+          acceptedTimeSec: advance.acceptedTimeSec,
+          values: completeValues
+        });
+      }
+    }
+    if (terminalFrame === null) {
+      throw new Error("Standard presentation batch terminal frame is unavailable");
+    }
+    return Object.freeze({
+      outputIds,
+      acceptedRevisions,
+      acceptedTimesSec,
+      outputStates,
+      outputValues,
+      terminalFrame
+    });
+  }
+  #advanceScenarioPresentation(scenario) {
+    const nextOrdinal = scenario.presentationOrdinal + 1;
+    const targetTimeSec = scenario.presentationOriginSec + mainWireIntegratedModelPresentationTargetTimeSecV3(nextOrdinal);
+    const advance = scenario.modelSession.advanceToPresentationTime(targetTimeSec);
+    if (advance.status !== "advanced") {
+      throw new Error(advanceFailureMessageV1(advance));
+    }
+    scenario.presentationOrdinal = nextOrdinal;
+    return advance;
   }
   async applyControl(runtimeSessionId, scenarioId, controlId, value, expectedInputEpoch) {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
@@ -34108,6 +34217,12 @@ function standardExecutableBundleV1(host) {
     disposeSession: (runtimeSessionId) => host.closeSession(runtimeSessionId),
     currentFrame: (input) => host.currentFrame(input.runtimeSessionId, input.scenarioId),
     advanceOnePresentationStep: async (input) => host.advanceOnePresentationStep(input.runtimeSessionId, input.scenarioId),
+    advancePresentationBatch: async (input) => host.advancePresentationBatch(
+      input.runtimeSessionId,
+      input.scenarioId,
+      input.stepCount,
+      input.presentationOutputIds
+    ),
     applyControl: async (input) => host.applyControl(
       input.runtimeSessionId,
       input.scenarioId,
@@ -34303,8 +34418,18 @@ function validateScenarioCheckpointV1(value) {
   });
 }
 function standardFrameV1(input) {
+  return standardFrameFromValuesV1({
+    runtimeSessionId: input.runtimeSessionId,
+    scenarioId: input.scenarioId,
+    inputEpoch: input.inputEpoch,
+    acceptedRevision: input.acceptedRevision,
+    acceptedTimeSec: input.acceptedTimeSec,
+    values: input.projected.values
+  });
+}
+function standardFrameFromValuesV1(input) {
   const outputs = Object.fromEntries(
-    Object.values(input.projected.values).filter(({ outputId }) => STANDARD_EXACT_OUTPUT_IDS_V1.has(outputId)).map((value) => [value.outputId, Object.freeze({
+    Object.values(input.values).filter(({ outputId }) => STANDARD_EXACT_OUTPUT_IDS_V1.has(outputId)).map((value) => [value.outputId, Object.freeze({
       outputId: value.outputId,
       value: value.value,
       availability: value.availability,
@@ -34320,6 +34445,25 @@ function standardFrameV1(input) {
     acceptedTimeSec: input.acceptedTimeSec,
     outputs: Object.freeze(outputs)
   });
+}
+function validateSelectedOutputIdsV1(outputIds) {
+  const seen = /* @__PURE__ */ new Set();
+  const validated = outputIds.map((outputId) => {
+    if (!STANDARD_EXACT_OUTPUT_IDS_V1.has(outputId)) {
+      throw new Error(`Standard presentation output ${outputId} is unavailable`);
+    }
+    if (seen.has(outputId)) {
+      throw new Error(`Standard presentation output ${outputId} is duplicated`);
+    }
+    seen.add(outputId);
+    return outputId;
+  });
+  return Object.freeze(validated);
+}
+function standardOutputStateCodeV1(output) {
+  const availability = output.availability === "available" ? 0 : 3;
+  const quality = output.quality === "authoritative-state" ? 0 : output.quality === "accepted-derived" ? 1 : 2;
+  return availability + quality;
 }
 function assertStandardModelV1(model) {
   if (model.modelId !== MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 || model.fixtureSchemaId !== MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 || model.checkpointCodecId !== MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 || model.snapshotGateId !== STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1) {

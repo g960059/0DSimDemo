@@ -72,7 +72,9 @@ export type WorkbenchParallelScenarioRuntimeClientV3 = Pick<
   | "readScenarios"
   | "requestAnalysis"
   | "terminate"
->;
+> & Readonly<{
+  presentationTiming?: StudioSimulationWorkerClientV2["presentationTiming"];
+}>;
 
 type WorkbenchParallelScenarioSchedulerV3 = Pick<
   WorkbenchLiveSchedulerV3<StudioSimulationFrameV2>,
@@ -774,6 +776,29 @@ export class WorkbenchParallelScenarioRuntimeV3 {
             scenarioId: seed.scenarioId,
             stepCount,
             presentationOutputIds,
+          }).then((frames) => {
+            if (workbenchPerformanceDiagnosticsEnabledV3()) {
+              const timing = client.presentationTiming?.();
+              if (timing !== undefined) {
+                recordWorkbenchPerformanceDurationV3(
+                  "worker.presentation-advance",
+                  timing.workerAdvanceMs,
+                );
+                recordWorkbenchPerformanceDurationV3(
+                  "worker.presentation-prepare",
+                  timing.workerPrepareMs,
+                );
+                recordWorkbenchPerformanceDurationV3(
+                  `worker.lane.${seed.scenarioId}.presentation-advance`,
+                  timing.workerAdvanceMs,
+                );
+                recordWorkbenchPerformanceDurationV3(
+                  `worker.lane.${seed.scenarioId}.presentation-prepare`,
+                  timing.workerPrepareMs,
+                );
+              }
+            }
+            return frames;
           });
         },
         acceptedTimeSec: (frame) => frame.acceptedTimeSec,

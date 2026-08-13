@@ -361,246 +361,13 @@ export class MainWireIntegratedModelOutputProjectionErrorV3 extends Error {
 export function projectMainWireIntegratedModelObservationV3(
   observation: MainWireIntegratedModelObservationV3,
 ): MainWireIntegratedModelOutputFrameV3 {
-  const accepted = observation.acceptedState;
-  const step = observation.lastAcceptedStep;
-  assertObservationReadbackPairV3(observation);
-
-  const values = {
-    "hemodynamics.volume.LA": availableValue(
-      "hemodynamics.volume.LA",
-      accepted.coronary.circulation.nodeVolumesMl.LA,
-      "authoritative-state",
-    ),
-    "hemodynamics.volume.LV": availableValue(
-      "hemodynamics.volume.LV",
-      accepted.coronary.circulation.nodeVolumesMl.LV,
-      "authoritative-state",
-    ),
-    "hemodynamics.volume.RA": availableValue(
-      "hemodynamics.volume.RA",
-      accepted.coronary.circulation.nodeVolumesMl.RA,
-      "authoritative-state",
-    ),
-    "hemodynamics.volume.RV": availableValue(
-      "hemodynamics.volume.RV",
-      accepted.coronary.circulation.nodeVolumesMl.RV,
-      "authoritative-state",
-    ),
-    "hemodynamics.pressure.absolute.LA": readbackValue(
-      "hemodynamics.pressure.absolute.LA",
-      step?.coronaryStep.baseStep.circulationTrial
-        .nodeAbsolutePressuresMmHg.LA,
-    ),
-    "hemodynamics.pressure.absolute.LV": readbackValue(
-      "hemodynamics.pressure.absolute.LV",
-      step?.coronaryStep.baseStep.circulationTrial
-        .nodeAbsolutePressuresMmHg.LV,
-    ),
-    "hemodynamics.pressure.absolute.RA": readbackValue(
-      "hemodynamics.pressure.absolute.RA",
-      step?.coronaryStep.baseStep.circulationTrial
-        .nodeAbsolutePressuresMmHg.RA,
-    ),
-    "hemodynamics.pressure.absolute.RV": readbackValue(
-      "hemodynamics.pressure.absolute.RV",
-      step?.coronaryStep.baseStep.circulationTrial
-        .nodeAbsolutePressuresMmHg.RV,
-    ),
-    "hemodynamics.pressure.transmural.LA": readbackValue(
-      "hemodynamics.pressure.transmural.LA",
-      step?.coronaryStep.baseStep.mechanicsTrial
-        .transmuralPressuresMmHg.LA,
-    ),
-    "hemodynamics.pressure.transmural.LV": readbackValue(
-      "hemodynamics.pressure.transmural.LV",
-      step?.coronaryStep.baseStep.mechanicsTrial
-        .transmuralPressuresMmHg.LV,
-    ),
-    "hemodynamics.pressure.transmural.RA": readbackValue(
-      "hemodynamics.pressure.transmural.RA",
-      step?.coronaryStep.baseStep.mechanicsTrial
-        .transmuralPressuresMmHg.RA,
-    ),
-    "hemodynamics.pressure.transmural.RV": readbackValue(
-      "hemodynamics.pressure.transmural.RV",
-      step?.coronaryStep.baseStep.mechanicsTrial
-        .transmuralPressuresMmHg.RV,
-    ),
-    "hemodynamics.pressure.absolute.Ao": readbackValue(
-      "hemodynamics.pressure.absolute.Ao",
-      step?.coronaryStep.baseStep.circulationTrial
-        .nodeAbsolutePressuresMmHg.Ao,
-    ),
-    "hemodynamics.pressure.absolute.SA": readbackValue(
-      "hemodynamics.pressure.absolute.SA",
-      step?.coronaryStep.baseStep.circulationTrial
-        .nodeAbsolutePressuresMmHg.SA,
-    ),
-    "hemodynamics.pressure.absolute.PA": readbackValue(
-      "hemodynamics.pressure.absolute.PA",
-      step?.coronaryStep.baseStep.circulationTrial
-        .nodeAbsolutePressuresMmHg.PA,
-    ),
-    "hemodynamics.pressure.absolute.PVein": readbackValue(
-      "hemodynamics.pressure.absolute.PVein",
-      step?.coronaryStep.baseStep.circulationTrial
-        .nodeAbsolutePressuresMmHg.PVein,
-    ),
-    "hemodynamics.pressure.absolute.VC": readbackValue(
-      "hemodynamics.pressure.absolute.VC",
-      step?.coronaryStep.baseStep.circulationTrial
-        .nodeAbsolutePressuresMmHg.VC,
-    ),
-    "hemodynamics.flow.valve.MV": readbackValue(
-      "hemodynamics.flow.valve.MV",
-      step?.coronaryStep.baseStep.circulationTrial
-        .valveEvaluations.MV.flowMlPerSec,
-    ),
-    "hemodynamics.flow.valve.AoV": readbackValue(
-      "hemodynamics.flow.valve.AoV",
-      step?.coronaryStep.baseStep.circulationTrial
-        .valveEvaluations.AoV.flowMlPerSec,
-    ),
-    "hemodynamics.flow.valve.TV": readbackValue(
-      "hemodynamics.flow.valve.TV",
-      step?.coronaryStep.baseStep.circulationTrial
-        .valveEvaluations.TV.flowMlPerSec,
-    ),
-    "hemodynamics.flow.valve.PV": readbackValue(
-      "hemodynamics.flow.valve.PV",
-      step?.coronaryStep.baseStep.circulationTrial
-        .valveEvaluations.PV.flowMlPerSec,
-    ),
-    "hemodynamics.flow.systemic.SA_Art": readbackValue(
-      "hemodynamics.flow.systemic.SA_Art",
-      step?.coronaryStep.baseStep.circulationTrial
-        .edgeFlowsMlPerSec.SA_Art,
-    ),
-    "hemodynamics.flow.pulmonary.PA_PArt": readbackValue(
-      "hemodynamics.flow.pulmonary.PA_PArt",
-      step?.coronaryStep.baseStep.circulationTrial
-        .edgeFlowsMlPerSec.PA_PArt,
-    ),
-    "hemodynamics.flow.venous.VC_RA": readbackValue(
-      "hemodynamics.flow.venous.VC_RA",
-      step?.coronaryStep.baseStep.circulationTrial
-        .edgeFlowsMlPerSec.VC_RA,
-    ),
-    "hemodynamics.flow.venous.PVein_LA": readbackValue(
-      "hemodynamics.flow.venous.PVein_LA",
-      step?.coronaryStep.baseStep.circulationTrial
-        .edgeFlowsMlPerSec.PVein_LA,
-    ),
-    "pericardium.pressure.excess": readbackValue(
-      "pericardium.pressure.excess",
-      step?.coronaryStep.baseStep.pericardium.excessPressureMmHg,
-    ),
-    "respiration.pressure.pleural": availableValue(
-      "respiration.pressure.pleural",
-      observation.runtimeSignals.pleuralPressureMmHg,
-      "accepted-derived",
-    ),
-    "respiration.pressure.alveolar": availableValue(
-      "respiration.pressure.alveolar",
-      observation.runtimeSignals.alveolarPressureMmHg,
-      "accepted-derived",
-    ),
-    "rhythm.heart-rate.instantaneous": availableValue(
-      "rhythm.heart-rate.instantaneous",
-      regularSinusHeartRateBpmV3(accepted.composedRhythm),
-      "accepted-derived",
-    ),
-    "coronary.flow.total": readbackValue(
-      "coronary.flow.total",
-      step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics
-        .totalInletFlowMlPerSec,
-    ),
-    "coronary.flow.inlet.LAD": readbackValue(
-      "coronary.flow.inlet.LAD",
-      step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics
-        .inletFlowMlPerSecByTerritory.LAD,
-    ),
-    "coronary.flow.inlet.LCx": readbackValue(
-      "coronary.flow.inlet.LCx",
-      step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics
-        .inletFlowMlPerSecByTerritory.LCx,
-    ),
-    "coronary.flow.inlet.RCA": readbackValue(
-      "coronary.flow.inlet.RCA",
-      step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics
-        .inletFlowMlPerSecByTerritory.RCA,
-    ),
-    "device.LVAD.flow": availableValue(
-      "device.LVAD.flow",
-      accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD,
-      "authoritative-state",
-    ),
-    "rhythm.phase.regular-sinus": availableValue(
-      "rhythm.phase.regular-sinus",
-      regularSinusPhase01V3(accepted.composedRhythm),
-      "accepted-derived",
-    ),
-    "hemodynamics.pressure.mean.Ao": beatMetricValue(
-      "hemodynamics.pressure.mean.Ao",
-      observation.completedBeatMetrics?.meanAorticPressureMmHg,
-    ),
-    "hemodynamics.pressure.systolic.Ao": beatMetricValue(
-      "hemodynamics.pressure.systolic.Ao",
-      observation.completedBeatMetrics?.systolicAorticPressureMmHg,
-    ),
-    "hemodynamics.pressure.diastolic.Ao": beatMetricValue(
-      "hemodynamics.pressure.diastolic.Ao",
-      observation.completedBeatMetrics?.diastolicAorticPressureMmHg,
-    ),
-    "hemodynamics.pressure.pulse.Ao": beatMetricValue(
-      "hemodynamics.pressure.pulse.Ao",
-      observation.completedBeatMetrics?.pulseAorticPressureMmHg,
-    ),
-    "hemodynamics.pressure.mean.PA": beatMetricValue(
-      "hemodynamics.pressure.mean.PA",
-      observation.completedBeatMetrics?.meanPulmonaryArterialPressureMmHg,
-    ),
-    "hemodynamics.pressure.mean.LA": beatMetricValue(
-      "hemodynamics.pressure.mean.LA",
-      observation.completedBeatMetrics?.meanLeftAtrialPressureMmHg,
-    ),
-    "hemodynamics.pressure.mean.RA": beatMetricValue(
-      "hemodynamics.pressure.mean.RA",
-      observation.completedBeatMetrics?.meanRightAtrialPressureMmHg,
-    ),
-    "hemodynamics.volume.maximum.LV": beatMetricValue(
-      "hemodynamics.volume.maximum.LV",
-      observation.completedBeatMetrics?.maximumLeftVentricularVolumeMl,
-    ),
-    "hemodynamics.volume.minimum.LV": beatMetricValue(
-      "hemodynamics.volume.minimum.LV",
-      observation.completedBeatMetrics?.minimumLeftVentricularVolumeMl,
-    ),
-    "hemodynamics.stroke-volume.LV-extrema": beatMetricValue(
-      "hemodynamics.stroke-volume.LV-extrema",
-      observation.completedBeatMetrics?.extremaLeftVentricularStrokeVolumeMl,
-    ),
-    "hemodynamics.ejection-fraction.LV-extrema": beatMetricValue(
-      "hemodynamics.ejection-fraction.LV-extrema",
-      observation.completedBeatMetrics
-        ?.extremaLeftVentricularEjectionFraction01,
-    ),
-    "hemodynamics.output.native-left": beatMetricValue(
-      "hemodynamics.output.native-left",
-      observation.completedBeatMetrics?.nativeLeftCardiacOutputLPerMin,
-    ),
-    "hemodynamics.output.systemic-tissue": beatMetricValue(
-      "hemodynamics.output.systemic-tissue",
-      observation.completedBeatMetrics?.systemicTissueOutputLPerMin,
-    ),
-    "hemodynamics.output.pulmonary": beatMetricValue(
-      "hemodynamics.output.pulmonary",
-      observation.completedBeatMetrics?.pulmonaryOutputLPerMin,
-    ),
-  } satisfies Record<
+  const values = projectMainWireIntegratedModelSelectedValuesV3(
+    observation,
+    MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+  ) as Readonly<Record<
     MainWireIntegratedModelOutputIdV3,
     MainWireIntegratedModelOutputValueV3
-  >;
+  >>;
 
   return Object.freeze({
     frameId: MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID,
@@ -609,6 +376,242 @@ export function projectMainWireIntegratedModelObservationV3(
       MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_SCHEMA_VERSION,
     values: Object.freeze(values),
   });
+}
+
+/**
+ * Projects only the exact scalar signals requested by the presentation owner.
+ * It shares the same projector as the complete frame, so adding autonomic,
+ * oxygen-delivery or multipatch outputs does not force hidden signals into the
+ * live hot path and cannot create a second numerical meaning.
+ */
+export function projectMainWireIntegratedModelSelectedValuesV3(
+  observation: MainWireIntegratedModelObservationV3,
+  outputIds: readonly MainWireIntegratedModelOutputIdV3[],
+): Readonly<Record<string, MainWireIntegratedModelOutputValueV3>> {
+  assertObservationReadbackPairV3(observation);
+  const values: Record<string, MainWireIntegratedModelOutputValueV3> = {};
+  const seen = new Set<MainWireIntegratedModelOutputIdV3>();
+  for (const outputId of outputIds) {
+    if (seen.has(outputId)) {
+      throw new MainWireIntegratedModelOutputProjectionErrorV3(
+        `selected output ${outputId} is duplicated`,
+      );
+    }
+    seen.add(outputId);
+    values[outputId] = projectMainWireIntegratedModelOutputValueV3(
+      observation,
+      outputId,
+    );
+  }
+  return Object.freeze(values);
+}
+
+function projectMainWireIntegratedModelOutputValueV3(
+  observation: MainWireIntegratedModelObservationV3,
+  outputId: MainWireIntegratedModelOutputIdV3,
+): MainWireIntegratedModelOutputValueV3 {
+  const accepted = observation.acceptedState;
+  const step = observation.lastAcceptedStep;
+  switch (outputId) {
+    case "hemodynamics.volume.LA":
+    case "hemodynamics.volume.LV":
+    case "hemodynamics.volume.RA":
+    case "hemodynamics.volume.RV": {
+      const chamber = outputId.slice(-2) as "LA" | "LV" | "RA" | "RV";
+      return availableValue(
+        outputId,
+        accepted.coronary.circulation.nodeVolumesMl[chamber],
+        "authoritative-state",
+      );
+    }
+    case "hemodynamics.pressure.absolute.LA":
+    case "hemodynamics.pressure.absolute.LV":
+    case "hemodynamics.pressure.absolute.RA":
+    case "hemodynamics.pressure.absolute.RV":
+    case "hemodynamics.pressure.absolute.Ao":
+    case "hemodynamics.pressure.absolute.SA":
+    case "hemodynamics.pressure.absolute.PA":
+    case "hemodynamics.pressure.absolute.PVein":
+    case "hemodynamics.pressure.absolute.VC": {
+      const node = outputId.slice("hemodynamics.pressure.absolute.".length) as
+        "LA" | "LV" | "RA" | "RV" | "Ao" | "SA" | "PA" | "PVein" | "VC";
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial
+          .nodeAbsolutePressuresMmHg[node],
+      );
+    }
+    case "hemodynamics.pressure.transmural.LA":
+    case "hemodynamics.pressure.transmural.LV":
+    case "hemodynamics.pressure.transmural.RA":
+    case "hemodynamics.pressure.transmural.RV": {
+      const chamber = outputId.slice(-2) as "LA" | "LV" | "RA" | "RV";
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.mechanicsTrial
+          .transmuralPressuresMmHg[chamber],
+      );
+    }
+    case "hemodynamics.flow.valve.MV":
+    case "hemodynamics.flow.valve.AoV":
+    case "hemodynamics.flow.valve.TV":
+    case "hemodynamics.flow.valve.PV": {
+      const valve = outputId.slice("hemodynamics.flow.valve.".length) as
+        "MV" | "AoV" | "TV" | "PV";
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial
+          .valveEvaluations[valve].flowMlPerSec,
+      );
+    }
+    case "hemodynamics.flow.systemic.SA_Art":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial
+          .edgeFlowsMlPerSec.SA_Art,
+      );
+    case "hemodynamics.flow.pulmonary.PA_PArt":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial
+          .edgeFlowsMlPerSec.PA_PArt,
+      );
+    case "hemodynamics.flow.venous.VC_RA":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial
+          .edgeFlowsMlPerSec.VC_RA,
+      );
+    case "hemodynamics.flow.venous.PVein_LA":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.circulationTrial
+          .edgeFlowsMlPerSec.PVein_LA,
+      );
+    case "pericardium.pressure.excess":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.pericardium.excessPressureMmHg,
+      );
+    case "respiration.pressure.pleural":
+      return availableValue(
+        outputId,
+        observation.runtimeSignals.pleuralPressureMmHg,
+        "accepted-derived",
+      );
+    case "respiration.pressure.alveolar":
+      return availableValue(
+        outputId,
+        observation.runtimeSignals.alveolarPressureMmHg,
+        "accepted-derived",
+      );
+    case "rhythm.heart-rate.instantaneous":
+      return availableValue(
+        outputId,
+        regularSinusHeartRateBpmV3(accepted.composedRhythm),
+        "accepted-derived",
+      );
+    case "coronary.flow.total":
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics
+          .totalInletFlowMlPerSec,
+      );
+    case "coronary.flow.inlet.LAD":
+    case "coronary.flow.inlet.LCx":
+    case "coronary.flow.inlet.RCA": {
+      const territory = outputId.slice("coronary.flow.inlet.".length) as
+        "LAD" | "LCx" | "RCA";
+      return readbackValue(
+        outputId,
+        step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics
+          .inletFlowMlPerSecByTerritory[territory],
+      );
+    }
+    case "device.LVAD.flow":
+      return availableValue(
+        outputId,
+        accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD,
+        "authoritative-state",
+      );
+    case "rhythm.phase.regular-sinus":
+      return availableValue(
+        outputId,
+        regularSinusPhase01V3(accepted.composedRhythm),
+        "accepted-derived",
+      );
+    case "hemodynamics.pressure.mean.Ao":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.meanAorticPressureMmHg,
+      );
+    case "hemodynamics.pressure.systolic.Ao":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.systolicAorticPressureMmHg,
+      );
+    case "hemodynamics.pressure.diastolic.Ao":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.diastolicAorticPressureMmHg,
+      );
+    case "hemodynamics.pressure.pulse.Ao":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.pulseAorticPressureMmHg,
+      );
+    case "hemodynamics.pressure.mean.PA":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.meanPulmonaryArterialPressureMmHg,
+      );
+    case "hemodynamics.pressure.mean.LA":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.meanLeftAtrialPressureMmHg,
+      );
+    case "hemodynamics.pressure.mean.RA":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.meanRightAtrialPressureMmHg,
+      );
+    case "hemodynamics.volume.maximum.LV":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.maximumLeftVentricularVolumeMl,
+      );
+    case "hemodynamics.volume.minimum.LV":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.minimumLeftVentricularVolumeMl,
+      );
+    case "hemodynamics.stroke-volume.LV-extrema":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.extremaLeftVentricularStrokeVolumeMl,
+      );
+    case "hemodynamics.ejection-fraction.LV-extrema":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics
+          ?.extremaLeftVentricularEjectionFraction01,
+      );
+    case "hemodynamics.output.native-left":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.nativeLeftCardiacOutputLPerMin,
+      );
+    case "hemodynamics.output.systemic-tissue":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.systemicTissueOutputLPerMin,
+      );
+    case "hemodynamics.output.pulmonary":
+      return beatMetricValue(
+        outputId,
+        observation.completedBeatMetrics?.pulmonaryOutputLPerMin,
+      );
+  }
 }
 
 /**

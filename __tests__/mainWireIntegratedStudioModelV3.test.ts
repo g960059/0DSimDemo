@@ -49,6 +49,9 @@ import mainWireIntegratedStudioStandardSurfaceV1 from
 import {
   createDefaultExperimentSurfaceV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
+import {
+  materializeStudioSimulationPresentationFramesV2,
+} from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
 const EMPTY_SURFACE_V2: ExperimentSurfaceV2 = Object.freeze({
   graphPanes: Object.freeze([]),
@@ -297,6 +300,64 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(host.advanceOnePresentationStep(runtimeSessionId, scenarioId))
       .toMatchObject({ inputEpoch: 1 });
     host.closeSession(runtimeSessionId);
+  }, 120_000);
+
+  it("batch-projects selected outputs without changing exact samples", async () => {
+    const singleHost = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const batchHost = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const singleSessionId = "session/standard-presentation-parity";
+    const batchSessionId = singleSessionId;
+    const scenarioId = "scenario/baseline";
+    const seed = [{
+      scenarioId,
+      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    }] as const;
+    await singleHost.createSession(singleSessionId, seed);
+    await batchHost.createSession(batchSessionId, seed);
+
+    const selectedOutputIds = [
+      "hemodynamics.pressure.absolute.LV",
+      "hemodynamics.pressure.absolute.LA",
+      "hemodynamics.pressure.absolute.Ao",
+      "hemodynamics.volume.LV",
+      "hemodynamics.pressure.transmural.LV",
+      "rhythm.phase.regular-sinus",
+    ] as const;
+    const singleFrames = Array.from({ length: 16 }, () =>
+      singleHost.advanceOnePresentationStep(singleSessionId, scenarioId));
+    const batchFrames = materializeStudioSimulationPresentationFramesV2(
+      batchHost.advancePresentationBatch(
+        batchSessionId,
+        scenarioId,
+        16,
+        selectedOutputIds,
+      ),
+    );
+
+    expect(batchFrames).toHaveLength(singleFrames.length);
+    for (let index = 0; index < singleFrames.length; index += 1) {
+      const single = singleFrames[index]!;
+      const batch = batchFrames[index]!;
+      expect(batch).toMatchObject({
+        acceptedRevision: single.acceptedRevision,
+        acceptedTimeSec: single.acceptedTimeSec,
+        inputEpoch: single.inputEpoch,
+      });
+      for (const outputId of selectedOutputIds) {
+        expect(batch.outputs[outputId]).toEqual(single.outputs[outputId]);
+      }
+      expect(Object.keys(batch.outputs).sort()).toEqual(
+        index === batchFrames.length - 1
+          ? Object.keys(single.outputs).sort()
+          : [...selectedOutputIds].sort(),
+      );
+    }
+    expect(batchFrames.at(-1)).toEqual(singleFrames.at(-1));
+    expect(batchHost.currentFrame(batchSessionId, scenarioId))
+      .toEqual(singleHost.currentFrame(singleSessionId, scenarioId));
+
+    singleHost.closeSession(singleSessionId);
+    batchHost.closeSession(batchSessionId);
   }, 120_000);
 
   it("composes the complete Workbench catalog and emits beat metrics", async () => {

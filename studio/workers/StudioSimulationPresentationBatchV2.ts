@@ -1,4 +1,5 @@
 import type {
+  RegisteredModelPresentationBatchV2,
   StudioSimulationFrameV2,
   StudioSimulationOutputQualityV2,
   StudioSimulationOutputValueV2,
@@ -11,20 +12,23 @@ import type {
  * The final row remains a complete model frame so latest-value consumers and
  * authoring correlation never depend on a lossy presentation projection.
  */
-export type StudioSimulationPresentationBatchV2 = Readonly<{
-  outputIds: readonly string[];
-  acceptedRevisions: Float64Array;
-  acceptedTimesSec: Float64Array;
-  outputStates: Uint8Array;
-  outputValues: Float64Array;
-  terminalFrame: StudioSimulationFrameV2;
-}>;
+export type StudioSimulationPresentationBatchV2 =
+  RegisteredModelPresentationBatchV2 & Readonly<{
+    /** Adapter-owned numerical advance plus exact output projection. */
+    workerAdvanceMs: number;
+    /** Worker validation/packing before postMessage. */
+    workerPrepareMs: number;
+  }>;
 
 export const STUDIO_SIMULATION_PRESENTATION_OUTPUT_STATE_COUNT_V2 = 6;
 
 export function createStudioSimulationPresentationBatchV2(
   frames: readonly StudioSimulationFrameV2[],
   outputIds: readonly string[],
+  timing: Readonly<{
+    workerAdvanceMs: number;
+    workerPrepareMs: number;
+  }> = Object.freeze({ workerAdvanceMs: 0, workerPrepareMs: 0 }),
 ): StudioSimulationPresentationBatchV2 {
   if (frames.length === 0) {
     throw new Error("presentation batch requires at least one frame");
@@ -70,11 +74,13 @@ export function createStudioSimulationPresentationBatchV2(
     outputStates,
     outputValues,
     terminalFrame: frames[frames.length - 1]!,
+    workerAdvanceMs: timing.workerAdvanceMs,
+    workerPrepareMs: timing.workerPrepareMs,
   });
 }
 
 export function materializeStudioSimulationPresentationFramesV2(
-  batch: StudioSimulationPresentationBatchV2,
+  batch: RegisteredModelPresentationBatchV2,
 ): readonly StudioSimulationFrameV2[] {
   const frameCount = batch.acceptedRevisions.length;
   const frames: StudioSimulationFrameV2[] = [];

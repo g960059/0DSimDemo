@@ -11,6 +11,7 @@ import {
   MainWireIntegratedModelOutputProjectionErrorV3,
   projectMainWireIntegratedModelAdvancedFrameV3,
   projectMainWireIntegratedModelObservationV3,
+  projectMainWireIntegratedModelSelectedValuesV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_COVERAGE_V3,
@@ -114,6 +115,10 @@ describe("Main Wire Integrated Model V3 output registry", () => {
   it("projects cold, restored, accepted-step, and event-substep availability exactly", async () => {
     const session = await MainWireIntegratedModelSessionV3.create();
     const cold = projectMainWireIntegratedModelObservationV3(session.observe());
+    expect(projectMainWireIntegratedModelSelectedValuesV3(
+      session.observe(),
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+    )).toEqual(cold.values);
 
     expect(Object.keys(cold)).toEqual([
       "frameId",
@@ -176,6 +181,25 @@ describe("Main Wire Integrated Model V3 output registry", () => {
     ));
     const firstFrame =
       projectMainWireIntegratedModelAdvancedFrameV3(first);
+    expect(projectMainWireIntegratedModelSelectedValuesV3(
+      first.observation,
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+    )).toEqual(firstFrame.values);
+    expect(projectMainWireIntegratedModelSelectedValuesV3(
+      first.observation,
+      [
+        "hemodynamics.pressure.absolute.LV",
+        "hemodynamics.volume.LV",
+        "hemodynamics.output.native-left",
+      ],
+    )).toEqual({
+      "hemodynamics.pressure.absolute.LV":
+        firstFrame.values["hemodynamics.pressure.absolute.LV"],
+      "hemodynamics.volume.LV":
+        firstFrame.values["hemodynamics.volume.LV"],
+      "hemodynamics.output.native-left":
+        firstFrame.values["hemodynamics.output.native-left"],
+    });
     const firstStep = first.observation.lastAcceptedStep;
     expect(firstStep).not.toBeNull();
     if (firstStep === null) throw new Error("accepted-step readback is absent");

@@ -1305,6 +1305,9 @@ function exactRuntimeResolverV2() {
           advanceOnePresentationStep() {
             throw new Error("not used by Preset clone");
           },
+          advancePresentationBatch() {
+            throw new Error("not used by Preset clone");
+          },
           applyControl() {
             throw new Error("not used by Preset clone");
           },

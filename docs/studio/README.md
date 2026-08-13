@@ -26,6 +26,11 @@ defines the exact numerical kernel/Model Surface split, the `dev | stable |
 retired` lifecycle, the atomic active model/Surface bundle, common Snapshot
 admission, ordinary-content AI assistance, explicit succession, and Model Lab.
 
+[DESIGN-STUDIO-007-flat-numerical-kernel.md](DESIGN-STUDIO-007-flat-numerical-kernel.md)
+defines the no-compatibility flat-kernel cutover, typed Compute Worker ABI,
+physical-phone performance gates, and the ordered path through coupled solves,
+WASM, multipatch, autonomic reflexes, oxygen delivery, and multirate domains.
+
 Superseded Studio V1 design and vertical-slice specifications were removed
 from the working tree. They remain available in Git history, but must not be
 used as implementation context.
