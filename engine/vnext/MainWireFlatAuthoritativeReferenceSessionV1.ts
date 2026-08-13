@@ -13,6 +13,10 @@ import {
   type CoronaryBackwardEulerScratchWorkspaceV2,
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
+  createNonCoronaryBackwardEulerScratchWorkspaceV1,
+  type NonCoronaryBackwardEulerScratchWorkspaceV1,
+} from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+import {
   buildCoronaryTopologyV2,
 } from "@/engine/coronary/topologyPriorV2";
 import {
@@ -156,6 +160,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     TransactionalTypedStateCompletionPlanV1 | null;
   readonly #coronaryScratchWorkspace:
     CoronaryBackwardEulerScratchWorkspaceV2;
+  readonly #nonCoronaryScratchWorkspace:
+    NonCoronaryBackwardEulerScratchWorkspaceV1;
   #acceptedState: AcceptedState;
   #lastAcceptedStep: SuccessfulStep | null;
   #lastPresentationObservation: MainWireIntegratedModelObservationV3 | null;
@@ -217,6 +223,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       createCoronaryBackwardEulerScratchWorkspaceV2(
         buildCoronaryTopologyV2(runtime.coronaryStepInput.coronaryPrior),
       );
+    this.#nonCoronaryScratchWorkspace =
+      createNonCoronaryBackwardEulerScratchWorkspaceV1();
     this.#rhythmInput = Object.freeze({
       configuration: runtime.rhythm.configuration,
       externalAfNextBoundaryTimeSec: null,
@@ -514,6 +522,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             }),
           },
           this.#coronaryScratchWorkspace,
+          this.#nonCoronaryScratchWorkspace,
         );
       } catch (error) {
         if (directCandidateOpen) {

@@ -16,6 +16,9 @@ import {
   type CoronaryBackwardEulerScratchWorkspaceV2,
   type CoronaryDiseaseInputV2,
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
+import type {
+  NonCoronaryBackwardEulerScratchWorkspaceV1,
+} from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   NORMAL_ADULT_CORONARY_AUTOREGULATION_PRIOR_V2,
   unitCoronaryDemandScaleV2,
@@ -223,6 +226,8 @@ export function stepMainWireFiveWallCoronaryV3<TWallState>(
   previous: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
   input: MainWireFiveWallCoronaryStepInputV3,
   coronaryScratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
+  nonCoronaryScratchWorkspace?:
+    NonCoronaryBackwardEulerScratchWorkspaceV1,
 ): MainWireFiveWallCoronaryStepResultV3<TWallState> {
   const basePrevious =
     validatedMainWireFiveWallCoronaryBaseStateV2(previous);
@@ -243,6 +248,7 @@ export function stepMainWireFiveWallCoronaryV3<TWallState>(
     basePrevious,
     input,
     coronaryScratchWorkspace,
+    nonCoronaryScratchWorkspace,
   );
   if (baseStep.converged === false) {
     return Object.freeze({

@@ -1,4 +1,5 @@
 import type {
+  NonCoronaryBackwardEulerScratchWorkspaceV1,
   NonCoronaryDynamicMechanicalSupportInputV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import type {
@@ -468,6 +469,8 @@ export function stepMainWireIntegratedModelV3<TWallState>(
   previous: MainWireIntegratedModelAcceptedStateV3<TWallState>,
   input: MainWireIntegratedModelStepInputV3,
   coronaryScratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
+  nonCoronaryScratchWorkspace?:
+    NonCoronaryBackwardEulerScratchWorkspaceV1,
 ): MainWireIntegratedModelStepResultV3<TWallState> {
   let candidateTimeLimit:
     MainWireIntegratedModelCandidateTimeLimitV3 | undefined;
@@ -536,6 +539,7 @@ export function stepMainWireIntegratedModelV3<TWallState>(
         dynamicMechanicalSupport,
       },
       coronaryScratchWorkspace,
+      nonCoronaryScratchWorkspace,
     );
     if (coronaryStep.converged === false) {
       return failure(

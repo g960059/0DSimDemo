@@ -394,6 +394,11 @@ export type NonCoronaryCirculationTrialInputV1<
     TEvaluation,
     TCompanionTrial
   >;
+  /**
+   * Optional Session-owned allocation storage. It is neither accepted state
+   * nor checkpoint content, and a returned trial never aliases it.
+   */
+  scratchWorkspace?: NonCoronaryBackwardEulerScratchWorkspaceV1;
 }>;
 
 export type NonCoronaryCirculationTrialDiagnosticsV1 = Readonly<{
@@ -707,6 +712,101 @@ const DEFAULT_NEWTON_OPTIONS = Object.freeze({
 const MAX_NEWTON_FAILURE_TRACE_ENTRIES = 32;
 const MAX_FAILURE_DIAGNOSTIC_MESSAGE_CHARACTERS = 1024;
 
+export const NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID =
+  "circleheart-noncoronary-backward-euler-scratch-workspace-v1" as const;
+
+/**
+ * Opaque allocation workspace for one synchronous outer circulation solve.
+ * The WeakMap storage is deliberately absent from checkpoints and cannot be
+ * reached through a successful or failed scientific trial.
+ */
+export type NonCoronaryBackwardEulerScratchWorkspaceV1 = Readonly<{
+  schemaId: typeof NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID;
+  topologyId: typeof NON_CORONARY_CIRCULATION_BE_V1_ID;
+  independentNodeCount: number;
+}>;
+
+type NonCoronaryBackwardEulerScratchStorageV1 = {
+  readonly volumeScales: number[];
+  readonly scaledUnknowns: number[];
+  readonly candidateUnknowns: number[];
+  readonly analyticJacobian: number[][];
+  readonly linearRight: number[];
+  readonly linearMatrix: number[][];
+  readonly linearSolution: number[];
+  inUse: boolean;
+};
+
+const NON_CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V1 = new WeakMap<
+  NonCoronaryBackwardEulerScratchWorkspaceV1,
+  NonCoronaryBackwardEulerScratchStorageV1
+>();
+
+function createSquareMatrixV1(size: number): number[][] {
+  return Array.from({ length: size }, () => Array<number>(size).fill(0));
+}
+
+/** Creates reusable allocation storage without making it numerical authority. */
+export function createNonCoronaryBackwardEulerScratchWorkspaceV1():
+NonCoronaryBackwardEulerScratchWorkspaceV1 {
+  const independentNodeCount = INDEPENDENT_NODE_NAMES.length;
+  const workspace = Object.freeze({
+    schemaId: NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID,
+    topologyId: NON_CORONARY_CIRCULATION_BE_V1_ID,
+    independentNodeCount,
+  });
+  NON_CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V1.set(workspace, {
+    volumeScales: Array<number>(independentNodeCount).fill(0),
+    scaledUnknowns: Array<number>(independentNodeCount).fill(0),
+    candidateUnknowns: Array<number>(independentNodeCount).fill(0),
+    analyticJacobian: createSquareMatrixV1(independentNodeCount),
+    linearRight: Array<number>(independentNodeCount).fill(0),
+    linearMatrix: createSquareMatrixV1(independentNodeCount),
+    linearSolution: Array<number>(independentNodeCount).fill(0),
+    inUse: false,
+  });
+  return workspace;
+}
+
+function borrowNonCoronaryBackwardEulerScratchWorkspaceV1(
+  workspace: NonCoronaryBackwardEulerScratchWorkspaceV1,
+): NonCoronaryBackwardEulerScratchStorageV1 {
+  const storage = NON_CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V1.get(workspace);
+  if (storage === undefined) {
+    throw new TypeError("non-coronary backward-Euler scratch workspace is foreign");
+  }
+  if (
+    workspace.schemaId
+      !== NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID
+    || workspace.topologyId !== NON_CORONARY_CIRCULATION_BE_V1_ID
+    || workspace.independentNodeCount !== INDEPENDENT_NODE_NAMES.length
+    || storage.volumeScales.length !== INDEPENDENT_NODE_NAMES.length
+    || storage.scaledUnknowns.length !== INDEPENDENT_NODE_NAMES.length
+    || storage.candidateUnknowns.length !== INDEPENDENT_NODE_NAMES.length
+    || storage.analyticJacobian.length !== INDEPENDENT_NODE_NAMES.length
+    || storage.linearRight.length !== INDEPENDENT_NODE_NAMES.length
+    || storage.linearMatrix.length !== INDEPENDENT_NODE_NAMES.length
+    || storage.linearSolution.length !== INDEPENDENT_NODE_NAMES.length
+  ) {
+    throw new RangeError(
+      "non-coronary backward-Euler scratch workspace topology mismatch",
+    );
+  }
+  if (storage.inUse) {
+    throw new Error(
+      "non-coronary backward-Euler scratch workspace is already in use",
+    );
+  }
+  storage.inUse = true;
+  return storage;
+}
+
+function releaseNonCoronaryBackwardEulerScratchWorkspaceV1(
+  storage: NonCoronaryBackwardEulerScratchStorageV1,
+): void {
+  storage.inUse = false;
+}
+
 let cachedGraphV1: NonCoronaryCirculationGraphV1 | null = null;
 
 /**
@@ -869,6 +969,34 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
       emptyDiagnostics(),
     );
   }
+  const scratchStorage = input.scratchWorkspace === undefined
+    ? null
+    : borrowNonCoronaryBackwardEulerScratchWorkspaceV1(
+      input.scratchWorkspace,
+    );
+  try {
+    return evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(
+      input,
+      graph,
+      options,
+      scratchStorage,
+    );
+  } finally {
+    if (scratchStorage !== null) {
+      releaseNonCoronaryBackwardEulerScratchWorkspaceV1(scratchStorage);
+    }
+  }
+}
+
+function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
+  TEvaluation,
+  TCompanionTrial,
+>(
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+  graph: NonCoronaryCirculationGraphV1,
+  options: Required<NonCoronaryCirculationNewtonOptionsV1>,
+  scratchStorage: NonCoronaryBackwardEulerScratchStorageV1 | null,
+): NonCoronaryCirculationTrialResultV1<TEvaluation, TCompanionTrial> {
   const previous = input.previousAcceptedState;
   const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
   const mechanicsCache: CandidateMechanicsCache<TEvaluation> = {
@@ -884,10 +1012,14 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
     hitCount: 0,
     uniqueCandidateCount: 0,
   };
-  const volumeScales = independentVolumeScales(previous.nodeVolumesMl);
+  const volumeScales = independentVolumeScales(
+    previous.nodeVolumesMl,
+    scratchStorage?.volumeScales,
+  );
   let scaledUnknowns = independentVolumesToScaled(
     previous.nodeVolumesMl,
     volumeScales,
+    scratchStorage?.scaledUnknowns,
   );
   let current: CandidateEvaluation<TEvaluation, TCompanionTrial>;
   let acceptedLineSearchSteps = 0;
@@ -981,6 +1113,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
           input,
           current,
           volumeScales,
+          scratchStorage?.analyticJacobian,
         );
         mechanicsCache.jacobianUsage.analyticAssemblyCount += 1;
         if (options.analyticJacobianFiniteDifferenceShadow) {
@@ -1036,9 +1169,19 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
         ),
       );
     }
+    const linearRight = scratchStorage?.linearRight
+      ?? Array<number>(current.scaledIndependentResidual.length);
+    for (
+      let index = 0;
+      index < current.scaledIndependentResidual.length;
+      index += 1
+    ) {
+      linearRight[index] = -current.scaledIndependentResidual[index]!;
+    }
     const update = solveDenseLinearSystem(
       jacobian,
-      current.scaledIndependentResidual.map((value) => -value),
+      linearRight,
+      scratchStorage,
     );
     traceEntry.updateScaledInfinityNorm = update === null
       ? null
@@ -1103,9 +1246,12 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
       backtrack += 1
     ) {
       traceEntry.lineSearchAttemptCount += 1;
-      const candidateUnknowns = scaledUnknowns.map(
-        (value, index) => value + stepLength * update[index]!,
-      );
+      const candidateUnknowns = scratchStorage?.candidateUnknowns
+        ?? Array<number>(scaledUnknowns.length);
+      for (let index = 0; index < scaledUnknowns.length; index += 1) {
+        candidateUnknowns[index] = scaledUnknowns[index]!
+          + stepLength * update[index]!;
+      }
       try {
         const evaluation = evaluateCandidate(
           graph,
@@ -1122,7 +1268,9 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
           (1 - 1e-4 * stepLength) * residualNorm;
         if (trialResidualNorm <= requiredMaximumResidualNorm) {
           accepted = Object.freeze({
-            scaledUnknowns: Object.freeze(candidateUnknowns),
+            scaledUnknowns: scratchStorage === null
+              ? Object.freeze(candidateUnknowns)
+              : candidateUnknowns,
             evaluation,
           });
           traceEntry.acceptedStepLength = stepLength;
@@ -1186,7 +1334,14 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
         ),
       );
     }
-    scaledUnknowns = accepted.scaledUnknowns;
+    if (scratchStorage === null) {
+      scaledUnknowns = accepted.scaledUnknowns;
+    } else {
+      for (let index = 0; index < scaledUnknowns.length; index += 1) {
+        scratchStorage.scaledUnknowns[index] = accepted.scaledUnknowns[index]!;
+      }
+      scaledUnknowns = scratchStorage.scaledUnknowns;
+    }
     current = accepted.evaluation;
     acceptedLineSearchSteps += 1;
   }
@@ -1850,6 +2005,7 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
   input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
   current: CandidateEvaluation<TEvaluation, TCompanionTrial>,
   volumeScales: readonly number[],
+  reusableJacobian?: number[][],
 ): number[][] {
   const chamberTangent = current.absoluteChamberPressureTangent;
   if (chamberTangent === null) {
@@ -1889,11 +2045,18 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
       pressureTangentMmHgPerMl;
   }
 
-  const jacobian = Array.from(
-    { length: size },
-    (_, row) => Array.from({ length: size }, (_unused, column) =>
-      row === column ? 1 : 0),
-  );
+  const jacobian = reusableJacobian ?? createSquareMatrixV1(size);
+  if (
+    jacobian.length !== size
+    || jacobian.some((row) => row.length !== size)
+  ) {
+    throw new Error("circulation Jacobian scratch has incompatible dimensions");
+  }
+  for (let row = 0; row < size; row += 1) {
+    for (let column = 0; column < size; column += 1) {
+      jacobian[row]![column] = row === column ? 1 : 0;
+    }
+  }
   const companionVolumeSensitivity = current.conservativeCompanion
     ?.sensitivities
     ?.dCandidateCompanionBloodVolumeMlDScaledIndependentVolume;
@@ -2488,9 +2651,18 @@ function independentNodeVolumesFromNodeRecord(
 function independentVolumesToScaled(
   volumes: NodeRecord<number>,
   scales: readonly number[],
+  destination?: number[],
 ): readonly number[] {
-  return Object.freeze(INDEPENDENT_NODE_NAMES.map((name, index) =>
-    volumes[name] / scales[index]!));
+  const values = destination
+    ?? Array<number>(INDEPENDENT_NODE_NAMES.length);
+  if (values.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new Error("circulation scaled-volume scratch has wrong length");
+  }
+  for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
+    values[index] = volumes[INDEPENDENT_NODE_NAMES[index]!]
+      / scales[index]!;
+  }
+  return destination === undefined ? Object.freeze(values) : values;
 }
 
 /**
@@ -2531,9 +2703,20 @@ function mixedContinuityResidualAudit<TEvaluation, TCompanionTrial>(
 
 function independentVolumeScales(
   volumes: NodeRecord<number>,
+  destination?: number[],
 ): readonly number[] {
-  return Object.freeze(INDEPENDENT_NODE_NAMES.map((name) =>
-    Math.max(10, Math.abs(volumes[name]))));
+  const values = destination
+    ?? Array<number>(INDEPENDENT_NODE_NAMES.length);
+  if (values.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new Error("circulation volume-scale scratch has wrong length");
+  }
+  for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
+    values[index] = Math.max(
+      10,
+      Math.abs(volumes[INDEPENDENT_NODE_NAMES[index]!]!),
+    );
+  }
+  return destination === undefined ? Object.freeze(values) : values;
 }
 
 function finiteDifferenceJacobian(
@@ -2627,12 +2810,28 @@ function recordJacobianShadowDifference(
 function solveDenseLinearSystem(
   sourceMatrix: readonly (readonly number[])[],
   sourceRight: readonly number[],
+  scratchStorage: NonCoronaryBackwardEulerScratchStorageV1 | null = null,
 ): readonly number[] | null {
   const size = sourceRight.length;
   if (sourceMatrix.length !== size
     || sourceMatrix.some((row) => row.length !== size)) return null;
-  const matrix = sourceMatrix.map((row) => [...row]);
-  const right = [...sourceRight];
+  const matrix = scratchStorage?.linearMatrix ?? createSquareMatrixV1(size);
+  const right = scratchStorage?.linearRight ?? Array<number>(size).fill(0);
+  const solution = scratchStorage?.linearSolution
+    ?? Array<number>(size).fill(0);
+  if (
+    matrix.length !== size
+    || matrix.some((row) => row.length !== size)
+    || right.length !== size
+    || solution.length !== size
+  ) return null;
+  for (let row = 0; row < size; row += 1) {
+    right[row] = sourceRight[row]!;
+    solution[row] = 0;
+    for (let column = 0; column < size; column += 1) {
+      matrix[row]![column] = sourceMatrix[row]![column]!;
+    }
+  }
   for (let pivot = 0; pivot < size; pivot += 1) {
     let best = pivot;
     for (let row = pivot + 1; row < size; row += 1) {
@@ -2654,7 +2853,6 @@ function solveDenseLinearSystem(
       right[row] -= factor * right[pivot]!;
     }
   }
-  const solution = Array(size).fill(0) as number[];
   for (let row = size - 1; row >= 0; row -= 1) {
     let value = right[row]!;
     for (let column = row + 1; column < size; column += 1) {
@@ -2662,7 +2860,8 @@ function solveDenseLinearSystem(
     }
     solution[row] = value / matrix[row]![row]!;
   }
-  return solution.every(Number.isFinite) ? Object.freeze(solution) : null;
+  if (!solution.every(Number.isFinite)) return null;
+  return scratchStorage === null ? Object.freeze(solution) : solution;
 }
 
 function trialDiagnostics<TEvaluation, TCompanionTrial>(

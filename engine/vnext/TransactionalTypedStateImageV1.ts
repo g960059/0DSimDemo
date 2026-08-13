@@ -374,6 +374,8 @@ export class TransactionalTypedStateImageV1<TState> {
   readonly #manifest: TransactionalTypedStateManifestV1;
   readonly #images: readonly [MutableImageV1, MutableImageV1];
   readonly #currentCursor: TransactionalTypedStateCurrentCursorV1;
+  readonly #admitDirectCompletionCandidate:
+    ((candidate: TState) => TState) | null;
   #activeIndex: 0 | 1 = 0;
   #commitCount = 0;
   #staged = false;
@@ -391,8 +393,18 @@ export class TransactionalTypedStateImageV1<TState> {
   constructor(
     manifest: TransactionalTypedStateManifestV1,
     initialState: TState,
+    /**
+     * A model-owned exact-boundary validator may replace the generic shape
+     * walk for direct completion only. It executes synchronously before any
+     * candidate byte is written, and identity preservation is mandatory.
+     * Normal `stage` commits and images without this validator remain on the
+     * complete generic validation path.
+     */
+    admitDirectCompletionCandidate?: (candidate: TState) => TState,
   ) {
     this.#manifest = manifest;
+    this.#admitDirectCompletionCandidate =
+      admitDirectCompletionCandidate ?? null;
     this.#highWaterBoundedArrayLengths = new Uint32Array(
       manifest.numericalLayout.boundedArrayRoots.length,
     );
@@ -535,15 +547,25 @@ export class TransactionalTypedStateImageV1<TState> {
   completeCandidateFromObject(
     candidate: TState,
     plan: TransactionalTypedStateCompletionPlanV1,
-  ): void {
+  ): TState {
     if (!this.#staged) {
       throw new Error("Transactional typed state has no staged candidate");
     }
+    const admittedCandidate = this.#admitDirectCompletionCandidate === null
+      ? candidate
+      : this.#admitDirectCompletionCandidate(candidate);
+    if (admittedCandidate !== candidate) {
+      throw new Error(
+        "Transactional typed state direct admission changed candidate identity",
+      );
+    }
     this.assertExternalImmutableRootsMatch(candidate);
-    assertFlatNumericalStateShapeV1(
-      this.#manifest.numericalLayout,
-      candidate,
-    );
+    if (this.#admitDirectCompletionCandidate === null) {
+      assertFlatNumericalStateShapeV1(
+        this.#manifest.numericalLayout,
+        candidate,
+      );
+    }
     const internal = COMPLETION_PLAN_INTERNALS.get(plan);
     if (
       internal === undefined
@@ -583,6 +605,7 @@ export class TransactionalTypedStateImageV1<TState> {
       candidate,
       candidateImage,
     );
+    return admittedCandidate;
   }
 
   promote(): void {

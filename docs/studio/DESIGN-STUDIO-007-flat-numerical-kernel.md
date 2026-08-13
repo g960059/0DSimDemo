@@ -493,13 +493,18 @@ Direct candidate completion now consumes the private integrated-state proof
 without issuing one. A proof hit requires the exact candidate plus the exact
 frozen rhythm/profile/config identity triple; copied, restored, hand-built,
 context-rebound, and stamp-disabled candidates still take the complete
-validator. Completion has already encoded every non-retained leaf and compared
-every retained leaf before this proof is consulted. The adapter retained after
-promotion is consequently only an exact solver mirror of the typed authority,
-never a second writable authority. Public state and checkpoint boundaries still
-rehydrate and validate the active image, including a canonical byte comparison
-before checkpointing. The 1,024-tick/all-output oracle, escaped-typed-array
-isolation, and exact checkpoint continuation remain unchanged. Three local lean
+validator. That exact admission executes synchronously before the image writes
+any candidate byte and must preserve object identity. A successfully admitted
+candidate can then skip the second generic container-shape traversal, while
+the image still compares every retained leaf and writes every non-retained
+leaf before promotion. Images without this model-owned admission callback and
+all ordinary `stage` commits retain the complete generic shape validator. The
+adapter retained after promotion is consequently only an exact solver mirror
+of the typed authority, never a second writable authority. Public state and
+checkpoint boundaries still rehydrate and validate the active image, including
+a canonical byte comparison before checkpointing. The 1,024-tick/all-output
+oracle, escaped-typed-array isolation, exact checkpoint continuation, and the
+stamp-disabled complete-validation path remain unchanged. Three local lean
 reference runs moved from `2.101–2.119 ms/tick` to
 `1.862–1.883 ms/tick` (about `0.89x`). The authority report recorded one mirror
 reuse for every one of 1,160 direct commits in each measured run. These are
@@ -558,6 +563,24 @@ output corpus, and detached diagnostic snapshot. The remaining cost is in the
 legacy object transaction and typed completion—not Canvas, output selection,
 transfer, or the retired mirror. These development-host figures are not phone
 qualification.
+
+The non-coronary outer Newton solve now has the same Session-owned allocation
+boundary as the coronary solve. Its opaque workspace retains volume scales,
+scaled and line-search unknowns, the analytic Jacobian, LU factor storage,
+right-hand sides, and solutions. Every array is private to one synchronous
+borrow, released in `finally`, dimension-checked, and overwritten before use.
+Returned successful and failed trials remain frozen object values and never
+alias the workspace; a later reuse is required not to change an earlier trial.
+Foreign or concurrent handles fail closed. The equations, residual order,
+pivot order, line-search order, tolerances, and checkpoint bytes are unchanged.
+Together with removal of the duplicate generic shape walk after exact model
+admission, three local 1,024-tick/all-49-output reference runs measured
+`1.487–1.504 ms/tick` across five repetitions, versus approximately
+`1.542–1.556 ms/tick` immediately before this slice. A CPU profile still
+attributes the dominant
+cost to repeated coupled candidate mechanics and non-coronary Newton work, not
+presentation projection or typed-page transfer. These figures are development
+diagnostics only and do not qualify an iPhone or a production cutover.
 
 #### Phase 1b.2b.2b — direct solver-owned typed state (next)
 

@@ -437,7 +437,6 @@ export class MainWireAcceptedTypedStateAuthorityV1
   readonly #manifest: TransactionalTypedStateManifestV1;
   readonly #image: TransactionalTypedStateImageV1<AcceptedState>;
   readonly #ownDecoded: AcceptedStateValidatorV1<AcceptedState>;
-  readonly #admitCompletedMirror: AcceptedStateValidatorV1<AcceptedState>;
   #currentState: AcceptedState;
   #poisonedReason: string | null = null;
   #directCandidateCommitCount = 0;
@@ -452,13 +451,13 @@ export class MainWireAcceptedTypedStateAuthorityV1
   ) {
     validate(initialState);
     this.#ownDecoded = ownDecoded;
-    this.#admitCompletedMirror = admitCompletedMirror;
     this.#manifest = createMainWireAcceptedTypedStateManifestV1(
       coldAcceptedState,
     );
-    this.#image = new TransactionalTypedStateImageV1(
+    this.#image = new TransactionalTypedStateImageV1<AcceptedState>(
       this.#manifest,
       initialState,
+      admitCompletedMirror,
     );
     this.#currentState = this.ownAndValidate(this.#image.rehydrateCurrent());
   }
@@ -525,18 +524,15 @@ export class MainWireAcceptedTypedStateAuthorityV1
   ): AcceptedState {
     this.assertHealthy();
     try {
-      this.#image.completeCandidateFromObject(adapterCandidate, plan);
-      const admittedMirror = this.#admitCompletedMirror(adapterCandidate);
-      if (admittedMirror !== adapterCandidate) {
-        throw new Error(
-          "Main Wire accepted typed-state mirror admission changed identity",
-        );
-      }
+      const admittedMirror = this.#image.completeCandidateFromObject(
+        adapterCandidate,
+        plan,
+      );
       this.#image.promote();
-      this.#currentState = adapterCandidate;
+      this.#currentState = admittedMirror;
       this.#directCandidateCommitCount += 1;
       this.#directCandidateMirrorReuseCount += 1;
-      return adapterCandidate;
+      return admittedMirror;
     } catch (error) {
       this.#image.abort();
       const message = error instanceof Error ? error.message : String(error);

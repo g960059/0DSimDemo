@@ -22,6 +22,7 @@ import {
   commitNonCoronaryCirculationTrialV1,
   commitNonCoronaryCirculationTrialWithConservativeCompanionV1,
   createInitialNonCoronaryCirculationStateV1,
+  createNonCoronaryBackwardEulerScratchWorkspaceV1,
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
   resolveNonCoronaryCirculationColdSeedV1,
   restoreNonCoronaryCirculationStateV1,
@@ -201,6 +202,46 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       .toBe(fixture.state.totalBloodVolumeMl);
     expect(() => commitNonCoronaryCirculationTrialV1(accepted, trial))
       .toThrow(/stale or foreign/i);
+  });
+
+  it("reuses opaque Newton scratch without changing or aliasing a trial", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    const input = Object.freeze({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics:
+        coupledElasticMechanicsCallback(initial, true),
+    });
+    const baseline = evaluateNonCoronaryCirculationBackwardEulerTrialV1(input);
+    const workspace = createNonCoronaryBackwardEulerScratchWorkspaceV1();
+    const reused = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      ...input,
+      scratchWorkspace: workspace,
+    });
+    expect(reused).toEqual(baseline);
+    expect(reused.converged).toBe(true);
+    if (reused.converged === false) throw new Error(reused.message);
+    const retainedTrial = structuredClone(reused);
+    const nextAccepted = commitNonCoronaryCirculationTrialV1(initial, reused);
+    const next = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: nextAccepted,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics:
+        coupledElasticMechanicsCallback(nextAccepted, true),
+      scratchWorkspace: workspace,
+    });
+    expect(next.converged).toBe(true);
+    expect(reused).toEqual(retainedTrial);
+    expect(() => evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      ...input,
+      scratchWorkspace: structuredClone(workspace),
+    })).toThrow(/scratch workspace is foreign/);
   });
 
   it("keeps all competent main-wire valves non-regurgitant under adverse gradients", () => {

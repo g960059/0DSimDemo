@@ -6,6 +6,7 @@ import {
   NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
   type NonCoronaryAbsoluteChamberPressureTangentV1,
   type NonCoronaryCandidateMechanicsResultV1,
+  type NonCoronaryBackwardEulerScratchWorkspaceV1,
   type NonCoronaryCirculationAcceptedStateV1,
   type NonCoronaryCirculationNewtonOptionsV1,
   type NonCoronaryConservativeCompanionCandidateInputV1,
@@ -625,6 +626,8 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
   previous: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
   input: MainWireFiveWallCoronaryStepInputV2,
   coronaryScratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
+  nonCoronaryScratchWorkspace?:
+    NonCoronaryBackwardEulerScratchWorkspaceV1,
 ): MainWireFiveWallCoronaryStepResultV2<TWallState> {
   validateAcceptedTuple(previous);
   requirePositiveFinite(input.dtSec, "dtSec");
@@ -683,6 +686,7 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
     mechanicalSupport: input.mechanicalSupport,
     dynamicMechanicalSupport: input.dynamicMechanicalSupport,
     options: input.circulationNewtonOptions,
+    scratchWorkspace: nonCoronaryScratchWorkspace,
     protocolResistanceScaleByEdge: input.protocolResistanceScaleByEdge,
     evaluateCandidateMechanics: (volumesMl) =>
       evaluatePreparedCandidateMechanicsV2(
