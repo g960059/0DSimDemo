@@ -1315,14 +1315,17 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     });
   };
   let finalizationAttempted = false;
-  const finalizeMaterializedCandidate = (
-    candidate: MainWireFiveWallCoupledCandidateMaterializationV1<TWallState>,
-  ): MainWireFiveWallCoronaryStepResultV2<TWallState> => {
+  const assertFinalizationAvailable = (): void => {
     if (finalizationAttempted) {
       throw new Error(
         "coupled residual context finalization is one-shot; prepare a fresh context",
       );
     }
+  };
+  const finalizeMaterializedCandidate = (
+    candidate: MainWireFiveWallCoupledCandidateMaterializationV1<TWallState>,
+  ): MainWireFiveWallCoronaryStepResultV2<TWallState> => {
+    assertFinalizationAvailable();
     finalizationAttempted = true;
     return finalizeMainWireFiveWallCoronarySelectedCandidateV2(
       provider,
@@ -1339,10 +1342,12 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       iterations: number;
       lineSearchBacktracks: number;
     }>,
-  ): MainWireFiveWallCoronaryStepResultV2<TWallState> =>
-    finalizeMaterializedCandidate(
+  ): MainWireFiveWallCoronaryStepResultV2<TWallState> => {
+    assertFinalizationAvailable();
+    return finalizeMaterializedCandidate(
       materializeCandidateTrial(unknownsMl, diagnostics),
     );
+  };
 
   return Object.freeze({
     dimension: 30 as const,
