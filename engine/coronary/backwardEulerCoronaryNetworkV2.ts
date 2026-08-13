@@ -2328,18 +2328,24 @@ function edgeArrayToRecordV2(
   values: readonly number[],
   edgeIndex: Readonly<Record<CoronaryEdgeIdV2, number>>,
 ): Readonly<Record<CoronaryEdgeIdV2, number>> {
-  return Object.freeze(Object.fromEntries(CORONARY_EDGE_IDS_V2.map((edgeId) => [
-    edgeId,
-    values[edgeIndex[edgeId]],
-  ]))) as Readonly<Record<CoronaryEdgeIdV2, number>>;
+  const result = {} as Record<CoronaryEdgeIdV2, number>;
+  for (const edgeId of CORONARY_EDGE_IDS_V2) {
+    result[edgeId] = values[edgeIndex[edgeId]];
+  }
+  return Object.freeze(result);
 }
 
 function territoryRecordV2(
   value: (territoryId: (typeof CORONARY_TERRITORY_IDS_V2)[number]) => number,
 ): CoronaryTerritoryRecordV2<number> {
-  return Object.freeze(Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map(
-    (territoryId) => [territoryId, value(territoryId)],
-  ))) as CoronaryTerritoryRecordV2<number>;
+  const result = {} as Record<
+    (typeof CORONARY_TERRITORY_IDS_V2)[number],
+    number
+  >;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    result[territoryId] = value(territoryId);
+  }
+  return Object.freeze(result);
 }
 
 function territoryLayerRecordV2(
@@ -2348,14 +2354,21 @@ function territoryLayerRecordV2(
     layerId: (typeof CORONARY_LAYER_IDS_V2)[number],
   ) => number,
 ): CoronaryTerritoryLayerRecordV2<number> {
-  return Object.freeze(Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map(
-    (territoryId) => [territoryId, Object.freeze(Object.fromEntries(
-      CORONARY_LAYER_IDS_V2.map((layerId) => [
-        layerId,
-        value(territoryId, layerId),
-      ]),
-    ))],
-  ))) as CoronaryTerritoryLayerRecordV2<number>;
+  const result = {} as Record<
+    (typeof CORONARY_TERRITORY_IDS_V2)[number],
+    Record<(typeof CORONARY_LAYER_IDS_V2)[number], number>
+  >;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    const layers = {} as Record<
+      (typeof CORONARY_LAYER_IDS_V2)[number],
+      number
+    >;
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      layers[layerId] = value(territoryId, layerId);
+    }
+    result[territoryId] = Object.freeze(layers);
+  }
+  return Object.freeze(result);
 }
 
 function freezeAcceptedStateV2(
@@ -2598,12 +2611,15 @@ function volumeRecordToArrayV2(
 function arrayToVolumeRecordV2(
   volumes: readonly number[],
 ): CoronaryConservedVolumeStateV2 {
-  return Object.freeze(Object.fromEntries(
-    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
-      nodeId,
-      volumes[index],
-    ]),
-  )) as CoronaryConservedVolumeStateV2;
+  const result = {} as Record<CoronaryConservedVolumeNodeIdV2, number>;
+  for (
+    let index = 0;
+    index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+    index += 1
+  ) {
+    result[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]] = volumes[index];
+  }
+  return Object.freeze(result);
 }
 
 function hydraulicPressureIndexV2(nodeId: CoronaryHydraulicNodeIdV2): number {
