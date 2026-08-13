@@ -7,6 +7,8 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit --pretty false",
     "build": "npm run typecheck && vite build",
+    "build:public-content": "npm run build && vite build --ssr server/publicContentServerV1.ts --outDir dist-public-content --emptyOutDir",
+    "start:public-content": "node dist-public-content/publicContentServerV1.js",
     "verify:registry:main-wire-v3": "vite-node --script tools/registry/verifyMainWireIntegratedStudioModelV3.ts",
     "publish:registry:main-wire-v3": "vite-node --script tools/registry/publishMainWireIntegratedStudioModelV3.ts",
     "verify:registry:model-surface": "vite-node --script tools/registry/verifyModelSurfaceReleaseV1.ts",

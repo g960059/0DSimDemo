@@ -21,6 +21,7 @@ export type PublicExperimentCatalogItemV3 = Readonly<{
 
 export type PublicArticleCatalogItemV3 = Readonly<{
   articleId: string;
+  publicSlug: string;
   locale: string;
   title: string;
   excerpt: string | null;
@@ -118,6 +119,7 @@ function localPublicArticleSummaryV3(
 ): PublicArticleCatalogItemV3 {
   return Object.freeze({
     articleId: article.articleId,
+    publicSlug: `article-${article.articleId.toLocaleLowerCase()}`,
     locale: article.locale,
     title: article.title,
     excerpt: publicArticleExcerptV3(article.blocks),

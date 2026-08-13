@@ -235,7 +235,7 @@ function HomeArticleCardV4({
   const publishedDate = homePublishedDateV4(article.publishedAt, locale);
   return (
     <Link
-      to={articleReaderHref({ articleId: article.articleId, locale })}
+      to={articleReaderHref({ articleId: article.publicSlug, locale })}
       className={HOME_CARD_CLASS_V4}
     >
       <span className="line-clamp-3 break-words text-[15px] font-bold leading-6 tracking-[-0.015em] text-wb-text sm:text-base">

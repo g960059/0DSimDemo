@@ -160,6 +160,7 @@ get_model_surface_release_v1
 get_model_surface_series_latest_v1
 read_public_experiment_v1
 read_public_article_v1
+read_public_article_route_v1
 read_experiment_snapshot_v1
 list_my_experiment_summaries_v1
 read_my_experiment_v1

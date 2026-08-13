@@ -267,19 +267,22 @@ metrics.
 
 ## 10. Routes
 
-Canonical routes use opaque IDs without user IDs:
+Private authoring routes use opaque IDs without user IDs. Public Article
+routes use the publication slug so the durable URL is readable and can be
+served directly to search, accessibility and AI clients:
 
 ```text
 /:locale/experiments/new
 /:locale/experiments/:experimentId
 /:locale/experiments/:experimentId/edit        optional explicit edit alias
-/:locale/articles/:articleId
+/:locale/articles/:publicSlug
 /:locale/articles/:articleId/edit
 ```
 
-Ownership comes from Auth/RLS, not URL nesting. Public slugs may later provide
-human-readable aliases while canonical IDs remain stable. My Simulations and
-My Articles are account-filtered directories, not `/userId/...` resources.
+Ownership comes from Auth/RLS, not URL nesting. A still-public UUID Reader URL
+is only a compatibility alias and redirects to the publication slug. My
+Simulations and My Articles are account-filtered directories, not
+`/userId/...` resources. DESIGN-STUDIO-008 defines the public HTTP boundary.
 
 ## 11. UI language
 

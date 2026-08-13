@@ -1,0 +1,10 @@
+.git
+.github
+.firebase
+coverage
+dist
+dist-public-content
+node_modules
+test-results
+playwright-report
+artifacts

@@ -45,9 +45,67 @@
             "value": "camera=(), microphone=(), geolocation=()"
           }
         ]
+      },
+      {
+        "source": "/@(ja|en)/@(me|dev)/**",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
+      },
+      {
+        "source": "/@(ja|en)/articles/*/edit",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
       }
     ],
     "rewrites": [
+      {
+        "source": "/robots.txt",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/sitemap.xml",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/api/v1/public/articles/*",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/@(ja|en)/articles",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/@(ja|en)/articles/*",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
       {
         "source": "**",
         "destination": "/index.html"

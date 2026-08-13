@@ -506,6 +506,181 @@ body[data-app-theme="light"] {
   }
 }
 
+/*
+ * Server-rendered public content is a semantic first response, not a second
+ * visual system. React replaces this shell when JavaScript starts; without
+ * JavaScript it remains a complete, readable Article and index page.
+ */
+body:has(.public-static-shell) {
+  overflow: auto !important;
+  background: var(--wb-app-bg);
+  color: var(--wb-text);
+}
+
+.public-static-shell {
+  min-height: 100dvh;
+  background: var(--wb-app-bg);
+  color: var(--wb-text);
+  font-family: var(--wb-font-ui);
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+  padding: clamp(2.5rem, 7vw, 7rem) 1.25rem 8rem;
+}
+
+.public-static-article,
+.public-static-directory,
+.public-static-message {
+  width: min(100%, 46rem);
+  margin-inline: auto;
+}
+
+.public-static-header,
+.public-static-directory > header {
+  margin-bottom: clamp(2.5rem, 7vw, 5rem);
+}
+
+.public-static-kicker,
+.public-static-label,
+.public-static-date {
+  color: var(--wb-text-subtle);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.public-static-header h1,
+.public-static-directory h1,
+.public-static-message h1 {
+  margin: 0.5rem 0 1rem;
+  font-size: clamp(2.2rem, 7vw, 4rem);
+  font-weight: 760;
+  letter-spacing: -0.045em;
+  line-height: 1.15;
+}
+
+.public-static-content > h2 {
+  margin: 4.5rem 0 1.25rem;
+  font-size: clamp(1.55rem, 4vw, 2rem);
+  font-weight: 730;
+  letter-spacing: -0.03em;
+  line-height: 1.35;
+}
+
+.public-static-content > h3,
+.public-static-content details h3 {
+  margin: 3rem 0 1rem;
+  font-size: clamp(1.2rem, 3vw, 1.45rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.45;
+}
+
+.public-static-content > p,
+.public-static-content details p {
+  margin: 1.3rem 0;
+  font-size: clamp(1rem, 2.2vw, 1.08rem);
+  white-space: pre-wrap;
+}
+
+.public-static-content hr {
+  margin: 4rem 0;
+  border: 0;
+  border-top: 1px solid var(--wb-border);
+}
+
+.public-static-equation,
+.public-static-image {
+  margin: 2.5rem 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.public-static-image img {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.9rem;
+}
+
+.public-static-image figcaption {
+  margin-top: 0.75rem;
+  color: var(--wb-text-muted);
+  font-size: 0.85rem;
+}
+
+.public-static-link,
+.public-static-directory a {
+  display: grid;
+  gap: 0.35rem;
+  margin: 1.75rem 0;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--wb-border);
+  border-radius: 0.9rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.public-static-link span,
+.public-static-directory time,
+.public-static-js-note {
+  color: var(--wb-text-muted);
+  font-size: 0.85rem;
+}
+
+.public-static-accordion,
+.public-static-quiz,
+.public-static-experiment {
+  margin: 2.5rem 0;
+  border: 1px solid var(--wb-border);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--wb-panel-bg) 78%, transparent);
+}
+
+.public-static-accordion > summary,
+.public-static-quiz,
+.public-static-experiment {
+  padding: 1.25rem clamp(1rem, 4vw, 1.5rem);
+}
+
+.public-static-accordion > summary {
+  cursor: pointer;
+  font-weight: 680;
+}
+
+.public-static-accordion > div {
+  padding: 0 1.5rem 1.25rem;
+}
+
+.public-static-quiz ol,
+.public-static-experiment ul {
+  padding-left: 1.5rem;
+}
+
+.public-static-directory ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.public-static-directory h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.public-static-directory p {
+  margin: 0;
+  color: var(--wb-text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .public-static-link:hover,
+  .public-static-directory a:hover {
+    border-color: var(--wb-border-strong);
+    background: var(--wb-hover-bg);
+  }
+}
+
 @container (max-width: 36rem) {
   .article-document-shell {
     padding-block-start: 2.75rem;
