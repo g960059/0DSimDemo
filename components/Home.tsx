@@ -1,7 +1,6 @@
 import React from "react";
 import {
   ArrowRight,
-  ArrowUpRight,
   BookOpenText,
   FlaskConical,
 } from "lucide-react";
@@ -10,7 +9,9 @@ import { Link, useLocation } from "react-router-dom";
 
 import {
   readPublicCatalogAsyncV3,
+  type PublicArticleCatalogItemV3,
   type PublicCatalogV3,
+  type PublicExperimentCatalogItemV3,
 } from "@/components/site/PublicCatalogV3";
 import {
   authoringCliDocsHref,
@@ -20,7 +21,38 @@ import {
   experimentsHref,
   newExperimentHref,
 } from "@/homeLinks";
-import { localeFromPathname } from "@/localeRouting";
+import { type Locale, localeFromPathname } from "@/localeRouting";
+
+const HOME_SECTION_LIMIT_V4 = 6;
+
+/**
+ * Deterministic accent per durable content identity: a card keeps its hue
+ * across visits without storing any presentation data.
+ */
+const HOME_TILE_ACCENTS_V4 = Object.freeze([
+  Object.freeze({ tile: "bg-sky-500/15", icon: "text-sky-500" }),
+  Object.freeze({ tile: "bg-teal-500/15", icon: "text-teal-500" }),
+  Object.freeze({ tile: "bg-violet-500/15", icon: "text-violet-500" }),
+  Object.freeze({ tile: "bg-rose-500/15", icon: "text-rose-500" }),
+  Object.freeze({ tile: "bg-amber-500/15", icon: "text-amber-500" }),
+  Object.freeze({ tile: "bg-emerald-500/15", icon: "text-emerald-500" }),
+]);
+
+function homeTileAccentV4(contentId: string) {
+  let hash = 0;
+  for (const character of contentId) {
+    hash = ((hash * 31) + (character.codePointAt(0) ?? 0)) >>> 0;
+  }
+  return HOME_TILE_ACCENTS_V4[hash % HOME_TILE_ACCENTS_V4.length];
+}
+
+/** The browser fallback stamps epoch zero; only real publication dates show. */
+function homePublishedDateV4(isoDate: string, locale: Locale): string | null {
+  const timestamp = Date.parse(isoDate);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return null;
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" })
+    .format(timestamp);
+}
 
 export const Home = () => {
   const { t } = useTranslation();
@@ -41,28 +73,35 @@ export const Home = () => {
     };
   }, []);
 
+  const articles = catalog.articles.slice(0, HOME_SECTION_LIMIT_V4);
+  const experiments = catalog.experiments.slice(0, HOME_SECTION_LIMIT_V4);
+
   return (
-    <div className="h-full w-full overflow-y-auto bg-wb-app text-wb-text">
-      <main>
-        <section className="px-6 py-16 sm:px-10 sm:py-24">
-          <div className="mx-auto max-w-5xl">
-            <h1 className="max-w-3xl text-4xl font-semibold leading-[1.08] tracking-[-0.04em] text-wb-text sm:text-6xl">
+    <div className="h-full w-full overflow-y-auto overflow-x-hidden bg-wb-app text-wb-text">
+      <main className="mx-auto w-full max-w-5xl px-4 sm:px-6">
+        <section className="relative py-14 sm:py-24">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-10 right-0 h-56 w-56 rounded-full bg-wb-accent-soft blur-3xl sm:-top-16 sm:h-80 sm:w-80"
+          />
+          <div className="relative">
+            <h1 className="max-w-3xl text-balance text-[1.9rem] font-bold leading-[1.28] tracking-[-0.035em] text-wb-text sm:text-5xl sm:leading-[1.18]">
               {t("home.headline")}
             </h1>
-            <p className="mt-6 max-w-2xl text-sm leading-7 text-wb-muted sm:text-base">
+            <p className="mt-5 max-w-xl text-pretty text-sm leading-7 text-wb-muted sm:text-[15px] sm:leading-8">
               {t("home.lead")}
             </p>
-            <div className="mt-9 flex flex-wrap items-center gap-3">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 to={newExperimentHref(locale)}
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-wb-primary px-5 text-sm font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.98] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-wb-primary px-7 text-sm font-bold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.98] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:h-11"
               >
                 <FlaskConical className="h-4 w-4" aria-hidden="true" />
                 {t("home.startExperiment")}
               </Link>
               <Link
                 to={articlesHref(locale)}
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.98] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-wb-line-strong bg-wb-panel px-6 text-sm font-semibold text-wb-text transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.98] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:h-11"
               >
                 <BookOpenText className="h-4 w-4" aria-hidden="true" />
                 {t("home.readArticles")}
@@ -71,139 +110,242 @@ export const Home = () => {
           </div>
         </section>
 
-        <div className="mx-auto max-w-5xl px-6 pb-24 sm:px-10">
-          <div className="grid gap-x-14 lg:grid-cols-2">
-            <HomeCatalogSectionV3
-              icon={<FlaskConical className="h-4 w-4" aria-hidden="true" />}
-              title={t("home.featuredExperiments")}
-              empty={t("home.noFeaturedExperiments")}
-              moreLabel={t("home.moreExperiments")}
-              moreHref={experimentsHref(locale)}
-            >
-              {catalog.experiments.slice(0, 4).map((experiment) => (
-                <HomeCatalogLinkV3
-                  key={experiment.record.experimentId}
-                  title={experiment.record.title}
-                  supportingText={t("home.simulationMeta", {
-                    count: experiment.scenarioCount,
-                    date: new Intl.DateTimeFormat(locale, {
-                      dateStyle: "medium",
-                    }).format(new Date(experiment.record.updatedAt)),
-                  })}
-                  to={experimentSnapshotHref({
-                    locale,
-                    snapshotId: experiment.snapshotId,
-                  })}
-                />
-              ))}
-            </HomeCatalogSectionV3>
-
-            <HomeCatalogSectionV3
-              icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />}
-              title={t("home.featuredArticles")}
-              empty={t("home.noFeaturedArticles")}
-              moreLabel={t("home.moreArticles")}
-              moreHref={articlesHref(locale)}
-            >
-              {catalog.articles.slice(0, 4).map((article) => (
-                <HomeCatalogLinkV3
+        <section className="pb-14 sm:pb-20" aria-labelledby="home-articles-heading">
+          <HomeSectionHeadingV4
+            headingId="home-articles-heading"
+            icon={<BookOpenText className="h-5 w-5" aria-hidden="true" />}
+            title={t("home.sectionArticles")}
+            viewAllHref={articles.length > 0 ? articlesHref(locale) : null}
+            viewAllLabel={t("home.viewAll")}
+          />
+          {articles.length === 0 ? (
+            <HomeEmptyStateV4
+              icon={<BookOpenText className="h-5 w-5" aria-hidden="true" />}
+              message={t("home.noArticles")}
+            />
+          ) : (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 sm:gap-4">
+              {articles.map((article) => (
+                <HomeArticleCardV4
                   key={article.articleId}
-                  title={article.title}
-                  supportingText={article.excerpt ?? t("home.articleFallback")}
-                  to={articleReaderHref({
-                    articleId: article.articleId,
-                    locale,
-                  })}
+                  article={article}
+                  locale={locale}
                 />
               ))}
-            </HomeCatalogSectionV3>
-          </div>
-        </div>
+            </div>
+          )}
+        </section>
+
+        <section className="pb-16 sm:pb-24" aria-labelledby="home-simulations-heading">
+          <HomeSectionHeadingV4
+            headingId="home-simulations-heading"
+            icon={<FlaskConical className="h-5 w-5" aria-hidden="true" />}
+            title={t("home.sectionSimulations")}
+            viewAllHref={experiments.length > 0 ? experimentsHref(locale) : null}
+            viewAllLabel={t("home.viewAll")}
+          />
+          {experiments.length === 0 ? (
+            <HomeEmptyStateV4
+              icon={<FlaskConical className="h-5 w-5" aria-hidden="true" />}
+              message={t("home.noSimulations")}
+              actionHref={newExperimentHref(locale)}
+              actionLabel={t("home.startFirstSimulation")}
+            />
+          ) : (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 sm:gap-4">
+              {experiments.map((experiment) => (
+                <HomeSimulationCardV4
+                  key={experiment.record.experimentId}
+                  experiment={experiment}
+                  locale={locale}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       </main>
 
-      <footer className="border-t border-wb-line px-6 py-8 text-xs text-wb-subtle sm:px-10">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-2">
-          <span className="font-semibold text-wb-muted">{t("common.appName")}</span>
-          <Link className="hover:text-wb-text" to={experimentsHref(locale)}>
-            {t("nav.workbench")}
-          </Link>
-          <Link className="hover:text-wb-text" to={articlesHref(locale)}>
-            {t("nav.articles")}
-          </Link>
-          <Link className="hover:text-wb-text" to={authoringCliDocsHref(locale)}>
-            AI Authoring CLI
-          </Link>
+      <footer className="border-t border-wb-line">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="min-w-0">
+            <p className="text-sm font-bold tracking-[-0.02em] text-wb-text">
+              {t("common.appName")}
+            </p>
+            <p className="mt-1 text-xs text-wb-subtle">{t("home.headline")}</p>
+          </div>
+          <nav
+            className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-wb-muted"
+            aria-label={t("common.appName")}
+          >
+            <Link
+              className="rounded-sm hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              to={experimentsHref(locale)}
+            >
+              {t("nav.workbench")}
+            </Link>
+            <Link
+              className="rounded-sm hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              to={articlesHref(locale)}
+            >
+              {t("nav.articles")}
+            </Link>
+            <Link
+              className="rounded-sm hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              to={authoringCliDocsHref(locale)}
+            >
+              AI Authoring CLI
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>
   );
 };
 
-function HomeCatalogSectionV3({
-  children,
-  empty,
+function HomeSectionHeadingV4({
+  headingId,
   icon,
-  moreHref,
-  moreLabel,
   title,
+  viewAllHref,
+  viewAllLabel,
 }: Readonly<{
-  children: React.ReactNode;
-  empty: string;
+  headingId: string;
   icon: React.ReactNode;
-  moreHref: string;
-  moreLabel: string;
   title: string;
+  viewAllHref: string | null;
+  viewAllLabel: string;
 }>) {
-  const items = React.Children.toArray(children);
   return (
-    <section className="border-t border-wb-line py-10 sm:py-12">
-      <div className="flex items-center justify-between gap-5">
-        <h2 className="flex items-center gap-2.5 text-lg font-semibold tracking-[-0.025em] sm:text-xl">
-          <span className="text-wb-accent">{icon}</span>
-          <span>{title}</span>
-        </h2>
+    <div className="flex items-center justify-between gap-4">
+      <h2
+        id={headingId}
+        className="flex min-w-0 items-center gap-2.5 text-xl font-bold tracking-[-0.02em] text-wb-text sm:text-[1.35rem]"
+      >
+        <span className="text-wb-accent">{icon}</span>
+        <span className="truncate">{title}</span>
+      </h2>
+      {viewAllHref !== null && (
         <Link
-          to={moreHref}
-          className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-wb-muted hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          to={viewAllHref}
+          className="inline-flex shrink-0 items-center gap-1 rounded-sm text-[13px] font-semibold text-wb-muted transition-colors hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
         >
-          {moreLabel}
+          {viewAllLabel}
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
-      </div>
-      {items.length === 0 ? (
-        <p className="mt-8 text-sm leading-6 text-wb-subtle">{empty}</p>
-      ) : (
-        <div className="mt-5 divide-y divide-wb-line/70">
-          {items}
-        </div>
       )}
-    </section>
+    </div>
   );
 }
 
-function HomeCatalogLinkV3({
-  supportingText,
-  title,
-  to,
+const HOME_CARD_CLASS_V4 =
+  "group flex items-start gap-4 rounded-2xl border border-wb-line bg-wb-panel p-4 transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-wb-line-strong hover:shadow-[0_16px_32px_-20px_rgba(2,8,23,0.5)] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:p-5";
+
+function HomeArticleCardV4({
+  article,
+  locale,
 }: Readonly<{
-  supportingText: string;
-  title: string;
-  to: string;
+  article: PublicArticleCatalogItemV3;
+  locale: Locale;
 }>) {
+  const { t } = useTranslation();
+  const accent = homeTileAccentV4(article.articleId);
+  const publishedDate = homePublishedDateV4(article.publishedAt, locale);
   return (
     <Link
-      to={to}
-      className="group -mx-3 flex min-h-20 items-center gap-4 rounded-xl px-3 py-4 transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.995] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+      to={articleReaderHref({ articleId: article.articleId, locale })}
+      className={HOME_CARD_CLASS_V4}
     >
+      <span
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${accent.tile}`}
+        aria-hidden="true"
+      >
+        <BookOpenText className={`h-5 w-5 ${accent.icon}`} />
+      </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold tracking-[-0.01em] text-wb-text">
-          {title}
+        <span className="line-clamp-2 break-words text-[15px] font-bold leading-6 tracking-[-0.015em] text-wb-text">
+          {article.title}
         </span>
-        <span className="mt-1 block truncate text-xs leading-5 text-wb-subtle">
-          {supportingText}
+        <span className="mt-1.5 line-clamp-2 break-words text-xs leading-5 text-wb-subtle">
+          {article.excerpt ?? t("home.articleFallback")}
+        </span>
+        {publishedDate !== null && (
+          <span className="mt-2 block text-[11px] text-wb-subtle">
+            {publishedDate}
+          </span>
+        )}
+      </span>
+    </Link>
+  );
+}
+
+function HomeSimulationCardV4({
+  experiment,
+  locale,
+}: Readonly<{
+  experiment: PublicExperimentCatalogItemV3;
+  locale: Locale;
+}>) {
+  const { t } = useTranslation();
+  const accent = homeTileAccentV4(experiment.record.experimentId);
+  return (
+    <Link
+      to={experimentSnapshotHref({
+        locale,
+        snapshotId: experiment.snapshotId,
+      })}
+      className={HOME_CARD_CLASS_V4}
+    >
+      <span
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${accent.tile}`}
+        aria-hidden="true"
+      >
+        <FlaskConical className={`h-5 w-5 ${accent.icon}`} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="line-clamp-2 break-words text-[15px] font-bold leading-6 tracking-[-0.015em] text-wb-text">
+          {experiment.record.title}
+        </span>
+        <span className="mt-1.5 block text-xs leading-5 text-wb-subtle">
+          {t("home.simulationMeta", {
+            count: experiment.scenarioCount,
+            date: new Intl.DateTimeFormat(locale, { dateStyle: "medium" })
+              .format(new Date(experiment.record.updatedAt)),
+          })}
         </span>
       </span>
-      <ArrowUpRight className="h-4 w-4 shrink-0 text-wb-subtle transition-[color,transform] duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-wb-text motion-reduce:transform-none" aria-hidden="true" />
     </Link>
+  );
+}
+
+function HomeEmptyStateV4({
+  actionHref,
+  actionLabel,
+  icon,
+  message,
+}: Readonly<{
+  actionHref?: string;
+  actionLabel?: string;
+  icon: React.ReactNode;
+  message: string;
+}>) {
+  return (
+    <div className="mt-5 rounded-2xl border border-dashed border-wb-line-strong px-6 py-12 text-center">
+      <span
+        className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-wb-soft text-wb-subtle"
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
+      <p className="mt-4 text-sm leading-6 text-wb-muted">{message}</p>
+      {actionHref !== undefined && actionLabel !== undefined && (
+        <Link
+          to={actionHref}
+          className="mt-5 inline-flex h-10 items-center gap-2 rounded-full border border-wb-line-strong bg-wb-panel px-5 text-[13px] font-semibold text-wb-text transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.98] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        >
+          {actionLabel}
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </Link>
+      )}
+    </div>
   );
 }
