@@ -62,23 +62,75 @@ Build locally with:
 npm run build:public-content
 ```
 
-Build and deploy the container from the repository root (replace project and
-key values when needed):
+Build and deploy the container from the repository root. Keep the target
+project explicit so another local `gcloud` default cannot receive the release.
+Replace the key value when needed:
 
 ```sh
 supabase db push --linked
 
-gcloud artifacts repositories describe circleheart \
-  --location asia-northeast1 >/dev/null 2>&1 || \
-gcloud artifacts repositories create circleheart \
-  --repository-format docker --location asia-northeast1
+CIRCLEHEART_GCP_PROJECT=hemodynamics-studio
+CIRCLEHEART_BUILD_IDENTITY="circleheart-public-build@${CIRCLEHEART_GCP_PROJECT}.iam.gserviceaccount.com"
+CIRCLEHEART_RUNTIME_IDENTITY="circleheart-public-runtime@${CIRCLEHEART_GCP_PROJECT}.iam.gserviceaccount.com"
+CIRCLEHEART_RELEASE_TAG="$(git rev-parse --short=8 HEAD)"
 
-gcloud builds submit --config cloudbuild.public-content.yaml
+gcloud services enable \
+  run.googleapis.com \
+  cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com \
+  --project "${CIRCLEHEART_GCP_PROJECT}"
+
+gcloud iam service-accounts describe "${CIRCLEHEART_BUILD_IDENTITY}" \
+  --project "${CIRCLEHEART_GCP_PROJECT}" >/dev/null 2>&1 || \
+gcloud iam service-accounts create circleheart-public-build \
+  --display-name "CircleHeart public content build" \
+  --project "${CIRCLEHEART_GCP_PROJECT}"
+
+for CIRCLEHEART_BUILD_ROLE in \
+  roles/artifactregistry.writer \
+  roles/logging.logWriter \
+  roles/storage.objectViewer
+do
+  gcloud projects add-iam-policy-binding "${CIRCLEHEART_GCP_PROJECT}" \
+    --member "serviceAccount:${CIRCLEHEART_BUILD_IDENTITY}" \
+    --role "${CIRCLEHEART_BUILD_ROLE}" \
+    --condition None \
+    --quiet >/dev/null
+done
+
+gcloud iam service-accounts describe "${CIRCLEHEART_RUNTIME_IDENTITY}" \
+  --project "${CIRCLEHEART_GCP_PROJECT}" >/dev/null 2>&1 || \
+gcloud iam service-accounts create circleheart-public-runtime \
+  --display-name "CircleHeart public content runtime" \
+  --project "${CIRCLEHEART_GCP_PROJECT}"
+
+gcloud artifacts repositories describe circleheart \
+  --location asia-northeast1 \
+  --project "${CIRCLEHEART_GCP_PROJECT}" >/dev/null 2>&1 || \
+gcloud artifacts repositories create circleheart \
+  --repository-format docker \
+  --location asia-northeast1 \
+  --project "${CIRCLEHEART_GCP_PROJECT}"
+
+gcloud builds submit \
+  --config cloudbuild.public-content.yaml \
+  --project "${CIRCLEHEART_GCP_PROJECT}" \
+  --region global \
+  --service-account "projects/${CIRCLEHEART_GCP_PROJECT}/serviceAccounts/${CIRCLEHEART_BUILD_IDENTITY}" \
+  --substitutions "_IMAGE=asia-northeast1-docker.pkg.dev/${CIRCLEHEART_GCP_PROJECT}/circleheart/public-content:${CIRCLEHEART_RELEASE_TAG}"
 
 gcloud run deploy circleheart-public-content \
-  --image asia-northeast1-docker.pkg.dev/$(gcloud config get-value project)/circleheart/public-content:latest \
+  --image "asia-northeast1-docker.pkg.dev/${CIRCLEHEART_GCP_PROJECT}/circleheart/public-content:${CIRCLEHEART_RELEASE_TAG}" \
+  --project "${CIRCLEHEART_GCP_PROJECT}" \
   --region asia-northeast1 \
+  --service-account "${CIRCLEHEART_RUNTIME_IDENTITY}" \
   --allow-unauthenticated \
+  --ingress all \
+  --cpu 1 \
+  --memory 512Mi \
+  --concurrency 80 \
+  --timeout 30s \
+  --max-instances 10 \
   --set-env-vars CIRCLEHEART_CANONICAL_ORIGIN=https://www.circleheart.dev,CIRCLEHEART_SUPABASE_URL=https://hidoxfvibxkboksemhdv.supabase.co,CIRCLEHEART_SUPABASE_PUBLISHABLE_KEY=sb_publishable_REPLACE_ME
 ```
 
