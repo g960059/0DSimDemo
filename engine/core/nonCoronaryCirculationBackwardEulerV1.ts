@@ -7,11 +7,12 @@ import {
   incidenceVolumeRatesFromEdgeFlowsV1,
   nonValveEdgeLossV1,
   nonValveEdgeLossAndPressureDerivativesV1,
-  respiratoryExternalPressureForKindV1,
+  respiratoryExternalPressuresV1,
   vascularPvLawFromNodeV1,
   vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1,
   vascularTransmuralPressureFromPhysicalVolumeV1,
   type BaseEdgeLossRuntimeParameterViewV1,
+  type RespiratoryExternalPressuresV1,
   type RespiratoryPressureParameterViewV1,
   type VascularPvRuntimeParameterViewV1,
 } from "@/engine/core/circulationGraphKernelV1";
@@ -654,33 +655,21 @@ type MutableNewtonFailureTraceEntryV1 = {
  * costs the most.
  */
 type CandidateMechanicsCache<TEvaluation> = {
-  readonly values: CandidateMechanicsTimeCache<TEvaluation>;
+  readonly values: CandidateMechanicsCacheEntry<TEvaluation>[];
   readonly jacobianUsage: JacobianUsageDiagnosticsV1;
   callCount: number;
   hitCount: number;
   uniqueCandidateCount: number;
 };
 
-type CandidateMechanicsTimeCache<TEvaluation> = Map<
-  number,
-  CandidateMechanicsLvCache<TEvaluation>
->;
-type CandidateMechanicsLvCache<TEvaluation> = Map<
-  number,
-  CandidateMechanicsLaCache<TEvaluation>
->;
-type CandidateMechanicsLaCache<TEvaluation> = Map<
-  number,
-  CandidateMechanicsRvCache<TEvaluation>
->;
-type CandidateMechanicsRvCache<TEvaluation> = Map<
-  number,
-  CandidateMechanicsRaCache<TEvaluation>
->;
-type CandidateMechanicsRaCache<TEvaluation> = Map<
-  number,
-  NonCoronaryCandidateMechanicsResultV1<TEvaluation>
->;
+type CandidateMechanicsCacheEntry<TEvaluation> = {
+  candidateTimeSec: number;
+  LV: number;
+  LA: number;
+  RV: number;
+  RA: number;
+  result: NonCoronaryCandidateMechanicsResultV1<TEvaluation>;
+};
 
 const DEPENDENT_NODE: NonCoronaryNodeNameV1 = "SV";
 export const NON_CORONARY_INDEPENDENT_NODE_NAMES_V1 = Object.freeze(
@@ -734,17 +723,18 @@ export const NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID =
  * The object accepted state remains the rollback and validation authority;
  * every supplied scalar is compared exactly before the solver can consume it.
  */
+export type NonCoronaryAcceptedNumericalDestinationV1 = {
+  revision: number;
+  acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
+  readonly nodeVolumesMl: Float64Array;
+  readonly dynamicEdgeFlowsMlPerSec: Float64Array;
+  readonly valveOpeningFractions01: Float64Array;
+};
+
 export type NonCoronaryAcceptedNumericalSourceV1 = Readonly<{
   sourceId: typeof NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID;
-  readInto(
-    nodeVolumesMl: Float64Array,
-    dynamicEdgeFlowsMlPerSec: Float64Array,
-    valveOpeningFractions01: Float64Array,
-  ): Readonly<{
-    revision: number;
-    acceptedTimeSec: number;
-    totalBloodVolumeMl: number;
-  }>;
+  readInto(destination: NonCoronaryAcceptedNumericalDestinationV1): void;
 }>;
 
 /**
@@ -779,14 +769,8 @@ type PreviousAcceptedNumericalStateV1 = Readonly<{
   valveOpeningFractions01: Float64Array;
 }>;
 
-type MutablePreviousAcceptedNumericalStateV1 = {
-  revision: number;
-  acceptedTimeSec: number;
-  totalBloodVolumeMl: number;
-  readonly nodeVolumesMl: Float64Array;
-  readonly dynamicEdgeFlowsMlPerSec: Float64Array;
-  readonly valveOpeningFractions01: Float64Array;
-};
+type MutablePreviousAcceptedNumericalStateV1 =
+  NonCoronaryAcceptedNumericalDestinationV1;
 
 const NON_CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V1 = new WeakMap<
   NonCoronaryBackwardEulerScratchWorkspaceV1,
@@ -896,14 +880,7 @@ function stagePreviousAcceptedNumericalStateV1(
     if (source.sourceId !== NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID) {
       throw new Error("non-coronary accepted numerical source is unsupported");
     }
-    const header = source.readInto(
-      numerical.nodeVolumesMl,
-      numerical.dynamicEdgeFlowsMlPerSec,
-      numerical.valveOpeningFractions01,
-    );
-    numerical.revision = header.revision;
-    numerical.acceptedTimeSec = header.acceptedTimeSec;
-    numerical.totalBloodVolumeMl = header.totalBloodVolumeMl;
+    source.readInto(numerical);
     assertPreviousAcceptedNumericalParityV1(previous, numerical);
     return numerical;
   }
@@ -1183,8 +1160,12 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
     previousAcceptedNumericalSource,
   );
   const candidateTimeSec = previousNumerical.acceptedTimeSec + input.dtSec;
+  const respiratoryExternalPressures = respiratoryExternalPressuresV1(
+    candidateTimeSec,
+    input.runtime.respiratory,
+  );
   const mechanicsCache: CandidateMechanicsCache<TEvaluation> = {
-    values: new Map(),
+    values: [],
     jacobianUsage: {
       analyticAssemblyCount: 0,
       finiteDifferenceFallbackCount: 0,
@@ -1217,6 +1198,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
       scaledUnknowns,
       volumeScales,
       candidateTimeSec,
+      respiratoryExternalPressures,
       mechanicsCache,
     );
   } catch (error) {
@@ -1298,6 +1280,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
           input,
           current,
           volumeScales,
+          respiratoryExternalPressures,
           scratchStorage?.analyticJacobian,
         );
         mechanicsCache.jacobianUsage.analyticAssemblyCount += 1;
@@ -1310,6 +1293,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
               candidate,
               volumeScales,
               candidateTimeSec,
+              respiratoryExternalPressures,
               mechanicsCache,
             ).scaledIndependentResidual,
             scaledUnknowns,
@@ -1331,6 +1315,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
             candidate,
             volumeScales,
             candidateTimeSec,
+            respiratoryExternalPressures,
             mechanicsCache,
           ).scaledIndependentResidual,
           scaledUnknowns,
@@ -1447,6 +1432,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1<
           candidateUnknowns,
           volumeScales,
           candidateTimeSec,
+          respiratoryExternalPressures,
           mechanicsCache,
         );
         const trialResidualNorm = infinityNorm(
@@ -1697,6 +1683,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
   scaledIndependentVolumes: readonly number[],
   volumeScales: readonly number[],
   candidateTimeSec: number,
+  respiratoryExternalPressures: RespiratoryExternalPressuresV1,
   mechanicsCache: CandidateMechanicsCache<TEvaluation>,
 ): CandidateEvaluation<TEvaluation, TCompanionTrial> {
   // Preserve the immutable no-companion candidate reconstruction and failure
@@ -1737,6 +1724,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       candidateIndependentNodeVolumesMl,
       mechanics,
       candidateTimeSec,
+      respiratoryExternalPressures,
     );
   const nonCoronaryCandidateBloodVolumeMl = conservativeCompanion === null
     ? previous.totalBloodVolumeMl
@@ -1777,10 +1765,9 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       input.runtime.vascular,
       "adaptive-volume-tolerance",
     );
-    const ext = respiratoryExternalPressureForKindV1(
+    const ext = respiratoryExternalPressureFromFrameV1(
       respiratoryKind(node.ext),
-      candidateTimeSec,
-      input.runtime.respiratory,
+      respiratoryExternalPressures,
     );
     return requireFinite(ptmMmHg + ext, `${name} absolute pressure`);
   });
@@ -1867,14 +1854,14 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       flows[name] = evaluation.flowMlPerSec;
       continue;
     }
+    const edgeExternalPressureMmHg = respiratoryExternalPressureFromFrameV1(
+      respiratoryKind(edge.ext),
+      respiratoryExternalPressures,
+    );
     const effectiveDownstreamPressure = downstreamEffectivePressureV1({
       edge,
       downstreamPressureMmHg: downstreamPressure,
-      edgeExternalPressureMmHg: respiratoryExternalPressureForKindV1(
-        respiratoryKind(edge.ext),
-        candidateTimeSec,
-        input.runtime.respiratory,
-      ),
+      edgeExternalPressureMmHg,
     });
     const gradientMmHg = upstreamPressure - effectiveDownstreamPressure;
     const losses = applyProtocolResistanceScale(
@@ -1883,11 +1870,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       params: input.runtime.losses,
       upstreamPressureMmHg: upstreamPressure,
       downstreamPressureMmHg: downstreamPressure,
-      edgeExternalPressureMmHg: respiratoryExternalPressureForKindV1(
-        respiratoryKind(edge.ext),
-        candidateTimeSec,
-        input.runtime.respiratory,
-      ),
+      edgeExternalPressureMmHg,
       }),
       protocolResistanceScaleForEdge(input, name),
     );
@@ -1992,6 +1975,7 @@ function evaluateConservativeCompanionSameCandidate<
     NonCoronaryIndependentNodeRecordV1<number>,
   mechanics: NonCoronaryCandidateMechanicsResultV1<TEvaluation>,
   candidateTimeSec: number,
+  respiratoryExternalPressures: RespiratoryExternalPressuresV1,
 ): ConservativeCompanionCandidateEvaluationInternalV1<TCompanionTrial> {
   const adapter = input.conservativeCompanion;
   if (adapter === undefined) {
@@ -2005,10 +1989,9 @@ function evaluateConservativeCompanionSameCandidate<
       input.runtime.vascular,
       "adaptive-volume-tolerance",
     );
-  const aoExternalPressureMmHg = respiratoryExternalPressureForKindV1(
+  const aoExternalPressureMmHg = respiratoryExternalPressureFromFrameV1(
     respiratoryKind(aoNode.ext),
-    candidateTimeSec,
-    input.runtime.respiratory,
+    respiratoryExternalPressures,
   );
   const boundaryAbsolutePressuresMmHg = Object.freeze({
     Ao: requireFinite(
@@ -2197,6 +2180,7 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
   input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
   current: CandidateEvaluation<TEvaluation, TCompanionTrial>,
   volumeScales: readonly number[],
+  respiratoryExternalPressures: RespiratoryExternalPressuresV1,
   reusableJacobian?: number[][],
 ): number[][] {
   const chamberTangent = current.absoluteChamberPressureTangent;
@@ -2339,8 +2323,6 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
     );
   };
 
-  const candidateTimeSec =
-    input.previousAcceptedState.acceptedTimeSec + input.dtSec;
   for (const edge of graph.edges) {
     const edgeName = edge.name as NonCoronaryEdgeNameV1;
     const upstreamName = edge.up as NonCoronaryNodeNameV1;
@@ -2362,10 +2344,9 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
       dFlowDUpstreamPressureMlPerSecPerMmHg = dFlowDGradient;
       dFlowDDownstreamPressureMlPerSecPerMmHg = -dFlowDGradient;
     } else {
-      const edgeExternalPressureMmHg = respiratoryExternalPressureForKindV1(
+      const edgeExternalPressureMmHg = respiratoryExternalPressureFromFrameV1(
         respiratoryKind(edge.ext),
-        candidateTimeSec,
-        input.runtime.respiratory,
+        respiratoryExternalPressures,
       );
       const downstream = downstreamEffectivePressureAndDerivativeV1({
         edge,
@@ -3471,14 +3452,18 @@ function evaluateCandidateMechanicsCached<TEvaluation>(
   volumes: NonCoronaryChamberVolumesMlV1,
   candidateTimeSec: number,
 ): NonCoronaryCandidateMechanicsResultV1<TEvaluation> {
-  const timeCache = cache.values.get(candidateTimeSec);
-  const lvCache = timeCache?.get(volumes.LV);
-  const laCache = lvCache?.get(volumes.LA);
-  const rvCache = laCache?.get(volumes.RV);
-  const cached = rvCache?.get(volumes.RA);
-  if (cached !== undefined) {
-    cache.hitCount += 1;
-    return cached;
+  for (let index = cache.values.length - 1; index >= 0; index -= 1) {
+    const entry = cache.values[index]!;
+    if (
+      sameValueZeroV1(entry.candidateTimeSec, candidateTimeSec)
+      && sameValueZeroV1(entry.LV, volumes.LV)
+      && sameValueZeroV1(entry.LA, volumes.LA)
+      && sameValueZeroV1(entry.RV, volumes.RV)
+      && sameValueZeroV1(entry.RA, volumes.RA)
+    ) {
+      cache.hitCount += 1;
+      return entry.result;
+    }
   }
   cache.callCount += 1;
   const raw = callback(Object.freeze({ ...volumes }), candidateTimeSec);
@@ -3495,26 +3480,20 @@ function evaluateCandidateMechanicsCached<TEvaluation>(
       : { absolutePressureTangent }),
     evaluation: raw.evaluation,
   });
-  const writableTimeCache = timeCache
-    ?? insertChildCache(cache.values, candidateTimeSec);
-  const writableLvCache = lvCache
-    ?? insertChildCache(writableTimeCache, volumes.LV);
-  const writableLaCache = laCache
-    ?? insertChildCache(writableLvCache, volumes.LA);
-  const writableRvCache = rvCache
-    ?? insertChildCache(writableLaCache, volumes.RV);
-  writableRvCache.set(volumes.RA, result);
+  cache.values.push({
+    candidateTimeSec,
+    LV: volumes.LV,
+    LA: volumes.LA,
+    RV: volumes.RV,
+    RA: volumes.RA,
+    result,
+  });
   cache.uniqueCandidateCount += 1;
   return result;
 }
 
-function insertChildCache<TValue>(
-  parent: Map<number, Map<number, TValue>>,
-  key: number,
-): Map<number, TValue> {
-  const child = new Map<number, TValue>();
-  parent.set(key, child);
-  return child;
+function sameValueZeroV1(left: number, right: number): boolean {
+  return left === right || (Number.isNaN(left) && Number.isNaN(right));
 }
 
 function copyNodeRecord(
@@ -3654,6 +3633,14 @@ function respiratoryKind(ext: NodeSpec["ext"] | EdgeSpec["ext"]):
   if (ext === undefined || ext === "none") return "none";
   if (ext === "pth" || ext === "palv") return ext;
   throw new Error(`coronary external-pressure kind ${ext} is outside scope`);
+}
+
+function respiratoryExternalPressureFromFrameV1(
+  kind: "none" | "pth" | "palv",
+  pressures: RespiratoryExternalPressuresV1,
+): number {
+  if (kind === "none") return 0;
+  return kind === "pth" ? pressures.pthMmHg : pressures.palvMmHg;
 }
 
 function validateProtocolResistanceScaleByEdge(

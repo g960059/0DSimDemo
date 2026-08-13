@@ -255,28 +255,22 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     let readCount = 0;
     const source = Object.freeze({
       sourceId: NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
-      readInto(
-        nodeVolumesMl: Float64Array,
-        dynamicEdgeFlowsMlPerSec: Float64Array,
-        valveOpeningFractions01: Float64Array,
-      ) {
+      readInto(destination) {
         readCount += 1;
         NON_CORONARY_NODE_NAMES_V1.forEach((name, index) => {
-          nodeVolumesMl[index] = initial.nodeVolumesMl[name];
+          destination.nodeVolumesMl[index] = initial.nodeVolumesMl[name];
         });
         NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.forEach((name, index) => {
-          dynamicEdgeFlowsMlPerSec[index] =
+          destination.dynamicEdgeFlowsMlPerSec[index] =
             initial.dynamicEdgeFlowsMlPerSec[name];
         });
         NON_CORONARY_VALVE_NAMES_V1.forEach((name, index) => {
-          valveOpeningFractions01[index] =
+          destination.valveOpeningFractions01[index] =
             initial.valveStates[name].leafletOpeningFraction01;
         });
-        return Object.freeze({
-          revision: initial.revision,
-          acceptedTimeSec: initial.acceptedTimeSec,
-          totalBloodVolumeMl: initial.totalBloodVolumeMl,
-        });
+        destination.revision = initial.revision;
+        destination.acceptedTimeSec = initial.acceptedTimeSec;
+        destination.totalBloodVolumeMl = initial.totalBloodVolumeMl;
       },
     }) satisfies NonCoronaryAcceptedNumericalSourceV1;
     const input = Object.freeze({
@@ -297,18 +291,9 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
 
     const divergent = Object.freeze({
       ...source,
-      readInto(
-        nodeVolumesMl: Float64Array,
-        dynamicEdgeFlowsMlPerSec: Float64Array,
-        valveOpeningFractions01: Float64Array,
-      ) {
-        const header = source.readInto(
-          nodeVolumesMl,
-          dynamicEdgeFlowsMlPerSec,
-          valveOpeningFractions01,
-        );
-        nodeVolumesMl[0] += 1;
-        return header;
+      readInto(destination) {
+        source.readInto(destination);
+        destination.nodeVolumesMl[0] += 1;
       },
     }) satisfies NonCoronaryAcceptedNumericalSourceV1;
     expect(() => evaluateNonCoronaryCirculationBackwardEulerTrialV1(

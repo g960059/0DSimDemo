@@ -14,6 +14,7 @@ import {
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
   createNonCoronaryBackwardEulerScratchWorkspaceV1,
+  type NonCoronaryAcceptedNumericalSourceV1,
   type NonCoronaryBackwardEulerScratchWorkspaceV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
@@ -157,6 +158,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     MainWireAcceptedTypedStateAuthorityV1 | null;
   readonly #typedBoundaryBinding:
     MainWireAcceptedTypedBoundaryBindingV1 | null;
+  readonly #nonCoronaryAcceptedNumericalSource:
+    NonCoronaryAcceptedNumericalSourceV1 | undefined;
   readonly #directCompletionPlan:
     TransactionalTypedStateCompletionPlanV1 | null;
   readonly #coronaryScratchWorkspace:
@@ -247,6 +250,13 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       : createMainWireAcceptedTypedBoundaryBindingV1(
           this.#typedAuthority.manifest(),
         );
+    this.#nonCoronaryAcceptedNumericalSource =
+      this.#typedAuthority === null || this.#typedBoundaryBinding === null
+        ? undefined
+        : createMainWireAcceptedTypedNonCoronaryNumericalSourceV1(
+            this.#typedAuthority.currentCursor(),
+            this.#typedBoundaryBinding,
+          );
     const directRetainedContinuousSlots =
       this.#typedBoundaryBinding === null
         ? Object.freeze([])
@@ -524,12 +534,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           },
           this.#coronaryScratchWorkspace,
           this.#nonCoronaryScratchWorkspace,
-          directCurrentCursor === null
-            ? undefined
-            : createMainWireAcceptedTypedNonCoronaryNumericalSourceV1(
-              directCurrentCursor,
-              this.requiredTypedBoundaryBinding(),
-            ),
+          this.#nonCoronaryAcceptedNumericalSource,
         );
       } catch (error) {
         if (directCandidateOpen) {

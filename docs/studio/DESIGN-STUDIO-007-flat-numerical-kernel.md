@@ -682,6 +682,19 @@ adapter. Whole-kernel timing was neutral within development-host noise, so the
 slice is retained for bounded allocation ownership rather than counted as a
 performance qualification.
 
+Standard-18 retains the typed accepted-state source as one Session-owned
+binding and lets it fill the solver's reusable numerical header and arrays in
+place. The BE trial also evaluates its candidate-time respiratory pressure
+frame once, then shares those exact scalar results across candidate,
+companion, edge, and analytic-Jacobian readers. Its mechanics memo preserves
+the former SameValueZero tuple identity and call/hit/unique counters in a
+flat small-entry list, avoiding four nested Maps on the common analytic path
+whose measured hit count is zero. Source scalars are still compared exactly
+against the admitted rollback object before Newton can consume them. No stable
+whole-kernel speed delta was distinguishable from development-host load, so
+these changes narrow hot allocation and repeated work without claiming phone
+qualification.
+
 Failure atomicity, event order, beat accumulation, controls, analysis forks,
 and checkpoint continuation must pass against the Phase 0 corpus before Phase
 2 changes solver algebra.

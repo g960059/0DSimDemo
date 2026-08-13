@@ -32,10 +32,25 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-17
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-18
 ```
 
-Standard-17 preserves Standard-16's equations, controls, checkpoint meaning,
+Standard-18 preserves Standard-17's equations, controls, checkpoint meaning,
+and accepted numerical sequence while reducing per-candidate infrastructure
+around the non-coronary solve. The Session binds its typed accepted-state
+source once rather than once per accepted substep, and that source fills the
+solver-owned header and arrays without returning a transient record. One
+candidate time now produces one respiratory-pressure frame shared by all
+node, edge, companion, and analytic-Jacobian reads in that BE trial. The
+mechanics memo keeps the same SameValueZero lookup semantics and diagnostic
+counters in a flat small-entry list rather than constructing four nested Map
+levels for every unique candidate. Exact source-versus-rollback comparisons,
+finite-difference cache hits, public diagnostics, and failure ordering remain
+intact. Alternating whole-kernel measurements were dominated by host load and
+showed no stable speed delta, so this is a hot-allocation and repeated-work
+cleanup rather than a device-speed claim.
+
+Standard-17 had preserved Standard-16's equations, controls, checkpoint meaning,
 and accepted numerical sequence while removing transient objects and repeated
 validation/calculation from the four-valve candidate path. The typed solver
 now calls a scalar valve entry point; frozen plain-data parameter objects retain

@@ -6,6 +6,7 @@ import {
   NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
   NON_CORONARY_VALVE_NAMES_V1,
+  type NonCoronaryAcceptedNumericalDestinationV1,
   type NonCoronaryAcceptedNumericalSourceV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import type {
@@ -350,12 +351,13 @@ export function createMainWireAcceptedTypedNonCoronaryNumericalSourceV1(
   const slots = binding.nonCoronaryAcceptedNumerical;
   return Object.freeze({
     sourceId: NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
-    readInto(
-      nodeVolumesMl: Float64Array,
-      dynamicEdgeFlowsMlPerSec: Float64Array,
-      valveOpeningFractions01: Float64Array,
-    ) {
+    readInto(destination: NonCoronaryAcceptedNumericalDestinationV1) {
       assertCursor(cursor, binding);
+      const {
+        nodeVolumesMl,
+        dynamicEdgeFlowsMlPerSec,
+        valveOpeningFractions01,
+      } = destination;
       if (
         nodeVolumesMl.length !== slots.nodeVolumesMl.length
         || dynamicEdgeFlowsMlPerSec.length
@@ -386,11 +388,13 @@ export function createMainWireAcceptedTypedNonCoronaryNumericalSourceV1(
           slots.valveOpeningFractions01[index]!,
         );
       }
-      return Object.freeze({
-        revision: cursor.readContinuous(slots.revision),
-        acceptedTimeSec: cursor.readContinuous(slots.acceptedTimeSec),
-        totalBloodVolumeMl: cursor.readContinuous(slots.totalBloodVolumeMl),
-      });
+      destination.revision = cursor.readContinuous(slots.revision);
+      destination.acceptedTimeSec = cursor.readContinuous(
+        slots.acceptedTimeSec,
+      );
+      destination.totalBloodVolumeMl = cursor.readContinuous(
+        slots.totalBloodVolumeMl,
+      );
     },
   });
 }
