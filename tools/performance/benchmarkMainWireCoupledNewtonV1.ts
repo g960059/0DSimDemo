@@ -29,7 +29,6 @@ import {
   MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
-  advanceMainWireFiveWallCoupledNewtonV1,
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
   solveMainWireFiveWallCoupledNewtonShadowV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
@@ -100,6 +99,10 @@ const legacyNonCoronaryWorkspace =
 
 const analyticSamplesMs: number[] = [];
 const authoritySamplesMs: number[] = [];
+const authorityPreparationSamplesMs: number[] = [];
+const authoritySolveSamplesMs: number[] = [];
+const authorityMaterializationSamplesMs: number[] = [];
+const authorityCommitSamplesMs: number[] = [];
 const analyticPreparationSamplesMs: number[] = [];
 const analyticSolveSamplesMs: number[] = [];
 const finiteDifferenceSamplesMs: number[] = [];
@@ -144,18 +147,44 @@ for (
   }
 
   const authorityStartedAtMs = performance.now();
-  const authority = runAuthority
-    ? advanceMainWireFiveWallCoupledNewtonV1(
-      createContext(),
-      Object.freeze({ maximumAcceptedStepsPerJacobian }),
+  const authorityContext = runAuthority ? createContext() : null;
+  const authorityPreparedAtMs = performance.now();
+  const authoritySolver = authorityContext === null
+    ? null
+    : solveMainWireFiveWallCoupledNewtonShadowV1(
+      authorityContext,
+      Object.freeze({
+        maximumAcceptedStepsPerJacobian,
+        analyticJacobianPolicy: "require-complete" as const,
+      }),
       authorityWorkspace,
-    )
-    : null;
-  const authorityWallTimeMs = performance.now() - authorityStartedAtMs;
-  if (authority !== null && authority.status !== "accepted") {
-    throw new Error(
-      `coupled authority failed: ${authority.status}`,
     );
+  const authoritySolvedAtMs = performance.now();
+  if (authoritySolver?.result.status === "failed") {
+    throw new Error(`coupled authority solve failed: ${
+      authoritySolver.result.message
+    }`);
+  }
+  const authorityMaterialized = authorityContext === null
+    || authoritySolver === null
+    || authoritySolver.result.status !== "converged"
+    ? null
+    : authorityContext.materializeCandidateTrial(
+      authoritySolver.result.solution,
+      Object.freeze({
+        iterations: authoritySolver.result.iterations,
+        lineSearchBacktracks:
+          authoritySolver.result.lineSearchBacktrackCount,
+      }),
+    );
+  const authorityMaterializedAtMs = performance.now();
+  const authority = authorityContext === null || authorityMaterialized === null
+    ? null
+    : authorityContext.finalizeMaterializedCandidate(authorityMaterialized);
+  const authorityFinalizedAtMs = performance.now();
+  const authorityWallTimeMs = authorityFinalizedAtMs - authorityStartedAtMs;
+  if (authority !== null && authority.converged === false) {
+    throw new Error(`coupled authority finalization failed: ${authority.message}`);
   }
 
   const legacyStartedAtMs = performance.now();
@@ -207,7 +236,21 @@ for (
       analyticLineSearchBacktracks +=
         analytic.result.lineSearchBacktrackCount;
     }
-    if (authority !== null) authoritySamplesMs.push(authorityWallTimeMs);
+    if (authority !== null) {
+      authoritySamplesMs.push(authorityWallTimeMs);
+      authorityPreparationSamplesMs.push(
+        authorityPreparedAtMs - authorityStartedAtMs,
+      );
+      authoritySolveSamplesMs.push(
+        authoritySolvedAtMs - authorityPreparedAtMs,
+      );
+      authorityMaterializationSamplesMs.push(
+        authorityMaterializedAtMs - authoritySolvedAtMs,
+      );
+      authorityCommitSamplesMs.push(
+        authorityFinalizedAtMs - authorityMaterializedAtMs,
+      );
+    }
     if (legacy !== null) legacySamplesMs.push(legacyWallTimeMs);
     if (finiteDifference !== null) {
       finiteDifferenceSamplesMs.push(finiteDifferenceWallTimeMs);
@@ -219,6 +262,12 @@ for (
 
 const analytic = summarizeOrNull(analyticSamplesMs);
 const authority = summarizeOrNull(authoritySamplesMs);
+const authorityPreparation = summarizeOrNull(authorityPreparationSamplesMs);
+const authoritySolve = summarizeOrNull(authoritySolveSamplesMs);
+const authorityMaterialization = summarizeOrNull(
+  authorityMaterializationSamplesMs,
+);
+const authorityCommit = summarizeOrNull(authorityCommitSamplesMs);
 const analyticPreparation = summarizeOrNull(analyticPreparationSamplesMs);
 const analyticSolve = summarizeOrNull(analyticSolveSamplesMs);
 const finiteDifference = summarizeOrNull(finiteDifferenceSamplesMs);
@@ -233,6 +282,10 @@ process.stdout.write(`${JSON.stringify(Object.freeze({
   measuredIterations,
   analytic,
   authority,
+  authorityPreparation,
+  authoritySolve,
+  authorityMaterialization,
+  authorityCommit,
   analyticPreparation,
   analyticSolve,
   finiteDifference,

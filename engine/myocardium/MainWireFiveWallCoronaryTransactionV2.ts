@@ -565,6 +565,9 @@ export type MainWireFiveWallCoupledResidualContextV1<
       lineSearchBacktracks: number;
     }>,
   ): MainWireFiveWallCoupledCandidateMaterializationV1<TWallState>;
+  finalizeMaterializedCandidate(
+    candidate: MainWireFiveWallCoupledCandidateMaterializationV1<TWallState>,
+  ): MainWireFiveWallCoronaryStepResultV2<TWallState>;
   finalizeConvergedSolution(
     unknownsMl: Float64Array,
     diagnostics: Readonly<{
@@ -1312,12 +1315,8 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     });
   };
   let finalizationAttempted = false;
-  const finalizeConvergedSolution = (
-    unknownsMl: Float64Array,
-    diagnostics: Readonly<{
-      iterations: number;
-      lineSearchBacktracks: number;
-    }>,
+  const finalizeMaterializedCandidate = (
+    candidate: MainWireFiveWallCoupledCandidateMaterializationV1<TWallState>,
   ): MainWireFiveWallCoronaryStepResultV2<TWallState> => {
     if (finalizationAttempted) {
       throw new Error(
@@ -1325,7 +1324,6 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       );
     }
     finalizationAttempted = true;
-    const candidate = materializeCandidateTrial(unknownsMl, diagnostics);
     return finalizeMainWireFiveWallCoronarySelectedCandidateV2(
       provider,
       previous,
@@ -1335,6 +1333,16 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       candidate.commonIntrathoracicPressureMmHg,
     );
   };
+  const finalizeConvergedSolution = (
+    unknownsMl: Float64Array,
+    diagnostics: Readonly<{
+      iterations: number;
+      lineSearchBacktracks: number;
+    }>,
+  ): MainWireFiveWallCoronaryStepResultV2<TWallState> =>
+    finalizeMaterializedCandidate(
+      materializeCandidateTrial(unknownsMl, diagnostics),
+    );
 
   return Object.freeze({
     dimension: 30 as const,
@@ -1385,6 +1393,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       );
     },
     materializeCandidateTrial,
+    finalizeMaterializedCandidate,
     finalizeConvergedSolution,
     writeCoupledLinearizations: (
       unknownsMl: Float64Array,
