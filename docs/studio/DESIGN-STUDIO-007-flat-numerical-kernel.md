@@ -673,6 +673,15 @@ not presented as a speedup. A later model release may remove that duplicate
 authority only after the typed owner independently satisfies the full
 accepted-state and checkpoint corpus.
 
+Standard-17 then moves the four-valve candidate path onto scalar accepted-state
+inputs. It retains validation only for frozen plain-data valve parameters,
+never for mutable or accessor-backed objects, and removes the former duplicate
+parameter/input validation, opening-target evaluation, and frozen temporary
+loss/tangent records. The public object valve API remains the cold/general
+adapter. Whole-kernel timing was neutral within development-host noise, so the
+slice is retained for bounded allocation ownership rather than counted as a
+performance qualification.
+
 Failure atomicity, event order, beat accumulation, controls, analysis forks,
 and checkpoint continuation must pass against the Phase 0 corpus before Phase
 2 changes solver algebra.

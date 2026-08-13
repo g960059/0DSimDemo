@@ -6908,6 +6908,8 @@ const MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_CLAIM_V2 = Object.freeze({
   leafletMechanicalContactModeled: false,
   pressureOrPhaseShapeFitting: false
 });
+const EMPTY_VALVE_ISSUES_V2 = Object.freeze([]);
+const VALIDATED_FROZEN_VALVE_PARAMS_V2 = /* @__PURE__ */ new WeakSet();
 function idealBernoulliLossFromEffectiveOrificeAreaV2(effectiveOrificeAreaCm2) {
   if (!(effectiveOrificeAreaCm2 > 0) || !Number.isFinite(effectiveOrificeAreaCm2)) {
     throw new Error("effectiveOrificeAreaCm2 must be finite and positive");
@@ -6916,6 +6918,9 @@ function idealBernoulliLossFromEffectiveOrificeAreaV2(effectiveOrificeAreaCm2) {
   return MAIN_WIRE_VALVE_BLOOD_DENSITY_KG_PER_M3_V2 / (2 * MAIN_WIRE_VALVE_PA_PER_MMHG_V2) * (1e-6 / areaM2) ** 2;
 }
 function validateMainWireQuasiSteadyOrificeValveParamsV2(params) {
+  if (VALIDATED_FROZEN_VALVE_PARAMS_V2.has(params)) {
+    return EMPTY_VALVE_ISSUES_V2;
+  }
   const issues = [];
   if (typeof params.parameterSetId !== "string" || params.parameterSetId.trim() === "") {
     issues.push("parameterSetId must be non-empty");
@@ -6941,6 +6946,10 @@ function validateMainWireQuasiSteadyOrificeValveParamsV2(params) {
   positive(params.openingDriveSmoothingMmHg, "openingDriveSmoothingMmHg", issues);
   positive(params.openingTimeConstantSec, "openingTimeConstantSec", issues);
   positive(params.closingTimeConstantSec, "closingTimeConstantSec", issues);
+  if (issues.length === 0 && frozenPlainDataValveParams(params)) {
+    VALIDATED_FROZEN_VALVE_PARAMS_V2.add(params);
+    return EMPTY_VALVE_ISSUES_V2;
+  }
   return Object.freeze(issues);
 }
 function initialMainWireQuasiSteadyOrificeValveStateV2(leafletOpeningFraction01 = 0) {
@@ -6951,66 +6960,83 @@ function initialMainWireQuasiSteadyOrificeValveStateV2(leafletOpeningFraction01 
     leafletOpeningFraction01: clamp(leafletOpeningFraction01, 0, 1)
   });
 }
-function stepMainWireQuasiSteadyOrificeValveV2(previous, input, params) {
-  const preliminaryIssues = validateInputs(previous, input, params);
-  if (preliminaryIssues.length > 0) {
-    return invalidEvaluation$1(previous, input, params, preliminaryIssues);
-  }
-  const pressureGradientMmHg = input.upstreamPressureMmHg - input.downstreamPressureMmHg;
-  const targetWithDerivative = openingTargetAndDerivative(
-    pressureGradientMmHg,
+function stepMainWireQuasiSteadyOrificeValveScalarsV2(previousLeafletOpeningFraction01, dtSec, upstreamPressureMmHg, downstreamPressureMmHg, params) {
+  const preliminaryIssues = validateScalarInputs(
+    previousLeafletOpeningFraction01,
+    dtSec,
+    upstreamPressureMmHg,
+    downstreamPressureMmHg,
     params
   );
-  const target = targetWithDerivative.target;
-  const tau = target > previous.leafletOpeningFraction01 ? params.openingTimeConstantSec : params.closingTimeConstantSec;
-  const timeRatio = input.dtSec / tau;
-  const unclampedLeafletOpeningFraction01 = (previous.leafletOpeningFraction01 + timeRatio * target) / (1 + timeRatio);
+  if (preliminaryIssues.length > 0) {
+    return invalidEvaluation$1(
+      { leafletOpeningFraction01: previousLeafletOpeningFraction01 },
+      { upstreamPressureMmHg, downstreamPressureMmHg },
+      params,
+      preliminaryIssues
+    );
+  }
+  const pressureGradientMmHg = upstreamPressureMmHg - downstreamPressureMmHg;
+  const target = openingTarget(pressureGradientMmHg, params);
+  const openingDriveMmHg = pressureGradientMmHg - params.openingDriveDeadbandMmHg - params.openingPressureOffsetMmHg;
+  const widthMmHg = params.openingDriveSmoothingMmHg;
+  const dPositiveOpeningDriveDPressureGradient = openingDriveMmHg <= 0 ? 0 : openingDriveMmHg >= widthMmHg ? 1 : openingDriveMmHg / widthMmHg;
+  const dTargetDPressureGradientPerMmHg = params.openingGainPerMmHg * (1 - target) * dPositiveOpeningDriveDPressureGradient;
+  const tau = target > previousLeafletOpeningFraction01 ? params.openingTimeConstantSec : params.closingTimeConstantSec;
+  const timeRatio = dtSec / tau;
+  const unclampedLeafletOpeningFraction01 = (previousLeafletOpeningFraction01 + timeRatio * target) / (1 + timeRatio);
   const leafletOpeningFraction01 = clamp(
     unclampedLeafletOpeningFraction01,
     0,
     1
   );
-  const dLeafletOpeningFractionDPressureGradientPerMmHg = unclampedLeafletOpeningFraction01 <= 0 || unclampedLeafletOpeningFraction01 >= 1 ? 0 : input.dtSec / (tau + input.dtSec) * targetWithDerivative.dTargetDPressureGradientPerMmHg;
-  return evaluateMainWireQuasiSteadyOrificeValveWithTangentV2(
-    previous,
-    input,
-    { leafletOpeningFraction01 },
+  const dLeafletOpeningFractionDPressureGradientPerMmHg = unclampedLeafletOpeningFraction01 <= 0 || unclampedLeafletOpeningFraction01 >= 1 ? 0 : dtSec / (tau + dtSec) * dTargetDPressureGradientPerMmHg;
+  return evaluateMainWireQuasiSteadyOrificeValveScalarsValidatedV2(
+    previousLeafletOpeningFraction01,
+    dtSec,
+    upstreamPressureMmHg,
+    downstreamPressureMmHg,
+    leafletOpeningFraction01,
     params,
     dLeafletOpeningFractionDPressureGradientPerMmHg,
-    "backward-euler-opening-state-eliminated"
+    "backward-euler-opening-state-eliminated",
+    target
   );
 }
-function evaluateMainWireQuasiSteadyOrificeValveWithTangentV2(previous, input, next, params, dLeafletOpeningFractionDPressureGradientPerMmHg, tangentMode) {
-  const issues = validateInputs(previous, input, params);
-  if (!Number.isFinite(next.leafletOpeningFraction01) || next.leafletOpeningFraction01 < 0 || next.leafletOpeningFraction01 > 1) {
-    issues.push("next valve state must have finite leafletOpeningFraction01 in [0, 1]");
-  }
-  if (issues.length > 0) return invalidEvaluation$1(next, input, params, issues);
-  const pressureGradientMmHg = input.upstreamPressureMmHg - input.downstreamPressureMmHg;
+function evaluateMainWireQuasiSteadyOrificeValveScalarsValidatedV2(previousLeafletOpeningFraction01, dtSec, upstreamPressureMmHg, downstreamPressureMmHg, nextLeafletOpeningFraction01, params, dLeafletOpeningFractionDPressureGradientPerMmHg, tangentMode, validatedOpeningTarget01) {
+  const pressureGradientMmHg = upstreamPressureMmHg - downstreamPressureMmHg;
   const activeDirection = directionFromGradient(pressureGradientMmHg);
-  const openingTarget01 = openingTarget(pressureGradientMmHg, params);
-  const openingTau = openingTarget01 > previous.leafletOpeningFraction01 ? params.openingTimeConstantSec : params.closingTimeConstantSec;
-  const openingEquationResidual01 = next.leafletOpeningFraction01 - previous.leafletOpeningFraction01 - input.dtSec * (openingTarget01 - next.leafletOpeningFraction01) / openingTau;
-  const forwardActiveEoaCm2 = params.closedReverseEroaCm2 + next.leafletOpeningFraction01 * (params.maximumForwardEoaCm2 - params.closedReverseEroaCm2);
+  const openingTarget01 = validatedOpeningTarget01 ?? openingTarget(pressureGradientMmHg, params);
+  const openingTau = openingTarget01 > previousLeafletOpeningFraction01 ? params.openingTimeConstantSec : params.closingTimeConstantSec;
+  const openingEquationResidual01 = nextLeafletOpeningFraction01 - previousLeafletOpeningFraction01 - dtSec * (openingTarget01 - nextLeafletOpeningFraction01) / openingTau;
+  const forwardActiveEoaCm2 = params.closedReverseEroaCm2 + nextLeafletOpeningFraction01 * (params.maximumForwardEoaCm2 - params.closedReverseEroaCm2);
   const reverseActiveEoaCm2 = params.closedReverseEroaCm2;
   const activeEoaCm2 = activeDirection === "reverse" ? reverseActiveEoaCm2 : forwardActiveEoaCm2;
   const dActiveEoaDPressureGradientCm2PerMmHg = activeDirection === "reverse" ? 0 : (params.maximumForwardEoaCm2 - params.closedReverseEroaCm2) * dLeafletOpeningFractionDPressureGradientPerMmHg;
-  const losses = lossTerms(activeEoaCm2, params);
+  const resistanceMmHgSecPerMl = activeEoaCm2 === 0 ? 0 : params.backgroundLinearResistanceMmHgSecPerMl;
+  const bernoulliMmHgSec2PerMl2 = activeEoaCm2 === 0 ? 0 : idealBernoulliLossFromEffectiveOrificeAreaV2(activeEoaCm2);
   const flowMlPerSec = activeEoaCm2 === 0 ? 0 : solveExactSignedQAbsQRoot(
     pressureGradientMmHg,
-    losses.resistance,
-    losses.bernoulli
+    resistanceMmHgSecPerMl,
+    bernoulliMmHgSec2PerMl2
   );
-  const flowTangent = valveFlowPressureGradientTangent(
-    pressureGradientMmHg,
-    activeDirection,
-    activeEoaCm2,
-    dActiveEoaDPressureGradientCm2PerMmHg,
-    losses.resistance,
-    losses.bernoulli,
-    flowMlPerSec
-  );
-  const dissipativePressureMmHg = activeEoaCm2 === 0 ? 0 : losses.resistance * flowMlPerSec + losses.bernoulli * flowMlPerSec * Math.abs(flowMlPerSec);
+  let dFlowDPressureGradientMlPerSecPerMmHg;
+  let tangentBranch;
+  if (activeEoaCm2 === 0) {
+    dFlowDPressureGradientMlPerSecPerMmHg = 0;
+    tangentBranch = "exact-zero-area-hydraulic-support";
+  } else {
+    const denominator = resistanceMmHgSecPerMl + 2 * bernoulliMmHgSec2PerMl2 * Math.abs(flowMlPerSec);
+    if (denominator === 0) {
+      dFlowDPressureGradientMlPerSecPerMmHg = 0;
+      tangentBranch = "zero-gradient-non-lipschitz-zero-linear-resistance";
+    } else {
+      const dBernoulliDPressureGradient = -2 * bernoulliMmHgSec2PerMl2 * dActiveEoaDPressureGradientCm2PerMmHg / activeEoaCm2;
+      dFlowDPressureGradientMlPerSecPerMmHg = (1 - flowMlPerSec * Math.abs(flowMlPerSec) * dBernoulliDPressureGradient) / denominator;
+      tangentBranch = activeDirection === "reverse" ? "reverse-regurgitant-orifice" : activeDirection === "zero-gradient" ? "zero-gradient-forward-open-orifice" : "forward-open-orifice";
+    }
+  }
+  const dissipativePressureMmHg = activeEoaCm2 === 0 ? 0 : resistanceMmHgSecPerMl * flowMlPerSec + bernoulliMmHgSec2PerMl2 * flowMlPerSec * Math.abs(flowMlPerSec);
   const openOrificeResidualMmHg = pressureGradientMmHg - dissipativePressureMmHg;
   const competentReverseClosureActive = activeDirection === "reverse" && activeEoaCm2 === 0;
   const subthresholdForwardSupportActive = activeDirection === "forward" && activeEoaCm2 === 0;
@@ -7024,7 +7050,9 @@ function evaluateMainWireQuasiSteadyOrificeValveWithTangentV2(previous, input, n
   const powerBalanceResidualMmHgMlPerSec = hydraulicPowerInputMmHgMlPerSec - dissipativePowerMmHgMlPerSec + hydraulicSupportPowerMmHgMlPerSec;
   const result = Object.freeze({
     modelId: MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_V2_ID,
-    state: Object.freeze({ ...next }),
+    state: Object.freeze({
+      leafletOpeningFraction01: nextLeafletOpeningFraction01
+    }),
     flowMlPerSec,
     pressureGradientMmHg,
     activeDirection,
@@ -7034,11 +7062,11 @@ function evaluateMainWireQuasiSteadyOrificeValveWithTangentV2(previous, input, n
     reverseActiveEoaCm2,
     activeEoaCm2,
     dLeafletOpeningFractionDPressureGradientPerMmHg,
-    dFlowDPressureGradientMlPerSecPerMmHg: flowTangent.dFlowDPressureGradientMlPerSecPerMmHg,
+    dFlowDPressureGradientMlPerSecPerMmHg,
     tangentMode,
-    tangentBranch: flowTangent.branch,
-    resistanceMmHgSecPerMl: losses.resistance,
-    bernoulliMmHgSec2PerMl2: losses.bernoulli,
+    tangentBranch,
+    resistanceMmHgSecPerMl,
+    bernoulliMmHgSec2PerMl2,
     dissipativePressureMmHg,
     openOrificeResidualMmHg,
     competentReverseClosureReactionMmHg,
@@ -7058,7 +7086,7 @@ function evaluateMainWireQuasiSteadyOrificeValveWithTangentV2(previous, input, n
     issues: Object.freeze([]),
     claim: MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_CLAIM_V2
   });
-  const finite2 = everyNumericLeafIsFinite(result);
+  const finite2 = valveEvaluationNumericReadbackIsFiniteV2(result);
   return finite2 ? result : Object.freeze({
     ...result,
     valid: false,
@@ -7074,28 +7102,6 @@ function openingTarget(pressureGradientMmHg, params) {
   );
   return 1 - Math.exp(-params.openingGainPerMmHg * positiveOpeningDriveMmHg);
 }
-function openingTargetAndDerivative(pressureGradientMmHg, params) {
-  const target = openingTarget(pressureGradientMmHg, params);
-  const openingDriveMmHg = pressureGradientMmHg - params.openingDriveDeadbandMmHg - params.openingPressureOffsetMmHg;
-  const widthMmHg = params.openingDriveSmoothingMmHg;
-  const dPositiveOpeningDriveDPressureGradient = openingDriveMmHg <= 0 ? 0 : openingDriveMmHg >= widthMmHg ? 1 : openingDriveMmHg / widthMmHg;
-  return Object.freeze({
-    target,
-    dTargetDPressureGradientPerMmHg: params.openingGainPerMmHg * (1 - target) * dPositiveOpeningDriveDPressureGradient
-  });
-}
-function lossTerms(activeEoaCm2, params) {
-  if (activeEoaCm2 === 0) {
-    return Object.freeze({
-      resistance: 0,
-      bernoulli: 0
-    });
-  }
-  return Object.freeze({
-    resistance: params.backgroundLinearResistanceMmHgSecPerMl,
-    bernoulli: idealBernoulliLossFromEffectiveOrificeAreaV2(activeEoaCm2)
-  });
-}
 function solveExactSignedQAbsQRoot(pressureGradientMmHg, resistanceMmHgSecPerMl, bernoulliMmHgSec2PerMl2) {
   if (pressureGradientMmHg === 0) return 0;
   const pressureMagnitude = Math.abs(pressureGradientMmHg);
@@ -7105,37 +7111,30 @@ function solveExactSignedQAbsQRoot(pressureGradientMmHg, resistanceMmHgSecPerMl,
   const flowMagnitude = 2 * pressureMagnitude / (resistanceMmHgSecPerMl + discriminant);
   return Math.sign(pressureGradientMmHg) * flowMagnitude;
 }
-function valveFlowPressureGradientTangent(_pressureGradientMmHg, activeDirection, activeEoaCm2, dActiveEoaDPressureGradientCm2PerMmHg, resistanceMmHgSecPerMl, bernoulliMmHgSec2PerMl2, flowMlPerSec) {
-  if (activeEoaCm2 === 0) {
-    return Object.freeze({
-      dFlowDPressureGradientMlPerSecPerMmHg: 0,
-      branch: "exact-zero-area-hydraulic-support"
-    });
+function validateScalarInputs(previousLeafletOpeningFraction01, dtSec, upstreamPressureMmHg, downstreamPressureMmHg, params) {
+  const paramIssues = validateMainWireQuasiSteadyOrificeValveParamsV2(params);
+  const previousInvalid = !Number.isFinite(previousLeafletOpeningFraction01) || previousLeafletOpeningFraction01 < 0 || previousLeafletOpeningFraction01 > 1;
+  const inputInvalid = !(dtSec > 0) || !Number.isFinite(dtSec) || !Number.isFinite(upstreamPressureMmHg) || !Number.isFinite(downstreamPressureMmHg);
+  if (paramIssues.length === 0 && !previousInvalid && !inputInvalid) {
+    return EMPTY_VALVE_ISSUES_V2;
   }
-  const denominator = resistanceMmHgSecPerMl + 2 * bernoulliMmHgSec2PerMl2 * Math.abs(flowMlPerSec);
-  if (denominator === 0) {
-    return Object.freeze({
-      dFlowDPressureGradientMlPerSecPerMmHg: 0,
-      branch: "zero-gradient-non-lipschitz-zero-linear-resistance"
-    });
-  }
-  const dBernoulliDPressureGradient = -2 * bernoulliMmHgSec2PerMl2 * dActiveEoaDPressureGradientCm2PerMmHg / activeEoaCm2;
-  const derivative = (1 - flowMlPerSec * Math.abs(flowMlPerSec) * dBernoulliDPressureGradient) / denominator;
-  const branch = activeDirection === "reverse" ? "reverse-regurgitant-orifice" : activeDirection === "zero-gradient" ? "zero-gradient-forward-open-orifice" : "forward-open-orifice";
-  return Object.freeze({
-    dFlowDPressureGradientMlPerSecPerMmHg: derivative,
-    branch
-  });
-}
-function validateInputs(previous, input, params) {
-  const issues = [...validateMainWireQuasiSteadyOrificeValveParamsV2(params)];
-  if (!Number.isFinite(previous.leafletOpeningFraction01) || previous.leafletOpeningFraction01 < 0 || previous.leafletOpeningFraction01 > 1) {
+  const issues = [...paramIssues];
+  if (previousInvalid) {
     issues.push("previous valve state must have finite leafletOpeningFraction01 in [0, 1]");
   }
-  if (!(input.dtSec > 0) || !Number.isFinite(input.dtSec) || !Number.isFinite(input.upstreamPressureMmHg) || !Number.isFinite(input.downstreamPressureMmHg)) {
+  if (inputInvalid) {
     issues.push("valve input must have positive dtSec and finite pressures");
   }
   return issues;
+}
+function frozenPlainDataValveParams(params) {
+  if (!Object.isFrozen(params)) return false;
+  const prototype = Object.getPrototypeOf(params);
+  if (prototype !== Object.prototype && prototype !== null) return false;
+  for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(params))) {
+    if (!("value" in descriptor)) return false;
+  }
+  return true;
 }
 function invalidEvaluation$1(state, input, params, issues) {
   return Object.freeze({
@@ -7195,13 +7194,10 @@ function nonnegative(value, name, issues) {
     issues.push(`${name} must be nonnegative and finite`);
   }
 }
-function everyNumericLeafIsFinite(value) {
-  if (typeof value === "number") return Number.isFinite(value);
-  if (value == null || typeof value !== "object") return true;
-  for (const child of Object.values(value)) {
-    if (!everyNumericLeafIsFinite(child)) return false;
-  }
-  return true;
+function valveEvaluationNumericReadbackIsFiniteV2(value) {
+  return Number.isFinite(value.state.leafletOpeningFraction01) && Number.isFinite(value.flowMlPerSec) && Number.isFinite(value.pressureGradientMmHg) && Number.isFinite(value.openingTarget01) && Number.isFinite(value.openingEquationResidual01) && Number.isFinite(value.forwardActiveEoaCm2) && Number.isFinite(value.reverseActiveEoaCm2) && Number.isFinite(value.activeEoaCm2) && Number.isFinite(
+    value.dLeafletOpeningFractionDPressureGradientPerMmHg
+  ) && Number.isFinite(value.dFlowDPressureGradientMlPerSecPerMmHg) && Number.isFinite(value.resistanceMmHgSecPerMl) && Number.isFinite(value.bernoulliMmHgSec2PerMl2) && Number.isFinite(value.dissipativePressureMmHg) && Number.isFinite(value.openOrificeResidualMmHg) && Number.isFinite(value.competentReverseClosureReactionMmHg) && Number.isFinite(value.subthresholdForwardSupportReactionMmHg) && Number.isFinite(value.signedHydraulicSupportReactionMmHg) && Number.isFinite(value.hydraulicBalanceResidualMmHg) && Number.isFinite(value.hydraulicPowerInputMmHgMlPerSec) && Number.isFinite(value.dissipativePowerMmHgMlPerSec) && Number.isFinite(value.hydraulicSupportPowerMmHgMlPerSec) && Number.isFinite(value.powerBalanceResidualMmHgMlPerSec);
 }
 function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
@@ -8052,15 +8048,11 @@ function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, v
     const downstreamPressure = nodeAbsolutePressuresMmHg[edge.down];
     if (edge.kind === "valve") {
       const valveName = name;
-      const evaluation = stepMainWireQuasiSteadyOrificeValveV2(
-        {
-          leafletOpeningFraction01: previous.valveOpeningFractions01[NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]]
-        },
-        {
-          dtSec: input.dtSec,
-          upstreamPressureMmHg: upstreamPressure,
-          downstreamPressureMmHg: downstreamPressure
-        },
+      const evaluation = stepMainWireQuasiSteadyOrificeValveScalarsV2(
+        previous.valveOpeningFractions01[NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]],
+        input.dtSec,
+        upstreamPressure,
+        downstreamPressure,
         valveResearchInput.valves[valveName]
       );
       if (!evaluation.valid || !evaluation.finite) {
@@ -34298,7 +34290,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-16";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-17";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

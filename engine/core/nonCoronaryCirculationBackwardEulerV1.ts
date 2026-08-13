@@ -25,7 +25,7 @@ import {
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
   initialMainWireQuasiSteadyOrificeValveStateV2,
-  stepMainWireQuasiSteadyOrificeValveV2,
+  stepMainWireQuasiSteadyOrificeValveScalarsV2,
   type MainWireQuasiSteadyOrificeValveEvaluationV2,
   type MainWireQuasiSteadyOrificeValveStateV2,
 } from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
@@ -1851,18 +1851,13 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     ];
     if (edge.kind === "valve") {
       const valveName = name as NonCoronaryValveNameV1;
-      const evaluation = stepMainWireQuasiSteadyOrificeValveV2(
-        {
-          leafletOpeningFraction01:
-            previous.valveOpeningFractions01[
-              NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]
-            ]!,
-        },
-        {
-          dtSec: input.dtSec,
-          upstreamPressureMmHg: upstreamPressure,
-          downstreamPressureMmHg: downstreamPressure,
-        },
+      const evaluation = stepMainWireQuasiSteadyOrificeValveScalarsV2(
+        previous.valveOpeningFractions01[
+          NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]
+        ]!,
+        input.dtSec,
+        upstreamPressure,
+        downstreamPressure,
         valveResearchInput.valves[valveName],
       );
       if (!evaluation.valid || !evaluation.finite) {
