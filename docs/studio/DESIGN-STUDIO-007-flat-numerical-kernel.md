@@ -833,6 +833,18 @@ are correctness and work-count milestones, not yet a runtime speed claim: the
 residual still materializes the cold object oracle and must next become a
 session-owned flat writer before production qualification.
 
+That warning is measured rather than rhetorical. A 30-sample local diagnostic
+after warm-up measured a median `1.28 ms` for the complete analytic coupled
+solve, `18.99 ms` for the all-central-difference construction oracle, and
+`1.17 ms` for the current nested accepted step. The analytic assembly is about
+`14.8x` faster than its FD oracle but only `0.91x` as fast as the nested path.
+It therefore fails the predeclared `1.8x` productionization gate in its current
+form. The remaining hypothesis is narrower: repeated graph construction,
+validation, object snapshots, and candidate materialization around an otherwise
+cheaper coupled algebra dominate the cold bridge. The next slice must replace
+that bridge with one reusable flat residual/linearization workspace and measure
+again; moving directly to WASM would only preserve the wrong boundary.
+
 The Newton domain now also owns physical lower bounds for all 16 coronary
 storage volumes and the coupled fixed-blood-volume inequality. The dependent
 `SV` volume is recomputed as total blood volume minus all 30 independent
