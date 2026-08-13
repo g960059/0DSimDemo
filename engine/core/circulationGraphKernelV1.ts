@@ -147,22 +147,10 @@ export function vascularTransmuralPressureFromPhysicalVolumeV1(
   if (law.kind === "linear") {
     return stressedVolumeMl / Math.max(law.C, 1e-6);
   }
-
-  let lowerPressureMmHg = -20;
-  let upperPressureMmHg = 45;
-  const lowerVolumeMl = stressedVolumeFromPtm(law, lowerPressureMmHg);
-  const upperVolumeMl = stressedVolumeFromPtm(law, upperPressureMmHg);
-  if (stressedVolumeMl <= lowerVolumeMl) return lowerPressureMmHg;
-  if (stressedVolumeMl >= upperVolumeMl) return upperPressureMmHg;
-  for (let iteration = 0; iteration < 32; iteration += 1) {
-    const midpointMmHg = 0.5 * (lowerPressureMmHg + upperPressureMmHg);
-    if (stressedVolumeFromPtm(law, midpointMmHg) < stressedVolumeMl) {
-      lowerPressureMmHg = midpointMmHg;
-    } else {
-      upperPressureMmHg = midpointMmHg;
-    }
-  }
-  return 0.5 * (lowerPressureMmHg + upperPressureMmHg);
+  return ptmFromStressedVolume(law, stressedVolumeMl, {
+    maxIterations: 32,
+    termination: "fixed-iterations",
+  });
 }
 
 export type VascularPressureVolumeTangentBranchV1 =

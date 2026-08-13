@@ -32,13 +32,18 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-14
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-15
 ```
 
-Standard-14 preserves Standard-13's equations, controls, checkpoint meaning,
-and accepted numerical sequence while compiling direct typed-completion readers
-and adding an exact all-rotary-support-off path. Disabled circuits still emit
-fresh pressure-dependent diagnostics, while their canonical zero accepted flow,
+Standard-15 preserves Standard-14's equations, controls, checkpoint meaning,
+and accepted numerical sequence while compiling the immutable coefficients of
+each pure-data nonlinear venous pressure-volume inverse once per synchronous
+solve. The shipped fixed-32 bisection still visits the same midpoint sequence
+and the canonical 500-step accepted-state hash is unchanged. Mutable or
+accessor-backed public laws retain the complete dynamic evaluation path.
+Standard-14 had already compiled direct typed-completion readers and added an
+exact all-rotary-support-off path. Disabled circuits still emit fresh
+pressure-dependent diagnostics, while their canonical zero accepted flow,
 node-rate, and Jacobian storage is shared. Standard-13 had already moved more
 accepted-state ownership and candidate completion into the typed authority,
 reused coronary solver scratch, sealed only selected mechanics candidates,

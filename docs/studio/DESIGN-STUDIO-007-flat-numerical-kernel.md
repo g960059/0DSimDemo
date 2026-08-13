@@ -636,6 +636,20 @@ versus `1.269–1.293 ms/tick` at the preceding reader-plan revision (roughly
 corpus, and checkpoint continuation remain exact. This is another development
 host result rather than an iPhone qualification result.
 
+The nonlinear venous pressure-volume inverse now snapshots and compiles its
+pure-data law coefficients once per synchronous solve. The two transition
+width products and zero-pressure softplus anchors no longer repeat at every
+bisection midpoint. Frozen plain-data laws may retain that compiled value by
+identity; mutable laws are never retained, and accessor-backed or non-plain
+objects use the original dynamic expression. The fixed-32 ModelCore-compatible
+inverse delegates to this same evaluator but preserves its original bounds,
+midpoint order, comparison order, and iteration count. Six alternating local
+512-tick diagnostics measured `1.223 ms/tick` against `1.244 ms/tick` at the
+preceding revision (about 1.7% lower). The canonical 500-step accepted-state
+SHA-256 remained byte-identical. This is a small scaling-oriented removal of
+repeated transcendental work, not an iPhone qualification or a replacement for
+the direct solver-owned typed-state work below.
+
 #### Phase 1b.2b.2b — direct solver-owned typed state (next)
 
 Before production cutover, move each state owner and the solver from object
