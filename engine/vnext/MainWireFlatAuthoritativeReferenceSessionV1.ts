@@ -37,6 +37,9 @@ import type {
   CoronaryAutoregulationWindowControlV3,
 } from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import {
+  advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3,
+} from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV3";
+import {
   projectMainWireIntegratedModelSelectedValuesV3,
   type MainWireIntegratedModelOutputIdV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
@@ -101,7 +104,7 @@ import {
 import {
   createMainWireAcceptedTypedHemodynamicBindingV1,
   createMainWireAcceptedTypedHemodynamicDestinationV1,
-  stageMainWireAcceptedTypedCoupledStateV1,
+  stageMainWireAcceptedTypedCoupledCandidateV1,
   type MainWireAcceptedTypedHemodynamicBindingV1,
 } from "@/engine/vnext/MainWireAcceptedTypedHemodynamicV1";
 import {
@@ -536,6 +539,9 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       }
 
       let directCandidateOpen = false;
+      let borrowedAutoregulation:
+        CoronaryAcceptedAutoregulationStateV3 | null = null;
+      let borrowedAutoregulationCompleted = false;
       let directCurrentCursor:
         TransactionalTypedStateCurrentCursorV1 | null = null;
       let directCandidateCursor:
@@ -600,7 +606,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             stepInput,
             this.#coupledNewtonWorkspace,
             Object.freeze({
-              onAcceptedBaseStep: (baseStep) => {
+              onConvergedCandidate: (candidateBorrow) => {
                 if (
                   directCandidateCursor === null
                   || this.#typedHemodynamicBinding === null
@@ -609,12 +615,27 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
                     "Main Wire coupled typed candidate cursor is missing",
                   );
                 }
-                stageMainWireAcceptedTypedCoupledStateV1(
+                stageMainWireAcceptedTypedCoupledCandidateV1(
                   directCandidateCursor,
                   this.#typedHemodynamicBinding,
-                  baseStep.acceptedState,
+                  candidateBorrow,
                   this.#typedHemodynamicScratch,
                 );
+                const regulation =
+                  advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3(
+                    this.#acceptedState.coronary,
+                    Object.freeze({
+                      ...this.#runtime.coronaryStepInput,
+                      dtSec: candidateBorrow.candidateTimeSec
+                        - this.#acceptedState.acceptedTimeSec,
+                    }),
+                    candidateBorrow.candidateTimeSec,
+                    candidateBorrow.candidateRevision,
+                    candidateBorrow.coronaryAutoregulationHydraulicObservables,
+                  );
+                borrowedAutoregulation = regulation.nextState;
+                borrowedAutoregulationCompleted =
+                  regulation.completedWindow !== null;
               },
             }),
           );
@@ -644,6 +665,22 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           "Main Wire flat reference accepted clock differs from candidate",
           targetTimeSec,
           substeps,
+        );
+      }
+      if (this.#typedAuthority !== null && (
+        borrowedAutoregulation === null
+        || !autoregulationStatesExactlyEqual(
+          borrowedAutoregulation,
+          result.acceptedState.coronary.coronaryAutoregulation,
+        )
+        || borrowedAutoregulationCompleted
+          !== result.coronaryStep.autoregulationWindowCompleted
+      )) {
+        if (directCandidateOpen) {
+          this.#typedAuthority?.abortDirectCandidate();
+        }
+        throw new Error(
+          "Main Wire packed autoregulation readback differs from public promotion",
         );
       }
 
@@ -1025,6 +1062,48 @@ function autoregulationControlsUnchanged(
     previous.desiredControl,
     candidate.desiredControl,
   );
+}
+
+function autoregulationStatesExactlyEqual(
+  left: CoronaryAcceptedAutoregulationStateV3,
+  right: CoronaryAcceptedAutoregulationStateV3,
+): boolean {
+  if (
+    left.stateId !== right.stateId
+    || left.windowIndex !== right.windowIndex
+    || !Object.is(
+      left.windowOriginAcceptedTimeSec,
+      right.windowOriginAcceptedTimeSec,
+    )
+    || !Object.is(
+      left.windowStartAcceptedTimeSec,
+      right.windowStartAcceptedTimeSec,
+    )
+    || left.windowStartRevision !== right.windowStartRevision
+    || !Object.is(left.acceptedDurationSec, right.acceptedDurationSec)
+    || left.acceptedStepCount !== right.acceptedStepCount
+    || !optionalAutoregulationControlEqual(
+      left.windowControl,
+      right.windowControl,
+    )
+    || !optionalAutoregulationControlEqual(
+      left.desiredControl,
+      right.desiredControl,
+    )
+  ) return false;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    if (!Object.is(
+      left.perfusionPressureTimeIntegralMmHgSecByTerritory[territoryId],
+      right.perfusionPressureTimeIntegralMmHgSecByTerritory[territoryId],
+    )) return false;
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      if (!Object.is(
+        left.qmTimeIntegralMlByTerritoryLayer[territoryId][layerId],
+        right.qmTimeIntegralMlByTerritoryLayer[territoryId][layerId],
+      )) return false;
+    }
+  }
+  return true;
 }
 
 function optionalAutoregulationControlEqual(

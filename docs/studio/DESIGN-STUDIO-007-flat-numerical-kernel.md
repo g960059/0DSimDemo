@@ -1148,6 +1148,28 @@ observation, checkpoint, capture, and explicit debug-oracle boundaries. Until
 that boundary exists, the integrated Session remains a parity oracle and must
 not replace the active release.
 
+The coupled solver now exposes the selected converged component candidate as a
+synchronous, context-owned borrow before public trial finalization. The global
+typed authority copies the complete 100-value hemodynamic partition, material
+fingerprint, and MVC state from that borrow; retaining any borrowed array or
+record beyond the callback is forbidden. Full public finalization remains in
+place as the independent oracle and a 1,024-tick regression requires every
+typed slot, all 49 outputs, and canonical checkpoint continuation to agree.
+
+The same borrow carries a fixed ten-value coronary readback: six internal Qm
+flows, three post-focal-lesion pressures, and common coronary venous pressure.
+The accepted autoregulation owner consumes that packed readback directly. Its
+window state and rollover decision are compared exactly with the legacy public
+trial promotion on every reference step, including the first complete window.
+This removes public coronary diagnostics from the future typed authority's
+dependency graph without changing the backward-Euler right-endpoint law.
+
+This seam alone is intentionally not a speed claim: public finalization still
+runs as an oracle and a local lean profile remained about `0.934 ms/tick`.
+The next deletion boundary is preparation of the following coupled context
+from the active global typed image, followed by lazy public materialization at
+observation, checkpoint, capture, or explicit full-invariant audit boundaries.
+
 The first trajectory optimization uses only **admitted** 30-volume roots to
 predict the next Newton seed. The first eligible step uses a first-order
 accepted displacement. Once three accepted roots exist, the selected policy

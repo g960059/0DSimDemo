@@ -380,6 +380,10 @@ export function stageMainWireAcceptedTypedCoupledCandidateV1(
     ),
     candidate.mechanicsCandidateVolumesMl,
   );
+  candidateCursor.writeStringSameByteLength(
+    binding.mechanicsMaterialFingerprintStringSlot,
+    candidate.mechanicsMaterialStateFingerprint,
+  );
 }
 
 /**

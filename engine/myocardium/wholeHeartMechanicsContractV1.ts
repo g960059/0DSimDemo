@@ -73,6 +73,26 @@ export type WholeHeartMechanicsStateCodecV1<TState> = {
   decode(encoded: WholeHeartMechanicsSerializableValueV1): TState;
 };
 
+/**
+ * Produces the same canonical material-memory fingerprint used by accepted
+ * mechanics states without materializing an accepted-state wrapper. This is
+ * the migration boundary used by a model-owned typed candidate.
+ */
+export function fingerprintWholeHeartMechanicsMaterialStateV1<
+  TState,
+  TDrive,
+>(
+  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  state: TState,
+): string {
+  validateProvider(provider);
+  return snapshotMaterialState(
+    provider,
+    state,
+    "candidate material state fingerprint",
+  ).fingerprint;
+}
+
 export type WholeHeartMechanicsDiagnosticsV1 = {
   readonly converged: boolean;
   readonly finite: boolean;

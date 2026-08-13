@@ -197,6 +197,13 @@ export const CORONARY_BOUNDARY_FLOW_OBSERVABLE_IDS_V2 = Object.freeze([
   "commonCoronaryVenousOutletFlowMlPerSec",
 ] as const);
 
+/**
+ * Packed accepted-boundary observables needed by the coronary autoregulation
+ * owner. Order is territory-major/layer-minor Qm (6), post-lesion pressure
+ * (3), then the common CV absolute pressure (1).
+ */
+export const CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2 = 10;
+
 export const CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2 = Object.freeze([
   "absoluteAorticPressureMmHg",
   "absoluteRightAtrialPressureMmHg",
@@ -895,6 +902,7 @@ export function writeCoronaryBackwardEulerCandidateResidualV2(
   destinationBoundaryFlowMlPerSec: Float64Array,
   prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
   topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+  destinationAutoregulationHydraulics?: Float64Array,
 ): void {
   validateAcceptedStateV2(previousAcceptedState, topology);
   validateTrialInputV2(input);
@@ -905,6 +913,13 @@ export function writeCoronaryBackwardEulerCandidateResidualV2(
     dimension,
     "destinationResidualMl",
   );
+  if (destinationAutoregulationHydraulics !== undefined) {
+    requireTypedLengthV2(
+      destinationAutoregulationHydraulics,
+      CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
+      "destinationAutoregulationHydraulics",
+    );
+  }
   requireTypedLengthV2(
     destinationBoundaryFlowMlPerSec,
     CORONARY_BOUNDARY_FLOW_OBSERVABLE_IDS_V2.length,
@@ -953,6 +968,25 @@ export function writeCoronaryBackwardEulerCandidateResidualV2(
   destinationBoundaryFlowMlPerSec[1] = hydraulics.flowByEdge[
     hydraulics.edgeIndexById.CV_RA
   ]!;
+  if (destinationAutoregulationHydraulics !== undefined) {
+    let observableIndex = 0;
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      for (const layerId of CORONARY_LAYER_IDS_V2) {
+        destinationAutoregulationHydraulics[observableIndex++] =
+          hydraulics.flowByEdge[
+            hydraulics.edgeIndexById[
+              `${territoryId}.IM.Art.${layerId}_${territoryId}.IM.Ven.${layerId}`
+            ]
+          ]!;
+      }
+    }
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      destinationAutoregulationHydraulics[observableIndex++] =
+        hydraulics.postLesionPressure[territoryIndexV2(territoryId)]!;
+    }
+    destinationAutoregulationHydraulics[observableIndex] =
+      hydraulics.pressureByNode[hydraulicPressureIndexV2("CV")]!;
+  }
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   validateCoronaryAcceptedAutoregulationStateV3,
   validateCoronaryAutoregulationWindowBindingV3,
   type CoronaryAcceptedAutoregulationCompletionV3,
+  type CoronaryAcceptedAutoregulationAdvanceV3,
   type CoronaryAcceptedAutoregulationStateV3,
   type CoronaryAutoregulationWindowBindingV3,
   type CoronaryAutoregulationWindowControlV3,
@@ -155,6 +156,65 @@ export type MainWireFiveWallCoronaryStepFailureV3<TWallState> = Readonly<{
 export type MainWireFiveWallCoronaryStepResultV3<TWallState> =
   | MainWireFiveWallCoronaryStepSuccessV3<TWallState>
   | MainWireFiveWallCoronaryStepFailureV3<TWallState>;
+
+/**
+ * Applies the accepted autoregulation owner directly to the ten packed
+ * hydraulic observables emitted by the coupled solver. This is algebraically
+ * identical to the public-trial promotion below and avoids requiring a full
+ * coronary diagnostics object on the typed path.
+ */
+export function advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3<
+  TWallState,
+>(
+  previous: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
+  input: MainWireFiveWallCoronaryStepInputV3,
+  candidateAcceptedTimeSec: number,
+  candidateRevision: number,
+  packedHydraulicObservables: Float64Array,
+): CoronaryAcceptedAutoregulationAdvanceV3 {
+  if (
+    !(packedHydraulicObservables instanceof Float64Array)
+    || packedHydraulicObservables.length !== 10
+  ) {
+    throw new RangeError(
+      "packed coronary autoregulation readback must contain ten f64s",
+    );
+  }
+  let observableIndex = 0;
+  const finalQmInternalFlowMlPerSecByTerritoryLayer = Object.freeze(
+    Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+      territoryId,
+      Object.freeze(Object.fromEntries(CORONARY_LAYER_IDS_V2.map(
+        (layerId) => [layerId, packedHydraulicObservables[observableIndex++]!],
+      ))),
+    ])),
+  ) as CoronaryTerritoryLayerRecordV2<number>;
+  const finalPostFocalLesionPressureMmHgByTerritory = Object.freeze(
+    Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+      territoryId,
+      packedHydraulicObservables[observableIndex++]!,
+    ])),
+  ) as Readonly<Record<(typeof CORONARY_TERRITORY_IDS_V2)[number], number>>;
+  return advanceCoronaryAcceptedAutoregulationV3(
+    previous.coronaryAutoregulationBinding,
+    previous.coronaryAutoregulation,
+    previous.coronary.toneResistanceScaleByTerritoryLayer,
+    {
+      previousAcceptedTimeSec: previous.acceptedTimeSec,
+      candidateAcceptedTimeSec,
+      candidateRevision,
+      finalQmInternalFlowMlPerSecByTerritoryLayer,
+      finalPostFocalLesionPressureMmHgByTerritory,
+      finalCommonCoronaryVenousPressureMmHg:
+        packedHydraulicObservables[observableIndex]!,
+      control: resolveAutoregulationControl(
+        input.coronaryAutoregulationDrive,
+        input.coronaryDisease ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
+      ),
+      topologyPrior: input.coronaryPrior,
+    },
+  );
+}
 
 export function initializeMainWireFiveWallCoronaryV3<TWallState>(
   input: MainWireFiveWallCoronaryInitializeInputV3<TWallState>,

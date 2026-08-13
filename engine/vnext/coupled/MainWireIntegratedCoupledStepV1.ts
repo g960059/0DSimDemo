@@ -8,6 +8,7 @@ import {
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV3";
 import {
   prepareMainWireFiveWallCoupledResidualContextV1,
+  type MainWireFiveWallCoupledAcceptedCandidateBorrowV1,
   type MainWireFiveWallCoronaryStepInputV2,
   type MainWireFiveWallCoronaryStepSuccessV2,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
@@ -35,6 +36,13 @@ export const MAIN_WIRE_INTEGRATED_COUPLED_STEP_V1_ID =
 
 export type MainWireIntegratedCoupledStepOptionsV1<TWallState> = Readonly<{
   solver?: MainWireFiveWallCoupledNewtonShadowOptionsV1;
+  /**
+   * Synchronous migration seam into the global inactive typed image. The
+   * borrow is context-owned and must not escape this callback.
+   */
+  onConvergedCandidate?: (
+    candidate: MainWireFiveWallCoupledAcceptedCandidateBorrowV1<TWallState>,
+  ) => void;
   onAcceptedBaseStep?: (
     step: MainWireFiveWallCoronaryStepSuccessV2<TWallState>,
   ) => void;
@@ -85,6 +93,12 @@ export function stepMainWireIntegratedModelCoupledV1<TWallState>(
         throw new Error(
           "statically condensed coupled solve failed: "
             + `${solver.result.reason}: ${solver.result.message}`,
+        );
+      }
+      if (options.onConvergedCandidate !== undefined) {
+        context.withConvergedCandidate(
+          solver.result.solution,
+          options.onConvergedCandidate,
         );
       }
       const baseStep = context.finalizeConvergedSolution(

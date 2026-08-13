@@ -37,6 +37,7 @@ import {
 } from "@/engine/core/circulationGraphKernelV1";
 import {
   CoronaryBackwardEulerTransactionV2,
+  CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
   CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2,
   DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2,
   NORMAL_CORONARY_DISEASE_INPUT_V2,
@@ -130,6 +131,7 @@ import {
   commitPreparedWholeHeartMechanicsTrialV1,
   evaluatePreparedWholeHeartMechanicsCandidateProbeV1,
   evaluatePreparedWholeHeartMechanicsTrialV1,
+  fingerprintWholeHeartMechanicsMaterialStateV1,
   initializeWholeHeartMechanicsColdV1,
   inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1,
   prepareWholeHeartMechanicsStepV1,
@@ -584,8 +586,11 @@ export type MainWireFiveWallCoupledAcceptedCandidateBorrowV1<TWallState> =
       NonCoronaryPreparedCandidateBorrowV1<unknown>["valveStates"];
     coronaryVolumesMl: CoronaryConservedVolumeStateV2;
     coronaryToneResistanceScaleByTerritoryLayer: CoronaryToneStateV2;
+    /** Context-owned packed Qm/post-lesion/CV readback; copy before return. */
+    coronaryAutoregulationHydraulicObservables: Float64Array;
     mechanicsCandidateVolumesMl: WholeHeartMechanicsChamberValuesV1;
     mechanicsMaterialState: TWallState;
+    mechanicsMaterialStateFingerprint: string;
     mvcReferenceState: MainWireCoronaryMvcReferenceStateV2;
   }>;
 
@@ -1022,6 +1027,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length,
   );
   const coronaryBoundaryFlowMlPerSec = new Float64Array(2);
+  const coronaryAutoregulationHydraulicObservables = new Float64Array(
+    CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
+  );
   let coronaryResidualAvailable = false;
   let candidateBoundary: CoronaryHydraulicBoundaryInputV2 | null = null;
   const preparedNonCoronary = prepareNonCoronaryCandidateEvaluatorV1({
@@ -1074,6 +1082,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           coronaryBoundaryFlowMlPerSec,
           prior,
           topology,
+          coronaryAutoregulationHydraulicObservables,
         );
         coronaryResidualAvailable = true;
         candidateBoundary = boundary;
@@ -1129,6 +1138,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
   };
   const cachedCoronaryResidual = new Float64Array(
     CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length,
+  );
+  const cachedCoronaryAutoregulationHydraulicObservables = new Float64Array(
+    CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
   );
   const cachedDependentSvColumn = new Float64Array(
     NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length,
@@ -1242,6 +1254,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           cachedCoronaryVolumes[nodeId] = candidateCoronaryVolumes[nodeId];
         }
         cachedCoronaryResidual.set(coronaryResidual);
+        cachedCoronaryAutoregulationHydraulicObservables.set(
+          coronaryAutoregulationHydraulicObservables,
+        );
         cachedDependentSvColumn.set(
           localIndependentResidualDDependentSvVolumeMlPerMl,
         );
@@ -1519,9 +1534,16 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
             coronaryVolumesMl: candidate.candidateCoronaryVolumes,
             coronaryToneResistanceScaleByTerritoryLayer:
               previous.coronary.toneResistanceScaleByTerritoryLayer,
+            coronaryAutoregulationHydraulicObservables:
+              cachedCoronaryAutoregulationHydraulicObservables,
             mechanicsCandidateVolumesMl:
               mechanics.mechanicsView.candidateVolumesMl,
             mechanicsMaterialState,
+            mechanicsMaterialStateFingerprint:
+              fingerprintWholeHeartMechanicsMaterialStateV1(
+                provider,
+                mechanicsMaterialState,
+              ),
             mvcReferenceState,
           }),
         );

@@ -1114,8 +1114,11 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         coronaryVolumesMl: coronary.coronary.volumeMlByNode,
         coronaryToneResistanceScaleByTerritoryLayer:
           coronary.coronary.toneResistanceScaleByTerritoryLayer,
+        coronaryAutoregulationHydraulicObservables: new Float64Array(10),
         mechanicsCandidateVolumesMl: coronary.mechanics.acceptedVolumesMl,
         mechanicsMaterialState: coronary.mechanics.materialState,
+        mechanicsMaterialStateFingerprint:
+          coronary.mechanics.materialStateFingerprint,
         mvcReferenceState: coronary.mvcReferenceState,
       }),
       scratch,
