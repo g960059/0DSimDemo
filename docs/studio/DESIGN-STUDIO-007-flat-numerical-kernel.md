@@ -706,6 +706,15 @@ Session median by about 1.5%. This reduces repeated constitutive work while
 leaving solver order, residual algebra, saturation branches, and accepted
 state unchanged.
 
+Standard-20 removes transient arrays and records from Newton diagnostics and
+dense pivot scaling without changing residual algebra or selection order.
+Mixed continuity auditing materializes only the worst entry, in the same node
+order with the same strict-greater tie rule. Row scales, final residual maxima,
+independent-volume projection, and scaled-residual construction use direct
+loops rather than mapped/spread intermediates. Host timing could not separate
+this allocation cleanup from concurrent load, so it carries no standalone
+speed claim.
+
 Failure atomicity, event order, beat accumulation, controls, analysis forks,
 and checkpoint continuation must pass against the Phase 0 corpus before Phase
 2 changes solver algebra.

@@ -1996,8 +1996,10 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       - input.dtSec * (localRates[localIndex]! + companionRate + supportRate);
   });
   const scaledIndependentResidual = Object.freeze(
-    INDEPENDENT_NODE_NAMES.map((name, index) =>
-      continuityResidualMlByNode[name] / volumeScales[index]!),
+    scaledResidualValuesV1(
+      continuityResidualMlByNode,
+      volumeScales,
+    ),
   );
   return Object.freeze({
     nodeVolumesMl,
@@ -2845,9 +2847,27 @@ function scaledToIndependentNodeVolumes(
 function independentNodeVolumesFromNodeRecord(
   volumes: NodeRecord<number>,
 ): NonCoronaryIndependentNodeRecordV1<number> {
-  return Object.freeze(Object.fromEntries(
-    INDEPENDENT_NODE_NAMES.map((name) => [name, volumes[name]]),
-  )) as NonCoronaryIndependentNodeRecordV1<number>;
+  const independent = {} as Record<
+    NonCoronaryIndependentNodeNameV1,
+    number
+  >;
+  for (const name of INDEPENDENT_NODE_NAMES) {
+    independent[name] = volumes[name];
+  }
+  return Object.freeze(independent);
+}
+
+function scaledResidualValuesV1(
+  continuityResidualMlByNode: NodeRecord<number>,
+  volumeScales: readonly number[],
+): number[] {
+  const values = Array<number>(INDEPENDENT_NODE_NAMES.length);
+  for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
+    values[index] = continuityResidualMlByNode[
+      INDEPENDENT_NODE_NAMES[index]!
+    ] / volumeScales[index]!;
+  }
+  return values;
 }
 
 function independentVolumesToScaled(
@@ -2880,27 +2900,42 @@ function mixedContinuityResidualAudit<TEvaluation, TCompanionTrial>(
   absoluteToleranceMl: number,
   scaledTolerance: number,
 ): MixedContinuityResidualAudit {
-  const entries = NON_CORONARY_NODE_NAMES_V1.map((node) => {
+  let worstNode: NonCoronaryNodeNameV1 = NON_CORONARY_NODE_NAMES_V1[0]!;
+  let worstResidualMl = evaluation.continuityResidualMlByNode[worstNode];
+  let worstAbsoluteResidualMl = Math.abs(worstResidualMl);
+  let worstToleranceMl = absoluteToleranceMl + scaledTolerance * Math.max(
+    10,
+    Math.abs(referenceVolumesMl[
+      NON_CORONARY_NODE_INDEX_BY_NAME_V1[worstNode]
+    ]!),
+  );
+  let worstNormalizedResidual = worstAbsoluteResidualMl / worstToleranceMl;
+  for (let index = 1; index < NON_CORONARY_NODE_NAMES_V1.length; index += 1) {
+    const node = NON_CORONARY_NODE_NAMES_V1[index]!;
     const residualMl = evaluation.continuityResidualMlByNode[node];
     const absoluteResidualMl = Math.abs(residualMl);
     const toleranceMl = absoluteToleranceMl + scaledTolerance * Math.max(
       10,
       Math.abs(referenceVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[node]]!),
     );
-    return Object.freeze({
-      node,
-      residualMl,
-      absoluteResidualMl,
-      toleranceMl,
-      normalizedResidual: absoluteResidualMl / toleranceMl,
-    });
+    const normalizedResidual = absoluteResidualMl / toleranceMl;
+    if (normalizedResidual > worstNormalizedResidual) {
+      worstNode = node;
+      worstResidualMl = residualMl;
+      worstAbsoluteResidualMl = absoluteResidualMl;
+      worstToleranceMl = toleranceMl;
+      worstNormalizedResidual = normalizedResidual;
+    }
+  }
+  const worst = Object.freeze({
+    node: worstNode,
+    residualMl: worstResidualMl,
+    absoluteResidualMl: worstAbsoluteResidualMl,
+    toleranceMl: worstToleranceMl,
+    normalizedResidual: worstNormalizedResidual,
   });
-  const worst = entries.reduce((current, candidate) =>
-    candidate.normalizedResidual > current.normalizedResidual
-      ? candidate
-      : current);
   return Object.freeze({
-    infinityNorm: worst.normalizedResidual,
+    infinityNorm: worstNormalizedResidual,
     worst,
   });
 }
@@ -3044,7 +3079,10 @@ function solveDenseLinearSystem(
       if (Math.abs(matrix[row]![pivot]!) > Math.abs(matrix[best]![pivot]!)) best = row;
     }
     const pivotValue = matrix[best]![pivot]!;
-    const rowScale = Math.max(...matrix[best]!.map(Math.abs), Number.MIN_VALUE);
+    let rowScale = Number.MIN_VALUE;
+    for (let column = 0; column < size; column += 1) {
+      rowScale = Math.max(rowScale, Math.abs(matrix[best]![column]!));
+    }
     if (!Number.isFinite(pivotValue) || Math.abs(pivotValue) <= 1e-13 * rowScale) {
       return null;
     }
@@ -3090,6 +3128,13 @@ function trialDiagnostics<TEvaluation, TCompanionTrial>(
     options.absoluteContinuityResidualToleranceMl,
     options.scaledResidualInfinityTolerance,
   );
+  let finalMaximumContinuityResidualMl = 0;
+  for (const name of NON_CORONARY_NODE_NAMES_V1) {
+    finalMaximumContinuityResidualMl = Math.max(
+      finalMaximumContinuityResidualMl,
+      Math.abs(evaluation.continuityResidualMlByNode[name]),
+    );
+  }
   return Object.freeze({
     iterations,
     acceptedLineSearchSteps,
@@ -3101,10 +3146,7 @@ function trialDiagnostics<TEvaluation, TCompanionTrial>(
       options.absoluteContinuityResidualToleranceMl,
     relativeContinuityResidualTolerance:
       options.scaledResidualInfinityTolerance,
-    finalMaximumContinuityResidualMl: Math.max(
-      ...NON_CORONARY_NODE_NAMES_V1.map((name) =>
-        Math.abs(evaluation.continuityResidualMlByNode[name])),
-    ),
+    finalMaximumContinuityResidualMl,
     dependentNodeContinuityResidualMl:
       evaluation.continuityResidualMlByNode[DEPENDENT_NODE],
     totalBloodVolumeErrorMl:

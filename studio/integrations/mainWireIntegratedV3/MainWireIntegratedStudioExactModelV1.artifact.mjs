@@ -8174,7 +8174,10 @@ function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, v
     return nodeVolumesMl[name] - previous.nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[name]] - input.dtSec * (localRates[localIndex] + companionRate + supportRate);
   });
   const scaledIndependentResidual = Object.freeze(
-    INDEPENDENT_NODE_NAMES.map((name, index) => continuityResidualMlByNode[name] / volumeScales[index])
+    scaledResidualValuesV1(
+      continuityResidualMlByNode,
+      volumeScales
+    )
   );
   return Object.freeze({
     nodeVolumesMl,
@@ -8767,9 +8770,18 @@ function scaledToIndependentNodeVolumes(scaledIndependentVolumes, scales) {
   return Object.freeze(values2);
 }
 function independentNodeVolumesFromNodeRecord(volumes) {
-  return Object.freeze(Object.fromEntries(
-    INDEPENDENT_NODE_NAMES.map((name) => [name, volumes[name]])
-  ));
+  const independent = {};
+  for (const name of INDEPENDENT_NODE_NAMES) {
+    independent[name] = volumes[name];
+  }
+  return Object.freeze(independent);
+}
+function scaledResidualValuesV1(continuityResidualMlByNode, volumeScales) {
+  const values2 = Array(INDEPENDENT_NODE_NAMES.length);
+  for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
+    values2[index] = continuityResidualMlByNode[INDEPENDENT_NODE_NAMES[index]] / volumeScales[index];
+  }
+  return values2;
 }
 function independentVolumesToScaled(volumes, scales, destination) {
   const values2 = destination ?? Array(INDEPENDENT_NODE_NAMES.length);
@@ -8782,24 +8794,40 @@ function independentVolumesToScaled(volumes, scales, destination) {
   return destination === void 0 ? Object.freeze(values2) : values2;
 }
 function mixedContinuityResidualAudit(evaluation, referenceVolumesMl, absoluteToleranceMl, scaledTolerance) {
-  const entries = NON_CORONARY_NODE_NAMES_V1.map((node) => {
+  let worstNode = NON_CORONARY_NODE_NAMES_V1[0];
+  let worstResidualMl = evaluation.continuityResidualMlByNode[worstNode];
+  let worstAbsoluteResidualMl = Math.abs(worstResidualMl);
+  let worstToleranceMl = absoluteToleranceMl + scaledTolerance * Math.max(
+    10,
+    Math.abs(referenceVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[worstNode]])
+  );
+  let worstNormalizedResidual = worstAbsoluteResidualMl / worstToleranceMl;
+  for (let index = 1; index < NON_CORONARY_NODE_NAMES_V1.length; index += 1) {
+    const node = NON_CORONARY_NODE_NAMES_V1[index];
     const residualMl = evaluation.continuityResidualMlByNode[node];
     const absoluteResidualMl = Math.abs(residualMl);
     const toleranceMl = absoluteToleranceMl + scaledTolerance * Math.max(
       10,
       Math.abs(referenceVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[node]])
     );
-    return Object.freeze({
-      node,
-      residualMl,
-      absoluteResidualMl,
-      toleranceMl,
-      normalizedResidual: absoluteResidualMl / toleranceMl
-    });
+    const normalizedResidual = absoluteResidualMl / toleranceMl;
+    if (normalizedResidual > worstNormalizedResidual) {
+      worstNode = node;
+      worstResidualMl = residualMl;
+      worstAbsoluteResidualMl = absoluteResidualMl;
+      worstToleranceMl = toleranceMl;
+      worstNormalizedResidual = normalizedResidual;
+    }
+  }
+  const worst = Object.freeze({
+    node: worstNode,
+    residualMl: worstResidualMl,
+    absoluteResidualMl: worstAbsoluteResidualMl,
+    toleranceMl: worstToleranceMl,
+    normalizedResidual: worstNormalizedResidual
   });
-  const worst = entries.reduce((current, candidate) => candidate.normalizedResidual > current.normalizedResidual ? candidate : current);
   return Object.freeze({
-    infinityNorm: worst.normalizedResidual,
+    infinityNorm: worstNormalizedResidual,
     worst
   });
 }
@@ -8904,7 +8932,10 @@ function solveDenseLinearSystem(sourceMatrix, sourceRight, scratchStorage = null
       if (Math.abs(matrix[row][pivot]) > Math.abs(matrix[best][pivot])) best = row;
     }
     const pivotValue = matrix[best][pivot];
-    const rowScale = Math.max(...matrix[best].map(Math.abs), Number.MIN_VALUE);
+    let rowScale = Number.MIN_VALUE;
+    for (let column = 0; column < size; column += 1) {
+      rowScale = Math.max(rowScale, Math.abs(matrix[best][column]));
+    }
     if (!Number.isFinite(pivotValue) || Math.abs(pivotValue) <= 1e-13 * rowScale) {
       return null;
     }
@@ -8937,6 +8968,13 @@ function trialDiagnostics(iterations, acceptedLineSearchSteps, lineSearchBacktra
     options.absoluteContinuityResidualToleranceMl,
     options.scaledResidualInfinityTolerance
   );
+  let finalMaximumContinuityResidualMl = 0;
+  for (const name of NON_CORONARY_NODE_NAMES_V1) {
+    finalMaximumContinuityResidualMl = Math.max(
+      finalMaximumContinuityResidualMl,
+      Math.abs(evaluation.continuityResidualMlByNode[name])
+    );
+  }
   return Object.freeze({
     iterations,
     acceptedLineSearchSteps,
@@ -8945,9 +8983,7 @@ function trialDiagnostics(iterations, acceptedLineSearchSteps, lineSearchBacktra
     finalMixedContinuityResidualInfinityNorm: mixedContinuityResidual.infinityNorm,
     absoluteContinuityResidualToleranceMl: options.absoluteContinuityResidualToleranceMl,
     relativeContinuityResidualTolerance: options.scaledResidualInfinityTolerance,
-    finalMaximumContinuityResidualMl: Math.max(
-      ...NON_CORONARY_NODE_NAMES_V1.map((name) => Math.abs(evaluation.continuityResidualMlByNode[name]))
-    ),
+    finalMaximumContinuityResidualMl,
     dependentNodeContinuityResidualMl: evaluation.continuityResidualMlByNode[DEPENDENT_NODE],
     totalBloodVolumeErrorMl: evaluation.conservativeCompanion === null ? sumNodeRecord(evaluation.nodeVolumesMl) - previous.totalBloodVolumeMl : sumNodeRecord(evaluation.nodeVolumesMl) + evaluation.conservativeCompanion.candidateCompanionBloodVolumeMl - evaluation.conservativeCompanion.fixedGlobalTotalBloodVolumeMl,
     jacobianMode: jacobianModeFromUsage(mechanicsCache.jacobianUsage),
@@ -34317,7 +34353,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-19";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-20";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

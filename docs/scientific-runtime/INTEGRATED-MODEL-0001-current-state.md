@@ -32,10 +32,21 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-19
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-20
 ```
 
-Standard-19 preserves Standard-18's equations, controls, checkpoint meaning,
+Standard-20 preserves Standard-19's equations, controls, checkpoint meaning,
+accepted sequence, and Newton tie-breaking while removing diagnostic and
+linear-algebra container churn. Mixed-residual auditing retains only its
+single worst entry instead of freezing fifteen entries per iteration. Dense
+pivot scaling and final residual maxima use in-order scalar loops rather than
+temporary mapped arrays, and independent-volume/scaled-residual construction
+avoids `Object.fromEntries(map(...))`. These loops preserve node order and
+strict-greater tie selection. Development-host timing was too load-sensitive
+to isolate a stable delta, so this is a bounded-allocation change rather than
+a speed claim.
+
+Standard-19 had preserved Standard-18's equations, controls, checkpoint meaning,
 and accepted numerical sequence while removing a duplicate vascular
 pressure-volume inverse from each analytic-Jacobian iteration. Each BE trial
 snapshots its vascular laws once. Candidate evaluation obtains the exact
