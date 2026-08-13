@@ -15,6 +15,7 @@ import {
   evaluatePreparedWholeHeartMechanicsTrialV1,
   evaluateWholeHeartMechanicsTrialV1,
   initializeWholeHeartMechanicsColdV1,
+  inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1,
   prepareWholeHeartMechanicsStepV1,
   rebindWholeHeartMechanicsAcceptedStateV1,
   restoreWholeHeartMechanicsStateV1,
@@ -478,6 +479,46 @@ describe("whole-heart mechanics transaction contract v1", () => {
       firstStep,
       { ...probe } as typeof probe,
     )).toThrow(/not live/);
+  });
+
+  it("exposes private probe readback only to its live prepared-step capability", () => {
+    const provider = testProvider();
+    const accepted = coldStart(provider).acceptedState;
+    const firstStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const foreignStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const probe = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      firstStep,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+
+    expect(inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1(
+      firstStep,
+      probe,
+    )).toEqual({ jointSolve: true });
+    expect(() => inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1(
+      foreignStep,
+      probe,
+    )).toThrow(/does not belong/);
+    expect(() => inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1(
+      firstStep,
+      { ...probe } as typeof probe,
+    )).toThrow(/not live/);
+
+    sealPreparedWholeHeartMechanicsCandidateProbeV1(firstStep, probe);
+    expect(() => inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1(
+      firstStep,
+      probe,
+    )).toThrow(/not live or was already sealed/);
   });
 
   it("keeps material state and rich readback outside the public probe", () => {

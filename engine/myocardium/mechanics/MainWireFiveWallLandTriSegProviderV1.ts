@@ -130,6 +130,16 @@ export type MainWireFiveWallLandSlsMaterialKernelV1<TWallState> = Readonly<{
   topology:
     "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS";
   stateCodec: WholeHeartMechanicsStateCodecV1<TWallState>;
+  /**
+   * A trusted kernel may consume the provider-owned accepted wall state
+   * read-only. Defensive kernels continue to receive a fresh codec clone.
+   */
+  acceptedStateInputMode: "defensive-clone" | "trusted-read-only";
+  /**
+   * An exclusive result state is newly owned by that evaluation and is never
+   * reused or mutated by the kernel after return.
+   */
+  evaluationStateOwnershipMode: "defensive-clone" | "exclusive-result";
   initializeColdAtFixedInput(input: Readonly<{
     fiberLogStrain: number;
     freeCalciumUM: number;
@@ -492,11 +502,11 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
       validateDrive(input.drivingInputs);
       validateVolumes(input.candidateVolumesMl);
       requirePositive(input.stepDtSec, "stepDtSec");
-      // The whole-heart contract already supplies a fresh defensive accepted
-      // snapshot for every provider callback. This provider treats that input
-      // as read-only, while each inner wall candidate still receives its own
-      // codec clone below. Re-cloning the entire five-wall aggregate here adds
-      // no isolation and scales directly with every outer Newton candidate.
+      // The whole-heart contract owns one private accepted snapshot for this
+      // prepared step. This provider explicitly promises read-only access to
+      // it; each material kernel separately declares whether it needs a wall
+      // clone. Re-cloning the five-wall aggregate for every outer candidate
+      // adds no isolation for these trusted kernels.
       const previous = input.previousAcceptedState.materialState;
       const initialUnknowns = coordinatesToScaledUnknowns(
         previous.trisegCoordinates,
@@ -905,7 +915,8 @@ function evaluateCandidate<TWallState>(
           // Every constitutive evaluation receives a fresh clone of exactly the
           // same accepted wall state. Candidate order therefore cannot advance
           // or contaminate constitutive history.
-          previousAcceptedState: kernel.stateCodec.clone(
+          previousAcceptedState: materialAcceptedStateForEvaluationV1(
+            kernel,
             mode.previousState.wallStateByWall[wallId],
           ),
           candidateFiberLogStrain: fiberLogStrain,
@@ -991,11 +1002,22 @@ function evaluateCandidate<TWallState>(
     );
   }
   const state = Object.freeze({
-    // A reuse hit shares only a private, read-only constitutive evaluation.
-    // Every Newton candidate still owns fresh wall-state clones, so neither a
-    // discarded line-search point nor the returned result aliases another.
-    wallStateByWall: fiveWallRecord((wallId) =>
-      params.materialByWall[wallId].stateCodec.clone(materialByWall[wallId].state)),
+    // Atrial reuse hits share only private, read-only evaluations and therefore
+    // remain cloned into each whole-heart candidate. Cold and ventricular
+    // material kernels may instead transfer a newly created exclusive result;
+    // their capability promises that no later evaluation reuses or mutates it.
+    wallStateByWall: fiveWallRecord((wallId) => {
+      const kernel = params.materialByWall[wallId];
+      const canRetainExclusiveResult =
+        kernel.evaluationStateOwnershipMode === "exclusive-result"
+        && (
+          mode.kind === "cold"
+          || (wallId !== "LA" && wallId !== "RA")
+        );
+      return canRetainExclusiveResult
+        ? materialByWall[wallId].state
+        : kernel.stateCodec.clone(materialByWall[wallId].state);
+    }),
     trisegCoordinates: Object.freeze({ ...coordinates }),
   });
   return Object.freeze({
@@ -1054,7 +1076,10 @@ function evaluateTrialAtrialMaterialWithReuse<TWallState>(
   const evaluation = kernel.evaluateTrialFromAccepted({
     // Keep the constitutive isolation guarantee on a cache miss: the kernel
     // never receives the accepted wall object held by this solve.
-    previousAcceptedState: kernel.stateCodec.clone(previousAcceptedState),
+    previousAcceptedState: materialAcceptedStateForEvaluationV1(
+      kernel,
+      previousAcceptedState,
+    ),
     candidateFiberLogStrain,
     candidateFreeCalciumUM,
     stepDtSec,
@@ -1078,6 +1103,15 @@ function trialAtrialMaterialReuseKeysMatch<TWallState>(
       right.candidateFreeCalciumUM,
     )
     && Object.is(left.stepDtSec, right.stepDtSec);
+}
+
+function materialAcceptedStateForEvaluationV1<TWallState>(
+  kernel: MainWireFiveWallLandSlsMaterialKernelV1<TWallState>,
+  previousAcceptedState: TWallState,
+): TWallState {
+  return kernel.acceptedStateInputMode === "trusted-read-only"
+    ? previousAcceptedState
+    : kernel.stateCodec.clone(previousAcceptedState);
 }
 
 type VentricularMaterialTangentsV1 = Readonly<{
@@ -1804,6 +1838,20 @@ function validateParams<TWallState>(
         throw new Error(`${wallId}.material.stateCodec.${method} must be a function`);
       }
     }
+    if (
+      material.acceptedStateInputMode !== "defensive-clone"
+      && material.acceptedStateInputMode !== "trusted-read-only"
+    ) {
+      throw new Error(`${wallId}.material.acceptedStateInputMode is invalid`);
+    }
+    if (
+      material.evaluationStateOwnershipMode !== "defensive-clone"
+      && material.evaluationStateOwnershipMode !== "exclusive-result"
+    ) {
+      throw new Error(
+        `${wallId}.material.evaluationStateOwnershipMode is invalid`,
+      );
+    }
   }
   validateAtrialGeometry(params.atria.LA, "atria.LA");
   validateAtrialGeometry(params.atria.RA, "atria.RA");
@@ -1998,13 +2046,21 @@ function flattenMaterialWarnings<TWallState>(
 function fiveWallRecord<T>(
   build: (wallId: MainWireFiveWallIdV1) => T,
 ): MainWireFiveWallRecordV1<T> {
-  return Object.freeze(Object.fromEntries(
-    MAIN_WIRE_FIVE_WALL_IDS_V1.map((wallId) => [wallId, build(wallId)]),
-  )) as MainWireFiveWallRecordV1<T>;
+  return Object.freeze({
+    LA: build("LA"),
+    LVFW: build("LVFW"),
+    SEP: build("SEP"),
+    RVFW: build("RVFW"),
+    RA: build("RA"),
+  });
 }
 
 function sumFiveWalls(build: (wallId: MainWireFiveWallIdV1) => number): number {
-  return MAIN_WIRE_FIVE_WALL_IDS_V1.reduce((sum, wallId) => sum + build(wallId), 0);
+  return build("LA")
+    + build("LVFW")
+    + build("SEP")
+    + build("RVFW")
+    + build("RA");
 }
 
 function assertExactKeys(

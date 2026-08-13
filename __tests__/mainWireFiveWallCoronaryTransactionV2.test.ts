@@ -554,8 +554,76 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(JSON.stringify(cold.acceptedState)).toBe(before);
   }, 60_000);
 
+  it("rolls back when selected-only sealing rejects unconsumed rich readback", () => {
+    const baseProvider = testLandReadbackProvider(false);
+    const provider = Object.freeze({
+      ...baseProvider,
+      evaluationResultOwnershipMode: "exclusive-result" as const,
+      evaluateTrial: (
+        input: Parameters<typeof baseProvider.evaluateTrial>[0],
+      ) => {
+        const result = baseProvider.evaluateTrial(input);
+        return Object.freeze({
+          ...result,
+          diagnostics: Object.freeze({
+            ...result.diagnostics,
+            readback: Object.freeze({
+              ...(result.diagnostics.readback as Readonly<
+                Record<string, unknown>
+              >),
+              unconsumedInvalidValue: Number.NaN,
+            }),
+          }),
+        });
+      },
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    });
+    const before = JSON.stringify(cold.acceptedState);
+
+    const stepped = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: PERICARDIUM,
+      },
+    );
+
+    expect(stepped.converged).toBe(false);
+    if (stepped.converged === true) throw new Error("expected rollback");
+    expect(stepped.reason).toBe("selected-candidate-finalization-failed");
+    expect(stepped.circulationFailureReason)
+      .toBe("selected-candidate-finalization-failed");
+    expect(stepped.finalizationFailureStage).toBe("selected-mechanics-seal");
+    expect(stepped.message).toMatch(/finite/);
+    expect(stepped.circulationCommitted).toBe(false);
+    expect(stepped.coronaryCommitted).toBe(false);
+    expect(stepped.mechanicsCommitted).toBe(false);
+    expect(stepped.mvcReferenceCommitted).toBe(false);
+    expect(JSON.stringify(stepped.rollbackState)).toBe(before);
+    expect(JSON.stringify(cold.acceptedState)).toBe(before);
+  }, 60_000);
+
   it("advances the canonical Moyer/Klotz + full Land/SLS + membrane TriSeg provider", () => {
-    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const baseProvider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    let materialEncodeCount = 0;
+    const provider = Object.freeze({
+      ...baseProvider,
+      stateCodec: Object.freeze({
+        ...baseProvider.stateCodec,
+        encode: (state: Parameters<typeof baseProvider.stateCodec.encode>[0]) => {
+          materialEncodeCount += 1;
+          return baseProvider.stateCodec.encode(state);
+        },
+      }),
+    });
     const runtime = Object.freeze({
       ...RUNTIME,
       respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
@@ -567,6 +635,7 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
       pericardium,
     });
+    materialEncodeCount = 0;
     const stepped = stepMainWireFiveWallCoronaryV2(
       provider,
       cold.acceptedState,
@@ -575,6 +644,7 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
         runtime,
         calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
         pericardium,
+        evaluationCounterCollection: "enabled",
       },
     );
 
@@ -593,6 +663,11 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       .toBe("analytic-semismooth");
     expect(stepped.circulationTrial.diagnostics
       .finiteDifferenceJacobianFallbackCount).toBe(0);
+    expect(stepped.circulationTrial.diagnostics.evaluationCounters?.mechanics
+      .candidateCenterEvaluationCount).toBeGreaterThan(1);
+    // One accepted-state audit, one selected-candidate seal, and one commit
+    // audit. Rejected Newton candidates must not serialize material state.
+    expect(materialEncodeCount).toBe(3);
     expect(Object.is(
       stepped.coronaryBoundary.absoluteRightAtrialPressureMmHg,
       -0,

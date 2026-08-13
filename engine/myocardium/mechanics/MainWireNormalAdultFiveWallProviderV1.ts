@@ -566,6 +566,8 @@ function createWallKernel(
     topology:
       "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS" as const,
     stateCodec: LAND_SLS_STATE_CODEC,
+    acceptedStateInputMode: "trusted-read-only" as const,
+    evaluationStateOwnershipMode: "exclusive-result" as const,
     initializeColdAtFixedInput: ({ fiberLogStrain, freeCalciumUM }) => {
       const passive = evaluatePassive(fiberLogStrain);
       const cold = initializeLandSlsWallAtFixedInputV1(
@@ -751,7 +753,10 @@ function materialEvaluation(input: Readonly<{
     input.activeFiberAlgorithmicTangentPa,
   ].every(Number.isFinite);
   return Object.freeze({
-    state: cloneLandSlsWallMaterialStateV1(input.state),
+    // Cold/trial evaluation created this state exclusively for this result.
+    // The material-kernel capability lets the provider retain it without a
+    // second typed-array copy; public mechanics boundaries still snapshot it.
+    state: input.state,
     fiberLogStrain: input.fiberLogStrain,
     fiberKirchhoffStressPa: input.stressPa,
     algorithmicFiberTangentPa: input.algorithmicFiberTangentPa,

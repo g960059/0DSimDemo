@@ -161,8 +161,15 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
       .toEqual(acceptedEncoding);
 
     first.candidateMaterialState.wallStateByWall.LA.landState[0] = 999;
+    first.candidateMaterialState.wallStateByWall.LVFW.landState[0] = 998;
     expect(cold.acceptedState.materialState.wallStateByWall.LA.landState[0])
       .not.toBe(999);
+    expect(cold.acceptedState.materialState.wallStateByWall.LVFW.landState[0])
+      .not.toBe(998);
+    expect(second.candidateMaterialState.wallStateByWall.LA.landState[0])
+      .not.toBe(999);
+    expect(second.candidateMaterialState.wallStateByWall.LVFW.landState[0])
+      .not.toBe(998);
     expect(() => commitWholeHeartMechanicsTrialV1(
       provider,
       cold.acceptedState,
@@ -1056,6 +1063,8 @@ function testMaterialKernel(input: Readonly<{
     topology:
       "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS" as const,
     stateCodec,
+    acceptedStateInputMode: "defensive-clone" as const,
+    evaluationStateOwnershipMode: "defensive-clone" as const,
     initializeColdAtFixedInput: ({ fiberLogStrain, freeCalciumUM }) =>
       evaluate(fiberLogStrain, freeCalciumUM, null, null),
     evaluateTrialFromAccepted: ({

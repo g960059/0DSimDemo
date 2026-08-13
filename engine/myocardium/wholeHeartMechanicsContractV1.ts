@@ -552,19 +552,14 @@ function evaluatePreparedWholeHeartMechanicsTrialEagerV1<TState, TDrive>(
   return trial;
 }
 
-/**
- * Materializes the one selected candidate into the unchanged public trial.
- * A probe is live for exactly one successful seal and is bound to the exact
- * prepared-step object that created it; foreign or already-sealed probes fail.
- */
-export function sealPreparedWholeHeartMechanicsCandidateProbeV1<
+function livePreparedWholeHeartMechanicsCandidateProbeInternalV1<
   TState,
   TDrive,
 >(
   preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
   probe: WholeHeartMechanicsCandidateProbeV1<TState, TDrive>,
-): WholeHeartMechanicsTrialV1<TState> {
-  const context = preparedStepInternal(preparedStep);
+): WholeHeartMechanicsCandidateProbeInternalV1<TState, TDrive> {
+  preparedStepInternal(preparedStep);
   if (
     probe.probeId !== WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID
     || probe.providerId !== preparedStep.providerId
@@ -595,6 +590,46 @@ export function sealPreparedWholeHeartMechanicsCandidateProbeV1<
       "whole-heart mechanics candidate probe does not belong to prepared step",
     );
   }
+  return internal;
+}
+
+/**
+ * Reads one still-private provider readback for model-owned candidate coupling.
+ * The provider's exclusive-result capability keeps it immutable for the live
+ * probe lifetime. Generic recursive validation and serialization remain
+ * deferred until the selected probe is sealed; every field consumed before
+ * that boundary must be validated by its model-owned typed adapter.
+ */
+export function inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1<
+  TState,
+  TDrive,
+>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+  probe: WholeHeartMechanicsCandidateProbeV1<TState, TDrive>,
+): WholeHeartMechanicsSerializableValueV1 | null {
+  return livePreparedWholeHeartMechanicsCandidateProbeInternalV1(
+    preparedStep,
+    probe,
+  ).readback;
+}
+
+/**
+ * Materializes the one selected candidate into the unchanged public trial.
+ * A probe is live for exactly one successful seal and is bound to the exact
+ * prepared-step object that created it; foreign or already-sealed probes fail.
+ */
+export function sealPreparedWholeHeartMechanicsCandidateProbeV1<
+  TState,
+  TDrive,
+>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+  probe: WholeHeartMechanicsCandidateProbeV1<TState, TDrive>,
+): WholeHeartMechanicsTrialV1<TState> {
+  const context = preparedStepInternal(preparedStep);
+  const internal = livePreparedWholeHeartMechanicsCandidateProbeInternalV1(
+    preparedStep,
+    probe,
+  );
   const diagnostics = Object.freeze({
     ...probe.diagnostics,
     readback: internal.readback,

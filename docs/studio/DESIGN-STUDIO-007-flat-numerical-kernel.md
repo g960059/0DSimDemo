@@ -582,6 +582,31 @@ cost to repeated coupled candidate mechanics and non-coronary Newton work, not
 presentation projection or typed-page transfer. These figures are development
 diagnostics only and do not qualify an iPhone or a production cutover.
 
+The five-wall material boundary now makes its two ownership claims explicit.
+A trusted material kernel may read the prepared accepted wall state without a
+second clone, and it may transfer a newly created result state only when it
+promises exclusive ownership after return. Atrial reuse remains defensive: a
+cache hit is still cloned into each whole-heart candidate, while cold and
+ventricular results from the production kernel are exclusive and can be
+retained. Mutation regressions cover both an atrial and a ventricular typed
+state and prove that neither the accepted baseline nor a later candidate can
+be changed through an escaped earlier candidate.
+
+The coronary transaction now carries these exclusive whole-heart candidates as
+private, unforgeable probes through the outer Newton solve. Model-owned coronary
+coupling may inspect the live probe's typed readback, but discarded probes can
+neither be committed nor exposed. Only the selected candidate is recursively
+validated, snapshotted, fingerprinted, and sealed into the unchanged public
+trial. A selected seal failure returns the existing accepted tuple with every
+owner marked uncommitted. The regression requires more than one center
+candidate while observing exactly three material encodes for the whole step:
+accepted-state audit, selected seal, and commit audit. Across five local
+1,024-tick/all-49-output lean-tier repetitions, the combined ownership and
+selected-only-seal slice measured `1.411–1.427 ms/tick`, down from
+`1.487–1.504 ms/tick` before the slice. It preserves the solver equation/order,
+public checkpoint, and exact 49-output corpus; it remains a development-host
+diagnostic rather than phone qualification.
+
 #### Phase 1b.2b.2b — direct solver-owned typed state (next)
 
 Before production cutover, move each state owner and the solver from object
