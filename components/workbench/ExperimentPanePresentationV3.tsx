@@ -67,7 +67,10 @@ export function ExperimentOutputGridV3({
 }>) {
   const layoutClassName = variant === "pane"
     ? "min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] overflow-auto px-2 pb-2"
-    : "grid-cols-1 gap-x-7 gap-y-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+    : "article-output-grid gap-x-2 gap-y-2";
+  const itemClassName = variant === "article"
+    ? "rounded-lg bg-wb-soft/40 px-2 py-2"
+    : "px-2.5 py-2";
   return (
     <div
       className={`workbench-output-grid grid ${layoutClassName}`}
@@ -80,7 +83,7 @@ export function ExperimentOutputGridV3({
       ) : items.map((item) => (
         <div
           key={item.itemId}
-          className="workbench-output-item min-w-0 px-2.5 py-2"
+          className={`workbench-output-item min-w-0 ${itemClassName}`}
           data-output-availability={item.availability ?? "unavailable"}
           data-output-quality={item.quality ?? "not-assessed"}
         >

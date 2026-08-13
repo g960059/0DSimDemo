@@ -768,11 +768,10 @@ describe("Article Reader V3 experiment anchor", () => {
       />,
     );
 
-    expect(html).toContain("grid grid-cols-1");
-    expect(html).toContain("sm:grid-cols-2");
+    expect(html).toContain("grid article-output-grid");
     expect(html).toContain('data-experiment-output-presentation="article"');
     expect(html).toContain("workbench-output-item");
-    expect(html).not.toContain("grid grid-cols-2 gap");
+    expect(html).toContain("gap-x-2 gap-y-2");
   });
 
   it("disables authored control buttons outside the registered step lattice", () => {
@@ -839,7 +838,10 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).toContain('data-reader-presentation="peek"');
     expect(html).toContain("article-reader-peek-anchor");
     expect(html).toContain('data-reader-peek-active="false"');
-    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain(
+      'aria-controls="article-reader-experiment-companion-v3"',
+    );
     expect(html).toContain("Reader experiment");
     expect(html).not.toContain("Live experiment");
     expect(html).not.toContain("MW V3");

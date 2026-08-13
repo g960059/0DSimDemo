@@ -1,7 +1,6 @@
 export type StudioPublicArticleLocaleV1 = "ja" | "en";
 
 export type StudioPublicArticlePresentationCopyV1 = Readonly<{
-  articleLabel: string;
   publishedLabel: string;
 }>;
 
@@ -14,8 +13,8 @@ export function studioPublicArticlePresentationCopyV1(
   locale: StudioPublicArticleLocaleV1,
 ): StudioPublicArticlePresentationCopyV1 {
   return locale === "ja"
-    ? Object.freeze({ articleLabel: "記事", publishedLabel: "公開" })
-    : Object.freeze({ articleLabel: "Article", publishedLabel: "Published" });
+    ? Object.freeze({ publishedLabel: "公開" })
+    : Object.freeze({ publishedLabel: "Published" });
 }
 
 export function formatStudioPublicArticleDateV1(

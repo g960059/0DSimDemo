@@ -459,11 +459,6 @@ function ArticleReaderV3Resource({
           <main className="article-document-shell">
             <article className="article-document">
           <header className="article-document-header">
-            {content.publishedAt !== null && (
-              <p className="article-publication-kicker">
-                {publicationCopy.articleLabel}
-              </p>
-            )}
             <h1 className="article-title">
               {content.article.title || t("articleReader.untitled")}
             </h1>

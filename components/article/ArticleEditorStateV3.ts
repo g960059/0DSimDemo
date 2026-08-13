@@ -16,25 +16,17 @@ import {
 import type {
   StudioArticleExperimentBlockV2,
 } from "@/studio/contracts/v2/article";
+export {
+  articleBriefingPresentationV3,
+} from "@/studio/application/authoring/StudioArticleBriefingPresentationV3";
+export type {
+  ArticleBriefingPresentationV3,
+} from "@/studio/application/authoring/StudioArticleBriefingPresentationV3";
 
 export type ArticleSurfacePaneV3 =
   | ExperimentSurfaceGraphPaneV2
   | ExperimentSurfaceOutputPaneV2
   | ExperimentSurfaceControlPaneV2;
-
-export type ArticleBriefingPresentationV3 =
-  | "inflow"
-  | "peek"
-  | "fullscreen";
-
-/** One shared extent rule for Editor preview and Reader interaction. */
-export function articleBriefingPresentationV3(
-  briefing: Pick<ExperimentPlacementBriefingV2, "graphs">,
-): ArticleBriefingPresentationV3 {
-  if (briefing.graphs.length <= 1) return "inflow";
-  if (briefing.graphs.length <= 4) return "peek";
-  return "fullscreen";
-}
 
 const ROLE_ORDER_V3: Readonly<Record<ArticleSurfacePaneV3["role"], number>> = {
   graph: 0,

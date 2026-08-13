@@ -67,11 +67,13 @@ describe("Studio public content delivery V1", () => {
       `id="${STUDIO_PUBLIC_ARTICLE_BOOTSTRAP_V1_ELEMENT_ID}"`,
     );
     expect(rendered.documentHtml).toContain("血圧は何で決まるでしょうか");
+    expect(rendered.documentHtml).not.toContain("article-publication-kicker");
     expect(rendered.documentHtml).toContain("katex-mathml");
-    expect(rendered.documentHtml).toContain("<details class=\"public-static-accordion\"");
+    expect(rendered.documentHtml).toContain("<details class=\"article-accordion public-static-accordion\"");
     expect(rendered.documentHtml).toContain("<strong>正解:</strong> 心拍出量と血管抵抗");
     expect(rendered.documentHtml).toContain("インタラクティブ・シミュレーション");
     expect(rendered.documentHtml).toContain("平均動脈圧");
+    expect(rendered.documentHtml).toContain("public-static-experiment-inflow");
     const semanticMarkup = rendered.documentHtml.slice(
       0,
       rendered.documentHtml.indexOf(
@@ -91,6 +93,45 @@ describe("Studio public content delivery V1", () => {
       articleContentId: "22222222-2222-4222-8222-222222222222",
       publicSlug: "what-determines-blood-pressure",
     });
+  });
+
+  it("keeps a complex server-rendered experiment as compact as its Peek handoff", () => {
+    const article = publishedArticleV1();
+    const withComplexBriefing = validateStudioPublishedArticleV1({
+      ...article,
+      blocks: article.blocks.map((block) => {
+        if (block.kind !== "experiment") return block;
+        const firstGraph = block.placement.briefing.graphs[0]!;
+        return {
+          ...block,
+          placement: {
+            ...block.placement,
+            briefing: {
+              ...block.placement.briefing,
+              graphs: [
+                firstGraph,
+                { ...firstGraph, paneId: "pane/second-pressure", order: 1 },
+              ],
+            },
+          },
+        };
+      }),
+    });
+    const rendered = renderStudioPublishedArticleV1({
+      article: withComplexBriefing,
+      canonicalOrigin: "https://www.circleheart.dev",
+      clientTemplate: TEMPLATE_V1,
+    });
+
+    expect(rendered.documentHtml).toContain(
+      "article-reader-peek-surface public-static-experiment public-static-experiment-peek",
+    );
+    expect(rendered.documentHtml).toContain(
+      'data-reader-presentation="peek"',
+    );
+    expect(rendered.documentHtml).toContain(
+      'class="public-static-experiment-anchor-copy"',
+    );
   });
 
   it("hands the validated public projection to the matching client route", () => {
