@@ -879,7 +879,7 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     const analyticVolumeJacobian = new Float64Array(
       promotedContext.dimension * promotedContext.dimension,
     );
-    promotedContext.writeVolumeColumnJacobian(
+    promotedContext.writeAnalyticJacobian(
       initialGuess,
       analyticVolumeJacobian,
     );
@@ -890,15 +890,15 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     let finiteDifferenceSquaredNorm = 0;
     let differenceSquaredNorm = 0;
     let maximumAbsoluteDifference = 0;
-    for (let column = 0; column < promotedContext.dimension - 2; column += 1) {
+    for (let column = 0; column < promotedContext.dimension; column += 1) {
       plus.set(initialGuess);
       minus.set(initialGuess);
-      const relativeStep = column
+      const halfStep = column
           < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
-        ? 1e-5
-        : 1e-3;
-      const halfStep = relativeStep
-        * Math.max(1, Math.abs(initialGuess[column]!));
+        ? 1e-5 * Math.max(1, Math.abs(initialGuess[column]!))
+        : column < promotedContext.dimension - 2
+          ? 1e-3 * Math.max(1, Math.abs(initialGuess[column]!))
+          : 1e-5;
       plus[column] += halfStep;
       minus[column] -= halfStep;
       promotedContext.evaluateResidual(plus, plusResidual);
@@ -947,17 +947,16 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       throw new Error(finiteDifferenceOnly.result.message);
     }
     expect(promoted.jacobianResidualEvaluationCount).toBe(
-      2 * 2
-        * promoted.result.jacobianEvaluationCount,
+      0,
     );
-    expect(promoted.volumeAnalyticBlockAssemblyCount).toBe(
+    expect(promoted.analyticJacobianAssemblyCount).toBe(
       promoted.result.jacobianEvaluationCount,
     );
     expect(finiteDifferenceOnly.jacobianResidualEvaluationCount).toBe(
       2 * promotedContext.dimension
         * finiteDifferenceOnly.result.jacobianEvaluationCount,
     );
-    expect(finiteDifferenceOnly.volumeAnalyticBlockAssemblyCount).toBe(0);
+    expect(finiteDifferenceOnly.analyticJacobianAssemblyCount).toBe(0);
     expect(Math.abs(promoted.dependentSvContinuityResidualMl!))
       .toBeLessThan(1e-8);
     for (let index = 0; index < condensedSolution.length; index += 1) {

@@ -794,14 +794,17 @@ The next construction slice assembles all 32 residual rows for the first 30
 physical-volume columns from component-owned analytic derivatives. The
 non-coronary local block uses the fixed-internal chamber tangent, the coronary
 block uses its direct volume/boundary writers, and the final two mechanics rows
-use the provider-owned equilibrium derivative. Only the two promoted TriSeg
-coordinate columns remain central differences. The independent all-central-
-difference solver remains executable as the oracle. In the canonical one-step
-case, the analytic volume block differs from a scale-aware finite-difference
-shadow by at most `8.1e-7` absolutely and `3.0e-7` in relative Frobenius norm;
-both solvers select the same root to eight decimal places. This reduces
-Jacobian residual probes from 64 to four per assembly. It is still neither an
-accepted-state authority nor an end-to-end performance claim.
+use the provider-owned equilibrium derivative. The subsequent slice adds a
+direct 14-by-4 local circulation derivative with respect to absolute chamber
+pressure, then chains the two internal-coordinate pressure/strain/active-
+stress directions through the same coronary boundary writer. All 32 columns
+are therefore analytic. The independent all-central-difference solver remains
+executable as the oracle. In the canonical one-step case, the complete
+analytic block stays below `2e-6` maximum absolute and `2e-5` relative
+Frobenius difference against a scale-aware finite-difference shadow; both
+solvers select the same root to eight decimal places. This removes all 64
+Jacobian residual probes per assembly. It is still neither an accepted-state
+authority nor an end-to-end performance claim.
 
 The first executable uses one deterministic damped semismooth Newton and a
 fixed row-major `Float64Array` Jacobian with partial-pivot dense LU. At 30–32

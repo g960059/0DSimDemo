@@ -668,8 +668,8 @@ export type MainWireFiveWallPromotedMechanicsResidualContextV1 = Readonly<{
     unknowns: Float64Array,
     destinationResidual: Float64Array,
   ): void;
-  /** Writes all 32 rows for the first 30 physical-volume columns. */
-  writeVolumeColumnJacobian(
+  /** Writes the complete component-owned analytic 32x32 Jacobian. */
+  writeAnalyticJacobian(
     unknowns: Float64Array,
     rowMajorDestination: Float64Array,
   ): void;
@@ -1929,6 +1929,9 @@ export function prepareMainWireFiveWallPromotedMechanicsResidualContextV1<
   const boundaryByNonCoronaryVolume = new Float64Array(
     boundaryDimension * nonCoronaryDimension,
   );
+  const boundaryByInternalCoordinate = new Float64Array(
+    boundaryDimension * 2,
+  );
   const boundaryDerivativeByMechanicsDirection = new Float64Array(
     MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2.length
       * MAIN_WIRE_CORONARY_MECHANICS_DIRECTION_COMPONENT_IDS_V2.length,
@@ -2138,7 +2141,7 @@ export function prepareMainWireFiveWallPromotedMechanicsResidualContextV1<
     });
   };
 
-  const writeVolumeColumnJacobian = (
+  const writeAnalyticJacobian = (
     unknowns: Float64Array,
     destination: Float64Array,
   ): void => {
@@ -2157,10 +2160,13 @@ export function prepareMainWireFiveWallPromotedMechanicsResidualContextV1<
       .localIndependentResidualDDependentSvVolumeMlPerMl;
     const chamberTangent = candidate.nonCoronaryProbe
       .absoluteChamberPressureTangent;
+    const localChamberPressureJacobian = candidate.nonCoronaryProbe
+      .localIndependentResidualDAbsoluteChamberPressureMlPerMmHg;
     if (
       localJacobian === null
       || dependentSvColumn === null
       || chamberTangent === null
+      || localChamberPressureJacobian === null
     ) {
       throw new Error(
         "promoted mechanics volume assembly requires component-owned local tangents",
@@ -2180,9 +2186,7 @@ export function prepareMainWireFiveWallPromotedMechanicsResidualContextV1<
       prior,
       topology,
     );
-    for (let row = 0; row < dimension; row += 1) {
-      destination.fill(0, row * dimension, row * dimension + volumeDimension);
-    }
+    destination.fill(0);
 
     const coronaryStart = nonCoronaryDimension;
     const aoResidualRow =
@@ -2376,6 +2380,107 @@ export function prepareMainWireFiveWallPromotedMechanicsResidualContextV1<
             ]!;
       }
     }
+
+    for (let internalColumn = 0; internalColumn < 2; internalColumn += 1) {
+      const globalColumn = volumeDimension + internalColumn;
+      const fixedDerivativeColumn = 4 + internalColumn;
+      mechanicsDirection.fill(0);
+      mechanicsDirection[1] = fixedPressure[
+        2 * 6 + fixedDerivativeColumn
+      ]!;
+      mechanicsDirection[3] = fixedPressure[
+        1 * 6 + fixedDerivativeColumn
+      ]!;
+      mechanicsDirection[4] = fixedPressure[
+        3 * 6 + fixedDerivativeColumn
+      ]!;
+      for (let wall = 0; wall < 3; wall += 1) {
+        mechanicsDirection[5 + wall] = fixedActiveStress[
+          wall * 4 + 2 + internalColumn
+        ]!;
+        mechanicsDirection[8 + wall] = fixedStrain[
+          wall * 4 + 2 + internalColumn
+        ]!;
+      }
+      for (let boundaryRow = 0;
+        boundaryRow < boundaryDimension;
+        boundaryRow += 1) {
+        let derivative = 0;
+        for (let direction = 0;
+          direction < mechanicsDirection.length;
+          direction += 1) {
+          derivative += boundaryDerivativeByMechanicsDirection[
+            boundaryRow * mechanicsDirection.length + direction
+          ]! * mechanicsDirection[direction]!;
+        }
+        boundaryByInternalCoordinate[
+          boundaryRow * 2 + internalColumn
+        ] = derivative;
+      }
+
+      for (let row = 0; row < nonCoronaryDimension; row += 1) {
+        let derivative = 0;
+        for (let tangentColumn = 0;
+          tangentColumn < NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.length;
+          tangentColumn += 1) {
+          const chamber =
+            NON_CORONARY_CHAMBER_TANGENT_ORDER_V1[tangentColumn]!;
+          const fixedRow = chamberOrder.indexOf(chamber);
+          if (fixedRow < 0) {
+            throw new Error("fixed mechanics chamber order drifted");
+          }
+          derivative += localChamberPressureJacobian[
+            row * NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.length
+              + tangentColumn
+          ]! * fixedPressure[
+            fixedRow * 6 + fixedDerivativeColumn
+          ]!;
+        }
+        if (row === aoResidualRow || row === raResidualRow) {
+          let companionFlowDerivative = 0;
+          for (let boundaryRow = 0;
+            boundaryRow < boundaryDimension;
+            boundaryRow += 1) {
+            const boundaryDerivative = boundaryByInternalCoordinate[
+              boundaryRow * 2 + internalColumn
+            ]!;
+            companionFlowDerivative += (
+              row === aoResidualRow
+                ? coronaryLinearization
+                  .dTotalInletFlowDBoundary[boundaryRow]!
+                : -coronaryLinearization
+                  .dCommonVenousOutletFlowDBoundary[boundaryRow]!
+            ) * boundaryDerivative;
+          }
+          derivative += input.dtSec * companionFlowDerivative;
+        }
+        destination[row * dimension + globalColumn] = derivative;
+      }
+      for (let coronaryRow = 0;
+        coronaryRow < coronaryDimension;
+        coronaryRow += 1) {
+        let derivative = 0;
+        for (let boundaryRow = 0;
+          boundaryRow < boundaryDimension;
+          boundaryRow += 1) {
+          derivative += coronaryLinearization.dResidualDBoundary[
+            coronaryRow * boundaryDimension + boundaryRow
+          ]! * boundaryByInternalCoordinate[
+            boundaryRow * 2 + internalColumn
+          ]!;
+        }
+        destination[
+          (coronaryStart + coronaryRow) * dimension + globalColumn
+        ] = derivative;
+      }
+      for (let mechanicsRow = 0; mechanicsRow < 2; mechanicsRow += 1) {
+        destination[
+          (volumeDimension + mechanicsRow) * dimension + globalColumn
+        ] = mechanicsResidualDerivative[
+          mechanicsRow * 6 + fixedDerivativeColumn
+        ]!;
+      }
+    }
   };
 
   return Object.freeze({
@@ -2396,7 +2501,7 @@ export function prepareMainWireFiveWallPromotedMechanicsResidualContextV1<
     ): void => {
       evaluate(unknowns, destinationResidual);
     },
-    writeVolumeColumnJacobian,
+    writeAnalyticJacobian,
     evaluateDependentSvContinuityResidualMl: (
       unknowns: Float64Array,
     ): number => evaluate(unknowns, dependentResidualScratch)

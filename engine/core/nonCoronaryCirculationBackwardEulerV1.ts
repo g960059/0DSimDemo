@@ -610,6 +610,16 @@ export type NonCoronaryCirculationCandidateProbeV1<
    */
   localIndependentResidualDIndependentVolumeMlPerMl:
     Float64Array | null;
+  /**
+   * Direct physical 14x4 local-continuity derivative with respect to
+   * absolute chamber pressure, ordered by
+   * `NON_CORONARY_CHAMBER_TANGENT_ORDER_V1`. Candidate volumes, vascular
+   * pressures and companion boundary rates remain fixed. This lets a global
+   * mechanics solve chain its own internal-coordinate pressure directions
+   * without perturbing the complete circulation residual.
+   */
+  localIndependentResidualDAbsoluteChamberPressureMlPerMmHg:
+    Float64Array | null;
   absoluteChamberPressureTangent:
     NonCoronaryAbsoluteChamberPressureTangentV1 | null;
   candidateMechanicsEvaluation: TEvaluation;
@@ -1686,6 +1696,17 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
         respiratoryExternalPressures,
       )
       : null;
+  const localIndependentResidualDAbsoluteChamberPressureMlPerMmHg =
+    input.mechanicalSupport === undefined
+      && input.dynamicMechanicalSupport === undefined
+      && input.protocolResistanceScaleByEdge === undefined
+      ? deviceOffLocalIndependentResidualDAbsoluteChamberPressuresV1(
+        graph,
+        input,
+        candidate,
+        respiratoryExternalPressures,
+      )
+      : null;
   return Object.freeze({
     candidateTimeSec,
     candidateNodeVolumesMl: candidate.nodeVolumesMl.slice(),
@@ -1700,6 +1721,7 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
       candidate.scaledIndependentResidual.slice(),
     localIndependentResidualDDependentSvVolumeMlPerMl,
     localIndependentResidualDIndependentVolumeMlPerMl,
+    localIndependentResidualDAbsoluteChamberPressureMlPerMmHg,
     absoluteChamberPressureTangent:
       candidate.absoluteChamberPressureTangent,
     candidateMechanicsEvaluation: candidate.candidateMechanicsEvaluation,
@@ -3241,6 +3263,81 @@ function deviceOffLocalIndependentResidualDIndependentVolumesV1<
   }
   if (destination.some((value) => !Number.isFinite(value))) {
     throw new Error("local physical Jacobian produced non-finite values");
+  }
+  return destination;
+}
+
+/**
+ * Direct chamber-pressure columns of the device-off local residual. The
+ * conservative companion is excluded: the coupled assembler owns its Ao/RA
+ * boundary-rate chain explicitly.
+ */
+function deviceOffLocalIndependentResidualDAbsoluteChamberPressuresV1<
+  TEvaluation,
+  TCompanionTrial,
+>(
+  graph: NonCoronaryCirculationGraphV1,
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+  current: CandidateEvaluation<TEvaluation, TCompanionTrial>,
+  respiratoryExternalPressures: RespiratoryExternalPressuresV1,
+  destination = new Float64Array(
+    INDEPENDENT_NODE_NAMES.length
+      * NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.length,
+  ),
+): Float64Array {
+  if (
+    current.mechanicalSupport !== null
+    || current.dynamicMechanicalSupport !== null
+    || input.protocolResistanceScaleByEdge !== undefined
+  ) {
+    throw new Error(
+      "local chamber-pressure Jacobian V1 supports only the device-off protocol-free slice",
+    );
+  }
+  const rowCount = INDEPENDENT_NODE_NAMES.length;
+  const columnCount = NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.length;
+  if (destination.length !== rowCount * columnCount) {
+    throw new RangeError(
+      "local chamber-pressure Jacobian destination has incompatible dimension",
+    );
+  }
+  destination.fill(0);
+  for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex += 1) {
+    const edge = graph.edges[edgeIndex]!;
+    const upstreamName = edge.up as NonCoronaryNodeNameV1;
+    const downstreamName = edge.down as NonCoronaryNodeNameV1;
+    const derivatives = analyticEdgeFlowPressureDerivativesV1(
+      graph,
+      input,
+      current,
+      respiratoryExternalPressures,
+      edgeIndex,
+    );
+    const upstreamResidualRow = INDEPENDENT_NODE_INDEX[upstreamName];
+    const downstreamResidualRow = INDEPENDENT_NODE_INDEX[downstreamName];
+    for (let column = 0; column < columnCount; column += 1) {
+      const chamber = NON_CORONARY_CHAMBER_TANGENT_ORDER_V1[column]!;
+      const flowDerivative =
+        (upstreamName === chamber
+          ? derivatives.upstreamMlPerSecPerMmHg
+          : 0)
+        + (downstreamName === chamber
+          ? derivatives.downstreamMlPerSecPerMmHg
+          : 0);
+      if (upstreamResidualRow !== undefined) {
+        destination[upstreamResidualRow * columnCount + column] +=
+          input.dtSec * flowDerivative;
+      }
+      if (downstreamResidualRow !== undefined) {
+        destination[downstreamResidualRow * columnCount + column] -=
+          input.dtSec * flowDerivative;
+      }
+    }
+  }
+  if (destination.some((value) => !Number.isFinite(value))) {
+    throw new Error(
+      "local chamber-pressure Jacobian produced non-finite values",
+    );
   }
   return destination;
 }
