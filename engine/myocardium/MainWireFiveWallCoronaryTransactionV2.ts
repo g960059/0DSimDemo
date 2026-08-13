@@ -79,6 +79,7 @@ import {
 } from "@/engine/coronary/intramyocardialPressureV1";
 import {
   evaluateMainWireCoronaryMechanicsCouplingV1,
+  evaluateMainWireCoronaryNumericalMechanicsCouplingV1,
   evaluateMainWireCoronaryMechanicsCouplingVentricularDirectionV1,
   readMainWireFiveWallVentricularCoronaryBoundaryTangentV1,
   type MainWireCoronaryMechanicsCouplingEvaluationV1,
@@ -108,9 +109,14 @@ import {
   evaluateFiveWallNormalCalciumDriveV1,
   type FiveWallNormalCalciumDriveParamsV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
-import type {
-  MainWireFiveWallFreeCalciumDriveV1,
-  MainWireFiveWallLandTriSegEvaluationCountersV1,
+import {
+  evaluateMainWireFiveWallNumericalMechanicsCandidateV1,
+  tryPrepareMainWireFiveWallNumericalMechanicsStepV1,
+  type MainWireFiveWallNumericalMechanicsEvaluationV1,
+  type MainWireFiveWallNumericalMechanicsStepV1,
+  type MainWireFiveWallFreeCalciumDriveV1,
+  type MainWireFiveWallLandTriSegEvaluationCountersV1,
+  type MainWireFiveWallVentricularCoronaryBoundaryTangentV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
   evaluateMainWireCommonPericardiumBindingV1,
@@ -253,7 +259,7 @@ type MainWireFiveWallCoronaryMechanicsViewV2<TWallState> = Readonly<
 >;
 
 function isWholeHeartMechanicsCandidateProbeV2<TWallState>(
-  candidate: MainWireFiveWallCoronaryMechanicsCandidateV2<TWallState>,
+  candidate: MainWireFiveWallCoupledMechanicsCandidateV1<TWallState>,
 ): candidate is WholeHeartMechanicsCandidateProbeV1<
   TWallState,
   MainWireFiveWallFreeCalciumDriveV1
@@ -280,6 +286,24 @@ export type MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<
   sourceIntramyocardialPressureMmHgByTerritoryLayer?:
     CoronaryTerritoryLayerRecordV2<number>;
 }>;
+
+type MainWireFiveWallCoupledMechanicsCandidateV1<TWallState> =
+  | MainWireFiveWallCoronaryMechanicsCandidateV2<TWallState>
+  | MainWireFiveWallNumericalMechanicsEvaluationV1<TWallState>;
+
+type MainWireFiveWallCoupledCandidateMechanicsEvaluationV1<TWallState> =
+  Readonly<{
+    mechanicsCandidate:
+      MainWireFiveWallCoupledMechanicsCandidateV1<TWallState>;
+    mechanicsView: MainWireFiveWallCoronaryMechanicsViewV2<TWallState>;
+    pericardium: MainWireCommonPericardiumEvaluationV1;
+    coronaryMechanicsCoupling:
+      MainWireCoronaryMechanicsCouplingEvaluationV1;
+    ventricularCoronaryBoundaryTangent:
+      MainWireFiveWallVentricularCoronaryBoundaryTangentV1 | null;
+    sourceIntramyocardialPressureMmHgByTerritoryLayer?:
+      CoronaryTerritoryLayerRecordV2<number>;
+  }>;
 
 /**
  * Candidate mechanics values read by the coronary boundary resolver.
@@ -867,6 +891,13 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     stepDtSec: input.dtSec,
     drivingInputs: mechanicsCalciumDrive,
   });
+  const numericalMechanicsStep =
+    tryPrepareMainWireFiveWallNumericalMechanicsStepV1(provider, {
+      previousAcceptedMaterialState: previous.mechanics.materialState,
+      candidateTimeSec,
+      stepDtSec: input.dtSec,
+      drivingInputs: mechanicsCalciumDrive,
+    });
   const useMechanicsCandidateProbes =
     provider.evaluationResultOwnershipMode === "exclusive-result";
   const initialUnknownsMl = new Float64Array(30);
@@ -950,7 +981,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     dtSec: input.dtSec,
     runtime: input.runtime,
     evaluateCandidateMechanics: (volumesMl) =>
-      evaluatePreparedCandidateMechanicsV2(
+      evaluatePreparedCoupledCandidateMechanicsV1(
         mechanicsStep,
         volumesMl,
         input.pericardium,
@@ -959,6 +990,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         evaluationCounters,
         "candidate-center",
         useMechanicsCandidateProbes,
+        numericalMechanicsStep,
       ),
     conservativeCompanion: Object.freeze({
       fixedGlobalTotalBloodVolumeMl:
@@ -1029,7 +1061,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     absoluteChamberPressureTangent:
       NonCoronaryAbsoluteChamberPressureTangentV1 | null;
     candidateMechanicsEvaluation:
-      MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>;
+      MainWireFiveWallCoupledCandidateMechanicsEvaluationV1<TWallState>;
   }>;
   type CoupledCandidateView = Readonly<{
     candidateCoronaryVolumes: CoronaryConservedVolumeStateV2;
@@ -1586,9 +1618,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         mechanics.mechanicsView
           .transmuralPressureVolumeTangentMmHgPerMl;
       const ventricularTangent =
-        readMainWireFiveWallVentricularCoronaryBoundaryTangentV1(
-          mechanics.mechanicsView.diagnostics.readback,
-        );
+        mechanics.ventricularCoronaryBoundaryTangent;
       if (
         chamberTangent === null
         || transmuralTangent === undefined
@@ -2305,6 +2335,13 @@ function recordTriSegProviderCountersV2(
 ): void {
   const providerCounters = triSegProviderCountersV2(readback);
   if (providerCounters === null) return;
+  recordTriSegProviderCounterValuesV2(counters, providerCounters);
+}
+
+function recordTriSegProviderCounterValuesV2(
+  counters: MutableMainWireFiveWallCoronaryEvaluationCountersV2,
+  providerCounters: MainWireFiveWallLandTriSegEvaluationCountersV1,
+): void {
   const target = counters.mechanics;
   target.triSegProviderCounterReadbackCount += 1;
   target.solveInternalCoordinatesCallCount +=
@@ -2493,6 +2530,147 @@ export function advanceMainWireCoronaryMvcReferenceV2(
     mitralForwardFlowActive: active,
     acceptedMitralClosureEventCount:
       previous.acceptedMitralClosureEventCount + (closed ? 1 : 0),
+  });
+}
+
+function evaluatePreparedCoupledCandidateMechanicsV1<TWallState>(
+  mechanicsStep: WholeHeartMechanicsPreparedStepV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  volumesMl: WholeHeartMechanicsChamberValuesV1,
+  pericardiumBinding: MainWireCommonPericardiumBindingV1,
+  commonIntrathoracicPressureMmHg: number,
+  impMechanism: MainWireCoronaryImpMechanismV2,
+  evaluationCounters:
+    MutableMainWireFiveWallCoronaryEvaluationCountersV2 | null,
+  origin: "candidate-center" | "lv-rv-probe",
+  useCandidateProbe: boolean,
+  numericalMechanicsStep:
+    MainWireFiveWallNumericalMechanicsStepV1<TWallState> | null,
+): NonCoronaryCandidateMechanicsResultV1<
+  MainWireFiveWallCoupledCandidateMechanicsEvaluationV1<TWallState>
+> {
+  if (numericalMechanicsStep === null) {
+    const fallback = evaluatePreparedCandidateMechanicsV2(
+      mechanicsStep,
+      volumesMl,
+      pericardiumBinding,
+      commonIntrathoracicPressureMmHg,
+      impMechanism,
+      evaluationCounters,
+      origin,
+      useCandidateProbe,
+    );
+    return Object.freeze({
+      ...fallback,
+      evaluation: Object.freeze({
+        ...fallback.evaluation,
+        ventricularCoronaryBoundaryTangent:
+          readMainWireFiveWallVentricularCoronaryBoundaryTangentV1(
+            fallback.evaluation.mechanicsView.diagnostics.readback,
+          ),
+      }),
+    });
+  }
+  if (evaluationCounters !== null) {
+    if (origin === "candidate-center") {
+      evaluationCounters.mechanics.candidateCenterEvaluationCount += 1;
+    } else {
+      evaluationCounters.mechanics.lvRvProbeEvaluationCount += 1;
+    }
+  }
+  const candidate = evaluateMainWireFiveWallNumericalMechanicsCandidateV1(
+    numericalMechanicsStep,
+    volumesMl,
+  );
+  if (evaluationCounters !== null && candidate.evaluationCounters !== undefined) {
+    recordTriSegProviderCounterValuesV2(
+      evaluationCounters,
+      candidate.evaluationCounters,
+    );
+  }
+  const mechanicsView: MainWireFiveWallCoronaryMechanicsViewV2<TWallState> =
+    Object.freeze({
+      candidateVolumesMl: candidate.candidateVolumesMl,
+      transmuralPressuresMmHg: candidate.transmuralPressuresMmHg,
+      ...(candidate.transmuralPressureVolumeTangentMmHgPerMl === undefined
+        ? {}
+        : {
+          transmuralPressureVolumeTangentMmHgPerMl:
+            candidate.transmuralPressureVolumeTangentMmHgPerMl,
+        }),
+      diagnostics: Object.freeze({
+        converged: true,
+        finite: true,
+        iterationCount: candidate.iterationCount,
+        residualNorm: candidate.residualNorm,
+        errors: Object.freeze([]),
+        warnings: Object.freeze([]),
+        readback: null,
+      }),
+    });
+  const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+    pericardiumBinding,
+    volumesMl,
+  );
+  const externalPressure = Object.freeze({
+    commonIntrathoracicPressureMmHg,
+    commonPericardialExcessPressureMmHg:
+      pericardium.excessPressureMmHg,
+  });
+  const coronaryMechanicsCoupling =
+    evaluateMainWireCoronaryNumericalMechanicsCouplingV1(
+      Object.freeze({
+        transmuralPressuresMmHg: candidate.transmuralPressuresMmHg,
+        effectiveFiberLogStrainByWall:
+          candidate.effectiveFiberLogStrainByWall,
+        activeFiberKirchhoffStressPaByWall:
+          candidate.activeFiberKirchhoffStressPaByWall,
+      }),
+      externalPressure,
+    );
+  const evaluation = Object.freeze({
+    mechanicsCandidate: candidate,
+    mechanicsView,
+    pericardium,
+    coronaryMechanicsCoupling,
+    ventricularCoronaryBoundaryTangent:
+      candidate.ventricularCoronaryBoundaryTangent ?? null,
+    ...(impMechanism === "source-cep-land-active"
+      ? {
+        sourceIntramyocardialPressureMmHgByTerritoryLayer:
+          evaluateAllCoronaryImpPressureV1(
+            coronaryMechanicsCoupling.input,
+            "intramyocardial",
+          ),
+      }
+      : {}),
+  });
+  return Object.freeze({
+    absolutePressuresMmHg: Object.freeze({
+      LA: candidate.transmuralPressuresMmHg.LA
+        + commonIntrathoracicPressureMmHg
+        + pericardium.excessPressureMmHg,
+      LV: candidate.transmuralPressuresMmHg.LV
+        + commonIntrathoracicPressureMmHg
+        + pericardium.excessPressureMmHg,
+      RA: candidate.transmuralPressuresMmHg.RA
+        + commonIntrathoracicPressureMmHg
+        + pericardium.excessPressureMmHg,
+      RV: candidate.transmuralPressuresMmHg.RV
+        + commonIntrathoracicPressureMmHg
+        + pericardium.excessPressureMmHg,
+    }),
+    ...(candidate.transmuralPressureVolumeTangentMmHgPerMl === undefined
+      ? {}
+      : {
+        absolutePressureTangent: absoluteChamberPressureTangent(
+          candidate.transmuralPressureVolumeTangentMmHgPerMl,
+          pericardium,
+        ),
+      }),
+    evaluation,
   });
 }
 

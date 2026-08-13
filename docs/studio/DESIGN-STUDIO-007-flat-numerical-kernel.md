@@ -1065,6 +1065,39 @@ with a model-specific flat residual/mechanics evaluator that writes fixed
 numeric scratch and materializes rich readback only for the selected root. It
 must not weaken component convergence or accepted-state finalization.
 
+The first model-owned candidate seam now removes public mechanics readback from
+rejected coupled residual candidates without changing the accepted boundary.
+The production five-wall provider privately mints an opaque prepared numerical
+step from the accepted material state, candidate clock, calcium drive, and
+parameter identity. Each candidate returns only the chamber pressure/tangent,
+ventricular strain and active-stress values needed by the coupled residual,
+the isolated candidate material state, and model-owned evaluation counters.
+Providers that do not own this seam continue through the complete generic
+mechanics contract. The selected root is always re-evaluated through the
+existing public trial and the common one-shot seal/commit/rollback finalizer;
+the lightweight result can neither be published nor committed directly.
+
+An A→B→A regression proves that later candidate evaluations cannot mutate an
+earlier candidate or the accepted material state. Public-versus-numerical tests
+require identical pressures, condensed tangents, ventricular strains, active
+stresses, and encoded candidate material state. Three alternating pairs of
+10,000-step baseline diagnostics, after 1,000 warm-up steps and with the nested
+observation disabled, gave identical coupled iteration, residual, and Jacobian
+counts. The model-owned path was faster in all three pairs. Its paired median
+ratios were about `0.990` for complete-step median, `0.976` for solve median,
+`0.944` for complete-step p95, and `0.939` for solve p95. These machine-specific
+measurements establish that rejected-candidate readback is real overhead,
+especially in the tail, but they also falsify it as the main remaining
+bottleneck.
+
+The next mechanics slice must therefore replace the remaining model-specific
+candidate object graph with provider-owned fixed numeric scratch. It should
+retain the same constitutive solve and algorithmic tangent, write only the
+pressure, tangent, strain, active-stress, and candidate-state slots consumed by
+the coupled system, and materialize detailed wall diagnostics only once for the
+selected root. No accepted-state/checkpoint schema change, looser convergence
+gate, or stale candidate reuse is implied by this optimization.
+
 ### Phase 3 — strict scalar WASM
 
 Port the proven flat scalar kernel to a strict `f64` WASM implementation if

@@ -559,6 +559,76 @@ function createWallKernel(
     passiveParameterIdentityHash: passiveAtZero.parameterIdentityHash,
     landSls: landSlsParameterHashInput(params),
   }));
+  type TrialInput = Readonly<{
+    previousAcceptedState: LandSlsWallMaterialStateV1;
+    candidateFiberLogStrain: number;
+    candidateFreeCalciumUM: number;
+    stepDtSec: number;
+  }>;
+  const evaluateTrial = (
+    input: TrialInput,
+    includeReadback: boolean,
+  ): MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1> => {
+    const passive = evaluatePassive(input.candidateFiberLogStrain);
+    const trial = trialLandSlsWallMaterialV1(
+      input.previousAcceptedState,
+      {
+        nextFiberLogStrain: input.candidateFiberLogStrain,
+        nextFreeCalciumUM: input.candidateFreeCalciumUM,
+        dtSec: input.stepDtSec,
+        equilibriumPassive: passive.input,
+      },
+      params,
+    );
+    const residualNorm = Math.max(
+      Math.abs(trial.landSolverResidualNorm),
+      Math.abs(trial.sls.stateResidual),
+    );
+    return materialEvaluation({
+      wallId,
+      state: trial.state,
+      fiberLogStrain: input.candidateFiberLogStrain,
+      stressPa: trial.totalKirchhoffStressPa,
+      activeFiberKirchhoffStressPa: trial.activeKirchhoffStressPa,
+      algorithmicFiberTangentPa: trial.totalAlgorithmicTangentPa,
+      activeFiberAlgorithmicTangentPa:
+        trial.activeAlgorithmicTangentPa,
+      iterationCount: trial.landSolverIterations,
+      residualNorm,
+      finite: trial.finite,
+      valid: trial.valid,
+      errors: trial.issues,
+      readback: includeReadback
+        ? wallReadback({
+          wallId,
+          passive,
+          params,
+          landActiveKirchhoffStressPa: trial.activeKirchhoffStressPa,
+          slsOverstressPa: trial.sls.nextOverstressPa,
+          totalKirchhoffStressPa: trial.totalKirchhoffStressPa,
+          energyLedger: Object.freeze({
+            equilibriumPassiveStoredEnergyDensityJPerM3:
+              passive.input.storedEnergyDensityJPerM3,
+            slsPreviousStoredEnergyDensityJPerM3:
+              trial.sls.previousStoredEnergyDensityJPerM3,
+            slsNextStoredEnergyDensityJPerM3:
+              trial.sls.nextStoredEnergyDensityJPerM3,
+            slsPhysicalDissipationIncrementDensityJPerM3:
+              trial.sls.physicalDissipationIncrementDensityJPerM3,
+            slsBackwardEulerNumericalDissipationIncrementDensityJPerM3:
+              trial.sls.backwardEulerNumericalDissipationIncrementDensityJPerM3,
+            slsDiscreteEnergyBalanceResidualJPerM3:
+              trial.sls.discreteEnergyBalanceResidualJPerM3,
+            slsPassive: trial.sls.passive,
+            landThermodynamicStoredEnergyClaimed: false as const,
+            totalThermodynamicPotentialIncludingLandClaimed: false as const,
+          }),
+          coldFixedInputIterations: null,
+          coldLandMaximumStateUpdate: null,
+        })
+        : null,
+    });
+  };
   return Object.freeze({
     modelId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID,
     parameterSetId: `${params.parameterSetId}-${wallId}`,
@@ -604,6 +674,7 @@ function createWallKernel(
         state: cold.state,
         fiberLogStrain,
         stressPa: accepted.totalKirchhoffStressPa,
+        activeFiberKirchhoffStressPa: accepted.activeKirchhoffStressPa,
         algorithmicFiberTangentPa:
           passive.input.tangentPa + activeKirchhoffTangentPa,
         activeFiberAlgorithmicTangentPa: activeKirchhoffTangentPa,
@@ -625,69 +696,8 @@ function createWallKernel(
         }),
       });
     },
-    evaluateTrialFromAccepted: ({
-      previousAcceptedState,
-      candidateFiberLogStrain,
-      candidateFreeCalciumUM,
-      stepDtSec,
-    }) => {
-      const passive = evaluatePassive(candidateFiberLogStrain);
-      const trial = trialLandSlsWallMaterialV1(
-        previousAcceptedState,
-        {
-          nextFiberLogStrain: candidateFiberLogStrain,
-          nextFreeCalciumUM: candidateFreeCalciumUM,
-          dtSec: stepDtSec,
-          equilibriumPassive: passive.input,
-        },
-        params,
-      );
-      const residualNorm = Math.max(
-        Math.abs(trial.landSolverResidualNorm),
-        Math.abs(trial.sls.stateResidual),
-      );
-      return materialEvaluation({
-        wallId,
-        state: trial.state,
-        fiberLogStrain: candidateFiberLogStrain,
-        stressPa: trial.totalKirchhoffStressPa,
-        algorithmicFiberTangentPa: trial.totalAlgorithmicTangentPa,
-        activeFiberAlgorithmicTangentPa:
-          trial.activeAlgorithmicTangentPa,
-        iterationCount: trial.landSolverIterations,
-        residualNorm,
-        finite: trial.finite,
-        valid: trial.valid,
-        errors: trial.issues,
-        readback: wallReadback({
-          wallId,
-          passive,
-          params,
-          landActiveKirchhoffStressPa: trial.activeKirchhoffStressPa,
-          slsOverstressPa: trial.sls.nextOverstressPa,
-          totalKirchhoffStressPa: trial.totalKirchhoffStressPa,
-          energyLedger: Object.freeze({
-            equilibriumPassiveStoredEnergyDensityJPerM3:
-              passive.input.storedEnergyDensityJPerM3,
-            slsPreviousStoredEnergyDensityJPerM3:
-              trial.sls.previousStoredEnergyDensityJPerM3,
-            slsNextStoredEnergyDensityJPerM3:
-              trial.sls.nextStoredEnergyDensityJPerM3,
-            slsPhysicalDissipationIncrementDensityJPerM3:
-              trial.sls.physicalDissipationIncrementDensityJPerM3,
-            slsBackwardEulerNumericalDissipationIncrementDensityJPerM3:
-              trial.sls.backwardEulerNumericalDissipationIncrementDensityJPerM3,
-            slsDiscreteEnergyBalanceResidualJPerM3:
-              trial.sls.discreteEnergyBalanceResidualJPerM3,
-            slsPassive: trial.sls.passive,
-            landThermodynamicStoredEnergyClaimed: false as const,
-            totalThermodynamicPotentialIncludingLandClaimed: false as const,
-          }),
-          coldFixedInputIterations: null,
-          coldLandMaximumStateUpdate: null,
-        }),
-      });
-    },
+    evaluateTrialFromAccepted: (input) => evaluateTrial(input, true),
+    evaluateNumericalTrialFromAccepted: (input) => evaluateTrial(input, false),
   });
 }
 
@@ -736,6 +746,7 @@ function materialEvaluation(input: Readonly<{
   state: LandSlsWallMaterialStateV1;
   fiberLogStrain: number;
   stressPa: number;
+  activeFiberKirchhoffStressPa: number;
   algorithmicFiberTangentPa: number;
   activeFiberAlgorithmicTangentPa: number;
   iterationCount: number;
@@ -743,11 +754,12 @@ function materialEvaluation(input: Readonly<{
   finite: boolean;
   valid: boolean;
   errors: readonly string[];
-  readback: MainWireNormalAdultWallMaterialReadbackV1;
+  readback: MainWireNormalAdultWallMaterialReadbackV1 | null;
 }>): MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1> {
   const finite = input.finite && [
     input.fiberLogStrain,
     input.stressPa,
+    input.activeFiberKirchhoffStressPa,
     input.residualNorm,
     input.algorithmicFiberTangentPa,
     input.activeFiberAlgorithmicTangentPa,
@@ -759,6 +771,7 @@ function materialEvaluation(input: Readonly<{
     state: input.state,
     fiberLogStrain: input.fiberLogStrain,
     fiberKirchhoffStressPa: input.stressPa,
+    activeFiberKirchhoffStressPa: input.activeFiberKirchhoffStressPa,
     algorithmicFiberTangentPa: input.algorithmicFiberTangentPa,
     activeFiberAlgorithmicTangentPa:
       input.activeFiberAlgorithmicTangentPa,

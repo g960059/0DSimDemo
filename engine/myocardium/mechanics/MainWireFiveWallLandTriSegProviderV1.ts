@@ -101,6 +101,8 @@ export type MainWireFiveWallMaterialEvaluationV1<TWallState> = Readonly<{
   state: TWallState;
   fiberLogStrain: number;
   fiberKirchhoffStressPa: number;
+  /** Active-only Kirchhoff stress used by the coronary IMP coupling. */
+  activeFiberKirchhoffStressPa: number;
   /** Consistent d(tau_fiber)/d(log fiber strain) for this trial state. */
   algorithmicFiberTangentPa: number;
   /** Active-only consistent d(tau_active)/d(log fiber strain). */
@@ -145,6 +147,18 @@ export type MainWireFiveWallLandSlsMaterialKernelV1<TWallState> = Readonly<{
     freeCalciumUM: number;
   }>): MainWireFiveWallMaterialEvaluationV1<TWallState>;
   evaluateTrialFromAccepted(input: Readonly<{
+    previousAcceptedState: TWallState;
+    candidateFiberLogStrain: number;
+    candidateFreeCalciumUM: number;
+    stepDtSec: number;
+  }>): MainWireFiveWallMaterialEvaluationV1<TWallState>;
+  /**
+   * Optional model-owned hot path. It must return the identical constitutive
+   * state, stresses and tangents as `evaluateTrialFromAccepted`, but may omit
+   * presentation/audit readback that rejected outer Newton candidates never
+   * consume.
+   */
+  evaluateNumericalTrialFromAccepted?(input: Readonly<{
     previousAcceptedState: TWallState;
     candidateFiberLogStrain: number;
     candidateFreeCalciumUM: number;
@@ -260,6 +274,73 @@ export type MainWireFiveWallLandTriSegProviderV1<TWallState> =
     MainWireFiveWallFreeCalciumDriveV1
   >;
 
+export const MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID =
+  "main-wire-five-wall-numerical-mechanics-step-v1" as const;
+
+/**
+ * Opaque, one-accepted-step numerical mechanics context.
+ *
+ * This token is deliberately narrower than the public whole-heart mechanics
+ * contract. It may be prepared only from a provider instance minted by this
+ * module, and its private accepted snapshot never crosses the WeakMap
+ * boundary. Rejected nonlinear candidates therefore avoid public trial
+ * wrappers, serialization and readback parsing. The selected root is still
+ * materialized through the ordinary checked contract before durable commit.
+ */
+export type MainWireFiveWallNumericalMechanicsStepV1<TState> = Readonly<{
+  numericalStepId: typeof MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID;
+  providerId: typeof MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID;
+  parameterIdentityHash: string;
+  candidateTimeSec: number;
+  stepDtSec: number;
+  /** Invariant type only; the value is never present at runtime. */
+  readonly __stateType?: TState;
+}>;
+
+export type MainWireFiveWallNumericalMechanicsEvaluationV1<TState> =
+  Readonly<{
+    candidateMaterialState: TState;
+    candidateVolumesMl: WholeHeartMechanicsChamberValuesV1;
+    transmuralPressuresMmHg: WholeHeartMechanicsChamberValuesV1;
+    transmuralPressureVolumeTangentMmHgPerMl?:
+      WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
+    effectiveFiberLogStrainByWall: MainWireFiveWallRecordV1<number>;
+    activeFiberKirchhoffStressPaByWall: MainWireFiveWallRecordV1<number>;
+    ventricularCoronaryBoundaryTangent?:
+      MainWireFiveWallVentricularCoronaryBoundaryTangentV1;
+    iterationCount: number;
+    residualNorm: number;
+    evaluationCounters?: MainWireFiveWallLandTriSegEvaluationCountersV1;
+  }>;
+
+type ErasedNumericalMechanicsEvaluationV1 =
+  MainWireFiveWallNumericalMechanicsEvaluationV1<unknown>;
+
+type ErasedNumericalProviderFactoryV1 = Readonly<{
+  prepare(input: Readonly<{
+    previousAcceptedMaterialState: unknown;
+    candidateTimeSec: number;
+    stepDtSec: number;
+    drivingInputs: MainWireFiveWallFreeCalciumDriveV1;
+  }>): Readonly<{
+    evaluate(
+      candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+    ): ErasedNumericalMechanicsEvaluationV1;
+  }>;
+}>;
+
+const NUMERICAL_PROVIDER_FACTORIES_V1 =
+  new WeakMap<object, ErasedNumericalProviderFactoryV1>();
+
+const NUMERICAL_STEP_INTERNALS_V1 = new WeakMap<
+  object,
+  Readonly<{
+    evaluate(
+      candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+    ): ErasedNumericalMechanicsEvaluationV1;
+  }>
+>();
+
 type ResolvedSolverOptionsV1 = Required<MainWireFiveWallInternalSolverOptionsV1>;
 
 type CandidateEvaluationV1<TWallState> = Readonly<{
@@ -332,6 +413,7 @@ type EvaluationModeV1<TWallState> =
     kind: "trial";
     previousState: MainWireFiveWallLandTriSegStateV1<TWallState>;
     stepDtSec: number;
+    materialEvaluationMode?: "public" | "numerical";
   }>;
 
 type AtrialWallIdV1 = "LA" | "RA";
@@ -541,7 +623,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
       );
     };
 
-  return Object.freeze({
+  const provider = Object.freeze({
     contractId: WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
     providerId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
     parameterSetId: params.parameterSetId,
@@ -553,6 +635,141 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
     evaluationResultOwnershipMode: "exclusive-result" as const,
     initializeCold,
     evaluateTrial,
+  });
+  NUMERICAL_PROVIDER_FACTORIES_V1.set(provider, Object.freeze({
+    prepare: (input) => {
+      if (!parameterIdentityInputsAreImmutable) {
+        assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+      }
+      requireFinite(input.candidateTimeSec, "candidateTimeSec");
+      requirePositive(input.stepDtSec, "stepDtSec");
+      validateDrive(input.drivingInputs);
+      const previous = stateCodec.clone(
+        input.previousAcceptedMaterialState as
+          MainWireFiveWallLandTriSegStateV1<TWallState>,
+      );
+      const drive = input.drivingInputs;
+      const initialUnknowns = coordinatesToScaledUnknowns(
+        previous.trisegCoordinates,
+        params,
+      );
+      return Object.freeze({
+        evaluate: (candidateVolumesMl) => {
+          validateVolumes(candidateVolumesMl);
+          const solved = solveInternalCoordinates(
+            candidateVolumesMl,
+            drive,
+            initialUnknowns,
+            {
+              kind: "trial",
+              previousState: previous,
+              stepDtSec: input.stepDtSec,
+              materialEvaluationMode: "numerical",
+            },
+            params,
+            solver,
+          );
+          if (solved.converged === false) {
+            throw new Error(
+              `five-wall numerical mechanics candidate failed: ${solved.message}`,
+            );
+          }
+          return numericalMechanicsEvaluationFromSolveV1(
+            candidateVolumesMl,
+            solved,
+            params,
+          ) as ErasedNumericalMechanicsEvaluationV1;
+        },
+      });
+    },
+  }));
+  return provider;
+}
+
+/**
+ * Attempts the model-owned numerical candidate path. Unsupported mechanics
+ * providers return null and continue through the generic checked contract.
+ */
+export function tryPrepareMainWireFiveWallNumericalMechanicsStepV1<TState>(
+  provider: WholeHeartMechanicsProviderV1<
+    TState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  input: Readonly<{
+    previousAcceptedMaterialState: TState;
+    candidateTimeSec: number;
+    stepDtSec: number;
+    drivingInputs: MainWireFiveWallFreeCalciumDriveV1;
+  }>,
+): MainWireFiveWallNumericalMechanicsStepV1<TState> | null {
+  const factory = NUMERICAL_PROVIDER_FACTORIES_V1.get(provider);
+  if (factory === undefined) return null;
+  const internals = factory.prepare(input);
+  const step: MainWireFiveWallNumericalMechanicsStepV1<TState> = Object.freeze({
+    numericalStepId: MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID,
+    providerId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
+    parameterIdentityHash: provider.parameterIdentityHash,
+    candidateTimeSec: input.candidateTimeSec,
+    stepDtSec: input.stepDtSec,
+  });
+  NUMERICAL_STEP_INTERNALS_V1.set(step, internals);
+  return step;
+}
+
+/** Model-owned candidate evaluation; no public trial or serialized readback. */
+export function evaluateMainWireFiveWallNumericalMechanicsCandidateV1<TState>(
+  step: MainWireFiveWallNumericalMechanicsStepV1<TState>,
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+): MainWireFiveWallNumericalMechanicsEvaluationV1<TState> {
+  if (
+    step.numericalStepId
+      !== MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID
+  ) {
+    throw new Error("unsupported numerical mechanics step identity");
+  }
+  const internals = NUMERICAL_STEP_INTERNALS_V1.get(step);
+  if (internals === undefined) {
+    throw new Error("numerical mechanics step was not minted by this runtime");
+  }
+  return internals.evaluate(candidateVolumesMl) as
+    MainWireFiveWallNumericalMechanicsEvaluationV1<TState>;
+}
+
+function numericalMechanicsEvaluationFromSolveV1<TWallState>(
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+  solved: InternalSolveSuccessV1<TWallState>,
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+): MainWireFiveWallNumericalMechanicsEvaluationV1<
+  MainWireFiveWallLandTriSegStateV1<TWallState>
+> {
+  let consistentTangent: ConsistentMechanicsTangentV1 | undefined;
+  try {
+    consistentTangent =
+      consistentTransmuralPressureVolumeTangentMmHgPerMl(solved, params);
+  } catch {
+    consistentTangent = undefined;
+  }
+  return Object.freeze({
+    candidateMaterialState: solved.candidate.state,
+    candidateVolumesMl: solved.candidate.volumesMl,
+    transmuralPressuresMmHg: solved.candidate.transmuralPressuresMmHg,
+    ...(consistentTangent === undefined
+      ? {}
+      : {
+        transmuralPressureVolumeTangentMmHgPerMl:
+          consistentTangent.transmuralPressureVolumeTangentMmHgPerMl,
+        ventricularCoronaryBoundaryTangent:
+          consistentTangent.ventricularCoronaryBoundaryTangent,
+      }),
+    effectiveFiberLogStrainByWall:
+      solved.candidate.effectiveFiberLogStrainByWall,
+    activeFiberKirchhoffStressPaByWall: fiveWallRecord((wallId) =>
+      solved.candidate.materialByWall[wallId].activeFiberKirchhoffStressPa),
+    iterationCount: solved.iterations,
+    residualNorm: solved.residualNorm,
+    ...(solved.evaluationCounters === undefined
+      ? {}
+      : { evaluationCounters: solved.evaluationCounters }),
   });
 }
 
@@ -910,8 +1127,12 @@ function evaluateCandidate<TWallState>(
           mode.stepDtSec,
           trialAtrialMaterialReuse,
           evaluationCounters,
+          mode.materialEvaluationMode === "numerical",
         )
-        : kernel.evaluateTrialFromAccepted({
+        : (mode.materialEvaluationMode === "numerical"
+            && kernel.evaluateNumericalTrialFromAccepted !== undefined
+          ? kernel.evaluateNumericalTrialFromAccepted
+          : kernel.evaluateTrialFromAccepted)({
           // Every constitutive evaluation receives a fresh clone of exactly the
           // same accepted wall state. Candidate order therefore cannot advance
           // or contaminate constitutive history.
@@ -1047,6 +1268,7 @@ function evaluateTrialAtrialMaterialWithReuse<TWallState>(
   stepDtSec: number,
   reuse: TrialAtrialMaterialReuseV1<TWallState> | null,
   evaluationCounters: MutableEvaluationCountersV1 | null,
+  numerical: boolean,
 ): MainWireFiveWallMaterialEvaluationV1<TWallState> {
   if (reuse === null) {
     throw new Error("trial atrial material reuse is unavailable");
@@ -1073,7 +1295,11 @@ function evaluateTrialAtrialMaterialWithReuse<TWallState>(
   if (evaluationCounters !== null) {
     evaluationCounters.atrialMaterialEvaluationCountByWall[wallId] += 1;
   }
-  const evaluation = kernel.evaluateTrialFromAccepted({
+  const evaluateTrial = numerical
+      && kernel.evaluateNumericalTrialFromAccepted !== undefined
+    ? kernel.evaluateNumericalTrialFromAccepted
+    : kernel.evaluateTrialFromAccepted;
+  const evaluation = evaluateTrial({
     // Keep the constitutive isolation guarantee on a cache miss: the kernel
     // never receives the accepted wall object held by this solve.
     previousAcceptedState: materialAcceptedStateForEvaluationV1(
@@ -1906,6 +2132,7 @@ function validateMaterialEvaluation<TWallState>(
   requireNonnegative(evaluation.residualNorm, `${wallId} material residualNorm`);
   assertFiniteNumbers({
     fiberKirchhoffStressPa: evaluation.fiberKirchhoffStressPa,
+    activeFiberKirchhoffStressPa: evaluation.activeFiberKirchhoffStressPa,
   });
   if (evaluation.algorithmicStressPrimitiveDensityJPerM3 !== undefined) {
     requireFinite(

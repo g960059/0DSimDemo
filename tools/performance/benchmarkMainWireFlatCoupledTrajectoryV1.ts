@@ -56,6 +56,16 @@ const componentProfileEnabled = stringArgument(
   ["off", "on"] as const,
   "off",
 ) === "on";
+const nestedOracleEnabled = stringArgument(
+  "--nested-oracle",
+  ["off", "on"] as const,
+  "on",
+) === "on";
+const mechanicsCandidatePath = stringArgument(
+  "--mechanics-candidate-path",
+  ["generic-contract", "provider-owned"] as const,
+  "provider-owned",
+);
 const corpusCaseId = stringArgument(
   "--case",
   MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1.map(
@@ -71,7 +81,28 @@ const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
   corpusCase.hemodynamicResearchInputs,
   corpusCase.ventricularContractilityScale,
 );
-const provider = fixture.provider;
+const providerProfile = {
+  mechanicsMs: 0,
+  mechanicsCalls: 0,
+};
+const candidatePathProvider = mechanicsCandidatePath === "generic-contract"
+  ? Object.freeze({ ...fixture.provider })
+  : fixture.provider;
+const provider = componentProfileEnabled
+  && mechanicsCandidatePath === "generic-contract"
+  ? Object.freeze({
+    ...candidatePathProvider,
+    evaluateTrial: (
+      input: Parameters<typeof fixture.provider.evaluateTrial>[0],
+    ): ReturnType<typeof fixture.provider.evaluateTrial> => {
+      const started = performance.now();
+      const result = candidatePathProvider.evaluateTrial(input);
+      providerProfile.mechanicsMs += performance.now() - started;
+      providerProfile.mechanicsCalls += 1;
+      return result;
+    },
+  })
+  : candidatePathProvider;
 const stepInput = Object.freeze({
   ...fixture.coronaryStepInput,
   dtSec: 0.002,
@@ -205,25 +236,29 @@ for (let step = -warmupSteps; step < measuredSteps; step += 1) {
   const admittedAt = performance.now();
 
   const nestedStarted = performance.now();
-  const nestedStep = stepMainWireFiveWallCoronaryV2(
-    provider,
-    nested,
-    stepInput,
-    coronaryWorkspace,
-    nonCoronaryWorkspace,
-  );
-  const nestedEnded = performance.now();
-  if (nestedStep.converged === false) {
-    throw new Error(`nested step ${step}: ${nestedStep.message}`);
+  if (nestedOracleEnabled) {
+    const nestedStep = stepMainWireFiveWallCoronaryV2(
+      fixture.provider,
+      nested,
+      stepInput,
+      coronaryWorkspace,
+      nonCoronaryWorkspace,
+    );
+    if (nestedStep.converged === false) {
+      throw new Error(`nested step ${step}: ${nestedStep.message}`);
+    }
+    nested = nestedStep.acceptedState;
   }
-  nested = nestedStep.acceptedState;
+  const nestedEnded = performance.now();
   if (record) {
     flatTotalMs.push(admittedAt - flatStarted);
     bridgeMs.push(bridgedAt - flatStarted);
     contextMs.push(preparedAt - bridgedAt);
     solveMs.push(solvedAt - preparedAt);
     admissionMs.push(admittedAt - solvedAt);
-    nestedTotalMs.push(nestedEnded - nestedStarted);
+    if (nestedOracleEnabled) {
+      nestedTotalMs.push(nestedEnded - nestedStarted);
+    }
     coupledIterations.push(coupled.result.iterations);
     coupledResidualEvaluations.push(coupled.result.residualEvaluationCount);
     coupledJacobianEvaluations.push(coupled.result.jacobianEvaluationCount);
@@ -234,7 +269,7 @@ for (let step = -warmupSteps; step < measuredSteps; step += 1) {
 }
 
 const flatSummary = summarize(flatTotalMs);
-const nestedSummary = summarize(nestedTotalMs);
+const nestedSummary = nestedOracleEnabled ? summarize(nestedTotalMs) : null;
 process.stdout.write(`${JSON.stringify(Object.freeze({
   benchmarkId: "main-wire-flat-coupled-trajectory-v1",
   claim: "local-development-diagnostic-not-supported-hardware-gate",
@@ -244,7 +279,9 @@ process.stdout.write(`${JSON.stringify(Object.freeze({
   maximumAcceptedStepsPerJacobian,
   initialGuessPolicy,
   predictionOrder,
+  mechanicsCandidatePath,
   componentProfileEnabled,
+  nestedOracleEnabled,
   flat: flatSummary,
   flatBridge: summarize(bridgeMs),
   flatContext: summarize(contextMs),
@@ -274,9 +311,20 @@ process.stdout.write(`${JSON.stringify(Object.freeze({
         / componentProfile.jacobianComponentsCalls,
       dependentSvMeanMs: componentProfile.dependentSvMs
         / componentProfile.dependentSvCalls,
+      ...(mechanicsCandidatePath === "generic-contract"
+        ? {
+          mechanicsProviderMs: providerProfile.mechanicsMs,
+          mechanicsProviderCalls: providerProfile.mechanicsCalls,
+          mechanicsProviderMeanMs: providerProfile.mechanicsCalls === 0
+            ? 0
+            : providerProfile.mechanicsMs / providerProfile.mechanicsCalls,
+        }
+        : {}),
     })
     : null,
-  medianSpeedup: nestedSummary.medianMs / flatSummary.medianMs,
+  medianSpeedup: nestedSummary === null
+    ? null
+    : nestedSummary.medianMs / flatSummary.medianMs,
   terminal: Object.freeze({
     flatRevision: flat.snapshot().revision,
     nestedRevision: nested.revision,

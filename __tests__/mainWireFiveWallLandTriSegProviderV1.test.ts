@@ -23,6 +23,8 @@ import {
 import {
   MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM,
   createMainWireFiveWallLandTriSegProviderV1,
+  evaluateMainWireFiveWallNumericalMechanicsCandidateV1,
+  tryPrepareMainWireFiveWallNumericalMechanicsStepV1,
   type MainWireFiveWallFreeCalciumDriveV1,
   type MainWireFiveWallIdV1,
   type MainWireFiveWallLandSlsMaterialKernelV1,
@@ -308,6 +310,63 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
 
     expect(() => coldStart(provider))
       .toThrow(/effective provider parameters changed after construction/);
+  });
+
+  it("keeps the model-owned numerical candidate path identical and isolated", () => {
+    const fixture = canonicalPreparedMechanicsFixture();
+    const numericalStep = tryPrepareMainWireFiveWallNumericalMechanicsStepV1(
+      fixture.provider,
+      Object.freeze({
+        previousAcceptedMaterialState:
+          fixture.cold.acceptedState.materialState,
+        candidateTimeSec: fixture.candidateTimeSec,
+        stepDtSec: fixture.candidateTimeSec,
+        drivingInputs: fixture.drivingInputs,
+      }),
+    );
+    expect(numericalStep).not.toBeNull();
+    const generic = evaluatePreparedWholeHeartMechanicsTrialV1(
+      fixture.preparedStep,
+      fixture.baseVolumes,
+    );
+    const first = evaluateMainWireFiveWallNumericalMechanicsCandidateV1(
+      numericalStep!,
+      fixture.baseVolumes,
+    );
+    const firstEncoded = fixture.provider.stateCodec.encode(
+      first.candidateMaterialState,
+    );
+    const perturbedVolumes = Object.freeze({
+      ...fixture.baseVolumes,
+      LV: fixture.baseVolumes.LV + 1,
+      RV: fixture.baseVolumes.RV - 1,
+    });
+    evaluateMainWireFiveWallNumericalMechanicsCandidateV1(
+      numericalStep!,
+      perturbedVolumes,
+    );
+    const repeated = evaluateMainWireFiveWallNumericalMechanicsCandidateV1(
+      numericalStep!,
+      fixture.baseVolumes,
+    );
+    const genericReadback = readback(generic.diagnostics.readback);
+
+    expect(first.transmuralPressuresMmHg)
+      .toEqual(generic.transmuralPressuresMmHg);
+    expect(first.transmuralPressureVolumeTangentMmHgPerMl)
+      .toEqual(generic.transmuralPressureVolumeTangentMmHgPerMl);
+    expect(first.effectiveFiberLogStrainByWall)
+      .toEqual(genericReadback.effectiveFiberLogStrainByWall);
+    for (const wallId of ["LA", "LVFW", "SEP", "RVFW", "RA"] as const) {
+      expect(first.activeFiberKirchhoffStressPaByWall[wallId]).toBe(
+        normalAdultWallReadback(
+          genericReadback.wallMaterialReadbackByWall[wallId],
+        ).landActiveKirchhoffStressPa,
+      );
+    }
+    expect(fixture.provider.stateCodec.encode(first.candidateMaterialState))
+      .toEqual(firstEncoded);
+    expect(repeated).toEqual(first);
   });
 
   it("keeps ventricular mechanics bit-identical under atrial volume probes", () => {
@@ -908,16 +967,24 @@ function canonicalPreparedMechanicsFixture() {
     ),
   });
   const candidateTimeSec = 0.002;
+  const drivingInputs = asMainWireFiveWallFreeCalciumDriveV1(
+    evaluateFiveWallNormalCalciumDriveV1(candidateTimeSec)
+      .freeCalciumUMByWall,
+  );
   const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
     previousAcceptedState: cold.acceptedState,
     candidateTimeSec,
     stepDtSec: candidateTimeSec,
-    drivingInputs: asMainWireFiveWallFreeCalciumDriveV1(
-      evaluateFiveWallNormalCalciumDriveV1(candidateTimeSec)
-        .freeCalciumUMByWall,
-    ),
+    drivingInputs,
   });
-  return Object.freeze({ baseVolumes, preparedStep });
+  return Object.freeze({
+    provider,
+    cold,
+    baseVolumes,
+    candidateTimeSec,
+    drivingInputs,
+    preparedStep,
+  });
 }
 
 function providerParams(
@@ -1036,6 +1103,7 @@ function testMaterialKernel(input: Readonly<{
       state,
       fiberLogStrain,
       fiberKirchhoffStressPa: stressPa,
+      activeFiberKirchhoffStressPa: activeStressPa,
       algorithmicFiberTangentPa,
       activeFiberAlgorithmicTangentPa: 0,
       algorithmicStressPrimitiveDensityJPerM3:
