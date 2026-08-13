@@ -16,6 +16,10 @@ import {
   type VentricularBackupSourceAttemptResultV2,
 } from "@/engine/myocardium/rhythm/acceptedVentricularBackupSourceOwnerV2";
 import {
+  VENTRICULAR_INTERVAL_STRENGTH_DEPOSIT_METADATA_V1_ID,
+  type VentricularIntervalStrengthDepositMetadataV1,
+} from "@/engine/myocardium/rhythm/acceptedVentricularIntervalStrengthOwnerV1";
+import {
   encodeCanonicalFlatDataIntoV1,
   measureCanonicalFlatDataV1,
 } from "@/engine/vnext/CanonicalFlatDataV1";
@@ -35,24 +39,24 @@ export const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID =
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID =
   "main-wire-integrated-accepted-typed-state-v1" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT =
-  "fnv1a32-dd38f349" as const;
+  "fnv1a32-71f7e088" as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1 =
   16 * 1024;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1 =
   16 * 1024;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 35_372 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 35_612 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 =
-  283 as const;
+  301 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 =
   6 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1 =
-  5 as const;
+  6 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1 =
-  4 as const;
+  5 as const;
 export const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 2 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 24 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 5 as const;
-export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 96 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 36 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 4 as const;
+export const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 98 as const;
 
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
   "/composedRhythm/calciumStateByWall/LA",
@@ -149,6 +153,7 @@ const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1 =
     "/composedRhythm/ventricularBackupState/lastIntrinsicEscapeAttemptResult/capturedActivationId",
     "/composedRhythm/ventricularBackupState/lastVviPacingAttemptResult/capturedActivationId",
     "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/upstreamCapturedActivationId",
+    "/composedRhythm/ventricularIntervalStrengthState/lastDepositMetadata/capturedVentricularActivation/upstreamCapturedActivationId",
   ]);
 
 const MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1:
@@ -223,6 +228,13 @@ export function createMainWireAcceptedTypedStateManifestV1(
           template:
             MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTOREGULATION_CONTROL_TEMPLATE_V1,
         },
+        {
+          pointer:
+            "/composedRhythm/ventricularIntervalStrengthState/lastDepositMetadata",
+          template: createIntervalStrengthDepositMetadataTemplateV1(
+            coldAcceptedState,
+          ),
+        },
       ],
     },
   );
@@ -263,6 +275,38 @@ export function createMainWireAcceptedTypedStateManifestV1(
     );
   }
   return manifest;
+}
+
+function createIntervalStrengthDepositMetadataTemplateV1(
+  coldAcceptedState: AcceptedState,
+): VentricularIntervalStrengthDepositMetadataV1 {
+  const state = coldAcceptedState.composedRhythm
+    .ventricularIntervalStrengthState;
+  const configuration = state.configuration;
+  const activation = state.initialPriorAcceptedVentricularActivation;
+  return Object.freeze({
+    metadataSchemaId:
+      VENTRICULAR_INTERVAL_STRENGTH_DEPOSIT_METADATA_V1_ID,
+    schemaVersion: 1,
+    configurationId: configuration.configurationId,
+    ownerInstanceId: configuration.ownerInstanceId,
+    ownerRevision: 0,
+    acceptedVentricularCaptureOrdinal: 0,
+    previousCapturedActivationId: activation.capturedActivationId,
+    previousCapturedActivationTimeSec: activation.activationTimeSec,
+    capturedVentricularActivation: activation,
+    intervalSec: configuration.referenceCycleLengthSec,
+    recoveryFractionA: configuration.referenceRecoveryFractionA,
+    normalizedSrLoadBefore: configuration.referenceNormalizedSrLoadState,
+    releasedRelativeStrengthR: 1,
+    returnedReleasedRelativeLoad:
+      configuration.releasedLoadReturnFractionR,
+    intervalInfluxRelativeLoad:
+      1 - configuration.releasedLoadReturnFractionR,
+    normalizedSrLoadAfter: configuration.referenceNormalizedSrLoadState,
+    futureExactCalciumDepositRelativeStrength: 1,
+    calciumStateMutation: "none-metadata-only",
+  });
 }
 
 /**
