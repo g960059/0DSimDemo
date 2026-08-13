@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  selectValidationStampModeV1,
+  validationStampModeV1,
+} from "@/engine/validationStampModeV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
   projectMainWireIntegratedModelSelectedValuesV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
@@ -1317,6 +1321,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       externalImmutableCanonicalMatchCount: 0,
       poisonedReason: null,
       directCandidateCommitCount: 0,
+      directCandidateMirrorReuseCount: 0,
     });
     const escapedState = reference.currentAcceptedState();
     const escapedTypedArray = firstFloat64Array(escapedState);
@@ -1352,6 +1357,9 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const finalReport = reference.authorityReport();
     expect(finalReport.commitCount).toBeGreaterThanOrEqual(1_024);
     expect(finalReport.directCandidateCommitCount).toBe(
+      finalReport.commitCount,
+    );
+    expect(finalReport.directCandidateMirrorReuseCount).toBe(
       finalReport.commitCount,
     );
     expect(finalReport.externalImmutableIdentityMatchCount).toBe(
@@ -1395,6 +1403,71 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     expect(completedBeatRestore.observe().completedBeatMetrics)
       .toEqual(reference.observe().completedBeatMetrics);
   }, 120_000);
+
+  it("keeps direct mirror admission exact when validation stamps are disabled", async () => {
+    const previousMode = validationStampModeV1();
+    selectValidationStampModeV1("validation-stamps-disabled");
+    try {
+      const reference = await MainWireFlatAuthoritativeReferenceSessionV1.create();
+      const oracle = await MainWireIntegratedModelSessionV3.create();
+      const target = mainWireIntegratedModelPresentationTargetTimeSecV3(1);
+      const actual = reference.advanceToPresentationTime(target);
+      const expected = oracle.advanceToPresentationTime(target);
+      expect(actual).toEqual(expected);
+      expect(reference.authorityReport()).toMatchObject({
+        directCandidateCommitCount: 1,
+        directCandidateMirrorReuseCount: 1,
+        poisonedReason: null,
+      });
+      expect(reference.currentAcceptedState())
+        .toEqual(oracle.currentAcceptedState());
+    } finally {
+      selectValidationStampModeV1(previousMode);
+    }
+  });
+
+  it("projects from the private mirror without returning accepted state", async () => {
+    const reference = await MainWireFlatAuthoritativeReferenceSessionV1.create();
+    const oracle = await MainWireIntegratedModelSessionV3.create();
+    const target = mainWireIntegratedModelPresentationTargetTimeSecV3(1);
+    const outputIds = Object.freeze([
+      "hemodynamics.pressure.absolute.LV" as const,
+      "hemodynamics.volume.LV" as const,
+    ]);
+    const actual = reference
+      .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+        target,
+        outputIds,
+      );
+    const expected = oracle.advanceToPresentationTime(target);
+    expect(actual.advance.status).toBe("advanced");
+    expect("observation" in actual.advance).toBe(false);
+    expect(actual.outputProjectionDurationMs).toBeGreaterThanOrEqual(0);
+    expect(expected.status).toBe("advanced");
+    if (expected.status !== "advanced") {
+      throw new Error("projection oracle failed");
+    }
+    expect(actual.projectedValues).toEqual(
+      projectMainWireIntegratedModelSelectedValuesV3(
+        expected.observation,
+        outputIds,
+      ),
+    );
+
+    const exposedObservation = reference.observe();
+    const escaped = firstFloat64Array(exposedObservation.acceptedState);
+    if (escaped === null || escaped.length === 0) {
+      throw new Error("projected observation contains no Float64Array");
+    }
+    const authoritative = firstFloat64Array(reference.currentAcceptedState());
+    if (authoritative === null || authoritative.length === 0) {
+      throw new Error("authoritative snapshot contains no Float64Array");
+    }
+    const expectedValue = authoritative[0]!;
+    escaped[0] = expectedValue + 10_000;
+    expect(firstFloat64Array(reference.currentAcceptedState())?.[0])
+      .toBe(expectedValue);
+  });
 
   it("restores a tamper-evident binary checkpoint with exact continuation", async () => {
     const source = await MainWireFlatAuthoritativeReferenceSessionV1.create();

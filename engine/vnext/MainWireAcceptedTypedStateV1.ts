@@ -256,6 +256,7 @@ export type MainWireAcceptedTypedStateAuthorityReportV1 = Readonly<
     authorityId: typeof MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID;
     poisonedReason: string | null;
     directCandidateCommitCount: number;
+    directCandidateMirrorReuseCount: number;
   }
 >;
 
@@ -423,9 +424,11 @@ function createIntervalStrengthDepositMetadataTemplateV1(
 
 /**
  * Model-owned transactional authority. The solver still produces an object
- * adapter in Phase 1b.2b.2a, but only the rehydrated inactive typed image plus
- * its admitted immutable cold roots can be promoted and observed by the next
- * accepted transaction.
+ * adapter in Phase 1b.2b.2a. Direct completion proves that every typed leaf is
+ * bit-equal to that privately admitted adapter before promotion; the adapter
+ * may then serve as a non-authoritative solver mirror. Detached public views,
+ * checkpoints, restores, and cold boundaries still rehydrate from the active
+ * typed image.
  */
 export class MainWireAcceptedTypedStateAuthorityV1
   implements AcceptedStateAuthorityV1<AcceptedState> {
@@ -434,18 +437,22 @@ export class MainWireAcceptedTypedStateAuthorityV1
   readonly #manifest: TransactionalTypedStateManifestV1;
   readonly #image: TransactionalTypedStateImageV1<AcceptedState>;
   readonly #ownDecoded: AcceptedStateValidatorV1<AcceptedState>;
+  readonly #admitCompletedMirror: AcceptedStateValidatorV1<AcceptedState>;
   #currentState: AcceptedState;
   #poisonedReason: string | null = null;
   #directCandidateCommitCount = 0;
+  #directCandidateMirrorReuseCount = 0;
 
   constructor(
     coldAcceptedState: AcceptedState,
     initialState: AcceptedState,
     validate: AcceptedStateValidatorV1<AcceptedState>,
     ownDecoded: AcceptedStateValidatorV1<AcceptedState>,
+    admitCompletedMirror: AcceptedStateValidatorV1<AcceptedState>,
   ) {
     validate(initialState);
     this.#ownDecoded = ownDecoded;
+    this.#admitCompletedMirror = admitCompletedMirror;
     this.#manifest = createMainWireAcceptedTypedStateManifestV1(
       coldAcceptedState,
     );
@@ -507,7 +514,10 @@ export class MainWireAcceptedTypedStateAuthorityV1
 
   /**
    * Admits the still-object-backed owners without overwriting migrated slots,
-   * then promotes the complete validated typed candidate exactly once.
+   * proves the exact model-owned adapter at its accepted boundary, then
+   * promotes the complete typed candidate exactly once. The retained adapter
+   * is a private solver mirror only; the inactive typed image supplied every
+   * promoted byte and remains the accepted-state authority.
    */
   commitDirectCandidate(
     adapterCandidate: AcceptedState,
@@ -516,11 +526,17 @@ export class MainWireAcceptedTypedStateAuthorityV1
     this.assertHealthy();
     try {
       this.#image.completeCandidateFromObject(adapterCandidate, plan);
-      const owned = this.ownAndValidate(this.#image.rehydrateStaged());
+      const admittedMirror = this.#admitCompletedMirror(adapterCandidate);
+      if (admittedMirror !== adapterCandidate) {
+        throw new Error(
+          "Main Wire accepted typed-state mirror admission changed identity",
+        );
+      }
       this.#image.promote();
-      this.#currentState = owned;
+      this.#currentState = adapterCandidate;
       this.#directCandidateCommitCount += 1;
-      return owned;
+      this.#directCandidateMirrorReuseCount += 1;
+      return adapterCandidate;
     } catch (error) {
       this.#image.abort();
       const message = error instanceof Error ? error.message : String(error);
@@ -545,6 +561,7 @@ export class MainWireAcceptedTypedStateAuthorityV1
       authorityId: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID,
       poisonedReason: this.#poisonedReason,
       directCandidateCommitCount: this.#directCandidateCommitCount,
+      directCandidateMirrorReuseCount: this.#directCandidateMirrorReuseCount,
     });
   }
 

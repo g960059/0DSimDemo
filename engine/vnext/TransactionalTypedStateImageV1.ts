@@ -450,8 +450,8 @@ export class TransactionalTypedStateImageV1<TState> {
 
   /**
    * Copies current into inactive storage once, then returns a cursor that can
-   * update fixed slots without allocating candidate objects. The caller must
-   * still rehydrate/validate before promotion during this reference phase.
+   * update fixed slots without allocating candidate objects. Promotion still
+   * requires exhaustive completion against one model-admitted object mirror.
    */
   beginCandidateFromCurrent(): TransactionalTypedStateCandidateCursorV1 {
     if (this.#staged) {
@@ -528,7 +528,9 @@ export class TransactionalTypedStateImageV1<TState> {
    * Completes a directly staged candidate from a temporary object adapter.
    * Slots already written by migrated owners are compared bit-exactly and are
    * never overwritten; all remaining leaves and bounded arenas are populated
-   * from the adapter before cold-boundary rehydration and validation.
+   * from the adapter. After this returns, the staged image is an exhaustive
+   * typed encoding of the adapter: retained leaves matched bit-exactly and all
+   * other admitted leaves were overwritten from it.
    */
   completeCandidateFromObject(
     candidate: TState,

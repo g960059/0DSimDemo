@@ -659,6 +659,29 @@ export function validateMainWireIntegratedModelAcceptedStateV3<TWallState>(
   }
 }
 
+/**
+ * Re-admits one accepted state at the next model-owned transaction boundary.
+ * Internally constructed states may reuse their exact private state/context
+ * proof; restored, copied, hand-built, context-rebound, and stamp-disabled
+ * states still take the complete exported validator above.
+ *
+ * This is deliberately a read-only proof consumer. It cannot mint validation
+ * provenance for an arbitrary state.
+ */
+export function validateMainWireIntegratedModelAcceptedBoundaryV3<TWallState>(
+  state: MainWireIntegratedModelAcceptedStateV3<TWallState>,
+  rhythm: MainWireIntegratedComposedRhythmContextV3,
+  dynamicProfile: DynamicMechanicalSupportInertanceProfileV1,
+  dynamicConfig: MechanicalSupportConfigV1,
+): void {
+  validateMainWireIntegratedBoundaryV3(
+    state,
+    rhythm,
+    dynamicProfile,
+    dynamicConfig,
+  );
+}
+
 export function wrapMainWireIntegratedModelAcceptedStateV3<TWallState>(
   coronary: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
   composedRhythm: AcceptedComposedRhythmTransactionStateV2,

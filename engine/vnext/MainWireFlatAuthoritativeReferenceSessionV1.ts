@@ -24,6 +24,10 @@ import {
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
+  projectMainWireIntegratedModelSelectedValuesV3,
+  type MainWireIntegratedModelOutputIdV3,
+} from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
+import {
   createMainWireIntegratedModelRuntimeV3,
   mainWireIntegratedModelCheckpointContextV3,
   type MainWireIntegratedModelRuntimeV3,
@@ -42,6 +46,7 @@ import {
 import {
   limitMainWireIntegratedModelCandidateTimeV3,
   stepMainWireIntegratedModelV3,
+  validateMainWireIntegratedModelAcceptedBoundaryV3,
   validateMainWireIntegratedModelAcceptedStateV3,
   wrapMainWireIntegratedModelAcceptedStateV3,
   type MainWireIntegratedComposedRhythmStepContextV3,
@@ -99,7 +104,22 @@ export type MainWireFlatReferenceAcceptedStateAuthorityFactoryV1 = (
   initialState: AcceptedState,
   validate: AcceptedStateValidatorV1<AcceptedState>,
   ownDecoded: AcceptedStateValidatorV1<AcceptedState>,
+  admitCompletedMirror: AcceptedStateValidatorV1<AcceptedState>,
 ) => AcceptedStateAuthorityV1<AcceptedState>;
+
+type WithoutObservation<T> = T extends Readonly<{ observation: unknown }>
+  ? Omit<T, "observation">
+  : T;
+
+export type MainWireFlatModelOwnedProjectionAdvanceV1 =
+  WithoutObservation<MainWireIntegratedModelPresentationAdvanceV3>;
+
+export type MainWireFlatSelectedOutputProjectionAdvanceV1 = Readonly<{
+  advance: MainWireFlatModelOwnedProjectionAdvanceV1;
+  projectedValues:
+    ReturnType<typeof projectMainWireIntegratedModelSelectedValuesV3> | null;
+  outputProjectionDurationMs: number;
+}>;
 
 type ExactBeatState = Readonly<{
   beatAccumulator: MainWireIntegratedModelBeatAccumulatorV3;
@@ -114,8 +134,10 @@ type ExactBeatState = Readonly<{
  *
  * The current solver still produces object candidates. Every successful
  * candidate must nevertheless survive projection into the inactive complete
- * typed image, model-owned rehydration, and validation before the next step
- * can observe it.
+ * typed image and exact model-boundary admission before the next step can
+ * observe it. Completion proves the private object mirror is bit-equal to the
+ * promoted image, so rehydration is reserved for detached public views,
+ * checkpoints, restores, and other cold boundaries.
  */
 export class MainWireFlatAuthoritativeReferenceSessionV1 {
   readonly sessionId = MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_SESSION_V1_ID;
@@ -136,7 +158,9 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     CoronaryBackwardEulerScratchWorkspaceV2;
   #acceptedState: AcceptedState;
   #lastAcceptedStep: SuccessfulStep | null;
-  #lastPresentationObservation: MainWireIntegratedModelObservationV3;
+  #lastPresentationObservation: MainWireIntegratedModelObservationV3 | null;
+  #lastPresentationSource: MainWireIntegratedModelObservationV3["source"];
+  #lastPresentationRevision: number;
   readonly #beatAccumulator: MainWireIntegratedModelBeatAccumulatorV3;
   #completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null;
 
@@ -175,6 +199,17 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
           runtime.config,
         );
       };
+    const admitCompletedMirror: AcceptedStateValidatorV1<AcceptedState> =
+      (candidate) => {
+        const acceptedCandidate = candidate as AcceptedState;
+        validateMainWireIntegratedModelAcceptedBoundaryV3(
+          acceptedCandidate,
+          { configuration: runtime.rhythm.configuration },
+          runtime.profile,
+          runtime.config,
+        );
+        return acceptedCandidate;
+      };
     validateAcceptedState(acceptedState);
     this.#runtime = runtime;
     this.#provider = runtime.provider;
@@ -192,6 +227,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       acceptedState,
       validateAcceptedState,
       ownDecodedAcceptedState,
+      admitCompletedMirror,
     );
     this.#typedAuthority =
       this.#authority instanceof MainWireAcceptedTypedStateAuthorityV1
@@ -227,6 +263,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     this.#beatAccumulator = exactBeatState?.beatAccumulator
       ?? new MainWireIntegratedModelBeatAccumulatorV3();
     this.#completedBeatMetrics = exactBeatState?.completedBeatMetrics ?? null;
+    this.#lastPresentationSource = observationSource;
+    this.#lastPresentationRevision = acceptedState.revision;
     this.#lastPresentationObservation = observation(
       observationSource,
       this.#authority.snapshot(),
@@ -304,7 +342,11 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   }
 
   observe(): MainWireIntegratedModelObservationV3 {
-    return this.#lastPresentationObservation;
+    const cached = this.#lastPresentationObservation;
+    if (cached !== null) return cached;
+    const detached = this.detachedObservation();
+    this.#lastPresentationObservation = detached;
+    return detached;
   }
 
   /**
@@ -314,6 +356,45 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
    */
   advanceToPresentationTime(
     targetTimeSec: number,
+  ): MainWireIntegratedModelPresentationAdvanceV3 {
+    return this.advanceToPresentationTimeInternal(targetTimeSec, true);
+  }
+
+  /**
+   * Model-owned output projection seam. The exact solver mirror never escapes:
+   * only scalar output records and observation-free advance metadata return. A
+   * public observation requested later is rehydrated from typed authority.
+   */
+  advanceToPresentationTimeWithSelectedOutputProjectionV1(
+    targetTimeSec: number,
+    outputIds: readonly MainWireIntegratedModelOutputIdV3[],
+  ): MainWireFlatSelectedOutputProjectionAdvanceV1 {
+    const result = this.advanceToPresentationTimeInternal(targetTimeSec, false);
+    if (!("observation" in result)) {
+      return Object.freeze({
+        advance: result,
+        projectedValues: null,
+        outputProjectionDurationMs: 0,
+      });
+    }
+    const projectionStartedAt = performance.now();
+    const projectedValues = projectMainWireIntegratedModelSelectedValuesV3(
+      result.observation,
+      outputIds,
+    );
+    const outputProjectionDurationMs = performance.now() - projectionStartedAt;
+    const { observation: _trustedObservation, ...withoutObservation } = result;
+    return Object.freeze({
+      advance: Object.freeze(withoutObservation) as
+        MainWireFlatModelOwnedProjectionAdvanceV1,
+      projectedValues,
+      outputProjectionDurationMs,
+    });
+  }
+
+  private advanceToPresentationTimeInternal(
+    targetTimeSec: number,
+    detachObservation: boolean,
   ): MainWireIntegratedModelPresentationAdvanceV3 {
     this.#acceptedState = this.#authority.current();
     let acceptedClock = this.currentAcceptedClock();
@@ -334,12 +415,13 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         acceptedTimeSec: acceptedClock.acceptedTimeSec,
         acceptedRevision: acceptedClock.revision,
         internalAcceptedSubstepCount: 0 as const,
-        observation: this.#lastPresentationObservation,
+        observation: detachObservation
+          ? this.observe()
+          : this.modelOwnedObservation(),
       });
     }
 
-    const previousPresentationRevision =
-      this.#lastPresentationObservation.acceptedState.revision;
+    const previousPresentationRevision = this.#lastPresentationRevision;
     let substepCount = 0;
     const substeps: MainWireIntegratedModelSubstepRecordV3[] = [];
 
@@ -561,19 +643,14 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       );
     }
 
-    const exposedAcceptedState = this.#authority.snapshot();
-    const exposedLastAcceptedStep = Object.freeze({
-      ...this.#lastAcceptedStep,
-      acceptedState: exposedAcceptedState,
-    });
-    const nextObservation = observation(
-      "presentation-target",
-      exposedAcceptedState,
-      exposedLastAcceptedStep,
-      this.#runtime,
-      this.#completedBeatMetrics,
-    );
-    this.#lastPresentationObservation = nextObservation;
+    this.#lastPresentationSource = "presentation-target";
+    this.#lastPresentationRevision = acceptedClock.revision;
+    const nextObservation = detachObservation
+      ? this.detachedObservation()
+      : this.modelOwnedObservation();
+    this.#lastPresentationObservation = detachObservation
+      ? nextObservation
+      : null;
     return Object.freeze({
       status: "advanced" as const,
       presentationTimeSec: targetTimeSec,
@@ -636,6 +713,33 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       provider: this.#provider,
       dynamicMechanicalSupportConfig: this.#dynamicMechanicalSupportConfig,
     });
+  }
+
+  private detachedObservation(): MainWireIntegratedModelObservationV3 {
+    const acceptedState = this.#authority.snapshot();
+    const lastAcceptedStep = this.#lastAcceptedStep === null
+      ? null
+      : Object.freeze({
+          ...this.#lastAcceptedStep,
+          acceptedState,
+        });
+    return observation(
+      this.#lastPresentationSource,
+      acceptedState,
+      lastAcceptedStep,
+      this.#runtime,
+      this.#completedBeatMetrics,
+    );
+  }
+
+  private modelOwnedObservation(): MainWireIntegratedModelObservationV3 {
+    return observation(
+      this.#lastPresentationSource,
+      this.#acceptedState,
+      this.#lastAcceptedStep,
+      this.#runtime,
+      this.#completedBeatMetrics,
+    );
   }
 
   private currentAcceptedClock(): MainWireAcceptedTypedClockV1 {
@@ -719,12 +823,13 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
 function typedAuthorityFactory(
   coldAcceptedState: AcceptedState,
 ): MainWireFlatReferenceAcceptedStateAuthorityFactoryV1 {
-  return (initial, validate, ownDecoded) =>
+  return (initial, validate, ownDecoded, admitCompletedMirror) =>
     new MainWireAcceptedTypedStateAuthorityV1(
       coldAcceptedState,
       initial,
       validate,
       ownDecoded,
+      admitCompletedMirror,
     );
 }
 

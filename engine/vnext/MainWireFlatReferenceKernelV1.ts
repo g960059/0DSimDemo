@@ -140,11 +140,13 @@ export class MainWireFlatReferenceKernelV1 {
   }
 
   snapshotCurrentFlatState(): MainWireFlatReferenceStateSnapshotV1 {
+    const acceptedState = this.#oracle.currentAcceptedState();
+    this.#acceptedState = acceptedState;
     const buffer = createFlatNumericalStateBufferV1(this.#layout);
     const stringTable = createFlatNumericalStringTableV1();
     writeFlatNumericalStateV1(
       this.#layout,
-      this.#acceptedState,
+      acceptedState,
       buffer,
       stringTable,
     );
@@ -189,15 +191,59 @@ export class MainWireFlatReferenceKernelV1 {
     const startedAt = performance.now();
     let oracleAdvanceMs = 0;
     let outputProjectionMs = 0;
+    const authoritativeSession =
+      this.#oracle instanceof MainWireFlatAuthoritativeReferenceSessionV1
+        ? this.#oracle
+        : null;
 
     for (let pageIndex = 0; pageIndex < sampleCount; pageIndex += 1) {
       const nextTick = this.#acceptedTick + 1;
       let phaseStartedAt = performance.now();
-      let advance: MainWireIntegratedModelPresentationAdvanceV3;
+      let advance:
+        | MainWireIntegratedModelPresentationAdvanceV3
+        | ReturnType<
+          MainWireFlatAuthoritativeReferenceSessionV1[
+            "advanceToPresentationTimeWithSelectedOutputProjectionV1"
+          ]
+        >["advance"];
+      let projectedDuringAdvance = false;
+      let projectionError: unknown = null;
       try {
-        advance = this.#oracle.advanceToPresentationTime(
-          mainWireIntegratedModelPresentationTargetTimeSecV3(nextTick),
-        );
+        const targetTimeSec =
+          mainWireIntegratedModelPresentationTargetTimeSecV3(nextTick);
+        if (authoritativeSession === null) {
+          advance = this.#oracle.advanceToPresentationTime(targetTimeSec);
+          oracleAdvanceMs += performance.now() - phaseStartedAt;
+        } else {
+          const projected = authoritativeSession
+            .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+              targetTimeSec,
+              outputPlan.outputIds,
+            );
+          advance = projected.advance;
+          const advanceAndProjectionDurationMs = performance.now() - phaseStartedAt;
+          oracleAdvanceMs += Math.max(
+            0,
+            advanceAndProjectionDurationMs
+              - projected.outputProjectionDurationMs,
+          );
+          outputProjectionMs += projected.outputProjectionDurationMs;
+          if (projected.projectedValues !== null) {
+            projectedDuringAdvance = true;
+            const writeStartedAt = performance.now();
+            try {
+              writeProjectedValues(
+                destination,
+                pageIndex,
+                projected.projectedValues,
+              );
+            } catch (error) {
+              projectionError = error;
+            } finally {
+              outputProjectionMs += performance.now() - writeStartedAt;
+            }
+          }
+        }
       } catch (error) {
         oracleAdvanceMs += performance.now() - phaseStartedAt;
         const message = error instanceof Error ? error.message : String(error);
@@ -207,7 +253,14 @@ export class MainWireFlatReferenceKernelV1 {
           `Flat reference oracle advance failed: ${this.#poisonedReason}`,
         );
       }
-      oracleAdvanceMs += performance.now() - phaseStartedAt;
+      if (projectionError !== null) {
+        this.#poisonedReason = projectionError instanceof Error
+          ? projectionError.message
+          : String(projectionError);
+        throw new Error(
+          `Flat reference post-advance contract failed: ${this.#poisonedReason}`,
+        );
+      }
       if (advance.status !== "advanced") {
         this.#poisonedReason =
           `oracle returned ${advance.status} after advance began at tick ${nextTick}`;
@@ -237,7 +290,10 @@ export class MainWireFlatReferenceKernelV1 {
         );
       }
 
-      try {
+      if (!projectedDuringAdvance) try {
+        if (!("observation" in advance)) {
+          throw new Error("Flat reference projection observation is unavailable");
+        }
         phaseStartedAt = performance.now();
         const values = projectMainWireIntegratedModelSelectedValuesV3(
           advance.observation,
@@ -256,7 +312,9 @@ export class MainWireFlatReferenceKernelV1 {
 
       destination.acceptedTicks[pageIndex] = nextTick;
       destination.acceptedRevisions[pageIndex] = advance.acceptedRevision;
-      this.#acceptedState = advance.observation.acceptedState;
+      if ("observation" in advance) {
+        this.#acceptedState = advance.observation.acceptedState;
+      }
       this.#acceptedTick = nextTick;
       this.#acceptedRevision = advance.acceptedRevision;
     }

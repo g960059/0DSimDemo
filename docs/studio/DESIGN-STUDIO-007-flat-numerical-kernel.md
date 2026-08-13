@@ -366,11 +366,15 @@ transitions, adversarial extra keys, malformed strings, capacity
 exhaustion, typed-array escape mutation, 1,024 presentation ticks across all
 49 outputs, and exact checkpoint continuation from tick 377 through 544.
 
-The reference transaction now feeds the next solver step from a model-owned
-rehydration of the promoted typed image, rather than from the object candidate
-returned directly by the preceding solve. This makes the complete typed image
-the accepted-state authority, while leaving the registered exact Session and
-artifacts unchanged.
+The reference transaction initially fed the next solver step from a
+model-owned rehydration of every promoted typed image. Direct completion now
+establishes a stronger fact before promotion: retained slots match the private
+solver result bit-exactly, and every other admitted leaf is overwritten from
+that same result. After its exact private accepted-boundary proof is checked,
+that result can therefore remain as a non-authoritative solver mirror. The
+complete typed image is still the accepted-state authority. Detached public
+views, observations, checkpoints, restores, and explicit cold audits rehydrate
+from it; an escaped typed array cannot mutate the active image.
 
 This is still not a production speedup. After allowing a restored, rehydrated,
 transitively frozen composed-rhythm state to retain its complete boundary proof,
@@ -387,10 +391,10 @@ do not share identity, measured about `0.68 ms/presentation tick`; rehydration
 measured about `0.020 ms/presentation tick`. String high-water usage was
 `1,930` bytes inside its fixed `16 KiB` capacity. Dynamic high-water usage and
 capacity are both zero: every currently admitted mutable root has explicit
-typed storage. The remaining
-overhead is dominated by rebuilding and fully
-revalidating the legacy object owner graph, not by the typed page itself. These
-figures are machine-specific diagnostics, not gates.
+typed storage. The remaining overhead at that point was dominated by rebuilding
+and fully revalidating the legacy object owner graph, not by the typed page
+itself. The later exact-mirror change below removes that work per accepted
+substep. These figures are machine-specific diagnostics, not gates.
 
 #### Phase 1b.2b.2a — authoritative boundary cursor (implemented reference)
 
@@ -485,6 +489,22 @@ lean reference runs moved from `2.145–2.157 ms/tick` to
 `2.101–2.119 ms/tick`. Stamp-disabled verification still bypasses every private
 proof. These are development-host diagnostics, not phone qualification.
 
+Direct candidate completion now consumes the private integrated-state proof
+without issuing one. A proof hit requires the exact candidate plus the exact
+frozen rhythm/profile/config identity triple; copied, restored, hand-built,
+context-rebound, and stamp-disabled candidates still take the complete
+validator. Completion has already encoded every non-retained leaf and compared
+every retained leaf before this proof is consulted. The adapter retained after
+promotion is consequently only an exact solver mirror of the typed authority,
+never a second writable authority. Public state and checkpoint boundaries still
+rehydrate and validate the active image, including a canonical byte comparison
+before checkpointing. The 1,024-tick/all-output oracle, escaped-typed-array
+isolation, and exact checkpoint continuation remain unchanged. Three local lean
+reference runs moved from `2.101–2.119 ms/tick` to
+`1.862–1.883 ms/tick` (about `0.89x`). The authority report recorded one mirror
+reuse for every one of 1,160 direct commits in each measured run. These are
+development-host diagnostics, not phone qualification.
+
 The generic image also admits a generation-bound candidate cursor. Beginning a
 candidate copies current bytes once into the inactive image; direct fixed
 `f64`/boolean writes then allocate no state object and cannot touch active
@@ -524,22 +544,32 @@ or read already-checked retained paths a second time on each substep.
 The non-production Worker vertical slice now creates the typed-authority
 Session by default. Its older Phase 1a lifetime string table and per-tick full
 flat mirror have been removed from the execution loop; a legacy-shaped flat
-snapshot is projected only when a diagnostic explicitly requests it. In a
-512-tick/6-output diagnostic, the released Session measured about
-`2.37 ms/tick`, the complete typed-authority Worker reference about
-`3.59 ms/tick`, and output-page projection only about `1.35 ms` in total across
-all 512 ticks. This isolates the remaining cost in the legacy object
-transaction and typed admission—not Canvas, output selection, transfer, or the
-retired mirror.
+snapshot is projected only when a diagnostic explicitly requests it. Output
+projection now runs synchronously against the exact private solver mirror and
+returns only scalar output records plus observation-free advance metadata. The
+accepted state cannot escape that seam; requesting a public observation later
+rehydrates it from typed authority. Three local 512-tick/6-output lean-tier
+diagnostics measured `1.410–1.426 ms/tick` for the released Session and
+`1.539–1.581 ms/tick` for the complete typed-authority Worker reference
+(`1.09–1.11x`). Output projection and packed-page writes together consumed only
+about `1.03–1.23 ms` across all 512 ticks. This leaves roughly 9–11% reference
+overhead while preserving the fixed image, transactional promotion, exact
+output corpus, and detached diagnostic snapshot. The remaining cost is in the
+legacy object transaction and typed completion—not Canvas, output selection,
+transfer, or the retired mirror. These development-host figures are not phone
+qualification.
 
 #### Phase 1b.2b.2b — direct solver-owned typed state (next)
 
 Before production cutover, move each state owner and the solver from object
 property access to generated typed offsets/tags. Replace hot
 transaction/fingerprint strings with bounded codes or recomputable
-diagnostics. Rehydration and complete graph validation then occur only at cold
-start, checkpoint restore, diagnostics, or an explicit boundary adapter—not
-once per accepted substep. The object Session becomes test-oracle code only.
+diagnostics. Rehydration and complete graph validation already no longer occur
+once per accepted substep, but the nonlinear solver still reads and constructs
+the attested object mirror. Move that remaining work onto generated typed
+offsets/tags so rehydration is needed only at cold start, checkpoint restore,
+diagnostics, or an explicit boundary adapter. The object Session then becomes
+test-oracle code only.
 Failure atomicity, event order, beat accumulation, controls, analysis forks,
 and checkpoint continuation must pass against the Phase 0 corpus before Phase
 2 changes solver algebra.
