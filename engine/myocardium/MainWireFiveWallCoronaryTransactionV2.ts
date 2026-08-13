@@ -30,6 +30,7 @@ import {
   initializePressureLadderCoronaryStateV2,
   solveCoronaryBackwardEulerTrialV2,
   type CoronaryAcceptedHydraulicStateV2,
+  type CoronaryBackwardEulerScratchWorkspaceV2,
   type CoronaryBackwardEulerSolverOptionsV2,
   type CoronaryBackwardEulerTrialInputV2,
   type CoronaryBackwardEulerTrialV2,
@@ -623,6 +624,7 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
   >,
   previous: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
   input: MainWireFiveWallCoronaryStepInputV2,
+  coronaryScratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
 ): MainWireFiveWallCoronaryStepResultV2<TWallState> {
   validateAcceptedTuple(previous);
   requirePositiveFinite(input.dtSec, "dtSec");
@@ -728,6 +730,7 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
           coronaryTrialInput,
           prior,
           topology,
+          coronaryScratchWorkspace,
         );
         if (evaluationCounters !== null) {
           recordCoronaryTrialCountersV2(

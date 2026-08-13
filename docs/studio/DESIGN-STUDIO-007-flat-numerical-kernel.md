@@ -455,6 +455,20 @@ canonical revalidation after every rehydration. Duplicate legacy solve and
 object-to-image completion remain; these figures are diagnostics, not
 performance gates.
 
+The first direct-solver migration aid is a session-owned coronary
+backward-Euler scratch workspace. It is neither accepted state nor checkpoint
+content: an opaque handle borrows private mutable arrays exclusively for one
+solve, resets a bounded residual-buffer cursor, and releases in `finally`.
+Only frozen copied trial data can leave the solve. Foreign handles, concurrent
+reuse, and a different node/edge order fail closed. Twelve evolving pressure
+boundaries are required to match the allocation-owning solver bit-for-bit, and
+previously returned trials must remain unchanged after later workspace reuse.
+A local 2,048-tick coronary-only diagnostic measured about `0.055 ms/tick`
+with the workspace versus `0.058 ms/tick` without it (`0.95x`). This is an
+allocation-control foundation for solver-owned typed state, not a claimed
+Workbench speedup; whole-transaction timing remains dominated by repeated
+coupled Newton work.
+
 The generic image also admits a generation-bound candidate cursor. Beginning a
 candidate copies current bytes once into the inactive image; direct fixed
 `f64`/boolean writes then allocate no state object and cannot touch active

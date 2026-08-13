@@ -20,6 +20,7 @@ import {
   buildCoronaryCollapseHydraulicsPriorV2,
   buildCoronaryEdgeIndexV2,
   computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2,
+  createCoronaryBackwardEulerScratchWorkspaceV2,
   evaluateCoronaryHydraulicsV2,
   disableCoronaryCollapseHydraulicsV2,
   initializePressureLadderCoronaryStateV2,
@@ -27,6 +28,7 @@ import {
   solveCoronaryBackwardEulerTrialV2,
   type CoronaryAcceptedHydraulicStateV2,
   type CoronaryBackwardEulerTrialInputV2,
+  type CoronaryBackwardEulerTrialV2,
   type CoronaryDiseaseInputV2,
   type CoronaryHydraulicBoundaryInputV2,
   type CoronaryImplicitBoundaryDirectionV2,
@@ -162,6 +164,108 @@ function expectStrictDirectionalAgreement(
 }
 
 describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
+  it("reuses private scratch storage without changing trials or aliasing prior results", () => {
+    const topology = buildCoronaryTopologyV2();
+    const workspace = createCoronaryBackwardEulerScratchWorkspaceV2(topology);
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    let oracleState = initialized.acceptedState;
+    let workspaceState = initialized.acceptedState;
+    const retainedTrials: Array<Readonly<{
+      live: CoronaryBackwardEulerTrialV2;
+      snapshot: CoronaryBackwardEulerTrialV2;
+    }>> = [];
+
+    for (let stepIndex = 0; stepIndex < 12; stepIndex += 1) {
+      const boundary = Object.freeze({
+        ...DIASTOLIC_BOUNDARY_V2,
+        absoluteAorticPressureMmHg: 95 + 7 * Math.sin(stepIndex / 3),
+        absoluteRightAtrialPressureMmHg: 5 + 0.5 * Math.cos(stepIndex / 4),
+      });
+      const input = Object.freeze({
+        dtSec: 0.002,
+        boundary,
+        evaluationCounterCollection: "enabled" as const,
+      });
+      const oracle = solveCoronaryBackwardEulerTrialV2(
+        oracleState,
+        input,
+        NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+        topology,
+      );
+      const reused = solveCoronaryBackwardEulerTrialV2(
+        workspaceState,
+        input,
+        NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+        topology,
+        workspace,
+      );
+      expect(reused).toEqual(oracle);
+      retainedTrials.push(Object.freeze({
+        live: reused,
+        snapshot: structuredClone(reused),
+      }));
+      oracleState = oracle.candidateAcceptedState;
+      workspaceState = reused.candidateAcceptedState;
+    }
+
+    for (const retained of retainedTrials) {
+      expect(retained.live).toEqual(retained.snapshot);
+    }
+  });
+
+  it("rejects foreign or mismatched scratch and releases a workspace after failure", () => {
+    const topology = buildCoronaryTopologyV2();
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const workspace = createCoronaryBackwardEulerScratchWorkspaceV2(topology);
+    const fakeWorkspace = Object.freeze({
+      schemaId: "circleheart-coronary-backward-euler-scratch-workspace-v2" as const,
+      topologyId: topology.topologyId,
+    });
+    expect(() => solveCoronaryBackwardEulerTrialV2(
+      initialized.acceptedState,
+      { dtSec: 0.002, boundary: DIASTOLIC_BOUNDARY_V2 },
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      topology,
+      fakeWorkspace,
+    )).toThrow(/workspace is foreign/);
+
+    const reversedWorkspace = createCoronaryBackwardEulerScratchWorkspaceV2(
+      reversedEdgeTopology(),
+    );
+    expect(() => solveCoronaryBackwardEulerTrialV2(
+      initialized.acceptedState,
+      { dtSec: 0.002, boundary: DIASTOLIC_BOUNDARY_V2 },
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      topology,
+      reversedWorkspace,
+    )).toThrow(/workspace topology mismatch/);
+
+    expect(() => solveCoronaryBackwardEulerTrialV2(
+      initialized.acceptedState,
+      {
+        dtSec: 0.002,
+        boundary: {
+          ...DIASTOLIC_BOUNDARY_V2,
+          absoluteAorticPressureMmHg: Number.NaN,
+        },
+      },
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      topology,
+      workspace,
+    )).toThrow(/absoluteAorticPressureMmHg/);
+    expect(() => solveCoronaryBackwardEulerTrialV2(
+      initialized.acceptedState,
+      { dtSec: 0.002, boundary: DIASTOLIC_BOUNDARY_V2 },
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      topology,
+      workspace,
+    )).not.toThrow();
+  });
+
   it("inverts the coercive PV law and keeps loaded hydraulic area distinct from zero-Ptm Vref", () => {
     const topology = buildCoronaryTopologyV2();
     const collapse = buildCoronaryCollapseHydraulicsPriorV2(topology);

@@ -1,6 +1,9 @@
 import type {
   NonCoronaryDynamicMechanicalSupportInputV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+import type {
+  CoronaryBackwardEulerScratchWorkspaceV2,
+} from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
   fullHotPathInvariantsEnabledV1,
 } from "@/engine/hotPathIntegrityTierV1";
@@ -464,6 +467,7 @@ export function stepMainWireIntegratedModelV3<TWallState>(
   >,
   previous: MainWireIntegratedModelAcceptedStateV3<TWallState>,
   input: MainWireIntegratedModelStepInputV3,
+  coronaryScratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
 ): MainWireIntegratedModelStepResultV3<TWallState> {
   let candidateTimeLimit:
     MainWireIntegratedModelCandidateTimeLimitV3 | undefined;
@@ -531,6 +535,7 @@ export function stepMainWireIntegratedModelV3<TWallState>(
         calciumDriveOverride: calciumDrive,
         dynamicMechanicalSupport,
       },
+      coronaryScratchWorkspace,
     );
     if (coronaryStep.converged === false) {
       return failure(

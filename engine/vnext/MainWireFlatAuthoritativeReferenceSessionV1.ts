@@ -9,6 +9,13 @@ import {
   restoreDynamicMechanicalSupportAcceptedStateV1,
 } from "@/engine/devices/dynamicNetworkV1";
 import {
+  createCoronaryBackwardEulerScratchWorkspaceV2,
+  type CoronaryBackwardEulerScratchWorkspaceV2,
+} from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
+import {
+  buildCoronaryTopologyV2,
+} from "@/engine/coronary/topologyPriorV2";
+import {
   MainWireIntegratedModelBeatAccumulatorV3,
   type MainWireIntegratedModelCompletedBeatMetricsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
@@ -125,6 +132,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     MainWireAcceptedTypedBoundaryBindingV1 | null;
   readonly #directCompletionPlan:
     TransactionalTypedStateCompletionPlanV1 | null;
+  readonly #coronaryScratchWorkspace:
+    CoronaryBackwardEulerScratchWorkspaceV2;
   #acceptedState: AcceptedState;
   #lastAcceptedStep: SuccessfulStep | null;
   #lastPresentationObservation: MainWireIntegratedModelObservationV3;
@@ -169,6 +178,10 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     validateAcceptedState(acceptedState);
     this.#runtime = runtime;
     this.#provider = runtime.provider;
+    this.#coronaryScratchWorkspace =
+      createCoronaryBackwardEulerScratchWorkspaceV2(
+        buildCoronaryTopologyV2(runtime.coronaryStepInput.coronaryPrior),
+      );
     this.#rhythmInput = Object.freeze({
       configuration: runtime.rhythm.configuration,
       externalAfNextBoundaryTimeSec: null,
@@ -418,6 +431,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
               profile: this.#runtime.profile,
             }),
           },
+          this.#coronaryScratchWorkspace,
         );
       } catch (error) {
         if (directCandidateOpen) {

@@ -13,6 +13,7 @@ import {
 } from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import {
   NORMAL_CORONARY_DISEASE_INPUT_V2,
+  type CoronaryBackwardEulerScratchWorkspaceV2,
   type CoronaryDiseaseInputV2,
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
@@ -222,6 +223,7 @@ export function stepMainWireFiveWallCoronaryV3<TWallState>(
   >,
   previous: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
   input: MainWireFiveWallCoronaryStepInputV3,
+  coronaryScratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
 ): MainWireFiveWallCoronaryStepResultV3<TWallState> {
   const basePrevious =
     validatedMainWireFiveWallCoronaryBaseStateV2(previous);
@@ -241,6 +243,7 @@ export function stepMainWireFiveWallCoronaryV3<TWallState>(
     provider,
     basePrevious,
     input,
+    coronaryScratchWorkspace,
   );
   if (baseStep.converged === false) {
     return Object.freeze({

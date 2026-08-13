@@ -406,6 +406,141 @@ type ResidualEvaluationV2 = Readonly<{
   hydraulics: MutableHydraulicEvaluationV2;
 }>;
 
+/**
+ * Opaque, session-owned scratch storage for repeated backward-Euler trials.
+ *
+ * The workspace is not accepted scientific state and is never checkpointed.
+ * A solve borrows it exclusively, resets its high-water buffer cursor, and
+ * returns only frozen copies of accepted state and diagnostics. Keeping the
+ * mutable storage behind a WeakMap prevents callers from aliasing numerical
+ * intermediates into a durable trial.
+ */
+export type CoronaryBackwardEulerScratchWorkspaceV2 = Readonly<{
+  schemaId: "circleheart-coronary-backward-euler-scratch-workspace-v2";
+  topologyId: CoronaryTopologyV2["topologyId"];
+}>;
+
+type CoronaryBackwardEulerScratchStorageV2 = {
+  readonly nodeIds: readonly CoronaryConservedVolumeNodeIdV2[];
+  readonly edgeIds: readonly CoronaryEdgeIdV2[];
+  readonly previous: number[];
+  readonly minimumVolumes: number[];
+  readonly residualEvaluations: Array<{
+    residual: number[];
+    hydraulics: MutableHydraulicEvaluationV2;
+  }>;
+  residualEvaluationCursor: number;
+  inUse: boolean;
+};
+
+const CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2 = new WeakMap<
+  CoronaryBackwardEulerScratchWorkspaceV2,
+  CoronaryBackwardEulerScratchStorageV2
+>();
+
+const MAXIMUM_RETAINED_CORONARY_RESIDUAL_EVALUATIONS_V2 = 64;
+
+/** Create reusable allocation storage without making it numerical authority. */
+export function createCoronaryBackwardEulerScratchWorkspaceV2(
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(),
+): CoronaryBackwardEulerScratchWorkspaceV2 {
+  validateCoronaryTopologyV2(topology);
+  const workspace = Object.freeze({
+    schemaId:
+      "circleheart-coronary-backward-euler-scratch-workspace-v2" as const,
+    topologyId: topology.topologyId,
+  });
+  CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2.set(workspace, {
+    nodeIds: Object.freeze(topology.nodes.map((node) => node.nodeId)),
+    edgeIds: Object.freeze(topology.edges.map((edge) => edge.edgeId)),
+    previous: Array<number>(topology.nodes.length).fill(0),
+    minimumVolumes: Array<number>(topology.nodes.length).fill(0),
+    residualEvaluations: [],
+    residualEvaluationCursor: 0,
+    inUse: false,
+  });
+  return workspace;
+}
+
+function borrowCoronaryBackwardEulerScratchWorkspaceV2(
+  workspace: CoronaryBackwardEulerScratchWorkspaceV2,
+  topology: CoronaryTopologyV2,
+): CoronaryBackwardEulerScratchStorageV2 {
+  const storage = CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2.get(workspace);
+  if (storage === undefined) {
+    throw new TypeError("coronary backward-Euler scratch workspace is foreign");
+  }
+  if (
+    workspace.schemaId
+      !== "circleheart-coronary-backward-euler-scratch-workspace-v2"
+    || workspace.topologyId !== topology.topologyId
+    || storage.nodeIds.length !== topology.nodes.length
+    || storage.edgeIds.length !== topology.edges.length
+    || storage.nodeIds.some((nodeId, index) =>
+      nodeId !== topology.nodes[index]?.nodeId)
+    || storage.edgeIds.some((edgeId, index) =>
+      edgeId !== topology.edges[index]?.edgeId)
+  ) {
+    throw new RangeError(
+      "coronary backward-Euler scratch workspace topology mismatch",
+    );
+  }
+  if (storage.inUse) {
+    throw new Error("coronary backward-Euler scratch workspace is already in use");
+  }
+  storage.inUse = true;
+  storage.residualEvaluationCursor = 0;
+  return storage;
+}
+
+function releaseCoronaryBackwardEulerScratchWorkspaceV2(
+  storage: CoronaryBackwardEulerScratchStorageV2,
+): void {
+  storage.inUse = false;
+}
+
+function createMutableHydraulicEvaluationV2(
+  topology: CoronaryTopologyV2,
+  edgeIndexById: Readonly<Record<CoronaryEdgeIdV2, number>>,
+): MutableHydraulicEvaluationV2 {
+  return {
+    pressureByNode: Array<number>(HYDRAULIC_NODE_IDS_V2.length).fill(0),
+    transmuralPressureByNode: Array<number>(topology.nodes.length).fill(0),
+    flowByEdge: Array<number>(topology.edges.length).fill(0),
+    linearResistanceByEdge: Array<number>(topology.edges.length).fill(0),
+    quadraticResistanceByEdge: Array<number>(topology.edges.length).fill(0),
+    dissipatedPowerByEdge: Array<number>(topology.edges.length).fill(0),
+    edgeIndexById,
+    effectiveTone: CORONARY_TERRITORY_IDS_V2.map(() =>
+      Array<number>(CORONARY_LAYER_IDS_V2.length).fill(0)),
+    postLesionPressure:
+      Array<number>(CORONARY_TERRITORY_IDS_V2.length).fill(0),
+    focalStenosisLoss:
+      Array<number>(CORONARY_TERRITORY_IDS_V2.length).fill(0),
+  };
+}
+
+function nextCoronaryResidualEvaluationV2(
+  storage: CoronaryBackwardEulerScratchStorageV2,
+  topology: CoronaryTopologyV2,
+  edgeIndexById: Readonly<Record<CoronaryEdgeIdV2, number>>,
+): { residual: number[]; hydraulics: MutableHydraulicEvaluationV2 } {
+  const index = storage.residualEvaluationCursor;
+  storage.residualEvaluationCursor += 1;
+  if (index < MAXIMUM_RETAINED_CORONARY_RESIDUAL_EVALUATIONS_V2) {
+    const existing = storage.residualEvaluations[index];
+    if (existing !== undefined) return existing;
+  }
+  const created = {
+    residual: Array<number>(topology.nodes.length).fill(0),
+    hydraulics: createMutableHydraulicEvaluationV2(topology, edgeIndexById),
+  };
+  if (index < MAXIMUM_RETAINED_CORONARY_RESIDUAL_EVALUATIONS_V2) {
+    storage.residualEvaluations.push(created);
+  }
+  return created;
+}
+
 const HYDRAULIC_NODE_IDS_V2 = Object.freeze([
   "Ao",
   ...CORONARY_CONSERVED_VOLUME_NODE_IDS_V2,
@@ -591,8 +726,35 @@ export function solveCoronaryBackwardEulerTrialV2(
   input: CoronaryBackwardEulerTrialInputV2,
   prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
   topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+  scratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
 ): CoronaryBackwardEulerTrialV2 {
   validateCoronaryTopologyV2(topology);
+  const scratchStorage = scratchWorkspace === undefined
+    ? null
+    : borrowCoronaryBackwardEulerScratchWorkspaceV2(
+      scratchWorkspace,
+      topology,
+    );
+  try {
+    return solveCoronaryBackwardEulerTrialInternalV2(
+      previousAcceptedState,
+      input,
+      topology,
+      scratchStorage,
+    );
+  } finally {
+    if (scratchStorage !== null) {
+      releaseCoronaryBackwardEulerScratchWorkspaceV2(scratchStorage);
+    }
+  }
+}
+
+function solveCoronaryBackwardEulerTrialInternalV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryBackwardEulerTrialInputV2,
+  topology: CoronaryTopologyV2,
+  scratchStorage: CoronaryBackwardEulerScratchStorageV2 | null,
+): CoronaryBackwardEulerTrialV2 {
   validateAcceptedStateV2(previousAcceptedState, topology);
   validateTrialInputV2(input);
   const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
@@ -602,11 +764,17 @@ export function solveCoronaryBackwardEulerTrialV2(
   validateCollapseHydraulicsV2(collapseHydraulics, topology);
   const options = resolveSolverOptionsV2(input.solverOptions);
   const edgeIndex = buildCoronaryEdgeIndexV2(topology);
-  const previous = volumeRecordToArrayV2(previousAcceptedState.volumeMlByNode);
-  const minimumVolumes = topology.nodes.map(
-    (node) => node.pressureVolume.referenceVolumeMl
-      * options.minimumVolumeFractionOfReference,
-  );
+  const previous = scratchStorage?.previous
+    ?? Array<number>(topology.nodes.length).fill(0);
+  const minimumVolumes = scratchStorage?.minimumVolumes
+    ?? Array<number>(topology.nodes.length).fill(0);
+  for (let index = 0; index < topology.nodes.length; index += 1) {
+    previous[index] = previousAcceptedState.volumeMlByNode[
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]
+    ];
+    minimumVolumes[index] = topology.nodes[index].pressureVolume.referenceVolumeMl
+      * options.minimumVolumeFractionOfReference;
+  }
   validateVolumesV2(
     previous,
     topology,
@@ -617,6 +785,13 @@ export function solveCoronaryBackwardEulerTrialV2(
     if (input.evaluationCounterCollection === "enabled") {
       hydraulicResidualEvaluationCount += 1;
     }
+    const reusableEvaluation = scratchStorage === null
+      ? null
+      : nextCoronaryResidualEvaluationV2(
+        scratchStorage,
+        topology,
+        edgeIndex,
+      );
     const hydraulics = evaluateHydraulicsInternalV2(
       candidate,
       previousAcceptedState.toneResistanceScaleByTerritoryLayer,
@@ -625,10 +800,13 @@ export function solveCoronaryBackwardEulerTrialV2(
       topology,
       edgeIndex,
       collapseHydraulics,
+      reusableEvaluation?.hydraulics,
     );
-    const residual = candidate.map(
-      (volume, index) => volume - previous[index],
-    );
+    const residual = reusableEvaluation?.residual
+      ?? Array<number>(candidate.length).fill(0);
+    for (let index = 0; index < candidate.length; index += 1) {
+      residual[index] = candidate[index] - previous[index];
+    }
     accumulateFlowContinuityV2(
       residual,
       hydraulics.flowByEdge,
@@ -1129,10 +1307,47 @@ function evaluateHydraulicsInternalV2(
   topology: CoronaryTopologyV2,
   edgeIndexById: Readonly<Record<CoronaryEdgeIdV2, number>>,
   collapseHydraulics: CoronaryCollapseHydraulicsPriorV2,
+  destination?: MutableHydraulicEvaluationV2,
 ): MutableHydraulicEvaluationV2 {
   validateVolumesV2(volumes, topology, 0);
-  const pressureByNode = Array<number>(HYDRAULIC_NODE_IDS_V2.length).fill(0);
-  const transmuralPressureByNode = Array<number>(topology.nodes.length).fill(0);
+  const evaluated = destination
+    ?? createMutableHydraulicEvaluationV2(topology, edgeIndexById);
+  if (
+    evaluated.pressureByNode.length !== HYDRAULIC_NODE_IDS_V2.length
+    || evaluated.transmuralPressureByNode.length !== topology.nodes.length
+    || evaluated.flowByEdge.length !== topology.edges.length
+    || evaluated.linearResistanceByEdge.length !== topology.edges.length
+    || evaluated.quadraticResistanceByEdge.length !== topology.edges.length
+    || evaluated.dissipatedPowerByEdge.length !== topology.edges.length
+    || evaluated.effectiveTone.length !== CORONARY_TERRITORY_IDS_V2.length
+    || evaluated.effectiveTone.some((layers) =>
+      layers.length !== CORONARY_LAYER_IDS_V2.length)
+    || evaluated.postLesionPressure.length
+      !== CORONARY_TERRITORY_IDS_V2.length
+    || evaluated.focalStenosisLoss.length !== CORONARY_TERRITORY_IDS_V2.length
+  ) {
+    throw new RangeError("coronary hydraulic destination dimensions differ");
+  }
+  const {
+    pressureByNode,
+    transmuralPressureByNode,
+    flowByEdge,
+    linearResistanceByEdge,
+    quadraticResistanceByEdge,
+    dissipatedPowerByEdge,
+    effectiveTone,
+    postLesionPressure,
+    focalStenosisLoss,
+  } = evaluated;
+  pressureByNode.fill(0);
+  transmuralPressureByNode.fill(0);
+  flowByEdge.fill(0);
+  linearResistanceByEdge.fill(0);
+  quadraticResistanceByEdge.fill(0);
+  dissipatedPowerByEdge.fill(0);
+  effectiveTone.forEach((layers) => layers.fill(0));
+  postLesionPressure.fill(boundary.absoluteAorticPressureMmHg);
+  focalStenosisLoss.fill(0);
   pressureByNode[hydraulicPressureIndexV2("Ao")] =
     boundary.absoluteAorticPressureMmHg;
   pressureByNode[hydraulicPressureIndexV2("RA")] =
@@ -1147,16 +1362,6 @@ function evaluateHydraulicsInternalV2(
     pressureByNode[hydraulicPressureIndexV2(node.nodeId)] =
       externalPressureForNodeV2(node, boundary) + transmural;
   }
-
-  const flowByEdge = Array<number>(topology.edges.length).fill(0);
-  const linearResistanceByEdge = Array<number>(topology.edges.length).fill(0);
-  const quadraticResistanceByEdge = Array<number>(topology.edges.length).fill(0);
-  const dissipatedPowerByEdge = Array<number>(topology.edges.length).fill(0);
-  const effectiveTone = CORONARY_TERRITORY_IDS_V2.map(() => [0, 0]);
-  const postLesionPressure = Array<number>(CORONARY_TERRITORY_IDS_V2.length).fill(
-    boundary.absoluteAorticPressureMmHg,
-  );
-  const focalStenosisLoss = Array<number>(CORONARY_TERRITORY_IDS_V2.length).fill(0);
 
   for (const edge of topology.edges) {
     const edgeIndex = edgeIndexById[edge.edgeId];
@@ -1251,18 +1456,7 @@ function evaluateHydraulicsInternalV2(
         boundary.absoluteAorticPressureMmHg - focalLoss;
     }
   }
-  return {
-    pressureByNode,
-    transmuralPressureByNode,
-    flowByEdge,
-    linearResistanceByEdge,
-    quadraticResistanceByEdge,
-    dissipatedPowerByEdge,
-    edgeIndexById,
-    effectiveTone,
-    postLesionPressure,
-    focalStenosisLoss,
-  };
+  return evaluated;
 }
 
 function freezeHydraulicEvaluationV2(
