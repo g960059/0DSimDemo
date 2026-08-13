@@ -29,6 +29,7 @@ import {
   MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
+  advanceMainWireFiveWallCoupledNewtonV1,
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
   solveMainWireFiveWallCoupledNewtonShadowV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
@@ -85,6 +86,8 @@ const createContext = () => prepareMainWireFiveWallCoupledResidualContextV1(
 );
 const analyticWorkspace =
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+const authorityWorkspace =
+  createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
 const finiteDifferenceWorkspace =
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
 const legacyCoronaryWorkspace = createCoronaryBackwardEulerScratchWorkspaceV2(
@@ -96,6 +99,7 @@ const legacyNonCoronaryWorkspace =
   createNonCoronaryBackwardEulerScratchWorkspaceV1();
 
 const analyticSamplesMs: number[] = [];
+const authoritySamplesMs: number[] = [];
 const analyticPreparationSamplesMs: number[] = [];
 const analyticSolveSamplesMs: number[] = [];
 const finiteDifferenceSamplesMs: number[] = [];
@@ -121,6 +125,8 @@ for (
     || benchmarkMode === "legacy";
   const runFiniteDifference = benchmarkMode === "all"
     || benchmarkMode === "finite-difference";
+  const runAuthority = benchmarkMode === "all"
+    || benchmarkMode === "production";
   const analyticStartedAtMs = performance.now();
   const analyticContext = runAnalytic ? createContext() : null;
   const analyticPreparedAtMs = performance.now();
@@ -135,6 +141,21 @@ for (
   const analyticWallTimeMs = analyticSolvedAtMs - analyticStartedAtMs;
   if (analytic !== null && analytic.result.status !== "converged") {
     throw new Error(`analytic coupled solve failed: ${analytic.result.message}`);
+  }
+
+  const authorityStartedAtMs = performance.now();
+  const authority = runAuthority
+    ? advanceMainWireFiveWallCoupledNewtonV1(
+      createContext(),
+      Object.freeze({ maximumAcceptedStepsPerJacobian }),
+      authorityWorkspace,
+    )
+    : null;
+  const authorityWallTimeMs = performance.now() - authorityStartedAtMs;
+  if (authority !== null && authority.status !== "accepted") {
+    throw new Error(
+      `coupled authority failed: ${authority.status}`,
+    );
   }
 
   const legacyStartedAtMs = performance.now();
@@ -186,6 +207,7 @@ for (
       analyticLineSearchBacktracks +=
         analytic.result.lineSearchBacktrackCount;
     }
+    if (authority !== null) authoritySamplesMs.push(authorityWallTimeMs);
     if (legacy !== null) legacySamplesMs.push(legacyWallTimeMs);
     if (finiteDifference !== null) {
       finiteDifferenceSamplesMs.push(finiteDifferenceWallTimeMs);
@@ -196,6 +218,7 @@ for (
 }
 
 const analytic = summarizeOrNull(analyticSamplesMs);
+const authority = summarizeOrNull(authoritySamplesMs);
 const analyticPreparation = summarizeOrNull(analyticPreparationSamplesMs);
 const analyticSolve = summarizeOrNull(analyticSolveSamplesMs);
 const finiteDifference = summarizeOrNull(finiteDifferenceSamplesMs);
@@ -209,6 +232,7 @@ process.stdout.write(`${JSON.stringify(Object.freeze({
   warmupIterations,
   measuredIterations,
   analytic,
+  authority,
   analyticPreparation,
   analyticSolve,
   finiteDifference,
@@ -220,6 +244,9 @@ process.stdout.write(`${JSON.stringify(Object.freeze({
     analyticOverLegacyNested: analytic === null || legacy === null
       ? null
       : legacy.medianWallTimeMs / analytic.medianWallTimeMs,
+    authorityOverLegacyNested: authority === null || legacy === null
+      ? null
+      : legacy.medianWallTimeMs / authority.medianWallTimeMs,
   }),
   work: Object.freeze({
     analyticMeanNewtonIterations: analytic === null

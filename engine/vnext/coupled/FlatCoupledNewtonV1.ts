@@ -18,6 +18,15 @@ export type FlatCoupledSystemV1 = Readonly<{
     unknowns: Float64Array,
     rowMajorDestination: Float64Array,
   ) => void;
+  /**
+   * Optional model-owned convergence gate. When supplied, it replaces the
+   * generic raw infinity-norm test so mixed component tolerances remain the
+   * accepted-state authority.
+   */
+  isResidualConverged?: (
+    unknowns: Float64Array,
+    residual: Float64Array,
+  ) => boolean;
   /** Additional coupled-domain gate beyond separable per-unknown bounds. */
   assertCandidateAdmissible?: (unknowns: Float64Array) => void;
   /**
@@ -74,6 +83,7 @@ export type FlatCoupledNewtonResultV1 =
     status: "failed";
     reason:
       | "initial-residual-evaluation"
+      | "convergence-evaluation"
       | "jacobian-evaluation"
       | "singular-jacobian"
       | "stagnated"
@@ -154,7 +164,27 @@ export function solveFlatCoupledSystemV1(
     iteration <= options.maximumIterations;
     iteration += 1) {
     const residualInfinityNorm = infinityNorm(residual);
-    if (residualInfinityNorm <= options.residualInfinityTolerance) {
+    let residualConverged: boolean;
+    try {
+      residualConverged = system.isResidualConverged === undefined
+        ? residualInfinityNorm <= options.residualInfinityTolerance
+        : system.isResidualConverged(current, residual);
+      if (typeof residualConverged !== "boolean") {
+        throw new TypeError("coupled convergence gate must return a boolean");
+      }
+    } catch (error) {
+      return failure(
+        "convergence-evaluation",
+        errorMessage(error),
+        current,
+        iteration,
+        residualInfinityNorm,
+        residualEvaluationCount,
+        jacobianEvaluationCount,
+        lineSearchBacktrackCount,
+      );
+    }
+    if (residualConverged) {
       return success(
         current,
         iteration,

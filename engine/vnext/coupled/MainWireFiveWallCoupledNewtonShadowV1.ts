@@ -1,5 +1,7 @@
 import type {
   MainWireFiveWallCoupledResidualContextV1,
+  MainWireFiveWallCoronaryStepFailureV2,
+  MainWireFiveWallCoronaryStepSuccessV2,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 import {
   CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2,
@@ -29,6 +31,9 @@ export type MainWireFiveWallCoupledNewtonShadowOptionsV1 = Readonly<{
   updateInfinityToleranceMl?: number;
   finiteDifferenceRelativeStep?: number;
   jacobianMode?: "central-difference" | "hybrid-coronary-analytic";
+  analyticJacobianPolicy?:
+    | "allow-noncoronary-fallback"
+    | "require-complete";
 }>;
 
 export type MainWireFiveWallCoupledNewtonShadowResultV1 = Readonly<{
@@ -40,6 +45,27 @@ export type MainWireFiveWallCoupledNewtonShadowResultV1 = Readonly<{
   dependentSvContinuityResidualMl: number | null;
   result: FlatCoupledNewtonResultV1;
 }>;
+
+export type MainWireFiveWallCoupledNewtonAdvanceResultV1<TWallState> =
+  | Readonly<{
+    status: "accepted";
+    solver: MainWireFiveWallCoupledNewtonShadowResultV1;
+    step: MainWireFiveWallCoronaryStepSuccessV2<TWallState>;
+  }>
+  | Readonly<{
+    status: "solver-failed";
+    solver: MainWireFiveWallCoupledNewtonShadowResultV1;
+  }>
+  | Readonly<{
+    status: "candidate-materialization-failed";
+    message: string;
+    solver: MainWireFiveWallCoupledNewtonShadowResultV1;
+  }>
+  | Readonly<{
+    status: "finalization-failed";
+    solver: MainWireFiveWallCoupledNewtonShadowResultV1;
+    step: MainWireFiveWallCoronaryStepFailureV2<TWallState>;
+  }>;
 
 export type MainWireFiveWallCoupledNewtonShadowWorkspaceV1 = Readonly<{
   schemaId:
@@ -156,8 +182,8 @@ function borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
  * a 14-column finite-difference construction fallback. The all-central-
  * difference mode remains an independent oracle only.
  */
-export function solveMainWireFiveWallCoupledNewtonShadowV1(
-  context: MainWireFiveWallCoupledResidualContextV1,
+export function solveMainWireFiveWallCoupledNewtonShadowV1<TWallState = unknown>(
+  context: MainWireFiveWallCoupledResidualContextV1<TWallState>,
   options: MainWireFiveWallCoupledNewtonShadowOptionsV1 = Object.freeze({}),
   workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1 =
     createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(),
@@ -216,6 +242,7 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1(
       return availableVolumeMl / updateSum;
     },
     evaluateResidual: context.evaluateResidualMl,
+    isResidualConverged: context.isResidualConverged,
     evaluateJacobian: (unknowns, destination) => {
       let completeAnalyticAssemblyAvailable = false;
       if (jacobianMode === "hybrid-coronary-analytic") {
@@ -228,6 +255,14 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1(
             coronaryBoundaryLinearization,
           );
         coronaryAnalyticBlockAssemblyCount += 1;
+        if (
+          !completeAnalyticAssemblyAvailable
+          && options.analyticJacobianPolicy === "require-complete"
+        ) {
+          throw new Error(
+            "coupled authority requires a complete component-owned analytic Jacobian",
+          );
+        }
       }
       const finiteDifferenceColumnCount =
         jacobianMode === "hybrid-coronary-analytic"
@@ -385,8 +420,8 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1(
       maximumAcceptedStepsPerJacobian:
         options.maximumAcceptedStepsPerJacobian ?? 1,
       residualInfinityTolerance:
-        options.residualInfinityToleranceMl ?? 1e-8,
-      updateInfinityTolerance: options.updateInfinityToleranceMl ?? 1e-10,
+        options.residualInfinityToleranceMl ?? 2e-9,
+      updateInfinityTolerance: options.updateInfinityToleranceMl ?? 1e-12,
       armijoCoefficient: 1e-4,
       minimumAbsolutePivot: 1e-14,
       unknownScaleByUnknown: storage.unknownScales,
@@ -411,6 +446,62 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1(
   } finally {
     storage.inUse = false;
   }
+}
+
+/**
+ * Advances one accepted tuple through the coupled 30-row solve and the same
+ * atomic finalizer used by the nested reference path. This remains a vNext
+ * migration entry point; callers retain the previous accepted tuple unless
+ * `status === "accepted"`.
+ */
+export function advanceMainWireFiveWallCoupledNewtonV1<TWallState>(
+  context: MainWireFiveWallCoupledResidualContextV1<TWallState>,
+  options: MainWireFiveWallCoupledNewtonShadowOptionsV1 = Object.freeze({}),
+  workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1 =
+    createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(),
+): MainWireFiveWallCoupledNewtonAdvanceResultV1<TWallState> {
+  const solver = solveMainWireFiveWallCoupledNewtonShadowV1(
+    context,
+    Object.freeze({
+      ...options,
+      analyticJacobianPolicy: "require-complete" as const,
+    }),
+    workspace,
+  );
+  if (solver.result.status !== "converged") {
+    return Object.freeze({
+      status: "solver-failed" as const,
+      solver,
+    });
+  }
+  let step;
+  try {
+    step = context.finalizeConvergedSolution(
+      solver.result.solution,
+      Object.freeze({
+        iterations: solver.result.iterations,
+        lineSearchBacktracks: solver.result.lineSearchBacktrackCount,
+      }),
+    );
+  } catch (error) {
+    return Object.freeze({
+      status: "candidate-materialization-failed" as const,
+      message: error instanceof Error ? error.message : String(error),
+      solver,
+    });
+  }
+  if (step.converged === false) {
+    return Object.freeze({
+      status: "finalization-failed" as const,
+      solver,
+      step,
+    });
+  }
+  return Object.freeze({
+    status: "accepted" as const,
+    solver,
+    step,
+  });
 }
 
 function requirePositiveFinite(value: number, label: string): void {

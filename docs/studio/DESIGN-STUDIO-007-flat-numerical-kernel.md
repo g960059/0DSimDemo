@@ -825,10 +825,13 @@ solutions agree to nine decimal digits.
 
 Dense LU acts on a row/column-equilibrated Jacobian. Unknown scales come from
 the initial physical volumes and residual scales use the corresponding
-equation-volume scale; convergence tolerances, line-search merit, lower bounds,
-and returned updates remain in physical units. After convergence, an
-independent cold audit evaluates the eliminated `SV` continuity equation and
-requires its residual to remain below the declared physical tolerance.
+equation-volume scale; line-search merit, lower bounds, and returned updates
+remain in physical units. Convergence itself is component-owned: the
+non-coronary block applies the same node-wise mixed `atol + rtol` continuity
+gate as public trial admission, including eliminated `SV`, and the coronary
+block applies its existing absolute-plus-relative residual gate. A single raw
+infinity norm remains diagnostic; it does not replace those physical
+admission rules.
 
 The first cold implementation established correctness but not a runtime win.
 A 30-sample diagnostic measured median times of `1.28 ms` for the analytic
@@ -846,18 +849,40 @@ factors the caller-owned matrix in place. A modified-Newton experiment reuses
 one accepted Jacobian for at most two accepted Newton updates. The canonical
 candidate still needs three Newton updates, but now performs four residual
 evaluations and two Jacobian builds/factorizations rather than three. The
-full-Newton and modified-Newton solutions agree to eight decimal digits, their
-physical residuals remain below `1e-8`, and reuse of the same workspace is
-deterministic.
+full-Newton and modified-Newton solutions agree to eight decimal digits, both
+satisfy the component-owned physical admission gates, and reuse of the same
+workspace is deterministic.
 
 The production-like benchmark gives the legacy nested solver its production
 coronary and non-coronary scratch workspaces. After 1,000 warm-up solves, three
 independent 5,000-solve runs measured coupled/legacy median pairs of
 `0.434/0.793 ms`, `0.441/0.808 ms`, and `0.441/0.805 ms`, for speedups of
 `1.827x`, `1.835x`, and `1.824x`. Thus the local host diagnostic now clears the
-predeclared `1.8x` threshold reproducibly. This is evidence that eliminating
-the nested solve is worthwhile; it is not an iPhone qualification, a full-cycle
-trajectory gate, or authorization to replace the accepted-step authority.
+predeclared `1.8x` solve-only threshold reproducibly. This is evidence that
+eliminating the nested algebra is worthwhile; it is not an iPhone
+qualification or authorization to replace the accepted-step authority.
+
+The next slice closes that distinction. Externally solved non-coronary and
+coronary candidates are independently re-evaluated through the existing mixed
+continuity, hydraulic, ledger, valve, and mechanics admission laws, then enter
+the exact same one-shot seal/commit/rollback finalizer as the nested path. No
+borrowed candidate array escapes its synchronous evaluator; the cache owns
+fixed destinations, and a second finalization attempt is rejected. Global
+coupled iterations are not reported as coronary-local Newton work. The
+authority path also requires the complete component-owned analytic Jacobian
+and fails closed instead of using the 14-column finite-difference construction
+fallback.
+
+After aligning Newton convergence with those public component gates, three
+independent 5,000-step host diagnostics measured solve-only coupled/legacy
+speedups of `1.804x`, `1.805x`, and `1.806x`. The complete path—context
+preparation, coupled solve, canonical trial materialization, and atomic
+finalization—measured `1.296x`, `1.297x`, and `1.296x`. The accepted-state
+authority therefore remains below the `1.8x` cutover gate. This is a useful
+negative result: the residual/Jacobian organization is faster, but the current
+object-oriented re-evaluation and public-trial bridge consume most of that
+gain. Production cutover is rejected until final candidate ownership and
+materialization are flat and single-pass.
 
 An exact `14+16` block-Schur linear solve was also implemented and measured.
 At one patch it reached only about `1.53x` over the legacy nested path because
@@ -895,19 +920,30 @@ The first trajectory shadow runs the coupled solve from the exact pre-step
 state beside every one of those 3,000 accepted legacy steps, using the actual
 event-limited `dt` and accepted calcium drive. All six cases complete with at
 most five coupled Newton updates. Across the corpus, the largest independent
-volume difference from the nested solution is `1.60e-8 mL`, the dependent-SV
+volume difference from the nested solution is `3.05e-8 mL`, the dependent-SV
 continuity residual remains below `1.18e-9 mL`, and the coupled residual
-infinity norm remains below `9.97e-9 mL`. Mean Jacobian evaluations range from
-`1.35` to `1.564` per accepted step. This demonstrates local branch agreement
+infinity norm remains below `3.05e-8 mL` while every component-owned admission
+gate passes. Mean Jacobian evaluations range from `1.318` to `1.532` per
+accepted step. This demonstrates local branch agreement
 while the legacy state still drives the trajectory; it is not yet evidence
 that a new-solver-driven trajectory preserves event order, rollback, or
 checkpoint continuation.
 
+A separate candidate-driven baseline now advances 500 accepted 2 ms steps
+using only the coupled branch's preceding accepted tuple; the nested branch is
+an independently advancing observation oracle. Both reach revision 500 at one
+second, and every non-coronary and coronary stored volume remains inside the
+predeclared `1e-5 mL` corridor. This proves that the coupled candidate can own
+its next step without returning to the nested state. It does not yet cover
+integrated rhythm/event clipping, dynamic mechanical support, accepted
+autoregulation, checkpoint continuation, or the remaining five scenarios.
+
 The solver-architecture hypothesis is itself falsifiable. The regular-sinus,
-device-off vertical slice must improve host kernel time by at least `1.8x` to
-justify productionization. An improvement below `1.3x` rejects nested-solve
-elimination as the dominant diagnosis and sends the work back to profiling
-rather than onward to WASM.
+device-off accepted-state authority must improve host kernel time by at least
+`1.8x` to justify productionization. The current `~1.296x` result fails that
+gate and sends the work back to flat candidate ownership and profiling rather
+than onward to WASM. The solve-only `~1.805x` result keeps the coupled algebra
+as the target; it does not waive the authority-path gate.
 
 ### Phase 3 — strict scalar WASM
 

@@ -650,7 +650,18 @@ export type NonCoronaryPreparedCandidateBorrowV1<TEvaluation> = Readonly<{
   nodeAbsolutePressuresMmHg: Float64Array;
   vascularPressureTangentMmHgPerMl: Float64Array;
   edgeFlowsMlPerSec: Float64Array;
+  dynamicEdgeFlowsMlPerSec: Float64Array;
+  valveStates: readonly MainWireQuasiSteadyOrificeValveStateV2[];
+  valveEvaluations: readonly MainWireQuasiSteadyOrificeValveEvaluationV2[];
+  mechanicalSupport: MechanicalSupportHydraulicEvaluationV1 | null;
+  dynamicMechanicalSupport:
+    DynamicMechanicalSupportHydraulicEvaluationV1 | null;
   continuityResidualMlByNode: Float64Array;
+  /**
+   * Maximum node-wise mixed atol + rtol continuity residual. Values at or
+   * below one satisfy the same admission gate as a public circulation trial.
+   */
+  mixedContinuityResidualInfinityNorm: number;
   absoluteChamberPressureTangent:
     NonCoronaryAbsoluteChamberPressureTangentV1 | null;
   candidateMechanicsEvaluation: TEvaluation;
@@ -799,6 +810,7 @@ type NonCoronaryPreparedCandidateStorageV1<
   readonly input:
     NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>;
   readonly graph: NonCoronaryCirculationGraphV1;
+  readonly options: Required<NonCoronaryCirculationNewtonOptionsV1>;
   readonly previous: PreviousAcceptedNumericalStateV1;
   readonly candidateTimeSec: number;
   readonly respiratoryExternalPressures: RespiratoryExternalPressuresV1;
@@ -1385,6 +1397,7 @@ export function prepareNonCoronaryCandidateEvaluatorV1<
     throw new Error("evaluateCandidateMechanics must be a function");
   }
   const graph = buildNonCoronaryCirculationGraphV1();
+  const options = resolveNewtonOptions(input.options);
   const previous = stagePreviousAcceptedNumericalStateV1(
     input.previousAcceptedState,
     null,
@@ -1408,6 +1421,7 @@ export function prepareNonCoronaryCandidateEvaluatorV1<
   > = {
     input,
     graph,
+    options,
     previous,
     candidateTimeSec,
     respiratoryExternalPressures,
@@ -1536,8 +1550,19 @@ export function withPreparedNonCoronaryCandidateV1<
         vascularPressureTangentMmHgPerMl:
           candidate.vascularPressureTangentMmHgPerMl,
         edgeFlowsMlPerSec: candidate.edgeFlowsMlPerSec,
+        dynamicEdgeFlowsMlPerSec: candidate.dynamicEdgeFlowsMlPerSec,
+        valveStates: candidate.valveStates,
+        valveEvaluations: candidate.valveEvaluations,
+        mechanicalSupport: candidate.mechanicalSupport,
+        dynamicMechanicalSupport: candidate.dynamicMechanicalSupport,
         continuityResidualMlByNode:
           candidate.continuityResidualMlByNode,
+        mixedContinuityResidualInfinityNorm: mixedContinuityResidualAudit(
+          candidate,
+          storage.previous.nodeVolumesMl,
+          storage.options.absoluteContinuityResidualToleranceMl,
+          storage.options.scaledResidualInfinityTolerance,
+        ).infinityNorm,
         absoluteChamberPressureTangent:
           candidate.absoluteChamberPressureTangent,
         candidateMechanicsEvaluation:

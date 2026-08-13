@@ -9,6 +9,8 @@ import {
   withPreparedNonCoronaryCandidateV1,
   NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
+  NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
+  NON_CORONARY_VALVE_NAMES_V1,
   NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
   type NonCoronaryAbsoluteChamberPressureTangentV1,
   type NonCoronaryAcceptedNumericalSourceV1,
@@ -26,6 +28,7 @@ import {
   type NonCoronaryCirculationTrialFailureReasonV1,
   type NonCoronaryCirculationTrialFailureV1,
   type NonCoronaryCirculationTrialSuccessV1,
+  type NonCoronaryPreparedCandidateBorrowV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   respiratoryExternalPressureForKindV1,
@@ -550,6 +553,10 @@ export type MainWireFiveWallCoupledResidualContextV1<
     unknownsMl: Float64Array,
     destinationResidualMl: Float64Array,
   ): void;
+  isResidualConverged(
+    unknownsMl: Float64Array,
+    destinationResidualMl: Float64Array,
+  ): boolean;
   evaluateDependentSvContinuityResidualMl(unknownsMl: Float64Array): number;
   materializeCandidateTrial(
     unknownsMl: Float64Array,
@@ -558,6 +565,13 @@ export type MainWireFiveWallCoupledResidualContextV1<
       lineSearchBacktracks: number;
     }>,
   ): MainWireFiveWallCoupledCandidateMaterializationV1<TWallState>;
+  finalizeConvergedSolution(
+    unknownsMl: Float64Array,
+    diagnostics: Readonly<{
+      iterations: number;
+      lineSearchBacktracks: number;
+    }>,
+  ): MainWireFiveWallCoronaryStepResultV2<TWallState>;
   writeCoupledLinearizations(
     unknownsMl: Float64Array,
     coronaryDestination:
@@ -797,6 +811,16 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     input.calciumDriveParams,
     input.calciumDriveOverride,
   );
+  const evaluationCounters =
+    input.evaluationCounterCollection === "enabled"
+      ? createMutableEvaluationCountersV2()
+      : null;
+  const mechanicsCalciumDrive = evaluationCounters === null
+    ? calciumDrive
+    : Object.freeze({
+      ...calciumDrive,
+      evaluationCounterCollection: "enabled" as const,
+    });
   const commonIntrathoracicPressure = commonIntrathoracicPressureMmHg(
     candidateTimeSec,
     input.runtime,
@@ -805,7 +829,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     previousAcceptedState: previous.mechanics,
     candidateTimeSec,
     stepDtSec: input.dtSec,
-    drivingInputs: calciumDrive,
+    drivingInputs: mechanicsCalciumDrive,
   });
   const useMechanicsCandidateProbes =
     provider.evaluationResultOwnershipMode === "exclusive-result";
@@ -832,6 +856,19 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     input.coronarySolverOptions?.minimumVolumeFractionOfReference
     ?? DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2
       .minimumVolumeFractionOfReference;
+  const coronaryAbsoluteResidualToleranceMl =
+    input.coronarySolverOptions?.absoluteResidualToleranceMl
+    ?? DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2
+      .absoluteResidualToleranceMl;
+  const coronaryRelativeResidualTolerance =
+    input.coronarySolverOptions?.relativeResidualTolerance
+    ?? DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2
+      .relativeResidualTolerance;
+  const coronaryResidualToleranceMl = coronaryAbsoluteResidualToleranceMl
+    + coronaryRelativeResidualTolerance * Math.max(
+      1,
+      ...Object.values(previous.coronary.volumeMlByNode),
+    );
   if (
     !Number.isFinite(coronaryMinimumVolumeFractionOfReference)
     || coronaryMinimumVolumeFractionOfReference <= 0
@@ -883,7 +920,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         input.pericardium,
         commonIntrathoracicPressure,
         impMechanism,
-        null,
+        evaluationCounters,
         "candidate-center",
         useMechanicsCandidateProbes,
       ),
@@ -893,6 +930,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       previousAcceptedCompanionBloodVolumeMl:
         coronaryBloodVolumeMl(previous.coronary),
       evaluateSameCandidate: (candidate) => {
+        if (evaluationCounters !== null) {
+          evaluationCounters.outerCirculationCandidateCount += 1;
+        }
         const boundary = resolveCandidateCoronaryBoundaryV2(
           candidate.boundaryAbsolutePressuresMmHg.Ao,
           candidate.boundaryAbsolutePressuresMmHg.RA,
@@ -940,7 +980,16 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     nodeAbsolutePressuresMmHg: Float64Array;
     vascularPressureTangentMmHgPerMl: Float64Array;
     edgeFlowsMlPerSec: Float64Array;
+    dynamicEdgeFlowsMlPerSec: Float64Array;
+    valveStates: NonCoronaryPreparedCandidateBorrowV1<unknown>["valveStates"];
+    valveEvaluations:
+      NonCoronaryPreparedCandidateBorrowV1<unknown>["valveEvaluations"];
+    mechanicalSupport:
+      NonCoronaryPreparedCandidateBorrowV1<unknown>["mechanicalSupport"];
+    dynamicMechanicalSupport:
+      NonCoronaryPreparedCandidateBorrowV1<unknown>["dynamicMechanicalSupport"];
     continuityResidualMlByNode: Float64Array;
+    mixedContinuityResidualInfinityNorm: number;
     absoluteChamberPressureTangent:
       NonCoronaryAbsoluteChamberPressureTangentV1 | null;
     candidateMechanicsEvaluation:
@@ -981,6 +1030,15 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
   const cachedEdgeFlows = new Float64Array(
     buildNonCoronaryCirculationGraphV1().edges.length,
   );
+  const cachedDynamicEdgeFlows = new Float64Array(
+    NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length,
+  );
+  const cachedValveStates = Array<
+    NonCoronaryPreparedCandidateBorrowV1<unknown>["valveStates"][number]
+  >(NON_CORONARY_VALVE_NAMES_V1.length);
+  const cachedValveEvaluations = Array<
+    NonCoronaryPreparedCandidateBorrowV1<unknown>["valveEvaluations"][number]
+  >(NON_CORONARY_VALVE_NAMES_V1.length);
   const cachedContinuityResidual = new Float64Array(
     NON_CORONARY_NODE_NAMES_V1.length,
   );
@@ -1082,6 +1140,16 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           nonCoronaryProbe.vascularPressureTangentMmHgPerMl,
         );
         cachedEdgeFlows.set(nonCoronaryProbe.edgeFlowsMlPerSec);
+        cachedDynamicEdgeFlows.set(
+          nonCoronaryProbe.dynamicEdgeFlowsMlPerSec,
+        );
+        for (let index = 0; index < cachedValveStates.length; index += 1) {
+          cachedValveStates[index] = Object.freeze({
+            ...nonCoronaryProbe.valveStates[index]!,
+          });
+          cachedValveEvaluations[index] = nonCoronaryProbe
+            .valveEvaluations[index]!;
+        }
         cachedContinuityResidual.set(
           nonCoronaryProbe.continuityResidualMlByNode,
         );
@@ -1102,7 +1170,15 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
             vascularPressureTangentMmHgPerMl:
               cachedVascularPressureTangent,
             edgeFlowsMlPerSec: cachedEdgeFlows,
+            dynamicEdgeFlowsMlPerSec: cachedDynamicEdgeFlows,
+            valveStates: cachedValveStates,
+            valveEvaluations: cachedValveEvaluations,
+            mechanicalSupport: nonCoronaryProbe.mechanicalSupport,
+            dynamicMechanicalSupport:
+              nonCoronaryProbe.dynamicMechanicalSupport,
             continuityResidualMlByNode: cachedContinuityResidual,
+            mixedContinuityResidualInfinityNorm:
+              nonCoronaryProbe.mixedContinuityResidualInfinityNorm,
             absoluteChamberPressureTangent:
               nonCoronaryProbe.absoluteChamberPressureTangent,
             candidateMechanicsEvaluation:
@@ -1155,7 +1231,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           input.pericardium,
           commonIntrathoracicPressure,
           impMechanism,
-          null,
+          evaluationCounters,
           "candidate-center",
           useMechanicsCandidateProbes,
         ),
@@ -1165,6 +1241,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         previousAcceptedCompanionBloodVolumeMl:
           coronaryBloodVolumeMl(previous.coronary),
         evaluateSameCandidate: (candidate) => {
+          if (evaluationCounters !== null) {
+            evaluationCounters.outerCirculationCandidateCount += 1;
+          }
           const boundary = resolveCandidateCoronaryBoundaryV2(
             candidate.boundaryAbsolutePressuresMmHg.Ao,
             candidate.boundaryAbsolutePressuresMmHg.RA,
@@ -1215,18 +1294,46 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       iterations: diagnostics.iterations,
       lineSearchBacktracks: diagnostics.lineSearchBacktracks,
     }));
-    const companion = circulationTrial.conservativeCompanion
+    const countedCirculationTrial = attachEvaluationCountersV2(
+      circulationTrial,
+      evaluationCounters,
+    );
+    const companion = countedCirculationTrial.conservativeCompanion
       ?.candidateCompanionTrial;
     if (companion === undefined) {
       throw new Error("coupled candidate materialization lost its companion");
     }
     return Object.freeze({
-      circulationTrial,
+      circulationTrial: countedCirculationTrial,
       coronaryTrial: companion.coronaryTrial,
       coronaryBoundary: companion.boundary,
       calciumDrive,
       commonIntrathoracicPressureMmHg: commonIntrathoracicPressure,
     });
+  };
+  let finalizationAttempted = false;
+  const finalizeConvergedSolution = (
+    unknownsMl: Float64Array,
+    diagnostics: Readonly<{
+      iterations: number;
+      lineSearchBacktracks: number;
+    }>,
+  ): MainWireFiveWallCoronaryStepResultV2<TWallState> => {
+    if (finalizationAttempted) {
+      throw new Error(
+        "coupled residual context finalization is one-shot; prepare a fresh context",
+      );
+    }
+    finalizationAttempted = true;
+    const candidate = materializeCandidateTrial(unknownsMl, diagnostics);
+    return finalizeMainWireFiveWallCoronarySelectedCandidateV2(
+      provider,
+      previous,
+      mechanicsStep,
+      candidate.circulationTrial,
+      candidate.calciumDrive,
+      candidate.commonIntrathoracicPressureMmHg,
+    );
   };
 
   return Object.freeze({
@@ -1248,6 +1355,17 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         () => undefined,
       );
     },
+    isResidualConverged: (
+      unknownsMl: Float64Array,
+      destinationResidualMl: Float64Array,
+    ): boolean => evaluateCoupledCandidate(
+      unknownsMl,
+      destinationResidualMl,
+      (candidate) => candidate.nonCoronaryProbe
+        .mixedContinuityResidualInfinityNorm <= 1
+        && maximumAbsoluteValueV2(candidate.coronaryResidualMl)
+          <= coronaryResidualToleranceMl,
+    ),
     evaluateDependentSvContinuityResidualMl: (
       unknownsMl: Float64Array,
     ): number => {
@@ -1267,6 +1385,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       );
     },
     materializeCandidateTrial,
+    finalizeConvergedSolution,
     writeCoupledLinearizations: (
       unknownsMl: Float64Array,
       coronaryDestination:
@@ -1668,6 +1787,31 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
     });
   }
 
+  return finalizeMainWireFiveWallCoronarySelectedCandidateV2(
+    provider,
+    previous,
+    mechanicsStep,
+    circulationTrial,
+    calciumDrive,
+    pthMmHg,
+  );
+}
+
+function finalizeMainWireFiveWallCoronarySelectedCandidateV2<TWallState>(
+  provider: WholeHeartMechanicsProviderV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  previous: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
+  mechanicsStep: WholeHeartMechanicsPreparedStepV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  circulationTrial:
+    MainWireFiveWallCoronaryCirculationTrialSuccessV2<TWallState>,
+  calciumDrive: MainWireFiveWallFreeCalciumDriveV1,
+  commonIntrathoracicPressureMmHg: number,
+): MainWireFiveWallCoronaryStepResultV2<TWallState> {
   let finalizationFailureStage:
     MainWireFiveWallCoronaryFinalizationFailureStageV2 =
       "selected-mechanics-seal";
@@ -1744,7 +1888,7 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
         companionTrial.boundary
           .intramyocardialPressureMmHgByTerritoryLayer,
       calciumDrive,
-      commonIntrathoracicPressureMmHg: pthMmHg,
+      commonIntrathoracicPressureMmHg,
       pericardium: candidateEvaluation.pericardium,
       mvcReferenceUpdated:
         nextMvcReference.acceptedMitralClosureEventCount
@@ -2102,6 +2246,28 @@ function isNonnegativeIntegerV2(value: unknown): value is number {
     && value >= 0;
 }
 
+function attachEvaluationCountersV2<TWallState>(
+  trial: NonCoronaryCirculationTrialSuccessV1<
+    MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>,
+    MainWireFiveWallCoronaryCompanionTrialV2
+  >,
+  counters: MutableMainWireFiveWallCoronaryEvaluationCountersV2 | null,
+): MainWireFiveWallCoronaryCirculationTrialSuccessV2<TWallState>;
+function attachEvaluationCountersV2(
+  trial: NonCoronaryCirculationTrialFailureV1,
+  counters: MutableMainWireFiveWallCoronaryEvaluationCountersV2 | null,
+): MainWireFiveWallCoronaryCirculationTrialFailureV2;
+function attachEvaluationCountersV2<TWallState>(
+  trial:
+    | NonCoronaryCirculationTrialSuccessV1<
+      MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>,
+      MainWireFiveWallCoronaryCompanionTrialV2
+    >
+    | NonCoronaryCirculationTrialFailureV1,
+  counters: MutableMainWireFiveWallCoronaryEvaluationCountersV2 | null,
+):
+  | MainWireFiveWallCoronaryCirculationTrialSuccessV2<TWallState>
+  | MainWireFiveWallCoronaryCirculationTrialFailureV2;
 function attachEvaluationCountersV2<TWallState>(
   trial:
     | NonCoronaryCirculationTrialSuccessV1<

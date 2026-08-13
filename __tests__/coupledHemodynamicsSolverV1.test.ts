@@ -110,6 +110,60 @@ describe("coupled hemodynamics solver V1 infrastructure", () => {
     expect(Array.from(initial)).toEqual(Array.from(original));
   });
 
+  it("lets the physical component own its mixed convergence gate", () => {
+    let jacobianEvaluationCount = 0;
+    const system: FlatCoupledSystemV1 = Object.freeze({
+      dimension: 1,
+      evaluateResidual: (unknowns, destination) => {
+        destination[0] = unknowns[0]! - 1;
+      },
+      isResidualConverged: (_unknowns, residual) =>
+        Math.abs(residual[0]!) <= 0.5,
+      evaluateJacobian: (_unknowns, destination) => {
+        jacobianEvaluationCount += 1;
+        destination[0] = 1;
+      },
+    });
+    const result = solveFlatCoupledSystemV1(
+      system,
+      new Float64Array([0.5]),
+      defaultOptions(1),
+    );
+
+    expect(result.status).toBe("converged");
+    if (result.status !== "converged") throw new Error(result.message);
+    expect(result.iterations).toBe(0);
+    expect(result.residualInfinityNorm).toBe(0.5);
+    expect(jacobianEvaluationCount).toBe(0);
+  });
+
+  it("fails closed when a model-owned convergence gate cannot be evaluated", () => {
+    const system: FlatCoupledSystemV1 = Object.freeze({
+      dimension: 1,
+      evaluateResidual: (_unknowns, destination) => {
+        destination[0] = 0.25;
+      },
+      isResidualConverged: () => {
+        throw new Error("component admission unavailable");
+      },
+      evaluateJacobian: (_unknowns, destination) => {
+        destination[0] = 1;
+      },
+    });
+    const result = solveFlatCoupledSystemV1(
+      system,
+      new Float64Array([0.5]),
+      defaultOptions(1),
+    );
+
+    expect(result.status).toBe("failed");
+    if (result.status !== "failed") {
+      throw new Error("failing convergence gate unexpectedly converged");
+    }
+    expect(result.reason).toBe("convergence-evaluation");
+    expect(result.message).toBe("component admission unavailable");
+  });
+
   it("keeps a coupled linear conservation boundary inside every line-search trial", () => {
     const dimension = 2;
     const root = new Float64Array([0.45, 0.45]);
