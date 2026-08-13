@@ -1,11 +1,14 @@
 import React from "react";
-import { ArrowUpRight, BookOpenText } from "lucide-react";
+import { BookOpenText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
 import { articleReaderHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
-import { readPublicCatalogAsyncV3 } from "@/components/site/PublicCatalogV3";
+import {
+  publicArticlesForLocaleV3,
+  readPublicCatalogAsyncV3,
+} from "@/components/site/PublicCatalogV3";
 
 export function PublicArticleDirectoryV3Page() {
   const { t } = useTranslation();
@@ -33,6 +36,10 @@ export function PublicArticleDirectoryV3Page() {
     };
   }, []);
 
+  const articles = state.kind === "ready"
+    ? publicArticlesForLocaleV3(state.articles, locale)
+    : [];
+
   return (
     <div className="h-full overflow-y-auto bg-wb-app text-wb-text" data-testid="public-article-directory-v3">
       <main className="mx-auto w-full max-w-4xl px-5 py-12 sm:px-8 sm:py-16">
@@ -51,29 +58,26 @@ export function PublicArticleDirectoryV3Page() {
           <p className="mt-10 rounded-xl bg-wb-danger-soft p-4 text-sm text-wb-danger" role="alert">
             {state.message}
           </p>
-        ) : state.articles.length === 0 ? (
+        ) : articles.length === 0 ? (
           <EmptyDirectoryV3
             icon={<BookOpenText className="h-6 w-6" aria-hidden="true" />}
             title={t("publicArticles.emptyTitle")}
             description={t("publicArticles.emptyDescription")}
           />
         ) : (
-          <ul className="mt-12 divide-y divide-wb-line/70 border-t border-wb-line/70">
-            {state.articles.map((article) => (
+          <ul className="mt-10 grid gap-3 sm:grid-cols-2 sm:gap-4">
+            {articles.map((article) => (
               <li key={article.articleId}>
                 <Link
                   to={articleReaderHref({ articleId: article.articleId, locale })}
-                  className="group -mx-3 flex min-h-24 items-center gap-5 rounded-xl px-3 py-5 transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.995] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                  className="group flex h-full min-w-0 flex-col rounded-2xl border border-wb-line bg-wb-panel p-5 transition-[background-color,border-color,box-shadow] duration-150 hover:border-wb-line-strong hover:bg-wb-hover/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                 >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-base font-semibold tracking-tight text-wb-text">
-                      {article.title}
-                    </span>
-                    <span className="mt-1 block truncate text-xs leading-5 text-wb-subtle">
-                      {article.excerpt ?? t("publicArticles.articleFallback")}
-                    </span>
+                  <span className="line-clamp-3 break-words text-base font-bold leading-6 tracking-[-0.015em] text-wb-text">
+                    {article.title}
                   </span>
-                  <ArrowUpRight className="h-4 w-4 shrink-0 text-wb-subtle transition-[color,transform] duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-wb-text motion-reduce:transform-none" aria-hidden="true" />
+                  <span className="mt-2 line-clamp-3 break-words text-[13px] leading-5 text-wb-muted">
+                    {article.excerpt ?? t("publicArticles.articleFallback")}
+                  </span>
                 </Link>
               </li>
             ))}

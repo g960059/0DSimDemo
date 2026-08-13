@@ -80,6 +80,8 @@
     "sectionArticles": "Articles",
     "sectionSimulations": "Simulations",
     "viewAll": "View all",
+    "loading": "Loading public content…",
+    "footerNavigation": "CircleHeart links",
     "noArticles": "No public articles yet.",
     "noSimulations": "No public simulations yet.",
     "startFirstSimulation": "Start your first simulation",

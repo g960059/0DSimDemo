@@ -6,7 +6,7 @@
  */
 
 export const FAST_SUITE_FILE_BUDGET = 96;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 43;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 44;
 
 export const fastTests = [
   "__tests__/appTheme.test.ts",
@@ -19,6 +19,7 @@ export const fastTests = [
   "__tests__/equilibriumOneFiberPassiveV1.test.ts",
   "__tests__/fiveWallNormalCalciumDriveV1.test.ts",
   "__tests__/homeLinks.test.ts",
+  "__tests__/homeV4.test.tsx",
   "__tests__/publicCatalogV3.test.ts",
   "__tests__/siteShellV3.test.tsx",
   "__tests__/laPvReservoirConduitOrderV1.test.ts",
@@ -100,6 +101,7 @@ export const prSmokeTests = [
   "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
   "__tests__/energyConjugateTriSegV1.test.ts",
   "__tests__/homeLinks.test.ts",
+  "__tests__/homeV4.test.tsx",
   "__tests__/mainWireIntegratedModelOutputRegistryV3.test.ts",
   "__tests__/mainWireIntegratedModelSessionV3.test.ts",
   "__tests__/mainWireFiveWallCoronaryCheckpointV3.test.ts",

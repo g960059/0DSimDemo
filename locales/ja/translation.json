@@ -80,6 +80,8 @@
     "sectionArticles": "記事",
     "sectionSimulations": "シミュレーション",
     "viewAll": "もっと見る",
+    "loading": "公開コンテンツを読み込んでいます…",
+    "footerNavigation": "CircleHeartのリンク",
     "noArticles": "公開中の記事はまだありません。",
     "noSimulations": "公開中のシミュレーションはまだありません。",
     "startFirstSimulation": "最初のシミュレーションを始める",

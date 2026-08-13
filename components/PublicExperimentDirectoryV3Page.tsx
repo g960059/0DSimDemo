@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowUpRight, FlaskConical } from "lucide-react";
+import { FlaskConical } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
@@ -73,7 +73,7 @@ export function PublicExperimentDirectoryV3Page() {
             </p>
           </section>
         ) : (
-          <ul className="mt-12 divide-y divide-wb-line/70 border-t border-wb-line/70">
+          <ul className="mt-10 grid gap-3 sm:grid-cols-2 sm:gap-4">
             {state.experiments.map((experiment) => (
               <li key={experiment.record.experimentId}>
                 <Link
@@ -81,22 +81,19 @@ export function PublicExperimentDirectoryV3Page() {
                     locale,
                     snapshotId: experiment.snapshotId,
                   })}
-                  className="group -mx-3 flex min-h-24 items-center gap-5 rounded-xl px-3 py-5 transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.995] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                  className="group flex h-full min-w-0 flex-col rounded-2xl border border-wb-line bg-wb-panel p-5 transition-[background-color,border-color,box-shadow] duration-150 hover:border-wb-line-strong hover:bg-wb-hover/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                 >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-base font-semibold tracking-tight text-wb-text">
-                      {experiment.record.title}
-                    </span>
-                    <span className="mt-1 block text-xs leading-5 text-wb-subtle">
-                      {t("home.simulationMeta", {
-                        count: experiment.scenarioCount,
-                        date: new Intl.DateTimeFormat(locale, {
-                          dateStyle: "medium",
-                        }).format(new Date(experiment.record.updatedAt)),
-                      })}
-                    </span>
+                  <span className="line-clamp-3 break-words text-base font-bold leading-6 tracking-[-0.015em] text-wb-text">
+                    {experiment.record.title}
                   </span>
-                  <ArrowUpRight className="h-4 w-4 shrink-0 text-wb-subtle transition-[color,transform] duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-wb-text motion-reduce:transform-none" aria-hidden="true" />
+                  <span className="mt-auto block pt-4 text-xs leading-5 text-wb-subtle">
+                    {t("home.simulationMeta", {
+                      count: experiment.scenarioCount,
+                      date: new Intl.DateTimeFormat(locale, {
+                        dateStyle: "medium",
+                      }).format(new Date(experiment.record.updatedAt)),
+                    })}
+                  </span>
                 </Link>
               </li>
             ))}
