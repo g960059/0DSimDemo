@@ -163,7 +163,7 @@ The snapshot includes:
 
 - Worker request/response duration, including transport and response validation;
 - group TimeConductor Worker duration, safe/effective playback rate, and
-  presentation intervals;
+  presentation intervals and queued presentation frames per lane;
 - multi-Scenario coalescing duration;
 - frame-to-scalar materialization and presentation-store append duration;
 - Workbench-area React commit duration and interval;
@@ -184,10 +184,14 @@ analysis and Scenario creation do not dominate a long-lived session.
 The default smooth profile computes sixteen exact samples per Worker request,
 amortizing transport and response processing across 32 ms of model time. The
 group TimeConductor issues that request to every live Scenario, waits for the
-whole group, and publishes each Scenario's same-offset exact prefix as two
-eight-frame slices separated by a 16 ms presentation boundary. This preserves
-every accepted sample while keeping Worker throughput and Canvas refresh
-cadence independent.
+whole group, and publishes each Scenario's same-offset exact prefix through a
+shared fractional presentation credit. At `1×`, the default credit releases two
+eight-frame slices separated by a 16 ms presentation boundary. At `0.25×` it
+earns two frames per boundary; at `2×` it earns sixteen. Fractional credit is
+carried across boundaries, while a bounded ceiling prevents a delayed browser
+task from creating an unbounded catch-up burst. This preserves every accepted
+sample and makes compute pace, visible waveform pace, and the displayed group
+multiplier describe the same clock.
 
 Playback rate is a property of the group, not a Worker lane. Automatic mode
 estimates the sustainable group rate from completed group batches, retains
@@ -205,6 +209,9 @@ safe limit; it is not merely a warning after an unsafe rate was chosen.
 The TimeConductor never re-anchors away accumulated wall-clock debt and never
 skips exact model time to preserve a nominal `1×` label. If the device sustains
 only `0.5×`, every Scenario runs together at `0.5×` and the control says so.
+Presentation backpressure is measured explicitly; a rate above `1×` must not
+produce a monotonically growing accepted-frame queue, and a sub-unit rate must
+not emit fixed-size bursts separated by long empty gaps.
 
 The retired independent lane scheduler could re-anchor overloaded lanes and
 allowed wall-clock pressure to produce different Scenario progress. It is not
@@ -267,6 +274,8 @@ background analyses in long Articles without changing accepted steps or values.
   compute headroom at the supported Scenario count on each target-device tier.
 - Every live Scenario publishes the same accepted-time prefix; no lane-specific
   re-anchor, skip, or playback rate exists.
+- Presentation queue depth remains bounded at every selectable playback rate;
+  fractional rates retain their cadence without dropping accepted frames.
 - Parameter input reaches the first visible accepted result within 150 ms p95.
 - Meaningful graph updates remain within 50 ms p95 and presentation lag stays
   within 100 ms p95.

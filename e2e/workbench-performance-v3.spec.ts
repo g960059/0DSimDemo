@@ -17,6 +17,7 @@ type PerformanceBudgetV3 = Readonly<{
   maximumWorkerRoundTripP95Ms: number;
   maximumCanvasDisplayIntervalP95Ms: number;
   maximumCanvasDrawP95Ms: number;
+  maximumPresentationBacklogFramesPerLane: number;
   maximumControlLatencyMs: number;
 }>;
 
@@ -51,6 +52,7 @@ const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
         maximumWorkerRoundTripP95Ms: 50,
         maximumCanvasDisplayIntervalP95Ms: 50,
         maximumCanvasDrawP95Ms: 8,
+        maximumPresentationBacklogFramesPerLane: 64,
         maximumControlLatencyMs: 150,
       }),
     }),
@@ -65,6 +67,7 @@ const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
         maximumWorkerRoundTripP95Ms: 100,
         maximumCanvasDisplayIntervalP95Ms: 66,
         maximumCanvasDrawP95Ms: 12,
+        maximumPresentationBacklogFramesPerLane: 64,
         maximumControlLatencyMs: 250,
       }),
     }),
@@ -79,6 +82,7 @@ const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
         maximumWorkerRoundTripP95Ms: 120,
         maximumCanvasDisplayIntervalP95Ms: 80,
         maximumCanvasDrawP95Ms: 12,
+        maximumPresentationBacklogFramesPerLane: 64,
         maximumControlLatencyMs: 300,
       }),
     }),
@@ -199,6 +203,10 @@ test("measures exact live Workbench throughput under background contention", asy
     scenarioCount: report.scenarioCount,
     rootModelTimeRatio:
       report.postControlContention.rootModelTimeRatio,
+    maximumPresentationBacklogFramesPerLane:
+      report.postControlContention.diagnostics.values[
+        "scheduler.group.presentation-backlog-frames-per-lane"
+      ]?.maximum,
     mainThreadSlowdown: report.threadThrottleProbe.mainThreadSlowdown,
     dedicatedWorkerSlowdown:
       report.threadThrottleProbe.dedicatedWorkerSlowdown,
@@ -211,6 +219,13 @@ test("measures exact live Workbench throughput under background contention", asy
   expect(postControlContention.modelTimeDeltaSec).toBeGreaterThan(0.25);
   expect(groupModelTimeRatioValuesV3(postControlContention.diagnostics))
     .toHaveLength(1);
+  const presentationBacklog = postControlContention.diagnostics.values[
+    "scheduler.group.presentation-backlog-frames-per-lane"
+  ];
+  expect(presentationBacklog).toBeDefined();
+  expect(presentationBacklog!.maximum).toBeLessThanOrEqual(
+    profile.budget.maximumPresentationBacklogFramesPerLane,
+  );
   if (ENFORCE_BUDGETS_V3) expect(violations).toEqual([]);
 });
 
@@ -401,6 +416,20 @@ function evaluatePerformanceBudgetV3(
     || effectiveRate > safeRate + 1e-9
   ) {
     violations.push("effective group rate exceeds or lacks its safe limit");
+  }
+  const presentationBacklog = diagnostics.values[
+    "scheduler.group.presentation-backlog-frames-per-lane"
+  ];
+  if (presentationBacklog === undefined) {
+    violations.push("group presentation backlog metric is missing");
+  } else if (
+    presentationBacklog.maximum
+      > budget.maximumPresentationBacklogFramesPerLane
+  ) {
+    violations.push(
+      `group presentation backlog ${presentationBacklog.maximum} frames/lane`
+        + ` > ${budget.maximumPresentationBacklogFramesPerLane}`,
+    );
   }
   requireMetricMaximumV3(
     diagnostics.metrics,

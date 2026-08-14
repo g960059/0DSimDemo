@@ -43,6 +43,7 @@ export type WorkbenchGroupTimeConductorDependenciesV3<TFrame> = Readonly<{
   presentationDtSec?: number;
   batchSteps?: number;
   presentationIntervalMs?: number;
+  /** Frames released per lane and interval at 1× playback. */
   maximumPresentationFramesPerLane?: number;
   minimumPlaybackRate?: number;
   maximumPlaybackRate?: number;
@@ -92,6 +93,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
   #presentationTimer: WorkbenchGroupTimeConductorTimerV3 | undefined;
   #inFlight: Promise<void> | undefined;
   #lastPresentationWallMs = 0;
+  #presentationFrameCreditPerLane = 0;
   #pendingPresentation: PendingGroupPresentationV3<TFrame>[] = [];
   #mode: WorkbenchGroupPlaybackRateModeV3 = "auto";
   #requestedRate: number | null = null;
@@ -155,6 +157,10 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
   }
 
   setPlaybackRate(rate: number | "auto"): WorkbenchGroupPlaybackRateStateV3 {
+    const changedAtMs = this.#nowMs();
+    if (this.#running && !this.#disposed) {
+      this.#publishOrSchedulePresentation(changedAtMs);
+    }
     if (rate === "auto") {
       this.#mode = "auto";
       this.#requestedRate = null;
@@ -166,6 +172,13 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
       );
       this.#mode = "manual";
       this.#requestedRate = Math.min(rate, this.#safeMaximumRate);
+    }
+    if (this.#running && !this.#disposed) {
+      // Apply the new rate from this wall-clock boundary. At most one partial
+      // presentation interval is discarded; no accepted model frame is.
+      this.#lastPresentationWallMs = changedAtMs;
+      this.#presentationFrameCreditPerLane = 0;
+      this.#publishOrSchedulePresentation(changedAtMs);
     }
     this.#publishRateState();
     return this.playbackRateState();
@@ -179,6 +192,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     requireGroupLanesV3(this.#lanes());
     this.#running = true;
     this.#lastPresentationWallMs = this.#nowMs();
+    this.#presentationFrameCreditPerLane = 0;
     this.#publishRateState();
     this.#queuePump(0);
   }
@@ -190,6 +204,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     await this.#inFlight;
     this.#cancelPresentationTimer();
     this.#flushAllPresentation(this.#nowMs());
+    this.#presentationFrameCreditPerLane = 0;
   }
 
   /** Must be called after a paused lane set changes. */
@@ -211,6 +226,8 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     this.#cancelPumpTimer();
     this.#cancelPresentationTimer();
     this.#pendingPresentation = [];
+    this.#presentationFrameCreditPerLane = 0;
+    this.#recordPresentationBacklog();
   }
 
   async dispose(): Promise<void> {
@@ -260,6 +277,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
         laneFrames: Object.freeze(laneFrames),
         offset: 0,
       });
+      this.#recordPresentationBacklog();
       this.#publishOrSchedulePresentation(completedAtMs);
       const intervalMs = this.#batchModelDurationMs() / this.#effectiveRate();
       this.#queuePump(Math.max(0, intervalMs - groupWallMs));
@@ -342,15 +360,30 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
 
   #publishOrSchedulePresentation(nowMs: number): void {
     if (this.#pendingPresentation.length === 0) return;
-    if (
-      this.#presentationIntervalMs === 0
-      || nowMs - this.#lastPresentationWallMs >= this.#presentationIntervalMs
-    ) {
+    if (this.#presentationIntervalMs === 0) {
       this.#cancelPresentationTimer();
-      this.#flushPresentationSlice(
-        nowMs,
-        this.#maximumPresentationFramesPerLane,
+      this.#flushAllPresentation(nowMs);
+      return;
+    }
+    const elapsedIntervals = Math.floor(
+      Math.max(0, nowMs - this.#lastPresentationWallMs)
+        / this.#presentationIntervalMs,
+    );
+    if (elapsedIntervals > 0) {
+      this.#lastPresentationWallMs +=
+        elapsedIntervals * this.#presentationIntervalMs;
+      this.#presentationFrameCreditPerLane = Math.min(
+        Math.max(
+          this.#batchSteps,
+          this.#maximumPresentationFramesPerLane
+            * this.#maximumPlaybackRate,
+        ),
+        this.#presentationFrameCreditPerLane
+          + elapsedIntervals
+            * this.#maximumPresentationFramesPerLane
+            * this.#effectiveRate(),
       );
+      this.#flushCreditedPresentation();
     }
     if (
       this.#pendingPresentation.length === 0
@@ -370,9 +403,25 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     }, Math.ceil(remainingMs));
   }
 
-  #flushPresentationSlice(nowMs: number, maximumFramesPerLane: number): void {
+  #flushCreditedPresentation(): void {
+    let creditedFrames = Math.floor(
+      this.#presentationFrameCreditPerLane + 1e-9,
+    );
+    while (creditedFrames > 0 && this.#pendingPresentation.length > 0) {
+      const emitted = this.#flushPresentationSlice(creditedFrames);
+      this.#presentationFrameCreditPerLane = Math.max(
+        0,
+        this.#presentationFrameCreditPerLane - emitted,
+      );
+      creditedFrames = Math.floor(
+        this.#presentationFrameCreditPerLane + 1e-9,
+      );
+    }
+  }
+
+  #flushPresentationSlice(maximumFramesPerLane: number): number {
     const pending = this.#pendingPresentation[0];
-    if (pending === undefined) return;
+    if (pending === undefined) return 0;
     const available = pending.laneFrames[0]!.frames.length - pending.offset;
     const count = Math.min(maximumFramesPerLane, available);
     const frames = pending.laneFrames.flatMap(({ frames: laneFrames }) =>
@@ -381,19 +430,32 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     if (pending.offset === pending.laneFrames[0]!.frames.length) {
       this.#pendingPresentation.shift();
     }
-    this.#lastPresentationWallMs = nowMs;
     if (!this.#disposed && frames.length > 0) {
       this.#onFrames(Object.freeze(frames));
     }
-    if (this.#pendingPresentation.length > 0 && this.#running) {
-      this.#publishOrSchedulePresentation(nowMs);
-    }
+    this.#recordPresentationBacklog();
+    return count;
   }
 
   #flushAllPresentation(nowMs: number): void {
     while (this.#pendingPresentation.length > 0) {
-      this.#flushPresentationSlice(nowMs, Number.POSITIVE_INFINITY);
+      this.#flushPresentationSlice(Number.POSITIVE_INFINITY);
     }
+    this.#lastPresentationWallMs = nowMs;
+    this.#presentationFrameCreditPerLane = 0;
+  }
+
+  #recordPresentationBacklog(): void {
+    if (!this.#performance.enabled) return;
+    const pendingFramesPerLane = this.#pendingPresentation.reduce(
+      (sum, pending) =>
+        sum + pending.laneFrames[0]!.frames.length - pending.offset,
+      0,
+    );
+    this.#performance.recordValue(
+      "scheduler.group.presentation-backlog-frames-per-lane",
+      pendingFramesPerLane,
+    );
   }
 
   #resetCapacityEstimate(): void {

@@ -5,6 +5,8 @@ import {
   type WorkbenchGroupTimeConductorLaneV3,
   type WorkbenchGroupTimeConductorTimerV3,
 } from "@/components/workbench/v3/WorkbenchGroupTimeConductorV3";
+import { WorkbenchPerformanceDiagnosticsV3 } from
+  "@/components/workbench/v3/WorkbenchPerformanceDiagnosticsV3";
 import {
   formatWorkbenchPlaybackRateV3,
   snapWorkbenchPlaybackRateV3,
@@ -102,7 +104,6 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     const accepted = new Map([["baseline", 0], ["comparison", 0]]);
     const lanes = ["baseline", "comparison"].map((laneId) =>
       laneV3(laneId, accepted.get(laneId)!, async (stepCount) => {
-        clock.elapse(20);
         const frames = framesV3(laneId, accepted.get(laneId)!, stepCount);
         accepted.set(laneId, frames.at(-1)!.timeSec);
         return frames;
@@ -119,12 +120,16 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       cancel: clock.cancel,
       batchSteps: 4,
       presentationIntervalMs: 16,
-      maximumPresentationFramesPerLane: 2,
+      maximumPresentationFramesPerLane: 4,
     });
 
+    conductor.setPlaybackRate(0.5);
     conductor.play();
     await clock.advanceBy(0);
     await flushMicrotasksV3();
+    expect(onFrames).not.toHaveBeenCalled();
+
+    await clock.advanceBy(16);
     expect(onFrames).toHaveBeenCalledOnce();
     expect(onFrames.mock.calls[0]![0].map(({ index }) => index))
       .toEqual([1, 2, 1, 2]);
@@ -133,6 +138,128 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     expect(onFrames).toHaveBeenCalledTimes(2);
     expect(onFrames.mock.calls[1]![0].map(({ index }) => index))
       .toEqual([3, 4, 3, 4]);
+    await conductor.pause();
+  });
+
+  it("uses fractional presentation credit for sub-unit playback", async () => {
+    const clock = new GroupClockV3();
+    const onFrames = vi.fn<(frames: readonly Frame[]) => void>();
+    let acceptedTimeSec = 0;
+    const conductor = new WorkbenchGroupTimeConductorV3({
+      lanes: () => [laneV3("baseline", acceptedTimeSec, async (stepCount) => {
+        const frames = framesV3("baseline", acceptedTimeSec, stepCount);
+        acceptedTimeSec = frames.at(-1)!.timeSec;
+        return frames;
+      })],
+      onFrames,
+      onError: vi.fn(),
+      nowMs: clock.now,
+      schedule: clock.schedule,
+      cancel: clock.cancel,
+      batchSteps: 4,
+      presentationIntervalMs: 16,
+      maximumPresentationFramesPerLane: 2,
+    });
+
+    conductor.setPlaybackRate(0.25);
+    conductor.play();
+    await clock.advanceBy(0);
+    await clock.advanceBy(16);
+    expect(onFrames).not.toHaveBeenCalled();
+
+    await clock.advanceBy(16);
+    expect(onFrames).toHaveBeenCalledOnce();
+    expect(onFrames.mock.calls[0]![0].map(({ index }) => index)).toEqual([1]);
+
+    await clock.advanceBy(32);
+    expect(onFrames).toHaveBeenCalledTimes(2);
+    expect(onFrames.mock.calls[1]![0].map(({ index }) => index)).toEqual([2]);
+    await conductor.pause();
+  });
+
+  it.each([
+    { label: "0.1×", requestedRate: 0.1, minimumRate: 0.1, maximumRate: 2 },
+    { label: "0.5×", requestedRate: 0.5, minimumRate: 0.1, maximumRate: 2 },
+    { label: "1×", requestedRate: 1, minimumRate: 1, maximumRate: 2 },
+    { label: "2×", requestedRate: 2, minimumRate: 2, maximumRate: 2.1 },
+  ])("paces visible model time uniformly at $label", async ({
+    requestedRate,
+    minimumRate,
+    maximumRate,
+  }) => {
+    const clock = new GroupClockV3();
+    let acceptedTimeSec = 0;
+    let presentedFrames = 0;
+    const conductor = new WorkbenchGroupTimeConductorV3({
+      lanes: () => [laneV3("baseline", acceptedTimeSec, async (stepCount) => {
+        const frames = framesV3("baseline", acceptedTimeSec, stepCount);
+        acceptedTimeSec = frames.at(-1)!.timeSec;
+        return frames;
+      })],
+      onFrames: (frames) => { presentedFrames += frames.length; },
+      onError: vi.fn(),
+      nowMs: clock.now,
+      schedule: clock.schedule,
+      cancel: clock.cancel,
+      batchSteps: 16,
+      presentationIntervalMs: 16,
+      maximumPresentationFramesPerLane: 8,
+      minimumPlaybackRate: minimumRate,
+      maximumPlaybackRate: maximumRate,
+    });
+
+    const effectiveRate = conductor.setPlaybackRate(requestedRate)
+      .effectiveRate;
+    conductor.play();
+    await clock.advanceBy(0);
+    for (let interval = 0; interval < 10; interval += 1) {
+      await clock.advanceBy(16);
+    }
+
+    const expectedFrames = Math.floor(10 * 8 * effectiveRate + 1e-9);
+    expect(presentedFrames).toBe(expectedFrames);
+    expect(presentedFrames * 0.002 / 0.16).toBeCloseTo(effectiveRate, 1);
+    await conductor.pause();
+  });
+
+  it("keeps the presentation queue bounded above real time", async () => {
+    const clock = new GroupClockV3();
+    const performance = new WorkbenchPerformanceDiagnosticsV3({
+      enabled: true,
+      nowMs: clock.now,
+    });
+    let acceptedTimeSec = 0;
+    const conductor = new WorkbenchGroupTimeConductorV3({
+      lanes: () => [laneV3("baseline", acceptedTimeSec, async (stepCount) => {
+        clock.elapse(1);
+        const frames = framesV3("baseline", acceptedTimeSec, stepCount);
+        acceptedTimeSec = frames.at(-1)!.timeSec;
+        return frames;
+      })],
+      onFrames: vi.fn(),
+      onError: vi.fn(),
+      nowMs: clock.now,
+      schedule: clock.schedule,
+      cancel: clock.cancel,
+      batchSteps: 8,
+      presentationIntervalMs: 16,
+      maximumPresentationFramesPerLane: 8,
+      performanceRecorder: performance,
+    });
+
+    conductor.play();
+    await clock.advanceBy(0);
+    for (let elapsedMs = 0; elapsedMs < 500; elapsedMs += 1) {
+      await clock.advanceBy(1);
+    }
+
+    expect(conductor.playbackRateState().effectiveRate).toBeGreaterThan(1.5);
+    const backlog = performance.snapshot().values[
+      "scheduler.group.presentation-backlog-frames-per-lane"
+    ];
+    expect(backlog).toBeDefined();
+    expect(backlog!.maximum).toBeLessThanOrEqual(32);
+    expect(backlog!.latest).toBeLessThanOrEqual(16);
     await conductor.pause();
   });
 
