@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -56,6 +58,117 @@ describe("Studio public content delivery V1", () => {
       CIRCLEHEART_SUPABASE_URL: "https://example.supabase.co",
       CIRCLEHEART_SUPABASE_PUBLISHABLE_KEY: `sb_${"secret"}_forbidden`,
     })).toThrow(/only a publishable key/);
+  });
+
+  it("routes the bare origin through locale negotiation at the SSR boundary", () => {
+    const firebase = JSON.parse(readFileSync(
+      new URL("../firebase.json", import.meta.url),
+      "utf8",
+    )) as Readonly<{
+      hosting: Readonly<{
+        headers: readonly Readonly<{ source: string }>[];
+        redirects: readonly Readonly<{
+          source: string;
+          destination: string;
+          type: number;
+        }>[];
+        rewrites: readonly Readonly<{
+          source: string;
+          destination?: string;
+          run?: Readonly<{ serviceId: string; region: string }>;
+        }>[];
+      }>;
+    }>;
+    const negotiationRewriteIndex = firebase.hosting.rewrites.findIndex(
+      ({ source }) => source === "/_locale",
+    );
+    const catchAllIndex = firebase.hosting.rewrites.findIndex(
+      ({ source }) => source === "**",
+    );
+
+    expect(firebase.hosting.redirects).toContainEqual({
+      source: "/",
+      destination: "/_locale",
+      type: 302,
+    });
+    expect(negotiationRewriteIndex).toBeGreaterThanOrEqual(0);
+    expect(negotiationRewriteIndex).toBeLessThan(catchAllIndex);
+    expect(firebase.hosting.rewrites[negotiationRewriteIndex]).toMatchObject({
+      source: "/_locale",
+      run: {
+        serviceId: "circleheart-public-content",
+        region: "asia-northeast1",
+      },
+    });
+    expect(firebase.hosting.headers.some(({ source }) => source === "/"))
+      .toBe(false);
+  });
+
+  it("negotiates the bare origin without loading public catalog data", async () => {
+    let dataSourceCalls = 0;
+    const dependencies = dependenciesV1();
+    const rootDependencies = Object.freeze({
+      ...dependencies,
+      dataSource: Object.freeze({
+        readPublishedArticle: async () => {
+          dataSourceCalls += 1;
+          return null;
+        },
+        listPublicArticles: async () => {
+          dataSourceCalls += 1;
+          return Object.freeze({ items: Object.freeze([]), nextCursor: null });
+        },
+        listPublicExperiments: async () => {
+          dataSourceCalls += 1;
+          return Object.freeze({ items: Object.freeze([]), nextCursor: null });
+        },
+      }),
+    });
+    const savedPreference = await handleStudioPublicContentRequestV1(
+      requestV1("/_locale?utm_source=shared", {
+        Cookie: "other=opaque; __session=circleheart-locale-v1.en",
+        "Accept-Language": "ja-JP,ja;q=0.9",
+      }),
+      rootDependencies,
+    );
+    expect(savedPreference.status).toBe(302);
+    expect(savedPreference.headers.get("location")).toBe(
+      "https://www.circleheart.dev/en?utm_source=shared",
+    );
+    expect(savedPreference.headers.get("cache-control")).toBe(
+      "private, no-store",
+    );
+    expect(savedPreference.headers.get("vary")).toBe(
+      "Cookie, Accept-Language",
+    );
+
+    const weightedLanguage = await handleStudioPublicContentRequestV1(
+      requestV1("/_locale", {
+        Cookie: "__session=circleheart-locale-v1.unsupported",
+        "Accept-Language": "fr-FR, en-US;q=0.7, ja-JP;q=0.9",
+      }),
+      rootDependencies,
+    );
+    expect(weightedLanguage.headers.get("location")).toBe(
+      "https://www.circleheart.dev/ja",
+    );
+
+    const englishBrowser = await handleStudioPublicContentRequestV1(
+      requestV1("/_locale", { "Accept-Language": "en-GB,en;q=0.8" }),
+      rootDependencies,
+    );
+    expect(englishBrowser.headers.get("location")).toBe(
+      "https://www.circleheart.dev/en",
+    );
+
+    const fallback = await handleStudioPublicContentRequestV1(
+      requestV1("/_locale", { "Accept-Language": "fr-FR,*;q=0.8" }),
+      rootDependencies,
+    );
+    expect(fallback.headers.get("location")).toBe(
+      "https://www.circleheart.dev/ja",
+    );
+    expect(dataSourceCalls).toBe(0);
   });
 
   it("renders every public block as semantic HTML and Markdown", () => {
@@ -244,6 +357,9 @@ describe("Studio public content delivery V1", () => {
     expect(html).toContain('"@type":"Organization"');
     expect(html).toContain('hreflang="ja"');
     expect(html).toContain('hreflang="en"');
+    expect(html).toContain(
+      'hreflang="x-default" href="https://www.circleheart.dev/"',
+    );
     expect(html).toContain('<div id="root" hidden></div>');
     expect(html.indexOf("</main>")).toBeLessThan(html.indexOf("<footer"));
 
