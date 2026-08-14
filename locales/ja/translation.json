@@ -171,6 +171,8 @@
       "playbackRateSettings": "再生速度の設定",
       "playbackRateTitle": "再生速度",
       "playbackRateSlider": "再生速度を変更",
+      "decreasePlaybackRate": "再生速度を0.25下げる",
+      "increasePlaybackRate": "再生速度を0.25上げる",
       "measuringPlaybackCapacity": "端末性能を測定しています…",
       "devicePlaybackLimit": "この構成での安定上限 {{rate}}",
       "realtimePlaybackRate": "1× 実時間",

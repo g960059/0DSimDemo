@@ -171,6 +171,8 @@
       "playbackRateSettings": "Playback speed settings",
       "playbackRateTitle": "Playback speed",
       "playbackRateSlider": "Change playback speed",
+      "decreasePlaybackRate": "Decrease playback speed by 0.25",
+      "increasePlaybackRate": "Increase playback speed by 0.25",
       "measuringPlaybackCapacity": "Measuring device capacity…",
       "devicePlaybackLimit": "Stable limit for this setup: {{rate}}",
       "realtimePlaybackRate": "1× real time",

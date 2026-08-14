@@ -649,9 +649,70 @@ test("@desktop simulation information stays human-facing", async ({
     .toHaveCount(0);
 });
 
+test("@desktop deleting nested Scenario copies never renders a disposed lane", async ({
+  page,
+}) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  const root = page.getByTestId("v3-dockview-workbench");
+  const scenarioRegion = page.getByRole("region", { name: "Scenarios" });
+  const labels = [
+    "起動時baseline",
+    "起動時baseline のコピー",
+    "起動時baseline のコピー のコピー",
+    "起動時baseline のコピー のコピー のコピー",
+  ] as const;
+
+  for (let index = 0; index < labels.length - 1; index += 1) {
+    await openScenarioMenu(page, scenarioRegion, labels[index]!);
+    await page
+      .getByRole("menu", { name: `Scenarioメニュー: ${labels[index]}` })
+      .getByRole("menuitem", { name: "複製" })
+      .click();
+    await expect(scenarioRegion.getByRole("button", {
+      name: new RegExp(`^${labels[index + 1]}`),
+    })).toBeVisible({ timeout: 30_000 });
+  }
+
+  for (let index = labels.length - 1; index > 0; index -= 1) {
+    await openScenarioMenu(page, scenarioRegion, labels[index]!);
+    await page
+      .getByRole("menu", { name: `Scenarioメニュー: ${labels[index]}` })
+      .getByRole("menuitem", { name: "削除" })
+      .click();
+    await expect(scenarioRegion.getByRole("button", {
+      name: new RegExp(`^${labels[index]}`),
+    })).toHaveCount(0, { timeout: 30_000 });
+    await expect(root).toBeVisible();
+    await expect(page.getByText("Something went wrong.")).toHaveCount(0);
+  }
+
+  expect(pageErrors.filter((message) =>
+    message.includes("parallel Scenario not found")
+  )).toEqual([]);
+});
+
 test("@mobile 390px Workbench uses one graph tab group and keeps controls reachable", async ({
   page,
 }) => {
+  await expect(page.getByTestId("workbench-theme-toggle")).toBeHidden();
+  await expect(page.getByRole("button", {
+    name: "シミュレーションのメモ",
+  })).toHaveCount(0);
+  await page.getByTestId("workbench-simulation-info-trigger-v3").click();
+  const simulationInfo = page.getByRole("dialog", {
+    name: "シミュレーション情報",
+  });
+  await simulationInfo.getByRole("tab", {
+    name: "シミュレーションのメモ",
+  }).click();
+  await expect(simulationInfo.getByPlaceholder(
+    "このシミュレーションの解釈、制限事項、参考文献などを記入…",
+  )).toBeVisible();
+  await expect(simulationInfo.getByText("制限事項", { exact: false }))
+    .toBeVisible();
+  await simulationInfo.getByRole("button", { name: "閉じる" }).click();
+
   const rateTrigger = page.getByTestId("v3-playback-rate-trigger");
   await expect(rateTrigger).toBeVisible();
   await expect(rateTrigger).toContainText("×");
@@ -683,7 +744,7 @@ test("@mobile 390px Workbench uses one graph tab group and keeps controls reacha
   expect(
     (ratePopoverBox?.x ?? 0) + (ratePopoverBox?.width ?? 391),
   ).toBeLessThanOrEqual(390);
-  await rateTrigger.click();
+  await page.getByTestId("v3-playback-rate-backdrop").click();
   await expect(ratePopover).toBeHidden();
 
   const graphArea = page.getByRole("region", { name: "グラフエリア" });

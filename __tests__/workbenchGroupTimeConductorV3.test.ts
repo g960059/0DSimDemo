@@ -10,6 +10,7 @@ import { WorkbenchPerformanceDiagnosticsV3 } from
 import {
   formatWorkbenchPlaybackRateV3,
   snapWorkbenchPlaybackRateV3,
+  workbenchPlaybackPresetRatesV3,
 } from "@/components/workbench/WorkbenchPlaybackControlV3";
 
 type Frame = Readonly<{ laneId: string; timeSec: number; index: number }>;
@@ -441,6 +442,17 @@ describe("Workbench playback-rate presentation", () => {
     expect(snapWorkbenchPlaybackRateV3(1.88, 1.75)).toBe(1.75);
     expect(formatWorkbenchPlaybackRateV3(0.5)).toBe("0.5×");
     expect(formatWorkbenchPlaybackRateV3(1)).toBe("1×");
+  });
+
+  it("keeps the compact preset row within the calibrated ceiling", () => {
+    expect(workbenchPlaybackPresetRatesV3(0.75)).toEqual([0.25, 0.5, 0.75]);
+    expect(workbenchPlaybackPresetRatesV3(1.75)).toEqual([
+      1,
+      1.25,
+      1.5,
+      1.75,
+    ]);
+    expect(workbenchPlaybackPresetRatesV3(3)).toEqual([1, 1.25, 1.5, 2, 3]);
   });
 });
 

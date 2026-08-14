@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Check,
   ChevronDown,
+  FileText,
   Info,
   LoaderCircle,
   X,
@@ -30,13 +31,20 @@ export type WorkbenchSimulationInfoScenarioV3 = Readonly<{
   analysis: "idle" | "checking" | "unavailable";
 }>;
 
-export type WorkbenchSimulationInfoTabV3 = "status" | "model";
+export type WorkbenchSimulationInfoTabV3 = "status" | "model" | "note";
+
+type WorkbenchSimulationInfoNoteV3 = Readonly<{
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}>;
 
 type WorkbenchSimulationInfoPanelPropsV3 = Readonly<{
   activeTab: WorkbenchSimulationInfoTabV3;
   currentModelId: string;
   limitations: readonly string[];
   models: readonly WorkbenchSimulationInfoModelV3[];
+  note?: WorkbenchSimulationInfoNoteV3;
   onClose: () => void;
   onSelectModel?: (modelId: string) => void;
   onTabChange: (tab: WorkbenchSimulationInfoTabV3) => void;
@@ -56,12 +64,14 @@ export function WorkbenchSimulationInfoV3({
   currentModelId,
   limitations,
   models,
+  note,
   onSelectModel,
   scenarios,
 }: Readonly<{
   currentModelId: string;
   limitations: readonly string[];
   models: readonly WorkbenchSimulationInfoModelV3[];
+  note?: WorkbenchSimulationInfoNoteV3;
   onSelectModel?: (modelId: string) => void;
   scenarios: readonly WorkbenchSimulationInfoScenarioV3[];
 }>) {
@@ -148,6 +158,7 @@ export function WorkbenchSimulationInfoV3({
             currentModelId={currentModelId}
             limitations={limitations}
             models={models}
+            note={note}
             onClose={() => setOpen(false)}
             onSelectModel={onSelectModel === undefined
               ? undefined
@@ -204,6 +215,7 @@ export function WorkbenchSimulationInfoPanelV3({
   currentModelId,
   limitations,
   models,
+  note,
   onClose,
   onSelectModel,
   onTabChange,
@@ -215,15 +227,22 @@ export function WorkbenchSimulationInfoPanelV3({
   const titleId = React.useId();
   const statusTabId = React.useId();
   const modelTabId = React.useId();
+  const noteTabId = React.useId();
   const statusPanelId = React.useId();
   const modelPanelId = React.useId();
+  const notePanelId = React.useId();
 
   const selectAdjacentTab = (
     event: React.KeyboardEvent<HTMLButtonElement>,
   ) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    const next = activeTab === "status" ? "model" : "status";
+    const tabs: WorkbenchSimulationInfoTabV3[] = note === undefined
+      ? ["status", "model"]
+      : ["status", "model", "note"];
+    const direction = event.key === "ArrowRight" ? 1 : -1;
+    const currentIndex = tabs.indexOf(activeTab);
+    const next = tabs[(currentIndex + direction + tabs.length) % tabs.length]!;
     onTabChange(next);
     window.requestAnimationFrame(() => {
       document.querySelector<HTMLButtonElement>(
@@ -276,6 +295,17 @@ export function WorkbenchSimulationInfoPanelV3({
           onKeyDown={selectAdjacentTab}
           tab="model"
         />
+        {note !== undefined && (
+          <SimulationInfoTabV3
+            active={activeTab === "note"}
+            controls={notePanelId}
+            id={noteTabId}
+            label={t("workbench.editor.note")}
+            onClick={() => onTabChange("note")}
+            onKeyDown={selectAdjacentTab}
+            tab="note"
+          />
+        )}
       </div>
 
       <div className="min-h-0 overflow-y-auto px-5 py-5">
@@ -313,7 +343,7 @@ export function WorkbenchSimulationInfoPanelV3({
               {t("workbench.editor.simulationInfo.statusNotice")}
             </p>
           </div>
-        ) : (
+        ) : activeTab === "model" ? (
           <div
             id={modelPanelId}
             role="tabpanel"
@@ -401,7 +431,49 @@ export function WorkbenchSimulationInfoPanelV3({
               </section>
             )}
           </div>
-        )}
+        ) : note !== undefined ? (
+          <div
+            id={notePanelId}
+            role="tabpanel"
+            aria-labelledby={noteTabId}
+            className="grid gap-5"
+            data-testid="workbench-simulation-note-panel-v3"
+          >
+            <section>
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-wb-accent" aria-hidden="true" />
+                <h3 className="text-xs font-semibold text-wb-text">
+                  {t("workbench.editor.note")}
+                </h3>
+              </div>
+              <textarea
+                value={note.value}
+                placeholder={note.placeholder}
+                className="mt-3 min-h-52 w-full resize-y rounded-xl bg-wb-soft px-4 py-3 text-sm leading-7 text-wb-text outline-none placeholder:text-wb-subtle focus:ring-2 focus:ring-wb-accent"
+                onChange={(event) => note.onChange(event.currentTarget.value)}
+              />
+            </section>
+            <details className="group border-t border-wb-line pt-4">
+              <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-3 rounded-md text-xs font-semibold text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent">
+                <span>
+                  {t("workbench.editor.simulationInfo.limitationsTitle")}
+                  <span className="ml-1.5 font-normal text-wb-subtle">
+                    ({limitations.length})
+                  </span>
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 text-wb-subtle transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+              </summary>
+              <ul className="mt-2 grid gap-2.5 pb-1 text-xs leading-5 text-wb-muted">
+                {limitations.map((limitation, index) => (
+                  <li key={`${index}:${limitation}`} className="flex gap-2.5">
+                    <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-wb-subtle" aria-hidden="true" />
+                    <span>{limitation}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </div>
+        ) : null}
       </div>
     </>
   );

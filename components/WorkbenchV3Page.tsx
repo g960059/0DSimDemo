@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   Check,
   ClipboardList,
-  FileText,
   Home,
   Moon,
   Plus,
@@ -45,7 +44,6 @@ import {
   defaultArticleBriefingV3,
   materializeSurfaceControlPaneBindingV3,
 } from "@/components/article/ArticleEditorStateV3";
-import { WorkbenchNoteEditorV3 } from "@/components/workbench/WorkbenchNoteEditorV3";
 import { WorkbenchSimulationInfoV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
 import { WorkbenchPlaybackControlV3 } from "@/components/workbench/WorkbenchPlaybackControlV3";
 import {
@@ -452,7 +450,6 @@ const WorkbenchV3Session = ({
   const [recoveryError, setRecoveryError] = React.useState<string | null>(null);
   const [briefingOpen, setBriefingOpen] = React.useState(false);
   const [articleLinked, setArticleLinked] = React.useState(false);
-  const [noteOpen, setNoteOpen] = React.useState(false);
   const [briefing, setBriefing] =
     React.useState<ExperimentPlacementBriefingV2 | null>(null);
   const [briefingCaptureSnapshot, setBriefingCaptureSnapshot] =
@@ -2600,6 +2597,15 @@ const WorkbenchV3Session = ({
               limitations={t("modelLimitations.items", {
                 returnObjects: true,
               }) as string[]}
+              note={{
+                value: surface?.note.text ?? "",
+                placeholder: t("workbench.editor.notePlaceholder"),
+                onChange: (text) =>
+                  updateSurface((current) => ({
+                    ...current,
+                    note: { text },
+                  })),
+              }}
               models={[{
                 contract,
                 publicName: t(
@@ -2617,7 +2623,7 @@ const WorkbenchV3Session = ({
           )}
           <button
             type="button"
-            className="workbench-header-action inline-flex h-9 w-9 items-center justify-center"
+            className="workbench-header-action hidden h-9 w-9 items-center justify-center sm:inline-flex"
             aria-label={t("common.theme.toggle")}
             title={t("common.theme.toggle")}
             data-testid="workbench-theme-toggle"
@@ -2628,15 +2634,6 @@ const WorkbenchV3Session = ({
             ) : (
               <Moon className="h-3.5 w-3.5" aria-hidden="true" />
             )}
-          </button>
-          <button
-            type="button"
-            className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:opacity-40"
-            disabled={surface === null}
-            onClick={() => setNoteOpen(true)}
-            aria-label={t("workbench.editor.note")}
-          >
-            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
           {!modelLab && articleLinked && (
             <button
@@ -2927,7 +2924,7 @@ const WorkbenchV3Session = ({
                 );
                 const frame = scenarioId === null
                   ? null
-                  : runtimeRef.current?.latestFrame(scenarioId)
+                  : runtimeRef.current?.maybeLatestFrame(scenarioId)
                     ?? (latestFrame?.scenarioId === scenarioId
                       ? latestFrame
                       : null);
@@ -3221,22 +3218,6 @@ const WorkbenchV3Session = ({
           }}
         />
       )}
-      <WorkbenchNoteEditorV3
-        open={noteOpen}
-        value={surface?.note.text ?? ""}
-        onClose={() => setNoteOpen(false)}
-        onChange={(text) =>
-          updateSurface((current) => ({
-            ...current,
-            note: { text },
-          }))
-        }
-        strings={{
-          close: t("workbench.editor.close"),
-          placeholder: t("workbench.editor.notePlaceholder"),
-          title: t("workbench.editor.note"),
-        }}
-      />
       {articleLinked && briefingSnapshot !== null && briefing !== null && (
         <WorkbenchBriefingComposerV3
           open={briefingOpen}
