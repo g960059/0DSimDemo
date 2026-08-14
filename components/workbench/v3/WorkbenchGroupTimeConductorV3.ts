@@ -184,8 +184,17 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
       if (Math.abs(nextEffectiveRate - previousEffectiveRate) > 1e-9) {
         this.#cancelPumpTimer();
         if (this.#inFlight === undefined) {
+          const nextBoundaryDemand = Math.max(
+            1,
+            Math.floor(
+              this.#maximumPresentationFramesPerLane * nextEffectiveRate
+                + 1e-9,
+            ),
+          );
           this.#queuePump(
             nextEffectiveRate > previousEffectiveRate
+                && this.#presentationBacklogFramesPerLane()
+                  < nextBoundaryDemand
               ? 0
               : this.#batchModelDurationMs() / nextEffectiveRate,
           );
@@ -459,14 +468,17 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
 
   #recordPresentationBacklog(): void {
     if (!this.#performance.enabled) return;
-    const pendingFramesPerLane = this.#pendingPresentation.reduce(
+    this.#performance.recordValue(
+      "scheduler.group.presentation-backlog-frames-per-lane",
+      this.#presentationBacklogFramesPerLane(),
+    );
+  }
+
+  #presentationBacklogFramesPerLane(): number {
+    return this.#pendingPresentation.reduce(
       (sum, pending) =>
         sum + pending.laneFrames[0]!.frames.length - pending.offset,
       0,
-    );
-    this.#performance.recordValue(
-      "scheduler.group.presentation-backlog-frames-per-lane",
-      pendingFramesPerLane,
     );
   }
 

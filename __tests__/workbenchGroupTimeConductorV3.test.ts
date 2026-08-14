@@ -254,7 +254,7 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     await clock.advanceBy(8);
     const raisedRate = conductor.setPlaybackRate(1).effectiveRate;
     await clock.advanceBy(0);
-    expect(acceptedTimeSec).toBeCloseTo(0.064);
+    expect(acceptedTimeSec).toBeCloseTo(0.032);
     expect(presentedTimes).toEqual([]);
 
     await clock.advanceBy(16);
@@ -266,6 +266,8 @@ describe("WorkbenchGroupTimeConductorV3", () => {
         (_, index) => (index + 1) * 0.002,
       ),
     );
+    await clock.advanceBy(6);
+    expect(acceptedTimeSec).toBeCloseTo(0.064);
     await conductor.pause();
   });
 
