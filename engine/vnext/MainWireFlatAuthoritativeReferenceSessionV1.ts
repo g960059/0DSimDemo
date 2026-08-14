@@ -94,6 +94,7 @@ import {
   createMainWireAcceptedTypedNonCoronaryNumericalSourceV1,
   limitMainWireAcceptedTypedCandidateTimeV1,
   readMainWireAcceptedTypedClockV1,
+  readMainWireAcceptedTypedPresentationStateV1,
   stageMainWireAcceptedTypedAuthoredScheduleCandidateV1,
   stageMainWireAcceptedTypedCalciumCandidateV1,
   stageMainWireAcceptedTypedClockCandidateV1,
@@ -466,14 +467,27 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       });
     }
     const projectionStartedAt = performance.now();
-    const projectedValues = this.#typedAuthority === null
+    const typedPresentation = this.#typedAuthority === null
+      ? null
+      : readMainWireAcceptedTypedPresentationStateV1(
+          this.#typedAuthority.currentCursor(),
+          this.requiredTypedBoundaryBinding(),
+          this.#rhythmInput.configuration,
+        );
+    const projectedValues = typedPresentation === null
       ? projectMainWireIntegratedModelSelectedValuesV3(
         result.observation,
         outputIds,
       )
       : projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
         Object.freeze({
-          acceptedState: this.#acceptedState,
+          acceptedTimeSec: typedPresentation.acceptedTimeSec,
+          regularSinusCycleLengthSec:
+            typedPresentation.regularSinusCycleLengthSec,
+          regularSinusNextActivationTimeSec:
+            typedPresentation.regularSinusNextActivationTimeSec,
+          dynamicMechanicalSupportLvadFlowMlPerSec:
+            typedPresentation.lvadFlowMlPerSec,
           runtimeSignals: result.observation.runtimeSignals,
           completedBeatMetrics: this.#completedBeatMetrics,
           acceptedNumericalReadback: this.#acceptedNumericalReadback,

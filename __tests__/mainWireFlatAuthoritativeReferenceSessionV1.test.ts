@@ -1808,7 +1808,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     }
   });
 
-  it("projects from the private mirror without returning accepted state", async () => {
+  it("projects from typed readback without returning accepted state", async () => {
     const reference = await MainWireFlatAuthoritativeReferenceSessionV1.create();
     const oracle = await MainWireIntegratedModelSessionV3.create();
     const target = mainWireIntegratedModelPresentationTargetTimeSecV3(1);

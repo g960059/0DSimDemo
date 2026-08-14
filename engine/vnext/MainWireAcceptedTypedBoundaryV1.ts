@@ -62,6 +62,14 @@ export type MainWireAcceptedTypedClockV1 = Readonly<{
   revision: number;
 }>;
 
+export type MainWireAcceptedTypedPresentationStateV1 = Readonly<{
+  acceptedTimeSec: number;
+  revision: number;
+  regularSinusCycleLengthSec: number;
+  regularSinusNextActivationTimeSec: number;
+  lvadFlowMlPerSec: number;
+}>;
+
 type Boundary = Readonly<{ owner: string; timeSec: number }>;
 
 const CALCIUM_WALLS = Object.freeze([
@@ -505,6 +513,50 @@ export function readMainWireAcceptedTypedClockV1(
     throw new Error("Main Wire typed accepted owner clocks diverged");
   }
   return Object.freeze({ acceptedTimeSec, revision });
+}
+
+/** Minimal accepted state needed by the complete selected-output catalog. */
+export function readMainWireAcceptedTypedPresentationStateV1(
+  cursor: TransactionalTypedStateCurrentCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
+  configuration: AcceptedComposedRhythmTransactionConfigurationV2,
+): MainWireAcceptedTypedPresentationStateV1 {
+  const clock = readMainWireAcceptedTypedClockV1(cursor, binding);
+  if (
+    configuration.atrialSource.mode !== "regular"
+    || configuration.atrialSource.regularSourceConfiguration.rhythmClass
+      !== "sinus"
+  ) {
+    throw new Error(
+      "Main Wire typed presentation supports only regular sinus rhythm",
+    );
+  }
+  const cycleLengthSec = positiveFinite(
+    configuration.atrialSource.regularSourceConfiguration.cycleLengthSec,
+    "regular sinus cycle length",
+  );
+  const nextActivationTimeSec = finiteNonnegative(
+    cursor.readContinuous(
+      binding.continuous.regularAtrial.nextActivationTimeSec,
+    ),
+    "regular sinus next activation time",
+  );
+  if (!(nextActivationTimeSec > clock.acceptedTimeSec)) {
+    throw new Error(
+      "Main Wire typed regular sinus activation must remain future",
+    );
+  }
+  const lvadFlowMlPerSec = finiteNumber(
+    cursor.readContinuous(binding.continuous.dynamicMechanicalSupport.LVAD),
+    "LVAD accepted flow",
+  );
+  return Object.freeze({
+    acceptedTimeSec: clock.acceptedTimeSec,
+    revision: clock.revision,
+    regularSinusCycleLengthSec: cycleLengthSec,
+    regularSinusNextActivationTimeSec: nextActivationTimeSec,
+    lvadFlowMlPerSec,
+  });
 }
 
 /** Writes the exact six-slot outer/composed/coronary clock tuple. */

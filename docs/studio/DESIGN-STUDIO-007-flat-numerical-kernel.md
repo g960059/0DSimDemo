@@ -1204,6 +1204,14 @@ old and new inputs. This removes rich coronary, circulation, and mechanics
 trial trees from those two downstream consumers; public finalization itself
 still runs and remains the next deletion boundary.
 
+The all-output numerical projection boundary no longer accepts a public
+AcceptedState. The typed image supplies only the admitted clock, regular-sinus
+cycle and next-activation clocks, and current LVAD flow alongside the fixed
+32-value numerical readback. Those values cover the remaining rhythm and
+device outputs, so all 49 presentation values can be projected without
+rehydrating the public object graph. Non-regular rhythm remains fail-closed at
+this narrow migration seam and continues through the independent public path.
+
 The transaction image now also has an adapter-free promotion primitive. It is
 bound to an unforgeable model-owned write plan, rejects any missing owner slot,
 and performs only the final active-buffer swap after the model has applied its
