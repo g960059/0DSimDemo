@@ -8,8 +8,6 @@ import {
   FileText,
   Home,
   Moon,
-  Pause,
-  Play,
   Plus,
   RefreshCw,
   Save,
@@ -49,6 +47,7 @@ import {
 } from "@/components/article/ArticleEditorStateV3";
 import { WorkbenchNoteEditorV3 } from "@/components/workbench/WorkbenchNoteEditorV3";
 import { WorkbenchSimulationInfoV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
+import { WorkbenchPlaybackControlV3 } from "@/components/workbench/WorkbenchPlaybackControlV3";
 import {
   WorkbenchPaneEditorV3,
   addWorkbenchSurfacePaneV3,
@@ -177,6 +176,7 @@ import {
   workbenchPresentationOutputSelectionV3,
   type WorkbenchScenarioOrbitHistoryV3,
   type WorkbenchScenarioPresentationSamplesV3,
+  type WorkbenchGroupPlaybackRateStateV3,
   workbenchPerformanceDiagnosticsEnabledV3,
   workbenchPerformanceNowV3,
 } from "@/components/workbench/v3";
@@ -239,6 +239,14 @@ const EMPTY_WORKBENCH_SCENARIO_PRESENTATION_SAMPLES_V3 = Object.freeze(
 const EMPTY_WORKBENCH_SCENARIO_ORBIT_HISTORY_V3 = Object.freeze(
   Object.create(null),
 ) as WorkbenchScenarioOrbitHistoryV3;
+const INITIAL_WORKBENCH_PLAYBACK_RATE_STATE_V3:
+  WorkbenchGroupPlaybackRateStateV3 = Object.freeze({
+    mode: "auto",
+    effectiveRate: 0.5,
+    safeMaximumRate: 0.5,
+    requestedRate: null,
+    warmingUp: true,
+  });
 
 const recordWorkbenchReactCommitV3: React.ProfilerOnRenderCallback = (
   _id,
@@ -454,6 +462,9 @@ const WorkbenchV3Session = ({
   const [paneSettings, setPaneSettings] =
     React.useState<WorkbenchPaneSettingsV3 | null>(null);
   const [isPlaying, setIsPlaying] = React.useState(true);
+  const [playbackRate, setPlaybackRate] = React.useState(
+    INITIAL_WORKBENCH_PLAYBACK_RATE_STATE_V3,
+  );
   const [backgroundWorkerPool, setBackgroundWorkerPool] =
     React.useState<WorkbenchBackgroundWorkerPoolV3 | null>(null);
   const [runtimeGeneration, setRuntimeGeneration] = React.useState(0);
@@ -898,6 +909,7 @@ const WorkbenchV3Session = ({
       );
       setControlError(null);
       setPendingControlId(null);
+      setPlaybackRate(INITIAL_WORKBENCH_PLAYBACK_RATE_STATE_V3);
       replaceAnalysisByKeyV3({});
       equivalentAnalysisSourceByScenarioRef.current.clear();
       setAnalysisHistoryByKey({});
@@ -969,6 +981,7 @@ const WorkbenchV3Session = ({
             );
           }
         },
+        onPlaybackRateChange: setPlaybackRate,
         onError: failRuntime,
       });
       const initialState = await runtime.initialize({
@@ -1302,6 +1315,12 @@ const WorkbenchV3Session = ({
     runtime.playAll();
   }, []);
 
+  const changePlaybackRate = React.useCallback((rate: number | "auto") => {
+    const runtime = runtimeRef.current;
+    if (runtime === null) return;
+    setPlaybackRate(runtime.setPlaybackRate(rate));
+  }, []);
+
   const restartRuntime = React.useCallback((playbackIntent = true) => {
     playingIntentRef.current = playbackIntent;
     setIsPlaying(playbackIntent);
@@ -1536,6 +1555,7 @@ const WorkbenchV3Session = ({
                   expectedInputEpoch: acceptedFrame.inputEpoch,
                   expectedAcceptedRevision: acceptedFrame.acceptedRevision,
                   expectedAcceptedTimeSec: acceptedFrame.acceptedTimeSec,
+                  sourceAlreadyPaused: true,
                   onProgress: queueAnalysisProgressV3,
                   onLiveLaneReleased: markLiveLaneReleased,
                 });
@@ -2687,23 +2707,13 @@ const WorkbenchV3Session = ({
             </span>
           </button>}
           {status.kind === "live" && (
-            <button
-              type="button"
-              className="workbench-header-playback inline-flex h-9 w-9 items-center justify-center disabled:cursor-wait disabled:opacity-50"
+            <WorkbenchPlaybackControlV3
               disabled={runtimeOperationPending}
-              aria-label={
-                isPlaying ? t("workbench.live.pause") : t("workbench.live.play")
-              }
-              aria-pressed={!isPlaying}
-              onClick={togglePlayback}
-              data-testid="v3-playback-toggle"
-            >
-              {isPlaying ? (
-                <Pause className="h-3.5 w-3.5" />
-              ) : (
-                <Play className="h-3.5 w-3.5" />
-              )}
-            </button>
+              playing={isPlaying}
+              rate={playbackRate}
+              onPlaybackToggle={togglePlayback}
+              onRateChange={changePlaybackRate}
+            />
           )}
         </div>
       </header>

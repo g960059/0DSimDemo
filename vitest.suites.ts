@@ -72,12 +72,12 @@ export const fastTests = [
   "__tests__/studioPublicContentDeliveryV1.test.ts",
   "__tests__/testSuiteManifest.test.ts",
   "__tests__/workbenchBackgroundWorkerPoolV3.test.ts",
+  "__tests__/workbenchGroupTimeConductorV3.test.ts",
   "__tests__/workbenchParallelAuthoringCoordinatorV3.test.ts",
   "__tests__/workbenchParallelScenarioRuntimeV3.test.ts",
   "__tests__/workbenchScenarioSteadyCandidateCoordinatorV3.test.ts",
   "__tests__/workbenchV3Dockview.test.tsx",
   "__tests__/workbenchV3CanvasRenderers.test.ts",
-  "__tests__/workbenchLiveSchedulerV3.test.ts",
   "__tests__/wholeHeartMechanicsContractV1.test.ts",
   "engine/__tests__/activeStressSourcePressureAdapter.test.ts",
   "engine/__tests__/chambers.test.ts",
@@ -135,12 +135,12 @@ export const prSmokeTests = [
   "__tests__/studioNumericalAuthoringV1.test.ts",
   "__tests__/testSuiteManifest.test.ts",
   "__tests__/workbenchBackgroundWorkerPoolV3.test.ts",
+  "__tests__/workbenchGroupTimeConductorV3.test.ts",
   "__tests__/workbenchParallelAuthoringCoordinatorV3.test.ts",
   "__tests__/workbenchParallelScenarioRuntimeV3.test.ts",
   "__tests__/workbenchScenarioSteadyCandidateCoordinatorV3.test.ts",
   "__tests__/workbenchV3Dockview.test.tsx",
   "__tests__/workbenchV3CanvasRenderers.test.ts",
-  "__tests__/workbenchLiveSchedulerV3.test.ts",
 ] as const;
 
 export const regressionTests = [

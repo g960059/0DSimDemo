@@ -26,16 +26,15 @@ import type {
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 
 import {
-  WorkbenchLiveSchedulerV3,
-  type WorkbenchLiveSchedulerDependenciesV3,
-  type WorkbenchLiveSchedulerTimerV3,
-} from "./WorkbenchLiveSchedulerV3";
+  WorkbenchGroupTimeConductorV3,
+  type WorkbenchGroupPlaybackRateStateV3,
+  type WorkbenchGroupTimeConductorDependenciesV3,
+} from "./WorkbenchGroupTimeConductorV3";
 import {
   recordWorkbenchPerformanceDurationV3,
   recordWorkbenchPerformanceEventIntervalV3,
   recordWorkbenchPerformanceValueV3,
   workbenchPerformanceDiagnosticsEnabledV3,
-  workbenchPerformanceNowV3,
 } from "./WorkbenchPerformanceDiagnosticsV3";
 import {
   resolveWorkbenchPresentationProfileV3,
@@ -50,11 +49,6 @@ import {
   type WorkbenchSteadyCandidateSourceV3,
 } from "./WorkbenchScenarioSteadyCandidateCoordinatorV3";
 import { randomPortableTokenV3 } from "./randomPortableTokenV3";
-
-// One short visual deadline lets independently completing Scenario Workers
-// coalesce without stacking a second full 32 ms delay on top of each lane's
-// scheduler-side presentation buffer.
-const WORKBENCH_PARALLEL_FRAME_FLUSH_MS_V3 = 16;
 
 export type WorkbenchParallelScenarioSeedV3 = Readonly<{
   scenarioId: string;
@@ -76,16 +70,22 @@ export type WorkbenchParallelScenarioRuntimeClientV3 = Pick<
   presentationTiming?: StudioSimulationWorkerClientV2["presentationTiming"];
 }>;
 
-type WorkbenchParallelScenarioSchedulerV3 = Pick<
-  WorkbenchLiveSchedulerV3<StudioSimulationFrameV2>,
-  "dispose" | "flushAcceptedFrames" | "pause" | "play" | "running"
+type WorkbenchParallelScenarioTimeConductorV3 = Pick<
+  WorkbenchGroupTimeConductorV3<StudioSimulationFrameV2>,
+  | "dispose"
+  | "lanesChanged"
+  | "pause"
+  | "play"
+  | "playbackRateState"
+  | "running"
+  | "setPlaybackRate"
+  | "terminate"
 >;
 
 type WorkbenchParallelScenarioLaneV3 = {
   descriptor: StudioSimulationWorkerScenarioDescriptorV2;
   runtimeSessionId: string;
   client: WorkbenchParallelScenarioRuntimeClientV3;
-  scheduler: WorkbenchParallelScenarioSchedulerV3;
   latestFrame: StudioSimulationFrameV2;
   completeOutputIds: ReadonlySet<string>;
 };
@@ -105,19 +105,15 @@ export type WorkbenchParallelScenarioRuntimeDependenciesV3 = Readonly<{
   backgroundWorkerPool?: WorkbenchBackgroundWorkerPoolPortV3;
   resolveAnalysisExecutionPlan?:
     StudioSimulationAnalysisExecutionPlanResolverV2;
-  createScheduler?: (
-    scenarioId: string,
-    dependencies: WorkbenchLiveSchedulerDependenciesV3<StudioSimulationFrameV2>,
-  ) => WorkbenchParallelScenarioSchedulerV3;
+  createTimeConductor?: (
+    dependencies:
+      WorkbenchGroupTimeConductorDependenciesV3<StudioSimulationFrameV2>,
+  ) => WorkbenchParallelScenarioTimeConductorV3;
   createRuntimeSessionId?: (scenarioId: string) => string;
-  scheduleFrameFlush?: (
-    callback: () => void,
-    delayMs: number,
-  ) => WorkbenchLiveSchedulerTimerV3;
-  cancelFrameFlush?: (timer: WorkbenchLiveSchedulerTimerV3) => void;
   presentationProfile?: WorkbenchPresentationProfileV3;
   /** Current authored scalar signals needed between complete terminal frames. */
   presentationOutputIds?: () => ReadonlySet<string> | readonly string[];
+  onPlaybackRateChange?(state: WorkbenchGroupPlaybackRateStateV3): void;
 }>;
 
 type ParallelRuntimeStateV3 =
@@ -151,16 +147,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     WorkbenchScenarioSteadyCandidateCoordinatorV3 | undefined;
   readonly #resolveAnalysisExecutionPlan:
     StudioSimulationAnalysisExecutionPlanResolverV2;
-  readonly #createScheduler: (
-    scenarioId: string,
-    dependencies: WorkbenchLiveSchedulerDependenciesV3<StudioSimulationFrameV2>,
-  ) => WorkbenchParallelScenarioSchedulerV3;
+  readonly #timeConductor: WorkbenchParallelScenarioTimeConductorV3;
   readonly #createRuntimeSessionId: (scenarioId: string) => string;
-  readonly #scheduleFrameFlush: (
-    callback: () => void,
-    delayMs: number,
-  ) => WorkbenchLiveSchedulerTimerV3;
-  readonly #cancelFrameFlush: (timer: WorkbenchLiveSchedulerTimerV3) => void;
   readonly #presentationProfile: WorkbenchPresentationProfileV3;
   readonly #presentationOutputIds:
     () => ReadonlySet<string> | readonly string[];
@@ -173,12 +161,10 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     Set<WorkbenchBackgroundJobHandleV3<unknown>>
   >();
   readonly #pendingScenarioIds = new Set<string>();
+  readonly #scenarioPauseLeaseCounts = new Map<string, number>();
   #state: ParallelRuntimeStateV3 = "new";
   #activeScenarioId: string | null = null;
   #playing = false;
-  #pendingFrames: StudioSimulationFrameV2[] = [];
-  #frameFlushTimer: WorkbenchLiveSchedulerTimerV3 | undefined;
-  #frameCoalescingStartedAtMs: number | undefined;
   #failed = false;
 
   constructor(dependencies: WorkbenchParallelScenarioRuntimeDependenciesV3) {
@@ -198,19 +184,31 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         );
     this.#resolveAnalysisExecutionPlan = dependencies.resolveAnalysisExecutionPlan
       ?? (() => null);
-    this.#createScheduler = dependencies.createScheduler
-      ?? ((_scenarioId, schedulerDependencies) =>
-        new WorkbenchLiveSchedulerV3(schedulerDependencies));
     this.#createRuntimeSessionId = dependencies.createRuntimeSessionId
       ?? (() => `workbench-lane-${randomPortableTokenV3()}`);
-    this.#scheduleFrameFlush = dependencies.scheduleFrameFlush
-      ?? ((callback, delayMs) => setTimeout(callback, delayMs));
-    this.#cancelFrameFlush = dependencies.cancelFrameFlush
-      ?? ((timer) => clearTimeout(timer));
     this.#presentationProfile = dependencies.presentationProfile
       ?? resolveWorkbenchPresentationProfileV3();
     this.#presentationOutputIds = dependencies.presentationOutputIds
       ?? (() => Object.freeze([]));
+    const createTimeConductor = dependencies.createTimeConductor
+      ?? ((conductorDependencies) =>
+        new WorkbenchGroupTimeConductorV3(conductorDependencies));
+    this.#timeConductor = createTimeConductor({
+      lanes: () => [...this.#lanes.values()].map((lane) => Object.freeze({
+        laneId: lane.descriptor.scenarioId,
+        acceptedTimeSec: lane.latestFrame.acceptedTimeSec,
+        advance: (stepCount) => this.#advanceLane(lane, stepCount),
+        frameAcceptedTimeSec: (frame) => frame.acceptedTimeSec,
+      })),
+      onFrames: (frames) => this.#publishFrames(frames),
+      onError: (error) => this.#fail(error),
+      onPlaybackRateChange: dependencies.onPlaybackRateChange,
+      batchSteps: this.#presentationProfile.maximumBatchSteps,
+      presentationIntervalMs:
+        this.#presentationProfile.presentationIntervalMs,
+      maximumPresentationFramesPerLane:
+        this.#presentationProfile.maximumPresentationBatchFrames,
+    });
   }
 
   async initialize(input: Readonly<{
@@ -247,6 +245,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         this.#lanes.set(result.value.descriptor.scenarioId, result.value);
       }
     }
+    this.#timeConductor.lanesChanged();
     this.#syncBackgroundWorkerBudget();
     this.#activeScenarioId = input.activeScenarioId;
     this.#state = "active";
@@ -259,6 +258,17 @@ export class WorkbenchParallelScenarioRuntimeV3 {
 
   get scenarioCount(): number {
     return this.#lanes.size;
+  }
+
+  playbackRateState(): WorkbenchGroupPlaybackRateStateV3 {
+    return this.#timeConductor.playbackRateState();
+  }
+
+  setPlaybackRate(
+    rate: number | "auto",
+  ): WorkbenchGroupPlaybackRateStateV3 {
+    this.#requireActive();
+    return this.#timeConductor.setPlaybackRate(rate);
   }
 
   descriptors(): readonly StudioSimulationWorkerScenarioDescriptorV2[] {
@@ -322,20 +332,30 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }
     this.#pendingScenarioIds.add(seed.scenarioId);
     this.#syncBackgroundWorkerBudget();
+    let lane: WorkbenchParallelScenarioLaneV3 | undefined;
+    let adopted = false;
     try {
-      const lane = await this.#createLane(seed);
+      lane = await this.#createLane(seed);
       if (this.#state !== "active") {
-        terminateLaneV3(lane);
         throw new Error("parallel Scenario runtime was terminated during add");
       }
       if (this.#lanes.has(seed.scenarioId)) {
-        terminateLaneV3(lane);
         throw new Error(`parallel Scenario already exists: ${seed.scenarioId}`);
       }
+      const shouldResume = this.#timeConductor.running;
+      if (shouldResume) await this.#timeConductor.pause();
       this.#lanes.set(seed.scenarioId, lane);
+      adopted = true;
       this.#activeScenarioId = seed.scenarioId;
-      if (this.#playing) lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
+      this.#timeConductor.lanesChanged();
+      if (shouldResume && this.#canRunGroup()) this.#timeConductor.play();
       return this.currentState();
+    } catch (error) {
+      if (!adopted && lane !== undefined) terminateLaneV3(lane);
+      else if (adopted && this.#state === "active") {
+        this.#fail(errorAsErrorV3(error));
+      }
+      throw error;
     } finally {
       this.#pendingScenarioIds.delete(seed.scenarioId);
       this.#syncBackgroundWorkerBudget();
@@ -383,18 +403,20 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       throw new Error("parallel Scenario runtime cannot delete its last Scenario");
     }
     const lane = this.#requiredLane(scenarioId);
+    const shouldResume = this.#timeConductor.running;
+    if (shouldResume) await this.#timeConductor.pause();
     this.#cancelScenarioAnalysisJobs(scenarioId);
     this.#lanes.delete(scenarioId);
+    this.#scenarioPauseLeaseCounts.delete(scenarioId);
+    this.#timeConductor.lanesChanged();
     this.#syncBackgroundWorkerBudget();
     this.#steadyCandidates?.invalidateScenario(scenarioId);
     if (this.#activeScenarioId === scenarioId) {
       this.#activeScenarioId = this.#lanes.keys().next().value ?? null;
     }
-    try {
-      await lane.scheduler.dispose();
-    } finally {
-      lane.client.terminate();
-    }
+    lane.client.terminate();
+    if (shouldResume && this.#canRunGroup()) this.#timeConductor.play();
+    this.#syncBackgroundWorkerBudget();
     return this.currentState();
   }
 
@@ -424,6 +446,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       & Readonly<{
         onProgress?: (analysis: StudioSimulationAnalysisV2) => void;
         onLiveLaneReleased?: () => void;
+        /** Transfers one pauseScenario lease already owned by the caller. */
+        sourceAlreadyPaused?: boolean;
       }>,
   ): Promise<StudioSimulationAnalysisV2> {
     this.#requireActive();
@@ -434,9 +458,19 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     const partitions = executionPlan === null
       ? Object.freeze([input.analysisPartition])
       : validatedAnalysisPartitionsV3(executionPlan.partitions);
+    let sourcePauseLeaseOwned = false;
     try {
-      await lane.scheduler.pause();
-      this.#flushFrames();
+      if (input.sourceAlreadyPaused === true) {
+        if (!this.#scenarioPauseLeaseCounts.has(input.scenarioId)) {
+          throw new Error(
+            "parallel Scenario analysis was not given its declared pause lease",
+          );
+        }
+        sourcePauseLeaseOwned = true;
+      } else {
+        await this.pauseScenario(input.scenarioId);
+        sourcePauseLeaseOwned = true;
+      }
       const sourceFrame = lane.latestFrame;
       if (
         sourceFrame.inputEpoch !== input.expectedInputEpoch
@@ -456,6 +490,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       // before the shared steady candidate is awaited or another Worker is
       // leased; queueing and numerical work must never extend the visible pause.
       this.resumeScenario(input.scenarioId);
+      sourcePauseLeaseOwned = false;
       input.onLiveLaneReleased?.();
 
       const sourceForAnalysis = this.#bestAvailableSteadyCandidate(
@@ -536,7 +571,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         ? analyses[0]!
         : executionPlan.merge(analyses);
     } finally {
-      this.resumeScenario(input.scenarioId);
+      if (sourcePauseLeaseOwned) this.resumeScenario(input.scenarioId);
     }
   }
 
@@ -634,18 +669,18 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#requireActive();
     if (this.#playing) return;
     this.#playing = true;
-    // Reserve foreground capacity before schedulers start requesting batches;
+    // Reserve foreground capacity before the conductor starts requesting batches;
     // otherwise paused-time speculation can briefly overfill the device.
     this.#syncBackgroundWorkerBudget(
       this.#lanes.size + this.#pendingScenarioIds.size,
     );
     try {
-      for (const lane of this.#lanes.values()) {
-        lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
+      if (this.#scenarioPauseLeaseCounts.size === 0) {
+        this.#timeConductor.play();
       }
       this.#syncBackgroundWorkerBudget();
     } catch (error) {
-      this.#fail(null, errorAsErrorV3(error));
+      this.#fail(errorAsErrorV3(error));
     }
   }
 
@@ -654,18 +689,22 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#requireActive();
     this.#playing = false;
     try {
-      await Promise.all([...this.#lanes.values()].map(({ scheduler }) =>
-        scheduler.pause()));
-      this.#flushFrames();
+      await this.#timeConductor.pause();
     } finally {
       // A paused Workbench has no foreground numerical lanes. Give its idle
       // cores back to explicit analysis/prewarm instead of charging Scenario
-      // membership as if every scheduler were still running.
+      // membership as if every Scenario were still running.
       this.#syncBackgroundWorkerBudget();
     }
   }
 
-  /** Pauses and drains only one numerical lane; sibling Scenarios stay live. */
+  /**
+   * Acquires a short group-pause lease for one Scenario operation.
+   *
+   * Comparative lanes share one model-time clock, so a source capture cannot
+   * advance its siblings independently. The group resumes as soon as all
+   * outstanding Scenario leases are released.
+   */
   async pauseScenario(
     scenarioId: string,
   ): Promise<StudioSimulationFrameV2> {
@@ -674,23 +713,42 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }
     this.#requireActive();
     const lane = this.#requiredLane(scenarioId);
-    await lane.scheduler.pause();
-    this.#flushFrames();
+    this.#scenarioPauseLeaseCounts.set(
+      scenarioId,
+      (this.#scenarioPauseLeaseCounts.get(scenarioId) ?? 0) + 1,
+    );
+    try {
+      await this.#timeConductor.pause();
+    } catch (error) {
+      this.#releaseScenarioPauseLease(scenarioId);
+      throw error;
+    }
     this.#syncBackgroundWorkerBudget();
     return lane.latestFrame;
   }
 
-  /** Resumes one drained lane only when global playback intent is still live. */
+  /** Releases one group-pause lease without changing global playback intent. */
   resumeScenario(scenarioId: string): void {
-    if (this.#state === "terminated" || !this.#playing) return;
+    if (this.#state === "terminated") return;
     this.#requireActive();
-    const lane = this.#requiredLane(scenarioId);
-    if (lane.scheduler.running) return;
+    this.#requiredLane(scenarioId);
+    if (!this.#releaseScenarioPauseLease(scenarioId)) return;
+    // Global pause changes playback intent, not operation ownership. Release
+    // the lease even while paused so a later playAll() is not held forever by
+    // an operation that already completed.
+    if (!this.#playing) {
+      this.#syncBackgroundWorkerBudget();
+      return;
+    }
+    if (
+      this.#scenarioPauseLeaseCounts.size > 0
+      || this.#timeConductor.running
+    ) return;
     this.#syncBackgroundWorkerBudget(
-      this.#runningLaneCount() + this.#pendingScenarioIds.size + 1,
+      this.#lanes.size + this.#pendingScenarioIds.size,
     );
     try {
-      lane.scheduler.play(lane.latestFrame.acceptedTimeSec);
+      this.#timeConductor.play();
     } finally {
       this.#syncBackgroundWorkerBudget();
     }
@@ -700,15 +758,15 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (this.#state === "terminated") return;
     this.#state = "terminated";
     this.#playing = false;
+    this.#timeConductor.terminate();
     this.#steadyCandidates?.dispose();
     this.#cancelAllAnalysisJobs();
-    this.#cancelPendingFlush();
-    this.#pendingFrames = [];
     for (const client of this.#analysisClients) client.terminate();
     this.#analysisClients.clear();
     for (const lane of this.#lanes.values()) terminateLaneV3(lane);
     this.#lanes.clear();
     this.#pendingScenarioIds.clear();
+    this.#scenarioPauseLeaseCounts.clear();
     this.#syncBackgroundWorkerBudget(0);
     this.#activeScenarioId = null;
   }
@@ -719,16 +777,15 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#playing = false;
     this.#steadyCandidates?.dispose();
     this.#cancelAllAnalysisJobs();
-    this.#cancelPendingFlush();
-    this.#pendingFrames = [];
     for (const client of this.#analysisClients) client.terminate();
     this.#analysisClients.clear();
     const lanes = [...this.#lanes.values()];
     this.#lanes.clear();
     this.#pendingScenarioIds.clear();
+    this.#scenarioPauseLeaseCounts.clear();
     this.#syncBackgroundWorkerBudget(0);
     this.#activeScenarioId = null;
-    await Promise.allSettled(lanes.map(({ scheduler }) => scheduler.dispose()));
+    await this.#timeConductor.dispose();
     for (const { client } of lanes) client.terminate();
   }
 
@@ -749,86 +806,13 @@ export class WorkbenchParallelScenarioRuntimeV3 {
           ? {}
           : { checkpoint: seed.checkpoint }),
       });
-      let lane: WorkbenchParallelScenarioLaneV3 | undefined;
-      const scheduler = this.#createScheduler(seed.scenarioId, {
-        advance: (stepCount) => {
-          const presentationOutputIds = Object.freeze([
-            ...new Set(this.#presentationOutputIds()),
-          ]);
-          if (workbenchPerformanceDiagnosticsEnabledV3()) {
-            const typedArrayBytes = stepCount * 16
-              + stepCount * presentationOutputIds.length * 9;
-            recordWorkbenchPerformanceValueV3(
-              "worker.presentation-selected-output-count",
-              presentationOutputIds.length,
-            );
-            recordWorkbenchPerformanceValueV3(
-              "worker.presentation-typed-array-bytes",
-              typedArrayBytes,
-            );
-            recordWorkbenchPerformanceValueV3(
-              `worker.lane.${seed.scenarioId}.presentation-typed-array-bytes`,
-              typedArrayBytes,
-            );
-          }
-          return client.advancePresentation({
-            runtimeSessionId,
-            scenarioId: seed.scenarioId,
-            stepCount,
-            presentationOutputIds,
-          }).then((frames) => {
-            if (workbenchPerformanceDiagnosticsEnabledV3()) {
-              const timing = client.presentationTiming?.();
-              if (timing !== undefined) {
-                recordWorkbenchPerformanceDurationV3(
-                  "worker.presentation-advance",
-                  timing.workerAdvanceMs,
-                );
-                recordWorkbenchPerformanceDurationV3(
-                  "worker.presentation-prepare",
-                  timing.workerPrepareMs,
-                );
-                recordWorkbenchPerformanceDurationV3(
-                  `worker.lane.${seed.scenarioId}.presentation-advance`,
-                  timing.workerAdvanceMs,
-                );
-                recordWorkbenchPerformanceDurationV3(
-                  `worker.lane.${seed.scenarioId}.presentation-prepare`,
-                  timing.workerPrepareMs,
-                );
-              }
-            }
-            return frames;
-          });
-        },
-        acceptedTimeSec: (frame) => frame.acceptedTimeSec,
-        onFrames: (frames) => {
-          if (this.#state !== "active") return;
-          if (frames.length === 0 || lane === undefined) return;
-          const complete = [...frames].reverse().find((frame) =>
-            [...lane!.completeOutputIds].every((outputId) =>
-              Object.prototype.hasOwnProperty.call(frame.outputs, outputId),
-            ));
-          if (complete !== undefined) lane.latestFrame = complete;
-          this.#enqueueFrames(frames);
-        },
-        onError: (error) => this.#fail(seed.scenarioId, error),
-        diagnosticLaneId: seed.scenarioId,
-        maximumBatchSteps: this.#presentationProfile.maximumBatchSteps,
-        preferredBatchSteps: this.#presentationProfile.preferredBatchSteps,
-        presentationIntervalMs:
-          this.#presentationProfile.presentationIntervalMs,
-        maximumPresentationBatchFrames:
-          this.#presentationProfile.maximumPresentationBatchFrames,
-      });
-      lane = {
+      const lane = {
         descriptor: Object.freeze({
           scenarioId: seed.scenarioId,
           label: seed.label,
         }),
         runtimeSessionId,
         client,
-        scheduler,
         latestFrame: initialFrame,
         completeOutputIds: new Set(Object.keys(initialFrame.outputs)),
       };
@@ -896,71 +880,119 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     });
   }
 
-  #enqueueFrames(frames: readonly StudioSimulationFrameV2[]): void {
-    if (frames.length === 0 || this.#state !== "active") return;
+  async #advanceLane(
+    lane: WorkbenchParallelScenarioLaneV3,
+    stepCount: number,
+  ): Promise<readonly StudioSimulationFrameV2[]> {
+    const presentationOutputIds = Object.freeze([
+      ...new Set(this.#presentationOutputIds()),
+    ]);
     if (workbenchPerformanceDiagnosticsEnabledV3()) {
-      const terminal = frames.at(-1)!;
-      const outputs = Object.values(terminal.outputs);
-      const valueCount = outputs.reduce((count, output) =>
-        count + (Array.isArray(output.value) ? output.value.length : 1), 0);
+      const typedArrayBytes = stepCount * 16
+        + stepCount * presentationOutputIds.length * 9;
       recordWorkbenchPerformanceValueV3(
-        `runtime.${terminal.scenarioId}.batch-frame-count`,
-        frames.length,
+        "worker.presentation-selected-output-count",
+        presentationOutputIds.length,
       );
       recordWorkbenchPerformanceValueV3(
-        `runtime.${terminal.scenarioId}.outputs-per-frame`,
-        outputs.length,
+        "worker.presentation-typed-array-bytes",
+        typedArrayBytes,
       );
       recordWorkbenchPerformanceValueV3(
-        `runtime.${terminal.scenarioId}.values-per-frame`,
-        valueCount,
+        `worker.lane.${lane.descriptor.scenarioId}.presentation-typed-array-bytes`,
+        typedArrayBytes,
       );
     }
-    if (
-      this.#pendingFrames.length === 0
-      && workbenchPerformanceDiagnosticsEnabledV3()
-    ) {
-      this.#frameCoalescingStartedAtMs = workbenchPerformanceNowV3();
-    }
-    this.#pendingFrames.push(...frames);
-    // There is nothing to align when only one numerical lane exists. Avoid a
-    // second 16 ms timer after the scheduler has already formed one exact
-    // presentation batch.
-    if (this.#lanes.size <= 1) {
-      this.#cancelPendingFlush();
-      this.#flushFrames();
-      return;
-    }
-    if (this.#frameFlushTimer !== undefined) return;
-    this.#frameFlushTimer = this.#scheduleFrameFlush(() => {
-      this.#frameFlushTimer = undefined;
-      this.#flushFrames();
-    }, WORKBENCH_PARALLEL_FRAME_FLUSH_MS_V3);
-  }
-
-  #flushFrames(): void {
-    if (this.#pendingFrames.length === 0) return;
-    const frames = Object.freeze(this.#pendingFrames.slice());
-    this.#pendingFrames = [];
-    if (this.#state === "active") {
-      this.#onFrames(frames);
-      recordWorkbenchPerformanceEventIntervalV3(
-        "runtime.presentation-commit-interval",
-      );
-      if (this.#frameCoalescingStartedAtMs !== undefined) {
+    const frames = await lane.client.advancePresentation({
+      runtimeSessionId: lane.runtimeSessionId,
+      scenarioId: lane.descriptor.scenarioId,
+      stepCount,
+      presentationOutputIds,
+    });
+    if (workbenchPerformanceDiagnosticsEnabledV3()) {
+      const timing = lane.client.presentationTiming?.();
+      if (timing !== undefined) {
         recordWorkbenchPerformanceDurationV3(
-          "runtime.frame-coalescing",
-          workbenchPerformanceNowV3() - this.#frameCoalescingStartedAtMs,
+          "worker.presentation-advance",
+          timing.workerAdvanceMs,
+        );
+        recordWorkbenchPerformanceDurationV3(
+          "worker.presentation-prepare",
+          timing.workerPrepareMs,
+        );
+        recordWorkbenchPerformanceDurationV3(
+          `worker.lane.${lane.descriptor.scenarioId}.presentation-advance`,
+          timing.workerAdvanceMs,
+        );
+        recordWorkbenchPerformanceDurationV3(
+          `worker.lane.${lane.descriptor.scenarioId}.presentation-prepare`,
+          timing.workerPrepareMs,
         );
       }
     }
-    this.#frameCoalescingStartedAtMs = undefined;
+    const complete = frames.at(-1);
+    if (
+      complete === undefined
+      || ![...lane.completeOutputIds].every((outputId) =>
+        Object.prototype.hasOwnProperty.call(complete.outputs, outputId),
+      )
+    ) {
+      throw new Error(
+        `parallel Scenario ${lane.descriptor.scenarioId} presentation batch `
+          + "did not end in a complete exact frame",
+      );
+    }
+    // The packed Worker contract makes its terminal row the complete frame.
+    // Advance the lane authority before the next group request; visual slices
+    // may still drain the preceding exact prefix independently.
+    lane.latestFrame = complete;
+    return frames;
   }
 
-  #cancelPendingFlush(): void {
-    if (this.#frameFlushTimer === undefined) return;
-    this.#cancelFrameFlush(this.#frameFlushTimer);
-    this.#frameFlushTimer = undefined;
+  #publishFrames(frames: readonly StudioSimulationFrameV2[]): void {
+    if (frames.length === 0 || this.#state !== "active") return;
+    for (const frame of frames) {
+      const lane = this.#lanes.get(frame.scenarioId);
+      if (
+        lane !== undefined
+        && frame.inputEpoch >= lane.latestFrame.inputEpoch
+        && frame.acceptedRevision >= lane.latestFrame.acceptedRevision
+        && frame.acceptedTimeSec >= lane.latestFrame.acceptedTimeSec
+        && [...lane.completeOutputIds].every((outputId) =>
+          Object.prototype.hasOwnProperty.call(frame.outputs, outputId),
+        )
+      ) lane.latestFrame = frame;
+    }
+    if (workbenchPerformanceDiagnosticsEnabledV3()) {
+      const framesByScenario = new Map<string, StudioSimulationFrameV2[]>();
+      for (const frame of frames) {
+        const scenarioFrames = framesByScenario.get(frame.scenarioId) ?? [];
+        scenarioFrames.push(frame);
+        framesByScenario.set(frame.scenarioId, scenarioFrames);
+      }
+      for (const [scenarioId, scenarioFrames] of framesByScenario) {
+        const terminal = scenarioFrames.at(-1)!;
+        const outputs = Object.values(terminal.outputs);
+        const valueCount = outputs.reduce((count, output) =>
+          count + (Array.isArray(output.value) ? output.value.length : 1), 0);
+        recordWorkbenchPerformanceValueV3(
+          `runtime.${scenarioId}.batch-frame-count`,
+          scenarioFrames.length,
+        );
+        recordWorkbenchPerformanceValueV3(
+          `runtime.${scenarioId}.outputs-per-frame`,
+          outputs.length,
+        );
+        recordWorkbenchPerformanceValueV3(
+          `runtime.${scenarioId}.values-per-frame`,
+          valueCount,
+        );
+      }
+    }
+    this.#onFrames(Object.freeze([...frames]));
+    recordWorkbenchPerformanceEventIntervalV3(
+      "runtime.presentation-commit-interval",
+    );
   }
 
   #syncBackgroundWorkerBudget(
@@ -1004,40 +1036,26 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   }
 
   #runningLaneCount(): number {
-    let count = 0;
-    for (const { scheduler } of this.#lanes.values()) {
-      if (scheduler.running) count += 1;
-    }
-    return count;
+    return this.#timeConductor.running ? this.#lanes.size : 0;
   }
 
-  #fail(failingScenarioId: string | null, error: Error): void {
+  #canRunGroup(): boolean {
+    return this.#playing && this.#scenarioPauseLeaseCounts.size === 0;
+  }
+
+  /** Returns true only when one owned lease was actually released. */
+  #releaseScenarioPauseLease(scenarioId: string): boolean {
+    const count = this.#scenarioPauseLeaseCounts.get(scenarioId);
+    if (count === undefined) return false;
+    if (count <= 1) this.#scenarioPauseLeaseCounts.delete(scenarioId);
+    else this.#scenarioPauseLeaseCounts.set(scenarioId, count - 1);
+    return true;
+  }
+
+  #fail(error: Error): void {
     if (this.#failed || this.#state === "terminated") return;
     this.#failed = true;
     const normalized = errorAsErrorV3(error);
-    // A healthy sibling may have accepted frames buffered behind its own
-    // presentation cadence. Publish those synchronously while the pool is
-    // active, but never await or re-enter the failing scheduler's in-flight
-    // rejection. The failing scheduler flushes its own accepted prefix before
-    // invoking this callback.
-    for (const [scenarioId, lane] of this.#lanes) {
-      if (scenarioId === failingScenarioId) continue;
-      try {
-        lane.scheduler.flushAcceptedFrames();
-      } catch {
-        // A presentation callback cannot replace the causal lane error or
-        // prevent the numerical authority from failing closed.
-      }
-    }
-    // Scheduler flushes append to the pool's coalescing queue. Publish the
-    // exact accumulated prefix before termination clears runtime state.
-    this.#cancelPendingFlush();
-    try {
-      this.#flushFrames();
-    } catch {
-      // Presentation callback failure cannot keep a compromised numerical
-      // authority alive or replace the causal lane error.
-    }
     this.terminate();
     this.#onError(normalized);
   }
@@ -1124,7 +1142,6 @@ function requireScenarioLabelV3(label: string): void {
 }
 
 function terminateLaneV3(lane: WorkbenchParallelScenarioLaneV3): void {
-  void lane.scheduler.dispose().catch(() => undefined);
   lane.client.terminate();
 }
 

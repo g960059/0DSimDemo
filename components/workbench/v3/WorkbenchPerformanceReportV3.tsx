@@ -100,12 +100,18 @@ export function WorkbenchPerformanceReportV3() {
   }, [enabled, open]);
 
   if (!enabled) return null;
-  const laneRatios = Object.entries(snapshot.values).filter(([metric]) =>
-    metric.startsWith("scheduler.") && metric.endsWith(".model-time-ratio")
-  );
-  const weakestLaneRatio = laneRatios.length === 0
-    ? null
-    : Math.min(...laneRatios.map(([, value]) => value.recentMean));
+  const groupLaneCount = snapshot.values[
+    "scheduler.group.live-lane-count"
+  ]?.latest ?? null;
+  const groupCapacityRatio = snapshot.values[
+    "scheduler.group.model-time-ratio"
+  ]?.recentMean ?? null;
+  const groupEffectiveRate = snapshot.values[
+    "scheduler.group.effective-playback-rate"
+  ]?.latest ?? null;
+  const groupSafeRate = snapshot.values[
+    "scheduler.group.safe-playback-rate"
+  ]?.latest ?? null;
   const workerRoundTrips = Object.entries(snapshot.metrics).filter(([metric]) =>
     metric.endsWith(".worker-round-trip")
   );
@@ -150,24 +156,34 @@ export function WorkbenchPerformanceReportV3() {
           </div>
           <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
             <div>
-              <dt className="text-wb-subtle">Live lanes</dt>
-              <dd className="font-mono">{laneRatios.length || "—"}</dd>
+              <dt className="text-wb-subtle">Live Scenarios</dt>
+              <dd className="font-mono">{groupLaneCount ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-wb-subtle">Slowest model / wall</dt>
+              <dt className="text-wb-subtle">Playback / safe</dt>
               <dd className="font-mono">
-                {weakestLaneRatio === null ? "—" : `${weakestLaneRatio.toFixed(3)}×`}
+                {groupEffectiveRate === null || groupSafeRate === null
+                  ? "—"
+                  : `${groupEffectiveRate.toFixed(2)}× / ${groupSafeRate.toFixed(2)}×`}
               </dd>
             </div>
             <div>
-              <dt className="text-wb-subtle">Worst Worker RTT p95</dt>
+              <dt className="text-wb-subtle">Group compute / wall</dt>
+              <dd className="font-mono">
+                {groupCapacityRatio === null
+                  ? "—"
+                  : `${groupCapacityRatio.toFixed(3)}×`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-wb-subtle">Group Worker RTT p95</dt>
               <dd className="font-mono">
                 {worstWorkerRoundTripP95Ms === null
                   ? "—"
                   : `${worstWorkerRoundTripP95Ms.toFixed(1)} ms`}
               </dd>
             </div>
-            <div>
+            <div className="col-span-2">
               <dt className="text-wb-subtle">Logical cores</dt>
               <dd className="font-mono">{navigator.hardwareConcurrency}</dd>
             </div>

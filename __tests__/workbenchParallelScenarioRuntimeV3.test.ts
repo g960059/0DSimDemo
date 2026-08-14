@@ -9,10 +9,11 @@ import type {
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
 import {
-  WorkbenchLiveSchedulerV3,
-  type WorkbenchLiveSchedulerDependenciesV3,
-  type WorkbenchLiveSchedulerTimerV3,
-} from "@/components/workbench/v3/WorkbenchLiveSchedulerV3";
+  WorkbenchGroupTimeConductorV3,
+  type WorkbenchGroupPlaybackRateStateV3,
+  type WorkbenchGroupTimeConductorDependenciesV3,
+  type WorkbenchGroupTimeConductorTimerV3,
+} from "@/components/workbench/v3/WorkbenchGroupTimeConductorV3";
 import type {
   WorkbenchBackgroundJobHandleV3,
   WorkbenchBackgroundJobPriorityV3,
@@ -23,7 +24,7 @@ import {
 } from "./helpers/standardReleaseTicketV1";
 
 describe("WorkbenchParallelScenarioRuntimeV3", () => {
-  it("creates one persistent Worker and scheduler for every Scenario", async () => {
+  it("creates one persistent Worker per Scenario under one TimeConductor", async () => {
     const harness = harnessV3();
     const state = await harness.runtime.initialize({
       scenarios: [
@@ -47,20 +48,18 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
         checkpoint: expect.objectContaining({ acceptedRevision: 4 }),
       }));
     expect(state.activeScenarioId).toBe("scenario/comparison");
-    expect(harness.schedulers.get("scenario/baseline")?.dependencies)
-      .toMatchObject({
-        maximumBatchSteps: 16,
-        preferredBatchSteps: 16,
-        presentationIntervalMs: 16,
-        maximumPresentationBatchFrames: 8,
-      });
+    expect(harness.conductor.dependencies).toMatchObject({
+      batchSteps: 16,
+      presentationIntervalMs: 16,
+      maximumPresentationFramesPerLane: 8,
+    });
+    expect(harness.conductor.dependencies.lanes().map(({ laneId }) => laneId))
+      .toEqual(["scenario/baseline", "scenario/comparison"]);
 
     harness.runtime.playAll();
-    expect([...harness.schedulers.values()].every(({ running }) => running))
-      .toBe(true);
+    expect(harness.conductor.running).toBe(true);
     await harness.runtime.pauseAll();
-    expect([...harness.schedulers.values()].every(({ running }) => !running))
-      .toBe(true);
+    expect(harness.conductor.running).toBe(false);
   });
 
   it("keeps latest-value state on complete terminal frames between visual slices", async () => {
@@ -74,16 +73,16 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       0,
       completeOutputs,
     ));
-    let scheduler: FakeSchedulerV3 | undefined;
+    let conductor: FakeTimeConductorV3 | undefined;
     const runtime = new WorkbenchParallelScenarioRuntimeV3({
       releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       expectedModelId: "model/main-wire-v3-r1",
       createRuntimeSessionId: (scenarioId) => `runtime/${scenarioId}`,
       createClient: () => client as unknown as
         WorkbenchParallelScenarioRuntimeClientV3,
-      createScheduler: (_scenarioId, dependencies) => {
-        scheduler = new FakeSchedulerV3(dependencies);
-        return scheduler;
+      createTimeConductor: (dependencies) => {
+        conductor = new FakeTimeConductorV3(dependencies);
+        return conductor;
       },
       onFrames: vi.fn(),
       onError: vi.fn(),
@@ -93,7 +92,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       activeScenarioId: "scenario/baseline",
     });
 
-    scheduler!.emit([frameV3("scenario/baseline", 1, {
+    conductor!.emit([frameV3("scenario/baseline", 1, {
       selected: scalarOutputV3("selected", 2),
     })]);
     expect(runtime.latestFrame("scenario/baseline")).toMatchObject({
@@ -101,10 +100,16 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       outputs: { "latest-only": { value: 7 } },
     });
 
-    scheduler!.emit([frameV3("scenario/baseline", 2, {
+    conductor!.emit([frameV3("scenario/baseline", 2, {
       selected: scalarOutputV3("selected", 3),
       "latest-only": scalarOutputV3("latest-only", 8),
     })]);
+    expect(runtime.latestFrame("scenario/baseline")).toMatchObject({
+      acceptedRevision: 2,
+      outputs: { "latest-only": { value: 8 } },
+    });
+
+    conductor!.emit([frameV3("scenario/baseline", 1, completeOutputs)]);
     expect(runtime.latestFrame("scenario/baseline")).toMatchObject({
       acceptedRevision: 2,
       outputs: { "latest-only": { value: 8 } },
@@ -154,7 +159,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     expect(liveScenarioCounts.at(-1)).toBe(0);
   });
 
-  it("pauses one analysis lane while sibling Scenarios remain live", async () => {
+  it("pauses the shared comparison clock for a short Scenario lease", async () => {
     const harness = harnessV3();
     await harness.runtime.initialize({
       scenarios: [
@@ -166,12 +171,43 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     harness.runtime.playAll();
 
     await harness.runtime.pauseScenario("scenario/baseline");
-    expect(harness.schedulers.get("scenario/baseline")?.running).toBe(false);
-    expect(harness.schedulers.get("scenario/comparison")?.running).toBe(true);
+    expect(harness.conductor.running).toBe(false);
 
     harness.runtime.resumeScenario("scenario/baseline");
-    expect(harness.schedulers.get("scenario/baseline")?.running).toBe(true);
-    expect(harness.schedulers.get("scenario/comparison")?.running).toBe(true);
+    expect(harness.conductor.running).toBe(true);
+  });
+
+  it("releases a Scenario lease while globally paused", async () => {
+    const harness = harnessV3();
+    await harness.runtime.initialize({
+      scenarios: [seedV3("scenario/baseline", "Baseline", 0)],
+      activeScenarioId: "scenario/baseline",
+    });
+    harness.runtime.playAll();
+
+    await harness.runtime.pauseScenario("scenario/baseline");
+    await harness.runtime.pauseAll();
+    harness.runtime.resumeScenario("scenario/baseline");
+    harness.runtime.playAll();
+
+    expect(harness.conductor.running).toBe(true);
+  });
+
+  it("waits for every overlapping Scenario lease before resuming", async () => {
+    const harness = harnessV3();
+    await harness.runtime.initialize({
+      scenarios: [seedV3("scenario/baseline", "Baseline", 0)],
+      activeScenarioId: "scenario/baseline",
+    });
+    harness.runtime.playAll();
+
+    await harness.runtime.pauseScenario("scenario/baseline");
+    await harness.runtime.pauseScenario("scenario/baseline");
+    harness.runtime.resumeScenario("scenario/baseline");
+    expect(harness.conductor.running).toBe(false);
+
+    harness.runtime.resumeScenario("scenario/baseline");
+    expect(harness.conductor.running).toBe(true);
   });
 
   it("runs analysis in an isolated Worker and resumes the live lane after capture", async () => {
@@ -215,13 +251,57 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
         checkpoint: expect.objectContaining({ acceptedRevision: 0 }),
       }),
     );
-    expect(harness.schedulers.get("scenario/baseline")?.running).toBe(true);
+    expect(harness.conductor.running).toBe(true);
     await expect(pending).resolves.toMatchObject({
       runtimeSessionId: "runtime/scenario/baseline",
       scenarioId: "scenario/baseline",
       sourceAcceptedRevision: 0,
     });
     expect(analysisClient.terminate).toHaveBeenCalledOnce();
+  });
+
+  it("consumes a caller-owned pause lease immediately after analysis capture", async () => {
+    const harness = harnessV3();
+    await harness.runtime.initialize({
+      scenarios: [seedV3("scenario/baseline", "Baseline", 0)],
+      activeScenarioId: "scenario/baseline",
+    });
+    harness.runtime.playAll();
+    await harness.runtime.pauseScenario("scenario/baseline");
+    expect(harness.conductor.running).toBe(false);
+    const analysisClient = harness.analysisClients.get("scenario/baseline")!;
+    analysisClient.requestAnalysis.mockImplementation(async () => {
+      const initialized = analysisClient.initialize.mock.calls[0]![0] as {
+        runtimeSessionId: string;
+      };
+      return analysisV3(
+        initialized.runtimeSessionId,
+        "scenario/baseline",
+        "analysis/guyton-starling",
+      );
+    });
+
+    const pending = harness.runtime.requestAnalysis({
+      scenarioId: "scenario/baseline",
+      analysisId: "analysis/guyton-starling",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+      sourceAlreadyPaused: true,
+    });
+    await vi.waitFor(() => {
+      expect(harness.analysisClients.get("scenario/baseline")?.requestAnalysis)
+        .toHaveBeenCalledOnce();
+    });
+
+    expect(harness.conductor.running).toBe(true);
+    await expect(pending).resolves.toMatchObject({
+      scenarioId: "scenario/baseline",
+    });
+    // A caller's defensive finally may release again; this is intentionally
+    // idempotent and must not alter the running group.
+    harness.runtime.resumeScenario("scenario/baseline");
+    expect(harness.conductor.running).toBe(true);
   });
 
   it("cancels obsolete Scenario analysis before applying a new control input", async () => {
@@ -313,7 +393,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     const started: string[] = [];
     const onProgress = vi.fn<(analysis: StudioSimulationAnalysisV2) => void>();
     const onLiveLaneReleased = vi.fn();
-    let scheduler: FakeSchedulerV3 | null = null;
+    let conductor: FakeTimeConductorV3 | null = null;
     const runtime = new WorkbenchParallelScenarioRuntimeV3({
     releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       expectedModelId: "model/main-wire-v3-r1",
@@ -353,9 +433,9 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
         analysisClients.set(analysisPartition, client);
         return client as unknown as WorkbenchParallelScenarioRuntimeClientV3;
       },
-      createScheduler: (_scenarioId, dependencies) => {
-        scheduler = new FakeSchedulerV3(dependencies);
-        return scheduler;
+      createTimeConductor: (dependencies) => {
+        conductor = new FakeTimeConductorV3(dependencies);
+        return conductor;
       },
       resolveAnalysisExecutionPlan: (analysisId) =>
         analysisId === "analysis/guyton-starling"
@@ -395,7 +475,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       "hypovolemic",
     ]));
 
-    expect(scheduler?.running).toBe(true);
+    expect(conductor?.running).toBe(true);
     expect(onLiveLaneReleased).toHaveBeenCalledOnce();
     const lowClient = analysisClients.get("hypovolemic")!;
     const highClient = analysisClients.get("hypervolemic")!;
@@ -428,7 +508,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     expect(highClient.terminate).toHaveBeenCalledOnce();
   });
 
-  it("coalesces independently delivered lane frames into one presentation commit", async () => {
+  it("publishes a TimeConductor group slice in one presentation commit", async () => {
     const harness = harnessV3();
     await harness.runtime.initialize({
       scenarios: [
@@ -438,17 +518,12 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       activeScenarioId: "scenario/baseline",
     });
     harness.runtime.playAll();
-    harness.schedulers.get("scenario/baseline")!.emit([
+    harness.conductor.emit([
       frameV3("scenario/baseline", 1),
       frameV3("scenario/baseline", 2),
-    ]);
-    harness.schedulers.get("scenario/comparison")!.emit([
       frameV3("scenario/comparison", 1),
     ]);
 
-    expect(harness.onFrames).not.toHaveBeenCalled();
-    expect(harness.flushCallbacks).toHaveLength(1);
-    harness.flushCallbacks.shift()!();
     expect(harness.onFrames).toHaveBeenCalledOnce();
     expect(harness.onFrames.mock.calls[0]![0].map((frame) => [
       frame.scenarioId,
@@ -462,18 +537,17 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       .toBe(2);
   });
 
-  it("publishes one Scenario directly without an unnecessary merge deadline", async () => {
+  it("publishes one Scenario through the same group presentation boundary", async () => {
     const harness = harnessV3();
     await harness.runtime.initialize({
       scenarios: [seedV3("scenario/baseline", "Baseline", 0)],
       activeScenarioId: "scenario/baseline",
     });
-    harness.schedulers.get("scenario/baseline")!.emit([
+    harness.conductor.emit([
       frameV3("scenario/baseline", 1),
       frameV3("scenario/baseline", 2),
     ]);
 
-    expect(harness.flushCallbacks).toEqual([]);
     expect(harness.onFrames).toHaveBeenCalledOnce();
     expect(harness.onFrames.mock.calls[0]![0].map(({ acceptedRevision }) =>
       acceptedRevision)).toEqual([1, 2]);
@@ -549,18 +623,16 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     expect(harness.clients.get("scenario/baseline")?.applyControl)
       .not.toHaveBeenCalled();
 
-    const deletedScheduler = harness.schedulers.get("scenario/comparison")!;
     const next = await harness.runtime.deleteScenario("scenario/comparison");
     expect(next.activeScenarioId).toBe("scenario/baseline");
     expect(harness.runtime.maybeLatestFrame("scenario/comparison"))
       .toBeUndefined();
     expect(harness.runtime.maybeLatestFrame("scenario/baseline"))
       .toBeDefined();
-    expect(deletedScheduler.dispose).toHaveBeenCalledOnce();
     expect(comparisonClient.terminate).toHaveBeenCalledOnce();
   });
 
-  it("fail-closes every lane when one persistent Worker scheduler fails", async () => {
+  it("fail-closes every lane when the shared TimeConductor fails", async () => {
     const onError = vi.fn();
     const harness = harnessV3(onError);
     await harness.runtime.initialize({
@@ -571,14 +643,13 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       activeScenarioId: "scenario/baseline",
     });
 
-    harness.schedulers.get("scenario/baseline")!.emit([
+    harness.conductor.emit([
       frameV3("scenario/baseline", 1),
       frameV3("scenario/baseline", 2),
     ]);
-    expect(harness.onFrames).not.toHaveBeenCalled();
+    expect(harness.onFrames).toHaveBeenCalledOnce();
 
-    harness.schedulers.get("scenario/comparison")!
-      .fail(new Error("comparison Worker failed"));
+    harness.conductor.fail(new Error("comparison Worker failed"));
 
     expect(harness.onFrames).toHaveBeenCalledOnce();
     expect(harness.onFrames.mock.calls[0]![0].map(({ acceptedRevision }) =>
@@ -594,18 +665,15 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     expect(harness.onFrames.mock.invocationCallOrder[0])
       .toBeLessThan(firstTerminate);
     expect(firstTerminate).toBeLessThan(onError.mock.invocationCallOrder[0]!);
-    harness.flushCallbacks.shift()?.();
-    expect(harness.onFrames).toHaveBeenCalledOnce();
     expect(() => harness.runtime.activeFrame()).toThrow(/not active/);
     expect(() => harness.runtime.playAll()).not.toThrow();
     await expect(harness.runtime.pauseAll()).resolves.toBeUndefined();
   });
 
-  it("publishes a healthy real scheduler's buffered accepted prefix before a sibling fails", async () => {
+  it("does not publish a partial group when one real Worker lane fails", async () => {
     const clock = new ParallelSchedulerClockV3();
     const events: string[] = [];
     const clients = new Map<string, ReturnType<typeof clientV3>>();
-    const stalePoolFlushes: Array<() => void> = [];
     const runtime = new WorkbenchParallelScenarioRuntimeV3({
     releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
       expectedModelId: "model/main-wire-v3-r1",
@@ -624,22 +692,15 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
         clients.set(scenarioId, client);
         return client as unknown as WorkbenchParallelScenarioRuntimeClientV3;
       },
-      createScheduler: (_scenarioId, dependencies) =>
-        new WorkbenchLiveSchedulerV3({
+      createTimeConductor: (dependencies) =>
+        new WorkbenchGroupTimeConductorV3({
           ...dependencies,
           nowMs: clock.now,
           schedule: clock.schedule,
           cancel: clock.cancel,
-          maximumBatchSteps: 1,
-          preferredBatchSteps: 1,
-          presentationIntervalMs: 1_000,
+          batchSteps: 1,
+          presentationIntervalMs: 0,
         }),
-      scheduleFrameFlush: (callback) => {
-        stalePoolFlushes.push(callback);
-        return stalePoolFlushes.length as unknown as
-          WorkbenchLiveSchedulerTimerV3;
-      },
-      cancelFrameFlush: () => undefined,
       onFrames: (frames) => events.push(...frames.map(
         ({ scenarioId, acceptedRevision }) =>
           `frame:${scenarioId}:${acceptedRevision}`,
@@ -655,22 +716,17 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     });
 
     runtime.playAll();
-    await clock.advanceBy(2);
-
-    expect(events).toEqual([
-      "frame:scenario/baseline:1",
+    await clock.advanceBy(1);
+    await vi.waitFor(() => expect(events).toEqual([
       "error:comparison failed",
-    ]);
+    ]));
+
+    expect(events).toEqual(["error:comparison failed"]);
     expect([...clients.values()].every(({ terminate }) =>
       terminate.mock.calls.length === 1)).toBe(true);
     expect(() => runtime.activeFrame()).toThrow(/not active/);
 
-    // The canceled pool-level coalescing callback cannot republish the prefix.
-    stalePoolFlushes.forEach((flush) => flush());
-    expect(events).toEqual([
-      "frame:scenario/baseline:1",
-      "error:comparison failed",
-    ]);
+    expect(events).toEqual(["error:comparison failed"]);
     await expect(runtime.pauseAll()).resolves.toBeUndefined();
     await runtime.dispose();
   });
@@ -716,7 +772,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     expect(createClient).not.toHaveBeenCalled();
   });
 
-  it("fail-closes the pool if any scheduler rejects global playback", async () => {
+  it("fail-closes the pool if the TimeConductor rejects global playback", async () => {
     const onError = vi.fn();
     const harness = harnessV3(onError);
     await harness.runtime.initialize({
@@ -726,14 +782,13 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       ],
       activeScenarioId: "scenario/baseline",
     });
-    harness.schedulers.get("scenario/comparison")!.play
-      .mockImplementationOnce(() => {
-        throw new Error("scheduler disposed unexpectedly");
-      });
+    harness.conductor.play.mockImplementationOnce(() => {
+      throw new Error("TimeConductor disposed unexpectedly");
+    });
 
     expect(() => harness.runtime.playAll()).not.toThrow();
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({
-      message: "scheduler disposed unexpectedly",
+      message: "TimeConductor disposed unexpectedly",
     }));
     expect([...harness.clients.values()].every(({ terminate }) =>
       terminate.mock.calls.length === 1)).toBe(true);
@@ -746,9 +801,8 @@ function harnessV3(
 ) {
   const clients = new Map<string, ReturnType<typeof clientV3>>();
   const analysisClients = new Map<string, ReturnType<typeof clientV3>>();
-  const schedulers = new Map<string, FakeSchedulerV3>();
-  const flushCallbacks: Array<() => void> = [];
   const onFrames = vi.fn<(frames: readonly StudioSimulationFrameV2[]) => void>();
+  let conductor!: FakeTimeConductorV3;
   const runtime = new WorkbenchParallelScenarioRuntimeV3({
     releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
     expectedModelId: "model/main-wire-v3-r1",
@@ -765,16 +819,10 @@ function harnessV3(
       }
       return client as unknown as WorkbenchParallelScenarioRuntimeClientV3;
     },
-    createScheduler: (scenarioId, dependencies) => {
-      const scheduler = new FakeSchedulerV3(dependencies);
-      schedulers.set(scenarioId, scheduler);
-      return scheduler;
+    createTimeConductor: (dependencies) => {
+      conductor = new FakeTimeConductorV3(dependencies);
+      return conductor;
     },
-    scheduleFrameFlush: (callback) => {
-      flushCallbacks.push(callback);
-      return flushCallbacks.length as unknown as WorkbenchLiveSchedulerTimerV3;
-    },
-    cancelFrameFlush: () => undefined,
     onFrames,
     onError,
     ...(backgroundWorkerPool === undefined ? {} : { backgroundWorkerPool }),
@@ -790,24 +838,40 @@ function harnessV3(
   return {
     analysisClients,
     clients,
-    flushCallbacks,
+    conductor,
     onFrames,
     runtime,
-    schedulers,
   };
 }
 
-class FakeSchedulerV3 {
+class FakeTimeConductorV3 {
   running = false;
   readonly dispose = vi.fn(async () => { this.running = false; });
-  readonly flushAcceptedFrames = vi.fn(() => undefined);
+  readonly lanesChanged = vi.fn(() => this.playbackRateState());
   readonly pause = vi.fn(async () => { this.running = false; });
   readonly play = vi.fn(() => { this.running = true; });
+  readonly terminate = vi.fn(() => { this.running = false; });
+  readonly setPlaybackRate = vi.fn((rate: number | "auto") => {
+    this.#rate = rate === "auto" ? AUTO_RATE_STATE_V3 : Object.freeze({
+      mode: "manual" as const,
+      effectiveRate: rate,
+      safeMaximumRate: 1,
+      requestedRate: rate,
+      warmingUp: false,
+    });
+    this.dependencies.onPlaybackRateChange?.(this.#rate);
+    return this.#rate;
+  });
+  #rate: WorkbenchGroupPlaybackRateStateV3 = AUTO_RATE_STATE_V3;
 
   constructor(
     readonly dependencies:
-      WorkbenchLiveSchedulerDependenciesV3<StudioSimulationFrameV2>,
+      WorkbenchGroupTimeConductorDependenciesV3<StudioSimulationFrameV2>,
   ) {}
+
+  playbackRateState(): WorkbenchGroupPlaybackRateStateV3 {
+    return this.#rate;
+  }
 
   emit(frames: readonly StudioSimulationFrameV2[]): void {
     this.dependencies.onFrames(frames);
@@ -817,6 +881,14 @@ class FakeSchedulerV3 {
     this.dependencies.onError(error);
   }
 }
+
+const AUTO_RATE_STATE_V3: WorkbenchGroupPlaybackRateStateV3 = Object.freeze({
+  mode: "auto",
+  effectiveRate: 0.5,
+  safeMaximumRate: 0.5,
+  requestedRate: null,
+  warmingUp: true,
+});
 
 class ParallelSchedulerClockV3 {
   #nowMs = 0;
@@ -831,14 +903,14 @@ class ParallelSchedulerClockV3 {
   readonly schedule = (
     callback: () => void,
     delayMs: number,
-  ): WorkbenchLiveSchedulerTimerV3 => {
+  ): WorkbenchGroupTimeConductorTimerV3 => {
     const id = this.#nextId;
     this.#nextId += 1;
     this.#timers.set(id, { atMs: this.#nowMs + delayMs, callback });
-    return id as unknown as WorkbenchLiveSchedulerTimerV3;
+    return id as unknown as WorkbenchGroupTimeConductorTimerV3;
   };
 
-  readonly cancel = (timer: WorkbenchLiveSchedulerTimerV3): void => {
+  readonly cancel = (timer: WorkbenchGroupTimeConductorTimerV3): void => {
     this.#timers.delete(timer as unknown as number);
   };
 

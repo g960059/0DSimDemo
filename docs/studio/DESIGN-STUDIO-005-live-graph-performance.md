@@ -13,24 +13,30 @@ Snapshot qualification.
 - PV points retain pressure and volume from the same accepted state.
 - Waveform reduction retains the exact bucket terminal plus exact-time
   first/minimum/maximum values.
+- Every simultaneously live Scenario belongs to one group model-time clock.
+  A comparative graph never presents its Scenario lanes at different playback
+  rates.
 - Performance work may change delivery and paint cadence, but must not invent
   interpolated scientific states or use a visual cache for qualification.
 
 ## Pipeline
 
 ```text
-persistent Scenario Worker
-  → selected-signal typed-array batch + complete terminal frame
-    → optional multi-Scenario commit coalescing
+persistent Scenario Workers
+  → equal accepted-step batches under one group TimeConductor
+    → selected-signal typed-array batches + complete terminal frames
+      → aligned multi-Scenario presentation slice
       → graph-owned scalar materialization
         → renderer-specific presentation store subscription
           → memoized projection
             → Canvas paint
 ```
 
-One Scenario bypasses the multi-Scenario coalescing deadline. Multiple
-Scenario lanes still share one short commit boundary so React never receives
-one independent commit per Worker.
+The group TimeConductor requests the same accepted-step count from every live
+Scenario and releases a presentation prefix only after every Worker reaches
+that boundary. One slow lane therefore slows the comparison honestly instead
+of letting graph traces acquire different implied clocks. React receives one
+aligned group commit rather than an independent commit per Worker.
 
 The store materializes only outputs used by authored graph panes. Output cards
 read the latest validated frame directly. If an author adds a new graph item,
@@ -156,13 +162,13 @@ window.__circleHeartWorkbenchPerfV3.reset()
 The snapshot includes:
 
 - Worker request/response duration, including transport and response validation;
-- scheduler and runtime presentation intervals;
+- group TimeConductor Worker duration, safe/effective playback rate, and
+  presentation intervals;
 - multi-Scenario coalescing duration;
 - frame-to-scalar materialization and presentation-store append duration;
 - Workbench-area React commit duration and interval;
 - Canvas draw duration and meaningful display interval by renderer;
-- per-Scenario model-time/wall-time ratio and model-to-wall lag;
-- bounded catch-up batch and active overload re-anchor counts;
+- group and per-Scenario model-time/wall-time ratio;
 - frame, output and primitive-value counts at the Worker delivery boundary; and
 - selected output count and transferred typed-array bytes for each foreground
   presentation request.
@@ -173,20 +179,37 @@ rolling p05/p95, minimum and maximum; discrete events are exposed as counters.
 Use rolling mean and p05 when judging steady-state model-time ratio so startup
 analysis and Scenario creation do not dominate a long-lived session.
 
-## Presentation cadence
+## Group TimeConductor and presentation cadence
 
 The default smooth profile computes sixteen exact samples per Worker request,
-amortizing transport and response processing across 32 ms of model time. Once
-the response has been accepted, the scheduler publishes its exact ordered
-prefix as two eight-frame slices separated by a 16 ms presentation boundary.
-This preserves every accepted sample while keeping Worker throughput and Canvas
-refresh cadence independent.
+amortizing transport and response processing across 32 ms of model time. The
+group TimeConductor issues that request to every live Scenario, waits for the
+whole group, and publishes each Scenario's same-offset exact prefix as two
+eight-frame slices separated by a 16 ms presentation boundary. This preserves
+every accepted sample while keeping Worker throughput and Canvas refresh
+cadence independent.
 
-The scheduler can issue a bounded catch-up request, but the default profile does
-not currently use it. Measurements with the former object-frame protocol
-showed that enlarging an already-late request can amplify response latency.
-Catch-up remains disabled until target-device traces establish a safe bound
-with the compact protocol.
+Playback rate is a property of the group, not a Worker lane. Automatic mode
+estimates the sustainable group rate from completed group batches, retains
+10% headroom, lowers the limit immediately under pressure, and raises it only
+gradually after sustained evidence. Its cold-start bound also falls with the
+number of live Scenario lanes. A manual rate is permitted only at or below the
+current safe maximum. Adding or removing a Scenario pauses the group,
+invalidates the old estimate, and starts a new warm-up measurement.
+
+The toolbar exposes one compact split control: play/pause on the left and the
+actual group multiplier on the right. Opening the multiplier reveals a slider
+with common detents and an Auto action. The slider's maximum is the measured
+safe limit; it is not merely a warning after an unsafe rate was chosen.
+
+The TimeConductor never re-anchors away accumulated wall-clock debt and never
+skips exact model time to preserve a nominal `1×` label. If the device sustains
+only `0.5×`, every Scenario runs together at `0.5×` and the control says so.
+
+The retired independent lane scheduler could re-anchor overloaded lanes and
+allowed wall-clock pressure to produce different Scenario progress. It is not
+a production fallback. Catch-up remains disabled because enlarging an
+already-late numerical request can amplify response latency.
 
 The production-preview A/B measurement on the M5 Max reference development
 device is a regression control, not evidence of low-end or mobile support. It
@@ -203,7 +226,7 @@ still required before claiming low-end or mobile support.
 - the eight-step/catch-up experiment: below 1× model-time ratio with repeated
   overload re-anchors, so it is not the production default.
 
-The user does not choose a performance mode. A diagnostic balanced profile
+The user does not choose a numerical performance mode. A diagnostic balanced profile
 publishes all sixteen exact frames in one callback rather than pacing two
 eight-frame slices and remains available through:
 
@@ -240,10 +263,10 @@ background analyses in long Articles without changing accepted steps or values.
 
 ## Acceptance targets
 
-- Numerical model-time ratio remains at or above 1× in the supported Scenario
-  count on each target-device tier.
-- Active playback produces zero overload re-anchors; hidden-tab and explicit
-  resume re-anchors remain allowed.
+- Automatic playback maintains a bounded group lag and at least 10% measured
+  compute headroom at the supported Scenario count on each target-device tier.
+- Every live Scenario publishes the same accepted-time prefix; no lane-specific
+  re-anchor, skip, or playback rate exists.
 - Parameter input reaches the first visible accepted result within 150 ms p95.
 - Meaningful graph updates remain within 50 ms p95 and presentation lag stays
   within 100 ms p95.

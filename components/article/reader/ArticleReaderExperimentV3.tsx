@@ -6,13 +6,12 @@ import {
   FlaskConical,
   Maximize2,
   Minimize2,
-  Pause,
-  Play,
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/appTheme";
 import { ModelLimitations } from "@/components/ModelLimitations";
+import { WorkbenchPlaybackControlV3 } from "@/components/workbench/WorkbenchPlaybackControlV3";
 import type {
   StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
@@ -697,27 +696,20 @@ function ArticleReaderLiveDetailV3({
           onOpenChange={setModelDisclosureOpen}
           showTrigger={false}
         />
-        <button
-          type="button"
+        <WorkbenchPlaybackControlV3
           disabled={
             unavailable ||
             runtime.state.status === "failed" ||
             runtime.state.status === "applying-control" ||
             runtime.state.status === "requesting-analysis"
           }
-          onClick={() => (playing ? void runtime.pause() : runtime.play())}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          aria-label={
-            playing ? t("articleReader.pause") : t("articleReader.play")
-          }
-          title={playing ? t("articleReader.pause") : t("articleReader.play")}
-        >
-          {playing ? (
-            <Pause className="h-3.5 w-3.5" aria-hidden="true" />
-          ) : (
-            <Play className="h-3.5 w-3.5" aria-hidden="true" />
+          playing={playing}
+          rate={runtime.state.playbackRate}
+          onPlaybackToggle={() => (
+            playing ? void runtime.pause() : runtime.play()
           )}
-        </button>
+          onRateChange={runtime.setPlaybackRate}
+        />
       </div>
 
       {runtime.state.status === "failed" ? (

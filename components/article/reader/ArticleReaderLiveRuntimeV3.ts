@@ -13,6 +13,9 @@ import {
   WorkbenchParallelScenarioRuntimeV3,
   type WorkbenchParallelScenarioSeedV3,
 } from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
+import type {
+  WorkbenchGroupPlaybackRateStateV3,
+} from "@/components/workbench/v3/WorkbenchGroupTimeConductorV3";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
@@ -53,6 +56,7 @@ export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   analysisErrorByKey: Readonly<Record<string, string>>;
   controlErrorByInstanceId: Readonly<Record<string, string>>;
   error: Error | null;
+  playbackRate: WorkbenchGroupPlaybackRateStateV3;
 }>;
 
 export type ArticleReaderStructuralAnalysisRequestV3 = Readonly<{
@@ -72,6 +76,7 @@ export type ArticleReaderParallelRuntimeV3 = Pick<
   | "requestAnalysis"
   | "resumeScenario"
   | "selectScenario"
+  | "setPlaybackRate"
   | "terminate"
 >;
 
@@ -79,6 +84,7 @@ export type ArticleReaderParallelRuntimeFactoryInputV3 = Readonly<{
   expectedModelId: string;
   onFrames(frames: readonly StudioSimulationFrameV2[]): void;
   onError(error: Error): void;
+  onPlaybackRateChange(state: WorkbenchGroupPlaybackRateStateV3): void;
 }>;
 
 type ArticleReaderLiveRuntimeCommonDependenciesV3 = Readonly<{
@@ -193,6 +199,7 @@ export class ArticleReaderLiveRuntimeV3 {
       analysisErrorByKey: EMPTY_ARTICLE_READER_ANALYSIS_ERRORS_V3,
       controlErrorByInstanceId: EMPTY_ARTICLE_READER_CONTROL_ERRORS_V3,
       error: null,
+      playbackRate: INITIAL_ARTICLE_PLAYBACK_RATE_STATE_V3,
     });
   }
 
@@ -226,6 +233,11 @@ export class ArticleReaderLiveRuntimeV3 {
           }
         },
         onError: (error) => this.#fail(errorAsErrorV3(error), runtime),
+        onPlaybackRateChange: (playbackRate) => {
+          if (this.#runtime === runtime && this.#acceptsFrames()) {
+            this.#publish({ playbackRate });
+          }
+        },
       });
     } catch (error) {
       this.#publish({ status: "failed", error: errorAsErrorV3(error) });
@@ -286,6 +298,17 @@ export class ArticleReaderLiveRuntimeV3 {
       if (this.#runtime === runtime) {
         this.#publish({ status: "playing", error: null });
       }
+    } catch (error) {
+      this.#fail(errorAsErrorV3(error), runtime);
+    }
+  }
+
+  setPlaybackRate(rate: number | "auto"): void {
+    const runtime = this.#runtime;
+    if (runtime === null || !this.#acceptsFrames()) return;
+    try {
+      const playbackRate = runtime.setPlaybackRate(rate);
+      if (this.#runtime === runtime) this.#publish({ playbackRate });
     } catch (error) {
       this.#fail(errorAsErrorV3(error), runtime);
     }
@@ -412,10 +435,10 @@ export class ArticleReaderLiveRuntimeV3 {
           );
           let frame: StudioSimulationFrameV2 | null = null;
           try {
-            // Drain only the source lane before reading its boundary. Reading
-            // latestFrame while the lane is still playing creates a race with
-            // requestAnalysis's exact checkpoint capture and can fail the
-            // first Reader analysis as stale. Sibling Scenarios stay live.
+            // Briefly drain the shared comparison clock before reading this
+            // source boundary. The lease is transferred to requestAnalysis,
+            // which releases it immediately after the exact checkpoint fork;
+            // the potentially long analysis never owns live playback.
             frame = await runtime.pauseScenario(scenarioId);
             const analysis = await runtime.requestAnalysis({
               scenarioId,
@@ -423,6 +446,7 @@ export class ArticleReaderLiveRuntimeV3 {
               expectedInputEpoch: frame.inputEpoch,
               expectedAcceptedRevision: frame.acceptedRevision,
               expectedAcceptedTimeSec: frame.acceptedTimeSec,
+              sourceAlreadyPaused: true,
               onProgress: (analysis) => {
                 if (
                   this.#runtime !== runtime
@@ -712,6 +736,14 @@ const EMPTY_ARTICLE_READER_ANALYSIS_ERRORS_V3 = Object.freeze(
 const EMPTY_ARTICLE_READER_CONTROL_ERRORS_V3 = Object.freeze(
   Object.create(null),
 ) as Readonly<Record<string, string>>;
+const INITIAL_ARTICLE_PLAYBACK_RATE_STATE_V3:
+  WorkbenchGroupPlaybackRateStateV3 = Object.freeze({
+    mode: "auto",
+    effectiveRate: 0.5,
+    safeMaximumRate: 0.5,
+    requestedRate: null,
+    warmingUp: true,
+  });
 
 export function articleReaderAnalysisKeyV3(
   scenarioId: string,

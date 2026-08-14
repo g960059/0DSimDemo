@@ -12,10 +12,9 @@ import type {
 
 type PerformanceBudgetV3 = Readonly<{
   minimumRootModelTimeRatio: number;
-  minimumLaneRecentModelTimeRatio: number;
-  minimumLaneP05ModelTimeRatio: number;
+  minimumGroupRecentComputeRatio: number;
+  minimumGroupP05ComputeRatio: number;
   maximumWorkerRoundTripP95Ms: number;
-  maximumModelWallLagP95Ms: number;
   maximumCanvasDisplayIntervalP95Ms: number;
   maximumCanvasDrawP95Ms: number;
   maximumControlLatencyMs: number;
@@ -47,10 +46,9 @@ const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
       defaultScenarioCount: 4,
       budget: Object.freeze({
         minimumRootModelTimeRatio: 0.95,
-        minimumLaneRecentModelTimeRatio: 0.98,
-        minimumLaneP05ModelTimeRatio: 0.7,
+        minimumGroupRecentComputeRatio: 0.98,
+        minimumGroupP05ComputeRatio: 0.7,
         maximumWorkerRoundTripP95Ms: 50,
-        maximumModelWallLagP95Ms: 100,
         maximumCanvasDisplayIntervalP95Ms: 50,
         maximumCanvasDrawP95Ms: 8,
         maximumControlLatencyMs: 150,
@@ -62,10 +60,9 @@ const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
       defaultScenarioCount: 2,
       budget: Object.freeze({
         minimumRootModelTimeRatio: 0.85,
-        minimumLaneRecentModelTimeRatio: 0.9,
-        minimumLaneP05ModelTimeRatio: 0.55,
+        minimumGroupRecentComputeRatio: 0.9,
+        minimumGroupP05ComputeRatio: 0.55,
         maximumWorkerRoundTripP95Ms: 100,
-        maximumModelWallLagP95Ms: 180,
         maximumCanvasDisplayIntervalP95Ms: 66,
         maximumCanvasDrawP95Ms: 12,
         maximumControlLatencyMs: 250,
@@ -77,10 +74,9 @@ const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
       defaultScenarioCount: 2,
       budget: Object.freeze({
         minimumRootModelTimeRatio: 0.8,
-        minimumLaneRecentModelTimeRatio: 0.85,
-        minimumLaneP05ModelTimeRatio: 0.5,
+        minimumGroupRecentComputeRatio: 0.85,
+        minimumGroupP05ComputeRatio: 0.5,
         maximumWorkerRoundTripP95Ms: 120,
-        maximumModelWallLagP95Ms: 200,
         maximumCanvasDisplayIntervalP95Ms: 80,
         maximumCanvasDrawP95Ms: 12,
         maximumControlLatencyMs: 300,
@@ -213,8 +209,8 @@ test("measures exact live Workbench throughput under background contention", asy
 
   expect(postControlContention.diagnostics.enabled).toBe(true);
   expect(postControlContention.modelTimeDeltaSec).toBeGreaterThan(0.25);
-  expect(modelTimeRatioValuesV3(postControlContention.diagnostics))
-    .toHaveLength(scenarioCount);
+  expect(groupModelTimeRatioValuesV3(postControlContention.diagnostics))
+    .toHaveLength(1);
   if (ENFORCE_BUDGETS_V3) expect(violations).toEqual([]);
 });
 
@@ -364,38 +360,53 @@ function evaluatePerformanceBudgetV3(
       + ` < ${budget.minimumRootModelTimeRatio}`,
     );
   }
-  const laneRatios = modelTimeRatioValuesV3(diagnostics);
-  if (laneRatios.length !== scenarioCount) {
+  const groupRatios = groupModelTimeRatioValuesV3(diagnostics);
+  if (groupRatios.length !== 1) {
     violations.push(
-      `observed ${laneRatios.length}/${scenarioCount} lane ratio metrics`,
+      `observed ${groupRatios.length}/1 group compute-ratio metrics`,
     );
   }
-  for (const [metric, value] of laneRatios) {
-    if (value.recentMean < budget.minimumLaneRecentModelTimeRatio) {
+  for (const [metric, value] of groupRatios) {
+    if (value.recentMean < budget.minimumGroupRecentComputeRatio) {
       violations.push(
         `${metric} recent mean ${value.recentMean.toFixed(3)}`
-        + ` < ${budget.minimumLaneRecentModelTimeRatio}`,
+        + ` < ${budget.minimumGroupRecentComputeRatio}`,
       );
     }
-    if (value.p05 < budget.minimumLaneP05ModelTimeRatio) {
+    if (value.p05 < budget.minimumGroupP05ComputeRatio) {
       violations.push(
         `${metric} p05 ${value.p05.toFixed(3)}`
-        + ` < ${budget.minimumLaneP05ModelTimeRatio}`,
+        + ` < ${budget.minimumGroupP05ComputeRatio}`,
       );
     }
+  }
+  const observedLaneCount = diagnostics.values[
+    "scheduler.group.live-lane-count"
+  ]?.latest;
+  if (observedLaneCount !== scenarioCount) {
+    violations.push(
+      `observed group lane count ${observedLaneCount ?? "missing"}`
+        + ` != ${scenarioCount}`,
+    );
+  }
+  const effectiveRate = diagnostics.values[
+    "scheduler.group.effective-playback-rate"
+  ]?.latest;
+  const safeRate = diagnostics.values[
+    "scheduler.group.safe-playback-rate"
+  ]?.latest;
+  if (
+    effectiveRate === undefined
+    || safeRate === undefined
+    || effectiveRate > safeRate + 1e-9
+  ) {
+    violations.push("effective group rate exceeds or lacks its safe limit");
   }
   requireMetricMaximumV3(
     diagnostics.metrics,
     (metric) => metric.endsWith(".worker-round-trip"),
     "lane Worker RTT p95",
     budget.maximumWorkerRoundTripP95Ms,
-    violations,
-  );
-  requireMetricMaximumV3(
-    diagnostics.metrics,
-    (metric) => metric.endsWith(".model-wall-lag"),
-    "model-to-wall lag p95",
-    budget.maximumModelWallLagP95Ms,
     violations,
   );
   requireMetricMaximumV3(
@@ -428,10 +439,9 @@ function evaluatePerformanceBudgetV3(
   return Object.freeze(violations);
 }
 
-function modelTimeRatioValuesV3(snapshot: WorkbenchPerformanceSnapshotV3) {
+function groupModelTimeRatioValuesV3(snapshot: WorkbenchPerformanceSnapshotV3) {
   return Object.entries(snapshot.values).filter(([metric]) =>
-    metric.startsWith("scheduler.")
-    && metric.endsWith(".model-time-ratio"));
+    metric === "scheduler.group.model-time-ratio");
 }
 
 function requireMetricMaximumV3(
