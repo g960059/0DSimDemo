@@ -357,6 +357,7 @@ function compileSolveGroups(
       "ordinal",
       "solveGroupId",
       "solver",
+      "systemKernelId",
       "unknownBlocks",
     ], "solve group");
   }
@@ -367,6 +368,7 @@ function compileSolveGroups(
       "ordinal",
       "solveGroupId",
       "solver",
+      "systemKernelId",
       "unknownBlocks",
     ], "solve group");
     assertExactDataRecordV1(group.solver, [
@@ -377,6 +379,7 @@ function compileSolveGroups(
       "nonlinearMethod",
     ], `solve group ${group.solveGroupId} solver`);
     assertPortableId(group.solveGroupId, "solveGroupId");
+    assertPortableId(group.systemKernelId, "systemKernelId");
     assertSupportedSolverV1(group);
     const blocks = canonicalOrdinalSequence(
       group.unknownBlocks,
@@ -518,6 +521,7 @@ function compileSolveGroups(
     ])[]);
     return Object.freeze({
       solveGroupId: group.solveGroupId,
+      systemKernelId: group.systemKernelId,
       unknownStateIds: Object.freeze(unknownStateIds),
       activeUnknownStateIds: Object.freeze(activeUnknownStateIds),
       dependentStateIds: Object.freeze(dependentStateIds),

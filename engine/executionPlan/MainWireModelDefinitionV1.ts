@@ -20,6 +20,7 @@ import {
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
   COUPLED_HEMODYNAMICS_TRISEG_UNKNOWN_IDS_V1,
+  MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
 } from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
 import {
   MODEL_DEFINITION_V1_SCHEMA_ID,
@@ -182,6 +183,7 @@ export function createMainWireNumericalPolicyV1(): NumericalPolicyV1 {
       Object.freeze({
         solveGroupId: "coupled-hemodynamics",
         ordinal: 0,
+        systemKernelId: MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
         unknownBlocks: Object.freeze([
           Object.freeze({
             blockId: "nonCoronary",

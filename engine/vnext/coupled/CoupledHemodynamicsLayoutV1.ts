@@ -7,6 +7,8 @@ import {
 
 export const COUPLED_HEMODYNAMICS_LAYOUT_V1_ID =
   "main-wire-coupled-hemodynamics-layout-v1" as const;
+export const MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID =
+  "main-wire-five-wall-static-condensed-system-kernel-v1" as const;
 
 export const COUPLED_HEMODYNAMICS_TRISEG_UNKNOWN_IDS_V1 = Object.freeze([
   "TriSeg.septalMidwallCapVolume",
@@ -205,6 +207,49 @@ export function assertMainWireFiveWallCoupledSolveLayoutV1(
   if (!ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_SOLVE_LAYOUTS_V1.has(layout)) {
     throw new RangeError("Main Wire coupled solve layout is not admitted");
   }
+}
+
+type MainWireFiveWallCompilerSolveBlockProjectionV1 = Readonly<{
+  blockId: string;
+  componentId: string;
+  kernelId: string;
+  disposition: "retained" | "statically-condensed";
+  start: number;
+  length: number;
+  endExclusive: number;
+}>;
+
+/** Projects the portable solve dispatch into the exact Main Wire layout. */
+export function bindMainWireFiveWallCoupledSolveDispatchV1(
+  dispatch: Readonly<{
+    systemKernelId: string;
+    activeUnknownCount: number;
+    blocks: readonly MainWireFiveWallCompilerSolveBlockProjectionV1[];
+  }>,
+): MainWireFiveWallCoupledSolveLayoutV1 {
+  if (
+    dispatch.systemKernelId
+      !== MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID
+    || dispatch.blocks.length !== 3
+  ) {
+    throw new Error("Main Wire coupled solve-system identity drifted");
+  }
+  const requiredBlock = (
+    blockId: "nonCoronary" | "coronary" | "triSeg",
+  ): MainWireFiveWallCompilerSolveBlockProjectionV1 => {
+    const block = dispatch.blocks.find((candidate) =>
+      candidate.blockId === blockId);
+    if (block === undefined) {
+      throw new Error(`Main Wire coupled solve block ${blockId} is missing`);
+    }
+    return block;
+  };
+  return bindMainWireFiveWallCoupledSolveLayoutV1({
+    dimension: dispatch.activeUnknownCount,
+    nonCoronary: requiredBlock("nonCoronary"),
+    coronary: requiredBlock("coronary"),
+    triSeg: requiredBlock("triSeg"),
+  });
 }
 
 export function createCanonicalMainWireFiveWallCoupledSolveLayoutV1():

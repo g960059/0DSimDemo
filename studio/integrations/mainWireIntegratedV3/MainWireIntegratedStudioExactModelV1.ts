@@ -8,23 +8,17 @@ import {
   EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
   EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
   bindExecutionPlanV1,
+  bindExecutionPlanSolveSystemRuntimeV1,
   prepareBoundExecutionPlanSolveGroupV1,
-  resolveBoundExecutionPlanSolveDispatchV1,
   synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
   type BoundExecutionPlanV1,
-  type BoundExecutionPlanSolveBlockDispatchV1,
   type ExecutionPlanAcceptedStateSynchronizationV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
-  bindFlatCoupledNewtonWorkspaceV1,
-} from "@/engine/vnext/coupled/FlatCoupledNewtonV1";
-import {
-  createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+  bindMainWireFiveWallCoupledExecutionPlanRuntimeV1,
+  MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
-import {
-  bindMainWireFiveWallCoupledSolveLayoutV1,
-} from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
@@ -132,6 +126,12 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1 =
 
 const MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1 =
   validateAndOwnExecutionPlanDescriptorV1(generatedExecutionPlanV1);
+const MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1 = Object.freeze([
+  Object.freeze({
+    systemKernelId: MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
+    bind: bindMainWireFiveWallCoupledExecutionPlanRuntimeV1,
+  }),
+]);
 const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 = Object.freeze({
   componentKernelIds: Object.freeze([
     "accepted-transaction-kernel-v1",
@@ -149,30 +149,12 @@ const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 = Object.freeze({
     "coronary-flow/micro-distal-venular",
     "coronary-flow/large-venous-outlet",
   ]),
+  solveSystemKernelIds: Object.freeze(
+    MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1.map(
+      ({ systemKernelId }) => systemKernelId,
+    ),
+  ),
 });
-
-function mainWireCoupledSolveBlockV1(
-  blocks: readonly BoundExecutionPlanSolveBlockDispatchV1[],
-  expected: Readonly<{
-    blockId: string;
-    componentId: string;
-    kernelId: string;
-    disposition: "retained" | "statically-condensed";
-  }>,
-): BoundExecutionPlanSolveBlockDispatchV1 {
-  const block = blocks.find(({ blockId }) => blockId === expected.blockId);
-  if (
-    block === undefined
-    || block.componentId !== expected.componentId
-    || block.kernelId !== expected.kernelId
-    || block.disposition !== expected.disposition
-  ) {
-    throw new Error(
-      `Standard execution plan ${expected.blockId} block identity drifted`,
-    );
-  }
-  return block;
-}
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1 =
   Object.freeze({
@@ -418,56 +400,13 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       ) {
         throw new Error("Standard Scenario execution plan cannot be replaced");
       }
-      const newton = bindFlatCoupledNewtonWorkspaceV1({
-        dimension: prepared.dimension,
-        current: prepared.currentUnknowns,
-        residual: prepared.residual,
-        jacobian: prepared.jacobian,
-        factors: prepared.factors,
-        rightHandSide: prepared.rightHandSide,
-        transformedRightHandSide: prepared.transformedRightHandSide,
-        update: prepared.update,
-        trial: prepared.trialUnknowns,
-        trialResidual: prepared.trialResidual,
-        pivots: prepared.pivots,
-      });
-      const dispatch = resolveBoundExecutionPlanSolveDispatchV1(
-        boundExecutionPlan,
-        "coupled-hemodynamics",
-      );
-      if (dispatch.blocks.length !== 3) {
-        throw new Error("Standard execution plan solve block count drifted");
-      }
-      const nonCoronary = mainWireCoupledSolveBlockV1(dispatch.blocks, {
-        blockId: "nonCoronary",
-        componentId: "noncoronary-circulation",
-        kernelId: "noncoronary-backward-euler-kernel-v1",
-        disposition: "retained",
-      });
-      const coronary = mainWireCoupledSolveBlockV1(dispatch.blocks, {
-        blockId: "coronary",
-        componentId: "coronary-circulation",
-        kernelId: "coronary-backward-euler-kernel-v2",
-        disposition: "retained",
-      });
-      const triSeg = mainWireCoupledSolveBlockV1(dispatch.blocks, {
-        blockId: "triSeg",
-        componentId: "five-wall-mechanics",
-        kernelId: "five-wall-land-triseg-kernel-v1",
-        disposition: "statically-condensed",
-      });
       scenario.modelSession.installExecutionPlanCoupledNewtonWorkspaceV1(
-        createMainWireFiveWallCoupledNewtonShadowWorkspaceV1({
-          newton,
-          unknownScales: prepared.unknownScale,
-          residualScales: prepared.residualScale,
-          solveLayout: bindMainWireFiveWallCoupledSolveLayoutV1({
-            dimension: dispatch.activeUnknownCount,
-            nonCoronary,
-            coronary,
-            triSeg,
-          }),
-        }),
+        bindExecutionPlanSolveSystemRuntimeV1(
+          boundExecutionPlan,
+          "coupled-hemodynamics",
+          prepared,
+          MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1,
+        ),
       );
       scenario.executionPlanBinding = Object.freeze({
         boundExecutionPlan,

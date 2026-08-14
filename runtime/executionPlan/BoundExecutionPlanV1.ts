@@ -18,6 +18,7 @@ export const EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID =
 export type ExecutionPlanKernelBindingCatalogV1 = Readonly<{
   componentKernelIds: readonly string[];
   hydraulicPathKernelIds: readonly string[];
+  solveSystemKernelIds: readonly string[];
 }>;
 
 export type BoundExecutionPlanSolveGroupV1 = Readonly<{
@@ -40,6 +41,7 @@ export type BoundExecutionPlanV1 = Readonly<{
   bindingCatalog: ExecutionPlanKernelBindingCatalogV1;
   componentKernelBindingOrdinals: Int32Array;
   hydraulicPathKernelBindingOrdinals: Int32Array;
+  solveSystemKernelBindingOrdinals: Int32Array;
   currentContinuousState: Float64Array;
   candidateContinuousState: Float64Array;
   currentBooleanState: Uint8Array;
@@ -103,9 +105,19 @@ export type BoundExecutionPlanSolveBlockDispatchV1 = Readonly<{
 
 export type BoundExecutionPlanSolveDispatchV1 = Readonly<{
   solveGroupId: string;
+  systemKernelId: string;
+  solveSystemKernelBindingOrdinal: number;
   totalUnknownCount: number;
   activeUnknownCount: number;
   blocks: readonly BoundExecutionPlanSolveBlockDispatchV1[];
+}>;
+
+export type ExecutionPlanSolveSystemRuntimeBindingV1<TResult> = Readonly<{
+  systemKernelId: string;
+  bind(input: Readonly<{
+    dispatch: BoundExecutionPlanSolveDispatchV1;
+    workspace: BoundExecutionPlanNewtonWorkspaceV1;
+  }>): TResult;
 }>;
 
 type BoundExecutionPlanSolveGroupMetadataV1 = Readonly<{
@@ -478,6 +490,8 @@ export function bindExecutionPlanV1(
   const requiredComponents = descriptor.stateLayout.blocks
     .map(({ kernelId }) => kernelId);
   const requiredPaths = descriptor.hydraulicGraph.pathKernelIds;
+  const requiredSolveSystems = descriptor.solveGroups
+    .map(({ systemKernelId }) => systemKernelId);
   assertExactBindingSetV1(
     requiredComponents,
     catalog.componentKernelIds,
@@ -488,10 +502,18 @@ export function bindExecutionPlanV1(
     catalog.hydraulicPathKernelIds,
     "hydraulic path kernel",
   );
+  assertExactBindingSetV1(
+    requiredSolveSystems,
+    catalog.solveSystemKernelIds,
+    "solve system kernel",
+  );
   const componentOrdinalById = new Map(catalog.componentKernelIds.map(
     (kernelId, ordinal) => [kernelId, ordinal] as const,
   ));
   const pathOrdinalById = new Map(catalog.hydraulicPathKernelIds.map(
+    (kernelId, ordinal) => [kernelId, ordinal] as const,
+  ));
+  const solveSystemOrdinalById = new Map(catalog.solveSystemKernelIds.map(
     (kernelId, ordinal) => [kernelId, ordinal] as const,
   ));
   const componentKernelBindingOrdinals = Int32Array.from(
@@ -499,6 +521,10 @@ export function bindExecutionPlanV1(
   );
   const hydraulicPathKernelBindingOrdinals = Int32Array.from(
     requiredPaths.map((kernelId) => pathOrdinalById.get(kernelId)!),
+  );
+  const solveSystemKernelBindingOrdinals = Int32Array.from(
+    requiredSolveSystems.map((kernelId) =>
+      solveSystemOrdinalById.get(kernelId)!),
   );
   const currentContinuousState = new Float64Array(
     descriptor.stateLayout.continuousSlotCount,
@@ -546,6 +572,7 @@ export function bindExecutionPlanV1(
   const arrays: ArrayBufferView[] = [
     componentKernelBindingOrdinals,
     hydraulicPathKernelBindingOrdinals,
+    solveSystemKernelBindingOrdinals,
     currentContinuousState,
     candidateContinuousState,
     currentBooleanState,
@@ -568,6 +595,7 @@ export function bindExecutionPlanV1(
     bindingCatalog: catalog,
     componentKernelBindingOrdinals,
     hydraulicPathKernelBindingOrdinals,
+    solveSystemKernelBindingOrdinals,
     currentContinuousState,
     candidateContinuousState,
     currentBooleanState,
@@ -603,6 +631,7 @@ export function bindExecutionPlanV1(
         descriptorGroup,
         solveGroups[index]!,
         bound,
+        index,
       ),
     )),
   }));
@@ -654,11 +683,76 @@ export function resolveBoundExecutionPlanSolveDispatchV1(
   return group.dispatch;
 }
 
+/**
+ * Resolves one model-owned solve-system implementation by the compiler-bound
+ * ordinal. Function bindings stay inside the exact artifact and never enter
+ * the portable descriptor.
+ */
+export function bindExecutionPlanSolveSystemRuntimeV1<TResult>(
+  bound: BoundExecutionPlanV1,
+  solveGroupId: string,
+  workspace: BoundExecutionPlanNewtonWorkspaceV1,
+  bindings: readonly ExecutionPlanSolveSystemRuntimeBindingV1<TResult>[],
+): TResult {
+  if (!Array.isArray(bindings)) {
+    throw new TypeError("Execution plan solve-system bindings must be an array");
+  }
+  if (bindings.length !== bound.bindingCatalog.solveSystemKernelIds.length) {
+    throw new Error(
+      "Execution plan solve-system runtime bindings must match exactly",
+    );
+  }
+  for (let index = 0; index < bindings.length; index += 1) {
+    const binding = bindings[index];
+    if (
+      binding === undefined
+      || binding.systemKernelId
+        !== bound.bindingCatalog.solveSystemKernelIds[index]
+      || typeof binding.bind !== "function"
+    ) {
+      throw new Error(
+        "Execution plan solve-system runtime binding order drifted",
+      );
+    }
+  }
+  const dispatch = resolveBoundExecutionPlanSolveDispatchV1(
+    bound,
+    solveGroupId,
+  );
+  const expectedWorkspace = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound)
+    ?.solveGroups.find((candidate) =>
+      candidate.solveGroupId === solveGroupId)?.workspace;
+  if (workspace !== expectedWorkspace) {
+    throw new Error(
+      `Execution plan solve group ${solveGroupId} requires its bound workspace`,
+    );
+  }
+  const binding = bindings[dispatch.solveSystemKernelBindingOrdinal];
+  if (binding?.systemKernelId !== dispatch.systemKernelId) {
+    throw new Error(
+      `Execution plan solve group ${solveGroupId} runtime binding drifted`,
+    );
+  }
+  if (
+    workspace.solveGroupId !== dispatch.solveGroupId
+    || workspace.dimension !== dispatch.activeUnknownCount
+  ) {
+    throw new Error(
+      `Execution plan solve group ${solveGroupId} workspace drifted`,
+    );
+  }
+  return binding.bind(Object.freeze({
+    dispatch,
+    workspace,
+  }));
+}
+
 function createBoundSolveGroupMetadataV1(
   descriptor: ExecutionPlanDescriptorV1,
   descriptorGroup: ExecutionPlanSolveGroupV1,
   boundGroup: BoundExecutionPlanSolveGroupV1,
   bound: BoundExecutionPlanV1,
+  solveGroupIndex: number,
 ): BoundExecutionPlanSolveGroupMetadataV1 {
   const activeContinuousStorageIndices = Int32Array.from(
     boundGroup.activeStateLogicalIndices,
@@ -725,8 +819,21 @@ function createBoundSolveGroupMetadataV1(
     boundGroup,
     descriptorGroup,
   );
+  const solveSystemKernelBindingOrdinal =
+    bound.solveSystemKernelBindingOrdinals[solveGroupIndex]!;
+  if (
+    bound.bindingCatalog.solveSystemKernelIds[
+      solveSystemKernelBindingOrdinal
+    ] !== descriptorGroup.systemKernelId
+  ) {
+    throw new Error(
+      `Execution plan solve group ${descriptorGroup.solveGroupId} system kernel binding drifted`,
+    );
+  }
   const dispatch = Object.freeze({
     solveGroupId: descriptorGroup.solveGroupId,
+    systemKernelId: descriptorGroup.systemKernelId,
+    solveSystemKernelBindingOrdinal,
     totalUnknownCount: descriptorGroup.totalUnknownCount,
     activeUnknownCount: descriptorGroup.activeUnknownCount,
     blocks: Object.freeze(descriptorGroup.blocks.map((block) => {
@@ -982,6 +1089,7 @@ export function assertBoundExecutionPlanV1(
     "hydraulicPathKernelBindingOrdinals",
     "policyId",
     "schemaId",
+    "solveSystemKernelBindingOrdinals",
     "solveGroups",
   ], "$.boundExecutionPlan");
   if (
@@ -1002,6 +1110,11 @@ export function assertBoundExecutionPlanV1(
     descriptor.hydraulicGraph.pathIds.length,
     "$.boundExecutionPlan.hydraulicPathKernelBindingOrdinals",
   );
+  const solveSystemOrdinals = int32ViewV1(
+    bound.solveSystemKernelBindingOrdinals,
+    descriptor.solveGroups.length,
+    "$.boundExecutionPlan.solveSystemKernelBindingOrdinals",
+  );
   descriptor.stateLayout.blocks.forEach((block, index) => {
     if (catalog.componentKernelIds[componentOrdinals[index]!] !== block.kernelId) {
       failV1("$.boundExecutionPlan.componentKernelBindingOrdinals", "binding mismatch");
@@ -1012,7 +1125,22 @@ export function assertBoundExecutionPlanV1(
       failV1("$.boundExecutionPlan.hydraulicPathKernelBindingOrdinals", "binding mismatch");
     }
   });
-  const arrays: ArrayBufferView[] = [componentOrdinals, pathOrdinals];
+  descriptor.solveGroups.forEach(({ systemKernelId }, index) => {
+    if (
+      catalog.solveSystemKernelIds[solveSystemOrdinals[index]!]
+        !== systemKernelId
+    ) {
+      failV1(
+        "$.boundExecutionPlan.solveSystemKernelBindingOrdinals",
+        "binding mismatch",
+      );
+    }
+  });
+  const arrays: ArrayBufferView[] = [
+    componentOrdinals,
+    pathOrdinals,
+    solveSystemOrdinals,
+  ];
   arrays.push(
     f64ViewV1(bound.currentContinuousState,
       descriptor.stateLayout.continuousSlotCount,
@@ -1124,11 +1252,13 @@ function validateSolveGroupV1(
     "jacobianElementCount",
     "solveGroupId",
     "solver",
+    "systemKernelId",
     "totalUnknownCount",
     "unknownStateIds",
     "workspace",
   ], path);
   const solveGroupId = portableIdV1(group.solveGroupId, `${path}.solveGroupId`);
+  portableIdV1(group.systemKernelId, `${path}.systemKernelId`);
   if (solveGroupIds.has(solveGroupId)) failV1(path, "duplicate solveGroupId");
   solveGroupIds.add(solveGroupId);
   const unknownStateIds = portableIdArrayV1(
@@ -1356,6 +1486,7 @@ function validateAndOwnKernelCatalogV1(
   exactKeysV1(record, [
     "componentKernelIds",
     "hydraulicPathKernelIds",
+    "solveSystemKernelIds",
   ], "$.bindingCatalog");
   const componentKernelIds = portableIdArrayV1(
     record.componentKernelIds,
@@ -1365,11 +1496,17 @@ function validateAndOwnKernelCatalogV1(
     record.hydraulicPathKernelIds,
     "$.bindingCatalog.hydraulicPathKernelIds",
   );
+  const solveSystemKernelIds = portableIdArrayV1(
+    record.solveSystemKernelIds,
+    "$.bindingCatalog.solveSystemKernelIds",
+  );
   uniqueV1(componentKernelIds, "$.bindingCatalog.componentKernelIds");
   uniqueV1(hydraulicPathKernelIds, "$.bindingCatalog.hydraulicPathKernelIds");
+  uniqueV1(solveSystemKernelIds, "$.bindingCatalog.solveSystemKernelIds");
   return Object.freeze({
     componentKernelIds: Object.freeze(componentKernelIds),
     hydraulicPathKernelIds: Object.freeze(hydraulicPathKernelIds),
+    solveSystemKernelIds: Object.freeze(solveSystemKernelIds),
   });
 }
 

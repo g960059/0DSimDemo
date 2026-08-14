@@ -1144,7 +1144,6 @@ export class StudioSimulationWorkerRuntimeV2 {
     const nextBoundExecutionPlans = bindScenarioExecutionPlansV1(
       this.#requiredExactRuntime(),
       scenarios.map(({ scenarioId }) => scenarioId),
-      this.#boundExecutionPlans,
     );
     let created = false;
     try {
@@ -2375,23 +2374,13 @@ function assertSimulationAdapterV2(
 function bindScenarioExecutionPlansV1(
   runtime: ResolvedExactModelRuntimeV2,
   scenarioIds: readonly string[],
-  retainedPlans: ReadonlyMap<string, BoundExecutionPlanV1> = new Map(),
 ): Map<string, BoundExecutionPlanV1> {
   const executionPlan = runtime.executionPlan;
   if (executionPlan === undefined) {
-    if (retainedPlans.size !== 0) {
-      throw new Error(
-        "simulation worker retained execution plans for a historical runtime",
-      );
-    }
     return new Map();
   }
   const descriptor = executionPlan.descriptor;
   const occupiedBuffers = new Set<object>();
-  for (const retained of retainedPlans.values()) {
-    assertBoundExecutionPlanV1(retained, descriptor);
-    reserveScenarioExecutionPlanBuffersV1(retained, occupiedBuffers);
-  }
 
   const next = new Map<string, BoundExecutionPlanV1>();
   for (const scenarioId of scenarioIds) {
@@ -2399,11 +2388,6 @@ function bindScenarioExecutionPlansV1(
       throw new Error(
         `simulation worker Scenario appears more than once: ${scenarioId}`,
       );
-    }
-    const retained = retainedPlans.get(scenarioId);
-    if (retained !== undefined) {
-      next.set(scenarioId, retained);
-      continue;
     }
     const candidate = executionPlan.bind();
     assertBoundExecutionPlanV1(candidate, descriptor);
@@ -2420,6 +2404,7 @@ function reserveScenarioExecutionPlanBuffersV1(
   const views: ArrayBufferView[] = [
     plan.componentKernelBindingOrdinals,
     plan.hydraulicPathKernelBindingOrdinals,
+    plan.solveSystemKernelBindingOrdinals,
     plan.currentContinuousState,
     plan.candidateContinuousState,
     plan.currentBooleanState,

@@ -14,6 +14,7 @@ import {
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   assertFlatCoupledNewtonWorkspaceV1,
+  bindFlatCoupledNewtonWorkspaceV1,
   createFlatCoupledNewtonWorkspaceV1,
   solveFlatCoupledSystemV1,
   type FlatCoupledNewtonResultV1,
@@ -27,12 +28,19 @@ import {
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
 import {
   assertMainWireFiveWallCoupledSolveLayoutV1,
+  bindMainWireFiveWallCoupledSolveDispatchV1,
   createCanonicalMainWireFiveWallCoupledSolveLayoutV1,
+  MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
   type MainWireFiveWallCoupledSolveLayoutV1,
 } from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
+import type {
+  BoundExecutionPlanNewtonWorkspaceV1,
+  BoundExecutionPlanSolveDispatchV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
 
 export const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID =
   "main-wire-five-wall-coupled-newton-shadow-v1" as const;
+export { MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID };
 
 export type MainWireFiveWallCoupledNewtonShadowOptionsV1 = Readonly<{
   /**
@@ -213,6 +221,42 @@ export function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
     },
   );
   return workspace;
+}
+
+/** Binds one compiler-owned workspace to the model-owned coupled system. */
+export function bindMainWireFiveWallCoupledExecutionPlanRuntimeV1(
+  input: Readonly<{
+    dispatch: BoundExecutionPlanSolveDispatchV1;
+    workspace: BoundExecutionPlanNewtonWorkspaceV1;
+  }>,
+): MainWireFiveWallCoupledNewtonShadowWorkspaceV1 {
+  if (
+    input.dispatch.systemKernelId
+      !== MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID
+    || input.workspace.solveGroupId !== input.dispatch.solveGroupId
+    || input.workspace.dimension !== input.dispatch.activeUnknownCount
+  ) {
+    throw new Error("Main Wire execution-plan solve system drifted");
+  }
+  return createMainWireFiveWallCoupledNewtonShadowWorkspaceV1({
+    newton: bindFlatCoupledNewtonWorkspaceV1({
+      dimension: input.workspace.dimension,
+      current: input.workspace.currentUnknowns,
+      residual: input.workspace.residual,
+      jacobian: input.workspace.jacobian,
+      factors: input.workspace.factors,
+      rightHandSide: input.workspace.rightHandSide,
+      transformedRightHandSide:
+        input.workspace.transformedRightHandSide,
+      update: input.workspace.update,
+      trial: input.workspace.trialUnknowns,
+      trialResidual: input.workspace.trialResidual,
+      pivots: input.workspace.pivots,
+    }),
+    unknownScales: input.workspace.unknownScale,
+    residualScales: input.workspace.residualScale,
+    solveLayout: bindMainWireFiveWallCoupledSolveDispatchV1(input.dispatch),
+  });
 }
 
 export function assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(

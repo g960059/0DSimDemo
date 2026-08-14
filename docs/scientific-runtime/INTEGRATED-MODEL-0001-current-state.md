@@ -32,15 +32,16 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-44
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-45
 ```
 
-Standard-44 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
+Standard-45 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
 exact artifact and binds one Worker-local typed plan per Scenario
-during initialization. Surviving Scenario plans are retained across branch
-rebuilds, newly added branches receive fresh nonaliasing storage, and no solver
-scratch is shared between Scenarios. The production artifact contains the
-generated descriptor and binder, not the compiler or `ModelDefinitionV1`. At
+during initialization. An atomic branch rebuild gives every Scenario in the
+candidate exact session fresh nonaliasing storage, so old and candidate
+sessions never share solver scratch during handoff. The production artifact
+contains the generated descriptor and binder, not the compiler or
+`ModelDefinitionV1`. At
 sampled presentation and control boundaries, it copies the existing authority's
 100-slot hemodynamic view into the owning Scenario plan, checks finite/boolean
 storage, blood-volume conservation, and exact frame clocks, then discards no
@@ -68,6 +69,13 @@ is no longer duplicated in Studio runtime wiring. Unknown gathering,
 component residual placement, and converged-candidate materialization consume
 the same Scenario-owned ranges as the Newton workspace. A context/workspace
 layout mismatch fails before the first residual evaluation.
+The numerical policy now also names the model-owned coupled-system kernel.
+The neutral runtime resolves that identity to an exact-artifact binder by its
+compiler-bound ordinal at Scenario initialization. The binder validates the
+same plan-owned workspace and block dispatch before installing the coupled
+solver. Studio no longer enumerates or assembles the three Main Wire solve
+blocks; the portable descriptor still contains data and IDs only, never
+functions.
 
 Standard-32 changes the live execution authority, not the physiology. Ordinary
 presentation ticks now solve and promote directly through the fixed typed

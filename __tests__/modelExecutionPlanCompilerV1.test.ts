@@ -11,6 +11,7 @@ import {
 import {
   assertBoundExecutionPlanV1,
   bindExecutionPlanV1,
+  bindExecutionPlanSolveSystemRuntimeV1,
   prepareBoundExecutionPlanSolveGroupV1,
   resolveBoundExecutionPlanSolveDispatchV1,
   synchronizeBoundExecutionPlanAcceptedStateV1,
@@ -32,6 +33,7 @@ import {
 } from "@/engine/vnext/MainWireAcceptedTypedHemodynamicV1";
 import {
   COUPLED_HEMODYNAMICS_LAYOUT_V1,
+  MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
 } from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
 import generatedExecutionPlan from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
@@ -93,6 +95,8 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       .toBe(MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.mvcActive);
 
     const [solve] = plan.solveGroups;
+    expect(solve?.systemKernelId)
+      .toBe(MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID);
     expect(solve?.blocks.map(({
       blockId,
       componentId,
@@ -389,6 +393,8 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       "coupled-hemodynamics",
     )).toEqual({
       solveGroupId: "coupled-hemodynamics",
+      systemKernelId: MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
+      solveSystemKernelBindingOrdinal: 0,
       totalUnknownCount: 32,
       activeUnknownCount: 30,
       blocks: [
@@ -425,6 +431,46 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       ],
     });
     expect(() => assertBoundExecutionPlanV1(bound, descriptor)).not.toThrow();
+  });
+
+  it("binds one model-owned solve system by compiled ordinal", () => {
+    const descriptor = compileMainWire();
+    const bound = bindExecutionPlanV1(descriptor, mainWireKernelCatalog());
+    const workspace = prepareBoundExecutionPlanSolveGroupV1(
+      bound,
+      "coupled-hemodynamics",
+    );
+    const boundInput = bindExecutionPlanSolveSystemRuntimeV1(
+      bound,
+      "coupled-hemodynamics",
+      workspace,
+      [Object.freeze({
+        systemKernelId: MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
+        bind: (input) => input,
+      })],
+    );
+
+    expect(boundInput.workspace).toBe(workspace);
+    expect(boundInput.dispatch.systemKernelId)
+      .toBe(MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID);
+    expect(() => bindExecutionPlanSolveSystemRuntimeV1(
+      bound,
+      "coupled-hemodynamics",
+      { ...workspace },
+      [Object.freeze({
+        systemKernelId: MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
+        bind: (input) => input,
+      })],
+    )).toThrow(/requires its bound workspace/);
+    expect(() => bindExecutionPlanSolveSystemRuntimeV1(
+      bound,
+      "coupled-hemodynamics",
+      workspace,
+      [Object.freeze({
+        systemKernelId: "synthetic-solve-system-v1",
+        bind: (input) => input,
+      })],
+    )).toThrow(/binding order drifted/);
   });
 
   it("synchronizes one complete accepted view atomically and checks its ledger", () => {
@@ -546,6 +592,10 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
         "synthetic-flow/unregistered",
       ],
     })).toThrow("hydraulic path kernel bindings must match exactly");
+    expect(() => bindExecutionPlanV1(descriptor, {
+      ...catalog,
+      solveSystemKernelIds: [],
+    })).toThrow("solve system kernel bindings must match exactly");
 
     const bound = bindExecutionPlanV1(descriptor, catalog);
     expect(() => assertBoundExecutionPlanV1({
@@ -667,6 +717,9 @@ function mainWireKernelCatalog() {
       "coronary-flow/micro-intermediate-capillary",
       "coronary-flow/micro-distal-venular",
       "coronary-flow/large-venous-outlet",
+    ]),
+    solveSystemKernelIds: Object.freeze([
+      MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
     ]),
   });
 }

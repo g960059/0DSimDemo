@@ -1,6 +1,6 @@
 # DESIGN-STUDIO-009: Model definition and execution-plan compiler
 
-Status: binding plan-owned Newton workspace
+Status: binding model-owned solve systems through the compiled plan
 
 This document owns the declarative model-definition and ahead-of-time
 execution-plan boundary. DESIGN-STUDIO-007 continues to own numerical
@@ -44,6 +44,8 @@ Compilation is a pure, host-neutral operation. It must:
 - lower hydraulic paths to upstream/downstream node indices and kernel IDs;
 - lower solve blocks to contiguous unknown ranges and state-slot indices;
 - derive one component owner and kernel identity for every solve block;
+- preserve the model-owned solve-system identity that assembles residuals,
+  Jacobians, and converged candidates for each solve group;
 - emit only deeply immutable JSON-compatible data—never functions, module
   URLs, environment values, or digests.
 
@@ -76,7 +78,7 @@ circulation claim to the model.
 
 ## Bound runtime slice
 
-The Standard-44 development candidate advertises both
+The Standard-45 development candidate advertises both
 `runtime/execution-plan-accepted-state-shadow-v1` and
 `runtime/execution-plan-newton-workspace-v1`. Its exact artifact contains the
 generated descriptor and a small binder; it does not contain
@@ -87,20 +89,26 @@ legacy executable contract.
 At Worker initialization, the binder:
 
 - validates and owns the portable descriptor without invoking accessors;
-- requires an exact set of admitted component- and path-kernel IDs;
+- requires exact sets of admitted component-, path-, and solve-system kernel
+  IDs;
 - resolves those IDs to compact ordinals;
 - allocates nonaliasing current/candidate state, graph-index, and solver
   workspace typed arrays once; and
 - rejects a malformed or aliased result before numerical session creation.
 
-These bindings are currently symbolic owner bindings rather than generic
-executable function pointers. One bound plan is retained Worker-locally for
-each Scenario; no state or solver scratch is shared between Scenario branches.
-Scenario rebuilds retain surviving plans, allocate only newly introduced
-branches, and reject cross-Scenario backing-buffer aliasing before exact
-session creation. Component and path bindings remain symbolic rather than a
-generic equation interpreter. The existing typed-authority session remains
-the sole accepted-state and checkpoint authority.
+Component and path bindings remain symbolic owner bindings. Each solve group
+also carries one model-owned system-kernel ID. The exact artifact resolves that
+ID through an immutable runtime registry to one executable binder at Scenario
+initialization; functions never enter the portable descriptor. One bound plan
+is retained Worker-locally for each Scenario within one physical exact
+session; no state or solver scratch is shared between Scenario branches.
+An atomic Scenario rebuild allocates fresh plans for every next-session branch
+before exact session creation. It does not share a plan between the old and
+candidate exact sessions during handoff. Failure leaves the old session and
+its plans untouched. The Worker rejects cross-Scenario backing-buffer
+aliasing—including solve-system ordinals—before exact session creation. This
+is not a generic equation interpreter. The existing typed-authority session
+remains the sole accepted-state and checkpoint authority.
 
 Standard-39 first added sampled accepted-boundary synchronization.
 After exact session creation and after each presentation batch or authored control, the
@@ -120,7 +128,7 @@ the two backing arrays once;
 the exact binder creates persistent views at the emitted offsets and rejects
 gaps, overlap, reordering, or foreign views. At an accepted boundary the active
 unknowns are gathered through compiler-emitted logical indices into the
-`current-unknowns` segment. Standard-44 additionally binds the existing
+`current-unknowns` segment. Standard-45 binds the existing
 30-variable coupled Newton solve to those exact Scenario-owned views. Raw
 Jacobian and LU factors remain distinct segments; right-hand side,
 LU-transformed right-hand side, update, trial, scale vectors, and pivots are
@@ -147,6 +155,15 @@ layout mismatch before it evaluates a residual. Component equations remain
 ordinary model-owned TypeScript functions; the portable descriptor never
 contains executable code or a generic physiology interpreter.
 
+The Studio adapter no longer reconstructs the Main Wire
+`nonCoronary / coronary / triSeg` system. It synchronizes the accepted plan
+page, prepares the compiler-owned workspace, and asks the neutral runtime
+binder to resolve the compiled solve-system ordinal. The selected model-owned
+binder validates the exact three-block contract and creates the coupled
+workspace once. This keeps scientific assembly inside the model package while
+making future solve systems selectable from `NumericalPolicyV1` without new
+Studio-specific wiring.
+
 ## Cold-start evidence
 
 Opt-in Workbench performance reports now distinguish:
@@ -172,16 +189,16 @@ binding is bounded and that time-to-first-frame has not materially regressed.
 1. Add exact descriptor parity for every current generated layout that will
    become runtime-owned. **Complete for the current one-patch slice.**
 2. Embed the descriptor in the exact executable without another fetch or a
-   production compiler. **Complete in the Standard-44 development candidate.**
+   production compiler. **Complete in the Standard-45 development candidate.**
 3. Bind known kernel IDs, allocate buffers once, and reject missing, extra, or
-   aliased bindings. **Complete per Scenario in Standard-44.**
+   aliased bindings. **Complete per Scenario in Standard-45.**
 4. Move existing authority resources behind the bound plan, while preserving
    checkpoint continuation and the canonical scientific corpus. **Accepted
    state projection, canonical Newton workspace preparation, checkpoint
    continuation, and execution of the existing coupled Newton/LU solve through
    the plan-owned workspace, plus compiler-owned solve-block and residual
-   dispatch, are complete in Standard-44. Component residual equations remain
-   model-owned.**
+   dispatch and model-owned solve-system binding, are complete in Standard-45.
+   Component residual equations remain model-owned.**
 5. Mint a new model release for the direct runtime cutover. Do not dual-write
    state or retain a fallback inside that release.
 6. Delete the replaced hand-written layout tables only after production

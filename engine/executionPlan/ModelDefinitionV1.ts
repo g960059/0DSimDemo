@@ -73,6 +73,8 @@ export type NumericalUnknownBlockV1 = Readonly<{
 export type NumericalSolveGroupV1 = Readonly<{
   solveGroupId: string;
   ordinal: number;
+  /** Model-owned residual/Jacobian/materialization assembly implementation. */
+  systemKernelId: string;
   unknownBlocks: readonly NumericalUnknownBlockV1[];
   dependentStateIds: readonly string[];
   solver: Readonly<{

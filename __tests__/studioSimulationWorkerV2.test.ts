@@ -1037,6 +1037,52 @@ describe("Studio simulation worker V2 runtime", () => {
     });
   });
 
+  it("includes solve-system ordinals in cross-Scenario alias admission", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const first = bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    );
+    const second = bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    );
+    const plans = [first, Object.freeze({
+      ...second,
+      solveSystemKernelBindingOrdinals:
+        first.solveSystemKernelBindingOrdinals,
+    })];
+    const bind = vi.fn(() => plans.shift()!);
+    const harness = multiScenarioRuntimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(bind),
+    });
+    const seeded = twoScenarioExperimentV2();
+
+    harness.runtime.enqueue(createStudioSimulationInitializeRequestV2(1, {
+      expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      scenarioLabel: "Baseline",
+      fixture: seeded.content.scenarios[0]!.capture.fixture,
+      checkpoint: seeded.content.scenarios[0]!.capture.checkpoint,
+      authoringSeed: { experiment: seeded },
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledTimes(2);
+    expect(harness.adapter.createSession).not.toHaveBeenCalled();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "error",
+      fatal: true,
+      message: expect.stringMatching(
+        /Scenario execution-plan allocations must not alias/,
+      ),
+    });
+  });
+
   it("fails before session creation when a shadow plan binder returns aliased storage", async () => {
     const descriptor = validateAndOwnExecutionPlanDescriptorV1(
       generatedExecutionPlanV1,
@@ -2267,7 +2313,7 @@ describe("Studio simulation worker V2 runtime", () => {
 });
 
 describe("Studio simulation worker V2 multi-Scenario authoring", () => {
-  it("retains surviving Scenario plans and binds only newly added branches", async () => {
+  it("allocates fresh Scenario plans for each atomic exact-session rebuild", async () => {
     const descriptor = validateAndOwnExecutionPlanDescriptorV1(
       generatedExecutionPlanV1,
     );
@@ -2315,17 +2361,20 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
     }));
     await harness.runtime.whenIdle();
 
-    expect(bind).toHaveBeenCalledTimes(2);
+    expect(bind).toHaveBeenCalledTimes(3);
     const baselinePlans = synchronizeAcceptedState.mock.calls
       .filter(([input]) => input.scenarioId === "scenario/baseline")
       .map(([input]) => input.boundExecutionPlan);
     const copyPlans = synchronizeAcceptedState.mock.calls
       .filter(([input]) => input.scenarioId === "scenario/copy")
       .map(([input]) => input.boundExecutionPlan);
-    expect(baselinePlans).toEqual([baselinePlan, baselinePlan]);
+    expect(baselinePlans).toHaveLength(2);
+    expect(baselinePlans[0]).toBe(baselinePlan);
+    expect(baselinePlans[1]).not.toBe(baselinePlan);
     expect(copyPlans).toHaveLength(1);
     const copyPlan = copyPlans[0]!;
     expect(copyPlan).not.toBe(baselinePlan);
+    expect(copyPlan).not.toBe(baselinePlans[1]);
 
     harness.runtime.enqueue(createStudioSimulationDeleteScenarioRequestV2(3, {
       runtimeSessionId: "runtime/session-1",
@@ -2337,11 +2386,13 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
     }));
     await harness.runtime.whenIdle();
 
-    expect(bind).toHaveBeenCalledTimes(2);
+    expect(bind).toHaveBeenCalledTimes(4);
     const finalCopyPlans = synchronizeAcceptedState.mock.calls
       .filter(([input]) => input.scenarioId === "scenario/copy")
       .map(([input]) => input.boundExecutionPlan);
-    expect(finalCopyPlans).toEqual([copyPlan, copyPlan]);
+    expect(finalCopyPlans).toHaveLength(2);
+    expect(finalCopyPlans[0]).toBe(copyPlan);
+    expect(finalCopyPlans[1]).not.toBe(copyPlan);
     expect(harness.port.messages.at(-1)).toMatchObject({
       status: "ok",
       kind: "scenario-state",
@@ -4681,6 +4732,9 @@ function mainWireExecutionPlanKernelCatalogV1() {
       "coronary-flow/micro-intermediate-capillary",
       "coronary-flow/micro-distal-venular",
       "coronary-flow/large-venous-outlet",
+    ]),
+    solveSystemKernelIds: Object.freeze([
+      "main-wire-five-wall-static-condensed-system-kernel-v1",
     ]),
   });
 }

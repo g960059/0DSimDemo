@@ -73,6 +73,7 @@ export type ExecutionPlanSolveBlockV1 = Readonly<{
 
 export type ExecutionPlanSolveGroupV1 = Readonly<{
   solveGroupId: string;
+  systemKernelId: string;
   unknownStateIds: readonly string[];
   activeUnknownStateIds: readonly string[];
   dependentStateIds: readonly string[];
