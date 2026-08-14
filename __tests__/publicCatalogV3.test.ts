@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   publicArticlesForLocaleV3,
   readPublicCatalogV3,
+  readPublicHomeCatalogBootstrapV3,
 } from "@/components/site/PublicCatalogV3";
+import {
+  STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID,
+  STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID,
+} from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 import {
   publicArticleExcerptV3,
 } from "@/components/site/PublicCatalogPresentationV3";
@@ -92,6 +97,51 @@ describe("public catalog V3", () => {
       .toEqual(["article-ja", "article-ja-two"]);
     expect(publicArticlesForLocaleV3(articles, "en").map(({ articleId }) => articleId))
       .toEqual(["article-en"]);
+  });
+
+  it("projects the SSR Home bootstrap without a second catalog request", () => {
+    const bootstrap = JSON.stringify({
+      schemaId: STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID,
+      locale: "ja",
+      articles: [{
+        articleId: "article/bootstrap",
+        locale: "ja",
+        title: "SSRの記事",
+        excerpt: "最初のHTMLから読めます。",
+        publicSlug: "ssr-article",
+        publishedAt: "2026-08-14T00:00:00.000Z",
+      }],
+      experiments: [{
+        experimentId: "experiment/bootstrap",
+        title: "SSRのシミュレーション",
+        publicSlug: "ssr-simulation",
+        publishedAt: "2026-08-14T01:00:00.000Z",
+        snapshotId: "snapshot/bootstrap",
+        modelId: "model/bootstrap",
+        scenarioCount: 3,
+      }],
+    });
+    const documentLike = {
+      getElementById: (id: string) =>
+        id === STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID
+          ? { textContent: bootstrap }
+          : null,
+    } as Pick<Document, "getElementById">;
+
+    const catalog = readPublicHomeCatalogBootstrapV3("ja", documentLike);
+    expect(catalog?.articles[0]).toMatchObject({
+      publicSlug: "ssr-article",
+      title: "SSRの記事",
+    });
+    expect(catalog?.experiments[0]).toMatchObject({
+      snapshotId: "snapshot/bootstrap",
+      scenarioCount: 3,
+      record: {
+        experimentId: "experiment/bootstrap",
+        publishedSnapshotId: "snapshot/bootstrap",
+      },
+    });
+    expect(readPublicHomeCatalogBootstrapV3("en", documentLike)).toBeNull();
   });
 });
 

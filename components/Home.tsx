@@ -9,11 +9,15 @@ import { Link, useLocation } from "react-router-dom";
 
 import {
   publicArticlesForLocaleV3,
-  readPublicCatalogAsyncV3,
+  readPublicHomeCatalogAsyncV3,
+  readPublicHomeCatalogBootstrapV3,
   type PublicArticleCatalogItemV3,
   type PublicCatalogV3,
   type PublicExperimentCatalogItemV3,
 } from "@/components/site/PublicCatalogV3";
+import {
+  completePublicStaticContentHandoffV1,
+} from "@/components/site/PublicStaticContentHandoffV1";
 import {
   authoringCliDocsHref,
   articleReaderHref,
@@ -42,11 +46,22 @@ export const Home = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
-  const [catalog, setCatalog] = React.useState<PublicCatalogV3 | null>(null);
+  const bootstrapCatalog = React.useMemo(
+    () => readPublicHomeCatalogBootstrapV3(locale),
+    [locale],
+  );
+  const [catalog, setCatalog] = React.useState<PublicCatalogV3 | null>(
+    bootstrapCatalog,
+  );
 
   React.useEffect(() => {
+    if (bootstrapCatalog !== null) {
+      setCatalog(bootstrapCatalog);
+      return;
+    }
     let current = true;
-    void readPublicCatalogAsyncV3().then((next) => {
+    setCatalog(null);
+    void readPublicHomeCatalogAsyncV3(locale).then((next) => {
       if (current) setCatalog(next);
     }).catch(() => {
       // The public landing page remains usable when the catalog is offline.
@@ -55,7 +70,10 @@ export const Home = () => {
     return () => {
       current = false;
     };
-  }, []);
+  }, [bootstrapCatalog, locale]);
+  React.useEffect(() => {
+    if (catalog !== null) completePublicStaticContentHandoffV1();
+  }, [catalog]);
 
   const localizedArticles = catalog === null
     ? []
@@ -64,7 +82,10 @@ export const Home = () => {
   const experiments = catalog?.experiments.slice(0, HOME_SECTION_LIMIT_V4) ?? [];
 
   return (
-    <div className="h-full w-full overflow-y-auto overflow-x-hidden bg-wb-app text-wb-text">
+    <div
+      className="h-full w-full overflow-y-auto overflow-x-hidden bg-wb-app text-wb-text"
+      data-public-static-scroll-host="true"
+    >
       <main className="mx-auto w-full max-w-5xl px-4 sm:px-6">
         <section className="py-10 sm:py-20">
           <div>

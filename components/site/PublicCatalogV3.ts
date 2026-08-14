@@ -11,6 +11,10 @@ import {
 import {
   createStudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
+import {
+  readStudioPublicHomeBootstrapV1,
+  type StudioPublicHomeBootstrapV1,
+} from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 
 export type PublicExperimentCatalogItemV3 = Readonly<{
   record: StudioBrowserExperimentRecordV3;
@@ -96,9 +100,34 @@ export async function readPublicCatalogAsyncV3(): Promise<PublicCatalogV3> {
     remote.listPublicArticles(),
     remote.listPublicExperiments(),
   ]);
-  return Object.freeze({
+  return publicCatalogFromPublicSummariesV3({
     articles: articlePage.items,
-    experiments: Object.freeze(experimentPage.items.map((resource) => Object.freeze({
+    experiments: experimentPage.items,
+  });
+}
+
+/** The SSR Home projection is authoritative for its initial client handoff. */
+export function readPublicHomeCatalogBootstrapV3(
+  locale: "ja" | "en",
+  documentLike?: Pick<Document, "getElementById">,
+): PublicCatalogV3 | null {
+  const bootstrap = readStudioPublicHomeBootstrapV1(locale, documentLike);
+  return bootstrap === null ? null : publicCatalogFromPublicSummariesV3(bootstrap);
+}
+
+export async function readPublicHomeCatalogAsyncV3(
+  locale: "ja" | "en",
+): Promise<PublicCatalogV3> {
+  return readPublicHomeCatalogBootstrapV3(locale) ?? readPublicCatalogAsyncV3();
+}
+
+function publicCatalogFromPublicSummariesV3(input: Pick<
+  StudioPublicHomeBootstrapV1,
+  "articles" | "experiments"
+>): PublicCatalogV3 {
+  return Object.freeze({
+    articles: input.articles,
+    experiments: Object.freeze(input.experiments.map((resource) => Object.freeze({
       record: Object.freeze({
         schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
         experimentId: resource.experimentId,

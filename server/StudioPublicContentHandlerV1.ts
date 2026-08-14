@@ -4,8 +4,17 @@ import {
   injectStudioPublicDocumentV1,
   renderStudioPublishedArticleV1,
 } from "@/studio/application/publication/StudioPublicArticleRendererV1";
+import {
+  STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID,
+  STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1,
+  validateStudioPublicHomeBootstrapV1,
+} from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
+import {
+  renderStudioPublicHomeV1,
+} from "@/studio/application/publication/StudioPublicHomeRendererV1";
 import type {
   StudioPublicArticleSummaryV1,
+  StudioSummaryCursorV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import type {
   StudioPublicContentDataSourceV1,
@@ -51,6 +60,47 @@ export async function handleStudioPublicContentRequestV1(
       200,
       "application/xml; charset=utf-8",
       publicHeadersV1(),
+      request.method,
+    );
+  }
+
+  const homeMatch = /^\/(ja|en)\/?$/.exec(url.pathname);
+  if (homeMatch !== null) {
+    const locale = homeMatch[1] as "ja" | "en";
+    const [articles, experimentPage] = await Promise.all([
+      listLocalizedHomeArticlesV1(dependencies.dataSource, locale),
+      dependencies.dataSource.listPublicExperiments({
+        limit: STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1,
+      }),
+    ]);
+    const bootstrap = validateStudioPublicHomeBootstrapV1({
+      schemaId: STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID,
+      locale,
+      articles,
+      experiments: experimentPage.items,
+    });
+    const rendered = renderStudioPublicHomeV1({
+      bootstrap,
+      canonicalOrigin: dependencies.canonicalOrigin,
+      clientTemplate: dependencies.clientTemplate,
+    });
+    const etag = `"home-${locale}-html-v1-${createHash("sha256")
+      .update(rendered.documentHtml, "utf8")
+      .digest("hex")}"`;
+    if (request.headers.get("if-none-match") === etag) {
+      return new Response(null, {
+        status: 304,
+        headers: secureHeadersV1({
+          "Cache-Control": PUBLIC_CACHE_V1,
+          ETag: etag,
+        }),
+      });
+    }
+    return responseV1(
+      rendered.documentHtml,
+      200,
+      "text/html; charset=utf-8",
+      { ...publicHeadersV1(), ETag: etag },
       request.method,
     );
   }
@@ -218,6 +268,26 @@ async function listAllPublicArticlesV1(
   throw new Error("Public Article sitemap exceeded 10,000 entries");
 }
 
+async function listLocalizedHomeArticlesV1(
+  source: StudioPublicContentDataSourceV1,
+  locale: "ja" | "en",
+): Promise<readonly StudioPublicArticleSummaryV1[]> {
+  const result: StudioPublicArticleSummaryV1[] = [];
+  let cursor: StudioSummaryCursorV1 | null = null;
+  for (let pageIndex = 0; pageIndex < 100; pageIndex += 1) {
+    const page = await source.listPublicArticles({ limit: 100, cursor });
+    for (const article of page.items) {
+      if (article.locale === locale) result.push(article);
+      if (result.length === STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1) {
+        return Object.freeze(result);
+      }
+    }
+    if (page.nextCursor === null) return Object.freeze(result);
+    cursor = page.nextCursor;
+  }
+  throw new Error("Public Home Article discovery exceeded 10,000 entries");
+}
+
 function articleDirectoryBodyV1(
   articles: readonly StudioPublicArticleSummaryV1[],
   locale: "ja" | "en",
@@ -242,13 +312,18 @@ function sitemapXmlV1(
   articles: readonly StudioPublicArticleSummaryV1[],
   canonicalOrigin: string,
 ): string {
-  const urls = articles.map((article) => {
-    const location = new URL(
-      `/${article.locale}/articles/${article.publicSlug}`,
-      canonicalOrigin,
-    ).toString();
-    return `  <url><loc>${escapeXmlV1(location)}</loc><lastmod>${escapeXmlV1(article.publishedAt)}</lastmod></url>`;
-  });
+  const staticPaths = ["/ja", "/en", "/ja/articles", "/en/articles"];
+  const urls = [
+    ...staticPaths.map((path) =>
+      `  <url><loc>${escapeXmlV1(new URL(path, canonicalOrigin).toString())}</loc></url>`),
+    ...articles.map((article) => {
+      const location = new URL(
+        `/${article.locale}/articles/${article.publicSlug}`,
+        canonicalOrigin,
+      ).toString();
+      return `  <url><loc>${escapeXmlV1(location)}</loc><lastmod>${escapeXmlV1(article.publishedAt)}</lastmod></url>`;
+    }),
+  ];
   return [
     `<?xml version="1.0" encoding="UTF-8"?>`,
     `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,

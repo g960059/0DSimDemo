@@ -485,8 +485,8 @@ function publicStaticSiteHeaderHtmlV1(
     `<a${locale === "en" ? " aria-current=\"true\"" : ""} href="${locale === "en" ? canonical.pathname : alternatePath}">EN</a>`,
     `</nav>`,
     `<span class="public-static-theme-icon" aria-hidden="true"><span class="public-static-theme-sun">${sunIconHtmlV1()}</span><span class="public-static-theme-moon">${moonIconHtmlV1()}</span></span>`,
-    `<a class="public-static-primary-icon" href="/${locale}/experiments/new" aria-label="${simulationLabel}">${flaskIconHtmlV1()}</a>`,
-    `<a class="public-static-quiet-icon" href="/${locale}/login" aria-label="${loginLabel}">${loginIconHtmlV1()}</a>`,
+    `<a class="public-static-primary-icon" href="/${locale}/experiments/new" aria-label="${simulationLabel}">${flaskIconHtmlV1()}<span class="public-static-responsive-label">${simulationLabel}</span></a>`,
+    `<a class="public-static-quiet-icon" href="/${locale}/login" aria-label="${loginLabel}">${loginIconHtmlV1()}<span class="public-static-responsive-label">${loginLabel}</span></a>`,
     `</header>`,
   ].join("");
 }
