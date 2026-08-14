@@ -14056,18 +14056,13 @@ function writeLand2017BackwardEulerResidual(next, previous, input, parameterSet 
   }
   return outResidual;
 }
-function computeLand2017ActiveStiffnessPa(state, input, parameterSet = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET) {
-  assertLand2017StateVectorLength(state, "Land 2017 active-stiffness state");
-  const p = parameterSet.values;
-  const d = parameterSet.derived;
-  const terms = evaluateLand2017AlgebraicTerms(state, input, parameterSet);
-  const W = state[LAND2017_STATE_INDEX.W];
-  const S = state[LAND2017_STATE_INDEX.S];
-  return terms.h * p.Tref * (d.As * S + d.Aw * W) / p.rs;
+function computeLand2017ActiveStiffnessPaFromAlgebraicTerms(terms, weakPopulation, strongPopulation, p, d) {
+  return terms.h * p.Tref * (d.As * strongPopulation + d.Aw * weakPopulation) / p.rs;
 }
 function evaluateLand2017ContinuousOutput(state, input, parameterSet = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET) {
   assertLand2017StateVectorLength(state, "Land 2017 output state");
   const p = parameterSet.values;
+  const d = parameterSet.derived;
   let inputDomainValid = true;
   try {
     validateLand2017ContinuousInput(input, p);
@@ -14087,21 +14082,24 @@ function evaluateLand2017ContinuousOutput(state, input, parameterSet = LAND2017_
   const zetaS = state[LAND2017_STATE_INDEX.zetaS];
   const sourceActiveFiberStressPa = terms.h * p.Tref * (S * (zetaS + 1) + W * zetaW) / p.rs;
   const sourceActivePowerDensityWPerM3 = sourceActiveFiberStressPa * input.fiberEngineeringStrainRatePerSec;
-  const stabilizationStiffnessPa = computeLand2017ActiveStiffnessPa(state, input, parameterSet);
+  const stabilizationStiffnessPa = computeLand2017ActiveStiffnessPaFromAlgebraicTerms(
+    terms,
+    W,
+    S,
+    p,
+    d
+  );
   const stateConservationResidual = land2017StateConservationResidual(state);
   const minimumPopulation = land2017StateMinimumPopulation(state);
-  const finite2 = inputDomainValid && stateDomainValid && terms.lambda > 0 && minimumPopulation >= 0 && stateConservationResidual <= 1e-12 && allFinite([
-    ...Array.from({ length: state.length }, (_, index) => state[index]),
-    input.freeCalciumUM,
-    input.fiberEngineeringStrain,
-    input.fiberEngineeringStrainRatePerSec,
-    input.zetaDriveFiberEngineeringStrainRatePerSec ?? input.fiberEngineeringStrainRatePerSec,
-    sourceActiveFiberStressPa,
-    stabilizationStiffnessPa,
-    sourceActivePowerDensityWPerM3,
-    stateConservationResidual,
-    minimumPopulation
-  ]);
+  let stateEntriesFinite = true;
+  for (let index = 0; index < state.length; index += 1) {
+    if (!Number.isFinite(state[index])) {
+      stateEntriesFinite = false;
+      break;
+    }
+  }
+  const zetaDriveFiberEngineeringStrainRatePerSec = input.zetaDriveFiberEngineeringStrainRatePerSec ?? input.fiberEngineeringStrainRatePerSec;
+  const finite2 = inputDomainValid && stateDomainValid && terms.lambda > 0 && minimumPopulation >= 0 && stateConservationResidual <= 1e-12 && stateEntriesFinite && Number.isFinite(input.freeCalciumUM) && Number.isFinite(input.fiberEngineeringStrain) && Number.isFinite(input.fiberEngineeringStrainRatePerSec) && Number.isFinite(zetaDriveFiberEngineeringStrainRatePerSec) && Number.isFinite(sourceActiveFiberStressPa) && Number.isFinite(stabilizationStiffnessPa) && Number.isFinite(sourceActivePowerDensityWPerM3) && Number.isFinite(stateConservationResidual) && Number.isFinite(minimumPopulation);
   return {
     sourceActiveFiberStressPa,
     sourceStressConvention: "land2017-Ta",
@@ -14127,9 +14125,6 @@ function evaluateLand2017StepOutput(state, input, parameterSet = LAND2017_INTACT
     },
     parameterSet
   );
-}
-function allFinite(values2) {
-  return values2.every((value) => Number.isFinite(value));
 }
 const DEFAULT_RESIDUAL_TOLERANCE = 1e-9;
 function solveLand2017BackwardEulerStep(previous, input, options = {}, parameterSet = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET) {
@@ -14208,14 +14203,13 @@ function solveLand2017AffineStage(base2, implicitDtSec, continuousInput, paramet
     base2[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
     base2[LAND2017_STATE_INDEX.S]
   );
-  const next = Float64Array.from([
-    caTRPN,
-    population[0],
-    population[1],
-    population[2],
-    zetaW,
-    zetaS
-  ]);
+  const next = new Float64Array(LAND2017_STATE_SIZE);
+  next[LAND2017_STATE_INDEX.CaTRPN] = caTRPN;
+  next[LAND2017_STATE_INDEX.B] = population[0];
+  next[LAND2017_STATE_INDEX.W] = population[1];
+  next[LAND2017_STATE_INDEX.S] = population[2];
+  next[LAND2017_STATE_INDEX.zetaW] = zetaW;
+  next[LAND2017_STATE_INDEX.zetaS] = zetaS;
   validateLand2017EquationState(next);
   return next;
 }
@@ -14250,7 +14244,7 @@ function solveLand2017PopulationBlock(a00, a01, a02, a10, a11, a12, a21, a22, b0
   const x2 = reducedB2 / reduced22;
   const x1 = (reducedB1 - reduced12 * x2) / reduced11;
   const x0 = (b0 - a01 * x1 - a02 * x2) / a00;
-  if (![x0, x1, x2].every(Number.isFinite)) {
+  if (!Number.isFinite(x0) || !Number.isFinite(x1) || !Number.isFinite(x2)) {
     throw new Error("Land 2017 population block solution is non-finite");
   }
   return [x0, x1, x2];
@@ -14391,19 +14385,11 @@ function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(solvedNextS
     -dWResidualDZetaW * dZetaWDStrain,
     -dSResidualDZetaS * dZetaSDStrain
   );
-  const stateStrainDerivative = Float64Array.from([
-    dCaTRPNDStrain,
-    populationDerivative[0],
-    populationDerivative[1],
-    populationDerivative[2],
-    dZetaWDStrain,
-    dZetaSDStrain
-  ]);
   const populationDistortion = S * (zetaS + 1) + W * zetaW;
   const stressScalePa = terms.h * p.Tref / p.rs;
   let tangentPa = land2017LengthFactorDerivative(terms.lambda, p.beta0) * p.Tref / p.rs * populationDistortion;
-  tangentPa += stressScalePa * (zetaW * stateStrainDerivative[LAND2017_STATE_INDEX.W] + (zetaS + 1) * stateStrainDerivative[LAND2017_STATE_INDEX.S] + W * stateStrainDerivative[LAND2017_STATE_INDEX.zetaW] + S * stateStrainDerivative[LAND2017_STATE_INDEX.zetaS]);
-  if (stateStrainDerivative.length !== LAND2017_STATE_SIZE || !Number.isFinite(tangentPa)) {
+  tangentPa += stressScalePa * (zetaW * populationDerivative[1] + (zetaS + 1) * populationDerivative[2] + W * dZetaWDStrain + S * dZetaSDStrain);
+  if (!Number.isFinite(tangentPa)) {
     throw new Error("Land 2017 consistent tangent is non-finite");
   }
   return tangentPa;
@@ -14724,17 +14710,7 @@ function trialLandSlsWallMaterialV1(previous, input, params) {
     previousFiberLogStrain: input.nextFiberLogStrain,
     previousFreeCalciumUM: input.nextFreeCalciumUM
   });
-  const finite2 = [
-    landStretch,
-    nextEngineeringStrain,
-    activeNominalStressPa,
-    activeKirchhoffStressPa,
-    totalKirchhoffStressPa,
-    activeAlgorithmicTangentPa,
-    totalAlgorithmicTangentPa,
-    passiveAndSlsTangentPa,
-    solved.residualNorm
-  ].every(Number.isFinite) && solved.output.health.finite && sls.finite;
+  const finite2 = Number.isFinite(landStretch) && Number.isFinite(nextEngineeringStrain) && Number.isFinite(activeNominalStressPa) && Number.isFinite(activeKirchhoffStressPa) && Number.isFinite(totalKirchhoffStressPa) && Number.isFinite(activeAlgorithmicTangentPa) && Number.isFinite(totalAlgorithmicTangentPa) && Number.isFinite(passiveAndSlsTangentPa) && Number.isFinite(solved.residualNorm) && solved.output.health.finite && sls.finite;
   if (!finite2) issues.push("wall material evaluation produced a non-finite value");
   if (!sls.passive) issues.push("parallel SLS failed its discrete passivity identity");
   return Object.freeze({
@@ -14820,17 +14796,9 @@ function trialLandSlsWallMaterialNumericalV1(previous, input, params) {
   const discreteEnergyBalanceResidualJPerM3 = numericalCanonicalZeroV1(
     stressWorkIncrementDensityJPerM3 - (nextStoredEnergyDensityJPerM3 - previousStoredEnergyDensityJPerM3) - physicalDissipationIncrementDensityJPerM3 - backwardEulerNumericalDissipationIncrementDensityJPerM3
   );
-  const slsFinite = [
-    nextViscousLogStrain,
-    nextOverstressPa,
-    stateResidual,
-    previousStoredEnergyDensityJPerM3,
-    nextStoredEnergyDensityJPerM3,
-    stressWorkIncrementDensityJPerM3,
-    physicalDissipationIncrementDensityJPerM3,
-    backwardEulerNumericalDissipationIncrementDensityJPerM3,
-    discreteEnergyBalanceResidualJPerM3
-  ].every(Number.isFinite);
+  const slsFinite = Number.isFinite(nextViscousLogStrain) && Number.isFinite(nextOverstressPa) && Number.isFinite(stateResidual) && Number.isFinite(previousStoredEnergyDensityJPerM3) && Number.isFinite(nextStoredEnergyDensityJPerM3) && Number.isFinite(stressWorkIncrementDensityJPerM3) && Number.isFinite(physicalDissipationIncrementDensityJPerM3) && Number.isFinite(
+    backwardEulerNumericalDissipationIncrementDensityJPerM3
+  ) && Number.isFinite(discreteEnergyBalanceResidualJPerM3);
   const energyTolerance = 1e-10 * Math.max(
     1,
     Math.abs(stressWorkIncrementDensityJPerM3),
@@ -14855,15 +14823,7 @@ function trialLandSlsWallMaterialNumericalV1(previous, input, params) {
     Math.abs(solved.residualNorm),
     Math.abs(stateResidual)
   );
-  if (![
-    landStretch,
-    activeNominalStressPa,
-    activeKirchhoffStressPa,
-    totalKirchhoffStressPa,
-    activeAlgorithmicTangentPa,
-    totalAlgorithmicTangentPa,
-    residualNorm
-  ].every(Number.isFinite)) {
+  if (!Number.isFinite(landStretch) || !Number.isFinite(activeNominalStressPa) || !Number.isFinite(activeKirchhoffStressPa) || !Number.isFinite(totalKirchhoffStressPa) || !Number.isFinite(activeAlgorithmicTangentPa) || !Number.isFinite(totalAlgorithmicTangentPa) || !Number.isFinite(residualNorm)) {
     throw new Error("wall material evaluation produced a non-finite value");
   }
   return Object.freeze({
@@ -14901,13 +14861,7 @@ function evaluateAcceptedLandSlsWallStateV1(state, equilibriumPassive, params) {
   const activeKirchhoffStressPa = landStretch * params.orientationFraction01 * params.viableActiveFraction01 * activeNominalStressPa;
   const slsOverstressPa = params.sls.branchModulusPa * (state.previousFiberLogStrain - state.slsState.viscousLogStrain);
   const totalKirchhoffStressPa = equilibriumPassive.stressPa + activeKirchhoffStressPa + slsOverstressPa;
-  const finite2 = [
-    landStretch,
-    activeNominalStressPa,
-    activeKirchhoffStressPa,
-    slsOverstressPa,
-    totalKirchhoffStressPa
-  ].every(Number.isFinite) && land.health.finite;
+  const finite2 = Number.isFinite(landStretch) && Number.isFinite(activeNominalStressPa) && Number.isFinite(activeKirchhoffStressPa) && Number.isFinite(slsOverstressPa) && Number.isFinite(totalKirchhoffStressPa) && land.health.finite;
   return Object.freeze({
     modelId: LAND_SLS_WALL_MATERIAL_V1_ID,
     parameterSetId: params.parameterSetId,
@@ -14963,12 +14917,18 @@ function validateState$2(state) {
   if (!(state.landState instanceof Float64Array) || state.landState.length !== 6) {
     throw new Error("landState must be a six-state Float64Array");
   }
-  if (!Array.from(state.landState).every(Number.isFinite)) {
+  if (!allLandStateEntriesFiniteV1(state.landState)) {
     throw new Error("landState must be finite");
   }
   requireFinite$f(state.slsState.viscousLogStrain, "slsState.viscousLogStrain");
   requireFinite$f(state.previousFiberLogStrain, "previousFiberLogStrain");
   requireNonnegative$1(state.previousFreeCalciumUM, "previousFreeCalciumUM");
+}
+function allLandStateEntriesFiniteV1(state) {
+  for (let index = 0; index < state.length; index += 1) {
+    if (!Number.isFinite(state[index])) return false;
+  }
+  return true;
 }
 function validatePassive(value) {
   requireFinite$f(value.stressPa, "equilibriumPassive.stressPa");
@@ -35215,7 +35175,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-26";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-27";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

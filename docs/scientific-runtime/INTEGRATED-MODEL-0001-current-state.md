@@ -32,8 +32,17 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-26
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-27
 ```
+
+Standard-27 preserves Standard-26's equations, controls, checkpoint meaning,
+accepted sequence, and public diagnostic records. It removes short-lived
+arrays and repeated Land algebraic work from the model-owned continuous-output
+and consistent-tangent paths. Focused alternating benchmarks measured about
+`25%` lower continuous-output cost and `26%` lower consistent-tangent cost
+with identical checksums. The change adds no physiology or topology and does
+not alter the scientific model, but the exact executable bytes changed and
+therefore receive a new `modelId`.
 
 Standard-26 preserves Standard-25's production equations, controls,
 checkpoint meaning, accepted sequence, and public diagnostic records. Its
