@@ -32,8 +32,18 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-24
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-25
 ```
+
+Standard-25 preserves Standard-24's production equations, controls,
+checkpoint meaning, accepted sequence, and public diagnostic records. It adds
+the out-of-production accepted-root predictor, its exact reference-checkpoint
+state, and lazy selected-root mechanics materialization used by the flat-kernel
+replacement path. A 20,000-tick host run measured about `0.405 ms/tick` on
+that reference path, while exact restore continued byte-identically with the
+uninterrupted Session. The registered executable still runs the admitted
+public production algorithm; Standard-25 is a new artifact identity because
+model-owned runtime modules changed.
 
 Standard-24 preserves Standard-23's equations, controls, checkpoint meaning,
 accepted sequence, and public diagnostic records. It adds the out-of-production

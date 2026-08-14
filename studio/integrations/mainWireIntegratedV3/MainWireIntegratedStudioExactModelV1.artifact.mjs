@@ -12310,6 +12310,7 @@ const MAIN_WIRE_FIVE_WALL_IDS_V1 = Object.freeze([
   "RA"
 ]);
 const NUMERICAL_PROVIDER_FACTORIES_V1 = /* @__PURE__ */ new WeakMap();
+const NUMERICAL_EVALUATION_INTERNALS_V1 = /* @__PURE__ */ new WeakMap();
 const PA_PER_MMHG$2 = 133.322;
 const ONE_JOULE = 1;
 const STATE_SCHEMA_VERSION = 2;
@@ -12546,12 +12547,7 @@ function numericalMechanicsEvaluationFromSolveV1(candidateVolumesMl, solved, par
   } catch {
     consistentTangent = void 0;
   }
-  return Object.freeze({
-    candidateMaterialState: materializeCandidateStateV1(
-      solved.candidate,
-      params,
-      "trial"
-    ),
+  const evaluation = Object.freeze({
     candidateVolumesMl: solved.candidate.volumesMl,
     scaledInternalCoordinates: Object.freeze([
       solved.scaledUnknowns[0],
@@ -12568,6 +12564,15 @@ function numericalMechanicsEvaluationFromSolveV1(candidateVolumesMl, solved, par
     residualNorm: solved.residualNorm,
     ...solved.evaluationCounters === void 0 ? {} : { evaluationCounters: solved.evaluationCounters }
   });
+  NUMERICAL_EVALUATION_INTERNALS_V1.set(evaluation, {
+    materialized: false,
+    materializeCandidateState: () => materializeCandidateStateV1(
+      solved.candidate,
+      params,
+      "trial"
+    )
+  });
+  return evaluation;
 }
 function fixedInternalMechanicsEvaluationV1(candidate, scaledInternalCoordinates, params) {
   const hessian = analyticTriSegAlgorithmicHessian(candidate, params);
@@ -34918,7 +34923,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-24";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-25";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";
