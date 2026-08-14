@@ -325,6 +325,19 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     expect(sourced).toEqual(baseline);
     expect(readCount).toBe(1);
 
+    const roundedTotal = Object.freeze({
+      ...source,
+      readInto(destination) {
+        source.readInto(destination);
+        destination.totalBloodVolumeMl += 2 * Number.EPSILON
+          * initial.totalBloodVolumeMl;
+      },
+    }) satisfies NonCoronaryAcceptedNumericalSourceV1;
+    expect(evaluateNonCoronaryCirculationBackwardEulerTrialV1(
+      input,
+      roundedTotal,
+    )).toEqual(baseline);
+
     const divergent = Object.freeze({
       ...source,
       readInto(destination) {
@@ -336,6 +349,18 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       input,
       divergent,
     )).toThrow(/LV volume diverged/);
+
+    const divergentTotal = Object.freeze({
+      ...source,
+      readInto(destination) {
+        source.readInto(destination);
+        destination.totalBloodVolumeMl += 1e-6;
+      },
+    }) satisfies NonCoronaryAcceptedNumericalSourceV1;
+    expect(() => evaluateNonCoronaryCirculationBackwardEulerTrialV1(
+      input,
+      divergentTotal,
+    )).toThrow(/clock or TBV diverged/);
   });
 
   it("keeps all competent main-wire valves non-regurgitant under adverse gradients", () => {

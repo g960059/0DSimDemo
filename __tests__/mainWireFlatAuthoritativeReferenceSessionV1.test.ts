@@ -1207,7 +1207,30 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     scratch.fill(Number.NaN);
     nonCoronaryNodeVolumesMl.fill(Number.NaN);
     dynamicEdgeFlowsMlPerSec.fill(Number.NaN);
-    expect(image.rehydrateStaged().coronary).toEqual(coronary);
+    const staged = image.rehydrateStaged().coronary;
+    const {
+      totalBloodVolumeMl: stagedTotalBloodVolumeMl,
+      ...stagedCirculation
+    } = staged.circulation;
+    const {
+      totalBloodVolumeMl: expectedTotalBloodVolumeMl,
+      ...expectedCirculation
+    } = coronary.circulation;
+    expect({ ...staged, circulation: stagedCirculation }).toEqual({
+      ...coronary,
+      circulation: expectedCirculation,
+    });
+    expect(stagedTotalBloodVolumeMl).toBe(
+      NON_CORONARY_NODE_NAMES_V1.reduce(
+        (sum, nodeId) => sum + coronary.circulation.nodeVolumesMl[nodeId],
+        0,
+      ),
+    );
+    expect(Math.abs(
+      stagedTotalBloodVolumeMl - expectedTotalBloodVolumeMl,
+    )).toBeLessThanOrEqual(
+      64 * Number.EPSILON * expectedTotalBloodVolumeMl,
+    );
     image.abort();
     expect(image.report().staged).toBe(false);
   });

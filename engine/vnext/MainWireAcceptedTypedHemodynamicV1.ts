@@ -393,9 +393,13 @@ export function materializeMainWireAcceptedTypedCoupledSolverAdapterV1(
   )) as MainWireFiveWallCoronaryAcceptedStateV2<
     MainWireNormalAdultFiveWallMechanicsStateV1
   >["circulation"]["valveStates"];
-  const nonCoronaryTotalBloodVolumeMl = NON_CORONARY_NODE_NAMES_V1.reduce(
-    (sum, nodeId) => sum + nodeVolumesMl[nodeId],
-    0,
+  // Preserve the admitted aggregate scalar exactly. Re-summing the same
+  // compartment vector here can differ by one ulp when the producer and this
+  // adapter traverse the vector in different orders. The accepted-state
+  // validator below still checks that this redundant scalar agrees with the
+  // compartment ledger inside its round-off corridor.
+  const nonCoronaryTotalBloodVolumeMl = cursor.readContinuous(
+    binding.circulationTotalBloodVolumeSlot,
   );
   const circulation = Object.freeze({
     transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,

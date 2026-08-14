@@ -39,7 +39,7 @@ describe("settled maximal-hyperemia retrograde gate V1", () => {
     });
     expectRelative(
       measurement.nadir.magnitudeMlPerSec,
-      2.2890876548286965,
+      2.2890876548362247,
       1e-12,
     );
     expect(measurement.convergence.nadirMagnitudeRelativeDifference)
@@ -48,7 +48,7 @@ describe("settled maximal-hyperemia retrograde gate V1", () => {
       );
     // For a unimodal bracket the ratio is exactly one by construction. This
     // bound guards only extra total variation from ringing inside the window.
-    expect(measurement.roughness.ratio).toBeGreaterThanOrEqual(1);
+    expect(measurement.roughness.ratio).toBeGreaterThanOrEqual(1 - 1e-12);
     expect(measurement.roughness.ratio).toBeLessThanOrEqual(1 + 1e-12);
   }, 45_000);
 });

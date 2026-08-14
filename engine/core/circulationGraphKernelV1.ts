@@ -122,6 +122,11 @@ export type VascularPressureInversePolicyV1 =
   | "model-core-compatible-fixed32"
   | "adaptive-volume-tolerance";
 
+const MODEL_CORE_COMPATIBLE_FIXED32_INVERSE_OPTIONS_V1 = Object.freeze({
+  maxIterations: 32,
+  termination: "fixed-iterations" as const,
+});
+
 export function vascularTransmuralPressureFromPhysicalVolumeV1(
   node: NodeSpec,
   physicalVolumeMl: number,
@@ -158,10 +163,11 @@ export function vascularTransmuralPressureFromLawV1(
   if (law.kind === "linear") {
     return stressedVolumeMl / Math.max(law.C, 1e-6);
   }
-  return ptmFromStressedVolume(law, stressedVolumeMl, {
-    maxIterations: 32,
-    termination: "fixed-iterations",
-  });
+  return ptmFromStressedVolume(
+    law,
+    stressedVolumeMl,
+    MODEL_CORE_COMPATIBLE_FIXED32_INVERSE_OPTIONS_V1,
+  );
 }
 
 export type VascularPressureVolumeTangentBranchV1 =

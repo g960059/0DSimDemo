@@ -6005,6 +6005,7 @@ const MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG = Object.freeze({
   maximum: 45
 });
 const COMPILED_FROZEN_VENOUS_PV_LAWS_V1 = /* @__PURE__ */ new WeakMap();
+const VALIDATED_FROZEN_VENOUS_PV_LAWS_V1 = /* @__PURE__ */ new WeakSet();
 function stressedVolumeFromPtm(law, Ptm) {
   if (law.kind === "arterial") {
     const p0 = Math.max(law.P0, 1e-6);
@@ -6045,7 +6046,7 @@ function ptmFromStressedVolume(law, targetStressedVolumeMl, options = {}) {
   if (law.kind === "linear") {
     return targetStressedVolumeMl / Math.max(law.C, 1e-6);
   }
-  validateVenousLaw(law);
+  validateVenousLawOncePerFrozenObjectV1(law);
   const compiledLaw = compiledVenousPvLawSnapshotV1(law);
   let lo = MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.minimum;
   let hi = MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.maximum;
@@ -6057,12 +6058,23 @@ function ptmFromStressedVolume(law, targetStressedVolumeMl, options = {}) {
   const adaptiveTermination = (options.termination ?? "adaptive") === "adaptive";
   const pressureTolerance = Math.max(options.pressureToleranceMmHg ?? 1e-10, 0);
   const volumeTolerance = Math.max(options.stressedVolumeToleranceMl ?? 1e-10, 0);
+  if (adaptiveTermination) {
+    return solveVenousPressureWithSafeguardedNewtonV1(
+      law,
+      compiledLaw,
+      targetStressedVolumeMl,
+      lo,
+      hi,
+      loVolume,
+      hiVolume,
+      maxIterations,
+      pressureTolerance,
+      volumeTolerance
+    );
+  }
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     const mid = 0.5 * (lo + hi);
     const midVolume = venousStressedVolumeForInverse(law, compiledLaw, mid);
-    if (adaptiveTermination && (Math.abs(midVolume - targetStressedVolumeMl) <= volumeTolerance || 0.5 * (hi - lo) <= pressureTolerance)) {
-      return mid;
-    }
     if (midVolume < targetStressedVolumeMl) {
       lo = mid;
     } else {
@@ -6129,22 +6141,28 @@ function ptmAndVolumeTangentFromStressedVolume(law, targetStressedVolumeMl, opti
   });
 }
 function validateVenousLaw(law) {
-  for (const [name, value] of [
-    ["Ccoll", law.Ccoll],
-    ["Copen", law.Copen],
-    ["Cdist", law.Cdist],
-    ["dOpen", law.dOpen],
-    ["dStiff", law.dStiff]
-  ]) {
-    if (!(value > 0) || !Number.isFinite(value)) {
-      throw new RangeError(`venous ${name} must be positive and finite`);
-    }
-  }
+  requirePositiveFiniteVenousParameterV1(law.Ccoll, "Ccoll");
+  requirePositiveFiniteVenousParameterV1(law.Copen, "Copen");
+  requirePositiveFiniteVenousParameterV1(law.Cdist, "Cdist");
+  requirePositiveFiniteVenousParameterV1(law.dOpen, "dOpen");
+  requirePositiveFiniteVenousParameterV1(law.dStiff, "dStiff");
   if (!(law.Copen >= law.Ccoll && law.Copen >= law.Cdist)) {
     throw new RangeError("venous Copen must be at least Ccoll and Cdist");
   }
   if (!Number.isFinite(law.Popen) || !Number.isFinite(law.Pstiff)) {
     throw new RangeError("venous transition pressures must be finite");
+  }
+}
+function validateVenousLawOncePerFrozenObjectV1(law) {
+  if (VALIDATED_FROZEN_VENOUS_PV_LAWS_V1.has(law)) return;
+  validateVenousLaw(law);
+  if (Object.isFrozen(law) && plainDataRecord(law)) {
+    VALIDATED_FROZEN_VENOUS_PV_LAWS_V1.add(law);
+  }
+}
+function requirePositiveFiniteVenousParameterV1(value, name) {
+  if (!(value > 0) || !Number.isFinite(value)) {
+    throw new RangeError(`venous ${name} must be positive and finite`);
   }
 }
 function venousCompliance3(law, Ptm) {
@@ -6157,6 +6175,55 @@ function venousStressedVolume3(law, Ptm) {
 }
 function venousStressedVolumeForInverse(law, compiledLaw, Ptm) {
   return compiledLaw === null ? venousStressedVolume3Dynamic(law, Ptm) : venousStressedVolume3Compiled(compiledLaw, Ptm);
+}
+function solveVenousPressureWithSafeguardedNewtonV1(law, compiledLaw, targetStressedVolumeMl, initialLowerPressureMmHg, initialUpperPressureMmHg, initialLowerVolumeMl, initialUpperVolumeMl, maximumIterations, pressureToleranceMmHg, stressedVolumeToleranceMl) {
+  let lowerPressureMmHg = initialLowerPressureMmHg;
+  let upperPressureMmHg = initialUpperPressureMmHg;
+  let lowerVolumeMl = initialLowerVolumeMl;
+  let upperVolumeMl = initialUpperVolumeMl;
+  let pressureMmHg = lowerPressureMmHg + (targetStressedVolumeMl - lowerVolumeMl) * (upperPressureMmHg - lowerPressureMmHg) / (upperVolumeMl - lowerVolumeMl);
+  if (!Number.isFinite(pressureMmHg) || !(pressureMmHg > lowerPressureMmHg) || !(pressureMmHg < upperPressureMmHg)) {
+    pressureMmHg = 0.5 * (lowerPressureMmHg + upperPressureMmHg);
+  }
+  for (let iteration = 0; iteration < maximumIterations; iteration += 1) {
+    const volumeMl = venousStressedVolumeForInverse(
+      law,
+      compiledLaw,
+      pressureMmHg
+    );
+    const volumeResidualMl = volumeMl - targetStressedVolumeMl;
+    if (Math.abs(volumeResidualMl) <= stressedVolumeToleranceMl) {
+      return pressureMmHg;
+    }
+    if (volumeResidualMl < 0) {
+      lowerPressureMmHg = pressureMmHg;
+      lowerVolumeMl = volumeMl;
+    } else {
+      upperPressureMmHg = pressureMmHg;
+      upperVolumeMl = volumeMl;
+    }
+    const midpointMmHg = 0.5 * (lowerPressureMmHg + upperPressureMmHg);
+    if (0.5 * (upperPressureMmHg - lowerPressureMmHg) <= pressureToleranceMmHg) {
+      return midpointMmHg;
+    }
+    const complianceMlPerMmHg = venousComplianceForInverseV1(
+      law,
+      compiledLaw,
+      pressureMmHg
+    );
+    const newtonPressureMmHg = pressureMmHg - volumeResidualMl / complianceMlPerMmHg;
+    pressureMmHg = Number.isFinite(newtonPressureMmHg) && newtonPressureMmHg > lowerPressureMmHg && newtonPressureMmHg < upperPressureMmHg ? newtonPressureMmHg : midpointMmHg;
+  }
+  return 0.5 * (lowerPressureMmHg + upperPressureMmHg);
+}
+function venousComplianceForInverseV1(law, compiledLaw, pressureMmHg) {
+  if (compiledLaw === null) return venousCompliance3(law, pressureMmHg);
+  const compliance = compiledLaw.Ccoll + compiledLaw.openComplianceDelta * sigmoid(
+    (pressureMmHg - compiledLaw.Popen) / compiledLaw.dOpen
+  ) - compiledLaw.distendedComplianceDelta * sigmoid(
+    (pressureMmHg - compiledLaw.Pstiff) / compiledLaw.dStiff
+  );
+  return Math.max(compliance, 1e-4);
 }
 function venousStressedVolume3Dynamic(law, Ptm) {
   const dOpen = Math.max(law.dOpen, 1e-6);
@@ -6187,10 +6254,14 @@ function compiledVenousPvLawSnapshotV1(law) {
 function compileVenousPvLawV1(law) {
   const dOpen = Math.max(law.dOpen, 1e-6);
   const dStiff = Math.max(law.dStiff, 1e-6);
+  const openComplianceDelta = law.Copen - law.Ccoll;
+  const distendedComplianceDelta = law.Copen - law.Cdist;
   const compiled = Object.freeze({
     Ccoll: law.Ccoll,
-    openComplianceDeltaTimesWidth: (law.Copen - law.Ccoll) * dOpen,
-    distendedComplianceDeltaTimesWidth: (law.Copen - law.Cdist) * dStiff,
+    openComplianceDelta,
+    distendedComplianceDelta,
+    openComplianceDeltaTimesWidth: openComplianceDelta * dOpen,
+    distendedComplianceDeltaTimesWidth: distendedComplianceDelta * dStiff,
     Popen: law.Popen,
     Pstiff: law.Pstiff,
     dOpen,
@@ -16321,14 +16392,15 @@ function resolveBloodVolumeOperatingPoint(runtime, identity, requireCanonicalFul
       graph
     )
   });
-  const sharedTransmuralPressureOffsetMmHg = Math.abs(targetAdditionalVolumeMl) <= TARGET_TOLERANCE_ML ? 0 : solveSharedTransmuralPressureOffsetMmHg(
+  const targetMatchesColdSeed = Math.abs(targetAdditionalVolumeMl) <= TARGET_TOLERANCE_ML;
+  const sharedTransmuralPressureOffsetMmHg = targetMatchesColdSeed ? 0 : solveSharedTransmuralPressureOffsetMmHg(
     coldSeed.nodeVolumesMl,
     targetAdditionalVolumeMl,
     runtime,
     graph,
     baselineTransmuralPressuresMmHg
   );
-  const nodeVolumesMl = nodeRecord((nodeName) => {
+  const nodeVolumesMl = targetMatchesColdSeed ? coldSeed.nodeVolumesMl : nodeRecord((nodeName) => {
     if (nodeName !== "SV" && nodeName !== "VC") {
       return coldSeed.nodeVolumesMl[nodeName];
     }
@@ -35175,7 +35247,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-27";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-29";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

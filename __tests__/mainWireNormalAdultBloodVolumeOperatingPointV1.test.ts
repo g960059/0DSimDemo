@@ -152,7 +152,11 @@ describe("main-wire normal-adult blood-volume operating point V1", () => {
         resolved.audit.resolvedTotalBloodVolumeMl - targetMl,
       )).toBeLessThan(1e-6);
       expect(Math.abs(resolved.audit.targetResidualMl)).toBeLessThan(1e-6);
-      expect(resolved.audit.changedNodes).toEqual(["SV", "VC"]);
+      expect(resolved.audit.changedNodes).toEqual(
+        Math.abs(targetMl - coldSeed.fixedTotalBloodVolumeMl) < 1e-12
+          ? []
+          : ["SV", "VC"],
+      );
       expect(resolved.audit.unchangedNodeMaximumAbsoluteDeltaMl).toBe(0);
       expect(resolved.audit.maximumSharedTransmuralPressureOffsetResidualMmHg)
         .toBeLessThan(1e-8);
