@@ -67,6 +67,7 @@ export type MainWireIntegratedModelObservationV3 = Readonly<{
   source:
     | "cold"
     | "presentation-target"
+    | "typed-authority-readback"
     | "operational-checkpoint-restore"
     | "standard-exact-checkpoint-restore"
     | "fixed-tbv-protocol-fork"

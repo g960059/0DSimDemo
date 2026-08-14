@@ -1,6 +1,9 @@
 import {
   respiratoryExternalPressuresV1,
 } from "@/engine/core/circulationGraphKernelV1";
+import {
+  fullHotPathInvariantsEnabledV1,
+} from "@/engine/hotPathIntegrityTierV1";
 import type {
   AcceptedStateAuthorityV1,
   AcceptedStateValidatorV1,
@@ -41,10 +44,13 @@ import type {
   CoronaryAutoregulationWindowControlV3,
 } from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import {
+  advanceMainWireFiveWallCoronaryAutoregulationOwnerFromPackedV3,
   advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3,
   mainWireFiveWallCoronaryBaseStateV2,
+  type MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
   projectMainWireIntegratedModelSelectedValuesV3,
   projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1,
   type MainWireIntegratedModelOutputIdV3,
@@ -99,6 +105,7 @@ import {
   stageMainWireAcceptedTypedCalciumCandidateV1,
   stageMainWireAcceptedTypedClockCandidateV1,
   stageMainWireAcceptedTypedContinuousOwnerCandidateV1,
+  stageMainWireAcceptedTypedOrdinaryPostSolverCandidateV1,
   stageMainWireAcceptedTypedRegularAtrialCandidateV1,
   stageMainWireAcceptedTypedResolvedCandidateV1,
   type MainWireAcceptedTypedBoundaryBindingV1,
@@ -120,6 +127,7 @@ import {
   type MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
 import {
+  solveMainWireFiveWallCoupledCandidateV1,
   stepMainWireIntegratedModelCoupledV1,
 } from "@/engine/vnext/coupled/MainWireIntegratedCoupledStepV1";
 import type {
@@ -172,12 +180,13 @@ type ExactBeatState = Readonly<{
  * Session. That keeps every released artifact byte-identical while this
  * replacement authority is evaluated out of production.
  *
- * The current solver still produces object candidates. Every successful
- * candidate must nevertheless survive projection into the inactive complete
- * typed image and exact model-boundary admission before the next step can
- * observe it. Completion proves the private object mirror is bit-equal to the
- * promoted image, so rehydration is reserved for detached public views,
- * checkpoints, restores, and other cold boundaries.
+ * The component solver still exposes a compact private adapter and a
+ * synchronous selected-root borrow. Strictly ordinary lean-tier projection
+ * ticks stage that borrow and the remaining continuous owners directly into
+ * the inactive typed image, then promote it without public-state finalization.
+ * Event/full-invariant transactions retain the independent public oracle.
+ * Public rehydration is reserved for observations, checkpoints, restores, and
+ * those cold/event boundaries.
  */
 export class MainWireFlatAuthoritativeReferenceSessionV1 {
   readonly sessionId = MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_SESSION_V1_ID;
@@ -198,6 +207,9 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   readonly #acceptedNumericalReadback = new Float64Array(
     MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   );
+  readonly #candidateNumericalReadback = new Float64Array(
+    MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
+  );
   readonly #coupledNewtonWorkspace:
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
   readonly #nonCoronaryAcceptedNumericalSource:
@@ -210,6 +222,10 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     CoronaryBackwardEulerScratchWorkspaceV2;
   readonly #nonCoronaryScratchWorkspace:
     NonCoronaryBackwardEulerScratchWorkspaceV1;
+  readonly #coupledAcceptedAdapterTemplate:
+    ReturnType<typeof mainWireFiveWallCoronaryBaseStateV2<WallState>>;
+  #autoregulationOwner:
+    MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3;
   #acceptedState: AcceptedState;
   #lastAcceptedStep: SuccessfulStep | null;
   #lastPresentationObservation: MainWireIntegratedModelObservationV3 | null;
@@ -273,6 +289,10 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       );
     this.#nonCoronaryScratchWorkspace =
       createNonCoronaryBackwardEulerScratchWorkspaceV1();
+    this.#coupledAcceptedAdapterTemplate =
+      mainWireFiveWallCoronaryBaseStateV2(acceptedState.coronary);
+    this.#autoregulationOwner =
+      autoregulationOwnerFromAcceptedState(acceptedState);
     this.#rhythmInput = Object.freeze({
       configuration: runtime.rhythm.configuration,
       externalAfNextBoundaryTimeSec: null,
@@ -458,6 +478,12 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     targetTimeSec: number,
     outputIds: readonly MainWireIntegratedModelOutputIdV3[],
   ): MainWireFlatSelectedOutputProjectionAdvanceV1 {
+    validateTypedProjectionOutputIds(outputIds);
+    const direct = this.tryAdvanceTypedOrdinaryProjectionV1(
+      targetTimeSec,
+      outputIds,
+    );
+    if (direct !== null) return direct;
     const result = this.advanceToPresentationTimeInternal(targetTimeSec, false);
     if (!("observation" in result)) {
       return Object.freeze({
@@ -504,11 +530,248 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     });
   }
 
+  /**
+   * Adapter-free ordinary presentation step. Event and rollover boundaries
+   * return null before a candidate opens so the existing public transaction
+   * remains their independent authority during migration.
+   */
+  private tryAdvanceTypedOrdinaryProjectionV1(
+    targetTimeSec: number,
+    outputIds: readonly MainWireIntegratedModelOutputIdV3[],
+  ): MainWireFlatSelectedOutputProjectionAdvanceV1 | null {
+    if (
+      this.#typedAuthority === null
+      || this.#typedHemodynamicBinding === null
+      || fullHotPathInvariantsEnabledV1()
+    ) return null;
+    const currentClock = this.currentAcceptedClock();
+    if (
+      !Number.isFinite(targetTimeSec)
+      || !(targetTimeSec > currentClock.acceptedTimeSec)
+    ) return null;
+    const limit = this.limitCandidateTime(targetTimeSec);
+    if (
+      limit.candidateTimeSec !== targetTimeSec
+      || !isStrictlyOrdinaryTypedCandidate(
+        currentClock,
+        limit,
+        this.#rhythmInput,
+        this.#autoregulationOwner,
+      )
+    ) return null;
+
+    const binding = this.requiredTypedBoundaryBinding();
+    const current = this.#typedAuthority.currentCursor();
+    const candidate = this.#typedAuthority.beginDirectCandidate();
+    let candidateOpen = true;
+    try {
+      const candidateClock = stageMainWireAcceptedTypedClockCandidateV1(
+        current,
+        candidate,
+        binding,
+        targetTimeSec,
+      );
+      const calciumDrive = stageMainWireAcceptedTypedCalciumCandidateV1(
+        current,
+        candidate,
+        binding,
+        targetTimeSec,
+        this.#rhythmInput.configuration.calciumParametersByWall,
+      );
+      stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(
+        current,
+        candidate,
+        binding,
+        targetTimeSec,
+        this.#rhythmInput.configuration,
+      );
+      stageMainWireAcceptedTypedRegularAtrialCandidateV1(
+        current,
+        candidate,
+        binding,
+        targetTimeSec,
+        this.#rhythmInput.configuration,
+        null,
+      );
+      const previousAdapter =
+        materializeMainWireAcceptedTypedCoupledSolverAdapterV1(
+          current,
+          this.#typedHemodynamicBinding,
+          this.#coupledAcceptedAdapterTemplate,
+          this.#typedHemodynamicScratch,
+        );
+      const autoregulationStepInput = Object.freeze({
+        ...this.#runtime.coronaryStepInput,
+        dtSec: targetTimeSec - currentClock.acceptedTimeSec,
+        calciumDriveOverride: calciumDrive,
+      });
+      const solved = solveMainWireFiveWallCoupledCandidateV1(
+        this.#provider,
+        previousAdapter,
+        autoregulationStepInput,
+        this.#coupledNewtonWorkspace,
+        Object.freeze({
+          previousAcceptedNumericalSource:
+            this.#nonCoronaryAcceptedNumericalSource,
+        }),
+      );
+      if (solved.status === "failed") {
+        const failure = solved.solver.result;
+        if (failure.status !== "failed") {
+          throw new Error("typed ordinary coupled solve status drifted");
+        }
+        throw new Error(
+          "typed ordinary coupled solve failed: "
+            + `${failure.reason}: ${failure.message}`,
+        );
+      }
+      const solverResult = solved.solver.result;
+      if (solverResult.status !== "converged") {
+        throw new Error("typed ordinary converged solve status drifted");
+      }
+      let nextAutoregulationOwner:
+        MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3 | null = null;
+      let borrowed = false;
+      solved.context.withConvergedCandidate(
+        solverResult.solution,
+        (candidateBorrow) => {
+          borrowed = true;
+          stageMainWireAcceptedTypedCoupledCandidateV1(
+            candidate,
+            this.#typedHemodynamicBinding!,
+            candidateBorrow,
+            this.#typedHemodynamicScratch,
+          );
+          this.#candidateNumericalReadback.set(
+            candidateBorrow.acceptedNumericalReadback,
+          );
+          const regulation =
+            advanceMainWireFiveWallCoronaryAutoregulationOwnerFromPackedV3(
+              this.#autoregulationOwner,
+              autoregulationStepInput,
+              candidateBorrow.candidateTimeSec,
+              candidateBorrow.candidateRevision,
+              candidateBorrow.coronaryAutoregulationHydraulicObservables,
+            );
+          if (
+            regulation.completedWindow !== null
+            || !autoregulationControlsUnchanged(
+              this.#autoregulationOwner.state,
+              regulation.nextState,
+            )
+            || regulation.hydraulicToneUsed
+              !== this.#autoregulationOwner
+                .toneResistanceScaleByTerritoryLayer
+            || regulation.nextToneResistanceScaleByTerritoryLayer
+              !== this.#autoregulationOwner
+                .toneResistanceScaleByTerritoryLayer
+          ) {
+            throw new Error(
+              "typed ordinary autoregulation crossed a discrete boundary",
+            );
+          }
+          stageMainWireAcceptedTypedOrdinaryPostSolverCandidateV1(
+            current,
+            candidate,
+            binding,
+            candidateClock,
+            regulation.nextState,
+          );
+          nextAutoregulationOwner = Object.freeze({
+            ...this.#autoregulationOwner,
+            acceptedTimeSec: candidateBorrow.candidateTimeSec,
+            state: regulation.nextState,
+          });
+        },
+      );
+      if (!borrowed || nextAutoregulationOwner === null) {
+        throw new Error("typed ordinary candidate borrow is unavailable");
+      }
+      const acceptedRevisionSpanFromPrevious =
+        candidateClock.revision - this.#lastPresentationRevision;
+      if (acceptedRevisionSpanFromPrevious < 1) {
+        throw new Error("typed ordinary accepted revision did not advance");
+      }
+      this.#typedAuthority.commitModelOwnedTypedCandidate(
+        this.requiredModelOwnedPromotionPlan(),
+      );
+      candidateOpen = false;
+      this.#autoregulationOwner = nextAutoregulationOwner;
+      this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
+      const completedBeat = this.#beatAccumulator.acceptNumericalReadback(
+        this.#acceptedNumericalReadback,
+        null,
+      );
+      this.#completedBeatMetrics = completedBeat
+        ?? this.#completedBeatMetrics;
+      this.#lastAcceptedStep = null;
+      this.#lastPresentationSource = "typed-authority-readback";
+      this.#lastPresentationRevision = candidateClock.revision;
+      this.#lastPresentationObservation = null;
+      const substep = Object.freeze({
+        acceptedRevision: candidateClock.revision,
+        acceptedTimeSec: candidateClock.acceptedTimeSec,
+        landedOnPresentationTarget: true,
+        clippedByCoronaryWindow: false,
+        clippedByRhythmBoundary: false,
+        rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
+        rhythmBoundaryOwners: Object.freeze([
+          ...limit.rhythmBoundaryOwners,
+        ]),
+      }) satisfies MainWireIntegratedModelSubstepRecordV3;
+      const advance = Object.freeze({
+        status: "advanced" as const,
+        presentationTimeSec: targetTimeSec,
+        acceptedTimeSec: candidateClock.acceptedTimeSec,
+        acceptedRevision: candidateClock.revision,
+        acceptedRevisionSpanFromPrevious,
+        internalAcceptedSubstepCount: 1,
+        boundaryClippedSubstepCount: 0,
+        substeps: Object.freeze([substep]),
+      }) satisfies MainWireFlatModelOwnedProjectionAdvanceV1;
+      const projectionStartedAt = performance.now();
+      const typedPresentation = readMainWireAcceptedTypedPresentationStateV1(
+        this.#typedAuthority.currentCursor(),
+        binding,
+        this.#rhythmInput.configuration,
+      );
+      const projectedValues =
+        projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
+          Object.freeze({
+            acceptedTimeSec: typedPresentation.acceptedTimeSec,
+            regularSinusCycleLengthSec:
+              typedPresentation.regularSinusCycleLengthSec,
+            regularSinusNextActivationTimeSec:
+              typedPresentation.regularSinusNextActivationTimeSec,
+            dynamicMechanicalSupportLvadFlowMlPerSec:
+              typedPresentation.lvadFlowMlPerSec,
+            runtimeSignals: runtimeSignalsAtAcceptedTime(
+              typedPresentation.acceptedTimeSec,
+              this.#runtime,
+            ),
+            completedBeatMetrics: this.#completedBeatMetrics,
+            acceptedNumericalReadback: this.#acceptedNumericalReadback,
+          }),
+          outputIds,
+        );
+      return Object.freeze({
+        advance,
+        projectedValues,
+        outputProjectionDurationMs: performance.now() - projectionStartedAt,
+      });
+    } catch (error) {
+      if (candidateOpen) this.#typedAuthority.abortDirectCandidate();
+      throw error;
+    }
+  }
+
   private advanceToPresentationTimeInternal(
     targetTimeSec: number,
     detachObservation: boolean,
   ): MainWireIntegratedModelPresentationAdvanceV3 {
     this.#acceptedState = this.#authority.current();
+    this.#autoregulationOwner =
+      autoregulationOwnerFromAcceptedState(this.#acceptedState);
     let acceptedClock = this.currentAcceptedClock();
     if (!Number.isFinite(targetTimeSec) || targetTimeSec < 0) {
       throw new Error(
@@ -828,6 +1091,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         throw error;
       }
       this.#acceptedState = committedState;
+      this.#autoregulationOwner =
+        autoregulationOwnerFromAcceptedState(committedState);
       acceptedClock = this.currentAcceptedClock();
       if (
         acceptedClock.acceptedTimeSec !== committedState.acceptedTimeSec
@@ -1074,6 +1339,86 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       requestedPresentationTimeSec: targetTimeSec,
     });
   }
+}
+
+function isStrictlyOrdinaryTypedCandidate(
+  clock: MainWireAcceptedTypedClockV1,
+  limit: ReturnType<typeof limitMainWireAcceptedTypedCandidateTimeV1>,
+  rhythm: MainWireIntegratedComposedRhythmStepContextV3,
+  autoregulationOwner:
+    MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3,
+): boolean {
+  if (
+    rhythm.configuration.atrialSource.mode !== "regular"
+    || rhythm.configuration.atrialSource.regularSourceConfiguration
+      .rhythmClass !== "sinus"
+    || rhythm.externalAfNextBoundaryTimeSec !== null
+    || rhythm.externalAtrialSourceBatch !== null
+    || limit.rhythmBoundaryTimeSec !== null
+    || limit.rhythmBoundaryOwners.length !== 0
+    || autoregulationOwner.acceptedTimeSec !== clock.acceptedTimeSec
+    || autoregulationOwner.state.windowControl === null
+    || !optionalAutoregulationControlEqual(
+      autoregulationOwner.state.windowControl,
+      autoregulationOwner.state.desiredControl,
+    )
+  ) return false;
+  const windowEndTimeSec = clock.acceptedTimeSec
+    + limit.coronaryWindowMaximumStepSec;
+  const tolerance = 64 * Number.EPSILON * Math.max(
+    1,
+    Math.abs(clock.acceptedTimeSec),
+    Math.abs(limit.candidateTimeSec),
+    Math.abs(windowEndTimeSec),
+  );
+  return limit.candidateTimeSec < windowEndTimeSec - tolerance;
+}
+
+const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_ID_SET_V3 = new Set<string>(
+  MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+);
+
+function validateTypedProjectionOutputIds(
+  outputIds: readonly MainWireIntegratedModelOutputIdV3[],
+): void {
+  const seen = new Set<string>();
+  for (const outputId of outputIds) {
+    if (!MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_ID_SET_V3.has(outputId)) {
+      throw new Error(
+        `selected output ${String(outputId)} is not registered`,
+      );
+    }
+    if (seen.has(outputId)) {
+      throw new Error(`selected output ${outputId} is duplicated`);
+    }
+    seen.add(outputId);
+  }
+}
+
+function autoregulationOwnerFromAcceptedState(
+  acceptedState: AcceptedState,
+): MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3 {
+  return Object.freeze({
+    acceptedTimeSec: acceptedState.acceptedTimeSec,
+    binding: acceptedState.coronary.coronaryAutoregulationBinding,
+    state: acceptedState.coronary.coronaryAutoregulation,
+    toneResistanceScaleByTerritoryLayer:
+      acceptedState.coronary.coronary.toneResistanceScaleByTerritoryLayer,
+  });
+}
+
+function runtimeSignalsAtAcceptedTime(
+  acceptedTimeSec: number,
+  runtime: MainWireIntegratedModelRuntimeV3,
+): MainWireIntegratedModelObservationV3["runtimeSignals"] {
+  const respiratory = respiratoryExternalPressuresV1(
+    acceptedTimeSec,
+    runtime.coronaryStepInput.runtime.respiratory,
+  );
+  return Object.freeze({
+    pleuralPressureMmHg: respiratory.pthMmHg,
+    alveolarPressureMmHg: respiratory.palvMmHg,
+  });
 }
 
 function typedAuthorityFactory(

@@ -1227,10 +1227,13 @@ bound to an unforgeable model-owned write plan, rejects any missing owner slot,
 and performs only the final active-buffer swap after the model has applied its
 numerical and cross-owner seals. A successful promotion invalidates the cached
 public mirror; the authority rehydrates and fully validates that mirror lazily
-only when a cold/event API requests it. This primitive is not yet used by the
-ordinary Session loop and therefore carries no production speed claim by
-itself. Its role is to make the next deletion boundary atomic and testable
-before public finalization is removed.
+only when a cold/event API requests it. The lean selected-output Session path
+now uses this primitive for strictly ordinary, single-substep ticks. It first
+validates the complete output plan, stages every numerical and continuous-owner
+slot, then swaps the image once. An invalid or duplicated output ID is rejected
+before numerical state can advance. Rhythm events, autoregulation rollover or
+control changes, device activity, and full-invariant development runs remain on
+the independently validated public transaction path.
 
 The statically condensed integrated seam is likewise split at the same
 boundary. `solveMainWireFiveWallCoupledCandidateV1` prepares and solves the
@@ -1238,16 +1241,10 @@ existing 30-volume equations, returns only an opaque component context plus
 solver diagnostics, and permits a synchronous borrow of the already admitted
 selected root. It does not materialize a coronary or integrated AcceptedState.
 The legacy/event caller can still invoke the context's one-shot public
-finalizer afterward; the future ordinary typed caller instead stages the
-borrow, completes rhythm/device/autoregulation owners, seals the global image,
-and invokes adapter-free promotion. Both routes therefore share the exact same
+finalizer afterward. The ordinary typed caller instead stages the borrow,
+completes rhythm/device/autoregulation owners, seals the global image, and
+invokes adapter-free promotion. Both routes therefore share the exact same
 solver and component convergence gates during migration.
-
-This seam alone is intentionally not a speed claim: public finalization still
-runs as an oracle and a local lean profile remained about `0.934 ms/tick`.
-The next deletion boundary is preparation of the following coupled context
-from the active global typed image, followed by lazy public materialization at
-observation, checkpoint, capture, or explicit full-invariant audit boundaries.
 
 That preparation boundary now has two narrower construction seams. The
 non-coronary evaluator reads the accepted clock, TBV, volumes, dynamic flows,
@@ -1260,13 +1257,37 @@ evaluation between residual and analytic-linearization assembly; mutable
 scratch never escapes the opaque evaluator. Canonical trials and admitted
 state continue through the existing component finalizers.
 
-These seams reduce repeated validation and hydraulic reconstruction, but they
-are not independently performance-positive at one patch. A local lean profile
-after both changes measured about `0.941 ms/tick`, overlapping the preceding
-`0.934 ms/tick` reference. Their value is ownership and scaling: the next
-ordinary-tick path can prepare from the sole typed authority and stage a
-converged root without reviving public accepted state. Until that path removes
-public finalization, no runtime speedup is claimed.
+These seams were not independently performance-positive at one patch. A local
+lean profile after both changes measured about `0.941 ms/tick`, overlapping the
+preceding `0.934 ms/tick` reference. They now form the preparation boundary for
+the ordinary typed transaction: a compact private solver adapter is read from
+the sole active image, the existing 30-volume system is solved, and the admitted
+root is staged without reviving the integrated public AcceptedState or running
+public finalization. The compact adapter is still temporary migration
+infrastructure; replacing it with direct cursor-backed component input remains
+necessary before a production cutover.
+
+This integrated deletion boundary produced the first large local performance
+gain. Three alternating 512-tick, six-output lean runs measured nested public
+oracle means of about `1.155`, `1.191`, and `1.155 ms/tick`, while the typed
+reference measured `0.590`, `0.609`, and `0.598 ms/tick`. The paired ratios were
+`0.510`, `0.512`, and `0.517`, or about `1.93–1.96x` throughput. Output
+projection itself used only about `1.4–1.6 ms` over each complete 512-tick run;
+the gain came from deleting public candidate finalization and accepted-object
+materialization on ordinary ticks, not from hiding presentation work.
+
+A 600-tick full-catalog regression crosses rhythm and autoregulation event
+boundaries, requires more than 550 adapter-free commits, and compares all 49
+outputs with the independent public oracle. A second 1,600-tick regression
+captures canonical binary state at tick 377, restores a fresh Session, and
+continues every selected output inside the established scientific corridor.
+Cold observation after an ordinary typed commit is intentionally marked
+`typed-authority-readback`: it rehydrates accepted state, but does not invent a
+public last-step diagnostic tree that was never constructed. Checkpoint,
+capture, explicit observation, event handling, and the full-invariant tier
+remain cold or oracle boundaries. These host results justify continued
+integration; they are not the iPhone production gate and do not yet mint a
+release model ID.
 
 The first trajectory optimization uses only **admitted** 30-volume roots to
 predict the next Newton seed. The first eligible step uses a first-order

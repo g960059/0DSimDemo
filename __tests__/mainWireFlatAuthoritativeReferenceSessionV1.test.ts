@@ -1918,6 +1918,158 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       .toBe(expectedValue);
   });
 
+  it("commits ordinary selected-output ticks without a public adapter", async () => {
+    const previousTier = hotPathIntegrityTierV1();
+    selectHotPathIntegrityTierV1("hot-path-lean");
+    try {
+      const reference =
+        await MainWireFlatAuthoritativeReferenceSessionV1.create();
+      const oracle = await MainWireIntegratedModelSessionV3.create();
+      for (let tick = 1; tick <= 600; tick += 1) {
+        const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
+        const actual = reference
+          .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+            target,
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          );
+        const expected = oracle.advanceToPresentationTime(target);
+        expect(actual.advance.status).toBe("advanced");
+        expect(expected.status).toBe("advanced");
+        if (expected.status !== "advanced") {
+          throw new Error(`ordinary projection oracle failed at tick ${tick}`);
+        }
+        expectProjectedValuesScientificallyEquivalent(
+          actual.projectedValues!,
+          projectMainWireIntegratedModelSelectedValuesV3(
+            expected.observation,
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          ),
+        );
+      }
+      const report = reference.authorityReport();
+      expect(report.modelOwnedAdapterFreeCommitCount).toBeGreaterThan(550);
+      expect(report.lazyMirrorRehydrateCount).toBeGreaterThan(0);
+      expect(report.poisonedReason).toBeNull();
+      expect(reference.currentAcceptedState()).toMatchObject({
+        acceptedTimeSec: oracle.currentAcceptedState().acceptedTimeSec,
+        revision: oracle.currentAcceptedState().revision,
+      });
+      const coldReadback = reference.observe();
+      expect(coldReadback).toMatchObject({
+        source: "typed-authority-readback",
+        lastAcceptedStep: null,
+      });
+      expect(projectMainWireIntegratedModelSelectedValuesV3(
+        coldReadback,
+        ["hemodynamics.pressure.absolute.LV"],
+      )["hemodynamics.pressure.absolute.LV"]).toMatchObject({
+        value: null,
+        availability: "not-evaluated-at-accepted-state",
+      });
+      expect(decodeCanonicalFlatDataV1(reference.snapshotAcceptedStateBytes()))
+        .toEqual(reference.currentAcceptedState());
+    } finally {
+      selectHotPathIntegrityTierV1(previousTier);
+    }
+  }, 60_000);
+
+  it("rejects an invalid selected-output plan before numerical mutation", async () => {
+    const previousTier = hotPathIntegrityTierV1();
+    selectHotPathIntegrityTierV1("hot-path-lean");
+    try {
+      const reference =
+        await MainWireFlatAuthoritativeReferenceSessionV1.create();
+      const before = reference.currentAcceptedState();
+      const outputId = "hemodynamics.pressure.absolute.LV" as const;
+      expect(() => reference
+        .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+          mainWireIntegratedModelPresentationTargetTimeSecV3(1),
+          [outputId, outputId],
+        ))
+        .toThrow(`selected output ${outputId} is duplicated`);
+      expect(reference.currentAcceptedState()).toEqual(before);
+      expect(reference.authorityReport()).toMatchObject({
+        commitCount: 0,
+        modelOwnedAdapterFreeCommitCount: 0,
+        poisonedReason: null,
+      });
+    } finally {
+      selectHotPathIntegrityTierV1(previousTier);
+    }
+  });
+
+  it("continues adapter-free selected outputs after a binary checkpoint", async () => {
+    const previousTier = hotPathIntegrityTierV1();
+    selectHotPathIntegrityTierV1("hot-path-lean");
+    try {
+      const source =
+        await MainWireFlatAuthoritativeReferenceSessionV1.create();
+      const oracle = await MainWireIntegratedModelSessionV3.create();
+      const checkpointTick = 377;
+      const finalTick = 1_600;
+      for (let tick = 1; tick <= checkpointTick; tick += 1) {
+        const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
+        const actual = source
+          .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+            target,
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          );
+        const expected = oracle.advanceToPresentationTime(target);
+        expect(expected.status).toBe("advanced");
+        if (expected.status !== "advanced") {
+          throw new Error(`checkpoint source oracle failed at tick ${tick}`);
+        }
+        expectProjectedValuesScientificallyEquivalent(
+          actual.projectedValues!,
+          projectMainWireIntegratedModelSelectedValuesV3(
+            expected.observation,
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          ),
+        );
+      }
+
+      const restored = await MainWireFlatAuthoritativeReferenceSessionV1
+        .restoreCanonicalBinary(await source.checkpointCanonicalBinary());
+      expect(restored.currentAcceptedState())
+        .toEqual(source.currentAcceptedState());
+
+      for (let tick = checkpointTick + 1; tick <= finalTick; tick += 1) {
+        const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
+        const actual = restored
+          .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+            target,
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          );
+        const expected = oracle.advanceToPresentationTime(target);
+        expect(expected.status).toBe("advanced");
+        if (expected.status !== "advanced") {
+          throw new Error(`checkpoint continuation oracle failed at tick ${tick}`);
+        }
+        expectProjectedValuesScientificallyEquivalent(
+          actual.projectedValues!,
+          projectMainWireIntegratedModelSelectedValuesV3(
+            expected.observation,
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          ),
+        );
+      }
+
+      expect(restored.currentAcceptedState()).toMatchObject({
+        acceptedTimeSec: oracle.currentAcceptedState().acceptedTimeSec,
+        revision: oracle.currentAcceptedState().revision,
+      });
+      expect(restored.authorityReport()).toMatchObject({
+        poisonedReason: null,
+      });
+      expect(restored.authorityReport().modelOwnedAdapterFreeCommitCount)
+        .toBeGreaterThan(1_100);
+      expect(decodeCanonicalFlatDataV1(restored.snapshotAcceptedStateBytes()))
+        .toEqual(restored.currentAcceptedState());
+    } finally {
+      selectHotPathIntegrityTierV1(previousTier);
+    }
+  }, 120_000);
+
   it("restores a tamper-evident binary checkpoint with exact continuation", async () => {
     const source = await MainWireFlatAuthoritativeReferenceSessionV1.create();
     for (let tick = 1; tick <= 377; tick += 1) {
