@@ -274,6 +274,7 @@ export class StudioSimulationWorkerClientV2 {
     | undefined;
   #experiment: ExperimentV2 | undefined;
   #disposePromise: Promise<void> | undefined;
+  #terminationReason: string | undefined;
 
   /** Production construction always owns the real module Worker. */
   constructor(options?: StudioSimulationWorkerClientOptionsV2);
@@ -386,7 +387,7 @@ export class StudioSimulationWorkerClientV2 {
       || this.#acceptedRevision === undefined
       || this.#acceptedTimeSec === undefined
     ) {
-      throw new Error("simulation worker client is not active");
+      throw new Error(this.#inactiveBoundaryMessage(input.runtimeSessionId));
     }
     if (this.#operationInFlight !== undefined) {
       throw new Error("simulation worker client already has an operation in flight");
@@ -443,7 +444,7 @@ export class StudioSimulationWorkerClientV2 {
       || this.#acceptedRevision === undefined
       || this.#acceptedTimeSec === undefined
     ) {
-      throw new Error("simulation worker client is not active");
+      throw new Error(this.#inactiveBoundaryMessage(input.runtimeSessionId));
     }
     if (this.#operationInFlight !== undefined) {
       throw new Error("simulation worker client already has an operation in flight");
@@ -787,7 +788,7 @@ export class StudioSimulationWorkerClientV2 {
       || this.#acceptedRevision === undefined
       || this.#acceptedTimeSec === undefined
     ) {
-      throw new Error("simulation worker client is not active");
+      throw new Error(this.#inactiveBoundaryMessage(runtimeSessionId));
     }
     if (this.#operationInFlight !== undefined) {
       throw new Error("simulation worker client already has an operation in flight");
@@ -1057,6 +1058,7 @@ export class StudioSimulationWorkerClientV2 {
 
   #terminateWith(error: Error): void {
     if (this.#state === "terminated") return;
+    this.#terminationReason = error.message;
     this.#state = "terminated";
     this.#lastPresentationTiming = undefined;
     try {
@@ -1078,6 +1080,22 @@ export class StudioSimulationWorkerClientV2 {
       }
       this.#pending.clear();
     }
+  }
+
+  #inactiveBoundaryMessage(runtimeSessionId: string): string {
+    const missing = [
+      this.#scenarioId === undefined ? "scenarioId" : null,
+      this.#inputEpoch === undefined ? "inputEpoch" : null,
+      this.#acceptedRevision === undefined ? "acceptedRevision" : null,
+      this.#acceptedTimeSec === undefined ? "acceptedTimeSec" : null,
+    ].filter((field): field is string => field !== null);
+    const reason = this.#terminationReason === undefined
+      ? "none"
+      : this.#terminationReason;
+    return "simulation worker client is not active"
+      + ` (state=${this.#state}, sessionMatch=${
+        this.#runtimeSessionId === runtimeSessionId
+      }, missing=${missing.join(",") || "none"}, termination=${reason})`;
   }
 }
 

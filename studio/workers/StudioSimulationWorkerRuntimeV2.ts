@@ -1553,7 +1553,10 @@ export class StudioSimulationWorkerRuntimeV2 {
         scenarioId,
       }));
       if (!sameStudioSimulationFrameV2(expected, current)) {
-        throw new Error("adapter current frame changed");
+        throw new Error(
+          "adapter current frame changed: "
+            + describeStudioSimulationFrameDifferenceV2(expected, current),
+        );
       }
     } catch (error) {
       throw new FatalWorkerStateErrorV2(
@@ -2253,6 +2256,51 @@ function sameStudioSimulationFrameV2(
     }
   }
   return true;
+}
+
+function describeStudioSimulationFrameDifferenceV2(
+  left: StudioSimulationFrameV2,
+  right: StudioSimulationFrameV2,
+): string {
+  const identityFields = [
+    "modelId",
+    "runtimeSessionId",
+    "scenarioId",
+    "inputEpoch",
+    "acceptedRevision",
+    "acceptedTimeSec",
+  ] as const;
+  for (const field of identityFields) {
+    if (left[field] !== right[field]) {
+      return `${field} differs (${String(left[field])} != ${String(right[field])})`;
+    }
+  }
+  const leftIds = Object.keys(left.outputs);
+  const rightIds = Object.keys(right.outputs);
+  if (leftIds.length !== rightIds.length) {
+    return `output count differs (${leftIds.length} != ${rightIds.length})`;
+  }
+  for (const outputId of leftIds) {
+    const leftOutput = left.outputs[outputId];
+    const rightOutput = right.outputs[outputId];
+    if (leftOutput === undefined || rightOutput === undefined) {
+      return `output ${outputId} membership differs`;
+    }
+    if (leftOutput.outputId !== rightOutput.outputId) {
+      return `output ${outputId} identity differs`;
+    }
+    if (leftOutput.availability !== rightOutput.availability) {
+      return `output ${outputId} availability differs (`
+        + `${leftOutput.availability} != ${rightOutput.availability})`;
+    }
+    if (leftOutput.quality !== rightOutput.quality) {
+      return `output ${outputId} quality differs`;
+    }
+    if (!sameOutputValueV2(leftOutput.value, rightOutput.value)) {
+      return `output ${outputId} value differs`;
+    }
+  }
+  return "unknown frame difference";
 }
 
 function sameOutputValueV2(
