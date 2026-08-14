@@ -96,10 +96,30 @@ export type MainWireFiveWallCoupledNewtonShadowWorkspaceV1 = Readonly<{
   dimension: number;
 }>;
 
+export type MainWireFiveWallCoupledNewtonSolveLayoutV1 = Readonly<{
+  dimension: 30;
+  nonCoronary: Readonly<{
+    start: number;
+    length: number;
+    endExclusive: number;
+  }>;
+  coronary: Readonly<{
+    start: number;
+    length: number;
+    endExclusive: number;
+  }>;
+  triSeg: Readonly<{
+    start: number;
+    length: number;
+    endExclusive: number;
+  }>;
+}>;
+
 export type MainWireFiveWallCoupledNewtonWorkspaceBackingV1 = Readonly<{
   newton: FlatCoupledNewtonWorkspaceV1;
   unknownScales: Float64Array;
   residualScales: Float64Array;
+  solveLayout: MainWireFiveWallCoupledNewtonSolveLayoutV1;
 }>;
 
 type CoupledCoronaryLinearizationStorageV1 = {
@@ -124,6 +144,7 @@ type MainWireFiveWallCoupledNewtonShadowWorkspaceStorageV1 = {
   readonly unknownScales: Float64Array;
   readonly residualScales: Float64Array;
   readonly newton: FlatCoupledNewtonWorkspaceV1;
+  readonly solveLayout: MainWireFiveWallCoupledNewtonSolveLayoutV1;
   inUse: boolean;
 };
 
@@ -132,6 +153,82 @@ const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1 =
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
     MainWireFiveWallCoupledNewtonShadowWorkspaceStorageV1
   >();
+const ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SOLVE_LAYOUTS_V1 =
+  new WeakSet<object>();
+
+/** Owns a compiler-projected block layout after exact Main Wire validation. */
+export function bindMainWireFiveWallCoupledNewtonSolveLayoutV1(
+  value: Readonly<{
+    dimension: number;
+    nonCoronary: Readonly<{
+      start: number;
+      length: number;
+      endExclusive: number;
+    }>;
+    coronary: Readonly<{
+      start: number;
+      length: number;
+      endExclusive: number;
+    }>;
+    triSeg: Readonly<{
+      start: number;
+      length: number;
+      endExclusive: number;
+    }>;
+  }>,
+): MainWireFiveWallCoupledNewtonSolveLayoutV1 {
+  const nonCoronaryLength = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+  const coronaryLength = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  const expected = [
+    [value.nonCoronary, 0, nonCoronaryLength],
+    [value.coronary, nonCoronaryLength, coronaryLength],
+    [value.triSeg, nonCoronaryLength + coronaryLength, 2],
+  ] as const;
+  if (value.dimension !== nonCoronaryLength + coronaryLength) {
+    throw new RangeError("Main Wire coupled solve layout dimension drifted");
+  }
+  for (const [block, start, length] of expected) {
+    if (
+      block.start !== start
+      || block.length !== length
+      || block.endExclusive !== start + length
+    ) {
+      throw new RangeError("Main Wire coupled solve block layout drifted");
+    }
+  }
+  const layout = Object.freeze({
+    dimension: 30 as const,
+    nonCoronary: Object.freeze({ ...value.nonCoronary }),
+    coronary: Object.freeze({ ...value.coronary }),
+    triSeg: Object.freeze({ ...value.triSeg }),
+  });
+  ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SOLVE_LAYOUTS_V1.add(layout);
+  return layout;
+}
+
+function createCanonicalMainWireFiveWallCoupledNewtonSolveLayoutV1():
+MainWireFiveWallCoupledNewtonSolveLayoutV1 {
+  const nonCoronaryLength = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+  const coronaryLength = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  return bindMainWireFiveWallCoupledNewtonSolveLayoutV1({
+    dimension: nonCoronaryLength + coronaryLength,
+    nonCoronary: {
+      start: 0,
+      length: nonCoronaryLength,
+      endExclusive: nonCoronaryLength,
+    },
+    coronary: {
+      start: nonCoronaryLength,
+      length: coronaryLength,
+      endExclusive: nonCoronaryLength + coronaryLength,
+    },
+    triSeg: {
+      start: nonCoronaryLength + coronaryLength,
+      length: 2,
+      endExclusive: nonCoronaryLength + coronaryLength + 2,
+    },
+  });
+}
 
 /**
  * Session-owned mutable scratch for the migration solver. It is not accepted
@@ -157,7 +254,10 @@ export function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
     ?? new Float64Array(dimension);
   const residualScales = backing?.residualScales
     ?? new Float64Array(dimension);
+  const solveLayout = backing?.solveLayout
+    ?? createCanonicalMainWireFiveWallCoupledNewtonSolveLayoutV1();
   assertFlatCoupledNewtonWorkspaceV1(newton, dimension);
+  assertMainWireFiveWallCoupledNewtonSolveLayoutV1(solveLayout);
   assertExternalScaleStorageV1(
     newton,
     unknownScales,
@@ -199,10 +299,19 @@ export function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
       unknownScales,
       residualScales,
       newton,
+      solveLayout,
       inUse: false,
     },
   );
   return workspace;
+}
+
+function assertMainWireFiveWallCoupledNewtonSolveLayoutV1(
+  layout: MainWireFiveWallCoupledNewtonSolveLayoutV1,
+): void {
+  if (!ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SOLVE_LAYOUTS_V1.has(layout)) {
+    throw new RangeError("Main Wire coupled solve layout is not admitted");
+  }
 }
 
 export function assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
@@ -315,12 +424,12 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1<TWallState = unknown>
     finiteDifferenceRelativeStep,
     "finiteDifferenceRelativeStep",
   );
-  const { plus, minus, plusResidual, minusResidual } = storage;
-  const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  const { plus, minus, plusResidual, minusResidual, solveLayout } = storage;
+  const coronaryDimension = solveLayout.coronary.length;
+  const coronaryStart = solveLayout.coronary.start;
   const boundaryDimension =
     CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
-  const nonCoronaryDimension =
-    NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+  const nonCoronaryDimension = solveLayout.nonCoronary.length;
   const {
     localDependentSvColumn,
     coronaryBoundaryLinearization,
@@ -414,7 +523,6 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1<TWallState = unknown>
         }
       }
       if (jacobianMode === "hybrid-coronary-analytic") {
-        const coronaryStart = nonCoronaryDimension;
         const aoResidualRow =
           NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("Ao");
         const raResidualRow =

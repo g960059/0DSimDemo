@@ -47,8 +47,10 @@ const DEPENDENT_SYSTEMIC_VENOUS_STATE_ID = "noncoronary.volume.SV";
 
 /**
  * Checked-in scientific definition for the current one-patch hemodynamic
- * slice. It is build input only; production runtime still uses the existing
- * hand-wired layout until a later cutover proves descriptor binding parity.
+ * slice. It is build input only. The development exact runtime consumes its
+ * compiled state/workspace layout and solve-block dispatch; component
+ * equations and accepted-state promotion remain owned by the existing
+ * scientific kernels until their later cutover gates are satisfied.
  */
 export function createMainWireModelDefinitionV1(): ModelDefinitionV1 {
   const nonCoronaryNodeSpecs = new Map(

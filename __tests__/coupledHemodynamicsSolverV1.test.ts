@@ -21,6 +21,9 @@ import {
   factorFlatDenseMatrixV1,
   solveFactoredFlatDenseSystemV1,
 } from "@/engine/vnext/coupled/FlatDenseLuV1";
+import {
+  bindMainWireFiveWallCoupledNewtonSolveLayoutV1,
+} from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
 
 const DIMENSION = 32;
 
@@ -43,6 +46,22 @@ describe("coupled hemodynamics solver V1 infrastructure", () => {
     expect(coupledHemodynamicsUnknownIndexV1(
       "TriSeg.septalMidwallCapVolume",
     )).toBe(30);
+  });
+
+  it("admits only the exact compiler-projected Main Wire solve layout", () => {
+    expect(bindMainWireFiveWallCoupledNewtonSolveLayoutV1({
+      dimension: 30,
+      ...COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks,
+    })).toEqual({
+      dimension: 30,
+      ...COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks,
+    });
+    expect(() => bindMainWireFiveWallCoupledNewtonSolveLayoutV1({
+      dimension: 30,
+      nonCoronary: COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.coronary,
+      coronary: COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.nonCoronary,
+      triSeg: COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.triSeg,
+    })).toThrow(/block layout drifted/);
   });
 
   it("solves a deterministic 32-row system without mutating its matrix", () => {

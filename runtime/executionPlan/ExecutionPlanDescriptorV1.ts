@@ -60,6 +60,8 @@ export type ExecutionPlanStateBlockV1 = Readonly<{
 
 export type ExecutionPlanSolveBlockV1 = Readonly<{
   blockId: string;
+  componentId: string;
+  kernelId: string;
   disposition: "retained" | "statically-condensed";
   start: number;
   length: number;

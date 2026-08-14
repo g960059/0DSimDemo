@@ -90,10 +90,29 @@ export type BoundExecutionPlanNewtonWorkspaceV1 = Readonly<{
   pivots: Int32Array;
 }>;
 
+export type BoundExecutionPlanSolveBlockDispatchV1 = Readonly<{
+  blockId: string;
+  componentId: string;
+  kernelId: string;
+  componentKernelBindingOrdinal: number;
+  disposition: "retained" | "statically-condensed";
+  start: number;
+  length: number;
+  endExclusive: number;
+}>;
+
+export type BoundExecutionPlanSolveDispatchV1 = Readonly<{
+  solveGroupId: string;
+  totalUnknownCount: number;
+  activeUnknownCount: number;
+  blocks: readonly BoundExecutionPlanSolveBlockDispatchV1[];
+}>;
+
 type BoundExecutionPlanSolveGroupMetadataV1 = Readonly<{
   solveGroupId: string;
   activeContinuousStorageIndices: Int32Array;
   workspace: BoundExecutionPlanNewtonWorkspaceV1;
+  dispatch: BoundExecutionPlanSolveDispatchV1;
 }>;
 
 type BoundExecutionPlanMetadataV1 = Readonly<{
@@ -182,6 +201,7 @@ export function validateAndOwnExecutionPlanDescriptorV1(
     failV1("$.stateLayout", "block or slot cardinality is inconsistent");
   }
   const componentIds = new Set<string>();
+  const componentKernelById = new Map<string, string>();
   const componentByLogicalIndex: string[] = [];
   const componentKernelIds: string[] = [];
   let nextLogicalStart = 0;
@@ -205,6 +225,7 @@ export function validateAndOwnExecutionPlanDescriptorV1(
       failV1(`$.stateLayout.blocks[${index}]`, "duplicate componentId");
     }
     componentIds.add(componentId);
+    componentKernelById.set(componentId, kernelId);
     componentKernelIds.push(kernelId);
     const start = nonnegativeIntegerV1(
       block.logicalStart,
@@ -401,6 +422,8 @@ export function validateAndOwnExecutionPlanDescriptorV1(
     groupIndex,
     slots,
     stateIdByLogicalIndex,
+    componentByLogicalIndex,
+    componentKernelById,
     solveGroupIds,
   ));
 
@@ -579,6 +602,7 @@ export function bindExecutionPlanV1(
         descriptor,
         descriptorGroup,
         solveGroups[index]!,
+        bound,
       ),
     )),
   }));
@@ -610,10 +634,31 @@ export function prepareBoundExecutionPlanSolveGroupV1(
   return group.workspace;
 }
 
+/**
+ * Resolves immutable block/kernel dispatch metadata compiled for one solve
+ * group. No numerical callback is stored in the portable descriptor.
+ */
+export function resolveBoundExecutionPlanSolveDispatchV1(
+  bound: BoundExecutionPlanV1,
+  solveGroupId: string,
+): BoundExecutionPlanSolveDispatchV1 {
+  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
+  if (metadata === undefined) {
+    throw new Error("Execution plan dispatch requires a bound plan");
+  }
+  const group = metadata.solveGroups.find((candidate) =>
+    candidate.solveGroupId === solveGroupId);
+  if (group === undefined) {
+    throw new Error(`Execution plan solve group ${solveGroupId} is unavailable`);
+  }
+  return group.dispatch;
+}
+
 function createBoundSolveGroupMetadataV1(
   descriptor: ExecutionPlanDescriptorV1,
   descriptorGroup: ExecutionPlanSolveGroupV1,
   boundGroup: BoundExecutionPlanSolveGroupV1,
+  bound: BoundExecutionPlanV1,
 ): BoundExecutionPlanSolveGroupMetadataV1 {
   const activeContinuousStorageIndices = Int32Array.from(
     boundGroup.activeStateLogicalIndices,
@@ -680,10 +725,47 @@ function createBoundSolveGroupMetadataV1(
     boundGroup,
     descriptorGroup,
   );
+  const dispatch = Object.freeze({
+    solveGroupId: descriptorGroup.solveGroupId,
+    totalUnknownCount: descriptorGroup.totalUnknownCount,
+    activeUnknownCount: descriptorGroup.activeUnknownCount,
+    blocks: Object.freeze(descriptorGroup.blocks.map((block) => {
+      const stateBlockIndex = descriptor.stateLayout.blocks.findIndex(
+        ({ componentId }) => componentId === block.componentId,
+      );
+      if (stateBlockIndex < 0) {
+        throw new Error(
+          `Execution plan solve block ${block.blockId} has no component owner`,
+        );
+      }
+      const componentKernelBindingOrdinal =
+        bound.componentKernelBindingOrdinals[stateBlockIndex]!;
+      if (
+        bound.bindingCatalog.componentKernelIds[
+          componentKernelBindingOrdinal
+        ] !== block.kernelId
+      ) {
+        throw new Error(
+          `Execution plan solve block ${block.blockId} kernel binding drifted`,
+        );
+      }
+      return Object.freeze({
+        blockId: block.blockId,
+        componentId: block.componentId,
+        kernelId: block.kernelId,
+        componentKernelBindingOrdinal,
+        disposition: block.disposition,
+        start: block.start,
+        length: block.length,
+        endExclusive: block.endExclusive,
+      });
+    })),
+  });
   return Object.freeze({
     solveGroupId: descriptorGroup.solveGroupId,
     activeContinuousStorageIndices,
     workspace,
+    dispatch,
   });
 }
 
@@ -1028,6 +1110,8 @@ function validateSolveGroupV1(
   groupIndex: number,
   slots: readonly unknown[],
   stateIdByLogicalIndex: readonly string[],
+  componentByLogicalIndex: readonly string[],
+  componentKernelById: ReadonlyMap<string, string>,
   solveGroupIds: Set<string>,
 ): void {
   const path = `$.solveGroups[${groupIndex}]`;
@@ -1074,8 +1158,10 @@ function validateSolveGroupV1(
     const block = recordV1(blockRaw, blockPath);
     exactKeysV1(block, [
       "blockId",
+      "componentId",
       "disposition",
       "endExclusive",
+      "kernelId",
       "length",
       "residualIds",
       "start",
@@ -1083,6 +1169,14 @@ function validateSolveGroupV1(
       "stateLogicalIndices",
     ], blockPath);
     const blockId = portableIdV1(block.blockId, `${blockPath}.blockId`);
+    const componentId = portableIdV1(
+      block.componentId,
+      `${blockPath}.componentId`,
+    );
+    const kernelId = portableIdV1(block.kernelId, `${blockPath}.kernelId`);
+    if (componentKernelById.get(componentId) !== kernelId) {
+      failV1(blockPath, "solve block component kernel identity mismatch");
+    }
     if (blockIds.has(blockId)) failV1(blockPath, "duplicate blockId");
     blockIds.add(blockId);
     if (block.disposition !== "retained"
@@ -1123,6 +1217,9 @@ function validateSolveGroupV1(
       continuousLogicalIndexV1(logicalIndex, slots, `${blockPath}.stateLogicalIndices[${index}]`);
       if (stateIdByLogicalIndex[logicalIndex] !== stateId) {
         failV1(`${blockPath}.stateLogicalIndices[${index}]`, "state identity mismatch");
+      }
+      if (componentByLogicalIndex[logicalIndex] !== componentId) {
+        failV1(`${blockPath}.stateLogicalIndices[${index}]`, "component ownership mismatch");
       }
     });
     compiledUnknowns.push(...stateIds);

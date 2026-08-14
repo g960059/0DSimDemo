@@ -92,7 +92,15 @@ export function compileExecutionPlanV1(
     componentIdSet,
     stateById,
   );
-  const solveGroups = compileSolveGroups(policy, stateById);
+  const componentKernelById = new Map(
+    stateLayout.blocks.map(({ componentId, kernelId }) =>
+      [componentId, kernelId] as const),
+  );
+  const solveGroups = compileSolveGroups(
+    policy,
+    stateById,
+    componentKernelById,
+  );
   const solveGroupIds = new Set(solveGroups.map(({ solveGroupId }) =>
     solveGroupId));
   const updateGroups = canonicalOrdinalSequence(
@@ -340,6 +348,7 @@ function compileHydraulicGraph(
 function compileSolveGroups(
   policy: NumericalPolicyV1,
   stateById: ReadonlyMap<string, ExecutionPlanStateSlotV1>,
+  componentKernelById: ReadonlyMap<string, string>,
 ): ExecutionPlanSolveGroupV1[] {
   const groups = canonicalOrdinalSequence(policy.solveGroups, "solve group");
   for (const group of groups) {
@@ -421,12 +430,29 @@ function compileSolveGroups(
       const residualIds = uniqueIds(blockResidualIds,
         `solve block ${block.blockId} residual`);
       residualIds.forEach((id) => assertPortableId(id, "residualId"));
-      const stateLogicalIndices = stateIds.map((stateId) =>
+      const blockStates = stateIds.map((stateId) =>
         requiredContinuousState(
           stateById,
           stateId,
           `solve block ${block.blockId}`,
-        ).logicalIndex);
+        ));
+      const componentIds = new Set(
+        blockStates.map(({ componentId }) => componentId),
+      );
+      if (componentIds.size !== 1) {
+        throw new Error(
+          `solve block ${block.blockId} spans multiple component owners`,
+        );
+      }
+      const componentId = [...componentIds][0]!;
+      const kernelId = componentKernelById.get(componentId);
+      if (kernelId === undefined) {
+        throw new Error(
+          `solve block ${block.blockId} has no component kernel`,
+        );
+      }
+      const stateLogicalIndices = blockStates.map(({ logicalIndex }) =>
+        logicalIndex);
       for (const stateId of stateIds) {
         if (unknownStateIds.includes(stateId)) {
           throw new Error(
@@ -440,6 +466,8 @@ function compileSolveGroups(
       }
       compiledBlocks.push(Object.freeze({
         blockId: block.blockId,
+        componentId,
+        kernelId,
         disposition: block.disposition,
         start,
         length: stateIds.length,

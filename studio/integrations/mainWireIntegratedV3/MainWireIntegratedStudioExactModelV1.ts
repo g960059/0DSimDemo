@@ -9,15 +9,18 @@ import {
   EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
   bindExecutionPlanV1,
   prepareBoundExecutionPlanSolveGroupV1,
+  resolveBoundExecutionPlanSolveDispatchV1,
   synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
   type BoundExecutionPlanV1,
+  type BoundExecutionPlanSolveBlockDispatchV1,
   type ExecutionPlanAcceptedStateSynchronizationV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   bindFlatCoupledNewtonWorkspaceV1,
 } from "@/engine/vnext/coupled/FlatCoupledNewtonV1";
 import {
+  bindMainWireFiveWallCoupledNewtonSolveLayoutV1,
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
 import {
@@ -145,6 +148,29 @@ const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 = Object.freeze({
     "coronary-flow/large-venous-outlet",
   ]),
 });
+
+function mainWireCoupledSolveBlockV1(
+  blocks: readonly BoundExecutionPlanSolveBlockDispatchV1[],
+  expected: Readonly<{
+    blockId: string;
+    componentId: string;
+    kernelId: string;
+    disposition: "retained" | "statically-condensed";
+  }>,
+): BoundExecutionPlanSolveBlockDispatchV1 {
+  const block = blocks.find(({ blockId }) => blockId === expected.blockId);
+  if (
+    block === undefined
+    || block.componentId !== expected.componentId
+    || block.kernelId !== expected.kernelId
+    || block.disposition !== expected.disposition
+  ) {
+    throw new Error(
+      `Standard execution plan ${expected.blockId} block identity drifted`,
+    );
+  }
+  return block;
+}
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1 =
   Object.freeze({
@@ -403,11 +429,42 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
         trialResidual: prepared.trialResidual,
         pivots: prepared.pivots,
       });
+      const dispatch = resolveBoundExecutionPlanSolveDispatchV1(
+        boundExecutionPlan,
+        "coupled-hemodynamics",
+      );
+      if (dispatch.blocks.length !== 3) {
+        throw new Error("Standard execution plan solve block count drifted");
+      }
+      const nonCoronary = mainWireCoupledSolveBlockV1(dispatch.blocks, {
+        blockId: "nonCoronary",
+        componentId: "noncoronary-circulation",
+        kernelId: "noncoronary-backward-euler-kernel-v1",
+        disposition: "retained",
+      });
+      const coronary = mainWireCoupledSolveBlockV1(dispatch.blocks, {
+        blockId: "coronary",
+        componentId: "coronary-circulation",
+        kernelId: "coronary-backward-euler-kernel-v2",
+        disposition: "retained",
+      });
+      const triSeg = mainWireCoupledSolveBlockV1(dispatch.blocks, {
+        blockId: "triSeg",
+        componentId: "five-wall-mechanics",
+        kernelId: "five-wall-land-triseg-kernel-v1",
+        disposition: "statically-condensed",
+      });
       scenario.modelSession.installExecutionPlanCoupledNewtonWorkspaceV1(
         createMainWireFiveWallCoupledNewtonShadowWorkspaceV1({
           newton,
           unknownScales: prepared.unknownScale,
           residualScales: prepared.residualScale,
+          solveLayout: bindMainWireFiveWallCoupledNewtonSolveLayoutV1({
+            dimension: dispatch.activeUnknownCount,
+            nonCoronary,
+            coronary,
+            triSeg,
+          }),
         }),
       );
       scenario.executionPlanBinding = Object.freeze({

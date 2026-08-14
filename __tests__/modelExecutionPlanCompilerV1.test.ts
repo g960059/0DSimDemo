@@ -12,6 +12,7 @@ import {
   assertBoundExecutionPlanV1,
   bindExecutionPlanV1,
   prepareBoundExecutionPlanSolveGroupV1,
+  resolveBoundExecutionPlanSolveDispatchV1,
   synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
@@ -92,17 +93,39 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       .toBe(MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.mvcActive);
 
     const [solve] = plan.solveGroups;
-    expect(solve?.blocks.map(({ blockId, start, length, endExclusive }) => ({
+    expect(solve?.blocks.map(({
       blockId,
+      componentId,
+      kernelId,
+      start,
+      length,
+      endExclusive,
+    }) => ({
+      blockId,
+      componentId,
+      kernelId,
       start,
       length,
       endExclusive,
     }))).toEqual([
-      { blockId: "nonCoronary", ...COUPLED_HEMODYNAMICS_LAYOUT_V1
-        .blocks.nonCoronary },
-      { blockId: "coronary", ...COUPLED_HEMODYNAMICS_LAYOUT_V1
-        .blocks.coronary },
-      { blockId: "triSeg", ...COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.triSeg },
+      {
+        blockId: "nonCoronary",
+        componentId: "noncoronary-circulation",
+        kernelId: "noncoronary-backward-euler-kernel-v1",
+        ...COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.nonCoronary,
+      },
+      {
+        blockId: "coronary",
+        componentId: "coronary-circulation",
+        kernelId: "coronary-backward-euler-kernel-v2",
+        ...COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.coronary,
+      },
+      {
+        blockId: "triSeg",
+        componentId: "five-wall-mechanics",
+        kernelId: "five-wall-land-triseg-kernel-v1",
+        ...COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.triSeg,
+      },
     ]);
     expect(solve?.unknownStateIds)
       .toEqual(COUPLED_HEMODYNAMICS_LAYOUT_V1.unknownIds);
@@ -259,6 +282,27 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       .toThrow("ordinals must be contiguous from zero");
   });
 
+  it("rejects one solve block spanning multiple component owners", () => {
+    const definition = createMainWireModelDefinitionV1();
+    const policy = structuredClone(
+      createMainWireNumericalPolicyV1(),
+    ) as unknown as {
+      solveGroups: Array<{
+        unknownBlocks: Array<{
+          stateIds: string[];
+          residualIds: string[];
+        }>;
+      }>;
+    };
+    const blocks = policy.solveGroups[0]!.unknownBlocks;
+    blocks[0]!.stateIds[0] = blocks[1]!.stateIds[0]!;
+
+    expect(() => compileExecutionPlanV1(
+      definition,
+      policy as unknown as NumericalPolicyV1,
+    )).toThrow("spans multiple component owners");
+  });
+
   it("rejects unknown fields and accessors without invoking them", () => {
     const definition = createMainWireModelDefinitionV1();
     const policy = createMainWireNumericalPolicyV1();
@@ -340,6 +384,46 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     expect(bound.allocatedBytes).toBeGreaterThan(0);
     expect(bound.currentContinuousState.buffer)
       .not.toBe(bound.candidateContinuousState.buffer);
+    expect(resolveBoundExecutionPlanSolveDispatchV1(
+      bound,
+      "coupled-hemodynamics",
+    )).toEqual({
+      solveGroupId: "coupled-hemodynamics",
+      totalUnknownCount: 32,
+      activeUnknownCount: 30,
+      blocks: [
+        {
+          blockId: "nonCoronary",
+          componentId: "noncoronary-circulation",
+          kernelId: "noncoronary-backward-euler-kernel-v1",
+          componentKernelBindingOrdinal: 1,
+          disposition: "retained",
+          start: 0,
+          length: 14,
+          endExclusive: 14,
+        },
+        {
+          blockId: "coronary",
+          componentId: "coronary-circulation",
+          kernelId: "coronary-backward-euler-kernel-v2",
+          componentKernelBindingOrdinal: 2,
+          disposition: "retained",
+          start: 14,
+          length: 16,
+          endExclusive: 30,
+        },
+        {
+          blockId: "triSeg",
+          componentId: "five-wall-mechanics",
+          kernelId: "five-wall-land-triseg-kernel-v1",
+          componentKernelBindingOrdinal: 3,
+          disposition: "statically-condensed",
+          start: 30,
+          length: 2,
+          endExclusive: 32,
+        },
+      ],
+    });
     expect(() => assertBoundExecutionPlanV1(bound, descriptor)).not.toThrow();
   });
 
@@ -410,6 +494,10 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       { ...bound },
       "coupled-hemodynamics",
     )).toThrow(/requires a bound plan/);
+    expect(() => resolveBoundExecutionPlanSolveDispatchV1(
+      { ...bound },
+      "coupled-hemodynamics",
+    )).toThrow(/requires a bound plan/);
     expect(() => prepareBoundExecutionPlanSolveGroupV1(
       bound,
       "missing-solve-group",
@@ -434,6 +522,19 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
         },
       }],
     })).toThrow(/workspace segment is not canonical/);
+    expect(() => validateAndOwnExecutionPlanDescriptorV1({
+      ...descriptor,
+      solveGroups: [{
+        ...descriptorGroup!,
+        blocks: descriptorGroup!.blocks.map((block, index) => index === 0
+          ? {
+            ...block,
+            componentId: "coronary-circulation",
+            kernelId: "coronary-backward-euler-kernel-v2",
+          }
+          : block),
+      }],
+    })).toThrow(/component ownership mismatch/);
     expect(() => bindExecutionPlanV1(descriptor, {
       ...catalog,
       componentKernelIds: catalog.componentKernelIds.slice(1),
