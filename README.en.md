@@ -2,171 +2,52 @@
 
 # CircleHeart
 
-CircleHeart is a pre-release project for a research and teaching 0D
-closed-loop cardiovascular simulation, Experiment authoring environment, and
-Reader experience.
+CircleHeart is an education and research platform for **learning, exploring, and sharing cardiovascular hemodynamics**.
 
-The project currently has no production users or durable production content.
-It is undergoing a direct cutover from the old Case / Lesson / Studio V1 data
-model to an exact-model registry and a new Experiment / Snapshot / Placement
-architecture. Removed designs and implementations remain available in Git
-history; they are not kept as compatibility code.
+[Open CircleHeart](https://www.circleheart.dev/) · [Read articles](https://www.circleheart.dev/en/articles) · [Start a simulation](https://www.circleheart.dev/en/experiments/new)
 
-## Current authority
+## From numbers to an explainable understanding
 
-The authority for Studio data and ownership boundaries is
-[`docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md`](docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md),
-with Reader and Briefing IA defined by
-[`docs/studio/DESIGN-STUDIO-004-reader-briefing-experiment-ia.md`](docs/studio/DESIGN-STUDIO-004-reader-briefing-experiment-ia.md).
+Memorizing values such as blood pressure and cardiac output is not enough to understand why a circulation changes. CircleHeart places interactive simulation alongside educational articles. Readers can adjust preload, afterload, contractility, and other conditions, then observe the effects on pressure waveforms, pressure-volume relations, and derived measures.
 
-The central structure is:
+CircleHeart can be used to:
 
-```text
-RegisteredModel(modelId)
+- learn core hemodynamic concepts through articles and guided simulations;
+- reproduce and compare clinical conditions and interventions;
+- interpret graphs and measurements together; and
+- save and share simulations and the knowledge built around them.
 
-ExperimentSession (ephemeral, mutable; operated in Workbench)
-  └─ ExperimentContent
-       ├─ ScenarioCapture[] = fixture + checkpoint
-       └─ ExperimentSurface = graphs + outputs + controls + one note
+## For learners, clinicians, and researchers
 
-Experiment (explicitly saved, mutable by version-checked Save)
-  └─ ExperimentContent
+CircleHeart is intended for people beginning to learn hemodynamics, including residents and clinical engineers; experienced clinicians in cardiology, anesthesiology, and intensive care; and researchers studying cardiovascular dynamics.
 
-ExperimentSnapshot (neutral, immutable, admitted)
-  └─ ExperimentContent
+- **Learners** predict a change, test it in a simulation, and connect the result to physiology.
+- **Experienced clinicians** compare conditions and interventions using several complementary signals.
+- **Researchers** examine model assumptions and limitations and use them to guide further validation and development.
 
-ExperimentPublication = public pointer → snapshotId
-ExperimentPlacement = snapshotId + Briefing + title/caption
-```
+## Our approach to mathematical modeling
 
-Key decisions:
+CircleHeart uses a reduced mathematical representation of the circulation, organized as a small number of interacting compartments and physiological relations. Complexity is not a goal in itself.
 
-- `modelId` is the exact immutable identity of equations, runtime, solver,
-  fixture schema, checkpoint codec, catalogs, and Snapshot admission
-- package integrity is checked only when registering a model; runtime clients
-  trust the registry
-- a parameter action ends after updating the fixture; there is no durable
-  `ParameterSet`
-- Scenario Presets, Experiments, and Snapshots keep `fixture + checkpoint` together
-- an unsettled Experiment may be saved; Snapshot admission restores a detached
-  fork and runs one cycle of finite, conservation, and event checks
-- admission neither requires settlement nor replaces the captured checkpoint
-- immutable versions use `snapshotId`, not a numeric revision
-- portable Snapshots carry no purpose kind or source/parent/head lineage
-- an Article Placement owns its Briefing and pins a neutral Snapshot
-- `/experiments/new` has no ID; only the first successful explicit Save mints
-  an `experimentId`
-- Snapshot/PV/Starling resume live lanes immediately after atomic capture and
-  run in a bounded warm Worker pool
-- opening Workbench does not add anything to My Experiments
-- settlement, numerical health, input epochs, and live samples are not durable
-  content
+We aim for physiologically and physically sound reduced-order models that remain computationally robust and efficient while retaining enough expressive power to represent a broad range of clinical conditions. The design also considers future parameter estimation and model fitting.
 
-## Current V3 direct-cutover state
+Model development emphasizes:
 
-No official Scenario Presets, Experiments, articles, or Lessons will be
-authored yet.
+- **explainability** — changes can be traced through physiological relationships;
+- **interactivity** — simulations remain usable on ordinary devices;
+- **verifiability** — assumptions, supported behavior, and limitations are made explicit; and
+- **extensibility** — the same foundation can continue to support education, research, and future fitting workflows.
 
-Completed:
+## Connecting education and model development
 
-1. package the canonical fixture, exact checkpoint, outputs, and
-   accepted-boundary capture for `MainWireIntegratedModelTransactionV3`;
-2. admit and resolve that exact release through the registry as the default;
-3. run all visible Workbench Scenarios in persistent Worker lanes;
-4. capture explicit Experiment Saves and common-admission immutable Snapshots;
-5. author role-specific Placement Briefings against neutral Snapshots; and
-6. pin those Snapshots from the Article Editor and Reader.
+Educational content and mathematical model development inform each other. Questions that emerge while building articles and cases can guide improvements to the model. Findings from model development can return as new articles, simulations, and shared knowledge.
 
-Remaining work includes weighted Reader extent, disposable inactive-placement
-beat caches, a multi-release loader, and production OAuth/redirect, abuse-control,
-and scheduled-GC configuration. Official Presets, Experiments, articles, and
-Lessons follow those boundaries rather than the removed legacy structures.
+## Intended use and limitations
 
-In a Supabase-configured build, the remote backend exclusively owns
-Experiment, Snapshot, and Article reads/writes, publication pointers, and the
-exact-model registry. The browser store is only an unconfigured test/development
-fallback; the product does not dual-write.
+CircleHeart is intended for education and research support. It is not a medical device and must not be used for diagnosis, treatment decisions, drug dosing, or patient-specific prediction.
 
-Earlier case catalogs, lesson documents, numeric Experiment revisions, Working
-Set / Reader Brief types, and certification artifacts are not product-data
-authorities.
+Simulation results follow from the assumptions and inputs represented by the model. Real patients include physiology, individual variation, time-dependent changes, and treatment effects that may not be represented. Treat numerical results as model outputs, not as clinical facts, and review the assumptions and limitations stated with each piece of content.
 
-## Numerical model and research material
+## Project
 
-`engine/`, `tools/`, `data/myocardium/`, and `docs/myocardium/` contain
-numerical implementation, verification work, and research artifacts required
-for the V3 integration. They are separate from durable Studio content.
-Research-artifact integrity digests and computed results are not copied into
-Experiments.
-
-The Workbench now advances the admitted exact V3 development package. A
-durable `ParameterSet` is absent; the registered Control catalog exposes the
-authorable parameters. The engine's `releaseReady` and
-`simulationReady` claims remain false.
-
-## Important: research and teaching only
-
-CircleHeart is not a medical device. Do not use it for diagnosis, treatment
-decisions, patient-specific predictions, or drug dosing.
-
-As a 0D lumped-parameter model, it does not represent 3D flow, regional wall
-motion, patient-specific morphology, or detailed autonomic and organ-system
-interactions. Numerical outputs are subjects of verification, not fixed
-physiological constants or clinical facts.
-
-## Development
-
-Requirements:
-
-- Node.js 20 or later
-- npm
-
-```bash
-npm install
-npm run dev
-```
-
-Primary checks:
-
-```bash
-npm run typecheck
-npm run check:repository-hygiene
-npm run verify:registry:main-wire-v3
-npm run test:fast
-npm run test:pr
-npm run build
-```
-
-Audit test-suite ownership:
-
-```bash
-npm run test:suites:audit
-```
-
-## Main directories
-
-```text
-studio/contracts/v2/          current Studio domain contracts
-studio/application/           authoring command boundary
-studio/infrastructure/model/  exact model registry implementation
-studio/integrations/          exact model-specific Studio adapters
-studio/composition/           registry/default application composition
-studio/workers/               generic live simulation Worker boundary
-supabase/                      Auth, registry, and content release spine
-engine/                       numerical model and runtime
-docs/studio/                  current Studio design
-docs/myocardium/              V3 research and verification documents
-data/myocardium/              machine-readable research artifacts
-__tests__/                    application and runtime tests
-```
-
-## Change policy
-
-- Route new Studio work through the V2 contracts.
-- Do not add fallback readers, dual writes, or compatibility aliases for the
-  removed content model.
-- Register a new `modelId` whenever model behavior, schema, codec, catalog, or
-  admission changes.
-- Official content must pin an exact registered model.
-- Consult Git history instead of restoring superseded design into the working
-  tree.
+CircleHeart is an ongoing project for hemodynamic education, knowledge sharing, and continuous mathematical model development. Feedback and suggestions are welcome through [GitHub Issues](https://github.com/g960059/0DSimDemo/issues).

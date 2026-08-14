@@ -2,172 +2,52 @@
 
 # CircleHeart
 
-CircleHeart は、研究・教育向けの 0D 閉ループ循環動態シミュレーションと、
-Experiment authoring / Reader 体験を開発する pre-release プロジェクトです。
+CircleHeartは、循環動態を**読んで理解し、動かして確かめ、共有する**ための教育・研究プラットフォームです。
 
-現在はユーザー 0・本番データ 0 の直接切り替え期間です。旧 Case / Lesson /
-Studio V1 のデータモデルを互換維持せず、新しい exact-model registry と
-Experiment / Snapshot / Placement 構造へ置き換えています。削除した設計や
-実装は Git 履歴から参照できます。
+[CircleHeartを開く](https://www.circleheart.dev/) · [記事を読む](https://www.circleheart.dev/ja/articles) · [シミュレーションを始める](https://www.circleheart.dev/ja/experiments/new)
 
-## 現在の正典
+## 循環動態を、説明できる理解へ
 
-Studio のデータ構造と所有境界は
-[`docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md`](docs/studio/DESIGN-STUDIO-003-experiment-data-architecture.md)
-を正典とし、Experiment / Article / Briefing / ReaderのIAは
-[`docs/studio/DESIGN-STUDIO-004-reader-briefing-experiment-ia.md`](docs/studio/DESIGN-STUDIO-004-reader-briefing-experiment-ia.md)
-をactive companionとします。
+血圧や心拍出量などの数値を覚えるだけでは、循環の変化を十分に理解できません。CircleHeartでは、解説記事を読みながら、その場でシミュレーションを操作できます。前負荷、後負荷、収縮性などを変え、圧波形や圧容積（PV）関係、各種指標がどう動くかを観察します。
 
-中心となる構造は次のとおりです。
+主な使い方は次のとおりです。
 
-```text
-RegisteredModel(modelId)
+- 記事とガイド付きシミュレーションで、循環動態の基本を学ぶ
+- 病態や介入を再現し、複数の条件を比較する
+- グラフと指標を一緒に見ながら、変化の理由を考える
+- 作成したシミュレーションや知見を保存し、共有する
 
-ExperimentSession (ephemeral, mutable; operated in Workbench)
-  └─ ExperimentContent
-       ├─ ScenarioCapture[] = fixture + checkpoint
-       └─ ExperimentSurface = graphs + outputs + controls + one note
+## 初学者から研究者まで
 
-Experiment (explicitly saved, mutable by version-checked Save)
-  └─ ExperimentContent
+CircleHeartは、初期研修医や臨床工学技士など、循環動態を学び始めた方から、循環器・麻酔・集中治療に携わる後期研修医や専門医、循環動態を研究する方までを対象としています。
 
-ExperimentSnapshot (neutral, immutable, admitted)
-  └─ ExperimentContent
+- **学び始めた方**：記事の問いに答え、変化を予測してからシミュレーションで確かめる
+- **臨床経験のある方**：病態や介入を比較し、複数の指標から循環を読み解く
+- **研究者**：モデルの仮定と限界を検討し、新しい表現や検証につなげる
 
-ExperimentPublication = public pointer → snapshotId
-ExperimentPlacement = snapshotId + Briefing + title/caption
-```
+## 数理モデルへの考え方
 
-主な判断:
+CircleHeartは、全身循環を少数の区画と関係式にまとめた数理モデルを用いています。モデルを複雑にすること自体は目的ではありません。
 
-- `modelId` は equations、runtime、solver、fixture schema、checkpoint
-  codec、catalog、Snapshot admission を固定する exact immutable identity
-- package integrity は registry 登録時にのみ検査し、client runtime は
-  registry を信頼する
-- parameter変更 action はfixtureへ反映された時点で役目を終え、durable
-  `ParameterSet` は作らない
-- Preset、Experiment、Snapshot の Scenario は `fixture + checkpoint` を一体で持つ
-- Experiment は未settledでも保存でき、Snapshot admissionはdetached forkで
-  exact restore、1周期のfinite/conservation/event検査を行う
-- admissionはsettlementを要求せず、captureしたcheckpointを書き換えない
-- immutable版は数値revisionではなく`snapshotId`で識別する
-- portable Snapshotはsource/parent/head lineageや用途kindを持たない
-- 記事内PlacementがBriefingを所有し、中立なSnapshotをpinする
-- `/experiments/new`はIDを持たず、最初の明示Save成功時だけ`experimentId`を発行する
-- Snapshot/PV/Starlingはatomic capture後すぐliveを再開し、上限付きwarm Worker poolで処理する
-- Workbenchを開くだけではMy Experimentsへ保存しない
-- settlement、numerical health、input epoch、live samplesは永続化しない
+条件を変えても安定して計算できること、計算量、将来のパラメータ推定を考慮しながら、多様な症例を表現できる十分な自由度を持つ、生理学的・物理学的に妥当な縮約モデルを目指しています。
 
-## V3直接切り替えの現在地
+開発では、次の点を重視します。
 
-公式Scenario Preset、Experiment、記事、Lessonはまだ作成しません。
+- **説明できること**：変化の理由を、生理学的な関係に沿ってたどれる
+- **対話的に動かせること**：一般的な端末でも、操作しながら結果を確認できる
+- **検証できること**：再現できる現象だけでなく、仮定と限界も明らかにする
+- **拡張できること**：教育、研究、将来のパラメータ推定に継続して利用できる
 
-完了済み:
+## 教育とモデル開発をつなぐ
 
-1. `MainWireIntegratedModelTransactionV3`のcanonical fixture、exact
-   checkpoint、output、accepted-boundary captureをmodel package化
-2. exact development `modelId`でregistry admission境界へ接続
-3. registryを信頼するclient catalogからdefault modelとして解決
-4. generic Worker経由でWorkbenchのlive simulationをautostart
-5. 全Snapshot共通のone-cycle public-executable admissionを接続
-6. explicit Saveで全Scenarioの`fixture + checkpoint`を保存し、admitted
-   Snapshotを作成するauthoring bridgeを接続
-7. Placement-owned Briefing、Article Editor / Library / ReaderとSnapshot pinを接続
-   Placementを接続
-8. 記事内で中央のPlacementだけをlive ownerにし、そのBriefingで可視な全Scenarioを
-   persistent Worker laneで同時実行
-9. graph数からborderless inflow、right-drawer peek、fullscreenを導出し、Readerから
-   play/pauseと許可されたcontrol操作を提供
+CircleHeartは、教育コンテンツと数理モデルを別々に作るのではなく、互いに育てていくことを目指しています。記事や症例を作る過程で見つかった問いをモデルの改善につなげ、モデル開発で得られた知見を新しい記事やシミュレーションとして共有します。
 
-残作業:
+## 利用上の注意
 
-1. graph complexityを含む表示extentの重み付けと、非active Placement向けの
-   disposable one-beat replay cache
-2. standard ABIの次期exact releaseでhistorical loadを実地検証
-3. production redirect、Google OAuth、匿名利用のabuse control、定期GCを設定
-4. その後に公式Preset、Experiment、記事、Lessonを制作
+CircleHeartは教育・研究支援を目的としており、医療機器ではありません。診断、治療方針、薬剤投与量の決定、患者個別の予測には使用しないでください。
 
-Supabaseを設定したbuildでは、Experiment / Snapshot / Articleのread/write、
-publication pointer、exact model registryをremote backendが一貫して所有します。
-browser storeはSupabase未設定のtest/development fallbackに限定され、dual-writeは
-行いません。
+シミュレーションの結果は、モデルに含まれる仮定と入力条件から得られたものです。実際の患者では、モデルが扱わない生理機構、個体差、時間経過、治療の影響が加わります。数値を臨床的な事実として扱わず、各コンテンツに示された前提と限界を確認してください。
 
-それ以前のcase catalog、lesson document、numeric Experiment revision、
-Working Set / Reader Brief、certification artifactは製品データの正典では
-ありません。
+## プロジェクトについて
 
-## 数値モデルと研究資料
-
-`engine/`、`tools/`、`data/myocardium/`、`docs/myocardium/`には、
-V3統合に必要な数値実装、verification、研究artifactが含まれます。
-これらはStudioのdurable contentとは別の境界です。研究artifactのintegrity
-digestや算出結果をExperimentへコピーしません。
-
-現在のWorkbenchは登録済みexact V3 development packageを実際にstepする
-開発surfaceです。durable `ParameterSet`はなく、登録済みControl catalogが
-authoring可能なparameterを公開します。engine側の
-`releaseReady` / `simulationReady` claimはfalseのままです。
-
-## 重要: 研究・教育目的のみ
-
-CircleHeart は医療機器ではありません。診断、治療方針、患者個別予測、
-薬剤投与量の決定には使用しないでください。
-
-0D lumped-parameter modelであるため、3D血流、局所壁運動、患者固有形態、
-詳細な自律神経・臓器連関などは表現しません。数値結果は検証対象であり、
-固定された生理定数や臨床的事実ではありません。
-
-## 開発
-
-前提:
-
-- Node.js 20以上
-- npm
-
-```bash
-npm install
-npm run dev
-```
-
-主要な検査:
-
-```bash
-npm run typecheck
-npm run check:repository-hygiene
-npm run verify:registry:main-wire-v3
-npm run test:fast
-npm run test:pr
-npm run build
-```
-
-テストsuiteの登録整合性:
-
-```bash
-npm run test:suites:audit
-```
-
-## 主要ディレクトリ
-
-```text
-studio/contracts/v2/          Studioの現行domain contracts
-studio/application/           authoring command boundary
-studio/infrastructure/model/  exact model registry implementation
-studio/integrations/          exact model-specific Studio adapters
-studio/composition/           registry/default application composition
-studio/workers/               generic live simulation Worker boundary
-supabase/                      Auth・registry・content release spine
-engine/                       numerical model/runtime
-docs/studio/                  Studioの現行設計
-docs/myocardium/              V3研究・検証ドキュメント
-data/myocardium/              machine-readable research artifacts
-__tests__/                    application/runtime tests
-```
-
-## 変更方針
-
-- 新しいStudio機能はV2 contractsを経由する
-- 旧構造へfallback、dual-write、compatibility aliasを追加しない
-- model behavior、schema、codec、catalog、admissionが変わる場合は新しい
-  `modelId`を登録する
-- official contentはregistered exact modelを必ずpinする
-- 古い設計が必要な場合は現行ツリーへ戻さず、Git履歴を参照する
+CircleHeartは、教育・ナレッジ共有と、継続的な循環動態の数理モデル開発のためのプロジェクトです。ご意見や改善案は[GitHub Issues](https://github.com/g960059/0DSimDemo/issues)で受け付けています。
