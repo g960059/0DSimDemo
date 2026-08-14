@@ -78,18 +78,18 @@ export function compileExecutionPlanV1(
       "states",
     ], "model component");
   }
-  const componentIds = uniqueIds(
+  uniqueIds(
     components.map(({ componentId }) => componentId),
     "component",
   );
-  const componentIdSet = new Set(componentIds);
   const stateLayout = compileStateLayout(components);
   const stateById = new Map(
     stateLayout.slots.map((slot) => [slot.stateId, slot] as const),
   );
   const hydraulicGraph = compileHydraulicGraph(
     definition,
-    componentIdSet,
+    new Map(components.map((component, index) =>
+      [component.componentId, index] as const)),
     stateById,
   );
   const componentKernelById = new Map(
@@ -217,7 +217,7 @@ function compileStateLayout(
 
 function compileHydraulicGraph(
   definition: ModelDefinitionV1,
-  componentIds: ReadonlySet<string>,
+  componentBlockIndexById: ReadonlyMap<string, number>,
   stateById: ReadonlyMap<string, ExecutionPlanStateSlotV1>,
 ): ExecutionPlanDescriptorV1["hydraulicGraph"] {
   const nodes = canonicalOrdinalSequence(
@@ -236,6 +236,7 @@ function compileHydraulicGraph(
   const nodeIndexById = new Map(
     nodes.map((node, index) => [node.nodeId, index] as const),
   );
+  const nodeComponentBlockIndices: number[] = [];
   const storageStateLogicalIndices = nodes.map((node) => {
     assertExactDataRecordV1(node, [
       "componentId",
@@ -244,9 +245,21 @@ function compileHydraulicGraph(
       "storageStateId",
     ], "hydraulic node");
     assertPortableId(node.nodeId, "hydraulic nodeId");
-    assertKnownComponent(componentIds, node.componentId, node.nodeId);
-    return requiredContinuousState(stateById, node.storageStateId,
-      `hydraulic node ${node.nodeId}`).logicalIndex;
+    const componentBlockIndex = requiredComponentBlockIndexV1(
+      componentBlockIndexById,
+      node.componentId,
+      node.nodeId,
+    );
+    const state = requiredContinuousState(stateById, node.storageStateId,
+      `hydraulic node ${node.nodeId}`);
+    if (state.componentId !== node.componentId) {
+      throw new Error(
+        `hydraulic node ${node.nodeId} storage state is owned by `
+          + `${state.componentId}, not ${node.componentId}`,
+      );
+    }
+    nodeComponentBlockIndices.push(componentBlockIndex);
+    return state.logicalIndex;
   });
 
   const paths = canonicalOrdinalSequence(
@@ -266,6 +279,7 @@ function compileHydraulicGraph(
   uniqueIds(paths.map(({ pathId }) => pathId), "hydraulic path");
   const upstreamNodeIndices: number[] = [];
   const downstreamNodeIndices: number[] = [];
+  const pathComponentBlockIndices: number[] = [];
   for (const path of paths) {
     assertExactDataRecordV1(path, [
       "componentId",
@@ -277,7 +291,11 @@ function compileHydraulicGraph(
     ], "hydraulic path");
     assertPortableId(path.pathId, "hydraulic pathId");
     assertPortableId(path.kernelId, "hydraulic path kernelId");
-    assertKnownComponent(componentIds, path.componentId, path.pathId);
+    pathComponentBlockIndices.push(requiredComponentBlockIndexV1(
+      componentBlockIndexById,
+      path.componentId,
+      path.pathId,
+    ));
     const upstream = nodeIndexById.get(path.upstreamNodeId);
     const downstream = nodeIndexById.get(path.downstreamNodeId);
     if (upstream === undefined || downstream === undefined) {
@@ -344,13 +362,27 @@ function compileHydraulicGraph(
 
   return Object.freeze({
     nodeIds: Object.freeze(nodes.map(({ nodeId }) => nodeId)),
+    nodeComponentBlockIndices: Object.freeze(nodeComponentBlockIndices),
     storageStateLogicalIndices: Object.freeze(storageStateLogicalIndices),
     pathIds: Object.freeze(paths.map(({ pathId }) => pathId)),
+    pathComponentBlockIndices: Object.freeze(pathComponentBlockIndices),
     upstreamNodeIndices: Object.freeze(upstreamNodeIndices),
     downstreamNodeIndices: Object.freeze(downstreamNodeIndices),
     pathKernelIds: Object.freeze(paths.map(({ kernelId }) => kernelId)),
     conservationPools: Object.freeze(conservationPools),
   });
+}
+
+function requiredComponentBlockIndexV1(
+  componentBlockIndexById: ReadonlyMap<string, number>,
+  componentId: string,
+  ownerId: string,
+): number {
+  const index = componentBlockIndexById.get(componentId);
+  if (index === undefined) {
+    throw new Error(`${ownerId} references unknown component ${componentId}`);
+  }
+  return index;
 }
 
 function compileSolveGroups(
@@ -628,16 +660,6 @@ function requiredContinuousState(
     throw new Error(`${owner} requires continuous state ${stateId}`);
   }
   return state;
-}
-
-function assertKnownComponent(
-  componentIds: ReadonlySet<string>,
-  componentId: string,
-  ownerId: string,
-): void {
-  if (!componentIds.has(componentId)) {
-    throw new Error(`${ownerId} references unknown component ${componentId}`);
-  }
 }
 
 function assertPortableId(value: string, label: string): void {

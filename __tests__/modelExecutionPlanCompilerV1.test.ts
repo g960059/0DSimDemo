@@ -13,6 +13,7 @@ import {
   bindExecutionPlanV1,
   bindExecutionPlanSolveSystemRuntimeV1,
   prepareBoundExecutionPlanSolveGroupV1,
+  resolveBoundExecutionPlanHydraulicDispatchV1,
   resolveBoundExecutionPlanStateDispatchV1,
   resolveBoundExecutionPlanSolveDispatchV1,
   synchronizeBoundExecutionPlanAcceptedStateV1,
@@ -36,6 +37,10 @@ import {
   COUPLED_HEMODYNAMICS_LAYOUT_V1,
   MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
 } from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
+import {
+  bindMainWireFiveWallCoupledExecutionPlanRuntimeV1,
+  resolveMainWireHydraulicExecutionPlanDispatchV1,
+} from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
 import generatedExecutionPlan from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 
@@ -184,12 +189,18 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     ]);
     expect(plan.hydraulicGraph.nodeIds.slice(0, 6))
       .toEqual(["LV", "LA", "RV", "RA", "Ao", "SA"]);
+    expect(plan.hydraulicGraph.nodeComponentBlockIndices.slice(0, 15))
+      .toEqual(Array(15).fill(1));
+    expect(plan.hydraulicGraph.nodeComponentBlockIndices.slice(15))
+      .toEqual(Array(16).fill(2));
     const coronaryInlet = plan.hydraulicGraph.pathIds.indexOf("Ao_LAD.Art");
     expect(coronaryInlet).toBeGreaterThanOrEqual(0);
     expect(plan.hydraulicGraph.upstreamNodeIndices[coronaryInlet])
       .toBe(plan.hydraulicGraph.nodeIds.indexOf("Ao"));
     expect(plan.hydraulicGraph.downstreamNodeIndices[coronaryInlet])
       .toBe(plan.hydraulicGraph.nodeIds.indexOf("LAD.Art"));
+    expect(plan.hydraulicGraph.pathComponentBlockIndices[coronaryInlet])
+      .toBe(2);
     expect(JSON.stringify(plan)).not.toContain("function");
     expect(JSON.stringify(plan)).not.toContain("sha256");
     expect(JSON.stringify(plan)).not.toContain("moduleUrl");
@@ -267,6 +278,40 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       .toBe(compiled.hydraulicGraph.nodeIds.indexOf("VC"));
     expect(compiled.hydraulicGraph.downstreamNodeIndices[bypassIndex])
       .toBe(compiled.hydraulicGraph.nodeIds.indexOf("LA"));
+    expect(compiled.hydraulicGraph.pathComponentBlockIndices[bypassIndex])
+      .toBe(1);
+    const bound = bindExecutionPlanV1(compiled, {
+      ...mainWireKernelCatalog(),
+      hydraulicPathKernelIds: [
+        ...mainWireKernelCatalog().hydraulicPathKernelIds,
+        "synthetic-flow/resistive",
+      ],
+    });
+    const hydraulicDispatch =
+      resolveBoundExecutionPlanHydraulicDispatchV1(bound);
+    expect(hydraulicDispatch.paths.at(-1))
+      .toEqual({
+        pathId: "synthetic.VC_LA-bypass",
+        componentId: "noncoronary-circulation",
+        componentKernelId: "noncoronary-backward-euler-kernel-v1",
+        componentKernelBindingOrdinal: 1,
+        upstreamNodeIndex: compiled.hydraulicGraph.nodeIds.indexOf("VC"),
+        downstreamNodeIndex: compiled.hydraulicGraph.nodeIds.indexOf("LA"),
+        pathKernelId: "synthetic-flow/resistive",
+        pathKernelBindingOrdinal:
+          mainWireKernelCatalog().hydraulicPathKernelIds.length,
+      });
+    expect(() => bindMainWireFiveWallCoupledExecutionPlanRuntimeV1({
+      dispatch: resolveBoundExecutionPlanSolveDispatchV1(
+        bound,
+        "coupled-hemodynamics",
+      ),
+      hydraulicDispatch,
+      workspace: prepareBoundExecutionPlanSolveGroupV1(
+        bound,
+        "coupled-hemodynamics",
+      ),
+    })).toThrow(/hydraulic execution-plan dimensions drifted/);
   });
 
   it("fails closed on broken topology and ordinal contracts", () => {
@@ -477,6 +522,29 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
         },
       ],
     });
+    const hydraulicDispatch =
+      resolveBoundExecutionPlanHydraulicDispatchV1(bound);
+    expect(hydraulicDispatch.nodes).toHaveLength(31);
+    expect(hydraulicDispatch.paths).toHaveLength(37);
+    expect(hydraulicDispatch.nodes[0]).toEqual({
+      nodeId: "LV",
+      componentId: "noncoronary-circulation",
+      componentKernelId: "noncoronary-backward-euler-kernel-v1",
+      componentKernelBindingOrdinal: 1,
+      storageStateLogicalIndex: 3,
+    });
+    expect(hydraulicDispatch.paths[15]).toEqual({
+      pathId: "Ao_LAD.Art",
+      componentId: "coronary-circulation",
+      componentKernelId: "coronary-backward-euler-kernel-v2",
+      componentKernelBindingOrdinal: 2,
+      upstreamNodeIndex: 4,
+      downstreamNodeIndex: 15,
+      pathKernelId: "coronary-flow/large-arterial",
+      pathKernelBindingOrdinal: 3,
+    });
+    expect(() => resolveBoundExecutionPlanHydraulicDispatchV1({ ...bound }))
+      .toThrow(/requires a bound plan/);
     const stateDispatch = resolveBoundExecutionPlanStateDispatchV1(bound);
     expect(stateDispatch.slots[0]).toEqual({
       stateId: "accepted.timeSec",
@@ -508,6 +576,8 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     );
 
     expect(boundInput.workspace).toBe(workspace);
+    expect(boundInput.hydraulicDispatch)
+      .toBe(resolveBoundExecutionPlanHydraulicDispatchV1(bound));
     expect(boundInput.dispatch.systemKernelId)
       .toBe(MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID);
     expect(() => bindExecutionPlanSolveSystemRuntimeV1(
@@ -528,6 +598,39 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
         bind: (input) => input,
       })],
     )).toThrow(/binding order drifted/);
+  });
+
+  it("admits exact Main Wire topology and rejects structural lookalikes", () => {
+    const descriptor = compileMainWire();
+    const bound = bindExecutionPlanV1(descriptor, mainWireKernelCatalog());
+    const workspace = prepareBoundExecutionPlanSolveGroupV1(
+      bound,
+      "coupled-hemodynamics",
+    );
+    const dispatch = resolveBoundExecutionPlanSolveDispatchV1(
+      bound,
+      "coupled-hemodynamics",
+    );
+    const hydraulicDispatch =
+      resolveBoundExecutionPlanHydraulicDispatchV1(bound);
+    const admitted = bindMainWireFiveWallCoupledExecutionPlanRuntimeV1({
+      dispatch,
+      hydraulicDispatch,
+      workspace,
+    });
+
+    expect(resolveMainWireHydraulicExecutionPlanDispatchV1(admitted))
+      .toBe(hydraulicDispatch);
+    expect(() => bindMainWireFiveWallCoupledExecutionPlanRuntimeV1({
+      dispatch,
+      hydraulicDispatch: {
+        ...hydraulicDispatch,
+        paths: hydraulicDispatch.paths.map((path, index) => index === 0
+          ? { ...path, downstreamNodeIndex: 1 }
+          : path),
+      },
+      workspace,
+    })).toThrow(/must be compiler-bound/);
   });
 
   it("synchronizes one complete accepted view atomically and checks its ledger", () => {
@@ -638,6 +741,26 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
           : block),
       }],
     })).toThrow(/component ownership mismatch/);
+    expect(() => validateAndOwnExecutionPlanDescriptorV1({
+      ...descriptor,
+      hydraulicGraph: {
+        ...descriptor.hydraulicGraph,
+        nodeComponentBlockIndices:
+          descriptor.hydraulicGraph.nodeComponentBlockIndices.map(
+            (componentIndex, index) => index === 0 ? 2 : componentIndex,
+          ),
+      },
+    })).toThrow(/node component ownership is inconsistent/);
+    expect(() => validateAndOwnExecutionPlanDescriptorV1({
+      ...descriptor,
+      hydraulicGraph: {
+        ...descriptor.hydraulicGraph,
+        pathComponentBlockIndices:
+          descriptor.hydraulicGraph.pathComponentBlockIndices.map(
+            (componentIndex, index) => index === 0 ? 99 : componentIndex,
+          ),
+      },
+    })).toThrow(/path endpoints or component ownership are invalid/);
     expect(() => bindExecutionPlanV1(descriptor, {
       ...catalog,
       componentKernelIds: catalog.componentKernelIds.slice(1),

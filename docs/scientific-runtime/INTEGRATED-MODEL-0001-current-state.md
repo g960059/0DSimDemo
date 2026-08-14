@@ -32,10 +32,10 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current branch-local Standard candidate is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-49
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-52
 ```
 
-Standard-49 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
+Standard-52 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
 exact artifact and binds one Worker-local typed plan per Scenario
 during initialization. An atomic branch rebuild gives every Scenario in the
 candidate exact session fresh nonaliasing storage, so old and candidate
@@ -44,7 +44,7 @@ contains the generated descriptor and binder, not the compiler or
 `ModelDefinitionV1`. During initialization, every compiled `stateId` resolves
 its accepted-authority JSON pointer to one numeric typed-image slot. The
 resulting mapping is private and opaque, and the hot path performs no pointer
-or string lookup. Standard-49 uses that mapping for both sampled plan
+or string lookup. Standard-52 uses that mapping for both sampled plan
 synchronization and its live coupled-solver adapter. At sampled presentation
 and control boundaries, it copies the existing authority's
 100-slot hemodynamic view into the owning Scenario plan, checks finite/boolean
@@ -76,6 +76,17 @@ is no longer duplicated in Studio runtime wiring. Unknown gathering,
 component residual placement, and converged-candidate materialization consume
 the same Scenario-owned ranges as the Newton workspace. A context/workspace
 layout mismatch fails before the first residual evaluation.
+
+The descriptor also retains each hydraulic node and path's compiler-derived
+component owner. The bound plan resolves node ownership, storage slots,
+endpoints, component kernels, path kernels, and conservation pools once and
+passes that immutable dispatch into the model-owned solve-system binder. The
+current Main Wire kernel deliberately validates the existing 31-node/37-path
+topology before accepting the workspace; component equations remain unchanged.
+This creates a fail-closed topology seam for later bypasses and compartments
+without claiming that the present static equations already execute arbitrary
+graphs.
+
 The numerical policy now also names the model-owned coupled-system kernel.
 The neutral runtime resolves that identity to an exact-artifact binder by its
 compiler-bound ordinal at Scenario initialization. The binder validates the

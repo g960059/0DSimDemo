@@ -44,6 +44,37 @@ export type BoundExecutionPlanStateDispatchV1 = Readonly<{
   slots: readonly BoundExecutionPlanStateSlotDispatchV1[];
 }>;
 
+export type BoundExecutionPlanHydraulicNodeDispatchV1 = Readonly<{
+  nodeId: string;
+  componentId: string;
+  componentKernelId: string;
+  componentKernelBindingOrdinal: number;
+  storageStateLogicalIndex: number;
+}>;
+
+export type BoundExecutionPlanHydraulicPathDispatchV1 = Readonly<{
+  pathId: string;
+  componentId: string;
+  componentKernelId: string;
+  componentKernelBindingOrdinal: number;
+  upstreamNodeIndex: number;
+  downstreamNodeIndex: number;
+  pathKernelId: string;
+  pathKernelBindingOrdinal: number;
+}>;
+
+export type BoundExecutionPlanHydraulicDispatchV1 = Readonly<{
+  definitionId: string;
+  nodes: readonly BoundExecutionPlanHydraulicNodeDispatchV1[];
+  paths: readonly BoundExecutionPlanHydraulicPathDispatchV1[];
+  conservationPools: readonly Readonly<{
+    poolId: string;
+    ledgerStateLogicalIndex: number;
+    memberStateLogicalIndices: readonly number[];
+    dependentStateLogicalIndex: number;
+  }>[];
+}>;
+
 /**
  * Worker-local, session-independent allocation produced once at initialization.
  * Typed arrays are intentionally mutable scratch, but the bound object never
@@ -131,6 +162,7 @@ export type ExecutionPlanSolveSystemRuntimeBindingV1<TResult> = Readonly<{
   systemKernelId: string;
   bind(input: Readonly<{
     dispatch: BoundExecutionPlanSolveDispatchV1;
+    hydraulicDispatch: BoundExecutionPlanHydraulicDispatchV1;
     workspace: BoundExecutionPlanNewtonWorkspaceV1;
   }>): TResult;
 }>;
@@ -144,6 +176,7 @@ type BoundExecutionPlanSolveGroupMetadataV1 = Readonly<{
 
 type BoundExecutionPlanMetadataV1 = Readonly<{
   stateDispatch: BoundExecutionPlanStateDispatchV1;
+  hydraulicDispatch: BoundExecutionPlanHydraulicDispatchV1;
   continuousLogicalIndices: readonly number[];
   booleanLogicalIndices: readonly number[];
   conservationPools: readonly Readonly<{
@@ -157,6 +190,7 @@ const BOUND_EXECUTION_PLAN_METADATA_V1 = new WeakMap<
   object,
   BoundExecutionPlanMetadataV1
 >();
+const BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1 = new WeakSet<object>();
 
 const PORTABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
 const PORTABLE_RUNTIME_ID = /^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/;
@@ -229,6 +263,7 @@ export function validateAndOwnExecutionPlanDescriptorV1(
     failV1("$.stateLayout", "block or slot cardinality is inconsistent");
   }
   const componentIds = new Set<string>();
+  const componentIdsByBlockIndex: string[] = [];
   const componentKernelById = new Map<string, string>();
   const componentByLogicalIndex: string[] = [];
   const componentKernelIds: string[] = [];
@@ -253,6 +288,7 @@ export function validateAndOwnExecutionPlanDescriptorV1(
       failV1(`$.stateLayout.blocks[${index}]`, "duplicate componentId");
     }
     componentIds.add(componentId);
+    componentIdsByBlockIndex.push(componentId);
     componentKernelById.set(componentId, kernelId);
     componentKernelIds.push(kernelId);
     const start = nonnegativeIntegerV1(
@@ -351,7 +387,9 @@ export function validateAndOwnExecutionPlanDescriptorV1(
   exactKeysV1(graph, [
     "conservationPools",
     "downstreamNodeIndices",
+    "nodeComponentBlockIndices",
     "nodeIds",
+    "pathComponentBlockIndices",
     "pathIds",
     "pathKernelIds",
     "storageStateLogicalIndices",
@@ -362,8 +400,16 @@ export function validateAndOwnExecutionPlanDescriptorV1(
     graph.storageStateLogicalIndices,
     "$.hydraulicGraph.storageStateLogicalIndices",
   );
+  const nodeComponentBlockIndices = integerArrayV1(
+    graph.nodeComponentBlockIndices,
+    "$.hydraulicGraph.nodeComponentBlockIndices",
+  );
   uniqueV1(nodeIds, "$.hydraulicGraph.nodeIds");
-  if (nodeIds.length === 0 || storageIndices.length !== nodeIds.length) {
+  if (
+    nodeIds.length === 0
+    || storageIndices.length !== nodeIds.length
+    || nodeComponentBlockIndices.length !== nodeIds.length
+  ) {
     failV1("$.hydraulicGraph", "node arrays have inconsistent lengths");
   }
   storageIndices.forEach((logicalIndex, index) => {
@@ -372,6 +418,18 @@ export function validateAndOwnExecutionPlanDescriptorV1(
       slots,
       `$.hydraulicGraph.storageStateLogicalIndices[${index}]`,
     );
+    const componentBlockIndex = nodeComponentBlockIndices[index]!;
+    if (
+      componentBlockIndex < 0
+      || componentBlockIndex >= blocks.length
+      || componentIdsByBlockIndex[componentBlockIndex]
+        !== componentByLogicalIndex[logicalIndex]
+    ) {
+      failV1(
+        `$.hydraulicGraph.nodeComponentBlockIndices[${index}]`,
+        "node component ownership is inconsistent",
+      );
+    }
   });
   const pathIds = portableIdArrayV1(graph.pathIds, "$.hydraulicGraph.pathIds");
   const pathKernelIds = portableIdArrayV1(
@@ -386,23 +444,34 @@ export function validateAndOwnExecutionPlanDescriptorV1(
     graph.downstreamNodeIndices,
     "$.hydraulicGraph.downstreamNodeIndices",
   );
+  const pathComponentBlockIndices = integerArrayV1(
+    graph.pathComponentBlockIndices,
+    "$.hydraulicGraph.pathComponentBlockIndices",
+  );
   uniqueV1(pathIds, "$.hydraulicGraph.pathIds");
   if (
     pathIds.length !== pathKernelIds.length
     || pathIds.length !== upstream.length
     || pathIds.length !== downstream.length
+    || pathIds.length !== pathComponentBlockIndices.length
   ) {
     failV1("$.hydraulicGraph", "path arrays have inconsistent lengths");
   }
   upstream.forEach((nodeIndex, index) => {
+    const componentBlockIndex = pathComponentBlockIndices[index]!;
     if (
       nodeIndex < 0
       || nodeIndex >= nodeIds.length
       || downstream[index]! < 0
       || downstream[index]! >= nodeIds.length
       || nodeIndex === downstream[index]
+      || componentBlockIndex < 0
+      || componentBlockIndex >= blocks.length
     ) {
-      failV1(`$.hydraulicGraph.pathIds[${index}]`, "path endpoints are invalid");
+      failV1(
+        `$.hydraulicGraph.pathIds[${index}]`,
+        "path endpoints or component ownership are invalid",
+      );
     }
   });
   const pools = arrayV1(
@@ -651,6 +720,7 @@ export function bindExecutionPlanV1(
           storageKind: slot.storageKind,
         }))),
     }),
+    hydraulicDispatch: createBoundHydraulicDispatchV1(descriptor, bound),
     continuousLogicalIndices: Object.freeze(descriptor.stateLayout.slots
       .filter(({ storageKind }) => storageKind === "continuous-f64")
       .sort((left, right) => left.storageIndex - right.storageIndex)
@@ -689,6 +759,36 @@ export function resolveBoundExecutionPlanStateDispatchV1(
     throw new Error("Execution plan state dispatch requires a bound plan");
   }
   return metadata.stateDispatch;
+}
+
+/**
+ * Resolves immutable compiler-owned hydraulic topology, component ownership,
+ * and exact kernel ordinals. The dispatch is admitted only for the original
+ * Worker-local bound plan, never for a structurally similar clone.
+ */
+export function resolveBoundExecutionPlanHydraulicDispatchV1(
+  bound: BoundExecutionPlanV1,
+): BoundExecutionPlanHydraulicDispatchV1 {
+  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
+  if (metadata === undefined) {
+    throw new Error("Execution plan hydraulic dispatch requires a bound plan");
+  }
+  return metadata.hydraulicDispatch;
+}
+
+/** Rejects structural lookalikes at the model-owned kernel boundary. */
+export function assertBoundExecutionPlanHydraulicDispatchV1(
+  value: unknown,
+): asserts value is BoundExecutionPlanHydraulicDispatchV1 {
+  if (
+    (typeof value !== "object" && typeof value !== "function")
+    || value === null
+    || !BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1.has(value)
+  ) {
+    throw new Error(
+      "Execution plan hydraulic dispatch must be compiler-bound",
+    );
+  }
 }
 
 /**
@@ -796,8 +896,94 @@ export function bindExecutionPlanSolveSystemRuntimeV1<TResult>(
   }
   return binding.bind(Object.freeze({
     dispatch,
+    hydraulicDispatch: resolveBoundExecutionPlanHydraulicDispatchV1(bound),
     workspace,
   }));
+}
+
+function createBoundHydraulicDispatchV1(
+  descriptor: ExecutionPlanDescriptorV1,
+  bound: BoundExecutionPlanV1,
+): BoundExecutionPlanHydraulicDispatchV1 {
+  const componentBindings = Object.freeze(descriptor.stateLayout.blocks.map(
+    (block, componentBlockIndex) => {
+      const bindingOrdinal =
+        bound.componentKernelBindingOrdinals[componentBlockIndex];
+      if (
+        bindingOrdinal === undefined
+        || bound.bindingCatalog.componentKernelIds[bindingOrdinal]
+          !== block.kernelId
+      ) {
+        throw new Error("Execution plan hydraulic component binding drifted");
+      }
+      return Object.freeze({
+        componentId: block.componentId,
+        componentKernelId: block.kernelId,
+        componentKernelBindingOrdinal: bindingOrdinal,
+      });
+    },
+  ));
+  const componentDispatch = (componentBlockIndex: number) => {
+    const component = componentBindings[componentBlockIndex];
+    if (component === undefined) {
+      throw new Error("Execution plan hydraulic component owner drifted");
+    }
+    return component;
+  };
+  const nodes = Object.freeze(descriptor.hydraulicGraph.nodeIds.map(
+    (nodeId, index) => Object.freeze({
+      nodeId,
+      ...componentDispatch(
+        descriptor.hydraulicGraph.nodeComponentBlockIndices[index]!,
+      ),
+      storageStateLogicalIndex:
+        descriptor.hydraulicGraph.storageStateLogicalIndices[index]!,
+    }),
+  ));
+  const paths = Object.freeze(descriptor.hydraulicGraph.pathIds.map(
+    (pathId, index) => {
+      const pathKernelId = descriptor.hydraulicGraph.pathKernelIds[index]!;
+      const pathKernelBindingOrdinal =
+        bound.hydraulicPathKernelBindingOrdinals[index]!;
+      if (
+        bound.bindingCatalog.hydraulicPathKernelIds[
+          pathKernelBindingOrdinal
+        ] !== pathKernelId
+      ) {
+        throw new Error("Execution plan hydraulic path binding drifted");
+      }
+      return Object.freeze({
+        pathId,
+        ...componentDispatch(
+          descriptor.hydraulicGraph.pathComponentBlockIndices[index]!,
+        ),
+        upstreamNodeIndex:
+          descriptor.hydraulicGraph.upstreamNodeIndices[index]!,
+        downstreamNodeIndex:
+          descriptor.hydraulicGraph.downstreamNodeIndices[index]!,
+        pathKernelId,
+        pathKernelBindingOrdinal,
+      });
+    },
+  ));
+  const dispatch = Object.freeze({
+    definitionId: descriptor.definitionId,
+    nodes,
+    paths,
+    conservationPools: Object.freeze(
+      descriptor.hydraulicGraph.conservationPools.map((pool) =>
+        Object.freeze({
+          poolId: pool.poolId,
+          ledgerStateLogicalIndex: pool.ledgerStateLogicalIndex,
+          memberStateLogicalIndices: Object.freeze([
+            ...pool.memberStateLogicalIndices,
+          ]),
+          dependentStateLogicalIndex: pool.dependentStateLogicalIndex,
+        })),
+    ),
+  });
+  BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1.add(dispatch);
+  return dispatch;
 }
 
 function createBoundSolveGroupMetadataV1(

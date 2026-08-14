@@ -30146,6 +30146,7 @@ const EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY = "runtime/execution-plan-ne
 const BOUND_EXECUTION_PLAN_V1_SCHEMA_ID = "circleheart-bound-execution-plan-v1";
 const EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID = "circleheart-execution-plan-accepted-state-synchronization-v1";
 const BOUND_EXECUTION_PLAN_METADATA_V1 = /* @__PURE__ */ new WeakMap();
+const BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1 = /* @__PURE__ */ new WeakSet();
 const PORTABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
 const MAXIMUM_EXECUTION_PLAN_DATA_DEPTH_V1 = 256;
 const NEWTON_F64_WORKSPACE_ROLES_V1 = Object.freeze([
@@ -30209,6 +30210,7 @@ function validateAndOwnExecutionPlanDescriptorV1(value) {
     failV1("$.stateLayout", "block or slot cardinality is inconsistent");
   }
   const componentIds = /* @__PURE__ */ new Set();
+  const componentIdsByBlockIndex = [];
   const componentKernelById = /* @__PURE__ */ new Map();
   const componentByLogicalIndex = [];
   let nextLogicalStart = 0;
@@ -30232,6 +30234,7 @@ function validateAndOwnExecutionPlanDescriptorV1(value) {
       failV1(`$.stateLayout.blocks[${index}]`, "duplicate componentId");
     }
     componentIds.add(componentId);
+    componentIdsByBlockIndex.push(componentId);
     componentKernelById.set(componentId, kernelId);
     const start = nonnegativeIntegerV1(
       block.logicalStart,
@@ -30322,7 +30325,9 @@ function validateAndOwnExecutionPlanDescriptorV1(value) {
   exactKeysV1(graph, [
     "conservationPools",
     "downstreamNodeIndices",
+    "nodeComponentBlockIndices",
     "nodeIds",
+    "pathComponentBlockIndices",
     "pathIds",
     "pathKernelIds",
     "storageStateLogicalIndices",
@@ -30333,8 +30338,12 @@ function validateAndOwnExecutionPlanDescriptorV1(value) {
     graph.storageStateLogicalIndices,
     "$.hydraulicGraph.storageStateLogicalIndices"
   );
+  const nodeComponentBlockIndices = integerArrayV1(
+    graph.nodeComponentBlockIndices,
+    "$.hydraulicGraph.nodeComponentBlockIndices"
+  );
   uniqueV1(nodeIds, "$.hydraulicGraph.nodeIds");
-  if (nodeIds.length === 0 || storageIndices.length !== nodeIds.length) {
+  if (nodeIds.length === 0 || storageIndices.length !== nodeIds.length || nodeComponentBlockIndices.length !== nodeIds.length) {
     failV1("$.hydraulicGraph", "node arrays have inconsistent lengths");
   }
   storageIndices.forEach((logicalIndex, index) => {
@@ -30343,6 +30352,13 @@ function validateAndOwnExecutionPlanDescriptorV1(value) {
       slots,
       `$.hydraulicGraph.storageStateLogicalIndices[${index}]`
     );
+    const componentBlockIndex = nodeComponentBlockIndices[index];
+    if (componentBlockIndex < 0 || componentBlockIndex >= blocks.length || componentIdsByBlockIndex[componentBlockIndex] !== componentByLogicalIndex[logicalIndex]) {
+      failV1(
+        `$.hydraulicGraph.nodeComponentBlockIndices[${index}]`,
+        "node component ownership is inconsistent"
+      );
+    }
   });
   const pathIds = portableIdArrayV1(graph.pathIds, "$.hydraulicGraph.pathIds");
   const pathKernelIds = portableIdArrayV1(
@@ -30357,13 +30373,21 @@ function validateAndOwnExecutionPlanDescriptorV1(value) {
     graph.downstreamNodeIndices,
     "$.hydraulicGraph.downstreamNodeIndices"
   );
+  const pathComponentBlockIndices = integerArrayV1(
+    graph.pathComponentBlockIndices,
+    "$.hydraulicGraph.pathComponentBlockIndices"
+  );
   uniqueV1(pathIds, "$.hydraulicGraph.pathIds");
-  if (pathIds.length !== pathKernelIds.length || pathIds.length !== upstream.length || pathIds.length !== downstream.length) {
+  if (pathIds.length !== pathKernelIds.length || pathIds.length !== upstream.length || pathIds.length !== downstream.length || pathIds.length !== pathComponentBlockIndices.length) {
     failV1("$.hydraulicGraph", "path arrays have inconsistent lengths");
   }
   upstream.forEach((nodeIndex, index) => {
-    if (nodeIndex < 0 || nodeIndex >= nodeIds.length || downstream[index] < 0 || downstream[index] >= nodeIds.length || nodeIndex === downstream[index]) {
-      failV1(`$.hydraulicGraph.pathIds[${index}]`, "path endpoints are invalid");
+    const componentBlockIndex = pathComponentBlockIndices[index];
+    if (nodeIndex < 0 || nodeIndex >= nodeIds.length || downstream[index] < 0 || downstream[index] >= nodeIds.length || nodeIndex === downstream[index] || componentBlockIndex < 0 || componentBlockIndex >= blocks.length) {
+      failV1(
+        `$.hydraulicGraph.pathIds[${index}]`,
+        "path endpoints or component ownership are invalid"
+      );
     }
   });
   const pools = arrayV1(
@@ -30596,6 +30620,7 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
         storageKind: slot2.storageKind
       })))
     }),
+    hydraulicDispatch: createBoundHydraulicDispatchV1(descriptor, bound),
     continuousLogicalIndices: Object.freeze(descriptor.stateLayout.slots.filter(({ storageKind }) => storageKind === "continuous-f64").sort((left, right) => left.storageIndex - right.storageIndex).map(({ logicalIndex }) => logicalIndex)),
     booleanLogicalIndices: Object.freeze(descriptor.stateLayout.slots.filter(({ storageKind }) => storageKind === "boolean-u8").sort((left, right) => left.storageIndex - right.storageIndex).map(({ logicalIndex }) => logicalIndex)),
     conservationPools: Object.freeze(
@@ -30624,6 +30649,20 @@ function resolveBoundExecutionPlanStateDispatchV1(bound) {
     throw new Error("Execution plan state dispatch requires a bound plan");
   }
   return metadata.stateDispatch;
+}
+function resolveBoundExecutionPlanHydraulicDispatchV1(bound) {
+  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
+  if (metadata === void 0) {
+    throw new Error("Execution plan hydraulic dispatch requires a bound plan");
+  }
+  return metadata.hydraulicDispatch;
+}
+function assertBoundExecutionPlanHydraulicDispatchV1(value) {
+  if (typeof value !== "object" && typeof value !== "function" || value === null || !BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1.has(value)) {
+    throw new Error(
+      "Execution plan hydraulic dispatch must be compiler-bound"
+    );
+  }
 }
 function prepareBoundExecutionPlanSolveGroupV1(bound, solveGroupId) {
   const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
@@ -30690,8 +30729,76 @@ function bindExecutionPlanSolveSystemRuntimeV1(bound, solveGroupId, workspace, b
   }
   return binding.bind(Object.freeze({
     dispatch,
+    hydraulicDispatch: resolveBoundExecutionPlanHydraulicDispatchV1(bound),
     workspace
   }));
+}
+function createBoundHydraulicDispatchV1(descriptor, bound) {
+  const componentBindings = Object.freeze(descriptor.stateLayout.blocks.map(
+    (block, componentBlockIndex) => {
+      const bindingOrdinal = bound.componentKernelBindingOrdinals[componentBlockIndex];
+      if (bindingOrdinal === void 0 || bound.bindingCatalog.componentKernelIds[bindingOrdinal] !== block.kernelId) {
+        throw new Error("Execution plan hydraulic component binding drifted");
+      }
+      return Object.freeze({
+        componentId: block.componentId,
+        componentKernelId: block.kernelId,
+        componentKernelBindingOrdinal: bindingOrdinal
+      });
+    }
+  ));
+  const componentDispatch = (componentBlockIndex) => {
+    const component = componentBindings[componentBlockIndex];
+    if (component === void 0) {
+      throw new Error("Execution plan hydraulic component owner drifted");
+    }
+    return component;
+  };
+  const nodes = Object.freeze(descriptor.hydraulicGraph.nodeIds.map(
+    (nodeId, index) => Object.freeze({
+      nodeId,
+      ...componentDispatch(
+        descriptor.hydraulicGraph.nodeComponentBlockIndices[index]
+      ),
+      storageStateLogicalIndex: descriptor.hydraulicGraph.storageStateLogicalIndices[index]
+    })
+  ));
+  const paths = Object.freeze(descriptor.hydraulicGraph.pathIds.map(
+    (pathId, index) => {
+      const pathKernelId = descriptor.hydraulicGraph.pathKernelIds[index];
+      const pathKernelBindingOrdinal = bound.hydraulicPathKernelBindingOrdinals[index];
+      if (bound.bindingCatalog.hydraulicPathKernelIds[pathKernelBindingOrdinal] !== pathKernelId) {
+        throw new Error("Execution plan hydraulic path binding drifted");
+      }
+      return Object.freeze({
+        pathId,
+        ...componentDispatch(
+          descriptor.hydraulicGraph.pathComponentBlockIndices[index]
+        ),
+        upstreamNodeIndex: descriptor.hydraulicGraph.upstreamNodeIndices[index],
+        downstreamNodeIndex: descriptor.hydraulicGraph.downstreamNodeIndices[index],
+        pathKernelId,
+        pathKernelBindingOrdinal
+      });
+    }
+  ));
+  const dispatch = Object.freeze({
+    definitionId: descriptor.definitionId,
+    nodes,
+    paths,
+    conservationPools: Object.freeze(
+      descriptor.hydraulicGraph.conservationPools.map((pool) => Object.freeze({
+        poolId: pool.poolId,
+        ledgerStateLogicalIndex: pool.ledgerStateLogicalIndex,
+        memberStateLogicalIndices: Object.freeze([
+          ...pool.memberStateLogicalIndices
+        ]),
+        dependentStateLogicalIndex: pool.dependentStateLogicalIndex
+      }))
+    )
+  });
+  BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1.add(dispatch);
+  return dispatch;
 }
 function createBoundSolveGroupMetadataV1(descriptor, descriptorGroup, boundGroup, bound, solveGroupIndex) {
   const activeContinuousStorageIndices = Int32Array.from(
@@ -31506,6 +31613,4486 @@ function sameStringsV1(left, right) {
 }
 function failV1(path, message) {
   throw new Error(`Execution plan rejected ${path}: ${message}`);
+}
+const CANONICAL_FLAT_CHECKPOINT_V1_MAGIC = "CHFLATB1";
+const CHECKPOINT_HEADER_BYTES = 8 + 4 + 32;
+const MAX_DEPTH = 256;
+const MAX_CONTAINER_ITEMS = 1e6;
+const MAX_STRING_BYTES = 16 * 1024 * 1024;
+function encodeCanonicalFlatDataIntoV1(value, destination) {
+  assertOwnedDestination(destination);
+  const writer = new FixedWriterV1(destination);
+  encodeValue(value, writer, /* @__PURE__ */ new Set(), 0, "$");
+  return writer.length;
+}
+function decodeCanonicalFlatDataV1(source, length = source.byteLength) {
+  assertOwnedDestination(source);
+  if (!Number.isSafeInteger(length) || length < 0 || length > source.byteLength) {
+    throw new Error("Canonical flat data length is invalid");
+  }
+  const reader = new ReaderV1(source.subarray(0, length));
+  const value = decodeValue(reader, 0);
+  if (reader.remaining !== 0) {
+    throw new Error("Canonical flat data contains trailing bytes");
+  }
+  return value;
+}
+async function encodeCanonicalFlatCheckpointV1(value) {
+  const payloadLength = measureCanonicalFlatDataV1(value);
+  const payload = new Uint8Array(payloadLength);
+  const written = encodeCanonicalFlatDataIntoV1(value, payload);
+  if (written !== payloadLength) {
+    throw new Error("Canonical flat checkpoint length changed while encoding");
+  }
+  const digest2 = await sha256Bytes(payload);
+  const encoded = new Uint8Array(CHECKPOINT_HEADER_BYTES + payloadLength);
+  encoded.set(new TextEncoder().encode(CANONICAL_FLAT_CHECKPOINT_V1_MAGIC), 0);
+  new DataView(encoded.buffer).setUint32(8, payloadLength, false);
+  encoded.set(digest2, 12);
+  encoded.set(payload, CHECKPOINT_HEADER_BYTES);
+  return encoded;
+}
+async function decodeCanonicalFlatCheckpointV1(input) {
+  assertOwnedDestination(input);
+  if (input.byteLength < CHECKPOINT_HEADER_BYTES) {
+    throw new Error("Canonical flat checkpoint is truncated");
+  }
+  const magic = new TextDecoder("utf-8", { fatal: true }).decode(
+    input.subarray(0, 8)
+  );
+  if (magic !== CANONICAL_FLAT_CHECKPOINT_V1_MAGIC) {
+    throw new Error("Canonical flat checkpoint magic is unsupported");
+  }
+  const payloadLength = new DataView(
+    input.buffer,
+    input.byteOffset,
+    input.byteLength
+  ).getUint32(8, false);
+  if (payloadLength !== input.byteLength - CHECKPOINT_HEADER_BYTES) {
+    throw new Error("Canonical flat checkpoint payload length is invalid");
+  }
+  const expected = input.subarray(12, CHECKPOINT_HEADER_BYTES);
+  const payload = input.subarray(CHECKPOINT_HEADER_BYTES);
+  const actual = await sha256Bytes(payload);
+  if (!constantTimeEqual(expected, actual)) {
+    throw new Error("Canonical flat checkpoint SHA-256 mismatch");
+  }
+  return decodeCanonicalFlatDataV1(payload);
+}
+function measureCanonicalFlatDataV1(value) {
+  const writer = new MeasuringWriterV1();
+  encodeValue(value, writer, /* @__PURE__ */ new Set(), 0, "$");
+  return writer.length;
+}
+class FixedWriterV1 {
+  #destination;
+  #view;
+  #offset = 0;
+  constructor(destination) {
+    this.#destination = destination;
+    this.#view = new DataView(
+      destination.buffer,
+      destination.byteOffset,
+      destination.byteLength
+    );
+  }
+  get length() {
+    return this.#offset;
+  }
+  u8(value) {
+    this.reserve(1);
+    this.#view.setUint8(this.#offset, value);
+    this.#offset += 1;
+  }
+  u16(value) {
+    this.reserve(2);
+    this.#view.setUint16(this.#offset, value, false);
+    this.#offset += 2;
+  }
+  u32(value) {
+    this.reserve(4);
+    this.#view.setUint32(this.#offset, value, false);
+    this.#offset += 4;
+  }
+  i8(value) {
+    this.reserve(1);
+    this.#view.setInt8(this.#offset, value);
+    this.#offset += 1;
+  }
+  i16(value) {
+    this.reserve(2);
+    this.#view.setInt16(this.#offset, value, false);
+    this.#offset += 2;
+  }
+  i32(value) {
+    this.reserve(4);
+    this.#view.setInt32(this.#offset, value, false);
+    this.#offset += 4;
+  }
+  f32(value) {
+    this.reserve(4);
+    this.#view.setFloat32(this.#offset, value, false);
+    this.#offset += 4;
+  }
+  f64(value) {
+    this.reserve(8);
+    this.#view.setFloat64(this.#offset, value, false);
+    this.#offset += 8;
+  }
+  bytes(value) {
+    this.reserve(value.byteLength);
+    this.#destination.set(value, this.#offset);
+    this.#offset += value.byteLength;
+  }
+  reserve(byteLength) {
+    if (this.#offset + byteLength > this.#destination.byteLength) {
+      throw new Error("Canonical flat data exceeds its fixed capacity");
+    }
+  }
+}
+class MeasuringWriterV1 {
+  #length = 0;
+  get length() {
+    return this.#length;
+  }
+  u8() {
+    this.add(1);
+  }
+  u16() {
+    this.add(2);
+  }
+  u32() {
+    this.add(4);
+  }
+  i8() {
+    this.add(1);
+  }
+  i16() {
+    this.add(2);
+  }
+  i32() {
+    this.add(4);
+  }
+  f32() {
+    this.add(4);
+  }
+  f64() {
+    this.add(8);
+  }
+  bytes(value) {
+    this.add(value.byteLength);
+  }
+  add(byteLength) {
+    this.#length += byteLength;
+    if (!Number.isSafeInteger(this.#length) || this.#length > 4294967295) {
+      throw new Error("Canonical flat data is too large");
+    }
+  }
+}
+class ReaderV1 {
+  #source;
+  #view;
+  #offset = 0;
+  constructor(source) {
+    this.#source = source;
+    this.#view = new DataView(source.buffer, source.byteOffset, source.byteLength);
+  }
+  get remaining() {
+    return this.#source.byteLength - this.#offset;
+  }
+  u8() {
+    this.require(1);
+    return this.#view.getUint8(this.#offset++);
+  }
+  i8() {
+    this.require(1);
+    return this.#view.getInt8(this.#offset++);
+  }
+  u16() {
+    this.require(2);
+    const value = this.#view.getUint16(this.#offset, false);
+    this.#offset += 2;
+    return value;
+  }
+  i16() {
+    this.require(2);
+    const value = this.#view.getInt16(this.#offset, false);
+    this.#offset += 2;
+    return value;
+  }
+  u32() {
+    this.require(4);
+    const value = this.#view.getUint32(this.#offset, false);
+    this.#offset += 4;
+    return value;
+  }
+  i32() {
+    this.require(4);
+    const value = this.#view.getInt32(this.#offset, false);
+    this.#offset += 4;
+    return value;
+  }
+  f32() {
+    this.require(4);
+    const value = this.#view.getFloat32(this.#offset, false);
+    this.#offset += 4;
+    return value;
+  }
+  f64() {
+    this.require(8);
+    const value = this.#view.getFloat64(this.#offset, false);
+    this.#offset += 8;
+    return value;
+  }
+  bytes(length) {
+    this.require(length);
+    const value = this.#source.subarray(this.#offset, this.#offset + length);
+    this.#offset += length;
+    return value;
+  }
+  require(byteLength) {
+    if (!Number.isSafeInteger(byteLength) || byteLength < 0 || byteLength > this.remaining) {
+      throw new Error("Canonical flat data is truncated");
+    }
+  }
+}
+function encodeValue(value, writer, ancestors, depth, path) {
+  if (depth > MAX_DEPTH) throw new Error(`Canonical flat data ${path} is too deep`);
+  if (value === null) {
+    writer.u8(
+      0
+      /* Null */
+    );
+    return;
+  }
+  if (value === false) {
+    writer.u8(
+      1
+      /* False */
+    );
+    return;
+  }
+  if (value === true) {
+    writer.u8(
+      2
+      /* True */
+    );
+    return;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error(`Canonical flat data ${path} must be finite`);
+    }
+    writer.u8(
+      3
+      /* Float64 */
+    );
+    writer.f64(value);
+    return;
+  }
+  if (typeof value === "string") {
+    writer.u8(
+      4
+      /* String */
+    );
+    writeString(value, writer, path);
+    return;
+  }
+  if (typeof value !== "object") {
+    throw new Error(`Canonical flat data ${path} has an unsupported value`);
+  }
+  if (ancestors.has(value)) {
+    throw new Error(`Canonical flat data ${path} contains a cycle`);
+  }
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value)) {
+      const descriptors2 = Object.getOwnPropertyDescriptors(value);
+      assertDenseArrayDescriptors(value, descriptors2, path);
+      assertItemCount(value.length, path);
+      writer.u8(
+        5
+        /* Array */
+      );
+      writer.u32(value.length);
+      for (let index = 0; index < value.length; index += 1) {
+        encodeValue(
+          descriptors2[String(index)].value,
+          writer,
+          ancestors,
+          depth + 1,
+          `${path}/${index}`
+        );
+      }
+      return;
+    }
+    if (isSupportedTypedArray(value)) {
+      encodeTypedArray(value, writer, path);
+      return;
+    }
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new Error(`Canonical flat data ${path} has an unsupported prototype`);
+    }
+    const descriptors = Object.getOwnPropertyDescriptors(value);
+    const keys = Object.keys(descriptors).sort(compareStrings);
+    assertItemCount(keys.length, path);
+    for (const key of Reflect.ownKeys(descriptors)) {
+      if (typeof key !== "string" || !Object.prototype.propertyIsEnumerable.call(value, key)) {
+        throw new Error(`Canonical flat data ${path} contains a non-enumerable or symbol key`);
+      }
+    }
+    writer.u8(
+      prototype === null ? 7 : 6
+      /* Record */
+    );
+    writer.u32(keys.length);
+    for (const key of keys) {
+      const descriptor = descriptors[key];
+      if (!("value" in descriptor)) {
+        throw new Error(`Canonical flat data ${path}/${escapePointer(key)} is an accessor`);
+      }
+      writeString(key, writer, `${path} key`);
+      encodeValue(
+        descriptor.value,
+        writer,
+        ancestors,
+        depth + 1,
+        `${path}/${escapePointer(key)}`
+      );
+    }
+  } finally {
+    ancestors.delete(value);
+  }
+}
+function decodeValue(reader, depth) {
+  if (depth > MAX_DEPTH) throw new Error("Canonical flat data is too deep");
+  const tag = reader.u8();
+  switch (tag) {
+    case 0:
+      return null;
+    case 1:
+      return false;
+    case 2:
+      return true;
+    case 3: {
+      const value = reader.f64();
+      if (!Number.isFinite(value)) throw new Error("Canonical flat number must be finite");
+      return value;
+    }
+    case 4:
+      return readString(reader);
+    case 5: {
+      const length = readItemCount(reader);
+      const values2 = new Array(length);
+      for (let index = 0; index < length; index += 1) {
+        values2[index] = decodeValue(reader, depth + 1);
+      }
+      return Object.freeze(values2);
+    }
+    case 6:
+    case 7: {
+      const count = readItemCount(reader);
+      const record = Object.create(
+        tag === 6 ? Object.prototype : null
+      );
+      let previous = null;
+      for (let index = 0; index < count; index += 1) {
+        const key = readString(reader);
+        if (previous !== null && compareStrings(previous, key) >= 0) {
+          throw new Error("Canonical flat record keys are not strictly ordered");
+        }
+        previous = key;
+        Object.defineProperty(record, key, {
+          value: decodeValue(reader, depth + 1),
+          enumerable: true,
+          writable: false,
+          configurable: false
+        });
+      }
+      return Object.freeze(record);
+    }
+    case 16:
+    case 17:
+    case 18:
+    case 19:
+    case 20:
+    case 21:
+    case 22:
+    case 23:
+    case 24:
+      return decodeTypedArray(tag, reader);
+    default:
+      throw new Error("Canonical flat data tag is unsupported");
+  }
+}
+function encodeTypedArray(value, writer, path) {
+  assertItemCount(value.length, path);
+  const tag = typedArrayTag(value);
+  writer.u8(tag);
+  writer.u32(value.length);
+  for (let index = 0; index < value.length; index += 1) {
+    const item = value[index];
+    switch (tag) {
+      case 16:
+        if (!Number.isFinite(item)) throw new Error(`Canonical flat data ${path}/${index} must be finite`);
+        writer.f64(item);
+        break;
+      case 17:
+        if (!Number.isFinite(item)) throw new Error(`Canonical flat data ${path}/${index} must be finite`);
+        writer.f32(item);
+        break;
+      case 18:
+        writer.i32(item);
+        break;
+      case 19:
+        writer.u32(item);
+        break;
+      case 20:
+        writer.i16(item);
+        break;
+      case 21:
+        writer.u16(item);
+        break;
+      case 22:
+        writer.i8(item);
+        break;
+      case 23:
+      case 24:
+        writer.u8(item);
+        break;
+    }
+  }
+}
+function decodeTypedArray(tag, reader) {
+  const length = readItemCount(reader);
+  switch (tag) {
+    case 16: {
+      const result = new Float64Array(length);
+      for (let index = 0; index < length; index += 1) {
+        const value = reader.f64();
+        if (!Number.isFinite(value)) throw new Error("Canonical flat typed value must be finite");
+        result[index] = value;
+      }
+      return result;
+    }
+    case 17: {
+      const result = new Float32Array(length);
+      for (let index = 0; index < length; index += 1) {
+        const value = reader.f32();
+        if (!Number.isFinite(value)) throw new Error("Canonical flat typed value must be finite");
+        result[index] = value;
+      }
+      return result;
+    }
+    case 18:
+      return fillTyped(new Int32Array(length), () => reader.i32());
+    case 19:
+      return fillTyped(new Uint32Array(length), () => reader.u32());
+    case 20:
+      return fillTyped(new Int16Array(length), () => reader.i16());
+    case 21:
+      return fillTyped(new Uint16Array(length), () => reader.u16());
+    case 22:
+      return fillTyped(new Int8Array(length), () => reader.i8());
+    case 23:
+      return fillTyped(new Uint8Array(length), () => reader.u8());
+    case 24:
+      return fillTyped(new Uint8ClampedArray(length), () => reader.u8());
+    default:
+      throw new Error("Canonical flat typed-array tag is unsupported");
+  }
+}
+function fillTyped(destination, read) {
+  for (let index = 0; index < destination.length; index += 1) {
+    destination[index] = read();
+  }
+  return destination;
+}
+function typedArrayTag(value) {
+  if (value instanceof Float64Array) return 16;
+  if (value instanceof Float32Array) return 17;
+  if (value instanceof Int32Array) return 18;
+  if (value instanceof Uint32Array) return 19;
+  if (value instanceof Int16Array) return 20;
+  if (value instanceof Uint16Array) return 21;
+  if (value instanceof Int8Array) return 22;
+  if (value instanceof Uint8ClampedArray) return 24;
+  return 23;
+}
+function isSupportedTypedArray(value) {
+  return value instanceof Float64Array || value instanceof Float32Array || value instanceof Int32Array || value instanceof Uint32Array || value instanceof Int16Array || value instanceof Uint16Array || value instanceof Int8Array || value instanceof Uint8Array || value instanceof Uint8ClampedArray;
+}
+function assertDenseArrayDescriptors(value, descriptors, path) {
+  const length = value.length;
+  const keys = Reflect.ownKeys(descriptors);
+  if (keys.length !== length + 1 || !("length" in descriptors)) {
+    throw new Error(`Canonical flat data ${path} must be a dense plain array`);
+  }
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = descriptors[String(index)];
+    if (descriptor === void 0 || !("value" in descriptor)) {
+      throw new Error(`Canonical flat data ${path}/${index} is missing or an accessor`);
+    }
+  }
+}
+function writeString(value, writer, path) {
+  if (!isWellFormedString(value)) {
+    throw new Error(`Canonical flat data ${path} contains an unpaired surrogate`);
+  }
+  const bytes = new TextEncoder().encode(value);
+  if (bytes.byteLength > MAX_STRING_BYTES) {
+    throw new Error(`Canonical flat data ${path} string is too large`);
+  }
+  writer.u32(bytes.byteLength);
+  writer.bytes(bytes);
+}
+function readString(reader) {
+  const length = reader.u32();
+  if (length > MAX_STRING_BYTES) throw new Error("Canonical flat string is too large");
+  const value = new TextDecoder("utf-8", { fatal: true }).decode(reader.bytes(length));
+  if (!isWellFormedString(value)) throw new Error("Canonical flat string is malformed");
+  return value;
+}
+function isWellFormedString(value) {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 55296 && code <= 56319) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 56320 && next <= 57343)) return false;
+      index += 1;
+    } else if (code >= 56320 && code <= 57343) {
+      return false;
+    }
+  }
+  return true;
+}
+function readItemCount(reader) {
+  const count = reader.u32();
+  assertItemCount(count, "decoded container");
+  return count;
+}
+function assertItemCount(count, path) {
+  if (!Number.isSafeInteger(count) || count < 0 || count > MAX_CONTAINER_ITEMS) {
+    throw new Error(`Canonical flat data ${path} has too many items`);
+  }
+}
+function assertOwnedDestination(value) {
+  if (!(value instanceof Uint8Array) || typeof SharedArrayBuffer !== "undefined" && value.buffer instanceof SharedArrayBuffer || value.buffer.resizable === true) {
+    throw new Error("Canonical flat data requires an owned fixed Uint8Array");
+  }
+}
+function compareStrings(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+function escapePointer(value) {
+  return value.replaceAll("~", "~0").replaceAll("/", "~1");
+}
+async function sha256Bytes(bytes) {
+  const subtle = globalThis.crypto?.subtle;
+  if (subtle === void 0) {
+    throw new Error("Web Crypto subtle.digest is required for flat checkpoints");
+  }
+  return new Uint8Array(await subtle.digest("SHA-256", bytes));
+}
+function constantTimeEqual(left, right) {
+  if (left.byteLength !== right.byteLength) return false;
+  let difference = 0;
+  for (let index = 0; index < left.byteLength; index += 1) {
+    difference |= left[index] ^ right[index];
+  }
+  return difference === 0;
+}
+const FLAT_NUMERICAL_STATE_LAYOUT_V1_SCHEMA_ID = "circleheart-flat-numerical-state-layout-v1";
+function createFlatNumericalStateLayoutV1(layoutId, referenceState, options = {}) {
+  if (layoutId.trim().length === 0) {
+    throw new Error("Flat numerical state layoutId is empty");
+  }
+  const continuousSlots = [];
+  const nullableContinuousSlots = [];
+  const nullableStringSlots = [];
+  const optionalRecordRoots = [];
+  const boundedArrayRoots = [];
+  const booleanSlots = [];
+  const stringSlots = [];
+  const externalImmutableRoots = [];
+  const excludedDynamicRoots = [];
+  const containers = [];
+  const fixedArrayPointers = new Set(
+    options.fixedArrayPointers?.map((value) => {
+      if (typeof value !== "string" || !value.startsWith("/")) {
+        throw new Error("Flat numerical fixed-array pointer is invalid");
+      }
+      return value;
+    }) ?? []
+  );
+  if (fixedArrayPointers.size !== (options.fixedArrayPointers?.length ?? 0)) {
+    throw new Error("Flat numerical fixed-array pointer is duplicated");
+  }
+  const admittedFixedArrayPointers = /* @__PURE__ */ new Set();
+  const admittedExternalImmutableBindings = pointerSet(
+    options.externalImmutablePointers,
+    "external-immutable"
+  );
+  const externalImmutableAliases = externalImmutableAliasMap(
+    options.externalImmutableAliases,
+    admittedExternalImmutableBindings
+  );
+  const externalImmutablePointers = new Set(
+    admittedExternalImmutableBindings
+  );
+  for (const targetPointer of externalImmutableAliases.keys()) {
+    if (externalImmutablePointers.has(targetPointer)) {
+      throw new Error(
+        "Flat numerical external-immutable alias target is duplicated"
+      );
+    }
+    externalImmutablePointers.add(targetPointer);
+  }
+  const admittedExternalImmutablePointers = /* @__PURE__ */ new Set();
+  const nullableContinuousPointers = pointerSet(
+    options.nullableContinuousPointers,
+    "nullable-continuous"
+  );
+  const admittedNullableContinuousPointers = /* @__PURE__ */ new Set();
+  const nullableStringPointers = pointerSet(
+    options.nullableStringPointers,
+    "nullable-string"
+  );
+  const admittedNullableStringPointers = /* @__PURE__ */ new Set();
+  const optionalRecordTemplates = optionalRecordTemplateMap(
+    options.optionalRecordTemplates
+  );
+  const admittedOptionalRecordPointers = /* @__PURE__ */ new Set();
+  const boundedArrayTemplates = boundedArrayTemplateMap(
+    options.boundedArrayTemplates
+  );
+  const admittedBoundedArrayPointers = /* @__PURE__ */ new Set();
+  visit(referenceState, [], {
+    continuousSlots,
+    nullableContinuousSlots,
+    nullableStringSlots,
+    optionalRecordRoots,
+    boundedArrayRoots,
+    booleanSlots,
+    stringSlots,
+    externalImmutableRoots,
+    excludedDynamicRoots,
+    containers,
+    fixedArrayPointers,
+    admittedFixedArrayPointers,
+    externalImmutablePointers,
+    externalImmutableAliases,
+    admittedExternalImmutablePointers,
+    nullableContinuousPointers,
+    admittedNullableContinuousPointers,
+    nullableStringPointers,
+    admittedNullableStringPointers,
+    optionalRecordTemplates,
+    admittedOptionalRecordPointers,
+    boundedArrayTemplates,
+    admittedBoundedArrayPointers
+  });
+  for (const fixedArrayPointer of fixedArrayPointers) {
+    if (!admittedFixedArrayPointers.has(fixedArrayPointer)) {
+      throw new Error(
+        `Flat numerical fixed-array ${fixedArrayPointer} is unavailable`
+      );
+    }
+  }
+  for (const externalImmutablePointer of externalImmutablePointers) {
+    if (!admittedExternalImmutablePointers.has(externalImmutablePointer)) {
+      throw new Error(
+        `Flat numerical external-immutable ${externalImmutablePointer} is unavailable`
+      );
+    }
+  }
+  for (const nullableContinuousPointer of nullableContinuousPointers) {
+    if (!admittedNullableContinuousPointers.has(nullableContinuousPointer)) {
+      throw new Error(
+        `Flat numerical nullable-continuous ${nullableContinuousPointer} is unavailable`
+      );
+    }
+  }
+  for (const nullableStringPointer of nullableStringPointers) {
+    if (!admittedNullableStringPointers.has(nullableStringPointer)) {
+      throw new Error(
+        `Flat numerical nullable-string ${nullableStringPointer} is unavailable`
+      );
+    }
+  }
+  for (const optionalRecordPointer of optionalRecordTemplates.keys()) {
+    if (!admittedOptionalRecordPointers.has(optionalRecordPointer)) {
+      throw new Error(
+        `Flat numerical optional-record ${optionalRecordPointer} is unavailable`
+      );
+    }
+  }
+  for (const boundedArrayPointer of boundedArrayTemplates.keys()) {
+    if (!admittedBoundedArrayPointers.has(boundedArrayPointer)) {
+      throw new Error(
+        `Flat numerical bounded-array ${boundedArrayPointer} is unavailable`
+      );
+    }
+  }
+  if (continuousSlots.length === 0) {
+    throw new Error("Flat numerical state contains no continuous slots");
+  }
+  const layout = Object.freeze({
+    schemaId: FLAT_NUMERICAL_STATE_LAYOUT_V1_SCHEMA_ID,
+    layoutId,
+    continuousSlots: Object.freeze(continuousSlots),
+    nullableContinuousSlots: Object.freeze(nullableContinuousSlots),
+    nullableStringSlots: Object.freeze(nullableStringSlots),
+    optionalRecordRoots: Object.freeze(optionalRecordRoots),
+    boundedArrayRoots: Object.freeze(boundedArrayRoots),
+    booleanSlots: Object.freeze(booleanSlots),
+    stringSlots: Object.freeze(stringSlots),
+    externalImmutableRoots: Object.freeze(externalImmutableRoots),
+    externalImmutableAliases: Object.freeze(
+      [...externalImmutableAliases.values()].sort((left, right) => left.pointer.localeCompare(right.pointer))
+    ),
+    excludedDynamicRoots: Object.freeze(excludedDynamicRoots),
+    containers: Object.freeze(containers)
+  });
+  assertFlatNumericalStateShapeV1(layout, referenceState);
+  return layout;
+}
+function assertFlatNumericalStateShapeV1(layout, state) {
+  for (const root of layout.optionalRecordRoots) {
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    if (value !== null && (typeof value !== "object" || Array.isArray(value))) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} must be null or a record`
+      );
+    }
+  }
+  for (const root of layout.boundedArrayRoots) {
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} must remain an array`
+      );
+    }
+    assertDataProperties(value, root.path, true);
+    const keys = Array.from({ length: value.length }, (_, index) => String(index));
+    if (!sameStrings(Object.keys(value), keys)) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} changed bounded-array shape`
+      );
+    }
+    if (value.length > root.capacity) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} exceeds bounded-array capacity`
+      );
+    }
+  }
+  for (const container2 of layout.containers) {
+    if (layoutEntryAbsent$1(layout, state, container2)) {
+      continue;
+    }
+    assertContainerShape(
+      readFlatNumericalStatePathV1(state, container2.path),
+      container2
+    );
+  }
+}
+function readFlatNumericalStatePathV1(root, path) {
+  return requiredPathValue(root, path);
+}
+function visit(value, path, destination, optionalRecordRootIndex = null, compilingOptionalPointer = null, boundedArrayRootIndex = null, boundedArrayItemIndex = null, compilingBoundedArrayPointer = null) {
+  const pathPointer = pointer$1(path);
+  const optionalTemplate = destination.optionalRecordTemplates.get(pathPointer);
+  if (optionalTemplate !== void 0 && compilingOptionalPointer !== pathPointer) {
+    if (optionalRecordRootIndex !== null || boundedArrayRootIndex !== null) {
+      throw new Error(
+        `Flat numerical optional-record ${pathPointer} may not be nested`
+      );
+    }
+    if (value !== null && (typeof value !== "object" || Array.isArray(value))) {
+      throw new Error(
+        `Flat numerical optional-record ${pathPointer} reference must be null or a record`
+      );
+    }
+    const nextOptionalRootIndex = destination.optionalRecordRoots.length;
+    destination.optionalRecordRoots.push(Object.freeze({
+      path: Object.freeze([...path]),
+      pointer: pathPointer,
+      template: optionalTemplate
+    }));
+    destination.admittedOptionalRecordPointers.add(pathPointer);
+    visit(
+      optionalTemplate,
+      path,
+      destination,
+      nextOptionalRootIndex,
+      pathPointer,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
+      compilingBoundedArrayPointer
+    );
+    return;
+  }
+  const boundedArrayTemplate = destination.boundedArrayTemplates.get(pathPointer);
+  if (boundedArrayTemplate !== void 0 && compilingBoundedArrayPointer !== pathPointer) {
+    if (optionalRecordRootIndex !== null || boundedArrayRootIndex !== null) {
+      throw new Error(
+        `Flat numerical bounded-array ${pathPointer} may not be nested`
+      );
+    }
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `Flat numerical bounded-array ${pathPointer} reference must be an array`
+      );
+    }
+    assertDataProperties(value, path, true);
+    const keys = Array.from({ length: value.length }, (_, index) => String(index));
+    if (!sameStrings(Object.keys(value), keys)) {
+      throw new Error(
+        `Flat numerical state ${pathPointer} changed bounded-array shape`
+      );
+    }
+    if (value.length > boundedArrayTemplate.capacity) {
+      throw new Error(
+        `Flat numerical state ${pathPointer} exceeds bounded-array capacity`
+      );
+    }
+    const nextBoundedArrayRootIndex = destination.boundedArrayRoots.length;
+    destination.boundedArrayRoots.push(Object.freeze({
+      path: Object.freeze([...path]),
+      pointer: pathPointer,
+      capacity: boundedArrayTemplate.capacity,
+      itemTemplate: boundedArrayTemplate.itemTemplate
+    }));
+    destination.admittedBoundedArrayPointers.add(pathPointer);
+    for (let index = 0; index < boundedArrayTemplate.capacity; index += 1) {
+      visit(
+        boundedArrayTemplate.itemTemplate,
+        [...path, index],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+        nextBoundedArrayRootIndex,
+        index,
+        pathPointer
+      );
+    }
+    return;
+  }
+  if (destination.externalImmutablePointers.has(pathPointer)) {
+    if (boundedArrayRootIndex !== null || optionalRecordRootIndex !== null && !destination.externalImmutableAliases.has(pathPointer)) {
+      throw new Error(
+        `Flat numerical typed aggregate ${pathPointer} may not contain an external immutable root`
+      );
+    }
+    if (value === void 0 || typeof value === "function" || typeof value === "symbol" || typeof value === "bigint") {
+      throw new Error(
+        `Flat numerical external-immutable ${pathPointer} is unsupported`
+      );
+    }
+    destination.externalImmutableRoots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    destination.admittedExternalImmutablePointers.add(pathPointer);
+    return;
+  }
+  if (destination.nullableContinuousPointers.has(pathPointer)) {
+    if (value !== null) {
+      throw new Error(
+        `Flat numerical nullable-continuous ${pathPointer} reference must be null`
+      );
+    }
+    destination.nullableContinuousSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    destination.admittedNullableContinuousPointers.add(pathPointer);
+    return;
+  }
+  if (destination.nullableStringPointers.has(pathPointer)) {
+    if (value !== null) {
+      throw new Error(
+        `Flat numerical nullable-string ${pathPointer} reference must be null`
+      );
+    }
+    destination.nullableStringSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    destination.admittedNullableStringPointers.add(pathPointer);
+    return;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error(`Flat numerical state ${pointer$1(path)} must be finite`);
+    }
+    destination.continuousSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    return;
+  }
+  if (typeof value === "boolean") {
+    destination.booleanSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    return;
+  }
+  if (typeof value === "string") {
+    destination.stringSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    return;
+  }
+  if (value === null) {
+    if (boundedArrayRootIndex !== null) {
+      throw new Error(
+        `Flat numerical bounded-array item ${pathPointer} may not contain a dynamic root`
+      );
+    }
+    destination.excludedDynamicRoots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    return;
+  }
+  if (Array.isArray(value)) {
+    if (!destination.fixedArrayPointers.has(pathPointer)) {
+      if (boundedArrayRootIndex !== null) {
+        throw new Error(
+          `Flat numerical bounded-array item ${pathPointer} may not contain a dynamic root`
+        );
+      }
+      destination.excludedDynamicRoots.push(slot(
+        path,
+        optionalRecordRootIndex,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex
+      ));
+      return;
+    }
+    assertDataProperties(value, path, true);
+    const keys = Array.from({ length: value.length }, (_, index) => String(index));
+    if (!sameStrings(Object.keys(value), keys)) {
+      throw new Error(`Flat numerical state ${pathPointer} changed array shape`);
+    }
+    destination.containers.push(container(
+      path,
+      "array",
+      keys,
+      null,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    destination.admittedFixedArrayPointers.add(pathPointer);
+    for (let index = 0; index < value.length; index += 1) {
+      visit(
+        value[index],
+        [...path, index],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex,
+        compilingBoundedArrayPointer
+      );
+    }
+    return;
+  }
+  if (isNumericTypedArray$1(value)) {
+    const keys = Array.from({ length: value.length }, (_, index) => String(index));
+    destination.containers.push(container(
+      path,
+      "typed-array",
+      keys,
+      value.constructor.name,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    for (let index = 0; index < value.length; index += 1) {
+      visit(
+        value[index],
+        [...path, index],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex,
+        compilingBoundedArrayPointer
+      );
+    }
+    return;
+  }
+  if (typeof value === "object") {
+    const prototypeTag = dataRecordPrototypeTag(value, path);
+    assertDataProperties(value, path, false);
+    const keys = Object.keys(value).sort();
+    destination.containers.push(container(
+      path,
+      "record",
+      keys,
+      prototypeTag,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    for (const key of keys) {
+      visit(
+        requiredOwnValue$1(value, key, path),
+        [...path, key],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex,
+        compilingBoundedArrayPointer
+      );
+    }
+    return;
+  }
+  throw new Error(`Flat numerical state ${pointer$1(path)} has an unsupported leaf`);
+}
+function pointerSet(pointers, owner) {
+  const values2 = new Set(
+    pointers?.map((value) => {
+      if (typeof value !== "string" || value === "/" || !value.startsWith("/")) {
+        throw new Error(`Flat numerical ${owner} pointer is invalid`);
+      }
+      return value;
+    }) ?? []
+  );
+  if (values2.size !== (pointers?.length ?? 0)) {
+    throw new Error(`Flat numerical ${owner} pointer is duplicated`);
+  }
+  return values2;
+}
+function externalImmutableAliasMap(aliases, admittedBindings) {
+  const values2 = /* @__PURE__ */ new Map();
+  for (const entry of aliases ?? []) {
+    const targetPath = pointerPath(entry.pointer, "alias target");
+    const sourcePath = pointerPath(entry.sourcePointer, "alias source");
+    if (entry.pointer === entry.sourcePointer) {
+      throw new Error("Flat numerical external-immutable alias is self-referential");
+    }
+    if (values2.has(entry.pointer)) {
+      throw new Error("Flat numerical external-immutable alias target is duplicated");
+    }
+    if (![...admittedBindings].some(
+      (bindingPointer) => entry.sourcePointer === bindingPointer || entry.sourcePointer.startsWith(`${bindingPointer}/`)
+    )) {
+      throw new Error(
+        `Flat numerical external-immutable alias source ${entry.sourcePointer} is not admitted`
+      );
+    }
+    values2.set(entry.pointer, Object.freeze({
+      pointer: pointer$1(targetPath),
+      sourcePointer: pointer$1(sourcePath),
+      sourcePath: Object.freeze(sourcePath)
+    }));
+  }
+  return values2;
+}
+function pointerPath(value, owner) {
+  if (typeof value !== "string" || value === "/" || !value.startsWith("/")) {
+    throw new Error(`Flat numerical external-immutable ${owner} is invalid`);
+  }
+  return value.slice(1).split("/").map((segment) => {
+    if (/~(?:[^01]|$)/u.test(segment)) {
+      throw new Error(`Flat numerical external-immutable ${owner} is invalid`);
+    }
+    return segment.replaceAll("~1", "/").replaceAll("~0", "~");
+  });
+}
+function optionalRecordTemplateMap(templates) {
+  const values2 = /* @__PURE__ */ new Map();
+  for (const entry of templates ?? []) {
+    if (typeof entry.pointer !== "string" || entry.pointer === "/" || !entry.pointer.startsWith("/")) {
+      throw new Error("Flat numerical optional-record pointer is invalid");
+    }
+    if (entry.template === null || typeof entry.template !== "object" || Array.isArray(entry.template)) {
+      throw new Error(
+        `Flat numerical optional-record ${entry.pointer} template is invalid`
+      );
+    }
+    if (values2.has(entry.pointer)) {
+      throw new Error("Flat numerical optional-record pointer is duplicated");
+    }
+    values2.set(entry.pointer, entry.template);
+  }
+  return values2;
+}
+function boundedArrayTemplateMap(templates) {
+  const values2 = /* @__PURE__ */ new Map();
+  for (const entry of templates ?? []) {
+    if (typeof entry.pointer !== "string" || entry.pointer === "/" || !entry.pointer.startsWith("/")) {
+      throw new Error("Flat numerical bounded-array pointer is invalid");
+    }
+    if (!Number.isSafeInteger(entry.capacity) || entry.capacity < 1 || entry.capacity > 4294967295) {
+      throw new Error(
+        `Flat numerical bounded-array ${entry.pointer} capacity is invalid`
+      );
+    }
+    if (entry.itemTemplate === void 0) {
+      throw new Error(
+        `Flat numerical bounded-array ${entry.pointer} item template is invalid`
+      );
+    }
+    if (values2.has(entry.pointer)) {
+      throw new Error("Flat numerical bounded-array pointer is duplicated");
+    }
+    values2.set(entry.pointer, Object.freeze({
+      pointer: entry.pointer,
+      capacity: entry.capacity,
+      itemTemplate: entry.itemTemplate
+    }));
+  }
+  return values2;
+}
+function layoutEntryAbsent$1(layout, state, entry) {
+  if (entry.optionalRecordRootIndex !== null) {
+    const root = layout.optionalRecordRoots[entry.optionalRecordRootIndex];
+    if (root === void 0) {
+      throw new Error("Flat numerical optional-record slot owner is invalid");
+    }
+    if (readFlatNumericalStatePathV1(state, root.path) === null) return true;
+  }
+  if (entry.boundedArrayRootIndex !== null) {
+    const root = layout.boundedArrayRoots[entry.boundedArrayRootIndex];
+    if (root === void 0 || entry.boundedArrayItemIndex === null) {
+      throw new Error("Flat numerical bounded-array slot owner is invalid");
+    }
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} must remain an array`
+      );
+    }
+    return entry.boundedArrayItemIndex >= value.length;
+  }
+  return false;
+}
+function assertContainerShape(value, expected) {
+  if (expected.kind === "array") {
+    if (!Array.isArray(value)) {
+      throw new Error(`Flat numerical state ${expected.pointer} must remain an array`);
+    }
+    assertDataProperties(value, expected.path, true);
+    if (!sameStrings(Object.keys(value), expected.keys)) {
+      throw new Error(`Flat numerical state ${expected.pointer} changed array shape`);
+    }
+    return;
+  }
+  if (expected.kind === "typed-array") {
+    if (!isNumericTypedArray$1(value) || value.constructor.name !== expected.prototypeTag || Object.getPrototypeOf(value) !== numericTypedArrayPrototype(expected.prototypeTag) || value.length !== expected.keys.length) {
+      throw new Error(`Flat numerical state ${expected.pointer} changed typed-array shape`);
+    }
+    assertDataProperties(value, expected.path, false);
+    if (!sameStrings(Object.keys(value), expected.keys)) {
+      throw new Error(
+        `Flat numerical state ${expected.pointer} changed typed-array shape`
+      );
+    }
+    return;
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Flat numerical state ${expected.pointer} must remain a record`);
+  }
+  const prototypeTag = dataRecordPrototypeTag(value, expected.path);
+  if (prototypeTag !== expected.prototypeTag) {
+    throw new Error(`Flat numerical state ${expected.pointer} changed record prototype`);
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (expected.prototypeTag === "Object" && prototype !== Object.prototype || expected.prototypeTag === null && prototype !== null) {
+    throw new Error(`Flat numerical state ${expected.pointer} changed record prototype`);
+  }
+  assertDataProperties(value, expected.path, false);
+  if (!sameStrings(Object.keys(value).sort(), expected.keys)) {
+    throw new Error(`Flat numerical state ${expected.pointer} changed record shape`);
+  }
+}
+function assertDataProperties(value, path, array) {
+  if (Object.getOwnPropertySymbols(value).length !== 0) {
+    throw new Error(`Flat numerical state ${pointer$1(path)} has symbol keys`);
+  }
+  const allowedNonEnumerable = array ? /* @__PURE__ */ new Set(["length"]) : /* @__PURE__ */ new Set();
+  for (const key of Object.getOwnPropertyNames(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === void 0 || !("value" in descriptor)) {
+      throw new Error(`Flat numerical state ${pointer$1([...path, key])} is an accessor`);
+    }
+    if (!descriptor.enumerable && !allowedNonEnumerable.has(key)) {
+      throw new Error(
+        `Flat numerical state ${pointer$1([...path, key])} is non-enumerable`
+      );
+    }
+  }
+}
+function requiredPathValue(root, path) {
+  let current = root;
+  const traversed = [];
+  for (const segment of path) {
+    if (current === null || typeof current !== "object") {
+      throw new Error(`Flat numerical state ${pointer$1(path)} is unavailable`);
+    }
+    current = requiredOwnValue$1(current, String(segment), traversed);
+    traversed.push(segment);
+  }
+  return current;
+}
+function requiredOwnValue$1(record, key, path) {
+  const descriptor = Object.getOwnPropertyDescriptor(record, key);
+  if (descriptor === void 0 || !("value" in descriptor)) {
+    throw new Error(`Flat numerical state ${pointer$1([...path, key])} is unavailable`);
+  }
+  return descriptor.value;
+}
+function slot(path, optionalRecordRootIndex = null, boundedArrayRootIndex = null, boundedArrayItemIndex = null) {
+  const ownedPath = Object.freeze([...path]);
+  return Object.freeze({
+    path: ownedPath,
+    pointer: pointer$1(ownedPath),
+    optionalRecordRootIndex,
+    boundedArrayRootIndex,
+    boundedArrayItemIndex
+  });
+}
+function container(path, kind, keys, prototypeTag = null, optionalRecordRootIndex = null, boundedArrayRootIndex = null, boundedArrayItemIndex = null) {
+  const ownedPath = Object.freeze([...path]);
+  return Object.freeze({
+    path: ownedPath,
+    pointer: pointer$1(ownedPath),
+    kind,
+    keys: Object.freeze([...keys]),
+    prototypeTag,
+    optionalRecordRootIndex,
+    boundedArrayRootIndex,
+    boundedArrayItemIndex
+  });
+}
+function dataRecordPrototypeTag(value, path) {
+  if (value instanceof Date || value instanceof Map || value instanceof Set || value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
+    throw new Error(`Flat numerical state ${pointer$1(path)} is not a data record`);
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype === null) return null;
+  const constructorDescriptor = Object.getOwnPropertyDescriptor(
+    prototype,
+    "constructor"
+  );
+  const constructor = constructorDescriptor?.value;
+  if (typeof constructor !== "function" || constructor.name.length === 0) {
+    throw new Error(`Flat numerical state ${pointer$1(path)} has no record prototype`);
+  }
+  return constructor.name;
+}
+function isNumericTypedArray$1(value) {
+  return value instanceof Float64Array || value instanceof Float32Array || value instanceof Int32Array || value instanceof Uint32Array || value instanceof Int16Array || value instanceof Uint16Array || value instanceof Int8Array || value instanceof Uint8Array || value instanceof Uint8ClampedArray;
+}
+function numericTypedArrayPrototype(tag) {
+  switch (tag) {
+    case "Float64Array":
+      return Float64Array.prototype;
+    case "Float32Array":
+      return Float32Array.prototype;
+    case "Int32Array":
+      return Int32Array.prototype;
+    case "Uint32Array":
+      return Uint32Array.prototype;
+    case "Int16Array":
+      return Int16Array.prototype;
+    case "Uint16Array":
+      return Uint16Array.prototype;
+    case "Int8Array":
+      return Int8Array.prototype;
+    case "Uint8Array":
+      return Uint8Array.prototype;
+    case "Uint8ClampedArray":
+      return Uint8ClampedArray.prototype;
+    default:
+      return null;
+  }
+}
+function pointer$1(path) {
+  if (path.length === 0) return "/";
+  return `/${path.map((segment) => String(segment).replaceAll("~", "~0").replaceAll("/", "~1")).join("/")}`;
+}
+function sameStrings(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+const TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID = "circleheart-transactional-typed-state-image-v1";
+const TRANSACTIONAL_TYPED_STATE_MANIFEST_V1_SCHEMA_ID = "circleheart-transactional-typed-state-manifest-v1";
+const TRANSACTIONAL_TYPED_STATE_COMPLETION_PLAN_V1_SCHEMA_ID = "circleheart-transactional-typed-state-completion-plan-v1";
+const TRANSACTIONAL_TYPED_STATE_PROMOTION_PLAN_V1_SCHEMA_ID = "circleheart-transactional-typed-state-promotion-plan-v1";
+const MAX_ARENA_CAPACITY_BYTES = 16 * 1024 * 1024;
+const UTF8_ENCODER = new TextEncoder();
+const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
+const EXTERNAL_IMMUTABLE_CANONICAL_BYTES = /* @__PURE__ */ new WeakMap();
+const COMPLETION_PLAN_INTERNALS = /* @__PURE__ */ new WeakMap();
+const PROMOTION_PLAN_INTERNALS = /* @__PURE__ */ new WeakMap();
+function createTransactionalTypedStateManifestV1(layoutId, referenceState, stringArenaCapacityBytes, dynamicArenaCapacityBytes, layoutOptions = {}) {
+  assertArenaCapacity(stringArenaCapacityBytes, "string");
+  assertArenaCapacity(dynamicArenaCapacityBytes, "dynamic", true);
+  const numericalLayout = createFlatNumericalStateLayoutV1(
+    layoutId,
+    referenceState,
+    layoutOptions
+  );
+  if (numericalLayout.excludedDynamicRoots.length > 0 && dynamicArenaCapacityBytes === 0) {
+    throw new Error(
+      "Transactional typed state dynamic roots require a positive arena capacity"
+    );
+  }
+  for (const root of numericalLayout.optionalRecordRoots) {
+    assertTransitivelyFrozenData(
+      root.template,
+      `${root.pointer} optional-record template`,
+      /* @__PURE__ */ new Set()
+    );
+  }
+  for (const root of numericalLayout.boundedArrayRoots) {
+    assertTransitivelyFrozenData(
+      root.itemTemplate,
+      `${root.pointer} bounded-array item template`,
+      /* @__PURE__ */ new Set()
+    );
+  }
+  const rootNode = compileNode(referenceState, [], numericalLayout);
+  const boundedArrayNodes = Object.freeze(
+    numericalLayout.boundedArrayRoots.map((root, slotIndex2) => compileBoundedArrayNode(
+      root.itemTemplate,
+      root.path,
+      slotIndex2,
+      root.capacity,
+      numericalLayout
+    ))
+  );
+  const aliasByPointer = new Map(
+    numericalLayout.externalImmutableAliases.map((alias) => [alias.pointer, alias])
+  );
+  const externalImmutableRoots = numericalLayout.externalImmutableRoots.map(
+    (root) => {
+      const alias = aliasByPointer.get(root.pointer);
+      const bindingPath = alias?.sourcePath ?? root.path;
+      const bindingPointer = alias?.sourcePointer ?? root.pointer;
+      const value = readFlatNumericalStatePathV1(
+        referenceState,
+        bindingPath
+      );
+      assertTransitivelyFrozenData(value, root.pointer, /* @__PURE__ */ new Set());
+      const canonicalBytes2 = encodeCanonicalBytes(value);
+      return Object.freeze({
+        path: root.path,
+        pointer: root.pointer,
+        bindingPath,
+        bindingPointer,
+        value,
+        canonicalByteLength: canonicalBytes2.byteLength,
+        canonicalBytes: canonicalBytes2
+      });
+    }
+  );
+  const imageLayout = createImageLayout(
+    numericalLayout,
+    stringArenaCapacityBytes,
+    dynamicArenaCapacityBytes
+  );
+  const fingerprint = manifestFingerprint(
+    numericalLayout,
+    stringArenaCapacityBytes,
+    dynamicArenaCapacityBytes
+  );
+  const manifest = Object.freeze({
+    schemaId: TRANSACTIONAL_TYPED_STATE_MANIFEST_V1_SCHEMA_ID,
+    layoutId,
+    fingerprint,
+    numericalLayout,
+    stringArenaCapacityBytes,
+    dynamicArenaCapacityBytes,
+    bufferByteLength: imageLayout.bufferByteLength,
+    externalImmutableRoots: Object.freeze(
+      externalImmutableRoots.map(({ canonicalBytes: _canonicalBytes, ...root }) => Object.freeze(root))
+    ),
+    rootNode,
+    boundedArrayNodes,
+    imageLayout
+  });
+  EXTERNAL_IMMUTABLE_CANONICAL_BYTES.set(
+    manifest,
+    Object.freeze(externalImmutableRoots.map(({ canonicalBytes: canonicalBytes2 }) => canonicalBytes2))
+  );
+  return manifest;
+}
+class TransactionalTypedStateImageV1 {
+  constructor(manifest, initialState, admitDirectCompletionCandidate) {
+    this.authorityId = TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID;
+    this.#activeIndex = 0;
+    this.#commitCount = 0;
+    this.#staged = false;
+    this.#stagedStringBytes = 0;
+    this.#stagedDynamicBytes = 0;
+    this.#currentStringBytes = 0;
+    this.#currentDynamicBytes = 0;
+    this.#highWaterStringBytes = 0;
+    this.#highWaterDynamicBytes = 0;
+    this.#candidateGeneration = 0;
+    this.#externalImmutableIdentityMatchCount = 0;
+    this.#externalImmutableCanonicalMatchCount = 0;
+    this.#directCompletionReaderPlanUseCount = 0;
+    this.#directExactCandidateMatchCount = 0;
+    this.#modelOwnedPromotionCount = 0;
+    this.#manifest = manifest;
+    this.#admitDirectCompletionCandidate = admitDirectCompletionCandidate ?? null;
+    this.#highWaterBoundedArrayLengths = new Uint32Array(
+      manifest.numericalLayout.boundedArrayRoots.length
+    );
+    this.#candidateWrittenContinuous = new Uint8Array(
+      manifest.numericalLayout.continuousSlots.length
+    );
+    this.#candidateWrittenNullableContinuous = new Uint8Array(
+      manifest.numericalLayout.nullableContinuousSlots.length
+    );
+    this.#candidateWrittenBooleans = new Uint8Array(
+      manifest.numericalLayout.booleanSlots.length
+    );
+    this.#candidateWrittenStrings = new Uint8Array(
+      manifest.numericalLayout.stringSlots.length
+    );
+    this.#images = Object.freeze([
+      createImage(manifest),
+      createImage(manifest)
+    ]);
+    this.#currentCursor = Object.freeze({
+      layoutId: manifest.layoutId,
+      fingerprint: manifest.fingerprint,
+      readContinuous: (slotIndex2) => this.readCurrentContinuous(slotIndex2),
+      readNullableContinuous: (slotIndex2) => this.readCurrentNullableContinuous(slotIndex2),
+      readNullableString: (slotIndex2) => this.readCurrentNullableString(slotIndex2),
+      readBoolean: (slotIndex2) => this.readCurrentBoolean(slotIndex2),
+      readString: (slotIndex2) => this.readCurrentString(slotIndex2),
+      readDynamic: (slotIndex2) => this.readCurrentDynamic(slotIndex2),
+      readBoundedArray: (slotIndex2) => this.readCurrentBoundedArray(slotIndex2)
+    });
+    this.stage(initialState);
+    this.promote();
+    this.#commitCount = 0;
+  }
+  #manifest;
+  #images;
+  #currentCursor;
+  #admitDirectCompletionCandidate;
+  #activeIndex;
+  #commitCount;
+  #staged;
+  #stagedStringBytes;
+  #stagedDynamicBytes;
+  #currentStringBytes;
+  #currentDynamicBytes;
+  #highWaterStringBytes;
+  #highWaterDynamicBytes;
+  #highWaterBoundedArrayLengths;
+  #candidateWrittenContinuous;
+  #candidateWrittenNullableContinuous;
+  #candidateWrittenBooleans;
+  #candidateWrittenStrings;
+  #candidateGeneration;
+  #externalImmutableIdentityMatchCount;
+  #externalImmutableCanonicalMatchCount;
+  #directCompletionReaderPlanUseCount;
+  #directExactCandidateMatchCount;
+  #modelOwnedPromotionCount;
+  stage(candidate) {
+    if (this.#staged) {
+      throw new Error("Transactional typed state already has a staged candidate");
+    }
+    this.assertExternalImmutableRootsMatch(candidate);
+    assertFlatNumericalStateShapeV1(
+      this.#manifest.numericalLayout,
+      candidate
+    );
+    const candidateImage = this.#images[this.inactiveIndex()];
+    writeOptionalRecordPresence(this.#manifest, candidate, candidateImage);
+    writeBoundedArrayLengths(this.#manifest, candidate, candidateImage);
+    writeFixedLeaves(this.#manifest, candidate, candidateImage);
+    writeNullableContinuousLeaves(this.#manifest, candidate, candidateImage);
+    const stringBytes = writeStrings(this.#manifest, candidate, candidateImage);
+    const dynamicBytes = writeDynamicRoots(
+      this.#manifest,
+      candidate,
+      candidateImage
+    );
+    this.#stagedStringBytes = stringBytes;
+    this.#stagedDynamicBytes = dynamicBytes;
+    this.#staged = true;
+  }
+  /**
+   * Copies current into inactive storage once, then returns a cursor that can
+   * update fixed slots without allocating candidate objects. A model-owned
+   * transaction may promote after explicit required-write coverage and its
+   * own scientific seals; event/cold paths can still complete or audit against
+   * an admitted object mirror.
+   */
+  beginCandidateFromCurrent() {
+    if (this.#staged) {
+      throw new Error("Transactional typed state already has a staged candidate");
+    }
+    const current = this.#images[this.#activeIndex];
+    const candidate = this.#images[this.inactiveIndex()];
+    new Uint8Array(candidate.buffer).set(new Uint8Array(current.buffer));
+    this.#stagedStringBytes = this.#currentStringBytes;
+    this.#stagedDynamicBytes = this.#currentDynamicBytes;
+    this.#staged = true;
+    this.#candidateWrittenContinuous.fill(0);
+    this.#candidateWrittenNullableContinuous.fill(0);
+    this.#candidateWrittenBooleans.fill(0);
+    this.#candidateWrittenStrings.fill(0);
+    this.#candidateGeneration += 1;
+    const generation = this.#candidateGeneration;
+    return Object.freeze({
+      layoutId: this.#manifest.layoutId,
+      fingerprint: this.#manifest.fingerprint,
+      readContinuous: (slotIndex2) => this.readCandidateContinuous(generation, slotIndex2),
+      writeContinuous: (slotIndex2, value) => this.writeCandidateContinuous(generation, slotIndex2, value),
+      readNullableContinuous: (slotIndex2) => this.readCandidateNullableContinuous(generation, slotIndex2),
+      writeNullableContinuous: (slotIndex2, value) => this.writeCandidateNullableContinuous(generation, slotIndex2, value),
+      readBoolean: (slotIndex2) => this.readCandidateBoolean(generation, slotIndex2),
+      writeBoolean: (slotIndex2, value) => this.writeCandidateBoolean(generation, slotIndex2, value),
+      readString: (slotIndex2) => this.readCandidateString(generation, slotIndex2),
+      writeStringSameByteLength: (slotIndex2, value) => this.writeCandidateStringSameByteLength(
+        generation,
+        slotIndex2,
+        value
+      )
+    });
+  }
+  /**
+   * Compiles retained-slot membership once at cold initialization. The plan is
+   * bound to this exact manifest instance and cannot be forged by structural
+   * data alone.
+   */
+  createCompletionPlan(retained) {
+    const retainedContinuous = retainedSlotSet(
+      retained.continuous,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous"
+    );
+    const retainedBooleans = retainedSlotSet(
+      retained.booleans,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean"
+    );
+    const plan = Object.freeze({
+      schemaId: TRANSACTIONAL_TYPED_STATE_COMPLETION_PLAN_V1_SCHEMA_ID,
+      layoutId: this.#manifest.layoutId,
+      fingerprint: this.#manifest.fingerprint,
+      retainedContinuousSlots: Object.freeze([...retainedContinuous]),
+      retainedBooleanSlots: Object.freeze([...retainedBooleans])
+    });
+    COMPLETION_PLAN_INTERNALS.set(plan, Object.freeze({
+      manifest: this.#manifest,
+      retainedContinuous,
+      retainedBooleans,
+      writableContinuous: complementSlotIndices(
+        this.#manifest.numericalLayout.continuousSlots.length,
+        retainedContinuous
+      ),
+      writableBooleans: complementSlotIndices(
+        this.#manifest.numericalLayout.booleanSlots.length,
+        retainedBooleans
+      ),
+      readers: compileDirectCompletionReaders(this.#manifest)
+    }));
+    return plan;
+  }
+  /**
+   * Compiles the exact slots a model-owned direct transaction must write.
+   * The WeakMap binding makes a structurally copied or hand-built plan
+   * unusable, just like the completion plan above.
+   */
+  createPromotionPlan(required) {
+    const requiredContinuous = requiredSlotIndices(
+      required.continuous,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous"
+    );
+    const requiredNullableContinuous = requiredSlotIndices(
+      required.nullableContinuous,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous"
+    );
+    const requiredBooleans = requiredSlotIndices(
+      required.booleans,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean"
+    );
+    const requiredStrings = requiredSlotIndices(
+      required.strings,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string"
+    );
+    const plan = Object.freeze({
+      schemaId: TRANSACTIONAL_TYPED_STATE_PROMOTION_PLAN_V1_SCHEMA_ID,
+      layoutId: this.#manifest.layoutId,
+      fingerprint: this.#manifest.fingerprint,
+      requiredContinuousSlots: requiredContinuous,
+      requiredNullableContinuousSlots: requiredNullableContinuous,
+      requiredBooleanSlots: requiredBooleans,
+      requiredStringSlots: requiredStrings
+    });
+    PROMOTION_PLAN_INTERNALS.set(plan, Object.freeze({
+      manifest: this.#manifest,
+      requiredContinuous,
+      requiredNullableContinuous,
+      requiredBooleans,
+      requiredStrings
+    }));
+    return plan;
+  }
+  /**
+   * Promotes one model-owned candidate without constructing an object mirror.
+   * This primitive proves transaction/layout identity and exhaustive writes
+   * for the model-declared owner set only. The caller remains responsible for
+   * all numerical, cross-owner, and accepted-boundary scientific seals before
+   * invoking it. Failure leaves the inactive candidate staged for explicit
+   * abort; success is the single infallible active-image swap.
+   */
+  promoteCandidateWithRequiredWrites(promotionPlan) {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    this.assertPromotionPlanRequiredWrites(promotionPlan);
+    this.promote();
+    this.#modelOwnedPromotionCount += 1;
+  }
+  /**
+   * Seals and promotes one model-owned typed candidate. The common lean path
+   * validates the already model-admitted object identity and explicit slot
+   * coverage without comparing it leaf-by-leaf with the image. Full-invariant
+   * callers additionally pass an audit plan; a mismatch then leaves the
+   * candidate staged so exhaustive event-boundary completion can take over.
+   */
+  tryPromoteCandidateWithRequiredWrites(candidate, promotionPlan, exactAuditPlan) {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    const admittedCandidate = this.#admitDirectCompletionCandidate === null ? candidate : this.#admitDirectCompletionCandidate(candidate);
+    if (admittedCandidate !== candidate) {
+      throw new Error(
+        "Transactional typed state direct admission changed candidate identity"
+      );
+    }
+    this.assertPromotionPlanRequiredWrites(promotionPlan);
+    if (exactAuditPlan !== void 0) {
+      const audit = COMPLETION_PLAN_INTERNALS.get(exactAuditPlan);
+      if (audit === void 0 || audit.manifest !== this.#manifest || exactAuditPlan.layoutId !== this.#manifest.layoutId || exactAuditPlan.fingerprint !== this.#manifest.fingerprint) {
+        throw new Error(
+          "Transactional typed state exact audit plan has the wrong layout"
+        );
+      }
+      const candidateImage = this.#images[this.inactiveIndex()];
+      this.assertExternalImmutableRootsMatch(
+        candidate,
+        audit.readers.externalImmutable,
+        candidateImage
+      );
+      if (!imageExactlyMatchesObject(
+        this.#manifest,
+        candidate,
+        candidateImage,
+        audit.readers,
+        this.#stagedStringBytes,
+        this.#stagedDynamicBytes
+      )) {
+        return null;
+      }
+      this.#directExactCandidateMatchCount += 1;
+    }
+    this.promote();
+    this.#modelOwnedPromotionCount += 1;
+    return admittedCandidate;
+  }
+  /**
+   * Completes a directly staged candidate from a temporary object adapter.
+   * Slots already written by migrated owners are compared bit-exactly and are
+   * never overwritten; all remaining leaves and bounded arenas are populated
+   * from the adapter. After this returns, the staged image is an exhaustive
+   * typed encoding of the adapter: retained leaves matched bit-exactly and all
+   * other admitted leaves were overwritten from it.
+   */
+  completeCandidateFromObject(candidate, plan) {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    const admittedCandidate = this.#admitDirectCompletionCandidate === null ? candidate : this.#admitDirectCompletionCandidate(candidate);
+    if (admittedCandidate !== candidate) {
+      throw new Error(
+        "Transactional typed state direct admission changed candidate identity"
+      );
+    }
+    const internal = COMPLETION_PLAN_INTERNALS.get(plan);
+    if (internal === void 0 || internal.manifest !== this.#manifest || plan.layoutId !== this.#manifest.layoutId || plan.fingerprint !== this.#manifest.fingerprint) {
+      throw new Error(
+        "Transactional typed state completion plan has the wrong layout"
+      );
+    }
+    const candidateImage = this.#images[this.inactiveIndex()];
+    const directReaders = this.#admitDirectCompletionCandidate === null ? void 0 : internal.readers;
+    if (directReaders === void 0) {
+      this.assertExternalImmutableRootsMatch(candidate);
+      assertFlatNumericalStateShapeV1(
+        this.#manifest.numericalLayout,
+        candidate
+      );
+    }
+    writeOptionalRecordPresence(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders?.optionalRecords
+    );
+    writeBoundedArrayLengths(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders?.boundedArrays
+    );
+    if (directReaders !== void 0) {
+      this.assertExternalImmutableRootsMatch(
+        candidate,
+        directReaders.externalImmutable,
+        candidateImage
+      );
+    }
+    assertRetainedFixedLeavesMatch(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      internal.retainedContinuous,
+      internal.retainedBooleans,
+      directReaders
+    );
+    writeFixedLeaves(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      internal.writableContinuous,
+      internal.writableBooleans,
+      directReaders
+    );
+    writeNullableContinuousLeaves(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders
+    );
+    this.#stagedStringBytes = writeStrings(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders
+    );
+    this.#stagedDynamicBytes = writeDynamicRoots(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders
+    );
+    if (directReaders !== void 0) {
+      this.#directCompletionReaderPlanUseCount += 1;
+    }
+    return admittedCandidate;
+  }
+  /**
+   * Proves that every staged byte already represents one internally admitted
+   * adapter. No candidate data is written here. A mismatch returns null and
+   * leaves the transaction open so the caller may run exhaustive completion.
+   */
+  matchCandidateExactlyAgainstObject(candidate, plan) {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    const admittedCandidate = this.#admitDirectCompletionCandidate === null ? candidate : this.#admitDirectCompletionCandidate(candidate);
+    if (admittedCandidate !== candidate) {
+      throw new Error(
+        "Transactional typed state direct admission changed candidate identity"
+      );
+    }
+    const internal = COMPLETION_PLAN_INTERNALS.get(plan);
+    if (internal === void 0 || internal.manifest !== this.#manifest || plan.layoutId !== this.#manifest.layoutId || plan.fingerprint !== this.#manifest.fingerprint) {
+      throw new Error(
+        "Transactional typed state completion plan has the wrong layout"
+      );
+    }
+    const candidateImage = this.#images[this.inactiveIndex()];
+    this.assertExternalImmutableRootsMatch(
+      candidate,
+      internal.readers.externalImmutable,
+      candidateImage
+    );
+    if (!imageExactlyMatchesObject(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      internal.readers,
+      this.#stagedStringBytes,
+      this.#stagedDynamicBytes
+    )) {
+      return null;
+    }
+    this.#directExactCandidateMatchCount += 1;
+    return admittedCandidate;
+  }
+  promote() {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    this.#activeIndex = this.inactiveIndex();
+    this.#currentStringBytes = this.#stagedStringBytes;
+    this.#currentDynamicBytes = this.#stagedDynamicBytes;
+    this.#highWaterStringBytes = Math.max(
+      this.#highWaterStringBytes,
+      this.#currentStringBytes
+    );
+    this.#highWaterDynamicBytes = Math.max(
+      this.#highWaterDynamicBytes,
+      this.#currentDynamicBytes
+    );
+    const currentLengths = this.#images[this.#activeIndex].boundedArrayLengths;
+    for (let index = 0; index < currentLengths.length; index += 1) {
+      this.#highWaterBoundedArrayLengths[index] = Math.max(
+        this.#highWaterBoundedArrayLengths[index],
+        currentLengths[index]
+      );
+    }
+    this.#staged = false;
+    this.#commitCount += 1;
+  }
+  abort() {
+    this.#staged = false;
+    this.#stagedStringBytes = 0;
+    this.#stagedDynamicBytes = 0;
+  }
+  rehydrateCurrent() {
+    return rehydrateNode(
+      this.#manifest.rootNode,
+      this.#images[this.#activeIndex],
+      this.#manifest.externalImmutableRoots
+    );
+  }
+  rehydrateStaged() {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    return rehydrateNode(
+      this.#manifest.rootNode,
+      this.#images[this.inactiveIndex()],
+      this.#manifest.externalImmutableRoots
+    );
+  }
+  currentCursor() {
+    return this.#currentCursor;
+  }
+  snapshot() {
+    const image = this.#images[this.#activeIndex];
+    return Object.freeze({
+      continuous: image.continuous.slice(),
+      nullableContinuous: image.nullableContinuous.slice(),
+      nullableContinuousPresent: image.nullableContinuousPresent.slice(),
+      booleans: image.booleans.slice(),
+      stringMetadata: image.stringMetadata.slice(),
+      nullableStringMetadata: image.nullableStringMetadata.slice(),
+      nullableStringPresent: image.nullableStringPresent.slice(),
+      optionalRecordPresent: image.optionalRecordPresent.slice(),
+      boundedArrayLengths: image.boundedArrayLengths.slice(),
+      stringBytes: image.stringArena.slice(0, this.#currentStringBytes),
+      dynamicMetadata: image.dynamicMetadata.slice(),
+      dynamicBytes: image.dynamicArena.slice(0, this.#currentDynamicBytes)
+    });
+  }
+  report() {
+    const layout = this.#manifest.numericalLayout;
+    return Object.freeze({
+      authorityId: TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID,
+      layoutId: this.#manifest.layoutId,
+      fingerprint: this.#manifest.fingerprint,
+      continuousSlotCount: layout.continuousSlots.length,
+      nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
+      nullableStringSlotCount: layout.nullableStringSlots.length,
+      optionalRecordRootCount: layout.optionalRecordRoots.length,
+      boundedArrayRootCount: layout.boundedArrayRoots.length,
+      booleanSlotCount: layout.booleanSlots.length,
+      stringSlotCount: layout.stringSlots.length,
+      dynamicRootCount: layout.excludedDynamicRoots.length,
+      externalImmutableRootCount: layout.externalImmutableRoots.length,
+      containerCount: layout.containers.length,
+      fixedImageCount: 2,
+      bufferByteLength: this.#manifest.bufferByteLength,
+      stringArenaCapacityBytes: this.#manifest.stringArenaCapacityBytes,
+      dynamicArenaCapacityBytes: this.#manifest.dynamicArenaCapacityBytes,
+      currentStringBytes: this.#currentStringBytes,
+      currentDynamicBytes: this.#currentDynamicBytes,
+      highWaterStringBytes: this.#highWaterStringBytes,
+      highWaterDynamicBytes: this.#highWaterDynamicBytes,
+      boundedArrays: Object.freeze(layout.boundedArrayRoots.map((root, index) => Object.freeze({
+        pointer: root.pointer,
+        capacity: root.capacity,
+        currentLength: this.#images[this.#activeIndex].boundedArrayLengths[index],
+        highWaterLength: this.#highWaterBoundedArrayLengths[index]
+      }))),
+      activeBufferIndex: this.#activeIndex,
+      commitCount: this.#commitCount,
+      externalImmutableIdentityMatchCount: this.#externalImmutableIdentityMatchCount,
+      externalImmutableCanonicalMatchCount: this.#externalImmutableCanonicalMatchCount,
+      directCompletionReaderPlanUseCount: this.#directCompletionReaderPlanUseCount,
+      directExactCandidateMatchCount: this.#directExactCandidateMatchCount,
+      modelOwnedPromotionCount: this.#modelOwnedPromotionCount,
+      staged: this.#staged
+    });
+  }
+  assertExternalImmutableRootsMatch(candidate, directReaders, candidateImage) {
+    const expectedBytes = EXTERNAL_IMMUTABLE_CANONICAL_BYTES.get(
+      this.#manifest
+    );
+    if (expectedBytes === void 0) {
+      throw new Error(
+        "Transactional typed state external immutable manifest is unavailable"
+      );
+    }
+    let identityMatches = 0;
+    let canonicalMatches = 0;
+    for (let index = 0; index < this.#manifest.externalImmutableRoots.length; index += 1) {
+      const expected = this.#manifest.externalImmutableRoots[index];
+      if (layoutEntryAbsent(
+        this.#manifest.numericalLayout,
+        candidate,
+        this.#manifest.numericalLayout.externalImmutableRoots[index],
+        candidateImage
+      )) {
+        continue;
+      }
+      const actual = directReaders === void 0 ? readFlatNumericalStatePathV1(candidate, expected.path) : directReaders[index](candidate);
+      if (actual === expected.value) {
+        identityMatches += 1;
+        continue;
+      }
+      assertTransitivelyFrozenData(actual, expected.pointer, /* @__PURE__ */ new Set());
+      const actualBytes = encodeCanonicalBytes(actual);
+      const referenceBytes = expectedBytes[index];
+      if (actualBytes.byteLength !== referenceBytes.byteLength || !actualBytes.every((value, byteIndex) => value === referenceBytes[byteIndex])) {
+        throw new Error(
+          `Transactional typed state external immutable ${expected.pointer} changed`
+        );
+      }
+      canonicalMatches += 1;
+    }
+    this.#externalImmutableIdentityMatchCount += identityMatches;
+    this.#externalImmutableCanonicalMatchCount += canonicalMatches;
+  }
+  inactiveIndex() {
+    return this.#activeIndex === 0 ? 1 : 0;
+  }
+  readCurrentContinuous(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous"
+    );
+    const value = this.#images[this.#activeIndex].continuous[slotIndex2];
+    if (!Number.isFinite(value)) {
+      throw new Error("Transactional typed state current continuous slot is not finite");
+    }
+    return value;
+  }
+  readCurrentNullableContinuous(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous"
+    );
+    const image = this.#images[this.#activeIndex];
+    const present = image.nullableContinuousPresent[slotIndex2];
+    if (present === 0) return null;
+    if (present !== 1) {
+      throw new Error(
+        "Transactional typed state nullable continuous presence is invalid"
+      );
+    }
+    const value = image.nullableContinuous[slotIndex2];
+    if (!Number.isFinite(value)) {
+      throw new Error(
+        "Transactional typed state nullable continuous slot is not finite"
+      );
+    }
+    return value;
+  }
+  readCurrentBoolean(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean"
+    );
+    const value = this.#images[this.#activeIndex].booleans[slotIndex2];
+    if (value !== 0 && value !== 1) {
+      throw new Error("Transactional typed state current boolean slot is invalid");
+    }
+    return value === 1;
+  }
+  readCurrentNullableString(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.nullableStringSlots.length,
+      "nullable string"
+    );
+    const image = this.#images[this.#activeIndex];
+    const present = image.nullableStringPresent[slotIndex2];
+    if (present === 0) return null;
+    if (present !== 1) {
+      throw new Error(
+        "Transactional typed state nullable string presence is invalid"
+      );
+    }
+    const offset = image.nullableStringMetadata[slotIndex2 * 2];
+    const length = image.nullableStringMetadata[slotIndex2 * 2 + 1];
+    assertArenaSlice(offset, length, this.#currentStringBytes, "string", true);
+    return UTF8_DECODER.decode(
+      image.stringArena.subarray(offset, offset + length)
+    );
+  }
+  readCurrentString(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string"
+    );
+    const image = this.#images[this.#activeIndex];
+    const offset = image.stringMetadata[slotIndex2 * 2];
+    const length = image.stringMetadata[slotIndex2 * 2 + 1];
+    assertArenaSlice(offset, length, this.#currentStringBytes, "string", true);
+    return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
+  }
+  readCurrentDynamic(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.excludedDynamicRoots.length,
+      "dynamic"
+    );
+    const image = this.#images[this.#activeIndex];
+    const offset = image.dynamicMetadata[slotIndex2 * 2];
+    const length = image.dynamicMetadata[slotIndex2 * 2 + 1];
+    assertArenaSlice(offset, length, this.#currentDynamicBytes, "dynamic");
+    return decodeCanonicalFlatDataV1(
+      image.dynamicArena.subarray(offset, offset + length)
+    );
+  }
+  readCurrentBoundedArray(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.boundedArrayNodes.length,
+      "bounded array"
+    );
+    return rehydrateNode(
+      this.#manifest.boundedArrayNodes[slotIndex2],
+      this.#images[this.#activeIndex],
+      this.#manifest.externalImmutableRoots
+    );
+  }
+  readCandidateContinuous(generation, slotIndex2) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous candidate"
+    );
+    return this.#images[this.inactiveIndex()].continuous[slotIndex2];
+  }
+  writeCandidateContinuous(generation, slotIndex2, value) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous candidate"
+    );
+    if (!Number.isFinite(value)) {
+      throw new Error(
+        "Transactional typed state candidate continuous value must be finite"
+      );
+    }
+    this.#images[this.inactiveIndex()].continuous[slotIndex2] = value;
+    this.#candidateWrittenContinuous[slotIndex2] = 1;
+  }
+  readCandidateNullableContinuous(generation, slotIndex2) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous candidate"
+    );
+    const image = this.#images[this.inactiveIndex()];
+    const present = image.nullableContinuousPresent[slotIndex2];
+    if (present === 0) return null;
+    if (present !== 1 || !Number.isFinite(image.nullableContinuous[slotIndex2])) {
+      throw new Error(
+        "Transactional typed state nullable continuous candidate is invalid"
+      );
+    }
+    return image.nullableContinuous[slotIndex2];
+  }
+  writeCandidateNullableContinuous(generation, slotIndex2, value) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous candidate"
+    );
+    const image = this.#images[this.inactiveIndex()];
+    if (value === null) {
+      image.nullableContinuous[slotIndex2] = 0;
+      image.nullableContinuousPresent[slotIndex2] = 0;
+      this.#candidateWrittenNullableContinuous[slotIndex2] = 1;
+      return;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(
+        "Transactional typed state nullable continuous candidate value is invalid"
+      );
+    }
+    image.nullableContinuous[slotIndex2] = value;
+    image.nullableContinuousPresent[slotIndex2] = 1;
+    this.#candidateWrittenNullableContinuous[slotIndex2] = 1;
+  }
+  readCandidateBoolean(generation, slotIndex2) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean candidate"
+    );
+    return this.#images[this.inactiveIndex()].booleans[slotIndex2] === 1;
+  }
+  writeCandidateBoolean(generation, slotIndex2, value) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean candidate"
+    );
+    if (typeof value !== "boolean") {
+      throw new Error(
+        "Transactional typed state candidate boolean value must be boolean"
+      );
+    }
+    this.#images[this.inactiveIndex()].booleans[slotIndex2] = value ? 1 : 0;
+    this.#candidateWrittenBooleans[slotIndex2] = 1;
+  }
+  readCandidateString(generation, slotIndex2) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string candidate"
+    );
+    return decodeStringSlot(
+      this.#images[this.inactiveIndex()],
+      slotIndex2,
+      this.#stagedStringBytes
+    );
+  }
+  writeCandidateStringSameByteLength(generation, slotIndex2, value) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string candidate"
+    );
+    assertWellFormedString(value, "candidate string");
+    const image = this.#images[this.inactiveIndex()];
+    const offset = image.stringMetadata[slotIndex2 * 2];
+    const length = image.stringMetadata[slotIndex2 * 2 + 1];
+    assertArenaSlice(
+      offset,
+      length,
+      this.#stagedStringBytes,
+      "string candidate",
+      true
+    );
+    const target = image.stringArena.subarray(offset, offset + length);
+    const result = UTF8_ENCODER.encodeInto(value, target);
+    if (result.read !== value.length || result.written !== length) {
+      throw new Error(
+        "Transactional typed state candidate string byte length changed"
+      );
+    }
+    this.#candidateWrittenStrings[slotIndex2] = 1;
+  }
+  assertCandidateGeneration(generation) {
+    if (!this.#staged || generation !== this.#candidateGeneration) {
+      throw new Error("Transactional typed state candidate cursor is stale");
+    }
+  }
+  assertPromotionPlanRequiredWrites(promotionPlan) {
+    const internal = PROMOTION_PLAN_INTERNALS.get(promotionPlan);
+    if (internal === void 0 || internal.manifest !== this.#manifest || promotionPlan.layoutId !== this.#manifest.layoutId || promotionPlan.fingerprint !== this.#manifest.fingerprint) {
+      throw new Error(
+        "Transactional typed state promotion plan has the wrong layout"
+      );
+    }
+    assertRequiredCandidateWrites(
+      internal.requiredContinuous,
+      this.#candidateWrittenContinuous,
+      "continuous"
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredNullableContinuous,
+      this.#candidateWrittenNullableContinuous,
+      "nullable continuous"
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredBooleans,
+      this.#candidateWrittenBooleans,
+      "boolean"
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredStrings,
+      this.#candidateWrittenStrings,
+      "string"
+    );
+  }
+}
+function assertSlotIndex(slotIndex2, slotCount, owner) {
+  if (!Number.isSafeInteger(slotIndex2) || slotIndex2 < 0 || slotIndex2 >= slotCount) {
+    throw new Error(`Transactional typed state ${owner} slot index is invalid`);
+  }
+}
+function assertArenaSlice(offset, length, usedBytes, owner, allowEmpty = false) {
+  if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < (allowEmpty ? 0 : 1) || offset + length > usedBytes) {
+    throw new Error(`Transactional typed state current ${owner} slice is invalid`);
+  }
+}
+function writeFixedLeaves(manifest, state, destination, writableContinuous, writableBooleans, directReaders) {
+  const layout = manifest.numericalLayout;
+  const continuousCount = writableContinuous?.length ?? layout.continuousSlots.length;
+  for (let position = 0; position < continuousCount; position += 1) {
+    const index = writableContinuous?.[position] ?? position;
+    const slot2 = layout.continuousSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, directReaders === void 0 ? void 0 : destination)) {
+      destination.continuous[index] = 0;
+      continue;
+    }
+    const value = directReaders?.continuous[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(`Transactional typed state ${slot2.pointer} must be finite`);
+    }
+    destination.continuous[index] = value;
+  }
+  const booleanCount = writableBooleans?.length ?? layout.booleanSlots.length;
+  for (let position = 0; position < booleanCount; position += 1) {
+    const index = writableBooleans?.[position] ?? position;
+    const slot2 = layout.booleanSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, directReaders === void 0 ? void 0 : destination)) {
+      destination.booleans[index] = 0;
+      continue;
+    }
+    const value = directReaders?.booleans[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
+    if (typeof value !== "boolean") {
+      throw new Error(`Transactional typed state ${slot2.pointer} must be boolean`);
+    }
+    destination.booleans[index] = value ? 1 : 0;
+  }
+}
+function assertRetainedFixedLeavesMatch(manifest, state, destination, retainedContinuous, retainedBooleans, directReaders) {
+  for (const index of retainedContinuous) {
+    const slot2 = manifest.numericalLayout.continuousSlots[index];
+    const value = directReaders?.continuous[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
+    if (typeof value !== "number" || !Number.isFinite(value) || !Object.is(destination.continuous[index], value)) {
+      throw new Error(
+        `Transactional typed state retained ${slot2.pointer} differs from adapter`
+      );
+    }
+  }
+  for (const index of retainedBooleans) {
+    const slot2 = manifest.numericalLayout.booleanSlots[index];
+    const value = directReaders?.booleans[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
+    if (typeof value !== "boolean" || destination.booleans[index] !== (value ? 1 : 0)) {
+      throw new Error(
+        `Transactional typed state retained ${slot2.pointer} differs from adapter`
+      );
+    }
+  }
+}
+function imageExactlyMatchesObject(manifest, state, image, readers, stringBytes, dynamicBytes) {
+  const layout = manifest.numericalLayout;
+  for (let index = 0; index < layout.optionalRecordRoots.length; index += 1) {
+    const present = readers.optionalRecords[index](state) !== null;
+    if (image.optionalRecordPresent[index] !== (present ? 1 : 0)) return false;
+  }
+  for (let index = 0; index < layout.boundedArrayRoots.length; index += 1) {
+    const value = readers.boundedArrays[index](state);
+    if (!Array.isArray(value) || value.length !== image.boundedArrayLengths[index]) return false;
+  }
+  for (let index = 0; index < layout.continuousSlots.length; index += 1) {
+    const slot2 = layout.continuousSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.continuous[index](state);
+    if (typeof value !== "number" || !Number.isFinite(value) || !Object.is(image.continuous[index], value)) return false;
+  }
+  for (let index = 0; index < layout.nullableContinuousSlots.length; index += 1) {
+    const slot2 = layout.nullableContinuousSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.nullableContinuous[index](state);
+    const present = image.nullableContinuousPresent[index];
+    if (value === null) {
+      if (present !== 0) return false;
+      continue;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value) || present !== 1 || !Object.is(image.nullableContinuous[index], value)) return false;
+  }
+  for (let index = 0; index < layout.booleanSlots.length; index += 1) {
+    const slot2 = layout.booleanSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.booleans[index](state);
+    if (typeof value !== "boolean" || image.booleans[index] !== (value ? 1 : 0)) return false;
+  }
+  for (let index = 0; index < layout.stringSlots.length; index += 1) {
+    const slot2 = layout.stringSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.strings[index](state);
+    if (typeof value !== "string" || decodeStringSlot(image, index, stringBytes) !== value) return false;
+  }
+  for (let index = 0; index < layout.nullableStringSlots.length; index += 1) {
+    const slot2 = layout.nullableStringSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.nullableStrings[index](state);
+    const present = image.nullableStringPresent[index];
+    if (value === null) {
+      if (present !== 0) return false;
+      continue;
+    }
+    if (typeof value !== "string" || present !== 1) return false;
+    const offset = image.nullableStringMetadata[index * 2];
+    const length = image.nullableStringMetadata[index * 2 + 1];
+    assertArenaSlice(offset, length, stringBytes, "nullable string", true);
+    if (UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length)) !== value) return false;
+  }
+  for (let index = 0; index < layout.excludedDynamicRoots.length; index += 1) {
+    const slot2 = layout.excludedDynamicRoots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.dynamicRoots[index](state);
+    const expectedLength = measureCanonicalFlatDataV1(value);
+    const offset = image.dynamicMetadata[index * 2];
+    const length = image.dynamicMetadata[index * 2 + 1];
+    if (length !== expectedLength) return false;
+    assertArenaSlice(offset, length, dynamicBytes, "dynamic");
+    const expected = new Uint8Array(expectedLength);
+    if (encodeCanonicalFlatDataIntoV1(value, expected) !== expectedLength) {
+      throw new Error("Transactional typed state dynamic length changed");
+    }
+    const actual = image.dynamicArena.subarray(offset, offset + length);
+    if (!expected.every((byte, byteIndex) => byte === actual[byteIndex])) {
+      return false;
+    }
+  }
+  return true;
+}
+function decodeStringSlot(image, slotIndex2, usedBytes) {
+  const offset = image.stringMetadata[slotIndex2 * 2];
+  const length = image.stringMetadata[slotIndex2 * 2 + 1];
+  assertArenaSlice(offset, length, usedBytes, "string", true);
+  return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
+}
+function retainedSlotSet(slots, slotCount, owner) {
+  const retained = /* @__PURE__ */ new Set();
+  for (const slotIndex2 of slots ?? []) {
+    assertSlotIndex(slotIndex2, slotCount, `${owner} retained`);
+    if (retained.has(slotIndex2)) {
+      throw new Error(
+        `Transactional typed state ${owner} retained slot is duplicated`
+      );
+    }
+    retained.add(slotIndex2);
+  }
+  return retained;
+}
+function requiredSlotIndices(slots, slotCount, owner) {
+  const required = /* @__PURE__ */ new Set();
+  for (const slotIndex2 of slots ?? []) {
+    assertSlotIndex(slotIndex2, slotCount, `${owner} required`);
+    if (required.has(slotIndex2)) {
+      throw new Error(
+        `Transactional typed state ${owner} required slot is duplicated`
+      );
+    }
+    required.add(slotIndex2);
+  }
+  return Object.freeze([...required]);
+}
+function assertRequiredCandidateWrites(requiredSlots, writtenSlots, owner) {
+  for (const slotIndex2 of requiredSlots) {
+    if (writtenSlots[slotIndex2] !== 1) {
+      throw new Error(
+        `Transactional typed state required ${owner} slot ${slotIndex2} was not written in this candidate generation`
+      );
+    }
+  }
+}
+function complementSlotIndices(slotCount, retained) {
+  const writable = [];
+  for (let index = 0; index < slotCount; index += 1) {
+    if (!retained.has(index)) writable.push(index);
+  }
+  return Object.freeze(writable);
+}
+function compileDirectCompletionReaders(manifest) {
+  const readers = (entries) => Object.freeze(entries.map(({ path }) => compileDirectPathReader(path)));
+  const layout = manifest.numericalLayout;
+  return Object.freeze({
+    externalImmutable: readers(layout.externalImmutableRoots),
+    optionalRecords: readers(layout.optionalRecordRoots),
+    boundedArrays: readers(layout.boundedArrayRoots),
+    continuous: readers(layout.continuousSlots),
+    nullableContinuous: readers(layout.nullableContinuousSlots),
+    booleans: readers(layout.booleanSlots),
+    strings: readers(layout.stringSlots),
+    nullableStrings: readers(layout.nullableStringSlots),
+    dynamicRoots: readers(layout.excludedDynamicRoots)
+  });
+}
+function compileDirectPathReader(path) {
+  const segments = Object.freeze([...path]);
+  return (root) => {
+    let current = root;
+    for (const segment of segments) {
+      current = current[segment];
+    }
+    return current;
+  };
+}
+function writeOptionalRecordPresence(manifest, state, destination, directReaders) {
+  for (let index = 0; index < manifest.numericalLayout.optionalRecordRoots.length; index += 1) {
+    const root = manifest.numericalLayout.optionalRecordRoots[index];
+    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, root.path) : directReaders[index](state);
+    destination.optionalRecordPresent[index] = value === null ? 0 : 1;
+  }
+}
+function writeBoundedArrayLengths(manifest, state, destination, directReaders) {
+  for (let index = 0; index < manifest.numericalLayout.boundedArrayRoots.length; index += 1) {
+    const root = manifest.numericalLayout.boundedArrayRoots[index];
+    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, root.path) : directReaders[index](state);
+    if (!Array.isArray(value) || value.length > root.capacity) {
+      throw new Error(
+        `Transactional typed state ${root.pointer} exceeds bounded-array capacity`
+      );
+    }
+    destination.boundedArrayLengths[index] = value.length;
+  }
+}
+function layoutEntryAbsent(layout, state, slot2, candidateImage) {
+  if (slot2.optionalRecordRootIndex !== null) {
+    const root = layout.optionalRecordRoots[slot2.optionalRecordRootIndex];
+    if (root === void 0) {
+      throw new Error("Transactional typed state optional-record slot owner is invalid");
+    }
+    if (candidateImage !== void 0) {
+      if (candidateImage.optionalRecordPresent[slot2.optionalRecordRootIndex] === 0) return true;
+    } else if (readFlatNumericalStatePathV1(state, root.path) === null) {
+      return true;
+    }
+  }
+  if (slot2.boundedArrayRootIndex !== null) {
+    const root = layout.boundedArrayRoots[slot2.boundedArrayRootIndex];
+    if (root === void 0 || slot2.boundedArrayItemIndex === null) {
+      throw new Error("Transactional typed state bounded-array slot owner is invalid");
+    }
+    if (candidateImage !== void 0) {
+      return slot2.boundedArrayItemIndex >= candidateImage.boundedArrayLengths[slot2.boundedArrayRootIndex];
+    }
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `Transactional typed state ${root.pointer} must remain an array`
+      );
+    }
+    return slot2.boundedArrayItemIndex >= value.length;
+  }
+  return false;
+}
+function writeNullableContinuousLeaves(manifest, state, destination, directReaders) {
+  const slots = manifest.numericalLayout.nullableContinuousSlots;
+  for (let index = 0; index < slots.length; index += 1) {
+    const slot2 = slots[index];
+    if (layoutEntryAbsent(
+      manifest.numericalLayout,
+      state,
+      slot2,
+      directReaders === void 0 ? void 0 : destination
+    )) {
+      destination.nullableContinuous[index] = 0;
+      destination.nullableContinuousPresent[index] = 0;
+      continue;
+    }
+    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, slot2.path) : directReaders.nullableContinuous[index](state);
+    if (value === null) {
+      destination.nullableContinuous[index] = 0;
+      destination.nullableContinuousPresent[index] = 0;
+      continue;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(
+        `Transactional typed state ${slot2.pointer} must be null or finite`
+      );
+    }
+    destination.nullableContinuous[index] = value;
+    destination.nullableContinuousPresent[index] = 1;
+  }
+}
+function writeStrings(manifest, state, destination, directReaders) {
+  let byteOffset = 0;
+  for (let index = 0; index < manifest.numericalLayout.stringSlots.length; index += 1) {
+    const slot2 = manifest.numericalLayout.stringSlots[index];
+    if (layoutEntryAbsent(
+      manifest.numericalLayout,
+      state,
+      slot2,
+      directReaders === void 0 ? void 0 : destination
+    )) {
+      destination.stringMetadata[index * 2] = 0;
+      destination.stringMetadata[index * 2 + 1] = 0;
+      continue;
+    }
+    const value = directReaders?.strings[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
+    if (typeof value !== "string") {
+      throw new Error(`Transactional typed state ${slot2.pointer} must be a string`);
+    }
+    assertWellFormedString(value, slot2.pointer);
+    const target = destination.stringArena.subarray(byteOffset);
+    const result = UTF8_ENCODER.encodeInto(value, target);
+    if (result.read !== value.length) {
+      throw new Error("Transactional typed state string arena capacity exceeded");
+    }
+    destination.stringMetadata[index * 2] = byteOffset;
+    destination.stringMetadata[index * 2 + 1] = result.written;
+    byteOffset += result.written;
+  }
+  for (let index = 0; index < manifest.numericalLayout.nullableStringSlots.length; index += 1) {
+    const slot2 = manifest.numericalLayout.nullableStringSlots[index];
+    if (layoutEntryAbsent(
+      manifest.numericalLayout,
+      state,
+      slot2,
+      directReaders === void 0 ? void 0 : destination
+    )) {
+      destination.nullableStringMetadata[index * 2] = 0;
+      destination.nullableStringMetadata[index * 2 + 1] = 0;
+      destination.nullableStringPresent[index] = 0;
+      continue;
+    }
+    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, slot2.path) : directReaders.nullableStrings[index](state);
+    if (value === null) {
+      destination.nullableStringMetadata[index * 2] = 0;
+      destination.nullableStringMetadata[index * 2 + 1] = 0;
+      destination.nullableStringPresent[index] = 0;
+      continue;
+    }
+    if (typeof value !== "string") {
+      throw new Error(
+        `Transactional typed state ${slot2.pointer} must be null or a string`
+      );
+    }
+    assertWellFormedString(value, slot2.pointer);
+    const target = destination.stringArena.subarray(byteOffset);
+    const result = UTF8_ENCODER.encodeInto(value, target);
+    if (result.read !== value.length) {
+      throw new Error("Transactional typed state string arena capacity exceeded");
+    }
+    destination.nullableStringMetadata[index * 2] = byteOffset;
+    destination.nullableStringMetadata[index * 2 + 1] = result.written;
+    destination.nullableStringPresent[index] = 1;
+    byteOffset += result.written;
+  }
+  return byteOffset;
+}
+function writeDynamicRoots(manifest, state, destination, directReaders) {
+  let byteOffset = 0;
+  const roots = manifest.numericalLayout.excludedDynamicRoots;
+  for (let index = 0; index < roots.length; index += 1) {
+    const slot2 = roots[index];
+    const value = layoutEntryAbsent(
+      manifest.numericalLayout,
+      state,
+      slot2,
+      directReaders === void 0 ? void 0 : destination
+    ) ? null : directReaders === void 0 ? readFlatNumericalStatePathV1(state, slot2.path) : directReaders.dynamicRoots[index](state);
+    let length;
+    try {
+      length = encodeCanonicalFlatDataIntoV1(
+        value,
+        destination.dynamicArena.subarray(byteOffset)
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message === "Canonical flat data exceeds its fixed capacity") {
+        throw new Error(
+          "Transactional typed state dynamic arena capacity exceeded"
+        );
+      }
+      throw error;
+    }
+    destination.dynamicMetadata[index * 2] = byteOffset;
+    destination.dynamicMetadata[index * 2 + 1] = length;
+    byteOffset += length;
+  }
+  return byteOffset;
+}
+function rehydrateNode(node, image, externalImmutableRoots) {
+  switch (node.kind) {
+    case "f64":
+      return image.continuous[node.slotIndex];
+    case "nullable-f64": {
+      const present = image.nullableContinuousPresent[node.slotIndex];
+      if (present === 0) return null;
+      if (present !== 1) {
+        throw new Error(
+          "Transactional typed state nullable continuous presence is invalid"
+        );
+      }
+      return image.nullableContinuous[node.slotIndex];
+    }
+    case "nullable-string": {
+      const present = image.nullableStringPresent[node.slotIndex];
+      if (present === 0) return null;
+      if (present !== 1) {
+        throw new Error(
+          "Transactional typed state nullable string presence is invalid"
+        );
+      }
+      const offset = image.nullableStringMetadata[node.slotIndex * 2];
+      const length = image.nullableStringMetadata[node.slotIndex * 2 + 1];
+      return UTF8_DECODER.decode(
+        image.stringArena.subarray(offset, offset + length)
+      );
+    }
+    case "optional-record": {
+      const present = image.optionalRecordPresent[node.slotIndex];
+      if (present === 0) return null;
+      if (present !== 1) {
+        throw new Error(
+          "Transactional typed state optional record presence is invalid"
+        );
+      }
+      return rehydrateNode(node.value, image, externalImmutableRoots);
+    }
+    case "bounded-array": {
+      const length = image.boundedArrayLengths[node.slotIndex];
+      if (length > node.items.length) {
+        throw new Error(
+          "Transactional typed state bounded-array length is invalid"
+        );
+      }
+      return Object.freeze(Array.from(
+        { length },
+        (_, index) => rehydrateNode(
+          node.items[index],
+          image,
+          externalImmutableRoots
+        )
+      ));
+    }
+    case "boolean":
+      return image.booleans[node.slotIndex] === 1;
+    case "string": {
+      const offset = image.stringMetadata[node.slotIndex * 2];
+      const length = image.stringMetadata[node.slotIndex * 2 + 1];
+      return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
+    }
+    case "dynamic": {
+      const offset = image.dynamicMetadata[node.slotIndex * 2];
+      const length = image.dynamicMetadata[node.slotIndex * 2 + 1];
+      return decodeCanonicalFlatDataV1(
+        image.dynamicArena.subarray(offset, offset + length)
+      );
+    }
+    case "external":
+      return externalImmutableRoots[node.slotIndex].value;
+    case "typed-array": {
+      const array = createNumericTypedArray(node.constructorTag, node.items.length);
+      for (let index = 0; index < node.items.length; index += 1) {
+        const value = rehydrateNode(
+          node.items[index],
+          image,
+          externalImmutableRoots
+        );
+        if (typeof value !== "number") {
+          throw new Error("Transactional typed state typed-array item is not numeric");
+        }
+        array[index] = value;
+      }
+      return array;
+    }
+    case "array":
+      return Object.freeze(
+        node.items.map((item) => rehydrateNode(item, image, externalImmutableRoots))
+      );
+    case "record": {
+      const record = node.nullPrototype ? /* @__PURE__ */ Object.create(null) : {};
+      for (const entry of node.entries) {
+        record[entry.key] = rehydrateNode(
+          entry.node,
+          image,
+          externalImmutableRoots
+        );
+      }
+      return Object.freeze(record);
+    }
+  }
+}
+function compileNode(value, path, layout, compilingOptionalRootIndex = null) {
+  const pathPointer = pointer(path);
+  const optionalRecordRootIndex = layout.optionalRecordRoots.findIndex(
+    (root) => root.pointer === pathPointer
+  );
+  if (optionalRecordRootIndex !== -1 && compilingOptionalRootIndex !== optionalRecordRootIndex) {
+    return Object.freeze({
+      kind: "optional-record",
+      slotIndex: optionalRecordRootIndex,
+      value: compileNode(
+        layout.optionalRecordRoots[optionalRecordRootIndex].template,
+        path,
+        layout,
+        optionalRecordRootIndex
+      )
+    });
+  }
+  const boundedArrayRootIndex = layout.boundedArrayRoots.findIndex(
+    (root) => root.pointer === pathPointer
+  );
+  if (boundedArrayRootIndex !== -1) {
+    const root = layout.boundedArrayRoots[boundedArrayRootIndex];
+    return compileBoundedArrayNode(
+      root.itemTemplate,
+      root.path,
+      boundedArrayRootIndex,
+      root.capacity,
+      layout
+    );
+  }
+  const externalIndex = slotIndex(
+    layout.externalImmutableRoots,
+    pathPointer
+  );
+  if (externalIndex !== -1) {
+    return Object.freeze({ kind: "external", slotIndex: externalIndex });
+  }
+  const nullableContinuousIndex = slotIndex(
+    layout.nullableContinuousSlots,
+    pathPointer
+  );
+  if (nullableContinuousIndex !== -1) {
+    return Object.freeze({
+      kind: "nullable-f64",
+      slotIndex: nullableContinuousIndex
+    });
+  }
+  const nullableStringIndex = slotIndex(
+    layout.nullableStringSlots,
+    pathPointer
+  );
+  if (nullableStringIndex !== -1) {
+    return Object.freeze({
+      kind: "nullable-string",
+      slotIndex: nullableStringIndex
+    });
+  }
+  const dynamicIndex = slotIndex(layout.excludedDynamicRoots, pathPointer);
+  if (dynamicIndex !== -1) {
+    return Object.freeze({ kind: "dynamic", slotIndex: dynamicIndex });
+  }
+  if (typeof value === "number") {
+    return Object.freeze({
+      kind: "f64",
+      slotIndex: requiredSlotIndex(layout.continuousSlots, pathPointer)
+    });
+  }
+  if (typeof value === "boolean") {
+    return Object.freeze({
+      kind: "boolean",
+      slotIndex: requiredSlotIndex(layout.booleanSlots, pathPointer)
+    });
+  }
+  if (typeof value === "string") {
+    return Object.freeze({
+      kind: "string",
+      slotIndex: requiredSlotIndex(layout.stringSlots, pathPointer)
+    });
+  }
+  if (isNumericTypedArray(value)) {
+    const items = Array.from(
+      { length: value.length },
+      (_, index) => compileNode(
+        value[index],
+        [...path, index],
+        layout,
+        compilingOptionalRootIndex
+      )
+    );
+    return Object.freeze({
+      kind: "typed-array",
+      constructorTag: value.constructor.name,
+      items: Object.freeze(items)
+    });
+  }
+  if (Array.isArray(value)) {
+    return Object.freeze({
+      kind: "array",
+      items: Object.freeze(value.map((item, index) => compileNode(item, [...path, index], layout, compilingOptionalRootIndex)))
+    });
+  }
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new Error(
+        `Transactional typed state ${pathPointer} has an unsupported record prototype`
+      );
+    }
+    const entries = Object.keys(value).sort().map((key) => Object.freeze({
+      key,
+      node: compileNode(
+        requiredOwnValue(value, key, path),
+        [...path, key],
+        layout,
+        compilingOptionalRootIndex
+      )
+    }));
+    return Object.freeze({
+      kind: "record",
+      nullPrototype: prototype === null,
+      entries: Object.freeze(entries)
+    });
+  }
+  throw new Error(`Transactional typed state ${pathPointer} has no compiled node`);
+}
+function compileBoundedArrayNode(itemTemplate, rootPath, slotIndex2, capacity, layout) {
+  return Object.freeze({
+    kind: "bounded-array",
+    slotIndex: slotIndex2,
+    items: Object.freeze(Array.from(
+      { length: capacity },
+      (_, index) => compileNode(
+        itemTemplate,
+        [...rootPath, index],
+        layout
+      )
+    ))
+  });
+}
+function createImageLayout(layout, stringArenaCapacityBytes, dynamicArenaCapacityBytes) {
+  let offset = 0;
+  const continuousByteOffset = align(offset, 8);
+  offset = continuousByteOffset + layout.continuousSlots.length * 8;
+  const nullableContinuousByteOffset = align(offset, 8);
+  offset = nullableContinuousByteOffset + layout.nullableContinuousSlots.length * 8;
+  const nullableContinuousPresenceByteOffset = offset;
+  offset += layout.nullableContinuousSlots.length;
+  const booleanByteOffset = offset;
+  offset += layout.booleanSlots.length;
+  const stringMetadataByteOffset = align(offset, 4);
+  offset = stringMetadataByteOffset + layout.stringSlots.length * 2 * 4;
+  const nullableStringMetadataByteOffset = align(offset, 4);
+  offset = nullableStringMetadataByteOffset + layout.nullableStringSlots.length * 2 * 4;
+  const nullableStringPresenceByteOffset = offset;
+  offset += layout.nullableStringSlots.length;
+  const optionalRecordPresenceByteOffset = offset;
+  offset += layout.optionalRecordRoots.length;
+  const boundedArrayLengthByteOffset = align(offset, 4);
+  offset = boundedArrayLengthByteOffset + layout.boundedArrayRoots.length * 4;
+  const dynamicMetadataByteOffset = align(offset, 4);
+  offset = dynamicMetadataByteOffset + layout.excludedDynamicRoots.length * 2 * 4;
+  const stringArenaByteOffset = offset;
+  offset += stringArenaCapacityBytes;
+  const dynamicArenaByteOffset = offset;
+  offset += dynamicArenaCapacityBytes;
+  return Object.freeze({
+    continuousByteOffset,
+    nullableContinuousByteOffset,
+    nullableContinuousPresenceByteOffset,
+    booleanByteOffset,
+    stringMetadataByteOffset,
+    nullableStringMetadataByteOffset,
+    nullableStringPresenceByteOffset,
+    optionalRecordPresenceByteOffset,
+    boundedArrayLengthByteOffset,
+    dynamicMetadataByteOffset,
+    stringArenaByteOffset,
+    dynamicArenaByteOffset,
+    bufferByteLength: offset
+  });
+}
+function createImage(manifest) {
+  const layout = manifest.numericalLayout;
+  const offsets = manifest.imageLayout;
+  const buffer = new ArrayBuffer(offsets.bufferByteLength);
+  return Object.freeze({
+    buffer,
+    continuous: new Float64Array(
+      buffer,
+      offsets.continuousByteOffset,
+      layout.continuousSlots.length
+    ),
+    nullableContinuous: new Float64Array(
+      buffer,
+      offsets.nullableContinuousByteOffset,
+      layout.nullableContinuousSlots.length
+    ),
+    nullableContinuousPresent: new Uint8Array(
+      buffer,
+      offsets.nullableContinuousPresenceByteOffset,
+      layout.nullableContinuousSlots.length
+    ),
+    booleans: new Uint8Array(
+      buffer,
+      offsets.booleanByteOffset,
+      layout.booleanSlots.length
+    ),
+    stringMetadata: new Uint32Array(
+      buffer,
+      offsets.stringMetadataByteOffset,
+      layout.stringSlots.length * 2
+    ),
+    nullableStringMetadata: new Uint32Array(
+      buffer,
+      offsets.nullableStringMetadataByteOffset,
+      layout.nullableStringSlots.length * 2
+    ),
+    nullableStringPresent: new Uint8Array(
+      buffer,
+      offsets.nullableStringPresenceByteOffset,
+      layout.nullableStringSlots.length
+    ),
+    optionalRecordPresent: new Uint8Array(
+      buffer,
+      offsets.optionalRecordPresenceByteOffset,
+      layout.optionalRecordRoots.length
+    ),
+    boundedArrayLengths: new Uint32Array(
+      buffer,
+      offsets.boundedArrayLengthByteOffset,
+      layout.boundedArrayRoots.length
+    ),
+    dynamicMetadata: new Uint32Array(
+      buffer,
+      offsets.dynamicMetadataByteOffset,
+      layout.excludedDynamicRoots.length * 2
+    ),
+    stringArena: new Uint8Array(
+      buffer,
+      offsets.stringArenaByteOffset,
+      manifest.stringArenaCapacityBytes
+    ),
+    dynamicArena: new Uint8Array(
+      buffer,
+      offsets.dynamicArenaByteOffset,
+      manifest.dynamicArenaCapacityBytes
+    )
+  });
+}
+function createNumericTypedArray(tag, length) {
+  switch (tag) {
+    case "Float64Array":
+      return new Float64Array(length);
+    case "Float32Array":
+      return new Float32Array(length);
+    case "Int32Array":
+      return new Int32Array(length);
+    case "Uint32Array":
+      return new Uint32Array(length);
+    case "Int16Array":
+      return new Int16Array(length);
+    case "Uint16Array":
+      return new Uint16Array(length);
+    case "Int8Array":
+      return new Int8Array(length);
+    case "Uint8Array":
+      return new Uint8Array(length);
+    case "Uint8ClampedArray":
+      return new Uint8ClampedArray(length);
+  }
+}
+function isNumericTypedArray(value) {
+  return value instanceof Float64Array || value instanceof Float32Array || value instanceof Int32Array || value instanceof Uint32Array || value instanceof Int16Array || value instanceof Uint16Array || value instanceof Int8Array || value instanceof Uint8Array || value instanceof Uint8ClampedArray;
+}
+function requiredOwnValue(record, key, path) {
+  const descriptor = Object.getOwnPropertyDescriptor(record, key);
+  if (descriptor === void 0 || !("value" in descriptor)) {
+    throw new Error(
+      `Transactional typed state ${pointer([...path, key])} is unavailable`
+    );
+  }
+  return descriptor.value;
+}
+function slotIndex(slots, pathPointer) {
+  return slots.findIndex((slot2) => slot2.pointer === pathPointer);
+}
+function requiredSlotIndex(slots, pathPointer) {
+  const index = slotIndex(slots, pathPointer);
+  if (index === -1) {
+    throw new Error(`Transactional typed state ${pathPointer} has no slot`);
+  }
+  return index;
+}
+function assertWellFormedString(value, pathPointer) {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 55296 && code <= 56319) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 56320 && next <= 57343)) {
+        throw new Error(
+          `Transactional typed state ${pathPointer} contains an unpaired surrogate`
+        );
+      }
+      index += 1;
+    } else if (code >= 56320 && code <= 57343) {
+      throw new Error(
+        `Transactional typed state ${pathPointer} contains an unpaired surrogate`
+      );
+    }
+  }
+}
+function encodeCanonicalBytes(value) {
+  const bytes = new Uint8Array(measureCanonicalFlatDataV1(value));
+  const length = encodeCanonicalFlatDataIntoV1(value, bytes);
+  if (length !== bytes.byteLength) {
+    throw new Error(
+      "Transactional typed state canonical immutable length changed"
+    );
+  }
+  return bytes;
+}
+function assertTransitivelyFrozenData(value, pathPointer, visited) {
+  if (value === null || typeof value !== "object") return;
+  if (visited.has(value)) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} is cyclic`
+    );
+  }
+  if (!Object.isFrozen(value)) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} must be frozen`
+    );
+  }
+  visited.add(value);
+  if (Object.getOwnPropertySymbols(value).length !== 0) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} has symbol keys`
+    );
+  }
+  if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} must be plain data`
+    );
+  }
+  const array = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (!array && prototype !== Object.prototype && prototype !== null) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} has an unsupported prototype`
+    );
+  }
+  for (const key of Object.getOwnPropertyNames(value)) {
+    if (array && key === "length") continue;
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === void 0 || !("value" in descriptor) || !descriptor.enumerable) {
+      throw new Error(
+        `Transactional typed state external immutable ${pathPointer}/${key} is not plain data`
+      );
+    }
+  }
+  for (const key of Object.keys(value)) {
+    const childPointer = `${pathPointer}/${key.replaceAll("~", "~0").replaceAll("/", "~1")}`;
+    assertTransitivelyFrozenData(
+      requiredOwnValue(value, key, []),
+      childPointer,
+      visited
+    );
+  }
+  visited.delete(value);
+}
+function assertArenaCapacity(capacity, owner, allowZero = false) {
+  if (!Number.isSafeInteger(capacity) || capacity < (allowZero ? 0 : 1) || capacity > MAX_ARENA_CAPACITY_BYTES) {
+    throw new Error(`Transactional typed state ${owner} arena capacity is invalid`);
+  }
+}
+function align(value, alignment) {
+  return Math.ceil(value / alignment) * alignment;
+}
+function pointer(path) {
+  if (path.length === 0) return "/";
+  return `/${path.map((segment) => String(segment).replaceAll("~", "~0").replaceAll("/", "~1")).join("/")}`;
+}
+function manifestFingerprint(layout, stringCapacity, dynamicCapacity) {
+  const canonical = [
+    `layout:${layout.layoutId}`,
+    `string-capacity:${stringCapacity}`,
+    `dynamic-capacity:${dynamicCapacity}`,
+    ...layout.continuousSlots.map(({ pointer: value }) => `f64:${value}`),
+    ...layout.nullableContinuousSlots.map(
+      ({ pointer: value }) => `nullable-f64:${value}`
+    ),
+    ...layout.nullableStringSlots.map(
+      ({ pointer: value }) => `nullable-string:${value}`
+    ),
+    ...layout.optionalRecordRoots.map(
+      ({ pointer: value }) => `optional-record:${value}`
+    ),
+    ...layout.boundedArrayRoots.map(
+      ({ pointer: value, capacity }) => `bounded-array:${value}:capacity:${capacity}`
+    ),
+    ...layout.booleanSlots.map(({ pointer: value }) => `bool:${value}`),
+    ...layout.stringSlots.map(({ pointer: value }) => `string:${value}`),
+    ...layout.externalImmutableRoots.map(
+      ({ pointer: value }) => `external-immutable:${value}`
+    ),
+    ...layout.externalImmutableAliases.map(
+      ({ pointer: value, sourcePointer }) => `external-immutable-alias:${value}:source:${sourcePointer}`
+    ),
+    ...layout.excludedDynamicRoots.map(({ pointer: value }) => `dynamic:${value}`),
+    ...layout.containers.map((container2) => (container2.boundedArrayRootIndex === null ? container2.optionalRecordRootIndex === null ? [
+      "container",
+      container2.pointer,
+      container2.kind,
+      container2.prototypeTag ?? "null",
+      container2.keys.join(",")
+    ] : [
+      "container",
+      container2.pointer,
+      container2.kind,
+      container2.prototypeTag ?? "null",
+      `optional-root-${container2.optionalRecordRootIndex}`,
+      container2.keys.join(",")
+    ] : [
+      "container",
+      container2.pointer,
+      container2.kind,
+      container2.prototypeTag ?? "null",
+      `bounded-root-${container2.boundedArrayRootIndex}`,
+      `bounded-item-${container2.boundedArrayItemIndex}`,
+      container2.keys.join(",")
+    ]).join(":"))
+  ].join("\n");
+  let hash = 2166136261;
+  for (const byte of UTF8_ENCODER.encode(canonical)) {
+    hash ^= byte;
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return `fnv1a32-${hash.toString(16).padStart(8, "0")}`;
+}
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID = "main-wire-integrated-accepted-typed-state-authority-v1";
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID = "main-wire-integrated-accepted-typed-state-v1";
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT = "fnv1a32-44b16062";
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1 = 16 * 1024;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1 = 0;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1 = 16;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 22360;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 = 484;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 = 6;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1 = 22;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1 = 6;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOUNDED_ARRAY_ROOT_COUNT_V1 = 3;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 2;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 229;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 0;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 163;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
+  "/composedRhythm/calciumStateByWall/LA",
+  "/composedRhythm/calciumStateByWall/LVFW",
+  "/composedRhythm/calciumStateByWall/RA",
+  "/composedRhythm/calciumStateByWall/RVFW",
+  "/composedRhythm/calciumStateByWall/SEP"
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_ROOT_POINTERS_V1 = Object.freeze([
+  "/composedRhythm/configuration",
+  "/composedRhythm/regularAtrialSourceState/configuration",
+  "/composedRhythm/authoredEctopyState/configuration",
+  "/composedRhythm/electricalCaptureState/configuration",
+  "/composedRhythm/proximalAvGateState/configuration",
+  "/composedRhythm/distalGateState/configuration",
+  "/composedRhythm/ventricularBackupState/configuration",
+  "/composedRhythm/ventricularBackupState/initialCaptureSeed",
+  "/composedRhythm/ventricularIntervalStrengthState/configuration",
+  "/composedRhythm/ventricularIntervalStrengthState/initialPriorAcceptedVentricularActivation",
+  "/dynamicMechanicalSupport/inertanceProfileSnapshot",
+  "/dynamicMechanicalSupport/structuralHydraulicProjection"
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONSTANT_STRING_POINTERS_V1 = Object.freeze([
+  "/composedRhythm/authoredEctopyState/stateSchemaId",
+  "/composedRhythm/distalGateState/stateSchemaId",
+  "/composedRhythm/electricalCaptureState/atrialGate/chamber",
+  "/composedRhythm/electricalCaptureState/atrialGate/gateInstanceId",
+  "/composedRhythm/electricalCaptureState/atrialGate/gateStateSchemaId",
+  "/composedRhythm/electricalCaptureState/stateSchemaId",
+  "/composedRhythm/electricalCaptureState/ventricularGate/chamber",
+  "/composedRhythm/electricalCaptureState/ventricularGate/gateInstanceId",
+  "/composedRhythm/electricalCaptureState/ventricularGate/gateStateSchemaId",
+  "/composedRhythm/proximalAvGateState/stateSchemaId",
+  "/composedRhythm/regularAtrialSourceState/stateSchemaId",
+  "/composedRhythm/stateSchemaId",
+  "/composedRhythm/ventricularBackupState/stateSchemaId",
+  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/activationSchemaId",
+  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/chamber",
+  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/gateInstanceId",
+  "/composedRhythm/ventricularIntervalStrengthState/stateSchemaId",
+  "/coronary/circulation/transactionId",
+  "/coronary/coronaryAutoregulation/desiredControl/controlId",
+  "/coronary/coronaryAutoregulation/stateId",
+  "/coronary/coronaryAutoregulationBinding/bindingId",
+  "/coronary/coronaryAutoregulationBinding/flowObservable",
+  "/coronary/coronaryAutoregulationBinding/law",
+  "/coronary/coronaryAutoregulationBinding/perfusionPressureObservable",
+  "/coronary/coronaryAutoregulationBinding/priorFingerprint",
+  "/coronary/coronaryAutoregulationBinding/windowPolicy/interpretation",
+  "/coronary/coronaryAutoregulationBinding/windowPolicy/kind",
+  "/coronary/coronaryAutoregulationBinding/windowPolicy/quadrature",
+  "/coronary/coronaryBinding/boundaryResolverId",
+  "/coronary/coronaryBinding/collapseHydraulicsFingerprint",
+  "/coronary/coronaryBinding/impMechanism",
+  "/coronary/coronaryBinding/mvcReferenceSemantics",
+  "/coronary/coronaryBinding/priorFingerprint",
+  "/coronary/coronaryBinding/shorteningImpPriorFingerprint",
+  "/coronary/coronaryBinding/topologyId",
+  "/coronary/mechanics/contractId",
+  "/coronary/mechanics/parameterIdentityHash",
+  "/coronary/mechanics/parameterSetId",
+  "/coronary/mechanics/providerId",
+  "/coronary/transactionId",
+  "/dynamicMechanicalSupport/networkId",
+  "/dynamicMechanicalSupport/stateSchemaId",
+  "/dynamicMechanicalSupport/unitSystemId",
+  "/transactionId"
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1 = Object.freeze([
+  ...MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_ROOT_POINTERS_V1,
+  ...MAIN_WIRE_ACCEPTED_TYPED_STATE_CONSTANT_STRING_POINTERS_V1
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1 = Object.freeze([
+  "/composedRhythm/distalGateState/lastPassedProximalArrivalTimeSec",
+  "/composedRhythm/distalGateState/lastVentricularImpulseTimeSec",
+  "/composedRhythm/electricalCaptureState/atrialGate/lastCapturedActivationTimeSec",
+  "/composedRhythm/electricalCaptureState/lastAcceptedImpulseBatchTimeSec",
+  "/composedRhythm/proximalAvGateState/lastConductedAtrialActivationTimeSec",
+  "/composedRhythm/proximalAvGateState/lastProximalAvOutputTimeSec"
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1 = Object.freeze([
+  "/composedRhythm/electricalCaptureState/atrialGate/lastCapturedActivationId",
+  "/composedRhythm/ventricularBackupState/lastAcceptedVentricularActivation/upstreamCapturedActivationId",
+  "/composedRhythm/ventricularBackupState/lastIntrinsicEscapeAttemptResult/capturedActivationId",
+  "/composedRhythm/ventricularBackupState/lastVviPacingAttemptResult/capturedActivationId",
+  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/upstreamCapturedActivationId",
+  "/composedRhythm/ventricularIntervalStrengthState/lastDepositMetadata/capturedVentricularActivation/upstreamCapturedActivationId",
+  ...Array.from(
+    { length: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1 },
+    (_, index) => `/composedRhythm/pendingDistalVentricularImpulses/${index}/parentCapturedActivationId`
+  )
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1 = Object.freeze({
+  resultSchemaId: VENTRICULAR_BACKUP_SOURCE_ATTEMPT_RESULT_V2_ID,
+  schemaVersion: 2,
+  sourceImpulseId: "template-source-impulse",
+  sourceKind: "escape",
+  sourceId: "template-source",
+  sourceSequence: 0,
+  activationTimeSec: 0,
+  outcome: "not-captured",
+  capturedActivationId: null
+});
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTOREGULATION_CONTROL_TEMPLATE_V1 = createDefaultCoronaryAutoregulationWindowControlV3();
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORED_PACING_TEMPLATE_V1 = Object.freeze({
+  stateSchemaId: ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_STATE_V1_ID,
+  schemaVersion: 1,
+  configuration: null,
+  initializedAcceptedTimeSec: 0,
+  initializedHistoryEventCount: 0,
+  revision: 0,
+  acceptedTimeSec: 0,
+  cursor: 0,
+  acceptedEmittedImpulseCount: 0
+});
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_PROXIMAL_QUEUE_ITEM_TEMPLATE_V1 = Object.freeze({
+  pendingSchemaId: COMPOSED_RHYTHM_PENDING_PROXIMAL_AV_OUTPUT_V2_ID,
+  proximalAvOutputId: "template-proximal-av-output",
+  parentCapturedAtrialActivationId: "template-atrial-activation",
+  proximalArrivalTimeSec: 0
+});
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_DISTAL_QUEUE_ITEM_TEMPLATE_V1 = Object.freeze({
+  impulseSchemaId: SOURCE_IMPULSE_V2_ID,
+  schemaVersion: 2,
+  sourceImpulseId: "template-distal-source-impulse",
+  parentCapturedActivationId: null,
+  chamber: "ventricular",
+  sourceKind: "av-output",
+  capturePriority: ELECTRICAL_CAPTURE_PRIORITY_V2["av-output"],
+  sourceId: "template-distal-source",
+  sourceSequence: 0,
+  activationTimeSec: 0
+});
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_CALCIUM_QUEUE_ITEM_TEMPLATE_V1 = Object.freeze({
+  pendingSchemaId: COMPOSED_RHYTHM_PENDING_CALCIUM_DEPOSIT_V2_ID,
+  depositId: "template-calcium-deposit",
+  depositClass: "ventricular",
+  parentCapturedActivationId: "template-ventricular-activation",
+  depositTimeSec: 0,
+  strengthByWall: Object.freeze({ LA: 0, RA: 0, LVFW: 0, SEP: 0, RVFW: 0 })
+});
+function createMainWireAcceptedTypedStateManifestV1(coldAcceptedState) {
+  const manifest = createTransactionalTypedStateManifestV1(
+    MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
+    coldAcceptedState,
+    MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1,
+    MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1,
+    {
+      fixedArrayPointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1,
+      externalImmutablePointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1,
+      nullableContinuousPointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1,
+      nullableStringPointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1,
+      optionalRecordTemplates: [
+        {
+          pointer: "/composedRhythm/authoredVentricularPacingReplayState",
+          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORED_PACING_TEMPLATE_V1
+        },
+        {
+          pointer: "/composedRhythm/ventricularBackupState/lastAcceptedVentricularActivation",
+          template: coldAcceptedState.composedRhythm.ventricularIntervalStrengthState.initialPriorAcceptedVentricularActivation
+        },
+        {
+          pointer: "/composedRhythm/ventricularBackupState/lastIntrinsicEscapeAttemptResult",
+          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1
+        },
+        {
+          pointer: "/composedRhythm/ventricularBackupState/lastVviPacingAttemptResult",
+          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1
+        },
+        {
+          pointer: "/coronary/coronaryAutoregulation/windowControl",
+          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTOREGULATION_CONTROL_TEMPLATE_V1
+        },
+        {
+          pointer: "/composedRhythm/ventricularIntervalStrengthState/lastDepositMetadata",
+          template: createIntervalStrengthDepositMetadataTemplateV1(
+            coldAcceptedState
+          )
+        }
+      ],
+      externalImmutableAliases: [
+        {
+          pointer: "/composedRhythm/authoredVentricularPacingReplayState/configuration",
+          sourcePointer: "/composedRhythm/configuration/authoredVentricularPacingReplay"
+        }
+      ],
+      boundedArrayTemplates: [
+        {
+          pointer: "/composedRhythm/pendingProximalAvOutputs",
+          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
+          itemTemplate: MAIN_WIRE_ACCEPTED_TYPED_STATE_PROXIMAL_QUEUE_ITEM_TEMPLATE_V1
+        },
+        {
+          pointer: "/composedRhythm/pendingDistalVentricularImpulses",
+          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
+          itemTemplate: MAIN_WIRE_ACCEPTED_TYPED_STATE_DISTAL_QUEUE_ITEM_TEMPLATE_V1
+        },
+        {
+          pointer: "/composedRhythm/pendingCalciumDeposits",
+          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
+          itemTemplate: MAIN_WIRE_ACCEPTED_TYPED_STATE_CALCIUM_QUEUE_ITEM_TEMPLATE_V1
+        }
+      ]
+    }
+  );
+  const layout = manifest.numericalLayout;
+  if (manifest.fingerprint !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT || manifest.bufferByteLength !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 || layout.continuousSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 || layout.nullableContinuousSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 || layout.nullableStringSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1 || layout.optionalRecordRoots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1 || layout.boundedArrayRoots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOUNDED_ARRAY_ROOT_COUNT_V1 || layout.booleanSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 || layout.stringSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 || layout.externalImmutableRoots.length !== 57 || layout.excludedDynamicRoots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 || layout.containers.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1) {
+    throw new Error(
+      `Main Wire accepted typed-state layout changed without a new version (${manifest.fingerprint}; ${manifest.bufferByteLength}; ${layout.continuousSlots.length}/${layout.nullableContinuousSlots.length}/${layout.nullableStringSlots.length}/${layout.optionalRecordRoots.length}/${layout.boundedArrayRoots.length}/${layout.booleanSlots.length}/${layout.stringSlots.length}/${layout.excludedDynamicRoots.length}/${layout.externalImmutableRoots.length}/${layout.containers.length})`
+    );
+  }
+  return manifest;
+}
+function createIntervalStrengthDepositMetadataTemplateV1(coldAcceptedState) {
+  const state = coldAcceptedState.composedRhythm.ventricularIntervalStrengthState;
+  const configuration = state.configuration;
+  const activation = state.initialPriorAcceptedVentricularActivation;
+  return Object.freeze({
+    metadataSchemaId: VENTRICULAR_INTERVAL_STRENGTH_DEPOSIT_METADATA_V1_ID,
+    schemaVersion: 1,
+    configurationId: configuration.configurationId,
+    ownerInstanceId: configuration.ownerInstanceId,
+    ownerRevision: 0,
+    acceptedVentricularCaptureOrdinal: 0,
+    previousCapturedActivationId: activation.capturedActivationId,
+    previousCapturedActivationTimeSec: activation.activationTimeSec,
+    capturedVentricularActivation: activation,
+    intervalSec: configuration.referenceCycleLengthSec,
+    recoveryFractionA: configuration.referenceRecoveryFractionA,
+    normalizedSrLoadBefore: configuration.referenceNormalizedSrLoadState,
+    releasedRelativeStrengthR: 1,
+    returnedReleasedRelativeLoad: configuration.releasedLoadReturnFractionR,
+    intervalInfluxRelativeLoad: 1 - configuration.releasedLoadReturnFractionR,
+    normalizedSrLoadAfter: configuration.referenceNormalizedSrLoadState,
+    futureExactCalciumDepositRelativeStrength: 1,
+    calciumStateMutation: "none-metadata-only"
+  });
+}
+class MainWireAcceptedTypedStateAuthorityV1 {
+  constructor(coldAcceptedState, initialState, validate, ownDecoded, admitCompletedMirror) {
+    this.authorityId = MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID;
+    this.#currentMirrorMatchesImage = true;
+    this.#poisonedReason = null;
+    this.#directCandidateCommitCount = 0;
+    this.#directCandidateExactCommitCount = 0;
+    this.#directCandidateMirrorReuseCount = 0;
+    this.#modelOwnedCandidateCommitCount = 0;
+    this.#modelOwnedAdapterFreeCommitCount = 0;
+    this.#modelOwnedExactAuditCount = 0;
+    this.#lazyMirrorRehydrateCount = 0;
+    validate(initialState);
+    this.#ownDecoded = ownDecoded;
+    this.#manifest = createMainWireAcceptedTypedStateManifestV1(
+      coldAcceptedState
+    );
+    this.#image = new TransactionalTypedStateImageV1(
+      this.#manifest,
+      initialState,
+      admitCompletedMirror
+    );
+    this.#currentState = this.ownAndValidate(this.#image.rehydrateCurrent());
+  }
+  #manifest;
+  #image;
+  #ownDecoded;
+  #currentState;
+  #currentMirrorMatchesImage;
+  #poisonedReason;
+  #directCandidateCommitCount;
+  #directCandidateExactCommitCount;
+  #directCandidateMirrorReuseCount;
+  #modelOwnedCandidateCommitCount;
+  #modelOwnedAdapterFreeCommitCount;
+  #modelOwnedExactAuditCount;
+  #lazyMirrorRehydrateCount;
+  current() {
+    this.assertHealthy();
+    if (!this.#currentMirrorMatchesImage) {
+      this.#currentState = this.ownAndValidate(this.#image.rehydrateCurrent());
+      this.#currentMirrorMatchesImage = true;
+      this.#lazyMirrorRehydrateCount += 1;
+    }
+    return this.#currentState;
+  }
+  /** Immutable model-owned layout used to bind hot-path slots once. */
+  manifest() {
+    this.assertHealthy();
+    return this.#manifest;
+  }
+  snapshot() {
+    this.assertHealthy();
+    return this.ownAndValidate(this.#image.rehydrateCurrent());
+  }
+  commit(candidate) {
+    this.assertHealthy();
+    try {
+      this.#image.stage(candidate);
+      const owned = this.ownAndValidate(this.#image.rehydrateStaged());
+      this.#image.promote();
+      this.#currentState = owned;
+      this.#currentMirrorMatchesImage = true;
+      return owned;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+  /** Begins one inactive typed transaction for a migrated state owner. */
+  beginDirectCandidate() {
+    this.assertHealthy();
+    return this.#image.beginCandidateFromCurrent();
+  }
+  /** Compiles one model-bound retained-slot plan outside the accepted loop. */
+  createDirectCompletionPlan(retained) {
+    this.assertHealthy();
+    return this.#image.createCompletionPlan(retained);
+  }
+  /** Compiles model-owned required-write coverage outside the accepted loop. */
+  createModelOwnedPromotionPlan(required) {
+    this.assertHealthy();
+    return this.#image.createPromotionPlan(required);
+  }
+  /**
+   * Promotes an event-free model-owned candidate without a 484-leaf object
+   * comparison in the lean production tier. Full-invariant runs retain that
+   * comparison as an oracle and return null on a mismatch so the caller can
+   * execute exhaustive event-boundary completion.
+   */
+  tryCommitModelOwnedDirectCandidate(adapterCandidate, promotionPlan, auditPlan) {
+    this.assertHealthy();
+    try {
+      const auditEnabled = fullHotPathInvariantsEnabledV1();
+      const admittedMirror = this.#image.tryPromoteCandidateWithRequiredWrites(
+        adapterCandidate,
+        promotionPlan,
+        auditEnabled ? auditPlan : void 0
+      );
+      if (admittedMirror === null) return null;
+      this.#currentState = admittedMirror;
+      this.#currentMirrorMatchesImage = true;
+      this.#directCandidateCommitCount += 1;
+      this.#directCandidateMirrorReuseCount += 1;
+      this.#modelOwnedCandidateCommitCount += 1;
+      if (auditEnabled) {
+        this.#directCandidateExactCommitCount += 1;
+        this.#modelOwnedExactAuditCount += 1;
+      }
+      return admittedMirror;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `model-owned candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+  /**
+   * Atomically promotes a fully staged, model-owned typed candidate without
+   * allocating an AcceptedState adapter. The caller must already have applied
+   * every component-owned numerical and cross-owner seal represented by the
+   * immutable promotion plan. The cached object mirror is invalidated and is
+   * rehydrated only if a cold/event API subsequently requests it.
+   */
+  commitModelOwnedTypedCandidate(promotionPlan) {
+    this.assertHealthy();
+    try {
+      this.#image.promoteCandidateWithRequiredWrites(promotionPlan);
+      this.#currentMirrorMatchesImage = false;
+      this.#directCandidateCommitCount += 1;
+      this.#modelOwnedCandidateCommitCount += 1;
+      this.#modelOwnedAdapterFreeCommitCount += 1;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `adapter-free model-owned candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+  /**
+   * Admits the still-object-backed owners without overwriting migrated slots,
+   * proves the exact model-owned adapter at its accepted boundary, then
+   * promotes the complete typed candidate exactly once. The retained adapter
+   * is a private solver mirror only; the inactive typed image supplied every
+   * promoted byte and remains the accepted-state authority.
+   */
+  commitDirectCandidate(adapterCandidate, plan) {
+    this.assertHealthy();
+    try {
+      const admittedMirror = this.#image.completeCandidateFromObject(
+        adapterCandidate,
+        plan
+      );
+      this.#image.promote();
+      this.#currentState = admittedMirror;
+      this.#currentMirrorMatchesImage = true;
+      this.#directCandidateCommitCount += 1;
+      this.#directCandidateMirrorReuseCount += 1;
+      return admittedMirror;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `direct candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+  /**
+   * Promotes without generic object completion only when every byte already
+   * equals the internally admitted adapter. A null result leaves the staged
+   * transaction open for exhaustive completion at an event boundary.
+   */
+  tryCommitExactDirectCandidate(adapterCandidate, plan) {
+    this.assertHealthy();
+    try {
+      const admittedMirror = this.#image.matchCandidateExactlyAgainstObject(
+        adapterCandidate,
+        plan
+      );
+      if (admittedMirror === null) return null;
+      this.#image.promote();
+      this.#currentState = admittedMirror;
+      this.#currentMirrorMatchesImage = true;
+      this.#directCandidateCommitCount += 1;
+      this.#directCandidateExactCommitCount += 1;
+      this.#directCandidateMirrorReuseCount += 1;
+      return admittedMirror;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `exact direct candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+  /** Expected solver rejection abandons the inactive candidate without poison. */
+  abortDirectCandidate() {
+    this.assertHealthy();
+    this.#image.abort();
+  }
+  report() {
+    const report = this.#image.report();
+    return Object.freeze({
+      ...report,
+      authorityId: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID,
+      poisonedReason: this.#poisonedReason,
+      directCandidateCommitCount: this.#directCandidateCommitCount,
+      directCandidateExactCommitCount: this.#directCandidateExactCommitCount,
+      directCandidateMirrorReuseCount: this.#directCandidateMirrorReuseCount,
+      modelOwnedCandidateCommitCount: this.#modelOwnedCandidateCommitCount,
+      modelOwnedAdapterFreeCommitCount: this.#modelOwnedAdapterFreeCommitCount,
+      modelOwnedExactAuditCount: this.#modelOwnedExactAuditCount,
+      lazyMirrorRehydrateCount: this.#lazyMirrorRehydrateCount,
+      currentMirrorMatchesImage: this.#currentMirrorMatchesImage
+    });
+  }
+  snapshotImage() {
+    this.assertHealthy();
+    return this.#image.snapshot();
+  }
+  /** Hot model-owned reads follow the active image after every promotion. */
+  currentCursor() {
+    this.assertHealthy();
+    return this.#image.currentCursor();
+  }
+  /** Cold-boundary proof that the cached solver adapter still matches storage. */
+  assertCurrentMatches(candidate) {
+    this.assertHealthy();
+    const authoritative = this.snapshot();
+    const authoritativeBytes = canonicalBytes(authoritative);
+    const candidateBytes = canonicalBytes(candidate);
+    if (authoritativeBytes.byteLength !== candidateBytes.byteLength || !authoritativeBytes.every(
+      (value, index) => value === candidateBytes[index]
+    )) {
+      throw new Error(
+        "Main Wire accepted typed-state adapter differs from its active image"
+      );
+    }
+  }
+  ownAndValidate(candidate) {
+    return this.#ownDecoded(candidate);
+  }
+  assertHealthy() {
+    if (this.#poisonedReason !== null) {
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+}
+function canonicalBytes(value) {
+  const bytes = new Uint8Array(measureCanonicalFlatDataV1(value));
+  const length = encodeCanonicalFlatDataIntoV1(value, bytes);
+  if (length !== bytes.byteLength) {
+    throw new Error("Main Wire typed-state canonical length changed");
+  }
+  return bytes;
+}
+const EXECUTION_PLAN_ACCEPTED_TYPED_STATE_BINDING_V1_SCHEMA_ID = "circleheart-execution-plan-accepted-typed-state-binding-v1";
+const BINDING_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
+function bindExecutionPlanAcceptedTypedStateV1(bound, manifest) {
+  const stateDispatch = resolveBoundExecutionPlanStateDispatchV1(bound);
+  assertManifestV1(manifest);
+  const continuousSlotByPointer = slotIndexByPointerV1(
+    manifest.numericalLayout.continuousSlots,
+    "continuous"
+  );
+  const booleanSlotByPointer = slotIndexByPointerV1(
+    manifest.numericalLayout.booleanSlots,
+    "boolean"
+  );
+  const slots = stateDispatch.slots.map((slot2) => {
+    const expected = slot2.storageKind === "continuous-f64" ? continuousSlotByPointer : booleanSlotByPointer;
+    const conflicting = slot2.storageKind === "continuous-f64" ? booleanSlotByPointer : continuousSlotByPointer;
+    const authoritySlotIndex = expected.get(slot2.authorityPointer);
+    if (authoritySlotIndex === void 0) {
+      if (conflicting.has(slot2.authorityPointer)) {
+        throw new Error(
+          `Execution plan state ${slot2.stateId} authority storage kind drifted`
+        );
+      }
+      throw new Error(
+        `Execution plan state ${slot2.stateId} authority pointer is unavailable`
+      );
+    }
+    return Object.freeze({
+      stateId: slot2.stateId,
+      logicalIndex: slot2.logicalIndex,
+      storageKind: slot2.storageKind,
+      authoritySlotIndex
+    });
+  });
+  const continuousAuthoritySlots = slots.filter(({ storageKind }) => storageKind === "continuous-f64").map(({ authoritySlotIndex }) => authoritySlotIndex);
+  const booleanAuthoritySlots = slots.filter(({ storageKind }) => storageKind === "boolean-u8").map(({ authoritySlotIndex }) => authoritySlotIndex);
+  assertUniqueAuthoritySlotsV1(continuousAuthoritySlots, "continuous");
+  assertUniqueAuthoritySlotsV1(booleanAuthoritySlots, "boolean");
+  const binding = Object.freeze({
+    schemaId: EXECUTION_PLAN_ACCEPTED_TYPED_STATE_BINDING_V1_SCHEMA_ID,
+    definitionId: stateDispatch.definitionId,
+    authorityLayoutId: manifest.layoutId,
+    authorityFingerprint: manifest.fingerprint,
+    logicalSlotCount: stateDispatch.logicalSlotCount,
+    continuousSlotCount: stateDispatch.continuousSlotCount,
+    booleanSlotCount: stateDispatch.booleanSlotCount
+  });
+  BINDING_STORAGE_V1.set(binding, Object.freeze({
+    slots: Object.freeze(slots),
+    slotByStateId: new Map(slots.map((slot2) => [slot2.stateId, slot2]))
+  }));
+  return binding;
+}
+function readExecutionPlanAcceptedTypedStateIntoLogicalV1(binding, cursor, destination) {
+  const storage = requiredStorageV1(binding);
+  assertCursorV1(binding, cursor);
+  if (!(destination instanceof Float64Array) || destination.length !== binding.logicalSlotCount) {
+    throw new RangeError(
+      "Execution plan accepted-state destination has the wrong length"
+    );
+  }
+  for (const slot2 of storage.slots) {
+    destination[slot2.logicalIndex] = slot2.storageKind === "continuous-f64" ? cursor.readContinuous(slot2.authoritySlotIndex) : cursor.readBoolean(slot2.authoritySlotIndex) ? 1 : 0;
+  }
+}
+function listExecutionPlanAcceptedTypedStateSlotsV1(binding) {
+  return requiredStorageV1(binding).slots;
+}
+function requiredStorageV1(binding) {
+  const storage = BINDING_STORAGE_V1.get(binding);
+  if (storage === void 0) {
+    throw new Error(
+      "Execution plan accepted-state operation requires an admitted binding"
+    );
+  }
+  return storage;
+}
+function assertManifestV1(manifest) {
+  if (typeof manifest !== "object" || manifest === null || typeof manifest.layoutId !== "string" || manifest.layoutId.length === 0 || typeof manifest.fingerprint !== "string" || manifest.fingerprint.length === 0) {
+    throw new Error("Execution plan typed-authority manifest is invalid");
+  }
+}
+function assertCursorV1(binding, cursor) {
+  if (cursor.layoutId !== binding.authorityLayoutId || cursor.fingerprint !== binding.authorityFingerprint) {
+    throw new Error("Execution plan typed-authority cursor identity drifted");
+  }
+}
+function slotIndexByPointerV1(slots, label) {
+  const result = /* @__PURE__ */ new Map();
+  slots.forEach(({ pointer: pointer2 }, index) => {
+    if (result.has(pointer2)) {
+      throw new Error(
+        `Execution plan typed-authority ${label} pointer is duplicated`
+      );
+    }
+    result.set(pointer2, index);
+  });
+  return result;
+}
+function assertUniqueAuthoritySlotsV1(slots, label) {
+  if (new Set(slots).size !== slots.length) {
+    throw new Error(
+      `Execution plan ${label} states alias one typed-authority slot`
+    );
+  }
+}
+const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_VIEW_V1_ID = "main-wire-integrated-accepted-typed-hemodynamic-view-v1";
+const LAND_STATE_LENGTH = 6;
+const WALL_STATE_LENGTH = LAND_STATE_LENGTH + 3;
+const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1 = 100;
+const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1 = Object.freeze([
+  "accepted.timeSec",
+  "accepted.revision",
+  "circulation.fixedTotalBloodVolumeMl",
+  ...NON_CORONARY_NODE_NAMES_V1.map((nodeId) => `noncoronary.volume.${nodeId}`),
+  ...NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((edgeId) => `noncoronary.flow.${edgeId}`),
+  ...NON_CORONARY_VALVE_NAMES_V1.map((valveId) => `noncoronary.valve.${valveId}.openingFraction01`),
+  ...CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId) => `coronary.volume.${nodeId}`),
+  ...CORONARY_TERRITORY_IDS_V2.flatMap((territoryId) => CORONARY_LAYER_IDS_V2.map((layerId) => `coronary.tone.${territoryId}.${layerId}`)),
+  ...MAIN_WIRE_FIVE_WALL_IDS_V1.flatMap((wallId) => [
+    ...Array.from({ length: 6 }, (_unused, index) => `mechanics.wall.${wallId}.land.${index}`),
+    `mechanics.wall.${wallId}.sls.viscousLogStrain`,
+    `mechanics.wall.${wallId}.previousFiberLogStrain`,
+    `mechanics.wall.${wallId}.previousFreeCalciumUM`
+  ]),
+  "TriSeg.septalMidwallCapVolume",
+  "TriSeg.junctionRadius",
+  "mechanics.mvc.referenceFiberLogStrain.LVFW",
+  "mechanics.mvc.referenceFiberLogStrain.SEP",
+  "mechanics.mvc.referenceFiberLogStrain.RVFW",
+  "mechanics.mvc.referenceAcceptedTimeSec",
+  "mechanics.mvc.referenceRevision",
+  "mechanics.mvc.mitralForwardFlowActive",
+  "mechanics.mvc.acceptedMitralClosureEventCount"
+]);
+const ACCEPTED_TIME_INDEX = 0;
+const REVISION_INDEX = 1;
+const FIXED_TBV_INDEX = 2;
+const NON_CORONARY_INDEX = 3;
+const DYNAMIC_EDGE_INDEX = NON_CORONARY_INDEX + NON_CORONARY_NODE_NAMES_V1.length;
+const VALVE_INDEX = DYNAMIC_EDGE_INDEX + NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length;
+const CORONARY_INDEX = VALVE_INDEX + NON_CORONARY_VALVE_NAMES_V1.length;
+const CORONARY_TONE_INDEX = CORONARY_INDEX + CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+const WALL_STATE_INDEX = CORONARY_TONE_INDEX + CORONARY_TERRITORY_IDS_V2.length * CORONARY_LAYER_IDS_V2.length;
+const TRISEG_INDEX = WALL_STATE_INDEX + MAIN_WIRE_FIVE_WALL_IDS_V1.length * WALL_STATE_LENGTH;
+const MVC_INDEX = TRISEG_INDEX + 2;
+const MVC_ACTIVE_INDEX = MVC_INDEX + 5;
+const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1 = Object.freeze({
+  acceptedTime: ACCEPTED_TIME_INDEX,
+  revision: REVISION_INDEX,
+  fixedTotalBloodVolume: FIXED_TBV_INDEX,
+  nonCoronaryVolumes: NON_CORONARY_INDEX,
+  dynamicEdgeFlows: DYNAMIC_EDGE_INDEX,
+  valveOpenings: VALVE_INDEX,
+  coronaryVolumes: CORONARY_INDEX,
+  coronaryTone: CORONARY_TONE_INDEX,
+  wallState: WALL_STATE_INDEX,
+  triSeg: TRISEG_INDEX,
+  mvc: MVC_INDEX,
+  mvcActive: MVC_ACTIVE_INDEX,
+  landStateLength: LAND_STATE_LENGTH,
+  wallStateLength: WALL_STATE_LENGTH
+});
+if (NON_CORONARY_NODE_NAMES_V1.length !== 15 || NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length !== 2 || NON_CORONARY_VALVE_NAMES_V1.length !== 4 || CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length !== 16 || CORONARY_TERRITORY_IDS_V2.length !== 3 || CORONARY_LAYER_IDS_V2.length !== 2 || MAIN_WIRE_FIVE_WALL_IDS_V1.length !== 5 || MVC_INDEX + 7 !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
+  throw new Error("Main Wire accepted typed hemodynamic dimensions changed");
+}
+function createLegacyMainWireAcceptedProjectionV1(manifest) {
+  const slots = [];
+  slots.push(
+    continuousSlot$1(manifest, "/acceptedTimeSec"),
+    continuousSlot$1(manifest, "/revision"),
+    continuousSlot$1(manifest, "/coronary/fixedGlobalTotalBloodVolumeMl")
+  );
+  for (const nodeId of NON_CORONARY_NODE_NAMES_V1) {
+    slots.push(continuousSlot$1(
+      manifest,
+      `/coronary/circulation/nodeVolumesMl/${nodeId}`
+    ));
+  }
+  for (const edgeId of NON_CORONARY_DYNAMIC_EDGE_NAMES_V1) {
+    slots.push(continuousSlot$1(
+      manifest,
+      `/coronary/circulation/dynamicEdgeFlowsMlPerSec/${edgeId}`
+    ));
+  }
+  for (const valveId of NON_CORONARY_VALVE_NAMES_V1) {
+    slots.push(continuousSlot$1(
+      manifest,
+      `/coronary/circulation/valveStates/${valveId}/leafletOpeningFraction01`
+    ));
+  }
+  for (const nodeId of CORONARY_CONSERVED_VOLUME_NODE_IDS_V2) {
+    slots.push(continuousSlot$1(
+      manifest,
+      `/coronary/coronary/volumeMlByNode/${nodeId}`
+    ));
+  }
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      slots.push(continuousSlot$1(
+        manifest,
+        `/coronary/coronary/toneResistanceScaleByTerritoryLayer/${territoryId}/${layerId}`
+      ));
+    }
+  }
+  for (const wallId of MAIN_WIRE_FIVE_WALL_IDS_V1) {
+    for (let stateIndex = 0; stateIndex < LAND_STATE_LENGTH; stateIndex += 1) {
+      slots.push(continuousSlot$1(
+        manifest,
+        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/landState/${stateIndex}`
+      ));
+    }
+    slots.push(
+      continuousSlot$1(
+        manifest,
+        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/slsState/viscousLogStrain`
+      ),
+      continuousSlot$1(
+        manifest,
+        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/previousFiberLogStrain`
+      ),
+      continuousSlot$1(
+        manifest,
+        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/previousFreeCalciumUM`
+      )
+    );
+  }
+  slots.push(
+    continuousSlot$1(
+      manifest,
+      "/coronary/mechanics/materialState/trisegCoordinates/septalMidwallCapVolumeM3"
+    ),
+    continuousSlot$1(
+      manifest,
+      "/coronary/mechanics/materialState/trisegCoordinates/junctionRadiusM"
+    ),
+    continuousSlot$1(
+      manifest,
+      "/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/LVFW"
+    ),
+    continuousSlot$1(
+      manifest,
+      "/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/SEP"
+    ),
+    continuousSlot$1(
+      manifest,
+      "/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/RVFW"
+    ),
+    continuousSlot$1(
+      manifest,
+      "/coronary/mvcReferenceState/referenceAcceptedTimeSec"
+    ),
+    continuousSlot$1(manifest, "/coronary/mvcReferenceState/referenceRevision"),
+    null,
+    continuousSlot$1(
+      manifest,
+      "/coronary/mvcReferenceState/acceptedMitralClosureEventCount"
+    )
+  );
+  if (slots.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1 || slots[MVC_ACTIVE_INDEX] !== null || slots.some((slot2, index) => index !== MVC_ACTIVE_INDEX && slot2 === null)) {
+    throw new Error("Main Wire accepted typed hemodynamic binding is incomplete");
+  }
+  return Object.freeze({
+    slots,
+    mvcActiveBooleanSlot: booleanSlot(
+      manifest,
+      "/coronary/mvcReferenceState/mitralForwardFlowActive"
+    )
+  });
+}
+function createMainWireAcceptedTypedHemodynamicBindingV1(manifest, executionPlanBinding) {
+  assertManifest(manifest);
+  let slots;
+  let mvcActiveBooleanSlot;
+  if (executionPlanBinding === void 0) {
+    const legacyProjection = createLegacyMainWireAcceptedProjectionV1(manifest);
+    slots = legacyProjection.slots;
+    mvcActiveBooleanSlot = legacyProjection.mvcActiveBooleanSlot;
+  } else {
+    if (executionPlanBinding.authorityLayoutId !== manifest.layoutId || executionPlanBinding.authorityFingerprint !== manifest.fingerprint) {
+      throw new Error(
+        "Main Wire execution-plan authority binding identity drifted"
+      );
+    }
+    const compiled = listExecutionPlanAcceptedTypedStateSlotsV1(
+      executionPlanBinding
+    );
+    if (compiled.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1.length || compiled.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
+      throw new Error("Main Wire execution-plan state count drifted");
+    }
+    const compiledSlots = compiled.map((slot2, index) => {
+      const expectedStateId = MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1[index];
+      const expectedStorageKind = index === MVC_ACTIVE_INDEX ? "boolean-u8" : "continuous-f64";
+      if (slot2.stateId !== expectedStateId || slot2.logicalIndex !== index || slot2.storageKind !== expectedStorageKind) {
+        throw new Error(
+          `Main Wire execution-plan state ${index} identity drifted`
+        );
+      }
+      return slot2.storageKind === "boolean-u8" ? null : slot2.authoritySlotIndex;
+    });
+    const compiledMvc = compiled[MVC_ACTIVE_INDEX];
+    slots = compiledSlots;
+    mvcActiveBooleanSlot = compiledMvc.authoritySlotIndex;
+  }
+  const ownerClocks = Object.freeze([
+    ownerClock(manifest, ""),
+    ownerClock(manifest, "/composedRhythm"),
+    ownerClock(manifest, "/coronary"),
+    ownerClock(manifest, "/coronary/circulation"),
+    ownerClock(manifest, "/coronary/coronary"),
+    ownerClock(manifest, "/coronary/mechanics")
+  ]);
+  const circulationTotalBloodVolumeSlot = continuousSlot$1(
+    manifest,
+    "/coronary/circulation/totalBloodVolumeMl"
+  );
+  const mechanicsAcceptedVolumeSlots = Object.freeze(Object.fromEntries(
+    ["LA", "LV", "RA", "RV"].map((chamberId) => [
+      chamberId,
+      continuousSlot$1(
+        manifest,
+        `/coronary/mechanics/acceptedVolumesMl/${chamberId}`
+      )
+    ])
+  ));
+  const mechanicsMaterialFingerprintStringSlot = stringSlot(
+    manifest,
+    "/coronary/mechanics/materialStateFingerprint"
+  );
+  const coupledContinuousSlots = Object.freeze(Array.from(/* @__PURE__ */ new Set([
+    ...slots.filter((slot2) => slot2 !== null),
+    circulationTotalBloodVolumeSlot,
+    ...Object.values(mechanicsAcceptedVolumeSlots),
+    ...ownerClocks.flatMap((clock) => [
+      clock.acceptedTimeSec,
+      clock.revision
+    ])
+  ])));
+  const coronaryToneSlots = new Set(
+    slots.slice(
+      CORONARY_TONE_INDEX,
+      CORONARY_TONE_INDEX + CORONARY_TERRITORY_IDS_V2.length * CORONARY_LAYER_IDS_V2.length
+    ).filter((slot2) => slot2 !== null)
+  );
+  const solverRetainedContinuousSlots = Object.freeze(
+    coupledContinuousSlots.filter((slot2) => !coronaryToneSlots.has(slot2))
+  );
+  return Object.freeze({
+    viewId: MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_VIEW_V1_ID,
+    layoutId: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
+    fingerprint: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
+    canonicalContinuousSlots: Object.freeze(slots),
+    mvcActiveBooleanSlot,
+    circulationTotalBloodVolumeSlot,
+    mechanicsAcceptedVolumeSlots,
+    mechanicsMaterialFingerprintStringSlot,
+    ownerClocks,
+    coupledContinuousSlots,
+    coupledBooleanSlots: Object.freeze([mvcActiveBooleanSlot]),
+    solverRetainedContinuousSlots,
+    solverRetainedBooleanSlots: Object.freeze([mvcActiveBooleanSlot])
+  });
+}
+function createMainWireAcceptedTypedHemodynamicDestinationV1() {
+  return new Float64Array(MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1);
+}
+function readMainWireAcceptedTypedHemodynamicIntoV1(cursor, binding, destination) {
+  assertCursor$1(cursor, binding);
+  if (!(destination instanceof Float64Array) || destination.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
+    throw new RangeError(
+      "Main Wire accepted typed hemodynamic destination must contain 100 f64s"
+    );
+  }
+  for (let index = 0; index < destination.length; index += 1) {
+    const slot2 = binding.canonicalContinuousSlots[index];
+    destination[index] = slot2 === null ? cursor.readBoolean(binding.mvcActiveBooleanSlot) ? 1 : 0 : cursor.readContinuous(slot2);
+  }
+  assertOwnerClocks(cursor, binding, destination);
+  assertCanonicalView(destination);
+}
+function materializeMainWireAcceptedTypedCoupledSolverAdapterV1(cursor, binding, template, scratch) {
+  validateMainWireFiveWallCoronaryAcceptedStateV2(template);
+  readMainWireAcceptedTypedHemodynamicIntoV1(
+    cursor,
+    binding,
+    scratch
+  );
+  if (!Object.is(
+    scratch[FIXED_TBV_INDEX],
+    template.fixedGlobalTotalBloodVolumeMl
+  )) {
+    throw new Error(
+      "Main Wire typed solver adapter changed its fixed TBV identity"
+    );
+  }
+  const acceptedTimeSec = scratch[ACCEPTED_TIME_INDEX];
+  const revision = scratch[REVISION_INDEX];
+  const nodeVolumesMl = Object.freeze(Object.fromEntries(
+    NON_CORONARY_NODE_NAMES_V1.map((nodeId, index) => [
+      nodeId,
+      scratch[NON_CORONARY_INDEX + index]
+    ])
+  ));
+  const dynamicEdgeFlowsMlPerSec = Object.freeze(Object.fromEntries(
+    NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((edgeId, index) => [
+      edgeId,
+      scratch[DYNAMIC_EDGE_INDEX + index]
+    ])
+  ));
+  const valveStates = Object.freeze(Object.fromEntries(
+    NON_CORONARY_VALVE_NAMES_V1.map((valveId, index) => [
+      valveId,
+      Object.freeze({
+        leafletOpeningFraction01: scratch[VALVE_INDEX + index]
+      })
+    ])
+  ));
+  const nonCoronaryTotalBloodVolumeMl = cursor.readContinuous(
+    binding.circulationTotalBloodVolumeSlot
+  );
+  const circulation = Object.freeze({
+    transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,
+    revision,
+    acceptedTimeSec,
+    totalBloodVolumeMl: nonCoronaryTotalBloodVolumeMl,
+    nodeVolumesMl,
+    dynamicEdgeFlowsMlPerSec,
+    valveStates
+  });
+  const volumeMlByNode = Object.freeze(Object.fromEntries(
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
+      nodeId,
+      scratch[CORONARY_INDEX + index]
+    ])
+  ));
+  const coronary = Object.freeze({
+    acceptedTimeSec,
+    revision,
+    volumeMlByNode,
+    toneResistanceScaleByTerritoryLayer: readCoronaryToneFromCanonicalView(scratch)
+  });
+  const acceptedVolumesMl = Object.freeze({
+    LA: nodeVolumesMl.LA,
+    LV: nodeVolumesMl.LV,
+    RA: nodeVolumesMl.RA,
+    RV: nodeVolumesMl.RV
+  });
+  const materialState = readMechanicsStateFromCanonicalView(scratch);
+  const mechanics = Object.freeze({
+    contractId: template.mechanics.contractId,
+    providerId: template.mechanics.providerId,
+    parameterSetId: template.mechanics.parameterSetId,
+    parameterIdentityHash: template.mechanics.parameterIdentityHash,
+    stateSchemaVersion: template.mechanics.stateSchemaVersion,
+    revision,
+    acceptedTimeSec,
+    acceptedVolumesMl,
+    materialState,
+    materialStateFingerprint: cursor.readString(
+      binding.mechanicsMaterialFingerprintStringSlot
+    )
+  });
+  const accepted = Object.freeze({
+    transactionId: MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID,
+    revision,
+    acceptedTimeSec,
+    fixedGlobalTotalBloodVolumeMl: scratch[FIXED_TBV_INDEX],
+    coronaryBinding: template.coronaryBinding,
+    circulation,
+    coronary,
+    mechanics,
+    mvcReferenceState: readMvcReferenceFromCanonicalView(scratch)
+  });
+  validateMainWireFiveWallCoronaryAcceptedStateV2(accepted);
+  return accepted;
+}
+function stageMainWireAcceptedTypedCoupledCandidateV1(candidateCursor, binding, candidate, scratch) {
+  assertCandidateCursor$1(candidateCursor, binding);
+  if (!(scratch instanceof Float64Array) || scratch.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
+    throw new RangeError(
+      "Main Wire accepted typed coupled scratch must contain 100 f64s"
+    );
+  }
+  writeCandidateIntoCanonicalView(candidate, scratch);
+  assertCanonicalView(scratch);
+  for (let index = 0; index < scratch.length; index += 1) {
+    const slot2 = binding.canonicalContinuousSlots[index];
+    if (slot2 === null) {
+      candidateCursor.writeBoolean(
+        binding.mvcActiveBooleanSlot,
+        scratch[index] === 1
+      );
+    } else {
+      candidateCursor.writeContinuous(slot2, scratch[index]);
+    }
+  }
+  for (const clock of binding.ownerClocks) {
+    candidateCursor.writeContinuous(
+      clock.acceptedTimeSec,
+      candidate.candidateTimeSec
+    );
+    candidateCursor.writeContinuous(clock.revision, candidate.candidateRevision);
+  }
+  writeRedundantAcceptedVolumes(
+    candidateCursor,
+    binding,
+    candidate.nonCoronaryNodeVolumesMl.reduce(
+      (sum, volumeMl) => sum + volumeMl,
+      0
+    ),
+    candidate.mechanicsCandidateVolumesMl
+  );
+  candidateCursor.writeStringSameByteLength(
+    binding.mechanicsMaterialFingerprintStringSlot,
+    candidate.mechanicsMaterialStateFingerprint
+  );
+}
+function writeRedundantAcceptedVolumes(candidateCursor, binding, totalBloodVolumeMl, mechanicsVolumes) {
+  if (!Number.isFinite(totalBloodVolumeMl) || !(totalBloodVolumeMl > 0)) {
+    throw new Error("Main Wire typed circulation TBV is invalid");
+  }
+  candidateCursor.writeContinuous(
+    binding.circulationTotalBloodVolumeSlot,
+    totalBloodVolumeMl
+  );
+  for (const chamberId of ["LA", "LV", "RA", "RV"]) {
+    const value = mechanicsVolumes[chamberId];
+    if (!Number.isFinite(value) || !(value > 0)) {
+      throw new Error(
+        `Main Wire typed ${chamberId} mechanics accepted volume is invalid`
+      );
+    }
+    candidateCursor.writeContinuous(
+      binding.mechanicsAcceptedVolumeSlots[chamberId],
+      value
+    );
+  }
+}
+function writeCandidateIntoCanonicalView(candidate, destination) {
+  destination[ACCEPTED_TIME_INDEX] = candidate.candidateTimeSec;
+  destination[REVISION_INDEX] = candidate.candidateRevision;
+  destination[FIXED_TBV_INDEX] = candidate.fixedGlobalTotalBloodVolumeMl;
+  destination.set(candidate.nonCoronaryNodeVolumesMl, NON_CORONARY_INDEX);
+  destination.set(candidate.dynamicEdgeFlowsMlPerSec, DYNAMIC_EDGE_INDEX);
+  if (candidate.valveStates.length !== NON_CORONARY_VALVE_NAMES_V1.length) {
+    throw new Error("Main Wire typed coupled valve-state dimension changed");
+  }
+  for (let index = 0; index < candidate.valveStates.length; index += 1) {
+    destination[VALVE_INDEX + index] = candidate.valveStates[index].leafletOpeningFraction01;
+  }
+  for (let index = 0; index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length; index += 1) {
+    destination[CORONARY_INDEX + index] = candidate.coronaryVolumesMl[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]];
+  }
+  let toneIndex = CORONARY_TONE_INDEX;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      destination[toneIndex++] = candidate.coronaryToneResistanceScaleByTerritoryLayer[territoryId][layerId];
+    }
+  }
+  writeMaterialAndMvcIntoCanonicalView(
+    candidate.mechanicsMaterialState,
+    candidate.mvcReferenceState,
+    destination
+  );
+  assertMechanicsVolumesMatch(
+    candidate.mechanicsCandidateVolumesMl,
+    Object.fromEntries(NON_CORONARY_NODE_NAMES_V1.map((nodeId, index) => [
+      nodeId,
+      candidate.nonCoronaryNodeVolumesMl[index]
+    ]))
+  );
+}
+function readCoronaryToneFromCanonicalView(source) {
+  let index = CORONARY_TONE_INDEX;
+  return Object.freeze(Object.fromEntries(
+    CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+      territoryId,
+      Object.freeze(Object.fromEntries(
+        CORONARY_LAYER_IDS_V2.map((layerId) => [
+          layerId,
+          source[index++]
+        ])
+      ))
+    ])
+  ));
+}
+function readMechanicsStateFromCanonicalView(source) {
+  let index = WALL_STATE_INDEX;
+  const wallStateByWall = Object.freeze(Object.fromEntries(
+    MAIN_WIRE_FIVE_WALL_IDS_V1.map((wallId) => {
+      const landState = source.slice(index, index + LAND_STATE_LENGTH);
+      index += LAND_STATE_LENGTH;
+      const wall = Object.freeze({
+        landState,
+        slsState: Object.freeze({
+          viscousLogStrain: source[index++]
+        }),
+        previousFiberLogStrain: source[index++],
+        previousFreeCalciumUM: source[index++]
+      });
+      return [wallId, wall];
+    })
+  ));
+  return Object.freeze({
+    wallStateByWall,
+    trisegCoordinates: Object.freeze({
+      septalMidwallCapVolumeM3: source[TRISEG_INDEX],
+      junctionRadiusM: source[TRISEG_INDEX + 1]
+    })
+  });
+}
+function readMvcReferenceFromCanonicalView(source) {
+  return Object.freeze({
+    reference: Object.freeze({
+      referenceFiberLogStrainByWall: Object.freeze({
+        LVFW: source[MVC_INDEX],
+        SEP: source[MVC_INDEX + 1],
+        RVFW: source[MVC_INDEX + 2]
+      })
+    }),
+    referenceAcceptedTimeSec: source[MVC_INDEX + 3],
+    referenceRevision: source[MVC_INDEX + 4],
+    mitralForwardFlowActive: source[MVC_ACTIVE_INDEX] === 1,
+    acceptedMitralClosureEventCount: source[MVC_INDEX + 6]
+  });
+}
+function writeMaterialAndMvcIntoCanonicalView(materialState, mvc, destination) {
+  let wallIndex = WALL_STATE_INDEX;
+  for (const wallId of MAIN_WIRE_FIVE_WALL_IDS_V1) {
+    const wall = materialState.wallStateByWall[wallId];
+    if (wall.landState.length !== LAND_STATE_LENGTH) {
+      throw new Error(`Main Wire typed ${wallId} Land-state dimension changed`);
+    }
+    destination.set(wall.landState, wallIndex);
+    wallIndex += LAND_STATE_LENGTH;
+    destination[wallIndex++] = wall.slsState.viscousLogStrain;
+    destination[wallIndex++] = wall.previousFiberLogStrain;
+    destination[wallIndex++] = wall.previousFreeCalciumUM;
+  }
+  destination[TRISEG_INDEX] = materialState.trisegCoordinates.septalMidwallCapVolumeM3;
+  destination[TRISEG_INDEX + 1] = materialState.trisegCoordinates.junctionRadiusM;
+  destination[MVC_INDEX] = mvc.reference.referenceFiberLogStrainByWall.LVFW;
+  destination[MVC_INDEX + 1] = mvc.reference.referenceFiberLogStrainByWall.SEP;
+  destination[MVC_INDEX + 2] = mvc.reference.referenceFiberLogStrainByWall.RVFW;
+  destination[MVC_INDEX + 3] = mvc.referenceAcceptedTimeSec;
+  destination[MVC_INDEX + 4] = mvc.referenceRevision;
+  destination[MVC_ACTIVE_INDEX] = mvc.mitralForwardFlowActive ? 1 : 0;
+  destination[MVC_INDEX + 6] = mvc.acceptedMitralClosureEventCount;
+}
+function assertMechanicsVolumesMatch(mechanicsVolumes, nodeVolumes) {
+  for (const chamberId of ["LA", "LV", "RA", "RV"]) {
+    if (!Object.is(mechanicsVolumes[chamberId], nodeVolumes[chamberId])) {
+      throw new Error(
+        `Main Wire typed coupled ${chamberId} mechanics volume diverged`
+      );
+    }
+  }
+}
+function assertManifest(manifest) {
+  if (manifest.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID || manifest.fingerprint !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT) {
+    throw new Error(
+      "Main Wire accepted typed hemodynamic manifest identity is unsupported"
+    );
+  }
+}
+function assertCursor$1(cursor, binding) {
+  if (cursor.layoutId !== binding.layoutId || cursor.fingerprint !== binding.fingerprint) {
+    throw new Error("Main Wire accepted typed hemodynamic cursor is unsupported");
+  }
+}
+function assertCandidateCursor$1(cursor, binding) {
+  if (cursor.layoutId !== binding.layoutId || cursor.fingerprint !== binding.fingerprint) {
+    throw new Error(
+      "Main Wire accepted typed hemodynamic candidate cursor is unsupported"
+    );
+  }
+}
+function ownerClock(manifest, pointer2) {
+  return Object.freeze({
+    acceptedTimeSec: continuousSlot$1(manifest, `${pointer2}/acceptedTimeSec`),
+    revision: continuousSlot$1(manifest, `${pointer2}/revision`)
+  });
+}
+function assertOwnerClocks(cursor, binding, destination) {
+  const acceptedTimeSec = destination[ACCEPTED_TIME_INDEX];
+  const revision = destination[REVISION_INDEX];
+  for (const clock of binding.ownerClocks) {
+    if (!Object.is(cursor.readContinuous(clock.acceptedTimeSec), acceptedTimeSec) || !Object.is(cursor.readContinuous(clock.revision), revision)) {
+      throw new Error("Main Wire accepted typed hemodynamic owner clocks diverged");
+    }
+  }
+}
+function assertCanonicalView(view) {
+  for (let index = 0; index < view.length; index += 1) {
+    if (!Number.isFinite(view[index])) {
+      throw new Error(
+        `Main Wire accepted typed hemodynamic slot ${index} is not finite`
+      );
+    }
+  }
+  if (!(view[ACCEPTED_TIME_INDEX] >= 0)) {
+    throw new Error("Main Wire accepted typed hemodynamic time is negative");
+  }
+  if (!Number.isSafeInteger(view[REVISION_INDEX]) || view[REVISION_INDEX] < 0) {
+    throw new Error("Main Wire accepted typed hemodynamic revision is invalid");
+  }
+  if (!(view[FIXED_TBV_INDEX] > 0)) {
+    throw new Error("Main Wire accepted typed hemodynamic TBV is invalid");
+  }
+  let bloodVolumeMl = 0;
+  for (let index = NON_CORONARY_INDEX; index < DYNAMIC_EDGE_INDEX; index += 1) {
+    if (!(view[index] > 0)) {
+      throw new Error("Main Wire accepted typed non-coronary volume is invalid");
+    }
+    bloodVolumeMl += view[index];
+  }
+  for (let index = VALVE_INDEX; index < CORONARY_INDEX; index += 1) {
+    if (view[index] < 0 || view[index] > 1) {
+      throw new Error("Main Wire accepted typed valve opening is invalid");
+    }
+  }
+  for (let index = CORONARY_INDEX; index < CORONARY_TONE_INDEX; index += 1) {
+    if (!(view[index] > 0)) {
+      throw new Error("Main Wire accepted typed coronary volume is invalid");
+    }
+    bloodVolumeMl += view[index];
+  }
+  for (let index = CORONARY_TONE_INDEX; index < WALL_STATE_INDEX; index += 1) {
+    if (!(view[index] > 0)) {
+      throw new Error("Main Wire accepted typed coronary tone is invalid");
+    }
+  }
+  const tbvTolerance = 64 * Number.EPSILON * Math.max(1, Math.abs(bloodVolumeMl), Math.abs(view[FIXED_TBV_INDEX]));
+  if (Math.abs(bloodVolumeMl - view[FIXED_TBV_INDEX]) > tbvTolerance) {
+    throw new Error("Main Wire accepted typed hemodynamic TBV ledger diverged");
+  }
+  for (let wall = 0; wall < MAIN_WIRE_FIVE_WALL_IDS_V1.length; wall += 1) {
+    const previousCalciumIndex = WALL_STATE_INDEX + wall * WALL_STATE_LENGTH + LAND_STATE_LENGTH + 2;
+    if (view[previousCalciumIndex] < 0) {
+      throw new Error("Main Wire accepted typed previous calcium is invalid");
+    }
+  }
+  if (view[MVC_INDEX + 3] < 0 || view[MVC_INDEX + 3] > view[ACCEPTED_TIME_INDEX] || !Number.isSafeInteger(view[MVC_INDEX + 4]) || view[MVC_INDEX + 4] < 0 || view[MVC_INDEX + 4] > view[REVISION_INDEX] || view[MVC_ACTIVE_INDEX] !== 0 && view[MVC_ACTIVE_INDEX] !== 1 || !Number.isSafeInteger(view[MVC_INDEX + 6]) || view[MVC_INDEX + 6] < 0) {
+    throw new Error("Main Wire accepted typed MVC reference is invalid");
+  }
+}
+function continuousSlot$1(manifest, pointer2) {
+  return requiredSlot(manifest.numericalLayout.continuousSlots, pointer2);
+}
+function booleanSlot(manifest, pointer2) {
+  return requiredSlot(manifest.numericalLayout.booleanSlots, pointer2);
+}
+function stringSlot(manifest, pointer2) {
+  return requiredSlot(manifest.numericalLayout.stringSlots, pointer2);
+}
+function requiredSlot(slots, pointer2) {
+  let found = -1;
+  for (let index = 0; index < slots.length; index += 1) {
+    if (slots[index]?.pointer !== pointer2) continue;
+    if (found !== -1) {
+      throw new Error(
+        `Main Wire accepted typed hemodynamic slot ${pointer2} is duplicated`
+      );
+    }
+    found = index;
+  }
+  if (found === -1) {
+    throw new Error(
+      `Main Wire accepted typed hemodynamic slot ${pointer2} is unavailable`
+    );
+  }
+  return found;
 }
 function createFlatDenseLuWorkspaceV1(dimension) {
   requireDimension(dimension);
@@ -32467,6 +37054,7 @@ function sameCoupledRootValue(left, right) {
   return Math.abs(left - right) <= tolerance;
 }
 const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID = "main-wire-five-wall-coupled-newton-shadow-v1";
+const MAIN_WIRE_HYDRAULIC_EXECUTION_PLAN_EXPECTATION_V1 = createMainWireHydraulicExecutionPlanExpectationV1();
 const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
 function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(backing) {
   const nonCoronaryDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
@@ -32477,6 +37065,9 @@ function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(backing) {
   const unknownScales = backing?.unknownScales ?? new Float64Array(dimension);
   const residualScales = backing?.residualScales ?? new Float64Array(dimension);
   const solveLayout = backing?.solveLayout ?? createCanonicalMainWireFiveWallCoupledSolveLayoutV1();
+  if (backing?.hydraulicDispatch !== void 0) {
+    assertBoundExecutionPlanHydraulicDispatchV1(backing.hydraulicDispatch);
+  }
   assertFlatCoupledNewtonWorkspaceV1(newton, dimension);
   assertMainWireFiveWallCoupledSolveLayoutV1(solveLayout);
   assertExternalScaleStorageV1(
@@ -32516,6 +37107,7 @@ function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(backing) {
       residualScales,
       newton,
       solveLayout,
+      hydraulicDispatch: backing?.hydraulicDispatch ?? null,
       inUse: false
     }
   );
@@ -32525,6 +37117,8 @@ function bindMainWireFiveWallCoupledExecutionPlanRuntimeV1(input) {
   if (input.dispatch.systemKernelId !== MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID || input.workspace.solveGroupId !== input.dispatch.solveGroupId || input.workspace.dimension !== input.dispatch.activeUnknownCount) {
     throw new Error("Main Wire execution-plan solve system drifted");
   }
+  assertBoundExecutionPlanHydraulicDispatchV1(input.hydraulicDispatch);
+  assertMainWireHydraulicExecutionPlanDispatchV1(input.hydraulicDispatch);
   return createMainWireFiveWallCoupledNewtonShadowWorkspaceV1({
     newton: bindFlatCoupledNewtonWorkspaceV1({
       dimension: input.workspace.dimension,
@@ -32541,8 +37135,78 @@ function bindMainWireFiveWallCoupledExecutionPlanRuntimeV1(input) {
     }),
     unknownScales: input.workspace.unknownScale,
     residualScales: input.workspace.residualScale,
-    solveLayout: bindMainWireFiveWallCoupledSolveDispatchV1(input.dispatch)
+    solveLayout: bindMainWireFiveWallCoupledSolveDispatchV1(input.dispatch),
+    hydraulicDispatch: input.hydraulicDispatch
   });
+}
+function assertMainWireHydraulicExecutionPlanDispatchV1(dispatch) {
+  const {
+    nodes: expectedNodes,
+    paths: expectedPaths
+  } = MAIN_WIRE_HYDRAULIC_EXECUTION_PLAN_EXPECTATION_V1;
+  if (dispatch.definitionId !== "main-wire-hemodynamic-model-definition-v1" || dispatch.nodes.length !== expectedNodes.length || dispatch.paths.length !== expectedPaths.length || dispatch.conservationPools.length !== 1) {
+    throw new Error("Main Wire hydraulic execution-plan dimensions drifted");
+  }
+  expectedNodes.forEach((expected, index) => {
+    const actual = dispatch.nodes[index];
+    if (actual?.nodeId !== expected.nodeId || actual.componentId !== expected.componentId || actual.componentKernelId !== expected.componentKernelId || actual.storageStateLogicalIndex !== expected.storageStateLogicalIndex) {
+      throw new Error(`Main Wire hydraulic node ${index} drifted`);
+    }
+  });
+  expectedPaths.forEach((expected, index) => {
+    const actual = dispatch.paths[index];
+    if (actual?.pathId !== expected.pathId || actual.componentId !== expected.componentId || actual.componentKernelId !== expected.componentKernelId || dispatch.nodes[actual.upstreamNodeIndex]?.nodeId !== expected.upstreamNodeId || dispatch.nodes[actual.downstreamNodeIndex]?.nodeId !== expected.downstreamNodeId || actual.pathKernelId !== expected.pathKernelId) {
+      throw new Error(`Main Wire hydraulic path ${index} drifted`);
+    }
+  });
+  const [pool] = dispatch.conservationPools;
+  if (pool?.poolId !== "global-blood-volume" || pool.ledgerStateLogicalIndex !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.fixedTotalBloodVolume || pool.dependentStateLogicalIndex !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.nonCoronaryVolumes + 8 || pool.memberStateLogicalIndices.length !== expectedNodes.length || pool.memberStateLogicalIndices.some((logicalIndex, index) => logicalIndex !== expectedNodes[index].storageStateLogicalIndex)) {
+    throw new Error("Main Wire hydraulic conservation pool drifted");
+  }
+}
+function createMainWireHydraulicExecutionPlanExpectationV1() {
+  const edgeById = new Map(buildEdges().map((edge) => [edge.name, edge]));
+  const nonCoronaryEdges = NON_CORONARY_EDGE_NAMES_V1.map((edgeId) => {
+    const edge = edgeById.get(edgeId);
+    if (edge === void 0) {
+      throw new Error(`Main Wire hydraulic path ${edgeId} is unavailable`);
+    }
+    return edge;
+  });
+  const coronaryTopology = buildCoronaryTopologyV2();
+  const nodes = Object.freeze([
+    ...NON_CORONARY_NODE_NAMES_V1.map((nodeId, index) => ({
+      nodeId,
+      componentId: "noncoronary-circulation",
+      componentKernelId: "noncoronary-backward-euler-kernel-v1",
+      storageStateLogicalIndex: MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.nonCoronaryVolumes + index
+    })),
+    ...coronaryTopology.nodes.map((node, index) => ({
+      nodeId: node.nodeId,
+      componentId: "coronary-circulation",
+      componentKernelId: "coronary-backward-euler-kernel-v2",
+      storageStateLogicalIndex: MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.coronaryVolumes + index
+    }))
+  ]);
+  const paths = Object.freeze([
+    ...nonCoronaryEdges.map((edge) => ({
+      pathId: edge.name,
+      componentId: "noncoronary-circulation",
+      componentKernelId: "noncoronary-backward-euler-kernel-v1",
+      upstreamNodeId: edge.up,
+      downstreamNodeId: edge.down,
+      pathKernelId: `noncoronary-flow/${edge.kind}`
+    })),
+    ...coronaryTopology.edges.map((edge) => ({
+      pathId: edge.edgeId,
+      componentId: "coronary-circulation",
+      componentKernelId: "coronary-backward-euler-kernel-v2",
+      upstreamNodeId: edge.upstreamNodeId,
+      downstreamNodeId: edge.downstreamNodeId,
+      pathKernelId: `coronary-flow/${edge.kind}`
+    }))
+  ]);
+  return Object.freeze({ nodes, paths });
 }
 function assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace) {
   const expectedDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
@@ -38138,3713 +42802,6 @@ function isNonadvancingLimiterError$1(error) {
 function errorMessage$2(error) {
   return error instanceof Error ? error.message : String(error);
 }
-const CANONICAL_FLAT_CHECKPOINT_V1_MAGIC = "CHFLATB1";
-const CHECKPOINT_HEADER_BYTES = 8 + 4 + 32;
-const MAX_DEPTH = 256;
-const MAX_CONTAINER_ITEMS = 1e6;
-const MAX_STRING_BYTES = 16 * 1024 * 1024;
-function encodeCanonicalFlatDataIntoV1(value, destination) {
-  assertOwnedDestination(destination);
-  const writer = new FixedWriterV1(destination);
-  encodeValue(value, writer, /* @__PURE__ */ new Set(), 0, "$");
-  return writer.length;
-}
-function decodeCanonicalFlatDataV1(source, length = source.byteLength) {
-  assertOwnedDestination(source);
-  if (!Number.isSafeInteger(length) || length < 0 || length > source.byteLength) {
-    throw new Error("Canonical flat data length is invalid");
-  }
-  const reader = new ReaderV1(source.subarray(0, length));
-  const value = decodeValue(reader, 0);
-  if (reader.remaining !== 0) {
-    throw new Error("Canonical flat data contains trailing bytes");
-  }
-  return value;
-}
-async function encodeCanonicalFlatCheckpointV1(value) {
-  const payloadLength = measureCanonicalFlatDataV1(value);
-  const payload = new Uint8Array(payloadLength);
-  const written = encodeCanonicalFlatDataIntoV1(value, payload);
-  if (written !== payloadLength) {
-    throw new Error("Canonical flat checkpoint length changed while encoding");
-  }
-  const digest2 = await sha256Bytes(payload);
-  const encoded = new Uint8Array(CHECKPOINT_HEADER_BYTES + payloadLength);
-  encoded.set(new TextEncoder().encode(CANONICAL_FLAT_CHECKPOINT_V1_MAGIC), 0);
-  new DataView(encoded.buffer).setUint32(8, payloadLength, false);
-  encoded.set(digest2, 12);
-  encoded.set(payload, CHECKPOINT_HEADER_BYTES);
-  return encoded;
-}
-async function decodeCanonicalFlatCheckpointV1(input) {
-  assertOwnedDestination(input);
-  if (input.byteLength < CHECKPOINT_HEADER_BYTES) {
-    throw new Error("Canonical flat checkpoint is truncated");
-  }
-  const magic = new TextDecoder("utf-8", { fatal: true }).decode(
-    input.subarray(0, 8)
-  );
-  if (magic !== CANONICAL_FLAT_CHECKPOINT_V1_MAGIC) {
-    throw new Error("Canonical flat checkpoint magic is unsupported");
-  }
-  const payloadLength = new DataView(
-    input.buffer,
-    input.byteOffset,
-    input.byteLength
-  ).getUint32(8, false);
-  if (payloadLength !== input.byteLength - CHECKPOINT_HEADER_BYTES) {
-    throw new Error("Canonical flat checkpoint payload length is invalid");
-  }
-  const expected = input.subarray(12, CHECKPOINT_HEADER_BYTES);
-  const payload = input.subarray(CHECKPOINT_HEADER_BYTES);
-  const actual = await sha256Bytes(payload);
-  if (!constantTimeEqual(expected, actual)) {
-    throw new Error("Canonical flat checkpoint SHA-256 mismatch");
-  }
-  return decodeCanonicalFlatDataV1(payload);
-}
-function measureCanonicalFlatDataV1(value) {
-  const writer = new MeasuringWriterV1();
-  encodeValue(value, writer, /* @__PURE__ */ new Set(), 0, "$");
-  return writer.length;
-}
-class FixedWriterV1 {
-  #destination;
-  #view;
-  #offset = 0;
-  constructor(destination) {
-    this.#destination = destination;
-    this.#view = new DataView(
-      destination.buffer,
-      destination.byteOffset,
-      destination.byteLength
-    );
-  }
-  get length() {
-    return this.#offset;
-  }
-  u8(value) {
-    this.reserve(1);
-    this.#view.setUint8(this.#offset, value);
-    this.#offset += 1;
-  }
-  u16(value) {
-    this.reserve(2);
-    this.#view.setUint16(this.#offset, value, false);
-    this.#offset += 2;
-  }
-  u32(value) {
-    this.reserve(4);
-    this.#view.setUint32(this.#offset, value, false);
-    this.#offset += 4;
-  }
-  i8(value) {
-    this.reserve(1);
-    this.#view.setInt8(this.#offset, value);
-    this.#offset += 1;
-  }
-  i16(value) {
-    this.reserve(2);
-    this.#view.setInt16(this.#offset, value, false);
-    this.#offset += 2;
-  }
-  i32(value) {
-    this.reserve(4);
-    this.#view.setInt32(this.#offset, value, false);
-    this.#offset += 4;
-  }
-  f32(value) {
-    this.reserve(4);
-    this.#view.setFloat32(this.#offset, value, false);
-    this.#offset += 4;
-  }
-  f64(value) {
-    this.reserve(8);
-    this.#view.setFloat64(this.#offset, value, false);
-    this.#offset += 8;
-  }
-  bytes(value) {
-    this.reserve(value.byteLength);
-    this.#destination.set(value, this.#offset);
-    this.#offset += value.byteLength;
-  }
-  reserve(byteLength) {
-    if (this.#offset + byteLength > this.#destination.byteLength) {
-      throw new Error("Canonical flat data exceeds its fixed capacity");
-    }
-  }
-}
-class MeasuringWriterV1 {
-  #length = 0;
-  get length() {
-    return this.#length;
-  }
-  u8() {
-    this.add(1);
-  }
-  u16() {
-    this.add(2);
-  }
-  u32() {
-    this.add(4);
-  }
-  i8() {
-    this.add(1);
-  }
-  i16() {
-    this.add(2);
-  }
-  i32() {
-    this.add(4);
-  }
-  f32() {
-    this.add(4);
-  }
-  f64() {
-    this.add(8);
-  }
-  bytes(value) {
-    this.add(value.byteLength);
-  }
-  add(byteLength) {
-    this.#length += byteLength;
-    if (!Number.isSafeInteger(this.#length) || this.#length > 4294967295) {
-      throw new Error("Canonical flat data is too large");
-    }
-  }
-}
-class ReaderV1 {
-  #source;
-  #view;
-  #offset = 0;
-  constructor(source) {
-    this.#source = source;
-    this.#view = new DataView(source.buffer, source.byteOffset, source.byteLength);
-  }
-  get remaining() {
-    return this.#source.byteLength - this.#offset;
-  }
-  u8() {
-    this.require(1);
-    return this.#view.getUint8(this.#offset++);
-  }
-  i8() {
-    this.require(1);
-    return this.#view.getInt8(this.#offset++);
-  }
-  u16() {
-    this.require(2);
-    const value = this.#view.getUint16(this.#offset, false);
-    this.#offset += 2;
-    return value;
-  }
-  i16() {
-    this.require(2);
-    const value = this.#view.getInt16(this.#offset, false);
-    this.#offset += 2;
-    return value;
-  }
-  u32() {
-    this.require(4);
-    const value = this.#view.getUint32(this.#offset, false);
-    this.#offset += 4;
-    return value;
-  }
-  i32() {
-    this.require(4);
-    const value = this.#view.getInt32(this.#offset, false);
-    this.#offset += 4;
-    return value;
-  }
-  f32() {
-    this.require(4);
-    const value = this.#view.getFloat32(this.#offset, false);
-    this.#offset += 4;
-    return value;
-  }
-  f64() {
-    this.require(8);
-    const value = this.#view.getFloat64(this.#offset, false);
-    this.#offset += 8;
-    return value;
-  }
-  bytes(length) {
-    this.require(length);
-    const value = this.#source.subarray(this.#offset, this.#offset + length);
-    this.#offset += length;
-    return value;
-  }
-  require(byteLength) {
-    if (!Number.isSafeInteger(byteLength) || byteLength < 0 || byteLength > this.remaining) {
-      throw new Error("Canonical flat data is truncated");
-    }
-  }
-}
-function encodeValue(value, writer, ancestors, depth, path) {
-  if (depth > MAX_DEPTH) throw new Error(`Canonical flat data ${path} is too deep`);
-  if (value === null) {
-    writer.u8(
-      0
-      /* Null */
-    );
-    return;
-  }
-  if (value === false) {
-    writer.u8(
-      1
-      /* False */
-    );
-    return;
-  }
-  if (value === true) {
-    writer.u8(
-      2
-      /* True */
-    );
-    return;
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      throw new Error(`Canonical flat data ${path} must be finite`);
-    }
-    writer.u8(
-      3
-      /* Float64 */
-    );
-    writer.f64(value);
-    return;
-  }
-  if (typeof value === "string") {
-    writer.u8(
-      4
-      /* String */
-    );
-    writeString(value, writer, path);
-    return;
-  }
-  if (typeof value !== "object") {
-    throw new Error(`Canonical flat data ${path} has an unsupported value`);
-  }
-  if (ancestors.has(value)) {
-    throw new Error(`Canonical flat data ${path} contains a cycle`);
-  }
-  ancestors.add(value);
-  try {
-    if (Array.isArray(value)) {
-      const descriptors2 = Object.getOwnPropertyDescriptors(value);
-      assertDenseArrayDescriptors(value, descriptors2, path);
-      assertItemCount(value.length, path);
-      writer.u8(
-        5
-        /* Array */
-      );
-      writer.u32(value.length);
-      for (let index = 0; index < value.length; index += 1) {
-        encodeValue(
-          descriptors2[String(index)].value,
-          writer,
-          ancestors,
-          depth + 1,
-          `${path}/${index}`
-        );
-      }
-      return;
-    }
-    if (isSupportedTypedArray(value)) {
-      encodeTypedArray(value, writer, path);
-      return;
-    }
-    const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null) {
-      throw new Error(`Canonical flat data ${path} has an unsupported prototype`);
-    }
-    const descriptors = Object.getOwnPropertyDescriptors(value);
-    const keys = Object.keys(descriptors).sort(compareStrings);
-    assertItemCount(keys.length, path);
-    for (const key of Reflect.ownKeys(descriptors)) {
-      if (typeof key !== "string" || !Object.prototype.propertyIsEnumerable.call(value, key)) {
-        throw new Error(`Canonical flat data ${path} contains a non-enumerable or symbol key`);
-      }
-    }
-    writer.u8(
-      prototype === null ? 7 : 6
-      /* Record */
-    );
-    writer.u32(keys.length);
-    for (const key of keys) {
-      const descriptor = descriptors[key];
-      if (!("value" in descriptor)) {
-        throw new Error(`Canonical flat data ${path}/${escapePointer(key)} is an accessor`);
-      }
-      writeString(key, writer, `${path} key`);
-      encodeValue(
-        descriptor.value,
-        writer,
-        ancestors,
-        depth + 1,
-        `${path}/${escapePointer(key)}`
-      );
-    }
-  } finally {
-    ancestors.delete(value);
-  }
-}
-function decodeValue(reader, depth) {
-  if (depth > MAX_DEPTH) throw new Error("Canonical flat data is too deep");
-  const tag = reader.u8();
-  switch (tag) {
-    case 0:
-      return null;
-    case 1:
-      return false;
-    case 2:
-      return true;
-    case 3: {
-      const value = reader.f64();
-      if (!Number.isFinite(value)) throw new Error("Canonical flat number must be finite");
-      return value;
-    }
-    case 4:
-      return readString(reader);
-    case 5: {
-      const length = readItemCount(reader);
-      const values2 = new Array(length);
-      for (let index = 0; index < length; index += 1) {
-        values2[index] = decodeValue(reader, depth + 1);
-      }
-      return Object.freeze(values2);
-    }
-    case 6:
-    case 7: {
-      const count = readItemCount(reader);
-      const record = Object.create(
-        tag === 6 ? Object.prototype : null
-      );
-      let previous = null;
-      for (let index = 0; index < count; index += 1) {
-        const key = readString(reader);
-        if (previous !== null && compareStrings(previous, key) >= 0) {
-          throw new Error("Canonical flat record keys are not strictly ordered");
-        }
-        previous = key;
-        Object.defineProperty(record, key, {
-          value: decodeValue(reader, depth + 1),
-          enumerable: true,
-          writable: false,
-          configurable: false
-        });
-      }
-      return Object.freeze(record);
-    }
-    case 16:
-    case 17:
-    case 18:
-    case 19:
-    case 20:
-    case 21:
-    case 22:
-    case 23:
-    case 24:
-      return decodeTypedArray(tag, reader);
-    default:
-      throw new Error("Canonical flat data tag is unsupported");
-  }
-}
-function encodeTypedArray(value, writer, path) {
-  assertItemCount(value.length, path);
-  const tag = typedArrayTag(value);
-  writer.u8(tag);
-  writer.u32(value.length);
-  for (let index = 0; index < value.length; index += 1) {
-    const item = value[index];
-    switch (tag) {
-      case 16:
-        if (!Number.isFinite(item)) throw new Error(`Canonical flat data ${path}/${index} must be finite`);
-        writer.f64(item);
-        break;
-      case 17:
-        if (!Number.isFinite(item)) throw new Error(`Canonical flat data ${path}/${index} must be finite`);
-        writer.f32(item);
-        break;
-      case 18:
-        writer.i32(item);
-        break;
-      case 19:
-        writer.u32(item);
-        break;
-      case 20:
-        writer.i16(item);
-        break;
-      case 21:
-        writer.u16(item);
-        break;
-      case 22:
-        writer.i8(item);
-        break;
-      case 23:
-      case 24:
-        writer.u8(item);
-        break;
-    }
-  }
-}
-function decodeTypedArray(tag, reader) {
-  const length = readItemCount(reader);
-  switch (tag) {
-    case 16: {
-      const result = new Float64Array(length);
-      for (let index = 0; index < length; index += 1) {
-        const value = reader.f64();
-        if (!Number.isFinite(value)) throw new Error("Canonical flat typed value must be finite");
-        result[index] = value;
-      }
-      return result;
-    }
-    case 17: {
-      const result = new Float32Array(length);
-      for (let index = 0; index < length; index += 1) {
-        const value = reader.f32();
-        if (!Number.isFinite(value)) throw new Error("Canonical flat typed value must be finite");
-        result[index] = value;
-      }
-      return result;
-    }
-    case 18:
-      return fillTyped(new Int32Array(length), () => reader.i32());
-    case 19:
-      return fillTyped(new Uint32Array(length), () => reader.u32());
-    case 20:
-      return fillTyped(new Int16Array(length), () => reader.i16());
-    case 21:
-      return fillTyped(new Uint16Array(length), () => reader.u16());
-    case 22:
-      return fillTyped(new Int8Array(length), () => reader.i8());
-    case 23:
-      return fillTyped(new Uint8Array(length), () => reader.u8());
-    case 24:
-      return fillTyped(new Uint8ClampedArray(length), () => reader.u8());
-    default:
-      throw new Error("Canonical flat typed-array tag is unsupported");
-  }
-}
-function fillTyped(destination, read) {
-  for (let index = 0; index < destination.length; index += 1) {
-    destination[index] = read();
-  }
-  return destination;
-}
-function typedArrayTag(value) {
-  if (value instanceof Float64Array) return 16;
-  if (value instanceof Float32Array) return 17;
-  if (value instanceof Int32Array) return 18;
-  if (value instanceof Uint32Array) return 19;
-  if (value instanceof Int16Array) return 20;
-  if (value instanceof Uint16Array) return 21;
-  if (value instanceof Int8Array) return 22;
-  if (value instanceof Uint8ClampedArray) return 24;
-  return 23;
-}
-function isSupportedTypedArray(value) {
-  return value instanceof Float64Array || value instanceof Float32Array || value instanceof Int32Array || value instanceof Uint32Array || value instanceof Int16Array || value instanceof Uint16Array || value instanceof Int8Array || value instanceof Uint8Array || value instanceof Uint8ClampedArray;
-}
-function assertDenseArrayDescriptors(value, descriptors, path) {
-  const length = value.length;
-  const keys = Reflect.ownKeys(descriptors);
-  if (keys.length !== length + 1 || !("length" in descriptors)) {
-    throw new Error(`Canonical flat data ${path} must be a dense plain array`);
-  }
-  for (let index = 0; index < length; index += 1) {
-    const descriptor = descriptors[String(index)];
-    if (descriptor === void 0 || !("value" in descriptor)) {
-      throw new Error(`Canonical flat data ${path}/${index} is missing or an accessor`);
-    }
-  }
-}
-function writeString(value, writer, path) {
-  if (!isWellFormedString(value)) {
-    throw new Error(`Canonical flat data ${path} contains an unpaired surrogate`);
-  }
-  const bytes = new TextEncoder().encode(value);
-  if (bytes.byteLength > MAX_STRING_BYTES) {
-    throw new Error(`Canonical flat data ${path} string is too large`);
-  }
-  writer.u32(bytes.byteLength);
-  writer.bytes(bytes);
-}
-function readString(reader) {
-  const length = reader.u32();
-  if (length > MAX_STRING_BYTES) throw new Error("Canonical flat string is too large");
-  const value = new TextDecoder("utf-8", { fatal: true }).decode(reader.bytes(length));
-  if (!isWellFormedString(value)) throw new Error("Canonical flat string is malformed");
-  return value;
-}
-function isWellFormedString(value) {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code >= 55296 && code <= 56319) {
-      const next = value.charCodeAt(index + 1);
-      if (!(next >= 56320 && next <= 57343)) return false;
-      index += 1;
-    } else if (code >= 56320 && code <= 57343) {
-      return false;
-    }
-  }
-  return true;
-}
-function readItemCount(reader) {
-  const count = reader.u32();
-  assertItemCount(count, "decoded container");
-  return count;
-}
-function assertItemCount(count, path) {
-  if (!Number.isSafeInteger(count) || count < 0 || count > MAX_CONTAINER_ITEMS) {
-    throw new Error(`Canonical flat data ${path} has too many items`);
-  }
-}
-function assertOwnedDestination(value) {
-  if (!(value instanceof Uint8Array) || typeof SharedArrayBuffer !== "undefined" && value.buffer instanceof SharedArrayBuffer || value.buffer.resizable === true) {
-    throw new Error("Canonical flat data requires an owned fixed Uint8Array");
-  }
-}
-function compareStrings(left, right) {
-  return left < right ? -1 : left > right ? 1 : 0;
-}
-function escapePointer(value) {
-  return value.replaceAll("~", "~0").replaceAll("/", "~1");
-}
-async function sha256Bytes(bytes) {
-  const subtle = globalThis.crypto?.subtle;
-  if (subtle === void 0) {
-    throw new Error("Web Crypto subtle.digest is required for flat checkpoints");
-  }
-  return new Uint8Array(await subtle.digest("SHA-256", bytes));
-}
-function constantTimeEqual(left, right) {
-  if (left.byteLength !== right.byteLength) return false;
-  let difference = 0;
-  for (let index = 0; index < left.byteLength; index += 1) {
-    difference |= left[index] ^ right[index];
-  }
-  return difference === 0;
-}
-const FLAT_NUMERICAL_STATE_LAYOUT_V1_SCHEMA_ID = "circleheart-flat-numerical-state-layout-v1";
-function createFlatNumericalStateLayoutV1(layoutId, referenceState, options = {}) {
-  if (layoutId.trim().length === 0) {
-    throw new Error("Flat numerical state layoutId is empty");
-  }
-  const continuousSlots = [];
-  const nullableContinuousSlots = [];
-  const nullableStringSlots = [];
-  const optionalRecordRoots = [];
-  const boundedArrayRoots = [];
-  const booleanSlots = [];
-  const stringSlots = [];
-  const externalImmutableRoots = [];
-  const excludedDynamicRoots = [];
-  const containers = [];
-  const fixedArrayPointers = new Set(
-    options.fixedArrayPointers?.map((value) => {
-      if (typeof value !== "string" || !value.startsWith("/")) {
-        throw new Error("Flat numerical fixed-array pointer is invalid");
-      }
-      return value;
-    }) ?? []
-  );
-  if (fixedArrayPointers.size !== (options.fixedArrayPointers?.length ?? 0)) {
-    throw new Error("Flat numerical fixed-array pointer is duplicated");
-  }
-  const admittedFixedArrayPointers = /* @__PURE__ */ new Set();
-  const admittedExternalImmutableBindings = pointerSet(
-    options.externalImmutablePointers,
-    "external-immutable"
-  );
-  const externalImmutableAliases = externalImmutableAliasMap(
-    options.externalImmutableAliases,
-    admittedExternalImmutableBindings
-  );
-  const externalImmutablePointers = new Set(
-    admittedExternalImmutableBindings
-  );
-  for (const targetPointer of externalImmutableAliases.keys()) {
-    if (externalImmutablePointers.has(targetPointer)) {
-      throw new Error(
-        "Flat numerical external-immutable alias target is duplicated"
-      );
-    }
-    externalImmutablePointers.add(targetPointer);
-  }
-  const admittedExternalImmutablePointers = /* @__PURE__ */ new Set();
-  const nullableContinuousPointers = pointerSet(
-    options.nullableContinuousPointers,
-    "nullable-continuous"
-  );
-  const admittedNullableContinuousPointers = /* @__PURE__ */ new Set();
-  const nullableStringPointers = pointerSet(
-    options.nullableStringPointers,
-    "nullable-string"
-  );
-  const admittedNullableStringPointers = /* @__PURE__ */ new Set();
-  const optionalRecordTemplates = optionalRecordTemplateMap(
-    options.optionalRecordTemplates
-  );
-  const admittedOptionalRecordPointers = /* @__PURE__ */ new Set();
-  const boundedArrayTemplates = boundedArrayTemplateMap(
-    options.boundedArrayTemplates
-  );
-  const admittedBoundedArrayPointers = /* @__PURE__ */ new Set();
-  visit(referenceState, [], {
-    continuousSlots,
-    nullableContinuousSlots,
-    nullableStringSlots,
-    optionalRecordRoots,
-    boundedArrayRoots,
-    booleanSlots,
-    stringSlots,
-    externalImmutableRoots,
-    excludedDynamicRoots,
-    containers,
-    fixedArrayPointers,
-    admittedFixedArrayPointers,
-    externalImmutablePointers,
-    externalImmutableAliases,
-    admittedExternalImmutablePointers,
-    nullableContinuousPointers,
-    admittedNullableContinuousPointers,
-    nullableStringPointers,
-    admittedNullableStringPointers,
-    optionalRecordTemplates,
-    admittedOptionalRecordPointers,
-    boundedArrayTemplates,
-    admittedBoundedArrayPointers
-  });
-  for (const fixedArrayPointer of fixedArrayPointers) {
-    if (!admittedFixedArrayPointers.has(fixedArrayPointer)) {
-      throw new Error(
-        `Flat numerical fixed-array ${fixedArrayPointer} is unavailable`
-      );
-    }
-  }
-  for (const externalImmutablePointer of externalImmutablePointers) {
-    if (!admittedExternalImmutablePointers.has(externalImmutablePointer)) {
-      throw new Error(
-        `Flat numerical external-immutable ${externalImmutablePointer} is unavailable`
-      );
-    }
-  }
-  for (const nullableContinuousPointer of nullableContinuousPointers) {
-    if (!admittedNullableContinuousPointers.has(nullableContinuousPointer)) {
-      throw new Error(
-        `Flat numerical nullable-continuous ${nullableContinuousPointer} is unavailable`
-      );
-    }
-  }
-  for (const nullableStringPointer of nullableStringPointers) {
-    if (!admittedNullableStringPointers.has(nullableStringPointer)) {
-      throw new Error(
-        `Flat numerical nullable-string ${nullableStringPointer} is unavailable`
-      );
-    }
-  }
-  for (const optionalRecordPointer of optionalRecordTemplates.keys()) {
-    if (!admittedOptionalRecordPointers.has(optionalRecordPointer)) {
-      throw new Error(
-        `Flat numerical optional-record ${optionalRecordPointer} is unavailable`
-      );
-    }
-  }
-  for (const boundedArrayPointer of boundedArrayTemplates.keys()) {
-    if (!admittedBoundedArrayPointers.has(boundedArrayPointer)) {
-      throw new Error(
-        `Flat numerical bounded-array ${boundedArrayPointer} is unavailable`
-      );
-    }
-  }
-  if (continuousSlots.length === 0) {
-    throw new Error("Flat numerical state contains no continuous slots");
-  }
-  const layout = Object.freeze({
-    schemaId: FLAT_NUMERICAL_STATE_LAYOUT_V1_SCHEMA_ID,
-    layoutId,
-    continuousSlots: Object.freeze(continuousSlots),
-    nullableContinuousSlots: Object.freeze(nullableContinuousSlots),
-    nullableStringSlots: Object.freeze(nullableStringSlots),
-    optionalRecordRoots: Object.freeze(optionalRecordRoots),
-    boundedArrayRoots: Object.freeze(boundedArrayRoots),
-    booleanSlots: Object.freeze(booleanSlots),
-    stringSlots: Object.freeze(stringSlots),
-    externalImmutableRoots: Object.freeze(externalImmutableRoots),
-    externalImmutableAliases: Object.freeze(
-      [...externalImmutableAliases.values()].sort((left, right) => left.pointer.localeCompare(right.pointer))
-    ),
-    excludedDynamicRoots: Object.freeze(excludedDynamicRoots),
-    containers: Object.freeze(containers)
-  });
-  assertFlatNumericalStateShapeV1(layout, referenceState);
-  return layout;
-}
-function assertFlatNumericalStateShapeV1(layout, state) {
-  for (const root of layout.optionalRecordRoots) {
-    const value = readFlatNumericalStatePathV1(state, root.path);
-    if (value !== null && (typeof value !== "object" || Array.isArray(value))) {
-      throw new Error(
-        `Flat numerical state ${root.pointer} must be null or a record`
-      );
-    }
-  }
-  for (const root of layout.boundedArrayRoots) {
-    const value = readFlatNumericalStatePathV1(state, root.path);
-    if (!Array.isArray(value)) {
-      throw new Error(
-        `Flat numerical state ${root.pointer} must remain an array`
-      );
-    }
-    assertDataProperties(value, root.path, true);
-    const keys = Array.from({ length: value.length }, (_, index) => String(index));
-    if (!sameStrings(Object.keys(value), keys)) {
-      throw new Error(
-        `Flat numerical state ${root.pointer} changed bounded-array shape`
-      );
-    }
-    if (value.length > root.capacity) {
-      throw new Error(
-        `Flat numerical state ${root.pointer} exceeds bounded-array capacity`
-      );
-    }
-  }
-  for (const container2 of layout.containers) {
-    if (layoutEntryAbsent$1(layout, state, container2)) {
-      continue;
-    }
-    assertContainerShape(
-      readFlatNumericalStatePathV1(state, container2.path),
-      container2
-    );
-  }
-}
-function readFlatNumericalStatePathV1(root, path) {
-  return requiredPathValue(root, path);
-}
-function visit(value, path, destination, optionalRecordRootIndex = null, compilingOptionalPointer = null, boundedArrayRootIndex = null, boundedArrayItemIndex = null, compilingBoundedArrayPointer = null) {
-  const pathPointer = pointer$1(path);
-  const optionalTemplate = destination.optionalRecordTemplates.get(pathPointer);
-  if (optionalTemplate !== void 0 && compilingOptionalPointer !== pathPointer) {
-    if (optionalRecordRootIndex !== null || boundedArrayRootIndex !== null) {
-      throw new Error(
-        `Flat numerical optional-record ${pathPointer} may not be nested`
-      );
-    }
-    if (value !== null && (typeof value !== "object" || Array.isArray(value))) {
-      throw new Error(
-        `Flat numerical optional-record ${pathPointer} reference must be null or a record`
-      );
-    }
-    const nextOptionalRootIndex = destination.optionalRecordRoots.length;
-    destination.optionalRecordRoots.push(Object.freeze({
-      path: Object.freeze([...path]),
-      pointer: pathPointer,
-      template: optionalTemplate
-    }));
-    destination.admittedOptionalRecordPointers.add(pathPointer);
-    visit(
-      optionalTemplate,
-      path,
-      destination,
-      nextOptionalRootIndex,
-      pathPointer,
-      boundedArrayRootIndex,
-      boundedArrayItemIndex,
-      compilingBoundedArrayPointer
-    );
-    return;
-  }
-  const boundedArrayTemplate = destination.boundedArrayTemplates.get(pathPointer);
-  if (boundedArrayTemplate !== void 0 && compilingBoundedArrayPointer !== pathPointer) {
-    if (optionalRecordRootIndex !== null || boundedArrayRootIndex !== null) {
-      throw new Error(
-        `Flat numerical bounded-array ${pathPointer} may not be nested`
-      );
-    }
-    if (!Array.isArray(value)) {
-      throw new Error(
-        `Flat numerical bounded-array ${pathPointer} reference must be an array`
-      );
-    }
-    assertDataProperties(value, path, true);
-    const keys = Array.from({ length: value.length }, (_, index) => String(index));
-    if (!sameStrings(Object.keys(value), keys)) {
-      throw new Error(
-        `Flat numerical state ${pathPointer} changed bounded-array shape`
-      );
-    }
-    if (value.length > boundedArrayTemplate.capacity) {
-      throw new Error(
-        `Flat numerical state ${pathPointer} exceeds bounded-array capacity`
-      );
-    }
-    const nextBoundedArrayRootIndex = destination.boundedArrayRoots.length;
-    destination.boundedArrayRoots.push(Object.freeze({
-      path: Object.freeze([...path]),
-      pointer: pathPointer,
-      capacity: boundedArrayTemplate.capacity,
-      itemTemplate: boundedArrayTemplate.itemTemplate
-    }));
-    destination.admittedBoundedArrayPointers.add(pathPointer);
-    for (let index = 0; index < boundedArrayTemplate.capacity; index += 1) {
-      visit(
-        boundedArrayTemplate.itemTemplate,
-        [...path, index],
-        destination,
-        optionalRecordRootIndex,
-        compilingOptionalPointer,
-        nextBoundedArrayRootIndex,
-        index,
-        pathPointer
-      );
-    }
-    return;
-  }
-  if (destination.externalImmutablePointers.has(pathPointer)) {
-    if (boundedArrayRootIndex !== null || optionalRecordRootIndex !== null && !destination.externalImmutableAliases.has(pathPointer)) {
-      throw new Error(
-        `Flat numerical typed aggregate ${pathPointer} may not contain an external immutable root`
-      );
-    }
-    if (value === void 0 || typeof value === "function" || typeof value === "symbol" || typeof value === "bigint") {
-      throw new Error(
-        `Flat numerical external-immutable ${pathPointer} is unsupported`
-      );
-    }
-    destination.externalImmutableRoots.push(slot(
-      path,
-      optionalRecordRootIndex,
-      boundedArrayRootIndex,
-      boundedArrayItemIndex
-    ));
-    destination.admittedExternalImmutablePointers.add(pathPointer);
-    return;
-  }
-  if (destination.nullableContinuousPointers.has(pathPointer)) {
-    if (value !== null) {
-      throw new Error(
-        `Flat numerical nullable-continuous ${pathPointer} reference must be null`
-      );
-    }
-    destination.nullableContinuousSlots.push(slot(
-      path,
-      optionalRecordRootIndex,
-      boundedArrayRootIndex,
-      boundedArrayItemIndex
-    ));
-    destination.admittedNullableContinuousPointers.add(pathPointer);
-    return;
-  }
-  if (destination.nullableStringPointers.has(pathPointer)) {
-    if (value !== null) {
-      throw new Error(
-        `Flat numerical nullable-string ${pathPointer} reference must be null`
-      );
-    }
-    destination.nullableStringSlots.push(slot(
-      path,
-      optionalRecordRootIndex,
-      boundedArrayRootIndex,
-      boundedArrayItemIndex
-    ));
-    destination.admittedNullableStringPointers.add(pathPointer);
-    return;
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      throw new Error(`Flat numerical state ${pointer$1(path)} must be finite`);
-    }
-    destination.continuousSlots.push(slot(
-      path,
-      optionalRecordRootIndex,
-      boundedArrayRootIndex,
-      boundedArrayItemIndex
-    ));
-    return;
-  }
-  if (typeof value === "boolean") {
-    destination.booleanSlots.push(slot(
-      path,
-      optionalRecordRootIndex,
-      boundedArrayRootIndex,
-      boundedArrayItemIndex
-    ));
-    return;
-  }
-  if (typeof value === "string") {
-    destination.stringSlots.push(slot(
-      path,
-      optionalRecordRootIndex,
-      boundedArrayRootIndex,
-      boundedArrayItemIndex
-    ));
-    return;
-  }
-  if (value === null) {
-    if (boundedArrayRootIndex !== null) {
-      throw new Error(
-        `Flat numerical bounded-array item ${pathPointer} may not contain a dynamic root`
-      );
-    }
-    destination.excludedDynamicRoots.push(slot(
-      path,
-      optionalRecordRootIndex,
-      boundedArrayRootIndex,
-      boundedArrayItemIndex
-    ));
-    return;
-  }
-  if (Array.isArray(value)) {
-    if (!destination.fixedArrayPointers.has(pathPointer)) {
-      if (boundedArrayRootIndex !== null) {
-        throw new Error(
-          `Flat numerical bounded-array item ${pathPointer} may not contain a dynamic root`
-        );
-      }
-      destination.excludedDynamicRoots.push(slot(
-        path,
-        optionalRecordRootIndex,
-        boundedArrayRootIndex,
-        boundedArrayItemIndex
-      ));
-      return;
-    }
-    assertDataProperties(value, path, true);
-    const keys = Array.from({ length: value.length }, (_, index) => String(index));
-    if (!sameStrings(Object.keys(value), keys)) {
-      throw new Error(`Flat numerical state ${pathPointer} changed array shape`);
-    }
-    destination.containers.push(container(
-      path,
-      "array",
-      keys,
-      null,
-      optionalRecordRootIndex,
-      boundedArrayRootIndex,
-      boundedArrayItemIndex
-    ));
-    destination.admittedFixedArrayPointers.add(pathPointer);
-    for (let index = 0; index < value.length; index += 1) {
-      visit(
-        value[index],
-        [...path, index],
-        destination,
-        optionalRecordRootIndex,
-        compilingOptionalPointer,
-        boundedArrayRootIndex,
-        boundedArrayItemIndex,
-        compilingBoundedArrayPointer
-      );
-    }
-    return;
-  }
-  if (isNumericTypedArray$1(value)) {
-    const keys = Array.from({ length: value.length }, (_, index) => String(index));
-    destination.containers.push(container(
-      path,
-      "typed-array",
-      keys,
-      value.constructor.name,
-      optionalRecordRootIndex,
-      boundedArrayRootIndex,
-      boundedArrayItemIndex
-    ));
-    for (let index = 0; index < value.length; index += 1) {
-      visit(
-        value[index],
-        [...path, index],
-        destination,
-        optionalRecordRootIndex,
-        compilingOptionalPointer,
-        boundedArrayRootIndex,
-        boundedArrayItemIndex,
-        compilingBoundedArrayPointer
-      );
-    }
-    return;
-  }
-  if (typeof value === "object") {
-    const prototypeTag = dataRecordPrototypeTag(value, path);
-    assertDataProperties(value, path, false);
-    const keys = Object.keys(value).sort();
-    destination.containers.push(container(
-      path,
-      "record",
-      keys,
-      prototypeTag,
-      optionalRecordRootIndex,
-      boundedArrayRootIndex,
-      boundedArrayItemIndex
-    ));
-    for (const key of keys) {
-      visit(
-        requiredOwnValue$1(value, key, path),
-        [...path, key],
-        destination,
-        optionalRecordRootIndex,
-        compilingOptionalPointer,
-        boundedArrayRootIndex,
-        boundedArrayItemIndex,
-        compilingBoundedArrayPointer
-      );
-    }
-    return;
-  }
-  throw new Error(`Flat numerical state ${pointer$1(path)} has an unsupported leaf`);
-}
-function pointerSet(pointers, owner) {
-  const values2 = new Set(
-    pointers?.map((value) => {
-      if (typeof value !== "string" || value === "/" || !value.startsWith("/")) {
-        throw new Error(`Flat numerical ${owner} pointer is invalid`);
-      }
-      return value;
-    }) ?? []
-  );
-  if (values2.size !== (pointers?.length ?? 0)) {
-    throw new Error(`Flat numerical ${owner} pointer is duplicated`);
-  }
-  return values2;
-}
-function externalImmutableAliasMap(aliases, admittedBindings) {
-  const values2 = /* @__PURE__ */ new Map();
-  for (const entry of aliases ?? []) {
-    const targetPath = pointerPath(entry.pointer, "alias target");
-    const sourcePath = pointerPath(entry.sourcePointer, "alias source");
-    if (entry.pointer === entry.sourcePointer) {
-      throw new Error("Flat numerical external-immutable alias is self-referential");
-    }
-    if (values2.has(entry.pointer)) {
-      throw new Error("Flat numerical external-immutable alias target is duplicated");
-    }
-    if (![...admittedBindings].some(
-      (bindingPointer) => entry.sourcePointer === bindingPointer || entry.sourcePointer.startsWith(`${bindingPointer}/`)
-    )) {
-      throw new Error(
-        `Flat numerical external-immutable alias source ${entry.sourcePointer} is not admitted`
-      );
-    }
-    values2.set(entry.pointer, Object.freeze({
-      pointer: pointer$1(targetPath),
-      sourcePointer: pointer$1(sourcePath),
-      sourcePath: Object.freeze(sourcePath)
-    }));
-  }
-  return values2;
-}
-function pointerPath(value, owner) {
-  if (typeof value !== "string" || value === "/" || !value.startsWith("/")) {
-    throw new Error(`Flat numerical external-immutable ${owner} is invalid`);
-  }
-  return value.slice(1).split("/").map((segment) => {
-    if (/~(?:[^01]|$)/u.test(segment)) {
-      throw new Error(`Flat numerical external-immutable ${owner} is invalid`);
-    }
-    return segment.replaceAll("~1", "/").replaceAll("~0", "~");
-  });
-}
-function optionalRecordTemplateMap(templates) {
-  const values2 = /* @__PURE__ */ new Map();
-  for (const entry of templates ?? []) {
-    if (typeof entry.pointer !== "string" || entry.pointer === "/" || !entry.pointer.startsWith("/")) {
-      throw new Error("Flat numerical optional-record pointer is invalid");
-    }
-    if (entry.template === null || typeof entry.template !== "object" || Array.isArray(entry.template)) {
-      throw new Error(
-        `Flat numerical optional-record ${entry.pointer} template is invalid`
-      );
-    }
-    if (values2.has(entry.pointer)) {
-      throw new Error("Flat numerical optional-record pointer is duplicated");
-    }
-    values2.set(entry.pointer, entry.template);
-  }
-  return values2;
-}
-function boundedArrayTemplateMap(templates) {
-  const values2 = /* @__PURE__ */ new Map();
-  for (const entry of templates ?? []) {
-    if (typeof entry.pointer !== "string" || entry.pointer === "/" || !entry.pointer.startsWith("/")) {
-      throw new Error("Flat numerical bounded-array pointer is invalid");
-    }
-    if (!Number.isSafeInteger(entry.capacity) || entry.capacity < 1 || entry.capacity > 4294967295) {
-      throw new Error(
-        `Flat numerical bounded-array ${entry.pointer} capacity is invalid`
-      );
-    }
-    if (entry.itemTemplate === void 0) {
-      throw new Error(
-        `Flat numerical bounded-array ${entry.pointer} item template is invalid`
-      );
-    }
-    if (values2.has(entry.pointer)) {
-      throw new Error("Flat numerical bounded-array pointer is duplicated");
-    }
-    values2.set(entry.pointer, Object.freeze({
-      pointer: entry.pointer,
-      capacity: entry.capacity,
-      itemTemplate: entry.itemTemplate
-    }));
-  }
-  return values2;
-}
-function layoutEntryAbsent$1(layout, state, entry) {
-  if (entry.optionalRecordRootIndex !== null) {
-    const root = layout.optionalRecordRoots[entry.optionalRecordRootIndex];
-    if (root === void 0) {
-      throw new Error("Flat numerical optional-record slot owner is invalid");
-    }
-    if (readFlatNumericalStatePathV1(state, root.path) === null) return true;
-  }
-  if (entry.boundedArrayRootIndex !== null) {
-    const root = layout.boundedArrayRoots[entry.boundedArrayRootIndex];
-    if (root === void 0 || entry.boundedArrayItemIndex === null) {
-      throw new Error("Flat numerical bounded-array slot owner is invalid");
-    }
-    const value = readFlatNumericalStatePathV1(state, root.path);
-    if (!Array.isArray(value)) {
-      throw new Error(
-        `Flat numerical state ${root.pointer} must remain an array`
-      );
-    }
-    return entry.boundedArrayItemIndex >= value.length;
-  }
-  return false;
-}
-function assertContainerShape(value, expected) {
-  if (expected.kind === "array") {
-    if (!Array.isArray(value)) {
-      throw new Error(`Flat numerical state ${expected.pointer} must remain an array`);
-    }
-    assertDataProperties(value, expected.path, true);
-    if (!sameStrings(Object.keys(value), expected.keys)) {
-      throw new Error(`Flat numerical state ${expected.pointer} changed array shape`);
-    }
-    return;
-  }
-  if (expected.kind === "typed-array") {
-    if (!isNumericTypedArray$1(value) || value.constructor.name !== expected.prototypeTag || Object.getPrototypeOf(value) !== numericTypedArrayPrototype(expected.prototypeTag) || value.length !== expected.keys.length) {
-      throw new Error(`Flat numerical state ${expected.pointer} changed typed-array shape`);
-    }
-    assertDataProperties(value, expected.path, false);
-    if (!sameStrings(Object.keys(value), expected.keys)) {
-      throw new Error(
-        `Flat numerical state ${expected.pointer} changed typed-array shape`
-      );
-    }
-    return;
-  }
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`Flat numerical state ${expected.pointer} must remain a record`);
-  }
-  const prototypeTag = dataRecordPrototypeTag(value, expected.path);
-  if (prototypeTag !== expected.prototypeTag) {
-    throw new Error(`Flat numerical state ${expected.pointer} changed record prototype`);
-  }
-  const prototype = Object.getPrototypeOf(value);
-  if (expected.prototypeTag === "Object" && prototype !== Object.prototype || expected.prototypeTag === null && prototype !== null) {
-    throw new Error(`Flat numerical state ${expected.pointer} changed record prototype`);
-  }
-  assertDataProperties(value, expected.path, false);
-  if (!sameStrings(Object.keys(value).sort(), expected.keys)) {
-    throw new Error(`Flat numerical state ${expected.pointer} changed record shape`);
-  }
-}
-function assertDataProperties(value, path, array) {
-  if (Object.getOwnPropertySymbols(value).length !== 0) {
-    throw new Error(`Flat numerical state ${pointer$1(path)} has symbol keys`);
-  }
-  const allowedNonEnumerable = array ? /* @__PURE__ */ new Set(["length"]) : /* @__PURE__ */ new Set();
-  for (const key of Object.getOwnPropertyNames(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (descriptor === void 0 || !("value" in descriptor)) {
-      throw new Error(`Flat numerical state ${pointer$1([...path, key])} is an accessor`);
-    }
-    if (!descriptor.enumerable && !allowedNonEnumerable.has(key)) {
-      throw new Error(
-        `Flat numerical state ${pointer$1([...path, key])} is non-enumerable`
-      );
-    }
-  }
-}
-function requiredPathValue(root, path) {
-  let current = root;
-  const traversed = [];
-  for (const segment of path) {
-    if (current === null || typeof current !== "object") {
-      throw new Error(`Flat numerical state ${pointer$1(path)} is unavailable`);
-    }
-    current = requiredOwnValue$1(current, String(segment), traversed);
-    traversed.push(segment);
-  }
-  return current;
-}
-function requiredOwnValue$1(record, key, path) {
-  const descriptor = Object.getOwnPropertyDescriptor(record, key);
-  if (descriptor === void 0 || !("value" in descriptor)) {
-    throw new Error(`Flat numerical state ${pointer$1([...path, key])} is unavailable`);
-  }
-  return descriptor.value;
-}
-function slot(path, optionalRecordRootIndex = null, boundedArrayRootIndex = null, boundedArrayItemIndex = null) {
-  const ownedPath = Object.freeze([...path]);
-  return Object.freeze({
-    path: ownedPath,
-    pointer: pointer$1(ownedPath),
-    optionalRecordRootIndex,
-    boundedArrayRootIndex,
-    boundedArrayItemIndex
-  });
-}
-function container(path, kind, keys, prototypeTag = null, optionalRecordRootIndex = null, boundedArrayRootIndex = null, boundedArrayItemIndex = null) {
-  const ownedPath = Object.freeze([...path]);
-  return Object.freeze({
-    path: ownedPath,
-    pointer: pointer$1(ownedPath),
-    kind,
-    keys: Object.freeze([...keys]),
-    prototypeTag,
-    optionalRecordRootIndex,
-    boundedArrayRootIndex,
-    boundedArrayItemIndex
-  });
-}
-function dataRecordPrototypeTag(value, path) {
-  if (value instanceof Date || value instanceof Map || value instanceof Set || value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
-    throw new Error(`Flat numerical state ${pointer$1(path)} is not a data record`);
-  }
-  const prototype = Object.getPrototypeOf(value);
-  if (prototype === null) return null;
-  const constructorDescriptor = Object.getOwnPropertyDescriptor(
-    prototype,
-    "constructor"
-  );
-  const constructor = constructorDescriptor?.value;
-  if (typeof constructor !== "function" || constructor.name.length === 0) {
-    throw new Error(`Flat numerical state ${pointer$1(path)} has no record prototype`);
-  }
-  return constructor.name;
-}
-function isNumericTypedArray$1(value) {
-  return value instanceof Float64Array || value instanceof Float32Array || value instanceof Int32Array || value instanceof Uint32Array || value instanceof Int16Array || value instanceof Uint16Array || value instanceof Int8Array || value instanceof Uint8Array || value instanceof Uint8ClampedArray;
-}
-function numericTypedArrayPrototype(tag) {
-  switch (tag) {
-    case "Float64Array":
-      return Float64Array.prototype;
-    case "Float32Array":
-      return Float32Array.prototype;
-    case "Int32Array":
-      return Int32Array.prototype;
-    case "Uint32Array":
-      return Uint32Array.prototype;
-    case "Int16Array":
-      return Int16Array.prototype;
-    case "Uint16Array":
-      return Uint16Array.prototype;
-    case "Int8Array":
-      return Int8Array.prototype;
-    case "Uint8Array":
-      return Uint8Array.prototype;
-    case "Uint8ClampedArray":
-      return Uint8ClampedArray.prototype;
-    default:
-      return null;
-  }
-}
-function pointer$1(path) {
-  if (path.length === 0) return "/";
-  return `/${path.map((segment) => String(segment).replaceAll("~", "~0").replaceAll("/", "~1")).join("/")}`;
-}
-function sameStrings(left, right) {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-const TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID = "circleheart-transactional-typed-state-image-v1";
-const TRANSACTIONAL_TYPED_STATE_MANIFEST_V1_SCHEMA_ID = "circleheart-transactional-typed-state-manifest-v1";
-const TRANSACTIONAL_TYPED_STATE_COMPLETION_PLAN_V1_SCHEMA_ID = "circleheart-transactional-typed-state-completion-plan-v1";
-const TRANSACTIONAL_TYPED_STATE_PROMOTION_PLAN_V1_SCHEMA_ID = "circleheart-transactional-typed-state-promotion-plan-v1";
-const MAX_ARENA_CAPACITY_BYTES = 16 * 1024 * 1024;
-const UTF8_ENCODER = new TextEncoder();
-const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
-const EXTERNAL_IMMUTABLE_CANONICAL_BYTES = /* @__PURE__ */ new WeakMap();
-const COMPLETION_PLAN_INTERNALS = /* @__PURE__ */ new WeakMap();
-const PROMOTION_PLAN_INTERNALS = /* @__PURE__ */ new WeakMap();
-function createTransactionalTypedStateManifestV1(layoutId, referenceState, stringArenaCapacityBytes, dynamicArenaCapacityBytes, layoutOptions = {}) {
-  assertArenaCapacity(stringArenaCapacityBytes, "string");
-  assertArenaCapacity(dynamicArenaCapacityBytes, "dynamic", true);
-  const numericalLayout = createFlatNumericalStateLayoutV1(
-    layoutId,
-    referenceState,
-    layoutOptions
-  );
-  if (numericalLayout.excludedDynamicRoots.length > 0 && dynamicArenaCapacityBytes === 0) {
-    throw new Error(
-      "Transactional typed state dynamic roots require a positive arena capacity"
-    );
-  }
-  for (const root of numericalLayout.optionalRecordRoots) {
-    assertTransitivelyFrozenData(
-      root.template,
-      `${root.pointer} optional-record template`,
-      /* @__PURE__ */ new Set()
-    );
-  }
-  for (const root of numericalLayout.boundedArrayRoots) {
-    assertTransitivelyFrozenData(
-      root.itemTemplate,
-      `${root.pointer} bounded-array item template`,
-      /* @__PURE__ */ new Set()
-    );
-  }
-  const rootNode = compileNode(referenceState, [], numericalLayout);
-  const boundedArrayNodes = Object.freeze(
-    numericalLayout.boundedArrayRoots.map((root, slotIndex2) => compileBoundedArrayNode(
-      root.itemTemplate,
-      root.path,
-      slotIndex2,
-      root.capacity,
-      numericalLayout
-    ))
-  );
-  const aliasByPointer = new Map(
-    numericalLayout.externalImmutableAliases.map((alias) => [alias.pointer, alias])
-  );
-  const externalImmutableRoots = numericalLayout.externalImmutableRoots.map(
-    (root) => {
-      const alias = aliasByPointer.get(root.pointer);
-      const bindingPath = alias?.sourcePath ?? root.path;
-      const bindingPointer = alias?.sourcePointer ?? root.pointer;
-      const value = readFlatNumericalStatePathV1(
-        referenceState,
-        bindingPath
-      );
-      assertTransitivelyFrozenData(value, root.pointer, /* @__PURE__ */ new Set());
-      const canonicalBytes2 = encodeCanonicalBytes(value);
-      return Object.freeze({
-        path: root.path,
-        pointer: root.pointer,
-        bindingPath,
-        bindingPointer,
-        value,
-        canonicalByteLength: canonicalBytes2.byteLength,
-        canonicalBytes: canonicalBytes2
-      });
-    }
-  );
-  const imageLayout = createImageLayout(
-    numericalLayout,
-    stringArenaCapacityBytes,
-    dynamicArenaCapacityBytes
-  );
-  const fingerprint = manifestFingerprint(
-    numericalLayout,
-    stringArenaCapacityBytes,
-    dynamicArenaCapacityBytes
-  );
-  const manifest = Object.freeze({
-    schemaId: TRANSACTIONAL_TYPED_STATE_MANIFEST_V1_SCHEMA_ID,
-    layoutId,
-    fingerprint,
-    numericalLayout,
-    stringArenaCapacityBytes,
-    dynamicArenaCapacityBytes,
-    bufferByteLength: imageLayout.bufferByteLength,
-    externalImmutableRoots: Object.freeze(
-      externalImmutableRoots.map(({ canonicalBytes: _canonicalBytes, ...root }) => Object.freeze(root))
-    ),
-    rootNode,
-    boundedArrayNodes,
-    imageLayout
-  });
-  EXTERNAL_IMMUTABLE_CANONICAL_BYTES.set(
-    manifest,
-    Object.freeze(externalImmutableRoots.map(({ canonicalBytes: canonicalBytes2 }) => canonicalBytes2))
-  );
-  return manifest;
-}
-class TransactionalTypedStateImageV1 {
-  constructor(manifest, initialState, admitDirectCompletionCandidate) {
-    this.authorityId = TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID;
-    this.#activeIndex = 0;
-    this.#commitCount = 0;
-    this.#staged = false;
-    this.#stagedStringBytes = 0;
-    this.#stagedDynamicBytes = 0;
-    this.#currentStringBytes = 0;
-    this.#currentDynamicBytes = 0;
-    this.#highWaterStringBytes = 0;
-    this.#highWaterDynamicBytes = 0;
-    this.#candidateGeneration = 0;
-    this.#externalImmutableIdentityMatchCount = 0;
-    this.#externalImmutableCanonicalMatchCount = 0;
-    this.#directCompletionReaderPlanUseCount = 0;
-    this.#directExactCandidateMatchCount = 0;
-    this.#modelOwnedPromotionCount = 0;
-    this.#manifest = manifest;
-    this.#admitDirectCompletionCandidate = admitDirectCompletionCandidate ?? null;
-    this.#highWaterBoundedArrayLengths = new Uint32Array(
-      manifest.numericalLayout.boundedArrayRoots.length
-    );
-    this.#candidateWrittenContinuous = new Uint8Array(
-      manifest.numericalLayout.continuousSlots.length
-    );
-    this.#candidateWrittenNullableContinuous = new Uint8Array(
-      manifest.numericalLayout.nullableContinuousSlots.length
-    );
-    this.#candidateWrittenBooleans = new Uint8Array(
-      manifest.numericalLayout.booleanSlots.length
-    );
-    this.#candidateWrittenStrings = new Uint8Array(
-      manifest.numericalLayout.stringSlots.length
-    );
-    this.#images = Object.freeze([
-      createImage(manifest),
-      createImage(manifest)
-    ]);
-    this.#currentCursor = Object.freeze({
-      layoutId: manifest.layoutId,
-      fingerprint: manifest.fingerprint,
-      readContinuous: (slotIndex2) => this.readCurrentContinuous(slotIndex2),
-      readNullableContinuous: (slotIndex2) => this.readCurrentNullableContinuous(slotIndex2),
-      readNullableString: (slotIndex2) => this.readCurrentNullableString(slotIndex2),
-      readBoolean: (slotIndex2) => this.readCurrentBoolean(slotIndex2),
-      readString: (slotIndex2) => this.readCurrentString(slotIndex2),
-      readDynamic: (slotIndex2) => this.readCurrentDynamic(slotIndex2),
-      readBoundedArray: (slotIndex2) => this.readCurrentBoundedArray(slotIndex2)
-    });
-    this.stage(initialState);
-    this.promote();
-    this.#commitCount = 0;
-  }
-  #manifest;
-  #images;
-  #currentCursor;
-  #admitDirectCompletionCandidate;
-  #activeIndex;
-  #commitCount;
-  #staged;
-  #stagedStringBytes;
-  #stagedDynamicBytes;
-  #currentStringBytes;
-  #currentDynamicBytes;
-  #highWaterStringBytes;
-  #highWaterDynamicBytes;
-  #highWaterBoundedArrayLengths;
-  #candidateWrittenContinuous;
-  #candidateWrittenNullableContinuous;
-  #candidateWrittenBooleans;
-  #candidateWrittenStrings;
-  #candidateGeneration;
-  #externalImmutableIdentityMatchCount;
-  #externalImmutableCanonicalMatchCount;
-  #directCompletionReaderPlanUseCount;
-  #directExactCandidateMatchCount;
-  #modelOwnedPromotionCount;
-  stage(candidate) {
-    if (this.#staged) {
-      throw new Error("Transactional typed state already has a staged candidate");
-    }
-    this.assertExternalImmutableRootsMatch(candidate);
-    assertFlatNumericalStateShapeV1(
-      this.#manifest.numericalLayout,
-      candidate
-    );
-    const candidateImage = this.#images[this.inactiveIndex()];
-    writeOptionalRecordPresence(this.#manifest, candidate, candidateImage);
-    writeBoundedArrayLengths(this.#manifest, candidate, candidateImage);
-    writeFixedLeaves(this.#manifest, candidate, candidateImage);
-    writeNullableContinuousLeaves(this.#manifest, candidate, candidateImage);
-    const stringBytes = writeStrings(this.#manifest, candidate, candidateImage);
-    const dynamicBytes = writeDynamicRoots(
-      this.#manifest,
-      candidate,
-      candidateImage
-    );
-    this.#stagedStringBytes = stringBytes;
-    this.#stagedDynamicBytes = dynamicBytes;
-    this.#staged = true;
-  }
-  /**
-   * Copies current into inactive storage once, then returns a cursor that can
-   * update fixed slots without allocating candidate objects. A model-owned
-   * transaction may promote after explicit required-write coverage and its
-   * own scientific seals; event/cold paths can still complete or audit against
-   * an admitted object mirror.
-   */
-  beginCandidateFromCurrent() {
-    if (this.#staged) {
-      throw new Error("Transactional typed state already has a staged candidate");
-    }
-    const current = this.#images[this.#activeIndex];
-    const candidate = this.#images[this.inactiveIndex()];
-    new Uint8Array(candidate.buffer).set(new Uint8Array(current.buffer));
-    this.#stagedStringBytes = this.#currentStringBytes;
-    this.#stagedDynamicBytes = this.#currentDynamicBytes;
-    this.#staged = true;
-    this.#candidateWrittenContinuous.fill(0);
-    this.#candidateWrittenNullableContinuous.fill(0);
-    this.#candidateWrittenBooleans.fill(0);
-    this.#candidateWrittenStrings.fill(0);
-    this.#candidateGeneration += 1;
-    const generation = this.#candidateGeneration;
-    return Object.freeze({
-      layoutId: this.#manifest.layoutId,
-      fingerprint: this.#manifest.fingerprint,
-      readContinuous: (slotIndex2) => this.readCandidateContinuous(generation, slotIndex2),
-      writeContinuous: (slotIndex2, value) => this.writeCandidateContinuous(generation, slotIndex2, value),
-      readNullableContinuous: (slotIndex2) => this.readCandidateNullableContinuous(generation, slotIndex2),
-      writeNullableContinuous: (slotIndex2, value) => this.writeCandidateNullableContinuous(generation, slotIndex2, value),
-      readBoolean: (slotIndex2) => this.readCandidateBoolean(generation, slotIndex2),
-      writeBoolean: (slotIndex2, value) => this.writeCandidateBoolean(generation, slotIndex2, value),
-      readString: (slotIndex2) => this.readCandidateString(generation, slotIndex2),
-      writeStringSameByteLength: (slotIndex2, value) => this.writeCandidateStringSameByteLength(
-        generation,
-        slotIndex2,
-        value
-      )
-    });
-  }
-  /**
-   * Compiles retained-slot membership once at cold initialization. The plan is
-   * bound to this exact manifest instance and cannot be forged by structural
-   * data alone.
-   */
-  createCompletionPlan(retained) {
-    const retainedContinuous = retainedSlotSet(
-      retained.continuous,
-      this.#manifest.numericalLayout.continuousSlots.length,
-      "continuous"
-    );
-    const retainedBooleans = retainedSlotSet(
-      retained.booleans,
-      this.#manifest.numericalLayout.booleanSlots.length,
-      "boolean"
-    );
-    const plan = Object.freeze({
-      schemaId: TRANSACTIONAL_TYPED_STATE_COMPLETION_PLAN_V1_SCHEMA_ID,
-      layoutId: this.#manifest.layoutId,
-      fingerprint: this.#manifest.fingerprint,
-      retainedContinuousSlots: Object.freeze([...retainedContinuous]),
-      retainedBooleanSlots: Object.freeze([...retainedBooleans])
-    });
-    COMPLETION_PLAN_INTERNALS.set(plan, Object.freeze({
-      manifest: this.#manifest,
-      retainedContinuous,
-      retainedBooleans,
-      writableContinuous: complementSlotIndices(
-        this.#manifest.numericalLayout.continuousSlots.length,
-        retainedContinuous
-      ),
-      writableBooleans: complementSlotIndices(
-        this.#manifest.numericalLayout.booleanSlots.length,
-        retainedBooleans
-      ),
-      readers: compileDirectCompletionReaders(this.#manifest)
-    }));
-    return plan;
-  }
-  /**
-   * Compiles the exact slots a model-owned direct transaction must write.
-   * The WeakMap binding makes a structurally copied or hand-built plan
-   * unusable, just like the completion plan above.
-   */
-  createPromotionPlan(required) {
-    const requiredContinuous = requiredSlotIndices(
-      required.continuous,
-      this.#manifest.numericalLayout.continuousSlots.length,
-      "continuous"
-    );
-    const requiredNullableContinuous = requiredSlotIndices(
-      required.nullableContinuous,
-      this.#manifest.numericalLayout.nullableContinuousSlots.length,
-      "nullable continuous"
-    );
-    const requiredBooleans = requiredSlotIndices(
-      required.booleans,
-      this.#manifest.numericalLayout.booleanSlots.length,
-      "boolean"
-    );
-    const requiredStrings = requiredSlotIndices(
-      required.strings,
-      this.#manifest.numericalLayout.stringSlots.length,
-      "string"
-    );
-    const plan = Object.freeze({
-      schemaId: TRANSACTIONAL_TYPED_STATE_PROMOTION_PLAN_V1_SCHEMA_ID,
-      layoutId: this.#manifest.layoutId,
-      fingerprint: this.#manifest.fingerprint,
-      requiredContinuousSlots: requiredContinuous,
-      requiredNullableContinuousSlots: requiredNullableContinuous,
-      requiredBooleanSlots: requiredBooleans,
-      requiredStringSlots: requiredStrings
-    });
-    PROMOTION_PLAN_INTERNALS.set(plan, Object.freeze({
-      manifest: this.#manifest,
-      requiredContinuous,
-      requiredNullableContinuous,
-      requiredBooleans,
-      requiredStrings
-    }));
-    return plan;
-  }
-  /**
-   * Promotes one model-owned candidate without constructing an object mirror.
-   * This primitive proves transaction/layout identity and exhaustive writes
-   * for the model-declared owner set only. The caller remains responsible for
-   * all numerical, cross-owner, and accepted-boundary scientific seals before
-   * invoking it. Failure leaves the inactive candidate staged for explicit
-   * abort; success is the single infallible active-image swap.
-   */
-  promoteCandidateWithRequiredWrites(promotionPlan) {
-    if (!this.#staged) {
-      throw new Error("Transactional typed state has no staged candidate");
-    }
-    this.assertPromotionPlanRequiredWrites(promotionPlan);
-    this.promote();
-    this.#modelOwnedPromotionCount += 1;
-  }
-  /**
-   * Seals and promotes one model-owned typed candidate. The common lean path
-   * validates the already model-admitted object identity and explicit slot
-   * coverage without comparing it leaf-by-leaf with the image. Full-invariant
-   * callers additionally pass an audit plan; a mismatch then leaves the
-   * candidate staged so exhaustive event-boundary completion can take over.
-   */
-  tryPromoteCandidateWithRequiredWrites(candidate, promotionPlan, exactAuditPlan) {
-    if (!this.#staged) {
-      throw new Error("Transactional typed state has no staged candidate");
-    }
-    const admittedCandidate = this.#admitDirectCompletionCandidate === null ? candidate : this.#admitDirectCompletionCandidate(candidate);
-    if (admittedCandidate !== candidate) {
-      throw new Error(
-        "Transactional typed state direct admission changed candidate identity"
-      );
-    }
-    this.assertPromotionPlanRequiredWrites(promotionPlan);
-    if (exactAuditPlan !== void 0) {
-      const audit = COMPLETION_PLAN_INTERNALS.get(exactAuditPlan);
-      if (audit === void 0 || audit.manifest !== this.#manifest || exactAuditPlan.layoutId !== this.#manifest.layoutId || exactAuditPlan.fingerprint !== this.#manifest.fingerprint) {
-        throw new Error(
-          "Transactional typed state exact audit plan has the wrong layout"
-        );
-      }
-      const candidateImage = this.#images[this.inactiveIndex()];
-      this.assertExternalImmutableRootsMatch(
-        candidate,
-        audit.readers.externalImmutable,
-        candidateImage
-      );
-      if (!imageExactlyMatchesObject(
-        this.#manifest,
-        candidate,
-        candidateImage,
-        audit.readers,
-        this.#stagedStringBytes,
-        this.#stagedDynamicBytes
-      )) {
-        return null;
-      }
-      this.#directExactCandidateMatchCount += 1;
-    }
-    this.promote();
-    this.#modelOwnedPromotionCount += 1;
-    return admittedCandidate;
-  }
-  /**
-   * Completes a directly staged candidate from a temporary object adapter.
-   * Slots already written by migrated owners are compared bit-exactly and are
-   * never overwritten; all remaining leaves and bounded arenas are populated
-   * from the adapter. After this returns, the staged image is an exhaustive
-   * typed encoding of the adapter: retained leaves matched bit-exactly and all
-   * other admitted leaves were overwritten from it.
-   */
-  completeCandidateFromObject(candidate, plan) {
-    if (!this.#staged) {
-      throw new Error("Transactional typed state has no staged candidate");
-    }
-    const admittedCandidate = this.#admitDirectCompletionCandidate === null ? candidate : this.#admitDirectCompletionCandidate(candidate);
-    if (admittedCandidate !== candidate) {
-      throw new Error(
-        "Transactional typed state direct admission changed candidate identity"
-      );
-    }
-    const internal = COMPLETION_PLAN_INTERNALS.get(plan);
-    if (internal === void 0 || internal.manifest !== this.#manifest || plan.layoutId !== this.#manifest.layoutId || plan.fingerprint !== this.#manifest.fingerprint) {
-      throw new Error(
-        "Transactional typed state completion plan has the wrong layout"
-      );
-    }
-    const candidateImage = this.#images[this.inactiveIndex()];
-    const directReaders = this.#admitDirectCompletionCandidate === null ? void 0 : internal.readers;
-    if (directReaders === void 0) {
-      this.assertExternalImmutableRootsMatch(candidate);
-      assertFlatNumericalStateShapeV1(
-        this.#manifest.numericalLayout,
-        candidate
-      );
-    }
-    writeOptionalRecordPresence(
-      this.#manifest,
-      candidate,
-      candidateImage,
-      directReaders?.optionalRecords
-    );
-    writeBoundedArrayLengths(
-      this.#manifest,
-      candidate,
-      candidateImage,
-      directReaders?.boundedArrays
-    );
-    if (directReaders !== void 0) {
-      this.assertExternalImmutableRootsMatch(
-        candidate,
-        directReaders.externalImmutable,
-        candidateImage
-      );
-    }
-    assertRetainedFixedLeavesMatch(
-      this.#manifest,
-      candidate,
-      candidateImage,
-      internal.retainedContinuous,
-      internal.retainedBooleans,
-      directReaders
-    );
-    writeFixedLeaves(
-      this.#manifest,
-      candidate,
-      candidateImage,
-      internal.writableContinuous,
-      internal.writableBooleans,
-      directReaders
-    );
-    writeNullableContinuousLeaves(
-      this.#manifest,
-      candidate,
-      candidateImage,
-      directReaders
-    );
-    this.#stagedStringBytes = writeStrings(
-      this.#manifest,
-      candidate,
-      candidateImage,
-      directReaders
-    );
-    this.#stagedDynamicBytes = writeDynamicRoots(
-      this.#manifest,
-      candidate,
-      candidateImage,
-      directReaders
-    );
-    if (directReaders !== void 0) {
-      this.#directCompletionReaderPlanUseCount += 1;
-    }
-    return admittedCandidate;
-  }
-  /**
-   * Proves that every staged byte already represents one internally admitted
-   * adapter. No candidate data is written here. A mismatch returns null and
-   * leaves the transaction open so the caller may run exhaustive completion.
-   */
-  matchCandidateExactlyAgainstObject(candidate, plan) {
-    if (!this.#staged) {
-      throw new Error("Transactional typed state has no staged candidate");
-    }
-    const admittedCandidate = this.#admitDirectCompletionCandidate === null ? candidate : this.#admitDirectCompletionCandidate(candidate);
-    if (admittedCandidate !== candidate) {
-      throw new Error(
-        "Transactional typed state direct admission changed candidate identity"
-      );
-    }
-    const internal = COMPLETION_PLAN_INTERNALS.get(plan);
-    if (internal === void 0 || internal.manifest !== this.#manifest || plan.layoutId !== this.#manifest.layoutId || plan.fingerprint !== this.#manifest.fingerprint) {
-      throw new Error(
-        "Transactional typed state completion plan has the wrong layout"
-      );
-    }
-    const candidateImage = this.#images[this.inactiveIndex()];
-    this.assertExternalImmutableRootsMatch(
-      candidate,
-      internal.readers.externalImmutable,
-      candidateImage
-    );
-    if (!imageExactlyMatchesObject(
-      this.#manifest,
-      candidate,
-      candidateImage,
-      internal.readers,
-      this.#stagedStringBytes,
-      this.#stagedDynamicBytes
-    )) {
-      return null;
-    }
-    this.#directExactCandidateMatchCount += 1;
-    return admittedCandidate;
-  }
-  promote() {
-    if (!this.#staged) {
-      throw new Error("Transactional typed state has no staged candidate");
-    }
-    this.#activeIndex = this.inactiveIndex();
-    this.#currentStringBytes = this.#stagedStringBytes;
-    this.#currentDynamicBytes = this.#stagedDynamicBytes;
-    this.#highWaterStringBytes = Math.max(
-      this.#highWaterStringBytes,
-      this.#currentStringBytes
-    );
-    this.#highWaterDynamicBytes = Math.max(
-      this.#highWaterDynamicBytes,
-      this.#currentDynamicBytes
-    );
-    const currentLengths = this.#images[this.#activeIndex].boundedArrayLengths;
-    for (let index = 0; index < currentLengths.length; index += 1) {
-      this.#highWaterBoundedArrayLengths[index] = Math.max(
-        this.#highWaterBoundedArrayLengths[index],
-        currentLengths[index]
-      );
-    }
-    this.#staged = false;
-    this.#commitCount += 1;
-  }
-  abort() {
-    this.#staged = false;
-    this.#stagedStringBytes = 0;
-    this.#stagedDynamicBytes = 0;
-  }
-  rehydrateCurrent() {
-    return rehydrateNode(
-      this.#manifest.rootNode,
-      this.#images[this.#activeIndex],
-      this.#manifest.externalImmutableRoots
-    );
-  }
-  rehydrateStaged() {
-    if (!this.#staged) {
-      throw new Error("Transactional typed state has no staged candidate");
-    }
-    return rehydrateNode(
-      this.#manifest.rootNode,
-      this.#images[this.inactiveIndex()],
-      this.#manifest.externalImmutableRoots
-    );
-  }
-  currentCursor() {
-    return this.#currentCursor;
-  }
-  snapshot() {
-    const image = this.#images[this.#activeIndex];
-    return Object.freeze({
-      continuous: image.continuous.slice(),
-      nullableContinuous: image.nullableContinuous.slice(),
-      nullableContinuousPresent: image.nullableContinuousPresent.slice(),
-      booleans: image.booleans.slice(),
-      stringMetadata: image.stringMetadata.slice(),
-      nullableStringMetadata: image.nullableStringMetadata.slice(),
-      nullableStringPresent: image.nullableStringPresent.slice(),
-      optionalRecordPresent: image.optionalRecordPresent.slice(),
-      boundedArrayLengths: image.boundedArrayLengths.slice(),
-      stringBytes: image.stringArena.slice(0, this.#currentStringBytes),
-      dynamicMetadata: image.dynamicMetadata.slice(),
-      dynamicBytes: image.dynamicArena.slice(0, this.#currentDynamicBytes)
-    });
-  }
-  report() {
-    const layout = this.#manifest.numericalLayout;
-    return Object.freeze({
-      authorityId: TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID,
-      layoutId: this.#manifest.layoutId,
-      fingerprint: this.#manifest.fingerprint,
-      continuousSlotCount: layout.continuousSlots.length,
-      nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
-      nullableStringSlotCount: layout.nullableStringSlots.length,
-      optionalRecordRootCount: layout.optionalRecordRoots.length,
-      boundedArrayRootCount: layout.boundedArrayRoots.length,
-      booleanSlotCount: layout.booleanSlots.length,
-      stringSlotCount: layout.stringSlots.length,
-      dynamicRootCount: layout.excludedDynamicRoots.length,
-      externalImmutableRootCount: layout.externalImmutableRoots.length,
-      containerCount: layout.containers.length,
-      fixedImageCount: 2,
-      bufferByteLength: this.#manifest.bufferByteLength,
-      stringArenaCapacityBytes: this.#manifest.stringArenaCapacityBytes,
-      dynamicArenaCapacityBytes: this.#manifest.dynamicArenaCapacityBytes,
-      currentStringBytes: this.#currentStringBytes,
-      currentDynamicBytes: this.#currentDynamicBytes,
-      highWaterStringBytes: this.#highWaterStringBytes,
-      highWaterDynamicBytes: this.#highWaterDynamicBytes,
-      boundedArrays: Object.freeze(layout.boundedArrayRoots.map((root, index) => Object.freeze({
-        pointer: root.pointer,
-        capacity: root.capacity,
-        currentLength: this.#images[this.#activeIndex].boundedArrayLengths[index],
-        highWaterLength: this.#highWaterBoundedArrayLengths[index]
-      }))),
-      activeBufferIndex: this.#activeIndex,
-      commitCount: this.#commitCount,
-      externalImmutableIdentityMatchCount: this.#externalImmutableIdentityMatchCount,
-      externalImmutableCanonicalMatchCount: this.#externalImmutableCanonicalMatchCount,
-      directCompletionReaderPlanUseCount: this.#directCompletionReaderPlanUseCount,
-      directExactCandidateMatchCount: this.#directExactCandidateMatchCount,
-      modelOwnedPromotionCount: this.#modelOwnedPromotionCount,
-      staged: this.#staged
-    });
-  }
-  assertExternalImmutableRootsMatch(candidate, directReaders, candidateImage) {
-    const expectedBytes = EXTERNAL_IMMUTABLE_CANONICAL_BYTES.get(
-      this.#manifest
-    );
-    if (expectedBytes === void 0) {
-      throw new Error(
-        "Transactional typed state external immutable manifest is unavailable"
-      );
-    }
-    let identityMatches = 0;
-    let canonicalMatches = 0;
-    for (let index = 0; index < this.#manifest.externalImmutableRoots.length; index += 1) {
-      const expected = this.#manifest.externalImmutableRoots[index];
-      if (layoutEntryAbsent(
-        this.#manifest.numericalLayout,
-        candidate,
-        this.#manifest.numericalLayout.externalImmutableRoots[index],
-        candidateImage
-      )) {
-        continue;
-      }
-      const actual = directReaders === void 0 ? readFlatNumericalStatePathV1(candidate, expected.path) : directReaders[index](candidate);
-      if (actual === expected.value) {
-        identityMatches += 1;
-        continue;
-      }
-      assertTransitivelyFrozenData(actual, expected.pointer, /* @__PURE__ */ new Set());
-      const actualBytes = encodeCanonicalBytes(actual);
-      const referenceBytes = expectedBytes[index];
-      if (actualBytes.byteLength !== referenceBytes.byteLength || !actualBytes.every((value, byteIndex) => value === referenceBytes[byteIndex])) {
-        throw new Error(
-          `Transactional typed state external immutable ${expected.pointer} changed`
-        );
-      }
-      canonicalMatches += 1;
-    }
-    this.#externalImmutableIdentityMatchCount += identityMatches;
-    this.#externalImmutableCanonicalMatchCount += canonicalMatches;
-  }
-  inactiveIndex() {
-    return this.#activeIndex === 0 ? 1 : 0;
-  }
-  readCurrentContinuous(slotIndex2) {
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.continuousSlots.length,
-      "continuous"
-    );
-    const value = this.#images[this.#activeIndex].continuous[slotIndex2];
-    if (!Number.isFinite(value)) {
-      throw new Error("Transactional typed state current continuous slot is not finite");
-    }
-    return value;
-  }
-  readCurrentNullableContinuous(slotIndex2) {
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.nullableContinuousSlots.length,
-      "nullable continuous"
-    );
-    const image = this.#images[this.#activeIndex];
-    const present = image.nullableContinuousPresent[slotIndex2];
-    if (present === 0) return null;
-    if (present !== 1) {
-      throw new Error(
-        "Transactional typed state nullable continuous presence is invalid"
-      );
-    }
-    const value = image.nullableContinuous[slotIndex2];
-    if (!Number.isFinite(value)) {
-      throw new Error(
-        "Transactional typed state nullable continuous slot is not finite"
-      );
-    }
-    return value;
-  }
-  readCurrentBoolean(slotIndex2) {
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.booleanSlots.length,
-      "boolean"
-    );
-    const value = this.#images[this.#activeIndex].booleans[slotIndex2];
-    if (value !== 0 && value !== 1) {
-      throw new Error("Transactional typed state current boolean slot is invalid");
-    }
-    return value === 1;
-  }
-  readCurrentNullableString(slotIndex2) {
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.nullableStringSlots.length,
-      "nullable string"
-    );
-    const image = this.#images[this.#activeIndex];
-    const present = image.nullableStringPresent[slotIndex2];
-    if (present === 0) return null;
-    if (present !== 1) {
-      throw new Error(
-        "Transactional typed state nullable string presence is invalid"
-      );
-    }
-    const offset = image.nullableStringMetadata[slotIndex2 * 2];
-    const length = image.nullableStringMetadata[slotIndex2 * 2 + 1];
-    assertArenaSlice(offset, length, this.#currentStringBytes, "string", true);
-    return UTF8_DECODER.decode(
-      image.stringArena.subarray(offset, offset + length)
-    );
-  }
-  readCurrentString(slotIndex2) {
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.stringSlots.length,
-      "string"
-    );
-    const image = this.#images[this.#activeIndex];
-    const offset = image.stringMetadata[slotIndex2 * 2];
-    const length = image.stringMetadata[slotIndex2 * 2 + 1];
-    assertArenaSlice(offset, length, this.#currentStringBytes, "string", true);
-    return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
-  }
-  readCurrentDynamic(slotIndex2) {
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.excludedDynamicRoots.length,
-      "dynamic"
-    );
-    const image = this.#images[this.#activeIndex];
-    const offset = image.dynamicMetadata[slotIndex2 * 2];
-    const length = image.dynamicMetadata[slotIndex2 * 2 + 1];
-    assertArenaSlice(offset, length, this.#currentDynamicBytes, "dynamic");
-    return decodeCanonicalFlatDataV1(
-      image.dynamicArena.subarray(offset, offset + length)
-    );
-  }
-  readCurrentBoundedArray(slotIndex2) {
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.boundedArrayNodes.length,
-      "bounded array"
-    );
-    return rehydrateNode(
-      this.#manifest.boundedArrayNodes[slotIndex2],
-      this.#images[this.#activeIndex],
-      this.#manifest.externalImmutableRoots
-    );
-  }
-  readCandidateContinuous(generation, slotIndex2) {
-    this.assertCandidateGeneration(generation);
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.continuousSlots.length,
-      "continuous candidate"
-    );
-    return this.#images[this.inactiveIndex()].continuous[slotIndex2];
-  }
-  writeCandidateContinuous(generation, slotIndex2, value) {
-    this.assertCandidateGeneration(generation);
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.continuousSlots.length,
-      "continuous candidate"
-    );
-    if (!Number.isFinite(value)) {
-      throw new Error(
-        "Transactional typed state candidate continuous value must be finite"
-      );
-    }
-    this.#images[this.inactiveIndex()].continuous[slotIndex2] = value;
-    this.#candidateWrittenContinuous[slotIndex2] = 1;
-  }
-  readCandidateNullableContinuous(generation, slotIndex2) {
-    this.assertCandidateGeneration(generation);
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.nullableContinuousSlots.length,
-      "nullable continuous candidate"
-    );
-    const image = this.#images[this.inactiveIndex()];
-    const present = image.nullableContinuousPresent[slotIndex2];
-    if (present === 0) return null;
-    if (present !== 1 || !Number.isFinite(image.nullableContinuous[slotIndex2])) {
-      throw new Error(
-        "Transactional typed state nullable continuous candidate is invalid"
-      );
-    }
-    return image.nullableContinuous[slotIndex2];
-  }
-  writeCandidateNullableContinuous(generation, slotIndex2, value) {
-    this.assertCandidateGeneration(generation);
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.nullableContinuousSlots.length,
-      "nullable continuous candidate"
-    );
-    const image = this.#images[this.inactiveIndex()];
-    if (value === null) {
-      image.nullableContinuous[slotIndex2] = 0;
-      image.nullableContinuousPresent[slotIndex2] = 0;
-      this.#candidateWrittenNullableContinuous[slotIndex2] = 1;
-      return;
-    }
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-      throw new Error(
-        "Transactional typed state nullable continuous candidate value is invalid"
-      );
-    }
-    image.nullableContinuous[slotIndex2] = value;
-    image.nullableContinuousPresent[slotIndex2] = 1;
-    this.#candidateWrittenNullableContinuous[slotIndex2] = 1;
-  }
-  readCandidateBoolean(generation, slotIndex2) {
-    this.assertCandidateGeneration(generation);
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.booleanSlots.length,
-      "boolean candidate"
-    );
-    return this.#images[this.inactiveIndex()].booleans[slotIndex2] === 1;
-  }
-  writeCandidateBoolean(generation, slotIndex2, value) {
-    this.assertCandidateGeneration(generation);
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.booleanSlots.length,
-      "boolean candidate"
-    );
-    if (typeof value !== "boolean") {
-      throw new Error(
-        "Transactional typed state candidate boolean value must be boolean"
-      );
-    }
-    this.#images[this.inactiveIndex()].booleans[slotIndex2] = value ? 1 : 0;
-    this.#candidateWrittenBooleans[slotIndex2] = 1;
-  }
-  readCandidateString(generation, slotIndex2) {
-    this.assertCandidateGeneration(generation);
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.stringSlots.length,
-      "string candidate"
-    );
-    return decodeStringSlot(
-      this.#images[this.inactiveIndex()],
-      slotIndex2,
-      this.#stagedStringBytes
-    );
-  }
-  writeCandidateStringSameByteLength(generation, slotIndex2, value) {
-    this.assertCandidateGeneration(generation);
-    assertSlotIndex(
-      slotIndex2,
-      this.#manifest.numericalLayout.stringSlots.length,
-      "string candidate"
-    );
-    assertWellFormedString(value, "candidate string");
-    const image = this.#images[this.inactiveIndex()];
-    const offset = image.stringMetadata[slotIndex2 * 2];
-    const length = image.stringMetadata[slotIndex2 * 2 + 1];
-    assertArenaSlice(
-      offset,
-      length,
-      this.#stagedStringBytes,
-      "string candidate",
-      true
-    );
-    const target = image.stringArena.subarray(offset, offset + length);
-    const result = UTF8_ENCODER.encodeInto(value, target);
-    if (result.read !== value.length || result.written !== length) {
-      throw new Error(
-        "Transactional typed state candidate string byte length changed"
-      );
-    }
-    this.#candidateWrittenStrings[slotIndex2] = 1;
-  }
-  assertCandidateGeneration(generation) {
-    if (!this.#staged || generation !== this.#candidateGeneration) {
-      throw new Error("Transactional typed state candidate cursor is stale");
-    }
-  }
-  assertPromotionPlanRequiredWrites(promotionPlan) {
-    const internal = PROMOTION_PLAN_INTERNALS.get(promotionPlan);
-    if (internal === void 0 || internal.manifest !== this.#manifest || promotionPlan.layoutId !== this.#manifest.layoutId || promotionPlan.fingerprint !== this.#manifest.fingerprint) {
-      throw new Error(
-        "Transactional typed state promotion plan has the wrong layout"
-      );
-    }
-    assertRequiredCandidateWrites(
-      internal.requiredContinuous,
-      this.#candidateWrittenContinuous,
-      "continuous"
-    );
-    assertRequiredCandidateWrites(
-      internal.requiredNullableContinuous,
-      this.#candidateWrittenNullableContinuous,
-      "nullable continuous"
-    );
-    assertRequiredCandidateWrites(
-      internal.requiredBooleans,
-      this.#candidateWrittenBooleans,
-      "boolean"
-    );
-    assertRequiredCandidateWrites(
-      internal.requiredStrings,
-      this.#candidateWrittenStrings,
-      "string"
-    );
-  }
-}
-function assertSlotIndex(slotIndex2, slotCount, owner) {
-  if (!Number.isSafeInteger(slotIndex2) || slotIndex2 < 0 || slotIndex2 >= slotCount) {
-    throw new Error(`Transactional typed state ${owner} slot index is invalid`);
-  }
-}
-function assertArenaSlice(offset, length, usedBytes, owner, allowEmpty = false) {
-  if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < (allowEmpty ? 0 : 1) || offset + length > usedBytes) {
-    throw new Error(`Transactional typed state current ${owner} slice is invalid`);
-  }
-}
-function writeFixedLeaves(manifest, state, destination, writableContinuous, writableBooleans, directReaders) {
-  const layout = manifest.numericalLayout;
-  const continuousCount = writableContinuous?.length ?? layout.continuousSlots.length;
-  for (let position = 0; position < continuousCount; position += 1) {
-    const index = writableContinuous?.[position] ?? position;
-    const slot2 = layout.continuousSlots[index];
-    if (layoutEntryAbsent(layout, state, slot2, directReaders === void 0 ? void 0 : destination)) {
-      destination.continuous[index] = 0;
-      continue;
-    }
-    const value = directReaders?.continuous[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-      throw new Error(`Transactional typed state ${slot2.pointer} must be finite`);
-    }
-    destination.continuous[index] = value;
-  }
-  const booleanCount = writableBooleans?.length ?? layout.booleanSlots.length;
-  for (let position = 0; position < booleanCount; position += 1) {
-    const index = writableBooleans?.[position] ?? position;
-    const slot2 = layout.booleanSlots[index];
-    if (layoutEntryAbsent(layout, state, slot2, directReaders === void 0 ? void 0 : destination)) {
-      destination.booleans[index] = 0;
-      continue;
-    }
-    const value = directReaders?.booleans[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
-    if (typeof value !== "boolean") {
-      throw new Error(`Transactional typed state ${slot2.pointer} must be boolean`);
-    }
-    destination.booleans[index] = value ? 1 : 0;
-  }
-}
-function assertRetainedFixedLeavesMatch(manifest, state, destination, retainedContinuous, retainedBooleans, directReaders) {
-  for (const index of retainedContinuous) {
-    const slot2 = manifest.numericalLayout.continuousSlots[index];
-    const value = directReaders?.continuous[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
-    if (typeof value !== "number" || !Number.isFinite(value) || !Object.is(destination.continuous[index], value)) {
-      throw new Error(
-        `Transactional typed state retained ${slot2.pointer} differs from adapter`
-      );
-    }
-  }
-  for (const index of retainedBooleans) {
-    const slot2 = manifest.numericalLayout.booleanSlots[index];
-    const value = directReaders?.booleans[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
-    if (typeof value !== "boolean" || destination.booleans[index] !== (value ? 1 : 0)) {
-      throw new Error(
-        `Transactional typed state retained ${slot2.pointer} differs from adapter`
-      );
-    }
-  }
-}
-function imageExactlyMatchesObject(manifest, state, image, readers, stringBytes, dynamicBytes) {
-  const layout = manifest.numericalLayout;
-  for (let index = 0; index < layout.optionalRecordRoots.length; index += 1) {
-    const present = readers.optionalRecords[index](state) !== null;
-    if (image.optionalRecordPresent[index] !== (present ? 1 : 0)) return false;
-  }
-  for (let index = 0; index < layout.boundedArrayRoots.length; index += 1) {
-    const value = readers.boundedArrays[index](state);
-    if (!Array.isArray(value) || value.length !== image.boundedArrayLengths[index]) return false;
-  }
-  for (let index = 0; index < layout.continuousSlots.length; index += 1) {
-    const slot2 = layout.continuousSlots[index];
-    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
-    const value = readers.continuous[index](state);
-    if (typeof value !== "number" || !Number.isFinite(value) || !Object.is(image.continuous[index], value)) return false;
-  }
-  for (let index = 0; index < layout.nullableContinuousSlots.length; index += 1) {
-    const slot2 = layout.nullableContinuousSlots[index];
-    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
-    const value = readers.nullableContinuous[index](state);
-    const present = image.nullableContinuousPresent[index];
-    if (value === null) {
-      if (present !== 0) return false;
-      continue;
-    }
-    if (typeof value !== "number" || !Number.isFinite(value) || present !== 1 || !Object.is(image.nullableContinuous[index], value)) return false;
-  }
-  for (let index = 0; index < layout.booleanSlots.length; index += 1) {
-    const slot2 = layout.booleanSlots[index];
-    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
-    const value = readers.booleans[index](state);
-    if (typeof value !== "boolean" || image.booleans[index] !== (value ? 1 : 0)) return false;
-  }
-  for (let index = 0; index < layout.stringSlots.length; index += 1) {
-    const slot2 = layout.stringSlots[index];
-    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
-    const value = readers.strings[index](state);
-    if (typeof value !== "string" || decodeStringSlot(image, index, stringBytes) !== value) return false;
-  }
-  for (let index = 0; index < layout.nullableStringSlots.length; index += 1) {
-    const slot2 = layout.nullableStringSlots[index];
-    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
-    const value = readers.nullableStrings[index](state);
-    const present = image.nullableStringPresent[index];
-    if (value === null) {
-      if (present !== 0) return false;
-      continue;
-    }
-    if (typeof value !== "string" || present !== 1) return false;
-    const offset = image.nullableStringMetadata[index * 2];
-    const length = image.nullableStringMetadata[index * 2 + 1];
-    assertArenaSlice(offset, length, stringBytes, "nullable string", true);
-    if (UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length)) !== value) return false;
-  }
-  for (let index = 0; index < layout.excludedDynamicRoots.length; index += 1) {
-    const slot2 = layout.excludedDynamicRoots[index];
-    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
-    const value = readers.dynamicRoots[index](state);
-    const expectedLength = measureCanonicalFlatDataV1(value);
-    const offset = image.dynamicMetadata[index * 2];
-    const length = image.dynamicMetadata[index * 2 + 1];
-    if (length !== expectedLength) return false;
-    assertArenaSlice(offset, length, dynamicBytes, "dynamic");
-    const expected = new Uint8Array(expectedLength);
-    if (encodeCanonicalFlatDataIntoV1(value, expected) !== expectedLength) {
-      throw new Error("Transactional typed state dynamic length changed");
-    }
-    const actual = image.dynamicArena.subarray(offset, offset + length);
-    if (!expected.every((byte, byteIndex) => byte === actual[byteIndex])) {
-      return false;
-    }
-  }
-  return true;
-}
-function decodeStringSlot(image, slotIndex2, usedBytes) {
-  const offset = image.stringMetadata[slotIndex2 * 2];
-  const length = image.stringMetadata[slotIndex2 * 2 + 1];
-  assertArenaSlice(offset, length, usedBytes, "string", true);
-  return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
-}
-function retainedSlotSet(slots, slotCount, owner) {
-  const retained = /* @__PURE__ */ new Set();
-  for (const slotIndex2 of slots ?? []) {
-    assertSlotIndex(slotIndex2, slotCount, `${owner} retained`);
-    if (retained.has(slotIndex2)) {
-      throw new Error(
-        `Transactional typed state ${owner} retained slot is duplicated`
-      );
-    }
-    retained.add(slotIndex2);
-  }
-  return retained;
-}
-function requiredSlotIndices(slots, slotCount, owner) {
-  const required = /* @__PURE__ */ new Set();
-  for (const slotIndex2 of slots ?? []) {
-    assertSlotIndex(slotIndex2, slotCount, `${owner} required`);
-    if (required.has(slotIndex2)) {
-      throw new Error(
-        `Transactional typed state ${owner} required slot is duplicated`
-      );
-    }
-    required.add(slotIndex2);
-  }
-  return Object.freeze([...required]);
-}
-function assertRequiredCandidateWrites(requiredSlots, writtenSlots, owner) {
-  for (const slotIndex2 of requiredSlots) {
-    if (writtenSlots[slotIndex2] !== 1) {
-      throw new Error(
-        `Transactional typed state required ${owner} slot ${slotIndex2} was not written in this candidate generation`
-      );
-    }
-  }
-}
-function complementSlotIndices(slotCount, retained) {
-  const writable = [];
-  for (let index = 0; index < slotCount; index += 1) {
-    if (!retained.has(index)) writable.push(index);
-  }
-  return Object.freeze(writable);
-}
-function compileDirectCompletionReaders(manifest) {
-  const readers = (entries) => Object.freeze(entries.map(({ path }) => compileDirectPathReader(path)));
-  const layout = manifest.numericalLayout;
-  return Object.freeze({
-    externalImmutable: readers(layout.externalImmutableRoots),
-    optionalRecords: readers(layout.optionalRecordRoots),
-    boundedArrays: readers(layout.boundedArrayRoots),
-    continuous: readers(layout.continuousSlots),
-    nullableContinuous: readers(layout.nullableContinuousSlots),
-    booleans: readers(layout.booleanSlots),
-    strings: readers(layout.stringSlots),
-    nullableStrings: readers(layout.nullableStringSlots),
-    dynamicRoots: readers(layout.excludedDynamicRoots)
-  });
-}
-function compileDirectPathReader(path) {
-  const segments = Object.freeze([...path]);
-  return (root) => {
-    let current = root;
-    for (const segment of segments) {
-      current = current[segment];
-    }
-    return current;
-  };
-}
-function writeOptionalRecordPresence(manifest, state, destination, directReaders) {
-  for (let index = 0; index < manifest.numericalLayout.optionalRecordRoots.length; index += 1) {
-    const root = manifest.numericalLayout.optionalRecordRoots[index];
-    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, root.path) : directReaders[index](state);
-    destination.optionalRecordPresent[index] = value === null ? 0 : 1;
-  }
-}
-function writeBoundedArrayLengths(manifest, state, destination, directReaders) {
-  for (let index = 0; index < manifest.numericalLayout.boundedArrayRoots.length; index += 1) {
-    const root = manifest.numericalLayout.boundedArrayRoots[index];
-    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, root.path) : directReaders[index](state);
-    if (!Array.isArray(value) || value.length > root.capacity) {
-      throw new Error(
-        `Transactional typed state ${root.pointer} exceeds bounded-array capacity`
-      );
-    }
-    destination.boundedArrayLengths[index] = value.length;
-  }
-}
-function layoutEntryAbsent(layout, state, slot2, candidateImage) {
-  if (slot2.optionalRecordRootIndex !== null) {
-    const root = layout.optionalRecordRoots[slot2.optionalRecordRootIndex];
-    if (root === void 0) {
-      throw new Error("Transactional typed state optional-record slot owner is invalid");
-    }
-    if (candidateImage !== void 0) {
-      if (candidateImage.optionalRecordPresent[slot2.optionalRecordRootIndex] === 0) return true;
-    } else if (readFlatNumericalStatePathV1(state, root.path) === null) {
-      return true;
-    }
-  }
-  if (slot2.boundedArrayRootIndex !== null) {
-    const root = layout.boundedArrayRoots[slot2.boundedArrayRootIndex];
-    if (root === void 0 || slot2.boundedArrayItemIndex === null) {
-      throw new Error("Transactional typed state bounded-array slot owner is invalid");
-    }
-    if (candidateImage !== void 0) {
-      return slot2.boundedArrayItemIndex >= candidateImage.boundedArrayLengths[slot2.boundedArrayRootIndex];
-    }
-    const value = readFlatNumericalStatePathV1(state, root.path);
-    if (!Array.isArray(value)) {
-      throw new Error(
-        `Transactional typed state ${root.pointer} must remain an array`
-      );
-    }
-    return slot2.boundedArrayItemIndex >= value.length;
-  }
-  return false;
-}
-function writeNullableContinuousLeaves(manifest, state, destination, directReaders) {
-  const slots = manifest.numericalLayout.nullableContinuousSlots;
-  for (let index = 0; index < slots.length; index += 1) {
-    const slot2 = slots[index];
-    if (layoutEntryAbsent(
-      manifest.numericalLayout,
-      state,
-      slot2,
-      directReaders === void 0 ? void 0 : destination
-    )) {
-      destination.nullableContinuous[index] = 0;
-      destination.nullableContinuousPresent[index] = 0;
-      continue;
-    }
-    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, slot2.path) : directReaders.nullableContinuous[index](state);
-    if (value === null) {
-      destination.nullableContinuous[index] = 0;
-      destination.nullableContinuousPresent[index] = 0;
-      continue;
-    }
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-      throw new Error(
-        `Transactional typed state ${slot2.pointer} must be null or finite`
-      );
-    }
-    destination.nullableContinuous[index] = value;
-    destination.nullableContinuousPresent[index] = 1;
-  }
-}
-function writeStrings(manifest, state, destination, directReaders) {
-  let byteOffset = 0;
-  for (let index = 0; index < manifest.numericalLayout.stringSlots.length; index += 1) {
-    const slot2 = manifest.numericalLayout.stringSlots[index];
-    if (layoutEntryAbsent(
-      manifest.numericalLayout,
-      state,
-      slot2,
-      directReaders === void 0 ? void 0 : destination
-    )) {
-      destination.stringMetadata[index * 2] = 0;
-      destination.stringMetadata[index * 2 + 1] = 0;
-      continue;
-    }
-    const value = directReaders?.strings[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
-    if (typeof value !== "string") {
-      throw new Error(`Transactional typed state ${slot2.pointer} must be a string`);
-    }
-    assertWellFormedString(value, slot2.pointer);
-    const target = destination.stringArena.subarray(byteOffset);
-    const result = UTF8_ENCODER.encodeInto(value, target);
-    if (result.read !== value.length) {
-      throw new Error("Transactional typed state string arena capacity exceeded");
-    }
-    destination.stringMetadata[index * 2] = byteOffset;
-    destination.stringMetadata[index * 2 + 1] = result.written;
-    byteOffset += result.written;
-  }
-  for (let index = 0; index < manifest.numericalLayout.nullableStringSlots.length; index += 1) {
-    const slot2 = manifest.numericalLayout.nullableStringSlots[index];
-    if (layoutEntryAbsent(
-      manifest.numericalLayout,
-      state,
-      slot2,
-      directReaders === void 0 ? void 0 : destination
-    )) {
-      destination.nullableStringMetadata[index * 2] = 0;
-      destination.nullableStringMetadata[index * 2 + 1] = 0;
-      destination.nullableStringPresent[index] = 0;
-      continue;
-    }
-    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, slot2.path) : directReaders.nullableStrings[index](state);
-    if (value === null) {
-      destination.nullableStringMetadata[index * 2] = 0;
-      destination.nullableStringMetadata[index * 2 + 1] = 0;
-      destination.nullableStringPresent[index] = 0;
-      continue;
-    }
-    if (typeof value !== "string") {
-      throw new Error(
-        `Transactional typed state ${slot2.pointer} must be null or a string`
-      );
-    }
-    assertWellFormedString(value, slot2.pointer);
-    const target = destination.stringArena.subarray(byteOffset);
-    const result = UTF8_ENCODER.encodeInto(value, target);
-    if (result.read !== value.length) {
-      throw new Error("Transactional typed state string arena capacity exceeded");
-    }
-    destination.nullableStringMetadata[index * 2] = byteOffset;
-    destination.nullableStringMetadata[index * 2 + 1] = result.written;
-    destination.nullableStringPresent[index] = 1;
-    byteOffset += result.written;
-  }
-  return byteOffset;
-}
-function writeDynamicRoots(manifest, state, destination, directReaders) {
-  let byteOffset = 0;
-  const roots = manifest.numericalLayout.excludedDynamicRoots;
-  for (let index = 0; index < roots.length; index += 1) {
-    const slot2 = roots[index];
-    const value = layoutEntryAbsent(
-      manifest.numericalLayout,
-      state,
-      slot2,
-      directReaders === void 0 ? void 0 : destination
-    ) ? null : directReaders === void 0 ? readFlatNumericalStatePathV1(state, slot2.path) : directReaders.dynamicRoots[index](state);
-    let length;
-    try {
-      length = encodeCanonicalFlatDataIntoV1(
-        value,
-        destination.dynamicArena.subarray(byteOffset)
-      );
-    } catch (error) {
-      if (error instanceof Error && error.message === "Canonical flat data exceeds its fixed capacity") {
-        throw new Error(
-          "Transactional typed state dynamic arena capacity exceeded"
-        );
-      }
-      throw error;
-    }
-    destination.dynamicMetadata[index * 2] = byteOffset;
-    destination.dynamicMetadata[index * 2 + 1] = length;
-    byteOffset += length;
-  }
-  return byteOffset;
-}
-function rehydrateNode(node, image, externalImmutableRoots) {
-  switch (node.kind) {
-    case "f64":
-      return image.continuous[node.slotIndex];
-    case "nullable-f64": {
-      const present = image.nullableContinuousPresent[node.slotIndex];
-      if (present === 0) return null;
-      if (present !== 1) {
-        throw new Error(
-          "Transactional typed state nullable continuous presence is invalid"
-        );
-      }
-      return image.nullableContinuous[node.slotIndex];
-    }
-    case "nullable-string": {
-      const present = image.nullableStringPresent[node.slotIndex];
-      if (present === 0) return null;
-      if (present !== 1) {
-        throw new Error(
-          "Transactional typed state nullable string presence is invalid"
-        );
-      }
-      const offset = image.nullableStringMetadata[node.slotIndex * 2];
-      const length = image.nullableStringMetadata[node.slotIndex * 2 + 1];
-      return UTF8_DECODER.decode(
-        image.stringArena.subarray(offset, offset + length)
-      );
-    }
-    case "optional-record": {
-      const present = image.optionalRecordPresent[node.slotIndex];
-      if (present === 0) return null;
-      if (present !== 1) {
-        throw new Error(
-          "Transactional typed state optional record presence is invalid"
-        );
-      }
-      return rehydrateNode(node.value, image, externalImmutableRoots);
-    }
-    case "bounded-array": {
-      const length = image.boundedArrayLengths[node.slotIndex];
-      if (length > node.items.length) {
-        throw new Error(
-          "Transactional typed state bounded-array length is invalid"
-        );
-      }
-      return Object.freeze(Array.from(
-        { length },
-        (_, index) => rehydrateNode(
-          node.items[index],
-          image,
-          externalImmutableRoots
-        )
-      ));
-    }
-    case "boolean":
-      return image.booleans[node.slotIndex] === 1;
-    case "string": {
-      const offset = image.stringMetadata[node.slotIndex * 2];
-      const length = image.stringMetadata[node.slotIndex * 2 + 1];
-      return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
-    }
-    case "dynamic": {
-      const offset = image.dynamicMetadata[node.slotIndex * 2];
-      const length = image.dynamicMetadata[node.slotIndex * 2 + 1];
-      return decodeCanonicalFlatDataV1(
-        image.dynamicArena.subarray(offset, offset + length)
-      );
-    }
-    case "external":
-      return externalImmutableRoots[node.slotIndex].value;
-    case "typed-array": {
-      const array = createNumericTypedArray(node.constructorTag, node.items.length);
-      for (let index = 0; index < node.items.length; index += 1) {
-        const value = rehydrateNode(
-          node.items[index],
-          image,
-          externalImmutableRoots
-        );
-        if (typeof value !== "number") {
-          throw new Error("Transactional typed state typed-array item is not numeric");
-        }
-        array[index] = value;
-      }
-      return array;
-    }
-    case "array":
-      return Object.freeze(
-        node.items.map((item) => rehydrateNode(item, image, externalImmutableRoots))
-      );
-    case "record": {
-      const record = node.nullPrototype ? /* @__PURE__ */ Object.create(null) : {};
-      for (const entry of node.entries) {
-        record[entry.key] = rehydrateNode(
-          entry.node,
-          image,
-          externalImmutableRoots
-        );
-      }
-      return Object.freeze(record);
-    }
-  }
-}
-function compileNode(value, path, layout, compilingOptionalRootIndex = null) {
-  const pathPointer = pointer(path);
-  const optionalRecordRootIndex = layout.optionalRecordRoots.findIndex(
-    (root) => root.pointer === pathPointer
-  );
-  if (optionalRecordRootIndex !== -1 && compilingOptionalRootIndex !== optionalRecordRootIndex) {
-    return Object.freeze({
-      kind: "optional-record",
-      slotIndex: optionalRecordRootIndex,
-      value: compileNode(
-        layout.optionalRecordRoots[optionalRecordRootIndex].template,
-        path,
-        layout,
-        optionalRecordRootIndex
-      )
-    });
-  }
-  const boundedArrayRootIndex = layout.boundedArrayRoots.findIndex(
-    (root) => root.pointer === pathPointer
-  );
-  if (boundedArrayRootIndex !== -1) {
-    const root = layout.boundedArrayRoots[boundedArrayRootIndex];
-    return compileBoundedArrayNode(
-      root.itemTemplate,
-      root.path,
-      boundedArrayRootIndex,
-      root.capacity,
-      layout
-    );
-  }
-  const externalIndex = slotIndex(
-    layout.externalImmutableRoots,
-    pathPointer
-  );
-  if (externalIndex !== -1) {
-    return Object.freeze({ kind: "external", slotIndex: externalIndex });
-  }
-  const nullableContinuousIndex = slotIndex(
-    layout.nullableContinuousSlots,
-    pathPointer
-  );
-  if (nullableContinuousIndex !== -1) {
-    return Object.freeze({
-      kind: "nullable-f64",
-      slotIndex: nullableContinuousIndex
-    });
-  }
-  const nullableStringIndex = slotIndex(
-    layout.nullableStringSlots,
-    pathPointer
-  );
-  if (nullableStringIndex !== -1) {
-    return Object.freeze({
-      kind: "nullable-string",
-      slotIndex: nullableStringIndex
-    });
-  }
-  const dynamicIndex = slotIndex(layout.excludedDynamicRoots, pathPointer);
-  if (dynamicIndex !== -1) {
-    return Object.freeze({ kind: "dynamic", slotIndex: dynamicIndex });
-  }
-  if (typeof value === "number") {
-    return Object.freeze({
-      kind: "f64",
-      slotIndex: requiredSlotIndex(layout.continuousSlots, pathPointer)
-    });
-  }
-  if (typeof value === "boolean") {
-    return Object.freeze({
-      kind: "boolean",
-      slotIndex: requiredSlotIndex(layout.booleanSlots, pathPointer)
-    });
-  }
-  if (typeof value === "string") {
-    return Object.freeze({
-      kind: "string",
-      slotIndex: requiredSlotIndex(layout.stringSlots, pathPointer)
-    });
-  }
-  if (isNumericTypedArray(value)) {
-    const items = Array.from(
-      { length: value.length },
-      (_, index) => compileNode(
-        value[index],
-        [...path, index],
-        layout,
-        compilingOptionalRootIndex
-      )
-    );
-    return Object.freeze({
-      kind: "typed-array",
-      constructorTag: value.constructor.name,
-      items: Object.freeze(items)
-    });
-  }
-  if (Array.isArray(value)) {
-    return Object.freeze({
-      kind: "array",
-      items: Object.freeze(value.map((item, index) => compileNode(item, [...path, index], layout, compilingOptionalRootIndex)))
-    });
-  }
-  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-    const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null) {
-      throw new Error(
-        `Transactional typed state ${pathPointer} has an unsupported record prototype`
-      );
-    }
-    const entries = Object.keys(value).sort().map((key) => Object.freeze({
-      key,
-      node: compileNode(
-        requiredOwnValue(value, key, path),
-        [...path, key],
-        layout,
-        compilingOptionalRootIndex
-      )
-    }));
-    return Object.freeze({
-      kind: "record",
-      nullPrototype: prototype === null,
-      entries: Object.freeze(entries)
-    });
-  }
-  throw new Error(`Transactional typed state ${pathPointer} has no compiled node`);
-}
-function compileBoundedArrayNode(itemTemplate, rootPath, slotIndex2, capacity, layout) {
-  return Object.freeze({
-    kind: "bounded-array",
-    slotIndex: slotIndex2,
-    items: Object.freeze(Array.from(
-      { length: capacity },
-      (_, index) => compileNode(
-        itemTemplate,
-        [...rootPath, index],
-        layout
-      )
-    ))
-  });
-}
-function createImageLayout(layout, stringArenaCapacityBytes, dynamicArenaCapacityBytes) {
-  let offset = 0;
-  const continuousByteOffset = align(offset, 8);
-  offset = continuousByteOffset + layout.continuousSlots.length * 8;
-  const nullableContinuousByteOffset = align(offset, 8);
-  offset = nullableContinuousByteOffset + layout.nullableContinuousSlots.length * 8;
-  const nullableContinuousPresenceByteOffset = offset;
-  offset += layout.nullableContinuousSlots.length;
-  const booleanByteOffset = offset;
-  offset += layout.booleanSlots.length;
-  const stringMetadataByteOffset = align(offset, 4);
-  offset = stringMetadataByteOffset + layout.stringSlots.length * 2 * 4;
-  const nullableStringMetadataByteOffset = align(offset, 4);
-  offset = nullableStringMetadataByteOffset + layout.nullableStringSlots.length * 2 * 4;
-  const nullableStringPresenceByteOffset = offset;
-  offset += layout.nullableStringSlots.length;
-  const optionalRecordPresenceByteOffset = offset;
-  offset += layout.optionalRecordRoots.length;
-  const boundedArrayLengthByteOffset = align(offset, 4);
-  offset = boundedArrayLengthByteOffset + layout.boundedArrayRoots.length * 4;
-  const dynamicMetadataByteOffset = align(offset, 4);
-  offset = dynamicMetadataByteOffset + layout.excludedDynamicRoots.length * 2 * 4;
-  const stringArenaByteOffset = offset;
-  offset += stringArenaCapacityBytes;
-  const dynamicArenaByteOffset = offset;
-  offset += dynamicArenaCapacityBytes;
-  return Object.freeze({
-    continuousByteOffset,
-    nullableContinuousByteOffset,
-    nullableContinuousPresenceByteOffset,
-    booleanByteOffset,
-    stringMetadataByteOffset,
-    nullableStringMetadataByteOffset,
-    nullableStringPresenceByteOffset,
-    optionalRecordPresenceByteOffset,
-    boundedArrayLengthByteOffset,
-    dynamicMetadataByteOffset,
-    stringArenaByteOffset,
-    dynamicArenaByteOffset,
-    bufferByteLength: offset
-  });
-}
-function createImage(manifest) {
-  const layout = manifest.numericalLayout;
-  const offsets = manifest.imageLayout;
-  const buffer = new ArrayBuffer(offsets.bufferByteLength);
-  return Object.freeze({
-    buffer,
-    continuous: new Float64Array(
-      buffer,
-      offsets.continuousByteOffset,
-      layout.continuousSlots.length
-    ),
-    nullableContinuous: new Float64Array(
-      buffer,
-      offsets.nullableContinuousByteOffset,
-      layout.nullableContinuousSlots.length
-    ),
-    nullableContinuousPresent: new Uint8Array(
-      buffer,
-      offsets.nullableContinuousPresenceByteOffset,
-      layout.nullableContinuousSlots.length
-    ),
-    booleans: new Uint8Array(
-      buffer,
-      offsets.booleanByteOffset,
-      layout.booleanSlots.length
-    ),
-    stringMetadata: new Uint32Array(
-      buffer,
-      offsets.stringMetadataByteOffset,
-      layout.stringSlots.length * 2
-    ),
-    nullableStringMetadata: new Uint32Array(
-      buffer,
-      offsets.nullableStringMetadataByteOffset,
-      layout.nullableStringSlots.length * 2
-    ),
-    nullableStringPresent: new Uint8Array(
-      buffer,
-      offsets.nullableStringPresenceByteOffset,
-      layout.nullableStringSlots.length
-    ),
-    optionalRecordPresent: new Uint8Array(
-      buffer,
-      offsets.optionalRecordPresenceByteOffset,
-      layout.optionalRecordRoots.length
-    ),
-    boundedArrayLengths: new Uint32Array(
-      buffer,
-      offsets.boundedArrayLengthByteOffset,
-      layout.boundedArrayRoots.length
-    ),
-    dynamicMetadata: new Uint32Array(
-      buffer,
-      offsets.dynamicMetadataByteOffset,
-      layout.excludedDynamicRoots.length * 2
-    ),
-    stringArena: new Uint8Array(
-      buffer,
-      offsets.stringArenaByteOffset,
-      manifest.stringArenaCapacityBytes
-    ),
-    dynamicArena: new Uint8Array(
-      buffer,
-      offsets.dynamicArenaByteOffset,
-      manifest.dynamicArenaCapacityBytes
-    )
-  });
-}
-function createNumericTypedArray(tag, length) {
-  switch (tag) {
-    case "Float64Array":
-      return new Float64Array(length);
-    case "Float32Array":
-      return new Float32Array(length);
-    case "Int32Array":
-      return new Int32Array(length);
-    case "Uint32Array":
-      return new Uint32Array(length);
-    case "Int16Array":
-      return new Int16Array(length);
-    case "Uint16Array":
-      return new Uint16Array(length);
-    case "Int8Array":
-      return new Int8Array(length);
-    case "Uint8Array":
-      return new Uint8Array(length);
-    case "Uint8ClampedArray":
-      return new Uint8ClampedArray(length);
-  }
-}
-function isNumericTypedArray(value) {
-  return value instanceof Float64Array || value instanceof Float32Array || value instanceof Int32Array || value instanceof Uint32Array || value instanceof Int16Array || value instanceof Uint16Array || value instanceof Int8Array || value instanceof Uint8Array || value instanceof Uint8ClampedArray;
-}
-function requiredOwnValue(record, key, path) {
-  const descriptor = Object.getOwnPropertyDescriptor(record, key);
-  if (descriptor === void 0 || !("value" in descriptor)) {
-    throw new Error(
-      `Transactional typed state ${pointer([...path, key])} is unavailable`
-    );
-  }
-  return descriptor.value;
-}
-function slotIndex(slots, pathPointer) {
-  return slots.findIndex((slot2) => slot2.pointer === pathPointer);
-}
-function requiredSlotIndex(slots, pathPointer) {
-  const index = slotIndex(slots, pathPointer);
-  if (index === -1) {
-    throw new Error(`Transactional typed state ${pathPointer} has no slot`);
-  }
-  return index;
-}
-function assertWellFormedString(value, pathPointer) {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code >= 55296 && code <= 56319) {
-      const next = value.charCodeAt(index + 1);
-      if (!(next >= 56320 && next <= 57343)) {
-        throw new Error(
-          `Transactional typed state ${pathPointer} contains an unpaired surrogate`
-        );
-      }
-      index += 1;
-    } else if (code >= 56320 && code <= 57343) {
-      throw new Error(
-        `Transactional typed state ${pathPointer} contains an unpaired surrogate`
-      );
-    }
-  }
-}
-function encodeCanonicalBytes(value) {
-  const bytes = new Uint8Array(measureCanonicalFlatDataV1(value));
-  const length = encodeCanonicalFlatDataIntoV1(value, bytes);
-  if (length !== bytes.byteLength) {
-    throw new Error(
-      "Transactional typed state canonical immutable length changed"
-    );
-  }
-  return bytes;
-}
-function assertTransitivelyFrozenData(value, pathPointer, visited) {
-  if (value === null || typeof value !== "object") return;
-  if (visited.has(value)) {
-    throw new Error(
-      `Transactional typed state external immutable ${pathPointer} is cyclic`
-    );
-  }
-  if (!Object.isFrozen(value)) {
-    throw new Error(
-      `Transactional typed state external immutable ${pathPointer} must be frozen`
-    );
-  }
-  visited.add(value);
-  if (Object.getOwnPropertySymbols(value).length !== 0) {
-    throw new Error(
-      `Transactional typed state external immutable ${pathPointer} has symbol keys`
-    );
-  }
-  if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) {
-    throw new Error(
-      `Transactional typed state external immutable ${pathPointer} must be plain data`
-    );
-  }
-  const array = Array.isArray(value);
-  const prototype = Object.getPrototypeOf(value);
-  if (!array && prototype !== Object.prototype && prototype !== null) {
-    throw new Error(
-      `Transactional typed state external immutable ${pathPointer} has an unsupported prototype`
-    );
-  }
-  for (const key of Object.getOwnPropertyNames(value)) {
-    if (array && key === "length") continue;
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (descriptor === void 0 || !("value" in descriptor) || !descriptor.enumerable) {
-      throw new Error(
-        `Transactional typed state external immutable ${pathPointer}/${key} is not plain data`
-      );
-    }
-  }
-  for (const key of Object.keys(value)) {
-    const childPointer = `${pathPointer}/${key.replaceAll("~", "~0").replaceAll("/", "~1")}`;
-    assertTransitivelyFrozenData(
-      requiredOwnValue(value, key, []),
-      childPointer,
-      visited
-    );
-  }
-  visited.delete(value);
-}
-function assertArenaCapacity(capacity, owner, allowZero = false) {
-  if (!Number.isSafeInteger(capacity) || capacity < (allowZero ? 0 : 1) || capacity > MAX_ARENA_CAPACITY_BYTES) {
-    throw new Error(`Transactional typed state ${owner} arena capacity is invalid`);
-  }
-}
-function align(value, alignment) {
-  return Math.ceil(value / alignment) * alignment;
-}
-function pointer(path) {
-  if (path.length === 0) return "/";
-  return `/${path.map((segment) => String(segment).replaceAll("~", "~0").replaceAll("/", "~1")).join("/")}`;
-}
-function manifestFingerprint(layout, stringCapacity, dynamicCapacity) {
-  const canonical = [
-    `layout:${layout.layoutId}`,
-    `string-capacity:${stringCapacity}`,
-    `dynamic-capacity:${dynamicCapacity}`,
-    ...layout.continuousSlots.map(({ pointer: value }) => `f64:${value}`),
-    ...layout.nullableContinuousSlots.map(
-      ({ pointer: value }) => `nullable-f64:${value}`
-    ),
-    ...layout.nullableStringSlots.map(
-      ({ pointer: value }) => `nullable-string:${value}`
-    ),
-    ...layout.optionalRecordRoots.map(
-      ({ pointer: value }) => `optional-record:${value}`
-    ),
-    ...layout.boundedArrayRoots.map(
-      ({ pointer: value, capacity }) => `bounded-array:${value}:capacity:${capacity}`
-    ),
-    ...layout.booleanSlots.map(({ pointer: value }) => `bool:${value}`),
-    ...layout.stringSlots.map(({ pointer: value }) => `string:${value}`),
-    ...layout.externalImmutableRoots.map(
-      ({ pointer: value }) => `external-immutable:${value}`
-    ),
-    ...layout.externalImmutableAliases.map(
-      ({ pointer: value, sourcePointer }) => `external-immutable-alias:${value}:source:${sourcePointer}`
-    ),
-    ...layout.excludedDynamicRoots.map(({ pointer: value }) => `dynamic:${value}`),
-    ...layout.containers.map((container2) => (container2.boundedArrayRootIndex === null ? container2.optionalRecordRootIndex === null ? [
-      "container",
-      container2.pointer,
-      container2.kind,
-      container2.prototypeTag ?? "null",
-      container2.keys.join(",")
-    ] : [
-      "container",
-      container2.pointer,
-      container2.kind,
-      container2.prototypeTag ?? "null",
-      `optional-root-${container2.optionalRecordRootIndex}`,
-      container2.keys.join(",")
-    ] : [
-      "container",
-      container2.pointer,
-      container2.kind,
-      container2.prototypeTag ?? "null",
-      `bounded-root-${container2.boundedArrayRootIndex}`,
-      `bounded-item-${container2.boundedArrayItemIndex}`,
-      container2.keys.join(",")
-    ]).join(":"))
-  ].join("\n");
-  let hash = 2166136261;
-  for (const byte of UTF8_ENCODER.encode(canonical)) {
-    hash ^= byte;
-    hash = Math.imul(hash, 16777619) >>> 0;
-  }
-  return `fnv1a32-${hash.toString(16).padStart(8, "0")}`;
-}
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID = "main-wire-integrated-accepted-typed-state-authority-v1";
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID = "main-wire-integrated-accepted-typed-state-v1";
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT = "fnv1a32-44b16062";
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1 = 16 * 1024;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1 = 0;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1 = 16;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 22360;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 = 484;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 = 6;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1 = 22;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1 = 6;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOUNDED_ARRAY_ROOT_COUNT_V1 = 3;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 2;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 229;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 0;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 163;
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
-  "/composedRhythm/calciumStateByWall/LA",
-  "/composedRhythm/calciumStateByWall/LVFW",
-  "/composedRhythm/calciumStateByWall/RA",
-  "/composedRhythm/calciumStateByWall/RVFW",
-  "/composedRhythm/calciumStateByWall/SEP"
-]);
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_ROOT_POINTERS_V1 = Object.freeze([
-  "/composedRhythm/configuration",
-  "/composedRhythm/regularAtrialSourceState/configuration",
-  "/composedRhythm/authoredEctopyState/configuration",
-  "/composedRhythm/electricalCaptureState/configuration",
-  "/composedRhythm/proximalAvGateState/configuration",
-  "/composedRhythm/distalGateState/configuration",
-  "/composedRhythm/ventricularBackupState/configuration",
-  "/composedRhythm/ventricularBackupState/initialCaptureSeed",
-  "/composedRhythm/ventricularIntervalStrengthState/configuration",
-  "/composedRhythm/ventricularIntervalStrengthState/initialPriorAcceptedVentricularActivation",
-  "/dynamicMechanicalSupport/inertanceProfileSnapshot",
-  "/dynamicMechanicalSupport/structuralHydraulicProjection"
-]);
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONSTANT_STRING_POINTERS_V1 = Object.freeze([
-  "/composedRhythm/authoredEctopyState/stateSchemaId",
-  "/composedRhythm/distalGateState/stateSchemaId",
-  "/composedRhythm/electricalCaptureState/atrialGate/chamber",
-  "/composedRhythm/electricalCaptureState/atrialGate/gateInstanceId",
-  "/composedRhythm/electricalCaptureState/atrialGate/gateStateSchemaId",
-  "/composedRhythm/electricalCaptureState/stateSchemaId",
-  "/composedRhythm/electricalCaptureState/ventricularGate/chamber",
-  "/composedRhythm/electricalCaptureState/ventricularGate/gateInstanceId",
-  "/composedRhythm/electricalCaptureState/ventricularGate/gateStateSchemaId",
-  "/composedRhythm/proximalAvGateState/stateSchemaId",
-  "/composedRhythm/regularAtrialSourceState/stateSchemaId",
-  "/composedRhythm/stateSchemaId",
-  "/composedRhythm/ventricularBackupState/stateSchemaId",
-  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/activationSchemaId",
-  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/chamber",
-  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/gateInstanceId",
-  "/composedRhythm/ventricularIntervalStrengthState/stateSchemaId",
-  "/coronary/circulation/transactionId",
-  "/coronary/coronaryAutoregulation/desiredControl/controlId",
-  "/coronary/coronaryAutoregulation/stateId",
-  "/coronary/coronaryAutoregulationBinding/bindingId",
-  "/coronary/coronaryAutoregulationBinding/flowObservable",
-  "/coronary/coronaryAutoregulationBinding/law",
-  "/coronary/coronaryAutoregulationBinding/perfusionPressureObservable",
-  "/coronary/coronaryAutoregulationBinding/priorFingerprint",
-  "/coronary/coronaryAutoregulationBinding/windowPolicy/interpretation",
-  "/coronary/coronaryAutoregulationBinding/windowPolicy/kind",
-  "/coronary/coronaryAutoregulationBinding/windowPolicy/quadrature",
-  "/coronary/coronaryBinding/boundaryResolverId",
-  "/coronary/coronaryBinding/collapseHydraulicsFingerprint",
-  "/coronary/coronaryBinding/impMechanism",
-  "/coronary/coronaryBinding/mvcReferenceSemantics",
-  "/coronary/coronaryBinding/priorFingerprint",
-  "/coronary/coronaryBinding/shorteningImpPriorFingerprint",
-  "/coronary/coronaryBinding/topologyId",
-  "/coronary/mechanics/contractId",
-  "/coronary/mechanics/parameterIdentityHash",
-  "/coronary/mechanics/parameterSetId",
-  "/coronary/mechanics/providerId",
-  "/coronary/transactionId",
-  "/dynamicMechanicalSupport/networkId",
-  "/dynamicMechanicalSupport/stateSchemaId",
-  "/dynamicMechanicalSupport/unitSystemId",
-  "/transactionId"
-]);
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1 = Object.freeze([
-  ...MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_ROOT_POINTERS_V1,
-  ...MAIN_WIRE_ACCEPTED_TYPED_STATE_CONSTANT_STRING_POINTERS_V1
-]);
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1 = Object.freeze([
-  "/composedRhythm/distalGateState/lastPassedProximalArrivalTimeSec",
-  "/composedRhythm/distalGateState/lastVentricularImpulseTimeSec",
-  "/composedRhythm/electricalCaptureState/atrialGate/lastCapturedActivationTimeSec",
-  "/composedRhythm/electricalCaptureState/lastAcceptedImpulseBatchTimeSec",
-  "/composedRhythm/proximalAvGateState/lastConductedAtrialActivationTimeSec",
-  "/composedRhythm/proximalAvGateState/lastProximalAvOutputTimeSec"
-]);
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1 = Object.freeze([
-  "/composedRhythm/electricalCaptureState/atrialGate/lastCapturedActivationId",
-  "/composedRhythm/ventricularBackupState/lastAcceptedVentricularActivation/upstreamCapturedActivationId",
-  "/composedRhythm/ventricularBackupState/lastIntrinsicEscapeAttemptResult/capturedActivationId",
-  "/composedRhythm/ventricularBackupState/lastVviPacingAttemptResult/capturedActivationId",
-  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/upstreamCapturedActivationId",
-  "/composedRhythm/ventricularIntervalStrengthState/lastDepositMetadata/capturedVentricularActivation/upstreamCapturedActivationId",
-  ...Array.from(
-    { length: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1 },
-    (_, index) => `/composedRhythm/pendingDistalVentricularImpulses/${index}/parentCapturedActivationId`
-  )
-]);
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1 = Object.freeze({
-  resultSchemaId: VENTRICULAR_BACKUP_SOURCE_ATTEMPT_RESULT_V2_ID,
-  schemaVersion: 2,
-  sourceImpulseId: "template-source-impulse",
-  sourceKind: "escape",
-  sourceId: "template-source",
-  sourceSequence: 0,
-  activationTimeSec: 0,
-  outcome: "not-captured",
-  capturedActivationId: null
-});
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTOREGULATION_CONTROL_TEMPLATE_V1 = createDefaultCoronaryAutoregulationWindowControlV3();
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORED_PACING_TEMPLATE_V1 = Object.freeze({
-  stateSchemaId: ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_STATE_V1_ID,
-  schemaVersion: 1,
-  configuration: null,
-  initializedAcceptedTimeSec: 0,
-  initializedHistoryEventCount: 0,
-  revision: 0,
-  acceptedTimeSec: 0,
-  cursor: 0,
-  acceptedEmittedImpulseCount: 0
-});
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_PROXIMAL_QUEUE_ITEM_TEMPLATE_V1 = Object.freeze({
-  pendingSchemaId: COMPOSED_RHYTHM_PENDING_PROXIMAL_AV_OUTPUT_V2_ID,
-  proximalAvOutputId: "template-proximal-av-output",
-  parentCapturedAtrialActivationId: "template-atrial-activation",
-  proximalArrivalTimeSec: 0
-});
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_DISTAL_QUEUE_ITEM_TEMPLATE_V1 = Object.freeze({
-  impulseSchemaId: SOURCE_IMPULSE_V2_ID,
-  schemaVersion: 2,
-  sourceImpulseId: "template-distal-source-impulse",
-  parentCapturedActivationId: null,
-  chamber: "ventricular",
-  sourceKind: "av-output",
-  capturePriority: ELECTRICAL_CAPTURE_PRIORITY_V2["av-output"],
-  sourceId: "template-distal-source",
-  sourceSequence: 0,
-  activationTimeSec: 0
-});
-const MAIN_WIRE_ACCEPTED_TYPED_STATE_CALCIUM_QUEUE_ITEM_TEMPLATE_V1 = Object.freeze({
-  pendingSchemaId: COMPOSED_RHYTHM_PENDING_CALCIUM_DEPOSIT_V2_ID,
-  depositId: "template-calcium-deposit",
-  depositClass: "ventricular",
-  parentCapturedActivationId: "template-ventricular-activation",
-  depositTimeSec: 0,
-  strengthByWall: Object.freeze({ LA: 0, RA: 0, LVFW: 0, SEP: 0, RVFW: 0 })
-});
-function createMainWireAcceptedTypedStateManifestV1(coldAcceptedState) {
-  const manifest = createTransactionalTypedStateManifestV1(
-    MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
-    coldAcceptedState,
-    MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1,
-    MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1,
-    {
-      fixedArrayPointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1,
-      externalImmutablePointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1,
-      nullableContinuousPointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1,
-      nullableStringPointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1,
-      optionalRecordTemplates: [
-        {
-          pointer: "/composedRhythm/authoredVentricularPacingReplayState",
-          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORED_PACING_TEMPLATE_V1
-        },
-        {
-          pointer: "/composedRhythm/ventricularBackupState/lastAcceptedVentricularActivation",
-          template: coldAcceptedState.composedRhythm.ventricularIntervalStrengthState.initialPriorAcceptedVentricularActivation
-        },
-        {
-          pointer: "/composedRhythm/ventricularBackupState/lastIntrinsicEscapeAttemptResult",
-          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1
-        },
-        {
-          pointer: "/composedRhythm/ventricularBackupState/lastVviPacingAttemptResult",
-          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1
-        },
-        {
-          pointer: "/coronary/coronaryAutoregulation/windowControl",
-          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTOREGULATION_CONTROL_TEMPLATE_V1
-        },
-        {
-          pointer: "/composedRhythm/ventricularIntervalStrengthState/lastDepositMetadata",
-          template: createIntervalStrengthDepositMetadataTemplateV1(
-            coldAcceptedState
-          )
-        }
-      ],
-      externalImmutableAliases: [
-        {
-          pointer: "/composedRhythm/authoredVentricularPacingReplayState/configuration",
-          sourcePointer: "/composedRhythm/configuration/authoredVentricularPacingReplay"
-        }
-      ],
-      boundedArrayTemplates: [
-        {
-          pointer: "/composedRhythm/pendingProximalAvOutputs",
-          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
-          itemTemplate: MAIN_WIRE_ACCEPTED_TYPED_STATE_PROXIMAL_QUEUE_ITEM_TEMPLATE_V1
-        },
-        {
-          pointer: "/composedRhythm/pendingDistalVentricularImpulses",
-          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
-          itemTemplate: MAIN_WIRE_ACCEPTED_TYPED_STATE_DISTAL_QUEUE_ITEM_TEMPLATE_V1
-        },
-        {
-          pointer: "/composedRhythm/pendingCalciumDeposits",
-          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
-          itemTemplate: MAIN_WIRE_ACCEPTED_TYPED_STATE_CALCIUM_QUEUE_ITEM_TEMPLATE_V1
-        }
-      ]
-    }
-  );
-  const layout = manifest.numericalLayout;
-  if (manifest.fingerprint !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT || manifest.bufferByteLength !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 || layout.continuousSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 || layout.nullableContinuousSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 || layout.nullableStringSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1 || layout.optionalRecordRoots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1 || layout.boundedArrayRoots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOUNDED_ARRAY_ROOT_COUNT_V1 || layout.booleanSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 || layout.stringSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 || layout.externalImmutableRoots.length !== 57 || layout.excludedDynamicRoots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 || layout.containers.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1) {
-    throw new Error(
-      `Main Wire accepted typed-state layout changed without a new version (${manifest.fingerprint}; ${manifest.bufferByteLength}; ${layout.continuousSlots.length}/${layout.nullableContinuousSlots.length}/${layout.nullableStringSlots.length}/${layout.optionalRecordRoots.length}/${layout.boundedArrayRoots.length}/${layout.booleanSlots.length}/${layout.stringSlots.length}/${layout.excludedDynamicRoots.length}/${layout.externalImmutableRoots.length}/${layout.containers.length})`
-    );
-  }
-  return manifest;
-}
-function createIntervalStrengthDepositMetadataTemplateV1(coldAcceptedState) {
-  const state = coldAcceptedState.composedRhythm.ventricularIntervalStrengthState;
-  const configuration = state.configuration;
-  const activation = state.initialPriorAcceptedVentricularActivation;
-  return Object.freeze({
-    metadataSchemaId: VENTRICULAR_INTERVAL_STRENGTH_DEPOSIT_METADATA_V1_ID,
-    schemaVersion: 1,
-    configurationId: configuration.configurationId,
-    ownerInstanceId: configuration.ownerInstanceId,
-    ownerRevision: 0,
-    acceptedVentricularCaptureOrdinal: 0,
-    previousCapturedActivationId: activation.capturedActivationId,
-    previousCapturedActivationTimeSec: activation.activationTimeSec,
-    capturedVentricularActivation: activation,
-    intervalSec: configuration.referenceCycleLengthSec,
-    recoveryFractionA: configuration.referenceRecoveryFractionA,
-    normalizedSrLoadBefore: configuration.referenceNormalizedSrLoadState,
-    releasedRelativeStrengthR: 1,
-    returnedReleasedRelativeLoad: configuration.releasedLoadReturnFractionR,
-    intervalInfluxRelativeLoad: 1 - configuration.releasedLoadReturnFractionR,
-    normalizedSrLoadAfter: configuration.referenceNormalizedSrLoadState,
-    futureExactCalciumDepositRelativeStrength: 1,
-    calciumStateMutation: "none-metadata-only"
-  });
-}
-class MainWireAcceptedTypedStateAuthorityV1 {
-  constructor(coldAcceptedState, initialState, validate, ownDecoded, admitCompletedMirror) {
-    this.authorityId = MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID;
-    this.#currentMirrorMatchesImage = true;
-    this.#poisonedReason = null;
-    this.#directCandidateCommitCount = 0;
-    this.#directCandidateExactCommitCount = 0;
-    this.#directCandidateMirrorReuseCount = 0;
-    this.#modelOwnedCandidateCommitCount = 0;
-    this.#modelOwnedAdapterFreeCommitCount = 0;
-    this.#modelOwnedExactAuditCount = 0;
-    this.#lazyMirrorRehydrateCount = 0;
-    validate(initialState);
-    this.#ownDecoded = ownDecoded;
-    this.#manifest = createMainWireAcceptedTypedStateManifestV1(
-      coldAcceptedState
-    );
-    this.#image = new TransactionalTypedStateImageV1(
-      this.#manifest,
-      initialState,
-      admitCompletedMirror
-    );
-    this.#currentState = this.ownAndValidate(this.#image.rehydrateCurrent());
-  }
-  #manifest;
-  #image;
-  #ownDecoded;
-  #currentState;
-  #currentMirrorMatchesImage;
-  #poisonedReason;
-  #directCandidateCommitCount;
-  #directCandidateExactCommitCount;
-  #directCandidateMirrorReuseCount;
-  #modelOwnedCandidateCommitCount;
-  #modelOwnedAdapterFreeCommitCount;
-  #modelOwnedExactAuditCount;
-  #lazyMirrorRehydrateCount;
-  current() {
-    this.assertHealthy();
-    if (!this.#currentMirrorMatchesImage) {
-      this.#currentState = this.ownAndValidate(this.#image.rehydrateCurrent());
-      this.#currentMirrorMatchesImage = true;
-      this.#lazyMirrorRehydrateCount += 1;
-    }
-    return this.#currentState;
-  }
-  /** Immutable model-owned layout used to bind hot-path slots once. */
-  manifest() {
-    this.assertHealthy();
-    return this.#manifest;
-  }
-  snapshot() {
-    this.assertHealthy();
-    return this.ownAndValidate(this.#image.rehydrateCurrent());
-  }
-  commit(candidate) {
-    this.assertHealthy();
-    try {
-      this.#image.stage(candidate);
-      const owned = this.ownAndValidate(this.#image.rehydrateStaged());
-      this.#image.promote();
-      this.#currentState = owned;
-      this.#currentMirrorMatchesImage = true;
-      return owned;
-    } catch (error) {
-      this.#image.abort();
-      const message = error instanceof Error ? error.message : String(error);
-      this.#poisonedReason = `candidate commit failed: ${message}`;
-      throw new Error(
-        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
-      );
-    }
-  }
-  /** Begins one inactive typed transaction for a migrated state owner. */
-  beginDirectCandidate() {
-    this.assertHealthy();
-    return this.#image.beginCandidateFromCurrent();
-  }
-  /** Compiles one model-bound retained-slot plan outside the accepted loop. */
-  createDirectCompletionPlan(retained) {
-    this.assertHealthy();
-    return this.#image.createCompletionPlan(retained);
-  }
-  /** Compiles model-owned required-write coverage outside the accepted loop. */
-  createModelOwnedPromotionPlan(required) {
-    this.assertHealthy();
-    return this.#image.createPromotionPlan(required);
-  }
-  /**
-   * Promotes an event-free model-owned candidate without a 484-leaf object
-   * comparison in the lean production tier. Full-invariant runs retain that
-   * comparison as an oracle and return null on a mismatch so the caller can
-   * execute exhaustive event-boundary completion.
-   */
-  tryCommitModelOwnedDirectCandidate(adapterCandidate, promotionPlan, auditPlan) {
-    this.assertHealthy();
-    try {
-      const auditEnabled = fullHotPathInvariantsEnabledV1();
-      const admittedMirror = this.#image.tryPromoteCandidateWithRequiredWrites(
-        adapterCandidate,
-        promotionPlan,
-        auditEnabled ? auditPlan : void 0
-      );
-      if (admittedMirror === null) return null;
-      this.#currentState = admittedMirror;
-      this.#currentMirrorMatchesImage = true;
-      this.#directCandidateCommitCount += 1;
-      this.#directCandidateMirrorReuseCount += 1;
-      this.#modelOwnedCandidateCommitCount += 1;
-      if (auditEnabled) {
-        this.#directCandidateExactCommitCount += 1;
-        this.#modelOwnedExactAuditCount += 1;
-      }
-      return admittedMirror;
-    } catch (error) {
-      this.#image.abort();
-      const message = error instanceof Error ? error.message : String(error);
-      this.#poisonedReason = `model-owned candidate commit failed: ${message}`;
-      throw new Error(
-        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
-      );
-    }
-  }
-  /**
-   * Atomically promotes a fully staged, model-owned typed candidate without
-   * allocating an AcceptedState adapter. The caller must already have applied
-   * every component-owned numerical and cross-owner seal represented by the
-   * immutable promotion plan. The cached object mirror is invalidated and is
-   * rehydrated only if a cold/event API subsequently requests it.
-   */
-  commitModelOwnedTypedCandidate(promotionPlan) {
-    this.assertHealthy();
-    try {
-      this.#image.promoteCandidateWithRequiredWrites(promotionPlan);
-      this.#currentMirrorMatchesImage = false;
-      this.#directCandidateCommitCount += 1;
-      this.#modelOwnedCandidateCommitCount += 1;
-      this.#modelOwnedAdapterFreeCommitCount += 1;
-    } catch (error) {
-      this.#image.abort();
-      const message = error instanceof Error ? error.message : String(error);
-      this.#poisonedReason = `adapter-free model-owned candidate commit failed: ${message}`;
-      throw new Error(
-        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
-      );
-    }
-  }
-  /**
-   * Admits the still-object-backed owners without overwriting migrated slots,
-   * proves the exact model-owned adapter at its accepted boundary, then
-   * promotes the complete typed candidate exactly once. The retained adapter
-   * is a private solver mirror only; the inactive typed image supplied every
-   * promoted byte and remains the accepted-state authority.
-   */
-  commitDirectCandidate(adapterCandidate, plan) {
-    this.assertHealthy();
-    try {
-      const admittedMirror = this.#image.completeCandidateFromObject(
-        adapterCandidate,
-        plan
-      );
-      this.#image.promote();
-      this.#currentState = admittedMirror;
-      this.#currentMirrorMatchesImage = true;
-      this.#directCandidateCommitCount += 1;
-      this.#directCandidateMirrorReuseCount += 1;
-      return admittedMirror;
-    } catch (error) {
-      this.#image.abort();
-      const message = error instanceof Error ? error.message : String(error);
-      this.#poisonedReason = `direct candidate commit failed: ${message}`;
-      throw new Error(
-        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
-      );
-    }
-  }
-  /**
-   * Promotes without generic object completion only when every byte already
-   * equals the internally admitted adapter. A null result leaves the staged
-   * transaction open for exhaustive completion at an event boundary.
-   */
-  tryCommitExactDirectCandidate(adapterCandidate, plan) {
-    this.assertHealthy();
-    try {
-      const admittedMirror = this.#image.matchCandidateExactlyAgainstObject(
-        adapterCandidate,
-        plan
-      );
-      if (admittedMirror === null) return null;
-      this.#image.promote();
-      this.#currentState = admittedMirror;
-      this.#currentMirrorMatchesImage = true;
-      this.#directCandidateCommitCount += 1;
-      this.#directCandidateExactCommitCount += 1;
-      this.#directCandidateMirrorReuseCount += 1;
-      return admittedMirror;
-    } catch (error) {
-      this.#image.abort();
-      const message = error instanceof Error ? error.message : String(error);
-      this.#poisonedReason = `exact direct candidate commit failed: ${message}`;
-      throw new Error(
-        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
-      );
-    }
-  }
-  /** Expected solver rejection abandons the inactive candidate without poison. */
-  abortDirectCandidate() {
-    this.assertHealthy();
-    this.#image.abort();
-  }
-  report() {
-    const report = this.#image.report();
-    return Object.freeze({
-      ...report,
-      authorityId: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID,
-      poisonedReason: this.#poisonedReason,
-      directCandidateCommitCount: this.#directCandidateCommitCount,
-      directCandidateExactCommitCount: this.#directCandidateExactCommitCount,
-      directCandidateMirrorReuseCount: this.#directCandidateMirrorReuseCount,
-      modelOwnedCandidateCommitCount: this.#modelOwnedCandidateCommitCount,
-      modelOwnedAdapterFreeCommitCount: this.#modelOwnedAdapterFreeCommitCount,
-      modelOwnedExactAuditCount: this.#modelOwnedExactAuditCount,
-      lazyMirrorRehydrateCount: this.#lazyMirrorRehydrateCount,
-      currentMirrorMatchesImage: this.#currentMirrorMatchesImage
-    });
-  }
-  snapshotImage() {
-    this.assertHealthy();
-    return this.#image.snapshot();
-  }
-  /** Hot model-owned reads follow the active image after every promotion. */
-  currentCursor() {
-    this.assertHealthy();
-    return this.#image.currentCursor();
-  }
-  /** Cold-boundary proof that the cached solver adapter still matches storage. */
-  assertCurrentMatches(candidate) {
-    this.assertHealthy();
-    const authoritative = this.snapshot();
-    const authoritativeBytes = canonicalBytes(authoritative);
-    const candidateBytes = canonicalBytes(candidate);
-    if (authoritativeBytes.byteLength !== candidateBytes.byteLength || !authoritativeBytes.every(
-      (value, index) => value === candidateBytes[index]
-    )) {
-      throw new Error(
-        "Main Wire accepted typed-state adapter differs from its active image"
-      );
-    }
-  }
-  ownAndValidate(candidate) {
-    return this.#ownDecoded(candidate);
-  }
-  assertHealthy() {
-    if (this.#poisonedReason !== null) {
-      throw new Error(
-        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
-      );
-    }
-  }
-}
-function canonicalBytes(value) {
-  const bytes = new Uint8Array(measureCanonicalFlatDataV1(value));
-  const length = encodeCanonicalFlatDataIntoV1(value, bytes);
-  if (length !== bytes.byteLength) {
-    throw new Error("Main Wire typed-state canonical length changed");
-  }
-  return bytes;
-}
 const CALCIUM_WALLS = Object.freeze([
   "LA",
   "LVFW",
@@ -41857,8 +42814,8 @@ function createMainWireAcceptedTypedBoundaryBindingV1(manifest) {
     throw new Error("Main Wire typed boundary manifest identity is unsupported");
   }
   const continuous = Object.freeze({
-    acceptedTimeSec: continuousSlot$1(manifest, "/acceptedTimeSec"),
-    composedAcceptedTimeSec: continuousSlot$1(manifest, "/composedRhythm/acceptedTimeSec"),
+    acceptedTimeSec: continuousSlot(manifest, "/acceptedTimeSec"),
+    composedAcceptedTimeSec: continuousSlot(manifest, "/composedRhythm/acceptedTimeSec"),
     authoredEctopy: authoredScheduleBinding(
       manifest,
       "/composedRhythm/authoredEctopyState"
@@ -41872,36 +42829,36 @@ function createMainWireAcceptedTypedBoundaryBindingV1(manifest) {
       "/composedRhythm/regularAtrialSourceState"
     ),
     resolvedRhythm: Object.freeze({
-      acceptedAtrialCaptureCount: continuousSlot$1(
+      acceptedAtrialCaptureCount: continuousSlot(
         manifest,
         "/composedRhythm/acceptedAtrialCaptureCount"
       ),
-      acceptedVentricularCaptureCount: continuousSlot$1(
+      acceptedVentricularCaptureCount: continuousSlot(
         manifest,
         "/composedRhythm/acceptedVentricularCaptureCount"
       ),
-      deliveredCalciumDepositCount: continuousSlot$1(
+      deliveredCalciumDepositCount: continuousSlot(
         manifest,
         "/composedRhythm/deliveredCalciumDepositCount"
       )
     }),
-    electricalCaptureAcceptedTimeSec: continuousSlot$1(
+    electricalCaptureAcceptedTimeSec: continuousSlot(
       manifest,
       "/composedRhythm/electricalCaptureState/acceptedTimeSec"
     ),
-    ventricularBackupAcceptedTimeSec: continuousSlot$1(
+    ventricularBackupAcceptedTimeSec: continuousSlot(
       manifest,
       "/composedRhythm/ventricularBackupState/acceptedTimeSec"
     ),
-    ventricularBackupRevision: continuousSlot$1(
+    ventricularBackupRevision: continuousSlot(
       manifest,
       "/composedRhythm/ventricularBackupState/revision"
     ),
-    autoregulationAcceptedDurationSec: continuousSlot$1(
+    autoregulationAcceptedDurationSec: continuousSlot(
       manifest,
       "/coronary/coronaryAutoregulation/acceptedDurationSec"
     ),
-    autoregulationAcceptedStepCount: continuousSlot$1(
+    autoregulationAcceptedStepCount: continuousSlot(
       manifest,
       "/coronary/coronaryAutoregulation/acceptedStepCount"
     ),
@@ -41910,7 +42867,7 @@ function createMainWireAcceptedTypedBoundaryBindingV1(manifest) {
         territoryId,
         Object.freeze(Object.fromEntries(CORONARY_LAYER_IDS_V2.map((layerId) => [
           layerId,
-          continuousSlot$1(
+          continuousSlot(
             manifest,
             `/coronary/coronaryAutoregulation/qmTimeIntegralMlByTerritoryLayer/${territoryId}/${layerId}`
           )
@@ -41920,7 +42877,7 @@ function createMainWireAcceptedTypedBoundaryBindingV1(manifest) {
     autoregulationPerfusionPressureTimeIntegral: Object.freeze(
       Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
         territoryId,
-        continuousSlot$1(
+        continuousSlot(
           manifest,
           "/coronary/coronaryAutoregulation/perfusionPressureTimeIntegralMmHgSecByTerritory/" + territoryId
         )
@@ -41930,45 +42887,45 @@ function createMainWireAcceptedTypedBoundaryBindingV1(manifest) {
       Object.fromEntries(
         ROTARY_SUPPORT_DEVICE_IDS_V1.map((deviceId) => [
           deviceId,
-          continuousSlot$1(
+          continuousSlot(
             manifest,
             `/dynamicMechanicalSupport/acceptedFlowMlPerSec/${deviceId}`
           )
         ])
       )
     ),
-    composedRevision: continuousSlot$1(manifest, "/composedRhythm/revision"),
-    ventricularBackupNextIntrinsicEscapeDueTimeSec: continuousSlot$1(
+    composedRevision: continuousSlot(manifest, "/composedRhythm/revision"),
+    ventricularBackupNextIntrinsicEscapeDueTimeSec: continuousSlot(
       manifest,
       "/composedRhythm/ventricularBackupState/nextIntrinsicEscapeDueTimeSec"
     ),
-    ventricularBackupNextVviPaceDueTimeSec: continuousSlot$1(
+    ventricularBackupNextVviPaceDueTimeSec: continuousSlot(
       manifest,
       "/composedRhythm/ventricularBackupState/nextVviPaceDueTimeSec"
     ),
-    coronaryAcceptedTimeSec: continuousSlot$1(manifest, "/coronary/acceptedTimeSec"),
-    autoregulationWindowIndex: continuousSlot$1(
+    coronaryAcceptedTimeSec: continuousSlot(manifest, "/coronary/acceptedTimeSec"),
+    autoregulationWindowIndex: continuousSlot(
       manifest,
       "/coronary/coronaryAutoregulation/windowIndex"
     ),
-    autoregulationWindowOriginAcceptedTimeSec: continuousSlot$1(
+    autoregulationWindowOriginAcceptedTimeSec: continuousSlot(
       manifest,
       "/coronary/coronaryAutoregulation/windowOriginAcceptedTimeSec"
     ),
-    autoregulationWindowStartAcceptedTimeSec: continuousSlot$1(
+    autoregulationWindowStartAcceptedTimeSec: continuousSlot(
       manifest,
       "/coronary/coronaryAutoregulation/windowStartAcceptedTimeSec"
     ),
-    autoregulationWindowDurationSec: continuousSlot$1(
+    autoregulationWindowDurationSec: continuousSlot(
       manifest,
       "/coronary/coronaryAutoregulationBinding/windowPolicy/durationSec"
     ),
-    autoregulationBindingOriginAcceptedTimeSec: continuousSlot$1(
+    autoregulationBindingOriginAcceptedTimeSec: continuousSlot(
       manifest,
       "/coronary/coronaryAutoregulationBinding/windowPolicy/originAcceptedTimeSec"
     ),
-    coronaryRevision: continuousSlot$1(manifest, "/coronary/revision"),
-    revision: continuousSlot$1(manifest, "/revision")
+    coronaryRevision: continuousSlot(manifest, "/coronary/revision"),
+    revision: continuousSlot(manifest, "/revision")
   });
   const boundedArray = Object.freeze({
     pendingCalciumDeposits: boundedArraySlot(manifest, "/composedRhythm/pendingCalciumDeposits"),
@@ -41982,11 +42939,11 @@ function createMainWireAcceptedTypedBoundaryBindingV1(manifest) {
     wall,
     Object.freeze({
       state: Object.freeze([
-        continuousSlot$1(
+        continuousSlot(
           manifest,
           `/composedRhythm/calciumStateByWall/${wall}/0`
         ),
-        continuousSlot$1(
+        continuousSlot(
           manifest,
           `/composedRhythm/calciumStateByWall/${wall}/1`
         )
@@ -41994,27 +42951,27 @@ function createMainWireAcceptedTypedBoundaryBindingV1(manifest) {
     })
   ])));
   const nonCoronaryAcceptedNumerical = Object.freeze({
-    revision: continuousSlot$1(manifest, "/coronary/circulation/revision"),
-    acceptedTimeSec: continuousSlot$1(
+    revision: continuousSlot(manifest, "/coronary/circulation/revision"),
+    acceptedTimeSec: continuousSlot(
       manifest,
       "/coronary/circulation/acceptedTimeSec"
     ),
-    totalBloodVolumeMl: continuousSlot$1(
+    totalBloodVolumeMl: continuousSlot(
       manifest,
       "/coronary/circulation/totalBloodVolumeMl"
     ),
-    nodeVolumesMl: Object.freeze(NON_CORONARY_NODE_NAMES_V1.map((name) => continuousSlot$1(
+    nodeVolumesMl: Object.freeze(NON_CORONARY_NODE_NAMES_V1.map((name) => continuousSlot(
       manifest,
       `/coronary/circulation/nodeVolumesMl/${name}`
     ))),
     dynamicEdgeFlowsMlPerSec: Object.freeze(
-      NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((name) => continuousSlot$1(
+      NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((name) => continuousSlot(
         manifest,
         `/coronary/circulation/dynamicEdgeFlowsMlPerSec/${name}`
       ))
     ),
     valveOpeningFractions01: Object.freeze(
-      NON_CORONARY_VALVE_NAMES_V1.map((name) => continuousSlot$1(
+      NON_CORONARY_VALVE_NAMES_V1.map((name) => continuousSlot(
         manifest,
         `/coronary/circulation/valveStates/${name}/leafletOpeningFraction01`
       ))
@@ -42087,12 +43044,12 @@ function createMainWireAcceptedTypedBoundaryBindingV1(manifest) {
   });
 }
 function createMainWireAcceptedTypedNonCoronaryNumericalSourceV1(cursor, binding) {
-  assertCursor$1(cursor, binding);
+  assertCursor(cursor, binding);
   const slots = binding.nonCoronaryAcceptedNumerical;
   return Object.freeze({
     sourceId: NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
     readInto(destination) {
-      assertCursor$1(cursor, binding);
+      assertCursor(cursor, binding);
       const {
         nodeVolumesMl,
         dynamicEdgeFlowsMlPerSec,
@@ -42129,7 +43086,7 @@ function createMainWireAcceptedTypedNonCoronaryNumericalSourceV1(cursor, binding
   });
 }
 function readMainWireAcceptedTypedClockV1(cursor, binding) {
-  assertCursor$1(cursor, binding);
+  assertCursor(cursor, binding);
   const f64 = binding.continuous;
   const acceptedTimeSec = finiteNonnegative(
     cursor.readContinuous(f64.acceptedTimeSec),
@@ -42187,8 +43144,8 @@ function readMainWireAcceptedTypedPresentationStateV1(cursor, binding, configura
   });
 }
 function stageMainWireAcceptedTypedClockCandidateV1(current, candidate, binding, candidateTimeSec) {
-  assertCursor$1(current, binding);
-  assertCandidateCursor$1(candidate, binding);
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
   const previous = readMainWireAcceptedTypedClockV1(current, binding);
   const f64 = binding.continuous;
   const acceptedTimeSec = finiteNonnegative(
@@ -42283,8 +43240,8 @@ function limitMainWireAcceptedTypedCandidateTimeV1(cursor, binding, requestedCan
   });
 }
 function stageMainWireAcceptedTypedCalciumCandidateV1(current, candidate, binding, candidateTimeSec, parametersByWall) {
-  assertCursor$1(current, binding);
-  assertCandidateCursor$1(candidate, binding);
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
   const f64 = binding.continuous;
   const startTimeSec = finiteNonnegative(
     current.readContinuous(f64.composedAcceptedTimeSec),
@@ -42349,8 +43306,8 @@ function stageMainWireAcceptedTypedCalciumCandidateV1(current, candidate, bindin
   });
 }
 function stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(current, candidate, binding, candidateTimeSec, configuration) {
-  assertCursor$1(current, binding);
-  assertCandidateCursor$1(candidate, binding);
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
   const acceptedTimeSec = finiteNonnegative(
     current.readContinuous(binding.continuous.composedAcceptedTimeSec),
     "authored schedule accepted time"
@@ -42386,8 +43343,8 @@ function stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(current, candidat
   }
 }
 function stageMainWireAcceptedTypedRegularAtrialCandidateV1(current, candidate, binding, candidateTimeSec, configuration, capturedPacSinusClockPolicy) {
-  assertCursor$1(current, binding);
-  assertCandidateCursor$1(candidate, binding);
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
   if (configuration.atrialSource.mode !== "regular") {
     if (capturedPacSinusClockPolicy !== null) {
       throw new Error(
@@ -42484,8 +43441,8 @@ function stageMainWireAcceptedTypedRegularAtrialCandidateV1(current, candidate, 
   candidate.writeContinuous(slots.revision, revision + 1);
 }
 function stageMainWireAcceptedTypedResolvedCandidateV1(current, candidate, binding, rhythmCandidate, mechanicalSupportCandidate) {
-  assertCursor$1(current, binding);
-  assertCandidateCursor$1(candidate, binding);
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
   const rhythm = binding.continuous.resolvedRhythm;
   const acceptedTimeSec = finiteNonnegative(
     current.readContinuous(binding.continuous.composedAcceptedTimeSec),
@@ -42557,8 +43514,8 @@ function stageMainWireAcceptedTypedResolvedCandidateV1(current, candidate, bindi
   }
 }
 function stageMainWireAcceptedTypedOrdinaryPostSolverCandidateV1(current, candidate, binding, candidateClock, autoregulation) {
-  assertCursor$1(current, binding);
-  assertCandidateCursor$1(candidate, binding);
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
   const currentClock = readMainWireAcceptedTypedClockV1(current, binding);
   if (candidateClock.acceptedTimeSec <= currentClock.acceptedTimeSec || candidateClock.revision !== currentClock.revision + 1) {
     throw new Error("Main Wire typed ordinary candidate clock diverged");
@@ -42599,7 +43556,7 @@ function stageMainWireAcceptedTypedOrdinaryPostSolverCandidateV1(current, candid
   stageAutoregulationCandidate(candidate, binding, autoregulation);
 }
 function stageMainWireAcceptedTypedContinuousOwnerCandidateV1(candidate, binding, rhythmCandidate, autoregulation) {
-  assertCandidateCursor$1(candidate, binding);
+  assertCandidateCursor(candidate, binding);
   const state = rhythmCandidate.candidateState;
   if (state.acceptedTimeSec !== rhythmCandidate.candidateTimeSec || state.revision !== rhythmCandidate.candidateRevision || state.electricalCaptureState.acceptedTimeSec !== state.acceptedTimeSec || state.ventricularBackupState.acceptedTimeSec !== state.acceptedTimeSec || state.ventricularBackupState.revision !== state.revision) {
     throw new Error("Main Wire typed continuous rhythm owner clocks diverged");
@@ -42858,17 +43815,17 @@ function safeCounterAdd(value, increment, owner) {
 function timeTolerance(left, right) {
   return 64 * Number.EPSILON * Math.max(1, Math.abs(left), Math.abs(right));
 }
-function assertCursor$1(cursor, binding) {
+function assertCursor(cursor, binding) {
   if (cursor.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID || cursor.fingerprint !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT || cursor.layoutId !== binding.layoutId || cursor.fingerprint !== binding.fingerprint) {
     throw new Error("Main Wire typed boundary cursor has the wrong layout");
   }
 }
-function assertCandidateCursor$1(cursor, binding) {
+function assertCandidateCursor(cursor, binding) {
   if (cursor.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID || cursor.fingerprint !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT || cursor.layoutId !== binding.layoutId || cursor.fingerprint !== binding.fingerprint) {
     throw new Error("Main Wire typed candidate cursor has the wrong layout");
   }
 }
-function continuousSlot$1(manifest, pointer2) {
+function continuousSlot(manifest, pointer2) {
   return requiredBindingSlot(
     manifest.numericalLayout.continuousSlots,
     pointer2,
@@ -42877,42 +43834,42 @@ function continuousSlot$1(manifest, pointer2) {
 }
 function authoredScheduleBinding(manifest, rootPointer) {
   return Object.freeze({
-    acceptedEmittedImpulseCount: continuousSlot$1(
+    acceptedEmittedImpulseCount: continuousSlot(
       manifest,
       `${rootPointer}/acceptedEmittedImpulseCount`
     ),
-    acceptedTimeSec: continuousSlot$1(
+    acceptedTimeSec: continuousSlot(
       manifest,
       `${rootPointer}/acceptedTimeSec`
     ),
-    cursor: continuousSlot$1(manifest, `${rootPointer}/cursor`),
-    revision: continuousSlot$1(manifest, `${rootPointer}/revision`)
+    cursor: continuousSlot(manifest, `${rootPointer}/cursor`),
+    revision: continuousSlot(manifest, `${rootPointer}/revision`)
   });
 }
 function regularAtrialBinding(manifest, rootPointer) {
   return Object.freeze({
-    acceptedTimeSec: continuousSlot$1(manifest, `${rootPointer}/acceptedTimeSec`),
-    capturedPacPreserveCount: continuousSlot$1(
+    acceptedTimeSec: continuousSlot(manifest, `${rootPointer}/acceptedTimeSec`),
+    capturedPacPreserveCount: continuousSlot(
       manifest,
       `${rootPointer}/capturedPacPreserveCount`
     ),
-    capturedPacResetCount: continuousSlot$1(
+    capturedPacResetCount: continuousSlot(
       manifest,
       `${rootPointer}/capturedPacResetCount`
     ),
-    emittedSourceImpulseCount: continuousSlot$1(
+    emittedSourceImpulseCount: continuousSlot(
       manifest,
       `${rootPointer}/emittedSourceImpulseCount`
     ),
-    nextActivationTimeSec: continuousSlot$1(
+    nextActivationTimeSec: continuousSlot(
       manifest,
       `${rootPointer}/nextActivationTimeSec`
     ),
-    nextSourceSequence: continuousSlot$1(
+    nextSourceSequence: continuousSlot(
       manifest,
       `${rootPointer}/nextSourceSequence`
     ),
-    revision: continuousSlot$1(manifest, `${rootPointer}/revision`)
+    revision: continuousSlot(manifest, `${rootPointer}/revision`)
   });
 }
 function stageAuthoredScheduleCandidate(current, candidate, slots, events, expectedAcceptedTimeSec, candidateTimeSec, owner, maximumDueEventCount) {
@@ -43012,763 +43969,6 @@ function requiredBindingSlot(slots, pointer2, owner) {
     );
   }
   return matches[0];
-}
-const EXECUTION_PLAN_ACCEPTED_TYPED_STATE_BINDING_V1_SCHEMA_ID = "circleheart-execution-plan-accepted-typed-state-binding-v1";
-const BINDING_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
-function bindExecutionPlanAcceptedTypedStateV1(bound, manifest) {
-  const stateDispatch = resolveBoundExecutionPlanStateDispatchV1(bound);
-  assertManifestV1(manifest);
-  const continuousSlotByPointer = slotIndexByPointerV1(
-    manifest.numericalLayout.continuousSlots,
-    "continuous"
-  );
-  const booleanSlotByPointer = slotIndexByPointerV1(
-    manifest.numericalLayout.booleanSlots,
-    "boolean"
-  );
-  const slots = stateDispatch.slots.map((slot2) => {
-    const expected = slot2.storageKind === "continuous-f64" ? continuousSlotByPointer : booleanSlotByPointer;
-    const conflicting = slot2.storageKind === "continuous-f64" ? booleanSlotByPointer : continuousSlotByPointer;
-    const authoritySlotIndex = expected.get(slot2.authorityPointer);
-    if (authoritySlotIndex === void 0) {
-      if (conflicting.has(slot2.authorityPointer)) {
-        throw new Error(
-          `Execution plan state ${slot2.stateId} authority storage kind drifted`
-        );
-      }
-      throw new Error(
-        `Execution plan state ${slot2.stateId} authority pointer is unavailable`
-      );
-    }
-    return Object.freeze({
-      stateId: slot2.stateId,
-      logicalIndex: slot2.logicalIndex,
-      storageKind: slot2.storageKind,
-      authoritySlotIndex
-    });
-  });
-  const continuousAuthoritySlots = slots.filter(({ storageKind }) => storageKind === "continuous-f64").map(({ authoritySlotIndex }) => authoritySlotIndex);
-  const booleanAuthoritySlots = slots.filter(({ storageKind }) => storageKind === "boolean-u8").map(({ authoritySlotIndex }) => authoritySlotIndex);
-  assertUniqueAuthoritySlotsV1(continuousAuthoritySlots, "continuous");
-  assertUniqueAuthoritySlotsV1(booleanAuthoritySlots, "boolean");
-  const binding = Object.freeze({
-    schemaId: EXECUTION_PLAN_ACCEPTED_TYPED_STATE_BINDING_V1_SCHEMA_ID,
-    definitionId: stateDispatch.definitionId,
-    authorityLayoutId: manifest.layoutId,
-    authorityFingerprint: manifest.fingerprint,
-    logicalSlotCount: stateDispatch.logicalSlotCount,
-    continuousSlotCount: stateDispatch.continuousSlotCount,
-    booleanSlotCount: stateDispatch.booleanSlotCount
-  });
-  BINDING_STORAGE_V1.set(binding, Object.freeze({
-    slots: Object.freeze(slots),
-    slotByStateId: new Map(slots.map((slot2) => [slot2.stateId, slot2]))
-  }));
-  return binding;
-}
-function readExecutionPlanAcceptedTypedStateIntoLogicalV1(binding, cursor, destination) {
-  const storage = requiredStorageV1(binding);
-  assertCursorV1(binding, cursor);
-  if (!(destination instanceof Float64Array) || destination.length !== binding.logicalSlotCount) {
-    throw new RangeError(
-      "Execution plan accepted-state destination has the wrong length"
-    );
-  }
-  for (const slot2 of storage.slots) {
-    destination[slot2.logicalIndex] = slot2.storageKind === "continuous-f64" ? cursor.readContinuous(slot2.authoritySlotIndex) : cursor.readBoolean(slot2.authoritySlotIndex) ? 1 : 0;
-  }
-}
-function listExecutionPlanAcceptedTypedStateSlotsV1(binding) {
-  return requiredStorageV1(binding).slots;
-}
-function requiredStorageV1(binding) {
-  const storage = BINDING_STORAGE_V1.get(binding);
-  if (storage === void 0) {
-    throw new Error(
-      "Execution plan accepted-state operation requires an admitted binding"
-    );
-  }
-  return storage;
-}
-function assertManifestV1(manifest) {
-  if (typeof manifest !== "object" || manifest === null || typeof manifest.layoutId !== "string" || manifest.layoutId.length === 0 || typeof manifest.fingerprint !== "string" || manifest.fingerprint.length === 0) {
-    throw new Error("Execution plan typed-authority manifest is invalid");
-  }
-}
-function assertCursorV1(binding, cursor) {
-  if (cursor.layoutId !== binding.authorityLayoutId || cursor.fingerprint !== binding.authorityFingerprint) {
-    throw new Error("Execution plan typed-authority cursor identity drifted");
-  }
-}
-function slotIndexByPointerV1(slots, label) {
-  const result = /* @__PURE__ */ new Map();
-  slots.forEach(({ pointer: pointer2 }, index) => {
-    if (result.has(pointer2)) {
-      throw new Error(
-        `Execution plan typed-authority ${label} pointer is duplicated`
-      );
-    }
-    result.set(pointer2, index);
-  });
-  return result;
-}
-function assertUniqueAuthoritySlotsV1(slots, label) {
-  if (new Set(slots).size !== slots.length) {
-    throw new Error(
-      `Execution plan ${label} states alias one typed-authority slot`
-    );
-  }
-}
-const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_VIEW_V1_ID = "main-wire-integrated-accepted-typed-hemodynamic-view-v1";
-const LAND_STATE_LENGTH = 6;
-const WALL_STATE_LENGTH = LAND_STATE_LENGTH + 3;
-const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1 = 100;
-const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1 = Object.freeze([
-  "accepted.timeSec",
-  "accepted.revision",
-  "circulation.fixedTotalBloodVolumeMl",
-  ...NON_CORONARY_NODE_NAMES_V1.map((nodeId) => `noncoronary.volume.${nodeId}`),
-  ...NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((edgeId) => `noncoronary.flow.${edgeId}`),
-  ...NON_CORONARY_VALVE_NAMES_V1.map((valveId) => `noncoronary.valve.${valveId}.openingFraction01`),
-  ...CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId) => `coronary.volume.${nodeId}`),
-  ...CORONARY_TERRITORY_IDS_V2.flatMap((territoryId) => CORONARY_LAYER_IDS_V2.map((layerId) => `coronary.tone.${territoryId}.${layerId}`)),
-  ...MAIN_WIRE_FIVE_WALL_IDS_V1.flatMap((wallId) => [
-    ...Array.from({ length: 6 }, (_unused, index) => `mechanics.wall.${wallId}.land.${index}`),
-    `mechanics.wall.${wallId}.sls.viscousLogStrain`,
-    `mechanics.wall.${wallId}.previousFiberLogStrain`,
-    `mechanics.wall.${wallId}.previousFreeCalciumUM`
-  ]),
-  "TriSeg.septalMidwallCapVolume",
-  "TriSeg.junctionRadius",
-  "mechanics.mvc.referenceFiberLogStrain.LVFW",
-  "mechanics.mvc.referenceFiberLogStrain.SEP",
-  "mechanics.mvc.referenceFiberLogStrain.RVFW",
-  "mechanics.mvc.referenceAcceptedTimeSec",
-  "mechanics.mvc.referenceRevision",
-  "mechanics.mvc.mitralForwardFlowActive",
-  "mechanics.mvc.acceptedMitralClosureEventCount"
-]);
-const ACCEPTED_TIME_INDEX = 0;
-const REVISION_INDEX = 1;
-const FIXED_TBV_INDEX = 2;
-const NON_CORONARY_INDEX = 3;
-const DYNAMIC_EDGE_INDEX = NON_CORONARY_INDEX + NON_CORONARY_NODE_NAMES_V1.length;
-const VALVE_INDEX = DYNAMIC_EDGE_INDEX + NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length;
-const CORONARY_INDEX = VALVE_INDEX + NON_CORONARY_VALVE_NAMES_V1.length;
-const CORONARY_TONE_INDEX = CORONARY_INDEX + CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
-const WALL_STATE_INDEX = CORONARY_TONE_INDEX + CORONARY_TERRITORY_IDS_V2.length * CORONARY_LAYER_IDS_V2.length;
-const TRISEG_INDEX = WALL_STATE_INDEX + MAIN_WIRE_FIVE_WALL_IDS_V1.length * WALL_STATE_LENGTH;
-const MVC_INDEX = TRISEG_INDEX + 2;
-const MVC_ACTIVE_INDEX = MVC_INDEX + 5;
-if (NON_CORONARY_NODE_NAMES_V1.length !== 15 || NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length !== 2 || NON_CORONARY_VALVE_NAMES_V1.length !== 4 || CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length !== 16 || CORONARY_TERRITORY_IDS_V2.length !== 3 || CORONARY_LAYER_IDS_V2.length !== 2 || MAIN_WIRE_FIVE_WALL_IDS_V1.length !== 5 || MVC_INDEX + 7 !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
-  throw new Error("Main Wire accepted typed hemodynamic dimensions changed");
-}
-function createLegacyMainWireAcceptedProjectionV1(manifest) {
-  const slots = [];
-  slots.push(
-    continuousSlot(manifest, "/acceptedTimeSec"),
-    continuousSlot(manifest, "/revision"),
-    continuousSlot(manifest, "/coronary/fixedGlobalTotalBloodVolumeMl")
-  );
-  for (const nodeId of NON_CORONARY_NODE_NAMES_V1) {
-    slots.push(continuousSlot(
-      manifest,
-      `/coronary/circulation/nodeVolumesMl/${nodeId}`
-    ));
-  }
-  for (const edgeId of NON_CORONARY_DYNAMIC_EDGE_NAMES_V1) {
-    slots.push(continuousSlot(
-      manifest,
-      `/coronary/circulation/dynamicEdgeFlowsMlPerSec/${edgeId}`
-    ));
-  }
-  for (const valveId of NON_CORONARY_VALVE_NAMES_V1) {
-    slots.push(continuousSlot(
-      manifest,
-      `/coronary/circulation/valveStates/${valveId}/leafletOpeningFraction01`
-    ));
-  }
-  for (const nodeId of CORONARY_CONSERVED_VOLUME_NODE_IDS_V2) {
-    slots.push(continuousSlot(
-      manifest,
-      `/coronary/coronary/volumeMlByNode/${nodeId}`
-    ));
-  }
-  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
-    for (const layerId of CORONARY_LAYER_IDS_V2) {
-      slots.push(continuousSlot(
-        manifest,
-        `/coronary/coronary/toneResistanceScaleByTerritoryLayer/${territoryId}/${layerId}`
-      ));
-    }
-  }
-  for (const wallId of MAIN_WIRE_FIVE_WALL_IDS_V1) {
-    for (let stateIndex = 0; stateIndex < LAND_STATE_LENGTH; stateIndex += 1) {
-      slots.push(continuousSlot(
-        manifest,
-        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/landState/${stateIndex}`
-      ));
-    }
-    slots.push(
-      continuousSlot(
-        manifest,
-        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/slsState/viscousLogStrain`
-      ),
-      continuousSlot(
-        manifest,
-        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/previousFiberLogStrain`
-      ),
-      continuousSlot(
-        manifest,
-        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/previousFreeCalciumUM`
-      )
-    );
-  }
-  slots.push(
-    continuousSlot(
-      manifest,
-      "/coronary/mechanics/materialState/trisegCoordinates/septalMidwallCapVolumeM3"
-    ),
-    continuousSlot(
-      manifest,
-      "/coronary/mechanics/materialState/trisegCoordinates/junctionRadiusM"
-    ),
-    continuousSlot(
-      manifest,
-      "/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/LVFW"
-    ),
-    continuousSlot(
-      manifest,
-      "/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/SEP"
-    ),
-    continuousSlot(
-      manifest,
-      "/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/RVFW"
-    ),
-    continuousSlot(
-      manifest,
-      "/coronary/mvcReferenceState/referenceAcceptedTimeSec"
-    ),
-    continuousSlot(manifest, "/coronary/mvcReferenceState/referenceRevision"),
-    null,
-    continuousSlot(
-      manifest,
-      "/coronary/mvcReferenceState/acceptedMitralClosureEventCount"
-    )
-  );
-  if (slots.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1 || slots[MVC_ACTIVE_INDEX] !== null || slots.some((slot2, index) => index !== MVC_ACTIVE_INDEX && slot2 === null)) {
-    throw new Error("Main Wire accepted typed hemodynamic binding is incomplete");
-  }
-  return Object.freeze({
-    slots,
-    mvcActiveBooleanSlot: booleanSlot(
-      manifest,
-      "/coronary/mvcReferenceState/mitralForwardFlowActive"
-    )
-  });
-}
-function createMainWireAcceptedTypedHemodynamicBindingV1(manifest, executionPlanBinding) {
-  assertManifest(manifest);
-  let slots;
-  let mvcActiveBooleanSlot;
-  if (executionPlanBinding === void 0) {
-    const legacyProjection = createLegacyMainWireAcceptedProjectionV1(manifest);
-    slots = legacyProjection.slots;
-    mvcActiveBooleanSlot = legacyProjection.mvcActiveBooleanSlot;
-  } else {
-    if (executionPlanBinding.authorityLayoutId !== manifest.layoutId || executionPlanBinding.authorityFingerprint !== manifest.fingerprint) {
-      throw new Error(
-        "Main Wire execution-plan authority binding identity drifted"
-      );
-    }
-    const compiled = listExecutionPlanAcceptedTypedStateSlotsV1(
-      executionPlanBinding
-    );
-    if (compiled.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1.length || compiled.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
-      throw new Error("Main Wire execution-plan state count drifted");
-    }
-    const compiledSlots = compiled.map((slot2, index) => {
-      const expectedStateId = MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1[index];
-      const expectedStorageKind = index === MVC_ACTIVE_INDEX ? "boolean-u8" : "continuous-f64";
-      if (slot2.stateId !== expectedStateId || slot2.logicalIndex !== index || slot2.storageKind !== expectedStorageKind) {
-        throw new Error(
-          `Main Wire execution-plan state ${index} identity drifted`
-        );
-      }
-      return slot2.storageKind === "boolean-u8" ? null : slot2.authoritySlotIndex;
-    });
-    const compiledMvc = compiled[MVC_ACTIVE_INDEX];
-    slots = compiledSlots;
-    mvcActiveBooleanSlot = compiledMvc.authoritySlotIndex;
-  }
-  const ownerClocks = Object.freeze([
-    ownerClock(manifest, ""),
-    ownerClock(manifest, "/composedRhythm"),
-    ownerClock(manifest, "/coronary"),
-    ownerClock(manifest, "/coronary/circulation"),
-    ownerClock(manifest, "/coronary/coronary"),
-    ownerClock(manifest, "/coronary/mechanics")
-  ]);
-  const circulationTotalBloodVolumeSlot = continuousSlot(
-    manifest,
-    "/coronary/circulation/totalBloodVolumeMl"
-  );
-  const mechanicsAcceptedVolumeSlots = Object.freeze(Object.fromEntries(
-    ["LA", "LV", "RA", "RV"].map((chamberId) => [
-      chamberId,
-      continuousSlot(
-        manifest,
-        `/coronary/mechanics/acceptedVolumesMl/${chamberId}`
-      )
-    ])
-  ));
-  const mechanicsMaterialFingerprintStringSlot = stringSlot(
-    manifest,
-    "/coronary/mechanics/materialStateFingerprint"
-  );
-  const coupledContinuousSlots = Object.freeze(Array.from(/* @__PURE__ */ new Set([
-    ...slots.filter((slot2) => slot2 !== null),
-    circulationTotalBloodVolumeSlot,
-    ...Object.values(mechanicsAcceptedVolumeSlots),
-    ...ownerClocks.flatMap((clock) => [
-      clock.acceptedTimeSec,
-      clock.revision
-    ])
-  ])));
-  const coronaryToneSlots = new Set(
-    slots.slice(
-      CORONARY_TONE_INDEX,
-      CORONARY_TONE_INDEX + CORONARY_TERRITORY_IDS_V2.length * CORONARY_LAYER_IDS_V2.length
-    ).filter((slot2) => slot2 !== null)
-  );
-  const solverRetainedContinuousSlots = Object.freeze(
-    coupledContinuousSlots.filter((slot2) => !coronaryToneSlots.has(slot2))
-  );
-  return Object.freeze({
-    viewId: MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_VIEW_V1_ID,
-    layoutId: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
-    fingerprint: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
-    canonicalContinuousSlots: Object.freeze(slots),
-    mvcActiveBooleanSlot,
-    circulationTotalBloodVolumeSlot,
-    mechanicsAcceptedVolumeSlots,
-    mechanicsMaterialFingerprintStringSlot,
-    ownerClocks,
-    coupledContinuousSlots,
-    coupledBooleanSlots: Object.freeze([mvcActiveBooleanSlot]),
-    solverRetainedContinuousSlots,
-    solverRetainedBooleanSlots: Object.freeze([mvcActiveBooleanSlot])
-  });
-}
-function createMainWireAcceptedTypedHemodynamicDestinationV1() {
-  return new Float64Array(MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1);
-}
-function readMainWireAcceptedTypedHemodynamicIntoV1(cursor, binding, destination) {
-  assertCursor(cursor, binding);
-  if (!(destination instanceof Float64Array) || destination.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
-    throw new RangeError(
-      "Main Wire accepted typed hemodynamic destination must contain 100 f64s"
-    );
-  }
-  for (let index = 0; index < destination.length; index += 1) {
-    const slot2 = binding.canonicalContinuousSlots[index];
-    destination[index] = slot2 === null ? cursor.readBoolean(binding.mvcActiveBooleanSlot) ? 1 : 0 : cursor.readContinuous(slot2);
-  }
-  assertOwnerClocks(cursor, binding, destination);
-  assertCanonicalView(destination);
-}
-function materializeMainWireAcceptedTypedCoupledSolverAdapterV1(cursor, binding, template, scratch) {
-  validateMainWireFiveWallCoronaryAcceptedStateV2(template);
-  readMainWireAcceptedTypedHemodynamicIntoV1(
-    cursor,
-    binding,
-    scratch
-  );
-  if (!Object.is(
-    scratch[FIXED_TBV_INDEX],
-    template.fixedGlobalTotalBloodVolumeMl
-  )) {
-    throw new Error(
-      "Main Wire typed solver adapter changed its fixed TBV identity"
-    );
-  }
-  const acceptedTimeSec = scratch[ACCEPTED_TIME_INDEX];
-  const revision = scratch[REVISION_INDEX];
-  const nodeVolumesMl = Object.freeze(Object.fromEntries(
-    NON_CORONARY_NODE_NAMES_V1.map((nodeId, index) => [
-      nodeId,
-      scratch[NON_CORONARY_INDEX + index]
-    ])
-  ));
-  const dynamicEdgeFlowsMlPerSec = Object.freeze(Object.fromEntries(
-    NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((edgeId, index) => [
-      edgeId,
-      scratch[DYNAMIC_EDGE_INDEX + index]
-    ])
-  ));
-  const valveStates = Object.freeze(Object.fromEntries(
-    NON_CORONARY_VALVE_NAMES_V1.map((valveId, index) => [
-      valveId,
-      Object.freeze({
-        leafletOpeningFraction01: scratch[VALVE_INDEX + index]
-      })
-    ])
-  ));
-  const nonCoronaryTotalBloodVolumeMl = cursor.readContinuous(
-    binding.circulationTotalBloodVolumeSlot
-  );
-  const circulation = Object.freeze({
-    transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,
-    revision,
-    acceptedTimeSec,
-    totalBloodVolumeMl: nonCoronaryTotalBloodVolumeMl,
-    nodeVolumesMl,
-    dynamicEdgeFlowsMlPerSec,
-    valveStates
-  });
-  const volumeMlByNode = Object.freeze(Object.fromEntries(
-    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
-      nodeId,
-      scratch[CORONARY_INDEX + index]
-    ])
-  ));
-  const coronary = Object.freeze({
-    acceptedTimeSec,
-    revision,
-    volumeMlByNode,
-    toneResistanceScaleByTerritoryLayer: readCoronaryToneFromCanonicalView(scratch)
-  });
-  const acceptedVolumesMl = Object.freeze({
-    LA: nodeVolumesMl.LA,
-    LV: nodeVolumesMl.LV,
-    RA: nodeVolumesMl.RA,
-    RV: nodeVolumesMl.RV
-  });
-  const materialState = readMechanicsStateFromCanonicalView(scratch);
-  const mechanics = Object.freeze({
-    contractId: template.mechanics.contractId,
-    providerId: template.mechanics.providerId,
-    parameterSetId: template.mechanics.parameterSetId,
-    parameterIdentityHash: template.mechanics.parameterIdentityHash,
-    stateSchemaVersion: template.mechanics.stateSchemaVersion,
-    revision,
-    acceptedTimeSec,
-    acceptedVolumesMl,
-    materialState,
-    materialStateFingerprint: cursor.readString(
-      binding.mechanicsMaterialFingerprintStringSlot
-    )
-  });
-  const accepted = Object.freeze({
-    transactionId: MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID,
-    revision,
-    acceptedTimeSec,
-    fixedGlobalTotalBloodVolumeMl: scratch[FIXED_TBV_INDEX],
-    coronaryBinding: template.coronaryBinding,
-    circulation,
-    coronary,
-    mechanics,
-    mvcReferenceState: readMvcReferenceFromCanonicalView(scratch)
-  });
-  validateMainWireFiveWallCoronaryAcceptedStateV2(accepted);
-  return accepted;
-}
-function stageMainWireAcceptedTypedCoupledCandidateV1(candidateCursor, binding, candidate, scratch) {
-  assertCandidateCursor(candidateCursor, binding);
-  if (!(scratch instanceof Float64Array) || scratch.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
-    throw new RangeError(
-      "Main Wire accepted typed coupled scratch must contain 100 f64s"
-    );
-  }
-  writeCandidateIntoCanonicalView(candidate, scratch);
-  assertCanonicalView(scratch);
-  for (let index = 0; index < scratch.length; index += 1) {
-    const slot2 = binding.canonicalContinuousSlots[index];
-    if (slot2 === null) {
-      candidateCursor.writeBoolean(
-        binding.mvcActiveBooleanSlot,
-        scratch[index] === 1
-      );
-    } else {
-      candidateCursor.writeContinuous(slot2, scratch[index]);
-    }
-  }
-  for (const clock of binding.ownerClocks) {
-    candidateCursor.writeContinuous(
-      clock.acceptedTimeSec,
-      candidate.candidateTimeSec
-    );
-    candidateCursor.writeContinuous(clock.revision, candidate.candidateRevision);
-  }
-  writeRedundantAcceptedVolumes(
-    candidateCursor,
-    binding,
-    candidate.nonCoronaryNodeVolumesMl.reduce(
-      (sum, volumeMl) => sum + volumeMl,
-      0
-    ),
-    candidate.mechanicsCandidateVolumesMl
-  );
-  candidateCursor.writeStringSameByteLength(
-    binding.mechanicsMaterialFingerprintStringSlot,
-    candidate.mechanicsMaterialStateFingerprint
-  );
-}
-function writeRedundantAcceptedVolumes(candidateCursor, binding, totalBloodVolumeMl, mechanicsVolumes) {
-  if (!Number.isFinite(totalBloodVolumeMl) || !(totalBloodVolumeMl > 0)) {
-    throw new Error("Main Wire typed circulation TBV is invalid");
-  }
-  candidateCursor.writeContinuous(
-    binding.circulationTotalBloodVolumeSlot,
-    totalBloodVolumeMl
-  );
-  for (const chamberId of ["LA", "LV", "RA", "RV"]) {
-    const value = mechanicsVolumes[chamberId];
-    if (!Number.isFinite(value) || !(value > 0)) {
-      throw new Error(
-        `Main Wire typed ${chamberId} mechanics accepted volume is invalid`
-      );
-    }
-    candidateCursor.writeContinuous(
-      binding.mechanicsAcceptedVolumeSlots[chamberId],
-      value
-    );
-  }
-}
-function writeCandidateIntoCanonicalView(candidate, destination) {
-  destination[ACCEPTED_TIME_INDEX] = candidate.candidateTimeSec;
-  destination[REVISION_INDEX] = candidate.candidateRevision;
-  destination[FIXED_TBV_INDEX] = candidate.fixedGlobalTotalBloodVolumeMl;
-  destination.set(candidate.nonCoronaryNodeVolumesMl, NON_CORONARY_INDEX);
-  destination.set(candidate.dynamicEdgeFlowsMlPerSec, DYNAMIC_EDGE_INDEX);
-  if (candidate.valveStates.length !== NON_CORONARY_VALVE_NAMES_V1.length) {
-    throw new Error("Main Wire typed coupled valve-state dimension changed");
-  }
-  for (let index = 0; index < candidate.valveStates.length; index += 1) {
-    destination[VALVE_INDEX + index] = candidate.valveStates[index].leafletOpeningFraction01;
-  }
-  for (let index = 0; index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length; index += 1) {
-    destination[CORONARY_INDEX + index] = candidate.coronaryVolumesMl[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]];
-  }
-  let toneIndex = CORONARY_TONE_INDEX;
-  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
-    for (const layerId of CORONARY_LAYER_IDS_V2) {
-      destination[toneIndex++] = candidate.coronaryToneResistanceScaleByTerritoryLayer[territoryId][layerId];
-    }
-  }
-  writeMaterialAndMvcIntoCanonicalView(
-    candidate.mechanicsMaterialState,
-    candidate.mvcReferenceState,
-    destination
-  );
-  assertMechanicsVolumesMatch(
-    candidate.mechanicsCandidateVolumesMl,
-    Object.fromEntries(NON_CORONARY_NODE_NAMES_V1.map((nodeId, index) => [
-      nodeId,
-      candidate.nonCoronaryNodeVolumesMl[index]
-    ]))
-  );
-}
-function readCoronaryToneFromCanonicalView(source) {
-  let index = CORONARY_TONE_INDEX;
-  return Object.freeze(Object.fromEntries(
-    CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
-      territoryId,
-      Object.freeze(Object.fromEntries(
-        CORONARY_LAYER_IDS_V2.map((layerId) => [
-          layerId,
-          source[index++]
-        ])
-      ))
-    ])
-  ));
-}
-function readMechanicsStateFromCanonicalView(source) {
-  let index = WALL_STATE_INDEX;
-  const wallStateByWall = Object.freeze(Object.fromEntries(
-    MAIN_WIRE_FIVE_WALL_IDS_V1.map((wallId) => {
-      const landState = source.slice(index, index + LAND_STATE_LENGTH);
-      index += LAND_STATE_LENGTH;
-      const wall = Object.freeze({
-        landState,
-        slsState: Object.freeze({
-          viscousLogStrain: source[index++]
-        }),
-        previousFiberLogStrain: source[index++],
-        previousFreeCalciumUM: source[index++]
-      });
-      return [wallId, wall];
-    })
-  ));
-  return Object.freeze({
-    wallStateByWall,
-    trisegCoordinates: Object.freeze({
-      septalMidwallCapVolumeM3: source[TRISEG_INDEX],
-      junctionRadiusM: source[TRISEG_INDEX + 1]
-    })
-  });
-}
-function readMvcReferenceFromCanonicalView(source) {
-  return Object.freeze({
-    reference: Object.freeze({
-      referenceFiberLogStrainByWall: Object.freeze({
-        LVFW: source[MVC_INDEX],
-        SEP: source[MVC_INDEX + 1],
-        RVFW: source[MVC_INDEX + 2]
-      })
-    }),
-    referenceAcceptedTimeSec: source[MVC_INDEX + 3],
-    referenceRevision: source[MVC_INDEX + 4],
-    mitralForwardFlowActive: source[MVC_ACTIVE_INDEX] === 1,
-    acceptedMitralClosureEventCount: source[MVC_INDEX + 6]
-  });
-}
-function writeMaterialAndMvcIntoCanonicalView(materialState, mvc, destination) {
-  let wallIndex = WALL_STATE_INDEX;
-  for (const wallId of MAIN_WIRE_FIVE_WALL_IDS_V1) {
-    const wall = materialState.wallStateByWall[wallId];
-    if (wall.landState.length !== LAND_STATE_LENGTH) {
-      throw new Error(`Main Wire typed ${wallId} Land-state dimension changed`);
-    }
-    destination.set(wall.landState, wallIndex);
-    wallIndex += LAND_STATE_LENGTH;
-    destination[wallIndex++] = wall.slsState.viscousLogStrain;
-    destination[wallIndex++] = wall.previousFiberLogStrain;
-    destination[wallIndex++] = wall.previousFreeCalciumUM;
-  }
-  destination[TRISEG_INDEX] = materialState.trisegCoordinates.septalMidwallCapVolumeM3;
-  destination[TRISEG_INDEX + 1] = materialState.trisegCoordinates.junctionRadiusM;
-  destination[MVC_INDEX] = mvc.reference.referenceFiberLogStrainByWall.LVFW;
-  destination[MVC_INDEX + 1] = mvc.reference.referenceFiberLogStrainByWall.SEP;
-  destination[MVC_INDEX + 2] = mvc.reference.referenceFiberLogStrainByWall.RVFW;
-  destination[MVC_INDEX + 3] = mvc.referenceAcceptedTimeSec;
-  destination[MVC_INDEX + 4] = mvc.referenceRevision;
-  destination[MVC_ACTIVE_INDEX] = mvc.mitralForwardFlowActive ? 1 : 0;
-  destination[MVC_INDEX + 6] = mvc.acceptedMitralClosureEventCount;
-}
-function assertMechanicsVolumesMatch(mechanicsVolumes, nodeVolumes) {
-  for (const chamberId of ["LA", "LV", "RA", "RV"]) {
-    if (!Object.is(mechanicsVolumes[chamberId], nodeVolumes[chamberId])) {
-      throw new Error(
-        `Main Wire typed coupled ${chamberId} mechanics volume diverged`
-      );
-    }
-  }
-}
-function assertManifest(manifest) {
-  if (manifest.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID || manifest.fingerprint !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT) {
-    throw new Error(
-      "Main Wire accepted typed hemodynamic manifest identity is unsupported"
-    );
-  }
-}
-function assertCursor(cursor, binding) {
-  if (cursor.layoutId !== binding.layoutId || cursor.fingerprint !== binding.fingerprint) {
-    throw new Error("Main Wire accepted typed hemodynamic cursor is unsupported");
-  }
-}
-function assertCandidateCursor(cursor, binding) {
-  if (cursor.layoutId !== binding.layoutId || cursor.fingerprint !== binding.fingerprint) {
-    throw new Error(
-      "Main Wire accepted typed hemodynamic candidate cursor is unsupported"
-    );
-  }
-}
-function ownerClock(manifest, pointer2) {
-  return Object.freeze({
-    acceptedTimeSec: continuousSlot(manifest, `${pointer2}/acceptedTimeSec`),
-    revision: continuousSlot(manifest, `${pointer2}/revision`)
-  });
-}
-function assertOwnerClocks(cursor, binding, destination) {
-  const acceptedTimeSec = destination[ACCEPTED_TIME_INDEX];
-  const revision = destination[REVISION_INDEX];
-  for (const clock of binding.ownerClocks) {
-    if (!Object.is(cursor.readContinuous(clock.acceptedTimeSec), acceptedTimeSec) || !Object.is(cursor.readContinuous(clock.revision), revision)) {
-      throw new Error("Main Wire accepted typed hemodynamic owner clocks diverged");
-    }
-  }
-}
-function assertCanonicalView(view) {
-  for (let index = 0; index < view.length; index += 1) {
-    if (!Number.isFinite(view[index])) {
-      throw new Error(
-        `Main Wire accepted typed hemodynamic slot ${index} is not finite`
-      );
-    }
-  }
-  if (!(view[ACCEPTED_TIME_INDEX] >= 0)) {
-    throw new Error("Main Wire accepted typed hemodynamic time is negative");
-  }
-  if (!Number.isSafeInteger(view[REVISION_INDEX]) || view[REVISION_INDEX] < 0) {
-    throw new Error("Main Wire accepted typed hemodynamic revision is invalid");
-  }
-  if (!(view[FIXED_TBV_INDEX] > 0)) {
-    throw new Error("Main Wire accepted typed hemodynamic TBV is invalid");
-  }
-  let bloodVolumeMl = 0;
-  for (let index = NON_CORONARY_INDEX; index < DYNAMIC_EDGE_INDEX; index += 1) {
-    if (!(view[index] > 0)) {
-      throw new Error("Main Wire accepted typed non-coronary volume is invalid");
-    }
-    bloodVolumeMl += view[index];
-  }
-  for (let index = VALVE_INDEX; index < CORONARY_INDEX; index += 1) {
-    if (view[index] < 0 || view[index] > 1) {
-      throw new Error("Main Wire accepted typed valve opening is invalid");
-    }
-  }
-  for (let index = CORONARY_INDEX; index < CORONARY_TONE_INDEX; index += 1) {
-    if (!(view[index] > 0)) {
-      throw new Error("Main Wire accepted typed coronary volume is invalid");
-    }
-    bloodVolumeMl += view[index];
-  }
-  for (let index = CORONARY_TONE_INDEX; index < WALL_STATE_INDEX; index += 1) {
-    if (!(view[index] > 0)) {
-      throw new Error("Main Wire accepted typed coronary tone is invalid");
-    }
-  }
-  const tbvTolerance = 64 * Number.EPSILON * Math.max(1, Math.abs(bloodVolumeMl), Math.abs(view[FIXED_TBV_INDEX]));
-  if (Math.abs(bloodVolumeMl - view[FIXED_TBV_INDEX]) > tbvTolerance) {
-    throw new Error("Main Wire accepted typed hemodynamic TBV ledger diverged");
-  }
-  for (let wall = 0; wall < MAIN_WIRE_FIVE_WALL_IDS_V1.length; wall += 1) {
-    const previousCalciumIndex = WALL_STATE_INDEX + wall * WALL_STATE_LENGTH + LAND_STATE_LENGTH + 2;
-    if (view[previousCalciumIndex] < 0) {
-      throw new Error("Main Wire accepted typed previous calcium is invalid");
-    }
-  }
-  if (view[MVC_INDEX + 3] < 0 || view[MVC_INDEX + 3] > view[ACCEPTED_TIME_INDEX] || !Number.isSafeInteger(view[MVC_INDEX + 4]) || view[MVC_INDEX + 4] < 0 || view[MVC_INDEX + 4] > view[REVISION_INDEX] || view[MVC_ACTIVE_INDEX] !== 0 && view[MVC_ACTIVE_INDEX] !== 1 || !Number.isSafeInteger(view[MVC_INDEX + 6]) || view[MVC_INDEX + 6] < 0) {
-    throw new Error("Main Wire accepted typed MVC reference is invalid");
-  }
-}
-function continuousSlot(manifest, pointer2) {
-  return requiredSlot(manifest.numericalLayout.continuousSlots, pointer2);
-}
-function booleanSlot(manifest, pointer2) {
-  return requiredSlot(manifest.numericalLayout.booleanSlots, pointer2);
-}
-function stringSlot(manifest, pointer2) {
-  return requiredSlot(manifest.numericalLayout.stringSlots, pointer2);
-}
-function requiredSlot(slots, pointer2) {
-  let found = -1;
-  for (let index = 0; index < slots.length; index += 1) {
-    if (slots[index]?.pointer !== pointer2) continue;
-    if (found !== -1) {
-      throw new Error(
-        `Main Wire accepted typed hemodynamic slot ${pointer2} is duplicated`
-      );
-    }
-    found = index;
-  }
-  if (found === -1) {
-    throw new Error(
-      `Main Wire accepted typed hemodynamic slot ${pointer2} is unavailable`
-    );
-  }
-  return found;
 }
 function solveMainWireFiveWallCoupledCandidateV1(provider, previous, input, workspace = createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(), options = Object.freeze({})) {
   assertBaseDeviceOff(input);
@@ -47463,13 +47663,13 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-49";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-52";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";
 const policyId = "main-wire-static-condensed-be-policy-v1";
 const stateLayout = /* @__PURE__ */ JSON.parse('{"logicalSlotCount":100,"continuousSlotCount":99,"booleanSlotCount":1,"blocks":[{"componentId":"accepted-transaction","kernelId":"accepted-transaction-kernel-v1","logicalStart":0,"logicalLength":3},{"componentId":"noncoronary-circulation","kernelId":"noncoronary-backward-euler-kernel-v1","logicalStart":3,"logicalLength":21},{"componentId":"coronary-circulation","kernelId":"coronary-backward-euler-kernel-v2","logicalStart":24,"logicalLength":22},{"componentId":"five-wall-mechanics","kernelId":"five-wall-land-triseg-kernel-v1","logicalStart":46,"logicalLength":54}],"slots":[{"stateId":"accepted.timeSec","componentId":"accepted-transaction","authorityPointer":"/acceptedTimeSec","logicalIndex":0,"storageKind":"continuous-f64","storageIndex":0,"unit":"s"},{"stateId":"accepted.revision","componentId":"accepted-transaction","authorityPointer":"/revision","logicalIndex":1,"storageKind":"continuous-f64","storageIndex":1,"unit":"1"},{"stateId":"circulation.fixedTotalBloodVolumeMl","componentId":"accepted-transaction","authorityPointer":"/coronary/fixedGlobalTotalBloodVolumeMl","logicalIndex":2,"storageKind":"continuous-f64","storageIndex":2,"unit":"mL"},{"stateId":"noncoronary.volume.LV","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/LV","logicalIndex":3,"storageKind":"continuous-f64","storageIndex":3,"unit":"mL"},{"stateId":"noncoronary.volume.LA","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/LA","logicalIndex":4,"storageKind":"continuous-f64","storageIndex":4,"unit":"mL"},{"stateId":"noncoronary.volume.RV","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/RV","logicalIndex":5,"storageKind":"continuous-f64","storageIndex":5,"unit":"mL"},{"stateId":"noncoronary.volume.RA","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/RA","logicalIndex":6,"storageKind":"continuous-f64","storageIndex":6,"unit":"mL"},{"stateId":"noncoronary.volume.Ao","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/Ao","logicalIndex":7,"storageKind":"continuous-f64","storageIndex":7,"unit":"mL"},{"stateId":"noncoronary.volume.SA","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/SA","logicalIndex":8,"storageKind":"continuous-f64","storageIndex":8,"unit":"mL"},{"stateId":"noncoronary.volume.Art","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/Art","logicalIndex":9,"storageKind":"continuous-f64","storageIndex":9,"unit":"mL"},{"stateId":"noncoronary.volume.Cap","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/Cap","logicalIndex":10,"storageKind":"continuous-f64","storageIndex":10,"unit":"mL"},{"stateId":"noncoronary.volume.SV","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/SV","logicalIndex":11,"storageKind":"continuous-f64","storageIndex":11,"unit":"mL"},{"stateId":"noncoronary.volume.VC","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/VC","logicalIndex":12,"storageKind":"continuous-f64","storageIndex":12,"unit":"mL"},{"stateId":"noncoronary.volume.PA","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/PA","logicalIndex":13,"storageKind":"continuous-f64","storageIndex":13,"unit":"mL"},{"stateId":"noncoronary.volume.PArt","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/PArt","logicalIndex":14,"storageKind":"continuous-f64","storageIndex":14,"unit":"mL"},{"stateId":"noncoronary.volume.PCap","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/PCap","logicalIndex":15,"storageKind":"continuous-f64","storageIndex":15,"unit":"mL"},{"stateId":"noncoronary.volume.PVen","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/PVen","logicalIndex":16,"storageKind":"continuous-f64","storageIndex":16,"unit":"mL"},{"stateId":"noncoronary.volume.PVein","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/PVein","logicalIndex":17,"storageKind":"continuous-f64","storageIndex":17,"unit":"mL"},{"stateId":"noncoronary.flow.Ao_SA","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/dynamicEdgeFlowsMlPerSec/Ao_SA","logicalIndex":18,"storageKind":"continuous-f64","storageIndex":18,"unit":"mL/s"},{"stateId":"noncoronary.flow.PA_PArt","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/dynamicEdgeFlowsMlPerSec/PA_PArt","logicalIndex":19,"storageKind":"continuous-f64","storageIndex":19,"unit":"mL/s"},{"stateId":"noncoronary.valve.MV.openingFraction01","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/valveStates/MV/leafletOpeningFraction01","logicalIndex":20,"storageKind":"continuous-f64","storageIndex":20,"unit":"1"},{"stateId":"noncoronary.valve.AoV.openingFraction01","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/valveStates/AoV/leafletOpeningFraction01","logicalIndex":21,"storageKind":"continuous-f64","storageIndex":21,"unit":"1"},{"stateId":"noncoronary.valve.TV.openingFraction01","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/valveStates/TV/leafletOpeningFraction01","logicalIndex":22,"storageKind":"continuous-f64","storageIndex":22,"unit":"1"},{"stateId":"noncoronary.valve.PV.openingFraction01","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/valveStates/PV/leafletOpeningFraction01","logicalIndex":23,"storageKind":"continuous-f64","storageIndex":23,"unit":"1"},{"stateId":"coronary.volume.LAD.Art","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LAD.Art","logicalIndex":24,"storageKind":"continuous-f64","storageIndex":24,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Art.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LAD.IM.Art.subepicardial","logicalIndex":25,"storageKind":"continuous-f64","storageIndex":25,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Ven.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LAD.IM.Ven.subepicardial","logicalIndex":26,"storageKind":"continuous-f64","storageIndex":26,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Art.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LAD.IM.Art.subendocardial","logicalIndex":27,"storageKind":"continuous-f64","storageIndex":27,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Ven.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LAD.IM.Ven.subendocardial","logicalIndex":28,"storageKind":"continuous-f64","storageIndex":28,"unit":"mL"},{"stateId":"coronary.volume.LCx.Art","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LCx.Art","logicalIndex":29,"storageKind":"continuous-f64","storageIndex":29,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Art.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LCx.IM.Art.subepicardial","logicalIndex":30,"storageKind":"continuous-f64","storageIndex":30,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Ven.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LCx.IM.Ven.subepicardial","logicalIndex":31,"storageKind":"continuous-f64","storageIndex":31,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Art.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LCx.IM.Art.subendocardial","logicalIndex":32,"storageKind":"continuous-f64","storageIndex":32,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Ven.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LCx.IM.Ven.subendocardial","logicalIndex":33,"storageKind":"continuous-f64","storageIndex":33,"unit":"mL"},{"stateId":"coronary.volume.RCA.Art","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/RCA.Art","logicalIndex":34,"storageKind":"continuous-f64","storageIndex":34,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Art.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/RCA.IM.Art.subepicardial","logicalIndex":35,"storageKind":"continuous-f64","storageIndex":35,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Ven.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/RCA.IM.Ven.subepicardial","logicalIndex":36,"storageKind":"continuous-f64","storageIndex":36,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Art.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/RCA.IM.Art.subendocardial","logicalIndex":37,"storageKind":"continuous-f64","storageIndex":37,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Ven.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/RCA.IM.Ven.subendocardial","logicalIndex":38,"storageKind":"continuous-f64","storageIndex":38,"unit":"mL"},{"stateId":"coronary.volume.CV","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/CV","logicalIndex":39,"storageKind":"continuous-f64","storageIndex":39,"unit":"mL"},{"stateId":"coronary.tone.LAD.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/LAD/subepicardial","logicalIndex":40,"storageKind":"continuous-f64","storageIndex":40,"unit":"1"},{"stateId":"coronary.tone.LAD.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/LAD/subendocardial","logicalIndex":41,"storageKind":"continuous-f64","storageIndex":41,"unit":"1"},{"stateId":"coronary.tone.LCx.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/LCx/subepicardial","logicalIndex":42,"storageKind":"continuous-f64","storageIndex":42,"unit":"1"},{"stateId":"coronary.tone.LCx.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/LCx/subendocardial","logicalIndex":43,"storageKind":"continuous-f64","storageIndex":43,"unit":"1"},{"stateId":"coronary.tone.RCA.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/RCA/subepicardial","logicalIndex":44,"storageKind":"continuous-f64","storageIndex":44,"unit":"1"},{"stateId":"coronary.tone.RCA.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/RCA/subendocardial","logicalIndex":45,"storageKind":"continuous-f64","storageIndex":45,"unit":"1"},{"stateId":"mechanics.wall.LA.land.0","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/0","logicalIndex":46,"storageKind":"continuous-f64","storageIndex":46,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.1","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/1","logicalIndex":47,"storageKind":"continuous-f64","storageIndex":47,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.2","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/2","logicalIndex":48,"storageKind":"continuous-f64","storageIndex":48,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.3","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/3","logicalIndex":49,"storageKind":"continuous-f64","storageIndex":49,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.4","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/4","logicalIndex":50,"storageKind":"continuous-f64","storageIndex":50,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.5","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/5","logicalIndex":51,"storageKind":"continuous-f64","storageIndex":51,"unit":"model-state"},{"stateId":"mechanics.wall.LA.sls.viscousLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/slsState/viscousLogStrain","logicalIndex":52,"storageKind":"continuous-f64","storageIndex":52,"unit":"1"},{"stateId":"mechanics.wall.LA.previousFiberLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/previousFiberLogStrain","logicalIndex":53,"storageKind":"continuous-f64","storageIndex":53,"unit":"1"},{"stateId":"mechanics.wall.LA.previousFreeCalciumUM","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/previousFreeCalciumUM","logicalIndex":54,"storageKind":"continuous-f64","storageIndex":54,"unit":"uM"},{"stateId":"mechanics.wall.LVFW.land.0","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/0","logicalIndex":55,"storageKind":"continuous-f64","storageIndex":55,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.1","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/1","logicalIndex":56,"storageKind":"continuous-f64","storageIndex":56,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.2","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/2","logicalIndex":57,"storageKind":"continuous-f64","storageIndex":57,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.3","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/3","logicalIndex":58,"storageKind":"continuous-f64","storageIndex":58,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.4","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/4","logicalIndex":59,"storageKind":"continuous-f64","storageIndex":59,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.5","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/5","logicalIndex":60,"storageKind":"continuous-f64","storageIndex":60,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.sls.viscousLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/slsState/viscousLogStrain","logicalIndex":61,"storageKind":"continuous-f64","storageIndex":61,"unit":"1"},{"stateId":"mechanics.wall.LVFW.previousFiberLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/previousFiberLogStrain","logicalIndex":62,"storageKind":"continuous-f64","storageIndex":62,"unit":"1"},{"stateId":"mechanics.wall.LVFW.previousFreeCalciumUM","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/previousFreeCalciumUM","logicalIndex":63,"storageKind":"continuous-f64","storageIndex":63,"unit":"uM"},{"stateId":"mechanics.wall.SEP.land.0","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/0","logicalIndex":64,"storageKind":"continuous-f64","storageIndex":64,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.1","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/1","logicalIndex":65,"storageKind":"continuous-f64","storageIndex":65,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.2","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/2","logicalIndex":66,"storageKind":"continuous-f64","storageIndex":66,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.3","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/3","logicalIndex":67,"storageKind":"continuous-f64","storageIndex":67,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.4","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/4","logicalIndex":68,"storageKind":"continuous-f64","storageIndex":68,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.5","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/5","logicalIndex":69,"storageKind":"continuous-f64","storageIndex":69,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.sls.viscousLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/slsState/viscousLogStrain","logicalIndex":70,"storageKind":"continuous-f64","storageIndex":70,"unit":"1"},{"stateId":"mechanics.wall.SEP.previousFiberLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/previousFiberLogStrain","logicalIndex":71,"storageKind":"continuous-f64","storageIndex":71,"unit":"1"},{"stateId":"mechanics.wall.SEP.previousFreeCalciumUM","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/previousFreeCalciumUM","logicalIndex":72,"storageKind":"continuous-f64","storageIndex":72,"unit":"uM"},{"stateId":"mechanics.wall.RVFW.land.0","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/0","logicalIndex":73,"storageKind":"continuous-f64","storageIndex":73,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.1","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/1","logicalIndex":74,"storageKind":"continuous-f64","storageIndex":74,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.2","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/2","logicalIndex":75,"storageKind":"continuous-f64","storageIndex":75,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.3","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/3","logicalIndex":76,"storageKind":"continuous-f64","storageIndex":76,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.4","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/4","logicalIndex":77,"storageKind":"continuous-f64","storageIndex":77,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.5","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/5","logicalIndex":78,"storageKind":"continuous-f64","storageIndex":78,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.sls.viscousLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/slsState/viscousLogStrain","logicalIndex":79,"storageKind":"continuous-f64","storageIndex":79,"unit":"1"},{"stateId":"mechanics.wall.RVFW.previousFiberLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/previousFiberLogStrain","logicalIndex":80,"storageKind":"continuous-f64","storageIndex":80,"unit":"1"},{"stateId":"mechanics.wall.RVFW.previousFreeCalciumUM","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/previousFreeCalciumUM","logicalIndex":81,"storageKind":"continuous-f64","storageIndex":81,"unit":"uM"},{"stateId":"mechanics.wall.RA.land.0","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/0","logicalIndex":82,"storageKind":"continuous-f64","storageIndex":82,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.1","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/1","logicalIndex":83,"storageKind":"continuous-f64","storageIndex":83,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.2","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/2","logicalIndex":84,"storageKind":"continuous-f64","storageIndex":84,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.3","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/3","logicalIndex":85,"storageKind":"continuous-f64","storageIndex":85,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.4","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/4","logicalIndex":86,"storageKind":"continuous-f64","storageIndex":86,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.5","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/5","logicalIndex":87,"storageKind":"continuous-f64","storageIndex":87,"unit":"model-state"},{"stateId":"mechanics.wall.RA.sls.viscousLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/slsState/viscousLogStrain","logicalIndex":88,"storageKind":"continuous-f64","storageIndex":88,"unit":"1"},{"stateId":"mechanics.wall.RA.previousFiberLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/previousFiberLogStrain","logicalIndex":89,"storageKind":"continuous-f64","storageIndex":89,"unit":"1"},{"stateId":"mechanics.wall.RA.previousFreeCalciumUM","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/previousFreeCalciumUM","logicalIndex":90,"storageKind":"continuous-f64","storageIndex":90,"unit":"uM"},{"stateId":"TriSeg.septalMidwallCapVolume","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/trisegCoordinates/septalMidwallCapVolumeM3","logicalIndex":91,"storageKind":"continuous-f64","storageIndex":91,"unit":"m3"},{"stateId":"TriSeg.junctionRadius","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/trisegCoordinates/junctionRadiusM","logicalIndex":92,"storageKind":"continuous-f64","storageIndex":92,"unit":"m"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.LVFW","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/LVFW","logicalIndex":93,"storageKind":"continuous-f64","storageIndex":93,"unit":"1"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.SEP","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/SEP","logicalIndex":94,"storageKind":"continuous-f64","storageIndex":94,"unit":"1"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.RVFW","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/RVFW","logicalIndex":95,"storageKind":"continuous-f64","storageIndex":95,"unit":"1"},{"stateId":"mechanics.mvc.referenceAcceptedTimeSec","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/referenceAcceptedTimeSec","logicalIndex":96,"storageKind":"continuous-f64","storageIndex":96,"unit":"s"},{"stateId":"mechanics.mvc.referenceRevision","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/referenceRevision","logicalIndex":97,"storageKind":"continuous-f64","storageIndex":97,"unit":"1"},{"stateId":"mechanics.mvc.mitralForwardFlowActive","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/mitralForwardFlowActive","logicalIndex":98,"storageKind":"boolean-u8","storageIndex":0,"unit":"1"},{"stateId":"mechanics.mvc.acceptedMitralClosureEventCount","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/acceptedMitralClosureEventCount","logicalIndex":99,"storageKind":"continuous-f64","storageIndex":98,"unit":"1"}]}');
-const hydraulicGraph = { "nodeIds": ["LV", "LA", "RV", "RA", "Ao", "SA", "Art", "Cap", "SV", "VC", "PA", "PArt", "PCap", "PVen", "PVein", "LAD.Art", "LAD.IM.Art.subepicardial", "LAD.IM.Ven.subepicardial", "LAD.IM.Art.subendocardial", "LAD.IM.Ven.subendocardial", "LCx.Art", "LCx.IM.Art.subepicardial", "LCx.IM.Ven.subepicardial", "LCx.IM.Art.subendocardial", "LCx.IM.Ven.subendocardial", "RCA.Art", "RCA.IM.Art.subepicardial", "RCA.IM.Ven.subepicardial", "RCA.IM.Art.subendocardial", "RCA.IM.Ven.subendocardial", "CV"], "storageStateLogicalIndices": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], "pathIds": ["MV", "AoV", "TV", "PV", "Ao_SA", "SA_Art", "Art_Cap", "Cap_SV", "SV_VC", "VC_RA", "PA_PArt", "PArt_PCap", "PCap_PVen", "PVen_PVein", "PVein_LA", "Ao_LAD.Art", "LAD.Art_LAD.IM.Art.subepicardial", "LAD.IM.Art.subepicardial_LAD.IM.Ven.subepicardial", "LAD.IM.Ven.subepicardial_CV", "LAD.Art_LAD.IM.Art.subendocardial", "LAD.IM.Art.subendocardial_LAD.IM.Ven.subendocardial", "LAD.IM.Ven.subendocardial_CV", "Ao_LCx.Art", "LCx.Art_LCx.IM.Art.subepicardial", "LCx.IM.Art.subepicardial_LCx.IM.Ven.subepicardial", "LCx.IM.Ven.subepicardial_CV", "LCx.Art_LCx.IM.Art.subendocardial", "LCx.IM.Art.subendocardial_LCx.IM.Ven.subendocardial", "LCx.IM.Ven.subendocardial_CV", "Ao_RCA.Art", "RCA.Art_RCA.IM.Art.subepicardial", "RCA.IM.Art.subepicardial_RCA.IM.Ven.subepicardial", "RCA.IM.Ven.subepicardial_CV", "RCA.Art_RCA.IM.Art.subendocardial", "RCA.IM.Art.subendocardial_RCA.IM.Ven.subendocardial", "RCA.IM.Ven.subendocardial_CV", "CV_RA"], "upstreamNodeIndices": [1, 0, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 4, 15, 16, 17, 15, 18, 19, 4, 20, 21, 22, 20, 23, 24, 4, 25, 26, 27, 25, 28, 29, 30], "downstreamNodeIndices": [0, 4, 2, 10, 5, 6, 7, 8, 9, 3, 11, 12, 13, 14, 1, 15, 16, 17, 30, 18, 19, 30, 20, 21, 22, 30, 23, 24, 30, 25, 26, 27, 30, 28, 29, 30, 3], "pathKernelIds": ["noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/dynamic", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/dynamic", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-venous-outlet"], "conservationPools": [{ "poolId": "global-blood-volume", "ledgerStateLogicalIndex": 2, "memberStateLogicalIndices": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], "dependentStateLogicalIndex": 11 }] };
+const hydraulicGraph = { "nodeIds": ["LV", "LA", "RV", "RA", "Ao", "SA", "Art", "Cap", "SV", "VC", "PA", "PArt", "PCap", "PVen", "PVein", "LAD.Art", "LAD.IM.Art.subepicardial", "LAD.IM.Ven.subepicardial", "LAD.IM.Art.subendocardial", "LAD.IM.Ven.subendocardial", "LCx.Art", "LCx.IM.Art.subepicardial", "LCx.IM.Ven.subepicardial", "LCx.IM.Art.subendocardial", "LCx.IM.Ven.subendocardial", "RCA.Art", "RCA.IM.Art.subepicardial", "RCA.IM.Ven.subepicardial", "RCA.IM.Art.subendocardial", "RCA.IM.Ven.subendocardial", "CV"], "nodeComponentBlockIndices": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "storageStateLogicalIndices": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], "pathIds": ["MV", "AoV", "TV", "PV", "Ao_SA", "SA_Art", "Art_Cap", "Cap_SV", "SV_VC", "VC_RA", "PA_PArt", "PArt_PCap", "PCap_PVen", "PVen_PVein", "PVein_LA", "Ao_LAD.Art", "LAD.Art_LAD.IM.Art.subepicardial", "LAD.IM.Art.subepicardial_LAD.IM.Ven.subepicardial", "LAD.IM.Ven.subepicardial_CV", "LAD.Art_LAD.IM.Art.subendocardial", "LAD.IM.Art.subendocardial_LAD.IM.Ven.subendocardial", "LAD.IM.Ven.subendocardial_CV", "Ao_LCx.Art", "LCx.Art_LCx.IM.Art.subepicardial", "LCx.IM.Art.subepicardial_LCx.IM.Ven.subepicardial", "LCx.IM.Ven.subepicardial_CV", "LCx.Art_LCx.IM.Art.subendocardial", "LCx.IM.Art.subendocardial_LCx.IM.Ven.subendocardial", "LCx.IM.Ven.subendocardial_CV", "Ao_RCA.Art", "RCA.Art_RCA.IM.Art.subepicardial", "RCA.IM.Art.subepicardial_RCA.IM.Ven.subepicardial", "RCA.IM.Ven.subepicardial_CV", "RCA.Art_RCA.IM.Art.subendocardial", "RCA.IM.Art.subendocardial_RCA.IM.Ven.subendocardial", "RCA.IM.Ven.subendocardial_CV", "CV_RA"], "pathComponentBlockIndices": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], "upstreamNodeIndices": [1, 0, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 4, 15, 16, 17, 15, 18, 19, 4, 20, 21, 22, 20, 23, 24, 4, 25, 26, 27, 25, 28, 29, 30], "downstreamNodeIndices": [0, 4, 2, 10, 5, 6, 7, 8, 9, 3, 11, 12, 13, 14, 1, 15, 16, 17, 30, 18, 19, 30, 20, 21, 22, 30, 23, 24, 30, 25, 26, 27, 30, 28, 29, 30, 3], "pathKernelIds": ["noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/dynamic", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/dynamic", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-venous-outlet"], "conservationPools": [{ "poolId": "global-blood-volume", "ledgerStateLogicalIndex": 2, "memberStateLogicalIndices": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], "dependentStateLogicalIndex": 11 }] };
 const solveGroups = [{ "solveGroupId": "coupled-hemodynamics", "systemKernelId": "main-wire-five-wall-static-condensed-system-kernel-v1", "unknownStateIds": ["noncoronary.volume.LV", "noncoronary.volume.LA", "noncoronary.volume.RV", "noncoronary.volume.RA", "noncoronary.volume.Ao", "noncoronary.volume.SA", "noncoronary.volume.Art", "noncoronary.volume.Cap", "noncoronary.volume.VC", "noncoronary.volume.PA", "noncoronary.volume.PArt", "noncoronary.volume.PCap", "noncoronary.volume.PVen", "noncoronary.volume.PVein", "coronary.volume.LAD.Art", "coronary.volume.LAD.IM.Art.subepicardial", "coronary.volume.LAD.IM.Ven.subepicardial", "coronary.volume.LAD.IM.Art.subendocardial", "coronary.volume.LAD.IM.Ven.subendocardial", "coronary.volume.LCx.Art", "coronary.volume.LCx.IM.Art.subepicardial", "coronary.volume.LCx.IM.Ven.subepicardial", "coronary.volume.LCx.IM.Art.subendocardial", "coronary.volume.LCx.IM.Ven.subendocardial", "coronary.volume.RCA.Art", "coronary.volume.RCA.IM.Art.subepicardial", "coronary.volume.RCA.IM.Ven.subepicardial", "coronary.volume.RCA.IM.Art.subendocardial", "coronary.volume.RCA.IM.Ven.subendocardial", "coronary.volume.CV", "TriSeg.septalMidwallCapVolume", "TriSeg.junctionRadius"], "activeUnknownStateIds": ["noncoronary.volume.LV", "noncoronary.volume.LA", "noncoronary.volume.RV", "noncoronary.volume.RA", "noncoronary.volume.Ao", "noncoronary.volume.SA", "noncoronary.volume.Art", "noncoronary.volume.Cap", "noncoronary.volume.VC", "noncoronary.volume.PA", "noncoronary.volume.PArt", "noncoronary.volume.PCap", "noncoronary.volume.PVen", "noncoronary.volume.PVein", "coronary.volume.LAD.Art", "coronary.volume.LAD.IM.Art.subepicardial", "coronary.volume.LAD.IM.Ven.subepicardial", "coronary.volume.LAD.IM.Art.subendocardial", "coronary.volume.LAD.IM.Ven.subendocardial", "coronary.volume.LCx.Art", "coronary.volume.LCx.IM.Art.subepicardial", "coronary.volume.LCx.IM.Ven.subepicardial", "coronary.volume.LCx.IM.Art.subendocardial", "coronary.volume.LCx.IM.Ven.subendocardial", "coronary.volume.RCA.Art", "coronary.volume.RCA.IM.Art.subepicardial", "coronary.volume.RCA.IM.Ven.subepicardial", "coronary.volume.RCA.IM.Art.subendocardial", "coronary.volume.RCA.IM.Ven.subendocardial", "coronary.volume.CV"], "dependentStateIds": ["noncoronary.volume.SV"], "blocks": [{ "blockId": "nonCoronary", "componentId": "noncoronary-circulation", "kernelId": "noncoronary-backward-euler-kernel-v1", "disposition": "retained", "start": 0, "length": 14, "endExclusive": 14, "stateIds": ["noncoronary.volume.LV", "noncoronary.volume.LA", "noncoronary.volume.RV", "noncoronary.volume.RA", "noncoronary.volume.Ao", "noncoronary.volume.SA", "noncoronary.volume.Art", "noncoronary.volume.Cap", "noncoronary.volume.VC", "noncoronary.volume.PA", "noncoronary.volume.PArt", "noncoronary.volume.PCap", "noncoronary.volume.PVen", "noncoronary.volume.PVein"], "stateLogicalIndices": [3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17], "residualIds": ["noncoronary.volume.LV.balance", "noncoronary.volume.LA.balance", "noncoronary.volume.RV.balance", "noncoronary.volume.RA.balance", "noncoronary.volume.Ao.balance", "noncoronary.volume.SA.balance", "noncoronary.volume.Art.balance", "noncoronary.volume.Cap.balance", "noncoronary.volume.VC.balance", "noncoronary.volume.PA.balance", "noncoronary.volume.PArt.balance", "noncoronary.volume.PCap.balance", "noncoronary.volume.PVen.balance", "noncoronary.volume.PVein.balance"] }, { "blockId": "coronary", "componentId": "coronary-circulation", "kernelId": "coronary-backward-euler-kernel-v2", "disposition": "retained", "start": 14, "length": 16, "endExclusive": 30, "stateIds": ["coronary.volume.LAD.Art", "coronary.volume.LAD.IM.Art.subepicardial", "coronary.volume.LAD.IM.Ven.subepicardial", "coronary.volume.LAD.IM.Art.subendocardial", "coronary.volume.LAD.IM.Ven.subendocardial", "coronary.volume.LCx.Art", "coronary.volume.LCx.IM.Art.subepicardial", "coronary.volume.LCx.IM.Ven.subepicardial", "coronary.volume.LCx.IM.Art.subendocardial", "coronary.volume.LCx.IM.Ven.subendocardial", "coronary.volume.RCA.Art", "coronary.volume.RCA.IM.Art.subepicardial", "coronary.volume.RCA.IM.Ven.subepicardial", "coronary.volume.RCA.IM.Art.subendocardial", "coronary.volume.RCA.IM.Ven.subendocardial", "coronary.volume.CV"], "stateLogicalIndices": [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], "residualIds": ["coronary.volume.LAD.Art.balance", "coronary.volume.LAD.IM.Art.subepicardial.balance", "coronary.volume.LAD.IM.Ven.subepicardial.balance", "coronary.volume.LAD.IM.Art.subendocardial.balance", "coronary.volume.LAD.IM.Ven.subendocardial.balance", "coronary.volume.LCx.Art.balance", "coronary.volume.LCx.IM.Art.subepicardial.balance", "coronary.volume.LCx.IM.Ven.subepicardial.balance", "coronary.volume.LCx.IM.Art.subendocardial.balance", "coronary.volume.LCx.IM.Ven.subendocardial.balance", "coronary.volume.RCA.Art.balance", "coronary.volume.RCA.IM.Art.subepicardial.balance", "coronary.volume.RCA.IM.Ven.subepicardial.balance", "coronary.volume.RCA.IM.Art.subendocardial.balance", "coronary.volume.RCA.IM.Ven.subendocardial.balance", "coronary.volume.CV.balance"] }, { "blockId": "triSeg", "componentId": "five-wall-mechanics", "kernelId": "five-wall-land-triseg-kernel-v1", "disposition": "statically-condensed", "start": 30, "length": 2, "endExclusive": 32, "stateIds": ["TriSeg.septalMidwallCapVolume", "TriSeg.junctionRadius"], "stateLogicalIndices": [91, 92], "residualIds": ["TriSeg.septalMidwallCapVolume.virtualWork", "TriSeg.junctionRadius.virtualWork"] }], "totalUnknownCount": 32, "activeUnknownCount": 30, "jacobianElementCount": 900, "workspace": { "f64Count": 2070, "int32Count": 30, "f64Segments": [{ "role": "current-unknowns", "offset": 0, "length": 30 }, { "role": "residual", "offset": 30, "length": 30 }, { "role": "jacobian", "offset": 60, "length": 900 }, { "role": "factors", "offset": 960, "length": 900 }, { "role": "right-hand-side", "offset": 1860, "length": 30 }, { "role": "transformed-right-hand-side", "offset": 1890, "length": 30 }, { "role": "update", "offset": 1920, "length": 30 }, { "role": "trial-unknowns", "offset": 1950, "length": 30 }, { "role": "trial-residual", "offset": 1980, "length": 30 }, { "role": "unknown-scale", "offset": 2010, "length": 30 }, { "role": "residual-scale", "offset": 2040, "length": 30 }], "int32Segments": [{ "role": "pivots", "offset": 0, "length": 30 }] }, "solver": { "nonlinearMethod": "newton", "globalization": "armijo-line-search", "jacobian": "component-analytic-with-finite-difference-audit", "linearSolver": "dense-lu", "matrixStorage": "row-major-f64" } }];
 const updateGroups = [{ "updateGroupId": "coupled-hemodynamics-be-step", "ordinal": 0, "integration": "fixed-step-backward-euler", "fixedStepSec": 2e-3, "solveGroupId": "coupled-hemodynamics" }];
 const generatedExecutionPlanV1 = {

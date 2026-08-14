@@ -108,8 +108,10 @@ export type ExecutionPlanDescriptorV1 = Readonly<{
   }>;
   hydraulicGraph: Readonly<{
     nodeIds: readonly string[];
+    nodeComponentBlockIndices: readonly number[];
     storageStateLogicalIndices: readonly number[];
     pathIds: readonly string[];
+    pathComponentBlockIndices: readonly number[];
     upstreamNodeIndices: readonly number[];
     downstreamNodeIndices: readonly number[];
     pathKernelIds: readonly string[];

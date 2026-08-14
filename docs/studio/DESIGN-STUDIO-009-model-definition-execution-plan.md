@@ -79,7 +79,7 @@ circulation claim to the model.
 
 ## Bound runtime slice
 
-The Standard-49 development candidate advertises both
+The Standard-52 development candidate advertises both
 `runtime/execution-plan-accepted-state-shadow-v1` and
 `runtime/execution-plan-newton-workspace-v1`. Its exact artifact contains the
 generated descriptor and a small binder; it does not contain
@@ -93,6 +93,9 @@ At Worker initialization, the binder:
 - requires exact sets of admitted component-, path-, and solve-system kernel
   IDs;
 - resolves those IDs to compact ordinals;
+- retains compiler-owned component ownership for every hydraulic node and
+  path, and binds node storage, endpoints, component kernels, path kernels,
+  and conservation pools into one immutable topology dispatch;
 - resolves every compiler-owned state pointer to exactly one compatible
   typed-authority slot;
 - allocates nonaliasing current/candidate state, graph-index, and solver
@@ -112,7 +115,7 @@ its plans untouched. The Worker rejects cross-Scenario backing-buffer
 aliasing—including solve-system ordinals—before exact session creation. State
 pointer lookup is a cold initialization operation. The admitted binding keeps
 only numeric slot indices in private storage and exposes no mutable mapping
-array. Standard-49 uses it for sampled plan synchronization and the live
+array. Standard-52 uses it for sampled plan synchronization and the live
 coupled-solver adapter. This is not a generic equation interpreter. The
 existing typed-authority session remains the sole accepted-state and
 checkpoint authority. The current Main Wire adapter still performs one cold
@@ -139,7 +142,7 @@ the two backing arrays once;
 the exact binder creates persistent views at the emitted offsets and rejects
 gaps, overlap, reordering, or foreign views. At an accepted boundary the active
 unknowns are gathered through compiler-emitted logical indices into the
-`current-unknowns` segment. Standard-49 binds the existing
+`current-unknowns` segment. Standard-52 binds the existing
 30-variable coupled Newton solve to those exact Scenario-owned views. Raw
 Jacobian and LU factors remain distinct segments; right-hand side,
 LU-transformed right-hand side, update, trial, scale vectors, and pivots are
@@ -157,6 +160,18 @@ the compiled block ranges for its noncoronary, coronary, and statically
 condensed TriSeg partitions, while rejecting unknown, reordered, cross-owner,
 or differently sized blocks. This moves orchestration metadata—not scientific
 equations—out of hand-written Studio wiring.
+
+Hydraulic topology follows the same rule. The portable descriptor stores
+numeric component-owner indices for nodes and paths in addition to endpoint
+and state indices. The Worker-local binder resolves these to exact component
+and path-kernel ordinals, then supplies one immutable hydraulic dispatch to the
+model-owned solve-system binder. Standard-52 validates the present Main Wire
+31-node/37-path graph, storage-slot ownership, and global blood-volume pool
+once before admitting the coupled workspace. The current residual kernels do
+not yet interpret arbitrary topology, so an added bypass fails closed until a
+compatible model-owned component kernel is released. This is intentional: the
+compiler removes orchestration duplication without pretending to generate
+new physiology.
 
 The residual context and Newton workspace receive the same admitted layout.
 The context gathers component unknowns, dispatches each retained residual
@@ -200,16 +215,16 @@ binding is bounded and that time-to-first-frame has not materially regressed.
 1. Add exact descriptor parity for every current generated layout that will
    become runtime-owned. **Complete for the current one-patch slice.**
 2. Embed the descriptor in the exact executable without another fetch or a
-   production compiler. **Complete in the Standard-49 development candidate.**
+   production compiler. **Complete in the Standard-52 development candidate.**
 3. Bind known kernel IDs, allocate buffers once, and reject missing, extra, or
-   aliased bindings. **Complete per Scenario in Standard-49.**
+   aliased bindings. **Complete per Scenario in Standard-52.**
 4. Move existing authority resources behind the bound plan, while preserving
    checkpoint continuation and the canonical scientific corpus. **Accepted
    state projection, canonical Newton workspace preparation, checkpoint
    continuation, and execution of the existing coupled Newton/LU solve through
    the plan-owned workspace, plus compiler-owned solve-block and residual
    dispatch, model-owned solve-system binding, and accepted-authority state
-   binding are complete in Standard-49.
+   binding, and hydraulic topology/kernel binding are complete in Standard-52.
    Component residual equations remain model-owned.**
 5. Mint a new model release for the direct runtime cutover. Do not dual-write
    state or retain a fallback inside that release.
