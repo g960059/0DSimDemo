@@ -2700,7 +2700,12 @@ function evaluateTriSegWallDerivativeV1(geometry) {
   }
   return Object.freeze(result);
 }
-function evaluateTriSegWallSecondDerivativeV1(geometry) {
+function writeTriSegWallSecondDerivativeV1(geometry, destination, offset = 0) {
+  if (!(destination instanceof Float64Array) || !Number.isInteger(offset) || offset < 0 || destination.length - offset < 3) {
+    throw new RangeError(
+      "TriSeg wall second derivative destination requires three f64 values"
+    );
+  }
   const h = geometry.signedCapHeightM;
   const y = geometry.junctionRadiusM;
   const h2 = h * h;
@@ -2732,18 +2737,24 @@ function evaluateTriSegWallSecondDerivativeV1(geometry) {
   const strainHH = logarithmicHH + correctionSecond * zetaH * zetaH + correctionFirst * zetaHH;
   const strainHY = logarithmicHY + correctionSecond * zetaH * zetaY + correctionFirst * zetaHY;
   const strainYY = logarithmicYY + correctionSecond * zetaY * zetaY + correctionFirst * zetaYY;
-  const result = {
-    wallId: geometry.wallId,
-    d2FiberLogStrainDCapVolume2PerM6: strainHH * hV * hV + strainH * hVV,
-    d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4: (strainHH * hy + strainHY) * hV + strainH * hVy,
-    d2FiberLogStrainDJunctionRadius2PerM2: strainHH * hy * hy + 2 * strainHY * hy + strainYY + strainH * hyy
-  };
-  for (const [label, value] of Object.entries(result)) {
-    if (label !== "wallId") {
-      requireFinite$m(value, `${geometry.wallId}.${label}`);
-    }
-  }
-  return Object.freeze(result);
+  const volume2 = strainHH * hV * hV + strainH * hVV;
+  const volumeRadius = (strainHH * hy + strainHY) * hV + strainH * hVy;
+  const radius2 = strainHH * hy * hy + 2 * strainHY * hy + strainYY + strainH * hyy;
+  requireFinite$m(
+    volume2,
+    `${geometry.wallId}.d2FiberLogStrainDCapVolume2PerM6`
+  );
+  requireFinite$m(
+    volumeRadius,
+    `${geometry.wallId}.d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4`
+  );
+  requireFinite$m(
+    radius2,
+    `${geometry.wallId}.d2FiberLogStrainDJunctionRadius2PerM2`
+  );
+  destination[offset] = volume2;
+  destination[offset + 1] = volumeRadius;
+  destination[offset + 2] = radius2;
 }
 function evaluateEnergyConjugateTriSegV1(input) {
   assertWallRecord(input.fiberKirchhoffStressPaByWall, "fiberKirchhoffStressPaByWall");
@@ -12012,6 +12023,11 @@ function validateProvider(provider) {
   if (provider.cloneDrivingInputs !== void 0 && typeof provider.cloneDrivingInputs !== "function") {
     throw new Error("cloneDrivingInputs must be a function when provided");
   }
+  if (provider.fingerprintMaterialStateCanonicalV1 !== void 0 && typeof provider.fingerprintMaterialStateCanonicalV1 !== "function") {
+    throw new Error(
+      "fingerprintMaterialStateCanonicalV1 must be a function when provided"
+    );
+  }
   if (provider.acceptedStateInputMode !== void 0 && provider.acceptedStateInputMode !== "defensive-clone" && provider.acceptedStateInputMode !== "trusted-read-only-prepared-snapshot") {
     throw new Error("acceptedStateInputMode is unsupported");
   }
@@ -12462,6 +12478,7 @@ function createMainWireFiveWallLandTriSegProviderV1(params) {
     parameterIdentityHash,
     stateSchemaVersion: STATE_SCHEMA_VERSION,
     stateCodec,
+    fingerprintMaterialStateCanonicalV1: params.fingerprintMaterialStateCanonicalV1,
     acceptedStateInputMode: "trusted-read-only-prepared-snapshot",
     evaluationResultOwnershipMode: "exclusive-result",
     initializeCold,
@@ -12595,17 +12612,17 @@ function fixedInternalMechanicsEvaluationV1(candidate, scaledInternalCoordinates
   );
   for (let ventricularPressureRow = 0; ventricularPressureRow < 2; ventricularPressureRow += 1) {
     const pressureRow = ventricularPressureRow === 0 ? 1 : 3;
-    pressureDerivative[pressureRow * 6 + 1] = hessian[ventricularPressureRow][0] * 1e-6 / PA_PER_MMHG$2;
-    pressureDerivative[pressureRow * 6 + 3] = hessian[ventricularPressureRow][1] * 1e-6 / PA_PER_MMHG$2;
-    pressureDerivative[pressureRow * 6 + 4] = hessian[ventricularPressureRow][2] * coordinateScales[0] / PA_PER_MMHG$2;
-    pressureDerivative[pressureRow * 6 + 5] = hessian[ventricularPressureRow][3] * coordinateScales[1] / PA_PER_MMHG$2;
+    pressureDerivative[pressureRow * 6 + 1] = hessian[ventricularPressureRow * 4] * 1e-6 / PA_PER_MMHG$2;
+    pressureDerivative[pressureRow * 6 + 3] = hessian[ventricularPressureRow * 4 + 1] * 1e-6 / PA_PER_MMHG$2;
+    pressureDerivative[pressureRow * 6 + 4] = hessian[ventricularPressureRow * 4 + 2] * coordinateScales[0] / PA_PER_MMHG$2;
+    pressureDerivative[pressureRow * 6 + 5] = hessian[ventricularPressureRow * 4 + 3] * coordinateScales[1] / PA_PER_MMHG$2;
   }
   const internalResidualDerivative = new Float64Array(2 * 6);
   for (let residualRow = 0; residualRow < 2; residualRow += 1) {
-    internalResidualDerivative[residualRow * 6 + 1] = hessian[residualRow + 2][0] * coordinateScales[residualRow] * 1e-6 / ONE_JOULE;
-    internalResidualDerivative[residualRow * 6 + 3] = hessian[residualRow + 2][1] * coordinateScales[residualRow] * 1e-6 / ONE_JOULE;
+    internalResidualDerivative[residualRow * 6 + 1] = hessian[(residualRow + 2) * 4] * coordinateScales[residualRow] * 1e-6 / ONE_JOULE;
+    internalResidualDerivative[residualRow * 6 + 3] = hessian[(residualRow + 2) * 4 + 1] * coordinateScales[residualRow] * 1e-6 / ONE_JOULE;
     for (let coordinateColumn = 0; coordinateColumn < 2; coordinateColumn += 1) {
-      internalResidualDerivative[residualRow * 6 + 4 + coordinateColumn] = hessian[residualRow + 2][coordinateColumn + 2] * coordinateScales[residualRow] * coordinateScales[coordinateColumn] / ONE_JOULE;
+      internalResidualDerivative[residualRow * 6 + 4 + coordinateColumn] = hessian[(residualRow + 2) * 4 + coordinateColumn + 2] * coordinateScales[residualRow] * coordinateScales[coordinateColumn] / ONE_JOULE;
     }
   }
   const ventricularWallIds = ["LVFW", "SEP", "RVFW"];
@@ -12659,6 +12676,8 @@ function fixedInternalMechanicsEvaluationV1(candidate, scaledInternalCoordinates
 function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode, params, solver) {
   let current = [...initialScaledUnknowns];
   let currentCandidate;
+  const hessianScratch = new Float64Array(16);
+  const wallSecondDerivativeScratch = new Float64Array(3);
   let acceptedLineSearchSteps = 0;
   let lineSearchBacktracks = 0;
   const evaluationCounters = drive.evaluationCounterCollection === "enabled" ? createMutableEvaluationCounters() : null;
@@ -12696,7 +12715,9 @@ function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode,
       try {
         jacobian2 = analyticScaledInternalJacobian(
           currentCandidate,
-          params
+          params,
+          hessianScratch,
+          wallSecondDerivativeScratch
         );
       } catch (error) {
         return internalFailure({
@@ -12771,7 +12792,9 @@ function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode,
     try {
       jacobian = analyticScaledInternalJacobian(
         currentCandidate,
-        params
+        params,
+        hessianScratch,
+        wallSecondDerivativeScratch
       );
     } catch (error) {
       return internalFailure({
@@ -13125,9 +13148,17 @@ function ventricularMaterialTangents(center) {
   }
   return Object.freeze(tangentByWall);
 }
-function analyticTriSegAlgorithmicHessian(center, params) {
+function analyticTriSegAlgorithmicHessian(center, params, destination = new Float64Array(16), wallSecondDerivativeScratch = new Float64Array(3)) {
+  if (destination.length !== 16) {
+    throw new RangeError("TriSeg algorithmic Hessian requires 16 f64 values");
+  }
+  destination.fill(0);
   const tangentByWall = ventricularMaterialTangents(center);
-  const hessian = Array.from({ length: 4 }, () => [0, 0, 0, 0]);
+  if (wallSecondDerivativeScratch.length !== 3) {
+    throw new RangeError(
+      "TriSeg wall second derivative scratch requires three f64 values"
+    );
+  }
   const capVolumeGradientByWall = {
     LVFW: [-1, 0, 1],
     SEP: [0, 0, 1],
@@ -13135,8 +13166,9 @@ function analyticTriSegAlgorithmicHessian(center, params) {
   };
   for (const wallId of ["LVFW", "SEP", "RVFW"]) {
     const first = center.triseg.wallDerivativeByWall[wallId];
-    const second = evaluateTriSegWallSecondDerivativeV1(
-      center.geometry.walls[wallId]
+    writeTriSegWallSecondDerivativeV1(
+      center.geometry.walls[wallId],
+      wallSecondDerivativeScratch
     );
     const capGradient = capVolumeGradientByWall[wallId];
     const strainGradient = [
@@ -13152,32 +13184,39 @@ function analyticTriSegAlgorithmicHessian(center, params) {
       for (let column = row; column < 4; column += 1) {
         let strainSecondDerivative;
         if (row === 3 && column === 3) {
-          strainSecondDerivative = second.d2FiberLogStrainDJunctionRadius2PerM2;
+          strainSecondDerivative = wallSecondDerivativeScratch[2];
         } else if (column === 3) {
-          strainSecondDerivative = capGradient[row] * second.d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4;
+          strainSecondDerivative = capGradient[row] * wallSecondDerivativeScratch[1];
         } else {
-          strainSecondDerivative = capGradient[row] * capGradient[column] * second.d2FiberLogStrainDCapVolume2PerM6;
+          strainSecondDerivative = capGradient[row] * capGradient[column] * wallSecondDerivativeScratch[0];
         }
         const contribution = wallVolumeM3 * (tangentPa * strainGradient[row] * strainGradient[column] + stressPa * strainSecondDerivative);
-        hessian[row][column] += contribution;
-        if (row !== column) hessian[column][row] += contribution;
+        destination[row * 4 + column] += contribution;
+        if (row !== column) destination[column * 4 + row] += contribution;
       }
     }
   }
-  if (!hessian.flat().every(Number.isFinite)) {
-    throw new Error("analytic TriSeg algorithmic Hessian is non-finite");
+  for (const value of destination) {
+    if (!Number.isFinite(value)) {
+      throw new Error("analytic TriSeg algorithmic Hessian is non-finite");
+    }
   }
-  return Object.freeze(hessian.map((row) => Object.freeze(row)));
+  return destination;
 }
-function analyticScaledInternalJacobian(center, params) {
-  const hessian = analyticTriSegAlgorithmicHessian(center, params);
+function analyticScaledInternalJacobian(center, params, hessianScratch, wallSecondDerivativeScratch) {
+  const hessian = analyticTriSegAlgorithmicHessian(
+    center,
+    params,
+    hessianScratch,
+    wallSecondDerivativeScratch
+  );
   const scales = [
     params.internalCoordinateScales.septalMidwallCapVolumeM3,
     params.internalCoordinateScales.junctionRadiusM
   ];
-  const j00 = hessian[2][2] * scales[0] * scales[0] / ONE_JOULE;
-  const j01 = hessian[2][3] * scales[0] * scales[1] / ONE_JOULE;
-  const j11 = hessian[3][3] * scales[1] * scales[1] / ONE_JOULE;
+  const j00 = hessian[2 * 4 + 2] * scales[0] * scales[0] / ONE_JOULE;
+  const j01 = hessian[2 * 4 + 3] * scales[0] * scales[1] / ONE_JOULE;
+  const j11 = hessian[3 * 4 + 3] * scales[1] * scales[1] / ONE_JOULE;
   return Object.freeze([
     Object.freeze([j00, j01]),
     Object.freeze([j01, j11])
@@ -13210,7 +13249,7 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl(solved, params) {
     ventricularWallIds.map((wallId) => [wallId, [0, 0]])
   );
   for (let volumeColumn = 0; volumeColumn < 2; volumeColumn += 1) {
-    const forceColumn = [0, 1].map((coordinateRow) => hessian[coordinateRow + 2][volumeColumn] * coordinateScales[coordinateRow] * 1e-6 / ONE_JOULE);
+    const forceColumn = [0, 1].map((coordinateRow) => hessian[(coordinateRow + 2) * 4 + volumeColumn] * coordinateScales[coordinateRow] * 1e-6 / ONE_JOULE);
     const coordinateResponse = solveLinearSystem(
       solved.scaledAlgorithmicJacobianByOneJ,
       forceColumn
@@ -13218,10 +13257,10 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl(solved, params) {
     if (coordinateResponse === null) return void 0;
     for (let pressureRow = 0; pressureRow < 2; pressureRow += 1) {
       const pressureCoordinateDerivative = [0, 1].reduce(
-        (sum, coordinateColumn) => sum + hessian[pressureRow][coordinateColumn + 2] * coordinateScales[coordinateColumn] / PA_PER_MMHG$2 * coordinateResponse[coordinateColumn],
+        (sum, coordinateColumn) => sum + hessian[pressureRow * 4 + coordinateColumn + 2] * coordinateScales[coordinateColumn] / PA_PER_MMHG$2 * coordinateResponse[coordinateColumn],
         0
       );
-      ventricularPressureTangent[pressureRow][volumeColumn] = hessian[pressureRow][volumeColumn] * 1e-6 / PA_PER_MMHG$2 - pressureCoordinateDerivative;
+      ventricularPressureTangent[pressureRow][volumeColumn] = hessian[pressureRow * 4 + volumeColumn] * 1e-6 / PA_PER_MMHG$2 - pressureCoordinateDerivative;
     }
     for (const wallId of ventricularWallIds) {
       const first = center.triseg.wallDerivativeByWall[wallId];
@@ -13408,25 +13447,25 @@ function buildReadback(solved, solveMode, coldConsistencyIterations, coldConsist
   });
 }
 function evaluateAlgorithmicJacobianStability(jacobian, solver) {
-  const n = jacobian.length;
-  const symmetric = Array.from({ length: n }, (_, row) => Array.from({ length: n }, (_2, column) => 0.5 * (jacobian[row][column] + jacobian[column][row])));
-  let antisymmetricMaximum = 0;
-  let jacobianInfinityNorm = 0;
-  for (let row = 0; row < n; row += 1) {
-    let rowSum = 0;
-    for (let column = 0; column < n; column += 1) {
-      antisymmetricMaximum = Math.max(
-        antisymmetricMaximum,
-        0.5 * Math.abs(
-          jacobian[row][column] - jacobian[column][row]
-        )
-      );
-      rowSum += Math.abs(jacobian[row][column]);
-    }
-    jacobianInfinityNorm = Math.max(jacobianInfinityNorm, rowSum);
+  if (jacobian.length !== 2 || jacobian[0]?.length !== 2 || jacobian[1]?.length !== 2) {
+    throw new RangeError("internal TriSeg stability requires a 2x2 Jacobian");
   }
+  const j00 = jacobian[0][0];
+  const j01 = jacobian[0][1];
+  const j10 = jacobian[1][0];
+  const j11 = jacobian[1][1];
+  const antisymmetricMaximum = 0.5 * Math.abs(j01 - j10);
+  const jacobianInfinityNorm = Math.max(
+    Math.abs(j00) + Math.abs(j01),
+    Math.abs(j10) + Math.abs(j11)
+  );
   const relative = antisymmetricMaximum / Math.max(Number.MIN_VALUE, jacobianInfinityNorm);
-  const minimumEigenvalue = minimumEigenvalueSymmetric(symmetric);
+  const symmetricOffDiagonal = 0.5 * (j01 + j10);
+  const halfTrace = 0.5 * (j00 + j11);
+  const minimumEigenvalue = halfTrace - Math.hypot(
+    0.5 * (j00 - j11),
+    symmetricOffDiagonal
+  );
   const symmetricWithinTolerance = antisymmetricMaximum === 0;
   return Object.freeze({
     jacobianAntisymmetricMaximumAbsoluteByOneJ: antisymmetricMaximum,
@@ -13437,73 +13476,30 @@ function evaluateAlgorithmicJacobianStability(jacobian, solver) {
   });
 }
 function solveLinearSystem(matrix, rightHandSide) {
-  const n = rightHandSide.length;
-  const augmented = Array.from({ length: n }, (_, row) => [
-    ...matrix[row],
-    rightHandSide[row]
-  ]);
-  const scale = Math.max(1, ...matrix.flat().map(Math.abs));
-  for (let column = 0; column < n; column += 1) {
-    let pivot = column;
-    for (let row = column + 1; row < n; row += 1) {
-      if (Math.abs(augmented[row][column]) > Math.abs(augmented[pivot][column])) pivot = row;
-    }
-    if (Math.abs(augmented[pivot][column]) <= 1e-13 * scale) return null;
-    [augmented[column], augmented[pivot]] = [augmented[pivot], augmented[column]];
-    const pivotValue = augmented[column][column];
-    for (let entry = column; entry <= n; entry += 1) {
-      augmented[column][entry] /= pivotValue;
-    }
-    for (let row = 0; row < n; row += 1) {
-      if (row === column) continue;
-      const factor = augmented[row][column];
-      for (let entry = column; entry <= n; entry += 1) {
-        augmented[row][entry] -= factor * augmented[column][entry];
-      }
-    }
+  if (matrix.length !== 2 || matrix[0]?.length !== 2 || matrix[1]?.length !== 2 || rightHandSide.length !== 2) {
+    throw new RangeError("internal TriSeg solve requires a 2x2 system");
   }
-  const solution = augmented.map((row) => row[n]);
-  return solution.every(Number.isFinite) ? solution : null;
-}
-function minimumEigenvalueSymmetric(matrix) {
-  const n = matrix.length;
-  const work = matrix.map((row) => [...row]);
-  for (let sweep = 0; sweep < 32; sweep += 1) {
-    let p = 0;
-    let q = n > 1 ? 1 : 0;
-    let maximum = 0;
-    for (let row = 0; row < n; row += 1) {
-      for (let column = row + 1; column < n; column += 1) {
-        const value = Math.abs(work[row][column]);
-        if (value > maximum) {
-          maximum = value;
-          p = row;
-          q = column;
-        }
-      }
-    }
-    if (maximum <= 1e-13 * Math.max(1, ...work.flat().map(Math.abs))) break;
-    const app = work[p][p];
-    const aqq = work[q][q];
-    const apq = work[p][q];
-    const angle = 0.5 * Math.atan2(2 * apq, aqq - app);
-    const cosine = Math.cos(angle);
-    const sine = Math.sin(angle);
-    for (let row = 0; row < n; row += 1) {
-      if (row === p || row === q) continue;
-      const arp = work[row][p];
-      const arq = work[row][q];
-      work[row][p] = cosine * arp - sine * arq;
-      work[p][row] = work[row][p];
-      work[row][q] = sine * arp + cosine * arq;
-      work[q][row] = work[row][q];
-    }
-    work[p][p] = cosine * cosine * app - 2 * sine * cosine * apq + sine * sine * aqq;
-    work[q][q] = sine * sine * app + 2 * sine * cosine * apq + cosine * cosine * aqq;
-    work[p][q] = 0;
-    work[q][p] = 0;
+  let a = matrix[0][0];
+  let b = matrix[0][1];
+  let c = matrix[1][0];
+  let d = matrix[1][1];
+  let r0 = rightHandSide[0];
+  let r1 = rightHandSide[1];
+  const scale = Math.max(1, Math.abs(a), Math.abs(b), Math.abs(c), Math.abs(d));
+  if (Math.abs(c) > Math.abs(a)) {
+    [a, c] = [c, a];
+    [b, d] = [d, b];
+    [r0, r1] = [r1, r0];
   }
-  return Math.min(...work.map((row, index) => row[index]));
+  if (Math.abs(a) <= 1e-13 * scale) return null;
+  b /= a;
+  r0 /= a;
+  d -= c * b;
+  r1 -= c * r0;
+  if (Math.abs(d) <= 1e-13 * scale) return null;
+  r1 /= d;
+  r0 -= b * r1;
+  return Number.isFinite(r0) && Number.isFinite(r1) ? [r0, r1] : null;
 }
 function createStateCodec(materialByWall) {
   return Object.freeze({
@@ -14719,7 +14715,11 @@ function trialLandSlsWallMaterialV1(previous, input, params) {
   const passiveAndSlsTangentPa = input.equilibriumPassive.tangentPa + sls.dNextOverstressDNextFiberLogStrainPa;
   const totalAlgorithmicTangentPa = passiveAndSlsTangentPa + activeAlgorithmicTangentPa;
   const state = Object.freeze({
-    landState: Float64Array.from(solved.nextState),
+    // The direct Land solver returns a freshly allocated state and never
+    // retains or mutates it after return.  This material evaluation owns that
+    // result exclusively, so copying the six values again only adds five
+    // typed-array allocations for every rejected whole-heart candidate.
+    landState: solved.nextState,
     slsState: sls.state,
     previousFiberLogStrain: input.nextFiberLogStrain,
     previousFreeCalciumUM: input.nextFreeCalciumUM
@@ -14760,6 +14760,131 @@ function trialLandSlsWallMaterialV1(previous, input, params) {
     issues: Object.freeze(issues),
     claim: LAND_SLS_WALL_MATERIAL_CLAIM_V1
   });
+}
+function trialLandSlsWallMaterialNumericalV1(previous, input, params) {
+  validateParamsOncePerObject(params);
+  if (fullHotPathInvariantsEnabledV1()) validateState$2(previous);
+  requireFinite$f(input.nextFiberLogStrain, "nextFiberLogStrain");
+  requireNonnegative$1(input.nextFreeCalciumUM, "nextFreeCalciumUM");
+  requirePositive$1(input.dtSec, "dtSec");
+  validatePassive(input.equilibriumPassive);
+  const previousEngineeringStrain = landEngineeringStrain(
+    previous.previousFiberLogStrain,
+    params
+  );
+  const nextEngineeringStrain = landEngineeringStrain(
+    input.nextFiberLogStrain,
+    params
+  );
+  const landStepInput = {
+    freeCalciumUM: input.nextFreeCalciumUM,
+    previousFiberEngineeringStrain: previousEngineeringStrain,
+    stageFiberEngineeringStrain: nextEngineeringStrain,
+    dtSec: input.dtSec,
+    stage: { scheme: "BE", stageIndex: 0 }
+  };
+  const solved = solveLand2017BackwardEulerStep(
+    previous.landState,
+    landStepInput,
+    {
+      residualTolerance: 1e-9
+    },
+    params.landEquationParameters
+  );
+  if (!solved.ok || !solved.output) {
+    throw new Error(`Land trial failed: ${solved.failureReason ?? "unknown"}`);
+  }
+  const ratio = input.dtSec / params.sls.relaxationTimeSec;
+  const nextViscousLogStrain = (previous.slsState.viscousLogStrain + ratio * input.nextFiberLogStrain) / (1 + ratio);
+  const previousElasticStrain = previous.previousFiberLogStrain - previous.slsState.viscousLogStrain;
+  const nextElasticStrain = input.nextFiberLogStrain - nextViscousLogStrain;
+  const nextOverstressPa = numericalCanonicalZeroV1(
+    params.sls.branchModulusPa * nextElasticStrain
+  );
+  const stateResidual = nextViscousLogStrain - previous.slsState.viscousLogStrain - ratio * nextElasticStrain;
+  const previousStoredEnergyDensityJPerM3 = numericalCanonicalZeroV1(
+    0.5 * params.sls.branchModulusPa * previousElasticStrain ** 2
+  );
+  const nextStoredEnergyDensityJPerM3 = numericalCanonicalZeroV1(
+    0.5 * params.sls.branchModulusPa * nextElasticStrain ** 2
+  );
+  const stressWorkIncrementDensityJPerM3 = numericalCanonicalZeroV1(
+    nextOverstressPa * (input.nextFiberLogStrain - previous.previousFiberLogStrain)
+  );
+  const physicalDissipationIncrementDensityJPerM3 = numericalCanonicalZeroV1(
+    params.sls.branchModulusPa * ratio * nextElasticStrain ** 2
+  );
+  const backwardEulerNumericalDissipationIncrementDensityJPerM3 = numericalCanonicalZeroV1(
+    0.5 * params.sls.branchModulusPa * (nextElasticStrain - previousElasticStrain) ** 2
+  );
+  const discreteEnergyBalanceResidualJPerM3 = numericalCanonicalZeroV1(
+    stressWorkIncrementDensityJPerM3 - (nextStoredEnergyDensityJPerM3 - previousStoredEnergyDensityJPerM3) - physicalDissipationIncrementDensityJPerM3 - backwardEulerNumericalDissipationIncrementDensityJPerM3
+  );
+  const slsFinite = [
+    nextViscousLogStrain,
+    nextOverstressPa,
+    stateResidual,
+    previousStoredEnergyDensityJPerM3,
+    nextStoredEnergyDensityJPerM3,
+    stressWorkIncrementDensityJPerM3,
+    physicalDissipationIncrementDensityJPerM3,
+    backwardEulerNumericalDissipationIncrementDensityJPerM3,
+    discreteEnergyBalanceResidualJPerM3
+  ].every(Number.isFinite);
+  const energyTolerance = 1e-10 * Math.max(
+    1,
+    Math.abs(stressWorkIncrementDensityJPerM3),
+    previousStoredEnergyDensityJPerM3,
+    nextStoredEnergyDensityJPerM3
+  );
+  if (!slsFinite || physicalDissipationIncrementDensityJPerM3 < -energyTolerance || backwardEulerNumericalDissipationIncrementDensityJPerM3 < -energyTolerance || Math.abs(discreteEnergyBalanceResidualJPerM3) > energyTolerance) {
+    throw new Error("parallel SLS failed its discrete passivity identity");
+  }
+  const landStretch = 1 + nextEngineeringStrain;
+  const activeNominalStressPa = solved.output.sourceActiveFiberStressPa;
+  const activeKirchhoffStressPa = landStretch * params.orientationFraction01 * params.viableActiveFraction01 * activeNominalStressPa;
+  const activeNominalAlgorithmicTangentPa = computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
+    solved.nextState,
+    landStepInput,
+    params.landEquationParameters
+  );
+  const activeAlgorithmicTangentPa = params.orientationFraction01 * params.viableActiveFraction01 * (landStretch * activeNominalStressPa + landStretch * landStretch * activeNominalAlgorithmicTangentPa);
+  const totalKirchhoffStressPa = input.equilibriumPassive.stressPa + activeKirchhoffStressPa + nextOverstressPa;
+  const totalAlgorithmicTangentPa = input.equilibriumPassive.tangentPa + params.sls.branchModulusPa / (1 + ratio) + activeAlgorithmicTangentPa;
+  const residualNorm = Math.max(
+    Math.abs(solved.residualNorm),
+    Math.abs(stateResidual)
+  );
+  if (![
+    landStretch,
+    activeNominalStressPa,
+    activeKirchhoffStressPa,
+    totalKirchhoffStressPa,
+    activeAlgorithmicTangentPa,
+    totalAlgorithmicTangentPa,
+    residualNorm
+  ].every(Number.isFinite)) {
+    throw new Error("wall material evaluation produced a non-finite value");
+  }
+  return Object.freeze({
+    state: Object.freeze({
+      // The direct solver created this array exclusively for this result.
+      landState: solved.nextState,
+      slsState: Object.freeze({ viscousLogStrain: nextViscousLogStrain }),
+      previousFiberLogStrain: input.nextFiberLogStrain,
+      previousFreeCalciumUM: input.nextFreeCalciumUM
+    }),
+    fiberLogStrain: input.nextFiberLogStrain,
+    totalKirchhoffStressPa,
+    activeKirchhoffStressPa,
+    totalAlgorithmicTangentPa,
+    activeAlgorithmicTangentPa,
+    landSolverIterations: solved.iterations,
+    residualNorm
+  });
+}
+function numericalCanonicalZeroV1(value) {
+  return value === 0 ? 0 : value;
 }
 function evaluateAcceptedLandSlsWallStateV1(state, equilibriumPassive, params) {
   validateParamsOncePerObject(params);
@@ -15045,8 +15170,98 @@ function createNormalAdultProviderFromMaterial(laSlsMode, ventricularEquilibrium
     internalCoordinateScales: Object.freeze({
       septalMidwallCapVolumeM3: Math.abs(prior.anatomy.triSeg.loadedCoordinates.septalMidwallCapVolumeM3),
       junctionRadiusM: prior.anatomy.triSeg.loadedCoordinates.junctionRadiusM
-    })
+    }),
+    fingerprintMaterialStateCanonicalV1: fingerprintNormalAdultFiveWallMaterialStateCanonicalV1
   }));
+}
+const CANONICAL_FINGERPRINT_WALL_ORDER_V1 = Object.freeze([
+  "LA",
+  "LVFW",
+  "RA",
+  "RVFW",
+  "SEP"
+]);
+function updateCanonicalFingerprintTextV1(initialHash, text) {
+  let hash = initialHash;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash;
+}
+function updateCanonicalFingerprintNumberV1(initialHash, value) {
+  if (!Number.isFinite(value)) {
+    throw new Error("normal-adult material fingerprint requires finite numbers");
+  }
+  return updateCanonicalFingerprintTextV1(initialHash, JSON.stringify(value));
+}
+function updateCanonicalLandSlsWallStateV1(initialHash, state) {
+  if (!(state.landState instanceof Float64Array) || state.landState.length !== 6) {
+    throw new Error("normal-adult material fingerprint requires six Land states");
+  }
+  let hash = updateCanonicalFingerprintTextV1(
+    initialHash,
+    '{"landState":['
+  );
+  for (let index = 0; index < state.landState.length; index += 1) {
+    if (index !== 0) hash = updateCanonicalFingerprintTextV1(hash, ",");
+    hash = updateCanonicalFingerprintNumberV1(hash, state.landState[index]);
+  }
+  hash = updateCanonicalFingerprintTextV1(
+    hash,
+    '],"previousFiberLogStrain":'
+  );
+  hash = updateCanonicalFingerprintNumberV1(
+    hash,
+    state.previousFiberLogStrain
+  );
+  hash = updateCanonicalFingerprintTextV1(
+    hash,
+    ',"previousFreeCalciumUM":'
+  );
+  hash = updateCanonicalFingerprintNumberV1(
+    hash,
+    state.previousFreeCalciumUM
+  );
+  hash = updateCanonicalFingerprintTextV1(
+    hash,
+    ',"slsState":{"viscousLogStrain":'
+  );
+  hash = updateCanonicalFingerprintNumberV1(
+    hash,
+    state.slsState.viscousLogStrain
+  );
+  return updateCanonicalFingerprintTextV1(hash, "}}");
+}
+function fingerprintNormalAdultFiveWallMaterialStateCanonicalV1(state) {
+  let hash = updateCanonicalFingerprintTextV1(
+    2166136261,
+    '{"schemaVersion":2,"trisegCoordinates":{"junctionRadiusM":'
+  );
+  hash = updateCanonicalFingerprintNumberV1(
+    hash,
+    state.trisegCoordinates.junctionRadiusM
+  );
+  hash = updateCanonicalFingerprintTextV1(
+    hash,
+    ',"septalMidwallCapVolumeM3":'
+  );
+  hash = updateCanonicalFingerprintNumberV1(
+    hash,
+    state.trisegCoordinates.septalMidwallCapVolumeM3
+  );
+  hash = updateCanonicalFingerprintTextV1(hash, '},"wallStateByWall":{');
+  for (let index = 0; index < CANONICAL_FINGERPRINT_WALL_ORDER_V1.length; index += 1) {
+    if (index !== 0) hash = updateCanonicalFingerprintTextV1(hash, ",");
+    const wallId = CANONICAL_FINGERPRINT_WALL_ORDER_V1[index];
+    hash = updateCanonicalFingerprintTextV1(hash, `"${wallId}":`);
+    hash = updateCanonicalLandSlsWallStateV1(
+      hash,
+      state.wallStateByWall[wallId]
+    );
+  }
+  hash = updateCanonicalFingerprintTextV1(hash, "}}");
+  return hash.toString(16).padStart(8, "0");
 }
 function scaledVentricularLandTrefForScale(identitySuffix, scale, provenanceLabel) {
   const baseline = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularLand;
@@ -15134,7 +15349,7 @@ function createWallKernel(wallId, params, evaluatePassive, priorIdentityHash) {
       finite: trial.finite,
       valid: trial.valid,
       errors: trial.issues,
-      readback: includeReadback ? wallReadback({
+      readback: wallReadback({
         wallId,
         passive,
         params,
@@ -15154,7 +15369,34 @@ function createWallKernel(wallId, params, evaluatePassive, priorIdentityHash) {
         }),
         coldFixedInputIterations: null,
         coldLandMaximumStateUpdate: null
-      }) : null
+      })
+    });
+  };
+  const evaluateNumericalTrial = (input) => {
+    const passive = evaluatePassive(input.candidateFiberLogStrain);
+    const trial = trialLandSlsWallMaterialNumericalV1(
+      input.previousAcceptedState,
+      {
+        nextFiberLogStrain: input.candidateFiberLogStrain,
+        nextFreeCalciumUM: input.candidateFreeCalciumUM,
+        dtSec: input.stepDtSec,
+        equilibriumPassive: passive.input
+      },
+      params
+    );
+    return materialEvaluation({
+      state: trial.state,
+      fiberLogStrain: trial.fiberLogStrain,
+      stressPa: trial.totalKirchhoffStressPa,
+      activeFiberKirchhoffStressPa: trial.activeKirchhoffStressPa,
+      algorithmicFiberTangentPa: trial.totalAlgorithmicTangentPa,
+      activeFiberAlgorithmicTangentPa: trial.activeAlgorithmicTangentPa,
+      iterationCount: trial.landSolverIterations,
+      residualNorm: trial.residualNorm,
+      finite: true,
+      valid: true,
+      errors: [],
+      readback: null
     });
   };
   return Object.freeze({
@@ -15214,8 +15456,8 @@ function createWallKernel(wallId, params, evaluatePassive, priorIdentityHash) {
         })
       });
     },
-    evaluateTrialFromAccepted: (input) => evaluateTrial(input, true),
-    evaluateNumericalTrialFromAccepted: (input) => evaluateTrial(input, false)
+    evaluateTrialFromAccepted: (input) => evaluateTrial(input),
+    evaluateNumericalTrialFromAccepted: evaluateNumericalTrial
   });
 }
 function createMoyerPassiveEvaluator(compiled) {
@@ -16305,6 +16547,19 @@ function errorMessageV2(error) {
 }
 const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1 = 32;
 const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1 = Object.freeze(["LA", "LV", "RA", "RV"]);
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1 = Object.freeze([
+  "LA",
+  "LV",
+  "RA",
+  "RV",
+  "Ao",
+  "SA",
+  "PA",
+  "PVein",
+  "VC"
+]);
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1 = Object.freeze(["MV", "AoV", "TV", "PV"]);
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1 = Object.freeze(["SA_Art", "PA_PArt", "VC_RA", "PVein_LA"]);
 const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1 = Object.freeze({
   timeSec: 0,
   chamberVolumeMl: 1,
@@ -16319,6 +16574,43 @@ const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1 = Object.freeze(
   coronaryFlowMlPerSec: 27,
   coronaryVenousOutletFlowMlPerSec: 31
 });
+function requiredOrderIndexV1(order, id, label) {
+  const index = order.indexOf(id);
+  if (index < 0) throw new Error(`${label} ${id} is not in the canonical order`);
+  return index;
+}
+Object.freeze(
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.map(
+    (nodeId) => requiredOrderIndexV1(NON_CORONARY_NODE_NAMES_V1, nodeId, "readback node")
+  )
+);
+Object.freeze(
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1.map(
+    (nodeId) => requiredOrderIndexV1(
+      NON_CORONARY_NODE_NAMES_V1,
+      nodeId,
+      "readback pressure node"
+    )
+  )
+);
+Object.freeze(
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1.map(
+    (valveId) => requiredOrderIndexV1(
+      NON_CORONARY_VALVE_NAMES_V1,
+      valveId,
+      "readback valve"
+    )
+  )
+);
+Object.freeze(
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1.map(
+    (edgeId) => requiredOrderIndexV1(
+      NON_CORONARY_EDGE_NAMES_V1,
+      edgeId,
+      "readback edge"
+    )
+  )
+);
 function initializeMainWireFiveWallCoronaryV2(input) {
   const timeSec = input.timeSec ?? 0;
   requireNonnegativeFinite$c(timeSec, "timeSec");
@@ -34923,7 +35215,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-25";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-26";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

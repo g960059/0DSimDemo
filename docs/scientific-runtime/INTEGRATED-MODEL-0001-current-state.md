@@ -32,8 +32,21 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-25
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-26
 ```
+
+Standard-26 preserves Standard-25's production equations, controls,
+checkpoint meaning, accepted sequence, and public diagnostic records. Its
+out-of-production flat reference path now uses the admitted cubic root
+predictor, allocation-lean numerical Land/SLS and TriSeg evaluation, a
+session-owned coupled-residual workspace, and an exact allocation-cold
+mechanics-material fingerprint with an independent full-invariant audit. The
+rejected quartic predictor is not present: it either crossed the existing
+scientific-equivalence boundary or substantially increased residual work. A
+20,000-tick host run measured about `0.3505 ms/tick`, compared with about
+`0.405 ms/tick` for the Standard-25 reference path. The registered executable
+still runs the admitted public production algorithm; Standard-26 is a new
+artifact identity because model-owned runtime modules changed.
 
 Standard-25 preserves Standard-24's production equations, controls,
 checkpoint meaning, accepted sequence, and public diagnostic records. It adds
