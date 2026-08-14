@@ -10,9 +10,13 @@ import {
 } from "@/studio/infrastructure/browser/StudioBrowserExperimentIndexV3";
 import {
   createStudioSupabaseContentRepositoryV1,
+  type StudioPublicArticleSummaryV1,
+  type StudioSummaryCursorV1,
+  type StudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
   readStudioPublicHomeBootstrapV1,
+  STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1,
   type StudioPublicHomeBootstrapV1,
 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 
@@ -118,7 +122,57 @@ export function readPublicHomeCatalogBootstrapV3(
 export async function readPublicHomeCatalogAsyncV3(
   locale: "ja" | "en",
 ): Promise<PublicCatalogV3> {
-  return readPublicHomeCatalogBootstrapV3(locale) ?? readPublicCatalogAsyncV3();
+  const bootstrap = readPublicHomeCatalogBootstrapV3(locale);
+  if (bootstrap !== null) return bootstrap;
+  const remote = createStudioSupabaseContentRepositoryV1();
+  if (remote === null) return readPublicCatalogV3();
+  return readPublicHomeCatalogFromRemoteV3(locale, remote);
+}
+
+type PublicHomeCatalogRemotePortV3 = Pick<
+  StudioSupabaseContentRepositoryV1,
+  "listPublicArticles" | "listPublicExperiments"
+>;
+
+/**
+ * Matches the SSR Home discovery projection after an in-app locale change.
+ * Public summaries are globally ordered, so finding a sparse locale must page
+ * until enough matching Articles are found rather than filter one global page.
+ */
+export async function readPublicHomeCatalogFromRemoteV3(
+  locale: "ja" | "en",
+  remote: PublicHomeCatalogRemotePortV3,
+): Promise<PublicCatalogV3> {
+  const [articles, experimentPage] = await Promise.all([
+    listLocalizedHomeArticlesV3(remote, locale),
+    remote.listPublicExperiments({
+      limit: STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1,
+    }),
+  ]);
+  return publicCatalogFromPublicSummariesV3({
+    articles,
+    experiments: experimentPage.items,
+  });
+}
+
+async function listLocalizedHomeArticlesV3(
+  remote: Pick<StudioSupabaseContentRepositoryV1, "listPublicArticles">,
+  locale: "ja" | "en",
+): Promise<readonly StudioPublicArticleSummaryV1[]> {
+  const articles: StudioPublicArticleSummaryV1[] = [];
+  let cursor: StudioSummaryCursorV1 | null = null;
+  for (let pageIndex = 0; pageIndex < 100; pageIndex += 1) {
+    const page = await remote.listPublicArticles({ limit: 100, cursor });
+    for (const article of page.items) {
+      if (article.locale === locale) articles.push(article);
+      if (articles.length === STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1) {
+        return Object.freeze(articles);
+      }
+    }
+    if (page.nextCursor === null) return Object.freeze(articles);
+    cursor = page.nextCursor;
+  }
+  throw new Error("Public Home Article discovery exceeded 10,000 entries");
 }
 
 function publicCatalogFromPublicSummariesV3(input: Pick<

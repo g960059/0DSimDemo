@@ -87,7 +87,7 @@ export async function handleStudioPublicContentRequestV1(
     const etag = `"home-${locale}-html-v1-${createHash("sha256")
       .update(rendered.documentHtml, "utf8")
       .digest("hex")}"`;
-    if (request.headers.get("if-none-match") === etag) {
+    if (requestIfNoneMatchV1(request, etag)) {
       return new Response(null, {
         status: 304,
         headers: secureHeadersV1({
@@ -217,7 +217,7 @@ async function publishedArticleResponseV1(input: Readonly<{
     .update(formatBody, "utf8")
     .digest("hex");
   const etag = `"article-${article.articleContentId}-${input.format}-v1-${representationDigest}"`;
-  if (input.request.headers.get("if-none-match") === etag) {
+  if (requestIfNoneMatchV1(input.request, etag)) {
     return new Response(null, {
       status: 304,
       headers: secureHeadersV1({
@@ -252,6 +252,18 @@ async function publishedArticleResponseV1(input: Readonly<{
       `<${jsonUrl}>; rel="alternate"; type="application/json"`,
     ].join(", "),
   }, input.request.method);
+}
+
+/** GET/HEAD use weak comparison and may send a list of cached validators. */
+function requestIfNoneMatchV1(request: Request, currentEtag: string): boolean {
+  const header = request.headers.get("if-none-match");
+  if (header === null) return false;
+  const currentOpaqueTag = currentEtag.replace(/^W\//, "");
+  for (const match of header.matchAll(/\*|(?:W\/)?"[^"]*"/g)) {
+    if (match[0] === "*") return true;
+    if (match[0].replace(/^W\//, "") === currentOpaqueTag) return true;
+  }
+  return false;
 }
 
 async function listAllPublicArticlesV1(

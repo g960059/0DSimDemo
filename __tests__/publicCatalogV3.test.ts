@@ -4,6 +4,7 @@ import {
   publicArticlesForLocaleV3,
   readPublicCatalogV3,
   readPublicHomeCatalogBootstrapV3,
+  readPublicHomeCatalogFromRemoteV3,
 } from "@/components/site/PublicCatalogV3";
 import {
   STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID,
@@ -143,7 +144,57 @@ describe("public catalog V3", () => {
     });
     expect(readPublicHomeCatalogBootstrapV3("en", documentLike)).toBeNull();
   });
+
+  it("pages past other locales when an in-app locale change has no bootstrap", async () => {
+    const cursor = Object.freeze({
+      timestamp: "2026-08-13T00:00:00.000Z",
+      id: "article-ja-100",
+    });
+    const articleRequests: unknown[] = [];
+    const experimentRequests: unknown[] = [];
+    const catalog = await readPublicHomeCatalogFromRemoteV3("en", {
+      listPublicArticles: async (request = {}) => {
+        articleRequests.push(request);
+        if (request.cursor === null || request.cursor === undefined) {
+          return Object.freeze({
+            items: Object.freeze(Array.from({ length: 100 }, (_, index) =>
+              publicArticleSummary(`article-ja-${index}`, "ja"))),
+            nextCursor: cursor,
+          });
+        }
+        expect(request.cursor).toEqual(cursor);
+        return Object.freeze({
+          items: Object.freeze([publicArticleSummary("article-en", "en")]),
+          nextCursor: null,
+        });
+      },
+      listPublicExperiments: async (request = {}) => {
+        experimentRequests.push(request);
+        return Object.freeze({ items: Object.freeze([]), nextCursor: null });
+      },
+    });
+
+    expect(catalog.articles.map(({ articleId }) => articleId))
+      .toEqual(["article-en"]);
+    expect(articleRequests).toHaveLength(2);
+    expect(articleRequests).toMatchObject([
+      { limit: 100, cursor: null },
+      { limit: 100, cursor },
+    ]);
+    expect(experimentRequests).toEqual([{ limit: 7 }]);
+  });
 });
+
+function publicArticleSummary(articleId: string, locale: "ja" | "en") {
+  return Object.freeze({
+    articleId,
+    locale,
+    title: articleId,
+    excerpt: null,
+    publicSlug: `${articleId}-slug`,
+    publishedAt: "2026-08-13T00:00:00.000Z",
+  });
+}
 
 function experimentRecord(
   experimentId: string,

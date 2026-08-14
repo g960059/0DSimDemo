@@ -250,6 +250,20 @@ describe("Studio public content delivery V1", () => {
     );
     expect(cached.status).toBe(304);
     expect(await cached.text()).toBe("");
+
+    const weakListMatch = await handleStudioPublicContentRequestV1(
+      requestV1("/ja", {
+        "If-None-Match": `"unrelated", W/${etag}`,
+      }),
+      dependenciesV1(),
+    );
+    expect(weakListMatch.status).toBe(304);
+
+    const anyRepresentation = await handleStudioPublicContentRequestV1(
+      requestV1("/ja", { "If-None-Match": "*" }),
+      dependenciesV1(),
+    );
+    expect(anyRepresentation.status).toBe(304);
   });
 
   it("rejects stale-locale or executable Home bootstrap content", () => {
