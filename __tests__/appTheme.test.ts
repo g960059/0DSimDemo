@@ -32,18 +32,59 @@ describe('application theme', () => {
     expect(html).not.toContain('document.body.dataset.workbenchTheme');
   });
 
-  it('keeps the shared light and dark surfaces quiet and Zenn-blue accented', () => {
+  it('keeps graph canvases dominant and chrome, inspectors, and floating surfaces semantic', () => {
     const css = readFileSync('index.css', 'utf8');
 
-    expect(css).toContain('--wb-app-bg: #0a1622;');
-    expect(css).toContain('--wb-zone-main-bg: #0b1a29;');
-    expect(css).toContain('--wb-app-bg: #f4f7f9;');
-    expect(css).toContain('--wb-zone-main-bg: #f8fafb;');
-    expect(css).toContain('--wb-accent: #3ea8ff;');
+    expect(css).toContain('--wb-canvas-bg: #0a141d;');
+    expect(css).toContain('--wb-chrome-bg: #15222f;');
+    expect(css).toContain('--wb-inspector-bg: #101c28;');
+    expect(css).toContain('--wb-floating-bg: #182634;');
+    expect(css).toContain('--wb-canvas-bg: #ffffff;');
+    expect(css).toContain('--wb-chrome-bg: #eef2f5;');
+    expect(css).toContain('--wb-inspector-bg: #f6f8fa;');
+    expect(css).toContain('--wb-zone-main-bg: var(--wb-canvas-bg);');
+    expect(css).toContain('--wb-zone-aux-bg: var(--wb-inspector-bg);');
+    expect(css).toContain('--wb-accent: #3d9df0;');
+    expect(css).toContain('--wb-accent: #0e6eb8;');
     expect(css).toContain('--wb-line: var(--wb-border);');
-    expect(css).toContain('--wb-grid: rgba(37, 55, 72, 0.09);');
+    expect(css).toContain('--wb-grid: rgba(37, 55, 72, 0.13);');
     expect(css).toContain('--wb-type-label: 0.75rem;');
     expect(css).toContain('--wb-type-value: 1rem;');
+  });
+
+  it('uses the same semantic grid and axis tokens in every Canvas renderer', () => {
+    const sources = [
+      'components/workbench/v3/SweepingWaveformCanvasV3.tsx',
+      'components/workbench/v3/PressureVolumeLoopCanvasV3.tsx',
+      'components/workbench/v3/GuytonStarlingOrientationCanvasV3.tsx',
+    ].map((path) => readFileSync(path, 'utf8'));
+
+    sources.forEach((source) => {
+      expect(source).toContain('["--wb-grid"');
+      expect(source).toContain('["--wb-axis"');
+      expect(source).not.toContain('["--wb-border"');
+      expect(source).not.toContain('["--wb-border-strong"');
+    });
+  });
+
+  it('shares Canvas, inspector, and floating roles across Session and Article projections', () => {
+    const pane = readFileSync(
+      'components/workbench/ExperimentPanePresentationV3.tsx',
+      'utf8',
+    );
+    const placement = readFileSync(
+      'components/article/ArticleExperimentPlacementV3.tsx',
+      'utf8',
+    );
+    const reader = readFileSync(
+      'components/article/reader/ArticleReaderExperimentV3.tsx',
+      'utf8',
+    );
+
+    expect(pane).toContain('bg-wb-canvas');
+    expect(placement).toContain('bg-wb-inspector');
+    expect(reader).toContain('bg-wb-floating');
+    expect(reader).toContain('bg-wb-inspector');
   });
 
   it('uses semantic default series colors legible on both application canvases', () => {
@@ -77,7 +118,7 @@ describe('application theme', () => {
       'rhythm.phase.regular-sinus',
       'future.output.uses-deterministic-fallback',
     ] as const;
-    const backgrounds = ['#0b1a29', '#f8fafb'] as const;
+    const backgrounds = ['#0a141d', '#ffffff'] as const;
 
     outputIds.forEach((outputId) => {
       const color = outputColorV3(outputId);

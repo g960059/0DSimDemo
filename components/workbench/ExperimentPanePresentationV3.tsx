@@ -37,8 +37,8 @@ export function ExperimentGraphPresentationV3({
   variant: "pane" | "article";
 }> & Omit<React.HTMLAttributes<HTMLElement>, "children">) {
   const figureClassName = variant === "pane"
-    ? "h-full min-h-0 min-w-0 bg-wb-app p-3"
-    : "min-w-0";
+    ? "h-full min-h-0 min-w-0 bg-wb-canvas p-3"
+    : "min-w-0 rounded-xl bg-wb-canvas p-3 sm:p-4";
   return (
     <figure
       className={`${figureClassName} ${className}`.trim()}
@@ -69,7 +69,7 @@ export function ExperimentOutputGridV3({
     ? "min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] overflow-auto px-2 pb-2"
     : "article-output-grid gap-x-2 gap-y-2";
   const itemClassName = variant === "article"
-    ? "rounded-lg bg-wb-soft/40 px-2 py-2"
+    ? "rounded-lg bg-wb-floating/55 px-2 py-2"
     : "px-2.5 py-2";
   return (
     <div
@@ -93,7 +93,7 @@ export function ExperimentOutputGridV3({
             <span className="workbench-output-unit ml-1">{item.unit}</span>
           </p>
           {item.qualityNotice !== undefined && (
-            <p className="mt-1 text-[9px] text-wb-warning">
+            <p className="mt-1 text-[11px] text-wb-warning">
               {item.qualityNotice}
             </p>
           )}
@@ -318,7 +318,7 @@ export function ExperimentNumericControlV3({
         </button>
       </div>
       {error !== null && (
-        <p className="workbench-control-error text-[10px] text-wb-danger" role="alert">
+        <p className="workbench-control-error text-[11px] text-wb-danger" role="alert">
           {error}
         </p>
       )}

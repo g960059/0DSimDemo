@@ -410,7 +410,7 @@ function ArticleReaderV3Resource({
 
   if (content.kind !== "ready") {
     return (
-      <div className="h-full overflow-y-auto bg-wb-panel text-wb-text">
+      <div className="h-full overflow-y-auto bg-wb-app text-wb-text">
         <main className="mx-auto max-w-3xl px-6 py-20 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">
             {content.kind === "loading"
@@ -433,7 +433,7 @@ function ArticleReaderV3Resource({
 
   return (
     <div
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-wb-panel text-wb-text"
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-wb-app text-wb-text"
       data-testid="article-reader-v3"
     >
       <div

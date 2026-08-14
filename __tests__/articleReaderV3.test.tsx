@@ -620,7 +620,9 @@ describe("Article Reader V3 experiment anchor", () => {
     });
 
     expect(html).toContain('data-reader-placement-live="true"');
-    expect(html).toMatch(/<figure class="min-w-0"(?:\s[^>]*)?>/);
+    expect(html).toContain(
+      '<figure class="min-w-0 rounded-xl bg-wb-canvas',
+    );
     expect(html).toContain('data-experiment-graph-presentation="article"');
     expect(html).not.toContain("article-reader-experiment-drawer-v3");
     expect(html).not.toContain("min-w-0 px-4 pb-10");

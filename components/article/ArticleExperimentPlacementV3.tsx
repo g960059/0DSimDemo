@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useAppTheme, type AppThemeId } from "@/appTheme";
 import type {
   StudioArticleExperimentBlockV2,
 } from "@/studio/contracts/v2/article";
@@ -37,6 +38,11 @@ import type {
   ControlDefinitionV2,
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
+import {
+  resolveWorkbenchAutomaticGraphColorV3,
+  workbenchDefaultScenarioColorV3,
+} from
+  "@/components/workbench/v3/WorkbenchGraphColorV3";
 import {
   articleBriefingPresentationV3,
   defaultArticleBriefingV3,
@@ -285,6 +291,7 @@ function ArticleStaticGraphPreviewV3({
   snapshot: ExperimentSnapshotV2;
 }>) {
   const { t } = useTranslation();
+  const { appTheme } = useAppTheme();
   const label = graph.overrides?.label ?? pane.label;
   const series = graph.overrides?.series ?? pane.series;
   const legend = graph.overrides?.legend ?? "auto";
@@ -294,7 +301,7 @@ function ArticleStaticGraphPreviewV3({
     : snapshot.content.scenarios[0]?.scenarioId;
   return (
     <article
-      className={`min-w-0 rounded-xl bg-wb-panel p-3.5 ${graph.emphasis === "primary" ? "md:col-span-2" : ""}`}
+      className={`min-w-0 rounded-xl bg-wb-canvas p-3.5 ${graph.emphasis === "primary" ? "md:col-span-2" : ""}`}
       data-pane-id={pane.paneId}
       data-pane-role="graph"
       data-graph-emphasis={graph.emphasis}
@@ -303,18 +310,18 @@ function ArticleStaticGraphPreviewV3({
         <h3 className="min-w-0 flex-1 truncate text-[11px] font-semibold">
           {label}
         </h3>
-        <span className="text-[9px] tabular-nums text-wb-subtle">
+        <span className="text-[11px] tabular-nums text-wb-subtle">
           {t("articleEditor.role.graph")}
         </span>
       </header>
 
-      <div className="mt-3 rounded-lg bg-wb-app/55 px-3 py-4">
+      <div className="mt-3 rounded-lg bg-transparent px-3 py-4">
         {legend !== "hidden" && (
           <div className="flex min-h-12 flex-wrap content-center gap-x-3 gap-y-2">
             {[...series].sort(compareSemanticOrderV3).map((item) => (
               <span
                 key={item.seriesId}
-                className="inline-flex items-center gap-1.5 text-[10px] text-wb-muted"
+                className="inline-flex items-center gap-1.5 text-[11px] text-wb-muted"
               >
                 <span
                   className="h-px w-4"
@@ -324,6 +331,7 @@ function ArticleStaticGraphPreviewV3({
                       pane,
                       previewScenarioId,
                       item.seriesId,
+                      appTheme,
                     ),
                   }}
                   aria-hidden="true"
@@ -333,7 +341,7 @@ function ArticleStaticGraphPreviewV3({
             ))}
           </div>
         )}
-        <p className="mt-2 text-[9px] text-wb-subtle">
+        <p className="mt-2 text-[11px] text-wb-subtle">
           {t("articleEditor.staticDataNotice")}
         </p>
       </div>
@@ -346,18 +354,23 @@ function articlePreviewTraceColorV3(
   pane: ExperimentSurfaceGraphPaneV2,
   scenarioId: string | undefined,
   seriesId: string | null,
+  appTheme: AppThemeId,
 ): string {
   if (scenarioId === undefined) return "#64748b";
-  return graph.overrides?.traceColors?.find((trace) =>
+  const custom = graph.overrides?.traceColors?.find((trace) =>
     trace.scenarioId === scenarioId && trace.seriesId === seriesId
   )?.colorHex
     ?? pane.traceColors?.find((trace) =>
       trace.scenarioId === scenarioId && trace.seriesId === seriesId
-    )?.customColorHex
-    ?? pane.traceColors?.find((trace) =>
-      trace.scenarioId === scenarioId && trace.seriesId === seriesId
-    )?.automaticColorHex
-    ?? "#64748b";
+    )?.customColorHex;
+  if (custom !== undefined) return custom;
+  const automatic = pane.traceColors?.find((trace) =>
+    trace.scenarioId === scenarioId && trace.seriesId === seriesId
+  )?.automaticColorHex ?? "#64748b";
+  return resolveWorkbenchAutomaticGraphColorV3({
+    colorHex: automatic,
+    appTheme,
+  });
 }
 
 function ArticleStaticOutputPreviewV3({
@@ -367,7 +380,7 @@ function ArticleStaticOutputPreviewV3({
 }>) {
   const { t } = useTranslation();
   return (
-    <article className="min-w-0 rounded-xl bg-wb-panel p-3.5" data-pane-role="output">
+    <article className="min-w-0 rounded-xl bg-wb-inspector p-3.5" data-pane-role="output">
       <h3 className="text-[11px] font-semibold">{t("articleEditor.role.output")}</h3>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
         {[...outputs].sort(compareSemanticOrderV3).map((item) => (
@@ -375,7 +388,7 @@ function ArticleStaticOutputPreviewV3({
             key={`${item.sourcePaneId}:${item.outputId}:${item.scenarioId}`}
             className="min-w-0"
           >
-            <dt className="truncate text-[9px] text-wb-muted">{item.label}</dt>
+            <dt className="truncate text-[11px] text-wb-muted">{item.label}</dt>
             <dd className="mt-0.5 font-mono text-sm text-wb-subtle">—</dd>
           </div>
         ))}
@@ -391,13 +404,13 @@ function ArticleStaticControlPreviewV3({
 }>) {
   const { t } = useTranslation();
   return (
-    <article className="min-w-0 rounded-xl bg-wb-panel p-3.5" data-pane-role="control">
+    <article className="min-w-0 rounded-xl bg-wb-inspector p-3.5" data-pane-role="control">
       <h3 className="text-[11px] font-semibold">{t("articleEditor.role.control")}</h3>
       <ul className="mt-3 grid gap-3">
         {[...controls].sort(compareSemanticOrderV3).map((item) => (
           <li
             key={`${item.sourcePaneId}:${item.controlId}`}
-            className="min-w-0 text-[10px] text-wb-muted"
+            className="min-w-0 text-[11px] text-wb-muted"
           >
             <span className="block truncate">{item.label}</span>
             {item.presentation.kind === "buttons" ? (
@@ -405,7 +418,7 @@ function ArticleStaticControlPreviewV3({
                 {item.presentation.options.map((option) => (
                   <span
                     key={`${option.label}:${option.value}`}
-                    className="rounded-md bg-wb-soft px-2 py-1 text-[9px] text-wb-subtle"
+                    className="rounded-md bg-wb-soft px-2 py-1 text-[11px] text-wb-subtle"
                   >
                     {option.label}
                   </span>
@@ -616,7 +629,7 @@ export function ArticleBriefingEditorV3({
 
   return (
     <div
-      className="mt-3 rounded-xl bg-wb-panel px-3 py-3.5 sm:px-4"
+      className="mt-3 rounded-xl bg-wb-floating px-3 py-3.5 sm:px-4"
       data-testid={testId}
     >
       {showIntro && (
@@ -1020,7 +1033,7 @@ function GraphBriefingRowV3({
                 return (
                   <div
                     key={scenario.scenarioId}
-                    className="rounded-md bg-wb-panel/60 px-2.5 py-2"
+                    className="rounded-md bg-wb-inspector/70 px-2.5 py-2"
                   >
                     {scenarios.length > 1 && (
                       <p className="mb-2 truncate font-medium text-wb-text">
@@ -1039,9 +1052,7 @@ function GraphBriefingRowV3({
                         );
                         const fallback = source?.customColorHex
                           ?? source?.automaticColorHex
-                          ?? ["#2f8fd3", "#d58a19", "#8b76d1", "#2aa67d"][
-                            scenarioIndex % 4
-                          ]!;
+                          ?? workbenchDefaultScenarioColorV3(scenarioIndex);
                         return (
                           <label
                             key={item.seriesId ?? `structural-${itemIndex}`}

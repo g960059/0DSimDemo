@@ -1271,8 +1271,8 @@ function drawPvLeadingCapV3(
 
 function readPvCanvasThemeV3(element: HTMLElement | null): PvCanvasThemeV3 {
   const [grid, axis, text] = readWorkbenchCanvasThemeVariablesV3(element, [
-    ["--wb-border", "rgba(148, 163, 184, 0.18)"],
-    ["--wb-border-strong", "rgba(148, 163, 184, 0.48)"],
+    ["--wb-grid", "rgba(165, 185, 200, 0.10)"],
+    ["--wb-axis", "rgba(165, 185, 200, 0.32)"],
     ["--wb-text-muted", "#94a3b8"],
   ]);
   return Object.freeze({

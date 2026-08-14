@@ -6,10 +6,10 @@ import type {
 import type { AppThemeId } from "@/appTheme";
 
 export const WORKBENCH_SCENARIO_COLOR_PALETTE_V3 = Object.freeze([
-  "#2f8fd3",
-  "#d58a19",
+  "#d9822b",
+  "#2f9e7d",
   "#8b76d1",
-  "#2aa67d",
+  "#b8555f",
 ] as const);
 
 export type WorkbenchGraphRendererV3 =
@@ -24,21 +24,35 @@ export type WorkbenchResolvedGraphTraceStyleV3 = Readonly<{
 const WORKBENCH_SINGLE_SCENARIO_ITEM_PALETTE_V3: Readonly<
   Record<string, Readonly<Record<AppThemeId, string>>>
 > = Object.freeze({
-  LVP: Object.freeze({ light: "#c72c50", dark: "#ff5a78" }),
-  LV: Object.freeze({ light: "#c72c50", dark: "#ff5a78" }),
-  LAP: Object.freeze({ light: "#6f42c1", dark: "#b78bfa" }),
-  LA: Object.freeze({ light: "#6f42c1", dark: "#b78bfa" }),
-  AoP: Object.freeze({ light: "#0072a8", dark: "#33b1ff" }),
-  AoV: Object.freeze({ light: "#0072a8", dark: "#33b1ff" }),
-  RAP: Object.freeze({ light: "#007d79", dark: "#2dd4bf" }),
-  RA: Object.freeze({ light: "#007d79", dark: "#2dd4bf" }),
-  RVP: Object.freeze({ light: "#4f46b5", dark: "#7c83fd" }),
-  RV: Object.freeze({ light: "#4f46b5", dark: "#7c83fd" }),
-  PAP: Object.freeze({ light: "#9c5c00", dark: "#fbbf24" }),
-  PV: Object.freeze({ light: "#4f46b5", dark: "#7c83fd" }),
-  MV: Object.freeze({ light: "#c72c50", dark: "#ff5a78" }),
-  TV: Object.freeze({ light: "#007d79", dark: "#2dd4bf" }),
+  LVP: Object.freeze({ light: "#c22347", dark: "#ff5f73" }),
+  LV: Object.freeze({ light: "#c22347", dark: "#ff5f73" }),
+  LAP: Object.freeze({ light: "#a12bc7", dark: "#e07ce8" }),
+  LA: Object.freeze({ light: "#a12bc7", dark: "#e07ce8" }),
+  AoP: Object.freeze({ light: "#0068a3", dark: "#39c2ff" }),
+  AoV: Object.freeze({ light: "#0068a3", dark: "#39c2ff" }),
+  RAP: Object.freeze({ light: "#00786f", dark: "#2fd0b2" }),
+  RA: Object.freeze({ light: "#00786f", dark: "#2fd0b2" }),
+  RVP: Object.freeze({ light: "#4740c6", dark: "#8f9bff" }),
+  RV: Object.freeze({ light: "#4740c6", dark: "#8f9bff" }),
+  PAP: Object.freeze({ light: "#8f5b00", dark: "#f6bd3f" }),
+  PV: Object.freeze({ light: "#4740c6", dark: "#8f9bff" }),
+  MV: Object.freeze({ light: "#c22347", dark: "#ff5f73" }),
+  TV: Object.freeze({ light: "#00786f", dark: "#2fd0b2" }),
 });
+
+/*
+ * Released Article/Snapshot content stores automatic colors. Reinterpret the
+ * former semantic seeds through the current theme palette instead of treating
+ * them as arbitrary custom colors; authored custom colors remain untouched.
+ */
+const WORKBENCH_LEGACY_SEMANTIC_COLOR_PALETTE_V3 = Object.freeze([
+  Object.freeze({ legacyDark: "#ff5a78", light: "#c22347", dark: "#ff5f73" }),
+  Object.freeze({ legacyDark: "#b78bfa", light: "#a12bc7", dark: "#e07ce8" }),
+  Object.freeze({ legacyDark: "#33b1ff", light: "#0068a3", dark: "#39c2ff" }),
+  Object.freeze({ legacyDark: "#2dd4bf", light: "#00786f", dark: "#2fd0b2" }),
+  Object.freeze({ legacyDark: "#7c83fd", light: "#4740c6", dark: "#8f9bff" }),
+  Object.freeze({ legacyDark: "#fbbf24", light: "#8f5b00", dark: "#f6bd3f" }),
+] as const);
 
 /** Stable semantic seed used only when a single-Scenario trace is allocated. */
 export function workbenchSemanticItemColorV3(seriesId: string): string {
@@ -137,6 +151,10 @@ export function resolveWorkbenchAutomaticGraphColorV3(input: Readonly<{
     WORKBENCH_SINGLE_SCENARIO_ITEM_PALETTE_V3,
   ).find((candidate) => candidate.dark === canonical);
   if (semantic !== undefined) return semantic[input.appTheme];
+  const legacySemantic = WORKBENCH_LEGACY_SEMANTIC_COLOR_PALETTE_V3.find(
+    (candidate) => candidate.legacyDark === canonical,
+  );
+  if (legacySemantic !== undefined) return legacySemantic[input.appTheme];
   return ensureWorkbenchGraphContrastV3(input.colorHex, input.appTheme);
 }
 
@@ -275,7 +293,7 @@ function traceColorKeyV3(scenarioId: string, seriesId: string | null): string {
 
 function canonicalColorHexV3(value: string): string {
   const candidate = value.toLowerCase();
-  return /^#[0-9a-f]{6}$/.test(candidate) ? candidate : "#2f8fd3";
+  return /^#[0-9a-f]{6}$/.test(candidate) ? candidate : "#d9822b";
 }
 
 type RgbV3 = readonly [number, number, number];
@@ -345,7 +363,7 @@ function ensureWorkbenchGraphContrastV3(
   appTheme: AppThemeId,
 ): string {
   const canonical = canonicalColorHexV3(colorHex);
-  const background = appTheme === "dark" ? "#081d35" : "#f5f9fc";
+  const background = appTheme === "dark" ? "#0a141d" : "#ffffff";
   if (contrastRatioV3(canonical, background) >= 4.5) return canonical;
   const [hue, saturation, initialLightness] = rgbToHslV3(
     hexToRgbV3(canonical),
