@@ -13,6 +13,7 @@ import {
   bindExecutionPlanV1,
   bindExecutionPlanSolveSystemRuntimeV1,
   prepareBoundExecutionPlanSolveGroupV1,
+  resolveBoundExecutionPlanStateDispatchV1,
   resolveBoundExecutionPlanSolveDispatchV1,
   synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
@@ -48,6 +49,14 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     expect(plan.stateLayout.logicalSlotCount).toBe(100);
     expect(plan.stateLayout.continuousSlotCount).toBe(99);
     expect(plan.stateLayout.booleanSlotCount).toBe(1);
+    expect(new Set(plan.stateLayout.slots.map(({ authorityPointer }) =>
+      authorityPointer)).size).toBe(100);
+    expect(plan.stateLayout.slots[0]?.authorityPointer)
+      .toBe("/acceptedTimeSec");
+    expect(plan.stateLayout.slots[
+      MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.mvcActive
+    ]?.authorityPointer)
+      .toBe("/coronary/mvcReferenceState/mitralForwardFlowActive");
     expect(plan.stateLayout.blocks).toEqual([
       {
         componentId: "accepted-transaction",
@@ -286,6 +295,44 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       .toThrow("ordinals must be contiguous from zero");
   });
 
+  it("rejects missing, duplicated, and malformed authority pointers", () => {
+    const definition = createMainWireModelDefinitionV1();
+    const policy = createMainWireNumericalPolicyV1();
+    const mutable = structuredClone(definition) as unknown as {
+      components: Array<{
+        states: Array<{ authorityPointer?: string }>;
+      }>;
+    };
+    delete mutable.components[0]!.states[0]!.authorityPointer;
+    expect(() => compileExecutionPlanV1(
+      mutable as unknown as ModelDefinitionV1,
+      policy,
+    )).toThrow(/fields must match exactly/);
+
+    const duplicated = structuredClone(definition) as unknown as {
+      components: Array<{
+        states: Array<{ authorityPointer: string }>;
+      }>;
+    };
+    duplicated.components[0]!.states[1]!.authorityPointer =
+      duplicated.components[0]!.states[0]!.authorityPointer;
+    expect(() => compileExecutionPlanV1(
+      duplicated as unknown as ModelDefinitionV1,
+      policy,
+    )).toThrow(/duplicate model-state authority pointer/);
+
+    const malformed = structuredClone(definition) as unknown as {
+      components: Array<{
+        states: Array<{ authorityPointer: string }>;
+      }>;
+    };
+    malformed.components[0]!.states[0]!.authorityPointer = "relative/path";
+    expect(() => compileExecutionPlanV1(
+      malformed as unknown as ModelDefinitionV1,
+      policy,
+    )).toThrow(/absolute JSON pointer/);
+  });
+
   it("rejects one solve block spanning multiple component owners", () => {
     const definition = createMainWireModelDefinitionV1();
     const policy = structuredClone(
@@ -430,6 +477,16 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
         },
       ],
     });
+    const stateDispatch = resolveBoundExecutionPlanStateDispatchV1(bound);
+    expect(stateDispatch.slots[0]).toEqual({
+      stateId: "accepted.timeSec",
+      authorityPointer: "/acceptedTimeSec",
+      logicalIndex: 0,
+      storageKind: "continuous-f64",
+    });
+    expect(stateDispatch.slots).toHaveLength(100);
+    expect(() => resolveBoundExecutionPlanStateDispatchV1({ ...bound }))
+      .toThrow(/requires a bound plan/);
     expect(() => assertBoundExecutionPlanV1(bound, descriptor)).not.toThrow();
   });
 

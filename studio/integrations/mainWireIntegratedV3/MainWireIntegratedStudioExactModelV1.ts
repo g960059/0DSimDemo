@@ -378,6 +378,9 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
         "Standard execution plan cannot be shared between Scenarios",
       );
     }
+    scenario.modelSession.installExecutionPlanAcceptedStateBindingV1(
+      boundExecutionPlan,
+    );
     const clock = scenario.modelSession
       .copyCurrentAcceptedTypedHemodynamicViewV1(
         boundExecutionPlan.acceptedStateLogicalScratch,
@@ -407,6 +410,7 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
           prepared,
           MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1,
         ),
+        boundExecutionPlan,
       );
       scenario.executionPlanBinding = Object.freeze({
         boundExecutionPlan,

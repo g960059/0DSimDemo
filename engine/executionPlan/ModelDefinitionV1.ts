@@ -13,6 +13,8 @@ export type ModelStateDefinitionV1 = Readonly<{
   ordinal: number;
   storageKind: ModelStateStorageKindV1;
   unit: string;
+  /** Exact accepted-state leaf owned by this numerical state. */
+  authorityPointer: string;
 }>;
 
 /**

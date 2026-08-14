@@ -124,6 +124,14 @@ import {
   type MainWireAcceptedTypedStateAuthorityReportV1,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
 import {
+  bindExecutionPlanAcceptedTypedStateV1,
+  readExecutionPlanAcceptedTypedStateIntoLogicalV1,
+  type ExecutionPlanAcceptedTypedStateBindingV1,
+} from "@/engine/vnext/ExecutionPlanAcceptedTypedStateBindingV1";
+import type {
+  BoundExecutionPlanV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import {
   createMainWireAcceptedTypedHemodynamicBindingV1,
   createMainWireAcceptedTypedHemodynamicDestinationV1,
   materializeMainWireAcceptedTypedCoupledSolverAdapterV1,
@@ -243,7 +251,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     MainWireAcceptedTypedStateAuthorityV1 | null;
   readonly #typedBoundaryBinding:
     MainWireAcceptedTypedBoundaryBindingV1 | null;
-  readonly #typedHemodynamicBinding:
+  #typedHemodynamicBinding:
     MainWireAcceptedTypedHemodynamicBindingV1 | null;
   readonly #typedHemodynamicScratch: Float64Array;
   readonly #acceptedNumericalReadback = new Float64Array(
@@ -257,6 +265,9 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
   #installedExecutionPlanCoupledNewtonWorkspace:
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1 | null = null;
+  #installedExecutionPlan: BoundExecutionPlanV1 | null = null;
+  #executionPlanAcceptedTypedStateBinding:
+    ExecutionPlanAcceptedTypedStateBindingV1 | null = null;
   #executionPlanWorkspaceInstallationClosed = false;
   readonly #coupledResidualWorkspace:
     MainWireFiveWallCoupledResidualWorkspaceV1;
@@ -560,15 +571,77 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   }
 
   /**
+   * Binds compiler-owned state identities before the first synchronization.
+   * Repeating the same plan is idempotent; replacing it is fail-closed.
+   */
+  installExecutionPlanAcceptedStateBindingV1(
+    boundExecutionPlan: BoundExecutionPlanV1,
+  ): void {
+    if (
+      this.#installedExecutionPlan === boundExecutionPlan
+      && this.#executionPlanAcceptedTypedStateBinding !== null
+    ) {
+      return;
+    }
+    if (
+      this.#installedExecutionPlan !== null
+      || this.#executionPlanWorkspaceInstallationClosed
+    ) {
+      throw new Error("Main Wire execution plan cannot be replaced");
+    }
+    if (
+      this.#typedAuthority === null
+      || this.#typedHemodynamicBinding === null
+    ) {
+      throw new Error(
+        "Main Wire execution plan requires typed accepted-state authority",
+      );
+    }
+    const acceptedStateBinding = bindExecutionPlanAcceptedTypedStateV1(
+      boundExecutionPlan,
+      this.#typedAuthority.manifest(),
+    );
+    const hemodynamicBinding =
+      createMainWireAcceptedTypedHemodynamicBindingV1(
+        this.#typedAuthority.manifest(),
+        acceptedStateBinding,
+      );
+    if (
+      this.#typedHemodynamicBinding.mvcActiveBooleanSlot
+        !== hemodynamicBinding.mvcActiveBooleanSlot
+      || this.#typedHemodynamicBinding.canonicalContinuousSlots.some(
+        (slot, index) =>
+          slot !== hemodynamicBinding.canonicalContinuousSlots[index],
+      )
+    ) {
+      throw new Error(
+        "Main Wire execution-plan typed-authority projection drifted",
+      );
+    }
+    this.#installedExecutionPlan = boundExecutionPlan;
+    this.#executionPlanAcceptedTypedStateBinding = acceptedStateBinding;
+    this.#typedHemodynamicBinding = hemodynamicBinding;
+  }
+
+  /**
    * Installs compiler-owned solver scratch before the first numerical advance.
    * Repeating the same binding is idempotent; replacing it is fail-closed.
    */
   installExecutionPlanCoupledNewtonWorkspaceV1(
     workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+    boundExecutionPlan: BoundExecutionPlanV1,
   ): void {
     assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace);
-    if (this.#installedExecutionPlanCoupledNewtonWorkspace === workspace) {
+    if (
+      this.#installedExecutionPlanCoupledNewtonWorkspace === workspace
+      && this.#installedExecutionPlan === boundExecutionPlan
+    ) {
       return;
+    }
+    if (this.#installedExecutionPlan !== boundExecutionPlan) {
+      throw new Error(
+        "Main Wire execution-plan state binding must be installed first",
+      );
     }
     if (
       this.#installedExecutionPlanCoupledNewtonWorkspace !== null
@@ -592,15 +665,15 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   ): MainWireAcceptedTypedClockV1 {
     if (
       this.#typedAuthority === null
-      || this.#typedHemodynamicBinding === null
+      || this.#executionPlanAcceptedTypedStateBinding === null
     ) {
       throw new Error(
         "Main Wire execution-plan shadow requires typed accepted authority",
       );
     }
-    readMainWireAcceptedTypedHemodynamicIntoV1(
+    readExecutionPlanAcceptedTypedStateIntoLogicalV1(
+      this.#executionPlanAcceptedTypedStateBinding,
       this.#typedAuthority.currentCursor(),
-      this.#typedHemodynamicBinding,
       destination,
     );
     const clock = this.currentAcceptedClock();

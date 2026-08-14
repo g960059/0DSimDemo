@@ -1,7 +1,7 @@
 # Integrated V3 model: current state
 
-Status: exact experimental development package registered and wired as the
-default live Workbench model; not release-ready or clinically validated.
+Status: branch-local exact development candidate; not registered, activated,
+deployed, release-ready, or clinically validated.
 
 ## Current model boundary
 
@@ -29,20 +29,24 @@ actual integrated V3 accepted state. Its Dockview graph, output, and control
 role areas are derived from the registered model catalogs and share one
 page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 
-The current exact Standard release is:
+The current branch-local Standard candidate is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-45
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-49
 ```
 
-Standard-45 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
+Standard-49 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
 exact artifact and binds one Worker-local typed plan per Scenario
 during initialization. An atomic branch rebuild gives every Scenario in the
 candidate exact session fresh nonaliasing storage, so old and candidate
 sessions never share solver scratch during handoff. The production artifact
 contains the generated descriptor and binder, not the compiler or
-`ModelDefinitionV1`. At
-sampled presentation and control boundaries, it copies the existing authority's
+`ModelDefinitionV1`. During initialization, every compiled `stateId` resolves
+its accepted-authority JSON pointer to one numeric typed-image slot. The
+resulting mapping is private and opaque, and the hot path performs no pointer
+or string lookup. Standard-49 uses that mapping for both sampled plan
+synchronization and its live coupled-solver adapter. At sampled presentation
+and control boundaries, it copies the existing authority's
 100-slot hemodynamic view into the owning Scenario plan, checks finite/boolean
 storage, blood-volume conservation, and exact frame clocks, then discards no
 numerical history. Standard-32's typed accepted-state session remains the sole
@@ -50,6 +54,9 @@ accepted-state and checkpoint authority, so equations, accepted results,
 controls, topology, and checkpoint meaning are unchanged. Historical exact
 artifacts without the execution-plan capabilities retain their original loader
 contract.
+
+This branch does not move the Supabase active bundle pointer. Registration,
+activation, and deployment remain separate post-review operations.
 
 Its generated solve policy now includes named contiguous Newton/LU workspace
 segments. The binder creates persistent views and gathers the 30 active

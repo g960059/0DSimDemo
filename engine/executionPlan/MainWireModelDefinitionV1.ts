@@ -68,10 +68,23 @@ export function createMainWireModelDefinitionV1(): ModelDefinitionV1 {
       0,
       "accepted-transaction-kernel-v1",
       Object.freeze([
-        state("accepted.timeSec", 0, "continuous-f64", "s"),
-        state("accepted.revision", 1, "continuous-f64", "1"),
+        state(
+          "accepted.timeSec",
+          0,
+          "continuous-f64",
+          "s",
+          "/acceptedTimeSec",
+        ),
+        state(
+          "accepted.revision",
+          1,
+          "continuous-f64",
+          "1",
+          "/revision",
+        ),
         state(FIXED_TOTAL_BLOOD_VOLUME_STATE_ID, 2,
-          "continuous-f64", "mL"),
+          "continuous-f64", "mL",
+          "/coronary/fixedGlobalTotalBloodVolumeMl"),
       ]),
     ),
     component(
@@ -245,6 +258,7 @@ function nonCoronaryStates(): readonly ModelStateDefinitionV1[] {
       states.length,
       "continuous-f64",
       "mL",
+      `/coronary/circulation/nodeVolumesMl/${nodeId}`,
     ));
   }
   for (const edgeId of NON_CORONARY_DYNAMIC_EDGE_NAMES_V1) {
@@ -253,6 +267,7 @@ function nonCoronaryStates(): readonly ModelStateDefinitionV1[] {
       states.length,
       "continuous-f64",
       "mL/s",
+      `/coronary/circulation/dynamicEdgeFlowsMlPerSec/${edgeId}`,
     ));
   }
   for (const valveId of NON_CORONARY_VALVE_NAMES_V1) {
@@ -261,6 +276,8 @@ function nonCoronaryStates(): readonly ModelStateDefinitionV1[] {
       states.length,
       "continuous-f64",
       "1",
+      "/coronary/circulation/valveStates/"
+        + `${valveId}/leafletOpeningFraction01`,
     ));
   }
   return Object.freeze(states);
@@ -274,6 +291,7 @@ function coronaryStates(): readonly ModelStateDefinitionV1[] {
       states.length,
       "continuous-f64",
       "mL",
+      `/coronary/coronary/volumeMlByNode/${nodeId}`,
     ));
   }
   for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
@@ -283,6 +301,8 @@ function coronaryStates(): readonly ModelStateDefinitionV1[] {
         states.length,
         "continuous-f64",
         "1",
+        "/coronary/coronary/toneResistanceScaleByTerritoryLayer/"
+          + `${territoryId}/${layerId}`,
       ));
     }
   }
@@ -298,6 +318,8 @@ function mechanicsStates(): readonly ModelStateDefinitionV1[] {
         states.length,
         "continuous-f64",
         "model-state",
+        "/coronary/mechanics/materialState/wallStateByWall/"
+          + `${wallId}/landState/${index}`,
       ));
     }
     states.push(
@@ -306,18 +328,24 @@ function mechanicsStates(): readonly ModelStateDefinitionV1[] {
         states.length,
         "continuous-f64",
         "1",
+        "/coronary/mechanics/materialState/wallStateByWall/"
+          + `${wallId}/slsState/viscousLogStrain`,
       ),
       state(
         `mechanics.wall.${wallId}.previousFiberLogStrain`,
         states.length + 1,
         "continuous-f64",
         "1",
+        "/coronary/mechanics/materialState/wallStateByWall/"
+          + `${wallId}/previousFiberLogStrain`,
       ),
       state(
         `mechanics.wall.${wallId}.previousFreeCalciumUM`,
         states.length + 2,
         "continuous-f64",
         "uM",
+        "/coronary/mechanics/materialState/wallStateByWall/"
+          + `${wallId}/previousFreeCalciumUM`,
       ),
     );
   }
@@ -327,25 +355,72 @@ function mechanicsStates(): readonly ModelStateDefinitionV1[] {
       states.length,
       "continuous-f64",
       "m3",
+      "/coronary/mechanics/materialState/trisegCoordinates/"
+        + "septalMidwallCapVolumeM3",
     ),
     state(
       COUPLED_HEMODYNAMICS_TRISEG_UNKNOWN_IDS_V1[1],
       states.length + 1,
       "continuous-f64",
       "m",
+      "/coronary/mechanics/materialState/trisegCoordinates/junctionRadiusM",
     ),
   );
   const mvcStates = Object.freeze([
-    ["mechanics.mvc.referenceFiberLogStrain.LVFW", "continuous-f64", "1"],
-    ["mechanics.mvc.referenceFiberLogStrain.SEP", "continuous-f64", "1"],
-    ["mechanics.mvc.referenceFiberLogStrain.RVFW", "continuous-f64", "1"],
-    ["mechanics.mvc.referenceAcceptedTimeSec", "continuous-f64", "s"],
-    ["mechanics.mvc.referenceRevision", "continuous-f64", "1"],
-    ["mechanics.mvc.mitralForwardFlowActive", "boolean-u8", "1"],
-    ["mechanics.mvc.acceptedMitralClosureEventCount", "continuous-f64", "1"],
+    [
+      "mechanics.mvc.referenceFiberLogStrain.LVFW",
+      "continuous-f64",
+      "1",
+      "/coronary/mvcReferenceState/reference/"
+        + "referenceFiberLogStrainByWall/LVFW",
+    ],
+    [
+      "mechanics.mvc.referenceFiberLogStrain.SEP",
+      "continuous-f64",
+      "1",
+      "/coronary/mvcReferenceState/reference/"
+        + "referenceFiberLogStrainByWall/SEP",
+    ],
+    [
+      "mechanics.mvc.referenceFiberLogStrain.RVFW",
+      "continuous-f64",
+      "1",
+      "/coronary/mvcReferenceState/reference/"
+        + "referenceFiberLogStrainByWall/RVFW",
+    ],
+    [
+      "mechanics.mvc.referenceAcceptedTimeSec",
+      "continuous-f64",
+      "s",
+      "/coronary/mvcReferenceState/referenceAcceptedTimeSec",
+    ],
+    [
+      "mechanics.mvc.referenceRevision",
+      "continuous-f64",
+      "1",
+      "/coronary/mvcReferenceState/referenceRevision",
+    ],
+    [
+      "mechanics.mvc.mitralForwardFlowActive",
+      "boolean-u8",
+      "1",
+      "/coronary/mvcReferenceState/mitralForwardFlowActive",
+    ],
+    [
+      "mechanics.mvc.acceptedMitralClosureEventCount",
+      "continuous-f64",
+      "1",
+      "/coronary/mvcReferenceState/acceptedMitralClosureEventCount",
+    ],
   ] as const);
-  for (const [stateId, storageKind, unit] of mvcStates) {
-    states.push(state(stateId, states.length, storageKind, unit));
+  for (const [stateId, storageKind, unit, authorityPointer] of mvcStates) {
+    states.push(state(
+      stateId,
+      states.length,
+      storageKind,
+      unit,
+      authorityPointer,
+    ));
   }
   return Object.freeze(states);
 }
@@ -364,6 +439,13 @@ function state(
   ordinal: number,
   storageKind: ModelStateDefinitionV1["storageKind"],
   unit: string,
+  authorityPointer: string,
 ): ModelStateDefinitionV1 {
-  return Object.freeze({ stateId, ordinal, storageKind, unit });
+  return Object.freeze({
+    stateId,
+    ordinal,
+    storageKind,
+    unit,
+    authorityPointer,
+  });
 }

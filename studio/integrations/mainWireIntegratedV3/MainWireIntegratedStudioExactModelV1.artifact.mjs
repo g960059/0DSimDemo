@@ -30254,11 +30254,13 @@ function validateAndOwnExecutionPlanDescriptorV1(value) {
   }
   const stateIdByLogicalIndex = [];
   const stateIdSet = /* @__PURE__ */ new Set();
+  const authorityPointerSet = /* @__PURE__ */ new Set();
   let expectedContinuousIndex = 0;
   let expectedBooleanIndex = 0;
   slots.forEach((raw, index) => {
     const slot2 = recordV1(raw, `$.stateLayout.slots[${index}]`);
     exactKeysV1(slot2, [
+      "authorityPointer",
       "componentId",
       "logicalIndex",
       "stateId",
@@ -30274,10 +30276,21 @@ function validateAndOwnExecutionPlanDescriptorV1(value) {
       slot2.componentId,
       `$.stateLayout.slots[${index}].componentId`
     );
+    const authorityPointer = authorityPointerV1(
+      slot2.authorityPointer,
+      `$.stateLayout.slots[${index}].authorityPointer`
+    );
     if (stateIdSet.has(stateId)) {
       failV1(`$.stateLayout.slots[${index}]`, "duplicate stateId");
     }
     stateIdSet.add(stateId);
+    if (authorityPointerSet.has(authorityPointer)) {
+      failV1(
+        `$.stateLayout.slots[${index}].authorityPointer`,
+        "duplicate accepted-state authority pointer"
+      );
+    }
+    authorityPointerSet.add(authorityPointer);
     if (nonnegativeIntegerV1(
       slot2.logicalIndex,
       `$.stateLayout.slots[${index}].logicalIndex`
@@ -30571,6 +30584,18 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
   });
   assertBoundExecutionPlanV1(bound, descriptor);
   BOUND_EXECUTION_PLAN_METADATA_V1.set(bound, Object.freeze({
+    stateDispatch: Object.freeze({
+      definitionId: descriptor.definitionId,
+      logicalSlotCount: descriptor.stateLayout.logicalSlotCount,
+      continuousSlotCount: descriptor.stateLayout.continuousSlotCount,
+      booleanSlotCount: descriptor.stateLayout.booleanSlotCount,
+      slots: Object.freeze(descriptor.stateLayout.slots.map((slot2) => Object.freeze({
+        stateId: slot2.stateId,
+        authorityPointer: slot2.authorityPointer,
+        logicalIndex: slot2.logicalIndex,
+        storageKind: slot2.storageKind
+      })))
+    }),
     continuousLogicalIndices: Object.freeze(descriptor.stateLayout.slots.filter(({ storageKind }) => storageKind === "continuous-f64").sort((left, right) => left.storageIndex - right.storageIndex).map(({ logicalIndex }) => logicalIndex)),
     booleanLogicalIndices: Object.freeze(descriptor.stateLayout.slots.filter(({ storageKind }) => storageKind === "boolean-u8").sort((left, right) => left.storageIndex - right.storageIndex).map(({ logicalIndex }) => logicalIndex)),
     conservationPools: Object.freeze(
@@ -30592,6 +30617,13 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
     ))
   }));
   return bound;
+}
+function resolveBoundExecutionPlanStateDispatchV1(bound) {
+  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
+  if (metadata === void 0) {
+    throw new Error("Execution plan state dispatch requires a bound plan");
+  }
+  return metadata.stateDispatch;
 }
 function prepareBoundExecutionPlanSolveGroupV1(bound, solveGroupId) {
   const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
@@ -31378,6 +31410,20 @@ function exactKeysV1(value, expected, path) {
 function portableIdV1(value, path) {
   if (typeof value !== "string" || !PORTABLE_ID.test(value)) {
     failV1(path, "must be a portable identifier");
+  }
+  return value;
+}
+function authorityPointerV1(value, path) {
+  if (typeof value !== "string" || value.length < 2 || value.length > 1024 || value[0] !== "/" || /[\u0000-\u001f\u007f]/u.test(value)) {
+    failV1(path, "must be a bounded absolute JSON pointer");
+  }
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] !== "~") continue;
+    const escape = value[index + 1];
+    if (escape !== "0" && escape !== "1") {
+      failV1(path, "contains an invalid JSON-pointer escape");
+    }
+    index += 1;
   }
   return value;
 }
@@ -42967,10 +43013,141 @@ function requiredBindingSlot(slots, pointer2, owner) {
   }
   return matches[0];
 }
+const EXECUTION_PLAN_ACCEPTED_TYPED_STATE_BINDING_V1_SCHEMA_ID = "circleheart-execution-plan-accepted-typed-state-binding-v1";
+const BINDING_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
+function bindExecutionPlanAcceptedTypedStateV1(bound, manifest) {
+  const stateDispatch = resolveBoundExecutionPlanStateDispatchV1(bound);
+  assertManifestV1(manifest);
+  const continuousSlotByPointer = slotIndexByPointerV1(
+    manifest.numericalLayout.continuousSlots,
+    "continuous"
+  );
+  const booleanSlotByPointer = slotIndexByPointerV1(
+    manifest.numericalLayout.booleanSlots,
+    "boolean"
+  );
+  const slots = stateDispatch.slots.map((slot2) => {
+    const expected = slot2.storageKind === "continuous-f64" ? continuousSlotByPointer : booleanSlotByPointer;
+    const conflicting = slot2.storageKind === "continuous-f64" ? booleanSlotByPointer : continuousSlotByPointer;
+    const authoritySlotIndex = expected.get(slot2.authorityPointer);
+    if (authoritySlotIndex === void 0) {
+      if (conflicting.has(slot2.authorityPointer)) {
+        throw new Error(
+          `Execution plan state ${slot2.stateId} authority storage kind drifted`
+        );
+      }
+      throw new Error(
+        `Execution plan state ${slot2.stateId} authority pointer is unavailable`
+      );
+    }
+    return Object.freeze({
+      stateId: slot2.stateId,
+      logicalIndex: slot2.logicalIndex,
+      storageKind: slot2.storageKind,
+      authoritySlotIndex
+    });
+  });
+  const continuousAuthoritySlots = slots.filter(({ storageKind }) => storageKind === "continuous-f64").map(({ authoritySlotIndex }) => authoritySlotIndex);
+  const booleanAuthoritySlots = slots.filter(({ storageKind }) => storageKind === "boolean-u8").map(({ authoritySlotIndex }) => authoritySlotIndex);
+  assertUniqueAuthoritySlotsV1(continuousAuthoritySlots, "continuous");
+  assertUniqueAuthoritySlotsV1(booleanAuthoritySlots, "boolean");
+  const binding = Object.freeze({
+    schemaId: EXECUTION_PLAN_ACCEPTED_TYPED_STATE_BINDING_V1_SCHEMA_ID,
+    definitionId: stateDispatch.definitionId,
+    authorityLayoutId: manifest.layoutId,
+    authorityFingerprint: manifest.fingerprint,
+    logicalSlotCount: stateDispatch.logicalSlotCount,
+    continuousSlotCount: stateDispatch.continuousSlotCount,
+    booleanSlotCount: stateDispatch.booleanSlotCount
+  });
+  BINDING_STORAGE_V1.set(binding, Object.freeze({
+    slots: Object.freeze(slots),
+    slotByStateId: new Map(slots.map((slot2) => [slot2.stateId, slot2]))
+  }));
+  return binding;
+}
+function readExecutionPlanAcceptedTypedStateIntoLogicalV1(binding, cursor, destination) {
+  const storage = requiredStorageV1(binding);
+  assertCursorV1(binding, cursor);
+  if (!(destination instanceof Float64Array) || destination.length !== binding.logicalSlotCount) {
+    throw new RangeError(
+      "Execution plan accepted-state destination has the wrong length"
+    );
+  }
+  for (const slot2 of storage.slots) {
+    destination[slot2.logicalIndex] = slot2.storageKind === "continuous-f64" ? cursor.readContinuous(slot2.authoritySlotIndex) : cursor.readBoolean(slot2.authoritySlotIndex) ? 1 : 0;
+  }
+}
+function listExecutionPlanAcceptedTypedStateSlotsV1(binding) {
+  return requiredStorageV1(binding).slots;
+}
+function requiredStorageV1(binding) {
+  const storage = BINDING_STORAGE_V1.get(binding);
+  if (storage === void 0) {
+    throw new Error(
+      "Execution plan accepted-state operation requires an admitted binding"
+    );
+  }
+  return storage;
+}
+function assertManifestV1(manifest) {
+  if (typeof manifest !== "object" || manifest === null || typeof manifest.layoutId !== "string" || manifest.layoutId.length === 0 || typeof manifest.fingerprint !== "string" || manifest.fingerprint.length === 0) {
+    throw new Error("Execution plan typed-authority manifest is invalid");
+  }
+}
+function assertCursorV1(binding, cursor) {
+  if (cursor.layoutId !== binding.authorityLayoutId || cursor.fingerprint !== binding.authorityFingerprint) {
+    throw new Error("Execution plan typed-authority cursor identity drifted");
+  }
+}
+function slotIndexByPointerV1(slots, label) {
+  const result = /* @__PURE__ */ new Map();
+  slots.forEach(({ pointer: pointer2 }, index) => {
+    if (result.has(pointer2)) {
+      throw new Error(
+        `Execution plan typed-authority ${label} pointer is duplicated`
+      );
+    }
+    result.set(pointer2, index);
+  });
+  return result;
+}
+function assertUniqueAuthoritySlotsV1(slots, label) {
+  if (new Set(slots).size !== slots.length) {
+    throw new Error(
+      `Execution plan ${label} states alias one typed-authority slot`
+    );
+  }
+}
 const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_VIEW_V1_ID = "main-wire-integrated-accepted-typed-hemodynamic-view-v1";
 const LAND_STATE_LENGTH = 6;
 const WALL_STATE_LENGTH = LAND_STATE_LENGTH + 3;
 const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1 = 100;
+const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1 = Object.freeze([
+  "accepted.timeSec",
+  "accepted.revision",
+  "circulation.fixedTotalBloodVolumeMl",
+  ...NON_CORONARY_NODE_NAMES_V1.map((nodeId) => `noncoronary.volume.${nodeId}`),
+  ...NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((edgeId) => `noncoronary.flow.${edgeId}`),
+  ...NON_CORONARY_VALVE_NAMES_V1.map((valveId) => `noncoronary.valve.${valveId}.openingFraction01`),
+  ...CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId) => `coronary.volume.${nodeId}`),
+  ...CORONARY_TERRITORY_IDS_V2.flatMap((territoryId) => CORONARY_LAYER_IDS_V2.map((layerId) => `coronary.tone.${territoryId}.${layerId}`)),
+  ...MAIN_WIRE_FIVE_WALL_IDS_V1.flatMap((wallId) => [
+    ...Array.from({ length: 6 }, (_unused, index) => `mechanics.wall.${wallId}.land.${index}`),
+    `mechanics.wall.${wallId}.sls.viscousLogStrain`,
+    `mechanics.wall.${wallId}.previousFiberLogStrain`,
+    `mechanics.wall.${wallId}.previousFreeCalciumUM`
+  ]),
+  "TriSeg.septalMidwallCapVolume",
+  "TriSeg.junctionRadius",
+  "mechanics.mvc.referenceFiberLogStrain.LVFW",
+  "mechanics.mvc.referenceFiberLogStrain.SEP",
+  "mechanics.mvc.referenceFiberLogStrain.RVFW",
+  "mechanics.mvc.referenceAcceptedTimeSec",
+  "mechanics.mvc.referenceRevision",
+  "mechanics.mvc.mitralForwardFlowActive",
+  "mechanics.mvc.acceptedMitralClosureEventCount"
+]);
 const ACCEPTED_TIME_INDEX = 0;
 const REVISION_INDEX = 1;
 const FIXED_TBV_INDEX = 2;
@@ -42986,8 +43163,7 @@ const MVC_ACTIVE_INDEX = MVC_INDEX + 5;
 if (NON_CORONARY_NODE_NAMES_V1.length !== 15 || NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length !== 2 || NON_CORONARY_VALVE_NAMES_V1.length !== 4 || CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length !== 16 || CORONARY_TERRITORY_IDS_V2.length !== 3 || CORONARY_LAYER_IDS_V2.length !== 2 || MAIN_WIRE_FIVE_WALL_IDS_V1.length !== 5 || MVC_INDEX + 7 !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
   throw new Error("Main Wire accepted typed hemodynamic dimensions changed");
 }
-function createMainWireAcceptedTypedHemodynamicBindingV1(manifest) {
-  assertManifest(manifest);
+function createLegacyMainWireAcceptedProjectionV1(manifest) {
   const slots = [];
   slots.push(
     continuousSlot(manifest, "/acceptedTimeSec"),
@@ -43083,6 +43259,48 @@ function createMainWireAcceptedTypedHemodynamicBindingV1(manifest) {
   if (slots.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1 || slots[MVC_ACTIVE_INDEX] !== null || slots.some((slot2, index) => index !== MVC_ACTIVE_INDEX && slot2 === null)) {
     throw new Error("Main Wire accepted typed hemodynamic binding is incomplete");
   }
+  return Object.freeze({
+    slots,
+    mvcActiveBooleanSlot: booleanSlot(
+      manifest,
+      "/coronary/mvcReferenceState/mitralForwardFlowActive"
+    )
+  });
+}
+function createMainWireAcceptedTypedHemodynamicBindingV1(manifest, executionPlanBinding) {
+  assertManifest(manifest);
+  let slots;
+  let mvcActiveBooleanSlot;
+  if (executionPlanBinding === void 0) {
+    const legacyProjection = createLegacyMainWireAcceptedProjectionV1(manifest);
+    slots = legacyProjection.slots;
+    mvcActiveBooleanSlot = legacyProjection.mvcActiveBooleanSlot;
+  } else {
+    if (executionPlanBinding.authorityLayoutId !== manifest.layoutId || executionPlanBinding.authorityFingerprint !== manifest.fingerprint) {
+      throw new Error(
+        "Main Wire execution-plan authority binding identity drifted"
+      );
+    }
+    const compiled = listExecutionPlanAcceptedTypedStateSlotsV1(
+      executionPlanBinding
+    );
+    if (compiled.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1.length || compiled.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
+      throw new Error("Main Wire execution-plan state count drifted");
+    }
+    const compiledSlots = compiled.map((slot2, index) => {
+      const expectedStateId = MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1[index];
+      const expectedStorageKind = index === MVC_ACTIVE_INDEX ? "boolean-u8" : "continuous-f64";
+      if (slot2.stateId !== expectedStateId || slot2.logicalIndex !== index || slot2.storageKind !== expectedStorageKind) {
+        throw new Error(
+          `Main Wire execution-plan state ${index} identity drifted`
+        );
+      }
+      return slot2.storageKind === "boolean-u8" ? null : slot2.authoritySlotIndex;
+    });
+    const compiledMvc = compiled[MVC_ACTIVE_INDEX];
+    slots = compiledSlots;
+    mvcActiveBooleanSlot = compiledMvc.authoritySlotIndex;
+  }
   const ownerClocks = Object.freeze([
     ownerClock(manifest, ""),
     ownerClock(manifest, "/composedRhythm"),
@@ -43091,10 +43309,6 @@ function createMainWireAcceptedTypedHemodynamicBindingV1(manifest) {
     ownerClock(manifest, "/coronary/coronary"),
     ownerClock(manifest, "/coronary/mechanics")
   ]);
-  const mvcActiveBooleanSlot = booleanSlot(
-    manifest,
-    "/coronary/mvcReferenceState/mitralForwardFlowActive"
-  );
   const circulationTotalBloodVolumeSlot = continuousSlot(
     manifest,
     "/coronary/circulation/totalBloodVolumeMl"
@@ -43719,6 +43933,8 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     );
     this.#acceptedNumericalReadbackAvailable = false;
     this.#installedExecutionPlanCoupledNewtonWorkspace = null;
+    this.#installedExecutionPlan = null;
+    this.#executionPlanAcceptedTypedStateBinding = null;
     this.#executionPlanWorkspaceInstallationClosed = false;
     this.#coupledSolverProfile = {
       solveCount: 0,
@@ -43846,6 +44062,8 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
   #acceptedNumericalReadbackAvailable;
   #coupledNewtonWorkspace;
   #installedExecutionPlanCoupledNewtonWorkspace;
+  #installedExecutionPlan;
+  #executionPlanAcceptedTypedStateBinding;
   #executionPlanWorkspaceInstallationClosed;
   #coupledResidualWorkspace;
   #coupledPredictorWorkspace;
@@ -43954,13 +44172,53 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     return this.#authority.snapshot();
   }
   /**
+   * Binds compiler-owned state identities before the first synchronization.
+   * Repeating the same plan is idempotent; replacing it is fail-closed.
+   */
+  installExecutionPlanAcceptedStateBindingV1(boundExecutionPlan) {
+    if (this.#installedExecutionPlan === boundExecutionPlan && this.#executionPlanAcceptedTypedStateBinding !== null) {
+      return;
+    }
+    if (this.#installedExecutionPlan !== null || this.#executionPlanWorkspaceInstallationClosed) {
+      throw new Error("Main Wire execution plan cannot be replaced");
+    }
+    if (this.#typedAuthority === null || this.#typedHemodynamicBinding === null) {
+      throw new Error(
+        "Main Wire execution plan requires typed accepted-state authority"
+      );
+    }
+    const acceptedStateBinding = bindExecutionPlanAcceptedTypedStateV1(
+      boundExecutionPlan,
+      this.#typedAuthority.manifest()
+    );
+    const hemodynamicBinding = createMainWireAcceptedTypedHemodynamicBindingV1(
+      this.#typedAuthority.manifest(),
+      acceptedStateBinding
+    );
+    if (this.#typedHemodynamicBinding.mvcActiveBooleanSlot !== hemodynamicBinding.mvcActiveBooleanSlot || this.#typedHemodynamicBinding.canonicalContinuousSlots.some(
+      (slot2, index) => slot2 !== hemodynamicBinding.canonicalContinuousSlots[index]
+    )) {
+      throw new Error(
+        "Main Wire execution-plan typed-authority projection drifted"
+      );
+    }
+    this.#installedExecutionPlan = boundExecutionPlan;
+    this.#executionPlanAcceptedTypedStateBinding = acceptedStateBinding;
+    this.#typedHemodynamicBinding = hemodynamicBinding;
+  }
+  /**
    * Installs compiler-owned solver scratch before the first numerical advance.
    * Repeating the same binding is idempotent; replacing it is fail-closed.
    */
-  installExecutionPlanCoupledNewtonWorkspaceV1(workspace) {
+  installExecutionPlanCoupledNewtonWorkspaceV1(workspace, boundExecutionPlan) {
     assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace);
-    if (this.#installedExecutionPlanCoupledNewtonWorkspace === workspace) {
+    if (this.#installedExecutionPlanCoupledNewtonWorkspace === workspace && this.#installedExecutionPlan === boundExecutionPlan) {
       return;
+    }
+    if (this.#installedExecutionPlan !== boundExecutionPlan) {
+      throw new Error(
+        "Main Wire execution-plan state binding must be installed first"
+      );
     }
     if (this.#installedExecutionPlanCoupledNewtonWorkspace !== null || this.#executionPlanWorkspaceInstallationClosed) {
       throw new Error(
@@ -43976,14 +44234,14 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
    * remains the sole authority; this method neither stages nor promotes state.
    */
   copyCurrentAcceptedTypedHemodynamicViewV1(destination) {
-    if (this.#typedAuthority === null || this.#typedHemodynamicBinding === null) {
+    if (this.#typedAuthority === null || this.#executionPlanAcceptedTypedStateBinding === null) {
       throw new Error(
         "Main Wire execution-plan shadow requires typed accepted authority"
       );
     }
-    readMainWireAcceptedTypedHemodynamicIntoV1(
+    readExecutionPlanAcceptedTypedStateIntoLogicalV1(
+      this.#executionPlanAcceptedTypedStateBinding,
       this.#typedAuthority.currentCursor(),
-      this.#typedHemodynamicBinding,
       destination
     );
     const clock = this.currentAcceptedClock();
@@ -47205,12 +47463,12 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-45";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-49";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";
 const policyId = "main-wire-static-condensed-be-policy-v1";
-const stateLayout = /* @__PURE__ */ JSON.parse('{"logicalSlotCount":100,"continuousSlotCount":99,"booleanSlotCount":1,"blocks":[{"componentId":"accepted-transaction","kernelId":"accepted-transaction-kernel-v1","logicalStart":0,"logicalLength":3},{"componentId":"noncoronary-circulation","kernelId":"noncoronary-backward-euler-kernel-v1","logicalStart":3,"logicalLength":21},{"componentId":"coronary-circulation","kernelId":"coronary-backward-euler-kernel-v2","logicalStart":24,"logicalLength":22},{"componentId":"five-wall-mechanics","kernelId":"five-wall-land-triseg-kernel-v1","logicalStart":46,"logicalLength":54}],"slots":[{"stateId":"accepted.timeSec","componentId":"accepted-transaction","logicalIndex":0,"storageKind":"continuous-f64","storageIndex":0,"unit":"s"},{"stateId":"accepted.revision","componentId":"accepted-transaction","logicalIndex":1,"storageKind":"continuous-f64","storageIndex":1,"unit":"1"},{"stateId":"circulation.fixedTotalBloodVolumeMl","componentId":"accepted-transaction","logicalIndex":2,"storageKind":"continuous-f64","storageIndex":2,"unit":"mL"},{"stateId":"noncoronary.volume.LV","componentId":"noncoronary-circulation","logicalIndex":3,"storageKind":"continuous-f64","storageIndex":3,"unit":"mL"},{"stateId":"noncoronary.volume.LA","componentId":"noncoronary-circulation","logicalIndex":4,"storageKind":"continuous-f64","storageIndex":4,"unit":"mL"},{"stateId":"noncoronary.volume.RV","componentId":"noncoronary-circulation","logicalIndex":5,"storageKind":"continuous-f64","storageIndex":5,"unit":"mL"},{"stateId":"noncoronary.volume.RA","componentId":"noncoronary-circulation","logicalIndex":6,"storageKind":"continuous-f64","storageIndex":6,"unit":"mL"},{"stateId":"noncoronary.volume.Ao","componentId":"noncoronary-circulation","logicalIndex":7,"storageKind":"continuous-f64","storageIndex":7,"unit":"mL"},{"stateId":"noncoronary.volume.SA","componentId":"noncoronary-circulation","logicalIndex":8,"storageKind":"continuous-f64","storageIndex":8,"unit":"mL"},{"stateId":"noncoronary.volume.Art","componentId":"noncoronary-circulation","logicalIndex":9,"storageKind":"continuous-f64","storageIndex":9,"unit":"mL"},{"stateId":"noncoronary.volume.Cap","componentId":"noncoronary-circulation","logicalIndex":10,"storageKind":"continuous-f64","storageIndex":10,"unit":"mL"},{"stateId":"noncoronary.volume.SV","componentId":"noncoronary-circulation","logicalIndex":11,"storageKind":"continuous-f64","storageIndex":11,"unit":"mL"},{"stateId":"noncoronary.volume.VC","componentId":"noncoronary-circulation","logicalIndex":12,"storageKind":"continuous-f64","storageIndex":12,"unit":"mL"},{"stateId":"noncoronary.volume.PA","componentId":"noncoronary-circulation","logicalIndex":13,"storageKind":"continuous-f64","storageIndex":13,"unit":"mL"},{"stateId":"noncoronary.volume.PArt","componentId":"noncoronary-circulation","logicalIndex":14,"storageKind":"continuous-f64","storageIndex":14,"unit":"mL"},{"stateId":"noncoronary.volume.PCap","componentId":"noncoronary-circulation","logicalIndex":15,"storageKind":"continuous-f64","storageIndex":15,"unit":"mL"},{"stateId":"noncoronary.volume.PVen","componentId":"noncoronary-circulation","logicalIndex":16,"storageKind":"continuous-f64","storageIndex":16,"unit":"mL"},{"stateId":"noncoronary.volume.PVein","componentId":"noncoronary-circulation","logicalIndex":17,"storageKind":"continuous-f64","storageIndex":17,"unit":"mL"},{"stateId":"noncoronary.flow.Ao_SA","componentId":"noncoronary-circulation","logicalIndex":18,"storageKind":"continuous-f64","storageIndex":18,"unit":"mL/s"},{"stateId":"noncoronary.flow.PA_PArt","componentId":"noncoronary-circulation","logicalIndex":19,"storageKind":"continuous-f64","storageIndex":19,"unit":"mL/s"},{"stateId":"noncoronary.valve.MV.openingFraction01","componentId":"noncoronary-circulation","logicalIndex":20,"storageKind":"continuous-f64","storageIndex":20,"unit":"1"},{"stateId":"noncoronary.valve.AoV.openingFraction01","componentId":"noncoronary-circulation","logicalIndex":21,"storageKind":"continuous-f64","storageIndex":21,"unit":"1"},{"stateId":"noncoronary.valve.TV.openingFraction01","componentId":"noncoronary-circulation","logicalIndex":22,"storageKind":"continuous-f64","storageIndex":22,"unit":"1"},{"stateId":"noncoronary.valve.PV.openingFraction01","componentId":"noncoronary-circulation","logicalIndex":23,"storageKind":"continuous-f64","storageIndex":23,"unit":"1"},{"stateId":"coronary.volume.LAD.Art","componentId":"coronary-circulation","logicalIndex":24,"storageKind":"continuous-f64","storageIndex":24,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Art.subepicardial","componentId":"coronary-circulation","logicalIndex":25,"storageKind":"continuous-f64","storageIndex":25,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Ven.subepicardial","componentId":"coronary-circulation","logicalIndex":26,"storageKind":"continuous-f64","storageIndex":26,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Art.subendocardial","componentId":"coronary-circulation","logicalIndex":27,"storageKind":"continuous-f64","storageIndex":27,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Ven.subendocardial","componentId":"coronary-circulation","logicalIndex":28,"storageKind":"continuous-f64","storageIndex":28,"unit":"mL"},{"stateId":"coronary.volume.LCx.Art","componentId":"coronary-circulation","logicalIndex":29,"storageKind":"continuous-f64","storageIndex":29,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Art.subepicardial","componentId":"coronary-circulation","logicalIndex":30,"storageKind":"continuous-f64","storageIndex":30,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Ven.subepicardial","componentId":"coronary-circulation","logicalIndex":31,"storageKind":"continuous-f64","storageIndex":31,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Art.subendocardial","componentId":"coronary-circulation","logicalIndex":32,"storageKind":"continuous-f64","storageIndex":32,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Ven.subendocardial","componentId":"coronary-circulation","logicalIndex":33,"storageKind":"continuous-f64","storageIndex":33,"unit":"mL"},{"stateId":"coronary.volume.RCA.Art","componentId":"coronary-circulation","logicalIndex":34,"storageKind":"continuous-f64","storageIndex":34,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Art.subepicardial","componentId":"coronary-circulation","logicalIndex":35,"storageKind":"continuous-f64","storageIndex":35,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Ven.subepicardial","componentId":"coronary-circulation","logicalIndex":36,"storageKind":"continuous-f64","storageIndex":36,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Art.subendocardial","componentId":"coronary-circulation","logicalIndex":37,"storageKind":"continuous-f64","storageIndex":37,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Ven.subendocardial","componentId":"coronary-circulation","logicalIndex":38,"storageKind":"continuous-f64","storageIndex":38,"unit":"mL"},{"stateId":"coronary.volume.CV","componentId":"coronary-circulation","logicalIndex":39,"storageKind":"continuous-f64","storageIndex":39,"unit":"mL"},{"stateId":"coronary.tone.LAD.subepicardial","componentId":"coronary-circulation","logicalIndex":40,"storageKind":"continuous-f64","storageIndex":40,"unit":"1"},{"stateId":"coronary.tone.LAD.subendocardial","componentId":"coronary-circulation","logicalIndex":41,"storageKind":"continuous-f64","storageIndex":41,"unit":"1"},{"stateId":"coronary.tone.LCx.subepicardial","componentId":"coronary-circulation","logicalIndex":42,"storageKind":"continuous-f64","storageIndex":42,"unit":"1"},{"stateId":"coronary.tone.LCx.subendocardial","componentId":"coronary-circulation","logicalIndex":43,"storageKind":"continuous-f64","storageIndex":43,"unit":"1"},{"stateId":"coronary.tone.RCA.subepicardial","componentId":"coronary-circulation","logicalIndex":44,"storageKind":"continuous-f64","storageIndex":44,"unit":"1"},{"stateId":"coronary.tone.RCA.subendocardial","componentId":"coronary-circulation","logicalIndex":45,"storageKind":"continuous-f64","storageIndex":45,"unit":"1"},{"stateId":"mechanics.wall.LA.land.0","componentId":"five-wall-mechanics","logicalIndex":46,"storageKind":"continuous-f64","storageIndex":46,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.1","componentId":"five-wall-mechanics","logicalIndex":47,"storageKind":"continuous-f64","storageIndex":47,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.2","componentId":"five-wall-mechanics","logicalIndex":48,"storageKind":"continuous-f64","storageIndex":48,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.3","componentId":"five-wall-mechanics","logicalIndex":49,"storageKind":"continuous-f64","storageIndex":49,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.4","componentId":"five-wall-mechanics","logicalIndex":50,"storageKind":"continuous-f64","storageIndex":50,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.5","componentId":"five-wall-mechanics","logicalIndex":51,"storageKind":"continuous-f64","storageIndex":51,"unit":"model-state"},{"stateId":"mechanics.wall.LA.sls.viscousLogStrain","componentId":"five-wall-mechanics","logicalIndex":52,"storageKind":"continuous-f64","storageIndex":52,"unit":"1"},{"stateId":"mechanics.wall.LA.previousFiberLogStrain","componentId":"five-wall-mechanics","logicalIndex":53,"storageKind":"continuous-f64","storageIndex":53,"unit":"1"},{"stateId":"mechanics.wall.LA.previousFreeCalciumUM","componentId":"five-wall-mechanics","logicalIndex":54,"storageKind":"continuous-f64","storageIndex":54,"unit":"uM"},{"stateId":"mechanics.wall.LVFW.land.0","componentId":"five-wall-mechanics","logicalIndex":55,"storageKind":"continuous-f64","storageIndex":55,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.1","componentId":"five-wall-mechanics","logicalIndex":56,"storageKind":"continuous-f64","storageIndex":56,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.2","componentId":"five-wall-mechanics","logicalIndex":57,"storageKind":"continuous-f64","storageIndex":57,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.3","componentId":"five-wall-mechanics","logicalIndex":58,"storageKind":"continuous-f64","storageIndex":58,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.4","componentId":"five-wall-mechanics","logicalIndex":59,"storageKind":"continuous-f64","storageIndex":59,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.5","componentId":"five-wall-mechanics","logicalIndex":60,"storageKind":"continuous-f64","storageIndex":60,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.sls.viscousLogStrain","componentId":"five-wall-mechanics","logicalIndex":61,"storageKind":"continuous-f64","storageIndex":61,"unit":"1"},{"stateId":"mechanics.wall.LVFW.previousFiberLogStrain","componentId":"five-wall-mechanics","logicalIndex":62,"storageKind":"continuous-f64","storageIndex":62,"unit":"1"},{"stateId":"mechanics.wall.LVFW.previousFreeCalciumUM","componentId":"five-wall-mechanics","logicalIndex":63,"storageKind":"continuous-f64","storageIndex":63,"unit":"uM"},{"stateId":"mechanics.wall.SEP.land.0","componentId":"five-wall-mechanics","logicalIndex":64,"storageKind":"continuous-f64","storageIndex":64,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.1","componentId":"five-wall-mechanics","logicalIndex":65,"storageKind":"continuous-f64","storageIndex":65,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.2","componentId":"five-wall-mechanics","logicalIndex":66,"storageKind":"continuous-f64","storageIndex":66,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.3","componentId":"five-wall-mechanics","logicalIndex":67,"storageKind":"continuous-f64","storageIndex":67,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.4","componentId":"five-wall-mechanics","logicalIndex":68,"storageKind":"continuous-f64","storageIndex":68,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.5","componentId":"five-wall-mechanics","logicalIndex":69,"storageKind":"continuous-f64","storageIndex":69,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.sls.viscousLogStrain","componentId":"five-wall-mechanics","logicalIndex":70,"storageKind":"continuous-f64","storageIndex":70,"unit":"1"},{"stateId":"mechanics.wall.SEP.previousFiberLogStrain","componentId":"five-wall-mechanics","logicalIndex":71,"storageKind":"continuous-f64","storageIndex":71,"unit":"1"},{"stateId":"mechanics.wall.SEP.previousFreeCalciumUM","componentId":"five-wall-mechanics","logicalIndex":72,"storageKind":"continuous-f64","storageIndex":72,"unit":"uM"},{"stateId":"mechanics.wall.RVFW.land.0","componentId":"five-wall-mechanics","logicalIndex":73,"storageKind":"continuous-f64","storageIndex":73,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.1","componentId":"five-wall-mechanics","logicalIndex":74,"storageKind":"continuous-f64","storageIndex":74,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.2","componentId":"five-wall-mechanics","logicalIndex":75,"storageKind":"continuous-f64","storageIndex":75,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.3","componentId":"five-wall-mechanics","logicalIndex":76,"storageKind":"continuous-f64","storageIndex":76,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.4","componentId":"five-wall-mechanics","logicalIndex":77,"storageKind":"continuous-f64","storageIndex":77,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.5","componentId":"five-wall-mechanics","logicalIndex":78,"storageKind":"continuous-f64","storageIndex":78,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.sls.viscousLogStrain","componentId":"five-wall-mechanics","logicalIndex":79,"storageKind":"continuous-f64","storageIndex":79,"unit":"1"},{"stateId":"mechanics.wall.RVFW.previousFiberLogStrain","componentId":"five-wall-mechanics","logicalIndex":80,"storageKind":"continuous-f64","storageIndex":80,"unit":"1"},{"stateId":"mechanics.wall.RVFW.previousFreeCalciumUM","componentId":"five-wall-mechanics","logicalIndex":81,"storageKind":"continuous-f64","storageIndex":81,"unit":"uM"},{"stateId":"mechanics.wall.RA.land.0","componentId":"five-wall-mechanics","logicalIndex":82,"storageKind":"continuous-f64","storageIndex":82,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.1","componentId":"five-wall-mechanics","logicalIndex":83,"storageKind":"continuous-f64","storageIndex":83,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.2","componentId":"five-wall-mechanics","logicalIndex":84,"storageKind":"continuous-f64","storageIndex":84,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.3","componentId":"five-wall-mechanics","logicalIndex":85,"storageKind":"continuous-f64","storageIndex":85,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.4","componentId":"five-wall-mechanics","logicalIndex":86,"storageKind":"continuous-f64","storageIndex":86,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.5","componentId":"five-wall-mechanics","logicalIndex":87,"storageKind":"continuous-f64","storageIndex":87,"unit":"model-state"},{"stateId":"mechanics.wall.RA.sls.viscousLogStrain","componentId":"five-wall-mechanics","logicalIndex":88,"storageKind":"continuous-f64","storageIndex":88,"unit":"1"},{"stateId":"mechanics.wall.RA.previousFiberLogStrain","componentId":"five-wall-mechanics","logicalIndex":89,"storageKind":"continuous-f64","storageIndex":89,"unit":"1"},{"stateId":"mechanics.wall.RA.previousFreeCalciumUM","componentId":"five-wall-mechanics","logicalIndex":90,"storageKind":"continuous-f64","storageIndex":90,"unit":"uM"},{"stateId":"TriSeg.septalMidwallCapVolume","componentId":"five-wall-mechanics","logicalIndex":91,"storageKind":"continuous-f64","storageIndex":91,"unit":"m3"},{"stateId":"TriSeg.junctionRadius","componentId":"five-wall-mechanics","logicalIndex":92,"storageKind":"continuous-f64","storageIndex":92,"unit":"m"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.LVFW","componentId":"five-wall-mechanics","logicalIndex":93,"storageKind":"continuous-f64","storageIndex":93,"unit":"1"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.SEP","componentId":"five-wall-mechanics","logicalIndex":94,"storageKind":"continuous-f64","storageIndex":94,"unit":"1"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.RVFW","componentId":"five-wall-mechanics","logicalIndex":95,"storageKind":"continuous-f64","storageIndex":95,"unit":"1"},{"stateId":"mechanics.mvc.referenceAcceptedTimeSec","componentId":"five-wall-mechanics","logicalIndex":96,"storageKind":"continuous-f64","storageIndex":96,"unit":"s"},{"stateId":"mechanics.mvc.referenceRevision","componentId":"five-wall-mechanics","logicalIndex":97,"storageKind":"continuous-f64","storageIndex":97,"unit":"1"},{"stateId":"mechanics.mvc.mitralForwardFlowActive","componentId":"five-wall-mechanics","logicalIndex":98,"storageKind":"boolean-u8","storageIndex":0,"unit":"1"},{"stateId":"mechanics.mvc.acceptedMitralClosureEventCount","componentId":"five-wall-mechanics","logicalIndex":99,"storageKind":"continuous-f64","storageIndex":98,"unit":"1"}]}');
+const stateLayout = /* @__PURE__ */ JSON.parse('{"logicalSlotCount":100,"continuousSlotCount":99,"booleanSlotCount":1,"blocks":[{"componentId":"accepted-transaction","kernelId":"accepted-transaction-kernel-v1","logicalStart":0,"logicalLength":3},{"componentId":"noncoronary-circulation","kernelId":"noncoronary-backward-euler-kernel-v1","logicalStart":3,"logicalLength":21},{"componentId":"coronary-circulation","kernelId":"coronary-backward-euler-kernel-v2","logicalStart":24,"logicalLength":22},{"componentId":"five-wall-mechanics","kernelId":"five-wall-land-triseg-kernel-v1","logicalStart":46,"logicalLength":54}],"slots":[{"stateId":"accepted.timeSec","componentId":"accepted-transaction","authorityPointer":"/acceptedTimeSec","logicalIndex":0,"storageKind":"continuous-f64","storageIndex":0,"unit":"s"},{"stateId":"accepted.revision","componentId":"accepted-transaction","authorityPointer":"/revision","logicalIndex":1,"storageKind":"continuous-f64","storageIndex":1,"unit":"1"},{"stateId":"circulation.fixedTotalBloodVolumeMl","componentId":"accepted-transaction","authorityPointer":"/coronary/fixedGlobalTotalBloodVolumeMl","logicalIndex":2,"storageKind":"continuous-f64","storageIndex":2,"unit":"mL"},{"stateId":"noncoronary.volume.LV","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/LV","logicalIndex":3,"storageKind":"continuous-f64","storageIndex":3,"unit":"mL"},{"stateId":"noncoronary.volume.LA","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/LA","logicalIndex":4,"storageKind":"continuous-f64","storageIndex":4,"unit":"mL"},{"stateId":"noncoronary.volume.RV","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/RV","logicalIndex":5,"storageKind":"continuous-f64","storageIndex":5,"unit":"mL"},{"stateId":"noncoronary.volume.RA","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/RA","logicalIndex":6,"storageKind":"continuous-f64","storageIndex":6,"unit":"mL"},{"stateId":"noncoronary.volume.Ao","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/Ao","logicalIndex":7,"storageKind":"continuous-f64","storageIndex":7,"unit":"mL"},{"stateId":"noncoronary.volume.SA","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/SA","logicalIndex":8,"storageKind":"continuous-f64","storageIndex":8,"unit":"mL"},{"stateId":"noncoronary.volume.Art","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/Art","logicalIndex":9,"storageKind":"continuous-f64","storageIndex":9,"unit":"mL"},{"stateId":"noncoronary.volume.Cap","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/Cap","logicalIndex":10,"storageKind":"continuous-f64","storageIndex":10,"unit":"mL"},{"stateId":"noncoronary.volume.SV","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/SV","logicalIndex":11,"storageKind":"continuous-f64","storageIndex":11,"unit":"mL"},{"stateId":"noncoronary.volume.VC","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/VC","logicalIndex":12,"storageKind":"continuous-f64","storageIndex":12,"unit":"mL"},{"stateId":"noncoronary.volume.PA","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/PA","logicalIndex":13,"storageKind":"continuous-f64","storageIndex":13,"unit":"mL"},{"stateId":"noncoronary.volume.PArt","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/PArt","logicalIndex":14,"storageKind":"continuous-f64","storageIndex":14,"unit":"mL"},{"stateId":"noncoronary.volume.PCap","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/PCap","logicalIndex":15,"storageKind":"continuous-f64","storageIndex":15,"unit":"mL"},{"stateId":"noncoronary.volume.PVen","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/PVen","logicalIndex":16,"storageKind":"continuous-f64","storageIndex":16,"unit":"mL"},{"stateId":"noncoronary.volume.PVein","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/nodeVolumesMl/PVein","logicalIndex":17,"storageKind":"continuous-f64","storageIndex":17,"unit":"mL"},{"stateId":"noncoronary.flow.Ao_SA","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/dynamicEdgeFlowsMlPerSec/Ao_SA","logicalIndex":18,"storageKind":"continuous-f64","storageIndex":18,"unit":"mL/s"},{"stateId":"noncoronary.flow.PA_PArt","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/dynamicEdgeFlowsMlPerSec/PA_PArt","logicalIndex":19,"storageKind":"continuous-f64","storageIndex":19,"unit":"mL/s"},{"stateId":"noncoronary.valve.MV.openingFraction01","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/valveStates/MV/leafletOpeningFraction01","logicalIndex":20,"storageKind":"continuous-f64","storageIndex":20,"unit":"1"},{"stateId":"noncoronary.valve.AoV.openingFraction01","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/valveStates/AoV/leafletOpeningFraction01","logicalIndex":21,"storageKind":"continuous-f64","storageIndex":21,"unit":"1"},{"stateId":"noncoronary.valve.TV.openingFraction01","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/valveStates/TV/leafletOpeningFraction01","logicalIndex":22,"storageKind":"continuous-f64","storageIndex":22,"unit":"1"},{"stateId":"noncoronary.valve.PV.openingFraction01","componentId":"noncoronary-circulation","authorityPointer":"/coronary/circulation/valveStates/PV/leafletOpeningFraction01","logicalIndex":23,"storageKind":"continuous-f64","storageIndex":23,"unit":"1"},{"stateId":"coronary.volume.LAD.Art","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LAD.Art","logicalIndex":24,"storageKind":"continuous-f64","storageIndex":24,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Art.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LAD.IM.Art.subepicardial","logicalIndex":25,"storageKind":"continuous-f64","storageIndex":25,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Ven.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LAD.IM.Ven.subepicardial","logicalIndex":26,"storageKind":"continuous-f64","storageIndex":26,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Art.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LAD.IM.Art.subendocardial","logicalIndex":27,"storageKind":"continuous-f64","storageIndex":27,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Ven.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LAD.IM.Ven.subendocardial","logicalIndex":28,"storageKind":"continuous-f64","storageIndex":28,"unit":"mL"},{"stateId":"coronary.volume.LCx.Art","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LCx.Art","logicalIndex":29,"storageKind":"continuous-f64","storageIndex":29,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Art.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LCx.IM.Art.subepicardial","logicalIndex":30,"storageKind":"continuous-f64","storageIndex":30,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Ven.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LCx.IM.Ven.subepicardial","logicalIndex":31,"storageKind":"continuous-f64","storageIndex":31,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Art.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LCx.IM.Art.subendocardial","logicalIndex":32,"storageKind":"continuous-f64","storageIndex":32,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Ven.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/LCx.IM.Ven.subendocardial","logicalIndex":33,"storageKind":"continuous-f64","storageIndex":33,"unit":"mL"},{"stateId":"coronary.volume.RCA.Art","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/RCA.Art","logicalIndex":34,"storageKind":"continuous-f64","storageIndex":34,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Art.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/RCA.IM.Art.subepicardial","logicalIndex":35,"storageKind":"continuous-f64","storageIndex":35,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Ven.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/RCA.IM.Ven.subepicardial","logicalIndex":36,"storageKind":"continuous-f64","storageIndex":36,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Art.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/RCA.IM.Art.subendocardial","logicalIndex":37,"storageKind":"continuous-f64","storageIndex":37,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Ven.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/RCA.IM.Ven.subendocardial","logicalIndex":38,"storageKind":"continuous-f64","storageIndex":38,"unit":"mL"},{"stateId":"coronary.volume.CV","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/volumeMlByNode/CV","logicalIndex":39,"storageKind":"continuous-f64","storageIndex":39,"unit":"mL"},{"stateId":"coronary.tone.LAD.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/LAD/subepicardial","logicalIndex":40,"storageKind":"continuous-f64","storageIndex":40,"unit":"1"},{"stateId":"coronary.tone.LAD.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/LAD/subendocardial","logicalIndex":41,"storageKind":"continuous-f64","storageIndex":41,"unit":"1"},{"stateId":"coronary.tone.LCx.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/LCx/subepicardial","logicalIndex":42,"storageKind":"continuous-f64","storageIndex":42,"unit":"1"},{"stateId":"coronary.tone.LCx.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/LCx/subendocardial","logicalIndex":43,"storageKind":"continuous-f64","storageIndex":43,"unit":"1"},{"stateId":"coronary.tone.RCA.subepicardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/RCA/subepicardial","logicalIndex":44,"storageKind":"continuous-f64","storageIndex":44,"unit":"1"},{"stateId":"coronary.tone.RCA.subendocardial","componentId":"coronary-circulation","authorityPointer":"/coronary/coronary/toneResistanceScaleByTerritoryLayer/RCA/subendocardial","logicalIndex":45,"storageKind":"continuous-f64","storageIndex":45,"unit":"1"},{"stateId":"mechanics.wall.LA.land.0","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/0","logicalIndex":46,"storageKind":"continuous-f64","storageIndex":46,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.1","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/1","logicalIndex":47,"storageKind":"continuous-f64","storageIndex":47,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.2","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/2","logicalIndex":48,"storageKind":"continuous-f64","storageIndex":48,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.3","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/3","logicalIndex":49,"storageKind":"continuous-f64","storageIndex":49,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.4","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/4","logicalIndex":50,"storageKind":"continuous-f64","storageIndex":50,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.5","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/landState/5","logicalIndex":51,"storageKind":"continuous-f64","storageIndex":51,"unit":"model-state"},{"stateId":"mechanics.wall.LA.sls.viscousLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/slsState/viscousLogStrain","logicalIndex":52,"storageKind":"continuous-f64","storageIndex":52,"unit":"1"},{"stateId":"mechanics.wall.LA.previousFiberLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/previousFiberLogStrain","logicalIndex":53,"storageKind":"continuous-f64","storageIndex":53,"unit":"1"},{"stateId":"mechanics.wall.LA.previousFreeCalciumUM","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LA/previousFreeCalciumUM","logicalIndex":54,"storageKind":"continuous-f64","storageIndex":54,"unit":"uM"},{"stateId":"mechanics.wall.LVFW.land.0","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/0","logicalIndex":55,"storageKind":"continuous-f64","storageIndex":55,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.1","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/1","logicalIndex":56,"storageKind":"continuous-f64","storageIndex":56,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.2","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/2","logicalIndex":57,"storageKind":"continuous-f64","storageIndex":57,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.3","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/3","logicalIndex":58,"storageKind":"continuous-f64","storageIndex":58,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.4","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/4","logicalIndex":59,"storageKind":"continuous-f64","storageIndex":59,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.5","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/landState/5","logicalIndex":60,"storageKind":"continuous-f64","storageIndex":60,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.sls.viscousLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/slsState/viscousLogStrain","logicalIndex":61,"storageKind":"continuous-f64","storageIndex":61,"unit":"1"},{"stateId":"mechanics.wall.LVFW.previousFiberLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/previousFiberLogStrain","logicalIndex":62,"storageKind":"continuous-f64","storageIndex":62,"unit":"1"},{"stateId":"mechanics.wall.LVFW.previousFreeCalciumUM","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/LVFW/previousFreeCalciumUM","logicalIndex":63,"storageKind":"continuous-f64","storageIndex":63,"unit":"uM"},{"stateId":"mechanics.wall.SEP.land.0","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/0","logicalIndex":64,"storageKind":"continuous-f64","storageIndex":64,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.1","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/1","logicalIndex":65,"storageKind":"continuous-f64","storageIndex":65,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.2","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/2","logicalIndex":66,"storageKind":"continuous-f64","storageIndex":66,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.3","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/3","logicalIndex":67,"storageKind":"continuous-f64","storageIndex":67,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.4","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/4","logicalIndex":68,"storageKind":"continuous-f64","storageIndex":68,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.5","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/landState/5","logicalIndex":69,"storageKind":"continuous-f64","storageIndex":69,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.sls.viscousLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/slsState/viscousLogStrain","logicalIndex":70,"storageKind":"continuous-f64","storageIndex":70,"unit":"1"},{"stateId":"mechanics.wall.SEP.previousFiberLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/previousFiberLogStrain","logicalIndex":71,"storageKind":"continuous-f64","storageIndex":71,"unit":"1"},{"stateId":"mechanics.wall.SEP.previousFreeCalciumUM","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/SEP/previousFreeCalciumUM","logicalIndex":72,"storageKind":"continuous-f64","storageIndex":72,"unit":"uM"},{"stateId":"mechanics.wall.RVFW.land.0","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/0","logicalIndex":73,"storageKind":"continuous-f64","storageIndex":73,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.1","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/1","logicalIndex":74,"storageKind":"continuous-f64","storageIndex":74,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.2","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/2","logicalIndex":75,"storageKind":"continuous-f64","storageIndex":75,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.3","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/3","logicalIndex":76,"storageKind":"continuous-f64","storageIndex":76,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.4","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/4","logicalIndex":77,"storageKind":"continuous-f64","storageIndex":77,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.5","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/landState/5","logicalIndex":78,"storageKind":"continuous-f64","storageIndex":78,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.sls.viscousLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/slsState/viscousLogStrain","logicalIndex":79,"storageKind":"continuous-f64","storageIndex":79,"unit":"1"},{"stateId":"mechanics.wall.RVFW.previousFiberLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/previousFiberLogStrain","logicalIndex":80,"storageKind":"continuous-f64","storageIndex":80,"unit":"1"},{"stateId":"mechanics.wall.RVFW.previousFreeCalciumUM","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RVFW/previousFreeCalciumUM","logicalIndex":81,"storageKind":"continuous-f64","storageIndex":81,"unit":"uM"},{"stateId":"mechanics.wall.RA.land.0","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/0","logicalIndex":82,"storageKind":"continuous-f64","storageIndex":82,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.1","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/1","logicalIndex":83,"storageKind":"continuous-f64","storageIndex":83,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.2","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/2","logicalIndex":84,"storageKind":"continuous-f64","storageIndex":84,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.3","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/3","logicalIndex":85,"storageKind":"continuous-f64","storageIndex":85,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.4","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/4","logicalIndex":86,"storageKind":"continuous-f64","storageIndex":86,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.5","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/landState/5","logicalIndex":87,"storageKind":"continuous-f64","storageIndex":87,"unit":"model-state"},{"stateId":"mechanics.wall.RA.sls.viscousLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/slsState/viscousLogStrain","logicalIndex":88,"storageKind":"continuous-f64","storageIndex":88,"unit":"1"},{"stateId":"mechanics.wall.RA.previousFiberLogStrain","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/previousFiberLogStrain","logicalIndex":89,"storageKind":"continuous-f64","storageIndex":89,"unit":"1"},{"stateId":"mechanics.wall.RA.previousFreeCalciumUM","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/wallStateByWall/RA/previousFreeCalciumUM","logicalIndex":90,"storageKind":"continuous-f64","storageIndex":90,"unit":"uM"},{"stateId":"TriSeg.septalMidwallCapVolume","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/trisegCoordinates/septalMidwallCapVolumeM3","logicalIndex":91,"storageKind":"continuous-f64","storageIndex":91,"unit":"m3"},{"stateId":"TriSeg.junctionRadius","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mechanics/materialState/trisegCoordinates/junctionRadiusM","logicalIndex":92,"storageKind":"continuous-f64","storageIndex":92,"unit":"m"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.LVFW","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/LVFW","logicalIndex":93,"storageKind":"continuous-f64","storageIndex":93,"unit":"1"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.SEP","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/SEP","logicalIndex":94,"storageKind":"continuous-f64","storageIndex":94,"unit":"1"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.RVFW","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/RVFW","logicalIndex":95,"storageKind":"continuous-f64","storageIndex":95,"unit":"1"},{"stateId":"mechanics.mvc.referenceAcceptedTimeSec","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/referenceAcceptedTimeSec","logicalIndex":96,"storageKind":"continuous-f64","storageIndex":96,"unit":"s"},{"stateId":"mechanics.mvc.referenceRevision","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/referenceRevision","logicalIndex":97,"storageKind":"continuous-f64","storageIndex":97,"unit":"1"},{"stateId":"mechanics.mvc.mitralForwardFlowActive","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/mitralForwardFlowActive","logicalIndex":98,"storageKind":"boolean-u8","storageIndex":0,"unit":"1"},{"stateId":"mechanics.mvc.acceptedMitralClosureEventCount","componentId":"five-wall-mechanics","authorityPointer":"/coronary/mvcReferenceState/acceptedMitralClosureEventCount","logicalIndex":99,"storageKind":"continuous-f64","storageIndex":98,"unit":"1"}]}');
 const hydraulicGraph = { "nodeIds": ["LV", "LA", "RV", "RA", "Ao", "SA", "Art", "Cap", "SV", "VC", "PA", "PArt", "PCap", "PVen", "PVein", "LAD.Art", "LAD.IM.Art.subepicardial", "LAD.IM.Ven.subepicardial", "LAD.IM.Art.subendocardial", "LAD.IM.Ven.subendocardial", "LCx.Art", "LCx.IM.Art.subepicardial", "LCx.IM.Ven.subepicardial", "LCx.IM.Art.subendocardial", "LCx.IM.Ven.subendocardial", "RCA.Art", "RCA.IM.Art.subepicardial", "RCA.IM.Ven.subepicardial", "RCA.IM.Art.subendocardial", "RCA.IM.Ven.subendocardial", "CV"], "storageStateLogicalIndices": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], "pathIds": ["MV", "AoV", "TV", "PV", "Ao_SA", "SA_Art", "Art_Cap", "Cap_SV", "SV_VC", "VC_RA", "PA_PArt", "PArt_PCap", "PCap_PVen", "PVen_PVein", "PVein_LA", "Ao_LAD.Art", "LAD.Art_LAD.IM.Art.subepicardial", "LAD.IM.Art.subepicardial_LAD.IM.Ven.subepicardial", "LAD.IM.Ven.subepicardial_CV", "LAD.Art_LAD.IM.Art.subendocardial", "LAD.IM.Art.subendocardial_LAD.IM.Ven.subendocardial", "LAD.IM.Ven.subendocardial_CV", "Ao_LCx.Art", "LCx.Art_LCx.IM.Art.subepicardial", "LCx.IM.Art.subepicardial_LCx.IM.Ven.subepicardial", "LCx.IM.Ven.subepicardial_CV", "LCx.Art_LCx.IM.Art.subendocardial", "LCx.IM.Art.subendocardial_LCx.IM.Ven.subendocardial", "LCx.IM.Ven.subendocardial_CV", "Ao_RCA.Art", "RCA.Art_RCA.IM.Art.subepicardial", "RCA.IM.Art.subepicardial_RCA.IM.Ven.subepicardial", "RCA.IM.Ven.subepicardial_CV", "RCA.Art_RCA.IM.Art.subendocardial", "RCA.IM.Art.subendocardial_RCA.IM.Ven.subendocardial", "RCA.IM.Ven.subendocardial_CV", "CV_RA"], "upstreamNodeIndices": [1, 0, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 4, 15, 16, 17, 15, 18, 19, 4, 20, 21, 22, 20, 23, 24, 4, 25, 26, 27, 25, 28, 29, 30], "downstreamNodeIndices": [0, 4, 2, 10, 5, 6, 7, 8, 9, 3, 11, 12, 13, 14, 1, 15, 16, 17, 30, 18, 19, 30, 20, 21, 22, 30, 23, 24, 30, 25, 26, 27, 30, 28, 29, 30, 3], "pathKernelIds": ["noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/dynamic", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/dynamic", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-venous-outlet"], "conservationPools": [{ "poolId": "global-blood-volume", "ledgerStateLogicalIndex": 2, "memberStateLogicalIndices": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], "dependentStateLogicalIndex": 11 }] };
 const solveGroups = [{ "solveGroupId": "coupled-hemodynamics", "systemKernelId": "main-wire-five-wall-static-condensed-system-kernel-v1", "unknownStateIds": ["noncoronary.volume.LV", "noncoronary.volume.LA", "noncoronary.volume.RV", "noncoronary.volume.RA", "noncoronary.volume.Ao", "noncoronary.volume.SA", "noncoronary.volume.Art", "noncoronary.volume.Cap", "noncoronary.volume.VC", "noncoronary.volume.PA", "noncoronary.volume.PArt", "noncoronary.volume.PCap", "noncoronary.volume.PVen", "noncoronary.volume.PVein", "coronary.volume.LAD.Art", "coronary.volume.LAD.IM.Art.subepicardial", "coronary.volume.LAD.IM.Ven.subepicardial", "coronary.volume.LAD.IM.Art.subendocardial", "coronary.volume.LAD.IM.Ven.subendocardial", "coronary.volume.LCx.Art", "coronary.volume.LCx.IM.Art.subepicardial", "coronary.volume.LCx.IM.Ven.subepicardial", "coronary.volume.LCx.IM.Art.subendocardial", "coronary.volume.LCx.IM.Ven.subendocardial", "coronary.volume.RCA.Art", "coronary.volume.RCA.IM.Art.subepicardial", "coronary.volume.RCA.IM.Ven.subepicardial", "coronary.volume.RCA.IM.Art.subendocardial", "coronary.volume.RCA.IM.Ven.subendocardial", "coronary.volume.CV", "TriSeg.septalMidwallCapVolume", "TriSeg.junctionRadius"], "activeUnknownStateIds": ["noncoronary.volume.LV", "noncoronary.volume.LA", "noncoronary.volume.RV", "noncoronary.volume.RA", "noncoronary.volume.Ao", "noncoronary.volume.SA", "noncoronary.volume.Art", "noncoronary.volume.Cap", "noncoronary.volume.VC", "noncoronary.volume.PA", "noncoronary.volume.PArt", "noncoronary.volume.PCap", "noncoronary.volume.PVen", "noncoronary.volume.PVein", "coronary.volume.LAD.Art", "coronary.volume.LAD.IM.Art.subepicardial", "coronary.volume.LAD.IM.Ven.subepicardial", "coronary.volume.LAD.IM.Art.subendocardial", "coronary.volume.LAD.IM.Ven.subendocardial", "coronary.volume.LCx.Art", "coronary.volume.LCx.IM.Art.subepicardial", "coronary.volume.LCx.IM.Ven.subepicardial", "coronary.volume.LCx.IM.Art.subendocardial", "coronary.volume.LCx.IM.Ven.subendocardial", "coronary.volume.RCA.Art", "coronary.volume.RCA.IM.Art.subepicardial", "coronary.volume.RCA.IM.Ven.subepicardial", "coronary.volume.RCA.IM.Art.subendocardial", "coronary.volume.RCA.IM.Ven.subendocardial", "coronary.volume.CV"], "dependentStateIds": ["noncoronary.volume.SV"], "blocks": [{ "blockId": "nonCoronary", "componentId": "noncoronary-circulation", "kernelId": "noncoronary-backward-euler-kernel-v1", "disposition": "retained", "start": 0, "length": 14, "endExclusive": 14, "stateIds": ["noncoronary.volume.LV", "noncoronary.volume.LA", "noncoronary.volume.RV", "noncoronary.volume.RA", "noncoronary.volume.Ao", "noncoronary.volume.SA", "noncoronary.volume.Art", "noncoronary.volume.Cap", "noncoronary.volume.VC", "noncoronary.volume.PA", "noncoronary.volume.PArt", "noncoronary.volume.PCap", "noncoronary.volume.PVen", "noncoronary.volume.PVein"], "stateLogicalIndices": [3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17], "residualIds": ["noncoronary.volume.LV.balance", "noncoronary.volume.LA.balance", "noncoronary.volume.RV.balance", "noncoronary.volume.RA.balance", "noncoronary.volume.Ao.balance", "noncoronary.volume.SA.balance", "noncoronary.volume.Art.balance", "noncoronary.volume.Cap.balance", "noncoronary.volume.VC.balance", "noncoronary.volume.PA.balance", "noncoronary.volume.PArt.balance", "noncoronary.volume.PCap.balance", "noncoronary.volume.PVen.balance", "noncoronary.volume.PVein.balance"] }, { "blockId": "coronary", "componentId": "coronary-circulation", "kernelId": "coronary-backward-euler-kernel-v2", "disposition": "retained", "start": 14, "length": 16, "endExclusive": 30, "stateIds": ["coronary.volume.LAD.Art", "coronary.volume.LAD.IM.Art.subepicardial", "coronary.volume.LAD.IM.Ven.subepicardial", "coronary.volume.LAD.IM.Art.subendocardial", "coronary.volume.LAD.IM.Ven.subendocardial", "coronary.volume.LCx.Art", "coronary.volume.LCx.IM.Art.subepicardial", "coronary.volume.LCx.IM.Ven.subepicardial", "coronary.volume.LCx.IM.Art.subendocardial", "coronary.volume.LCx.IM.Ven.subendocardial", "coronary.volume.RCA.Art", "coronary.volume.RCA.IM.Art.subepicardial", "coronary.volume.RCA.IM.Ven.subepicardial", "coronary.volume.RCA.IM.Art.subendocardial", "coronary.volume.RCA.IM.Ven.subendocardial", "coronary.volume.CV"], "stateLogicalIndices": [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], "residualIds": ["coronary.volume.LAD.Art.balance", "coronary.volume.LAD.IM.Art.subepicardial.balance", "coronary.volume.LAD.IM.Ven.subepicardial.balance", "coronary.volume.LAD.IM.Art.subendocardial.balance", "coronary.volume.LAD.IM.Ven.subendocardial.balance", "coronary.volume.LCx.Art.balance", "coronary.volume.LCx.IM.Art.subepicardial.balance", "coronary.volume.LCx.IM.Ven.subepicardial.balance", "coronary.volume.LCx.IM.Art.subendocardial.balance", "coronary.volume.LCx.IM.Ven.subendocardial.balance", "coronary.volume.RCA.Art.balance", "coronary.volume.RCA.IM.Art.subepicardial.balance", "coronary.volume.RCA.IM.Ven.subepicardial.balance", "coronary.volume.RCA.IM.Art.subendocardial.balance", "coronary.volume.RCA.IM.Ven.subendocardial.balance", "coronary.volume.CV.balance"] }, { "blockId": "triSeg", "componentId": "five-wall-mechanics", "kernelId": "five-wall-land-triseg-kernel-v1", "disposition": "statically-condensed", "start": 30, "length": 2, "endExclusive": 32, "stateIds": ["TriSeg.septalMidwallCapVolume", "TriSeg.junctionRadius"], "stateLogicalIndices": [91, 92], "residualIds": ["TriSeg.septalMidwallCapVolume.virtualWork", "TriSeg.junctionRadius.virtualWork"] }], "totalUnknownCount": 32, "activeUnknownCount": 30, "jacobianElementCount": 900, "workspace": { "f64Count": 2070, "int32Count": 30, "f64Segments": [{ "role": "current-unknowns", "offset": 0, "length": 30 }, { "role": "residual", "offset": 30, "length": 30 }, { "role": "jacobian", "offset": 60, "length": 900 }, { "role": "factors", "offset": 960, "length": 900 }, { "role": "right-hand-side", "offset": 1860, "length": 30 }, { "role": "transformed-right-hand-side", "offset": 1890, "length": 30 }, { "role": "update", "offset": 1920, "length": 30 }, { "role": "trial-unknowns", "offset": 1950, "length": 30 }, { "role": "trial-residual", "offset": 1980, "length": 30 }, { "role": "unknown-scale", "offset": 2010, "length": 30 }, { "role": "residual-scale", "offset": 2040, "length": 30 }], "int32Segments": [{ "role": "pivots", "offset": 0, "length": 30 }] }, "solver": { "nonlinearMethod": "newton", "globalization": "armijo-line-search", "jacobian": "component-analytic-with-finite-difference-audit", "linearSolver": "dense-lu", "matrixStorage": "row-major-f64" } }];
 const updateGroups = [{ "updateGroupId": "coupled-hemodynamics-be-step", "ordinal": 0, "integration": "fixed-step-backward-euler", "fixedStepSec": 2e-3, "solveGroupId": "coupled-hemodynamics" }];
@@ -47387,6 +47645,9 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
         "Standard execution plan cannot be shared between Scenarios"
       );
     }
+    scenario.modelSession.installExecutionPlanAcceptedStateBindingV1(
+      boundExecutionPlan
+    );
     const clock = scenario.modelSession.copyCurrentAcceptedTypedHemodynamicViewV1(
       boundExecutionPlan.acceptedStateLogicalScratch
     );
@@ -47408,7 +47669,8 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
           "coupled-hemodynamics",
           prepared,
           MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1
-        )
+        ),
+        boundExecutionPlan
       );
       scenario.executionPlanBinding = Object.freeze({
         boundExecutionPlan,

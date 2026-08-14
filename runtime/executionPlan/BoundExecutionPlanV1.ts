@@ -29,6 +29,21 @@ export type BoundExecutionPlanSolveGroupV1 = Readonly<{
   workspaceInt32: Int32Array;
 }>;
 
+export type BoundExecutionPlanStateSlotDispatchV1 = Readonly<{
+  stateId: string;
+  authorityPointer: string;
+  logicalIndex: number;
+  storageKind: "continuous-f64" | "boolean-u8";
+}>;
+
+export type BoundExecutionPlanStateDispatchV1 = Readonly<{
+  definitionId: string;
+  logicalSlotCount: number;
+  continuousSlotCount: number;
+  booleanSlotCount: number;
+  slots: readonly BoundExecutionPlanStateSlotDispatchV1[];
+}>;
+
 /**
  * Worker-local, session-independent allocation produced once at initialization.
  * Typed arrays are intentionally mutable scratch, but the bound object never
@@ -128,6 +143,7 @@ type BoundExecutionPlanSolveGroupMetadataV1 = Readonly<{
 }>;
 
 type BoundExecutionPlanMetadataV1 = Readonly<{
+  stateDispatch: BoundExecutionPlanStateDispatchV1;
   continuousLogicalIndices: readonly number[];
   booleanLogicalIndices: readonly number[];
   conservationPools: readonly Readonly<{
@@ -260,11 +276,13 @@ export function validateAndOwnExecutionPlanDescriptorV1(
   }
   const stateIdByLogicalIndex: string[] = [];
   const stateIdSet = new Set<string>();
+  const authorityPointerSet = new Set<string>();
   let expectedContinuousIndex = 0;
   let expectedBooleanIndex = 0;
   slots.forEach((raw, index) => {
     const slot = recordV1(raw, `$.stateLayout.slots[${index}]`);
     exactKeysV1(slot, [
+      "authorityPointer",
       "componentId",
       "logicalIndex",
       "stateId",
@@ -280,10 +298,21 @@ export function validateAndOwnExecutionPlanDescriptorV1(
       slot.componentId,
       `$.stateLayout.slots[${index}].componentId`,
     );
+    const authorityPointer = authorityPointerV1(
+      slot.authorityPointer,
+      `$.stateLayout.slots[${index}].authorityPointer`,
+    );
     if (stateIdSet.has(stateId)) {
       failV1(`$.stateLayout.slots[${index}]`, "duplicate stateId");
     }
     stateIdSet.add(stateId);
+    if (authorityPointerSet.has(authorityPointer)) {
+      failV1(
+        `$.stateLayout.slots[${index}].authorityPointer`,
+        "duplicate accepted-state authority pointer",
+      );
+    }
+    authorityPointerSet.add(authorityPointer);
     if (
       nonnegativeIntegerV1(
         slot.logicalIndex,
@@ -609,6 +638,19 @@ export function bindExecutionPlanV1(
   });
   assertBoundExecutionPlanV1(bound, descriptor);
   BOUND_EXECUTION_PLAN_METADATA_V1.set(bound, Object.freeze({
+    stateDispatch: Object.freeze({
+      definitionId: descriptor.definitionId,
+      logicalSlotCount: descriptor.stateLayout.logicalSlotCount,
+      continuousSlotCount: descriptor.stateLayout.continuousSlotCount,
+      booleanSlotCount: descriptor.stateLayout.booleanSlotCount,
+      slots: Object.freeze(descriptor.stateLayout.slots.map((slot) =>
+        Object.freeze({
+          stateId: slot.stateId,
+          authorityPointer: slot.authorityPointer,
+          logicalIndex: slot.logicalIndex,
+          storageKind: slot.storageKind,
+        }))),
+    }),
     continuousLogicalIndices: Object.freeze(descriptor.stateLayout.slots
       .filter(({ storageKind }) => storageKind === "continuous-f64")
       .sort((left, right) => left.storageIndex - right.storageIndex)
@@ -636,6 +678,17 @@ export function bindExecutionPlanV1(
     )),
   }));
   return bound;
+}
+
+/** Resolves immutable compiler-owned state identity and authority metadata. */
+export function resolveBoundExecutionPlanStateDispatchV1(
+  bound: BoundExecutionPlanV1,
+): BoundExecutionPlanStateDispatchV1 {
+  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
+  if (metadata === undefined) {
+    throw new Error("Execution plan state dispatch requires a bound plan");
+  }
+  return metadata.stateDispatch;
 }
 
 /**
@@ -1674,6 +1727,27 @@ function portableIdV1(value: unknown, path: string): string {
 function portableRuntimeIdV1(value: unknown, path: string): string {
   if (typeof value !== "string" || !PORTABLE_RUNTIME_ID.test(value)) {
     failV1(path, "must be a portable runtime identifier");
+  }
+  return value;
+}
+
+function authorityPointerV1(value: unknown, path: string): string {
+  if (
+    typeof value !== "string"
+    || value.length < 2
+    || value.length > 1_024
+    || value[0] !== "/"
+    || /[\u0000-\u001f\u007f]/u.test(value)
+  ) {
+    failV1(path, "must be a bounded absolute JSON pointer");
+  }
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] !== "~") continue;
+    const escape = value[index + 1];
+    if (escape !== "0" && escape !== "1") {
+      failV1(path, "contains an invalid JSON-pointer escape");
+    }
+    index += 1;
   }
   return value;
 }

@@ -45,6 +45,7 @@ export type ExecutionPlanUpdateGroupV1 = Readonly<{
 export type ExecutionPlanStateSlotV1 = Readonly<{
   stateId: string;
   componentId: string;
+  authorityPointer: string;
   logicalIndex: number;
   storageKind: ExecutionPlanStateStorageKindV1;
   storageIndex: number;

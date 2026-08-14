@@ -153,6 +153,7 @@ function compileStateLayout(
   const blocks: ExecutionPlanStateBlockV1[] = [];
   const slots: ExecutionPlanStateSlotV1[] = [];
   const stateIds = new Set<string>();
+  const authorityPointers = new Set<string>();
   let logicalIndex = 0;
   let continuousIndex = 0;
   let booleanIndex = 0;
@@ -174,13 +175,20 @@ function compileStateLayout(
       if (stateIds.has(state.stateId)) {
         throw new Error(`duplicate model state ${state.stateId}`);
       }
+      if (authorityPointers.has(state.authorityPointer)) {
+        throw new Error(
+          `duplicate model-state authority pointer ${state.authorityPointer}`,
+        );
+      }
       stateIds.add(state.stateId);
+      authorityPointers.add(state.authorityPointer);
       const storageIndex = state.storageKind === "continuous-f64"
         ? continuousIndex++
         : booleanIndex++;
       slots.push(Object.freeze({
         stateId: state.stateId,
         componentId: component.componentId,
+        authorityPointer: state.authorityPointer,
         logicalIndex,
         storageKind: state.storageKind,
         storageIndex,
@@ -567,18 +575,43 @@ function assertStateDefinition(
   componentId: string,
 ): void {
   assertExactDataRecordV1(state, [
+    "authorityPointer",
     "ordinal",
     "stateId",
     "storageKind",
     "unit",
   ], `state in ${componentId}`);
   assertPortableId(state.stateId, `stateId in ${componentId}`);
+  assertAuthorityPointerV1(
+    state.authorityPointer,
+    `state ${state.stateId} authorityPointer`,
+  );
   if (state.storageKind !== "continuous-f64"
     && state.storageKind !== "boolean-u8") {
     throw new Error(`state ${state.stateId} has an unsupported storage kind`);
   }
   if (typeof state.unit !== "string" || state.unit.length === 0) {
     throw new Error(`state ${state.stateId} must declare a unit`);
+  }
+}
+
+function assertAuthorityPointerV1(value: string, label: string): void {
+  if (
+    typeof value !== "string"
+    || value.length < 2
+    || value.length > 1_024
+    || value[0] !== "/"
+    || /[\u0000-\u001f\u007f]/u.test(value)
+  ) {
+    throw new Error(`${label} must be a bounded absolute JSON pointer`);
+  }
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] !== "~") continue;
+    const escape = value[index + 1];
+    if (escape !== "0" && escape !== "1") {
+      throw new Error(`${label} contains an invalid JSON-pointer escape`);
+    }
+    index += 1;
   }
 }
 
