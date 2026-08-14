@@ -2155,7 +2155,7 @@ function validateNode(value, label) {
 }
 function assertDeepFrozen(value, label) {
   const visited = /* @__PURE__ */ new WeakSet();
-  const visit = (candidate, path) => {
+  const visit2 = (candidate, path) => {
     if (candidate === null || typeof candidate !== "object") return;
     if (visited.has(candidate)) return;
     visited.add(candidate);
@@ -2167,10 +2167,10 @@ function assertDeepFrozen(value, label) {
       if (descriptor === void 0 || !("value" in descriptor)) {
         throw new Error(`${path} must contain only frozen data properties`);
       }
-      visit(descriptor.value, `${path}.${String(key)}`);
+      visit2(descriptor.value, `${path}.${String(key)}`);
     }
   };
-  visit(value, label);
+  visit2(value, label);
 }
 function hasDynamicMechanicalSupportValidationStampV1(state, profile, config) {
   return VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state)?.some((stamp) => stamp.profile === profile && stamp.config === config) ?? false;
@@ -5191,7 +5191,7 @@ function createCoronaryAutoregulationWindowBindingV3(input) {
     input.originAcceptedTimeSec,
     "originAcceptedTimeSec"
   );
-  requirePositiveFinite$e(input.durationSec, "durationSec");
+  requirePositiveFinite$h(input.durationSec, "durationSec");
   if (input.interpretation !== "periodic-sinus-cycle-aligned" && input.interpretation !== "irregular-rhythm-stationary") {
     throw new RangeError("unsupported autoregulation window interpretation");
   }
@@ -5260,7 +5260,7 @@ function maximumCoronaryAutoregulationStepDurationV3(binding, state, previousAcc
   );
   const windowEnd = canonicalWindowEnd(binding, state.windowIndex);
   const remaining = windowEnd - previousAcceptedTimeSec;
-  const tolerance = timeTolerance(windowEnd, previousAcceptedTimeSec);
+  const tolerance = timeTolerance$1(windowEnd, previousAcceptedTimeSec);
   if (remaining < -tolerance) {
     throw new Error("autoregulation accepted clock passed its window end");
   }
@@ -5297,7 +5297,7 @@ function advanceCoronaryAcceptedAutoregulationV3(binding, previous, previousTone
     input.previousAcceptedTimeSec
   );
   const windowEnd = canonicalWindowEnd(binding, previous.windowIndex);
-  const tolerance = timeTolerance(
+  const tolerance = timeTolerance$1(
     windowEnd,
     input.candidateAcceptedTimeSec
   );
@@ -5439,7 +5439,7 @@ function validateCoronaryAutoregulationWindowBindingV3(binding) {
     binding.windowPolicy.originAcceptedTimeSec,
     "window origin"
   );
-  requirePositiveFinite$e(binding.windowPolicy.durationSec, "window duration");
+  requirePositiveFinite$h(binding.windowPolicy.durationSec, "window duration");
   if (binding.windowPolicy.interpretation !== "periodic-sinus-cycle-aligned" && binding.windowPolicy.interpretation !== "irregular-rhythm-stationary") {
     throw new Error("unsupported autoregulation window interpretation");
   }
@@ -5489,7 +5489,7 @@ function validateCoronaryAcceptedAutoregulationStateV3(binding, state, clock) {
     state.windowStartAcceptedTimeSec,
     canonicalWindowStart(binding, state.windowIndex)
   )) throw new Error("autoregulation state window identity mismatch");
-  const durationTolerance = timeTolerance(
+  const durationTolerance = timeTolerance$1(
     state.acceptedDurationSec,
     binding.windowPolicy.durationSec
   );
@@ -5698,9 +5698,9 @@ function territoryRecordIsZero(record) {
   return CORONARY_TERRITORY_IDS_V2.every((territoryId) => record[territoryId] === 0);
 }
 function nearlyEqual$8(left, right) {
-  return Math.abs(left - right) <= timeTolerance(left, right);
+  return Math.abs(left - right) <= timeTolerance$1(left, right);
 }
-function timeTolerance(...values2) {
+function timeTolerance$1(...values2) {
   return 64 * Number.EPSILON * Math.max(1, ...values2.map(Math.abs));
 }
 function requireFinite$j(value, label) {
@@ -5711,7 +5711,7 @@ function requireNonnegativeFinite$d(value, label) {
     throw new RangeError(`${label} must be finite and non-negative`);
   }
 }
-function requirePositiveFinite$e(value, label) {
+function requirePositiveFinite$h(value, label) {
   if (!Number.isFinite(value) || value <= 0) {
     throw new RangeError(`${label} must be finite and positive`);
   }
@@ -7430,6 +7430,7 @@ const NON_CORONARY_CHAMBER_TANGENT_ORDER_V1 = Object.freeze([
 ]);
 const NON_CORONARY_CIRCULATION_CHECKPOINT_V1_ID = "main-wire-noncoronary-circulation-checkpoint-v1";
 const NON_CORONARY_CONSERVATIVE_COMPANION_BOUNDARY_NODES_V1 = Object.freeze(["Ao", "RA"]);
+const NON_CORONARY_PREPARED_CANDIDATE_EVALUATOR_V1_ID = "circleheart-noncoronary-prepared-candidate-evaluator-v1";
 function classifyNonCoronaryLineSearchRejectionOwnerV1(candidateEvaluationExceptionCount, armijoResidualRejectionCount) {
   requireInteger(
     candidateEvaluationExceptionCount,
@@ -7448,6 +7449,7 @@ function classifyNonCoronaryLineSearchRejectionOwnerV1(candidateEvaluationExcept
   }
   return "mixed-equal";
 }
+const NON_CORONARY_PREPARED_CANDIDATE_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
 const DEPENDENT_NODE = "SV";
 const NON_CORONARY_INDEPENDENT_NODE_NAMES_V1 = Object.freeze(
   NON_CORONARY_NODE_NAMES_V1.filter(
@@ -7485,6 +7487,7 @@ const DEFAULT_NEWTON_OPTIONS = Object.freeze({
 const MAX_NEWTON_FAILURE_TRACE_ENTRIES = 32;
 const MAX_FAILURE_DIAGNOSTIC_MESSAGE_CHARACTERS = 1024;
 const NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID = "circleheart-noncoronary-backward-euler-scratch-workspace-v1";
+const NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID = "circleheart-noncoronary-accepted-numerical-source-v1";
 const NON_CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
 function createSquareMatrixV1(size) {
   return Array.from({ length: size }, () => Array(size).fill(0));
@@ -7515,6 +7518,37 @@ function createMutableCandidateNumericalPageV1() {
     continuityResidualMlByNode: new Float64Array(NON_CORONARY_NODE_NAMES_V1.length),
     scaledIndependentResidual: new Float64Array(INDEPENDENT_NODE_NAMES.length)
   };
+}
+function createNonCoronaryBackwardEulerScratchWorkspaceV1() {
+  const independentNodeCount = INDEPENDENT_NODE_NAMES.length;
+  const workspace = Object.freeze({
+    schemaId: NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID,
+    topologyId: NON_CORONARY_CIRCULATION_BE_V1_ID,
+    independentNodeCount
+  });
+  NON_CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V1.set(workspace, {
+    volumeScales: Array(independentNodeCount).fill(0),
+    scaledUnknowns: Array(independentNodeCount).fill(0),
+    candidateUnknowns: Array(independentNodeCount).fill(0),
+    analyticJacobian: createSquareMatrixV1(independentNodeCount),
+    linearRight: Array(independentNodeCount).fill(0),
+    linearMatrix: createSquareMatrixV1(independentNodeCount),
+    linearSolution: Array(independentNodeCount).fill(0),
+    previousNumerical: {
+      revision: 0,
+      acceptedTimeSec: 0,
+      totalBloodVolumeMl: 0,
+      nodeVolumesMl: new Float64Array(NON_CORONARY_NODE_NAMES_V1.length),
+      dynamicEdgeFlowsMlPerSec: new Float64Array(NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length),
+      valveOpeningFractions01: new Float64Array(NON_CORONARY_VALVE_NAMES_V1.length)
+    },
+    candidatePages: [
+      createMutableCandidateNumericalPageV1(),
+      createMutableCandidateNumericalPageV1()
+    ],
+    inUse: false
+  });
+  return workspace;
 }
 function borrowNonCoronaryBackwardEulerScratchWorkspaceV1(workspace) {
   const storage = NON_CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V1.get(workspace);
@@ -7549,6 +7583,15 @@ function stagePreviousAcceptedNumericalStateV1(previous, scratchStorage, source)
   numerical.revision = previous.revision;
   numerical.acceptedTimeSec = previous.acceptedTimeSec;
   numerical.totalBloodVolumeMl = previous.totalBloodVolumeMl;
+  if (source !== void 0) {
+    if (source.sourceId !== NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID) {
+      throw new Error("non-coronary accepted numerical source is unsupported");
+    }
+    source.readInto(numerical);
+    assertPreviousAcceptedNumericalParityV1(previous, numerical);
+    numerical.totalBloodVolumeMl = previous.totalBloodVolumeMl;
+    return numerical;
+  }
   for (let index = 0; index < NON_CORONARY_NODE_NAMES_V1.length; index += 1) {
     numerical.nodeVolumesMl[index] = previous.nodeVolumesMl[NON_CORONARY_NODE_NAMES_V1[index]];
   }
@@ -7559,6 +7602,50 @@ function stagePreviousAcceptedNumericalStateV1(previous, scratchStorage, source)
     numerical.valveOpeningFractions01[index] = previous.valveStates[NON_CORONARY_VALVE_NAMES_V1[index]].leafletOpeningFraction01;
   }
   return numerical;
+}
+function assertPreviousAcceptedNumericalParityV1(previous, numerical) {
+  const totalBloodVolumeToleranceMl = 64 * Number.EPSILON * Math.max(
+    1,
+    Math.abs(numerical.totalBloodVolumeMl),
+    Math.abs(previous.totalBloodVolumeMl)
+  );
+  if (numerical.revision !== previous.revision || !Object.is(numerical.acceptedTimeSec, previous.acceptedTimeSec) || !Number.isFinite(numerical.totalBloodVolumeMl) || Math.abs(
+    numerical.totalBloodVolumeMl - previous.totalBloodVolumeMl
+  ) > totalBloodVolumeToleranceMl) {
+    throw new Error(
+      "non-coronary accepted numerical source clock or TBV diverged"
+    );
+  }
+  for (let index = 0; index < NON_CORONARY_NODE_NAMES_V1.length; index += 1) {
+    const name = NON_CORONARY_NODE_NAMES_V1[index];
+    if (!Object.is(numerical.nodeVolumesMl[index], previous.nodeVolumesMl[name])) {
+      throw new Error(
+        `non-coronary accepted numerical source ${name} volume diverged`
+      );
+    }
+  }
+  for (let index = 0; index < NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length; index += 1) {
+    const name = NON_CORONARY_DYNAMIC_EDGE_NAMES_V1[index];
+    if (!Object.is(
+      numerical.dynamicEdgeFlowsMlPerSec[index],
+      previous.dynamicEdgeFlowsMlPerSec[name]
+    )) {
+      throw new Error(
+        `non-coronary accepted numerical source ${name} flow diverged`
+      );
+    }
+  }
+  for (let index = 0; index < NON_CORONARY_VALVE_NAMES_V1.length; index += 1) {
+    const name = NON_CORONARY_VALVE_NAMES_V1[index];
+    if (!Object.is(
+      numerical.valveOpeningFractions01[index],
+      previous.valveStates[name].leafletOpeningFraction01
+    )) {
+      throw new Error(
+        `non-coronary accepted numerical source ${name} opening diverged`
+      );
+    }
+  }
 }
 let cachedGraphV1 = null;
 function buildNonCoronaryCirculationGraphV1() {
@@ -7662,10 +7749,10 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input, previousAccep
     graph = buildNonCoronaryCirculationGraphV1();
     options = resolveNewtonOptions(input.options);
   } catch (error) {
-    return failure$1(
+    return failure$2(
       input.previousAcceptedState,
       "invalid-input",
-      errorMessage$4(error),
+      errorMessage$6(error),
       input.previousAcceptedState.nodeVolumesMl,
       emptyDiagnostics()
     );
@@ -7687,11 +7774,275 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input, previousAccep
     }
   }
 }
+function prepareNonCoronaryCandidateEvaluatorV1(input, previousAcceptedNumericalSource) {
+  validateAcceptedState$2(input.previousAcceptedState);
+  requirePositive$4(input.dtSec, "dtSec");
+  validateRuntime(input.runtime);
+  validateProtocolResistanceScaleByEdge(
+    input.protocolResistanceScaleByEdge
+  );
+  validateConservativeCompanionAdapter(input);
+  validateMechanicalSupportInput(input.mechanicalSupport);
+  validateDynamicMechanicalSupportInput(input.dynamicMechanicalSupport);
+  if (input.mechanicalSupport !== void 0 && input.dynamicMechanicalSupport !== void 0) {
+    throw new Error(
+      "mechanicalSupport and dynamicMechanicalSupport are mutually exclusive"
+    );
+  }
+  if (typeof input.evaluateCandidateMechanics !== "function") {
+    throw new Error("evaluateCandidateMechanics must be a function");
+  }
+  const graph = buildNonCoronaryCirculationGraphV1();
+  const options = resolveNewtonOptions(input.options);
+  const previous = stagePreviousAcceptedNumericalStateV1(
+    input.previousAcceptedState,
+    null,
+    previousAcceptedNumericalSource
+  );
+  const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
+  const respiratoryExternalPressures = respiratoryExternalPressuresV1(
+    candidateTimeSec,
+    input.runtime.respiratory
+  );
+  const handle = Object.freeze({
+    schemaId: NON_CORONARY_PREPARED_CANDIDATE_EVALUATOR_V1_ID,
+    independentNodeCount: INDEPENDENT_NODE_NAMES.length
+  });
+  const storage = {
+    input,
+    graph,
+    options,
+    previous,
+    candidateTimeSec,
+    respiratoryExternalPressures,
+    vascularPvLaws: snapshotNonCoronaryVascularPvLawsV1(
+      graph,
+      input.runtime.vascular
+    ),
+    volumeScales: independentVolumeScales(previous.nodeVolumesMl),
+    scaledUnknowns: Array(INDEPENDENT_NODE_NAMES.length).fill(0),
+    mechanicsCache: {
+      values: [],
+      jacobianUsage: {
+        analyticAssemblyCount: 0,
+        finiteDifferenceFallbackCount: 0,
+        finiteDifferenceShadowCount: 0,
+        maximumAbsoluteShadowDifference: null,
+        maximumRelativeFrobeniusShadowDifference: null
+      },
+      callCount: 0,
+      hitCount: 0,
+      uniqueCandidateCount: 0
+    },
+    candidatePage: createMutableCandidateNumericalPageV1(),
+    dependentSvColumn: new Float64Array(INDEPENDENT_NODE_NAMES.length),
+    localJacobian: new Float64Array(
+      INDEPENDENT_NODE_NAMES.length * INDEPENDENT_NODE_NAMES.length
+    ),
+    inUse: false
+  };
+  NON_CORONARY_PREPARED_CANDIDATE_STORAGE_V1.set(
+    handle,
+    storage
+  );
+  return handle;
+}
+function withPreparedNonCoronaryCandidateV1(evaluator, candidateIndependentNodeVolumesMl, consume) {
+  const storage = NON_CORONARY_PREPARED_CANDIDATE_STORAGE_V1.get(
+    evaluator
+  );
+  if (storage === void 0 || evaluator.schemaId !== NON_CORONARY_PREPARED_CANDIDATE_EVALUATOR_V1_ID || evaluator.independentNodeCount !== INDEPENDENT_NODE_NAMES.length) {
+    throw new TypeError("non-coronary prepared candidate evaluator is foreign");
+  }
+  if (storage.inUse) {
+    throw new Error("non-coronary prepared candidate evaluator is already in use");
+  }
+  if (!(candidateIndependentNodeVolumesMl instanceof Float64Array) || candidateIndependentNodeVolumesMl.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new RangeError(
+      `candidate independent volumes must contain ${INDEPENDENT_NODE_NAMES.length} f64 values`
+    );
+  }
+  if (typeof consume !== "function") {
+    throw new TypeError("prepared candidate consumer must be a function");
+  }
+  for (let index = 0; index < storage.scaledUnknowns.length; index += 1) {
+    storage.scaledUnknowns[index] = requirePositive$4(
+      candidateIndependentNodeVolumesMl[index],
+      `${INDEPENDENT_NODE_NAMES[index]} candidate volume`
+    ) / storage.volumeScales[index];
+  }
+  storage.inUse = true;
+  try {
+    const candidate = evaluateCandidate$1(
+      storage.graph,
+      storage.input,
+      storage.previous,
+      storage.scaledUnknowns,
+      storage.volumeScales,
+      storage.candidateTimeSec,
+      storage.respiratoryExternalPressures,
+      storage.vascularPvLaws,
+      storage.mechanicsCache,
+      storage.candidatePage
+    );
+    deviceOffLocalIndependentResidualDDependentSvVolumeV1(
+      storage.graph,
+      storage.input,
+      candidate,
+      storage.respiratoryExternalPressures,
+      storage.dependentSvColumn
+    );
+    const localJacobian = candidate.absoluteChamberPressureTangent === null ? null : deviceOffLocalIndependentResidualDIndependentVolumesV1(
+      storage.graph,
+      storage.input,
+      candidate,
+      storage.respiratoryExternalPressures,
+      storage.localJacobian
+    );
+    return consume(
+      Object.freeze({
+        candidateTimeSec: storage.candidateTimeSec,
+        nodeVolumesMl: candidate.nodeVolumesMl,
+        nodeAbsolutePressuresMmHg: candidate.nodeAbsolutePressuresMmHg,
+        vascularPressureTangentMmHgPerMl: candidate.vascularPressureTangentMmHgPerMl,
+        edgeFlowsMlPerSec: candidate.edgeFlowsMlPerSec,
+        dynamicEdgeFlowsMlPerSec: candidate.dynamicEdgeFlowsMlPerSec,
+        valveStates: candidate.valveStates,
+        valveEvaluations: candidate.valveEvaluations,
+        mechanicalSupport: candidate.mechanicalSupport,
+        dynamicMechanicalSupport: candidate.dynamicMechanicalSupport,
+        continuityResidualMlByNode: candidate.continuityResidualMlByNode,
+        mixedContinuityResidualInfinityNorm: mixedContinuityResidualAudit(
+          candidate,
+          storage.previous.nodeVolumesMl,
+          storage.options.absoluteContinuityResidualToleranceMl,
+          storage.options.scaledResidualInfinityTolerance
+        ).infinityNorm,
+        absoluteChamberPressureTangent: candidate.absoluteChamberPressureTangent,
+        candidateMechanicsEvaluation: candidate.candidateMechanicsEvaluation
+      }),
+      storage.dependentSvColumn,
+      localJacobian
+    );
+  } finally {
+    storage.inUse = false;
+  }
+}
+function materializeNonCoronaryCirculationCandidateTrialV1(input, candidateIndependentNodeVolumesMl, externalDiagnostics, previousAcceptedNumericalSource) {
+  validateAcceptedState$2(input.previousAcceptedState);
+  requirePositive$4(input.dtSec, "dtSec");
+  validateRuntime(input.runtime);
+  validateProtocolResistanceScaleByEdge(
+    input.protocolResistanceScaleByEdge
+  );
+  validateConservativeCompanionAdapter(input);
+  validateMechanicalSupportInput(input.mechanicalSupport);
+  validateDynamicMechanicalSupportInput(input.dynamicMechanicalSupport);
+  if (input.mechanicalSupport !== void 0 || input.dynamicMechanicalSupport !== void 0 || input.protocolResistanceScaleByEdge !== void 0) {
+    throw new Error(
+      "external candidate materialization supports the device-off slice only"
+    );
+  }
+  if (typeof input.evaluateCandidateMechanics !== "function") {
+    throw new Error("evaluateCandidateMechanics must be a function");
+  }
+  if (!(candidateIndependentNodeVolumesMl instanceof Float64Array) || candidateIndependentNodeVolumesMl.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new RangeError(
+      `candidate independent volumes must contain ${INDEPENDENT_NODE_NAMES.length} f64 values`
+    );
+  }
+  requireInteger(externalDiagnostics.iterations, "iterations");
+  requireInteger(
+    externalDiagnostics.lineSearchBacktracks,
+    "lineSearchBacktracks"
+  );
+  if (externalDiagnostics.iterations < 0 || externalDiagnostics.lineSearchBacktracks < 0) {
+    throw new RangeError("external solver diagnostics must be nonnegative");
+  }
+  const graph = buildNonCoronaryCirculationGraphV1();
+  const options = resolveNewtonOptions(input.options);
+  const previous = stagePreviousAcceptedNumericalStateV1(
+    input.previousAcceptedState,
+    null,
+    previousAcceptedNumericalSource
+  );
+  const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
+  const respiratoryExternalPressures = respiratoryExternalPressuresV1(
+    candidateTimeSec,
+    input.runtime.respiratory
+  );
+  const vascularPvLaws = snapshotNonCoronaryVascularPvLawsV1(
+    graph,
+    input.runtime.vascular
+  );
+  const volumeScales = independentVolumeScales(previous.nodeVolumesMl);
+  const scaledUnknowns = Array(INDEPENDENT_NODE_NAMES.length);
+  for (let index = 0; index < scaledUnknowns.length; index += 1) {
+    scaledUnknowns[index] = requirePositive$4(
+      candidateIndependentNodeVolumesMl[index],
+      `${INDEPENDENT_NODE_NAMES[index]} candidate volume`
+    ) / volumeScales[index];
+  }
+  const mechanicsCache = {
+    values: [],
+    jacobianUsage: {
+      analyticAssemblyCount: 0,
+      finiteDifferenceFallbackCount: 0,
+      finiteDifferenceShadowCount: 0,
+      maximumAbsoluteShadowDifference: null,
+      maximumRelativeFrobeniusShadowDifference: null
+    },
+    callCount: 0,
+    hitCount: 0,
+    uniqueCandidateCount: 0
+  };
+  const candidate = evaluateCandidate$1(
+    graph,
+    input,
+    previous,
+    scaledUnknowns,
+    volumeScales,
+    candidateTimeSec,
+    respiratoryExternalPressures,
+    vascularPvLaws,
+    mechanicsCache
+  );
+  const residualNorm = infinityNorm$3(candidate.scaledIndependentResidual);
+  const mixedResidual = mixedContinuityResidualAudit(
+    candidate,
+    previous.nodeVolumesMl,
+    options.absoluteContinuityResidualToleranceMl,
+    options.scaledResidualInfinityTolerance
+  );
+  if (mixedResidual.infinityNorm > 1) {
+    throw new Error(
+      "external non-coronary candidate does not satisfy continuity tolerance"
+    );
+  }
+  const diagnostics = trialDiagnostics(
+    externalDiagnostics.iterations,
+    externalDiagnostics.iterations,
+    externalDiagnostics.lineSearchBacktracks,
+    residualNorm,
+    candidate,
+    previous,
+    options,
+    mechanicsCache
+  );
+  return success$1(
+    input.previousAcceptedState,
+    input.dtSec,
+    candidateTimeSec,
+    candidate,
+    diagnostics
+  );
+}
 function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph, options, scratchStorage, previousAcceptedNumericalSource) {
   const previous = input.previousAcceptedState;
   const previousNumerical = stagePreviousAcceptedNumericalStateV1(
     previous,
-    scratchStorage
+    scratchStorage,
+    previousAcceptedNumericalSource
   );
   const candidateTimeSec = previousNumerical.acceptedTimeSec + input.dtSec;
   const respiratoryExternalPressures = respiratoryExternalPressuresV1(
@@ -7743,16 +8094,16 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
       currentCandidatePageIndex === null ? void 0 : scratchStorage.candidatePages[currentCandidatePageIndex]
     );
   } catch (error) {
-    return failure$1(
+    return failure$2(
       previous,
       "initial-evaluation-failed",
-      errorMessage$4(error),
+      errorMessage$6(error),
       previous.nodeVolumesMl,
       emptyDiagnostics(options, mechanicsCache)
     );
   }
   for (let iteration = 0; iteration <= options.maxIterations; iteration += 1) {
-    const residualNorm = infinityNorm$2(current.scaledIndependentResidual);
+    const residualNorm = infinityNorm$3(current.scaledIndependentResidual);
     const mixedContinuityResidual = mixedContinuityResidualAudit(
       current,
       previousNumerical.nodeVolumesMl,
@@ -7772,7 +8123,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
     };
     pushBoundedFailureTrace(failureTrace, traceEntry);
     if (continuityResidualConverged) {
-      return success(
+      return success$1(
         previous,
         input.dtSec,
         candidateTimeSec,
@@ -7790,7 +8141,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
       );
     }
     if (iteration === options.maxIterations) {
-      return failure$1(
+      return failure$2(
         previous,
         "maximum-iterations",
         "non-coronary circulation Newton reached its iteration limit",
@@ -7861,10 +8212,10 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
         );
       }
     } catch (error) {
-      return failure$1(
+      return failure$2(
         previous,
         "jacobian-failed",
-        errorMessage$4(error),
+        errorMessage$6(error),
         current.nodeVolumesMl,
         trialDiagnostics(
           iteration,
@@ -7888,9 +8239,9 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
       linearRight,
       scratchStorage
     );
-    traceEntry.updateScaledInfinityNorm = update === null ? null : infinityNorm$2(update);
+    traceEntry.updateScaledInfinityNorm = update === null ? null : infinityNorm$3(update);
     if (update === null) {
-      return failure$1(
+      return failure$2(
         previous,
         "singular-jacobian",
         "non-coronary circulation scaled Jacobian is singular",
@@ -7908,8 +8259,8 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
         )
       );
     }
-    if (infinityNorm$2(update) <= options.scaledUpdateInfinityTolerance && !continuityResidualConverged) {
-      return failure$1(
+    if (infinityNorm$3(update) <= options.scaledUpdateInfinityTolerance && !continuityResidualConverged) {
+      return failure$2(
         previous,
         "singular-jacobian",
         "non-coronary circulation Newton stagnated above tolerance",
@@ -7951,7 +8302,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
           mechanicsCache,
           trialCandidatePageIndex === null ? void 0 : scratchStorage.candidatePages[trialCandidatePageIndex]
         );
-        const trialResidualNorm = infinityNorm$2(
+        const trialResidualNorm = infinityNorm$3(
           evaluation.scaledIndependentResidual
         );
         const requiredMaximumResidualNorm = (1 - 1e-4 * stepLength) * residualNorm;
@@ -7977,7 +8328,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
         lastCandidateEvaluationException = Object.freeze({
           backtrackIndex: backtrack,
           stepLength,
-          message: boundedDiagnosticMessage(errorMessage$4(error))
+          message: boundedDiagnosticMessage(errorMessage$6(error))
         });
       }
       stepLength *= 0.5;
@@ -7996,7 +8347,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph
         lastCandidateEvaluationException,
         lastArmijoResidualRejection
       });
-      return failure$1(
+      return failure$2(
         previous,
         "line-search-failed",
         "non-coronary circulation Newton found no admissible residual-decreasing step",
@@ -8534,6 +8885,112 @@ function analyticEdgeFlowPressureDerivativesV1(graph, input, current, respirator
     downstreamMlPerSecPerMmHg
   });
 }
+function deviceOffLocalIndependentResidualDDependentSvVolumeV1(graph, input, current, respiratoryExternalPressures, destination = new Float64Array(INDEPENDENT_NODE_NAMES.length)) {
+  if (current.mechanicalSupport !== null || current.dynamicMechanicalSupport !== null || input.protocolResistanceScaleByEdge !== void 0) {
+    throw new Error(
+      "dependent-SV local tangent V1 supports only the device-off protocol-free slice"
+    );
+  }
+  if (destination.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new RangeError("dependent-SV tangent destination has incompatible dimension");
+  }
+  destination.fill(0);
+  const dependentPressureTangentMmHgPerMl = requireFinite$i(
+    current.vascularPressureTangentMmHgPerMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[DEPENDENT_NODE]],
+    "SV vascular pressure tangent"
+  );
+  for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex += 1) {
+    const edge = graph.edges[edgeIndex];
+    const upstreamName = edge.up;
+    const downstreamName = edge.down;
+    if (upstreamName !== DEPENDENT_NODE && downstreamName !== DEPENDENT_NODE) {
+      continue;
+    }
+    const derivatives = analyticEdgeFlowPressureDerivativesV1(
+      graph,
+      input,
+      current,
+      respiratoryExternalPressures,
+      edgeIndex
+    );
+    const dFlowDDependentVolume = dependentPressureTangentMmHgPerMl * ((upstreamName === DEPENDENT_NODE ? derivatives.upstreamMlPerSecPerMmHg : 0) + (downstreamName === DEPENDENT_NODE ? derivatives.downstreamMlPerSecPerMmHg : 0));
+    const upstreamResidualRow = INDEPENDENT_NODE_INDEX[upstreamName];
+    const downstreamResidualRow = INDEPENDENT_NODE_INDEX[downstreamName];
+    if (upstreamResidualRow !== void 0) {
+      destination[upstreamResidualRow] += input.dtSec * dFlowDDependentVolume;
+    }
+    if (downstreamResidualRow !== void 0) {
+      destination[downstreamResidualRow] -= input.dtSec * dFlowDDependentVolume;
+    }
+  }
+  return destination;
+}
+function deviceOffLocalIndependentResidualDIndependentVolumesV1(graph, input, current, respiratoryExternalPressures, destination = new Float64Array(
+  INDEPENDENT_NODE_NAMES.length * INDEPENDENT_NODE_NAMES.length
+)) {
+  if (current.mechanicalSupport !== null || current.dynamicMechanicalSupport !== null || input.protocolResistanceScaleByEdge !== void 0) {
+    throw new Error(
+      "local physical Jacobian V1 supports only the device-off protocol-free slice"
+    );
+  }
+  const chamberTangent = current.absoluteChamberPressureTangent;
+  if (chamberTangent === null) {
+    throw new Error("local physical Jacobian requires chamber pressure tangents");
+  }
+  const size = INDEPENDENT_NODE_NAMES.length;
+  if (destination.length !== size * size) {
+    throw new RangeError("local physical Jacobian destination has incompatible dimension");
+  }
+  destination.fill(0);
+  for (let index = 0; index < size; index += 1) {
+    destination[index * size + index] = 1;
+  }
+  const pressureDerivative = (pressureNode, volumeColumn) => {
+    const volumeNode = INDEPENDENT_NODE_NAMES[volumeColumn];
+    if (isChamberName(pressureNode)) {
+      if (!isChamberName(volumeNode)) return 0;
+      const pressureRow = CHAMBER_TANGENT_INDEX[pressureNode];
+      const chamberColumn = CHAMBER_TANGENT_INDEX[volumeNode];
+      if (pressureRow === void 0 || chamberColumn === void 0) {
+        throw new Error("chamber tangent ordering drifted");
+      }
+      return chamberTangent.dPressureDVolumeMmHgPerMl[pressureRow][chamberColumn];
+    }
+    const tangent = requireFinite$i(
+      current.vascularPressureTangentMmHgPerMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[pressureNode]],
+      `${pressureNode} vascular pressure tangent`
+    );
+    if (pressureNode === DEPENDENT_NODE) return -tangent;
+    return volumeNode === pressureNode ? tangent : 0;
+  };
+  for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex += 1) {
+    const edge = graph.edges[edgeIndex];
+    const upstreamName = edge.up;
+    const downstreamName = edge.down;
+    const derivatives = analyticEdgeFlowPressureDerivativesV1(
+      graph,
+      input,
+      current,
+      respiratoryExternalPressures,
+      edgeIndex
+    );
+    const upstreamResidualRow = INDEPENDENT_NODE_INDEX[upstreamName];
+    const downstreamResidualRow = INDEPENDENT_NODE_INDEX[downstreamName];
+    for (let column = 0; column < size; column += 1) {
+      const dFlowDVolume = derivatives.upstreamMlPerSecPerMmHg * pressureDerivative(upstreamName, column) + derivatives.downstreamMlPerSecPerMmHg * pressureDerivative(downstreamName, column);
+      if (upstreamResidualRow !== void 0) {
+        destination[upstreamResidualRow * size + column] += input.dtSec * dFlowDVolume;
+      }
+      if (downstreamResidualRow !== void 0) {
+        destination[downstreamResidualRow * size + column] -= input.dtSec * dFlowDVolume;
+      }
+    }
+  }
+  if (destination.some((value) => !Number.isFinite(value))) {
+    throw new Error("local physical Jacobian produced non-finite values");
+  }
+  return destination;
+}
 function analyticCirculationJacobian(graph, input, current, volumeScales, respiratoryExternalPressures, reusableJacobian) {
   const chamberTangent = current.absoluteChamberPressureTangent;
   if (chamberTangent === null) {
@@ -8779,7 +9236,7 @@ function initialNodeVolumes(graph, runtime) {
     return requirePositive$4(volume, `${name} initial volume`);
   });
 }
-function success(previous, dtSec, candidateTimeSec, evaluation, diagnostics) {
+function success$1(previous, dtSec, candidateTimeSec, evaluation, diagnostics) {
   const companion = evaluation.conservativeCompanion;
   const candidateNodeVolumesMl = nodeRecord$1((name) => requirePositive$4(
     evaluation.nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[name]],
@@ -8833,7 +9290,7 @@ function success(previous, dtSec, candidateTimeSec, evaluation, diagnostics) {
     units: NON_CORONARY_CIRCULATION_UNITS_V1
   });
 }
-function failure$1(previous, reason, message, lastVolumes, diagnostics) {
+function failure$2(previous, reason, message, lastVolumes, diagnostics) {
   return Object.freeze({
     converged: false,
     transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,
@@ -9567,10 +10024,10 @@ function tryEvaluateVector(evaluate, unknowns) {
     const value = evaluate(unknowns);
     return value.every(Number.isFinite) ? Object.freeze({ value, issue: "none" }) : Object.freeze({ value: null, issue: "non-finite-residual" });
   } catch (error) {
-    return Object.freeze({ value: null, issue: errorMessage$4(error) });
+    return Object.freeze({ value: null, issue: errorMessage$6(error) });
   }
 }
-function infinityNorm$2(values2) {
+function infinityNorm$3(values2) {
   let maximum = 0;
   for (let index = 0; index < values2.length; index += 1) {
     maximum = Math.max(maximum, Math.abs(values2[index]));
@@ -9608,7 +10065,7 @@ function canonicalCheckpointString(value) {
   }
   throw new Error("checkpoint contains unsupported value");
 }
-function errorMessage$4(error) {
+function errorMessage$6(error) {
   return error instanceof Error ? error.message : String(error);
 }
 function requireFinite$i(value, label) {
@@ -9845,6 +10302,24 @@ function evaluateSignedLinearQuadraticPressureLossV1(flowMlPerSec, linearResista
   }
   return linearResistanceMmHgSecPerMl * flowMlPerSec + quadraticResistanceMmHgSec2PerMl2 * Math.abs(flowMlPerSec) * flowMlPerSec;
 }
+const CORONARY_BOUNDARY_FLOW_OBSERVABLE_IDS_V2 = Object.freeze([
+  "totalInletFlowMlPerSec",
+  "commonCoronaryVenousOutletFlowMlPerSec"
+]);
+const CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2 = 10;
+const CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2 = 5;
+const CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2 = Object.freeze([
+  "absoluteAorticPressureMmHg",
+  "absoluteRightAtrialPressureMmHg",
+  "perivascularExternalPressureMmHg",
+  "LAD.subepicardial",
+  "LAD.subendocardial",
+  "LCx.subepicardial",
+  "LCx.subendocardial",
+  "RCA.subepicardial",
+  "RCA.subendocardial"
+]);
+const CORONARY_PREPARED_COUPLED_EVALUATOR_V2_ID = "circleheart-coronary-prepared-coupled-evaluator-v2";
 const NORMAL_VASODILATORY_TONE_MINIMUM_SCALE_V2 = 4 / 45;
 const NORMAL_CORONARY_TONE_MAXIMUM_SCALE_V2 = 2;
 function buildCoronaryCollapseHydraulicsPriorV2(topology = buildCoronaryTopologyV2(), residualHydraulicAreaFraction = 0.1) {
@@ -9896,6 +10371,32 @@ const DEFAULT_CORONARY_PRESSURE_LADDER_INITIALIZER_OPTIONS_V2 = Object.freeze({
   absoluteContinuityToleranceMlPerSec: 1e-10,
   finiteDifferenceRelativeStep: 1e-6
 });
+const CORONARY_PREPARED_COUPLED_EVALUATOR_STORAGE_V2 = /* @__PURE__ */ new WeakMap();
+function compileCoronaryTopologyPlanV2(topology) {
+  const edgeCount = topology.edges.length;
+  const upstreamPressureIndexByEdge = new Int8Array(edgeCount);
+  const downstreamPressureIndexByEdge = new Int8Array(edgeCount);
+  const upstreamConservedIndexByEdge = new Int8Array(edgeCount);
+  const downstreamConservedIndexByEdge = new Int8Array(edgeCount);
+  upstreamConservedIndexByEdge.fill(-1);
+  downstreamConservedIndexByEdge.fill(-1);
+  topology.edges.forEach((edge, edgeIndex) => {
+    upstreamPressureIndexByEdge[edgeIndex] = hydraulicPressureIndexV2(edge.upstreamNodeId);
+    downstreamPressureIndexByEdge[edgeIndex] = hydraulicPressureIndexV2(edge.downstreamNodeId);
+    if (isConservedNodeV2(edge.upstreamNodeId)) {
+      upstreamConservedIndexByEdge[edgeIndex] = CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId];
+    }
+    if (isConservedNodeV2(edge.downstreamNodeId)) {
+      downstreamConservedIndexByEdge[edgeIndex] = CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId];
+    }
+  });
+  return Object.freeze({
+    upstreamPressureIndexByEdge,
+    downstreamPressureIndexByEdge,
+    upstreamConservedIndexByEdge,
+    downstreamConservedIndexByEdge
+  });
+}
 function createSquareMatrixV2(size) {
   return Array.from({ length: size }, () => Array(size).fill(0));
 }
@@ -9910,6 +10411,35 @@ function createMutableDenseLinearFactorizationV2(size) {
 }
 const CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2 = /* @__PURE__ */ new WeakMap();
 const MAXIMUM_RETAINED_CORONARY_RESIDUAL_EVALUATIONS_V2 = 64;
+function createCoronaryBackwardEulerScratchWorkspaceV2(topology = buildCoronaryTopologyV2()) {
+  validateCoronaryTopologyV2(topology);
+  const workspace = Object.freeze({
+    schemaId: "circleheart-coronary-backward-euler-scratch-workspace-v2",
+    topologyId: topology.topologyId
+  });
+  CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2.set(workspace, {
+    nodeIds: Object.freeze(topology.nodes.map((node) => node.nodeId)),
+    edgeIds: Object.freeze(topology.edges.map((edge) => edge.edgeId)),
+    topologyPlan: compileCoronaryTopologyPlanV2(topology),
+    previous: Array(topology.nodes.length).fill(0),
+    minimumVolumes: Array(topology.nodes.length).fill(0),
+    jacobian: createSquareMatrixV2(topology.nodes.length),
+    pressureDerivativeByVolume: Array(topology.nodes.length).fill(0),
+    collapseScaleAndDerivative: Array(2).fill(0),
+    flowNumeratorDerivativeColumn: Array(topology.nodes.length).fill(0),
+    flowNumeratorDerivative: Array(topology.nodes.length).fill(0),
+    boundaryFlowDerivative: Array(topology.edges.length).fill(0),
+    boundaryResidualDerivative: Array(topology.nodes.length).fill(0),
+    linearRhs: Array(topology.nodes.length).fill(0),
+    linearFactorization: createMutableDenseLinearFactorizationV2(topology.nodes.length),
+    transformedLinearRhs: Array(topology.nodes.length).fill(0),
+    linearSolution: Array(topology.nodes.length).fill(0),
+    residualEvaluations: [],
+    residualEvaluationCursor: 0,
+    inUse: false
+  });
+  return workspace;
+}
 function borrowCoronaryBackwardEulerScratchWorkspaceV2(workspace, topology) {
   const storage = CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2.get(workspace);
   if (storage === void 0) {
@@ -9979,6 +10509,458 @@ class CoronaryNetworkConvergenceErrorV2 extends Error {
 function buildCoronaryEdgeIndexV2(topology) {
   validateCoronaryTopologyV2(topology);
   return topology.edgeIndexById;
+}
+function materializeCoronaryBackwardEulerCandidateTrialV2(previousAcceptedState, input, candidateVolumeMlByNode, externalDiagnostics, prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2, topology = buildCoronaryTopologyV2(prior)) {
+  validateAcceptedStateV2(previousAcceptedState, topology);
+  validateTrialInputV2(input);
+  validateCoronaryTopologyV2(topology);
+  requireNonnegativeIntegerV2(
+    externalDiagnostics.newtonIterations,
+    "newtonIterations"
+  );
+  requireNonnegativeIntegerV2(
+    externalDiagnostics.totalLineSearchBacktracks,
+    "totalLineSearchBacktracks"
+  );
+  const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
+  const collapseHydraulics = input.collapseHydraulics ?? buildCoronaryCollapseHydraulicsPriorV2(topology);
+  const options = resolveSolverOptionsV2(input.solverOptions);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const edgeIndex = buildCoronaryEdgeIndexV2(topology);
+  const candidate = volumeRecordToArrayV2(candidateVolumeMlByNode);
+  const previous = volumeRecordToArrayV2(
+    previousAcceptedState.volumeMlByNode
+  );
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference
+  );
+  const hydraulics = evaluateHydraulicsInternalV2(
+    candidate,
+    previousAcceptedState.toneResistanceScaleByTerritoryLayer,
+    input.boundary,
+    disease,
+    topology,
+    edgeIndex,
+    collapseHydraulics
+  );
+  const residual = Array(candidate.length);
+  for (let index = 0; index < candidate.length; index += 1) {
+    residual[index] = candidate[index] - previous[index];
+  }
+  accumulateFlowContinuityV2(
+    residual,
+    hydraulics.flowByEdge,
+    input.dtSec,
+    topology
+  );
+  return materializeConvergedCoronaryTrialV2(
+    previousAcceptedState,
+    input,
+    candidate,
+    { residual, hydraulics },
+    options,
+    externalDiagnostics.newtonIterations,
+    externalDiagnostics.totalLineSearchBacktracks,
+    input.evaluationCounterCollection === "enabled" ? 1 : void 0,
+    topology,
+    edgeIndex
+  );
+}
+function prepareCoronaryCoupledCandidateEvaluatorV2(previousAcceptedState, input, prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2, topology = buildCoronaryTopologyV2(prior)) {
+  validateAcceptedStateV2(previousAcceptedState, topology);
+  validateCoronaryTopologyV2(topology);
+  if (!Number.isFinite(input.dtSec) || input.dtSec <= 0) {
+    throw new RangeError("prepared coronary V2 dt must be positive and finite");
+  }
+  const disease = copyCoronaryDiseaseInputV2(
+    input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2
+  );
+  const collapseHydraulics = copyCoronaryCollapseHydraulicsV2(
+    input.collapseHydraulics ?? buildCoronaryCollapseHydraulicsPriorV2(topology)
+  );
+  const options = resolveSolverOptionsV2(input.solverOptions);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const edgeIndexById = buildCoronaryEdgeIndexV2(topology);
+  const handle = Object.freeze({
+    schemaId: CORONARY_PREPARED_COUPLED_EVALUATOR_V2_ID,
+    nodeCount: topology.nodes.length
+  });
+  CORONARY_PREPARED_COUPLED_EVALUATOR_STORAGE_V2.set(handle, {
+    previousVolumesMl: Float64Array.from(
+      volumeRecordToArrayV2(previousAcceptedState.volumeMlByNode)
+    ),
+    toneResistanceScaleByTerritoryLayer: copyCoronaryToneStateV2(
+      previousAcceptedState.toneResistanceScaleByTerritoryLayer
+    ),
+    dtSec: input.dtSec,
+    disease,
+    collapseHydraulics,
+    minimumVolumeFractionOfReference: options.minimumVolumeFractionOfReference,
+    topology,
+    topologyPlan: compileCoronaryTopologyPlanV2(topology),
+    edgeIndexById,
+    hydraulics: createMutableHydraulicEvaluationV2(topology, edgeIndexById),
+    cachedCandidateVolumesMl: new Float64Array(topology.nodes.length),
+    cachedBoundary: new Float64Array(
+      CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length
+    ),
+    cacheValid: false,
+    hydraulicEvaluationCount: 0,
+    exactCandidateCacheHitCount: 0
+  });
+  return handle;
+}
+function writePreparedCoronaryCoupledCandidateResidualV2(evaluator, boundary2, candidateVolumesMl, destinationResidualMl, destinationBoundaryFlowMlPerSec, destinationAutoregulationHydraulics, destinationAcceptedReadbackHydraulics) {
+  const storage = preparedCoupledEvaluatorStorageV2(evaluator);
+  requireTypedLengthV2(
+    destinationResidualMl,
+    storage.topology.nodes.length,
+    "destinationResidualMl"
+  );
+  requireTypedLengthV2(
+    destinationBoundaryFlowMlPerSec,
+    CORONARY_BOUNDARY_FLOW_OBSERVABLE_IDS_V2.length,
+    "destinationBoundaryFlowMlPerSec"
+  );
+  if (destinationAutoregulationHydraulics !== void 0) {
+    requireTypedLengthV2(
+      destinationAutoregulationHydraulics,
+      CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
+      "destinationAutoregulationHydraulics"
+    );
+  }
+  if (destinationAcceptedReadbackHydraulics !== void 0) {
+    requireTypedLengthV2(
+      destinationAcceptedReadbackHydraulics,
+      CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2,
+      "destinationAcceptedReadbackHydraulics"
+    );
+  }
+  const hydraulics = evaluatePreparedCoronaryHydraulicsV2(
+    storage,
+    boundary2,
+    candidateVolumesMl
+  );
+  writePreparedCoronaryResidualV2(
+    storage,
+    candidateVolumesMl,
+    hydraulics,
+    destinationResidualMl
+  );
+  writePreparedCoronaryBoundaryFlowsV2(
+    hydraulics,
+    destinationBoundaryFlowMlPerSec
+  );
+  if (destinationAutoregulationHydraulics !== void 0) {
+    writePreparedCoronaryAutoregulationHydraulicsV2(
+      hydraulics,
+      destinationAutoregulationHydraulics
+    );
+  }
+  if (destinationAcceptedReadbackHydraulics !== void 0) {
+    writePreparedCoronaryAcceptedReadbackHydraulicsV2(
+      hydraulics,
+      destinationAcceptedReadbackHydraulics
+    );
+  }
+}
+function writePreparedCoronaryCoupledCandidateLinearizationV2(evaluator, boundary2, candidateVolumesMl, destination) {
+  const storage = preparedCoupledEvaluatorStorageV2(evaluator);
+  const dimension = storage.topology.nodes.length;
+  const boundaryDimension = CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+  requireTypedLengthV2(destination.residualMl, dimension, "residualMl");
+  requireTypedLengthV2(
+    destination.dResidualDVolume,
+    dimension * dimension,
+    "dResidualDVolume"
+  );
+  requireTypedLengthV2(
+    destination.dResidualDBoundary,
+    dimension * boundaryDimension,
+    "dResidualDBoundary"
+  );
+  requireTypedLengthV2(
+    destination.dTotalInletFlowDVolume,
+    dimension,
+    "dTotalInletFlowDVolume"
+  );
+  requireTypedLengthV2(
+    destination.dCommonVenousOutletFlowDVolume,
+    dimension,
+    "dCommonVenousOutletFlowDVolume"
+  );
+  requireTypedLengthV2(
+    destination.dTotalInletFlowDBoundary,
+    boundaryDimension,
+    "dTotalInletFlowDBoundary"
+  );
+  requireTypedLengthV2(
+    destination.dCommonVenousOutletFlowDBoundary,
+    boundaryDimension,
+    "dCommonVenousOutletFlowDBoundary"
+  );
+  const hydraulics = evaluatePreparedCoronaryHydraulicsV2(
+    storage,
+    boundary2,
+    candidateVolumesMl
+  );
+  writePreparedCoronaryResidualV2(
+    storage,
+    candidateVolumesMl,
+    hydraulics,
+    destination.residualMl
+  );
+  analyticSparseCoronaryVolumeJacobianV2(
+    candidateVolumesMl,
+    hydraulics,
+    storage.dtSec,
+    storage.topology,
+    storage.collapseHydraulics,
+    void 0,
+    destination.dTotalInletFlowDVolume,
+    destination.dCommonVenousOutletFlowDVolume,
+    destination.dResidualDVolume
+  );
+  writeAnalyticCoronaryBoundaryColumnsV2(
+    hydraulics,
+    storage.dtSec,
+    storage.topology,
+    destination.dResidualDBoundary,
+    destination.dTotalInletFlowDBoundary,
+    destination.dCommonVenousOutletFlowDBoundary
+  );
+}
+function preparedCoupledEvaluatorStorageV2(evaluator) {
+  if (evaluator.schemaId !== CORONARY_PREPARED_COUPLED_EVALUATOR_V2_ID || evaluator.nodeCount !== CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length) {
+    throw new TypeError("prepared coronary coupled evaluator is unsupported");
+  }
+  const storage = CORONARY_PREPARED_COUPLED_EVALUATOR_STORAGE_V2.get(
+    evaluator
+  );
+  if (storage === void 0) {
+    throw new TypeError("prepared coronary coupled evaluator is foreign");
+  }
+  return storage;
+}
+function evaluatePreparedCoronaryHydraulicsV2(storage, boundary2, candidateVolumesMl) {
+  requireTypedLengthV2(
+    candidateVolumesMl,
+    storage.topology.nodes.length,
+    "candidateVolumesMl"
+  );
+  validateBoundaryV2(boundary2);
+  validateVolumesV2(
+    candidateVolumesMl,
+    storage.topology,
+    storage.minimumVolumeFractionOfReference
+  );
+  let same = storage.cacheValid;
+  for (let index = 0; same && index < candidateVolumesMl.length; index += 1) {
+    same = Object.is(
+      candidateVolumesMl[index],
+      storage.cachedCandidateVolumesMl[index]
+    );
+  }
+  same = same && coronaryBoundaryMatchesPackedV2(
+    boundary2,
+    storage.cachedBoundary
+  );
+  if (same) {
+    storage.exactCandidateCacheHitCount += 1;
+    return storage.hydraulics;
+  }
+  evaluateHydraulicsInternalV2(
+    candidateVolumesMl,
+    storage.toneResistanceScaleByTerritoryLayer,
+    boundary2,
+    storage.disease,
+    storage.topology,
+    storage.edgeIndexById,
+    storage.collapseHydraulics,
+    storage.hydraulics,
+    storage.topologyPlan
+  );
+  storage.cachedCandidateVolumesMl.set(candidateVolumesMl);
+  writeCoronaryBoundaryIntoPackedV2(boundary2, storage.cachedBoundary);
+  storage.cacheValid = true;
+  storage.hydraulicEvaluationCount += 1;
+  return storage.hydraulics;
+}
+function writePreparedCoronaryResidualV2(storage, candidateVolumesMl, hydraulics, destinationResidualMl) {
+  for (let index = 0; index < candidateVolumesMl.length; index += 1) {
+    destinationResidualMl[index] = candidateVolumesMl[index] - storage.previousVolumesMl[index];
+  }
+  accumulateFlowContinuityV2(
+    destinationResidualMl,
+    hydraulics.flowByEdge,
+    storage.dtSec,
+    storage.topology,
+    storage.topologyPlan
+  );
+}
+function writePreparedCoronaryBoundaryFlowsV2(hydraulics, destination) {
+  let totalInletFlowMlPerSec = 0;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    totalInletFlowMlPerSec += hydraulics.flowByEdge[hydraulics.edgeIndexById[`Ao_${territoryId}.Art`]];
+  }
+  destination[0] = totalInletFlowMlPerSec;
+  destination[1] = hydraulics.flowByEdge[hydraulics.edgeIndexById.CV_RA];
+}
+function writePreparedCoronaryAcceptedReadbackHydraulicsV2(hydraulics, destination) {
+  let totalInletFlowMlPerSec = 0;
+  for (let territoryIndex = 0; territoryIndex < CORONARY_TERRITORY_IDS_V2.length; territoryIndex += 1) {
+    const territoryId = CORONARY_TERRITORY_IDS_V2[territoryIndex];
+    const inletFlowMlPerSec = hydraulics.flowByEdge[hydraulics.edgeIndexById[`Ao_${territoryId}.Art`]];
+    destination[territoryIndex + 1] = inletFlowMlPerSec;
+    totalInletFlowMlPerSec += inletFlowMlPerSec;
+  }
+  destination[0] = totalInletFlowMlPerSec;
+  destination[4] = hydraulics.flowByEdge[hydraulics.edgeIndexById.CV_RA];
+}
+function writePreparedCoronaryAutoregulationHydraulicsV2(hydraulics, destination) {
+  let observableIndex = 0;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      destination[observableIndex++] = hydraulics.flowByEdge[hydraulics.edgeIndexById[`${territoryId}.IM.Art.${layerId}_${territoryId}.IM.Ven.${layerId}`]];
+    }
+  }
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    destination[observableIndex++] = hydraulics.postLesionPressure[territoryIndexV2(territoryId)];
+  }
+  destination[observableIndex] = hydraulics.pressureByNode[hydraulicPressureIndexV2("CV")];
+}
+function coronaryBoundaryMatchesPackedV2(boundary2, values2) {
+  if (!Object.is(values2[0], boundary2.absoluteAorticPressureMmHg) || !Object.is(values2[1], boundary2.absoluteRightAtrialPressureMmHg) || !Object.is(values2[2], boundary2.perivascularExternalPressureMmHg)) return false;
+  let index = 3;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      if (!Object.is(
+        values2[index++],
+        boundary2.intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId]
+      )) return false;
+    }
+  }
+  return true;
+}
+function writeCoronaryBoundaryIntoPackedV2(boundary2, values2) {
+  values2[0] = boundary2.absoluteAorticPressureMmHg;
+  values2[1] = boundary2.absoluteRightAtrialPressureMmHg;
+  values2[2] = boundary2.perivascularExternalPressureMmHg;
+  let index = 3;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      values2[index++] = boundary2.intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId];
+    }
+  }
+}
+function copyCoronaryToneStateV2(tone) {
+  return territoryLayerRecordV2(
+    (territoryId, layerId) => tone[territoryId][layerId]
+  );
+}
+function copyCoronaryDiseaseInputV2(disease) {
+  return Object.freeze(Object.fromEntries(
+    CORONARY_TERRITORY_IDS_V2.map((territoryId) => {
+      const territory = disease[territoryId];
+      return [territoryId, Object.freeze({
+        focalStenosisAdditionalLinearResistanceMmHgSecPerMl: territory.focalStenosisAdditionalLinearResistanceMmHgSecPerMl,
+        focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2: territory.focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2,
+        layers: Object.freeze(Object.fromEntries(
+          CORONARY_LAYER_IDS_V2.map((layerId) => [
+            layerId,
+            Object.freeze({ ...territory.layers[layerId] })
+          ])
+        ))
+      })];
+    })
+  ));
+}
+function copyCoronaryCollapseHydraulicsV2(collapse) {
+  return Object.freeze({
+    ...collapse,
+    hydraulicAreaReferenceVolumeMlByNode: Object.freeze({
+      ...collapse.hydraulicAreaReferenceVolumeMlByNode
+    })
+  });
+}
+function writeAnalyticCoronaryBoundaryColumnsV2(hydraulics, dtSec, topology, rowMajorResidualDestination, totalInletFlowDestination, commonVenousOutletFlowDestination) {
+  const boundaryDimension = CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+  rowMajorResidualDestination.fill(0);
+  totalInletFlowDestination.fill(0);
+  commonVenousOutletFlowDestination.fill(0);
+  topology.edges.forEach((edge, edgeIndex) => {
+    const upstreamRow = isConservedNodeV2(edge.upstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId] : -1;
+    const downstreamRow = isConservedNodeV2(edge.downstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId] : -1;
+    const tangent = coronaryPressureFlowTangentV2(
+      hydraulics.flowByEdge[edgeIndex],
+      hydraulics.linearResistanceByEdge[edgeIndex],
+      hydraulics.quadraticResistanceByEdge[edgeIndex],
+      edge.edgeId
+    );
+    for (let column = 0; column < boundaryDimension; column += 1) {
+      const pressureDropDerivative = coronaryBoundaryPressureDerivativeV2(
+        edge.upstreamNodeId,
+        column,
+        topology
+      ) - coronaryBoundaryPressureDerivativeV2(
+        edge.downstreamNodeId,
+        column,
+        topology
+      );
+      if (pressureDropDerivative === 0) continue;
+      const flowDerivative = pressureDropDerivative / tangent;
+      if (upstreamRow >= 0) {
+        rowMajorResidualDestination[upstreamRow * boundaryDimension + column] += dtSec * flowDerivative;
+      }
+      if (downstreamRow >= 0) {
+        rowMajorResidualDestination[downstreamRow * boundaryDimension + column] -= dtSec * flowDerivative;
+      }
+      if (edge.upstreamNodeId === "Ao") {
+        totalInletFlowDestination[column] += flowDerivative;
+      }
+      if (edge.edgeId === "CV_RA") {
+        commonVenousOutletFlowDestination[column] += flowDerivative;
+      }
+    }
+  });
+  requireFiniteTypedArrayV2(
+    rowMajorResidualDestination,
+    "coronary analytic boundary residual matrix"
+  );
+  requireFiniteTypedArrayV2(
+    totalInletFlowDestination,
+    "coronary analytic inlet boundary derivative"
+  );
+  requireFiniteTypedArrayV2(
+    commonVenousOutletFlowDestination,
+    "coronary analytic outlet boundary derivative"
+  );
+}
+function requireFiniteTypedArrayV2(values2, label) {
+  for (let index = 0; index < values2.length; index += 1) {
+    if (!Number.isFinite(values2[index])) {
+      throw new RangeError(`${label} must contain only finite values`);
+    }
+  }
+}
+function coronaryBoundaryPressureDerivativeV2(nodeId, boundaryColumn, topology) {
+  if (nodeId === "Ao") return boundaryColumn === 0 ? 1 : 0;
+  if (nodeId === "RA") return boundaryColumn === 1 ? 1 : 0;
+  const node = nodeByIdV2(nodeId, topology);
+  if (node.territoryId === null || node.layerId === null) {
+    return boundaryColumn === 2 ? 1 : 0;
+  }
+  const component = 3 + territoryIndexV2(node.territoryId) * CORONARY_LAYER_IDS_V2.length + layerIndexV2(node.layerId);
+  return boundaryColumn === component ? 1 : 0;
+}
+function requireTypedLengthV2(value, expectedLength, label) {
+  if (!(value instanceof Float64Array) || value.length !== expectedLength) {
+    throw new RangeError(`${label} must contain ${expectedLength} f64 values`);
+  }
 }
 function initializePressureLadderCoronaryStateV2(input, prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2, topology = buildCoronaryTopologyV2(prior)) {
   validateBoundaryV2(input.boundary);
@@ -10073,7 +11055,10 @@ function initializePressureLadderCoronaryStateV2(input, prior = NORMAL_ADULT_COR
 }
 function solveCoronaryBackwardEulerTrialV2(previousAcceptedState, input, prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2, topology = buildCoronaryTopologyV2(prior), scratchWorkspace) {
   validateCoronaryTopologyV2(topology);
-  const scratchStorage = null;
+  const scratchStorage = scratchWorkspace === void 0 ? null : borrowCoronaryBackwardEulerScratchWorkspaceV2(
+    scratchWorkspace,
+    topology
+  );
   try {
     return solveCoronaryBackwardEulerTrialInternalV2(
       previousAcceptedState,
@@ -10082,6 +11067,9 @@ function solveCoronaryBackwardEulerTrialV2(previousAcceptedState, input, prior =
       scratchStorage
     );
   } finally {
+    if (scratchStorage !== null) {
+      releaseCoronaryBackwardEulerScratchWorkspaceV2(scratchStorage);
+    }
   }
 }
 function solveCoronaryBackwardEulerTrialInternalV2(previousAcceptedState, input, topology, scratchStorage) {
@@ -10093,8 +11081,8 @@ function solveCoronaryBackwardEulerTrialInternalV2(previousAcceptedState, input,
   validateCollapseHydraulicsV2(collapseHydraulics, topology);
   const options = resolveSolverOptionsV2(input.solverOptions);
   const edgeIndex = buildCoronaryEdgeIndexV2(topology);
-  const previous = Array(topology.nodes.length).fill(0);
-  const minimumVolumes = Array(topology.nodes.length).fill(0);
+  const previous = scratchStorage?.previous ?? Array(topology.nodes.length).fill(0);
+  const minimumVolumes = scratchStorage?.minimumVolumes ?? Array(topology.nodes.length).fill(0);
   for (let index = 0; index < topology.nodes.length; index += 1) {
     previous[index] = previousAcceptedState.volumeMlByNode[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]];
     minimumVolumes[index] = topology.nodes[index].pressureVolume.referenceVolumeMl * options.minimumVolumeFractionOfReference;
@@ -10108,7 +11096,11 @@ function solveCoronaryBackwardEulerTrialInternalV2(previousAcceptedState, input,
     if (input.evaluationCounterCollection === "enabled") {
       hydraulicResidualEvaluationCount += 1;
     }
-    const reusableEvaluation = null;
+    const reusableEvaluation = scratchStorage === null ? null : nextCoronaryResidualEvaluationV2(
+      scratchStorage,
+      topology,
+      edgeIndex
+    );
     const hydraulics = evaluateHydraulicsInternalV2(
       candidate2,
       previousAcceptedState.toneResistanceScaleByTerritoryLayer,
@@ -10154,16 +11146,16 @@ function solveCoronaryBackwardEulerTrialInternalV2(previousAcceptedState, input,
       input.dtSec,
       topology,
       collapseHydraulics,
-      void 0
+      scratchStorage ?? void 0
     );
-    const linearRhs = Array(evaluated.residual.length).fill(0);
+    const linearRhs = scratchStorage?.linearRhs ?? Array(evaluated.residual.length).fill(0);
     for (let index = 0; index < evaluated.residual.length; index += 1) {
       linearRhs[index] = -evaluated.residual[index];
     }
     const step = solveDenseLinearSystemV2(
       jacobian,
       linearRhs,
-      void 0
+      scratchStorage ?? void 0
     );
     const maximumStep = maximumPositiveStepV2(
       candidate,
@@ -10334,9 +11326,9 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
   const boundaryResidualProbeEvaluationCount = 0;
   const observableProbeEvaluationCount = 0;
   let implicitLinearSolveCount = 0;
-  const evaluate = (candidateVolumes, boundary) => {
+  const evaluate = (candidateVolumes, boundary2) => {
     hydraulicResidualEvaluationCount += 1;
-    validateBoundaryV2(boundary);
+    validateBoundaryV2(boundary2);
     validateVolumesV2(
       candidateVolumes,
       topology,
@@ -10350,7 +11342,7 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
     const hydraulics = evaluateHydraulicsInternalV2(
       candidateVolumes,
       request.previousAcceptedState.toneResistanceScaleByTerritoryLayer,
-      boundary,
+      boundary2,
       disease,
       topology,
       edgeIndex,
@@ -10604,7 +11596,7 @@ class CoronaryBackwardEulerTransactionV2 {
     }
   }
 }
-function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology, edgeIndexById, collapseHydraulics, destination, topologyPlan) {
+function evaluateHydraulicsInternalV2(volumes, tone, boundary2, disease, topology, edgeIndexById, collapseHydraulics, destination, topologyPlan) {
   validateVolumesV2(volumes, topology, 0);
   const evaluated = destination ?? createMutableHydraulicEvaluationV2(topology, edgeIndexById);
   if (evaluated.pressureByNode.length !== HYDRAULIC_NODE_IDS_V2.length || evaluated.transmuralPressureByNode.length !== topology.nodes.length || evaluated.flowByEdge.length !== topology.edges.length || evaluated.linearResistanceByEdge.length !== topology.edges.length || evaluated.quadraticResistanceByEdge.length !== topology.edges.length || evaluated.dissipatedPowerByEdge.length !== topology.edges.length || evaluated.effectiveTone.length !== CORONARY_TERRITORY_IDS_V2.length || evaluated.effectiveTone.some((layers) => layers.length !== CORONARY_LAYER_IDS_V2.length) || evaluated.postLesionPressure.length !== CORONARY_TERRITORY_IDS_V2.length || evaluated.focalStenosisLoss.length !== CORONARY_TERRITORY_IDS_V2.length) {
@@ -10628,10 +11620,10 @@ function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology
   quadraticResistanceByEdge.fill(0);
   dissipatedPowerByEdge.fill(0);
   effectiveTone.forEach((layers) => layers.fill(0));
-  postLesionPressure.fill(boundary.absoluteAorticPressureMmHg);
+  postLesionPressure.fill(boundary2.absoluteAorticPressureMmHg);
   focalStenosisLoss.fill(0);
-  pressureByNode[hydraulicPressureIndexV2("Ao")] = boundary.absoluteAorticPressureMmHg;
-  pressureByNode[hydraulicPressureIndexV2("RA")] = boundary.absoluteRightAtrialPressureMmHg;
+  pressureByNode[hydraulicPressureIndexV2("Ao")] = boundary2.absoluteAorticPressureMmHg;
+  pressureByNode[hydraulicPressureIndexV2("RA")] = boundary2.absoluteRightAtrialPressureMmHg;
   for (let nodeIndex = 0; nodeIndex < topology.nodes.length; nodeIndex += 1) {
     const node = topology.nodes[nodeIndex];
     const transmural = evaluateCrefAnchoredCollapsiblePressureV2(
@@ -10639,7 +11631,7 @@ function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology
       node.pressureVolume
     );
     transmuralPressureByNode[nodeIndex] = transmural;
-    pressureByNode[1 + nodeIndex] = externalPressureForNodeV2(node, boundary) + transmural;
+    pressureByNode[1 + nodeIndex] = externalPressureForNodeV2(node, boundary2) + transmural;
   }
   for (let topologyEdgeIndex = 0; topologyEdgeIndex < topology.edges.length; topologyEdgeIndex += 1) {
     const edge = topology.edges[topologyEdgeIndex];
@@ -10715,7 +11707,7 @@ function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology
         disease[territoryId].focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2
       );
       focalStenosisLoss[territoryIndex] = focalLoss;
-      postLesionPressure[territoryIndex] = boundary.absoluteAorticPressureMmHg - focalLoss;
+      postLesionPressure[territoryIndex] = boundary2.absoluteAorticPressureMmHg - focalLoss;
     }
   }
   return evaluated;
@@ -10775,16 +11767,16 @@ function freezeHydraulicEvaluationV2(evaluated) {
     totalDissipatedPowerMmHgMlPerSec: sumV2(Object.values(power))
   });
 }
-function referencePressureLadderV2(boundary, prior) {
-  const pressureDrop = boundary.absoluteAorticPressureMmHg - boundary.absoluteRightAtrialPressureMmHg;
+function referencePressureLadderV2(boundary2, prior) {
+  const pressureDrop = boundary2.absoluteAorticPressureMmHg - boundary2.absoluteRightAtrialPressureMmHg;
   if (pressureDrop <= 0) {
     throw new RangeError("pressure-ladder initialization requires Ao pressure above RA");
   }
   const macro = prior.construction.baselineResistancePartition.macroPathPressureDropFraction01;
   const byNode = {};
-  byNode.CV = boundary.absoluteRightAtrialPressureMmHg + macro.largeVenous * pressureDrop;
+  byNode.CV = boundary2.absoluteRightAtrialPressureMmHg + macro.largeVenous * pressureDrop;
   for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
-    byNode[`${territoryId}.Art`] = boundary.absoluteAorticPressureMmHg - macro.largeArterial * pressureDrop;
+    byNode[`${territoryId}.Art`] = boundary2.absoluteAorticPressureMmHg - macro.largeArterial * pressureDrop;
     for (const layerId of CORONARY_LAYER_IDS_V2) {
       const layer = prior.territories[territoryId].layers[layerId];
       const microvascularResistance = layer.proximalArteriolarResistanceMmHgSecPerMl + layer.intermediateCapillaryResistanceMmHgSecPerMl + layer.distalVenularResistanceMmHgSecPerMl;
@@ -10796,20 +11788,20 @@ function referencePressureLadderV2(boundary, prior) {
   }
   return CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId) => byNode[nodeId]);
 }
-function pressuresToVolumeArrayV2(absolutePressureByConservedNode, boundary, topology) {
+function pressuresToVolumeArrayV2(absolutePressureByConservedNode, boundary2, topology) {
   if (absolutePressureByConservedNode.length !== topology.nodes.length) {
     throw new RangeError("coronary V2 pressure ladder must own sixteen pressures");
   }
   return topology.nodes.map((node) => invertCrefAnchoredCollapsiblePvV2(
-    absolutePressureByConservedNode[CANONICAL_NODE_INDEX_V2[node.nodeId]] - externalPressureForNodeV2(node, boundary),
+    absolutePressureByConservedNode[CANONICAL_NODE_INDEX_V2[node.nodeId]] - externalPressureForNodeV2(node, boundary2),
     node.pressureVolume
   ));
 }
-function externalPressureForNodeV2(node, boundary) {
+function externalPressureForNodeV2(node, boundary2) {
   if (node.territoryId !== null && node.layerId !== null) {
-    return boundary.intramyocardialPressureMmHgByTerritoryLayer[node.territoryId][node.layerId];
+    return boundary2.intramyocardialPressureMmHgByTerritoryLayer[node.territoryId][node.layerId];
   }
-  return boundary.perivascularExternalPressureMmHg;
+  return boundary2.perivascularExternalPressureMmHg;
 }
 function collapseScaleForNodeV2(volumeMl, node, prior) {
   if (prior.mode === "disabled-mechanism-ablation") return 1;
@@ -10859,13 +11851,22 @@ function accumulateFlowContinuityV2(residual, flowByEdge, scale, topology, topol
 }
 function analyticSparseCoronaryVolumeJacobianV2(candidate, hydraulics, dtSec, topology, collapseHydraulics, scratchStorage, dTotalInletFlowDVolumeDestination, dCommonVenousOutletFlowDVolumeDestination, rowMajorDestination) {
   const n = candidate.length;
-  const jacobian = scratchStorage?.jacobian ?? createSquareMatrixV2(n);
-  {
+  const jacobian = rowMajorDestination === void 0 ? scratchStorage?.jacobian ?? createSquareMatrixV2(n) : null;
+  if (rowMajorDestination !== void 0) {
+    requireTypedLengthV2(
+      rowMajorDestination,
+      n * n,
+      "rowMajorDestination"
+    );
+    rowMajorDestination.fill(0);
+  } else {
     if (jacobian === null || jacobian.length !== n || jacobian.some((row) => row.length !== n)) {
       throw new RangeError("coronary analytic Jacobian destination differs");
     }
     jacobian.forEach((row) => row.fill(0));
   }
+  dTotalInletFlowDVolumeDestination?.fill(0);
+  dCommonVenousOutletFlowDVolumeDestination?.fill(0);
   const dPressureDVolumeMmHgPerMl = scratchStorage?.pressureDerivativeByVolume ?? Array(n).fill(0);
   topology.nodes.forEach((node, nodeIndex) => {
     const compliance = evaluateCrefAnchoredCollapsibleComplianceV2(
@@ -10880,8 +11881,10 @@ function analyticSparseCoronaryVolumeJacobianV2(candidate, hydraulics, dtSec, to
     dPressureDVolumeMmHgPerMl[nodeIndex] = 1 / compliance;
   });
   for (let diagonal = 0; diagonal < n; diagonal += 1) {
-    {
+    if (rowMajorDestination === void 0) {
       jacobian[diagonal][diagonal] = 1;
+    } else {
+      rowMajorDestination[diagonal * n + diagonal] = 1;
     }
   }
   const flowNumeratorDerivativeColumn = scratchStorage?.flowNumeratorDerivativeColumn ?? Array(n).fill(0);
@@ -10970,26 +11973,43 @@ function analyticSparseCoronaryVolumeJacobianV2(candidate, hydraulics, dtSec, to
       const column = flowNumeratorDerivativeColumn[derivativeIndex];
       const dFlowDVolume = flowNumeratorDerivative[derivativeIndex] / dPressureLossDFlowMmHgSecPerMl;
       if (upstreamRow !== null) {
-        {
+        if (rowMajorDestination === void 0) {
           jacobian[upstreamRow][column] += dtSec * dFlowDVolume;
+        } else {
+          rowMajorDestination[upstreamRow * n + column] += dtSec * dFlowDVolume;
         }
       }
       if (downstreamRow !== null) {
-        {
+        if (rowMajorDestination === void 0) {
           jacobian[downstreamRow][column] -= dtSec * dFlowDVolume;
+        } else {
+          rowMajorDestination[downstreamRow * n + column] -= dtSec * dFlowDVolume;
         }
       }
-      if (edge.upstreamNodeId === "Ao") ;
-      if (edge.edgeId === "CV_RA") ;
+      if (edge.upstreamNodeId === "Ao") {
+        if (dTotalInletFlowDVolumeDestination !== void 0) {
+          dTotalInletFlowDVolumeDestination[column] += dFlowDVolume;
+        }
+      }
+      if (edge.edgeId === "CV_RA") {
+        if (dCommonVenousOutletFlowDVolumeDestination !== void 0) {
+          dCommonVenousOutletFlowDVolumeDestination[column] += dFlowDVolume;
+        }
+      }
     }
   });
-  {
+  if (rowMajorDestination === void 0) {
     jacobian.forEach((row, index) => {
       requireFiniteVectorV2(
         row,
         `coronary analytic residual Jacobian row ${index}`
       );
     });
+  } else {
+    requireFiniteTypedArrayV2(
+      rowMajorDestination,
+      "coronary analytic residual Jacobian"
+    );
   }
   return jacobian;
 }
@@ -11339,18 +12359,18 @@ function validateTrialInputV2(input) {
   }
   validateBoundaryV2(input.boundary);
 }
-function validateBoundaryV2(boundary) {
+function validateBoundaryV2(boundary2) {
   for (const [name, value] of [
-    ["absoluteAorticPressureMmHg", boundary.absoluteAorticPressureMmHg],
-    ["absoluteRightAtrialPressureMmHg", boundary.absoluteRightAtrialPressureMmHg],
-    ["perivascularExternalPressureMmHg", boundary.perivascularExternalPressureMmHg]
+    ["absoluteAorticPressureMmHg", boundary2.absoluteAorticPressureMmHg],
+    ["absoluteRightAtrialPressureMmHg", boundary2.absoluteRightAtrialPressureMmHg],
+    ["perivascularExternalPressureMmHg", boundary2.perivascularExternalPressureMmHg]
   ]) {
     if (!Number.isFinite(value)) throw new RangeError(`${name} must be finite`);
   }
   for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
     for (const layerId of CORONARY_LAYER_IDS_V2) {
       if (!Number.isFinite(
-        boundary.intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId]
+        boundary2.intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId]
       )) {
         throw new RangeError(`${territoryId}.${layerId} V2 IMP must be finite`);
       }
@@ -11490,6 +12510,11 @@ function requireFiniteVectorV2(values2, label) {
     }
   });
 }
+function requireNonnegativeIntegerV2(value, label) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new RangeError(`${label} must be a nonnegative integer`);
+  }
+}
 function infinityNormV2(values2) {
   return values2.reduce((maximum, value) => Math.max(maximum, Math.abs(value)), 0);
 }
@@ -11497,6 +12522,30 @@ function sumV2(values2) {
   return values2.reduce((total, value) => total + value, 0);
 }
 const MAIN_WIRE_CORONARY_BOUNDARY_V2_ID = "main-wire-coronary-fixed-normal-sip-boundary-v2";
+const MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2 = Object.freeze([
+  "absoluteAorticPressureMmHg",
+  "absoluteRightAtrialPressureMmHg",
+  "perivascularExternalPressureMmHg",
+  "LAD.subepicardial",
+  "LAD.subendocardial",
+  "LCx.subepicardial",
+  "LCx.subendocardial",
+  "RCA.subepicardial",
+  "RCA.subendocardial"
+]);
+const MAIN_WIRE_CORONARY_MECHANICS_DIRECTION_COMPONENT_IDS_V2 = Object.freeze([
+  "absoluteAorticPressureMmHg",
+  "absoluteRightAtrialPressureMmHg",
+  "externalPressureMmHg",
+  "chamberTransmuralPressureMmHg.LV",
+  "chamberTransmuralPressureMmHg.RV",
+  "landActiveFiberStressPaByWall.LVFW",
+  "landActiveFiberStressPaByWall.SEP",
+  "landActiveFiberStressPaByWall.RVFW",
+  "effectiveFiberLogStrainByWall.LVFW",
+  "effectiveFiberLogStrainByWall.SEP",
+  "effectiveFiberLogStrainByWall.RVFW"
+]);
 const NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2 = Object.freeze({
   priorId: "normal-adult-fixed-shortening-imp-gain-v2",
   positivePartSmoothingWidthFraction: 5e-3,
@@ -11554,6 +12603,57 @@ function resolveMainWireCoronaryBoundaryV2(sample, impMechanism, shorteningRefer
     perivascularExternalPressureMmHg: sample.mechanicsInput.externalPressureMmHg,
     intramyocardialPressureMmHgByTerritoryLayer: intramyocardialPressure
   });
+}
+function writeMainWireCoronaryBoundaryDerivativeMatrixV2(sample, impMechanism, shorteningReference2, rowMajorDestination, shorteningPrior = NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2) {
+  validateImpMechanism(impMechanism);
+  validateBoundarySample(sample, impMechanism);
+  validateShorteningPrior(shorteningPrior);
+  const rowCount = MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2.length;
+  const columnCount = MAIN_WIRE_CORONARY_MECHANICS_DIRECTION_COMPONENT_IDS_V2.length;
+  if (!(rowMajorDestination instanceof Float64Array) || rowMajorDestination.length !== rowCount * columnCount) {
+    throw new RangeError(
+      `coronary boundary derivative matrix must contain ${rowCount * columnCount} f64 values`
+    );
+  }
+  rowMajorDestination.fill(0);
+  rowMajorDestination[0 * columnCount + 0] = 1;
+  rowMajorDestination[1 * columnCount + 1] = 1;
+  rowMajorDestination[2 * columnCount + 2] = 1;
+  if (impMechanism === "cep-shortening-induced" && shorteningReference2 === null) {
+    throw new Error("shortening IMP derivative requires an MVC reference");
+  }
+  let row = 3;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    const prior = NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1;
+    const weights = prior.perfusedWallWeightByTerritory[territoryId];
+    const shorteningGain = shorteningPrior.pressureGainMmHgPerUnitShorteningByTerritory[territoryId];
+    const activeStressGain = prior.activeStressPressureGainByTerritory[territoryId] / PASCAL_PER_MMHG_V1;
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      const depth = prior.layerDepthFromEpicardium01[layerId];
+      const septalDepthFromRvSurface01 = prior.septalEndocardialSurfaceByTerritory[territoryId] === "LV" ? depth : 1 - depth;
+      rowMajorDestination[row * columnCount + 2] = 1;
+      rowMajorDestination[row * columnCount + 3] = weights.LVFW * depth + weights.SEP * septalDepthFromRvSurface01;
+      rowMajorDestination[row * columnCount + 4] = weights.RVFW * depth + weights.SEP * (1 - septalDepthFromRvSurface01);
+      if (impMechanism === "source-cep-land-active") {
+        rowMajorDestination[row * columnCount + 5] = weights.LVFW * activeStressGain;
+        rowMajorDestination[row * columnCount + 6] = weights.SEP * activeStressGain;
+        rowMajorDestination[row * columnCount + 7] = weights.RVFW * activeStressGain;
+      } else if (impMechanism === "cep-shortening-induced") {
+        const reference = shorteningReference2;
+        const walls = ["LVFW", "SEP", "RVFW"];
+        for (let wallIndex = 0; wallIndex < walls.length; wallIndex += 1) {
+          const wallId = walls[wallIndex];
+          const exponential = Math.exp(
+            sample.effectiveFiberLogStrainByWall[wallId] - reference.referenceFiberLogStrainByWall[wallId]
+          );
+          const fractionalShortening = 1 - exponential;
+          const positivePartDerivative = fractionalShortening <= 0 ? 0 : fractionalShortening >= shorteningPrior.positivePartSmoothingWidthFraction ? 1 : fractionalShortening / shorteningPrior.positivePartSmoothingWidthFraction;
+          rowMajorDestination[row * columnCount + 8 + wallIndex] = shorteningGain * weights[wallId] * positivePartDerivative * -exponential;
+        }
+      }
+      row += 1;
+    }
+  }
 }
 function validateImpMechanism(value) {
   if (value !== "source-cep-land-active" && value !== "cep-only-control" && value !== "cep-shortening-induced") {
@@ -11684,6 +12784,35 @@ function copyLayers(input) {
 const WHOLE_HEART_MECHANICS_CONTRACT_V1_ID = "whole-heart-mechanics-contract-v1";
 const WHOLE_HEART_MECHANICS_PREPARED_STEP_V1_ID = "whole-heart-mechanics-prepared-step-v1";
 const WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID = "whole-heart-mechanics-candidate-probe-v1";
+function fingerprintWholeHeartMechanicsMaterialStateV1(provider, state) {
+  validateProvider(provider);
+  if (provider.fingerprintMaterialStateCanonicalV1 !== void 0) {
+    const fingerprint = provider.fingerprintMaterialStateCanonicalV1(state);
+    if (!/^[0-9a-f]{8}$/.test(fingerprint)) {
+      throw new Error(
+        "provider canonical material-state fingerprint must be eight lowercase hex digits"
+      );
+    }
+    if (fullHotPathInvariantsEnabledV1()) {
+      const audited = snapshotMaterialState(
+        provider,
+        state,
+        "candidate material state fingerprint audit"
+      ).fingerprint;
+      if (fingerprint !== audited) {
+        throw new Error(
+          "provider canonical material-state fingerprint differs from its codec"
+        );
+      }
+    }
+    return fingerprint;
+  }
+  return snapshotMaterialState(
+    provider,
+    state,
+    "candidate material state fingerprint"
+  ).fingerprint;
+}
 const PREPARED_WHOLE_HEART_MECHANICS_STEP_INTERNALS_V1 = /* @__PURE__ */ new WeakMap();
 const WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_INTERNALS_V1 = /* @__PURE__ */ new WeakMap();
 const PREPARED_WHOLE_HEART_MECHANICS_TRIAL_CONTEXTS_V1 = /* @__PURE__ */ new WeakMap();
@@ -11897,6 +13026,16 @@ function inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1(preparedStep
     preparedStep,
     probe
   ).readback;
+}
+function withPreparedWholeHeartMechanicsCandidateProbeMaterialStateV1(preparedStep, probe, consume) {
+  if (typeof consume !== "function") {
+    throw new TypeError("whole-heart mechanics material consumer is required");
+  }
+  const internal = livePreparedWholeHeartMechanicsCandidateProbeInternalV1(
+    preparedStep,
+    probe
+  );
+  return consume(internal.candidateMaterialState);
 }
 function sealPreparedWholeHeartMechanicsCandidateProbeV1(preparedStep, probe) {
   const context = preparedStepInternal(preparedStep);
@@ -12396,7 +13535,9 @@ const MAIN_WIRE_FIVE_WALL_IDS_V1 = Object.freeze([
   "RVFW",
   "RA"
 ]);
+const MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID = "main-wire-five-wall-numerical-mechanics-step-v1";
 const NUMERICAL_PROVIDER_FACTORIES_V1 = /* @__PURE__ */ new WeakMap();
+const NUMERICAL_STEP_INTERNALS_V1 = /* @__PURE__ */ new WeakMap();
 const NUMERICAL_EVALUATION_INTERNALS_V1 = /* @__PURE__ */ new WeakMap();
 const PA_PER_MMHG$2 = 133.322;
 const ONE_JOULE = 1;
@@ -12628,6 +13769,45 @@ function createMainWireFiveWallLandTriSegProviderV1(params) {
   }));
   return provider;
 }
+function tryPrepareMainWireFiveWallNumericalMechanicsStepV1(provider, input) {
+  const factory = NUMERICAL_PROVIDER_FACTORIES_V1.get(provider);
+  if (factory === void 0) return null;
+  const internals = factory.prepare(input);
+  const step = Object.freeze({
+    numericalStepId: MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID,
+    providerId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
+    parameterIdentityHash: provider.parameterIdentityHash,
+    candidateTimeSec: input.candidateTimeSec,
+    stepDtSec: input.stepDtSec,
+    initialScaledInternalCoordinates: internals.initialScaledInternalCoordinates
+  });
+  NUMERICAL_STEP_INTERNALS_V1.set(step, internals);
+  return step;
+}
+function evaluateMainWireFiveWallNumericalMechanicsCandidateV1(step, candidateVolumesMl) {
+  if (step.numericalStepId !== MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID) {
+    throw new Error("unsupported numerical mechanics step identity");
+  }
+  const internals = NUMERICAL_STEP_INTERNALS_V1.get(step);
+  if (internals === void 0) {
+    throw new Error("numerical mechanics step was not minted by this runtime");
+  }
+  return internals.evaluate(candidateVolumesMl);
+}
+function withMainWireFiveWallNumericalMechanicsMaterialStateV1(evaluation, consume) {
+  if (typeof consume !== "function") {
+    throw new TypeError("numerical mechanics material-state consumer is required");
+  }
+  const internals = NUMERICAL_EVALUATION_INTERNALS_V1.get(evaluation);
+  if (internals === void 0) {
+    throw new Error("numerical mechanics evaluation was not minted by this runtime");
+  }
+  if (internals.materialized) {
+    throw new Error("numerical mechanics material state is one-shot");
+  }
+  internals.materialized = true;
+  return consume(internals.materializeCandidateState());
+}
 function numericalMechanicsEvaluationFromSolveV1(candidateVolumesMl, solved, params) {
   let consistentTangent;
   try {
@@ -12767,7 +13947,7 @@ function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode,
   } catch (error) {
     return internalFailure({
       reason: "invalid-initial-state",
-      message: errorMessage$3(error),
+      message: errorMessage$5(error),
       rollbackCandidate: null,
       lastCandidate: null,
       iterations: 0,
@@ -12778,7 +13958,7 @@ function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode,
   }
   const rollbackCandidate = currentCandidate;
   for (let iteration = 0; iteration <= solver.maximumIterations; iteration += 1) {
-    const residualNorm = infinityNorm$1(
+    const residualNorm = infinityNorm$2(
       currentCandidate.scaledAlgorithmicGeneralizedForceByOneJ
     );
     if (residualNorm <= solver.scaledResidualInfinityTolerance) {
@@ -12793,7 +13973,7 @@ function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode,
       } catch (error) {
         return internalFailure({
           reason: "analytic-jacobian-failed",
-          message: errorMessage$3(error),
+          message: errorMessage$5(error),
           rollbackCandidate,
           lastCandidate: currentCandidate,
           iterations: iteration,
@@ -12870,7 +14050,7 @@ function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode,
     } catch (error) {
       return internalFailure({
         reason: "analytic-jacobian-failed",
-        message: errorMessage$3(error),
+        message: errorMessage$5(error),
         rollbackCandidate,
         lastCandidate: currentCandidate,
         iterations: iteration,
@@ -12895,7 +14075,7 @@ function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode,
         residualNorm
       });
     }
-    if (infinityNorm$1(update) <= solver.scaledUpdateInfinityTolerance) {
+    if (infinityNorm$2(update) <= solver.scaledUpdateInfinityTolerance) {
       return internalFailure({
         reason: "singular-jacobian",
         message: "internal Newton update stagnated above residual tolerance",
@@ -12922,7 +14102,7 @@ function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode,
           evaluationCounters,
           trialAtrialMaterialReuse
         );
-        const candidateNorm = infinityNorm$1(
+        const candidateNorm = infinityNorm$2(
           candidate.scaledAlgorithmicGeneralizedForceByOneJ
         );
         if (candidateNorm <= (1 - 1e-4 * stepLength) * residualNorm) {
@@ -13475,7 +14655,7 @@ function failedProviderEvaluation(rollbackState, rollbackPressures, failure2, so
       converged: false,
       finite: fallback !== null,
       iterationCount: failure2.iterations,
-      residualNorm: finiteNonnegative(failure2.residualNorm),
+      residualNorm: finiteNonnegative$1(failure2.residualNorm),
       errors: Object.freeze([failure2.message]),
       warnings: Object.freeze([]),
       readback
@@ -13870,16 +15050,16 @@ function maximumDifference(left, right) {
   if (left.length !== right.length) return Number.POSITIVE_INFINITY;
   return Math.max(...left.map((value, index) => Math.abs(value - right[index])));
 }
-function infinityNorm$1(values2) {
+function infinityNorm$2(values2) {
   return Math.max(0, ...values2.map(Math.abs));
 }
-function errorMessage$3(error) {
+function errorMessage$5(error) {
   return error instanceof Error ? error.message : String(error);
 }
 function zeroChambers() {
   return Object.freeze({ LA: 0, LV: 0, RA: 0, RV: 0 });
 }
-function finiteNonnegative(value) {
+function finiteNonnegative$1(value) {
   return Number.isFinite(value) && value >= 0 ? value : Number.MAX_VALUE;
 }
 function nearlyEqual$5(left, right, tolerance) {
@@ -14227,7 +15407,7 @@ function solveLand2017BackwardEulerStep(previous, input, options = {}, parameter
       Float64Array.from(options.initialGuess ?? previous),
       Number.POSITIVE_INFINITY,
       classifyDirectSolveError(error),
-      errorMessage$2(error)
+      errorMessage$4(error)
     );
   }
   return finishDirectSolve(
@@ -14324,13 +15504,13 @@ function finishDirectSolve(next, residualTolerance, residual, output) {
   let residualNorm;
   try {
     validateLand2017EquationState(next);
-    residualNorm = infinityNorm(residual());
+    residualNorm = infinityNorm$1(residual());
   } catch (error) {
     return failed(
       next,
       Number.POSITIVE_INFINITY,
       "domain-error",
-      errorMessage$2(error)
+      errorMessage$4(error)
     );
   }
   if (!Number.isFinite(residualNorm)) {
@@ -14374,7 +15554,7 @@ function validatePreviousState(previous) {
     validateLand2017EquationState(previous);
     return { ok: true };
   } catch (error) {
-    return { ok: false, message: errorMessage$2(error) };
+    return { ok: false, message: errorMessage$4(error) };
   }
 }
 function failed(next, residualNorm, reason, message) {
@@ -14390,7 +15570,7 @@ function failed(next, residualNorm, reason, message) {
     failureMessage: message
   };
 }
-function infinityNorm(values2) {
+function infinityNorm$1(values2) {
   let norm = 0;
   for (let index = 0; index < values2.length; index += 1) {
     norm = Math.max(norm, Math.abs(values2[index]));
@@ -14398,9 +15578,9 @@ function infinityNorm(values2) {
   return norm;
 }
 function classifyDirectSolveError(error) {
-  return errorMessage$2(error).includes("singular") ? "singular-jacobian" : "domain-error";
+  return errorMessage$4(error).includes("singular") ? "singular-jacobian" : "domain-error";
 }
-function errorMessage$2(error) {
+function errorMessage$4(error) {
   return error instanceof Error ? error.message : String(error);
 }
 function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(solvedNextState, input, parameterSet = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET) {
@@ -15795,6 +16975,9 @@ function evaluateMainWireCoronaryMechanicsCouplingVentricularDirectionV1(mechani
     effectiveFiberLogStrainByWall
   });
 }
+function readMainWireFiveWallVentricularCoronaryBoundaryTangentV1(readback) {
+  return ventricularCoronaryBoundaryTangent(readback);
+}
 function mechanicsReadback(value) {
   const record = objectValue(value, "five-wall mechanics readback");
   if (record.providerModelId !== MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID) {
@@ -16160,7 +17343,7 @@ function evaluateCommonPericardiumPositivePartV1(dimensionlessVolumeExcess, tran
     dimensionlessVolumeExcess,
     "dimensionlessVolumeExcess"
   );
-  const delta = requirePositiveFinite$d(
+  const delta = requirePositiveFinite$g(
     transitionHalfWidth,
     "transitionHalfWidth"
   );
@@ -16204,16 +17387,16 @@ function evaluateCommonPericardiumPositivePartV1(dimensionlessVolumeExcess, tran
   });
 }
 function evaluateCommonPericardiumV1(parameters, totalHeartVolumeM3) {
-  const volume = requirePositiveFinite$d(totalHeartVolumeM3, "totalHeartVolumeM3");
-  const referenceVolume = requirePositiveFinite$d(
+  const volume = requirePositiveFinite$g(totalHeartVolumeM3, "totalHeartVolumeM3");
+  const referenceVolume = requirePositiveFinite$g(
     parameters.referenceHeartVolumeM3,
     "referenceHeartVolumeM3"
   );
-  const pressureScale = requirePositiveFinite$d(
+  const pressureScale = requirePositiveFinite$g(
     parameters.exponentialPressureScalePa,
     "exponentialPressureScalePa"
   );
-  const stiffness = requirePositiveFinite$d(
+  const stiffness = requirePositiveFinite$g(
     parameters.exponentialStiffness,
     "exponentialStiffness"
   );
@@ -16280,7 +17463,7 @@ function requireNonNegativeFinite(value, field) {
   }
   return value;
 }
-function requirePositiveFinite$d(value, field) {
+function requirePositiveFinite$g(value, field) {
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error(`${field} must be positive and finite`);
   }
@@ -16611,12 +17794,12 @@ function requiredOrderIndexV1(order, id, label) {
   if (index < 0) throw new Error(`${label} ${id} is not in the canonical order`);
   return index;
 }
-Object.freeze(
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_NODE_INDICES_V1 = Object.freeze(
   MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.map(
     (nodeId) => requiredOrderIndexV1(NON_CORONARY_NODE_NAMES_V1, nodeId, "readback node")
   )
 );
-Object.freeze(
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_NODE_INDICES_V1 = Object.freeze(
   MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1.map(
     (nodeId) => requiredOrderIndexV1(
       NON_CORONARY_NODE_NAMES_V1,
@@ -16625,7 +17808,7 @@ Object.freeze(
     )
   )
 );
-Object.freeze(
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_INDICES_V1 = Object.freeze(
   MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1.map(
     (valveId) => requiredOrderIndexV1(
       NON_CORONARY_VALVE_NAMES_V1,
@@ -16634,7 +17817,7 @@ Object.freeze(
     )
   )
 );
-Object.freeze(
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_EDGE_INDICES_V1 = Object.freeze(
   MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1.map(
     (edgeId) => requiredOrderIndexV1(
       NON_CORONARY_EDGE_NAMES_V1,
@@ -16643,6 +17826,103 @@ Object.freeze(
     )
   )
 );
+const MAIN_WIRE_FIVE_WALL_COUPLED_RESIDUAL_WORKSPACE_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
+function createMutableCoronaryConservedVolumeStateV2() {
+  return Object.fromEntries(
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId) => [nodeId, 0])
+  );
+}
+function createMainWireFiveWallCoupledResidualWorkspaceV1() {
+  const workspace = Object.freeze({
+    schemaId: "circleheart-main-wire-five-wall-coupled-residual-workspace-v1",
+    dimension: 30
+  });
+  MAIN_WIRE_FIVE_WALL_COUPLED_RESIDUAL_WORKSPACE_STORAGE_V1.set(workspace, {
+    generation: 0,
+    initialUnknownsMl: new Float64Array(30),
+    lowerBoundsMl: new Float64Array(30),
+    upperBoundsMl: new Float64Array(30),
+    coronaryLinearizationResidualScratch: new Float64Array(30),
+    boundaryDerivativeByMechanicsDirection: new Float64Array(
+      MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2.length * MAIN_WIRE_CORONARY_MECHANICS_DIRECTION_COMPONENT_IDS_V2.length
+    ),
+    mechanicsDirection: new Float64Array(
+      MAIN_WIRE_CORONARY_MECHANICS_DIRECTION_COMPONENT_IDS_V2.length
+    ),
+    candidateIndependentVolumesMl: new Float64Array(
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
+    ),
+    candidateCoronaryVolumes: createMutableCoronaryConservedVolumeStateV2(),
+    coronaryResidual: new Float64Array(
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length
+    ),
+    coronaryBoundaryFlowMlPerSec: new Float64Array(2),
+    coronaryAutoregulationHydraulicObservables: new Float64Array(
+      CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2
+    ),
+    coronaryAcceptedReadbackHydraulics: new Float64Array(
+      CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2
+    ),
+    candidateCoronaryVolumesMl: new Float64Array(
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length
+    ),
+    cachedUnknownsMl: new Float64Array(30),
+    cachedCoronaryVolumes: createMutableCoronaryConservedVolumeStateV2(),
+    cachedCoronaryResidual: new Float64Array(
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length
+    ),
+    cachedCoronaryAutoregulationHydraulicObservables: new Float64Array(
+      CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2
+    ),
+    cachedCoronaryAcceptedReadbackHydraulics: new Float64Array(
+      CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2
+    ),
+    acceptedNumericalReadback: new Float64Array(
+      MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1
+    ),
+    cachedDependentSvColumn: new Float64Array(
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
+    ),
+    cachedLocalJacobian: new Float64Array(
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length ** 2
+    ),
+    cachedNonCoronaryNodeVolumes: new Float64Array(
+      NON_CORONARY_NODE_NAMES_V1.length
+    ),
+    cachedNonCoronaryPressures: new Float64Array(
+      NON_CORONARY_NODE_NAMES_V1.length
+    ),
+    cachedVascularPressureTangent: new Float64Array(
+      NON_CORONARY_NODE_NAMES_V1.length
+    ),
+    cachedEdgeFlows: new Float64Array(NON_CORONARY_EDGE_NAMES_V1.length),
+    cachedDynamicEdgeFlows: new Float64Array(
+      NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length
+    ),
+    cachedValveOpeningFractions01: new Float64Array(
+      NON_CORONARY_VALVE_NAMES_V1.length
+    ),
+    cachedValveFlowsMlPerSec: new Float64Array(
+      NON_CORONARY_VALVE_NAMES_V1.length
+    ),
+    candidateValveStates: Array.from(
+      { length: NON_CORONARY_VALVE_NAMES_V1.length },
+      () => ({ leafletOpeningFraction01: 0 })
+    ),
+    cachedContinuityResidual: new Float64Array(
+      NON_CORONARY_NODE_NAMES_V1.length
+    )
+  });
+  return workspace;
+}
+function borrowMainWireFiveWallCoupledResidualWorkspaceV1(workspace) {
+  const storage = MAIN_WIRE_FIVE_WALL_COUPLED_RESIDUAL_WORKSPACE_STORAGE_V1.get(workspace);
+  if (storage === void 0 || workspace.dimension !== 30) {
+    throw new RangeError("coupled residual workspace is incompatible");
+  }
+  storage.generation += 1;
+  return Object.freeze({ storage, generation: storage.generation });
+}
 function initializeMainWireFiveWallCoronaryV2(input) {
   const timeSec = input.timeSec ?? 0;
   requireNonnegativeFinite$c(timeSec, "timeSec");
@@ -16655,7 +17935,7 @@ function initializeMainWireFiveWallCoronaryV2(input) {
   const impMechanism = input.impMechanism ?? DEFAULT_IMP_MECHANISM_V2;
   const shorteningImpPrior = input.shorteningImpPrior ?? NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2;
   const fixedGlobalTotalBloodVolumeMl = input.fixedGlobalTotalBloodVolumeMl ?? MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1.fullGraphReferenceTotalBloodVolumeMl;
-  requirePositiveFinite$c(
+  requirePositiveFinite$f(
     fixedGlobalTotalBloodVolumeMl,
     "fixedGlobalTotalBloodVolumeMl"
   );
@@ -16710,7 +17990,7 @@ function initializeMainWireFiveWallCoronaryV2(input) {
   let pressureLadderDiagnostics = null;
   let coronary = preliminaryCoronary;
   if (input.coronaryInitial === void 0) {
-    const boundary = resolveMainWireCoronaryBoundaryV2(
+    const boundary2 = resolveMainWireCoronaryBoundaryV2(
       Object.freeze({
         absoluteAorticPressureMmHg: absoluteAorticPressureMmHg(
           preliminaryCirculation,
@@ -16731,7 +18011,7 @@ function initializeMainWireFiveWallCoronaryV2(input) {
       shorteningImpPrior
     );
     const initialized = initializePressureLadderCoronaryStateV2({
-      boundary,
+      boundary: boundary2,
       disease: input.coronaryDisease ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
       toneResistanceScaleByTerritoryLayer: preliminaryCoronary.toneResistanceScaleByTerritoryLayer,
       collapseHydraulics
@@ -16797,9 +18077,698 @@ function initializeMainWireFiveWallCoronaryV2(input) {
     pressureLadderDiagnostics
   });
 }
+function prepareMainWireFiveWallCoupledResidualContextV1(provider, previous, input, previousAcceptedNumericalSource, workspace = createMainWireFiveWallCoupledResidualWorkspaceV1()) {
+  const borrowedWorkspace = borrowMainWireFiveWallCoupledResidualWorkspaceV1(workspace);
+  const { storage, generation } = borrowedWorkspace;
+  const assertWorkspaceCurrent = () => {
+    if (storage.generation !== generation) {
+      throw new Error(
+        "coupled residual context was invalidated by a newer workspace borrow"
+      );
+    }
+  };
+  validateAcceptedTuple(previous);
+  requirePositiveFinite$f(input.dtSec, "dtSec");
+  if (input.mechanicalSupport !== void 0 || input.dynamicMechanicalSupport !== void 0 || input.protocolResistanceScaleByEdge !== void 0) {
+    throw new Error(
+      "coupled residual V1 supports only the device-off construction slice"
+    );
+  }
+  const prior = input.coronaryPrior ?? MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2;
+  const topology = buildCoronaryTopologyV2(prior);
+  const collapseHydraulics = resolveCollapseHydraulics(
+    prior,
+    input.collapseHydraulics
+  );
+  const impMechanism = input.impMechanism ?? DEFAULT_IMP_MECHANISM_V2;
+  const shorteningImpPrior = input.shorteningImpPrior ?? NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2;
+  assertSameBinding(
+    previous.coronaryBinding,
+    buildBinding(
+      prior,
+      collapseHydraulics,
+      impMechanism,
+      shorteningImpPrior
+    )
+  );
+  const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
+  const readbackChamberNodeIndices = MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_NODE_INDICES_V1;
+  const readbackAbsolutePressureNodeIndices = MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_NODE_INDICES_V1;
+  const readbackValveIndices = MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_INDICES_V1;
+  const readbackVascularFlowEdgeIndices = MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_EDGE_INDICES_V1;
+  const calciumDrive = resolveCalciumDriveV2(
+    candidateTimeSec,
+    input.calciumDriveParams,
+    input.calciumDriveOverride
+  );
+  const evaluationCounters = input.evaluationCounterCollection === "enabled" ? createMutableEvaluationCountersV2() : null;
+  const mechanicsCalciumDrive = evaluationCounters === null ? calciumDrive : Object.freeze({
+    ...calciumDrive,
+    evaluationCounterCollection: "enabled"
+  });
+  const commonIntrathoracicPressure = commonIntrathoracicPressureMmHg(
+    candidateTimeSec,
+    input.runtime
+  );
+  const numericalMechanicsStep = tryPrepareMainWireFiveWallNumericalMechanicsStepV1(provider, {
+    previousAcceptedMaterialState: previous.mechanics.materialState,
+    candidateTimeSec,
+    stepDtSec: input.dtSec,
+    drivingInputs: mechanicsCalciumDrive
+  });
+  let publicMechanicsStep = null;
+  const obtainPublicMechanicsStep = () => {
+    publicMechanicsStep ??= prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: previous.mechanics,
+      candidateTimeSec,
+      stepDtSec: input.dtSec,
+      drivingInputs: mechanicsCalciumDrive
+    });
+    return publicMechanicsStep;
+  };
+  const useMechanicsCandidateProbes = provider.evaluationResultOwnershipMode === "exclusive-result";
+  const {
+    initialUnknownsMl,
+    lowerBoundsMl,
+    upperBoundsMl,
+    coronaryLinearizationResidualScratch,
+    boundaryDerivativeByMechanicsDirection,
+    mechanicsDirection,
+    candidateIndependentVolumesMl,
+    candidateCoronaryVolumes,
+    coronaryResidual,
+    coronaryBoundaryFlowMlPerSec,
+    coronaryAutoregulationHydraulicObservables,
+    coronaryAcceptedReadbackHydraulics,
+    candidateCoronaryVolumesMl,
+    cachedUnknownsMl,
+    cachedCoronaryVolumes,
+    cachedCoronaryResidual,
+    cachedCoronaryAutoregulationHydraulicObservables,
+    cachedCoronaryAcceptedReadbackHydraulics,
+    acceptedNumericalReadback,
+    cachedDependentSvColumn,
+    cachedLocalJacobian,
+    cachedNonCoronaryNodeVolumes,
+    cachedNonCoronaryPressures,
+    cachedVascularPressureTangent,
+    cachedEdgeFlows,
+    cachedDynamicEdgeFlows,
+    cachedValveOpeningFractions01,
+    cachedValveFlowsMlPerSec,
+    candidateValveStates,
+    cachedContinuityResidual
+  } = storage;
+  for (let index = 0; index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length; index += 1) {
+    initialUnknownsMl[index] = previous.circulation.nodeVolumesMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]];
+  }
+  for (let index = 0; index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length; index += 1) {
+    initialUnknownsMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index] = previous.coronary.volumeMlByNode[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]];
+  }
+  const minimumDependentSvVolumeMl = 1e-12;
+  lowerBoundsMl.fill(1e-12);
+  const coronaryMinimumVolumeFractionOfReference = input.coronarySolverOptions?.minimumVolumeFractionOfReference ?? DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2.minimumVolumeFractionOfReference;
+  const coronaryAbsoluteResidualToleranceMl = input.coronarySolverOptions?.absoluteResidualToleranceMl ?? DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2.absoluteResidualToleranceMl;
+  const coronaryRelativeResidualTolerance = input.coronarySolverOptions?.relativeResidualTolerance ?? DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2.relativeResidualTolerance;
+  const coronaryResidualToleranceMl = coronaryAbsoluteResidualToleranceMl + coronaryRelativeResidualTolerance * Math.max(
+    1,
+    ...Object.values(previous.coronary.volumeMlByNode)
+  );
+  if (!Number.isFinite(coronaryMinimumVolumeFractionOfReference) || coronaryMinimumVolumeFractionOfReference <= 0 || coronaryMinimumVolumeFractionOfReference >= 1) {
+    throw new RangeError(
+      "coupled residual coronary minimum-volume fraction must lie in (0, 1)"
+    );
+  }
+  for (let index = 0; index < topology.nodes.length; index += 1) {
+    lowerBoundsMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index] = topology.nodes[index].pressureVolume.referenceVolumeMl * coronaryMinimumVolumeFractionOfReference;
+  }
+  upperBoundsMl.fill(previous.fixedGlobalTotalBloodVolumeMl);
+  const preparedCoronary = prepareCoronaryCoupledCandidateEvaluatorV2(
+    previous.coronary,
+    Object.freeze({
+      dtSec: input.dtSec,
+      disease: input.coronaryDisease ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
+      collapseHydraulics,
+      solverOptions: input.coronarySolverOptions
+    }),
+    prior,
+    topology
+  );
+  let coronaryResidualAvailable = false;
+  let candidateBoundary = null;
+  const preparedNonCoronary = prepareNonCoronaryCandidateEvaluatorV1({
+    previousAcceptedState: previous.circulation,
+    dtSec: input.dtSec,
+    runtime: input.runtime,
+    evaluateCandidateMechanics: (volumesMl) => evaluatePreparedCoupledCandidateMechanicsV1(
+      numericalMechanicsStep === null ? obtainPublicMechanicsStep() : null,
+      volumesMl,
+      input.pericardium,
+      commonIntrathoracicPressure,
+      impMechanism,
+      evaluationCounters,
+      "candidate-center",
+      useMechanicsCandidateProbes,
+      numericalMechanicsStep
+    ),
+    conservativeCompanion: Object.freeze({
+      fixedGlobalTotalBloodVolumeMl: previous.fixedGlobalTotalBloodVolumeMl,
+      previousAcceptedCompanionBloodVolumeMl: coronaryBloodVolumeMl(previous.coronary),
+      evaluateSameCandidate: (candidate) => {
+        if (evaluationCounters !== null) {
+          evaluationCounters.outerCirculationCandidateCount += 1;
+        }
+        const boundary2 = resolveCandidateCoronaryBoundaryV2(
+          candidate.boundaryAbsolutePressuresMmHg.Ao,
+          candidate.boundaryAbsolutePressuresMmHg.RA,
+          candidate.candidateMechanicsEvaluation,
+          impMechanism,
+          previous.mvcReferenceState.reference,
+          shorteningImpPrior
+        );
+        for (let index = 0; index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length; index += 1) {
+          candidateCoronaryVolumesMl[index] = candidateCoronaryVolumes[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]];
+        }
+        writePreparedCoronaryCoupledCandidateResidualV2(
+          preparedCoronary,
+          boundary2,
+          candidateCoronaryVolumesMl,
+          coronaryResidual,
+          coronaryBoundaryFlowMlPerSec,
+          coronaryAutoregulationHydraulicObservables,
+          coronaryAcceptedReadbackHydraulics
+        );
+        coronaryResidualAvailable = true;
+        candidateBoundary = boundary2;
+        let candidateCompanionBloodVolumeMl = 0;
+        for (const nodeId of CORONARY_CONSERVED_VOLUME_NODE_IDS_V2) {
+          candidateCompanionBloodVolumeMl += candidateCoronaryVolumes[nodeId];
+        }
+        return Object.freeze({
+          candidateCompanionBloodVolumeMl,
+          outerBoundaryNetVolumeRateMlPerSec: Object.freeze({
+            Ao: -coronaryBoundaryFlowMlPerSec[0],
+            RA: coronaryBoundaryFlowMlPerSec[1]
+          }),
+          candidateCompanionTrial: boundary2
+        });
+      }
+    })
+  }, previousAcceptedNumericalSource);
+  let cachedNonCoronaryProbe = null;
+  let cachedCandidate = null;
+  const sameAsCachedCandidate = (unknownsMl) => {
+    if (cachedCandidate === null) return false;
+    for (let index = 0; index < unknownsMl.length; index += 1) {
+      if (!Object.is(unknownsMl[index], cachedUnknownsMl[index])) return false;
+    }
+    return true;
+  };
+  const writeCoupledResidual = (candidate, destinationResidualMl) => {
+    for (let index = 0; index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length; index += 1) {
+      const nodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(
+        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]
+      );
+      destinationResidualMl[index] = candidate.nonCoronaryProbe.continuityResidualMlByNode[nodeIndex];
+    }
+    destinationResidualMl.set(
+      candidate.coronaryResidualMl,
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
+    );
+  };
+  const evaluateCoupledCandidate = (unknownsMl, destinationResidualMl, consume) => {
+    assertWorkspaceCurrent();
+    if (!(unknownsMl instanceof Float64Array) || unknownsMl.length !== 30 || !(destinationResidualMl instanceof Float64Array) || destinationResidualMl.length !== 30) {
+      throw new RangeError(
+        "coupled residual V1 requires two 30-value f64 vectors"
+      );
+    }
+    if (sameAsCachedCandidate(unknownsMl)) {
+      writeCoupledResidual(cachedCandidate, destinationResidualMl);
+      return consume(cachedCandidate);
+    }
+    for (let index = 0; index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length; index += 1) {
+      candidateIndependentVolumesMl[index] = unknownsMl[index];
+    }
+    for (let index = 0; index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length; index += 1) {
+      candidateCoronaryVolumes[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]] = unknownsMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index];
+    }
+    coronaryResidualAvailable = false;
+    candidateBoundary = null;
+    return withPreparedNonCoronaryCandidateV1(
+      preparedNonCoronary,
+      candidateIndependentVolumesMl,
+      (nonCoronaryProbe, localIndependentResidualDDependentSvVolumeMlPerMl, localIndependentResidualDIndependentVolumeMlPerMl) => {
+        if (!coronaryResidualAvailable || candidateBoundary === null) {
+          throw new Error("coupled residual V1 did not evaluate its companion");
+        }
+        for (const nodeId of CORONARY_CONSERVED_VOLUME_NODE_IDS_V2) {
+          cachedCoronaryVolumes[nodeId] = candidateCoronaryVolumes[nodeId];
+        }
+        cachedCoronaryResidual.set(coronaryResidual);
+        cachedCoronaryAutoregulationHydraulicObservables.set(
+          coronaryAutoregulationHydraulicObservables
+        );
+        cachedCoronaryAcceptedReadbackHydraulics.set(
+          coronaryAcceptedReadbackHydraulics
+        );
+        cachedDependentSvColumn.set(
+          localIndependentResidualDDependentSvVolumeMlPerMl
+        );
+        if (localIndependentResidualDIndependentVolumeMlPerMl !== null) {
+          cachedLocalJacobian.set(
+            localIndependentResidualDIndependentVolumeMlPerMl
+          );
+        }
+        cachedNonCoronaryNodeVolumes.set(nonCoronaryProbe.nodeVolumesMl);
+        cachedNonCoronaryPressures.set(
+          nonCoronaryProbe.nodeAbsolutePressuresMmHg
+        );
+        cachedVascularPressureTangent.set(
+          nonCoronaryProbe.vascularPressureTangentMmHgPerMl
+        );
+        cachedEdgeFlows.set(nonCoronaryProbe.edgeFlowsMlPerSec);
+        cachedDynamicEdgeFlows.set(
+          nonCoronaryProbe.dynamicEdgeFlowsMlPerSec
+        );
+        for (let index = 0; index < cachedValveOpeningFractions01.length; index += 1) {
+          cachedValveOpeningFractions01[index] = nonCoronaryProbe.valveStates[index].leafletOpeningFraction01;
+          cachedValveFlowsMlPerSec[index] = nonCoronaryProbe.valveEvaluations[index].flowMlPerSec;
+        }
+        cachedContinuityResidual.set(
+          nonCoronaryProbe.continuityResidualMlByNode
+        );
+        if (cachedNonCoronaryProbe === null || cachedCandidate === null) {
+          cachedNonCoronaryProbe = {
+            candidateTimeSec: nonCoronaryProbe.candidateTimeSec,
+            nodeVolumesMl: cachedNonCoronaryNodeVolumes,
+            nodeAbsolutePressuresMmHg: cachedNonCoronaryPressures,
+            vascularPressureTangentMmHgPerMl: cachedVascularPressureTangent,
+            edgeFlowsMlPerSec: cachedEdgeFlows,
+            dynamicEdgeFlowsMlPerSec: cachedDynamicEdgeFlows,
+            valveOpeningFractions01: cachedValveOpeningFractions01,
+            valveFlowsMlPerSec: cachedValveFlowsMlPerSec,
+            continuityResidualMlByNode: cachedContinuityResidual,
+            mixedContinuityResidualInfinityNorm: nonCoronaryProbe.mixedContinuityResidualInfinityNorm,
+            absoluteChamberPressureTangent: nonCoronaryProbe.absoluteChamberPressureTangent,
+            candidateMechanicsEvaluation: nonCoronaryProbe.candidateMechanicsEvaluation
+          };
+          cachedCandidate = {
+            candidateCoronaryVolumes: cachedCoronaryVolumes,
+            coronaryResidualMl: cachedCoronaryResidual,
+            boundary: candidateBoundary,
+            localIndependentResidualDDependentSvVolumeMlPerMl: cachedDependentSvColumn,
+            localIndependentResidualDIndependentVolumeMlPerMl: localIndependentResidualDIndependentVolumeMlPerMl === null ? null : cachedLocalJacobian,
+            nonCoronaryProbe: cachedNonCoronaryProbe
+          };
+        } else {
+          cachedCandidate.boundary = candidateBoundary;
+          cachedCandidate.localIndependentResidualDIndependentVolumeMlPerMl = localIndependentResidualDIndependentVolumeMlPerMl === null ? null : cachedLocalJacobian;
+          cachedNonCoronaryProbe.mixedContinuityResidualInfinityNorm = nonCoronaryProbe.mixedContinuityResidualInfinityNorm;
+          cachedNonCoronaryProbe.absoluteChamberPressureTangent = nonCoronaryProbe.absoluteChamberPressureTangent;
+          cachedNonCoronaryProbe.candidateMechanicsEvaluation = nonCoronaryProbe.candidateMechanicsEvaluation;
+        }
+        const candidate = cachedCandidate;
+        cachedUnknownsMl.set(unknownsMl);
+        cachedCandidate = candidate;
+        writeCoupledResidual(candidate, destinationResidualMl);
+        return consume(candidate);
+      }
+    );
+  };
+  const materializeCandidateTrial = (unknownsMl, diagnostics) => {
+    assertWorkspaceCurrent();
+    if (!(unknownsMl instanceof Float64Array) || unknownsMl.length !== 30) {
+      throw new RangeError(
+        "coupled candidate materialization requires 30 physical volumes"
+      );
+    }
+    const independentVolumesMl = unknownsMl.slice(
+      0,
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
+    );
+    const coronaryVolumes = Object.freeze(Object.fromEntries(
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
+        nodeId,
+        unknownsMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index]
+      ])
+    ));
+    const circulationTrial = materializeNonCoronaryCirculationCandidateTrialV1({
+      previousAcceptedState: previous.circulation,
+      dtSec: input.dtSec,
+      runtime: input.runtime,
+      evaluateCandidateMechanics: (volumesMl) => evaluatePreparedCandidateMechanicsV2(
+        obtainPublicMechanicsStep(),
+        volumesMl,
+        input.pericardium,
+        commonIntrathoracicPressure,
+        impMechanism,
+        evaluationCounters,
+        "candidate-center",
+        useMechanicsCandidateProbes
+      ),
+      conservativeCompanion: Object.freeze({
+        fixedGlobalTotalBloodVolumeMl: previous.fixedGlobalTotalBloodVolumeMl,
+        previousAcceptedCompanionBloodVolumeMl: coronaryBloodVolumeMl(previous.coronary),
+        evaluateSameCandidate: (candidate) => {
+          if (evaluationCounters !== null) {
+            evaluationCounters.outerCirculationCandidateCount += 1;
+          }
+          const boundary2 = resolveCandidateCoronaryBoundaryV2(
+            candidate.boundaryAbsolutePressuresMmHg.Ao,
+            candidate.boundaryAbsolutePressuresMmHg.RA,
+            candidate.candidateMechanicsEvaluation,
+            impMechanism,
+            previous.mvcReferenceState.reference,
+            shorteningImpPrior
+          );
+          const coronaryTrial = materializeCoronaryBackwardEulerCandidateTrialV2(
+            previous.coronary,
+            Object.freeze({
+              dtSec: input.dtSec,
+              boundary: boundary2,
+              disease: input.coronaryDisease ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
+              collapseHydraulics,
+              solverOptions: input.coronarySolverOptions
+            }),
+            coronaryVolumes,
+            Object.freeze({
+              // The 16-row coronary Newton loop did not run. Global coupled
+              // solver provenance belongs to the outer circulation trial;
+              // reporting it as coronary-local work would be misleading.
+              newtonIterations: 0,
+              totalLineSearchBacktracks: 0
+            }),
+            prior,
+            topology
+          );
+          return Object.freeze({
+            candidateCompanionBloodVolumeMl: coronaryTrial.diagnostics.candidateCoronaryBloodVolumeMl,
+            outerBoundaryNetVolumeRateMlPerSec: Object.freeze({
+              Ao: -coronaryTrial.diagnostics.hydraulics.totalInletFlowMlPerSec,
+              RA: coronaryTrial.diagnostics.hydraulics.commonCoronaryVenousOutletFlowMlPerSec
+            }),
+            candidateCompanionTrial: Object.freeze({
+              coronaryTrial,
+              boundary: boundary2
+            })
+          });
+        }
+      })
+    }, independentVolumesMl, Object.freeze({
+      iterations: diagnostics.iterations,
+      lineSearchBacktracks: diagnostics.lineSearchBacktracks
+    }));
+    const countedCirculationTrial = attachEvaluationCountersV2(
+      circulationTrial,
+      evaluationCounters
+    );
+    const companion = countedCirculationTrial.conservativeCompanion?.candidateCompanionTrial;
+    if (companion === void 0) {
+      throw new Error("coupled candidate materialization lost its companion");
+    }
+    return Object.freeze({
+      circulationTrial: countedCirculationTrial,
+      coronaryTrial: companion.coronaryTrial,
+      coronaryBoundary: companion.boundary,
+      calciumDrive,
+      commonIntrathoracicPressureMmHg: commonIntrathoracicPressure
+    });
+  };
+  let finalizationAttempted = false;
+  const assertFinalizationAvailable = () => {
+    if (finalizationAttempted) {
+      throw new Error(
+        "coupled residual context finalization is one-shot; prepare a fresh context"
+      );
+    }
+  };
+  const finalizeMaterializedCandidate = (candidate) => {
+    assertWorkspaceCurrent();
+    assertFinalizationAvailable();
+    finalizationAttempted = true;
+    return finalizeMainWireFiveWallCoronarySelectedCandidateV2(
+      provider,
+      previous,
+      obtainPublicMechanicsStep(),
+      candidate.circulationTrial,
+      candidate.calciumDrive,
+      candidate.commonIntrathoracicPressureMmHg
+    );
+  };
+  const finalizeConvergedSolution = (unknownsMl, diagnostics) => {
+    assertFinalizationAvailable();
+    return finalizeMaterializedCandidate(
+      materializeCandidateTrial(unknownsMl, diagnostics)
+    );
+  };
+  const withConvergedCandidate = (unknownsMl, consume) => {
+    if (typeof consume !== "function") {
+      throw new TypeError("coupled accepted-candidate consumer is required");
+    }
+    return evaluateCoupledCandidate(
+      unknownsMl,
+      coronaryLinearizationResidualScratch,
+      (candidate) => {
+        if (candidate.nonCoronaryProbe.mixedContinuityResidualInfinityNorm > 1 || maximumAbsoluteValueV2(candidate.coronaryResidualMl) > coronaryResidualToleranceMl) {
+          throw new Error(
+            "coupled accepted candidate failed component convergence"
+          );
+        }
+        const candidateRevision = previous.revision + 1;
+        const mechanics = candidate.nonCoronaryProbe.candidateMechanicsEvaluation;
+        const mitralEdgeIndex = NON_CORONARY_EDGE_NAMES_V1.indexOf("MV");
+        if (mitralEdgeIndex < 0) {
+          throw new Error("mitral edge order drifted");
+        }
+        const mvcReferenceState = advanceMainWireCoronaryMvcReferenceV2(
+          previous.mvcReferenceState,
+          Object.freeze({
+            acceptedTimeSec: candidate.nonCoronaryProbe.candidateTimeSec,
+            acceptedRevision: candidateRevision,
+            mitralForwardFlowMlPerSec: candidate.nonCoronaryProbe.edgeFlowsMlPerSec[mitralEdgeIndex],
+            effectiveFiberLogStrainByWall: mechanics.coronaryMechanicsCoupling.effectiveFiberLogStrainByWall
+          })
+        );
+        const mechanicsCandidate = mechanics.mechanicsCandidate;
+        for (let index = 0; index < candidateValveStates.length; index += 1) {
+          candidateValveStates[index].leafletOpeningFraction01 = candidate.nonCoronaryProbe.valveOpeningFractions01[index];
+        }
+        acceptedNumericalReadback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec] = candidate.nonCoronaryProbe.candidateTimeSec;
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.forEach(
+          (nodeId, index) => {
+            acceptedNumericalReadback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.chamberVolumeMl + index] = candidate.nonCoronaryProbe.nodeVolumesMl[readbackChamberNodeIndices[index]];
+          }
+        );
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1.forEach((nodeId, index) => {
+          acceptedNumericalReadback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.absolutePressureMmHg + index] = candidate.nonCoronaryProbe.nodeAbsolutePressuresMmHg[readbackAbsolutePressureNodeIndices[index]];
+        });
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.forEach(
+          (chamber, index) => {
+            acceptedNumericalReadback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.transmuralPressureMmHg + index] = mechanics.mechanicsView.transmuralPressuresMmHg[chamber];
+          }
+        );
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1.forEach(
+          (edgeId, index) => {
+            acceptedNumericalReadback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.valveFlowMlPerSec + index] = candidate.nonCoronaryProbe.valveFlowsMlPerSec[readbackValveIndices[index]];
+          }
+        );
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1.forEach(
+          (edgeId, index) => {
+            acceptedNumericalReadback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.systemicTissueFlowMlPerSec + index] = candidate.nonCoronaryProbe.edgeFlowsMlPerSec[readbackVascularFlowEdgeIndices[index]];
+          }
+        );
+        acceptedNumericalReadback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.pericardialExcessPressureMmHg] = mechanics.pericardium.excessPressureMmHg;
+        acceptedNumericalReadback.set(
+          cachedCoronaryAcceptedReadbackHydraulics,
+          MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.coronaryFlowMlPerSec
+        );
+        for (let index = 0; index < acceptedNumericalReadback.length; index += 1) {
+          requireFinite$c(
+            acceptedNumericalReadback[index],
+            `accepted numerical readback[${index}]`
+          );
+        }
+        const visit2 = (mechanicsMaterialState) => consume(
+          Object.freeze({
+            candidateTimeSec: candidate.nonCoronaryProbe.candidateTimeSec,
+            candidateRevision,
+            fixedGlobalTotalBloodVolumeMl: previous.fixedGlobalTotalBloodVolumeMl,
+            nonCoronaryNodeVolumesMl: candidate.nonCoronaryProbe.nodeVolumesMl,
+            dynamicEdgeFlowsMlPerSec: candidate.nonCoronaryProbe.dynamicEdgeFlowsMlPerSec,
+            valveStates: candidateValveStates,
+            coronaryVolumesMl: candidate.candidateCoronaryVolumes,
+            coronaryToneResistanceScaleByTerritoryLayer: previous.coronary.toneResistanceScaleByTerritoryLayer,
+            coronaryAutoregulationHydraulicObservables: cachedCoronaryAutoregulationHydraulicObservables,
+            acceptedNumericalReadback,
+            mechanicsCandidateVolumesMl: mechanics.mechanicsView.candidateVolumesMl,
+            mechanicsMaterialState,
+            mechanicsMaterialStateFingerprint: fingerprintWholeHeartMechanicsMaterialStateV1(
+              provider,
+              mechanicsMaterialState
+            ),
+            mvcReferenceState
+          })
+        );
+        return isWholeHeartMechanicsCandidateProbeV2(mechanicsCandidate) ? withPreparedWholeHeartMechanicsCandidateProbeMaterialStateV1(
+          obtainPublicMechanicsStep(),
+          mechanicsCandidate,
+          visit2
+        ) : withMainWireFiveWallNumericalMechanicsMaterialStateV1(
+          mechanicsCandidate,
+          visit2
+        );
+      }
+    );
+  };
+  return Object.freeze({
+    dimension: 30,
+    baseRevision: previous.revision,
+    baseAcceptedTimeSec: previous.acceptedTimeSec,
+    stepDtSec: input.dtSec,
+    fixedGlobalTotalBloodVolumeMl: previous.fixedGlobalTotalBloodVolumeMl,
+    minimumDependentSvVolumeMl,
+    initialUnknownsMl,
+    lowerBoundsMl,
+    upperBoundsMl,
+    assertWorkspaceCurrent,
+    evaluateResidualMl: (unknownsMl, destinationResidualMl) => {
+      evaluateCoupledCandidate(
+        unknownsMl,
+        destinationResidualMl,
+        () => void 0
+      );
+    },
+    isResidualConverged: (unknownsMl, destinationResidualMl) => evaluateCoupledCandidate(
+      unknownsMl,
+      destinationResidualMl,
+      (candidate) => candidate.nonCoronaryProbe.mixedContinuityResidualInfinityNorm <= 1 && maximumAbsoluteValueV2(candidate.coronaryResidualMl) <= coronaryResidualToleranceMl
+    ),
+    withConvergedCandidate,
+    evaluateDependentSvContinuityResidualMl: (unknownsMl) => {
+      return evaluateCoupledCandidate(
+        unknownsMl,
+        coronaryLinearizationResidualScratch,
+        (candidate) => {
+          const dependentSvNode = NON_CORONARY_NODE_NAMES_V1.indexOf("SV");
+          if (dependentSvNode < 0) {
+            throw new Error("dependent SV node order drifted");
+          }
+          const residual = candidate.nonCoronaryProbe.continuityResidualMlByNode[dependentSvNode];
+          requireFinite$c(residual, "dependent SV continuity residual");
+          return residual;
+        }
+      );
+    },
+    materializeCandidateTrial,
+    finalizeMaterializedCandidate,
+    finalizeConvergedSolution,
+    writeCoupledLinearizations: (unknownsMl, coronaryDestination, destinationNonCoronaryDependentSvColumnMlPerMl, rowMajorNonCoronaryLocalDestination, boundaryDestination) => {
+      const nonCoronaryDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+      const boundaryDimension = CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+      if (!(destinationNonCoronaryDependentSvColumnMlPerMl instanceof Float64Array) || destinationNonCoronaryDependentSvColumnMlPerMl.length !== nonCoronaryDimension) {
+        throw new RangeError(
+          "coupled dependent-SV tangent destination must contain 14 f64 values"
+        );
+      }
+      if (!(rowMajorNonCoronaryLocalDestination instanceof Float64Array) || rowMajorNonCoronaryLocalDestination.length !== nonCoronaryDimension * nonCoronaryDimension) {
+        throw new RangeError(
+          "local non-coronary tangent destination must contain 14x14 f64 values"
+        );
+      }
+      if (!(boundaryDestination instanceof Float64Array) || boundaryDestination.length !== boundaryDimension * nonCoronaryDimension) {
+        throw new RangeError(
+          "coronary boundary tangent destination must contain 9x14 f64 values"
+        );
+      }
+      return evaluateCoupledCandidate(
+        unknownsMl,
+        coronaryLinearizationResidualScratch,
+        (candidate) => {
+          destinationNonCoronaryDependentSvColumnMlPerMl.set(
+            candidate.localIndependentResidualDDependentSvVolumeMlPerMl
+          );
+          const localNonCoronaryLinearization = candidate.localIndependentResidualDIndependentVolumeMlPerMl;
+          if (localNonCoronaryLinearization === null) {
+            rowMajorNonCoronaryLocalDestination.fill(0);
+          } else {
+            rowMajorNonCoronaryLocalDestination.set(
+              localNonCoronaryLinearization
+            );
+          }
+          for (let index = 0; index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length; index += 1) {
+            candidateCoronaryVolumesMl[index] = candidate.candidateCoronaryVolumes[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]];
+          }
+          writePreparedCoronaryCoupledCandidateLinearizationV2(
+            preparedCoronary,
+            candidate.boundary,
+            candidateCoronaryVolumesMl,
+            coronaryDestination
+          );
+          const probe = candidate.nonCoronaryProbe;
+          const chamberTangent = probe.absoluteChamberPressureTangent;
+          const mechanics = probe.candidateMechanicsEvaluation;
+          const transmuralTangent = mechanics.mechanicsView.transmuralPressureVolumeTangentMmHgPerMl;
+          const ventricularTangent = mechanics.ventricularCoronaryBoundaryTangent;
+          if (chamberTangent === null || transmuralTangent === void 0 || ventricularTangent === null || localNonCoronaryLinearization === null) {
+            boundaryDestination.fill(0);
+            return false;
+          }
+          const baseSample = candidateCoronaryBoundarySampleV2(
+            candidate.boundary.absoluteAorticPressureMmHg,
+            candidate.boundary.absoluteRightAtrialPressureMmHg,
+            mechanics
+          );
+          const aoNodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf("Ao");
+          const raChamberRow = NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.indexOf("RA");
+          if (aoNodeIndex < 0 || raChamberRow < 0) {
+            throw new Error("coronary boundary tangent order drifted");
+          }
+          const pericardialPressureDerivativeMmHgPerMl = mechanics.pericardium.pressureDerivativePaPerM3 * 1e-6 / PA_PER_MMHG;
+          writeMainWireCoronaryBoundaryDerivativeMatrixV2(
+            baseSample,
+            impMechanism,
+            previous.mvcReferenceState.reference,
+            boundaryDerivativeByMechanicsDirection,
+            shorteningImpPrior
+          );
+          for (let column = 0; column < nonCoronaryDimension; column += 1) {
+            const node = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[column];
+            const chamberColumn = NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.indexOf(
+              node
+            );
+            const isChamber = chamberColumn >= 0;
+            const isVentricle = node === "LV" || node === "RV";
+            const chamberNode = isChamber ? node : null;
+            mechanicsDirection.fill(0);
+            mechanicsDirection[0] = node === "Ao" ? probe.vascularPressureTangentMmHgPerMl[aoNodeIndex] : 0;
+            mechanicsDirection[1] = chamberNode === null ? 0 : chamberTangent.dPressureDVolumeMmHgPerMl[raChamberRow][chamberColumn];
+            mechanicsDirection[2] = isChamber ? pericardialPressureDerivativeMmHgPerMl : 0;
+            mechanicsDirection[3] = chamberNode === null ? 0 : transmuralTangent.LV[chamberNode];
+            mechanicsDirection[4] = chamberNode === null ? 0 : transmuralTangent.RV[chamberNode];
+            mechanicsDirection[5] = isVentricle ? ventricularTangent.landActiveKirchhoffStressPaPerMlByWall.LVFW[node] : 0;
+            mechanicsDirection[6] = isVentricle ? ventricularTangent.landActiveKirchhoffStressPaPerMlByWall.SEP[node] : 0;
+            mechanicsDirection[7] = isVentricle ? ventricularTangent.landActiveKirchhoffStressPaPerMlByWall.RVFW[node] : 0;
+            mechanicsDirection[8] = isVentricle ? ventricularTangent.effectiveFiberLogStrainPerMlByWall.LVFW[node] : 0;
+            mechanicsDirection[9] = isVentricle ? ventricularTangent.effectiveFiberLogStrainPerMlByWall.SEP[node] : 0;
+            mechanicsDirection[10] = isVentricle ? ventricularTangent.effectiveFiberLogStrainPerMlByWall.RVFW[node] : 0;
+            for (let boundaryRow = 0; boundaryRow < MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2.length; boundaryRow += 1) {
+              let derivative = 0;
+              for (let directionColumn = 0; directionColumn < mechanicsDirection.length; directionColumn += 1) {
+                derivative += boundaryDerivativeByMechanicsDirection[boundaryRow * mechanicsDirection.length + directionColumn] * mechanicsDirection[directionColumn];
+              }
+              boundaryDestination[boundaryRow * nonCoronaryDimension + column] = derivative;
+            }
+          }
+          return true;
+        }
+      );
+    }
+  });
+}
 function stepMainWireFiveWallCoronaryV2(provider, previous, input, coronaryScratchWorkspace, nonCoronaryScratchWorkspace, previousAcceptedNumericalSource) {
   validateAcceptedTuple(previous);
-  requirePositiveFinite$c(input.dtSec, "dtSec");
+  requirePositiveFinite$f(input.dtSec, "dtSec");
   const prior = input.coronaryPrior ?? MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2;
   const topology = buildCoronaryTopologyV2(prior);
   const collapseHydraulics = resolveCollapseHydraulics(
@@ -16864,7 +18833,7 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input, coronaryScrat
           evaluationCounters.outerCirculationCandidateCount += 1;
         }
         const mechanics = candidate.candidateMechanicsEvaluation;
-        const boundary = resolveCandidateCoronaryBoundaryV2(
+        const boundary2 = resolveCandidateCoronaryBoundaryV2(
           candidate.boundaryAbsolutePressuresMmHg.Ao,
           candidate.boundaryAbsolutePressuresMmHg.RA,
           mechanics,
@@ -16874,7 +18843,7 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input, coronaryScrat
         );
         const coronaryTrialInput = Object.freeze({
           dtSec: input.dtSec,
-          boundary,
+          boundary: boundary2,
           disease: input.coronaryDisease ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
           collapseHydraulics,
           solverOptions: input.coronarySolverOptions,
@@ -16884,7 +18853,8 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input, coronaryScrat
           previous.coronary,
           coronaryTrialInput,
           prior,
-          topology
+          topology,
+          coronaryScratchWorkspace
         );
         if (evaluationCounters !== null) {
           recordCoronaryTrialCountersV2(
@@ -16897,7 +18867,7 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input, coronaryScrat
           mechanicsStep,
           input.pericardium,
           pthMmHg,
-          boundary,
+          boundary2,
           impMechanism,
           previous.mvcReferenceState.reference,
           shorteningImpPrior,
@@ -16929,7 +18899,7 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input, coronaryScrat
           }),
           candidateCompanionTrial: Object.freeze({
             coronaryTrial,
-            boundary
+            boundary: boundary2
           }),
           ...sensitivities === void 0 ? {} : { sensitivities }
         });
@@ -17221,6 +19191,107 @@ function advanceMainWireCoronaryMvcReferenceV2(previous, input) {
     acceptedMitralClosureEventCount: previous.acceptedMitralClosureEventCount + (closed ? 1 : 0)
   });
 }
+function evaluatePreparedCoupledCandidateMechanicsV1(mechanicsStep, volumesMl, pericardiumBinding, commonIntrathoracicPressureMmHg2, impMechanism, evaluationCounters, origin, useCandidateProbe, numericalMechanicsStep) {
+  if (numericalMechanicsStep === null) {
+    if (mechanicsStep === null) {
+      throw new Error("generic coupled mechanics step is unavailable");
+    }
+    const fallback = evaluatePreparedCandidateMechanicsV2(
+      mechanicsStep,
+      volumesMl,
+      pericardiumBinding,
+      commonIntrathoracicPressureMmHg2,
+      impMechanism,
+      evaluationCounters,
+      origin,
+      useCandidateProbe
+    );
+    return Object.freeze({
+      ...fallback,
+      evaluation: Object.freeze({
+        ...fallback.evaluation,
+        ventricularCoronaryBoundaryTangent: readMainWireFiveWallVentricularCoronaryBoundaryTangentV1(
+          fallback.evaluation.mechanicsView.diagnostics.readback
+        )
+      })
+    });
+  }
+  if (evaluationCounters !== null) {
+    {
+      evaluationCounters.mechanics.candidateCenterEvaluationCount += 1;
+    }
+  }
+  const candidate = evaluateMainWireFiveWallNumericalMechanicsCandidateV1(
+    numericalMechanicsStep,
+    volumesMl
+  );
+  if (evaluationCounters !== null && candidate.evaluationCounters !== void 0) {
+    recordTriSegProviderCounterValuesV2(
+      evaluationCounters,
+      candidate.evaluationCounters
+    );
+  }
+  const mechanicsView = Object.freeze({
+    candidateVolumesMl: candidate.candidateVolumesMl,
+    transmuralPressuresMmHg: candidate.transmuralPressuresMmHg,
+    ...candidate.transmuralPressureVolumeTangentMmHgPerMl === void 0 ? {} : {
+      transmuralPressureVolumeTangentMmHgPerMl: candidate.transmuralPressureVolumeTangentMmHgPerMl
+    },
+    diagnostics: Object.freeze({
+      converged: true,
+      finite: true,
+      iterationCount: candidate.iterationCount,
+      residualNorm: candidate.residualNorm,
+      errors: Object.freeze([]),
+      warnings: Object.freeze([]),
+      readback: null
+    })
+  });
+  const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+    pericardiumBinding,
+    volumesMl
+  );
+  const externalPressure = Object.freeze({
+    commonIntrathoracicPressureMmHg: commonIntrathoracicPressureMmHg2,
+    commonPericardialExcessPressureMmHg: pericardium.excessPressureMmHg
+  });
+  const coronaryMechanicsCoupling = evaluateMainWireCoronaryNumericalMechanicsCouplingV1(
+    Object.freeze({
+      transmuralPressuresMmHg: candidate.transmuralPressuresMmHg,
+      effectiveFiberLogStrainByWall: candidate.effectiveFiberLogStrainByWall,
+      activeFiberKirchhoffStressPaByWall: candidate.activeFiberKirchhoffStressPaByWall
+    }),
+    externalPressure
+  );
+  const evaluation = Object.freeze({
+    mechanicsCandidate: candidate,
+    mechanicsView,
+    pericardium,
+    coronaryMechanicsCoupling,
+    ventricularCoronaryBoundaryTangent: candidate.ventricularCoronaryBoundaryTangent ?? null,
+    ...impMechanism === "source-cep-land-active" ? {
+      sourceIntramyocardialPressureMmHgByTerritoryLayer: evaluateAllCoronaryImpPressureV1(
+        coronaryMechanicsCoupling.input,
+        "intramyocardial"
+      )
+    } : {}
+  });
+  return Object.freeze({
+    absolutePressuresMmHg: Object.freeze({
+      LA: candidate.transmuralPressuresMmHg.LA + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg,
+      LV: candidate.transmuralPressuresMmHg.LV + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg,
+      RA: candidate.transmuralPressuresMmHg.RA + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg,
+      RV: candidate.transmuralPressuresMmHg.RV + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg
+    }),
+    ...candidate.transmuralPressureVolumeTangentMmHgPerMl === void 0 ? {} : {
+      absolutePressureTangent: absoluteChamberPressureTangent(
+        candidate.transmuralPressureVolumeTangentMmHgPerMl,
+        pericardium
+      )
+    },
+    evaluation
+  });
+}
 function evaluatePreparedCandidateMechanicsV2(mechanicsStep, volumesMl, pericardiumBinding, commonIntrathoracicPressureMmHg2, impMechanism, evaluationCounters, origin, useCandidateProbe) {
   if (evaluationCounters !== null) {
     if (origin === "candidate-center") {
@@ -17323,7 +19394,7 @@ function candidateCoronaryBoundarySampleV2(absoluteAorticPressureMmHg2, absolute
 function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardiumBinding, commonIntrathoracicPressureMmHg2, baseBoundary, impMechanism, shorteningReference2, shorteningImpPrior, scaledStep, evaluationCounters, useCandidateProbe) {
   const tangent = candidate.dBoundaryAbsolutePressureDScaledIndependentVolume;
   if (tangent === null) return null;
-  requirePositiveFinite$c(scaledStep, "outer scaled sensitivity step");
+  requirePositiveFinite$f(scaledStep, "outer scaled sensitivity step");
   const directionCount = candidate.independentNodeOrder.length;
   if (candidate.independentVolumeScalesMl.length !== directionCount || tangent.Ao.length !== directionCount || tangent.RA.length !== directionCount) {
     throw new RangeError(
@@ -17354,7 +19425,7 @@ function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardium
   };
   const atrialDirection = (node, index) => {
     const volumeScaleMl = candidate.independentVolumeScalesMl[index];
-    requirePositiveFinite$c(
+    requirePositiveFinite$f(
       volumeScaleMl,
       `${node} independent volume scale`
     );
@@ -17367,7 +19438,7 @@ function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardium
       ...baseVolumes,
       [node]: baseVolumes[node] + volumeStepMl
     });
-    requirePositiveFinite$c(minusVolumes[node], `${node} minus probe volume`);
+    requirePositiveFinite$f(minusVolumes[node], `${node} minus probe volume`);
     const directionView = (volumesMl) => {
       const pericardium = evaluateMainWireCommonPericardiumBindingV1(
         pericardiumBinding,
@@ -17422,7 +19493,7 @@ function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardium
   };
   const ventricularDirection = (node, index) => {
     const volumeScaleMl = candidate.independentVolumeScalesMl[index];
-    requirePositiveFinite$c(
+    requirePositiveFinite$f(
       volumeScaleMl,
       `${node} independent volume scale`
     );
@@ -17435,7 +19506,7 @@ function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardium
       ...baseVolumes,
       [node]: baseVolumes[node] + volumeStepMl
     });
-    requirePositiveFinite$c(minusVolumes[node], `${node} minus probe volume`);
+    requirePositiveFinite$f(minusVolumes[node], `${node} minus probe volume`);
     const analyticDirectionView = (volumesMl, signedVolumeDeltaMl) => {
       const pericardium = evaluateMainWireCommonPericardiumBindingV1(
         pericardiumBinding,
@@ -17780,7 +19851,7 @@ function validateWallNumbers(value) {
 }
 function createCanonicalNonCoronaryPartitionV2(runtime, fixedGlobalTotalBloodVolumeMl, coronaryVolumeMl, timeSec) {
   const targetNonCoronaryBloodVolumeMl = fixedGlobalTotalBloodVolumeMl - coronaryVolumeMl;
-  requirePositiveFinite$c(
+  requirePositiveFinite$f(
     targetNonCoronaryBloodVolumeMl,
     "target non-coronary blood volume"
   );
@@ -17820,6 +19891,13 @@ function coronaryBloodVolumeMl(state) {
     (sum, nodeId) => sum + state.volumeMlByNode[nodeId],
     0
   );
+}
+function maximumAbsoluteValueV2(values2) {
+  let maximum = 0;
+  for (let index = 0; index < values2.length; index += 1) {
+    maximum = Math.max(maximum, Math.abs(values2[index]));
+  }
+  return maximum;
 }
 function chamberVolumes(circulation) {
   return Object.freeze({
@@ -17893,7 +19971,7 @@ function absoluteChamberPressureTangent(transmural, pericardium) {
     dPressureDVolumeMmHgPerMl: matrix
   });
 }
-function requirePositiveFinite$c(value, label) {
+function requirePositiveFinite$f(value, label) {
   requireFinite$c(value, label);
   if (!(value > 0)) throw new RangeError(`${label} must be positive`);
 }
@@ -18265,6 +20343,60 @@ function copyMvcReferenceState(state) {
 }
 const MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V3_ID = "main-wire-five-wall-coronary-transaction-v3";
 const validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3 = /* @__PURE__ */ new WeakMap();
+function advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3(previous, input, candidateAcceptedTimeSec, candidateRevision, packedHydraulicObservables) {
+  return advanceMainWireFiveWallCoronaryAutoregulationOwnerFromPackedV3(
+    Object.freeze({
+      acceptedTimeSec: previous.acceptedTimeSec,
+      binding: previous.coronaryAutoregulationBinding,
+      state: previous.coronaryAutoregulation,
+      toneResistanceScaleByTerritoryLayer: previous.coronary.toneResistanceScaleByTerritoryLayer
+    }),
+    input,
+    candidateAcceptedTimeSec,
+    candidateRevision,
+    packedHydraulicObservables
+  );
+}
+function advanceMainWireFiveWallCoronaryAutoregulationOwnerFromPackedV3(previous, input, candidateAcceptedTimeSec, candidateRevision, packedHydraulicObservables) {
+  if (!(packedHydraulicObservables instanceof Float64Array) || packedHydraulicObservables.length !== 10) {
+    throw new RangeError(
+      "packed coronary autoregulation readback must contain ten f64s"
+    );
+  }
+  let observableIndex = 0;
+  const finalQmInternalFlowMlPerSecByTerritoryLayer = Object.freeze(
+    Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+      territoryId,
+      Object.freeze(Object.fromEntries(CORONARY_LAYER_IDS_V2.map(
+        (layerId) => [layerId, packedHydraulicObservables[observableIndex++]]
+      )))
+    ]))
+  );
+  const finalPostFocalLesionPressureMmHgByTerritory = Object.freeze(
+    Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+      territoryId,
+      packedHydraulicObservables[observableIndex++]
+    ]))
+  );
+  return advanceCoronaryAcceptedAutoregulationV3(
+    previous.binding,
+    previous.state,
+    previous.toneResistanceScaleByTerritoryLayer,
+    {
+      previousAcceptedTimeSec: previous.acceptedTimeSec,
+      candidateAcceptedTimeSec,
+      candidateRevision,
+      finalQmInternalFlowMlPerSecByTerritoryLayer,
+      finalPostFocalLesionPressureMmHgByTerritory,
+      finalCommonCoronaryVenousPressureMmHg: packedHydraulicObservables[observableIndex],
+      control: resolveAutoregulationControl(
+        input.coronaryAutoregulationDrive,
+        input.coronaryDisease ?? NORMAL_CORONARY_DISEASE_INPUT_V2
+      ),
+      topologyPrior: input.coronaryPrior
+    }
+  );
+}
 function initializeMainWireFiveWallCoronaryV3(input) {
   const base2 = initializeMainWireFiveWallCoronaryV2(input);
   const interpretation = input.autoregulationWindow?.interpretation ?? "periodic-sinus-cycle-aligned";
@@ -18714,7 +20846,7 @@ function evaluateExactEventCalciumV1(state, parameters) {
 }
 function convertPeriodicBiexponentialToExactEventCalciumV1(periodic, cycleLengthSec) {
   validatePeriodicInput(periodic);
-  const cycle = requirePositiveFinite$b(cycleLengthSec, "cycleLengthSec");
+  const cycle = requirePositiveFinite$e(cycleLengthSec, "cycleLengthSec");
   const tauRiseSec = periodic.riseTimeConstantSec;
   const tauDecaySec = periodic.decayTimeConstantSec;
   const riseCarry = 1 / -Math.expm1(-cycle / tauRiseSec);
@@ -18767,8 +20899,8 @@ function convertPeriodicBiexponentialToExactEventCalciumV1(periodic, cycleLength
   });
 }
 function validateParameters(parameters) {
-  requirePositiveFinite$b(parameters.tauRiseSec, "parameters.tauRiseSec");
-  requirePositiveFinite$b(parameters.tauDecaySec, "parameters.tauDecaySec");
+  requirePositiveFinite$e(parameters.tauRiseSec, "parameters.tauRiseSec");
+  requirePositiveFinite$e(parameters.tauDecaySec, "parameters.tauDecaySec");
   if (!(parameters.tauDecaySec > parameters.tauRiseSec)) {
     throw new Error("parameters.tauDecaySec must exceed parameters.tauRiseSec");
   }
@@ -18784,11 +20916,11 @@ function validatePeriodicInput(periodic) {
     "periodic.diastolicCalciumUM"
   );
   requireNonnegativeFinite$b(periodic.peakAmplitudeUM, "periodic.peakAmplitudeUM");
-  requirePositiveFinite$b(
+  requirePositiveFinite$e(
     periodic.riseTimeConstantSec,
     "periodic.riseTimeConstantSec"
   );
-  requirePositiveFinite$b(
+  requirePositiveFinite$e(
     periodic.decayTimeConstantSec,
     "periodic.decayTimeConstantSec"
   );
@@ -18848,7 +20980,7 @@ function validateDenseArray$2(value, field) {
     }
   }
 }
-function requirePositiveFinite$b(value, field) {
+function requirePositiveFinite$e(value, field) {
   if (!(value > 0) || !Number.isFinite(value)) {
     throw new Error(`${field} must be positive and finite`);
   }
@@ -19366,7 +21498,7 @@ function createGateConfiguration(input, chamber, field) {
     schemaVersion: 2,
     gateInstanceId: requireNonemptyString$9(input.gateInstanceId, `${field}.gateInstanceId`),
     chamber,
-    refractoryPeriodSec: requirePositiveFinite$a(
+    refractoryPeriodSec: requirePositiveFinite$d(
       input.refractoryPeriodSec,
       `${field}.refractoryPeriodSec`
     )
@@ -19467,7 +21599,7 @@ function validateGateConfiguration(configuration, chamber) {
     throw new Error(`${chamber} gate configuration identity is invalid`);
   }
   requireNonemptyString$9(configuration.gateInstanceId, `${chamber} gate id`);
-  requirePositiveFinite$a(
+  requirePositiveFinite$d(
     configuration.refractoryPeriodSec,
     `${chamber} gate refractory period`
   );
@@ -19745,7 +21877,7 @@ function requireNullableFinite(value, field) {
 function requireNullableNonnegativeFinite(value, field) {
   return value === null ? null : requireNonnegativeFinite$a(value, field);
 }
-function requirePositiveFinite$a(value, field) {
+function requirePositiveFinite$d(value, field) {
   const finite2 = requireFinite$b(value, field);
   if (finite2 <= 0) throw new Error(`${field} must be positive`);
   return finite2;
@@ -21126,7 +23258,7 @@ function createDistalConductionGateConfigurationV1(input) {
       "distal gate configuration input.gateInstanceId"
     ),
     parameterProvenance: copyProvenanceInput$1(input.parameterProvenance),
-    hvConductionDelaySec: requirePositiveFinite$9(
+    hvConductionDelaySec: requirePositiveFinite$c(
       input.hvConductionDelaySec,
       "distal gate configuration input.hvConductionDelaySec"
     ),
@@ -21219,7 +23351,7 @@ function validateDistalConductionGateConfigurationV1(configuration) {
   requireNonemptyString$6(configuration.configurationId, "configuration id");
   requireNonemptyString$6(configuration.gateInstanceId, "gate instance id");
   validateProvenance$2(configuration.parameterProvenance);
-  requirePositiveFinite$9(
+  requirePositiveFinite$c(
     configuration.hvConductionDelaySec,
     "configuration HV delay"
   );
@@ -21617,7 +23749,7 @@ function requireComputedFinite$1(value, field) {
   if (!Number.isFinite(value)) throw new Error(`${field} must remain finite`);
   return Object.is(value, -0) ? 0 : value;
 }
-function requirePositiveFinite$9(value, field) {
+function requirePositiveFinite$c(value, field) {
   const numberValue = requireFinite$8(value, field);
   if (!(numberValue > 0)) throw new Error(`${field} must be positive`);
   return numberValue;
@@ -21679,7 +23811,7 @@ function createRegularAtrialSourceConfigurationV1(input) {
     ownerInstanceId: requireNonemptyString$5(input.ownerInstanceId, "ownerInstanceId"),
     sourceId: requireNonemptyString$5(input.sourceId, "sourceId"),
     rhythmClass: requireRhythmClass(input.rhythmClass),
-    cycleLengthSec: requirePositiveFinite$8(input.cycleLengthSec, "cycleLengthSec")
+    cycleLengthSec: requirePositiveFinite$b(input.cycleLengthSec, "cycleLengthSec")
   });
 }
 function validateRegularAtrialSourceConfigurationV1(configuration) {
@@ -21835,7 +23967,7 @@ function requireNonemptyString$5(value, field) {
   if (typeof value !== "string" || value.length === 0) throw new Error(`${field} must be a nonempty string`);
   return value;
 }
-function requirePositiveFinite$8(value, field) {
+function requirePositiveFinite$b(value, field) {
   if (typeof value !== "number" || !Number.isFinite(value) || !(value > 0)) throw new Error(`${field} must be positive finite`);
   return value;
 }
@@ -21890,7 +24022,7 @@ function createRecoveryConcealmentAvGateParametersV1(input) {
       "parameter input.parameterSetId"
     ),
     parameterProvenance: provenance,
-    minimumConductionDelaySec: requirePositiveFinite$7(
+    minimumConductionDelaySec: requirePositiveFinite$a(
       input.minimumConductionDelaySec,
       "parameter input.minimumConductionDelaySec"
     ),
@@ -21898,11 +24030,11 @@ function createRecoveryConcealmentAvGateParametersV1(input) {
       input.recoveryDelayAmplitudeSec,
       "parameter input.recoveryDelayAmplitudeSec"
     ),
-    recoveryTimeConstantSec: requirePositiveFinite$7(
+    recoveryTimeConstantSec: requirePositiveFinite$a(
       input.recoveryTimeConstantSec,
       "parameter input.recoveryTimeConstantSec"
     ),
-    postConductionRefractorySec: requirePositiveFinite$7(
+    postConductionRefractorySec: requirePositiveFinite$a(
       input.postConductionRefractorySec,
       "parameter input.postConductionRefractorySec"
     ),
@@ -21923,7 +24055,7 @@ function validateRecoveryConcealmentAvGateParametersV1(parameters) {
   }
   requireNonemptyString$4(parameters.parameterSetId, "parameters.parameterSetId");
   validateParameterProvenance$1(parameters.parameterProvenance);
-  requirePositiveFinite$7(
+  requirePositiveFinite$a(
     parameters.minimumConductionDelaySec,
     "parameters.minimumConductionDelaySec"
   );
@@ -21931,11 +24063,11 @@ function validateRecoveryConcealmentAvGateParametersV1(parameters) {
     parameters.recoveryDelayAmplitudeSec,
     "parameters.recoveryDelayAmplitudeSec"
   );
-  requirePositiveFinite$7(
+  requirePositiveFinite$a(
     parameters.recoveryTimeConstantSec,
     "parameters.recoveryTimeConstantSec"
   );
-  requirePositiveFinite$7(
+  requirePositiveFinite$a(
     parameters.postConductionRefractorySec,
     "parameters.postConductionRefractorySec"
   );
@@ -22012,7 +24144,7 @@ function requireNonnegativeFinite$5(value, field) {
   }
   return value;
 }
-function requirePositiveFinite$7(value, field) {
+function requirePositiveFinite$a(value, field) {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     throw new Error(`${field} must be a finite number greater than zero`);
   }
@@ -22114,7 +24246,7 @@ function createRecoveryConcealmentAvGateConfigurationV2(input) {
       "proximal AV configuration input.proximalAvOwnerInstanceId"
     ),
     parameterProvenance: copyProvenanceInput(input.parameterProvenance),
-    minimumProximalAvConductionDelaySec: requirePositiveFinite$6(
+    minimumProximalAvConductionDelaySec: requirePositiveFinite$9(
       input.minimumProximalAvConductionDelaySec,
       "proximal AV configuration input.minimumProximalAvConductionDelaySec"
     ),
@@ -22122,11 +24254,11 @@ function createRecoveryConcealmentAvGateConfigurationV2(input) {
       input.proximalAvRecoveryDelayAmplitudeSec,
       "proximal AV configuration input.proximalAvRecoveryDelayAmplitudeSec"
     ),
-    proximalAvRecoveryTimeConstantSec: requirePositiveFinite$6(
+    proximalAvRecoveryTimeConstantSec: requirePositiveFinite$9(
       input.proximalAvRecoveryTimeConstantSec,
       "proximal AV configuration input.proximalAvRecoveryTimeConstantSec"
     ),
-    postProximalAvOutputRefractorySec: requirePositiveFinite$6(
+    postProximalAvOutputRefractorySec: requirePositiveFinite$9(
       input.postProximalAvOutputRefractorySec,
       "proximal AV configuration input.postProximalAvOutputRefractorySec"
     ),
@@ -22204,7 +24336,7 @@ function validateRecoveryConcealmentAvGateConfigurationV2(configuration) {
     "proximal AV owner instance id"
   );
   validateProvenance$1(configuration.parameterProvenance);
-  requirePositiveFinite$6(
+  requirePositiveFinite$9(
     configuration.minimumProximalAvConductionDelaySec,
     "minimum proximal AV conduction delay"
   );
@@ -22212,11 +24344,11 @@ function validateRecoveryConcealmentAvGateConfigurationV2(configuration) {
     configuration.proximalAvRecoveryDelayAmplitudeSec,
     "proximal AV recovery delay amplitude"
   );
-  requirePositiveFinite$6(
+  requirePositiveFinite$9(
     configuration.proximalAvRecoveryTimeConstantSec,
     "proximal AV recovery time constant"
   );
-  requirePositiveFinite$6(
+  requirePositiveFinite$9(
     configuration.postProximalAvOutputRefractorySec,
     "post-proximal-AV-output refractory duration"
   );
@@ -22453,7 +24585,7 @@ function requireNonnegativeFinite$4(value, field) {
   if (finite2 < 0) throw new Error(`${field} must be nonnegative`);
   return finite2;
 }
-function requirePositiveFinite$6(value, field) {
+function requirePositiveFinite$9(value, field) {
   const finite2 = requireFinite$7(value, field);
   if (!(finite2 > 0)) throw new Error(`${field} must be positive`);
   return finite2;
@@ -22671,7 +24803,7 @@ function createAcceptedVentricularBackupSourceConfigurationV2(input) {
     PROVENANCE_INPUT_KEYS$1,
     "ventricular backup parameter provenance input"
   );
-  const lowerRateLimit = requirePositiveFinite$5(
+  const lowerRateLimit = requirePositiveFinite$8(
     input.vviLowerRateLimitPerMin,
     "VVI lower-rate limit per minute"
   );
@@ -22697,7 +24829,7 @@ function createAcceptedVentricularBackupSourceConfigurationV2(input) {
       input.intrinsicEscapeSourceId,
       "intrinsic escape source id"
     ),
-    intrinsicEscapeCycleLengthSec: requirePositiveFinite$5(
+    intrinsicEscapeCycleLengthSec: requirePositiveFinite$8(
       input.intrinsicEscapeCycleLengthSec,
       "intrinsic escape cycle length"
     ),
@@ -22964,27 +25096,27 @@ function evaluateAcceptedVentricularBackupSourceCandidateV2(acceptedState2, prop
     (result) => result.sourceKind === "pacing"
   ) ?? null;
   const acceptedActivation = expectedResolution.acceptedVentricularActivation;
-  const escapeAttemptCount = safeCounterAdd$1(
+  const escapeAttemptCount = safeCounterAdd$2(
     acceptedState2.intrinsicEscapeAttemptCount,
     escapeResult === null ? 0 : 1,
     "intrinsic escape attempt count"
   );
-  const pacingAttemptCount = safeCounterAdd$1(
+  const pacingAttemptCount = safeCounterAdd$2(
     acceptedState2.vviPacingAttemptCount,
     pacingResult === null ? 0 : 1,
     "VVI pacing attempt count"
   );
-  const escapeCapturedCount = safeCounterAdd$1(
+  const escapeCapturedCount = safeCounterAdd$2(
     acceptedState2.intrinsicEscapeCapturedCount,
     escapeResult?.outcome === "captured" ? 1 : 0,
     "intrinsic escape captured count"
   );
-  const pacingCapturedCount = safeCounterAdd$1(
+  const pacingCapturedCount = safeCounterAdd$2(
     acceptedState2.vviPacingCapturedCount,
     pacingResult?.outcome === "captured" ? 1 : 0,
     "VVI pacing captured count"
   );
-  const captureFeedbackCount = safeCounterAdd$1(
+  const captureFeedbackCount = safeCounterAdd$2(
     acceptedState2.acceptedVentricularCaptureFeedbackCount,
     acceptedActivation === null ? 0 : 1,
     "accepted ventricular capture feedback count"
@@ -23405,7 +25537,7 @@ function requireProvenanceKind(value) {
   }
   return value;
 }
-function safeCounterAdd$1(value, increment, field) {
+function safeCounterAdd$2(value, increment, field) {
   requireNonnegativeSafeInteger$2(value, field);
   const result = value + increment;
   if (!Number.isSafeInteger(result)) throw new Error(`${field} cannot be incremented safely`);
@@ -23436,7 +25568,7 @@ function requireNonnegativeFinite$3(value, field) {
   if (finite2 < 0) throw new Error(`${field} must be nonnegative`);
   return Object.is(finite2, -0) ? 0 : finite2;
 }
-function requirePositiveFinite$5(value, field) {
+function requirePositiveFinite$8(value, field) {
   const finite2 = requireFinite$6(value, field);
   if (!(finite2 > 0)) throw new Error(`${field} must be positive`);
   return finite2;
@@ -23618,7 +25750,7 @@ function createAcceptedVentricularIntervalStrengthConfigurationV1(input) {
     "interval-strength configuration input"
   );
   const provenance = copyParameterProvenanceInput(input.parameterProvenance);
-  const recoveryTimeConstantSec = requirePositiveFinite$4(
+  const recoveryTimeConstantSec = requirePositiveFinite$7(
     input.recoveryTimeConstantSec,
     "interval-strength recoveryTimeConstantSec"
   );
@@ -23634,7 +25766,7 @@ function createAcceptedVentricularIntervalStrengthConfigurationV1(input) {
     input.intervalInfluxInhibitionFractionH,
     "interval-strength intervalInfluxInhibitionFractionH"
   );
-  const referenceCycleLengthSec = requirePositiveFinite$4(
+  const referenceCycleLengthSec = requirePositiveFinite$7(
     input.referenceCycleLengthSec,
     "interval-strength referenceCycleLengthSec"
   );
@@ -23679,7 +25811,7 @@ function initializeAcceptedVentricularIntervalStrengthStateV1(configuration, inp
     input.acceptedTimeSec,
     "interval-strength initial acceptedTimeSec"
   );
-  const initialNormalizedSrLoadState = requirePositiveFinite$4(
+  const initialNormalizedSrLoadState = requirePositiveFinite$7(
     input.initialNormalizedSrLoadState,
     "interval-strength initial normalized SR load"
   );
@@ -23788,7 +25920,7 @@ function validateAcceptedVentricularIntervalStrengthConfigurationV1(configuratio
   requireNonemptyString$1(configuration.configurationId, "configuration id");
   requireNonemptyString$1(configuration.ownerInstanceId, "owner instance id");
   validateParameterProvenance(configuration.parameterProvenance);
-  const tau = requirePositiveFinite$4(
+  const tau = requirePositiveFinite$7(
     configuration.recoveryTimeConstantSec,
     "configuration recoveryTimeConstantSec"
   );
@@ -23804,7 +25936,7 @@ function validateAcceptedVentricularIntervalStrengthConfigurationV1(configuratio
     configuration.intervalInfluxInhibitionFractionH,
     "configuration intervalInfluxInhibitionFractionH"
   );
-  const referenceCycle = requirePositiveFinite$4(
+  const referenceCycle = requirePositiveFinite$7(
     configuration.referenceCycleLengthSec,
     "configuration referenceCycleLengthSec"
   );
@@ -23838,11 +25970,11 @@ function validateAcceptedVentricularIntervalStrengthStateV1(state) {
   if (acceptedTimeSec < initialAcceptedTimeSec) {
     throw new Error("interval-strength accepted clock precedes its initial clock");
   }
-  const initialLoad = requirePositiveFinite$4(
+  const initialLoad = requirePositiveFinite$7(
     state.initialNormalizedSrLoadState,
     "interval-strength initial normalized SR load"
   );
-  const load = requirePositiveFinite$4(
+  const load = requirePositiveFinite$7(
     state.normalizedSrLoadState,
     "interval-strength normalized SR load"
   );
@@ -23967,7 +26099,7 @@ function validateDepositMetadata(metadata, configuration) {
     metadata.capturedVentricularActivation,
     "interval-strength metadata captured activation"
   );
-  const before = requirePositiveFinite$4(
+  const before = requirePositiveFinite$7(
     metadata.normalizedSrLoadBefore,
     "interval-strength metadata load before"
   );
@@ -24161,7 +26293,7 @@ function requireNonnegativeFinite$2(value, field) {
   if (finite2 < 0) throw new Error(`${field} must be nonnegative`);
   return finite2;
 }
-function requirePositiveFinite$4(value, field) {
+function requirePositiveFinite$7(value, field) {
   const finite2 = normalizeFinite(value, field);
   if (finite2 <= 0) throw new Error(`${field} must be positive`);
   return finite2;
@@ -24650,9 +26782,9 @@ function limitAcceptedComposedRhythmTransactionCandidateTimeV2(state, requestedC
   }
   const earliest = Math.min(
     requestedCandidateTime,
-    ...boundaries.map((boundary) => boundary.timeSec)
+    ...boundaries.map((boundary2) => boundary2.timeSec)
   );
-  const owners = boundaries.filter((boundary) => boundary.timeSec === earliest).map((boundary) => boundary.owner).sort();
+  const owners = boundaries.filter((boundary2) => boundary2.timeSec === earliest).map((boundary2) => boundary2.owner).sort();
   return Object.freeze({
     requestedCandidateTimeSec: requestedCandidateTime,
     candidateTimeSec: earliest,
@@ -24666,7 +26798,7 @@ function evaluateAcceptedComposedRhythmTransactionCandidateV2(state, input) {
   if (state.revision === Number.MAX_SAFE_INTEGER) throw new Error("composed rhythm revision cannot increment safely");
   const candidateTimeSec = requireNonnegativeFinite$1(input.candidateTimeSec, "candidateTimeSec");
   if (!(candidateTimeSec > state.acceptedTimeSec)) throw new Error("composed rhythm candidate must advance time");
-  const earliestInternal = Math.min(...ownedBoundaries(state).map((boundary) => boundary.timeSec));
+  const earliestInternal = Math.min(...ownedBoundaries(state).map((boundary2) => boundary2.timeSec));
   if (candidateTimeSec > earliestInternal) throw new Error("composed rhythm candidate may not cross an owned event boundary");
   const externalAtrialSourceBatch = validateAndCopyExternalBatch(state.configuration, input.externalAtrialSourceBatch, candidateTimeSec);
   const dueProximalAvOutputs = Object.freeze(state.pendingProximalAvOutputs.filter((item) => item.proximalArrivalTimeSec === candidateTimeSec));
@@ -24799,9 +26931,9 @@ function evaluateAcceptedComposedRhythmTransactionCandidateV2(state, input) {
     pendingDistalVentricularImpulses,
     pendingCalciumDeposits,
     calciumStateByWall,
-    acceptedAtrialCaptureCount: safeCounterAdd(state.acceptedAtrialCaptureCount, capturedAtrialActivation === null ? 0 : 1, "acceptedAtrialCaptureCount"),
-    acceptedVentricularCaptureCount: safeCounterAdd(state.acceptedVentricularCaptureCount, capturedVentricularActivation === null ? 0 : 1, "acceptedVentricularCaptureCount"),
-    deliveredCalciumDepositCount: safeCounterAdd(state.deliveredCalciumDepositCount, deliveredCalciumDeposits.length, "deliveredCalciumDepositCount")
+    acceptedAtrialCaptureCount: safeCounterAdd$1(state.acceptedAtrialCaptureCount, capturedAtrialActivation === null ? 0 : 1, "acceptedAtrialCaptureCount"),
+    acceptedVentricularCaptureCount: safeCounterAdd$1(state.acceptedVentricularCaptureCount, capturedVentricularActivation === null ? 0 : 1, "acceptedVentricularCaptureCount"),
+    deliveredCalciumDepositCount: safeCounterAdd$1(state.deliveredCalciumDepositCount, deliveredCalciumDeposits.length, "deliveredCalciumDepositCount")
   });
   if (fullHotPathInvariantsEnabledV1()) {
     validateAcceptedComposedRhythmTransactionStateV2(candidateState);
@@ -25296,7 +27428,7 @@ function copyAtrialDeposit(input, field) {
     field
   );
   return Object.freeze({
-    electricalToCalciumDelaySec: requirePositiveFinite$3(input.electricalToCalciumDelaySec, `${field}.electricalToCalciumDelaySec`),
+    electricalToCalciumDelaySec: requirePositiveFinite$6(input.electricalToCalciumDelaySec, `${field}.electricalToCalciumDelaySec`),
     leftAtrialStrength: requireNonnegativeFinite$1(input.leftAtrialStrength, `${field}.leftAtrialStrength`),
     rightAtrialStrength: requireNonnegativeFinite$1(input.rightAtrialStrength, `${field}.rightAtrialStrength`)
   });
@@ -25313,7 +27445,7 @@ function copyVentricularDeposit(input) {
     "ventricularCalciumDeposit"
   );
   return Object.freeze({
-    electricalToCalciumDelaySec: requirePositiveFinite$3(input.electricalToCalciumDelaySec, "ventricularCalciumDeposit.electricalToCalciumDelaySec"),
+    electricalToCalciumDelaySec: requirePositiveFinite$6(input.electricalToCalciumDelaySec, "ventricularCalciumDeposit.electricalToCalciumDelaySec"),
     lvFreeWallBaseStrength: requireNonnegativeFinite$1(input.lvFreeWallBaseStrength, "ventricularCalciumDeposit.lvFreeWallBaseStrength"),
     septalBaseStrength: requireNonnegativeFinite$1(input.septalBaseStrength, "ventricularCalciumDeposit.septalBaseStrength"),
     rvFreeWallBaseStrength: requireNonnegativeFinite$1(input.rvFreeWallBaseStrength, "ventricularCalciumDeposit.rvFreeWallBaseStrength")
@@ -25413,7 +27545,7 @@ function assertCanonicalEqual(actual, expected, message) {
     throw new Error(message);
   }
 }
-function safeCounterAdd(value, increment, field) {
+function safeCounterAdd$1(value, increment, field) {
   const next = value + increment;
   if (!Number.isSafeInteger(next) || next < 0) throw new Error(`${field} cannot increment safely`);
   return next;
@@ -25447,7 +27579,7 @@ function requireNonemptyString(value, field) {
   if (typeof value !== "string" || value.length === 0) throw new Error(`${field} must be a nonempty string`);
   return value;
 }
-function requirePositiveFinite$3(value, field) {
+function requirePositiveFinite$6(value, field) {
   if (typeof value !== "number" || !Number.isFinite(value) || !(value > 0)) throw new Error(`${field} must be positive finite`);
   return value;
 }
@@ -25704,7 +27836,7 @@ function stepMainWireIntegratedModelWithCoronaryExecutorV3(previous, input, exec
     );
     coronaryStep = coronaryExecution.coronaryStep;
     if (coronaryStep.converged === false) {
-      return failure(
+      return failure$1(
         previous,
         "coronary-v3-candidate-failed",
         coronaryStep.message,
@@ -25766,7 +27898,7 @@ function stepMainWireIntegratedModelWithCoronaryExecutorV3(previous, input, exec
       dynamicMechanicalSupportCommitted: true
     });
   } catch (error) {
-    return failure(
+    return failure$1(
       previous,
       coronaryStep?.converged === true ? "integrated-promotion-rejected" : "outer-input-clock-binding-or-boundary-rejected",
       error instanceof Error ? error.message : String(error),
@@ -25811,6 +27943,14 @@ function validateMainWireIntegratedModelAcceptedStateV3(state, rhythm, dynamicPr
   if (state.coronary.revision !== state.revision || state.composedRhythm.revision !== state.revision || state.coronary.acceptedTimeSec !== state.acceptedTimeSec || state.composedRhythm.acceptedTimeSec !== state.acceptedTimeSec) {
     throw new Error("composed integrated accepted owner clocks differ");
   }
+}
+function validateMainWireIntegratedModelAcceptedBoundaryV3(state, rhythm, dynamicProfile, dynamicConfig) {
+  validateMainWireIntegratedBoundaryV3(
+    state,
+    rhythm,
+    dynamicProfile,
+    dynamicConfig
+  );
 }
 function wrapMainWireIntegratedModelAcceptedStateV3(coronary, composedRhythm, dynamicMechanicalSupport, rhythm, dynamicProfile, dynamicConfig) {
   const state = constructMainWireIntegratedModelAcceptedStateV3(
@@ -25928,7 +28068,7 @@ function externalBatchForCandidate(previous, rhythm, candidateTimeSec) {
   }
   return rhythm.externalAtrialSourceBatch;
 }
-function failure(previous, reason, message, details) {
+function failure$1(previous, reason, message, details) {
   return Object.freeze({
     converged: false,
     reason,
@@ -28233,9 +30373,6 @@ function assertObservationPairV3(observation2) {
     );
   }
 }
-const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID = "main-wire-integrated-model-output-registry-v5";
-const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_SCHEMA_VERSION = 3;
-const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID = "main-wire-integrated-model-output-frame-v5";
 const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
   ...["LA", "LV", "RA", "RV"].map((chamber) => definition(
     `hemodynamics.volume.${chamber}`,
@@ -28489,18 +30626,6 @@ class MainWireIntegratedModelOutputProjectionErrorV3 extends Error {
     this.name = "MainWireIntegratedModelOutputProjectionErrorV3";
   }
 }
-function projectMainWireIntegratedModelObservationV3(observation2) {
-  const values2 = projectMainWireIntegratedModelSelectedValuesV3(
-    observation2,
-    MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3
-  );
-  return Object.freeze({
-    frameId: MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID,
-    registryId: MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID,
-    schemaVersion: MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_SCHEMA_VERSION,
-    values: Object.freeze(values2)
-  });
-}
 function projectMainWireIntegratedModelSelectedValuesV3(observation2, outputIds) {
   assertObservationReadbackPairV3(observation2);
   const values2 = {};
@@ -28523,17 +30648,57 @@ function projectMainWireIntegratedModelSelectedValuesV3(observation2, outputIds)
   }
   return Object.freeze(values2);
 }
+function projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(input, outputIds) {
+  const readback = input.acceptedNumericalReadback;
+  if (!(readback instanceof Float64Array) || readback.length !== MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1) {
+    throw new MainWireIntegratedModelOutputProjectionErrorV3(
+      "accepted numerical readback must contain exactly 32 f64 values"
+    );
+  }
+  const acceptedTimeSec = input.acceptedTimeSec;
+  if (!Number.isFinite(acceptedTimeSec) || readback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec] !== acceptedTimeSec) {
+    throw new MainWireIntegratedModelOutputProjectionErrorV3(
+      "accepted numerical readback clock differs from typed presentation state"
+    );
+  }
+  const values2 = {};
+  const seen = /* @__PURE__ */ new Set();
+  for (const outputId of outputIds) {
+    if (seen.has(outputId)) {
+      throw new MainWireIntegratedModelOutputProjectionErrorV3(
+        `selected output ${outputId} is duplicated`
+      );
+    }
+    seen.add(outputId);
+    values2[outputId] = projectMainWireIntegratedModelOutputValueV3(
+      void 0,
+      input.runtimeSignals,
+      input.completedBeatMetrics,
+      null,
+      readback,
+      outputId,
+      Object.freeze({
+        acceptedTimeSec,
+        regularSinusCycleLengthSec: input.regularSinusCycleLengthSec,
+        regularSinusNextActivationTimeSec: input.regularSinusNextActivationTimeSec,
+        dynamicMechanicalSupportLvadFlowMlPerSec: input.dynamicMechanicalSupportLvadFlowMlPerSec
+      })
+    );
+  }
+  return Object.freeze(values2);
+}
 function projectMainWireIntegratedModelOutputValueV3(accepted, runtimeSignals, completedBeatMetrics, step, numericalReadback, outputId, typedState) {
+  const layout = MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1;
   switch (outputId) {
     case "hemodynamics.volume.LA":
     case "hemodynamics.volume.LV":
     case "hemodynamics.volume.RA":
     case "hemodynamics.volume.RV": {
       const chamber = outputId.slice(-2);
-      MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.indexOf(chamber);
+      const readbackIndex = MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.indexOf(chamber);
       return availableValue(
         outputId,
-        requiredAcceptedStateV3(accepted).coronary.circulation.nodeVolumesMl[chamber],
+        numericalReadback === null ? requiredAcceptedStateV3(accepted).coronary.circulation.nodeVolumesMl[chamber] : numericalReadback[layout.chamberVolumeMl + readbackIndex],
         "authoritative-state"
       );
     }
@@ -28549,7 +30714,7 @@ function projectMainWireIntegratedModelOutputValueV3(accepted, runtimeSignals, c
       const node = outputId.slice("hemodynamics.pressure.absolute.".length);
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg[node]
+        numericalReadback === null ? step?.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg[node] : numericalReadback[layout.absolutePressureMmHg + MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1.indexOf(node)]
       );
     }
     case "hemodynamics.pressure.transmural.LA":
@@ -28559,7 +30724,7 @@ function projectMainWireIntegratedModelOutputValueV3(accepted, runtimeSignals, c
       const chamber = outputId.slice(-2);
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg[chamber]
+        numericalReadback === null ? step?.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg[chamber] : numericalReadback[layout.transmuralPressureMmHg + MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.indexOf(chamber)]
       );
     }
     case "hemodynamics.flow.valve.MV":
@@ -28569,33 +30734,33 @@ function projectMainWireIntegratedModelOutputValueV3(accepted, runtimeSignals, c
       const valve = outputId.slice("hemodynamics.flow.valve.".length);
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial.valveEvaluations[valve].flowMlPerSec
+        numericalReadback === null ? step?.coronaryStep.baseStep.circulationTrial.valveEvaluations[valve].flowMlPerSec : numericalReadback[layout.valveFlowMlPerSec + MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1.indexOf(valve)]
       );
     }
     case "hemodynamics.flow.systemic.SA_Art":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.SA_Art
+        numericalReadback?.[layout.systemicTissueFlowMlPerSec] ?? step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.SA_Art
       );
     case "hemodynamics.flow.pulmonary.PA_PArt":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.PA_PArt
+        numericalReadback?.[layout.pulmonaryFlowMlPerSec] ?? step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.PA_PArt
       );
     case "hemodynamics.flow.venous.VC_RA":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.VC_RA
+        numericalReadback?.[layout.systemicVenousFlowMlPerSec] ?? step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.VC_RA
       );
     case "hemodynamics.flow.venous.PVein_LA":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.PVein_LA
+        numericalReadback?.[layout.pulmonaryVenousFlowMlPerSec] ?? step?.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.PVein_LA
       );
     case "pericardium.pressure.excess":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.pericardium.excessPressureMmHg
+        numericalReadback?.[layout.pericardialExcessPressureMmHg] ?? step?.coronaryStep.baseStep.pericardium.excessPressureMmHg
       );
     case "respiration.pressure.pleural":
       return availableValue(
@@ -28612,36 +30777,43 @@ function projectMainWireIntegratedModelOutputValueV3(accepted, runtimeSignals, c
     case "rhythm.heart-rate.instantaneous":
       return availableValue(
         outputId,
-        regularSinusHeartRateBpmV3(
+        typedState?.regularSinusCycleLengthSec === void 0 ? regularSinusHeartRateBpmV3(
           requiredAcceptedStateV3(accepted).composedRhythm
+        ) : 60 / positiveCycleLengthSecV3(
+          typedState.regularSinusCycleLengthSec
         ),
         "accepted-derived"
       );
     case "coronary.flow.total":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.totalInletFlowMlPerSec
+        numericalReadback?.[layout.coronaryFlowMlPerSec] ?? step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.totalInletFlowMlPerSec
       );
     case "coronary.flow.inlet.LAD":
     case "coronary.flow.inlet.LCx":
     case "coronary.flow.inlet.RCA": {
       const territory = outputId.slice("coronary.flow.inlet.".length);
+      const territoryIndex = territory === "LAD" ? 0 : territory === "LCx" ? 1 : 2;
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.inletFlowMlPerSecByTerritory[territory]
+        numericalReadback?.[layout.coronaryFlowMlPerSec + 1 + territoryIndex] ?? step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.inletFlowMlPerSecByTerritory[territory]
       );
     }
     case "device.LVAD.flow":
       return availableValue(
         outputId,
-        requiredAcceptedStateV3(accepted).dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD,
+        typedState?.dynamicMechanicalSupportLvadFlowMlPerSec ?? requiredAcceptedStateV3(accepted).dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD,
         "authoritative-state"
       );
     case "rhythm.phase.regular-sinus":
       return availableValue(
         outputId,
-        regularSinusPhase01V3(
+        typedState?.regularSinusCycleLengthSec === void 0 || typedState.regularSinusNextActivationTimeSec === void 0 ? regularSinusPhase01V3(
           requiredAcceptedStateV3(accepted).composedRhythm
+        ) : regularSinusPhaseFromClockV3(
+          typedState.acceptedTimeSec,
+          typedState.regularSinusCycleLengthSec,
+          typedState.regularSinusNextActivationTimeSec
         ),
         "accepted-derived"
       );
@@ -28716,14 +30888,6 @@ function projectMainWireIntegratedModelOutputValueV3(accepted, runtimeSignals, c
         completedBeatMetrics?.pulmonaryOutputLPerMin
       );
   }
-}
-function projectMainWireIntegratedModelAdvancedFrameV3(advance) {
-  if (advance.status !== "advanced") {
-    throw new MainWireIntegratedModelOutputProjectionErrorV3(
-      `${advance.status} presentation advance has no new sample`
-    );
-  }
-  return projectMainWireIntegratedModelObservationV3(advance.observation);
 }
 function definition(outputId, quantityKind, unit, sourceKind, sourcePath) {
   return Object.freeze({
@@ -28813,6 +30977,26 @@ function requiredAcceptedStateV3(accepted) {
     );
   }
   return accepted;
+}
+function positiveCycleLengthSecV3(value) {
+  if (!Number.isFinite(value) || !(value > 0)) {
+    throw new MainWireIntegratedModelOutputProjectionErrorV3(
+      "regular-sinus cycle length is invalid"
+    );
+  }
+  return value;
+}
+function regularSinusPhaseFromClockV3(acceptedTimeSec, cycleLengthSec, nextActivationTimeSec) {
+  const cycle = positiveCycleLengthSecV3(cycleLengthSec);
+  if (!Number.isFinite(acceptedTimeSec) || acceptedTimeSec < 0 || !Number.isFinite(nextActivationTimeSec) || !(nextActivationTimeSec > acceptedTimeSec)) {
+    throw new MainWireIntegratedModelOutputProjectionErrorV3(
+      "regular-sinus accepted/activation clock is invalid"
+    );
+  }
+  const previousActivationTimeSec = nextActivationTimeSec - cycle;
+  const elapsedSec = acceptedTimeSec - previousActivationTimeSec;
+  const wrappedSec = (elapsedSec % cycle + cycle) % cycle;
+  return wrappedSec / cycle;
 }
 function assertObservationReadbackPairV3(observation2) {
   if (observation2.source === "presentation-target" && observation2.lastAcceptedStep === null) {
@@ -29834,7 +32018,7 @@ function validateAcceptedState(state, label) {
     throw new Error(`${label} coronary V2 periodic transaction id is invalid`);
   }
   if (!Number.isInteger(state.revision) || state.revision < 0 || !Number.isFinite(state.acceptedTimeSec) || state.acceptedTimeSec < 0 || state.circulation.revision !== state.revision || state.coronary.revision !== state.revision || state.mechanics.revision !== state.revision || state.circulation.acceptedTimeSec !== state.acceptedTimeSec || state.coronary.acceptedTimeSec !== state.acceptedTimeSec || state.mechanics.acceptedTimeSec !== state.acceptedTimeSec) throw new Error(`${label} coronary V2 periodic tuple clocks differ`);
-  requirePositiveFinite$2(
+  requirePositiveFinite$5(
     state.fixedGlobalTotalBloodVolumeMl,
     `${label}.fixedGlobalTotalBloodVolumeMl`
   );
@@ -29862,7 +32046,7 @@ function validateAcceptedState(state, label) {
   }
   const nonCoronaryVolumeMl = NON_CORONARY_NODE_NAMES_V1.reduce(
     (sum, nodeId) => {
-      requirePositiveFinite$2(
+      requirePositiveFinite$5(
         state.circulation.nodeVolumesMl[nodeId],
         `${label}.circulation.nodeVolumesMl.${nodeId}`
       );
@@ -29872,7 +32056,7 @@ function validateAcceptedState(state, label) {
   );
   const coronaryVolumeMl = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.reduce(
     (sum, nodeId) => {
-      requirePositiveFinite$2(
+      requirePositiveFinite$5(
         state.coronary.volumeMlByNode[nodeId],
         `${label}.coronary.volumeMlByNode.${nodeId}`
       );
@@ -29887,7 +32071,7 @@ function validateAcceptedState(state, label) {
   }
   for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
     for (const layerId of CORONARY_LAYER_IDS_V2) {
-      requirePositiveFinite$2(
+      requirePositiveFinite$5(
         state.coronary.toneResistanceScaleByTerritoryLayer[territoryId][layerId],
         `${label}.${territoryId}.${layerId} coronary tone`
       );
@@ -29912,7 +32096,7 @@ function validateScales$2(scales) {
   }
   for (const [name, value] of Object.entries(scales)) {
     if (name !== "scaleSetId") {
-      requirePositiveFinite$2(value, `periodic reference scale ${name}`);
+      requirePositiveFinite$5(value, `periodic reference scale ${name}`);
     }
   }
 }
@@ -29923,7 +32107,7 @@ function assertExactKeys$1(value, keys, label) {
     throw new Error(`${label} keys differ from the accepted schema`);
   }
 }
-function requirePositiveFinite$2(value, label) {
+function requirePositiveFinite$5(value, label) {
   requireFinite$2(value, label);
   if (!(value > 0)) throw new Error(`${label} must be positive`);
 }
@@ -30250,7 +32434,7 @@ function validateScales$1(scales) {
   }
   for (const [name, value] of Object.entries(scales)) {
     if (name !== "scaleSetId") {
-      requirePositiveFinite$1(
+      requirePositiveFinite$4(
         value,
         `coronary V3 periodic reference scale ${name}`
       );
@@ -30267,7 +32451,7 @@ function assertExactKeys(value, keys, label) {
 function nearlyEqual$2(left, right) {
   return Math.abs(left - right) <= 64 * Number.EPSILON * Math.max(1, Math.abs(left), Math.abs(right));
 }
-function requirePositiveFinite$1(value, label) {
+function requirePositiveFinite$4(value, label) {
   requireFinite$1(value, label);
   if (!(value > 0)) throw new Error(`${label} must be positive`);
 }
@@ -31500,7 +33684,7 @@ function addNullableMetadataNumber(entries, group, path, currentValue, reference
 function numericEntry(group, path, unit, currentValue, referenceValue, referenceScale) {
   requireFinite(currentValue, `${path} current`);
   requireFinite(referenceValue, `${path} reference`);
-  requirePositiveFinite(referenceScale, `${path} scale`);
+  requirePositiveFinite$3(referenceScale, `${path} scale`);
   const absoluteDelta = Math.abs(currentValue - referenceValue);
   return Object.freeze({
     kind: "numeric",
@@ -31607,7 +33791,7 @@ function requireFinite(value, label) {
   }
   return value;
 }
-function requirePositiveFinite(value, label) {
+function requirePositiveFinite$3(value, label) {
   const number = requireFinite(value, label);
   if (!(number > 0)) throw new Error(`${label} must be positive`);
   return number;
@@ -32706,7 +34890,7 @@ class MainWireIntegratedModelSessionV3 {
     this.lastAcceptedStep = null;
     this.beatAccumulator = exactBeatState?.beatAccumulator ?? new MainWireIntegratedModelBeatAccumulatorV3();
     this.completedBeatMetrics = exactBeatState?.completedBeatMetrics ?? null;
-    this.lastPresentationObservation = observation(
+    this.lastPresentationObservation = observation$1(
       observationSource,
       acceptedState2,
       null,
@@ -32891,10 +35075,10 @@ class MainWireIntegratedModelSessionV3 {
           this.dynamicMechanicalSupportConfig
         );
       } catch (error) {
-        if (!isNonadvancingLimiterError(error)) throw error;
+        if (!isNonadvancingLimiterError$1(error)) throw error;
         return this.failedAdvance(
           "candidate-time-did-not-advance",
-          errorMessage$1(error),
+          errorMessage$3(error),
           targetTimeSec,
           substeps
         );
@@ -32977,7 +35161,7 @@ class MainWireIntegratedModelSessionV3 {
         substeps
       );
     }
-    const nextObservation = observation(
+    const nextObservation = observation$1(
       "presentation-target",
       this.acceptedState,
       this.lastAcceptedStep,
@@ -33024,6 +35208,7877 @@ class MainWireIntegratedModelSessionV3 {
     });
   }
 }
+function observation$1(source, acceptedState2, lastAcceptedStep, runtime, completedBeatMetrics) {
+  const respiratory = respiratoryExternalPressuresV1(
+    acceptedState2.acceptedTimeSec,
+    runtime.coronaryStepInput.runtime.respiratory
+  );
+  return Object.freeze({
+    source,
+    acceptedState: acceptedState2,
+    lastAcceptedStep,
+    runtimeSignals: Object.freeze({
+      pleuralPressureMmHg: respiratory.pthMmHg,
+      alveolarPressureMmHg: respiratory.palvMmHg
+    }),
+    completedBeatMetrics
+  });
+}
+function isNonadvancingLimiterError$1(error) {
+  return error instanceof Error && (error.message === "composed integrated requested endpoint must advance" || error.message === "composed integrated coronary-capped step must be positive");
+}
+function errorMessage$3(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+const CANONICAL_FLAT_CHECKPOINT_V1_MAGIC = "CHFLATB1";
+const CHECKPOINT_HEADER_BYTES = 8 + 4 + 32;
+const MAX_DEPTH = 256;
+const MAX_CONTAINER_ITEMS = 1e6;
+const MAX_STRING_BYTES = 16 * 1024 * 1024;
+function encodeCanonicalFlatDataIntoV1(value, destination) {
+  assertOwnedDestination(destination);
+  const writer = new FixedWriterV1(destination);
+  encodeValue(value, writer, /* @__PURE__ */ new Set(), 0, "$");
+  return writer.length;
+}
+function decodeCanonicalFlatDataV1(source, length = source.byteLength) {
+  assertOwnedDestination(source);
+  if (!Number.isSafeInteger(length) || length < 0 || length > source.byteLength) {
+    throw new Error("Canonical flat data length is invalid");
+  }
+  const reader = new ReaderV1(source.subarray(0, length));
+  const value = decodeValue(reader, 0);
+  if (reader.remaining !== 0) {
+    throw new Error("Canonical flat data contains trailing bytes");
+  }
+  return value;
+}
+async function encodeCanonicalFlatCheckpointV1(value) {
+  const payloadLength = measureCanonicalFlatDataV1(value);
+  const payload = new Uint8Array(payloadLength);
+  const written = encodeCanonicalFlatDataIntoV1(value, payload);
+  if (written !== payloadLength) {
+    throw new Error("Canonical flat checkpoint length changed while encoding");
+  }
+  const digest2 = await sha256Bytes(payload);
+  const encoded = new Uint8Array(CHECKPOINT_HEADER_BYTES + payloadLength);
+  encoded.set(new TextEncoder().encode(CANONICAL_FLAT_CHECKPOINT_V1_MAGIC), 0);
+  new DataView(encoded.buffer).setUint32(8, payloadLength, false);
+  encoded.set(digest2, 12);
+  encoded.set(payload, CHECKPOINT_HEADER_BYTES);
+  return encoded;
+}
+async function decodeCanonicalFlatCheckpointV1(input) {
+  assertOwnedDestination(input);
+  if (input.byteLength < CHECKPOINT_HEADER_BYTES) {
+    throw new Error("Canonical flat checkpoint is truncated");
+  }
+  const magic = new TextDecoder("utf-8", { fatal: true }).decode(
+    input.subarray(0, 8)
+  );
+  if (magic !== CANONICAL_FLAT_CHECKPOINT_V1_MAGIC) {
+    throw new Error("Canonical flat checkpoint magic is unsupported");
+  }
+  const payloadLength = new DataView(
+    input.buffer,
+    input.byteOffset,
+    input.byteLength
+  ).getUint32(8, false);
+  if (payloadLength !== input.byteLength - CHECKPOINT_HEADER_BYTES) {
+    throw new Error("Canonical flat checkpoint payload length is invalid");
+  }
+  const expected = input.subarray(12, CHECKPOINT_HEADER_BYTES);
+  const payload = input.subarray(CHECKPOINT_HEADER_BYTES);
+  const actual = await sha256Bytes(payload);
+  if (!constantTimeEqual(expected, actual)) {
+    throw new Error("Canonical flat checkpoint SHA-256 mismatch");
+  }
+  return decodeCanonicalFlatDataV1(payload);
+}
+function measureCanonicalFlatDataV1(value) {
+  const writer = new MeasuringWriterV1();
+  encodeValue(value, writer, /* @__PURE__ */ new Set(), 0, "$");
+  return writer.length;
+}
+class FixedWriterV1 {
+  #destination;
+  #view;
+  #offset = 0;
+  constructor(destination) {
+    this.#destination = destination;
+    this.#view = new DataView(
+      destination.buffer,
+      destination.byteOffset,
+      destination.byteLength
+    );
+  }
+  get length() {
+    return this.#offset;
+  }
+  u8(value) {
+    this.reserve(1);
+    this.#view.setUint8(this.#offset, value);
+    this.#offset += 1;
+  }
+  u16(value) {
+    this.reserve(2);
+    this.#view.setUint16(this.#offset, value, false);
+    this.#offset += 2;
+  }
+  u32(value) {
+    this.reserve(4);
+    this.#view.setUint32(this.#offset, value, false);
+    this.#offset += 4;
+  }
+  i8(value) {
+    this.reserve(1);
+    this.#view.setInt8(this.#offset, value);
+    this.#offset += 1;
+  }
+  i16(value) {
+    this.reserve(2);
+    this.#view.setInt16(this.#offset, value, false);
+    this.#offset += 2;
+  }
+  i32(value) {
+    this.reserve(4);
+    this.#view.setInt32(this.#offset, value, false);
+    this.#offset += 4;
+  }
+  f32(value) {
+    this.reserve(4);
+    this.#view.setFloat32(this.#offset, value, false);
+    this.#offset += 4;
+  }
+  f64(value) {
+    this.reserve(8);
+    this.#view.setFloat64(this.#offset, value, false);
+    this.#offset += 8;
+  }
+  bytes(value) {
+    this.reserve(value.byteLength);
+    this.#destination.set(value, this.#offset);
+    this.#offset += value.byteLength;
+  }
+  reserve(byteLength) {
+    if (this.#offset + byteLength > this.#destination.byteLength) {
+      throw new Error("Canonical flat data exceeds its fixed capacity");
+    }
+  }
+}
+class MeasuringWriterV1 {
+  #length = 0;
+  get length() {
+    return this.#length;
+  }
+  u8() {
+    this.add(1);
+  }
+  u16() {
+    this.add(2);
+  }
+  u32() {
+    this.add(4);
+  }
+  i8() {
+    this.add(1);
+  }
+  i16() {
+    this.add(2);
+  }
+  i32() {
+    this.add(4);
+  }
+  f32() {
+    this.add(4);
+  }
+  f64() {
+    this.add(8);
+  }
+  bytes(value) {
+    this.add(value.byteLength);
+  }
+  add(byteLength) {
+    this.#length += byteLength;
+    if (!Number.isSafeInteger(this.#length) || this.#length > 4294967295) {
+      throw new Error("Canonical flat data is too large");
+    }
+  }
+}
+class ReaderV1 {
+  #source;
+  #view;
+  #offset = 0;
+  constructor(source) {
+    this.#source = source;
+    this.#view = new DataView(source.buffer, source.byteOffset, source.byteLength);
+  }
+  get remaining() {
+    return this.#source.byteLength - this.#offset;
+  }
+  u8() {
+    this.require(1);
+    return this.#view.getUint8(this.#offset++);
+  }
+  i8() {
+    this.require(1);
+    return this.#view.getInt8(this.#offset++);
+  }
+  u16() {
+    this.require(2);
+    const value = this.#view.getUint16(this.#offset, false);
+    this.#offset += 2;
+    return value;
+  }
+  i16() {
+    this.require(2);
+    const value = this.#view.getInt16(this.#offset, false);
+    this.#offset += 2;
+    return value;
+  }
+  u32() {
+    this.require(4);
+    const value = this.#view.getUint32(this.#offset, false);
+    this.#offset += 4;
+    return value;
+  }
+  i32() {
+    this.require(4);
+    const value = this.#view.getInt32(this.#offset, false);
+    this.#offset += 4;
+    return value;
+  }
+  f32() {
+    this.require(4);
+    const value = this.#view.getFloat32(this.#offset, false);
+    this.#offset += 4;
+    return value;
+  }
+  f64() {
+    this.require(8);
+    const value = this.#view.getFloat64(this.#offset, false);
+    this.#offset += 8;
+    return value;
+  }
+  bytes(length) {
+    this.require(length);
+    const value = this.#source.subarray(this.#offset, this.#offset + length);
+    this.#offset += length;
+    return value;
+  }
+  require(byteLength) {
+    if (!Number.isSafeInteger(byteLength) || byteLength < 0 || byteLength > this.remaining) {
+      throw new Error("Canonical flat data is truncated");
+    }
+  }
+}
+function encodeValue(value, writer, ancestors, depth, path) {
+  if (depth > MAX_DEPTH) throw new Error(`Canonical flat data ${path} is too deep`);
+  if (value === null) {
+    writer.u8(
+      0
+      /* Null */
+    );
+    return;
+  }
+  if (value === false) {
+    writer.u8(
+      1
+      /* False */
+    );
+    return;
+  }
+  if (value === true) {
+    writer.u8(
+      2
+      /* True */
+    );
+    return;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error(`Canonical flat data ${path} must be finite`);
+    }
+    writer.u8(
+      3
+      /* Float64 */
+    );
+    writer.f64(value);
+    return;
+  }
+  if (typeof value === "string") {
+    writer.u8(
+      4
+      /* String */
+    );
+    writeString(value, writer, path);
+    return;
+  }
+  if (typeof value !== "object") {
+    throw new Error(`Canonical flat data ${path} has an unsupported value`);
+  }
+  if (ancestors.has(value)) {
+    throw new Error(`Canonical flat data ${path} contains a cycle`);
+  }
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value)) {
+      const descriptors2 = Object.getOwnPropertyDescriptors(value);
+      assertDenseArrayDescriptors(value, descriptors2, path);
+      assertItemCount(value.length, path);
+      writer.u8(
+        5
+        /* Array */
+      );
+      writer.u32(value.length);
+      for (let index = 0; index < value.length; index += 1) {
+        encodeValue(
+          descriptors2[String(index)].value,
+          writer,
+          ancestors,
+          depth + 1,
+          `${path}/${index}`
+        );
+      }
+      return;
+    }
+    if (isSupportedTypedArray(value)) {
+      encodeTypedArray(value, writer, path);
+      return;
+    }
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new Error(`Canonical flat data ${path} has an unsupported prototype`);
+    }
+    const descriptors = Object.getOwnPropertyDescriptors(value);
+    const keys = Object.keys(descriptors).sort(compareStrings);
+    assertItemCount(keys.length, path);
+    for (const key of Reflect.ownKeys(descriptors)) {
+      if (typeof key !== "string" || !Object.prototype.propertyIsEnumerable.call(value, key)) {
+        throw new Error(`Canonical flat data ${path} contains a non-enumerable or symbol key`);
+      }
+    }
+    writer.u8(
+      prototype === null ? 7 : 6
+      /* Record */
+    );
+    writer.u32(keys.length);
+    for (const key of keys) {
+      const descriptor = descriptors[key];
+      if (!("value" in descriptor)) {
+        throw new Error(`Canonical flat data ${path}/${escapePointer(key)} is an accessor`);
+      }
+      writeString(key, writer, `${path} key`);
+      encodeValue(
+        descriptor.value,
+        writer,
+        ancestors,
+        depth + 1,
+        `${path}/${escapePointer(key)}`
+      );
+    }
+  } finally {
+    ancestors.delete(value);
+  }
+}
+function decodeValue(reader, depth) {
+  if (depth > MAX_DEPTH) throw new Error("Canonical flat data is too deep");
+  const tag = reader.u8();
+  switch (tag) {
+    case 0:
+      return null;
+    case 1:
+      return false;
+    case 2:
+      return true;
+    case 3: {
+      const value = reader.f64();
+      if (!Number.isFinite(value)) throw new Error("Canonical flat number must be finite");
+      return value;
+    }
+    case 4:
+      return readString(reader);
+    case 5: {
+      const length = readItemCount(reader);
+      const values2 = new Array(length);
+      for (let index = 0; index < length; index += 1) {
+        values2[index] = decodeValue(reader, depth + 1);
+      }
+      return Object.freeze(values2);
+    }
+    case 6:
+    case 7: {
+      const count = readItemCount(reader);
+      const record = Object.create(
+        tag === 6 ? Object.prototype : null
+      );
+      let previous = null;
+      for (let index = 0; index < count; index += 1) {
+        const key = readString(reader);
+        if (previous !== null && compareStrings(previous, key) >= 0) {
+          throw new Error("Canonical flat record keys are not strictly ordered");
+        }
+        previous = key;
+        Object.defineProperty(record, key, {
+          value: decodeValue(reader, depth + 1),
+          enumerable: true,
+          writable: false,
+          configurable: false
+        });
+      }
+      return Object.freeze(record);
+    }
+    case 16:
+    case 17:
+    case 18:
+    case 19:
+    case 20:
+    case 21:
+    case 22:
+    case 23:
+    case 24:
+      return decodeTypedArray(tag, reader);
+    default:
+      throw new Error("Canonical flat data tag is unsupported");
+  }
+}
+function encodeTypedArray(value, writer, path) {
+  assertItemCount(value.length, path);
+  const tag = typedArrayTag(value);
+  writer.u8(tag);
+  writer.u32(value.length);
+  for (let index = 0; index < value.length; index += 1) {
+    const item = value[index];
+    switch (tag) {
+      case 16:
+        if (!Number.isFinite(item)) throw new Error(`Canonical flat data ${path}/${index} must be finite`);
+        writer.f64(item);
+        break;
+      case 17:
+        if (!Number.isFinite(item)) throw new Error(`Canonical flat data ${path}/${index} must be finite`);
+        writer.f32(item);
+        break;
+      case 18:
+        writer.i32(item);
+        break;
+      case 19:
+        writer.u32(item);
+        break;
+      case 20:
+        writer.i16(item);
+        break;
+      case 21:
+        writer.u16(item);
+        break;
+      case 22:
+        writer.i8(item);
+        break;
+      case 23:
+      case 24:
+        writer.u8(item);
+        break;
+    }
+  }
+}
+function decodeTypedArray(tag, reader) {
+  const length = readItemCount(reader);
+  switch (tag) {
+    case 16: {
+      const result = new Float64Array(length);
+      for (let index = 0; index < length; index += 1) {
+        const value = reader.f64();
+        if (!Number.isFinite(value)) throw new Error("Canonical flat typed value must be finite");
+        result[index] = value;
+      }
+      return result;
+    }
+    case 17: {
+      const result = new Float32Array(length);
+      for (let index = 0; index < length; index += 1) {
+        const value = reader.f32();
+        if (!Number.isFinite(value)) throw new Error("Canonical flat typed value must be finite");
+        result[index] = value;
+      }
+      return result;
+    }
+    case 18:
+      return fillTyped(new Int32Array(length), () => reader.i32());
+    case 19:
+      return fillTyped(new Uint32Array(length), () => reader.u32());
+    case 20:
+      return fillTyped(new Int16Array(length), () => reader.i16());
+    case 21:
+      return fillTyped(new Uint16Array(length), () => reader.u16());
+    case 22:
+      return fillTyped(new Int8Array(length), () => reader.i8());
+    case 23:
+      return fillTyped(new Uint8Array(length), () => reader.u8());
+    case 24:
+      return fillTyped(new Uint8ClampedArray(length), () => reader.u8());
+    default:
+      throw new Error("Canonical flat typed-array tag is unsupported");
+  }
+}
+function fillTyped(destination, read) {
+  for (let index = 0; index < destination.length; index += 1) {
+    destination[index] = read();
+  }
+  return destination;
+}
+function typedArrayTag(value) {
+  if (value instanceof Float64Array) return 16;
+  if (value instanceof Float32Array) return 17;
+  if (value instanceof Int32Array) return 18;
+  if (value instanceof Uint32Array) return 19;
+  if (value instanceof Int16Array) return 20;
+  if (value instanceof Uint16Array) return 21;
+  if (value instanceof Int8Array) return 22;
+  if (value instanceof Uint8ClampedArray) return 24;
+  return 23;
+}
+function isSupportedTypedArray(value) {
+  return value instanceof Float64Array || value instanceof Float32Array || value instanceof Int32Array || value instanceof Uint32Array || value instanceof Int16Array || value instanceof Uint16Array || value instanceof Int8Array || value instanceof Uint8Array || value instanceof Uint8ClampedArray;
+}
+function assertDenseArrayDescriptors(value, descriptors, path) {
+  const length = value.length;
+  const keys = Reflect.ownKeys(descriptors);
+  if (keys.length !== length + 1 || !("length" in descriptors)) {
+    throw new Error(`Canonical flat data ${path} must be a dense plain array`);
+  }
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = descriptors[String(index)];
+    if (descriptor === void 0 || !("value" in descriptor)) {
+      throw new Error(`Canonical flat data ${path}/${index} is missing or an accessor`);
+    }
+  }
+}
+function writeString(value, writer, path) {
+  if (!isWellFormedString(value)) {
+    throw new Error(`Canonical flat data ${path} contains an unpaired surrogate`);
+  }
+  const bytes = new TextEncoder().encode(value);
+  if (bytes.byteLength > MAX_STRING_BYTES) {
+    throw new Error(`Canonical flat data ${path} string is too large`);
+  }
+  writer.u32(bytes.byteLength);
+  writer.bytes(bytes);
+}
+function readString(reader) {
+  const length = reader.u32();
+  if (length > MAX_STRING_BYTES) throw new Error("Canonical flat string is too large");
+  const value = new TextDecoder("utf-8", { fatal: true }).decode(reader.bytes(length));
+  if (!isWellFormedString(value)) throw new Error("Canonical flat string is malformed");
+  return value;
+}
+function isWellFormedString(value) {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 55296 && code <= 56319) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 56320 && next <= 57343)) return false;
+      index += 1;
+    } else if (code >= 56320 && code <= 57343) {
+      return false;
+    }
+  }
+  return true;
+}
+function readItemCount(reader) {
+  const count = reader.u32();
+  assertItemCount(count, "decoded container");
+  return count;
+}
+function assertItemCount(count, path) {
+  if (!Number.isSafeInteger(count) || count < 0 || count > MAX_CONTAINER_ITEMS) {
+    throw new Error(`Canonical flat data ${path} has too many items`);
+  }
+}
+function assertOwnedDestination(value) {
+  if (!(value instanceof Uint8Array) || typeof SharedArrayBuffer !== "undefined" && value.buffer instanceof SharedArrayBuffer || value.buffer.resizable === true) {
+    throw new Error("Canonical flat data requires an owned fixed Uint8Array");
+  }
+}
+function compareStrings(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+function escapePointer(value) {
+  return value.replaceAll("~", "~0").replaceAll("/", "~1");
+}
+async function sha256Bytes(bytes) {
+  const subtle = globalThis.crypto?.subtle;
+  if (subtle === void 0) {
+    throw new Error("Web Crypto subtle.digest is required for flat checkpoints");
+  }
+  return new Uint8Array(await subtle.digest("SHA-256", bytes));
+}
+function constantTimeEqual(left, right) {
+  if (left.byteLength !== right.byteLength) return false;
+  let difference = 0;
+  for (let index = 0; index < left.byteLength; index += 1) {
+    difference |= left[index] ^ right[index];
+  }
+  return difference === 0;
+}
+const FLAT_NUMERICAL_STATE_LAYOUT_V1_SCHEMA_ID = "circleheart-flat-numerical-state-layout-v1";
+function createFlatNumericalStateLayoutV1(layoutId, referenceState, options = {}) {
+  if (layoutId.trim().length === 0) {
+    throw new Error("Flat numerical state layoutId is empty");
+  }
+  const continuousSlots = [];
+  const nullableContinuousSlots = [];
+  const nullableStringSlots = [];
+  const optionalRecordRoots = [];
+  const boundedArrayRoots = [];
+  const booleanSlots = [];
+  const stringSlots = [];
+  const externalImmutableRoots = [];
+  const excludedDynamicRoots = [];
+  const containers = [];
+  const fixedArrayPointers = new Set(
+    options.fixedArrayPointers?.map((value) => {
+      if (typeof value !== "string" || !value.startsWith("/")) {
+        throw new Error("Flat numerical fixed-array pointer is invalid");
+      }
+      return value;
+    }) ?? []
+  );
+  if (fixedArrayPointers.size !== (options.fixedArrayPointers?.length ?? 0)) {
+    throw new Error("Flat numerical fixed-array pointer is duplicated");
+  }
+  const admittedFixedArrayPointers = /* @__PURE__ */ new Set();
+  const admittedExternalImmutableBindings = pointerSet(
+    options.externalImmutablePointers,
+    "external-immutable"
+  );
+  const externalImmutableAliases = externalImmutableAliasMap(
+    options.externalImmutableAliases,
+    admittedExternalImmutableBindings
+  );
+  const externalImmutablePointers = new Set(
+    admittedExternalImmutableBindings
+  );
+  for (const targetPointer of externalImmutableAliases.keys()) {
+    if (externalImmutablePointers.has(targetPointer)) {
+      throw new Error(
+        "Flat numerical external-immutable alias target is duplicated"
+      );
+    }
+    externalImmutablePointers.add(targetPointer);
+  }
+  const admittedExternalImmutablePointers = /* @__PURE__ */ new Set();
+  const nullableContinuousPointers = pointerSet(
+    options.nullableContinuousPointers,
+    "nullable-continuous"
+  );
+  const admittedNullableContinuousPointers = /* @__PURE__ */ new Set();
+  const nullableStringPointers = pointerSet(
+    options.nullableStringPointers,
+    "nullable-string"
+  );
+  const admittedNullableStringPointers = /* @__PURE__ */ new Set();
+  const optionalRecordTemplates = optionalRecordTemplateMap(
+    options.optionalRecordTemplates
+  );
+  const admittedOptionalRecordPointers = /* @__PURE__ */ new Set();
+  const boundedArrayTemplates = boundedArrayTemplateMap(
+    options.boundedArrayTemplates
+  );
+  const admittedBoundedArrayPointers = /* @__PURE__ */ new Set();
+  visit(referenceState, [], {
+    continuousSlots,
+    nullableContinuousSlots,
+    nullableStringSlots,
+    optionalRecordRoots,
+    boundedArrayRoots,
+    booleanSlots,
+    stringSlots,
+    externalImmutableRoots,
+    excludedDynamicRoots,
+    containers,
+    fixedArrayPointers,
+    admittedFixedArrayPointers,
+    externalImmutablePointers,
+    externalImmutableAliases,
+    admittedExternalImmutablePointers,
+    nullableContinuousPointers,
+    admittedNullableContinuousPointers,
+    nullableStringPointers,
+    admittedNullableStringPointers,
+    optionalRecordTemplates,
+    admittedOptionalRecordPointers,
+    boundedArrayTemplates,
+    admittedBoundedArrayPointers
+  });
+  for (const fixedArrayPointer of fixedArrayPointers) {
+    if (!admittedFixedArrayPointers.has(fixedArrayPointer)) {
+      throw new Error(
+        `Flat numerical fixed-array ${fixedArrayPointer} is unavailable`
+      );
+    }
+  }
+  for (const externalImmutablePointer of externalImmutablePointers) {
+    if (!admittedExternalImmutablePointers.has(externalImmutablePointer)) {
+      throw new Error(
+        `Flat numerical external-immutable ${externalImmutablePointer} is unavailable`
+      );
+    }
+  }
+  for (const nullableContinuousPointer of nullableContinuousPointers) {
+    if (!admittedNullableContinuousPointers.has(nullableContinuousPointer)) {
+      throw new Error(
+        `Flat numerical nullable-continuous ${nullableContinuousPointer} is unavailable`
+      );
+    }
+  }
+  for (const nullableStringPointer of nullableStringPointers) {
+    if (!admittedNullableStringPointers.has(nullableStringPointer)) {
+      throw new Error(
+        `Flat numerical nullable-string ${nullableStringPointer} is unavailable`
+      );
+    }
+  }
+  for (const optionalRecordPointer of optionalRecordTemplates.keys()) {
+    if (!admittedOptionalRecordPointers.has(optionalRecordPointer)) {
+      throw new Error(
+        `Flat numerical optional-record ${optionalRecordPointer} is unavailable`
+      );
+    }
+  }
+  for (const boundedArrayPointer of boundedArrayTemplates.keys()) {
+    if (!admittedBoundedArrayPointers.has(boundedArrayPointer)) {
+      throw new Error(
+        `Flat numerical bounded-array ${boundedArrayPointer} is unavailable`
+      );
+    }
+  }
+  if (continuousSlots.length === 0) {
+    throw new Error("Flat numerical state contains no continuous slots");
+  }
+  const layout = Object.freeze({
+    schemaId: FLAT_NUMERICAL_STATE_LAYOUT_V1_SCHEMA_ID,
+    layoutId,
+    continuousSlots: Object.freeze(continuousSlots),
+    nullableContinuousSlots: Object.freeze(nullableContinuousSlots),
+    nullableStringSlots: Object.freeze(nullableStringSlots),
+    optionalRecordRoots: Object.freeze(optionalRecordRoots),
+    boundedArrayRoots: Object.freeze(boundedArrayRoots),
+    booleanSlots: Object.freeze(booleanSlots),
+    stringSlots: Object.freeze(stringSlots),
+    externalImmutableRoots: Object.freeze(externalImmutableRoots),
+    externalImmutableAliases: Object.freeze(
+      [...externalImmutableAliases.values()].sort((left, right) => left.pointer.localeCompare(right.pointer))
+    ),
+    excludedDynamicRoots: Object.freeze(excludedDynamicRoots),
+    containers: Object.freeze(containers)
+  });
+  assertFlatNumericalStateShapeV1(layout, referenceState);
+  return layout;
+}
+function assertFlatNumericalStateShapeV1(layout, state) {
+  for (const root of layout.optionalRecordRoots) {
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    if (value !== null && (typeof value !== "object" || Array.isArray(value))) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} must be null or a record`
+      );
+    }
+  }
+  for (const root of layout.boundedArrayRoots) {
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} must remain an array`
+      );
+    }
+    assertDataProperties(value, root.path, true);
+    const keys = Array.from({ length: value.length }, (_, index) => String(index));
+    if (!sameStrings(Object.keys(value), keys)) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} changed bounded-array shape`
+      );
+    }
+    if (value.length > root.capacity) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} exceeds bounded-array capacity`
+      );
+    }
+  }
+  for (const container2 of layout.containers) {
+    if (layoutEntryAbsent$1(layout, state, container2)) {
+      continue;
+    }
+    assertContainerShape(
+      readFlatNumericalStatePathV1(state, container2.path),
+      container2
+    );
+  }
+}
+function readFlatNumericalStatePathV1(root, path) {
+  return requiredPathValue(root, path);
+}
+function visit(value, path, destination, optionalRecordRootIndex = null, compilingOptionalPointer = null, boundedArrayRootIndex = null, boundedArrayItemIndex = null, compilingBoundedArrayPointer = null) {
+  const pathPointer = pointer$1(path);
+  const optionalTemplate = destination.optionalRecordTemplates.get(pathPointer);
+  if (optionalTemplate !== void 0 && compilingOptionalPointer !== pathPointer) {
+    if (optionalRecordRootIndex !== null || boundedArrayRootIndex !== null) {
+      throw new Error(
+        `Flat numerical optional-record ${pathPointer} may not be nested`
+      );
+    }
+    if (value !== null && (typeof value !== "object" || Array.isArray(value))) {
+      throw new Error(
+        `Flat numerical optional-record ${pathPointer} reference must be null or a record`
+      );
+    }
+    const nextOptionalRootIndex = destination.optionalRecordRoots.length;
+    destination.optionalRecordRoots.push(Object.freeze({
+      path: Object.freeze([...path]),
+      pointer: pathPointer,
+      template: optionalTemplate
+    }));
+    destination.admittedOptionalRecordPointers.add(pathPointer);
+    visit(
+      optionalTemplate,
+      path,
+      destination,
+      nextOptionalRootIndex,
+      pathPointer,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex,
+      compilingBoundedArrayPointer
+    );
+    return;
+  }
+  const boundedArrayTemplate = destination.boundedArrayTemplates.get(pathPointer);
+  if (boundedArrayTemplate !== void 0 && compilingBoundedArrayPointer !== pathPointer) {
+    if (optionalRecordRootIndex !== null || boundedArrayRootIndex !== null) {
+      throw new Error(
+        `Flat numerical bounded-array ${pathPointer} may not be nested`
+      );
+    }
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `Flat numerical bounded-array ${pathPointer} reference must be an array`
+      );
+    }
+    assertDataProperties(value, path, true);
+    const keys = Array.from({ length: value.length }, (_, index) => String(index));
+    if (!sameStrings(Object.keys(value), keys)) {
+      throw new Error(
+        `Flat numerical state ${pathPointer} changed bounded-array shape`
+      );
+    }
+    if (value.length > boundedArrayTemplate.capacity) {
+      throw new Error(
+        `Flat numerical state ${pathPointer} exceeds bounded-array capacity`
+      );
+    }
+    const nextBoundedArrayRootIndex = destination.boundedArrayRoots.length;
+    destination.boundedArrayRoots.push(Object.freeze({
+      path: Object.freeze([...path]),
+      pointer: pathPointer,
+      capacity: boundedArrayTemplate.capacity,
+      itemTemplate: boundedArrayTemplate.itemTemplate
+    }));
+    destination.admittedBoundedArrayPointers.add(pathPointer);
+    for (let index = 0; index < boundedArrayTemplate.capacity; index += 1) {
+      visit(
+        boundedArrayTemplate.itemTemplate,
+        [...path, index],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+        nextBoundedArrayRootIndex,
+        index,
+        pathPointer
+      );
+    }
+    return;
+  }
+  if (destination.externalImmutablePointers.has(pathPointer)) {
+    if (boundedArrayRootIndex !== null || optionalRecordRootIndex !== null && !destination.externalImmutableAliases.has(pathPointer)) {
+      throw new Error(
+        `Flat numerical typed aggregate ${pathPointer} may not contain an external immutable root`
+      );
+    }
+    if (value === void 0 || typeof value === "function" || typeof value === "symbol" || typeof value === "bigint") {
+      throw new Error(
+        `Flat numerical external-immutable ${pathPointer} is unsupported`
+      );
+    }
+    destination.externalImmutableRoots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    destination.admittedExternalImmutablePointers.add(pathPointer);
+    return;
+  }
+  if (destination.nullableContinuousPointers.has(pathPointer)) {
+    if (value !== null) {
+      throw new Error(
+        `Flat numerical nullable-continuous ${pathPointer} reference must be null`
+      );
+    }
+    destination.nullableContinuousSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    destination.admittedNullableContinuousPointers.add(pathPointer);
+    return;
+  }
+  if (destination.nullableStringPointers.has(pathPointer)) {
+    if (value !== null) {
+      throw new Error(
+        `Flat numerical nullable-string ${pathPointer} reference must be null`
+      );
+    }
+    destination.nullableStringSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    destination.admittedNullableStringPointers.add(pathPointer);
+    return;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error(`Flat numerical state ${pointer$1(path)} must be finite`);
+    }
+    destination.continuousSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    return;
+  }
+  if (typeof value === "boolean") {
+    destination.booleanSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    return;
+  }
+  if (typeof value === "string") {
+    destination.stringSlots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    return;
+  }
+  if (value === null) {
+    if (boundedArrayRootIndex !== null) {
+      throw new Error(
+        `Flat numerical bounded-array item ${pathPointer} may not contain a dynamic root`
+      );
+    }
+    destination.excludedDynamicRoots.push(slot(
+      path,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    return;
+  }
+  if (Array.isArray(value)) {
+    if (!destination.fixedArrayPointers.has(pathPointer)) {
+      if (boundedArrayRootIndex !== null) {
+        throw new Error(
+          `Flat numerical bounded-array item ${pathPointer} may not contain a dynamic root`
+        );
+      }
+      destination.excludedDynamicRoots.push(slot(
+        path,
+        optionalRecordRootIndex,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex
+      ));
+      return;
+    }
+    assertDataProperties(value, path, true);
+    const keys = Array.from({ length: value.length }, (_, index) => String(index));
+    if (!sameStrings(Object.keys(value), keys)) {
+      throw new Error(`Flat numerical state ${pathPointer} changed array shape`);
+    }
+    destination.containers.push(container(
+      path,
+      "array",
+      keys,
+      null,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    destination.admittedFixedArrayPointers.add(pathPointer);
+    for (let index = 0; index < value.length; index += 1) {
+      visit(
+        value[index],
+        [...path, index],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex,
+        compilingBoundedArrayPointer
+      );
+    }
+    return;
+  }
+  if (isNumericTypedArray$1(value)) {
+    const keys = Array.from({ length: value.length }, (_, index) => String(index));
+    destination.containers.push(container(
+      path,
+      "typed-array",
+      keys,
+      value.constructor.name,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    for (let index = 0; index < value.length; index += 1) {
+      visit(
+        value[index],
+        [...path, index],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex,
+        compilingBoundedArrayPointer
+      );
+    }
+    return;
+  }
+  if (typeof value === "object") {
+    const prototypeTag = dataRecordPrototypeTag(value, path);
+    assertDataProperties(value, path, false);
+    const keys = Object.keys(value).sort();
+    destination.containers.push(container(
+      path,
+      "record",
+      keys,
+      prototypeTag,
+      optionalRecordRootIndex,
+      boundedArrayRootIndex,
+      boundedArrayItemIndex
+    ));
+    for (const key of keys) {
+      visit(
+        requiredOwnValue$1(value, key, path),
+        [...path, key],
+        destination,
+        optionalRecordRootIndex,
+        compilingOptionalPointer,
+        boundedArrayRootIndex,
+        boundedArrayItemIndex,
+        compilingBoundedArrayPointer
+      );
+    }
+    return;
+  }
+  throw new Error(`Flat numerical state ${pointer$1(path)} has an unsupported leaf`);
+}
+function pointerSet(pointers, owner) {
+  const values2 = new Set(
+    pointers?.map((value) => {
+      if (typeof value !== "string" || value === "/" || !value.startsWith("/")) {
+        throw new Error(`Flat numerical ${owner} pointer is invalid`);
+      }
+      return value;
+    }) ?? []
+  );
+  if (values2.size !== (pointers?.length ?? 0)) {
+    throw new Error(`Flat numerical ${owner} pointer is duplicated`);
+  }
+  return values2;
+}
+function externalImmutableAliasMap(aliases, admittedBindings) {
+  const values2 = /* @__PURE__ */ new Map();
+  for (const entry of aliases ?? []) {
+    const targetPath = pointerPath(entry.pointer, "alias target");
+    const sourcePath = pointerPath(entry.sourcePointer, "alias source");
+    if (entry.pointer === entry.sourcePointer) {
+      throw new Error("Flat numerical external-immutable alias is self-referential");
+    }
+    if (values2.has(entry.pointer)) {
+      throw new Error("Flat numerical external-immutable alias target is duplicated");
+    }
+    if (![...admittedBindings].some(
+      (bindingPointer) => entry.sourcePointer === bindingPointer || entry.sourcePointer.startsWith(`${bindingPointer}/`)
+    )) {
+      throw new Error(
+        `Flat numerical external-immutable alias source ${entry.sourcePointer} is not admitted`
+      );
+    }
+    values2.set(entry.pointer, Object.freeze({
+      pointer: pointer$1(targetPath),
+      sourcePointer: pointer$1(sourcePath),
+      sourcePath: Object.freeze(sourcePath)
+    }));
+  }
+  return values2;
+}
+function pointerPath(value, owner) {
+  if (typeof value !== "string" || value === "/" || !value.startsWith("/")) {
+    throw new Error(`Flat numerical external-immutable ${owner} is invalid`);
+  }
+  return value.slice(1).split("/").map((segment) => {
+    if (/~(?:[^01]|$)/u.test(segment)) {
+      throw new Error(`Flat numerical external-immutable ${owner} is invalid`);
+    }
+    return segment.replaceAll("~1", "/").replaceAll("~0", "~");
+  });
+}
+function optionalRecordTemplateMap(templates) {
+  const values2 = /* @__PURE__ */ new Map();
+  for (const entry of templates ?? []) {
+    if (typeof entry.pointer !== "string" || entry.pointer === "/" || !entry.pointer.startsWith("/")) {
+      throw new Error("Flat numerical optional-record pointer is invalid");
+    }
+    if (entry.template === null || typeof entry.template !== "object" || Array.isArray(entry.template)) {
+      throw new Error(
+        `Flat numerical optional-record ${entry.pointer} template is invalid`
+      );
+    }
+    if (values2.has(entry.pointer)) {
+      throw new Error("Flat numerical optional-record pointer is duplicated");
+    }
+    values2.set(entry.pointer, entry.template);
+  }
+  return values2;
+}
+function boundedArrayTemplateMap(templates) {
+  const values2 = /* @__PURE__ */ new Map();
+  for (const entry of templates ?? []) {
+    if (typeof entry.pointer !== "string" || entry.pointer === "/" || !entry.pointer.startsWith("/")) {
+      throw new Error("Flat numerical bounded-array pointer is invalid");
+    }
+    if (!Number.isSafeInteger(entry.capacity) || entry.capacity < 1 || entry.capacity > 4294967295) {
+      throw new Error(
+        `Flat numerical bounded-array ${entry.pointer} capacity is invalid`
+      );
+    }
+    if (entry.itemTemplate === void 0) {
+      throw new Error(
+        `Flat numerical bounded-array ${entry.pointer} item template is invalid`
+      );
+    }
+    if (values2.has(entry.pointer)) {
+      throw new Error("Flat numerical bounded-array pointer is duplicated");
+    }
+    values2.set(entry.pointer, Object.freeze({
+      pointer: entry.pointer,
+      capacity: entry.capacity,
+      itemTemplate: entry.itemTemplate
+    }));
+  }
+  return values2;
+}
+function layoutEntryAbsent$1(layout, state, entry) {
+  if (entry.optionalRecordRootIndex !== null) {
+    const root = layout.optionalRecordRoots[entry.optionalRecordRootIndex];
+    if (root === void 0) {
+      throw new Error("Flat numerical optional-record slot owner is invalid");
+    }
+    if (readFlatNumericalStatePathV1(state, root.path) === null) return true;
+  }
+  if (entry.boundedArrayRootIndex !== null) {
+    const root = layout.boundedArrayRoots[entry.boundedArrayRootIndex];
+    if (root === void 0 || entry.boundedArrayItemIndex === null) {
+      throw new Error("Flat numerical bounded-array slot owner is invalid");
+    }
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `Flat numerical state ${root.pointer} must remain an array`
+      );
+    }
+    return entry.boundedArrayItemIndex >= value.length;
+  }
+  return false;
+}
+function assertContainerShape(value, expected) {
+  if (expected.kind === "array") {
+    if (!Array.isArray(value)) {
+      throw new Error(`Flat numerical state ${expected.pointer} must remain an array`);
+    }
+    assertDataProperties(value, expected.path, true);
+    if (!sameStrings(Object.keys(value), expected.keys)) {
+      throw new Error(`Flat numerical state ${expected.pointer} changed array shape`);
+    }
+    return;
+  }
+  if (expected.kind === "typed-array") {
+    if (!isNumericTypedArray$1(value) || value.constructor.name !== expected.prototypeTag || Object.getPrototypeOf(value) !== numericTypedArrayPrototype(expected.prototypeTag) || value.length !== expected.keys.length) {
+      throw new Error(`Flat numerical state ${expected.pointer} changed typed-array shape`);
+    }
+    assertDataProperties(value, expected.path, false);
+    if (!sameStrings(Object.keys(value), expected.keys)) {
+      throw new Error(
+        `Flat numerical state ${expected.pointer} changed typed-array shape`
+      );
+    }
+    return;
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Flat numerical state ${expected.pointer} must remain a record`);
+  }
+  const prototypeTag = dataRecordPrototypeTag(value, expected.path);
+  if (prototypeTag !== expected.prototypeTag) {
+    throw new Error(`Flat numerical state ${expected.pointer} changed record prototype`);
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (expected.prototypeTag === "Object" && prototype !== Object.prototype || expected.prototypeTag === null && prototype !== null) {
+    throw new Error(`Flat numerical state ${expected.pointer} changed record prototype`);
+  }
+  assertDataProperties(value, expected.path, false);
+  if (!sameStrings(Object.keys(value).sort(), expected.keys)) {
+    throw new Error(`Flat numerical state ${expected.pointer} changed record shape`);
+  }
+}
+function assertDataProperties(value, path, array) {
+  if (Object.getOwnPropertySymbols(value).length !== 0) {
+    throw new Error(`Flat numerical state ${pointer$1(path)} has symbol keys`);
+  }
+  const allowedNonEnumerable = array ? /* @__PURE__ */ new Set(["length"]) : /* @__PURE__ */ new Set();
+  for (const key of Object.getOwnPropertyNames(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === void 0 || !("value" in descriptor)) {
+      throw new Error(`Flat numerical state ${pointer$1([...path, key])} is an accessor`);
+    }
+    if (!descriptor.enumerable && !allowedNonEnumerable.has(key)) {
+      throw new Error(
+        `Flat numerical state ${pointer$1([...path, key])} is non-enumerable`
+      );
+    }
+  }
+}
+function requiredPathValue(root, path) {
+  let current = root;
+  const traversed = [];
+  for (const segment of path) {
+    if (current === null || typeof current !== "object") {
+      throw new Error(`Flat numerical state ${pointer$1(path)} is unavailable`);
+    }
+    current = requiredOwnValue$1(current, String(segment), traversed);
+    traversed.push(segment);
+  }
+  return current;
+}
+function requiredOwnValue$1(record, key, path) {
+  const descriptor = Object.getOwnPropertyDescriptor(record, key);
+  if (descriptor === void 0 || !("value" in descriptor)) {
+    throw new Error(`Flat numerical state ${pointer$1([...path, key])} is unavailable`);
+  }
+  return descriptor.value;
+}
+function slot(path, optionalRecordRootIndex = null, boundedArrayRootIndex = null, boundedArrayItemIndex = null) {
+  const ownedPath = Object.freeze([...path]);
+  return Object.freeze({
+    path: ownedPath,
+    pointer: pointer$1(ownedPath),
+    optionalRecordRootIndex,
+    boundedArrayRootIndex,
+    boundedArrayItemIndex
+  });
+}
+function container(path, kind, keys, prototypeTag = null, optionalRecordRootIndex = null, boundedArrayRootIndex = null, boundedArrayItemIndex = null) {
+  const ownedPath = Object.freeze([...path]);
+  return Object.freeze({
+    path: ownedPath,
+    pointer: pointer$1(ownedPath),
+    kind,
+    keys: Object.freeze([...keys]),
+    prototypeTag,
+    optionalRecordRootIndex,
+    boundedArrayRootIndex,
+    boundedArrayItemIndex
+  });
+}
+function dataRecordPrototypeTag(value, path) {
+  if (value instanceof Date || value instanceof Map || value instanceof Set || value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
+    throw new Error(`Flat numerical state ${pointer$1(path)} is not a data record`);
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype === null) return null;
+  const constructorDescriptor = Object.getOwnPropertyDescriptor(
+    prototype,
+    "constructor"
+  );
+  const constructor = constructorDescriptor?.value;
+  if (typeof constructor !== "function" || constructor.name.length === 0) {
+    throw new Error(`Flat numerical state ${pointer$1(path)} has no record prototype`);
+  }
+  return constructor.name;
+}
+function isNumericTypedArray$1(value) {
+  return value instanceof Float64Array || value instanceof Float32Array || value instanceof Int32Array || value instanceof Uint32Array || value instanceof Int16Array || value instanceof Uint16Array || value instanceof Int8Array || value instanceof Uint8Array || value instanceof Uint8ClampedArray;
+}
+function numericTypedArrayPrototype(tag) {
+  switch (tag) {
+    case "Float64Array":
+      return Float64Array.prototype;
+    case "Float32Array":
+      return Float32Array.prototype;
+    case "Int32Array":
+      return Int32Array.prototype;
+    case "Uint32Array":
+      return Uint32Array.prototype;
+    case "Int16Array":
+      return Int16Array.prototype;
+    case "Uint16Array":
+      return Uint16Array.prototype;
+    case "Int8Array":
+      return Int8Array.prototype;
+    case "Uint8Array":
+      return Uint8Array.prototype;
+    case "Uint8ClampedArray":
+      return Uint8ClampedArray.prototype;
+    default:
+      return null;
+  }
+}
+function pointer$1(path) {
+  if (path.length === 0) return "/";
+  return `/${path.map((segment) => String(segment).replaceAll("~", "~0").replaceAll("/", "~1")).join("/")}`;
+}
+function sameStrings(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+const TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID = "circleheart-transactional-typed-state-image-v1";
+const TRANSACTIONAL_TYPED_STATE_MANIFEST_V1_SCHEMA_ID = "circleheart-transactional-typed-state-manifest-v1";
+const TRANSACTIONAL_TYPED_STATE_COMPLETION_PLAN_V1_SCHEMA_ID = "circleheart-transactional-typed-state-completion-plan-v1";
+const TRANSACTIONAL_TYPED_STATE_PROMOTION_PLAN_V1_SCHEMA_ID = "circleheart-transactional-typed-state-promotion-plan-v1";
+const MAX_ARENA_CAPACITY_BYTES = 16 * 1024 * 1024;
+const UTF8_ENCODER = new TextEncoder();
+const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
+const EXTERNAL_IMMUTABLE_CANONICAL_BYTES = /* @__PURE__ */ new WeakMap();
+const COMPLETION_PLAN_INTERNALS = /* @__PURE__ */ new WeakMap();
+const PROMOTION_PLAN_INTERNALS = /* @__PURE__ */ new WeakMap();
+function createTransactionalTypedStateManifestV1(layoutId, referenceState, stringArenaCapacityBytes, dynamicArenaCapacityBytes, layoutOptions = {}) {
+  assertArenaCapacity(stringArenaCapacityBytes, "string");
+  assertArenaCapacity(dynamicArenaCapacityBytes, "dynamic", true);
+  const numericalLayout = createFlatNumericalStateLayoutV1(
+    layoutId,
+    referenceState,
+    layoutOptions
+  );
+  if (numericalLayout.excludedDynamicRoots.length > 0 && dynamicArenaCapacityBytes === 0) {
+    throw new Error(
+      "Transactional typed state dynamic roots require a positive arena capacity"
+    );
+  }
+  for (const root of numericalLayout.optionalRecordRoots) {
+    assertTransitivelyFrozenData(
+      root.template,
+      `${root.pointer} optional-record template`,
+      /* @__PURE__ */ new Set()
+    );
+  }
+  for (const root of numericalLayout.boundedArrayRoots) {
+    assertTransitivelyFrozenData(
+      root.itemTemplate,
+      `${root.pointer} bounded-array item template`,
+      /* @__PURE__ */ new Set()
+    );
+  }
+  const rootNode = compileNode(referenceState, [], numericalLayout);
+  const boundedArrayNodes = Object.freeze(
+    numericalLayout.boundedArrayRoots.map((root, slotIndex2) => compileBoundedArrayNode(
+      root.itemTemplate,
+      root.path,
+      slotIndex2,
+      root.capacity,
+      numericalLayout
+    ))
+  );
+  const aliasByPointer = new Map(
+    numericalLayout.externalImmutableAliases.map((alias) => [alias.pointer, alias])
+  );
+  const externalImmutableRoots = numericalLayout.externalImmutableRoots.map(
+    (root) => {
+      const alias = aliasByPointer.get(root.pointer);
+      const bindingPath = alias?.sourcePath ?? root.path;
+      const bindingPointer = alias?.sourcePointer ?? root.pointer;
+      const value = readFlatNumericalStatePathV1(
+        referenceState,
+        bindingPath
+      );
+      assertTransitivelyFrozenData(value, root.pointer, /* @__PURE__ */ new Set());
+      const canonicalBytes2 = encodeCanonicalBytes(value);
+      return Object.freeze({
+        path: root.path,
+        pointer: root.pointer,
+        bindingPath,
+        bindingPointer,
+        value,
+        canonicalByteLength: canonicalBytes2.byteLength,
+        canonicalBytes: canonicalBytes2
+      });
+    }
+  );
+  const imageLayout = createImageLayout(
+    numericalLayout,
+    stringArenaCapacityBytes,
+    dynamicArenaCapacityBytes
+  );
+  const fingerprint = manifestFingerprint(
+    numericalLayout,
+    stringArenaCapacityBytes,
+    dynamicArenaCapacityBytes
+  );
+  const manifest = Object.freeze({
+    schemaId: TRANSACTIONAL_TYPED_STATE_MANIFEST_V1_SCHEMA_ID,
+    layoutId,
+    fingerprint,
+    numericalLayout,
+    stringArenaCapacityBytes,
+    dynamicArenaCapacityBytes,
+    bufferByteLength: imageLayout.bufferByteLength,
+    externalImmutableRoots: Object.freeze(
+      externalImmutableRoots.map(({ canonicalBytes: _canonicalBytes, ...root }) => Object.freeze(root))
+    ),
+    rootNode,
+    boundedArrayNodes,
+    imageLayout
+  });
+  EXTERNAL_IMMUTABLE_CANONICAL_BYTES.set(
+    manifest,
+    Object.freeze(externalImmutableRoots.map(({ canonicalBytes: canonicalBytes2 }) => canonicalBytes2))
+  );
+  return manifest;
+}
+class TransactionalTypedStateImageV1 {
+  constructor(manifest, initialState, admitDirectCompletionCandidate) {
+    this.authorityId = TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID;
+    this.#activeIndex = 0;
+    this.#commitCount = 0;
+    this.#staged = false;
+    this.#stagedStringBytes = 0;
+    this.#stagedDynamicBytes = 0;
+    this.#currentStringBytes = 0;
+    this.#currentDynamicBytes = 0;
+    this.#highWaterStringBytes = 0;
+    this.#highWaterDynamicBytes = 0;
+    this.#candidateGeneration = 0;
+    this.#externalImmutableIdentityMatchCount = 0;
+    this.#externalImmutableCanonicalMatchCount = 0;
+    this.#directCompletionReaderPlanUseCount = 0;
+    this.#directExactCandidateMatchCount = 0;
+    this.#modelOwnedPromotionCount = 0;
+    this.#manifest = manifest;
+    this.#admitDirectCompletionCandidate = admitDirectCompletionCandidate ?? null;
+    this.#highWaterBoundedArrayLengths = new Uint32Array(
+      manifest.numericalLayout.boundedArrayRoots.length
+    );
+    this.#candidateWrittenContinuous = new Uint8Array(
+      manifest.numericalLayout.continuousSlots.length
+    );
+    this.#candidateWrittenNullableContinuous = new Uint8Array(
+      manifest.numericalLayout.nullableContinuousSlots.length
+    );
+    this.#candidateWrittenBooleans = new Uint8Array(
+      manifest.numericalLayout.booleanSlots.length
+    );
+    this.#candidateWrittenStrings = new Uint8Array(
+      manifest.numericalLayout.stringSlots.length
+    );
+    this.#images = Object.freeze([
+      createImage(manifest),
+      createImage(manifest)
+    ]);
+    this.#currentCursor = Object.freeze({
+      layoutId: manifest.layoutId,
+      fingerprint: manifest.fingerprint,
+      readContinuous: (slotIndex2) => this.readCurrentContinuous(slotIndex2),
+      readNullableContinuous: (slotIndex2) => this.readCurrentNullableContinuous(slotIndex2),
+      readNullableString: (slotIndex2) => this.readCurrentNullableString(slotIndex2),
+      readBoolean: (slotIndex2) => this.readCurrentBoolean(slotIndex2),
+      readString: (slotIndex2) => this.readCurrentString(slotIndex2),
+      readDynamic: (slotIndex2) => this.readCurrentDynamic(slotIndex2),
+      readBoundedArray: (slotIndex2) => this.readCurrentBoundedArray(slotIndex2)
+    });
+    this.stage(initialState);
+    this.promote();
+    this.#commitCount = 0;
+  }
+  #manifest;
+  #images;
+  #currentCursor;
+  #admitDirectCompletionCandidate;
+  #activeIndex;
+  #commitCount;
+  #staged;
+  #stagedStringBytes;
+  #stagedDynamicBytes;
+  #currentStringBytes;
+  #currentDynamicBytes;
+  #highWaterStringBytes;
+  #highWaterDynamicBytes;
+  #highWaterBoundedArrayLengths;
+  #candidateWrittenContinuous;
+  #candidateWrittenNullableContinuous;
+  #candidateWrittenBooleans;
+  #candidateWrittenStrings;
+  #candidateGeneration;
+  #externalImmutableIdentityMatchCount;
+  #externalImmutableCanonicalMatchCount;
+  #directCompletionReaderPlanUseCount;
+  #directExactCandidateMatchCount;
+  #modelOwnedPromotionCount;
+  stage(candidate) {
+    if (this.#staged) {
+      throw new Error("Transactional typed state already has a staged candidate");
+    }
+    this.assertExternalImmutableRootsMatch(candidate);
+    assertFlatNumericalStateShapeV1(
+      this.#manifest.numericalLayout,
+      candidate
+    );
+    const candidateImage = this.#images[this.inactiveIndex()];
+    writeOptionalRecordPresence(this.#manifest, candidate, candidateImage);
+    writeBoundedArrayLengths(this.#manifest, candidate, candidateImage);
+    writeFixedLeaves(this.#manifest, candidate, candidateImage);
+    writeNullableContinuousLeaves(this.#manifest, candidate, candidateImage);
+    const stringBytes = writeStrings(this.#manifest, candidate, candidateImage);
+    const dynamicBytes = writeDynamicRoots(
+      this.#manifest,
+      candidate,
+      candidateImage
+    );
+    this.#stagedStringBytes = stringBytes;
+    this.#stagedDynamicBytes = dynamicBytes;
+    this.#staged = true;
+  }
+  /**
+   * Copies current into inactive storage once, then returns a cursor that can
+   * update fixed slots without allocating candidate objects. A model-owned
+   * transaction may promote after explicit required-write coverage and its
+   * own scientific seals; event/cold paths can still complete or audit against
+   * an admitted object mirror.
+   */
+  beginCandidateFromCurrent() {
+    if (this.#staged) {
+      throw new Error("Transactional typed state already has a staged candidate");
+    }
+    const current = this.#images[this.#activeIndex];
+    const candidate = this.#images[this.inactiveIndex()];
+    new Uint8Array(candidate.buffer).set(new Uint8Array(current.buffer));
+    this.#stagedStringBytes = this.#currentStringBytes;
+    this.#stagedDynamicBytes = this.#currentDynamicBytes;
+    this.#staged = true;
+    this.#candidateWrittenContinuous.fill(0);
+    this.#candidateWrittenNullableContinuous.fill(0);
+    this.#candidateWrittenBooleans.fill(0);
+    this.#candidateWrittenStrings.fill(0);
+    this.#candidateGeneration += 1;
+    const generation = this.#candidateGeneration;
+    return Object.freeze({
+      layoutId: this.#manifest.layoutId,
+      fingerprint: this.#manifest.fingerprint,
+      readContinuous: (slotIndex2) => this.readCandidateContinuous(generation, slotIndex2),
+      writeContinuous: (slotIndex2, value) => this.writeCandidateContinuous(generation, slotIndex2, value),
+      readNullableContinuous: (slotIndex2) => this.readCandidateNullableContinuous(generation, slotIndex2),
+      writeNullableContinuous: (slotIndex2, value) => this.writeCandidateNullableContinuous(generation, slotIndex2, value),
+      readBoolean: (slotIndex2) => this.readCandidateBoolean(generation, slotIndex2),
+      writeBoolean: (slotIndex2, value) => this.writeCandidateBoolean(generation, slotIndex2, value),
+      readString: (slotIndex2) => this.readCandidateString(generation, slotIndex2),
+      writeStringSameByteLength: (slotIndex2, value) => this.writeCandidateStringSameByteLength(
+        generation,
+        slotIndex2,
+        value
+      )
+    });
+  }
+  /**
+   * Compiles retained-slot membership once at cold initialization. The plan is
+   * bound to this exact manifest instance and cannot be forged by structural
+   * data alone.
+   */
+  createCompletionPlan(retained) {
+    const retainedContinuous = retainedSlotSet(
+      retained.continuous,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous"
+    );
+    const retainedBooleans = retainedSlotSet(
+      retained.booleans,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean"
+    );
+    const plan = Object.freeze({
+      schemaId: TRANSACTIONAL_TYPED_STATE_COMPLETION_PLAN_V1_SCHEMA_ID,
+      layoutId: this.#manifest.layoutId,
+      fingerprint: this.#manifest.fingerprint,
+      retainedContinuousSlots: Object.freeze([...retainedContinuous]),
+      retainedBooleanSlots: Object.freeze([...retainedBooleans])
+    });
+    COMPLETION_PLAN_INTERNALS.set(plan, Object.freeze({
+      manifest: this.#manifest,
+      retainedContinuous,
+      retainedBooleans,
+      writableContinuous: complementSlotIndices(
+        this.#manifest.numericalLayout.continuousSlots.length,
+        retainedContinuous
+      ),
+      writableBooleans: complementSlotIndices(
+        this.#manifest.numericalLayout.booleanSlots.length,
+        retainedBooleans
+      ),
+      readers: compileDirectCompletionReaders(this.#manifest)
+    }));
+    return plan;
+  }
+  /**
+   * Compiles the exact slots a model-owned direct transaction must write.
+   * The WeakMap binding makes a structurally copied or hand-built plan
+   * unusable, just like the completion plan above.
+   */
+  createPromotionPlan(required) {
+    const requiredContinuous = requiredSlotIndices(
+      required.continuous,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous"
+    );
+    const requiredNullableContinuous = requiredSlotIndices(
+      required.nullableContinuous,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous"
+    );
+    const requiredBooleans = requiredSlotIndices(
+      required.booleans,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean"
+    );
+    const requiredStrings = requiredSlotIndices(
+      required.strings,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string"
+    );
+    const plan = Object.freeze({
+      schemaId: TRANSACTIONAL_TYPED_STATE_PROMOTION_PLAN_V1_SCHEMA_ID,
+      layoutId: this.#manifest.layoutId,
+      fingerprint: this.#manifest.fingerprint,
+      requiredContinuousSlots: requiredContinuous,
+      requiredNullableContinuousSlots: requiredNullableContinuous,
+      requiredBooleanSlots: requiredBooleans,
+      requiredStringSlots: requiredStrings
+    });
+    PROMOTION_PLAN_INTERNALS.set(plan, Object.freeze({
+      manifest: this.#manifest,
+      requiredContinuous,
+      requiredNullableContinuous,
+      requiredBooleans,
+      requiredStrings
+    }));
+    return plan;
+  }
+  /**
+   * Promotes one model-owned candidate without constructing an object mirror.
+   * This primitive proves transaction/layout identity and exhaustive writes
+   * for the model-declared owner set only. The caller remains responsible for
+   * all numerical, cross-owner, and accepted-boundary scientific seals before
+   * invoking it. Failure leaves the inactive candidate staged for explicit
+   * abort; success is the single infallible active-image swap.
+   */
+  promoteCandidateWithRequiredWrites(promotionPlan) {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    this.assertPromotionPlanRequiredWrites(promotionPlan);
+    this.promote();
+    this.#modelOwnedPromotionCount += 1;
+  }
+  /**
+   * Seals and promotes one model-owned typed candidate. The common lean path
+   * validates the already model-admitted object identity and explicit slot
+   * coverage without comparing it leaf-by-leaf with the image. Full-invariant
+   * callers additionally pass an audit plan; a mismatch then leaves the
+   * candidate staged so exhaustive event-boundary completion can take over.
+   */
+  tryPromoteCandidateWithRequiredWrites(candidate, promotionPlan, exactAuditPlan) {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    const admittedCandidate = this.#admitDirectCompletionCandidate === null ? candidate : this.#admitDirectCompletionCandidate(candidate);
+    if (admittedCandidate !== candidate) {
+      throw new Error(
+        "Transactional typed state direct admission changed candidate identity"
+      );
+    }
+    this.assertPromotionPlanRequiredWrites(promotionPlan);
+    if (exactAuditPlan !== void 0) {
+      const audit = COMPLETION_PLAN_INTERNALS.get(exactAuditPlan);
+      if (audit === void 0 || audit.manifest !== this.#manifest || exactAuditPlan.layoutId !== this.#manifest.layoutId || exactAuditPlan.fingerprint !== this.#manifest.fingerprint) {
+        throw new Error(
+          "Transactional typed state exact audit plan has the wrong layout"
+        );
+      }
+      const candidateImage = this.#images[this.inactiveIndex()];
+      this.assertExternalImmutableRootsMatch(
+        candidate,
+        audit.readers.externalImmutable,
+        candidateImage
+      );
+      if (!imageExactlyMatchesObject(
+        this.#manifest,
+        candidate,
+        candidateImage,
+        audit.readers,
+        this.#stagedStringBytes,
+        this.#stagedDynamicBytes
+      )) {
+        return null;
+      }
+      this.#directExactCandidateMatchCount += 1;
+    }
+    this.promote();
+    this.#modelOwnedPromotionCount += 1;
+    return admittedCandidate;
+  }
+  /**
+   * Completes a directly staged candidate from a temporary object adapter.
+   * Slots already written by migrated owners are compared bit-exactly and are
+   * never overwritten; all remaining leaves and bounded arenas are populated
+   * from the adapter. After this returns, the staged image is an exhaustive
+   * typed encoding of the adapter: retained leaves matched bit-exactly and all
+   * other admitted leaves were overwritten from it.
+   */
+  completeCandidateFromObject(candidate, plan) {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    const admittedCandidate = this.#admitDirectCompletionCandidate === null ? candidate : this.#admitDirectCompletionCandidate(candidate);
+    if (admittedCandidate !== candidate) {
+      throw new Error(
+        "Transactional typed state direct admission changed candidate identity"
+      );
+    }
+    const internal = COMPLETION_PLAN_INTERNALS.get(plan);
+    if (internal === void 0 || internal.manifest !== this.#manifest || plan.layoutId !== this.#manifest.layoutId || plan.fingerprint !== this.#manifest.fingerprint) {
+      throw new Error(
+        "Transactional typed state completion plan has the wrong layout"
+      );
+    }
+    const candidateImage = this.#images[this.inactiveIndex()];
+    const directReaders = this.#admitDirectCompletionCandidate === null ? void 0 : internal.readers;
+    if (directReaders === void 0) {
+      this.assertExternalImmutableRootsMatch(candidate);
+      assertFlatNumericalStateShapeV1(
+        this.#manifest.numericalLayout,
+        candidate
+      );
+    }
+    writeOptionalRecordPresence(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders?.optionalRecords
+    );
+    writeBoundedArrayLengths(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders?.boundedArrays
+    );
+    if (directReaders !== void 0) {
+      this.assertExternalImmutableRootsMatch(
+        candidate,
+        directReaders.externalImmutable,
+        candidateImage
+      );
+    }
+    assertRetainedFixedLeavesMatch(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      internal.retainedContinuous,
+      internal.retainedBooleans,
+      directReaders
+    );
+    writeFixedLeaves(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      internal.writableContinuous,
+      internal.writableBooleans,
+      directReaders
+    );
+    writeNullableContinuousLeaves(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders
+    );
+    this.#stagedStringBytes = writeStrings(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders
+    );
+    this.#stagedDynamicBytes = writeDynamicRoots(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      directReaders
+    );
+    if (directReaders !== void 0) {
+      this.#directCompletionReaderPlanUseCount += 1;
+    }
+    return admittedCandidate;
+  }
+  /**
+   * Proves that every staged byte already represents one internally admitted
+   * adapter. No candidate data is written here. A mismatch returns null and
+   * leaves the transaction open so the caller may run exhaustive completion.
+   */
+  matchCandidateExactlyAgainstObject(candidate, plan) {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    const admittedCandidate = this.#admitDirectCompletionCandidate === null ? candidate : this.#admitDirectCompletionCandidate(candidate);
+    if (admittedCandidate !== candidate) {
+      throw new Error(
+        "Transactional typed state direct admission changed candidate identity"
+      );
+    }
+    const internal = COMPLETION_PLAN_INTERNALS.get(plan);
+    if (internal === void 0 || internal.manifest !== this.#manifest || plan.layoutId !== this.#manifest.layoutId || plan.fingerprint !== this.#manifest.fingerprint) {
+      throw new Error(
+        "Transactional typed state completion plan has the wrong layout"
+      );
+    }
+    const candidateImage = this.#images[this.inactiveIndex()];
+    this.assertExternalImmutableRootsMatch(
+      candidate,
+      internal.readers.externalImmutable,
+      candidateImage
+    );
+    if (!imageExactlyMatchesObject(
+      this.#manifest,
+      candidate,
+      candidateImage,
+      internal.readers,
+      this.#stagedStringBytes,
+      this.#stagedDynamicBytes
+    )) {
+      return null;
+    }
+    this.#directExactCandidateMatchCount += 1;
+    return admittedCandidate;
+  }
+  promote() {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    this.#activeIndex = this.inactiveIndex();
+    this.#currentStringBytes = this.#stagedStringBytes;
+    this.#currentDynamicBytes = this.#stagedDynamicBytes;
+    this.#highWaterStringBytes = Math.max(
+      this.#highWaterStringBytes,
+      this.#currentStringBytes
+    );
+    this.#highWaterDynamicBytes = Math.max(
+      this.#highWaterDynamicBytes,
+      this.#currentDynamicBytes
+    );
+    const currentLengths = this.#images[this.#activeIndex].boundedArrayLengths;
+    for (let index = 0; index < currentLengths.length; index += 1) {
+      this.#highWaterBoundedArrayLengths[index] = Math.max(
+        this.#highWaterBoundedArrayLengths[index],
+        currentLengths[index]
+      );
+    }
+    this.#staged = false;
+    this.#commitCount += 1;
+  }
+  abort() {
+    this.#staged = false;
+    this.#stagedStringBytes = 0;
+    this.#stagedDynamicBytes = 0;
+  }
+  rehydrateCurrent() {
+    return rehydrateNode(
+      this.#manifest.rootNode,
+      this.#images[this.#activeIndex],
+      this.#manifest.externalImmutableRoots
+    );
+  }
+  rehydrateStaged() {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    return rehydrateNode(
+      this.#manifest.rootNode,
+      this.#images[this.inactiveIndex()],
+      this.#manifest.externalImmutableRoots
+    );
+  }
+  currentCursor() {
+    return this.#currentCursor;
+  }
+  snapshot() {
+    const image = this.#images[this.#activeIndex];
+    return Object.freeze({
+      continuous: image.continuous.slice(),
+      nullableContinuous: image.nullableContinuous.slice(),
+      nullableContinuousPresent: image.nullableContinuousPresent.slice(),
+      booleans: image.booleans.slice(),
+      stringMetadata: image.stringMetadata.slice(),
+      nullableStringMetadata: image.nullableStringMetadata.slice(),
+      nullableStringPresent: image.nullableStringPresent.slice(),
+      optionalRecordPresent: image.optionalRecordPresent.slice(),
+      boundedArrayLengths: image.boundedArrayLengths.slice(),
+      stringBytes: image.stringArena.slice(0, this.#currentStringBytes),
+      dynamicMetadata: image.dynamicMetadata.slice(),
+      dynamicBytes: image.dynamicArena.slice(0, this.#currentDynamicBytes)
+    });
+  }
+  report() {
+    const layout = this.#manifest.numericalLayout;
+    return Object.freeze({
+      authorityId: TRANSACTIONAL_TYPED_STATE_IMAGE_V1_ID,
+      layoutId: this.#manifest.layoutId,
+      fingerprint: this.#manifest.fingerprint,
+      continuousSlotCount: layout.continuousSlots.length,
+      nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
+      nullableStringSlotCount: layout.nullableStringSlots.length,
+      optionalRecordRootCount: layout.optionalRecordRoots.length,
+      boundedArrayRootCount: layout.boundedArrayRoots.length,
+      booleanSlotCount: layout.booleanSlots.length,
+      stringSlotCount: layout.stringSlots.length,
+      dynamicRootCount: layout.excludedDynamicRoots.length,
+      externalImmutableRootCount: layout.externalImmutableRoots.length,
+      containerCount: layout.containers.length,
+      fixedImageCount: 2,
+      bufferByteLength: this.#manifest.bufferByteLength,
+      stringArenaCapacityBytes: this.#manifest.stringArenaCapacityBytes,
+      dynamicArenaCapacityBytes: this.#manifest.dynamicArenaCapacityBytes,
+      currentStringBytes: this.#currentStringBytes,
+      currentDynamicBytes: this.#currentDynamicBytes,
+      highWaterStringBytes: this.#highWaterStringBytes,
+      highWaterDynamicBytes: this.#highWaterDynamicBytes,
+      boundedArrays: Object.freeze(layout.boundedArrayRoots.map((root, index) => Object.freeze({
+        pointer: root.pointer,
+        capacity: root.capacity,
+        currentLength: this.#images[this.#activeIndex].boundedArrayLengths[index],
+        highWaterLength: this.#highWaterBoundedArrayLengths[index]
+      }))),
+      activeBufferIndex: this.#activeIndex,
+      commitCount: this.#commitCount,
+      externalImmutableIdentityMatchCount: this.#externalImmutableIdentityMatchCount,
+      externalImmutableCanonicalMatchCount: this.#externalImmutableCanonicalMatchCount,
+      directCompletionReaderPlanUseCount: this.#directCompletionReaderPlanUseCount,
+      directExactCandidateMatchCount: this.#directExactCandidateMatchCount,
+      modelOwnedPromotionCount: this.#modelOwnedPromotionCount,
+      staged: this.#staged
+    });
+  }
+  assertExternalImmutableRootsMatch(candidate, directReaders, candidateImage) {
+    const expectedBytes = EXTERNAL_IMMUTABLE_CANONICAL_BYTES.get(
+      this.#manifest
+    );
+    if (expectedBytes === void 0) {
+      throw new Error(
+        "Transactional typed state external immutable manifest is unavailable"
+      );
+    }
+    let identityMatches = 0;
+    let canonicalMatches = 0;
+    for (let index = 0; index < this.#manifest.externalImmutableRoots.length; index += 1) {
+      const expected = this.#manifest.externalImmutableRoots[index];
+      if (layoutEntryAbsent(
+        this.#manifest.numericalLayout,
+        candidate,
+        this.#manifest.numericalLayout.externalImmutableRoots[index],
+        candidateImage
+      )) {
+        continue;
+      }
+      const actual = directReaders === void 0 ? readFlatNumericalStatePathV1(candidate, expected.path) : directReaders[index](candidate);
+      if (actual === expected.value) {
+        identityMatches += 1;
+        continue;
+      }
+      assertTransitivelyFrozenData(actual, expected.pointer, /* @__PURE__ */ new Set());
+      const actualBytes = encodeCanonicalBytes(actual);
+      const referenceBytes = expectedBytes[index];
+      if (actualBytes.byteLength !== referenceBytes.byteLength || !actualBytes.every((value, byteIndex) => value === referenceBytes[byteIndex])) {
+        throw new Error(
+          `Transactional typed state external immutable ${expected.pointer} changed`
+        );
+      }
+      canonicalMatches += 1;
+    }
+    this.#externalImmutableIdentityMatchCount += identityMatches;
+    this.#externalImmutableCanonicalMatchCount += canonicalMatches;
+  }
+  inactiveIndex() {
+    return this.#activeIndex === 0 ? 1 : 0;
+  }
+  readCurrentContinuous(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous"
+    );
+    const value = this.#images[this.#activeIndex].continuous[slotIndex2];
+    if (!Number.isFinite(value)) {
+      throw new Error("Transactional typed state current continuous slot is not finite");
+    }
+    return value;
+  }
+  readCurrentNullableContinuous(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous"
+    );
+    const image = this.#images[this.#activeIndex];
+    const present = image.nullableContinuousPresent[slotIndex2];
+    if (present === 0) return null;
+    if (present !== 1) {
+      throw new Error(
+        "Transactional typed state nullable continuous presence is invalid"
+      );
+    }
+    const value = image.nullableContinuous[slotIndex2];
+    if (!Number.isFinite(value)) {
+      throw new Error(
+        "Transactional typed state nullable continuous slot is not finite"
+      );
+    }
+    return value;
+  }
+  readCurrentBoolean(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean"
+    );
+    const value = this.#images[this.#activeIndex].booleans[slotIndex2];
+    if (value !== 0 && value !== 1) {
+      throw new Error("Transactional typed state current boolean slot is invalid");
+    }
+    return value === 1;
+  }
+  readCurrentNullableString(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.nullableStringSlots.length,
+      "nullable string"
+    );
+    const image = this.#images[this.#activeIndex];
+    const present = image.nullableStringPresent[slotIndex2];
+    if (present === 0) return null;
+    if (present !== 1) {
+      throw new Error(
+        "Transactional typed state nullable string presence is invalid"
+      );
+    }
+    const offset = image.nullableStringMetadata[slotIndex2 * 2];
+    const length = image.nullableStringMetadata[slotIndex2 * 2 + 1];
+    assertArenaSlice(offset, length, this.#currentStringBytes, "string", true);
+    return UTF8_DECODER.decode(
+      image.stringArena.subarray(offset, offset + length)
+    );
+  }
+  readCurrentString(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string"
+    );
+    const image = this.#images[this.#activeIndex];
+    const offset = image.stringMetadata[slotIndex2 * 2];
+    const length = image.stringMetadata[slotIndex2 * 2 + 1];
+    assertArenaSlice(offset, length, this.#currentStringBytes, "string", true);
+    return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
+  }
+  readCurrentDynamic(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.excludedDynamicRoots.length,
+      "dynamic"
+    );
+    const image = this.#images[this.#activeIndex];
+    const offset = image.dynamicMetadata[slotIndex2 * 2];
+    const length = image.dynamicMetadata[slotIndex2 * 2 + 1];
+    assertArenaSlice(offset, length, this.#currentDynamicBytes, "dynamic");
+    return decodeCanonicalFlatDataV1(
+      image.dynamicArena.subarray(offset, offset + length)
+    );
+  }
+  readCurrentBoundedArray(slotIndex2) {
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.boundedArrayNodes.length,
+      "bounded array"
+    );
+    return rehydrateNode(
+      this.#manifest.boundedArrayNodes[slotIndex2],
+      this.#images[this.#activeIndex],
+      this.#manifest.externalImmutableRoots
+    );
+  }
+  readCandidateContinuous(generation, slotIndex2) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous candidate"
+    );
+    return this.#images[this.inactiveIndex()].continuous[slotIndex2];
+  }
+  writeCandidateContinuous(generation, slotIndex2, value) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.continuousSlots.length,
+      "continuous candidate"
+    );
+    if (!Number.isFinite(value)) {
+      throw new Error(
+        "Transactional typed state candidate continuous value must be finite"
+      );
+    }
+    this.#images[this.inactiveIndex()].continuous[slotIndex2] = value;
+    this.#candidateWrittenContinuous[slotIndex2] = 1;
+  }
+  readCandidateNullableContinuous(generation, slotIndex2) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous candidate"
+    );
+    const image = this.#images[this.inactiveIndex()];
+    const present = image.nullableContinuousPresent[slotIndex2];
+    if (present === 0) return null;
+    if (present !== 1 || !Number.isFinite(image.nullableContinuous[slotIndex2])) {
+      throw new Error(
+        "Transactional typed state nullable continuous candidate is invalid"
+      );
+    }
+    return image.nullableContinuous[slotIndex2];
+  }
+  writeCandidateNullableContinuous(generation, slotIndex2, value) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.nullableContinuousSlots.length,
+      "nullable continuous candidate"
+    );
+    const image = this.#images[this.inactiveIndex()];
+    if (value === null) {
+      image.nullableContinuous[slotIndex2] = 0;
+      image.nullableContinuousPresent[slotIndex2] = 0;
+      this.#candidateWrittenNullableContinuous[slotIndex2] = 1;
+      return;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(
+        "Transactional typed state nullable continuous candidate value is invalid"
+      );
+    }
+    image.nullableContinuous[slotIndex2] = value;
+    image.nullableContinuousPresent[slotIndex2] = 1;
+    this.#candidateWrittenNullableContinuous[slotIndex2] = 1;
+  }
+  readCandidateBoolean(generation, slotIndex2) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean candidate"
+    );
+    return this.#images[this.inactiveIndex()].booleans[slotIndex2] === 1;
+  }
+  writeCandidateBoolean(generation, slotIndex2, value) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.booleanSlots.length,
+      "boolean candidate"
+    );
+    if (typeof value !== "boolean") {
+      throw new Error(
+        "Transactional typed state candidate boolean value must be boolean"
+      );
+    }
+    this.#images[this.inactiveIndex()].booleans[slotIndex2] = value ? 1 : 0;
+    this.#candidateWrittenBooleans[slotIndex2] = 1;
+  }
+  readCandidateString(generation, slotIndex2) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string candidate"
+    );
+    return decodeStringSlot(
+      this.#images[this.inactiveIndex()],
+      slotIndex2,
+      this.#stagedStringBytes
+    );
+  }
+  writeCandidateStringSameByteLength(generation, slotIndex2, value) {
+    this.assertCandidateGeneration(generation);
+    assertSlotIndex(
+      slotIndex2,
+      this.#manifest.numericalLayout.stringSlots.length,
+      "string candidate"
+    );
+    assertWellFormedString(value, "candidate string");
+    const image = this.#images[this.inactiveIndex()];
+    const offset = image.stringMetadata[slotIndex2 * 2];
+    const length = image.stringMetadata[slotIndex2 * 2 + 1];
+    assertArenaSlice(
+      offset,
+      length,
+      this.#stagedStringBytes,
+      "string candidate",
+      true
+    );
+    const target = image.stringArena.subarray(offset, offset + length);
+    const result = UTF8_ENCODER.encodeInto(value, target);
+    if (result.read !== value.length || result.written !== length) {
+      throw new Error(
+        "Transactional typed state candidate string byte length changed"
+      );
+    }
+    this.#candidateWrittenStrings[slotIndex2] = 1;
+  }
+  assertCandidateGeneration(generation) {
+    if (!this.#staged || generation !== this.#candidateGeneration) {
+      throw new Error("Transactional typed state candidate cursor is stale");
+    }
+  }
+  assertPromotionPlanRequiredWrites(promotionPlan) {
+    const internal = PROMOTION_PLAN_INTERNALS.get(promotionPlan);
+    if (internal === void 0 || internal.manifest !== this.#manifest || promotionPlan.layoutId !== this.#manifest.layoutId || promotionPlan.fingerprint !== this.#manifest.fingerprint) {
+      throw new Error(
+        "Transactional typed state promotion plan has the wrong layout"
+      );
+    }
+    assertRequiredCandidateWrites(
+      internal.requiredContinuous,
+      this.#candidateWrittenContinuous,
+      "continuous"
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredNullableContinuous,
+      this.#candidateWrittenNullableContinuous,
+      "nullable continuous"
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredBooleans,
+      this.#candidateWrittenBooleans,
+      "boolean"
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredStrings,
+      this.#candidateWrittenStrings,
+      "string"
+    );
+  }
+}
+function assertSlotIndex(slotIndex2, slotCount, owner) {
+  if (!Number.isSafeInteger(slotIndex2) || slotIndex2 < 0 || slotIndex2 >= slotCount) {
+    throw new Error(`Transactional typed state ${owner} slot index is invalid`);
+  }
+}
+function assertArenaSlice(offset, length, usedBytes, owner, allowEmpty = false) {
+  if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < (allowEmpty ? 0 : 1) || offset + length > usedBytes) {
+    throw new Error(`Transactional typed state current ${owner} slice is invalid`);
+  }
+}
+function writeFixedLeaves(manifest, state, destination, writableContinuous, writableBooleans, directReaders) {
+  const layout = manifest.numericalLayout;
+  const continuousCount = writableContinuous?.length ?? layout.continuousSlots.length;
+  for (let position = 0; position < continuousCount; position += 1) {
+    const index = writableContinuous?.[position] ?? position;
+    const slot2 = layout.continuousSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, directReaders === void 0 ? void 0 : destination)) {
+      destination.continuous[index] = 0;
+      continue;
+    }
+    const value = directReaders?.continuous[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(`Transactional typed state ${slot2.pointer} must be finite`);
+    }
+    destination.continuous[index] = value;
+  }
+  const booleanCount = writableBooleans?.length ?? layout.booleanSlots.length;
+  for (let position = 0; position < booleanCount; position += 1) {
+    const index = writableBooleans?.[position] ?? position;
+    const slot2 = layout.booleanSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, directReaders === void 0 ? void 0 : destination)) {
+      destination.booleans[index] = 0;
+      continue;
+    }
+    const value = directReaders?.booleans[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
+    if (typeof value !== "boolean") {
+      throw new Error(`Transactional typed state ${slot2.pointer} must be boolean`);
+    }
+    destination.booleans[index] = value ? 1 : 0;
+  }
+}
+function assertRetainedFixedLeavesMatch(manifest, state, destination, retainedContinuous, retainedBooleans, directReaders) {
+  for (const index of retainedContinuous) {
+    const slot2 = manifest.numericalLayout.continuousSlots[index];
+    const value = directReaders?.continuous[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
+    if (typeof value !== "number" || !Number.isFinite(value) || !Object.is(destination.continuous[index], value)) {
+      throw new Error(
+        `Transactional typed state retained ${slot2.pointer} differs from adapter`
+      );
+    }
+  }
+  for (const index of retainedBooleans) {
+    const slot2 = manifest.numericalLayout.booleanSlots[index];
+    const value = directReaders?.booleans[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
+    if (typeof value !== "boolean" || destination.booleans[index] !== (value ? 1 : 0)) {
+      throw new Error(
+        `Transactional typed state retained ${slot2.pointer} differs from adapter`
+      );
+    }
+  }
+}
+function imageExactlyMatchesObject(manifest, state, image, readers, stringBytes, dynamicBytes) {
+  const layout = manifest.numericalLayout;
+  for (let index = 0; index < layout.optionalRecordRoots.length; index += 1) {
+    const present = readers.optionalRecords[index](state) !== null;
+    if (image.optionalRecordPresent[index] !== (present ? 1 : 0)) return false;
+  }
+  for (let index = 0; index < layout.boundedArrayRoots.length; index += 1) {
+    const value = readers.boundedArrays[index](state);
+    if (!Array.isArray(value) || value.length !== image.boundedArrayLengths[index]) return false;
+  }
+  for (let index = 0; index < layout.continuousSlots.length; index += 1) {
+    const slot2 = layout.continuousSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.continuous[index](state);
+    if (typeof value !== "number" || !Number.isFinite(value) || !Object.is(image.continuous[index], value)) return false;
+  }
+  for (let index = 0; index < layout.nullableContinuousSlots.length; index += 1) {
+    const slot2 = layout.nullableContinuousSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.nullableContinuous[index](state);
+    const present = image.nullableContinuousPresent[index];
+    if (value === null) {
+      if (present !== 0) return false;
+      continue;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value) || present !== 1 || !Object.is(image.nullableContinuous[index], value)) return false;
+  }
+  for (let index = 0; index < layout.booleanSlots.length; index += 1) {
+    const slot2 = layout.booleanSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.booleans[index](state);
+    if (typeof value !== "boolean" || image.booleans[index] !== (value ? 1 : 0)) return false;
+  }
+  for (let index = 0; index < layout.stringSlots.length; index += 1) {
+    const slot2 = layout.stringSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.strings[index](state);
+    if (typeof value !== "string" || decodeStringSlot(image, index, stringBytes) !== value) return false;
+  }
+  for (let index = 0; index < layout.nullableStringSlots.length; index += 1) {
+    const slot2 = layout.nullableStringSlots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.nullableStrings[index](state);
+    const present = image.nullableStringPresent[index];
+    if (value === null) {
+      if (present !== 0) return false;
+      continue;
+    }
+    if (typeof value !== "string" || present !== 1) return false;
+    const offset = image.nullableStringMetadata[index * 2];
+    const length = image.nullableStringMetadata[index * 2 + 1];
+    assertArenaSlice(offset, length, stringBytes, "nullable string", true);
+    if (UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length)) !== value) return false;
+  }
+  for (let index = 0; index < layout.excludedDynamicRoots.length; index += 1) {
+    const slot2 = layout.excludedDynamicRoots[index];
+    if (layoutEntryAbsent(layout, state, slot2, image)) continue;
+    const value = readers.dynamicRoots[index](state);
+    const expectedLength = measureCanonicalFlatDataV1(value);
+    const offset = image.dynamicMetadata[index * 2];
+    const length = image.dynamicMetadata[index * 2 + 1];
+    if (length !== expectedLength) return false;
+    assertArenaSlice(offset, length, dynamicBytes, "dynamic");
+    const expected = new Uint8Array(expectedLength);
+    if (encodeCanonicalFlatDataIntoV1(value, expected) !== expectedLength) {
+      throw new Error("Transactional typed state dynamic length changed");
+    }
+    const actual = image.dynamicArena.subarray(offset, offset + length);
+    if (!expected.every((byte, byteIndex) => byte === actual[byteIndex])) {
+      return false;
+    }
+  }
+  return true;
+}
+function decodeStringSlot(image, slotIndex2, usedBytes) {
+  const offset = image.stringMetadata[slotIndex2 * 2];
+  const length = image.stringMetadata[slotIndex2 * 2 + 1];
+  assertArenaSlice(offset, length, usedBytes, "string", true);
+  return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
+}
+function retainedSlotSet(slots, slotCount, owner) {
+  const retained = /* @__PURE__ */ new Set();
+  for (const slotIndex2 of slots ?? []) {
+    assertSlotIndex(slotIndex2, slotCount, `${owner} retained`);
+    if (retained.has(slotIndex2)) {
+      throw new Error(
+        `Transactional typed state ${owner} retained slot is duplicated`
+      );
+    }
+    retained.add(slotIndex2);
+  }
+  return retained;
+}
+function requiredSlotIndices(slots, slotCount, owner) {
+  const required = /* @__PURE__ */ new Set();
+  for (const slotIndex2 of slots ?? []) {
+    assertSlotIndex(slotIndex2, slotCount, `${owner} required`);
+    if (required.has(slotIndex2)) {
+      throw new Error(
+        `Transactional typed state ${owner} required slot is duplicated`
+      );
+    }
+    required.add(slotIndex2);
+  }
+  return Object.freeze([...required]);
+}
+function assertRequiredCandidateWrites(requiredSlots, writtenSlots, owner) {
+  for (const slotIndex2 of requiredSlots) {
+    if (writtenSlots[slotIndex2] !== 1) {
+      throw new Error(
+        `Transactional typed state required ${owner} slot ${slotIndex2} was not written in this candidate generation`
+      );
+    }
+  }
+}
+function complementSlotIndices(slotCount, retained) {
+  const writable = [];
+  for (let index = 0; index < slotCount; index += 1) {
+    if (!retained.has(index)) writable.push(index);
+  }
+  return Object.freeze(writable);
+}
+function compileDirectCompletionReaders(manifest) {
+  const readers = (entries) => Object.freeze(entries.map(({ path }) => compileDirectPathReader(path)));
+  const layout = manifest.numericalLayout;
+  return Object.freeze({
+    externalImmutable: readers(layout.externalImmutableRoots),
+    optionalRecords: readers(layout.optionalRecordRoots),
+    boundedArrays: readers(layout.boundedArrayRoots),
+    continuous: readers(layout.continuousSlots),
+    nullableContinuous: readers(layout.nullableContinuousSlots),
+    booleans: readers(layout.booleanSlots),
+    strings: readers(layout.stringSlots),
+    nullableStrings: readers(layout.nullableStringSlots),
+    dynamicRoots: readers(layout.excludedDynamicRoots)
+  });
+}
+function compileDirectPathReader(path) {
+  const segments = Object.freeze([...path]);
+  return (root) => {
+    let current = root;
+    for (const segment of segments) {
+      current = current[segment];
+    }
+    return current;
+  };
+}
+function writeOptionalRecordPresence(manifest, state, destination, directReaders) {
+  for (let index = 0; index < manifest.numericalLayout.optionalRecordRoots.length; index += 1) {
+    const root = manifest.numericalLayout.optionalRecordRoots[index];
+    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, root.path) : directReaders[index](state);
+    destination.optionalRecordPresent[index] = value === null ? 0 : 1;
+  }
+}
+function writeBoundedArrayLengths(manifest, state, destination, directReaders) {
+  for (let index = 0; index < manifest.numericalLayout.boundedArrayRoots.length; index += 1) {
+    const root = manifest.numericalLayout.boundedArrayRoots[index];
+    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, root.path) : directReaders[index](state);
+    if (!Array.isArray(value) || value.length > root.capacity) {
+      throw new Error(
+        `Transactional typed state ${root.pointer} exceeds bounded-array capacity`
+      );
+    }
+    destination.boundedArrayLengths[index] = value.length;
+  }
+}
+function layoutEntryAbsent(layout, state, slot2, candidateImage) {
+  if (slot2.optionalRecordRootIndex !== null) {
+    const root = layout.optionalRecordRoots[slot2.optionalRecordRootIndex];
+    if (root === void 0) {
+      throw new Error("Transactional typed state optional-record slot owner is invalid");
+    }
+    if (candidateImage !== void 0) {
+      if (candidateImage.optionalRecordPresent[slot2.optionalRecordRootIndex] === 0) return true;
+    } else if (readFlatNumericalStatePathV1(state, root.path) === null) {
+      return true;
+    }
+  }
+  if (slot2.boundedArrayRootIndex !== null) {
+    const root = layout.boundedArrayRoots[slot2.boundedArrayRootIndex];
+    if (root === void 0 || slot2.boundedArrayItemIndex === null) {
+      throw new Error("Transactional typed state bounded-array slot owner is invalid");
+    }
+    if (candidateImage !== void 0) {
+      return slot2.boundedArrayItemIndex >= candidateImage.boundedArrayLengths[slot2.boundedArrayRootIndex];
+    }
+    const value = readFlatNumericalStatePathV1(state, root.path);
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `Transactional typed state ${root.pointer} must remain an array`
+      );
+    }
+    return slot2.boundedArrayItemIndex >= value.length;
+  }
+  return false;
+}
+function writeNullableContinuousLeaves(manifest, state, destination, directReaders) {
+  const slots = manifest.numericalLayout.nullableContinuousSlots;
+  for (let index = 0; index < slots.length; index += 1) {
+    const slot2 = slots[index];
+    if (layoutEntryAbsent(
+      manifest.numericalLayout,
+      state,
+      slot2,
+      directReaders === void 0 ? void 0 : destination
+    )) {
+      destination.nullableContinuous[index] = 0;
+      destination.nullableContinuousPresent[index] = 0;
+      continue;
+    }
+    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, slot2.path) : directReaders.nullableContinuous[index](state);
+    if (value === null) {
+      destination.nullableContinuous[index] = 0;
+      destination.nullableContinuousPresent[index] = 0;
+      continue;
+    }
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(
+        `Transactional typed state ${slot2.pointer} must be null or finite`
+      );
+    }
+    destination.nullableContinuous[index] = value;
+    destination.nullableContinuousPresent[index] = 1;
+  }
+}
+function writeStrings(manifest, state, destination, directReaders) {
+  let byteOffset = 0;
+  for (let index = 0; index < manifest.numericalLayout.stringSlots.length; index += 1) {
+    const slot2 = manifest.numericalLayout.stringSlots[index];
+    if (layoutEntryAbsent(
+      manifest.numericalLayout,
+      state,
+      slot2,
+      directReaders === void 0 ? void 0 : destination
+    )) {
+      destination.stringMetadata[index * 2] = 0;
+      destination.stringMetadata[index * 2 + 1] = 0;
+      continue;
+    }
+    const value = directReaders?.strings[index]?.(state) ?? readFlatNumericalStatePathV1(state, slot2.path);
+    if (typeof value !== "string") {
+      throw new Error(`Transactional typed state ${slot2.pointer} must be a string`);
+    }
+    assertWellFormedString(value, slot2.pointer);
+    const target = destination.stringArena.subarray(byteOffset);
+    const result = UTF8_ENCODER.encodeInto(value, target);
+    if (result.read !== value.length) {
+      throw new Error("Transactional typed state string arena capacity exceeded");
+    }
+    destination.stringMetadata[index * 2] = byteOffset;
+    destination.stringMetadata[index * 2 + 1] = result.written;
+    byteOffset += result.written;
+  }
+  for (let index = 0; index < manifest.numericalLayout.nullableStringSlots.length; index += 1) {
+    const slot2 = manifest.numericalLayout.nullableStringSlots[index];
+    if (layoutEntryAbsent(
+      manifest.numericalLayout,
+      state,
+      slot2,
+      directReaders === void 0 ? void 0 : destination
+    )) {
+      destination.nullableStringMetadata[index * 2] = 0;
+      destination.nullableStringMetadata[index * 2 + 1] = 0;
+      destination.nullableStringPresent[index] = 0;
+      continue;
+    }
+    const value = directReaders === void 0 ? readFlatNumericalStatePathV1(state, slot2.path) : directReaders.nullableStrings[index](state);
+    if (value === null) {
+      destination.nullableStringMetadata[index * 2] = 0;
+      destination.nullableStringMetadata[index * 2 + 1] = 0;
+      destination.nullableStringPresent[index] = 0;
+      continue;
+    }
+    if (typeof value !== "string") {
+      throw new Error(
+        `Transactional typed state ${slot2.pointer} must be null or a string`
+      );
+    }
+    assertWellFormedString(value, slot2.pointer);
+    const target = destination.stringArena.subarray(byteOffset);
+    const result = UTF8_ENCODER.encodeInto(value, target);
+    if (result.read !== value.length) {
+      throw new Error("Transactional typed state string arena capacity exceeded");
+    }
+    destination.nullableStringMetadata[index * 2] = byteOffset;
+    destination.nullableStringMetadata[index * 2 + 1] = result.written;
+    destination.nullableStringPresent[index] = 1;
+    byteOffset += result.written;
+  }
+  return byteOffset;
+}
+function writeDynamicRoots(manifest, state, destination, directReaders) {
+  let byteOffset = 0;
+  const roots = manifest.numericalLayout.excludedDynamicRoots;
+  for (let index = 0; index < roots.length; index += 1) {
+    const slot2 = roots[index];
+    const value = layoutEntryAbsent(
+      manifest.numericalLayout,
+      state,
+      slot2,
+      directReaders === void 0 ? void 0 : destination
+    ) ? null : directReaders === void 0 ? readFlatNumericalStatePathV1(state, slot2.path) : directReaders.dynamicRoots[index](state);
+    let length;
+    try {
+      length = encodeCanonicalFlatDataIntoV1(
+        value,
+        destination.dynamicArena.subarray(byteOffset)
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message === "Canonical flat data exceeds its fixed capacity") {
+        throw new Error(
+          "Transactional typed state dynamic arena capacity exceeded"
+        );
+      }
+      throw error;
+    }
+    destination.dynamicMetadata[index * 2] = byteOffset;
+    destination.dynamicMetadata[index * 2 + 1] = length;
+    byteOffset += length;
+  }
+  return byteOffset;
+}
+function rehydrateNode(node, image, externalImmutableRoots) {
+  switch (node.kind) {
+    case "f64":
+      return image.continuous[node.slotIndex];
+    case "nullable-f64": {
+      const present = image.nullableContinuousPresent[node.slotIndex];
+      if (present === 0) return null;
+      if (present !== 1) {
+        throw new Error(
+          "Transactional typed state nullable continuous presence is invalid"
+        );
+      }
+      return image.nullableContinuous[node.slotIndex];
+    }
+    case "nullable-string": {
+      const present = image.nullableStringPresent[node.slotIndex];
+      if (present === 0) return null;
+      if (present !== 1) {
+        throw new Error(
+          "Transactional typed state nullable string presence is invalid"
+        );
+      }
+      const offset = image.nullableStringMetadata[node.slotIndex * 2];
+      const length = image.nullableStringMetadata[node.slotIndex * 2 + 1];
+      return UTF8_DECODER.decode(
+        image.stringArena.subarray(offset, offset + length)
+      );
+    }
+    case "optional-record": {
+      const present = image.optionalRecordPresent[node.slotIndex];
+      if (present === 0) return null;
+      if (present !== 1) {
+        throw new Error(
+          "Transactional typed state optional record presence is invalid"
+        );
+      }
+      return rehydrateNode(node.value, image, externalImmutableRoots);
+    }
+    case "bounded-array": {
+      const length = image.boundedArrayLengths[node.slotIndex];
+      if (length > node.items.length) {
+        throw new Error(
+          "Transactional typed state bounded-array length is invalid"
+        );
+      }
+      return Object.freeze(Array.from(
+        { length },
+        (_, index) => rehydrateNode(
+          node.items[index],
+          image,
+          externalImmutableRoots
+        )
+      ));
+    }
+    case "boolean":
+      return image.booleans[node.slotIndex] === 1;
+    case "string": {
+      const offset = image.stringMetadata[node.slotIndex * 2];
+      const length = image.stringMetadata[node.slotIndex * 2 + 1];
+      return UTF8_DECODER.decode(image.stringArena.subarray(offset, offset + length));
+    }
+    case "dynamic": {
+      const offset = image.dynamicMetadata[node.slotIndex * 2];
+      const length = image.dynamicMetadata[node.slotIndex * 2 + 1];
+      return decodeCanonicalFlatDataV1(
+        image.dynamicArena.subarray(offset, offset + length)
+      );
+    }
+    case "external":
+      return externalImmutableRoots[node.slotIndex].value;
+    case "typed-array": {
+      const array = createNumericTypedArray(node.constructorTag, node.items.length);
+      for (let index = 0; index < node.items.length; index += 1) {
+        const value = rehydrateNode(
+          node.items[index],
+          image,
+          externalImmutableRoots
+        );
+        if (typeof value !== "number") {
+          throw new Error("Transactional typed state typed-array item is not numeric");
+        }
+        array[index] = value;
+      }
+      return array;
+    }
+    case "array":
+      return Object.freeze(
+        node.items.map((item) => rehydrateNode(item, image, externalImmutableRoots))
+      );
+    case "record": {
+      const record = node.nullPrototype ? /* @__PURE__ */ Object.create(null) : {};
+      for (const entry of node.entries) {
+        record[entry.key] = rehydrateNode(
+          entry.node,
+          image,
+          externalImmutableRoots
+        );
+      }
+      return Object.freeze(record);
+    }
+  }
+}
+function compileNode(value, path, layout, compilingOptionalRootIndex = null) {
+  const pathPointer = pointer(path);
+  const optionalRecordRootIndex = layout.optionalRecordRoots.findIndex(
+    (root) => root.pointer === pathPointer
+  );
+  if (optionalRecordRootIndex !== -1 && compilingOptionalRootIndex !== optionalRecordRootIndex) {
+    return Object.freeze({
+      kind: "optional-record",
+      slotIndex: optionalRecordRootIndex,
+      value: compileNode(
+        layout.optionalRecordRoots[optionalRecordRootIndex].template,
+        path,
+        layout,
+        optionalRecordRootIndex
+      )
+    });
+  }
+  const boundedArrayRootIndex = layout.boundedArrayRoots.findIndex(
+    (root) => root.pointer === pathPointer
+  );
+  if (boundedArrayRootIndex !== -1) {
+    const root = layout.boundedArrayRoots[boundedArrayRootIndex];
+    return compileBoundedArrayNode(
+      root.itemTemplate,
+      root.path,
+      boundedArrayRootIndex,
+      root.capacity,
+      layout
+    );
+  }
+  const externalIndex = slotIndex(
+    layout.externalImmutableRoots,
+    pathPointer
+  );
+  if (externalIndex !== -1) {
+    return Object.freeze({ kind: "external", slotIndex: externalIndex });
+  }
+  const nullableContinuousIndex = slotIndex(
+    layout.nullableContinuousSlots,
+    pathPointer
+  );
+  if (nullableContinuousIndex !== -1) {
+    return Object.freeze({
+      kind: "nullable-f64",
+      slotIndex: nullableContinuousIndex
+    });
+  }
+  const nullableStringIndex = slotIndex(
+    layout.nullableStringSlots,
+    pathPointer
+  );
+  if (nullableStringIndex !== -1) {
+    return Object.freeze({
+      kind: "nullable-string",
+      slotIndex: nullableStringIndex
+    });
+  }
+  const dynamicIndex = slotIndex(layout.excludedDynamicRoots, pathPointer);
+  if (dynamicIndex !== -1) {
+    return Object.freeze({ kind: "dynamic", slotIndex: dynamicIndex });
+  }
+  if (typeof value === "number") {
+    return Object.freeze({
+      kind: "f64",
+      slotIndex: requiredSlotIndex(layout.continuousSlots, pathPointer)
+    });
+  }
+  if (typeof value === "boolean") {
+    return Object.freeze({
+      kind: "boolean",
+      slotIndex: requiredSlotIndex(layout.booleanSlots, pathPointer)
+    });
+  }
+  if (typeof value === "string") {
+    return Object.freeze({
+      kind: "string",
+      slotIndex: requiredSlotIndex(layout.stringSlots, pathPointer)
+    });
+  }
+  if (isNumericTypedArray(value)) {
+    const items = Array.from(
+      { length: value.length },
+      (_, index) => compileNode(
+        value[index],
+        [...path, index],
+        layout,
+        compilingOptionalRootIndex
+      )
+    );
+    return Object.freeze({
+      kind: "typed-array",
+      constructorTag: value.constructor.name,
+      items: Object.freeze(items)
+    });
+  }
+  if (Array.isArray(value)) {
+    return Object.freeze({
+      kind: "array",
+      items: Object.freeze(value.map((item, index) => compileNode(item, [...path, index], layout, compilingOptionalRootIndex)))
+    });
+  }
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new Error(
+        `Transactional typed state ${pathPointer} has an unsupported record prototype`
+      );
+    }
+    const entries = Object.keys(value).sort().map((key) => Object.freeze({
+      key,
+      node: compileNode(
+        requiredOwnValue(value, key, path),
+        [...path, key],
+        layout,
+        compilingOptionalRootIndex
+      )
+    }));
+    return Object.freeze({
+      kind: "record",
+      nullPrototype: prototype === null,
+      entries: Object.freeze(entries)
+    });
+  }
+  throw new Error(`Transactional typed state ${pathPointer} has no compiled node`);
+}
+function compileBoundedArrayNode(itemTemplate, rootPath, slotIndex2, capacity, layout) {
+  return Object.freeze({
+    kind: "bounded-array",
+    slotIndex: slotIndex2,
+    items: Object.freeze(Array.from(
+      { length: capacity },
+      (_, index) => compileNode(
+        itemTemplate,
+        [...rootPath, index],
+        layout
+      )
+    ))
+  });
+}
+function createImageLayout(layout, stringArenaCapacityBytes, dynamicArenaCapacityBytes) {
+  let offset = 0;
+  const continuousByteOffset = align(offset, 8);
+  offset = continuousByteOffset + layout.continuousSlots.length * 8;
+  const nullableContinuousByteOffset = align(offset, 8);
+  offset = nullableContinuousByteOffset + layout.nullableContinuousSlots.length * 8;
+  const nullableContinuousPresenceByteOffset = offset;
+  offset += layout.nullableContinuousSlots.length;
+  const booleanByteOffset = offset;
+  offset += layout.booleanSlots.length;
+  const stringMetadataByteOffset = align(offset, 4);
+  offset = stringMetadataByteOffset + layout.stringSlots.length * 2 * 4;
+  const nullableStringMetadataByteOffset = align(offset, 4);
+  offset = nullableStringMetadataByteOffset + layout.nullableStringSlots.length * 2 * 4;
+  const nullableStringPresenceByteOffset = offset;
+  offset += layout.nullableStringSlots.length;
+  const optionalRecordPresenceByteOffset = offset;
+  offset += layout.optionalRecordRoots.length;
+  const boundedArrayLengthByteOffset = align(offset, 4);
+  offset = boundedArrayLengthByteOffset + layout.boundedArrayRoots.length * 4;
+  const dynamicMetadataByteOffset = align(offset, 4);
+  offset = dynamicMetadataByteOffset + layout.excludedDynamicRoots.length * 2 * 4;
+  const stringArenaByteOffset = offset;
+  offset += stringArenaCapacityBytes;
+  const dynamicArenaByteOffset = offset;
+  offset += dynamicArenaCapacityBytes;
+  return Object.freeze({
+    continuousByteOffset,
+    nullableContinuousByteOffset,
+    nullableContinuousPresenceByteOffset,
+    booleanByteOffset,
+    stringMetadataByteOffset,
+    nullableStringMetadataByteOffset,
+    nullableStringPresenceByteOffset,
+    optionalRecordPresenceByteOffset,
+    boundedArrayLengthByteOffset,
+    dynamicMetadataByteOffset,
+    stringArenaByteOffset,
+    dynamicArenaByteOffset,
+    bufferByteLength: offset
+  });
+}
+function createImage(manifest) {
+  const layout = manifest.numericalLayout;
+  const offsets = manifest.imageLayout;
+  const buffer = new ArrayBuffer(offsets.bufferByteLength);
+  return Object.freeze({
+    buffer,
+    continuous: new Float64Array(
+      buffer,
+      offsets.continuousByteOffset,
+      layout.continuousSlots.length
+    ),
+    nullableContinuous: new Float64Array(
+      buffer,
+      offsets.nullableContinuousByteOffset,
+      layout.nullableContinuousSlots.length
+    ),
+    nullableContinuousPresent: new Uint8Array(
+      buffer,
+      offsets.nullableContinuousPresenceByteOffset,
+      layout.nullableContinuousSlots.length
+    ),
+    booleans: new Uint8Array(
+      buffer,
+      offsets.booleanByteOffset,
+      layout.booleanSlots.length
+    ),
+    stringMetadata: new Uint32Array(
+      buffer,
+      offsets.stringMetadataByteOffset,
+      layout.stringSlots.length * 2
+    ),
+    nullableStringMetadata: new Uint32Array(
+      buffer,
+      offsets.nullableStringMetadataByteOffset,
+      layout.nullableStringSlots.length * 2
+    ),
+    nullableStringPresent: new Uint8Array(
+      buffer,
+      offsets.nullableStringPresenceByteOffset,
+      layout.nullableStringSlots.length
+    ),
+    optionalRecordPresent: new Uint8Array(
+      buffer,
+      offsets.optionalRecordPresenceByteOffset,
+      layout.optionalRecordRoots.length
+    ),
+    boundedArrayLengths: new Uint32Array(
+      buffer,
+      offsets.boundedArrayLengthByteOffset,
+      layout.boundedArrayRoots.length
+    ),
+    dynamicMetadata: new Uint32Array(
+      buffer,
+      offsets.dynamicMetadataByteOffset,
+      layout.excludedDynamicRoots.length * 2
+    ),
+    stringArena: new Uint8Array(
+      buffer,
+      offsets.stringArenaByteOffset,
+      manifest.stringArenaCapacityBytes
+    ),
+    dynamicArena: new Uint8Array(
+      buffer,
+      offsets.dynamicArenaByteOffset,
+      manifest.dynamicArenaCapacityBytes
+    )
+  });
+}
+function createNumericTypedArray(tag, length) {
+  switch (tag) {
+    case "Float64Array":
+      return new Float64Array(length);
+    case "Float32Array":
+      return new Float32Array(length);
+    case "Int32Array":
+      return new Int32Array(length);
+    case "Uint32Array":
+      return new Uint32Array(length);
+    case "Int16Array":
+      return new Int16Array(length);
+    case "Uint16Array":
+      return new Uint16Array(length);
+    case "Int8Array":
+      return new Int8Array(length);
+    case "Uint8Array":
+      return new Uint8Array(length);
+    case "Uint8ClampedArray":
+      return new Uint8ClampedArray(length);
+  }
+}
+function isNumericTypedArray(value) {
+  return value instanceof Float64Array || value instanceof Float32Array || value instanceof Int32Array || value instanceof Uint32Array || value instanceof Int16Array || value instanceof Uint16Array || value instanceof Int8Array || value instanceof Uint8Array || value instanceof Uint8ClampedArray;
+}
+function requiredOwnValue(record, key, path) {
+  const descriptor = Object.getOwnPropertyDescriptor(record, key);
+  if (descriptor === void 0 || !("value" in descriptor)) {
+    throw new Error(
+      `Transactional typed state ${pointer([...path, key])} is unavailable`
+    );
+  }
+  return descriptor.value;
+}
+function slotIndex(slots, pathPointer) {
+  return slots.findIndex((slot2) => slot2.pointer === pathPointer);
+}
+function requiredSlotIndex(slots, pathPointer) {
+  const index = slotIndex(slots, pathPointer);
+  if (index === -1) {
+    throw new Error(`Transactional typed state ${pathPointer} has no slot`);
+  }
+  return index;
+}
+function assertWellFormedString(value, pathPointer) {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 55296 && code <= 56319) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 56320 && next <= 57343)) {
+        throw new Error(
+          `Transactional typed state ${pathPointer} contains an unpaired surrogate`
+        );
+      }
+      index += 1;
+    } else if (code >= 56320 && code <= 57343) {
+      throw new Error(
+        `Transactional typed state ${pathPointer} contains an unpaired surrogate`
+      );
+    }
+  }
+}
+function encodeCanonicalBytes(value) {
+  const bytes = new Uint8Array(measureCanonicalFlatDataV1(value));
+  const length = encodeCanonicalFlatDataIntoV1(value, bytes);
+  if (length !== bytes.byteLength) {
+    throw new Error(
+      "Transactional typed state canonical immutable length changed"
+    );
+  }
+  return bytes;
+}
+function assertTransitivelyFrozenData(value, pathPointer, visited) {
+  if (value === null || typeof value !== "object") return;
+  if (visited.has(value)) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} is cyclic`
+    );
+  }
+  if (!Object.isFrozen(value)) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} must be frozen`
+    );
+  }
+  visited.add(value);
+  if (Object.getOwnPropertySymbols(value).length !== 0) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} has symbol keys`
+    );
+  }
+  if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} must be plain data`
+    );
+  }
+  const array = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (!array && prototype !== Object.prototype && prototype !== null) {
+    throw new Error(
+      `Transactional typed state external immutable ${pathPointer} has an unsupported prototype`
+    );
+  }
+  for (const key of Object.getOwnPropertyNames(value)) {
+    if (array && key === "length") continue;
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === void 0 || !("value" in descriptor) || !descriptor.enumerable) {
+      throw new Error(
+        `Transactional typed state external immutable ${pathPointer}/${key} is not plain data`
+      );
+    }
+  }
+  for (const key of Object.keys(value)) {
+    const childPointer = `${pathPointer}/${key.replaceAll("~", "~0").replaceAll("/", "~1")}`;
+    assertTransitivelyFrozenData(
+      requiredOwnValue(value, key, []),
+      childPointer,
+      visited
+    );
+  }
+  visited.delete(value);
+}
+function assertArenaCapacity(capacity, owner, allowZero = false) {
+  if (!Number.isSafeInteger(capacity) || capacity < (allowZero ? 0 : 1) || capacity > MAX_ARENA_CAPACITY_BYTES) {
+    throw new Error(`Transactional typed state ${owner} arena capacity is invalid`);
+  }
+}
+function align(value, alignment) {
+  return Math.ceil(value / alignment) * alignment;
+}
+function pointer(path) {
+  if (path.length === 0) return "/";
+  return `/${path.map((segment) => String(segment).replaceAll("~", "~0").replaceAll("/", "~1")).join("/")}`;
+}
+function manifestFingerprint(layout, stringCapacity, dynamicCapacity) {
+  const canonical = [
+    `layout:${layout.layoutId}`,
+    `string-capacity:${stringCapacity}`,
+    `dynamic-capacity:${dynamicCapacity}`,
+    ...layout.continuousSlots.map(({ pointer: value }) => `f64:${value}`),
+    ...layout.nullableContinuousSlots.map(
+      ({ pointer: value }) => `nullable-f64:${value}`
+    ),
+    ...layout.nullableStringSlots.map(
+      ({ pointer: value }) => `nullable-string:${value}`
+    ),
+    ...layout.optionalRecordRoots.map(
+      ({ pointer: value }) => `optional-record:${value}`
+    ),
+    ...layout.boundedArrayRoots.map(
+      ({ pointer: value, capacity }) => `bounded-array:${value}:capacity:${capacity}`
+    ),
+    ...layout.booleanSlots.map(({ pointer: value }) => `bool:${value}`),
+    ...layout.stringSlots.map(({ pointer: value }) => `string:${value}`),
+    ...layout.externalImmutableRoots.map(
+      ({ pointer: value }) => `external-immutable:${value}`
+    ),
+    ...layout.externalImmutableAliases.map(
+      ({ pointer: value, sourcePointer }) => `external-immutable-alias:${value}:source:${sourcePointer}`
+    ),
+    ...layout.excludedDynamicRoots.map(({ pointer: value }) => `dynamic:${value}`),
+    ...layout.containers.map((container2) => (container2.boundedArrayRootIndex === null ? container2.optionalRecordRootIndex === null ? [
+      "container",
+      container2.pointer,
+      container2.kind,
+      container2.prototypeTag ?? "null",
+      container2.keys.join(",")
+    ] : [
+      "container",
+      container2.pointer,
+      container2.kind,
+      container2.prototypeTag ?? "null",
+      `optional-root-${container2.optionalRecordRootIndex}`,
+      container2.keys.join(",")
+    ] : [
+      "container",
+      container2.pointer,
+      container2.kind,
+      container2.prototypeTag ?? "null",
+      `bounded-root-${container2.boundedArrayRootIndex}`,
+      `bounded-item-${container2.boundedArrayItemIndex}`,
+      container2.keys.join(",")
+    ]).join(":"))
+  ].join("\n");
+  let hash = 2166136261;
+  for (const byte of UTF8_ENCODER.encode(canonical)) {
+    hash ^= byte;
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return `fnv1a32-${hash.toString(16).padStart(8, "0")}`;
+}
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID = "main-wire-integrated-accepted-typed-state-authority-v1";
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID = "main-wire-integrated-accepted-typed-state-v1";
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT = "fnv1a32-44b16062";
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1 = 16 * 1024;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1 = 0;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1 = 16;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 = 22360;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 = 484;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 = 6;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1 = 22;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1 = 6;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOUNDED_ARRAY_ROOT_COUNT_V1 = 3;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 = 2;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 = 229;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 = 0;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1 = 163;
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1 = Object.freeze([
+  "/composedRhythm/calciumStateByWall/LA",
+  "/composedRhythm/calciumStateByWall/LVFW",
+  "/composedRhythm/calciumStateByWall/RA",
+  "/composedRhythm/calciumStateByWall/RVFW",
+  "/composedRhythm/calciumStateByWall/SEP"
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_ROOT_POINTERS_V1 = Object.freeze([
+  "/composedRhythm/configuration",
+  "/composedRhythm/regularAtrialSourceState/configuration",
+  "/composedRhythm/authoredEctopyState/configuration",
+  "/composedRhythm/electricalCaptureState/configuration",
+  "/composedRhythm/proximalAvGateState/configuration",
+  "/composedRhythm/distalGateState/configuration",
+  "/composedRhythm/ventricularBackupState/configuration",
+  "/composedRhythm/ventricularBackupState/initialCaptureSeed",
+  "/composedRhythm/ventricularIntervalStrengthState/configuration",
+  "/composedRhythm/ventricularIntervalStrengthState/initialPriorAcceptedVentricularActivation",
+  "/dynamicMechanicalSupport/inertanceProfileSnapshot",
+  "/dynamicMechanicalSupport/structuralHydraulicProjection"
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_CONSTANT_STRING_POINTERS_V1 = Object.freeze([
+  "/composedRhythm/authoredEctopyState/stateSchemaId",
+  "/composedRhythm/distalGateState/stateSchemaId",
+  "/composedRhythm/electricalCaptureState/atrialGate/chamber",
+  "/composedRhythm/electricalCaptureState/atrialGate/gateInstanceId",
+  "/composedRhythm/electricalCaptureState/atrialGate/gateStateSchemaId",
+  "/composedRhythm/electricalCaptureState/stateSchemaId",
+  "/composedRhythm/electricalCaptureState/ventricularGate/chamber",
+  "/composedRhythm/electricalCaptureState/ventricularGate/gateInstanceId",
+  "/composedRhythm/electricalCaptureState/ventricularGate/gateStateSchemaId",
+  "/composedRhythm/proximalAvGateState/stateSchemaId",
+  "/composedRhythm/regularAtrialSourceState/stateSchemaId",
+  "/composedRhythm/stateSchemaId",
+  "/composedRhythm/ventricularBackupState/stateSchemaId",
+  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/activationSchemaId",
+  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/chamber",
+  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/gateInstanceId",
+  "/composedRhythm/ventricularIntervalStrengthState/stateSchemaId",
+  "/coronary/circulation/transactionId",
+  "/coronary/coronaryAutoregulation/desiredControl/controlId",
+  "/coronary/coronaryAutoregulation/stateId",
+  "/coronary/coronaryAutoregulationBinding/bindingId",
+  "/coronary/coronaryAutoregulationBinding/flowObservable",
+  "/coronary/coronaryAutoregulationBinding/law",
+  "/coronary/coronaryAutoregulationBinding/perfusionPressureObservable",
+  "/coronary/coronaryAutoregulationBinding/priorFingerprint",
+  "/coronary/coronaryAutoregulationBinding/windowPolicy/interpretation",
+  "/coronary/coronaryAutoregulationBinding/windowPolicy/kind",
+  "/coronary/coronaryAutoregulationBinding/windowPolicy/quadrature",
+  "/coronary/coronaryBinding/boundaryResolverId",
+  "/coronary/coronaryBinding/collapseHydraulicsFingerprint",
+  "/coronary/coronaryBinding/impMechanism",
+  "/coronary/coronaryBinding/mvcReferenceSemantics",
+  "/coronary/coronaryBinding/priorFingerprint",
+  "/coronary/coronaryBinding/shorteningImpPriorFingerprint",
+  "/coronary/coronaryBinding/topologyId",
+  "/coronary/mechanics/contractId",
+  "/coronary/mechanics/parameterIdentityHash",
+  "/coronary/mechanics/parameterSetId",
+  "/coronary/mechanics/providerId",
+  "/coronary/transactionId",
+  "/dynamicMechanicalSupport/networkId",
+  "/dynamicMechanicalSupport/stateSchemaId",
+  "/dynamicMechanicalSupport/unitSystemId",
+  "/transactionId"
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1 = Object.freeze([
+  ...MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_ROOT_POINTERS_V1,
+  ...MAIN_WIRE_ACCEPTED_TYPED_STATE_CONSTANT_STRING_POINTERS_V1
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1 = Object.freeze([
+  "/composedRhythm/distalGateState/lastPassedProximalArrivalTimeSec",
+  "/composedRhythm/distalGateState/lastVentricularImpulseTimeSec",
+  "/composedRhythm/electricalCaptureState/atrialGate/lastCapturedActivationTimeSec",
+  "/composedRhythm/electricalCaptureState/lastAcceptedImpulseBatchTimeSec",
+  "/composedRhythm/proximalAvGateState/lastConductedAtrialActivationTimeSec",
+  "/composedRhythm/proximalAvGateState/lastProximalAvOutputTimeSec"
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1 = Object.freeze([
+  "/composedRhythm/electricalCaptureState/atrialGate/lastCapturedActivationId",
+  "/composedRhythm/ventricularBackupState/lastAcceptedVentricularActivation/upstreamCapturedActivationId",
+  "/composedRhythm/ventricularBackupState/lastIntrinsicEscapeAttemptResult/capturedActivationId",
+  "/composedRhythm/ventricularBackupState/lastVviPacingAttemptResult/capturedActivationId",
+  "/composedRhythm/ventricularIntervalStrengthState/lastAcceptedVentricularActivation/upstreamCapturedActivationId",
+  "/composedRhythm/ventricularIntervalStrengthState/lastDepositMetadata/capturedVentricularActivation/upstreamCapturedActivationId",
+  ...Array.from(
+    { length: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1 },
+    (_, index) => `/composedRhythm/pendingDistalVentricularImpulses/${index}/parentCapturedActivationId`
+  )
+]);
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1 = Object.freeze({
+  resultSchemaId: VENTRICULAR_BACKUP_SOURCE_ATTEMPT_RESULT_V2_ID,
+  schemaVersion: 2,
+  sourceImpulseId: "template-source-impulse",
+  sourceKind: "escape",
+  sourceId: "template-source",
+  sourceSequence: 0,
+  activationTimeSec: 0,
+  outcome: "not-captured",
+  capturedActivationId: null
+});
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTOREGULATION_CONTROL_TEMPLATE_V1 = createDefaultCoronaryAutoregulationWindowControlV3();
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORED_PACING_TEMPLATE_V1 = Object.freeze({
+  stateSchemaId: ACCEPTED_AUTHORED_VENTRICULAR_PACING_REPLAY_SOURCE_STATE_V1_ID,
+  schemaVersion: 1,
+  configuration: null,
+  initializedAcceptedTimeSec: 0,
+  initializedHistoryEventCount: 0,
+  revision: 0,
+  acceptedTimeSec: 0,
+  cursor: 0,
+  acceptedEmittedImpulseCount: 0
+});
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_PROXIMAL_QUEUE_ITEM_TEMPLATE_V1 = Object.freeze({
+  pendingSchemaId: COMPOSED_RHYTHM_PENDING_PROXIMAL_AV_OUTPUT_V2_ID,
+  proximalAvOutputId: "template-proximal-av-output",
+  parentCapturedAtrialActivationId: "template-atrial-activation",
+  proximalArrivalTimeSec: 0
+});
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_DISTAL_QUEUE_ITEM_TEMPLATE_V1 = Object.freeze({
+  impulseSchemaId: SOURCE_IMPULSE_V2_ID,
+  schemaVersion: 2,
+  sourceImpulseId: "template-distal-source-impulse",
+  parentCapturedActivationId: null,
+  chamber: "ventricular",
+  sourceKind: "av-output",
+  capturePriority: ELECTRICAL_CAPTURE_PRIORITY_V2["av-output"],
+  sourceId: "template-distal-source",
+  sourceSequence: 0,
+  activationTimeSec: 0
+});
+const MAIN_WIRE_ACCEPTED_TYPED_STATE_CALCIUM_QUEUE_ITEM_TEMPLATE_V1 = Object.freeze({
+  pendingSchemaId: COMPOSED_RHYTHM_PENDING_CALCIUM_DEPOSIT_V2_ID,
+  depositId: "template-calcium-deposit",
+  depositClass: "ventricular",
+  parentCapturedActivationId: "template-ventricular-activation",
+  depositTimeSec: 0,
+  strengthByWall: Object.freeze({ LA: 0, RA: 0, LVFW: 0, SEP: 0, RVFW: 0 })
+});
+function createMainWireAcceptedTypedStateManifestV1(coldAcceptedState) {
+  const manifest = createTransactionalTypedStateManifestV1(
+    MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
+    coldAcceptedState,
+    MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_CAPACITY_BYTES_V1,
+    MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_CAPACITY_BYTES_V1,
+    {
+      fixedArrayPointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_FIXED_ARRAY_POINTERS_V1,
+      externalImmutablePointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_EXTERNAL_IMMUTABLE_POINTERS_V1,
+      nullableContinuousPointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_POINTERS_V1,
+      nullableStringPointers: MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_POINTERS_V1,
+      optionalRecordTemplates: [
+        {
+          pointer: "/composedRhythm/authoredVentricularPacingReplayState",
+          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORED_PACING_TEMPLATE_V1
+        },
+        {
+          pointer: "/composedRhythm/ventricularBackupState/lastAcceptedVentricularActivation",
+          template: coldAcceptedState.composedRhythm.ventricularIntervalStrengthState.initialPriorAcceptedVentricularActivation
+        },
+        {
+          pointer: "/composedRhythm/ventricularBackupState/lastIntrinsicEscapeAttemptResult",
+          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1
+        },
+        {
+          pointer: "/composedRhythm/ventricularBackupState/lastVviPacingAttemptResult",
+          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_ATTEMPT_RESULT_TEMPLATE_V1
+        },
+        {
+          pointer: "/coronary/coronaryAutoregulation/windowControl",
+          template: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTOREGULATION_CONTROL_TEMPLATE_V1
+        },
+        {
+          pointer: "/composedRhythm/ventricularIntervalStrengthState/lastDepositMetadata",
+          template: createIntervalStrengthDepositMetadataTemplateV1(
+            coldAcceptedState
+          )
+        }
+      ],
+      externalImmutableAliases: [
+        {
+          pointer: "/composedRhythm/authoredVentricularPacingReplayState/configuration",
+          sourcePointer: "/composedRhythm/configuration/authoredVentricularPacingReplay"
+        }
+      ],
+      boundedArrayTemplates: [
+        {
+          pointer: "/composedRhythm/pendingProximalAvOutputs",
+          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
+          itemTemplate: MAIN_WIRE_ACCEPTED_TYPED_STATE_PROXIMAL_QUEUE_ITEM_TEMPLATE_V1
+        },
+        {
+          pointer: "/composedRhythm/pendingDistalVentricularImpulses",
+          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
+          itemTemplate: MAIN_WIRE_ACCEPTED_TYPED_STATE_DISTAL_QUEUE_ITEM_TEMPLATE_V1
+        },
+        {
+          pointer: "/composedRhythm/pendingCalciumDeposits",
+          capacity: MAIN_WIRE_ACCEPTED_TYPED_STATE_PENDING_QUEUE_CAPACITY_V1,
+          itemTemplate: MAIN_WIRE_ACCEPTED_TYPED_STATE_CALCIUM_QUEUE_ITEM_TEMPLATE_V1
+        }
+      ]
+    }
+  );
+  const layout = manifest.numericalLayout;
+  if (manifest.fingerprint !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT || manifest.bufferByteLength !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BUFFER_BYTES_V1 || layout.continuousSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTINUOUS_SLOT_COUNT_V1 || layout.nullableContinuousSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_CONTINUOUS_SLOT_COUNT_V1 || layout.nullableStringSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_NULLABLE_STRING_SLOT_COUNT_V1 || layout.optionalRecordRoots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_OPTIONAL_RECORD_ROOT_COUNT_V1 || layout.boundedArrayRoots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOUNDED_ARRAY_ROOT_COUNT_V1 || layout.booleanSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_BOOLEAN_SLOT_COUNT_V1 || layout.stringSlots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_STRING_SLOT_COUNT_V1 || layout.externalImmutableRoots.length !== 57 || layout.excludedDynamicRoots.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_DYNAMIC_ROOT_COUNT_V1 || layout.containers.length !== MAIN_WIRE_ACCEPTED_TYPED_STATE_CONTAINER_COUNT_V1) {
+    throw new Error(
+      `Main Wire accepted typed-state layout changed without a new version (${manifest.fingerprint}; ${manifest.bufferByteLength}; ${layout.continuousSlots.length}/${layout.nullableContinuousSlots.length}/${layout.nullableStringSlots.length}/${layout.optionalRecordRoots.length}/${layout.boundedArrayRoots.length}/${layout.booleanSlots.length}/${layout.stringSlots.length}/${layout.excludedDynamicRoots.length}/${layout.externalImmutableRoots.length}/${layout.containers.length})`
+    );
+  }
+  return manifest;
+}
+function createIntervalStrengthDepositMetadataTemplateV1(coldAcceptedState) {
+  const state = coldAcceptedState.composedRhythm.ventricularIntervalStrengthState;
+  const configuration = state.configuration;
+  const activation = state.initialPriorAcceptedVentricularActivation;
+  return Object.freeze({
+    metadataSchemaId: VENTRICULAR_INTERVAL_STRENGTH_DEPOSIT_METADATA_V1_ID,
+    schemaVersion: 1,
+    configurationId: configuration.configurationId,
+    ownerInstanceId: configuration.ownerInstanceId,
+    ownerRevision: 0,
+    acceptedVentricularCaptureOrdinal: 0,
+    previousCapturedActivationId: activation.capturedActivationId,
+    previousCapturedActivationTimeSec: activation.activationTimeSec,
+    capturedVentricularActivation: activation,
+    intervalSec: configuration.referenceCycleLengthSec,
+    recoveryFractionA: configuration.referenceRecoveryFractionA,
+    normalizedSrLoadBefore: configuration.referenceNormalizedSrLoadState,
+    releasedRelativeStrengthR: 1,
+    returnedReleasedRelativeLoad: configuration.releasedLoadReturnFractionR,
+    intervalInfluxRelativeLoad: 1 - configuration.releasedLoadReturnFractionR,
+    normalizedSrLoadAfter: configuration.referenceNormalizedSrLoadState,
+    futureExactCalciumDepositRelativeStrength: 1,
+    calciumStateMutation: "none-metadata-only"
+  });
+}
+class MainWireAcceptedTypedStateAuthorityV1 {
+  constructor(coldAcceptedState, initialState, validate, ownDecoded, admitCompletedMirror) {
+    this.authorityId = MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID;
+    this.#currentMirrorMatchesImage = true;
+    this.#poisonedReason = null;
+    this.#directCandidateCommitCount = 0;
+    this.#directCandidateExactCommitCount = 0;
+    this.#directCandidateMirrorReuseCount = 0;
+    this.#modelOwnedCandidateCommitCount = 0;
+    this.#modelOwnedAdapterFreeCommitCount = 0;
+    this.#modelOwnedExactAuditCount = 0;
+    this.#lazyMirrorRehydrateCount = 0;
+    validate(initialState);
+    this.#ownDecoded = ownDecoded;
+    this.#manifest = createMainWireAcceptedTypedStateManifestV1(
+      coldAcceptedState
+    );
+    this.#image = new TransactionalTypedStateImageV1(
+      this.#manifest,
+      initialState,
+      admitCompletedMirror
+    );
+    this.#currentState = this.ownAndValidate(this.#image.rehydrateCurrent());
+  }
+  #manifest;
+  #image;
+  #ownDecoded;
+  #currentState;
+  #currentMirrorMatchesImage;
+  #poisonedReason;
+  #directCandidateCommitCount;
+  #directCandidateExactCommitCount;
+  #directCandidateMirrorReuseCount;
+  #modelOwnedCandidateCommitCount;
+  #modelOwnedAdapterFreeCommitCount;
+  #modelOwnedExactAuditCount;
+  #lazyMirrorRehydrateCount;
+  current() {
+    this.assertHealthy();
+    if (!this.#currentMirrorMatchesImage) {
+      this.#currentState = this.ownAndValidate(this.#image.rehydrateCurrent());
+      this.#currentMirrorMatchesImage = true;
+      this.#lazyMirrorRehydrateCount += 1;
+    }
+    return this.#currentState;
+  }
+  /** Immutable model-owned layout used to bind hot-path slots once. */
+  manifest() {
+    this.assertHealthy();
+    return this.#manifest;
+  }
+  snapshot() {
+    this.assertHealthy();
+    return this.ownAndValidate(this.#image.rehydrateCurrent());
+  }
+  commit(candidate) {
+    this.assertHealthy();
+    try {
+      this.#image.stage(candidate);
+      const owned = this.ownAndValidate(this.#image.rehydrateStaged());
+      this.#image.promote();
+      this.#currentState = owned;
+      this.#currentMirrorMatchesImage = true;
+      return owned;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+  /** Begins one inactive typed transaction for a migrated state owner. */
+  beginDirectCandidate() {
+    this.assertHealthy();
+    return this.#image.beginCandidateFromCurrent();
+  }
+  /** Compiles one model-bound retained-slot plan outside the accepted loop. */
+  createDirectCompletionPlan(retained) {
+    this.assertHealthy();
+    return this.#image.createCompletionPlan(retained);
+  }
+  /** Compiles model-owned required-write coverage outside the accepted loop. */
+  createModelOwnedPromotionPlan(required) {
+    this.assertHealthy();
+    return this.#image.createPromotionPlan(required);
+  }
+  /**
+   * Promotes an event-free model-owned candidate without a 484-leaf object
+   * comparison in the lean production tier. Full-invariant runs retain that
+   * comparison as an oracle and return null on a mismatch so the caller can
+   * execute exhaustive event-boundary completion.
+   */
+  tryCommitModelOwnedDirectCandidate(adapterCandidate, promotionPlan, auditPlan) {
+    this.assertHealthy();
+    try {
+      const auditEnabled = fullHotPathInvariantsEnabledV1();
+      const admittedMirror = this.#image.tryPromoteCandidateWithRequiredWrites(
+        adapterCandidate,
+        promotionPlan,
+        auditEnabled ? auditPlan : void 0
+      );
+      if (admittedMirror === null) return null;
+      this.#currentState = admittedMirror;
+      this.#currentMirrorMatchesImage = true;
+      this.#directCandidateCommitCount += 1;
+      this.#directCandidateMirrorReuseCount += 1;
+      this.#modelOwnedCandidateCommitCount += 1;
+      if (auditEnabled) {
+        this.#directCandidateExactCommitCount += 1;
+        this.#modelOwnedExactAuditCount += 1;
+      }
+      return admittedMirror;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `model-owned candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+  /**
+   * Atomically promotes a fully staged, model-owned typed candidate without
+   * allocating an AcceptedState adapter. The caller must already have applied
+   * every component-owned numerical and cross-owner seal represented by the
+   * immutable promotion plan. The cached object mirror is invalidated and is
+   * rehydrated only if a cold/event API subsequently requests it.
+   */
+  commitModelOwnedTypedCandidate(promotionPlan) {
+    this.assertHealthy();
+    try {
+      this.#image.promoteCandidateWithRequiredWrites(promotionPlan);
+      this.#currentMirrorMatchesImage = false;
+      this.#directCandidateCommitCount += 1;
+      this.#modelOwnedCandidateCommitCount += 1;
+      this.#modelOwnedAdapterFreeCommitCount += 1;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `adapter-free model-owned candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+  /**
+   * Admits the still-object-backed owners without overwriting migrated slots,
+   * proves the exact model-owned adapter at its accepted boundary, then
+   * promotes the complete typed candidate exactly once. The retained adapter
+   * is a private solver mirror only; the inactive typed image supplied every
+   * promoted byte and remains the accepted-state authority.
+   */
+  commitDirectCandidate(adapterCandidate, plan) {
+    this.assertHealthy();
+    try {
+      const admittedMirror = this.#image.completeCandidateFromObject(
+        adapterCandidate,
+        plan
+      );
+      this.#image.promote();
+      this.#currentState = admittedMirror;
+      this.#currentMirrorMatchesImage = true;
+      this.#directCandidateCommitCount += 1;
+      this.#directCandidateMirrorReuseCount += 1;
+      return admittedMirror;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `direct candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+  /**
+   * Promotes without generic object completion only when every byte already
+   * equals the internally admitted adapter. A null result leaves the staged
+   * transaction open for exhaustive completion at an event boundary.
+   */
+  tryCommitExactDirectCandidate(adapterCandidate, plan) {
+    this.assertHealthy();
+    try {
+      const admittedMirror = this.#image.matchCandidateExactlyAgainstObject(
+        adapterCandidate,
+        plan
+      );
+      if (admittedMirror === null) return null;
+      this.#image.promote();
+      this.#currentState = admittedMirror;
+      this.#currentMirrorMatchesImage = true;
+      this.#directCandidateCommitCount += 1;
+      this.#directCandidateExactCommitCount += 1;
+      this.#directCandidateMirrorReuseCount += 1;
+      return admittedMirror;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason = `exact direct candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+  /** Expected solver rejection abandons the inactive candidate without poison. */
+  abortDirectCandidate() {
+    this.assertHealthy();
+    this.#image.abort();
+  }
+  report() {
+    const report = this.#image.report();
+    return Object.freeze({
+      ...report,
+      authorityId: MAIN_WIRE_ACCEPTED_TYPED_STATE_AUTHORITY_V1_ID,
+      poisonedReason: this.#poisonedReason,
+      directCandidateCommitCount: this.#directCandidateCommitCount,
+      directCandidateExactCommitCount: this.#directCandidateExactCommitCount,
+      directCandidateMirrorReuseCount: this.#directCandidateMirrorReuseCount,
+      modelOwnedCandidateCommitCount: this.#modelOwnedCandidateCommitCount,
+      modelOwnedAdapterFreeCommitCount: this.#modelOwnedAdapterFreeCommitCount,
+      modelOwnedExactAuditCount: this.#modelOwnedExactAuditCount,
+      lazyMirrorRehydrateCount: this.#lazyMirrorRehydrateCount,
+      currentMirrorMatchesImage: this.#currentMirrorMatchesImage
+    });
+  }
+  snapshotImage() {
+    this.assertHealthy();
+    return this.#image.snapshot();
+  }
+  /** Hot model-owned reads follow the active image after every promotion. */
+  currentCursor() {
+    this.assertHealthy();
+    return this.#image.currentCursor();
+  }
+  /** Cold-boundary proof that the cached solver adapter still matches storage. */
+  assertCurrentMatches(candidate) {
+    this.assertHealthy();
+    const authoritative = this.snapshot();
+    const authoritativeBytes = canonicalBytes(authoritative);
+    const candidateBytes = canonicalBytes(candidate);
+    if (authoritativeBytes.byteLength !== candidateBytes.byteLength || !authoritativeBytes.every(
+      (value, index) => value === candidateBytes[index]
+    )) {
+      throw new Error(
+        "Main Wire accepted typed-state adapter differs from its active image"
+      );
+    }
+  }
+  ownAndValidate(candidate) {
+    return this.#ownDecoded(candidate);
+  }
+  assertHealthy() {
+    if (this.#poisonedReason !== null) {
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: ` + this.#poisonedReason
+      );
+    }
+  }
+}
+function canonicalBytes(value) {
+  const bytes = new Uint8Array(measureCanonicalFlatDataV1(value));
+  const length = encodeCanonicalFlatDataIntoV1(value, bytes);
+  if (length !== bytes.byteLength) {
+    throw new Error("Main Wire typed-state canonical length changed");
+  }
+  return bytes;
+}
+const CALCIUM_WALLS = Object.freeze([
+  "LA",
+  "LVFW",
+  "RA",
+  "RVFW",
+  "SEP"
+]);
+function createMainWireAcceptedTypedBoundaryBindingV1(manifest) {
+  if (manifest.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID || manifest.fingerprint !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT) {
+    throw new Error("Main Wire typed boundary manifest identity is unsupported");
+  }
+  const continuous = Object.freeze({
+    acceptedTimeSec: continuousSlot$1(manifest, "/acceptedTimeSec"),
+    composedAcceptedTimeSec: continuousSlot$1(manifest, "/composedRhythm/acceptedTimeSec"),
+    authoredEctopy: authoredScheduleBinding(
+      manifest,
+      "/composedRhythm/authoredEctopyState"
+    ),
+    authoredVentricularPacing: authoredScheduleBinding(
+      manifest,
+      "/composedRhythm/authoredVentricularPacingReplayState"
+    ),
+    regularAtrial: regularAtrialBinding(
+      manifest,
+      "/composedRhythm/regularAtrialSourceState"
+    ),
+    resolvedRhythm: Object.freeze({
+      acceptedAtrialCaptureCount: continuousSlot$1(
+        manifest,
+        "/composedRhythm/acceptedAtrialCaptureCount"
+      ),
+      acceptedVentricularCaptureCount: continuousSlot$1(
+        manifest,
+        "/composedRhythm/acceptedVentricularCaptureCount"
+      ),
+      deliveredCalciumDepositCount: continuousSlot$1(
+        manifest,
+        "/composedRhythm/deliveredCalciumDepositCount"
+      )
+    }),
+    electricalCaptureAcceptedTimeSec: continuousSlot$1(
+      manifest,
+      "/composedRhythm/electricalCaptureState/acceptedTimeSec"
+    ),
+    ventricularBackupAcceptedTimeSec: continuousSlot$1(
+      manifest,
+      "/composedRhythm/ventricularBackupState/acceptedTimeSec"
+    ),
+    ventricularBackupRevision: continuousSlot$1(
+      manifest,
+      "/composedRhythm/ventricularBackupState/revision"
+    ),
+    autoregulationAcceptedDurationSec: continuousSlot$1(
+      manifest,
+      "/coronary/coronaryAutoregulation/acceptedDurationSec"
+    ),
+    autoregulationAcceptedStepCount: continuousSlot$1(
+      manifest,
+      "/coronary/coronaryAutoregulation/acceptedStepCount"
+    ),
+    autoregulationQmTimeIntegral: Object.freeze(Object.fromEntries(
+      CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+        territoryId,
+        Object.freeze(Object.fromEntries(CORONARY_LAYER_IDS_V2.map((layerId) => [
+          layerId,
+          continuousSlot$1(
+            manifest,
+            `/coronary/coronaryAutoregulation/qmTimeIntegralMlByTerritoryLayer/${territoryId}/${layerId}`
+          )
+        ])))
+      ])
+    )),
+    autoregulationPerfusionPressureTimeIntegral: Object.freeze(
+      Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+        territoryId,
+        continuousSlot$1(
+          manifest,
+          "/coronary/coronaryAutoregulation/perfusionPressureTimeIntegralMmHgSecByTerritory/" + territoryId
+        )
+      ]))
+    ),
+    dynamicMechanicalSupport: Object.freeze(
+      Object.fromEntries(
+        ROTARY_SUPPORT_DEVICE_IDS_V1.map((deviceId) => [
+          deviceId,
+          continuousSlot$1(
+            manifest,
+            `/dynamicMechanicalSupport/acceptedFlowMlPerSec/${deviceId}`
+          )
+        ])
+      )
+    ),
+    composedRevision: continuousSlot$1(manifest, "/composedRhythm/revision"),
+    ventricularBackupNextIntrinsicEscapeDueTimeSec: continuousSlot$1(
+      manifest,
+      "/composedRhythm/ventricularBackupState/nextIntrinsicEscapeDueTimeSec"
+    ),
+    ventricularBackupNextVviPaceDueTimeSec: continuousSlot$1(
+      manifest,
+      "/composedRhythm/ventricularBackupState/nextVviPaceDueTimeSec"
+    ),
+    coronaryAcceptedTimeSec: continuousSlot$1(manifest, "/coronary/acceptedTimeSec"),
+    autoregulationWindowIndex: continuousSlot$1(
+      manifest,
+      "/coronary/coronaryAutoregulation/windowIndex"
+    ),
+    autoregulationWindowOriginAcceptedTimeSec: continuousSlot$1(
+      manifest,
+      "/coronary/coronaryAutoregulation/windowOriginAcceptedTimeSec"
+    ),
+    autoregulationWindowStartAcceptedTimeSec: continuousSlot$1(
+      manifest,
+      "/coronary/coronaryAutoregulation/windowStartAcceptedTimeSec"
+    ),
+    autoregulationWindowDurationSec: continuousSlot$1(
+      manifest,
+      "/coronary/coronaryAutoregulationBinding/windowPolicy/durationSec"
+    ),
+    autoregulationBindingOriginAcceptedTimeSec: continuousSlot$1(
+      manifest,
+      "/coronary/coronaryAutoregulationBinding/windowPolicy/originAcceptedTimeSec"
+    ),
+    coronaryRevision: continuousSlot$1(manifest, "/coronary/revision"),
+    revision: continuousSlot$1(manifest, "/revision")
+  });
+  const boundedArray = Object.freeze({
+    pendingCalciumDeposits: boundedArraySlot(manifest, "/composedRhythm/pendingCalciumDeposits"),
+    pendingDistalVentricularImpulses: boundedArraySlot(
+      manifest,
+      "/composedRhythm/pendingDistalVentricularImpulses"
+    ),
+    pendingProximalAvOutputs: boundedArraySlot(manifest, "/composedRhythm/pendingProximalAvOutputs")
+  });
+  const calcium = Object.freeze(Object.fromEntries(CALCIUM_WALLS.map((wall) => [
+    wall,
+    Object.freeze({
+      state: Object.freeze([
+        continuousSlot$1(
+          manifest,
+          `/composedRhythm/calciumStateByWall/${wall}/0`
+        ),
+        continuousSlot$1(
+          manifest,
+          `/composedRhythm/calciumStateByWall/${wall}/1`
+        )
+      ])
+    })
+  ])));
+  const nonCoronaryAcceptedNumerical = Object.freeze({
+    revision: continuousSlot$1(manifest, "/coronary/circulation/revision"),
+    acceptedTimeSec: continuousSlot$1(
+      manifest,
+      "/coronary/circulation/acceptedTimeSec"
+    ),
+    totalBloodVolumeMl: continuousSlot$1(
+      manifest,
+      "/coronary/circulation/totalBloodVolumeMl"
+    ),
+    nodeVolumesMl: Object.freeze(NON_CORONARY_NODE_NAMES_V1.map((name) => continuousSlot$1(
+      manifest,
+      `/coronary/circulation/nodeVolumesMl/${name}`
+    ))),
+    dynamicEdgeFlowsMlPerSec: Object.freeze(
+      NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((name) => continuousSlot$1(
+        manifest,
+        `/coronary/circulation/dynamicEdgeFlowsMlPerSec/${name}`
+      ))
+    ),
+    valveOpeningFractions01: Object.freeze(
+      NON_CORONARY_VALVE_NAMES_V1.map((name) => continuousSlot$1(
+        manifest,
+        `/coronary/circulation/valveStates/${name}/leafletOpeningFraction01`
+      ))
+    )
+  });
+  const clockSlots = Object.freeze([
+    continuous.acceptedTimeSec,
+    continuous.composedAcceptedTimeSec,
+    continuous.coronaryAcceptedTimeSec,
+    continuous.composedRevision,
+    continuous.coronaryRevision,
+    continuous.revision
+  ]);
+  const calciumSlots = Object.freeze(CALCIUM_WALLS.flatMap((wall) => [...calcium[wall].state]));
+  const authoredEctopySlots = Object.freeze([
+    continuous.authoredEctopy.acceptedEmittedImpulseCount,
+    continuous.authoredEctopy.acceptedTimeSec,
+    continuous.authoredEctopy.cursor,
+    continuous.authoredEctopy.revision
+  ]);
+  const authoredVentricularPacingContinuousSlots = Object.freeze([
+    continuous.authoredVentricularPacing.acceptedEmittedImpulseCount,
+    continuous.authoredVentricularPacing.acceptedTimeSec,
+    continuous.authoredVentricularPacing.cursor,
+    continuous.authoredVentricularPacing.revision
+  ]);
+  const regularAtrialSourceContinuousSlots = Object.freeze([
+    continuous.regularAtrial.acceptedTimeSec,
+    continuous.regularAtrial.capturedPacPreserveCount,
+    continuous.regularAtrial.capturedPacResetCount,
+    continuous.regularAtrial.emittedSourceImpulseCount,
+    continuous.regularAtrial.nextActivationTimeSec,
+    continuous.regularAtrial.nextSourceSequence,
+    continuous.regularAtrial.revision
+  ]);
+  const postSolverContinuousSlots = Object.freeze([
+    continuous.resolvedRhythm.acceptedAtrialCaptureCount,
+    continuous.resolvedRhythm.acceptedVentricularCaptureCount,
+    continuous.resolvedRhythm.deliveredCalciumDepositCount,
+    continuous.electricalCaptureAcceptedTimeSec,
+    continuous.ventricularBackupAcceptedTimeSec,
+    continuous.ventricularBackupRevision,
+    continuous.autoregulationAcceptedDurationSec,
+    continuous.autoregulationAcceptedStepCount,
+    ...CORONARY_TERRITORY_IDS_V2.flatMap((territoryId) => [
+      ...CORONARY_LAYER_IDS_V2.map(
+        (layerId) => continuous.autoregulationQmTimeIntegral[territoryId][layerId]
+      ),
+      continuous.autoregulationPerfusionPressureTimeIntegral[territoryId]
+    ]),
+    ...ROTARY_SUPPORT_DEVICE_IDS_V1.map(
+      (deviceId) => continuous.dynamicMechanicalSupport[deviceId]
+    )
+  ]);
+  return Object.freeze({
+    layoutId: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
+    fingerprint: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
+    continuous,
+    boundedArray,
+    calcium,
+    nonCoronaryAcceptedNumerical,
+    directContinuousSlots: Object.freeze([
+      ...clockSlots,
+      ...calciumSlots,
+      ...authoredEctopySlots
+    ]),
+    authoredVentricularPacingContinuousSlots,
+    regularAtrialSourceContinuousSlots,
+    postSolverContinuousSlots
+  });
+}
+function createMainWireAcceptedTypedNonCoronaryNumericalSourceV1(cursor, binding) {
+  assertCursor$1(cursor, binding);
+  const slots = binding.nonCoronaryAcceptedNumerical;
+  return Object.freeze({
+    sourceId: NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
+    readInto(destination) {
+      assertCursor$1(cursor, binding);
+      const {
+        nodeVolumesMl,
+        dynamicEdgeFlowsMlPerSec,
+        valveOpeningFractions01
+      } = destination;
+      if (nodeVolumesMl.length !== slots.nodeVolumesMl.length || dynamicEdgeFlowsMlPerSec.length !== slots.dynamicEdgeFlowsMlPerSec.length || valveOpeningFractions01.length !== slots.valveOpeningFractions01.length) {
+        throw new Error(
+          "Main Wire typed non-coronary numerical destination has wrong shape"
+        );
+      }
+      for (let index = 0; index < nodeVolumesMl.length; index += 1) {
+        nodeVolumesMl[index] = cursor.readContinuous(
+          slots.nodeVolumesMl[index]
+        );
+      }
+      for (let index = 0; index < dynamicEdgeFlowsMlPerSec.length; index += 1) {
+        dynamicEdgeFlowsMlPerSec[index] = cursor.readContinuous(
+          slots.dynamicEdgeFlowsMlPerSec[index]
+        );
+      }
+      for (let index = 0; index < valveOpeningFractions01.length; index += 1) {
+        valveOpeningFractions01[index] = cursor.readContinuous(
+          slots.valveOpeningFractions01[index]
+        );
+      }
+      destination.revision = cursor.readContinuous(slots.revision);
+      destination.acceptedTimeSec = cursor.readContinuous(
+        slots.acceptedTimeSec
+      );
+      destination.totalBloodVolumeMl = cursor.readContinuous(
+        slots.totalBloodVolumeMl
+      );
+    }
+  });
+}
+function readMainWireAcceptedTypedClockV1(cursor, binding) {
+  assertCursor$1(cursor, binding);
+  const f64 = binding.continuous;
+  const acceptedTimeSec = finiteNonnegative(
+    cursor.readContinuous(f64.acceptedTimeSec),
+    "outer accepted time"
+  );
+  const revision = nonnegativeSafeInteger(
+    cursor.readContinuous(f64.revision),
+    "outer revision"
+  );
+  const composedAcceptedTimeSec = cursor.readContinuous(
+    f64.composedAcceptedTimeSec
+  );
+  const coronaryAcceptedTimeSec = cursor.readContinuous(
+    f64.coronaryAcceptedTimeSec
+  );
+  const composedRevision = cursor.readContinuous(f64.composedRevision);
+  const coronaryRevision = cursor.readContinuous(f64.coronaryRevision);
+  if (composedAcceptedTimeSec !== acceptedTimeSec || coronaryAcceptedTimeSec !== acceptedTimeSec || composedRevision !== revision || coronaryRevision !== revision) {
+    throw new Error("Main Wire typed accepted owner clocks diverged");
+  }
+  return Object.freeze({ acceptedTimeSec, revision });
+}
+function readMainWireAcceptedTypedPresentationStateV1(cursor, binding, configuration) {
+  const clock = readMainWireAcceptedTypedClockV1(cursor, binding);
+  if (configuration.atrialSource.mode !== "regular" || configuration.atrialSource.regularSourceConfiguration.rhythmClass !== "sinus") {
+    throw new Error(
+      "Main Wire typed presentation supports only regular sinus rhythm"
+    );
+  }
+  const cycleLengthSec = positiveFinite(
+    configuration.atrialSource.regularSourceConfiguration.cycleLengthSec,
+    "regular sinus cycle length"
+  );
+  const nextActivationTimeSec = finiteNonnegative(
+    cursor.readContinuous(
+      binding.continuous.regularAtrial.nextActivationTimeSec
+    ),
+    "regular sinus next activation time"
+  );
+  if (!(nextActivationTimeSec > clock.acceptedTimeSec)) {
+    throw new Error(
+      "Main Wire typed regular sinus activation must remain future"
+    );
+  }
+  const lvadFlowMlPerSec = finiteNumber(
+    cursor.readContinuous(binding.continuous.dynamicMechanicalSupport.LVAD),
+    "LVAD accepted flow"
+  );
+  return Object.freeze({
+    acceptedTimeSec: clock.acceptedTimeSec,
+    revision: clock.revision,
+    regularSinusCycleLengthSec: cycleLengthSec,
+    regularSinusNextActivationTimeSec: nextActivationTimeSec,
+    lvadFlowMlPerSec
+  });
+}
+function stageMainWireAcceptedTypedClockCandidateV1(current, candidate, binding, candidateTimeSec) {
+  assertCursor$1(current, binding);
+  assertCandidateCursor$1(candidate, binding);
+  const previous = readMainWireAcceptedTypedClockV1(current, binding);
+  const f64 = binding.continuous;
+  const acceptedTimeSec = finiteNonnegative(
+    candidateTimeSec,
+    "clock candidate time"
+  );
+  if (!(acceptedTimeSec > previous.acceptedTimeSec)) {
+    throw new Error("Main Wire typed clock candidate must advance");
+  }
+  if (previous.revision === Number.MAX_SAFE_INTEGER) {
+    throw new Error("Main Wire typed clock revision cannot increment safely");
+  }
+  const revision = previous.revision + 1;
+  candidate.writeContinuous(f64.acceptedTimeSec, acceptedTimeSec);
+  candidate.writeContinuous(f64.composedAcceptedTimeSec, acceptedTimeSec);
+  candidate.writeContinuous(f64.coronaryAcceptedTimeSec, acceptedTimeSec);
+  candidate.writeContinuous(f64.revision, revision);
+  candidate.writeContinuous(f64.composedRevision, revision);
+  candidate.writeContinuous(f64.coronaryRevision, revision);
+  return Object.freeze({ acceptedTimeSec, revision });
+}
+function limitMainWireAcceptedTypedCandidateTimeV1(cursor, binding, requestedCandidateTimeSec, configuration, externalAfNextBoundaryTimeSec) {
+  const clock = readMainWireAcceptedTypedClockV1(cursor, binding);
+  const f64 = binding.continuous;
+  const requestedCandidateTime = finiteNonnegative(
+    requestedCandidateTimeSec,
+    "requested candidate time"
+  );
+  if (!(requestedCandidateTime > clock.acceptedTimeSec)) {
+    throw new Error("Main Wire typed requested endpoint must advance");
+  }
+  const windowIndex = nonnegativeSafeInteger(
+    cursor.readContinuous(f64.autoregulationWindowIndex),
+    "autoregulation window index"
+  );
+  const stateWindowOrigin = finiteNonnegative(
+    cursor.readContinuous(f64.autoregulationWindowOriginAcceptedTimeSec),
+    "autoregulation state window origin"
+  );
+  const bindingWindowOrigin = finiteNonnegative(
+    cursor.readContinuous(f64.autoregulationBindingOriginAcceptedTimeSec),
+    "autoregulation binding window origin"
+  );
+  const windowDurationSec = positiveFinite(
+    cursor.readContinuous(f64.autoregulationWindowDurationSec),
+    "autoregulation window duration"
+  );
+  if (stateWindowOrigin !== bindingWindowOrigin) {
+    throw new Error("Main Wire typed autoregulation origins diverged");
+  }
+  const expectedWindowStart = bindingWindowOrigin + windowIndex * windowDurationSec;
+  if (cursor.readContinuous(f64.autoregulationWindowStartAcceptedTimeSec) !== expectedWindowStart) {
+    throw new Error("Main Wire typed autoregulation window start diverged");
+  }
+  const windowEnd = bindingWindowOrigin + (windowIndex + 1) * windowDurationSec;
+  const windowTolerance = timeTolerance(
+    windowEnd,
+    clock.acceptedTimeSec
+  );
+  const windowRemaining = windowEnd - clock.acceptedTimeSec;
+  if (windowRemaining < -windowTolerance) {
+    throw new Error("Main Wire typed accepted clock passed its coronary window");
+  }
+  const coronaryWindowMaximumStepSec = windowRemaining <= windowTolerance ? 0 : windowRemaining;
+  const requestedStepSec = requestedCandidateTime - clock.acceptedTimeSec;
+  const tolerance = timeTolerance(clock.acceptedTimeSec, requestedStepSec);
+  const clippedByCoronaryWindow = coronaryWindowMaximumStepSec < requestedStepSec - tolerance;
+  const coronaryCappedEndTimeSec = clippedByCoronaryWindow ? clock.acceptedTimeSec + coronaryWindowMaximumStepSec : requestedCandidateTime;
+  if (!(coronaryCappedEndTimeSec > clock.acceptedTimeSec)) {
+    throw new Error("Main Wire typed coronary-capped step must be positive");
+  }
+  const rhythm = limitTypedRhythmBoundary(
+    cursor,
+    binding,
+    clock.acceptedTimeSec,
+    coronaryCappedEndTimeSec,
+    configuration,
+    externalAfNextBoundaryTimeSec
+  );
+  const boundaryTime = rhythm.boundaryTimeSec;
+  return Object.freeze({
+    requestedCandidateTimeSec: requestedCandidateTime,
+    coronaryWindowMaximumStepSec,
+    coronaryCappedEndTimeSec,
+    rhythm,
+    candidateTimeSec: rhythm.candidateTimeSec,
+    clippedByCoronaryWindow,
+    clippedByRhythmBoundary: boundaryTime !== null && boundaryTime < coronaryCappedEndTimeSec - tolerance,
+    rhythmBoundaryTimeSec: boundaryTime,
+    rhythmBoundaryOwners: rhythm.boundaryOwners,
+    coronaryWindowAndRhythmBoundaryTie: boundaryTime !== null && boundaryTime === coronaryCappedEndTimeSec && coronaryWindowMaximumStepSec <= requestedStepSec + tolerance
+  });
+}
+function stageMainWireAcceptedTypedCalciumCandidateV1(current, candidate, binding, candidateTimeSec, parametersByWall) {
+  assertCursor$1(current, binding);
+  assertCandidateCursor$1(candidate, binding);
+  const f64 = binding.continuous;
+  const startTimeSec = finiteNonnegative(
+    current.readContinuous(f64.composedAcceptedTimeSec),
+    "calcium start time"
+  );
+  const endTimeSec = finiteNonnegative(
+    candidateTimeSec,
+    "calcium candidate time"
+  );
+  if (!(endTimeSec > startTimeSec)) {
+    throw new Error("Main Wire typed calcium candidate must advance");
+  }
+  const pendingDeposits = requiredArray(
+    current.readBoundedArray(binding.boundedArray.pendingCalciumDeposits),
+    "pending calcium deposits"
+  );
+  const freeCalciumUMByWall = {};
+  for (const wall of CALCIUM_WALLS) {
+    const slots = binding.calcium[wall];
+    const state = Object.freeze([
+      current.readContinuous(slots.state[0]),
+      current.readContinuous(slots.state[1])
+    ]);
+    const parameters = parametersByWall[wall];
+    const events = pendingDeposits.flatMap((deposit) => {
+      const record = requiredRecord(deposit, "pending calcium deposit");
+      const depositTimeSec = numberProperty(
+        record,
+        "depositTimeSec",
+        "pending calcium deposit"
+      );
+      if (depositTimeSec !== endTimeSec) return [];
+      const strengths = requiredRecord(
+        ownValue(record, "strengthByWall"),
+        "pending calcium strengths"
+      );
+      return [Object.freeze({
+        timeSec: depositTimeSec,
+        strength: finiteNonnegative(
+          ownValue(strengths, wall),
+          `pending ${wall} calcium strength`
+        )
+      })];
+    });
+    const next = advanceExactEventCalciumV1(
+      state,
+      startTimeSec,
+      endTimeSec,
+      events,
+      parameters
+    );
+    candidate.writeContinuous(slots.state[0], next[0]);
+    candidate.writeContinuous(slots.state[1], next[1]);
+    const freeCalciumUM = parameters.calciumRestUM + parameters.calciumGainUMPerUnitDrive * (next[1] - next[0]);
+    if (!Number.isFinite(freeCalciumUM) || freeCalciumUM < 0) {
+      throw new Error(`Main Wire typed candidate ${wall} calcium is invalid`);
+    }
+    freeCalciumUMByWall[wall] = freeCalciumUM;
+  }
+  return Object.freeze({
+    freeCalciumUMByWall: Object.freeze(freeCalciumUMByWall)
+  });
+}
+function stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(current, candidate, binding, candidateTimeSec, configuration) {
+  assertCursor$1(current, binding);
+  assertCandidateCursor$1(candidate, binding);
+  const acceptedTimeSec = finiteNonnegative(
+    current.readContinuous(binding.continuous.composedAcceptedTimeSec),
+    "authored schedule accepted time"
+  );
+  const candidateTime = finiteNonnegative(
+    candidateTimeSec,
+    "authored schedule candidate time"
+  );
+  if (!(candidateTime > acceptedTimeSec)) {
+    throw new Error("Main Wire typed authored schedule candidate must advance");
+  }
+  stageAuthoredScheduleCandidate(
+    current,
+    candidate,
+    binding.continuous.authoredEctopy,
+    configuration.authoredEctopySchedule.events,
+    acceptedTimeSec,
+    candidateTime,
+    "authored ectopy",
+    null
+  );
+  if (configuration.authoredVentricularPacingReplay !== null) {
+    stageAuthoredScheduleCandidate(
+      current,
+      candidate,
+      binding.continuous.authoredVentricularPacing,
+      configuration.authoredVentricularPacingReplay.events,
+      acceptedTimeSec,
+      candidateTime,
+      "authored ventricular pacing replay",
+      MAX_AUTHORED_VENTRICULAR_PACING_REPLAY_IMPULSES_PER_TRIAL_V1
+    );
+  }
+}
+function stageMainWireAcceptedTypedRegularAtrialCandidateV1(current, candidate, binding, candidateTimeSec, configuration, capturedPacSinusClockPolicy) {
+  assertCursor$1(current, binding);
+  assertCandidateCursor$1(candidate, binding);
+  if (configuration.atrialSource.mode !== "regular") {
+    if (capturedPacSinusClockPolicy !== null) {
+      throw new Error(
+        "Main Wire typed external atrial source cannot apply a PAC policy"
+      );
+    }
+    return;
+  }
+  const slots = binding.continuous.regularAtrial;
+  const acceptedTimeSec = finiteNonnegative(
+    current.readContinuous(slots.acceptedTimeSec),
+    "regular atrial accepted time"
+  );
+  const composedAcceptedTimeSec = finiteNonnegative(
+    current.readContinuous(binding.continuous.composedAcceptedTimeSec),
+    "regular atrial composed accepted time"
+  );
+  if (acceptedTimeSec !== composedAcceptedTimeSec) {
+    throw new Error("Main Wire typed regular atrial clock diverged");
+  }
+  const candidateTime = finiteNonnegative(
+    candidateTimeSec,
+    "regular atrial candidate time"
+  );
+  if (!(candidateTime > acceptedTimeSec)) {
+    throw new Error("Main Wire typed regular atrial candidate must advance");
+  }
+  const nextActivationTimeSec = finiteNonnegative(
+    current.readContinuous(slots.nextActivationTimeSec),
+    "regular atrial next activation time"
+  );
+  if (!(nextActivationTimeSec > acceptedTimeSec) || candidateTime > nextActivationTimeSec) {
+    throw new Error(
+      "Main Wire typed regular atrial candidate crossed its activation"
+    );
+  }
+  if (capturedPacSinusClockPolicy !== null && capturedPacSinusClockPolicy !== "reset" && capturedPacSinusClockPolicy !== "preserve") {
+    throw new Error("Main Wire typed regular atrial PAC policy is invalid");
+  }
+  const regularConfiguration = configuration.atrialSource.regularSourceConfiguration;
+  if (capturedPacSinusClockPolicy !== null && regularConfiguration.rhythmClass !== "sinus") {
+    throw new Error(
+      "Main Wire typed flutter source cannot apply a PAC clock policy"
+    );
+  }
+  const due = candidateTime === nextActivationTimeSec;
+  const revision = incrementableCounter(
+    current.readContinuous(slots.revision),
+    "regular atrial revision"
+  );
+  const nextSourceSequence = incrementableCounter(
+    current.readContinuous(slots.nextSourceSequence),
+    "regular atrial next source sequence"
+  );
+  const emittedSourceImpulseCount = incrementableCounter(
+    current.readContinuous(slots.emittedSourceImpulseCount),
+    "regular atrial emitted impulse count"
+  );
+  const capturedPacResetCount = incrementableCounter(
+    current.readContinuous(slots.capturedPacResetCount),
+    "regular atrial PAC reset count"
+  );
+  const capturedPacPreserveCount = incrementableCounter(
+    current.readContinuous(slots.capturedPacPreserveCount),
+    "regular atrial PAC preserve count"
+  );
+  const reset = capturedPacSinusClockPolicy === "reset";
+  const candidateNextActivationTimeSec = due || reset ? finiteFutureTime(
+    candidateTime,
+    regularConfiguration.cycleLengthSec,
+    "regular atrial next activation time"
+  ) : nextActivationTimeSec;
+  candidate.writeContinuous(slots.acceptedTimeSec, candidateTime);
+  candidate.writeContinuous(
+    slots.capturedPacPreserveCount,
+    capturedPacPreserveCount + (capturedPacSinusClockPolicy === "preserve" ? 1 : 0)
+  );
+  candidate.writeContinuous(
+    slots.capturedPacResetCount,
+    capturedPacResetCount + (reset ? 1 : 0)
+  );
+  candidate.writeContinuous(
+    slots.emittedSourceImpulseCount,
+    emittedSourceImpulseCount + (due ? 1 : 0)
+  );
+  candidate.writeContinuous(
+    slots.nextActivationTimeSec,
+    candidateNextActivationTimeSec
+  );
+  candidate.writeContinuous(
+    slots.nextSourceSequence,
+    nextSourceSequence + (due ? 1 : 0)
+  );
+  candidate.writeContinuous(slots.revision, revision + 1);
+}
+function stageMainWireAcceptedTypedResolvedCandidateV1(current, candidate, binding, rhythmCandidate, mechanicalSupportCandidate) {
+  assertCursor$1(current, binding);
+  assertCandidateCursor$1(candidate, binding);
+  const rhythm = binding.continuous.resolvedRhythm;
+  const acceptedTimeSec = finiteNonnegative(
+    current.readContinuous(binding.continuous.composedAcceptedTimeSec),
+    "resolved rhythm accepted time"
+  );
+  const baseRevision = nonnegativeSafeInteger(
+    current.readContinuous(binding.continuous.composedRevision),
+    "resolved rhythm base revision"
+  );
+  if (rhythmCandidate.startTimeSec !== acceptedTimeSec) {
+    throw new Error("Main Wire typed resolved rhythm start time diverged");
+  }
+  if (rhythmCandidate.baseRevision !== baseRevision) {
+    throw new Error("Main Wire typed resolved rhythm base revision diverged");
+  }
+  if (baseRevision === Number.MAX_SAFE_INTEGER || rhythmCandidate.candidateRevision !== baseRevision + 1) {
+    throw new Error("Main Wire typed resolved rhythm revision diverged");
+  }
+  const acceptedAtrialCaptureCount = safeCounterAdd(
+    current.readContinuous(rhythm.acceptedAtrialCaptureCount),
+    rhythmCandidate.capturedAtrialActivation === null ? 0 : 1,
+    "accepted atrial capture count"
+  );
+  const acceptedVentricularCaptureCount = safeCounterAdd(
+    current.readContinuous(rhythm.acceptedVentricularCaptureCount),
+    rhythmCandidate.capturedVentricularActivation === null ? 0 : 1,
+    "accepted ventricular capture count"
+  );
+  const deliveredCalciumDepositCount = safeCounterAdd(
+    current.readContinuous(rhythm.deliveredCalciumDepositCount),
+    requiredArray(
+      rhythmCandidate.deliveredCalciumDeposits,
+      "delivered calcium deposits"
+    ).length,
+    "delivered calcium deposit count"
+  );
+  if (rhythmCandidate.candidateState.acceptedAtrialCaptureCount !== acceptedAtrialCaptureCount || rhythmCandidate.candidateState.acceptedVentricularCaptureCount !== acceptedVentricularCaptureCount || rhythmCandidate.candidateState.deliveredCalciumDepositCount !== deliveredCalciumDepositCount) {
+    throw new Error("Main Wire typed resolved rhythm counters diverged");
+  }
+  candidate.writeContinuous(
+    rhythm.acceptedAtrialCaptureCount,
+    acceptedAtrialCaptureCount
+  );
+  candidate.writeContinuous(
+    rhythm.acceptedVentricularCaptureCount,
+    acceptedVentricularCaptureCount
+  );
+  candidate.writeContinuous(
+    rhythm.deliveredCalciumDepositCount,
+    deliveredCalciumDepositCount
+  );
+  const flowRecord = requiredRecord(
+    mechanicalSupportCandidate.acceptedFlowMlPerSec,
+    "dynamic mechanical support accepted flows"
+  );
+  assertExactRecordKeys(
+    flowRecord,
+    ROTARY_SUPPORT_DEVICE_IDS_V1,
+    "dynamic mechanical support accepted flows"
+  );
+  for (const deviceId of ROTARY_SUPPORT_DEVICE_IDS_V1) {
+    candidate.writeContinuous(
+      binding.continuous.dynamicMechanicalSupport[deviceId],
+      finiteNumber(
+        ownValue(flowRecord, deviceId),
+        `dynamic mechanical support ${deviceId} accepted flow`
+      )
+    );
+  }
+}
+function stageMainWireAcceptedTypedOrdinaryPostSolverCandidateV1(current, candidate, binding, candidateClock, autoregulation) {
+  assertCursor$1(current, binding);
+  assertCandidateCursor$1(candidate, binding);
+  const currentClock = readMainWireAcceptedTypedClockV1(current, binding);
+  if (candidateClock.acceptedTimeSec <= currentClock.acceptedTimeSec || candidateClock.revision !== currentClock.revision + 1) {
+    throw new Error("Main Wire typed ordinary candidate clock diverged");
+  }
+  const slots = binding.continuous;
+  const rhythm = slots.resolvedRhythm;
+  for (const [slot2, label] of [
+    [rhythm.acceptedAtrialCaptureCount, "atrial capture count"],
+    [rhythm.acceptedVentricularCaptureCount, "ventricular capture count"],
+    [rhythm.deliveredCalciumDepositCount, "calcium deposit count"]
+  ]) {
+    candidate.writeContinuous(
+      slot2,
+      nonnegativeSafeInteger(current.readContinuous(slot2), label)
+    );
+  }
+  candidate.writeContinuous(
+    slots.electricalCaptureAcceptedTimeSec,
+    candidateClock.acceptedTimeSec
+  );
+  candidate.writeContinuous(
+    slots.ventricularBackupAcceptedTimeSec,
+    candidateClock.acceptedTimeSec
+  );
+  candidate.writeContinuous(
+    slots.ventricularBackupRevision,
+    candidateClock.revision
+  );
+  for (const deviceId of ROTARY_SUPPORT_DEVICE_IDS_V1) {
+    const slot2 = slots.dynamicMechanicalSupport[deviceId];
+    if (current.readContinuous(slot2) !== 0) {
+      throw new Error(
+        `Main Wire typed ordinary ${deviceId} support must be off`
+      );
+    }
+    candidate.writeContinuous(slot2, 0);
+  }
+  stageAutoregulationCandidate(candidate, binding, autoregulation);
+}
+function stageMainWireAcceptedTypedContinuousOwnerCandidateV1(candidate, binding, rhythmCandidate, autoregulation) {
+  assertCandidateCursor$1(candidate, binding);
+  const state = rhythmCandidate.candidateState;
+  if (state.acceptedTimeSec !== rhythmCandidate.candidateTimeSec || state.revision !== rhythmCandidate.candidateRevision || state.electricalCaptureState.acceptedTimeSec !== state.acceptedTimeSec || state.ventricularBackupState.acceptedTimeSec !== state.acceptedTimeSec || state.ventricularBackupState.revision !== state.revision) {
+    throw new Error("Main Wire typed continuous rhythm owner clocks diverged");
+  }
+  const slots = binding.continuous;
+  candidate.writeContinuous(
+    slots.electricalCaptureAcceptedTimeSec,
+    state.electricalCaptureState.acceptedTimeSec
+  );
+  candidate.writeContinuous(
+    slots.ventricularBackupAcceptedTimeSec,
+    state.ventricularBackupState.acceptedTimeSec
+  );
+  candidate.writeContinuous(
+    slots.ventricularBackupRevision,
+    state.ventricularBackupState.revision
+  );
+  stageAutoregulationCandidate(candidate, binding, autoregulation);
+}
+function stageAutoregulationCandidate(candidate, binding, autoregulation) {
+  const slots = binding.continuous;
+  candidate.writeContinuous(
+    slots.autoregulationAcceptedDurationSec,
+    finiteNonnegative(
+      autoregulation.acceptedDurationSec,
+      "autoregulation accepted duration"
+    )
+  );
+  candidate.writeContinuous(
+    slots.autoregulationAcceptedStepCount,
+    nonnegativeSafeInteger(
+      autoregulation.acceptedStepCount,
+      "autoregulation accepted step count"
+    )
+  );
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      candidate.writeContinuous(
+        slots.autoregulationQmTimeIntegral[territoryId][layerId],
+        finiteNumber(
+          autoregulation.qmTimeIntegralMlByTerritoryLayer[territoryId][layerId],
+          `autoregulation ${territoryId}/${layerId} Qm integral`
+        )
+      );
+    }
+    candidate.writeContinuous(
+      slots.autoregulationPerfusionPressureTimeIntegral[territoryId],
+      finiteNumber(
+        autoregulation.perfusionPressureTimeIntegralMmHgSecByTerritory[territoryId],
+        `autoregulation ${territoryId} pressure integral`
+      )
+    );
+  }
+}
+function limitTypedRhythmBoundary(cursor, binding, acceptedTimeSec, requestedCandidateTimeSec, configuration, externalAfNextBoundaryTimeSec) {
+  const boundaries = [];
+  const atrialSourceMode = configuration.atrialSource.mode;
+  if (atrialSourceMode === "regular") {
+    boundaries.push(boundary(
+      "regular-atrial-source",
+      cursor.readContinuous(
+        binding.continuous.regularAtrial.nextActivationTimeSec
+      ),
+      acceptedTimeSec
+    ));
+    if (externalAfNextBoundaryTimeSec !== null) {
+      throw new Error("Main Wire typed regular atrial mode rejects external AF boundary");
+    }
+  } else if (atrialSourceMode === "external-af") {
+    boundaries.push(boundary(
+      "external-af",
+      finiteNonnegative(
+        externalAfNextBoundaryTimeSec,
+        "external AF next boundary"
+      ),
+      acceptedTimeSec
+    ));
+  } else {
+    throw new Error("Main Wire typed atrial source mode is unsupported");
+  }
+  const authoredEctopyEvents = requiredArray(
+    configuration.authoredEctopySchedule.events,
+    "authored ectopy events"
+  );
+  const authoredEctopyCursor = nonnegativeSafeInteger(
+    cursor.readContinuous(binding.continuous.authoredEctopy.cursor),
+    "authored ectopy cursor"
+  );
+  const ectopy = authoredEctopyEvents[authoredEctopyCursor];
+  if (ectopy !== void 0) {
+    boundaries.push(boundary(
+      "authored-ectopy",
+      numberProperty(ectopy, "activationTimeSec", "authored ectopy event"),
+      acceptedTimeSec
+    ));
+  }
+  const pacingConfiguration = configuration.authoredVentricularPacingReplay;
+  if (pacingConfiguration !== null) {
+    const events = requiredArray(
+      pacingConfiguration.events,
+      "authored ventricular pacing events"
+    );
+    const pacingCursor = nonnegativeSafeInteger(
+      cursor.readContinuous(
+        binding.continuous.authoredVentricularPacing.cursor
+      ),
+      "authored ventricular pacing cursor"
+    );
+    const event = events[pacingCursor];
+    if (event !== void 0) {
+      boundaries.push(boundary(
+        "authored-ventricular-pacing-replay",
+        numberProperty(
+          event,
+          "activationTimeSec",
+          "authored ventricular pacing event"
+        ),
+        acceptedTimeSec
+      ));
+    }
+  }
+  pushFirstArrayBoundary(
+    boundaries,
+    cursor.readBoundedArray(binding.boundedArray.pendingProximalAvOutputs),
+    "pending-proximal-av-output",
+    "proximalArrivalTimeSec",
+    acceptedTimeSec
+  );
+  pushFirstArrayBoundary(
+    boundaries,
+    cursor.readBoundedArray(
+      binding.boundedArray.pendingDistalVentricularImpulses
+    ),
+    "pending-distal-ventricular-impulse",
+    "activationTimeSec",
+    acceptedTimeSec
+  );
+  boundaries.push(boundary(
+    "ventricular-backup",
+    Math.min(
+      cursor.readContinuous(
+        binding.continuous.ventricularBackupNextIntrinsicEscapeDueTimeSec
+      ),
+      cursor.readContinuous(
+        binding.continuous.ventricularBackupNextVviPaceDueTimeSec
+      )
+    ),
+    acceptedTimeSec
+  ));
+  pushFirstArrayBoundary(
+    boundaries,
+    cursor.readBoundedArray(binding.boundedArray.pendingCalciumDeposits),
+    "pending-calcium-deposit",
+    "depositTimeSec",
+    acceptedTimeSec
+  );
+  const earliest = Math.min(
+    requestedCandidateTimeSec,
+    ...boundaries.map(({ timeSec }) => timeSec)
+  );
+  const boundaryOwners = Object.freeze(
+    boundaries.filter(({ timeSec }) => timeSec === earliest).map(({ owner }) => owner).sort()
+  );
+  return Object.freeze({
+    requestedCandidateTimeSec,
+    candidateTimeSec: earliest,
+    boundaryTimeSec: boundaryOwners.length === 0 ? null : earliest,
+    boundaryOwners
+  });
+}
+function pushFirstArrayBoundary(destination, value, owner, timeProperty, acceptedTimeSec) {
+  const items = requiredArray(value, owner);
+  const first = items[0];
+  if (first === void 0) return;
+  destination.push(boundary(
+    owner,
+    numberProperty(first, timeProperty, owner),
+    acceptedTimeSec
+  ));
+}
+function boundary(owner, timeSec, acceptedTimeSec) {
+  const acceptedBoundary = finiteNonnegative(timeSec, `${owner} boundary`);
+  if (!(acceptedBoundary > acceptedTimeSec)) {
+    throw new Error(`Main Wire typed ${owner} boundary must be future`);
+  }
+  return Object.freeze({ owner, timeSec: acceptedBoundary });
+}
+function numberProperty(value, property, owner) {
+  return finiteNonnegative(
+    ownValue(requiredRecord(value, owner), property),
+    `${owner} ${property}`
+  );
+}
+function ownValue(record, property) {
+  const descriptor = Object.getOwnPropertyDescriptor(record, property);
+  if (descriptor === void 0 || !("value" in descriptor)) {
+    throw new Error(`Main Wire typed ${property} is unavailable`);
+  }
+  return descriptor.value;
+}
+function requiredRecord(value, owner) {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+    throw new Error(`Main Wire typed ${owner} must be a plain record`);
+  }
+  return value;
+}
+function requiredArray(value, owner) {
+  if (!Array.isArray(value)) {
+    throw new Error(`Main Wire typed ${owner} must be an array`);
+  }
+  return value;
+}
+function assertExactRecordKeys(value, expectedKeys, owner) {
+  const actual = Object.keys(value).sort();
+  const expected = [...expectedKeys].sort();
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new Error(`Main Wire typed ${owner} has an unexpected field set`);
+  }
+}
+function finiteNumber(value, owner) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`Main Wire typed ${owner} must be finite`);
+  }
+  return value;
+}
+function finiteNonnegative(value, owner) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new Error(`Main Wire typed ${owner} must be nonnegative and finite`);
+  }
+  return value;
+}
+function positiveFinite(value, owner) {
+  const accepted = finiteNonnegative(value, owner);
+  if (!(accepted > 0)) {
+    throw new Error(`Main Wire typed ${owner} must be positive`);
+  }
+  return accepted;
+}
+function nonnegativeSafeInteger(value, owner) {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Main Wire typed ${owner} must be a nonnegative safe integer`);
+  }
+  return value;
+}
+function safeCounterAdd(value, increment, owner) {
+  const accepted = nonnegativeSafeInteger(value, owner);
+  if (!Number.isSafeInteger(increment) || increment < 0) {
+    throw new Error(`Main Wire typed ${owner} increment is invalid`);
+  }
+  const candidate = accepted + increment;
+  if (!Number.isSafeInteger(candidate)) {
+    throw new Error(`Main Wire typed ${owner} cannot increment safely`);
+  }
+  return candidate;
+}
+function timeTolerance(left, right) {
+  return 64 * Number.EPSILON * Math.max(1, Math.abs(left), Math.abs(right));
+}
+function assertCursor$1(cursor, binding) {
+  if (cursor.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID || cursor.fingerprint !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT || cursor.layoutId !== binding.layoutId || cursor.fingerprint !== binding.fingerprint) {
+    throw new Error("Main Wire typed boundary cursor has the wrong layout");
+  }
+}
+function assertCandidateCursor$1(cursor, binding) {
+  if (cursor.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID || cursor.fingerprint !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT || cursor.layoutId !== binding.layoutId || cursor.fingerprint !== binding.fingerprint) {
+    throw new Error("Main Wire typed candidate cursor has the wrong layout");
+  }
+}
+function continuousSlot$1(manifest, pointer2) {
+  return requiredBindingSlot(
+    manifest.numericalLayout.continuousSlots,
+    pointer2,
+    "continuous"
+  );
+}
+function authoredScheduleBinding(manifest, rootPointer) {
+  return Object.freeze({
+    acceptedEmittedImpulseCount: continuousSlot$1(
+      manifest,
+      `${rootPointer}/acceptedEmittedImpulseCount`
+    ),
+    acceptedTimeSec: continuousSlot$1(
+      manifest,
+      `${rootPointer}/acceptedTimeSec`
+    ),
+    cursor: continuousSlot$1(manifest, `${rootPointer}/cursor`),
+    revision: continuousSlot$1(manifest, `${rootPointer}/revision`)
+  });
+}
+function regularAtrialBinding(manifest, rootPointer) {
+  return Object.freeze({
+    acceptedTimeSec: continuousSlot$1(manifest, `${rootPointer}/acceptedTimeSec`),
+    capturedPacPreserveCount: continuousSlot$1(
+      manifest,
+      `${rootPointer}/capturedPacPreserveCount`
+    ),
+    capturedPacResetCount: continuousSlot$1(
+      manifest,
+      `${rootPointer}/capturedPacResetCount`
+    ),
+    emittedSourceImpulseCount: continuousSlot$1(
+      manifest,
+      `${rootPointer}/emittedSourceImpulseCount`
+    ),
+    nextActivationTimeSec: continuousSlot$1(
+      manifest,
+      `${rootPointer}/nextActivationTimeSec`
+    ),
+    nextSourceSequence: continuousSlot$1(
+      manifest,
+      `${rootPointer}/nextSourceSequence`
+    ),
+    revision: continuousSlot$1(manifest, `${rootPointer}/revision`)
+  });
+}
+function stageAuthoredScheduleCandidate(current, candidate, slots, events, expectedAcceptedTimeSec, candidateTimeSec, owner, maximumDueEventCount) {
+  const acceptedTimeSec = finiteNonnegative(
+    current.readContinuous(slots.acceptedTimeSec),
+    `${owner} accepted time`
+  );
+  if (acceptedTimeSec !== expectedAcceptedTimeSec) {
+    throw new Error(`Main Wire typed ${owner} clock diverged`);
+  }
+  const cursor = nonnegativeSafeInteger(
+    current.readContinuous(slots.cursor),
+    `${owner} cursor`
+  );
+  if (cursor > events.length) {
+    throw new Error(`Main Wire typed ${owner} cursor exceeds its events`);
+  }
+  const candidateCursor = upperBoundAuthoredScheduleEvents(
+    events,
+    cursor,
+    candidateTimeSec,
+    owner
+  );
+  const dueEventCount = candidateCursor - cursor;
+  if (maximumDueEventCount !== null && dueEventCount > maximumDueEventCount) {
+    throw new Error(
+      `Main Wire typed ${owner} exceeds its per-trial impulse bound`
+    );
+  }
+  const emitted = nonnegativeSafeInteger(
+    current.readContinuous(slots.acceptedEmittedImpulseCount),
+    `${owner} emitted impulse count`
+  );
+  const revision = nonnegativeSafeInteger(
+    current.readContinuous(slots.revision),
+    `${owner} revision`
+  );
+  if (emitted > Number.MAX_SAFE_INTEGER - dueEventCount || revision === Number.MAX_SAFE_INTEGER) {
+    throw new Error(`Main Wire typed ${owner} counter cannot increment safely`);
+  }
+  candidate.writeContinuous(
+    slots.acceptedEmittedImpulseCount,
+    emitted + dueEventCount
+  );
+  candidate.writeContinuous(slots.acceptedTimeSec, candidateTimeSec);
+  candidate.writeContinuous(slots.cursor, candidateCursor);
+  candidate.writeContinuous(slots.revision, revision + 1);
+}
+function upperBoundAuthoredScheduleEvents(events, initialCursor, candidateTimeSec, owner) {
+  let low = initialCursor;
+  let high = events.length;
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2);
+    const event = requiredRecord(events[middle], `${owner} event`);
+    const activationTimeSec = numberProperty(
+      event,
+      "activationTimeSec",
+      `${owner} event`
+    );
+    if (activationTimeSec <= candidateTimeSec) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+function incrementableCounter(value, field) {
+  const counter = nonnegativeSafeInteger(value, field);
+  if (counter === Number.MAX_SAFE_INTEGER) {
+    throw new Error(`Main Wire typed ${field} cannot increment safely`);
+  }
+  return counter;
+}
+function finiteFutureTime(acceptedTimeSec, durationSec, field) {
+  if (!Number.isFinite(durationSec) || !(durationSec > 0)) {
+    throw new Error(`Main Wire typed ${field} duration is invalid`);
+  }
+  const future = acceptedTimeSec + durationSec;
+  if (!Number.isFinite(future) || !(future > acceptedTimeSec)) {
+    throw new Error(`Main Wire typed ${field} is not strictly future`);
+  }
+  return future;
+}
+function boundedArraySlot(manifest, pointer2) {
+  return requiredBindingSlot(
+    manifest.numericalLayout.boundedArrayRoots,
+    pointer2,
+    "bounded array"
+  );
+}
+function requiredBindingSlot(slots, pointer2, owner) {
+  const matches = [];
+  for (let index = 0; index < slots.length; index += 1) {
+    if (slots[index]?.pointer === pointer2) matches.push(index);
+  }
+  if (matches.length !== 1) {
+    throw new Error(
+      `Main Wire typed ${owner} binding ${pointer2} must resolve exactly once`
+    );
+  }
+  return matches[0];
+}
+const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_VIEW_V1_ID = "main-wire-integrated-accepted-typed-hemodynamic-view-v1";
+const LAND_STATE_LENGTH = 6;
+const WALL_STATE_LENGTH = LAND_STATE_LENGTH + 3;
+const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1 = 100;
+const ACCEPTED_TIME_INDEX = 0;
+const REVISION_INDEX = 1;
+const FIXED_TBV_INDEX = 2;
+const NON_CORONARY_INDEX = 3;
+const DYNAMIC_EDGE_INDEX = NON_CORONARY_INDEX + NON_CORONARY_NODE_NAMES_V1.length;
+const VALVE_INDEX = DYNAMIC_EDGE_INDEX + NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length;
+const CORONARY_INDEX = VALVE_INDEX + NON_CORONARY_VALVE_NAMES_V1.length;
+const CORONARY_TONE_INDEX = CORONARY_INDEX + CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+const WALL_STATE_INDEX = CORONARY_TONE_INDEX + CORONARY_TERRITORY_IDS_V2.length * CORONARY_LAYER_IDS_V2.length;
+const TRISEG_INDEX = WALL_STATE_INDEX + MAIN_WIRE_FIVE_WALL_IDS_V1.length * WALL_STATE_LENGTH;
+const MVC_INDEX = TRISEG_INDEX + 2;
+const MVC_ACTIVE_INDEX = MVC_INDEX + 5;
+if (NON_CORONARY_NODE_NAMES_V1.length !== 15 || NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length !== 2 || NON_CORONARY_VALVE_NAMES_V1.length !== 4 || CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length !== 16 || CORONARY_TERRITORY_IDS_V2.length !== 3 || CORONARY_LAYER_IDS_V2.length !== 2 || MAIN_WIRE_FIVE_WALL_IDS_V1.length !== 5 || MVC_INDEX + 7 !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
+  throw new Error("Main Wire accepted typed hemodynamic dimensions changed");
+}
+function createMainWireAcceptedTypedHemodynamicBindingV1(manifest) {
+  assertManifest(manifest);
+  const slots = [];
+  slots.push(
+    continuousSlot(manifest, "/acceptedTimeSec"),
+    continuousSlot(manifest, "/revision"),
+    continuousSlot(manifest, "/coronary/fixedGlobalTotalBloodVolumeMl")
+  );
+  for (const nodeId of NON_CORONARY_NODE_NAMES_V1) {
+    slots.push(continuousSlot(
+      manifest,
+      `/coronary/circulation/nodeVolumesMl/${nodeId}`
+    ));
+  }
+  for (const edgeId of NON_CORONARY_DYNAMIC_EDGE_NAMES_V1) {
+    slots.push(continuousSlot(
+      manifest,
+      `/coronary/circulation/dynamicEdgeFlowsMlPerSec/${edgeId}`
+    ));
+  }
+  for (const valveId of NON_CORONARY_VALVE_NAMES_V1) {
+    slots.push(continuousSlot(
+      manifest,
+      `/coronary/circulation/valveStates/${valveId}/leafletOpeningFraction01`
+    ));
+  }
+  for (const nodeId of CORONARY_CONSERVED_VOLUME_NODE_IDS_V2) {
+    slots.push(continuousSlot(
+      manifest,
+      `/coronary/coronary/volumeMlByNode/${nodeId}`
+    ));
+  }
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      slots.push(continuousSlot(
+        manifest,
+        `/coronary/coronary/toneResistanceScaleByTerritoryLayer/${territoryId}/${layerId}`
+      ));
+    }
+  }
+  for (const wallId of MAIN_WIRE_FIVE_WALL_IDS_V1) {
+    for (let stateIndex = 0; stateIndex < LAND_STATE_LENGTH; stateIndex += 1) {
+      slots.push(continuousSlot(
+        manifest,
+        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/landState/${stateIndex}`
+      ));
+    }
+    slots.push(
+      continuousSlot(
+        manifest,
+        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/slsState/viscousLogStrain`
+      ),
+      continuousSlot(
+        manifest,
+        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/previousFiberLogStrain`
+      ),
+      continuousSlot(
+        manifest,
+        `/coronary/mechanics/materialState/wallStateByWall/${wallId}/previousFreeCalciumUM`
+      )
+    );
+  }
+  slots.push(
+    continuousSlot(
+      manifest,
+      "/coronary/mechanics/materialState/trisegCoordinates/septalMidwallCapVolumeM3"
+    ),
+    continuousSlot(
+      manifest,
+      "/coronary/mechanics/materialState/trisegCoordinates/junctionRadiusM"
+    ),
+    continuousSlot(
+      manifest,
+      "/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/LVFW"
+    ),
+    continuousSlot(
+      manifest,
+      "/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/SEP"
+    ),
+    continuousSlot(
+      manifest,
+      "/coronary/mvcReferenceState/reference/referenceFiberLogStrainByWall/RVFW"
+    ),
+    continuousSlot(
+      manifest,
+      "/coronary/mvcReferenceState/referenceAcceptedTimeSec"
+    ),
+    continuousSlot(manifest, "/coronary/mvcReferenceState/referenceRevision"),
+    null,
+    continuousSlot(
+      manifest,
+      "/coronary/mvcReferenceState/acceptedMitralClosureEventCount"
+    )
+  );
+  if (slots.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1 || slots[MVC_ACTIVE_INDEX] !== null || slots.some((slot2, index) => index !== MVC_ACTIVE_INDEX && slot2 === null)) {
+    throw new Error("Main Wire accepted typed hemodynamic binding is incomplete");
+  }
+  const ownerClocks = Object.freeze([
+    ownerClock(manifest, ""),
+    ownerClock(manifest, "/composedRhythm"),
+    ownerClock(manifest, "/coronary"),
+    ownerClock(manifest, "/coronary/circulation"),
+    ownerClock(manifest, "/coronary/coronary"),
+    ownerClock(manifest, "/coronary/mechanics")
+  ]);
+  const mvcActiveBooleanSlot = booleanSlot(
+    manifest,
+    "/coronary/mvcReferenceState/mitralForwardFlowActive"
+  );
+  const circulationTotalBloodVolumeSlot = continuousSlot(
+    manifest,
+    "/coronary/circulation/totalBloodVolumeMl"
+  );
+  const mechanicsAcceptedVolumeSlots = Object.freeze(Object.fromEntries(
+    ["LA", "LV", "RA", "RV"].map((chamberId) => [
+      chamberId,
+      continuousSlot(
+        manifest,
+        `/coronary/mechanics/acceptedVolumesMl/${chamberId}`
+      )
+    ])
+  ));
+  const mechanicsMaterialFingerprintStringSlot = stringSlot(
+    manifest,
+    "/coronary/mechanics/materialStateFingerprint"
+  );
+  const coupledContinuousSlots = Object.freeze(Array.from(/* @__PURE__ */ new Set([
+    ...slots.filter((slot2) => slot2 !== null),
+    circulationTotalBloodVolumeSlot,
+    ...Object.values(mechanicsAcceptedVolumeSlots),
+    ...ownerClocks.flatMap((clock) => [
+      clock.acceptedTimeSec,
+      clock.revision
+    ])
+  ])));
+  const coronaryToneSlots = new Set(
+    slots.slice(
+      CORONARY_TONE_INDEX,
+      CORONARY_TONE_INDEX + CORONARY_TERRITORY_IDS_V2.length * CORONARY_LAYER_IDS_V2.length
+    ).filter((slot2) => slot2 !== null)
+  );
+  const solverRetainedContinuousSlots = Object.freeze(
+    coupledContinuousSlots.filter((slot2) => !coronaryToneSlots.has(slot2))
+  );
+  return Object.freeze({
+    viewId: MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_VIEW_V1_ID,
+    layoutId: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID,
+    fingerprint: MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
+    canonicalContinuousSlots: Object.freeze(slots),
+    mvcActiveBooleanSlot,
+    circulationTotalBloodVolumeSlot,
+    mechanicsAcceptedVolumeSlots,
+    mechanicsMaterialFingerprintStringSlot,
+    ownerClocks,
+    coupledContinuousSlots,
+    coupledBooleanSlots: Object.freeze([mvcActiveBooleanSlot]),
+    solverRetainedContinuousSlots,
+    solverRetainedBooleanSlots: Object.freeze([mvcActiveBooleanSlot])
+  });
+}
+function createMainWireAcceptedTypedHemodynamicDestinationV1() {
+  return new Float64Array(MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1);
+}
+function readMainWireAcceptedTypedHemodynamicIntoV1(cursor, binding, destination) {
+  assertCursor(cursor, binding);
+  if (!(destination instanceof Float64Array) || destination.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
+    throw new RangeError(
+      "Main Wire accepted typed hemodynamic destination must contain 100 f64s"
+    );
+  }
+  for (let index = 0; index < destination.length; index += 1) {
+    const slot2 = binding.canonicalContinuousSlots[index];
+    destination[index] = slot2 === null ? cursor.readBoolean(binding.mvcActiveBooleanSlot) ? 1 : 0 : cursor.readContinuous(slot2);
+  }
+  assertOwnerClocks(cursor, binding, destination);
+  assertCanonicalView(destination);
+}
+function materializeMainWireAcceptedTypedCoupledSolverAdapterV1(cursor, binding, template, scratch) {
+  validateMainWireFiveWallCoronaryAcceptedStateV2(template);
+  readMainWireAcceptedTypedHemodynamicIntoV1(
+    cursor,
+    binding,
+    scratch
+  );
+  if (!Object.is(
+    scratch[FIXED_TBV_INDEX],
+    template.fixedGlobalTotalBloodVolumeMl
+  )) {
+    throw new Error(
+      "Main Wire typed solver adapter changed its fixed TBV identity"
+    );
+  }
+  const acceptedTimeSec = scratch[ACCEPTED_TIME_INDEX];
+  const revision = scratch[REVISION_INDEX];
+  const nodeVolumesMl = Object.freeze(Object.fromEntries(
+    NON_CORONARY_NODE_NAMES_V1.map((nodeId, index) => [
+      nodeId,
+      scratch[NON_CORONARY_INDEX + index]
+    ])
+  ));
+  const dynamicEdgeFlowsMlPerSec = Object.freeze(Object.fromEntries(
+    NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((edgeId, index) => [
+      edgeId,
+      scratch[DYNAMIC_EDGE_INDEX + index]
+    ])
+  ));
+  const valveStates = Object.freeze(Object.fromEntries(
+    NON_CORONARY_VALVE_NAMES_V1.map((valveId, index) => [
+      valveId,
+      Object.freeze({
+        leafletOpeningFraction01: scratch[VALVE_INDEX + index]
+      })
+    ])
+  ));
+  const nonCoronaryTotalBloodVolumeMl = cursor.readContinuous(
+    binding.circulationTotalBloodVolumeSlot
+  );
+  const circulation = Object.freeze({
+    transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,
+    revision,
+    acceptedTimeSec,
+    totalBloodVolumeMl: nonCoronaryTotalBloodVolumeMl,
+    nodeVolumesMl,
+    dynamicEdgeFlowsMlPerSec,
+    valveStates
+  });
+  const volumeMlByNode = Object.freeze(Object.fromEntries(
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
+      nodeId,
+      scratch[CORONARY_INDEX + index]
+    ])
+  ));
+  const coronary = Object.freeze({
+    acceptedTimeSec,
+    revision,
+    volumeMlByNode,
+    toneResistanceScaleByTerritoryLayer: readCoronaryToneFromCanonicalView(scratch)
+  });
+  const acceptedVolumesMl = Object.freeze({
+    LA: nodeVolumesMl.LA,
+    LV: nodeVolumesMl.LV,
+    RA: nodeVolumesMl.RA,
+    RV: nodeVolumesMl.RV
+  });
+  const materialState = readMechanicsStateFromCanonicalView(scratch);
+  const mechanics = Object.freeze({
+    contractId: template.mechanics.contractId,
+    providerId: template.mechanics.providerId,
+    parameterSetId: template.mechanics.parameterSetId,
+    parameterIdentityHash: template.mechanics.parameterIdentityHash,
+    stateSchemaVersion: template.mechanics.stateSchemaVersion,
+    revision,
+    acceptedTimeSec,
+    acceptedVolumesMl,
+    materialState,
+    materialStateFingerprint: cursor.readString(
+      binding.mechanicsMaterialFingerprintStringSlot
+    )
+  });
+  const accepted = Object.freeze({
+    transactionId: MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID,
+    revision,
+    acceptedTimeSec,
+    fixedGlobalTotalBloodVolumeMl: scratch[FIXED_TBV_INDEX],
+    coronaryBinding: template.coronaryBinding,
+    circulation,
+    coronary,
+    mechanics,
+    mvcReferenceState: readMvcReferenceFromCanonicalView(scratch)
+  });
+  validateMainWireFiveWallCoronaryAcceptedStateV2(accepted);
+  return accepted;
+}
+function stageMainWireAcceptedTypedCoupledCandidateV1(candidateCursor, binding, candidate, scratch) {
+  assertCandidateCursor(candidateCursor, binding);
+  if (!(scratch instanceof Float64Array) || scratch.length !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1) {
+    throw new RangeError(
+      "Main Wire accepted typed coupled scratch must contain 100 f64s"
+    );
+  }
+  writeCandidateIntoCanonicalView(candidate, scratch);
+  assertCanonicalView(scratch);
+  for (let index = 0; index < scratch.length; index += 1) {
+    const slot2 = binding.canonicalContinuousSlots[index];
+    if (slot2 === null) {
+      candidateCursor.writeBoolean(
+        binding.mvcActiveBooleanSlot,
+        scratch[index] === 1
+      );
+    } else {
+      candidateCursor.writeContinuous(slot2, scratch[index]);
+    }
+  }
+  for (const clock of binding.ownerClocks) {
+    candidateCursor.writeContinuous(
+      clock.acceptedTimeSec,
+      candidate.candidateTimeSec
+    );
+    candidateCursor.writeContinuous(clock.revision, candidate.candidateRevision);
+  }
+  writeRedundantAcceptedVolumes(
+    candidateCursor,
+    binding,
+    candidate.nonCoronaryNodeVolumesMl.reduce(
+      (sum, volumeMl) => sum + volumeMl,
+      0
+    ),
+    candidate.mechanicsCandidateVolumesMl
+  );
+  candidateCursor.writeStringSameByteLength(
+    binding.mechanicsMaterialFingerprintStringSlot,
+    candidate.mechanicsMaterialStateFingerprint
+  );
+}
+function writeRedundantAcceptedVolumes(candidateCursor, binding, totalBloodVolumeMl, mechanicsVolumes) {
+  if (!Number.isFinite(totalBloodVolumeMl) || !(totalBloodVolumeMl > 0)) {
+    throw new Error("Main Wire typed circulation TBV is invalid");
+  }
+  candidateCursor.writeContinuous(
+    binding.circulationTotalBloodVolumeSlot,
+    totalBloodVolumeMl
+  );
+  for (const chamberId of ["LA", "LV", "RA", "RV"]) {
+    const value = mechanicsVolumes[chamberId];
+    if (!Number.isFinite(value) || !(value > 0)) {
+      throw new Error(
+        `Main Wire typed ${chamberId} mechanics accepted volume is invalid`
+      );
+    }
+    candidateCursor.writeContinuous(
+      binding.mechanicsAcceptedVolumeSlots[chamberId],
+      value
+    );
+  }
+}
+function writeCandidateIntoCanonicalView(candidate, destination) {
+  destination[ACCEPTED_TIME_INDEX] = candidate.candidateTimeSec;
+  destination[REVISION_INDEX] = candidate.candidateRevision;
+  destination[FIXED_TBV_INDEX] = candidate.fixedGlobalTotalBloodVolumeMl;
+  destination.set(candidate.nonCoronaryNodeVolumesMl, NON_CORONARY_INDEX);
+  destination.set(candidate.dynamicEdgeFlowsMlPerSec, DYNAMIC_EDGE_INDEX);
+  if (candidate.valveStates.length !== NON_CORONARY_VALVE_NAMES_V1.length) {
+    throw new Error("Main Wire typed coupled valve-state dimension changed");
+  }
+  for (let index = 0; index < candidate.valveStates.length; index += 1) {
+    destination[VALVE_INDEX + index] = candidate.valveStates[index].leafletOpeningFraction01;
+  }
+  for (let index = 0; index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length; index += 1) {
+    destination[CORONARY_INDEX + index] = candidate.coronaryVolumesMl[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]];
+  }
+  let toneIndex = CORONARY_TONE_INDEX;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      destination[toneIndex++] = candidate.coronaryToneResistanceScaleByTerritoryLayer[territoryId][layerId];
+    }
+  }
+  writeMaterialAndMvcIntoCanonicalView(
+    candidate.mechanicsMaterialState,
+    candidate.mvcReferenceState,
+    destination
+  );
+  assertMechanicsVolumesMatch(
+    candidate.mechanicsCandidateVolumesMl,
+    Object.fromEntries(NON_CORONARY_NODE_NAMES_V1.map((nodeId, index) => [
+      nodeId,
+      candidate.nonCoronaryNodeVolumesMl[index]
+    ]))
+  );
+}
+function readCoronaryToneFromCanonicalView(source) {
+  let index = CORONARY_TONE_INDEX;
+  return Object.freeze(Object.fromEntries(
+    CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+      territoryId,
+      Object.freeze(Object.fromEntries(
+        CORONARY_LAYER_IDS_V2.map((layerId) => [
+          layerId,
+          source[index++]
+        ])
+      ))
+    ])
+  ));
+}
+function readMechanicsStateFromCanonicalView(source) {
+  let index = WALL_STATE_INDEX;
+  const wallStateByWall = Object.freeze(Object.fromEntries(
+    MAIN_WIRE_FIVE_WALL_IDS_V1.map((wallId) => {
+      const landState = source.slice(index, index + LAND_STATE_LENGTH);
+      index += LAND_STATE_LENGTH;
+      const wall = Object.freeze({
+        landState,
+        slsState: Object.freeze({
+          viscousLogStrain: source[index++]
+        }),
+        previousFiberLogStrain: source[index++],
+        previousFreeCalciumUM: source[index++]
+      });
+      return [wallId, wall];
+    })
+  ));
+  return Object.freeze({
+    wallStateByWall,
+    trisegCoordinates: Object.freeze({
+      septalMidwallCapVolumeM3: source[TRISEG_INDEX],
+      junctionRadiusM: source[TRISEG_INDEX + 1]
+    })
+  });
+}
+function readMvcReferenceFromCanonicalView(source) {
+  return Object.freeze({
+    reference: Object.freeze({
+      referenceFiberLogStrainByWall: Object.freeze({
+        LVFW: source[MVC_INDEX],
+        SEP: source[MVC_INDEX + 1],
+        RVFW: source[MVC_INDEX + 2]
+      })
+    }),
+    referenceAcceptedTimeSec: source[MVC_INDEX + 3],
+    referenceRevision: source[MVC_INDEX + 4],
+    mitralForwardFlowActive: source[MVC_ACTIVE_INDEX] === 1,
+    acceptedMitralClosureEventCount: source[MVC_INDEX + 6]
+  });
+}
+function writeMaterialAndMvcIntoCanonicalView(materialState, mvc, destination) {
+  let wallIndex = WALL_STATE_INDEX;
+  for (const wallId of MAIN_WIRE_FIVE_WALL_IDS_V1) {
+    const wall = materialState.wallStateByWall[wallId];
+    if (wall.landState.length !== LAND_STATE_LENGTH) {
+      throw new Error(`Main Wire typed ${wallId} Land-state dimension changed`);
+    }
+    destination.set(wall.landState, wallIndex);
+    wallIndex += LAND_STATE_LENGTH;
+    destination[wallIndex++] = wall.slsState.viscousLogStrain;
+    destination[wallIndex++] = wall.previousFiberLogStrain;
+    destination[wallIndex++] = wall.previousFreeCalciumUM;
+  }
+  destination[TRISEG_INDEX] = materialState.trisegCoordinates.septalMidwallCapVolumeM3;
+  destination[TRISEG_INDEX + 1] = materialState.trisegCoordinates.junctionRadiusM;
+  destination[MVC_INDEX] = mvc.reference.referenceFiberLogStrainByWall.LVFW;
+  destination[MVC_INDEX + 1] = mvc.reference.referenceFiberLogStrainByWall.SEP;
+  destination[MVC_INDEX + 2] = mvc.reference.referenceFiberLogStrainByWall.RVFW;
+  destination[MVC_INDEX + 3] = mvc.referenceAcceptedTimeSec;
+  destination[MVC_INDEX + 4] = mvc.referenceRevision;
+  destination[MVC_ACTIVE_INDEX] = mvc.mitralForwardFlowActive ? 1 : 0;
+  destination[MVC_INDEX + 6] = mvc.acceptedMitralClosureEventCount;
+}
+function assertMechanicsVolumesMatch(mechanicsVolumes, nodeVolumes) {
+  for (const chamberId of ["LA", "LV", "RA", "RV"]) {
+    if (!Object.is(mechanicsVolumes[chamberId], nodeVolumes[chamberId])) {
+      throw new Error(
+        `Main Wire typed coupled ${chamberId} mechanics volume diverged`
+      );
+    }
+  }
+}
+function assertManifest(manifest) {
+  if (manifest.layoutId !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_ID || manifest.fingerprint !== MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT) {
+    throw new Error(
+      "Main Wire accepted typed hemodynamic manifest identity is unsupported"
+    );
+  }
+}
+function assertCursor(cursor, binding) {
+  if (cursor.layoutId !== binding.layoutId || cursor.fingerprint !== binding.fingerprint) {
+    throw new Error("Main Wire accepted typed hemodynamic cursor is unsupported");
+  }
+}
+function assertCandidateCursor(cursor, binding) {
+  if (cursor.layoutId !== binding.layoutId || cursor.fingerprint !== binding.fingerprint) {
+    throw new Error(
+      "Main Wire accepted typed hemodynamic candidate cursor is unsupported"
+    );
+  }
+}
+function ownerClock(manifest, pointer2) {
+  return Object.freeze({
+    acceptedTimeSec: continuousSlot(manifest, `${pointer2}/acceptedTimeSec`),
+    revision: continuousSlot(manifest, `${pointer2}/revision`)
+  });
+}
+function assertOwnerClocks(cursor, binding, destination) {
+  const acceptedTimeSec = destination[ACCEPTED_TIME_INDEX];
+  const revision = destination[REVISION_INDEX];
+  for (const clock of binding.ownerClocks) {
+    if (!Object.is(cursor.readContinuous(clock.acceptedTimeSec), acceptedTimeSec) || !Object.is(cursor.readContinuous(clock.revision), revision)) {
+      throw new Error("Main Wire accepted typed hemodynamic owner clocks diverged");
+    }
+  }
+}
+function assertCanonicalView(view) {
+  for (let index = 0; index < view.length; index += 1) {
+    if (!Number.isFinite(view[index])) {
+      throw new Error(
+        `Main Wire accepted typed hemodynamic slot ${index} is not finite`
+      );
+    }
+  }
+  if (!(view[ACCEPTED_TIME_INDEX] >= 0)) {
+    throw new Error("Main Wire accepted typed hemodynamic time is negative");
+  }
+  if (!Number.isSafeInteger(view[REVISION_INDEX]) || view[REVISION_INDEX] < 0) {
+    throw new Error("Main Wire accepted typed hemodynamic revision is invalid");
+  }
+  if (!(view[FIXED_TBV_INDEX] > 0)) {
+    throw new Error("Main Wire accepted typed hemodynamic TBV is invalid");
+  }
+  let bloodVolumeMl = 0;
+  for (let index = NON_CORONARY_INDEX; index < DYNAMIC_EDGE_INDEX; index += 1) {
+    if (!(view[index] > 0)) {
+      throw new Error("Main Wire accepted typed non-coronary volume is invalid");
+    }
+    bloodVolumeMl += view[index];
+  }
+  for (let index = VALVE_INDEX; index < CORONARY_INDEX; index += 1) {
+    if (view[index] < 0 || view[index] > 1) {
+      throw new Error("Main Wire accepted typed valve opening is invalid");
+    }
+  }
+  for (let index = CORONARY_INDEX; index < CORONARY_TONE_INDEX; index += 1) {
+    if (!(view[index] > 0)) {
+      throw new Error("Main Wire accepted typed coronary volume is invalid");
+    }
+    bloodVolumeMl += view[index];
+  }
+  for (let index = CORONARY_TONE_INDEX; index < WALL_STATE_INDEX; index += 1) {
+    if (!(view[index] > 0)) {
+      throw new Error("Main Wire accepted typed coronary tone is invalid");
+    }
+  }
+  const tbvTolerance = 64 * Number.EPSILON * Math.max(1, Math.abs(bloodVolumeMl), Math.abs(view[FIXED_TBV_INDEX]));
+  if (Math.abs(bloodVolumeMl - view[FIXED_TBV_INDEX]) > tbvTolerance) {
+    throw new Error("Main Wire accepted typed hemodynamic TBV ledger diverged");
+  }
+  for (let wall = 0; wall < MAIN_WIRE_FIVE_WALL_IDS_V1.length; wall += 1) {
+    const previousCalciumIndex = WALL_STATE_INDEX + wall * WALL_STATE_LENGTH + LAND_STATE_LENGTH + 2;
+    if (view[previousCalciumIndex] < 0) {
+      throw new Error("Main Wire accepted typed previous calcium is invalid");
+    }
+  }
+  if (view[MVC_INDEX + 3] < 0 || view[MVC_INDEX + 3] > view[ACCEPTED_TIME_INDEX] || !Number.isSafeInteger(view[MVC_INDEX + 4]) || view[MVC_INDEX + 4] < 0 || view[MVC_INDEX + 4] > view[REVISION_INDEX] || view[MVC_ACTIVE_INDEX] !== 0 && view[MVC_ACTIVE_INDEX] !== 1 || !Number.isSafeInteger(view[MVC_INDEX + 6]) || view[MVC_INDEX + 6] < 0) {
+    throw new Error("Main Wire accepted typed MVC reference is invalid");
+  }
+}
+function continuousSlot(manifest, pointer2) {
+  return requiredSlot(manifest.numericalLayout.continuousSlots, pointer2);
+}
+function booleanSlot(manifest, pointer2) {
+  return requiredSlot(manifest.numericalLayout.booleanSlots, pointer2);
+}
+function stringSlot(manifest, pointer2) {
+  return requiredSlot(manifest.numericalLayout.stringSlots, pointer2);
+}
+function requiredSlot(slots, pointer2) {
+  let found = -1;
+  for (let index = 0; index < slots.length; index += 1) {
+    if (slots[index]?.pointer !== pointer2) continue;
+    if (found !== -1) {
+      throw new Error(
+        `Main Wire accepted typed hemodynamic slot ${pointer2} is duplicated`
+      );
+    }
+    found = index;
+  }
+  if (found === -1) {
+    throw new Error(
+      `Main Wire accepted typed hemodynamic slot ${pointer2} is unavailable`
+    );
+  }
+  return found;
+}
+function createFlatDenseLuWorkspaceV1(dimension) {
+  requireDimension(dimension);
+  return Object.freeze({
+    dimension,
+    factors: new Float64Array(dimension * dimension),
+    pivotRowByColumn: new Int32Array(dimension),
+    transformedRightHandSide: new Float64Array(dimension)
+  });
+}
+function factorPreparedFlatDenseMatrixV1(workspace, minimumAbsolutePivot = 1e-14) {
+  const { dimension, factors, pivotRowByColumn } = workspace;
+  requirePositiveFinite$2(minimumAbsolutePivot, "minimumAbsolutePivot");
+  for (let column = 0; column < dimension; column += 1) {
+    let pivotRow = column;
+    let pivotMagnitude = Math.abs(
+      factors[column * dimension + column]
+    );
+    for (let row = column + 1; row < dimension; row += 1) {
+      const magnitude = Math.abs(factors[row * dimension + column]);
+      if (magnitude > pivotMagnitude) {
+        pivotMagnitude = magnitude;
+        pivotRow = row;
+      }
+    }
+    if (!Number.isFinite(pivotMagnitude) || pivotMagnitude < minimumAbsolutePivot) {
+      return false;
+    }
+    pivotRowByColumn[column] = pivotRow;
+    if (pivotRow !== column) {
+      swapRows(factors, dimension, pivotRow, column);
+    }
+    const pivot = factors[column * dimension + column];
+    for (let row = column + 1; row < dimension; row += 1) {
+      const factorIndex = row * dimension + column;
+      const factor = factors[factorIndex] / pivot;
+      factors[factorIndex] = factor;
+      for (let trailing = column + 1; trailing < dimension; trailing += 1) {
+        const targetIndex = row * dimension + trailing;
+        factors[targetIndex] -= factor * factors[column * dimension + trailing];
+      }
+    }
+  }
+  return true;
+}
+function solvePreparedFactoredFlatDenseSystemV1(workspace, rightHandSide, solution) {
+  const {
+    dimension,
+    factors,
+    pivotRowByColumn,
+    transformedRightHandSide
+  } = workspace;
+  transformedRightHandSide.set(rightHandSide);
+  for (let column = 0; column < dimension; column += 1) {
+    const pivotRow = pivotRowByColumn[column];
+    if (pivotRow !== column) {
+      const temporary = transformedRightHandSide[column];
+      transformedRightHandSide[column] = transformedRightHandSide[pivotRow];
+      transformedRightHandSide[pivotRow] = temporary;
+    }
+    const pivotValue = transformedRightHandSide[column];
+    for (let row = column + 1; row < dimension; row += 1) {
+      transformedRightHandSide[row] -= factors[row * dimension + column] * pivotValue;
+    }
+  }
+  for (let row = dimension - 1; row >= 0; row -= 1) {
+    let value = transformedRightHandSide[row];
+    for (let column = row + 1; column < dimension; column += 1) {
+      value -= factors[row * dimension + column] * solution[column];
+    }
+    solution[row] = value / factors[row * dimension + row];
+    if (!Number.isFinite(solution[row])) {
+      throw new Error("flat dense LU produced a non-finite solution");
+    }
+  }
+}
+function swapRows(matrix, dimension, firstRow, secondRow) {
+  for (let column = 0; column < dimension; column += 1) {
+    const firstIndex = firstRow * dimension + column;
+    const secondIndex = secondRow * dimension + column;
+    const temporary = matrix[firstIndex];
+    matrix[firstIndex] = matrix[secondIndex];
+    matrix[secondIndex] = temporary;
+  }
+}
+function requireDimension(dimension) {
+  if (!Number.isInteger(dimension) || dimension <= 0) {
+    throw new RangeError("flat dense dimension must be a positive integer");
+  }
+}
+function requirePositiveFinite$2(value, label) {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(`${label} must be positive and finite`);
+  }
+}
+function createFlatCoupledNewtonWorkspaceV1(dimension) {
+  if (!Number.isInteger(dimension) || dimension <= 0) {
+    throw new RangeError("coupled Newton dimension must be a positive integer");
+  }
+  return Object.freeze({
+    dimension,
+    current: new Float64Array(dimension),
+    residual: new Float64Array(dimension),
+    jacobian: new Float64Array(dimension * dimension),
+    rightHandSide: new Float64Array(dimension),
+    update: new Float64Array(dimension),
+    trial: new Float64Array(dimension),
+    trialResidual: new Float64Array(dimension),
+    linear: createFlatDenseLuWorkspaceV1(dimension)
+  });
+}
+function solveFlatCoupledSystemV1(system, initialUnknowns, options, workspace = createFlatCoupledNewtonWorkspaceV1(system.dimension)) {
+  validateInputs(system, initialUnknowns, options, workspace);
+  const {
+    current,
+    residual,
+    rightHandSide,
+    update,
+    trial,
+    trialResidual,
+    linear
+  } = workspace;
+  const jacobian = linear.factors;
+  current.set(initialUnknowns);
+  let residualEvaluationCount = 0;
+  let jacobianEvaluationCount = 0;
+  let lineSearchBacktrackCount = 0;
+  const maximumAcceptedStepsPerJacobian = options.maximumAcceptedStepsPerJacobian ?? 1;
+  let acceptedStepsSinceJacobian = maximumAcceptedStepsPerJacobian;
+  try {
+    system.evaluateResidual(current, residual);
+    residualEvaluationCount += 1;
+    requireFiniteVector$1(residual, "initial coupled residual");
+  } catch (error) {
+    return failure(
+      "initial-residual-evaluation",
+      errorMessage$2(error),
+      current,
+      0,
+      Number.POSITIVE_INFINITY,
+      residualEvaluationCount,
+      jacobianEvaluationCount,
+      lineSearchBacktrackCount
+    );
+  }
+  for (let iteration = 0; iteration <= options.maximumIterations; iteration += 1) {
+    const residualInfinityNorm = infinityNorm(residual);
+    let residualConverged;
+    const residualMerit = residualInfinityNorm;
+    try {
+      residualConverged = system.isResidualConverged === void 0 ? residualInfinityNorm <= options.residualInfinityTolerance : system.isResidualConverged(current, residual);
+      if (typeof residualConverged !== "boolean") {
+        throw new TypeError("coupled convergence gate must return a boolean");
+      }
+    } catch (error) {
+      return failure(
+        "convergence-evaluation",
+        errorMessage$2(error),
+        current,
+        iteration,
+        residualInfinityNorm,
+        residualEvaluationCount,
+        jacobianEvaluationCount,
+        lineSearchBacktrackCount
+      );
+    }
+    if (residualConverged) {
+      return success(
+        current,
+        iteration,
+        residualInfinityNorm,
+        residualEvaluationCount,
+        jacobianEvaluationCount,
+        lineSearchBacktrackCount
+      );
+    }
+    if (iteration === options.maximumIterations) {
+      return failure(
+        "maximum-iterations",
+        "flat coupled Newton reached its iteration limit",
+        current,
+        iteration,
+        residualInfinityNorm,
+        residualEvaluationCount,
+        jacobianEvaluationCount,
+        lineSearchBacktrackCount
+      );
+    }
+    if (acceptedStepsSinceJacobian >= maximumAcceptedStepsPerJacobian) {
+      try {
+        system.evaluateJacobian(current, jacobian);
+        jacobianEvaluationCount += 1;
+        equilibrateJacobianInPlace(jacobian, options);
+      } catch (error) {
+        return failure(
+          "jacobian-evaluation",
+          errorMessage$2(error),
+          current,
+          iteration,
+          residualInfinityNorm,
+          residualEvaluationCount,
+          jacobianEvaluationCount,
+          lineSearchBacktrackCount
+        );
+      }
+      if (!factorPreparedFlatDenseMatrixV1(
+        linear,
+        options.minimumAbsolutePivot
+      )) {
+        return failure(
+          "singular-jacobian",
+          "flat coupled Newton Jacobian is singular or ill-conditioned",
+          current,
+          iteration,
+          residualInfinityNorm,
+          residualEvaluationCount,
+          jacobianEvaluationCount,
+          lineSearchBacktrackCount
+        );
+      }
+      acceptedStepsSinceJacobian = 0;
+    }
+    for (let index = 0; index < system.dimension; index += 1) {
+      rightHandSide[index] = -residual[index] / options.residualScaleByEquation[index];
+    }
+    solvePreparedFactoredFlatDenseSystemV1(
+      linear,
+      rightHandSide,
+      update
+    );
+    for (let index = 0; index < system.dimension; index += 1) {
+      update[index] *= options.unknownScaleByUnknown[index];
+    }
+    const updateInfinityNorm = infinityNorm(update);
+    if (updateInfinityNorm <= options.updateInfinityTolerance) {
+      return failure(
+        "stagnated",
+        "flat coupled Newton update stagnated above residual tolerance",
+        current,
+        iteration,
+        residualInfinityNorm,
+        residualEvaluationCount,
+        jacobianEvaluationCount,
+        lineSearchBacktrackCount
+      );
+    }
+    let stepLength = admissibleStepLength(
+      system,
+      current,
+      update,
+      options
+    );
+    let accepted = false;
+    let lastError = "no residual-decreasing admissible candidate";
+    let minimumTrialMerit = Number.POSITIVE_INFINITY;
+    for (let backtrack = 0; backtrack <= options.maximumLineSearchBacktracks; backtrack += 1) {
+      for (let index = 0; index < system.dimension; index += 1) {
+        trial[index] = current[index] + stepLength * update[index];
+      }
+      try {
+        requireWithinBounds(trial, options);
+        system.assertCandidateAdmissible?.(trial);
+        system.evaluateResidual(trial, trialResidual);
+        residualEvaluationCount += 1;
+        requireFiniteVector$1(trialResidual, "line-search coupled residual");
+        const trialMerit = infinityNorm(trialResidual);
+        let componentConverged = false;
+        if (system.isResidualConverged !== void 0) {
+          componentConverged = system.isResidualConverged(
+            trial,
+            trialResidual
+          );
+        }
+        minimumTrialMerit = Math.min(minimumTrialMerit, trialMerit);
+        if (typeof componentConverged !== "boolean") {
+          throw new TypeError("coupled convergence gate must return a boolean");
+        }
+        if (componentConverged || trialMerit <= (1 - options.armijoCoefficient * stepLength) * residualMerit) {
+          current.set(trial);
+          residual.set(trialResidual);
+          accepted = true;
+          acceptedStepsSinceJacobian += 1;
+          break;
+        }
+        lastError = "candidate did not satisfy the Armijo residual decrease";
+      } catch (error) {
+        lastError = errorMessage$2(error);
+      }
+      stepLength *= 0.5;
+      lineSearchBacktrackCount += 1;
+    }
+    if (!accepted) {
+      return failure(
+        "line-search",
+        `flat coupled Newton line search failed: ${lastError}; current merit ${residualMerit}; minimum trial merit ${minimumTrialMerit}`,
+        current,
+        iteration,
+        residualInfinityNorm,
+        residualEvaluationCount,
+        jacobianEvaluationCount,
+        lineSearchBacktrackCount
+      );
+    }
+  }
+  throw new Error("unreachable flat coupled Newton state");
+}
+function validateInputs(system, initialUnknowns, options, workspace) {
+  if (!Number.isInteger(system.dimension) || system.dimension <= 0) {
+    throw new RangeError("coupled system dimension must be a positive integer");
+  }
+  if (workspace.dimension !== system.dimension) {
+    throw new RangeError("coupled Newton workspace dimension differs");
+  }
+  requireLength(initialUnknowns, system.dimension, "initial unknowns");
+  requireFiniteVector$1(initialUnknowns, "initial unknowns");
+  requireLength(
+    options.unknownScaleByUnknown,
+    system.dimension,
+    "unknown scales"
+  );
+  requireLength(
+    options.residualScaleByEquation,
+    system.dimension,
+    "residual scales"
+  );
+  requireLength(
+    options.lowerBoundByUnknown,
+    system.dimension,
+    "lower bounds"
+  );
+  requireLength(
+    options.upperBoundByUnknown,
+    system.dimension,
+    "upper bounds"
+  );
+  if (!Number.isInteger(options.maximumIterations) || options.maximumIterations <= 0 || !Number.isInteger(options.maximumLineSearchBacktracks) || options.maximumLineSearchBacktracks < 0) {
+    throw new RangeError("coupled Newton iteration limits are invalid");
+  }
+  if (options.maximumAcceptedStepsPerJacobian !== void 0 && (!Number.isInteger(options.maximumAcceptedStepsPerJacobian) || options.maximumAcceptedStepsPerJacobian <= 0)) {
+    throw new RangeError(
+      "maximumAcceptedStepsPerJacobian must be a positive integer"
+    );
+  }
+  requirePositiveFinite$1(
+    options.residualInfinityTolerance,
+    "residualInfinityTolerance"
+  );
+  requirePositiveFinite$1(
+    options.updateInfinityTolerance,
+    "updateInfinityTolerance"
+  );
+  requirePositiveFinite$1(options.minimumAbsolutePivot, "minimumAbsolutePivot");
+  if (!Number.isFinite(options.armijoCoefficient) || options.armijoCoefficient <= 0 || options.armijoCoefficient >= 1) {
+    throw new RangeError("armijoCoefficient must be finite within (0, 1)");
+  }
+  for (let index = 0; index < system.dimension; index += 1) {
+    requirePositiveFinite$1(
+      options.unknownScaleByUnknown[index],
+      `unknownScaleByUnknown[${index}]`
+    );
+    requirePositiveFinite$1(
+      options.residualScaleByEquation[index],
+      `residualScaleByEquation[${index}]`
+    );
+    const lower = options.lowerBoundByUnknown[index];
+    const upper = options.upperBoundByUnknown[index];
+    if (Number.isNaN(lower) || Number.isNaN(upper) || !(upper > lower)) {
+      throw new RangeError(`coupled Newton bounds[${index}] are invalid`);
+    }
+  }
+  requireWithinBounds(initialUnknowns, options);
+  system.assertCandidateAdmissible?.(initialUnknowns);
+}
+function equilibrateJacobianInPlace(jacobian, options) {
+  const dimension = options.unknownScaleByUnknown.length;
+  for (let row = 0; row < dimension; row += 1) {
+    const inverseResidualScale = 1 / options.residualScaleByEquation[row];
+    for (let column = 0; column < dimension; column += 1) {
+      const index = row * dimension + column;
+      const equilibrated = jacobian[index] * options.unknownScaleByUnknown[column] * inverseResidualScale;
+      if (!Number.isFinite(equilibrated)) {
+        throw new RangeError(
+          "equilibrated coupled Jacobian must contain only finite values"
+        );
+      }
+      jacobian[index] = equilibrated;
+    }
+  }
+}
+function admissibleStepLength(system, current, update, options) {
+  let stepLength = 1;
+  for (let index = 0; index < current.length; index += 1) {
+    const delta = update[index];
+    if (delta < 0 && Number.isFinite(options.lowerBoundByUnknown[index])) {
+      stepLength = Math.min(
+        stepLength,
+        0.99 * (current[index] - options.lowerBoundByUnknown[index]) / -delta
+      );
+    } else if (delta > 0 && Number.isFinite(options.upperBoundByUnknown[index])) {
+      stepLength = Math.min(
+        stepLength,
+        0.99 * (options.upperBoundByUnknown[index] - current[index]) / delta
+      );
+    }
+  }
+  const coupledLimit = system.maximumAdmissibleStepLength?.(current, update);
+  if (coupledLimit !== void 0) {
+    if (!Number.isFinite(coupledLimit) || coupledLimit <= 0) {
+      throw new RangeError(
+        "coupled Newton system returned no positive admissible step"
+      );
+    }
+    if (coupledLimit < 1) {
+      stepLength = Math.min(stepLength, 0.99 * coupledLimit);
+    }
+  }
+  if (!Number.isFinite(stepLength) || stepLength <= 0) {
+    throw new RangeError("coupled Newton has no positive admissible step");
+  }
+  return stepLength;
+}
+function requireWithinBounds(values2, options) {
+  for (let index = 0; index < values2.length; index += 1) {
+    if (!(values2[index] > options.lowerBoundByUnknown[index]) || !(values2[index] < options.upperBoundByUnknown[index])) {
+      throw new RangeError(`coupled unknown[${index}] left its open bounds`);
+    }
+  }
+}
+function requireLength(value, expected, label) {
+  if (!(value instanceof Float64Array) || value.length !== expected) {
+    throw new RangeError(`${label} must contain ${expected} f64 values`);
+  }
+}
+function requireFiniteVector$1(value, label) {
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Number.isFinite(value[index])) {
+      throw new RangeError(`${label} must contain only finite values`);
+    }
+  }
+}
+function requirePositiveFinite$1(value, label) {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(`${label} must be positive and finite`);
+  }
+}
+function infinityNorm(values2) {
+  let maximum = 0;
+  for (let index = 0; index < values2.length; index += 1) {
+    maximum = Math.max(maximum, Math.abs(values2[index]));
+  }
+  return maximum;
+}
+function success(current, iterations, residualInfinityNorm, residualEvaluationCount, jacobianEvaluationCount, lineSearchBacktrackCount) {
+  return Object.freeze({
+    status: "converged",
+    solution: current.slice(),
+    iterations,
+    residualInfinityNorm,
+    residualEvaluationCount,
+    jacobianEvaluationCount,
+    lineSearchBacktrackCount
+  });
+}
+function failure(reason, message, current, iterations, residualInfinityNorm, residualEvaluationCount, jacobianEvaluationCount, lineSearchBacktrackCount) {
+  return Object.freeze({
+    status: "failed",
+    reason,
+    message,
+    lastCandidate: current.slice(),
+    iterations,
+    residualInfinityNorm,
+    residualEvaluationCount,
+    jacobianEvaluationCount,
+    lineSearchBacktrackCount
+  });
+}
+function errorMessage$2(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+const MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID = "main-wire-five-wall-coupled-accepted-history-predictor-v1";
+const MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID = "circleheart-main-wire-five-wall-coupled-predictor-checkpoint-v2";
+const STORAGE = /* @__PURE__ */ new WeakMap();
+function createMainWireFiveWallCoupledPredictorWorkspaceV1() {
+  const workspace = Object.freeze({
+    schemaId: "circleheart-main-wire-five-wall-coupled-predictor-workspace-v1",
+    dimension: 30
+  });
+  STORAGE.set(workspace, {
+    oldestAcceptedMl: new Float64Array(30),
+    olderAcceptedMl: new Float64Array(30),
+    previousAcceptedMl: new Float64Array(30),
+    currentAcceptedMl: new Float64Array(30),
+    predictedMl: new Float64Array(30),
+    hasAcceptedPair: false,
+    historyDepth: 0,
+    expectedBaseRevision: null,
+    expectedBaseAcceptedTimeSec: null,
+    preparedBaseRevision: null,
+    preparedBaseAcceptedTimeSec: null,
+    predictionCount: 0,
+    contextFallbackCount: 0,
+    dampedPredictionCount: 0,
+    resetCount: 0
+  });
+  return workspace;
+}
+function prepareMainWireFiveWallCoupledPredictionV1(context, workspace, order = "linear") {
+  context.assertWorkspaceCurrent();
+  if (order !== "linear" && order !== "quadratic" && order !== "cubic") {
+    throw new RangeError("coupled predictor order is unsupported");
+  }
+  const storage = requireStorage(workspace);
+  storage.preparedBaseRevision = context.baseRevision;
+  storage.preparedBaseAcceptedTimeSec = context.baseAcceptedTimeSec;
+  if (!matchesSequentialAcceptedState(context, storage)) {
+    if (storage.hasAcceptedPair) resetHistory(storage);
+    storage.contextFallbackCount += 1;
+    return contextPrediction(context);
+  }
+  const cubic = order === "cubic" && storage.historyDepth === 4;
+  const quadratic = order === "quadratic" && storage.historyDepth >= 3;
+  let scale = 1;
+  while (scale >= 1 / 256) {
+    for (let index = 0; index < workspace.dimension; index += 1) {
+      const current = context.initialUnknownsMl[index];
+      const displacement = cubic ? 3 * current - 6 * storage.previousAcceptedMl[index] + 4 * storage.olderAcceptedMl[index] - storage.oldestAcceptedMl[index] : quadratic ? 2 * current - 3 * storage.previousAcceptedMl[index] + storage.olderAcceptedMl[index] : current - storage.previousAcceptedMl[index];
+      storage.predictedMl[index] = current + scale * displacement;
+    }
+    if (isAdmissiblePrediction(context, storage.predictedMl)) {
+      storage.predictionCount += 1;
+      if (scale < 1) storage.dampedPredictionCount += 1;
+      return Object.freeze({
+        predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
+        mode: cubic ? "cubic-extrapolation" : quadratic ? "quadratic-extrapolation" : "linear-extrapolation",
+        extrapolationScale: scale,
+        initialGuessMl: storage.predictedMl
+      });
+    }
+    scale *= 0.5;
+  }
+  storage.contextFallbackCount += 1;
+  return contextPrediction(context);
+}
+function recordAcceptedMainWireFiveWallCoupledSolutionV1(context, acceptedSolutionMl, workspace) {
+  context.assertWorkspaceCurrent();
+  const storage = requireStorage(workspace);
+  if (storage.preparedBaseRevision !== context.baseRevision || !sameNumber(
+    storage.preparedBaseAcceptedTimeSec,
+    context.baseAcceptedTimeSec
+  )) {
+    throw new Error(
+      "coupled predictor can record only its most recently prepared context"
+    );
+  }
+  requireFiniteVector(acceptedSolutionMl, workspace.dimension, "accepted root");
+  if (!isAdmissiblePrediction(context, acceptedSolutionMl)) {
+    throw new RangeError("accepted root is outside the coupled predictor domain");
+  }
+  if (storage.hasAcceptedPair) {
+    if (storage.historyDepth >= 3) {
+      storage.oldestAcceptedMl.set(storage.olderAcceptedMl);
+    }
+    storage.olderAcceptedMl.set(storage.previousAcceptedMl);
+  }
+  storage.previousAcceptedMl.set(context.initialUnknownsMl);
+  storage.currentAcceptedMl.set(acceptedSolutionMl);
+  storage.hasAcceptedPair = true;
+  storage.historyDepth = storage.historyDepth === 0 ? 2 : storage.historyDepth === 2 ? 3 : 4;
+  storage.expectedBaseRevision = context.baseRevision + 1;
+  storage.expectedBaseAcceptedTimeSec = context.baseAcceptedTimeSec + context.stepDtSec;
+}
+function resetMainWireFiveWallCoupledPredictorV1(workspace) {
+  const storage = requireStorage(workspace);
+  resetHistory(storage);
+}
+function reportMainWireFiveWallCoupledPredictorV1(workspace) {
+  const storage = requireStorage(workspace);
+  return Object.freeze({
+    predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
+    hasAcceptedPair: storage.hasAcceptedPair,
+    historyDepth: storage.historyDepth,
+    expectedBaseRevision: storage.expectedBaseRevision,
+    expectedBaseAcceptedTimeSec: storage.expectedBaseAcceptedTimeSec,
+    predictionCount: storage.predictionCount,
+    contextFallbackCount: storage.contextFallbackCount,
+    dampedPredictionCount: storage.dampedPredictionCount,
+    resetCount: storage.resetCount
+  });
+}
+function checkpointMainWireFiveWallCoupledPredictorV1(workspace) {
+  const storage = requireStorage(workspace);
+  return Object.freeze({
+    checkpointId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID,
+    schemaVersion: 2,
+    historyDepth: storage.historyDepth,
+    expectedBaseRevision: storage.expectedBaseRevision,
+    expectedBaseAcceptedTimeSec: storage.expectedBaseAcceptedTimeSec,
+    oldestAcceptedMl: Object.freeze(Array.from(storage.oldestAcceptedMl)),
+    olderAcceptedMl: Object.freeze(Array.from(storage.olderAcceptedMl)),
+    previousAcceptedMl: Object.freeze(Array.from(storage.previousAcceptedMl)),
+    currentAcceptedMl: Object.freeze(Array.from(storage.currentAcceptedMl))
+  });
+}
+function restoreMainWireFiveWallCoupledPredictorV1(input, accepted, workspace) {
+  const checkpoint = validatePredictorCheckpoint(input);
+  const storage = requireStorage(workspace);
+  resetStorage(storage);
+  if (checkpoint.historyDepth === 0) return;
+  if (checkpoint.expectedBaseRevision !== accepted.revision || !sameNumber(
+    checkpoint.expectedBaseAcceptedTimeSec,
+    accepted.acceptedTimeSec
+  )) {
+    throw new Error("coupled predictor checkpoint clock differs from accepted state");
+  }
+  requireFiniteVector(accepted.unknownsMl, 30, "restored accepted root");
+  for (let index = 0; index < 30; index += 1) {
+    if (!sameCoupledRootValue(
+      checkpoint.currentAcceptedMl[index],
+      accepted.unknownsMl[index]
+    )) {
+      throw new Error(
+        `coupled predictor checkpoint root differs from accepted state at index ${index}`
+      );
+    }
+  }
+  storage.oldestAcceptedMl.set(checkpoint.oldestAcceptedMl);
+  storage.olderAcceptedMl.set(checkpoint.olderAcceptedMl);
+  storage.previousAcceptedMl.set(checkpoint.previousAcceptedMl);
+  storage.currentAcceptedMl.set(checkpoint.currentAcceptedMl);
+  storage.hasAcceptedPair = true;
+  storage.historyDepth = checkpoint.historyDepth;
+  storage.expectedBaseRevision = checkpoint.expectedBaseRevision;
+  storage.expectedBaseAcceptedTimeSec = checkpoint.expectedBaseAcceptedTimeSec;
+}
+function matchesSequentialAcceptedState(context, storage) {
+  if (!storage.hasAcceptedPair || storage.expectedBaseRevision !== context.baseRevision || !sameNumber(
+    storage.expectedBaseAcceptedTimeSec,
+    context.baseAcceptedTimeSec
+  )) return false;
+  for (let index = 0; index < context.dimension; index += 1) {
+    const expected = storage.currentAcceptedMl[index];
+    const actual = context.initialUnknownsMl[index];
+    if (!sameCoupledRootValue(expected, actual)) return false;
+  }
+  return true;
+}
+function isAdmissiblePrediction(context, values2) {
+  if (values2.length !== context.dimension) return false;
+  let sum = 0;
+  for (let index = 0; index < values2.length; index += 1) {
+    const value = values2[index];
+    if (!Number.isFinite(value) || !(value > context.lowerBoundsMl[index]) || !(value < context.upperBoundsMl[index])) return false;
+    sum += value;
+  }
+  return context.fixedGlobalTotalBloodVolumeMl - sum > context.minimumDependentSvVolumeMl;
+}
+function contextPrediction(context) {
+  return Object.freeze({
+    predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
+    mode: "context",
+    extrapolationScale: 0,
+    initialGuessMl: context.initialUnknownsMl
+  });
+}
+function resetHistory(storage) {
+  storage.oldestAcceptedMl.fill(0);
+  storage.olderAcceptedMl.fill(0);
+  storage.previousAcceptedMl.fill(0);
+  storage.currentAcceptedMl.fill(0);
+  storage.hasAcceptedPair = false;
+  storage.historyDepth = 0;
+  storage.expectedBaseRevision = null;
+  storage.expectedBaseAcceptedTimeSec = null;
+  storage.resetCount += 1;
+}
+function resetStorage(storage) {
+  storage.oldestAcceptedMl.fill(0);
+  storage.olderAcceptedMl.fill(0);
+  storage.previousAcceptedMl.fill(0);
+  storage.currentAcceptedMl.fill(0);
+  storage.predictedMl.fill(0);
+  storage.hasAcceptedPair = false;
+  storage.historyDepth = 0;
+  storage.expectedBaseRevision = null;
+  storage.expectedBaseAcceptedTimeSec = null;
+  storage.preparedBaseRevision = null;
+  storage.preparedBaseAcceptedTimeSec = null;
+  storage.predictionCount = 0;
+  storage.contextFallbackCount = 0;
+  storage.dampedPredictionCount = 0;
+  storage.resetCount = 0;
+}
+function validatePredictorCheckpoint(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("coupled predictor checkpoint must be a plain object");
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error("coupled predictor checkpoint must be a plain object");
+  }
+  const expectedKeys = [
+    "checkpointId",
+    "schemaVersion",
+    "historyDepth",
+    "expectedBaseRevision",
+    "expectedBaseAcceptedTimeSec",
+    "oldestAcceptedMl",
+    "olderAcceptedMl",
+    "previousAcceptedMl",
+    "currentAcceptedMl"
+  ].sort();
+  const keys = Reflect.ownKeys(input);
+  if (keys.some((key) => typeof key !== "string") || keys.length !== expectedKeys.length || keys.sort().some((key, index) => key !== expectedKeys[index])) {
+    throw new Error("coupled predictor checkpoint has unexpected fields");
+  }
+  const checkpointId = ownDataValue(input, "checkpointId");
+  const schemaVersion = ownDataValue(input, "schemaVersion");
+  const historyDepth = ownDataValue(input, "historyDepth");
+  if (checkpointId !== MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID || schemaVersion !== 2 || historyDepth !== 0 && historyDepth !== 2 && historyDepth !== 3 && historyDepth !== 4) {
+    throw new Error("unsupported coupled predictor checkpoint schema");
+  }
+  const vectors = [
+    validateCheckpointVector(ownDataValue(input, "oldestAcceptedMl")),
+    validateCheckpointVector(ownDataValue(input, "olderAcceptedMl")),
+    validateCheckpointVector(ownDataValue(input, "previousAcceptedMl")),
+    validateCheckpointVector(ownDataValue(input, "currentAcceptedMl"))
+  ];
+  const expectedBaseRevision = ownDataValue(input, "expectedBaseRevision");
+  const expectedBaseAcceptedTimeSec = ownDataValue(
+    input,
+    "expectedBaseAcceptedTimeSec"
+  );
+  if (historyDepth === 0) {
+    if (expectedBaseRevision !== null || expectedBaseAcceptedTimeSec !== null || vectors.some((vector) => vector.some((value) => value !== 0))) {
+      throw new Error("empty coupled predictor checkpoint is not canonical");
+    }
+  } else if (!Number.isSafeInteger(expectedBaseRevision) || expectedBaseRevision < 0 || typeof expectedBaseAcceptedTimeSec !== "number" || !Number.isFinite(expectedBaseAcceptedTimeSec) || expectedBaseAcceptedTimeSec < 0) {
+    throw new Error("coupled predictor checkpoint clock is invalid");
+  }
+  if (historyDepth === 2 && (vectors[0].some((value) => value !== 0) || vectors[1].some((value) => value !== 0))) {
+    throw new Error("two-root coupled predictor checkpoint is not canonical");
+  }
+  if (historyDepth === 3 && vectors[0].some((value) => value !== 0)) {
+    throw new Error("three-root coupled predictor checkpoint is not canonical");
+  }
+  return Object.freeze({
+    checkpointId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID,
+    schemaVersion: 2,
+    historyDepth,
+    expectedBaseRevision,
+    expectedBaseAcceptedTimeSec,
+    oldestAcceptedMl: vectors[0],
+    olderAcceptedMl: vectors[1],
+    previousAcceptedMl: vectors[2],
+    currentAcceptedMl: vectors[3]
+  });
+}
+function ownDataValue(record, key) {
+  const descriptor = Object.getOwnPropertyDescriptor(record, key);
+  if (descriptor === void 0 || !("value" in descriptor)) {
+    throw new Error(`coupled predictor checkpoint ${key} must be a data field`);
+  }
+  return descriptor.value;
+}
+function validateCheckpointVector(input) {
+  if (!Array.isArray(input) || Object.getPrototypeOf(input) !== Array.prototype) {
+    throw new Error("coupled predictor checkpoint vector is invalid");
+  }
+  const keys = Reflect.ownKeys(input);
+  if (input.length !== 30 || keys.length !== 31 || keys.some((key) => typeof key === "symbol")) {
+    throw new Error("coupled predictor checkpoint vector is invalid");
+  }
+  const values2 = new Array(30);
+  for (let index = 0; index < 30; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(input, String(index));
+    if (descriptor === void 0 || !("value" in descriptor) || typeof descriptor.value !== "number" || !Number.isFinite(descriptor.value)) {
+      throw new Error("coupled predictor checkpoint vector is invalid");
+    }
+    values2[index] = descriptor.value;
+  }
+  const lengthDescriptor = Object.getOwnPropertyDescriptor(input, "length");
+  if (lengthDescriptor === void 0 || !("value" in lengthDescriptor) || lengthDescriptor.value !== 30) {
+    throw new Error("coupled predictor checkpoint vector is invalid");
+  }
+  return Object.freeze(values2);
+}
+function requireStorage(workspace) {
+  const storage = STORAGE.get(workspace);
+  if (storage === void 0 || workspace.dimension !== 30) {
+    throw new Error("coupled predictor workspace is incompatible");
+  }
+  return storage;
+}
+function requireFiniteVector(values2, expectedLength, label) {
+  if (!(values2 instanceof Float64Array) || values2.length !== expectedLength) {
+    throw new RangeError(`${label} must contain ${expectedLength} f64 values`);
+  }
+  for (const value of values2) {
+    if (!Number.isFinite(value)) {
+      throw new RangeError(`${label} must contain only finite values`);
+    }
+  }
+}
+function sameNumber(left, right) {
+  return left !== null && Object.is(left, right);
+}
+function sameCoupledRootValue(left, right) {
+  const tolerance = 1e-12 * Math.max(1, Math.abs(left), Math.abs(right));
+  return Math.abs(left - right) <= tolerance;
+}
+const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID = "main-wire-five-wall-coupled-newton-shadow-v1";
+const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
+function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1() {
+  const nonCoronaryDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+  const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  const boundaryDimension = CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+  const dimension = nonCoronaryDimension + coronaryDimension;
+  const workspace = Object.freeze({
+    schemaId: "circleheart-main-wire-five-wall-coupled-newton-shadow-workspace-v1",
+    dimension
+  });
+  MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.set(
+    workspace,
+    {
+      plus: new Float64Array(dimension),
+      minus: new Float64Array(dimension),
+      plusResidual: new Float64Array(dimension),
+      minusResidual: new Float64Array(dimension),
+      localDependentSvColumn: new Float64Array(nonCoronaryDimension),
+      coronaryBoundaryLinearization: new Float64Array(
+        boundaryDimension * nonCoronaryDimension
+      ),
+      localNonCoronaryLinearization: new Float64Array(
+        nonCoronaryDimension * nonCoronaryDimension
+      ),
+      coronaryLinearization: {
+        residualMl: new Float64Array(coronaryDimension),
+        dResidualDVolume: new Float64Array(coronaryDimension * coronaryDimension),
+        dResidualDBoundary: new Float64Array(coronaryDimension * boundaryDimension),
+        dTotalInletFlowDVolume: new Float64Array(coronaryDimension),
+        dCommonVenousOutletFlowDVolume: new Float64Array(coronaryDimension),
+        dTotalInletFlowDBoundary: new Float64Array(boundaryDimension),
+        dCommonVenousOutletFlowDBoundary: new Float64Array(boundaryDimension)
+      },
+      unknownScales: new Float64Array(dimension),
+      residualScales: new Float64Array(dimension),
+      newton: createFlatCoupledNewtonWorkspaceV1(dimension),
+      inUse: false
+    }
+  );
+  return workspace;
+}
+function borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace, dimension) {
+  const storage = MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.get(
+    workspace
+  );
+  if (storage === void 0 || workspace.dimension !== dimension) {
+    throw new RangeError("coupled Newton shadow workspace is incompatible");
+  }
+  if (storage.inUse) {
+    throw new Error("coupled Newton shadow workspace is already in use");
+  }
+  storage.inUse = true;
+  return storage;
+}
+function solveMainWireFiveWallCoupledNewtonShadowV1(context, options = Object.freeze({}), workspace = createMainWireFiveWallCoupledNewtonShadowWorkspaceV1()) {
+  const dimension = context.dimension;
+  const storage = borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
+    workspace,
+    dimension
+  );
+  try {
+    const finiteDifferenceRelativeStep = options.finiteDifferenceRelativeStep ?? 2e-6;
+    requirePositiveFinite(
+      finiteDifferenceRelativeStep,
+      "finiteDifferenceRelativeStep"
+    );
+    const { plus, minus, plusResidual, minusResidual } = storage;
+    const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+    const boundaryDimension = CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+    const nonCoronaryDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+    const {
+      localDependentSvColumn,
+      coronaryBoundaryLinearization,
+      localNonCoronaryLinearization,
+      coronaryLinearization
+    } = storage;
+    let jacobianResidualEvaluationCount = 0;
+    let coronaryAnalyticBlockAssemblyCount = 0;
+    let coronaryBoundaryAnalyticBlockAssemblyCount = 0;
+    let nonCoronaryAnalyticBlockAssemblyCount = 0;
+    const jacobianMode = options.jacobianMode ?? "hybrid-coronary-analytic";
+    const system = Object.freeze({
+      dimension,
+      assertCandidateAdmissible: (unknowns) => {
+        const dependentSvVolumeMl = context.fixedGlobalTotalBloodVolumeMl - sumVector(unknowns);
+        if (!(dependentSvVolumeMl > context.minimumDependentSvVolumeMl)) {
+          throw new RangeError(
+            "coupled candidate leaves no admissible dependent SV volume"
+          );
+        }
+      },
+      maximumAdmissibleStepLength: (current, update) => {
+        const updateSum = sumVector(update);
+        if (updateSum <= 0) return 1;
+        const availableVolumeMl = context.fixedGlobalTotalBloodVolumeMl - context.minimumDependentSvVolumeMl - sumVector(current);
+        if (!(availableVolumeMl > 0)) {
+          throw new RangeError(
+            "coupled candidate has no dependent SV volume headroom"
+          );
+        }
+        return availableVolumeMl / updateSum;
+      },
+      evaluateResidual: context.evaluateResidualMl,
+      isResidualConverged: context.isResidualConverged,
+      evaluateJacobian: (unknowns, destination) => {
+        let completeAnalyticAssemblyAvailable = false;
+        if (jacobianMode === "hybrid-coronary-analytic") {
+          completeAnalyticAssemblyAvailable = context.writeCoupledLinearizations(
+            unknowns,
+            coronaryLinearization,
+            localDependentSvColumn,
+            localNonCoronaryLinearization,
+            coronaryBoundaryLinearization
+          );
+          coronaryAnalyticBlockAssemblyCount += 1;
+          if (!completeAnalyticAssemblyAvailable && options.analyticJacobianPolicy === "require-complete") {
+            throw new Error(
+              "coupled authority requires a complete component-owned analytic Jacobian"
+            );
+          }
+        }
+        const finiteDifferenceColumnCount = jacobianMode === "hybrid-coronary-analytic" ? completeAnalyticAssemblyAvailable ? 0 : nonCoronaryDimension : dimension;
+        for (let column = 0; column < finiteDifferenceColumnCount; column += 1) {
+          plus.set(unknowns);
+          minus.set(unknowns);
+          const halfStep = finiteDifferenceRelativeStep * Math.max(1, Math.abs(unknowns[column]));
+          if (unknowns[column] - halfStep <= context.lowerBoundsMl[column] || unknowns[column] + halfStep >= context.upperBoundsMl[column]) {
+            throw new RangeError(
+              `coupled finite-difference column ${column} has no centered step`
+            );
+          }
+          plus[column] += halfStep;
+          minus[column] -= halfStep;
+          context.evaluateResidualMl(plus, plusResidual);
+          context.evaluateResidualMl(minus, minusResidual);
+          jacobianResidualEvaluationCount += 2;
+          const denominator = 2 * halfStep;
+          for (let row = 0; row < dimension; row += 1) {
+            destination[row * dimension + column] = (plusResidual[row] - minusResidual[row]) / denominator;
+          }
+        }
+        if (jacobianMode === "hybrid-coronary-analytic") {
+          const coronaryStart = nonCoronaryDimension;
+          const aoResidualRow = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("Ao");
+          const raResidualRow = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("RA");
+          if (aoResidualRow < 0 || raResidualRow < 0) {
+            throw new Error(
+              "coupled coronary block requires independent Ao and RA rows"
+            );
+          }
+          for (let row = 0; row < nonCoronaryDimension; row += 1) {
+            for (let column = 0; column < coronaryDimension; column += 1) {
+              let derivative = -localDependentSvColumn[row];
+              if (row === aoResidualRow) {
+                derivative += context.stepDtSec * coronaryLinearization.dTotalInletFlowDVolume[column];
+              }
+              if (row === raResidualRow) {
+                derivative -= context.stepDtSec * coronaryLinearization.dCommonVenousOutletFlowDVolume[column];
+              }
+              destination[row * dimension + coronaryStart + column] = derivative;
+            }
+          }
+          for (let row = 0; row < coronaryDimension; row += 1) {
+            for (let column = 0; column < coronaryDimension; column += 1) {
+              destination[(coronaryStart + row) * dimension + coronaryStart + column] = coronaryLinearization.dResidualDVolume[row * coronaryDimension + column];
+            }
+          }
+          if (completeAnalyticAssemblyAvailable) {
+            coronaryBoundaryAnalyticBlockAssemblyCount += 1;
+            nonCoronaryAnalyticBlockAssemblyCount += 1;
+            for (let row = 0; row < nonCoronaryDimension; row += 1) {
+              for (let column = 0; column < nonCoronaryDimension; column += 1) {
+                destination[row * dimension + column] = localNonCoronaryLinearization[row * nonCoronaryDimension + column];
+              }
+            }
+            for (let column = 0; column < nonCoronaryDimension; column += 1) {
+              let inletDerivative = 0;
+              let outletDerivative = 0;
+              for (let boundary2 = 0; boundary2 < boundaryDimension; boundary2 += 1) {
+                const boundaryDerivative = coronaryBoundaryLinearization[boundary2 * nonCoronaryDimension + column];
+                inletDerivative += coronaryLinearization.dTotalInletFlowDBoundary[boundary2] * boundaryDerivative;
+                outletDerivative += coronaryLinearization.dCommonVenousOutletFlowDBoundary[boundary2] * boundaryDerivative;
+              }
+              destination[aoResidualRow * dimension + column] += context.stepDtSec * inletDerivative;
+              destination[raResidualRow * dimension + column] -= context.stepDtSec * outletDerivative;
+            }
+            for (let row = 0; row < coronaryDimension; row += 1) {
+              for (let column = 0; column < nonCoronaryDimension; column += 1) {
+                let derivative = 0;
+                for (let boundary2 = 0; boundary2 < boundaryDimension; boundary2 += 1) {
+                  derivative += coronaryLinearization.dResidualDBoundary[row * boundaryDimension + boundary2] * coronaryBoundaryLinearization[boundary2 * nonCoronaryDimension + column];
+                }
+                destination[(coronaryStart + row) * dimension + column] = derivative;
+              }
+            }
+          }
+        }
+      }
+    });
+    for (let index = 0; index < dimension; index += 1) {
+      const scale = Math.max(1, Math.abs(context.initialUnknownsMl[index]));
+      storage.unknownScales[index] = scale;
+      storage.residualScales[index] = scale;
+    }
+    const result = solveFlatCoupledSystemV1(
+      system,
+      options.initialGuessMl ?? context.initialUnknownsMl,
+      Object.freeze({
+        maximumIterations: options.maximumIterations ?? 12,
+        maximumLineSearchBacktracks: options.maximumLineSearchBacktracks ?? 24,
+        maximumAcceptedStepsPerJacobian: options.maximumAcceptedStepsPerJacobian ?? 1,
+        residualInfinityTolerance: options.residualInfinityToleranceMl ?? 2e-9,
+        updateInfinityTolerance: options.updateInfinityToleranceMl ?? 1e-12,
+        armijoCoefficient: 1e-4,
+        minimumAbsolutePivot: 1e-14,
+        unknownScaleByUnknown: storage.unknownScales,
+        residualScaleByEquation: storage.residualScales,
+        lowerBoundByUnknown: context.lowerBoundsMl,
+        upperBoundByUnknown: context.upperBoundsMl
+      }),
+      storage.newton
+    );
+    const dependentSvContinuityResidualMl = result.status === "converged" ? context.evaluateDependentSvContinuityResidualMl(result.solution) : null;
+    return Object.freeze({
+      solverId: MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID,
+      jacobianResidualEvaluationCount,
+      coronaryAnalyticBlockAssemblyCount,
+      coronaryBoundaryAnalyticBlockAssemblyCount,
+      nonCoronaryAnalyticBlockAssemblyCount,
+      dependentSvContinuityResidualMl,
+      result
+    });
+  } finally {
+    storage.inUse = false;
+  }
+}
+function solveMainWireFiveWallCoupledNewtonPredictedV1(context, options, solverWorkspace, predictorWorkspace, predictionOrder = "linear") {
+  const prediction = prepareMainWireFiveWallCoupledPredictionV1(
+    context,
+    predictorWorkspace,
+    predictionOrder
+  );
+  const primary = solveMainWireFiveWallCoupledNewtonShadowV1(
+    context,
+    Object.freeze({
+      ...options,
+      initialGuessMl: prediction.initialGuessMl
+    }),
+    solverWorkspace
+  );
+  if (primary.result.status === "converged" || prediction.mode === "context") {
+    return Object.freeze({
+      predictionMode: prediction.mode,
+      extrapolationScale: prediction.extrapolationScale,
+      fallbackUsed: false,
+      solver: primary
+    });
+  }
+  const fallback = solveMainWireFiveWallCoupledNewtonShadowV1(
+    context,
+    Object.freeze({
+      ...options,
+      initialGuessMl: context.initialUnknownsMl
+    }),
+    solverWorkspace
+  );
+  return Object.freeze({
+    predictionMode: prediction.mode,
+    extrapolationScale: prediction.extrapolationScale,
+    fallbackUsed: true,
+    solver: fallback
+  });
+}
+function requirePositiveFinite(value, label) {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(`${label} must be positive and finite`);
+  }
+}
+function sumVector(values2) {
+  let sum = 0;
+  for (let index = 0; index < values2.length; index += 1) {
+    sum += values2[index];
+  }
+  return sum;
+}
+function solveMainWireFiveWallCoupledCandidateV1(provider, previous, input, workspace = createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(), options = Object.freeze({})) {
+  assertBaseDeviceOff(input);
+  const context = prepareMainWireFiveWallCoupledResidualContextV1(
+    provider,
+    previous,
+    input,
+    options.previousAcceptedNumericalSource,
+    options.residualWorkspace
+  );
+  const solverOptions = Object.freeze({
+    ...options.solver,
+    analyticJacobianPolicy: "require-complete"
+  });
+  const solver = options.predictor === void 0 ? solveMainWireFiveWallCoupledNewtonShadowV1(
+    context,
+    solverOptions,
+    workspace
+  ) : solveMainWireFiveWallCoupledNewtonPredictedV1(
+    context,
+    solverOptions,
+    workspace,
+    options.predictor.workspace,
+    options.predictor.order
+  ).solver;
+  return solver.result.status === "converged" ? Object.freeze({ status: "converged", context, solver }) : Object.freeze({ status: "failed", solver });
+}
+function stepMainWireIntegratedModelCoupledV1(provider, previous, input, workspace = createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(), options = Object.freeze({})) {
+  return stepMainWireIntegratedModelWithCoronaryExecutorV3(
+    previous,
+    input,
+    (coronaryPrevious, coronaryInput) => {
+      assertDeviceOff(coronaryInput);
+      const {
+        dynamicMechanicalSupport,
+        coronaryAutoregulationDrive: _autoregulationDrive,
+        ...baseInput
+      } = coronaryInput;
+      const solved = solveMainWireFiveWallCoupledCandidateV1(
+        provider,
+        options.previousCoupledAcceptedAdapter ?? mainWireFiveWallCoronaryBaseStateV2(coronaryPrevious),
+        baseInput,
+        workspace,
+        Object.freeze({
+          solver: options.solver,
+          residualWorkspace: options.residualWorkspace,
+          previousAcceptedNumericalSource: options.previousAcceptedNumericalSource
+        })
+      );
+      if (solved.status === "failed") {
+        const failure2 = solved.solver.result;
+        if (failure2.status !== "failed") {
+          throw new Error("coupled solve status/result drifted");
+        }
+        throw new Error(
+          `statically condensed coupled solve failed: ${failure2.reason}: ${failure2.message}`
+        );
+      }
+      const { context, solver } = solved;
+      const solverResult = solver.result;
+      if (solverResult.status !== "converged") {
+        throw new Error("coupled converged solve status/result drifted");
+      }
+      if (options.onConvergedCandidate !== void 0) {
+        context.withConvergedCandidate(
+          solverResult.solution,
+          options.onConvergedCandidate
+        );
+      }
+      const baseStep = context.finalizeConvergedSolution(
+        solverResult.solution,
+        Object.freeze({
+          iterations: solverResult.iterations,
+          lineSearchBacktracks: solverResult.lineSearchBacktrackCount
+        })
+      );
+      if (baseStep.converged && options.onAcceptedBaseStep !== void 0) {
+        options.onAcceptedBaseStep(baseStep);
+      }
+      const coronaryStep = promoteMainWireFiveWallCoronaryBaseStepV3(
+        coronaryPrevious,
+        coronaryInput,
+        baseStep
+      );
+      if (coronaryStep.converged === false) {
+        return Object.freeze({ coronaryStep });
+      }
+      const dynamicMechanicalSupportTrial = evaluateDynamicMechanicalSupportHydraulicsV1(
+        dynamicMechanicalSupport.config,
+        dynamicMechanicalSupport.profile,
+        dynamicMechanicalSupport.previousAcceptedState,
+        dynamicHydraulicInput(
+          coronaryStep,
+          coronaryInput,
+          dynamicMechanicalSupport.heartRateBpm
+        )
+      );
+      return Object.freeze({
+        coronaryStep,
+        dynamicMechanicalSupportTrial
+      });
+    }
+  );
+}
+function assertDeviceOff(input) {
+  const dynamic = input.dynamicMechanicalSupport;
+  if (dynamic === void 0 || dynamic.config.lvad.enabled || dynamic.config.impella.enabled || dynamic.config.vaEcmo.enabled || dynamic.config.vvEcmo.enabled || dynamic.config.iabp.enabled || input.mechanicalSupport !== void 0 || input.protocolResistanceScaleByEdge !== void 0) {
+    throw new Error(
+      "statically condensed integrated step supports only the device-off slice"
+    );
+  }
+}
+function assertBaseDeviceOff(input) {
+  if (input.mechanicalSupport !== void 0 || input.dynamicMechanicalSupport !== void 0 || input.protocolResistanceScaleByEdge !== void 0) {
+    throw new Error(
+      "statically condensed coupled candidate supports only the device-off slice"
+    );
+  }
+}
+function dynamicHydraulicInput(step, input, heartRateBpm) {
+  const candidateTimeSec = step.acceptedState.acceptedTimeSec;
+  const beatPosition = candidateTimeSec * heartRateBpm / 60;
+  if (!Number.isFinite(beatPosition) || heartRateBpm <= 0) {
+    throw new RangeError("dynamic-device timing must be positive and finite");
+  }
+  const beatIndex = Math.floor(beatPosition);
+  const pressure = step.baseStep.circulationTrial.nodeAbsolutePressuresMmHg;
+  const volume = step.baseStep.circulationTrial.candidateNodeVolumesMl;
+  return Object.freeze({
+    dtSec: input.dtSec,
+    timeSec: candidateTimeSec,
+    cyclePhase01: beatPosition - beatIndex,
+    beatIndex,
+    heartRateBpm,
+    nodeAbsolutePressureMmHg: Object.freeze({
+      LV: pressure.LV,
+      Ao: pressure.Ao,
+      SA: pressure.SA,
+      RA: pressure.RA,
+      VC: pressure.VC
+    }),
+    nodeVolumeMl: Object.freeze({
+      LV: volume.LV,
+      Ao: volume.Ao,
+      SA: volume.SA,
+      RA: volume.RA,
+      VC: volume.VC
+    })
+  });
+}
+const MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID = "main-wire-integrated-typed-authority-session-v1";
+const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID = "circleheart-main-wire-flat-authoritative-reference-checkpoint-v1";
+class MainWireIntegratedTypedAuthoritySessionV1 {
+  constructor(runtime, acceptedState2, observationSource, authorityFactory, exactBeatState) {
+    this.sessionId = MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID;
+    this.#acceptedNumericalReadback = new Float64Array(
+      MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1
+    );
+    this.#candidateNumericalReadback = new Float64Array(
+      MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1
+    );
+    this.#acceptedNumericalReadbackAvailable = false;
+    this.#coupledSolverProfile = {
+      solveCount: 0,
+      convergedSolveCount: 0,
+      iterationCount: 0,
+      residualEvaluationCount: 0,
+      jacobianEvaluationCount: 0,
+      lineSearchBacktrackCount: 0,
+      jacobianResidualEvaluationCount: 0
+    };
+    const validateAcceptedState2 = (candidate) => {
+      const acceptedCandidate = candidate;
+      validateMainWireIntegratedModelAcceptedStateV3(
+        acceptedCandidate,
+        { configuration: runtime.rhythm.configuration },
+        runtime.profile,
+        runtime.config
+      );
+      return acceptedCandidate;
+    };
+    const ownDecodedAcceptedState = (candidate) => {
+      const decoded = candidate;
+      const dynamicMechanicalSupport = restoreDynamicMechanicalSupportAcceptedStateV1(
+        decoded.dynamicMechanicalSupport,
+        runtime.cold.acceptedState.dynamicMechanicalSupport
+      );
+      return wrapMainWireIntegratedModelAcceptedStateV3(
+        decoded.coronary,
+        decoded.composedRhythm,
+        dynamicMechanicalSupport,
+        { configuration: runtime.rhythm.configuration },
+        runtime.profile,
+        runtime.config
+      );
+    };
+    const admitCompletedMirror = (candidate) => {
+      const acceptedCandidate = candidate;
+      validateMainWireIntegratedModelAcceptedBoundaryV3(
+        acceptedCandidate,
+        { configuration: runtime.rhythm.configuration },
+        runtime.profile,
+        runtime.config
+      );
+      return acceptedCandidate;
+    };
+    validateAcceptedState2(acceptedState2);
+    this.#runtime = runtime;
+    this.#provider = runtime.provider;
+    this.#coronaryScratchWorkspace = createCoronaryBackwardEulerScratchWorkspaceV2(
+      buildCoronaryTopologyV2(runtime.coronaryStepInput.coronaryPrior)
+    );
+    this.#nonCoronaryScratchWorkspace = createNonCoronaryBackwardEulerScratchWorkspaceV1();
+    this.#coupledAcceptedAdapterTemplate = mainWireFiveWallCoronaryBaseStateV2(acceptedState2.coronary);
+    this.#autoregulationOwner = autoregulationOwnerFromAcceptedState(acceptedState2);
+    this.#rhythmInput = Object.freeze({
+      configuration: runtime.rhythm.configuration,
+      externalAfNextBoundaryTimeSec: null,
+      externalAtrialSourceBatch: null
+    });
+    this.#dynamicMechanicalSupportConfig = runtime.config;
+    this.#authority = authorityFactory(
+      acceptedState2,
+      validateAcceptedState2,
+      ownDecodedAcceptedState,
+      admitCompletedMirror
+    );
+    this.#typedAuthority = this.#authority instanceof MainWireAcceptedTypedStateAuthorityV1 ? this.#authority : null;
+    this.#typedBoundaryBinding = this.#typedAuthority === null ? null : createMainWireAcceptedTypedBoundaryBindingV1(
+      this.#typedAuthority.manifest()
+    );
+    this.#typedHemodynamicBinding = this.#typedAuthority === null ? null : createMainWireAcceptedTypedHemodynamicBindingV1(
+      this.#typedAuthority.manifest()
+    );
+    this.#typedHemodynamicScratch = createMainWireAcceptedTypedHemodynamicDestinationV1();
+    this.#coupledNewtonWorkspace = createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    this.#coupledResidualWorkspace = createMainWireFiveWallCoupledResidualWorkspaceV1();
+    this.#coupledPredictorWorkspace = createMainWireFiveWallCoupledPredictorWorkspaceV1();
+    this.#nonCoronaryAcceptedNumericalSource = this.#typedAuthority === null || this.#typedBoundaryBinding === null ? void 0 : createMainWireAcceptedTypedNonCoronaryNumericalSourceV1(
+      this.#typedAuthority.currentCursor(),
+      this.#typedBoundaryBinding
+    );
+    const directRetainedContinuousSlots = this.#typedBoundaryBinding === null ? Object.freeze([]) : Object.freeze(Array.from(/* @__PURE__ */ new Set([
+      ...this.#typedBoundaryBinding.directContinuousSlots,
+      ...runtime.rhythm.configuration.authoredVentricularPacingReplay === null ? [] : this.#typedBoundaryBinding.authoredVentricularPacingContinuousSlots,
+      ...runtime.rhythm.configuration.atrialSource.mode === "regular" ? this.#typedBoundaryBinding.regularAtrialSourceContinuousSlots : [],
+      ...this.#typedBoundaryBinding.postSolverContinuousSlots,
+      ...this.#typedHemodynamicBinding?.solverRetainedContinuousSlots ?? []
+    ])));
+    this.#directCompletionPlan = this.#typedAuthority === null ? null : this.#typedAuthority.createDirectCompletionPlan({
+      continuous: directRetainedContinuousSlots,
+      booleans: this.#typedHemodynamicBinding?.solverRetainedBooleanSlots ?? []
+    });
+    this.#modelOwnedPromotionPlan = this.#typedAuthority === null ? null : this.#typedAuthority.createModelOwnedPromotionPlan({
+      continuous: directRetainedContinuousSlots,
+      booleans: this.#typedHemodynamicBinding?.solverRetainedBooleanSlots ?? [],
+      strings: this.#typedHemodynamicBinding === null ? [] : [
+        this.#typedHemodynamicBinding.mechanicsMaterialFingerprintStringSlot
+      ]
+    });
+    this.#acceptedState = this.#authority.current();
+    this.#lastAcceptedStep = null;
+    this.#beatAccumulator = exactBeatState?.beatAccumulator ?? new MainWireIntegratedModelBeatAccumulatorV3();
+    this.#completedBeatMetrics = exactBeatState?.completedBeatMetrics ?? null;
+    this.#lastPresentationSource = observationSource;
+    this.#lastPresentationRevision = acceptedState2.revision;
+    this.#lastPresentationObservation = observation(
+      observationSource,
+      this.#authority.snapshot(),
+      null,
+      runtime,
+      this.#completedBeatMetrics
+    );
+  }
+  #runtime;
+  #provider;
+  #rhythmInput;
+  #dynamicMechanicalSupportConfig;
+  #authority;
+  #typedAuthority;
+  #typedBoundaryBinding;
+  #typedHemodynamicBinding;
+  #typedHemodynamicScratch;
+  #acceptedNumericalReadback;
+  #candidateNumericalReadback;
+  #acceptedNumericalReadbackAvailable;
+  #coupledNewtonWorkspace;
+  #coupledResidualWorkspace;
+  #coupledPredictorWorkspace;
+  #nonCoronaryAcceptedNumericalSource;
+  #directCompletionPlan;
+  #modelOwnedPromotionPlan;
+  #coronaryScratchWorkspace;
+  #nonCoronaryScratchWorkspace;
+  #coupledAcceptedAdapterTemplate;
+  #autoregulationOwner;
+  #acceptedState;
+  #lastAcceptedStep;
+  #lastPresentationObservation;
+  #lastPresentationSource;
+  #lastPresentationRevision;
+  #beatAccumulator;
+  #completedBeatMetrics;
+  #coupledSolverProfile;
+  static async create(inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1) {
+    const runtime = await createMainWireIntegratedModelRuntimeV3(
+      inputs,
+      ventricularContractilityScale
+    );
+    return new MainWireIntegratedTypedAuthoritySessionV1(
+      runtime,
+      runtime.cold.acceptedState,
+      "cold",
+      typedAuthorityFactory(runtime.cold.acceptedState)
+    );
+  }
+  /**
+   * Restores the public Standard checkpoint into the typed accepted-state
+   * authority. Predictor history is deliberately empty: this checkpoint does
+   * not encode it, so the first ordinary solve restarts from the model-owned
+   * context seed before rebuilding admitted history.
+   */
+  static async restoreStandardExactCheckpoint(checkpoint, inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1) {
+    const runtime = await createMainWireIntegratedModelRuntimeV3(
+      inputs,
+      ventricularContractilityScale
+    );
+    const restored = await restoreMainWireIntegratedModelStandardV1(
+      mainWireIntegratedModelCheckpointContextV3(
+        runtime,
+        runtime.cold.acceptedState
+      ),
+      checkpoint
+    );
+    return new MainWireIntegratedTypedAuthoritySessionV1(
+      runtime,
+      restored.acceptedState,
+      "standard-exact-checkpoint-restore",
+      typedAuthorityFactory(runtime.cold.acceptedState),
+      restored
+    );
+  }
+  /** Test-only failure seam kept entirely outside the registered model. */
+  static async createWithAcceptedStateAuthorityForTestV1(authorityFactory, inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1) {
+    const runtime = await createMainWireIntegratedModelRuntimeV3(
+      inputs,
+      ventricularContractilityScale
+    );
+    return new MainWireIntegratedTypedAuthoritySessionV1(
+      runtime,
+      runtime.cold.acceptedState,
+      "cold",
+      authorityFactory
+    );
+  }
+  static async restoreCanonicalBinary(checkpointBytes, inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1) {
+    const checkpoint = validateReferenceCheckpointV1(
+      await decodeCanonicalFlatCheckpointV1(checkpointBytes)
+    );
+    const runtime = await createMainWireIntegratedModelRuntimeV3(
+      inputs,
+      ventricularContractilityScale
+    );
+    const restored = await restoreMainWireIntegratedModelStandardV1(
+      mainWireIntegratedModelCheckpointContextV3(
+        runtime,
+        runtime.cold.acceptedState
+      ),
+      checkpoint.standardCheckpoint
+    );
+    const session = new MainWireIntegratedTypedAuthoritySessionV1(
+      runtime,
+      restored.acceptedState,
+      "standard-exact-checkpoint-restore",
+      typedAuthorityFactory(runtime.cold.acceptedState),
+      restored
+    );
+    restoreMainWireFiveWallCoupledPredictorV1(
+      checkpoint.coupledPredictor,
+      Object.freeze({
+        revision: restored.acceptedState.revision,
+        acceptedTimeSec: restored.acceptedState.acceptedTimeSec,
+        unknownsMl: coupledUnknownsFromAcceptedStateV1(
+          restored.acceptedState
+        )
+      }),
+      session.#coupledPredictorWorkspace
+    );
+    return session;
+  }
+  currentAcceptedState() {
+    return this.#authority.snapshot();
+  }
+  /**
+   * Starts a new authored-input epoch at the exact current accepted clock.
+   * The new runtime receives a fresh typed authority and predictor history;
+   * failure cannot mutate this source Session.
+   */
+  async warmStartWithHemodynamicResearchInputs(inputs, ventricularContractilityScale = 1) {
+    const targetRuntime = await createMainWireIntegratedModelRuntimeV3(
+      inputs,
+      ventricularContractilityScale
+    );
+    const acceptedState2 = warmStartMainWireIntegratedModelV3({
+      source: this.#authority.snapshot(),
+      sourceRuntime: this.#runtime,
+      targetRuntime
+    });
+    return new MainWireIntegratedTypedAuthoritySessionV1(
+      targetRuntime,
+      acceptedState2,
+      "hemodynamic-input-warm-start",
+      typedAuthorityFactory(targetRuntime.cold.acceptedState)
+    );
+  }
+  observe() {
+    const cached = this.#lastPresentationObservation;
+    if (cached !== null) return cached;
+    const detached = this.detachedObservation();
+    this.#lastPresentationObservation = detached;
+    return detached;
+  }
+  /**
+   * Projects the exact current accepted boundary without forcing the typed
+   * ordinary path back through a public accepted-step reconstruction. The
+   * cold/restored boundary deliberately falls back to the complete
+   * observation until the Session owns a clock-matched numerical readback.
+   */
+  projectCurrentAcceptedValuesV1(outputIds) {
+    validateTypedProjectionOutputIds(outputIds);
+    if (this.#typedAuthority !== null && this.#acceptedNumericalReadbackAvailable) {
+      const typedPresentation = readMainWireAcceptedTypedPresentationStateV1(
+        this.#typedAuthority.currentCursor(),
+        this.requiredTypedBoundaryBinding(),
+        this.#rhythmInput.configuration
+      );
+      if (this.#acceptedNumericalReadback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec] === typedPresentation.acceptedTimeSec) {
+        return projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
+          Object.freeze({
+            acceptedTimeSec: typedPresentation.acceptedTimeSec,
+            regularSinusCycleLengthSec: typedPresentation.regularSinusCycleLengthSec,
+            regularSinusNextActivationTimeSec: typedPresentation.regularSinusNextActivationTimeSec,
+            dynamicMechanicalSupportLvadFlowMlPerSec: typedPresentation.lvadFlowMlPerSec,
+            runtimeSignals: runtimeSignalsAtAcceptedTime(
+              typedPresentation.acceptedTimeSec,
+              this.#runtime
+            ),
+            completedBeatMetrics: this.#completedBeatMetrics,
+            acceptedNumericalReadback: this.#acceptedNumericalReadback
+          }),
+          outputIds
+        );
+      }
+    }
+    return projectMainWireIntegratedModelSelectedValuesV3(
+      this.observe(),
+      outputIds
+    );
+  }
+  /**
+   * Advances exactly to one presentation boundary. Boundary-limited solver
+   * commits stay internal; typed-image authority commits occur after every
+   * accepted substep, not merely after presentation delivery.
+   */
+  advanceToPresentationTime(targetTimeSec) {
+    return this.advanceToPresentationTimeInternal(targetTimeSec, true);
+  }
+  /**
+   * Model-owned output projection seam. The exact solver mirror never escapes:
+   * only scalar output records and observation-free advance metadata return. A
+   * public observation requested later is rehydrated from typed authority.
+   */
+  advanceToPresentationTimeWithSelectedOutputProjectionV1(targetTimeSec, outputIds) {
+    validateTypedProjectionOutputIds(outputIds);
+    const direct = this.tryAdvanceTypedOrdinaryProjectionV1(
+      targetTimeSec,
+      outputIds
+    );
+    if (direct !== null) return direct;
+    const result = this.advanceToPresentationTimeInternal(targetTimeSec, false);
+    if (!("observation" in result)) {
+      return Object.freeze({
+        advance: result,
+        projectedValues: null,
+        outputProjectionDurationMs: 0
+      });
+    }
+    const projectionStartedAt = performance.now();
+    const typedPresentation = this.#typedAuthority === null ? null : readMainWireAcceptedTypedPresentationStateV1(
+      this.#typedAuthority.currentCursor(),
+      this.requiredTypedBoundaryBinding(),
+      this.#rhythmInput.configuration
+    );
+    const projectedValues = typedPresentation === null ? projectMainWireIntegratedModelSelectedValuesV3(
+      result.observation,
+      outputIds
+    ) : projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
+      Object.freeze({
+        acceptedTimeSec: typedPresentation.acceptedTimeSec,
+        regularSinusCycleLengthSec: typedPresentation.regularSinusCycleLengthSec,
+        regularSinusNextActivationTimeSec: typedPresentation.regularSinusNextActivationTimeSec,
+        dynamicMechanicalSupportLvadFlowMlPerSec: typedPresentation.lvadFlowMlPerSec,
+        runtimeSignals: result.observation.runtimeSignals,
+        completedBeatMetrics: this.#completedBeatMetrics,
+        acceptedNumericalReadback: this.#acceptedNumericalReadback
+      }),
+      outputIds
+    );
+    const outputProjectionDurationMs = performance.now() - projectionStartedAt;
+    const { observation: _trustedObservation, ...withoutObservation } = result;
+    return Object.freeze({
+      advance: Object.freeze(withoutObservation),
+      projectedValues,
+      outputProjectionDurationMs
+    });
+  }
+  /**
+   * Adapter-free ordinary presentation step. Event and rollover boundaries
+   * return null before a candidate opens so the existing public transaction
+   * remains their independent authority during migration.
+   */
+  tryAdvanceTypedOrdinaryProjectionV1(targetTimeSec, outputIds) {
+    if (this.#typedAuthority === null || this.#typedHemodynamicBinding === null || fullHotPathInvariantsEnabledV1()) return null;
+    const currentClock = this.currentAcceptedClock();
+    if (!Number.isFinite(targetTimeSec) || !(targetTimeSec > currentClock.acceptedTimeSec)) return null;
+    const limit = this.limitCandidateTime(targetTimeSec);
+    if (limit.candidateTimeSec !== targetTimeSec || !isStrictlyOrdinaryTypedCandidate(
+      currentClock,
+      limit,
+      this.#rhythmInput,
+      this.#autoregulationOwner
+    )) return null;
+    const binding = this.requiredTypedBoundaryBinding();
+    const current = this.#typedAuthority.currentCursor();
+    const candidate = this.#typedAuthority.beginDirectCandidate();
+    let candidateOpen = true;
+    try {
+      const candidateClock = stageMainWireAcceptedTypedClockCandidateV1(
+        current,
+        candidate,
+        binding,
+        targetTimeSec
+      );
+      const calciumDrive = stageMainWireAcceptedTypedCalciumCandidateV1(
+        current,
+        candidate,
+        binding,
+        targetTimeSec,
+        this.#rhythmInput.configuration.calciumParametersByWall
+      );
+      stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(
+        current,
+        candidate,
+        binding,
+        targetTimeSec,
+        this.#rhythmInput.configuration
+      );
+      stageMainWireAcceptedTypedRegularAtrialCandidateV1(
+        current,
+        candidate,
+        binding,
+        targetTimeSec,
+        this.#rhythmInput.configuration,
+        null
+      );
+      const previousAdapter = materializeMainWireAcceptedTypedCoupledSolverAdapterV1(
+        current,
+        this.#typedHemodynamicBinding,
+        this.#coupledAcceptedAdapterTemplate,
+        this.#typedHemodynamicScratch
+      );
+      const autoregulationStepInput = Object.freeze({
+        ...this.#runtime.coronaryStepInput,
+        dtSec: targetTimeSec - currentClock.acceptedTimeSec,
+        calciumDriveOverride: calciumDrive
+      });
+      const solved = solveMainWireFiveWallCoupledCandidateV1(
+        this.#provider,
+        previousAdapter,
+        autoregulationStepInput,
+        this.#coupledNewtonWorkspace,
+        Object.freeze({
+          residualWorkspace: this.#coupledResidualWorkspace,
+          previousAcceptedNumericalSource: this.#nonCoronaryAcceptedNumericalSource,
+          predictor: Object.freeze({
+            workspace: this.#coupledPredictorWorkspace,
+            order: "cubic"
+          })
+        })
+      );
+      const profiledSolverResult = solved.solver.result;
+      this.#coupledSolverProfile.solveCount += 1;
+      this.#coupledSolverProfile.iterationCount += profiledSolverResult.iterations;
+      this.#coupledSolverProfile.residualEvaluationCount += profiledSolverResult.residualEvaluationCount;
+      this.#coupledSolverProfile.jacobianEvaluationCount += profiledSolverResult.jacobianEvaluationCount;
+      this.#coupledSolverProfile.lineSearchBacktrackCount += profiledSolverResult.lineSearchBacktrackCount;
+      this.#coupledSolverProfile.jacobianResidualEvaluationCount += solved.solver.jacobianResidualEvaluationCount;
+      if (profiledSolverResult.status === "converged") {
+        this.#coupledSolverProfile.convergedSolveCount += 1;
+      }
+      if (solved.status === "failed") {
+        const failure2 = solved.solver.result;
+        if (failure2.status !== "failed") {
+          throw new Error("typed ordinary coupled solve status drifted");
+        }
+        throw new Error(
+          `typed ordinary coupled solve failed: ${failure2.reason}: ${failure2.message}`
+        );
+      }
+      const solverResult = solved.solver.result;
+      if (solverResult.status !== "converged") {
+        throw new Error("typed ordinary converged solve status drifted");
+      }
+      let nextAutoregulationOwner = null;
+      let borrowed = false;
+      solved.context.withConvergedCandidate(
+        solverResult.solution,
+        (candidateBorrow) => {
+          borrowed = true;
+          stageMainWireAcceptedTypedCoupledCandidateV1(
+            candidate,
+            this.#typedHemodynamicBinding,
+            candidateBorrow,
+            this.#typedHemodynamicScratch
+          );
+          this.#candidateNumericalReadback.set(
+            candidateBorrow.acceptedNumericalReadback
+          );
+          const regulation = advanceMainWireFiveWallCoronaryAutoregulationOwnerFromPackedV3(
+            this.#autoregulationOwner,
+            autoregulationStepInput,
+            candidateBorrow.candidateTimeSec,
+            candidateBorrow.candidateRevision,
+            candidateBorrow.coronaryAutoregulationHydraulicObservables
+          );
+          if (regulation.completedWindow !== null || !autoregulationControlsUnchanged(
+            this.#autoregulationOwner.state,
+            regulation.nextState
+          ) || regulation.hydraulicToneUsed !== this.#autoregulationOwner.toneResistanceScaleByTerritoryLayer || regulation.nextToneResistanceScaleByTerritoryLayer !== this.#autoregulationOwner.toneResistanceScaleByTerritoryLayer) {
+            throw new Error(
+              "typed ordinary autoregulation crossed a discrete boundary"
+            );
+          }
+          stageMainWireAcceptedTypedOrdinaryPostSolverCandidateV1(
+            current,
+            candidate,
+            binding,
+            candidateClock,
+            regulation.nextState
+          );
+          nextAutoregulationOwner = Object.freeze({
+            ...this.#autoregulationOwner,
+            acceptedTimeSec: candidateBorrow.candidateTimeSec,
+            state: regulation.nextState
+          });
+        }
+      );
+      if (!borrowed || nextAutoregulationOwner === null) {
+        throw new Error("typed ordinary candidate borrow is unavailable");
+      }
+      const acceptedRevisionSpanFromPrevious = candidateClock.revision - this.#lastPresentationRevision;
+      if (acceptedRevisionSpanFromPrevious < 1) {
+        throw new Error("typed ordinary accepted revision did not advance");
+      }
+      this.#typedAuthority.commitModelOwnedTypedCandidate(
+        this.requiredModelOwnedPromotionPlan()
+      );
+      candidateOpen = false;
+      recordAcceptedMainWireFiveWallCoupledSolutionV1(
+        solved.context,
+        solverResult.solution,
+        this.#coupledPredictorWorkspace
+      );
+      this.#autoregulationOwner = nextAutoregulationOwner;
+      this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
+      this.#acceptedNumericalReadbackAvailable = true;
+      const completedBeat = this.#beatAccumulator.acceptNumericalReadback(
+        this.#acceptedNumericalReadback,
+        null
+      );
+      this.#completedBeatMetrics = completedBeat ?? this.#completedBeatMetrics;
+      this.#lastAcceptedStep = null;
+      this.#lastPresentationSource = "typed-authority-readback";
+      this.#lastPresentationRevision = candidateClock.revision;
+      this.#lastPresentationObservation = null;
+      const substep = Object.freeze({
+        acceptedRevision: candidateClock.revision,
+        acceptedTimeSec: candidateClock.acceptedTimeSec,
+        landedOnPresentationTarget: true,
+        clippedByCoronaryWindow: false,
+        clippedByRhythmBoundary: false,
+        rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
+        rhythmBoundaryOwners: Object.freeze([
+          ...limit.rhythmBoundaryOwners
+        ])
+      });
+      const advance = Object.freeze({
+        status: "advanced",
+        presentationTimeSec: targetTimeSec,
+        acceptedTimeSec: candidateClock.acceptedTimeSec,
+        acceptedRevision: candidateClock.revision,
+        acceptedRevisionSpanFromPrevious,
+        internalAcceptedSubstepCount: 1,
+        boundaryClippedSubstepCount: 0,
+        substeps: Object.freeze([substep])
+      });
+      const projectionStartedAt = performance.now();
+      const typedPresentation = readMainWireAcceptedTypedPresentationStateV1(
+        this.#typedAuthority.currentCursor(),
+        binding,
+        this.#rhythmInput.configuration
+      );
+      const projectedValues = projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
+        Object.freeze({
+          acceptedTimeSec: typedPresentation.acceptedTimeSec,
+          regularSinusCycleLengthSec: typedPresentation.regularSinusCycleLengthSec,
+          regularSinusNextActivationTimeSec: typedPresentation.regularSinusNextActivationTimeSec,
+          dynamicMechanicalSupportLvadFlowMlPerSec: typedPresentation.lvadFlowMlPerSec,
+          runtimeSignals: runtimeSignalsAtAcceptedTime(
+            typedPresentation.acceptedTimeSec,
+            this.#runtime
+          ),
+          completedBeatMetrics: this.#completedBeatMetrics,
+          acceptedNumericalReadback: this.#acceptedNumericalReadback
+        }),
+        outputIds
+      );
+      return Object.freeze({
+        advance,
+        projectedValues,
+        outputProjectionDurationMs: performance.now() - projectionStartedAt
+      });
+    } catch (error) {
+      if (candidateOpen) this.#typedAuthority.abortDirectCandidate();
+      throw error;
+    }
+  }
+  advanceToPresentationTimeInternal(targetTimeSec, detachObservation) {
+    this.#acceptedState = this.#authority.current();
+    this.#autoregulationOwner = autoregulationOwnerFromAcceptedState(this.#acceptedState);
+    let acceptedClock = this.currentAcceptedClock();
+    if (!Number.isFinite(targetTimeSec) || targetTimeSec < 0) {
+      throw new Error(
+        "Main Wire flat reference presentation target time is invalid"
+      );
+    }
+    if (targetTimeSec < acceptedClock.acceptedTimeSec) {
+      throw new Error(
+        "Main Wire flat reference target precedes accepted time"
+      );
+    }
+    if (targetTimeSec === acceptedClock.acceptedTimeSec) {
+      return Object.freeze({
+        status: "already-at-target",
+        presentationTimeSec: targetTimeSec,
+        acceptedTimeSec: acceptedClock.acceptedTimeSec,
+        acceptedRevision: acceptedClock.revision,
+        internalAcceptedSubstepCount: 0,
+        observation: detachObservation ? this.observe() : this.modelOwnedObservation()
+      });
+    }
+    const previousPresentationRevision = this.#lastPresentationRevision;
+    let substepCount = 0;
+    const substeps = [];
+    while (acceptedClock.acceptedTimeSec !== targetTimeSec) {
+      if (substepCount >= MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3) {
+        return this.failedAdvance(
+          "substep-budget-exhausted",
+          "Main Wire flat reference interval exhausted its substep budget",
+          targetTimeSec,
+          substeps
+        );
+      }
+      let limit;
+      try {
+        limit = this.limitCandidateTime(targetTimeSec);
+      } catch (error) {
+        if (!isNonadvancingLimiterError(error)) throw error;
+        return this.failedAdvance(
+          "candidate-time-did-not-advance",
+          errorMessage$1(error),
+          targetTimeSec,
+          substeps
+        );
+      }
+      if (!(limit.candidateTimeSec > acceptedClock.acceptedTimeSec)) {
+        return this.failedAdvance(
+          "candidate-time-did-not-advance",
+          "Main Wire flat reference candidate time did not advance",
+          targetTimeSec,
+          substeps
+        );
+      }
+      let directCandidateOpen = false;
+      let borrowedAutoregulation = null;
+      let borrowedAutoregulationCompleted = false;
+      let acceptedNumericalReadbackAvailable = false;
+      let previousCoupledAcceptedAdapter;
+      let directCurrentCursor = null;
+      let directCandidateCursor = null;
+      if (this.#typedAuthority !== null) {
+        try {
+          const current = this.#typedAuthority.currentCursor();
+          const candidate = this.#typedAuthority.beginDirectCandidate();
+          directCurrentCursor = current;
+          directCandidateCursor = candidate;
+          directCandidateOpen = true;
+          stageMainWireAcceptedTypedClockCandidateV1(
+            current,
+            candidate,
+            this.requiredTypedBoundaryBinding(),
+            limit.candidateTimeSec
+          );
+          stageMainWireAcceptedTypedCalciumCandidateV1(
+            current,
+            candidate,
+            this.requiredTypedBoundaryBinding(),
+            limit.candidateTimeSec,
+            this.#rhythmInput.configuration.calciumParametersByWall
+          );
+          stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(
+            current,
+            candidate,
+            this.requiredTypedBoundaryBinding(),
+            limit.candidateTimeSec,
+            this.#rhythmInput.configuration
+          );
+          if (this.#typedHemodynamicBinding === null) {
+            throw new Error(
+              "Main Wire typed hemodynamic binding is unavailable"
+            );
+          }
+          previousCoupledAcceptedAdapter = materializeMainWireAcceptedTypedCoupledSolverAdapterV1(
+            current,
+            this.#typedHemodynamicBinding,
+            mainWireFiveWallCoronaryBaseStateV2(
+              this.#acceptedState.coronary
+            ),
+            this.#typedHemodynamicScratch
+          );
+        } catch (error) {
+          if (directCandidateOpen) {
+            this.#typedAuthority.abortDirectCandidate();
+          }
+          throw error;
+        }
+      }
+      let result;
+      try {
+        const stepInput2 = Object.freeze({
+          candidateTimeSec: limit.candidateTimeSec,
+          coronary: this.#runtime.coronaryStepInput,
+          rhythm: this.#rhythmInput,
+          dynamicMechanicalSupport: Object.freeze({
+            config: this.#dynamicMechanicalSupportConfig,
+            profile: this.#runtime.profile
+          })
+        });
+        result = this.#typedAuthority === null ? stepMainWireIntegratedModelV3(
+          this.#provider,
+          this.#acceptedState,
+          stepInput2,
+          this.#coronaryScratchWorkspace,
+          this.#nonCoronaryScratchWorkspace,
+          this.#nonCoronaryAcceptedNumericalSource
+        ) : stepMainWireIntegratedModelCoupledV1(
+          this.#provider,
+          this.#acceptedState,
+          stepInput2,
+          this.#coupledNewtonWorkspace,
+          Object.freeze({
+            residualWorkspace: this.#coupledResidualWorkspace,
+            previousAcceptedNumericalSource: this.#nonCoronaryAcceptedNumericalSource ?? void 0,
+            previousCoupledAcceptedAdapter,
+            onConvergedCandidate: (candidateBorrow) => {
+              if (directCandidateCursor === null || this.#typedHemodynamicBinding === null) {
+                throw new Error(
+                  "Main Wire coupled typed candidate cursor is missing"
+                );
+              }
+              stageMainWireAcceptedTypedCoupledCandidateV1(
+                directCandidateCursor,
+                this.#typedHemodynamicBinding,
+                candidateBorrow,
+                this.#typedHemodynamicScratch
+              );
+              this.#acceptedNumericalReadback.set(
+                candidateBorrow.acceptedNumericalReadback
+              );
+              acceptedNumericalReadbackAvailable = true;
+              const regulation = advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3(
+                this.#acceptedState.coronary,
+                Object.freeze({
+                  ...this.#runtime.coronaryStepInput,
+                  dtSec: candidateBorrow.candidateTimeSec - this.#acceptedState.acceptedTimeSec
+                }),
+                candidateBorrow.candidateTimeSec,
+                candidateBorrow.candidateRevision,
+                candidateBorrow.coronaryAutoregulationHydraulicObservables
+              );
+              borrowedAutoregulation = regulation.nextState;
+              borrowedAutoregulationCompleted = regulation.completedWindow !== null;
+            }
+          })
+        );
+      } catch (error) {
+        if (directCandidateOpen) {
+          this.#typedAuthority?.abortDirectCandidate();
+        }
+        throw error;
+      }
+      if (result.converged === false) {
+        if (directCandidateOpen) {
+          this.#typedAuthority?.abortDirectCandidate();
+        }
+        return this.failedAdvance(
+          result.reason,
+          result.message,
+          targetTimeSec,
+          substeps
+        );
+      }
+      if (result.acceptedState.acceptedTimeSec !== limit.candidateTimeSec) {
+        if (directCandidateOpen) {
+          this.#typedAuthority?.abortDirectCandidate();
+        }
+        return this.failedAdvance(
+          "integrated-promotion-rejected",
+          "Main Wire flat reference accepted clock differs from candidate",
+          targetTimeSec,
+          substeps
+        );
+      }
+      if (this.#typedAuthority !== null && (borrowedAutoregulation === null || !autoregulationStatesExactlyEqual(
+        borrowedAutoregulation,
+        result.acceptedState.coronary.coronaryAutoregulation
+      ) || borrowedAutoregulationCompleted !== result.coronaryStep.autoregulationWindowCompleted)) {
+        if (directCandidateOpen) {
+          this.#typedAuthority?.abortDirectCandidate();
+        }
+        throw new Error(
+          "Main Wire packed autoregulation readback differs from public promotion"
+        );
+      }
+      if (this.#typedAuthority !== null && (!acceptedNumericalReadbackAvailable || this.#acceptedNumericalReadback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec] !== result.acceptedState.acceptedTimeSec)) {
+        if (directCandidateOpen) this.#typedAuthority.abortDirectCandidate();
+        throw new Error(
+          "Main Wire accepted numerical readback is missing or clock-misaligned"
+        );
+      }
+      let committedState;
+      try {
+        if (this.#typedAuthority !== null) {
+          if (directCurrentCursor === null || directCandidateCursor === null) {
+            throw new Error(
+              "Main Wire flat reference typed transaction cursors are missing"
+            );
+          }
+          stageMainWireAcceptedTypedRegularAtrialCandidateV1(
+            directCurrentCursor,
+            directCandidateCursor,
+            this.requiredTypedBoundaryBinding(),
+            limit.candidateTimeSec,
+            this.#rhythmInput.configuration,
+            result.composedRhythmCandidate.pacSinusClockPolicyApplied
+          );
+          stageMainWireAcceptedTypedResolvedCandidateV1(
+            directCurrentCursor,
+            directCandidateCursor,
+            this.requiredTypedBoundaryBinding(),
+            result.composedRhythmCandidate,
+            result.dynamicMechanicalSupportTrial.candidateAcceptedState
+          );
+          stageMainWireAcceptedTypedContinuousOwnerCandidateV1(
+            directCandidateCursor,
+            this.requiredTypedBoundaryBinding(),
+            result.composedRhythmCandidate,
+            result.acceptedState.coronary.coronaryAutoregulation
+          );
+        }
+        if (this.#typedAuthority !== null) {
+          const previousAutoregulation = this.#acceptedState.coronary.coronaryAutoregulation;
+          const candidateAutoregulation = result.acceptedState.coronary.coronaryAutoregulation;
+          const modelOwnedCandidate = !hasDiscreteRhythmTransition(result.composedRhythmCandidate) && !result.coronaryStep.autoregulationWindowCompleted && autoregulationControlsUnchanged(
+            previousAutoregulation,
+            candidateAutoregulation
+          );
+          committedState = (modelOwnedCandidate ? this.#typedAuthority.tryCommitModelOwnedDirectCandidate(
+            result.acceptedState,
+            this.requiredModelOwnedPromotionPlan(),
+            this.requiredDirectCompletionPlan()
+          ) : null) ?? this.#typedAuthority.tryCommitExactDirectCandidate(
+            result.acceptedState,
+            this.requiredDirectCompletionPlan()
+          ) ?? this.#typedAuthority.commitDirectCandidate(
+            result.acceptedState,
+            this.requiredDirectCompletionPlan()
+          );
+          directCandidateOpen = false;
+        } else {
+          committedState = this.#authority.commit(result.acceptedState);
+        }
+      } catch (error) {
+        if (directCandidateOpen) {
+          this.#typedAuthority?.abortDirectCandidate();
+        }
+        throw error;
+      }
+      this.#acceptedState = committedState;
+      if (this.#typedAuthority !== null && acceptedNumericalReadbackAvailable) {
+        this.#acceptedNumericalReadbackAvailable = true;
+      }
+      resetMainWireFiveWallCoupledPredictorV1(
+        this.#coupledPredictorWorkspace
+      );
+      this.#autoregulationOwner = autoregulationOwnerFromAcceptedState(committedState);
+      acceptedClock = this.currentAcceptedClock();
+      if (acceptedClock.acceptedTimeSec !== committedState.acceptedTimeSec || acceptedClock.revision !== committedState.revision) {
+        throw new Error(
+          "Main Wire flat reference typed clock differs from committed adapter"
+        );
+      }
+      const committedResult = Object.freeze({
+        ...result,
+        acceptedState: committedState
+      });
+      this.#lastAcceptedStep = committedResult;
+      const completedBeat = this.#typedAuthority === null ? this.#beatAccumulator.accept(committedResult) : this.#beatAccumulator.acceptNumericalReadback(
+        this.#acceptedNumericalReadback,
+        committedResult.composedRhythmCandidate.capturedAtrialActivation?.capturedActivationId ?? null
+      );
+      this.#completedBeatMetrics = completedBeat ?? this.#completedBeatMetrics;
+      substepCount += 1;
+      substeps.push(Object.freeze({
+        acceptedRevision: committedState.revision,
+        acceptedTimeSec: committedState.acceptedTimeSec,
+        landedOnPresentationTarget: committedState.acceptedTimeSec === targetTimeSec,
+        clippedByCoronaryWindow: limit.clippedByCoronaryWindow,
+        clippedByRhythmBoundary: limit.clippedByRhythmBoundary,
+        rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
+        rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners])
+      }));
+    }
+    if (acceptedClock.acceptedTimeSec !== targetTimeSec) {
+      return this.failedAdvance(
+        "integrated-promotion-rejected",
+        "Main Wire flat reference did not land on its presentation target",
+        targetTimeSec,
+        substeps
+      );
+    }
+    if (this.#lastAcceptedStep === null) {
+      return this.failedAdvance(
+        "integrated-promotion-rejected",
+        "Main Wire flat reference advanced without accepted-step readback",
+        targetTimeSec,
+        substeps
+      );
+    }
+    const acceptedRevisionSpanFromPrevious = acceptedClock.revision - previousPresentationRevision;
+    if (acceptedRevisionSpanFromPrevious < 1) {
+      return this.failedAdvance(
+        "integrated-promotion-rejected",
+        "Main Wire flat reference accepted revision did not advance",
+        targetTimeSec,
+        substeps
+      );
+    }
+    this.#lastPresentationSource = "presentation-target";
+    this.#lastPresentationRevision = acceptedClock.revision;
+    const nextObservation = detachObservation ? this.detachedObservation() : this.modelOwnedObservation();
+    this.#lastPresentationObservation = detachObservation ? nextObservation : null;
+    return Object.freeze({
+      status: "advanced",
+      presentationTimeSec: targetTimeSec,
+      acceptedTimeSec: acceptedClock.acceptedTimeSec,
+      acceptedRevision: acceptedClock.revision,
+      acceptedRevisionSpanFromPrevious,
+      internalAcceptedSubstepCount: substepCount,
+      boundaryClippedSubstepCount: substeps.filter((substep) => !substep.landedOnPresentationTarget).length,
+      substeps: Object.freeze([...substeps]),
+      observation: nextObservation
+    });
+  }
+  async checkpointStandardExact() {
+    this.#acceptedState = this.#authority.current();
+    this.#typedAuthority?.assertCurrentMatches(this.#acceptedState);
+    return checkpointMainWireIntegratedModelStandardV1(
+      this.checkpointContext(),
+      this.#acceptedState,
+      this.#beatAccumulator,
+      this.#completedBeatMetrics
+    );
+  }
+  async checkpointCanonicalBinary() {
+    return encodeCanonicalFlatCheckpointV1(
+      Object.freeze({
+        checkpointId: MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID,
+        schemaVersion: 1,
+        standardCheckpoint: await this.checkpointStandardExact(),
+        coupledPredictor: checkpointMainWireFiveWallCoupledPredictorV1(
+          this.#coupledPredictorWorkspace
+        )
+      })
+    );
+  }
+  authorityReport() {
+    if (this.#typedAuthority === null) {
+      throw new Error("Typed authority Session uses a non-typed test authority");
+    }
+    return this.#typedAuthority.report();
+  }
+  coupledSolverProfile() {
+    return Object.freeze({ ...this.#coupledSolverProfile });
+  }
+  coupledPredictorReport() {
+    return reportMainWireFiveWallCoupledPredictorV1(
+      this.#coupledPredictorWorkspace
+    );
+  }
+  snapshotAcceptedStateBytes() {
+    if (this.#typedAuthority === null) {
+      throw new Error("Typed authority Session uses a non-typed test authority");
+    }
+    const state = this.#typedAuthority.snapshot();
+    const encoded = new Uint8Array(measureCanonicalFlatDataV1(state));
+    const length = encodeCanonicalFlatDataIntoV1(state, encoded);
+    if (length !== encoded.byteLength) {
+      throw new Error("Typed authority accepted-state length changed while encoding");
+    }
+    return encoded;
+  }
+  checkpointContext() {
+    const base2 = mainWireIntegratedModelCheckpointContextV3(
+      this.#runtime,
+      this.#acceptedState
+    );
+    return Object.freeze({
+      ...base2,
+      provider: this.#provider,
+      dynamicMechanicalSupportConfig: this.#dynamicMechanicalSupportConfig
+    });
+  }
+  detachedObservation() {
+    const acceptedState2 = this.#authority.snapshot();
+    const lastAcceptedStep = this.#lastAcceptedStep === null ? null : Object.freeze({
+      ...this.#lastAcceptedStep,
+      acceptedState: acceptedState2
+    });
+    return observation(
+      this.#lastPresentationSource,
+      acceptedState2,
+      lastAcceptedStep,
+      this.#runtime,
+      this.#completedBeatMetrics
+    );
+  }
+  modelOwnedObservation() {
+    return observation(
+      this.#lastPresentationSource,
+      this.#acceptedState,
+      this.#lastAcceptedStep,
+      this.#runtime,
+      this.#completedBeatMetrics
+    );
+  }
+  currentAcceptedClock() {
+    if (this.#typedAuthority !== null) {
+      return readMainWireAcceptedTypedClockV1(
+        this.#typedAuthority.currentCursor(),
+        this.requiredTypedBoundaryBinding()
+      );
+    }
+    return Object.freeze({
+      acceptedTimeSec: this.#acceptedState.acceptedTimeSec,
+      revision: this.#acceptedState.revision
+    });
+  }
+  limitCandidateTime(targetTimeSec) {
+    if (this.#typedAuthority !== null) {
+      return limitMainWireAcceptedTypedCandidateTimeV1(
+        this.#typedAuthority.currentCursor(),
+        this.requiredTypedBoundaryBinding(),
+        targetTimeSec,
+        this.#rhythmInput.configuration,
+        this.#rhythmInput.externalAfNextBoundaryTimeSec
+      );
+    }
+    return limitMainWireIntegratedModelCandidateTimeV3(
+      this.#acceptedState,
+      targetTimeSec,
+      {
+        configuration: this.#rhythmInput.configuration,
+        externalAfNextBoundaryTimeSec: this.#rhythmInput.externalAfNextBoundaryTimeSec
+      },
+      this.#runtime.profile,
+      this.#dynamicMechanicalSupportConfig
+    );
+  }
+  requiredTypedBoundaryBinding() {
+    if (this.#typedBoundaryBinding === null) {
+      throw new Error("Typed authority Session has no typed boundary binding");
+    }
+    return this.#typedBoundaryBinding;
+  }
+  requiredDirectCompletionPlan() {
+    if (this.#directCompletionPlan === null) {
+      throw new Error("Typed authority direct completion plan is unavailable");
+    }
+    return this.#directCompletionPlan;
+  }
+  requiredModelOwnedPromotionPlan() {
+    if (this.#modelOwnedPromotionPlan === null) {
+      throw new Error("Typed authority model-owned promotion plan is unavailable");
+    }
+    return this.#modelOwnedPromotionPlan;
+  }
+  failedAdvance(reason, message, targetTimeSec, substeps) {
+    const acceptedClock = this.currentAcceptedClock();
+    return Object.freeze({
+      status: "failed",
+      reason,
+      message,
+      acceptedTimeSec: acceptedClock.acceptedTimeSec,
+      acceptedRevision: acceptedClock.revision,
+      partiallyAdvanced: substeps.length > 0,
+      internalAcceptedSubstepCount: substeps.length,
+      boundaryClippedSubstepCount: substeps.filter((substep) => !substep.landedOnPresentationTarget).length,
+      substeps: Object.freeze([...substeps]),
+      requestedPresentationTimeSec: targetTimeSec
+    });
+  }
+}
+function isStrictlyOrdinaryTypedCandidate(clock, limit, rhythm, autoregulationOwner) {
+  if (rhythm.configuration.atrialSource.mode !== "regular" || rhythm.configuration.atrialSource.regularSourceConfiguration.rhythmClass !== "sinus" || rhythm.externalAfNextBoundaryTimeSec !== null || rhythm.externalAtrialSourceBatch !== null || limit.rhythmBoundaryTimeSec !== null || limit.rhythmBoundaryOwners.length !== 0 || autoregulationOwner.acceptedTimeSec !== clock.acceptedTimeSec || autoregulationOwner.state.windowControl === null || !optionalAutoregulationControlEqual(
+    autoregulationOwner.state.windowControl,
+    autoregulationOwner.state.desiredControl
+  )) return false;
+  const windowEndTimeSec = clock.acceptedTimeSec + limit.coronaryWindowMaximumStepSec;
+  const tolerance = 64 * Number.EPSILON * Math.max(
+    1,
+    Math.abs(clock.acceptedTimeSec),
+    Math.abs(limit.candidateTimeSec),
+    Math.abs(windowEndTimeSec)
+  );
+  return limit.candidateTimeSec < windowEndTimeSec - tolerance;
+}
+const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_ID_SET_V3 = new Set(
+  MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3
+);
+function validateTypedProjectionOutputIds(outputIds) {
+  const seen = /* @__PURE__ */ new Set();
+  for (const outputId of outputIds) {
+    if (!MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_ID_SET_V3.has(outputId)) {
+      throw new Error(
+        `selected output ${String(outputId)} is not registered`
+      );
+    }
+    if (seen.has(outputId)) {
+      throw new Error(`selected output ${outputId} is duplicated`);
+    }
+    seen.add(outputId);
+  }
+}
+function autoregulationOwnerFromAcceptedState(acceptedState2) {
+  return Object.freeze({
+    acceptedTimeSec: acceptedState2.acceptedTimeSec,
+    binding: acceptedState2.coronary.coronaryAutoregulationBinding,
+    state: acceptedState2.coronary.coronaryAutoregulation,
+    toneResistanceScaleByTerritoryLayer: acceptedState2.coronary.coronary.toneResistanceScaleByTerritoryLayer
+  });
+}
+function runtimeSignalsAtAcceptedTime(acceptedTimeSec, runtime) {
+  const respiratory = respiratoryExternalPressuresV1(
+    acceptedTimeSec,
+    runtime.coronaryStepInput.runtime.respiratory
+  );
+  return Object.freeze({
+    pleuralPressureMmHg: respiratory.pthMmHg,
+    alveolarPressureMmHg: respiratory.palvMmHg
+  });
+}
+function typedAuthorityFactory(coldAcceptedState) {
+  return (initial, validate, ownDecoded, admitCompletedMirror) => new MainWireAcceptedTypedStateAuthorityV1(
+    coldAcceptedState,
+    initial,
+    validate,
+    ownDecoded,
+    admitCompletedMirror
+  );
+}
 function observation(source, acceptedState2, lastAcceptedStep, runtime, completedBeatMetrics) {
   const respiratory = respiratoryExternalPressuresV1(
     acceptedState2.acceptedTimeSec,
@@ -33039,6 +43094,90 @@ function observation(source, acceptedState2, lastAcceptedStep, runtime, complete
     }),
     completedBeatMetrics
   });
+}
+function hasDiscreteRhythmTransition(candidate) {
+  return candidate.capturedAtrialActivation !== null || candidate.capturedVentricularActivation !== null || candidate.pacSinusClockPolicyApplied !== null || candidate.proximalAvOutputDecision !== null || candidate.ventricularIntervalStrengthCandidate !== null || candidate.conditionalVviAttempted || candidate.dueProximalAvOutputs.length > 0 || candidate.distalGateDecisions.length > 0 || candidate.deliveredCalciumDeposits.length > 0 || candidate.scheduledCalciumDeposits.length > 0 || candidate.regularAtrialSourceCandidate?.sourceImpulse !== null || candidate.authoredEctopyTrial.sourceImpulses.length > 0 || (candidate.authoredVentricularPacingReplayTrial?.sourceImpulses.length ?? 0) > 0;
+}
+function validateReferenceCheckpointV1(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("flat authoritative reference checkpoint must be a plain object");
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error("flat authoritative reference checkpoint must be a plain object");
+  }
+  const expectedKeys = [
+    "checkpointId",
+    "schemaVersion",
+    "standardCheckpoint",
+    "coupledPredictor"
+  ].sort();
+  const keys = Reflect.ownKeys(input);
+  if (keys.some((key) => typeof key !== "string") || keys.length !== expectedKeys.length || keys.sort().some((key, index) => key !== expectedKeys[index])) {
+    throw new Error("flat authoritative reference checkpoint has unexpected fields");
+  }
+  const candidate = input;
+  if (candidate.checkpointId !== MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID || candidate.schemaVersion !== 1 || candidate.standardCheckpoint === void 0 || candidate.coupledPredictor === void 0) {
+    throw new Error("unsupported flat authoritative reference checkpoint schema");
+  }
+  return candidate;
+}
+function coupledUnknownsFromAcceptedStateV1(state) {
+  const unknownsMl = new Float64Array(30);
+  for (let index = 0; index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length; index += 1) {
+    unknownsMl[index] = state.coronary.circulation.nodeVolumesMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]];
+  }
+  for (let index = 0; index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length; index += 1) {
+    unknownsMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index] = state.coronary.coronary.volumeMlByNode[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]];
+  }
+  return unknownsMl;
+}
+function autoregulationControlsUnchanged(previous, candidate) {
+  return optionalAutoregulationControlEqual(
+    previous.windowControl,
+    candidate.windowControl
+  ) && optionalAutoregulationControlEqual(
+    previous.desiredControl,
+    candidate.desiredControl
+  );
+}
+function autoregulationStatesExactlyEqual(left, right) {
+  if (left.stateId !== right.stateId || left.windowIndex !== right.windowIndex || !Object.is(
+    left.windowOriginAcceptedTimeSec,
+    right.windowOriginAcceptedTimeSec
+  ) || !Object.is(
+    left.windowStartAcceptedTimeSec,
+    right.windowStartAcceptedTimeSec
+  ) || left.windowStartRevision !== right.windowStartRevision || !Object.is(left.acceptedDurationSec, right.acceptedDurationSec) || left.acceptedStepCount !== right.acceptedStepCount || !optionalAutoregulationControlEqual(
+    left.windowControl,
+    right.windowControl
+  ) || !optionalAutoregulationControlEqual(
+    left.desiredControl,
+    right.desiredControl
+  )) return false;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    if (!Object.is(
+      left.perfusionPressureTimeIntegralMmHgSecByTerritory[territoryId],
+      right.perfusionPressureTimeIntegralMmHgSecByTerritory[territoryId]
+    )) return false;
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      if (!Object.is(
+        left.qmTimeIntegralMlByTerritoryLayer[territoryId][layerId],
+        right.qmTimeIntegralMlByTerritoryLayer[territoryId][layerId]
+      )) return false;
+    }
+  }
+  return true;
+}
+function optionalAutoregulationControlEqual(left, right) {
+  if (left === null || right === null) return left === right;
+  if (left.controlId !== right.controlId) return false;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      if (left.demandScaleByTerritoryLayer[territoryId][layerId] !== right.demandScaleByTerritoryLayer[territoryId][layerId] || left.hyperemia01ByTerritoryLayer[territoryId][layerId] !== right.hyperemia01ByTerritoryLayer[territoryId][layerId] || left.effectiveMinimumToneScaleByTerritoryLayer[territoryId][layerId] !== right.effectiveMinimumToneScaleByTerritoryLayer[territoryId][layerId]) return false;
+    }
+  }
+  return true;
 }
 function isNonadvancingLimiterError(error) {
   return error instanceof Error && (error.message === "composed integrated requested endpoint must advance" || error.message === "composed integrated coronary-capped step must be positive");
@@ -34715,7 +44854,7 @@ function assertAcyclicMetricDependenciesV2(metrics) {
   );
   const visiting = /* @__PURE__ */ new Set();
   const visited = /* @__PURE__ */ new Set();
-  const visit = (outputId) => {
+  const visit2 = (outputId) => {
     if (visited.has(outputId)) return;
     if (visiting.has(outputId)) {
       const metric = metrics.find((candidate) => candidate.outputId === outputId);
@@ -34726,12 +44865,12 @@ function assertAcyclicMetricDependenciesV2(metrics) {
     }
     visiting.add(outputId);
     for (const dependency of dependenciesByMetric.get(outputId) ?? []) {
-      if (dependenciesByMetric.has(dependency)) visit(dependency);
+      if (dependenciesByMetric.has(dependency)) visit2(dependency);
     }
     visiting.delete(outputId);
     visited.add(outputId);
   };
-  metrics.forEach(({ outputId }) => visit(outputId));
+  metrics.forEach(({ outputId }) => visit2(outputId));
 }
 function assertExactKeysV2(value, path, expectedKeys) {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -35247,7 +45386,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-29";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-32";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";
@@ -35323,10 +45462,10 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
       }
       const fixture = validateAndOwnStandardFixtureV1(input.fixture);
       const checkpoint = input.checkpoint === void 0 ? void 0 : validateScenarioCheckpointV1(input.checkpoint);
-      const modelSession = checkpoint === void 0 ? await MainWireIntegratedModelSessionV3.create(
+      const modelSession = checkpoint === void 0 ? await MainWireIntegratedTypedAuthoritySessionV1.create(
         fixture.hemodynamicResearchInputs,
         fixture.ventricularContractilityScale
-      ) : await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
+      ) : await MainWireIntegratedTypedAuthoritySessionV1.restoreStandardExactCheckpoint(
         checkpoint.payload,
         fixture.hemodynamicResearchInputs,
         fixture.ventricularContractilityScale
@@ -35338,7 +45477,9 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
         fixture,
         inputEpoch: 0,
         modelSession,
-        presentationOriginSec: modelSession.currentAcceptedState().acceptedTimeSec,
+        presentationOriginTick: standardPresentationTickV1(
+          modelSession.currentAcceptedState().acceptedTimeSec
+        ),
         presentationOrdinal: 0
       });
     }
@@ -35354,27 +45495,35 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
   }
   currentFrame(runtimeSessionId, scenarioId) {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    const observation2 = scenario.modelSession.observe();
-    const accepted = observation2.acceptedState;
-    return standardFrameV1({
+    const accepted = scenario.modelSession.currentAcceptedState();
+    return standardFrameFromValuesV1({
       runtimeSessionId,
       scenarioId,
       inputEpoch: scenario.inputEpoch,
       acceptedRevision: accepted.revision,
       acceptedTimeSec: accepted.acceptedTimeSec,
-      projected: projectMainWireIntegratedModelObservationV3(observation2)
+      values: scenario.modelSession.projectCurrentAcceptedValuesV1(
+        MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3
+      )
     });
   }
   advanceOnePresentationStep(runtimeSessionId, scenarioId) {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    const advance = this.#advanceScenarioPresentation(scenario);
-    return standardFrameV1({
+    const projection = this.#advanceScenarioProjection(
+      scenario,
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3
+    );
+    const advance = projection.advance;
+    if (projection.projectedValues === null) {
+      throw new Error("Standard presentation projection is unavailable");
+    }
+    return standardFrameFromValuesV1({
       runtimeSessionId,
       scenarioId,
       inputEpoch: scenario.inputEpoch,
       acceptedRevision: advance.acceptedRevision,
       acceptedTimeSec: advance.acceptedTimeSec,
-      projected: projectMainWireIntegratedModelAdvancedFrameV3(advance)
+      values: projection.projectedValues
     });
   }
   advancePresentationBatch(runtimeSessionId, scenarioId, stepCount, presentationOutputIds) {
@@ -35389,13 +45538,16 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
     const outputValues = new Float64Array(stepCount * outputIds.length);
     let terminalFrame = null;
     for (let index = 0; index < stepCount; index += 1) {
-      const advance = this.#advanceScenarioPresentation(scenario);
       const terminal = index === stepCount - 1;
-      const completeValues = terminal ? projectMainWireIntegratedModelAdvancedFrameV3(advance).values : null;
-      const values2 = completeValues ?? projectMainWireIntegratedModelSelectedValuesV3(
-        advance.observation,
-        outputIds
+      const projection = this.#advanceScenarioProjection(
+        scenario,
+        terminal ? MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3 : outputIds
       );
+      const advance = projection.advance;
+      const values2 = projection.projectedValues;
+      if (values2 === null) {
+        throw new Error("Standard presentation batch projection is unavailable");
+      }
       acceptedRevisions[index] = advance.acceptedRevision;
       acceptedTimesSec[index] = advance.acceptedTimeSec;
       for (let outputIndex = 0; outputIndex < outputIds.length; outputIndex += 1) {
@@ -35416,14 +45568,14 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
           );
         }
       }
-      if (completeValues !== null) {
+      if (terminal) {
         terminalFrame = standardFrameFromValuesV1({
           runtimeSessionId,
           scenarioId,
           inputEpoch: scenario.inputEpoch,
           acceptedRevision: advance.acceptedRevision,
           acceptedTimeSec: advance.acceptedTimeSec,
-          values: completeValues
+          values: values2
         });
       }
     }
@@ -35439,15 +45591,26 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
       terminalFrame
     });
   }
-  #advanceScenarioPresentation(scenario) {
+  #advanceScenarioProjection(scenario, outputIds) {
     const nextOrdinal = scenario.presentationOrdinal + 1;
-    const targetTimeSec = scenario.presentationOriginSec + mainWireIntegratedModelPresentationTargetTimeSecV3(nextOrdinal);
-    const advance = scenario.modelSession.advanceToPresentationTime(targetTimeSec);
-    if (advance.status !== "advanced") {
-      throw new Error(advanceFailureMessageV1(advance));
+    const targetTimeSec = mainWireIntegratedModelPresentationTargetTimeSecV3(
+      scenario.presentationOriginTick + nextOrdinal
+    );
+    const projection = scenario.modelSession.advanceToPresentationTimeWithSelectedOutputProjectionV1(
+      targetTimeSec,
+      outputIds
+    );
+    if (projection.advance.status !== "advanced") {
+      throw new Error(advanceFailureMessageV1(projection.advance));
+    }
+    if (projection.projectedValues === null) {
+      throw new Error("Standard presentation projection is unavailable");
     }
     scenario.presentationOrdinal = nextOrdinal;
-    return advance;
+    return Object.freeze({
+      advance: projection.advance,
+      projectedValues: projection.projectedValues
+    });
   }
   async applyControl(runtimeSessionId, scenarioId, controlId, value, expectedInputEpoch) {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
@@ -35515,13 +45678,18 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
         payload
       });
     };
+    const analysisSource = await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
+      await scenario.modelSession.checkpointStandardExact(),
+      scenario.fixture.hemodynamicResearchInputs,
+      scenario.fixture.ventricularContractilityScale
+    );
     const starling = analysisId === MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID ? await runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
-      scenario.modelSession,
+      analysisSource,
       scenario.fixture.hemodynamicResearchInputs,
       (progress) => onProgress?.(toAnalysis(progress)),
       responsivePartition
     ) : runMainWireIntegratedModelResponsiveStarlingProtocolV3(
-      scenario.modelSession,
+      analysisSource,
       (progress) => onProgress?.(toAnalysis(progress)),
       responsivePartition
     );
@@ -35622,7 +45790,9 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
     }
     current.fixture = fixture;
     current.modelSession = candidate;
-    current.presentationOriginSec = accepted.acceptedTimeSec;
+    current.presentationOriginTick = standardPresentationTickV1(
+      accepted.acceptedTimeSec
+    );
     current.presentationOrdinal = 0;
     current.inputEpoch += 1;
     return this.currentFrame(runtimeSessionId, scenarioId);
@@ -35649,7 +45819,7 @@ function createMainWireIntegratedStudioExactKernelV1() {
       ventricularContractilityOwner: "land-2017-tref-global-lvfw-sep-rvfw-scale-v1"
     }),
     runtime: Object.freeze({
-      numericalSessionId: MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID,
+      numericalSessionId: MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,
       presentationDtSec: MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
       hotPathIntegrityTier: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1,
       acceptedBoundaryCapture: true,
@@ -35996,16 +46166,6 @@ function validateScenarioCheckpointV1(value) {
     payload
   });
 }
-function standardFrameV1(input) {
-  return standardFrameFromValuesV1({
-    runtimeSessionId: input.runtimeSessionId,
-    scenarioId: input.scenarioId,
-    inputEpoch: input.inputEpoch,
-    acceptedRevision: input.acceptedRevision,
-    acceptedTimeSec: input.acceptedTimeSec,
-    values: input.projected.values
-  });
-}
 function standardFrameFromValuesV1(input) {
   const outputs = Object.fromEntries(
     Object.values(input.values).filter(({ outputId }) => STANDARD_EXACT_OUTPUT_IDS_V1.has(outputId)).map((value) => [value.outputId, Object.freeze({
@@ -36059,6 +46219,28 @@ function requiredIdV1(value, label) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/.test(value)) {
     throw new Error(`Standard ${label} is invalid`);
   }
+}
+function standardPresentationTickV1(acceptedTimeSec) {
+  if (!Number.isFinite(acceptedTimeSec) || acceptedTimeSec < 0) {
+    throw new Error("Standard presentation clock is invalid");
+  }
+  const tick = Math.round(
+    acceptedTimeSec / MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3
+  );
+  if (!Number.isSafeInteger(tick)) {
+    throw new Error("Standard presentation tick exceeds the safe integer range");
+  }
+  const canonicalTimeSec = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
+  const toleranceSec = Math.max(
+    1e-12,
+    Number.EPSILON * Math.max(1, Math.abs(acceptedTimeSec)) * 8
+  );
+  if (Math.abs(canonicalTimeSec - acceptedTimeSec) > toleranceSec) {
+    throw new Error(
+      "Standard runtime accepted clock is not on a presentation tick"
+    );
+  }
+  return tick;
 }
 function exactRecordV1(value, expectedKeys, label) {
   if (value === null || typeof value !== "object" || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype) {

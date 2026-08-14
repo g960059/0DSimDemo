@@ -17,6 +17,8 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
+import type { StudioSimulationFrameV2 } from
+  "@/studio/contracts/v2/simulation";
 import {
   assertExactModelKernelManifestV3,
   composeStandardModelContractV1,
@@ -66,6 +68,30 @@ afterEach(() => {
 });
 
 describe("Standard Main Wire Integrated Studio exact model", () => {
+  it("keeps the exact current frame identical to the accepted batch boundary", async () => {
+    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-current-frame-repeatability";
+    const scenarioId = "scenario/baseline";
+    await host.createSession(runtimeSessionId, [{
+      scenarioId,
+      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    }]);
+    const first = host.currentFrame(runtimeSessionId, scenarioId);
+    const second = host.currentFrame(runtimeSessionId, scenarioId);
+    expect(second).toEqual(first);
+    const batchFrames = materializeStudioSimulationPresentationFramesV2(
+      host.advancePresentationBatch(
+        runtimeSessionId,
+        scenarioId,
+        16,
+        ["hemodynamics.pressure.absolute.LV"],
+      ),
+    );
+    expect(host.currentFrame(runtimeSessionId, scenarioId))
+      .toEqual(batchFrames.at(-1));
+    host.closeSession(runtimeSessionId);
+  });
+
   it("exposes hemorrhage reserve without moving the canonical baseline", () => {
     const ranges = MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3;
     expect(ranges.venousTone).toEqual({
@@ -239,6 +265,37 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
       },
     });
+    const loaded = await first;
+    const runtimeSessionId = "session/standard-artifact-repeatability";
+    const scenarioId = "scenario/baseline";
+    await loaded.simulationAdapter.createSession({
+      runtimeSessionId,
+      scenarios: [{
+        scenarioId,
+        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      }],
+    });
+    const firstFrame = loaded.simulationAdapter.currentFrame({
+      runtimeSessionId,
+      scenarioId,
+    });
+    expect(loaded.simulationAdapter.currentFrame({
+      runtimeSessionId,
+      scenarioId,
+    })).toEqual(firstFrame);
+    const artifactBatchFrames = materializeStudioSimulationPresentationFramesV2(
+      await loaded.simulationAdapter.advancePresentationBatch({
+        runtimeSessionId,
+        scenarioId,
+        stepCount: 16,
+        presentationOutputIds: ["hemodynamics.pressure.absolute.LV"],
+      }),
+    );
+    expect(loaded.simulationAdapter.currentFrame({
+      runtimeSessionId,
+      scenarioId,
+    })).toEqual(artifactBatchFrames.at(-1));
+    loaded.simulationAdapter.disposeSession(runtimeSessionId);
     expect(fetchArtifact).toHaveBeenCalledOnce();
 
     await expect(loader.load({
@@ -484,6 +541,27 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       },
     })).resolves.toEqual({ status: "passed" });
     expect(captured.content.scenarios[0]!.capture.checkpoint).toEqual(checkpoint);
+    const restoredRuntimeSessionId = `${runtimeSessionId}/restored`;
+    await simulation.createSession({
+      runtimeSessionId: restoredRuntimeSessionId,
+      scenarios: [{
+        scenarioId,
+        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+        checkpoint,
+      }],
+    });
+    for (let ordinal = 0; ordinal < 128; ordinal += 1) {
+      const uninterrupted = await simulation.advanceOnePresentationStep({
+        runtimeSessionId,
+        scenarioId,
+      });
+      const restored = await simulation.advanceOnePresentationStep({
+        runtimeSessionId: restoredRuntimeSessionId,
+        scenarioId,
+      });
+      expectStudioFramesScientificallyEquivalent(restored, uninterrupted);
+    }
+    simulation.disposeSession(restoredRuntimeSessionId);
     simulation.disposeSession(runtimeSessionId);
   }, 120_000);
 
@@ -550,6 +628,42 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       .toHaveLength(4);
   });
 });
+
+function expectStudioFramesScientificallyEquivalent(
+  actual: StudioSimulationFrameV2,
+  expected: StudioSimulationFrameV2,
+): void {
+  expect(actual).toMatchObject({
+    modelId: expected.modelId,
+    scenarioId: expected.scenarioId,
+    inputEpoch: expected.inputEpoch,
+    acceptedRevision: expected.acceptedRevision,
+    acceptedTimeSec: expected.acceptedTimeSec,
+  });
+  expect(Object.keys(actual.outputs)).toEqual(Object.keys(expected.outputs));
+  for (const outputId of Object.keys(expected.outputs)) {
+    const actualOutput = actual.outputs[outputId];
+    const expectedOutput = expected.outputs[outputId];
+    expect(actualOutput).toMatchObject({
+      outputId: expectedOutput?.outputId,
+      availability: expectedOutput?.availability,
+      quality: expectedOutput?.quality,
+    });
+    const actualValue = actualOutput?.value;
+    const expectedValue = expectedOutput?.value;
+    if (actualValue === null || expectedValue === null) {
+      expect(actualValue).toBe(expectedValue);
+      continue;
+    }
+    if (typeof actualValue !== "number" || typeof expectedValue !== "number") {
+      expect(actualValue).toEqual(expectedValue);
+      continue;
+    }
+    const scale = Math.max(1, Math.abs(actualValue), Math.abs(expectedValue));
+    expect(Math.abs(actualValue - expectedValue))
+      .toBeLessThanOrEqual(1e-9 + 1e-6 * scale);
+  }
+}
 
 function standardExecutableArtifactBytesV3(): Uint8Array {
   return new TextEncoder().encode(mainWireIntegratedStudioStandardArtifactV1);

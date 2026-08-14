@@ -219,7 +219,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       .toEqual([]);
   });
 
-  it("drains only each analysis source lane without pausing all Scenarios", async () => {
+  it("transfers each short analysis-source pause without using global UI pause", async () => {
     const snapshot = snapshotV3();
     const harness = runtimeHarnessV3(snapshot, { advanceOnPause: true });
     const controller = new ArticleReaderLiveRuntimeV3(snapshot, {
@@ -249,6 +249,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
           expectedInputEpoch: 0,
           expectedAcceptedRevision: 501,
           expectedAcceptedTimeSec: 1.002,
+          sourceAlreadyPaused: true,
         }),
         expect.objectContaining({
           scenarioId: "scenario/two",
@@ -256,6 +257,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
           expectedInputEpoch: 0,
           expectedAcceptedRevision: 501,
           expectedAcceptedTimeSec: 1.002,
+          sourceAlreadyPaused: true,
         }),
       ]);
     expect(controller.getSnapshot()).toMatchObject({
@@ -748,6 +750,7 @@ function runtimeHarnessV3(
     expectedInputEpoch: number;
     expectedAcceptedRevision: number;
     expectedAcceptedTimeSec: number;
+    sourceAlreadyPaused?: boolean;
   }>): Promise<StudioSimulationAnalysisV2> => {
     await gates.analysisGate?.promise;
     if (gates.analysisError !== undefined) throw gates.analysisError;
@@ -811,6 +814,13 @@ function runtimeHarnessV3(
       playAll,
       pauseAll,
       pauseScenario,
+      setPlaybackRate: (rate) => Object.freeze({
+        mode: rate === "auto" ? "auto" : "manual",
+        effectiveRate: rate === "auto" ? 0.5 : rate,
+        safeMaximumRate: 1,
+        requestedRate: rate === "auto" ? null : rate,
+        warmingUp: false,
+      }),
       selectScenario,
       resumeScenario,
       terminate,

@@ -32,8 +32,27 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-29
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-32
 ```
+
+Standard-32 changes the live execution authority, not the physiology. Ordinary
+presentation ticks now solve and promote directly through the fixed typed
+accepted-state image and project only the requested outputs. Public accepted
+objects are rehydrated at cold boundaries such as analysis, capture, restore,
+and explicit observation. The previous object Session remains an independent
+analysis and scientific oracle; it is no longer the Standard live hot path.
+Presentation identity is now an integer tick, avoiding floating-point drift
+after checkpoint restore or accepted-state warm start. In a local 1,536-step,
+six-output exact-presentation benchmark, the retained batch path measured
+about `0.323 ms/step`, compared with about `0.997 ms/step` for Standard-29's
+object path. This host result is construction evidence; physical iPhone and
+multi-Scenario reports remain release gates. Full-output oracle comparisons,
+batch/single parity, public-checkpoint continuation, capture/admission,
+control warm start, exact current-frame continuity across analysis pauses, and
+isolated PV/Starling analysis remain green. The
+accepted equations, `2 ms` integration step, controls, topology, and public
+checkpoint schema are unchanged, but the exact executable and algorithmic
+authority changed and therefore receive a new `modelId`.
 
 Standard-29 replaces the adaptive venous three-compliance inverse's repeated
 bisection with a bracket-preserving safeguarded Newton solve. The immutable

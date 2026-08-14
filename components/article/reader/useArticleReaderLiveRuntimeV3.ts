@@ -23,6 +23,7 @@ export type UseArticleReaderLiveRuntimeResultV3 = Readonly<{
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
   play(): void;
   pause(): Promise<void>;
+  setPlaybackRate(rate: number | "auto"): void;
   selectScenario(scenarioId: string): void;
   requestAnalysis(input: Readonly<{
     analysisId: string;
@@ -137,6 +138,9 @@ export function useArticleReaderLiveRuntimeV3(
   const pause = React.useCallback(async () => {
     await controllerRef.current?.pause();
   }, []);
+  const setPlaybackRate = React.useCallback((rate: number | "auto") => {
+    controllerRef.current?.setPlaybackRate(rate);
+  }, []);
   const selectScenario = React.useCallback((scenarioId: string) => {
     controllerRef.current?.selectScenario(scenarioId);
   }, []);
@@ -169,6 +173,7 @@ export function useArticleReaderLiveRuntimeV3(
     applyControl,
     play,
     pause,
+    setPlaybackRate,
     requestAnalysis,
     selectScenario,
   }), [
@@ -178,6 +183,7 @@ export function useArticleReaderLiveRuntimeV3(
     requestAnalysis,
     sampleStore,
     selectScenario,
+    setPlaybackRate,
     state,
   ]);
 }
@@ -216,5 +222,12 @@ function initialStateV3(
       Record<string, string>
     >,
     error: null,
+    playbackRate: Object.freeze({
+      mode: "auto",
+      effectiveRate: 0.5,
+      safeMaximumRate: 0.5,
+      requestedRate: null,
+      warmingUp: true,
+    }),
   });
 }

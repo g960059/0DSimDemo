@@ -22,8 +22,8 @@ import {
   createMainWireAcceptedTypedStateManifestV1,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
 import {
-  MainWireFlatAuthoritativeReferenceSessionV1,
-} from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
+  MainWireIntegratedTypedAuthoritySessionV1,
+} from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 import {
   TransactionalTypedStateImageV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
@@ -32,7 +32,7 @@ const WARMUP_TICKS = 64;
 const MEASURED_TICKS = 512;
 
 const objectSession = await MainWireIntegratedModelSessionV3.create();
-const flatSession = await MainWireFlatAuthoritativeReferenceSessionV1.create();
+const flatSession = await MainWireIntegratedTypedAuthoritySessionV1.create();
 const runtime = await createMainWireIntegratedModelRuntimeV3();
 const typedManifest = createMainWireAcceptedTypedStateManifestV1(
   runtime.cold.acceptedState,

@@ -21,19 +21,21 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3,
-  projectMainWireIntegratedModelAdvancedFrameV3,
-  projectMainWireIntegratedModelObservationV3,
+  MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
   projectMainWireIntegratedModelSelectedValuesV3,
   type MainWireIntegratedModelOutputIdV3,
   type MainWireIntegratedModelOutputValueV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
-  MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID,
   MainWireIntegratedModelSessionV3,
   mainWireIntegratedModelPresentationTargetTimeSecV3,
-  type MainWireIntegratedModelPresentationAdvanceV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
+import {
+  MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,
+  MainWireIntegratedTypedAuthoritySessionV1,
+  type MainWireFlatModelOwnedProjectionAdvanceV1,
+} from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 import {
   runMainWireIntegratedModelFormalPressureVolumeProtocolV3,
   runMainWireIntegratedModelResponsiveStarlingProtocolV3,
@@ -150,8 +152,8 @@ MainWireIntegratedStudioStandardFixtureV1 = Object.freeze({
 type RuntimeScenarioV1 = {
   fixture: MainWireIntegratedStudioStandardFixtureV1;
   inputEpoch: number;
-  modelSession: MainWireIntegratedModelSessionV3;
-  presentationOriginSec: number;
+  modelSession: MainWireIntegratedTypedAuthoritySessionV1;
+  presentationOriginTick: number;
   presentationOrdinal: number;
 };
 
@@ -236,11 +238,12 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
         ? undefined
         : validateScenarioCheckpointV1(input.checkpoint);
       const modelSession = checkpoint === undefined
-        ? await MainWireIntegratedModelSessionV3.create(
+        ? await MainWireIntegratedTypedAuthoritySessionV1.create(
             fixture.hemodynamicResearchInputs,
             fixture.ventricularContractilityScale,
           )
-        : await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
+        : await MainWireIntegratedTypedAuthoritySessionV1
+          .restoreStandardExactCheckpoint(
             checkpoint.payload,
             fixture.hemodynamicResearchInputs,
             fixture.ventricularContractilityScale,
@@ -260,7 +263,9 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
         fixture,
         inputEpoch: 0,
         modelSession,
-        presentationOriginSec: modelSession.currentAcceptedState().acceptedTimeSec,
+        presentationOriginTick: standardPresentationTickV1(
+          modelSession.currentAcceptedState().acceptedTimeSec,
+        ),
         presentationOrdinal: 0,
       });
     }
@@ -279,15 +284,16 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
 
   currentFrame(runtimeSessionId: string, scenarioId: string): StudioSimulationFrameV2 {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    const observation = scenario.modelSession.observe();
-    const accepted = observation.acceptedState;
-    return standardFrameV1({
+    const accepted = scenario.modelSession.currentAcceptedState();
+    return standardFrameFromValuesV1({
       runtimeSessionId,
       scenarioId,
       inputEpoch: scenario.inputEpoch,
       acceptedRevision: accepted.revision,
       acceptedTimeSec: accepted.acceptedTimeSec,
-      projected: projectMainWireIntegratedModelObservationV3(observation),
+      values: scenario.modelSession.projectCurrentAcceptedValuesV1(
+        MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+      ),
     });
   }
 
@@ -296,14 +302,21 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     scenarioId: string,
   ): StudioSimulationFrameV2 {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    const advance = this.#advanceScenarioPresentation(scenario);
-    return standardFrameV1({
+    const projection = this.#advanceScenarioProjection(
+      scenario,
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+    );
+    const advance = projection.advance;
+    if (projection.projectedValues === null) {
+      throw new Error("Standard presentation projection is unavailable");
+    }
+    return standardFrameFromValuesV1({
       runtimeSessionId,
       scenarioId,
       inputEpoch: scenario.inputEpoch,
       acceptedRevision: advance.acceptedRevision,
       acceptedTimeSec: advance.acceptedTimeSec,
-      projected: projectMainWireIntegratedModelAdvancedFrameV3(advance),
+      values: projection.projectedValues,
     });
   }
 
@@ -324,16 +337,16 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     const outputValues = new Float64Array(stepCount * outputIds.length);
     let terminalFrame: StudioSimulationFrameV2 | null = null;
     for (let index = 0; index < stepCount; index += 1) {
-      const advance = this.#advanceScenarioPresentation(scenario);
       const terminal = index === stepCount - 1;
-      const completeValues = terminal
-        ? projectMainWireIntegratedModelAdvancedFrameV3(advance).values
-        : null;
-      const values = completeValues
-        ?? projectMainWireIntegratedModelSelectedValuesV3(
-          advance.observation,
-          outputIds,
-        );
+      const projection = this.#advanceScenarioProjection(
+        scenario,
+        terminal ? MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3 : outputIds,
+      );
+      const advance = projection.advance;
+      const values = projection.projectedValues;
+      if (values === null) {
+        throw new Error("Standard presentation batch projection is unavailable");
+      }
       acceptedRevisions[index] = advance.acceptedRevision;
       acceptedTimesSec[index] = advance.acceptedTimeSec;
       for (let outputIndex = 0; outputIndex < outputIds.length; outputIndex += 1) {
@@ -354,14 +367,14 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
           );
         }
       }
-      if (completeValues !== null) {
+      if (terminal) {
         terminalFrame = standardFrameFromValuesV1({
           runtimeSessionId,
           scenarioId,
           inputEpoch: scenario.inputEpoch,
           acceptedRevision: advance.acceptedRevision,
           acceptedTimeSec: advance.acceptedTimeSec,
-          values: completeValues,
+          values,
         });
       }
     }
@@ -378,18 +391,38 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     });
   }
 
-  #advanceScenarioPresentation(
+  #advanceScenarioProjection(
     scenario: RuntimeScenarioV1,
-  ): Extract<MainWireIntegratedModelPresentationAdvanceV3, { status: "advanced" }> {
+    outputIds: readonly MainWireIntegratedModelOutputIdV3[],
+  ): Readonly<{
+    advance: Extract<
+      MainWireFlatModelOwnedProjectionAdvanceV1,
+      { status: "advanced" }
+    >;
+    projectedValues: ReturnType<
+      typeof projectMainWireIntegratedModelSelectedValuesV3
+    >;
+  }> {
     const nextOrdinal = scenario.presentationOrdinal + 1;
-    const targetTimeSec = scenario.presentationOriginSec
-      + mainWireIntegratedModelPresentationTargetTimeSecV3(nextOrdinal);
-    const advance = scenario.modelSession.advanceToPresentationTime(targetTimeSec);
-    if (advance.status !== "advanced") {
-      throw new Error(advanceFailureMessageV1(advance));
+    const targetTimeSec = mainWireIntegratedModelPresentationTargetTimeSecV3(
+      scenario.presentationOriginTick + nextOrdinal,
+    );
+    const projection = scenario.modelSession
+      .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+        targetTimeSec,
+        outputIds,
+      );
+    if (projection.advance.status !== "advanced") {
+      throw new Error(advanceFailureMessageV1(projection.advance));
+    }
+    if (projection.projectedValues === null) {
+      throw new Error("Standard presentation projection is unavailable");
     }
     scenario.presentationOrdinal = nextOrdinal;
-    return advance;
+    return Object.freeze({
+      advance: projection.advance,
+      projectedValues: projection.projectedValues,
+    });
   }
 
   async applyControl(
@@ -504,16 +537,25 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
         payload,
       });
     };
+    // Analysis is a cold boundary. Rehydrate an isolated object Session from
+    // the exact accepted checkpoint instead of pulling the live typed
+    // authority back onto the presentation hot path.
+    const analysisSource = await MainWireIntegratedModelSessionV3
+      .restoreStandardExactCheckpoint(
+        await scenario.modelSession.checkpointStandardExact(),
+        scenario.fixture.hemodynamicResearchInputs,
+        scenario.fixture.ventricularContractilityScale,
+      );
     const starling = analysisId
         === MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
       ? await runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
-          scenario.modelSession,
+          analysisSource,
           scenario.fixture.hemodynamicResearchInputs,
           (progress) => onProgress?.(toAnalysis(progress)),
           responsivePartition,
         )
       : runMainWireIntegratedModelResponsiveStarlingProtocolV3(
-          scenario.modelSession,
+          analysisSource,
           (progress) => onProgress?.(toAnalysis(progress)),
           responsivePartition,
         );
@@ -647,7 +689,9 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     }
     current.fixture = fixture;
     current.modelSession = candidate;
-    current.presentationOriginSec = accepted.acceptedTimeSec;
+    current.presentationOriginTick = standardPresentationTickV1(
+      accepted.acceptedTimeSec,
+    );
     current.presentationOrdinal = 0;
     current.inputEpoch += 1;
     return this.currentFrame(runtimeSessionId, scenarioId);
@@ -680,7 +724,7 @@ ExactModelKernelManifestV3 {
         "land-2017-tref-global-lvfw-sep-rvfw-scale-v1",
     }),
     runtime: Object.freeze({
-      numericalSessionId: MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID,
+      numericalSessionId: MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,
       presentationDtSec: MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
       hotPathIntegrityTier:
         MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1,
@@ -1127,24 +1171,6 @@ function validateScenarioCheckpointV1(value: unknown): ScenarioCheckpointV2 {
   });
 }
 
-function standardFrameV1(input: Readonly<{
-  runtimeSessionId: string;
-  scenarioId: string;
-  inputEpoch: number;
-  acceptedRevision: number;
-  acceptedTimeSec: number;
-  projected: ReturnType<typeof projectMainWireIntegratedModelObservationV3>;
-}>): StudioSimulationFrameV2 {
-  return standardFrameFromValuesV1({
-    runtimeSessionId: input.runtimeSessionId,
-    scenarioId: input.scenarioId,
-    inputEpoch: input.inputEpoch,
-    acceptedRevision: input.acceptedRevision,
-    acceptedTimeSec: input.acceptedTimeSec,
-    values: input.projected.values,
-  });
-}
-
 function standardFrameFromValuesV1(input: Readonly<{
   runtimeSessionId: string;
   scenarioId: string;
@@ -1231,6 +1257,30 @@ function requiredIdV1(value: string, label: string): void {
   }
 }
 
+function standardPresentationTickV1(acceptedTimeSec: number): number {
+  if (!Number.isFinite(acceptedTimeSec) || acceptedTimeSec < 0) {
+    throw new Error("Standard presentation clock is invalid");
+  }
+  const tick = Math.round(
+    acceptedTimeSec / MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
+  );
+  if (!Number.isSafeInteger(tick)) {
+    throw new Error("Standard presentation tick exceeds the safe integer range");
+  }
+  const canonicalTimeSec =
+    mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
+  const toleranceSec = Math.max(
+    1e-12,
+    Number.EPSILON * Math.max(1, Math.abs(acceptedTimeSec)) * 8,
+  );
+  if (Math.abs(canonicalTimeSec - acceptedTimeSec) > toleranceSec) {
+    throw new Error(
+      "Standard runtime accepted clock is not on a presentation tick",
+    );
+  }
+  return tick;
+}
+
 function exactRecordV1(
   value: unknown,
   expectedKeys: readonly string[],
@@ -1270,7 +1320,7 @@ function exactLiteralRecordV1(
 
 function advanceFailureMessageV1(
   advance: Exclude<
-    MainWireIntegratedModelPresentationAdvanceV3,
+    MainWireFlatModelOwnedProjectionAdvanceV1,
     { status: "advanced" }
   >,
 ): string {

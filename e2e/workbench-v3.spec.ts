@@ -652,6 +652,23 @@ test("@desktop simulation information stays human-facing", async ({
 test("@mobile 390px Workbench uses one graph tab group and keeps controls reachable", async ({
   page,
 }) => {
+  const rateTrigger = page.getByTestId("v3-playback-rate-trigger");
+  await expect(rateTrigger).toBeVisible();
+  await expect(rateTrigger).toContainText("×");
+  await rateTrigger.click();
+  const ratePopover = page.getByTestId("v3-playback-rate-popover");
+  await expect(ratePopover).toBeVisible();
+  await expect(
+    ratePopover.getByRole("slider", { name: "再生速度を変更" }),
+  ).toBeVisible();
+  const ratePopoverBox = await ratePopover.boundingBox();
+  expect(ratePopoverBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect(
+    (ratePopoverBox?.x ?? 0) + (ratePopoverBox?.width ?? 391),
+  ).toBeLessThanOrEqual(390);
+  await rateTrigger.click();
+  await expect(ratePopover).toBeHidden();
+
   const graphArea = page.getByRole("region", { name: "グラフエリア" });
   await expect(graphArea).toBeVisible();
   await expect(graphArea.locator(".dv-groupview")).toHaveCount(1);

@@ -15,4 +15,5 @@ export * from "./WorkbenchPresentationProfileV3";
 export * from "./WorkbenchPresentationOutputSelectionV3";
 export * from "./WorkbenchParallelAuthoringCoordinatorV3";
 export * from "./WorkbenchParallelScenarioRuntimeV3";
+export * from "./WorkbenchGroupTimeConductorV3";
 export * from "./WorkbenchScalarSampleV3";

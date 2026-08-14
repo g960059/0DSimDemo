@@ -12,15 +12,15 @@ import {
   createMainWireAcceptedTypedStateManifestV1,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
 import {
-  MainWireFlatAuthoritativeReferenceSessionV1,
-} from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
+  MainWireIntegratedTypedAuthoritySessionV1,
+} from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 
 const INSPECTED_SUBSTEPS = 1_024;
 const SUBSTEP_SEC = 0.002;
 const HOT_CHANGE_THRESHOLD = Math.floor(INSPECTED_SUBSTEPS * 0.9);
 const ABSENT = Symbol("absent");
 
-const session = await MainWireFlatAuthoritativeReferenceSessionV1.create();
+const session = await MainWireIntegratedTypedAuthoritySessionV1.create();
 const initial = session.currentAcceptedState();
 const manifest = createMainWireAcceptedTypedStateManifestV1(initial);
 const boundary = createMainWireAcceptedTypedBoundaryBindingV1(manifest);

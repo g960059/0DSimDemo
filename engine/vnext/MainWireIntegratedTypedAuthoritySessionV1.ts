@@ -58,6 +58,7 @@ import {
   projectMainWireIntegratedModelSelectedValuesV3,
   projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1,
   type MainWireIntegratedModelOutputIdV3,
+  type MainWireIntegratedModelOutputValueV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
   createMainWireIntegratedModelRuntimeV3,
@@ -87,6 +88,9 @@ import {
   type MainWireIntegratedModelStepResultV3,
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
+import {
+  warmStartMainWireIntegratedModelV3,
+} from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -152,8 +156,8 @@ import type {
   TransactionalTypedStatePromotionPlanV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
 
-export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_SESSION_V1_ID =
-  "main-wire-flat-authoritative-reference-session-v1" as const;
+export const MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID =
+  "main-wire-integrated-typed-authority-session-v1" as const;
 export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID =
   "circleheart-main-wire-flat-authoritative-reference-checkpoint-v1" as const;
 
@@ -210,21 +214,22 @@ type ExactBeatState = Readonly<{
 }>;
 
 /**
- * Phase 1b reference Session. It deliberately owns a copy of the accepted
- * transaction loop instead of injecting a hook into the registered exact
- * Session. That keeps every released artifact byte-identical while this
- * replacement authority is evaluated out of production.
+ * Typed-authority Session for the integrated model. It owns the accepted
+ * transaction loop and avoids materializing the public accepted object on
+ * each ordinary presentation tick.
  *
  * The component solver still exposes a compact private adapter and a
  * synchronous selected-root borrow. Strictly ordinary lean-tier projection
  * ticks stage that borrow and the remaining continuous owners directly into
  * the inactive typed image, then promote it without public-state finalization.
- * Event/full-invariant transactions retain the independent public oracle.
- * Public rehydration is reserved for observations, checkpoints, restores, and
- * those cold/event boundaries.
+ * Event/full-invariant transactions retain the independent public path.
+ * Public rehydration is reserved for observations, checkpoints, restores,
+ * analysis, and those cold/event boundaries. This is an authority/runtime
+ * cutover over the established equations, not a different physiological
+ * model.
  */
-export class MainWireFlatAuthoritativeReferenceSessionV1 {
-  readonly sessionId = MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_SESSION_V1_ID;
+export class MainWireIntegratedTypedAuthoritySessionV1 {
+  readonly sessionId = MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID;
 
   readonly #runtime: MainWireIntegratedModelRuntimeV3;
   readonly #provider: MainWireNormalAdultFiveWallProviderV1;
@@ -245,6 +250,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   readonly #candidateNumericalReadback = new Float64Array(
     MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   );
+  #acceptedNumericalReadbackAvailable = false;
   readonly #coupledNewtonWorkspace:
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
   readonly #coupledResidualWorkspace:
@@ -439,16 +445,48 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
-  ): Promise<MainWireFlatAuthoritativeReferenceSessionV1> {
+  ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
     );
-    return new MainWireFlatAuthoritativeReferenceSessionV1(
+    return new MainWireIntegratedTypedAuthoritySessionV1(
       runtime,
       runtime.cold.acceptedState,
       "cold",
       typedAuthorityFactory(runtime.cold.acceptedState),
+    );
+  }
+
+  /**
+   * Restores the public Standard checkpoint into the typed accepted-state
+   * authority. Predictor history is deliberately empty: this checkpoint does
+   * not encode it, so the first ordinary solve restarts from the model-owned
+   * context seed before rebuilding admitted history.
+   */
+  static async restoreStandardExactCheckpoint(
+    checkpoint: unknown,
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    ventricularContractilityScale = 1,
+  ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
+    const runtime = await createMainWireIntegratedModelRuntimeV3(
+      inputs,
+      ventricularContractilityScale,
+    );
+    const restored = await restoreMainWireIntegratedModelStandardV1(
+      mainWireIntegratedModelCheckpointContextV3(
+        runtime,
+        runtime.cold.acceptedState,
+      ),
+      checkpoint,
+    );
+    return new MainWireIntegratedTypedAuthoritySessionV1(
+      runtime,
+      restored.acceptedState,
+      "standard-exact-checkpoint-restore",
+      typedAuthorityFactory(runtime.cold.acceptedState),
+      restored,
     );
   }
 
@@ -458,12 +496,12 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
-  ): Promise<MainWireFlatAuthoritativeReferenceSessionV1> {
+  ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
     );
-    return new MainWireFlatAuthoritativeReferenceSessionV1(
+    return new MainWireIntegratedTypedAuthoritySessionV1(
       runtime,
       runtime.cold.acceptedState,
       "cold",
@@ -476,7 +514,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
-  ): Promise<MainWireFlatAuthoritativeReferenceSessionV1> {
+  ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const checkpoint = validateReferenceCheckpointV1(
       await decodeCanonicalFlatCheckpointV1(checkpointBytes),
     );
@@ -491,7 +529,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       ),
       checkpoint.standardCheckpoint,
     );
-    const session = new MainWireFlatAuthoritativeReferenceSessionV1(
+    const session = new MainWireIntegratedTypedAuthoritySessionV1(
       runtime,
       restored.acceptedState,
       "standard-exact-checkpoint-restore",
@@ -516,12 +554,88 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     return this.#authority.snapshot();
   }
 
+  /**
+   * Starts a new authored-input epoch at the exact current accepted clock.
+   * The new runtime receives a fresh typed authority and predictor history;
+   * failure cannot mutate this source Session.
+   */
+  async warmStartWithHemodynamicResearchInputs(
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
+    ventricularContractilityScale = 1,
+  ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
+    const targetRuntime = await createMainWireIntegratedModelRuntimeV3(
+      inputs,
+      ventricularContractilityScale,
+    );
+    const acceptedState = warmStartMainWireIntegratedModelV3({
+      source: this.#authority.snapshot(),
+      sourceRuntime: this.#runtime,
+      targetRuntime,
+    });
+    return new MainWireIntegratedTypedAuthoritySessionV1(
+      targetRuntime,
+      acceptedState,
+      "hemodynamic-input-warm-start",
+      typedAuthorityFactory(targetRuntime.cold.acceptedState),
+    );
+  }
+
   observe(): MainWireIntegratedModelObservationV3 {
     const cached = this.#lastPresentationObservation;
     if (cached !== null) return cached;
     const detached = this.detachedObservation();
     this.#lastPresentationObservation = detached;
     return detached;
+  }
+
+  /**
+   * Projects the exact current accepted boundary without forcing the typed
+   * ordinary path back through a public accepted-step reconstruction. The
+   * cold/restored boundary deliberately falls back to the complete
+   * observation until the Session owns a clock-matched numerical readback.
+   */
+  projectCurrentAcceptedValuesV1(
+    outputIds: readonly MainWireIntegratedModelOutputIdV3[],
+  ): Readonly<Record<string, MainWireIntegratedModelOutputValueV3>> {
+    validateTypedProjectionOutputIds(outputIds);
+    if (
+      this.#typedAuthority !== null
+      && this.#acceptedNumericalReadbackAvailable
+    ) {
+      const typedPresentation = readMainWireAcceptedTypedPresentationStateV1(
+        this.#typedAuthority.currentCursor(),
+        this.requiredTypedBoundaryBinding(),
+        this.#rhythmInput.configuration,
+      );
+      if (
+        this.#acceptedNumericalReadback[
+          MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec
+        ] === typedPresentation.acceptedTimeSec
+      ) {
+        return projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
+          Object.freeze({
+            acceptedTimeSec: typedPresentation.acceptedTimeSec,
+            regularSinusCycleLengthSec:
+              typedPresentation.regularSinusCycleLengthSec,
+            regularSinusNextActivationTimeSec:
+              typedPresentation.regularSinusNextActivationTimeSec,
+            dynamicMechanicalSupportLvadFlowMlPerSec:
+              typedPresentation.lvadFlowMlPerSec,
+            runtimeSignals: runtimeSignalsAtAcceptedTime(
+              typedPresentation.acceptedTimeSec,
+              this.#runtime,
+            ),
+            completedBeatMetrics: this.#completedBeatMetrics,
+            acceptedNumericalReadback: this.#acceptedNumericalReadback,
+          }),
+          outputIds,
+        );
+      }
+    }
+    return projectMainWireIntegratedModelSelectedValuesV3(
+      this.observe(),
+      outputIds,
+    );
   }
 
   /**
@@ -789,6 +903,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       );
       this.#autoregulationOwner = nextAutoregulationOwner;
       this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
+      this.#acceptedNumericalReadbackAvailable = true;
       const completedBeat = this.#beatAccumulator.acceptNumericalReadback(
         this.#acceptedNumericalReadback,
         null,
@@ -1183,6 +1298,12 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         throw error;
       }
       this.#acceptedState = committedState;
+      if (
+        this.#typedAuthority !== null
+        && acceptedNumericalReadbackAvailable
+      ) {
+        this.#acceptedNumericalReadbackAvailable = true;
+      }
       resetMainWireFiveWallCoupledPredictorV1(
         this.#coupledPredictorWorkspace,
       );
@@ -1301,7 +1422,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
 
   authorityReport(): MainWireAcceptedTypedStateAuthorityReportV1 {
     if (this.#typedAuthority === null) {
-      throw new Error("Flat reference Session uses a non-typed test authority");
+      throw new Error("Typed authority Session uses a non-typed test authority");
     }
     return this.#typedAuthority.report();
   }
@@ -1318,13 +1439,13 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
 
   snapshotAcceptedStateBytes(): Uint8Array {
     if (this.#typedAuthority === null) {
-      throw new Error("Flat reference Session uses a non-typed test authority");
+      throw new Error("Typed authority Session uses a non-typed test authority");
     }
     const state = this.#typedAuthority.snapshot();
     const encoded = new Uint8Array(measureCanonicalFlatDataV1(state));
     const length = encodeCanonicalFlatDataIntoV1(state, encoded);
     if (length !== encoded.byteLength) {
-      throw new Error("Flat reference accepted-state length changed while encoding");
+      throw new Error("Typed authority accepted-state length changed while encoding");
     }
     return encoded;
   }
@@ -1407,7 +1528,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   private requiredTypedBoundaryBinding():
     MainWireAcceptedTypedBoundaryBindingV1 {
     if (this.#typedBoundaryBinding === null) {
-      throw new Error("Flat reference Session has no typed boundary binding");
+      throw new Error("Typed authority Session has no typed boundary binding");
     }
     return this.#typedBoundaryBinding;
   }
@@ -1415,7 +1536,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   private requiredDirectCompletionPlan():
     TransactionalTypedStateCompletionPlanV1 {
     if (this.#directCompletionPlan === null) {
-      throw new Error("Flat reference direct completion plan is unavailable");
+      throw new Error("Typed authority direct completion plan is unavailable");
     }
     return this.#directCompletionPlan;
   }
@@ -1423,7 +1544,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   private requiredModelOwnedPromotionPlan():
     TransactionalTypedStatePromotionPlanV1 {
     if (this.#modelOwnedPromotionPlan === null) {
-      throw new Error("Flat reference model-owned promotion plan is unavailable");
+      throw new Error("Typed authority model-owned promotion plan is unavailable");
     }
     return this.#modelOwnedPromotionPlan;
   }

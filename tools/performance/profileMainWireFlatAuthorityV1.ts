@@ -11,8 +11,8 @@ import {
   mainWireIntegratedModelPresentationTargetTimeSecV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
-  MainWireFlatAuthoritativeReferenceSessionV1,
-} from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
+  MainWireIntegratedTypedAuthoritySessionV1,
+} from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 
 function positiveIntegerFromEnvironment(
   name: string,
@@ -36,9 +36,9 @@ const MEASURED_TICKS = positiveIntegerFromEnvironment(
   1_024,
 );
 selectHotPathIntegrityTierV1("hot-path-lean");
-const session = await MainWireFlatAuthoritativeReferenceSessionV1.create();
+const session = await MainWireIntegratedTypedAuthoritySessionV1.create();
 let outputs: ReturnType<
-  MainWireFlatAuthoritativeReferenceSessionV1[
+  MainWireIntegratedTypedAuthoritySessionV1[
     "advanceToPresentationTimeWithSelectedOutputProjectionV1"
   ]
 >["projectedValues"] = null;
