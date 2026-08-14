@@ -68,6 +68,7 @@ import {
   stageMainWireAcceptedTypedAuthoredScheduleCandidateV1,
   stageMainWireAcceptedTypedCalciumCandidateV1,
   stageMainWireAcceptedTypedClockCandidateV1,
+  stageMainWireAcceptedTypedOrdinaryPostSolverCandidateV1,
   stageMainWireAcceptedTypedRegularAtrialCandidateV1,
   stageMainWireAcceptedTypedResolvedCandidateV1,
 } from "@/engine/vnext/MainWireAcceptedTypedBoundaryV1";
@@ -1487,7 +1488,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         binding,
         actual.candidateTimeSec,
       );
-      stageMainWireAcceptedTypedCalciumCandidateV1(
+      const typedCandidateCalcium = stageMainWireAcceptedTypedCalciumCandidateV1(
         cursor,
         typedCandidate,
         binding,
@@ -1504,6 +1505,11 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
             ),
           },
         );
+      expect(typedCandidateCalcium).toEqual(
+        evaluateMainWireIntegratedModelCalciumDriveV3(
+          objectCandidate.candidateState,
+        ),
+      );
       stageMainWireAcceptedTypedAuthoredScheduleCandidateV1(
         cursor,
         typedCandidate,
@@ -1544,8 +1550,65 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
           revision: candidateClock.revision,
         },
       });
+      const oracleAdvance = oracle.advanceToPresentationTime(target);
+      expect(oracleAdvance.status).toBe("advanced");
+      if (oracleAdvance.status !== "advanced") {
+        throw new Error("object oracle failed at typed boundary test");
+      }
+      const oracleStep = oracleAdvance.observation.lastAcceptedStep;
+      if (oracleStep === null) {
+        throw new Error("object oracle accepted-step readback is absent");
+      }
+      if (
+        objectCandidate.capturedAtrialActivation === null
+        && objectCandidate.capturedVentricularActivation === null
+        && objectCandidate.deliveredCalciumDeposits.length === 0
+        && !oracleStep.coronaryStep.autoregulationWindowCompleted
+        && state.coronary.coronaryAutoregulation.windowControl !== null
+        && state.coronary.coronaryAutoregulation.windowControl
+          === oracleStep.acceptedState.coronary.coronaryAutoregulation
+            .windowControl
+        && state.coronary.coronaryAutoregulation.desiredControl
+          === oracleStep.acceptedState.coronary.coronaryAutoregulation
+            .desiredControl
+      ) {
+        stageMainWireAcceptedTypedOrdinaryPostSolverCandidateV1(
+          cursor,
+          typedCandidate,
+          binding,
+          candidateClock,
+          oracleStep.acceptedState.coronary.coronaryAutoregulation,
+        );
+        const staged = image.rehydrateStaged();
+        expect(staged.composedRhythm).toMatchObject({
+          acceptedAtrialCaptureCount:
+            oracleStep.acceptedState.composedRhythm
+              .acceptedAtrialCaptureCount,
+          acceptedVentricularCaptureCount:
+            oracleStep.acceptedState.composedRhythm
+              .acceptedVentricularCaptureCount,
+          deliveredCalciumDepositCount:
+            oracleStep.acceptedState.composedRhythm
+              .deliveredCalciumDepositCount,
+          electricalCaptureState: {
+            acceptedTimeSec: candidateClock.acceptedTimeSec,
+          },
+          ventricularBackupState: {
+            acceptedTimeSec: candidateClock.acceptedTimeSec,
+            revision: candidateClock.revision,
+          },
+        });
+        expect(staged.coronary.coronaryAutoregulation).toEqual(
+          oracleStep.acceptedState.coronary.coronaryAutoregulation,
+        );
+        expect(staged.dynamicMechanicalSupport.acceptedFlowMlPerSec).toEqual({
+          LVAD: 0,
+          IMPELLA: 0,
+          VA_ECMO: 0,
+          VV_ECMO: 0,
+        });
+      }
       image.abort();
-      expect(oracle.advanceToPresentationTime(target).status).toBe("advanced");
     }
   }, 30_000);
 

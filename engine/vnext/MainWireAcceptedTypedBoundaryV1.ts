@@ -728,7 +728,7 @@ export function stageMainWireAcceptedTypedCalciumCandidateV1(
   binding: MainWireAcceptedTypedBoundaryBindingV1,
   candidateTimeSec: number,
   parametersByWall: ComposedRhythmCalciumParametersByWallV2,
-): void {
+): MainWireFiveWallFreeCalciumDriveV1 {
   assertCursor(current, binding);
   assertCandidateCursor(candidate, binding);
   const f64 = binding.continuous;
@@ -748,6 +748,7 @@ export function stageMainWireAcceptedTypedCalciumCandidateV1(
     "pending calcium deposits",
   );
 
+  const freeCalciumUMByWall = {} as Record<CalciumWall, number>;
   for (const wall of CALCIUM_WALLS) {
     const slots = binding.calcium[wall];
     const state = Object.freeze([
@@ -784,7 +785,16 @@ export function stageMainWireAcceptedTypedCalciumCandidateV1(
     );
     candidate.writeContinuous(slots.state[0], next[0]);
     candidate.writeContinuous(slots.state[1], next[1]);
+    const freeCalciumUM = parameters.calciumRestUM
+      + parameters.calciumGainUMPerUnitDrive * (next[1] - next[0]);
+    if (!Number.isFinite(freeCalciumUM) || freeCalciumUM < 0) {
+      throw new Error(`Main Wire typed candidate ${wall} calcium is invalid`);
+    }
+    freeCalciumUMByWall[wall] = freeCalciumUM;
   }
+  return Object.freeze({
+    freeCalciumUMByWall: Object.freeze(freeCalciumUMByWall),
+  });
 }
 
 /** Advances the two finite authored schedule cursors without owner objects. */
@@ -1053,6 +1063,63 @@ export function stageMainWireAcceptedTypedResolvedCandidateV1(
 }
 
 /**
+ * Completes the fixed post-solver owner slots for a strictly ordinary,
+ * device-off step. Discrete queues and nullable event records were copied
+ * into the inactive image and must have no boundary at this candidate time.
+ */
+export function stageMainWireAcceptedTypedOrdinaryPostSolverCandidateV1(
+  current: TransactionalTypedStateCurrentCursorV1,
+  candidate: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
+  candidateClock: MainWireAcceptedTypedClockV1,
+  autoregulation: CoronaryAcceptedAutoregulationStateV3,
+): void {
+  assertCursor(current, binding);
+  assertCandidateCursor(candidate, binding);
+  const currentClock = readMainWireAcceptedTypedClockV1(current, binding);
+  if (
+    candidateClock.acceptedTimeSec <= currentClock.acceptedTimeSec
+    || candidateClock.revision !== currentClock.revision + 1
+  ) {
+    throw new Error("Main Wire typed ordinary candidate clock diverged");
+  }
+  const slots = binding.continuous;
+  const rhythm = slots.resolvedRhythm;
+  for (const [slot, label] of [
+    [rhythm.acceptedAtrialCaptureCount, "atrial capture count"],
+    [rhythm.acceptedVentricularCaptureCount, "ventricular capture count"],
+    [rhythm.deliveredCalciumDepositCount, "calcium deposit count"],
+  ] as const) {
+    candidate.writeContinuous(
+      slot,
+      nonnegativeSafeInteger(current.readContinuous(slot), label),
+    );
+  }
+  candidate.writeContinuous(
+    slots.electricalCaptureAcceptedTimeSec,
+    candidateClock.acceptedTimeSec,
+  );
+  candidate.writeContinuous(
+    slots.ventricularBackupAcceptedTimeSec,
+    candidateClock.acceptedTimeSec,
+  );
+  candidate.writeContinuous(
+    slots.ventricularBackupRevision,
+    candidateClock.revision,
+  );
+  for (const deviceId of ROTARY_SUPPORT_DEVICE_IDS_V1) {
+    const slot = slots.dynamicMechanicalSupport[deviceId];
+    if (current.readContinuous(slot) !== 0) {
+      throw new Error(
+        `Main Wire typed ordinary ${deviceId} support must be off`,
+      );
+    }
+    candidate.writeContinuous(slot, 0);
+  }
+  stageAutoregulationCandidate(candidate, binding, autoregulation);
+}
+
+/**
  * Stages the continuously changing rhythm clocks and accepted coronary-window
  * integrals. Discrete rhythm queues, optional event records, tone changes,
  * and window rollover metadata remain on event-boundary completion.
@@ -1087,6 +1154,15 @@ export function stageMainWireAcceptedTypedContinuousOwnerCandidateV1(
     slots.ventricularBackupRevision,
     state.ventricularBackupState.revision,
   );
+  stageAutoregulationCandidate(candidate, binding, autoregulation);
+}
+
+function stageAutoregulationCandidate(
+  candidate: TransactionalTypedStateCandidateCursorV1,
+  binding: MainWireAcceptedTypedBoundaryBindingV1,
+  autoregulation: CoronaryAcceptedAutoregulationStateV3,
+): void {
+  const slots = binding.continuous;
   candidate.writeContinuous(
     slots.autoregulationAcceptedDurationSec,
     finiteNonnegative(

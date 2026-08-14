@@ -1176,6 +1176,16 @@ trial promotion on every reference step, including the first complete window.
 This removes public coronary diagnostics from the future typed authority's
 dependency graph without changing the backward-Euler right-endpoint law.
 
+The autoregulation advance now also accepts its minimal owner tuple directly:
+accepted clock, immutable window binding, compact window state, and current
+tone. The complete coronary AcceptedState is no longer part of that numerical
+boundary. A strictly ordinary device-off post-solver stager writes unchanged
+capture counters, advancing electrical/backup clocks, zero rotary-device
+flows, and the accepted window integrals into the inactive global image. It is
+valid only when no rhythm event, autoregulation rollover, or control transition
+occurs; those boundaries remain on the public completion path during the
+migration.
+
 The selected root now also emits one fixed 32-value accepted numerical
 readback before public trial finalization. It contains the accepted clock,
 four chamber volumes, nine absolute pressures, four transmural pressures,

@@ -157,6 +157,13 @@ export type MainWireFiveWallCoronaryStepResultV3<TWallState> =
   | MainWireFiveWallCoronaryStepSuccessV3<TWallState>
   | MainWireFiveWallCoronaryStepFailureV3<TWallState>;
 
+export type MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3 = Readonly<{
+  acceptedTimeSec: number;
+  binding: CoronaryAutoregulationWindowBindingV3;
+  state: CoronaryAcceptedAutoregulationStateV3;
+  toneResistanceScaleByTerritoryLayer: CoronaryToneStateV2;
+}>;
+
 /**
  * Applies the accepted autoregulation owner directly to the ten packed
  * hydraulic observables emitted by the coupled solver. This is algebraically
@@ -167,6 +174,33 @@ export function advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3<
   TWallState,
 >(
   previous: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
+  input: MainWireFiveWallCoronaryStepInputV3,
+  candidateAcceptedTimeSec: number,
+  candidateRevision: number,
+  packedHydraulicObservables: Float64Array,
+): CoronaryAcceptedAutoregulationAdvanceV3 {
+  return advanceMainWireFiveWallCoronaryAutoregulationOwnerFromPackedV3(
+    Object.freeze({
+      acceptedTimeSec: previous.acceptedTimeSec,
+      binding: previous.coronaryAutoregulationBinding,
+      state: previous.coronaryAutoregulation,
+      toneResistanceScaleByTerritoryLayer:
+        previous.coronary.toneResistanceScaleByTerritoryLayer,
+    }),
+    input,
+    candidateAcceptedTimeSec,
+    candidateRevision,
+    packedHydraulicObservables,
+  );
+}
+
+/**
+ * Advances only the accepted autoregulation owner. The complete coronary
+ * AcceptedState is deliberately absent so a typed global transaction can
+ * consume the selected-root hydraulic page without rehydrating public state.
+ */
+export function advanceMainWireFiveWallCoronaryAutoregulationOwnerFromPackedV3(
+  previous: MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3,
   input: MainWireFiveWallCoronaryStepInputV3,
   candidateAcceptedTimeSec: number,
   candidateRevision: number,
@@ -196,9 +230,9 @@ export function advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3<
     ])),
   ) as Readonly<Record<(typeof CORONARY_TERRITORY_IDS_V2)[number], number>>;
   return advanceCoronaryAcceptedAutoregulationV3(
-    previous.coronaryAutoregulationBinding,
-    previous.coronaryAutoregulation,
-    previous.coronary.toneResistanceScaleByTerritoryLayer,
+    previous.binding,
+    previous.state,
+    previous.toneResistanceScaleByTerritoryLayer,
     {
       previousAcceptedTimeSec: previous.acceptedTimeSec,
       candidateAcceptedTimeSec,
