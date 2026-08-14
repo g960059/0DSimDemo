@@ -32,8 +32,12 @@ import {
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
   solveMainWireFiveWallCoupledNewtonShadowV1,
   type MainWireFiveWallCoupledNewtonShadowOptionsV1,
+  type MainWireFiveWallCoupledNewtonShadowResultV1,
   type MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
+import type {
+  MainWireFiveWallCoupledResidualContextV1,
+} from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 
 export const MAIN_WIRE_INTEGRATED_COUPLED_STEP_V1_ID =
   "main-wire-integrated-static-condensed-coupled-step-v1" as const;
@@ -64,6 +68,60 @@ export type MainWireIntegratedCoupledStepOptionsV1<TWallState> = Readonly<{
   ) => void;
 }>;
 
+export type MainWireFiveWallCoupledCandidateSolveOptionsV1 = Readonly<{
+  solver?: MainWireFiveWallCoupledNewtonShadowOptionsV1;
+  previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1;
+}>;
+
+export type MainWireFiveWallCoupledCandidateSolveV1<TWallState> =
+  | Readonly<{
+    status: "converged";
+    context: MainWireFiveWallCoupledResidualContextV1<TWallState>;
+    solver: MainWireFiveWallCoupledNewtonShadowResultV1;
+  }>
+  | Readonly<{
+    status: "failed";
+    solver: MainWireFiveWallCoupledNewtonShadowResultV1;
+  }>;
+
+/**
+ * Solves and component-admits the 30-volume candidate without constructing a
+ * public coronary or integrated AcceptedState. A typed owner may synchronously
+ * borrow the converged component through `context.withConvergedCandidate` and
+ * promote its own inactive image; legacy/event paths may instead call the
+ * one-shot public finalizer on the returned context.
+ */
+export function solveMainWireFiveWallCoupledCandidateV1<TWallState>(
+  provider: WholeHeartMechanicsProviderV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  previous: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
+  input: MainWireFiveWallCoronaryStepInputV2,
+  workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1 =
+    createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(),
+  options: MainWireFiveWallCoupledCandidateSolveOptionsV1 = Object.freeze({}),
+): MainWireFiveWallCoupledCandidateSolveV1<TWallState> {
+  assertBaseDeviceOff(input);
+  const context = prepareMainWireFiveWallCoupledResidualContextV1(
+    provider,
+    previous,
+    input,
+    options.previousAcceptedNumericalSource,
+  );
+  const solver = solveMainWireFiveWallCoupledNewtonShadowV1(
+    context,
+    Object.freeze({
+      ...options.solver,
+      analyticJacobianPolicy: "require-complete" as const,
+    }),
+    workspace,
+  );
+  return solver.result.status === "converged"
+    ? Object.freeze({ status: "converged" as const, context, solver })
+    : Object.freeze({ status: "failed" as const, solver });
+}
+
 /**
  * Device-off vertical slice for the 30-volume statically condensed solver.
  * The nonlinear candidate is component-admitted before the callback runs;
@@ -92,38 +150,44 @@ export function stepMainWireIntegratedModelCoupledV1<TWallState>(
         coronaryAutoregulationDrive: _autoregulationDrive,
         ...baseInput
       } = coronaryInput;
-      const context = prepareMainWireFiveWallCoupledResidualContextV1(
+      const solved = solveMainWireFiveWallCoupledCandidateV1(
         provider,
         options.previousCoupledAcceptedAdapter
           ?? mainWireFiveWallCoronaryBaseStateV2(coronaryPrevious),
         baseInput as MainWireFiveWallCoronaryStepInputV2,
-        options.previousAcceptedNumericalSource,
-      );
-      const solver = solveMainWireFiveWallCoupledNewtonShadowV1(
-        context,
-        Object.freeze({
-          ...options.solver,
-          analyticJacobianPolicy: "require-complete" as const,
-        }),
         workspace,
+        Object.freeze({
+          solver: options.solver,
+          previousAcceptedNumericalSource:
+            options.previousAcceptedNumericalSource,
+        }),
       );
-      if (solver.result.status !== "converged") {
+      if (solved.status === "failed") {
+        const failure = solved.solver.result;
+        if (failure.status !== "failed") {
+          throw new Error("coupled solve status/result drifted");
+        }
         throw new Error(
           "statically condensed coupled solve failed: "
-            + `${solver.result.reason}: ${solver.result.message}`,
+            + `${failure.reason}: ${failure.message}`,
         );
+      }
+      const { context, solver } = solved;
+      const solverResult = solver.result;
+      if (solverResult.status !== "converged") {
+        throw new Error("coupled converged solve status/result drifted");
       }
       if (options.onConvergedCandidate !== undefined) {
         context.withConvergedCandidate(
-          solver.result.solution,
+          solverResult.solution,
           options.onConvergedCandidate,
         );
       }
       const baseStep = context.finalizeConvergedSolution(
-        solver.result.solution,
+        solverResult.solution,
         Object.freeze({
-          iterations: solver.result.iterations,
-          lineSearchBacktracks: solver.result.lineSearchBacktrackCount,
+          iterations: solverResult.iterations,
+          lineSearchBacktracks: solverResult.lineSearchBacktrackCount,
         }),
       );
       if (baseStep.converged && options.onAcceptedBaseStep !== undefined) {
@@ -170,6 +234,20 @@ function assertDeviceOff(input: MainWireFiveWallCoronaryStepInputV3): void {
   ) {
     throw new Error(
       "statically condensed integrated step supports only the device-off slice",
+    );
+  }
+}
+
+function assertBaseDeviceOff(
+  input: MainWireFiveWallCoronaryStepInputV2,
+): void {
+  if (
+    input.mechanicalSupport !== undefined
+    || input.dynamicMechanicalSupport !== undefined
+    || input.protocolResistanceScaleByEdge !== undefined
+  ) {
+    throw new Error(
+      "statically condensed coupled candidate supports only the device-off slice",
     );
   }
 }

@@ -1204,6 +1204,27 @@ old and new inputs. This removes rich coronary, circulation, and mechanics
 trial trees from those two downstream consumers; public finalization itself
 still runs and remains the next deletion boundary.
 
+The transaction image now also has an adapter-free promotion primitive. It is
+bound to an unforgeable model-owned write plan, rejects any missing owner slot,
+and performs only the final active-buffer swap after the model has applied its
+numerical and cross-owner seals. A successful promotion invalidates the cached
+public mirror; the authority rehydrates and fully validates that mirror lazily
+only when a cold/event API requests it. This primitive is not yet used by the
+ordinary Session loop and therefore carries no production speed claim by
+itself. Its role is to make the next deletion boundary atomic and testable
+before public finalization is removed.
+
+The statically condensed integrated seam is likewise split at the same
+boundary. `solveMainWireFiveWallCoupledCandidateV1` prepares and solves the
+existing 30-volume equations, returns only an opaque component context plus
+solver diagnostics, and permits a synchronous borrow of the already admitted
+selected root. It does not materialize a coronary or integrated AcceptedState.
+The legacy/event caller can still invoke the context's one-shot public
+finalizer afterward; the future ordinary typed caller instead stages the
+borrow, completes rhythm/device/autoregulation owners, seals the global image,
+and invokes adapter-free promotion. Both routes therefore share the exact same
+solver and component convergence gates during migration.
+
 This seam alone is intentionally not a speed claim: public finalization still
 runs as an oracle and a local lean profile remained about `0.934 ms/tick`.
 The next deletion boundary is preparation of the following coupled context

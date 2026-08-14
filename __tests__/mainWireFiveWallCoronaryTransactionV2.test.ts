@@ -100,6 +100,9 @@ import {
   MainWireFlatCoupledAcceptedStateV1,
 } from "@/engine/vnext/coupled/MainWireFlatCoupledAcceptedStateV1";
 import {
+  solveMainWireFiveWallCoupledCandidateV1,
+} from "@/engine/vnext/coupled/MainWireIntegratedCoupledStepV1";
+import {
   createMainWireFiveWallPromotedMechanicsNewtonShadowWorkspaceV1,
   solveMainWireFiveWallPromotedMechanicsNewtonShadowV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallPromotedMechanicsNewtonShadowV1";
@@ -2471,6 +2474,63 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(shadow.candidateCoronaryBoundary).toEqual(
       stepped.coronaryBoundary,
     );
+  });
+
+  it("borrows a converged 30-row candidate without public finalization", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const runtime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+    const stepInput = Object.freeze({
+      dtSec: 0.002,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const solved = solveMainWireFiveWallCoupledCandidateV1(
+      provider,
+      cold.acceptedState,
+      stepInput,
+    );
+    expect(solved.status).toBe("converged");
+    if (solved.status !== "converged") {
+      throw new Error(solved.solver.result.status === "failed"
+        ? solved.solver.result.message
+        : "unexpected coupled solve state");
+    }
+    const result = solved.solver.result;
+    if (result.status !== "converged") {
+      throw new Error("coupled candidate result did not converge");
+    }
+    let firstAcceptedTimeSec = -1;
+    solved.context.withConvergedCandidate(result.solution, (candidate) => {
+      firstAcceptedTimeSec = candidate.candidateTimeSec;
+      expect(candidate.candidateRevision).toBe(1);
+      expect(candidate.acceptedNumericalReadback[0]).toBe(0.002);
+    });
+    expect(firstAcceptedTimeSec).toBe(0.002);
+
+    // The borrow did not consume the one-shot public finalizer. Event/cold
+    // callers can still materialize the exact legacy boundary afterward.
+    const finalized = solved.context.finalizeConvergedSolution(
+      result.solution,
+      Object.freeze({
+        iterations: result.iterations,
+        lineSearchBacktracks: result.lineSearchBacktrackCount,
+      }),
+    );
+    expect(finalized.converged).toBe(true);
+    if (finalized.converged) {
+      expect(finalized.acceptedState.acceptedTimeSec).toBe(0.002);
+    }
   });
 
   it("solves the real 30-row residual without either nested Newton loop", () => {
