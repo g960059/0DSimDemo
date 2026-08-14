@@ -157,6 +157,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
   }
 
   setPlaybackRate(rate: number | "auto"): WorkbenchGroupPlaybackRateStateV3 {
+    const previousEffectiveRate = this.#effectiveRate();
     const changedAtMs = this.#nowMs();
     if (this.#running && !this.#disposed) {
       this.#publishOrSchedulePresentation(changedAtMs);
@@ -179,6 +180,17 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
       this.#lastPresentationWallMs = changedAtMs;
       this.#presentationFrameCreditPerLane = 0;
       this.#publishOrSchedulePresentation(changedAtMs);
+      const nextEffectiveRate = this.#effectiveRate();
+      if (Math.abs(nextEffectiveRate - previousEffectiveRate) > 1e-9) {
+        this.#cancelPumpTimer();
+        if (this.#inFlight === undefined) {
+          this.#queuePump(
+            nextEffectiveRate > previousEffectiveRate
+              ? 0
+              : this.#batchModelDurationMs() / nextEffectiveRate,
+          );
+        }
+      }
     }
     this.#publishRateState();
     return this.playbackRateState();

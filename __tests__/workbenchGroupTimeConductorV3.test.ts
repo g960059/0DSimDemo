@@ -222,6 +222,53 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     await conductor.pause();
   });
 
+  it("re-times queued compute when the user raises the group rate", async () => {
+    const clock = new GroupClockV3();
+    const presentedTimes: number[] = [];
+    let acceptedTimeSec = 0;
+    const conductor = new WorkbenchGroupTimeConductorV3({
+      lanes: () => [laneV3("baseline", acceptedTimeSec, async (stepCount) => {
+        const frames = framesV3("baseline", acceptedTimeSec, stepCount);
+        acceptedTimeSec = frames.at(-1)!.timeSec;
+        return frames;
+      })],
+      onFrames: (frames) => {
+        presentedTimes.push(...frames.map(({ timeSec }) => timeSec));
+      },
+      onError: vi.fn(),
+      nowMs: clock.now,
+      schedule: clock.schedule,
+      cancel: clock.cancel,
+      batchSteps: 16,
+      presentationIntervalMs: 16,
+      maximumPresentationFramesPerLane: 8,
+      minimumPlaybackRate: 0.1,
+      maximumPlaybackRate: 1,
+    });
+
+    conductor.setPlaybackRate(0.5);
+    conductor.play();
+    await clock.advanceBy(0);
+    expect(acceptedTimeSec).toBeCloseTo(0.032);
+
+    await clock.advanceBy(8);
+    const raisedRate = conductor.setPlaybackRate(1).effectiveRate;
+    await clock.advanceBy(0);
+    expect(acceptedTimeSec).toBeCloseTo(0.064);
+    expect(presentedTimes).toEqual([]);
+
+    await clock.advanceBy(16);
+    await clock.advanceBy(16);
+    const expectedFrameCount = Math.floor(2 * 8 * raisedRate + 1e-9);
+    expect(presentedTimes).toEqual(
+      Array.from(
+        { length: expectedFrameCount },
+        (_, index) => (index + 1) * 0.002,
+      ),
+    );
+    await conductor.pause();
+  });
+
   it("keeps the presentation queue bounded above real time", async () => {
     const clock = new GroupClockV3();
     const performance = new WorkbenchPerformanceDiagnosticsV3({
