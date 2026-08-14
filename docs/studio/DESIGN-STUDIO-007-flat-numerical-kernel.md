@@ -1176,6 +1176,20 @@ trial promotion on every reference step, including the first complete window.
 This removes public coronary diagnostics from the future typed authority's
 dependency graph without changing the backward-Euler right-endpoint law.
 
+The selected root now also emits one fixed 32-value accepted numerical
+readback before public trial finalization. It contains the accepted clock,
+four chamber volumes, nine absolute pressures, four transmural pressures,
+four valve flows, four vascular flows, pericardial excess pressure, total and
+territory coronary inlet flows, and the common coronary venous outlet. Every
+slot is produced by the same component evaluation that admitted the root; no
+second hydraulic evaluation is permitted. A regression compares all slots
+bit-for-bit with the independently finalized public trial. This readback is a
+private versioned kernel block, not portable Snapshot content. It is the
+input boundary for direct signal projection and accepted-substep beat metrics;
+future physiology such as oxygen transport, autonomic control, or multipatch
+mechanics must add separately versioned blocks rather than reinterpret these
+32 slots.
+
 This seam alone is intentionally not a speed claim: public finalization still
 runs as an oracle and a local lean profile remained about `0.934 ms/tick`.
 The next deletion boundary is preparation of the following coupled context

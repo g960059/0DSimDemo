@@ -41,6 +41,11 @@ import {
 } from "@/engine/devices/defaultsV1";
 import {
   MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1,
   advanceMainWireCoronaryMvcReferenceV2,
   evaluateMainWireFiveWallCoupledResidualShadowV1,
   initializeMainWireFiveWallCoronaryV2,
@@ -785,6 +790,70 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     }
     if (legacy.converged === false) throw new Error(legacy.message);
     const converged = coupled.result;
+    const numericalReadback = context.withConvergedCandidate(
+      converged.solution,
+      (candidate) => candidate.acceptedNumericalReadback.slice(),
+    );
+    const finalized = context.finalizeConvergedSolution(
+      converged.solution,
+      Object.freeze({
+        iterations: converged.iterations,
+        lineSearchBacktracks: converged.lineSearchBacktrackCount,
+      }),
+    );
+    expect(finalized.converged).toBe(true);
+    if (finalized.converged === false) throw new Error(finalized.message);
+    const readbackLayout =
+      MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1;
+    expect(numericalReadback[readbackLayout.timeSec]).toBe(
+      finalized.acceptedState.acceptedTimeSec,
+    );
+    MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.forEach(
+      (chamber, index) => {
+        expect(numericalReadback[readbackLayout.chamberVolumeMl + index]).toBe(
+          finalized.circulationTrial.candidateNodeVolumesMl[chamber],
+        );
+        expect(
+          numericalReadback[readbackLayout.transmuralPressureMmHg + index],
+        ).toBe(finalized.mechanicsTrial.transmuralPressuresMmHg[chamber]);
+      },
+    );
+    MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1.forEach(
+      (nodeId, index) => {
+        expect(
+          numericalReadback[readbackLayout.absolutePressureMmHg + index],
+        ).toBe(finalized.circulationTrial.nodeAbsolutePressuresMmHg[nodeId]);
+      },
+    );
+    MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1.forEach(
+      (valveId, index) => {
+        expect(numericalReadback[readbackLayout.valveFlowMlPerSec + index])
+          .toBe(finalized.circulationTrial.valveEvaluations[valveId]
+            .flowMlPerSec);
+      },
+    );
+    MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1.forEach(
+      (edgeId, index) => {
+        expect(
+          numericalReadback[
+            readbackLayout.systemicTissueFlowMlPerSec + index
+          ],
+        ).toBe(finalized.circulationTrial.edgeFlowsMlPerSec[edgeId]);
+      },
+    );
+    expect(numericalReadback[readbackLayout.pericardialExcessPressureMmHg])
+      .toBe(finalized.pericardium.excessPressureMmHg);
+    const coronaryHydraulics = finalized.coronaryTrial.diagnostics.hydraulics;
+    expect(numericalReadback[readbackLayout.coronaryFlowMlPerSec]).toBe(
+      coronaryHydraulics.totalInletFlowMlPerSec,
+    );
+    CORONARY_TERRITORY_IDS_V2.forEach((territoryId, index) => {
+      expect(numericalReadback[readbackLayout.coronaryFlowMlPerSec + 1 + index])
+        .toBe(coronaryHydraulics.inletFlowMlPerSecByTerritory[territoryId]);
+    });
+    expect(
+      numericalReadback[readbackLayout.coronaryVenousOutletFlowMlPerSec],
+    ).toBe(coronaryHydraulics.commonCoronaryVenousOutletFlowMlPerSec);
     expect(reusedJacobian.result.jacobianEvaluationCount).toBeLessThan(
       converged.jacobianEvaluationCount,
     );

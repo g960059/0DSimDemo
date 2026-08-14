@@ -38,6 +38,7 @@ import {
 import {
   CoronaryBackwardEulerTransactionV2,
   CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
+  CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2,
   CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2,
   DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V2,
   NORMAL_CORONARY_DISEASE_INPUT_V2,
@@ -591,11 +592,53 @@ export type MainWireFiveWallCoupledAcceptedCandidateBorrowV1<TWallState> =
     coronaryToneResistanceScaleByTerritoryLayer: CoronaryToneStateV2;
     /** Context-owned packed Qm/post-lesion/CV readback; copy before return. */
     coronaryAutoregulationHydraulicObservables: Float64Array;
+    /** Context-owned fixed signal/beat readback; copy before return. */
+    acceptedNumericalReadback: Float64Array;
     mechanicsCandidateVolumesMl: WholeHeartMechanicsChamberValuesV1;
     mechanicsMaterialState: TWallState;
     mechanicsMaterialStateFingerprint: string;
     mvcReferenceState: MainWireCoronaryMvcReferenceStateV2;
   }>;
+
+export const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_V1_ID =
+  "main-wire-five-wall-accepted-numerical-readback-v1" as const;
+export const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1 =
+  32 as const;
+export const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1 =
+  Object.freeze(["LA", "LV", "RA", "RV"] as const);
+export const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1 =
+  Object.freeze([
+    "LA", "LV", "RA", "RV", "Ao", "SA", "PA", "PVein", "VC",
+  ] as const);
+export const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1 =
+  Object.freeze(["MV", "AoV", "TV", "PV"] as const);
+export const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1 =
+  Object.freeze(["SA_Art", "PA_PArt", "VC_RA", "PVein_LA"] as const);
+export const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1 =
+  Object.freeze({
+    timeSec: 0,
+    chamberVolumeMl: 1,
+    absolutePressureMmHg: 5,
+    transmuralPressureMmHg: 14,
+    valveFlowMlPerSec: 18,
+    systemicTissueFlowMlPerSec: 22,
+    pulmonaryFlowMlPerSec: 23,
+    systemicVenousFlowMlPerSec: 24,
+    pulmonaryVenousFlowMlPerSec: 25,
+    pericardialExcessPressureMmHg: 26,
+    coronaryFlowMlPerSec: 27,
+    coronaryVenousOutletFlowMlPerSec: 31,
+  } as const);
+
+function requiredOrderIndexV1(
+  order: readonly string[],
+  id: string,
+  label: string,
+): number {
+  const index = order.indexOf(id);
+  if (index < 0) throw new Error(`${label} ${id} is not in the canonical order`);
+  return index;
+}
 
 /** Cold construction context for the first real 30-row coupled solve. */
 export type MainWireFiveWallCoupledResidualContextV1<
@@ -913,6 +956,34 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     ),
   );
   const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
+  const readbackChamberNodeIndices =
+    MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.map((nodeId) =>
+      requiredOrderIndexV1(NON_CORONARY_NODE_NAMES_V1, nodeId, "readback node")
+    );
+  const readbackAbsolutePressureNodeIndices =
+    MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1.map(
+      (nodeId) => requiredOrderIndexV1(
+        NON_CORONARY_NODE_NAMES_V1,
+        nodeId,
+        "readback pressure node",
+      ),
+    );
+  const readbackValveIndices =
+    MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1.map((valveId) =>
+      requiredOrderIndexV1(
+        NON_CORONARY_VALVE_NAMES_V1,
+        valveId,
+        "readback valve",
+      )
+    );
+  const readbackVascularFlowEdgeIndices =
+    MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1.map(
+      (edgeId) => requiredOrderIndexV1(
+        NON_CORONARY_EDGE_NAMES_V1,
+        edgeId,
+        "readback edge",
+      ),
+    );
   const calciumDrive = resolveCalciumDriveV2(
     candidateTimeSec,
     input.calciumDriveParams,
@@ -1034,6 +1105,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
   const coronaryAutoregulationHydraulicObservables = new Float64Array(
     CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
   );
+  const coronaryAcceptedReadbackHydraulics = new Float64Array(
+    CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2,
+  );
   const preparedCoronary = prepareCoronaryCoupledCandidateEvaluatorV2(
     previous.coronary,
     Object.freeze({
@@ -1099,6 +1173,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           coronaryResidual,
           coronaryBoundaryFlowMlPerSec,
           coronaryAutoregulationHydraulicObservables,
+          coronaryAcceptedReadbackHydraulics,
         );
         coronaryResidualAvailable = true;
         candidateBoundary = boundary;
@@ -1157,6 +1232,12 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
   );
   const cachedCoronaryAutoregulationHydraulicObservables = new Float64Array(
     CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
+  );
+  const cachedCoronaryAcceptedReadbackHydraulics = new Float64Array(
+    CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2,
+  );
+  const acceptedNumericalReadback = new Float64Array(
+    MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   );
   const cachedDependentSvColumn = new Float64Array(
     NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length,
@@ -1272,6 +1353,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
         cachedCoronaryResidual.set(coronaryResidual);
         cachedCoronaryAutoregulationHydraulicObservables.set(
           coronaryAutoregulationHydraulicObservables,
+        );
+        cachedCoronaryAcceptedReadbackHydraulics.set(
+          coronaryAcceptedReadbackHydraulics,
         );
         cachedDependentSvColumn.set(
           localIndependentResidualDDependentSvVolumeMlPerMl,
@@ -1536,6 +1620,70 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           }),
         );
         const mechanicsCandidate = mechanics.mechanicsCandidate;
+        acceptedNumericalReadback[
+          MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec
+        ] = candidate.nonCoronaryProbe.candidateTimeSec;
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.forEach(
+          (nodeId, index) => {
+            acceptedNumericalReadback[
+              MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1
+                .chamberVolumeMl + index
+            ] = candidate.nonCoronaryProbe
+              .nodeVolumesMl[readbackChamberNodeIndices[index]!]!;
+          },
+        );
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1
+          .forEach((nodeId, index) => {
+            acceptedNumericalReadback[
+              MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1
+                .absolutePressureMmHg + index
+            ] = candidate.nonCoronaryProbe
+              .nodeAbsolutePressuresMmHg[
+                readbackAbsolutePressureNodeIndices[index]!
+              ]!;
+          });
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.forEach(
+          (chamber, index) => {
+            acceptedNumericalReadback[
+              MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1
+                .transmuralPressureMmHg + index
+            ] = mechanics.mechanicsView.transmuralPressuresMmHg[chamber];
+          },
+        );
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1.forEach(
+          (edgeId, index) => {
+            acceptedNumericalReadback[
+              MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1
+                .valveFlowMlPerSec + index
+            ] = candidate.nonCoronaryProbe
+              .valveEvaluations[readbackValveIndices[index]!]!.flowMlPerSec;
+          },
+        );
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1.forEach(
+          (edgeId, index) => {
+            acceptedNumericalReadback[
+              MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1
+                .systemicTissueFlowMlPerSec + index
+            ] = candidate.nonCoronaryProbe.edgeFlowsMlPerSec[
+              readbackVascularFlowEdgeIndices[index]!
+            ]!;
+          },
+        );
+        acceptedNumericalReadback[
+          MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1
+            .pericardialExcessPressureMmHg
+        ] = mechanics.pericardium.excessPressureMmHg;
+        acceptedNumericalReadback.set(
+          cachedCoronaryAcceptedReadbackHydraulics,
+          MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1
+            .coronaryFlowMlPerSec,
+        );
+        for (let index = 0; index < acceptedNumericalReadback.length; index += 1) {
+          requireFinite(
+            acceptedNumericalReadback[index]!,
+            `accepted numerical readback[${index}]`,
+          );
+        }
         const visit = (mechanicsMaterialState: TWallState): TResult => consume(
           Object.freeze({
             candidateTimeSec: candidate.nonCoronaryProbe.candidateTimeSec,
@@ -1552,6 +1700,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
               previous.coronary.toneResistanceScaleByTerritoryLayer,
             coronaryAutoregulationHydraulicObservables:
               cachedCoronaryAutoregulationHydraulicObservables,
+            acceptedNumericalReadback,
             mechanicsCandidateVolumesMl:
               mechanics.mechanicsView.candidateVolumesMl,
             mechanicsMaterialState,

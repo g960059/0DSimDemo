@@ -204,6 +204,9 @@ export const CORONARY_BOUNDARY_FLOW_OBSERVABLE_IDS_V2 = Object.freeze([
  */
 export const CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2 = 10;
 
+/** total inlet, LAD, LCx, RCA, then the common coronary venous outlet. */
+export const CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2 = 5;
+
 export const CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2 = Object.freeze([
   "absoluteAorticPressureMmHg",
   "absoluteRightAtrialPressureMmHg",
@@ -1002,6 +1005,7 @@ export function writePreparedCoronaryCoupledCandidateResidualV2(
   destinationResidualMl: Float64Array,
   destinationBoundaryFlowMlPerSec: Float64Array,
   destinationAutoregulationHydraulics?: Float64Array,
+  destinationAcceptedReadbackHydraulics?: Float64Array,
 ): void {
   const storage = preparedCoupledEvaluatorStorageV2(evaluator);
   requireTypedLengthV2(
@@ -1019,6 +1023,13 @@ export function writePreparedCoronaryCoupledCandidateResidualV2(
       destinationAutoregulationHydraulics,
       CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
       "destinationAutoregulationHydraulics",
+    );
+  }
+  if (destinationAcceptedReadbackHydraulics !== undefined) {
+    requireTypedLengthV2(
+      destinationAcceptedReadbackHydraulics,
+      CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2,
+      "destinationAcceptedReadbackHydraulics",
     );
   }
   const hydraulics = evaluatePreparedCoronaryHydraulicsV2(
@@ -1040,6 +1051,12 @@ export function writePreparedCoronaryCoupledCandidateResidualV2(
     writePreparedCoronaryAutoregulationHydraulicsV2(
       hydraulics,
       destinationAutoregulationHydraulics,
+    );
+  }
+  if (destinationAcceptedReadbackHydraulics !== undefined) {
+    writePreparedCoronaryAcceptedReadbackHydraulicsV2(
+      hydraulics,
+      destinationAcceptedReadbackHydraulics,
     );
   }
 }
@@ -1225,6 +1242,27 @@ function writePreparedCoronaryBoundaryFlowsV2(
   }
   destination[0] = totalInletFlowMlPerSec;
   destination[1] = hydraulics.flowByEdge[
+    hydraulics.edgeIndexById.CV_RA
+  ]!;
+}
+
+function writePreparedCoronaryAcceptedReadbackHydraulicsV2(
+  hydraulics: MutableHydraulicEvaluationV2,
+  destination: Float64Array,
+): void {
+  let totalInletFlowMlPerSec = 0;
+  for (let territoryIndex = 0;
+    territoryIndex < CORONARY_TERRITORY_IDS_V2.length;
+    territoryIndex += 1) {
+    const territoryId = CORONARY_TERRITORY_IDS_V2[territoryIndex]!;
+    const inletFlowMlPerSec = hydraulics.flowByEdge[
+      hydraulics.edgeIndexById[`Ao_${territoryId}.Art`]
+    ]!;
+    destination[territoryIndex + 1] = inletFlowMlPerSec;
+    totalInletFlowMlPerSec += inletFlowMlPerSec;
+  }
+  destination[0] = totalInletFlowMlPerSec;
+  destination[4] = hydraulics.flowByEdge[
     hydraulics.edgeIndexById.CV_RA
   ]!;
 }
