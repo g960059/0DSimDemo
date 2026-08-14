@@ -241,11 +241,11 @@ const EMPTY_WORKBENCH_SCENARIO_ORBIT_HISTORY_V3 = Object.freeze(
 ) as WorkbenchScenarioOrbitHistoryV3;
 const INITIAL_WORKBENCH_PLAYBACK_RATE_STATE_V3:
   WorkbenchGroupPlaybackRateStateV3 = Object.freeze({
-    mode: "auto",
-    effectiveRate: 0.5,
-    safeMaximumRate: 0.5,
-    requestedRate: null,
-    warmingUp: true,
+    playbackRate: 0.5,
+    maximumRate: null,
+    calibrating: true,
+    userSelected: false,
+    performanceLimited: false,
   });
 
 const recordWorkbenchReactCommitV3: React.ProfilerOnRenderCallback = (
@@ -1315,7 +1315,7 @@ const WorkbenchV3Session = ({
     runtime.playAll();
   }, []);
 
-  const changePlaybackRate = React.useCallback((rate: number | "auto") => {
+  const changePlaybackRate = React.useCallback((rate: number) => {
     const runtime = runtimeRef.current;
     if (runtime === null) return;
     setPlaybackRate(runtime.setPlaybackRate(rate));

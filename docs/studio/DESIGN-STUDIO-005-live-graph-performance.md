@@ -187,28 +187,43 @@ group TimeConductor issues that request to every live Scenario, waits for the
 whole group, and publishes each Scenario's same-offset exact prefix through a
 shared fractional presentation credit. At `1×`, the default credit releases two
 eight-frame slices separated by a 16 ms presentation boundary. At `0.25×` it
-earns two frames per boundary; at `2×` it earns sixteen. Fractional credit is
+earns two frames per boundary; at `3×` it earns twenty-four. Fractional credit is
 carried across boundaries, while a bounded ceiling prevents a delayed browser
 task from creating an unbounded catch-up burst. This preserves every accepted
 sample and makes compute pace, visible waveform pace, and the displayed group
 multiplier describe the same clock.
 
-Playback rate is a property of the group, not a Worker lane. Automatic mode
-estimates the sustainable group rate from completed group batches, retains
-10% headroom, lowers the limit immediately under pressure, and raises it only
-gradually after sustained evidence. Its cold-start bound also falls with the
-number of live Scenario lanes. A manual rate is permitted only at or below the
-current safe maximum. Adding or removing a Scenario pauses the group,
-invalidates the old estimate, and starts a new warm-up measurement.
+Playback rate is a property of the group, not a Worker lane. A short initial
+calibration discards three cold batches, takes a conservative lower percentile
+from nine measured group batches, retains 10% headroom, and rounds the result
+down to a `0.25×` capability tier between `0.25×` and `3×`. The tier is then
+latched for that Scenario configuration: transient timing noise cannot make a
+slider endpoint oscillate. If the tier includes real time, playback starts at
+`1×`; otherwise it starts at the conservative tier. This one calibration
+transition is distinct from a user-selected playback-rate change.
+
+After calibration the selected rate remains fixed until the user changes it.
+Ongoing measurements may report sustained inability to keep up, but they do
+not silently rewrite the selected rate or its latched ceiling. Exact frames are
+not discarded and every Scenario therefore slows together honestly under an
+overloaded device. Adding or removing a Scenario pauses the group and starts a
+new calibration epoch. An explicit user selection is retained across that
+epoch; if the new ceiling is lower, the UI reports the mismatch rather than
+quietly changing the selection.
 
 The toolbar exposes one compact split control: play/pause on the left and the
-actual group multiplier on the right. Opening the multiplier reveals a slider
-with common detents and an Auto action. The slider's maximum is the measured
-safe limit; it is not merely a warning after an unsafe rate was chosen.
+selected group multiplier on the right. Opening the multiplier reveals a
+`0.25×` step slider. Its stable endpoint is the calibrated capability tier, and
+`1×` is marked as real time. Calibration disables only the slider, not the
+play/pause control. There is no Auto action because device capacity governs the
+available range rather than continuously taking control of the selected value.
 
 The TimeConductor never re-anchors away accumulated wall-clock debt and never
-skips exact model time to preserve a nominal `1×` label. If the device sustains
-only `0.5×`, every Scenario runs together at `0.5×` and the control says so.
+skips exact model time to preserve a nominal `1×` target. If initial
+calibration sustains only `0.5×`, every Scenario starts together at `0.5×`. If
+capacity later deteriorates below an explicit selection, every Scenario still
+slows together and the control adds a performance warning without changing the
+selected value.
 Presentation backpressure is measured explicitly; a rate above `1×` must not
 produce a monotonically growing accepted-frame queue, and a sub-unit rate must
 not emit fixed-size bursts separated by long empty gaps.

@@ -270,7 +270,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   }
 
   setPlaybackRate(
-    rate: number | "auto",
+    rate: number,
   ): WorkbenchGroupPlaybackRateStateV3 {
     this.#requireActive();
     return this.#timeConductor.setPlaybackRate(rate);
