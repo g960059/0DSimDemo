@@ -150,7 +150,7 @@ export class StudioSimulationWorkerRuntimeV2 {
   #disposeEnqueued = false;
   #highestRequestId = 0;
   #exactRuntime: ResolvedExactModelRuntimeV2 | undefined;
-  #boundExecutionPlan: BoundExecutionPlanV1 | undefined;
+  #boundExecutionPlans = new Map<string, BoundExecutionPlanV1>();
   #surfaceSeriesId: string | undefined;
   #surfaceReleaseId: string | undefined;
   #adapter: RegisteredModelSimulationAdapterV2 | undefined;
@@ -360,7 +360,7 @@ export class StudioSimulationWorkerRuntimeV2 {
     const totalInitializeStartedAtMs = monotonicWorkerNowV2();
     let exactRuntime: ResolvedExactModelRuntimeV2 | undefined;
     let exactRuntimeLoadTiming: ExactModelRuntimeLoadTimingV2 | undefined;
-    let boundExecutionPlan: BoundExecutionPlanV1 | undefined;
+    let boundExecutionPlans = new Map<string, BoundExecutionPlanV1>();
     let executionPlanBindMs: number | null = null;
     let adapter: RegisteredModelSimulationAdapterV2 | undefined;
     let sessionCreationAttempted = false;
@@ -378,16 +378,6 @@ export class StudioSimulationWorkerRuntimeV2 {
         throw new Error(
           "simulation worker loaded runtime modelId does not match the requested model",
         );
-      }
-      if (exactRuntime.executionPlan !== undefined) {
-        const bindStartedAtMs = monotonicWorkerNowV2();
-        const candidate = exactRuntime.executionPlan.bind();
-        assertBoundExecutionPlanV1(
-          candidate,
-          exactRuntime.executionPlan.descriptor,
-        );
-        boundExecutionPlan = candidate;
-        executionPlanBindMs = nonnegativeWorkerDurationV2(bindStartedAtMs);
       }
       const authoringSetupStartedAtMs = monotonicWorkerNowV2();
       const models = exactRuntimeResolverV2(exactRuntime);
@@ -437,6 +427,14 @@ export class StudioSimulationWorkerRuntimeV2 {
             fixture: scenario.capture.fixture,
             checkpoint: scenario.capture.checkpoint,
           }));
+      if (exactRuntime.executionPlan !== undefined) {
+        const bindStartedAtMs = monotonicWorkerNowV2();
+        boundExecutionPlans = bindScenarioExecutionPlansV1(
+          exactRuntime,
+          scenarioInputs.map(({ scenarioId }) => scenarioId),
+        );
+        executionPlanBindMs = nonnegativeWorkerDurationV2(bindStartedAtMs);
+      }
       sessionCreationAttempted = true;
       const sessionCreateStartedAtMs = monotonicWorkerNowV2();
       await adapter.createSession(Object.freeze({
@@ -457,7 +455,7 @@ export class StudioSimulationWorkerRuntimeV2 {
         return;
       }
       this.#exactRuntime = exactRuntime;
-      this.#boundExecutionPlan = boundExecutionPlan;
+      this.#boundExecutionPlans = boundExecutionPlans;
       this.#surfaceSeriesId = request.releaseTicket.surfaceRelease.surfaceSeriesId;
       this.#surfaceReleaseId = request.releaseTicket.surfaceRelease.surfaceReleaseId;
       this.#adapter = adapter;
@@ -485,17 +483,11 @@ export class StudioSimulationWorkerRuntimeV2 {
           scenarioFrame,
           scenario.scenarioId,
           request.runtimeSessionId,
+          boundExecutionPlans,
         );
         this.#scenarioFrames.set(scenario.scenarioId, scenarioFrame);
       }
       const frame = this.#scenarioFrames.get(request.scenarioId)!;
-      if (scenarioInputs.at(-1)?.scenarioId !== request.scenarioId) {
-        this.#synchronizeExecutionPlanAcceptedState(
-          frame,
-          request.scenarioId,
-          request.runtimeSessionId,
-        );
-      }
       this.#lastFrame = frame;
       const initialFrameMs = nonnegativeWorkerDurationV2(
         initialFrameStartedAtMs,
@@ -1149,6 +1141,11 @@ export class StudioSimulationWorkerRuntimeV2 {
       this.#requiredLogicalRuntimeSessionId(),
       nextGeneration,
     );
+    const nextBoundExecutionPlans = bindScenarioExecutionPlansV1(
+      this.#requiredExactRuntime(),
+      scenarios.map(({ scenarioId }) => scenarioId),
+      this.#boundExecutionPlans,
+    );
     let created = false;
     try {
       await adapter.createSession({
@@ -1174,6 +1171,7 @@ export class StudioSimulationWorkerRuntimeV2 {
           frame,
           scenario.scenarioId,
           nextPhysicalRuntimeSessionId,
+          nextBoundExecutionPlans,
         );
         frames.set(scenario.scenarioId, frame);
       }
@@ -1185,6 +1183,7 @@ export class StudioSimulationWorkerRuntimeV2 {
           `simulation worker could not retire its prior exact session: ${errorMessageV2(error)}`,
         );
       }
+      this.#boundExecutionPlans = nextBoundExecutionPlans;
       this.#physicalRuntimeSessionId = nextPhysicalRuntimeSessionId;
       this.#sessionGeneration = nextGeneration;
       this.#scenarioOrder = scenarios.map(({ scenarioId }) => scenarioId);
@@ -1204,13 +1203,6 @@ export class StudioSimulationWorkerRuntimeV2 {
       this.#scenarioId = activeScenarioId;
       this.#currentFixture = this.#requiredScenarioFixture(activeScenarioId);
       this.#lastFrame = this.#scenarioFrames.get(activeScenarioId)!;
-      if (scenarios.at(-1)?.scenarioId !== activeScenarioId) {
-        this.#synchronizeExecutionPlanAcceptedState(
-          this.#lastFrame,
-          activeScenarioId,
-          nextPhysicalRuntimeSessionId,
-        );
-      }
     } catch (error) {
       if (created) bestEffortDisposeV2(adapter, nextPhysicalRuntimeSessionId);
       throw error;
@@ -1719,13 +1711,20 @@ export class StudioSimulationWorkerRuntimeV2 {
     frame: StudioSimulationFrameV2,
     scenarioId: string,
     physicalRuntimeSessionId: string,
+    boundExecutionPlans: ReadonlyMap<string, BoundExecutionPlanV1> =
+      this.#boundExecutionPlans,
   ): void {
     const executionPlan = this.#exactRuntime?.executionPlan;
-    const bound = this.#boundExecutionPlan;
-    if (executionPlan === undefined && bound === undefined) return;
-    if (executionPlan === undefined || bound === undefined) {
+    if (executionPlan === undefined) {
+      if (boundExecutionPlans.size === 0) return;
       throw new Error(
         "simulation worker execution-plan synchronization is unavailable",
+      );
+    }
+    const bound = boundExecutionPlans.get(scenarioId);
+    if (bound === undefined) {
+      throw new Error(
+        `simulation worker execution plan is unavailable for Scenario ${scenarioId}`,
       );
     }
     const report =
@@ -1874,7 +1873,7 @@ export class StudioSimulationWorkerRuntimeV2 {
 
   #clearSession(): void {
     this.#exactRuntime = undefined;
-    this.#boundExecutionPlan = undefined;
+    this.#boundExecutionPlans.clear();
     this.#surfaceSeriesId = undefined;
     this.#surfaceReleaseId = undefined;
     this.#adapter = undefined;
@@ -2371,6 +2370,80 @@ function assertSimulationAdapterV2(
     adapter.checkpointCodecId,
     "$.adapter.checkpointCodecId",
   );
+}
+
+function bindScenarioExecutionPlansV1(
+  runtime: ResolvedExactModelRuntimeV2,
+  scenarioIds: readonly string[],
+  retainedPlans: ReadonlyMap<string, BoundExecutionPlanV1> = new Map(),
+): Map<string, BoundExecutionPlanV1> {
+  const executionPlan = runtime.executionPlan;
+  if (executionPlan === undefined) {
+    if (retainedPlans.size !== 0) {
+      throw new Error(
+        "simulation worker retained execution plans for a historical runtime",
+      );
+    }
+    return new Map();
+  }
+  const descriptor = executionPlan.descriptor;
+  const occupiedBuffers = new Set<object>();
+  for (const retained of retainedPlans.values()) {
+    assertBoundExecutionPlanV1(retained, descriptor);
+    reserveScenarioExecutionPlanBuffersV1(retained, occupiedBuffers);
+  }
+
+  const next = new Map<string, BoundExecutionPlanV1>();
+  for (const scenarioId of scenarioIds) {
+    if (next.has(scenarioId)) {
+      throw new Error(
+        `simulation worker Scenario appears more than once: ${scenarioId}`,
+      );
+    }
+    const retained = retainedPlans.get(scenarioId);
+    if (retained !== undefined) {
+      next.set(scenarioId, retained);
+      continue;
+    }
+    const candidate = executionPlan.bind();
+    assertBoundExecutionPlanV1(candidate, descriptor);
+    reserveScenarioExecutionPlanBuffersV1(candidate, occupiedBuffers);
+    next.set(scenarioId, candidate);
+  }
+  return next;
+}
+
+function reserveScenarioExecutionPlanBuffersV1(
+  plan: BoundExecutionPlanV1,
+  occupiedBuffers: Set<object>,
+): void {
+  const views: ArrayBufferView[] = [
+    plan.componentKernelBindingOrdinals,
+    plan.hydraulicPathKernelBindingOrdinals,
+    plan.currentContinuousState,
+    plan.candidateContinuousState,
+    plan.currentBooleanState,
+    plan.candidateBooleanState,
+    plan.acceptedStateLogicalScratch,
+    plan.graphStorageStateLogicalIndices,
+    plan.graphUpstreamNodeIndices,
+    plan.graphDownstreamNodeIndices,
+    ...plan.solveGroups.flatMap((group) => [
+      group.activeStateLogicalIndices,
+      group.dependentStateLogicalIndices,
+      group.workspaceF64,
+      group.workspaceInt32,
+    ]),
+  ];
+  for (const view of views) {
+    const buffer = view.buffer as object;
+    if (occupiedBuffers.has(buffer)) {
+      throw new Error(
+        "simulation worker Scenario execution-plan allocations must not alias",
+      );
+    }
+    occupiedBuffers.add(buffer);
+  }
 }
 
 function assertNonRegressingFrameV2(

@@ -893,6 +893,150 @@ describe("Studio simulation worker V2 runtime", () => {
     });
   });
 
+  it("binds and synchronizes one isolated execution plan per seeded Scenario", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const boundPlans: ReturnType<typeof bindExecutionPlanV1>[] = [];
+    const bind = vi.fn(() => {
+      const bound = bindExecutionPlanV1(
+        descriptor,
+        mainWireExecutionPlanKernelCatalogV1(),
+      );
+      boundPlans.push(bound);
+      return bound;
+    });
+    const acceptedClocks = new Map<string, Readonly<{
+      acceptedRevision: number;
+      acceptedTimeSec: number;
+    }>>([
+      ["scenario/baseline", { acceptedRevision: 0, acceptedTimeSec: 0 }],
+      ["scenario/comparison", { acceptedRevision: 4, acceptedTimeSec: 0.4 }],
+    ]);
+    const synchronizeAcceptedState = vi.fn((input: Parameters<
+      RegisteredModelExecutionPlanAdapterV1["synchronizeAcceptedState"]
+    >[0]) => {
+      const clock = acceptedClocks.get(input.scenarioId);
+      if (clock === undefined) throw new Error("unexpected test Scenario");
+      return Object.freeze({
+        schemaId:
+          "circleheart-execution-plan-accepted-state-synchronization-v1" as const,
+        definitionId: generatedExecutionPlanV1.definitionId,
+        runtimeSessionId: input.runtimeSessionId,
+        scenarioId: input.scenarioId,
+        ...clock,
+        synchronizedLogicalSlotCount:
+          generatedExecutionPlanV1.stateLayout.logicalSlotCount,
+        conservationPoolCount:
+          generatedExecutionPlanV1.hydraulicGraph.conservationPools.length,
+        maximumConservationAbsoluteError: 0,
+      });
+    });
+    const harness = multiScenarioRuntimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(
+        bind,
+        synchronizeAcceptedState,
+      ),
+    });
+    const seeded = twoScenarioExperimentV2();
+
+    harness.runtime.enqueue(createStudioSimulationInitializeRequestV2(1, {
+      expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/comparison",
+      scenarioLabel: "Comparison",
+      fixture: seeded.content.scenarios[1]!.capture.fixture,
+      checkpoint: seeded.content.scenarios[1]!.capture.checkpoint,
+      authoringSeed: { experiment: seeded },
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledTimes(2);
+    expect(boundPlans[0]).not.toBe(boundPlans[1]);
+    const initialPlans = new Map(synchronizeAcceptedState.mock.calls.map(
+      ([input]) => [input.scenarioId, input.boundExecutionPlan] as const,
+    ));
+    expect(initialPlans.get("scenario/baseline")).toBe(boundPlans[0]);
+    expect(initialPlans.get("scenario/comparison")).toBe(boundPlans[1]);
+
+    acceptedClocks.set("scenario/comparison", {
+      acceptedRevision: 5,
+      acceptedTimeSec: 0.5,
+    });
+    harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(2, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/comparison",
+      stepCount: 1,
+    }));
+    await harness.runtime.whenIdle();
+    harness.runtime.enqueue(createStudioSimulationSelectScenarioRequestV2(3, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      expectedActiveScenarioId: "scenario/comparison",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 5,
+      expectedAcceptedTimeSec: 0.5,
+    }));
+    await harness.runtime.whenIdle();
+    acceptedClocks.set("scenario/baseline", {
+      acceptedRevision: 1,
+      acceptedTimeSec: 0.1,
+    });
+    harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(4, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 1,
+    }));
+    await harness.runtime.whenIdle();
+
+    for (const [input] of synchronizeAcceptedState.mock.calls) {
+      expect(input.boundExecutionPlan).toBe(initialPlans.get(input.scenarioId));
+    }
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "advanced",
+      frames: [{ scenarioId: "scenario/baseline", acceptedRevision: 1 }],
+    });
+  });
+
+  it("rejects cross-Scenario execution-plan storage aliasing before session creation", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const aliased = bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    );
+    const bind = vi.fn(() => aliased);
+    const harness = multiScenarioRuntimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(bind),
+    });
+    const seeded = twoScenarioExperimentV2();
+
+    harness.runtime.enqueue(createStudioSimulationInitializeRequestV2(1, {
+      expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      scenarioLabel: "Baseline",
+      fixture: seeded.content.scenarios[0]!.capture.fixture,
+      checkpoint: seeded.content.scenarios[0]!.capture.checkpoint,
+      authoringSeed: { experiment: seeded },
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledTimes(2);
+    expect(harness.adapter.createSession).not.toHaveBeenCalled();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "error",
+      fatal: true,
+      message: expect.stringMatching(
+        /Scenario execution-plan allocations must not alias/,
+      ),
+    });
+  });
+
   it("fails before session creation when a shadow plan binder returns aliased storage", async () => {
     const descriptor = validateAndOwnExecutionPlanDescriptorV1(
       generatedExecutionPlanV1,
@@ -2123,6 +2267,91 @@ describe("Studio simulation worker V2 runtime", () => {
 });
 
 describe("Studio simulation worker V2 multi-Scenario authoring", () => {
+  it("retains surviving Scenario plans and binds only newly added branches", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const bind = vi.fn(() => bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    ));
+    const synchronizeAcceptedState = vi.fn((input: Parameters<
+      RegisteredModelExecutionPlanAdapterV1["synchronizeAcceptedState"]
+    >[0]) => Object.freeze({
+      schemaId:
+        "circleheart-execution-plan-accepted-state-synchronization-v1" as const,
+      definitionId: generatedExecutionPlanV1.definitionId,
+      runtimeSessionId: input.runtimeSessionId,
+      scenarioId: input.scenarioId,
+      acceptedRevision: 0,
+      acceptedTimeSec: 0,
+      synchronizedLogicalSlotCount:
+        generatedExecutionPlanV1.stateLayout.logicalSlotCount,
+      conservationPoolCount:
+        generatedExecutionPlanV1.hydraulicGraph.conservationPools.length,
+      maximumConservationAbsoluteError: 0,
+    }));
+    const harness = multiScenarioRuntimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(
+        bind,
+        synchronizeAcceptedState,
+      ),
+    });
+
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+    const baselinePlan = synchronizeAcceptedState.mock.calls[0]![0]
+      .boundExecutionPlan;
+
+    harness.runtime.enqueue(createStudioSimulationDuplicateScenarioRequestV2(2, {
+      runtimeSessionId: "runtime/session-1",
+      sourceScenarioId: "scenario/baseline",
+      scenarioId: "scenario/copy",
+      label: "Copy",
+      expectedActiveScenarioId: "scenario/baseline",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledTimes(2);
+    const baselinePlans = synchronizeAcceptedState.mock.calls
+      .filter(([input]) => input.scenarioId === "scenario/baseline")
+      .map(([input]) => input.boundExecutionPlan);
+    const copyPlans = synchronizeAcceptedState.mock.calls
+      .filter(([input]) => input.scenarioId === "scenario/copy")
+      .map(([input]) => input.boundExecutionPlan);
+    expect(baselinePlans).toEqual([baselinePlan, baselinePlan]);
+    expect(copyPlans).toHaveLength(1);
+    const copyPlan = copyPlans[0]!;
+    expect(copyPlan).not.toBe(baselinePlan);
+
+    harness.runtime.enqueue(createStudioSimulationDeleteScenarioRequestV2(3, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      expectedActiveScenarioId: "scenario/copy",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledTimes(2);
+    const finalCopyPlans = synchronizeAcceptedState.mock.calls
+      .filter(([input]) => input.scenarioId === "scenario/copy")
+      .map(([input]) => input.boundExecutionPlan);
+    expect(finalCopyPlans).toEqual([copyPlan, copyPlan]);
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "scenario-state",
+      state: {
+        activeScenarioId: "scenario/copy",
+        scenarios: [{ scenarioId: "scenario/copy", label: "Copy" }],
+      },
+    });
+  });
+
   it("restores every seeded branch while activating only the requested Scenario", async () => {
     const harness = multiScenarioRuntimeHarnessV2();
     const baseline = experimentV2();
@@ -3920,6 +4149,31 @@ function experimentV2(version = 4): ExperimentV2 {
   };
 }
 
+function twoScenarioExperimentV2(): ExperimentV2 {
+  const baseline = experimentV2();
+  return {
+    ...baseline,
+    content: {
+      ...baseline.content,
+      scenarios: [
+        baseline.content.scenarios[0]!,
+        {
+          scenarioId: "scenario/comparison",
+          label: "Comparison",
+          capture: {
+            fixture: { value: 2 },
+            checkpoint: {
+              acceptedRevision: 4,
+              acceptedTimeSec: 0.4,
+              payload: { state: [4] },
+            },
+          },
+        },
+      ],
+    },
+  };
+}
+
 function replaceCheckpointV2(
   content: ExperimentContentV2,
   acceptedRevision: number,
@@ -4179,7 +4433,9 @@ function runtimeHarnessV2(overrides: Readonly<{
   return { adapter, exactRuntime, loadAdapter, port, runtime };
 }
 
-function multiScenarioRuntimeHarnessV2() {
+function multiScenarioRuntimeHarnessV2(overrides: Readonly<{
+  executionPlan?: RegisteredModelExecutionPlanAdapterV1;
+}> = {}) {
   type ScenarioState = {
     inputEpoch: number;
     acceptedRevision: number;
@@ -4245,6 +4501,9 @@ function multiScenarioRuntimeHarnessV2() {
       state.acceptedTimeSec = 0;
       return toFrame(runtimeSessionId, scenarioId);
     }),
+    ...(overrides.executionPlan === undefined
+      ? {}
+      : { executionPlan: overrides.executionPlan }),
   });
 }
 

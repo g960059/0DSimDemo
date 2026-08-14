@@ -92,15 +92,18 @@ At Worker initialization, the binder:
 - rejects a malformed or aliased result before numerical session creation.
 
 These bindings are currently symbolic owner bindings rather than generic
-executable function pointers. The bound plan is retained Worker-locally but
-does not advance the numerical model. That candidate therefore remained
-behavior-neutral: the existing typed-authority session is still the sole
-execution and checkpoint authority.
+executable function pointers. One bound plan is retained Worker-locally for
+each Scenario; no state or solver scratch is shared between Scenario branches.
+Scenario rebuilds retain surviving plans, allocate only newly introduced
+branches, and reject cross-Scenario backing-buffer aliasing before exact
+session creation. The plans do not yet advance the numerical model. That
+candidate therefore remained behavior-neutral: the existing typed-authority
+session is still the sole execution and checkpoint authority.
 
 The same Standard-39 candidate adds sampled accepted-boundary synchronization.
 After exact session creation and after each presentation batch or authored control, the
-model copies its canonical 100-slot typed hemodynamic view into a Worker-local
-logical page. The neutral runtime validates every numeric and boolean value,
+model copies its canonical 100-slot typed hemodynamic view into that Scenario's
+Worker-local logical page. The neutral runtime validates every numeric and boolean value,
 checks descriptor-owned conservation pools, and only then atomically updates
 the plan's split current-state arrays. The Worker compares the returned exact
 accepted clock with the terminal frame before publishing it. This happens once
@@ -132,11 +135,12 @@ Opt-in Workbench performance reports now distinguish:
 - total Worker initialization and main-thread round trip.
 
 `executionPlanBindMs` remains `null` for historical artifacts and is a measured
-number for plan-capable exact releases. It includes bounded descriptor validation, exact
-binding, and typed allocation. This prevents a placeholder zero from being
-mistaken for evidence. Before direct execution cutover, physical iPhone
-measurements must show that binding is bounded and that time-to-first-frame has
-not materially regressed.
+number for plan-capable exact releases. It includes descriptor validation,
+exact binding, and typed allocation for every initially restored Scenario.
+This prevents a placeholder zero from being mistaken for evidence and makes
+cold-start cost explicit as a bounded function of the admitted Scenario count.
+Before direct execution cutover, physical iPhone measurements must show that
+binding is bounded and that time-to-first-frame has not materially regressed.
 
 ## Cutover sequence
 

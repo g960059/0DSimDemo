@@ -36,13 +36,15 @@ circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-3
 ```
 
 Standard-39 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
-exact artifact and binds a nonexecuting, Worker-local typed plan once during
-initialization. The production artifact contains the generated descriptor and
-binder, not the compiler or `ModelDefinitionV1`. At sampled presentation and
-control boundaries, it copies the existing authority's 100-slot hemodynamic
-view into the plan, checks finite/boolean storage, blood-volume conservation,
-and exact frame clocks, then discards no numerical history. The bound plan is
-shadow infrastructure only: Standard-32's typed accepted-state session remains the
+exact artifact and binds one nonexecuting, Worker-local typed plan per Scenario
+during initialization. Surviving Scenario plans are retained across branch
+rebuilds, newly added branches receive fresh nonaliasing storage, and no solver
+scratch is shared between Scenarios. The production artifact contains the
+generated descriptor and binder, not the compiler or `ModelDefinitionV1`. At
+sampled presentation and control boundaries, it copies the existing authority's
+100-slot hemodynamic view into the owning Scenario plan, checks finite/boolean
+storage, blood-volume conservation, and exact frame clocks, then discards no
+numerical history. The bound plans are shadow infrastructure only: Standard-32's typed accepted-state session remains the
 sole numerical and checkpoint authority, so equations, accepted results,
 controls, topology, and checkpoint meaning are unchanged. Historical exact
 artifacts without the execution-plan capability retain their original loader
