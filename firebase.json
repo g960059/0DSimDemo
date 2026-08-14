@@ -100,9 +100,16 @@
         ]
       }
     ],
-    "rewrites": [
+    "redirects": [
       {
         "source": "/",
+        "destination": "/_locale",
+        "type": 302
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "/_locale",
         "run": {
           "serviceId": "circleheart-public-content",
           "region": "asia-northeast1",

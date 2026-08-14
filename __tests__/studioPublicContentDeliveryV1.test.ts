@@ -67,6 +67,11 @@ describe("Studio public content delivery V1", () => {
     )) as Readonly<{
       hosting: Readonly<{
         headers: readonly Readonly<{ source: string }>[];
+        redirects: readonly Readonly<{
+          source: string;
+          destination: string;
+          type: number;
+        }>[];
         rewrites: readonly Readonly<{
           source: string;
           destination?: string;
@@ -74,17 +79,22 @@ describe("Studio public content delivery V1", () => {
         }>[];
       }>;
     }>;
-    const rootRewriteIndex = firebase.hosting.rewrites.findIndex(
-      ({ source }) => source === "/",
+    const negotiationRewriteIndex = firebase.hosting.rewrites.findIndex(
+      ({ source }) => source === "/_locale",
     );
     const catchAllIndex = firebase.hosting.rewrites.findIndex(
       ({ source }) => source === "**",
     );
 
-    expect(rootRewriteIndex).toBeGreaterThanOrEqual(0);
-    expect(rootRewriteIndex).toBeLessThan(catchAllIndex);
-    expect(firebase.hosting.rewrites[rootRewriteIndex]).toMatchObject({
+    expect(firebase.hosting.redirects).toContainEqual({
       source: "/",
+      destination: "/_locale",
+      type: 302,
+    });
+    expect(negotiationRewriteIndex).toBeGreaterThanOrEqual(0);
+    expect(negotiationRewriteIndex).toBeLessThan(catchAllIndex);
+    expect(firebase.hosting.rewrites[negotiationRewriteIndex]).toMatchObject({
+      source: "/_locale",
       run: {
         serviceId: "circleheart-public-content",
         region: "asia-northeast1",
@@ -115,7 +125,7 @@ describe("Studio public content delivery V1", () => {
       }),
     });
     const savedPreference = await handleStudioPublicContentRequestV1(
-      requestV1("/?utm_source=shared", {
+      requestV1("/_locale?utm_source=shared", {
         Cookie: "session=opaque; circleheart.locale=en",
         "Accept-Language": "ja-JP,ja;q=0.9",
       }),
@@ -133,7 +143,7 @@ describe("Studio public content delivery V1", () => {
     );
 
     const weightedLanguage = await handleStudioPublicContentRequestV1(
-      requestV1("/", {
+      requestV1("/_locale", {
         Cookie: "circleheart.locale=unsupported",
         "Accept-Language": "fr-FR, en-US;q=0.7, ja-JP;q=0.9",
       }),
@@ -144,7 +154,7 @@ describe("Studio public content delivery V1", () => {
     );
 
     const englishBrowser = await handleStudioPublicContentRequestV1(
-      requestV1("/", { "Accept-Language": "en-GB,en;q=0.8" }),
+      requestV1("/_locale", { "Accept-Language": "en-GB,en;q=0.8" }),
       rootDependencies,
     );
     expect(englishBrowser.headers.get("location")).toBe(
@@ -152,7 +162,7 @@ describe("Studio public content delivery V1", () => {
     );
 
     const fallback = await handleStudioPublicContentRequestV1(
-      requestV1("/", { "Accept-Language": "fr-FR,*;q=0.8" }),
+      requestV1("/_locale", { "Accept-Language": "fr-FR,*;q=0.8" }),
       rootDependencies,
     );
     expect(fallback.headers.get("location")).toBe(

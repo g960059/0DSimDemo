@@ -4,6 +4,7 @@ export const DEFAULT_LOCALE: Locale = "ja";
 export const FALLBACK_LOCALE: Locale = "en";
 export const LOCALE_STORAGE_KEY = "circleheart.locale";
 export const LOCALE_COOKIE_KEY = LOCALE_STORAGE_KEY;
+export const LOCALE_NEGOTIATION_PATH = "/_locale";
 const LOCALE_COOKIE_MAX_AGE_SECONDS = 31_536_000;
 
 export function isLocale(value: unknown): value is Locale {

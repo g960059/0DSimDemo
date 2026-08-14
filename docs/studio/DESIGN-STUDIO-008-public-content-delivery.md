@@ -36,13 +36,15 @@ necessarily uses anonymous chrome; account-specific controls may replace it
 only after the browser resolves an authenticated session.
 
 The bare origin is a discovery entry point rather than a third Home variant.
-It redirects with `302` to `/{locale}` using the saved locale cookie first,
-weighted `Accept-Language` second and Japanese as the final fallback. The
-redirect preserves the query string, reads no catalog data and is
-`private, no-store` with `Vary: Cookie, Accept-Language`. Localized pages persist
-the same preference to local storage and a first-party cookie. Their
-`hreflang="x-default"` points to `/`, while `ja` and `en` alternates point to the
-two stable localized URLs.
+Because Firebase Hosting serves a root `index.html` before evaluating rewrites,
+an exact Hosting `302` first sends `/` to the non-content `/_locale` endpoint.
+The render service then redirects to `/{locale}` using the saved locale cookie
+first, weighted `Accept-Language` second and Japanese as the final fallback.
+Both redirects preserve the query string. The dynamic redirect reads no catalog
+data and is `private, no-store` with `Vary: Cookie, Accept-Language`. Localized
+pages persist the same preference to local storage and a first-party cookie.
+Their `hreflang="x-default"` points to `/`, while `ja` and `en` alternates point
+to the two stable localized URLs.
 
 ## Why this boundary
 
@@ -61,9 +63,12 @@ tier cannot expose drafts.
 
 Firebase Hosting routes the bare origin, localized Home, public one-segment
 Article paths, public API, sitemap and robots to
-`circleheart-public-content` in `asia-northeast1`. The bare-origin redirect is
-handled by the render service so it follows the same locale contract as the
-client without serving an empty SPA shell.
+`circleheart-public-content` in `asia-northeast1`. Hosting first moves the bare
+origin to the render service's negotiation endpoint, which follows the same
+locale contract as the client without serving an empty SPA shell. The fixed
+root redirect exists because Hosting gives exact static files precedence over
+rewrites; `/_locale` has no static counterpart and therefore reaches the render
+service.
 `/{locale}/articles/{articleId}/edit` and every other application path continue
 to the SPA fallback. Authored draft previews use
 `/{locale}/articles/{articleId}/preview`, are explicitly routed to the SPA, and

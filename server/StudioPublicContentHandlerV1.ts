@@ -14,6 +14,7 @@ import {
 } from "@/studio/application/publication/StudioPublicHomeRendererV1";
 import {
   DEFAULT_LOCALE,
+  LOCALE_NEGOTIATION_PATH,
   localeFromAcceptLanguage,
   localeFromCookieHeader,
 } from "@/localeRouting";
@@ -68,7 +69,7 @@ export async function handleStudioPublicContentRequestV1(
       request.method,
     );
   }
-  if (url.pathname === "/") {
+  if (url.pathname === "/" || url.pathname === LOCALE_NEGOTIATION_PATH) {
     const locale = localeFromCookieHeader(request.headers.get("cookie"))
       ?? localeFromAcceptLanguage(request.headers.get("accept-language"))
       ?? DEFAULT_LOCALE;
