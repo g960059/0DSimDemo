@@ -7,6 +7,9 @@ import {
   renderStudioPublishedArticleV1,
 } from "@/studio/application/publication/StudioPublicArticleRendererV1";
 import {
+  formatStudioPublicArticleDateV1,
+} from "@/studio/application/publication/StudioPublicArticlePresentationV1";
+import {
   readStudioPublicArticleBootstrapV1,
   renderStudioPublicArticleBootstrapV1,
   STUDIO_PUBLIC_ARTICLE_BOOTSTRAP_V1_ELEMENT_ID,
@@ -242,6 +245,7 @@ describe("Studio public content delivery V1", () => {
     expect(html).toContain('hreflang="ja"');
     expect(html).toContain('hreflang="en"');
     expect(html).toContain('<div id="root" hidden></div>');
+    expect(html.indexOf("</main>")).toBeLessThan(html.indexOf("<footer"));
 
     const etag = response.headers.get("etag") ?? "";
     const cached = await handleStudioPublicContentRequestV1(
@@ -264,6 +268,17 @@ describe("Studio public content delivery V1", () => {
       dependenciesV1(),
     );
     expect(anyRepresentation.status).toBe(304);
+  });
+
+  it("keeps public dates stable across server and browser time zones", () => {
+    expect(formatStudioPublicArticleDateV1(
+      "2026-08-13T23:30:00.000Z",
+      "ja",
+    )).toBe("2026/08/13");
+    expect(formatStudioPublicArticleDateV1(
+      "2026-08-13T23:30:00.000Z",
+      "en",
+    )).toBe("Aug 13, 2026");
   });
 
   it("rejects stale-locale or executable Home bootstrap content", () => {

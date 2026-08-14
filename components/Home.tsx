@@ -19,6 +19,9 @@ import {
   completePublicStaticContentHandoffV1,
 } from "@/components/site/PublicStaticContentHandoffV1";
 import {
+  formatStudioPublicArticleDateV1,
+} from "@/studio/application/publication/StudioPublicArticlePresentationV1";
+import {
   authoringCliDocsHref,
   articleReaderHref,
   articlesHref,
@@ -33,13 +36,23 @@ const EMPTY_PUBLIC_CATALOG_V4: PublicCatalogV3 = Object.freeze({
   articles: Object.freeze([]),
   experiments: Object.freeze([]),
 });
+type HomeCatalogStateV4 = Readonly<{
+  locale: Locale;
+  catalog: PublicCatalogV3;
+}>;
+
+export function homeCatalogForLocaleV4(
+  state: HomeCatalogStateV4 | null,
+  locale: Locale,
+): PublicCatalogV3 | null {
+  return state?.locale === locale ? state.catalog : null;
+}
 
 /** The browser fallback stamps epoch zero; only real publication dates show. */
 function homePublishedDateV4(isoDate: string, locale: Locale): string | null {
   const timestamp = Date.parse(isoDate);
   if (!Number.isFinite(timestamp) || timestamp <= 0) return null;
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" })
-    .format(timestamp);
+  return formatStudioPublicArticleDateV1(isoDate, locale);
 }
 
 export const Home = () => {
@@ -50,22 +63,30 @@ export const Home = () => {
     () => readPublicHomeCatalogBootstrapV3(locale),
     [locale],
   );
-  const [catalog, setCatalog] = React.useState<PublicCatalogV3 | null>(
-    bootstrapCatalog,
+  const [catalogState, setCatalogState] = React.useState<HomeCatalogStateV4 | null>(
+    bootstrapCatalog === null
+      ? null
+      : Object.freeze({ locale, catalog: bootstrapCatalog }),
   );
+  const catalog = homeCatalogForLocaleV4(catalogState, locale);
 
   React.useEffect(() => {
     if (bootstrapCatalog !== null) {
-      setCatalog(bootstrapCatalog);
+      setCatalogState(Object.freeze({ locale, catalog: bootstrapCatalog }));
       return;
     }
     let current = true;
-    setCatalog(null);
+    setCatalogState(null);
     void readPublicHomeCatalogAsyncV3(locale).then((next) => {
-      if (current) setCatalog(next);
+      if (current) setCatalogState(Object.freeze({ locale, catalog: next }));
     }).catch(() => {
       // The public landing page remains usable when the catalog is offline.
-      if (current) setCatalog(EMPTY_PUBLIC_CATALOG_V4);
+      if (current) {
+        setCatalogState(Object.freeze({
+          locale,
+          catalog: EMPTY_PUBLIC_CATALOG_V4,
+        }));
+      }
     });
     return () => {
       current = false;

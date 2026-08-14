@@ -8,6 +8,9 @@ import {
 import {
   injectStudioPublicDocumentV1,
 } from "@/studio/application/publication/StudioPublicArticleRendererV1";
+import {
+  formatStudioPublicArticleDateV1,
+} from "@/studio/application/publication/StudioPublicArticlePresentationV1";
 
 const SITE_NAME_V1 = "CircleHeart";
 const HOME_VISIBLE_ITEM_LIMIT_V1 = 6;
@@ -61,7 +64,8 @@ function publicHomeBodyHtmlV1(
   const articles = bootstrap.articles.slice(0, HOME_VISIBLE_ITEM_LIMIT_V1);
   const experiments = bootstrap.experiments.slice(0, HOME_VISIBLE_ITEM_LIMIT_V1);
   return [
-    `<main class="public-static-shell public-static-home" data-public-static-scroll-host="true">`,
+    `<div class="public-static-shell public-static-home" data-public-static-scroll-host="true">`,
+    `<main class="public-static-home-main">`,
     `<div class="public-static-home-inner">`,
     `<section class="public-static-home-hero">`,
     `<h1>${escapeHtmlTextV1(copy.headline)}</h1>`,
@@ -75,7 +79,10 @@ function publicHomeBodyHtmlV1(
             message: copy.noArticles,
           })
         : `<ul class="public-static-home-grid">${articles.map((article) => {
-            const date = formatDateV1(article.publishedAt, locale);
+            const date = formatStudioPublicArticleDateV1(
+              article.publishedAt,
+              locale,
+            );
             const excerpt = article.excerpt === null
               ? copy.articleFallback
               : article.excerpt;
@@ -97,7 +104,10 @@ function publicHomeBodyHtmlV1(
             message: copy.noSimulations,
           })
         : `<ul class="public-static-home-grid">${experiments.map((experiment) => {
-            const date = formatDateV1(experiment.publishedAt, locale);
+            const date = formatStudioPublicArticleDateV1(
+              experiment.publishedAt,
+              locale,
+            );
             const meta = simulationMetaV1(locale, experiment.scenarioCount, date);
             return `<li><a class="public-static-home-card public-static-home-card-compact" href="/${locale}/snapshots/${encodeURIComponent(experiment.snapshotId)}"><strong>${escapeHtmlTextV1(experiment.title)}</strong><span>${escapeHtmlTextV1(meta)}</span></a></li>`;
           }).join("")}</ul>`,
@@ -109,8 +119,9 @@ function publicHomeBodyHtmlV1(
       viewAll: copy.viewAll,
     }),
     `</div>`,
-    `<footer class="public-static-home-footer"><div class="public-static-home-footer-inner"><div><strong>${SITE_NAME_V1}</strong><span>${escapeHtmlTextV1(copy.headline)}</span></div><nav aria-label="${escapeHtmlAttributeV1(copy.footerNavigation)}"><a href="/${locale}/experiments">${escapeHtmlTextV1(copy.sectionSimulations)}</a><a href="/${locale}/articles">${escapeHtmlTextV1(copy.sectionArticles)}</a><a href="/${locale}/docs/authoring-cli">AI Authoring CLI</a></nav></div></footer>`,
     `</main>`,
+    `<footer class="public-static-home-footer"><div class="public-static-home-footer-inner"><div><strong>${SITE_NAME_V1}</strong><span>${escapeHtmlTextV1(copy.headline)}</span></div><nav aria-label="${escapeHtmlAttributeV1(copy.footerNavigation)}"><a href="/${locale}/experiments">${escapeHtmlTextV1(copy.sectionSimulations)}</a><a href="/${locale}/articles">${escapeHtmlTextV1(copy.sectionArticles)}</a><a href="/${locale}/docs/authoring-cli">AI Authoring CLI</a></nav></div></footer>`,
+    `</div>`,
   ].join("");
 }
 
@@ -198,11 +209,6 @@ function canonicalHomeUrlV1(
 
 function homeCopyV1(locale: "ja" | "en") {
   return locale === "ja" ? jaTranslation.home : enTranslation.home;
-}
-
-function formatDateV1(value: string, locale: "ja" | "en"): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" })
-    .format(new Date(value));
 }
 
 function simulationMetaV1(
