@@ -16,6 +16,7 @@ import {
   prepareBoundExecutionPlanSolveGroupV1,
   resolveBoundExecutionPlanUpdateScheduleV1,
   validateAndOwnExecutionPlanDescriptorV1,
+  validateAndOwnExecutionPlanKernelCatalogV1,
   type BoundExecutionPlanV1,
   type BoundExecutionPlanUpdateGroupDispatchV1,
   type BoundExecutionPlanUpdateScheduleV1,
@@ -144,29 +145,30 @@ const MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1 = Object.freeze([
     bind: bindMainWireFiveWallCoupledExecutionPlanRuntimeV1,
   }),
 ]);
-const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 = Object.freeze({
-  componentKernelIds: Object.freeze([
-    "accepted-transaction-kernel-v1",
-    "noncoronary-backward-euler-kernel-v1",
-    "coronary-backward-euler-kernel-v2",
-    "five-wall-land-triseg-kernel-v1",
-  ]),
-  hydraulicPathKernelIds: Object.freeze([
-    "noncoronary-flow/resistive",
-    "noncoronary-flow/valve",
-    "noncoronary-flow/dynamic",
-    "coronary-flow/large-arterial",
-    "coronary-flow/micro-proximal-arteriolar",
-    "coronary-flow/micro-intermediate-capillary",
-    "coronary-flow/micro-distal-venular",
-    "coronary-flow/large-venous-outlet",
-  ]),
-  solveSystemKernelIds: Object.freeze(
-    MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1.map(
-      ({ systemKernelId }) => systemKernelId,
+const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 =
+  validateAndOwnExecutionPlanKernelCatalogV1(Object.freeze({
+    componentKernelIds: Object.freeze([
+      "accepted-transaction-kernel-v1",
+      "noncoronary-backward-euler-kernel-v1",
+      "coronary-backward-euler-kernel-v2",
+      "five-wall-land-triseg-kernel-v1",
+    ]),
+    hydraulicPathKernelIds: Object.freeze([
+      "noncoronary-flow/resistive",
+      "noncoronary-flow/valve",
+      "noncoronary-flow/dynamic",
+      "coronary-flow/large-arterial",
+      "coronary-flow/micro-proximal-arteriolar",
+      "coronary-flow/micro-intermediate-capillary",
+      "coronary-flow/micro-distal-venular",
+      "coronary-flow/large-venous-outlet",
+    ]),
+    solveSystemKernelIds: Object.freeze(
+      MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1.map(
+        ({ systemKernelId }) => systemKernelId,
+      ),
     ),
-  ),
-});
+  }));
 
 export function bindMainWireIntegratedStudioExecutionPlanV1():
 BoundExecutionPlanV1 {

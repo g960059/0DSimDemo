@@ -30145,6 +30145,8 @@ const EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY = "runtime/execution-
 const EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY = "runtime/execution-plan-newton-workspace-v1";
 const BOUND_EXECUTION_PLAN_V1_SCHEMA_ID = "circleheart-bound-execution-plan-v1";
 const BOUND_EXECUTION_PLAN_METADATA_V1 = /* @__PURE__ */ new WeakMap();
+const OWNED_EXECUTION_PLAN_DESCRIPTORS_V1 = /* @__PURE__ */ new WeakSet();
+const OWNED_EXECUTION_PLAN_KERNEL_CATALOGS_V1 = /* @__PURE__ */ new WeakSet();
 const BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1 = /* @__PURE__ */ new WeakSet();
 const BOUND_EXECUTION_PLAN_UPDATE_SCHEDULES_V1 = /* @__PURE__ */ new WeakSet();
 const PORTABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
@@ -30166,6 +30168,9 @@ const NEWTON_INT32_WORKSPACE_ROLES_V1 = Object.freeze([
   "pivots"
 ]);
 function validateAndOwnExecutionPlanDescriptorV1(value) {
+  if ((typeof value === "object" || typeof value === "function") && value !== null && OWNED_EXECUTION_PLAN_DESCRIPTORS_V1.has(value)) {
+    return value;
+  }
   const plan = ownDataV1(value, "$");
   exactKeysV1(plan, [
     "definitionId",
@@ -30554,11 +30559,13 @@ function validateAndOwnExecutionPlanDescriptorV1(value) {
       failV1(`${path}.solveGroupIndex`, "solve-group binding is inconsistent");
     }
   });
-  return plan;
+  const owned = plan;
+  OWNED_EXECUTION_PLAN_DESCRIPTORS_V1.add(owned);
+  return owned;
 }
 function bindExecutionPlanV1(descriptorValue, catalogValue) {
   const descriptor = validateAndOwnExecutionPlanDescriptorV1(descriptorValue);
-  const catalog = validateAndOwnKernelCatalogV1(catalogValue);
+  const catalog = validateAndOwnExecutionPlanKernelCatalogV1(catalogValue);
   const requiredComponents = descriptor.stateLayout.blocks.map(({ kernelId }) => kernelId);
   const requiredPaths = descriptor.hydraulicGraph.pathKernelIds;
   const requiredSolveSystems = descriptor.solveGroups.map(({ systemKernelId }) => systemKernelId);
@@ -30651,6 +30658,7 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
   });
   assertBoundExecutionPlanV1(bound, descriptor);
   BOUND_EXECUTION_PLAN_METADATA_V1.set(bound, Object.freeze({
+    descriptor,
     stateDispatch: Object.freeze({
       definitionId: descriptor.definitionId,
       logicalSlotCount: descriptor.stateLayout.logicalSlotCount,
@@ -31051,6 +31059,9 @@ function assertCanonicalNewtonWorkspaceViewsV1(workspace, boundGroup, descriptor
   }
 }
 function assertBoundExecutionPlanV1(value, descriptorValue) {
+  if ((typeof value === "object" || typeof value === "function") && value !== null && BOUND_EXECUTION_PLAN_METADATA_V1.get(value)?.descriptor === descriptorValue) {
+    return;
+  }
   const descriptor = validateAndOwnExecutionPlanDescriptorV1(descriptorValue);
   const bound = recordV1(value, "$.boundExecutionPlan");
   exactKeysV1(bound, [
@@ -31070,7 +31081,9 @@ function assertBoundExecutionPlanV1(value, descriptorValue) {
   if (bound.schemaId !== BOUND_EXECUTION_PLAN_V1_SCHEMA_ID || bound.definitionId !== descriptor.definitionId || bound.policyId !== descriptor.policyId) {
     failV1("$.boundExecutionPlan", "descriptor identity mismatch");
   }
-  const catalog = validateAndOwnKernelCatalogV1(bound.bindingCatalog);
+  const catalog = validateAndOwnExecutionPlanKernelCatalogV1(
+    bound.bindingCatalog
+  );
   const componentOrdinals = int32ViewV1(
     bound.componentKernelBindingOrdinals,
     descriptor.stateLayout.blocks.length,
@@ -31387,7 +31400,10 @@ function validateWorkspaceSegmentsV1(raw, expectedRoles, expectedLengths, declar
     failV1(path, "workspace segments do not cover the declared storage");
   }
 }
-function validateAndOwnKernelCatalogV1(value) {
+function validateAndOwnExecutionPlanKernelCatalogV1(value) {
+  if ((typeof value === "object" || typeof value === "function") && value !== null && OWNED_EXECUTION_PLAN_KERNEL_CATALOGS_V1.has(value)) {
+    return value;
+  }
   const owned = ownDataV1(value, "$.bindingCatalog");
   const record = recordV1(owned, "$.bindingCatalog");
   exactKeysV1(record, [
@@ -31410,11 +31426,13 @@ function validateAndOwnKernelCatalogV1(value) {
   uniqueV1(componentKernelIds, "$.bindingCatalog.componentKernelIds");
   uniqueV1(hydraulicPathKernelIds, "$.bindingCatalog.hydraulicPathKernelIds");
   uniqueV1(solveSystemKernelIds, "$.bindingCatalog.solveSystemKernelIds");
-  return Object.freeze({
+  const catalog = Object.freeze({
     componentKernelIds: Object.freeze(componentKernelIds),
     hydraulicPathKernelIds: Object.freeze(hydraulicPathKernelIds),
     solveSystemKernelIds: Object.freeze(solveSystemKernelIds)
   });
+  OWNED_EXECUTION_PLAN_KERNEL_CATALOGS_V1.add(catalog);
+  return catalog;
 }
 function assertExactBindingSetV1(required, provided, label) {
   const requiredSet = new Set(required);
@@ -47672,7 +47690,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-56";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-57";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";
@@ -47701,7 +47719,7 @@ const MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1 = Object.freeze([
     bind: bindMainWireFiveWallCoupledExecutionPlanRuntimeV1
   })
 ]);
-const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 = Object.freeze({
+const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 = validateAndOwnExecutionPlanKernelCatalogV1(Object.freeze({
   componentKernelIds: Object.freeze([
     "accepted-transaction-kernel-v1",
     "noncoronary-backward-euler-kernel-v1",
@@ -47723,7 +47741,7 @@ const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 = Object.freeze({
       ({ systemKernelId }) => systemKernelId
     )
   )
-});
+}));
 function bindMainWireIntegratedStudioExecutionPlanV1() {
   return bindExecutionPlanV1(
     MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,

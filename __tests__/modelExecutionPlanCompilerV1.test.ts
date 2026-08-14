@@ -22,6 +22,7 @@ import {
   resolveBoundExecutionPlanSolveDispatchV1,
   resolveBoundExecutionPlanUpdateScheduleV1,
   validateAndOwnExecutionPlanDescriptorV1,
+  validateAndOwnExecutionPlanKernelCatalogV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   compileExecutionPlanV1,
@@ -536,6 +537,37 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
   it("keeps the checked-in descriptor byte-semantically equal to compilation", () => {
     expect(validateAndOwnExecutionPlanDescriptorV1(generatedExecutionPlan))
       .toEqual(compileMainWire());
+  });
+
+  it("reuses only privately owned immutable descriptor and kernel data", () => {
+    const sourceDescriptor = structuredClone(compileMainWire());
+    const ownedDescriptor = validateAndOwnExecutionPlanDescriptorV1(
+      sourceDescriptor,
+    );
+    expect(ownedDescriptor).not.toBe(sourceDescriptor);
+    expect(validateAndOwnExecutionPlanDescriptorV1(ownedDescriptor))
+      .toBe(ownedDescriptor);
+
+    const sourceCatalog = mainWireKernelCatalog();
+    const ownedCatalog = validateAndOwnExecutionPlanKernelCatalogV1(
+      sourceCatalog,
+    );
+    expect(ownedCatalog).not.toBe(sourceCatalog);
+    expect(validateAndOwnExecutionPlanKernelCatalogV1(ownedCatalog))
+      .toBe(ownedCatalog);
+
+    const bound = bindExecutionPlanV1(ownedDescriptor, ownedCatalog);
+    expect(() => assertBoundExecutionPlanV1(bound, ownedDescriptor))
+      .not.toThrow();
+    expect(() => assertBoundExecutionPlanV1({ ...bound }, ownedDescriptor))
+      .not.toThrow();
+
+    const changedDescriptor = {
+      ...ownedDescriptor,
+      definitionId: `${ownedDescriptor.definitionId}.other`,
+    };
+    expect(() => assertBoundExecutionPlanV1(bound, changedDescriptor))
+      .toThrow(/descriptor identity mismatch/);
   });
 
   it("binds exact kernel IDs and allocates one nonaliasing Worker plan", () => {

@@ -168,6 +168,7 @@ type BoundExecutionPlanSolveGroupMetadataV1 = Readonly<{
 }>;
 
 type BoundExecutionPlanMetadataV1 = Readonly<{
+  descriptor: ExecutionPlanDescriptorV1;
   stateDispatch: BoundExecutionPlanStateDispatchV1;
   hydraulicDispatch: BoundExecutionPlanHydraulicDispatchV1;
   updateSchedule: BoundExecutionPlanUpdateScheduleV1;
@@ -178,6 +179,8 @@ const BOUND_EXECUTION_PLAN_METADATA_V1 = new WeakMap<
   object,
   BoundExecutionPlanMetadataV1
 >();
+const OWNED_EXECUTION_PLAN_DESCRIPTORS_V1 = new WeakSet<object>();
+const OWNED_EXECUTION_PLAN_KERNEL_CATALOGS_V1 = new WeakSet<object>();
 const BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1 = new WeakSet<object>();
 const BOUND_EXECUTION_PLAN_UPDATE_SCHEDULES_V1 = new WeakSet<object>();
 
@@ -203,6 +206,13 @@ const NEWTON_INT32_WORKSPACE_ROLES_V1 = Object.freeze([
 export function validateAndOwnExecutionPlanDescriptorV1(
   value: unknown,
 ): ExecutionPlanDescriptorV1 {
+  if (
+    (typeof value === "object" || typeof value === "function")
+    && value !== null
+    && OWNED_EXECUTION_PLAN_DESCRIPTORS_V1.has(value)
+  ) {
+    return value as ExecutionPlanDescriptorV1;
+  }
   const plan = ownDataV1(value, "$") as Record<string, unknown>;
   exactKeysV1(plan, [
     "definitionId",
@@ -636,7 +646,9 @@ export function validateAndOwnExecutionPlanDescriptorV1(
   // These arrays were read above to ensure the clone is internally complete.
   void componentKernelIds;
   void pathKernelIds;
-  return plan as unknown as ExecutionPlanDescriptorV1;
+  const owned = plan as unknown as ExecutionPlanDescriptorV1;
+  OWNED_EXECUTION_PLAN_DESCRIPTORS_V1.add(owned);
+  return owned;
 }
 
 export function bindExecutionPlanV1(
@@ -644,7 +656,7 @@ export function bindExecutionPlanV1(
   catalogValue: unknown,
 ): BoundExecutionPlanV1 {
   const descriptor = validateAndOwnExecutionPlanDescriptorV1(descriptorValue);
-  const catalog = validateAndOwnKernelCatalogV1(catalogValue);
+  const catalog = validateAndOwnExecutionPlanKernelCatalogV1(catalogValue);
   const requiredComponents = descriptor.stateLayout.blocks
     .map(({ kernelId }) => kernelId);
   const requiredPaths = descriptor.hydraulicGraph.pathKernelIds;
@@ -742,6 +754,7 @@ export function bindExecutionPlanV1(
   });
   assertBoundExecutionPlanV1(bound, descriptor);
   BOUND_EXECUTION_PLAN_METADATA_V1.set(bound, Object.freeze({
+    descriptor,
     stateDispatch: Object.freeze({
       definitionId: descriptor.definitionId,
       logicalSlotCount: descriptor.stateLayout.logicalSlotCount,
@@ -1328,6 +1341,14 @@ export function assertBoundExecutionPlanV1(
   value: unknown,
   descriptorValue: unknown,
 ): asserts value is BoundExecutionPlanV1 {
+  if (
+    (typeof value === "object" || typeof value === "function")
+    && value !== null
+    && BOUND_EXECUTION_PLAN_METADATA_V1.get(value)?.descriptor
+      === descriptorValue
+  ) {
+    return;
+  }
   const descriptor = validateAndOwnExecutionPlanDescriptorV1(descriptorValue);
   const bound = recordV1(value, "$.boundExecutionPlan");
   exactKeysV1(bound, [
@@ -1351,7 +1372,9 @@ export function assertBoundExecutionPlanV1(
   ) {
     failV1("$.boundExecutionPlan", "descriptor identity mismatch");
   }
-  const catalog = validateAndOwnKernelCatalogV1(bound.bindingCatalog);
+  const catalog = validateAndOwnExecutionPlanKernelCatalogV1(
+    bound.bindingCatalog,
+  );
   const componentOrdinals = int32ViewV1(
     bound.componentKernelBindingOrdinals,
     descriptor.stateLayout.blocks.length,
@@ -1713,9 +1736,16 @@ function validateWorkspaceSegmentsV1<TRole extends string>(
   }
 }
 
-function validateAndOwnKernelCatalogV1(
+export function validateAndOwnExecutionPlanKernelCatalogV1(
   value: unknown,
 ): ExecutionPlanKernelBindingCatalogV1 {
+  if (
+    (typeof value === "object" || typeof value === "function")
+    && value !== null
+    && OWNED_EXECUTION_PLAN_KERNEL_CATALOGS_V1.has(value)
+  ) {
+    return value as ExecutionPlanKernelBindingCatalogV1;
+  }
   const owned = ownDataV1(value, "$.bindingCatalog");
   const record = recordV1(owned, "$.bindingCatalog");
   exactKeysV1(record, [
@@ -1738,11 +1768,13 @@ function validateAndOwnKernelCatalogV1(
   uniqueV1(componentKernelIds, "$.bindingCatalog.componentKernelIds");
   uniqueV1(hydraulicPathKernelIds, "$.bindingCatalog.hydraulicPathKernelIds");
   uniqueV1(solveSystemKernelIds, "$.bindingCatalog.solveSystemKernelIds");
-  return Object.freeze({
+  const catalog = Object.freeze({
     componentKernelIds: Object.freeze(componentKernelIds),
     hydraulicPathKernelIds: Object.freeze(hydraulicPathKernelIds),
     solveSystemKernelIds: Object.freeze(solveSystemKernelIds),
   });
+  OWNED_EXECUTION_PLAN_KERNEL_CATALOGS_V1.add(catalog);
+  return catalog;
 }
 
 function assertExactBindingSetV1(
