@@ -15,8 +15,8 @@ import {
   type MainWireIntegratedModelPresentationAdvanceV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
-  MainWireFlatAuthoritativeReferenceSessionV1,
-} from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
+  MainWireIntegratedTypedAuthoritySessionV1,
+} from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 import {
   createFlatNumericalStateBufferV1,
   createFlatNumericalStateLayoutV1,
@@ -86,7 +86,7 @@ export type MainWireFlatReferenceOracleV1 = Pick<
 
 /**
  * Non-production vertical slice. The default path owns the complete accepted
- * transaction through MainWireFlatAuthoritativeReferenceSessionV1 and writes
+ * transaction through MainWireIntegratedTypedAuthoritySessionV1 and writes
  * integer-tick output pages directly. A flattened object snapshot is produced
  * only on explicit diagnostic request, never once per presentation tick.
  * Test-only injected oracles remain available to falsify failure atomicity.
@@ -121,7 +121,7 @@ export class MainWireFlatReferenceKernelV1 {
     ventricularContractilityScale = 1,
   ): Promise<MainWireFlatReferenceKernelV1> {
     return new MainWireFlatReferenceKernelV1(
-      await MainWireFlatAuthoritativeReferenceSessionV1.create(
+      await MainWireIntegratedTypedAuthoritySessionV1.create(
         inputs,
         ventricularContractilityScale,
       ),
@@ -192,7 +192,7 @@ export class MainWireFlatReferenceKernelV1 {
     let oracleAdvanceMs = 0;
     let outputProjectionMs = 0;
     const authoritativeSession =
-      this.#oracle instanceof MainWireFlatAuthoritativeReferenceSessionV1
+      this.#oracle instanceof MainWireIntegratedTypedAuthoritySessionV1
         ? this.#oracle
         : null;
 
@@ -202,7 +202,7 @@ export class MainWireFlatReferenceKernelV1 {
       let advance:
         | MainWireIntegratedModelPresentationAdvanceV3
         | ReturnType<
-          MainWireFlatAuthoritativeReferenceSessionV1[
+          MainWireIntegratedTypedAuthoritySessionV1[
             "advanceToPresentationTimeWithSelectedOutputProjectionV1"
           ]
         >["advance"];

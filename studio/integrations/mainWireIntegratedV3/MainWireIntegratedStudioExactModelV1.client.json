@@ -2,7 +2,7 @@
   "schemaId": "circleheart-standard-exact-model-client-descriptor-v1",
   "manifest": {
     "schemaId": "circleheart-studio-exact-model-kernel-v3",
-    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-29",
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-30",
     "modelFamilyId": "circleheart.main-wire-integrated-transaction",
     "equations": {
       "transactionId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3",
@@ -12,7 +12,7 @@
       "ventricularContractilityOwner": "land-2017-tref-global-lvfw-sep-rvfw-scale-v1"
     },
     "runtime": {
-      "numericalSessionId": "main-wire-integrated-model-session-v3",
+      "numericalSessionId": "main-wire-integrated-typed-authority-session-v1",
       "presentationDtSec": 0.002,
       "hotPathIntegrityTier": "hot-path-lean",
       "acceptedBoundaryCapture": true,

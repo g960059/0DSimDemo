@@ -55,8 +55,8 @@ import {
   FlatAcceptedStateAuthorityV1,
 } from "@/engine/vnext/FlatAcceptedStateAuthorityV1";
 import {
-  MainWireFlatAuthoritativeReferenceSessionV1,
-} from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
+  MainWireIntegratedTypedAuthoritySessionV1,
+} from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 import {
   MainWireFlatCoupledAcceptedStateV1,
 } from "@/engine/vnext/coupled/MainWireFlatCoupledAcceptedStateV1";
@@ -1013,7 +1013,7 @@ describe("TransactionalTypedStateImageV1", () => {
   });
 });
 
-describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
+describe("MainWireIntegratedTypedAuthoritySessionV1", () => {
   it("promotes a covered typed candidate and rehydrates its mirror lazily", async () => {
     const oracle = await MainWireIntegratedModelSessionV3.create();
     const initial = oracle.currentAcceptedState();
@@ -1638,7 +1638,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
   it("forbids continuation after a post-solver authority failure", async () => {
     let commitCalls = 0;
     let poisoned = false;
-    const session = await MainWireFlatAuthoritativeReferenceSessionV1
+    const session = await MainWireIntegratedTypedAuthoritySessionV1
       .createWithAcceptedStateAuthorityForTestV1(
         (initial) => {
           let current = initial;
@@ -1667,7 +1667,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
   });
 
   it("uses fixed typed-state authority for 1,024 ticks without scientific drift", async () => {
-    const reference = await MainWireFlatAuthoritativeReferenceSessionV1.create();
+    const reference = await MainWireIntegratedTypedAuthoritySessionV1.create();
     const oracle = await MainWireIntegratedModelSessionV3.create();
     const initialReport = reference.authorityReport();
     expect(initialReport).toMatchObject({
@@ -1803,7 +1803,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       .toEqual(reference.currentAcceptedState());
     expect(sawCompletedBeat).toBe(true);
     const completedBeatRestore =
-      await MainWireFlatAuthoritativeReferenceSessionV1.restoreCanonicalBinary(
+      await MainWireIntegratedTypedAuthoritySessionV1.restoreCanonicalBinary(
         await reference.checkpointCanonicalBinary(),
       );
     expect(completedBeatRestore.observe().completedBeatMetrics)
@@ -1814,7 +1814,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const previousTier = hotPathIntegrityTierV1();
     selectHotPathIntegrityTierV1("hot-path-lean");
     try {
-      const reference = await MainWireFlatAuthoritativeReferenceSessionV1.create();
+      const reference = await MainWireIntegratedTypedAuthoritySessionV1.create();
       const oracle = await MainWireIntegratedModelSessionV3.create();
       for (let tick = 1; tick <= 1_024; tick += 1) {
         const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
@@ -1856,7 +1856,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const previousMode = validationStampModeV1();
     selectValidationStampModeV1("validation-stamps-disabled");
     try {
-      const reference = await MainWireFlatAuthoritativeReferenceSessionV1.create();
+      const reference = await MainWireIntegratedTypedAuthoritySessionV1.create();
       const oracle = await MainWireIntegratedModelSessionV3.create();
       const target = mainWireIntegratedModelPresentationTargetTimeSecV3(1);
       const actual = reference.advanceToPresentationTime(target);
@@ -1895,7 +1895,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
   });
 
   it("projects from typed readback without returning accepted state", async () => {
-    const reference = await MainWireFlatAuthoritativeReferenceSessionV1.create();
+    const reference = await MainWireIntegratedTypedAuthoritySessionV1.create();
     const oracle = await MainWireIntegratedModelSessionV3.create();
     const target = mainWireIntegratedModelPresentationTargetTimeSecV3(1);
     const outputIds = MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3;
@@ -1946,7 +1946,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     selectHotPathIntegrityTierV1("hot-path-lean");
     try {
       const reference =
-        await MainWireFlatAuthoritativeReferenceSessionV1.create();
+        await MainWireIntegratedTypedAuthoritySessionV1.create();
       const oracle = await MainWireIntegratedModelSessionV3.create();
       for (let tick = 1; tick <= 600; tick += 1) {
         const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
@@ -2001,7 +2001,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     selectHotPathIntegrityTierV1("hot-path-lean");
     try {
       const reference =
-        await MainWireFlatAuthoritativeReferenceSessionV1.create();
+        await MainWireIntegratedTypedAuthoritySessionV1.create();
       const before = reference.currentAcceptedState();
       const outputId = "hemodynamics.pressure.absolute.LV" as const;
       expect(() => reference
@@ -2026,7 +2026,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     selectHotPathIntegrityTierV1("hot-path-lean");
     try {
       const source =
-        await MainWireFlatAuthoritativeReferenceSessionV1.create();
+        await MainWireIntegratedTypedAuthoritySessionV1.create();
       const oracle = await MainWireIntegratedModelSessionV3.create();
       const checkpointTick = 377;
       const finalTick = 1_600;
@@ -2051,7 +2051,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         );
       }
 
-      const restored = await MainWireFlatAuthoritativeReferenceSessionV1
+      const restored = await MainWireIntegratedTypedAuthoritySessionV1
         .restoreCanonicalBinary(await source.checkpointCanonicalBinary());
       expect(restored.currentAcceptedState())
         .toEqual(source.currentAcceptedState());
@@ -2111,7 +2111,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     selectHotPathIntegrityTierV1("hot-path-lean");
     try {
       const source =
-        await MainWireFlatAuthoritativeReferenceSessionV1.create();
+        await MainWireIntegratedTypedAuthoritySessionV1.create();
       const checkpointTick = 377;
       const finalTick = 544;
       for (let tick = 1; tick <= checkpointTick; tick += 1) {
@@ -2123,7 +2123,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         expect(result.advance.status).toBe("advanced");
       }
 
-      const restored = await MainWireFlatAuthoritativeReferenceSessionV1
+      const restored = await MainWireIntegratedTypedAuthoritySessionV1
         .restoreStandardExactCheckpoint(await source.checkpointStandardExact());
       expect(restored.currentAcceptedState())
         .toEqual(source.currentAcceptedState());
@@ -2163,7 +2163,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
   }, 120_000);
 
   it("restores a tamper-evident binary checkpoint with exact continuation", async () => {
-    const source = await MainWireFlatAuthoritativeReferenceSessionV1.create();
+    const source = await MainWireIntegratedTypedAuthoritySessionV1.create();
     for (let tick = 1; tick <= 377; tick += 1) {
       const result = source.advanceToPresentationTime(
         mainWireIntegratedModelPresentationTargetTimeSecV3(tick),
@@ -2174,7 +2174,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const second = await source.checkpointCanonicalBinary();
     expect(first).toEqual(second);
     const restored =
-      await MainWireFlatAuthoritativeReferenceSessionV1
+      await MainWireIntegratedTypedAuthoritySessionV1
         .restoreCanonicalBinary(first);
     const restoredInitialReport = restored.authorityReport();
     expect(
@@ -2213,7 +2213,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       }),
     );
     await expect(
-      MainWireFlatAuthoritativeReferenceSessionV1.restoreCanonicalBinary(
+      MainWireIntegratedTypedAuthoritySessionV1.restoreCanonicalBinary(
         semanticallyTampered,
       ),
     ).rejects.toThrow(/predictor checkpoint/);
@@ -2221,7 +2221,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const tampered = first.slice();
     tampered[20] ^= 0x80;
     await expect(
-      MainWireFlatAuthoritativeReferenceSessionV1.restoreCanonicalBinary(
+      MainWireIntegratedTypedAuthoritySessionV1.restoreCanonicalBinary(
         tampered,
       ),
     ).rejects.toThrow("SHA-256 mismatch");

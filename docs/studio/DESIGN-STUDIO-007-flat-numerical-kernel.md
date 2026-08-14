@@ -1533,6 +1533,47 @@ Land-internal work is intentionally reusable because the same constitutive
 kernel will remain a per-patch building block when multipatch myocardium is
 introduced.
 
+### Standard typed-authority cutover candidate
+
+The Standard-30 source candidate connects the registered Studio runtime to the
+typed-authority Session and its model-owned selected-output projection. This is
+the first production-shaped cutover of the authority work described above; it
+does not promote the rejected 32-root experiment or any benchmark-only
+mechanics seam. The ordinary live path keeps the established 30-volume
+condensed solve, stages all accepted owners into one inactive typed image, and
+promotes once. Analysis, capture validation, checkpoint encoding, restore, and
+explicit observation are cold boundaries and may rehydrate the canonical
+public object without returning that allocation cost to every live tick.
+
+The Studio host now records presentation origin as an integer tick. A restored
+Snapshot and its uninterrupted source therefore request the same absolute
+sample times instead of accumulating a different IEEE-754 addition history.
+The public Standard checkpoint deliberately omits the cubic predictor because
+it is non-authoritative solver-cache state. Restore starts from the
+model-owned context seed and rebuilds admitted predictor history; a dedicated
+continuation gate requires matching clocks and scientifically equivalent all-
+output trajectories. The private tamper-evident construction checkpoint still
+includes predictor history and retains exact continuation for diagnostics.
+
+On the same host used for the preceding Standard presentation measurements,
+1,536 accepted ticks with six selected outputs measured approximately
+`0.323 ms/tick` in 256-step batches. The Standard-29 object Session measured
+approximately `0.997 ms/tick` under the same lean-tier benchmark, so the
+authority cutover is about `3.1x` faster without the low-yield Land, valve, or
+32-variable experiments that remain isolated on the research branch. This is
+not the physical-device gate. Before activation, the new exact artifact still
+requires WebKit Worker measurement for one and three Scenarios, checkpoint
+restore, control warm start, analysis isolation, and the complete scientific
+corpus.
+
+The boundary is intended to survive future model growth. Accepted state is
+owned by a generated manifest and owner-specific slot bindings rather than a
+handwritten monolithic struct; new oxygen, autonomic, topology, and multipatch
+domains must enter as separately declared owners. Their equations and coupling
+will require new model work and new exact releases, but they do not require a
+return to per-tick public-object authority. No such future physiology is added
+by Standard-30.
+
 ### Phase 3 — strict scalar WASM
 
 Port the proven flat scalar kernel to a strict `f64` WASM implementation if

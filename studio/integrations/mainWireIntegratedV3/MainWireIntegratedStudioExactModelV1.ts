@@ -29,14 +29,14 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
-  MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID,
   MainWireIntegratedModelSessionV3,
   mainWireIntegratedModelPresentationTargetTimeSecV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
-  MainWireFlatAuthoritativeReferenceSessionV1,
+  MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,
+  MainWireIntegratedTypedAuthoritySessionV1,
   type MainWireFlatModelOwnedProjectionAdvanceV1,
-} from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
+} from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 import {
   runMainWireIntegratedModelFormalPressureVolumeProtocolV3,
   runMainWireIntegratedModelResponsiveStarlingProtocolV3,
@@ -153,7 +153,7 @@ MainWireIntegratedStudioStandardFixtureV1 = Object.freeze({
 type RuntimeScenarioV1 = {
   fixture: MainWireIntegratedStudioStandardFixtureV1;
   inputEpoch: number;
-  modelSession: MainWireFlatAuthoritativeReferenceSessionV1;
+  modelSession: MainWireIntegratedTypedAuthoritySessionV1;
   presentationOriginTick: number;
   presentationOrdinal: number;
 };
@@ -239,11 +239,11 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
         ? undefined
         : validateScenarioCheckpointV1(input.checkpoint);
       const modelSession = checkpoint === undefined
-        ? await MainWireFlatAuthoritativeReferenceSessionV1.create(
+        ? await MainWireIntegratedTypedAuthoritySessionV1.create(
             fixture.hemodynamicResearchInputs,
             fixture.ventricularContractilityScale,
           )
-        : await MainWireFlatAuthoritativeReferenceSessionV1
+        : await MainWireIntegratedTypedAuthoritySessionV1
           .restoreStandardExactCheckpoint(
             checkpoint.payload,
             fixture.hemodynamicResearchInputs,
@@ -724,7 +724,7 @@ ExactModelKernelManifestV3 {
         "land-2017-tref-global-lvfw-sep-rvfw-scale-v1",
     }),
     runtime: Object.freeze({
-      numericalSessionId: MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID,
+      numericalSessionId: MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,
       presentationDtSec: MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
       hotPathIntegrityTier:
         MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1,

@@ -155,8 +155,8 @@ import type {
   TransactionalTypedStatePromotionPlanV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
 
-export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_SESSION_V1_ID =
-  "main-wire-flat-authoritative-reference-session-v1" as const;
+export const MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID =
+  "main-wire-integrated-typed-authority-session-v1" as const;
 export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID =
   "circleheart-main-wire-flat-authoritative-reference-checkpoint-v1" as const;
 
@@ -227,8 +227,8 @@ type ExactBeatState = Readonly<{
  * cutover over the established equations, not a different physiological
  * model.
  */
-export class MainWireFlatAuthoritativeReferenceSessionV1 {
-  readonly sessionId = MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_SESSION_V1_ID;
+export class MainWireIntegratedTypedAuthoritySessionV1 {
+  readonly sessionId = MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID;
 
   readonly #runtime: MainWireIntegratedModelRuntimeV3;
   readonly #provider: MainWireNormalAdultFiveWallProviderV1;
@@ -443,12 +443,12 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
-  ): Promise<MainWireFlatAuthoritativeReferenceSessionV1> {
+  ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
     );
-    return new MainWireFlatAuthoritativeReferenceSessionV1(
+    return new MainWireIntegratedTypedAuthoritySessionV1(
       runtime,
       runtime.cold.acceptedState,
       "cold",
@@ -467,7 +467,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
-  ): Promise<MainWireFlatAuthoritativeReferenceSessionV1> {
+  ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
@@ -479,7 +479,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       ),
       checkpoint,
     );
-    return new MainWireFlatAuthoritativeReferenceSessionV1(
+    return new MainWireIntegratedTypedAuthoritySessionV1(
       runtime,
       restored.acceptedState,
       "standard-exact-checkpoint-restore",
@@ -494,12 +494,12 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
-  ): Promise<MainWireFlatAuthoritativeReferenceSessionV1> {
+  ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
     );
-    return new MainWireFlatAuthoritativeReferenceSessionV1(
+    return new MainWireIntegratedTypedAuthoritySessionV1(
       runtime,
       runtime.cold.acceptedState,
       "cold",
@@ -512,7 +512,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
-  ): Promise<MainWireFlatAuthoritativeReferenceSessionV1> {
+  ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const checkpoint = validateReferenceCheckpointV1(
       await decodeCanonicalFlatCheckpointV1(checkpointBytes),
     );
@@ -527,7 +527,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       ),
       checkpoint.standardCheckpoint,
     );
-    const session = new MainWireFlatAuthoritativeReferenceSessionV1(
+    const session = new MainWireIntegratedTypedAuthoritySessionV1(
       runtime,
       restored.acceptedState,
       "standard-exact-checkpoint-restore",
@@ -560,7 +560,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   async warmStartWithHemodynamicResearchInputs(
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
     ventricularContractilityScale = 1,
-  ): Promise<MainWireFlatAuthoritativeReferenceSessionV1> {
+  ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const targetRuntime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
@@ -570,7 +570,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       sourceRuntime: this.#runtime,
       targetRuntime,
     });
-    return new MainWireFlatAuthoritativeReferenceSessionV1(
+    return new MainWireIntegratedTypedAuthoritySessionV1(
       targetRuntime,
       acceptedState,
       "hemodynamic-input-warm-start",
@@ -1363,7 +1363,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
 
   authorityReport(): MainWireAcceptedTypedStateAuthorityReportV1 {
     if (this.#typedAuthority === null) {
-      throw new Error("Flat reference Session uses a non-typed test authority");
+      throw new Error("Typed authority Session uses a non-typed test authority");
     }
     return this.#typedAuthority.report();
   }
@@ -1380,13 +1380,13 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
 
   snapshotAcceptedStateBytes(): Uint8Array {
     if (this.#typedAuthority === null) {
-      throw new Error("Flat reference Session uses a non-typed test authority");
+      throw new Error("Typed authority Session uses a non-typed test authority");
     }
     const state = this.#typedAuthority.snapshot();
     const encoded = new Uint8Array(measureCanonicalFlatDataV1(state));
     const length = encodeCanonicalFlatDataIntoV1(state, encoded);
     if (length !== encoded.byteLength) {
-      throw new Error("Flat reference accepted-state length changed while encoding");
+      throw new Error("Typed authority accepted-state length changed while encoding");
     }
     return encoded;
   }
@@ -1469,7 +1469,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   private requiredTypedBoundaryBinding():
     MainWireAcceptedTypedBoundaryBindingV1 {
     if (this.#typedBoundaryBinding === null) {
-      throw new Error("Flat reference Session has no typed boundary binding");
+      throw new Error("Typed authority Session has no typed boundary binding");
     }
     return this.#typedBoundaryBinding;
   }
@@ -1477,7 +1477,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   private requiredDirectCompletionPlan():
     TransactionalTypedStateCompletionPlanV1 {
     if (this.#directCompletionPlan === null) {
-      throw new Error("Flat reference direct completion plan is unavailable");
+      throw new Error("Typed authority direct completion plan is unavailable");
     }
     return this.#directCompletionPlan;
   }
@@ -1485,7 +1485,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   private requiredModelOwnedPromotionPlan():
     TransactionalTypedStatePromotionPlanV1 {
     if (this.#modelOwnedPromotionPlan === null) {
-      throw new Error("Flat reference model-owned promotion plan is unavailable");
+      throw new Error("Typed authority model-owned promotion plan is unavailable");
     }
     return this.#modelOwnedPromotionPlan;
   }
