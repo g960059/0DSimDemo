@@ -111,7 +111,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     const lowVolumeBound = executionPlan.bind();
     assertBoundExecutionPlanV1(baselineBound, executionPlan.descriptor);
     assertBoundExecutionPlanV1(lowVolumeBound, executionPlan.descriptor);
-    const runtimeSessionId = "session/standard-plan-scenario-shadow";
+    const runtimeSessionId = "session/standard-plan-scenario-authority";
     const baselineScenarioId = "scenario/baseline";
     const lowVolumeScenarioId = "scenario/low-volume";
     const lowVolumeFixture = Object.freeze({

@@ -2,7 +2,7 @@
   "schemaId": "circleheart-standard-exact-model-client-descriptor-v1",
   "manifest": {
     "schemaId": "circleheart-studio-exact-model-kernel-v3",
-    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-55",
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-56",
     "modelFamilyId": "circleheart.main-wire-integrated-transaction",
     "equations": {
       "transactionId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3",

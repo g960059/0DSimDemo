@@ -160,11 +160,10 @@ type LegacyMainWireAcceptedProjectionV1 = Readonly<{
 }>;
 
 /**
- * Compatibility seam for engine-level tests that construct the typed
- * authority without a compiled model. The current exact Session also uses it
- * once while constructing its pre-plan completion boundary, then verifies and
- * replaces the projection with the compiler-owned binding before the first
- * numerical advance. It is never a hot-path lookup.
+ * Compatibility seam for engine-level tests and standalone tools that
+ * construct the typed authority without a compiled model. Registered exact
+ * Sessions receive the compiler-owned binding at construction and never enter
+ * this pointer-derived path. It is never a hot-path lookup.
  */
 function createLegacyMainWireAcceptedProjectionV1(
   manifest: TransactionalTypedStateManifestV1,

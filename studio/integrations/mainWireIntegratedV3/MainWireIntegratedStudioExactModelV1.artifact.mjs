@@ -44122,6 +44122,24 @@ function dynamicHydraulicInput(step, input, heartRateBpm) {
 }
 const MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID = "main-wire-integrated-typed-authority-session-v1";
 const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID = "circleheart-main-wire-flat-authoritative-reference-checkpoint-v1";
+function createExecutionPlanStateInitializationV1(boundExecutionPlan, typedAuthority) {
+  if (typedAuthority === null) {
+    throw new Error(
+      "Main Wire execution plan requires typed accepted-state authority"
+    );
+  }
+  const acceptedStateBinding = bindExecutionPlanAcceptedTypedStateV1(
+    boundExecutionPlan,
+    typedAuthority.manifest()
+  );
+  return Object.freeze({
+    acceptedStateBinding,
+    hemodynamicBinding: createMainWireAcceptedTypedHemodynamicBindingV1(
+      typedAuthority.manifest(),
+      acceptedStateBinding
+    )
+  });
+}
 class MainWireIntegratedTypedAuthoritySessionV1 {
   constructor(runtime, acceptedState2, observationSource, authorityFactory, exactBeatState, executionPlanInitialization) {
     this.sessionId = MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID;
@@ -44205,15 +44223,20 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     this.#typedBoundaryBinding = this.#typedAuthority === null ? null : createMainWireAcceptedTypedBoundaryBindingV1(
       this.#typedAuthority.manifest()
     );
-    this.#typedHemodynamicBinding = this.#typedAuthority === null ? null : createMainWireAcceptedTypedHemodynamicBindingV1(
+    const executionPlanStateInitialization = executionPlanInitialization === void 0 ? null : createExecutionPlanStateInitializationV1(
+      executionPlanInitialization.boundExecutionPlan,
+      this.#typedAuthority
+    );
+    this.#typedHemodynamicBinding = this.#typedAuthority === null ? null : executionPlanStateInitialization?.hemodynamicBinding ?? createMainWireAcceptedTypedHemodynamicBindingV1(
       this.#typedAuthority.manifest()
     );
+    if (executionPlanStateInitialization !== null && executionPlanInitialization !== void 0) {
+      this.#installedExecutionPlan = executionPlanInitialization.boundExecutionPlan;
+      this.#executionPlanAcceptedTypedStateBinding = executionPlanStateInitialization.acceptedStateBinding;
+    }
     this.#typedHemodynamicScratch = createMainWireAcceptedTypedHemodynamicDestinationV1();
     this.#coupledNewtonWorkspace = executionPlanInitialization?.coupledNewtonWorkspace ?? createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
     if (executionPlanInitialization !== void 0) {
-      this.installExecutionPlanAcceptedStateBindingV1(
-        executionPlanInitialization.boundExecutionPlan
-      );
       this.installExecutionPlanCoupledNewtonWorkspaceV1(
         executionPlanInitialization.coupledNewtonWorkspace,
         executionPlanInitialization.boundExecutionPlan
@@ -44399,13 +44422,12 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
         "Main Wire execution plan requires typed accepted-state authority"
       );
     }
-    const acceptedStateBinding = bindExecutionPlanAcceptedTypedStateV1(
+    const {
+      acceptedStateBinding,
+      hemodynamicBinding
+    } = createExecutionPlanStateInitializationV1(
       boundExecutionPlan,
-      this.#typedAuthority.manifest()
-    );
-    const hemodynamicBinding = createMainWireAcceptedTypedHemodynamicBindingV1(
-      this.#typedAuthority.manifest(),
-      acceptedStateBinding
+      this.#typedAuthority
     );
     if (this.#typedHemodynamicBinding.mvcActiveBooleanSlot !== hemodynamicBinding.mvcActiveBooleanSlot || this.#typedHemodynamicBinding.canonicalContinuousSlots.some(
       (slot2, index) => slot2 !== hemodynamicBinding.canonicalContinuousSlots[index]
@@ -47650,7 +47672,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-55";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-56";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";

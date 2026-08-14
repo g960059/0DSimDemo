@@ -32,10 +32,10 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current branch-local Standard candidate is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-55
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-56
 ```
 
-Standard-55 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
+Standard-56 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
 exact artifact and binds one Worker-local typed plan per Scenario
 during initialization. An atomic branch rebuild gives every Scenario in the
 candidate exact session fresh nonaliasing storage, so old and candidate
@@ -47,8 +47,10 @@ resulting mapping is private and opaque, and the hot path performs no pointer
 or string lookup. The Worker passes one fresh bound plan per Scenario into the
 exact model's Session-creation operation. The model installs the slot mapping
 and compiler-owned Newton workspace while constructing its transactional typed
-authority. The plan owns no accepted-state mirror: there is no sampled copy,
-split current/candidate page, or synchronization callback. The typed
+authority, without first constructing the legacy hemodynamic pointer map. That
+fallback is retained only for standalone engine tests and tools without a
+compiled model. The plan owns no accepted-state mirror: there is no sampled
+copy, split current/candidate page, or synchronization callback. The typed
 accepted-state Session remains the sole accepted-state and checkpoint
 authority, so equations, accepted results, controls, topology, and checkpoint
 meaning are unchanged. A control warm start constructs a fresh plan for its

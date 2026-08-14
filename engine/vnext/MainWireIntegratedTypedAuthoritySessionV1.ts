@@ -227,6 +227,33 @@ export type MainWireTypedExecutionPlanInitializationV1 = Readonly<{
   coupledNewtonWorkspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
 }>;
 
+type MainWireExecutionPlanStateInitializationV1 = Readonly<{
+  acceptedStateBinding: ExecutionPlanAcceptedTypedStateBindingV1;
+  hemodynamicBinding: MainWireAcceptedTypedHemodynamicBindingV1;
+}>;
+
+function createExecutionPlanStateInitializationV1(
+  boundExecutionPlan: BoundExecutionPlanV1,
+  typedAuthority: MainWireAcceptedTypedStateAuthorityV1 | null,
+): MainWireExecutionPlanStateInitializationV1 {
+  if (typedAuthority === null) {
+    throw new Error(
+      "Main Wire execution plan requires typed accepted-state authority",
+    );
+  }
+  const acceptedStateBinding = bindExecutionPlanAcceptedTypedStateV1(
+    boundExecutionPlan,
+    typedAuthority.manifest(),
+  );
+  return Object.freeze({
+    acceptedStateBinding,
+    hemodynamicBinding: createMainWireAcceptedTypedHemodynamicBindingV1(
+      typedAuthority.manifest(),
+      acceptedStateBinding,
+    ),
+  });
+}
+
 /**
  * Typed-authority Session for the integrated model. It owns the accepted
  * transaction loop and avoids materializing the public accepted object on
@@ -389,20 +416,34 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       : createMainWireAcceptedTypedBoundaryBindingV1(
           this.#typedAuthority.manifest(),
         );
+    const executionPlanStateInitialization =
+      executionPlanInitialization === undefined
+        ? null
+        : createExecutionPlanStateInitializationV1(
+            executionPlanInitialization.boundExecutionPlan,
+            this.#typedAuthority,
+          );
     this.#typedHemodynamicBinding = this.#typedAuthority === null
       ? null
-      : createMainWireAcceptedTypedHemodynamicBindingV1(
+      : executionPlanStateInitialization?.hemodynamicBinding
+        ?? createMainWireAcceptedTypedHemodynamicBindingV1(
           this.#typedAuthority.manifest(),
         );
+    if (
+      executionPlanStateInitialization !== null
+      && executionPlanInitialization !== undefined
+    ) {
+      this.#installedExecutionPlan =
+        executionPlanInitialization.boundExecutionPlan;
+      this.#executionPlanAcceptedTypedStateBinding =
+        executionPlanStateInitialization.acceptedStateBinding;
+    }
     this.#typedHemodynamicScratch =
       createMainWireAcceptedTypedHemodynamicDestinationV1();
     this.#coupledNewtonWorkspace = executionPlanInitialization
       ?.coupledNewtonWorkspace
       ?? createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
     if (executionPlanInitialization !== undefined) {
-      this.installExecutionPlanAcceptedStateBindingV1(
-        executionPlanInitialization.boundExecutionPlan,
-      );
       this.installExecutionPlanCoupledNewtonWorkspaceV1(
         executionPlanInitialization.coupledNewtonWorkspace,
         executionPlanInitialization.boundExecutionPlan,
@@ -617,15 +658,13 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         "Main Wire execution plan requires typed accepted-state authority",
       );
     }
-    const acceptedStateBinding = bindExecutionPlanAcceptedTypedStateV1(
+    const {
+      acceptedStateBinding,
+      hemodynamicBinding,
+    } = createExecutionPlanStateInitializationV1(
       boundExecutionPlan,
-      this.#typedAuthority.manifest(),
+      this.#typedAuthority,
     );
-    const hemodynamicBinding =
-      createMainWireAcceptedTypedHemodynamicBindingV1(
-        this.#typedAuthority.manifest(),
-        acceptedStateBinding,
-      );
     if (
       this.#typedHemodynamicBinding.mvcActiveBooleanSlot
         !== hemodynamicBinding.mvcActiveBooleanSlot
