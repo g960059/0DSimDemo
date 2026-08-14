@@ -15,7 +15,7 @@ import {
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
-  freezeExactRuntimeV2,
+  admitExactModelExecutableRuntimeV2,
   validateExecutableBundleV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
@@ -219,11 +219,14 @@ function numericalModelsV1(): StudioAuthoringNumericalModelPortV1 {
     release.manifest,
     standardSurfaceReleaseV1,
   );
-  validateExecutableBundleV2(release.executables, composed.contract, {
-    requiresPresentationBatch: true,
-    requiresExecutionPlan: true,
-  });
-  const runtime = freezeExactRuntimeV2(release.executables, composed.contract);
+  const runtime = admitExactModelExecutableRuntimeV2(
+    release.executables,
+    composed.contract,
+    {
+      requiresPresentationBatch: true,
+      requiresExecutionPlan: true,
+    },
+  );
   const resolved = Object.freeze({
     contract: composed.contract,
     defaultFixture: standardDescriptorV1.defaultFixture,

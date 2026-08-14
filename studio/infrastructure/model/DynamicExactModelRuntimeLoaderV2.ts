@@ -25,8 +25,7 @@ import {
   importExactExecutableArtifactModuleV2,
 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 import {
-  freezeExactRuntimeV2,
-  validateExecutableBundleV2,
+  admitExactModelExecutableRuntimeV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
   studioCanonicalJsonStringify,
@@ -157,15 +156,18 @@ export class DynamicExactModelRuntimeLoaderV2 {
       ticket.manifest,
       ticket.surfaceRelease,
     );
-    validateExecutableBundleV2(release.executables, composed.contract, {
-      requiresPresentationBatch: ticket.manifest.capabilities.includes(
-        STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
-      ),
-      requiresExecutionPlan: ticket.manifest.capabilities.includes(
-        EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
-      ),
-    });
-    const runtime = freezeExactRuntimeV2(release.executables, composed.contract);
+    const runtime = admitExactModelExecutableRuntimeV2(
+      release.executables,
+      composed.contract,
+      {
+        requiresPresentationBatch: ticket.manifest.capabilities.includes(
+          STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+        ),
+        requiresExecutionPlan: ticket.manifest.capabilities.includes(
+          EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
+        ),
+      },
+    );
     const contractValidationMs = nonnegativeDurationV2(validationStartedAtMs);
     this.#coldTimingByModelId.set(ticket.modelId, Object.freeze({
       cacheHit: false,

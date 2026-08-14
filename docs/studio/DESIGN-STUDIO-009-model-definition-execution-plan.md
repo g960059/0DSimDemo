@@ -109,11 +109,12 @@ At Worker initialization, the binder:
 - rejects a malformed or aliased result before numerical session creation.
 
 Portable data crosses the application/artifact boundary only after a complete
-structural validation and ownership copy. Inside one exact artifact realm, the
+structural validation and ownership copy. Inside one validator module instance,
 resulting transitively frozen descriptor and kernel catalog receive private,
 module-local admission brands. Later Scenario bindings reuse only those owned
 objects; an original input object, structural lookalike, accessor-backed value,
-or object arriving from another bundle realm still takes the complete path.
+or object arriving through the application/artifact bundle boundary still takes
+the complete path.
 The bound plan itself is admitted only after its typed-array layout and values
 have been checked once. Its object shells are then frozen, its mutable numerical
 workspace remains Scenario-private, and runtime dispatch resolves through
@@ -238,10 +239,11 @@ exact binding, and plan-owned typed allocation for every initially restored
 Scenario. Direct installation into the model's accepted typed authority is
 included in `sessionCreateMs`, because it is part of atomic exact Session
 construction rather than a post-create synchronization phase.
-The first application/artifact crossing still performs full validation. A
-single artifact realm may then reuse its privately owned frozen descriptor and
-kernel catalog across Scenario bindings; this optimization neither accepts a
-cross-realm brand nor caches a mutable source object.
+The application/artifact crossing performs exactly one full admission and
+retains the resulting owned descriptor in the frozen runtime. A validator
+module instance may then reuse its privately owned frozen descriptor and kernel
+catalog across Scenario bindings; this optimization neither transfers a
+private brand across a bundle boundary nor caches a mutable source object.
 This prevents a placeholder zero from being mistaken for evidence and makes
 cold-start cost explicit as a bounded function of the admitted Scenario count.
 Before direct execution cutover, physical iPhone measurements must show that
