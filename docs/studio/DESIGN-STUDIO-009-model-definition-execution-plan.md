@@ -246,6 +246,12 @@ This prevents a placeholder zero from being mistaken for evidence and makes
 cold-start cost explicit as a bounded function of the admitted Scenario count.
 Before direct execution cutover, physical iPhone measurements must show that
 binding is bounded and that time-to-first-frame has not materially regressed.
+`npm run benchmark:model:execution-plan-binding` supplies a local diagnostic:
+it compares repeated Scenario allocation using one privately owned descriptor
+and kernel catalog against the former repeated ownership path while keeping
+the same bound-plan typed allocation in both arms. It is evidence, not a
+machine-independent CI budget; physical-device initialization timing remains
+the product gate.
 
 ## Cutover sequence
 
