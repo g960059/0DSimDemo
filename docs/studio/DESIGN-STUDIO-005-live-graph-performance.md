@@ -187,7 +187,7 @@ group TimeConductor issues that request to every live Scenario, waits for the
 whole group, and publishes each Scenario's same-offset exact prefix through a
 shared fractional presentation credit. At `1×`, the default credit releases two
 eight-frame slices separated by a 16 ms presentation boundary. At `0.25×` it
-earns two frames per boundary; at `3×` it earns twenty-four. Fractional credit is
+earns two frames per boundary; at `5×` it earns forty. Fractional credit is
 carried across boundaries, while a bounded ceiling prevents a delayed browser
 task from creating an unbounded catch-up burst. This preserves every accepted
 sample and makes compute pace, visible waveform pace, and the displayed group
@@ -196,7 +196,8 @@ multiplier describe the same clock.
 Playback rate is a property of the group, not a Worker lane. A short initial
 calibration discards three cold batches, takes a conservative lower percentile
 from nine measured group batches, retains 10% headroom, and rounds the result
-down to a `0.25×` capability tier between `0.25×` and `3×`. The tier is then
+down to a stable `0.5×` capability tier between `0.25×` and `5×` (with `0.25×`
+as the minimum fallback). The tier is then
 latched for that Scenario configuration: transient timing noise cannot make a
 slider endpoint oscillate. If the tier includes real time, playback starts at
 `1×`; otherwise it starts at the conservative tier. This one calibration
@@ -211,12 +212,14 @@ new calibration epoch. An explicit user selection is retained across that
 epoch; if the new ceiling is lower, the UI reports the mismatch rather than
 quietly changing the selection.
 
-The toolbar exposes one compact split control: play/pause on the left and the
+The toolbar exposes one quiet split control: play/pause on the left and the
 selected group multiplier on the right. Opening the multiplier reveals a
-`0.25×` step slider. Its stable endpoint is the calibrated capability tier, and
-`1×` is marked as real time. Calibration disables only the slider, not the
-play/pause control. There is no Auto action because device capacity governs the
-available range rather than continuously taking control of the selected value.
+`0.25×` step slider plus stable `0.25×`, `0.5×`, `1×`, `2×`, and `5×` presets.
+Presets above the calibrated capability tier remain in place but are disabled,
+so device capacity never rearranges the control. Calibration disables only the
+rate controls, not play/pause. There is no Auto action because device capacity
+governs the available range rather than continuously taking control of the
+selected value.
 
 The TimeConductor never re-anchors away accumulated wall-clock debt and never
 skips exact model time to preserve a nominal `1×` target. If initial

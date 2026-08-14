@@ -37,7 +37,7 @@ export function WorkbenchPlaybackControlV3({
       - WORKBENCH_MINIMUM_PLAYBACK_RATE_V3)
       / (sliderMaximum - WORKBENCH_MINIMUM_PLAYBACK_RATE_V3) * 100;
   const rateChangeDisabled = disabled || rate.calibrating;
-  const presetRates = workbenchPlaybackPresetRatesV3(calibratedMaximum);
+  const presetRates = workbenchPlaybackPresetRatesV3();
   const selectRate = (nextRate: number) => onRateChange(
     snapWorkbenchPlaybackRateV3(nextRate, calibratedMaximum),
   );
@@ -112,7 +112,7 @@ export function WorkbenchPlaybackControlV3({
       {open && (
         <>
           <div
-            className="fixed inset-0 z-[89] bg-black/30 sm:hidden"
+            className="fixed inset-0 z-[89] bg-black/20 sm:hidden"
             aria-hidden="true"
             data-testid="v3-playback-rate-backdrop"
             onPointerDown={() => setOpen(false)}
@@ -120,27 +120,27 @@ export function WorkbenchPlaybackControlV3({
           <div
             role="dialog"
             aria-label={t("workbench.live.playbackRateSettings")}
-            className="workbench-playback-rate-popover fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] origin-bottom rounded-2xl border border-wb-line bg-wb-panel/95 p-4 text-wb-text shadow-[0_16px_44px_rgba(2,12,27,0.22)] backdrop-blur-xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-[calc(100%+0.55rem)] sm:w-[18rem] sm:origin-top-right"
+            className="workbench-playback-rate-popover fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] origin-bottom rounded-xl bg-wb-panel p-3 text-xs text-wb-text shadow-2xl ring-1 ring-wb-line sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-[calc(100%+0.45rem)] sm:w-[18rem] sm:origin-top-right"
             data-testid="v3-playback-rate-popover"
           >
             <div
-              className="text-center font-mono text-2xl font-semibold tabular-nums tracking-[-0.03em] text-wb-text"
+              className="text-center font-mono text-sm font-semibold tabular-nums text-wb-text"
               aria-live="polite"
             >
               {formatWorkbenchPlaybackRateV3(rate.playbackRate)}
             </div>
 
-            <div className="mt-3 flex items-center gap-3">
+            <div className="mt-2 flex items-center gap-2">
               <button
                 type="button"
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-wb-soft text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                className="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                 disabled={rateChangeDisabled || rate.playbackRate <= WORKBENCH_MINIMUM_PLAYBACK_RATE_V3}
                 aria-label={t("workbench.live.decreasePlaybackRate")}
                 onClick={() => selectRate(
                   rate.playbackRate - WORKBENCH_PLAYBACK_RATE_STEP_V3,
                 )}
               >
-                <Minus className="h-4 w-4" aria-hidden="true" />
+                <Minus className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
               <input
                 type="range"
@@ -164,27 +164,27 @@ export function WorkbenchPlaybackControlV3({
               />
               <button
                 type="button"
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-wb-soft text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                className="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                 disabled={rateChangeDisabled || rate.playbackRate >= calibratedMaximum}
                 aria-label={t("workbench.live.increasePlaybackRate")}
                 onClick={() => selectRate(
                   rate.playbackRate + WORKBENCH_PLAYBACK_RATE_STEP_V3,
                 )}
               >
-                <Plus className="h-4 w-4" aria-hidden="true" />
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-5 gap-2">
+            <div className="mt-2 grid grid-cols-5 gap-1">
               {presetRates.map((preset) => (
                 <button
                   key={preset}
                   type="button"
-                  disabled={rateChangeDisabled}
-                  className={`min-h-10 rounded-full px-1 font-mono text-[0.72rem] font-semibold tabular-nums transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${
+                  disabled={rateChangeDisabled || preset > calibratedMaximum + 1e-9}
+                  className={`min-h-9 rounded-lg px-1 font-mono text-xs font-medium tabular-nums transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${
                     Math.abs(rate.playbackRate - preset) < 1e-9
-                      ? "bg-wb-active text-wb-text"
-                      : "bg-wb-soft text-wb-muted hover:bg-wb-hover hover:text-wb-text"
+                      ? "bg-wb-hover text-wb-text"
+                      : "text-wb-muted hover:bg-wb-hover hover:text-wb-text"
                   }`}
                   onClick={() => selectRate(preset)}
                 >
@@ -194,7 +194,7 @@ export function WorkbenchPlaybackControlV3({
             </div>
 
             {(rate.calibrating || rate.performanceLimited || calibratedMaximum < WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3) && (
-              <p className="mt-3 text-center text-[0.68rem] leading-4 text-wb-subtle">
+              <p className="mt-2 text-center text-[0.68rem] leading-4 text-wb-subtle">
                 {rate.calibrating
                   ? t("workbench.live.measuringPlaybackCapacity")
                   : rate.performanceLimited
@@ -228,17 +228,6 @@ export function formatWorkbenchPlaybackRateV3(rate: number): string {
   return `${rate.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")}×`;
 }
 
-export function workbenchPlaybackPresetRatesV3(
-  maximumRate: number,
-): readonly number[] {
-  const candidates = maximumRate <= 1
-    ? [0.25, 0.5, 0.75, 1]
-    : [1, 1.25, 1.5, 2, 3];
-  const retained = candidates.filter((candidate) =>
-    candidate <= maximumRate + 1e-9
-  );
-  if (!retained.some((candidate) =>
-    Math.abs(candidate - maximumRate) < 1e-9
-  )) retained.push(maximumRate);
-  return Object.freeze(retained.sort((left, right) => left - right));
+export function workbenchPlaybackPresetRatesV3(): readonly number[] {
+  return Object.freeze([0.25, 0.5, 1, 2, 5]);
 }

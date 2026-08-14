@@ -81,14 +81,14 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     }
     expect(conductor.playbackRateState()).toMatchObject({
       playbackRate: 1,
-      maximumRate: 1.75,
+      maximumRate: 1.5,
       calibrating: false,
       userSelected: false,
     });
 
     expect(conductor.setPlaybackRate(1.5)).toMatchObject({
       playbackRate: 1.5,
-      maximumRate: 1.75,
+      maximumRate: 1.5,
       userSelected: true,
     });
     expect(() => conductor.setPlaybackRate(2)).toThrow(/calibrated limit/);
@@ -99,7 +99,7 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     }
     expect(conductor.playbackRateState()).toMatchObject({
       playbackRate: 1.5,
-      maximumRate: 1.75,
+      maximumRate: 1.5,
       performanceLimited: true,
     });
     await conductor.pause();
@@ -133,6 +133,38 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       maximumRate: 0.5,
       calibrating: false,
       userSelected: false,
+    });
+    await conductor.pause();
+  });
+
+  it("rounds a device ceiling down to a stable 0.5× tier", async () => {
+    const clock = new GroupClockV3();
+    let acceptedTimeSec = 0;
+    const groupWallMs = 32 * 0.9 / 4.65;
+    const conductor = new WorkbenchGroupTimeConductorV3({
+      lanes: () => [laneV3("baseline", acceptedTimeSec, async (stepCount) => {
+        clock.elapse(groupWallMs);
+        const frames = framesV3("baseline", acceptedTimeSec, stepCount);
+        acceptedTimeSec = frames.at(-1)!.timeSec;
+        return frames;
+      })],
+      onFrames: vi.fn(),
+      onError: vi.fn(),
+      nowMs: clock.now,
+      schedule: clock.schedule,
+      cancel: clock.cancel,
+      presentationIntervalMs: 0,
+    });
+
+    conductor.play();
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      await clock.runNextTimer();
+      if (!conductor.playbackRateState().calibrating) break;
+    }
+    expect(conductor.playbackRateState()).toMatchObject({
+      playbackRate: 1,
+      maximumRate: 4.5,
+      calibrating: false,
     });
     await conductor.pause();
   });
@@ -217,10 +249,10 @@ describe("WorkbenchGroupTimeConductorV3", () => {
   });
 
   it.each([
-    { label: "0.25×", requestedRate: 0.25, minimumRate: 0.25, maximumRate: 3 },
-    { label: "0.5×", requestedRate: 0.5, minimumRate: 0.25, maximumRate: 3 },
-    { label: "1×", requestedRate: 1, minimumRate: 0.25, maximumRate: 3 },
-    { label: "3×", requestedRate: 3, minimumRate: 0.25, maximumRate: 3 },
+    { label: "0.25×", requestedRate: 0.25, minimumRate: 0.25, maximumRate: 5 },
+    { label: "0.5×", requestedRate: 0.5, minimumRate: 0.25, maximumRate: 5 },
+    { label: "1×", requestedRate: 1, minimumRate: 0.25, maximumRate: 5 },
+    { label: "5×", requestedRate: 5, minimumRate: 0.25, maximumRate: 5 },
   ])("paces visible model time uniformly at $label", async ({
     requestedRate,
     minimumRate,
@@ -251,13 +283,16 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       .playbackRate;
     conductor.play();
     await clock.advanceBy(0);
-    for (let elapsedMs = 0; elapsedMs < 160; elapsedMs += 1) {
-      await clock.advanceBy(1);
+    for (let elapsedDeciMs = 0; elapsedDeciMs <= 16_000; elapsedDeciMs += 1) {
+      await clock.advanceBy(0.1);
     }
 
-    const expectedFrames = Math.floor(10 * 8 * effectiveRate + 1e-9);
-    expect(presentedFrames).toBe(expectedFrames);
-    expect(presentedFrames * 0.002 / 0.16).toBeCloseTo(effectiveRate, 1);
+    const expectedFrames = Math.floor(100 * 8 * effectiveRate + 1e-9);
+    // A newly started lane may spend one presentation boundary filling its
+    // initial queue. That fixed startup cost must not turn into
+    // rate-dependent drift over the steady interval.
+    expect(Math.abs(presentedFrames - expectedFrames)).toBeLessThanOrEqual(40);
+    expect(presentedFrames * 0.002 / 1.6).toBeCloseTo(effectiveRate, 1);
     await conductor.pause();
   });
 
@@ -343,7 +378,7 @@ describe("WorkbenchGroupTimeConductorV3", () => {
 
     expect(conductor.playbackRateState()).toMatchObject({
       playbackRate: 1,
-      maximumRate: 3,
+      maximumRate: 5,
     });
     const backlog = performance.snapshot().values[
       "scheduler.group.presentation-backlog-frames-per-lane"
@@ -444,15 +479,8 @@ describe("Workbench playback-rate presentation", () => {
     expect(formatWorkbenchPlaybackRateV3(1)).toBe("1×");
   });
 
-  it("keeps the compact preset row within the calibrated ceiling", () => {
-    expect(workbenchPlaybackPresetRatesV3(0.75)).toEqual([0.25, 0.5, 0.75]);
-    expect(workbenchPlaybackPresetRatesV3(1.75)).toEqual([
-      1,
-      1.25,
-      1.5,
-      1.75,
-    ]);
-    expect(workbenchPlaybackPresetRatesV3(3)).toEqual([1, 1.25, 1.5, 2, 3]);
+  it("keeps the preset row stable across device ceilings", () => {
+    expect(workbenchPlaybackPresetRatesV3()).toEqual([0.25, 0.5, 1, 2, 5]);
   });
 });
 

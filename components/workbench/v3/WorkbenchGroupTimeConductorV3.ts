@@ -4,8 +4,9 @@ import {
 } from "./WorkbenchPerformanceDiagnosticsV3";
 
 export const WORKBENCH_MINIMUM_PLAYBACK_RATE_V3 = 0.25;
-export const WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3 = 3;
+export const WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3 = 5;
 export const WORKBENCH_PLAYBACK_RATE_STEP_V3 = 0.25;
+export const WORKBENCH_PLAYBACK_CAPACITY_STEP_V3 = 0.5;
 
 const WORKBENCH_INITIAL_CALIBRATION_RATE_V3 = 0.5;
 const WORKBENCH_GROUP_RATE_HEADROOM_V3 = 0.9;
@@ -95,6 +96,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
   #pumpTimer: WorkbenchGroupTimeConductorTimerV3 | undefined;
   #presentationTimer: WorkbenchGroupTimeConductorTimerV3 | undefined;
   #inFlight: Promise<void> | undefined;
+  #nextPumpWallMs = 0;
   #lastPresentationWallMs = 0;
   #presentationFrameCreditPerLane = 0;
   #pendingPresentation: PendingGroupPresentationV3<TFrame>[] = [];
@@ -186,20 +188,26 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
       this.#publishOrSchedulePresentation(changedAtMs);
       if (Math.abs(this.#playbackRate - previousPlaybackRate) > 1e-9) {
         this.#cancelPumpTimer();
+        const nextBoundaryDemand = Math.max(
+          1,
+          Math.floor(
+            this.#maximumPresentationFramesPerLane * this.#playbackRate
+              + 1e-9,
+          ),
+        );
+        const startImmediately = this.#playbackRate > previousPlaybackRate
+          && this.#presentationBacklogFramesPerLane() < nextBoundaryDemand;
+        // An in-flight batch already occupies the current deadline. Let its
+        // completion add exactly one interval at the new rate. A queued batch
+        // instead owns the explicit immediate or delayed deadline below.
+        this.#nextPumpWallMs = this.#inFlight === undefined
+          ? changedAtMs + (startImmediately
+            ? 0
+            : this.#batchModelDurationMs() / this.#playbackRate)
+          : changedAtMs;
         if (this.#inFlight === undefined) {
-          const nextBoundaryDemand = Math.max(
-            1,
-            Math.floor(
-              this.#maximumPresentationFramesPerLane * this.#playbackRate
-                + 1e-9,
-            ),
-          );
           this.#queuePump(
-            this.#playbackRate > previousPlaybackRate
-                && this.#presentationBacklogFramesPerLane()
-                  < nextBoundaryDemand
-              ? 0
-              : this.#batchModelDurationMs() / this.#playbackRate,
+            Math.max(0, this.#nextPumpWallMs - changedAtMs),
           );
         }
       }
@@ -216,6 +224,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     requireGroupLanesV3(this.#lanes());
     this.#running = true;
     this.#lastPresentationWallMs = this.#nowMs();
+    this.#nextPumpWallMs = this.#lastPresentationWallMs;
     this.#presentationFrameCreditPerLane = 0;
     this.#publishRateState();
     this.#queuePump(0);
@@ -269,7 +278,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     this.#pumpTimer = this.#schedule(() => {
       this.#pumpTimer = undefined;
       this.#pump();
-    }, Math.max(0, Math.ceil(delayMs)));
+    }, Math.max(0, delayMs));
   }
 
   #pump(): void {
@@ -304,7 +313,11 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
       this.#recordPresentationBacklog();
       this.#publishOrSchedulePresentation(completedAtMs);
       const intervalMs = this.#batchModelDurationMs() / this.#playbackRate;
-      this.#queuePump(Math.max(0, intervalMs - groupWallMs));
+      // Carry the absolute deadline forward instead of starting each delay
+      // from the last callback. Otherwise sub-millisecond timer lateness is
+      // accumulated into a visible rate error at high playback multipliers.
+      this.#nextPumpWallMs += intervalMs;
+      this.#queuePump(Math.max(0, this.#nextPumpWallMs - completedAtMs));
     }).catch((error) => {
       this.#running = false;
       this.#cancelPumpTimer();
@@ -646,8 +659,8 @@ function quantizePlaybackRateDownV3(
 ): number {
   const clamped = clampV3(value, minimum, maximum);
   const quantized = Math.floor(
-    (clamped + 1e-9) / WORKBENCH_PLAYBACK_RATE_STEP_V3,
-  ) * WORKBENCH_PLAYBACK_RATE_STEP_V3;
+    (clamped + 1e-9) / WORKBENCH_PLAYBACK_CAPACITY_STEP_V3,
+  ) * WORKBENCH_PLAYBACK_CAPACITY_STEP_V3;
   return Number(clampV3(quantized, minimum, maximum).toFixed(2));
 }
 

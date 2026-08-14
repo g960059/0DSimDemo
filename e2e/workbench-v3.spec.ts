@@ -728,9 +728,30 @@ test("@mobile 390px Workbench uses one graph tab group and keeps controls reacha
   await expect(rateSlider).toBeEnabled();
   await expect(rateSlider).toHaveAttribute("min", "0.25");
   await expect(rateSlider).toHaveAttribute("step", "0.25");
+  await expect(ratePopover.getByRole("button", {
+    name: "0.25×",
+    exact: true,
+  })).toBeVisible();
+  await expect(ratePopover.getByRole("button", {
+    name: "0.5×",
+    exact: true,
+  })).toBeVisible();
+  await expect(ratePopover.getByRole("button", {
+    name: "1×",
+    exact: true,
+  })).toBeVisible();
+  await expect(ratePopover.getByRole("button", {
+    name: "2×",
+    exact: true,
+  })).toBeVisible();
+  await expect(ratePopover.getByRole("button", {
+    name: "5×",
+    exact: true,
+  })).toBeVisible();
   const maximumRate = Number(await rateSlider.getAttribute("max"));
   expect(maximumRate).toBeGreaterThanOrEqual(1);
-  expect(maximumRate).toBeLessThanOrEqual(3);
+  expect(maximumRate).toBeLessThanOrEqual(5);
+  expect(maximumRate === 0.25 || Number.isInteger(maximumRate * 2)).toBe(true);
 
   const initialRate = Number(await rateSlider.inputValue());
   await rateSlider.press("ArrowRight");
