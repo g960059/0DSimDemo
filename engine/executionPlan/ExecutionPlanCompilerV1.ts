@@ -10,6 +10,8 @@ import {
 import {
   EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID,
   type ExecutionPlanDescriptorV1,
+  type ExecutionPlanNewtonF64WorkspaceRoleV1,
+  type ExecutionPlanNewtonInt32WorkspaceRoleV1,
   type ExecutionPlanSolveBlockV1,
   type ExecutionPlanSolveGroupV1,
   type ExecutionPlanStateBlockV1,
@@ -463,6 +465,29 @@ function compileSolveGroups(
         );
       }
     }
+    const activeUnknownCount = activeUnknownStateIds.length;
+    const f64Segments = compileContiguousWorkspaceSegmentsV1([
+      ["current-unknowns", activeUnknownCount],
+      ["residual", activeUnknownCount],
+      ["jacobian", activeUnknownCount * activeUnknownCount],
+      ["factors", activeUnknownCount * activeUnknownCount],
+      ["right-hand-side", activeUnknownCount],
+      ["transformed-right-hand-side", activeUnknownCount],
+      ["update", activeUnknownCount],
+      ["trial-unknowns", activeUnknownCount],
+      ["trial-residual", activeUnknownCount],
+      ["unknown-scale", activeUnknownCount],
+      ["residual-scale", activeUnknownCount],
+    ] as const satisfies readonly (readonly [
+      ExecutionPlanNewtonF64WorkspaceRoleV1,
+      number,
+    ])[]);
+    const int32Segments = compileContiguousWorkspaceSegmentsV1([
+      ["pivots", activeUnknownCount],
+    ] as const satisfies readonly (readonly [
+      ExecutionPlanNewtonInt32WorkspaceRoleV1,
+      number,
+    ])[]);
     return Object.freeze({
       solveGroupId: group.solveGroupId,
       unknownStateIds: Object.freeze(unknownStateIds),
@@ -470,20 +495,39 @@ function compileSolveGroups(
       dependentStateIds: Object.freeze(dependentStateIds),
       blocks: Object.freeze(compiledBlocks),
       totalUnknownCount: unknownStateIds.length,
-      activeUnknownCount: activeUnknownStateIds.length,
+      activeUnknownCount,
       jacobianElementCount:
-        activeUnknownStateIds.length * activeUnknownStateIds.length,
+        activeUnknownCount * activeUnknownCount,
       workspace: Object.freeze({
-        // Current Newton + dense-LU policy: two square matrices and seven
-        // vectors. This is build data, not a browser-side size calculation.
-        f64Count:
-          2 * activeUnknownStateIds.length * activeUnknownStateIds.length
-          + 7 * activeUnknownStateIds.length,
-        int32Count: activeUnknownStateIds.length,
+        f64Count: segmentEndV1(f64Segments),
+        int32Count: segmentEndV1(int32Segments),
+        f64Segments,
+        int32Segments,
       }),
       solver: Object.freeze({ ...group.solver }),
     });
   });
+}
+
+function compileContiguousWorkspaceSegmentsV1<TRole extends string>(
+  definitions: readonly (readonly [TRole, number])[],
+): readonly Readonly<{ role: TRole; offset: number; length: number }>[] {
+  let offset = 0;
+  return Object.freeze(definitions.map(([role, length]) => {
+    if (!Number.isSafeInteger(length) || length <= 0) {
+      throw new RangeError(`workspace segment ${role} must be nonempty`);
+    }
+    const segment = Object.freeze({ role, offset, length });
+    offset += length;
+    return segment;
+  }));
+}
+
+function segmentEndV1(
+  segments: readonly Readonly<{ offset: number; length: number }>[],
+): number {
+  const last = segments.at(-1);
+  return last === undefined ? 0 : last.offset + last.length;
 }
 
 function assertStateDefinition(

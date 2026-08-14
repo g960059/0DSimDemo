@@ -1,6 +1,9 @@
 import {
   EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID,
   type ExecutionPlanDescriptorV1,
+  type ExecutionPlanNewtonF64WorkspaceRoleV1,
+  type ExecutionPlanNewtonInt32WorkspaceRoleV1,
+  type ExecutionPlanSolveGroupV1,
 } from "./ExecutionPlanDescriptorV1";
 
 export const EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY =
@@ -68,6 +71,29 @@ export type BoundExecutionPlanStateSynchronizationResultV1 = Readonly<{
   maximumConservationAbsoluteError: number;
 }>;
 
+export type BoundExecutionPlanNewtonWorkspaceV1 = Readonly<{
+  solveGroupId: string;
+  dimension: number;
+  currentUnknowns: Float64Array;
+  residual: Float64Array;
+  jacobian: Float64Array;
+  factors: Float64Array;
+  rightHandSide: Float64Array;
+  transformedRightHandSide: Float64Array;
+  update: Float64Array;
+  trialUnknowns: Float64Array;
+  trialResidual: Float64Array;
+  unknownScale: Float64Array;
+  residualScale: Float64Array;
+  pivots: Int32Array;
+}>;
+
+type BoundExecutionPlanSolveGroupMetadataV1 = Readonly<{
+  solveGroupId: string;
+  activeContinuousStorageIndices: Int32Array;
+  workspace: BoundExecutionPlanNewtonWorkspaceV1;
+}>;
+
 type BoundExecutionPlanMetadataV1 = Readonly<{
   continuousLogicalIndices: readonly number[];
   booleanLogicalIndices: readonly number[];
@@ -75,6 +101,7 @@ type BoundExecutionPlanMetadataV1 = Readonly<{
     ledgerStateLogicalIndex: number;
     memberStateLogicalIndices: readonly number[];
   }>[];
+  solveGroups: readonly BoundExecutionPlanSolveGroupMetadataV1[];
 }>;
 
 const BOUND_EXECUTION_PLAN_METADATA_V1 = new WeakMap<
@@ -85,6 +112,22 @@ const BOUND_EXECUTION_PLAN_METADATA_V1 = new WeakMap<
 const PORTABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
 const PORTABLE_RUNTIME_ID = /^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/;
 const MAXIMUM_EXECUTION_PLAN_DATA_DEPTH_V1 = 256;
+const NEWTON_F64_WORKSPACE_ROLES_V1 = Object.freeze([
+  "current-unknowns",
+  "residual",
+  "jacobian",
+  "factors",
+  "right-hand-side",
+  "transformed-right-hand-side",
+  "update",
+  "trial-unknowns",
+  "trial-residual",
+  "unknown-scale",
+  "residual-scale",
+] as const satisfies readonly ExecutionPlanNewtonF64WorkspaceRoleV1[]);
+const NEWTON_INT32_WORKSPACE_ROLES_V1 = Object.freeze([
+  "pivots",
+] as const satisfies readonly ExecutionPlanNewtonInt32WorkspaceRoleV1[]);
 
 export function validateAndOwnExecutionPlanDescriptorV1(
   value: unknown,
@@ -529,8 +572,173 @@ export function bindExecutionPlanV1(
         ]),
       })),
     ),
+    solveGroups: Object.freeze(descriptor.solveGroups.map(
+      (descriptorGroup, index) => createBoundSolveGroupMetadataV1(
+        descriptor,
+        descriptorGroup,
+        solveGroups[index]!,
+      ),
+    )),
   }));
   return bound;
+}
+
+/**
+ * Projects the current accepted state into the compiler-owned Newton layout
+ * and returns persistent views over one preallocated workspace. No candidate
+ * state is staged and no numerical kernel is invoked.
+ */
+export function prepareBoundExecutionPlanSolveGroupV1(
+  bound: BoundExecutionPlanV1,
+  solveGroupId: string,
+): BoundExecutionPlanNewtonWorkspaceV1 {
+  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
+  if (metadata === undefined) {
+    throw new Error("Execution plan solve preparation requires a bound plan");
+  }
+  const group = metadata.solveGroups.find((candidate) =>
+    candidate.solveGroupId === solveGroupId);
+  if (group === undefined) {
+    throw new Error(`Execution plan solve group ${solveGroupId} is unavailable`);
+  }
+  group.activeContinuousStorageIndices.forEach((storageIndex, index) => {
+    group.workspace.currentUnknowns[index] =
+      bound.currentContinuousState[storageIndex]!;
+  });
+  return group.workspace;
+}
+
+function createBoundSolveGroupMetadataV1(
+  descriptor: ExecutionPlanDescriptorV1,
+  descriptorGroup: ExecutionPlanSolveGroupV1,
+  boundGroup: BoundExecutionPlanSolveGroupV1,
+): BoundExecutionPlanSolveGroupMetadataV1 {
+  const activeContinuousStorageIndices = Int32Array.from(
+    boundGroup.activeStateLogicalIndices,
+    (logicalIndex) => {
+      const slot = descriptor.stateLayout.slots[logicalIndex];
+      if (slot?.storageKind !== "continuous-f64") {
+        throw new Error(
+          "Execution plan active solve state must use continuous storage",
+        );
+      }
+      return slot.storageIndex;
+    },
+  );
+  const f64View = (
+    role: ExecutionPlanNewtonF64WorkspaceRoleV1,
+  ): Float64Array => {
+    const segment = descriptorGroup.workspace.f64Segments.find(
+      (candidate) => candidate.role === role,
+    );
+    if (segment === undefined) {
+      throw new Error(`Execution plan workspace omits ${role}`);
+    }
+    return new Float64Array(
+      boundGroup.workspaceF64.buffer,
+      boundGroup.workspaceF64.byteOffset
+        + segment.offset * Float64Array.BYTES_PER_ELEMENT,
+      segment.length,
+    );
+  };
+  const int32View = (
+    role: ExecutionPlanNewtonInt32WorkspaceRoleV1,
+  ): Int32Array => {
+    const segment = descriptorGroup.workspace.int32Segments.find(
+      (candidate) => candidate.role === role,
+    );
+    if (segment === undefined) {
+      throw new Error(`Execution plan workspace omits ${role}`);
+    }
+    return new Int32Array(
+      boundGroup.workspaceInt32.buffer,
+      boundGroup.workspaceInt32.byteOffset
+        + segment.offset * Int32Array.BYTES_PER_ELEMENT,
+      segment.length,
+    );
+  };
+  const workspace = Object.freeze({
+    solveGroupId: descriptorGroup.solveGroupId,
+    dimension: descriptorGroup.activeUnknownCount,
+    currentUnknowns: f64View("current-unknowns"),
+    residual: f64View("residual"),
+    jacobian: f64View("jacobian"),
+    factors: f64View("factors"),
+    rightHandSide: f64View("right-hand-side"),
+    transformedRightHandSide: f64View("transformed-right-hand-side"),
+    update: f64View("update"),
+    trialUnknowns: f64View("trial-unknowns"),
+    trialResidual: f64View("trial-residual"),
+    unknownScale: f64View("unknown-scale"),
+    residualScale: f64View("residual-scale"),
+    pivots: int32View("pivots"),
+  });
+  assertCanonicalNewtonWorkspaceViewsV1(
+    workspace,
+    boundGroup,
+    descriptorGroup,
+  );
+  return Object.freeze({
+    solveGroupId: descriptorGroup.solveGroupId,
+    activeContinuousStorageIndices,
+    workspace,
+  });
+}
+
+function assertCanonicalNewtonWorkspaceViewsV1(
+  workspace: BoundExecutionPlanNewtonWorkspaceV1,
+  boundGroup: BoundExecutionPlanSolveGroupV1,
+  descriptorGroup: ExecutionPlanSolveGroupV1,
+): void {
+  if (
+    workspace.solveGroupId !== descriptorGroup.solveGroupId
+    || workspace.dimension !== descriptorGroup.activeUnknownCount
+  ) {
+    throw new Error("Execution plan Newton workspace identity drifted");
+  }
+  const f64Views = [
+    ["current-unknowns", workspace.currentUnknowns],
+    ["residual", workspace.residual],
+    ["jacobian", workspace.jacobian],
+    ["factors", workspace.factors],
+    ["right-hand-side", workspace.rightHandSide],
+    ["transformed-right-hand-side", workspace.transformedRightHandSide],
+    ["update", workspace.update],
+    ["trial-unknowns", workspace.trialUnknowns],
+    ["trial-residual", workspace.trialResidual],
+    ["unknown-scale", workspace.unknownScale],
+    ["residual-scale", workspace.residualScale],
+  ] as const satisfies readonly (readonly [
+    ExecutionPlanNewtonF64WorkspaceRoleV1,
+    Float64Array,
+  ])[];
+  for (const [role, view] of f64Views) {
+    const segment = descriptorGroup.workspace.f64Segments.find(
+      (candidate) => candidate.role === role,
+    )!;
+    if (
+      view.buffer !== boundGroup.workspaceF64.buffer
+      || view.byteOffset !== boundGroup.workspaceF64.byteOffset
+        + segment.offset * Float64Array.BYTES_PER_ELEMENT
+      || view.length !== segment.length
+      || view.byteLength
+        !== segment.length * Float64Array.BYTES_PER_ELEMENT
+    ) {
+      throw new Error(`Execution plan Newton workspace ${role} view drifted`);
+    }
+  }
+  const [pivotSegment] = descriptorGroup.workspace.int32Segments;
+  if (
+    pivotSegment?.role !== "pivots"
+    || workspace.pivots.buffer !== boundGroup.workspaceInt32.buffer
+    || workspace.pivots.byteOffset !== boundGroup.workspaceInt32.byteOffset
+      + pivotSegment.offset * Int32Array.BYTES_PER_ELEMENT
+    || workspace.pivots.length !== pivotSegment.length
+    || workspace.pivots.byteLength
+      !== pivotSegment.length * Int32Array.BYTES_PER_ELEMENT
+  ) {
+    throw new Error("Execution plan Newton workspace pivots view drifted");
+  }
 }
 
 /**
@@ -942,15 +1150,46 @@ function validateSolveGroupV1(
     failV1(`${path}.jacobianElementCount`, "must equal activeUnknownCount squared");
   }
   const workspace = recordV1(group.workspace, `${path}.workspace`);
-  exactKeysV1(workspace, ["f64Count", "int32Count"], `${path}.workspace`);
-  if (
-    nonnegativeIntegerV1(workspace.f64Count, `${path}.workspace.f64Count`)
-      !== 2 * active * active + 7 * active
-    || nonnegativeIntegerV1(workspace.int32Count, `${path}.workspace.int32Count`)
-      !== active
-  ) {
-    failV1(`${path}.workspace`, "workspace dimensions do not match solver policy");
-  }
+  exactKeysV1(workspace, [
+    "f64Count",
+    "f64Segments",
+    "int32Count",
+    "int32Segments",
+  ], `${path}.workspace`);
+  const f64Count = nonnegativeIntegerV1(
+    workspace.f64Count,
+    `${path}.workspace.f64Count`,
+  );
+  const int32Count = nonnegativeIntegerV1(
+    workspace.int32Count,
+    `${path}.workspace.int32Count`,
+  );
+  validateWorkspaceSegmentsV1(
+    workspace.f64Segments,
+    NEWTON_F64_WORKSPACE_ROLES_V1,
+    [
+      active,
+      active,
+      active * active,
+      active * active,
+      active,
+      active,
+      active,
+      active,
+      active,
+      active,
+      active,
+    ],
+    f64Count,
+    `${path}.workspace.f64Segments`,
+  );
+  validateWorkspaceSegmentsV1(
+    workspace.int32Segments,
+    NEWTON_INT32_WORKSPACE_ROLES_V1,
+    [active],
+    int32Count,
+    `${path}.workspace.int32Segments`,
+  );
   const solver = recordV1(group.solver, `${path}.solver`);
   exactKeysV1(solver, [
     "globalization",
@@ -967,6 +1206,46 @@ function validateSolveGroupV1(
     || solver.matrixStorage !== "row-major-f64"
   ) {
     failV1(`${path}.solver`, "unsupported solver policy");
+  }
+}
+
+function validateWorkspaceSegmentsV1<TRole extends string>(
+  raw: unknown,
+  expectedRoles: readonly TRole[],
+  expectedLengths: readonly number[],
+  declaredCount: number,
+  path: string,
+): void {
+  const segments = arrayV1(raw, path);
+  if (
+    segments.length !== expectedRoles.length
+    || expectedLengths.length !== expectedRoles.length
+  ) {
+    failV1(path, "segment role count does not match solver policy");
+  }
+  let expectedOffset = 0;
+  segments.forEach((rawSegment, index) => {
+    const segmentPath = `${path}[${index}]`;
+    const segment = recordV1(rawSegment, segmentPath);
+    exactKeysV1(segment, ["length", "offset", "role"], segmentPath);
+    if (segment.role !== expectedRoles[index]) {
+      failV1(`${segmentPath}.role`, "workspace role order is invalid");
+    }
+    const offset = nonnegativeIntegerV1(
+      segment.offset,
+      `${segmentPath}.offset`,
+    );
+    const length = positiveIntegerV1(
+      segment.length,
+      `${segmentPath}.length`,
+    );
+    if (offset !== expectedOffset || length !== expectedLengths[index]) {
+      failV1(segmentPath, "workspace segment is not canonical");
+    }
+    expectedOffset += length;
+  });
+  if (expectedOffset !== declaredCount) {
+    failV1(path, "workspace segments do not cover the declared storage");
   }
 }
 

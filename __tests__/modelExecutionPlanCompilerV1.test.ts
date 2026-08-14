@@ -11,6 +11,7 @@ import {
 import {
   assertBoundExecutionPlanV1,
   bindExecutionPlanV1,
+  prepareBoundExecutionPlanSolveGroupV1,
   synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
@@ -113,8 +114,24 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       .toEqual([COUPLED_HEMODYNAMICS_LAYOUT_V1.dependentBloodVolumeUnknown]);
     expect(solve?.jacobianElementCount).toBe(30 * 30);
     expect(solve?.workspace).toEqual({
-      f64Count: 2 * 30 * 30 + 7 * 30,
+      f64Count: 2 * 30 * 30 + 9 * 30,
       int32Count: 30,
+      f64Segments: [
+        { role: "current-unknowns", offset: 0, length: 30 },
+        { role: "residual", offset: 30, length: 30 },
+        { role: "jacobian", offset: 60, length: 900 },
+        { role: "factors", offset: 960, length: 900 },
+        { role: "right-hand-side", offset: 1_860, length: 30 },
+        { role: "transformed-right-hand-side", offset: 1_890, length: 30 },
+        { role: "update", offset: 1_920, length: 30 },
+        { role: "trial-unknowns", offset: 1_950, length: 30 },
+        { role: "trial-residual", offset: 1_980, length: 30 },
+        { role: "unknown-scale", offset: 2_010, length: 30 },
+        { role: "residual-scale", offset: 2_040, length: 30 },
+      ],
+      int32Segments: [
+        { role: "pivots", offset: 0, length: 30 },
+      ],
     });
   });
 
@@ -318,7 +335,7 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     expect(bound.graphDownstreamNodeIndices).toHaveLength(37);
     expect(solve?.activeStateLogicalIndices).toHaveLength(30);
     expect(solve?.dependentStateLogicalIndices).toHaveLength(1);
-    expect(solve?.workspaceF64).toHaveLength(2 * 30 * 30 + 7 * 30);
+    expect(solve?.workspaceF64).toHaveLength(2 * 30 * 30 + 9 * 30);
     expect(solve?.workspaceInt32).toHaveLength(30);
     expect(bound.allocatedBytes).toBeGreaterThan(0);
     expect(bound.currentContinuousState.buffer)
@@ -330,10 +347,12 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     const descriptor = compileMainWire();
     const bound = bindExecutionPlanV1(descriptor, mainWireKernelCatalog());
     const source = bound.acceptedStateLogicalScratch;
-    source.fill(1);
+    source.forEach((_value, logicalIndex) => {
+      source[logicalIndex] = logicalIndex + 1;
+    });
     const [pool] = descriptor.hydraulicGraph.conservationPools;
-    source[pool!.ledgerStateLogicalIndex] =
-      pool!.memberStateLogicalIndices.length;
+    source[pool!.ledgerStateLogicalIndex] = pool!.memberStateLogicalIndices
+      .reduce((total, logicalIndex) => total + source[logicalIndex]!, 0);
     source[98] = 1;
 
     expect(synchronizeBoundExecutionPlanAcceptedStateV1(bound)).toEqual({
@@ -343,9 +362,30 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       maximumConservationAbsoluteError: 0,
     });
     expect([...bound.currentContinuousState.slice(0, 3)])
-      .toEqual([1, 1, pool!.memberStateLogicalIndices.length]);
-    expect(bound.currentContinuousState[98]).toBe(1);
+      .toEqual([1, 2, source[pool!.ledgerStateLogicalIndex]]);
+    expect(bound.currentContinuousState[98]).toBe(100);
     expect([...bound.currentBooleanState]).toEqual([1]);
+    const solveWorkspace = prepareBoundExecutionPlanSolveGroupV1(
+      bound,
+      "coupled-hemodynamics",
+    );
+    const activeLogicalIndices = descriptor.solveGroups[0]!.blocks
+      .filter(({ disposition }) => disposition === "retained")
+      .flatMap(({ stateLogicalIndices }) => stateLogicalIndices);
+    expect([...solveWorkspace.currentUnknowns]).toEqual(
+      activeLogicalIndices.map((logicalIndex) => source[logicalIndex]),
+    );
+    expect(solveWorkspace.jacobian).toHaveLength(900);
+    expect(solveWorkspace.factors).toHaveLength(900);
+    expect(solveWorkspace.jacobian.buffer)
+      .toBe(solveWorkspace.factors.buffer);
+    expect(solveWorkspace.jacobian.byteOffset)
+      .not.toBe(solveWorkspace.factors.byteOffset);
+    expect(solveWorkspace.pivots).toHaveLength(30);
+    expect(prepareBoundExecutionPlanSolveGroupV1(
+      bound,
+      "coupled-hemodynamics",
+    )).toBe(solveWorkspace);
 
     const admittedContinuous = new Float64Array(
       bound.currentContinuousState,
@@ -366,11 +406,34 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     expect(() => synchronizeBoundExecutionPlanAcceptedStateV1({
       ...bound,
     })).toThrow(/requires a bound plan/);
+    expect(() => prepareBoundExecutionPlanSolveGroupV1(
+      { ...bound },
+      "coupled-hemodynamics",
+    )).toThrow(/requires a bound plan/);
+    expect(() => prepareBoundExecutionPlanSolveGroupV1(
+      bound,
+      "missing-solve-group",
+    )).toThrow(/is unavailable/);
   });
 
   it("fails closed on missing, extra, aliased, and descriptor-mismatched bindings", () => {
     const descriptor = compileMainWire();
     const catalog = mainWireKernelCatalog();
+    const [descriptorGroup] = descriptor.solveGroups;
+    expect(() => validateAndOwnExecutionPlanDescriptorV1({
+      ...descriptor,
+      solveGroups: [{
+        ...descriptorGroup!,
+        workspace: {
+          ...descriptorGroup!.workspace,
+          f64Segments: descriptorGroup!.workspace.f64Segments.map(
+            (segment, index) => index === 0
+              ? { ...segment, offset: 1 }
+              : segment,
+          ),
+        },
+      }],
+    })).toThrow(/workspace segment is not canonical/);
     expect(() => bindExecutionPlanV1(descriptor, {
       ...catalog,
       componentKernelIds: catalog.componentKernelIds.slice(1),

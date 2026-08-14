@@ -75,7 +75,7 @@ circulation claim to the model.
 
 ## Bound shadow slice
 
-The Standard-37 development candidate advertises
+The Standard-39 development candidate advertises
 `runtime/execution-plan-accepted-state-shadow-v1`. Its exact artifact contains
 the generated descriptor and a small binder; it does not contain
 `ModelDefinitionV1`, `NumericalPolicyV1`, or the compiler. Historical exact
@@ -97,8 +97,8 @@ does not advance the numerical model. That candidate therefore remained
 behavior-neutral: the existing typed-authority session is still the sole
 execution and checkpoint authority.
 
-The same Standard-37 candidate adds sampled accepted-boundary synchronization. After exact
-session creation and after each presentation batch or authored control, the
+The same Standard-39 candidate adds sampled accepted-boundary synchronization.
+After exact session creation and after each presentation batch or authored control, the
 model copies its canonical 100-slot typed hemodynamic view into a Worker-local
 logical page. The neutral runtime validates every numeric and boolean value,
 checks descriptor-owned conservation pools, and only then atomically updates
@@ -106,6 +106,18 @@ the plan's split current-state arrays. The Worker compares the returned exact
 accepted clock with the terminal frame before publishing it. This happens once
 per presentation batch—not once per 2 ms accepted substep—and does not stage,
 promote, checkpoint, or otherwise own numerical state.
+
+The compiler also emits a canonical Newton/LU workspace layout rather than an
+opaque allocation total. Current unknowns, residuals, Jacobian, factors,
+right-hand side, its LU-transformed copy, update, trial values, both scale
+vectors, and pivots each own one named contiguous segment. The Worker allocates
+the two backing arrays once;
+the exact binder creates persistent views at the emitted offsets and rejects
+gaps, overlap, reordering, or foreign views. At a shadow boundary the active
+unknowns are gathered through compiler-emitted logical indices into the
+`current-unknowns` segment. This still invokes no equation or solver, but it
+removes the final hand-written workspace/index layout needed by the next
+residual/Jacobian slice.
 
 ## Cold-start evidence
 
@@ -131,13 +143,14 @@ not materially regressed.
 1. Add exact descriptor parity for every current generated layout that will
    become runtime-owned. **Complete for the current one-patch slice.**
 2. Embed the descriptor in the exact executable without another fetch or a
-   production compiler. **Complete in the Standard-37 development candidate.**
+   production compiler. **Complete in the Standard-39 development candidate.**
 3. Bind known kernel IDs, allocate buffers once, and reject missing, extra, or
    aliased bindings. **Complete as a nonexecuting Worker shadow in
-   Standard-37.**
+   Standard-39.**
 4. Execute the bound plan in shadow against the current authority, including
    checkpoint continuation and the canonical scientific corpus. **Accepted
-   state projection and checkpoint continuation are complete in Standard-37;
+   state projection, canonical Newton workspace preparation, and checkpoint
+   continuation are complete in Standard-39;
    residual/Jacobian execution remains pending.**
 5. Mint a new model release for the direct runtime cutover. Do not dual-write
    state or retain a fallback inside that release.

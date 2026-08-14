@@ -13,6 +13,27 @@ export type ExecutionPlanSolverPolicyV1 = Readonly<{
   matrixStorage: "row-major-f64";
 }>;
 
+export type ExecutionPlanNewtonF64WorkspaceRoleV1 =
+  | "current-unknowns"
+  | "residual"
+  | "jacobian"
+  | "factors"
+  | "right-hand-side"
+  | "transformed-right-hand-side"
+  | "update"
+  | "trial-unknowns"
+  | "trial-residual"
+  | "unknown-scale"
+  | "residual-scale";
+
+export type ExecutionPlanNewtonInt32WorkspaceRoleV1 = "pivots";
+
+export type ExecutionPlanWorkspaceSegmentV1<TRole extends string> = Readonly<{
+  role: TRole;
+  offset: number;
+  length: number;
+}>;
+
 export type ExecutionPlanUpdateGroupV1 = Readonly<{
   updateGroupId: string;
   ordinal: number;
@@ -60,6 +81,12 @@ export type ExecutionPlanSolveGroupV1 = Readonly<{
   workspace: Readonly<{
     f64Count: number;
     int32Count: number;
+    f64Segments: readonly ExecutionPlanWorkspaceSegmentV1<
+      ExecutionPlanNewtonF64WorkspaceRoleV1
+    >[];
+    int32Segments: readonly ExecutionPlanWorkspaceSegmentV1<
+      ExecutionPlanNewtonInt32WorkspaceRoleV1
+    >[];
   }>;
   solver: ExecutionPlanSolverPolicyV1;
 }>;
