@@ -439,6 +439,60 @@ describe("Studio simulation worker V2 protocol", () => {
     }
   });
 
+  it("validates immutable cold-start phase timings without making them required", () => {
+    const response = validateStudioSimulationWorkerResponseV2({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: 1,
+      status: "ok",
+      kind: "initialized",
+      frame: frameV2(),
+      initializationTiming: {
+        exactRuntimeLoad: {
+          cacheHit: false,
+          artifactBytes: 1_024,
+          artifactFetchMs: 3,
+          moduleImportAndFactoryMs: 5,
+          contractValidationMs: 2,
+          totalMs: 10,
+        },
+        authoringSetupMs: 1,
+        sessionCreateMs: 4,
+        initialFrameMs: 0.5,
+        executionPlanBindMs: null,
+        totalWorkerInitializeMs: 15.5,
+      },
+    });
+
+    expect(response).toMatchObject({
+      kind: "initialized",
+      initializationTiming: {
+        exactRuntimeLoad: { artifactBytes: 1_024, cacheHit: false },
+        executionPlanBindMs: null,
+        totalWorkerInitializeMs: 15.5,
+      },
+    });
+    if (response.status === "ok" && response.kind === "initialized") {
+      expect(Object.isFrozen(response.initializationTiming)).toBe(true);
+      expect(Object.isFrozen(response.initializationTiming?.exactRuntimeLoad))
+        .toBe(true);
+    }
+    expect(() => validateStudioSimulationWorkerResponseV2({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: 1,
+      status: "ok",
+      kind: "initialized",
+      frame: frameV2(),
+      initializationTiming: {
+        exactRuntimeLoad: null,
+        authoringSetupMs: 1,
+        sessionCreateMs: -1,
+        initialFrameMs: 0,
+        executionPlanBindMs: null,
+        totalWorkerInitializeMs: 1,
+      },
+    })).toThrow(/sessionCreateMs.*nonnegative/);
+  });
+
   it("validates the exact control-applied response variant", () => {
     const response = validateStudioSimulationWorkerResponseV2(
       controlAppliedResponseV2(4, frameV2({ inputEpoch: 1 })),
@@ -784,6 +838,25 @@ describe("Studio simulation worker V2 protocol", () => {
 });
 
 describe("Studio simulation worker V2 runtime", () => {
+  it("reports Worker initialization phases while plan binding remains shadow", async () => {
+    const harness = runtimeHarnessV2();
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "initialized",
+      initializationTiming: {
+        exactRuntimeLoad: null,
+        authoringSetupMs: expect.any(Number),
+        sessionCreateMs: expect.any(Number),
+        initialFrameMs: expect.any(Number),
+        executionPlanBindMs: null,
+        totalWorkerInitializeMs: expect.any(Number),
+      },
+    });
+  });
+
   it("serializes one exact session and rejects wrong Scenario identity", async () => {
     const harness = runtimeHarnessV2();
     harness.runtime.enqueue(initializeRequestV2(1));

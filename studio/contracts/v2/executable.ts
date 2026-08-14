@@ -52,6 +52,16 @@ export type ResolvedExactModelRuntimeV2 = Readonly<{
   simulationAdapter: RegisteredModelSimulationAdapterV2;
 }>;
 
+/** Worker-local cold-load timings; never part of exact model identity. */
+export type ExactModelRuntimeLoadTimingV2 = Readonly<{
+  cacheHit: boolean;
+  artifactBytes: number;
+  artifactFetchMs: number;
+  moduleImportAndFactoryMs: number;
+  contractValidationMs: number;
+  totalMs: number;
+}>;
+
 export interface ExactModelRuntimeResolverPortV2 {
   resolveExactRuntime(modelId: ModelIdV2): ResolvedExactModelRuntimeV2;
 }

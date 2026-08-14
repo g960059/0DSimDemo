@@ -10,6 +10,7 @@
     "build:public-content": "npm run build && vite build --ssr server/publicContentServerV1.ts --outDir dist-public-content --emptyOutDir",
     "start:public-content": "node dist-public-content/publicContentServerV1.js",
     "verify:registry:main-wire-v3": "vite-node --script tools/registry/verifyMainWireIntegratedStudioModelV3.ts",
+    "compile:model:execution-plan": "vite-node --script tools/model/compileMainWireExecutionPlanV1.ts",
     "publish:registry:main-wire-v3": "vite-node --script tools/registry/publishMainWireIntegratedStudioModelV3.ts",
     "verify:registry:model-surface": "vite-node --script tools/registry/verifyModelSurfaceReleaseV1.ts",
     "publish:registry:model-surface": "vite-node --script tools/registry/publishModelSurfaceReleaseV1.ts",

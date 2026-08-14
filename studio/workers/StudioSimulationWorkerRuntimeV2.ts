@@ -28,6 +28,7 @@ import {
   type ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import type {
+  ExactModelRuntimeLoadTimingV2,
   ExactModelRuntimeResolverPortV2,
   ResolvedExactModelRuntimeV2,
 } from "@/studio/contracts/v2/executable";
@@ -103,6 +104,9 @@ export type StudioSimulationWorkerRuntimeDependenciesV2 = Readonly<{
       { kind: "initialize" }
     >["releaseTicket"];
   }>): Promise<ResolvedExactModelRuntimeV2>;
+  takeExactRuntimeLoadTiming?(
+    modelId: string,
+  ): ExactModelRuntimeLoadTimingV2 | undefined;
   port: StudioSimulationWorkerPortV2;
   queueCapacity?: number;
   snapshotIds?: ExperimentSnapshotIdFactoryPortV2;
@@ -123,6 +127,9 @@ type StudioSimulationWorkerAuthoringContextV2 = Readonly<{
 export class StudioSimulationWorkerRuntimeV2 {
   readonly #loadExactRuntime: StudioSimulationWorkerRuntimeDependenciesV2[
     "loadExactRuntime"
+  ];
+  readonly #takeExactRuntimeLoadTiming: StudioSimulationWorkerRuntimeDependenciesV2[
+    "takeExactRuntimeLoadTiming"
   ];
   readonly #port: StudioSimulationWorkerPortV2;
   readonly #queueCapacity: number;
@@ -158,6 +165,12 @@ export class StudioSimulationWorkerRuntimeV2 {
       throw new Error("simulation worker exact runtime loader is required");
     }
     if (
+      dependencies.takeExactRuntimeLoadTiming !== undefined
+      && typeof dependencies.takeExactRuntimeLoadTiming !== "function"
+    ) {
+      throw new Error("simulation worker runtime timing port is invalid");
+    }
+    if (
       dependencies.port === null
       || typeof dependencies.port !== "object"
       || typeof dependencies.port.postMessage !== "function"
@@ -187,6 +200,8 @@ export class StudioSimulationWorkerRuntimeV2 {
       throw new Error("simulation worker clock is invalid");
     }
     this.#loadExactRuntime = dependencies.loadExactRuntime;
+    this.#takeExactRuntimeLoadTiming =
+      dependencies.takeExactRuntimeLoadTiming;
     this.#port = dependencies.port;
     this.#queueCapacity = queueCapacity;
     this.#snapshotIds = dependencies.snapshotIds
@@ -333,7 +348,9 @@ export class StudioSimulationWorkerRuntimeV2 {
       throw new Error("simulation worker is already initialized");
     }
     this.#state = "initializing";
+    const totalInitializeStartedAtMs = monotonicWorkerNowV2();
     let exactRuntime: ResolvedExactModelRuntimeV2 | undefined;
+    let exactRuntimeLoadTiming: ExactModelRuntimeLoadTimingV2 | undefined;
     let adapter: RegisteredModelSimulationAdapterV2 | undefined;
     let sessionCreationAttempted = false;
     try {
@@ -341,6 +358,9 @@ export class StudioSimulationWorkerRuntimeV2 {
         expectedModelId: request.expectedModelId,
         releaseTicket: request.releaseTicket,
       }));
+      exactRuntimeLoadTiming = this.#takeExactRuntimeLoadTiming?.(
+        request.expectedModelId,
+      );
       if (this.#portClosed || this.#state !== "initializing") return;
       assertExactRuntimeV2(exactRuntime);
       if (exactRuntime.contract.modelId !== request.expectedModelId) {
@@ -348,6 +368,7 @@ export class StudioSimulationWorkerRuntimeV2 {
           "simulation worker loaded runtime modelId does not match the requested model",
         );
       }
+      const authoringSetupStartedAtMs = monotonicWorkerNowV2();
       const models = exactRuntimeResolverV2(exactRuntime);
       const fixtureValidation = exactRuntime.fixtureAdapter
         .validateCompleteFixture(Object.freeze({
@@ -373,6 +394,9 @@ export class StudioSimulationWorkerRuntimeV2 {
         request.authoringSeed,
       );
       assertSeedMatchesInitializationV2(request, request.authoringSeed);
+      const authoringSetupMs = nonnegativeWorkerDurationV2(
+        authoringSetupStartedAtMs,
+      );
       if (this.#portClosed || this.#state !== "initializing") return;
 
       adapter = exactRuntime.simulationAdapter;
@@ -393,6 +417,7 @@ export class StudioSimulationWorkerRuntimeV2 {
             checkpoint: scenario.capture.checkpoint,
           }));
       sessionCreationAttempted = true;
+      const sessionCreateStartedAtMs = monotonicWorkerNowV2();
       await adapter.createSession(Object.freeze({
         runtimeSessionId: request.runtimeSessionId,
         scenarios: Object.freeze(scenarioInputs.map((scenario) => Object.freeze({
@@ -403,6 +428,9 @@ export class StudioSimulationWorkerRuntimeV2 {
             : { checkpoint: scenario.checkpoint }),
         }))),
       }));
+      const sessionCreateMs = nonnegativeWorkerDurationV2(
+        sessionCreateStartedAtMs,
+      );
       if (this.#portClosed || this.#state !== "initializing") {
         bestEffortDisposeV2(adapter, request.runtimeSessionId);
         return;
@@ -425,6 +453,7 @@ export class StudioSimulationWorkerRuntimeV2 {
       }
       this.#currentFixture = this.#scenarioFixtures.get(request.scenarioId);
       this.#state = "active";
+      const initialFrameStartedAtMs = monotonicWorkerNowV2();
       for (const scenario of scenarioInputs) {
         const scenarioFrame = this.#validateAdapterFrame(adapter.currentFrame({
           runtimeSessionId: request.runtimeSessionId,
@@ -434,12 +463,25 @@ export class StudioSimulationWorkerRuntimeV2 {
       }
       const frame = this.#scenarioFrames.get(request.scenarioId)!;
       this.#lastFrame = frame;
+      const initialFrameMs = nonnegativeWorkerDurationV2(
+        initialFrameStartedAtMs,
+      );
       this.#postResponse({
         protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
         requestId: request.requestId,
         status: "ok",
         kind: "initialized",
         frame,
+        initializationTiming: Object.freeze({
+          exactRuntimeLoad: exactRuntimeLoadTiming ?? null,
+          authoringSetupMs,
+          sessionCreateMs,
+          initialFrameMs,
+          executionPlanBindMs: null,
+          totalWorkerInitializeMs: nonnegativeWorkerDurationV2(
+            totalInitializeStartedAtMs,
+          ),
+        }),
       });
     } catch (error) {
       if (adapter !== undefined && sessionCreationAttempted) {
@@ -2391,6 +2433,14 @@ function errorMessageV2(error: unknown): string {
     // Hostile thrown values must not interrupt terminal cleanup.
   }
   return "simulation worker request failed";
+}
+
+function monotonicWorkerNowV2(): number {
+  return globalThis.performance?.now() ?? Date.now();
+}
+
+function nonnegativeWorkerDurationV2(startedAtMs: number): number {
+  return Math.max(0, monotonicWorkerNowV2() - startedAtMs);
 }
 
 class FatalWorkerStateErrorV2 extends Error {

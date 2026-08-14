@@ -257,6 +257,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       artifactUrl: "https://registry.example/model-releases/standard.mjs",
     } as const;
 
+    const coldMeasuredPromise = loader.loadMeasured(ticket);
     const first = loader.load(ticket);
     expect(loader.load(ticket)).toBe(first);
     await expect(first).resolves.toMatchObject({
@@ -266,6 +267,27 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       },
     });
     const loaded = await first;
+    const coldMeasured = await coldMeasuredPromise;
+    expect(coldMeasured.runtime).toBe(loaded);
+    expect(coldMeasured.timing).toMatchObject({
+      cacheHit: false,
+      artifactBytes: bytes.byteLength,
+    });
+    expect(coldMeasured.timing.artifactFetchMs).toBeGreaterThanOrEqual(0);
+    expect(coldMeasured.timing.moduleImportAndFactoryMs)
+      .toBeGreaterThanOrEqual(0);
+    expect(coldMeasured.timing.contractValidationMs).toBeGreaterThanOrEqual(0);
+    expect(coldMeasured.timing.totalMs).toBeGreaterThanOrEqual(0);
+    const warmMeasured = await loader.loadMeasured(ticket);
+    expect(warmMeasured.runtime).toBe(loaded);
+    expect(warmMeasured.timing).toMatchObject({
+      cacheHit: true,
+      artifactBytes: bytes.byteLength,
+      artifactFetchMs: 0,
+      moduleImportAndFactoryMs: 0,
+      contractValidationMs: 0,
+    });
+    expect(warmMeasured.timing.totalMs).toBeGreaterThanOrEqual(0);
     const runtimeSessionId = "session/standard-artifact-repeatability";
     const scenarioId = "scenario/baseline";
     await loaded.simulationAdapter.createSession({

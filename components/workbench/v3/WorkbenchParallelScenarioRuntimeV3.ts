@@ -19,6 +19,7 @@ import { StudioSimulationWorkerClientV2 } from
   "@/studio/workers/StudioSimulationWorkerClientV2";
 import type {
   StudioSimulationWorkerApplyControlInputV2,
+  StudioSimulationWorkerInitializationTimingV2,
   StudioSimulationWorkerRequestAnalysisInputV2,
   StudioSimulationWorkerScenarioCapturesV2,
   StudioSimulationWorkerScenarioDescriptorV2,
@@ -35,6 +36,7 @@ import {
   recordWorkbenchPerformanceEventIntervalV3,
   recordWorkbenchPerformanceValueV3,
   workbenchPerformanceDiagnosticsEnabledV3,
+  workbenchPerformanceNowV3,
 } from "./WorkbenchPerformanceDiagnosticsV3";
 import {
   resolveWorkbenchPresentationProfileV3,
@@ -67,6 +69,9 @@ export type WorkbenchParallelScenarioRuntimeClientV3 = Pick<
   | "requestAnalysis"
   | "terminate"
 > & Readonly<{
+  initializationTiming?: StudioSimulationWorkerClientV2[
+    "initializationTiming"
+  ];
   presentationTiming?: StudioSimulationWorkerClientV2["presentationTiming"];
 }>;
 
@@ -794,6 +799,10 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   ): Promise<WorkbenchParallelScenarioLaneV3> {
     const runtimeSessionId = this.#createRuntimeSessionId(seed.scenarioId);
     const client = this.#createClient(seed.scenarioId);
+    const diagnosticsEnabled = workbenchPerformanceDiagnosticsEnabledV3();
+    const initializeStartedAtMs = diagnosticsEnabled
+      ? workbenchPerformanceNowV3()
+      : 0;
     try {
       const initialFrame = await client.initialize({
         expectedModelId: this.#expectedModelId,
@@ -806,6 +815,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
           ? {}
           : { checkpoint: seed.checkpoint }),
       });
+      if (diagnosticsEnabled) {
+        recordWorkbenchPerformanceDurationV3(
+          "worker.initialization-round-trip",
+          workbenchPerformanceNowV3() - initializeStartedAtMs,
+        );
+        recordWorkerInitializationTimingV3(
+          seed.scenarioId,
+          client.initializationTiming?.(),
+        );
+      }
       const lane = {
         descriptor: Object.freeze({
           scenarioId: seed.scenarioId,
@@ -1137,6 +1156,65 @@ function requireScenarioLabelV3(label: string): void {
   ) {
     throw new Error(
       "parallel Scenario label must be a nonempty trimmed string of at most 4096 characters",
+    );
+  }
+}
+
+function recordWorkerInitializationTimingV3(
+  scenarioId: string,
+  timing: StudioSimulationWorkerInitializationTimingV2 | undefined,
+): void {
+  if (timing === undefined) return;
+  recordWorkbenchPerformanceDurationV3(
+    "worker.initialization-total",
+    timing.totalWorkerInitializeMs,
+  );
+  recordWorkbenchPerformanceDurationV3(
+    `worker.lane.${scenarioId}.initialization-total`,
+    timing.totalWorkerInitializeMs,
+  );
+  recordWorkbenchPerformanceDurationV3(
+    "worker.initialization-authoring-setup",
+    timing.authoringSetupMs,
+  );
+  recordWorkbenchPerformanceDurationV3(
+    "worker.initialization-session-create",
+    timing.sessionCreateMs,
+  );
+  recordWorkbenchPerformanceDurationV3(
+    "worker.initialization-first-frame",
+    timing.initialFrameMs,
+  );
+  if (timing.executionPlanBindMs !== null) {
+    recordWorkbenchPerformanceDurationV3(
+      "worker.initialization-execution-plan-bind",
+      timing.executionPlanBindMs,
+    );
+  }
+  if (timing.exactRuntimeLoad !== null) {
+    recordWorkbenchPerformanceDurationV3(
+      "worker.initialization-exact-runtime-load",
+      timing.exactRuntimeLoad.totalMs,
+    );
+    recordWorkbenchPerformanceDurationV3(
+      "worker.initialization-artifact-fetch",
+      timing.exactRuntimeLoad.artifactFetchMs,
+    );
+    recordWorkbenchPerformanceDurationV3(
+      "worker.initialization-module-import-and-factory",
+      timing.exactRuntimeLoad.moduleImportAndFactoryMs,
+    );
+    recordWorkbenchPerformanceDurationV3(
+      "worker.initialization-contract-validation",
+      timing.exactRuntimeLoad.contractValidationMs,
+    );
+    recordWorkbenchPerformanceValueV3(
+      "worker.initialization-artifact-bytes",
+      timing.exactRuntimeLoad.artifactBytes,
+    );
+    recordWorkbenchPerformanceValueV3(
+      "worker.initialization-runtime-cache-hit",
+      timing.exactRuntimeLoad.cacheHit ? 1 : 0,
     );
   }
 }

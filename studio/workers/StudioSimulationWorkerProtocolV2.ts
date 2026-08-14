@@ -1,4 +1,7 @@
 import type {
+  ExactModelRuntimeLoadTimingV2,
+} from "@/studio/contracts/v2/executable";
+import type {
   ExperimentContentV2,
   ExperimentScenarioV2,
   ExperimentSnapshotV2,
@@ -46,6 +49,16 @@ import {
 export const STUDIO_SIMULATION_WORKER_PROTOCOL_V2 =
   "circleheart-studio-simulation-worker-protocol-v2" as const;
 export const STUDIO_SIMULATION_WORKER_MAX_ADVANCE_STEPS_V2 = 16;
+
+export type StudioSimulationWorkerInitializationTimingV2 = Readonly<{
+  exactRuntimeLoad: ExactModelRuntimeLoadTimingV2 | null;
+  authoringSetupMs: number;
+  sessionCreateMs: number;
+  initialFrameMs: number;
+  /** Reserved for the later descriptor-binding cutover. */
+  executionPlanBindMs: number | null;
+  totalWorkerInitializeMs: number;
+}>;
 
 export type StudioSimulationWorkerAuthoringSeedV2 = Readonly<{
   experiment?: ExperimentV2;
@@ -331,6 +344,7 @@ export type StudioSimulationWorkerResponseV2 =
       status: "ok";
       kind: "initialized";
       frame: StudioSimulationFrameV2;
+      initializationTiming?: StudioSimulationWorkerInitializationTimingV2;
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -1388,13 +1402,21 @@ export function validateStudioSimulationWorkerResponseV2(
       "protocol",
       "requestId",
       "status",
-    ], [], "$.response");
+    ], ["initializationTiming"], "$.response");
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
       status: "ok",
       kind: "initialized",
       frame: validateStudioSimulationFrameV2(response.frame),
+      ...(response.initializationTiming === undefined
+        ? {}
+        : {
+            initializationTiming: validateInitializationTimingV2(
+              response.initializationTiming,
+              "$.response.initializationTiming",
+            ),
+          }),
     });
   }
   if (envelope.kind === "advanced") {
@@ -2073,6 +2095,93 @@ function nonnegativeFiniteNumberV2(value: unknown, path: string): number {
     throw protocolErrorV2(path, "must be a nonnegative finite number");
   }
   return number;
+}
+
+function validateInitializationTimingV2(
+  value: unknown,
+  path: string,
+): StudioSimulationWorkerInitializationTimingV2 {
+  const timing = exactDataRecordV2(value, [
+    "authoringSetupMs",
+    "exactRuntimeLoad",
+    "executionPlanBindMs",
+    "initialFrameMs",
+    "sessionCreateMs",
+    "totalWorkerInitializeMs",
+  ], [], path);
+  const exactRuntimeLoad = timing.exactRuntimeLoad === null
+    ? null
+    : validateExactRuntimeLoadTimingV2(
+        timing.exactRuntimeLoad,
+        `${path}.exactRuntimeLoad`,
+      );
+  const executionPlanBindMs = timing.executionPlanBindMs === null
+    ? null
+    : nonnegativeFiniteNumberV2(
+        timing.executionPlanBindMs,
+        `${path}.executionPlanBindMs`,
+      );
+  return Object.freeze({
+    exactRuntimeLoad,
+    authoringSetupMs: nonnegativeFiniteNumberV2(
+      timing.authoringSetupMs,
+      `${path}.authoringSetupMs`,
+    ),
+    sessionCreateMs: nonnegativeFiniteNumberV2(
+      timing.sessionCreateMs,
+      `${path}.sessionCreateMs`,
+    ),
+    initialFrameMs: nonnegativeFiniteNumberV2(
+      timing.initialFrameMs,
+      `${path}.initialFrameMs`,
+    ),
+    executionPlanBindMs,
+    totalWorkerInitializeMs: nonnegativeFiniteNumberV2(
+      timing.totalWorkerInitializeMs,
+      `${path}.totalWorkerInitializeMs`,
+    ),
+  });
+}
+
+function validateExactRuntimeLoadTimingV2(
+  value: unknown,
+  path: string,
+): ExactModelRuntimeLoadTimingV2 {
+  const timing = exactDataRecordV2(value, [
+    "artifactBytes",
+    "artifactFetchMs",
+    "cacheHit",
+    "contractValidationMs",
+    "moduleImportAndFactoryMs",
+    "totalMs",
+  ], [], path);
+  if (typeof timing.cacheHit !== "boolean") {
+    throw protocolErrorV2(`${path}.cacheHit`, "must be a boolean");
+  }
+  const artifactBytes = nonnegativeFiniteNumberV2(
+    timing.artifactBytes,
+    `${path}.artifactBytes`,
+  );
+  if (!Number.isSafeInteger(artifactBytes)) {
+    throw protocolErrorV2(`${path}.artifactBytes`, "must be a safe integer");
+  }
+  return Object.freeze({
+    cacheHit: timing.cacheHit,
+    artifactBytes,
+    artifactFetchMs: nonnegativeFiniteNumberV2(
+      timing.artifactFetchMs,
+      `${path}.artifactFetchMs`,
+    ),
+    moduleImportAndFactoryMs: nonnegativeFiniteNumberV2(
+      timing.moduleImportAndFactoryMs,
+      `${path}.moduleImportAndFactoryMs`,
+    ),
+    contractValidationMs: nonnegativeFiniteNumberV2(
+      timing.contractValidationMs,
+      `${path}.contractValidationMs`,
+    ),
+    totalMs: nonnegativeFiniteNumberV2(timing.totalMs, `${path}.totalMs`),
+  });
 }
 
 function portableErrorMessageV2(value: unknown, path: string): string {
