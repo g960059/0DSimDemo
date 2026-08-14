@@ -17161,6 +17161,162 @@ const MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2 = buildCoronaryCol
 const MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_FINGERPRINT_V2 = coronaryTopologyPriorFingerprintV2(
   MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2
 );
+const COUPLED_HEMODYNAMICS_LAYOUT_V1_ID = "main-wire-coupled-hemodynamics-layout-v1";
+const COUPLED_HEMODYNAMICS_TRISEG_UNKNOWN_IDS_V1 = Object.freeze([
+  "TriSeg.septalMidwallCapVolume",
+  "TriSeg.junctionRadius"
+]);
+const COUPLED_HEMODYNAMICS_UNKNOWN_IDS_V1 = Object.freeze([
+  ...NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.map(
+    (nodeId) => `noncoronary.volume.${nodeId}`
+  ),
+  ...CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map(
+    (nodeId) => `coronary.volume.${nodeId}`
+  ),
+  ...COUPLED_HEMODYNAMICS_TRISEG_UNKNOWN_IDS_V1
+]);
+const NON_CORONARY_START = 0;
+const CORONARY_START = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+const TRISEG_START = CORONARY_START + CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+const COUPLED_HEMODYNAMICS_LAYOUT_V1 = Object.freeze({
+  layoutId: COUPLED_HEMODYNAMICS_LAYOUT_V1_ID,
+  unknownIds: COUPLED_HEMODYNAMICS_UNKNOWN_IDS_V1,
+  totalUnknownCount: COUPLED_HEMODYNAMICS_UNKNOWN_IDS_V1.length,
+  phase2aCondensedUnknownCount: TRISEG_START,
+  blocks: Object.freeze({
+    nonCoronary: Object.freeze({
+      start: NON_CORONARY_START,
+      length: NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length,
+      endExclusive: CORONARY_START
+    }),
+    coronary: Object.freeze({
+      start: CORONARY_START,
+      length: CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length,
+      endExclusive: TRISEG_START
+    }),
+    triSeg: Object.freeze({
+      start: TRISEG_START,
+      length: COUPLED_HEMODYNAMICS_TRISEG_UNKNOWN_IDS_V1.length,
+      endExclusive: COUPLED_HEMODYNAMICS_UNKNOWN_IDS_V1.length
+    })
+  }),
+  dependentBloodVolumeUnknown: "noncoronary.volume.SV",
+  dependentBloodVolumeStoredInUnknownVector: false,
+  linearStorage: "row-major-f64"
+});
+if (COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.nonCoronary.length !== 14 || COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.coronary.length !== 16 || COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.triSeg.length !== 2 || COUPLED_HEMODYNAMICS_LAYOUT_V1.totalUnknownCount !== 32) {
+  throw new Error("coupled hemodynamics V1 layout dimensions changed");
+}
+const ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_SOLVE_LAYOUTS_V1 = /* @__PURE__ */ new WeakSet();
+let canonicalMainWireFiveWallCoupledSolveLayoutV1 = null;
+function ownMainWireFiveWallCoupledSolveBlockLayoutV1(block) {
+  return Object.freeze({
+    blockId: block.blockId,
+    componentId: block.componentId,
+    kernelId: block.kernelId,
+    disposition: block.disposition,
+    start: block.start,
+    length: block.length,
+    endExclusive: block.endExclusive
+  });
+}
+function bindMainWireFiveWallCoupledSolveLayoutV1(value) {
+  const nonCoronaryLength = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+  const coronaryLength = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  const expected = [
+    [
+      value.nonCoronary,
+      "nonCoronary",
+      "noncoronary-circulation",
+      "noncoronary-backward-euler-kernel-v1",
+      "retained",
+      0,
+      nonCoronaryLength
+    ],
+    [
+      value.coronary,
+      "coronary",
+      "coronary-circulation",
+      "coronary-backward-euler-kernel-v2",
+      "retained",
+      nonCoronaryLength,
+      coronaryLength
+    ],
+    [
+      value.triSeg,
+      "triSeg",
+      "five-wall-mechanics",
+      "five-wall-land-triseg-kernel-v1",
+      "statically-condensed",
+      nonCoronaryLength + coronaryLength,
+      2
+    ]
+  ];
+  if (value.dimension !== nonCoronaryLength + coronaryLength) {
+    throw new RangeError("Main Wire coupled solve layout dimension drifted");
+  }
+  for (const [
+    block,
+    blockId,
+    componentId,
+    kernelId,
+    disposition,
+    start,
+    length
+  ] of expected) {
+    if (block.blockId !== blockId || block.componentId !== componentId || block.kernelId !== kernelId || block.disposition !== disposition || block.start !== start || block.length !== length || block.endExclusive !== start + length) {
+      throw new RangeError("Main Wire coupled solve block layout drifted");
+    }
+  }
+  const nonCoronary = ownMainWireFiveWallCoupledSolveBlockLayoutV1(
+    value.nonCoronary
+  );
+  const coronary = ownMainWireFiveWallCoupledSolveBlockLayoutV1(
+    value.coronary
+  );
+  const triSeg = ownMainWireFiveWallCoupledSolveBlockLayoutV1(value.triSeg);
+  const layout = Object.freeze({
+    dimension: 30,
+    nonCoronary,
+    coronary,
+    triSeg,
+    retainedBlocks: Object.freeze([nonCoronary, coronary])
+  });
+  ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_SOLVE_LAYOUTS_V1.add(layout);
+  return layout;
+}
+function assertMainWireFiveWallCoupledSolveLayoutV1(layout) {
+  if (!ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_SOLVE_LAYOUTS_V1.has(layout)) {
+    throw new RangeError("Main Wire coupled solve layout is not admitted");
+  }
+}
+function createCanonicalMainWireFiveWallCoupledSolveLayoutV1() {
+  canonicalMainWireFiveWallCoupledSolveLayoutV1 ??= bindMainWireFiveWallCoupledSolveLayoutV1({
+    dimension: COUPLED_HEMODYNAMICS_LAYOUT_V1.phase2aCondensedUnknownCount,
+    nonCoronary: {
+      blockId: "nonCoronary",
+      componentId: "noncoronary-circulation",
+      kernelId: "noncoronary-backward-euler-kernel-v1",
+      disposition: "retained",
+      ...COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.nonCoronary
+    },
+    coronary: {
+      blockId: "coronary",
+      componentId: "coronary-circulation",
+      kernelId: "coronary-backward-euler-kernel-v2",
+      disposition: "retained",
+      ...COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.coronary
+    },
+    triSeg: {
+      blockId: "triSeg",
+      componentId: "five-wall-mechanics",
+      kernelId: "five-wall-land-triseg-kernel-v1",
+      disposition: "statically-condensed",
+      ...COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.triSeg
+    }
+  });
+  return canonicalMainWireFiveWallCoupledSolveLayoutV1;
+}
 const FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID = "five-wall-normal-prescribed-calcium-drive-v1";
 const FIVE_WALL_NORMAL_CALCIUM_DRIVE_CLAIM_V1 = Object.freeze({
   waveform: "periodic-analytically-normalized-biexponential",
@@ -18077,7 +18233,10 @@ function initializeMainWireFiveWallCoronaryV2(input) {
     pressureLadderDiagnostics
   });
 }
-function prepareMainWireFiveWallCoupledResidualContextV1(provider, previous, input, previousAcceptedNumericalSource, workspace = createMainWireFiveWallCoupledResidualWorkspaceV1()) {
+function prepareMainWireFiveWallCoupledResidualContextV1(provider, previous, input, previousAcceptedNumericalSource, workspace = createMainWireFiveWallCoupledResidualWorkspaceV1(), solveLayout = createCanonicalMainWireFiveWallCoupledSolveLayoutV1()) {
+  assertMainWireFiveWallCoupledSolveLayoutV1(solveLayout);
+  const nonCoronaryBlock = solveLayout.nonCoronary;
+  const coronaryBlock = solveLayout.coronary;
   const borrowedWorkspace = borrowMainWireFiveWallCoupledResidualWorkspaceV1(workspace);
   const { storage, generation } = borrowedWorkspace;
   const assertWorkspaceCurrent = () => {
@@ -18180,10 +18339,10 @@ function prepareMainWireFiveWallCoupledResidualContextV1(provider, previous, inp
     cachedContinuityResidual
   } = storage;
   for (let index = 0; index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length; index += 1) {
-    initialUnknownsMl[index] = previous.circulation.nodeVolumesMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]];
+    initialUnknownsMl[nonCoronaryBlock.start + index] = previous.circulation.nodeVolumesMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]];
   }
   for (let index = 0; index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length; index += 1) {
-    initialUnknownsMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index] = previous.coronary.volumeMlByNode[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]];
+    initialUnknownsMl[coronaryBlock.start + index] = previous.coronary.volumeMlByNode[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]];
   }
   const minimumDependentSvVolumeMl = 1e-12;
   lowerBoundsMl.fill(1e-12);
@@ -18200,7 +18359,7 @@ function prepareMainWireFiveWallCoupledResidualContextV1(provider, previous, inp
     );
   }
   for (let index = 0; index < topology.nodes.length; index += 1) {
-    lowerBoundsMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index] = topology.nodes[index].pressureVolume.referenceVolumeMl * coronaryMinimumVolumeFractionOfReference;
+    lowerBoundsMl[coronaryBlock.start + index] = topology.nodes[index].pressureVolume.referenceVolumeMl * coronaryMinimumVolumeFractionOfReference;
   }
   upperBoundsMl.fill(previous.fixedGlobalTotalBloodVolumeMl);
   const preparedCoronary = prepareCoronaryCoupledCandidateEvaluatorV2(
@@ -18285,22 +18444,34 @@ function prepareMainWireFiveWallCoupledResidualContextV1(provider, previous, inp
     return true;
   };
   const writeCoupledResidual = (candidate, destinationResidualMl) => {
-    for (let index = 0; index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length; index += 1) {
-      const nodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(
-        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]
-      );
-      destinationResidualMl[index] = candidate.nonCoronaryProbe.continuityResidualMlByNode[nodeIndex];
+    for (const block of solveLayout.retainedBlocks) {
+      switch (block.kernelId) {
+        case "noncoronary-backward-euler-kernel-v1":
+          for (let index = 0; index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length; index += 1) {
+            const nodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(
+              NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]
+            );
+            destinationResidualMl[block.start + index] = candidate.nonCoronaryProbe.continuityResidualMlByNode[nodeIndex];
+          }
+          break;
+        case "coronary-backward-euler-kernel-v2":
+          destinationResidualMl.set(
+            candidate.coronaryResidualMl,
+            block.start
+          );
+          break;
+        default:
+          throw new Error(
+            `coupled residual block ${block.blockId} has no component writer`
+          );
+      }
     }
-    destinationResidualMl.set(
-      candidate.coronaryResidualMl,
-      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
-    );
   };
   const evaluateCoupledCandidate = (unknownsMl, destinationResidualMl, consume) => {
     assertWorkspaceCurrent();
-    if (!(unknownsMl instanceof Float64Array) || unknownsMl.length !== 30 || !(destinationResidualMl instanceof Float64Array) || destinationResidualMl.length !== 30) {
+    if (!(unknownsMl instanceof Float64Array) || unknownsMl.length !== solveLayout.dimension || !(destinationResidualMl instanceof Float64Array) || destinationResidualMl.length !== solveLayout.dimension) {
       throw new RangeError(
-        "coupled residual V1 requires two 30-value f64 vectors"
+        "coupled residual V1 requires two plan-sized f64 vectors"
       );
     }
     if (sameAsCachedCandidate(unknownsMl)) {
@@ -18308,10 +18479,10 @@ function prepareMainWireFiveWallCoupledResidualContextV1(provider, previous, inp
       return consume(cachedCandidate);
     }
     for (let index = 0; index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length; index += 1) {
-      candidateIndependentVolumesMl[index] = unknownsMl[index];
+      candidateIndependentVolumesMl[index] = unknownsMl[nonCoronaryBlock.start + index];
     }
     for (let index = 0; index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length; index += 1) {
-      candidateCoronaryVolumes[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]] = unknownsMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index];
+      candidateCoronaryVolumes[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]] = unknownsMl[coronaryBlock.start + index];
     }
     coronaryResidualAvailable = false;
     candidateBoundary = null;
@@ -18398,19 +18569,19 @@ function prepareMainWireFiveWallCoupledResidualContextV1(provider, previous, inp
   };
   const materializeCandidateTrial = (unknownsMl, diagnostics) => {
     assertWorkspaceCurrent();
-    if (!(unknownsMl instanceof Float64Array) || unknownsMl.length !== 30) {
+    if (!(unknownsMl instanceof Float64Array) || unknownsMl.length !== solveLayout.dimension) {
       throw new RangeError(
-        "coupled candidate materialization requires 30 physical volumes"
+        "coupled candidate materialization requires a plan-sized volume vector"
       );
     }
     const independentVolumesMl = unknownsMl.slice(
-      0,
-      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
+      nonCoronaryBlock.start,
+      nonCoronaryBlock.endExclusive
     );
     const coronaryVolumes = Object.freeze(Object.fromEntries(
       CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
         nodeId,
-        unknownsMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index]
+        unknownsMl[coronaryBlock.start + index]
       ])
     ));
     const circulationTrial = materializeNonCoronaryCirculationCandidateTrialV1({
@@ -18622,7 +18793,8 @@ function prepareMainWireFiveWallCoupledResidualContextV1(provider, previous, inp
     );
   };
   return Object.freeze({
-    dimension: 30,
+    dimension: solveLayout.dimension,
+    solveLayout,
     baseRevision: previous.revision,
     baseAcceptedTimeSec: previous.acceptedTimeSec,
     stepDtSec: input.dtSec,
@@ -32138,54 +32310,6 @@ function sameCoupledRootValue(left, right) {
 }
 const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID = "main-wire-five-wall-coupled-newton-shadow-v1";
 const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
-const ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SOLVE_LAYOUTS_V1 = /* @__PURE__ */ new WeakSet();
-function bindMainWireFiveWallCoupledNewtonSolveLayoutV1(value) {
-  const nonCoronaryLength = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
-  const coronaryLength = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
-  const expected = [
-    [value.nonCoronary, 0, nonCoronaryLength],
-    [value.coronary, nonCoronaryLength, coronaryLength],
-    [value.triSeg, nonCoronaryLength + coronaryLength, 2]
-  ];
-  if (value.dimension !== nonCoronaryLength + coronaryLength) {
-    throw new RangeError("Main Wire coupled solve layout dimension drifted");
-  }
-  for (const [block, start, length] of expected) {
-    if (block.start !== start || block.length !== length || block.endExclusive !== start + length) {
-      throw new RangeError("Main Wire coupled solve block layout drifted");
-    }
-  }
-  const layout = Object.freeze({
-    dimension: 30,
-    nonCoronary: Object.freeze({ ...value.nonCoronary }),
-    coronary: Object.freeze({ ...value.coronary }),
-    triSeg: Object.freeze({ ...value.triSeg })
-  });
-  ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SOLVE_LAYOUTS_V1.add(layout);
-  return layout;
-}
-function createCanonicalMainWireFiveWallCoupledNewtonSolveLayoutV1() {
-  const nonCoronaryLength = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
-  const coronaryLength = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
-  return bindMainWireFiveWallCoupledNewtonSolveLayoutV1({
-    dimension: nonCoronaryLength + coronaryLength,
-    nonCoronary: {
-      start: 0,
-      length: nonCoronaryLength,
-      endExclusive: nonCoronaryLength
-    },
-    coronary: {
-      start: nonCoronaryLength,
-      length: coronaryLength,
-      endExclusive: nonCoronaryLength + coronaryLength
-    },
-    triSeg: {
-      start: nonCoronaryLength + coronaryLength,
-      length: 2,
-      endExclusive: nonCoronaryLength + coronaryLength + 2
-    }
-  });
-}
 function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(backing) {
   const nonCoronaryDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
   const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
@@ -32194,9 +32318,9 @@ function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(backing) {
   const newton = backing?.newton ?? createFlatCoupledNewtonWorkspaceV1(dimension);
   const unknownScales = backing?.unknownScales ?? new Float64Array(dimension);
   const residualScales = backing?.residualScales ?? new Float64Array(dimension);
-  const solveLayout = backing?.solveLayout ?? createCanonicalMainWireFiveWallCoupledNewtonSolveLayoutV1();
+  const solveLayout = backing?.solveLayout ?? createCanonicalMainWireFiveWallCoupledSolveLayoutV1();
   assertFlatCoupledNewtonWorkspaceV1(newton, dimension);
-  assertMainWireFiveWallCoupledNewtonSolveLayoutV1(solveLayout);
+  assertMainWireFiveWallCoupledSolveLayoutV1(solveLayout);
   assertExternalScaleStorageV1(
     newton,
     unknownScales,
@@ -32239,11 +32363,6 @@ function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(backing) {
   );
   return workspace;
 }
-function assertMainWireFiveWallCoupledNewtonSolveLayoutV1(layout) {
-  if (!ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SOLVE_LAYOUTS_V1.has(layout)) {
-    throw new RangeError("Main Wire coupled solve layout is not admitted");
-  }
-}
 function assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace) {
   const expectedDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
   const storage = MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.get(
@@ -32251,6 +32370,28 @@ function assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace) {
   );
   if (storage === void 0 || workspace.dimension !== expectedDimension || storage.inUse) {
     throw new RangeError("coupled Newton shadow workspace is not admitted");
+  }
+}
+function resolveMainWireFiveWallCoupledSolveLayoutV1(workspace) {
+  assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace);
+  return MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.get(
+    workspace
+  ).solveLayout;
+}
+function assertMatchingMainWireFiveWallCoupledSolveLayoutV1(contextLayout, workspaceLayout) {
+  assertMainWireFiveWallCoupledSolveLayoutV1(contextLayout);
+  const blockNames = ["nonCoronary", "coronary", "triSeg"];
+  if (contextLayout.dimension !== workspaceLayout.dimension) {
+    throw new RangeError("coupled context/workspace solve dimensions drifted");
+  }
+  for (const blockName of blockNames) {
+    const contextBlock = contextLayout[blockName];
+    const workspaceBlock = workspaceLayout[blockName];
+    if (contextBlock.blockId !== workspaceBlock.blockId || contextBlock.componentId !== workspaceBlock.componentId || contextBlock.kernelId !== workspaceBlock.kernelId || contextBlock.disposition !== workspaceBlock.disposition || contextBlock.start !== workspaceBlock.start || contextBlock.length !== workspaceBlock.length || contextBlock.endExclusive !== workspaceBlock.endExclusive) {
+      throw new RangeError(
+        `coupled context/workspace ${blockName} solve block drifted`
+      );
+    }
   }
 }
 function borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace, dimension) {
@@ -32313,6 +32454,10 @@ function solveMainWireFiveWallCoupledNewtonShadowV1(context, options = Object.fr
       "finiteDifferenceRelativeStep"
     );
     const { plus, minus, plusResidual, minusResidual, solveLayout } = storage;
+    assertMatchingMainWireFiveWallCoupledSolveLayoutV1(
+      context.solveLayout,
+      solveLayout
+    );
     const coronaryDimension = solveLayout.coronary.length;
     const coronaryStart = solveLayout.coronary.start;
     const boundaryDimension = CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
@@ -43283,7 +43428,8 @@ function solveMainWireFiveWallCoupledCandidateV1(provider, previous, input, work
     previous,
     input,
     options.previousAcceptedNumericalSource,
-    options.residualWorkspace
+    options.residualWorkspace,
+    resolveMainWireFiveWallCoupledSolveLayoutV1(workspace)
   );
   const solverOptions = Object.freeze({
     ...options.solver,
@@ -46924,7 +47070,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-42";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-44";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";
@@ -47162,7 +47308,7 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
           newton,
           unknownScales: prepared.unknownScale,
           residualScales: prepared.residualScale,
-          solveLayout: bindMainWireFiveWallCoupledNewtonSolveLayoutV1({
+          solveLayout: bindMainWireFiveWallCoupledSolveLayoutV1({
             dimension: dispatch.activeUnknownCount,
             nonCoronary,
             coronary,

@@ -20,9 +20,11 @@ import {
   bindFlatCoupledNewtonWorkspaceV1,
 } from "@/engine/vnext/coupled/FlatCoupledNewtonV1";
 import {
-  bindMainWireFiveWallCoupledNewtonSolveLayoutV1,
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
+import {
+  bindMainWireFiveWallCoupledSolveLayoutV1,
+} from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
@@ -459,7 +461,7 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
           newton,
           unknownScales: prepared.unknownScale,
           residualScales: prepared.residualScale,
-          solveLayout: bindMainWireFiveWallCoupledNewtonSolveLayoutV1({
+          solveLayout: bindMainWireFiveWallCoupledSolveLayoutV1({
             dimension: dispatch.activeUnknownCount,
             nonCoronary,
             coronary,

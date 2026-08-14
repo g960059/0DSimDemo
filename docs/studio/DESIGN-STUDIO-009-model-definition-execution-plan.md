@@ -76,7 +76,7 @@ circulation claim to the model.
 
 ## Bound runtime slice
 
-The Standard-42 development candidate advertises both
+The Standard-44 development candidate advertises both
 `runtime/execution-plan-accepted-state-shadow-v1` and
 `runtime/execution-plan-newton-workspace-v1`. Its exact artifact contains the
 generated descriptor and a small binder; it does not contain
@@ -120,7 +120,7 @@ the two backing arrays once;
 the exact binder creates persistent views at the emitted offsets and rejects
 gaps, overlap, reordering, or foreign views. At an accepted boundary the active
 unknowns are gathered through compiler-emitted logical indices into the
-`current-unknowns` segment. Standard-42 additionally binds the existing
+`current-unknowns` segment. Standard-44 additionally binds the existing
 30-variable coupled Newton solve to those exact Scenario-owned views. Raw
 Jacobian and LU factors remain distinct segments; right-hand side,
 LU-transformed right-hand side, update, trial, scale vectors, and pivots are
@@ -138,6 +138,14 @@ the compiled block ranges for its noncoronary, coronary, and statically
 condensed TriSeg partitions, while rejecting unknown, reordered, cross-owner,
 or differently sized blocks. This moves orchestration metadata—not scientific
 equations—out of hand-written Studio wiring.
+
+The residual context and Newton workspace receive the same admitted layout.
+The context gathers component unknowns, dispatches each retained residual
+block by its compiler-bound kernel identity, and materializes the converged
+candidate through the same ranges. The solver rejects any context/workspace
+layout mismatch before it evaluates a residual. Component equations remain
+ordinary model-owned TypeScript functions; the portable descriptor never
+contains executable code or a generic physiology interpreter.
 
 ## Cold-start evidence
 
@@ -164,15 +172,16 @@ binding is bounded and that time-to-first-frame has not materially regressed.
 1. Add exact descriptor parity for every current generated layout that will
    become runtime-owned. **Complete for the current one-patch slice.**
 2. Embed the descriptor in the exact executable without another fetch or a
-   production compiler. **Complete in the Standard-42 development candidate.**
+   production compiler. **Complete in the Standard-44 development candidate.**
 3. Bind known kernel IDs, allocate buffers once, and reject missing, extra, or
-   aliased bindings. **Complete per Scenario in Standard-42.**
+   aliased bindings. **Complete per Scenario in Standard-44.**
 4. Move existing authority resources behind the bound plan, while preserving
    checkpoint continuation and the canonical scientific corpus. **Accepted
    state projection, canonical Newton workspace preparation, checkpoint
    continuation, and execution of the existing coupled Newton/LU solve through
-   the plan-owned workspace, plus compiler-owned solve-block dispatch, are
-   complete in Standard-42. Component residual writers remain model-owned.**
+   the plan-owned workspace, plus compiler-owned solve-block and residual
+   dispatch, are complete in Standard-44. Component residual equations remain
+   model-owned.**
 5. Mint a new model release for the direct runtime cutover. Do not dual-write
    state or retain a fallback inside that release.
 6. Delete the replaced hand-written layout tables only after production

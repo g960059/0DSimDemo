@@ -771,6 +771,28 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       undefined,
       residualWorkspace,
     );
+    expect(context.solveLayout.retainedBlocks.map((block) => ({
+      blockId: block.blockId,
+      componentId: block.componentId,
+      kernelId: block.kernelId,
+      start: block.start,
+      endExclusive: block.endExclusive,
+    }))).toEqual([
+      {
+        blockId: "nonCoronary",
+        componentId: "noncoronary-circulation",
+        kernelId: "noncoronary-backward-euler-kernel-v1",
+        start: 0,
+        endExclusive: 14,
+      },
+      {
+        blockId: "coronary",
+        componentId: "coronary-circulation",
+        kernelId: "coronary-backward-euler-kernel-v2",
+        start: 14,
+        endExclusive: 30,
+      },
+    ]);
     const reusedResidual = new Float64Array(context.dimension);
     context.evaluateResidualMl(context.initialUnknownsMl, reusedResidual);
     expect(context.initialUnknownsMl).toBe(staleContext.initialUnknownsMl);

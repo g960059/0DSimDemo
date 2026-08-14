@@ -111,6 +111,11 @@ import {
   type CoronaryTerritoryLayerRecordV2,
 } from "@/engine/coronary/typesV2";
 import {
+  assertMainWireFiveWallCoupledSolveLayoutV1,
+  createCanonicalMainWireFiveWallCoupledSolveLayoutV1,
+  type MainWireFiveWallCoupledSolveLayoutV1,
+} from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
+import {
   evaluateFiveWallNormalCalciumDriveV1,
   type FiveWallNormalCalciumDriveParamsV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
@@ -690,6 +695,7 @@ export type MainWireFiveWallCoupledResidualContextV1<
   TWallState = unknown,
 > = Readonly<{
   dimension: 30;
+  solveLayout: MainWireFiveWallCoupledSolveLayoutV1;
   baseRevision: number;
   baseAcceptedTimeSec: number;
   stepDtSec: number;
@@ -1131,7 +1137,12 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
   previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
   workspace: MainWireFiveWallCoupledResidualWorkspaceV1 =
     createMainWireFiveWallCoupledResidualWorkspaceV1(),
+  solveLayout: MainWireFiveWallCoupledSolveLayoutV1 =
+    createCanonicalMainWireFiveWallCoupledSolveLayoutV1(),
 ): MainWireFiveWallCoupledResidualContextV1<TWallState> {
+  assertMainWireFiveWallCoupledSolveLayoutV1(solveLayout);
+  const nonCoronaryBlock = solveLayout.nonCoronary;
+  const coronaryBlock = solveLayout.coronary;
   const borrowedWorkspace =
     borrowMainWireFiveWallCoupledResidualWorkspaceV1(workspace);
   const { storage, generation } = borrowedWorkspace;
@@ -1260,16 +1271,16 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
   for (let index = 0;
     index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
     index += 1) {
-    initialUnknownsMl[index] = previous.circulation.nodeVolumesMl[
+    initialUnknownsMl[nonCoronaryBlock.start + index] =
+      previous.circulation.nodeVolumesMl[
       NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]!
     ];
   }
   for (let index = 0;
     index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
     index += 1) {
-    initialUnknownsMl[
-      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
-    ] = previous.coronary.volumeMlByNode[
+    initialUnknownsMl[coronaryBlock.start + index] =
+      previous.coronary.volumeMlByNode[
       CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]!
     ];
   }
@@ -1302,9 +1313,8 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     );
   }
   for (let index = 0; index < topology.nodes.length; index += 1) {
-    lowerBoundsMl[
-      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
-    ] = topology.nodes[index]!.pressureVolume.referenceVolumeMl
+    lowerBoundsMl[coronaryBlock.start + index] =
+      topology.nodes[index]!.pressureVolume.referenceVolumeMl
       * coronaryMinimumVolumeFractionOfReference;
   }
   upperBoundsMl.fill(previous.fixedGlobalTotalBloodVolumeMl);
@@ -1434,21 +1444,34 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     candidate: CoupledCandidateView,
     destinationResidualMl: Float64Array,
   ): void => {
-    for (
-      let index = 0;
-      index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
-      index += 1
-    ) {
-      const nodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(
-        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]!,
-      );
-      destinationResidualMl[index] = candidate.nonCoronaryProbe
-        .continuityResidualMlByNode[nodeIndex]!;
+    for (const block of solveLayout.retainedBlocks) {
+      switch (block.kernelId) {
+        case "noncoronary-backward-euler-kernel-v1":
+          for (
+            let index = 0;
+            index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+            index += 1
+          ) {
+            const nodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(
+              NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]!,
+            );
+            destinationResidualMl[block.start + index] =
+              candidate.nonCoronaryProbe
+                .continuityResidualMlByNode[nodeIndex]!;
+          }
+          break;
+        case "coronary-backward-euler-kernel-v2":
+          destinationResidualMl.set(
+            candidate.coronaryResidualMl,
+            block.start,
+          );
+          break;
+        default:
+          throw new Error(
+            `coupled residual block ${block.blockId} has no component writer`,
+          );
+      }
     }
-    destinationResidualMl.set(
-      candidate.coronaryResidualMl,
-      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length,
-    );
   };
   const evaluateCoupledCandidate = <TResult>(
     unknownsMl: Float64Array,
@@ -1458,12 +1481,12 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     assertWorkspaceCurrent();
     if (
       !(unknownsMl instanceof Float64Array)
-      || unknownsMl.length !== 30
+      || unknownsMl.length !== solveLayout.dimension
       || !(destinationResidualMl instanceof Float64Array)
-      || destinationResidualMl.length !== 30
+      || destinationResidualMl.length !== solveLayout.dimension
     ) {
       throw new RangeError(
-        "coupled residual V1 requires two 30-value f64 vectors",
+        "coupled residual V1 requires two plan-sized f64 vectors",
       );
     }
     if (sameAsCachedCandidate(unknownsMl)) {
@@ -1475,7 +1498,8 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
       index += 1
     ) {
-      candidateIndependentVolumesMl[index] = unknownsMl[index]!;
+      candidateIndependentVolumesMl[index] =
+        unknownsMl[nonCoronaryBlock.start + index]!;
     }
     for (
       let index = 0;
@@ -1484,9 +1508,7 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     ) {
       candidateCoronaryVolumes[
         CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]!
-      ] = unknownsMl[
-        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
-      ]!;
+      ] = unknownsMl[coronaryBlock.start + index]!;
     }
     coronaryResidualAvailable = false;
     candidateBoundary = null;
@@ -1602,21 +1624,22 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     }>,
   ): MainWireFiveWallCoupledCandidateMaterializationV1<TWallState> => {
     assertWorkspaceCurrent();
-    if (!(unknownsMl instanceof Float64Array) || unknownsMl.length !== 30) {
+    if (
+      !(unknownsMl instanceof Float64Array)
+      || unknownsMl.length !== solveLayout.dimension
+    ) {
       throw new RangeError(
-        "coupled candidate materialization requires 30 physical volumes",
+        "coupled candidate materialization requires a plan-sized volume vector",
       );
     }
     const independentVolumesMl = unknownsMl.slice(
-      0,
-      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length,
+      nonCoronaryBlock.start,
+      nonCoronaryBlock.endExclusive,
     );
     const coronaryVolumes = Object.freeze(Object.fromEntries(
       CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
         nodeId,
-        unknownsMl[
-          NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
-        ]!,
+        unknownsMl[coronaryBlock.start + index]!,
       ]),
     )) as CoronaryConservedVolumeStateV2;
     const circulationTrial = materializeNonCoronaryCirculationCandidateTrialV1<
@@ -1902,7 +1925,8 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
   };
 
   return Object.freeze({
-    dimension: 30 as const,
+    dimension: solveLayout.dimension,
+    solveLayout,
     baseRevision: previous.revision,
     baseAcceptedTimeSec: previous.acceptedTimeSec,
     stepDtSec: input.dtSec,

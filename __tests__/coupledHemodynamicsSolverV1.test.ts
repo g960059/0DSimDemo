@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   COUPLED_HEMODYNAMICS_LAYOUT_V1,
+  bindMainWireFiveWallCoupledSolveLayoutV1,
   coupledHemodynamicsUnknownIndexV1,
+  createCanonicalMainWireFiveWallCoupledSolveLayoutV1,
 } from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
 import {
   bindFlatCoupledNewtonWorkspaceV1,
@@ -21,10 +23,6 @@ import {
   factorFlatDenseMatrixV1,
   solveFactoredFlatDenseSystemV1,
 } from "@/engine/vnext/coupled/FlatDenseLuV1";
-import {
-  bindMainWireFiveWallCoupledNewtonSolveLayoutV1,
-} from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
-
 const DIMENSION = 32;
 
 describe("coupled hemodynamics solver V1 infrastructure", () => {
@@ -49,18 +47,27 @@ describe("coupled hemodynamics solver V1 infrastructure", () => {
   });
 
   it("admits only the exact compiler-projected Main Wire solve layout", () => {
-    expect(bindMainWireFiveWallCoupledNewtonSolveLayoutV1({
+    const canonical = createCanonicalMainWireFiveWallCoupledSolveLayoutV1();
+    expect(bindMainWireFiveWallCoupledSolveLayoutV1({
       dimension: 30,
-      ...COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks,
-    })).toEqual({
+      nonCoronary: canonical.nonCoronary,
+      coronary: canonical.coronary,
+      triSeg: canonical.triSeg,
+    })).toEqual(canonical);
+    expect(() => bindMainWireFiveWallCoupledSolveLayoutV1({
       dimension: 30,
-      ...COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks,
-    });
-    expect(() => bindMainWireFiveWallCoupledNewtonSolveLayoutV1({
+      nonCoronary: canonical.coronary,
+      coronary: canonical.nonCoronary,
+      triSeg: canonical.triSeg,
+    })).toThrow(/block layout drifted/);
+    expect(() => bindMainWireFiveWallCoupledSolveLayoutV1({
       dimension: 30,
-      nonCoronary: COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.coronary,
-      coronary: COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.nonCoronary,
-      triSeg: COUPLED_HEMODYNAMICS_LAYOUT_V1.blocks.triSeg,
+      nonCoronary: canonical.nonCoronary,
+      coronary: {
+        ...canonical.coronary,
+        kernelId: "coronary-wrong-kernel-v1",
+      },
+      triSeg: canonical.triSeg,
     })).toThrow(/block layout drifted/);
   });
 

@@ -25,6 +25,11 @@ import {
   type MainWireFiveWallCoupledPredictionOrderV1,
   type MainWireFiveWallCoupledPredictorWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
+import {
+  assertMainWireFiveWallCoupledSolveLayoutV1,
+  createCanonicalMainWireFiveWallCoupledSolveLayoutV1,
+  type MainWireFiveWallCoupledSolveLayoutV1,
+} from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
 
 export const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID =
   "main-wire-five-wall-coupled-newton-shadow-v1" as const;
@@ -96,30 +101,11 @@ export type MainWireFiveWallCoupledNewtonShadowWorkspaceV1 = Readonly<{
   dimension: number;
 }>;
 
-export type MainWireFiveWallCoupledNewtonSolveLayoutV1 = Readonly<{
-  dimension: 30;
-  nonCoronary: Readonly<{
-    start: number;
-    length: number;
-    endExclusive: number;
-  }>;
-  coronary: Readonly<{
-    start: number;
-    length: number;
-    endExclusive: number;
-  }>;
-  triSeg: Readonly<{
-    start: number;
-    length: number;
-    endExclusive: number;
-  }>;
-}>;
-
 export type MainWireFiveWallCoupledNewtonWorkspaceBackingV1 = Readonly<{
   newton: FlatCoupledNewtonWorkspaceV1;
   unknownScales: Float64Array;
   residualScales: Float64Array;
-  solveLayout: MainWireFiveWallCoupledNewtonSolveLayoutV1;
+  solveLayout: MainWireFiveWallCoupledSolveLayoutV1;
 }>;
 
 type CoupledCoronaryLinearizationStorageV1 = {
@@ -144,7 +130,7 @@ type MainWireFiveWallCoupledNewtonShadowWorkspaceStorageV1 = {
   readonly unknownScales: Float64Array;
   readonly residualScales: Float64Array;
   readonly newton: FlatCoupledNewtonWorkspaceV1;
-  readonly solveLayout: MainWireFiveWallCoupledNewtonSolveLayoutV1;
+  readonly solveLayout: MainWireFiveWallCoupledSolveLayoutV1;
   inUse: boolean;
 };
 
@@ -153,83 +139,6 @@ const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1 =
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
     MainWireFiveWallCoupledNewtonShadowWorkspaceStorageV1
   >();
-const ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SOLVE_LAYOUTS_V1 =
-  new WeakSet<object>();
-
-/** Owns a compiler-projected block layout after exact Main Wire validation. */
-export function bindMainWireFiveWallCoupledNewtonSolveLayoutV1(
-  value: Readonly<{
-    dimension: number;
-    nonCoronary: Readonly<{
-      start: number;
-      length: number;
-      endExclusive: number;
-    }>;
-    coronary: Readonly<{
-      start: number;
-      length: number;
-      endExclusive: number;
-    }>;
-    triSeg: Readonly<{
-      start: number;
-      length: number;
-      endExclusive: number;
-    }>;
-  }>,
-): MainWireFiveWallCoupledNewtonSolveLayoutV1 {
-  const nonCoronaryLength = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
-  const coronaryLength = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
-  const expected = [
-    [value.nonCoronary, 0, nonCoronaryLength],
-    [value.coronary, nonCoronaryLength, coronaryLength],
-    [value.triSeg, nonCoronaryLength + coronaryLength, 2],
-  ] as const;
-  if (value.dimension !== nonCoronaryLength + coronaryLength) {
-    throw new RangeError("Main Wire coupled solve layout dimension drifted");
-  }
-  for (const [block, start, length] of expected) {
-    if (
-      block.start !== start
-      || block.length !== length
-      || block.endExclusive !== start + length
-    ) {
-      throw new RangeError("Main Wire coupled solve block layout drifted");
-    }
-  }
-  const layout = Object.freeze({
-    dimension: 30 as const,
-    nonCoronary: Object.freeze({ ...value.nonCoronary }),
-    coronary: Object.freeze({ ...value.coronary }),
-    triSeg: Object.freeze({ ...value.triSeg }),
-  });
-  ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SOLVE_LAYOUTS_V1.add(layout);
-  return layout;
-}
-
-function createCanonicalMainWireFiveWallCoupledNewtonSolveLayoutV1():
-MainWireFiveWallCoupledNewtonSolveLayoutV1 {
-  const nonCoronaryLength = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
-  const coronaryLength = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
-  return bindMainWireFiveWallCoupledNewtonSolveLayoutV1({
-    dimension: nonCoronaryLength + coronaryLength,
-    nonCoronary: {
-      start: 0,
-      length: nonCoronaryLength,
-      endExclusive: nonCoronaryLength,
-    },
-    coronary: {
-      start: nonCoronaryLength,
-      length: coronaryLength,
-      endExclusive: nonCoronaryLength + coronaryLength,
-    },
-    triSeg: {
-      start: nonCoronaryLength + coronaryLength,
-      length: 2,
-      endExclusive: nonCoronaryLength + coronaryLength + 2,
-    },
-  });
-}
-
 /**
  * Session-owned mutable scratch for the migration solver. It is not accepted
  * model state, is never checkpointed, and may only be borrowed by one solve.
@@ -255,9 +164,9 @@ export function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
   const residualScales = backing?.residualScales
     ?? new Float64Array(dimension);
   const solveLayout = backing?.solveLayout
-    ?? createCanonicalMainWireFiveWallCoupledNewtonSolveLayoutV1();
+    ?? createCanonicalMainWireFiveWallCoupledSolveLayoutV1();
   assertFlatCoupledNewtonWorkspaceV1(newton, dimension);
-  assertMainWireFiveWallCoupledNewtonSolveLayoutV1(solveLayout);
+  assertMainWireFiveWallCoupledSolveLayoutV1(solveLayout);
   assertExternalScaleStorageV1(
     newton,
     unknownScales,
@@ -306,14 +215,6 @@ export function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
   return workspace;
 }
 
-function assertMainWireFiveWallCoupledNewtonSolveLayoutV1(
-  layout: MainWireFiveWallCoupledNewtonSolveLayoutV1,
-): void {
-  if (!ADMITTED_MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SOLVE_LAYOUTS_V1.has(layout)) {
-    throw new RangeError("Main Wire coupled solve layout is not admitted");
-  }
-}
-
 export function assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
   workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
 ): void {
@@ -329,6 +230,44 @@ export function assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
     || storage.inUse
   ) {
     throw new RangeError("coupled Newton shadow workspace is not admitted");
+  }
+}
+
+/** Returns the admitted compiler projection owned by this Scenario workspace. */
+export function resolveMainWireFiveWallCoupledSolveLayoutV1(
+  workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+): MainWireFiveWallCoupledSolveLayoutV1 {
+  assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace);
+  return MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.get(
+    workspace,
+  )!.solveLayout;
+}
+
+function assertMatchingMainWireFiveWallCoupledSolveLayoutV1(
+  contextLayout: MainWireFiveWallCoupledSolveLayoutV1,
+  workspaceLayout: MainWireFiveWallCoupledSolveLayoutV1,
+): void {
+  assertMainWireFiveWallCoupledSolveLayoutV1(contextLayout);
+  const blockNames = ["nonCoronary", "coronary", "triSeg"] as const;
+  if (contextLayout.dimension !== workspaceLayout.dimension) {
+    throw new RangeError("coupled context/workspace solve dimensions drifted");
+  }
+  for (const blockName of blockNames) {
+    const contextBlock = contextLayout[blockName];
+    const workspaceBlock = workspaceLayout[blockName];
+    if (
+      contextBlock.blockId !== workspaceBlock.blockId
+      || contextBlock.componentId !== workspaceBlock.componentId
+      || contextBlock.kernelId !== workspaceBlock.kernelId
+      || contextBlock.disposition !== workspaceBlock.disposition
+      || contextBlock.start !== workspaceBlock.start
+      || contextBlock.length !== workspaceBlock.length
+      || contextBlock.endExclusive !== workspaceBlock.endExclusive
+    ) {
+      throw new RangeError(
+        `coupled context/workspace ${blockName} solve block drifted`,
+      );
+    }
   }
 }
 
@@ -425,6 +364,10 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1<TWallState = unknown>
     "finiteDifferenceRelativeStep",
   );
   const { plus, minus, plusResidual, minusResidual, solveLayout } = storage;
+  assertMatchingMainWireFiveWallCoupledSolveLayoutV1(
+    context.solveLayout,
+    solveLayout,
+  );
   const coronaryDimension = solveLayout.coronary.length;
   const coronaryStart = solveLayout.coronary.start;
   const boundaryDimension =

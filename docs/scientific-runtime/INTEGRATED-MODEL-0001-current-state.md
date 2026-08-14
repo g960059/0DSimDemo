@@ -32,10 +32,10 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-42
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-44
 ```
 
-Standard-42 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
+Standard-44 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
 exact artifact and binds one Worker-local typed plan per Scenario
 during initialization. Surviving Scenario plans are retained across branch
 rebuilds, newly added branches receive fresh nonaliasing storage, and no solver
@@ -64,7 +64,10 @@ kernel identity. The exact binder resolves those identities to the registered
 kernel catalog and supplies the compiled `nonCoronary / coronary / triSeg`
 ranges to the existing coupled solver. The current kernel still requires the
 same `14 + 16 + 2` shape and rejects any incompatible plan; the range ownership
-is no longer duplicated in Studio runtime wiring.
+is no longer duplicated in Studio runtime wiring. Unknown gathering,
+component residual placement, and converged-candidate materialization consume
+the same Scenario-owned ranges as the Newton workspace. A context/workspace
+layout mismatch fails before the first residual evaluation.
 
 Standard-32 changes the live execution authority, not the physiology. Ordinary
 presentation ticks now solve and promote directly through the fixed typed
