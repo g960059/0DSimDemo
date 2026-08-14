@@ -87,6 +87,9 @@ import {
   type MainWireIntegratedModelStepResultV3,
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
+import {
+  warmStartMainWireIntegratedModelV3,
+} from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -210,18 +213,19 @@ type ExactBeatState = Readonly<{
 }>;
 
 /**
- * Phase 1b reference Session. It deliberately owns a copy of the accepted
- * transaction loop instead of injecting a hook into the registered exact
- * Session. That keeps every released artifact byte-identical while this
- * replacement authority is evaluated out of production.
+ * Typed-authority Session for the integrated model. It owns the accepted
+ * transaction loop and avoids materializing the public accepted object on
+ * each ordinary presentation tick.
  *
  * The component solver still exposes a compact private adapter and a
  * synchronous selected-root borrow. Strictly ordinary lean-tier projection
  * ticks stage that borrow and the remaining continuous owners directly into
  * the inactive typed image, then promote it without public-state finalization.
- * Event/full-invariant transactions retain the independent public oracle.
- * Public rehydration is reserved for observations, checkpoints, restores, and
- * those cold/event boundaries.
+ * Event/full-invariant transactions retain the independent public path.
+ * Public rehydration is reserved for observations, checkpoints, restores,
+ * analysis, and those cold/event boundaries. This is an authority/runtime
+ * cutover over the established equations, not a different physiological
+ * model.
  */
 export class MainWireFlatAuthoritativeReferenceSessionV1 {
   readonly sessionId = MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_SESSION_V1_ID;
@@ -452,6 +456,38 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
     );
   }
 
+  /**
+   * Restores the public Standard checkpoint into the typed accepted-state
+   * authority. Predictor history is deliberately empty: this checkpoint does
+   * not encode it, so the first ordinary solve restarts from the model-owned
+   * context seed before rebuilding admitted history.
+   */
+  static async restoreStandardExactCheckpoint(
+    checkpoint: unknown,
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    ventricularContractilityScale = 1,
+  ): Promise<MainWireFlatAuthoritativeReferenceSessionV1> {
+    const runtime = await createMainWireIntegratedModelRuntimeV3(
+      inputs,
+      ventricularContractilityScale,
+    );
+    const restored = await restoreMainWireIntegratedModelStandardV1(
+      mainWireIntegratedModelCheckpointContextV3(
+        runtime,
+        runtime.cold.acceptedState,
+      ),
+      checkpoint,
+    );
+    return new MainWireFlatAuthoritativeReferenceSessionV1(
+      runtime,
+      restored.acceptedState,
+      "standard-exact-checkpoint-restore",
+      typedAuthorityFactory(runtime.cold.acceptedState),
+      restored,
+    );
+  }
+
   /** Test-only failure seam kept entirely outside the registered model. */
   static async createWithAcceptedStateAuthorityForTestV1(
     authorityFactory: MainWireFlatReferenceAcceptedStateAuthorityFactoryV1,
@@ -514,6 +550,32 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
 
   currentAcceptedState(): AcceptedState {
     return this.#authority.snapshot();
+  }
+
+  /**
+   * Starts a new authored-input epoch at the exact current accepted clock.
+   * The new runtime receives a fresh typed authority and predictor history;
+   * failure cannot mutate this source Session.
+   */
+  async warmStartWithHemodynamicResearchInputs(
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
+    ventricularContractilityScale = 1,
+  ): Promise<MainWireFlatAuthoritativeReferenceSessionV1> {
+    const targetRuntime = await createMainWireIntegratedModelRuntimeV3(
+      inputs,
+      ventricularContractilityScale,
+    );
+    const acceptedState = warmStartMainWireIntegratedModelV3({
+      source: this.#authority.snapshot(),
+      sourceRuntime: this.#runtime,
+      targetRuntime,
+    });
+    return new MainWireFlatAuthoritativeReferenceSessionV1(
+      targetRuntime,
+      acceptedState,
+      "hemodynamic-input-warm-start",
+      typedAuthorityFactory(targetRuntime.cold.acceptedState),
+    );
   }
 
   observe(): MainWireIntegratedModelObservationV3 {

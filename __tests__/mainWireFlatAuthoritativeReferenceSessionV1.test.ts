@@ -2106,6 +2106,62 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     }
   }, 120_000);
 
+  it("continues scientifically after a public Standard checkpoint", async () => {
+    const previousTier = hotPathIntegrityTierV1();
+    selectHotPathIntegrityTierV1("hot-path-lean");
+    try {
+      const source =
+        await MainWireFlatAuthoritativeReferenceSessionV1.create();
+      const checkpointTick = 377;
+      const finalTick = 544;
+      for (let tick = 1; tick <= checkpointTick; tick += 1) {
+        const result = source
+          .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+            mainWireIntegratedModelPresentationTargetTimeSecV3(tick),
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          );
+        expect(result.advance.status).toBe("advanced");
+      }
+
+      const restored = await MainWireFlatAuthoritativeReferenceSessionV1
+        .restoreStandardExactCheckpoint(await source.checkpointStandardExact());
+      expect(restored.currentAcceptedState())
+        .toEqual(source.currentAcceptedState());
+      expect(restored.coupledPredictorReport()).toMatchObject({
+        hasAcceptedPair: false,
+        historyDepth: 0,
+      });
+
+      for (let tick = checkpointTick + 1; tick <= finalTick; tick += 1) {
+        const target = mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
+        const uninterrupted = source
+          .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+            target,
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          );
+        const actual = restored
+          .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+            target,
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          );
+        expect(actual.advance.status).toBe("advanced");
+        expect(uninterrupted.advance.status).toBe("advanced");
+        expect(actual.advance.acceptedRevision)
+          .toBe(uninterrupted.advance.acceptedRevision);
+        expectProjectedValuesScientificallyEquivalent(
+          actual.projectedValues!,
+          uninterrupted.projectedValues!,
+        );
+      }
+      expect(restored.coupledPredictorReport()).toMatchObject({
+        hasAcceptedPair: true,
+        historyDepth: 4,
+      });
+    } finally {
+      selectHotPathIntegrityTierV1(previousTier);
+    }
+  }, 120_000);
+
   it("restores a tamper-evident binary checkpoint with exact continuation", async () => {
     const source = await MainWireFlatAuthoritativeReferenceSessionV1.create();
     for (let tick = 1; tick <= 377; tick += 1) {
