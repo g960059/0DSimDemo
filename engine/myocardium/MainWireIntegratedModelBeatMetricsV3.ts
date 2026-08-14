@@ -4,6 +4,10 @@ import type {
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
+import {
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
+} from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 
 type SuccessfulStep = MainWireIntegratedModelStepSuccessV3<
   MainWireNormalAdultFiveWallMechanicsStateV1
@@ -63,7 +67,7 @@ export type MainWireIntegratedModelCompletedBeatMetricsV3 = Readonly<{
   pulmonaryOutputLPerMin: number;
 }>;
 
-type BeatSampleV3 = Readonly<{
+export type MainWireIntegratedModelAcceptedBeatSampleV3 = Readonly<{
   timeSec: number;
   aorticPressureMmHg: number;
   pulmonaryArterialPressureMmHg: number;
@@ -84,7 +88,7 @@ type BeatSampleV3 = Readonly<{
 type ActiveBeatV3 = {
   startAtrialCaptureId: string;
   startTimeSec: number;
-  previous: BeatSampleV3;
+  previous: MainWireIntegratedModelAcceptedBeatSampleV3;
   aorticPressureIntegralMmHgSec: number;
   pulmonaryArterialPressureIntegralMmHgSec: number;
   leftAtrialPressureIntegralMmHgSec: number;
@@ -148,15 +152,43 @@ export class MainWireIntegratedModelBeatAccumulatorV3 {
 
   accept(step: SuccessfulStep): MainWireIntegratedModelCompletedBeatMetricsV3 | null {
     const sample = sampleFromStepV3(step);
+    return this.acceptSample(
+      sample,
+      step.composedRhythmCandidate.capturedAtrialActivation
+        ?.capturedActivationId ?? null,
+    );
+  }
+
+  /**
+   * Consumes the model-owned fixed readback only after its wider integrated
+   * transaction has committed. The input is borrowed and never retained.
+   */
+  acceptNumericalReadback(
+    readback: Float64Array,
+    capturedAtrialActivationId: string | null,
+  ): MainWireIntegratedModelCompletedBeatMetricsV3 | null {
+    return this.acceptSample(
+      sampleFromNumericalReadbackV1(readback),
+      capturedAtrialActivationId,
+    );
+  }
+
+  private acceptSample(
+    sample: MainWireIntegratedModelAcceptedBeatSampleV3,
+    capturedAtrialActivationId: string | null,
+  ): MainWireIntegratedModelCompletedBeatMetricsV3 | null {
     if (this.#active !== null) integrateSampleV3(this.#active, sample);
 
-    const capture = step.composedRhythmCandidate.capturedAtrialActivation;
-    if (capture === null) return null;
+    if (capturedAtrialActivationId === null) return null;
 
     const completed = this.#active === null
       ? null
-      : completeBeatV3(this.#active, capture.capturedActivationId, sample.timeSec);
-    this.#active = beginBeatV3(capture.capturedActivationId, sample);
+      : completeBeatV3(
+        this.#active,
+        capturedAtrialActivationId,
+        sample.timeSec,
+      );
+    this.#active = beginBeatV3(capturedAtrialActivationId, sample);
     return completed;
   }
 }
@@ -303,7 +335,9 @@ export function validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3(
   });
 }
 
-function sampleFromStepV3(step: SuccessfulStep): BeatSampleV3 {
+function sampleFromStepV3(
+  step: SuccessfulStep,
+): MainWireIntegratedModelAcceptedBeatSampleV3 {
   const circulation = step.coronaryStep.baseStep.circulationTrial;
   const coronary = step.coronaryStep.baseStep.coronaryTrial.diagnostics
     .hydraulics;
@@ -342,9 +376,60 @@ function sampleFromStepV3(step: SuccessfulStep): BeatSampleV3 {
   return sample;
 }
 
+export function sampleMainWireIntegratedModelBeatFromNumericalReadbackV1(
+  readback: Float64Array,
+): MainWireIntegratedModelAcceptedBeatSampleV3 {
+  return sampleFromNumericalReadbackV1(readback);
+}
+
+function sampleFromNumericalReadbackV1(
+  readback: Float64Array,
+): MainWireIntegratedModelAcceptedBeatSampleV3 {
+  if (
+    !(readback instanceof Float64Array)
+    || readback.length
+      !== MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1
+  ) {
+    throw new RangeError(
+      "integrated V3 beat readback must contain exactly 32 f64 values",
+    );
+  }
+  const layout = MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1;
+  const sample = Object.freeze({
+    timeSec: readback[layout.timeSec]!,
+    aorticPressureMmHg: readback[layout.absolutePressureMmHg + 4]!,
+    pulmonaryArterialPressureMmHg:
+      readback[layout.absolutePressureMmHg + 6]!,
+    leftAtrialPressureMmHg: readback[layout.absolutePressureMmHg]!,
+    rightAtrialPressureMmHg: readback[layout.absolutePressureMmHg + 2]!,
+    leftVentricularVolumeMl: readback[layout.chamberVolumeMl + 1]!,
+    rightVentricularVolumeMl: readback[layout.chamberVolumeMl + 3]!,
+    leftVentricularTransmuralPressureMmHg:
+      readback[layout.transmuralPressureMmHg + 1]!,
+    rightVentricularTransmuralPressureMmHg:
+      readback[layout.transmuralPressureMmHg + 3]!,
+    aorticValveFlowMlPerSec: readback[layout.valveFlowMlPerSec + 1]!,
+    pulmonaryValveFlowMlPerSec: readback[layout.valveFlowMlPerSec + 3]!,
+    systemicVenousReturnMlPerSec:
+      readback[layout.systemicVenousFlowMlPerSec]!
+      + readback[layout.coronaryVenousOutletFlowMlPerSec]!,
+    pulmonaryVenousReturnMlPerSec:
+      readback[layout.pulmonaryVenousFlowMlPerSec]!,
+    systemicTissueFlowMlPerSec:
+      readback[layout.systemicTissueFlowMlPerSec]!,
+    pulmonaryFlowMlPerSec: readback[layout.pulmonaryFlowMlPerSec]!,
+  });
+  for (const [name, value] of Object.entries(sample)) {
+    if (!Number.isFinite(value)) {
+      throw new Error(`integrated V3 beat readback ${name} is not finite`);
+    }
+  }
+  return sample;
+}
+
 function beginBeatV3(
   startAtrialCaptureId: string,
-  sample: BeatSampleV3,
+  sample: MainWireIntegratedModelAcceptedBeatSampleV3,
 ): ActiveBeatV3 {
   const leftLandmark = pressureVolumeLandmarkFromSampleV3(
     sample,
@@ -389,7 +474,10 @@ function beginBeatV3(
   };
 }
 
-function integrateSampleV3(active: ActiveBeatV3, next: BeatSampleV3): void {
+function integrateSampleV3(
+  active: ActiveBeatV3,
+  next: MainWireIntegratedModelAcceptedBeatSampleV3,
+): void {
   const previous = active.previous;
   const dtSec = next.timeSec - previous.timeSec;
   if (!Number.isFinite(dtSec) || dtSec <= 0) {
@@ -617,7 +705,7 @@ function trapezoidV3(left: number, right: number, dtSec: number): number {
 }
 
 function pressureVolumeLandmarkFromSampleV3(
-  sample: BeatSampleV3,
+  sample: MainWireIntegratedModelAcceptedBeatSampleV3,
   side: "left" | "right",
   event: MainWireIntegratedModelPressureVolumeLandmarkV3["event"],
 ): MainWireIntegratedModelPressureVolumeLandmarkV3 {
@@ -791,7 +879,9 @@ function ownActiveBeatV3(input: unknown): ActiveBeatV3 {
   };
 }
 
-function ownBeatSampleV3(input: unknown): BeatSampleV3 {
+function ownBeatSampleV3(
+  input: unknown,
+): MainWireIntegratedModelAcceptedBeatSampleV3 {
   const record = plainExactRecordV3(input, [
     "timeSec",
     "aorticPressureMmHg",
@@ -974,8 +1064,8 @@ function positiveFiniteV3(value: unknown, label: string): number {
 }
 
 function interpolateValveClosureV3(
-  previous: BeatSampleV3,
-  next: BeatSampleV3,
+  previous: MainWireIntegratedModelAcceptedBeatSampleV3,
+  next: MainWireIntegratedModelAcceptedBeatSampleV3,
   side: "left" | "right",
   previousFlowMlPerSec: number,
   nextFlowMlPerSec: number,

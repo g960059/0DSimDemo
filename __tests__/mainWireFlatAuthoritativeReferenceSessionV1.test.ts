@@ -1756,10 +1756,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const reference = await MainWireFlatAuthoritativeReferenceSessionV1.create();
     const oracle = await MainWireIntegratedModelSessionV3.create();
     const target = mainWireIntegratedModelPresentationTargetTimeSecV3(1);
-    const outputIds = Object.freeze([
-      "hemodynamics.pressure.absolute.LV" as const,
-      "hemodynamics.volume.LV" as const,
-    ]);
+    const outputIds = MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3;
     const actual = reference
       .advanceToPresentationTimeWithSelectedOutputProjectionV1(
         target,
@@ -1774,6 +1771,13 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       throw new Error("projection oracle failed");
     }
     expect(actual.projectedValues).toEqual(
+      projectMainWireIntegratedModelSelectedValuesV3(
+        reference.observe(),
+        outputIds,
+      ),
+    );
+    expectProjectedValuesScientificallyEquivalent(
+      actual.projectedValues!,
       projectMainWireIntegratedModelSelectedValuesV3(
         expected.observation,
         outputIds,

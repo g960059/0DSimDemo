@@ -29,6 +29,10 @@ import {
   type MainWireIntegratedModelCompletedBeatMetricsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import {
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
+} from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
@@ -42,6 +46,7 @@ import {
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV3";
 import {
   projectMainWireIntegratedModelSelectedValuesV3,
+  projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1,
   type MainWireIntegratedModelOutputIdV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
@@ -189,6 +194,9 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   readonly #typedHemodynamicBinding:
     MainWireAcceptedTypedHemodynamicBindingV1 | null;
   readonly #typedHemodynamicScratch: Float64Array;
+  readonly #acceptedNumericalReadback = new Float64Array(
+    MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
+  );
   readonly #coupledNewtonWorkspace:
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
   readonly #nonCoronaryAcceptedNumericalSource:
@@ -458,10 +466,20 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       });
     }
     const projectionStartedAt = performance.now();
-    const projectedValues = projectMainWireIntegratedModelSelectedValuesV3(
-      result.observation,
-      outputIds,
-    );
+    const projectedValues = this.#typedAuthority === null
+      ? projectMainWireIntegratedModelSelectedValuesV3(
+        result.observation,
+        outputIds,
+      )
+      : projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
+        Object.freeze({
+          acceptedState: this.#acceptedState,
+          runtimeSignals: result.observation.runtimeSignals,
+          completedBeatMetrics: this.#completedBeatMetrics,
+          acceptedNumericalReadback: this.#acceptedNumericalReadback,
+        }),
+        outputIds,
+      );
     const outputProjectionDurationMs = performance.now() - projectionStartedAt;
     const { observation: _trustedObservation, ...withoutObservation } = result;
     return Object.freeze({
@@ -544,6 +562,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       let borrowedAutoregulation:
         CoronaryAcceptedAutoregulationStateV3 | null = null;
       let borrowedAutoregulationCompleted = false;
+      let acceptedNumericalReadbackAvailable = false;
       let previousCoupledAcceptedAdapter:
         ReturnType<typeof mainWireFiveWallCoronaryBaseStateV2<WallState>>
         | undefined;
@@ -643,6 +662,10 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
                   candidateBorrow,
                   this.#typedHemodynamicScratch,
                 );
+                this.#acceptedNumericalReadback.set(
+                  candidateBorrow.acceptedNumericalReadback,
+                );
+                acceptedNumericalReadbackAvailable = true;
                 const regulation =
                   advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3(
                     this.#acceptedState.coronary,
@@ -703,6 +726,20 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         }
         throw new Error(
           "Main Wire packed autoregulation readback differs from public promotion",
+        );
+      }
+      if (
+        this.#typedAuthority !== null
+        && (
+          !acceptedNumericalReadbackAvailable
+          || this.#acceptedNumericalReadback[
+            MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec
+          ] !== result.acceptedState.acceptedTimeSec
+        )
+      ) {
+        if (directCandidateOpen) this.#typedAuthority.abortDirectCandidate();
+        throw new Error(
+          "Main Wire accepted numerical readback is missing or clock-misaligned",
         );
       }
 
@@ -791,7 +828,14 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         acceptedState: committedState,
       });
       this.#lastAcceptedStep = committedResult;
-      this.#completedBeatMetrics = this.#beatAccumulator.accept(committedResult)
+      const completedBeat = this.#typedAuthority === null
+        ? this.#beatAccumulator.accept(committedResult)
+        : this.#beatAccumulator.acceptNumericalReadback(
+          this.#acceptedNumericalReadback,
+          committedResult.composedRhythmCandidate.capturedAtrialActivation
+            ?.capturedActivationId ?? null,
+        );
+      this.#completedBeatMetrics = completedBeat
         ?? this.#completedBeatMetrics;
       substepCount += 1;
       substeps.push(Object.freeze({

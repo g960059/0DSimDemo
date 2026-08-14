@@ -1182,13 +1182,27 @@ four chamber volumes, nine absolute pressures, four transmural pressures,
 four valve flows, four vascular flows, pericardial excess pressure, total and
 territory coronary inlet flows, and the common coronary venous outlet. Every
 slot is produced by the same component evaluation that admitted the root; no
-second hydraulic evaluation is permitted. A regression compares all slots
-bit-for-bit with the independently finalized public trial. This readback is a
+second hydraulic evaluation is permitted on the new authority path. A cold
+root regression compares all slots bit-for-bit with the independently
+finalized public trial. Across a continuous trajectory, the retained public
+oracle performs a separate candidate/hydraulic reevaluation and may therefore
+differ by ordinary floating-point rounding; the all-output trajectory gate
+uses the already-established scientific corridor rather than pretending two
+evaluations are one numerical operation. This readback is a
 private versioned kernel block, not portable Snapshot content. It is the
 input boundary for direct signal projection and accepted-substep beat metrics;
 future physiology such as oxygen transport, autonomic control, or multipatch
 mechanics must add separately versioned blocks rather than reinterpret these
 32 slots.
+
+The accepted-substep beat accumulator and the selected-output presentation
+projector now consume that fixed readback directly on the typed-authority
+path. The original public-step readers remain independent parity oracles. A
+full-catalog projection gate compares all 49 outputs, while the trajectory and
+checkpoint gates compare in-progress and completed beat metrics across the
+old and new inputs. This removes rich coronary, circulation, and mechanics
+trial trees from those two downstream consumers; public finalization itself
+still runs and remains the next deletion boundary.
 
 This seam alone is intentionally not a speed claim: public finalization still
 runs as an oracle and a local lean profile remained about `0.934 ms/tick`.
