@@ -3,6 +3,7 @@ import { performance } from "node:perf_hooks";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   MainWireIntegratedStudioStandardRuntimeHostV1,
+  bindMainWireIntegratedStudioExecutionPlanV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 
 const BATCH_STEPS = 16;
@@ -29,6 +30,16 @@ const seed = [{
 
 await single.createSession(runtimeSessionId, seed);
 await batch.createSession(runtimeSessionId, seed);
+single.synchronizeExecutionPlanAcceptedState(
+  runtimeSessionId,
+  scenarioId,
+  bindMainWireIntegratedStudioExecutionPlanV1(),
+);
+batch.synchronizeExecutionPlanAcceptedState(
+  runtimeSessionId,
+  scenarioId,
+  bindMainWireIntegratedStudioExecutionPlanV1(),
+);
 
 for (let batchIndex = 0; batchIndex < WARMUP_BATCHES; batchIndex += 1) {
   for (let step = 0; step < BATCH_STEPS; step += 1) {

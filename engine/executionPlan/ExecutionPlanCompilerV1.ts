@@ -16,6 +16,7 @@ import {
   type ExecutionPlanSolveGroupV1,
   type ExecutionPlanStateBlockV1,
   type ExecutionPlanStateSlotV1,
+  type ExecutionPlanUpdateScheduleV1,
 } from "@/runtime/executionPlan/ExecutionPlanDescriptorV1";
 
 export {
@@ -55,6 +56,7 @@ export function compileExecutionPlanV1(
     "policyId",
     "schemaId",
     "solveGroups",
+    "timebase",
     "updateGroups",
   ], "NumericalPolicy");
   if (definition.schemaId !== MODEL_DEFINITION_V1_SCHEMA_ID) {
@@ -101,16 +103,46 @@ export function compileExecutionPlanV1(
     stateById,
     componentKernelById,
   );
-  const solveGroupIds = new Set(solveGroups.map(({ solveGroupId }) =>
-    solveGroupId));
-  const updateGroups = canonicalOrdinalSequence(
+  const updateSchedule = compileUpdateScheduleV1(policy, solveGroups);
+
+  return Object.freeze({
+    schemaId: EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID,
+    definitionId: definition.definitionId,
+    policyId: policy.policyId,
+    stateLayout,
+    hydraulicGraph,
+    solveGroups: Object.freeze(solveGroups),
+    updateSchedule,
+  });
+}
+
+function compileUpdateScheduleV1(
+  policy: NumericalPolicyV1,
+  solveGroups: readonly ExecutionPlanSolveGroupV1[],
+): ExecutionPlanUpdateScheduleV1 {
+  assertExactDataRecordV1(policy.timebase, [
+    "baseTickSec",
+    "presentationPeriodTicks",
+  ], "numerical timebase");
+  const baseTickSec = positiveFiniteNumberV1(
+    policy.timebase.baseTickSec,
+    "numerical timebase baseTickSec",
+  );
+  const presentationPeriodTicks = positiveSafeIntegerV1(
+    policy.timebase.presentationPeriodTicks,
+    "numerical timebase presentationPeriodTicks",
+  );
+  const solveGroupIndexById = new Map(solveGroups.map((group, index) =>
+    [group.solveGroupId, index] as const));
+  const groups = canonicalOrdinalSequence(
     policy.updateGroups,
     "update group",
   ).map((group) => {
     assertExactDataRecordV1(group, [
-      "fixedStepSec",
       "integration",
       "ordinal",
+      "periodTicks",
+      "phaseTicks",
       "solveGroupId",
       "updateGroupId",
     ], "update group");
@@ -120,30 +152,57 @@ export function compileExecutionPlanV1(
         `update group ${group.updateGroupId} has an unsupported integration`,
       );
     }
-    if (!solveGroupIds.has(group.solveGroupId)) {
+    const periodTicks = positiveSafeIntegerV1(
+      group.periodTicks,
+      `update group ${group.updateGroupId} periodTicks`,
+    );
+    const phaseTicks = nonnegativeSafeIntegerV1(
+      group.phaseTicks,
+      `update group ${group.updateGroupId} phaseTicks`,
+    );
+    if (phaseTicks >= periodTicks) {
+      throw new RangeError(
+        `update group ${group.updateGroupId} phaseTicks must be below periodTicks`,
+      );
+    }
+    const solveGroupIndex = solveGroupIndexById.get(group.solveGroupId);
+    if (solveGroupIndex === undefined) {
       throw new Error(
         `update group ${group.updateGroupId} references unknown solve group `
           + group.solveGroupId,
       );
     }
-    if (!Number.isFinite(group.fixedStepSec) || group.fixedStepSec <= 0) {
+    const effectiveStepSec = baseTickSec * periodTicks;
+    if (!Number.isFinite(effectiveStepSec) || effectiveStepSec <= 0) {
       throw new RangeError(
-        `update group ${group.updateGroupId} fixedStepSec must be positive`,
+        `update group ${group.updateGroupId} effective step is invalid`,
       );
     }
-    return Object.freeze({ ...group });
+    return Object.freeze({
+      updateGroupId: group.updateGroupId,
+      ordinal: group.ordinal,
+      periodTicks,
+      phaseTicks,
+      effectiveStepSec,
+      integration: group.integration,
+      solveGroupId: group.solveGroupId,
+      solveGroupIndex,
+    });
   });
-  uniqueIds(updateGroups.map(({ updateGroupId }) => updateGroupId),
+  uniqueIds(groups.map(({ updateGroupId }) => updateGroupId),
     "update group");
-
+  if (groups.length === 0) {
+    throw new Error("NumericalPolicy must contain at least one update group");
+  }
+  const presentationStepSec = baseTickSec * presentationPeriodTicks;
+  if (!Number.isFinite(presentationStepSec) || presentationStepSec <= 0) {
+    throw new RangeError("numerical presentation step is invalid");
+  }
   return Object.freeze({
-    schemaId: EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID,
-    definitionId: definition.definitionId,
-    policyId: policy.policyId,
-    stateLayout,
-    hydraulicGraph,
-    solveGroups: Object.freeze(solveGroups),
-    updateGroups: Object.freeze(updateGroups),
+    baseTickSec,
+    presentationPeriodTicks,
+    presentationStepSec,
+    groups: Object.freeze(groups),
   });
 }
 
@@ -660,6 +719,27 @@ function requiredContinuousState(
     throw new Error(`${owner} requires continuous state ${stateId}`);
   }
   return state;
+}
+
+function positiveFiniteNumberV1(value: number, label: string): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(`${label} must be positive and finite`);
+  }
+  return value;
+}
+
+function positiveSafeIntegerV1(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new RangeError(`${label} must be a positive safe integer`);
+  }
+  return value;
+}
+
+function nonnegativeSafeIntegerV1(value: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError(`${label} must be a nonnegative safe integer`);
+  }
+  return value;
 }
 
 function assertPortableId(value: string, label: string): void {

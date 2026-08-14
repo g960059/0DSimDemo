@@ -92,7 +92,10 @@ export type NumericalUpdateGroupV1 = Readonly<{
   updateGroupId: string;
   ordinal: number;
   integration: "fixed-step-backward-euler";
-  fixedStepSec: number;
+  /** Number of policy timebase ticks between updates. */
+  periodTicks: number;
+  /** Target-tick phase in [0, periodTicks). */
+  phaseTicks: number;
   solveGroupId: string;
 }>;
 
@@ -103,6 +106,10 @@ export type NumericalUpdateGroupV1 = Readonly<{
 export type NumericalPolicyV1 = Readonly<{
   schemaId: typeof NUMERICAL_POLICY_V1_SCHEMA_ID;
   policyId: string;
+  timebase: Readonly<{
+    baseTickSec: number;
+    presentationPeriodTicks: number;
+  }>;
   solveGroups: readonly NumericalSolveGroupV1[];
   updateGroups: readonly NumericalUpdateGroupV1[];
 }>;

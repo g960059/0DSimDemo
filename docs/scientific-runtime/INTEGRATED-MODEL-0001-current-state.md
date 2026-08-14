@@ -32,10 +32,10 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current branch-local Standard candidate is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-52
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-54
 ```
 
-Standard-52 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
+Standard-54 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
 exact artifact and binds one Worker-local typed plan per Scenario
 during initialization. An atomic branch rebuild gives every Scenario in the
 candidate exact session fresh nonaliasing storage, so old and candidate
@@ -44,7 +44,7 @@ contains the generated descriptor and binder, not the compiler or
 `ModelDefinitionV1`. During initialization, every compiled `stateId` resolves
 its accepted-authority JSON pointer to one numeric typed-image slot. The
 resulting mapping is private and opaque, and the hot path performs no pointer
-or string lookup. Standard-52 uses that mapping for both sampled plan
+or string lookup. Standard-54 uses that mapping for both sampled plan
 synchronization and its live coupled-solver adapter. At sampled presentation
 and control boundaries, it copies the existing authority's
 100-slot hemodynamic view into the owning Scenario plan, checks finite/boolean
@@ -94,6 +94,16 @@ same plan-owned workspace and block dispatch before installing the coupled
 solver. Studio no longer enumerates or assembles the three Main Wire solve
 blocks; the portable descriptor still contains data and IDs only, never
 functions.
+
+The generated numerical policy also owns an integer timebase and update
+schedule. The current policy is exactly one coupled-hemodynamics update group
+with a `2 ms` base tick, period `1`, phase `0`, and a presentation period of one
+base tick. The exact host derives presentation targets and its solve-group
+dispatch from that bound schedule instead of duplicating a floating-point
+step or solve-group ID. It deliberately rejects any other schedule today.
+This changes no accepted equation or step size; it creates a typed,
+compiler-validated seam on which later transport, controller, or mechanics
+rates can be added only with their own scientific convergence evidence.
 
 Standard-32 changes the live execution authority, not the physiology. Ordinary
 presentation ticks now solve and promote directly through the fixed typed

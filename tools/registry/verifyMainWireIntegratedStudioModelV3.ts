@@ -15,6 +15,7 @@ import {
 import {
   EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
   EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
+  assertBoundExecutionPlanV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   compileExecutionPlanV1,
@@ -299,6 +300,17 @@ async function assertArtifactAdmission(
       fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
     }],
   });
+  const executionPlan = executables.executionPlan;
+  if (executionPlan === undefined) {
+    fail("artifact runtime omitted its required execution-plan adapter");
+  }
+  const boundExecutionPlan = executionPlan.bind();
+  assertBoundExecutionPlanV1(boundExecutionPlan, executionPlan.descriptor);
+  executionPlan.synchronizeAcceptedState({
+    runtimeSessionId,
+    scenarioId,
+    boundExecutionPlan,
+  });
   const frame = await executables.simulationAdapter
     .advanceOnePresentationStep({ runtimeSessionId, scenarioId });
   if (
@@ -323,6 +335,11 @@ async function assertArtifactAdmission(
   ) {
     fail("artifact runtime failed its contractility warm-start smoke check");
   }
+  executionPlan.synchronizeAcceptedState({
+    runtimeSessionId,
+    scenarioId,
+    boundExecutionPlan,
+  });
   const continued = await executables.simulationAdapter
     .advanceOnePresentationStep({ runtimeSessionId, scenarioId });
   if (

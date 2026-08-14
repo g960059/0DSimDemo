@@ -75,6 +75,28 @@ export type BoundExecutionPlanHydraulicDispatchV1 = Readonly<{
   }>[];
 }>;
 
+export type BoundExecutionPlanUpdateGroupDispatchV1 = Readonly<{
+  updateGroupId: string;
+  ordinal: number;
+  periodTicks: number;
+  phaseTicks: number;
+  effectiveStepSec: number;
+  integration: "fixed-step-backward-euler";
+  solveGroupId: string;
+  solveGroupIndex: number;
+  systemKernelId: string;
+  solveSystemKernelBindingOrdinal: number;
+}>;
+
+export type BoundExecutionPlanUpdateScheduleV1 = Readonly<{
+  definitionId: string;
+  policyId: string;
+  baseTickSec: number;
+  presentationPeriodTicks: number;
+  presentationStepSec: number;
+  groups: readonly BoundExecutionPlanUpdateGroupDispatchV1[];
+}>;
+
 /**
  * Worker-local, session-independent allocation produced once at initialization.
  * Typed arrays are intentionally mutable scratch, but the bound object never
@@ -177,6 +199,7 @@ type BoundExecutionPlanSolveGroupMetadataV1 = Readonly<{
 type BoundExecutionPlanMetadataV1 = Readonly<{
   stateDispatch: BoundExecutionPlanStateDispatchV1;
   hydraulicDispatch: BoundExecutionPlanHydraulicDispatchV1;
+  updateSchedule: BoundExecutionPlanUpdateScheduleV1;
   continuousLogicalIndices: readonly number[];
   booleanLogicalIndices: readonly number[];
   conservationPools: readonly Readonly<{
@@ -191,6 +214,7 @@ const BOUND_EXECUTION_PLAN_METADATA_V1 = new WeakMap<
   BoundExecutionPlanMetadataV1
 >();
 const BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1 = new WeakSet<object>();
+const BOUND_EXECUTION_PLAN_UPDATE_SCHEDULES_V1 = new WeakSet<object>();
 
 const PORTABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
 const PORTABLE_RUNTIME_ID = /^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/;
@@ -223,7 +247,7 @@ export function validateAndOwnExecutionPlanDescriptorV1(
     "schemaId",
     "solveGroups",
     "stateLayout",
-    "updateGroups",
+    "updateSchedule",
   ], "$");
   if (plan.schemaId !== EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID) {
     failV1("$.schemaId", "schema identity mismatch");
@@ -537,39 +561,111 @@ export function validateAndOwnExecutionPlanDescriptorV1(
     solveGroupIds,
   ));
 
-  const updateGroups = arrayV1(plan.updateGroups, "$.updateGroups");
-  if (updateGroups.length === 0) failV1("$.updateGroups", "must not be empty");
+  const updateSchedule = recordV1(
+    plan.updateSchedule,
+    "$.updateSchedule",
+  );
+  exactKeysV1(updateSchedule, [
+    "baseTickSec",
+    "groups",
+    "presentationPeriodTicks",
+    "presentationStepSec",
+  ], "$.updateSchedule");
+  const baseTickSec = positiveFiniteV1(
+    updateSchedule.baseTickSec,
+    "$.updateSchedule.baseTickSec",
+  );
+  const presentationPeriodTicks = positiveIntegerV1(
+    updateSchedule.presentationPeriodTicks,
+    "$.updateSchedule.presentationPeriodTicks",
+  );
+  const presentationStepSec = positiveFiniteV1(
+    updateSchedule.presentationStepSec,
+    "$.updateSchedule.presentationStepSec",
+  );
+  if (!sameCompiledClockValueV1(
+    presentationStepSec,
+    baseTickSec * presentationPeriodTicks,
+  )) {
+    failV1(
+      "$.updateSchedule.presentationStepSec",
+      "does not match the compiled timebase",
+    );
+  }
+  const updateGroups = arrayV1(
+    updateSchedule.groups,
+    "$.updateSchedule.groups",
+  );
+  if (updateGroups.length === 0) {
+    failV1("$.updateSchedule.groups", "must not be empty");
+  }
   const updateGroupIds = new Set<string>();
   updateGroups.forEach((raw, index) => {
-    const group = recordV1(raw, `$.updateGroups[${index}]`);
+    const path = `$.updateSchedule.groups[${index}]`;
+    const group = recordV1(raw, path);
     exactKeysV1(group, [
-      "fixedStepSec",
+      "effectiveStepSec",
       "integration",
       "ordinal",
+      "periodTicks",
+      "phaseTicks",
       "solveGroupId",
+      "solveGroupIndex",
       "updateGroupId",
-    ], `$.updateGroups[${index}]`);
+    ], path);
     const updateGroupId = portableIdV1(
       group.updateGroupId,
-      `$.updateGroups[${index}].updateGroupId`,
+      `${path}.updateGroupId`,
     );
     if (updateGroupIds.has(updateGroupId)) {
-      failV1(`$.updateGroups[${index}]`, "duplicate updateGroupId");
+      failV1(path, "duplicate updateGroupId");
     }
     updateGroupIds.add(updateGroupId);
-    if (integerV1(group.ordinal, `$.updateGroups[${index}].ordinal`) !== index) {
-      failV1(`$.updateGroups[${index}].ordinal`, "must be contiguous from zero");
+    if (integerV1(group.ordinal, `${path}.ordinal`) !== index) {
+      failV1(`${path}.ordinal`, "must be contiguous from zero");
     }
     if (group.integration !== "fixed-step-backward-euler") {
-      failV1(`$.updateGroups[${index}].integration`, "unsupported integration");
+      failV1(`${path}.integration`, "unsupported integration");
     }
-    positiveFiniteV1(group.fixedStepSec, `$.updateGroups[${index}].fixedStepSec`);
+    const periodTicks = positiveIntegerV1(
+      group.periodTicks,
+      `${path}.periodTicks`,
+    );
+    const phaseTicks = nonnegativeIntegerV1(
+      group.phaseTicks,
+      `${path}.phaseTicks`,
+    );
+    if (phaseTicks >= periodTicks) {
+      failV1(`${path}.phaseTicks`, "must be below periodTicks");
+    }
+    const effectiveStepSec = positiveFiniteV1(
+      group.effectiveStepSec,
+      `${path}.effectiveStepSec`,
+    );
+    if (!sameCompiledClockValueV1(
+      effectiveStepSec,
+      baseTickSec * periodTicks,
+    )) {
+      failV1(`${path}.effectiveStepSec`, "does not match the timebase");
+    }
     const solveGroupId = portableIdV1(
       group.solveGroupId,
-      `$.updateGroups[${index}].solveGroupId`,
+      `${path}.solveGroupId`,
     );
-    if (!solveGroupIds.has(solveGroupId)) {
-      failV1(`$.updateGroups[${index}].solveGroupId`, "unknown solve group");
+    const solveGroupIndex = nonnegativeIntegerV1(
+      group.solveGroupIndex,
+      `${path}.solveGroupIndex`,
+    );
+    const referencedSolveGroup = solveGroups[solveGroupIndex];
+    if (
+      !solveGroupIds.has(solveGroupId)
+      || referencedSolveGroup === undefined
+      || recordV1(
+        referencedSolveGroup,
+        `$.solveGroups[${solveGroupIndex}]`,
+      ).solveGroupId !== solveGroupId
+    ) {
+      failV1(`${path}.solveGroupIndex`, "solve-group binding is inconsistent");
     }
   });
 
@@ -721,6 +817,7 @@ export function bindExecutionPlanV1(
         }))),
     }),
     hydraulicDispatch: createBoundHydraulicDispatchV1(descriptor, bound),
+    updateSchedule: createBoundUpdateScheduleV1(descriptor, bound),
     continuousLogicalIndices: Object.freeze(descriptor.stateLayout.slots
       .filter(({ storageKind }) => storageKind === "continuous-f64")
       .sort((left, right) => left.storageIndex - right.storageIndex)
@@ -789,6 +886,115 @@ export function assertBoundExecutionPlanHydraulicDispatchV1(
       "Execution plan hydraulic dispatch must be compiler-bound",
     );
   }
+}
+
+/** Resolves the compiler-owned integer timebase and update-group schedule. */
+export function resolveBoundExecutionPlanUpdateScheduleV1(
+  bound: BoundExecutionPlanV1,
+): BoundExecutionPlanUpdateScheduleV1 {
+  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
+  if (metadata === undefined) {
+    throw new Error("Execution plan update schedule requires a bound plan");
+  }
+  return metadata.updateSchedule;
+}
+
+/** Rejects copied schedules at the model-owned clock boundary. */
+export function assertBoundExecutionPlanUpdateScheduleV1(
+  value: unknown,
+): asserts value is BoundExecutionPlanUpdateScheduleV1 {
+  if (
+    (typeof value !== "object" && typeof value !== "function")
+    || value === null
+    || !BOUND_EXECUTION_PLAN_UPDATE_SCHEDULES_V1.has(value)
+  ) {
+    throw new Error("Execution plan update schedule must be compiler-bound");
+  }
+}
+
+/** Exact integer base-tick to accepted-clock projection. */
+export function executionPlanTimeAtBaseTickV1(
+  schedule: BoundExecutionPlanUpdateScheduleV1,
+  baseTick: number,
+): number {
+  assertBoundExecutionPlanUpdateScheduleV1(schedule);
+  if (!Number.isSafeInteger(baseTick) || baseTick < 0) {
+    throw new RangeError("Execution plan base tick is invalid");
+  }
+  const timeSec = baseTick * schedule.baseTickSec;
+  if (!Number.isFinite(timeSec)) {
+    throw new RangeError("Execution plan base-tick time exceeds its range");
+  }
+  return timeSec;
+}
+
+/** Accepted clock to exact integer base tick, with only roundoff tolerance. */
+export function executionPlanBaseTickAtTimeV1(
+  schedule: BoundExecutionPlanUpdateScheduleV1,
+  timeSec: number,
+): number {
+  assertBoundExecutionPlanUpdateScheduleV1(schedule);
+  if (!Number.isFinite(timeSec) || timeSec < 0) {
+    throw new RangeError("Execution plan accepted time is invalid");
+  }
+  const baseTick = Math.round(timeSec / schedule.baseTickSec);
+  if (!Number.isSafeInteger(baseTick)) {
+    throw new RangeError("Execution plan base tick exceeds the safe integer range");
+  }
+  const canonicalTimeSec = executionPlanTimeAtBaseTickV1(schedule, baseTick);
+  const toleranceSec = Math.max(
+    1e-12,
+    Number.EPSILON * Math.max(1, Math.abs(timeSec)) * 8,
+  );
+  if (Math.abs(canonicalTimeSec - timeSec) > toleranceSec) {
+    throw new Error("Execution plan accepted clock is not on its base timebase");
+  }
+  return baseTick;
+}
+
+/** Presentation ordinal to a future base tick without floating accumulation. */
+export function executionPlanPresentationBaseTickV1(
+  schedule: BoundExecutionPlanUpdateScheduleV1,
+  originBaseTick: number,
+  presentationOrdinal: number,
+): number {
+  assertBoundExecutionPlanUpdateScheduleV1(schedule);
+  if (
+    !Number.isSafeInteger(originBaseTick)
+    || originBaseTick < 0
+    || !Number.isSafeInteger(presentationOrdinal)
+    || presentationOrdinal < 0
+  ) {
+    throw new RangeError("Execution plan presentation clock is invalid");
+  }
+  const baseTick = originBaseTick
+    + presentationOrdinal * schedule.presentationPeriodTicks;
+  if (!Number.isSafeInteger(baseTick)) {
+    throw new RangeError(
+      "Execution plan presentation tick exceeds the safe integer range",
+    );
+  }
+  return baseTick;
+}
+
+/** Compiler-bound update-group cadence test on the integer base timebase. */
+export function executionPlanUpdateGroupIsDueAtBaseTickV1(
+  schedule: BoundExecutionPlanUpdateScheduleV1,
+  group: BoundExecutionPlanUpdateGroupDispatchV1,
+  baseTick: number,
+): boolean {
+  assertBoundExecutionPlanUpdateScheduleV1(schedule);
+  if (!Number.isSafeInteger(baseTick) || baseTick < 0) {
+    throw new RangeError("Execution plan update base tick is invalid");
+  }
+  if (
+    !Number.isSafeInteger(group.ordinal)
+    || schedule.groups[group.ordinal] !== group
+  ) {
+    throw new Error("Execution plan update group does not belong to its schedule");
+  }
+  return baseTick >= group.phaseTicks
+    && (baseTick - group.phaseTicks) % group.periodTicks === 0;
 }
 
 /**
@@ -984,6 +1190,43 @@ function createBoundHydraulicDispatchV1(
   });
   BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1.add(dispatch);
   return dispatch;
+}
+
+function createBoundUpdateScheduleV1(
+  descriptor: ExecutionPlanDescriptorV1,
+  bound: BoundExecutionPlanV1,
+): BoundExecutionPlanUpdateScheduleV1 {
+  const groups = Object.freeze(descriptor.updateSchedule.groups.map((group) => {
+    const solveGroup = descriptor.solveGroups[group.solveGroupIndex];
+    const solveSystemKernelBindingOrdinal =
+      bound.solveSystemKernelBindingOrdinals[group.solveGroupIndex];
+    if (
+      solveGroup === undefined
+      || solveGroup.solveGroupId !== group.solveGroupId
+      || solveSystemKernelBindingOrdinal === undefined
+      || bound.bindingCatalog.solveSystemKernelIds[
+        solveSystemKernelBindingOrdinal
+      ] !== solveGroup.systemKernelId
+    ) {
+      throw new Error("Execution plan update-group solve binding drifted");
+    }
+    return Object.freeze({
+      ...group,
+      systemKernelId: solveGroup.systemKernelId,
+      solveSystemKernelBindingOrdinal,
+    });
+  }));
+  const schedule = Object.freeze({
+    definitionId: descriptor.definitionId,
+    policyId: descriptor.policyId,
+    baseTickSec: descriptor.updateSchedule.baseTickSec,
+    presentationPeriodTicks:
+      descriptor.updateSchedule.presentationPeriodTicks,
+    presentationStepSec: descriptor.updateSchedule.presentationStepSec,
+    groups,
+  });
+  BOUND_EXECUTION_PLAN_UPDATE_SCHEDULES_V1.add(schedule);
+  return schedule;
 }
 
 function createBoundSolveGroupMetadataV1(
@@ -1972,6 +2215,12 @@ function positiveFiniteV1(value: unknown, path: string): number {
     failV1(path, "must be positive and finite");
   }
   return value;
+}
+
+function sameCompiledClockValueV1(left: number, right: number): boolean {
+  const tolerance = Number.EPSILON
+    * Math.max(1, Math.abs(left), Math.abs(right)) * 8;
+  return Math.abs(left - right) <= tolerance;
 }
 
 function nonnegativeFiniteV1(value: unknown, path: string): number {

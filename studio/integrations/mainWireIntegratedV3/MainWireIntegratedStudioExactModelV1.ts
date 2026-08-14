@@ -9,10 +9,17 @@ import {
   EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
   bindExecutionPlanV1,
   bindExecutionPlanSolveSystemRuntimeV1,
+  executionPlanBaseTickAtTimeV1,
+  executionPlanPresentationBaseTickV1,
+  executionPlanTimeAtBaseTickV1,
+  executionPlanUpdateGroupIsDueAtBaseTickV1,
   prepareBoundExecutionPlanSolveGroupV1,
+  resolveBoundExecutionPlanUpdateScheduleV1,
   synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
   type BoundExecutionPlanV1,
+  type BoundExecutionPlanUpdateGroupDispatchV1,
+  type BoundExecutionPlanUpdateScheduleV1,
   type ExecutionPlanAcceptedStateSynchronizationV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
@@ -43,10 +50,14 @@ import {
   type MainWireIntegratedModelOutputValueV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
   MainWireIntegratedModelSessionV3,
-  mainWireIntegratedModelPresentationTargetTimeSecV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
+import {
+  MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1,
+  MAIN_WIRE_COUPLED_HEMODYNAMICS_UPDATE_GROUP_ID_V1,
+  MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1,
+  MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1,
+} from "@/engine/executionPlan/MainWireNumericalClockV1";
 import {
   MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,
   MainWireIntegratedTypedAuthoritySessionV1,
@@ -126,6 +137,8 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1 =
 
 const MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1 =
   validateAndOwnExecutionPlanDescriptorV1(generatedExecutionPlanV1);
+const MAIN_WIRE_EXECUTION_PLAN_PRESENTATION_DT_SEC_V1 =
+  MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1.updateSchedule.presentationStepSec;
 const MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1 = Object.freeze([
   Object.freeze({
     systemKernelId: MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
@@ -155,6 +168,14 @@ const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 = Object.freeze({
     ),
   ),
 });
+
+export function bindMainWireIntegratedStudioExecutionPlanV1():
+BoundExecutionPlanV1 {
+  return bindExecutionPlanV1(
+    MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
+    MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1,
+  );
+}
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1 =
   Object.freeze({
@@ -205,11 +226,12 @@ type RuntimeScenarioV1 = {
   fixture: MainWireIntegratedStudioStandardFixtureV1;
   inputEpoch: number;
   modelSession: MainWireIntegratedTypedAuthoritySessionV1;
-  presentationOriginTick: number;
   presentationOrdinal: number;
   executionPlanBinding: Readonly<{
     boundExecutionPlan: BoundExecutionPlanV1;
     modelSession: MainWireIntegratedTypedAuthoritySessionV1;
+    updateSchedule: BoundExecutionPlanUpdateScheduleV1;
+    presentationOriginBaseTick: number;
   }> | null;
 };
 
@@ -323,9 +345,6 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
         fixture,
         inputEpoch: 0,
         modelSession,
-        presentationOriginTick: standardPresentationTickV1(
-          modelSession.currentAcceptedState().acceptedTimeSec,
-        ),
         presentationOrdinal: 0,
         executionPlanBinding: null,
       });
@@ -388,9 +407,15 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     const synchronized = synchronizeBoundExecutionPlanAcceptedStateV1(
       boundExecutionPlan,
     );
+    const updateSchedule = resolveBoundExecutionPlanUpdateScheduleV1(
+      boundExecutionPlan,
+    );
+    const updateGroup = assertMainWireExecutionPlanUpdateScheduleV1(
+      updateSchedule,
+    );
     const prepared = prepareBoundExecutionPlanSolveGroupV1(
       boundExecutionPlan,
-      "coupled-hemodynamics",
+      updateGroup.solveGroupId,
     );
     const installed = scenario.executionPlanBinding;
     if (
@@ -406,7 +431,7 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       scenario.modelSession.installExecutionPlanCoupledNewtonWorkspaceV1(
         bindExecutionPlanSolveSystemRuntimeV1(
           boundExecutionPlan,
-          "coupled-hemodynamics",
+          updateGroup.solveGroupId,
           prepared,
           MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1,
         ),
@@ -415,8 +440,16 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       scenario.executionPlanBinding = Object.freeze({
         boundExecutionPlan,
         modelSession: scenario.modelSession,
+        updateSchedule,
+        presentationOriginBaseTick: executionPlanBaseTickAtTimeV1(
+          updateSchedule,
+          clock.acceptedTimeSec,
+        ),
       });
-    } else if (installed.boundExecutionPlan !== boundExecutionPlan) {
+    } else if (
+      installed.boundExecutionPlan !== boundExecutionPlan
+      || installed.updateSchedule !== updateSchedule
+    ) {
       throw new Error("Standard Scenario execution plan cannot be replaced");
     }
     return Object.freeze({
@@ -541,9 +574,33 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       typeof projectMainWireIntegratedModelSelectedValuesV3
     >;
   }> {
+    const executionPlanBinding = scenario.executionPlanBinding;
+    if (
+      executionPlanBinding === null
+      || executionPlanBinding.modelSession !== scenario.modelSession
+    ) {
+      throw new Error("Standard Scenario update schedule is not installed");
+    }
     const nextOrdinal = scenario.presentationOrdinal + 1;
-    const targetTimeSec = mainWireIntegratedModelPresentationTargetTimeSecV3(
-      scenario.presentationOriginTick + nextOrdinal,
+    const targetBaseTick = executionPlanPresentationBaseTickV1(
+      executionPlanBinding.updateSchedule,
+      executionPlanBinding.presentationOriginBaseTick,
+      nextOrdinal,
+    );
+    const [updateGroup] = executionPlanBinding.updateSchedule.groups;
+    if (
+      updateGroup === undefined
+      || !executionPlanUpdateGroupIsDueAtBaseTickV1(
+        executionPlanBinding.updateSchedule,
+        updateGroup,
+        targetBaseTick,
+      )
+    ) {
+      throw new Error("Standard presentation target has no scheduled update");
+    }
+    const targetTimeSec = executionPlanTimeAtBaseTickV1(
+      executionPlanBinding.updateSchedule,
+      targetBaseTick,
     );
     const projection = scenario.modelSession
       .advanceToPresentationTimeWithSelectedOutputProjectionV1(
@@ -828,9 +885,6 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     current.fixture = fixture;
     current.modelSession = candidate;
     current.executionPlanBinding = null;
-    current.presentationOriginTick = standardPresentationTickV1(
-      accepted.acceptedTimeSec,
-    );
     current.presentationOrdinal = 0;
     current.inputEpoch += 1;
     return this.currentFrame(runtimeSessionId, scenarioId);
@@ -864,7 +918,7 @@ ExactModelKernelManifestV3 {
     }),
     runtime: Object.freeze({
       numericalSessionId: MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,
-      presentationDtSec: MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
+      presentationDtSec: MAIN_WIRE_EXECUTION_PLAN_PRESENTATION_DT_SEC_V1,
       hotPathIntegrityTier:
         MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1,
       acceptedBoundaryCapture: true,
@@ -1175,10 +1229,7 @@ function standardExecutableBundleV1(
       schemaId: REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
       modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
       descriptor: MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
-      bind: () => bindExecutionPlanV1(
-        MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
-        MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1,
-      ),
+      bind: bindMainWireIntegratedStudioExecutionPlanV1,
       synchronizeAcceptedState: (input) =>
         host.synchronizeExecutionPlanAcceptedState(
           input.runtimeSessionId,
@@ -1407,34 +1458,42 @@ function assertRuntimeContextV1(
   requiredIdV1(context.scenarioId, "scenarioId");
 }
 
+function assertMainWireExecutionPlanUpdateScheduleV1(
+  schedule: BoundExecutionPlanUpdateScheduleV1,
+): BoundExecutionPlanUpdateGroupDispatchV1 {
+  const [group] = schedule.groups;
+  if (
+    schedule.definitionId !== MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1.definitionId
+    || schedule.policyId !== MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1.policyId
+    || schedule.baseTickSec !== MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1
+    || schedule.presentationPeriodTicks
+      !== MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1
+    || schedule.presentationStepSec
+      !== MAIN_WIRE_EXECUTION_PLAN_PRESENTATION_DT_SEC_V1
+    || schedule.groups.length !== 1
+    || group === undefined
+    || group.updateGroupId
+      !== MAIN_WIRE_COUPLED_HEMODYNAMICS_UPDATE_GROUP_ID_V1
+    || group.ordinal !== 0
+    || group.periodTicks !== 1
+    || group.phaseTicks !== 0
+    || group.effectiveStepSec !== MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1
+    || group.integration !== "fixed-step-backward-euler"
+    || group.solveGroupId
+      !== MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1
+    || group.solveGroupIndex !== 0
+    || group.systemKernelId
+      !== MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID
+  ) {
+    throw new Error("Standard execution-plan update schedule drifted");
+  }
+  return group;
+}
+
 function requiredIdV1(value: string, label: string): void {
   if (!/^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/.test(value)) {
     throw new Error(`Standard ${label} is invalid`);
   }
-}
-
-function standardPresentationTickV1(acceptedTimeSec: number): number {
-  if (!Number.isFinite(acceptedTimeSec) || acceptedTimeSec < 0) {
-    throw new Error("Standard presentation clock is invalid");
-  }
-  const tick = Math.round(
-    acceptedTimeSec / MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
-  );
-  if (!Number.isSafeInteger(tick)) {
-    throw new Error("Standard presentation tick exceeds the safe integer range");
-  }
-  const canonicalTimeSec =
-    mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
-  const toleranceSec = Math.max(
-    1e-12,
-    Number.EPSILON * Math.max(1, Math.abs(acceptedTimeSec)) * 8,
-  );
-  if (Math.abs(canonicalTimeSec - acceptedTimeSec) > toleranceSec) {
-    throw new Error(
-      "Standard runtime accepted clock is not on a presentation tick",
-    );
-  }
-  return tick;
 }
 
 function exactRecordV1(

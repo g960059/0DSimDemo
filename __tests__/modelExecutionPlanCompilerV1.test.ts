@@ -12,10 +12,15 @@ import {
   assertBoundExecutionPlanV1,
   bindExecutionPlanV1,
   bindExecutionPlanSolveSystemRuntimeV1,
+  executionPlanBaseTickAtTimeV1,
+  executionPlanPresentationBaseTickV1,
+  executionPlanTimeAtBaseTickV1,
+  executionPlanUpdateGroupIsDueAtBaseTickV1,
   prepareBoundExecutionPlanSolveGroupV1,
   resolveBoundExecutionPlanHydraulicDispatchV1,
   resolveBoundExecutionPlanStateDispatchV1,
   resolveBoundExecutionPlanSolveDispatchV1,
+  resolveBoundExecutionPlanUpdateScheduleV1,
   synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
@@ -174,6 +179,21 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
         { role: "pivots", offset: 0, length: 30 },
       ],
     });
+    expect(plan.updateSchedule).toEqual({
+      baseTickSec: 0.002,
+      presentationPeriodTicks: 1,
+      presentationStepSec: 0.002,
+      groups: [{
+        updateGroupId: "coupled-hemodynamics-be-step",
+        ordinal: 0,
+        periodTicks: 1,
+        phaseTicks: 0,
+        effectiveStepSec: 0.002,
+        integration: "fixed-step-backward-euler",
+        solveGroupId: "coupled-hemodynamics",
+        solveGroupIndex: 0,
+      }],
+    });
   });
 
   it("compiles the present circulation graph without executable bindings", () => {
@@ -238,6 +258,55 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
 
     expect(compileExecutionPlanV1(shuffledDefinition, shuffledPolicy))
       .toEqual(compileExecutionPlanV1(definition, policy));
+  });
+
+  it("compiles a reviewable integer multirate schedule", () => {
+    const policy = createMainWireNumericalPolicyV1();
+    const compiled = compileExecutionPlanV1(
+      createMainWireModelDefinitionV1(),
+      Object.freeze({
+        ...policy,
+        timebase: Object.freeze({
+          baseTickSec: 0.001,
+          presentationPeriodTicks: 2,
+        }),
+        updateGroups: Object.freeze([
+          Object.freeze({
+            ...policy.updateGroups[0]!,
+            periodTicks: 2,
+          }),
+          Object.freeze({
+            ...policy.updateGroups[0]!,
+            updateGroupId: "synthetic-slower-coupled-step",
+            ordinal: 1,
+            periodTicks: 10,
+            phaseTicks: 5,
+          }),
+        ]),
+      }),
+    );
+
+    expect(compiled.updateSchedule).toEqual({
+      baseTickSec: 0.001,
+      presentationPeriodTicks: 2,
+      presentationStepSec: 0.002,
+      groups: [
+        expect.objectContaining({
+          updateGroupId: "coupled-hemodynamics-be-step",
+          periodTicks: 2,
+          phaseTicks: 0,
+          effectiveStepSec: 0.002,
+          solveGroupIndex: 0,
+        }),
+        expect.objectContaining({
+          updateGroupId: "synthetic-slower-coupled-step",
+          periodTicks: 10,
+          phaseTicks: 5,
+          effectiveStepSec: 0.01,
+          solveGroupIndex: 0,
+        }),
+      ],
+    });
   });
 
   it("admits a synthetic bypass path without renumbering state or solve slots", () => {
@@ -453,6 +522,16 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
 
     expect(() => compileExecutionPlanV1(definition, unsupported))
       .toThrow("unsupported integration");
+
+    const invalidPhase = structuredClone(policy) as unknown as {
+      updateGroups: Array<{ periodTicks: number; phaseTicks: number }>;
+    };
+    invalidPhase.updateGroups[0]!.periodTicks = 4;
+    invalidPhase.updateGroups[0]!.phaseTicks = 4;
+    expect(() => compileExecutionPlanV1(
+      definition,
+      invalidPhase as unknown as NumericalPolicyV1,
+    )).toThrow("phaseTicks must be below periodTicks");
   });
 
   it("keeps the checked-in descriptor byte-semantically equal to compilation", () => {
@@ -555,6 +634,42 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     expect(stateDispatch.slots).toHaveLength(100);
     expect(() => resolveBoundExecutionPlanStateDispatchV1({ ...bound }))
       .toThrow(/requires a bound plan/);
+    const updateSchedule = resolveBoundExecutionPlanUpdateScheduleV1(bound);
+    expect(updateSchedule).toEqual({
+      definitionId: descriptor.definitionId,
+      policyId: descriptor.policyId,
+      baseTickSec: 0.002,
+      presentationPeriodTicks: 1,
+      presentationStepSec: 0.002,
+      groups: [{
+        ...descriptor.updateSchedule.groups[0]!,
+        systemKernelId: MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
+        solveSystemKernelBindingOrdinal: 0,
+      }],
+    });
+    expect(executionPlanBaseTickAtTimeV1(updateSchedule, 0.814)).toBe(407);
+    expect(executionPlanPresentationBaseTickV1(updateSchedule, 407, 3))
+      .toBe(410);
+    expect(executionPlanTimeAtBaseTickV1(updateSchedule, 410))
+      .toBeCloseTo(0.82, 15);
+    expect(executionPlanUpdateGroupIsDueAtBaseTickV1(
+      updateSchedule,
+      updateSchedule.groups[0]!,
+      410,
+    )).toBe(true);
+    expect(() => executionPlanUpdateGroupIsDueAtBaseTickV1(
+      updateSchedule,
+      { ...updateSchedule.groups[0]! },
+      410,
+    )).toThrow(/does not belong/);
+    expect(() => executionPlanBaseTickAtTimeV1(updateSchedule, 0.813))
+      .toThrow(/not on its base timebase/);
+    expect(() => resolveBoundExecutionPlanUpdateScheduleV1({ ...bound }))
+      .toThrow(/requires a bound plan/);
+    expect(() => executionPlanTimeAtBaseTickV1(
+      { ...updateSchedule },
+      1,
+    )).toThrow(/must be compiler-bound/);
     expect(() => assertBoundExecutionPlanV1(bound, descriptor)).not.toThrow();
   });
 
@@ -761,6 +876,16 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
           ),
       },
     })).toThrow(/path endpoints or component ownership are invalid/);
+    expect(() => validateAndOwnExecutionPlanDescriptorV1({
+      ...descriptor,
+      updateSchedule: {
+        ...descriptor.updateSchedule,
+        groups: descriptor.updateSchedule.groups.map((group, index) =>
+          index === 0
+            ? { ...group, effectiveStepSec: group.effectiveStepSec * 2 }
+            : group),
+      },
+    })).toThrow(/does not match the timebase/);
     expect(() => bindExecutionPlanV1(descriptor, {
       ...catalog,
       componentKernelIds: catalog.componentKernelIds.slice(1),
@@ -834,7 +959,7 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       schemaId: { enumerable: true, value: "schema" },
       solveGroups: { enumerable: true, value: [] },
       stateLayout: { enumerable: true, value: {} },
-      updateGroups: { enumerable: true, value: [] },
+      updateSchedule: { enumerable: true, value: {} },
     });
 
     expect(() => validateAndOwnExecutionPlanDescriptorV1(hostile))

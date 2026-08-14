@@ -27,6 +27,10 @@ import {
 import type {
   ResolvedExactModelRuntimeV2,
 } from "@/studio/contracts/v2/executable";
+import {
+  assertBoundExecutionPlanV1,
+  type BoundExecutionPlanV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import type {
   StudioJsonObjectV2,
 } from "@/studio/contracts/v2/json";
@@ -352,6 +356,11 @@ export async function sealStudioExperimentSnapshotV1(
   });
   try {
     const scenarioIds = current.content.scenarios.map(({ scenarioId }) => scenarioId);
+    bindAuthoringExecutionPlansV1(
+      resolved.runtime,
+      runtimeSessionId,
+      scenarioIds,
+    );
     const frames = new Map(scenarioIds.map((scenarioId) => [scenarioId,
       adapter.currentFrame({ runtimeSessionId, scenarioId })]));
     // Observation selection is part of the command's validation boundary. It
@@ -451,6 +460,11 @@ async function prepareExperimentCaptureV1(
     })),
   });
   try {
+    const boundExecutionPlans = bindAuthoringExecutionPlansV1(
+      resolved.runtime,
+      runtimeSessionId,
+      sources.map(({ spec }) => spec.scenarioId),
+    );
     const reducer = createStudioFixtureReducerV2(Object.freeze({
       resolveExactRuntime(modelId: string) {
         if (modelId !== resolved.contract.modelId) {
@@ -485,6 +499,12 @@ async function prepareExperimentCaptureV1(
             scenarioId: spec.scenarioId,
           }),
         });
+        synchronizeAuthoringExecutionPlanV1(
+          resolved.runtime,
+          runtimeSessionId,
+          spec.scenarioId,
+          boundExecutionPlans,
+        );
       }
       desiredFixtures.set(spec.scenarioId, desiredFixture);
     }
@@ -742,6 +762,49 @@ async function advanceAuthoringScenariosV1(
       frames.get(scenarioId)!.acceptedTimeSec < targets.get(scenarioId)!);
   }
   return frames;
+}
+
+function bindAuthoringExecutionPlansV1(
+  runtime: ResolvedExactModelRuntimeV2,
+  runtimeSessionId: string,
+  scenarioIds: readonly string[],
+): ReadonlyMap<string, BoundExecutionPlanV1> | null {
+  const executionPlan = runtime.executionPlan;
+  if (executionPlan === undefined) return null;
+  const boundByScenario = new Map<string, BoundExecutionPlanV1>();
+  for (const scenarioId of scenarioIds) {
+    const boundExecutionPlan = executionPlan.bind();
+    assertBoundExecutionPlanV1(
+      boundExecutionPlan,
+      executionPlan.descriptor,
+    );
+    executionPlan.synchronizeAcceptedState({
+      runtimeSessionId,
+      scenarioId,
+      boundExecutionPlan,
+    });
+    boundByScenario.set(scenarioId, boundExecutionPlan);
+  }
+  return boundByScenario;
+}
+
+function synchronizeAuthoringExecutionPlanV1(
+  runtime: ResolvedExactModelRuntimeV2,
+  runtimeSessionId: string,
+  scenarioId: string,
+  boundByScenario: ReadonlyMap<string, BoundExecutionPlanV1> | null,
+): void {
+  if (boundByScenario === null) return;
+  const executionPlan = runtime.executionPlan;
+  const boundExecutionPlan = boundByScenario.get(scenarioId);
+  if (executionPlan === undefined || boundExecutionPlan === undefined) {
+    throw new Error(`Authoring execution plan is unavailable for ${scenarioId}`);
+  }
+  executionPlan.synchronizeAcceptedState({
+    runtimeSessionId,
+    scenarioId,
+    boundExecutionPlan,
+  });
 }
 
 function observationFromFrameV1(

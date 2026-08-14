@@ -13,8 +13,11 @@ import {
   CORONARY_TERRITORY_IDS_V2,
 } from "@/engine/coronary/typesV2";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
-} from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
+  MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1,
+  MAIN_WIRE_COUPLED_HEMODYNAMICS_UPDATE_GROUP_ID_V1,
+  MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1,
+  MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1,
+} from "./MainWireNumericalClockV1";
 import {
   MAIN_WIRE_FIVE_WALL_IDS_V1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
@@ -192,9 +195,14 @@ export function createMainWireNumericalPolicyV1(): NumericalPolicyV1 {
   return Object.freeze({
     schemaId: NUMERICAL_POLICY_V1_SCHEMA_ID,
     policyId: MAIN_WIRE_NUMERICAL_POLICY_V1_ID,
+    timebase: Object.freeze({
+      baseTickSec: MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1,
+      presentationPeriodTicks:
+        MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1,
+    }),
     solveGroups: Object.freeze([
       Object.freeze({
-        solveGroupId: "coupled-hemodynamics",
+        solveGroupId: MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1,
         ordinal: 0,
         systemKernelId: MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
         unknownBlocks: Object.freeze([
@@ -240,11 +248,12 @@ export function createMainWireNumericalPolicyV1(): NumericalPolicyV1 {
     ]),
     updateGroups: Object.freeze([
       Object.freeze({
-        updateGroupId: "coupled-hemodynamics-be-step",
+        updateGroupId: MAIN_WIRE_COUPLED_HEMODYNAMICS_UPDATE_GROUP_ID_V1,
         ordinal: 0,
         integration: "fixed-step-backward-euler" as const,
-        fixedStepSec: MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
-        solveGroupId: "coupled-hemodynamics",
+        periodTicks: 1,
+        phaseTicks: 0,
+        solveGroupId: MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1,
       }),
     ]),
   });

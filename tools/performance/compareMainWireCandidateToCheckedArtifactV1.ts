@@ -5,6 +5,8 @@ import type {
   StudioSimulationFrameV2,
   StudioSimulationOutputValueV2,
 } from "@/studio/contracts/v2/simulation";
+import type { BoundExecutionPlanV1 } from
+  "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   createCircleHeartExactModelReleaseV1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
@@ -50,6 +52,8 @@ await Promise.all([
     }],
   }),
 ]);
+bindReleaseExecutionPlanV1(checkedArtifact, checkedSessionId, scenarioId);
+bindReleaseExecutionPlanV1(candidate, candidateSessionId, scenarioId);
 
 const differences = new Map<string, {
   maximumAbsoluteDifference: number;
@@ -124,6 +128,21 @@ process.stdout.write(`${JSON.stringify({
     maximumAbsoluteDifference > 0
   ),
 }, null, 2)}\n`);
+
+function bindReleaseExecutionPlanV1(
+  release: ExactReleaseV1,
+  runtimeSessionId: string,
+  scenarioId: string,
+): void {
+  const executionPlan = release.executables.executionPlan;
+  if (executionPlan === undefined) return;
+  const boundExecutionPlan = executionPlan.bind() as BoundExecutionPlanV1;
+  executionPlan.synchronizeAcceptedState({
+    runtimeSessionId,
+    scenarioId,
+    boundExecutionPlan,
+  });
+}
 
 function compareFrames(
   checked: StudioSimulationFrameV2,

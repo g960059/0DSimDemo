@@ -37,9 +37,19 @@ export type ExecutionPlanWorkspaceSegmentV1<TRole extends string> = Readonly<{
 export type ExecutionPlanUpdateGroupV1 = Readonly<{
   updateGroupId: string;
   ordinal: number;
-  fixedStepSec: number;
+  periodTicks: number;
+  phaseTicks: number;
+  effectiveStepSec: number;
   integration: "fixed-step-backward-euler";
   solveGroupId: string;
+  solveGroupIndex: number;
+}>;
+
+export type ExecutionPlanUpdateScheduleV1 = Readonly<{
+  baseTickSec: number;
+  presentationPeriodTicks: number;
+  presentationStepSec: number;
+  groups: readonly ExecutionPlanUpdateGroupV1[];
 }>;
 
 export type ExecutionPlanStateSlotV1 = Readonly<{
@@ -123,5 +133,5 @@ export type ExecutionPlanDescriptorV1 = Readonly<{
     }>[];
   }>;
   solveGroups: readonly ExecutionPlanSolveGroupV1[];
-  updateGroups: readonly ExecutionPlanUpdateGroupV1[];
+  updateSchedule: ExecutionPlanUpdateScheduleV1;
 }>;
