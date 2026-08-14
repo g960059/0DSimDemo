@@ -4,12 +4,13 @@ import type {
 
 export const MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID =
   "main-wire-five-wall-coupled-accepted-history-predictor-v1" as const;
-export const MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V1_ID =
-  "circleheart-main-wire-five-wall-coupled-predictor-checkpoint-v1" as const;
+export const MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID =
+  "circleheart-main-wire-five-wall-coupled-predictor-checkpoint-v2" as const;
 
 export type MainWireFiveWallCoupledPredictionOrderV1 =
   | "linear"
-  | "quadratic";
+  | "quadratic"
+  | "cubic";
 
 export type MainWireFiveWallCoupledPredictorWorkspaceV1 = Readonly<{
   schemaId: "circleheart-main-wire-five-wall-coupled-predictor-workspace-v1";
@@ -21,7 +22,8 @@ export type MainWireFiveWallCoupledPredictionV1 = Readonly<{
   mode:
     | "context"
     | "linear-extrapolation"
-    | "quadratic-extrapolation";
+    | "quadratic-extrapolation"
+    | "cubic-extrapolation";
   extrapolationScale: number;
   /**
    * Synchronously borrowed storage. The next prepare/record/reset call may
@@ -33,7 +35,7 @@ export type MainWireFiveWallCoupledPredictionV1 = Readonly<{
 export type MainWireFiveWallCoupledPredictorReportV1 = Readonly<{
   predictorId: typeof MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID;
   hasAcceptedPair: boolean;
-  historyDepth: 0 | 2 | 3;
+  historyDepth: 0 | 2 | 3 | 4;
   expectedBaseRevision: number | null;
   expectedBaseAcceptedTimeSec: number | null;
   predictionCount: number;
@@ -42,25 +44,27 @@ export type MainWireFiveWallCoupledPredictorReportV1 = Readonly<{
   resetCount: number;
 }>;
 
-export type MainWireFiveWallCoupledPredictorCheckpointV1 = Readonly<{
+export type MainWireFiveWallCoupledPredictorCheckpointV2 = Readonly<{
   checkpointId:
-    typeof MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V1_ID;
-  schemaVersion: 1;
-  historyDepth: 0 | 2 | 3;
+    typeof MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID;
+  schemaVersion: 2;
+  historyDepth: 0 | 2 | 3 | 4;
   expectedBaseRevision: number | null;
   expectedBaseAcceptedTimeSec: number | null;
+  oldestAcceptedMl: readonly number[];
   olderAcceptedMl: readonly number[];
   previousAcceptedMl: readonly number[];
   currentAcceptedMl: readonly number[];
 }>;
 
 type PredictorStorage = {
+  readonly oldestAcceptedMl: Float64Array;
   readonly olderAcceptedMl: Float64Array;
   readonly previousAcceptedMl: Float64Array;
   readonly currentAcceptedMl: Float64Array;
   readonly predictedMl: Float64Array;
   hasAcceptedPair: boolean;
-  historyDepth: 0 | 2 | 3;
+  historyDepth: 0 | 2 | 3 | 4;
   expectedBaseRevision: number | null;
   expectedBaseAcceptedTimeSec: number | null;
   preparedBaseRevision: number | null;
@@ -84,6 +88,7 @@ MainWireFiveWallCoupledPredictorWorkspaceV1 {
     dimension: 30 as const,
   });
   STORAGE.set(workspace, {
+    oldestAcceptedMl: new Float64Array(30),
     olderAcceptedMl: new Float64Array(30),
     previousAcceptedMl: new Float64Array(30),
     currentAcceptedMl: new Float64Array(30),
@@ -103,8 +108,8 @@ MainWireFiveWallCoupledPredictorWorkspaceV1 {
 }
 
 /**
- * Predicts the next implicit root from accepted first- or second-order
- * finite differences.
+ * Predicts the next implicit root from accepted first-, second-, or
+ * third-order finite differences.
  * Prediction changes no model equation or tolerance. It is used only when
  * the caller presents the exact sequential accepted state; discontinuities,
  * restores, parameter changes, and inadmissible extrapolations fall back to
@@ -115,7 +120,8 @@ export function prepareMainWireFiveWallCoupledPredictionV1<TWallState>(
   workspace: MainWireFiveWallCoupledPredictorWorkspaceV1,
   order: MainWireFiveWallCoupledPredictionOrderV1 = "linear",
 ): MainWireFiveWallCoupledPredictionV1 {
-  if (order !== "linear" && order !== "quadratic") {
+  context.assertWorkspaceCurrent();
+  if (order !== "linear" && order !== "quadratic" && order !== "cubic") {
     throw new RangeError("coupled predictor order is unsupported");
   }
   const storage = requireStorage(workspace);
@@ -127,14 +133,19 @@ export function prepareMainWireFiveWallCoupledPredictionV1<TWallState>(
     return contextPrediction(context);
   }
 
+  const cubic = order === "cubic" && storage.historyDepth === 4;
+  const quadratic = order === "quadratic" && storage.historyDepth >= 3;
   let scale = 1;
-  const quadratic = order === "quadratic" && storage.historyDepth === 3;
   while (scale >= 1 / 256) {
     for (let index = 0; index < workspace.dimension; index += 1) {
       const current = context.initialUnknownsMl[index]!;
-      const displacement = quadratic
-        ? 2 * current - 3 * storage.previousAcceptedMl[index]!
-          + storage.olderAcceptedMl[index]!
+      const displacement = cubic
+        ? 3 * current - 6 * storage.previousAcceptedMl[index]!
+          + 4 * storage.olderAcceptedMl[index]!
+          - storage.oldestAcceptedMl[index]!
+        : quadratic
+          ? 2 * current - 3 * storage.previousAcceptedMl[index]!
+            + storage.olderAcceptedMl[index]!
         : current - storage.previousAcceptedMl[index]!;
       storage.predictedMl[index] = current + scale * displacement;
     }
@@ -143,9 +154,11 @@ export function prepareMainWireFiveWallCoupledPredictionV1<TWallState>(
       if (scale < 1) storage.dampedPredictionCount += 1;
       return Object.freeze({
         predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
-        mode: quadratic
-          ? "quadratic-extrapolation" as const
-          : "linear-extrapolation" as const,
+        mode: cubic
+          ? "cubic-extrapolation" as const
+          : quadratic
+            ? "quadratic-extrapolation" as const
+            : "linear-extrapolation" as const,
         extrapolationScale: scale,
         initialGuessMl: storage.predictedMl,
       });
@@ -166,6 +179,7 @@ export function recordAcceptedMainWireFiveWallCoupledSolutionV1<TWallState>(
   acceptedSolutionMl: Float64Array,
   workspace: MainWireFiveWallCoupledPredictorWorkspaceV1,
 ): void {
+  context.assertWorkspaceCurrent();
   const storage = requireStorage(workspace);
   if (
     storage.preparedBaseRevision !== context.baseRevision
@@ -183,12 +197,19 @@ export function recordAcceptedMainWireFiveWallCoupledSolutionV1<TWallState>(
     throw new RangeError("accepted root is outside the coupled predictor domain");
   }
   if (storage.hasAcceptedPair) {
+    if (storage.historyDepth >= 3) {
+      storage.oldestAcceptedMl.set(storage.olderAcceptedMl);
+    }
     storage.olderAcceptedMl.set(storage.previousAcceptedMl);
   }
   storage.previousAcceptedMl.set(context.initialUnknownsMl);
   storage.currentAcceptedMl.set(acceptedSolutionMl);
   storage.hasAcceptedPair = true;
-  storage.historyDepth = storage.historyDepth === 0 ? 2 : 3;
+  storage.historyDepth = storage.historyDepth === 0
+    ? 2
+    : storage.historyDepth === 2
+      ? 3
+      : 4;
   storage.expectedBaseRevision = context.baseRevision + 1;
   storage.expectedBaseAcceptedTimeSec =
     context.baseAcceptedTimeSec + context.stepDtSec;
@@ -221,14 +242,15 @@ export function reportMainWireFiveWallCoupledPredictorV1(
 /** Exact algorithmic history required for seed-identical continuation. */
 export function checkpointMainWireFiveWallCoupledPredictorV1(
   workspace: MainWireFiveWallCoupledPredictorWorkspaceV1,
-): MainWireFiveWallCoupledPredictorCheckpointV1 {
+): MainWireFiveWallCoupledPredictorCheckpointV2 {
   const storage = requireStorage(workspace);
   return Object.freeze({
-    checkpointId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V1_ID,
-    schemaVersion: 1 as const,
+    checkpointId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID,
+    schemaVersion: 2 as const,
     historyDepth: storage.historyDepth,
     expectedBaseRevision: storage.expectedBaseRevision,
     expectedBaseAcceptedTimeSec: storage.expectedBaseAcceptedTimeSec,
+    oldestAcceptedMl: Object.freeze(Array.from(storage.oldestAcceptedMl)),
     olderAcceptedMl: Object.freeze(Array.from(storage.olderAcceptedMl)),
     previousAcceptedMl: Object.freeze(Array.from(storage.previousAcceptedMl)),
     currentAcceptedMl: Object.freeze(Array.from(storage.currentAcceptedMl)),
@@ -272,6 +294,7 @@ export function restoreMainWireFiveWallCoupledPredictorV1(
       );
     }
   }
+  storage.oldestAcceptedMl.set(checkpoint.oldestAcceptedMl);
   storage.olderAcceptedMl.set(checkpoint.olderAcceptedMl);
   storage.previousAcceptedMl.set(checkpoint.previousAcceptedMl);
   storage.currentAcceptedMl.set(checkpoint.currentAcceptedMl);
@@ -333,6 +356,7 @@ function contextPrediction<TWallState>(
 }
 
 function resetHistory(storage: PredictorStorage): void {
+  storage.oldestAcceptedMl.fill(0);
   storage.olderAcceptedMl.fill(0);
   storage.previousAcceptedMl.fill(0);
   storage.currentAcceptedMl.fill(0);
@@ -344,6 +368,7 @@ function resetHistory(storage: PredictorStorage): void {
 }
 
 function resetStorage(storage: PredictorStorage): void {
+  storage.oldestAcceptedMl.fill(0);
   storage.olderAcceptedMl.fill(0);
   storage.previousAcceptedMl.fill(0);
   storage.currentAcceptedMl.fill(0);
@@ -362,7 +387,7 @@ function resetStorage(storage: PredictorStorage): void {
 
 function validatePredictorCheckpoint(
   input: unknown,
-): MainWireFiveWallCoupledPredictorCheckpointV1 {
+): MainWireFiveWallCoupledPredictorCheckpointV2 {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("coupled predictor checkpoint must be a plain object");
   }
@@ -376,6 +401,7 @@ function validatePredictorCheckpoint(
     "historyDepth",
     "expectedBaseRevision",
     "expectedBaseAcceptedTimeSec",
+    "oldestAcceptedMl",
     "olderAcceptedMl",
     "previousAcceptedMl",
     "currentAcceptedMl",
@@ -394,15 +420,17 @@ function validatePredictorCheckpoint(
   const historyDepth = ownDataValue(input, "historyDepth");
   if (
     checkpointId
-      !== MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V1_ID
-    || schemaVersion !== 1
+      !== MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID
+    || schemaVersion !== 2
     || (historyDepth !== 0
       && historyDepth !== 2
-      && historyDepth !== 3)
+      && historyDepth !== 3
+      && historyDepth !== 4)
   ) {
     throw new Error("unsupported coupled predictor checkpoint schema");
   }
   const vectors = [
+    validateCheckpointVector(ownDataValue(input, "oldestAcceptedMl")),
     validateCheckpointVector(ownDataValue(input, "olderAcceptedMl")),
     validateCheckpointVector(ownDataValue(input, "previousAcceptedMl")),
     validateCheckpointVector(ownDataValue(input, "currentAcceptedMl")),
@@ -429,20 +457,28 @@ function validatePredictorCheckpoint(
   ) {
     throw new Error("coupled predictor checkpoint clock is invalid");
   }
-  if (historyDepth === 2 && vectors[0].some((value) => value !== 0)) {
+  if (
+    historyDepth === 2
+    && (vectors[0].some((value) => value !== 0)
+      || vectors[1].some((value) => value !== 0))
+  ) {
     throw new Error("two-root coupled predictor checkpoint is not canonical");
+  }
+  if (historyDepth === 3 && vectors[0].some((value) => value !== 0)) {
+    throw new Error("three-root coupled predictor checkpoint is not canonical");
   }
   return Object.freeze({
     checkpointId:
-      MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V1_ID,
-    schemaVersion: 1 as const,
+      MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID,
+    schemaVersion: 2 as const,
     historyDepth,
     expectedBaseRevision: expectedBaseRevision as number | null,
     expectedBaseAcceptedTimeSec:
       expectedBaseAcceptedTimeSec as number | null,
-    olderAcceptedMl: vectors[0],
-    previousAcceptedMl: vectors[1],
-    currentAcceptedMl: vectors[2],
+    oldestAcceptedMl: vectors[0],
+    olderAcceptedMl: vectors[1],
+    previousAcceptedMl: vectors[2],
+    currentAcceptedMl: vectors[3],
   });
 }
 

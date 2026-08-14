@@ -36,6 +36,8 @@ import {
 import {
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
+  createMainWireFiveWallCoupledResidualWorkspaceV1,
+  type MainWireFiveWallCoupledResidualWorkspaceV1,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
@@ -135,7 +137,7 @@ import {
   reportMainWireFiveWallCoupledPredictorV1,
   resetMainWireFiveWallCoupledPredictorV1,
   restoreMainWireFiveWallCoupledPredictorV1,
-  type MainWireFiveWallCoupledPredictorCheckpointV1,
+  type MainWireFiveWallCoupledPredictorCheckpointV2,
   type MainWireFiveWallCoupledPredictorReportV1,
   type MainWireFiveWallCoupledPredictorWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
@@ -160,7 +162,7 @@ type MainWireFlatAuthoritativeReferenceCheckpointV1 = Readonly<{
     typeof MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID;
   schemaVersion: 1;
   standardCheckpoint: MainWireIntegratedModelStandardCheckpointV1;
-  coupledPredictor: MainWireFiveWallCoupledPredictorCheckpointV1;
+  coupledPredictor: MainWireFiveWallCoupledPredictorCheckpointV2;
 }>;
 
 export type MainWireFlatCoupledSolverProfileV1 = Readonly<{
@@ -245,6 +247,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   );
   readonly #coupledNewtonWorkspace:
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
+  readonly #coupledResidualWorkspace:
+    MainWireFiveWallCoupledResidualWorkspaceV1;
   readonly #coupledPredictorWorkspace:
     MainWireFiveWallCoupledPredictorWorkspaceV1;
   readonly #nonCoronaryAcceptedNumericalSource:
@@ -367,6 +371,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       createMainWireAcceptedTypedHemodynamicDestinationV1();
     this.#coupledNewtonWorkspace =
       createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    this.#coupledResidualWorkspace =
+      createMainWireFiveWallCoupledResidualWorkspaceV1();
     this.#coupledPredictorWorkspace =
       createMainWireFiveWallCoupledPredictorWorkspaceV1();
     this.#nonCoronaryAcceptedNumericalSource =
@@ -671,11 +677,12 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         autoregulationStepInput,
         this.#coupledNewtonWorkspace,
         Object.freeze({
+          residualWorkspace: this.#coupledResidualWorkspace,
           previousAcceptedNumericalSource:
             this.#nonCoronaryAcceptedNumericalSource,
           predictor: Object.freeze({
             workspace: this.#coupledPredictorWorkspace,
-            order: "quadratic" as const,
+            order: "cubic" as const,
           }),
         }),
       );
@@ -1005,6 +1012,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             stepInput,
             this.#coupledNewtonWorkspace,
             Object.freeze({
+              residualWorkspace: this.#coupledResidualWorkspace,
               previousAcceptedNumericalSource:
                 this.#nonCoronaryAcceptedNumericalSource ?? undefined,
               previousCoupledAcceptedAdapter,

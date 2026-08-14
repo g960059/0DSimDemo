@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   initializeLandSlsWallAtFixedInputV1,
+  trialLandSlsWallMaterialNumericalV1,
   trialLandSlsWallMaterialV1,
   type LandSlsWallMaterialParamsV1,
 } from "@/engine/myocardium/mechanics/landSlsWallMaterialV1";
@@ -79,6 +80,82 @@ describe("Land active + external equilibrium passive + parallel SLS wall V1", ()
       .toBeLessThan(1e-9);
     expect(trial.claim.externalSeriesElasticElement).toBe(false);
     expect(trial.claim.postHocForceVelocityMultiplier).toBe(false);
+  });
+
+  it("keeps the allocation-lean numerical trial exactly equal to the public constitutive result", () => {
+    const cases = [
+      {
+        params: VENTRICULAR_PARAMS,
+        previousFiberLogStrain: 0,
+        nextFiberLogStrain: 0.04,
+        nextFreeCalciumUM: 0.55,
+        dtSec: 0.005,
+      },
+      {
+        params: VENTRICULAR_PARAMS,
+        previousFiberLogStrain: -0.01,
+        nextFiberLogStrain: 0.025,
+        nextFreeCalciumUM: 0.9,
+        dtSec: 0.002,
+      },
+      {
+        params: ATRIAL_PARAMS,
+        previousFiberLogStrain: 0.01,
+        nextFiberLogStrain: 0.02,
+        nextFreeCalciumUM: 0.45,
+        dtSec: 0.005,
+      },
+    ] as const;
+    for (const testCase of cases) {
+      const previous = initializeLandSlsWallAtFixedInputV1(
+        testCase.previousFiberLogStrain,
+        0.1,
+        testCase.params,
+      ).state;
+      const input = {
+        nextFiberLogStrain: testCase.nextFiberLogStrain,
+        nextFreeCalciumUM: testCase.nextFreeCalciumUM,
+        dtSec: testCase.dtSec,
+        equilibriumPassive: {
+          stressPa: 12_000 * testCase.nextFiberLogStrain,
+          tangentPa: 12_000,
+          storedEnergyDensityJPerM3:
+            6000 * testCase.nextFiberLogStrain ** 2,
+        },
+      } as const;
+      const full = trialLandSlsWallMaterialV1(
+        previous,
+        input,
+        testCase.params,
+      );
+      const numerical = trialLandSlsWallMaterialNumericalV1(
+        previous,
+        input,
+        testCase.params,
+      );
+
+      expect(Array.from(numerical.state.landState))
+        .toEqual(Array.from(full.state.landState));
+      expect(numerical.state.slsState).toEqual(full.state.slsState);
+      expect(numerical.state.previousFiberLogStrain)
+        .toBe(full.state.previousFiberLogStrain);
+      expect(numerical.state.previousFreeCalciumUM)
+        .toBe(full.state.previousFreeCalciumUM);
+      expect(numerical.fiberLogStrain).toBe(full.fiberLogStrain);
+      expect(numerical.totalKirchhoffStressPa)
+        .toBe(full.totalKirchhoffStressPa);
+      expect(numerical.activeKirchhoffStressPa)
+        .toBe(full.activeKirchhoffStressPa);
+      expect(numerical.totalAlgorithmicTangentPa)
+        .toBe(full.totalAlgorithmicTangentPa);
+      expect(numerical.activeAlgorithmicTangentPa)
+        .toBe(full.activeAlgorithmicTangentPa);
+      expect(numerical.landSolverIterations).toBe(full.landSolverIterations);
+      expect(numerical.residualNorm).toBe(Math.max(
+        Math.abs(full.landSolverResidualNorm),
+        Math.abs(full.sls.stateResidual),
+      ));
+    }
   });
 
   it("accepts the separate literature atrial parameter family without changing topology", () => {

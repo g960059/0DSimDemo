@@ -2074,7 +2074,7 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
         .toEqual(source.snapshotAcceptedStateBytes());
       expect(restored.coupledPredictorReport()).toMatchObject({
         hasAcceptedPair: true,
-        historyDepth: 3,
+        historyDepth: 4,
       });
       expect(decodeCanonicalFlatDataV1(restored.snapshotAcceptedStateBytes()))
         .toEqual(restored.currentAcceptedState());

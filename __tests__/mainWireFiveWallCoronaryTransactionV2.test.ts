@@ -47,6 +47,7 @@ import {
   MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1,
   MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1,
   advanceMainWireCoronaryMvcReferenceV2,
+  createMainWireFiveWallCoupledResidualWorkspaceV1,
   evaluateMainWireFiveWallCoupledResidualShadowV1,
   initializeMainWireFiveWallCoronaryV2,
   prepareMainWireFiveWallCoupledResidualContextV1,
@@ -748,11 +749,39 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
       pericardium,
     });
+    const residualWorkspace =
+      createMainWireFiveWallCoupledResidualWorkspaceV1();
+    const staleContext = prepareMainWireFiveWallCoupledResidualContextV1(
+      provider,
+      cold.acceptedState,
+      stepInput,
+      undefined,
+      residualWorkspace,
+    );
+    const staleResidual = new Float64Array(staleContext.dimension);
+    staleContext.evaluateResidualMl(
+      staleContext.initialUnknownsMl,
+      staleResidual,
+    );
+    const initialUnknowns = staleContext.initialUnknownsMl.slice();
     const context = prepareMainWireFiveWallCoupledResidualContextV1(
       provider,
       cold.acceptedState,
       stepInput,
+      undefined,
+      residualWorkspace,
     );
+    const reusedResidual = new Float64Array(context.dimension);
+    context.evaluateResidualMl(context.initialUnknownsMl, reusedResidual);
+    expect(context.initialUnknownsMl).toBe(staleContext.initialUnknownsMl);
+    expect(Array.from(context.initialUnknownsMl)).toEqual(
+      Array.from(initialUnknowns),
+    );
+    expect(Array.from(reusedResidual)).toEqual(Array.from(staleResidual));
+    expect(() => staleContext.evaluateResidualMl(
+      initialUnknowns,
+      staleResidual,
+    )).toThrow(/invalidated by a newer workspace borrow/);
     const coupled = solveMainWireFiveWallCoupledNewtonShadowV1(context);
     const sharedWorkspace =
       createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
@@ -1623,7 +1652,7 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(contextPredictionCount).toBe(1);
     expect(linearPredictionCount).toBe(1);
     expect(quadraticPredictionCount).toBe(198);
-    expect(report.historyDepth).toBe(3);
+    expect(report.historyDepth).toBe(4);
     expect(predictedJacobianEvaluations).toBeLessThan(
       baselineJacobianEvaluations,
     );
@@ -1648,11 +1677,12 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     const acceptedUnknowns = new Float64Array(30).fill(1);
     const checkpoint = Object.freeze({
       checkpointId:
-        "circleheart-main-wire-five-wall-coupled-predictor-checkpoint-v1" as const,
-      schemaVersion: 1 as const,
+        "circleheart-main-wire-five-wall-coupled-predictor-checkpoint-v2" as const,
+      schemaVersion: 2 as const,
       historyDepth: 2 as const,
       expectedBaseRevision: 7,
       expectedBaseAcceptedTimeSec: 0.014,
+      oldestAcceptedMl: Object.freeze(new Array<number>(30).fill(0)),
       olderAcceptedMl: Object.freeze(new Array<number>(30).fill(0)),
       previousAcceptedMl: Object.freeze(new Array<number>(30).fill(0.9)),
       currentAcceptedMl: Object.freeze(new Array<number>(30).fill(1)),
@@ -1682,6 +1712,7 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
         historyDepth: 0,
         expectedBaseRevision: null,
         expectedBaseAcceptedTimeSec: null,
+        oldestAcceptedMl: new Array<number>(30).fill(0),
         olderAcceptedMl: new Array<number>(30).fill(0),
         previousAcceptedMl: new Array<number>(30).fill(0),
         currentAcceptedMl: new Array<number>(30).fill(0),
@@ -1737,22 +1768,30 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       const linearAuthority = new MainWireFlatCoupledAcceptedStateV1(initial);
       const quadraticAuthority =
         new MainWireFlatCoupledAcceptedStateV1(initial);
+      const cubicAuthority = new MainWireFlatCoupledAcceptedStateV1(initial);
       const linearSolver =
         createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
       const quadraticSolver =
+        createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+      const cubicSolver =
         createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
       const linearPredictor =
         createMainWireFiveWallCoupledPredictorWorkspaceV1();
       const quadraticPredictor =
         createMainWireFiveWallCoupledPredictorWorkspaceV1();
+      const cubicPredictor =
+        createMainWireFiveWallCoupledPredictorWorkspaceV1();
       let linearResidualEvaluations = 0;
       let quadraticResidualEvaluations = 0;
+      let cubicResidualEvaluations = 0;
       let maximumRootDifferenceMl = 0;
 
       for (let stepIndex = 0; stepIndex < 500; stepIndex += 1) {
         const linearPrevious = linearAuthority
           .materializeAcceptedObjectBridge(fixture.provider);
         const quadraticPrevious = quadraticAuthority
+          .materializeAcceptedObjectBridge(fixture.provider);
+        const cubicPrevious = cubicAuthority
           .materializeAcceptedObjectBridge(fixture.provider);
         const linearContext = prepareMainWireFiveWallCoupledResidualContextV1(
           fixture.provider,
@@ -1765,6 +1804,11 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
             quadraticPrevious,
             stepInput,
           );
+        const cubicContext = prepareMainWireFiveWallCoupledResidualContextV1(
+          fixture.provider,
+          cubicPrevious,
+          stepInput,
+        );
         const linear = solveMainWireFiveWallCoupledNewtonPredictedV1(
           linearContext,
           options,
@@ -1779,11 +1823,20 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
           quadraticPredictor,
           "quadratic",
         );
+        const cubic = solveMainWireFiveWallCoupledNewtonPredictedV1(
+          cubicContext,
+          options,
+          cubicSolver,
+          cubicPredictor,
+          "cubic",
+        );
         expect(linear.solver.result.status).toBe("converged");
         expect(quadratic.solver.result.status).toBe("converged");
+        expect(cubic.solver.result.status).toBe("converged");
         if (
           linear.solver.result.status !== "converged"
           || quadratic.solver.result.status !== "converged"
+          || cubic.solver.result.status !== "converged"
         ) {
           throw new Error(`${corpusCase.caseId} predictor solve failed`);
         }
@@ -1791,12 +1844,18 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
           linear.solver.result.residualEvaluationCount;
         quadraticResidualEvaluations +=
           quadratic.solver.result.residualEvaluationCount;
+        cubicResidualEvaluations +=
+          cubic.solver.result.residualEvaluationCount;
         for (let index = 0; index < linearContext.dimension; index += 1) {
           maximumRootDifferenceMl = Math.max(
             maximumRootDifferenceMl,
             Math.abs(
               linear.solver.result.solution[index]!
                 - quadratic.solver.result.solution[index]!,
+            ),
+            Math.abs(
+              linear.solver.result.solution[index]!
+                - cubic.solver.result.solution[index]!,
             ),
           );
         }
@@ -1808,8 +1867,13 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
           quadraticContext,
           quadratic.solver.result.solution,
         );
+        cubicAuthority.stageConvergedSolution(
+          cubicContext,
+          cubic.solver.result.solution,
+        );
         linearAuthority.promote();
         quadraticAuthority.promote();
+        cubicAuthority.promote();
         recordAcceptedMainWireFiveWallCoupledSolutionV1(
           linearContext,
           linear.solver.result.solution,
@@ -1820,15 +1884,28 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
           quadratic.solver.result.solution,
           quadraticPredictor,
         );
+        recordAcceptedMainWireFiveWallCoupledSolutionV1(
+          cubicContext,
+          cubic.solver.result.solution,
+          cubicPredictor,
+        );
       }
 
       expect(maximumRootDifferenceMl).toBeLessThan(1e-5);
       expect(quadraticResidualEvaluations).toBeLessThan(
         linearResidualEvaluations,
       );
+      expect(cubicResidualEvaluations).toBeLessThan(
+        quadraticResidualEvaluations,
+      );
       expect(reportMainWireFiveWallCoupledPredictorV1(quadraticPredictor))
         .toMatchObject({
-          historyDepth: 3,
+          historyDepth: 4,
+          resetCount: 0,
+        });
+      expect(reportMainWireFiveWallCoupledPredictorV1(cubicPredictor))
+        .toMatchObject({
+          historyDepth: 4,
           resetCount: 0,
         });
     }

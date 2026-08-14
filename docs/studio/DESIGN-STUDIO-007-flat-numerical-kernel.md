@@ -1421,18 +1421,32 @@ constitutive, derivative, Hessian, and tangent object graphs for every residual
 candidate. Those allocations, not the deferred public boundary, are the next
 target.
 
-The quadratic predictor is now connected to the adapter-free ordinary
-reference Session rather than remaining a benchmark-only experiment. Over a
-10,000-tick hot-path-lean run it reduced 10,364 direct solves from about `2.38`
+The accepted-root predictor is now connected to the adapter-free ordinary
+reference Session rather than remaining a benchmark-only experiment. A
+quadratic policy first reduced 10,364 direct solves from about `2.38`
 Newton/Jacobian evaluations per solve to about `1.35`; three complete runs
 measured `0.409`, `0.410`, and `0.415 ms/tick`, compared with about
-`0.537 ms/tick` for the same direct path without prediction. A two-update
-modified-Newton experiment was also measured and removed: it reduced fresh
-Jacobian construction but raised the mean iteration count to about three and
-slowed the path to about `0.599 ms/tick`. Residual and mechanics work, rather
-than the already-cheap analytic Jacobian writer, therefore remains the next
-optimization target. These host measurements are construction evidence, not
-the physical-phone release gate.
+`0.537 ms/tick` for the same direct path without prediction. A cubic policy
+then reduced residual work again in each of the six 500-step construction
+cases while retaining the same admitted root branch inside the predeclared
+`1e-5 mL` corridor. The Session now uses that cubic history and includes its
+exact algorithmic state in the tamper-evident reference checkpoint. History is
+recorded only after promotion and resets on any discontinuous accepted clock or
+root.
+
+A fourth-order extrapolation was implemented and rejected rather than retained
+as speculative flexibility. At full scale it marginally reduced residual work
+but crossed an existing selected-output scientific-equivalence boundary. At
+`0.875` and `0.5` scale it lost the residual advantage, reaching approximately
+`1.49x` and `1.70x` the cubic residual evaluations in the first corpus case;
+the intermediate scale still crossed a checkpoint-continuation output gate.
+The experiment and its extra checkpoint history were removed. A two-update
+modified-Newton experiment was likewise removed: it reduced fresh Jacobian
+construction but raised the mean iteration count to about three and slowed the
+path to about `0.599 ms/tick`. Residual and mechanics work, rather than the
+already-cheap analytic Jacobian writer, therefore remains the next optimization
+target. These host measurements are construction evidence, not the
+physical-phone release gate.
 
 The Phase 2b construction seam now also exposes the two scaled TriSeg internal
 coordinates as explicit caller-owned unknowns. At one fixed chamber-volume and
@@ -1449,6 +1463,43 @@ are owned by one evaluation and an A→B probe cannot mutate A. This remains a
 construction interface used by the 32-variable shadow; it cannot be sealed,
 committed, checkpointed, or treated as an accepted performance improvement by
 itself.
+
+The rejected-candidate mechanics path now uses a numerical Land/SLS evaluation
+that preserves the public step's equations, expression order, Land tolerance,
+and discrete SLS passivity gate without constructing its audit ledgers. The
+selected root still passes through the complete public materialization and
+one-shot finalizer. The TriSeg Hessian writes into fixed row-major numeric
+scratch, and the internal two-coordinate Newton uses a scalar `2×2` solve and
+closed-form symmetric minimum eigenvalue instead of allocating generic matrix
+workspaces. Public-versus-numerical tests require identical material state,
+stress, tangent, iteration count, and residual norm.
+
+The 30-row residual context also has an optional Session-owned workspace. It
+reuses its fixed volume, residual, tangent, pressure, flow, valve, and accepted
+readback arrays across ticks. Starting a new context increments a generation;
+every method and predictor access on an older context then fails closed, so a
+synchronous borrow cannot silently observe repurposed storage. Repeated
+evaluation of the same candidate reuses only detached numeric values. The
+converged root is independently rematerialized through the canonical public
+path where required. Tests require the same residual on an exact repeat,
+stable array identity within the workspace, and rejection of the stale prior
+context.
+
+Finally, the normal-adult provider streams the exact sorted-key state-codec JSON
+directly into its FNV-1a fingerprint instead of cloning and encoding the entire
+five-wall material state for each accepted candidate. The `full-invariant`
+tier independently computes the generic codec fingerprint and requires exact
+equality; only the already model-owned `hot-path-lean` path trusts the fast
+writer. After these changes, a 1,000-tick warm-up plus 20,000-tick lean host
+run measured `0.3505 ms/tick`, with 20,706 coupled solves, 26,220 Newton
+iterations, 46,945 residual evaluations, and 19 line-search backtracks. This is
+approximately 13% below the earlier `0.405 ms/tick` reference, but it combines
+cubic prediction, residual workspace reuse, numerical constitutive cleanup,
+and allocation-cold fingerprinting and therefore is not attribution to any
+single edit. A fresh CPU profile no longer shows canonical state encoding in
+the leading self-time entries; dense LU, Land output evaluation, TriSeg
+geometry, non-coronary candidate evaluation, and vascular constitutive work are
+now the main measured components.
 
 ### Phase 3 — strict scalar WASM
 

@@ -61,7 +61,8 @@ export type MainWireFiveWallCoupledPredictedSolveResultV1 = Readonly<{
   predictionMode:
     | "context"
     | "linear-extrapolation"
-    | "quadratic-extrapolation";
+    | "quadratic-extrapolation"
+    | "cubic-extrapolation";
   extrapolationScale: number;
   fallbackUsed: boolean;
   solver: MainWireFiveWallCoupledNewtonShadowResultV1;

@@ -12,6 +12,7 @@ import {
   type MainWireFiveWallCoronaryAcceptedStateV2,
   type MainWireFiveWallCoronaryStepInputV2,
   type MainWireFiveWallCoronaryStepSuccessV2,
+  type MainWireFiveWallCoupledResidualWorkspaceV1,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 import {
   stepMainWireIntegratedModelWithCoronaryExecutorV3,
@@ -49,6 +50,7 @@ export const MAIN_WIRE_INTEGRATED_COUPLED_STEP_V1_ID =
 
 export type MainWireIntegratedCoupledStepOptionsV1<TWallState> = Readonly<{
   solver?: MainWireFiveWallCoupledNewtonShadowOptionsV1;
+  residualWorkspace?: MainWireFiveWallCoupledResidualWorkspaceV1;
   /**
    * Live read seam over the admitted typed image. The component solver
    * compares every value exactly with its rollback object before use.
@@ -75,6 +77,7 @@ export type MainWireIntegratedCoupledStepOptionsV1<TWallState> = Readonly<{
 
 export type MainWireFiveWallCoupledCandidateSolveOptionsV1 = Readonly<{
   solver?: MainWireFiveWallCoupledNewtonShadowOptionsV1;
+  residualWorkspace?: MainWireFiveWallCoupledResidualWorkspaceV1;
   previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1;
   predictor?: Readonly<{
     workspace: MainWireFiveWallCoupledPredictorWorkspaceV1;
@@ -117,6 +120,7 @@ export function solveMainWireFiveWallCoupledCandidateV1<TWallState>(
     previous,
     input,
     options.previousAcceptedNumericalSource,
+    options.residualWorkspace,
   );
   const solverOptions = Object.freeze({
     ...options.solver,
@@ -176,6 +180,7 @@ export function stepMainWireIntegratedModelCoupledV1<TWallState>(
         workspace,
         Object.freeze({
           solver: options.solver,
+          residualWorkspace: options.residualWorkspace,
           previousAcceptedNumericalSource:
             options.previousAcceptedNumericalSource,
         }),

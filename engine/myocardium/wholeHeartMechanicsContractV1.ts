@@ -86,6 +86,27 @@ export function fingerprintWholeHeartMechanicsMaterialStateV1<
   state: TState,
 ): string {
   validateProvider(provider);
+  if (provider.fingerprintMaterialStateCanonicalV1 !== undefined) {
+    const fingerprint = provider.fingerprintMaterialStateCanonicalV1(state);
+    if (!/^[0-9a-f]{8}$/.test(fingerprint)) {
+      throw new Error(
+        "provider canonical material-state fingerprint must be eight lowercase hex digits",
+      );
+    }
+    if (fullHotPathInvariantsEnabledV1()) {
+      const audited = snapshotMaterialState(
+        provider,
+        state,
+        "candidate material state fingerprint audit",
+      ).fingerprint;
+      if (fingerprint !== audited) {
+        throw new Error(
+          "provider canonical material-state fingerprint differs from its codec",
+        );
+      }
+    }
+    return fingerprint;
+  }
   return snapshotMaterialState(
     provider,
     state,
@@ -154,6 +175,12 @@ export type WholeHeartMechanicsProviderV1<TState, TDrive> = {
   readonly parameterIdentityHash: string;
   readonly stateSchemaVersion: number;
   readonly stateCodec: WholeHeartMechanicsStateCodecV1<TState>;
+  /**
+   * Optional allocation-cold writer for the exact canonical codec hash. The
+   * full-invariant tier compares it with the generic codec before trusting it;
+   * lean model-owned candidates may use it directly.
+   */
+  readonly fingerprintMaterialStateCanonicalV1?: (state: TState) => string;
   /**
    * Optional trusted hot-path capability. The default supplies a defensive
    * clone to every callback. A provider may opt into the private prepared-step
@@ -1022,6 +1049,14 @@ function validateProvider<TState, TDrive>(
     && typeof provider.cloneDrivingInputs !== "function"
   ) {
     throw new Error("cloneDrivingInputs must be a function when provided");
+  }
+  if (
+    provider.fingerprintMaterialStateCanonicalV1 !== undefined
+    && typeof provider.fingerprintMaterialStateCanonicalV1 !== "function"
+  ) {
+    throw new Error(
+      "fingerprintMaterialStateCanonicalV1 must be a function when provided",
+    );
   }
   if (
     provider.acceptedStateInputMode !== undefined

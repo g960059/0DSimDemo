@@ -5,7 +5,7 @@ import {
 import {
   evaluateEnergyConjugateTriSegV1,
   evaluateTriSegGeometryV1,
-  evaluateTriSegWallSecondDerivativeV1,
+  writeTriSegWallSecondDerivativeV1,
   type EnergyConjugateTriSegEvaluationV1,
   type TriSegCoordinatesV1,
   type TriSegGeometryV1,
@@ -194,6 +194,9 @@ export type MainWireFiveWallLandTriSegProviderParamsV1<TWallState> = Readonly<{
   trisegWalls: TriSegWallRecordV1<TriSegWallGeometryParametersV1>;
   initialTriSegCoordinates: TriSegCoordinatesV1;
   internalCoordinateScales: TriSegCoordinatesV1;
+  fingerprintMaterialStateCanonicalV1?: (
+    state: MainWireFiveWallLandTriSegStateV1<TWallState>,
+  ) => string;
   solver?: MainWireFiveWallInternalSolverOptionsV1;
 }>;
 
@@ -695,6 +698,8 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
     parameterIdentityHash,
     stateSchemaVersion: STATE_SCHEMA_VERSION,
     stateCodec,
+    fingerprintMaterialStateCanonicalV1:
+      params.fingerprintMaterialStateCanonicalV1,
     acceptedStateInputMode:
       "trusted-read-only-prepared-snapshot" as const,
     evaluationResultOwnershipMode: "exclusive-result" as const,
@@ -976,29 +981,29 @@ function fixedInternalMechanicsEvaluationV1<TWallState>(
     ventricularPressureRow += 1) {
     const pressureRow = ventricularPressureRow === 0 ? 1 : 3;
     pressureDerivative[pressureRow * 6 + 1] =
-      hessian[ventricularPressureRow]![0]! * 1e-6 / PA_PER_MMHG;
+      hessian[ventricularPressureRow * 4]! * 1e-6 / PA_PER_MMHG;
     pressureDerivative[pressureRow * 6 + 3] =
-      hessian[ventricularPressureRow]![1]! * 1e-6 / PA_PER_MMHG;
+      hessian[ventricularPressureRow * 4 + 1]! * 1e-6 / PA_PER_MMHG;
     pressureDerivative[pressureRow * 6 + 4] =
-      hessian[ventricularPressureRow]![2]!
+      hessian[ventricularPressureRow * 4 + 2]!
       * coordinateScales[0] / PA_PER_MMHG;
     pressureDerivative[pressureRow * 6 + 5] =
-      hessian[ventricularPressureRow]![3]!
+      hessian[ventricularPressureRow * 4 + 3]!
       * coordinateScales[1] / PA_PER_MMHG;
   }
   const internalResidualDerivative = new Float64Array(2 * 6);
   for (let residualRow = 0; residualRow < 2; residualRow += 1) {
     internalResidualDerivative[residualRow * 6 + 1] =
-      hessian[residualRow + 2]![0]!
+      hessian[(residualRow + 2) * 4]!
       * coordinateScales[residualRow]! * 1e-6 / ONE_JOULE;
     internalResidualDerivative[residualRow * 6 + 3] =
-      hessian[residualRow + 2]![1]!
+      hessian[(residualRow + 2) * 4 + 1]!
       * coordinateScales[residualRow]! * 1e-6 / ONE_JOULE;
     for (let coordinateColumn = 0;
       coordinateColumn < 2;
       coordinateColumn += 1) {
       internalResidualDerivative[residualRow * 6 + 4 + coordinateColumn] =
-        hessian[residualRow + 2]![coordinateColumn + 2]!
+        hessian[(residualRow + 2) * 4 + coordinateColumn + 2]!
         * coordinateScales[residualRow]!
         * coordinateScales[coordinateColumn]! / ONE_JOULE;
     }
@@ -1072,6 +1077,8 @@ function solveInternalCoordinates<TWallState>(
 ): InternalSolveResultV1<TWallState> {
   let current = [...initialScaledUnknowns];
   let currentCandidate: CandidateEvaluationV1<TWallState>;
+  const hessianScratch = new Float64Array(16);
+  const wallSecondDerivativeScratch = new Float64Array(3);
   let acceptedLineSearchSteps = 0;
   let lineSearchBacktracks = 0;
   const evaluationCounters =
@@ -1120,6 +1127,8 @@ function solveInternalCoordinates<TWallState>(
         jacobian = analyticScaledInternalJacobian(
           currentCandidate,
           params,
+          hessianScratch,
+          wallSecondDerivativeScratch,
         );
       } catch (error) {
         return internalFailure({
@@ -1201,6 +1210,8 @@ function solveInternalCoordinates<TWallState>(
       jacobian = analyticScaledInternalJacobian(
         currentCandidate,
         params,
+        hessianScratch,
+        wallSecondDerivativeScratch,
       );
     } catch (error) {
       return internalFailure({
@@ -1678,7 +1689,7 @@ function ventricularMaterialTangents<TWallState>(
   return Object.freeze(tangentByWall);
 }
 
-type TriSegAlgorithmicHessianV1 = readonly (readonly number[])[];
+type TriSegAlgorithmicHessianV1 = Float64Array;
 type ConsistentMechanicsTangentV1 = Readonly<{
   transmuralPressureVolumeTangentMmHgPerMl:
     WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
@@ -1698,9 +1709,19 @@ type ConsistentMechanicsTangentV1 = Readonly<{
 function analyticTriSegAlgorithmicHessian<TWallState>(
   center: CandidateEvaluationV1<TWallState>,
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  destination: Float64Array = new Float64Array(16),
+  wallSecondDerivativeScratch: Float64Array = new Float64Array(3),
 ): TriSegAlgorithmicHessianV1 {
+  if (destination.length !== 16) {
+    throw new RangeError("TriSeg algorithmic Hessian requires 16 f64 values");
+  }
+  destination.fill(0);
   const tangentByWall = ventricularMaterialTangents(center);
-  const hessian = Array.from({ length: 4 }, () => [0, 0, 0, 0]);
+  if (wallSecondDerivativeScratch.length !== 3) {
+    throw new RangeError(
+      "TriSeg wall second derivative scratch requires three f64 values",
+    );
+  }
   const capVolumeGradientByWall = {
     LVFW: [-1, 0, 1] as const,
     SEP: [0, 0, 1] as const,
@@ -1708,8 +1729,9 @@ function analyticTriSegAlgorithmicHessian<TWallState>(
   };
   for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
     const first = center.triseg.wallDerivativeByWall[wallId];
-    const second = evaluateTriSegWallSecondDerivativeV1(
+    writeTriSegWallSecondDerivativeV1(
       center.geometry.walls[wallId],
+      wallSecondDerivativeScratch,
     );
     const capGradient = capVolumeGradientByWall[wallId];
     const strainGradient = [
@@ -1726,45 +1748,53 @@ function analyticTriSegAlgorithmicHessian<TWallState>(
         let strainSecondDerivative: number;
         if (row === 3 && column === 3) {
           strainSecondDerivative =
-            second.d2FiberLogStrainDJunctionRadius2PerM2;
+            wallSecondDerivativeScratch[2]!;
         } else if (column === 3) {
           strainSecondDerivative =
             capGradient[row]!
-            * second
-              .d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4;
+            * wallSecondDerivativeScratch[1]!;
         } else {
           strainSecondDerivative =
             capGradient[row]!
             * capGradient[column]!
-            * second.d2FiberLogStrainDCapVolume2PerM6;
+            * wallSecondDerivativeScratch[0]!;
         }
         const contribution = wallVolumeM3 * (
           tangentPa * strainGradient[row]! * strainGradient[column]!
           + stressPa * strainSecondDerivative
         );
-        hessian[row]![column] += contribution;
-        if (row !== column) hessian[column]![row] += contribution;
+        destination[row * 4 + column] += contribution;
+        if (row !== column) destination[column * 4 + row] += contribution;
       }
     }
   }
-  if (!hessian.flat().every(Number.isFinite)) {
-    throw new Error("analytic TriSeg algorithmic Hessian is non-finite");
+  for (const value of destination) {
+    if (!Number.isFinite(value)) {
+      throw new Error("analytic TriSeg algorithmic Hessian is non-finite");
+    }
   }
-  return Object.freeze(hessian.map((row) => Object.freeze(row)));
+  return destination;
 }
 
 function analyticScaledInternalJacobian<TWallState>(
   center: CandidateEvaluationV1<TWallState>,
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  hessianScratch?: Float64Array,
+  wallSecondDerivativeScratch?: Float64Array,
 ): MainWireFiveWallScaledAlgorithmicJacobianByOneJV1 {
-  const hessian = analyticTriSegAlgorithmicHessian(center, params);
+  const hessian = analyticTriSegAlgorithmicHessian(
+    center,
+    params,
+    hessianScratch,
+    wallSecondDerivativeScratch,
+  );
   const scales = [
     params.internalCoordinateScales.septalMidwallCapVolumeM3,
     params.internalCoordinateScales.junctionRadiusM,
   ] as const;
-  const j00 = hessian[2]![2]! * scales[0] * scales[0] / ONE_JOULE;
-  const j01 = hessian[2]![3]! * scales[0] * scales[1] / ONE_JOULE;
-  const j11 = hessian[3]![3]! * scales[1] * scales[1] / ONE_JOULE;
+  const j00 = hessian[2 * 4 + 2]! * scales[0] * scales[0] / ONE_JOULE;
+  const j01 = hessian[2 * 4 + 3]! * scales[0] * scales[1] / ONE_JOULE;
+  const j11 = hessian[3 * 4 + 3]! * scales[1] * scales[1] / ONE_JOULE;
   return Object.freeze([
     Object.freeze([j00, j01]),
     Object.freeze([j01, j11]),
@@ -1813,7 +1843,7 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl<TWallState>(
   ) as Record<MainWireFiveWallVentricularWallIdV1, number[]>;
   for (let volumeColumn = 0; volumeColumn < 2; volumeColumn += 1) {
     const forceColumn = [0, 1].map((coordinateRow) =>
-      hessian[coordinateRow + 2]![volumeColumn]!
+      hessian[(coordinateRow + 2) * 4 + volumeColumn]!
       * coordinateScales[coordinateRow]!
       * 1e-6
       / ONE_JOULE);
@@ -1825,14 +1855,14 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl<TWallState>(
     for (let pressureRow = 0; pressureRow < 2; pressureRow += 1) {
       const pressureCoordinateDerivative = [0, 1].reduce(
         (sum, coordinateColumn) => sum
-          + hessian[pressureRow]![coordinateColumn + 2]!
+          + hessian[pressureRow * 4 + coordinateColumn + 2]!
           * coordinateScales[coordinateColumn]!
           / PA_PER_MMHG
           * coordinateResponse[coordinateColumn]!,
         0,
       );
       ventricularPressureTangent[pressureRow]![volumeColumn] =
-        hessian[pressureRow]![volumeColumn]! * 1e-6 / PA_PER_MMHG
+        hessian[pressureRow * 4 + volumeColumn]! * 1e-6 / PA_PER_MMHG
         - pressureCoordinateDerivative;
     }
     for (const wallId of ventricularWallIds) {
@@ -2114,28 +2144,30 @@ function evaluateAlgorithmicJacobianStability(
   symmetricJacobianMinimumEigenvalueByOneJ: number;
   strictLocalStableEquilibrium: boolean;
 }> {
-  const n = jacobian.length;
-  const symmetric = Array.from({ length: n }, (_, row) =>
-    Array.from({ length: n }, (_, column) =>
-      0.5 * (jacobian[row]![column]! + jacobian[column]![row]!)));
-  let antisymmetricMaximum = 0;
-  let jacobianInfinityNorm = 0;
-  for (let row = 0; row < n; row += 1) {
-    let rowSum = 0;
-    for (let column = 0; column < n; column += 1) {
-      antisymmetricMaximum = Math.max(
-        antisymmetricMaximum,
-        0.5 * Math.abs(
-          jacobian[row]![column]! - jacobian[column]![row]!,
-        ),
-      );
-      rowSum += Math.abs(jacobian[row]![column]!);
-    }
-    jacobianInfinityNorm = Math.max(jacobianInfinityNorm, rowSum);
+  if (
+    jacobian.length !== 2
+    || jacobian[0]?.length !== 2
+    || jacobian[1]?.length !== 2
+  ) {
+    throw new RangeError("internal TriSeg stability requires a 2x2 Jacobian");
   }
+  const j00 = jacobian[0][0]!;
+  const j01 = jacobian[0][1]!;
+  const j10 = jacobian[1][0]!;
+  const j11 = jacobian[1][1]!;
+  const antisymmetricMaximum = 0.5 * Math.abs(j01 - j10);
+  const jacobianInfinityNorm = Math.max(
+    Math.abs(j00) + Math.abs(j01),
+    Math.abs(j10) + Math.abs(j11),
+  );
   const relative = antisymmetricMaximum
     / Math.max(Number.MIN_VALUE, jacobianInfinityNorm);
-  const minimumEigenvalue = minimumEigenvalueSymmetric(symmetric);
+  const symmetricOffDiagonal = 0.5 * (j01 + j10);
+  const halfTrace = 0.5 * (j00 + j11);
+  const minimumEigenvalue = halfTrace - Math.hypot(
+    0.5 * (j00 - j11),
+    symmetricOffDiagonal,
+  );
   const symmetricWithinTolerance = antisymmetricMaximum === 0;
   return Object.freeze({
     jacobianAntisymmetricMaximumAbsoluteByOneJ: antisymmetricMaximum,
@@ -2151,79 +2183,37 @@ function solveLinearSystem(
   matrix: MainWireFiveWallScaledAlgorithmicJacobianByOneJV1,
   rightHandSide: readonly number[],
 ): number[] | null {
-  const n = rightHandSide.length;
-  const augmented = Array.from({ length: n }, (_, row) => [
-    ...matrix[row]!,
-    rightHandSide[row]!,
-  ]);
-  const scale = Math.max(1, ...matrix.flat().map(Math.abs));
-  for (let column = 0; column < n; column += 1) {
-    let pivot = column;
-    for (let row = column + 1; row < n; row += 1) {
-      if (Math.abs(augmented[row]![column]!)
-        > Math.abs(augmented[pivot]![column]!)) pivot = row;
-    }
-    if (Math.abs(augmented[pivot]![column]!) <= 1e-13 * scale) return null;
-    [augmented[column], augmented[pivot]] = [augmented[pivot]!, augmented[column]!];
-    const pivotValue = augmented[column]![column]!;
-    for (let entry = column; entry <= n; entry += 1) {
-      augmented[column]![entry] /= pivotValue;
-    }
-    for (let row = 0; row < n; row += 1) {
-      if (row === column) continue;
-      const factor = augmented[row]![column]!;
-      for (let entry = column; entry <= n; entry += 1) {
-        augmented[row]![entry] -= factor * augmented[column]![entry]!;
-      }
-    }
+  if (
+    matrix.length !== 2
+    || matrix[0]?.length !== 2
+    || matrix[1]?.length !== 2
+    || rightHandSide.length !== 2
+  ) {
+    throw new RangeError("internal TriSeg solve requires a 2x2 system");
   }
-  const solution = augmented.map((row) => row[n]!);
-  return solution.every(Number.isFinite) ? solution : null;
-}
-
-function minimumEigenvalueSymmetric(matrix: readonly (readonly number[])[]): number {
-  const n = matrix.length;
-  const work = matrix.map((row) => [...row]);
-  for (let sweep = 0; sweep < 32; sweep += 1) {
-    let p = 0;
-    let q = n > 1 ? 1 : 0;
-    let maximum = 0;
-    for (let row = 0; row < n; row += 1) {
-      for (let column = row + 1; column < n; column += 1) {
-        const value = Math.abs(work[row]![column]!);
-        if (value > maximum) {
-          maximum = value;
-          p = row;
-          q = column;
-        }
-      }
-    }
-    if (maximum <= 1e-13 * Math.max(1, ...work.flat().map(Math.abs))) break;
-    const app = work[p]![p]!;
-    const aqq = work[q]![q]!;
-    const apq = work[p]![q]!;
-    const angle = 0.5 * Math.atan2(2 * apq, aqq - app);
-    const cosine = Math.cos(angle);
-    const sine = Math.sin(angle);
-    for (let row = 0; row < n; row += 1) {
-      if (row === p || row === q) continue;
-      const arp = work[row]![p]!;
-      const arq = work[row]![q]!;
-      work[row]![p] = cosine * arp - sine * arq;
-      work[p]![row] = work[row]![p]!;
-      work[row]![q] = sine * arp + cosine * arq;
-      work[q]![row] = work[row]![q]!;
-    }
-    work[p]![p] = cosine * cosine * app
-      - 2 * sine * cosine * apq
-      + sine * sine * aqq;
-    work[q]![q] = sine * sine * app
-      + 2 * sine * cosine * apq
-      + cosine * cosine * aqq;
-    work[p]![q] = 0;
-    work[q]![p] = 0;
+  let a = matrix[0][0]!;
+  let b = matrix[0][1]!;
+  let c = matrix[1][0]!;
+  let d = matrix[1][1]!;
+  let r0 = rightHandSide[0]!;
+  let r1 = rightHandSide[1]!;
+  const scale = Math.max(1, Math.abs(a), Math.abs(b), Math.abs(c), Math.abs(d));
+  // Preserve the former Gaussian-elimination pivot rule while keeping the
+  // two-variable mechanics solve in scalars instead of temporary row arrays.
+  if (Math.abs(c) > Math.abs(a)) {
+    [a, c] = [c, a];
+    [b, d] = [d, b];
+    [r0, r1] = [r1, r0];
   }
-  return Math.min(...work.map((row, index) => row[index]!));
+  if (Math.abs(a) <= 1e-13 * scale) return null;
+  b /= a;
+  r0 /= a;
+  d -= c * b;
+  r1 -= c * r0;
+  if (Math.abs(d) <= 1e-13 * scale) return null;
+  r1 /= d;
+  r0 -= b * r1;
+  return Number.isFinite(r0) && Number.isFinite(r1) ? [r0, r1] : null;
 }
 
 function createStateCodec<TWallState>(
