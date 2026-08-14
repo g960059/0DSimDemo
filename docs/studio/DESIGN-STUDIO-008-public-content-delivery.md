@@ -10,6 +10,7 @@ One anonymous Supabase projection is the content authority for all public
 representations:
 
 - canonical HTML: `/{locale}/articles/{publicSlug}`
+- language-negotiating entry point: `/`
 - localized Home: `/{locale}`
 - Markdown: `/{locale}/articles/{publicSlug}.md`
 - JSON: `/api/v1/public/articles/{publicSlug}`
@@ -34,6 +35,15 @@ position into the Reader's scroll container. The cached first response
 necessarily uses anonymous chrome; account-specific controls may replace it
 only after the browser resolves an authenticated session.
 
+The bare origin is a discovery entry point rather than a third Home variant.
+It redirects with `302` to `/{locale}` using the saved locale cookie first,
+weighted `Accept-Language` second and Japanese as the final fallback. The
+redirect preserves the query string, reads no catalog data and is
+`private, no-store` with `Vary: Cookie, Accept-Language`. Localized pages persist
+the same preference to local storage and a first-party cookie. Their
+`hreflang="x-default"` points to `/`, while `ja` and `en` alternates point to the
+two stable localized URLs.
+
 ## Why this boundary
 
 Search engines, link unfurlers, accessibility tools and AI review clients must
@@ -49,9 +59,11 @@ tier cannot expose drafts.
 
 ## Routing and cache contract
 
-Firebase Hosting routes localized Home, public one-segment Article paths,
-public API, sitemap and robots to `circleheart-public-content` in
-`asia-northeast1`.
+Firebase Hosting routes the bare origin, localized Home, public one-segment
+Article paths, public API, sitemap and robots to
+`circleheart-public-content` in `asia-northeast1`. The bare-origin redirect is
+handled by the render service so it follows the same locale contract as the
+client without serving an empty SPA shell.
 `/{locale}/articles/{articleId}/edit` and every other application path continue
 to the SPA fallback. Authored draft previews use
 `/{locale}/articles/{articleId}/preview`, are explicitly routed to the SPA, and

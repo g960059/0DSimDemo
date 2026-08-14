@@ -12,6 +12,11 @@ import {
 import {
   renderStudioPublicHomeV1,
 } from "@/studio/application/publication/StudioPublicHomeRendererV1";
+import {
+  DEFAULT_LOCALE,
+  localeFromAcceptLanguage,
+  localeFromCookieHeader,
+} from "@/localeRouting";
 import type {
   StudioPublicArticleSummaryV1,
   StudioSummaryCursorV1,
@@ -62,6 +67,18 @@ export async function handleStudioPublicContentRequestV1(
       publicHeadersV1(),
       request.method,
     );
+  }
+  if (url.pathname === "/") {
+    const locale = localeFromCookieHeader(request.headers.get("cookie"))
+      ?? localeFromAcceptLanguage(request.headers.get("accept-language"))
+      ?? DEFAULT_LOCALE;
+    const destination = new URL(`/${locale}`, dependencies.canonicalOrigin);
+    destination.search = url.search;
+    return responseV1("", 302, "text/plain; charset=utf-8", {
+      Location: destination.toString(),
+      "Cache-Control": "private, no-store",
+      Vary: "Cookie, Accept-Language",
+    }, request.method);
   }
 
   const homeMatch = /^\/(ja|en)\/?$/.exec(url.pathname);

@@ -43,15 +43,6 @@
         ]
       },
       {
-        "source": "/",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          }
-        ]
-      },
-      {
         "source": "/@(ja|en)/@(experiments|snapshots|login|me|dev|docs)",
         "headers": [
           {
@@ -110,6 +101,14 @@
       }
     ],
     "rewrites": [
+      {
+        "source": "/",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
       {
         "source": "/@(ja|en)/articles/*/@(edit|preview)",
         "destination": "/index.html"

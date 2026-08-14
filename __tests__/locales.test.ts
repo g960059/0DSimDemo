@@ -1,5 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import { localeFromPathname, prefixPath, stripLocaleFromPathname, switchLocalePath } from '../localeRouting';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  detectPreferredLocale,
+  localeFromAcceptLanguage,
+  localeFromCookieHeader,
+  localeFromPathname,
+  prefixPath,
+  setPreferredLocale,
+  stripLocaleFromPathname,
+  switchLocalePath,
+} from '../localeRouting';
 import enTranslation from '../locales/en/translation.json';
 import jaTranslation from '../locales/ja/translation.json';
 
@@ -36,6 +45,47 @@ describe('locale helpers', () => {
     expect(switchLocalePath('/en/experiments', '?from=home', '#status', 'ja')).toBe('/ja/experiments?from=home#status');
     expect(switchLocalePath('/ja/experiments/experiment-opaque_123', '?from=list', '#status', 'en'))
       .toBe('/en/experiments/experiment-opaque_123?from=list#status');
+  });
+
+  it('parses saved locale cookies and weighted browser languages', () => {
+    expect(localeFromCookieHeader('theme=dark; circleheart.locale=en'))
+      .toBe('en');
+    expect(localeFromCookieHeader('circleheart.locale=fr')).toBeUndefined();
+    expect(localeFromAcceptLanguage('fr-FR, en-US;q=0.7, ja-JP;q=0.9'))
+      .toBe('ja');
+    expect(localeFromAcceptLanguage('ja;q=0, en;q=0.5')).toBe('en');
+    expect(localeFromAcceptLanguage('fr, *;q=0.8')).toBeUndefined();
+  });
+
+  it('uses and persists one browser locale across storage and cookies', () => {
+    const storage = new Map<string, string>();
+    let cookie = 'circleheart.locale=en';
+    const documentLike = {} as { cookie: string };
+    Object.defineProperty(documentLike, 'cookie', {
+      configurable: true,
+      get: () => cookie,
+      set: (value: string) => { cookie = value; },
+    });
+    vi.stubGlobal('document', documentLike);
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => { storage.set(key, value); },
+      },
+      location: { protocol: 'https:' },
+      navigator: { language: 'ja-JP', languages: ['ja-JP'] },
+    });
+
+    try {
+      expect(detectPreferredLocale()).toBe('en');
+      setPreferredLocale('ja');
+      expect(storage.get('circleheart.locale')).toBe('ja');
+      expect(cookie).toBe(
+        'circleheart.locale=ja; Path=/; Max-Age=31536000; SameSite=Lax; Secure',
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('keeps Japanese and English translation keys in parity', () => {

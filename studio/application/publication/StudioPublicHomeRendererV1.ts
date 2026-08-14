@@ -159,6 +159,7 @@ function publicHomeHeadHtmlV1(input: Readonly<{
 }>): string {
   const jaUrl = canonicalHomeUrlV1(input.canonicalOrigin, "ja");
   const enUrl = canonicalHomeUrlV1(input.canonicalOrigin, "en");
+  const defaultUrl = new URL("/", input.canonicalOrigin).toString();
   const jsonLd = JSON.stringify({
     "@context": "https://schema.org",
     "@graph": [
@@ -191,7 +192,7 @@ function publicHomeHeadHtmlV1(input: Readonly<{
     `<meta name="twitter:description" content="${escapeHtmlAttributeV1(input.description)}" />`,
     `<link rel="alternate" hreflang="ja" href="${escapeHtmlAttributeV1(jaUrl)}" />`,
     `<link rel="alternate" hreflang="en" href="${escapeHtmlAttributeV1(enUrl)}" />`,
-    `<link rel="alternate" hreflang="x-default" href="${escapeHtmlAttributeV1(jaUrl)}" />`,
+    `<link rel="alternate" hreflang="x-default" href="${escapeHtmlAttributeV1(defaultUrl)}" />`,
     `<script type="application/ld+json">${jsonLd}</script>`,
   ].join("\n    ");
 }
