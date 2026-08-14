@@ -32,8 +32,18 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-32
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-35
 ```
+
+Standard-35 adds a build-time-generated `ExecutionPlanDescriptorV1` to the
+exact artifact and binds a nonexecuting, Worker-local typed plan once during
+initialization. The production artifact contains the generated descriptor and
+binder, not the compiler or `ModelDefinitionV1`. The bound plan is shadow
+infrastructure only: Standard-32's typed accepted-state session remains the
+sole numerical and checkpoint authority, so equations, accepted results,
+controls, topology, and checkpoint meaning are unchanged. Historical exact
+artifacts without the execution-plan capability retain their original loader
+contract.
 
 Standard-32 changes the live execution authority, not the physiology. Ordinary
 presentation ticks now solve and promote directly through the fixed typed

@@ -29,6 +29,18 @@ export type RegisteredModelSnapshotGateAdapterV2 =
     snapshotGateId: string;
   }>;
 
+export const REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID =
+  "circleheart-registered-model-execution-plan-adapter-v1" as const;
+
+export type RegisteredModelExecutionPlanAdapterV1 = Readonly<{
+  schemaId: typeof REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID;
+  modelId: ModelIdV2;
+  /** Immutable generated descriptor data bundled in the exact artifact. */
+  descriptor: unknown;
+  /** Binds and allocates one Worker-local shadow plan. */
+  bind(): unknown;
+}>;
+
 /** Executable functions admitted atomically with one exact package artifact. */
 export type RegisteredModelExecutableBundleV2 = Readonly<{
   modelId: ModelIdV2;
@@ -40,6 +52,7 @@ export type RegisteredModelExecutableBundleV2 = Readonly<{
   snapshotGate: RegisteredModelSnapshotGateAdapterV2;
   fixtureAdapter: StudioModelFixtureAdapterV2;
   simulationAdapter: RegisteredModelSimulationAdapterV2;
+  executionPlan?: RegisteredModelExecutionPlanAdapterV1;
 }>;
 
 /** Hash-free exact runtime projection. Artifact bytes and digest stay private. */
@@ -50,6 +63,7 @@ export type ResolvedExactModelRuntimeV2 = Readonly<{
   snapshotGate: RegisteredModelSnapshotGateAdapterV2;
   fixtureAdapter: StudioModelFixtureAdapterV2;
   simulationAdapter: RegisteredModelSimulationAdapterV2;
+  executionPlan?: RegisteredModelExecutionPlanAdapterV1;
 }>;
 
 /** Worker-local cold-load timings; never part of exact model identity. */

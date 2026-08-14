@@ -29949,6 +29949,888 @@ function assertStandardCheckpointEnvelopeV1(input) {
     throw new Error("integrated Standard checkpoint SHA-256 is invalid");
   }
 }
+const EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID = "circleheart-execution-plan-descriptor-v1";
+const EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY = "runtime/execution-plan-descriptor-v1";
+const BOUND_EXECUTION_PLAN_V1_SCHEMA_ID = "circleheart-bound-execution-plan-v1";
+const PORTABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
+const MAXIMUM_EXECUTION_PLAN_DATA_DEPTH_V1 = 256;
+function validateAndOwnExecutionPlanDescriptorV1(value) {
+  const plan = ownDataV1(value, "$");
+  exactKeysV1(plan, [
+    "definitionId",
+    "hydraulicGraph",
+    "policyId",
+    "schemaId",
+    "solveGroups",
+    "stateLayout",
+    "updateGroups"
+  ], "$");
+  if (plan.schemaId !== EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID) {
+    failV1("$.schemaId", "schema identity mismatch");
+  }
+  portableIdV1(plan.definitionId, "$.definitionId");
+  portableIdV1(plan.policyId, "$.policyId");
+  const stateLayout2 = recordV1(plan.stateLayout, "$.stateLayout");
+  exactKeysV1(stateLayout2, [
+    "blocks",
+    "booleanSlotCount",
+    "continuousSlotCount",
+    "logicalSlotCount",
+    "slots"
+  ], "$.stateLayout");
+  const logicalSlotCount = nonnegativeIntegerV1(
+    stateLayout2.logicalSlotCount,
+    "$.stateLayout.logicalSlotCount"
+  );
+  const continuousSlotCount = nonnegativeIntegerV1(
+    stateLayout2.continuousSlotCount,
+    "$.stateLayout.continuousSlotCount"
+  );
+  const booleanSlotCount = nonnegativeIntegerV1(
+    stateLayout2.booleanSlotCount,
+    "$.stateLayout.booleanSlotCount"
+  );
+  if (logicalSlotCount === 0 || continuousSlotCount + booleanSlotCount !== logicalSlotCount) {
+    failV1("$.stateLayout", "slot counts are inconsistent");
+  }
+  const blocks = arrayV1(stateLayout2.blocks, "$.stateLayout.blocks");
+  const slots = arrayV1(stateLayout2.slots, "$.stateLayout.slots");
+  if (blocks.length === 0 || slots.length !== logicalSlotCount) {
+    failV1("$.stateLayout", "block or slot cardinality is inconsistent");
+  }
+  const componentIds = /* @__PURE__ */ new Set();
+  const componentByLogicalIndex = [];
+  let nextLogicalStart = 0;
+  blocks.forEach((raw, index) => {
+    const block = recordV1(raw, `$.stateLayout.blocks[${index}]`);
+    exactKeysV1(block, [
+      "componentId",
+      "kernelId",
+      "logicalLength",
+      "logicalStart"
+    ], `$.stateLayout.blocks[${index}]`);
+    const componentId = portableIdV1(
+      block.componentId,
+      `$.stateLayout.blocks[${index}].componentId`
+    );
+    portableIdV1(
+      block.kernelId,
+      `$.stateLayout.blocks[${index}].kernelId`
+    );
+    if (componentIds.has(componentId)) {
+      failV1(`$.stateLayout.blocks[${index}]`, "duplicate componentId");
+    }
+    componentIds.add(componentId);
+    const start = nonnegativeIntegerV1(
+      block.logicalStart,
+      `$.stateLayout.blocks[${index}].logicalStart`
+    );
+    const length = positiveIntegerV1(
+      block.logicalLength,
+      `$.stateLayout.blocks[${index}].logicalLength`
+    );
+    if (start !== nextLogicalStart || start + length > logicalSlotCount) {
+      failV1(`$.stateLayout.blocks[${index}]`, "blocks are not contiguous");
+    }
+    for (let offset = 0; offset < length; offset += 1) {
+      componentByLogicalIndex.push(componentId);
+    }
+    nextLogicalStart += length;
+  });
+  if (nextLogicalStart !== logicalSlotCount) {
+    failV1("$.stateLayout.blocks", "blocks do not cover every state slot");
+  }
+  const stateIdByLogicalIndex = [];
+  const stateIdSet = /* @__PURE__ */ new Set();
+  let expectedContinuousIndex = 0;
+  let expectedBooleanIndex = 0;
+  slots.forEach((raw, index) => {
+    const slot2 = recordV1(raw, `$.stateLayout.slots[${index}]`);
+    exactKeysV1(slot2, [
+      "componentId",
+      "logicalIndex",
+      "stateId",
+      "storageIndex",
+      "storageKind",
+      "unit"
+    ], `$.stateLayout.slots[${index}]`);
+    const stateId = portableIdV1(
+      slot2.stateId,
+      `$.stateLayout.slots[${index}].stateId`
+    );
+    const componentId = portableIdV1(
+      slot2.componentId,
+      `$.stateLayout.slots[${index}].componentId`
+    );
+    if (stateIdSet.has(stateId)) {
+      failV1(`$.stateLayout.slots[${index}]`, "duplicate stateId");
+    }
+    stateIdSet.add(stateId);
+    if (nonnegativeIntegerV1(
+      slot2.logicalIndex,
+      `$.stateLayout.slots[${index}].logicalIndex`
+    ) !== index || componentByLogicalIndex[index] !== componentId) {
+      failV1(`$.stateLayout.slots[${index}]`, "slot ownership is inconsistent");
+    }
+    const storageIndex = nonnegativeIntegerV1(
+      slot2.storageIndex,
+      `$.stateLayout.slots[${index}].storageIndex`
+    );
+    if (slot2.storageKind === "continuous-f64") {
+      if (storageIndex !== expectedContinuousIndex++) {
+        failV1(`$.stateLayout.slots[${index}]`, "continuous slots are not contiguous");
+      }
+    } else if (slot2.storageKind === "boolean-u8") {
+      if (storageIndex !== expectedBooleanIndex++) {
+        failV1(`$.stateLayout.slots[${index}]`, "boolean slots are not contiguous");
+      }
+    } else {
+      failV1(`$.stateLayout.slots[${index}].storageKind`, "unsupported storage kind");
+    }
+    nonemptyStringV1(slot2.unit, `$.stateLayout.slots[${index}].unit`);
+    stateIdByLogicalIndex.push(stateId);
+  });
+  if (expectedContinuousIndex !== continuousSlotCount || expectedBooleanIndex !== booleanSlotCount) {
+    failV1("$.stateLayout.slots", "storage indices do not match slot counts");
+  }
+  const graph = recordV1(plan.hydraulicGraph, "$.hydraulicGraph");
+  exactKeysV1(graph, [
+    "conservationPools",
+    "downstreamNodeIndices",
+    "nodeIds",
+    "pathIds",
+    "pathKernelIds",
+    "storageStateLogicalIndices",
+    "upstreamNodeIndices"
+  ], "$.hydraulicGraph");
+  const nodeIds = portableIdArrayV1(graph.nodeIds, "$.hydraulicGraph.nodeIds");
+  const storageIndices = integerArrayV1(
+    graph.storageStateLogicalIndices,
+    "$.hydraulicGraph.storageStateLogicalIndices"
+  );
+  uniqueV1(nodeIds, "$.hydraulicGraph.nodeIds");
+  if (nodeIds.length === 0 || storageIndices.length !== nodeIds.length) {
+    failV1("$.hydraulicGraph", "node arrays have inconsistent lengths");
+  }
+  storageIndices.forEach((logicalIndex, index) => {
+    continuousLogicalIndexV1(
+      logicalIndex,
+      slots,
+      `$.hydraulicGraph.storageStateLogicalIndices[${index}]`
+    );
+  });
+  const pathIds = portableIdArrayV1(graph.pathIds, "$.hydraulicGraph.pathIds");
+  const pathKernelIds = portableIdArrayV1(
+    graph.pathKernelIds,
+    "$.hydraulicGraph.pathKernelIds"
+  );
+  const upstream = integerArrayV1(
+    graph.upstreamNodeIndices,
+    "$.hydraulicGraph.upstreamNodeIndices"
+  );
+  const downstream = integerArrayV1(
+    graph.downstreamNodeIndices,
+    "$.hydraulicGraph.downstreamNodeIndices"
+  );
+  uniqueV1(pathIds, "$.hydraulicGraph.pathIds");
+  if (pathIds.length !== pathKernelIds.length || pathIds.length !== upstream.length || pathIds.length !== downstream.length) {
+    failV1("$.hydraulicGraph", "path arrays have inconsistent lengths");
+  }
+  upstream.forEach((nodeIndex, index) => {
+    if (nodeIndex < 0 || nodeIndex >= nodeIds.length || downstream[index] < 0 || downstream[index] >= nodeIds.length || nodeIndex === downstream[index]) {
+      failV1(`$.hydraulicGraph.pathIds[${index}]`, "path endpoints are invalid");
+    }
+  });
+  const pools = arrayV1(
+    graph.conservationPools,
+    "$.hydraulicGraph.conservationPools"
+  );
+  const poolIds = /* @__PURE__ */ new Set();
+  pools.forEach((raw, index) => {
+    const pool = recordV1(raw, `$.hydraulicGraph.conservationPools[${index}]`);
+    exactKeysV1(pool, [
+      "dependentStateLogicalIndex",
+      "ledgerStateLogicalIndex",
+      "memberStateLogicalIndices",
+      "poolId"
+    ], `$.hydraulicGraph.conservationPools[${index}]`);
+    const poolId = portableIdV1(
+      pool.poolId,
+      `$.hydraulicGraph.conservationPools[${index}].poolId`
+    );
+    if (poolIds.has(poolId)) {
+      failV1(`$.hydraulicGraph.conservationPools[${index}]`, "duplicate poolId");
+    }
+    poolIds.add(poolId);
+    continuousLogicalIndexV1(
+      integerV1(
+        pool.ledgerStateLogicalIndex,
+        `$.hydraulicGraph.conservationPools[${index}].ledgerStateLogicalIndex`
+      ),
+      slots,
+      `$.hydraulicGraph.conservationPools[${index}].ledgerStateLogicalIndex`
+    );
+    const members = integerArrayV1(
+      pool.memberStateLogicalIndices,
+      `$.hydraulicGraph.conservationPools[${index}].memberStateLogicalIndices`
+    );
+    if (members.length < 2 || new Set(members).size !== members.length) {
+      failV1(`$.hydraulicGraph.conservationPools[${index}]`, "pool members are invalid");
+    }
+    members.forEach((logicalIndex, memberIndex) => continuousLogicalIndexV1(
+      logicalIndex,
+      slots,
+      `$.hydraulicGraph.conservationPools[${index}].memberStateLogicalIndices[${memberIndex}]`
+    ));
+    const dependent = integerV1(
+      pool.dependentStateLogicalIndex,
+      `$.hydraulicGraph.conservationPools[${index}].dependentStateLogicalIndex`
+    );
+    if (!members.includes(dependent)) {
+      failV1(`$.hydraulicGraph.conservationPools[${index}]`, "dependent state is not a member");
+    }
+  });
+  const solveGroups2 = arrayV1(plan.solveGroups, "$.solveGroups");
+  if (solveGroups2.length === 0) failV1("$.solveGroups", "must not be empty");
+  const solveGroupIds = /* @__PURE__ */ new Set();
+  solveGroups2.forEach((raw, groupIndex) => validateSolveGroupV1(
+    raw,
+    groupIndex,
+    slots,
+    stateIdByLogicalIndex,
+    solveGroupIds
+  ));
+  const updateGroups2 = arrayV1(plan.updateGroups, "$.updateGroups");
+  if (updateGroups2.length === 0) failV1("$.updateGroups", "must not be empty");
+  const updateGroupIds = /* @__PURE__ */ new Set();
+  updateGroups2.forEach((raw, index) => {
+    const group = recordV1(raw, `$.updateGroups[${index}]`);
+    exactKeysV1(group, [
+      "fixedStepSec",
+      "integration",
+      "ordinal",
+      "solveGroupId",
+      "updateGroupId"
+    ], `$.updateGroups[${index}]`);
+    const updateGroupId = portableIdV1(
+      group.updateGroupId,
+      `$.updateGroups[${index}].updateGroupId`
+    );
+    if (updateGroupIds.has(updateGroupId)) {
+      failV1(`$.updateGroups[${index}]`, "duplicate updateGroupId");
+    }
+    updateGroupIds.add(updateGroupId);
+    if (integerV1(group.ordinal, `$.updateGroups[${index}].ordinal`) !== index) {
+      failV1(`$.updateGroups[${index}].ordinal`, "must be contiguous from zero");
+    }
+    if (group.integration !== "fixed-step-backward-euler") {
+      failV1(`$.updateGroups[${index}].integration`, "unsupported integration");
+    }
+    positiveFiniteV1(group.fixedStepSec, `$.updateGroups[${index}].fixedStepSec`);
+    const solveGroupId = portableIdV1(
+      group.solveGroupId,
+      `$.updateGroups[${index}].solveGroupId`
+    );
+    if (!solveGroupIds.has(solveGroupId)) {
+      failV1(`$.updateGroups[${index}].solveGroupId`, "unknown solve group");
+    }
+  });
+  return plan;
+}
+function bindExecutionPlanV1(descriptorValue, catalogValue) {
+  const descriptor = validateAndOwnExecutionPlanDescriptorV1(descriptorValue);
+  const catalog = validateAndOwnKernelCatalogV1(catalogValue);
+  const requiredComponents = descriptor.stateLayout.blocks.map(({ kernelId }) => kernelId);
+  const requiredPaths = descriptor.hydraulicGraph.pathKernelIds;
+  assertExactBindingSetV1(
+    requiredComponents,
+    catalog.componentKernelIds,
+    "component kernel"
+  );
+  assertExactBindingSetV1(
+    requiredPaths,
+    catalog.hydraulicPathKernelIds,
+    "hydraulic path kernel"
+  );
+  const componentOrdinalById = new Map(catalog.componentKernelIds.map(
+    (kernelId, ordinal) => [kernelId, ordinal]
+  ));
+  const pathOrdinalById = new Map(catalog.hydraulicPathKernelIds.map(
+    (kernelId, ordinal) => [kernelId, ordinal]
+  ));
+  const componentKernelBindingOrdinals = Int32Array.from(
+    requiredComponents.map((kernelId) => componentOrdinalById.get(kernelId))
+  );
+  const hydraulicPathKernelBindingOrdinals = Int32Array.from(
+    requiredPaths.map((kernelId) => pathOrdinalById.get(kernelId))
+  );
+  const currentContinuousState = new Float64Array(
+    descriptor.stateLayout.continuousSlotCount
+  );
+  const candidateContinuousState = new Float64Array(
+    descriptor.stateLayout.continuousSlotCount
+  );
+  const currentBooleanState = new Uint8Array(
+    descriptor.stateLayout.booleanSlotCount
+  );
+  const candidateBooleanState = new Uint8Array(
+    descriptor.stateLayout.booleanSlotCount
+  );
+  const graphStorageStateLogicalIndices = Int32Array.from(
+    descriptor.hydraulicGraph.storageStateLogicalIndices
+  );
+  const graphUpstreamNodeIndices = Int32Array.from(
+    descriptor.hydraulicGraph.upstreamNodeIndices
+  );
+  const graphDownstreamNodeIndices = Int32Array.from(
+    descriptor.hydraulicGraph.downstreamNodeIndices
+  );
+  const stateIndexById = new Map(descriptor.stateLayout.slots.map(
+    ({ stateId, logicalIndex }) => [stateId, logicalIndex]
+  ));
+  const solveGroups2 = Object.freeze(descriptor.solveGroups.map((group) => {
+    const activeStateIds = group.blocks.filter(({ disposition }) => disposition === "retained").flatMap(({ stateIds }) => stateIds);
+    return Object.freeze({
+      solveGroupId: group.solveGroupId,
+      activeStateLogicalIndices: Int32Array.from(
+        activeStateIds.map((stateId) => stateIndexById.get(stateId))
+      ),
+      dependentStateLogicalIndices: Int32Array.from(
+        group.dependentStateIds.map((stateId) => stateIndexById.get(stateId))
+      ),
+      workspaceF64: new Float64Array(group.workspace.f64Count),
+      workspaceInt32: new Int32Array(group.workspace.int32Count)
+    });
+  }));
+  const arrays = [
+    componentKernelBindingOrdinals,
+    hydraulicPathKernelBindingOrdinals,
+    currentContinuousState,
+    candidateContinuousState,
+    currentBooleanState,
+    candidateBooleanState,
+    graphStorageStateLogicalIndices,
+    graphUpstreamNodeIndices,
+    graphDownstreamNodeIndices,
+    ...solveGroups2.flatMap((group) => [
+      group.activeStateLogicalIndices,
+      group.dependentStateLogicalIndices,
+      group.workspaceF64,
+      group.workspaceInt32
+    ])
+  ];
+  const bound = Object.freeze({
+    schemaId: BOUND_EXECUTION_PLAN_V1_SCHEMA_ID,
+    definitionId: descriptor.definitionId,
+    policyId: descriptor.policyId,
+    bindingCatalog: catalog,
+    componentKernelBindingOrdinals,
+    hydraulicPathKernelBindingOrdinals,
+    currentContinuousState,
+    candidateContinuousState,
+    currentBooleanState,
+    candidateBooleanState,
+    graphStorageStateLogicalIndices,
+    graphUpstreamNodeIndices,
+    graphDownstreamNodeIndices,
+    solveGroups: solveGroups2,
+    allocatedBytes: arrays.reduce((total, view) => total + view.byteLength, 0)
+  });
+  assertBoundExecutionPlanV1(bound, descriptor);
+  return bound;
+}
+function assertBoundExecutionPlanV1(value, descriptorValue) {
+  const descriptor = validateAndOwnExecutionPlanDescriptorV1(descriptorValue);
+  const bound = recordV1(value, "$.boundExecutionPlan");
+  exactKeysV1(bound, [
+    "allocatedBytes",
+    "bindingCatalog",
+    "candidateBooleanState",
+    "candidateContinuousState",
+    "componentKernelBindingOrdinals",
+    "currentBooleanState",
+    "currentContinuousState",
+    "definitionId",
+    "graphDownstreamNodeIndices",
+    "graphStorageStateLogicalIndices",
+    "graphUpstreamNodeIndices",
+    "hydraulicPathKernelBindingOrdinals",
+    "policyId",
+    "schemaId",
+    "solveGroups"
+  ], "$.boundExecutionPlan");
+  if (bound.schemaId !== BOUND_EXECUTION_PLAN_V1_SCHEMA_ID || bound.definitionId !== descriptor.definitionId || bound.policyId !== descriptor.policyId) {
+    failV1("$.boundExecutionPlan", "descriptor identity mismatch");
+  }
+  const catalog = validateAndOwnKernelCatalogV1(bound.bindingCatalog);
+  const componentOrdinals = int32ViewV1(
+    bound.componentKernelBindingOrdinals,
+    descriptor.stateLayout.blocks.length,
+    "$.boundExecutionPlan.componentKernelBindingOrdinals"
+  );
+  const pathOrdinals = int32ViewV1(
+    bound.hydraulicPathKernelBindingOrdinals,
+    descriptor.hydraulicGraph.pathIds.length,
+    "$.boundExecutionPlan.hydraulicPathKernelBindingOrdinals"
+  );
+  descriptor.stateLayout.blocks.forEach((block, index) => {
+    if (catalog.componentKernelIds[componentOrdinals[index]] !== block.kernelId) {
+      failV1("$.boundExecutionPlan.componentKernelBindingOrdinals", "binding mismatch");
+    }
+  });
+  descriptor.hydraulicGraph.pathKernelIds.forEach((kernelId, index) => {
+    if (catalog.hydraulicPathKernelIds[pathOrdinals[index]] !== kernelId) {
+      failV1("$.boundExecutionPlan.hydraulicPathKernelBindingOrdinals", "binding mismatch");
+    }
+  });
+  const arrays = [componentOrdinals, pathOrdinals];
+  arrays.push(
+    f64ViewV1(
+      bound.currentContinuousState,
+      descriptor.stateLayout.continuousSlotCount,
+      "$.boundExecutionPlan.currentContinuousState"
+    ),
+    f64ViewV1(
+      bound.candidateContinuousState,
+      descriptor.stateLayout.continuousSlotCount,
+      "$.boundExecutionPlan.candidateContinuousState"
+    ),
+    u8ViewV1(
+      bound.currentBooleanState,
+      descriptor.stateLayout.booleanSlotCount,
+      "$.boundExecutionPlan.currentBooleanState"
+    ),
+    u8ViewV1(
+      bound.candidateBooleanState,
+      descriptor.stateLayout.booleanSlotCount,
+      "$.boundExecutionPlan.candidateBooleanState"
+    )
+  );
+  arrays.push(assertInt32ValuesV1(
+    bound.graphStorageStateLogicalIndices,
+    descriptor.hydraulicGraph.storageStateLogicalIndices,
+    "$.boundExecutionPlan.graphStorageStateLogicalIndices"
+  ));
+  arrays.push(assertInt32ValuesV1(
+    bound.graphUpstreamNodeIndices,
+    descriptor.hydraulicGraph.upstreamNodeIndices,
+    "$.boundExecutionPlan.graphUpstreamNodeIndices"
+  ));
+  arrays.push(assertInt32ValuesV1(
+    bound.graphDownstreamNodeIndices,
+    descriptor.hydraulicGraph.downstreamNodeIndices,
+    "$.boundExecutionPlan.graphDownstreamNodeIndices"
+  ));
+  const solveGroups2 = arrayV1(bound.solveGroups, "$.boundExecutionPlan.solveGroups");
+  if (solveGroups2.length !== descriptor.solveGroups.length) {
+    failV1("$.boundExecutionPlan.solveGroups", "group count mismatch");
+  }
+  solveGroups2.forEach((raw, index) => {
+    const group = recordV1(raw, `$.boundExecutionPlan.solveGroups[${index}]`);
+    exactKeysV1(group, [
+      "activeStateLogicalIndices",
+      "dependentStateLogicalIndices",
+      "solveGroupId",
+      "workspaceF64",
+      "workspaceInt32"
+    ], `$.boundExecutionPlan.solveGroups[${index}]`);
+    const descriptorGroup = descriptor.solveGroups[index];
+    if (group.solveGroupId !== descriptorGroup.solveGroupId) {
+      failV1(`$.boundExecutionPlan.solveGroups[${index}]`, "solveGroupId mismatch");
+    }
+    const stateIndexById = new Map(descriptor.stateLayout.slots.map(
+      ({ stateId, logicalIndex }) => [stateId, logicalIndex]
+    ));
+    const expectedActive = descriptorGroup.blocks.filter(({ disposition }) => disposition === "retained").flatMap(({ stateIds }) => stateIds.map((id) => stateIndexById.get(id)));
+    arrays.push(assertInt32ValuesV1(
+      group.activeStateLogicalIndices,
+      expectedActive,
+      `$.boundExecutionPlan.solveGroups[${index}].activeStateLogicalIndices`
+    ));
+    arrays.push(assertInt32ValuesV1(
+      group.dependentStateLogicalIndices,
+      descriptorGroup.dependentStateIds.map((id) => stateIndexById.get(id)),
+      `$.boundExecutionPlan.solveGroups[${index}].dependentStateLogicalIndices`
+    ));
+    arrays.push(f64ViewV1(
+      group.workspaceF64,
+      descriptorGroup.workspace.f64Count,
+      `$.boundExecutionPlan.solveGroups[${index}].workspaceF64`
+    ));
+    arrays.push(int32ViewV1(
+      group.workspaceInt32,
+      descriptorGroup.workspace.int32Count,
+      `$.boundExecutionPlan.solveGroups[${index}].workspaceInt32`
+    ));
+  });
+  const buffers = new Set(arrays.map((view) => view.buffer));
+  if (buffers.size !== arrays.length) {
+    failV1("$.boundExecutionPlan", "typed allocations must not alias");
+  }
+  const allocatedBytes = arrays.reduce(
+    (total, view) => total + view.byteLength,
+    0
+  );
+  if (nonnegativeIntegerV1(bound.allocatedBytes, "$.boundExecutionPlan.allocatedBytes") !== allocatedBytes) {
+    failV1("$.boundExecutionPlan.allocatedBytes", "allocation total mismatch");
+  }
+}
+function validateSolveGroupV1(raw, groupIndex, slots, stateIdByLogicalIndex, solveGroupIds) {
+  const path = `$.solveGroups[${groupIndex}]`;
+  const group = recordV1(raw, path);
+  exactKeysV1(group, [
+    "activeUnknownCount",
+    "activeUnknownStateIds",
+    "blocks",
+    "dependentStateIds",
+    "jacobianElementCount",
+    "solveGroupId",
+    "solver",
+    "totalUnknownCount",
+    "unknownStateIds",
+    "workspace"
+  ], path);
+  const solveGroupId = portableIdV1(group.solveGroupId, `${path}.solveGroupId`);
+  if (solveGroupIds.has(solveGroupId)) failV1(path, "duplicate solveGroupId");
+  solveGroupIds.add(solveGroupId);
+  const unknownStateIds = portableIdArrayV1(
+    group.unknownStateIds,
+    `${path}.unknownStateIds`
+  );
+  const activeUnknownStateIds = portableIdArrayV1(
+    group.activeUnknownStateIds,
+    `${path}.activeUnknownStateIds`
+  );
+  const dependentStateIds = portableIdArrayV1(
+    group.dependentStateIds,
+    `${path}.dependentStateIds`
+  );
+  uniqueV1(unknownStateIds, `${path}.unknownStateIds`);
+  uniqueV1(activeUnknownStateIds, `${path}.activeUnknownStateIds`);
+  uniqueV1(dependentStateIds, `${path}.dependentStateIds`);
+  const blocks = arrayV1(group.blocks, `${path}.blocks`);
+  if (blocks.length === 0) failV1(`${path}.blocks`, "must not be empty");
+  const compiledUnknowns = [];
+  const compiledActive = [];
+  const blockIds = /* @__PURE__ */ new Set();
+  const residualIdsAcrossBlocks = /* @__PURE__ */ new Set();
+  let nextStart = 0;
+  blocks.forEach((blockRaw, blockIndex) => {
+    const blockPath = `${path}.blocks[${blockIndex}]`;
+    const block = recordV1(blockRaw, blockPath);
+    exactKeysV1(block, [
+      "blockId",
+      "disposition",
+      "endExclusive",
+      "length",
+      "residualIds",
+      "start",
+      "stateIds",
+      "stateLogicalIndices"
+    ], blockPath);
+    const blockId = portableIdV1(block.blockId, `${blockPath}.blockId`);
+    if (blockIds.has(blockId)) failV1(blockPath, "duplicate blockId");
+    blockIds.add(blockId);
+    if (block.disposition !== "retained" && block.disposition !== "statically-condensed") {
+      failV1(`${blockPath}.disposition`, "unsupported disposition");
+    }
+    const stateIds = portableIdArrayV1(block.stateIds, `${blockPath}.stateIds`);
+    const residualIds = portableIdArrayV1(
+      block.residualIds,
+      `${blockPath}.residualIds`
+    );
+    uniqueV1(stateIds, `${blockPath}.stateIds`);
+    uniqueV1(residualIds, `${blockPath}.residualIds`);
+    residualIds.forEach((residualId) => {
+      if (residualIdsAcrossBlocks.has(residualId)) {
+        failV1(`${blockPath}.residualIds`, "residualId is duplicated across solve blocks");
+      }
+      residualIdsAcrossBlocks.add(residualId);
+    });
+    const logicalIndices = integerArrayV1(
+      block.stateLogicalIndices,
+      `${blockPath}.stateLogicalIndices`
+    );
+    const start = nonnegativeIntegerV1(block.start, `${blockPath}.start`);
+    const length = positiveIntegerV1(block.length, `${blockPath}.length`);
+    const end = positiveIntegerV1(block.endExclusive, `${blockPath}.endExclusive`);
+    if (start !== nextStart || end !== start + length || stateIds.length !== length || residualIds.length !== length || logicalIndices.length !== length) {
+      failV1(blockPath, "solve block dimensions are inconsistent");
+    }
+    stateIds.forEach((stateId, index) => {
+      const logicalIndex = logicalIndices[index];
+      continuousLogicalIndexV1(logicalIndex, slots, `${blockPath}.stateLogicalIndices[${index}]`);
+      if (stateIdByLogicalIndex[logicalIndex] !== stateId) {
+        failV1(`${blockPath}.stateLogicalIndices[${index}]`, "state identity mismatch");
+      }
+    });
+    compiledUnknowns.push(...stateIds);
+    if (block.disposition === "retained") compiledActive.push(...stateIds);
+    nextStart = end;
+  });
+  if (!sameStringsV1(unknownStateIds, compiledUnknowns) || !sameStringsV1(activeUnknownStateIds, compiledActive)) {
+    failV1(path, "solve block state projections are inconsistent");
+  }
+  dependentStateIds.forEach((stateId, index) => {
+    const logicalIndex = stateIdByLogicalIndex.indexOf(stateId);
+    if (logicalIndex < 0 || unknownStateIds.includes(stateId)) {
+      failV1(`${path}.dependentStateIds[${index}]`, "dependent state is invalid");
+    }
+    continuousLogicalIndexV1(logicalIndex, slots, `${path}.dependentStateIds[${index}]`);
+  });
+  const total = nonnegativeIntegerV1(group.totalUnknownCount, `${path}.totalUnknownCount`);
+  const active = positiveIntegerV1(group.activeUnknownCount, `${path}.activeUnknownCount`);
+  if (total !== unknownStateIds.length || active !== activeUnknownStateIds.length) {
+    failV1(path, "unknown counts are inconsistent");
+  }
+  if (nonnegativeIntegerV1(group.jacobianElementCount, `${path}.jacobianElementCount`) !== active * active) {
+    failV1(`${path}.jacobianElementCount`, "must equal activeUnknownCount squared");
+  }
+  const workspace = recordV1(group.workspace, `${path}.workspace`);
+  exactKeysV1(workspace, ["f64Count", "int32Count"], `${path}.workspace`);
+  if (nonnegativeIntegerV1(workspace.f64Count, `${path}.workspace.f64Count`) !== 2 * active * active + 7 * active || nonnegativeIntegerV1(workspace.int32Count, `${path}.workspace.int32Count`) !== active) {
+    failV1(`${path}.workspace`, "workspace dimensions do not match solver policy");
+  }
+  const solver = recordV1(group.solver, `${path}.solver`);
+  exactKeysV1(solver, [
+    "globalization",
+    "jacobian",
+    "linearSolver",
+    "matrixStorage",
+    "nonlinearMethod"
+  ], `${path}.solver`);
+  if (solver.nonlinearMethod !== "newton" || solver.globalization !== "armijo-line-search" || solver.jacobian !== "component-analytic-with-finite-difference-audit" || solver.linearSolver !== "dense-lu" || solver.matrixStorage !== "row-major-f64") {
+    failV1(`${path}.solver`, "unsupported solver policy");
+  }
+}
+function validateAndOwnKernelCatalogV1(value) {
+  const owned = ownDataV1(value, "$.bindingCatalog");
+  const record = recordV1(owned, "$.bindingCatalog");
+  exactKeysV1(record, [
+    "componentKernelIds",
+    "hydraulicPathKernelIds"
+  ], "$.bindingCatalog");
+  const componentKernelIds = portableIdArrayV1(
+    record.componentKernelIds,
+    "$.bindingCatalog.componentKernelIds"
+  );
+  const hydraulicPathKernelIds = portableIdArrayV1(
+    record.hydraulicPathKernelIds,
+    "$.bindingCatalog.hydraulicPathKernelIds"
+  );
+  uniqueV1(componentKernelIds, "$.bindingCatalog.componentKernelIds");
+  uniqueV1(hydraulicPathKernelIds, "$.bindingCatalog.hydraulicPathKernelIds");
+  return Object.freeze({
+    componentKernelIds: Object.freeze(componentKernelIds),
+    hydraulicPathKernelIds: Object.freeze(hydraulicPathKernelIds)
+  });
+}
+function assertExactBindingSetV1(required, provided, label) {
+  const requiredSet = new Set(required);
+  const providedSet = new Set(provided);
+  if (requiredSet.size !== providedSet.size || [...requiredSet].some((id) => !providedSet.has(id))) {
+    throw new Error(`Execution plan ${label} bindings must match exactly`);
+  }
+}
+function ownDataV1(value, path, ancestors = /* @__PURE__ */ new Set(), depth = 0) {
+  if (depth > MAXIMUM_EXECUTION_PLAN_DATA_DEPTH_V1) {
+    failV1(path, "portable data nesting limit exceeded");
+  }
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || Object.is(value, -0)) {
+      failV1(path, "numbers must be finite and must not be negative zero");
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    if (ancestors.has(value)) failV1(path, "must not be cyclic");
+    if (Object.getPrototypeOf(value) !== Array.prototype) {
+      failV1(path, "must be a plain array");
+    }
+    ancestors.add(value);
+    try {
+      const result = [];
+      for (let index = 0; index < value.length; index += 1) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+        if (descriptor === void 0 || !("value" in descriptor) || !descriptor.enumerable) {
+          failV1(`${path}[${index}]`, "must be an enumerable data property");
+        }
+        result.push(ownDataV1(
+          descriptor.value,
+          `${path}[${index}]`,
+          ancestors,
+          depth + 1
+        ));
+      }
+      const allowed = /* @__PURE__ */ new Set(["length", ...result.map((_, index) => String(index))]);
+      if (Reflect.ownKeys(value).some((key) => typeof key !== "string" || !allowed.has(key))) {
+        failV1(path, "must not contain custom array fields");
+      }
+      return Object.freeze(result);
+    } finally {
+      ancestors.delete(value);
+    }
+  }
+  if (value === null || typeof value !== "object") {
+    failV1(path, "contains a nonportable value");
+  }
+  if (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+    failV1(path, "must be a plain data object");
+  }
+  if (ancestors.has(value)) failV1(path, "must not be cyclic");
+  ancestors.add(value);
+  try {
+    const result = /* @__PURE__ */ Object.create(null);
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== "string") failV1(path, "must not contain symbol fields");
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (descriptor === void 0 || !("value" in descriptor) || !descriptor.enumerable) {
+        failV1(`${path}.${key}`, "must be an enumerable data property");
+      }
+      result[key] = ownDataV1(
+        descriptor.value,
+        `${path}.${key}`,
+        ancestors,
+        depth + 1
+      );
+    }
+    return Object.freeze(result);
+  } finally {
+    ancestors.delete(value);
+  }
+}
+function recordV1(value, path) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    failV1(path, "must be an object");
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    failV1(path, "must be a plain data object");
+  }
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== "string") failV1(path, "must not contain symbol fields");
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === void 0 || !descriptor.enumerable || !("value" in descriptor)) {
+      failV1(`${path}.${key}`, "must be an enumerable data property");
+    }
+  }
+  return value;
+}
+function arrayV1(value, path) {
+  if (!Array.isArray(value)) failV1(path, "must be an array");
+  if (Object.getPrototypeOf(value) !== Array.prototype) {
+    failV1(path, "must be a plain array");
+  }
+  const allowed = /* @__PURE__ */ new Set(["length"]);
+  for (let index = 0; index < value.length; index += 1) {
+    const key = String(index);
+    allowed.add(key);
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === void 0 || !descriptor.enumerable || !("value" in descriptor)) {
+      failV1(`${path}[${index}]`, "must be an enumerable data property");
+    }
+  }
+  if (Reflect.ownKeys(value).some((key) => typeof key !== "string" || !allowed.has(key))) {
+    failV1(path, "must not contain custom array fields");
+  }
+  return value;
+}
+function exactKeysV1(value, expected, path) {
+  const actual = Object.keys(value).sort();
+  const keys = [...expected].sort();
+  if (actual.length !== keys.length || actual.some((key, index) => key !== keys[index])) {
+    failV1(path, `fields must be exactly ${keys.join(", ")}`);
+  }
+}
+function portableIdV1(value, path) {
+  if (typeof value !== "string" || !PORTABLE_ID.test(value)) {
+    failV1(path, "must be a portable identifier");
+  }
+  return value;
+}
+function portableIdArrayV1(value, path) {
+  return arrayV1(value, path).map((item, index) => portableIdV1(item, `${path}[${index}]`));
+}
+function integerArrayV1(value, path) {
+  return arrayV1(value, path).map((item, index) => integerV1(item, `${path}[${index}]`));
+}
+function integerV1(value, path) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) {
+    failV1(path, "must be a safe integer");
+  }
+  return value;
+}
+function nonnegativeIntegerV1(value, path) {
+  const number = integerV1(value, path);
+  if (number < 0) failV1(path, "must be nonnegative");
+  return number;
+}
+function positiveIntegerV1(value, path) {
+  const number = integerV1(value, path);
+  if (number <= 0) failV1(path, "must be positive");
+  return number;
+}
+function positiveFiniteV1(value, path) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    failV1(path, "must be positive and finite");
+  }
+  return value;
+}
+function nonemptyStringV1(value, path) {
+  if (typeof value !== "string" || value.length === 0) {
+    failV1(path, "must be a nonempty string");
+  }
+  return value;
+}
+function uniqueV1(values2, path) {
+  if (new Set(values2).size !== values2.length) failV1(path, "must be unique");
+}
+function continuousLogicalIndexV1(logicalIndex, slots, path) {
+  if (logicalIndex < 0 || logicalIndex >= slots.length) {
+    failV1(path, "is outside the state layout");
+  }
+  const slot2 = recordV1(slots[logicalIndex], path);
+  if (slot2.storageKind !== "continuous-f64") {
+    failV1(path, "must reference continuous state");
+  }
+}
+function f64ViewV1(value, length, path) {
+  if (!(value instanceof Float64Array) || value.length !== length || !fixedOwnedArrayBufferV1(value.buffer) || value.byteOffset !== 0 || value.byteLength !== value.buffer.byteLength) {
+    failV1(path, "must be one owned Float64Array of the expected length");
+  }
+  return value;
+}
+function int32ViewV1(value, length, path) {
+  if (!(value instanceof Int32Array) || value.length !== length || !fixedOwnedArrayBufferV1(value.buffer) || value.byteOffset !== 0 || value.byteLength !== value.buffer.byteLength) {
+    failV1(path, "must be one owned Int32Array of the expected length");
+  }
+  return value;
+}
+function u8ViewV1(value, length, path) {
+  if (!(value instanceof Uint8Array) || value.length !== length || !fixedOwnedArrayBufferV1(value.buffer) || value.byteOffset !== 0 || value.byteLength !== value.buffer.byteLength) {
+    failV1(path, "must be one owned Uint8Array of the expected length");
+  }
+  return value;
+}
+function fixedOwnedArrayBufferV1(buffer) {
+  return buffer instanceof ArrayBuffer && !("resizable" in buffer && buffer.resizable);
+}
+function assertInt32ValuesV1(value, expected, path) {
+  const view = int32ViewV1(value, expected.length, path);
+  for (let index = 0; index < expected.length; index += 1) {
+    if (view[index] !== expected[index]) failV1(path, "values do not match descriptor");
+  }
+  return view;
+}
+function sameStringsV1(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+function failV1(path, message) {
+  throw new Error(`Execution plan rejected ${path}: ${message}`);
+}
 const MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID = "main-wire-integrated-v3-guyton-starling-structural-orientation-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID = "main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3 = "hypovolemic";
@@ -44439,6 +45321,7 @@ function assertNoRepeatedAcceptedEventIdsV3(ids, label) {
     throw new Error(`${label} identity repeated across verification window`);
   }
 }
+const REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID = "circleheart-registered-model-execution-plan-adapter-v1";
 const MINIMUM_STEP_LATTICE_TOLERANCE_V2 = 1e-12;
 const MAXIMUM_STEP_LATTICE_TOLERANCE_V2 = 1e-7;
 const STEP_LATTICE_ROUNDING_FACTOR_V2 = 32;
@@ -45386,11 +46269,46 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-32";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-35";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
+const schemaId = "circleheart-execution-plan-descriptor-v1";
+const definitionId = "main-wire-hemodynamic-model-definition-v1";
+const policyId = "main-wire-static-condensed-be-policy-v1";
+const stateLayout = /* @__PURE__ */ JSON.parse('{"logicalSlotCount":100,"continuousSlotCount":99,"booleanSlotCount":1,"blocks":[{"componentId":"accepted-transaction","kernelId":"accepted-transaction-kernel-v1","logicalStart":0,"logicalLength":3},{"componentId":"noncoronary-circulation","kernelId":"noncoronary-backward-euler-kernel-v1","logicalStart":3,"logicalLength":21},{"componentId":"coronary-circulation","kernelId":"coronary-backward-euler-kernel-v2","logicalStart":24,"logicalLength":22},{"componentId":"five-wall-mechanics","kernelId":"five-wall-land-triseg-kernel-v1","logicalStart":46,"logicalLength":54}],"slots":[{"stateId":"accepted.timeSec","componentId":"accepted-transaction","logicalIndex":0,"storageKind":"continuous-f64","storageIndex":0,"unit":"s"},{"stateId":"accepted.revision","componentId":"accepted-transaction","logicalIndex":1,"storageKind":"continuous-f64","storageIndex":1,"unit":"1"},{"stateId":"circulation.fixedTotalBloodVolumeMl","componentId":"accepted-transaction","logicalIndex":2,"storageKind":"continuous-f64","storageIndex":2,"unit":"mL"},{"stateId":"noncoronary.volume.LV","componentId":"noncoronary-circulation","logicalIndex":3,"storageKind":"continuous-f64","storageIndex":3,"unit":"mL"},{"stateId":"noncoronary.volume.LA","componentId":"noncoronary-circulation","logicalIndex":4,"storageKind":"continuous-f64","storageIndex":4,"unit":"mL"},{"stateId":"noncoronary.volume.RV","componentId":"noncoronary-circulation","logicalIndex":5,"storageKind":"continuous-f64","storageIndex":5,"unit":"mL"},{"stateId":"noncoronary.volume.RA","componentId":"noncoronary-circulation","logicalIndex":6,"storageKind":"continuous-f64","storageIndex":6,"unit":"mL"},{"stateId":"noncoronary.volume.Ao","componentId":"noncoronary-circulation","logicalIndex":7,"storageKind":"continuous-f64","storageIndex":7,"unit":"mL"},{"stateId":"noncoronary.volume.SA","componentId":"noncoronary-circulation","logicalIndex":8,"storageKind":"continuous-f64","storageIndex":8,"unit":"mL"},{"stateId":"noncoronary.volume.Art","componentId":"noncoronary-circulation","logicalIndex":9,"storageKind":"continuous-f64","storageIndex":9,"unit":"mL"},{"stateId":"noncoronary.volume.Cap","componentId":"noncoronary-circulation","logicalIndex":10,"storageKind":"continuous-f64","storageIndex":10,"unit":"mL"},{"stateId":"noncoronary.volume.SV","componentId":"noncoronary-circulation","logicalIndex":11,"storageKind":"continuous-f64","storageIndex":11,"unit":"mL"},{"stateId":"noncoronary.volume.VC","componentId":"noncoronary-circulation","logicalIndex":12,"storageKind":"continuous-f64","storageIndex":12,"unit":"mL"},{"stateId":"noncoronary.volume.PA","componentId":"noncoronary-circulation","logicalIndex":13,"storageKind":"continuous-f64","storageIndex":13,"unit":"mL"},{"stateId":"noncoronary.volume.PArt","componentId":"noncoronary-circulation","logicalIndex":14,"storageKind":"continuous-f64","storageIndex":14,"unit":"mL"},{"stateId":"noncoronary.volume.PCap","componentId":"noncoronary-circulation","logicalIndex":15,"storageKind":"continuous-f64","storageIndex":15,"unit":"mL"},{"stateId":"noncoronary.volume.PVen","componentId":"noncoronary-circulation","logicalIndex":16,"storageKind":"continuous-f64","storageIndex":16,"unit":"mL"},{"stateId":"noncoronary.volume.PVein","componentId":"noncoronary-circulation","logicalIndex":17,"storageKind":"continuous-f64","storageIndex":17,"unit":"mL"},{"stateId":"noncoronary.flow.Ao_SA","componentId":"noncoronary-circulation","logicalIndex":18,"storageKind":"continuous-f64","storageIndex":18,"unit":"mL/s"},{"stateId":"noncoronary.flow.PA_PArt","componentId":"noncoronary-circulation","logicalIndex":19,"storageKind":"continuous-f64","storageIndex":19,"unit":"mL/s"},{"stateId":"noncoronary.valve.MV.openingFraction01","componentId":"noncoronary-circulation","logicalIndex":20,"storageKind":"continuous-f64","storageIndex":20,"unit":"1"},{"stateId":"noncoronary.valve.AoV.openingFraction01","componentId":"noncoronary-circulation","logicalIndex":21,"storageKind":"continuous-f64","storageIndex":21,"unit":"1"},{"stateId":"noncoronary.valve.TV.openingFraction01","componentId":"noncoronary-circulation","logicalIndex":22,"storageKind":"continuous-f64","storageIndex":22,"unit":"1"},{"stateId":"noncoronary.valve.PV.openingFraction01","componentId":"noncoronary-circulation","logicalIndex":23,"storageKind":"continuous-f64","storageIndex":23,"unit":"1"},{"stateId":"coronary.volume.LAD.Art","componentId":"coronary-circulation","logicalIndex":24,"storageKind":"continuous-f64","storageIndex":24,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Art.subepicardial","componentId":"coronary-circulation","logicalIndex":25,"storageKind":"continuous-f64","storageIndex":25,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Ven.subepicardial","componentId":"coronary-circulation","logicalIndex":26,"storageKind":"continuous-f64","storageIndex":26,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Art.subendocardial","componentId":"coronary-circulation","logicalIndex":27,"storageKind":"continuous-f64","storageIndex":27,"unit":"mL"},{"stateId":"coronary.volume.LAD.IM.Ven.subendocardial","componentId":"coronary-circulation","logicalIndex":28,"storageKind":"continuous-f64","storageIndex":28,"unit":"mL"},{"stateId":"coronary.volume.LCx.Art","componentId":"coronary-circulation","logicalIndex":29,"storageKind":"continuous-f64","storageIndex":29,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Art.subepicardial","componentId":"coronary-circulation","logicalIndex":30,"storageKind":"continuous-f64","storageIndex":30,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Ven.subepicardial","componentId":"coronary-circulation","logicalIndex":31,"storageKind":"continuous-f64","storageIndex":31,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Art.subendocardial","componentId":"coronary-circulation","logicalIndex":32,"storageKind":"continuous-f64","storageIndex":32,"unit":"mL"},{"stateId":"coronary.volume.LCx.IM.Ven.subendocardial","componentId":"coronary-circulation","logicalIndex":33,"storageKind":"continuous-f64","storageIndex":33,"unit":"mL"},{"stateId":"coronary.volume.RCA.Art","componentId":"coronary-circulation","logicalIndex":34,"storageKind":"continuous-f64","storageIndex":34,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Art.subepicardial","componentId":"coronary-circulation","logicalIndex":35,"storageKind":"continuous-f64","storageIndex":35,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Ven.subepicardial","componentId":"coronary-circulation","logicalIndex":36,"storageKind":"continuous-f64","storageIndex":36,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Art.subendocardial","componentId":"coronary-circulation","logicalIndex":37,"storageKind":"continuous-f64","storageIndex":37,"unit":"mL"},{"stateId":"coronary.volume.RCA.IM.Ven.subendocardial","componentId":"coronary-circulation","logicalIndex":38,"storageKind":"continuous-f64","storageIndex":38,"unit":"mL"},{"stateId":"coronary.volume.CV","componentId":"coronary-circulation","logicalIndex":39,"storageKind":"continuous-f64","storageIndex":39,"unit":"mL"},{"stateId":"coronary.tone.LAD.subepicardial","componentId":"coronary-circulation","logicalIndex":40,"storageKind":"continuous-f64","storageIndex":40,"unit":"1"},{"stateId":"coronary.tone.LAD.subendocardial","componentId":"coronary-circulation","logicalIndex":41,"storageKind":"continuous-f64","storageIndex":41,"unit":"1"},{"stateId":"coronary.tone.LCx.subepicardial","componentId":"coronary-circulation","logicalIndex":42,"storageKind":"continuous-f64","storageIndex":42,"unit":"1"},{"stateId":"coronary.tone.LCx.subendocardial","componentId":"coronary-circulation","logicalIndex":43,"storageKind":"continuous-f64","storageIndex":43,"unit":"1"},{"stateId":"coronary.tone.RCA.subepicardial","componentId":"coronary-circulation","logicalIndex":44,"storageKind":"continuous-f64","storageIndex":44,"unit":"1"},{"stateId":"coronary.tone.RCA.subendocardial","componentId":"coronary-circulation","logicalIndex":45,"storageKind":"continuous-f64","storageIndex":45,"unit":"1"},{"stateId":"mechanics.wall.LA.land.0","componentId":"five-wall-mechanics","logicalIndex":46,"storageKind":"continuous-f64","storageIndex":46,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.1","componentId":"five-wall-mechanics","logicalIndex":47,"storageKind":"continuous-f64","storageIndex":47,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.2","componentId":"five-wall-mechanics","logicalIndex":48,"storageKind":"continuous-f64","storageIndex":48,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.3","componentId":"five-wall-mechanics","logicalIndex":49,"storageKind":"continuous-f64","storageIndex":49,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.4","componentId":"five-wall-mechanics","logicalIndex":50,"storageKind":"continuous-f64","storageIndex":50,"unit":"model-state"},{"stateId":"mechanics.wall.LA.land.5","componentId":"five-wall-mechanics","logicalIndex":51,"storageKind":"continuous-f64","storageIndex":51,"unit":"model-state"},{"stateId":"mechanics.wall.LA.sls.viscousLogStrain","componentId":"five-wall-mechanics","logicalIndex":52,"storageKind":"continuous-f64","storageIndex":52,"unit":"1"},{"stateId":"mechanics.wall.LA.previousFiberLogStrain","componentId":"five-wall-mechanics","logicalIndex":53,"storageKind":"continuous-f64","storageIndex":53,"unit":"1"},{"stateId":"mechanics.wall.LA.previousFreeCalciumUM","componentId":"five-wall-mechanics","logicalIndex":54,"storageKind":"continuous-f64","storageIndex":54,"unit":"uM"},{"stateId":"mechanics.wall.LVFW.land.0","componentId":"five-wall-mechanics","logicalIndex":55,"storageKind":"continuous-f64","storageIndex":55,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.1","componentId":"five-wall-mechanics","logicalIndex":56,"storageKind":"continuous-f64","storageIndex":56,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.2","componentId":"five-wall-mechanics","logicalIndex":57,"storageKind":"continuous-f64","storageIndex":57,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.3","componentId":"five-wall-mechanics","logicalIndex":58,"storageKind":"continuous-f64","storageIndex":58,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.4","componentId":"five-wall-mechanics","logicalIndex":59,"storageKind":"continuous-f64","storageIndex":59,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.land.5","componentId":"five-wall-mechanics","logicalIndex":60,"storageKind":"continuous-f64","storageIndex":60,"unit":"model-state"},{"stateId":"mechanics.wall.LVFW.sls.viscousLogStrain","componentId":"five-wall-mechanics","logicalIndex":61,"storageKind":"continuous-f64","storageIndex":61,"unit":"1"},{"stateId":"mechanics.wall.LVFW.previousFiberLogStrain","componentId":"five-wall-mechanics","logicalIndex":62,"storageKind":"continuous-f64","storageIndex":62,"unit":"1"},{"stateId":"mechanics.wall.LVFW.previousFreeCalciumUM","componentId":"five-wall-mechanics","logicalIndex":63,"storageKind":"continuous-f64","storageIndex":63,"unit":"uM"},{"stateId":"mechanics.wall.SEP.land.0","componentId":"five-wall-mechanics","logicalIndex":64,"storageKind":"continuous-f64","storageIndex":64,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.1","componentId":"five-wall-mechanics","logicalIndex":65,"storageKind":"continuous-f64","storageIndex":65,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.2","componentId":"five-wall-mechanics","logicalIndex":66,"storageKind":"continuous-f64","storageIndex":66,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.3","componentId":"five-wall-mechanics","logicalIndex":67,"storageKind":"continuous-f64","storageIndex":67,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.4","componentId":"five-wall-mechanics","logicalIndex":68,"storageKind":"continuous-f64","storageIndex":68,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.land.5","componentId":"five-wall-mechanics","logicalIndex":69,"storageKind":"continuous-f64","storageIndex":69,"unit":"model-state"},{"stateId":"mechanics.wall.SEP.sls.viscousLogStrain","componentId":"five-wall-mechanics","logicalIndex":70,"storageKind":"continuous-f64","storageIndex":70,"unit":"1"},{"stateId":"mechanics.wall.SEP.previousFiberLogStrain","componentId":"five-wall-mechanics","logicalIndex":71,"storageKind":"continuous-f64","storageIndex":71,"unit":"1"},{"stateId":"mechanics.wall.SEP.previousFreeCalciumUM","componentId":"five-wall-mechanics","logicalIndex":72,"storageKind":"continuous-f64","storageIndex":72,"unit":"uM"},{"stateId":"mechanics.wall.RVFW.land.0","componentId":"five-wall-mechanics","logicalIndex":73,"storageKind":"continuous-f64","storageIndex":73,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.1","componentId":"five-wall-mechanics","logicalIndex":74,"storageKind":"continuous-f64","storageIndex":74,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.2","componentId":"five-wall-mechanics","logicalIndex":75,"storageKind":"continuous-f64","storageIndex":75,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.3","componentId":"five-wall-mechanics","logicalIndex":76,"storageKind":"continuous-f64","storageIndex":76,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.4","componentId":"five-wall-mechanics","logicalIndex":77,"storageKind":"continuous-f64","storageIndex":77,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.land.5","componentId":"five-wall-mechanics","logicalIndex":78,"storageKind":"continuous-f64","storageIndex":78,"unit":"model-state"},{"stateId":"mechanics.wall.RVFW.sls.viscousLogStrain","componentId":"five-wall-mechanics","logicalIndex":79,"storageKind":"continuous-f64","storageIndex":79,"unit":"1"},{"stateId":"mechanics.wall.RVFW.previousFiberLogStrain","componentId":"five-wall-mechanics","logicalIndex":80,"storageKind":"continuous-f64","storageIndex":80,"unit":"1"},{"stateId":"mechanics.wall.RVFW.previousFreeCalciumUM","componentId":"five-wall-mechanics","logicalIndex":81,"storageKind":"continuous-f64","storageIndex":81,"unit":"uM"},{"stateId":"mechanics.wall.RA.land.0","componentId":"five-wall-mechanics","logicalIndex":82,"storageKind":"continuous-f64","storageIndex":82,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.1","componentId":"five-wall-mechanics","logicalIndex":83,"storageKind":"continuous-f64","storageIndex":83,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.2","componentId":"five-wall-mechanics","logicalIndex":84,"storageKind":"continuous-f64","storageIndex":84,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.3","componentId":"five-wall-mechanics","logicalIndex":85,"storageKind":"continuous-f64","storageIndex":85,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.4","componentId":"five-wall-mechanics","logicalIndex":86,"storageKind":"continuous-f64","storageIndex":86,"unit":"model-state"},{"stateId":"mechanics.wall.RA.land.5","componentId":"five-wall-mechanics","logicalIndex":87,"storageKind":"continuous-f64","storageIndex":87,"unit":"model-state"},{"stateId":"mechanics.wall.RA.sls.viscousLogStrain","componentId":"five-wall-mechanics","logicalIndex":88,"storageKind":"continuous-f64","storageIndex":88,"unit":"1"},{"stateId":"mechanics.wall.RA.previousFiberLogStrain","componentId":"five-wall-mechanics","logicalIndex":89,"storageKind":"continuous-f64","storageIndex":89,"unit":"1"},{"stateId":"mechanics.wall.RA.previousFreeCalciumUM","componentId":"five-wall-mechanics","logicalIndex":90,"storageKind":"continuous-f64","storageIndex":90,"unit":"uM"},{"stateId":"TriSeg.septalMidwallCapVolume","componentId":"five-wall-mechanics","logicalIndex":91,"storageKind":"continuous-f64","storageIndex":91,"unit":"m3"},{"stateId":"TriSeg.junctionRadius","componentId":"five-wall-mechanics","logicalIndex":92,"storageKind":"continuous-f64","storageIndex":92,"unit":"m"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.LVFW","componentId":"five-wall-mechanics","logicalIndex":93,"storageKind":"continuous-f64","storageIndex":93,"unit":"1"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.SEP","componentId":"five-wall-mechanics","logicalIndex":94,"storageKind":"continuous-f64","storageIndex":94,"unit":"1"},{"stateId":"mechanics.mvc.referenceFiberLogStrain.RVFW","componentId":"five-wall-mechanics","logicalIndex":95,"storageKind":"continuous-f64","storageIndex":95,"unit":"1"},{"stateId":"mechanics.mvc.referenceAcceptedTimeSec","componentId":"five-wall-mechanics","logicalIndex":96,"storageKind":"continuous-f64","storageIndex":96,"unit":"s"},{"stateId":"mechanics.mvc.referenceRevision","componentId":"five-wall-mechanics","logicalIndex":97,"storageKind":"continuous-f64","storageIndex":97,"unit":"1"},{"stateId":"mechanics.mvc.mitralForwardFlowActive","componentId":"five-wall-mechanics","logicalIndex":98,"storageKind":"boolean-u8","storageIndex":0,"unit":"1"},{"stateId":"mechanics.mvc.acceptedMitralClosureEventCount","componentId":"five-wall-mechanics","logicalIndex":99,"storageKind":"continuous-f64","storageIndex":98,"unit":"1"}]}');
+const hydraulicGraph = { "nodeIds": ["LV", "LA", "RV", "RA", "Ao", "SA", "Art", "Cap", "SV", "VC", "PA", "PArt", "PCap", "PVen", "PVein", "LAD.Art", "LAD.IM.Art.subepicardial", "LAD.IM.Ven.subepicardial", "LAD.IM.Art.subendocardial", "LAD.IM.Ven.subendocardial", "LCx.Art", "LCx.IM.Art.subepicardial", "LCx.IM.Ven.subepicardial", "LCx.IM.Art.subendocardial", "LCx.IM.Ven.subendocardial", "RCA.Art", "RCA.IM.Art.subepicardial", "RCA.IM.Ven.subepicardial", "RCA.IM.Art.subendocardial", "RCA.IM.Ven.subendocardial", "CV"], "storageStateLogicalIndices": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], "pathIds": ["MV", "AoV", "TV", "PV", "Ao_SA", "SA_Art", "Art_Cap", "Cap_SV", "SV_VC", "VC_RA", "PA_PArt", "PArt_PCap", "PCap_PVen", "PVen_PVein", "PVein_LA", "Ao_LAD.Art", "LAD.Art_LAD.IM.Art.subepicardial", "LAD.IM.Art.subepicardial_LAD.IM.Ven.subepicardial", "LAD.IM.Ven.subepicardial_CV", "LAD.Art_LAD.IM.Art.subendocardial", "LAD.IM.Art.subendocardial_LAD.IM.Ven.subendocardial", "LAD.IM.Ven.subendocardial_CV", "Ao_LCx.Art", "LCx.Art_LCx.IM.Art.subepicardial", "LCx.IM.Art.subepicardial_LCx.IM.Ven.subepicardial", "LCx.IM.Ven.subepicardial_CV", "LCx.Art_LCx.IM.Art.subendocardial", "LCx.IM.Art.subendocardial_LCx.IM.Ven.subendocardial", "LCx.IM.Ven.subendocardial_CV", "Ao_RCA.Art", "RCA.Art_RCA.IM.Art.subepicardial", "RCA.IM.Art.subepicardial_RCA.IM.Ven.subepicardial", "RCA.IM.Ven.subepicardial_CV", "RCA.Art_RCA.IM.Art.subendocardial", "RCA.IM.Art.subendocardial_RCA.IM.Ven.subendocardial", "RCA.IM.Ven.subendocardial_CV", "CV_RA"], "upstreamNodeIndices": [1, 0, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 4, 15, 16, 17, 15, 18, 19, 4, 20, 21, 22, 20, 23, 24, 4, 25, 26, 27, 25, 28, 29, 30], "downstreamNodeIndices": [0, 4, 2, 10, 5, 6, 7, 8, 9, 3, 11, 12, 13, 14, 1, 15, 16, 17, 30, 18, 19, 30, 20, 21, 22, 30, 23, 24, 30, 25, 26, 27, 30, 28, 29, 30, 3], "pathKernelIds": ["noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/valve", "noncoronary-flow/dynamic", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/dynamic", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "noncoronary-flow/resistive", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-arterial", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/micro-proximal-arteriolar", "coronary-flow/micro-intermediate-capillary", "coronary-flow/micro-distal-venular", "coronary-flow/large-venous-outlet"], "conservationPools": [{ "poolId": "global-blood-volume", "ledgerStateLogicalIndex": 2, "memberStateLogicalIndices": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], "dependentStateLogicalIndex": 11 }] };
+const solveGroups = [{ "solveGroupId": "coupled-hemodynamics", "unknownStateIds": ["noncoronary.volume.LV", "noncoronary.volume.LA", "noncoronary.volume.RV", "noncoronary.volume.RA", "noncoronary.volume.Ao", "noncoronary.volume.SA", "noncoronary.volume.Art", "noncoronary.volume.Cap", "noncoronary.volume.VC", "noncoronary.volume.PA", "noncoronary.volume.PArt", "noncoronary.volume.PCap", "noncoronary.volume.PVen", "noncoronary.volume.PVein", "coronary.volume.LAD.Art", "coronary.volume.LAD.IM.Art.subepicardial", "coronary.volume.LAD.IM.Ven.subepicardial", "coronary.volume.LAD.IM.Art.subendocardial", "coronary.volume.LAD.IM.Ven.subendocardial", "coronary.volume.LCx.Art", "coronary.volume.LCx.IM.Art.subepicardial", "coronary.volume.LCx.IM.Ven.subepicardial", "coronary.volume.LCx.IM.Art.subendocardial", "coronary.volume.LCx.IM.Ven.subendocardial", "coronary.volume.RCA.Art", "coronary.volume.RCA.IM.Art.subepicardial", "coronary.volume.RCA.IM.Ven.subepicardial", "coronary.volume.RCA.IM.Art.subendocardial", "coronary.volume.RCA.IM.Ven.subendocardial", "coronary.volume.CV", "TriSeg.septalMidwallCapVolume", "TriSeg.junctionRadius"], "activeUnknownStateIds": ["noncoronary.volume.LV", "noncoronary.volume.LA", "noncoronary.volume.RV", "noncoronary.volume.RA", "noncoronary.volume.Ao", "noncoronary.volume.SA", "noncoronary.volume.Art", "noncoronary.volume.Cap", "noncoronary.volume.VC", "noncoronary.volume.PA", "noncoronary.volume.PArt", "noncoronary.volume.PCap", "noncoronary.volume.PVen", "noncoronary.volume.PVein", "coronary.volume.LAD.Art", "coronary.volume.LAD.IM.Art.subepicardial", "coronary.volume.LAD.IM.Ven.subepicardial", "coronary.volume.LAD.IM.Art.subendocardial", "coronary.volume.LAD.IM.Ven.subendocardial", "coronary.volume.LCx.Art", "coronary.volume.LCx.IM.Art.subepicardial", "coronary.volume.LCx.IM.Ven.subepicardial", "coronary.volume.LCx.IM.Art.subendocardial", "coronary.volume.LCx.IM.Ven.subendocardial", "coronary.volume.RCA.Art", "coronary.volume.RCA.IM.Art.subepicardial", "coronary.volume.RCA.IM.Ven.subepicardial", "coronary.volume.RCA.IM.Art.subendocardial", "coronary.volume.RCA.IM.Ven.subendocardial", "coronary.volume.CV"], "dependentStateIds": ["noncoronary.volume.SV"], "blocks": [{ "blockId": "nonCoronary", "disposition": "retained", "start": 0, "length": 14, "endExclusive": 14, "stateIds": ["noncoronary.volume.LV", "noncoronary.volume.LA", "noncoronary.volume.RV", "noncoronary.volume.RA", "noncoronary.volume.Ao", "noncoronary.volume.SA", "noncoronary.volume.Art", "noncoronary.volume.Cap", "noncoronary.volume.VC", "noncoronary.volume.PA", "noncoronary.volume.PArt", "noncoronary.volume.PCap", "noncoronary.volume.PVen", "noncoronary.volume.PVein"], "stateLogicalIndices": [3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17], "residualIds": ["noncoronary.volume.LV.balance", "noncoronary.volume.LA.balance", "noncoronary.volume.RV.balance", "noncoronary.volume.RA.balance", "noncoronary.volume.Ao.balance", "noncoronary.volume.SA.balance", "noncoronary.volume.Art.balance", "noncoronary.volume.Cap.balance", "noncoronary.volume.VC.balance", "noncoronary.volume.PA.balance", "noncoronary.volume.PArt.balance", "noncoronary.volume.PCap.balance", "noncoronary.volume.PVen.balance", "noncoronary.volume.PVein.balance"] }, { "blockId": "coronary", "disposition": "retained", "start": 14, "length": 16, "endExclusive": 30, "stateIds": ["coronary.volume.LAD.Art", "coronary.volume.LAD.IM.Art.subepicardial", "coronary.volume.LAD.IM.Ven.subepicardial", "coronary.volume.LAD.IM.Art.subendocardial", "coronary.volume.LAD.IM.Ven.subendocardial", "coronary.volume.LCx.Art", "coronary.volume.LCx.IM.Art.subepicardial", "coronary.volume.LCx.IM.Ven.subepicardial", "coronary.volume.LCx.IM.Art.subendocardial", "coronary.volume.LCx.IM.Ven.subendocardial", "coronary.volume.RCA.Art", "coronary.volume.RCA.IM.Art.subepicardial", "coronary.volume.RCA.IM.Ven.subepicardial", "coronary.volume.RCA.IM.Art.subendocardial", "coronary.volume.RCA.IM.Ven.subendocardial", "coronary.volume.CV"], "stateLogicalIndices": [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], "residualIds": ["coronary.volume.LAD.Art.balance", "coronary.volume.LAD.IM.Art.subepicardial.balance", "coronary.volume.LAD.IM.Ven.subepicardial.balance", "coronary.volume.LAD.IM.Art.subendocardial.balance", "coronary.volume.LAD.IM.Ven.subendocardial.balance", "coronary.volume.LCx.Art.balance", "coronary.volume.LCx.IM.Art.subepicardial.balance", "coronary.volume.LCx.IM.Ven.subepicardial.balance", "coronary.volume.LCx.IM.Art.subendocardial.balance", "coronary.volume.LCx.IM.Ven.subendocardial.balance", "coronary.volume.RCA.Art.balance", "coronary.volume.RCA.IM.Art.subepicardial.balance", "coronary.volume.RCA.IM.Ven.subepicardial.balance", "coronary.volume.RCA.IM.Art.subendocardial.balance", "coronary.volume.RCA.IM.Ven.subendocardial.balance", "coronary.volume.CV.balance"] }, { "blockId": "triSeg", "disposition": "statically-condensed", "start": 30, "length": 2, "endExclusive": 32, "stateIds": ["TriSeg.septalMidwallCapVolume", "TriSeg.junctionRadius"], "stateLogicalIndices": [91, 92], "residualIds": ["TriSeg.septalMidwallCapVolume.virtualWork", "TriSeg.junctionRadius.virtualWork"] }], "totalUnknownCount": 32, "activeUnknownCount": 30, "jacobianElementCount": 900, "workspace": { "f64Count": 2010, "int32Count": 30 }, "solver": { "nonlinearMethod": "newton", "globalization": "armijo-line-search", "jacobian": "component-analytic-with-finite-difference-audit", "linearSolver": "dense-lu", "matrixStorage": "row-major-f64" } }];
+const updateGroups = [{ "updateGroupId": "coupled-hemodynamics-be-step", "ordinal": 0, "integration": "fixed-step-backward-euler", "fixedStepSec": 2e-3, "solveGroupId": "coupled-hemodynamics" }];
+const generatedExecutionPlanV1 = {
+  schemaId,
+  definitionId,
+  policyId,
+  stateLayout,
+  hydraulicGraph,
+  solveGroups,
+  updateGroups
+};
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1 = "hot-path-lean";
+const MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1 = validateAndOwnExecutionPlanDescriptorV1(generatedExecutionPlanV1);
+const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 = Object.freeze({
+  componentKernelIds: Object.freeze([
+    "accepted-transaction-kernel-v1",
+    "noncoronary-backward-euler-kernel-v1",
+    "coronary-backward-euler-kernel-v2",
+    "five-wall-land-triseg-kernel-v1"
+  ]),
+  hydraulicPathKernelIds: Object.freeze([
+    "noncoronary-flow/resistive",
+    "noncoronary-flow/valve",
+    "noncoronary-flow/dynamic",
+    "coronary-flow/large-arterial",
+    "coronary-flow/micro-proximal-arteriolar",
+    "coronary-flow/micro-intermediate-capillary",
+    "coronary-flow/micro-distal-venular",
+    "coronary-flow/large-venous-outlet"
+  ])
+});
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1 = Object.freeze({
   systemicResistance: "hemodynamics.systemic-resistance",
   pulmonaryResistance: "hemodynamics.pulmonary-resistance",
@@ -45861,6 +46779,7 @@ function createMainWireIntegratedStudioExactKernelV1() {
     modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+      EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1.map(({ outputId }) => `output/${outputId}`),
       ...STANDARD_MODEL_METRIC_DEFINITIONS_V1.map(({ outputId }) => `output/${outputId}`),
@@ -46041,7 +46960,16 @@ function standardExecutableBundleV1(host) {
       }
     }),
     fixtureAdapter,
-    simulationAdapter
+    simulationAdapter,
+    executionPlan: Object.freeze({
+      schemaId: REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+      descriptor: MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
+      bind: () => bindExecutionPlanV1(
+        MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
+        MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1
+      )
+    })
   });
 }
 function standardControlCatalogV1() {

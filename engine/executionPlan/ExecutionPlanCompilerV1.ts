@@ -4,81 +4,28 @@ import {
   type ModelComponentDefinitionV1,
   type ModelDefinitionV1,
   type ModelStateDefinitionV1,
-  type ModelStateStorageKindV1,
   type NumericalPolicyV1,
   type NumericalSolveGroupV1,
 } from "./ModelDefinitionV1";
+import {
+  EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID,
+  type ExecutionPlanDescriptorV1,
+  type ExecutionPlanSolveBlockV1,
+  type ExecutionPlanSolveGroupV1,
+  type ExecutionPlanStateBlockV1,
+  type ExecutionPlanStateSlotV1,
+} from "@/runtime/executionPlan/ExecutionPlanDescriptorV1";
 
-export const EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID =
-  "circleheart-execution-plan-descriptor-v1" as const;
-
-export type ExecutionPlanStateSlotV1 = Readonly<{
-  stateId: string;
-  componentId: string;
-  logicalIndex: number;
-  storageKind: ModelStateStorageKindV1;
-  storageIndex: number;
-  unit: string;
-}>;
-
-export type ExecutionPlanStateBlockV1 = Readonly<{
-  componentId: string;
-  kernelId: string;
-  logicalStart: number;
-  logicalLength: number;
-}>;
-
-export type ExecutionPlanSolveBlockV1 = Readonly<{
-  blockId: string;
-  disposition: "retained" | "statically-condensed";
-  start: number;
-  length: number;
-  endExclusive: number;
-  stateIds: readonly string[];
-  stateLogicalIndices: readonly number[];
-  residualIds: readonly string[];
-}>;
-
-export type ExecutionPlanSolveGroupV1 = Readonly<{
-  solveGroupId: string;
-  unknownStateIds: readonly string[];
-  activeUnknownStateIds: readonly string[];
-  dependentStateIds: readonly string[];
-  blocks: readonly ExecutionPlanSolveBlockV1[];
-  totalUnknownCount: number;
-  activeUnknownCount: number;
-  jacobianElementCount: number;
-  solver: NumericalSolveGroupV1["solver"];
-}>;
-
-export type ExecutionPlanDescriptorV1 = Readonly<{
-  schemaId: typeof EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID;
-  definitionId: string;
-  policyId: string;
-  stateLayout: Readonly<{
-    logicalSlotCount: number;
-    continuousSlotCount: number;
-    booleanSlotCount: number;
-    blocks: readonly ExecutionPlanStateBlockV1[];
-    slots: readonly ExecutionPlanStateSlotV1[];
-  }>;
-  hydraulicGraph: Readonly<{
-    nodeIds: readonly string[];
-    storageStateLogicalIndices: readonly number[];
-    pathIds: readonly string[];
-    upstreamNodeIndices: readonly number[];
-    downstreamNodeIndices: readonly number[];
-    pathKernelIds: readonly string[];
-    conservationPools: readonly Readonly<{
-      poolId: string;
-      ledgerStateLogicalIndex: number;
-      memberStateLogicalIndices: readonly number[];
-      dependentStateLogicalIndex: number;
-    }>[];
-  }>;
-  solveGroups: readonly ExecutionPlanSolveGroupV1[];
-  updateGroups: NumericalPolicyV1["updateGroups"];
-}>;
+export {
+  EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID,
+} from "@/runtime/executionPlan/ExecutionPlanDescriptorV1";
+export type {
+  ExecutionPlanDescriptorV1,
+  ExecutionPlanSolveBlockV1,
+  ExecutionPlanSolveGroupV1,
+  ExecutionPlanStateBlockV1,
+  ExecutionPlanStateSlotV1,
+} from "@/runtime/executionPlan/ExecutionPlanDescriptorV1";
 
 const PORTABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 
@@ -526,6 +473,14 @@ function compileSolveGroups(
       activeUnknownCount: activeUnknownStateIds.length,
       jacobianElementCount:
         activeUnknownStateIds.length * activeUnknownStateIds.length,
+      workspace: Object.freeze({
+        // Current Newton + dense-LU policy: two square matrices and seven
+        // vectors. This is build data, not a browser-side size calculation.
+        f64Count:
+          2 * activeUnknownStateIds.length * activeUnknownStateIds.length
+          + 7 * activeUnknownStateIds.length,
+        int32Count: activeUnknownStateIds.length,
+      }),
       solver: Object.freeze({ ...group.solver }),
     });
   });

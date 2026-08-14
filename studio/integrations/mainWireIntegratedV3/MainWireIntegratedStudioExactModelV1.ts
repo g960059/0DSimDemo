@@ -4,6 +4,11 @@ import {
 } from
   "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
 import {
+  EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
+  bindExecutionPlanV1,
+  validateAndOwnExecutionPlanDescriptorV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
@@ -58,8 +63,10 @@ import type {
   ScenarioCaptureV2,
   ScenarioCheckpointV2,
 } from "@/studio/contracts/v2/content";
-import type { RegisteredModelExecutableBundleV2 } from
-  "@/studio/contracts/v2/executable";
+import {
+  REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+  type RegisteredModelExecutableBundleV2,
+} from "@/studio/contracts/v2/executable";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import type {
   ControlDefinitionV2,
@@ -96,6 +103,8 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from "./MainWireIntegratedStudioModelIdentityV1";
+import generatedExecutionPlanV1 from
+  "./MainWireIntegratedExecutionPlanV1.generated.json";
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 =
   "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1" as const;
@@ -103,6 +112,27 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 =
   "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1 =
   "hot-path-lean" as const;
+
+const MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1 =
+  validateAndOwnExecutionPlanDescriptorV1(generatedExecutionPlanV1);
+const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 = Object.freeze({
+  componentKernelIds: Object.freeze([
+    "accepted-transaction-kernel-v1",
+    "noncoronary-backward-euler-kernel-v1",
+    "coronary-backward-euler-kernel-v2",
+    "five-wall-land-triseg-kernel-v1",
+  ]),
+  hydraulicPathKernelIds: Object.freeze([
+    "noncoronary-flow/resistive",
+    "noncoronary-flow/valve",
+    "noncoronary-flow/dynamic",
+    "coronary-flow/large-arterial",
+    "coronary-flow/micro-proximal-arteriolar",
+    "coronary-flow/micro-intermediate-capillary",
+    "coronary-flow/micro-distal-venular",
+    "coronary-flow/large-venous-outlet",
+  ]),
+});
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1 =
   Object.freeze({
@@ -773,6 +803,7 @@ ExactModelKernelManifestV3 {
     modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+      EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1
         .map(({ outputId }) => `output/${outputId}`),
@@ -1030,6 +1061,15 @@ function standardExecutableBundleV1(
     }),
     fixtureAdapter,
     simulationAdapter,
+    executionPlan: Object.freeze({
+      schemaId: REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+      descriptor: MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
+      bind: () => bindExecutionPlanV1(
+        MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
+        MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1,
+      ),
+    }),
   });
 }
 

@@ -32,6 +32,9 @@ import type {
   ExactModelRuntimeResolverPortV2,
   ResolvedExactModelRuntimeV2,
 } from "@/studio/contracts/v2/executable";
+import {
+  REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+} from "@/studio/contracts/v2/executable";
 import type {
   StudioJsonValueV2,
 } from "@/studio/contracts/v2/json";
@@ -68,6 +71,10 @@ import {
   studioSimulationPresentationOutputStateCodeV2,
   studioSimulationPresentationBatchTransferablesV2,
 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
+import {
+  assertBoundExecutionPlanV1,
+  type BoundExecutionPlanV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import type {
   StudioSimulationPresentationBatchV2,
 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
@@ -142,6 +149,7 @@ export class StudioSimulationWorkerRuntimeV2 {
   #disposeEnqueued = false;
   #highestRequestId = 0;
   #exactRuntime: ResolvedExactModelRuntimeV2 | undefined;
+  #boundExecutionPlan: BoundExecutionPlanV1 | undefined;
   #surfaceSeriesId: string | undefined;
   #surfaceReleaseId: string | undefined;
   #adapter: RegisteredModelSimulationAdapterV2 | undefined;
@@ -351,6 +359,8 @@ export class StudioSimulationWorkerRuntimeV2 {
     const totalInitializeStartedAtMs = monotonicWorkerNowV2();
     let exactRuntime: ResolvedExactModelRuntimeV2 | undefined;
     let exactRuntimeLoadTiming: ExactModelRuntimeLoadTimingV2 | undefined;
+    let boundExecutionPlan: BoundExecutionPlanV1 | undefined;
+    let executionPlanBindMs: number | null = null;
     let adapter: RegisteredModelSimulationAdapterV2 | undefined;
     let sessionCreationAttempted = false;
     try {
@@ -367,6 +377,16 @@ export class StudioSimulationWorkerRuntimeV2 {
         throw new Error(
           "simulation worker loaded runtime modelId does not match the requested model",
         );
+      }
+      if (exactRuntime.executionPlan !== undefined) {
+        const bindStartedAtMs = monotonicWorkerNowV2();
+        const candidate = exactRuntime.executionPlan.bind();
+        assertBoundExecutionPlanV1(
+          candidate,
+          exactRuntime.executionPlan.descriptor,
+        );
+        boundExecutionPlan = candidate;
+        executionPlanBindMs = nonnegativeWorkerDurationV2(bindStartedAtMs);
       }
       const authoringSetupStartedAtMs = monotonicWorkerNowV2();
       const models = exactRuntimeResolverV2(exactRuntime);
@@ -436,6 +456,7 @@ export class StudioSimulationWorkerRuntimeV2 {
         return;
       }
       this.#exactRuntime = exactRuntime;
+      this.#boundExecutionPlan = boundExecutionPlan;
       this.#surfaceSeriesId = request.releaseTicket.surfaceRelease.surfaceSeriesId;
       this.#surfaceReleaseId = request.releaseTicket.surfaceRelease.surfaceReleaseId;
       this.#adapter = adapter;
@@ -477,7 +498,7 @@ export class StudioSimulationWorkerRuntimeV2 {
           authoringSetupMs,
           sessionCreateMs,
           initialFrameMs,
-          executionPlanBindMs: null,
+          executionPlanBindMs,
           totalWorkerInitializeMs: nonnegativeWorkerDurationV2(
             totalInitializeStartedAtMs,
           ),
@@ -1766,6 +1787,7 @@ export class StudioSimulationWorkerRuntimeV2 {
 
   #clearSession(): void {
     this.#exactRuntime = undefined;
+    this.#boundExecutionPlan = undefined;
     this.#surfaceSeriesId = undefined;
     this.#surfaceReleaseId = undefined;
     this.#adapter = undefined;
@@ -1833,6 +1855,19 @@ function assertExactRuntimeV2(
   ) {
     throw new Error(
       `registered executable bundle does not exactly match model ${modelId}`,
+    );
+  }
+  if (
+    runtime.executionPlan !== undefined
+    && (
+      runtime.executionPlan.schemaId
+        !== REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID
+      || runtime.executionPlan.modelId !== modelId
+      || typeof runtime.executionPlan.bind !== "function"
+    )
+  ) {
+    throw new Error(
+      `registered execution plan does not exactly match model ${modelId}`,
     );
   }
   assertSimulationAdapterV2(runtime.simulationAdapter);

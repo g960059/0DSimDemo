@@ -9,6 +9,11 @@ import {
   CORONARY_EDGE_IDS_V2,
 } from "@/engine/coronary/typesV2";
 import {
+  assertBoundExecutionPlanV1,
+  bindExecutionPlanV1,
+  validateAndOwnExecutionPlanDescriptorV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import {
   compileExecutionPlanV1,
 } from "@/engine/executionPlan/ExecutionPlanCompilerV1";
 import {
@@ -25,6 +30,8 @@ import {
 import {
   COUPLED_HEMODYNAMICS_LAYOUT_V1,
 } from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
+import generatedExecutionPlan from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 
 describe("ModelDefinition V1 execution-plan compiler", () => {
   it("reproduces the current hemodynamic state and coupled-solve layouts", () => {
@@ -104,6 +111,10 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     expect(solve?.dependentStateIds)
       .toEqual([COUPLED_HEMODYNAMICS_LAYOUT_V1.dependentBloodVolumeUnknown]);
     expect(solve?.jacobianElementCount).toBe(30 * 30);
+    expect(solve?.workspace).toEqual({
+      f64Count: 2 * 30 * 30 + 7 * 30,
+      int32Count: 30,
+    });
   });
 
   it("compiles the present circulation graph without executable bindings", () => {
@@ -285,11 +296,169 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     expect(() => compileExecutionPlanV1(definition, unsupported))
       .toThrow("unsupported integration");
   });
+
+  it("keeps the checked-in descriptor byte-semantically equal to compilation", () => {
+    expect(validateAndOwnExecutionPlanDescriptorV1(generatedExecutionPlan))
+      .toEqual(compileMainWire());
+  });
+
+  it("binds exact kernel IDs and allocates one nonaliasing Worker plan", () => {
+    const descriptor = compileMainWire();
+    const bound = bindExecutionPlanV1(descriptor, mainWireKernelCatalog());
+    const [solve] = bound.solveGroups;
+
+    expect(bound.definitionId).toBe(descriptor.definitionId);
+    expect(bound.currentContinuousState).toHaveLength(99);
+    expect(bound.candidateContinuousState).toHaveLength(99);
+    expect(bound.currentBooleanState).toHaveLength(1);
+    expect(bound.candidateBooleanState).toHaveLength(1);
+    expect(bound.graphUpstreamNodeIndices).toHaveLength(37);
+    expect(bound.graphDownstreamNodeIndices).toHaveLength(37);
+    expect(solve?.activeStateLogicalIndices).toHaveLength(30);
+    expect(solve?.dependentStateLogicalIndices).toHaveLength(1);
+    expect(solve?.workspaceF64).toHaveLength(2 * 30 * 30 + 7 * 30);
+    expect(solve?.workspaceInt32).toHaveLength(30);
+    expect(bound.allocatedBytes).toBeGreaterThan(0);
+    expect(bound.currentContinuousState.buffer)
+      .not.toBe(bound.candidateContinuousState.buffer);
+    expect(() => assertBoundExecutionPlanV1(bound, descriptor)).not.toThrow();
+  });
+
+  it("fails closed on missing, extra, aliased, and descriptor-mismatched bindings", () => {
+    const descriptor = compileMainWire();
+    const catalog = mainWireKernelCatalog();
+    expect(() => bindExecutionPlanV1(descriptor, {
+      ...catalog,
+      componentKernelIds: catalog.componentKernelIds.slice(1),
+    })).toThrow("component kernel bindings must match exactly");
+    expect(() => bindExecutionPlanV1(descriptor, {
+      ...catalog,
+      hydraulicPathKernelIds: [
+        ...catalog.hydraulicPathKernelIds,
+        "synthetic-flow/unregistered",
+      ],
+    })).toThrow("hydraulic path kernel bindings must match exactly");
+
+    const bound = bindExecutionPlanV1(descriptor, catalog);
+    expect(() => assertBoundExecutionPlanV1({
+      ...bound,
+      candidateContinuousState: bound.currentContinuousState,
+    }, descriptor)).toThrow("typed allocations must not alias");
+    const wrongGraph = new Int32Array(bound.graphUpstreamNodeIndices);
+    wrongGraph[0] = wrongGraph[0] === 0 ? 1 : 0;
+    expect(() => assertBoundExecutionPlanV1({
+      ...bound,
+      graphUpstreamNodeIndices: wrongGraph,
+    }, descriptor)).toThrow("values do not match descriptor");
+    if (typeof SharedArrayBuffer !== "undefined") {
+      const sharedState = new Float64Array(new SharedArrayBuffer(
+        bound.candidateContinuousState.byteLength,
+      ));
+      expect(() => assertBoundExecutionPlanV1({
+        ...bound,
+        candidateContinuousState: sharedState,
+      }, descriptor)).toThrow("must be one owned Float64Array");
+    }
+
+    let getterCalled = false;
+    const boundDescriptors = Object.fromEntries(
+      Object.entries(Object.getOwnPropertyDescriptors(bound))
+        .filter(([key]) => key !== "candidateContinuousState"),
+    );
+    const accessorBound = Object.defineProperties(
+      {},
+      boundDescriptors,
+    );
+    Object.defineProperty(accessorBound, "candidateContinuousState", {
+      enumerable: true,
+      get: () => {
+        getterCalled = true;
+        return bound.candidateContinuousState;
+      },
+    });
+    expect(() => assertBoundExecutionPlanV1(accessorBound, descriptor))
+      .toThrow("must be an enumerable data property");
+    expect(getterCalled).toBe(false);
+  });
+
+  it("owns descriptor data without invoking hostile accessors", () => {
+    let getterCalled = false;
+    const hostile = Object.defineProperties({}, {
+      definitionId: {
+        enumerable: true,
+        get: () => {
+          getterCalled = true;
+          return "hostile";
+        },
+      },
+      hydraulicGraph: { enumerable: true, value: {} },
+      policyId: { enumerable: true, value: "policy" },
+      schemaId: { enumerable: true, value: "schema" },
+      solveGroups: { enumerable: true, value: [] },
+      stateLayout: { enumerable: true, value: {} },
+      updateGroups: { enumerable: true, value: [] },
+    });
+
+    expect(() => validateAndOwnExecutionPlanDescriptorV1(hostile))
+      .toThrow("must be an enumerable data property");
+    expect(getterCalled).toBe(false);
+
+    const cyclic: Record<string, unknown> = { ...generatedExecutionPlan };
+    cyclic.hydraulicGraph = cyclic;
+    expect(() => validateAndOwnExecutionPlanDescriptorV1(cyclic))
+      .toThrow("must not be cyclic");
+  });
+
+  it("rejects duplicate solve-block and residual identities at runtime admission", () => {
+    const duplicateBlock = structuredClone(compileMainWire()) as unknown as
+      MutableExecutionPlanForTestV1;
+    duplicateBlock.solveGroups[0].blocks[1].blockId =
+      duplicateBlock.solveGroups[0].blocks[0].blockId;
+    expect(() => validateAndOwnExecutionPlanDescriptorV1(duplicateBlock))
+      .toThrow("duplicate blockId");
+
+    const duplicateResidual = structuredClone(compileMainWire()) as unknown as
+      MutableExecutionPlanForTestV1;
+    duplicateResidual.solveGroups[0].blocks[1].residualIds[0] =
+      duplicateResidual.solveGroups[0].blocks[0].residualIds[0];
+    expect(() => validateAndOwnExecutionPlanDescriptorV1(duplicateResidual))
+      .toThrow("residualId is duplicated across solve blocks");
+  });
 });
+
+type MutableExecutionPlanForTestV1 = {
+  solveGroups: Array<{
+    blocks: Array<{
+      blockId: string;
+      residualIds: string[];
+    }>;
+  }>;
+};
 
 function compileMainWire() {
   return compileExecutionPlanV1(
     createMainWireModelDefinitionV1(),
     createMainWireNumericalPolicyV1(),
   );
+}
+
+function mainWireKernelCatalog() {
+  return Object.freeze({
+    componentKernelIds: Object.freeze([
+      "accepted-transaction-kernel-v1",
+      "noncoronary-backward-euler-kernel-v1",
+      "coronary-backward-euler-kernel-v2",
+      "five-wall-land-triseg-kernel-v1",
+    ]),
+    hydraulicPathKernelIds: Object.freeze([
+      "noncoronary-flow/resistive",
+      "noncoronary-flow/valve",
+      "noncoronary-flow/dynamic",
+      "coronary-flow/large-arterial",
+      "coronary-flow/micro-proximal-arteriolar",
+      "coronary-flow/micro-intermediate-capillary",
+      "coronary-flow/micro-distal-venular",
+      "coronary-flow/large-venous-outlet",
+    ]),
+  });
 }

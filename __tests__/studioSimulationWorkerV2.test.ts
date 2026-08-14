@@ -9,9 +9,17 @@ import {
   type ExperimentSurfaceV2,
   type ExperimentV2,
 } from "@/studio/contracts/v2/content";
-import type {
-  ResolvedExactModelRuntimeV2,
+import {
+  REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+  type RegisteredModelExecutionPlanAdapterV1,
+  type ResolvedExactModelRuntimeV2,
 } from "@/studio/contracts/v2/executable";
+import {
+  bindExecutionPlanV1,
+  validateAndOwnExecutionPlanDescriptorV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import generatedExecutionPlanV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 import type {
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
@@ -838,6 +846,83 @@ describe("Studio simulation worker V2 protocol", () => {
 });
 
 describe("Studio simulation worker V2 runtime", () => {
+  it("binds one admitted shadow execution plan exactly once at initialization", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const bind = vi.fn(() => bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    ));
+    const harness = runtimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(bind),
+    });
+
+    harness.runtime.enqueue(initializeRequestWithCheckpointV2(1));
+    await harness.runtime.whenIdle();
+    harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(2, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 1,
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledOnce();
+    expect(harness.adapter.createSession).toHaveBeenCalledWith({
+      runtimeSessionId: "runtime/session-1",
+      scenarios: [{
+        scenarioId: "scenario/baseline",
+        fixture: { value: 1 },
+        checkpoint: {
+          acceptedRevision: 4,
+          acceptedTimeSec: 0.4,
+          payload: { state: [4] },
+        },
+      }],
+    });
+    expect(harness.port.messages[0]).toMatchObject({
+      status: "ok",
+      kind: "initialized",
+      initializationTiming: {
+        executionPlanBindMs: expect.any(Number),
+      },
+    });
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "advanced",
+    });
+  });
+
+  it("fails before session creation when a shadow plan binder returns aliased storage", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const valid = bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    );
+    const bind = vi.fn(() => ({
+      ...valid,
+      candidateContinuousState: valid.currentContinuousState,
+    }));
+    const createSession = vi.fn(() => Promise.resolve());
+    const harness = runtimeHarnessV2({
+      createSession,
+      executionPlan: executionPlanAdapterV1(bind),
+    });
+
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledOnce();
+    expect(createSession).not.toHaveBeenCalled();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "error",
+      fatal: true,
+      message: expect.stringMatching(/typed allocations must not alias/),
+    });
+  });
+
   it("reports Worker initialization phases while plan binding remains shadow", async () => {
     const harness = runtimeHarnessV2();
     harness.runtime.enqueue(initializeRequestV2(1));
@@ -3789,6 +3874,22 @@ function initializeRequestV2(
   });
 }
 
+function initializeRequestWithCheckpointV2(requestId: number) {
+  return createStudioSimulationInitializeRequestV2(requestId, {
+    expectedModelId: "model/main-wire-v3-r1",
+    releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+    runtimeSessionId: "runtime/session-1",
+    scenarioId: "scenario/baseline",
+    scenarioLabel: "Baseline",
+    fixture: { value: 1 },
+    checkpoint: {
+      acceptedRevision: 4,
+      acceptedTimeSec: 0.4,
+      payload: { state: [4] },
+    },
+  });
+}
+
 function initializedResponseV2(
   requestId: number,
   frameOverrides: Partial<StudioSimulationFrameV2> = {},
@@ -3915,6 +4016,7 @@ function runtimeHarnessV2(overrides: Readonly<{
   reduceControlAction?: NonNullable<
     ResolvedExactModelRuntimeV2["fixtureAdapter"]["reduceControlAction"]
   >;
+  executionPlan?: RegisteredModelExecutionPlanAdapterV1;
 }> = {}) {
   let revision = 0;
   let inputEpoch = 0;
@@ -4075,6 +4177,7 @@ function exactRuntimeV2(
     reduceControlAction?: NonNullable<
       ResolvedExactModelRuntimeV2["fixtureAdapter"]["reduceControlAction"]
     >;
+    executionPlan?: RegisteredModelExecutionPlanAdapterV1;
   }> = {},
 ): ResolvedExactModelRuntimeV2 {
   const contract: ModelContractV2 = {
@@ -4183,7 +4286,42 @@ function exactRuntimeV2(
         })),
     },
     simulationAdapter: adapter,
+    ...(overrides.executionPlan === undefined
+      ? {}
+      : { executionPlan: overrides.executionPlan }),
   };
+}
+
+function executionPlanAdapterV1(
+  bind: RegisteredModelExecutionPlanAdapterV1["bind"],
+): RegisteredModelExecutionPlanAdapterV1 {
+  return Object.freeze({
+    schemaId: REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+    modelId: "model/main-wire-v3-r1",
+    descriptor: generatedExecutionPlanV1,
+    bind,
+  });
+}
+
+function mainWireExecutionPlanKernelCatalogV1() {
+  return Object.freeze({
+    componentKernelIds: Object.freeze([
+      "accepted-transaction-kernel-v1",
+      "noncoronary-backward-euler-kernel-v1",
+      "coronary-backward-euler-kernel-v2",
+      "five-wall-land-triseg-kernel-v1",
+    ]),
+    hydraulicPathKernelIds: Object.freeze([
+      "noncoronary-flow/resistive",
+      "noncoronary-flow/valve",
+      "noncoronary-flow/dynamic",
+      "coronary-flow/large-arterial",
+      "coronary-flow/micro-proximal-arteriolar",
+      "coronary-flow/micro-intermediate-capillary",
+      "coronary-flow/micro-distal-venular",
+      "coronary-flow/large-venous-outlet",
+    ]),
+  });
 }
 
 function deferredV2<T>() {

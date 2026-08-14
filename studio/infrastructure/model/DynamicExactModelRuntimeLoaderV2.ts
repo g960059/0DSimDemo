@@ -12,6 +12,9 @@ import {
 import {
   STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
 } from "@/studio/contracts/v2/simulation";
+import {
+  EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import type {
   StudioModelWorkerReleaseTicketV2,
 } from "@/studio/contracts/v2/release";
@@ -157,6 +160,9 @@ export class DynamicExactModelRuntimeLoaderV2 {
     validateExecutableBundleV2(release.executables, composed.contract, {
       requiresPresentationBatch: ticket.manifest.capabilities.includes(
         STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+      ),
+      requiresExecutionPlan: ticket.manifest.capabilities.includes(
+        EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
       ),
     });
     const runtime = freezeExactRuntimeV2(release.executables, composed.contract);

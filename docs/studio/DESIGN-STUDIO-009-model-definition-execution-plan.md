@@ -1,6 +1,6 @@
 # DESIGN-STUDIO-009: Model definition and execution-plan compiler
 
-Status: binding shadow-compiler plan
+Status: binding shadow-runtime plan
 
 This document owns the declarative model-definition and ahead-of-time
 execution-plan boundary. DESIGN-STUDIO-007 continues to own numerical
@@ -50,10 +50,9 @@ Explicit ordinals are intentional. Reordering declarations must not silently
 renumber a released numerical system, while adding a new component or path has
 one reviewable position.
 
-## Current shadow slice
+## Generated descriptor slice
 
-The first implementation is behavior-neutral and is not loaded by the
-production runtime. It compiles the current one-patch hemodynamic slice to:
+The compiler compiles the current one-patch hemodynamic slice to:
 
 - `100` logical circulation/mechanics slots (`99` f64 and `1` boolean),
   matching the accepted typed hemodynamic view;
@@ -66,11 +65,37 @@ production runtime. It compiles the current one-patch hemodynamic slice to:
   the current policy—not as permanent scientific structure.
 
 `npm --silent run compile:model:execution-plan` emits the canonical JSON
-descriptor to stdout. Tests require exact parity with the existing hard-coded layout,
+descriptor to stdout. `--write` updates the checked-in generated descriptor
+that release tooling verifies byte-semantically against a fresh compilation.
+Tests require exact parity with the existing hard-coded layout,
 declaration-order determinism, fail-closed invalid inputs, and a synthetic
 VC-to-LA bypass path that leaves state and solve numbering unchanged. The
 synthetic path is a compiler test only; it does not add a Fontan or congenital
 circulation claim to the model.
+
+## Bound shadow slice
+
+Standard-35 is the first exact release to advertise
+`runtime/execution-plan-descriptor-v1`. Its existing exact artifact contains
+the generated descriptor and a small binder; it does not contain
+`ModelDefinitionV1`, `NumericalPolicyV1`, or the compiler. Historical exact
+artifacts without the capability continue to load through their immutable
+legacy executable contract.
+
+At Worker initialization, the binder:
+
+- validates and owns the portable descriptor without invoking accessors;
+- requires an exact set of admitted component- and path-kernel IDs;
+- resolves those IDs to compact ordinals;
+- allocates nonaliasing current/candidate state, graph-index, and solver
+  workspace typed arrays once; and
+- rejects a malformed or aliased result before numerical session creation.
+
+These bindings are currently symbolic owner bindings rather than generic
+executable function pointers. The bound plan is retained Worker-locally but
+does not advance the numerical model. Standard-35 therefore remains
+behavior-neutral: the existing typed-authority session is still the sole
+execution and checkpoint authority.
 
 ## Cold-start evidence
 
@@ -84,21 +109,23 @@ Opt-in Workbench performance reports now distinguish:
 - first exact frame;
 - total Worker initialization and main-thread round trip.
 
-`executionPlanBindMs` is `null` during the shadow phase. It becomes a measured
-number only when runtime binding exists. This prevents a placeholder zero from
-being mistaken for evidence. Before cutover, physical iPhone measurements must
-show that descriptor binding is bounded and that time-to-first-frame has not
-materially regressed.
+`executionPlanBindMs` remains `null` for historical artifacts and is a measured
+number for Standard-35. It includes bounded descriptor validation, exact
+binding, and typed allocation. This prevents a placeholder zero from being
+mistaken for evidence. Before direct execution cutover, physical iPhone
+measurements must show that binding is bounded and that time-to-first-frame has
+not materially regressed.
 
 ## Cutover sequence
 
-1. Keep the compiler shadow-only and add exact descriptor parity for every
-   current generated layout that will become runtime-owned.
-2. Teach release tooling to embed the descriptor beside the exact executable;
-   do not add another fetch or a production compiler.
-3. Implement a `BoundExecutionPlan` that resolves known kernel IDs, allocates
-   buffers once, and rejects every missing or extra binding.
-4. Run the bound plan in shadow against the current authority, including
+1. Add exact descriptor parity for every current generated layout that will
+   become runtime-owned. **Complete for the current one-patch slice.**
+2. Embed the descriptor in the exact executable without another fetch or a
+   production compiler. **Complete in Standard-35.**
+3. Bind known kernel IDs, allocate buffers once, and reject missing, extra, or
+   aliased bindings. **Complete as a nonexecuting Worker shadow in
+   Standard-35.**
+4. Execute the bound plan in shadow against the current authority, including
    checkpoint continuation and the canonical scientific corpus.
 5. Mint a new model release for the direct runtime cutover. Do not dual-write
    state or retain a fallback inside that release.

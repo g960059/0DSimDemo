@@ -13,6 +13,16 @@ import {
   STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
 } from "@/studio/contracts/v2/simulation";
 import {
+  EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import {
+  compileExecutionPlanV1,
+} from "@/engine/executionPlan/ExecutionPlanCompilerV1";
+import {
+  createMainWireModelDefinitionV1,
+  createMainWireNumericalPolicyV1,
+} from "@/engine/executionPlan/MainWireModelDefinitionV1";
+import {
   validateExecutableBundleV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
@@ -29,6 +39,8 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import mainWireIntegratedStandardSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
+import generatedExecutionPlanV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -73,6 +85,19 @@ async function main(): Promise<void> {
     fail("the only supported argument is --write");
   }
   const sourceRelease = createCircleHeartExactModelReleaseV1();
+  const compiledExecutionPlan = compileExecutionPlanV1(
+    createMainWireModelDefinitionV1(),
+    createMainWireNumericalPolicyV1(),
+  );
+  if (
+    studioCanonicalJsonStringify(compiledExecutionPlan)
+      !== studioCanonicalJsonStringify(generatedExecutionPlanV1)
+  ) {
+    fail(
+      "checked-in execution plan differs from the build-time compiler; "
+        + "run npm run compile:model:execution-plan -- --write",
+    );
+  }
   const artifact = await buildExactArtifact();
   const deterministicRebuild = await buildExactArtifact();
   if (!sameBytes(artifact, deterministicRebuild)) {
@@ -247,6 +272,9 @@ async function assertArtifactAdmission(
   validateExecutableBundleV2(executables, composed.contract, {
     requiresPresentationBatch: sourceRelease.manifest.capabilities.includes(
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+    ),
+    requiresExecutionPlan: sourceRelease.manifest.capabilities.includes(
+      EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
     ),
   });
   executables.fixtureAdapter.validateCompleteFixture({

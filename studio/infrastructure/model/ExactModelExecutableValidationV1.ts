@@ -4,6 +4,12 @@ import type {
   RegisteredModelExecutableBundleV2,
   ResolvedExactModelRuntimeV2,
 } from "@/studio/contracts/v2/executable";
+import {
+  REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+} from "@/studio/contracts/v2/executable";
+import {
+  validateAndOwnExecutionPlanDescriptorV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
 
 export class ExactModelExecutableValidationErrorV1 extends Error {
   constructor(message: string) {
@@ -15,7 +21,10 @@ export class ExactModelExecutableValidationErrorV1 extends Error {
 export function validateExecutableBundleV2(
   bundle: RegisteredModelExecutableBundleV2,
   model: ModelContractV2,
-  options: Readonly<{ requiresPresentationBatch: boolean }>,
+  options: Readonly<{
+    requiresPresentationBatch: boolean;
+    requiresExecutionPlan: boolean;
+  }>,
 ): void {
   if (bundle === null || typeof bundle !== "object") {
     throw new ExactModelExecutableValidationErrorV1(
@@ -32,6 +41,7 @@ export function validateExecutableBundleV2(
     "snapshotGate",
     "fixtureAdapter",
     "simulationAdapter",
+    ...(options.requiresExecutionPlan ? ["executionPlan"] : []),
   ], "executable bundle");
   assertExactExecutableKeysV1(bundle.captureAdapter, [
     "modelId",
@@ -59,6 +69,25 @@ export function validateExecutableBundleV2(
       ? []
       : ["reduceControlAction"]),
   ], "fixture adapter");
+  if (options.requiresExecutionPlan) {
+    assertExactExecutableKeysV1(bundle.executionPlan, [
+      "bind",
+      "descriptor",
+      "modelId",
+      "schemaId",
+    ], "execution plan adapter");
+    if (
+      bundle.executionPlan?.schemaId
+        !== REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID
+      || bundle.executionPlan.modelId !== model.modelId
+      || typeof bundle.executionPlan.bind !== "function"
+    ) {
+      throw new ExactModelExecutableValidationErrorV1(
+        "execution plan adapter must exactly match the manifest identity",
+      );
+    }
+    validateAndOwnExecutionPlanDescriptorV1(bundle.executionPlan.descriptor);
+  }
   const requiresPresentationBatch = options.requiresPresentationBatch;
   assertExactExecutableKeysV1(bundle.simulationAdapter, [
     "modelId",
@@ -174,6 +203,18 @@ export function freezeExactRuntimeV2(
       replaceFixture: bundle.simulationAdapter.replaceFixture,
       currentInputEpoch: bundle.simulationAdapter.currentInputEpoch,
     }),
+    ...(bundle.executionPlan === undefined
+      ? {}
+      : {
+          executionPlan: Object.freeze({
+            schemaId: bundle.executionPlan.schemaId,
+            modelId: bundle.executionPlan.modelId,
+            descriptor: validateAndOwnExecutionPlanDescriptorV1(
+              bundle.executionPlan.descriptor,
+            ),
+            bind: bundle.executionPlan.bind,
+          }),
+        }),
   });
 }
 

@@ -13,6 +13,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
 import {
+  assertBoundExecutionPlanV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
@@ -245,6 +248,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
   });
 
   it("loads one immutable Standard artifact and fails closed", async () => {
+    expect(mainWireIntegratedStudioStandardArtifactV1)
+      .not.toContain("ModelDefinition V1 schemaId is invalid");
+    expect(mainWireIntegratedStudioStandardArtifactV1)
+      .not.toContain("compileExecutionPlanV1");
     const bytes = standardExecutableArtifactBytesV3();
     const fetchArtifact = vi.fn(async () => artifactFetchResponseV3(bytes));
     const loader = new DynamicExactModelRuntimeLoaderV2(fetchArtifact);
@@ -278,6 +285,14 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       .toBeGreaterThanOrEqual(0);
     expect(coldMeasured.timing.contractValidationMs).toBeGreaterThanOrEqual(0);
     expect(coldMeasured.timing.totalMs).toBeGreaterThanOrEqual(0);
+    expect(loaded.executionPlan).toMatchObject({
+      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+    });
+    const boundExecutionPlan = loaded.executionPlan!.bind();
+    expect(() => assertBoundExecutionPlanV1(
+      boundExecutionPlan,
+      loaded.executionPlan!.descriptor,
+    )).not.toThrow();
     const warmMeasured = await loader.loadMeasured(ticket);
     expect(warmMeasured.runtime).toBe(loaded);
     expect(warmMeasured.timing).toMatchObject({
