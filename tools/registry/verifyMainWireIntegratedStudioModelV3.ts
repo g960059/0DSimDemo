@@ -13,7 +13,7 @@ import {
   STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
 } from "@/studio/contracts/v2/simulation";
 import {
-  EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
+  EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   compileExecutionPlanV1,
@@ -274,7 +274,7 @@ async function assertArtifactAdmission(
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
     ),
     requiresExecutionPlan: sourceRelease.manifest.capabilities.includes(
-      EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
+      EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
     ),
   });
   executables.fixtureAdapter.validateCompleteFixture({

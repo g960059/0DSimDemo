@@ -127,6 +127,7 @@ import {
   createMainWireAcceptedTypedHemodynamicBindingV1,
   createMainWireAcceptedTypedHemodynamicDestinationV1,
   materializeMainWireAcceptedTypedCoupledSolverAdapterV1,
+  readMainWireAcceptedTypedHemodynamicIntoV1,
   stageMainWireAcceptedTypedCoupledCandidateV1,
   type MainWireAcceptedTypedHemodynamicBindingV1,
 } from "@/engine/vnext/MainWireAcceptedTypedHemodynamicV1";
@@ -552,6 +553,42 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
 
   currentAcceptedState(): AcceptedState {
     return this.#authority.snapshot();
+  }
+
+  /**
+   * Copies the current one-patch hemodynamic view in its canonical logical
+   * order for a sampled execution-plan shadow check. The accepted typed image
+   * remains the sole authority; this method neither stages nor promotes state.
+   */
+  copyCurrentAcceptedTypedHemodynamicViewV1(
+    destination: Float64Array,
+  ): MainWireAcceptedTypedClockV1 {
+    if (
+      this.#typedAuthority === null
+      || this.#typedHemodynamicBinding === null
+    ) {
+      throw new Error(
+        "Main Wire execution-plan shadow requires typed accepted authority",
+      );
+    }
+    readMainWireAcceptedTypedHemodynamicIntoV1(
+      this.#typedAuthority.currentCursor(),
+      this.#typedHemodynamicBinding,
+      destination,
+    );
+    const clock = this.currentAcceptedClock();
+    if (
+      !Object.is(
+        destination[0],
+        clock.acceptedTimeSec,
+      )
+      || !Object.is(destination[1], clock.revision)
+    ) {
+      throw new Error(
+        "Main Wire execution-plan shadow clock does not match typed authority",
+      );
+    }
+    return clock;
   }
 
   /**

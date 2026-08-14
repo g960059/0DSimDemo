@@ -74,6 +74,7 @@ import {
 import {
   assertBoundExecutionPlanV1,
   type BoundExecutionPlanV1,
+  validateAndOwnExecutionPlanAcceptedStateSynchronizationV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import type {
   StudioSimulationPresentationBatchV2,
@@ -480,9 +481,21 @@ export class StudioSimulationWorkerRuntimeV2 {
           runtimeSessionId: request.runtimeSessionId,
           scenarioId: scenario.scenarioId,
         }), scenario.scenarioId);
+        this.#synchronizeExecutionPlanAcceptedState(
+          scenarioFrame,
+          scenario.scenarioId,
+          request.runtimeSessionId,
+        );
         this.#scenarioFrames.set(scenario.scenarioId, scenarioFrame);
       }
       const frame = this.#scenarioFrames.get(request.scenarioId)!;
+      if (scenarioInputs.at(-1)?.scenarioId !== request.scenarioId) {
+        this.#synchronizeExecutionPlanAcceptedState(
+          frame,
+          request.scenarioId,
+          request.runtimeSessionId,
+        );
+      }
       this.#lastFrame = frame;
       const initialFrameMs = nonnegativeWorkerDurationV2(
         initialFrameStartedAtMs,
@@ -539,6 +552,11 @@ export class StudioSimulationWorkerRuntimeV2 {
         this.#scenarioFrames.set(request.scenarioId, frame);
         frames.push(frame);
       }
+      this.#synchronizeExecutionPlanAcceptedState(
+        frames.at(-1)!,
+        request.scenarioId,
+        physicalRuntimeSessionId,
+      );
       this.#postResponse({
         protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
         requestId: request.requestId,
@@ -623,6 +641,11 @@ export class StudioSimulationWorkerRuntimeV2 {
         validatedTerminalFrame,
       );
       const terminalFrame = batch.terminalFrame;
+      this.#synchronizeExecutionPlanAcceptedState(
+        terminalFrame,
+        request.scenarioId,
+        physicalRuntimeSessionId,
+      );
       this.#lastFrame = terminalFrame;
       this.#scenarioFrames.set(request.scenarioId, terminalFrame);
       const responseBatch: StudioSimulationPresentationBatchV2 = Object.freeze({
@@ -723,6 +746,11 @@ export class StudioSimulationWorkerRuntimeV2 {
       if (!sameStudioSimulationFrameV2(frame, committedFrame)) {
         throw new Error("control result is not the committed current frame");
       }
+      this.#synchronizeExecutionPlanAcceptedState(
+        committedFrame,
+        request.scenarioId,
+        physicalRuntimeSessionId,
+      );
     } catch (error) {
       this.#assertRejectedControlWasAtomic(priorFrame, error);
       throw new Error(
@@ -936,6 +964,11 @@ export class StudioSimulationWorkerRuntimeV2 {
       runtimeSessionId: this.#requiredPhysicalRuntimeSessionId(),
       scenarioId: request.scenarioId,
     }), request.scenarioId);
+    this.#synchronizeExecutionPlanAcceptedState(
+      frame,
+      request.scenarioId,
+      this.#requiredPhysicalRuntimeSessionId(),
+    );
     this.#scenarioId = request.scenarioId;
     this.#currentFixture = this.#requiredScenarioFixture(request.scenarioId);
     this.#lastFrame = frame;
@@ -1129,14 +1162,20 @@ export class StudioSimulationWorkerRuntimeV2 {
       created = true;
       const frames = new Map<string, StudioSimulationFrameV2>();
       for (const scenario of scenarios) {
-        frames.set(scenario.scenarioId, this.#validateAdapterFrame(
+        const frame = this.#validateAdapterFrame(
           adapter.currentFrame({
             runtimeSessionId: nextPhysicalRuntimeSessionId,
             scenarioId: scenario.scenarioId,
           }),
           scenario.scenarioId,
           nextPhysicalRuntimeSessionId,
-        ));
+        );
+        this.#synchronizeExecutionPlanAcceptedState(
+          frame,
+          scenario.scenarioId,
+          nextPhysicalRuntimeSessionId,
+        );
+        frames.set(scenario.scenarioId, frame);
       }
       try {
         adapter.disposeSession(oldPhysicalRuntimeSessionId);
@@ -1165,6 +1204,13 @@ export class StudioSimulationWorkerRuntimeV2 {
       this.#scenarioId = activeScenarioId;
       this.#currentFixture = this.#requiredScenarioFixture(activeScenarioId);
       this.#lastFrame = this.#scenarioFrames.get(activeScenarioId)!;
+      if (scenarios.at(-1)?.scenarioId !== activeScenarioId) {
+        this.#synchronizeExecutionPlanAcceptedState(
+          this.#lastFrame,
+          activeScenarioId,
+          nextPhysicalRuntimeSessionId,
+        );
+      }
     } catch (error) {
       if (created) bestEffortDisposeV2(adapter, nextPhysicalRuntimeSessionId);
       throw error;
@@ -1664,6 +1710,47 @@ export class StudioSimulationWorkerRuntimeV2 {
         });
   }
 
+  /**
+   * Samples exactly one accepted boundary after a model mutation. Historical
+   * artifacts have neither side of this pair. A plan-capable release must
+   * provide both, and clock drift fails before the frame is published.
+   */
+  #synchronizeExecutionPlanAcceptedState(
+    frame: StudioSimulationFrameV2,
+    scenarioId: string,
+    physicalRuntimeSessionId: string,
+  ): void {
+    const executionPlan = this.#exactRuntime?.executionPlan;
+    const bound = this.#boundExecutionPlan;
+    if (executionPlan === undefined && bound === undefined) return;
+    if (executionPlan === undefined || bound === undefined) {
+      throw new Error(
+        "simulation worker execution-plan synchronization is unavailable",
+      );
+    }
+    const report =
+      validateAndOwnExecutionPlanAcceptedStateSynchronizationV1(
+        executionPlan.synchronizeAcceptedState(Object.freeze({
+          runtimeSessionId: physicalRuntimeSessionId,
+          scenarioId,
+          boundExecutionPlan: bound,
+        })),
+      );
+    if (
+      report.definitionId !== bound.definitionId
+      || report.runtimeSessionId !== physicalRuntimeSessionId
+      || report.scenarioId !== scenarioId
+      || report.acceptedRevision !== frame.acceptedRevision
+      || report.acceptedTimeSec !== frame.acceptedTimeSec
+      || report.synchronizedLogicalSlotCount
+        !== bound.acceptedStateLogicalScratch.length
+    ) {
+      throw new Error(
+        "simulation worker execution-plan accepted boundary drifted",
+      );
+    }
+  }
+
   #assertRejectedControlWasAtomic(
     priorFrame: StudioSimulationFrameV2,
     originalError: unknown,
@@ -1864,6 +1951,7 @@ function assertExactRuntimeV2(
         !== REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID
       || runtime.executionPlan.modelId !== modelId
       || typeof runtime.executionPlan.bind !== "function"
+      || typeof runtime.executionPlan.synchronizeAcceptedState !== "function"
     )
   ) {
     throw new Error(

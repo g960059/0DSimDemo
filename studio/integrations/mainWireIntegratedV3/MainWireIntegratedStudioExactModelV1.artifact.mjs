@@ -29950,8 +29950,10 @@ function assertStandardCheckpointEnvelopeV1(input) {
   }
 }
 const EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID = "circleheart-execution-plan-descriptor-v1";
-const EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY = "runtime/execution-plan-descriptor-v1";
+const EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY = "runtime/execution-plan-accepted-state-shadow-v1";
 const BOUND_EXECUTION_PLAN_V1_SCHEMA_ID = "circleheart-bound-execution-plan-v1";
+const EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID = "circleheart-execution-plan-accepted-state-synchronization-v1";
+const BOUND_EXECUTION_PLAN_METADATA_V1 = /* @__PURE__ */ new WeakMap();
 const PORTABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
 const MAXIMUM_EXECUTION_PLAN_DATA_DEPTH_V1 = 256;
 function validateAndOwnExecutionPlanDescriptorV1(value) {
@@ -30276,6 +30278,9 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
   const candidateBooleanState = new Uint8Array(
     descriptor.stateLayout.booleanSlotCount
   );
+  const acceptedStateLogicalScratch = new Float64Array(
+    descriptor.stateLayout.logicalSlotCount
+  );
   const graphStorageStateLogicalIndices = Int32Array.from(
     descriptor.hydraulicGraph.storageStateLogicalIndices
   );
@@ -30309,6 +30314,7 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
     candidateContinuousState,
     currentBooleanState,
     candidateBooleanState,
+    acceptedStateLogicalScratch,
     graphStorageStateLogicalIndices,
     graphUpstreamNodeIndices,
     graphDownstreamNodeIndices,
@@ -30330,6 +30336,7 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
     candidateContinuousState,
     currentBooleanState,
     candidateBooleanState,
+    acceptedStateLogicalScratch,
     graphStorageStateLogicalIndices,
     graphUpstreamNodeIndices,
     graphDownstreamNodeIndices,
@@ -30337,13 +30344,86 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
     allocatedBytes: arrays.reduce((total, view) => total + view.byteLength, 0)
   });
   assertBoundExecutionPlanV1(bound, descriptor);
+  BOUND_EXECUTION_PLAN_METADATA_V1.set(bound, Object.freeze({
+    continuousLogicalIndices: Object.freeze(descriptor.stateLayout.slots.filter(({ storageKind }) => storageKind === "continuous-f64").sort((left, right) => left.storageIndex - right.storageIndex).map(({ logicalIndex }) => logicalIndex)),
+    booleanLogicalIndices: Object.freeze(descriptor.stateLayout.slots.filter(({ storageKind }) => storageKind === "boolean-u8").sort((left, right) => left.storageIndex - right.storageIndex).map(({ logicalIndex }) => logicalIndex)),
+    conservationPools: Object.freeze(
+      descriptor.hydraulicGraph.conservationPools.map((pool) => Object.freeze({
+        ledgerStateLogicalIndex: pool.ledgerStateLogicalIndex,
+        memberStateLogicalIndices: Object.freeze([
+          ...pool.memberStateLogicalIndices
+        ])
+      }))
+    )
+  }));
   return bound;
+}
+function synchronizeBoundExecutionPlanAcceptedStateV1(bound) {
+  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
+  if (metadata === void 0) {
+    throw new Error("Execution plan synchronization requires a bound plan");
+  }
+  const source = bound.acceptedStateLogicalScratch;
+  if (!(source instanceof Float64Array) || source.length !== metadata.continuousLogicalIndices.length + metadata.booleanLogicalIndices.length || !fixedOwnedArrayBufferV1(source.buffer) || source.byteOffset !== 0 || source.byteLength !== source.buffer.byteLength) {
+    throw new Error(
+      "Execution plan accepted-state logical scratch is invalid"
+    );
+  }
+  for (let logicalIndex = 0; logicalIndex < source.length; logicalIndex += 1) {
+    const value = source[logicalIndex];
+    if (!Number.isFinite(value) || Object.is(value, -0)) {
+      throw new Error(
+        `Execution plan accepted state ${logicalIndex} must be finite and not negative zero`
+      );
+    }
+  }
+  for (const logicalIndex of metadata.booleanLogicalIndices) {
+    const value = source[logicalIndex];
+    if (value !== 0 && value !== 1) {
+      throw new Error(
+        `Execution plan boolean accepted state ${logicalIndex} must be zero or one`
+      );
+    }
+  }
+  let maximumConservationAbsoluteError = 0;
+  for (const pool of metadata.conservationPools) {
+    const ledger = source[pool.ledgerStateLogicalIndex];
+    let memberTotal = 0;
+    for (const logicalIndex of pool.memberStateLogicalIndices) {
+      memberTotal += source[logicalIndex];
+    }
+    const absoluteError = Math.abs(memberTotal - ledger);
+    maximumConservationAbsoluteError = Math.max(
+      maximumConservationAbsoluteError,
+      absoluteError
+    );
+    const scale = Math.max(1, Math.abs(ledger), Math.abs(memberTotal));
+    const tolerance = Number.EPSILON * scale * Math.max(16, pool.memberStateLogicalIndices.length * 4);
+    if (absoluteError > tolerance) {
+      throw new Error(
+        `Execution plan accepted state violates a conservation ledger (${absoluteError} > ${tolerance})`
+      );
+    }
+  }
+  metadata.continuousLogicalIndices.forEach((logicalIndex, storageIndex) => {
+    bound.currentContinuousState[storageIndex] = source[logicalIndex];
+  });
+  metadata.booleanLogicalIndices.forEach((logicalIndex, storageIndex) => {
+    bound.currentBooleanState[storageIndex] = source[logicalIndex];
+  });
+  return Object.freeze({
+    definitionId: bound.definitionId,
+    synchronizedLogicalSlotCount: source.length,
+    conservationPoolCount: metadata.conservationPools.length,
+    maximumConservationAbsoluteError
+  });
 }
 function assertBoundExecutionPlanV1(value, descriptorValue) {
   const descriptor = validateAndOwnExecutionPlanDescriptorV1(descriptorValue);
   const bound = recordV1(value, "$.boundExecutionPlan");
   exactKeysV1(bound, [
     "allocatedBytes",
+    "acceptedStateLogicalScratch",
     "bindingCatalog",
     "candidateBooleanState",
     "candidateContinuousState",
@@ -30404,6 +30484,11 @@ function assertBoundExecutionPlanV1(value, descriptorValue) {
       bound.candidateBooleanState,
       descriptor.stateLayout.booleanSlotCount,
       "$.boundExecutionPlan.candidateBooleanState"
+    ),
+    f64ViewV1(
+      bound.acceptedStateLogicalScratch,
+      descriptor.stateLayout.logicalSlotCount,
+      "$.boundExecutionPlan.acceptedStateLogicalScratch"
     )
   );
   arrays.push(assertInt32ValuesV1(
@@ -43064,6 +43149,33 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     return this.#authority.snapshot();
   }
   /**
+   * Copies the current one-patch hemodynamic view in its canonical logical
+   * order for a sampled execution-plan shadow check. The accepted typed image
+   * remains the sole authority; this method neither stages nor promotes state.
+   */
+  copyCurrentAcceptedTypedHemodynamicViewV1(destination) {
+    if (this.#typedAuthority === null || this.#typedHemodynamicBinding === null) {
+      throw new Error(
+        "Main Wire execution-plan shadow requires typed accepted authority"
+      );
+    }
+    readMainWireAcceptedTypedHemodynamicIntoV1(
+      this.#typedAuthority.currentCursor(),
+      this.#typedHemodynamicBinding,
+      destination
+    );
+    const clock = this.currentAcceptedClock();
+    if (!Object.is(
+      destination[0],
+      clock.acceptedTimeSec
+    ) || !Object.is(destination[1], clock.revision)) {
+      throw new Error(
+        "Main Wire execution-plan shadow clock does not match typed authority"
+      );
+    }
+    return clock;
+  }
+  /**
    * Starts a new authored-input epoch at the exact current accepted clock.
    * The new runtime receives a fresh typed authority and predictor history;
    * failure cannot mutate this source Session.
@@ -46269,7 +46381,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-35";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-37";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";
@@ -46423,6 +46535,26 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
       values: scenario.modelSession.projectCurrentAcceptedValuesV1(
         MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3
       )
+    });
+  }
+  synchronizeExecutionPlanAcceptedState(runtimeSessionId, scenarioId, boundExecutionPlan) {
+    const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
+    const clock = scenario.modelSession.copyCurrentAcceptedTypedHemodynamicViewV1(
+      boundExecutionPlan.acceptedStateLogicalScratch
+    );
+    const synchronized = synchronizeBoundExecutionPlanAcceptedStateV1(
+      boundExecutionPlan
+    );
+    return Object.freeze({
+      schemaId: EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID,
+      definitionId: synchronized.definitionId,
+      runtimeSessionId,
+      scenarioId,
+      acceptedRevision: clock.revision,
+      acceptedTimeSec: clock.acceptedTimeSec,
+      synchronizedLogicalSlotCount: synchronized.synchronizedLogicalSlotCount,
+      conservationPoolCount: synchronized.conservationPoolCount,
+      maximumConservationAbsoluteError: synchronized.maximumConservationAbsoluteError
     });
   }
   advanceOnePresentationStep(runtimeSessionId, scenarioId) {
@@ -46779,7 +46911,7 @@ function createMainWireIntegratedStudioExactKernelV1() {
     modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
-      EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
+      EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1.map(({ outputId }) => `output/${outputId}`),
       ...STANDARD_MODEL_METRIC_DEFINITIONS_V1.map(({ outputId }) => `output/${outputId}`),
@@ -46968,6 +47100,11 @@ function standardExecutableBundleV1(host) {
       bind: () => bindExecutionPlanV1(
         MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
         MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1
+      ),
+      synchronizeAcceptedState: (input) => host.synchronizeExecutionPlanAcceptedState(
+        input.runtimeSessionId,
+        input.scenarioId,
+        input.boundExecutionPlan
       )
     })
   });

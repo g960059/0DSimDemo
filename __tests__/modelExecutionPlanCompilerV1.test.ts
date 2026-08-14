@@ -11,6 +11,7 @@ import {
 import {
   assertBoundExecutionPlanV1,
   bindExecutionPlanV1,
+  synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
@@ -312,6 +313,7 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     expect(bound.candidateContinuousState).toHaveLength(99);
     expect(bound.currentBooleanState).toHaveLength(1);
     expect(bound.candidateBooleanState).toHaveLength(1);
+    expect(bound.acceptedStateLogicalScratch).toHaveLength(100);
     expect(bound.graphUpstreamNodeIndices).toHaveLength(37);
     expect(bound.graphDownstreamNodeIndices).toHaveLength(37);
     expect(solve?.activeStateLogicalIndices).toHaveLength(30);
@@ -322,6 +324,48 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     expect(bound.currentContinuousState.buffer)
       .not.toBe(bound.candidateContinuousState.buffer);
     expect(() => assertBoundExecutionPlanV1(bound, descriptor)).not.toThrow();
+  });
+
+  it("synchronizes one complete accepted view atomically and checks its ledger", () => {
+    const descriptor = compileMainWire();
+    const bound = bindExecutionPlanV1(descriptor, mainWireKernelCatalog());
+    const source = bound.acceptedStateLogicalScratch;
+    source.fill(1);
+    const [pool] = descriptor.hydraulicGraph.conservationPools;
+    source[pool!.ledgerStateLogicalIndex] =
+      pool!.memberStateLogicalIndices.length;
+    source[98] = 1;
+
+    expect(synchronizeBoundExecutionPlanAcceptedStateV1(bound)).toEqual({
+      definitionId: descriptor.definitionId,
+      synchronizedLogicalSlotCount: 100,
+      conservationPoolCount: 1,
+      maximumConservationAbsoluteError: 0,
+    });
+    expect([...bound.currentContinuousState.slice(0, 3)])
+      .toEqual([1, 1, pool!.memberStateLogicalIndices.length]);
+    expect(bound.currentContinuousState[98]).toBe(1);
+    expect([...bound.currentBooleanState]).toEqual([1]);
+
+    const admittedContinuous = new Float64Array(
+      bound.currentContinuousState,
+    );
+    const admittedBoolean = new Uint8Array(bound.currentBooleanState);
+    source[0] = Number.NaN;
+    expect(() => synchronizeBoundExecutionPlanAcceptedStateV1(bound))
+      .toThrow(/must be finite/);
+    expect(bound.currentContinuousState).toEqual(admittedContinuous);
+    expect(bound.currentBooleanState).toEqual(admittedBoolean);
+
+    source[0] = 1;
+    source[pool!.ledgerStateLogicalIndex] += 1;
+    expect(() => synchronizeBoundExecutionPlanAcceptedStateV1(bound))
+      .toThrow(/conservation ledger/);
+    expect(bound.currentContinuousState).toEqual(admittedContinuous);
+    expect(bound.currentBooleanState).toEqual(admittedBoolean);
+    expect(() => synchronizeBoundExecutionPlanAcceptedStateV1({
+      ...bound,
+    })).toThrow(/requires a bound plan/);
   });
 
   it("fails closed on missing, extra, aliased, and descriptor-mismatched bindings", () => {

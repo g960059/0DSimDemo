@@ -75,12 +75,14 @@ export function validateExecutableBundleV2(
       "descriptor",
       "modelId",
       "schemaId",
+      "synchronizeAcceptedState",
     ], "execution plan adapter");
     if (
       bundle.executionPlan?.schemaId
         !== REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID
       || bundle.executionPlan.modelId !== model.modelId
       || typeof bundle.executionPlan.bind !== "function"
+      || typeof bundle.executionPlan.synchronizeAcceptedState !== "function"
     ) {
       throw new ExactModelExecutableValidationErrorV1(
         "execution plan adapter must exactly match the manifest identity",
@@ -213,6 +215,8 @@ export function freezeExactRuntimeV2(
               bundle.executionPlan.descriptor,
             ),
             bind: bundle.executionPlan.bind,
+            synchronizeAcceptedState:
+              bundle.executionPlan.synchronizeAcceptedState,
           }),
         }),
   });

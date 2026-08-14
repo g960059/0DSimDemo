@@ -923,6 +923,48 @@ describe("Studio simulation worker V2 runtime", () => {
     });
   });
 
+  it("fails before publishing an initial frame when plan clocks drift", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const bind = vi.fn(() => bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    ));
+    const synchronizeAcceptedState = vi.fn((input) => Object.freeze({
+      schemaId:
+        "circleheart-execution-plan-accepted-state-synchronization-v1" as const,
+      definitionId: generatedExecutionPlanV1.definitionId,
+      runtimeSessionId: input.runtimeSessionId,
+      scenarioId: input.scenarioId,
+      acceptedRevision: 1,
+      acceptedTimeSec: 0,
+      synchronizedLogicalSlotCount:
+        generatedExecutionPlanV1.stateLayout.logicalSlotCount,
+      conservationPoolCount:
+        generatedExecutionPlanV1.hydraulicGraph.conservationPools.length,
+      maximumConservationAbsoluteError: 0,
+    }));
+    const harness = runtimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(
+        bind,
+        synchronizeAcceptedState,
+      ),
+    });
+
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledOnce();
+    expect(synchronizeAcceptedState).toHaveBeenCalledOnce();
+    expect(harness.adapter.disposeSession).toHaveBeenCalledOnce();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "error",
+      fatal: true,
+      message: expect.stringMatching(/accepted boundary drifted/),
+    });
+  });
+
   it("reports Worker initialization phases while plan binding remains shadow", async () => {
     const harness = runtimeHarnessV2();
     harness.runtime.enqueue(initializeRequestV2(1));
@@ -1045,7 +1087,45 @@ describe("Studio simulation worker V2 runtime", () => {
         outputs: { "pressure.lv": outputV2("pressure.lv", 82) },
       }),
     ], input.presentationOutputIds));
-    const harness = runtimeHarnessV2({ advancePresentationBatch });
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const acceptedClocks = [
+      { acceptedRevision: 0, acceptedTimeSec: 0 },
+      { acceptedRevision: 2, acceptedTimeSec: 0.004 },
+    ];
+    let synchronizationOrdinal = 0;
+    const synchronizeAcceptedState = vi.fn((input) => {
+      const clock = acceptedClocks[synchronizationOrdinal];
+      synchronizationOrdinal += 1;
+      if (clock === undefined) {
+        throw new Error("unexpected execution-plan synchronization");
+      }
+      return Object.freeze({
+        schemaId:
+          "circleheart-execution-plan-accepted-state-synchronization-v1" as const,
+        definitionId: generatedExecutionPlanV1.definitionId,
+        runtimeSessionId: input.runtimeSessionId,
+        scenarioId: input.scenarioId,
+        acceptedRevision: clock.acceptedRevision,
+        acceptedTimeSec: clock.acceptedTimeSec,
+        synchronizedLogicalSlotCount:
+          generatedExecutionPlanV1.stateLayout.logicalSlotCount,
+        conservationPoolCount:
+          generatedExecutionPlanV1.hydraulicGraph.conservationPools.length,
+        maximumConservationAbsoluteError: 0,
+      });
+    });
+    const harness = runtimeHarnessV2({
+      advancePresentationBatch,
+      executionPlan: executionPlanAdapterV1(
+        () => bindExecutionPlanV1(
+          descriptor,
+          mainWireExecutionPlanKernelCatalogV1(),
+        ),
+        synchronizeAcceptedState,
+      ),
+    });
     harness.runtime.enqueue(initializeRequestV2(1));
     await harness.runtime.whenIdle();
 
@@ -1061,6 +1141,7 @@ describe("Studio simulation worker V2 runtime", () => {
     await harness.runtime.whenIdle();
 
     expect(advancePresentationBatch).toHaveBeenCalledOnce();
+    expect(synchronizeAcceptedState).toHaveBeenCalledTimes(2);
     expect(advancePresentationBatch).toHaveBeenCalledWith({
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
@@ -4294,12 +4375,33 @@ function exactRuntimeV2(
 
 function executionPlanAdapterV1(
   bind: RegisteredModelExecutionPlanAdapterV1["bind"],
+  synchronizeAcceptedState?:
+    RegisteredModelExecutionPlanAdapterV1["synchronizeAcceptedState"],
 ): RegisteredModelExecutionPlanAdapterV1 {
+  let synchronizationOrdinal = 0;
   return Object.freeze({
     schemaId: REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
     modelId: "model/main-wire-v3-r1",
     descriptor: generatedExecutionPlanV1,
     bind,
+    synchronizeAcceptedState: synchronizeAcceptedState ?? ((input) => {
+      const acceptedRevision = synchronizationOrdinal;
+      synchronizationOrdinal += 1;
+      return Object.freeze({
+        schemaId:
+          "circleheart-execution-plan-accepted-state-synchronization-v1",
+        definitionId: generatedExecutionPlanV1.definitionId,
+        runtimeSessionId: input.runtimeSessionId,
+        scenarioId: input.scenarioId,
+        acceptedRevision,
+        acceptedTimeSec: acceptedRevision / 10,
+        synchronizedLogicalSlotCount:
+          generatedExecutionPlanV1.stateLayout.logicalSlotCount,
+        conservationPoolCount:
+          generatedExecutionPlanV1.hydraulicGraph.conservationPools.length,
+        maximumConservationAbsoluteError: 0,
+      });
+    }),
   });
 }
 

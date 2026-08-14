@@ -3,10 +3,12 @@ import {
   type ExecutionPlanDescriptorV1,
 } from "./ExecutionPlanDescriptorV1";
 
-export const EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY =
-  "runtime/execution-plan-descriptor-v1" as const;
+export const EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY =
+  "runtime/execution-plan-accepted-state-shadow-v1" as const;
 export const BOUND_EXECUTION_PLAN_V1_SCHEMA_ID =
   "circleheart-bound-execution-plan-v1" as const;
+export const EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID =
+  "circleheart-execution-plan-accepted-state-synchronization-v1" as const;
 
 export type ExecutionPlanKernelBindingCatalogV1 = Readonly<{
   componentKernelIds: readonly string[];
@@ -37,6 +39,8 @@ export type BoundExecutionPlanV1 = Readonly<{
   candidateContinuousState: Float64Array;
   currentBooleanState: Uint8Array;
   candidateBooleanState: Uint8Array;
+  /** Caller-owned logical-order staging page used only at accepted boundaries. */
+  acceptedStateLogicalScratch: Float64Array;
   graphStorageStateLogicalIndices: Int32Array;
   graphUpstreamNodeIndices: Int32Array;
   graphDownstreamNodeIndices: Int32Array;
@@ -44,7 +48,42 @@ export type BoundExecutionPlanV1 = Readonly<{
   allocatedBytes: number;
 }>;
 
+export type ExecutionPlanAcceptedStateSynchronizationV1 = Readonly<{
+  schemaId:
+    typeof EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID;
+  definitionId: string;
+  runtimeSessionId: string;
+  scenarioId: string;
+  acceptedRevision: number;
+  acceptedTimeSec: number;
+  synchronizedLogicalSlotCount: number;
+  conservationPoolCount: number;
+  maximumConservationAbsoluteError: number;
+}>;
+
+export type BoundExecutionPlanStateSynchronizationResultV1 = Readonly<{
+  definitionId: string;
+  synchronizedLogicalSlotCount: number;
+  conservationPoolCount: number;
+  maximumConservationAbsoluteError: number;
+}>;
+
+type BoundExecutionPlanMetadataV1 = Readonly<{
+  continuousLogicalIndices: readonly number[];
+  booleanLogicalIndices: readonly number[];
+  conservationPools: readonly Readonly<{
+    ledgerStateLogicalIndex: number;
+    memberStateLogicalIndices: readonly number[];
+  }>[];
+}>;
+
+const BOUND_EXECUTION_PLAN_METADATA_V1 = new WeakMap<
+  object,
+  BoundExecutionPlanMetadataV1
+>();
+
 const PORTABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
+const PORTABLE_RUNTIME_ID = /^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/;
 const MAXIMUM_EXECUTION_PLAN_DATA_DEPTH_V1 = 256;
 
 export function validateAndOwnExecutionPlanDescriptorV1(
@@ -405,6 +444,9 @@ export function bindExecutionPlanV1(
   const candidateBooleanState = new Uint8Array(
     descriptor.stateLayout.booleanSlotCount,
   );
+  const acceptedStateLogicalScratch = new Float64Array(
+    descriptor.stateLayout.logicalSlotCount,
+  );
   const graphStorageStateLogicalIndices = Int32Array.from(
     descriptor.hydraulicGraph.storageStateLogicalIndices,
   );
@@ -440,6 +482,7 @@ export function bindExecutionPlanV1(
     candidateContinuousState,
     currentBooleanState,
     candidateBooleanState,
+    acceptedStateLogicalScratch,
     graphStorageStateLogicalIndices,
     graphUpstreamNodeIndices,
     graphDownstreamNodeIndices,
@@ -461,6 +504,7 @@ export function bindExecutionPlanV1(
     candidateContinuousState,
     currentBooleanState,
     candidateBooleanState,
+    acceptedStateLogicalScratch,
     graphStorageStateLogicalIndices,
     graphUpstreamNodeIndices,
     graphDownstreamNodeIndices,
@@ -468,7 +512,160 @@ export function bindExecutionPlanV1(
     allocatedBytes: arrays.reduce((total, view) => total + view.byteLength, 0),
   });
   assertBoundExecutionPlanV1(bound, descriptor);
+  BOUND_EXECUTION_PLAN_METADATA_V1.set(bound, Object.freeze({
+    continuousLogicalIndices: Object.freeze(descriptor.stateLayout.slots
+      .filter(({ storageKind }) => storageKind === "continuous-f64")
+      .sort((left, right) => left.storageIndex - right.storageIndex)
+      .map(({ logicalIndex }) => logicalIndex)),
+    booleanLogicalIndices: Object.freeze(descriptor.stateLayout.slots
+      .filter(({ storageKind }) => storageKind === "boolean-u8")
+      .sort((left, right) => left.storageIndex - right.storageIndex)
+      .map(({ logicalIndex }) => logicalIndex)),
+    conservationPools: Object.freeze(
+      descriptor.hydraulicGraph.conservationPools.map((pool) => Object.freeze({
+        ledgerStateLogicalIndex: pool.ledgerStateLogicalIndex,
+        memberStateLogicalIndices: Object.freeze([
+          ...pool.memberStateLogicalIndices,
+        ]),
+      })),
+    ),
+  }));
   return bound;
+}
+
+/**
+ * Atomically projects one model-owned logical accepted view into the bound
+ * plan's split f64/boolean storage. The source page is validated in full,
+ * including descriptor-owned conservation ledgers, before any current-state
+ * byte is changed. This is a sampled shadow boundary, not a second authority.
+ */
+export function synchronizeBoundExecutionPlanAcceptedStateV1(
+  bound: BoundExecutionPlanV1,
+): BoundExecutionPlanStateSynchronizationResultV1 {
+  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
+  if (metadata === undefined) {
+    throw new Error("Execution plan synchronization requires a bound plan");
+  }
+  const source = bound.acceptedStateLogicalScratch;
+  if (
+    !(source instanceof Float64Array)
+    || source.length
+      !== metadata.continuousLogicalIndices.length
+        + metadata.booleanLogicalIndices.length
+    || !fixedOwnedArrayBufferV1(source.buffer)
+    || source.byteOffset !== 0
+    || source.byteLength !== source.buffer.byteLength
+  ) {
+    throw new Error(
+      "Execution plan accepted-state logical scratch is invalid",
+    );
+  }
+  for (let logicalIndex = 0; logicalIndex < source.length; logicalIndex += 1) {
+    const value = source[logicalIndex]!;
+    if (!Number.isFinite(value) || Object.is(value, -0)) {
+      throw new Error(
+        `Execution plan accepted state ${logicalIndex} must be finite and not negative zero`,
+      );
+    }
+  }
+  for (const logicalIndex of metadata.booleanLogicalIndices) {
+    const value = source[logicalIndex]!;
+    if (value !== 0 && value !== 1) {
+      throw new Error(
+        `Execution plan boolean accepted state ${logicalIndex} must be zero or one`,
+      );
+    }
+  }
+
+  let maximumConservationAbsoluteError = 0;
+  for (const pool of metadata.conservationPools) {
+    const ledger = source[pool.ledgerStateLogicalIndex]!;
+    let memberTotal = 0;
+    for (const logicalIndex of pool.memberStateLogicalIndices) {
+      memberTotal += source[logicalIndex]!;
+    }
+    const absoluteError = Math.abs(memberTotal - ledger);
+    maximumConservationAbsoluteError = Math.max(
+      maximumConservationAbsoluteError,
+      absoluteError,
+    );
+    const scale = Math.max(1, Math.abs(ledger), Math.abs(memberTotal));
+    const tolerance = Number.EPSILON * scale
+      * Math.max(16, pool.memberStateLogicalIndices.length * 4);
+    if (absoluteError > tolerance) {
+      throw new Error(
+        "Execution plan accepted state violates a conservation ledger "
+          + `(${absoluteError} > ${tolerance})`,
+      );
+    }
+  }
+
+  metadata.continuousLogicalIndices.forEach((logicalIndex, storageIndex) => {
+    bound.currentContinuousState[storageIndex] = source[logicalIndex]!;
+  });
+  metadata.booleanLogicalIndices.forEach((logicalIndex, storageIndex) => {
+    bound.currentBooleanState[storageIndex] = source[logicalIndex]!;
+  });
+  return Object.freeze({
+    definitionId: bound.definitionId,
+    synchronizedLogicalSlotCount: source.length,
+    conservationPoolCount: metadata.conservationPools.length,
+    maximumConservationAbsoluteError,
+  });
+}
+
+export function validateAndOwnExecutionPlanAcceptedStateSynchronizationV1(
+  value: unknown,
+): ExecutionPlanAcceptedStateSynchronizationV1 {
+  const owned = ownDataV1(value, "$.executionPlanSynchronization");
+  const report = recordV1(owned, "$.executionPlanSynchronization");
+  exactKeysV1(report, [
+    "acceptedRevision",
+    "acceptedTimeSec",
+    "conservationPoolCount",
+    "definitionId",
+    "maximumConservationAbsoluteError",
+    "runtimeSessionId",
+    "scenarioId",
+    "schemaId",
+    "synchronizedLogicalSlotCount",
+  ], "$.executionPlanSynchronization");
+  if (
+    report.schemaId
+      !== EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID
+  ) {
+    failV1("$.executionPlanSynchronization.schemaId", "schema identity mismatch");
+  }
+  portableIdV1(report.definitionId, "$.executionPlanSynchronization.definitionId");
+  portableRuntimeIdV1(
+    report.runtimeSessionId,
+    "$.executionPlanSynchronization.runtimeSessionId",
+  );
+  portableRuntimeIdV1(
+    report.scenarioId,
+    "$.executionPlanSynchronization.scenarioId",
+  );
+  nonnegativeIntegerV1(
+    report.acceptedRevision,
+    "$.executionPlanSynchronization.acceptedRevision",
+  );
+  nonnegativeFiniteV1(
+    report.acceptedTimeSec,
+    "$.executionPlanSynchronization.acceptedTimeSec",
+  );
+  positiveIntegerV1(
+    report.synchronizedLogicalSlotCount,
+    "$.executionPlanSynchronization.synchronizedLogicalSlotCount",
+  );
+  nonnegativeIntegerV1(
+    report.conservationPoolCount,
+    "$.executionPlanSynchronization.conservationPoolCount",
+  );
+  nonnegativeFiniteV1(
+    report.maximumConservationAbsoluteError,
+    "$.executionPlanSynchronization.maximumConservationAbsoluteError",
+  );
+  return report as unknown as ExecutionPlanAcceptedStateSynchronizationV1;
 }
 
 export function assertBoundExecutionPlanV1(
@@ -479,6 +676,7 @@ export function assertBoundExecutionPlanV1(
   const bound = recordV1(value, "$.boundExecutionPlan");
   exactKeysV1(bound, [
     "allocatedBytes",
+    "acceptedStateLogicalScratch",
     "bindingCatalog",
     "candidateBooleanState",
     "candidateContinuousState",
@@ -536,6 +734,9 @@ export function assertBoundExecutionPlanV1(
     u8ViewV1(bound.candidateBooleanState,
       descriptor.stateLayout.booleanSlotCount,
       "$.boundExecutionPlan.candidateBooleanState"),
+    f64ViewV1(bound.acceptedStateLogicalScratch,
+      descriptor.stateLayout.logicalSlotCount,
+      "$.boundExecutionPlan.acceptedStateLogicalScratch"),
   );
   arrays.push(assertInt32ValuesV1(
     bound.graphStorageStateLogicalIndices,
@@ -955,6 +1156,13 @@ function portableIdV1(value: unknown, path: string): string {
   return value;
 }
 
+function portableRuntimeIdV1(value: unknown, path: string): string {
+  if (typeof value !== "string" || !PORTABLE_RUNTIME_ID.test(value)) {
+    failV1(path, "must be a portable runtime identifier");
+  }
+  return value;
+}
+
 function portableIdArrayV1(value: unknown, path: string): string[] {
   return arrayV1(value, path).map((item, index) =>
     portableIdV1(item, `${path}[${index}]`));
@@ -987,6 +1195,13 @@ function positiveIntegerV1(value: unknown, path: string): number {
 function positiveFiniteV1(value: unknown, path: string): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     failV1(path, "must be positive and finite");
+  }
+  return value;
+}
+
+function nonnegativeFiniteV1(value: unknown, path: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    failV1(path, "must be nonnegative and finite");
   }
   return value;
 }

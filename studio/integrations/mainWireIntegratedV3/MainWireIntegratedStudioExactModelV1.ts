@@ -4,9 +4,13 @@ import {
 } from
   "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
 import {
-  EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
+  EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID,
+  EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
   bindExecutionPlanV1,
+  synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
+  type BoundExecutionPlanV1,
+  type ExecutionPlanAcceptedStateSynchronizationV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
@@ -324,6 +328,35 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       values: scenario.modelSession.projectCurrentAcceptedValuesV1(
         MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
       ),
+    });
+  }
+
+  synchronizeExecutionPlanAcceptedState(
+    runtimeSessionId: string,
+    scenarioId: string,
+    boundExecutionPlan: BoundExecutionPlanV1,
+  ): ExecutionPlanAcceptedStateSynchronizationV1 {
+    const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
+    const clock = scenario.modelSession
+      .copyCurrentAcceptedTypedHemodynamicViewV1(
+        boundExecutionPlan.acceptedStateLogicalScratch,
+      );
+    const synchronized = synchronizeBoundExecutionPlanAcceptedStateV1(
+      boundExecutionPlan,
+    );
+    return Object.freeze({
+      schemaId:
+        EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID,
+      definitionId: synchronized.definitionId,
+      runtimeSessionId,
+      scenarioId,
+      acceptedRevision: clock.revision,
+      acceptedTimeSec: clock.acceptedTimeSec,
+      synchronizedLogicalSlotCount:
+        synchronized.synchronizedLogicalSlotCount,
+      conservationPoolCount: synchronized.conservationPoolCount,
+      maximumConservationAbsoluteError:
+        synchronized.maximumConservationAbsoluteError,
     });
   }
 
@@ -803,7 +836,7 @@ ExactModelKernelManifestV3 {
     modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
-      EXECUTION_PLAN_DESCRIPTOR_V1_CAPABILITY,
+      EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1
         .map(({ outputId }) => `output/${outputId}`),
@@ -1069,6 +1102,12 @@ function standardExecutableBundleV1(
         MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
         MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1,
       ),
+      synchronizeAcceptedState: (input) =>
+        host.synchronizeExecutionPlanAcceptedState(
+          input.runtimeSessionId,
+          input.scenarioId,
+          input.boundExecutionPlan,
+        ),
     }),
   });
 }

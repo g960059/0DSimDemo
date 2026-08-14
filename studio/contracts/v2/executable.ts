@@ -15,6 +15,10 @@ import type {
 import type {
   RegisteredModelSimulationAdapterV2,
 } from "./simulation";
+import type {
+  BoundExecutionPlanV1,
+  ExecutionPlanAcceptedStateSynchronizationV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
 
 export type RegisteredModelExperimentCaptureAdapterV2 =
   ExperimentCapturePortV2 & Readonly<{
@@ -39,6 +43,12 @@ export type RegisteredModelExecutionPlanAdapterV1 = Readonly<{
   descriptor: unknown;
   /** Binds and allocates one Worker-local shadow plan. */
   bind(): unknown;
+  /** Samples one accepted Scenario boundary into that Worker-local plan. */
+  synchronizeAcceptedState(input: Readonly<{
+    runtimeSessionId: string;
+    scenarioId: string;
+    boundExecutionPlan: BoundExecutionPlanV1;
+  }>): ExecutionPlanAcceptedStateSynchronizationV1;
 }>;
 
 /** Executable functions admitted atomically with one exact package artifact. */
