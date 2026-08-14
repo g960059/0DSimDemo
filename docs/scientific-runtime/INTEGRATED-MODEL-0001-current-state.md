@@ -32,10 +32,10 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current branch-local Standard candidate is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-54
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-55
 ```
 
-Standard-54 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
+Standard-55 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
 exact artifact and binds one Worker-local typed plan per Scenario
 during initialization. An atomic branch rebuild gives every Scenario in the
 candidate exact session fresh nonaliasing storage, so old and candidate
@@ -44,23 +44,24 @@ contains the generated descriptor and binder, not the compiler or
 `ModelDefinitionV1`. During initialization, every compiled `stateId` resolves
 its accepted-authority JSON pointer to one numeric typed-image slot. The
 resulting mapping is private and opaque, and the hot path performs no pointer
-or string lookup. Standard-54 uses that mapping for both sampled plan
-synchronization and its live coupled-solver adapter. At sampled presentation
-and control boundaries, it copies the existing authority's
-100-slot hemodynamic view into the owning Scenario plan, checks finite/boolean
-storage, blood-volume conservation, and exact frame clocks, then discards no
-numerical history. Standard-32's typed accepted-state session remains the sole
-accepted-state and checkpoint authority, so equations, accepted results,
-controls, topology, and checkpoint meaning are unchanged. Historical exact
-artifacts without the execution-plan capabilities retain their original loader
-contract.
+or string lookup. The Worker passes one fresh bound plan per Scenario into the
+exact model's Session-creation operation. The model installs the slot mapping
+and compiler-owned Newton workspace while constructing its transactional typed
+authority. The plan owns no accepted-state mirror: there is no sampled copy,
+split current/candidate page, or synchronization callback. The typed
+accepted-state Session remains the sole accepted-state and checkpoint
+authority, so equations, accepted results, controls, topology, and checkpoint
+meaning are unchanged. A control warm start constructs a fresh plan for its
+candidate Session and adopts it only after a clock-preserving atomic swap.
+Historical exact artifacts without the execution-plan capability retain their
+original loader contract.
 
 This branch does not move the Supabase active bundle pointer. Registration,
 activation, and deployment remain separate post-review operations.
 
 Its generated solve policy now includes named contiguous Newton/LU workspace
-segments. The binder creates persistent views and gathers the 30 active
-unknowns by compiler-emitted state indices at accepted boundaries. The existing
+segments. The binder creates persistent views and the model-owned solver loads
+the 30 active unknowns from the directly bound typed authority. The existing
 30-variable coupled solver now evaluates its residual and raw Jacobian, copies
 and factors that Jacobian, and stores its right-hand sides, update, trial,
 scales, and pivots through those Scenario-owned views. Component-specific

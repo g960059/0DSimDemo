@@ -893,7 +893,7 @@ describe("Studio simulation worker V2 runtime", () => {
     });
   });
 
-  it("binds and synchronizes one isolated execution plan per seeded Scenario", async () => {
+  it("binds and installs one isolated execution plan per seeded Scenario", async () => {
     const descriptor = validateAndOwnExecutionPlanDescriptorV1(
       generatedExecutionPlanV1,
     );
@@ -906,36 +906,13 @@ describe("Studio simulation worker V2 runtime", () => {
       boundPlans.push(bound);
       return bound;
     });
-    const acceptedClocks = new Map<string, Readonly<{
-      acceptedRevision: number;
-      acceptedTimeSec: number;
-    }>>([
-      ["scenario/baseline", { acceptedRevision: 0, acceptedTimeSec: 0 }],
-      ["scenario/comparison", { acceptedRevision: 4, acceptedTimeSec: 0.4 }],
-    ]);
-    const synchronizeAcceptedState = vi.fn((input: Parameters<
-      RegisteredModelExecutionPlanAdapterV1["synchronizeAcceptedState"]
-    >[0]) => {
-      const clock = acceptedClocks.get(input.scenarioId);
-      if (clock === undefined) throw new Error("unexpected test Scenario");
-      return Object.freeze({
-        schemaId:
-          "circleheart-execution-plan-accepted-state-synchronization-v1" as const,
-        definitionId: generatedExecutionPlanV1.definitionId,
-        runtimeSessionId: input.runtimeSessionId,
-        scenarioId: input.scenarioId,
-        ...clock,
-        synchronizedLogicalSlotCount:
-          generatedExecutionPlanV1.stateLayout.logicalSlotCount,
-        conservationPoolCount:
-          generatedExecutionPlanV1.hydraulicGraph.conservationPools.length,
-        maximumConservationAbsoluteError: 0,
-      });
-    });
+    const createPlanSession = vi.fn<
+      RegisteredModelExecutionPlanAdapterV1["createSession"]
+    >(async () => {});
     const harness = multiScenarioRuntimeHarnessV2({
       executionPlan: executionPlanAdapterV1(
         bind,
-        synchronizeAcceptedState,
+        createPlanSession,
       ),
     });
     const seeded = twoScenarioExperimentV2();
@@ -954,16 +931,12 @@ describe("Studio simulation worker V2 runtime", () => {
 
     expect(bind).toHaveBeenCalledTimes(2);
     expect(boundPlans[0]).not.toBe(boundPlans[1]);
-    const initialPlans = new Map(synchronizeAcceptedState.mock.calls.map(
-      ([input]) => [input.scenarioId, input.boundExecutionPlan] as const,
-    ));
+    expect(createPlanSession).toHaveBeenCalledOnce();
+    const initialPlans = createPlanSession.mock.calls[0]![0]
+      .boundExecutionPlans;
     expect(initialPlans.get("scenario/baseline")).toBe(boundPlans[0]);
     expect(initialPlans.get("scenario/comparison")).toBe(boundPlans[1]);
 
-    acceptedClocks.set("scenario/comparison", {
-      acceptedRevision: 5,
-      acceptedTimeSec: 0.5,
-    });
     harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(2, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/comparison",
@@ -979,10 +952,6 @@ describe("Studio simulation worker V2 runtime", () => {
       expectedAcceptedTimeSec: 0.5,
     }));
     await harness.runtime.whenIdle();
-    acceptedClocks.set("scenario/baseline", {
-      acceptedRevision: 1,
-      acceptedTimeSec: 0.1,
-    });
     harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(4, {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
@@ -990,9 +959,7 @@ describe("Studio simulation worker V2 runtime", () => {
     }));
     await harness.runtime.whenIdle();
 
-    for (const [input] of synchronizeAcceptedState.mock.calls) {
-      expect(input.boundExecutionPlan).toBe(initialPlans.get(input.scenarioId));
-    }
+    expect(createPlanSession).toHaveBeenCalledOnce();
     expect(harness.port.messages.at(-1)).toMatchObject({
       status: "ok",
       kind: "advanced",
@@ -1083,7 +1050,7 @@ describe("Studio simulation worker V2 runtime", () => {
     });
   });
 
-  it("fails before session creation when a shadow plan binder returns aliased storage", async () => {
+  it("fails before session creation when a plan binder returns malformed storage", async () => {
     const descriptor = validateAndOwnExecutionPlanDescriptorV1(
       generatedExecutionPlanV1,
     );
@@ -1091,9 +1058,11 @@ describe("Studio simulation worker V2 runtime", () => {
       descriptor,
       mainWireExecutionPlanKernelCatalogV1(),
     );
+    const wrongGraph = new Int32Array(valid.graphDownstreamNodeIndices);
+    wrongGraph[0] = wrongGraph[0] === 0 ? 1 : 0;
     const bind = vi.fn(() => ({
       ...valid,
-      candidateContinuousState: valid.currentContinuousState,
+      graphDownstreamNodeIndices: wrongGraph,
     }));
     const createSession = vi.fn(() => Promise.resolve());
     const harness = runtimeHarnessV2({
@@ -1109,11 +1078,11 @@ describe("Studio simulation worker V2 runtime", () => {
     expect(harness.port.messages.at(-1)).toMatchObject({
       status: "error",
       fatal: true,
-      message: expect.stringMatching(/typed allocations must not alias/),
+      message: expect.stringMatching(/values do not match descriptor/),
     });
   });
 
-  it("fails before publishing an initial frame when plan clocks drift", async () => {
+  it("fails before publishing an initial frame when plan installation fails", async () => {
     const descriptor = validateAndOwnExecutionPlanDescriptorV1(
       generatedExecutionPlanV1,
     );
@@ -1121,24 +1090,13 @@ describe("Studio simulation worker V2 runtime", () => {
       descriptor,
       mainWireExecutionPlanKernelCatalogV1(),
     ));
-    const synchronizeAcceptedState = vi.fn((input) => Object.freeze({
-      schemaId:
-        "circleheart-execution-plan-accepted-state-synchronization-v1" as const,
-      definitionId: generatedExecutionPlanV1.definitionId,
-      runtimeSessionId: input.runtimeSessionId,
-      scenarioId: input.scenarioId,
-      acceptedRevision: 1,
-      acceptedTimeSec: 0,
-      synchronizedLogicalSlotCount:
-        generatedExecutionPlanV1.stateLayout.logicalSlotCount,
-      conservationPoolCount:
-        generatedExecutionPlanV1.hydraulicGraph.conservationPools.length,
-      maximumConservationAbsoluteError: 0,
-    }));
+    const createPlanSession = vi.fn<
+      RegisteredModelExecutionPlanAdapterV1["createSession"]
+    >(() => Promise.reject(new Error("typed authority binding drifted")));
     const harness = runtimeHarnessV2({
       executionPlan: executionPlanAdapterV1(
         bind,
-        synchronizeAcceptedState,
+        createPlanSession,
       ),
     });
 
@@ -1146,16 +1104,16 @@ describe("Studio simulation worker V2 runtime", () => {
     await harness.runtime.whenIdle();
 
     expect(bind).toHaveBeenCalledOnce();
-    expect(synchronizeAcceptedState).toHaveBeenCalledOnce();
+    expect(createPlanSession).toHaveBeenCalledOnce();
     expect(harness.adapter.disposeSession).toHaveBeenCalledOnce();
     expect(harness.port.messages.at(-1)).toMatchObject({
       status: "error",
       fatal: true,
-      message: expect.stringMatching(/accepted boundary drifted/),
+      message: expect.stringMatching(/typed authority binding drifted/),
     });
   });
 
-  it("reports Worker initialization phases while plan binding remains shadow", async () => {
+  it("reports Worker initialization phases while plan binding remains isolated", async () => {
     const harness = runtimeHarnessV2();
     harness.runtime.enqueue(initializeRequestV2(1));
     await harness.runtime.whenIdle();
@@ -1280,32 +1238,6 @@ describe("Studio simulation worker V2 runtime", () => {
     const descriptor = validateAndOwnExecutionPlanDescriptorV1(
       generatedExecutionPlanV1,
     );
-    const acceptedClocks = [
-      { acceptedRevision: 0, acceptedTimeSec: 0 },
-      { acceptedRevision: 2, acceptedTimeSec: 0.004 },
-    ];
-    let synchronizationOrdinal = 0;
-    const synchronizeAcceptedState = vi.fn((input) => {
-      const clock = acceptedClocks[synchronizationOrdinal];
-      synchronizationOrdinal += 1;
-      if (clock === undefined) {
-        throw new Error("unexpected execution-plan synchronization");
-      }
-      return Object.freeze({
-        schemaId:
-          "circleheart-execution-plan-accepted-state-synchronization-v1" as const,
-        definitionId: generatedExecutionPlanV1.definitionId,
-        runtimeSessionId: input.runtimeSessionId,
-        scenarioId: input.scenarioId,
-        acceptedRevision: clock.acceptedRevision,
-        acceptedTimeSec: clock.acceptedTimeSec,
-        synchronizedLogicalSlotCount:
-          generatedExecutionPlanV1.stateLayout.logicalSlotCount,
-        conservationPoolCount:
-          generatedExecutionPlanV1.hydraulicGraph.conservationPools.length,
-        maximumConservationAbsoluteError: 0,
-      });
-    });
     const harness = runtimeHarnessV2({
       advancePresentationBatch,
       executionPlan: executionPlanAdapterV1(
@@ -1313,7 +1245,6 @@ describe("Studio simulation worker V2 runtime", () => {
           descriptor,
           mainWireExecutionPlanKernelCatalogV1(),
         ),
-        synchronizeAcceptedState,
       ),
     });
     harness.runtime.enqueue(initializeRequestV2(1));
@@ -1331,7 +1262,6 @@ describe("Studio simulation worker V2 runtime", () => {
     await harness.runtime.whenIdle();
 
     expect(advancePresentationBatch).toHaveBeenCalledOnce();
-    expect(synchronizeAcceptedState).toHaveBeenCalledTimes(2);
     expect(advancePresentationBatch).toHaveBeenCalledWith({
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
@@ -2321,33 +2251,20 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
       descriptor,
       mainWireExecutionPlanKernelCatalogV1(),
     ));
-    const synchronizeAcceptedState = vi.fn((input: Parameters<
-      RegisteredModelExecutionPlanAdapterV1["synchronizeAcceptedState"]
-    >[0]) => Object.freeze({
-      schemaId:
-        "circleheart-execution-plan-accepted-state-synchronization-v1" as const,
-      definitionId: generatedExecutionPlanV1.definitionId,
-      runtimeSessionId: input.runtimeSessionId,
-      scenarioId: input.scenarioId,
-      acceptedRevision: 0,
-      acceptedTimeSec: 0,
-      synchronizedLogicalSlotCount:
-        generatedExecutionPlanV1.stateLayout.logicalSlotCount,
-      conservationPoolCount:
-        generatedExecutionPlanV1.hydraulicGraph.conservationPools.length,
-      maximumConservationAbsoluteError: 0,
-    }));
+    const createPlanSession = vi.fn<
+      RegisteredModelExecutionPlanAdapterV1["createSession"]
+    >(async () => {});
     const harness = multiScenarioRuntimeHarnessV2({
       executionPlan: executionPlanAdapterV1(
         bind,
-        synchronizeAcceptedState,
+        createPlanSession,
       ),
     });
 
     harness.runtime.enqueue(initializeRequestV2(1));
     await harness.runtime.whenIdle();
-    const baselinePlan = synchronizeAcceptedState.mock.calls[0]![0]
-      .boundExecutionPlan;
+    const baselinePlan = createPlanSession.mock.calls[0]![0]
+      .boundExecutionPlans.get("scenario/baseline")!;
 
     harness.runtime.enqueue(createStudioSimulationDuplicateScenarioRequestV2(2, {
       runtimeSessionId: "runtime/session-1",
@@ -2362,12 +2279,12 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
     await harness.runtime.whenIdle();
 
     expect(bind).toHaveBeenCalledTimes(3);
-    const baselinePlans = synchronizeAcceptedState.mock.calls
-      .filter(([input]) => input.scenarioId === "scenario/baseline")
-      .map(([input]) => input.boundExecutionPlan);
-    const copyPlans = synchronizeAcceptedState.mock.calls
-      .filter(([input]) => input.scenarioId === "scenario/copy")
-      .map(([input]) => input.boundExecutionPlan);
+    const baselinePlans = createPlanSession.mock.calls
+      .map(([input]) => input.boundExecutionPlans.get("scenario/baseline"))
+      .filter((plan) => plan !== undefined);
+    const copyPlans = createPlanSession.mock.calls
+      .map(([input]) => input.boundExecutionPlans.get("scenario/copy"))
+      .filter((plan) => plan !== undefined);
     expect(baselinePlans).toHaveLength(2);
     expect(baselinePlans[0]).toBe(baselinePlan);
     expect(baselinePlans[1]).not.toBe(baselinePlan);
@@ -2387,9 +2304,9 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
     await harness.runtime.whenIdle();
 
     expect(bind).toHaveBeenCalledTimes(4);
-    const finalCopyPlans = synchronizeAcceptedState.mock.calls
-      .filter(([input]) => input.scenarioId === "scenario/copy")
-      .map(([input]) => input.boundExecutionPlan);
+    const finalCopyPlans = createPlanSession.mock.calls
+      .map(([input]) => input.boundExecutionPlans.get("scenario/copy"))
+      .filter((plan) => plan !== undefined);
     expect(finalCopyPlans).toHaveLength(2);
     expect(finalCopyPlans[0]).toBe(copyPlan);
     expect(finalCopyPlans[1]).not.toBe(copyPlan);
@@ -4679,39 +4596,32 @@ function exactRuntimeV2(
     simulationAdapter: adapter,
     ...(overrides.executionPlan === undefined
       ? {}
-      : { executionPlan: overrides.executionPlan }),
+      : {
+          executionPlan: Object.freeze({
+            ...overrides.executionPlan,
+            async createSession(input) {
+              await adapter.createSession({
+                runtimeSessionId: input.runtimeSessionId,
+                scenarios: input.scenarios,
+              });
+              await overrides.executionPlan!.createSession(input);
+            },
+          }),
+        }),
   };
 }
 
 function executionPlanAdapterV1(
   bind: RegisteredModelExecutionPlanAdapterV1["bind"],
-  synchronizeAcceptedState?:
-    RegisteredModelExecutionPlanAdapterV1["synchronizeAcceptedState"],
+  createSession: RegisteredModelExecutionPlanAdapterV1["createSession"] =
+    async () => {},
 ): RegisteredModelExecutionPlanAdapterV1 {
-  let synchronizationOrdinal = 0;
   return Object.freeze({
     schemaId: REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
     modelId: "model/main-wire-v3-r1",
     descriptor: generatedExecutionPlanV1,
     bind,
-    synchronizeAcceptedState: synchronizeAcceptedState ?? ((input) => {
-      const acceptedRevision = synchronizationOrdinal;
-      synchronizationOrdinal += 1;
-      return Object.freeze({
-        schemaId:
-          "circleheart-execution-plan-accepted-state-synchronization-v1",
-        definitionId: generatedExecutionPlanV1.definitionId,
-        runtimeSessionId: input.runtimeSessionId,
-        scenarioId: input.scenarioId,
-        acceptedRevision,
-        acceptedTimeSec: acceptedRevision / 10,
-        synchronizedLogicalSlotCount:
-          generatedExecutionPlanV1.stateLayout.logicalSlotCount,
-        conservationPoolCount:
-          generatedExecutionPlanV1.hydraulicGraph.conservationPools.length,
-        maximumConservationAbsoluteError: 0,
-      });
-    }),
+    createSession,
   });
 }
 

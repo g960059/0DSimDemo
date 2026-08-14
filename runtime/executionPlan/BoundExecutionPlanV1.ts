@@ -6,14 +6,12 @@ import {
   type ExecutionPlanSolveGroupV1,
 } from "./ExecutionPlanDescriptorV1";
 
-export const EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY =
-  "runtime/execution-plan-accepted-state-shadow-v1" as const;
+export const EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY =
+  "runtime/execution-plan-typed-authority-binding-v1" as const;
 export const EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY =
   "runtime/execution-plan-newton-workspace-v1" as const;
 export const BOUND_EXECUTION_PLAN_V1_SCHEMA_ID =
   "circleheart-bound-execution-plan-v1" as const;
-export const EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID =
-  "circleheart-execution-plan-accepted-state-synchronization-v1" as const;
 
 export type ExecutionPlanKernelBindingCatalogV1 = Readonly<{
   componentKernelIds: readonly string[];
@@ -110,37 +108,11 @@ export type BoundExecutionPlanV1 = Readonly<{
   componentKernelBindingOrdinals: Int32Array;
   hydraulicPathKernelBindingOrdinals: Int32Array;
   solveSystemKernelBindingOrdinals: Int32Array;
-  currentContinuousState: Float64Array;
-  candidateContinuousState: Float64Array;
-  currentBooleanState: Uint8Array;
-  candidateBooleanState: Uint8Array;
-  /** Caller-owned logical-order staging page used only at accepted boundaries. */
-  acceptedStateLogicalScratch: Float64Array;
   graphStorageStateLogicalIndices: Int32Array;
   graphUpstreamNodeIndices: Int32Array;
   graphDownstreamNodeIndices: Int32Array;
   solveGroups: readonly BoundExecutionPlanSolveGroupV1[];
   allocatedBytes: number;
-}>;
-
-export type ExecutionPlanAcceptedStateSynchronizationV1 = Readonly<{
-  schemaId:
-    typeof EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID;
-  definitionId: string;
-  runtimeSessionId: string;
-  scenarioId: string;
-  acceptedRevision: number;
-  acceptedTimeSec: number;
-  synchronizedLogicalSlotCount: number;
-  conservationPoolCount: number;
-  maximumConservationAbsoluteError: number;
-}>;
-
-export type BoundExecutionPlanStateSynchronizationResultV1 = Readonly<{
-  definitionId: string;
-  synchronizedLogicalSlotCount: number;
-  conservationPoolCount: number;
-  maximumConservationAbsoluteError: number;
 }>;
 
 export type BoundExecutionPlanNewtonWorkspaceV1 = Readonly<{
@@ -191,7 +163,6 @@ export type ExecutionPlanSolveSystemRuntimeBindingV1<TResult> = Readonly<{
 
 type BoundExecutionPlanSolveGroupMetadataV1 = Readonly<{
   solveGroupId: string;
-  activeContinuousStorageIndices: Int32Array;
   workspace: BoundExecutionPlanNewtonWorkspaceV1;
   dispatch: BoundExecutionPlanSolveDispatchV1;
 }>;
@@ -200,12 +171,6 @@ type BoundExecutionPlanMetadataV1 = Readonly<{
   stateDispatch: BoundExecutionPlanStateDispatchV1;
   hydraulicDispatch: BoundExecutionPlanHydraulicDispatchV1;
   updateSchedule: BoundExecutionPlanUpdateScheduleV1;
-  continuousLogicalIndices: readonly number[];
-  booleanLogicalIndices: readonly number[];
-  conservationPools: readonly Readonly<{
-    ledgerStateLogicalIndex: number;
-    memberStateLogicalIndices: readonly number[];
-  }>[];
   solveGroups: readonly BoundExecutionPlanSolveGroupMetadataV1[];
 }>;
 
@@ -217,7 +182,6 @@ const BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1 = new WeakSet<object>();
 const BOUND_EXECUTION_PLAN_UPDATE_SCHEDULES_V1 = new WeakSet<object>();
 
 const PORTABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
-const PORTABLE_RUNTIME_ID = /^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/;
 const MAXIMUM_EXECUTION_PLAN_DATA_DEPTH_V1 = 256;
 const NEWTON_F64_WORKSPACE_ROLES_V1 = Object.freeze([
   "current-unknowns",
@@ -720,21 +684,6 @@ export function bindExecutionPlanV1(
     requiredSolveSystems.map((kernelId) =>
       solveSystemOrdinalById.get(kernelId)!),
   );
-  const currentContinuousState = new Float64Array(
-    descriptor.stateLayout.continuousSlotCount,
-  );
-  const candidateContinuousState = new Float64Array(
-    descriptor.stateLayout.continuousSlotCount,
-  );
-  const currentBooleanState = new Uint8Array(
-    descriptor.stateLayout.booleanSlotCount,
-  );
-  const candidateBooleanState = new Uint8Array(
-    descriptor.stateLayout.booleanSlotCount,
-  );
-  const acceptedStateLogicalScratch = new Float64Array(
-    descriptor.stateLayout.logicalSlotCount,
-  );
   const graphStorageStateLogicalIndices = Int32Array.from(
     descriptor.hydraulicGraph.storageStateLogicalIndices,
   );
@@ -767,11 +716,6 @@ export function bindExecutionPlanV1(
     componentKernelBindingOrdinals,
     hydraulicPathKernelBindingOrdinals,
     solveSystemKernelBindingOrdinals,
-    currentContinuousState,
-    candidateContinuousState,
-    currentBooleanState,
-    candidateBooleanState,
-    acceptedStateLogicalScratch,
     graphStorageStateLogicalIndices,
     graphUpstreamNodeIndices,
     graphDownstreamNodeIndices,
@@ -790,11 +734,6 @@ export function bindExecutionPlanV1(
     componentKernelBindingOrdinals,
     hydraulicPathKernelBindingOrdinals,
     solveSystemKernelBindingOrdinals,
-    currentContinuousState,
-    candidateContinuousState,
-    currentBooleanState,
-    candidateBooleanState,
-    acceptedStateLogicalScratch,
     graphStorageStateLogicalIndices,
     graphUpstreamNodeIndices,
     graphDownstreamNodeIndices,
@@ -818,22 +757,6 @@ export function bindExecutionPlanV1(
     }),
     hydraulicDispatch: createBoundHydraulicDispatchV1(descriptor, bound),
     updateSchedule: createBoundUpdateScheduleV1(descriptor, bound),
-    continuousLogicalIndices: Object.freeze(descriptor.stateLayout.slots
-      .filter(({ storageKind }) => storageKind === "continuous-f64")
-      .sort((left, right) => left.storageIndex - right.storageIndex)
-      .map(({ logicalIndex }) => logicalIndex)),
-    booleanLogicalIndices: Object.freeze(descriptor.stateLayout.slots
-      .filter(({ storageKind }) => storageKind === "boolean-u8")
-      .sort((left, right) => left.storageIndex - right.storageIndex)
-      .map(({ logicalIndex }) => logicalIndex)),
-    conservationPools: Object.freeze(
-      descriptor.hydraulicGraph.conservationPools.map((pool) => Object.freeze({
-        ledgerStateLogicalIndex: pool.ledgerStateLogicalIndex,
-        memberStateLogicalIndices: Object.freeze([
-          ...pool.memberStateLogicalIndices,
-        ]),
-      })),
-    ),
     solveGroups: Object.freeze(descriptor.solveGroups.map(
       (descriptorGroup, index) => createBoundSolveGroupMetadataV1(
         descriptor,
@@ -997,11 +920,7 @@ export function executionPlanUpdateGroupIsDueAtBaseTickV1(
     && (baseTick - group.phaseTicks) % group.periodTicks === 0;
 }
 
-/**
- * Projects the current accepted state into the compiler-owned Newton layout
- * and returns persistent views over one preallocated workspace. No candidate
- * state is staged and no numerical kernel is invoked.
- */
+/** Returns persistent views over one compiler-owned preallocated workspace. */
 export function prepareBoundExecutionPlanSolveGroupV1(
   bound: BoundExecutionPlanV1,
   solveGroupId: string,
@@ -1015,10 +934,6 @@ export function prepareBoundExecutionPlanSolveGroupV1(
   if (group === undefined) {
     throw new Error(`Execution plan solve group ${solveGroupId} is unavailable`);
   }
-  group.activeContinuousStorageIndices.forEach((storageIndex, index) => {
-    group.workspace.currentUnknowns[index] =
-      bound.currentContinuousState[storageIndex]!;
-  });
   return group.workspace;
 }
 
@@ -1236,18 +1151,14 @@ function createBoundSolveGroupMetadataV1(
   bound: BoundExecutionPlanV1,
   solveGroupIndex: number,
 ): BoundExecutionPlanSolveGroupMetadataV1 {
-  const activeContinuousStorageIndices = Int32Array.from(
-    boundGroup.activeStateLogicalIndices,
-    (logicalIndex) => {
-      const slot = descriptor.stateLayout.slots[logicalIndex];
-      if (slot?.storageKind !== "continuous-f64") {
-        throw new Error(
-          "Execution plan active solve state must use continuous storage",
-        );
-      }
-      return slot.storageIndex;
-    },
-  );
+  for (const logicalIndex of boundGroup.activeStateLogicalIndices) {
+    if (descriptor.stateLayout.slots[logicalIndex]?.storageKind
+      !== "continuous-f64") {
+      throw new Error(
+        "Execution plan active solve state must use continuous storage",
+      );
+    }
+  }
   const f64View = (
     role: ExecutionPlanNewtonF64WorkspaceRoleV1,
   ): Float64Array => {
@@ -1352,7 +1263,6 @@ function createBoundSolveGroupMetadataV1(
   });
   return Object.freeze({
     solveGroupId: descriptorGroup.solveGroupId,
-    activeContinuousStorageIndices,
     workspace,
     dispatch,
   });
@@ -1414,141 +1324,6 @@ function assertCanonicalNewtonWorkspaceViewsV1(
   }
 }
 
-/**
- * Atomically projects one model-owned logical accepted view into the bound
- * plan's split f64/boolean storage. The source page is validated in full,
- * including descriptor-owned conservation ledgers, before any current-state
- * byte is changed. This is a sampled shadow boundary, not a second authority.
- */
-export function synchronizeBoundExecutionPlanAcceptedStateV1(
-  bound: BoundExecutionPlanV1,
-): BoundExecutionPlanStateSynchronizationResultV1 {
-  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
-  if (metadata === undefined) {
-    throw new Error("Execution plan synchronization requires a bound plan");
-  }
-  const source = bound.acceptedStateLogicalScratch;
-  if (
-    !(source instanceof Float64Array)
-    || source.length
-      !== metadata.continuousLogicalIndices.length
-        + metadata.booleanLogicalIndices.length
-    || !fixedOwnedArrayBufferV1(source.buffer)
-    || source.byteOffset !== 0
-    || source.byteLength !== source.buffer.byteLength
-  ) {
-    throw new Error(
-      "Execution plan accepted-state logical scratch is invalid",
-    );
-  }
-  for (let logicalIndex = 0; logicalIndex < source.length; logicalIndex += 1) {
-    const value = source[logicalIndex]!;
-    if (!Number.isFinite(value) || Object.is(value, -0)) {
-      throw new Error(
-        `Execution plan accepted state ${logicalIndex} must be finite and not negative zero`,
-      );
-    }
-  }
-  for (const logicalIndex of metadata.booleanLogicalIndices) {
-    const value = source[logicalIndex]!;
-    if (value !== 0 && value !== 1) {
-      throw new Error(
-        `Execution plan boolean accepted state ${logicalIndex} must be zero or one`,
-      );
-    }
-  }
-
-  let maximumConservationAbsoluteError = 0;
-  for (const pool of metadata.conservationPools) {
-    const ledger = source[pool.ledgerStateLogicalIndex]!;
-    let memberTotal = 0;
-    for (const logicalIndex of pool.memberStateLogicalIndices) {
-      memberTotal += source[logicalIndex]!;
-    }
-    const absoluteError = Math.abs(memberTotal - ledger);
-    maximumConservationAbsoluteError = Math.max(
-      maximumConservationAbsoluteError,
-      absoluteError,
-    );
-    const scale = Math.max(1, Math.abs(ledger), Math.abs(memberTotal));
-    const tolerance = Number.EPSILON * scale
-      * Math.max(16, pool.memberStateLogicalIndices.length * 4);
-    if (absoluteError > tolerance) {
-      throw new Error(
-        "Execution plan accepted state violates a conservation ledger "
-          + `(${absoluteError} > ${tolerance})`,
-      );
-    }
-  }
-
-  metadata.continuousLogicalIndices.forEach((logicalIndex, storageIndex) => {
-    bound.currentContinuousState[storageIndex] = source[logicalIndex]!;
-  });
-  metadata.booleanLogicalIndices.forEach((logicalIndex, storageIndex) => {
-    bound.currentBooleanState[storageIndex] = source[logicalIndex]!;
-  });
-  return Object.freeze({
-    definitionId: bound.definitionId,
-    synchronizedLogicalSlotCount: source.length,
-    conservationPoolCount: metadata.conservationPools.length,
-    maximumConservationAbsoluteError,
-  });
-}
-
-export function validateAndOwnExecutionPlanAcceptedStateSynchronizationV1(
-  value: unknown,
-): ExecutionPlanAcceptedStateSynchronizationV1 {
-  const owned = ownDataV1(value, "$.executionPlanSynchronization");
-  const report = recordV1(owned, "$.executionPlanSynchronization");
-  exactKeysV1(report, [
-    "acceptedRevision",
-    "acceptedTimeSec",
-    "conservationPoolCount",
-    "definitionId",
-    "maximumConservationAbsoluteError",
-    "runtimeSessionId",
-    "scenarioId",
-    "schemaId",
-    "synchronizedLogicalSlotCount",
-  ], "$.executionPlanSynchronization");
-  if (
-    report.schemaId
-      !== EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID
-  ) {
-    failV1("$.executionPlanSynchronization.schemaId", "schema identity mismatch");
-  }
-  portableIdV1(report.definitionId, "$.executionPlanSynchronization.definitionId");
-  portableRuntimeIdV1(
-    report.runtimeSessionId,
-    "$.executionPlanSynchronization.runtimeSessionId",
-  );
-  portableRuntimeIdV1(
-    report.scenarioId,
-    "$.executionPlanSynchronization.scenarioId",
-  );
-  nonnegativeIntegerV1(
-    report.acceptedRevision,
-    "$.executionPlanSynchronization.acceptedRevision",
-  );
-  nonnegativeFiniteV1(
-    report.acceptedTimeSec,
-    "$.executionPlanSynchronization.acceptedTimeSec",
-  );
-  positiveIntegerV1(
-    report.synchronizedLogicalSlotCount,
-    "$.executionPlanSynchronization.synchronizedLogicalSlotCount",
-  );
-  nonnegativeIntegerV1(
-    report.conservationPoolCount,
-    "$.executionPlanSynchronization.conservationPoolCount",
-  );
-  nonnegativeFiniteV1(
-    report.maximumConservationAbsoluteError,
-    "$.executionPlanSynchronization.maximumConservationAbsoluteError",
-  );
-  return report as unknown as ExecutionPlanAcceptedStateSynchronizationV1;
-}
-
 export function assertBoundExecutionPlanV1(
   value: unknown,
   descriptorValue: unknown,
@@ -1557,13 +1332,8 @@ export function assertBoundExecutionPlanV1(
   const bound = recordV1(value, "$.boundExecutionPlan");
   exactKeysV1(bound, [
     "allocatedBytes",
-    "acceptedStateLogicalScratch",
     "bindingCatalog",
-    "candidateBooleanState",
-    "candidateContinuousState",
     "componentKernelBindingOrdinals",
-    "currentBooleanState",
-    "currentContinuousState",
     "definitionId",
     "graphDownstreamNodeIndices",
     "graphStorageStateLogicalIndices",
@@ -1623,23 +1393,6 @@ export function assertBoundExecutionPlanV1(
     pathOrdinals,
     solveSystemOrdinals,
   ];
-  arrays.push(
-    f64ViewV1(bound.currentContinuousState,
-      descriptor.stateLayout.continuousSlotCount,
-      "$.boundExecutionPlan.currentContinuousState"),
-    f64ViewV1(bound.candidateContinuousState,
-      descriptor.stateLayout.continuousSlotCount,
-      "$.boundExecutionPlan.candidateContinuousState"),
-    u8ViewV1(bound.currentBooleanState,
-      descriptor.stateLayout.booleanSlotCount,
-      "$.boundExecutionPlan.currentBooleanState"),
-    u8ViewV1(bound.candidateBooleanState,
-      descriptor.stateLayout.booleanSlotCount,
-      "$.boundExecutionPlan.candidateBooleanState"),
-    f64ViewV1(bound.acceptedStateLogicalScratch,
-      descriptor.stateLayout.logicalSlotCount,
-      "$.boundExecutionPlan.acceptedStateLogicalScratch"),
-  );
   arrays.push(assertInt32ValuesV1(
     bound.graphStorageStateLogicalIndices,
     descriptor.hydraulicGraph.storageStateLogicalIndices,
@@ -2153,13 +1906,6 @@ function portableIdV1(value: unknown, path: string): string {
   return value;
 }
 
-function portableRuntimeIdV1(value: unknown, path: string): string {
-  if (typeof value !== "string" || !PORTABLE_RUNTIME_ID.test(value)) {
-    failV1(path, "must be a portable runtime identifier");
-  }
-  return value;
-}
-
 function authorityPointerV1(value: unknown, path: string): string {
   if (
     typeof value !== "string"
@@ -2223,13 +1969,6 @@ function sameCompiledClockValueV1(left: number, right: number): boolean {
   return Math.abs(left - right) <= tolerance;
 }
 
-function nonnegativeFiniteV1(value: unknown, path: string): number {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-    failV1(path, "must be nonnegative and finite");
-  }
-  return value;
-}
-
 function nonemptyStringV1(value: unknown, path: string): string {
   if (typeof value !== "string" || value.length === 0) {
     failV1(path, "must be a nonempty string");
@@ -2269,15 +2008,6 @@ function int32ViewV1(value: unknown, length: number, path: string): Int32Array {
     || !fixedOwnedArrayBufferV1(value.buffer)
     || value.byteOffset !== 0 || value.byteLength !== value.buffer.byteLength) {
     failV1(path, "must be one owned Int32Array of the expected length");
-  }
-  return value;
-}
-
-function u8ViewV1(value: unknown, length: number, path: string): Uint8Array {
-  if (!(value instanceof Uint8Array) || value.length !== length
-    || !fixedOwnedArrayBufferV1(value.buffer)
-    || value.byteOffset !== 0 || value.byteLength !== value.buffer.byteLength) {
-    failV1(path, "must be one owned Uint8Array of the expected length");
   }
   return value;
 }

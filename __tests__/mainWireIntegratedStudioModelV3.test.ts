@@ -46,7 +46,6 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   MainWireIntegratedStudioStandardRuntimeHostV1,
-  bindMainWireIntegratedStudioExecutionPlanV1,
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
@@ -71,20 +70,6 @@ const EMPTY_SURFACE_V2: ExperimentSurfaceV2 = Object.freeze({
   note: Object.freeze({ text: "" }),
 });
 
-function synchronizeDirectRuntimeHostExecutionPlanV1(
-  host: MainWireIntegratedStudioStandardRuntimeHostV1,
-  runtimeSessionId: string,
-  scenarioId: string,
-) {
-  const boundExecutionPlan = bindMainWireIntegratedStudioExecutionPlanV1();
-  host.synchronizeExecutionPlanAcceptedState(
-    runtimeSessionId,
-    scenarioId,
-    boundExecutionPlan,
-  );
-  return boundExecutionPlan;
-}
-
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -99,11 +84,6 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       scenarioId,
       fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
     }]);
-    synchronizeDirectRuntimeHostExecutionPlanV1(
-      host,
-      runtimeSessionId,
-      scenarioId,
-    );
     const first = host.currentFrame(runtimeSessionId, scenarioId);
     const second = host.currentFrame(runtimeSessionId, scenarioId);
     expect(second).toEqual(first);
@@ -142,7 +122,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         totalBloodVolumeMl: 4_200,
       }),
     });
-    await simulation.createSession({
+    await executionPlan.createSession({
       runtimeSessionId,
       scenarios: [
         {
@@ -154,14 +134,11 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
           fixture: lowVolumeFixture,
         },
       ],
+      boundExecutionPlans: new Map([
+        [baselineScenarioId, baselineBound],
+        [lowVolumeScenarioId, lowVolumeBound],
+      ]),
     });
-
-    executionPlan.synchronizeAcceptedState({
-      runtimeSessionId,
-      scenarioId: baselineScenarioId,
-      boundExecutionPlan: baselineBound,
-    });
-    expect(baselineBound.currentContinuousState[2]).toBe(5_600);
     const baselineWorkspace = prepareBoundExecutionPlanSolveGroupV1(
       baselineBound,
       "coupled-hemodynamics",
@@ -172,16 +149,18 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     });
     expect(baselineWorkspace.jacobian.some((value) => value !== 0)).toBe(true);
     expect(baselineWorkspace.pivots.some((value) => value !== 0)).toBe(true);
-    executionPlan.synchronizeAcceptedState({
+    const lowVolumeWorkspace = prepareBoundExecutionPlanSolveGroupV1(
+      lowVolumeBound,
+      "coupled-hemodynamics",
+    );
+    expect(lowVolumeWorkspace.jacobian.every((value) => value === 0)).toBe(true);
+    await simulation.advanceOnePresentationStep({
       runtimeSessionId,
       scenarioId: lowVolumeScenarioId,
-      boundExecutionPlan: lowVolumeBound,
     });
-    expect(lowVolumeBound.currentContinuousState[2]).toBe(4_200);
-    expect(lowVolumeBound.candidateContinuousState.every((value) => value === 0))
-      .toBe(true);
-    expect(lowVolumeBound.candidateBooleanState.every((value) => value === 0))
-      .toBe(true);
+    expect(lowVolumeWorkspace.jacobian.some((value) => value !== 0)).toBe(true);
+    expect(lowVolumeWorkspace.jacobian.buffer)
+      .not.toBe(baselineWorkspace.jacobian.buffer);
 
     await simulation.applyControl({
       runtimeSessionId,
@@ -191,23 +170,22 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       value: 6_000,
       expectedInputEpoch: 0,
     });
-    executionPlan.synchronizeAcceptedState({
+    const retiredWorkspaceSnapshot = new Float64Array(
+      baselineWorkspace.jacobian,
+    );
+    await simulation.advanceOnePresentationStep({
       runtimeSessionId,
       scenarioId: baselineScenarioId,
-      boundExecutionPlan: baselineBound,
     });
-    expect(baselineBound.currentContinuousState[2]).toBe(6_000);
+    expect(baselineWorkspace.jacobian).toEqual(retiredWorkspaceSnapshot);
     simulation.disposeSession(runtimeSessionId);
   });
 
   it("rejects a compiled multirate schedule until the model implements it", async () => {
-    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const release = createCircleHeartExactModelReleaseV1();
+    const executionPlan = release.executables.executionPlan!;
     const runtimeSessionId = "session/standard-multirate-rejection";
     const scenarioId = "scenario/baseline";
-    await host.createSession(runtimeSessionId, [{
-      scenarioId,
-      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-    }]);
     const driftedDescriptor = {
       ...generatedExecutionPlanV1,
       updateSchedule: {
@@ -232,42 +210,39 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       )],
     });
 
-    expect(() => host.synchronizeExecutionPlanAcceptedState(
+    await expect(executionPlan.createSession({
       runtimeSessionId,
-      scenarioId,
-      boundExecutionPlan,
-    )).toThrow(/update schedule drifted/);
-    host.closeSession(runtimeSessionId);
+      scenarios: [{
+        scenarioId,
+        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      }],
+      boundExecutionPlans: new Map([[scenarioId, boundExecutionPlan]]),
+    })).rejects.toThrow(/update schedule drifted/);
   });
 
   it("rejects one bound plan shared by equal Scenario IDs in different sessions", async () => {
     const release = createCircleHeartExactModelReleaseV1();
-    const simulation = release.executables.simulationAdapter;
     const executionPlan = release.executables.executionPlan!;
     const bound = executionPlan.bind();
     assertBoundExecutionPlanV1(bound, executionPlan.descriptor);
     const scenarioId = "scenario/shared-name";
-    for (const runtimeSessionId of ["session/first", "session/second"]) {
-      await simulation.createSession({
-        runtimeSessionId,
-        scenarios: [{
-          scenarioId,
-          fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-        }],
-      });
-    }
-    executionPlan.synchronizeAcceptedState({
+    await executionPlan.createSession({
       runtimeSessionId: "session/first",
-      scenarioId,
-      boundExecutionPlan: bound,
+      scenarios: [{
+        scenarioId,
+        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      }],
+      boundExecutionPlans: new Map([[scenarioId, bound]]),
     });
-    expect(() => executionPlan.synchronizeAcceptedState({
+    await expect(executionPlan.createSession({
       runtimeSessionId: "session/second",
-      scenarioId,
-      boundExecutionPlan: bound,
-    })).toThrow(/cannot be shared between Scenarios/);
-    simulation.disposeSession("session/first");
-    simulation.disposeSession("session/second");
+      scenarios: [{
+        scenarioId,
+        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      }],
+      boundExecutionPlans: new Map([[scenarioId, bound]]),
+    })).rejects.toThrow(/cannot be shared between Scenarios/);
+    release.executables.simulationAdapter.disposeSession("session/first");
   });
 
   it("exposes hemorrhage reserve without moving the canonical baseline", () => {
@@ -480,31 +455,18 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(warmMeasured.timing.totalMs).toBeGreaterThanOrEqual(0);
     const runtimeSessionId = "session/standard-artifact-repeatability";
     const scenarioId = "scenario/baseline";
-    await loaded.simulationAdapter.createSession({
+    await loaded.executionPlan!.createSession({
       runtimeSessionId,
       scenarios: [{
         scenarioId,
         fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
       }],
+      boundExecutionPlans: new Map([[scenarioId, boundExecutionPlan]]),
     });
     const firstFrame = loaded.simulationAdapter.currentFrame({
       runtimeSessionId,
       scenarioId,
     });
-    expect(loaded.executionPlan!.synchronizeAcceptedState({
-      runtimeSessionId,
-      scenarioId,
-      boundExecutionPlan,
-    })).toMatchObject({
-      acceptedRevision: firstFrame.acceptedRevision,
-      acceptedTimeSec: firstFrame.acceptedTimeSec,
-      synchronizedLogicalSlotCount: 100,
-      conservationPoolCount: 1,
-    });
-    expect(boundExecutionPlan.currentContinuousState[0])
-      .toBe(firstFrame.acceptedTimeSec);
-    expect(boundExecutionPlan.currentContinuousState[1])
-      .toBe(firstFrame.acceptedRevision);
     expect(loaded.simulationAdapter.currentFrame({
       runtimeSessionId,
       scenarioId,
@@ -521,14 +483,6 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       runtimeSessionId,
       scenarioId,
     })).toEqual(artifactBatchFrames.at(-1));
-    expect(loaded.executionPlan!.synchronizeAcceptedState({
-      runtimeSessionId,
-      scenarioId,
-      boundExecutionPlan,
-    })).toMatchObject({
-      acceptedRevision: artifactBatchFrames.at(-1)!.acceptedRevision,
-      acceptedTimeSec: artifactBatchFrames.at(-1)!.acceptedTimeSec,
-    });
     loaded.simulationAdapter.disposeSession(runtimeSessionId);
     expect(fetchArtifact).toHaveBeenCalledOnce();
 
@@ -571,11 +525,6 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       scenarioId,
       fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
     }]);
-    const boundExecutionPlan = synchronizeDirectRuntimeHostExecutionPlanV1(
-      host,
-      runtimeSessionId,
-      scenarioId,
-    );
     let before = host.currentFrame(runtimeSessionId, scenarioId);
     for (let ordinal = 0; ordinal < 50; ordinal += 1) {
       before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
@@ -593,11 +542,6 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       acceptedRevision: before.acceptedRevision,
       acceptedTimeSec: before.acceptedTimeSec,
     });
-    host.synchronizeExecutionPlanAcceptedState(
-      runtimeSessionId,
-      scenarioId,
-      boundExecutionPlan,
-    );
     expect(host.advanceOnePresentationStep(runtimeSessionId, scenarioId))
       .toMatchObject({ inputEpoch: 1 });
     host.closeSession(runtimeSessionId);
@@ -615,16 +559,6 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     }] as const;
     await singleHost.createSession(singleSessionId, seed);
     await batchHost.createSession(batchSessionId, seed);
-    synchronizeDirectRuntimeHostExecutionPlanV1(
-      singleHost,
-      singleSessionId,
-      scenarioId,
-    );
-    synchronizeDirectRuntimeHostExecutionPlanV1(
-      batchHost,
-      batchSessionId,
-      scenarioId,
-    );
 
     const selectedOutputIds = [
       "hemodynamics.pressure.absolute.LV",
@@ -717,11 +651,6 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       scenarioId,
       fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
     }]);
-    synchronizeDirectRuntimeHostExecutionPlanV1(
-      host,
-      runtimeSessionId,
-      scenarioId,
-    );
     let frame = host.currentFrame(runtimeSessionId, scenarioId);
     for (let ordinal = 0; ordinal < 1_700; ordinal += 1) {
       frame = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
@@ -758,17 +687,13 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     );
     const runtimeSessionId = "session/standard-snapshot-admission";
     const scenarioId = "scenario/baseline";
-    await simulation.createSession({
+    await executionPlan.createSession({
       runtimeSessionId,
       scenarios: [{
         scenarioId,
         fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
       }],
-    });
-    executionPlan.synchronizeAcceptedState({
-      runtimeSessionId,
-      scenarioId,
-      boundExecutionPlan: sourceBoundExecutionPlan,
+      boundExecutionPlans: new Map([[scenarioId, sourceBoundExecutionPlan]]),
     });
     for (let ordinal = 0; ordinal < 500; ordinal += 1) {
       await simulation.advanceOnePresentationStep({ runtimeSessionId, scenarioId });
@@ -794,11 +719,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         },
       });
     const checkpoint = captured.content.scenarios[0]!.capture.checkpoint;
-    const sourceSynchronization = executionPlan.synchronizeAcceptedState({
-      runtimeSessionId,
-      scenarioId,
-      boundExecutionPlan: sourceBoundExecutionPlan,
-    });
+    const sourceFrame = simulation.currentFrame({ runtimeSessionId, scenarioId });
     expect(checkpoint.payload).toMatchObject({
       checkpointId:
         "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v1",
@@ -817,34 +738,29 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     })).resolves.toEqual({ status: "passed" });
     expect(captured.content.scenarios[0]!.capture.checkpoint).toEqual(checkpoint);
     const restoredRuntimeSessionId = `${runtimeSessionId}/restored`;
-    await simulation.createSession({
+    const restoredBoundExecutionPlan = executionPlan.bind();
+    assertBoundExecutionPlanV1(
+      restoredBoundExecutionPlan,
+      executionPlan.descriptor,
+    );
+    await executionPlan.createSession({
       runtimeSessionId: restoredRuntimeSessionId,
       scenarios: [{
         scenarioId,
         fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
         checkpoint,
       }],
+      boundExecutionPlans: new Map([[scenarioId, restoredBoundExecutionPlan]]),
     });
-    const restoredBoundExecutionPlan = executionPlan.bind();
-    assertBoundExecutionPlanV1(
-      restoredBoundExecutionPlan,
-      executionPlan.descriptor,
-    );
-    const restoredSynchronization = executionPlan.synchronizeAcceptedState({
+    const restoredFrame = simulation.currentFrame({
       runtimeSessionId: restoredRuntimeSessionId,
       scenarioId,
-      boundExecutionPlan: restoredBoundExecutionPlan,
     });
-    expect(restoredSynchronization).toMatchObject({
-      acceptedRevision: sourceSynchronization.acceptedRevision,
-      acceptedTimeSec: sourceSynchronization.acceptedTimeSec,
-      maximumConservationAbsoluteError:
-        sourceSynchronization.maximumConservationAbsoluteError,
+    expect(restoredFrame).toMatchObject({
+      acceptedRevision: sourceFrame.acceptedRevision,
+      acceptedTimeSec: sourceFrame.acceptedTimeSec,
+      inputEpoch: sourceFrame.inputEpoch,
     });
-    expect(restoredBoundExecutionPlan.currentContinuousState)
-      .toEqual(sourceBoundExecutionPlan.currentContinuousState);
-    expect(restoredBoundExecutionPlan.currentBooleanState)
-      .toEqual(sourceBoundExecutionPlan.currentBooleanState);
     for (let ordinal = 0; ordinal < 128; ordinal += 1) {
       const uninterrupted = await simulation.advanceOnePresentationStep({
         runtimeSessionId,

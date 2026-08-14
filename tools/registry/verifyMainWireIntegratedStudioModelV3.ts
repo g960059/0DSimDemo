@@ -13,7 +13,7 @@ import {
   STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
 } from "@/studio/contracts/v2/simulation";
 import {
-  EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
+  EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
   EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
   assertBoundExecutionPlanV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
@@ -281,7 +281,7 @@ async function assertArtifactAdmission(
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
     ),
     requiresExecutionPlan: sourceRelease.manifest.capabilities.includes(
-      EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
+      EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
     ),
   });
   executables.fixtureAdapter.validateCompleteFixture({
@@ -293,23 +293,19 @@ async function assertArtifactAdmission(
   });
   const runtimeSessionId = "session/standard-registry-verification";
   const scenarioId = "scenario/standard-registry-verification";
-  await executables.simulationAdapter.createSession({
-    runtimeSessionId,
-    scenarios: [{
-      scenarioId,
-      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-    }],
-  });
   const executionPlan = executables.executionPlan;
   if (executionPlan === undefined) {
     fail("artifact runtime omitted its required execution-plan adapter");
   }
   const boundExecutionPlan = executionPlan.bind();
   assertBoundExecutionPlanV1(boundExecutionPlan, executionPlan.descriptor);
-  executionPlan.synchronizeAcceptedState({
+  await executionPlan.createSession({
     runtimeSessionId,
-    scenarioId,
-    boundExecutionPlan,
+    scenarios: [{
+      scenarioId,
+      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    }],
+    boundExecutionPlans: new Map([[scenarioId, boundExecutionPlan]]),
   });
   const frame = await executables.simulationAdapter
     .advanceOnePresentationStep({ runtimeSessionId, scenarioId });
@@ -335,11 +331,6 @@ async function assertArtifactAdmission(
   ) {
     fail("artifact runtime failed its contractility warm-start smoke check");
   }
-  executionPlan.synchronizeAcceptedState({
-    runtimeSessionId,
-    scenarioId,
-    boundExecutionPlan,
-  });
   const continued = await executables.simulationAdapter
     .advanceOnePresentationStep({ runtimeSessionId, scenarioId });
   if (

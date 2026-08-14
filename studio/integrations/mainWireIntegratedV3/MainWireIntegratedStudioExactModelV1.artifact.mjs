@@ -30141,10 +30141,9 @@ function assertStandardCheckpointEnvelopeV1(input) {
   }
 }
 const EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID = "circleheart-execution-plan-descriptor-v1";
-const EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY = "runtime/execution-plan-accepted-state-shadow-v1";
+const EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY = "runtime/execution-plan-typed-authority-binding-v1";
 const EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY = "runtime/execution-plan-newton-workspace-v1";
 const BOUND_EXECUTION_PLAN_V1_SCHEMA_ID = "circleheart-bound-execution-plan-v1";
-const EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID = "circleheart-execution-plan-accepted-state-synchronization-v1";
 const BOUND_EXECUTION_PLAN_METADATA_V1 = /* @__PURE__ */ new WeakMap();
 const BOUND_EXECUTION_PLAN_HYDRAULIC_DISPATCHES_V1 = /* @__PURE__ */ new WeakSet();
 const BOUND_EXECUTION_PLAN_UPDATE_SCHEDULES_V1 = /* @__PURE__ */ new WeakSet();
@@ -30596,21 +30595,6 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
   const solveSystemKernelBindingOrdinals = Int32Array.from(
     requiredSolveSystems.map((kernelId) => solveSystemOrdinalById.get(kernelId))
   );
-  const currentContinuousState = new Float64Array(
-    descriptor.stateLayout.continuousSlotCount
-  );
-  const candidateContinuousState = new Float64Array(
-    descriptor.stateLayout.continuousSlotCount
-  );
-  const currentBooleanState = new Uint8Array(
-    descriptor.stateLayout.booleanSlotCount
-  );
-  const candidateBooleanState = new Uint8Array(
-    descriptor.stateLayout.booleanSlotCount
-  );
-  const acceptedStateLogicalScratch = new Float64Array(
-    descriptor.stateLayout.logicalSlotCount
-  );
   const graphStorageStateLogicalIndices = Int32Array.from(
     descriptor.hydraulicGraph.storageStateLogicalIndices
   );
@@ -30641,11 +30625,6 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
     componentKernelBindingOrdinals,
     hydraulicPathKernelBindingOrdinals,
     solveSystemKernelBindingOrdinals,
-    currentContinuousState,
-    candidateContinuousState,
-    currentBooleanState,
-    candidateBooleanState,
-    acceptedStateLogicalScratch,
     graphStorageStateLogicalIndices,
     graphUpstreamNodeIndices,
     graphDownstreamNodeIndices,
@@ -30664,11 +30643,6 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
     componentKernelBindingOrdinals,
     hydraulicPathKernelBindingOrdinals,
     solveSystemKernelBindingOrdinals,
-    currentContinuousState,
-    candidateContinuousState,
-    currentBooleanState,
-    candidateBooleanState,
-    acceptedStateLogicalScratch,
     graphStorageStateLogicalIndices,
     graphUpstreamNodeIndices,
     graphDownstreamNodeIndices,
@@ -30691,16 +30665,6 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
     }),
     hydraulicDispatch: createBoundHydraulicDispatchV1(descriptor, bound),
     updateSchedule: createBoundUpdateScheduleV1(descriptor, bound),
-    continuousLogicalIndices: Object.freeze(descriptor.stateLayout.slots.filter(({ storageKind }) => storageKind === "continuous-f64").sort((left, right) => left.storageIndex - right.storageIndex).map(({ logicalIndex }) => logicalIndex)),
-    booleanLogicalIndices: Object.freeze(descriptor.stateLayout.slots.filter(({ storageKind }) => storageKind === "boolean-u8").sort((left, right) => left.storageIndex - right.storageIndex).map(({ logicalIndex }) => logicalIndex)),
-    conservationPools: Object.freeze(
-      descriptor.hydraulicGraph.conservationPools.map((pool) => Object.freeze({
-        ledgerStateLogicalIndex: pool.ledgerStateLogicalIndex,
-        memberStateLogicalIndices: Object.freeze([
-          ...pool.memberStateLogicalIndices
-        ])
-      }))
-    ),
     solveGroups: Object.freeze(descriptor.solveGroups.map(
       (descriptorGroup, index) => createBoundSolveGroupMetadataV1(
         descriptor,
@@ -30808,9 +30772,6 @@ function prepareBoundExecutionPlanSolveGroupV1(bound, solveGroupId) {
   if (group === void 0) {
     throw new Error(`Execution plan solve group ${solveGroupId} is unavailable`);
   }
-  group.activeContinuousStorageIndices.forEach((storageIndex, index) => {
-    group.workspace.currentUnknowns[index] = bound.currentContinuousState[storageIndex];
-  });
   return group.workspace;
 }
 function resolveBoundExecutionPlanSolveDispatchV1(bound, solveGroupId) {
@@ -30960,18 +30921,13 @@ function createBoundUpdateScheduleV1(descriptor, bound) {
   return schedule;
 }
 function createBoundSolveGroupMetadataV1(descriptor, descriptorGroup, boundGroup, bound, solveGroupIndex) {
-  const activeContinuousStorageIndices = Int32Array.from(
-    boundGroup.activeStateLogicalIndices,
-    (logicalIndex) => {
-      const slot2 = descriptor.stateLayout.slots[logicalIndex];
-      if (slot2?.storageKind !== "continuous-f64") {
-        throw new Error(
-          "Execution plan active solve state must use continuous storage"
-        );
-      }
-      return slot2.storageIndex;
+  for (const logicalIndex of boundGroup.activeStateLogicalIndices) {
+    if (descriptor.stateLayout.slots[logicalIndex]?.storageKind !== "continuous-f64") {
+      throw new Error(
+        "Execution plan active solve state must use continuous storage"
+      );
     }
-  );
+  }
   const f64View = (role) => {
     const segment = descriptorGroup.workspace.f64Segments.find(
       (candidate) => candidate.role === role
@@ -31060,7 +31016,6 @@ function createBoundSolveGroupMetadataV1(descriptor, descriptorGroup, boundGroup
   });
   return Object.freeze({
     solveGroupId: descriptorGroup.solveGroupId,
-    activeContinuousStorageIndices,
     workspace,
     dispatch
   });
@@ -31095,78 +31050,13 @@ function assertCanonicalNewtonWorkspaceViewsV1(workspace, boundGroup, descriptor
     throw new Error("Execution plan Newton workspace pivots view drifted");
   }
 }
-function synchronizeBoundExecutionPlanAcceptedStateV1(bound) {
-  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
-  if (metadata === void 0) {
-    throw new Error("Execution plan synchronization requires a bound plan");
-  }
-  const source = bound.acceptedStateLogicalScratch;
-  if (!(source instanceof Float64Array) || source.length !== metadata.continuousLogicalIndices.length + metadata.booleanLogicalIndices.length || !fixedOwnedArrayBufferV1(source.buffer) || source.byteOffset !== 0 || source.byteLength !== source.buffer.byteLength) {
-    throw new Error(
-      "Execution plan accepted-state logical scratch is invalid"
-    );
-  }
-  for (let logicalIndex = 0; logicalIndex < source.length; logicalIndex += 1) {
-    const value = source[logicalIndex];
-    if (!Number.isFinite(value) || Object.is(value, -0)) {
-      throw new Error(
-        `Execution plan accepted state ${logicalIndex} must be finite and not negative zero`
-      );
-    }
-  }
-  for (const logicalIndex of metadata.booleanLogicalIndices) {
-    const value = source[logicalIndex];
-    if (value !== 0 && value !== 1) {
-      throw new Error(
-        `Execution plan boolean accepted state ${logicalIndex} must be zero or one`
-      );
-    }
-  }
-  let maximumConservationAbsoluteError = 0;
-  for (const pool of metadata.conservationPools) {
-    const ledger = source[pool.ledgerStateLogicalIndex];
-    let memberTotal = 0;
-    for (const logicalIndex of pool.memberStateLogicalIndices) {
-      memberTotal += source[logicalIndex];
-    }
-    const absoluteError = Math.abs(memberTotal - ledger);
-    maximumConservationAbsoluteError = Math.max(
-      maximumConservationAbsoluteError,
-      absoluteError
-    );
-    const scale = Math.max(1, Math.abs(ledger), Math.abs(memberTotal));
-    const tolerance = Number.EPSILON * scale * Math.max(16, pool.memberStateLogicalIndices.length * 4);
-    if (absoluteError > tolerance) {
-      throw new Error(
-        `Execution plan accepted state violates a conservation ledger (${absoluteError} > ${tolerance})`
-      );
-    }
-  }
-  metadata.continuousLogicalIndices.forEach((logicalIndex, storageIndex) => {
-    bound.currentContinuousState[storageIndex] = source[logicalIndex];
-  });
-  metadata.booleanLogicalIndices.forEach((logicalIndex, storageIndex) => {
-    bound.currentBooleanState[storageIndex] = source[logicalIndex];
-  });
-  return Object.freeze({
-    definitionId: bound.definitionId,
-    synchronizedLogicalSlotCount: source.length,
-    conservationPoolCount: metadata.conservationPools.length,
-    maximumConservationAbsoluteError
-  });
-}
 function assertBoundExecutionPlanV1(value, descriptorValue) {
   const descriptor = validateAndOwnExecutionPlanDescriptorV1(descriptorValue);
   const bound = recordV1(value, "$.boundExecutionPlan");
   exactKeysV1(bound, [
     "allocatedBytes",
-    "acceptedStateLogicalScratch",
     "bindingCatalog",
-    "candidateBooleanState",
-    "candidateContinuousState",
     "componentKernelBindingOrdinals",
-    "currentBooleanState",
-    "currentContinuousState",
     "definitionId",
     "graphDownstreamNodeIndices",
     "graphStorageStateLogicalIndices",
@@ -31219,33 +31109,6 @@ function assertBoundExecutionPlanV1(value, descriptorValue) {
     pathOrdinals,
     solveSystemOrdinals
   ];
-  arrays.push(
-    f64ViewV1(
-      bound.currentContinuousState,
-      descriptor.stateLayout.continuousSlotCount,
-      "$.boundExecutionPlan.currentContinuousState"
-    ),
-    f64ViewV1(
-      bound.candidateContinuousState,
-      descriptor.stateLayout.continuousSlotCount,
-      "$.boundExecutionPlan.candidateContinuousState"
-    ),
-    u8ViewV1(
-      bound.currentBooleanState,
-      descriptor.stateLayout.booleanSlotCount,
-      "$.boundExecutionPlan.currentBooleanState"
-    ),
-    u8ViewV1(
-      bound.candidateBooleanState,
-      descriptor.stateLayout.booleanSlotCount,
-      "$.boundExecutionPlan.candidateBooleanState"
-    ),
-    f64ViewV1(
-      bound.acceptedStateLogicalScratch,
-      descriptor.stateLayout.logicalSlotCount,
-      "$.boundExecutionPlan.acceptedStateLogicalScratch"
-    )
-  );
   arrays.push(assertInt32ValuesV1(
     bound.graphStorageStateLogicalIndices,
     descriptor.hydraulicGraph.storageStateLogicalIndices,
@@ -31752,12 +31615,6 @@ function f64ViewV1(value, length, path) {
 function int32ViewV1(value, length, path) {
   if (!(value instanceof Int32Array) || value.length !== length || !fixedOwnedArrayBufferV1(value.buffer) || value.byteOffset !== 0 || value.byteLength !== value.buffer.byteLength) {
     failV1(path, "must be one owned Int32Array of the expected length");
-  }
-  return value;
-}
-function u8ViewV1(value, length, path) {
-  if (!(value instanceof Uint8Array) || value.length !== length || !fixedOwnedArrayBufferV1(value.buffer) || value.byteOffset !== 0 || value.byteLength !== value.buffer.byteLength) {
-    failV1(path, "must be one owned Uint8Array of the expected length");
   }
   return value;
 }
@@ -35537,18 +35394,6 @@ function bindExecutionPlanAcceptedTypedStateV1(bound, manifest) {
   }));
   return binding;
 }
-function readExecutionPlanAcceptedTypedStateIntoLogicalV1(binding, cursor, destination) {
-  const storage = requiredStorageV1(binding);
-  assertCursorV1(binding, cursor);
-  if (!(destination instanceof Float64Array) || destination.length !== binding.logicalSlotCount) {
-    throw new RangeError(
-      "Execution plan accepted-state destination has the wrong length"
-    );
-  }
-  for (const slot2 of storage.slots) {
-    destination[slot2.logicalIndex] = slot2.storageKind === "continuous-f64" ? cursor.readContinuous(slot2.authoritySlotIndex) : cursor.readBoolean(slot2.authoritySlotIndex) ? 1 : 0;
-  }
-}
 function listExecutionPlanAcceptedTypedStateSlotsV1(binding) {
   return requiredStorageV1(binding).slots;
 }
@@ -35564,11 +35409,6 @@ function requiredStorageV1(binding) {
 function assertManifestV1(manifest) {
   if (typeof manifest !== "object" || manifest === null || typeof manifest.layoutId !== "string" || manifest.layoutId.length === 0 || typeof manifest.fingerprint !== "string" || manifest.fingerprint.length === 0) {
     throw new Error("Execution plan typed-authority manifest is invalid");
-  }
-}
-function assertCursorV1(binding, cursor) {
-  if (cursor.layoutId !== binding.authorityLayoutId || cursor.fingerprint !== binding.authorityFingerprint) {
-    throw new Error("Execution plan typed-authority cursor identity drifted");
   }
 }
 function slotIndexByPointerV1(slots, label) {
@@ -44283,7 +44123,7 @@ function dynamicHydraulicInput(step, input, heartRateBpm) {
 const MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID = "main-wire-integrated-typed-authority-session-v1";
 const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID = "circleheart-main-wire-flat-authoritative-reference-checkpoint-v1";
 class MainWireIntegratedTypedAuthoritySessionV1 {
-  constructor(runtime, acceptedState2, observationSource, authorityFactory, exactBeatState) {
+  constructor(runtime, acceptedState2, observationSource, authorityFactory, exactBeatState, executionPlanInitialization) {
     this.sessionId = MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID;
     this.#acceptedNumericalReadback = new Float64Array(
       MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1
@@ -44369,7 +44209,16 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       this.#typedAuthority.manifest()
     );
     this.#typedHemodynamicScratch = createMainWireAcceptedTypedHemodynamicDestinationV1();
-    this.#coupledNewtonWorkspace = createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    this.#coupledNewtonWorkspace = executionPlanInitialization?.coupledNewtonWorkspace ?? createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    if (executionPlanInitialization !== void 0) {
+      this.installExecutionPlanAcceptedStateBindingV1(
+        executionPlanInitialization.boundExecutionPlan
+      );
+      this.installExecutionPlanCoupledNewtonWorkspaceV1(
+        executionPlanInitialization.coupledNewtonWorkspace,
+        executionPlanInitialization.boundExecutionPlan
+      );
+    }
     this.#coupledResidualWorkspace = createMainWireFiveWallCoupledResidualWorkspaceV1();
     this.#coupledPredictorWorkspace = createMainWireFiveWallCoupledPredictorWorkspaceV1();
     this.#nonCoronaryAcceptedNumericalSource = this.#typedAuthority === null || this.#typedBoundaryBinding === null ? void 0 : createMainWireAcceptedTypedNonCoronaryNumericalSourceV1(
@@ -44442,7 +44291,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
   #beatAccumulator;
   #completedBeatMetrics;
   #coupledSolverProfile;
-  static async create(inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1) {
+  static async create(inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, executionPlanInitialization) {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale
@@ -44451,7 +44300,9 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       runtime,
       runtime.cold.acceptedState,
       "cold",
-      typedAuthorityFactory(runtime.cold.acceptedState)
+      typedAuthorityFactory(runtime.cold.acceptedState),
+      void 0,
+      executionPlanInitialization
     );
   }
   /**
@@ -44460,7 +44311,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
    * not encode it, so the first ordinary solve restarts from the model-owned
    * context seed before rebuilding admitted history.
    */
-  static async restoreStandardExactCheckpoint(checkpoint, inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1) {
+  static async restoreStandardExactCheckpoint(checkpoint, inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, executionPlanInitialization) {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale
@@ -44477,7 +44328,8 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       restored.acceptedState,
       "standard-exact-checkpoint-restore",
       typedAuthorityFactory(runtime.cold.acceptedState),
-      restored
+      restored,
+      executionPlanInitialization
     );
   }
   /** Test-only failure seam kept entirely outside the registered model. */
@@ -44589,38 +44441,11 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     this.#installedExecutionPlanCoupledNewtonWorkspace = workspace;
   }
   /**
-   * Copies the current one-patch hemodynamic view in its canonical logical
-   * order for a sampled execution-plan shadow check. The accepted typed image
-   * remains the sole authority; this method neither stages nor promotes state.
-   */
-  copyCurrentAcceptedTypedHemodynamicViewV1(destination) {
-    if (this.#typedAuthority === null || this.#executionPlanAcceptedTypedStateBinding === null) {
-      throw new Error(
-        "Main Wire execution-plan shadow requires typed accepted authority"
-      );
-    }
-    readExecutionPlanAcceptedTypedStateIntoLogicalV1(
-      this.#executionPlanAcceptedTypedStateBinding,
-      this.#typedAuthority.currentCursor(),
-      destination
-    );
-    const clock = this.currentAcceptedClock();
-    if (!Object.is(
-      destination[0],
-      clock.acceptedTimeSec
-    ) || !Object.is(destination[1], clock.revision)) {
-      throw new Error(
-        "Main Wire execution-plan shadow clock does not match typed authority"
-      );
-    }
-    return clock;
-  }
-  /**
    * Starts a new authored-input epoch at the exact current accepted clock.
    * The new runtime receives a fresh typed authority and predictor history;
    * failure cannot mutate this source Session.
    */
-  async warmStartWithHemodynamicResearchInputs(inputs, ventricularContractilityScale = 1) {
+  async warmStartWithHemodynamicResearchInputs(inputs, ventricularContractilityScale = 1, executionPlanInitialization) {
     const targetRuntime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale
@@ -44634,7 +44459,9 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       targetRuntime,
       acceptedState2,
       "hemodynamic-input-warm-start",
-      typedAuthorityFactory(targetRuntime.cold.acceptedState)
+      typedAuthorityFactory(targetRuntime.cold.acceptedState),
+      void 0,
+      executionPlanInitialization
     );
   }
   observe() {
@@ -47823,7 +47650,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-54";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-55";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";
@@ -47937,13 +47764,18 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
   #sessions = /* @__PURE__ */ new Map();
   #retiredSessionIds = /* @__PURE__ */ new Set();
   #executionPlanScenarioOwners = /* @__PURE__ */ new WeakMap();
-  async createSession(runtimeSessionId, scenarioInputs) {
+  async createSession(runtimeSessionId, scenarioInputs, suppliedExecutionPlans) {
     requiredIdV1(runtimeSessionId, "runtimeSessionId");
     if (this.#sessions.has(runtimeSessionId) || this.#retiredSessionIds.has(runtimeSessionId)) {
       throw new Error(`Standard runtime session ID is active or retired: ${runtimeSessionId}`);
     }
     if (scenarioInputs.length === 0) {
       throw new Error("Standard runtime session requires at least one Scenario");
+    }
+    if (suppliedExecutionPlans !== void 0 && suppliedExecutionPlans.size !== scenarioInputs.length) {
+      throw new Error(
+        "Standard runtime execution-plan Scenario set is incomplete"
+      );
     }
     const scenarios = /* @__PURE__ */ new Map();
     for (const input of scenarioInputs) {
@@ -47953,13 +47785,26 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
       }
       const fixture = validateAndOwnStandardFixtureV1(input.fixture);
       const checkpoint = input.checkpoint === void 0 ? void 0 : validateScenarioCheckpointV1(input.checkpoint);
+      const boundExecutionPlan = suppliedExecutionPlans?.get(input.scenarioId) ?? bindMainWireIntegratedStudioExecutionPlanV1();
+      if (suppliedExecutionPlans !== void 0 && !suppliedExecutionPlans.has(input.scenarioId)) {
+        throw new Error(
+          `Standard runtime execution plan is unavailable for Scenario ${input.scenarioId}`
+        );
+      }
+      const preparedExecutionPlan = this.#prepareExecutionPlan(
+        runtimeSessionId,
+        input.scenarioId,
+        boundExecutionPlan
+      );
       const modelSession = checkpoint === void 0 ? await MainWireIntegratedTypedAuthoritySessionV1.create(
         fixture.hemodynamicResearchInputs,
-        fixture.ventricularContractilityScale
+        fixture.ventricularContractilityScale,
+        preparedExecutionPlan.initialization
       ) : await MainWireIntegratedTypedAuthoritySessionV1.restoreStandardExactCheckpoint(
         checkpoint.payload,
         fixture.hemodynamicResearchInputs,
-        fixture.ventricularContractilityScale
+        fixture.ventricularContractilityScale,
+        preparedExecutionPlan.initialization
       );
       if (checkpoint !== void 0 && (modelSession.currentAcceptedState().revision !== checkpoint.acceptedRevision || modelSession.currentAcceptedState().acceptedTimeSec !== checkpoint.acceptedTimeSec)) {
         throw new Error(`Standard Scenario ${input.scenarioId} checkpoint clock mismatch`);
@@ -47969,7 +47814,15 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
         inputEpoch: 0,
         modelSession,
         presentationOrdinal: 0,
-        executionPlanBinding: null
+        executionPlanBinding: Object.freeze({
+          boundExecutionPlan,
+          modelSession,
+          updateSchedule: preparedExecutionPlan.updateSchedule,
+          presentationOriginBaseTick: executionPlanBaseTickAtTimeV1(
+            preparedExecutionPlan.updateSchedule,
+            modelSession.currentAcceptedState().acceptedTimeSec
+          )
+        })
       });
     }
     this.#sessions.set(runtimeSessionId, { scenarios });
@@ -47996,8 +47849,11 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
       )
     });
   }
-  synchronizeExecutionPlanAcceptedState(runtimeSessionId, scenarioId, boundExecutionPlan) {
-    const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
+  #prepareExecutionPlan(runtimeSessionId, scenarioId, boundExecutionPlan) {
+    assertBoundExecutionPlanV1(
+      boundExecutionPlan,
+      MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1
+    );
     const owner = this.#executionPlanScenarioOwners.get(boundExecutionPlan);
     if (owner === void 0) {
       this.#executionPlanScenarioOwners.set(boundExecutionPlan, Object.freeze({
@@ -48009,15 +47865,6 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
         "Standard execution plan cannot be shared between Scenarios"
       );
     }
-    scenario.modelSession.installExecutionPlanAcceptedStateBindingV1(
-      boundExecutionPlan
-    );
-    const clock = scenario.modelSession.copyCurrentAcceptedTypedHemodynamicViewV1(
-      boundExecutionPlan.acceptedStateLogicalScratch
-    );
-    const synchronized = synchronizeBoundExecutionPlanAcceptedStateV1(
-      boundExecutionPlan
-    );
     const updateSchedule2 = resolveBoundExecutionPlanUpdateScheduleV1(
       boundExecutionPlan
     );
@@ -48028,42 +47875,17 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
       boundExecutionPlan,
       updateGroup.solveGroupId
     );
-    const installed = scenario.executionPlanBinding;
-    if (installed === null || installed.modelSession !== scenario.modelSession) {
-      if (installed !== null && installed.boundExecutionPlan !== boundExecutionPlan) {
-        throw new Error("Standard Scenario execution plan cannot be replaced");
-      }
-      scenario.modelSession.installExecutionPlanCoupledNewtonWorkspaceV1(
-        bindExecutionPlanSolveSystemRuntimeV1(
+    return Object.freeze({
+      initialization: Object.freeze({
+        boundExecutionPlan,
+        coupledNewtonWorkspace: bindExecutionPlanSolveSystemRuntimeV1(
           boundExecutionPlan,
           updateGroup.solveGroupId,
           prepared,
           MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1
-        ),
-        boundExecutionPlan
-      );
-      scenario.executionPlanBinding = Object.freeze({
-        boundExecutionPlan,
-        modelSession: scenario.modelSession,
-        updateSchedule: updateSchedule2,
-        presentationOriginBaseTick: executionPlanBaseTickAtTimeV1(
-          updateSchedule2,
-          clock.acceptedTimeSec
         )
-      });
-    } else if (installed.boundExecutionPlan !== boundExecutionPlan || installed.updateSchedule !== updateSchedule2) {
-      throw new Error("Standard Scenario execution plan cannot be replaced");
-    }
-    return Object.freeze({
-      schemaId: EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID,
-      definitionId: synchronized.definitionId,
-      runtimeSessionId,
-      scenarioId,
-      acceptedRevision: clock.revision,
-      acceptedTimeSec: clock.acceptedTimeSec,
-      synchronizedLogicalSlotCount: synchronized.synchronizedLogicalSlotCount,
-      conservationPoolCount: synchronized.conservationPoolCount,
-      maximumConservationAbsoluteError: synchronized.maximumConservationAbsoluteError
+      }),
+      updateSchedule: updateSchedule2
     });
   }
   advanceOnePresentationStep(runtimeSessionId, scenarioId) {
@@ -48352,9 +48174,15 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
     if (original.inputEpoch !== expectedInputEpoch) {
       throw new Error("Standard fixture warm start input epoch is stale");
     }
+    const preparedExecutionPlan = this.#prepareExecutionPlan(
+      runtimeSessionId,
+      scenarioId,
+      bindMainWireIntegratedStudioExecutionPlanV1()
+    );
     const candidate = await original.modelSession.warmStartWithHemodynamicResearchInputs(
       fixture.hemodynamicResearchInputs,
-      fixture.ventricularContractilityScale
+      fixture.ventricularContractilityScale,
+      preparedExecutionPlan.initialization
     );
     const accepted = candidate.currentAcceptedState();
     const sourceAccepted = original.modelSession.currentAcceptedState();
@@ -48367,7 +48195,15 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
     }
     current.fixture = fixture;
     current.modelSession = candidate;
-    current.executionPlanBinding = null;
+    current.executionPlanBinding = Object.freeze({
+      boundExecutionPlan: preparedExecutionPlan.initialization.boundExecutionPlan,
+      modelSession: candidate,
+      updateSchedule: preparedExecutionPlan.updateSchedule,
+      presentationOriginBaseTick: executionPlanBaseTickAtTimeV1(
+        preparedExecutionPlan.updateSchedule,
+        accepted.acceptedTimeSec
+      )
+    });
     current.presentationOrdinal = 0;
     current.inputEpoch += 1;
     return this.currentFrame(runtimeSessionId, scenarioId);
@@ -48436,7 +48272,7 @@ function createMainWireIntegratedStudioExactKernelV1() {
     modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
-      EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
+      EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
       EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1.map(({ outputId }) => `output/${outputId}`),
@@ -48624,10 +48460,10 @@ function standardExecutableBundleV1(host) {
       modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
       descriptor: MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
       bind: bindMainWireIntegratedStudioExecutionPlanV1,
-      synchronizeAcceptedState: (input) => host.synchronizeExecutionPlanAcceptedState(
+      createSession: (input) => host.createSession(
         input.runtimeSessionId,
-        input.scenarioId,
-        input.boundExecutionPlan
+        input.scenarios,
+        input.boundExecutionPlans
       )
     })
   });

@@ -21,7 +21,6 @@ import {
   resolveBoundExecutionPlanStateDispatchV1,
   resolveBoundExecutionPlanSolveDispatchV1,
   resolveBoundExecutionPlanUpdateScheduleV1,
-  synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
@@ -545,11 +544,9 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     const [solve] = bound.solveGroups;
 
     expect(bound.definitionId).toBe(descriptor.definitionId);
-    expect(bound.currentContinuousState).toHaveLength(99);
-    expect(bound.candidateContinuousState).toHaveLength(99);
-    expect(bound.currentBooleanState).toHaveLength(1);
-    expect(bound.candidateBooleanState).toHaveLength(1);
-    expect(bound.acceptedStateLogicalScratch).toHaveLength(100);
+    expect(Object.keys(bound)).not.toContain("currentContinuousState");
+    expect(Object.keys(bound)).not.toContain("candidateContinuousState");
+    expect(Object.keys(bound)).not.toContain("acceptedStateLogicalScratch");
     expect(bound.graphUpstreamNodeIndices).toHaveLength(37);
     expect(bound.graphDownstreamNodeIndices).toHaveLength(37);
     expect(solve?.activeStateLogicalIndices).toHaveLength(30);
@@ -557,8 +554,8 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     expect(solve?.workspaceF64).toHaveLength(2 * 30 * 30 + 9 * 30);
     expect(solve?.workspaceInt32).toHaveLength(30);
     expect(bound.allocatedBytes).toBeGreaterThan(0);
-    expect(bound.currentContinuousState.buffer)
-      .not.toBe(bound.candidateContinuousState.buffer);
+    expect(solve?.workspaceF64.buffer)
+      .not.toBe(solve?.workspaceInt32.buffer);
     expect(resolveBoundExecutionPlanSolveDispatchV1(
       bound,
       "coupled-hemodynamics",
@@ -748,37 +745,19 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     })).toThrow(/must be compiler-bound/);
   });
 
-  it("synchronizes one complete accepted view atomically and checks its ledger", () => {
+  it("keeps state authority external while owning persistent solver scratch", () => {
     const descriptor = compileMainWire();
     const bound = bindExecutionPlanV1(descriptor, mainWireKernelCatalog());
-    const source = bound.acceptedStateLogicalScratch;
-    source.forEach((_value, logicalIndex) => {
-      source[logicalIndex] = logicalIndex + 1;
-    });
-    const [pool] = descriptor.hydraulicGraph.conservationPools;
-    source[pool!.ledgerStateLogicalIndex] = pool!.memberStateLogicalIndices
-      .reduce((total, logicalIndex) => total + source[logicalIndex]!, 0);
-    source[98] = 1;
-
-    expect(synchronizeBoundExecutionPlanAcceptedStateV1(bound)).toEqual({
-      definitionId: descriptor.definitionId,
-      synchronizedLogicalSlotCount: 100,
-      conservationPoolCount: 1,
-      maximumConservationAbsoluteError: 0,
-    });
-    expect([...bound.currentContinuousState.slice(0, 3)])
-      .toEqual([1, 2, source[pool!.ledgerStateLogicalIndex]]);
-    expect(bound.currentContinuousState[98]).toBe(100);
-    expect([...bound.currentBooleanState]).toEqual([1]);
+    const dispatch = resolveBoundExecutionPlanStateDispatchV1(bound);
+    expect(dispatch.logicalSlotCount).toBe(100);
+    expect(dispatch.continuousSlotCount).toBe(99);
+    expect(dispatch.booleanSlotCount).toBe(1);
     const solveWorkspace = prepareBoundExecutionPlanSolveGroupV1(
       bound,
       "coupled-hemodynamics",
     );
-    const activeLogicalIndices = descriptor.solveGroups[0]!.blocks
-      .filter(({ disposition }) => disposition === "retained")
-      .flatMap(({ stateLogicalIndices }) => stateLogicalIndices);
     expect([...solveWorkspace.currentUnknowns]).toEqual(
-      activeLogicalIndices.map((logicalIndex) => source[logicalIndex]),
+      Array.from({ length: 30 }, () => 0),
     );
     expect(solveWorkspace.jacobian).toHaveLength(900);
     expect(solveWorkspace.factors).toHaveLength(900);
@@ -792,25 +771,6 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       "coupled-hemodynamics",
     )).toBe(solveWorkspace);
 
-    const admittedContinuous = new Float64Array(
-      bound.currentContinuousState,
-    );
-    const admittedBoolean = new Uint8Array(bound.currentBooleanState);
-    source[0] = Number.NaN;
-    expect(() => synchronizeBoundExecutionPlanAcceptedStateV1(bound))
-      .toThrow(/must be finite/);
-    expect(bound.currentContinuousState).toEqual(admittedContinuous);
-    expect(bound.currentBooleanState).toEqual(admittedBoolean);
-
-    source[0] = 1;
-    source[pool!.ledgerStateLogicalIndex] += 1;
-    expect(() => synchronizeBoundExecutionPlanAcceptedStateV1(bound))
-      .toThrow(/conservation ledger/);
-    expect(bound.currentContinuousState).toEqual(admittedContinuous);
-    expect(bound.currentBooleanState).toEqual(admittedBoolean);
-    expect(() => synchronizeBoundExecutionPlanAcceptedStateV1({
-      ...bound,
-    })).toThrow(/requires a bound plan/);
     expect(() => prepareBoundExecutionPlanSolveGroupV1(
       { ...bound },
       "coupled-hemodynamics",
@@ -825,7 +785,7 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     )).toThrow(/is unavailable/);
   });
 
-  it("fails closed on missing, extra, aliased, and descriptor-mismatched bindings", () => {
+  it("fails closed on missing, extra, and descriptor-mismatched bindings", () => {
     const descriptor = compileMainWire();
     const catalog = mainWireKernelCatalog();
     const [descriptorGroup] = descriptor.solveGroups;
@@ -903,10 +863,6 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     })).toThrow("solve system kernel bindings must match exactly");
 
     const bound = bindExecutionPlanV1(descriptor, catalog);
-    expect(() => assertBoundExecutionPlanV1({
-      ...bound,
-      candidateContinuousState: bound.currentContinuousState,
-    }, descriptor)).toThrow("typed allocations must not alias");
     const wrongGraph = new Int32Array(bound.graphUpstreamNodeIndices);
     wrongGraph[0] = wrongGraph[0] === 0 ? 1 : 0;
     expect(() => assertBoundExecutionPlanV1({
@@ -914,29 +870,29 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
       graphUpstreamNodeIndices: wrongGraph,
     }, descriptor)).toThrow("values do not match descriptor");
     if (typeof SharedArrayBuffer !== "undefined") {
-      const sharedState = new Float64Array(new SharedArrayBuffer(
-        bound.candidateContinuousState.byteLength,
+      const sharedGraph = new Int32Array(new SharedArrayBuffer(
+        bound.graphDownstreamNodeIndices.byteLength,
       ));
       expect(() => assertBoundExecutionPlanV1({
         ...bound,
-        candidateContinuousState: sharedState,
-      }, descriptor)).toThrow("must be one owned Float64Array");
+        graphDownstreamNodeIndices: sharedGraph,
+      }, descriptor)).toThrow("must be one owned Int32Array");
     }
 
     let getterCalled = false;
     const boundDescriptors = Object.fromEntries(
       Object.entries(Object.getOwnPropertyDescriptors(bound))
-        .filter(([key]) => key !== "candidateContinuousState"),
+        .filter(([key]) => key !== "graphDownstreamNodeIndices"),
     );
     const accessorBound = Object.defineProperties(
       {},
       boundDescriptors,
     );
-    Object.defineProperty(accessorBound, "candidateContinuousState", {
+    Object.defineProperty(accessorBound, "graphDownstreamNodeIndices", {
       enumerable: true,
       get: () => {
         getterCalled = true;
-        return bound.candidateContinuousState;
+        return bound.graphDownstreamNodeIndices;
       },
     });
     expect(() => assertBoundExecutionPlanV1(accessorBound, descriptor))

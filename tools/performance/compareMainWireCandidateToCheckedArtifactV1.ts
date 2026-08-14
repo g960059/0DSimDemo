@@ -5,14 +5,15 @@ import type {
   StudioSimulationFrameV2,
   StudioSimulationOutputValueV2,
 } from "@/studio/contracts/v2/simulation";
-import type { BoundExecutionPlanV1 } from
-  "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   createCircleHeartExactModelReleaseV1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 
 type ExactReleaseV1 = ReturnType<typeof createCircleHeartExactModelReleaseV1>;
+type ExactSessionCreateInputV1 = Parameters<
+  ExactReleaseV1["executables"]["simulationAdapter"]["createSession"]
+>[0];
 
 const artifactPath = resolve(
   process.cwd(),
@@ -37,14 +38,14 @@ const scenarioId = "scenario/baseline";
 const acceptedStepCount = 500;
 
 await Promise.all([
-  checkedAdapter.createSession({
+  createExactSessionV1(checkedArtifact, {
     runtimeSessionId: checkedSessionId,
     scenarios: [{
       scenarioId,
       fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
     }],
   }),
-  candidateAdapter.createSession({
+  createExactSessionV1(candidate, {
     runtimeSessionId: candidateSessionId,
     scenarios: [{
       scenarioId,
@@ -52,8 +53,6 @@ await Promise.all([
     }],
   }),
 ]);
-bindReleaseExecutionPlanV1(checkedArtifact, checkedSessionId, scenarioId);
-bindReleaseExecutionPlanV1(candidate, candidateSessionId, scenarioId);
 
 const differences = new Map<string, {
   maximumAbsoluteDifference: number;
@@ -129,19 +128,31 @@ process.stdout.write(`${JSON.stringify({
   ),
 }, null, 2)}\n`);
 
-function bindReleaseExecutionPlanV1(
+async function createExactSessionV1(
   release: ExactReleaseV1,
-  runtimeSessionId: string,
-  scenarioId: string,
-): void {
-  const executionPlan = release.executables.executionPlan;
-  if (executionPlan === undefined) return;
-  const boundExecutionPlan = executionPlan.bind() as BoundExecutionPlanV1;
-  executionPlan.synchronizeAcceptedState({
-    runtimeSessionId,
-    scenarioId,
-    boundExecutionPlan,
-  });
+  input: ExactSessionCreateInputV1,
+): Promise<void> {
+  const executionPlan = release.executables.executionPlan as unknown as
+    | Readonly<{
+        bind(): unknown;
+        createSession(input: Readonly<{
+          runtimeSessionId: string;
+          scenarios: ExactSessionCreateInputV1["scenarios"];
+          boundExecutionPlans: ReadonlyMap<string, unknown>;
+        }>): Promise<void>;
+      }>
+    | undefined;
+  if (executionPlan !== undefined) {
+    const boundExecutionPlans = new Map(
+      input.scenarios.map(({ scenarioId }) => [
+        scenarioId,
+        executionPlan.bind(),
+      ]),
+    );
+    await executionPlan.createSession({ ...input, boundExecutionPlans });
+    return;
+  }
+  await release.executables.simulationAdapter.createSession(input);
 }
 
 function compareFrames(

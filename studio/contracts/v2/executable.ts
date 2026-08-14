@@ -14,10 +14,10 @@ import type {
 } from "./runtime";
 import type {
   RegisteredModelSimulationAdapterV2,
+  StudioSimulationScenarioInputV2,
 } from "./simulation";
 import type {
   BoundExecutionPlanV1,
-  ExecutionPlanAcceptedStateSynchronizationV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 
 export type RegisteredModelExperimentCaptureAdapterV2 =
@@ -41,14 +41,14 @@ export type RegisteredModelExecutionPlanAdapterV1 = Readonly<{
   modelId: ModelIdV2;
   /** Immutable generated descriptor data bundled in the exact artifact. */
   descriptor: unknown;
-  /** Binds and allocates one Worker-local shadow plan. */
+  /** Binds and allocates one Worker-local plan. */
   bind(): unknown;
-  /** Samples one accepted Scenario boundary into that Worker-local plan. */
-  synchronizeAcceptedState(input: Readonly<{
+  /** Creates one exact session with every Scenario plan already installed. */
+  createSession(input: Readonly<{
     runtimeSessionId: string;
-    scenarioId: string;
-    boundExecutionPlan: BoundExecutionPlanV1;
-  }>): ExecutionPlanAcceptedStateSynchronizationV1;
+    scenarios: readonly StudioSimulationScenarioInputV2[];
+    boundExecutionPlans: ReadonlyMap<string, BoundExecutionPlanV1>;
+  }>): Promise<void>;
 }>;
 
 /** Executable functions admitted atomically with one exact package artifact. */

@@ -4,9 +4,9 @@ import {
 } from
   "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
 import {
-  EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID,
-  EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
   EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
+  EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
+  assertBoundExecutionPlanV1,
   bindExecutionPlanV1,
   bindExecutionPlanSolveSystemRuntimeV1,
   executionPlanBaseTickAtTimeV1,
@@ -15,12 +15,10 @@ import {
   executionPlanUpdateGroupIsDueAtBaseTickV1,
   prepareBoundExecutionPlanSolveGroupV1,
   resolveBoundExecutionPlanUpdateScheduleV1,
-  synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
   type BoundExecutionPlanV1,
   type BoundExecutionPlanUpdateGroupDispatchV1,
   type BoundExecutionPlanUpdateScheduleV1,
-  type ExecutionPlanAcceptedStateSynchronizationV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   bindMainWireFiveWallCoupledExecutionPlanRuntimeV1,
@@ -62,6 +60,7 @@ import {
   MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,
   MainWireIntegratedTypedAuthoritySessionV1,
   type MainWireFlatModelOwnedProjectionAdvanceV1,
+  type MainWireTypedExecutionPlanInitializationV1,
 } from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 import {
   runMainWireIntegratedModelFormalPressureVolumeProtocolV3,
@@ -232,7 +231,7 @@ type RuntimeScenarioV1 = {
     modelSession: MainWireIntegratedTypedAuthoritySessionV1;
     updateSchedule: BoundExecutionPlanUpdateScheduleV1;
     presentationOriginBaseTick: number;
-  }> | null;
+  }>;
 };
 
 type RuntimeSessionV1 = {
@@ -298,6 +297,7 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       fixture: StudioJsonValueV2;
       checkpoint?: ScenarioCheckpointV2;
     }>[],
+    suppliedExecutionPlans?: ReadonlyMap<string, BoundExecutionPlanV1>,
   ): Promise<void> {
     requiredIdV1(runtimeSessionId, "runtimeSessionId");
     if (
@@ -309,6 +309,14 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     if (scenarioInputs.length === 0) {
       throw new Error("Standard runtime session requires at least one Scenario");
     }
+    if (
+      suppliedExecutionPlans !== undefined
+      && suppliedExecutionPlans.size !== scenarioInputs.length
+    ) {
+      throw new Error(
+        "Standard runtime execution-plan Scenario set is incomplete",
+      );
+    }
     const scenarios = new Map<string, RuntimeScenarioV1>();
     for (const input of scenarioInputs) {
       requiredIdV1(input.scenarioId, "scenarioId");
@@ -319,16 +327,33 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       const checkpoint = input.checkpoint === undefined
         ? undefined
         : validateScenarioCheckpointV1(input.checkpoint);
+      const boundExecutionPlan = suppliedExecutionPlans?.get(input.scenarioId)
+        ?? bindMainWireIntegratedStudioExecutionPlanV1();
+      if (
+        suppliedExecutionPlans !== undefined
+        && !suppliedExecutionPlans.has(input.scenarioId)
+      ) {
+        throw new Error(
+          `Standard runtime execution plan is unavailable for Scenario ${input.scenarioId}`,
+        );
+      }
+      const preparedExecutionPlan = this.#prepareExecutionPlan(
+        runtimeSessionId,
+        input.scenarioId,
+        boundExecutionPlan,
+      );
       const modelSession = checkpoint === undefined
         ? await MainWireIntegratedTypedAuthoritySessionV1.create(
             fixture.hemodynamicResearchInputs,
             fixture.ventricularContractilityScale,
+            preparedExecutionPlan.initialization,
           )
         : await MainWireIntegratedTypedAuthoritySessionV1
           .restoreStandardExactCheckpoint(
             checkpoint.payload,
             fixture.hemodynamicResearchInputs,
             fixture.ventricularContractilityScale,
+            preparedExecutionPlan.initialization,
           );
       if (
         checkpoint !== undefined
@@ -346,7 +371,15 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
         inputEpoch: 0,
         modelSession,
         presentationOrdinal: 0,
-        executionPlanBinding: null,
+        executionPlanBinding: Object.freeze({
+          boundExecutionPlan,
+          modelSession,
+          updateSchedule: preparedExecutionPlan.updateSchedule,
+          presentationOriginBaseTick: executionPlanBaseTickAtTimeV1(
+            preparedExecutionPlan.updateSchedule,
+            modelSession.currentAcceptedState().acceptedTimeSec,
+          ),
+        }),
       });
     }
     this.#sessions.set(runtimeSessionId, { scenarios });
@@ -377,12 +410,18 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     });
   }
 
-  synchronizeExecutionPlanAcceptedState(
+  #prepareExecutionPlan(
     runtimeSessionId: string,
     scenarioId: string,
     boundExecutionPlan: BoundExecutionPlanV1,
-  ): ExecutionPlanAcceptedStateSynchronizationV1 {
-    const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
+  ): Readonly<{
+    initialization: MainWireTypedExecutionPlanInitializationV1;
+    updateSchedule: BoundExecutionPlanUpdateScheduleV1;
+  }> {
+    assertBoundExecutionPlanV1(
+      boundExecutionPlan,
+      MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
+    );
     const owner = this.#executionPlanScenarioOwners.get(boundExecutionPlan);
     if (owner === undefined) {
       this.#executionPlanScenarioOwners.set(boundExecutionPlan, Object.freeze({
@@ -397,16 +436,6 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
         "Standard execution plan cannot be shared between Scenarios",
       );
     }
-    scenario.modelSession.installExecutionPlanAcceptedStateBindingV1(
-      boundExecutionPlan,
-    );
-    const clock = scenario.modelSession
-      .copyCurrentAcceptedTypedHemodynamicViewV1(
-        boundExecutionPlan.acceptedStateLogicalScratch,
-      );
-    const synchronized = synchronizeBoundExecutionPlanAcceptedStateV1(
-      boundExecutionPlan,
-    );
     const updateSchedule = resolveBoundExecutionPlanUpdateScheduleV1(
       boundExecutionPlan,
     );
@@ -417,54 +446,17 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       boundExecutionPlan,
       updateGroup.solveGroupId,
     );
-    const installed = scenario.executionPlanBinding;
-    if (
-      installed === null
-      || installed.modelSession !== scenario.modelSession
-    ) {
-      if (
-        installed !== null
-        && installed.boundExecutionPlan !== boundExecutionPlan
-      ) {
-        throw new Error("Standard Scenario execution plan cannot be replaced");
-      }
-      scenario.modelSession.installExecutionPlanCoupledNewtonWorkspaceV1(
-        bindExecutionPlanSolveSystemRuntimeV1(
+    return Object.freeze({
+      initialization: Object.freeze({
+        boundExecutionPlan,
+        coupledNewtonWorkspace: bindExecutionPlanSolveSystemRuntimeV1(
           boundExecutionPlan,
           updateGroup.solveGroupId,
           prepared,
           MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1,
         ),
-        boundExecutionPlan,
-      );
-      scenario.executionPlanBinding = Object.freeze({
-        boundExecutionPlan,
-        modelSession: scenario.modelSession,
-        updateSchedule,
-        presentationOriginBaseTick: executionPlanBaseTickAtTimeV1(
-          updateSchedule,
-          clock.acceptedTimeSec,
-        ),
-      });
-    } else if (
-      installed.boundExecutionPlan !== boundExecutionPlan
-      || installed.updateSchedule !== updateSchedule
-    ) {
-      throw new Error("Standard Scenario execution plan cannot be replaced");
-    }
-    return Object.freeze({
-      schemaId:
-        EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID,
-      definitionId: synchronized.definitionId,
-      runtimeSessionId,
-      scenarioId,
-      acceptedRevision: clock.revision,
-      acceptedTimeSec: clock.acceptedTimeSec,
-      synchronizedLogicalSlotCount:
-        synchronized.synchronizedLogicalSlotCount,
-      conservationPoolCount: synchronized.conservationPoolCount,
-      maximumConservationAbsoluteError:
-        synchronized.maximumConservationAbsoluteError,
+      }),
+      updateSchedule,
     });
   }
 
@@ -866,9 +858,15 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     if (original.inputEpoch !== expectedInputEpoch) {
       throw new Error("Standard fixture warm start input epoch is stale");
     }
+    const preparedExecutionPlan = this.#prepareExecutionPlan(
+      runtimeSessionId,
+      scenarioId,
+      bindMainWireIntegratedStudioExecutionPlanV1(),
+    );
     const candidate = await original.modelSession.warmStartWithHemodynamicResearchInputs(
       fixture.hemodynamicResearchInputs,
       fixture.ventricularContractilityScale,
+      preparedExecutionPlan.initialization,
     );
     const accepted = candidate.currentAcceptedState();
     const sourceAccepted = original.modelSession.currentAcceptedState();
@@ -884,7 +882,16 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     }
     current.fixture = fixture;
     current.modelSession = candidate;
-    current.executionPlanBinding = null;
+    current.executionPlanBinding = Object.freeze({
+      boundExecutionPlan:
+        preparedExecutionPlan.initialization.boundExecutionPlan,
+      modelSession: candidate,
+      updateSchedule: preparedExecutionPlan.updateSchedule,
+      presentationOriginBaseTick: executionPlanBaseTickAtTimeV1(
+        preparedExecutionPlan.updateSchedule,
+        accepted.acceptedTimeSec,
+      ),
+    });
     current.presentationOrdinal = 0;
     current.inputEpoch += 1;
     return this.currentFrame(runtimeSessionId, scenarioId);
@@ -966,7 +973,7 @@ ExactModelKernelManifestV3 {
     modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
-      EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
+      EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
       EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1
@@ -1230,12 +1237,11 @@ function standardExecutableBundleV1(
       modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
       descriptor: MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
       bind: bindMainWireIntegratedStudioExecutionPlanV1,
-      synchronizeAcceptedState: (input) =>
-        host.synchronizeExecutionPlanAcceptedState(
-          input.runtimeSessionId,
-          input.scenarioId,
-          input.boundExecutionPlan,
-        ),
+      createSession: (input) => host.createSession(
+        input.runtimeSessionId,
+        input.scenarios,
+        input.boundExecutionPlans,
+      ),
     }),
   });
 }

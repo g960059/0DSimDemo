@@ -346,7 +346,7 @@ export async function sealStudioExperimentSnapshotV1(
   assertResolvedMatchesPinV1(resolved, input.exactModel);
   const runtimeSessionId = `authoring/seal/${crypto.randomUUID()}`;
   const adapter = resolved.runtime.simulationAdapter;
-  await adapter.createSession({
+  const sessionCreateInput = Object.freeze({
     runtimeSessionId,
     scenarios: current.content.scenarios.map((scenario) => Object.freeze({
       scenarioId: scenario.scenarioId,
@@ -354,13 +354,22 @@ export async function sealStudioExperimentSnapshotV1(
       checkpoint: scenario.capture.checkpoint,
     })),
   });
+  const scenarioIds = current.content.scenarios.map(
+    ({ scenarioId }) => scenarioId,
+  );
+  const boundExecutionPlans = bindAuthoringExecutionPlansV1(
+    resolved.runtime,
+    scenarioIds,
+  );
+  if (boundExecutionPlans === null) {
+    await adapter.createSession(sessionCreateInput);
+  } else {
+    await resolved.runtime.executionPlan!.createSession(Object.freeze({
+      ...sessionCreateInput,
+      boundExecutionPlans,
+    }));
+  }
   try {
-    const scenarioIds = current.content.scenarios.map(({ scenarioId }) => scenarioId);
-    bindAuthoringExecutionPlansV1(
-      resolved.runtime,
-      runtimeSessionId,
-      scenarioIds,
-    );
     const frames = new Map(scenarioIds.map((scenarioId) => [scenarioId,
       adapter.currentFrame({ runtimeSessionId, scenarioId })]));
     // Observation selection is part of the command's validation boundary. It
@@ -451,7 +460,7 @@ async function prepareExperimentCaptureV1(
   });
   const runtimeSessionId = `authoring/session/${crypto.randomUUID()}`;
   const adapter = resolved.runtime.simulationAdapter;
-  await adapter.createSession({
+  const sessionCreateInput = Object.freeze({
     runtimeSessionId,
     scenarios: sources.map(({ spec, fixture, checkpoint }) => Object.freeze({
       scenarioId: spec.scenarioId,
@@ -459,12 +468,19 @@ async function prepareExperimentCaptureV1(
       ...(checkpoint === undefined ? {} : { checkpoint }),
     })),
   });
+  const boundExecutionPlans = bindAuthoringExecutionPlansV1(
+    resolved.runtime,
+    sources.map(({ spec }) => spec.scenarioId),
+  );
+  if (boundExecutionPlans === null) {
+    await adapter.createSession(sessionCreateInput);
+  } else {
+    await resolved.runtime.executionPlan!.createSession(Object.freeze({
+      ...sessionCreateInput,
+      boundExecutionPlans,
+    }));
+  }
   try {
-    const boundExecutionPlans = bindAuthoringExecutionPlansV1(
-      resolved.runtime,
-      runtimeSessionId,
-      sources.map(({ spec }) => spec.scenarioId),
-    );
     const reducer = createStudioFixtureReducerV2(Object.freeze({
       resolveExactRuntime(modelId: string) {
         if (modelId !== resolved.contract.modelId) {
@@ -499,12 +515,6 @@ async function prepareExperimentCaptureV1(
             scenarioId: spec.scenarioId,
           }),
         });
-        synchronizeAuthoringExecutionPlanV1(
-          resolved.runtime,
-          runtimeSessionId,
-          spec.scenarioId,
-          boundExecutionPlans,
-        );
       }
       desiredFixtures.set(spec.scenarioId, desiredFixture);
     }
@@ -766,7 +776,6 @@ async function advanceAuthoringScenariosV1(
 
 function bindAuthoringExecutionPlansV1(
   runtime: ResolvedExactModelRuntimeV2,
-  runtimeSessionId: string,
   scenarioIds: readonly string[],
 ): ReadonlyMap<string, BoundExecutionPlanV1> | null {
   const executionPlan = runtime.executionPlan;
@@ -778,33 +787,9 @@ function bindAuthoringExecutionPlansV1(
       boundExecutionPlan,
       executionPlan.descriptor,
     );
-    executionPlan.synchronizeAcceptedState({
-      runtimeSessionId,
-      scenarioId,
-      boundExecutionPlan,
-    });
     boundByScenario.set(scenarioId, boundExecutionPlan);
   }
   return boundByScenario;
-}
-
-function synchronizeAuthoringExecutionPlanV1(
-  runtime: ResolvedExactModelRuntimeV2,
-  runtimeSessionId: string,
-  scenarioId: string,
-  boundByScenario: ReadonlyMap<string, BoundExecutionPlanV1> | null,
-): void {
-  if (boundByScenario === null) return;
-  const executionPlan = runtime.executionPlan;
-  const boundExecutionPlan = boundByScenario.get(scenarioId);
-  if (executionPlan === undefined || boundExecutionPlan === undefined) {
-    throw new Error(`Authoring execution plan is unavailable for ${scenarioId}`);
-  }
-  executionPlan.synchronizeAcceptedState({
-    runtimeSessionId,
-    scenarioId,
-    boundExecutionPlan,
-  });
 }
 
 function observationFromFrameV1(
