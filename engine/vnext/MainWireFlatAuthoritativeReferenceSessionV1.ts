@@ -16,11 +16,13 @@ import {
   type CoronaryBackwardEulerScratchWorkspaceV2,
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
+  CORONARY_CONSERVED_VOLUME_NODE_IDS_V2,
   CORONARY_LAYER_IDS_V2,
   CORONARY_TERRITORY_IDS_V2,
 } from "@/engine/coronary/typesV2";
 import {
   createNonCoronaryBackwardEulerScratchWorkspaceV1,
+  NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
   type NonCoronaryAcceptedNumericalSourceV1,
   type NonCoronaryBackwardEulerScratchWorkspaceV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
@@ -127,6 +129,17 @@ import {
   type MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
 import {
+  checkpointMainWireFiveWallCoupledPredictorV1,
+  createMainWireFiveWallCoupledPredictorWorkspaceV1,
+  recordAcceptedMainWireFiveWallCoupledSolutionV1,
+  reportMainWireFiveWallCoupledPredictorV1,
+  resetMainWireFiveWallCoupledPredictorV1,
+  restoreMainWireFiveWallCoupledPredictorV1,
+  type MainWireFiveWallCoupledPredictorCheckpointV1,
+  type MainWireFiveWallCoupledPredictorReportV1,
+  type MainWireFiveWallCoupledPredictorWorkspaceV1,
+} from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
+import {
   solveMainWireFiveWallCoupledCandidateV1,
   stepMainWireIntegratedModelCoupledV1,
 } from "@/engine/vnext/coupled/MainWireIntegratedCoupledStepV1";
@@ -139,6 +152,26 @@ import type {
 
 export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_SESSION_V1_ID =
   "main-wire-flat-authoritative-reference-session-v1" as const;
+export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID =
+  "circleheart-main-wire-flat-authoritative-reference-checkpoint-v1" as const;
+
+type MainWireFlatAuthoritativeReferenceCheckpointV1 = Readonly<{
+  checkpointId:
+    typeof MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID;
+  schemaVersion: 1;
+  standardCheckpoint: MainWireIntegratedModelStandardCheckpointV1;
+  coupledPredictor: MainWireFiveWallCoupledPredictorCheckpointV1;
+}>;
+
+export type MainWireFlatCoupledSolverProfileV1 = Readonly<{
+  solveCount: number;
+  convergedSolveCount: number;
+  iterationCount: number;
+  residualEvaluationCount: number;
+  jacobianEvaluationCount: number;
+  lineSearchBacktrackCount: number;
+  jacobianResidualEvaluationCount: number;
+}>;
 
 type WallState = MainWireNormalAdultFiveWallMechanicsStateV1;
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<WallState>;
@@ -212,6 +245,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   );
   readonly #coupledNewtonWorkspace:
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
+  readonly #coupledPredictorWorkspace:
+    MainWireFiveWallCoupledPredictorWorkspaceV1;
   readonly #nonCoronaryAcceptedNumericalSource:
     NonCoronaryAcceptedNumericalSourceV1 | undefined;
   readonly #directCompletionPlan:
@@ -233,6 +268,15 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
   #lastPresentationRevision: number;
   readonly #beatAccumulator: MainWireIntegratedModelBeatAccumulatorV3;
   #completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null;
+  readonly #coupledSolverProfile = {
+    solveCount: 0,
+    convergedSolveCount: 0,
+    iterationCount: 0,
+    residualEvaluationCount: 0,
+    jacobianEvaluationCount: 0,
+    lineSearchBacktrackCount: 0,
+    jacobianResidualEvaluationCount: 0,
+  };
 
   private constructor(
     runtime: MainWireIntegratedModelRuntimeV3,
@@ -323,6 +367,8 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       createMainWireAcceptedTypedHemodynamicDestinationV1();
     this.#coupledNewtonWorkspace =
       createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    this.#coupledPredictorWorkspace =
+      createMainWireFiveWallCoupledPredictorWorkspaceV1();
     this.#nonCoronaryAcceptedNumericalSource =
       this.#typedAuthority === null || this.#typedBoundaryBinding === null
         ? undefined
@@ -425,7 +471,9 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
   ): Promise<MainWireFlatAuthoritativeReferenceSessionV1> {
-    const checkpoint = await decodeCanonicalFlatCheckpointV1(checkpointBytes);
+    const checkpoint = validateReferenceCheckpointV1(
+      await decodeCanonicalFlatCheckpointV1(checkpointBytes),
+    );
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
@@ -435,15 +483,27 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         runtime,
         runtime.cold.acceptedState,
       ),
-      checkpoint,
+      checkpoint.standardCheckpoint,
     );
-    return new MainWireFlatAuthoritativeReferenceSessionV1(
+    const session = new MainWireFlatAuthoritativeReferenceSessionV1(
       runtime,
       restored.acceptedState,
       "standard-exact-checkpoint-restore",
       typedAuthorityFactory(runtime.cold.acceptedState),
       restored,
     );
+    restoreMainWireFiveWallCoupledPredictorV1(
+      checkpoint.coupledPredictor,
+      Object.freeze({
+        revision: restored.acceptedState.revision,
+        acceptedTimeSec: restored.acceptedState.acceptedTimeSec,
+        unknownsMl: coupledUnknownsFromAcceptedStateV1(
+          restored.acceptedState,
+        ),
+      }),
+      session.#coupledPredictorWorkspace,
+    );
+    return session;
   }
 
   currentAcceptedState(): AcceptedState {
@@ -613,8 +673,27 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         Object.freeze({
           previousAcceptedNumericalSource:
             this.#nonCoronaryAcceptedNumericalSource,
+          predictor: Object.freeze({
+            workspace: this.#coupledPredictorWorkspace,
+            order: "quadratic" as const,
+          }),
         }),
       );
+      const profiledSolverResult = solved.solver.result;
+      this.#coupledSolverProfile.solveCount += 1;
+      this.#coupledSolverProfile.iterationCount +=
+        profiledSolverResult.iterations;
+      this.#coupledSolverProfile.residualEvaluationCount +=
+        profiledSolverResult.residualEvaluationCount;
+      this.#coupledSolverProfile.jacobianEvaluationCount +=
+        profiledSolverResult.jacobianEvaluationCount;
+      this.#coupledSolverProfile.lineSearchBacktrackCount +=
+        profiledSolverResult.lineSearchBacktrackCount;
+      this.#coupledSolverProfile.jacobianResidualEvaluationCount +=
+        solved.solver.jacobianResidualEvaluationCount;
+      if (profiledSolverResult.status === "converged") {
+        this.#coupledSolverProfile.convergedSolveCount += 1;
+      }
       if (solved.status === "failed") {
         const failure = solved.solver.result;
         if (failure.status !== "failed") {
@@ -696,6 +775,11 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         this.requiredModelOwnedPromotionPlan(),
       );
       candidateOpen = false;
+      recordAcceptedMainWireFiveWallCoupledSolutionV1(
+        solved.context,
+        solverResult.solution,
+        this.#coupledPredictorWorkspace,
+      );
       this.#autoregulationOwner = nextAutoregulationOwner;
       this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
       const completedBeat = this.#beatAccumulator.acceptNumericalReadback(
@@ -1091,6 +1175,9 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
         throw error;
       }
       this.#acceptedState = committedState;
+      resetMainWireFiveWallCoupledPredictorV1(
+        this.#coupledPredictorWorkspace,
+      );
       this.#autoregulationOwner =
         autoregulationOwnerFromAcceptedState(committedState);
       acceptedClock = this.currentAcceptedClock();
@@ -1192,7 +1279,15 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
 
   async checkpointCanonicalBinary(): Promise<Uint8Array> {
     return encodeCanonicalFlatCheckpointV1(
-      await this.checkpointStandardExact(),
+      Object.freeze({
+        checkpointId:
+          MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID,
+        schemaVersion: 1 as const,
+        standardCheckpoint: await this.checkpointStandardExact(),
+        coupledPredictor: checkpointMainWireFiveWallCoupledPredictorV1(
+          this.#coupledPredictorWorkspace,
+        ),
+      }) satisfies MainWireFlatAuthoritativeReferenceCheckpointV1,
     );
   }
 
@@ -1201,6 +1296,16 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       throw new Error("Flat reference Session uses a non-typed test authority");
     }
     return this.#typedAuthority.report();
+  }
+
+  coupledSolverProfile(): MainWireFlatCoupledSolverProfileV1 {
+    return Object.freeze({ ...this.#coupledSolverProfile });
+  }
+
+  coupledPredictorReport(): MainWireFiveWallCoupledPredictorReportV1 {
+    return reportMainWireFiveWallCoupledPredictorV1(
+      this.#coupledPredictorWorkspace,
+    );
   }
 
   snapshotAcceptedStateBytes(): Uint8Array {
@@ -1474,6 +1579,72 @@ function hasDiscreteRhythmTransition(
     || candidate.authoredEctopyTrial.sourceImpulses.length > 0
     || (candidate.authoredVentricularPacingReplayTrial?.sourceImpulses.length
       ?? 0) > 0;
+}
+
+function validateReferenceCheckpointV1(
+  input: unknown,
+): MainWireFlatAuthoritativeReferenceCheckpointV1 {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("flat authoritative reference checkpoint must be a plain object");
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error("flat authoritative reference checkpoint must be a plain object");
+  }
+  const expectedKeys = [
+    "checkpointId",
+    "schemaVersion",
+    "standardCheckpoint",
+    "coupledPredictor",
+  ].sort();
+  const keys = Reflect.ownKeys(input);
+  if (
+    keys.some((key) => typeof key !== "string")
+    || keys.length !== expectedKeys.length
+    || (keys as string[]).sort().some((key, index) =>
+      key !== expectedKeys[index])
+  ) {
+    throw new Error("flat authoritative reference checkpoint has unexpected fields");
+  }
+  const candidate = input as Partial<
+    MainWireFlatAuthoritativeReferenceCheckpointV1
+  >;
+  if (
+    candidate.checkpointId
+      !== MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID
+    || candidate.schemaVersion !== 1
+    || candidate.standardCheckpoint === undefined
+    || candidate.coupledPredictor === undefined
+  ) {
+    throw new Error("unsupported flat authoritative reference checkpoint schema");
+  }
+  return candidate as MainWireFlatAuthoritativeReferenceCheckpointV1;
+}
+
+function coupledUnknownsFromAcceptedStateV1(
+  state: AcceptedState,
+): Float64Array {
+  const unknownsMl = new Float64Array(30);
+  for (
+    let index = 0;
+    index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+    index += 1
+  ) {
+    unknownsMl[index] = state.coronary.circulation.nodeVolumesMl[
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]!
+    ];
+  }
+  for (
+    let index = 0;
+    index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+    index += 1
+  ) {
+    unknownsMl[NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index] =
+      state.coronary.coronary.volumeMlByNode[
+        CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]!
+      ];
+  }
+  return unknownsMl;
 }
 
 function autoregulationControlsUnchanged(

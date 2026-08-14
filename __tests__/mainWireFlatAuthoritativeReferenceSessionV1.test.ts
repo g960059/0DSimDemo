@@ -2040,6 +2040,11 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
             target,
             MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
           );
+        const uninterrupted = source
+          .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+            target,
+            MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+          );
         const expected = oracle.advanceToPresentationTime(target);
         expect(expected.status).toBe("advanced");
         if (expected.status !== "advanced") {
@@ -2052,6 +2057,8 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
             MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
           ),
         );
+        expect(actual.advance).toEqual(uninterrupted.advance);
+        expect(actual.projectedValues).toEqual(uninterrupted.projectedValues);
       }
 
       expect(restored.currentAcceptedState()).toMatchObject({
@@ -2063,6 +2070,12 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       });
       expect(restored.authorityReport().modelOwnedAdapterFreeCommitCount)
         .toBeGreaterThan(1_100);
+      expect(restored.snapshotAcceptedStateBytes())
+        .toEqual(source.snapshotAcceptedStateBytes());
+      expect(restored.coupledPredictorReport()).toMatchObject({
+        hasAcceptedPair: true,
+        historyDepth: 3,
+      });
       expect(decodeCanonicalFlatDataV1(restored.snapshotAcceptedStateBytes()))
         .toEqual(restored.currentAcceptedState());
     } finally {
@@ -2101,6 +2114,30 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
       fixedImageCount: 2,
       poisonedReason: null,
     });
+
+    const decodedCheckpoint = await decodeCanonicalFlatCheckpointV1(first) as
+      Readonly<{
+        coupledPredictor: Readonly<{
+          currentAcceptedMl: readonly number[];
+        }>;
+      }>;
+    const mismatchedRoot = [...decodedCheckpoint.coupledPredictor
+      .currentAcceptedMl];
+    mismatchedRoot[0] += 1e-6;
+    const semanticallyTampered = await encodeCanonicalFlatCheckpointV1(
+      Object.freeze({
+        ...decodedCheckpoint,
+        coupledPredictor: Object.freeze({
+          ...decodedCheckpoint.coupledPredictor,
+          currentAcceptedMl: Object.freeze(mismatchedRoot),
+        }),
+      }),
+    );
+    await expect(
+      MainWireFlatAuthoritativeReferenceSessionV1.restoreCanonicalBinary(
+        semanticallyTampered,
+      ),
+    ).rejects.toThrow(/predictor checkpoint/);
 
     const tampered = first.slice();
     tampered[20] ^= 0x80;

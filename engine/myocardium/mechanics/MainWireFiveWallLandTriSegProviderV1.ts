@@ -317,7 +317,8 @@ export type MainWireFiveWallNumericalMechanicsStepV1<TState> = Readonly<{
 
 export type MainWireFiveWallNumericalMechanicsEvaluationV1<TState> =
   Readonly<{
-    candidateMaterialState: TState;
+    /** Invariant type only; the value is never present at runtime. */
+    readonly __stateType?: TState;
     candidateVolumesMl: WholeHeartMechanicsChamberValuesV1;
     scaledInternalCoordinates: readonly [number, number];
     transmuralPressuresMmHg: WholeHeartMechanicsChamberValuesV1;
@@ -390,6 +391,14 @@ const NUMERICAL_STEP_INTERNALS_V1 = new WeakMap<
     ): MainWireFiveWallFixedInternalMechanicsEvaluationV1;
     initialScaledInternalCoordinates: readonly [number, number];
   }>
+>();
+
+const NUMERICAL_EVALUATION_INTERNALS_V1 = new WeakMap<
+  object,
+  {
+    materialized: boolean;
+    materializeCandidateState(): unknown;
+  }
 >();
 
 type ResolvedSolverOptionsV1 = Required<MainWireFiveWallInternalSolverOptionsV1>;
@@ -828,6 +837,34 @@ export function evaluateMainWireFiveWallNumericalMechanicsCandidateV1<TState>(
 }
 
 /**
+ * Materializes the selected numerical mechanics root exactly once.
+ *
+ * Rejected Newton probes deliberately carry no public material-state graph.
+ * The selected root may synchronously lend its fresh state to the typed
+ * candidate stager, after which this evaluation cannot materialize again.
+ */
+export function withMainWireFiveWallNumericalMechanicsMaterialStateV1<
+  TState,
+  TResult,
+>(
+  evaluation: MainWireFiveWallNumericalMechanicsEvaluationV1<TState>,
+  consume: (candidateMaterialState: TState) => TResult,
+): TResult {
+  if (typeof consume !== "function") {
+    throw new TypeError("numerical mechanics material-state consumer is required");
+  }
+  const internals = NUMERICAL_EVALUATION_INTERNALS_V1.get(evaluation);
+  if (internals === undefined) {
+    throw new Error("numerical mechanics evaluation was not minted by this runtime");
+  }
+  if (internals.materialized) {
+    throw new Error("numerical mechanics material state is one-shot");
+  }
+  internals.materialized = true;
+  return consume(internals.materializeCandidateState() as TState);
+}
+
+/**
  * Evaluates mechanics at caller-supplied scaled TriSeg coordinates without the
  * provider's local two-variable Newton. This is a construction contract for
  * the monolithic 32-variable solver, not an accepted mechanics trial.
@@ -875,12 +912,7 @@ function numericalMechanicsEvaluationFromSolveV1<TWallState>(
   } catch {
     consistentTangent = undefined;
   }
-  return Object.freeze({
-    candidateMaterialState: materializeCandidateStateV1(
-      solved.candidate,
-      params,
-      "trial",
-    ),
+  const evaluation = Object.freeze({
     candidateVolumesMl: solved.candidate.volumesMl,
     scaledInternalCoordinates: Object.freeze([
       solved.scaledUnknowns[0]!,
@@ -905,6 +937,15 @@ function numericalMechanicsEvaluationFromSolveV1<TWallState>(
       ? {}
       : { evaluationCounters: solved.evaluationCounters }),
   });
+  NUMERICAL_EVALUATION_INTERNALS_V1.set(evaluation, {
+    materialized: false,
+    materializeCandidateState: () => materializeCandidateStateV1(
+      solved.candidate,
+      params,
+      "trial",
+    ),
+  });
+  return evaluation;
 }
 
 function fixedInternalMechanicsEvaluationV1<TWallState>(

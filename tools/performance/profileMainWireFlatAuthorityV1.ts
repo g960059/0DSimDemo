@@ -14,8 +14,27 @@ import {
   MainWireFlatAuthoritativeReferenceSessionV1,
 } from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
 
-const WARMUP_TICKS = 128;
-const MEASURED_TICKS = 1_024;
+function positiveIntegerFromEnvironment(
+  name: string,
+  fallback: number,
+): number {
+  const text = process.env[name];
+  if (text === undefined) return fallback;
+  const value = Number(text);
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive safe integer`);
+  }
+  return value;
+}
+
+const WARMUP_TICKS = positiveIntegerFromEnvironment(
+  "CIRCLEHEART_FLAT_PROFILE_WARMUP_TICKS",
+  128,
+);
+const MEASURED_TICKS = positiveIntegerFromEnvironment(
+  "CIRCLEHEART_FLAT_PROFILE_MEASURED_TICKS",
+  1_024,
+);
 selectHotPathIntegrityTierV1("hot-path-lean");
 const session = await MainWireFlatAuthoritativeReferenceSessionV1.create();
 let outputs: ReturnType<
@@ -64,4 +83,6 @@ process.stdout.write(`${JSON.stringify({
   meanMsPerTick: elapsedMs / MEASURED_TICKS,
   outputCount: Object.keys(outputs).length,
   authority: session.authorityReport(),
+  coupledSolver: session.coupledSolverProfile(),
+  coupledPredictor: session.coupledPredictorReport(),
 }, null, 2)}\n`);

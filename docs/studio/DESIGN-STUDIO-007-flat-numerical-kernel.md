@@ -1280,7 +1280,9 @@ A 600-tick full-catalog regression crosses rhythm and autoregulation event
 boundaries, requires more than 550 adapter-free commits, and compares all 49
 outputs with the independent public oracle. A second 1,600-tick regression
 captures canonical binary state at tick 377, restores a fresh Session, and
-continues every selected output inside the established scientific corridor.
+continues with predictor history intact. The uninterrupted and restored
+Sessions produce byte-identical accepted state and selected outputs through
+tick 1,600 while both remain inside the independent public-oracle corridor.
 Cold observation after an ordinary typed commit is intentionally marked
 `typed-authority-readback`: it rehydrates accepted state, but does not invent a
 public last-step diagnostic tree that was never constructed. Checkpoint,
@@ -1295,12 +1297,17 @@ accepted displacement. Once three accepted roots exist, the selected policy
 uses the second finite difference to form a quadratic extrapolation. Prediction
 is not accepted state and changes no equation, timestep, bound, residual
 tolerance, or component-owned convergence law. History advances only after
-the exact root has been staged and the complete flat image promoted. A
-restore, parameter change, revision/time discontinuity, or mismatch with the
-current accepted root clears the history. An extrapolation outside the open
-per-volume and dependent-SV domain is geometrically damped and ultimately
-falls back to the context seed; a predicted solve that fails also retries from
-that seed.
+the exact root has been staged and the complete flat image promoted. Parameter
+changes, revision/time discontinuities, or a mismatch with the current
+accepted root clear the history. An exact reference checkpoint instead owns
+the predictor as algorithmic state: it records the accepted clock and two- or
+three-root history, restores only when the clock and current root agree with
+the restored numerical authority, and continues with the same seed. Empty
+history has one canonical all-zero encoding. Meaningful clock/root tampering is
+rejected and accessors are never invoked during validation. An extrapolation
+outside the open per-volume and dependent-SV domain is geometrically damped
+and ultimately falls back to the context seed; a predicted solve that fails
+also retries from that seed.
 
 In one 1,000-step sequential host diagnostic after 100 warm-up steps, the
 context-seeded coupled path required mean `3.171` Newton updates and `1.958`
@@ -1413,6 +1420,19 @@ This is a meaningful host improvement, but the path still allocates geometry,
 constitutive, derivative, Hessian, and tangent object graphs for every residual
 candidate. Those allocations, not the deferred public boundary, are the next
 target.
+
+The quadratic predictor is now connected to the adapter-free ordinary
+reference Session rather than remaining a benchmark-only experiment. Over a
+10,000-tick hot-path-lean run it reduced 10,364 direct solves from about `2.38`
+Newton/Jacobian evaluations per solve to about `1.35`; three complete runs
+measured `0.409`, `0.410`, and `0.415 ms/tick`, compared with about
+`0.537 ms/tick` for the same direct path without prediction. A two-update
+modified-Newton experiment was also measured and removed: it reduced fresh
+Jacobian construction but raised the mean iteration count to about three and
+slowed the path to about `0.599 ms/tick`. Residual and mechanics work, rather
+than the already-cheap analytic Jacobian writer, therefore remains the next
+optimization target. These host measurements are construction evidence, not
+the physical-phone release gate.
 
 The Phase 2b construction seam now also exposes the two scaled TriSeg internal
 coordinates as explicit caller-owned unknowns. At one fixed chamber-volume and

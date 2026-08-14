@@ -91,10 +91,13 @@ import {
   solveMainWireFiveWallCoupledNewtonShadowV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
 import {
+  checkpointMainWireFiveWallCoupledPredictorV1,
   createMainWireFiveWallCoupledPredictorWorkspaceV1,
   prepareMainWireFiveWallCoupledPredictionV1,
   recordAcceptedMainWireFiveWallCoupledSolutionV1,
   reportMainWireFiveWallCoupledPredictorV1,
+  resetMainWireFiveWallCoupledPredictorV1,
+  restoreMainWireFiveWallCoupledPredictorV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
 import {
   MainWireFlatCoupledAcceptedStateV1,
@@ -1640,6 +1643,77 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       resetCount: 1,
     });
   }, 60_000);
+
+  it("restores exact predictor history and rejects mismatched or accessor checkpoints", () => {
+    const acceptedUnknowns = new Float64Array(30).fill(1);
+    const checkpoint = Object.freeze({
+      checkpointId:
+        "circleheart-main-wire-five-wall-coupled-predictor-checkpoint-v1" as const,
+      schemaVersion: 1 as const,
+      historyDepth: 2 as const,
+      expectedBaseRevision: 7,
+      expectedBaseAcceptedTimeSec: 0.014,
+      olderAcceptedMl: Object.freeze(new Array<number>(30).fill(0)),
+      previousAcceptedMl: Object.freeze(new Array<number>(30).fill(0.9)),
+      currentAcceptedMl: Object.freeze(new Array<number>(30).fill(1)),
+    });
+    const accepted = Object.freeze({
+      revision: 7,
+      acceptedTimeSec: 0.014,
+      unknownsMl: acceptedUnknowns,
+    });
+    const workspace = createMainWireFiveWallCoupledPredictorWorkspaceV1();
+    restoreMainWireFiveWallCoupledPredictorV1(
+      checkpoint,
+      accepted,
+      workspace,
+    );
+    expect(reportMainWireFiveWallCoupledPredictorV1(workspace)).toMatchObject({
+      hasAcceptedPair: true,
+      historyDepth: 2,
+      expectedBaseRevision: 7,
+      expectedBaseAcceptedTimeSec: 0.014,
+    });
+    expect(checkpointMainWireFiveWallCoupledPredictorV1(workspace))
+      .toEqual(checkpoint);
+    resetMainWireFiveWallCoupledPredictorV1(workspace);
+    expect(checkpointMainWireFiveWallCoupledPredictorV1(workspace))
+      .toMatchObject({
+        historyDepth: 0,
+        expectedBaseRevision: null,
+        expectedBaseAcceptedTimeSec: null,
+        olderAcceptedMl: new Array<number>(30).fill(0),
+        previousAcceptedMl: new Array<number>(30).fill(0),
+        currentAcceptedMl: new Array<number>(30).fill(0),
+      });
+
+    const mismatchedCurrent = new Array<number>(30).fill(1);
+    mismatchedCurrent[0] += 1e-6;
+    expect(() => restoreMainWireFiveWallCoupledPredictorV1(
+      Object.freeze({
+        ...checkpoint,
+        currentAcceptedMl: Object.freeze(mismatchedCurrent),
+      }),
+      accepted,
+      createMainWireFiveWallCoupledPredictorWorkspaceV1(),
+    )).toThrow(/root differs/);
+
+    let getterCalls = 0;
+    const accessorCheckpoint = { ...checkpoint } as Record<string, unknown>;
+    Object.defineProperty(accessorCheckpoint, "currentAcceptedMl", {
+      enumerable: true,
+      get() {
+        getterCalls += 1;
+        return checkpoint.currentAcceptedMl;
+      },
+    });
+    expect(() => restoreMainWireFiveWallCoupledPredictorV1(
+      Object.freeze(accessorCheckpoint),
+      accepted,
+      createMainWireFiveWallCoupledPredictorWorkspaceV1(),
+    )).toThrow(/must be a data field/);
+    expect(getterCalls).toBe(0);
+  });
 
   it("reduces residual work without changing the admitted root branch across the six-case corpus", () => {
     const options = Object.freeze({

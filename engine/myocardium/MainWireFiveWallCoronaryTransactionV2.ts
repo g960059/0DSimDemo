@@ -118,6 +118,7 @@ import {
   evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1,
   evaluateMainWireFiveWallNumericalMechanicsCandidateV1,
   tryPrepareMainWireFiveWallNumericalMechanicsStepV1,
+  withMainWireFiveWallNumericalMechanicsMaterialStateV1,
   type MainWireFiveWallFixedInternalMechanicsEvaluationV1,
   type MainWireFiveWallNumericalMechanicsEvaluationV1,
   type MainWireFiveWallNumericalMechanicsStepV1,
@@ -1718,7 +1719,11 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
             mechanicsCandidate,
             visit,
           )
-          : visit(mechanicsCandidate.candidateMaterialState);
+          : withMainWireFiveWallNumericalMechanicsMaterialStateV1(
+            mechanicsCandidate as
+              MainWireFiveWallNumericalMechanicsEvaluationV1<TWallState>,
+            visit,
+          );
       },
     );
   };

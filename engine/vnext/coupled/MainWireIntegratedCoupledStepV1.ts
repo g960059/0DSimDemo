@@ -30,11 +30,16 @@ import type {
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+  solveMainWireFiveWallCoupledNewtonPredictedV1,
   solveMainWireFiveWallCoupledNewtonShadowV1,
   type MainWireFiveWallCoupledNewtonShadowOptionsV1,
   type MainWireFiveWallCoupledNewtonShadowResultV1,
   type MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
+import type {
+  MainWireFiveWallCoupledPredictionOrderV1,
+  MainWireFiveWallCoupledPredictorWorkspaceV1,
+} from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
 import type {
   MainWireFiveWallCoupledResidualContextV1,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
@@ -71,6 +76,10 @@ export type MainWireIntegratedCoupledStepOptionsV1<TWallState> = Readonly<{
 export type MainWireFiveWallCoupledCandidateSolveOptionsV1 = Readonly<{
   solver?: MainWireFiveWallCoupledNewtonShadowOptionsV1;
   previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1;
+  predictor?: Readonly<{
+    workspace: MainWireFiveWallCoupledPredictorWorkspaceV1;
+    order: MainWireFiveWallCoupledPredictionOrderV1;
+  }>;
 }>;
 
 export type MainWireFiveWallCoupledCandidateSolveV1<TWallState> =
@@ -109,14 +118,23 @@ export function solveMainWireFiveWallCoupledCandidateV1<TWallState>(
     input,
     options.previousAcceptedNumericalSource,
   );
-  const solver = solveMainWireFiveWallCoupledNewtonShadowV1(
-    context,
-    Object.freeze({
-      ...options.solver,
-      analyticJacobianPolicy: "require-complete" as const,
-    }),
-    workspace,
-  );
+  const solverOptions = Object.freeze({
+    ...options.solver,
+    analyticJacobianPolicy: "require-complete" as const,
+  });
+  const solver = options.predictor === undefined
+    ? solveMainWireFiveWallCoupledNewtonShadowV1(
+      context,
+      solverOptions,
+      workspace,
+    )
+    : solveMainWireFiveWallCoupledNewtonPredictedV1(
+      context,
+      solverOptions,
+      workspace,
+      options.predictor.workspace,
+      options.predictor.order,
+    ).solver;
   return solver.result.status === "converged"
     ? Object.freeze({ status: "converged" as const, context, solver })
     : Object.freeze({ status: "failed" as const, solver });

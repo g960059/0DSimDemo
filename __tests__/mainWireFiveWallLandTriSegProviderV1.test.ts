@@ -26,6 +26,7 @@ import {
   evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1,
   evaluateMainWireFiveWallNumericalMechanicsCandidateV1,
   tryPrepareMainWireFiveWallNumericalMechanicsStepV1,
+  withMainWireFiveWallNumericalMechanicsMaterialStateV1,
   type MainWireFiveWallFreeCalciumDriveV1,
   type MainWireFiveWallIdV1,
   type MainWireFiveWallLandSlsMaterialKernelV1,
@@ -334,9 +335,6 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
       numericalStep!,
       fixture.baseVolumes,
     );
-    const firstEncoded = fixture.provider.stateCodec.encode(
-      first.candidateMaterialState,
-    );
     const fixed = evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1(
       numericalStep!,
       fixture.baseVolumes,
@@ -407,8 +405,19 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
         ).landActiveKirchhoffStressPa,
       );
     }
-    expect(fixture.provider.stateCodec.encode(first.candidateMaterialState))
-      .toEqual(firstEncoded);
+    expect("candidateMaterialState" in first).toBe(false);
+    const firstEncoded = withMainWireFiveWallNumericalMechanicsMaterialStateV1(
+      first,
+      (candidateMaterialState) =>
+        fixture.provider.stateCodec.encode(candidateMaterialState),
+    );
+    expect(firstEncoded).toEqual(
+      fixture.provider.stateCodec.encode(generic.candidateMaterialState),
+    );
+    expect(() => withMainWireFiveWallNumericalMechanicsMaterialStateV1(
+      first,
+      () => undefined,
+    )).toThrow(/one-shot/);
     expect(repeated).toEqual(first);
   });
 
