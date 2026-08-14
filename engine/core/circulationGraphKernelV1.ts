@@ -132,6 +132,17 @@ export function vascularTransmuralPressureFromPhysicalVolumeV1(
     throw new RangeError(`${node.name} physical volume must be finite`);
   }
   const law = vascularPvLawFromNodeV1(node, params);
+  return vascularTransmuralPressureFromLawV1(law, physicalVolumeMl, policy);
+}
+
+export function vascularTransmuralPressureFromLawV1(
+  law: VascularPvLaw,
+  physicalVolumeMl: number,
+  policy: VascularPressureInversePolicyV1,
+): number {
+  if (!Number.isFinite(physicalVolumeMl)) {
+    throw new RangeError("vascular physical volume must be finite");
+  }
   const stressedVolumeMl = physicalVolumeMl - law.Vu;
   if (policy === "adaptive-volume-tolerance") {
     return ptmFromStressedVolume(law, stressedVolumeMl);
@@ -147,22 +158,10 @@ export function vascularTransmuralPressureFromPhysicalVolumeV1(
   if (law.kind === "linear") {
     return stressedVolumeMl / Math.max(law.C, 1e-6);
   }
-
-  let lowerPressureMmHg = -20;
-  let upperPressureMmHg = 45;
-  const lowerVolumeMl = stressedVolumeFromPtm(law, lowerPressureMmHg);
-  const upperVolumeMl = stressedVolumeFromPtm(law, upperPressureMmHg);
-  if (stressedVolumeMl <= lowerVolumeMl) return lowerPressureMmHg;
-  if (stressedVolumeMl >= upperVolumeMl) return upperPressureMmHg;
-  for (let iteration = 0; iteration < 32; iteration += 1) {
-    const midpointMmHg = 0.5 * (lowerPressureMmHg + upperPressureMmHg);
-    if (stressedVolumeFromPtm(law, midpointMmHg) < stressedVolumeMl) {
-      lowerPressureMmHg = midpointMmHg;
-    } else {
-      upperPressureMmHg = midpointMmHg;
-    }
-  }
-  return 0.5 * (lowerPressureMmHg + upperPressureMmHg);
+  return ptmFromStressedVolume(law, stressedVolumeMl, {
+    maxIterations: 32,
+    termination: "fixed-iterations",
+  });
 }
 
 export type VascularPressureVolumeTangentBranchV1 =
@@ -190,6 +189,18 @@ export function vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
   policy: VascularPressureInversePolicyV1,
 ): VascularTransmuralPressureAndVolumeTangentV1 {
   const law = vascularPvLawFromNodeV1(node, params);
+  return vascularTransmuralPressureAndVolumeTangentFromLawV1(
+    law,
+    physicalVolumeMl,
+    policy,
+  );
+}
+
+export function vascularTransmuralPressureAndVolumeTangentFromLawV1(
+  law: VascularPvLaw,
+  physicalVolumeMl: number,
+  policy: VascularPressureInversePolicyV1,
+): VascularTransmuralPressureAndVolumeTangentV1 {
   const stressedVolumeMl = physicalVolumeMl - law.Vu;
   if (policy === "adaptive-volume-tolerance") {
     const paired = ptmAndVolumeTangentFromStressedVolume(
@@ -205,10 +216,9 @@ export function vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
   }
 
   const transmuralPressureMmHg =
-    vascularTransmuralPressureFromPhysicalVolumeV1(
-      node,
+    vascularTransmuralPressureFromLawV1(
+      law,
       physicalVolumeMl,
-      params,
       policy,
     );
   if (law.kind === "arterial") {

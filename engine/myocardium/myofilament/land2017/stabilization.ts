@@ -1,8 +1,13 @@
 import {
   evaluateLand2017AlgebraicTerms,
+  type Land2017AlgebraicTerms,
   type Land2017EquationParameters,
 } from "@/engine/myocardium/myofilament/land2017/equations";
-import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017/parameterSets";
+import {
+  LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET,
+  type Land2017DerivedParameters,
+  type Land2017RuntimeParameters,
+} from "@/engine/myocardium/myofilament/land2017/parameterSets";
 import {
   LAND2017_STATE_INDEX,
   assertLand2017StateVectorLength,
@@ -32,6 +37,30 @@ export function computeLand2017ActiveStiffnessPa(
   const W = state[LAND2017_STATE_INDEX.W];
   const S = state[LAND2017_STATE_INDEX.S];
 
+  return computeLand2017ActiveStiffnessPaFromAlgebraicTerms(
+    terms,
+    W,
+    S,
+    p,
+    d,
+  );
+}
+
+/**
+ * Allocation-free constitutive kernel used when the caller has already
+ * evaluated and validated the Land algebraic terms for this exact state.
+ */
+export function computeLand2017ActiveStiffnessPaFromAlgebraicTerms(
+  terms: Land2017AlgebraicTerms,
+  weakPopulation: number,
+  strongPopulation: number,
+  p: Land2017RuntimeParameters,
+  d: Land2017DerivedParameters,
+): number {
   // Regazzoni & Quarteroni 2020, Sec. 5.1.2 Eq. 50 for the Land 2017 model.
-  return (terms.h * p.Tref * (d.As * S + d.Aw * W)) / p.rs;
+  return (
+    terms.h
+    * p.Tref
+    * (d.As * strongPopulation + d.Aw * weakPopulation)
+  ) / p.rs;
 }

@@ -238,6 +238,46 @@ export function evaluateCrefAnchoredCollapsiblePvV2(
 }
 
 /**
+ * Scalar pressure projection for a caller that does not retain compliance.
+ *
+ * The public paired evaluator above remains the general diagnostic API. The
+ * implicit hydraulic solver calls this scalar form after its owning topology
+ * and candidate volume vector have been validated, avoiding a frozen result
+ * object and the unused constitutive tangent on every residual probe.
+ */
+export function evaluateCrefAnchoredCollapsiblePressureV2(
+  volumeMl: number,
+  prior: CrefAnchoredCollapsiblePvPriorV2,
+): number {
+  if (!Number.isFinite(volumeMl) || volumeMl <= 0) {
+    throw new RangeError("volumeMl must be positive and finite");
+  }
+  const normalizedVolume = volumeMl / prior.referenceVolumeMl;
+  return prior.pressureScaleMmHg * (
+    normalizedVolume ** prior.expansionExponent
+    - normalizedVolume ** (-prior.collapseExponent)
+  );
+}
+
+/** Scalar compliance projection for a caller that does not retain pressure. */
+export function evaluateCrefAnchoredCollapsibleComplianceV2(
+  volumeMl: number,
+  prior: CrefAnchoredCollapsiblePvPriorV2,
+): number {
+  if (!Number.isFinite(volumeMl) || volumeMl <= 0) {
+    throw new RangeError("volumeMl must be positive and finite");
+  }
+  const normalizedVolume = volumeMl / prior.referenceVolumeMl;
+  const dPressureDNormalizedVolume = prior.pressureScaleMmHg * (
+    prior.expansionExponent
+      * normalizedVolume ** (prior.expansionExponent - 1)
+    + prior.collapseExponent
+      * normalizedVolume ** (-prior.collapseExponent - 1)
+  );
+  return prior.referenceVolumeMl / dPressureDNormalizedVolume;
+}
+
+/**
  * Invert the strictly monotone, coercive Cref-anchored PV relation.
  *
  * The inverse is intentionally owned beside the constitutive law so hydraulic

@@ -6,6 +6,7 @@ import {
   initialMainWireQuasiSteadyOrificeValveStateV2,
   type MainWireQuasiSteadyOrificeValveParamsV2,
   stepMainWireQuasiSteadyOrificeValveV2,
+  stepMainWireQuasiSteadyOrificeValveScalarsV2,
 } from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
 
 const BASE = Object.freeze({
@@ -29,6 +30,47 @@ const INPUT = Object.freeze({
 });
 
 describe("MainWireQuasiSteadyOrificeValveV2", () => {
+  it("keeps the typed scalar step exactly equal to the public object step", () => {
+    const previous = initialMainWireQuasiSteadyOrificeValveStateV2(0.4);
+    expect(stepMainWireQuasiSteadyOrificeValveScalarsV2(
+      previous.leafletOpeningFraction01,
+      INPUT.dtSec,
+      INPUT.upstreamPressureMmHg,
+      INPUT.downstreamPressureMmHg,
+      BASE,
+    )).toEqual(stepMainWireQuasiSteadyOrificeValveV2(previous, INPUT, BASE));
+  });
+
+  it("never retains validation for mutable or accessor-backed parameters", () => {
+    const previous = initialMainWireQuasiSteadyOrificeValveStateV2(0.4);
+    const mutable = { ...BASE };
+    expect(stepMainWireQuasiSteadyOrificeValveV2(previous, INPUT, mutable).valid)
+      .toBe(true);
+    mutable.openingTimeConstantSec = 0;
+    expect(stepMainWireQuasiSteadyOrificeValveV2(previous, INPUT, mutable).valid)
+      .toBe(false);
+
+    let openingGainPerMmHg = BASE.openingGainPerMmHg;
+    const accessor = { ...BASE } as Record<string, unknown>;
+    Object.defineProperty(accessor, "openingGainPerMmHg", {
+      enumerable: true,
+      configurable: false,
+      get: () => openingGainPerMmHg,
+    });
+    Object.freeze(accessor);
+    expect(stepMainWireQuasiSteadyOrificeValveV2(
+      previous,
+      INPUT,
+      accessor as MainWireQuasiSteadyOrificeValveParamsV2,
+    ).valid).toBe(true);
+    openingGainPerMmHg = Number.NaN;
+    expect(stepMainWireQuasiSteadyOrificeValveV2(
+      previous,
+      INPUT,
+      accessor as MainWireQuasiSteadyOrificeValveParamsV2,
+    ).valid).toBe(false);
+  });
+
   it("keeps only xi as memory and has no Cd, area floor, q smoothing, or inertance field", () => {
     const initial = initialMainWireQuasiSteadyOrificeValveStateV2(0.4);
     const output = stepMainWireQuasiSteadyOrificeValveV2(initial, INPUT, BASE);

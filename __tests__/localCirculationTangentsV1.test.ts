@@ -8,7 +8,11 @@ import {
   downstreamEffectivePressureV1,
   nonValveEdgeLossAndPressureDerivativesV1,
   nonValveEdgeLossV1,
+  physicalColdSeedVolumeFromNodeV1,
+  vascularPvLawFromNodeV1,
+  vascularTransmuralPressureAndVolumeTangentFromLawV1,
   vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1,
+  vascularTransmuralPressureFromLawV1,
   vascularTransmuralPressureFromPhysicalVolumeV1,
 } from "@/engine/core/circulationGraphKernelV1";
 import {
@@ -145,6 +149,49 @@ describe("local paired vascular and edge tangents", () => {
       );
       expect(paired.dTransmuralPressureDPhysicalVolumeMmHgPerMl)
         .toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps snapshotted law and node wrappers bit-identical for every vascular node", () => {
+    const graph = buildAuthoritativeCirculationGraphV1();
+    for (const node of graph.nodes) {
+      if (
+        node.kind !== "arterial"
+        && node.kind !== "linear"
+        && node.kind !== "venousPressure"
+      ) continue;
+      const physicalVolumeMl = physicalColdSeedVolumeFromNodeV1(
+        node,
+        VASCULAR,
+      );
+      const law = Object.freeze(vascularPvLawFromNodeV1(node, VASCULAR));
+      for (const policy of [
+        "adaptive-volume-tolerance",
+        "model-core-compatible-fixed32",
+      ] as const) {
+        expect(vascularTransmuralPressureFromLawV1(
+          law,
+          physicalVolumeMl,
+          policy,
+        )).toBe(vascularTransmuralPressureFromPhysicalVolumeV1(
+          node,
+          physicalVolumeMl,
+          VASCULAR,
+          policy,
+        ));
+        expect(vascularTransmuralPressureAndVolumeTangentFromLawV1(
+          law,
+          physicalVolumeMl,
+          policy,
+        )).toEqual(
+          vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
+            node,
+            physicalVolumeMl,
+            VASCULAR,
+            policy,
+          ),
+        );
+      }
     }
   });
 

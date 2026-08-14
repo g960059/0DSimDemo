@@ -113,6 +113,33 @@ export function evaluateSignedLinearQuadraticLossV1(
   });
 }
 
+/**
+ * Scalar pressure-loss projection for hot hydraulic callers that do not retain
+ * the complete diagnostic record.
+ */
+export function evaluateSignedLinearQuadraticPressureLossV1(
+  flowMlPerSec: number,
+  linearResistanceMmHgSecPerMl: number,
+  quadraticResistanceMmHgSec2PerMl2: number,
+): number {
+  if (!Number.isFinite(flowMlPerSec)) {
+    throw new RangeError("flow must be finite");
+  }
+  if (
+    !Number.isFinite(linearResistanceMmHgSecPerMl)
+    || linearResistanceMmHgSecPerMl < 0
+    || !Number.isFinite(quadraticResistanceMmHgSec2PerMl2)
+    || quadraticResistanceMmHgSec2PerMl2 < 0
+  ) {
+    throw new RangeError(
+      "linear and quadratic loss coefficients must be finite and non-negative",
+    );
+  }
+  return linearResistanceMmHgSecPerMl * flowMlPerSec
+    + quadraticResistanceMmHgSec2PerMl2
+      * Math.abs(flowMlPerSec) * flowMlPerSec;
+}
+
 export function validateYoungTsaiGeometryV1(
   geometry: YoungTsaiCoronaryStenosisGeometryV1,
 ): void {

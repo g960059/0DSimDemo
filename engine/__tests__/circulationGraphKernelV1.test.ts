@@ -267,6 +267,79 @@ describe("circulation graph kernel V1", () => {
     }, 0)).toThrow("venous Copen must be positive and finite");
   });
 
+  it("compiles pure venous law constants without changing the fixed32 inverse", () => {
+    const graph = buildAuthoritativeCirculationGraphV1();
+    const params = { venousTone: 0.15, arterialStiffness: 0.75 };
+    const node = graph.nodes[graph.nodeIndex.get("SV")!]!;
+    const mutableLaw = vascularPvLawFromNodeV1(node, params);
+    if (mutableLaw.kind !== "venous3") throw new Error("SV must use a venous3 law");
+    const frozenLaw = Object.freeze({ ...mutableLaw });
+
+    for (const pressureMmHg of [-20, -8.25, 0, 6.123456789, 20, 45]) {
+      expect(stressedVolumeFromPtm(frozenLaw, pressureMmHg))
+        .toBe(stressedVolumeFromPtm(mutableLaw, pressureMmHg));
+    }
+
+    const legacyFixed32Inverse = (targetStressedVolumeMl: number): number => {
+      let lowerPressureMmHg = -20;
+      let upperPressureMmHg = 45;
+      const lowerVolumeMl = stressedVolumeFromPtm(mutableLaw, lowerPressureMmHg);
+      const upperVolumeMl = stressedVolumeFromPtm(mutableLaw, upperPressureMmHg);
+      if (targetStressedVolumeMl <= lowerVolumeMl) return lowerPressureMmHg;
+      if (targetStressedVolumeMl >= upperVolumeMl) return upperPressureMmHg;
+      for (let iteration = 0; iteration < 32; iteration += 1) {
+        const midpointMmHg = 0.5 * (lowerPressureMmHg + upperPressureMmHg);
+        if (stressedVolumeFromPtm(mutableLaw, midpointMmHg) < targetStressedVolumeMl) {
+          lowerPressureMmHg = midpointMmHg;
+        } else {
+          upperPressureMmHg = midpointMmHg;
+        }
+      }
+      return 0.5 * (lowerPressureMmHg + upperPressureMmHg);
+    };
+
+    for (const targetPressureMmHg of [-25, -8.25, 0, 6.123456789, 20, 60]) {
+      const targetVolumeMl = stressedVolumeFromPtm(mutableLaw, targetPressureMmHg);
+      const expectedPressureMmHg = legacyFixed32Inverse(targetVolumeMl);
+      expect(ptmFromStressedVolume(frozenLaw, targetVolumeMl, {
+        maxIterations: 32,
+        termination: "fixed-iterations",
+      })).toBe(expectedPressureMmHg);
+      expect(vascularTransmuralPressureFromPhysicalVolumeV1(
+        node,
+        mutableLaw.Vu + targetVolumeMl,
+        params,
+        "model-core-compatible-fixed32",
+      )).toBe(expectedPressureMmHg);
+    }
+  });
+
+  it("does not cache mutable or accessor-backed venous law values", () => {
+    const graph = buildAuthoritativeCirculationGraphV1();
+    const node = graph.nodes[graph.nodeIndex.get("SV")!]!;
+    const baseLaw = vascularPvLawFromNodeV1(node, {
+      venousTone: 0.15,
+      arterialStiffness: 0.75,
+    });
+    if (baseLaw.kind !== "venous3") throw new Error("SV must use a venous3 law");
+
+    const targetVolumeMl = stressedVolumeFromPtm(baseLaw, 6);
+    const beforeMutation = ptmFromStressedVolume(baseLaw, targetVolumeMl);
+    baseLaw.Copen *= 1.1;
+    expect(ptmFromStressedVolume(baseLaw, targetVolumeMl)).not.toBe(beforeMutation);
+
+    let accessorCopen = baseLaw.Copen;
+    const accessorLaw = Object.freeze({
+      ...baseLaw,
+      get Copen() {
+        return accessorCopen;
+      },
+    });
+    const beforeAccessorMutation = stressedVolumeFromPtm(accessorLaw, 6);
+    accessorCopen *= 1.1;
+    expect(stressedVolumeFromPtm(accessorLaw, 6)).not.toBe(beforeAccessorMutation);
+  });
+
   it("matches the current explicit pth/palv respiratory formulas", () => {
     const params = {
       PEEP: 6,

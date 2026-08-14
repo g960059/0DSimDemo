@@ -1,5 +1,6 @@
 import {
-  evaluateVolumeDependentCoronaryResistanceV1,
+  evaluateVolumeDependentCoronaryResistanceScaleIntoV1,
+  evaluateVolumeDependentCoronaryResistanceScaleV1,
 } from "@/engine/coronary/collapsibleIntramyocardialBedV1";
 import {
   NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
@@ -7,7 +8,8 @@ import {
   coronaryConfigurationFingerprintV2,
   coronaryColdSeedBloodVolumeMlV2,
   coronaryTopologyPriorFingerprintV2,
-  evaluateCrefAnchoredCollapsiblePvV2,
+  evaluateCrefAnchoredCollapsibleComplianceV2,
+  evaluateCrefAnchoredCollapsiblePressureV2,
   initialCoronaryToneStateV2,
   invertCrefAnchoredCollapsiblePvV2,
   validateCoronaryTopologyV2,
@@ -29,6 +31,7 @@ import {
   type CoronaryToneStateV2,
 } from "@/engine/coronary/typesV2";
 import {
+  evaluateSignedLinearQuadraticPressureLossV1,
   evaluateSignedLinearQuadraticLossV1,
   mapYoungTsaiCoronaryStenosisV1,
   type YoungTsaiCoronaryStenosisGeometryV1,
@@ -172,6 +175,86 @@ export type CoronaryBackwardEulerTrialV2 = Readonly<{
   diagnostics: CoronaryBackwardEulerDiagnosticsV2;
 }>;
 
+export type CoronaryExternallySolvedCandidateDiagnosticsV2 = Readonly<{
+  newtonIterations: number;
+  totalLineSearchBacktracks: number;
+}>;
+
+/**
+ * Detached one-candidate residual image used to construct and verify the
+ * replacement coupled solve. Canonical vector order is
+ * `CORONARY_CONSERVED_VOLUME_NODE_IDS_V2`.
+ */
+export type CoronaryBackwardEulerCandidateProbeV2 = Readonly<{
+  candidateVolumeMlByNode: CoronaryConservedVolumeStateV2;
+  continuityResidualMlByNode: CoronaryConservedVolumeStateV2;
+  residualVectorMl: Float64Array;
+  hydraulics: CoronaryHydraulicEvaluationV2;
+}>;
+
+export const CORONARY_BOUNDARY_FLOW_OBSERVABLE_IDS_V2 = Object.freeze([
+  "totalInletFlowMlPerSec",
+  "commonCoronaryVenousOutletFlowMlPerSec",
+] as const);
+
+/**
+ * Packed accepted-boundary observables needed by the coronary autoregulation
+ * owner. Order is territory-major/layer-minor Qm (6), post-lesion pressure
+ * (3), then the common CV absolute pressure (1).
+ */
+export const CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2 = 10;
+
+/** total inlet, LAD, LCx, RCA, then the common coronary venous outlet. */
+export const CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2 = 5;
+
+export const CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2 = Object.freeze([
+  "absoluteAorticPressureMmHg",
+  "absoluteRightAtrialPressureMmHg",
+  "perivascularExternalPressureMmHg",
+  "LAD.subepicardial",
+  "LAD.subendocardial",
+  "LCx.subepicardial",
+  "LCx.subendocardial",
+  "RCA.subepicardial",
+  "RCA.subendocardial",
+] as const);
+
+export type CoronaryBackwardEulerCandidateLinearizationDestinationV2 =
+  Readonly<{
+    residualMl: Float64Array;
+    dResidualDVolume: Float64Array;
+    dResidualDBoundary: Float64Array;
+    dTotalInletFlowDVolume: Float64Array;
+    dCommonVenousOutletFlowDVolume: Float64Array;
+    dTotalInletFlowDBoundary: Float64Array;
+    dCommonVenousOutletFlowDBoundary: Float64Array;
+  }>;
+
+export const CORONARY_PREPARED_COUPLED_EVALUATOR_V2_ID =
+  "circleheart-coronary-prepared-coupled-evaluator-v2" as const;
+
+/**
+ * Opaque, one-accepted-step evaluator for the global coupled solver. It owns
+ * one mutable hydraulic page and may reuse it only for an exactly identical
+ * candidate-volume/boundary tuple. Accepted state never aliases that page.
+ */
+export type CoronaryPreparedCoupledEvaluatorV2 = Readonly<{
+  schemaId: typeof CORONARY_PREPARED_COUPLED_EVALUATOR_V2_ID;
+  nodeCount: number;
+}>;
+
+export type CoronaryPreparedCoupledEvaluatorReportV2 = Readonly<{
+  hydraulicEvaluationCount: number;
+  exactCandidateCacheHitCount: number;
+}>;
+
+export type CoronaryPreparedCoupledEvaluatorInputV2 = Readonly<{
+  dtSec: number;
+  disease?: CoronaryDiseaseInputV2;
+  collapseHydraulics?: CoronaryCollapseHydraulicsPriorV2;
+  solverOptions?: Partial<CoronaryBackwardEulerSolverOptionsV2>;
+}>;
+
 export type CoronaryImplicitBoundaryDirectionV2 = Readonly<{
   /** Positive central-difference half step in the caller's scaled variable. */
   scaledStep: number;
@@ -222,6 +305,7 @@ export type CoronaryBackwardEulerImplicitSensitivityRequestV2 = Readonly<{
   topology?: CoronaryTopologyV2;
   baseTrial: CoronaryBackwardEulerTrialV2;
   boundaryDirections: readonly CoronaryImplicitBoundaryDirectionV2[];
+  scratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2;
 }>;
 
 export type CoronaryPressureLadderInitializerOptionsV2 = Readonly<{
@@ -401,10 +485,258 @@ type MutableHydraulicEvaluationV2 = {
   focalStenosisLoss: number[];
 };
 
+type CoronaryPreparedCoupledEvaluatorStorageV2 = {
+  readonly previousVolumesMl: Float64Array;
+  readonly toneResistanceScaleByTerritoryLayer: CoronaryToneStateV2;
+  readonly dtSec: number;
+  readonly disease: CoronaryDiseaseInputV2;
+  readonly collapseHydraulics: CoronaryCollapseHydraulicsPriorV2;
+  readonly minimumVolumeFractionOfReference: number;
+  readonly topology: CoronaryTopologyV2;
+  readonly topologyPlan: CompiledCoronaryTopologyPlanV2;
+  readonly edgeIndexById: Readonly<Record<CoronaryEdgeIdV2, number>>;
+  readonly hydraulics: MutableHydraulicEvaluationV2;
+  readonly cachedCandidateVolumesMl: Float64Array;
+  readonly cachedBoundary: Float64Array;
+  cacheValid: boolean;
+  hydraulicEvaluationCount: number;
+  exactCandidateCacheHitCount: number;
+};
+
+const CORONARY_PREPARED_COUPLED_EVALUATOR_STORAGE_V2 =
+  new WeakMap<object, CoronaryPreparedCoupledEvaluatorStorageV2>();
+
 type ResidualEvaluationV2 = Readonly<{
   residual: number[];
   hydraulics: MutableHydraulicEvaluationV2;
 }>;
+
+type CoronaryNumericalVectorV2 = readonly number[] | Float64Array;
+
+type MutableDenseLinearFactorizationV2 = {
+  upper: number[][];
+  stages: Array<{
+    pivotRow: number;
+    factorByRow: number[];
+  }>;
+};
+
+type CompiledCoronaryTopologyPlanV2 = Readonly<{
+  upstreamPressureIndexByEdge: Int8Array;
+  downstreamPressureIndexByEdge: Int8Array;
+  upstreamConservedIndexByEdge: Int8Array;
+  downstreamConservedIndexByEdge: Int8Array;
+}>;
+
+function compileCoronaryTopologyPlanV2(
+  topology: CoronaryTopologyV2,
+): CompiledCoronaryTopologyPlanV2 {
+  const edgeCount = topology.edges.length;
+  const upstreamPressureIndexByEdge = new Int8Array(edgeCount);
+  const downstreamPressureIndexByEdge = new Int8Array(edgeCount);
+  const upstreamConservedIndexByEdge = new Int8Array(edgeCount);
+  const downstreamConservedIndexByEdge = new Int8Array(edgeCount);
+  upstreamConservedIndexByEdge.fill(-1);
+  downstreamConservedIndexByEdge.fill(-1);
+  topology.edges.forEach((edge, edgeIndex) => {
+    upstreamPressureIndexByEdge[edgeIndex] =
+      hydraulicPressureIndexV2(edge.upstreamNodeId);
+    downstreamPressureIndexByEdge[edgeIndex] =
+      hydraulicPressureIndexV2(edge.downstreamNodeId);
+    if (isConservedNodeV2(edge.upstreamNodeId)) {
+      upstreamConservedIndexByEdge[edgeIndex] =
+        CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId];
+    }
+    if (isConservedNodeV2(edge.downstreamNodeId)) {
+      downstreamConservedIndexByEdge[edgeIndex] =
+        CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId];
+    }
+  });
+  return Object.freeze({
+    upstreamPressureIndexByEdge,
+    downstreamPressureIndexByEdge,
+    upstreamConservedIndexByEdge,
+    downstreamConservedIndexByEdge,
+  });
+}
+
+function createSquareMatrixV2(size: number): number[][] {
+  return Array.from({ length: size }, () => Array<number>(size).fill(0));
+}
+
+function createMutableDenseLinearFactorizationV2(
+  size: number,
+): MutableDenseLinearFactorizationV2 {
+  return {
+    upper: createSquareMatrixV2(size),
+    stages: Array.from({ length: size }, () => ({
+      pivotRow: 0,
+      factorByRow: Array<number>(size).fill(0),
+    })),
+  };
+}
+
+/**
+ * Opaque, session-owned scratch storage for repeated backward-Euler trials.
+ *
+ * The workspace is not accepted scientific state and is never checkpointed.
+ * A solve borrows it exclusively, resets its high-water buffer cursor, and
+ * returns only frozen copies of accepted state and diagnostics. Keeping the
+ * mutable storage behind a WeakMap prevents callers from aliasing numerical
+ * intermediates into a durable trial.
+ */
+export type CoronaryBackwardEulerScratchWorkspaceV2 = Readonly<{
+  schemaId: "circleheart-coronary-backward-euler-scratch-workspace-v2";
+  topologyId: CoronaryTopologyV2["topologyId"];
+}>;
+
+type CoronaryBackwardEulerScratchStorageV2 = {
+  readonly nodeIds: readonly CoronaryConservedVolumeNodeIdV2[];
+  readonly edgeIds: readonly CoronaryEdgeIdV2[];
+  readonly topologyPlan: CompiledCoronaryTopologyPlanV2;
+  readonly previous: number[];
+  readonly minimumVolumes: number[];
+  readonly jacobian: number[][];
+  readonly pressureDerivativeByVolume: number[];
+  readonly collapseScaleAndDerivative: number[];
+  readonly flowNumeratorDerivativeColumn: number[];
+  readonly flowNumeratorDerivative: number[];
+  readonly boundaryFlowDerivative: number[];
+  readonly boundaryResidualDerivative: number[];
+  readonly linearRhs: number[];
+  readonly linearFactorization: MutableDenseLinearFactorizationV2;
+  readonly transformedLinearRhs: number[];
+  readonly linearSolution: number[];
+  readonly residualEvaluations: Array<{
+    residual: number[];
+    hydraulics: MutableHydraulicEvaluationV2;
+  }>;
+  residualEvaluationCursor: number;
+  inUse: boolean;
+};
+
+const CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2 = new WeakMap<
+  CoronaryBackwardEulerScratchWorkspaceV2,
+  CoronaryBackwardEulerScratchStorageV2
+>();
+
+const MAXIMUM_RETAINED_CORONARY_RESIDUAL_EVALUATIONS_V2 = 64;
+
+/** Create reusable allocation storage without making it numerical authority. */
+export function createCoronaryBackwardEulerScratchWorkspaceV2(
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(),
+): CoronaryBackwardEulerScratchWorkspaceV2 {
+  validateCoronaryTopologyV2(topology);
+  const workspace = Object.freeze({
+    schemaId:
+      "circleheart-coronary-backward-euler-scratch-workspace-v2" as const,
+    topologyId: topology.topologyId,
+  });
+  CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2.set(workspace, {
+    nodeIds: Object.freeze(topology.nodes.map((node) => node.nodeId)),
+    edgeIds: Object.freeze(topology.edges.map((edge) => edge.edgeId)),
+    topologyPlan: compileCoronaryTopologyPlanV2(topology),
+    previous: Array<number>(topology.nodes.length).fill(0),
+    minimumVolumes: Array<number>(topology.nodes.length).fill(0),
+    jacobian: createSquareMatrixV2(topology.nodes.length),
+    pressureDerivativeByVolume:
+      Array<number>(topology.nodes.length).fill(0),
+    collapseScaleAndDerivative: Array<number>(2).fill(0),
+    flowNumeratorDerivativeColumn:
+      Array<number>(topology.nodes.length).fill(0),
+    flowNumeratorDerivative: Array<number>(topology.nodes.length).fill(0),
+    boundaryFlowDerivative: Array<number>(topology.edges.length).fill(0),
+    boundaryResidualDerivative: Array<number>(topology.nodes.length).fill(0),
+    linearRhs: Array<number>(topology.nodes.length).fill(0),
+    linearFactorization:
+      createMutableDenseLinearFactorizationV2(topology.nodes.length),
+    transformedLinearRhs: Array<number>(topology.nodes.length).fill(0),
+    linearSolution: Array<number>(topology.nodes.length).fill(0),
+    residualEvaluations: [],
+    residualEvaluationCursor: 0,
+    inUse: false,
+  });
+  return workspace;
+}
+
+function borrowCoronaryBackwardEulerScratchWorkspaceV2(
+  workspace: CoronaryBackwardEulerScratchWorkspaceV2,
+  topology: CoronaryTopologyV2,
+): CoronaryBackwardEulerScratchStorageV2 {
+  const storage = CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2.get(workspace);
+  if (storage === undefined) {
+    throw new TypeError("coronary backward-Euler scratch workspace is foreign");
+  }
+  if (
+    workspace.schemaId
+      !== "circleheart-coronary-backward-euler-scratch-workspace-v2"
+    || workspace.topologyId !== topology.topologyId
+    || storage.nodeIds.length !== topology.nodes.length
+    || storage.edgeIds.length !== topology.edges.length
+    || storage.nodeIds.some((nodeId, index) =>
+      nodeId !== topology.nodes[index]?.nodeId)
+    || storage.edgeIds.some((edgeId, index) =>
+      edgeId !== topology.edges[index]?.edgeId)
+  ) {
+    throw new RangeError(
+      "coronary backward-Euler scratch workspace topology mismatch",
+    );
+  }
+  if (storage.inUse) {
+    throw new Error("coronary backward-Euler scratch workspace is already in use");
+  }
+  storage.inUse = true;
+  storage.residualEvaluationCursor = 0;
+  return storage;
+}
+
+function releaseCoronaryBackwardEulerScratchWorkspaceV2(
+  storage: CoronaryBackwardEulerScratchStorageV2,
+): void {
+  storage.inUse = false;
+}
+
+function createMutableHydraulicEvaluationV2(
+  topology: CoronaryTopologyV2,
+  edgeIndexById: Readonly<Record<CoronaryEdgeIdV2, number>>,
+): MutableHydraulicEvaluationV2 {
+  return {
+    pressureByNode: Array<number>(HYDRAULIC_NODE_IDS_V2.length).fill(0),
+    transmuralPressureByNode: Array<number>(topology.nodes.length).fill(0),
+    flowByEdge: Array<number>(topology.edges.length).fill(0),
+    linearResistanceByEdge: Array<number>(topology.edges.length).fill(0),
+    quadraticResistanceByEdge: Array<number>(topology.edges.length).fill(0),
+    dissipatedPowerByEdge: Array<number>(topology.edges.length).fill(0),
+    edgeIndexById,
+    effectiveTone: CORONARY_TERRITORY_IDS_V2.map(() =>
+      Array<number>(CORONARY_LAYER_IDS_V2.length).fill(0)),
+    postLesionPressure:
+      Array<number>(CORONARY_TERRITORY_IDS_V2.length).fill(0),
+    focalStenosisLoss:
+      Array<number>(CORONARY_TERRITORY_IDS_V2.length).fill(0),
+  };
+}
+
+function nextCoronaryResidualEvaluationV2(
+  storage: CoronaryBackwardEulerScratchStorageV2,
+  topology: CoronaryTopologyV2,
+  edgeIndexById: Readonly<Record<CoronaryEdgeIdV2, number>>,
+): { residual: number[]; hydraulics: MutableHydraulicEvaluationV2 } {
+  const index = storage.residualEvaluationCursor;
+  storage.residualEvaluationCursor += 1;
+  if (index < MAXIMUM_RETAINED_CORONARY_RESIDUAL_EVALUATIONS_V2) {
+    const existing = storage.residualEvaluations[index];
+    if (existing !== undefined) return existing;
+  }
+  const created = {
+    residual: Array<number>(topology.nodes.length).fill(0),
+    hydraulics: createMutableHydraulicEvaluationV2(topology, edgeIndexById),
+  };
+  if (index < MAXIMUM_RETAINED_CORONARY_RESIDUAL_EVALUATIONS_V2) {
+    storage.residualEvaluations.push(created);
+  }
+  return created;
+}
 
 const HYDRAULIC_NODE_IDS_V2 = Object.freeze([
   "Ao",
@@ -471,6 +803,948 @@ export function evaluateCoronaryHydraulicsV2(
     buildCoronaryEdgeIndexV2(topology),
     collapseHydraulics,
   ));
+}
+
+/**
+ * Evaluates one supplied 16-volume backward-Euler candidate without running
+ * the coronary Newton loop. This cold verification seam lets a global
+ * 30/32-row residual reuse the exact current hydraulic laws while the final
+ * flat component writer is developed independently.
+ */
+export function evaluateCoronaryBackwardEulerCandidateProbeV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryBackwardEulerTrialInputV2,
+  candidateVolumeMlByNode: CoronaryConservedVolumeStateV2,
+  prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+): CoronaryBackwardEulerCandidateProbeV2 {
+  validateAcceptedStateV2(previousAcceptedState, topology);
+  validateTrialInputV2(input);
+  validateCoronaryTopologyV2(topology);
+  const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
+  const collapseHydraulics = input.collapseHydraulics
+    ?? buildCoronaryCollapseHydraulicsPriorV2(topology);
+  const options = resolveSolverOptionsV2(input.solverOptions);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const edgeIndex = buildCoronaryEdgeIndexV2(topology);
+  const candidate = volumeRecordToArrayV2(candidateVolumeMlByNode);
+  const previous = volumeRecordToArrayV2(
+    previousAcceptedState.volumeMlByNode,
+  );
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference,
+  );
+  const hydraulics = evaluateHydraulicsInternalV2(
+    candidate,
+    previousAcceptedState.toneResistanceScaleByTerritoryLayer,
+    input.boundary,
+    disease,
+    topology,
+    edgeIndex,
+    collapseHydraulics,
+  );
+  const residual = Array<number>(candidate.length);
+  for (let index = 0; index < candidate.length; index += 1) {
+    residual[index] = candidate[index]! - previous[index]!;
+  }
+  accumulateFlowContinuityV2(
+    residual,
+    hydraulics.flowByEdge,
+    input.dtSec,
+    topology,
+  );
+  return Object.freeze({
+    candidateVolumeMlByNode: arrayToVolumeRecordV2(candidate),
+    continuityResidualMlByNode: arrayToVolumeRecordV2(residual),
+    residualVectorMl: Float64Array.from(residual),
+    hydraulics: freezeHydraulicEvaluationV2(hydraulics),
+  });
+}
+
+/**
+ * Re-evaluates an externally solved 16-volume candidate and detaches the
+ * canonical accepted-state trial without running the coronary Newton loop.
+ * The same volume domain, residual tolerance, hydraulic laws, and blood-volume
+ * ledger used by the legacy solver remain authoritative.
+ */
+export function materializeCoronaryBackwardEulerCandidateTrialV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryBackwardEulerTrialInputV2,
+  candidateVolumeMlByNode: CoronaryConservedVolumeStateV2,
+  externalDiagnostics: CoronaryExternallySolvedCandidateDiagnosticsV2,
+  prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+): CoronaryBackwardEulerTrialV2 {
+  validateAcceptedStateV2(previousAcceptedState, topology);
+  validateTrialInputV2(input);
+  validateCoronaryTopologyV2(topology);
+  requireNonnegativeIntegerV2(
+    externalDiagnostics.newtonIterations,
+    "newtonIterations",
+  );
+  requireNonnegativeIntegerV2(
+    externalDiagnostics.totalLineSearchBacktracks,
+    "totalLineSearchBacktracks",
+  );
+  const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
+  const collapseHydraulics = input.collapseHydraulics
+    ?? buildCoronaryCollapseHydraulicsPriorV2(topology);
+  const options = resolveSolverOptionsV2(input.solverOptions);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const edgeIndex = buildCoronaryEdgeIndexV2(topology);
+  const candidate = volumeRecordToArrayV2(candidateVolumeMlByNode);
+  const previous = volumeRecordToArrayV2(
+    previousAcceptedState.volumeMlByNode,
+  );
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference,
+  );
+  const hydraulics = evaluateHydraulicsInternalV2(
+    candidate,
+    previousAcceptedState.toneResistanceScaleByTerritoryLayer,
+    input.boundary,
+    disease,
+    topology,
+    edgeIndex,
+    collapseHydraulics,
+  );
+  const residual = Array<number>(candidate.length);
+  for (let index = 0; index < candidate.length; index += 1) {
+    residual[index] = candidate[index]! - previous[index]!;
+  }
+  accumulateFlowContinuityV2(
+    residual,
+    hydraulics.flowByEdge,
+    input.dtSec,
+    topology,
+  );
+  return materializeConvergedCoronaryTrialV2(
+    previousAcceptedState,
+    input,
+    candidate,
+    { residual, hydraulics },
+    options,
+    externalDiagnostics.newtonIterations,
+    externalDiagnostics.totalLineSearchBacktracks,
+    input.evaluationCounterCollection === "enabled" ? 1 : undefined,
+    topology,
+    edgeIndex,
+  );
+}
+
+/**
+ * Writes the coupled solver's one-candidate residual without materializing
+ * the public frozen hydraulic readback. The two boundary-flow values follow
+ * `CORONARY_BOUNDARY_FLOW_OBSERVABLE_IDS_V2`. This remains a cold migration
+ * seam; accepted state and public diagnostics continue to use the canonical
+ * probe/trial APIs.
+ */
+export function prepareCoronaryCoupledCandidateEvaluatorV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryPreparedCoupledEvaluatorInputV2,
+  prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+): CoronaryPreparedCoupledEvaluatorV2 {
+  validateAcceptedStateV2(previousAcceptedState, topology);
+  validateCoronaryTopologyV2(topology);
+  if (!Number.isFinite(input.dtSec) || input.dtSec <= 0) {
+    throw new RangeError("prepared coronary V2 dt must be positive and finite");
+  }
+  const disease = copyCoronaryDiseaseInputV2(
+    input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
+  );
+  const collapseHydraulics = copyCoronaryCollapseHydraulicsV2(
+    input.collapseHydraulics
+      ?? buildCoronaryCollapseHydraulicsPriorV2(topology),
+  );
+  const options = resolveSolverOptionsV2(input.solverOptions);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const edgeIndexById = buildCoronaryEdgeIndexV2(topology);
+  const handle = Object.freeze({
+    schemaId: CORONARY_PREPARED_COUPLED_EVALUATOR_V2_ID,
+    nodeCount: topology.nodes.length,
+  }) satisfies CoronaryPreparedCoupledEvaluatorV2;
+  CORONARY_PREPARED_COUPLED_EVALUATOR_STORAGE_V2.set(handle, {
+    previousVolumesMl: Float64Array.from(
+      volumeRecordToArrayV2(previousAcceptedState.volumeMlByNode),
+    ),
+    toneResistanceScaleByTerritoryLayer: copyCoronaryToneStateV2(
+      previousAcceptedState.toneResistanceScaleByTerritoryLayer,
+    ),
+    dtSec: input.dtSec,
+    disease,
+    collapseHydraulics,
+    minimumVolumeFractionOfReference:
+      options.minimumVolumeFractionOfReference,
+    topology,
+    topologyPlan: compileCoronaryTopologyPlanV2(topology),
+    edgeIndexById,
+    hydraulics: createMutableHydraulicEvaluationV2(topology, edgeIndexById),
+    cachedCandidateVolumesMl: new Float64Array(topology.nodes.length),
+    cachedBoundary: new Float64Array(
+      CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length,
+    ),
+    cacheValid: false,
+    hydraulicEvaluationCount: 0,
+    exactCandidateCacheHitCount: 0,
+  });
+  return handle;
+}
+
+export function writePreparedCoronaryCoupledCandidateResidualV2(
+  evaluator: CoronaryPreparedCoupledEvaluatorV2,
+  boundary: CoronaryHydraulicBoundaryInputV2,
+  candidateVolumesMl: Float64Array,
+  destinationResidualMl: Float64Array,
+  destinationBoundaryFlowMlPerSec: Float64Array,
+  destinationAutoregulationHydraulics?: Float64Array,
+  destinationAcceptedReadbackHydraulics?: Float64Array,
+): void {
+  const storage = preparedCoupledEvaluatorStorageV2(evaluator);
+  requireTypedLengthV2(
+    destinationResidualMl,
+    storage.topology.nodes.length,
+    "destinationResidualMl",
+  );
+  requireTypedLengthV2(
+    destinationBoundaryFlowMlPerSec,
+    CORONARY_BOUNDARY_FLOW_OBSERVABLE_IDS_V2.length,
+    "destinationBoundaryFlowMlPerSec",
+  );
+  if (destinationAutoregulationHydraulics !== undefined) {
+    requireTypedLengthV2(
+      destinationAutoregulationHydraulics,
+      CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
+      "destinationAutoregulationHydraulics",
+    );
+  }
+  if (destinationAcceptedReadbackHydraulics !== undefined) {
+    requireTypedLengthV2(
+      destinationAcceptedReadbackHydraulics,
+      CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2,
+      "destinationAcceptedReadbackHydraulics",
+    );
+  }
+  const hydraulics = evaluatePreparedCoronaryHydraulicsV2(
+    storage,
+    boundary,
+    candidateVolumesMl,
+  );
+  writePreparedCoronaryResidualV2(
+    storage,
+    candidateVolumesMl,
+    hydraulics,
+    destinationResidualMl,
+  );
+  writePreparedCoronaryBoundaryFlowsV2(
+    hydraulics,
+    destinationBoundaryFlowMlPerSec,
+  );
+  if (destinationAutoregulationHydraulics !== undefined) {
+    writePreparedCoronaryAutoregulationHydraulicsV2(
+      hydraulics,
+      destinationAutoregulationHydraulics,
+    );
+  }
+  if (destinationAcceptedReadbackHydraulics !== undefined) {
+    writePreparedCoronaryAcceptedReadbackHydraulicsV2(
+      hydraulics,
+      destinationAcceptedReadbackHydraulics,
+    );
+  }
+}
+
+export function writePreparedCoronaryCoupledCandidateLinearizationV2(
+  evaluator: CoronaryPreparedCoupledEvaluatorV2,
+  boundary: CoronaryHydraulicBoundaryInputV2,
+  candidateVolumesMl: Float64Array,
+  destination: CoronaryBackwardEulerCandidateLinearizationDestinationV2,
+): void {
+  const storage = preparedCoupledEvaluatorStorageV2(evaluator);
+  const dimension = storage.topology.nodes.length;
+  const boundaryDimension =
+    CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+  requireTypedLengthV2(destination.residualMl, dimension, "residualMl");
+  requireTypedLengthV2(
+    destination.dResidualDVolume,
+    dimension * dimension,
+    "dResidualDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dResidualDBoundary,
+    dimension * boundaryDimension,
+    "dResidualDBoundary",
+  );
+  requireTypedLengthV2(
+    destination.dTotalInletFlowDVolume,
+    dimension,
+    "dTotalInletFlowDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dCommonVenousOutletFlowDVolume,
+    dimension,
+    "dCommonVenousOutletFlowDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dTotalInletFlowDBoundary,
+    boundaryDimension,
+    "dTotalInletFlowDBoundary",
+  );
+  requireTypedLengthV2(
+    destination.dCommonVenousOutletFlowDBoundary,
+    boundaryDimension,
+    "dCommonVenousOutletFlowDBoundary",
+  );
+  const hydraulics = evaluatePreparedCoronaryHydraulicsV2(
+    storage,
+    boundary,
+    candidateVolumesMl,
+  );
+  writePreparedCoronaryResidualV2(
+    storage,
+    candidateVolumesMl,
+    hydraulics,
+    destination.residualMl,
+  );
+  analyticSparseCoronaryVolumeJacobianV2(
+    candidateVolumesMl,
+    hydraulics,
+    storage.dtSec,
+    storage.topology,
+    storage.collapseHydraulics,
+    undefined,
+    destination.dTotalInletFlowDVolume,
+    destination.dCommonVenousOutletFlowDVolume,
+    destination.dResidualDVolume,
+  );
+  writeAnalyticCoronaryBoundaryColumnsV2(
+    hydraulics,
+    storage.dtSec,
+    storage.topology,
+    destination.dResidualDBoundary,
+    destination.dTotalInletFlowDBoundary,
+    destination.dCommonVenousOutletFlowDBoundary,
+  );
+}
+
+export function inspectPreparedCoronaryCoupledEvaluatorV2(
+  evaluator: CoronaryPreparedCoupledEvaluatorV2,
+): CoronaryPreparedCoupledEvaluatorReportV2 {
+  const storage = preparedCoupledEvaluatorStorageV2(evaluator);
+  return Object.freeze({
+    hydraulicEvaluationCount: storage.hydraulicEvaluationCount,
+    exactCandidateCacheHitCount: storage.exactCandidateCacheHitCount,
+  });
+}
+
+function preparedCoupledEvaluatorStorageV2(
+  evaluator: CoronaryPreparedCoupledEvaluatorV2,
+): CoronaryPreparedCoupledEvaluatorStorageV2 {
+  if (
+    evaluator.schemaId !== CORONARY_PREPARED_COUPLED_EVALUATOR_V2_ID
+    || evaluator.nodeCount !== CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length
+  ) {
+    throw new TypeError("prepared coronary coupled evaluator is unsupported");
+  }
+  const storage = CORONARY_PREPARED_COUPLED_EVALUATOR_STORAGE_V2.get(
+    evaluator,
+  );
+  if (storage === undefined) {
+    throw new TypeError("prepared coronary coupled evaluator is foreign");
+  }
+  return storage;
+}
+
+function evaluatePreparedCoronaryHydraulicsV2(
+  storage: CoronaryPreparedCoupledEvaluatorStorageV2,
+  boundary: CoronaryHydraulicBoundaryInputV2,
+  candidateVolumesMl: Float64Array,
+): MutableHydraulicEvaluationV2 {
+  requireTypedLengthV2(
+    candidateVolumesMl,
+    storage.topology.nodes.length,
+    "candidateVolumesMl",
+  );
+  validateBoundaryV2(boundary);
+  validateVolumesV2(
+    candidateVolumesMl,
+    storage.topology,
+    storage.minimumVolumeFractionOfReference,
+  );
+  let same = storage.cacheValid;
+  for (let index = 0; same && index < candidateVolumesMl.length; index += 1) {
+    same = Object.is(
+      candidateVolumesMl[index],
+      storage.cachedCandidateVolumesMl[index],
+    );
+  }
+  same = same && coronaryBoundaryMatchesPackedV2(
+    boundary,
+    storage.cachedBoundary,
+  );
+  if (same) {
+    storage.exactCandidateCacheHitCount += 1;
+    return storage.hydraulics;
+  }
+  evaluateHydraulicsInternalV2(
+    candidateVolumesMl,
+    storage.toneResistanceScaleByTerritoryLayer,
+    boundary,
+    storage.disease,
+    storage.topology,
+    storage.edgeIndexById,
+    storage.collapseHydraulics,
+    storage.hydraulics,
+    storage.topologyPlan,
+  );
+  storage.cachedCandidateVolumesMl.set(candidateVolumesMl);
+  writeCoronaryBoundaryIntoPackedV2(boundary, storage.cachedBoundary);
+  storage.cacheValid = true;
+  storage.hydraulicEvaluationCount += 1;
+  return storage.hydraulics;
+}
+
+function writePreparedCoronaryResidualV2(
+  storage: CoronaryPreparedCoupledEvaluatorStorageV2,
+  candidateVolumesMl: Float64Array,
+  hydraulics: MutableHydraulicEvaluationV2,
+  destinationResidualMl: Float64Array,
+): void {
+  for (let index = 0; index < candidateVolumesMl.length; index += 1) {
+    destinationResidualMl[index] = candidateVolumesMl[index]!
+      - storage.previousVolumesMl[index]!;
+  }
+  accumulateFlowContinuityV2(
+    destinationResidualMl,
+    hydraulics.flowByEdge,
+    storage.dtSec,
+    storage.topology,
+    storage.topologyPlan,
+  );
+}
+
+function writePreparedCoronaryBoundaryFlowsV2(
+  hydraulics: MutableHydraulicEvaluationV2,
+  destination: Float64Array,
+): void {
+  let totalInletFlowMlPerSec = 0;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    totalInletFlowMlPerSec += hydraulics.flowByEdge[
+      hydraulics.edgeIndexById[`Ao_${territoryId}.Art`]
+    ]!;
+  }
+  destination[0] = totalInletFlowMlPerSec;
+  destination[1] = hydraulics.flowByEdge[
+    hydraulics.edgeIndexById.CV_RA
+  ]!;
+}
+
+function writePreparedCoronaryAcceptedReadbackHydraulicsV2(
+  hydraulics: MutableHydraulicEvaluationV2,
+  destination: Float64Array,
+): void {
+  let totalInletFlowMlPerSec = 0;
+  for (let territoryIndex = 0;
+    territoryIndex < CORONARY_TERRITORY_IDS_V2.length;
+    territoryIndex += 1) {
+    const territoryId = CORONARY_TERRITORY_IDS_V2[territoryIndex]!;
+    const inletFlowMlPerSec = hydraulics.flowByEdge[
+      hydraulics.edgeIndexById[`Ao_${territoryId}.Art`]
+    ]!;
+    destination[territoryIndex + 1] = inletFlowMlPerSec;
+    totalInletFlowMlPerSec += inletFlowMlPerSec;
+  }
+  destination[0] = totalInletFlowMlPerSec;
+  destination[4] = hydraulics.flowByEdge[
+    hydraulics.edgeIndexById.CV_RA
+  ]!;
+}
+
+function writePreparedCoronaryAutoregulationHydraulicsV2(
+  hydraulics: MutableHydraulicEvaluationV2,
+  destination: Float64Array,
+): void {
+  let observableIndex = 0;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      destination[observableIndex++] = hydraulics.flowByEdge[
+        hydraulics.edgeIndexById[
+          `${territoryId}.IM.Art.${layerId}_${territoryId}.IM.Ven.${layerId}`
+        ]
+      ]!;
+    }
+  }
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    destination[observableIndex++] = hydraulics.postLesionPressure[
+      territoryIndexV2(territoryId)
+    ]!;
+  }
+  destination[observableIndex] = hydraulics.pressureByNode[
+    hydraulicPressureIndexV2("CV")
+  ]!;
+}
+
+function coronaryBoundaryMatchesPackedV2(
+  boundary: CoronaryHydraulicBoundaryInputV2,
+  values: Float64Array,
+): boolean {
+  if (
+    !Object.is(values[0], boundary.absoluteAorticPressureMmHg)
+    || !Object.is(values[1], boundary.absoluteRightAtrialPressureMmHg)
+    || !Object.is(values[2], boundary.perivascularExternalPressureMmHg)
+  ) return false;
+  let index = 3;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      if (!Object.is(
+        values[index++],
+        boundary.intramyocardialPressureMmHgByTerritoryLayer[territoryId][
+          layerId
+        ],
+      )) return false;
+    }
+  }
+  return true;
+}
+
+function writeCoronaryBoundaryIntoPackedV2(
+  boundary: CoronaryHydraulicBoundaryInputV2,
+  values: Float64Array,
+): void {
+  values[0] = boundary.absoluteAorticPressureMmHg;
+  values[1] = boundary.absoluteRightAtrialPressureMmHg;
+  values[2] = boundary.perivascularExternalPressureMmHg;
+  let index = 3;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      values[index++] = boundary
+        .intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId];
+    }
+  }
+}
+
+function copyCoronaryToneStateV2(
+  tone: CoronaryToneStateV2,
+): CoronaryToneStateV2 {
+  return territoryLayerRecordV2(
+    (territoryId, layerId) => tone[territoryId][layerId],
+  );
+}
+
+function copyCoronaryDiseaseInputV2(
+  disease: CoronaryDiseaseInputV2,
+): CoronaryDiseaseInputV2 {
+  return Object.freeze(Object.fromEntries(
+    CORONARY_TERRITORY_IDS_V2.map((territoryId) => {
+      const territory = disease[territoryId];
+      return [territoryId, Object.freeze({
+        focalStenosisAdditionalLinearResistanceMmHgSecPerMl:
+          territory.focalStenosisAdditionalLinearResistanceMmHgSecPerMl,
+        focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2:
+          territory.focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2,
+        layers: Object.freeze(Object.fromEntries(
+          CORONARY_LAYER_IDS_V2.map((layerId) => [
+            layerId,
+            Object.freeze({ ...territory.layers[layerId] }),
+          ]),
+        )),
+      })];
+    }),
+  )) as CoronaryDiseaseInputV2;
+}
+
+function copyCoronaryCollapseHydraulicsV2(
+  collapse: CoronaryCollapseHydraulicsPriorV2,
+): CoronaryCollapseHydraulicsPriorV2 {
+  return Object.freeze({
+    ...collapse,
+    hydraulicAreaReferenceVolumeMlByNode: Object.freeze({
+      ...collapse.hydraulicAreaReferenceVolumeMlByNode,
+    }),
+  });
+}
+
+export function writeCoronaryBackwardEulerCandidateResidualV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryBackwardEulerTrialInputV2,
+  candidateVolumeMlByNode: CoronaryConservedVolumeStateV2,
+  destinationResidualMl: Float64Array,
+  destinationBoundaryFlowMlPerSec: Float64Array,
+  prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+  destinationAutoregulationHydraulics?: Float64Array,
+): void {
+  validateAcceptedStateV2(previousAcceptedState, topology);
+  validateTrialInputV2(input);
+  validateCoronaryTopologyV2(topology);
+  const dimension = topology.nodes.length;
+  requireTypedLengthV2(
+    destinationResidualMl,
+    dimension,
+    "destinationResidualMl",
+  );
+  if (destinationAutoregulationHydraulics !== undefined) {
+    requireTypedLengthV2(
+      destinationAutoregulationHydraulics,
+      CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
+      "destinationAutoregulationHydraulics",
+    );
+  }
+  requireTypedLengthV2(
+    destinationBoundaryFlowMlPerSec,
+    CORONARY_BOUNDARY_FLOW_OBSERVABLE_IDS_V2.length,
+    "destinationBoundaryFlowMlPerSec",
+  );
+  const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
+  const collapseHydraulics = input.collapseHydraulics
+    ?? buildCoronaryCollapseHydraulicsPriorV2(topology);
+  const options = resolveSolverOptionsV2(input.solverOptions);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const candidate = volumeRecordToArrayV2(candidateVolumeMlByNode);
+  const previous = volumeRecordToArrayV2(
+    previousAcceptedState.volumeMlByNode,
+  );
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference,
+  );
+  const hydraulics = evaluateHydraulicsInternalV2(
+    candidate,
+    previousAcceptedState.toneResistanceScaleByTerritoryLayer,
+    input.boundary,
+    disease,
+    topology,
+    buildCoronaryEdgeIndexV2(topology),
+    collapseHydraulics,
+  );
+  for (let index = 0; index < dimension; index += 1) {
+    destinationResidualMl[index] = candidate[index]! - previous[index]!;
+  }
+  accumulateFlowContinuityV2(
+    destinationResidualMl,
+    hydraulics.flowByEdge,
+    input.dtSec,
+    topology,
+  );
+  let totalInletFlowMlPerSec = 0;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    totalInletFlowMlPerSec += hydraulics.flowByEdge[
+      hydraulics.edgeIndexById[`Ao_${territoryId}.Art`]
+    ]!;
+  }
+  destinationBoundaryFlowMlPerSec[0] = totalInletFlowMlPerSec;
+  destinationBoundaryFlowMlPerSec[1] = hydraulics.flowByEdge[
+    hydraulics.edgeIndexById.CV_RA
+  ]!;
+  if (destinationAutoregulationHydraulics !== undefined) {
+    let observableIndex = 0;
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      for (const layerId of CORONARY_LAYER_IDS_V2) {
+        destinationAutoregulationHydraulics[observableIndex++] =
+          hydraulics.flowByEdge[
+            hydraulics.edgeIndexById[
+              `${territoryId}.IM.Art.${layerId}_${territoryId}.IM.Ven.${layerId}`
+            ]
+          ]!;
+      }
+    }
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      destinationAutoregulationHydraulics[observableIndex++] =
+        hydraulics.postLesionPressure[territoryIndexV2(territoryId)]!;
+    }
+    destinationAutoregulationHydraulics[observableIndex] =
+      hydraulics.pressureByNode[hydraulicPressureIndexV2("CV")]!;
+  }
+}
+
+/**
+ * Writes one raw coronary residual linearization from one hydraulic
+ * evaluation. The nine boundary columns are ordered by
+ * `CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2`. These are direct
+ * partial derivatives, never implicit sensitivities or solved responses, so
+ * the global 30/32-row assembler can form Jcc, Jcn, and the Ao/RA companion
+ * terms without reintroducing the nested coronary Newton.
+ */
+export function writeCoronaryBackwardEulerCandidateLinearizationV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryBackwardEulerTrialInputV2,
+  candidateVolumeMlByNode: CoronaryConservedVolumeStateV2,
+  destination: CoronaryBackwardEulerCandidateLinearizationDestinationV2,
+  prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+): void {
+  validateAcceptedStateV2(previousAcceptedState, topology);
+  validateTrialInputV2(input);
+  validateCoronaryTopologyV2(topology);
+  const dimension = topology.nodes.length;
+  const boundaryDimension =
+    CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+  requireTypedLengthV2(destination.residualMl, dimension, "residualMl");
+  requireTypedLengthV2(
+    destination.dResidualDVolume,
+    dimension * dimension,
+    "dResidualDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dResidualDBoundary,
+    dimension * boundaryDimension,
+    "dResidualDBoundary",
+  );
+  requireTypedLengthV2(
+    destination.dTotalInletFlowDVolume,
+    dimension,
+    "dTotalInletFlowDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dCommonVenousOutletFlowDVolume,
+    dimension,
+    "dCommonVenousOutletFlowDVolume",
+  );
+  requireTypedLengthV2(
+    destination.dTotalInletFlowDBoundary,
+    boundaryDimension,
+    "dTotalInletFlowDBoundary",
+  );
+  requireTypedLengthV2(
+    destination.dCommonVenousOutletFlowDBoundary,
+    boundaryDimension,
+    "dCommonVenousOutletFlowDBoundary",
+  );
+  const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
+  const collapseHydraulics = input.collapseHydraulics
+    ?? buildCoronaryCollapseHydraulicsPriorV2(topology);
+  const options = resolveSolverOptionsV2(input.solverOptions);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const candidate = volumeRecordToArrayV2(candidateVolumeMlByNode);
+  const previous = volumeRecordToArrayV2(
+    previousAcceptedState.volumeMlByNode,
+  );
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference,
+  );
+  const hydraulics = evaluateHydraulicsInternalV2(
+    candidate,
+    previousAcceptedState.toneResistanceScaleByTerritoryLayer,
+    input.boundary,
+    disease,
+    topology,
+    buildCoronaryEdgeIndexV2(topology),
+    collapseHydraulics,
+  );
+  for (let index = 0; index < dimension; index += 1) {
+    destination.residualMl[index] = candidate[index]! - previous[index]!;
+  }
+  accumulateFlowContinuityV2(
+    destination.residualMl,
+    hydraulics.flowByEdge,
+    input.dtSec,
+    topology,
+  );
+  analyticSparseCoronaryVolumeJacobianV2(
+    candidate,
+    hydraulics,
+    input.dtSec,
+    topology,
+    collapseHydraulics,
+    undefined,
+    destination.dTotalInletFlowDVolume,
+    destination.dCommonVenousOutletFlowDVolume,
+    destination.dResidualDVolume,
+  );
+
+  writeAnalyticCoronaryBoundaryColumnsV2(
+    hydraulics,
+    input.dtSec,
+    topology,
+    destination.dResidualDBoundary,
+    destination.dTotalInletFlowDBoundary,
+    destination.dCommonVenousOutletFlowDBoundary,
+  );
+}
+
+function writeAnalyticCoronaryBoundaryColumnsV2(
+  hydraulics: MutableHydraulicEvaluationV2,
+  dtSec: number,
+  topology: CoronaryTopologyV2,
+  rowMajorResidualDestination: Float64Array,
+  totalInletFlowDestination: Float64Array,
+  commonVenousOutletFlowDestination: Float64Array,
+): void {
+  const boundaryDimension =
+    CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+  rowMajorResidualDestination.fill(0);
+  totalInletFlowDestination.fill(0);
+  commonVenousOutletFlowDestination.fill(0);
+  topology.edges.forEach((edge, edgeIndex) => {
+    const upstreamRow = isConservedNodeV2(edge.upstreamNodeId)
+      ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]
+      : -1;
+    const downstreamRow = isConservedNodeV2(edge.downstreamNodeId)
+      ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
+      : -1;
+    const tangent = coronaryPressureFlowTangentV2(
+      hydraulics.flowByEdge[edgeIndex],
+      hydraulics.linearResistanceByEdge[edgeIndex],
+      hydraulics.quadraticResistanceByEdge[edgeIndex],
+      edge.edgeId,
+    );
+    for (let column = 0; column < boundaryDimension; column += 1) {
+      const pressureDropDerivative =
+        coronaryBoundaryPressureDerivativeV2(
+          edge.upstreamNodeId,
+          column,
+          topology,
+        )
+        - coronaryBoundaryPressureDerivativeV2(
+          edge.downstreamNodeId,
+          column,
+          topology,
+        );
+      if (pressureDropDerivative === 0) continue;
+      const flowDerivative = pressureDropDerivative / tangent;
+      if (upstreamRow >= 0) {
+        rowMajorResidualDestination[
+          upstreamRow * boundaryDimension + column
+        ] += dtSec * flowDerivative;
+      }
+      if (downstreamRow >= 0) {
+        rowMajorResidualDestination[
+          downstreamRow * boundaryDimension + column
+        ] -= dtSec * flowDerivative;
+      }
+      if (edge.upstreamNodeId === "Ao") {
+        totalInletFlowDestination[column] += flowDerivative;
+      }
+      if (edge.edgeId === "CV_RA") {
+        commonVenousOutletFlowDestination[column] += flowDerivative;
+      }
+    }
+  });
+  requireFiniteTypedArrayV2(
+    rowMajorResidualDestination,
+    "coronary analytic boundary residual matrix",
+  );
+  requireFiniteTypedArrayV2(
+    totalInletFlowDestination,
+    "coronary analytic inlet boundary derivative",
+  );
+  requireFiniteTypedArrayV2(
+    commonVenousOutletFlowDestination,
+    "coronary analytic outlet boundary derivative",
+  );
+}
+
+function requireFiniteTypedArrayV2(
+  values: Float64Array,
+  label: string,
+): void {
+  for (let index = 0; index < values.length; index += 1) {
+    if (!Number.isFinite(values[index]!)) {
+      throw new RangeError(`${label} must contain only finite values`);
+    }
+  }
+}
+
+function coronaryBoundaryPressureDerivativeV2(
+  nodeId: CoronaryHydraulicNodeIdV2,
+  boundaryColumn: number,
+  topology: CoronaryTopologyV2,
+): number {
+  if (nodeId === "Ao") return boundaryColumn === 0 ? 1 : 0;
+  if (nodeId === "RA") return boundaryColumn === 1 ? 1 : 0;
+  const node = nodeByIdV2(nodeId, topology);
+  if (node.territoryId === null || node.layerId === null) {
+    return boundaryColumn === 2 ? 1 : 0;
+  }
+  const component = 3
+    + territoryIndexV2(node.territoryId) * CORONARY_LAYER_IDS_V2.length
+    + layerIndexV2(node.layerId);
+  return boundaryColumn === component ? 1 : 0;
+}
+
+function requireTypedLengthV2(
+  value: Float64Array,
+  expectedLength: number,
+  label: string,
+): void {
+  if (!(value instanceof Float64Array) || value.length !== expectedLength) {
+    throw new RangeError(`${label} must contain ${expectedLength} f64 values`);
+  }
+}
+
+function boundaryLinearizationDirectionV2(
+  base: CoronaryHydraulicBoundaryInputV2,
+  componentIndex: number,
+): CoronaryImplicitBoundaryDirectionV2 {
+  const shifted = (sign: -1 | 1): CoronaryHydraulicBoundaryInputV2 => ({
+    absoluteAorticPressureMmHg:
+      base.absoluteAorticPressureMmHg
+      + (componentIndex === 0 ? sign : 0),
+    absoluteRightAtrialPressureMmHg:
+      base.absoluteRightAtrialPressureMmHg
+      + (componentIndex === 1 ? sign : 0),
+    perivascularExternalPressureMmHg:
+      base.perivascularExternalPressureMmHg
+      + (componentIndex === 2 ? sign : 0),
+    intramyocardialPressureMmHgByTerritoryLayer: {
+      LAD: {
+        subepicardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.LAD.subepicardial
+          + (componentIndex === 3 ? sign : 0),
+        subendocardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.LAD.subendocardial
+          + (componentIndex === 4 ? sign : 0),
+      },
+      LCx: {
+        subepicardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.LCx.subepicardial
+          + (componentIndex === 5 ? sign : 0),
+        subendocardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.LCx.subendocardial
+          + (componentIndex === 6 ? sign : 0),
+      },
+      RCA: {
+        subepicardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.RCA.subepicardial
+          + (componentIndex === 7 ? sign : 0),
+        subendocardial:
+          base.intramyocardialPressureMmHgByTerritoryLayer.RCA.subendocardial
+          + (componentIndex === 8 ? sign : 0),
+      },
+    },
+  });
+  if (componentIndex === -1) {
+    return Object.freeze({
+      scaledStep: 1,
+      minusBoundary: base,
+      plusBoundary: base,
+    });
+  }
+  if (
+    !Number.isInteger(componentIndex)
+    || componentIndex < 0
+    || componentIndex
+      >= CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length
+  ) {
+    throw new RangeError("coronary boundary component index is invalid");
+  }
+  return Object.freeze({
+    scaledStep: 1,
+    minusBoundary: shifted(-1),
+    plusBoundary: shifted(1),
+  });
 }
 
 /**
@@ -591,8 +1865,35 @@ export function solveCoronaryBackwardEulerTrialV2(
   input: CoronaryBackwardEulerTrialInputV2,
   prior: CoronaryTopologyPriorV2 = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
   topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(prior),
+  scratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
 ): CoronaryBackwardEulerTrialV2 {
   validateCoronaryTopologyV2(topology);
+  const scratchStorage = scratchWorkspace === undefined
+    ? null
+    : borrowCoronaryBackwardEulerScratchWorkspaceV2(
+      scratchWorkspace,
+      topology,
+    );
+  try {
+    return solveCoronaryBackwardEulerTrialInternalV2(
+      previousAcceptedState,
+      input,
+      topology,
+      scratchStorage,
+    );
+  } finally {
+    if (scratchStorage !== null) {
+      releaseCoronaryBackwardEulerScratchWorkspaceV2(scratchStorage);
+    }
+  }
+}
+
+function solveCoronaryBackwardEulerTrialInternalV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryBackwardEulerTrialInputV2,
+  topology: CoronaryTopologyV2,
+  scratchStorage: CoronaryBackwardEulerScratchStorageV2 | null,
+): CoronaryBackwardEulerTrialV2 {
   validateAcceptedStateV2(previousAcceptedState, topology);
   validateTrialInputV2(input);
   const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
@@ -602,11 +1903,17 @@ export function solveCoronaryBackwardEulerTrialV2(
   validateCollapseHydraulicsV2(collapseHydraulics, topology);
   const options = resolveSolverOptionsV2(input.solverOptions);
   const edgeIndex = buildCoronaryEdgeIndexV2(topology);
-  const previous = volumeRecordToArrayV2(previousAcceptedState.volumeMlByNode);
-  const minimumVolumes = topology.nodes.map(
-    (node) => node.pressureVolume.referenceVolumeMl
-      * options.minimumVolumeFractionOfReference,
-  );
+  const previous = scratchStorage?.previous
+    ?? Array<number>(topology.nodes.length).fill(0);
+  const minimumVolumes = scratchStorage?.minimumVolumes
+    ?? Array<number>(topology.nodes.length).fill(0);
+  for (let index = 0; index < topology.nodes.length; index += 1) {
+    previous[index] = previousAcceptedState.volumeMlByNode[
+      CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]
+    ];
+    minimumVolumes[index] = topology.nodes[index].pressureVolume.referenceVolumeMl
+      * options.minimumVolumeFractionOfReference;
+  }
   validateVolumesV2(
     previous,
     topology,
@@ -617,6 +1924,13 @@ export function solveCoronaryBackwardEulerTrialV2(
     if (input.evaluationCounterCollection === "enabled") {
       hydraulicResidualEvaluationCount += 1;
     }
+    const reusableEvaluation = scratchStorage === null
+      ? null
+      : nextCoronaryResidualEvaluationV2(
+        scratchStorage,
+        topology,
+        edgeIndex,
+      );
     const hydraulics = evaluateHydraulicsInternalV2(
       candidate,
       previousAcceptedState.toneResistanceScaleByTerritoryLayer,
@@ -625,15 +1939,20 @@ export function solveCoronaryBackwardEulerTrialV2(
       topology,
       edgeIndex,
       collapseHydraulics,
+      reusableEvaluation?.hydraulics,
+      scratchStorage?.topologyPlan,
     );
-    const residual = candidate.map(
-      (volume, index) => volume - previous[index],
-    );
+    const residual = reusableEvaluation?.residual
+      ?? Array<number>(candidate.length).fill(0);
+    for (let index = 0; index < candidate.length; index += 1) {
+      residual[index] = candidate[index] - previous[index];
+    }
     accumulateFlowContinuityV2(
       residual,
       hydraulics.flowByEdge,
       input.dtSec,
       topology,
+      scratchStorage?.topologyPlan,
     );
     return { residual, hydraulics };
   };
@@ -660,10 +1979,17 @@ export function solveCoronaryBackwardEulerTrialV2(
       input.dtSec,
       topology,
       collapseHydraulics,
+      scratchStorage ?? undefined,
     );
+    const linearRhs = scratchStorage?.linearRhs
+      ?? Array<number>(evaluated.residual.length).fill(0);
+    for (let index = 0; index < evaluated.residual.length; index += 1) {
+      linearRhs[index] = -evaluated.residual[index];
+    }
     const step = solveDenseLinearSystemV2(
       jacobian,
-      evaluated.residual.map((value) => -value),
+      linearRhs,
+      scratchStorage ?? undefined,
     );
     const maximumStep = maximumPositiveStepV2(
       candidate,
@@ -685,24 +2011,66 @@ export function solveCoronaryBackwardEulerTrialV2(
     iterations += 1;
   }
 
+  return materializeConvergedCoronaryTrialV2(
+    previousAcceptedState,
+    input,
+    candidate,
+    evaluated,
+    options,
+    iterations,
+    backtracks,
+    input.evaluationCounterCollection === "enabled"
+      ? hydraulicResidualEvaluationCount
+      : undefined,
+    topology,
+    edgeIndex,
+  );
+}
+
+function materializeConvergedCoronaryTrialV2(
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
+  input: CoronaryBackwardEulerTrialInputV2,
+  candidate: readonly number[],
+  evaluated: ResidualEvaluationV2,
+  options: CoronaryBackwardEulerSolverOptionsV2,
+  newtonIterations: number,
+  totalLineSearchBacktracks: number,
+  hydraulicResidualEvaluationCount: number | undefined,
+  topology: CoronaryTopologyV2,
+  edgeIndex: Readonly<Record<CoronaryEdgeIdV2, number>>,
+): CoronaryBackwardEulerTrialV2 {
+  const previous = volumeRecordToArrayV2(
+    previousAcceptedState.volumeMlByNode,
+  );
+  const residualNorm = infinityNormV2(evaluated.residual);
+  const convergenceTolerance = options.absoluteResidualToleranceMl
+    + options.relativeResidualTolerance * Math.max(1, ...previous);
+  if (residualNorm > convergenceTolerance) {
+    throw new CoronaryNetworkConvergenceErrorV2(
+      "externally solved coronary V2 candidate failed residual admission",
+      residualNorm,
+      newtonIterations,
+    );
+  }
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference,
+  );
   const previousTotal = sumV2(previous);
   const candidateTotal = sumV2(candidate);
   const inletFlow = totalInletFlowV2(
     evaluated.hydraulics.flowByEdge,
     edgeIndex,
   );
-  const outletFlow = evaluated.hydraulics.flowByEdge[edgeIndex.CV_RA];
+  const outletFlow = evaluated.hydraulics.flowByEdge[edgeIndex.CV_RA]!;
   const continuityResidual = arrayToVolumeRecordV2(evaluated.residual);
-  const storageRate = arrayToVolumeRecordV2(candidate.map(
-    (volume, index) => (volume - previous[index]) / input.dtSec,
+  const storageRate = arrayToVolumeRecordV2(Array.from(
+    candidate,
+    (volume, index) => (volume - previous[index]!) / input.dtSec,
   ));
   const ledgerResidual = candidateTotal - previousTotal
     - input.dtSec * (inletFlow - outletFlow);
-  validateVolumesV2(
-    candidate,
-    topology,
-    options.minimumVolumeFractionOfReference,
-  );
   const candidateAcceptedState = freezeAcceptedStateV2({
     acceptedTimeSec: previousAcceptedState.acceptedTimeSec + input.dtSec,
     revision: previousAcceptedState.revision + 1,
@@ -710,7 +2078,6 @@ export function solveCoronaryBackwardEulerTrialV2(
     toneResistanceScaleByTerritoryLayer:
       previousAcceptedState.toneResistanceScaleByTerritoryLayer,
   }, topology);
-
   return Object.freeze({
     baseAcceptedRevision: previousAcceptedState.revision,
     baseAcceptedTimeSec: previousAcceptedState.acceptedTimeSec,
@@ -718,14 +2085,13 @@ export function solveCoronaryBackwardEulerTrialV2(
     candidateAcceptedState,
     diagnostics: Object.freeze({
       converged: true as const,
-      newtonIterations: iterations,
-      totalLineSearchBacktracks: backtracks,
-      ...(input.evaluationCounterCollection === "enabled"
-        ? { hydraulicResidualEvaluationCount }
-        : {}),
+      newtonIterations,
+      totalLineSearchBacktracks,
+      ...(hydraulicResidualEvaluationCount === undefined
+        ? {}
+        : { hydraulicResidualEvaluationCount }),
       finalResidualInfinityNormMl: residualNorm,
-      maximumAbsoluteNodeContinuityResidualMl:
-        infinityNormV2(evaluated.residual),
+      maximumAbsoluteNodeContinuityResidualMl: residualNorm,
       continuityResidualMlByNode: continuityResidual,
       storageRateMlPerSecByNode: storageRate,
       previousCoronaryBloodVolumeMl: previousTotal,
@@ -750,6 +2116,32 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
   const prior = request.prior ?? NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2;
   const topology = request.topology ?? buildCoronaryTopologyV2(prior);
   validateCoronaryTopologyV2(topology);
+  const scratchStorage = request.scratchWorkspace === undefined
+    ? null
+    : borrowCoronaryBackwardEulerScratchWorkspaceV2(
+      request.scratchWorkspace,
+      topology,
+    );
+  try {
+    return computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
+      request,
+      prior,
+      topology,
+      scratchStorage,
+    );
+  } finally {
+    if (scratchStorage !== null) {
+      releaseCoronaryBackwardEulerScratchWorkspaceV2(scratchStorage);
+    }
+  }
+}
+
+function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
+  request: CoronaryBackwardEulerImplicitSensitivityRequestV2,
+  prior: CoronaryTopologyPriorV2,
+  topology: CoronaryTopologyV2,
+  scratchStorage: CoronaryBackwardEulerScratchStorageV2 | null,
+): CoronaryBackwardEulerImplicitDirectionalSensitivitiesV2 {
   validateAcceptedStateV2(request.previousAcceptedState, topology);
   validateTrialInputV2(request.trialInput);
   if (request.boundaryDirections.length === 0) {
@@ -830,6 +2222,13 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       topology,
       options.minimumVolumeFractionOfReference,
     );
+    const reusableEvaluation = scratchStorage === null
+      ? null
+      : nextCoronaryResidualEvaluationV2(
+        scratchStorage,
+        topology,
+        edgeIndex,
+      );
     const hydraulics = evaluateHydraulicsInternalV2(
       candidateVolumes,
       request.previousAcceptedState.toneResistanceScaleByTerritoryLayer,
@@ -838,15 +2237,20 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       topology,
       edgeIndex,
       collapseHydraulics,
+      reusableEvaluation?.hydraulics,
+      scratchStorage?.topologyPlan,
     );
-    const residual = candidateVolumes.map(
-      (volume, index) => volume - previous[index],
-    );
+    const residual = reusableEvaluation?.residual
+      ?? Array<number>(candidateVolumes.length).fill(0);
+    for (let index = 0; index < candidateVolumes.length; index += 1) {
+      residual[index] = candidateVolumes[index] - previous[index];
+    }
     accumulateFlowContinuityV2(
       residual,
       hydraulics.flowByEdge,
       request.trialInput.dtSec,
       topology,
+      scratchStorage?.topologyPlan,
     );
     return { residual, hydraulics };
   };
@@ -883,8 +2287,12 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       request.trialInput.dtSec,
       topology,
       collapseHydraulics,
+      scratchStorage ?? undefined,
     );
-    jacobianFactorization = factorDenseLinearSystemV2(jacobian);
+    jacobianFactorization = factorDenseLinearSystemV2(
+      jacobian,
+      scratchStorage?.linearFactorization,
+    );
   }
 
   for (
@@ -909,14 +2317,22 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
         direction,
         request.trialInput.dtSec,
         topology,
+        scratchStorage ?? undefined,
       );
     requireFiniteVectorV2(
       dResidualDScaledVariable,
       "coronary boundary residual directional derivative",
     );
+    const linearRhs = scratchStorage?.linearRhs
+      ?? Array<number>(dResidualDScaledVariable.length).fill(0);
+    for (let index = 0; index < dResidualDScaledVariable.length; index += 1) {
+      linearRhs[index] = -dResidualDScaledVariable[index];
+    }
     const dVolume = solveFactoredDenseLinearSystemV2(
       jacobianFactorization,
-      dResidualDScaledVariable.map((value) => -value),
+      linearRhs,
+      scratchStorage?.transformedLinearRhs,
+      scratchStorage?.linearSolution,
     );
     implicitLinearSolveCount += 1;
     requireFiniteVectorV2(
@@ -1122,44 +2538,87 @@ export class CoronaryBackwardEulerTransactionV2 {
 }
 
 function evaluateHydraulicsInternalV2(
-  volumes: readonly number[],
+  volumes: CoronaryNumericalVectorV2,
   tone: CoronaryToneStateV2,
   boundary: CoronaryHydraulicBoundaryInputV2,
   disease: CoronaryDiseaseInputV2,
   topology: CoronaryTopologyV2,
   edgeIndexById: Readonly<Record<CoronaryEdgeIdV2, number>>,
   collapseHydraulics: CoronaryCollapseHydraulicsPriorV2,
+  destination?: MutableHydraulicEvaluationV2,
+  topologyPlan?: CompiledCoronaryTopologyPlanV2,
 ): MutableHydraulicEvaluationV2 {
   validateVolumesV2(volumes, topology, 0);
-  const pressureByNode = Array<number>(HYDRAULIC_NODE_IDS_V2.length).fill(0);
-  const transmuralPressureByNode = Array<number>(topology.nodes.length).fill(0);
+  const evaluated = destination
+    ?? createMutableHydraulicEvaluationV2(topology, edgeIndexById);
+  if (
+    evaluated.pressureByNode.length !== HYDRAULIC_NODE_IDS_V2.length
+    || evaluated.transmuralPressureByNode.length !== topology.nodes.length
+    || evaluated.flowByEdge.length !== topology.edges.length
+    || evaluated.linearResistanceByEdge.length !== topology.edges.length
+    || evaluated.quadraticResistanceByEdge.length !== topology.edges.length
+    || evaluated.dissipatedPowerByEdge.length !== topology.edges.length
+    || evaluated.effectiveTone.length !== CORONARY_TERRITORY_IDS_V2.length
+    || evaluated.effectiveTone.some((layers) =>
+      layers.length !== CORONARY_LAYER_IDS_V2.length)
+    || evaluated.postLesionPressure.length
+      !== CORONARY_TERRITORY_IDS_V2.length
+    || evaluated.focalStenosisLoss.length !== CORONARY_TERRITORY_IDS_V2.length
+  ) {
+    throw new RangeError("coronary hydraulic destination dimensions differ");
+  }
+  const {
+    pressureByNode,
+    transmuralPressureByNode,
+    flowByEdge,
+    linearResistanceByEdge,
+    quadraticResistanceByEdge,
+    dissipatedPowerByEdge,
+    effectiveTone,
+    postLesionPressure,
+    focalStenosisLoss,
+  } = evaluated;
+  pressureByNode.fill(0);
+  transmuralPressureByNode.fill(0);
+  flowByEdge.fill(0);
+  linearResistanceByEdge.fill(0);
+  quadraticResistanceByEdge.fill(0);
+  dissipatedPowerByEdge.fill(0);
+  effectiveTone.forEach((layers) => layers.fill(0));
+  postLesionPressure.fill(boundary.absoluteAorticPressureMmHg);
+  focalStenosisLoss.fill(0);
   pressureByNode[hydraulicPressureIndexV2("Ao")] =
     boundary.absoluteAorticPressureMmHg;
   pressureByNode[hydraulicPressureIndexV2("RA")] =
     boundary.absoluteRightAtrialPressureMmHg;
-  for (const node of topology.nodes) {
-    const nodeIndex = CANONICAL_NODE_INDEX_V2[node.nodeId];
-    const transmural = evaluateCrefAnchoredCollapsiblePvV2(
+  for (let nodeIndex = 0; nodeIndex < topology.nodes.length; nodeIndex += 1) {
+    const node = topology.nodes[nodeIndex];
+    const transmural = evaluateCrefAnchoredCollapsiblePressureV2(
       volumes[nodeIndex],
       node.pressureVolume,
-    ).transmuralPressureMmHg;
+    );
     transmuralPressureByNode[nodeIndex] = transmural;
-    pressureByNode[hydraulicPressureIndexV2(node.nodeId)] =
+    pressureByNode[1 + nodeIndex] =
       externalPressureForNodeV2(node, boundary) + transmural;
   }
 
-  const flowByEdge = Array<number>(topology.edges.length).fill(0);
-  const linearResistanceByEdge = Array<number>(topology.edges.length).fill(0);
-  const quadraticResistanceByEdge = Array<number>(topology.edges.length).fill(0);
-  const dissipatedPowerByEdge = Array<number>(topology.edges.length).fill(0);
-  const effectiveTone = CORONARY_TERRITORY_IDS_V2.map(() => [0, 0]);
-  const postLesionPressure = Array<number>(CORONARY_TERRITORY_IDS_V2.length).fill(
-    boundary.absoluteAorticPressureMmHg,
-  );
-  const focalStenosisLoss = Array<number>(CORONARY_TERRITORY_IDS_V2.length).fill(0);
-
-  for (const edge of topology.edges) {
-    const edgeIndex = edgeIndexById[edge.edgeId];
+  for (let topologyEdgeIndex = 0;
+    topologyEdgeIndex < topology.edges.length;
+    topologyEdgeIndex += 1) {
+    const edge = topology.edges[topologyEdgeIndex];
+    const edgeIndex = topologyPlan === undefined
+      ? edgeIndexById[edge.edgeId]
+      : topologyEdgeIndex;
+    const upstreamConservedIndex = topologyPlan === undefined
+      ? isConservedNodeV2(edge.upstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]
+        : -1
+      : topologyPlan.upstreamConservedIndexByEdge[topologyEdgeIndex];
+    const downstreamConservedIndex = topologyPlan === undefined
+      ? isConservedNodeV2(edge.downstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
+        : -1
+      : topologyPlan.downstreamConservedIndexByEdge[topologyEdgeIndex];
     let linearResistance = edge.referenceResistanceMmHgSecPerMl;
     let quadraticResistance = 0;
     if (edge.kind === "micro-proximal-arteriolar") {
@@ -1171,44 +2630,34 @@ function evaluateHydraulicsInternalV2(
       );
       effectiveTone[territoryIndexV2(owner.territoryId)][layerIndexV2(owner.layerId)] =
         effective;
-      const c1Volume = volumes[
-        CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2]
-      ];
+      const c1Volume = volumes[downstreamConservedIndex];
       linearResistance *= effective
         * layerDisease.structuralR1ResistanceScale
-        * collapseScaleForNodeV2(c1Volume, nodeByIdV2(
-          edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
-          topology,
-        ), collapseHydraulics);
+        * collapseScaleForNodeV2(
+          c1Volume,
+          topology.nodes[downstreamConservedIndex],
+          collapseHydraulics,
+        );
     } else if (edge.kind === "micro-intermediate-capillary") {
       const owner = edge.structuralCmdOwner!;
-      const upstreamNode = nodeByIdV2(
-        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
-        topology,
-      );
-      const downstreamNode = nodeByIdV2(
-        edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
-        topology,
-      );
+      const upstreamNode = topology.nodes[upstreamConservedIndex];
+      const downstreamNode = topology.nodes[downstreamConservedIndex];
       const upstreamScale = collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[upstreamNode.nodeId]],
+        volumes[upstreamConservedIndex],
         upstreamNode,
         collapseHydraulics,
       );
       const downstreamScale = collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[downstreamNode.nodeId]],
+        volumes[downstreamConservedIndex],
         downstreamNode,
         collapseHydraulics,
       );
       linearResistance *= disease[owner.territoryId].layers[owner.layerId]
         .structuralRmResistanceScale * Math.sqrt(upstreamScale * downstreamScale);
     } else if (edge.kind === "micro-distal-venular") {
-      const upstreamNode = nodeByIdV2(
-        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
-        topology,
-      );
+      const upstreamNode = topology.nodes[upstreamConservedIndex];
       linearResistance *= collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[upstreamNode.nodeId]],
+        volumes[upstreamConservedIndex],
         upstreamNode,
         collapseHydraulics,
       );
@@ -1219,15 +2668,20 @@ function evaluateHydraulicsInternalV2(
       quadraticResistance = disease[territoryId]
         .focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2;
     }
-    const pressureDrop =
-      pressureByNode[hydraulicPressureIndexV2(edge.upstreamNodeId)]
-      - pressureByNode[hydraulicPressureIndexV2(edge.downstreamNodeId)];
+    const upstreamPressureIndex = topologyPlan === undefined
+      ? hydraulicPressureIndexV2(edge.upstreamNodeId)
+      : topologyPlan.upstreamPressureIndexByEdge[topologyEdgeIndex];
+    const downstreamPressureIndex = topologyPlan === undefined
+      ? hydraulicPressureIndexV2(edge.downstreamNodeId)
+      : topologyPlan.downstreamPressureIndexByEdge[topologyEdgeIndex];
+    const pressureDrop = pressureByNode[upstreamPressureIndex]
+      - pressureByNode[downstreamPressureIndex];
     const flow = solveSignedLinearQuadraticFlowV2(
       pressureDrop,
       linearResistance,
       quadraticResistance,
     );
-    const totalLoss = evaluateSignedLinearQuadraticLossV1(
+    const totalPressureLoss = evaluateSignedLinearQuadraticPressureLossV1(
       flow,
       linearResistance,
       quadraticResistance,
@@ -1235,34 +2689,23 @@ function evaluateHydraulicsInternalV2(
     flowByEdge[edgeIndex] = flow;
     linearResistanceByEdge[edgeIndex] = linearResistance;
     quadraticResistanceByEdge[edgeIndex] = quadraticResistance;
-    dissipatedPowerByEdge[edgeIndex] = totalLoss.dissipatedPowerMmHgMlPerSec;
+    dissipatedPowerByEdge[edgeIndex] = totalPressureLoss * flow;
     if (edge.kind === "large-arterial") {
       const territoryId = edge.territoryId!;
       const territoryIndex = territoryIndexV2(territoryId);
-      const focalLoss = evaluateSignedLinearQuadraticLossV1(
+      const focalLoss = evaluateSignedLinearQuadraticPressureLossV1(
         flow,
         disease[territoryId]
           .focalStenosisAdditionalLinearResistanceMmHgSecPerMl,
         disease[territoryId]
           .focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2,
-      ).pressureLossMmHg;
+      );
       focalStenosisLoss[territoryIndex] = focalLoss;
       postLesionPressure[territoryIndex] =
         boundary.absoluteAorticPressureMmHg - focalLoss;
     }
   }
-  return {
-    pressureByNode,
-    transmuralPressureByNode,
-    flowByEdge,
-    linearResistanceByEdge,
-    quadraticResistanceByEdge,
-    dissipatedPowerByEdge,
-    edgeIndexById,
-    effectiveTone,
-    postLesionPressure,
-    focalStenosisLoss,
-  };
+  return evaluated;
 }
 
 function freezeHydraulicEvaluationV2(
@@ -1403,37 +2846,31 @@ function collapseScaleForNodeV2(
   node: CoronaryConservedVolumeNodeSpecV2,
   prior: CoronaryCollapseHydraulicsPriorV2,
 ): number {
-  return evaluateCollapseScaleAndDerivativeForNodeV2(
+  if (prior.mode === "disabled-mechanism-ablation") return 1;
+  return evaluateVolumeDependentCoronaryResistanceScaleV1(
     volumeMl,
-    node,
-    prior,
-  ).resistanceScale;
+    prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
+    prior.residualHydraulicAreaFraction,
+  );
 }
 
-function evaluateCollapseScaleAndDerivativeForNodeV2(
+function evaluateCollapseScaleAndDerivativeForNodeIntoV2(
   volumeMl: number,
   node: CoronaryConservedVolumeNodeSpecV2,
   prior: CoronaryCollapseHydraulicsPriorV2,
-): Readonly<{
-  resistanceScale: number;
-  dResistanceScaleDVolumePerMl: number;
-}> {
+  destination: number[],
+): void {
   if (prior.mode === "disabled-mechanism-ablation") {
-    return {
-      resistanceScale: 1,
-      dResistanceScaleDVolumePerMl: 0,
-    };
+    destination[0] = 1;
+    destination[1] = 0;
+    return;
   }
-  const evaluated = evaluateVolumeDependentCoronaryResistanceV1(volumeMl, {
-    referenceResistanceMmHgSecPerMl: 1,
-    referenceVolumeMl: prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
-    residualHydraulicAreaFraction: prior.residualHydraulicAreaFraction,
-  });
-  return {
-    resistanceScale: evaluated.resistanceScale,
-    dResistanceScaleDVolumePerMl:
-      evaluated.dResistanceDVolumeMmHgSecPerMl2,
-  };
+  evaluateVolumeDependentCoronaryResistanceScaleIntoV1(
+    volumeMl,
+    prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
+    prior.residualHydraulicAreaFraction,
+    destination,
+  );
 }
 
 function nodeByIdV2(
@@ -1457,18 +2894,29 @@ function flowContinuityRateV2(
 }
 
 function accumulateFlowContinuityV2(
-  residual: number[],
+  residual: number[] | Float64Array,
   flowByEdge: readonly number[],
   scale: number,
   topology: CoronaryTopologyV2,
+  topologyPlan?: CompiledCoronaryTopologyPlanV2,
 ): void {
   topology.edges.forEach((edge, edgeIndex) => {
     const flow = flowByEdge[edgeIndex];
-    if (isConservedNodeV2(edge.upstreamNodeId)) {
-      residual[CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]] += scale * flow;
+    const upstreamIndex = topologyPlan === undefined
+      ? isConservedNodeV2(edge.upstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]
+        : -1
+      : topologyPlan.upstreamConservedIndexByEdge[edgeIndex];
+    const downstreamIndex = topologyPlan === undefined
+      ? isConservedNodeV2(edge.downstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
+        : -1
+      : topologyPlan.downstreamConservedIndexByEdge[edgeIndex];
+    if (upstreamIndex >= 0) {
+      residual[upstreamIndex] += scale * flow;
     }
-    if (isConservedNodeV2(edge.downstreamNodeId)) {
-      residual[CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]] -= scale * flow;
+    if (downstreamIndex >= 0) {
+      residual[downstreamIndex] -= scale * flow;
     }
   });
 }
@@ -1481,30 +2929,88 @@ function accumulateFlowContinuityV2(
  * pattern. Collapse resistance tangents can add only an edge endpoint column.
  */
 function analyticSparseCoronaryVolumeJacobianV2(
-  candidate: readonly number[],
+  candidate: CoronaryNumericalVectorV2,
   hydraulics: MutableHydraulicEvaluationV2,
   dtSec: number,
   topology: CoronaryTopologyV2,
   collapseHydraulics: CoronaryCollapseHydraulicsPriorV2,
-): number[][] {
+  scratchStorage?: CoronaryBackwardEulerScratchStorageV2,
+  dTotalInletFlowDVolumeDestination?: Float64Array,
+  dCommonVenousOutletFlowDVolumeDestination?: Float64Array,
+): number[][];
+function analyticSparseCoronaryVolumeJacobianV2(
+  candidate: CoronaryNumericalVectorV2,
+  hydraulics: MutableHydraulicEvaluationV2,
+  dtSec: number,
+  topology: CoronaryTopologyV2,
+  collapseHydraulics: CoronaryCollapseHydraulicsPriorV2,
+  scratchStorage: CoronaryBackwardEulerScratchStorageV2 | undefined,
+  dTotalInletFlowDVolumeDestination: Float64Array,
+  dCommonVenousOutletFlowDVolumeDestination: Float64Array,
+  rowMajorDestination: Float64Array,
+): null;
+function analyticSparseCoronaryVolumeJacobianV2(
+  candidate: CoronaryNumericalVectorV2,
+  hydraulics: MutableHydraulicEvaluationV2,
+  dtSec: number,
+  topology: CoronaryTopologyV2,
+  collapseHydraulics: CoronaryCollapseHydraulicsPriorV2,
+  scratchStorage?: CoronaryBackwardEulerScratchStorageV2,
+  dTotalInletFlowDVolumeDestination?: Float64Array,
+  dCommonVenousOutletFlowDVolumeDestination?: Float64Array,
+  rowMajorDestination?: Float64Array,
+): number[][] | null {
   const n = candidate.length;
-  const jacobian = Array.from({ length: n }, () => Array<number>(n).fill(0));
-  const dPressureDVolumeMmHgPerMl = topology.nodes.map((node, nodeIndex) => {
-    const compliance = evaluateCrefAnchoredCollapsiblePvV2(
+  const jacobian = rowMajorDestination === undefined
+    ? scratchStorage?.jacobian ?? createSquareMatrixV2(n)
+    : null;
+  if (rowMajorDestination !== undefined) {
+    requireTypedLengthV2(
+      rowMajorDestination,
+      n * n,
+      "rowMajorDestination",
+    );
+    rowMajorDestination.fill(0);
+  } else {
+    if (jacobian === null
+      || jacobian.length !== n
+      || jacobian.some((row) => row.length !== n)) {
+      throw new RangeError("coronary analytic Jacobian destination differs");
+    }
+    jacobian.forEach((row) => row.fill(0));
+  }
+  dTotalInletFlowDVolumeDestination?.fill(0);
+  dCommonVenousOutletFlowDVolumeDestination?.fill(0);
+  const dPressureDVolumeMmHgPerMl =
+    scratchStorage?.pressureDerivativeByVolume
+    ?? Array<number>(n).fill(0);
+  topology.nodes.forEach((node, nodeIndex) => {
+    const compliance = evaluateCrefAnchoredCollapsibleComplianceV2(
       candidate[nodeIndex],
       node.pressureVolume,
-    ).complianceMlPerMmHg;
+    );
     if (!Number.isFinite(compliance) || compliance <= 0) {
       throw new Error(
         `${node.nodeId} coronary pressure-volume compliance is not positive and finite`,
       );
     }
-    return 1 / compliance;
+    dPressureDVolumeMmHgPerMl[nodeIndex] = 1 / compliance;
   });
   for (let diagonal = 0; diagonal < n; diagonal += 1) {
-    jacobian[diagonal][diagonal] = 1;
+    if (rowMajorDestination === undefined) {
+      jacobian![diagonal]![diagonal] = 1;
+    } else {
+      rowMajorDestination[diagonal * n + diagonal] = 1;
+    }
   }
 
+  const flowNumeratorDerivativeColumn =
+    scratchStorage?.flowNumeratorDerivativeColumn
+    ?? Array<number>(n).fill(0);
+  const flowNumeratorDerivative = scratchStorage?.flowNumeratorDerivative
+    ?? Array<number>(n).fill(0);
+  const collapseScaleAndDerivative =
+    scratchStorage?.collapseScaleAndDerivative ?? Array<number>(2).fill(0);
   topology.edges.forEach((edge, edgeIndex) => {
     const flow = hydraulics.flowByEdge[edgeIndex];
     const linearResistance = hydraulics.linearResistanceByEdge[edgeIndex];
@@ -1517,25 +3023,45 @@ function analyticSparseCoronaryVolumeJacobianV2(
         edge.edgeId,
       );
 
-    const flowNumeratorDerivativeByColumn = new Map<number, number>();
+    let flowNumeratorDerivativeCount = 0;
     const accumulateFlowNumeratorDerivative = (
       column: number,
       derivative: number,
     ): void => {
-      flowNumeratorDerivativeByColumn.set(
-        column,
-        (flowNumeratorDerivativeByColumn.get(column) ?? 0) + derivative,
-      );
+      let existingIndex = -1;
+      for (let index = 0; index < flowNumeratorDerivativeCount; index += 1) {
+        if (flowNumeratorDerivativeColumn[index] === column) {
+          existingIndex = index;
+          break;
+        }
+      }
+      if (existingIndex === -1) {
+        flowNumeratorDerivativeColumn[flowNumeratorDerivativeCount] = column;
+        flowNumeratorDerivative[flowNumeratorDerivativeCount] = derivative;
+        flowNumeratorDerivativeCount += 1;
+      } else {
+        flowNumeratorDerivative[existingIndex] += derivative;
+      }
     };
-    if (isConservedNodeV2(edge.upstreamNodeId)) {
-      const column = CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId];
+    const upstreamConservedIndex = scratchStorage === undefined
+      ? isConservedNodeV2(edge.upstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]
+        : -1
+      : scratchStorage.topologyPlan.upstreamConservedIndexByEdge[edgeIndex];
+    const downstreamConservedIndex = scratchStorage === undefined
+      ? isConservedNodeV2(edge.downstreamNodeId)
+        ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
+        : -1
+      : scratchStorage.topologyPlan.downstreamConservedIndexByEdge[edgeIndex];
+    if (upstreamConservedIndex >= 0) {
+      const column = upstreamConservedIndex;
       accumulateFlowNumeratorDerivative(
         column,
         dPressureDVolumeMmHgPerMl[column],
       );
     }
-    if (isConservedNodeV2(edge.downstreamNodeId)) {
-      const column = CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId];
+    if (downstreamConservedIndex >= 0) {
+      const column = downstreamConservedIndex;
       accumulateFlowNumeratorDerivative(
         column,
         -dPressureDVolumeMmHgPerMl[column],
@@ -1543,19 +3069,20 @@ function analyticSparseCoronaryVolumeJacobianV2(
     }
 
     const accumulateCollapseResistanceDerivative = (
-      nodeId: CoronaryConservedVolumeNodeIdV2,
+      nodeIndex: number,
       logarithmicResistanceFactor: number,
     ): void => {
-      const column = CANONICAL_NODE_INDEX_V2[nodeId];
-      const collapse = evaluateCollapseScaleAndDerivativeForNodeV2(
+      const column = nodeIndex;
+      evaluateCollapseScaleAndDerivativeForNodeIntoV2(
         candidate[column],
-        nodeByIdV2(nodeId, topology),
+        topology.nodes[nodeIndex],
         collapseHydraulics,
+        collapseScaleAndDerivative,
       );
       const dLinearResistanceDVolume =
         logarithmicResistanceFactor * linearResistance
-        * collapse.dResistanceScaleDVolumePerMl
-        / collapse.resistanceScale;
+        * collapseScaleAndDerivative[1]
+        / collapseScaleAndDerivative[0];
       accumulateFlowNumeratorDerivative(
         column,
         -flow * dLinearResistanceDVolume,
@@ -1563,48 +3090,79 @@ function analyticSparseCoronaryVolumeJacobianV2(
     };
     if (edge.kind === "micro-proximal-arteriolar") {
       accumulateCollapseResistanceDerivative(
-        edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        downstreamConservedIndex,
         1,
       );
     } else if (edge.kind === "micro-intermediate-capillary") {
       accumulateCollapseResistanceDerivative(
-        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        upstreamConservedIndex,
         0.5,
       );
       accumulateCollapseResistanceDerivative(
-        edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        downstreamConservedIndex,
         0.5,
       );
     } else if (edge.kind === "micro-distal-venular") {
       accumulateCollapseResistanceDerivative(
-        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        upstreamConservedIndex,
         1,
       );
     }
 
-    const upstreamRow = isConservedNodeV2(edge.upstreamNodeId)
-      ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]
+    const upstreamRow = upstreamConservedIndex >= 0
+      ? upstreamConservedIndex
       : null;
-    const downstreamRow = isConservedNodeV2(edge.downstreamNodeId)
-      ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
+    const downstreamRow = downstreamConservedIndex >= 0
+      ? downstreamConservedIndex
       : null;
-    for (
-      const [column, flowNumeratorDerivative]
-      of flowNumeratorDerivativeByColumn
-    ) {
+    for (let derivativeIndex = 0;
+      derivativeIndex < flowNumeratorDerivativeCount;
+      derivativeIndex += 1) {
+      const column = flowNumeratorDerivativeColumn[derivativeIndex];
       const dFlowDVolume =
-        flowNumeratorDerivative / dPressureLossDFlowMmHgSecPerMl;
+        flowNumeratorDerivative[derivativeIndex]
+        / dPressureLossDFlowMmHgSecPerMl;
       if (upstreamRow !== null) {
-        jacobian[upstreamRow][column] += dtSec * dFlowDVolume;
+        if (rowMajorDestination === undefined) {
+          jacobian![upstreamRow]![column] += dtSec * dFlowDVolume;
+        } else {
+          rowMajorDestination[upstreamRow * n + column] +=
+            dtSec * dFlowDVolume;
+        }
       }
       if (downstreamRow !== null) {
-        jacobian[downstreamRow][column] -= dtSec * dFlowDVolume;
+        if (rowMajorDestination === undefined) {
+          jacobian![downstreamRow]![column] -= dtSec * dFlowDVolume;
+        } else {
+          rowMajorDestination[downstreamRow * n + column] -=
+            dtSec * dFlowDVolume;
+        }
+      }
+      if (edge.upstreamNodeId === "Ao") {
+        if (dTotalInletFlowDVolumeDestination !== undefined) {
+          dTotalInletFlowDVolumeDestination[column] += dFlowDVolume;
+        }
+      }
+      if (edge.edgeId === "CV_RA") {
+        if (dCommonVenousOutletFlowDVolumeDestination !== undefined) {
+          dCommonVenousOutletFlowDVolumeDestination[column] += dFlowDVolume;
+        }
       }
     }
   });
-  jacobian.forEach((row, index) => {
-    requireFiniteVectorV2(row, `coronary analytic residual Jacobian row ${index}`);
-  });
+  if (rowMajorDestination === undefined) {
+    jacobian!.forEach((row, index) => {
+      requireFiniteVectorV2(
+        row,
+        `coronary analytic residual Jacobian row ${index}`,
+      );
+    });
+  } else {
+    requireFiniteTypedArrayV2(
+      rowMajorDestination,
+      "coronary analytic residual Jacobian",
+    );
+  }
   return jacobian;
 }
 
@@ -1631,10 +3189,10 @@ function analyticCoronaryObservableDirectionalDerivativesV2(
     nodeId: CoronaryConservedVolumeNodeIdV2,
   ): number => {
     const nodeIndex = CANONICAL_NODE_INDEX_V2[nodeId];
-    const compliance = evaluateCrefAnchoredCollapsiblePvV2(
+    const compliance = evaluateCrefAnchoredCollapsibleComplianceV2(
       candidate[nodeIndex],
       nodeByIdV2(nodeId, topology).pressureVolume,
-    ).complianceMlPerMmHg;
+    );
     if (!Number.isFinite(compliance) || compliance <= 0) {
       throw new Error(
         `${nodeId} coronary pressure-volume compliance is not positive and finite`,
@@ -1689,6 +3247,7 @@ function analyticCoronaryBoundaryResidualDirectionalDerivativeV2(
   direction: CoronaryImplicitBoundaryDirectionV2,
   dtSec: number,
   topology: CoronaryTopologyV2,
+  scratchStorage?: CoronaryBackwardEulerScratchStorageV2,
 ): number[] {
   const boundaryDerivative =
     centralCoronaryBoundaryDirectionalDerivativeV2(direction);
@@ -1706,23 +3265,29 @@ function analyticCoronaryBoundaryResidualDirectionalDerivativeV2(
       boundaryDerivative,
     );
   };
-  const flowDerivative = topology.edges.map((edge, edgeIndex) => {
+  const flowDerivative = scratchStorage?.boundaryFlowDerivative
+    ?? Array<number>(topology.edges.length).fill(0);
+  topology.edges.forEach((edge, edgeIndex) => {
     const pressureDropDerivative =
       absolutePressureDerivative(edge.upstreamNodeId)
       - absolutePressureDerivative(edge.downstreamNodeId);
-    return pressureDropDerivative / coronaryPressureFlowTangentV2(
+    flowDerivative[edgeIndex] =
+      pressureDropDerivative / coronaryPressureFlowTangentV2(
       hydraulics.flowByEdge[edgeIndex],
       hydraulics.linearResistanceByEdge[edgeIndex],
       hydraulics.quadraticResistanceByEdge[edgeIndex],
       edge.edgeId,
-    );
+      );
   });
-  const residualDerivative = Array<number>(topology.nodes.length).fill(0);
+  const residualDerivative = scratchStorage?.boundaryResidualDerivative
+    ?? Array<number>(topology.nodes.length).fill(0);
+  residualDerivative.fill(0);
   accumulateFlowContinuityV2(
     residualDerivative,
     flowDerivative,
     dtSec,
     topology,
+    scratchStorage?.topologyPlan,
   );
   requireFiniteVectorV2(
     residualDerivative,
@@ -1852,10 +3417,16 @@ function lineSearchV2(
 function solveDenseLinearSystemV2(
   matrix: readonly (readonly number[])[],
   rhs: readonly number[],
+  scratchStorage?: CoronaryBackwardEulerScratchStorageV2,
 ): number[] {
   return solveFactoredDenseLinearSystemV2(
-    factorDenseLinearSystemV2(matrix),
+    factorDenseLinearSystemV2(
+      matrix,
+      scratchStorage?.linearFactorization,
+    ),
     rhs,
+    scratchStorage?.transformedLinearRhs,
+    scratchStorage?.linearSolution,
   );
 }
 
@@ -1874,16 +3445,26 @@ type DenseLinearFactorizationV2 = Readonly<{
  */
 function factorDenseLinearSystemV2(
   matrix: readonly (readonly number[])[],
+  destination?: MutableDenseLinearFactorizationV2,
 ): DenseLinearFactorizationV2 {
   const n = matrix.length;
-  const upper = matrix.map((row) => row.slice());
-  const stages: Array<{
-    pivotRow: number;
-    factorByRow: number[];
-  }> = [];
+  const factorization = destination
+    ?? createMutableDenseLinearFactorizationV2(n);
+  const { upper, stages } = factorization;
+  if (
+    upper.length !== n
+    || upper.some((row) => row.length !== n)
+    || stages.length !== n
+    || stages.some((stage) => stage.factorByRow.length !== n)
+  ) {
+    throw new RangeError("coronary V2 factorization destination differs");
+  }
   for (let row = 0; row < n; row += 1) {
-    if (upper[row]!.length !== n) {
+    if (matrix[row]!.length !== n) {
       throw new RangeError("coronary V2 linear system matrix must be square");
+    }
+    for (let column = 0; column < n; column += 1) {
+      upper[row]![column] = matrix[row]![column]!;
     }
   }
   for (let column = 0; column < n; column += 1) {
@@ -1901,7 +3482,10 @@ function factorDenseLinearSystemV2(
       );
     }
     [upper[column], upper[pivotRow]] = [upper[pivotRow]!, upper[column]!];
-    const factorByRow = Array<number>(n).fill(0);
+    const stage = stages[column]!;
+    stage.pivotRow = pivotRow;
+    const factorByRow = stage.factorByRow;
+    factorByRow.fill(0);
     for (let row = column + 1; row < n; row += 1) {
       const factor = upper[row]![column]! / upper[column]![column]!;
       factorByRow[row] = factor;
@@ -1910,14 +3494,15 @@ function factorDenseLinearSystemV2(
         upper[row]![j] -= factor * upper[column]![j]!;
       }
     }
-    stages.push({ pivotRow, factorByRow });
   }
-  return { upper, stages };
+  return factorization;
 }
 
 function solveFactoredDenseLinearSystemV2(
   factorization: DenseLinearFactorizationV2,
   rhs: readonly number[],
+  transformedRhsDestination?: number[],
+  solutionDestination?: number[],
 ): number[] {
   const n = rhs.length;
   if (
@@ -1928,7 +3513,16 @@ function solveFactoredDenseLinearSystemV2(
       "coronary V2 factorization and right-hand side dimensions differ",
     );
   }
-  const transformedRhs = rhs.slice();
+  const transformedRhs = transformedRhsDestination ?? Array<number>(n).fill(0);
+  const solution = solutionDestination ?? Array<number>(n).fill(0);
+  if (transformedRhs.length !== n || solution.length !== n) {
+    throw new RangeError(
+      "coronary V2 linear solution destination dimensions differ",
+    );
+  }
+  for (let index = 0; index < n; index += 1) {
+    transformedRhs[index] = rhs[index]!;
+  }
   for (let column = 0; column < n; column += 1) {
     const stage = factorization.stages[column]!;
     [transformedRhs[column], transformedRhs[stage.pivotRow]] =
@@ -1937,7 +3531,7 @@ function solveFactoredDenseLinearSystemV2(
       transformedRhs[row] -= stage.factorByRow[row]! * transformedRhs[column]!;
     }
   }
-  const solution = Array<number>(n).fill(0);
+  solution.fill(0);
   for (let row = n - 1; row >= 0; row -= 1) {
     let value = transformedRhs[row]!;
     for (let column = row + 1; column < n; column += 1) {
@@ -1991,18 +3585,24 @@ function edgeArrayToRecordV2(
   values: readonly number[],
   edgeIndex: Readonly<Record<CoronaryEdgeIdV2, number>>,
 ): Readonly<Record<CoronaryEdgeIdV2, number>> {
-  return Object.freeze(Object.fromEntries(CORONARY_EDGE_IDS_V2.map((edgeId) => [
-    edgeId,
-    values[edgeIndex[edgeId]],
-  ]))) as Readonly<Record<CoronaryEdgeIdV2, number>>;
+  const result = {} as Record<CoronaryEdgeIdV2, number>;
+  for (const edgeId of CORONARY_EDGE_IDS_V2) {
+    result[edgeId] = values[edgeIndex[edgeId]];
+  }
+  return Object.freeze(result);
 }
 
 function territoryRecordV2(
   value: (territoryId: (typeof CORONARY_TERRITORY_IDS_V2)[number]) => number,
 ): CoronaryTerritoryRecordV2<number> {
-  return Object.freeze(Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map(
-    (territoryId) => [territoryId, value(territoryId)],
-  ))) as CoronaryTerritoryRecordV2<number>;
+  const result = {} as Record<
+    (typeof CORONARY_TERRITORY_IDS_V2)[number],
+    number
+  >;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    result[territoryId] = value(territoryId);
+  }
+  return Object.freeze(result);
 }
 
 function territoryLayerRecordV2(
@@ -2011,14 +3611,21 @@ function territoryLayerRecordV2(
     layerId: (typeof CORONARY_LAYER_IDS_V2)[number],
   ) => number,
 ): CoronaryTerritoryLayerRecordV2<number> {
-  return Object.freeze(Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map(
-    (territoryId) => [territoryId, Object.freeze(Object.fromEntries(
-      CORONARY_LAYER_IDS_V2.map((layerId) => [
-        layerId,
-        value(territoryId, layerId),
-      ]),
-    ))],
-  ))) as CoronaryTerritoryLayerRecordV2<number>;
+  const result = {} as Record<
+    (typeof CORONARY_TERRITORY_IDS_V2)[number],
+    Record<(typeof CORONARY_LAYER_IDS_V2)[number], number>
+  >;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    const layers = {} as Record<
+      (typeof CORONARY_LAYER_IDS_V2)[number],
+      number
+    >;
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      layers[layerId] = value(territoryId, layerId);
+    }
+    result[territoryId] = Object.freeze(layers);
+  }
+  return Object.freeze(result);
 }
 
 function freezeAcceptedStateV2(
@@ -2060,14 +3667,15 @@ function validateAcceptedStateV2(
 }
 
 function validateVolumesV2(
-  volumes: readonly number[],
+  volumes: CoronaryNumericalVectorV2,
   topology: CoronaryTopologyV2,
   minimumReferenceFraction: number,
 ): void {
   if (volumes.length !== CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length) {
     throw new RangeError("coronary V2 state must own exactly sixteen volumes");
   }
-  volumes.forEach((volume, index) => {
+  for (let index = 0; index < volumes.length; index += 1) {
+    const volume = volumes[index]!;
     const minimum = topology.nodes[index].pressureVolume.referenceVolumeMl
       * minimumReferenceFraction;
     if (!Number.isFinite(volume) || volume <= minimum) {
@@ -2075,7 +3683,7 @@ function validateVolumesV2(
         `${CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]} volume is outside positive domain`,
       );
     }
-  });
+  }
 }
 
 function validateTrialInputV2(input: CoronaryBackwardEulerTrialInputV2): void {
@@ -2261,12 +3869,15 @@ function volumeRecordToArrayV2(
 function arrayToVolumeRecordV2(
   volumes: readonly number[],
 ): CoronaryConservedVolumeStateV2 {
-  return Object.freeze(Object.fromEntries(
-    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
-      nodeId,
-      volumes[index],
-    ]),
-  )) as CoronaryConservedVolumeStateV2;
+  const result = {} as Record<CoronaryConservedVolumeNodeIdV2, number>;
+  for (
+    let index = 0;
+    index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+    index += 1
+  ) {
+    result[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]] = volumes[index];
+  }
+  return Object.freeze(result);
 }
 
 function hydraulicPressureIndexV2(nodeId: CoronaryHydraulicNodeIdV2): number {
@@ -2299,6 +3910,12 @@ function requireFiniteVectorV2(values: readonly number[], label: string): void {
       throw new RangeError(`${label}[${index}] must be finite`);
     }
   });
+}
+
+function requireNonnegativeIntegerV2(value: number, label: string): void {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new RangeError(`${label} must be a nonnegative integer`);
+  }
 }
 
 function infinityNormV2(values: readonly number[]): number {

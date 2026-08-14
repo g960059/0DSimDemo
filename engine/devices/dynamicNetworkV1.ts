@@ -158,6 +158,43 @@ const VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS = new WeakMap<
   readonly DynamicMechanicalSupportValidationStampV1[]
 >();
 
+const CONFIGURED_PUMP_RECORD_CACHE_V1 = new WeakMap<
+  object,
+  WeakMap<object, DeviceRecord<RotaryPumpDeviceConfigV1>>
+>();
+
+const ZERO_DEVICE_NUMBERS_V1 = Object.freeze({
+  LVAD: 0,
+  IMPELLA: 0,
+  VA_ECMO: 0,
+  VV_ECMO: 0,
+}) satisfies DeviceRecord<number>;
+
+const ZERO_NODE_NUMBERS_V1 = Object.freeze({
+  LV: 0,
+  Ao: 0,
+  SA: 0,
+  RA: 0,
+  VC: 0,
+}) satisfies NodeRecord<number>;
+
+const ZERO_NODE_JACOBIAN_V1 = Object.freeze({
+  LV: ZERO_NODE_NUMBERS_V1,
+  Ao: ZERO_NODE_NUMBERS_V1,
+  SA: ZERO_NODE_NUMBERS_V1,
+  RA: ZERO_NODE_NUMBERS_V1,
+  VC: ZERO_NODE_NUMBERS_V1,
+}) satisfies DynamicMechanicalSupportNodePressureJacobianV1;
+
+const ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1 = ZERO_DEVICE_NUMBERS_V1;
+const ZERO_PREVIOUS_FLOW_JACOBIAN_V1 = Object.freeze({
+  LV: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  Ao: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  SA: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  RA: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  VC: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+}) satisfies DynamicMechanicalSupportPreviousFlowJacobianV1;
+
 export type DynamicMechanicalSupportHydraulicInputV1 =
   MechanicalSupportHydraulicInputV1 & Readonly<{
     dtSec: number;
@@ -314,7 +351,11 @@ export function createDynamicMechanicalSupportAcceptedStateV1(
     structuralHydraulicProjection,
     flows,
   );
-  stampDynamicMechanicalSupportAcceptedStateV1(state, profile, config);
+  stampConstructedDynamicMechanicalSupportAcceptedStateV1(
+    state,
+    profile,
+    config,
+  );
   return state;
 }
 
@@ -458,7 +499,11 @@ export function validateDynamicMechanicalSupportAcceptedStateV1(
       "dynamic mechanical-support accepted state structural hydraulic config mismatch",
     );
   }
-  stampDynamicMechanicalSupportAcceptedStateV1(state, profile, config);
+  stampValidatedDynamicMechanicalSupportAcceptedStateV1(
+    state,
+    profile,
+    config,
+  );
 }
 
 /**
@@ -503,6 +548,16 @@ export function evaluateDynamicMechanicalSupportHydraulicsV1(
       inletVolumeMl: input.nodeVolumeMl?.[configs[deviceId].inletNode],
     },
   ));
+  if (rotaryPumpCommandsAreAllDisabled(config)) {
+    return evaluateAllRotaryPumpsDisabled(
+      config,
+      profile,
+      previousAcceptedState,
+      input,
+      dtSec,
+      pump,
+    );
+  }
   const candidateAcceptedState = createAcceptedStateFromOwnedBinding(
     previousAcceptedState.inertanceProfileSnapshot,
     previousAcceptedState.structuralHydraulicProjection,
@@ -512,7 +567,7 @@ export function evaluateDynamicMechanicalSupportHydraulicsV1(
   // This candidate is private same-tick output assembled from the accepted
   // state's owned immutable binding and the four validated pump candidates.
   // Only this exact state/profile/config identity proof can be reused.
-  stampDynamicMechanicalSupportAcceptedStateV1(
+  stampConstructedDynamicMechanicalSupportAcceptedStateV1(
     candidateAcceptedState,
     profile,
     config,
@@ -582,9 +637,7 @@ export function evaluateDynamicMechanicalSupportHydraulicsV1(
     unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
     profileId: ownedProfile.profileId,
     profileBindingSha256: ownedProfile.profileBindingSha256,
-    deviceProfileBindingByDevice: copyDeviceProfileBindingRecord(
-      ownedProfile.deviceProfileBindingByDevice,
-    ),
+    deviceProfileBindingByDevice: ownedProfile.deviceProfileBindingByDevice,
     dtSec,
     pump,
     iabp: evaluateIabpV1(config.iabp, input),
@@ -610,6 +663,70 @@ export function evaluateDynamicMechanicalSupportHydraulicsV1(
   });
 }
 
+function evaluateAllRotaryPumpsDisabled(
+  config: MechanicalSupportConfigV1,
+  profile: DynamicMechanicalSupportInertanceProfileV1,
+  previousAcceptedState: DynamicMechanicalSupportAcceptedStateV1,
+  input: DynamicMechanicalSupportHydraulicInputV1,
+  dtSec: number,
+  pump: DeviceRecord<DynamicRotaryPumpEvaluationV1>,
+): DynamicMechanicalSupportHydraulicEvaluationV1 {
+  const acceptedFlowsAreCanonicalZero = ROTARY_SUPPORT_DEVICE_IDS_V1.every(
+    (deviceId) => previousAcceptedState.acceptedFlowMlPerSec[deviceId] === 0,
+  );
+  const candidateAcceptedState = acceptedFlowsAreCanonicalZero
+    ? previousAcceptedState
+    : createAcceptedStateFromOwnedBinding(
+      previousAcceptedState.inertanceProfileSnapshot,
+      previousAcceptedState.structuralHydraulicProjection,
+      ZERO_DEVICE_NUMBERS_V1,
+    );
+  if (!acceptedFlowsAreCanonicalZero) {
+    stampConstructedDynamicMechanicalSupportAcceptedStateV1(
+      candidateAcceptedState,
+      profile,
+      config,
+    );
+  }
+  const ownedProfile = previousAcceptedState.inertanceProfileSnapshot;
+  return Object.freeze({
+    modelId: MECHANICAL_SUPPORT_MODEL_V1_ID,
+    networkId: DYNAMIC_MECHANICAL_SUPPORT_NETWORK_V1_ID,
+    unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
+    profileId: ownedProfile.profileId,
+    profileBindingSha256: ownedProfile.profileBindingSha256,
+    deviceProfileBindingByDevice: ownedProfile.deviceProfileBindingByDevice,
+    dtSec,
+    pump,
+    iabp: evaluateIabpV1(config.iabp, input),
+    candidateAcceptedState,
+    nodeNetVolumeRateMlPerSec: ZERO_NODE_NUMBERS_V1,
+    dNodeNetVolumeRateDNodePressureMlPerSecPerMmHg:
+      ZERO_NODE_JACOBIAN_V1,
+    dNodeNetVolumeRateDNodeVolumePerSec: ZERO_NODE_JACOBIAN_V1,
+    dNodeNetVolumeRateDPreviousDeviceFlow:
+      ZERO_PREVIOUS_FLOW_JACOBIAN_V1,
+    constraintReactionMmHgByDevice: ZERO_DEVICE_NUMBERS_V1,
+    constraintImpulseMmHgSecByDevice: ZERO_DEVICE_NUMBERS_V1,
+    totalLeftHeartBypassFlowLMin: 0,
+    totalExtracorporealFlowLMin: 0,
+    conservationResidualMlPerSec: 0,
+    pressureJacobianConservationResidualMlPerSecPerMmHg:
+      ZERO_NODE_NUMBERS_V1,
+    volumeJacobianConservationResidualPerSec: ZERO_NODE_NUMBERS_V1,
+    previousFlowJacobianConservationResidual: ZERO_DEVICE_NUMBERS_V1,
+  });
+}
+
+function rotaryPumpCommandsAreAllDisabled(
+  config: MechanicalSupportConfigV1,
+): boolean {
+  return !config.lvad.enabled
+    && !config.impella.enabled
+    && !config.vaEcmo.enabled
+    && !config.vvEcmo.enabled;
+}
+
 function configuredPumpRecord(
   config: MechanicalSupportConfigV1,
 ): DeviceRecord<RotaryPumpDeviceConfigV1> {
@@ -625,8 +742,12 @@ function configuredPumpRecordFromOwnedStructure(
   config: MechanicalSupportConfigV1,
   projection: DynamicMechanicalSupportStructuralHydraulicProjectionV1,
 ): DeviceRecord<RotaryPumpDeviceConfigV1> {
+  if (Object.isFrozen(config) && Object.isFrozen(projection)) {
+    const cached = CONFIGURED_PUMP_RECORD_CACHE_V1.get(projection)?.get(config);
+    if (cached !== undefined) return cached;
+  }
   const commands = configuredPumpRecord(config);
-  return deviceRecord((deviceId) => {
+  const configured = deviceRecord((deviceId) => {
     const command = commands[deviceId];
     const structural = projection.byDevice[deviceId];
     return Object.freeze({
@@ -645,6 +766,15 @@ function configuredPumpRecordFromOwnedStructure(
       forwardFlowEvidenceDomain: structural.forwardFlowEvidenceDomain,
     });
   });
+  if (Object.isFrozen(config) && Object.isFrozen(projection)) {
+    let byConfig = CONFIGURED_PUMP_RECORD_CACHE_V1.get(projection);
+    if (byConfig === undefined) {
+      byConfig = new WeakMap();
+      CONFIGURED_PUMP_RECORD_CACHE_V1.set(projection, byConfig);
+    }
+    byConfig.set(config, configured);
+  }
+  return configured;
 }
 
 function copyDeviceStructuralHydraulics(
@@ -1359,7 +1489,7 @@ function hasDynamicMechanicalSupportValidationStampV1(
     ?? false;
 }
 
-function stampDynamicMechanicalSupportAcceptedStateV1(
+function stampValidatedDynamicMechanicalSupportAcceptedStateV1(
   state: DynamicMechanicalSupportAcceptedStateV1,
   profile: DynamicMechanicalSupportInertanceProfileV1,
   config: MechanicalSupportConfigV1,
@@ -1368,6 +1498,39 @@ function stampDynamicMechanicalSupportAcceptedStateV1(
     !LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state)
     || !validationStampIssuanceEligibleV1(state, profile, config)
   ) return;
+  recordDynamicMechanicalSupportAcceptedStateStampV1(
+    state,
+    profile,
+    config,
+  );
+}
+
+/**
+ * The live-state constructor owns and freezes every state descendant. The
+ * profile/config context must still retain its generic immutable proof, but
+ * the newly created state need not be recursively walked a second time.
+ */
+function stampConstructedDynamicMechanicalSupportAcceptedStateV1(
+  state: DynamicMechanicalSupportAcceptedStateV1,
+  profile: DynamicMechanicalSupportInertanceProfileV1,
+  config: MechanicalSupportConfigV1,
+): void {
+  if (
+    !LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state)
+    || !validationStampIssuanceEligibleV1(profile, config)
+  ) return;
+  recordDynamicMechanicalSupportAcceptedStateStampV1(
+    state,
+    profile,
+    config,
+  );
+}
+
+function recordDynamicMechanicalSupportAcceptedStateStampV1(
+  state: DynamicMechanicalSupportAcceptedStateV1,
+  profile: DynamicMechanicalSupportInertanceProfileV1,
+  config: MechanicalSupportConfigV1,
+): void {
   const existing =
     VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state) ?? [];
   if (existing.some((stamp) =>

@@ -2,14 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   CORONARY_CONSERVED_VOLUME_NODE_IDS_V1,
   CORONARY_EDGE_IDS_V1,
+  CORONARY_LAYER_IDS_V1,
+  CORONARY_TERRITORY_IDS_V1,
   NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1,
   NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V1,
   buildCoronaryTopologyV1,
   coronaryColdSeedBloodVolumeMlV1,
   evaluateAllCoronaryImpV1,
+  evaluateAllCoronaryImpPressureV1,
   evaluateCollapsibleIntramyocardialPvV1,
   evaluateCoronaryImpV1,
   evaluateSignedLinearQuadraticLossV1,
+  evaluateSignedLinearQuadraticPressureLossV1,
+  evaluateVolumeDependentCoronaryResistanceScaleIntoV1,
+  evaluateVolumeDependentCoronaryResistanceScaleV1,
   evaluateVolumeDependentCoronaryResistanceV1,
   initialCoronaryToneStateV1,
   mapYoungTsaiCoronaryStenosisV1,
@@ -308,6 +314,36 @@ describe("mechanics-driven coronary intramyocardial pressure", () => {
       .toBeLessThan(all.LCx.subendocardial.intramyocardialPressureMmHg);
   });
 
+  it("keeps solver-only pressure projections bit-identical to detailed IMP evaluations", () => {
+    const detailed = evaluateAllCoronaryImpV1(mechanicsInput);
+    const cavity = evaluateAllCoronaryImpPressureV1(
+      mechanicsInput,
+      "cavity-induced",
+    );
+    const total = evaluateAllCoronaryImpPressureV1(
+      mechanicsInput,
+      "intramyocardial",
+    );
+    for (const territoryId of CORONARY_TERRITORY_IDS_V1) {
+      for (const layerId of CORONARY_LAYER_IDS_V1) {
+        expect(cavity[territoryId][layerId]).toBe(
+          detailed[territoryId][layerId]
+            .cavityInducedExtracellularPressureMmHg,
+        );
+        expect(total[territoryId][layerId]).toBe(
+          detailed[territoryId][layerId].intramyocardialPressureMmHg,
+        );
+      }
+    }
+  });
+
+  it("fails closed on an unsupported solver pressure projection", () => {
+    expect(() => evaluateAllCoronaryImpPressureV1(
+      mechanicsInput,
+      "unsupported" as "intramyocardial",
+    )).toThrow(/unsupported coronary IMP pressure component/);
+  });
+
   it("orients septal depth toward LV for LAD and toward RV for RCA", () => {
     const lad = evaluateCoronaryImpV1("LAD", "subendocardial", mechanicsInput);
     const rca = evaluateCoronaryImpV1("RCA", "subendocardial", mechanicsInput);
@@ -431,6 +467,31 @@ describe("collapsible intramyocardial PV and volume-dependent resistance", () =>
       resistance.dResistanceDVolumeMmHgSecPerMl2,
       7,
     );
+
+    const unitResistancePrior = Object.freeze({
+      ...resistancePrior,
+      referenceResistanceMmHgSecPerMl: 1,
+    });
+    const unitResistance = evaluateVolumeDependentCoronaryResistanceV1(
+      volume,
+      unitResistancePrior,
+    );
+    const scalarDestination = [Number.NaN, Number.NaN];
+    evaluateVolumeDependentCoronaryResistanceScaleIntoV1(
+      volume,
+      resistancePrior.referenceVolumeMl,
+      resistancePrior.residualHydraulicAreaFraction,
+      scalarDestination,
+    );
+    expect(evaluateVolumeDependentCoronaryResistanceScaleV1(
+      volume,
+      resistancePrior.referenceVolumeMl,
+      resistancePrior.residualHydraulicAreaFraction,
+    )).toBe(unitResistance.resistanceScale);
+    expect(scalarDestination).toEqual([
+      unitResistance.resistanceScale,
+      unitResistance.dResistanceDVolumeMmHgSecPerMl2,
+    ]);
   });
 
   it("owns compression resistance without a second distension-driven hyperemic gain", () => {
@@ -480,6 +541,10 @@ describe("Young-Tsai-style coronary stenosis loss", () => {
     const B = coefficients.additionalQuadraticResistanceMmHgSec2PerMl2;
     const forward = evaluateSignedLinearQuadraticLossV1(2.3, R, B);
     const reverse = evaluateSignedLinearQuadraticLossV1(-2.3, R, B);
+    expect(evaluateSignedLinearQuadraticPressureLossV1(2.3, R, B))
+      .toBe(forward.pressureLossMmHg);
+    expect(evaluateSignedLinearQuadraticPressureLossV1(-2.3, R, B))
+      .toBe(reverse.pressureLossMmHg);
     expect(reverse.pressureLossMmHg).toBeCloseTo(-forward.pressureLossMmHg, 12);
     expect(forward.dissipatedPowerMmHgMlPerSec).toBeGreaterThan(0);
     expect(reverse.dissipatedPowerMmHgMlPerSec).toBeGreaterThan(0);

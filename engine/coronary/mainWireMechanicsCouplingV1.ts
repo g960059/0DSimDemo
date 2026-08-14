@@ -34,6 +34,20 @@ export type MainWireCoronaryMechanicsCouplingEvaluationV1 = Readonly<{
   }>;
 }>;
 
+export type MainWireCoronaryNumericalMechanicsInputV1 = Readonly<{
+  transmuralPressuresMmHg: Readonly<{ LV: number; RV: number }>;
+  effectiveFiberLogStrainByWall: Readonly<{
+    LVFW: number;
+    SEP: number;
+    RVFW: number;
+  }>;
+  activeFiberKirchhoffStressPaByWall: Readonly<{
+    LVFW: number;
+    SEP: number;
+    RVFW: number;
+  }>;
+}>;
+
 /**
  * Typed bridge from a ready main-wire Land/TriSeg cold or trial evaluation to
  * the coronary IMP law. It intentionally reads Land active stress only. Passive
@@ -64,6 +78,53 @@ export function evaluateMainWireCoronaryMechanicsCouplingV1<TWallState>(
     SEP: landActiveStressPa(readback.wallMaterialReadbackByWall.SEP, "SEP"),
     RVFW: landActiveStressPa(readback.wallMaterialReadbackByWall.RVFW, "RVFW"),
   });
+  return evaluateMainWireCoronaryNumericalMechanicsCouplingV1(
+    Object.freeze({
+      transmuralPressuresMmHg: mechanicsTrial.transmuralPressuresMmHg,
+      effectiveFiberLogStrainByWall:
+        readback.effectiveFiberLogStrainByWall,
+      activeFiberKirchhoffStressPaByWall:
+        landActiveFiberStressPaByWall,
+    }),
+    input,
+  );
+}
+
+/**
+ * Allocation-lean bridge for model-owned nonlinear candidates. Public trial
+ * readback is intentionally absent; all required IMP fields are explicit
+ * numerical outputs of the five-wall provider.
+ */
+export function evaluateMainWireCoronaryNumericalMechanicsCouplingV1(
+  mechanics: MainWireCoronaryNumericalMechanicsInputV1,
+  input: Readonly<{
+    commonIntrathoracicPressureMmHg: number;
+    commonPericardialExcessPressureMmHg: number;
+  }>,
+): MainWireCoronaryMechanicsCouplingEvaluationV1 {
+  assertFinite(
+    "commonIntrathoracicPressureMmHg",
+    input.commonIntrathoracicPressureMmHg,
+  );
+  assertFinite(
+    "commonPericardialExcessPressureMmHg",
+    input.commonPericardialExcessPressureMmHg,
+  );
+  const effectiveFiberLogStrainByWall = ventricularWallRecord((wallId) =>
+    finiteValue(
+      `${wallId} effective fiber log strain`,
+      mechanics.effectiveFiberLogStrainByWall[wallId],
+    ));
+  const landActiveFiberStressPaByWall = ventricularWallRecord((wallId) => {
+    const stress = finiteValue(
+      `${wallId} Land active stress`,
+      mechanics.activeFiberKirchhoffStressPaByWall[wallId],
+    );
+    if (stress < 0) {
+      throw new RangeError(`${wallId} Land active stress must be non-negative`);
+    }
+    return stress;
+  });
   const coronaryInput: CoronaryMechanicsInputV1 = Object.freeze({
     externalPressureMmHg:
       input.commonIntrathoracicPressureMmHg
@@ -71,11 +132,11 @@ export function evaluateMainWireCoronaryMechanicsCouplingV1<TWallState>(
     chamberTransmuralPressureMmHg: Object.freeze({
       LV: finiteValue(
         "mechanicsTrial.transmuralPressuresMmHg.LV",
-        mechanicsTrial.transmuralPressuresMmHg.LV,
+        mechanics.transmuralPressuresMmHg.LV,
       ),
       RV: finiteValue(
         "mechanicsTrial.transmuralPressuresMmHg.RV",
-        mechanicsTrial.transmuralPressuresMmHg.RV,
+        mechanics.transmuralPressuresMmHg.RV,
       ),
     }),
     landActiveFiberStressPaByWall,
@@ -84,7 +145,7 @@ export function evaluateMainWireCoronaryMechanicsCouplingV1<TWallState>(
     couplingId: MAIN_WIRE_CORONARY_MECHANICS_COUPLING_V1_ID,
     input: coronaryInput,
     effectiveFiberLogStrainByWall:
-      readback.effectiveFiberLogStrainByWall,
+      effectiveFiberLogStrainByWall,
     commonIntrathoracicPressureMmHg:
       input.commonIntrathoracicPressureMmHg,
     commonPericardialExcessPressureMmHg:
@@ -186,6 +247,13 @@ export function evaluateMainWireCoronaryMechanicsCouplingVentricularDirectionV1<
     }),
     effectiveFiberLogStrainByWall,
   });
+}
+
+/** Read the production provider's condensed ventricular boundary rows. */
+export function readMainWireFiveWallVentricularCoronaryBoundaryTangentV1(
+  readback: WholeHeartMechanicsSerializableValueV1 | null,
+): MainWireFiveWallVentricularCoronaryBoundaryTangentV1 | null {
+  return ventricularCoronaryBoundaryTangent(readback);
 }
 
 type MainWireMechanicsReadbackShapeV1 = Readonly<{

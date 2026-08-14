@@ -3,7 +3,8 @@ import type {
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
   NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1,
-  evaluateAllCoronaryImpV1,
+  PASCAL_PER_MMHG_V1,
+  evaluateAllCoronaryImpPressureV1,
   type CoronaryMechanicsInputV1,
 } from "@/engine/coronary/intramyocardialPressureV1";
 import {
@@ -44,6 +45,41 @@ export type MainWireCoronaryBoundarySampleV2 = Readonly<{
   mechanicsInput: CoronaryMechanicsInputV1;
   effectiveFiberLogStrainByWall: MainWireCoronaryWallNumbersV2;
 }>;
+
+export type MainWireCoronaryBoundaryDirectionV2 = Readonly<{
+  absoluteAorticPressureMmHg: number;
+  absoluteRightAtrialPressureMmHg: number;
+  mechanicsInput: CoronaryMechanicsInputV1;
+  effectiveFiberLogStrainByWall: MainWireCoronaryWallNumbersV2;
+}>;
+
+export const MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2 =
+  Object.freeze([
+    "absoluteAorticPressureMmHg",
+    "absoluteRightAtrialPressureMmHg",
+    "perivascularExternalPressureMmHg",
+    "LAD.subepicardial",
+    "LAD.subendocardial",
+    "LCx.subepicardial",
+    "LCx.subendocardial",
+    "RCA.subepicardial",
+    "RCA.subendocardial",
+  ] as const);
+
+export const MAIN_WIRE_CORONARY_MECHANICS_DIRECTION_COMPONENT_IDS_V2 =
+  Object.freeze([
+    "absoluteAorticPressureMmHg",
+    "absoluteRightAtrialPressureMmHg",
+    "externalPressureMmHg",
+    "chamberTransmuralPressureMmHg.LV",
+    "chamberTransmuralPressureMmHg.RV",
+    "landActiveFiberStressPaByWall.LVFW",
+    "landActiveFiberStressPaByWall.SEP",
+    "landActiveFiberStressPaByWall.RVFW",
+    "effectiveFiberLogStrainByWall.LVFW",
+    "effectiveFiberLogStrainByWall.SEP",
+    "effectiveFiberLogStrainByWall.RVFW",
+  ] as const);
 
 export type MainWireCoronaryShorteningImpGainPriorV2 = Readonly<{
   priorId: "normal-adult-fixed-shortening-imp-gain-v2";
@@ -119,7 +155,7 @@ export function resolveMainWireCoronaryBoundaryV2(
   validateShorteningPrior(shorteningPrior);
 
   const cep = impMechanism !== "source-cep-land-active"
-    ? evaluateAllCoronaryImpV1({
+    ? evaluateAllCoronaryImpPressureV1({
       externalPressureMmHg: sample.mechanicsInput.externalPressureMmHg,
       chamberTransmuralPressureMmHg:
         sample.mechanicsInput.chamberTransmuralPressureMmHg,
@@ -128,7 +164,7 @@ export function resolveMainWireCoronaryBoundaryV2(
         SEP: 0,
         RVFW: 0,
       }),
-    })
+    }, "cavity-induced")
     : null;
   const shorteningPressure = impMechanism === "cep-shortening-induced"
     ? evaluateMainWireCoronaryShorteningImpV2(
@@ -143,7 +179,7 @@ export function resolveMainWireCoronaryBoundaryV2(
       (territoryId) => [territoryId, Object.fromEntries(
         CORONARY_LAYER_IDS_V2.map((layerId) => [
           layerId,
-          cep[territoryId][layerId].cavityInducedExtracellularPressureMmHg
+          cep[territoryId][layerId]
           + (shorteningPressure?.[territoryId] ?? 0),
         ]),
       )],
@@ -156,6 +192,171 @@ export function resolveMainWireCoronaryBoundaryV2(
       sample.mechanicsInput.externalPressureMmHg,
     intramyocardialPressureMmHgByTerritoryLayer: intramyocardialPressure,
   });
+}
+
+/**
+ * Exact active-branch directional derivative of the pure mechanics-to-
+ * coronary boundary resolver. The result reuses the boundary value shape but
+ * every field is a derivative per unit caller coordinate.
+ */
+export function differentiateMainWireCoronaryBoundaryV2(
+  sample: MainWireCoronaryBoundarySampleV2,
+  direction: MainWireCoronaryBoundaryDirectionV2,
+  impMechanism: MainWireCoronaryImpMechanismV2,
+  shorteningReference: MainWireCoronaryShorteningReferenceV2 | null,
+  shorteningPrior: MainWireCoronaryShorteningImpGainPriorV2 =
+    NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
+): CoronaryHydraulicBoundaryInputV2 {
+  validateBoundaryDirection(direction);
+  const matrix = new Float64Array(
+    MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2.length
+      * MAIN_WIRE_CORONARY_MECHANICS_DIRECTION_COMPONENT_IDS_V2.length,
+  );
+  writeMainWireCoronaryBoundaryDerivativeMatrixV2(
+    sample,
+    impMechanism,
+    shorteningReference,
+    matrix,
+    shorteningPrior,
+  );
+  const directionVector = Float64Array.of(
+    direction.absoluteAorticPressureMmHg,
+    direction.absoluteRightAtrialPressureMmHg,
+    direction.mechanicsInput.externalPressureMmHg,
+    direction.mechanicsInput.chamberTransmuralPressureMmHg.LV,
+    direction.mechanicsInput.chamberTransmuralPressureMmHg.RV,
+    direction.mechanicsInput.landActiveFiberStressPaByWall.LVFW,
+    direction.mechanicsInput.landActiveFiberStressPaByWall.SEP,
+    direction.mechanicsInput.landActiveFiberStressPaByWall.RVFW,
+    direction.effectiveFiberLogStrainByWall.LVFW,
+    direction.effectiveFiberLogStrainByWall.SEP,
+    direction.effectiveFiberLogStrainByWall.RVFW,
+  );
+  const derivative = new Float64Array(
+    MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2.length,
+  );
+  for (let row = 0; row < derivative.length; row += 1) {
+    let value = 0;
+    for (let column = 0; column < directionVector.length; column += 1) {
+      value += matrix[row * directionVector.length + column]!
+        * directionVector[column]!;
+    }
+    derivative[row] = value;
+  }
+  const intramyocardialPressureMmHgByTerritoryLayer = Object.freeze({
+    LAD: Object.freeze({
+      subepicardial: derivative[3]!,
+      subendocardial: derivative[4]!,
+    }),
+    LCx: Object.freeze({
+      subepicardial: derivative[5]!,
+      subendocardial: derivative[6]!,
+    }),
+    RCA: Object.freeze({
+      subepicardial: derivative[7]!,
+      subendocardial: derivative[8]!,
+    }),
+  });
+  return Object.freeze({
+    absoluteAorticPressureMmHg: derivative[0]!,
+    absoluteRightAtrialPressureMmHg: derivative[1]!,
+    perivascularExternalPressureMmHg: derivative[2]!,
+    intramyocardialPressureMmHgByTerritoryLayer,
+  });
+}
+
+/**
+ * Writes the exact active-branch mapping from eleven mechanics directions to
+ * the nine hydraulic boundary directions. Rows and columns follow the two
+ * exported component-ID arrays. This is the allocation-free component writer
+ * consumed by the coupled Newton assembler.
+ */
+export function writeMainWireCoronaryBoundaryDerivativeMatrixV2(
+  sample: MainWireCoronaryBoundarySampleV2,
+  impMechanism: MainWireCoronaryImpMechanismV2,
+  shorteningReference: MainWireCoronaryShorteningReferenceV2 | null,
+  rowMajorDestination: Float64Array,
+  shorteningPrior: MainWireCoronaryShorteningImpGainPriorV2 =
+    NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
+): void {
+  validateImpMechanism(impMechanism);
+  validateBoundarySample(sample, impMechanism);
+  validateShorteningPrior(shorteningPrior);
+  const rowCount =
+    MAIN_WIRE_CORONARY_BOUNDARY_DERIVATIVE_COMPONENT_IDS_V2.length;
+  const columnCount =
+    MAIN_WIRE_CORONARY_MECHANICS_DIRECTION_COMPONENT_IDS_V2.length;
+  if (
+    !(rowMajorDestination instanceof Float64Array)
+    || rowMajorDestination.length !== rowCount * columnCount
+  ) {
+    throw new RangeError(
+      `coronary boundary derivative matrix must contain ${rowCount * columnCount} f64 values`,
+    );
+  }
+  rowMajorDestination.fill(0);
+  rowMajorDestination[0 * columnCount + 0] = 1;
+  rowMajorDestination[1 * columnCount + 1] = 1;
+  rowMajorDestination[2 * columnCount + 2] = 1;
+  if (impMechanism === "cep-shortening-induced" && shorteningReference === null) {
+    throw new Error("shortening IMP derivative requires an MVC reference");
+  }
+  let row = 3;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    const prior = NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1;
+    const weights = prior.perfusedWallWeightByTerritory[territoryId];
+    const shorteningGain =
+      shorteningPrior.pressureGainMmHgPerUnitShorteningByTerritory[
+        territoryId
+      ];
+    const activeStressGain =
+      prior.activeStressPressureGainByTerritory[territoryId]
+      / PASCAL_PER_MMHG_V1;
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      const depth = prior.layerDepthFromEpicardium01[layerId];
+      const septalDepthFromRvSurface01 =
+        prior.septalEndocardialSurfaceByTerritory[territoryId] === "LV"
+          ? depth
+          : 1 - depth;
+      rowMajorDestination[row * columnCount + 2] = 1;
+      rowMajorDestination[row * columnCount + 3] =
+        weights.LVFW * depth
+        + weights.SEP * septalDepthFromRvSurface01;
+      rowMajorDestination[row * columnCount + 4] =
+        weights.RVFW * depth
+        + weights.SEP * (1 - septalDepthFromRvSurface01);
+      if (impMechanism === "source-cep-land-active") {
+        rowMajorDestination[row * columnCount + 5] =
+          weights.LVFW * activeStressGain;
+        rowMajorDestination[row * columnCount + 6] =
+          weights.SEP * activeStressGain;
+        rowMajorDestination[row * columnCount + 7] =
+          weights.RVFW * activeStressGain;
+      } else if (impMechanism === "cep-shortening-induced") {
+        const reference = shorteningReference!;
+        const walls = ["LVFW", "SEP", "RVFW"] as const;
+        for (let wallIndex = 0; wallIndex < walls.length; wallIndex += 1) {
+          const wallId = walls[wallIndex]!;
+          const exponential = Math.exp(
+            sample.effectiveFiberLogStrainByWall[wallId]
+              - reference.referenceFiberLogStrainByWall[wallId],
+          );
+          const fractionalShortening = 1 - exponential;
+          const positivePartDerivative = fractionalShortening <= 0
+            ? 0
+            : fractionalShortening
+                >= shorteningPrior.positivePartSmoothingWidthFraction
+              ? 1
+              : fractionalShortening
+                / shorteningPrior.positivePartSmoothingWidthFraction;
+          rowMajorDestination[row * columnCount + 8 + wallIndex] =
+            shorteningGain * weights[wallId]
+            * positivePartDerivative * -exponential;
+        }
+      }
+      row += 1;
+    }
+  }
 }
 
 function validateImpMechanism(
@@ -282,6 +483,41 @@ function validateBoundarySample(
         );
       }
     }
+  }
+}
+
+function validateBoundaryDirection(
+  direction: MainWireCoronaryBoundaryDirectionV2,
+): void {
+  assertFinite(
+    "direction.absoluteAorticPressureMmHg",
+    direction.absoluteAorticPressureMmHg,
+  );
+  assertFinite(
+    "direction.absoluteRightAtrialPressureMmHg",
+    direction.absoluteRightAtrialPressureMmHg,
+  );
+  assertFinite(
+    "direction.mechanicsInput.externalPressureMmHg",
+    direction.mechanicsInput.externalPressureMmHg,
+  );
+  assertFinite(
+    "direction.mechanicsInput.chamberTransmuralPressureMmHg.LV",
+    direction.mechanicsInput.chamberTransmuralPressureMmHg.LV,
+  );
+  assertFinite(
+    "direction.mechanicsInput.chamberTransmuralPressureMmHg.RV",
+    direction.mechanicsInput.chamberTransmuralPressureMmHg.RV,
+  );
+  for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
+    assertFinite(
+      `direction.mechanicsInput.landActiveFiberStressPaByWall.${wallId}`,
+      direction.mechanicsInput.landActiveFiberStressPaByWall[wallId],
+    );
+    assertFinite(
+      `direction.effectiveFiberLogStrainByWall.${wallId}`,
+      direction.effectiveFiberLogStrainByWall[wallId],
+    );
   }
 }
 

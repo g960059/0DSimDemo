@@ -432,6 +432,12 @@ function createDynamicRotaryPumpAcceptedFlowStateV1(deviceId, acceptedFlowMlPerS
     acceptedFlowMlPerSec
   });
 }
+const DISABLED_ACCEPTED_FLOW_STATE_BY_DEVICE_V1 = Object.freeze({
+  LVAD: createDynamicRotaryPumpAcceptedFlowStateV1("LVAD", 0),
+  IMPELLA: createDynamicRotaryPumpAcceptedFlowStateV1("IMPELLA", 0),
+  VA_ECMO: createDynamicRotaryPumpAcceptedFlowStateV1("VA_ECMO", 0),
+  VV_ECMO: createDynamicRotaryPumpAcceptedFlowStateV1("VV_ECMO", 0)
+});
 function evaluateDynamicRotaryPumpV1(deviceId, config, previousAcceptedState, input) {
   validateDeviceId$1(deviceId);
   validateRotaryPumpConfigV1(config, deviceId);
@@ -653,10 +659,7 @@ function inactiveEvaluation(constraintOwner, deviceId, config, previousFlowMlPer
     pressureRiseRequiredMmHg,
     idealPumpHeadMmHg: 0,
     previousAcceptedFlowMlPerSec: previousFlowMlPerSec,
-    candidateAcceptedState: createDynamicRotaryPumpAcceptedFlowStateV1(
-      deviceId,
-      0
-    ),
+    candidateAcceptedState: DISABLED_ACCEPTED_FLOW_STATE_BY_DEVICE_V1[deviceId],
     flowMlPerSec: 0,
     flowLMin: 0,
     unrestrictedFlowMlPerSec: 0,
@@ -1225,6 +1228,35 @@ const SHA256_HEX = /^[0-9a-f]{64}$/;
 const LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES = /* @__PURE__ */ new WeakSet();
 const VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES = /* @__PURE__ */ new WeakSet();
 const VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS = /* @__PURE__ */ new WeakMap();
+const CONFIGURED_PUMP_RECORD_CACHE_V1 = /* @__PURE__ */ new WeakMap();
+const ZERO_DEVICE_NUMBERS_V1 = Object.freeze({
+  LVAD: 0,
+  IMPELLA: 0,
+  VA_ECMO: 0,
+  VV_ECMO: 0
+});
+const ZERO_NODE_NUMBERS_V1 = Object.freeze({
+  LV: 0,
+  Ao: 0,
+  SA: 0,
+  RA: 0,
+  VC: 0
+});
+const ZERO_NODE_JACOBIAN_V1 = Object.freeze({
+  LV: ZERO_NODE_NUMBERS_V1,
+  Ao: ZERO_NODE_NUMBERS_V1,
+  SA: ZERO_NODE_NUMBERS_V1,
+  RA: ZERO_NODE_NUMBERS_V1,
+  VC: ZERO_NODE_NUMBERS_V1
+});
+const ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1 = ZERO_DEVICE_NUMBERS_V1;
+const ZERO_PREVIOUS_FLOW_JACOBIAN_V1 = Object.freeze({
+  LV: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  Ao: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  SA: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  RA: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1,
+  VC: ZERO_PREVIOUS_FLOW_JACOBIAN_ROW_V1
+});
 function createDynamicMechanicalSupportDeviceProfileBindingV1(input) {
   assertExactKeys$a(
     input,
@@ -1299,7 +1331,11 @@ function createDynamicMechanicalSupportAcceptedStateV1(profile, config, accepted
     structuralHydraulicProjection,
     flows
   );
-  stampDynamicMechanicalSupportAcceptedStateV1(state, profile, config);
+  stampConstructedDynamicMechanicalSupportAcceptedStateV1(
+    state,
+    profile,
+    config
+  );
   return state;
 }
 function restoreDynamicMechanicalSupportAcceptedStateV1(candidate, expectedBindingState) {
@@ -1400,7 +1436,11 @@ function validateDynamicMechanicalSupportAcceptedStateV1(state, profile, config)
       "dynamic mechanical-support accepted state structural hydraulic config mismatch"
     );
   }
-  stampDynamicMechanicalSupportAcceptedStateV1(state, profile, config);
+  stampValidatedDynamicMechanicalSupportAcceptedStateV1(
+    state,
+    profile,
+    config
+  );
 }
 function evaluateDynamicMechanicalSupportHydraulicsV1(config, profile, previousAcceptedState, input) {
   validateMechanicalSupportConfigV1(config);
@@ -1432,12 +1472,22 @@ function evaluateDynamicMechanicalSupportHydraulicsV1(config, profile, previousA
       inletVolumeMl: input.nodeVolumeMl?.[configs[deviceId].inletNode]
     }
   ));
+  if (rotaryPumpCommandsAreAllDisabled(config)) {
+    return evaluateAllRotaryPumpsDisabled(
+      config,
+      profile,
+      previousAcceptedState,
+      input,
+      dtSec,
+      pump
+    );
+  }
   const candidateAcceptedState = createAcceptedStateFromOwnedBinding(
     previousAcceptedState.inertanceProfileSnapshot,
     previousAcceptedState.structuralHydraulicProjection,
     deviceRecord((deviceId) => pump[deviceId].candidateAcceptedState.acceptedFlowMlPerSec)
   );
-  stampDynamicMechanicalSupportAcceptedStateV1(
+  stampConstructedDynamicMechanicalSupportAcceptedStateV1(
     candidateAcceptedState,
     profile,
     config
@@ -1497,9 +1547,7 @@ function evaluateDynamicMechanicalSupportHydraulicsV1(config, profile, previousA
     unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
     profileId: ownedProfile.profileId,
     profileBindingSha256: ownedProfile.profileBindingSha256,
-    deviceProfileBindingByDevice: copyDeviceProfileBindingRecord(
-      ownedProfile.deviceProfileBindingByDevice
-    ),
+    deviceProfileBindingByDevice: ownedProfile.deviceProfileBindingByDevice,
     dtSec,
     pump,
     iabp: evaluateIabpV1(config.iabp, input),
@@ -1518,6 +1566,51 @@ function evaluateDynamicMechanicalSupportHydraulicsV1(config, profile, previousA
     previousFlowJacobianConservationResidual: previousFlowConservation
   });
 }
+function evaluateAllRotaryPumpsDisabled(config, profile, previousAcceptedState, input, dtSec, pump) {
+  const acceptedFlowsAreCanonicalZero = ROTARY_SUPPORT_DEVICE_IDS_V1.every(
+    (deviceId) => previousAcceptedState.acceptedFlowMlPerSec[deviceId] === 0
+  );
+  const candidateAcceptedState = acceptedFlowsAreCanonicalZero ? previousAcceptedState : createAcceptedStateFromOwnedBinding(
+    previousAcceptedState.inertanceProfileSnapshot,
+    previousAcceptedState.structuralHydraulicProjection,
+    ZERO_DEVICE_NUMBERS_V1
+  );
+  if (!acceptedFlowsAreCanonicalZero) {
+    stampConstructedDynamicMechanicalSupportAcceptedStateV1(
+      candidateAcceptedState,
+      profile,
+      config
+    );
+  }
+  const ownedProfile = previousAcceptedState.inertanceProfileSnapshot;
+  return Object.freeze({
+    modelId: MECHANICAL_SUPPORT_MODEL_V1_ID,
+    networkId: DYNAMIC_MECHANICAL_SUPPORT_NETWORK_V1_ID,
+    unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
+    profileId: ownedProfile.profileId,
+    profileBindingSha256: ownedProfile.profileBindingSha256,
+    deviceProfileBindingByDevice: ownedProfile.deviceProfileBindingByDevice,
+    dtSec,
+    pump,
+    iabp: evaluateIabpV1(config.iabp, input),
+    candidateAcceptedState,
+    nodeNetVolumeRateMlPerSec: ZERO_NODE_NUMBERS_V1,
+    dNodeNetVolumeRateDNodePressureMlPerSecPerMmHg: ZERO_NODE_JACOBIAN_V1,
+    dNodeNetVolumeRateDNodeVolumePerSec: ZERO_NODE_JACOBIAN_V1,
+    dNodeNetVolumeRateDPreviousDeviceFlow: ZERO_PREVIOUS_FLOW_JACOBIAN_V1,
+    constraintReactionMmHgByDevice: ZERO_DEVICE_NUMBERS_V1,
+    constraintImpulseMmHgSecByDevice: ZERO_DEVICE_NUMBERS_V1,
+    totalLeftHeartBypassFlowLMin: 0,
+    totalExtracorporealFlowLMin: 0,
+    conservationResidualMlPerSec: 0,
+    pressureJacobianConservationResidualMlPerSecPerMmHg: ZERO_NODE_NUMBERS_V1,
+    volumeJacobianConservationResidualPerSec: ZERO_NODE_NUMBERS_V1,
+    previousFlowJacobianConservationResidual: ZERO_DEVICE_NUMBERS_V1
+  });
+}
+function rotaryPumpCommandsAreAllDisabled(config) {
+  return !config.lvad.enabled && !config.impella.enabled && !config.vaEcmo.enabled && !config.vvEcmo.enabled;
+}
 function configuredPumpRecord(config) {
   return Object.freeze({
     LVAD: config.lvad,
@@ -1527,8 +1620,12 @@ function configuredPumpRecord(config) {
   });
 }
 function configuredPumpRecordFromOwnedStructure(config, projection) {
+  if (Object.isFrozen(config) && Object.isFrozen(projection)) {
+    const cached = CONFIGURED_PUMP_RECORD_CACHE_V1.get(projection)?.get(config);
+    if (cached !== void 0) return cached;
+  }
   const commands = configuredPumpRecord(config);
-  return deviceRecord((deviceId) => {
+  const configured = deviceRecord((deviceId) => {
     const command = commands[deviceId];
     const structural = projection.byDevice[deviceId];
     return Object.freeze({
@@ -1547,6 +1644,15 @@ function configuredPumpRecordFromOwnedStructure(config, projection) {
       forwardFlowEvidenceDomain: structural.forwardFlowEvidenceDomain
     });
   });
+  if (Object.isFrozen(config) && Object.isFrozen(projection)) {
+    let byConfig = CONFIGURED_PUMP_RECORD_CACHE_V1.get(projection);
+    if (byConfig === void 0) {
+      byConfig = /* @__PURE__ */ new WeakMap();
+      CONFIGURED_PUMP_RECORD_CACHE_V1.set(projection, byConfig);
+    }
+    byConfig.set(config, configured);
+  }
+  return configured;
 }
 function copyDeviceStructuralHydraulics(deviceId, config, wholeConfig) {
   return Object.freeze({
@@ -2069,8 +2175,23 @@ function assertDeepFrozen(value, label) {
 function hasDynamicMechanicalSupportValidationStampV1(state, profile, config) {
   return VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state)?.some((stamp) => stamp.profile === profile && stamp.config === config) ?? false;
 }
-function stampDynamicMechanicalSupportAcceptedStateV1(state, profile, config) {
+function stampValidatedDynamicMechanicalSupportAcceptedStateV1(state, profile, config) {
   if (!LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state) || !validationStampIssuanceEligibleV1(state, profile, config)) return;
+  recordDynamicMechanicalSupportAcceptedStateStampV1(
+    state,
+    profile,
+    config
+  );
+}
+function stampConstructedDynamicMechanicalSupportAcceptedStateV1(state, profile, config) {
+  if (!LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state) || !validationStampIssuanceEligibleV1(profile, config)) return;
+  recordDynamicMechanicalSupportAcceptedStateStampV1(
+    state,
+    profile,
+    config
+  );
+}
+function recordDynamicMechanicalSupportAcceptedStateStampV1(state, profile, config) {
   const existing = VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state) ?? [];
   if (existing.some((stamp) => stamp.profile === profile && stamp.config === config)) return;
   VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.set(
@@ -2579,7 +2700,12 @@ function evaluateTriSegWallDerivativeV1(geometry) {
   }
   return Object.freeze(result);
 }
-function evaluateTriSegWallSecondDerivativeV1(geometry) {
+function writeTriSegWallSecondDerivativeV1(geometry, destination, offset = 0) {
+  if (!(destination instanceof Float64Array) || !Number.isInteger(offset) || offset < 0 || destination.length - offset < 3) {
+    throw new RangeError(
+      "TriSeg wall second derivative destination requires three f64 values"
+    );
+  }
   const h = geometry.signedCapHeightM;
   const y = geometry.junctionRadiusM;
   const h2 = h * h;
@@ -2611,18 +2737,24 @@ function evaluateTriSegWallSecondDerivativeV1(geometry) {
   const strainHH = logarithmicHH + correctionSecond * zetaH * zetaH + correctionFirst * zetaHH;
   const strainHY = logarithmicHY + correctionSecond * zetaH * zetaY + correctionFirst * zetaHY;
   const strainYY = logarithmicYY + correctionSecond * zetaY * zetaY + correctionFirst * zetaYY;
-  const result = {
-    wallId: geometry.wallId,
-    d2FiberLogStrainDCapVolume2PerM6: strainHH * hV * hV + strainH * hVV,
-    d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4: (strainHH * hy + strainHY) * hV + strainH * hVy,
-    d2FiberLogStrainDJunctionRadius2PerM2: strainHH * hy * hy + 2 * strainHY * hy + strainYY + strainH * hyy
-  };
-  for (const [label, value] of Object.entries(result)) {
-    if (label !== "wallId") {
-      requireFinite$m(value, `${geometry.wallId}.${label}`);
-    }
-  }
-  return Object.freeze(result);
+  const volume2 = strainHH * hV * hV + strainH * hVV;
+  const volumeRadius = (strainHH * hy + strainHY) * hV + strainH * hVy;
+  const radius2 = strainHH * hy * hy + 2 * strainHY * hy + strainYY + strainH * hyy;
+  requireFinite$m(
+    volume2,
+    `${geometry.wallId}.d2FiberLogStrainDCapVolume2PerM6`
+  );
+  requireFinite$m(
+    volumeRadius,
+    `${geometry.wallId}.d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4`
+  );
+  requireFinite$m(
+    radius2,
+    `${geometry.wallId}.d2FiberLogStrainDJunctionRadius2PerM2`
+  );
+  destination[offset] = volume2;
+  destination[offset + 1] = volumeRadius;
+  destination[offset + 2] = radius2;
 }
 function evaluateEnergyConjugateTriSegV1(input) {
   assertWallRecord(input.fiberKirchhoffStressPaByWall, "fiberKirchhoffStressPaByWall");
@@ -3909,6 +4041,21 @@ function evaluateCrefAnchoredCollapsiblePvV2(volumeMl, prior) {
     transmuralPressureMmHg: prior.pressureScaleMmHg * (normalizedVolume ** prior.expansionExponent - normalizedVolume ** -prior.collapseExponent),
     complianceMlPerMmHg: prior.referenceVolumeMl / dPressureDNormalizedVolume
   });
+}
+function evaluateCrefAnchoredCollapsiblePressureV2(volumeMl, prior) {
+  if (!Number.isFinite(volumeMl) || volumeMl <= 0) {
+    throw new RangeError("volumeMl must be positive and finite");
+  }
+  const normalizedVolume = volumeMl / prior.referenceVolumeMl;
+  return prior.pressureScaleMmHg * (normalizedVolume ** prior.expansionExponent - normalizedVolume ** -prior.collapseExponent);
+}
+function evaluateCrefAnchoredCollapsibleComplianceV2(volumeMl, prior) {
+  if (!Number.isFinite(volumeMl) || volumeMl <= 0) {
+    throw new RangeError("volumeMl must be positive and finite");
+  }
+  const normalizedVolume = volumeMl / prior.referenceVolumeMl;
+  const dPressureDNormalizedVolume = prior.pressureScaleMmHg * (prior.expansionExponent * normalizedVolume ** (prior.expansionExponent - 1) + prior.collapseExponent * normalizedVolume ** (-prior.collapseExponent - 1));
+  return prior.referenceVolumeMl / dPressureDNormalizedVolume;
 }
 function invertCrefAnchoredCollapsiblePvV2(transmuralPressureMmHg, prior) {
   if (!Number.isFinite(transmuralPressureMmHg)) {
@@ -5393,7 +5540,7 @@ function validateOrStampConstructedAutoregulationStateV3(binding, state, accepte
     });
     return;
   }
-  stampAutoregulationStateBindingV3(state, binding);
+  stampPrivatelyConstructedAutoregulationStateBindingV3(state, binding);
 }
 function validateAutoregulationClockV3(state, clock) {
   if (clock === void 0) return;
@@ -5417,6 +5564,13 @@ function hasAutoregulationStateBindingStampV3(state, binding) {
 }
 function stampAutoregulationStateBindingV3(state, binding) {
   if (!validationStampIssuanceEligibleV1(state, binding)) return;
+  recordAutoregulationStateBindingStampV3(state, binding);
+}
+function stampPrivatelyConstructedAutoregulationStateBindingV3(state, binding) {
+  if (!validationStampReuseEligibleV1() || !Object.isFrozen(state) || !VALIDATED_AUTOREGULATION_BINDINGS_V3.has(binding)) return;
+  recordAutoregulationStateBindingStampV3(state, binding);
+}
+function recordAutoregulationStateBindingStampV3(state, binding) {
   const bindings = VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.get(state) ?? /* @__PURE__ */ new WeakSet();
   bindings.add(binding);
   VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.set(state, bindings);
@@ -5850,6 +6004,7 @@ const MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG = Object.freeze({
   minimum: -20,
   maximum: 45
 });
+const COMPILED_FROZEN_VENOUS_PV_LAWS_V1 = /* @__PURE__ */ new WeakMap();
 function stressedVolumeFromPtm(law, Ptm) {
   if (law.kind === "arterial") {
     const p0 = Math.max(law.P0, 1e-6);
@@ -5891,19 +6046,21 @@ function ptmFromStressedVolume(law, targetStressedVolumeMl, options = {}) {
     return targetStressedVolumeMl / Math.max(law.C, 1e-6);
   }
   validateVenousLaw(law);
+  const compiledLaw = compiledVenousPvLawSnapshotV1(law);
   let lo = MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.minimum;
   let hi = MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.maximum;
-  let loVolume = stressedVolumeFromPtm(law, lo);
-  let hiVolume = stressedVolumeFromPtm(law, hi);
+  let loVolume = venousStressedVolumeForInverse(law, compiledLaw, lo);
+  let hiVolume = venousStressedVolumeForInverse(law, compiledLaw, hi);
   if (targetStressedVolumeMl <= loVolume) return lo;
   if (targetStressedVolumeMl >= hiVolume) return hi;
   const maxIterations = Math.max(1, Math.floor(options.maxIterations ?? 32));
+  const adaptiveTermination = (options.termination ?? "adaptive") === "adaptive";
   const pressureTolerance = Math.max(options.pressureToleranceMmHg ?? 1e-10, 0);
   const volumeTolerance = Math.max(options.stressedVolumeToleranceMl ?? 1e-10, 0);
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     const mid = 0.5 * (lo + hi);
-    const midVolume = stressedVolumeFromPtm(law, mid);
-    if (Math.abs(midVolume - targetStressedVolumeMl) <= volumeTolerance || 0.5 * (hi - lo) <= pressureTolerance) {
+    const midVolume = venousStressedVolumeForInverse(law, compiledLaw, mid);
+    if (adaptiveTermination && (Math.abs(midVolume - targetStressedVolumeMl) <= volumeTolerance || 0.5 * (hi - lo) <= pressureTolerance)) {
       return mid;
     }
     if (midVolume < targetStressedVolumeMl) {
@@ -5995,9 +6152,61 @@ function venousCompliance3(law, Ptm) {
   return Math.max(c, 1e-4);
 }
 function venousStressedVolume3(law, Ptm) {
+  const compiledLaw = cachedFrozenVenousPvLawV1(law);
+  return compiledLaw === null ? venousStressedVolume3Dynamic(law, Ptm) : venousStressedVolume3Compiled(compiledLaw, Ptm);
+}
+function venousStressedVolumeForInverse(law, compiledLaw, Ptm) {
+  return compiledLaw === null ? venousStressedVolume3Dynamic(law, Ptm) : venousStressedVolume3Compiled(compiledLaw, Ptm);
+}
+function venousStressedVolume3Dynamic(law, Ptm) {
   const dOpen = Math.max(law.dOpen, 1e-6);
   const dStiff = Math.max(law.dStiff, 1e-6);
   return law.Ccoll * Ptm + (law.Copen - law.Ccoll) * dOpen * (softplus((Ptm - law.Popen) / dOpen) - softplus((0 - law.Popen) / dOpen)) - (law.Copen - law.Cdist) * dStiff * (softplus((Ptm - law.Pstiff) / dStiff) - softplus((0 - law.Pstiff) / dStiff));
+}
+function venousStressedVolume3Compiled(law, Ptm) {
+  return law.Ccoll * Ptm + law.openComplianceDeltaTimesWidth * (softplus((Ptm - law.Popen) / law.dOpen) - law.zeroOpenSoftplus) - law.distendedComplianceDeltaTimesWidth * (softplus((Ptm - law.Pstiff) / law.dStiff) - law.zeroStiffSoftplus);
+}
+function cachedFrozenVenousPvLawV1(law) {
+  const cached = COMPILED_FROZEN_VENOUS_PV_LAWS_V1.get(law);
+  if (cached !== void 0) return cached;
+  if (!Object.isFrozen(law) || !plainDataRecord(law)) return null;
+  const compiled = compileVenousPvLawV1(law);
+  COMPILED_FROZEN_VENOUS_PV_LAWS_V1.set(law, compiled);
+  return compiled;
+}
+function compiledVenousPvLawSnapshotV1(law) {
+  const cached = COMPILED_FROZEN_VENOUS_PV_LAWS_V1.get(law);
+  if (cached !== void 0) return cached;
+  if (!plainDataRecord(law)) return null;
+  const compiled = compileVenousPvLawV1(law);
+  if (Object.isFrozen(law)) {
+    COMPILED_FROZEN_VENOUS_PV_LAWS_V1.set(law, compiled);
+  }
+  return compiled;
+}
+function compileVenousPvLawV1(law) {
+  const dOpen = Math.max(law.dOpen, 1e-6);
+  const dStiff = Math.max(law.dStiff, 1e-6);
+  const compiled = Object.freeze({
+    Ccoll: law.Ccoll,
+    openComplianceDeltaTimesWidth: (law.Copen - law.Ccoll) * dOpen,
+    distendedComplianceDeltaTimesWidth: (law.Copen - law.Cdist) * dStiff,
+    Popen: law.Popen,
+    Pstiff: law.Pstiff,
+    dOpen,
+    dStiff,
+    zeroOpenSoftplus: softplus((0 - law.Popen) / dOpen),
+    zeroStiffSoftplus: softplus((0 - law.Pstiff) / dStiff)
+  });
+  return compiled;
+}
+function plainDataRecord(value) {
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== null && prototype !== Object.prototype) return false;
+  return Reflect.ownKeys(value).every((key) => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    return descriptor !== void 0 && "value" in descriptor;
+  });
 }
 function sigmoid(x) {
   if (x >= 40) return 1;
@@ -6061,13 +6270,18 @@ function vascularTransmuralPressureFromPhysicalVolumeV1(node, physicalVolumeMl, 
     throw new RangeError(`${node.name} physical volume must be finite`);
   }
   const law = vascularPvLawFromNodeV1(node, params);
+  return vascularTransmuralPressureFromLawV1(law, physicalVolumeMl);
+}
+function vascularTransmuralPressureFromLawV1(law, physicalVolumeMl, policy) {
+  if (!Number.isFinite(physicalVolumeMl)) {
+    throw new RangeError("vascular physical volume must be finite");
+  }
   const stressedVolumeMl = physicalVolumeMl - law.Vu;
   {
     return ptmFromStressedVolume(law, stressedVolumeMl);
   }
 }
-function vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(node, physicalVolumeMl, params, policy) {
-  const law = vascularPvLawFromNodeV1(node, params);
+function vascularTransmuralPressureAndVolumeTangentFromLawV1(law, physicalVolumeMl, policy) {
   const stressedVolumeMl = physicalVolumeMl - law.Vu;
   {
     const paired = ptmAndVolumeTangentFromStressedVolume(
@@ -6089,9 +6303,8 @@ function respiratoryExternalPressuresV1(timeSec, params) {
   };
 }
 function respiratoryExternalPressureForKindV1(kind, timeSec, params) {
-  if (kind === "none") return 0;
   const pressures = respiratoryExternalPressuresV1(timeSec, params);
-  return kind === "pth" ? pressures.pthMmHg : pressures.palvMmHg;
+  return pressures.pthMmHg;
 }
 function downstreamEffectivePressureV1(input) {
   if (!input.edge.waterfall) return input.downstreamPressureMmHg;
@@ -6725,6 +6938,8 @@ const MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_CLAIM_V2 = Object.freeze({
   leafletMechanicalContactModeled: false,
   pressureOrPhaseShapeFitting: false
 });
+const EMPTY_VALVE_ISSUES_V2 = Object.freeze([]);
+const VALIDATED_FROZEN_VALVE_PARAMS_V2 = /* @__PURE__ */ new WeakSet();
 function idealBernoulliLossFromEffectiveOrificeAreaV2(effectiveOrificeAreaCm2) {
   if (!(effectiveOrificeAreaCm2 > 0) || !Number.isFinite(effectiveOrificeAreaCm2)) {
     throw new Error("effectiveOrificeAreaCm2 must be finite and positive");
@@ -6733,6 +6948,9 @@ function idealBernoulliLossFromEffectiveOrificeAreaV2(effectiveOrificeAreaCm2) {
   return MAIN_WIRE_VALVE_BLOOD_DENSITY_KG_PER_M3_V2 / (2 * MAIN_WIRE_VALVE_PA_PER_MMHG_V2) * (1e-6 / areaM2) ** 2;
 }
 function validateMainWireQuasiSteadyOrificeValveParamsV2(params) {
+  if (VALIDATED_FROZEN_VALVE_PARAMS_V2.has(params)) {
+    return EMPTY_VALVE_ISSUES_V2;
+  }
   const issues = [];
   if (typeof params.parameterSetId !== "string" || params.parameterSetId.trim() === "") {
     issues.push("parameterSetId must be non-empty");
@@ -6758,6 +6976,10 @@ function validateMainWireQuasiSteadyOrificeValveParamsV2(params) {
   positive(params.openingDriveSmoothingMmHg, "openingDriveSmoothingMmHg", issues);
   positive(params.openingTimeConstantSec, "openingTimeConstantSec", issues);
   positive(params.closingTimeConstantSec, "closingTimeConstantSec", issues);
+  if (issues.length === 0 && frozenPlainDataValveParams(params)) {
+    VALIDATED_FROZEN_VALVE_PARAMS_V2.add(params);
+    return EMPTY_VALVE_ISSUES_V2;
+  }
   return Object.freeze(issues);
 }
 function initialMainWireQuasiSteadyOrificeValveStateV2(leafletOpeningFraction01 = 0) {
@@ -6768,66 +6990,83 @@ function initialMainWireQuasiSteadyOrificeValveStateV2(leafletOpeningFraction01 
     leafletOpeningFraction01: clamp(leafletOpeningFraction01, 0, 1)
   });
 }
-function stepMainWireQuasiSteadyOrificeValveV2(previous, input, params) {
-  const preliminaryIssues = validateInputs(previous, input, params);
-  if (preliminaryIssues.length > 0) {
-    return invalidEvaluation$1(previous, input, params, preliminaryIssues);
-  }
-  const pressureGradientMmHg = input.upstreamPressureMmHg - input.downstreamPressureMmHg;
-  const targetWithDerivative = openingTargetAndDerivative(
-    pressureGradientMmHg,
+function stepMainWireQuasiSteadyOrificeValveScalarsV2(previousLeafletOpeningFraction01, dtSec, upstreamPressureMmHg, downstreamPressureMmHg, params) {
+  const preliminaryIssues = validateScalarInputs(
+    previousLeafletOpeningFraction01,
+    dtSec,
+    upstreamPressureMmHg,
+    downstreamPressureMmHg,
     params
   );
-  const target = targetWithDerivative.target;
-  const tau = target > previous.leafletOpeningFraction01 ? params.openingTimeConstantSec : params.closingTimeConstantSec;
-  const timeRatio = input.dtSec / tau;
-  const unclampedLeafletOpeningFraction01 = (previous.leafletOpeningFraction01 + timeRatio * target) / (1 + timeRatio);
+  if (preliminaryIssues.length > 0) {
+    return invalidEvaluation$1(
+      { leafletOpeningFraction01: previousLeafletOpeningFraction01 },
+      { upstreamPressureMmHg, downstreamPressureMmHg },
+      params,
+      preliminaryIssues
+    );
+  }
+  const pressureGradientMmHg = upstreamPressureMmHg - downstreamPressureMmHg;
+  const target = openingTarget(pressureGradientMmHg, params);
+  const openingDriveMmHg = pressureGradientMmHg - params.openingDriveDeadbandMmHg - params.openingPressureOffsetMmHg;
+  const widthMmHg = params.openingDriveSmoothingMmHg;
+  const dPositiveOpeningDriveDPressureGradient = openingDriveMmHg <= 0 ? 0 : openingDriveMmHg >= widthMmHg ? 1 : openingDriveMmHg / widthMmHg;
+  const dTargetDPressureGradientPerMmHg = params.openingGainPerMmHg * (1 - target) * dPositiveOpeningDriveDPressureGradient;
+  const tau = target > previousLeafletOpeningFraction01 ? params.openingTimeConstantSec : params.closingTimeConstantSec;
+  const timeRatio = dtSec / tau;
+  const unclampedLeafletOpeningFraction01 = (previousLeafletOpeningFraction01 + timeRatio * target) / (1 + timeRatio);
   const leafletOpeningFraction01 = clamp(
     unclampedLeafletOpeningFraction01,
     0,
     1
   );
-  const dLeafletOpeningFractionDPressureGradientPerMmHg = unclampedLeafletOpeningFraction01 <= 0 || unclampedLeafletOpeningFraction01 >= 1 ? 0 : input.dtSec / (tau + input.dtSec) * targetWithDerivative.dTargetDPressureGradientPerMmHg;
-  return evaluateMainWireQuasiSteadyOrificeValveWithTangentV2(
-    previous,
-    input,
-    { leafletOpeningFraction01 },
+  const dLeafletOpeningFractionDPressureGradientPerMmHg = unclampedLeafletOpeningFraction01 <= 0 || unclampedLeafletOpeningFraction01 >= 1 ? 0 : dtSec / (tau + dtSec) * dTargetDPressureGradientPerMmHg;
+  return evaluateMainWireQuasiSteadyOrificeValveScalarsValidatedV2(
+    previousLeafletOpeningFraction01,
+    dtSec,
+    upstreamPressureMmHg,
+    downstreamPressureMmHg,
+    leafletOpeningFraction01,
     params,
     dLeafletOpeningFractionDPressureGradientPerMmHg,
-    "backward-euler-opening-state-eliminated"
+    "backward-euler-opening-state-eliminated",
+    target
   );
 }
-function evaluateMainWireQuasiSteadyOrificeValveWithTangentV2(previous, input, next, params, dLeafletOpeningFractionDPressureGradientPerMmHg, tangentMode) {
-  const issues = validateInputs(previous, input, params);
-  if (!Number.isFinite(next.leafletOpeningFraction01) || next.leafletOpeningFraction01 < 0 || next.leafletOpeningFraction01 > 1) {
-    issues.push("next valve state must have finite leafletOpeningFraction01 in [0, 1]");
-  }
-  if (issues.length > 0) return invalidEvaluation$1(next, input, params, issues);
-  const pressureGradientMmHg = input.upstreamPressureMmHg - input.downstreamPressureMmHg;
+function evaluateMainWireQuasiSteadyOrificeValveScalarsValidatedV2(previousLeafletOpeningFraction01, dtSec, upstreamPressureMmHg, downstreamPressureMmHg, nextLeafletOpeningFraction01, params, dLeafletOpeningFractionDPressureGradientPerMmHg, tangentMode, validatedOpeningTarget01) {
+  const pressureGradientMmHg = upstreamPressureMmHg - downstreamPressureMmHg;
   const activeDirection = directionFromGradient(pressureGradientMmHg);
-  const openingTarget01 = openingTarget(pressureGradientMmHg, params);
-  const openingTau = openingTarget01 > previous.leafletOpeningFraction01 ? params.openingTimeConstantSec : params.closingTimeConstantSec;
-  const openingEquationResidual01 = next.leafletOpeningFraction01 - previous.leafletOpeningFraction01 - input.dtSec * (openingTarget01 - next.leafletOpeningFraction01) / openingTau;
-  const forwardActiveEoaCm2 = params.closedReverseEroaCm2 + next.leafletOpeningFraction01 * (params.maximumForwardEoaCm2 - params.closedReverseEroaCm2);
+  const openingTarget01 = validatedOpeningTarget01 ?? openingTarget(pressureGradientMmHg, params);
+  const openingTau = openingTarget01 > previousLeafletOpeningFraction01 ? params.openingTimeConstantSec : params.closingTimeConstantSec;
+  const openingEquationResidual01 = nextLeafletOpeningFraction01 - previousLeafletOpeningFraction01 - dtSec * (openingTarget01 - nextLeafletOpeningFraction01) / openingTau;
+  const forwardActiveEoaCm2 = params.closedReverseEroaCm2 + nextLeafletOpeningFraction01 * (params.maximumForwardEoaCm2 - params.closedReverseEroaCm2);
   const reverseActiveEoaCm2 = params.closedReverseEroaCm2;
   const activeEoaCm2 = activeDirection === "reverse" ? reverseActiveEoaCm2 : forwardActiveEoaCm2;
   const dActiveEoaDPressureGradientCm2PerMmHg = activeDirection === "reverse" ? 0 : (params.maximumForwardEoaCm2 - params.closedReverseEroaCm2) * dLeafletOpeningFractionDPressureGradientPerMmHg;
-  const losses = lossTerms(activeEoaCm2, params);
+  const resistanceMmHgSecPerMl = activeEoaCm2 === 0 ? 0 : params.backgroundLinearResistanceMmHgSecPerMl;
+  const bernoulliMmHgSec2PerMl2 = activeEoaCm2 === 0 ? 0 : idealBernoulliLossFromEffectiveOrificeAreaV2(activeEoaCm2);
   const flowMlPerSec = activeEoaCm2 === 0 ? 0 : solveExactSignedQAbsQRoot(
     pressureGradientMmHg,
-    losses.resistance,
-    losses.bernoulli
+    resistanceMmHgSecPerMl,
+    bernoulliMmHgSec2PerMl2
   );
-  const flowTangent = valveFlowPressureGradientTangent(
-    pressureGradientMmHg,
-    activeDirection,
-    activeEoaCm2,
-    dActiveEoaDPressureGradientCm2PerMmHg,
-    losses.resistance,
-    losses.bernoulli,
-    flowMlPerSec
-  );
-  const dissipativePressureMmHg = activeEoaCm2 === 0 ? 0 : losses.resistance * flowMlPerSec + losses.bernoulli * flowMlPerSec * Math.abs(flowMlPerSec);
+  let dFlowDPressureGradientMlPerSecPerMmHg;
+  let tangentBranch;
+  if (activeEoaCm2 === 0) {
+    dFlowDPressureGradientMlPerSecPerMmHg = 0;
+    tangentBranch = "exact-zero-area-hydraulic-support";
+  } else {
+    const denominator = resistanceMmHgSecPerMl + 2 * bernoulliMmHgSec2PerMl2 * Math.abs(flowMlPerSec);
+    if (denominator === 0) {
+      dFlowDPressureGradientMlPerSecPerMmHg = 0;
+      tangentBranch = "zero-gradient-non-lipschitz-zero-linear-resistance";
+    } else {
+      const dBernoulliDPressureGradient = -2 * bernoulliMmHgSec2PerMl2 * dActiveEoaDPressureGradientCm2PerMmHg / activeEoaCm2;
+      dFlowDPressureGradientMlPerSecPerMmHg = (1 - flowMlPerSec * Math.abs(flowMlPerSec) * dBernoulliDPressureGradient) / denominator;
+      tangentBranch = activeDirection === "reverse" ? "reverse-regurgitant-orifice" : activeDirection === "zero-gradient" ? "zero-gradient-forward-open-orifice" : "forward-open-orifice";
+    }
+  }
+  const dissipativePressureMmHg = activeEoaCm2 === 0 ? 0 : resistanceMmHgSecPerMl * flowMlPerSec + bernoulliMmHgSec2PerMl2 * flowMlPerSec * Math.abs(flowMlPerSec);
   const openOrificeResidualMmHg = pressureGradientMmHg - dissipativePressureMmHg;
   const competentReverseClosureActive = activeDirection === "reverse" && activeEoaCm2 === 0;
   const subthresholdForwardSupportActive = activeDirection === "forward" && activeEoaCm2 === 0;
@@ -6841,7 +7080,9 @@ function evaluateMainWireQuasiSteadyOrificeValveWithTangentV2(previous, input, n
   const powerBalanceResidualMmHgMlPerSec = hydraulicPowerInputMmHgMlPerSec - dissipativePowerMmHgMlPerSec + hydraulicSupportPowerMmHgMlPerSec;
   const result = Object.freeze({
     modelId: MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_V2_ID,
-    state: Object.freeze({ ...next }),
+    state: Object.freeze({
+      leafletOpeningFraction01: nextLeafletOpeningFraction01
+    }),
     flowMlPerSec,
     pressureGradientMmHg,
     activeDirection,
@@ -6851,11 +7092,11 @@ function evaluateMainWireQuasiSteadyOrificeValveWithTangentV2(previous, input, n
     reverseActiveEoaCm2,
     activeEoaCm2,
     dLeafletOpeningFractionDPressureGradientPerMmHg,
-    dFlowDPressureGradientMlPerSecPerMmHg: flowTangent.dFlowDPressureGradientMlPerSecPerMmHg,
+    dFlowDPressureGradientMlPerSecPerMmHg,
     tangentMode,
-    tangentBranch: flowTangent.branch,
-    resistanceMmHgSecPerMl: losses.resistance,
-    bernoulliMmHgSec2PerMl2: losses.bernoulli,
+    tangentBranch,
+    resistanceMmHgSecPerMl,
+    bernoulliMmHgSec2PerMl2,
     dissipativePressureMmHg,
     openOrificeResidualMmHg,
     competentReverseClosureReactionMmHg,
@@ -6875,7 +7116,7 @@ function evaluateMainWireQuasiSteadyOrificeValveWithTangentV2(previous, input, n
     issues: Object.freeze([]),
     claim: MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_CLAIM_V2
   });
-  const finite2 = everyNumericLeafIsFinite(result);
+  const finite2 = valveEvaluationNumericReadbackIsFiniteV2(result);
   return finite2 ? result : Object.freeze({
     ...result,
     valid: false,
@@ -6891,28 +7132,6 @@ function openingTarget(pressureGradientMmHg, params) {
   );
   return 1 - Math.exp(-params.openingGainPerMmHg * positiveOpeningDriveMmHg);
 }
-function openingTargetAndDerivative(pressureGradientMmHg, params) {
-  const target = openingTarget(pressureGradientMmHg, params);
-  const openingDriveMmHg = pressureGradientMmHg - params.openingDriveDeadbandMmHg - params.openingPressureOffsetMmHg;
-  const widthMmHg = params.openingDriveSmoothingMmHg;
-  const dPositiveOpeningDriveDPressureGradient = openingDriveMmHg <= 0 ? 0 : openingDriveMmHg >= widthMmHg ? 1 : openingDriveMmHg / widthMmHg;
-  return Object.freeze({
-    target,
-    dTargetDPressureGradientPerMmHg: params.openingGainPerMmHg * (1 - target) * dPositiveOpeningDriveDPressureGradient
-  });
-}
-function lossTerms(activeEoaCm2, params) {
-  if (activeEoaCm2 === 0) {
-    return Object.freeze({
-      resistance: 0,
-      bernoulli: 0
-    });
-  }
-  return Object.freeze({
-    resistance: params.backgroundLinearResistanceMmHgSecPerMl,
-    bernoulli: idealBernoulliLossFromEffectiveOrificeAreaV2(activeEoaCm2)
-  });
-}
 function solveExactSignedQAbsQRoot(pressureGradientMmHg, resistanceMmHgSecPerMl, bernoulliMmHgSec2PerMl2) {
   if (pressureGradientMmHg === 0) return 0;
   const pressureMagnitude = Math.abs(pressureGradientMmHg);
@@ -6922,37 +7141,30 @@ function solveExactSignedQAbsQRoot(pressureGradientMmHg, resistanceMmHgSecPerMl,
   const flowMagnitude = 2 * pressureMagnitude / (resistanceMmHgSecPerMl + discriminant);
   return Math.sign(pressureGradientMmHg) * flowMagnitude;
 }
-function valveFlowPressureGradientTangent(_pressureGradientMmHg, activeDirection, activeEoaCm2, dActiveEoaDPressureGradientCm2PerMmHg, resistanceMmHgSecPerMl, bernoulliMmHgSec2PerMl2, flowMlPerSec) {
-  if (activeEoaCm2 === 0) {
-    return Object.freeze({
-      dFlowDPressureGradientMlPerSecPerMmHg: 0,
-      branch: "exact-zero-area-hydraulic-support"
-    });
+function validateScalarInputs(previousLeafletOpeningFraction01, dtSec, upstreamPressureMmHg, downstreamPressureMmHg, params) {
+  const paramIssues = validateMainWireQuasiSteadyOrificeValveParamsV2(params);
+  const previousInvalid = !Number.isFinite(previousLeafletOpeningFraction01) || previousLeafletOpeningFraction01 < 0 || previousLeafletOpeningFraction01 > 1;
+  const inputInvalid = !(dtSec > 0) || !Number.isFinite(dtSec) || !Number.isFinite(upstreamPressureMmHg) || !Number.isFinite(downstreamPressureMmHg);
+  if (paramIssues.length === 0 && !previousInvalid && !inputInvalid) {
+    return EMPTY_VALVE_ISSUES_V2;
   }
-  const denominator = resistanceMmHgSecPerMl + 2 * bernoulliMmHgSec2PerMl2 * Math.abs(flowMlPerSec);
-  if (denominator === 0) {
-    return Object.freeze({
-      dFlowDPressureGradientMlPerSecPerMmHg: 0,
-      branch: "zero-gradient-non-lipschitz-zero-linear-resistance"
-    });
-  }
-  const dBernoulliDPressureGradient = -2 * bernoulliMmHgSec2PerMl2 * dActiveEoaDPressureGradientCm2PerMmHg / activeEoaCm2;
-  const derivative = (1 - flowMlPerSec * Math.abs(flowMlPerSec) * dBernoulliDPressureGradient) / denominator;
-  const branch = activeDirection === "reverse" ? "reverse-regurgitant-orifice" : activeDirection === "zero-gradient" ? "zero-gradient-forward-open-orifice" : "forward-open-orifice";
-  return Object.freeze({
-    dFlowDPressureGradientMlPerSecPerMmHg: derivative,
-    branch
-  });
-}
-function validateInputs(previous, input, params) {
-  const issues = [...validateMainWireQuasiSteadyOrificeValveParamsV2(params)];
-  if (!Number.isFinite(previous.leafletOpeningFraction01) || previous.leafletOpeningFraction01 < 0 || previous.leafletOpeningFraction01 > 1) {
+  const issues = [...paramIssues];
+  if (previousInvalid) {
     issues.push("previous valve state must have finite leafletOpeningFraction01 in [0, 1]");
   }
-  if (!(input.dtSec > 0) || !Number.isFinite(input.dtSec) || !Number.isFinite(input.upstreamPressureMmHg) || !Number.isFinite(input.downstreamPressureMmHg)) {
+  if (inputInvalid) {
     issues.push("valve input must have positive dtSec and finite pressures");
   }
   return issues;
+}
+function frozenPlainDataValveParams(params) {
+  if (!Object.isFrozen(params)) return false;
+  const prototype = Object.getPrototypeOf(params);
+  if (prototype !== Object.prototype && prototype !== null) return false;
+  for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(params))) {
+    if (!("value" in descriptor)) return false;
+  }
+  return true;
 }
 function invalidEvaluation$1(state, input, params, issues) {
   return Object.freeze({
@@ -7012,13 +7224,10 @@ function nonnegative(value, name, issues) {
     issues.push(`${name} must be nonnegative and finite`);
   }
 }
-function everyNumericLeafIsFinite(value) {
-  if (typeof value === "number") return Number.isFinite(value);
-  if (value == null || typeof value !== "object") return true;
-  for (const child of Object.values(value)) {
-    if (!everyNumericLeafIsFinite(child)) return false;
-  }
-  return true;
+function valveEvaluationNumericReadbackIsFiniteV2(value) {
+  return Number.isFinite(value.state.leafletOpeningFraction01) && Number.isFinite(value.flowMlPerSec) && Number.isFinite(value.pressureGradientMmHg) && Number.isFinite(value.openingTarget01) && Number.isFinite(value.openingEquationResidual01) && Number.isFinite(value.forwardActiveEoaCm2) && Number.isFinite(value.reverseActiveEoaCm2) && Number.isFinite(value.activeEoaCm2) && Number.isFinite(
+    value.dLeafletOpeningFractionDPressureGradientPerMmHg
+  ) && Number.isFinite(value.dFlowDPressureGradientMlPerSecPerMmHg) && Number.isFinite(value.resistanceMmHgSecPerMl) && Number.isFinite(value.bernoulliMmHgSec2PerMl2) && Number.isFinite(value.dissipativePressureMmHg) && Number.isFinite(value.openOrificeResidualMmHg) && Number.isFinite(value.competentReverseClosureReactionMmHg) && Number.isFinite(value.subthresholdForwardSupportReactionMmHg) && Number.isFinite(value.signedHydraulicSupportReactionMmHg) && Number.isFinite(value.hydraulicBalanceResidualMmHg) && Number.isFinite(value.hydraulicPowerInputMmHgMlPerSec) && Number.isFinite(value.dissipativePowerMmHgMlPerSec) && Number.isFinite(value.hydraulicSupportPowerMmHgMlPerSec) && Number.isFinite(value.powerBalanceResidualMmHgMlPerSec);
 }
 function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
@@ -7068,6 +7277,20 @@ const NON_CORONARY_VALVE_NAMES_V1 = Object.freeze([
   "TV",
   "PV"
 ]);
+const NON_CORONARY_NODE_INDEX_BY_NAME_V1 = Object.freeze(Object.fromEntries(
+  NON_CORONARY_NODE_NAMES_V1.map((name, index) => [name, index])
+));
+const NON_CORONARY_EDGE_INDEX_BY_NAME_V1 = Object.freeze(Object.fromEntries(
+  NON_CORONARY_EDGE_NAMES_V1.map((name, index) => [name, index])
+));
+const NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1 = Object.freeze(
+  Object.fromEntries(
+    NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((name, index) => [name, index])
+  )
+);
+const NON_CORONARY_VALVE_INDEX_BY_NAME_V1 = Object.freeze(Object.fromEntries(
+  NON_CORONARY_VALVE_NAMES_V1.map((name, index) => [name, index])
+));
 const NON_CORONARY_CIRCULATION_SCOPE_V1 = Object.freeze({
   topologySource: "main-wire-buildNodes-buildEdges",
   dynamicsOwner: "independent-experimental-backward-euler",
@@ -7190,16 +7413,83 @@ const DEFAULT_NEWTON_OPTIONS = Object.freeze({
 });
 const MAX_NEWTON_FAILURE_TRACE_ENTRIES = 32;
 const MAX_FAILURE_DIAGNOSTIC_MESSAGE_CHARACTERS = 1024;
+const NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID = "circleheart-noncoronary-backward-euler-scratch-workspace-v1";
+const NON_CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
+function createSquareMatrixV1(size) {
+  return Array.from({ length: size }, () => Array(size).fill(0));
+}
+function createMutableCandidateRecordV1(names, initialValue) {
+  const record = {};
+  for (const name of names) record[name] = initialValue;
+  return record;
+}
+function createMutableCandidateNumericalPageV1() {
+  return {
+    independentNodeVolumesMl: createMutableCandidateRecordV1(
+      INDEPENDENT_NODE_NAMES,
+      0
+    ),
+    nodeVolumesMl: new Float64Array(NON_CORONARY_NODE_NAMES_V1.length),
+    nodeAbsolutePressuresMmHg: new Float64Array(NON_CORONARY_NODE_NAMES_V1.length),
+    vascularPressureTangentMmHgPerMl: new Float64Array(NON_CORONARY_NODE_NAMES_V1.length),
+    edgeFlowsMlPerSec: new Float64Array(NON_CORONARY_EDGE_NAMES_V1.length),
+    dynamicEdgeFlowsMlPerSec: new Float64Array(NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length),
+    valveStates: Array(
+      NON_CORONARY_VALVE_NAMES_V1.length
+    ),
+    valveEvaluations: Array(
+      NON_CORONARY_VALVE_NAMES_V1.length
+    ),
+    nodeVolumeRatesMlPerSec: new Float64Array(NON_CORONARY_NODE_NAMES_V1.length),
+    continuityResidualMlByNode: new Float64Array(NON_CORONARY_NODE_NAMES_V1.length),
+    scaledIndependentResidual: new Float64Array(INDEPENDENT_NODE_NAMES.length)
+  };
+}
+function borrowNonCoronaryBackwardEulerScratchWorkspaceV1(workspace) {
+  const storage = NON_CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V1.get(workspace);
+  if (storage === void 0) {
+    throw new TypeError("non-coronary backward-Euler scratch workspace is foreign");
+  }
+  if (workspace.schemaId !== NON_CORONARY_BACKWARD_EULER_SCRATCH_WORKSPACE_V1_ID || workspace.topologyId !== NON_CORONARY_CIRCULATION_BE_V1_ID || workspace.independentNodeCount !== INDEPENDENT_NODE_NAMES.length || storage.volumeScales.length !== INDEPENDENT_NODE_NAMES.length || storage.scaledUnknowns.length !== INDEPENDENT_NODE_NAMES.length || storage.candidateUnknowns.length !== INDEPENDENT_NODE_NAMES.length || storage.analyticJacobian.length !== INDEPENDENT_NODE_NAMES.length || storage.linearRight.length !== INDEPENDENT_NODE_NAMES.length || storage.linearMatrix.length !== INDEPENDENT_NODE_NAMES.length || storage.linearSolution.length !== INDEPENDENT_NODE_NAMES.length || storage.previousNumerical.nodeVolumesMl.length !== NON_CORONARY_NODE_NAMES_V1.length || storage.previousNumerical.dynamicEdgeFlowsMlPerSec.length !== NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length || storage.previousNumerical.valveOpeningFractions01.length !== NON_CORONARY_VALVE_NAMES_V1.length || storage.candidatePages.length !== 2 || storage.candidatePages.some((page) => page.nodeVolumesMl.length !== NON_CORONARY_NODE_NAMES_V1.length || page.nodeAbsolutePressuresMmHg.length !== NON_CORONARY_NODE_NAMES_V1.length || page.vascularPressureTangentMmHgPerMl.length !== NON_CORONARY_NODE_NAMES_V1.length || page.edgeFlowsMlPerSec.length !== NON_CORONARY_EDGE_NAMES_V1.length || page.dynamicEdgeFlowsMlPerSec.length !== NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length || page.valveStates.length !== NON_CORONARY_VALVE_NAMES_V1.length || page.valveEvaluations.length !== NON_CORONARY_VALVE_NAMES_V1.length || page.nodeVolumeRatesMlPerSec.length !== NON_CORONARY_NODE_NAMES_V1.length || page.continuityResidualMlByNode.length !== NON_CORONARY_NODE_NAMES_V1.length || page.scaledIndependentResidual.length !== INDEPENDENT_NODE_NAMES.length)) {
+    throw new RangeError(
+      "non-coronary backward-Euler scratch workspace topology mismatch"
+    );
+  }
+  if (storage.inUse) {
+    throw new Error(
+      "non-coronary backward-Euler scratch workspace is already in use"
+    );
+  }
+  storage.inUse = true;
+  return storage;
+}
+function releaseNonCoronaryBackwardEulerScratchWorkspaceV1(storage) {
+  storage.inUse = false;
+}
+function stagePreviousAcceptedNumericalStateV1(previous, scratchStorage, source) {
+  const numerical = scratchStorage?.previousNumerical ?? {
+    revision: previous.revision,
+    acceptedTimeSec: previous.acceptedTimeSec,
+    totalBloodVolumeMl: previous.totalBloodVolumeMl,
+    nodeVolumesMl: new Float64Array(NON_CORONARY_NODE_NAMES_V1.length),
+    dynamicEdgeFlowsMlPerSec: new Float64Array(NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length),
+    valveOpeningFractions01: new Float64Array(NON_CORONARY_VALVE_NAMES_V1.length)
+  };
+  numerical.revision = previous.revision;
+  numerical.acceptedTimeSec = previous.acceptedTimeSec;
+  numerical.totalBloodVolumeMl = previous.totalBloodVolumeMl;
+  for (let index = 0; index < NON_CORONARY_NODE_NAMES_V1.length; index += 1) {
+    numerical.nodeVolumesMl[index] = previous.nodeVolumesMl[NON_CORONARY_NODE_NAMES_V1[index]];
+  }
+  for (let index = 0; index < NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.length; index += 1) {
+    numerical.dynamicEdgeFlowsMlPerSec[index] = previous.dynamicEdgeFlowsMlPerSec[NON_CORONARY_DYNAMIC_EDGE_NAMES_V1[index]];
+  }
+  for (let index = 0; index < NON_CORONARY_VALVE_NAMES_V1.length; index += 1) {
+    numerical.valveOpeningFractions01[index] = previous.valveStates[NON_CORONARY_VALVE_NAMES_V1[index]].leafletOpeningFraction01;
+  }
+  return numerical;
+}
 let cachedGraphV1 = null;
-const EDGE_FLOW_SCRATCH_V1 = new Float64Array(
-  NON_CORONARY_EDGE_NAMES_V1.length
-);
-const NODE_RATE_SCRATCH_V1 = new Float64Array(
-  NON_CORONARY_NODE_NAMES_V1.length
-);
-const VASCULAR_PRESSURE_TANGENT_SCRATCH_V1 = new Float64Array(
-  NON_CORONARY_NODE_NAMES_V1.length
-);
 function buildNonCoronaryCirculationGraphV1() {
   return cachedGraphV1 ??= buildNonCoronaryCirculationGraphOnceV1();
 }
@@ -7227,6 +7517,22 @@ function buildNonCoronaryCirculationGraphOnceV1() {
     edgeIndex: uniqueIndex(edges),
     scope: NON_CORONARY_CIRCULATION_SCOPE_V1
   });
+}
+function snapshotNonCoronaryVascularPvLawsV1(graph, params) {
+  const laws = {};
+  for (const node of graph.nodes) {
+    const name = node.name;
+    if (isChamberName(name)) continue;
+    laws[name] = Object.freeze(vascularPvLawFromNodeV1(node, params));
+  }
+  return Object.freeze(laws);
+}
+function requiredVascularPvLawV1(laws, name) {
+  const law = laws[name];
+  if (law === void 0) {
+    throw new Error(`vascular node ${name} has no snapshotted PV law`);
+  }
+  return law;
 }
 function resolveNonCoronaryCirculationColdSeedV1(runtime) {
   validateRuntime(runtime);
@@ -7261,7 +7567,7 @@ function createInitialNonCoronaryCirculationStateV1(input) {
     valveStates
   });
 }
-function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
+function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input, previousAcceptedNumericalSource) {
   validateAcceptedState$2(input.previousAcceptedState);
   let graph;
   let options;
@@ -7293,10 +7599,40 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
       emptyDiagnostics()
     );
   }
+  const scratchStorage = input.scratchWorkspace === void 0 ? null : borrowNonCoronaryBackwardEulerScratchWorkspaceV1(
+    input.scratchWorkspace
+  );
+  try {
+    return evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(
+      input,
+      graph,
+      options,
+      scratchStorage,
+      previousAcceptedNumericalSource
+    );
+  } finally {
+    if (scratchStorage !== null) {
+      releaseNonCoronaryBackwardEulerScratchWorkspaceV1(scratchStorage);
+    }
+  }
+}
+function evaluateNonCoronaryCirculationBackwardEulerTrialInternalV1(input, graph, options, scratchStorage, previousAcceptedNumericalSource) {
   const previous = input.previousAcceptedState;
-  const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
+  const previousNumerical = stagePreviousAcceptedNumericalStateV1(
+    previous,
+    scratchStorage
+  );
+  const candidateTimeSec = previousNumerical.acceptedTimeSec + input.dtSec;
+  const respiratoryExternalPressures = respiratoryExternalPressuresV1(
+    candidateTimeSec,
+    input.runtime.respiratory
+  );
+  const vascularPvLaws = snapshotNonCoronaryVascularPvLawsV1(
+    graph,
+    input.runtime.vascular
+  );
   const mechanicsCache = {
-    values: /* @__PURE__ */ new Map(),
+    values: [],
     jacobianUsage: {
       analyticAssemblyCount: 0,
       finiteDifferenceFallbackCount: 0,
@@ -7308,12 +7644,17 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
     hitCount: 0,
     uniqueCandidateCount: 0
   };
-  const volumeScales = independentVolumeScales(previous.nodeVolumesMl);
+  const volumeScales = independentVolumeScales(
+    previousNumerical.nodeVolumesMl,
+    scratchStorage?.volumeScales
+  );
   let scaledUnknowns = independentVolumesToScaled(
-    previous.nodeVolumesMl,
-    volumeScales
+    previousNumerical.nodeVolumesMl,
+    volumeScales,
+    scratchStorage?.scaledUnknowns
   );
   let current;
+  let currentCandidatePageIndex = scratchStorage === null ? null : 0;
   let acceptedLineSearchSteps = 0;
   let lineSearchBacktracks = 0;
   const failureTrace = [];
@@ -7321,10 +7662,14 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
     current = evaluateCandidate$1(
       graph,
       input,
+      previousNumerical,
       scaledUnknowns,
       volumeScales,
       candidateTimeSec,
-      mechanicsCache
+      respiratoryExternalPressures,
+      vascularPvLaws,
+      mechanicsCache,
+      currentCandidatePageIndex === null ? void 0 : scratchStorage.candidatePages[currentCandidatePageIndex]
     );
   } catch (error) {
     return failure$1(
@@ -7339,7 +7684,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
     const residualNorm = infinityNorm$2(current.scaledIndependentResidual);
     const mixedContinuityResidual = mixedContinuityResidualAudit(
       current,
-      previous.nodeVolumesMl,
+      previousNumerical.nodeVolumesMl,
       options.absoluteContinuityResidualToleranceMl,
       options.scaledResidualInfinityTolerance
     );
@@ -7367,7 +7712,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache
         )
@@ -7385,7 +7730,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace)
@@ -7399,19 +7744,24 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
           graph,
           input,
           current,
-          volumeScales
+          volumeScales,
+          respiratoryExternalPressures,
+          scratchStorage?.analyticJacobian
         );
         mechanicsCache.jacobianUsage.analyticAssemblyCount += 1;
         if (options.analyticJacobianFiniteDifferenceShadow) {
           const shadow = finiteDifferenceJacobian(
-            (candidate) => evaluateCandidate$1(
+            (candidate) => Array.from(evaluateCandidate$1(
               graph,
               input,
+              previousNumerical,
               candidate,
               volumeScales,
               candidateTimeSec,
+              respiratoryExternalPressures,
+              vascularPvLaws,
               mechanicsCache
-            ).scaledIndependentResidual,
+            ).scaledIndependentResidual),
             scaledUnknowns,
             options.finiteDifferenceScaledStep
           );
@@ -7424,14 +7774,17 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
       } else {
         mechanicsCache.jacobianUsage.finiteDifferenceFallbackCount += 1;
         jacobian = finiteDifferenceJacobian(
-          (candidate) => evaluateCandidate$1(
+          (candidate) => Array.from(evaluateCandidate$1(
             graph,
             input,
+            previousNumerical,
             candidate,
             volumeScales,
             candidateTimeSec,
+            respiratoryExternalPressures,
+            vascularPvLaws,
             mechanicsCache
-          ).scaledIndependentResidual,
+          ).scaledIndependentResidual),
           scaledUnknowns,
           options.finiteDifferenceScaledStep
         );
@@ -7448,16 +7801,21 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace)
         )
       );
     }
+    const linearRight = scratchStorage?.linearRight ?? Array(current.scaledIndependentResidual.length);
+    for (let index = 0; index < current.scaledIndependentResidual.length; index += 1) {
+      linearRight[index] = -current.scaledIndependentResidual[index];
+    }
     const update = solveDenseLinearSystem(
       jacobian,
-      current.scaledIndependentResidual.map((value) => -value)
+      linearRight,
+      scratchStorage
     );
     traceEntry.updateScaledInfinityNorm = update === null ? null : infinityNorm$2(update);
     if (update === null) {
@@ -7472,7 +7830,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace)
@@ -7491,7 +7849,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace)
@@ -7499,22 +7857,28 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
       );
     }
     let accepted = null;
+    const trialCandidatePageIndex = currentCandidatePageIndex === null ? null : currentCandidatePageIndex === 0 ? 1 : 0;
     let stepLength = 1;
     let lastCandidateEvaluationException = null;
     let lastArmijoResidualRejection = null;
     for (let backtrack = 0; backtrack <= options.maximumLineSearchBacktracks; backtrack += 1) {
       traceEntry.lineSearchAttemptCount += 1;
-      const candidateUnknowns = scaledUnknowns.map(
-        (value, index) => value + stepLength * update[index]
-      );
+      const candidateUnknowns = scratchStorage?.candidateUnknowns ?? Array(scaledUnknowns.length);
+      for (let index = 0; index < scaledUnknowns.length; index += 1) {
+        candidateUnknowns[index] = scaledUnknowns[index] + stepLength * update[index];
+      }
       try {
         const evaluation = evaluateCandidate$1(
           graph,
           input,
+          previousNumerical,
           candidateUnknowns,
           volumeScales,
           candidateTimeSec,
-          mechanicsCache
+          respiratoryExternalPressures,
+          vascularPvLaws,
+          mechanicsCache,
+          trialCandidatePageIndex === null ? void 0 : scratchStorage.candidatePages[trialCandidatePageIndex]
         );
         const trialResidualNorm = infinityNorm$2(
           evaluation.scaledIndependentResidual
@@ -7522,8 +7886,9 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
         const requiredMaximumResidualNorm = (1 - 1e-4 * stepLength) * residualNorm;
         if (trialResidualNorm <= requiredMaximumResidualNorm) {
           accepted = Object.freeze({
-            scaledUnknowns: Object.freeze(candidateUnknowns),
-            evaluation
+            scaledUnknowns: scratchStorage === null ? Object.freeze(candidateUnknowns) : candidateUnknowns,
+            evaluation,
+            candidatePageIndex: trialCandidatePageIndex
           });
           traceEntry.acceptedStepLength = stepLength;
           traceEntry.acceptedTrialScaledResidualInfinityNorm = trialResidualNorm;
@@ -7571,7 +7936,7 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous,
+          previousNumerical,
           options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
@@ -7579,8 +7944,16 @@ function evaluateNonCoronaryCirculationBackwardEulerTrialV1(input) {
         )
       );
     }
-    scaledUnknowns = accepted.scaledUnknowns;
+    if (scratchStorage === null) {
+      scaledUnknowns = accepted.scaledUnknowns;
+    } else {
+      for (let index = 0; index < scaledUnknowns.length; index += 1) {
+        scratchStorage.scaledUnknowns[index] = accepted.scaledUnknowns[index];
+      }
+      scaledUnknowns = scratchStorage.scaledUnknowns;
+    }
     current = accepted.evaluation;
+    currentCandidatePageIndex = accepted.candidatePageIndex;
     acceptedLineSearchSteps += 1;
   }
   throw new Error("unreachable circulation Newton state");
@@ -7648,17 +8021,22 @@ function restoreNonCoronaryCirculationStateV1(checkpoint, rebase) {
     valveStates: checkpoint.state.valveStates
   });
 }
-function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScales, candidateTimeSec, mechanicsCache) {
-  const previous = input.previousAcceptedState;
+function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, volumeScales, candidateTimeSec, respiratoryExternalPressures, vascularPvLaws, mechanicsCache, numericalPage) {
+  const candidatePage = numericalPage ?? createMutableCandidateNumericalPageV1();
   const legacyNodeVolumesMl = input.conservativeCompanion === void 0 ? scaledToNodeVolumes(
     scaledIndependentVolumes,
     volumeScales,
-    previous.totalBloodVolumeMl
+    previous.totalBloodVolumeMl,
+    candidatePage.nodeVolumesMl
   ) : null;
   const candidateIndependentNodeVolumesMl = legacyNodeVolumesMl === null ? scaledToIndependentNodeVolumes(
     scaledIndependentVolumes,
-    volumeScales
-  ) : independentNodeVolumesFromNodeRecord(legacyNodeVolumesMl);
+    volumeScales,
+    candidatePage.independentNodeVolumesMl
+  ) : independentNodeVolumesFromNodeArray(
+    legacyNodeVolumesMl,
+    candidatePage.independentNodeVolumesMl
+  );
   const chamberVolumesMl = Object.freeze({
     LV: candidateIndependentNodeVolumesMl.LV,
     LA: candidateIndependentNodeVolumesMl.LA,
@@ -7671,6 +8049,10 @@ function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScale
     chamberVolumesMl,
     candidateTimeSec
   );
+  const aoPressureAndTangent = vascularTransmuralPressureAndVolumeTangentFromLawV1(
+    requiredVascularPvLawV1(vascularPvLaws, "Ao"),
+    candidateIndependentNodeVolumesMl.Ao
+  );
   const conservativeCompanion = input.conservativeCompanion === void 0 ? null : evaluateConservativeCompanionSameCandidate(
     graph,
     input,
@@ -7678,13 +8060,16 @@ function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScale
     volumeScales,
     candidateIndependentNodeVolumesMl,
     mechanics,
-    candidateTimeSec
+    candidateTimeSec,
+    respiratoryExternalPressures,
+    aoPressureAndTangent
   );
   const nonCoronaryCandidateBloodVolumeMl = conservativeCompanion === null ? previous.totalBloodVolumeMl : conservativeCompanion.fixedGlobalTotalBloodVolumeMl - conservativeCompanion.candidateCompanionBloodVolumeMl;
   const nodeVolumesMl = legacyNodeVolumesMl ?? scaledToNodeVolumes(
     scaledIndependentVolumes,
     volumeScales,
-    nonCoronaryCandidateBloodVolumeMl
+    nonCoronaryCandidateBloodVolumeMl,
+    candidatePage.nodeVolumesMl
   );
   const supportTiming = input.mechanicalSupport === void 0 ? null : mechanicalSupportTiming(
     candidateTimeSec,
@@ -7698,38 +8083,50 @@ function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScale
     input.dynamicMechanicalSupport.config.iabp,
     dynamicSupportTiming
   ) : null;
-  const nodeAbsolutePressuresMmHg = nodeRecord$1((name) => {
-    if (isChamberName(name)) return mechanics.absolutePressuresMmHg[name];
+  const vascularPressureTangentValues = candidatePage.vascularPressureTangentMmHgPerMl;
+  const nodeAbsolutePressureValues = candidatePage.nodeAbsolutePressuresMmHg;
+  for (let nodeIndex = 0; nodeIndex < NON_CORONARY_NODE_NAMES_V1.length; nodeIndex += 1) {
+    const name = NON_CORONARY_NODE_NAMES_V1[nodeIndex];
+    if (isChamberName(name)) {
+      vascularPressureTangentValues[nodeIndex] = 0;
+      nodeAbsolutePressureValues[nodeIndex] = mechanics.absolutePressuresMmHg[name];
+      continue;
+    }
     const node = graph.nodes[graph.nodeIndex.get(name)];
-    const ptmMmHg = vascularTransmuralPressureFromPhysicalVolumeV1(
-      node,
-      nodeVolumesMl[name] + (name === "SA" ? iabp?.balloonVolumeMl ?? 0 : 0),
-      input.runtime.vascular
+    const physicalVolumeMl = nodeVolumesMl[nodeIndex] + (name === "SA" ? iabp?.balloonVolumeMl ?? 0 : 0);
+    const pressureAndTangent = name === "Ao" ? aoPressureAndTangent : vascularTransmuralPressureAndVolumeTangentFromLawV1(
+      requiredVascularPvLawV1(vascularPvLaws, name),
+      physicalVolumeMl
     );
-    const ext = respiratoryExternalPressureForKindV1(
+    vascularPressureTangentValues[nodeIndex] = pressureAndTangent.dTransmuralPressureDPhysicalVolumeMmHgPerMl;
+    const ext = respiratoryExternalPressureFromFrameV1(
       respiratoryKind(node.ext),
-      candidateTimeSec,
-      input.runtime.respiratory
+      respiratoryExternalPressures
     );
-    return requireFinite$i(ptmMmHg + ext, `${name} absolute pressure`);
-  });
+    nodeAbsolutePressureValues[nodeIndex] = requireFinite$i(
+      pressureAndTangent.transmuralPressureMmHg + ext,
+      `${name} absolute pressure`
+    );
+  }
+  const nodeAbsolutePressuresMmHg = nodeAbsolutePressureValues;
+  const vascularPressureTangentMmHgPerMl = vascularPressureTangentValues;
   const mechanicalSupport = input.mechanicalSupport === void 0 || supportTiming === null ? null : evaluateMechanicalSupportHydraulicsV1(
     input.mechanicalSupport.config,
     {
       ...supportTiming,
       nodeAbsolutePressureMmHg: Object.freeze({
-        LV: nodeAbsolutePressuresMmHg.LV,
-        Ao: nodeAbsolutePressuresMmHg.Ao,
-        SA: nodeAbsolutePressuresMmHg.SA,
-        RA: nodeAbsolutePressuresMmHg.RA,
-        VC: nodeAbsolutePressuresMmHg.VC
+        LV: nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1.LV],
+        Ao: nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1.Ao],
+        SA: nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1.SA],
+        RA: nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1.RA],
+        VC: nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1.VC]
       }),
       nodeVolumeMl: Object.freeze({
-        LV: nodeVolumesMl.LV,
-        Ao: nodeVolumesMl.Ao,
-        SA: nodeVolumesMl.SA,
-        RA: nodeVolumesMl.RA,
-        VC: nodeVolumesMl.VC
+        LV: nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1.LV],
+        Ao: nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1.Ao],
+        SA: nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1.SA],
+        RA: nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1.RA],
+        VC: nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1.VC]
       })
     }
   );
@@ -7741,55 +8138,57 @@ function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScale
       dtSec: input.dtSec,
       ...dynamicSupportTiming,
       nodeAbsolutePressureMmHg: Object.freeze({
-        LV: nodeAbsolutePressuresMmHg.LV,
-        Ao: nodeAbsolutePressuresMmHg.Ao,
-        SA: nodeAbsolutePressuresMmHg.SA,
-        RA: nodeAbsolutePressuresMmHg.RA,
-        VC: nodeAbsolutePressuresMmHg.VC
+        LV: nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1.LV],
+        Ao: nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1.Ao],
+        SA: nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1.SA],
+        RA: nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1.RA],
+        VC: nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1.VC]
       }),
       nodeVolumeMl: Object.freeze({
-        LV: nodeVolumesMl.LV,
-        Ao: nodeVolumesMl.Ao,
-        SA: nodeVolumesMl.SA,
-        RA: nodeVolumesMl.RA,
-        VC: nodeVolumesMl.VC
+        LV: nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1.LV],
+        Ao: nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1.Ao],
+        SA: nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1.SA],
+        RA: nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1.RA],
+        VC: nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1.VC]
       })
     }
   );
-  const valveEvaluations = {};
+  const valveEvaluations = candidatePage.valveEvaluations;
+  const valveStates = candidatePage.valveStates;
   const valveResearchInput = input.runtime.valveResearchInput;
-  const flows = {};
-  const dynamicFlows = {};
-  for (const edge of graph.edges) {
+  const flows = candidatePage.edgeFlowsMlPerSec;
+  const dynamicFlows = candidatePage.dynamicEdgeFlowsMlPerSec;
+  for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex += 1) {
+    const edge = graph.edges[edgeIndex];
     const name = edge.name;
-    const upstreamPressure = nodeAbsolutePressuresMmHg[edge.up];
-    const downstreamPressure = nodeAbsolutePressuresMmHg[edge.down];
+    const upstreamPressure = nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1[edge.up]];
+    const downstreamPressure = nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1[edge.down]];
     if (edge.kind === "valve") {
       const valveName = name;
-      const evaluation = stepMainWireQuasiSteadyOrificeValveV2(
-        previous.valveStates[valveName],
-        {
-          dtSec: input.dtSec,
-          upstreamPressureMmHg: upstreamPressure,
-          downstreamPressureMmHg: downstreamPressure
-        },
+      const valveIndex = NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName];
+      const evaluation = stepMainWireQuasiSteadyOrificeValveScalarsV2(
+        previous.valveOpeningFractions01[NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]],
+        input.dtSec,
+        upstreamPressure,
+        downstreamPressure,
         valveResearchInput.valves[valveName]
       );
       if (!evaluation.valid || !evaluation.finite) {
         throw new Error(`${name} valve trial failed: ${evaluation.issues.join("; ")}`);
       }
-      valveEvaluations[valveName] = evaluation;
-      flows[name] = evaluation.flowMlPerSec;
+      valveEvaluations[valveIndex] = evaluation;
+      valveStates[valveIndex] = evaluation.state;
+      flows[edgeIndex] = evaluation.flowMlPerSec;
       continue;
     }
+    const edgeExternalPressureMmHg = respiratoryExternalPressureFromFrameV1(
+      respiratoryKind(edge.ext),
+      respiratoryExternalPressures
+    );
     const effectiveDownstreamPressure = downstreamEffectivePressureV1({
       edge,
       downstreamPressureMmHg: downstreamPressure,
-      edgeExternalPressureMmHg: respiratoryExternalPressureForKindV1(
-        respiratoryKind(edge.ext),
-        candidateTimeSec,
-        input.runtime.respiratory
-      )
+      edgeExternalPressureMmHg
     });
     const gradientMmHg = upstreamPressure - effectiveDownstreamPressure;
     const losses = applyProtocolResistanceScale(
@@ -7798,11 +8197,7 @@ function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScale
         params: input.runtime.losses,
         upstreamPressureMmHg: upstreamPressure,
         downstreamPressureMmHg: downstreamPressure,
-        edgeExternalPressureMmHg: respiratoryExternalPressureForKindV1(
-          respiratoryKind(edge.ext),
-          candidateTimeSec,
-          input.runtime.respiratory
-        )
+        edgeExternalPressureMmHg
       }),
       protocolResistanceScaleForEdge(input, name)
     );
@@ -7813,57 +8208,51 @@ function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScale
         `${name} inertanceMmHgSec2PerMl`
       );
       const flow = solveSignedLinearQuadraticFlowV1(
-        gradientMmHg + inertance * previous.dynamicEdgeFlowsMlPerSec[dynamicName] / input.dtSec,
+        gradientMmHg + inertance * previous.dynamicEdgeFlowsMlPerSec[NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[dynamicName]] / input.dtSec,
         losses.resistanceMmHgSecPerMl + inertance / input.dtSec,
         losses.quadraticLossMmHgSec2PerMl2
       );
-      dynamicFlows[dynamicName] = flow;
-      flows[name] = flow;
+      dynamicFlows[NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[dynamicName]] = flow;
+      flows[edgeIndex] = flow;
     } else {
-      flows[name] = solveSignedLinearQuadraticFlowV1(
+      flows[edgeIndex] = solveSignedLinearQuadraticFlowV1(
         gradientMmHg,
         losses.resistanceMmHgSecPerMl,
         losses.quadraticLossMmHgSec2PerMl2
       );
     }
   }
-  const edgeFlowsMlPerSec = copyEdgeRecord(
-    flows,
-    "edgeFlowsMlPerSec",
-    requireFinite$i
-  );
-  const localFlows = EDGE_FLOW_SCRATCH_V1;
-  for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex++) {
-    localFlows[edgeIndex] = edgeFlowsMlPerSec[graph.edges[edgeIndex].name];
-  }
+  const edgeFlowsMlPerSec = flows;
   const localRates = incidenceVolumeRatesFromEdgeFlowsV1(
     graph,
-    localFlows,
-    NODE_RATE_SCRATCH_V1
+    edgeFlowsMlPerSec,
+    candidatePage.nodeVolumeRatesMlPerSec
   );
-  const continuityResidualMlByNode = nodeRecord$1((name) => {
+  const continuityResidualValues = candidatePage.continuityResidualMlByNode;
+  for (let nodeIndex = 0; nodeIndex < NON_CORONARY_NODE_NAMES_V1.length; nodeIndex += 1) {
+    const name = NON_CORONARY_NODE_NAMES_V1[nodeIndex];
     const localIndex = graph.nodeIndex.get(name);
     const companionRate = conservativeCompanion === null ? 0 : isConservativeCompanionBoundaryNode(name) ? conservativeCompanion.outerBoundaryNetVolumeRateMlPerSec[name] : 0;
     const supportRate = mechanicalSupportNodeRateMlPerSec(
       mechanicalSupport ?? dynamicMechanicalSupport,
       name
     );
-    return nodeVolumesMl[name] - previous.nodeVolumesMl[name] - input.dtSec * (localRates[localIndex] + companionRate + supportRate);
-  });
-  const scaledIndependentResidual = Object.freeze(
-    INDEPENDENT_NODE_NAMES.map((name, index) => continuityResidualMlByNode[name] / volumeScales[index])
+    continuityResidualValues[nodeIndex] = nodeVolumesMl[nodeIndex] - previous.nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[name]] - input.dtSec * (localRates[localIndex] + companionRate + supportRate);
+  }
+  const continuityResidualMlByNode = continuityResidualValues;
+  const scaledIndependentResidual = scaledResidualValuesV1(
+    continuityResidualMlByNode,
+    volumeScales,
+    candidatePage.scaledIndependentResidual
   );
   return Object.freeze({
     nodeVolumesMl,
     nodeAbsolutePressuresMmHg,
+    vascularPressureTangentMmHgPerMl,
     edgeFlowsMlPerSec,
-    dynamicEdgeFlowsMlPerSec: copyDynamicEdgeRecord(
-      dynamicFlows,
-      "dynamicEdgeFlowsMlPerSec",
-      requireFinite$i
-    ),
-    valveStates: valveRecord((name) => valveEvaluations[name].state),
-    valveEvaluations: Object.freeze({ ...valveEvaluations }),
+    dynamicEdgeFlowsMlPerSec: dynamicFlows,
+    valveStates,
+    valveEvaluations,
     candidateMechanicsEvaluation: mechanics.evaluation,
     mechanicalSupport,
     dynamicMechanicalSupport,
@@ -7873,25 +8262,19 @@ function evaluateCandidate$1(graph, input, scaledIndependentVolumes, volumeScale
     scaledIndependentResidual
   });
 }
-function evaluateConservativeCompanionSameCandidate(graph, input, scaledIndependentVolumes, volumeScales, candidateIndependentNodeVolumesMl, mechanics, candidateTimeSec) {
+function evaluateConservativeCompanionSameCandidate(graph, input, scaledIndependentVolumes, volumeScales, candidateIndependentNodeVolumesMl, mechanics, candidateTimeSec, respiratoryExternalPressures, aoPressureAndTangent) {
   const adapter = input.conservativeCompanion;
   if (adapter === void 0) {
     throw new Error("conservative companion adapter is unavailable");
   }
   const aoNode = graph.nodes[graph.nodeIndex.get("Ao")];
-  const aoPaired = vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
-    aoNode,
-    candidateIndependentNodeVolumesMl.Ao,
-    input.runtime.vascular
-  );
-  const aoExternalPressureMmHg = respiratoryExternalPressureForKindV1(
+  const aoExternalPressureMmHg = respiratoryExternalPressureFromFrameV1(
     respiratoryKind(aoNode.ext),
-    candidateTimeSec,
-    input.runtime.respiratory
+    respiratoryExternalPressures
   );
   const boundaryAbsolutePressuresMmHg = Object.freeze({
     Ao: requireFinite$i(
-      aoPaired.transmuralPressureMmHg + aoExternalPressureMmHg,
+      aoPressureAndTangent.transmuralPressureMmHg + aoExternalPressureMmHg,
       "Ao companion boundary pressure"
     ),
     RA: requireFinite$i(
@@ -7900,7 +8283,7 @@ function evaluateConservativeCompanionSameCandidate(graph, input, scaledIndepend
     )
   });
   const boundaryPressureTangent = mechanics.absolutePressureTangent === void 0 ? null : companionBoundaryPressureTangentByScaledIndependentVolume(
-    aoPaired.dTransmuralPressureDPhysicalVolumeMmHgPerMl,
+    aoPressureAndTangent.dTransmuralPressureDPhysicalVolumeMmHgPerMl,
     mechanics.absolutePressureTangent,
     volumeScales
   );
@@ -8007,7 +8390,80 @@ function accumulateAnalyticJacobianPressureColumn(jacobian, column, pressureCoef
     jacobian[secondResidualRow][column] += secondResidualFactor * derivative;
   }
 }
-function analyticCirculationJacobian(graph, input, current, volumeScales) {
+function analyticEdgeFlowPressureDerivativesV1(graph, input, current, respiratoryExternalPressures, edgeIndex) {
+  const edge = graph.edges[edgeIndex];
+  const edgeName = edge.name;
+  const upstreamName = edge.up;
+  const downstreamName = edge.down;
+  const upstreamPressureMmHg = current.nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1[upstreamName]];
+  const downstreamPressureMmHg = current.nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1[downstreamName]];
+  let upstreamMlPerSecPerMmHg;
+  let downstreamMlPerSecPerMmHg;
+  if (edge.kind === "valve") {
+    const evaluation = current.valveEvaluations[NON_CORONARY_VALVE_INDEX_BY_NAME_V1[edgeName]];
+    const dFlowDGradient = evaluation.dFlowDPressureGradientMlPerSecPerMmHg;
+    requireFinite$i(dFlowDGradient, `${edgeName} valve flow tangent`);
+    upstreamMlPerSecPerMmHg = dFlowDGradient;
+    downstreamMlPerSecPerMmHg = -dFlowDGradient;
+  } else {
+    const edgeExternalPressureMmHg = respiratoryExternalPressureFromFrameV1(
+      respiratoryKind(edge.ext),
+      respiratoryExternalPressures
+    );
+    const downstream = downstreamEffectivePressureAndDerivativeV1({
+      edge,
+      downstreamPressureMmHg,
+      edgeExternalPressureMmHg
+    });
+    const losses = applyProtocolResistanceScaleWithDerivatives(
+      nonValveEdgeLossAndPressureDerivativesV1({
+        edge,
+        params: input.runtime.losses,
+        upstreamPressureMmHg,
+        downstreamPressureMmHg,
+        edgeExternalPressureMmHg
+      }),
+      protocolResistanceScaleForEdge(input, edgeName)
+    );
+    const flowMlPerSec = current.edgeFlowsMlPerSec[edgeIndex];
+    const signedQuadraticFlow = flowMlPerSec * Math.abs(flowMlPerSec);
+    let inertanceMmHgSec2PerMl = 0;
+    let dInertanceDUpstreamPressureSec2PerMl = 0;
+    let dInertanceDDownstreamPressureSec2PerMl = 0;
+    let previousFlowMlPerSec = flowMlPerSec;
+    if (edge.kind === "dynamic") {
+      const areaDenominator = edge.useChiResistance ? Math.max(losses.areaRatio, 1e-6) : 1;
+      inertanceMmHgSec2PerMl = requirePositive$4(
+        (edge.L ?? 0) / areaDenominator,
+        `${edgeName} inertance tangent base`
+      );
+      if (edge.useChiResistance && losses.areaRatio > 1e-6) {
+        const inertanceAreaFactor = -inertanceMmHgSec2PerMl / losses.areaRatio;
+        dInertanceDUpstreamPressureSec2PerMl = inertanceAreaFactor * losses.dAreaRatioDUpstreamPressurePerMmHg;
+        dInertanceDDownstreamPressureSec2PerMl = inertanceAreaFactor * losses.dAreaRatioDDownstreamPressurePerMmHg;
+      }
+      previousFlowMlPerSec = input.previousAcceptedState.dynamicEdgeFlowsMlPerSec[edgeName];
+    }
+    const denominator = losses.resistanceMmHgSecPerMl + (edge.kind === "dynamic" ? inertanceMmHgSec2PerMl / input.dtSec : 0) + 2 * losses.quadraticLossMmHgSec2PerMl2 * Math.abs(flowMlPerSec);
+    requirePositive$4(denominator, `${edgeName} flow tangent denominator`);
+    const dynamicInertanceFactor = edge.kind === "dynamic" ? (previousFlowMlPerSec - flowMlPerSec) / input.dtSec : 0;
+    upstreamMlPerSecPerMmHg = (1 - flowMlPerSec * losses.dResistanceDUpstreamPressureSecPerMl - signedQuadraticFlow * losses.dQuadraticLossDUpstreamPressureSec2PerMl2 + dynamicInertanceFactor * dInertanceDUpstreamPressureSec2PerMl) / denominator;
+    downstreamMlPerSecPerMmHg = (-downstream.dEffectivePressureDDownstreamPressure - flowMlPerSec * losses.dResistanceDDownstreamPressureSecPerMl - signedQuadraticFlow * losses.dQuadraticLossDDownstreamPressureSec2PerMl2 + dynamicInertanceFactor * dInertanceDDownstreamPressureSec2PerMl) / denominator;
+  }
+  requireFinite$i(
+    upstreamMlPerSecPerMmHg,
+    `${edgeName} upstream pressure-flow tangent`
+  );
+  requireFinite$i(
+    downstreamMlPerSecPerMmHg,
+    `${edgeName} downstream pressure-flow tangent`
+  );
+  return Object.freeze({
+    upstreamMlPerSecPerMmHg,
+    downstreamMlPerSecPerMmHg
+  });
+}
+function analyticCirculationJacobian(graph, input, current, volumeScales, respiratoryExternalPressures, reusableJacobian) {
   const chamberTangent = current.absoluteChamberPressureTangent;
   if (chamberTangent === null) {
     throw new Error("analytic circulation Jacobian requires chamber pressure tangent");
@@ -8016,27 +8472,15 @@ function analyticCirculationJacobian(graph, input, current, volumeScales) {
     throw new Error("circulation volume-scale count is incompatible");
   }
   const size = INDEPENDENT_NODE_NAMES.length;
-  if (VASCULAR_PRESSURE_TANGENT_SCRATCH_V1.length !== graph.nodes.length) {
-    throw new Error("circulation node count is incompatible with the scratch vector");
+  const jacobian = reusableJacobian ?? createSquareMatrixV1(size);
+  if (jacobian.length !== size || jacobian.some((row) => row.length !== size)) {
+    throw new Error("circulation Jacobian scratch has incompatible dimensions");
   }
-  const vascularPressureTangentByNodeIndex = VASCULAR_PRESSURE_TANGENT_SCRATCH_V1;
-  vascularPressureTangentByNodeIndex.fill(0);
-  for (const node of graph.nodes) {
-    const name = node.name;
-    if (isChamberName(name)) continue;
-    const paired = vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
-      node,
-      current.nodeVolumesMl[name] + (name === "SA" ? current.mechanicalSupport?.iabp.balloonVolumeMl ?? current.dynamicMechanicalSupport?.iabp.balloonVolumeMl ?? 0 : 0),
-      input.runtime.vascular
-    );
-    const pressureTangentMmHgPerMl = paired.dTransmuralPressureDPhysicalVolumeMmHgPerMl;
-    requireFinite$i(pressureTangentMmHgPerMl, `${name} vascular pressure tangent`);
-    vascularPressureTangentByNodeIndex[graph.nodeIndex.get(name)] = pressureTangentMmHgPerMl;
+  for (let row = 0; row < size; row += 1) {
+    for (let column = 0; column < size; column += 1) {
+      jacobian[row][column] = row === column ? 1 : 0;
+    }
   }
-  const jacobian = Array.from(
-    { length: size },
-    (_, row) => Array.from({ length: size }, (_unused, column) => row === column ? 1 : 0)
-  );
   const companionVolumeSensitivity = current.conservativeCompanion?.sensitivities?.dCandidateCompanionBloodVolumeMlDScaledIndependentVolume;
   const accumulateNodePressureChain = (pressureNode, pressureCoefficient, firstResidualRow, firstResidualFactor, secondResidualRow, secondResidualFactor = 0) => {
     if (isChamberName(pressureNode)) {
@@ -8063,7 +8507,10 @@ function analyticCirculationJacobian(graph, input, current, volumeScales) {
       }
       return;
     }
-    const pressureTangentMmHgPerMl = vascularPressureTangentByNodeIndex[graph.nodeIndex.get(pressureNode)];
+    const pressureTangentMmHgPerMl = requireFinite$i(
+      current.vascularPressureTangentMmHgPerMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[pressureNode]],
+      `${pressureNode} vascular pressure tangent`
+    );
     if (pressureNode === DEPENDENT_NODE) {
       for (let column = 0; column < size; column += 1) {
         accumulateAnalyticJacobianPressureColumn(
@@ -8096,74 +8543,16 @@ function analyticCirculationJacobian(graph, input, current, volumeScales) {
       secondResidualFactor
     );
   };
-  const candidateTimeSec = input.previousAcceptedState.acceptedTimeSec + input.dtSec;
-  for (const edge of graph.edges) {
-    const edgeName = edge.name;
+  for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex += 1) {
+    const edge = graph.edges[edgeIndex];
     const upstreamName = edge.up;
     const downstreamName = edge.down;
-    const upstreamPressureMmHg = current.nodeAbsolutePressuresMmHg[upstreamName];
-    const downstreamPressureMmHg = current.nodeAbsolutePressuresMmHg[downstreamName];
-    let dFlowDUpstreamPressureMlPerSecPerMmHg;
-    let dFlowDDownstreamPressureMlPerSecPerMmHg;
-    if (edge.kind === "valve") {
-      const evaluation = current.valveEvaluations[edgeName];
-      const dFlowDGradient = evaluation.dFlowDPressureGradientMlPerSecPerMmHg;
-      requireFinite$i(dFlowDGradient, `${edgeName} valve flow tangent`);
-      dFlowDUpstreamPressureMlPerSecPerMmHg = dFlowDGradient;
-      dFlowDDownstreamPressureMlPerSecPerMmHg = -dFlowDGradient;
-    } else {
-      const edgeExternalPressureMmHg = respiratoryExternalPressureForKindV1(
-        respiratoryKind(edge.ext),
-        candidateTimeSec,
-        input.runtime.respiratory
-      );
-      const downstream = downstreamEffectivePressureAndDerivativeV1({
-        edge,
-        downstreamPressureMmHg,
-        edgeExternalPressureMmHg
-      });
-      const losses = applyProtocolResistanceScaleWithDerivatives(
-        nonValveEdgeLossAndPressureDerivativesV1({
-          edge,
-          params: input.runtime.losses,
-          upstreamPressureMmHg,
-          downstreamPressureMmHg,
-          edgeExternalPressureMmHg
-        }),
-        protocolResistanceScaleForEdge(input, edgeName)
-      );
-      const flowMlPerSec = current.edgeFlowsMlPerSec[edgeName];
-      const signedQuadraticFlow = flowMlPerSec * Math.abs(flowMlPerSec);
-      let inertanceMmHgSec2PerMl = 0;
-      let dInertanceDUpstreamPressureSec2PerMl = 0;
-      let dInertanceDDownstreamPressureSec2PerMl = 0;
-      let previousFlowMlPerSec = flowMlPerSec;
-      if (edge.kind === "dynamic") {
-        const areaDenominator = edge.useChiResistance ? Math.max(losses.areaRatio, 1e-6) : 1;
-        inertanceMmHgSec2PerMl = requirePositive$4(
-          (edge.L ?? 0) / areaDenominator,
-          `${edgeName} inertance tangent base`
-        );
-        if (edge.useChiResistance && losses.areaRatio > 1e-6) {
-          const inertanceAreaFactor = -inertanceMmHgSec2PerMl / losses.areaRatio;
-          dInertanceDUpstreamPressureSec2PerMl = inertanceAreaFactor * losses.dAreaRatioDUpstreamPressurePerMmHg;
-          dInertanceDDownstreamPressureSec2PerMl = inertanceAreaFactor * losses.dAreaRatioDDownstreamPressurePerMmHg;
-        }
-        previousFlowMlPerSec = input.previousAcceptedState.dynamicEdgeFlowsMlPerSec[edgeName];
-      }
-      const denominator = losses.resistanceMmHgSecPerMl + (edge.kind === "dynamic" ? inertanceMmHgSec2PerMl / input.dtSec : 0) + 2 * losses.quadraticLossMmHgSec2PerMl2 * Math.abs(flowMlPerSec);
-      requirePositive$4(denominator, `${edgeName} flow tangent denominator`);
-      const dynamicInertanceFactor = edge.kind === "dynamic" ? (previousFlowMlPerSec - flowMlPerSec) / input.dtSec : 0;
-      dFlowDUpstreamPressureMlPerSecPerMmHg = (1 - flowMlPerSec * losses.dResistanceDUpstreamPressureSecPerMl - signedQuadraticFlow * losses.dQuadraticLossDUpstreamPressureSec2PerMl2 + dynamicInertanceFactor * dInertanceDUpstreamPressureSec2PerMl) / denominator;
-      dFlowDDownstreamPressureMlPerSecPerMmHg = (-downstream.dEffectivePressureDDownstreamPressure - flowMlPerSec * losses.dResistanceDDownstreamPressureSecPerMl - signedQuadraticFlow * losses.dQuadraticLossDDownstreamPressureSec2PerMl2 + dynamicInertanceFactor * dInertanceDDownstreamPressureSec2PerMl) / denominator;
-    }
-    requireFinite$i(
-      dFlowDUpstreamPressureMlPerSecPerMmHg,
-      `${edgeName} upstream pressure-flow tangent`
-    );
-    requireFinite$i(
-      dFlowDDownstreamPressureMlPerSecPerMmHg,
-      `${edgeName} downstream pressure-flow tangent`
+    const derivatives = analyticEdgeFlowPressureDerivativesV1(
+      graph,
+      input,
+      current,
+      respiratoryExternalPressures,
+      edgeIndex
     );
     const upstreamResidualRow = INDEPENDENT_NODE_INDEX[upstreamName];
     const downstreamResidualRow = INDEPENDENT_NODE_INDEX[downstreamName];
@@ -8171,7 +8560,7 @@ function analyticCirculationJacobian(graph, input, current, volumeScales) {
     const downstreamResidualFactor = downstreamResidualRow === void 0 ? 0 : -input.dtSec / volumeScales[downstreamResidualRow];
     accumulateNodePressureChain(
       upstreamName,
-      dFlowDUpstreamPressureMlPerSecPerMmHg,
+      derivatives.upstreamMlPerSecPerMmHg,
       upstreamResidualRow,
       upstreamResidualFactor,
       downstreamResidualRow,
@@ -8179,7 +8568,7 @@ function analyticCirculationJacobian(graph, input, current, volumeScales) {
     );
     accumulateNodePressureChain(
       downstreamName,
-      dFlowDDownstreamPressureMlPerSecPerMmHg,
+      derivatives.downstreamMlPerSecPerMmHg,
       upstreamResidualRow,
       upstreamResidualFactor,
       downstreamResidualRow,
@@ -8321,6 +8710,27 @@ function initialNodeVolumes(graph, runtime) {
 }
 function success(previous, dtSec, candidateTimeSec, evaluation, diagnostics) {
   const companion = evaluation.conservativeCompanion;
+  const candidateNodeVolumesMl = nodeRecord$1((name) => requirePositive$4(
+    evaluation.nodeVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[name]],
+    `candidateNodeVolumesMl.${name}`
+  ));
+  const candidateDynamicEdgeFlowsMlPerSec = dynamicEdgeRecord((name) => requireFinite$i(
+    evaluation.dynamicEdgeFlowsMlPerSec[NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[name]],
+    `candidateDynamicEdgeFlowsMlPerSec.${name}`
+  ));
+  const candidateValveStates = valveRecord((name) => {
+    const state = evaluation.valveStates[NON_CORONARY_VALVE_INDEX_BY_NAME_V1[name]];
+    return Object.freeze({ ...state });
+  });
+  const nodeAbsolutePressuresMmHg = nodeRecord$1((name) => requireFinite$i(
+    evaluation.nodeAbsolutePressuresMmHg[NON_CORONARY_NODE_INDEX_BY_NAME_V1[name]],
+    `nodeAbsolutePressuresMmHg.${name}`
+  ));
+  const edgeFlowsMlPerSec = edgeRecord((name) => requireFinite$i(
+    evaluation.edgeFlowsMlPerSec[NON_CORONARY_EDGE_INDEX_BY_NAME_V1[name]],
+    `edgeFlowsMlPerSec.${name}`
+  ));
+  const valveEvaluations = valveRecord((name) => evaluation.valveEvaluations[NON_CORONARY_VALVE_INDEX_BY_NAME_V1[name]]);
   return Object.freeze({
     converged: true,
     transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,
@@ -8328,12 +8738,12 @@ function success(previous, dtSec, candidateTimeSec, evaluation, diagnostics) {
     baseAcceptedTimeSec: previous.acceptedTimeSec,
     candidateTimeSec,
     dtSec,
-    candidateNodeVolumesMl: evaluation.nodeVolumesMl,
-    candidateDynamicEdgeFlowsMlPerSec: evaluation.dynamicEdgeFlowsMlPerSec,
-    candidateValveStates: evaluation.valveStates,
-    nodeAbsolutePressuresMmHg: evaluation.nodeAbsolutePressuresMmHg,
-    edgeFlowsMlPerSec: evaluation.edgeFlowsMlPerSec,
-    valveEvaluations: evaluation.valveEvaluations,
+    candidateNodeVolumesMl,
+    candidateDynamicEdgeFlowsMlPerSec,
+    candidateValveStates,
+    nodeAbsolutePressuresMmHg,
+    edgeFlowsMlPerSec,
+    valveEvaluations,
     candidateMechanicsEvaluation: evaluation.candidateMechanicsEvaluation,
     ...evaluation.mechanicalSupport === null ? {} : { mechanicalSupport: evaluation.mechanicalSupport },
     ...evaluation.dynamicMechanicalSupport === null ? {} : { dynamicMechanicalSupport: evaluation.dynamicMechanicalSupport },
@@ -8359,7 +8769,10 @@ function failure$1(previous, reason, message, lastVolumes, diagnostics) {
     reason,
     message,
     rollbackState: cloneAcceptedState(previous),
-    lastAcceptedCandidateNodeVolumesMl: copyNodeRecord(
+    lastAcceptedCandidateNodeVolumesMl: lastVolumes instanceof Float64Array ? nodeRecord$1((name) => requireFinite$i(
+      lastVolumes[NON_CORONARY_NODE_INDEX_BY_NAME_V1[name]],
+      `lastAcceptedCandidateNodeVolumesMl.${name}`
+    )) : copyNodeRecord(
       lastVolumes,
       "lastAcceptedCandidateNodeVolumesMl",
       requireFinite$i
@@ -8423,31 +8836,30 @@ function validateAcceptedState$2(state) {
     throw new Error("accepted circulation state TBV identity is stale");
   }
 }
-function scaledToNodeVolumes(scaledIndependentVolumes, scales, totalBloodVolumeMl) {
+function scaledToNodeVolumes(scaledIndependentVolumes, scales, totalBloodVolumeMl, destination) {
   if (scaledIndependentVolumes.length !== INDEPENDENT_NODE_NAMES.length || scales.length !== INDEPENDENT_NODE_NAMES.length) throw new Error("circulation independent-volume vector has wrong length");
-  const values2 = {};
+  const values2 = destination ?? new Float64Array(NON_CORONARY_NODE_NAMES_V1.length);
+  if (values2.length !== NON_CORONARY_NODE_NAMES_V1.length) {
+    throw new Error("circulation candidate-volume scratch has wrong length");
+  }
   let independentSum = 0;
   for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
     const value = requirePositive$4(
       scaledIndependentVolumes[index] * scales[index],
       `${INDEPENDENT_NODE_NAMES[index]} candidate volume`
     );
-    values2[INDEPENDENT_NODE_NAMES[index]] = value;
+    values2[NON_CORONARY_NODE_INDEX_BY_NAME_V1[INDEPENDENT_NODE_NAMES[index]]] = value;
     independentSum += value;
   }
-  values2[DEPENDENT_NODE] = requirePositive$4(
+  values2[NON_CORONARY_NODE_INDEX_BY_NAME_V1[DEPENDENT_NODE]] = requirePositive$4(
     totalBloodVolumeMl - independentSum,
     `${DEPENDENT_NODE} dependent candidate volume`
   );
-  return copyNodeRecord(
-    values2,
-    "candidate nodeVolumesMl",
-    requirePositive$4
-  );
+  return values2;
 }
-function scaledToIndependentNodeVolumes(scaledIndependentVolumes, scales) {
+function scaledToIndependentNodeVolumes(scaledIndependentVolumes, scales, destination) {
   if (scaledIndependentVolumes.length !== INDEPENDENT_NODE_NAMES.length || scales.length !== INDEPENDENT_NODE_NAMES.length) throw new Error("circulation independent-volume vector has wrong length");
-  const values2 = {};
+  const values2 = destination ?? {};
   for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
     const value = requirePositive$4(
       scaledIndependentVolumes[index] * scales[index],
@@ -8455,40 +8867,85 @@ function scaledToIndependentNodeVolumes(scaledIndependentVolumes, scales) {
     );
     values2[INDEPENDENT_NODE_NAMES[index]] = value;
   }
-  return Object.freeze(values2);
+  return destination === void 0 ? Object.freeze(values2) : values2;
 }
-function independentNodeVolumesFromNodeRecord(volumes) {
-  return Object.freeze(Object.fromEntries(
-    INDEPENDENT_NODE_NAMES.map((name) => [name, volumes[name]])
-  ));
+function independentNodeVolumesFromNodeArray(volumes, destination) {
+  const independent = destination ?? {};
+  for (const name of INDEPENDENT_NODE_NAMES) {
+    independent[name] = volumes[NON_CORONARY_NODE_INDEX_BY_NAME_V1[name]];
+  }
+  return destination === void 0 ? Object.freeze(independent) : independent;
 }
-function independentVolumesToScaled(volumes, scales) {
-  return Object.freeze(INDEPENDENT_NODE_NAMES.map((name, index) => volumes[name] / scales[index]));
+function scaledResidualValuesV1(continuityResidualMlByNode, volumeScales, destination) {
+  const values2 = destination ?? new Float64Array(INDEPENDENT_NODE_NAMES.length);
+  if (values2.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new Error("circulation scaled-residual scratch has wrong length");
+  }
+  for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
+    values2[index] = continuityResidualMlByNode[NON_CORONARY_NODE_INDEX_BY_NAME_V1[INDEPENDENT_NODE_NAMES[index]]] / volumeScales[index];
+  }
+  return values2;
+}
+function independentVolumesToScaled(volumes, scales, destination) {
+  const values2 = destination ?? Array(INDEPENDENT_NODE_NAMES.length);
+  if (values2.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new Error("circulation scaled-volume scratch has wrong length");
+  }
+  for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
+    values2[index] = volumes[NON_CORONARY_NODE_INDEX_BY_NAME_V1[INDEPENDENT_NODE_NAMES[index]]] / scales[index];
+  }
+  return destination === void 0 ? Object.freeze(values2) : values2;
 }
 function mixedContinuityResidualAudit(evaluation, referenceVolumesMl, absoluteToleranceMl, scaledTolerance) {
-  const entries = NON_CORONARY_NODE_NAMES_V1.map((node) => {
-    const residualMl = evaluation.continuityResidualMlByNode[node];
+  let worstNode = NON_CORONARY_NODE_NAMES_V1[0];
+  let worstResidualMl = evaluation.continuityResidualMlByNode[0];
+  let worstAbsoluteResidualMl = Math.abs(worstResidualMl);
+  let worstToleranceMl = absoluteToleranceMl + scaledTolerance * Math.max(
+    10,
+    Math.abs(referenceVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[worstNode]])
+  );
+  let worstNormalizedResidual = worstAbsoluteResidualMl / worstToleranceMl;
+  for (let index = 1; index < NON_CORONARY_NODE_NAMES_V1.length; index += 1) {
+    const node = NON_CORONARY_NODE_NAMES_V1[index];
+    const residualMl = evaluation.continuityResidualMlByNode[index];
     const absoluteResidualMl = Math.abs(residualMl);
     const toleranceMl = absoluteToleranceMl + scaledTolerance * Math.max(
       10,
-      Math.abs(referenceVolumesMl[node])
+      Math.abs(referenceVolumesMl[NON_CORONARY_NODE_INDEX_BY_NAME_V1[node]])
     );
-    return Object.freeze({
-      node,
-      residualMl,
-      absoluteResidualMl,
-      toleranceMl,
-      normalizedResidual: absoluteResidualMl / toleranceMl
-    });
+    const normalizedResidual = absoluteResidualMl / toleranceMl;
+    if (normalizedResidual > worstNormalizedResidual) {
+      worstNode = node;
+      worstResidualMl = residualMl;
+      worstAbsoluteResidualMl = absoluteResidualMl;
+      worstToleranceMl = toleranceMl;
+      worstNormalizedResidual = normalizedResidual;
+    }
+  }
+  const worst = Object.freeze({
+    node: worstNode,
+    residualMl: worstResidualMl,
+    absoluteResidualMl: worstAbsoluteResidualMl,
+    toleranceMl: worstToleranceMl,
+    normalizedResidual: worstNormalizedResidual
   });
-  const worst = entries.reduce((current, candidate) => candidate.normalizedResidual > current.normalizedResidual ? candidate : current);
   return Object.freeze({
-    infinityNorm: worst.normalizedResidual,
+    infinityNorm: worstNormalizedResidual,
     worst
   });
 }
-function independentVolumeScales(volumes) {
-  return Object.freeze(INDEPENDENT_NODE_NAMES.map((name) => Math.max(10, Math.abs(volumes[name]))));
+function independentVolumeScales(volumes, destination) {
+  const values2 = destination ?? Array(INDEPENDENT_NODE_NAMES.length);
+  if (values2.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new Error("circulation volume-scale scratch has wrong length");
+  }
+  for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
+    values2[index] = Math.max(
+      10,
+      Math.abs(volumes[NON_CORONARY_NODE_INDEX_BY_NAME_V1[INDEPENDENT_NODE_NAMES[index]]])
+    );
+  }
+  return destination === void 0 ? Object.freeze(values2) : values2;
 }
 function finiteDifferenceJacobian(evaluate, center, requestedStep) {
   const centerValue = evaluate(center);
@@ -8558,18 +9015,30 @@ function recordJacobianShadowDifference(usage, analytic, finiteDifference) {
     relativeFrobenius
   );
 }
-function solveDenseLinearSystem(sourceMatrix, sourceRight) {
+function solveDenseLinearSystem(sourceMatrix, sourceRight, scratchStorage = null) {
   const size = sourceRight.length;
   if (sourceMatrix.length !== size || sourceMatrix.some((row) => row.length !== size)) return null;
-  const matrix = sourceMatrix.map((row) => [...row]);
-  const right = [...sourceRight];
+  const matrix = scratchStorage?.linearMatrix ?? createSquareMatrixV1(size);
+  const right = scratchStorage?.linearRight ?? Array(size).fill(0);
+  const solution = scratchStorage?.linearSolution ?? Array(size).fill(0);
+  if (matrix.length !== size || matrix.some((row) => row.length !== size) || right.length !== size || solution.length !== size) return null;
+  for (let row = 0; row < size; row += 1) {
+    right[row] = sourceRight[row];
+    solution[row] = 0;
+    for (let column = 0; column < size; column += 1) {
+      matrix[row][column] = sourceMatrix[row][column];
+    }
+  }
   for (let pivot = 0; pivot < size; pivot += 1) {
     let best = pivot;
     for (let row = pivot + 1; row < size; row += 1) {
       if (Math.abs(matrix[row][pivot]) > Math.abs(matrix[best][pivot])) best = row;
     }
     const pivotValue = matrix[best][pivot];
-    const rowScale = Math.max(...matrix[best].map(Math.abs), Number.MIN_VALUE);
+    let rowScale = Number.MIN_VALUE;
+    for (let column = 0; column < size; column += 1) {
+      rowScale = Math.max(rowScale, Math.abs(matrix[best][column]));
+    }
     if (!Number.isFinite(pivotValue) || Math.abs(pivotValue) <= 1e-13 * rowScale) {
       return null;
     }
@@ -8584,7 +9053,6 @@ function solveDenseLinearSystem(sourceMatrix, sourceRight) {
       right[row] -= factor * right[pivot];
     }
   }
-  const solution = Array(size).fill(0);
   for (let row = size - 1; row >= 0; row -= 1) {
     let value = right[row];
     for (let column = row + 1; column < size; column += 1) {
@@ -8592,7 +9060,8 @@ function solveDenseLinearSystem(sourceMatrix, sourceRight) {
     }
     solution[row] = value / matrix[row][row];
   }
-  return solution.every(Number.isFinite) ? Object.freeze(solution) : null;
+  if (!solution.every(Number.isFinite)) return null;
+  return scratchStorage === null ? Object.freeze(solution) : solution;
 }
 function trialDiagnostics(iterations, acceptedLineSearchSteps, lineSearchBacktracks, residualNorm, evaluation, previous, options, mechanicsCache, failureNewtonTrace = [], lineSearchFailure = null) {
   const worstIndependentContinuityResidual = worstIndependentContinuityResidualFromEvaluation(evaluation);
@@ -8602,6 +9071,13 @@ function trialDiagnostics(iterations, acceptedLineSearchSteps, lineSearchBacktra
     options.absoluteContinuityResidualToleranceMl,
     options.scaledResidualInfinityTolerance
   );
+  let finalMaximumContinuityResidualMl = 0;
+  for (let nodeIndex = 0; nodeIndex < NON_CORONARY_NODE_NAMES_V1.length; nodeIndex += 1) {
+    finalMaximumContinuityResidualMl = Math.max(
+      finalMaximumContinuityResidualMl,
+      Math.abs(evaluation.continuityResidualMlByNode[nodeIndex])
+    );
+  }
   return Object.freeze({
     iterations,
     acceptedLineSearchSteps,
@@ -8610,11 +9086,9 @@ function trialDiagnostics(iterations, acceptedLineSearchSteps, lineSearchBacktra
     finalMixedContinuityResidualInfinityNorm: mixedContinuityResidual.infinityNorm,
     absoluteContinuityResidualToleranceMl: options.absoluteContinuityResidualToleranceMl,
     relativeContinuityResidualTolerance: options.scaledResidualInfinityTolerance,
-    finalMaximumContinuityResidualMl: Math.max(
-      ...NON_CORONARY_NODE_NAMES_V1.map((name) => Math.abs(evaluation.continuityResidualMlByNode[name]))
-    ),
-    dependentNodeContinuityResidualMl: evaluation.continuityResidualMlByNode[DEPENDENT_NODE],
-    totalBloodVolumeErrorMl: evaluation.conservativeCompanion === null ? sumNodeRecord(evaluation.nodeVolumesMl) - previous.totalBloodVolumeMl : sumNodeRecord(evaluation.nodeVolumesMl) + evaluation.conservativeCompanion.candidateCompanionBloodVolumeMl - evaluation.conservativeCompanion.fixedGlobalTotalBloodVolumeMl,
+    finalMaximumContinuityResidualMl,
+    dependentNodeContinuityResidualMl: evaluation.continuityResidualMlByNode[NON_CORONARY_NODE_INDEX_BY_NAME_V1[DEPENDENT_NODE]],
+    totalBloodVolumeErrorMl: evaluation.conservativeCompanion === null ? sumCandidateNodeValuesV1(evaluation.nodeVolumesMl) - previous.totalBloodVolumeMl : sumCandidateNodeValuesV1(evaluation.nodeVolumesMl) + evaluation.conservativeCompanion.candidateCompanionBloodVolumeMl - evaluation.conservativeCompanion.fixedGlobalTotalBloodVolumeMl,
     jacobianMode: jacobianModeFromUsage(mechanicsCache.jacobianUsage),
     pressureTangentAvailableAtFinalCandidate: evaluation.absoluteChamberPressureTangent !== null,
     finiteDifferenceScaledStep: mechanicsCache.jacobianUsage.finiteDifferenceFallbackCount > 0 || mechanicsCache.jacobianUsage.finiteDifferenceShadowCount > 0 ? options.finiteDifferenceScaledStep : null,
@@ -8671,14 +9145,14 @@ function jacobianModeFromUsage(usage) {
 function worstIndependentContinuityResidualFromEvaluation(evaluation) {
   let worstIndex = 0;
   for (let index = 1; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
-    const candidateNode = INDEPENDENT_NODE_NAMES[index];
-    const worstNode = INDEPENDENT_NODE_NAMES[worstIndex];
-    if (Math.abs(evaluation.continuityResidualMlByNode[candidateNode]) > Math.abs(evaluation.continuityResidualMlByNode[worstNode])) {
+    const candidateNodeIndex = NON_CORONARY_NODE_INDEX_BY_NAME_V1[INDEPENDENT_NODE_NAMES[index]];
+    const worstNodeIndex = NON_CORONARY_NODE_INDEX_BY_NAME_V1[INDEPENDENT_NODE_NAMES[worstIndex]];
+    if (Math.abs(evaluation.continuityResidualMlByNode[candidateNodeIndex]) > Math.abs(evaluation.continuityResidualMlByNode[worstNodeIndex])) {
       worstIndex = index;
     }
   }
   const node = INDEPENDENT_NODE_NAMES[worstIndex];
-  const residualMl = evaluation.continuityResidualMlByNode[node];
+  const residualMl = evaluation.continuityResidualMlByNode[NON_CORONARY_NODE_INDEX_BY_NAME_V1[node]];
   return Object.freeze({
     node,
     residualMl,
@@ -8842,14 +9316,12 @@ function copyAndValidateAbsoluteChamberPressureTangent(tangent) {
   });
 }
 function evaluateCandidateMechanicsCached(cache, callback, volumes, candidateTimeSec) {
-  const timeCache = cache.values.get(candidateTimeSec);
-  const lvCache = timeCache?.get(volumes.LV);
-  const laCache = lvCache?.get(volumes.LA);
-  const rvCache = laCache?.get(volumes.RV);
-  const cached = rvCache?.get(volumes.RA);
-  if (cached !== void 0) {
-    cache.hitCount += 1;
-    return cached;
+  for (let index = cache.values.length - 1; index >= 0; index -= 1) {
+    const entry = cache.values[index];
+    if (sameValueZeroV1(entry.candidateTimeSec, candidateTimeSec) && sameValueZeroV1(entry.LV, volumes.LV) && sameValueZeroV1(entry.LA, volumes.LA) && sameValueZeroV1(entry.RV, volumes.RV) && sameValueZeroV1(entry.RA, volumes.RA)) {
+      cache.hitCount += 1;
+      return entry.result;
+    }
   }
   cache.callCount += 1;
   const raw = callback(Object.freeze({ ...volumes }), candidateTimeSec);
@@ -8862,26 +9334,23 @@ function evaluateCandidateMechanicsCached(cache, callback, volumes, candidateTim
     ...absolutePressureTangent === void 0 ? {} : { absolutePressureTangent },
     evaluation: raw.evaluation
   });
-  const writableTimeCache = timeCache ?? insertChildCache(cache.values, candidateTimeSec);
-  const writableLvCache = lvCache ?? insertChildCache(writableTimeCache, volumes.LV);
-  const writableLaCache = laCache ?? insertChildCache(writableLvCache, volumes.LA);
-  const writableRvCache = rvCache ?? insertChildCache(writableLaCache, volumes.RV);
-  writableRvCache.set(volumes.RA, result);
+  cache.values.push({
+    candidateTimeSec,
+    LV: volumes.LV,
+    LA: volumes.LA,
+    RV: volumes.RV,
+    RA: volumes.RA,
+    result
+  });
   cache.uniqueCandidateCount += 1;
   return result;
 }
-function insertChildCache(parent, key) {
-  const child = /* @__PURE__ */ new Map();
-  parent.set(key, child);
-  return child;
+function sameValueZeroV1(left, right) {
+  return left === right || Number.isNaN(left) && Number.isNaN(right);
 }
 function copyNodeRecord(source, label, validate) {
   assertExactKeys$7(source, NON_CORONARY_NODE_NAMES_V1, label);
   return nodeRecord$1((name) => validate(source[name], `${label}.${name}`));
-}
-function copyEdgeRecord(source, label, validate) {
-  assertExactKeys$7(source, NON_CORONARY_EDGE_NAMES_V1, label);
-  return edgeRecord((name) => validate(source[name], `${label}.${name}`));
 }
 function copyDynamicEdgeRecord(source, label, validate) {
   assertExactKeys$7(source, NON_CORONARY_DYNAMIC_EDGE_NAMES_V1, label);
@@ -8942,6 +9411,16 @@ function uniqueIndex(values2) {
 function sumNodeRecord(values2) {
   return NON_CORONARY_NODE_NAMES_V1.reduce((sum, name) => sum + values2[name], 0);
 }
+function sumCandidateNodeValuesV1(values2) {
+  if (values2.length !== NON_CORONARY_NODE_NAMES_V1.length) {
+    throw new Error("candidate node-volume vector has wrong length");
+  }
+  let total = 0;
+  for (let index = 0; index < values2.length; index += 1) {
+    total += values2[index];
+  }
+  return total;
+}
 function isChamberName(name) {
   return name === "LV" || name === "LA" || name === "RV" || name === "RA";
 }
@@ -8949,6 +9428,10 @@ function respiratoryKind(ext) {
   if (ext === void 0 || ext === "none") return "none";
   if (ext === "pth" || ext === "palv") return ext;
   throw new Error(`coronary external-pressure kind ${ext} is outside scope`);
+}
+function respiratoryExternalPressureFromFrameV1(kind, pressures) {
+  if (kind === "none") return 0;
+  return kind === "pth" ? pressures.pthMmHg : pressures.palvMmHg;
 }
 function validateProtocolResistanceScaleByEdge(scaleByEdge) {
   if (scaleByEdge === void 0) return;
@@ -9017,7 +9500,11 @@ function tryEvaluateVector(evaluate, unknowns) {
   }
 }
 function infinityNorm$2(values2) {
-  return values2.reduce((maximum, value) => Math.max(maximum, Math.abs(value)), 0);
+  let maximum = 0;
+  for (let index = 0; index < values2.length; index += 1) {
+    maximum = Math.max(maximum, Math.abs(values2[index]));
+  }
+  return maximum;
 }
 function nearlyEqual$7(left, right) {
   return Math.abs(left - right) <= 1e-10 * Math.max(1, Math.abs(left), Math.abs(right));
@@ -9075,37 +9562,48 @@ function requireInteger(value, label) {
   }
   return value;
 }
-function evaluateVolumeDependentCoronaryResistanceV1(volumeMl, prior) {
-  validateVolumeDependentCoronaryResistancePriorV1(prior);
-  if (!Number.isFinite(volumeMl) || volumeMl < 0) {
-    throw new RangeError("hydraulic vascular volume must be non-negative and finite");
-  }
-  const normalizedVolume = volumeMl / prior.referenceVolumeMl;
+function evaluateVolumeDependentCoronaryResistanceScaleV1(volumeMl, referenceVolumeMl, residualHydraulicAreaFraction) {
+  validateVolumeDependentCoronaryResistanceScalarsV1(
+    volumeMl,
+    referenceVolumeMl,
+    residualHydraulicAreaFraction
+  );
+  const normalizedVolume = volumeMl / referenceVolumeMl;
   const x = Math.min(1, Math.max(0, normalizedVolume));
   const patentFraction01 = x * x * (3 - 2 * x);
-  const residualArea = prior.residualHydraulicAreaFraction;
-  const hydraulicAreaFraction = residualArea + (1 - residualArea) * patentFraction01;
+  const hydraulicAreaFraction = residualHydraulicAreaFraction + (1 - residualHydraulicAreaFraction) * patentFraction01;
+  return 1 / hydraulicAreaFraction ** 2;
+}
+function evaluateVolumeDependentCoronaryResistanceScaleIntoV1(volumeMl, referenceVolumeMl, residualHydraulicAreaFraction, destination) {
+  validateVolumeDependentCoronaryResistanceScalarsV1(
+    volumeMl,
+    referenceVolumeMl,
+    residualHydraulicAreaFraction
+  );
+  if (destination.length !== 2) {
+    throw new RangeError("collapse scalar destination must contain two slots");
+  }
+  const normalizedVolume = volumeMl / referenceVolumeMl;
+  const x = Math.min(1, Math.max(0, normalizedVolume));
+  const patentFraction01 = x * x * (3 - 2 * x);
+  const hydraulicAreaFraction = residualHydraulicAreaFraction + (1 - residualHydraulicAreaFraction) * patentFraction01;
   const resistanceScale = 1 / hydraulicAreaFraction ** 2;
   const dPatentFractionDx = normalizedVolume > 0 && normalizedVolume < 1 ? 6 * x * (1 - x) : 0;
-  const dScaleDx = dPatentFractionDx === 0 ? 0 : -2 * (1 - residualArea) * dPatentFractionDx / hydraulicAreaFraction ** 3;
-  const dResistanceDVolumeMmHgSecPerMl2 = prior.referenceResistanceMmHgSecPerMl * dScaleDx / prior.referenceVolumeMl;
-  const maximumResistanceScale = 1 / residualArea ** 2;
-  return Object.freeze({
-    resistanceMmHgSecPerMl: prior.referenceResistanceMmHgSecPerMl * resistanceScale,
-    resistanceScale,
-    dResistanceDVolumeMmHgSecPerMl2,
-    maximumResistanceScale
-  });
+  const dScaleDx = dPatentFractionDx === 0 ? 0 : -2 * (1 - residualHydraulicAreaFraction) * dPatentFractionDx / hydraulicAreaFraction ** 3;
+  destination[0] = resistanceScale;
+  destination[1] = dScaleDx / referenceVolumeMl;
 }
-function validateVolumeDependentCoronaryResistancePriorV1(prior) {
-  if (!Number.isFinite(prior.referenceResistanceMmHgSecPerMl) || prior.referenceResistanceMmHgSecPerMl <= 0) {
-    throw new RangeError("reference coronary resistance must be positive and finite");
+function validateVolumeDependentCoronaryResistanceScalarsV1(volumeMl, referenceVolumeMl, residualHydraulicAreaFraction) {
+  if (!Number.isFinite(volumeMl) || volumeMl < 0) {
+    throw new RangeError(
+      "hydraulic vascular volume must be non-negative and finite"
+    );
   }
-  if (!Number.isFinite(prior.referenceVolumeMl) || prior.referenceVolumeMl <= 0) {
-    throw new RangeError("reference hydraulic volume must be positive and finite");
+  if (!Number.isFinite(referenceVolumeMl) || referenceVolumeMl <= 0) {
+    throw new RangeError("hydraulic reference volume must be positive and finite");
   }
-  if (!Number.isFinite(prior.residualHydraulicAreaFraction) || prior.residualHydraulicAreaFraction <= 0 || prior.residualHydraulicAreaFraction >= 1) {
-    throw new RangeError("residual hydraulic area fraction must lie in (0, 1)");
+  if (!Number.isFinite(residualHydraulicAreaFraction) || residualHydraulicAreaFraction <= 0 || residualHydraulicAreaFraction > 1) {
+    throw new RangeError("residual hydraulic area fraction must lie in (0, 1]");
   }
 }
 const PASCAL_PER_MMHG_V1 = 133.322;
@@ -9130,8 +9628,67 @@ const NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1 = Object.freeze({
     RCA: 0.06
   })
 });
-function evaluateCoronaryImpV1(territoryId, layerId, input, prior = NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1) {
+function evaluateAllCoronaryImpPressureV1(input, component, prior = NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1) {
+  if (component !== "cavity-induced" && component !== "intramyocardial") {
+    throw new RangeError(
+      `unsupported coronary IMP pressure component: ${String(component)}`
+    );
+  }
   validateCoronaryImpPriorV1(prior);
+  validateCoronaryMechanicsInputV1(input);
+  const scratch = createCoronaryImpScratchV1();
+  const result = {
+    LAD: { subepicardial: 0, subendocardial: 0 },
+    LCx: { subepicardial: 0, subendocardial: 0 },
+    RCA: { subepicardial: 0, subendocardial: 0 }
+  };
+  for (const territoryId of CORONARY_TERRITORY_IDS_V1) {
+    for (const layerId of CORONARY_LAYER_IDS_V1) {
+      evaluateCoronaryImpIntoScratchV1(
+        scratch,
+        territoryId,
+        layerId,
+        input,
+        prior
+      );
+      result[territoryId][layerId] = component === "cavity-induced" ? scratch.cavityInducedExtracellularPressureMmHg : scratch.intramyocardialPressureMmHg;
+    }
+    Object.freeze(result[territoryId]);
+  }
+  return Object.freeze(result);
+}
+function createCoronaryImpScratchV1() {
+  return {
+    depthFromEpicardium01: 0,
+    lvCoefficient: 0,
+    rvCoefficient: 0,
+    cavityInducedExtracellularPressureMmHg: 0,
+    activeStressInducedPressureMmHg: 0,
+    intramyocardialPressureMmHg: 0
+  };
+}
+function evaluateCoronaryImpIntoScratchV1(scratch, territoryId, layerId, input, prior) {
+  const depth = prior.layerDepthFromEpicardium01[layerId];
+  const wallWeight = prior.perfusedWallWeightByTerritory[territoryId];
+  const septalDepthFromRvSurface01 = prior.septalEndocardialSurfaceByTerritory[territoryId] === "LV" ? depth : 1 - depth;
+  const lvCoefficient = wallWeight.LVFW * depth + wallWeight.SEP * septalDepthFromRvSurface01;
+  const rvCoefficient = wallWeight.RVFW * depth + wallWeight.SEP * (1 - septalDepthFromRvSurface01);
+  const cepTransmuralMmHg = lvCoefficient * input.chamberTransmuralPressureMmHg.LV + rvCoefficient * input.chamberTransmuralPressureMmHg.RV;
+  const cavityInducedExtracellularPressureMmHg = input.externalPressureMmHg + cepTransmuralMmHg;
+  const gamma = prior.activeStressPressureGainByTerritory[territoryId];
+  let weightedActiveStressPa = 0;
+  for (const wallId of CORONARY_PERFUSED_WALL_IDS_V1) {
+    weightedActiveStressPa += wallWeight[wallId] * input.landActiveFiberStressPaByWall[wallId];
+  }
+  const activeStressInducedPressureMmHg = gamma * weightedActiveStressPa / PASCAL_PER_MMHG_V1;
+  scratch.depthFromEpicardium01 = depth;
+  scratch.lvCoefficient = lvCoefficient;
+  scratch.rvCoefficient = rvCoefficient;
+  scratch.cavityInducedExtracellularPressureMmHg = cavityInducedExtracellularPressureMmHg;
+  scratch.activeStressInducedPressureMmHg = activeStressInducedPressureMmHg;
+  scratch.intramyocardialPressureMmHg = cavityInducedExtracellularPressureMmHg + activeStressInducedPressureMmHg;
+}
+function validateCoronaryMechanicsInputV1(input) {
   assertFinite$2("externalPressureMmHg", input.externalPressureMmHg);
   assertFinite$2(
     "chamberTransmuralPressureMmHg.LV",
@@ -9147,50 +9704,6 @@ function evaluateCoronaryImpV1(territoryId, layerId, input, prior = NORMAL_ADULT
       throw new RangeError(`${wallId} Land active stress must be finite and non-negative`);
     }
   }
-  const depth = prior.layerDepthFromEpicardium01[layerId];
-  const wallWeight = prior.perfusedWallWeightByTerritory[territoryId];
-  const septalDepthFromRvSurface01 = prior.septalEndocardialSurfaceByTerritory[territoryId] === "LV" ? depth : 1 - depth;
-  const lvCoefficient = wallWeight.LVFW * depth + wallWeight.SEP * septalDepthFromRvSurface01;
-  const rvCoefficient = wallWeight.RVFW * depth + wallWeight.SEP * (1 - septalDepthFromRvSurface01);
-  const cepTransmuralMmHg = lvCoefficient * input.chamberTransmuralPressureMmHg.LV + rvCoefficient * input.chamberTransmuralPressureMmHg.RV;
-  const cavityInducedExtracellularPressureMmHg = input.externalPressureMmHg + cepTransmuralMmHg;
-  const gamma = prior.activeStressPressureGainByTerritory[territoryId];
-  let weightedActiveStressPa = 0;
-  const dImpDStress = {};
-  for (const wallId of CORONARY_PERFUSED_WALL_IDS_V1) {
-    weightedActiveStressPa += wallWeight[wallId] * input.landActiveFiberStressPaByWall[wallId];
-    dImpDStress[wallId] = wallWeight[wallId] * gamma / PASCAL_PER_MMHG_V1;
-  }
-  const activeStressInducedPressureMmHg = gamma * weightedActiveStressPa / PASCAL_PER_MMHG_V1;
-  return Object.freeze({
-    territoryId,
-    layerId,
-    depthFromEpicardium01: depth,
-    cavityInducedExtracellularPressureMmHg,
-    activeStressInducedPressureMmHg,
-    intramyocardialPressureMmHg: cavityInducedExtracellularPressureMmHg + activeStressInducedPressureMmHg,
-    derivative: Object.freeze({
-      dImpDExternalPressure: 1,
-      dImpDChamberTransmuralPressure: Object.freeze({
-        LV: lvCoefficient,
-        RV: rvCoefficient
-      }),
-      dImpDLandActiveFiberStressPaByWall: Object.freeze(dImpDStress)
-    })
-  });
-}
-function evaluateAllCoronaryImpV1(input, prior = NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1) {
-  return Object.freeze(Object.fromEntries(
-    CORONARY_TERRITORY_IDS_V1.map((territoryId) => [
-      territoryId,
-      Object.freeze(Object.fromEntries(
-        CORONARY_LAYER_IDS_V1.map((layerId) => [
-          layerId,
-          evaluateCoronaryImpV1(territoryId, layerId, input, prior)
-        ])
-      ))
-    ])
-  ));
 }
 function validateCoronaryImpPriorV1(prior) {
   if (validationStampReuseEligibleV1() && validatedCoronaryImpPriorsV1.has(prior)) {
@@ -9250,6 +9763,17 @@ function evaluateSignedLinearQuadraticLossV1(flowMlPerSec, linearResistanceMmHgS
     dissipatedPowerMmHgMlPerSec: pressureLossMmHg * flowMlPerSec
   });
 }
+function evaluateSignedLinearQuadraticPressureLossV1(flowMlPerSec, linearResistanceMmHgSecPerMl, quadraticResistanceMmHgSec2PerMl2) {
+  if (!Number.isFinite(flowMlPerSec)) {
+    throw new RangeError("flow must be finite");
+  }
+  if (!Number.isFinite(linearResistanceMmHgSecPerMl) || linearResistanceMmHgSecPerMl < 0 || !Number.isFinite(quadraticResistanceMmHgSec2PerMl2) || quadraticResistanceMmHgSec2PerMl2 < 0) {
+    throw new RangeError(
+      "linear and quadratic loss coefficients must be finite and non-negative"
+    );
+  }
+  return linearResistanceMmHgSecPerMl * flowMlPerSec + quadraticResistanceMmHgSec2PerMl2 * Math.abs(flowMlPerSec) * flowMlPerSec;
+}
 const NORMAL_VASODILATORY_TONE_MINIMUM_SCALE_V2 = 4 / 45;
 const NORMAL_CORONARY_TONE_MAXIMUM_SCALE_V2 = 2;
 function buildCoronaryCollapseHydraulicsPriorV2(topology = buildCoronaryTopologyV2(), residualHydraulicAreaFraction = 0.1) {
@@ -9301,6 +9825,70 @@ const DEFAULT_CORONARY_PRESSURE_LADDER_INITIALIZER_OPTIONS_V2 = Object.freeze({
   absoluteContinuityToleranceMlPerSec: 1e-10,
   finiteDifferenceRelativeStep: 1e-6
 });
+function createSquareMatrixV2(size) {
+  return Array.from({ length: size }, () => Array(size).fill(0));
+}
+function createMutableDenseLinearFactorizationV2(size) {
+  return {
+    upper: createSquareMatrixV2(size),
+    stages: Array.from({ length: size }, () => ({
+      pivotRow: 0,
+      factorByRow: Array(size).fill(0)
+    }))
+  };
+}
+const CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2 = /* @__PURE__ */ new WeakMap();
+const MAXIMUM_RETAINED_CORONARY_RESIDUAL_EVALUATIONS_V2 = 64;
+function borrowCoronaryBackwardEulerScratchWorkspaceV2(workspace, topology) {
+  const storage = CORONARY_BACKWARD_EULER_SCRATCH_STORAGE_V2.get(workspace);
+  if (storage === void 0) {
+    throw new TypeError("coronary backward-Euler scratch workspace is foreign");
+  }
+  if (workspace.schemaId !== "circleheart-coronary-backward-euler-scratch-workspace-v2" || workspace.topologyId !== topology.topologyId || storage.nodeIds.length !== topology.nodes.length || storage.edgeIds.length !== topology.edges.length || storage.nodeIds.some((nodeId, index) => nodeId !== topology.nodes[index]?.nodeId) || storage.edgeIds.some((edgeId, index) => edgeId !== topology.edges[index]?.edgeId)) {
+    throw new RangeError(
+      "coronary backward-Euler scratch workspace topology mismatch"
+    );
+  }
+  if (storage.inUse) {
+    throw new Error("coronary backward-Euler scratch workspace is already in use");
+  }
+  storage.inUse = true;
+  storage.residualEvaluationCursor = 0;
+  return storage;
+}
+function releaseCoronaryBackwardEulerScratchWorkspaceV2(storage) {
+  storage.inUse = false;
+}
+function createMutableHydraulicEvaluationV2(topology, edgeIndexById) {
+  return {
+    pressureByNode: Array(HYDRAULIC_NODE_IDS_V2.length).fill(0),
+    transmuralPressureByNode: Array(topology.nodes.length).fill(0),
+    flowByEdge: Array(topology.edges.length).fill(0),
+    linearResistanceByEdge: Array(topology.edges.length).fill(0),
+    quadraticResistanceByEdge: Array(topology.edges.length).fill(0),
+    dissipatedPowerByEdge: Array(topology.edges.length).fill(0),
+    edgeIndexById,
+    effectiveTone: CORONARY_TERRITORY_IDS_V2.map(() => Array(CORONARY_LAYER_IDS_V2.length).fill(0)),
+    postLesionPressure: Array(CORONARY_TERRITORY_IDS_V2.length).fill(0),
+    focalStenosisLoss: Array(CORONARY_TERRITORY_IDS_V2.length).fill(0)
+  };
+}
+function nextCoronaryResidualEvaluationV2(storage, topology, edgeIndexById) {
+  const index = storage.residualEvaluationCursor;
+  storage.residualEvaluationCursor += 1;
+  if (index < MAXIMUM_RETAINED_CORONARY_RESIDUAL_EVALUATIONS_V2) {
+    const existing = storage.residualEvaluations[index];
+    if (existing !== void 0) return existing;
+  }
+  const created = {
+    residual: Array(topology.nodes.length).fill(0),
+    hydraulics: createMutableHydraulicEvaluationV2(topology, edgeIndexById)
+  };
+  if (index < MAXIMUM_RETAINED_CORONARY_RESIDUAL_EVALUATIONS_V2) {
+    storage.residualEvaluations.push(created);
+  }
+  return created;
+}
 const HYDRAULIC_NODE_IDS_V2 = Object.freeze([
   "Ao",
   ...CORONARY_CONSERVED_VOLUME_NODE_IDS_V2,
@@ -9412,8 +10000,20 @@ function initializePressureLadderCoronaryStateV2(input, prior = NORMAL_ADULT_COR
     })
   });
 }
-function solveCoronaryBackwardEulerTrialV2(previousAcceptedState, input, prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2, topology = buildCoronaryTopologyV2(prior)) {
+function solveCoronaryBackwardEulerTrialV2(previousAcceptedState, input, prior = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2, topology = buildCoronaryTopologyV2(prior), scratchWorkspace) {
   validateCoronaryTopologyV2(topology);
+  const scratchStorage = null;
+  try {
+    return solveCoronaryBackwardEulerTrialInternalV2(
+      previousAcceptedState,
+      input,
+      topology,
+      scratchStorage
+    );
+  } finally {
+  }
+}
+function solveCoronaryBackwardEulerTrialInternalV2(previousAcceptedState, input, topology, scratchStorage) {
   validateAcceptedStateV2(previousAcceptedState, topology);
   validateTrialInputV2(input);
   const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
@@ -9422,10 +10022,12 @@ function solveCoronaryBackwardEulerTrialV2(previousAcceptedState, input, prior =
   validateCollapseHydraulicsV2(collapseHydraulics, topology);
   const options = resolveSolverOptionsV2(input.solverOptions);
   const edgeIndex = buildCoronaryEdgeIndexV2(topology);
-  const previous = volumeRecordToArrayV2(previousAcceptedState.volumeMlByNode);
-  const minimumVolumes = topology.nodes.map(
-    (node) => node.pressureVolume.referenceVolumeMl * options.minimumVolumeFractionOfReference
-  );
+  const previous = Array(topology.nodes.length).fill(0);
+  const minimumVolumes = Array(topology.nodes.length).fill(0);
+  for (let index = 0; index < topology.nodes.length; index += 1) {
+    previous[index] = previousAcceptedState.volumeMlByNode[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]];
+    minimumVolumes[index] = topology.nodes[index].pressureVolume.referenceVolumeMl * options.minimumVolumeFractionOfReference;
+  }
   validateVolumesV2(
     previous,
     topology,
@@ -9435,6 +10037,7 @@ function solveCoronaryBackwardEulerTrialV2(previousAcceptedState, input, prior =
     if (input.evaluationCounterCollection === "enabled") {
       hydraulicResidualEvaluationCount += 1;
     }
+    const reusableEvaluation = null;
     const hydraulics = evaluateHydraulicsInternalV2(
       candidate2,
       previousAcceptedState.toneResistanceScaleByTerritoryLayer,
@@ -9442,16 +10045,20 @@ function solveCoronaryBackwardEulerTrialV2(previousAcceptedState, input, prior =
       disease,
       topology,
       edgeIndex,
-      collapseHydraulics
+      collapseHydraulics,
+      reusableEvaluation?.hydraulics,
+      scratchStorage?.topologyPlan
     );
-    const residual = candidate2.map(
-      (volume, index) => volume - previous[index]
-    );
+    const residual = reusableEvaluation?.residual ?? Array(candidate2.length).fill(0);
+    for (let index = 0; index < candidate2.length; index += 1) {
+      residual[index] = candidate2[index] - previous[index];
+    }
     accumulateFlowContinuityV2(
       residual,
       hydraulics.flowByEdge,
       input.dtSec,
-      topology
+      topology,
+      scratchStorage?.topologyPlan
     );
     return { residual, hydraulics };
   };
@@ -9475,11 +10082,17 @@ function solveCoronaryBackwardEulerTrialV2(previousAcceptedState, input, prior =
       evaluated.hydraulics,
       input.dtSec,
       topology,
-      collapseHydraulics
+      collapseHydraulics,
+      void 0
     );
+    const linearRhs = Array(evaluated.residual.length).fill(0);
+    for (let index = 0; index < evaluated.residual.length; index += 1) {
+      linearRhs[index] = -evaluated.residual[index];
+    }
     const step = solveDenseLinearSystemV2(
       jacobian,
-      evaluated.residual.map((value) => -value)
+      linearRhs,
+      void 0
     );
     const maximumStep = maximumPositiveStepV2(
       candidate,
@@ -9500,6 +10113,37 @@ function solveCoronaryBackwardEulerTrialV2(previousAcceptedState, input, prior =
     backtracks += accepted.backtracks;
     iterations += 1;
   }
+  return materializeConvergedCoronaryTrialV2(
+    previousAcceptedState,
+    input,
+    candidate,
+    evaluated,
+    options,
+    iterations,
+    backtracks,
+    input.evaluationCounterCollection === "enabled" ? hydraulicResidualEvaluationCount : void 0,
+    topology,
+    edgeIndex
+  );
+}
+function materializeConvergedCoronaryTrialV2(previousAcceptedState, input, candidate, evaluated, options, newtonIterations, totalLineSearchBacktracks, hydraulicResidualEvaluationCount, topology, edgeIndex) {
+  const previous = volumeRecordToArrayV2(
+    previousAcceptedState.volumeMlByNode
+  );
+  const residualNorm = infinityNormV2(evaluated.residual);
+  const convergenceTolerance = options.absoluteResidualToleranceMl + options.relativeResidualTolerance * Math.max(1, ...previous);
+  if (residualNorm > convergenceTolerance) {
+    throw new CoronaryNetworkConvergenceErrorV2(
+      "externally solved coronary V2 candidate failed residual admission",
+      residualNorm,
+      newtonIterations
+    );
+  }
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference
+  );
   const previousTotal = sumV2(previous);
   const candidateTotal = sumV2(candidate);
   const inletFlow = totalInletFlowV2(
@@ -9508,15 +10152,11 @@ function solveCoronaryBackwardEulerTrialV2(previousAcceptedState, input, prior =
   );
   const outletFlow = evaluated.hydraulics.flowByEdge[edgeIndex.CV_RA];
   const continuityResidual = arrayToVolumeRecordV2(evaluated.residual);
-  const storageRate = arrayToVolumeRecordV2(candidate.map(
+  const storageRate = arrayToVolumeRecordV2(Array.from(
+    candidate,
     (volume, index) => (volume - previous[index]) / input.dtSec
   ));
   const ledgerResidual = candidateTotal - previousTotal - input.dtSec * (inletFlow - outletFlow);
-  validateVolumesV2(
-    candidate,
-    topology,
-    options.minimumVolumeFractionOfReference
-  );
   const candidateAcceptedState = freezeAcceptedStateV2({
     acceptedTimeSec: previousAcceptedState.acceptedTimeSec + input.dtSec,
     revision: previousAcceptedState.revision + 1,
@@ -9530,11 +10170,11 @@ function solveCoronaryBackwardEulerTrialV2(previousAcceptedState, input, prior =
     candidateAcceptedState,
     diagnostics: Object.freeze({
       converged: true,
-      newtonIterations: iterations,
-      totalLineSearchBacktracks: backtracks,
-      ...input.evaluationCounterCollection === "enabled" ? { hydraulicResidualEvaluationCount } : {},
+      newtonIterations,
+      totalLineSearchBacktracks,
+      ...hydraulicResidualEvaluationCount === void 0 ? {} : { hydraulicResidualEvaluationCount },
       finalResidualInfinityNormMl: residualNorm,
-      maximumAbsoluteNodeContinuityResidualMl: infinityNormV2(evaluated.residual),
+      maximumAbsoluteNodeContinuityResidualMl: residualNorm,
       continuityResidualMlByNode: continuityResidual,
       storageRateMlPerSecByNode: storageRate,
       previousCoronaryBloodVolumeMl: previousTotal,
@@ -9551,6 +10191,24 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(request)
   const prior = request.prior ?? NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2;
   const topology = request.topology ?? buildCoronaryTopologyV2(prior);
   validateCoronaryTopologyV2(topology);
+  const scratchStorage = request.scratchWorkspace === void 0 ? null : borrowCoronaryBackwardEulerScratchWorkspaceV2(
+    request.scratchWorkspace,
+    topology
+  );
+  try {
+    return computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(
+      request,
+      prior,
+      topology,
+      scratchStorage
+    );
+  } finally {
+    if (scratchStorage !== null) {
+      releaseCoronaryBackwardEulerScratchWorkspaceV2(scratchStorage);
+    }
+  }
+}
+function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesInternalV2(request, prior, topology, scratchStorage) {
   validateAcceptedStateV2(request.previousAcceptedState, topology);
   validateTrialInputV2(request.trialInput);
   if (request.boundaryDirections.length === 0) {
@@ -9613,6 +10271,11 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(request)
       topology,
       options.minimumVolumeFractionOfReference
     );
+    const reusableEvaluation = scratchStorage === null ? null : nextCoronaryResidualEvaluationV2(
+      scratchStorage,
+      topology,
+      edgeIndex
+    );
     const hydraulics = evaluateHydraulicsInternalV2(
       candidateVolumes,
       request.previousAcceptedState.toneResistanceScaleByTerritoryLayer,
@@ -9620,16 +10283,20 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(request)
       disease,
       topology,
       edgeIndex,
-      collapseHydraulics
+      collapseHydraulics,
+      reusableEvaluation?.hydraulics,
+      scratchStorage?.topologyPlan
     );
-    const residual = candidateVolumes.map(
-      (volume, index) => volume - previous[index]
-    );
+    const residual = reusableEvaluation?.residual ?? Array(candidateVolumes.length).fill(0);
+    for (let index = 0; index < candidateVolumes.length; index += 1) {
+      residual[index] = candidateVolumes[index] - previous[index];
+    }
     accumulateFlowContinuityV2(
       residual,
       hydraulics.flowByEdge,
       request.trialInput.dtSec,
-      topology
+      topology,
+      scratchStorage?.topologyPlan
     );
     return { residual, hydraulics };
   };
@@ -9661,9 +10328,13 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(request)
       base2.hydraulics,
       request.trialInput.dtSec,
       topology,
-      collapseHydraulics
+      collapseHydraulics,
+      scratchStorage ?? void 0
     );
-    jacobianFactorization = factorDenseLinearSystemV2(jacobian);
+    jacobianFactorization = factorDenseLinearSystemV2(
+      jacobian,
+      scratchStorage?.linearFactorization
+    );
   }
   for (let directionIndex = 0; directionIndex < request.boundaryDirections.length; directionIndex += 1) {
     const direction = request.boundaryDirections[directionIndex];
@@ -9681,15 +10352,22 @@ function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(request)
       base2.hydraulics,
       direction,
       request.trialInput.dtSec,
-      topology
+      topology,
+      scratchStorage ?? void 0
     );
     requireFiniteVectorV2(
       dResidualDScaledVariable,
       "coronary boundary residual directional derivative"
     );
+    const linearRhs = scratchStorage?.linearRhs ?? Array(dResidualDScaledVariable.length).fill(0);
+    for (let index = 0; index < dResidualDScaledVariable.length; index += 1) {
+      linearRhs[index] = -dResidualDScaledVariable[index];
+    }
     const dVolume = solveFactoredDenseLinearSystemV2(
       jacobianFactorization,
-      dResidualDScaledVariable.map((value) => -value)
+      linearRhs,
+      scratchStorage?.transformedLinearRhs,
+      scratchStorage?.linearSolution
     );
     implicitLinearSolveCount += 1;
     requireFiniteVectorV2(
@@ -9855,32 +10533,48 @@ class CoronaryBackwardEulerTransactionV2 {
     }
   }
 }
-function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology, edgeIndexById, collapseHydraulics) {
+function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology, edgeIndexById, collapseHydraulics, destination, topologyPlan) {
   validateVolumesV2(volumes, topology, 0);
-  const pressureByNode = Array(HYDRAULIC_NODE_IDS_V2.length).fill(0);
-  const transmuralPressureByNode = Array(topology.nodes.length).fill(0);
+  const evaluated = destination ?? createMutableHydraulicEvaluationV2(topology, edgeIndexById);
+  if (evaluated.pressureByNode.length !== HYDRAULIC_NODE_IDS_V2.length || evaluated.transmuralPressureByNode.length !== topology.nodes.length || evaluated.flowByEdge.length !== topology.edges.length || evaluated.linearResistanceByEdge.length !== topology.edges.length || evaluated.quadraticResistanceByEdge.length !== topology.edges.length || evaluated.dissipatedPowerByEdge.length !== topology.edges.length || evaluated.effectiveTone.length !== CORONARY_TERRITORY_IDS_V2.length || evaluated.effectiveTone.some((layers) => layers.length !== CORONARY_LAYER_IDS_V2.length) || evaluated.postLesionPressure.length !== CORONARY_TERRITORY_IDS_V2.length || evaluated.focalStenosisLoss.length !== CORONARY_TERRITORY_IDS_V2.length) {
+    throw new RangeError("coronary hydraulic destination dimensions differ");
+  }
+  const {
+    pressureByNode,
+    transmuralPressureByNode,
+    flowByEdge,
+    linearResistanceByEdge,
+    quadraticResistanceByEdge,
+    dissipatedPowerByEdge,
+    effectiveTone,
+    postLesionPressure,
+    focalStenosisLoss
+  } = evaluated;
+  pressureByNode.fill(0);
+  transmuralPressureByNode.fill(0);
+  flowByEdge.fill(0);
+  linearResistanceByEdge.fill(0);
+  quadraticResistanceByEdge.fill(0);
+  dissipatedPowerByEdge.fill(0);
+  effectiveTone.forEach((layers) => layers.fill(0));
+  postLesionPressure.fill(boundary.absoluteAorticPressureMmHg);
+  focalStenosisLoss.fill(0);
   pressureByNode[hydraulicPressureIndexV2("Ao")] = boundary.absoluteAorticPressureMmHg;
   pressureByNode[hydraulicPressureIndexV2("RA")] = boundary.absoluteRightAtrialPressureMmHg;
-  for (const node of topology.nodes) {
-    const nodeIndex = CANONICAL_NODE_INDEX_V2[node.nodeId];
-    const transmural = evaluateCrefAnchoredCollapsiblePvV2(
+  for (let nodeIndex = 0; nodeIndex < topology.nodes.length; nodeIndex += 1) {
+    const node = topology.nodes[nodeIndex];
+    const transmural = evaluateCrefAnchoredCollapsiblePressureV2(
       volumes[nodeIndex],
       node.pressureVolume
-    ).transmuralPressureMmHg;
+    );
     transmuralPressureByNode[nodeIndex] = transmural;
-    pressureByNode[hydraulicPressureIndexV2(node.nodeId)] = externalPressureForNodeV2(node, boundary) + transmural;
+    pressureByNode[1 + nodeIndex] = externalPressureForNodeV2(node, boundary) + transmural;
   }
-  const flowByEdge = Array(topology.edges.length).fill(0);
-  const linearResistanceByEdge = Array(topology.edges.length).fill(0);
-  const quadraticResistanceByEdge = Array(topology.edges.length).fill(0);
-  const dissipatedPowerByEdge = Array(topology.edges.length).fill(0);
-  const effectiveTone = CORONARY_TERRITORY_IDS_V2.map(() => [0, 0]);
-  const postLesionPressure = Array(CORONARY_TERRITORY_IDS_V2.length).fill(
-    boundary.absoluteAorticPressureMmHg
-  );
-  const focalStenosisLoss = Array(CORONARY_TERRITORY_IDS_V2.length).fill(0);
-  for (const edge of topology.edges) {
-    const edgeIndex = edgeIndexById[edge.edgeId];
+  for (let topologyEdgeIndex = 0; topologyEdgeIndex < topology.edges.length; topologyEdgeIndex += 1) {
+    const edge = topology.edges[topologyEdgeIndex];
+    const edgeIndex = topologyPlan === void 0 ? edgeIndexById[edge.edgeId] : topologyEdgeIndex;
+    const upstreamConservedIndex = topologyPlan === void 0 ? isConservedNodeV2(edge.upstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId] : -1 : topologyPlan.upstreamConservedIndexByEdge[topologyEdgeIndex];
+    const downstreamConservedIndex = topologyPlan === void 0 ? isConservedNodeV2(edge.downstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId] : -1 : topologyPlan.downstreamConservedIndexByEdge[topologyEdgeIndex];
     let linearResistance = edge.referenceResistanceMmHgSecPerMl;
     let quadraticResistance = 0;
     if (edge.kind === "micro-proximal-arteriolar") {
@@ -9891,39 +10585,31 @@ function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology
         layerDisease.vasodilatoryToneMinimumResistanceScale
       );
       effectiveTone[territoryIndexV2(owner.territoryId)][layerIndexV2(owner.layerId)] = effective;
-      const c1Volume = volumes[CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]];
-      linearResistance *= effective * layerDisease.structuralR1ResistanceScale * collapseScaleForNodeV2(c1Volume, nodeByIdV2(
-        edge.downstreamNodeId,
-        topology
-      ), collapseHydraulics);
+      const c1Volume = volumes[downstreamConservedIndex];
+      linearResistance *= effective * layerDisease.structuralR1ResistanceScale * collapseScaleForNodeV2(
+        c1Volume,
+        topology.nodes[downstreamConservedIndex],
+        collapseHydraulics
+      );
     } else if (edge.kind === "micro-intermediate-capillary") {
       const owner = edge.structuralCmdOwner;
-      const upstreamNode = nodeByIdV2(
-        edge.upstreamNodeId,
-        topology
-      );
-      const downstreamNode = nodeByIdV2(
-        edge.downstreamNodeId,
-        topology
-      );
+      const upstreamNode = topology.nodes[upstreamConservedIndex];
+      const downstreamNode = topology.nodes[downstreamConservedIndex];
       const upstreamScale = collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[upstreamNode.nodeId]],
+        volumes[upstreamConservedIndex],
         upstreamNode,
         collapseHydraulics
       );
       const downstreamScale = collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[downstreamNode.nodeId]],
+        volumes[downstreamConservedIndex],
         downstreamNode,
         collapseHydraulics
       );
       linearResistance *= disease[owner.territoryId].layers[owner.layerId].structuralRmResistanceScale * Math.sqrt(upstreamScale * downstreamScale);
     } else if (edge.kind === "micro-distal-venular") {
-      const upstreamNode = nodeByIdV2(
-        edge.upstreamNodeId,
-        topology
-      );
+      const upstreamNode = topology.nodes[upstreamConservedIndex];
       linearResistance *= collapseScaleForNodeV2(
-        volumes[CANONICAL_NODE_INDEX_V2[upstreamNode.nodeId]],
+        volumes[upstreamConservedIndex],
         upstreamNode,
         collapseHydraulics
       );
@@ -9932,13 +10618,15 @@ function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology
       linearResistance += disease[territoryId].focalStenosisAdditionalLinearResistanceMmHgSecPerMl;
       quadraticResistance = disease[territoryId].focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2;
     }
-    const pressureDrop = pressureByNode[hydraulicPressureIndexV2(edge.upstreamNodeId)] - pressureByNode[hydraulicPressureIndexV2(edge.downstreamNodeId)];
+    const upstreamPressureIndex = topologyPlan === void 0 ? hydraulicPressureIndexV2(edge.upstreamNodeId) : topologyPlan.upstreamPressureIndexByEdge[topologyEdgeIndex];
+    const downstreamPressureIndex = topologyPlan === void 0 ? hydraulicPressureIndexV2(edge.downstreamNodeId) : topologyPlan.downstreamPressureIndexByEdge[topologyEdgeIndex];
+    const pressureDrop = pressureByNode[upstreamPressureIndex] - pressureByNode[downstreamPressureIndex];
     const flow = solveSignedLinearQuadraticFlowV2(
       pressureDrop,
       linearResistance,
       quadraticResistance
     );
-    const totalLoss = evaluateSignedLinearQuadraticLossV1(
+    const totalPressureLoss = evaluateSignedLinearQuadraticPressureLossV1(
       flow,
       linearResistance,
       quadraticResistance
@@ -9946,31 +10634,20 @@ function evaluateHydraulicsInternalV2(volumes, tone, boundary, disease, topology
     flowByEdge[edgeIndex] = flow;
     linearResistanceByEdge[edgeIndex] = linearResistance;
     quadraticResistanceByEdge[edgeIndex] = quadraticResistance;
-    dissipatedPowerByEdge[edgeIndex] = totalLoss.dissipatedPowerMmHgMlPerSec;
+    dissipatedPowerByEdge[edgeIndex] = totalPressureLoss * flow;
     if (edge.kind === "large-arterial") {
       const territoryId = edge.territoryId;
       const territoryIndex = territoryIndexV2(territoryId);
-      const focalLoss = evaluateSignedLinearQuadraticLossV1(
+      const focalLoss = evaluateSignedLinearQuadraticPressureLossV1(
         flow,
         disease[territoryId].focalStenosisAdditionalLinearResistanceMmHgSecPerMl,
         disease[territoryId].focalStenosisAdditionalQuadraticResistanceMmHgSec2PerMl2
-      ).pressureLossMmHg;
+      );
       focalStenosisLoss[territoryIndex] = focalLoss;
       postLesionPressure[territoryIndex] = boundary.absoluteAorticPressureMmHg - focalLoss;
     }
   }
-  return {
-    pressureByNode,
-    transmuralPressureByNode,
-    flowByEdge,
-    linearResistanceByEdge,
-    quadraticResistanceByEdge,
-    dissipatedPowerByEdge,
-    edgeIndexById,
-    effectiveTone,
-    postLesionPressure,
-    focalStenosisLoss
-  };
+  return evaluated;
 }
 function freezeHydraulicEvaluationV2(evaluated) {
   const pressure = Object.fromEntries(HYDRAULIC_NODE_IDS_V2.map((nodeId) => [
@@ -10064,28 +10741,25 @@ function externalPressureForNodeV2(node, boundary) {
   return boundary.perivascularExternalPressureMmHg;
 }
 function collapseScaleForNodeV2(volumeMl, node, prior) {
-  return evaluateCollapseScaleAndDerivativeForNodeV2(
+  if (prior.mode === "disabled-mechanism-ablation") return 1;
+  return evaluateVolumeDependentCoronaryResistanceScaleV1(
     volumeMl,
-    node,
-    prior
-  ).resistanceScale;
+    prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
+    prior.residualHydraulicAreaFraction
+  );
 }
-function evaluateCollapseScaleAndDerivativeForNodeV2(volumeMl, node, prior) {
+function evaluateCollapseScaleAndDerivativeForNodeIntoV2(volumeMl, node, prior, destination) {
   if (prior.mode === "disabled-mechanism-ablation") {
-    return {
-      resistanceScale: 1,
-      dResistanceScaleDVolumePerMl: 0
-    };
+    destination[0] = 1;
+    destination[1] = 0;
+    return;
   }
-  const evaluated = evaluateVolumeDependentCoronaryResistanceV1(volumeMl, {
-    referenceResistanceMmHgSecPerMl: 1,
-    referenceVolumeMl: prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
-    residualHydraulicAreaFraction: prior.residualHydraulicAreaFraction
-  });
-  return {
-    resistanceScale: evaluated.resistanceScale,
-    dResistanceScaleDVolumePerMl: evaluated.dResistanceDVolumeMmHgSecPerMl2
-  };
+  evaluateVolumeDependentCoronaryResistanceScaleIntoV1(
+    volumeMl,
+    prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
+    prior.residualHydraulicAreaFraction,
+    destination
+  );
 }
 function nodeByIdV2(nodeId, topology) {
   const node = topology.nodes[CANONICAL_NODE_INDEX_V2[nodeId]];
@@ -10099,35 +10773,49 @@ function flowContinuityRateV2(flowByEdge, topology) {
   accumulateFlowContinuityV2(residual, flowByEdge, 1, topology);
   return residual;
 }
-function accumulateFlowContinuityV2(residual, flowByEdge, scale, topology) {
+function accumulateFlowContinuityV2(residual, flowByEdge, scale, topology, topologyPlan) {
   topology.edges.forEach((edge, edgeIndex) => {
     const flow = flowByEdge[edgeIndex];
-    if (isConservedNodeV2(edge.upstreamNodeId)) {
-      residual[CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]] += scale * flow;
+    const upstreamIndex = topologyPlan === void 0 ? isConservedNodeV2(edge.upstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId] : -1 : topologyPlan.upstreamConservedIndexByEdge[edgeIndex];
+    const downstreamIndex = topologyPlan === void 0 ? isConservedNodeV2(edge.downstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId] : -1 : topologyPlan.downstreamConservedIndexByEdge[edgeIndex];
+    if (upstreamIndex >= 0) {
+      residual[upstreamIndex] += scale * flow;
     }
-    if (isConservedNodeV2(edge.downstreamNodeId)) {
-      residual[CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]] -= scale * flow;
+    if (downstreamIndex >= 0) {
+      residual[downstreamIndex] -= scale * flow;
     }
   });
 }
-function analyticSparseCoronaryVolumeJacobianV2(candidate, hydraulics, dtSec, topology, collapseHydraulics) {
+function analyticSparseCoronaryVolumeJacobianV2(candidate, hydraulics, dtSec, topology, collapseHydraulics, scratchStorage, dTotalInletFlowDVolumeDestination, dCommonVenousOutletFlowDVolumeDestination, rowMajorDestination) {
   const n = candidate.length;
-  const jacobian = Array.from({ length: n }, () => Array(n).fill(0));
-  const dPressureDVolumeMmHgPerMl = topology.nodes.map((node, nodeIndex) => {
-    const compliance = evaluateCrefAnchoredCollapsiblePvV2(
+  const jacobian = scratchStorage?.jacobian ?? createSquareMatrixV2(n);
+  {
+    if (jacobian === null || jacobian.length !== n || jacobian.some((row) => row.length !== n)) {
+      throw new RangeError("coronary analytic Jacobian destination differs");
+    }
+    jacobian.forEach((row) => row.fill(0));
+  }
+  const dPressureDVolumeMmHgPerMl = scratchStorage?.pressureDerivativeByVolume ?? Array(n).fill(0);
+  topology.nodes.forEach((node, nodeIndex) => {
+    const compliance = evaluateCrefAnchoredCollapsibleComplianceV2(
       candidate[nodeIndex],
       node.pressureVolume
-    ).complianceMlPerMmHg;
+    );
     if (!Number.isFinite(compliance) || compliance <= 0) {
       throw new Error(
         `${node.nodeId} coronary pressure-volume compliance is not positive and finite`
       );
     }
-    return 1 / compliance;
+    dPressureDVolumeMmHgPerMl[nodeIndex] = 1 / compliance;
   });
   for (let diagonal = 0; diagonal < n; diagonal += 1) {
-    jacobian[diagonal][diagonal] = 1;
+    {
+      jacobian[diagonal][diagonal] = 1;
+    }
   }
+  const flowNumeratorDerivativeColumn = scratchStorage?.flowNumeratorDerivativeColumn ?? Array(n).fill(0);
+  const flowNumeratorDerivative = scratchStorage?.flowNumeratorDerivative ?? Array(n).fill(0);
+  const collapseScaleAndDerivative = scratchStorage?.collapseScaleAndDerivative ?? Array(2).fill(0);
   topology.edges.forEach((edge, edgeIndex) => {
     const flow = hydraulics.flowByEdge[edgeIndex];
     const linearResistance = hydraulics.linearResistanceByEdge[edgeIndex];
@@ -10138,35 +10826,48 @@ function analyticSparseCoronaryVolumeJacobianV2(candidate, hydraulics, dtSec, to
       quadraticResistance,
       edge.edgeId
     );
-    const flowNumeratorDerivativeByColumn = /* @__PURE__ */ new Map();
+    let flowNumeratorDerivativeCount = 0;
     const accumulateFlowNumeratorDerivative = (column, derivative) => {
-      flowNumeratorDerivativeByColumn.set(
-        column,
-        (flowNumeratorDerivativeByColumn.get(column) ?? 0) + derivative
-      );
+      let existingIndex = -1;
+      for (let index = 0; index < flowNumeratorDerivativeCount; index += 1) {
+        if (flowNumeratorDerivativeColumn[index] === column) {
+          existingIndex = index;
+          break;
+        }
+      }
+      if (existingIndex === -1) {
+        flowNumeratorDerivativeColumn[flowNumeratorDerivativeCount] = column;
+        flowNumeratorDerivative[flowNumeratorDerivativeCount] = derivative;
+        flowNumeratorDerivativeCount += 1;
+      } else {
+        flowNumeratorDerivative[existingIndex] += derivative;
+      }
     };
-    if (isConservedNodeV2(edge.upstreamNodeId)) {
-      const column = CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId];
+    const upstreamConservedIndex = scratchStorage === void 0 ? isConservedNodeV2(edge.upstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId] : -1 : scratchStorage.topologyPlan.upstreamConservedIndexByEdge[edgeIndex];
+    const downstreamConservedIndex = scratchStorage === void 0 ? isConservedNodeV2(edge.downstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId] : -1 : scratchStorage.topologyPlan.downstreamConservedIndexByEdge[edgeIndex];
+    if (upstreamConservedIndex >= 0) {
+      const column = upstreamConservedIndex;
       accumulateFlowNumeratorDerivative(
         column,
         dPressureDVolumeMmHgPerMl[column]
       );
     }
-    if (isConservedNodeV2(edge.downstreamNodeId)) {
-      const column = CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId];
+    if (downstreamConservedIndex >= 0) {
+      const column = downstreamConservedIndex;
       accumulateFlowNumeratorDerivative(
         column,
         -dPressureDVolumeMmHgPerMl[column]
       );
     }
-    const accumulateCollapseResistanceDerivative = (nodeId, logarithmicResistanceFactor) => {
-      const column = CANONICAL_NODE_INDEX_V2[nodeId];
-      const collapse = evaluateCollapseScaleAndDerivativeForNodeV2(
+    const accumulateCollapseResistanceDerivative = (nodeIndex, logarithmicResistanceFactor) => {
+      const column = nodeIndex;
+      evaluateCollapseScaleAndDerivativeForNodeIntoV2(
         candidate[column],
-        nodeByIdV2(nodeId, topology),
-        collapseHydraulics
+        topology.nodes[nodeIndex],
+        collapseHydraulics,
+        collapseScaleAndDerivative
       );
-      const dLinearResistanceDVolume = logarithmicResistanceFactor * linearResistance * collapse.dResistanceScaleDVolumePerMl / collapse.resistanceScale;
+      const dLinearResistanceDVolume = logarithmicResistanceFactor * linearResistance * collapseScaleAndDerivative[1] / collapseScaleAndDerivative[0];
       accumulateFlowNumeratorDerivative(
         column,
         -flow * dLinearResistanceDVolume
@@ -10174,49 +10875,61 @@ function analyticSparseCoronaryVolumeJacobianV2(candidate, hydraulics, dtSec, to
     };
     if (edge.kind === "micro-proximal-arteriolar") {
       accumulateCollapseResistanceDerivative(
-        edge.downstreamNodeId,
+        downstreamConservedIndex,
         1
       );
     } else if (edge.kind === "micro-intermediate-capillary") {
       accumulateCollapseResistanceDerivative(
-        edge.upstreamNodeId,
+        upstreamConservedIndex,
         0.5
       );
       accumulateCollapseResistanceDerivative(
-        edge.downstreamNodeId,
+        downstreamConservedIndex,
         0.5
       );
     } else if (edge.kind === "micro-distal-venular") {
       accumulateCollapseResistanceDerivative(
-        edge.upstreamNodeId,
+        upstreamConservedIndex,
         1
       );
     }
-    const upstreamRow = isConservedNodeV2(edge.upstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId] : null;
-    const downstreamRow = isConservedNodeV2(edge.downstreamNodeId) ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId] : null;
-    for (const [column, flowNumeratorDerivative] of flowNumeratorDerivativeByColumn) {
-      const dFlowDVolume = flowNumeratorDerivative / dPressureLossDFlowMmHgSecPerMl;
+    const upstreamRow = upstreamConservedIndex >= 0 ? upstreamConservedIndex : null;
+    const downstreamRow = downstreamConservedIndex >= 0 ? downstreamConservedIndex : null;
+    for (let derivativeIndex = 0; derivativeIndex < flowNumeratorDerivativeCount; derivativeIndex += 1) {
+      const column = flowNumeratorDerivativeColumn[derivativeIndex];
+      const dFlowDVolume = flowNumeratorDerivative[derivativeIndex] / dPressureLossDFlowMmHgSecPerMl;
       if (upstreamRow !== null) {
-        jacobian[upstreamRow][column] += dtSec * dFlowDVolume;
+        {
+          jacobian[upstreamRow][column] += dtSec * dFlowDVolume;
+        }
       }
       if (downstreamRow !== null) {
-        jacobian[downstreamRow][column] -= dtSec * dFlowDVolume;
+        {
+          jacobian[downstreamRow][column] -= dtSec * dFlowDVolume;
+        }
       }
+      if (edge.upstreamNodeId === "Ao") ;
+      if (edge.edgeId === "CV_RA") ;
     }
   });
-  jacobian.forEach((row, index) => {
-    requireFiniteVectorV2(row, `coronary analytic residual Jacobian row ${index}`);
-  });
+  {
+    jacobian.forEach((row, index) => {
+      requireFiniteVectorV2(
+        row,
+        `coronary analytic residual Jacobian row ${index}`
+      );
+    });
+  }
   return jacobian;
 }
 function analyticCoronaryObservableDirectionalDerivativesV2(candidate, dVolume, hydraulics, direction, topology, edgeIndex) {
   const boundaryDerivative = centralCoronaryBoundaryDirectionalDerivativeV2(direction);
   const conservedNodeAbsolutePressureDerivative = (nodeId) => {
     const nodeIndex = CANONICAL_NODE_INDEX_V2[nodeId];
-    const compliance = evaluateCrefAnchoredCollapsiblePvV2(
+    const compliance = evaluateCrefAnchoredCollapsibleComplianceV2(
       candidate[nodeIndex],
       nodeByIdV2(nodeId, topology).pressureVolume
-    ).complianceMlPerMmHg;
+    );
     if (!Number.isFinite(compliance) || compliance <= 0) {
       throw new Error(
         `${nodeId} coronary pressure-volume compliance is not positive and finite`
@@ -10259,7 +10972,7 @@ function analyticCoronaryObservableDirectionalDerivativesV2(candidate, dVolume, 
     commonVenousOutletDerivative
   };
 }
-function analyticCoronaryBoundaryResidualDirectionalDerivativeV2(hydraulics, direction, dtSec, topology) {
+function analyticCoronaryBoundaryResidualDirectionalDerivativeV2(hydraulics, direction, dtSec, topology, scratchStorage) {
   const boundaryDerivative = centralCoronaryBoundaryDirectionalDerivativeV2(direction);
   const absolutePressureDerivative = (nodeId) => {
     if (nodeId === "Ao") {
@@ -10273,21 +10986,24 @@ function analyticCoronaryBoundaryResidualDirectionalDerivativeV2(hydraulics, dir
       boundaryDerivative
     );
   };
-  const flowDerivative = topology.edges.map((edge, edgeIndex) => {
+  const flowDerivative = scratchStorage?.boundaryFlowDerivative ?? Array(topology.edges.length).fill(0);
+  topology.edges.forEach((edge, edgeIndex) => {
     const pressureDropDerivative = absolutePressureDerivative(edge.upstreamNodeId) - absolutePressureDerivative(edge.downstreamNodeId);
-    return pressureDropDerivative / coronaryPressureFlowTangentV2(
+    flowDerivative[edgeIndex] = pressureDropDerivative / coronaryPressureFlowTangentV2(
       hydraulics.flowByEdge[edgeIndex],
       hydraulics.linearResistanceByEdge[edgeIndex],
       hydraulics.quadraticResistanceByEdge[edgeIndex],
       edge.edgeId
     );
   });
-  const residualDerivative = Array(topology.nodes.length).fill(0);
+  const residualDerivative = scratchStorage?.boundaryResidualDerivative ?? Array(topology.nodes.length).fill(0);
+  residualDerivative.fill(0);
   accumulateFlowContinuityV2(
     residualDerivative,
     flowDerivative,
     dtSec,
-    topology
+    topology,
+    scratchStorage?.topologyPlan
   );
   requireFiniteVectorV2(
     residualDerivative,
@@ -10369,19 +11085,30 @@ function lineSearchV2(candidate, step, residualNorm, evaluate, maximumBacktracks
     0
   );
 }
-function solveDenseLinearSystemV2(matrix, rhs) {
+function solveDenseLinearSystemV2(matrix, rhs, scratchStorage) {
   return solveFactoredDenseLinearSystemV2(
-    factorDenseLinearSystemV2(matrix),
-    rhs
+    factorDenseLinearSystemV2(
+      matrix,
+      scratchStorage?.linearFactorization
+    ),
+    rhs,
+    scratchStorage?.transformedLinearRhs,
+    scratchStorage?.linearSolution
   );
 }
-function factorDenseLinearSystemV2(matrix) {
+function factorDenseLinearSystemV2(matrix, destination) {
   const n = matrix.length;
-  const upper = matrix.map((row) => row.slice());
-  const stages = [];
+  const factorization = destination ?? createMutableDenseLinearFactorizationV2(n);
+  const { upper, stages } = factorization;
+  if (upper.length !== n || upper.some((row) => row.length !== n) || stages.length !== n || stages.some((stage) => stage.factorByRow.length !== n)) {
+    throw new RangeError("coronary V2 factorization destination differs");
+  }
   for (let row = 0; row < n; row += 1) {
-    if (upper[row].length !== n) {
+    if (matrix[row].length !== n) {
       throw new RangeError("coronary V2 linear system matrix must be square");
+    }
+    for (let column = 0; column < n; column += 1) {
+      upper[row][column] = matrix[row][column];
     }
   }
   for (let column = 0; column < n; column += 1) {
@@ -10399,7 +11126,10 @@ function factorDenseLinearSystemV2(matrix) {
       );
     }
     [upper[column], upper[pivotRow]] = [upper[pivotRow], upper[column]];
-    const factorByRow = Array(n).fill(0);
+    const stage = stages[column];
+    stage.pivotRow = pivotRow;
+    const factorByRow = stage.factorByRow;
+    factorByRow.fill(0);
     for (let row = column + 1; row < n; row += 1) {
       const factor = upper[row][column] / upper[column][column];
       factorByRow[row] = factor;
@@ -10408,18 +11138,26 @@ function factorDenseLinearSystemV2(matrix) {
         upper[row][j] -= factor * upper[column][j];
       }
     }
-    stages.push({ pivotRow, factorByRow });
   }
-  return { upper, stages };
+  return factorization;
 }
-function solveFactoredDenseLinearSystemV2(factorization, rhs) {
+function solveFactoredDenseLinearSystemV2(factorization, rhs, transformedRhsDestination, solutionDestination) {
   const n = rhs.length;
   if (factorization.upper.length !== n || factorization.stages.length !== n) {
     throw new RangeError(
       "coronary V2 factorization and right-hand side dimensions differ"
     );
   }
-  const transformedRhs = rhs.slice();
+  const transformedRhs = transformedRhsDestination ?? Array(n).fill(0);
+  const solution = solutionDestination ?? Array(n).fill(0);
+  if (transformedRhs.length !== n || solution.length !== n) {
+    throw new RangeError(
+      "coronary V2 linear solution destination dimensions differ"
+    );
+  }
+  for (let index = 0; index < n; index += 1) {
+    transformedRhs[index] = rhs[index];
+  }
   for (let column = 0; column < n; column += 1) {
     const stage = factorization.stages[column];
     [transformedRhs[column], transformedRhs[stage.pivotRow]] = [transformedRhs[stage.pivotRow], transformedRhs[column]];
@@ -10427,7 +11165,7 @@ function solveFactoredDenseLinearSystemV2(factorization, rhs) {
       transformedRhs[row] -= stage.factorByRow[row] * transformedRhs[column];
     }
   }
-  const solution = Array(n).fill(0);
+  solution.fill(0);
   for (let row = n - 1; row >= 0; row -= 1) {
     let value = transformedRhs[row];
     for (let column = row + 1; column < n; column += 1) {
@@ -10461,25 +11199,29 @@ function totalInletFlowV2(flows, edgeIndex) {
   );
 }
 function edgeArrayToRecordV2(values2, edgeIndex) {
-  return Object.freeze(Object.fromEntries(CORONARY_EDGE_IDS_V2.map((edgeId) => [
-    edgeId,
-    values2[edgeIndex[edgeId]]
-  ])));
+  const result = {};
+  for (const edgeId of CORONARY_EDGE_IDS_V2) {
+    result[edgeId] = values2[edgeIndex[edgeId]];
+  }
+  return Object.freeze(result);
 }
 function territoryRecordV2(value) {
-  return Object.freeze(Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map(
-    (territoryId) => [territoryId, value(territoryId)]
-  )));
+  const result = {};
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    result[territoryId] = value(territoryId);
+  }
+  return Object.freeze(result);
 }
 function territoryLayerRecordV2(value) {
-  return Object.freeze(Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map(
-    (territoryId) => [territoryId, Object.freeze(Object.fromEntries(
-      CORONARY_LAYER_IDS_V2.map((layerId) => [
-        layerId,
-        value(territoryId, layerId)
-      ])
-    ))]
-  )));
+  const result = {};
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    const layers = {};
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      layers[layerId] = value(territoryId, layerId);
+    }
+    result[territoryId] = Object.freeze(layers);
+  }
+  return Object.freeze(result);
 }
 function freezeAcceptedStateV2(state, topology) {
   const frozen = Object.freeze({
@@ -10510,14 +11252,15 @@ function validateVolumesV2(volumes, topology, minimumReferenceFraction) {
   if (volumes.length !== CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length) {
     throw new RangeError("coronary V2 state must own exactly sixteen volumes");
   }
-  volumes.forEach((volume, index) => {
+  for (let index = 0; index < volumes.length; index += 1) {
+    const volume = volumes[index];
     const minimum = topology.nodes[index].pressureVolume.referenceVolumeMl * minimumReferenceFraction;
     if (!Number.isFinite(volume) || volume <= minimum) {
       throw new RangeError(
         `${CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]} volume is outside positive domain`
       );
     }
-  });
+  }
 }
 function validateTrialInputV2(input) {
   if (!Number.isFinite(input.dtSec) || input.dtSec <= 0) {
@@ -10649,12 +11392,11 @@ function volumeRecordToArrayV2(record) {
   return CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId) => record[nodeId]);
 }
 function arrayToVolumeRecordV2(volumes) {
-  return Object.freeze(Object.fromEntries(
-    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
-      nodeId,
-      volumes[index]
-    ])
-  ));
+  const result = {};
+  for (let index = 0; index < CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length; index += 1) {
+    result[CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[index]] = volumes[index];
+  }
+  return Object.freeze(result);
 }
 function hydraulicPressureIndexV2(nodeId) {
   if (nodeId === "Ao") return 0;
@@ -10713,7 +11455,7 @@ function resolveMainWireCoronaryBoundaryV2(sample, impMechanism, shorteningRefer
   validateImpMechanism(impMechanism);
   validateBoundarySample(sample, impMechanism);
   validateShorteningPrior(shorteningPrior);
-  const cep = impMechanism !== "source-cep-land-active" ? evaluateAllCoronaryImpV1({
+  const cep = impMechanism !== "source-cep-land-active" ? evaluateAllCoronaryImpPressureV1({
     externalPressureMmHg: sample.mechanicsInput.externalPressureMmHg,
     chamberTransmuralPressureMmHg: sample.mechanicsInput.chamberTransmuralPressureMmHg,
     landActiveFiberStressPaByWall: Object.freeze({
@@ -10721,7 +11463,7 @@ function resolveMainWireCoronaryBoundaryV2(sample, impMechanism, shorteningRefer
       SEP: 0,
       RVFW: 0
     })
-  }) : null;
+  }, "cavity-induced") : null;
   const shorteningPressure = impMechanism === "cep-shortening-induced" ? evaluateMainWireCoronaryShorteningImpV2(
     sample.effectiveFiberLogStrainByWall,
     shorteningReference2,
@@ -10731,7 +11473,7 @@ function resolveMainWireCoronaryBoundaryV2(sample, impMechanism, shorteningRefer
     (territoryId) => [territoryId, Object.fromEntries(
       CORONARY_LAYER_IDS_V2.map((layerId) => [
         layerId,
-        cep[territoryId][layerId].cavityInducedExtracellularPressureMmHg + (shorteningPressure?.[territoryId] ?? 0)
+        cep[territoryId][layerId] + (shorteningPressure?.[territoryId] ?? 0)
       ])
     )]
   )));
@@ -11056,8 +11798,8 @@ function evaluatePreparedWholeHeartMechanicsTrialEagerV1(preparedStep, context, 
   );
   return trial;
 }
-function sealPreparedWholeHeartMechanicsCandidateProbeV1(preparedStep, probe) {
-  const context = preparedStepInternal(preparedStep);
+function livePreparedWholeHeartMechanicsCandidateProbeInternalV1(preparedStep, probe) {
+  preparedStepInternal(preparedStep);
   if (probe.probeId !== WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID || probe.providerId !== preparedStep.providerId || probe.parameterSetId !== preparedStep.parameterSetId || probe.parameterIdentityHash !== preparedStep.parameterIdentityHash || probe.stateSchemaVersion !== preparedStep.stateSchemaVersion || probe.baseRevision !== preparedStep.baseRevision || !nearlyEqual$6(
     probe.baseAcceptedTimeSec,
     preparedStep.baseAcceptedTimeSec
@@ -11077,6 +11819,20 @@ function sealPreparedWholeHeartMechanicsCandidateProbeV1(preparedStep, probe) {
       "whole-heart mechanics candidate probe does not belong to prepared step"
     );
   }
+  return internal;
+}
+function inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1(preparedStep, probe) {
+  return livePreparedWholeHeartMechanicsCandidateProbeInternalV1(
+    preparedStep,
+    probe
+  ).readback;
+}
+function sealPreparedWholeHeartMechanicsCandidateProbeV1(preparedStep, probe) {
+  const context = preparedStepInternal(preparedStep);
+  const internal = livePreparedWholeHeartMechanicsCandidateProbeInternalV1(
+    preparedStep,
+    probe
+  );
   const diagnostics = Object.freeze({
     ...probe.diagnostics,
     readback: internal.readback
@@ -11267,6 +12023,11 @@ function validateProvider(provider) {
   if (provider.cloneDrivingInputs !== void 0 && typeof provider.cloneDrivingInputs !== "function") {
     throw new Error("cloneDrivingInputs must be a function when provided");
   }
+  if (provider.fingerprintMaterialStateCanonicalV1 !== void 0 && typeof provider.fingerprintMaterialStateCanonicalV1 !== "function") {
+    throw new Error(
+      "fingerprintMaterialStateCanonicalV1 must be a function when provided"
+    );
+  }
   if (provider.acceptedStateInputMode !== void 0 && provider.acceptedStateInputMode !== "defensive-clone" && provider.acceptedStateInputMode !== "trusted-read-only-prepared-snapshot") {
     throw new Error("acceptedStateInputMode is unsupported");
   }
@@ -11406,29 +12167,44 @@ function snapshotMaterialState(provider, state, label) {
   });
 }
 function fingerprintSerializable(value) {
-  const text = canonicalSerializableString(value);
-  let hash = 2166136261;
+  const hash = updateCanonicalSerializableHash(value, 2166136261);
+  return hash.toString(16).padStart(8, "0");
+}
+function updateCanonicalSerializableHash(value, initialHash) {
+  if (value === null || typeof value === "boolean" || typeof value === "string") {
+    return updateFnv1aString(initialHash, JSON.stringify(value));
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("cannot fingerprint a non-finite number");
+    return updateFnv1aString(initialHash, JSON.stringify(value));
+  }
+  if (Array.isArray(value)) {
+    let hash2 = updateFnv1aString(initialHash, "[");
+    for (let index = 0; index < value.length; index += 1) {
+      if (index !== 0) hash2 = updateFnv1aString(hash2, ",");
+      hash2 = updateCanonicalSerializableHash(value[index], hash2);
+    }
+    return updateFnv1aString(hash2, "]");
+  }
+  const record = value;
+  const keys = Object.keys(record).sort();
+  let hash = updateFnv1aString(initialHash, "{");
+  for (let index = 0; index < keys.length; index += 1) {
+    if (index !== 0) hash = updateFnv1aString(hash, ",");
+    const key = keys[index];
+    hash = updateFnv1aString(hash, JSON.stringify(key));
+    hash = updateFnv1aString(hash, ":");
+    hash = updateCanonicalSerializableHash(record[key], hash);
+  }
+  return updateFnv1aString(hash, "}");
+}
+function updateFnv1aString(initialHash, text) {
+  let hash = initialHash;
   for (let index = 0; index < text.length; index += 1) {
     hash ^= text.charCodeAt(index);
     hash = Math.imul(hash, 16777619) >>> 0;
   }
-  return hash.toString(16).padStart(8, "0");
-}
-function canonicalSerializableString(value) {
-  if (value === null || typeof value === "boolean" || typeof value === "string") {
-    return JSON.stringify(value);
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error("cannot fingerprint a non-finite number");
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalSerializableString).join(",")}]`;
-  }
-  const record = value;
-  return `{${Object.keys(record).sort().map(
-    (key) => `${JSON.stringify(key)}:${canonicalSerializableString(record[key])}`
-  ).join(",")}}`;
+  return hash;
 }
 function copyChambers(value) {
   return Object.freeze({ LA: value.LA, LV: value.LV, RA: value.RA, RV: value.RV });
@@ -11549,6 +12325,8 @@ const MAIN_WIRE_FIVE_WALL_IDS_V1 = Object.freeze([
   "RVFW",
   "RA"
 ]);
+const NUMERICAL_PROVIDER_FACTORIES_V1 = /* @__PURE__ */ new WeakMap();
+const NUMERICAL_EVALUATION_INTERNALS_V1 = /* @__PURE__ */ new WeakMap();
 const PA_PER_MMHG$2 = 133.322;
 const ONE_JOULE = 1;
 const STATE_SCHEMA_VERSION = 2;
@@ -11604,7 +12382,7 @@ function createMainWireFiveWallLandTriSegProviderV1(params) {
       coldConsistencyIterations = consistency + 1;
       if (solved.converged === false) {
         return failedProviderEvaluation(
-          initialCandidate.state,
+          requireMaterializedCandidateStateV1(initialCandidate),
           initialCandidate.transmuralPressuresMmHg,
           solved,
           "cold",
@@ -11636,7 +12414,7 @@ function createMainWireFiveWallLandTriSegProviderV1(params) {
         residualNorm: lastSolve?.converged ? lastSolve.residualNorm : Number.MAX_VALUE
       });
       return failedProviderEvaluation(
-        initialCandidate.state,
+        requireMaterializedCandidateStateV1(initialCandidate),
         initialCandidate.transmuralPressuresMmHg,
         failure2,
         "cold",
@@ -11645,7 +12423,7 @@ function createMainWireFiveWallLandTriSegProviderV1(params) {
       );
     }
     return failedProviderEvaluation(
-      initialCandidate.state,
+      requireMaterializedCandidateStateV1(initialCandidate),
       initialCandidate.transmuralPressuresMmHg,
       lastSolve,
       "cold",
@@ -11693,22 +12471,213 @@ function createMainWireFiveWallLandTriSegProviderV1(params) {
       params
     );
   };
-  return Object.freeze({
+  const provider = Object.freeze({
     contractId: WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
     providerId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
     parameterSetId: params.parameterSetId,
     parameterIdentityHash,
     stateSchemaVersion: STATE_SCHEMA_VERSION,
     stateCodec,
+    fingerprintMaterialStateCanonicalV1: params.fingerprintMaterialStateCanonicalV1,
     acceptedStateInputMode: "trusted-read-only-prepared-snapshot",
     evaluationResultOwnershipMode: "exclusive-result",
     initializeCold,
     evaluateTrial
   });
+  NUMERICAL_PROVIDER_FACTORIES_V1.set(provider, Object.freeze({
+    prepare: (input) => {
+      if (!parameterIdentityInputsAreImmutable) {
+        assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+      }
+      requireFinite$h(input.candidateTimeSec, "candidateTimeSec");
+      requirePositive$3(input.stepDtSec, "stepDtSec");
+      validateDrive(input.drivingInputs);
+      const previous = stateCodec.clone(
+        input.previousAcceptedMaterialState
+      );
+      const drive = input.drivingInputs;
+      const initialUnknowns = coordinatesToScaledUnknowns(
+        previous.trisegCoordinates,
+        params
+      );
+      const fixedInternalTrialAtrialMaterialReuse = { LA: null, RA: null };
+      return Object.freeze({
+        initialScaledInternalCoordinates: initialUnknowns,
+        evaluate: (candidateVolumesMl) => {
+          validateVolumes(candidateVolumesMl);
+          const solved = solveInternalCoordinates(
+            candidateVolumesMl,
+            drive,
+            initialUnknowns,
+            {
+              kind: "trial",
+              previousState: previous,
+              stepDtSec: input.stepDtSec,
+              materialEvaluationMode: "numerical"
+            },
+            params,
+            solver
+          );
+          if (solved.converged === false) {
+            throw new Error(
+              `five-wall numerical mechanics candidate failed: ${solved.message}`
+            );
+          }
+          return numericalMechanicsEvaluationFromSolveV1(
+            candidateVolumesMl,
+            solved,
+            params
+          );
+        },
+        evaluateAtFixedInternalCoordinates: (candidateVolumesMl, scaledInternalCoordinates) => {
+          validateVolumes(candidateVolumesMl);
+          const candidate = evaluateCandidate(
+            candidateVolumesMl,
+            drive,
+            scaledInternalCoordinates,
+            {
+              kind: "trial",
+              previousState: previous,
+              stepDtSec: input.stepDtSec,
+              materialEvaluationMode: "numerical"
+            },
+            params,
+            solver,
+            null,
+            fixedInternalTrialAtrialMaterialReuse
+          );
+          return fixedInternalMechanicsEvaluationV1(
+            candidate,
+            scaledInternalCoordinates,
+            params
+          );
+        }
+      });
+    }
+  }));
+  return provider;
+}
+function numericalMechanicsEvaluationFromSolveV1(candidateVolumesMl, solved, params) {
+  let consistentTangent;
+  try {
+    consistentTangent = consistentTransmuralPressureVolumeTangentMmHgPerMl(solved, params);
+  } catch {
+    consistentTangent = void 0;
+  }
+  const evaluation = Object.freeze({
+    candidateVolumesMl: solved.candidate.volumesMl,
+    scaledInternalCoordinates: Object.freeze([
+      solved.scaledUnknowns[0],
+      solved.scaledUnknowns[1]
+    ]),
+    transmuralPressuresMmHg: solved.candidate.transmuralPressuresMmHg,
+    ...consistentTangent === void 0 ? {} : {
+      transmuralPressureVolumeTangentMmHgPerMl: consistentTangent.transmuralPressureVolumeTangentMmHgPerMl,
+      ventricularCoronaryBoundaryTangent: consistentTangent.ventricularCoronaryBoundaryTangent
+    },
+    effectiveFiberLogStrainByWall: solved.candidate.effectiveFiberLogStrainByWall,
+    activeFiberKirchhoffStressPaByWall: fiveWallRecord$1((wallId) => solved.candidate.materialByWall[wallId].activeFiberKirchhoffStressPa),
+    iterationCount: solved.iterations,
+    residualNorm: solved.residualNorm,
+    ...solved.evaluationCounters === void 0 ? {} : { evaluationCounters: solved.evaluationCounters }
+  });
+  NUMERICAL_EVALUATION_INTERNALS_V1.set(evaluation, {
+    materialized: false,
+    materializeCandidateState: () => materializeCandidateStateV1(
+      solved.candidate,
+      params,
+      "trial"
+    )
+  });
+  return evaluation;
+}
+function fixedInternalMechanicsEvaluationV1(candidate, scaledInternalCoordinates, params) {
+  const hessian = analyticTriSegAlgorithmicHessian(candidate, params);
+  const coordinateScales = [
+    params.internalCoordinateScales.septalMidwallCapVolumeM3,
+    params.internalCoordinateScales.junctionRadiusM
+  ];
+  const pressureDerivative = new Float64Array(4 * 6);
+  pressureDerivative[0 * 6 + 0] = atrialPressureVolumeTangentMmHgPerMl(
+    candidate.volumesMl.LA,
+    params.atria.LA,
+    candidate.fiberKirchhoffStressPaByWall.LA,
+    candidate.materialByWall.LA.algorithmicFiberTangentPa
+  );
+  pressureDerivative[2 * 6 + 2] = atrialPressureVolumeTangentMmHgPerMl(
+    candidate.volumesMl.RA,
+    params.atria.RA,
+    candidate.fiberKirchhoffStressPaByWall.RA,
+    candidate.materialByWall.RA.algorithmicFiberTangentPa
+  );
+  for (let ventricularPressureRow = 0; ventricularPressureRow < 2; ventricularPressureRow += 1) {
+    const pressureRow = ventricularPressureRow === 0 ? 1 : 3;
+    pressureDerivative[pressureRow * 6 + 1] = hessian[ventricularPressureRow * 4] * 1e-6 / PA_PER_MMHG$2;
+    pressureDerivative[pressureRow * 6 + 3] = hessian[ventricularPressureRow * 4 + 1] * 1e-6 / PA_PER_MMHG$2;
+    pressureDerivative[pressureRow * 6 + 4] = hessian[ventricularPressureRow * 4 + 2] * coordinateScales[0] / PA_PER_MMHG$2;
+    pressureDerivative[pressureRow * 6 + 5] = hessian[ventricularPressureRow * 4 + 3] * coordinateScales[1] / PA_PER_MMHG$2;
+  }
+  const internalResidualDerivative = new Float64Array(2 * 6);
+  for (let residualRow = 0; residualRow < 2; residualRow += 1) {
+    internalResidualDerivative[residualRow * 6 + 1] = hessian[(residualRow + 2) * 4] * coordinateScales[residualRow] * 1e-6 / ONE_JOULE;
+    internalResidualDerivative[residualRow * 6 + 3] = hessian[(residualRow + 2) * 4 + 1] * coordinateScales[residualRow] * 1e-6 / ONE_JOULE;
+    for (let coordinateColumn = 0; coordinateColumn < 2; coordinateColumn += 1) {
+      internalResidualDerivative[residualRow * 6 + 4 + coordinateColumn] = hessian[(residualRow + 2) * 4 + coordinateColumn + 2] * coordinateScales[residualRow] * coordinateScales[coordinateColumn] / ONE_JOULE;
+    }
+  }
+  const ventricularWallIds = ["LVFW", "SEP", "RVFW"];
+  const capVolumeGradientByWall = {
+    LVFW: [-1, 0, 1],
+    SEP: [0, 0, 1],
+    RVFW: [0, 1, 1]
+  };
+  const strainDerivative = new Float64Array(3 * 4);
+  const activeStressDerivative = new Float64Array(3 * 4);
+  for (let wallIndex = 0; wallIndex < ventricularWallIds.length; wallIndex += 1) {
+    const wallId = ventricularWallIds[wallIndex];
+    const first = candidate.triseg.wallDerivativeByWall[wallId];
+    const capGradient = capVolumeGradientByWall[wallId];
+    strainDerivative[wallIndex * 4 + 0] = capGradient[0] * first.dFiberLogStrainDCapVolumePerM3 * 1e-6;
+    strainDerivative[wallIndex * 4 + 1] = capGradient[1] * first.dFiberLogStrainDCapVolumePerM3 * 1e-6;
+    strainDerivative[wallIndex * 4 + 2] = capGradient[2] * first.dFiberLogStrainDCapVolumePerM3 * coordinateScales[0];
+    strainDerivative[wallIndex * 4 + 3] = first.dFiberLogStrainDJunctionRadiusPerM * coordinateScales[1];
+    const activeTangent = candidate.materialByWall[wallId].activeFiberAlgorithmicTangentPa;
+    for (let column = 0; column < 4; column += 1) {
+      activeStressDerivative[wallIndex * 4 + column] = activeTangent * strainDerivative[wallIndex * 4 + column];
+    }
+  }
+  if (![
+    ...pressureDerivative,
+    ...internalResidualDerivative,
+    ...strainDerivative,
+    ...activeStressDerivative
+  ].every(Number.isFinite)) {
+    throw new Error("fixed internal mechanics derivative is non-finite");
+  }
+  return Object.freeze({
+    candidateVolumesMl: Object.freeze({ ...candidate.volumesMl }),
+    scaledInternalCoordinates: Object.freeze([
+      scaledInternalCoordinates[0],
+      scaledInternalCoordinates[1]
+    ]),
+    transmuralPressuresMmHg: candidate.transmuralPressuresMmHg,
+    internalResidualByOneJ: Object.freeze([
+      candidate.scaledAlgorithmicGeneralizedForceByOneJ[0],
+      candidate.scaledAlgorithmicGeneralizedForceByOneJ[1]
+    ]),
+    transmuralPressureDerivativeRowMajor: pressureDerivative,
+    internalResidualDerivativeRowMajor: internalResidualDerivative,
+    effectiveFiberLogStrainByWall: candidate.effectiveFiberLogStrainByWall,
+    activeFiberKirchhoffStressPaByWall: fiveWallRecord$1((wallId) => candidate.materialByWall[wallId].activeFiberKirchhoffStressPa),
+    ventricularFiberStrainDerivativeRowMajor: strainDerivative,
+    ventricularActiveStressDerivativeRowMajor: activeStressDerivative
+  });
 }
 function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode, params, solver) {
   let current = [...initialScaledUnknowns];
   let currentCandidate;
+  const hessianScratch = new Float64Array(16);
+  const wallSecondDerivativeScratch = new Float64Array(3);
   let acceptedLineSearchSteps = 0;
   let lineSearchBacktracks = 0;
   const evaluationCounters = drive.evaluationCounterCollection === "enabled" ? createMutableEvaluationCounters() : null;
@@ -11746,7 +12715,9 @@ function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode,
       try {
         jacobian2 = analyticScaledInternalJacobian(
           currentCandidate,
-          params
+          params,
+          hessianScratch,
+          wallSecondDerivativeScratch
         );
       } catch (error) {
         return internalFailure({
@@ -11821,7 +12792,9 @@ function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode,
     try {
       jacobian = analyticScaledInternalJacobian(
         currentCandidate,
-        params
+        params,
+        hessianScratch,
+        wallSecondDerivativeScratch
       );
     } catch (error) {
       return internalFailure({
@@ -12002,12 +12975,14 @@ function evaluateCandidate(volumesMl, drive, scaledUnknowns, mode, params, solve
       freeCalciumUM,
       mode.stepDtSec,
       trialAtrialMaterialReuse,
-      evaluationCounters
-    ) : kernel.evaluateTrialFromAccepted({
+      evaluationCounters,
+      mode.materialEvaluationMode === "numerical"
+    ) : (mode.materialEvaluationMode === "numerical" && kernel.evaluateNumericalTrialFromAccepted !== void 0 ? kernel.evaluateNumericalTrialFromAccepted : kernel.evaluateTrialFromAccepted)({
       // Every constitutive evaluation receives a fresh clone of exactly the
       // same accepted wall state. Candidate order therefore cannot advance
       // or contaminate constitutive history.
-      previousAcceptedState: kernel.stateCodec.clone(
+      previousAcceptedState: materialAcceptedStateForEvaluationV1(
+        kernel,
         mode.previousState.wallStateByWall[wallId]
       ),
       candidateFiberLogStrain: fiberLogStrain,
@@ -12075,16 +13050,15 @@ function evaluateCandidate(volumesMl, drive, scaledUnknowns, mode, params, solve
       "totalAlgorithmicStressPrimitiveJ"
     );
   }
-  const state = Object.freeze({
-    // A reuse hit shares only a private, read-only constitutive evaluation.
-    // Every Newton candidate still owns fresh wall-state clones, so neither a
-    // discarded line-search point nor the returned result aliases another.
-    wallStateByWall: fiveWallRecord$1((wallId) => params.materialByWall[wallId].stateCodec.clone(materialByWall[wallId].state)),
-    trisegCoordinates: Object.freeze({ ...coordinates })
-  });
+  const state = mode.kind === "trial" && mode.materialEvaluationMode === "numerical" ? null : materializeCandidateStateV1(
+    Object.freeze({ materialByWall, internalCoordinates: coordinates }),
+    params,
+    mode.kind
+  );
   return Object.freeze({
     volumesMl: Object.freeze({ ...volumesMl }),
     state,
+    internalCoordinates: coordinates,
     geometry,
     triseg,
     materialByWall,
@@ -12099,7 +13073,27 @@ function evaluateCandidate(volumesMl, drive, scaledUnknowns, mode, params, solve
     maximumMaterialResidualNorm
   });
 }
-function evaluateTrialAtrialMaterialWithReuse(wallId, kernel, previousAcceptedState, candidateFiberLogStrain, candidateFreeCalciumUM, stepDtSec, reuse, evaluationCounters) {
+function materializeCandidateStateV1(candidate, params, solveMode) {
+  return Object.freeze({
+    // Atrial reuse hits share one private evaluation across the internal
+    // TriSeg candidates. Public trial materialization therefore keeps the
+    // previous defensive-clone rule. Model-owned numerical candidates delay
+    // this work until the converged root rather than cloning at every probe.
+    wallStateByWall: fiveWallRecord$1((wallId) => {
+      const kernel = params.materialByWall[wallId];
+      const canRetainExclusiveResult = kernel.evaluationStateOwnershipMode === "exclusive-result" && (solveMode === "cold" || wallId !== "LA" && wallId !== "RA");
+      return canRetainExclusiveResult ? candidate.materialByWall[wallId].state : kernel.stateCodec.clone(candidate.materialByWall[wallId].state);
+    }),
+    trisegCoordinates: Object.freeze({ ...candidate.internalCoordinates })
+  });
+}
+function requireMaterializedCandidateStateV1(candidate) {
+  if (candidate.state === null) {
+    throw new Error("public mechanics candidate state was not materialized");
+  }
+  return candidate.state;
+}
+function evaluateTrialAtrialMaterialWithReuse(wallId, kernel, previousAcceptedState, candidateFiberLogStrain, candidateFreeCalciumUM, stepDtSec, reuse, evaluationCounters, numerical) {
   if (reuse === null) {
     throw new Error("trial atrial material reuse is unavailable");
   }
@@ -12116,10 +13110,14 @@ function evaluateTrialAtrialMaterialWithReuse(wallId, kernel, previousAcceptedSt
   if (evaluationCounters !== null) {
     evaluationCounters.atrialMaterialEvaluationCountByWall[wallId] += 1;
   }
-  const evaluation = kernel.evaluateTrialFromAccepted({
+  const evaluateTrial = numerical && kernel.evaluateNumericalTrialFromAccepted !== void 0 ? kernel.evaluateNumericalTrialFromAccepted : kernel.evaluateTrialFromAccepted;
+  const evaluation = evaluateTrial({
     // Keep the constitutive isolation guarantee on a cache miss: the kernel
     // never receives the accepted wall object held by this solve.
-    previousAcceptedState: kernel.stateCodec.clone(previousAcceptedState),
+    previousAcceptedState: materialAcceptedStateForEvaluationV1(
+      kernel,
+      previousAcceptedState
+    ),
     candidateFiberLogStrain,
     candidateFreeCalciumUM,
     stepDtSec
@@ -12137,6 +13135,9 @@ function trialAtrialMaterialReuseKeysMatch(left, right) {
     right.candidateFreeCalciumUM
   ) && Object.is(left.stepDtSec, right.stepDtSec);
 }
+function materialAcceptedStateForEvaluationV1(kernel, previousAcceptedState) {
+  return kernel.acceptedStateInputMode === "trusted-read-only" ? previousAcceptedState : kernel.stateCodec.clone(previousAcceptedState);
+}
 function ventricularMaterialTangents(center) {
   const wallIds = ["LVFW", "SEP", "RVFW"];
   const tangentByWall = {};
@@ -12147,9 +13148,17 @@ function ventricularMaterialTangents(center) {
   }
   return Object.freeze(tangentByWall);
 }
-function analyticTriSegAlgorithmicHessian(center, params) {
+function analyticTriSegAlgorithmicHessian(center, params, destination = new Float64Array(16), wallSecondDerivativeScratch = new Float64Array(3)) {
+  if (destination.length !== 16) {
+    throw new RangeError("TriSeg algorithmic Hessian requires 16 f64 values");
+  }
+  destination.fill(0);
   const tangentByWall = ventricularMaterialTangents(center);
-  const hessian = Array.from({ length: 4 }, () => [0, 0, 0, 0]);
+  if (wallSecondDerivativeScratch.length !== 3) {
+    throw new RangeError(
+      "TriSeg wall second derivative scratch requires three f64 values"
+    );
+  }
   const capVolumeGradientByWall = {
     LVFW: [-1, 0, 1],
     SEP: [0, 0, 1],
@@ -12157,8 +13166,9 @@ function analyticTriSegAlgorithmicHessian(center, params) {
   };
   for (const wallId of ["LVFW", "SEP", "RVFW"]) {
     const first = center.triseg.wallDerivativeByWall[wallId];
-    const second = evaluateTriSegWallSecondDerivativeV1(
-      center.geometry.walls[wallId]
+    writeTriSegWallSecondDerivativeV1(
+      center.geometry.walls[wallId],
+      wallSecondDerivativeScratch
     );
     const capGradient = capVolumeGradientByWall[wallId];
     const strainGradient = [
@@ -12174,32 +13184,39 @@ function analyticTriSegAlgorithmicHessian(center, params) {
       for (let column = row; column < 4; column += 1) {
         let strainSecondDerivative;
         if (row === 3 && column === 3) {
-          strainSecondDerivative = second.d2FiberLogStrainDJunctionRadius2PerM2;
+          strainSecondDerivative = wallSecondDerivativeScratch[2];
         } else if (column === 3) {
-          strainSecondDerivative = capGradient[row] * second.d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4;
+          strainSecondDerivative = capGradient[row] * wallSecondDerivativeScratch[1];
         } else {
-          strainSecondDerivative = capGradient[row] * capGradient[column] * second.d2FiberLogStrainDCapVolume2PerM6;
+          strainSecondDerivative = capGradient[row] * capGradient[column] * wallSecondDerivativeScratch[0];
         }
         const contribution = wallVolumeM3 * (tangentPa * strainGradient[row] * strainGradient[column] + stressPa * strainSecondDerivative);
-        hessian[row][column] += contribution;
-        if (row !== column) hessian[column][row] += contribution;
+        destination[row * 4 + column] += contribution;
+        if (row !== column) destination[column * 4 + row] += contribution;
       }
     }
   }
-  if (!hessian.flat().every(Number.isFinite)) {
-    throw new Error("analytic TriSeg algorithmic Hessian is non-finite");
+  for (const value of destination) {
+    if (!Number.isFinite(value)) {
+      throw new Error("analytic TriSeg algorithmic Hessian is non-finite");
+    }
   }
-  return Object.freeze(hessian.map((row) => Object.freeze(row)));
+  return destination;
 }
-function analyticScaledInternalJacobian(center, params) {
-  const hessian = analyticTriSegAlgorithmicHessian(center, params);
+function analyticScaledInternalJacobian(center, params, hessianScratch, wallSecondDerivativeScratch) {
+  const hessian = analyticTriSegAlgorithmicHessian(
+    center,
+    params,
+    hessianScratch,
+    wallSecondDerivativeScratch
+  );
   const scales = [
     params.internalCoordinateScales.septalMidwallCapVolumeM3,
     params.internalCoordinateScales.junctionRadiusM
   ];
-  const j00 = hessian[2][2] * scales[0] * scales[0] / ONE_JOULE;
-  const j01 = hessian[2][3] * scales[0] * scales[1] / ONE_JOULE;
-  const j11 = hessian[3][3] * scales[1] * scales[1] / ONE_JOULE;
+  const j00 = hessian[2 * 4 + 2] * scales[0] * scales[0] / ONE_JOULE;
+  const j01 = hessian[2 * 4 + 3] * scales[0] * scales[1] / ONE_JOULE;
+  const j11 = hessian[3 * 4 + 3] * scales[1] * scales[1] / ONE_JOULE;
   return Object.freeze([
     Object.freeze([j00, j01]),
     Object.freeze([j01, j11])
@@ -12232,7 +13249,7 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl(solved, params) {
     ventricularWallIds.map((wallId) => [wallId, [0, 0]])
   );
   for (let volumeColumn = 0; volumeColumn < 2; volumeColumn += 1) {
-    const forceColumn = [0, 1].map((coordinateRow) => hessian[coordinateRow + 2][volumeColumn] * coordinateScales[coordinateRow] * 1e-6 / ONE_JOULE);
+    const forceColumn = [0, 1].map((coordinateRow) => hessian[(coordinateRow + 2) * 4 + volumeColumn] * coordinateScales[coordinateRow] * 1e-6 / ONE_JOULE);
     const coordinateResponse = solveLinearSystem(
       solved.scaledAlgorithmicJacobianByOneJ,
       forceColumn
@@ -12240,10 +13257,10 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl(solved, params) {
     if (coordinateResponse === null) return void 0;
     for (let pressureRow = 0; pressureRow < 2; pressureRow += 1) {
       const pressureCoordinateDerivative = [0, 1].reduce(
-        (sum, coordinateColumn) => sum + hessian[pressureRow][coordinateColumn + 2] * coordinateScales[coordinateColumn] / PA_PER_MMHG$2 * coordinateResponse[coordinateColumn],
+        (sum, coordinateColumn) => sum + hessian[pressureRow * 4 + coordinateColumn + 2] * coordinateScales[coordinateColumn] / PA_PER_MMHG$2 * coordinateResponse[coordinateColumn],
         0
       );
-      ventricularPressureTangent[pressureRow][volumeColumn] = hessian[pressureRow][volumeColumn] * 1e-6 / PA_PER_MMHG$2 - pressureCoordinateDerivative;
+      ventricularPressureTangent[pressureRow][volumeColumn] = hessian[pressureRow * 4 + volumeColumn] * 1e-6 / PA_PER_MMHG$2 - pressureCoordinateDerivative;
     }
     for (const wallId of ventricularWallIds) {
       const first = center.triseg.wallDerivativeByWall[wallId];
@@ -12353,7 +13370,7 @@ function successfulProviderEvaluation(solved, solveMode, coldConsistencyIteratio
     readback
   });
   return Object.freeze({
-    materialState: solved.candidate.state,
+    materialState: requireMaterializedCandidateStateV1(solved.candidate),
     transmuralPressuresMmHg: solved.candidate.transmuralPressuresMmHg,
     ...consistentTangent === void 0 ? {} : {
       transmuralPressureVolumeTangentMmHgPerMl: consistentTangent.transmuralPressureVolumeTangentMmHgPerMl
@@ -12373,7 +13390,7 @@ function failedProviderEvaluation(rollbackState, rollbackPressures, failure2, so
     rollbackOnFailure: true,
     coldConsistencyIterations,
     coldConsistencyScaledCoordinateUpdate,
-    lastInternalCoordinates: fallback?.state.trisegCoordinates ?? null,
+    lastInternalCoordinates: fallback?.internalCoordinates ?? null,
     lastScaledAlgorithmicGeneralizedForceByOneJ: fallback?.scaledAlgorithmicGeneralizedForceByOneJ ?? null,
     lastRawAlgorithmicGeneralizedForce: fallback?.rawAlgorithmicGeneralizedForce ?? null,
     lastFiberKirchhoffStressPaByWall: fallback?.fiberKirchhoffStressPaByWall ?? null,
@@ -12401,7 +13418,7 @@ function buildReadback(solved, solveMode, coldConsistencyIterations, coldConsist
     solveMode,
     hiddenBloodVolumeMl: 0,
     pistonVolumeApplied: false,
-    internalCoordinates: candidate.state.trisegCoordinates,
+    internalCoordinates: candidate.internalCoordinates,
     effectiveFiberLogStrainByWall: candidate.effectiveFiberLogStrainByWall,
     fiberKirchhoffStressPaByWall: candidate.fiberKirchhoffStressPaByWall,
     algorithmicStressPrimitiveJByWall: candidate.algorithmicStressPrimitiveJByWall,
@@ -12430,25 +13447,25 @@ function buildReadback(solved, solveMode, coldConsistencyIterations, coldConsist
   });
 }
 function evaluateAlgorithmicJacobianStability(jacobian, solver) {
-  const n = jacobian.length;
-  const symmetric = Array.from({ length: n }, (_, row) => Array.from({ length: n }, (_2, column) => 0.5 * (jacobian[row][column] + jacobian[column][row])));
-  let antisymmetricMaximum = 0;
-  let jacobianInfinityNorm = 0;
-  for (let row = 0; row < n; row += 1) {
-    let rowSum = 0;
-    for (let column = 0; column < n; column += 1) {
-      antisymmetricMaximum = Math.max(
-        antisymmetricMaximum,
-        0.5 * Math.abs(
-          jacobian[row][column] - jacobian[column][row]
-        )
-      );
-      rowSum += Math.abs(jacobian[row][column]);
-    }
-    jacobianInfinityNorm = Math.max(jacobianInfinityNorm, rowSum);
+  if (jacobian.length !== 2 || jacobian[0]?.length !== 2 || jacobian[1]?.length !== 2) {
+    throw new RangeError("internal TriSeg stability requires a 2x2 Jacobian");
   }
+  const j00 = jacobian[0][0];
+  const j01 = jacobian[0][1];
+  const j10 = jacobian[1][0];
+  const j11 = jacobian[1][1];
+  const antisymmetricMaximum = 0.5 * Math.abs(j01 - j10);
+  const jacobianInfinityNorm = Math.max(
+    Math.abs(j00) + Math.abs(j01),
+    Math.abs(j10) + Math.abs(j11)
+  );
   const relative = antisymmetricMaximum / Math.max(Number.MIN_VALUE, jacobianInfinityNorm);
-  const minimumEigenvalue = minimumEigenvalueSymmetric(symmetric);
+  const symmetricOffDiagonal = 0.5 * (j01 + j10);
+  const halfTrace = 0.5 * (j00 + j11);
+  const minimumEigenvalue = halfTrace - Math.hypot(
+    0.5 * (j00 - j11),
+    symmetricOffDiagonal
+  );
   const symmetricWithinTolerance = antisymmetricMaximum === 0;
   return Object.freeze({
     jacobianAntisymmetricMaximumAbsoluteByOneJ: antisymmetricMaximum,
@@ -12459,73 +13476,30 @@ function evaluateAlgorithmicJacobianStability(jacobian, solver) {
   });
 }
 function solveLinearSystem(matrix, rightHandSide) {
-  const n = rightHandSide.length;
-  const augmented = Array.from({ length: n }, (_, row) => [
-    ...matrix[row],
-    rightHandSide[row]
-  ]);
-  const scale = Math.max(1, ...matrix.flat().map(Math.abs));
-  for (let column = 0; column < n; column += 1) {
-    let pivot = column;
-    for (let row = column + 1; row < n; row += 1) {
-      if (Math.abs(augmented[row][column]) > Math.abs(augmented[pivot][column])) pivot = row;
-    }
-    if (Math.abs(augmented[pivot][column]) <= 1e-13 * scale) return null;
-    [augmented[column], augmented[pivot]] = [augmented[pivot], augmented[column]];
-    const pivotValue = augmented[column][column];
-    for (let entry = column; entry <= n; entry += 1) {
-      augmented[column][entry] /= pivotValue;
-    }
-    for (let row = 0; row < n; row += 1) {
-      if (row === column) continue;
-      const factor = augmented[row][column];
-      for (let entry = column; entry <= n; entry += 1) {
-        augmented[row][entry] -= factor * augmented[column][entry];
-      }
-    }
+  if (matrix.length !== 2 || matrix[0]?.length !== 2 || matrix[1]?.length !== 2 || rightHandSide.length !== 2) {
+    throw new RangeError("internal TriSeg solve requires a 2x2 system");
   }
-  const solution = augmented.map((row) => row[n]);
-  return solution.every(Number.isFinite) ? solution : null;
-}
-function minimumEigenvalueSymmetric(matrix) {
-  const n = matrix.length;
-  const work = matrix.map((row) => [...row]);
-  for (let sweep = 0; sweep < 32; sweep += 1) {
-    let p = 0;
-    let q = n > 1 ? 1 : 0;
-    let maximum = 0;
-    for (let row = 0; row < n; row += 1) {
-      for (let column = row + 1; column < n; column += 1) {
-        const value = Math.abs(work[row][column]);
-        if (value > maximum) {
-          maximum = value;
-          p = row;
-          q = column;
-        }
-      }
-    }
-    if (maximum <= 1e-13 * Math.max(1, ...work.flat().map(Math.abs))) break;
-    const app = work[p][p];
-    const aqq = work[q][q];
-    const apq = work[p][q];
-    const angle = 0.5 * Math.atan2(2 * apq, aqq - app);
-    const cosine = Math.cos(angle);
-    const sine = Math.sin(angle);
-    for (let row = 0; row < n; row += 1) {
-      if (row === p || row === q) continue;
-      const arp = work[row][p];
-      const arq = work[row][q];
-      work[row][p] = cosine * arp - sine * arq;
-      work[p][row] = work[row][p];
-      work[row][q] = sine * arp + cosine * arq;
-      work[q][row] = work[row][q];
-    }
-    work[p][p] = cosine * cosine * app - 2 * sine * cosine * apq + sine * sine * aqq;
-    work[q][q] = sine * sine * app + 2 * sine * cosine * apq + cosine * cosine * aqq;
-    work[p][q] = 0;
-    work[q][p] = 0;
+  let a = matrix[0][0];
+  let b = matrix[0][1];
+  let c = matrix[1][0];
+  let d = matrix[1][1];
+  let r0 = rightHandSide[0];
+  let r1 = rightHandSide[1];
+  const scale = Math.max(1, Math.abs(a), Math.abs(b), Math.abs(c), Math.abs(d));
+  if (Math.abs(c) > Math.abs(a)) {
+    [a, c] = [c, a];
+    [b, d] = [d, b];
+    [r0, r1] = [r1, r0];
   }
-  return Math.min(...work.map((row, index) => row[index]));
+  if (Math.abs(a) <= 1e-13 * scale) return null;
+  b /= a;
+  r0 /= a;
+  d -= c * b;
+  r1 -= c * r0;
+  if (Math.abs(d) <= 1e-13 * scale) return null;
+  r1 /= d;
+  r0 -= b * r1;
+  return Number.isFinite(r0) && Number.isFinite(r1) ? [r0, r1] : null;
 }
 function createStateCodec(materialByWall) {
   return Object.freeze({
@@ -12637,6 +13611,14 @@ function validateParams$3(params, solver) {
         throw new Error(`${wallId}.material.stateCodec.${method} must be a function`);
       }
     }
+    if (material.acceptedStateInputMode !== "defensive-clone" && material.acceptedStateInputMode !== "trusted-read-only") {
+      throw new Error(`${wallId}.material.acceptedStateInputMode is invalid`);
+    }
+    if (material.evaluationStateOwnershipMode !== "defensive-clone" && material.evaluationStateOwnershipMode !== "exclusive-result") {
+      throw new Error(
+        `${wallId}.material.evaluationStateOwnershipMode is invalid`
+      );
+    }
   }
   validateAtrialGeometry(params.atria.LA, "atria.LA");
   validateAtrialGeometry(params.atria.RA, "atria.RA");
@@ -12684,7 +13666,8 @@ function validateMaterialEvaluation(evaluation, expectedFiberLogStrain, wallId) 
   }
   requireNonnegative$3(evaluation.residualNorm, `${wallId} material residualNorm`);
   assertFiniteNumbers({
-    fiberKirchhoffStressPa: evaluation.fiberKirchhoffStressPa
+    fiberKirchhoffStressPa: evaluation.fiberKirchhoffStressPa,
+    activeFiberKirchhoffStressPa: evaluation.activeFiberKirchhoffStressPa
   });
   if (evaluation.algorithmicStressPrimitiveDensityJPerM3 !== void 0) {
     requireFinite$h(
@@ -12776,12 +13759,16 @@ function flattenMaterialWarnings(material) {
   return MAIN_WIRE_FIVE_WALL_IDS_V1.flatMap((wallId) => material[wallId].warnings.map((warning) => `${wallId}: ${warning}`));
 }
 function fiveWallRecord$1(build) {
-  return Object.freeze(Object.fromEntries(
-    MAIN_WIRE_FIVE_WALL_IDS_V1.map((wallId) => [wallId, build(wallId)])
-  ));
+  return Object.freeze({
+    LA: build("LA"),
+    LVFW: build("LVFW"),
+    SEP: build("SEP"),
+    RVFW: build("RVFW"),
+    RA: build("RA")
+  });
 }
 function sumFiveWalls(build) {
-  return MAIN_WIRE_FIVE_WALL_IDS_V1.reduce((sum, wallId) => sum + build(wallId), 0);
+  return build("LA") + build("LVFW") + build("SEP") + build("RVFW") + build("RA");
 }
 function assertExactKeys$6(value, expected, label) {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -13069,18 +14056,13 @@ function writeLand2017BackwardEulerResidual(next, previous, input, parameterSet 
   }
   return outResidual;
 }
-function computeLand2017ActiveStiffnessPa(state, input, parameterSet = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET) {
-  assertLand2017StateVectorLength(state, "Land 2017 active-stiffness state");
-  const p = parameterSet.values;
-  const d = parameterSet.derived;
-  const terms = evaluateLand2017AlgebraicTerms(state, input, parameterSet);
-  const W = state[LAND2017_STATE_INDEX.W];
-  const S = state[LAND2017_STATE_INDEX.S];
-  return terms.h * p.Tref * (d.As * S + d.Aw * W) / p.rs;
+function computeLand2017ActiveStiffnessPaFromAlgebraicTerms(terms, weakPopulation, strongPopulation, p, d) {
+  return terms.h * p.Tref * (d.As * strongPopulation + d.Aw * weakPopulation) / p.rs;
 }
 function evaluateLand2017ContinuousOutput(state, input, parameterSet = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET) {
   assertLand2017StateVectorLength(state, "Land 2017 output state");
   const p = parameterSet.values;
+  const d = parameterSet.derived;
   let inputDomainValid = true;
   try {
     validateLand2017ContinuousInput(input, p);
@@ -13100,21 +14082,24 @@ function evaluateLand2017ContinuousOutput(state, input, parameterSet = LAND2017_
   const zetaS = state[LAND2017_STATE_INDEX.zetaS];
   const sourceActiveFiberStressPa = terms.h * p.Tref * (S * (zetaS + 1) + W * zetaW) / p.rs;
   const sourceActivePowerDensityWPerM3 = sourceActiveFiberStressPa * input.fiberEngineeringStrainRatePerSec;
-  const stabilizationStiffnessPa = computeLand2017ActiveStiffnessPa(state, input, parameterSet);
+  const stabilizationStiffnessPa = computeLand2017ActiveStiffnessPaFromAlgebraicTerms(
+    terms,
+    W,
+    S,
+    p,
+    d
+  );
   const stateConservationResidual = land2017StateConservationResidual(state);
   const minimumPopulation = land2017StateMinimumPopulation(state);
-  const finite2 = inputDomainValid && stateDomainValid && terms.lambda > 0 && minimumPopulation >= 0 && stateConservationResidual <= 1e-12 && allFinite([
-    ...Array.from({ length: state.length }, (_, index) => state[index]),
-    input.freeCalciumUM,
-    input.fiberEngineeringStrain,
-    input.fiberEngineeringStrainRatePerSec,
-    input.zetaDriveFiberEngineeringStrainRatePerSec ?? input.fiberEngineeringStrainRatePerSec,
-    sourceActiveFiberStressPa,
-    stabilizationStiffnessPa,
-    sourceActivePowerDensityWPerM3,
-    stateConservationResidual,
-    minimumPopulation
-  ]);
+  let stateEntriesFinite = true;
+  for (let index = 0; index < state.length; index += 1) {
+    if (!Number.isFinite(state[index])) {
+      stateEntriesFinite = false;
+      break;
+    }
+  }
+  const zetaDriveFiberEngineeringStrainRatePerSec = input.zetaDriveFiberEngineeringStrainRatePerSec ?? input.fiberEngineeringStrainRatePerSec;
+  const finite2 = inputDomainValid && stateDomainValid && terms.lambda > 0 && minimumPopulation >= 0 && stateConservationResidual <= 1e-12 && stateEntriesFinite && Number.isFinite(input.freeCalciumUM) && Number.isFinite(input.fiberEngineeringStrain) && Number.isFinite(input.fiberEngineeringStrainRatePerSec) && Number.isFinite(zetaDriveFiberEngineeringStrainRatePerSec) && Number.isFinite(sourceActiveFiberStressPa) && Number.isFinite(stabilizationStiffnessPa) && Number.isFinite(sourceActivePowerDensityWPerM3) && Number.isFinite(stateConservationResidual) && Number.isFinite(minimumPopulation);
   return {
     sourceActiveFiberStressPa,
     sourceStressConvention: "land2017-Ta",
@@ -13140,9 +14125,6 @@ function evaluateLand2017StepOutput(state, input, parameterSet = LAND2017_INTACT
     },
     parameterSet
   );
-}
-function allFinite(values2) {
-  return values2.every((value) => Number.isFinite(value));
 }
 const DEFAULT_RESIDUAL_TOLERANCE = 1e-9;
 function solveLand2017BackwardEulerStep(previous, input, options = {}, parameterSet = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET) {
@@ -13221,14 +14203,13 @@ function solveLand2017AffineStage(base2, implicitDtSec, continuousInput, paramet
     base2[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
     base2[LAND2017_STATE_INDEX.S]
   );
-  const next = Float64Array.from([
-    caTRPN,
-    population[0],
-    population[1],
-    population[2],
-    zetaW,
-    zetaS
-  ]);
+  const next = new Float64Array(LAND2017_STATE_SIZE);
+  next[LAND2017_STATE_INDEX.CaTRPN] = caTRPN;
+  next[LAND2017_STATE_INDEX.B] = population[0];
+  next[LAND2017_STATE_INDEX.W] = population[1];
+  next[LAND2017_STATE_INDEX.S] = population[2];
+  next[LAND2017_STATE_INDEX.zetaW] = zetaW;
+  next[LAND2017_STATE_INDEX.zetaS] = zetaS;
   validateLand2017EquationState(next);
   return next;
 }
@@ -13263,7 +14244,7 @@ function solveLand2017PopulationBlock(a00, a01, a02, a10, a11, a12, a21, a22, b0
   const x2 = reducedB2 / reduced22;
   const x1 = (reducedB1 - reduced12 * x2) / reduced11;
   const x0 = (b0 - a01 * x1 - a02 * x2) / a00;
-  if (![x0, x1, x2].every(Number.isFinite)) {
+  if (!Number.isFinite(x0) || !Number.isFinite(x1) || !Number.isFinite(x2)) {
     throw new Error("Land 2017 population block solution is non-finite");
   }
   return [x0, x1, x2];
@@ -13404,19 +14385,11 @@ function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(solvedNextS
     -dWResidualDZetaW * dZetaWDStrain,
     -dSResidualDZetaS * dZetaSDStrain
   );
-  const stateStrainDerivative = Float64Array.from([
-    dCaTRPNDStrain,
-    populationDerivative[0],
-    populationDerivative[1],
-    populationDerivative[2],
-    dZetaWDStrain,
-    dZetaSDStrain
-  ]);
   const populationDistortion = S * (zetaS + 1) + W * zetaW;
   const stressScalePa = terms.h * p.Tref / p.rs;
   let tangentPa = land2017LengthFactorDerivative(terms.lambda, p.beta0) * p.Tref / p.rs * populationDistortion;
-  tangentPa += stressScalePa * (zetaW * stateStrainDerivative[LAND2017_STATE_INDEX.W] + (zetaS + 1) * stateStrainDerivative[LAND2017_STATE_INDEX.S] + W * stateStrainDerivative[LAND2017_STATE_INDEX.zetaW] + S * stateStrainDerivative[LAND2017_STATE_INDEX.zetaS]);
-  if (stateStrainDerivative.length !== LAND2017_STATE_SIZE || !Number.isFinite(tangentPa)) {
+  tangentPa += stressScalePa * (zetaW * populationDerivative[1] + (zetaS + 1) * populationDerivative[2] + W * dZetaWDStrain + S * dZetaSDStrain);
+  if (!Number.isFinite(tangentPa)) {
     throw new Error("Land 2017 consistent tangent is non-finite");
   }
   return tangentPa;
@@ -13728,22 +14701,16 @@ function trialLandSlsWallMaterialV1(previous, input, params) {
   const passiveAndSlsTangentPa = input.equilibriumPassive.tangentPa + sls.dNextOverstressDNextFiberLogStrainPa;
   const totalAlgorithmicTangentPa = passiveAndSlsTangentPa + activeAlgorithmicTangentPa;
   const state = Object.freeze({
-    landState: Float64Array.from(solved.nextState),
+    // The direct Land solver returns a freshly allocated state and never
+    // retains or mutates it after return.  This material evaluation owns that
+    // result exclusively, so copying the six values again only adds five
+    // typed-array allocations for every rejected whole-heart candidate.
+    landState: solved.nextState,
     slsState: sls.state,
     previousFiberLogStrain: input.nextFiberLogStrain,
     previousFreeCalciumUM: input.nextFreeCalciumUM
   });
-  const finite2 = [
-    landStretch,
-    nextEngineeringStrain,
-    activeNominalStressPa,
-    activeKirchhoffStressPa,
-    totalKirchhoffStressPa,
-    activeAlgorithmicTangentPa,
-    totalAlgorithmicTangentPa,
-    passiveAndSlsTangentPa,
-    solved.residualNorm
-  ].every(Number.isFinite) && solved.output.health.finite && sls.finite;
+  const finite2 = Number.isFinite(landStretch) && Number.isFinite(nextEngineeringStrain) && Number.isFinite(activeNominalStressPa) && Number.isFinite(activeKirchhoffStressPa) && Number.isFinite(totalKirchhoffStressPa) && Number.isFinite(activeAlgorithmicTangentPa) && Number.isFinite(totalAlgorithmicTangentPa) && Number.isFinite(passiveAndSlsTangentPa) && Number.isFinite(solved.residualNorm) && solved.output.health.finite && sls.finite;
   if (!finite2) issues.push("wall material evaluation produced a non-finite value");
   if (!sls.passive) issues.push("parallel SLS failed its discrete passivity identity");
   return Object.freeze({
@@ -13770,6 +14737,115 @@ function trialLandSlsWallMaterialV1(previous, input, params) {
     claim: LAND_SLS_WALL_MATERIAL_CLAIM_V1
   });
 }
+function trialLandSlsWallMaterialNumericalV1(previous, input, params) {
+  validateParamsOncePerObject(params);
+  if (fullHotPathInvariantsEnabledV1()) validateState$2(previous);
+  requireFinite$f(input.nextFiberLogStrain, "nextFiberLogStrain");
+  requireNonnegative$1(input.nextFreeCalciumUM, "nextFreeCalciumUM");
+  requirePositive$1(input.dtSec, "dtSec");
+  validatePassive(input.equilibriumPassive);
+  const previousEngineeringStrain = landEngineeringStrain(
+    previous.previousFiberLogStrain,
+    params
+  );
+  const nextEngineeringStrain = landEngineeringStrain(
+    input.nextFiberLogStrain,
+    params
+  );
+  const landStepInput = {
+    freeCalciumUM: input.nextFreeCalciumUM,
+    previousFiberEngineeringStrain: previousEngineeringStrain,
+    stageFiberEngineeringStrain: nextEngineeringStrain,
+    dtSec: input.dtSec,
+    stage: { scheme: "BE", stageIndex: 0 }
+  };
+  const solved = solveLand2017BackwardEulerStep(
+    previous.landState,
+    landStepInput,
+    {
+      residualTolerance: 1e-9
+    },
+    params.landEquationParameters
+  );
+  if (!solved.ok || !solved.output) {
+    throw new Error(`Land trial failed: ${solved.failureReason ?? "unknown"}`);
+  }
+  const ratio = input.dtSec / params.sls.relaxationTimeSec;
+  const nextViscousLogStrain = (previous.slsState.viscousLogStrain + ratio * input.nextFiberLogStrain) / (1 + ratio);
+  const previousElasticStrain = previous.previousFiberLogStrain - previous.slsState.viscousLogStrain;
+  const nextElasticStrain = input.nextFiberLogStrain - nextViscousLogStrain;
+  const nextOverstressPa = numericalCanonicalZeroV1(
+    params.sls.branchModulusPa * nextElasticStrain
+  );
+  const stateResidual = nextViscousLogStrain - previous.slsState.viscousLogStrain - ratio * nextElasticStrain;
+  const previousStoredEnergyDensityJPerM3 = numericalCanonicalZeroV1(
+    0.5 * params.sls.branchModulusPa * previousElasticStrain ** 2
+  );
+  const nextStoredEnergyDensityJPerM3 = numericalCanonicalZeroV1(
+    0.5 * params.sls.branchModulusPa * nextElasticStrain ** 2
+  );
+  const stressWorkIncrementDensityJPerM3 = numericalCanonicalZeroV1(
+    nextOverstressPa * (input.nextFiberLogStrain - previous.previousFiberLogStrain)
+  );
+  const physicalDissipationIncrementDensityJPerM3 = numericalCanonicalZeroV1(
+    params.sls.branchModulusPa * ratio * nextElasticStrain ** 2
+  );
+  const backwardEulerNumericalDissipationIncrementDensityJPerM3 = numericalCanonicalZeroV1(
+    0.5 * params.sls.branchModulusPa * (nextElasticStrain - previousElasticStrain) ** 2
+  );
+  const discreteEnergyBalanceResidualJPerM3 = numericalCanonicalZeroV1(
+    stressWorkIncrementDensityJPerM3 - (nextStoredEnergyDensityJPerM3 - previousStoredEnergyDensityJPerM3) - physicalDissipationIncrementDensityJPerM3 - backwardEulerNumericalDissipationIncrementDensityJPerM3
+  );
+  const slsFinite = Number.isFinite(nextViscousLogStrain) && Number.isFinite(nextOverstressPa) && Number.isFinite(stateResidual) && Number.isFinite(previousStoredEnergyDensityJPerM3) && Number.isFinite(nextStoredEnergyDensityJPerM3) && Number.isFinite(stressWorkIncrementDensityJPerM3) && Number.isFinite(physicalDissipationIncrementDensityJPerM3) && Number.isFinite(
+    backwardEulerNumericalDissipationIncrementDensityJPerM3
+  ) && Number.isFinite(discreteEnergyBalanceResidualJPerM3);
+  const energyTolerance = 1e-10 * Math.max(
+    1,
+    Math.abs(stressWorkIncrementDensityJPerM3),
+    previousStoredEnergyDensityJPerM3,
+    nextStoredEnergyDensityJPerM3
+  );
+  if (!slsFinite || physicalDissipationIncrementDensityJPerM3 < -energyTolerance || backwardEulerNumericalDissipationIncrementDensityJPerM3 < -energyTolerance || Math.abs(discreteEnergyBalanceResidualJPerM3) > energyTolerance) {
+    throw new Error("parallel SLS failed its discrete passivity identity");
+  }
+  const landStretch = 1 + nextEngineeringStrain;
+  const activeNominalStressPa = solved.output.sourceActiveFiberStressPa;
+  const activeKirchhoffStressPa = landStretch * params.orientationFraction01 * params.viableActiveFraction01 * activeNominalStressPa;
+  const activeNominalAlgorithmicTangentPa = computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
+    solved.nextState,
+    landStepInput,
+    params.landEquationParameters
+  );
+  const activeAlgorithmicTangentPa = params.orientationFraction01 * params.viableActiveFraction01 * (landStretch * activeNominalStressPa + landStretch * landStretch * activeNominalAlgorithmicTangentPa);
+  const totalKirchhoffStressPa = input.equilibriumPassive.stressPa + activeKirchhoffStressPa + nextOverstressPa;
+  const totalAlgorithmicTangentPa = input.equilibriumPassive.tangentPa + params.sls.branchModulusPa / (1 + ratio) + activeAlgorithmicTangentPa;
+  const residualNorm = Math.max(
+    Math.abs(solved.residualNorm),
+    Math.abs(stateResidual)
+  );
+  if (!Number.isFinite(landStretch) || !Number.isFinite(activeNominalStressPa) || !Number.isFinite(activeKirchhoffStressPa) || !Number.isFinite(totalKirchhoffStressPa) || !Number.isFinite(activeAlgorithmicTangentPa) || !Number.isFinite(totalAlgorithmicTangentPa) || !Number.isFinite(residualNorm)) {
+    throw new Error("wall material evaluation produced a non-finite value");
+  }
+  return Object.freeze({
+    state: Object.freeze({
+      // The direct solver created this array exclusively for this result.
+      landState: solved.nextState,
+      slsState: Object.freeze({ viscousLogStrain: nextViscousLogStrain }),
+      previousFiberLogStrain: input.nextFiberLogStrain,
+      previousFreeCalciumUM: input.nextFreeCalciumUM
+    }),
+    fiberLogStrain: input.nextFiberLogStrain,
+    totalKirchhoffStressPa,
+    activeKirchhoffStressPa,
+    totalAlgorithmicTangentPa,
+    activeAlgorithmicTangentPa,
+    landSolverIterations: solved.iterations,
+    residualNorm
+  });
+}
+function numericalCanonicalZeroV1(value) {
+  return value === 0 ? 0 : value;
+}
 function evaluateAcceptedLandSlsWallStateV1(state, equilibriumPassive, params) {
   validateParamsOncePerObject(params);
   if (fullHotPathInvariantsEnabledV1()) validateState$2(state);
@@ -13785,13 +14861,7 @@ function evaluateAcceptedLandSlsWallStateV1(state, equilibriumPassive, params) {
   const activeKirchhoffStressPa = landStretch * params.orientationFraction01 * params.viableActiveFraction01 * activeNominalStressPa;
   const slsOverstressPa = params.sls.branchModulusPa * (state.previousFiberLogStrain - state.slsState.viscousLogStrain);
   const totalKirchhoffStressPa = equilibriumPassive.stressPa + activeKirchhoffStressPa + slsOverstressPa;
-  const finite2 = [
-    landStretch,
-    activeNominalStressPa,
-    activeKirchhoffStressPa,
-    slsOverstressPa,
-    totalKirchhoffStressPa
-  ].every(Number.isFinite) && land.health.finite;
+  const finite2 = Number.isFinite(landStretch) && Number.isFinite(activeNominalStressPa) && Number.isFinite(activeKirchhoffStressPa) && Number.isFinite(slsOverstressPa) && Number.isFinite(totalKirchhoffStressPa) && land.health.finite;
   return Object.freeze({
     modelId: LAND_SLS_WALL_MATERIAL_V1_ID,
     parameterSetId: params.parameterSetId,
@@ -13847,12 +14917,18 @@ function validateState$2(state) {
   if (!(state.landState instanceof Float64Array) || state.landState.length !== 6) {
     throw new Error("landState must be a six-state Float64Array");
   }
-  if (!Array.from(state.landState).every(Number.isFinite)) {
+  if (!allLandStateEntriesFiniteV1(state.landState)) {
     throw new Error("landState must be finite");
   }
   requireFinite$f(state.slsState.viscousLogStrain, "slsState.viscousLogStrain");
   requireFinite$f(state.previousFiberLogStrain, "previousFiberLogStrain");
   requireNonnegative$1(state.previousFreeCalciumUM, "previousFreeCalciumUM");
+}
+function allLandStateEntriesFiniteV1(state) {
+  for (let index = 0; index < state.length; index += 1) {
+    if (!Number.isFinite(state[index])) return false;
+  }
+  return true;
 }
 function validatePassive(value) {
   requireFinite$f(value.stressPa, "equilibriumPassive.stressPa");
@@ -14054,8 +15130,98 @@ function createNormalAdultProviderFromMaterial(laSlsMode, ventricularEquilibrium
     internalCoordinateScales: Object.freeze({
       septalMidwallCapVolumeM3: Math.abs(prior.anatomy.triSeg.loadedCoordinates.septalMidwallCapVolumeM3),
       junctionRadiusM: prior.anatomy.triSeg.loadedCoordinates.junctionRadiusM
-    })
+    }),
+    fingerprintMaterialStateCanonicalV1: fingerprintNormalAdultFiveWallMaterialStateCanonicalV1
   }));
+}
+const CANONICAL_FINGERPRINT_WALL_ORDER_V1 = Object.freeze([
+  "LA",
+  "LVFW",
+  "RA",
+  "RVFW",
+  "SEP"
+]);
+function updateCanonicalFingerprintTextV1(initialHash, text) {
+  let hash = initialHash;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash;
+}
+function updateCanonicalFingerprintNumberV1(initialHash, value) {
+  if (!Number.isFinite(value)) {
+    throw new Error("normal-adult material fingerprint requires finite numbers");
+  }
+  return updateCanonicalFingerprintTextV1(initialHash, JSON.stringify(value));
+}
+function updateCanonicalLandSlsWallStateV1(initialHash, state) {
+  if (!(state.landState instanceof Float64Array) || state.landState.length !== 6) {
+    throw new Error("normal-adult material fingerprint requires six Land states");
+  }
+  let hash = updateCanonicalFingerprintTextV1(
+    initialHash,
+    '{"landState":['
+  );
+  for (let index = 0; index < state.landState.length; index += 1) {
+    if (index !== 0) hash = updateCanonicalFingerprintTextV1(hash, ",");
+    hash = updateCanonicalFingerprintNumberV1(hash, state.landState[index]);
+  }
+  hash = updateCanonicalFingerprintTextV1(
+    hash,
+    '],"previousFiberLogStrain":'
+  );
+  hash = updateCanonicalFingerprintNumberV1(
+    hash,
+    state.previousFiberLogStrain
+  );
+  hash = updateCanonicalFingerprintTextV1(
+    hash,
+    ',"previousFreeCalciumUM":'
+  );
+  hash = updateCanonicalFingerprintNumberV1(
+    hash,
+    state.previousFreeCalciumUM
+  );
+  hash = updateCanonicalFingerprintTextV1(
+    hash,
+    ',"slsState":{"viscousLogStrain":'
+  );
+  hash = updateCanonicalFingerprintNumberV1(
+    hash,
+    state.slsState.viscousLogStrain
+  );
+  return updateCanonicalFingerprintTextV1(hash, "}}");
+}
+function fingerprintNormalAdultFiveWallMaterialStateCanonicalV1(state) {
+  let hash = updateCanonicalFingerprintTextV1(
+    2166136261,
+    '{"schemaVersion":2,"trisegCoordinates":{"junctionRadiusM":'
+  );
+  hash = updateCanonicalFingerprintNumberV1(
+    hash,
+    state.trisegCoordinates.junctionRadiusM
+  );
+  hash = updateCanonicalFingerprintTextV1(
+    hash,
+    ',"septalMidwallCapVolumeM3":'
+  );
+  hash = updateCanonicalFingerprintNumberV1(
+    hash,
+    state.trisegCoordinates.septalMidwallCapVolumeM3
+  );
+  hash = updateCanonicalFingerprintTextV1(hash, '},"wallStateByWall":{');
+  for (let index = 0; index < CANONICAL_FINGERPRINT_WALL_ORDER_V1.length; index += 1) {
+    if (index !== 0) hash = updateCanonicalFingerprintTextV1(hash, ",");
+    const wallId = CANONICAL_FINGERPRINT_WALL_ORDER_V1[index];
+    hash = updateCanonicalFingerprintTextV1(hash, `"${wallId}":`);
+    hash = updateCanonicalLandSlsWallStateV1(
+      hash,
+      state.wallStateByWall[wallId]
+    );
+  }
+  hash = updateCanonicalFingerprintTextV1(hash, "}}");
+  return hash.toString(16).padStart(8, "0");
 }
 function scaledVentricularLandTrefForScale(identitySuffix, scale, provenanceLabel) {
   const baseline = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularLand;
@@ -14115,12 +15281,92 @@ function createWallKernel(wallId, params, evaluatePassive, priorIdentityHash) {
     passiveParameterIdentityHash: passiveAtZero.parameterIdentityHash,
     landSls: landSlsParameterHashInput(params)
   }));
+  const evaluateTrial = (input, includeReadback) => {
+    const passive = evaluatePassive(input.candidateFiberLogStrain);
+    const trial = trialLandSlsWallMaterialV1(
+      input.previousAcceptedState,
+      {
+        nextFiberLogStrain: input.candidateFiberLogStrain,
+        nextFreeCalciumUM: input.candidateFreeCalciumUM,
+        dtSec: input.stepDtSec,
+        equilibriumPassive: passive.input
+      },
+      params
+    );
+    const residualNorm = Math.max(
+      Math.abs(trial.landSolverResidualNorm),
+      Math.abs(trial.sls.stateResidual)
+    );
+    return materialEvaluation({
+      state: trial.state,
+      fiberLogStrain: input.candidateFiberLogStrain,
+      stressPa: trial.totalKirchhoffStressPa,
+      activeFiberKirchhoffStressPa: trial.activeKirchhoffStressPa,
+      algorithmicFiberTangentPa: trial.totalAlgorithmicTangentPa,
+      activeFiberAlgorithmicTangentPa: trial.activeAlgorithmicTangentPa,
+      iterationCount: trial.landSolverIterations,
+      residualNorm,
+      finite: trial.finite,
+      valid: trial.valid,
+      errors: trial.issues,
+      readback: wallReadback({
+        wallId,
+        passive,
+        params,
+        landActiveKirchhoffStressPa: trial.activeKirchhoffStressPa,
+        slsOverstressPa: trial.sls.nextOverstressPa,
+        totalKirchhoffStressPa: trial.totalKirchhoffStressPa,
+        energyLedger: Object.freeze({
+          equilibriumPassiveStoredEnergyDensityJPerM3: passive.input.storedEnergyDensityJPerM3,
+          slsPreviousStoredEnergyDensityJPerM3: trial.sls.previousStoredEnergyDensityJPerM3,
+          slsNextStoredEnergyDensityJPerM3: trial.sls.nextStoredEnergyDensityJPerM3,
+          slsPhysicalDissipationIncrementDensityJPerM3: trial.sls.physicalDissipationIncrementDensityJPerM3,
+          slsBackwardEulerNumericalDissipationIncrementDensityJPerM3: trial.sls.backwardEulerNumericalDissipationIncrementDensityJPerM3,
+          slsDiscreteEnergyBalanceResidualJPerM3: trial.sls.discreteEnergyBalanceResidualJPerM3,
+          slsPassive: trial.sls.passive,
+          landThermodynamicStoredEnergyClaimed: false,
+          totalThermodynamicPotentialIncludingLandClaimed: false
+        }),
+        coldFixedInputIterations: null,
+        coldLandMaximumStateUpdate: null
+      })
+    });
+  };
+  const evaluateNumericalTrial = (input) => {
+    const passive = evaluatePassive(input.candidateFiberLogStrain);
+    const trial = trialLandSlsWallMaterialNumericalV1(
+      input.previousAcceptedState,
+      {
+        nextFiberLogStrain: input.candidateFiberLogStrain,
+        nextFreeCalciumUM: input.candidateFreeCalciumUM,
+        dtSec: input.stepDtSec,
+        equilibriumPassive: passive.input
+      },
+      params
+    );
+    return materialEvaluation({
+      state: trial.state,
+      fiberLogStrain: trial.fiberLogStrain,
+      stressPa: trial.totalKirchhoffStressPa,
+      activeFiberKirchhoffStressPa: trial.activeKirchhoffStressPa,
+      algorithmicFiberTangentPa: trial.totalAlgorithmicTangentPa,
+      activeFiberAlgorithmicTangentPa: trial.activeAlgorithmicTangentPa,
+      iterationCount: trial.landSolverIterations,
+      residualNorm: trial.residualNorm,
+      finite: true,
+      valid: true,
+      errors: [],
+      readback: null
+    });
+  };
   return Object.freeze({
     modelId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID,
     parameterSetId: `${params.parameterSetId}-${wallId}`,
     parameterIdentityHash,
     topology: "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS",
     stateCodec: LAND_SLS_STATE_CODEC,
+    acceptedStateInputMode: "trusted-read-only",
+    evaluationStateOwnershipMode: "exclusive-result",
     initializeColdAtFixedInput: ({ fiberLogStrain, freeCalciumUM }) => {
       const passive = evaluatePassive(fiberLogStrain);
       const cold = initializeLandSlsWallAtFixedInputV1(
@@ -14149,6 +15395,7 @@ function createWallKernel(wallId, params, evaluatePassive, priorIdentityHash) {
         state: cold.state,
         fiberLogStrain,
         stressPa: accepted.totalKirchhoffStressPa,
+        activeFiberKirchhoffStressPa: accepted.activeKirchhoffStressPa,
         algorithmicFiberTangentPa: passive.input.tangentPa + activeKirchhoffTangentPa,
         activeFiberAlgorithmicTangentPa: activeKirchhoffTangentPa,
         iterationCount: cold.fixedInputIterations,
@@ -14169,61 +15416,8 @@ function createWallKernel(wallId, params, evaluatePassive, priorIdentityHash) {
         })
       });
     },
-    evaluateTrialFromAccepted: ({
-      previousAcceptedState,
-      candidateFiberLogStrain,
-      candidateFreeCalciumUM,
-      stepDtSec
-    }) => {
-      const passive = evaluatePassive(candidateFiberLogStrain);
-      const trial = trialLandSlsWallMaterialV1(
-        previousAcceptedState,
-        {
-          nextFiberLogStrain: candidateFiberLogStrain,
-          nextFreeCalciumUM: candidateFreeCalciumUM,
-          dtSec: stepDtSec,
-          equilibriumPassive: passive.input
-        },
-        params
-      );
-      const residualNorm = Math.max(
-        Math.abs(trial.landSolverResidualNorm),
-        Math.abs(trial.sls.stateResidual)
-      );
-      return materialEvaluation({
-        state: trial.state,
-        fiberLogStrain: candidateFiberLogStrain,
-        stressPa: trial.totalKirchhoffStressPa,
-        algorithmicFiberTangentPa: trial.totalAlgorithmicTangentPa,
-        activeFiberAlgorithmicTangentPa: trial.activeAlgorithmicTangentPa,
-        iterationCount: trial.landSolverIterations,
-        residualNorm,
-        finite: trial.finite,
-        valid: trial.valid,
-        errors: trial.issues,
-        readback: wallReadback({
-          wallId,
-          passive,
-          params,
-          landActiveKirchhoffStressPa: trial.activeKirchhoffStressPa,
-          slsOverstressPa: trial.sls.nextOverstressPa,
-          totalKirchhoffStressPa: trial.totalKirchhoffStressPa,
-          energyLedger: Object.freeze({
-            equilibriumPassiveStoredEnergyDensityJPerM3: passive.input.storedEnergyDensityJPerM3,
-            slsPreviousStoredEnergyDensityJPerM3: trial.sls.previousStoredEnergyDensityJPerM3,
-            slsNextStoredEnergyDensityJPerM3: trial.sls.nextStoredEnergyDensityJPerM3,
-            slsPhysicalDissipationIncrementDensityJPerM3: trial.sls.physicalDissipationIncrementDensityJPerM3,
-            slsBackwardEulerNumericalDissipationIncrementDensityJPerM3: trial.sls.backwardEulerNumericalDissipationIncrementDensityJPerM3,
-            slsDiscreteEnergyBalanceResidualJPerM3: trial.sls.discreteEnergyBalanceResidualJPerM3,
-            slsPassive: trial.sls.passive,
-            landThermodynamicStoredEnergyClaimed: false,
-            totalThermodynamicPotentialIncludingLandClaimed: false
-          }),
-          coldFixedInputIterations: null,
-          coldLandMaximumStateUpdate: null
-        })
-      });
-    }
+    evaluateTrialFromAccepted: (input) => evaluateTrial(input),
+    evaluateNumericalTrialFromAccepted: evaluateNumericalTrial
   });
 }
 function createMoyerPassiveEvaluator(compiled) {
@@ -14264,14 +15458,19 @@ function materialEvaluation(input) {
   const finite2 = input.finite && [
     input.fiberLogStrain,
     input.stressPa,
+    input.activeFiberKirchhoffStressPa,
     input.residualNorm,
     input.algorithmicFiberTangentPa,
     input.activeFiberAlgorithmicTangentPa
   ].every(Number.isFinite);
   return Object.freeze({
-    state: cloneLandSlsWallMaterialStateV1(input.state),
+    // Cold/trial evaluation created this state exclusively for this result.
+    // The material-kernel capability lets the provider retain it without a
+    // second typed-array copy; public mechanics boundaries still snapshot it.
+    state: input.state,
     fiberLogStrain: input.fiberLogStrain,
     fiberKirchhoffStressPa: input.stressPa,
+    activeFiberKirchhoffStressPa: input.activeFiberKirchhoffStressPa,
     algorithmicFiberTangentPa: input.algorithmicFiberTangentPa,
     activeFiberAlgorithmicTangentPa: input.activeFiberAlgorithmicTangentPa,
     iterationCount: input.iterationCount,
@@ -14409,16 +15608,48 @@ function evaluateMainWireCoronaryMechanicsCouplingV1(mechanicsTrial, input) {
     SEP: landActiveStressPa(readback.wallMaterialReadbackByWall.SEP, "SEP"),
     RVFW: landActiveStressPa(readback.wallMaterialReadbackByWall.RVFW, "RVFW")
   });
+  return evaluateMainWireCoronaryNumericalMechanicsCouplingV1(
+    Object.freeze({
+      transmuralPressuresMmHg: mechanicsTrial.transmuralPressuresMmHg,
+      effectiveFiberLogStrainByWall: readback.effectiveFiberLogStrainByWall,
+      activeFiberKirchhoffStressPaByWall: landActiveFiberStressPaByWall
+    }),
+    input
+  );
+}
+function evaluateMainWireCoronaryNumericalMechanicsCouplingV1(mechanics, input) {
+  assertFinite(
+    "commonIntrathoracicPressureMmHg",
+    input.commonIntrathoracicPressureMmHg
+  );
+  assertFinite(
+    "commonPericardialExcessPressureMmHg",
+    input.commonPericardialExcessPressureMmHg
+  );
+  const effectiveFiberLogStrainByWall = ventricularWallRecord((wallId) => finiteValue(
+    `${wallId} effective fiber log strain`,
+    mechanics.effectiveFiberLogStrainByWall[wallId]
+  ));
+  const landActiveFiberStressPaByWall = ventricularWallRecord((wallId) => {
+    const stress = finiteValue(
+      `${wallId} Land active stress`,
+      mechanics.activeFiberKirchhoffStressPaByWall[wallId]
+    );
+    if (stress < 0) {
+      throw new RangeError(`${wallId} Land active stress must be non-negative`);
+    }
+    return stress;
+  });
   const coronaryInput = Object.freeze({
     externalPressureMmHg: input.commonIntrathoracicPressureMmHg + input.commonPericardialExcessPressureMmHg,
     chamberTransmuralPressureMmHg: Object.freeze({
       LV: finiteValue(
         "mechanicsTrial.transmuralPressuresMmHg.LV",
-        mechanicsTrial.transmuralPressuresMmHg.LV
+        mechanics.transmuralPressuresMmHg.LV
       ),
       RV: finiteValue(
         "mechanicsTrial.transmuralPressuresMmHg.RV",
-        mechanicsTrial.transmuralPressuresMmHg.RV
+        mechanics.transmuralPressuresMmHg.RV
       )
     }),
     landActiveFiberStressPaByWall
@@ -14426,7 +15657,7 @@ function evaluateMainWireCoronaryMechanicsCouplingV1(mechanicsTrial, input) {
   return Object.freeze({
     couplingId: MAIN_WIRE_CORONARY_MECHANICS_COUPLING_V1_ID,
     input: coronaryInput,
-    effectiveFiberLogStrainByWall: readback.effectiveFiberLogStrainByWall,
+    effectiveFiberLogStrainByWall,
     commonIntrathoracicPressureMmHg: input.commonIntrathoracicPressureMmHg,
     commonPericardialExcessPressureMmHg: input.commonPericardialExcessPressureMmHg,
     source: Object.freeze({
@@ -15268,6 +16499,78 @@ const MITRAL_FORWARD_FLOW_ACTIVE_THRESHOLD_ML_PER_SEC = 1;
 const DEFAULT_OUTER_SCALED_DIRECTION_STEP_V2 = 2e-6;
 const DEFAULT_IMP_MECHANISM_V2 = "cep-shortening-induced";
 const validatedMainWireFiveWallCoronaryAcceptedStatesV2 = /* @__PURE__ */ new WeakSet();
+function isWholeHeartMechanicsCandidateProbeV2(candidate) {
+  return "probeId" in candidate && candidate.probeId === WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID;
+}
+function errorMessageV2(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1 = 32;
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1 = Object.freeze(["LA", "LV", "RA", "RV"]);
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1 = Object.freeze([
+  "LA",
+  "LV",
+  "RA",
+  "RV",
+  "Ao",
+  "SA",
+  "PA",
+  "PVein",
+  "VC"
+]);
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1 = Object.freeze(["MV", "AoV", "TV", "PV"]);
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1 = Object.freeze(["SA_Art", "PA_PArt", "VC_RA", "PVein_LA"]);
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1 = Object.freeze({
+  timeSec: 0,
+  chamberVolumeMl: 1,
+  absolutePressureMmHg: 5,
+  transmuralPressureMmHg: 14,
+  valveFlowMlPerSec: 18,
+  systemicTissueFlowMlPerSec: 22,
+  pulmonaryFlowMlPerSec: 23,
+  systemicVenousFlowMlPerSec: 24,
+  pulmonaryVenousFlowMlPerSec: 25,
+  pericardialExcessPressureMmHg: 26,
+  coronaryFlowMlPerSec: 27,
+  coronaryVenousOutletFlowMlPerSec: 31
+});
+function requiredOrderIndexV1(order, id, label) {
+  const index = order.indexOf(id);
+  if (index < 0) throw new Error(`${label} ${id} is not in the canonical order`);
+  return index;
+}
+Object.freeze(
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.map(
+    (nodeId) => requiredOrderIndexV1(NON_CORONARY_NODE_NAMES_V1, nodeId, "readback node")
+  )
+);
+Object.freeze(
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1.map(
+    (nodeId) => requiredOrderIndexV1(
+      NON_CORONARY_NODE_NAMES_V1,
+      nodeId,
+      "readback pressure node"
+    )
+  )
+);
+Object.freeze(
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1.map(
+    (valveId) => requiredOrderIndexV1(
+      NON_CORONARY_VALVE_NAMES_V1,
+      valveId,
+      "readback valve"
+    )
+  )
+);
+Object.freeze(
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1.map(
+    (edgeId) => requiredOrderIndexV1(
+      NON_CORONARY_EDGE_NAMES_V1,
+      edgeId,
+      "readback edge"
+    )
+  )
+);
 function initializeMainWireFiveWallCoronaryV2(input) {
   const timeSec = input.timeSec ?? 0;
   requireNonnegativeFinite$c(timeSec, "timeSec");
@@ -15343,8 +16646,9 @@ function initializeMainWireFiveWallCoronaryV2(input) {
         ),
         absoluteRightAtrialPressureMmHg: mechanicsCold.transmuralPressuresMmHg.RA + pthMmHg + preliminaryPericardium.excessPressureMmHg,
         ...impMechanism === "source-cep-land-active" ? {
-          sourceIntramyocardialPressureMmHgByTerritoryLayer: intramyocardialPressureRecord(
-            evaluateAllCoronaryImpV1(preliminaryCoupling.input)
+          sourceIntramyocardialPressureMmHgByTerritoryLayer: evaluateAllCoronaryImpPressureV1(
+            preliminaryCoupling.input,
+            "intramyocardial"
           )
         } : {},
         mechanicsInput: preliminaryCoupling.input,
@@ -15421,7 +16725,7 @@ function initializeMainWireFiveWallCoronaryV2(input) {
     pressureLadderDiagnostics
   });
 }
-function stepMainWireFiveWallCoronaryV2(provider, previous, input) {
+function stepMainWireFiveWallCoronaryV2(provider, previous, input, coronaryScratchWorkspace, nonCoronaryScratchWorkspace, previousAcceptedNumericalSource) {
   validateAcceptedTuple(previous);
   requirePositiveFinite$c(input.dtSec, "dtSec");
   const prior = input.coronaryPrior ?? MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2;
@@ -15446,6 +16750,7 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input) {
     input.calciumDriveOverride
   );
   const evaluationCounters = input.evaluationCounterCollection === "enabled" ? createMutableEvaluationCountersV2() : null;
+  const useMechanicsCandidateProbes = provider.evaluationResultOwnershipMode === "exclusive-result";
   const mechanicsCalciumDrive = evaluationCounters === null ? calciumDrive : Object.freeze({
     ...calciumDrive,
     evaluationCounterCollection: "enabled"
@@ -15467,6 +16772,7 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input) {
     mechanicalSupport: input.mechanicalSupport,
     dynamicMechanicalSupport: input.dynamicMechanicalSupport,
     options: input.circulationNewtonOptions,
+    scratchWorkspace: nonCoronaryScratchWorkspace,
     protocolResistanceScaleByEdge: input.protocolResistanceScaleByEdge,
     evaluateCandidateMechanics: (volumesMl) => evaluatePreparedCandidateMechanicsV2(
       mechanicsStep,
@@ -15475,7 +16781,8 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input) {
       pthMmHg,
       impMechanism,
       evaluationCounters,
-      "candidate-center"
+      "candidate-center",
+      useMechanicsCandidateProbes
     ),
     conservativeCompanion: Object.freeze({
       fixedGlobalTotalBloodVolumeMl: previous.fixedGlobalTotalBloodVolumeMl,
@@ -15523,7 +16830,8 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input) {
           previous.mvcReferenceState.reference,
           shorteningImpPrior,
           input.circulationNewtonOptions?.finiteDifferenceScaledStep ?? DEFAULT_OUTER_SCALED_DIRECTION_STEP_V2,
-          evaluationCounters
+          evaluationCounters,
+          useMechanicsCandidateProbes
         );
         const implicitSensitivities = boundaryDirections === null ? void 0 : computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2({
           previousAcceptedState: previous.coronary,
@@ -15531,7 +16839,8 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input) {
           prior,
           topology,
           baseTrial: coronaryTrial,
-          boundaryDirections
+          boundaryDirections,
+          scratchWorkspace: coronaryScratchWorkspace
         });
         if (evaluationCounters !== null && implicitSensitivities !== void 0) {
           recordCoronaryImplicitSensitivityCountersV2(
@@ -15554,7 +16863,7 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input) {
         });
       }
     })
-  });
+  }, previousAcceptedNumericalSource);
   const circulationTrial = attachEvaluationCountersV2(
     rawCirculationTrial,
     evaluationCounters
@@ -15575,56 +16884,108 @@ function stepMainWireFiveWallCoronaryV2(provider, previous, input) {
       mechanicsCommitted: false,
       circulationCommitted: false,
       coronaryCommitted: false,
-      mvcReferenceCommitted: false
+      mvcReferenceCommitted: false,
+      finalizationFailureStage: null
     });
   }
-  const candidateEvaluation = circulationTrial.candidateMechanicsEvaluation;
-  const mechanicsTrial = candidateEvaluation.mechanicsTrial;
-  validateCoupledTrial(previous, circulationTrial, mechanicsTrial);
-  const circulationCommit = commitNonCoronaryCirculationTrialWithConservativeCompanionV1(
-    previous.circulation,
-    circulationTrial
-  );
-  const companionTrial = circulationCommit.candidateCompanionTrial;
-  if (companionTrial !== circulationTrial.conservativeCompanion?.candidateCompanionTrial) {
-    throw new Error("coronary V2 companion promotion changed trial identity");
-  }
-  const nextMechanics = commitPreparedWholeHeartMechanicsTrialV1(
+  return finalizeMainWireFiveWallCoronarySelectedCandidateV2(
+    provider,
+    previous,
     mechanicsStep,
-    mechanicsTrial
-  );
-  const nextMvcReference = advanceMainWireCoronaryMvcReferenceV2(
-    previous.mvcReferenceState,
-    Object.freeze({
-      acceptedTimeSec: circulationTrial.candidateTimeSec,
-      acceptedRevision: previous.revision + 1,
-      mitralForwardFlowMlPerSec: circulationTrial.edgeFlowsMlPerSec.MV,
-      effectiveFiberLogStrainByWall: candidateEvaluation.coronaryMechanicsCoupling.effectiveFiberLogStrainByWall
-    })
-  );
-  const acceptedState2 = acceptedTuple(
-    previous.revision + 1,
-    circulationCommit.fixedGlobalTotalBloodVolumeMl,
-    previous.coronaryBinding,
-    circulationCommit.acceptedNonCoronaryPartitionState,
-    companionTrial.coronaryTrial.candidateAcceptedState,
-    nextMechanics,
-    nextMvcReference
-  );
-  return Object.freeze({
-    converged: true,
-    acceptedState: acceptedState2,
     circulationTrial,
-    mechanicsTrial,
-    coronaryTrial: companionTrial.coronaryTrial,
-    coronaryBoundary: companionTrial.boundary,
-    coronaryMechanicsCoupling: candidateEvaluation.coronaryMechanicsCoupling,
-    intramyocardialPressureMmHgByTerritoryLayer: companionTrial.boundary.intramyocardialPressureMmHgByTerritoryLayer,
     calciumDrive,
-    commonIntrathoracicPressureMmHg: pthMmHg,
-    pericardium: candidateEvaluation.pericardium,
-    mvcReferenceUpdated: nextMvcReference.acceptedMitralClosureEventCount > previous.mvcReferenceState.acceptedMitralClosureEventCount
-  });
+    pthMmHg
+  );
+}
+function finalizeMainWireFiveWallCoronarySelectedCandidateV2(provider, previous, mechanicsStep, circulationTrial, calciumDrive, commonIntrathoracicPressureMmHg2) {
+  let finalizationFailureStage = "selected-mechanics-seal";
+  try {
+    const candidateEvaluation = circulationTrial.candidateMechanicsEvaluation;
+    const mechanicsTrial = isWholeHeartMechanicsCandidateProbeV2(
+      candidateEvaluation.mechanicsCandidate
+    ) ? sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      mechanicsStep,
+      candidateEvaluation.mechanicsCandidate
+    ) : candidateEvaluation.mechanicsCandidate;
+    const sealedCandidateEvaluation = Object.freeze({
+      ...candidateEvaluation,
+      mechanicsCandidate: mechanicsTrial,
+      mechanicsView: mechanicsTrial
+    });
+    const sealedCirculationTrial = Object.freeze({
+      ...circulationTrial,
+      candidateMechanicsEvaluation: sealedCandidateEvaluation
+    });
+    finalizationFailureStage = "coupled-trial-validation";
+    validateCoupledTrial(previous, sealedCirculationTrial, mechanicsTrial);
+    finalizationFailureStage = "circulation-commit";
+    const circulationCommit = commitNonCoronaryCirculationTrialWithConservativeCompanionV1(
+      previous.circulation,
+      sealedCirculationTrial
+    );
+    const companionTrial = circulationCommit.candidateCompanionTrial;
+    if (companionTrial !== sealedCirculationTrial.conservativeCompanion?.candidateCompanionTrial) {
+      throw new Error("coronary V2 companion promotion changed trial identity");
+    }
+    finalizationFailureStage = "mechanics-commit";
+    const nextMechanics = commitPreparedWholeHeartMechanicsTrialV1(
+      mechanicsStep,
+      mechanicsTrial
+    );
+    finalizationFailureStage = "mvc-reference-advance";
+    const nextMvcReference = advanceMainWireCoronaryMvcReferenceV2(
+      previous.mvcReferenceState,
+      Object.freeze({
+        acceptedTimeSec: circulationTrial.candidateTimeSec,
+        acceptedRevision: previous.revision + 1,
+        mitralForwardFlowMlPerSec: circulationTrial.edgeFlowsMlPerSec.MV,
+        effectiveFiberLogStrainByWall: candidateEvaluation.coronaryMechanicsCoupling.effectiveFiberLogStrainByWall
+      })
+    );
+    finalizationFailureStage = "accepted-tuple-promotion";
+    const acceptedState2 = acceptedTuple(
+      previous.revision + 1,
+      circulationCommit.fixedGlobalTotalBloodVolumeMl,
+      previous.coronaryBinding,
+      circulationCommit.acceptedNonCoronaryPartitionState,
+      companionTrial.coronaryTrial.candidateAcceptedState,
+      nextMechanics,
+      nextMvcReference
+    );
+    return Object.freeze({
+      converged: true,
+      acceptedState: acceptedState2,
+      circulationTrial: sealedCirculationTrial,
+      mechanicsTrial,
+      coronaryTrial: companionTrial.coronaryTrial,
+      coronaryBoundary: companionTrial.boundary,
+      coronaryMechanicsCoupling: candidateEvaluation.coronaryMechanicsCoupling,
+      intramyocardialPressureMmHgByTerritoryLayer: companionTrial.boundary.intramyocardialPressureMmHgByTerritoryLayer,
+      calciumDrive,
+      commonIntrathoracicPressureMmHg: commonIntrathoracicPressureMmHg2,
+      pericardium: candidateEvaluation.pericardium,
+      mvcReferenceUpdated: nextMvcReference.acceptedMitralClosureEventCount > previous.mvcReferenceState.acceptedMitralClosureEventCount
+    });
+  } catch (error) {
+    return Object.freeze({
+      converged: false,
+      reason: "selected-candidate-finalization-failed",
+      message: `${finalizationFailureStage}: ${errorMessageV2(error)}`,
+      rollbackState: rollbackTuple(
+        provider,
+        previous,
+        previous.circulation
+      ),
+      circulationFailureReason: "selected-candidate-finalization-failed",
+      lastAcceptedCandidateNodeVolumesMl: circulationTrial.candidateNodeVolumesMl,
+      circulationDiagnostics: circulationTrial.diagnostics,
+      mechanicsCommitted: false,
+      circulationCommitted: false,
+      coronaryCommitted: false,
+      mvcReferenceCommitted: false,
+      finalizationFailureStage
+    });
+  }
 }
 function createMutableEvaluationCountersV2() {
   return {
@@ -15687,6 +17048,9 @@ function recordCoronaryImplicitSensitivityCountersV2(counters, diagnostics) {
 function recordTriSegProviderCountersV2(counters, readback) {
   const providerCounters = triSegProviderCountersV2(readback);
   if (providerCounters === null) return;
+  recordTriSegProviderCounterValuesV2(counters, providerCounters);
+}
+function recordTriSegProviderCounterValuesV2(counters, providerCounters) {
   const target = counters.mechanics;
   target.triSegProviderCounterReadbackCount += 1;
   target.solveInternalCoordinatesCallCount += providerCounters.solveInternalCoordinatesCallCount;
@@ -15785,7 +17149,7 @@ function advanceMainWireCoronaryMvcReferenceV2(previous, input) {
     acceptedMitralClosureEventCount: previous.acceptedMitralClosureEventCount + (closed ? 1 : 0)
   });
 }
-function evaluatePreparedCandidateMechanicsV2(mechanicsStep, volumesMl, pericardiumBinding, commonIntrathoracicPressureMmHg2, impMechanism, evaluationCounters, origin) {
+function evaluatePreparedCandidateMechanicsV2(mechanicsStep, volumesMl, pericardiumBinding, commonIntrathoracicPressureMmHg2, impMechanism, evaluationCounters, origin, useCandidateProbe) {
   if (evaluationCounters !== null) {
     if (origin === "candidate-center") {
       evaluationCounters.mechanics.candidateCenterEvaluationCount += 1;
@@ -15793,49 +17157,68 @@ function evaluatePreparedCandidateMechanicsV2(mechanicsStep, volumesMl, pericard
       evaluationCounters.mechanics.lvRvProbeEvaluationCount += 1;
     }
   }
-  const mechanicsTrial = evaluatePreparedWholeHeartMechanicsTrialV1(
+  const mechanicsCandidate = useCandidateProbe ? evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+    mechanicsStep,
+    volumesMl
+  ) : evaluatePreparedWholeHeartMechanicsTrialV1(
     mechanicsStep,
     volumesMl
   );
+  const mechanicsView = isWholeHeartMechanicsCandidateProbeV2(mechanicsCandidate) ? Object.freeze({
+    candidateVolumesMl: mechanicsCandidate.candidateVolumesMl,
+    transmuralPressuresMmHg: mechanicsCandidate.transmuralPressuresMmHg,
+    ...mechanicsCandidate.transmuralPressureVolumeTangentMmHgPerMl === void 0 ? {} : {
+      transmuralPressureVolumeTangentMmHgPerMl: mechanicsCandidate.transmuralPressureVolumeTangentMmHgPerMl
+    },
+    diagnostics: Object.freeze({
+      ...mechanicsCandidate.diagnostics,
+      readback: inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1(
+        mechanicsStep,
+        mechanicsCandidate
+      )
+    })
+  }) : mechanicsCandidate;
   if (evaluationCounters !== null) {
     recordTriSegProviderCountersV2(
       evaluationCounters,
-      mechanicsTrial.diagnostics.readback
+      mechanicsView.diagnostics.readback
     );
   }
-  if (!mechanicsTrial.diagnostics.converged || !mechanicsTrial.diagnostics.finite || mechanicsTrial.diagnostics.errors.length > 0) {
+  if (!mechanicsView.diagnostics.converged || !mechanicsView.diagnostics.finite || mechanicsView.diagnostics.errors.length > 0) {
     throw new Error(
-      `five-wall mechanics trial failed: ${mechanicsTrial.diagnostics.errors.join("; ") || "provider reported not-ready diagnostics"}`
+      `five-wall mechanics trial failed: ${mechanicsView.diagnostics.errors.join("; ") || "provider reported not-ready diagnostics"}`
     );
   }
   const pericardium = evaluateMainWireCommonPericardiumBindingV1(
     pericardiumBinding,
     volumesMl
   );
-  const coronaryMechanicsCoupling = evaluateMainWireCoronaryMechanicsCouplingV1(mechanicsTrial, {
+  const coronaryMechanicsCoupling = evaluateMainWireCoronaryMechanicsCouplingV1(mechanicsView, {
     commonIntrathoracicPressureMmHg: commonIntrathoracicPressureMmHg2,
     commonPericardialExcessPressureMmHg: pericardium.excessPressureMmHg
   });
   const evaluation = Object.freeze({
-    mechanicsTrial,
+    mechanicsCandidate,
+    mechanicsView,
     pericardium,
     coronaryMechanicsCoupling,
     ...impMechanism === "source-cep-land-active" ? {
-      sourceIntramyocardialPressureMmHgByTerritoryLayer: intramyocardialPressureRecord(
-        evaluateAllCoronaryImpV1(coronaryMechanicsCoupling.input)
+      sourceIntramyocardialPressureMmHgByTerritoryLayer: evaluateAllCoronaryImpPressureV1(
+        coronaryMechanicsCoupling.input,
+        "intramyocardial"
       )
     } : {}
   });
   return Object.freeze({
     absolutePressuresMmHg: Object.freeze({
-      LA: mechanicsTrial.transmuralPressuresMmHg.LA + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg,
-      LV: mechanicsTrial.transmuralPressuresMmHg.LV + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg,
-      RA: mechanicsTrial.transmuralPressuresMmHg.RA + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg,
-      RV: mechanicsTrial.transmuralPressuresMmHg.RV + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg
+      LA: mechanicsView.transmuralPressuresMmHg.LA + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg,
+      LV: mechanicsView.transmuralPressuresMmHg.LV + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg,
+      RA: mechanicsView.transmuralPressuresMmHg.RA + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg,
+      RV: mechanicsView.transmuralPressuresMmHg.RV + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg
     }),
-    ...mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl === void 0 ? {} : {
+    ...mechanicsView.transmuralPressureVolumeTangentMmHgPerMl === void 0 ? {} : {
       absolutePressureTangent: absoluteChamberPressureTangent(
-        mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl,
+        mechanicsView.transmuralPressureVolumeTangentMmHgPerMl,
         pericardium
       )
     },
@@ -15844,21 +17227,28 @@ function evaluatePreparedCandidateMechanicsV2(mechanicsStep, volumesMl, pericard
 }
 function resolveCandidateCoronaryBoundaryV2(absoluteAorticPressureMmHg2, absoluteRightAtrialPressureMmHg, mechanics, impMechanism, shorteningReference2, shorteningImpPrior) {
   return resolveMainWireCoronaryBoundaryV2(
-    Object.freeze({
-      absoluteAorticPressureMmHg: absoluteAorticPressureMmHg2,
+    candidateCoronaryBoundarySampleV2(
+      absoluteAorticPressureMmHg2,
       absoluteRightAtrialPressureMmHg,
-      ...mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer === void 0 ? {} : {
-        sourceIntramyocardialPressureMmHgByTerritoryLayer: mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer
-      },
-      mechanicsInput: mechanics.coronaryMechanicsCoupling.input,
-      effectiveFiberLogStrainByWall: mechanics.coronaryMechanicsCoupling.effectiveFiberLogStrainByWall
-    }),
+      mechanics
+    ),
     impMechanism,
     shorteningReference2,
     shorteningImpPrior
   );
 }
-function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardiumBinding, commonIntrathoracicPressureMmHg2, baseBoundary, impMechanism, shorteningReference2, shorteningImpPrior, scaledStep, evaluationCounters) {
+function candidateCoronaryBoundarySampleV2(absoluteAorticPressureMmHg2, absoluteRightAtrialPressureMmHg, mechanics) {
+  return Object.freeze({
+    absoluteAorticPressureMmHg: absoluteAorticPressureMmHg2,
+    absoluteRightAtrialPressureMmHg,
+    ...mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer === void 0 ? {} : {
+      sourceIntramyocardialPressureMmHgByTerritoryLayer: mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer
+    },
+    mechanicsInput: mechanics.coronaryMechanicsCoupling.input,
+    effectiveFiberLogStrainByWall: mechanics.coronaryMechanicsCoupling.effectiveFiberLogStrainByWall
+  });
+}
+function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardiumBinding, commonIntrathoracicPressureMmHg2, baseBoundary, impMechanism, shorteningReference2, shorteningImpPrior, scaledStep, evaluationCounters, useCandidateProbe) {
   const tangent = candidate.dBoundaryAbsolutePressureDScaledIndependentVolume;
   if (tangent === null) return null;
   requirePositiveFinite$c(scaledStep, "outer scaled sensitivity step");
@@ -15869,7 +17259,7 @@ function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardium
     );
   }
   const baseMechanics = candidate.candidateMechanicsEvaluation;
-  const baseVolumes = baseMechanics.mechanicsTrial.candidateVolumesMl;
+  const baseVolumes = baseMechanics.mechanicsView.candidateVolumesMl;
   const directionForBoundary = (absoluteAorticPressureMmHg2, absoluteRightAtrialPressureMmHg, mechanics) => resolveCandidateCoronaryBoundaryV2(
     absoluteAorticPressureMmHg2,
     absoluteRightAtrialPressureMmHg,
@@ -15912,7 +17302,7 @@ function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardium
         volumesMl
       );
       const coronaryMechanicsCoupling = evaluateMainWireCoronaryMechanicsCouplingV1(
-        baseMechanics.mechanicsTrial,
+        baseMechanics.mechanicsView,
         Object.freeze({
           commonIntrathoracicPressureMmHg: commonIntrathoracicPressureMmHg2,
           commonPericardialExcessPressureMmHg: pericardium.excessPressureMmHg
@@ -15921,8 +17311,9 @@ function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardium
       return Object.freeze({
         coronaryMechanicsCoupling,
         ...impMechanism === "source-cep-land-active" ? {
-          sourceIntramyocardialPressureMmHgByTerritoryLayer: intramyocardialPressureRecord(
-            evaluateAllCoronaryImpV1(coronaryMechanicsCoupling.input)
+          sourceIntramyocardialPressureMmHgByTerritoryLayer: evaluateAllCoronaryImpPressureV1(
+            coronaryMechanicsCoupling.input,
+            "intramyocardial"
           )
         } : {}
       });
@@ -15979,7 +17370,7 @@ function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardium
         volumesMl
       );
       const coronaryMechanicsCoupling = evaluateMainWireCoronaryMechanicsCouplingVentricularDirectionV1(
-        baseMechanics.mechanicsTrial,
+        baseMechanics.mechanicsView,
         Object.freeze({
           ventricularVolume: node,
           signedVolumeDeltaMl,
@@ -15992,14 +17383,15 @@ function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardium
         mechanics: Object.freeze({
           coronaryMechanicsCoupling,
           ...impMechanism === "source-cep-land-active" ? {
-            sourceIntramyocardialPressureMmHgByTerritoryLayer: intramyocardialPressureRecord(
-              evaluateAllCoronaryImpV1(coronaryMechanicsCoupling.input)
+            sourceIntramyocardialPressureMmHgByTerritoryLayer: evaluateAllCoronaryImpPressureV1(
+              coronaryMechanicsCoupling.input,
+              "intramyocardial"
             )
           } : {}
         }),
         // Ventricular volume cannot change the separate RA wall. Re-evaluating
         // the common pericardial scalar reconstructs this full-probe boundary.
-        absoluteRightAtrialPressureMmHg: baseMechanics.mechanicsTrial.transmuralPressuresMmHg.RA + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg
+        absoluteRightAtrialPressureMmHg: baseMechanics.mechanicsView.transmuralPressuresMmHg.RA + commonIntrathoracicPressureMmHg2 + pericardium.excessPressureMmHg
       });
     };
     const minus = analyticDirectionView(minusVolumes, -volumeStepMl);
@@ -16014,7 +17406,8 @@ function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardium
         commonIntrathoracicPressureMmHg2,
         impMechanism,
         evaluationCounters,
-        "lv-rv-probe"
+        "lv-rv-probe",
+        useCandidateProbe
       );
       const plusMechanics = evaluatePreparedCandidateMechanicsV2(
         mechanicsStep,
@@ -16023,7 +17416,8 @@ function buildCoronaryBoundaryDirectionsV2(candidate, mechanicsStep, pericardium
         commonIntrathoracicPressureMmHg2,
         impMechanism,
         evaluationCounters,
-        "lv-rv-probe"
+        "lv-rv-probe",
+        useCandidateProbe
       );
       return Object.freeze({
         scaledStep,
@@ -16348,19 +17742,6 @@ function absoluteAorticPressureMmHg(circulation, runtime) {
     circulation.nodeVolumesMl.Ao,
     runtime.vascular
   );
-}
-function intramyocardialPressureRecord(evaluations) {
-  return Object.freeze(Object.fromEntries(
-    CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
-      territoryId,
-      Object.freeze(Object.fromEntries(
-        CORONARY_LAYER_IDS_V2.map((layerId) => [
-          layerId,
-          evaluations[territoryId][layerId].intramyocardialPressureMmHg
-        ])
-      ))
-    ])
-  ));
 }
 function coronaryBloodVolumeMl(state) {
   return CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.reduce(
@@ -16839,7 +18220,7 @@ function initializeMainWireFiveWallCoronaryV3(input) {
   );
   return Object.freeze({
     ...base2,
-    acceptedState: wrapMainWireFiveWallCoronaryAcceptedStateV3(
+    acceptedState: wrapInternalMainWireFiveWallCoronaryAcceptedStateV3(
       base2.acceptedState,
       binding,
       autoregulation
@@ -16859,7 +18240,7 @@ function maximumMainWireFiveWallCoronaryStepDurationFromValidatedStateV3(state) 
     state.acceptedTimeSec
   );
 }
-function stepMainWireFiveWallCoronaryV3(provider, previous, input) {
+function stepMainWireFiveWallCoronaryV3(provider, previous, input, coronaryScratchWorkspace, nonCoronaryScratchWorkspace, previousAcceptedNumericalSource) {
   const basePrevious = validatedMainWireFiveWallCoronaryBaseStateV2(previous);
   const maximumDtSec = maximumMainWireFiveWallCoronaryStepDurationFromValidatedStateV3(
     previous
@@ -16873,8 +18254,28 @@ function stepMainWireFiveWallCoronaryV3(provider, previous, input) {
   const baseStep = stepMainWireFiveWallCoronaryV2(
     provider,
     basePrevious,
-    input
+    input,
+    coronaryScratchWorkspace,
+    nonCoronaryScratchWorkspace,
+    previousAcceptedNumericalSource
   );
+  return promoteMainWireFiveWallCoronaryBaseStepV3(
+    previous,
+    input,
+    baseStep
+  );
+}
+function promoteMainWireFiveWallCoronaryBaseStepV3(previous, input, baseStep) {
+  validatedMainWireFiveWallCoronaryBaseStateV2(previous);
+  const maximumDtSec = maximumMainWireFiveWallCoronaryStepDurationFromValidatedStateV3(
+    previous
+  );
+  const tolerance = 64 * Number.EPSILON * Math.max(1, Math.abs(previous.acceptedTimeSec), Math.abs(input.dtSec));
+  if (!Number.isFinite(input.dtSec) || input.dtSec <= 0 || input.dtSec > maximumDtSec + tolerance) {
+    throw new RangeError(
+      "step dt must be positive and must not cross the autoregulation window"
+    );
+  }
   if (baseStep.converged === false) {
     return Object.freeze({
       converged: false,
@@ -16914,7 +18315,7 @@ function stepMainWireFiveWallCoronaryV3(provider, previous, input) {
       baseStep.acceptedState,
       regulation.nextToneResistanceScaleByTerritoryLayer
     );
-    const acceptedState2 = wrapMainWireFiveWallCoronaryAcceptedStateV3(
+    const acceptedState2 = wrapInternalMainWireFiveWallCoronaryAcceptedStateV3(
       promotedBase,
       previous.coronaryAutoregulationBinding,
       regulation.nextState
@@ -16975,6 +18376,21 @@ function wrapMainWireFiveWallCoronaryAcceptedStateV3(base2, binding, autoregulat
     coronaryAutoregulation: autoregulation
   });
 }
+function wrapInternalMainWireFiveWallCoronaryAcceptedStateV3(base2, binding, autoregulation) {
+  validateMainWireFiveWallCoronaryAcceptedStateV2(base2);
+  const state = wrapMainWireFiveWallCoronaryAcceptedStateV3(
+    base2,
+    binding,
+    autoregulation
+  );
+  if (validationStampReuseEligibleV1()) {
+    validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
+      state,
+      base2
+    );
+  }
+  return state;
+}
 function validateMainWireFiveWallCoronaryAcceptedStateV3(state) {
   validatedMainWireFiveWallCoronaryBaseStateV2(state);
 }
@@ -16997,12 +18413,6 @@ function validatedMainWireFiveWallCoronaryBaseStateV2(state) {
   );
   const baseState = mainWireFiveWallCoronaryBaseStateV2(state);
   validateMainWireFiveWallCoronaryAcceptedStateV2(baseState);
-  if (Object.isFrozen(state) && Object.isFrozen(state.circulation) && Object.isFrozen(state.coronary) && Object.isFrozen(state.mechanics) && validationStampIssuanceEligibleV1(state)) {
-    validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
-      state,
-      baseState
-    );
-  }
   return baseState;
 }
 function withAcceptedCoronaryTone(base2, tone) {
@@ -23324,7 +24734,7 @@ function evaluateAcceptedComposedRhythmTransactionCandidateV2(state, input) {
   if (fullHotPathInvariantsEnabledV1()) {
     validateAcceptedComposedRhythmTransactionStateV2(candidateState);
   }
-  stampInternallyValidatedAcceptedComposedRhythmStateV2(candidateState);
+  stampPrivatelyConstructedAcceptedComposedRhythmStateV2(candidateState);
   const candidate = deepFreeze$8({
     candidateSchemaId: ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CANDIDATE_V2_ID,
     schemaVersion: 2,
@@ -23532,11 +24942,16 @@ function validateAcceptedComposedRhythmTransactionStateV2(state) {
 function validateAcceptedComposedRhythmTransactionBoundaryV2(state) {
   if (validationStampReuseEligibleV1() && internallyValidatedAcceptedComposedRhythmStatesV2.has(state)) return;
   validateAcceptedComposedRhythmTransactionStateV2(state);
+  stampInternallyValidatedAcceptedComposedRhythmStateV2(state);
 }
 function stampInternallyValidatedAcceptedComposedRhythmStateV2(state) {
   if (validationStampIssuanceEligibleV1(state)) {
     internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
   }
+}
+function stampPrivatelyConstructedAcceptedComposedRhythmStateV2(state) {
+  if (!validationStampReuseEligibleV1()) return;
+  internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
 }
 function stampInternallyValidatedAcceptedComposedRhythmConfigurationV2(configuration) {
   if (validationStampIssuanceEligibleV1(configuration)) {
@@ -24134,7 +25549,26 @@ function limitMainWireIntegratedModelCandidateTimeFromValidatedStateV3(previous,
     coronaryWindowAndRhythmBoundaryTie: boundaryTime !== null && boundaryTime === coronaryCappedEndTimeSec && coronaryWindowMaximumStepSec <= requestedStepSec + tolerance
   });
 }
-function stepMainWireIntegratedModelV3(provider, previous, input) {
+function stepMainWireIntegratedModelV3(provider, previous, input, coronaryScratchWorkspace, nonCoronaryScratchWorkspace, previousAcceptedNumericalSource) {
+  return stepMainWireIntegratedModelWithCoronaryExecutorV3(
+    previous,
+    input,
+    (coronaryPrevious, coronaryInput) => Object.freeze({
+      coronaryStep: stepMainWireFiveWallCoronaryV3(
+        provider,
+        coronaryPrevious,
+        coronaryInput,
+        coronaryScratchWorkspace,
+        nonCoronaryScratchWorkspace,
+        previousAcceptedNumericalSource
+      )
+    })
+  );
+}
+function stepMainWireIntegratedModelWithCoronaryExecutorV3(previous, input, executeCoronary) {
+  if (typeof executeCoronary !== "function") {
+    throw new TypeError("composed integrated coronary executor is required");
+  }
   let candidateTimeLimit;
   let composedRhythmCandidate;
   let coronaryStep;
@@ -24187,8 +25621,7 @@ function stepMainWireIntegratedModelV3(provider, previous, input) {
       profile: input.dynamicMechanicalSupport.profile,
       previousAcceptedState: previous.dynamicMechanicalSupport
     });
-    coronaryStep = stepMainWireFiveWallCoronaryV3(
-      provider,
+    const coronaryExecution = executeCoronary(
       previous.coronary,
       {
         ...input.coronary,
@@ -24197,6 +25630,7 @@ function stepMainWireIntegratedModelV3(provider, previous, input) {
         dynamicMechanicalSupport
       }
     );
+    coronaryStep = coronaryExecution.coronaryStep;
     if (coronaryStep.converged === false) {
       return failure(
         previous,
@@ -24205,7 +25639,13 @@ function stepMainWireIntegratedModelV3(provider, previous, input) {
         { coronaryStep, composedRhythmCandidate, candidateTimeLimit }
       );
     }
-    const dynamicTrial = coronaryStep.baseStep.circulationTrial.dynamicMechanicalSupport;
+    const embeddedDynamicTrial = coronaryStep.baseStep.circulationTrial.dynamicMechanicalSupport;
+    if (coronaryExecution.dynamicMechanicalSupportTrial !== void 0 && embeddedDynamicTrial !== void 0 && coronaryExecution.dynamicMechanicalSupportTrial !== embeddedDynamicTrial) {
+      throw new Error(
+        "coronary executor returned two different dynamic MCS trials"
+      );
+    }
+    const dynamicTrial = coronaryExecution.dynamicMechanicalSupportTrial ?? embeddedDynamicTrial;
     if (dynamicTrial === void 0) {
       throw new Error("coronary candidate omitted dynamic MCS readback");
     }
@@ -25438,11 +26878,30 @@ class MainWireIntegratedModelBeatAccumulatorV3 {
   }
   accept(step) {
     const sample = sampleFromStepV3(step);
+    return this.acceptSample(
+      sample,
+      step.composedRhythmCandidate.capturedAtrialActivation?.capturedActivationId ?? null
+    );
+  }
+  /**
+   * Consumes the model-owned fixed readback only after its wider integrated
+   * transaction has committed. The input is borrowed and never retained.
+   */
+  acceptNumericalReadback(readback, capturedAtrialActivationId) {
+    return this.acceptSample(
+      sampleFromNumericalReadbackV1(readback),
+      capturedAtrialActivationId
+    );
+  }
+  acceptSample(sample, capturedAtrialActivationId) {
     if (this.#active !== null) integrateSampleV3(this.#active, sample);
-    const capture = step.composedRhythmCandidate.capturedAtrialActivation;
-    if (capture === null) return null;
-    const completed = this.#active === null ? null : completeBeatV3(this.#active, capture.capturedActivationId, sample.timeSec);
-    this.#active = beginBeatV3(capture.capturedActivationId, sample);
+    if (capturedAtrialActivationId === null) return null;
+    const completed = this.#active === null ? null : completeBeatV3(
+      this.#active,
+      capturedAtrialActivationId,
+      sample.timeSec
+    );
+    this.#active = beginBeatV3(capturedAtrialActivationId, sample);
     return completed;
   }
 }
@@ -25608,6 +27067,37 @@ function sampleFromStepV3(step) {
   for (const [name, value] of Object.entries(sample)) {
     if (!Number.isFinite(value)) {
       throw new Error(`integrated V3 beat sample ${name} is not finite`);
+    }
+  }
+  return sample;
+}
+function sampleFromNumericalReadbackV1(readback) {
+  if (!(readback instanceof Float64Array) || readback.length !== MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1) {
+    throw new RangeError(
+      "integrated V3 beat readback must contain exactly 32 f64 values"
+    );
+  }
+  const layout = MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1;
+  const sample = Object.freeze({
+    timeSec: readback[layout.timeSec],
+    aorticPressureMmHg: readback[layout.absolutePressureMmHg + 4],
+    pulmonaryArterialPressureMmHg: readback[layout.absolutePressureMmHg + 6],
+    leftAtrialPressureMmHg: readback[layout.absolutePressureMmHg],
+    rightAtrialPressureMmHg: readback[layout.absolutePressureMmHg + 2],
+    leftVentricularVolumeMl: readback[layout.chamberVolumeMl + 1],
+    rightVentricularVolumeMl: readback[layout.chamberVolumeMl + 3],
+    leftVentricularTransmuralPressureMmHg: readback[layout.transmuralPressureMmHg + 1],
+    rightVentricularTransmuralPressureMmHg: readback[layout.transmuralPressureMmHg + 3],
+    aorticValveFlowMlPerSec: readback[layout.valveFlowMlPerSec + 1],
+    pulmonaryValveFlowMlPerSec: readback[layout.valveFlowMlPerSec + 3],
+    systemicVenousReturnMlPerSec: readback[layout.systemicVenousFlowMlPerSec] + readback[layout.coronaryVenousOutletFlowMlPerSec],
+    pulmonaryVenousReturnMlPerSec: readback[layout.pulmonaryVenousFlowMlPerSec],
+    systemicTissueFlowMlPerSec: readback[layout.systemicTissueFlowMlPerSec],
+    pulmonaryFlowMlPerSec: readback[layout.pulmonaryFlowMlPerSec]
+  });
+  for (const [name, value] of Object.entries(sample)) {
+    if (!Number.isFinite(value)) {
+      throw new Error(`integrated V3 beat readback ${name} is not finite`);
     }
   }
   return sample;
@@ -26951,24 +28441,27 @@ function projectMainWireIntegratedModelSelectedValuesV3(observation2, outputIds)
     }
     seen.add(outputId);
     values2[outputId] = projectMainWireIntegratedModelOutputValueV3(
-      observation2,
+      observation2.acceptedState,
+      observation2.runtimeSignals,
+      observation2.completedBeatMetrics,
+      observation2.lastAcceptedStep,
+      null,
       outputId
     );
   }
   return Object.freeze(values2);
 }
-function projectMainWireIntegratedModelOutputValueV3(observation2, outputId) {
-  const accepted = observation2.acceptedState;
-  const step = observation2.lastAcceptedStep;
+function projectMainWireIntegratedModelOutputValueV3(accepted, runtimeSignals, completedBeatMetrics, step, numericalReadback, outputId, typedState) {
   switch (outputId) {
     case "hemodynamics.volume.LA":
     case "hemodynamics.volume.LV":
     case "hemodynamics.volume.RA":
     case "hemodynamics.volume.RV": {
       const chamber = outputId.slice(-2);
+      MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1.indexOf(chamber);
       return availableValue(
         outputId,
-        accepted.coronary.circulation.nodeVolumesMl[chamber],
+        requiredAcceptedStateV3(accepted).coronary.circulation.nodeVolumesMl[chamber],
         "authoritative-state"
       );
     }
@@ -27035,19 +28528,21 @@ function projectMainWireIntegratedModelOutputValueV3(observation2, outputId) {
     case "respiration.pressure.pleural":
       return availableValue(
         outputId,
-        observation2.runtimeSignals.pleuralPressureMmHg,
+        runtimeSignals.pleuralPressureMmHg,
         "accepted-derived"
       );
     case "respiration.pressure.alveolar":
       return availableValue(
         outputId,
-        observation2.runtimeSignals.alveolarPressureMmHg,
+        runtimeSignals.alveolarPressureMmHg,
         "accepted-derived"
       );
     case "rhythm.heart-rate.instantaneous":
       return availableValue(
         outputId,
-        regularSinusHeartRateBpmV3(accepted.composedRhythm),
+        regularSinusHeartRateBpmV3(
+          requiredAcceptedStateV3(accepted).composedRhythm
+        ),
         "accepted-derived"
       );
     case "coronary.flow.total":
@@ -27067,84 +28562,86 @@ function projectMainWireIntegratedModelOutputValueV3(observation2, outputId) {
     case "device.LVAD.flow":
       return availableValue(
         outputId,
-        accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD,
+        requiredAcceptedStateV3(accepted).dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD,
         "authoritative-state"
       );
     case "rhythm.phase.regular-sinus":
       return availableValue(
         outputId,
-        regularSinusPhase01V3(accepted.composedRhythm),
+        regularSinusPhase01V3(
+          requiredAcceptedStateV3(accepted).composedRhythm
+        ),
         "accepted-derived"
       );
     case "hemodynamics.pressure.mean.Ao":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.meanAorticPressureMmHg
+        completedBeatMetrics?.meanAorticPressureMmHg
       );
     case "hemodynamics.pressure.systolic.Ao":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.systolicAorticPressureMmHg
+        completedBeatMetrics?.systolicAorticPressureMmHg
       );
     case "hemodynamics.pressure.diastolic.Ao":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.diastolicAorticPressureMmHg
+        completedBeatMetrics?.diastolicAorticPressureMmHg
       );
     case "hemodynamics.pressure.pulse.Ao":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.pulseAorticPressureMmHg
+        completedBeatMetrics?.pulseAorticPressureMmHg
       );
     case "hemodynamics.pressure.mean.PA":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.meanPulmonaryArterialPressureMmHg
+        completedBeatMetrics?.meanPulmonaryArterialPressureMmHg
       );
     case "hemodynamics.pressure.mean.LA":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.meanLeftAtrialPressureMmHg
+        completedBeatMetrics?.meanLeftAtrialPressureMmHg
       );
     case "hemodynamics.pressure.mean.RA":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.meanRightAtrialPressureMmHg
+        completedBeatMetrics?.meanRightAtrialPressureMmHg
       );
     case "hemodynamics.volume.maximum.LV":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.maximumLeftVentricularVolumeMl
+        completedBeatMetrics?.maximumLeftVentricularVolumeMl
       );
     case "hemodynamics.volume.minimum.LV":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.minimumLeftVentricularVolumeMl
+        completedBeatMetrics?.minimumLeftVentricularVolumeMl
       );
     case "hemodynamics.stroke-volume.LV-extrema":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.extremaLeftVentricularStrokeVolumeMl
+        completedBeatMetrics?.extremaLeftVentricularStrokeVolumeMl
       );
     case "hemodynamics.ejection-fraction.LV-extrema":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.extremaLeftVentricularEjectionFraction01
+        completedBeatMetrics?.extremaLeftVentricularEjectionFraction01
       );
     case "hemodynamics.output.native-left":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.nativeLeftCardiacOutputLPerMin
+        completedBeatMetrics?.nativeLeftCardiacOutputLPerMin
       );
     case "hemodynamics.output.systemic-tissue":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.systemicTissueOutputLPerMin
+        completedBeatMetrics?.systemicTissueOutputLPerMin
       );
     case "hemodynamics.output.pulmonary":
       return beatMetricValue(
         outputId,
-        observation2.completedBeatMetrics?.pulmonaryOutputLPerMin
+        completedBeatMetrics?.pulmonaryOutputLPerMin
       );
   }
 }
@@ -27236,6 +28733,14 @@ function regularSinusPhase01V3(state) {
     );
   }
   return phase01;
+}
+function requiredAcceptedStateV3(accepted) {
+  if (accepted === void 0) {
+    throw new MainWireIntegratedModelOutputProjectionErrorV3(
+      "selected output requires an accepted-state readback"
+    );
+  }
+  return accepted;
 }
 function assertObservationReadbackPairV3(observation2) {
   if (observation2.source === "presentation-target" && observation2.lastAcceptedStep === null) {
@@ -33670,7 +35175,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-12";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-27";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";

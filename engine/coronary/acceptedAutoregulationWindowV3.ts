@@ -594,7 +594,7 @@ function validateOrStampConstructedAutoregulationStateV3(
   // re-walk this module's own freshly frozen state. The constructor above
   // derives its clock/revision and copies every record from already validated
   // inputs; only that exact output/binding identity receives the stamp.
-  stampAutoregulationStateBindingV3(state, binding);
+  stampPrivatelyConstructedAutoregulationStateBindingV3(state, binding);
 }
 
 function validateAutoregulationClockV3(
@@ -639,6 +639,31 @@ function stampAutoregulationStateBindingV3(
   // public callers can supply an outer-frozen state with mutable descendants.
   // Prove the complete state/binding graph before retaining identity reuse.
   if (!validationStampIssuanceEligibleV1(state, binding)) return;
+  recordAutoregulationStateBindingStampV3(state, binding);
+}
+
+/**
+ * Records only the exact state created by freezeState after its input binding
+ * has already earned a complete immutable binding proof. This private path
+ * avoids re-walking the freshly copied state graph in the lean tier; exported
+ * validator issuance still proves the complete graph independently.
+ */
+function stampPrivatelyConstructedAutoregulationStateBindingV3(
+  state: CoronaryAcceptedAutoregulationStateV3,
+  binding: CoronaryAutoregulationWindowBindingV3,
+): void {
+  if (
+    !validationStampReuseEligibleV1()
+    || !Object.isFrozen(state)
+    || !VALIDATED_AUTOREGULATION_BINDINGS_V3.has(binding)
+  ) return;
+  recordAutoregulationStateBindingStampV3(state, binding);
+}
+
+function recordAutoregulationStateBindingStampV3(
+  state: CoronaryAcceptedAutoregulationStateV3,
+  binding: CoronaryAutoregulationWindowBindingV3,
+): void {
   const bindings = VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.get(state)
     ?? new WeakSet<object>();
   bindings.add(binding);

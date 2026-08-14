@@ -5,7 +5,7 @@ import {
 import {
   evaluateEnergyConjugateTriSegV1,
   evaluateTriSegGeometryV1,
-  evaluateTriSegWallSecondDerivativeV1,
+  writeTriSegWallSecondDerivativeV1,
   type EnergyConjugateTriSegEvaluationV1,
   type TriSegCoordinatesV1,
   type TriSegGeometryV1,
@@ -101,6 +101,8 @@ export type MainWireFiveWallMaterialEvaluationV1<TWallState> = Readonly<{
   state: TWallState;
   fiberLogStrain: number;
   fiberKirchhoffStressPa: number;
+  /** Active-only Kirchhoff stress used by the coronary IMP coupling. */
+  activeFiberKirchhoffStressPa: number;
   /** Consistent d(tau_fiber)/d(log fiber strain) for this trial state. */
   algorithmicFiberTangentPa: number;
   /** Active-only consistent d(tau_active)/d(log fiber strain). */
@@ -130,11 +132,33 @@ export type MainWireFiveWallLandSlsMaterialKernelV1<TWallState> = Readonly<{
   topology:
     "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS";
   stateCodec: WholeHeartMechanicsStateCodecV1<TWallState>;
+  /**
+   * A trusted kernel may consume the provider-owned accepted wall state
+   * read-only. Defensive kernels continue to receive a fresh codec clone.
+   */
+  acceptedStateInputMode: "defensive-clone" | "trusted-read-only";
+  /**
+   * An exclusive result state is newly owned by that evaluation and is never
+   * reused or mutated by the kernel after return.
+   */
+  evaluationStateOwnershipMode: "defensive-clone" | "exclusive-result";
   initializeColdAtFixedInput(input: Readonly<{
     fiberLogStrain: number;
     freeCalciumUM: number;
   }>): MainWireFiveWallMaterialEvaluationV1<TWallState>;
   evaluateTrialFromAccepted(input: Readonly<{
+    previousAcceptedState: TWallState;
+    candidateFiberLogStrain: number;
+    candidateFreeCalciumUM: number;
+    stepDtSec: number;
+  }>): MainWireFiveWallMaterialEvaluationV1<TWallState>;
+  /**
+   * Optional model-owned hot path. It must return the identical constitutive
+   * state, stresses and tangents as `evaluateTrialFromAccepted`, but may omit
+   * presentation/audit readback that rejected outer Newton candidates never
+   * consume.
+   */
+  evaluateNumericalTrialFromAccepted?(input: Readonly<{
     previousAcceptedState: TWallState;
     candidateFiberLogStrain: number;
     candidateFreeCalciumUM: number;
@@ -170,6 +194,9 @@ export type MainWireFiveWallLandTriSegProviderParamsV1<TWallState> = Readonly<{
   trisegWalls: TriSegWallRecordV1<TriSegWallGeometryParametersV1>;
   initialTriSegCoordinates: TriSegCoordinatesV1;
   internalCoordinateScales: TriSegCoordinatesV1;
+  fingerprintMaterialStateCanonicalV1?: (
+    state: MainWireFiveWallLandTriSegStateV1<TWallState>,
+  ) => string;
   solver?: MainWireFiveWallInternalSolverOptionsV1;
 }>;
 
@@ -250,11 +277,143 @@ export type MainWireFiveWallLandTriSegProviderV1<TWallState> =
     MainWireFiveWallFreeCalciumDriveV1
   >;
 
+export const MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID =
+  "main-wire-five-wall-numerical-mechanics-step-v1" as const;
+
+export const MAIN_WIRE_FIVE_WALL_FIXED_INTERNAL_UNKNOWN_IDS_V1 = Object.freeze([
+  "LA-volume-ml",
+  "LV-volume-ml",
+  "RA-volume-ml",
+  "RV-volume-ml",
+  "septal-midwall-cap-volume-scaled",
+  "junction-radius-scaled",
+] as const);
+
+export const MAIN_WIRE_FIVE_WALL_VENTRICULAR_FIXED_INTERNAL_DIRECTION_IDS_V1 =
+  Object.freeze([
+    "LV-volume-ml",
+    "RV-volume-ml",
+    "septal-midwall-cap-volume-scaled",
+    "junction-radius-scaled",
+  ] as const);
+
+/**
+ * Opaque, one-accepted-step numerical mechanics context.
+ *
+ * This token is deliberately narrower than the public whole-heart mechanics
+ * contract. It may be prepared only from a provider instance minted by this
+ * module, and its private accepted snapshot never crosses the WeakMap
+ * boundary. Rejected nonlinear candidates therefore avoid public trial
+ * wrappers, serialization and readback parsing. The selected root is still
+ * materialized through the ordinary checked contract before durable commit.
+ */
+export type MainWireFiveWallNumericalMechanicsStepV1<TState> = Readonly<{
+  numericalStepId: typeof MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID;
+  providerId: typeof MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID;
+  parameterIdentityHash: string;
+  candidateTimeSec: number;
+  stepDtSec: number;
+  initialScaledInternalCoordinates: readonly [number, number];
+  /** Invariant type only; the value is never present at runtime. */
+  readonly __stateType?: TState;
+}>;
+
+export type MainWireFiveWallNumericalMechanicsEvaluationV1<TState> =
+  Readonly<{
+    /** Invariant type only; the value is never present at runtime. */
+    readonly __stateType?: TState;
+    candidateVolumesMl: WholeHeartMechanicsChamberValuesV1;
+    scaledInternalCoordinates: readonly [number, number];
+    transmuralPressuresMmHg: WholeHeartMechanicsChamberValuesV1;
+    transmuralPressureVolumeTangentMmHgPerMl?:
+      WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
+    effectiveFiberLogStrainByWall: MainWireFiveWallRecordV1<number>;
+    activeFiberKirchhoffStressPaByWall: MainWireFiveWallRecordV1<number>;
+    ventricularCoronaryBoundaryTangent?:
+      MainWireFiveWallVentricularCoronaryBoundaryTangentV1;
+    iterationCount: number;
+    residualNorm: number;
+    evaluationCounters?: MainWireFiveWallLandTriSegEvaluationCountersV1;
+  }>;
+
+/**
+ * One fixed-coordinate evaluation for the 32-variable monolithic construction
+ * solver. Matrices are row-major and use the exported immutable ID orders.
+ * No local TriSeg Newton, state clone, or public readback is performed.
+ */
+export type MainWireFiveWallFixedInternalMechanicsEvaluationV1 = Readonly<{
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1;
+  scaledInternalCoordinates: readonly [number, number];
+  transmuralPressuresMmHg: WholeHeartMechanicsChamberValuesV1;
+  internalResidualByOneJ: readonly [number, number];
+  /** Four pressure rows by six fixed-internal unknown columns. */
+  transmuralPressureDerivativeRowMajor: Float64Array;
+  /** Two internal-equilibrium rows by six fixed-internal unknown columns. */
+  internalResidualDerivativeRowMajor: Float64Array;
+  effectiveFiberLogStrainByWall: MainWireFiveWallRecordV1<number>;
+  activeFiberKirchhoffStressPaByWall: MainWireFiveWallRecordV1<number>;
+  /** Three ventricular wall rows by four ventricular/internal directions. */
+  ventricularFiberStrainDerivativeRowMajor: Float64Array;
+  /** Three ventricular wall rows by four ventricular/internal directions. */
+  ventricularActiveStressDerivativeRowMajor: Float64Array;
+}>;
+
+type ErasedNumericalMechanicsEvaluationV1 =
+  MainWireFiveWallNumericalMechanicsEvaluationV1<unknown>;
+
+type ErasedNumericalProviderFactoryV1 = Readonly<{
+  prepare(input: Readonly<{
+    previousAcceptedMaterialState: unknown;
+    candidateTimeSec: number;
+    stepDtSec: number;
+    drivingInputs: MainWireFiveWallFreeCalciumDriveV1;
+  }>): Readonly<{
+    evaluate(
+      candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+    ): ErasedNumericalMechanicsEvaluationV1;
+    evaluateAtFixedInternalCoordinates(
+      candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+      scaledInternalCoordinates: readonly [number, number],
+    ): MainWireFiveWallFixedInternalMechanicsEvaluationV1;
+    initialScaledInternalCoordinates: readonly [number, number];
+  }>;
+}>;
+
+const NUMERICAL_PROVIDER_FACTORIES_V1 =
+  new WeakMap<object, ErasedNumericalProviderFactoryV1>();
+
+const NUMERICAL_STEP_INTERNALS_V1 = new WeakMap<
+  object,
+  Readonly<{
+    evaluate(
+      candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+    ): ErasedNumericalMechanicsEvaluationV1;
+    evaluateAtFixedInternalCoordinates(
+      candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+      scaledInternalCoordinates: readonly [number, number],
+    ): MainWireFiveWallFixedInternalMechanicsEvaluationV1;
+    initialScaledInternalCoordinates: readonly [number, number];
+  }>
+>();
+
+const NUMERICAL_EVALUATION_INTERNALS_V1 = new WeakMap<
+  object,
+  {
+    materialized: boolean;
+    materializeCandidateState(): unknown;
+  }
+>();
+
 type ResolvedSolverOptionsV1 = Required<MainWireFiveWallInternalSolverOptionsV1>;
 
 type CandidateEvaluationV1<TWallState> = Readonly<{
   volumesMl: WholeHeartMechanicsChamberValuesV1;
-  state: MainWireFiveWallLandTriSegStateV1<TWallState>;
+  /**
+   * Public/cold evaluations materialize an owned state immediately. Numerical
+   * candidates keep this null and materialize only the converged result.
+   */
+  state: MainWireFiveWallLandTriSegStateV1<TWallState> | null;
+  internalCoordinates: TriSegCoordinatesV1;
   geometry: TriSegGeometryV1;
   triseg: EnergyConjugateTriSegEvaluationV1;
   materialByWall: MainWireFiveWallRecordV1<
@@ -322,6 +481,7 @@ type EvaluationModeV1<TWallState> =
     kind: "trial";
     previousState: MainWireFiveWallLandTriSegStateV1<TWallState>;
     stepDtSec: number;
+    materialEvaluationMode?: "public" | "numerical";
   }>;
 
 type AtrialWallIdV1 = "LA" | "RA";
@@ -424,7 +584,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
         coldConsistencyIterations = consistency + 1;
         if (solved.converged === false) {
           return failedProviderEvaluation(
-            initialCandidate.state,
+            requireMaterializedCandidateStateV1(initialCandidate),
             initialCandidate.transmuralPressuresMmHg,
             solved,
             "cold",
@@ -466,7 +626,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
             : Number.MAX_VALUE,
         });
         return failedProviderEvaluation(
-          initialCandidate.state,
+          requireMaterializedCandidateStateV1(initialCandidate),
           initialCandidate.transmuralPressuresMmHg,
           failure,
           "cold",
@@ -475,7 +635,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
         );
       }
       return failedProviderEvaluation(
-        initialCandidate.state,
+        requireMaterializedCandidateStateV1(initialCandidate),
         initialCandidate.transmuralPressuresMmHg,
         lastSolve,
         "cold",
@@ -492,11 +652,11 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
       validateDrive(input.drivingInputs);
       validateVolumes(input.candidateVolumesMl);
       requirePositive(input.stepDtSec, "stepDtSec");
-      // The whole-heart contract already supplies a fresh defensive accepted
-      // snapshot for every provider callback. This provider treats that input
-      // as read-only, while each inner wall candidate still receives its own
-      // codec clone below. Re-cloning the entire five-wall aggregate here adds
-      // no isolation and scales directly with every outer Newton candidate.
+      // The whole-heart contract owns one private accepted snapshot for this
+      // prepared step. This provider explicitly promises read-only access to
+      // it; each material kernel separately declares whether it needs a wall
+      // clone. Re-cloning the five-wall aggregate for every outer candidate
+      // adds no isolation for these trusted kernels.
       const previous = input.previousAcceptedState.materialState;
       const initialUnknowns = coordinatesToScaledUnknowns(
         previous.trisegCoordinates,
@@ -531,18 +691,379 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
       );
     };
 
-  return Object.freeze({
+  const provider = Object.freeze({
     contractId: WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
     providerId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
     parameterSetId: params.parameterSetId,
     parameterIdentityHash,
     stateSchemaVersion: STATE_SCHEMA_VERSION,
     stateCodec,
+    fingerprintMaterialStateCanonicalV1:
+      params.fingerprintMaterialStateCanonicalV1,
     acceptedStateInputMode:
       "trusted-read-only-prepared-snapshot" as const,
     evaluationResultOwnershipMode: "exclusive-result" as const,
     initializeCold,
     evaluateTrial,
+  });
+  NUMERICAL_PROVIDER_FACTORIES_V1.set(provider, Object.freeze({
+    prepare: (input) => {
+      if (!parameterIdentityInputsAreImmutable) {
+        assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+      }
+      requireFinite(input.candidateTimeSec, "candidateTimeSec");
+      requirePositive(input.stepDtSec, "stepDtSec");
+      validateDrive(input.drivingInputs);
+      const previous = stateCodec.clone(
+        input.previousAcceptedMaterialState as
+          MainWireFiveWallLandTriSegStateV1<TWallState>,
+      );
+      const drive = input.drivingInputs;
+      const initialUnknowns = coordinatesToScaledUnknowns(
+        previous.trisegCoordinates,
+        params,
+      ) as readonly [number, number];
+      // Fixed-coordinate probes belong to this one prepared accepted step.
+      // Keep their atrial constitutive reuse private to that lifetime, exactly
+      // as the local TriSeg solver keeps one private reuse object per solve.
+      // The cache key includes accepted state, strain, calcium and dt, so an
+      // A→B→A probe may reuse only the matching wall evaluation.
+      const fixedInternalTrialAtrialMaterialReuse:
+        TrialAtrialMaterialReuseV1<TWallState> = { LA: null, RA: null };
+      return Object.freeze({
+        initialScaledInternalCoordinates: initialUnknowns,
+        evaluate: (candidateVolumesMl) => {
+          validateVolumes(candidateVolumesMl);
+          const solved = solveInternalCoordinates(
+            candidateVolumesMl,
+            drive,
+            initialUnknowns,
+            {
+              kind: "trial",
+              previousState: previous,
+              stepDtSec: input.stepDtSec,
+              materialEvaluationMode: "numerical",
+            },
+            params,
+            solver,
+          );
+          if (solved.converged === false) {
+            throw new Error(
+              `five-wall numerical mechanics candidate failed: ${solved.message}`,
+            );
+          }
+          return numericalMechanicsEvaluationFromSolveV1(
+            candidateVolumesMl,
+            solved,
+            params,
+          ) as ErasedNumericalMechanicsEvaluationV1;
+        },
+        evaluateAtFixedInternalCoordinates: (
+          candidateVolumesMl,
+          scaledInternalCoordinates,
+        ) => {
+          validateVolumes(candidateVolumesMl);
+          const candidate = evaluateCandidate(
+            candidateVolumesMl,
+            drive,
+            scaledInternalCoordinates,
+            {
+              kind: "trial",
+              previousState: previous,
+              stepDtSec: input.stepDtSec,
+              materialEvaluationMode: "numerical",
+            },
+            params,
+            solver,
+            null,
+            fixedInternalTrialAtrialMaterialReuse,
+          );
+          return fixedInternalMechanicsEvaluationV1(
+            candidate,
+            scaledInternalCoordinates,
+            params,
+          );
+        },
+      });
+    },
+  }));
+  return provider;
+}
+
+/**
+ * Attempts the model-owned numerical candidate path. Unsupported mechanics
+ * providers return null and continue through the generic checked contract.
+ */
+export function tryPrepareMainWireFiveWallNumericalMechanicsStepV1<TState>(
+  provider: WholeHeartMechanicsProviderV1<
+    TState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  input: Readonly<{
+    previousAcceptedMaterialState: TState;
+    candidateTimeSec: number;
+    stepDtSec: number;
+    drivingInputs: MainWireFiveWallFreeCalciumDriveV1;
+  }>,
+): MainWireFiveWallNumericalMechanicsStepV1<TState> | null {
+  const factory = NUMERICAL_PROVIDER_FACTORIES_V1.get(provider);
+  if (factory === undefined) return null;
+  const internals = factory.prepare(input);
+  const step: MainWireFiveWallNumericalMechanicsStepV1<TState> = Object.freeze({
+    numericalStepId: MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID,
+    providerId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
+    parameterIdentityHash: provider.parameterIdentityHash,
+    candidateTimeSec: input.candidateTimeSec,
+    stepDtSec: input.stepDtSec,
+    initialScaledInternalCoordinates:
+      internals.initialScaledInternalCoordinates,
+  });
+  NUMERICAL_STEP_INTERNALS_V1.set(step, internals);
+  return step;
+}
+
+/** Model-owned candidate evaluation; no public trial or serialized readback. */
+export function evaluateMainWireFiveWallNumericalMechanicsCandidateV1<TState>(
+  step: MainWireFiveWallNumericalMechanicsStepV1<TState>,
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+): MainWireFiveWallNumericalMechanicsEvaluationV1<TState> {
+  if (
+    step.numericalStepId
+      !== MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID
+  ) {
+    throw new Error("unsupported numerical mechanics step identity");
+  }
+  const internals = NUMERICAL_STEP_INTERNALS_V1.get(step);
+  if (internals === undefined) {
+    throw new Error("numerical mechanics step was not minted by this runtime");
+  }
+  return internals.evaluate(candidateVolumesMl) as
+    MainWireFiveWallNumericalMechanicsEvaluationV1<TState>;
+}
+
+/**
+ * Materializes the selected numerical mechanics root exactly once.
+ *
+ * Rejected Newton probes deliberately carry no public material-state graph.
+ * The selected root may synchronously lend its fresh state to the typed
+ * candidate stager, after which this evaluation cannot materialize again.
+ */
+export function withMainWireFiveWallNumericalMechanicsMaterialStateV1<
+  TState,
+  TResult,
+>(
+  evaluation: MainWireFiveWallNumericalMechanicsEvaluationV1<TState>,
+  consume: (candidateMaterialState: TState) => TResult,
+): TResult {
+  if (typeof consume !== "function") {
+    throw new TypeError("numerical mechanics material-state consumer is required");
+  }
+  const internals = NUMERICAL_EVALUATION_INTERNALS_V1.get(evaluation);
+  if (internals === undefined) {
+    throw new Error("numerical mechanics evaluation was not minted by this runtime");
+  }
+  if (internals.materialized) {
+    throw new Error("numerical mechanics material state is one-shot");
+  }
+  internals.materialized = true;
+  return consume(internals.materializeCandidateState() as TState);
+}
+
+/**
+ * Evaluates mechanics at caller-supplied scaled TriSeg coordinates without the
+ * provider's local two-variable Newton. This is a construction contract for
+ * the monolithic 32-variable solver, not an accepted mechanics trial.
+ */
+export function evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1<
+  TState,
+>(
+  step: MainWireFiveWallNumericalMechanicsStepV1<TState>,
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+  scaledInternalCoordinates: readonly [number, number],
+): MainWireFiveWallFixedInternalMechanicsEvaluationV1 {
+  if (
+    step.numericalStepId
+      !== MAIN_WIRE_FIVE_WALL_NUMERICAL_MECHANICS_STEP_V1_ID
+  ) {
+    throw new Error("unsupported numerical mechanics step identity");
+  }
+  if (
+    scaledInternalCoordinates.length !== 2
+    || !scaledInternalCoordinates.every(Number.isFinite)
+  ) {
+    throw new Error("fixed internal mechanics requires two finite coordinates");
+  }
+  const internals = NUMERICAL_STEP_INTERNALS_V1.get(step);
+  if (internals === undefined) {
+    throw new Error("numerical mechanics step was not minted by this runtime");
+  }
+  return internals.evaluateAtFixedInternalCoordinates(
+    candidateVolumesMl,
+    scaledInternalCoordinates,
+  );
+}
+
+function numericalMechanicsEvaluationFromSolveV1<TWallState>(
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+  solved: InternalSolveSuccessV1<TWallState>,
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+): MainWireFiveWallNumericalMechanicsEvaluationV1<
+  MainWireFiveWallLandTriSegStateV1<TWallState>
+> {
+  let consistentTangent: ConsistentMechanicsTangentV1 | undefined;
+  try {
+    consistentTangent =
+      consistentTransmuralPressureVolumeTangentMmHgPerMl(solved, params);
+  } catch {
+    consistentTangent = undefined;
+  }
+  const evaluation = Object.freeze({
+    candidateVolumesMl: solved.candidate.volumesMl,
+    scaledInternalCoordinates: Object.freeze([
+      solved.scaledUnknowns[0]!,
+      solved.scaledUnknowns[1]!,
+    ]) as readonly [number, number],
+    transmuralPressuresMmHg: solved.candidate.transmuralPressuresMmHg,
+    ...(consistentTangent === undefined
+      ? {}
+      : {
+        transmuralPressureVolumeTangentMmHgPerMl:
+          consistentTangent.transmuralPressureVolumeTangentMmHgPerMl,
+        ventricularCoronaryBoundaryTangent:
+          consistentTangent.ventricularCoronaryBoundaryTangent,
+      }),
+    effectiveFiberLogStrainByWall:
+      solved.candidate.effectiveFiberLogStrainByWall,
+    activeFiberKirchhoffStressPaByWall: fiveWallRecord((wallId) =>
+      solved.candidate.materialByWall[wallId].activeFiberKirchhoffStressPa),
+    iterationCount: solved.iterations,
+    residualNorm: solved.residualNorm,
+    ...(solved.evaluationCounters === undefined
+      ? {}
+      : { evaluationCounters: solved.evaluationCounters }),
+  });
+  NUMERICAL_EVALUATION_INTERNALS_V1.set(evaluation, {
+    materialized: false,
+    materializeCandidateState: () => materializeCandidateStateV1(
+      solved.candidate,
+      params,
+      "trial",
+    ),
+  });
+  return evaluation;
+}
+
+function fixedInternalMechanicsEvaluationV1<TWallState>(
+  candidate: CandidateEvaluationV1<TWallState>,
+  scaledInternalCoordinates: readonly [number, number],
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+): MainWireFiveWallFixedInternalMechanicsEvaluationV1 {
+  const hessian = analyticTriSegAlgorithmicHessian(candidate, params);
+  const coordinateScales = [
+    params.internalCoordinateScales.septalMidwallCapVolumeM3,
+    params.internalCoordinateScales.junctionRadiusM,
+  ] as const;
+  const pressureDerivative = new Float64Array(4 * 6);
+  pressureDerivative[0 * 6 + 0] = atrialPressureVolumeTangentMmHgPerMl(
+    candidate.volumesMl.LA,
+    params.atria.LA,
+    candidate.fiberKirchhoffStressPaByWall.LA,
+    candidate.materialByWall.LA.algorithmicFiberTangentPa,
+  );
+  pressureDerivative[2 * 6 + 2] = atrialPressureVolumeTangentMmHgPerMl(
+    candidate.volumesMl.RA,
+    params.atria.RA,
+    candidate.fiberKirchhoffStressPaByWall.RA,
+    candidate.materialByWall.RA.algorithmicFiberTangentPa,
+  );
+  for (let ventricularPressureRow = 0;
+    ventricularPressureRow < 2;
+    ventricularPressureRow += 1) {
+    const pressureRow = ventricularPressureRow === 0 ? 1 : 3;
+    pressureDerivative[pressureRow * 6 + 1] =
+      hessian[ventricularPressureRow * 4]! * 1e-6 / PA_PER_MMHG;
+    pressureDerivative[pressureRow * 6 + 3] =
+      hessian[ventricularPressureRow * 4 + 1]! * 1e-6 / PA_PER_MMHG;
+    pressureDerivative[pressureRow * 6 + 4] =
+      hessian[ventricularPressureRow * 4 + 2]!
+      * coordinateScales[0] / PA_PER_MMHG;
+    pressureDerivative[pressureRow * 6 + 5] =
+      hessian[ventricularPressureRow * 4 + 3]!
+      * coordinateScales[1] / PA_PER_MMHG;
+  }
+  const internalResidualDerivative = new Float64Array(2 * 6);
+  for (let residualRow = 0; residualRow < 2; residualRow += 1) {
+    internalResidualDerivative[residualRow * 6 + 1] =
+      hessian[(residualRow + 2) * 4]!
+      * coordinateScales[residualRow]! * 1e-6 / ONE_JOULE;
+    internalResidualDerivative[residualRow * 6 + 3] =
+      hessian[(residualRow + 2) * 4 + 1]!
+      * coordinateScales[residualRow]! * 1e-6 / ONE_JOULE;
+    for (let coordinateColumn = 0;
+      coordinateColumn < 2;
+      coordinateColumn += 1) {
+      internalResidualDerivative[residualRow * 6 + 4 + coordinateColumn] =
+        hessian[(residualRow + 2) * 4 + coordinateColumn + 2]!
+        * coordinateScales[residualRow]!
+        * coordinateScales[coordinateColumn]! / ONE_JOULE;
+    }
+  }
+  const ventricularWallIds = ["LVFW", "SEP", "RVFW"] as const;
+  const capVolumeGradientByWall = {
+    LVFW: [-1, 0, 1] as const,
+    SEP: [0, 0, 1] as const,
+    RVFW: [0, 1, 1] as const,
+  };
+  const strainDerivative = new Float64Array(3 * 4);
+  const activeStressDerivative = new Float64Array(3 * 4);
+  for (let wallIndex = 0; wallIndex < ventricularWallIds.length; wallIndex += 1) {
+    const wallId = ventricularWallIds[wallIndex]!;
+    const first = candidate.triseg.wallDerivativeByWall[wallId];
+    const capGradient = capVolumeGradientByWall[wallId];
+    strainDerivative[wallIndex * 4 + 0] = capGradient[0]
+      * first.dFiberLogStrainDCapVolumePerM3 * 1e-6;
+    strainDerivative[wallIndex * 4 + 1] = capGradient[1]
+      * first.dFiberLogStrainDCapVolumePerM3 * 1e-6;
+    strainDerivative[wallIndex * 4 + 2] = capGradient[2]
+      * first.dFiberLogStrainDCapVolumePerM3 * coordinateScales[0];
+    strainDerivative[wallIndex * 4 + 3] =
+      first.dFiberLogStrainDJunctionRadiusPerM * coordinateScales[1];
+    const activeTangent =
+      candidate.materialByWall[wallId].activeFiberAlgorithmicTangentPa;
+    for (let column = 0; column < 4; column += 1) {
+      activeStressDerivative[wallIndex * 4 + column] =
+        activeTangent * strainDerivative[wallIndex * 4 + column]!;
+    }
+  }
+  if (
+    ![
+      ...pressureDerivative,
+      ...internalResidualDerivative,
+      ...strainDerivative,
+      ...activeStressDerivative,
+    ].every(Number.isFinite)
+  ) {
+    throw new Error("fixed internal mechanics derivative is non-finite");
+  }
+  return Object.freeze({
+    candidateVolumesMl: Object.freeze({ ...candidate.volumesMl }),
+    scaledInternalCoordinates: Object.freeze([
+      scaledInternalCoordinates[0],
+      scaledInternalCoordinates[1],
+    ]) as readonly [number, number],
+    transmuralPressuresMmHg: candidate.transmuralPressuresMmHg,
+    internalResidualByOneJ: Object.freeze([
+      candidate.scaledAlgorithmicGeneralizedForceByOneJ[0]!,
+      candidate.scaledAlgorithmicGeneralizedForceByOneJ[1]!,
+    ]) as readonly [number, number],
+    transmuralPressureDerivativeRowMajor: pressureDerivative,
+    internalResidualDerivativeRowMajor: internalResidualDerivative,
+    effectiveFiberLogStrainByWall:
+      candidate.effectiveFiberLogStrainByWall,
+    activeFiberKirchhoffStressPaByWall: fiveWallRecord((wallId) =>
+      candidate.materialByWall[wallId].activeFiberKirchhoffStressPa),
+    ventricularFiberStrainDerivativeRowMajor: strainDerivative,
+    ventricularActiveStressDerivativeRowMajor: activeStressDerivative,
   });
 }
 
@@ -556,6 +1077,8 @@ function solveInternalCoordinates<TWallState>(
 ): InternalSolveResultV1<TWallState> {
   let current = [...initialScaledUnknowns];
   let currentCandidate: CandidateEvaluationV1<TWallState>;
+  const hessianScratch = new Float64Array(16);
+  const wallSecondDerivativeScratch = new Float64Array(3);
   let acceptedLineSearchSteps = 0;
   let lineSearchBacktracks = 0;
   const evaluationCounters =
@@ -604,6 +1127,8 @@ function solveInternalCoordinates<TWallState>(
         jacobian = analyticScaledInternalJacobian(
           currentCandidate,
           params,
+          hessianScratch,
+          wallSecondDerivativeScratch,
         );
       } catch (error) {
         return internalFailure({
@@ -685,6 +1210,8 @@ function solveInternalCoordinates<TWallState>(
       jacobian = analyticScaledInternalJacobian(
         currentCandidate,
         params,
+        hessianScratch,
+        wallSecondDerivativeScratch,
       );
     } catch (error) {
       return internalFailure({
@@ -900,12 +1427,17 @@ function evaluateCandidate<TWallState>(
           mode.stepDtSec,
           trialAtrialMaterialReuse,
           evaluationCounters,
+          mode.materialEvaluationMode === "numerical",
         )
-        : kernel.evaluateTrialFromAccepted({
+        : (mode.materialEvaluationMode === "numerical"
+            && kernel.evaluateNumericalTrialFromAccepted !== undefined
+          ? kernel.evaluateNumericalTrialFromAccepted
+          : kernel.evaluateTrialFromAccepted)({
           // Every constitutive evaluation receives a fresh clone of exactly the
           // same accepted wall state. Candidate order therefore cannot advance
           // or contaminate constitutive history.
-          previousAcceptedState: kernel.stateCodec.clone(
+          previousAcceptedState: materialAcceptedStateForEvaluationV1(
+            kernel,
             mode.previousState.wallStateByWall[wallId],
           ),
           candidateFiberLogStrain: fiberLogStrain,
@@ -990,17 +1522,18 @@ function evaluateCandidate<TWallState>(
       "totalAlgorithmicStressPrimitiveJ",
     );
   }
-  const state = Object.freeze({
-    // A reuse hit shares only a private, read-only constitutive evaluation.
-    // Every Newton candidate still owns fresh wall-state clones, so neither a
-    // discarded line-search point nor the returned result aliases another.
-    wallStateByWall: fiveWallRecord((wallId) =>
-      params.materialByWall[wallId].stateCodec.clone(materialByWall[wallId].state)),
-    trisegCoordinates: Object.freeze({ ...coordinates }),
-  });
+  const state = mode.kind === "trial"
+      && mode.materialEvaluationMode === "numerical"
+    ? null
+    : materializeCandidateStateV1(
+      Object.freeze({ materialByWall, internalCoordinates: coordinates }),
+      params,
+      mode.kind,
+    );
   return Object.freeze({
     volumesMl: Object.freeze({ ...volumesMl }),
     state,
+    internalCoordinates: coordinates,
     geometry,
     triseg,
     materialByWall,
@@ -1016,6 +1549,46 @@ function evaluateCandidate<TWallState>(
   });
 }
 
+function materializeCandidateStateV1<TWallState>(
+  candidate: Readonly<{
+    materialByWall: MainWireFiveWallRecordV1<
+      MainWireFiveWallMaterialEvaluationV1<TWallState>
+    >;
+    internalCoordinates: TriSegCoordinatesV1;
+  }>,
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  solveMode: "cold" | "trial",
+): MainWireFiveWallLandTriSegStateV1<TWallState> {
+  return Object.freeze({
+    // Atrial reuse hits share one private evaluation across the internal
+    // TriSeg candidates. Public trial materialization therefore keeps the
+    // previous defensive-clone rule. Model-owned numerical candidates delay
+    // this work until the converged root rather than cloning at every probe.
+    wallStateByWall: fiveWallRecord((wallId) => {
+      const kernel = params.materialByWall[wallId];
+      const canRetainExclusiveResult =
+        kernel.evaluationStateOwnershipMode === "exclusive-result"
+        && (
+          solveMode === "cold"
+          || (wallId !== "LA" && wallId !== "RA")
+        );
+      return canRetainExclusiveResult
+        ? candidate.materialByWall[wallId].state
+        : kernel.stateCodec.clone(candidate.materialByWall[wallId].state);
+    }),
+    trisegCoordinates: Object.freeze({ ...candidate.internalCoordinates }),
+  });
+}
+
+function requireMaterializedCandidateStateV1<TWallState>(
+  candidate: CandidateEvaluationV1<TWallState>,
+): MainWireFiveWallLandTriSegStateV1<TWallState> {
+  if (candidate.state === null) {
+    throw new Error("public mechanics candidate state was not materialized");
+  }
+  return candidate.state;
+}
+
 function evaluateTrialAtrialMaterialWithReuse<TWallState>(
   wallId: AtrialWallIdV1,
   kernel: MainWireFiveWallLandSlsMaterialKernelV1<TWallState>,
@@ -1025,6 +1598,7 @@ function evaluateTrialAtrialMaterialWithReuse<TWallState>(
   stepDtSec: number,
   reuse: TrialAtrialMaterialReuseV1<TWallState> | null,
   evaluationCounters: MutableEvaluationCountersV1 | null,
+  numerical: boolean,
 ): MainWireFiveWallMaterialEvaluationV1<TWallState> {
   if (reuse === null) {
     throw new Error("trial atrial material reuse is unavailable");
@@ -1051,10 +1625,17 @@ function evaluateTrialAtrialMaterialWithReuse<TWallState>(
   if (evaluationCounters !== null) {
     evaluationCounters.atrialMaterialEvaluationCountByWall[wallId] += 1;
   }
-  const evaluation = kernel.evaluateTrialFromAccepted({
+  const evaluateTrial = numerical
+      && kernel.evaluateNumericalTrialFromAccepted !== undefined
+    ? kernel.evaluateNumericalTrialFromAccepted
+    : kernel.evaluateTrialFromAccepted;
+  const evaluation = evaluateTrial({
     // Keep the constitutive isolation guarantee on a cache miss: the kernel
     // never receives the accepted wall object held by this solve.
-    previousAcceptedState: kernel.stateCodec.clone(previousAcceptedState),
+    previousAcceptedState: materialAcceptedStateForEvaluationV1(
+      kernel,
+      previousAcceptedState,
+    ),
     candidateFiberLogStrain,
     candidateFreeCalciumUM,
     stepDtSec,
@@ -1080,6 +1661,15 @@ function trialAtrialMaterialReuseKeysMatch<TWallState>(
     && Object.is(left.stepDtSec, right.stepDtSec);
 }
 
+function materialAcceptedStateForEvaluationV1<TWallState>(
+  kernel: MainWireFiveWallLandSlsMaterialKernelV1<TWallState>,
+  previousAcceptedState: TWallState,
+): TWallState {
+  return kernel.acceptedStateInputMode === "trusted-read-only"
+    ? previousAcceptedState
+    : kernel.stateCodec.clone(previousAcceptedState);
+}
+
 type VentricularMaterialTangentsV1 = Readonly<{
   LVFW: number;
   SEP: number;
@@ -1099,7 +1689,7 @@ function ventricularMaterialTangents<TWallState>(
   return Object.freeze(tangentByWall);
 }
 
-type TriSegAlgorithmicHessianV1 = readonly (readonly number[])[];
+type TriSegAlgorithmicHessianV1 = Float64Array;
 type ConsistentMechanicsTangentV1 = Readonly<{
   transmuralPressureVolumeTangentMmHgPerMl:
     WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
@@ -1119,9 +1709,19 @@ type ConsistentMechanicsTangentV1 = Readonly<{
 function analyticTriSegAlgorithmicHessian<TWallState>(
   center: CandidateEvaluationV1<TWallState>,
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  destination: Float64Array = new Float64Array(16),
+  wallSecondDerivativeScratch: Float64Array = new Float64Array(3),
 ): TriSegAlgorithmicHessianV1 {
+  if (destination.length !== 16) {
+    throw new RangeError("TriSeg algorithmic Hessian requires 16 f64 values");
+  }
+  destination.fill(0);
   const tangentByWall = ventricularMaterialTangents(center);
-  const hessian = Array.from({ length: 4 }, () => [0, 0, 0, 0]);
+  if (wallSecondDerivativeScratch.length !== 3) {
+    throw new RangeError(
+      "TriSeg wall second derivative scratch requires three f64 values",
+    );
+  }
   const capVolumeGradientByWall = {
     LVFW: [-1, 0, 1] as const,
     SEP: [0, 0, 1] as const,
@@ -1129,8 +1729,9 @@ function analyticTriSegAlgorithmicHessian<TWallState>(
   };
   for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
     const first = center.triseg.wallDerivativeByWall[wallId];
-    const second = evaluateTriSegWallSecondDerivativeV1(
+    writeTriSegWallSecondDerivativeV1(
       center.geometry.walls[wallId],
+      wallSecondDerivativeScratch,
     );
     const capGradient = capVolumeGradientByWall[wallId];
     const strainGradient = [
@@ -1147,45 +1748,53 @@ function analyticTriSegAlgorithmicHessian<TWallState>(
         let strainSecondDerivative: number;
         if (row === 3 && column === 3) {
           strainSecondDerivative =
-            second.d2FiberLogStrainDJunctionRadius2PerM2;
+            wallSecondDerivativeScratch[2]!;
         } else if (column === 3) {
           strainSecondDerivative =
             capGradient[row]!
-            * second
-              .d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4;
+            * wallSecondDerivativeScratch[1]!;
         } else {
           strainSecondDerivative =
             capGradient[row]!
             * capGradient[column]!
-            * second.d2FiberLogStrainDCapVolume2PerM6;
+            * wallSecondDerivativeScratch[0]!;
         }
         const contribution = wallVolumeM3 * (
           tangentPa * strainGradient[row]! * strainGradient[column]!
           + stressPa * strainSecondDerivative
         );
-        hessian[row]![column] += contribution;
-        if (row !== column) hessian[column]![row] += contribution;
+        destination[row * 4 + column] += contribution;
+        if (row !== column) destination[column * 4 + row] += contribution;
       }
     }
   }
-  if (!hessian.flat().every(Number.isFinite)) {
-    throw new Error("analytic TriSeg algorithmic Hessian is non-finite");
+  for (const value of destination) {
+    if (!Number.isFinite(value)) {
+      throw new Error("analytic TriSeg algorithmic Hessian is non-finite");
+    }
   }
-  return Object.freeze(hessian.map((row) => Object.freeze(row)));
+  return destination;
 }
 
 function analyticScaledInternalJacobian<TWallState>(
   center: CandidateEvaluationV1<TWallState>,
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  hessianScratch?: Float64Array,
+  wallSecondDerivativeScratch?: Float64Array,
 ): MainWireFiveWallScaledAlgorithmicJacobianByOneJV1 {
-  const hessian = analyticTriSegAlgorithmicHessian(center, params);
+  const hessian = analyticTriSegAlgorithmicHessian(
+    center,
+    params,
+    hessianScratch,
+    wallSecondDerivativeScratch,
+  );
   const scales = [
     params.internalCoordinateScales.septalMidwallCapVolumeM3,
     params.internalCoordinateScales.junctionRadiusM,
   ] as const;
-  const j00 = hessian[2]![2]! * scales[0] * scales[0] / ONE_JOULE;
-  const j01 = hessian[2]![3]! * scales[0] * scales[1] / ONE_JOULE;
-  const j11 = hessian[3]![3]! * scales[1] * scales[1] / ONE_JOULE;
+  const j00 = hessian[2 * 4 + 2]! * scales[0] * scales[0] / ONE_JOULE;
+  const j01 = hessian[2 * 4 + 3]! * scales[0] * scales[1] / ONE_JOULE;
+  const j11 = hessian[3 * 4 + 3]! * scales[1] * scales[1] / ONE_JOULE;
   return Object.freeze([
     Object.freeze([j00, j01]),
     Object.freeze([j01, j11]),
@@ -1234,7 +1843,7 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl<TWallState>(
   ) as Record<MainWireFiveWallVentricularWallIdV1, number[]>;
   for (let volumeColumn = 0; volumeColumn < 2; volumeColumn += 1) {
     const forceColumn = [0, 1].map((coordinateRow) =>
-      hessian[coordinateRow + 2]![volumeColumn]!
+      hessian[(coordinateRow + 2) * 4 + volumeColumn]!
       * coordinateScales[coordinateRow]!
       * 1e-6
       / ONE_JOULE);
@@ -1246,14 +1855,14 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl<TWallState>(
     for (let pressureRow = 0; pressureRow < 2; pressureRow += 1) {
       const pressureCoordinateDerivative = [0, 1].reduce(
         (sum, coordinateColumn) => sum
-          + hessian[pressureRow]![coordinateColumn + 2]!
+          + hessian[pressureRow * 4 + coordinateColumn + 2]!
           * coordinateScales[coordinateColumn]!
           / PA_PER_MMHG
           * coordinateResponse[coordinateColumn]!,
         0,
       );
       ventricularPressureTangent[pressureRow]![volumeColumn] =
-        hessian[pressureRow]![volumeColumn]! * 1e-6 / PA_PER_MMHG
+        hessian[pressureRow * 4 + volumeColumn]! * 1e-6 / PA_PER_MMHG
         - pressureCoordinateDerivative;
     }
     for (const wallId of ventricularWallIds) {
@@ -1410,7 +2019,7 @@ function successfulProviderEvaluation<TWallState>(
     readback,
   });
   return Object.freeze({
-    materialState: solved.candidate.state,
+    materialState: requireMaterializedCandidateStateV1(solved.candidate),
     transmuralPressuresMmHg: solved.candidate.transmuralPressuresMmHg,
     ...(consistentTangent === undefined
       ? {}
@@ -1443,7 +2052,7 @@ function failedProviderEvaluation<TWallState>(
     rollbackOnFailure: true,
     coldConsistencyIterations,
     coldConsistencyScaledCoordinateUpdate,
-    lastInternalCoordinates: fallback?.state.trisegCoordinates ?? null,
+    lastInternalCoordinates: fallback?.internalCoordinates ?? null,
     lastScaledAlgorithmicGeneralizedForceByOneJ:
       fallback?.scaledAlgorithmicGeneralizedForceByOneJ ?? null,
     lastRawAlgorithmicGeneralizedForce:
@@ -1483,7 +2092,7 @@ function buildReadback<TWallState>(
     solveMode,
     hiddenBloodVolumeMl: 0 as const,
     pistonVolumeApplied: false as const,
-    internalCoordinates: candidate.state.trisegCoordinates,
+    internalCoordinates: candidate.internalCoordinates,
     effectiveFiberLogStrainByWall: candidate.effectiveFiberLogStrainByWall,
     fiberKirchhoffStressPaByWall: candidate.fiberKirchhoffStressPaByWall,
     algorithmicStressPrimitiveJByWall:
@@ -1535,28 +2144,30 @@ function evaluateAlgorithmicJacobianStability(
   symmetricJacobianMinimumEigenvalueByOneJ: number;
   strictLocalStableEquilibrium: boolean;
 }> {
-  const n = jacobian.length;
-  const symmetric = Array.from({ length: n }, (_, row) =>
-    Array.from({ length: n }, (_, column) =>
-      0.5 * (jacobian[row]![column]! + jacobian[column]![row]!)));
-  let antisymmetricMaximum = 0;
-  let jacobianInfinityNorm = 0;
-  for (let row = 0; row < n; row += 1) {
-    let rowSum = 0;
-    for (let column = 0; column < n; column += 1) {
-      antisymmetricMaximum = Math.max(
-        antisymmetricMaximum,
-        0.5 * Math.abs(
-          jacobian[row]![column]! - jacobian[column]![row]!,
-        ),
-      );
-      rowSum += Math.abs(jacobian[row]![column]!);
-    }
-    jacobianInfinityNorm = Math.max(jacobianInfinityNorm, rowSum);
+  if (
+    jacobian.length !== 2
+    || jacobian[0]?.length !== 2
+    || jacobian[1]?.length !== 2
+  ) {
+    throw new RangeError("internal TriSeg stability requires a 2x2 Jacobian");
   }
+  const j00 = jacobian[0][0]!;
+  const j01 = jacobian[0][1]!;
+  const j10 = jacobian[1][0]!;
+  const j11 = jacobian[1][1]!;
+  const antisymmetricMaximum = 0.5 * Math.abs(j01 - j10);
+  const jacobianInfinityNorm = Math.max(
+    Math.abs(j00) + Math.abs(j01),
+    Math.abs(j10) + Math.abs(j11),
+  );
   const relative = antisymmetricMaximum
     / Math.max(Number.MIN_VALUE, jacobianInfinityNorm);
-  const minimumEigenvalue = minimumEigenvalueSymmetric(symmetric);
+  const symmetricOffDiagonal = 0.5 * (j01 + j10);
+  const halfTrace = 0.5 * (j00 + j11);
+  const minimumEigenvalue = halfTrace - Math.hypot(
+    0.5 * (j00 - j11),
+    symmetricOffDiagonal,
+  );
   const symmetricWithinTolerance = antisymmetricMaximum === 0;
   return Object.freeze({
     jacobianAntisymmetricMaximumAbsoluteByOneJ: antisymmetricMaximum,
@@ -1572,79 +2183,37 @@ function solveLinearSystem(
   matrix: MainWireFiveWallScaledAlgorithmicJacobianByOneJV1,
   rightHandSide: readonly number[],
 ): number[] | null {
-  const n = rightHandSide.length;
-  const augmented = Array.from({ length: n }, (_, row) => [
-    ...matrix[row]!,
-    rightHandSide[row]!,
-  ]);
-  const scale = Math.max(1, ...matrix.flat().map(Math.abs));
-  for (let column = 0; column < n; column += 1) {
-    let pivot = column;
-    for (let row = column + 1; row < n; row += 1) {
-      if (Math.abs(augmented[row]![column]!)
-        > Math.abs(augmented[pivot]![column]!)) pivot = row;
-    }
-    if (Math.abs(augmented[pivot]![column]!) <= 1e-13 * scale) return null;
-    [augmented[column], augmented[pivot]] = [augmented[pivot]!, augmented[column]!];
-    const pivotValue = augmented[column]![column]!;
-    for (let entry = column; entry <= n; entry += 1) {
-      augmented[column]![entry] /= pivotValue;
-    }
-    for (let row = 0; row < n; row += 1) {
-      if (row === column) continue;
-      const factor = augmented[row]![column]!;
-      for (let entry = column; entry <= n; entry += 1) {
-        augmented[row]![entry] -= factor * augmented[column]![entry]!;
-      }
-    }
+  if (
+    matrix.length !== 2
+    || matrix[0]?.length !== 2
+    || matrix[1]?.length !== 2
+    || rightHandSide.length !== 2
+  ) {
+    throw new RangeError("internal TriSeg solve requires a 2x2 system");
   }
-  const solution = augmented.map((row) => row[n]!);
-  return solution.every(Number.isFinite) ? solution : null;
-}
-
-function minimumEigenvalueSymmetric(matrix: readonly (readonly number[])[]): number {
-  const n = matrix.length;
-  const work = matrix.map((row) => [...row]);
-  for (let sweep = 0; sweep < 32; sweep += 1) {
-    let p = 0;
-    let q = n > 1 ? 1 : 0;
-    let maximum = 0;
-    for (let row = 0; row < n; row += 1) {
-      for (let column = row + 1; column < n; column += 1) {
-        const value = Math.abs(work[row]![column]!);
-        if (value > maximum) {
-          maximum = value;
-          p = row;
-          q = column;
-        }
-      }
-    }
-    if (maximum <= 1e-13 * Math.max(1, ...work.flat().map(Math.abs))) break;
-    const app = work[p]![p]!;
-    const aqq = work[q]![q]!;
-    const apq = work[p]![q]!;
-    const angle = 0.5 * Math.atan2(2 * apq, aqq - app);
-    const cosine = Math.cos(angle);
-    const sine = Math.sin(angle);
-    for (let row = 0; row < n; row += 1) {
-      if (row === p || row === q) continue;
-      const arp = work[row]![p]!;
-      const arq = work[row]![q]!;
-      work[row]![p] = cosine * arp - sine * arq;
-      work[p]![row] = work[row]![p]!;
-      work[row]![q] = sine * arp + cosine * arq;
-      work[q]![row] = work[row]![q]!;
-    }
-    work[p]![p] = cosine * cosine * app
-      - 2 * sine * cosine * apq
-      + sine * sine * aqq;
-    work[q]![q] = sine * sine * app
-      + 2 * sine * cosine * apq
-      + cosine * cosine * aqq;
-    work[p]![q] = 0;
-    work[q]![p] = 0;
+  let a = matrix[0][0]!;
+  let b = matrix[0][1]!;
+  let c = matrix[1][0]!;
+  let d = matrix[1][1]!;
+  let r0 = rightHandSide[0]!;
+  let r1 = rightHandSide[1]!;
+  const scale = Math.max(1, Math.abs(a), Math.abs(b), Math.abs(c), Math.abs(d));
+  // Preserve the former Gaussian-elimination pivot rule while keeping the
+  // two-variable mechanics solve in scalars instead of temporary row arrays.
+  if (Math.abs(c) > Math.abs(a)) {
+    [a, c] = [c, a];
+    [b, d] = [d, b];
+    [r0, r1] = [r1, r0];
   }
-  return Math.min(...work.map((row, index) => row[index]!));
+  if (Math.abs(a) <= 1e-13 * scale) return null;
+  b /= a;
+  r0 /= a;
+  d -= c * b;
+  r1 -= c * r0;
+  if (Math.abs(d) <= 1e-13 * scale) return null;
+  r1 /= d;
+  r0 -= b * r1;
+  return Number.isFinite(r0) && Number.isFinite(r1) ? [r0, r1] : null;
 }
 
 function createStateCodec<TWallState>(
@@ -1804,6 +2373,20 @@ function validateParams<TWallState>(
         throw new Error(`${wallId}.material.stateCodec.${method} must be a function`);
       }
     }
+    if (
+      material.acceptedStateInputMode !== "defensive-clone"
+      && material.acceptedStateInputMode !== "trusted-read-only"
+    ) {
+      throw new Error(`${wallId}.material.acceptedStateInputMode is invalid`);
+    }
+    if (
+      material.evaluationStateOwnershipMode !== "defensive-clone"
+      && material.evaluationStateOwnershipMode !== "exclusive-result"
+    ) {
+      throw new Error(
+        `${wallId}.material.evaluationStateOwnershipMode is invalid`,
+      );
+    }
   }
   validateAtrialGeometry(params.atria.LA, "atria.LA");
   validateAtrialGeometry(params.atria.RA, "atria.RA");
@@ -1858,6 +2441,7 @@ function validateMaterialEvaluation<TWallState>(
   requireNonnegative(evaluation.residualNorm, `${wallId} material residualNorm`);
   assertFiniteNumbers({
     fiberKirchhoffStressPa: evaluation.fiberKirchhoffStressPa,
+    activeFiberKirchhoffStressPa: evaluation.activeFiberKirchhoffStressPa,
   });
   if (evaluation.algorithmicStressPrimitiveDensityJPerM3 !== undefined) {
     requireFinite(
@@ -1998,13 +2582,21 @@ function flattenMaterialWarnings<TWallState>(
 function fiveWallRecord<T>(
   build: (wallId: MainWireFiveWallIdV1) => T,
 ): MainWireFiveWallRecordV1<T> {
-  return Object.freeze(Object.fromEntries(
-    MAIN_WIRE_FIVE_WALL_IDS_V1.map((wallId) => [wallId, build(wallId)]),
-  )) as MainWireFiveWallRecordV1<T>;
+  return Object.freeze({
+    LA: build("LA"),
+    LVFW: build("LVFW"),
+    SEP: build("SEP"),
+    RVFW: build("RVFW"),
+    RA: build("RA"),
+  });
 }
 
 function sumFiveWalls(build: (wallId: MainWireFiveWallIdV1) => number): number {
-  return MAIN_WIRE_FIVE_WALL_IDS_V1.reduce((sum, wallId) => sum + build(wallId), 0);
+  return build("LA")
+    + build("LVFW")
+    + build("SEP")
+    + build("RVFW")
+    + build("RA");
 }
 
 function assertExactKeys(

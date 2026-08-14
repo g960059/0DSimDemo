@@ -66,6 +66,10 @@ export type CoronaryImpEvaluationV1 = Readonly<{
   }>;
 }>;
 
+export type CoronaryImpPressureComponentV1 =
+  | "cavity-induced"
+  | "intramyocardial";
+
 export const NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1 = Object.freeze({
   layerDepthFromEpicardium01: Object.freeze({
     subepicardial: 0.25,
@@ -107,22 +111,117 @@ export function evaluateCoronaryImpV1(
     NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1,
 ): CoronaryImpEvaluationV1 {
   validateCoronaryImpPriorV1(prior);
-  assertFinite("externalPressureMmHg", input.externalPressureMmHg);
-  assertFinite(
-    "chamberTransmuralPressureMmHg.LV",
-    input.chamberTransmuralPressureMmHg.LV,
+  validateCoronaryMechanicsInputV1(input);
+  const scratch = createCoronaryImpScratchV1();
+  evaluateCoronaryImpIntoScratchV1(
+    scratch,
+    territoryId,
+    layerId,
+    input,
+    prior,
   );
-  assertFinite(
-    "chamberTransmuralPressureMmHg.RV",
-    input.chamberTransmuralPressureMmHg.RV,
-  );
+
+  const wallWeight = prior.perfusedWallWeightByTerritory[territoryId];
+  const gamma = prior.activeStressPressureGainByTerritory[territoryId];
+  const dImpDStress = {} as Record<
+    keyof CoronaryPerfusedWallRecordV1<number>,
+    number
+  >;
   for (const wallId of CORONARY_PERFUSED_WALL_IDS_V1) {
-    const stressPa = input.landActiveFiberStressPaByWall[wallId];
-    if (!Number.isFinite(stressPa) || stressPa < 0) {
-      throw new RangeError(`${wallId} Land active stress must be finite and non-negative`);
-    }
+    dImpDStress[wallId] = wallWeight[wallId] * gamma / PASCAL_PER_MMHG_V1;
   }
 
+  return Object.freeze({
+    territoryId,
+    layerId,
+    depthFromEpicardium01: scratch.depthFromEpicardium01,
+    cavityInducedExtracellularPressureMmHg:
+      scratch.cavityInducedExtracellularPressureMmHg,
+    activeStressInducedPressureMmHg:
+      scratch.activeStressInducedPressureMmHg,
+    intramyocardialPressureMmHg: scratch.intramyocardialPressureMmHg,
+    derivative: Object.freeze({
+      dImpDExternalPressure: 1 as const,
+      dImpDChamberTransmuralPressure: Object.freeze({
+        LV: scratch.lvCoefficient,
+        RV: scratch.rvCoefficient,
+      }),
+      dImpDLandActiveFiberStressPaByWall: Object.freeze(dImpDStress),
+    }),
+  });
+}
+
+/**
+ * Project only the numeric IMP values consumed by the hydraulic solver.
+ *
+ * The detailed evaluator above remains the diagnostic authority. This bulk
+ * path shares its scalar equation order, validates the input once, and avoids
+ * allocating six derivative/readback trees for every mechanics candidate.
+ */
+export function evaluateAllCoronaryImpPressureV1(
+  input: CoronaryMechanicsInputV1,
+  component: CoronaryImpPressureComponentV1,
+  prior: CoronaryImpCouplingPriorV1 =
+    NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1,
+): CoronaryTerritoryLayerRecordV1<number> {
+  if (component !== "cavity-induced" && component !== "intramyocardial") {
+    throw new RangeError(
+      `unsupported coronary IMP pressure component: ${String(component)}`,
+    );
+  }
+  validateCoronaryImpPriorV1(prior);
+  validateCoronaryMechanicsInputV1(input);
+  const scratch = createCoronaryImpScratchV1();
+  const result = {
+    LAD: { subepicardial: 0, subendocardial: 0 },
+    LCx: { subepicardial: 0, subendocardial: 0 },
+    RCA: { subepicardial: 0, subendocardial: 0 },
+  };
+  for (const territoryId of CORONARY_TERRITORY_IDS_V1) {
+    for (const layerId of CORONARY_LAYER_IDS_V1) {
+      evaluateCoronaryImpIntoScratchV1(
+        scratch,
+        territoryId,
+        layerId,
+        input,
+        prior,
+      );
+      result[territoryId][layerId] = component === "cavity-induced"
+        ? scratch.cavityInducedExtracellularPressureMmHg
+        : scratch.intramyocardialPressureMmHg;
+    }
+    Object.freeze(result[territoryId]);
+  }
+  return Object.freeze(result);
+}
+
+type MutableCoronaryImpScratchV1 = {
+  depthFromEpicardium01: number;
+  lvCoefficient: number;
+  rvCoefficient: number;
+  cavityInducedExtracellularPressureMmHg: number;
+  activeStressInducedPressureMmHg: number;
+  intramyocardialPressureMmHg: number;
+};
+
+function createCoronaryImpScratchV1(): MutableCoronaryImpScratchV1 {
+  return {
+    depthFromEpicardium01: 0,
+    lvCoefficient: 0,
+    rvCoefficient: 0,
+    cavityInducedExtracellularPressureMmHg: 0,
+    activeStressInducedPressureMmHg: 0,
+    intramyocardialPressureMmHg: 0,
+  };
+}
+
+function evaluateCoronaryImpIntoScratchV1(
+  scratch: MutableCoronaryImpScratchV1,
+  territoryId: CoronaryTerritoryIdV1,
+  layerId: CoronaryLayerIdV1,
+  input: CoronaryMechanicsInputV1,
+  prior: CoronaryImpCouplingPriorV1,
+): void {
   const depth = prior.layerDepthFromEpicardium01[layerId];
   const wallWeight = prior.perfusedWallWeightByTerritory[territoryId];
   const septalDepthFromRvSurface01 =
@@ -143,36 +242,43 @@ export function evaluateCoronaryImpV1(
 
   const gamma = prior.activeStressPressureGainByTerritory[territoryId];
   let weightedActiveStressPa = 0;
-  const dImpDStress = {} as Record<
-    keyof CoronaryPerfusedWallRecordV1<number>,
-    number
-  >;
   for (const wallId of CORONARY_PERFUSED_WALL_IDS_V1) {
     weightedActiveStressPa +=
       wallWeight[wallId] * input.landActiveFiberStressPaByWall[wallId];
-    dImpDStress[wallId] = wallWeight[wallId] * gamma / PASCAL_PER_MMHG_V1;
   }
   const activeStressInducedPressureMmHg =
     gamma * weightedActiveStressPa / PASCAL_PER_MMHG_V1;
 
-  return Object.freeze({
-    territoryId,
-    layerId,
-    depthFromEpicardium01: depth,
-    cavityInducedExtracellularPressureMmHg,
-    activeStressInducedPressureMmHg,
-    intramyocardialPressureMmHg:
-      cavityInducedExtracellularPressureMmHg
-      + activeStressInducedPressureMmHg,
-    derivative: Object.freeze({
-      dImpDExternalPressure: 1 as const,
-      dImpDChamberTransmuralPressure: Object.freeze({
-        LV: lvCoefficient,
-        RV: rvCoefficient,
-      }),
-      dImpDLandActiveFiberStressPaByWall: Object.freeze(dImpDStress),
-    }),
-  });
+  scratch.depthFromEpicardium01 = depth;
+  scratch.lvCoefficient = lvCoefficient;
+  scratch.rvCoefficient = rvCoefficient;
+  scratch.cavityInducedExtracellularPressureMmHg =
+    cavityInducedExtracellularPressureMmHg;
+  scratch.activeStressInducedPressureMmHg =
+    activeStressInducedPressureMmHg;
+  scratch.intramyocardialPressureMmHg =
+    cavityInducedExtracellularPressureMmHg
+    + activeStressInducedPressureMmHg;
+}
+
+function validateCoronaryMechanicsInputV1(
+  input: CoronaryMechanicsInputV1,
+): void {
+  assertFinite("externalPressureMmHg", input.externalPressureMmHg);
+  assertFinite(
+    "chamberTransmuralPressureMmHg.LV",
+    input.chamberTransmuralPressureMmHg.LV,
+  );
+  assertFinite(
+    "chamberTransmuralPressureMmHg.RV",
+    input.chamberTransmuralPressureMmHg.RV,
+  );
+  for (const wallId of CORONARY_PERFUSED_WALL_IDS_V1) {
+    const stressPa = input.landActiveFiberStressPaByWall[wallId];
+    if (!Number.isFinite(stressPa) || stressPa < 0) {
+      throw new RangeError(`${wallId} Land active stress must be finite and non-negative`);
+    }
+  }
 }
 
 export function evaluateAllCoronaryImpV1(

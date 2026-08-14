@@ -73,6 +73,47 @@ export type WholeHeartMechanicsStateCodecV1<TState> = {
   decode(encoded: WholeHeartMechanicsSerializableValueV1): TState;
 };
 
+/**
+ * Produces the same canonical material-memory fingerprint used by accepted
+ * mechanics states without materializing an accepted-state wrapper. This is
+ * the migration boundary used by a model-owned typed candidate.
+ */
+export function fingerprintWholeHeartMechanicsMaterialStateV1<
+  TState,
+  TDrive,
+>(
+  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  state: TState,
+): string {
+  validateProvider(provider);
+  if (provider.fingerprintMaterialStateCanonicalV1 !== undefined) {
+    const fingerprint = provider.fingerprintMaterialStateCanonicalV1(state);
+    if (!/^[0-9a-f]{8}$/.test(fingerprint)) {
+      throw new Error(
+        "provider canonical material-state fingerprint must be eight lowercase hex digits",
+      );
+    }
+    if (fullHotPathInvariantsEnabledV1()) {
+      const audited = snapshotMaterialState(
+        provider,
+        state,
+        "candidate material state fingerprint audit",
+      ).fingerprint;
+      if (fingerprint !== audited) {
+        throw new Error(
+          "provider canonical material-state fingerprint differs from its codec",
+        );
+      }
+    }
+    return fingerprint;
+  }
+  return snapshotMaterialState(
+    provider,
+    state,
+    "candidate material state fingerprint",
+  ).fingerprint;
+}
+
 export type WholeHeartMechanicsDiagnosticsV1 = {
   readonly converged: boolean;
   readonly finite: boolean;
@@ -134,6 +175,12 @@ export type WholeHeartMechanicsProviderV1<TState, TDrive> = {
   readonly parameterIdentityHash: string;
   readonly stateSchemaVersion: number;
   readonly stateCodec: WholeHeartMechanicsStateCodecV1<TState>;
+  /**
+   * Optional allocation-cold writer for the exact canonical codec hash. The
+   * full-invariant tier compares it with the generic codec before trusting it;
+   * lean model-owned candidates may use it directly.
+   */
+  readonly fingerprintMaterialStateCanonicalV1?: (state: TState) => string;
   /**
    * Optional trusted hot-path capability. The default supplies a defensive
    * clone to every callback. A provider may opt into the private prepared-step
@@ -552,19 +599,14 @@ function evaluatePreparedWholeHeartMechanicsTrialEagerV1<TState, TDrive>(
   return trial;
 }
 
-/**
- * Materializes the one selected candidate into the unchanged public trial.
- * A probe is live for exactly one successful seal and is bound to the exact
- * prepared-step object that created it; foreign or already-sealed probes fail.
- */
-export function sealPreparedWholeHeartMechanicsCandidateProbeV1<
+function livePreparedWholeHeartMechanicsCandidateProbeInternalV1<
   TState,
   TDrive,
 >(
   preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
   probe: WholeHeartMechanicsCandidateProbeV1<TState, TDrive>,
-): WholeHeartMechanicsTrialV1<TState> {
-  const context = preparedStepInternal(preparedStep);
+): WholeHeartMechanicsCandidateProbeInternalV1<TState, TDrive> {
+  preparedStepInternal(preparedStep);
   if (
     probe.probeId !== WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID
     || probe.providerId !== preparedStep.providerId
@@ -595,6 +637,105 @@ export function sealPreparedWholeHeartMechanicsCandidateProbeV1<
       "whole-heart mechanics candidate probe does not belong to prepared step",
     );
   }
+  return internal;
+}
+
+/**
+ * Reads one still-private provider readback for model-owned candidate coupling.
+ * The provider's exclusive-result capability keeps it immutable for the live
+ * probe lifetime. Generic recursive validation and serialization remain
+ * deferred until the selected probe is sealed; every field consumed before
+ * that boundary must be validated by its model-owned typed adapter.
+ */
+export function inspectPreparedWholeHeartMechanicsCandidateProbeReadbackV1<
+  TState,
+  TDrive,
+>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+  probe: WholeHeartMechanicsCandidateProbeV1<TState, TDrive>,
+): WholeHeartMechanicsSerializableValueV1 | null {
+  return livePreparedWholeHeartMechanicsCandidateProbeInternalV1(
+    preparedStep,
+    probe,
+  ).readback;
+}
+
+/**
+ * Gives one synchronous model-owned copier access to the selected probe's
+ * exclusively owned material state without minting a public trial snapshot.
+ * The borrowed state must not escape `consume`; callers may only copy its
+ * primitive fields into an independently owned accepted-state image.
+ */
+export function withPreparedWholeHeartMechanicsCandidateProbeMaterialStateV1<
+  TState,
+  TDrive,
+  TResult,
+>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+  probe: WholeHeartMechanicsCandidateProbeV1<TState, TDrive>,
+  consume: (borrowedMaterialState: TState) => TResult,
+): TResult {
+  if (typeof consume !== "function") {
+    throw new TypeError("whole-heart mechanics material consumer is required");
+  }
+  const internal = livePreparedWholeHeartMechanicsCandidateProbeInternalV1(
+    preparedStep,
+    probe,
+  );
+  return consume(internal.candidateMaterialState);
+}
+
+/**
+ * Cold bridge from a model-owned numerical image back to the public accepted
+ * mechanics contract. It clones, encodes, fingerprints, and validates the
+ * supplied material state exactly like a checkpoint/readback boundary. This
+ * is deliberately not a hot-path primitive; a flat production authority must
+ * prepare its next candidate directly from owned numerical memory.
+ */
+export function materializeWholeHeartMechanicsAcceptedStateV1<TState, TDrive>(
+  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  input: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    acceptedVolumesMl: WholeHeartMechanicsChamberValuesV1;
+    materialState: TState;
+  }>,
+): WholeHeartMechanicsAcceptedStateV1<TState> {
+  validateProvider(provider);
+  validateInteger(input.revision, "accepted revision");
+  validateTime(input.acceptedTimeSec, "acceptedTimeSec");
+  validateVolumes(input.acceptedVolumesMl, "acceptedVolumesMl");
+  const snapshot = snapshotMaterialState(
+    provider,
+    input.materialState,
+    "cold materialized accepted state",
+  );
+  return acceptedStateFromOwnedSnapshot(provider, {
+    revision: input.revision,
+    timeSec: input.acceptedTimeSec,
+    volumesMl: input.acceptedVolumesMl,
+    materialState: snapshot.materialState,
+    materialStateFingerprint: snapshot.fingerprint,
+  });
+}
+
+/**
+ * Materializes the one selected candidate into the unchanged public trial.
+ * A probe is live for exactly one successful seal and is bound to the exact
+ * prepared-step object that created it; foreign or already-sealed probes fail.
+ */
+export function sealPreparedWholeHeartMechanicsCandidateProbeV1<
+  TState,
+  TDrive,
+>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+  probe: WholeHeartMechanicsCandidateProbeV1<TState, TDrive>,
+): WholeHeartMechanicsTrialV1<TState> {
+  const context = preparedStepInternal(preparedStep);
+  const internal = livePreparedWholeHeartMechanicsCandidateProbeInternalV1(
+    preparedStep,
+    probe,
+  );
   const diagnostics = Object.freeze({
     ...probe.diagnostics,
     readback: internal.readback,
@@ -910,6 +1051,14 @@ function validateProvider<TState, TDrive>(
     throw new Error("cloneDrivingInputs must be a function when provided");
   }
   if (
+    provider.fingerprintMaterialStateCanonicalV1 !== undefined
+    && typeof provider.fingerprintMaterialStateCanonicalV1 !== "function"
+  ) {
+    throw new Error(
+      "fingerprintMaterialStateCanonicalV1 must be a function when provided",
+    );
+  }
+  if (
     provider.acceptedStateInputMode !== undefined
     && provider.acceptedStateInputMode !== "defensive-clone"
     && provider.acceptedStateInputMode !== "trusted-read-only-prepared-snapshot"
@@ -1121,32 +1270,55 @@ function snapshotMaterialState<TState, TDrive>(
 }
 
 function fingerprintSerializable(value: WholeHeartMechanicsSerializableValueV1): string {
-  const text = canonicalSerializableString(value);
-  let hash = 0x811c9dc5;
+  const hash = updateCanonicalSerializableHash(value, 0x811c9dc5);
+  return hash.toString(16).padStart(8, "0");
+}
+
+/**
+ * Streams the exact canonical JSON code units into FNV-1a without allocating
+ * the complete serialized mechanics state on every accepted substep. Leaf
+ * JSON spellings and sorted-key order remain byte-for-byte identical to the
+ * former recursive string builder, so released fingerprints do not change.
+ */
+function updateCanonicalSerializableHash(
+  value: WholeHeartMechanicsSerializableValueV1,
+  initialHash: number,
+): number {
+  if (value === null || typeof value === "boolean" || typeof value === "string") {
+    return updateFnv1aString(initialHash, JSON.stringify(value));
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("cannot fingerprint a non-finite number");
+    return updateFnv1aString(initialHash, JSON.stringify(value));
+  }
+  if (Array.isArray(value)) {
+    let hash = updateFnv1aString(initialHash, "[");
+    for (let index = 0; index < value.length; index += 1) {
+      if (index !== 0) hash = updateFnv1aString(hash, ",");
+      hash = updateCanonicalSerializableHash(value[index]!, hash);
+    }
+    return updateFnv1aString(hash, "]");
+  }
+  const record = value as { readonly [key: string]: WholeHeartMechanicsSerializableValueV1 };
+  const keys = Object.keys(record).sort();
+  let hash = updateFnv1aString(initialHash, "{");
+  for (let index = 0; index < keys.length; index += 1) {
+    if (index !== 0) hash = updateFnv1aString(hash, ",");
+    const key = keys[index]!;
+    hash = updateFnv1aString(hash, JSON.stringify(key));
+    hash = updateFnv1aString(hash, ":");
+    hash = updateCanonicalSerializableHash(record[key]!, hash);
+  }
+  return updateFnv1aString(hash, "}");
+}
+
+function updateFnv1aString(initialHash: number, text: string): number {
+  let hash = initialHash;
   for (let index = 0; index < text.length; index += 1) {
     hash ^= text.charCodeAt(index);
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
-  return hash.toString(16).padStart(8, "0");
-}
-
-function canonicalSerializableString(
-  value: WholeHeartMechanicsSerializableValueV1,
-): string {
-  if (value === null || typeof value === "boolean" || typeof value === "string") {
-    return JSON.stringify(value);
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error("cannot fingerprint a non-finite number");
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalSerializableString).join(",")}]`;
-  }
-  const record = value as { readonly [key: string]: WholeHeartMechanicsSerializableValueV1 };
-  return `{${Object.keys(record).sort().map((key) =>
-    `${JSON.stringify(key)}:${canonicalSerializableString(record[key]!)}`
-  ).join(",")}}`;
+  return hash;
 }
 
 function copyChambers(

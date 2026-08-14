@@ -62,7 +62,6 @@ for (let index = 0; index < WARMUP_BATCHES; index += 1) {
 let oracleDurationMs = 0;
 let flatDurationMs = 0;
 let flatOracleAdvanceMs = 0;
-let flatMirrorWriteMs = 0;
 let flatProjectionMs = 0;
 for (let round = 0; round < MEASURED_ROUNDS; round += 1) {
   const measureOracle = () => {
@@ -77,7 +76,6 @@ for (let round = 0; round < MEASURED_ROUNDS; round += 1) {
     for (let index = 0; index < BATCHES_PER_ROUND; index += 1) {
       const result = advanceFlat(BATCH_STEPS);
       flatOracleAdvanceMs += result.phaseTimingsMs.oracleAdvance;
-      flatMirrorWriteMs += result.phaseTimingsMs.flatMirrorWrite;
       flatProjectionMs += result.phaseTimingsMs.outputProjection;
     }
     flatDurationMs += performance.now() - startedAt;
@@ -107,11 +105,14 @@ const measuredSteps = BATCH_STEPS * BATCHES_PER_ROUND * MEASURED_ROUNDS;
 const layout = flat.stateLayout();
 process.stdout.write(`${JSON.stringify({
   schemaId: "circleheart-main-wire-flat-reference-benchmark-v1",
-  scope: "phase-1a-reference-bridge-not-a-production-speedup-gate",
+  scope: "typed-authority-reference-worker-not-a-production-speedup-gate",
   measuredSteps,
   selectedOutputCount: plan.outputIds.length,
   stateLayout: {
     continuousSlotCount: layout.continuousSlots.length,
+    nullableContinuousSlotCount: layout.nullableContinuousSlots.length,
+    nullableStringSlotCount: layout.nullableStringSlots.length,
+    optionalRecordRootCount: layout.optionalRecordRoots.length,
     booleanSlotCount: layout.booleanSlots.length,
     stringSlotCount: layout.stringSlots.length,
     excludedDynamicRootCount: layout.excludedDynamicRoots.length,
@@ -127,7 +128,6 @@ process.stdout.write(`${JSON.stringify({
     overheadRatio: flatDurationMs / oracleDurationMs,
     phases: {
       oracleAdvanceMs: flatOracleAdvanceMs,
-      flatMirrorWriteMs,
       outputProjectionMs: flatProjectionMs,
     },
   },

@@ -15,6 +15,9 @@ import {
   type MainWireIntegratedModelPresentationAdvanceV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
+  MainWireFlatAuthoritativeReferenceSessionV1,
+} from "@/engine/vnext/MainWireFlatAuthoritativeReferenceSessionV1";
+import {
   createFlatNumericalStateBufferV1,
   createFlatNumericalStateLayoutV1,
   createFlatNumericalStringTableV1,
@@ -55,7 +58,6 @@ export type MainWireFlatReferenceAdvanceResultV1 = Readonly<{
   terminalRevision: number;
   phaseTimingsMs: Readonly<{
     oracleAdvance: number;
-    flatMirrorWrite: number;
     outputProjection: number;
     total: number;
   }>;
@@ -65,6 +67,12 @@ export type MainWireFlatReferenceStateSnapshotV1 = Readonly<{
   acceptedTick: number;
   acceptedRevision: number;
   continuous: Float64Array;
+  nullableContinuous: Float64Array;
+  nullableContinuousPresent: Uint8Array;
+  nullableStrings: Uint32Array;
+  nullableStringsPresent: Uint8Array;
+  optionalRecordPresent: Uint8Array;
+  boundedArrayLengths: Uint32Array;
   booleans: Uint8Array;
   strings: Uint32Array;
   stringTable: readonly string[];
@@ -77,18 +85,20 @@ export type MainWireFlatReferenceOracleV1 = Pick<
 >;
 
 /**
- * Phase 1a vertical slice. The current V3 session remains the scientific
- * oracle while ownership outside that oracle is already integer-tick, flat,
- * double-buffered and typed-page based. This class is not a released model.
+ * Non-production vertical slice. The default path owns the complete accepted
+ * transaction through MainWireFlatAuthoritativeReferenceSessionV1 and writes
+ * integer-tick output pages directly. A flattened object snapshot is produced
+ * only on explicit diagnostic request, never once per presentation tick.
+ * Test-only injected oracles remain available to falsify failure atomicity.
  */
 export class MainWireFlatReferenceKernelV1 {
   readonly kernelId = MAIN_WIRE_FLAT_REFERENCE_KERNEL_V1_ID;
 
   readonly #oracle: MainWireFlatReferenceOracleV1;
   readonly #layout: FlatNumericalStateLayoutV1;
-  readonly #stringTable = createFlatNumericalStringTableV1();
-  #currentState: FlatNumericalStateBufferV1;
-  #candidateState: FlatNumericalStateBufferV1;
+  #acceptedState: ReturnType<
+    MainWireFlatReferenceOracleV1["currentAcceptedState"]
+  >;
   #acceptedTick: number;
   #acceptedRevision: number;
   #poisonedReason: string | null = null;
@@ -96,23 +106,13 @@ export class MainWireFlatReferenceKernelV1 {
   private constructor(oracle: MainWireFlatReferenceOracleV1) {
     this.#oracle = oracle;
     const accepted = oracle.currentAcceptedState();
+    this.#acceptedState = accepted;
     this.#acceptedTick = presentationTickForAcceptedTime(accepted.acceptedTimeSec);
     this.#acceptedRevision = accepted.revision;
     this.#layout = createFlatNumericalStateLayoutV1(
       MAIN_WIRE_FLAT_REFERENCE_STATE_LAYOUT_V1_ID,
       accepted,
     );
-    this.#currentState = createFlatNumericalStateBufferV1(this.#layout);
-    this.#candidateState = createFlatNumericalStateBufferV1(this.#layout);
-    writeFlatNumericalStateV1(
-      this.#layout,
-      accepted,
-      this.#currentState,
-      this.#stringTable,
-    );
-    this.#candidateState.continuous.set(this.#currentState.continuous);
-    this.#candidateState.booleans.set(this.#currentState.booleans);
-    this.#candidateState.strings.set(this.#currentState.strings);
   }
 
   static async create(
@@ -121,7 +121,7 @@ export class MainWireFlatReferenceKernelV1 {
     ventricularContractilityScale = 1,
   ): Promise<MainWireFlatReferenceKernelV1> {
     return new MainWireFlatReferenceKernelV1(
-      await MainWireIntegratedModelSessionV3.create(
+      await MainWireFlatAuthoritativeReferenceSessionV1.create(
         inputs,
         ventricularContractilityScale,
       ),
@@ -140,13 +140,29 @@ export class MainWireFlatReferenceKernelV1 {
   }
 
   snapshotCurrentFlatState(): MainWireFlatReferenceStateSnapshotV1 {
+    const acceptedState = this.#oracle.currentAcceptedState();
+    this.#acceptedState = acceptedState;
+    const buffer = createFlatNumericalStateBufferV1(this.#layout);
+    const stringTable = createFlatNumericalStringTableV1();
+    writeFlatNumericalStateV1(
+      this.#layout,
+      acceptedState,
+      buffer,
+      stringTable,
+    );
     return Object.freeze({
       acceptedTick: this.#acceptedTick,
       acceptedRevision: this.#acceptedRevision,
-      continuous: this.#currentState.continuous.slice(),
-      booleans: this.#currentState.booleans.slice(),
-      strings: this.#currentState.strings.slice(),
-      stringTable: Object.freeze([...this.#stringTable.valuesByCode]),
+      continuous: buffer.continuous,
+      nullableContinuous: buffer.nullableContinuous,
+      nullableContinuousPresent: buffer.nullableContinuousPresent,
+      nullableStrings: buffer.nullableStrings,
+      nullableStringsPresent: buffer.nullableStringsPresent,
+      optionalRecordPresent: buffer.optionalRecordPresent,
+      boundedArrayLengths: buffer.boundedArrayLengths,
+      booleans: buffer.booleans,
+      strings: buffer.strings,
+      stringTable: Object.freeze([...stringTable.valuesByCode]),
     });
   }
 
@@ -174,17 +190,60 @@ export class MainWireFlatReferenceKernelV1 {
 
     const startedAt = performance.now();
     let oracleAdvanceMs = 0;
-    let flatMirrorWriteMs = 0;
     let outputProjectionMs = 0;
+    const authoritativeSession =
+      this.#oracle instanceof MainWireFlatAuthoritativeReferenceSessionV1
+        ? this.#oracle
+        : null;
 
     for (let pageIndex = 0; pageIndex < sampleCount; pageIndex += 1) {
       const nextTick = this.#acceptedTick + 1;
       let phaseStartedAt = performance.now();
-      let advance: MainWireIntegratedModelPresentationAdvanceV3;
+      let advance:
+        | MainWireIntegratedModelPresentationAdvanceV3
+        | ReturnType<
+          MainWireFlatAuthoritativeReferenceSessionV1[
+            "advanceToPresentationTimeWithSelectedOutputProjectionV1"
+          ]
+        >["advance"];
+      let projectedDuringAdvance = false;
+      let projectionError: unknown = null;
       try {
-        advance = this.#oracle.advanceToPresentationTime(
-          mainWireIntegratedModelPresentationTargetTimeSecV3(nextTick),
-        );
+        const targetTimeSec =
+          mainWireIntegratedModelPresentationTargetTimeSecV3(nextTick);
+        if (authoritativeSession === null) {
+          advance = this.#oracle.advanceToPresentationTime(targetTimeSec);
+          oracleAdvanceMs += performance.now() - phaseStartedAt;
+        } else {
+          const projected = authoritativeSession
+            .advanceToPresentationTimeWithSelectedOutputProjectionV1(
+              targetTimeSec,
+              outputPlan.outputIds,
+            );
+          advance = projected.advance;
+          const advanceAndProjectionDurationMs = performance.now() - phaseStartedAt;
+          oracleAdvanceMs += Math.max(
+            0,
+            advanceAndProjectionDurationMs
+              - projected.outputProjectionDurationMs,
+          );
+          outputProjectionMs += projected.outputProjectionDurationMs;
+          if (projected.projectedValues !== null) {
+            projectedDuringAdvance = true;
+            const writeStartedAt = performance.now();
+            try {
+              writeProjectedValues(
+                destination,
+                pageIndex,
+                projected.projectedValues,
+              );
+            } catch (error) {
+              projectionError = error;
+            } finally {
+              outputProjectionMs += performance.now() - writeStartedAt;
+            }
+          }
+        }
       } catch (error) {
         oracleAdvanceMs += performance.now() - phaseStartedAt;
         const message = error instanceof Error ? error.message : String(error);
@@ -194,7 +253,14 @@ export class MainWireFlatReferenceKernelV1 {
           `Flat reference oracle advance failed: ${this.#poisonedReason}`,
         );
       }
-      oracleAdvanceMs += performance.now() - phaseStartedAt;
+      if (projectionError !== null) {
+        this.#poisonedReason = projectionError instanceof Error
+          ? projectionError.message
+          : String(projectionError);
+        throw new Error(
+          `Flat reference post-advance contract failed: ${this.#poisonedReason}`,
+        );
+      }
       if (advance.status !== "advanced") {
         this.#poisonedReason =
           `oracle returned ${advance.status} after advance began at tick ${nextTick}`;
@@ -224,19 +290,10 @@ export class MainWireFlatReferenceKernelV1 {
         );
       }
 
-      try {
-        phaseStartedAt = performance.now();
-        writeFlatNumericalStateV1(
-          this.#layout,
-          advance.observation.acceptedState,
-          this.#candidateState,
-          this.#stringTable,
-        );
-        const previous = this.#currentState;
-        this.#currentState = this.#candidateState;
-        this.#candidateState = previous;
-        flatMirrorWriteMs += performance.now() - phaseStartedAt;
-
+      if (!projectedDuringAdvance) try {
+        if (!("observation" in advance)) {
+          throw new Error("Flat reference projection observation is unavailable");
+        }
         phaseStartedAt = performance.now();
         const values = projectMainWireIntegratedModelSelectedValuesV3(
           advance.observation,
@@ -255,6 +312,9 @@ export class MainWireFlatReferenceKernelV1 {
 
       destination.acceptedTicks[pageIndex] = nextTick;
       destination.acceptedRevisions[pageIndex] = advance.acceptedRevision;
+      if ("observation" in advance) {
+        this.#acceptedState = advance.observation.acceptedState;
+      }
       this.#acceptedTick = nextTick;
       this.#acceptedRevision = advance.acceptedRevision;
     }
@@ -265,7 +325,6 @@ export class MainWireFlatReferenceKernelV1 {
       terminalRevision: this.#acceptedRevision,
       phaseTimingsMs: Object.freeze({
         oracleAdvance: oracleAdvanceMs,
-        flatMirrorWrite: flatMirrorWriteMs,
         outputProjection: outputProjectionMs,
         total: performance.now() - startedAt,
       }),

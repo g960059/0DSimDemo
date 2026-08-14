@@ -18,6 +18,8 @@ import {
   coronaryTopologyPriorFingerprintV2,
   coronaryColdSeedBloodVolumeMlV2,
   createColdCoronaryConstructionSeedV2,
+  evaluateCrefAnchoredCollapsibleComplianceV2,
+  evaluateCrefAnchoredCollapsiblePressureV2,
   evaluateCrefAnchoredCollapsiblePvV2,
   initialCoronaryToneStateV2,
   redistributeCoronaryLargeArterialPressureDropToR1V2,
@@ -149,6 +151,18 @@ describe("coronary two-compliance topology/prior V2", () => {
       expect("pressureScaleMmHg" in node.pressureVolume).toBe(true);
       if (!("pressureScaleMmHg" in node.pressureVolume)) continue;
       const pv = node.pressureVolume;
+      for (const volume of [
+        0.5 * pv.referenceVolumeMl,
+        pv.referenceVolumeMl,
+        node.coldSeedVolumeMl,
+        1.5 * pv.referenceVolumeMl,
+      ]) {
+        const paired = evaluateCrefAnchoredCollapsiblePvV2(volume, pv);
+        expect(evaluateCrefAnchoredCollapsiblePressureV2(volume, pv))
+          .toBe(paired.transmuralPressureMmHg);
+        expect(evaluateCrefAnchoredCollapsibleComplianceV2(volume, pv))
+          .toBe(paired.complianceMlPerMmHg);
+      }
       expect(pv.pressureScaleMmHg).toBeCloseTo(
         pv.referenceVolumeMl
         / (pv.referenceComplianceMlPerMmHg

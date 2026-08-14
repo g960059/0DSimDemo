@@ -7,7 +7,7 @@ import {
   type Land2017EquationParameters,
 } from "@/engine/myocardium/myofilament/land2017/equations";
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017/parameterSets";
-import { computeLand2017ActiveStiffnessPa } from "@/engine/myocardium/myofilament/land2017/stabilization";
+import { computeLand2017ActiveStiffnessPaFromAlgebraicTerms } from "@/engine/myocardium/myofilament/land2017/stabilization";
 import {
   LAND2017_STATE_INDEX,
   assertLand2017StateVectorLength,
@@ -24,6 +24,7 @@ export function evaluateLand2017ContinuousOutput(
 ): LandSourceOutput {
   assertLand2017StateVectorLength(state, "Land 2017 output state");
   const p = parameterSet.values;
+  const d = parameterSet.derived;
   let inputDomainValid = true;
   try {
     validateLand2017ContinuousInput(input, p);
@@ -47,28 +48,42 @@ export function evaluateLand2017ContinuousOutput(
   const sourceActiveFiberStressPa = (terms.h * p.Tref * (S * (zetaS + 1) + W * zetaW)) / p.rs;
   const sourceActivePowerDensityWPerM3 =
     sourceActiveFiberStressPa * input.fiberEngineeringStrainRatePerSec;
-  const stabilizationStiffnessPa = computeLand2017ActiveStiffnessPa(state, input, parameterSet);
+  const stabilizationStiffnessPa =
+    computeLand2017ActiveStiffnessPaFromAlgebraicTerms(
+      terms,
+      W,
+      S,
+      p,
+      d,
+    );
   const stateConservationResidual = land2017StateConservationResidual(state);
   const minimumPopulation = land2017StateMinimumPopulation(state);
+  let stateEntriesFinite = true;
+  for (let index = 0; index < state.length; index += 1) {
+    if (!Number.isFinite(state[index])) {
+      stateEntriesFinite = false;
+      break;
+    }
+  }
+  const zetaDriveFiberEngineeringStrainRatePerSec =
+    input.zetaDriveFiberEngineeringStrainRatePerSec
+      ?? input.fiberEngineeringStrainRatePerSec;
   const finite =
     inputDomainValid &&
     stateDomainValid &&
     terms.lambda > 0 &&
     minimumPopulation >= 0 &&
     stateConservationResidual <= 1e-12 &&
-    allFinite([
-      ...Array.from({ length: state.length }, (_, index) => state[index]),
-      input.freeCalciumUM,
-      input.fiberEngineeringStrain,
-      input.fiberEngineeringStrainRatePerSec,
-      input.zetaDriveFiberEngineeringStrainRatePerSec
-        ?? input.fiberEngineeringStrainRatePerSec,
-      sourceActiveFiberStressPa,
-      stabilizationStiffnessPa,
-      sourceActivePowerDensityWPerM3,
-      stateConservationResidual,
-      minimumPopulation,
-    ]);
+    stateEntriesFinite &&
+    Number.isFinite(input.freeCalciumUM) &&
+    Number.isFinite(input.fiberEngineeringStrain) &&
+    Number.isFinite(input.fiberEngineeringStrainRatePerSec) &&
+    Number.isFinite(zetaDriveFiberEngineeringStrainRatePerSec) &&
+    Number.isFinite(sourceActiveFiberStressPa) &&
+    Number.isFinite(stabilizationStiffnessPa) &&
+    Number.isFinite(sourceActivePowerDensityWPerM3) &&
+    Number.isFinite(stateConservationResidual) &&
+    Number.isFinite(minimumPopulation);
 
   return {
     sourceActiveFiberStressPa,
@@ -101,8 +116,4 @@ export function evaluateLand2017StepOutput(
     },
     parameterSet,
   );
-}
-
-function allFinite(values: readonly number[]): boolean {
-  return values.every((value) => Number.isFinite(value));
 }

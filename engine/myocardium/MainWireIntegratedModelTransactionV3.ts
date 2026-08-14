@@ -1,6 +1,11 @@
 import type {
+  NonCoronaryAcceptedNumericalSourceV1,
+  NonCoronaryBackwardEulerScratchWorkspaceV1,
   NonCoronaryDynamicMechanicalSupportInputV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+import type {
+  CoronaryBackwardEulerScratchWorkspaceV2,
+} from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
   fullHotPathInvariantsEnabledV1,
 } from "@/engine/hotPathIntegrityTierV1";
@@ -319,6 +324,23 @@ export type MainWireIntegratedModelStepResultV3<TWallState> =
   | MainWireIntegratedModelStepSuccessV3<TWallState>
   | MainWireIntegratedModelStepFailureV3<TWallState>;
 
+export type MainWireIntegratedModelCoronaryExecutionV3<TWallState> =
+  Readonly<{
+    coronaryStep: MainWireFiveWallCoronaryStepResultV3<TWallState>;
+    /**
+     * vNext device-off solvers may evaluate the outer dynamic-device owner
+     * after their circulation candidate is materialized. The nested reference
+     * path leaves this undefined and publishes the trial embedded in baseStep.
+     */
+    dynamicMechanicalSupportTrial?:
+      DynamicMechanicalSupportHydraulicEvaluationV1;
+  }>;
+
+export type MainWireIntegratedModelCoronaryExecutorV3<TWallState> = (
+  previous: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
+  input: MainWireFiveWallCoronaryStepInputV3,
+) => MainWireIntegratedModelCoronaryExecutionV3<TWallState>;
+
 export function initializeMainWireIntegratedModelV3<TWallState>(
   input: MainWireIntegratedModelInitializeInputV3<TWallState>,
 ): MainWireIntegratedModelColdResultV3<TWallState> {
@@ -464,7 +486,42 @@ export function stepMainWireIntegratedModelV3<TWallState>(
   >,
   previous: MainWireIntegratedModelAcceptedStateV3<TWallState>,
   input: MainWireIntegratedModelStepInputV3,
+  coronaryScratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
+  nonCoronaryScratchWorkspace?:
+    NonCoronaryBackwardEulerScratchWorkspaceV1,
+  previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
 ): MainWireIntegratedModelStepResultV3<TWallState> {
+  return stepMainWireIntegratedModelWithCoronaryExecutorV3(
+    previous,
+    input,
+    (coronaryPrevious, coronaryInput) => Object.freeze({
+      coronaryStep: stepMainWireFiveWallCoronaryV3(
+        provider,
+        coronaryPrevious,
+        coronaryInput,
+        coronaryScratchWorkspace,
+        nonCoronaryScratchWorkspace,
+        previousAcceptedNumericalSource,
+      ),
+    }),
+  );
+}
+
+/**
+ * Shared outer transaction for the nested reference and vNext nonlinear
+ * solvers. Only the coronary/circulation algebra is injected; candidate-time,
+ * rhythm/calcium, dynamic-device, conservation, and atomic promotion rules
+ * remain single-owner code.
+ */
+export function stepMainWireIntegratedModelWithCoronaryExecutorV3<TWallState>(
+  previous: MainWireIntegratedModelAcceptedStateV3<TWallState>,
+  input: MainWireIntegratedModelStepInputV3,
+  executeCoronary:
+    MainWireIntegratedModelCoronaryExecutorV3<TWallState>,
+): MainWireIntegratedModelStepResultV3<TWallState> {
+  if (typeof executeCoronary !== "function") {
+    throw new TypeError("composed integrated coronary executor is required");
+  }
   let candidateTimeLimit:
     MainWireIntegratedModelCandidateTimeLimitV3 | undefined;
   let composedRhythmCandidate:
@@ -522,8 +579,7 @@ export function stepMainWireIntegratedModelV3<TWallState>(
       profile: input.dynamicMechanicalSupport.profile,
       previousAcceptedState: previous.dynamicMechanicalSupport,
     }) satisfies NonCoronaryDynamicMechanicalSupportInputV1;
-    coronaryStep = stepMainWireFiveWallCoronaryV3(
-      provider,
+    const coronaryExecution = executeCoronary(
       previous.coronary,
       {
         ...input.coronary,
@@ -532,6 +588,7 @@ export function stepMainWireIntegratedModelV3<TWallState>(
         dynamicMechanicalSupport,
       },
     );
+    coronaryStep = coronaryExecution.coronaryStep;
     if (coronaryStep.converged === false) {
       return failure(
         previous,
@@ -540,8 +597,21 @@ export function stepMainWireIntegratedModelV3<TWallState>(
         { coronaryStep, composedRhythmCandidate, candidateTimeLimit },
       );
     }
-    const dynamicTrial = coronaryStep.baseStep.circulationTrial
+    const embeddedDynamicTrial = coronaryStep.baseStep.circulationTrial
       .dynamicMechanicalSupport;
+    if (
+      coronaryExecution.dynamicMechanicalSupportTrial !== undefined
+      && embeddedDynamicTrial !== undefined
+      && coronaryExecution.dynamicMechanicalSupportTrial
+        !== embeddedDynamicTrial
+    ) {
+      throw new Error(
+        "coronary executor returned two different dynamic MCS trials",
+      );
+    }
+    const dynamicTrial =
+      coronaryExecution.dynamicMechanicalSupportTrial
+      ?? embeddedDynamicTrial;
     if (dynamicTrial === undefined) {
       throw new Error("coronary candidate omitted dynamic MCS readback");
     }
@@ -652,6 +722,29 @@ export function validateMainWireIntegratedModelAcceptedStateV3<TWallState>(
   ) {
     throw new Error("composed integrated accepted owner clocks differ");
   }
+}
+
+/**
+ * Re-admits one accepted state at the next model-owned transaction boundary.
+ * Internally constructed states may reuse their exact private state/context
+ * proof; restored, copied, hand-built, context-rebound, and stamp-disabled
+ * states still take the complete exported validator above.
+ *
+ * This is deliberately a read-only proof consumer. It cannot mint validation
+ * provenance for an arbitrary state.
+ */
+export function validateMainWireIntegratedModelAcceptedBoundaryV3<TWallState>(
+  state: MainWireIntegratedModelAcceptedStateV3<TWallState>,
+  rhythm: MainWireIntegratedComposedRhythmContextV3,
+  dynamicProfile: DynamicMechanicalSupportInertanceProfileV1,
+  dynamicConfig: MechanicalSupportConfigV1,
+): void {
+  validateMainWireIntegratedBoundaryV3(
+    state,
+    rhythm,
+    dynamicProfile,
+    dynamicConfig,
+  );
 }
 
 export function wrapMainWireIntegratedModelAcceptedStateV3<TWallState>(

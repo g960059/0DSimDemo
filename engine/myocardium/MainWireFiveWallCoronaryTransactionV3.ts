@@ -7,14 +7,20 @@ import {
   validateCoronaryAcceptedAutoregulationStateV3,
   validateCoronaryAutoregulationWindowBindingV3,
   type CoronaryAcceptedAutoregulationCompletionV3,
+  type CoronaryAcceptedAutoregulationAdvanceV3,
   type CoronaryAcceptedAutoregulationStateV3,
   type CoronaryAutoregulationWindowBindingV3,
   type CoronaryAutoregulationWindowControlV3,
 } from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import {
   NORMAL_CORONARY_DISEASE_INPUT_V2,
+  type CoronaryBackwardEulerScratchWorkspaceV2,
   type CoronaryDiseaseInputV2,
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
+import type {
+  NonCoronaryAcceptedNumericalSourceV1,
+  NonCoronaryBackwardEulerScratchWorkspaceV1,
+} from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   NORMAL_ADULT_CORONARY_AUTOREGULATION_PRIOR_V2,
   unitCoronaryDemandScaleV2,
@@ -45,7 +51,6 @@ import type {
   WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
-  validationStampIssuanceEligibleV1,
   validationStampReuseEligibleV1,
 } from "@/engine/validationStampModeV1";
 
@@ -152,6 +157,99 @@ export type MainWireFiveWallCoronaryStepResultV3<TWallState> =
   | MainWireFiveWallCoronaryStepSuccessV3<TWallState>
   | MainWireFiveWallCoronaryStepFailureV3<TWallState>;
 
+export type MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3 = Readonly<{
+  acceptedTimeSec: number;
+  binding: CoronaryAutoregulationWindowBindingV3;
+  state: CoronaryAcceptedAutoregulationStateV3;
+  toneResistanceScaleByTerritoryLayer: CoronaryToneStateV2;
+}>;
+
+/**
+ * Applies the accepted autoregulation owner directly to the ten packed
+ * hydraulic observables emitted by the coupled solver. This is algebraically
+ * identical to the public-trial promotion below and avoids requiring a full
+ * coronary diagnostics object on the typed path.
+ */
+export function advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3<
+  TWallState,
+>(
+  previous: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
+  input: MainWireFiveWallCoronaryStepInputV3,
+  candidateAcceptedTimeSec: number,
+  candidateRevision: number,
+  packedHydraulicObservables: Float64Array,
+): CoronaryAcceptedAutoregulationAdvanceV3 {
+  return advanceMainWireFiveWallCoronaryAutoregulationOwnerFromPackedV3(
+    Object.freeze({
+      acceptedTimeSec: previous.acceptedTimeSec,
+      binding: previous.coronaryAutoregulationBinding,
+      state: previous.coronaryAutoregulation,
+      toneResistanceScaleByTerritoryLayer:
+        previous.coronary.toneResistanceScaleByTerritoryLayer,
+    }),
+    input,
+    candidateAcceptedTimeSec,
+    candidateRevision,
+    packedHydraulicObservables,
+  );
+}
+
+/**
+ * Advances only the accepted autoregulation owner. The complete coronary
+ * AcceptedState is deliberately absent so a typed global transaction can
+ * consume the selected-root hydraulic page without rehydrating public state.
+ */
+export function advanceMainWireFiveWallCoronaryAutoregulationOwnerFromPackedV3(
+  previous: MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3,
+  input: MainWireFiveWallCoronaryStepInputV3,
+  candidateAcceptedTimeSec: number,
+  candidateRevision: number,
+  packedHydraulicObservables: Float64Array,
+): CoronaryAcceptedAutoregulationAdvanceV3 {
+  if (
+    !(packedHydraulicObservables instanceof Float64Array)
+    || packedHydraulicObservables.length !== 10
+  ) {
+    throw new RangeError(
+      "packed coronary autoregulation readback must contain ten f64s",
+    );
+  }
+  let observableIndex = 0;
+  const finalQmInternalFlowMlPerSecByTerritoryLayer = Object.freeze(
+    Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+      territoryId,
+      Object.freeze(Object.fromEntries(CORONARY_LAYER_IDS_V2.map(
+        (layerId) => [layerId, packedHydraulicObservables[observableIndex++]!],
+      ))),
+    ])),
+  ) as CoronaryTerritoryLayerRecordV2<number>;
+  const finalPostFocalLesionPressureMmHgByTerritory = Object.freeze(
+    Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+      territoryId,
+      packedHydraulicObservables[observableIndex++]!,
+    ])),
+  ) as Readonly<Record<(typeof CORONARY_TERRITORY_IDS_V2)[number], number>>;
+  return advanceCoronaryAcceptedAutoregulationV3(
+    previous.binding,
+    previous.state,
+    previous.toneResistanceScaleByTerritoryLayer,
+    {
+      previousAcceptedTimeSec: previous.acceptedTimeSec,
+      candidateAcceptedTimeSec,
+      candidateRevision,
+      finalQmInternalFlowMlPerSecByTerritoryLayer,
+      finalPostFocalLesionPressureMmHgByTerritory,
+      finalCommonCoronaryVenousPressureMmHg:
+        packedHydraulicObservables[observableIndex]!,
+      control: resolveAutoregulationControl(
+        input.coronaryAutoregulationDrive,
+        input.coronaryDisease ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
+      ),
+      topologyPrior: input.coronaryPrior,
+    },
+  );
+}
+
 export function initializeMainWireFiveWallCoronaryV3<TWallState>(
   input: MainWireFiveWallCoronaryInitializeInputV3<TWallState>,
 ): MainWireFiveWallCoronaryColdResultV3<TWallState> {
@@ -186,7 +284,7 @@ export function initializeMainWireFiveWallCoronaryV3<TWallState>(
   );
   return Object.freeze({
     ...base,
-    acceptedState: wrapMainWireFiveWallCoronaryAcceptedStateV3(
+    acceptedState: wrapInternalMainWireFiveWallCoronaryAcceptedStateV3(
       base.acceptedState,
       binding,
       autoregulation,
@@ -222,6 +320,10 @@ export function stepMainWireFiveWallCoronaryV3<TWallState>(
   >,
   previous: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
   input: MainWireFiveWallCoronaryStepInputV3,
+  coronaryScratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
+  nonCoronaryScratchWorkspace?:
+    NonCoronaryBackwardEulerScratchWorkspaceV1,
+  previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
 ): MainWireFiveWallCoronaryStepResultV3<TWallState> {
   const basePrevious =
     validatedMainWireFiveWallCoronaryBaseStateV2(previous);
@@ -241,7 +343,41 @@ export function stepMainWireFiveWallCoronaryV3<TWallState>(
     provider,
     basePrevious,
     input,
+    coronaryScratchWorkspace,
+    nonCoronaryScratchWorkspace,
+    previousAcceptedNumericalSource,
   );
+  return promoteMainWireFiveWallCoronaryBaseStepV3(
+    previous,
+    input,
+    baseStep,
+  );
+}
+
+/**
+ * Applies the V3 accepted-autoregulation owner to one component-admitted V2
+ * candidate. The nested reference step and the vNext statically condensed
+ * solver both enter through this exact promotion boundary, so changing the
+ * nonlinear algebra cannot fork coronary tone/window semantics.
+ */
+export function promoteMainWireFiveWallCoronaryBaseStepV3<TWallState>(
+  previous: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
+  input: MainWireFiveWallCoronaryStepInputV3,
+  baseStep: MainWireFiveWallCoronaryStepResultV2<TWallState>,
+): MainWireFiveWallCoronaryStepResultV3<TWallState> {
+  validatedMainWireFiveWallCoronaryBaseStateV2(previous);
+  const maximumDtSec =
+    maximumMainWireFiveWallCoronaryStepDurationFromValidatedStateV3(
+      previous,
+    );
+  const tolerance = 64 * Number.EPSILON
+    * Math.max(1, Math.abs(previous.acceptedTimeSec), Math.abs(input.dtSec));
+  if (!Number.isFinite(input.dtSec) || input.dtSec <= 0
+    || input.dtSec > maximumDtSec + tolerance) {
+    throw new RangeError(
+      "step dt must be positive and must not cross the autoregulation window",
+    );
+  }
   if (baseStep.converged === false) {
     return Object.freeze({
       converged: false,
@@ -285,7 +421,7 @@ export function stepMainWireFiveWallCoronaryV3<TWallState>(
       baseStep.acceptedState,
       regulation.nextToneResistanceScaleByTerritoryLayer,
     );
-    const acceptedState = wrapMainWireFiveWallCoronaryAcceptedStateV3(
+    const acceptedState = wrapInternalMainWireFiveWallCoronaryAcceptedStateV3(
       promotedBase,
       previous.coronaryAutoregulationBinding,
       regulation.nextState,
@@ -357,6 +493,33 @@ export function wrapMainWireFiveWallCoronaryAcceptedStateV3<TWallState>(
   });
 }
 
+/**
+ * Wraps only V2 accepted states returned by this module's cold/step owners and
+ * records their exact V3-to-V2 view without attempting a generic transitive
+ * immutability proof over mechanics typed arrays. Downstream V2 mechanics and
+ * material-state validators remain authoritative; external wrappers and
+ * restored identities never enter this cache through this private function.
+ */
+function wrapInternalMainWireFiveWallCoronaryAcceptedStateV3<TWallState>(
+  base: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
+  binding: CoronaryAutoregulationWindowBindingV3,
+  autoregulation: CoronaryAcceptedAutoregulationStateV3,
+): MainWireFiveWallCoronaryAcceptedStateV3<TWallState> {
+  validateMainWireFiveWallCoronaryAcceptedStateV2(base);
+  const state = wrapMainWireFiveWallCoronaryAcceptedStateV3(
+    base,
+    binding,
+    autoregulation,
+  );
+  if (validationStampReuseEligibleV1()) {
+    validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
+      state,
+      base as MainWireFiveWallCoronaryAcceptedStateV2<unknown>,
+    );
+  }
+  return state;
+}
+
 export function validateMainWireFiveWallCoronaryAcceptedStateV3<TWallState>(
   state: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
 ): void {
@@ -394,18 +557,6 @@ function validatedMainWireFiveWallCoronaryBaseStateV2<TWallState>(
   );
   const baseState = mainWireFiveWallCoronaryBaseStateV2(state);
   validateMainWireFiveWallCoronaryAcceptedStateV2(baseState);
-  if (
-    Object.isFrozen(state)
-    && Object.isFrozen(state.circulation)
-    && Object.isFrozen(state.coronary)
-    && Object.isFrozen(state.mechanics)
-    && validationStampIssuanceEligibleV1(state)
-  ) {
-    validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
-      state,
-      baseState as MainWireFiveWallCoronaryAcceptedStateV2<unknown>,
-    );
-  }
   return baseState;
 }
 

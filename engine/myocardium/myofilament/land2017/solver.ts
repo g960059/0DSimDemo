@@ -384,14 +384,13 @@ export function solveLand2017AffineStage(
     base[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
     base[LAND2017_STATE_INDEX.S],
   );
-  const next = Float64Array.from([
-    caTRPN,
-    population[0],
-    population[1],
-    population[2],
-    zetaW,
-    zetaS,
-  ]);
+  const next = new Float64Array(LAND2017_STATE_SIZE);
+  next[LAND2017_STATE_INDEX.CaTRPN] = caTRPN;
+  next[LAND2017_STATE_INDEX.B] = population[0];
+  next[LAND2017_STATE_INDEX.W] = population[1];
+  next[LAND2017_STATE_INDEX.S] = population[2];
+  next[LAND2017_STATE_INDEX.zetaW] = zetaW;
+  next[LAND2017_STATE_INDEX.zetaS] = zetaS;
   validateLand2017EquationState(next);
   return next;
 }
@@ -446,7 +445,11 @@ export function solveLand2017PopulationBlock(
   const x2 = reducedB2 / reduced22;
   const x1 = (reducedB1 - reduced12 * x2) / reduced11;
   const x0 = (b0 - a01 * x1 - a02 * x2) / a00;
-  if (![x0, x1, x2].every(Number.isFinite)) {
+  if (
+    !Number.isFinite(x0)
+    || !Number.isFinite(x1)
+    || !Number.isFinite(x2)
+  ) {
     throw new Error("Land 2017 population block solution is non-finite");
   }
   return [x0, x1, x2];

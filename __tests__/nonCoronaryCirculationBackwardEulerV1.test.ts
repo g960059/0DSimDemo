@@ -11,6 +11,7 @@ import {
 import {
   NON_CORONARY_CIRCULATION_SCOPE_V1,
   NON_CORONARY_CIRCULATION_UNITS_V1,
+  NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
   NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
   NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
   NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
@@ -22,15 +23,21 @@ import {
   commitNonCoronaryCirculationTrialV1,
   commitNonCoronaryCirculationTrialWithConservativeCompanionV1,
   createInitialNonCoronaryCirculationStateV1,
+  createNonCoronaryBackwardEulerScratchWorkspaceV1,
+  evaluateNonCoronaryCirculationCandidateProbeV1,
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
+  materializeNonCoronaryCirculationCandidateTrialV1,
+  prepareNonCoronaryCandidateEvaluatorV1,
   resolveNonCoronaryCirculationColdSeedV1,
   restoreNonCoronaryCirculationStateV1,
   solveSignedLinearQuadraticFlowV1,
+  withPreparedNonCoronaryCandidateV1,
   type NonCoronaryCandidateMechanicsCallbackV1,
   type NonCoronaryAbsoluteChamberPressureTangentV1,
   type NonCoronaryChamberPressuresMmHgV1,
   type NonCoronaryCirculationAcceptedStateV1,
   type NonCoronaryCirculationRuntimeParamsV1,
+  type NonCoronaryAcceptedNumericalSourceV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import { initialMainWireQuasiSteadyOrificeValveStateV2 } from
   "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
@@ -201,6 +208,134 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       .toBe(fixture.state.totalBloodVolumeMl);
     expect(() => commitNonCoronaryCirculationTrialV1(accepted, trial))
       .toThrow(/stale or foreign/i);
+  });
+
+  it("materializes an externally solved candidate as the canonical detached trial", () => {
+    const fixture = steadyStateFixture();
+    const input = Object.freeze({
+      previousAcceptedState: fixture.state,
+      dtSec: 0.005,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics: (_volumes: unknown, timeSec: number) =>
+        Object.freeze({
+          absolutePressuresMmHg: fixture.chamberPressures,
+          evaluation: Object.freeze({ timeSec }),
+        }),
+    });
+    const solved = evaluateNonCoronaryCirculationBackwardEulerTrialV1(input);
+    expect(solved.converged).toBe(true);
+    if (solved.converged === false) throw new Error(solved.message);
+    const materialized = materializeNonCoronaryCirculationCandidateTrialV1(
+      input,
+      Float64Array.from(
+        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
+        (nodeId) => solved.candidateNodeVolumesMl[nodeId],
+      ),
+      Object.freeze({
+        iterations: solved.diagnostics.iterations,
+        lineSearchBacktracks: solved.diagnostics.lineSearchBacktracks,
+      }),
+    );
+
+    expect(materialized).toEqual(solved);
+    expect(materialized.candidateNodeVolumesMl)
+      .not.toBe(solved.candidateNodeVolumesMl);
+  });
+
+  it("reuses opaque Newton scratch without changing or aliasing a trial", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    const input = Object.freeze({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics:
+        coupledElasticMechanicsCallback(initial, true),
+    });
+    const baseline = evaluateNonCoronaryCirculationBackwardEulerTrialV1(input);
+    const workspace = createNonCoronaryBackwardEulerScratchWorkspaceV1();
+    const reused = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      ...input,
+      scratchWorkspace: workspace,
+    });
+    expect(reused).toEqual(baseline);
+    expect(reused.converged).toBe(true);
+    if (reused.converged === false) throw new Error(reused.message);
+    const retainedTrial = structuredClone(reused);
+    const nextAccepted = commitNonCoronaryCirculationTrialV1(initial, reused);
+    const next = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: nextAccepted,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics:
+        coupledElasticMechanicsCallback(nextAccepted, true),
+      scratchWorkspace: workspace,
+    });
+    expect(next.converged).toBe(true);
+    expect(reused).toEqual(retainedTrial);
+    expect(() => evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      ...input,
+      scratchWorkspace: structuredClone(workspace),
+    })).toThrow(/scratch workspace is foreign/);
+  });
+
+  it("admits an exact typed numerical source and rejects scalar divergence before solving", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    let readCount = 0;
+    const source = Object.freeze({
+      sourceId: NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
+      readInto(destination) {
+        readCount += 1;
+        NON_CORONARY_NODE_NAMES_V1.forEach((name, index) => {
+          destination.nodeVolumesMl[index] = initial.nodeVolumesMl[name];
+        });
+        NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.forEach((name, index) => {
+          destination.dynamicEdgeFlowsMlPerSec[index] =
+            initial.dynamicEdgeFlowsMlPerSec[name];
+        });
+        NON_CORONARY_VALVE_NAMES_V1.forEach((name, index) => {
+          destination.valveOpeningFractions01[index] =
+            initial.valveStates[name].leafletOpeningFraction01;
+        });
+        destination.revision = initial.revision;
+        destination.acceptedTimeSec = initial.acceptedTimeSec;
+        destination.totalBloodVolumeMl = initial.totalBloodVolumeMl;
+      },
+    }) satisfies NonCoronaryAcceptedNumericalSourceV1;
+    const input = Object.freeze({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics:
+        coupledElasticMechanicsCallback(initial, true),
+      scratchWorkspace: createNonCoronaryBackwardEulerScratchWorkspaceV1(),
+    });
+    const sourced = evaluateNonCoronaryCirculationBackwardEulerTrialV1(
+      input,
+      source,
+    );
+    const baseline = evaluateNonCoronaryCirculationBackwardEulerTrialV1(input);
+    expect(sourced).toEqual(baseline);
+    expect(readCount).toBe(1);
+
+    const divergent = Object.freeze({
+      ...source,
+      readInto(destination) {
+        source.readInto(destination);
+        destination.nodeVolumesMl[0] += 1;
+      },
+    }) satisfies NonCoronaryAcceptedNumericalSourceV1;
+    expect(() => evaluateNonCoronaryCirculationBackwardEulerTrialV1(
+      input,
+      divergent,
+    )).toThrow(/LV volume diverged/);
   });
 
   it("keeps all competent main-wire valves non-regurgitant under adverse gradients", () => {
@@ -814,6 +949,120 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     if (trial.converged === true) throw new Error("expected invalid input");
     expect(trial.reason).toBe("invalid-input");
     expect(trial.message).toMatch(/absoluteContinuityResidualToleranceMl/);
+  });
+
+  it("reuses a prepared candidate evaluator without changing the canonical probe", () => {
+    const fixture = steadyStateFixture();
+    const input = Object.freeze({
+      previousAcceptedState: fixture.state,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics:
+        coupledElasticMechanicsCallback(fixture.state, true),
+    });
+    const independentVolumes = Float64Array.from(
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.map(
+        (name) => fixture.state.nodeVolumesMl[name],
+      ),
+    );
+    const canonical = evaluateNonCoronaryCirculationCandidateProbeV1(
+      input,
+      independentVolumes,
+    );
+    let typedReadCount = 0;
+    const source = Object.freeze({
+      sourceId: NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
+      readInto(destination) {
+        typedReadCount += 1;
+        NON_CORONARY_NODE_NAMES_V1.forEach((name, index) => {
+          destination.nodeVolumesMl[index] = fixture.state.nodeVolumesMl[name];
+        });
+        NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.forEach((name, index) => {
+          destination.dynamicEdgeFlowsMlPerSec[index] =
+            fixture.state.dynamicEdgeFlowsMlPerSec[name];
+        });
+        NON_CORONARY_VALVE_NAMES_V1.forEach((name, index) => {
+          destination.valveOpeningFractions01[index] = fixture.state
+            .valveStates[name].leafletOpeningFraction01;
+        });
+        destination.revision = fixture.state.revision;
+        destination.acceptedTimeSec = fixture.state.acceptedTimeSec;
+        destination.totalBloodVolumeMl = fixture.state.totalBloodVolumeMl;
+      },
+    }) satisfies NonCoronaryAcceptedNumericalSourceV1;
+    const prepared = prepareNonCoronaryCandidateEvaluatorV1(input, source);
+    expect(typedReadCount).toBe(1);
+    const observed = withPreparedNonCoronaryCandidateV1(
+      prepared,
+      independentVolumes,
+      (candidate, dependentSvColumn, localJacobian) => {
+        expect(() => withPreparedNonCoronaryCandidateV1(
+          prepared,
+          independentVolumes,
+          () => null,
+        )).toThrow(/already in use/);
+        return {
+          candidateTimeSec: candidate.candidateTimeSec,
+          nodeVolumesMl: Array.from(candidate.nodeVolumesMl),
+          nodeAbsolutePressuresMmHg:
+            Array.from(candidate.nodeAbsolutePressuresMmHg),
+          vascularPressureTangentMmHgPerMl:
+            Array.from(candidate.vascularPressureTangentMmHgPerMl),
+          edgeFlowsMlPerSec: Array.from(candidate.edgeFlowsMlPerSec),
+          continuityResidualMlByNode:
+            Array.from(candidate.continuityResidualMlByNode),
+          dependentSvColumn: Array.from(dependentSvColumn),
+          localJacobian: localJacobian === null
+            ? null
+            : Array.from(localJacobian),
+        };
+      },
+    );
+
+    expect(observed.candidateTimeSec).toBe(canonical.candidateTimeSec);
+    expect(observed.nodeVolumesMl).toEqual(
+      Array.from(canonical.candidateNodeVolumesMl),
+    );
+    expect(observed.nodeAbsolutePressuresMmHg).toEqual(
+      Array.from(canonical.nodeAbsolutePressuresMmHg),
+    );
+    expect(observed.vascularPressureTangentMmHgPerMl).toEqual(
+      Array.from(canonical.vascularPressureTangentMmHgPerMl),
+    );
+    expect(observed.edgeFlowsMlPerSec).toEqual(
+      Array.from(canonical.edgeFlowsMlPerSec),
+    );
+    expect(observed.continuityResidualMlByNode).toEqual(
+      Array.from(canonical.continuityResidualMlByNode),
+    );
+    expect(observed.dependentSvColumn).toEqual(
+      Array.from(
+        canonical.localIndependentResidualDDependentSvVolumeMlPerMl!,
+      ),
+    );
+    expect(observed.localJacobian).toEqual(
+      Array.from(
+        canonical.localIndependentResidualDIndependentVolumeMlPerMl!,
+      ),
+    );
+
+    const foreign = Object.freeze({ ...prepared }) as typeof prepared;
+    expect(() => withPreparedNonCoronaryCandidateV1(
+      foreign,
+      independentVolumes,
+      () => null,
+    )).toThrow(/foreign/);
+
+    expect(() => prepareNonCoronaryCandidateEvaluatorV1(
+      input,
+      Object.freeze({
+        ...source,
+        readInto(destination) {
+          source.readInto(destination);
+          destination.dynamicEdgeFlowsMlPerSec[0] += 1;
+        },
+      }),
+    )).toThrow(/Ao_SA flow diverged/);
   });
 
   it("couples a pure same-candidate companion through the global TBV ledger and companion-aware commit", () => {

@@ -1035,7 +1035,7 @@ export function evaluateAcceptedComposedRhythmTransactionCandidateV2(
   // assembled and recursively frozen above from already accepted owner
   // candidates. It therefore proves less about constructor output at this
   // site; arbitrary boundary states never receive this stamp.
-  stampInternallyValidatedAcceptedComposedRhythmStateV2(candidateState);
+  stampPrivatelyConstructedAcceptedComposedRhythmStateV2(candidateState);
   const candidate = deepFreeze({
     candidateSchemaId: ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CANDIDATE_V2_ID,
     schemaVersion: 2 as const,
@@ -1301,7 +1301,11 @@ export function validateAcceptedComposedRhythmTransactionStateV2(
  * the persistent constant-time path in either tier. Because every reachable
  * data property is frozen and no mutable built-in prototype is eligible, the
  * proof remains true after the state escapes. Restored and hand-built states
- * take the complete exported validator.
+ * take the complete exported validator once and may earn the same persistent
+ * identity proof only after that validation succeeds and the entire reachable
+ * graph independently proves transitively frozen plain data. An outer-frozen
+ * state with any mutable descendant remains ineligible and is revalidated on
+ * every boundary crossing.
  */
 export function validateAcceptedComposedRhythmTransactionBoundaryV2(
   state: AcceptedComposedRhythmTransactionStateV2,
@@ -1311,6 +1315,7 @@ export function validateAcceptedComposedRhythmTransactionBoundaryV2(
     && internallyValidatedAcceptedComposedRhythmStatesV2.has(state)
   ) return;
   validateAcceptedComposedRhythmTransactionStateV2(state);
+  stampInternallyValidatedAcceptedComposedRhythmStateV2(state);
 }
 
 function stampInternallyValidatedAcceptedComposedRhythmStateV2(
@@ -1319,6 +1324,19 @@ function stampInternallyValidatedAcceptedComposedRhythmStateV2(
   if (validationStampIssuanceEligibleV1(state)) {
     internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
   }
+}
+
+/**
+ * Records provenance for the exact graph assembled and recursively frozen by
+ * the private candidate constructor above. Unlike exported-validator
+ * issuance, this path does not re-walk the graph it has just built. It is not
+ * exported and no caller-supplied state can reach it.
+ */
+function stampPrivatelyConstructedAcceptedComposedRhythmStateV2(
+  state: AcceptedComposedRhythmTransactionStateV2,
+): void {
+  if (!validationStampReuseEligibleV1()) return;
+  internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
 }
 
 function stampInternallyValidatedAcceptedComposedRhythmConfigurationV2(

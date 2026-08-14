@@ -369,6 +369,36 @@ export function evaluateTriSegWallDerivativeV1(
 export function evaluateTriSegWallSecondDerivativeV1(
   geometry: TriSegWallGeometryV1,
 ): TriSegWallSecondDerivativeV1 {
+  const values = new Float64Array(3);
+  writeTriSegWallSecondDerivativeV1(geometry, values);
+  return Object.freeze({
+    wallId: geometry.wallId,
+    d2FiberLogStrainDCapVolume2PerM6: values[0]!,
+    d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4: values[1]!,
+    d2FiberLogStrainDJunctionRadius2PerM2: values[2]!,
+  });
+}
+
+/**
+ * Writes the exact wall-strain Hessian into caller-owned numeric storage.
+ * Numerical Newton probes use this boundary to avoid allocating a public
+ * derivative record for every wall and every rejected candidate.
+ */
+export function writeTriSegWallSecondDerivativeV1(
+  geometry: TriSegWallGeometryV1,
+  destination: Float64Array,
+  offset = 0,
+): void {
+  if (
+    !(destination instanceof Float64Array)
+    || !Number.isInteger(offset)
+    || offset < 0
+    || destination.length - offset < 3
+  ) {
+    throw new RangeError(
+      "TriSeg wall second derivative destination requires three f64 values",
+    );
+  }
   const h = geometry.signedCapHeightM;
   const y = geometry.junctionRadiusM;
   const h2 = h * h;
@@ -416,24 +446,28 @@ export function evaluateTriSegWallSecondDerivativeV1(
     + correctionSecond * zetaY * zetaY
     + correctionFirst * zetaYY;
 
-  const result = {
-    wallId: geometry.wallId,
-    d2FiberLogStrainDCapVolume2PerM6:
-      strainHH * hV * hV + strainH * hVV,
-    d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4:
-      (strainHH * hy + strainHY) * hV + strainH * hVy,
-    d2FiberLogStrainDJunctionRadius2PerM2:
-      strainHH * hy * hy
-      + 2 * strainHY * hy
-      + strainYY
-      + strainH * hyy,
-  } as const;
-  for (const [label, value] of Object.entries(result)) {
-    if (label !== "wallId") {
-      requireFinite(value as number, `${geometry.wallId}.${label}`);
-    }
-  }
-  return Object.freeze(result);
+  const volume2 = strainHH * hV * hV + strainH * hVV;
+  const volumeRadius = (strainHH * hy + strainHY) * hV
+    + strainH * hVy;
+  const radius2 = strainHH * hy * hy
+    + 2 * strainHY * hy
+    + strainYY
+    + strainH * hyy;
+  requireFinite(
+    volume2,
+    `${geometry.wallId}.d2FiberLogStrainDCapVolume2PerM6`,
+  );
+  requireFinite(
+    volumeRadius,
+    `${geometry.wallId}.d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4`,
+  );
+  requireFinite(
+    radius2,
+    `${geometry.wallId}.d2FiberLogStrainDJunctionRadius2PerM2`,
+  );
+  destination[offset] = volume2;
+  destination[offset + 1] = volumeRadius;
+  destination[offset + 2] = radius2;
 }
 
 export function evaluateEnergyConjugateTriSegV1(input: Readonly<{

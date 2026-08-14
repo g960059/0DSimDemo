@@ -28,6 +28,7 @@ export type PtmFromStressedVolumeOptions = {
   maxIterations?: number;
   pressureToleranceMmHg?: number;
   stressedVolumeToleranceMl?: number;
+  termination?: "adaptive" | "fixed-iterations";
 };
 
 export type PtmFromStressedVolumeTangentBranch =
@@ -51,6 +52,25 @@ export const MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG = Object.freeze({
   minimum: -20,
   maximum: 45,
 });
+
+type VenousPvLawV1 = Extract<VascularPvLaw, { kind: "venous3" }>;
+
+type CompiledVenousPvLawV1 = Readonly<{
+  Ccoll: number;
+  openComplianceDeltaTimesWidth: number;
+  distendedComplianceDeltaTimesWidth: number;
+  Popen: number;
+  Pstiff: number;
+  dOpen: number;
+  dStiff: number;
+  zeroOpenSoftplus: number;
+  zeroStiffSoftplus: number;
+}>;
+
+const COMPILED_FROZEN_VENOUS_PV_LAWS_V1 = new WeakMap<
+  VenousPvLawV1,
+  CompiledVenousPvLawV1
+>();
 
 export function stressedVolumeFromPtm(law: VascularPvLaw, Ptm: number): number {
   if (law.kind === "arterial") {
@@ -109,24 +129,26 @@ export function ptmFromStressedVolume(
   }
 
   validateVenousLaw(law);
+  const compiledLaw = compiledVenousPvLawSnapshotV1(law);
   let lo: number = MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.minimum;
   let hi: number = MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.maximum;
 
-  let loVolume = stressedVolumeFromPtm(law, lo);
-  let hiVolume = stressedVolumeFromPtm(law, hi);
+  let loVolume = venousStressedVolumeForInverse(law, compiledLaw, lo);
+  let hiVolume = venousStressedVolumeForInverse(law, compiledLaw, hi);
   if (targetStressedVolumeMl <= loVolume) return lo;
   if (targetStressedVolumeMl >= hiVolume) return hi;
 
   const maxIterations = Math.max(1, Math.floor(options.maxIterations ?? 32));
+  const adaptiveTermination = (options.termination ?? "adaptive") === "adaptive";
   const pressureTolerance = Math.max(options.pressureToleranceMmHg ?? 1e-10, 0);
   const volumeTolerance = Math.max(options.stressedVolumeToleranceMl ?? 1e-10, 0);
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     const mid = 0.5 * (lo + hi);
-    const midVolume = stressedVolumeFromPtm(law, mid);
-    if (
+    const midVolume = venousStressedVolumeForInverse(law, compiledLaw, mid);
+    if (adaptiveTermination && (
       Math.abs(midVolume - targetStressedVolumeMl) <= volumeTolerance
       || 0.5 * (hi - lo) <= pressureTolerance
-    ) {
+    )) {
       return mid;
     }
     if (midVolume < targetStressedVolumeMl) {
@@ -240,7 +262,24 @@ function venousCompliance3(law: Extract<VascularPvLaw, { kind: "venous3" }>, Ptm
   return Math.max(c, 1e-4);
 }
 
-function venousStressedVolume3(law: Extract<VascularPvLaw, { kind: "venous3" }>, Ptm: number): number {
+function venousStressedVolume3(law: VenousPvLawV1, Ptm: number): number {
+  const compiledLaw = cachedFrozenVenousPvLawV1(law);
+  return compiledLaw === null
+    ? venousStressedVolume3Dynamic(law, Ptm)
+    : venousStressedVolume3Compiled(compiledLaw, Ptm);
+}
+
+function venousStressedVolumeForInverse(
+  law: VenousPvLawV1,
+  compiledLaw: CompiledVenousPvLawV1 | null,
+  Ptm: number,
+): number {
+  return compiledLaw === null
+    ? venousStressedVolume3Dynamic(law, Ptm)
+    : venousStressedVolume3Compiled(compiledLaw, Ptm);
+}
+
+function venousStressedVolume3Dynamic(law: VenousPvLawV1, Ptm: number): number {
   const dOpen = Math.max(law.dOpen, 1e-6);
   const dStiff = Math.max(law.dStiff, 1e-6);
   return law.Ccoll * Ptm
@@ -248,6 +287,67 @@ function venousStressedVolume3(law: Extract<VascularPvLaw, { kind: "venous3" }>,
       * (softplus((Ptm - law.Popen) / dOpen) - softplus((0 - law.Popen) / dOpen))
     - (law.Copen - law.Cdist) * dStiff
       * (softplus((Ptm - law.Pstiff) / dStiff) - softplus((0 - law.Pstiff) / dStiff));
+}
+
+function venousStressedVolume3Compiled(
+  law: CompiledVenousPvLawV1,
+  Ptm: number,
+): number {
+  return law.Ccoll * Ptm
+    + law.openComplianceDeltaTimesWidth
+      * (softplus((Ptm - law.Popen) / law.dOpen) - law.zeroOpenSoftplus)
+    - law.distendedComplianceDeltaTimesWidth
+      * (softplus((Ptm - law.Pstiff) / law.dStiff) - law.zeroStiffSoftplus);
+}
+
+function cachedFrozenVenousPvLawV1(
+  law: VenousPvLawV1,
+): CompiledVenousPvLawV1 | null {
+  const cached = COMPILED_FROZEN_VENOUS_PV_LAWS_V1.get(law);
+  if (cached !== undefined) return cached;
+  if (!Object.isFrozen(law) || !plainDataRecord(law)) return null;
+  const compiled = compileVenousPvLawV1(law);
+  COMPILED_FROZEN_VENOUS_PV_LAWS_V1.set(law, compiled);
+  return compiled;
+}
+
+function compiledVenousPvLawSnapshotV1(
+  law: VenousPvLawV1,
+): CompiledVenousPvLawV1 | null {
+  const cached = COMPILED_FROZEN_VENOUS_PV_LAWS_V1.get(law);
+  if (cached !== undefined) return cached;
+  if (!plainDataRecord(law)) return null;
+  const compiled = compileVenousPvLawV1(law);
+  if (Object.isFrozen(law)) {
+    COMPILED_FROZEN_VENOUS_PV_LAWS_V1.set(law, compiled);
+  }
+  return compiled;
+}
+
+function compileVenousPvLawV1(law: VenousPvLawV1): CompiledVenousPvLawV1 {
+  const dOpen = Math.max(law.dOpen, 1e-6);
+  const dStiff = Math.max(law.dStiff, 1e-6);
+  const compiled = Object.freeze({
+    Ccoll: law.Ccoll,
+    openComplianceDeltaTimesWidth: (law.Copen - law.Ccoll) * dOpen,
+    distendedComplianceDeltaTimesWidth: (law.Copen - law.Cdist) * dStiff,
+    Popen: law.Popen,
+    Pstiff: law.Pstiff,
+    dOpen,
+    dStiff,
+    zeroOpenSoftplus: softplus((0 - law.Popen) / dOpen),
+    zeroStiffSoftplus: softplus((0 - law.Pstiff) / dStiff),
+  });
+  return compiled;
+}
+
+function plainDataRecord(value: object): boolean {
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== null && prototype !== Object.prototype) return false;
+  return Reflect.ownKeys(value).every((key) => {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    return descriptor !== undefined && "value" in descriptor;
+  });
 }
 
 function sigmoid(x: number): number {

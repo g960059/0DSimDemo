@@ -58,8 +58,11 @@
  *   independently validated, and a lean candidate means constructed and
  *   recursively frozen here from owner candidates. The private issuer uses
  *   that provenance instead of re-walking the just-built graph. A state
- *   clone/restore misses. There are no mutable
- *   descendants to re-check on an identity hit.
+ *   clone/restore misses initially; after the complete exported boundary
+ *   validator succeeds, it may earn a persistent proof only if an independent
+ *   transitive-frozen/plain-data walk also succeeds. An outer-frozen state with
+ *   any mutable descendant never earns the proof and is revalidated on every
+ *   crossing. There are no mutable descendants to re-check on an identity hit.
  * - The regular atrial and ventricular backup owners retain successful
  *   exported-validator proofs for exact configuration/state identities only
  *   when the complete graph is transitively frozen plain data. Copies,

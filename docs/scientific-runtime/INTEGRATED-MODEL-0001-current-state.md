@@ -32,18 +32,162 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-12
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-27
 ```
 
-Standard-12 preserves Standard-10's equations, controls, checkpoint meaning,
-and accepted numerical sequence while declaring the required packed
-presentation ABI. Intermediate accepted steps project only authored scalar
-signals into transferable numeric buffers; the terminal step retains a full
-exact frame. The release also reuses one coronary matrix factorization across
-its sensitivity right-hand sides and caches immutable topology indexing.
-These are execution and ownership changes rather than new physiological
-claims, but the exact artifact bytes changed and therefore receive a new
-`modelId`.
+Standard-27 preserves Standard-26's equations, controls, checkpoint meaning,
+accepted sequence, and public diagnostic records. It removes short-lived
+arrays and repeated Land algebraic work from the model-owned continuous-output
+and consistent-tangent paths. Focused alternating benchmarks measured about
+`25%` lower continuous-output cost and `26%` lower consistent-tangent cost
+with identical checksums. The change adds no physiology or topology and does
+not alter the scientific model, but the exact executable bytes changed and
+therefore receive a new `modelId`.
+
+Standard-26 preserves Standard-25's production equations, controls,
+checkpoint meaning, accepted sequence, and public diagnostic records. Its
+out-of-production flat reference path now uses the admitted cubic root
+predictor, allocation-lean numerical Land/SLS and TriSeg evaluation, a
+session-owned coupled-residual workspace, and an exact allocation-cold
+mechanics-material fingerprint with an independent full-invariant audit. The
+rejected quartic predictor is not present: it either crossed the existing
+scientific-equivalence boundary or substantially increased residual work. A
+20,000-tick host run measured about `0.3505 ms/tick`, compared with about
+`0.405 ms/tick` for the Standard-25 reference path. The registered executable
+still runs the admitted public production algorithm; Standard-26 is a new
+artifact identity because model-owned runtime modules changed.
+
+Standard-25 preserves Standard-24's production equations, controls,
+checkpoint meaning, accepted sequence, and public diagnostic records. It adds
+the out-of-production accepted-root predictor, its exact reference-checkpoint
+state, and lazy selected-root mechanics materialization used by the flat-kernel
+replacement path. A 20,000-tick host run measured about `0.405 ms/tick` on
+that reference path, while exact restore continued byte-identically with the
+uninterrupted Session. The registered executable still runs the admitted
+public production algorithm; Standard-25 is a new artifact identity because
+model-owned runtime modules changed.
+
+Standard-24 preserves Standard-23's equations, controls, checkpoint meaning,
+accepted sequence, and public diagnostic records. It adds the out-of-production
+typed-authority reference seams used to prove ordinary-tick promotion and
+selected-output projection without public AcceptedState materialization. The
+registered exact executable still runs the same admitted public production
+algorithm; Standard-24 is a new artifact identity because model-owned runtime
+modules changed, not a claim that the reference path is active in production.
+
+Standard-23 preserved Standard-22's equations, controls, checkpoint meaning,
+accepted sequence, and public diagnostic records while compiling the immutable
+coronary edge incidence into private fixed indices. Repeated hydraulic,
+continuity, analytic-Jacobian, and implicit-sensitivity evaluations reuse those
+indices and solver-owned scalar scratch instead of rebuilding endpoint lookups
+and short-lived constitutive result records. The optimized path is tested
+against an allocation-owning oracle for both canonical and reversed edge
+orders, including repeated evolving boundaries. A local 2,048-tick coronary
+diagnostic measured `0.0374 ms/tick` with the compiled workspace versus
+`0.0472 ms/tick` without it (`0.79x`). Three alternating whole-kernel host
+pairs favored Standard-23 by roughly 0.5–3.5%, with a paired-ratio median near
+`0.99`; this is a local hot-path improvement, not an iPhone qualification.
+
+Standard-22 had preserved Standard-21's equations, controls, checkpoint meaning,
+accepted sequence, and public named-record API while changing the two internal
+candidate pages to fixed-index numerical storage. Node volume/pressure,
+vascular tangent, native/dynamic edge flow, valve slot, node-rate, continuity,
+and scaled-residual values are written into `Float64Array` or fixed object-slot
+arrays. The solver uses the graph's already-verified node/edge ordering and
+materializes names only once for a returned public trial. Six alternating
+512-tick host pairs favored Standard-22 in five pairs; the paired-ratio median
+was about `0.94`, with one severe host-load outlier. This is evidence for the
+allocation direction, not a phone qualification.
+
+Standard-21 had preserved Standard-20's equations, controls, checkpoint meaning,
+accepted sequence, Newton selection order, and public trial ownership while
+moving the common analytic Newton path's candidate numerical records into two
+solver-owned pages. The current page is never written while line search uses
+the other page; promotion swaps their roles only after Armijo acceptance.
+Successful and failed public trials detach all retained values before the
+workspace can be reused. Finite-difference fallback keeps independent
+allocations because it must retain center/lower/upper vectors concurrently.
+Alternating host measurements showed only a small, load-sensitive difference,
+so this is a candidate-allocation and GC-pressure foundation rather than a
+standalone speed claim.
+
+Standard-20 had preserved Standard-19's equations, controls, checkpoint meaning,
+accepted sequence, and Newton tie-breaking while removing diagnostic and
+linear-algebra container churn. Mixed-residual auditing retains only its
+single worst entry instead of freezing fifteen entries per iteration. Dense
+pivot scaling and final residual maxima use in-order scalar loops rather than
+temporary mapped arrays, and independent-volume/scaled-residual construction
+avoids `Object.fromEntries(map(...))`. These loops preserve node order and
+strict-greater tie selection. Development-host timing was too load-sensitive
+to isolate a stable delta, so this is a bounded-allocation change rather than
+a speed claim.
+
+Standard-19 had preserved Standard-18's equations, controls, checkpoint meaning,
+and accepted numerical sequence while removing a duplicate vascular
+pressure-volume inverse from each analytic-Jacobian iteration. Each BE trial
+snapshots its vascular laws once. Candidate evaluation obtains the exact
+paired primal pressure and active-branch tangent from that law; the analytic
+Jacobian consumes the retained tangent instead of inverting the same node at
+the same candidate a second time. The conservative coronary companion shares
+the same Ao pair. Both adaptive and fixed-32 law/node APIs are bit-identical
+for every vascular node in the shipped graph, including saturation branches.
+Five alternating 512-tick development-host runs reduced the typed-reference
+median from about `2.489` to `2.458 ms/tick` (about 1.2%) and the object-Session
+median by about 1.5%. This is a measured removal of repeated constitutive work,
+not an iPhone qualification.
+
+Standard-18 had preserved Standard-17's equations, controls, checkpoint meaning,
+and accepted numerical sequence while reducing per-candidate infrastructure
+around the non-coronary solve. The Session binds its typed accepted-state
+source once rather than once per accepted substep, and that source fills the
+solver-owned header and arrays without returning a transient record. One
+candidate time now produces one respiratory-pressure frame shared by all
+node, edge, companion, and analytic-Jacobian reads in that BE trial. The
+mechanics memo keeps the same SameValueZero lookup semantics and diagnostic
+counters in a flat small-entry list rather than constructing four nested Map
+levels for every unique candidate. Exact source-versus-rollback comparisons,
+finite-difference cache hits, public diagnostics, and failure ordering remain
+intact. Alternating whole-kernel measurements were dominated by host load and
+showed no stable speed delta, so this is a hot-allocation and repeated-work
+cleanup rather than a device-speed claim.
+
+Standard-17 had preserved Standard-16's equations, controls, checkpoint meaning,
+and accepted numerical sequence while removing transient objects and repeated
+validation/calculation from the four-valve candidate path. The typed solver
+now calls a scalar valve entry point; frozen plain-data parameter objects retain
+a successful validation by identity, whereas mutable and accessor-backed
+objects always take the complete validation path. The public object API and
+invalid-input readbacks remain intact. Opening-target, loss, and tangent
+intermediates are scalar locals rather than short-lived frozen records. Paired
+whole-kernel measurements were neutral within host noise (roughly ±0.5%), so
+this is an allocation/ownership cleanup rather than a claimed device speedup.
+
+Standard-16 had introduced a fail-closed typed
+accepted-state read seam for the non-coronary nonlinear solver. The flat
+reference runtime resolves the relevant fixed slots once, copies them into the
+solver's reusable numerical workspace, and compares every scalar exactly with
+the admitted rollback object before use. A divergent typed clock, TBV, volume,
+dynamic flow, or valve opening is rejected before candidate evaluation. This
+is an ownership-boundary milestone rather than a performance claim: paired
+development-host measurements were about 1–2% slower while both authorities
+are deliberately cross-checked. The next slice removes the duplicate object
+authority rather than weakening that check in place.
+
+Standard-15 had compiled the immutable coefficients of each pure-data
+nonlinear venous pressure-volume inverse once per synchronous solve. The
+shipped fixed-32 bisection still visits the same midpoint sequence and the
+canonical 500-step accepted-state hash is unchanged. Mutable or accessor-backed
+public laws retain the complete dynamic evaluation path.
+Standard-14 had already compiled direct typed-completion readers and added an
+exact all-rotary-support-off path. Disabled circuits still emit fresh
+pressure-dependent diagnostics, while their canonical zero accepted flow,
+node-rate, and Jacobian storage is shared. Standard-13 had already moved more
+accepted-state ownership and candidate completion into the typed authority,
+reused coronary solver scratch, sealed only selected mechanics candidates,
+projected coronary pressure without diagnostic trees, and removed temporary
+result-record allocations. These are execution and ownership changes rather
+than new physiological claims, but the exact artifact bytes changed and
+therefore receive a new `modelId`.
 
 Fully validated, transitively frozen model-owned values still carry the
 Standard-10 in-process identity proof. Mutable, partially validated, failed,

@@ -2,6 +2,13 @@ import type {
   MainWireIntegratedModelObservationV3,
   MainWireIntegratedModelPresentationAdvanceV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
+import {
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1,
+} from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID =
   "main-wire-integrated-model-output-registry-v5" as const;
@@ -399,28 +406,117 @@ export function projectMainWireIntegratedModelSelectedValuesV3(
     }
     seen.add(outputId);
     values[outputId] = projectMainWireIntegratedModelOutputValueV3(
-      observation,
+      observation.acceptedState,
+      observation.runtimeSignals,
+      observation.completedBeatMetrics,
+      observation.lastAcceptedStep,
+      null,
       outputId,
     );
   }
   return Object.freeze(values);
 }
 
+export type MainWireIntegratedModelNumericalProjectionInputV1 = Readonly<{
+  acceptedTimeSec: number;
+  regularSinusCycleLengthSec: number;
+  regularSinusNextActivationTimeSec: number;
+  dynamicMechanicalSupportLvadFlowMlPerSec: number;
+  runtimeSignals: MainWireIntegratedModelObservationV3["runtimeSignals"];
+  completedBeatMetrics:
+    MainWireIntegratedModelObservationV3["completedBeatMetrics"];
+  /** Borrowed selected-root readback; projection never retains this buffer. */
+  acceptedNumericalReadback: Float64Array;
+}>;
+
+/**
+ * Projects directly from the admitted fixed readback. No public accepted-step
+ * trial or coronary hydraulic diagnostic graph is required.
+ */
+export function projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
+  input: MainWireIntegratedModelNumericalProjectionInputV1,
+  outputIds: readonly MainWireIntegratedModelOutputIdV3[],
+): Readonly<Record<string, MainWireIntegratedModelOutputValueV3>> {
+  const readback = input.acceptedNumericalReadback;
+  if (
+    !(readback instanceof Float64Array)
+    || readback.length
+      !== MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1
+  ) {
+    throw new MainWireIntegratedModelOutputProjectionErrorV3(
+      "accepted numerical readback must contain exactly 32 f64 values",
+    );
+  }
+  const acceptedTimeSec = input.acceptedTimeSec;
+  if (
+    !Number.isFinite(acceptedTimeSec)
+    || readback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec]
+      !== acceptedTimeSec
+  ) {
+    throw new MainWireIntegratedModelOutputProjectionErrorV3(
+      "accepted numerical readback clock differs from typed presentation state",
+    );
+  }
+  const values: Record<string, MainWireIntegratedModelOutputValueV3> = {};
+  const seen = new Set<MainWireIntegratedModelOutputIdV3>();
+  for (const outputId of outputIds) {
+    if (seen.has(outputId)) {
+      throw new MainWireIntegratedModelOutputProjectionErrorV3(
+        `selected output ${outputId} is duplicated`,
+      );
+    }
+    seen.add(outputId);
+    values[outputId] = projectMainWireIntegratedModelOutputValueV3(
+      undefined,
+      input.runtimeSignals,
+      input.completedBeatMetrics,
+      null,
+      readback,
+      outputId,
+      Object.freeze({
+        acceptedTimeSec,
+        regularSinusCycleLengthSec: input.regularSinusCycleLengthSec,
+        regularSinusNextActivationTimeSec:
+          input.regularSinusNextActivationTimeSec,
+        dynamicMechanicalSupportLvadFlowMlPerSec:
+          input.dynamicMechanicalSupportLvadFlowMlPerSec,
+      }),
+    );
+  }
+  return Object.freeze(values);
+}
+
 function projectMainWireIntegratedModelOutputValueV3(
-  observation: MainWireIntegratedModelObservationV3,
+  accepted: MainWireIntegratedModelObservationV3["acceptedState"] | undefined,
+  runtimeSignals: MainWireIntegratedModelObservationV3["runtimeSignals"],
+  completedBeatMetrics:
+    MainWireIntegratedModelObservationV3["completedBeatMetrics"],
+  step: MainWireIntegratedModelObservationV3["lastAcceptedStep"],
+  numericalReadback: Float64Array | null,
   outputId: MainWireIntegratedModelOutputIdV3,
+  typedState?: Readonly<{
+    acceptedTimeSec: number;
+    regularSinusCycleLengthSec: number;
+    regularSinusNextActivationTimeSec: number;
+    dynamicMechanicalSupportLvadFlowMlPerSec: number;
+  }>,
 ): MainWireIntegratedModelOutputValueV3 {
-  const accepted = observation.acceptedState;
-  const step = observation.lastAcceptedStep;
+  const layout = MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1;
   switch (outputId) {
     case "hemodynamics.volume.LA":
     case "hemodynamics.volume.LV":
     case "hemodynamics.volume.RA":
     case "hemodynamics.volume.RV": {
       const chamber = outputId.slice(-2) as "LA" | "LV" | "RA" | "RV";
+      const readbackIndex =
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1
+          .indexOf(chamber);
       return availableValue(
         outputId,
-        accepted.coronary.circulation.nodeVolumesMl[chamber],
+        numericalReadback === null
+          ? requiredAcceptedStateV3(accepted)
+            .coronary.circulation.nodeVolumesMl[chamber]
+          : numericalReadback[layout.chamberVolumeMl + readbackIndex]!,
         "authoritative-state",
       );
     }
@@ -437,8 +533,14 @@ function projectMainWireIntegratedModelOutputValueV3(
         "LA" | "LV" | "RA" | "RV" | "Ao" | "SA" | "PA" | "PVein" | "VC";
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial
-          .nodeAbsolutePressuresMmHg[node],
+        numericalReadback === null
+          ? step?.coronaryStep.baseStep.circulationTrial
+            .nodeAbsolutePressuresMmHg[node]
+          : numericalReadback[
+            layout.absolutePressureMmHg
+              + MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1
+                .indexOf(node)
+          ],
       );
     }
     case "hemodynamics.pressure.transmural.LA":
@@ -448,8 +550,14 @@ function projectMainWireIntegratedModelOutputValueV3(
       const chamber = outputId.slice(-2) as "LA" | "LV" | "RA" | "RV";
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.mechanicsTrial
-          .transmuralPressuresMmHg[chamber],
+        numericalReadback === null
+          ? step?.coronaryStep.baseStep.mechanicsTrial
+            .transmuralPressuresMmHg[chamber]
+          : numericalReadback[
+            layout.transmuralPressureMmHg
+              + MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1
+                .indexOf(chamber)
+          ],
       );
     }
     case "hemodynamics.flow.valve.MV":
@@ -460,156 +568,188 @@ function projectMainWireIntegratedModelOutputValueV3(
         "MV" | "AoV" | "TV" | "PV";
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial
-          .valveEvaluations[valve].flowMlPerSec,
+        numericalReadback === null
+          ? step?.coronaryStep.baseStep.circulationTrial
+            .valveEvaluations[valve].flowMlPerSec
+          : numericalReadback[
+            layout.valveFlowMlPerSec
+              + MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1
+                .indexOf(valve)
+          ],
       );
     }
     case "hemodynamics.flow.systemic.SA_Art":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial
-          .edgeFlowsMlPerSec.SA_Art,
+        numericalReadback?.[layout.systemicTissueFlowMlPerSec]
+          ?? step?.coronaryStep.baseStep.circulationTrial
+            .edgeFlowsMlPerSec.SA_Art,
       );
     case "hemodynamics.flow.pulmonary.PA_PArt":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial
-          .edgeFlowsMlPerSec.PA_PArt,
+        numericalReadback?.[layout.pulmonaryFlowMlPerSec]
+          ?? step?.coronaryStep.baseStep.circulationTrial
+            .edgeFlowsMlPerSec.PA_PArt,
       );
     case "hemodynamics.flow.venous.VC_RA":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial
-          .edgeFlowsMlPerSec.VC_RA,
+        numericalReadback?.[layout.systemicVenousFlowMlPerSec]
+          ?? step?.coronaryStep.baseStep.circulationTrial
+            .edgeFlowsMlPerSec.VC_RA,
       );
     case "hemodynamics.flow.venous.PVein_LA":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.circulationTrial
-          .edgeFlowsMlPerSec.PVein_LA,
+        numericalReadback?.[layout.pulmonaryVenousFlowMlPerSec]
+          ?? step?.coronaryStep.baseStep.circulationTrial
+            .edgeFlowsMlPerSec.PVein_LA,
       );
     case "pericardium.pressure.excess":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.pericardium.excessPressureMmHg,
+        numericalReadback?.[layout.pericardialExcessPressureMmHg]
+          ?? step?.coronaryStep.baseStep.pericardium.excessPressureMmHg,
       );
     case "respiration.pressure.pleural":
       return availableValue(
         outputId,
-        observation.runtimeSignals.pleuralPressureMmHg,
+        runtimeSignals.pleuralPressureMmHg,
         "accepted-derived",
       );
     case "respiration.pressure.alveolar":
       return availableValue(
         outputId,
-        observation.runtimeSignals.alveolarPressureMmHg,
+        runtimeSignals.alveolarPressureMmHg,
         "accepted-derived",
       );
     case "rhythm.heart-rate.instantaneous":
       return availableValue(
         outputId,
-        regularSinusHeartRateBpmV3(accepted.composedRhythm),
+        typedState?.regularSinusCycleLengthSec === undefined
+          ? regularSinusHeartRateBpmV3(
+              requiredAcceptedStateV3(accepted).composedRhythm,
+            )
+          : 60 / positiveCycleLengthSecV3(
+              typedState.regularSinusCycleLengthSec,
+            ),
         "accepted-derived",
       );
     case "coronary.flow.total":
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics
-          .totalInletFlowMlPerSec,
+        numericalReadback?.[layout.coronaryFlowMlPerSec]
+          ?? step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics
+            .totalInletFlowMlPerSec,
       );
     case "coronary.flow.inlet.LAD":
     case "coronary.flow.inlet.LCx":
     case "coronary.flow.inlet.RCA": {
       const territory = outputId.slice("coronary.flow.inlet.".length) as
         "LAD" | "LCx" | "RCA";
+      const territoryIndex = territory === "LAD" ? 0
+        : territory === "LCx" ? 1 : 2;
       return readbackValue(
         outputId,
-        step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics
-          .inletFlowMlPerSecByTerritory[territory],
+        numericalReadback?.[layout.coronaryFlowMlPerSec + 1 + territoryIndex]
+          ?? step?.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics
+            .inletFlowMlPerSecByTerritory[territory],
       );
     }
     case "device.LVAD.flow":
       return availableValue(
         outputId,
-        accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD,
+        typedState?.dynamicMechanicalSupportLvadFlowMlPerSec
+          ?? requiredAcceptedStateV3(accepted)
+            .dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD,
         "authoritative-state",
       );
     case "rhythm.phase.regular-sinus":
       return availableValue(
         outputId,
-        regularSinusPhase01V3(accepted.composedRhythm),
+        typedState?.regularSinusCycleLengthSec === undefined
+          || typedState.regularSinusNextActivationTimeSec === undefined
+          ? regularSinusPhase01V3(
+              requiredAcceptedStateV3(accepted).composedRhythm,
+            )
+          : regularSinusPhaseFromClockV3(
+              typedState.acceptedTimeSec,
+              typedState.regularSinusCycleLengthSec,
+              typedState.regularSinusNextActivationTimeSec,
+            ),
         "accepted-derived",
       );
     case "hemodynamics.pressure.mean.Ao":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.meanAorticPressureMmHg,
+        completedBeatMetrics?.meanAorticPressureMmHg,
       );
     case "hemodynamics.pressure.systolic.Ao":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.systolicAorticPressureMmHg,
+        completedBeatMetrics?.systolicAorticPressureMmHg,
       );
     case "hemodynamics.pressure.diastolic.Ao":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.diastolicAorticPressureMmHg,
+        completedBeatMetrics?.diastolicAorticPressureMmHg,
       );
     case "hemodynamics.pressure.pulse.Ao":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.pulseAorticPressureMmHg,
+        completedBeatMetrics?.pulseAorticPressureMmHg,
       );
     case "hemodynamics.pressure.mean.PA":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.meanPulmonaryArterialPressureMmHg,
+        completedBeatMetrics?.meanPulmonaryArterialPressureMmHg,
       );
     case "hemodynamics.pressure.mean.LA":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.meanLeftAtrialPressureMmHg,
+        completedBeatMetrics?.meanLeftAtrialPressureMmHg,
       );
     case "hemodynamics.pressure.mean.RA":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.meanRightAtrialPressureMmHg,
+        completedBeatMetrics?.meanRightAtrialPressureMmHg,
       );
     case "hemodynamics.volume.maximum.LV":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.maximumLeftVentricularVolumeMl,
+        completedBeatMetrics?.maximumLeftVentricularVolumeMl,
       );
     case "hemodynamics.volume.minimum.LV":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.minimumLeftVentricularVolumeMl,
+        completedBeatMetrics?.minimumLeftVentricularVolumeMl,
       );
     case "hemodynamics.stroke-volume.LV-extrema":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.extremaLeftVentricularStrokeVolumeMl,
+        completedBeatMetrics?.extremaLeftVentricularStrokeVolumeMl,
       );
     case "hemodynamics.ejection-fraction.LV-extrema":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics
+        completedBeatMetrics
           ?.extremaLeftVentricularEjectionFraction01,
       );
     case "hemodynamics.output.native-left":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.nativeLeftCardiacOutputLPerMin,
+        completedBeatMetrics?.nativeLeftCardiacOutputLPerMin,
       );
     case "hemodynamics.output.systemic-tissue":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.systemicTissueOutputLPerMin,
+        completedBeatMetrics?.systemicTissueOutputLPerMin,
       );
     case "hemodynamics.output.pulmonary":
       return beatMetricValue(
         outputId,
-        observation.completedBeatMetrics?.pulmonaryOutputLPerMin,
+        completedBeatMetrics?.pulmonaryOutputLPerMin,
       );
   }
 }
@@ -757,6 +897,48 @@ function regularSinusPhase01V3(
     );
   }
   return phase01;
+}
+
+function requiredAcceptedStateV3(
+  accepted: MainWireIntegratedModelObservationV3["acceptedState"] | undefined,
+): MainWireIntegratedModelObservationV3["acceptedState"] {
+  if (accepted === undefined) {
+    throw new MainWireIntegratedModelOutputProjectionErrorV3(
+      "selected output requires an accepted-state readback",
+    );
+  }
+  return accepted;
+}
+
+function positiveCycleLengthSecV3(value: number): number {
+  if (!Number.isFinite(value) || !(value > 0)) {
+    throw new MainWireIntegratedModelOutputProjectionErrorV3(
+      "regular-sinus cycle length is invalid",
+    );
+  }
+  return value;
+}
+
+function regularSinusPhaseFromClockV3(
+  acceptedTimeSec: number,
+  cycleLengthSec: number,
+  nextActivationTimeSec: number,
+): number {
+  const cycle = positiveCycleLengthSecV3(cycleLengthSec);
+  if (
+    !Number.isFinite(acceptedTimeSec)
+    || acceptedTimeSec < 0
+    || !Number.isFinite(nextActivationTimeSec)
+    || !(nextActivationTimeSec > acceptedTimeSec)
+  ) {
+    throw new MainWireIntegratedModelOutputProjectionErrorV3(
+      "regular-sinus accepted/activation clock is invalid",
+    );
+  }
+  const previousActivationTimeSec = nextActivationTimeSec - cycle;
+  const elapsedSec = acceptedTimeSec - previousActivationTimeSec;
+  const wrappedSec = ((elapsedSec % cycle) + cycle) % cycle;
+  return wrappedSec / cycle;
 }
 
 function assertObservationReadbackPairV3(

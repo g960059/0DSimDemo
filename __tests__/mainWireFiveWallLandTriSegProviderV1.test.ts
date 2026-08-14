@@ -23,6 +23,10 @@ import {
 import {
   MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM,
   createMainWireFiveWallLandTriSegProviderV1,
+  evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1,
+  evaluateMainWireFiveWallNumericalMechanicsCandidateV1,
+  tryPrepareMainWireFiveWallNumericalMechanicsStepV1,
+  withMainWireFiveWallNumericalMechanicsMaterialStateV1,
   type MainWireFiveWallFreeCalciumDriveV1,
   type MainWireFiveWallIdV1,
   type MainWireFiveWallLandSlsMaterialKernelV1,
@@ -161,8 +165,15 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
       .toEqual(acceptedEncoding);
 
     first.candidateMaterialState.wallStateByWall.LA.landState[0] = 999;
+    first.candidateMaterialState.wallStateByWall.LVFW.landState[0] = 998;
     expect(cold.acceptedState.materialState.wallStateByWall.LA.landState[0])
       .not.toBe(999);
+    expect(cold.acceptedState.materialState.wallStateByWall.LVFW.landState[0])
+      .not.toBe(998);
+    expect(second.candidateMaterialState.wallStateByWall.LA.landState[0])
+      .not.toBe(999);
+    expect(second.candidateMaterialState.wallStateByWall.LVFW.landState[0])
+      .not.toBe(998);
     expect(() => commitWholeHeartMechanicsTrialV1(
       provider,
       cold.acceptedState,
@@ -301,6 +312,113 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
 
     expect(() => coldStart(provider))
       .toThrow(/effective provider parameters changed after construction/);
+  });
+
+  it("keeps the model-owned numerical candidate path identical and isolated", () => {
+    const fixture = canonicalPreparedMechanicsFixture();
+    const numericalStep = tryPrepareMainWireFiveWallNumericalMechanicsStepV1(
+      fixture.provider,
+      Object.freeze({
+        previousAcceptedMaterialState:
+          fixture.cold.acceptedState.materialState,
+        candidateTimeSec: fixture.candidateTimeSec,
+        stepDtSec: fixture.candidateTimeSec,
+        drivingInputs: fixture.drivingInputs,
+      }),
+    );
+    expect(numericalStep).not.toBeNull();
+    const generic = evaluatePreparedWholeHeartMechanicsTrialV1(
+      fixture.preparedStep,
+      fixture.baseVolumes,
+    );
+    const first = evaluateMainWireFiveWallNumericalMechanicsCandidateV1(
+      numericalStep!,
+      fixture.baseVolumes,
+    );
+    const fixed = evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1(
+      numericalStep!,
+      fixture.baseVolumes,
+      first.scaledInternalCoordinates,
+    );
+    const fixedPressureDerivative = Array.from(
+      fixed.transmuralPressureDerivativeRowMajor,
+    );
+    const analyticFixedDerivative = new Float64Array([
+      ...fixed.transmuralPressureDerivativeRowMajor,
+      ...fixed.internalResidualDerivativeRowMajor,
+    ]);
+    const finiteDifferenceFixedDerivative =
+      finiteDifferenceFixedInternalMechanicsDerivative(
+        numericalStep!,
+        fixture.baseVolumes,
+        first.scaledInternalCoordinates,
+      );
+    const perturbedVolumes = Object.freeze({
+      ...fixture.baseVolumes,
+      LV: fixture.baseVolumes.LV + 1,
+      RV: fixture.baseVolumes.RV - 1,
+    });
+    evaluateMainWireFiveWallNumericalMechanicsCandidateV1(
+      numericalStep!,
+      perturbedVolumes,
+    );
+    evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1(
+      numericalStep!,
+      perturbedVolumes,
+      first.scaledInternalCoordinates,
+    );
+    const repeated = evaluateMainWireFiveWallNumericalMechanicsCandidateV1(
+      numericalStep!,
+      fixture.baseVolumes,
+    );
+    const genericReadback = readback(generic.diagnostics.readback);
+
+    expect(first.transmuralPressuresMmHg)
+      .toEqual(generic.transmuralPressuresMmHg);
+    expect(first.transmuralPressureVolumeTangentMmHgPerMl)
+      .toEqual(generic.transmuralPressureVolumeTangentMmHgPerMl);
+    expect(fixed.transmuralPressuresMmHg)
+      .toEqual(first.transmuralPressuresMmHg);
+    expect(Math.max(...fixed.internalResidualByOneJ.map(Math.abs)))
+      .toBeLessThanOrEqual(1e-9);
+    expect(maximumPressureTangentAbsoluteError(
+      condensedPressureTangentFromFixedInternal(fixed),
+      first.transmuralPressureVolumeTangentMmHgPerMl!,
+    )).toBeLessThan(1e-10);
+    expect(Array.from(fixed.transmuralPressureDerivativeRowMajor))
+      .toEqual(fixedPressureDerivative);
+    expect(maximumFlatMatrixRelativeError(
+      analyticFixedDerivative,
+      finiteDifferenceFixedDerivative,
+    )).toBeLessThan(2e-5);
+    expect(() => evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1(
+      numericalStep!,
+      fixture.baseVolumes,
+      [Number.NaN, first.scaledInternalCoordinates[1]],
+    )).toThrow(/requires two finite coordinates/);
+    expect(first.effectiveFiberLogStrainByWall)
+      .toEqual(genericReadback.effectiveFiberLogStrainByWall);
+    for (const wallId of ["LA", "LVFW", "SEP", "RVFW", "RA"] as const) {
+      expect(first.activeFiberKirchhoffStressPaByWall[wallId]).toBe(
+        normalAdultWallReadback(
+          genericReadback.wallMaterialReadbackByWall[wallId],
+        ).landActiveKirchhoffStressPa,
+      );
+    }
+    expect("candidateMaterialState" in first).toBe(false);
+    const firstEncoded = withMainWireFiveWallNumericalMechanicsMaterialStateV1(
+      first,
+      (candidateMaterialState) =>
+        fixture.provider.stateCodec.encode(candidateMaterialState),
+    );
+    expect(firstEncoded).toEqual(
+      fixture.provider.stateCodec.encode(generic.candidateMaterialState),
+    );
+    expect(() => withMainWireFiveWallNumericalMechanicsMaterialStateV1(
+      first,
+      () => undefined,
+    )).toThrow(/one-shot/);
+    expect(repeated).toEqual(first);
   });
 
   it("keeps ventricular mechanics bit-identical under atrial volume probes", () => {
@@ -901,16 +1019,24 @@ function canonicalPreparedMechanicsFixture() {
     ),
   });
   const candidateTimeSec = 0.002;
+  const drivingInputs = asMainWireFiveWallFreeCalciumDriveV1(
+    evaluateFiveWallNormalCalciumDriveV1(candidateTimeSec)
+      .freeCalciumUMByWall,
+  );
   const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
     previousAcceptedState: cold.acceptedState,
     candidateTimeSec,
     stepDtSec: candidateTimeSec,
-    drivingInputs: asMainWireFiveWallFreeCalciumDriveV1(
-      evaluateFiveWallNormalCalciumDriveV1(candidateTimeSec)
-        .freeCalciumUMByWall,
-    ),
+    drivingInputs,
   });
-  return Object.freeze({ baseVolumes, preparedStep });
+  return Object.freeze({
+    provider,
+    cold,
+    baseVolumes,
+    candidateTimeSec,
+    drivingInputs,
+    preparedStep,
+  });
 }
 
 function providerParams(
@@ -1029,6 +1155,7 @@ function testMaterialKernel(input: Readonly<{
       state,
       fiberLogStrain,
       fiberKirchhoffStressPa: stressPa,
+      activeFiberKirchhoffStressPa: activeStressPa,
       algorithmicFiberTangentPa,
       activeFiberAlgorithmicTangentPa: 0,
       algorithmicStressPrimitiveDensityJPerM3:
@@ -1056,6 +1183,8 @@ function testMaterialKernel(input: Readonly<{
     topology:
       "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS" as const,
     stateCodec,
+    acceptedStateInputMode: "defensive-clone" as const,
+    evaluationStateOwnershipMode: "defensive-clone" as const,
     initializeColdAtFixedInput: ({ fiberLogStrain, freeCalciumUM }) =>
       evaluate(fiberLogStrain, freeCalciumUM, null, null),
     evaluateTrialFromAccepted: ({
@@ -1284,4 +1413,106 @@ function maximumPressureTangentAntisymmetry(
   const chambers = ["LA", "LV", "RA", "RV"] as const;
   return Math.max(...chambers.flatMap((row) => chambers.map((column) =>
     Math.abs(tangent[row][column] - tangent[column][row]))));
+}
+
+function finiteDifferenceFixedInternalMechanicsDerivative(
+  step: NonNullable<
+    ReturnType<typeof tryPrepareMainWireFiveWallNumericalMechanicsStepV1>
+  >,
+  centerVolumesMl: WholeHeartMechanicsChamberValuesV1,
+  centerScaledInternalCoordinates: readonly [number, number],
+): Float64Array {
+  const chamberIds = ["LA", "LV", "RA", "RV"] as const;
+  const result = new Float64Array(6 * 6);
+  for (let column = 0; column < 6; column += 1) {
+    const stepSize = column < 4 ? 0.001 : 1e-5;
+    const lowerVolumes = { ...centerVolumesMl };
+    const upperVolumes = { ...centerVolumesMl };
+    const lowerCoordinates = [...centerScaledInternalCoordinates] as [number, number];
+    const upperCoordinates = [...centerScaledInternalCoordinates] as [number, number];
+    if (column < 4) {
+      const chamberId = chamberIds[column]!;
+      lowerVolumes[chamberId] -= stepSize;
+      upperVolumes[chamberId] += stepSize;
+    } else {
+      lowerCoordinates[column - 4] -= stepSize;
+      upperCoordinates[column - 4] += stepSize;
+    }
+    const lower = evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1(
+      step,
+      Object.freeze(lowerVolumes),
+      Object.freeze(lowerCoordinates),
+    );
+    const upper = evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1(
+      step,
+      Object.freeze(upperVolumes),
+      Object.freeze(upperCoordinates),
+    );
+    const lowerValues = [
+      lower.transmuralPressuresMmHg.LA,
+      lower.transmuralPressuresMmHg.LV,
+      lower.transmuralPressuresMmHg.RA,
+      lower.transmuralPressuresMmHg.RV,
+      lower.internalResidualByOneJ[0],
+      lower.internalResidualByOneJ[1],
+    ] as const;
+    const upperValues = [
+      upper.transmuralPressuresMmHg.LA,
+      upper.transmuralPressuresMmHg.LV,
+      upper.transmuralPressuresMmHg.RA,
+      upper.transmuralPressuresMmHg.RV,
+      upper.internalResidualByOneJ[0],
+      upper.internalResidualByOneJ[1],
+    ] as const;
+    for (let row = 0; row < 6; row += 1) {
+      result[row * 6 + column] =
+        (upperValues[row]! - lowerValues[row]!) / (2 * stepSize);
+    }
+  }
+  return result;
+}
+
+function maximumFlatMatrixRelativeError(
+  left: Float64Array,
+  right: Float64Array,
+): number {
+  if (left.length !== right.length) {
+    throw new Error("flat matrix dimensions differ");
+  }
+  let maximum = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    maximum = Math.max(maximum, relativeError(left[index]!, right[index]!));
+  }
+  return maximum;
+}
+
+function condensedPressureTangentFromFixedInternal(
+  fixed: ReturnType<
+    typeof evaluateMainWireFiveWallFixedInternalMechanicsCandidateV1
+  >,
+): WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1 {
+  const chambers = ["LA", "LV", "RA", "RV"] as const;
+  const pressure = fixed.transmuralPressureDerivativeRowMajor;
+  const residual = fixed.internalResidualDerivativeRowMajor;
+  const j00 = residual[0 * 6 + 4]!;
+  const j01 = residual[0 * 6 + 5]!;
+  const j10 = residual[1 * 6 + 4]!;
+  const j11 = residual[1 * 6 + 5]!;
+  const determinant = j00 * j11 - j01 * j10;
+  if (!(Math.abs(determinant) > 0) || !Number.isFinite(determinant)) {
+    throw new Error("fixed internal mechanics Jacobian is singular");
+  }
+  return Object.fromEntries(chambers.map((rowId, row) => [
+    rowId,
+    Object.fromEntries(chambers.map((columnId, column) => {
+      const right0 = residual[0 * 6 + column]!;
+      const right1 = residual[1 * 6 + column]!;
+      const response0 = (j11 * right0 - j01 * right1) / determinant;
+      const response1 = (-j10 * right0 + j00 * right1) / determinant;
+      const condensed = pressure[row * 6 + column]!
+        - pressure[row * 6 + 4]! * response0
+        - pressure[row * 6 + 5]! * response1;
+      return [columnId, condensed];
+    })),
+  ])) as WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
 }
