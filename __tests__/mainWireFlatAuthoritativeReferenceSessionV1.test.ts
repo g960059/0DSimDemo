@@ -93,6 +93,7 @@ import {
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   createMainWireAcceptedTypedStateManifestV1,
+  MainWireAcceptedTypedStateAuthorityV1,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
 import {
   createTransactionalTypedStateManifestV1,
@@ -898,6 +899,17 @@ describe("TransactionalTypedStateImageV1", () => {
     expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 10 });
     expect(image.report().modelOwnedPromotionCount).toBe(1);
 
+    const adapterFreeModelOwned = image.beginCandidateFromCurrent();
+    adapterFreeModelOwned.writeContinuous(valueSlot, 12);
+    adapterFreeModelOwned.writeBoolean(0, true);
+    adapterFreeModelOwned.writeStringSameByteLength(labelSlot, "next");
+    image.promoteCandidateWithRequiredWrites(requiredWritePlan);
+    expect(image.rehydrateCurrent()).toEqual({
+      ...candidate,
+      value: 12,
+    });
+    expect(image.report().modelOwnedPromotionCount).toBe(2);
+
     const forgedPlan = { ...requiredWritePlan };
     const forgedCandidate = image.beginCandidateFromCurrent();
     forgedCandidate.writeContinuous(valueSlot, 11);
@@ -908,7 +920,10 @@ describe("TransactionalTypedStateImageV1", () => {
       forgedPlan,
     )).toThrow("promotion plan has the wrong layout");
     image.abort();
-    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 10 });
+    expect(image.rehydrateCurrent()).toEqual({
+      ...candidate,
+      value: 12,
+    });
 
     expect(() => image.createCompletionPlan({
       continuous: [valueSlot, valueSlot],
@@ -924,7 +939,7 @@ describe("TransactionalTypedStateImageV1", () => {
       valueOnlyCompletionPlan,
     )).toThrow("differs from adapter");
     image.abort();
-    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 10 });
+    expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 12 });
 
     const promotedCandidate = image.beginCandidateFromCurrent();
     promotedCandidate.writeContinuous(valueSlot, 9);
@@ -991,13 +1006,54 @@ describe("TransactionalTypedStateImageV1", () => {
         Object.freeze({ id: `impulse-${index}`, at: index / 10 }))),
     }))).toThrow("dynamic arena capacity exceeded");
     expect(image.rehydrateCurrent()).toEqual({ ...candidate, value: 9 });
-    expect(image.report()).toMatchObject({ commitCount: 3, staged: false });
+    expect(image.report()).toMatchObject({ commitCount: 4, staged: false });
     expect(image.report().directCompletionReaderPlanUseCount).toBe(0);
     expect(image.report().directExactCandidateMatchCount).toBe(0);
   });
 });
 
 describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
+  it("promotes a covered typed candidate and rehydrates its mirror lazily", async () => {
+    const oracle = await MainWireIntegratedModelSessionV3.create();
+    const initial = oracle.currentAcceptedState();
+    const authority = new MainWireAcceptedTypedStateAuthorityV1(
+      initial,
+      initial,
+      (candidate: typeof initial) => candidate,
+      (candidate: typeof initial) => candidate,
+      (candidate: typeof initial) => candidate,
+    );
+    const timeSlot = authority.manifest().numericalLayout.continuousSlots
+      .findIndex(({ pointer }) => pointer === "/acceptedTimeSec");
+    if (timeSlot < 0) throw new Error("accepted time slot is unavailable");
+    const plan = authority.createModelOwnedPromotionPlan({
+      continuous: [timeSlot],
+    });
+    const previousMirror = authority.current();
+    const candidate = authority.beginDirectCandidate();
+    candidate.writeContinuous(timeSlot, 0.125);
+    authority.commitModelOwnedTypedCandidate(plan);
+
+    expect(authority.currentCursor().readContinuous(timeSlot)).toBe(0.125);
+    expect(authority.report()).toMatchObject({
+      commitCount: 1,
+      directCandidateCommitCount: 1,
+      directCandidateMirrorReuseCount: 0,
+      modelOwnedCandidateCommitCount: 1,
+      modelOwnedAdapterFreeCommitCount: 1,
+      lazyMirrorRehydrateCount: 0,
+      currentMirrorMatchesImage: false,
+    });
+    const rehydrated = authority.current();
+    expect(rehydrated).not.toBe(previousMirror);
+    expect(rehydrated.acceptedTimeSec).toBe(0.125);
+    expect(authority.current()).toBe(rehydrated);
+    expect(authority.report()).toMatchObject({
+      lazyMirrorRehydrateCount: 1,
+      currentMirrorMatchesImage: true,
+    });
+  });
+
   it("binds the complete coupled hemodynamic view to the full typed authority", async () => {
     const oracle = await MainWireIntegratedModelSessionV3.create();
     const initial = oracle.currentAcceptedState();

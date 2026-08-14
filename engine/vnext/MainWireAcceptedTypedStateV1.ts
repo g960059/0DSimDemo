@@ -264,7 +264,10 @@ export type MainWireAcceptedTypedStateAuthorityReportV1 = Readonly<
     directCandidateExactCommitCount: number;
     directCandidateMirrorReuseCount: number;
     modelOwnedCandidateCommitCount: number;
+    modelOwnedAdapterFreeCommitCount: number;
     modelOwnedExactAuditCount: number;
+    lazyMirrorRehydrateCount: number;
+    currentMirrorMatchesImage: boolean;
   }
 >;
 
@@ -446,12 +449,15 @@ export class MainWireAcceptedTypedStateAuthorityV1
   readonly #image: TransactionalTypedStateImageV1<AcceptedState>;
   readonly #ownDecoded: AcceptedStateValidatorV1<AcceptedState>;
   #currentState: AcceptedState;
+  #currentMirrorMatchesImage = true;
   #poisonedReason: string | null = null;
   #directCandidateCommitCount = 0;
   #directCandidateExactCommitCount = 0;
   #directCandidateMirrorReuseCount = 0;
   #modelOwnedCandidateCommitCount = 0;
+  #modelOwnedAdapterFreeCommitCount = 0;
   #modelOwnedExactAuditCount = 0;
+  #lazyMirrorRehydrateCount = 0;
 
   constructor(
     coldAcceptedState: AcceptedState,
@@ -475,6 +481,11 @@ export class MainWireAcceptedTypedStateAuthorityV1
 
   current(): AcceptedState {
     this.assertHealthy();
+    if (!this.#currentMirrorMatchesImage) {
+      this.#currentState = this.ownAndValidate(this.#image.rehydrateCurrent());
+      this.#currentMirrorMatchesImage = true;
+      this.#lazyMirrorRehydrateCount += 1;
+    }
     return this.#currentState;
   }
 
@@ -496,6 +507,7 @@ export class MainWireAcceptedTypedStateAuthorityV1
       const owned = this.ownAndValidate(this.#image.rehydrateStaged());
       this.#image.promote();
       this.#currentState = owned;
+      this.#currentMirrorMatchesImage = true;
       return owned;
     } catch (error) {
       this.#image.abort();
@@ -551,6 +563,7 @@ export class MainWireAcceptedTypedStateAuthorityV1
       );
       if (admittedMirror === null) return null;
       this.#currentState = admittedMirror;
+      this.#currentMirrorMatchesImage = true;
       this.#directCandidateCommitCount += 1;
       this.#directCandidateMirrorReuseCount += 1;
       this.#modelOwnedCandidateCommitCount += 1;
@@ -563,6 +576,35 @@ export class MainWireAcceptedTypedStateAuthorityV1
       this.#image.abort();
       const message = error instanceof Error ? error.message : String(error);
       this.#poisonedReason = `model-owned candidate commit failed: ${message}`;
+      throw new Error(
+        `Main Wire accepted typed-state authority is poisoned: `
+          + this.#poisonedReason,
+      );
+    }
+  }
+
+  /**
+   * Atomically promotes a fully staged, model-owned typed candidate without
+   * allocating an AcceptedState adapter. The caller must already have applied
+   * every component-owned numerical and cross-owner seal represented by the
+   * immutable promotion plan. The cached object mirror is invalidated and is
+   * rehydrated only if a cold/event API subsequently requests it.
+   */
+  commitModelOwnedTypedCandidate(
+    promotionPlan: TransactionalTypedStatePromotionPlanV1,
+  ): void {
+    this.assertHealthy();
+    try {
+      this.#image.promoteCandidateWithRequiredWrites(promotionPlan);
+      this.#currentMirrorMatchesImage = false;
+      this.#directCandidateCommitCount += 1;
+      this.#modelOwnedCandidateCommitCount += 1;
+      this.#modelOwnedAdapterFreeCommitCount += 1;
+    } catch (error) {
+      this.#image.abort();
+      const message = error instanceof Error ? error.message : String(error);
+      this.#poisonedReason =
+        `adapter-free model-owned candidate commit failed: ${message}`;
       throw new Error(
         `Main Wire accepted typed-state authority is poisoned: `
           + this.#poisonedReason,
@@ -589,6 +631,7 @@ export class MainWireAcceptedTypedStateAuthorityV1
       );
       this.#image.promote();
       this.#currentState = admittedMirror;
+      this.#currentMirrorMatchesImage = true;
       this.#directCandidateCommitCount += 1;
       this.#directCandidateMirrorReuseCount += 1;
       return admittedMirror;
@@ -621,6 +664,7 @@ export class MainWireAcceptedTypedStateAuthorityV1
       if (admittedMirror === null) return null;
       this.#image.promote();
       this.#currentState = admittedMirror;
+      this.#currentMirrorMatchesImage = true;
       this.#directCandidateCommitCount += 1;
       this.#directCandidateExactCommitCount += 1;
       this.#directCandidateMirrorReuseCount += 1;
@@ -652,7 +696,11 @@ export class MainWireAcceptedTypedStateAuthorityV1
       directCandidateExactCommitCount: this.#directCandidateExactCommitCount,
       directCandidateMirrorReuseCount: this.#directCandidateMirrorReuseCount,
       modelOwnedCandidateCommitCount: this.#modelOwnedCandidateCommitCount,
+      modelOwnedAdapterFreeCommitCount:
+        this.#modelOwnedAdapterFreeCommitCount,
       modelOwnedExactAuditCount: this.#modelOwnedExactAuditCount,
+      lazyMirrorRehydrateCount: this.#lazyMirrorRehydrateCount,
+      currentMirrorMatchesImage: this.#currentMirrorMatchesImage,
     });
   }
 

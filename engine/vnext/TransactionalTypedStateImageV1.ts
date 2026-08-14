@@ -543,8 +543,10 @@ export class TransactionalTypedStateImageV1<TState> {
 
   /**
    * Copies current into inactive storage once, then returns a cursor that can
-   * update fixed slots without allocating candidate objects. Promotion still
-   * requires exhaustive completion against one model-admitted object mirror.
+   * update fixed slots without allocating candidate objects. A model-owned
+   * transaction may promote after explicit required-write coverage and its
+   * own scientific seals; event/cold paths can still complete or audit against
+   * an admitted object mirror.
    */
   beginCandidateFromCurrent(): TransactionalTypedStateCandidateCursorV1 {
     if (this.#staged) {
@@ -678,6 +680,25 @@ export class TransactionalTypedStateImageV1<TState> {
   }
 
   /**
+   * Promotes one model-owned candidate without constructing an object mirror.
+   * This primitive proves transaction/layout identity and exhaustive writes
+   * for the model-declared owner set only. The caller remains responsible for
+   * all numerical, cross-owner, and accepted-boundary scientific seals before
+   * invoking it. Failure leaves the inactive candidate staged for explicit
+   * abort; success is the single infallible active-image swap.
+   */
+  promoteCandidateWithRequiredWrites(
+    promotionPlan: TransactionalTypedStatePromotionPlanV1,
+  ): void {
+    if (!this.#staged) {
+      throw new Error("Transactional typed state has no staged candidate");
+    }
+    this.assertPromotionPlanRequiredWrites(promotionPlan);
+    this.promote();
+    this.#modelOwnedPromotionCount += 1;
+  }
+
+  /**
    * Seals and promotes one model-owned typed candidate. The common lean path
    * validates the already model-admitted object identity and explicit slot
    * coverage without comparing it leaf-by-leaf with the image. Full-invariant
@@ -700,37 +721,7 @@ export class TransactionalTypedStateImageV1<TState> {
         "Transactional typed state direct admission changed candidate identity",
       );
     }
-    const internal = PROMOTION_PLAN_INTERNALS.get(promotionPlan);
-    if (
-      internal === undefined
-      || internal.manifest !== this.#manifest
-      || promotionPlan.layoutId !== this.#manifest.layoutId
-      || promotionPlan.fingerprint !== this.#manifest.fingerprint
-    ) {
-      throw new Error(
-        "Transactional typed state promotion plan has the wrong layout",
-      );
-    }
-    assertRequiredCandidateWrites(
-      internal.requiredContinuous,
-      this.#candidateWrittenContinuous,
-      "continuous",
-    );
-    assertRequiredCandidateWrites(
-      internal.requiredNullableContinuous,
-      this.#candidateWrittenNullableContinuous,
-      "nullable continuous",
-    );
-    assertRequiredCandidateWrites(
-      internal.requiredBooleans,
-      this.#candidateWrittenBooleans,
-      "boolean",
-    );
-    assertRequiredCandidateWrites(
-      internal.requiredStrings,
-      this.#candidateWrittenStrings,
-      "string",
-    );
+    this.assertPromotionPlanRequiredWrites(promotionPlan);
     if (exactAuditPlan !== undefined) {
       const audit = COMPLETION_PLAN_INTERNALS.get(exactAuditPlan);
       if (
@@ -1378,6 +1369,42 @@ export class TransactionalTypedStateImageV1<TState> {
     if (!this.#staged || generation !== this.#candidateGeneration) {
       throw new Error("Transactional typed state candidate cursor is stale");
     }
+  }
+
+  private assertPromotionPlanRequiredWrites(
+    promotionPlan: TransactionalTypedStatePromotionPlanV1,
+  ): void {
+    const internal = PROMOTION_PLAN_INTERNALS.get(promotionPlan);
+    if (
+      internal === undefined
+      || internal.manifest !== this.#manifest
+      || promotionPlan.layoutId !== this.#manifest.layoutId
+      || promotionPlan.fingerprint !== this.#manifest.fingerprint
+    ) {
+      throw new Error(
+        "Transactional typed state promotion plan has the wrong layout",
+      );
+    }
+    assertRequiredCandidateWrites(
+      internal.requiredContinuous,
+      this.#candidateWrittenContinuous,
+      "continuous",
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredNullableContinuous,
+      this.#candidateWrittenNullableContinuous,
+      "nullable continuous",
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredBooleans,
+      this.#candidateWrittenBooleans,
+      "boolean",
+    );
+    assertRequiredCandidateWrites(
+      internal.requiredStrings,
+      this.#candidateWrittenStrings,
+      "string",
+    );
   }
 }
 
