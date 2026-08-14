@@ -622,7 +622,10 @@ function assertItemCount(count: number, path: string): void {
 function assertOwnedDestination(value: Uint8Array): void {
   if (
     !(value instanceof Uint8Array)
-    || value.buffer instanceof SharedArrayBuffer
+    || (
+      typeof SharedArrayBuffer !== "undefined"
+      && value.buffer instanceof SharedArrayBuffer
+    )
     || (value.buffer as ArrayBuffer & { readonly resizable?: boolean }).resizable
       === true
   ) {

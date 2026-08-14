@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   hotPathIntegrityTierV1,
   selectHotPathIntegrityTierV1,
@@ -102,6 +102,23 @@ import {
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
 
 describe("CanonicalFlatDataV1", () => {
+  it("encodes an owned ArrayBuffer when SharedArrayBuffer is unavailable", () => {
+    const sharedArrayBuffer = globalThis.SharedArrayBuffer;
+    vi.stubGlobal("SharedArrayBuffer", undefined);
+    try {
+      const destination = new Uint8Array(
+        measureCanonicalFlatDataV1(Object.freeze({ value: 1 })),
+      );
+      expect(() => encodeCanonicalFlatDataIntoV1(
+        Object.freeze({ value: 1 }),
+        destination,
+      )).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(globalThis.SharedArrayBuffer).toBe(sharedArrayBuffer);
+  });
+
   it("owns one canonical encoding without invoking accessors", async () => {
     const first = Object.freeze({
       z: Object.freeze([true, null, "循環"]),

@@ -1535,7 +1535,7 @@ introduced.
 
 ### Standard typed-authority cutover candidate
 
-The Standard-30 source candidate connects the registered Studio runtime to the
+The Standard-32 source candidate connects the registered Studio runtime to the
 typed-authority Session and its model-owned selected-output projection. This is
 the first production-shaped cutover of the authority work described above; it
 does not promote the rejected 32-root experiment or any benchmark-only
@@ -1544,6 +1544,13 @@ condensed solve, stages all accepted owners into one inactive typed image, and
 promotes once. Analysis, capture validation, checkpoint encoding, restore, and
 explicit observation are cold boundaries and may rehydrate the canonical
 public object without returning that allocation cost to every live tick.
+The exact host's `currentFrame` boundary must project from the same
+clock-matched numerical readback as the terminal packed batch frame. A cold or
+restored Session may use the public observation until its first admitted
+readback, but an ordinary typed advance must never fall back to a reconstructed
+observation that downgrades accepted pressure or flow availability. The Worker
+keeps enforcing byte-level frame meaning across capture and analysis pauses;
+the adapter, rather than that guard, owns this invariant.
 
 The Studio host now records presentation origin as an integer tick. A restored
 Snapshot and its uninterrupted source therefore request the same absolute
@@ -1572,7 +1579,7 @@ handwritten monolithic struct; new oxygen, autonomic, topology, and multipatch
 domains must enter as separately declared owners. Their equations and coupling
 will require new model work and new exact releases, but they do not require a
 return to per-tick public-object authority. No such future physiology is added
-by Standard-30.
+by Standard-32.
 
 ### Phase 3 — strict scalar WASM
 

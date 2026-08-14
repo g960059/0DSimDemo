@@ -58,6 +58,7 @@ import {
   projectMainWireIntegratedModelSelectedValuesV3,
   projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1,
   type MainWireIntegratedModelOutputIdV3,
+  type MainWireIntegratedModelOutputValueV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
   createMainWireIntegratedModelRuntimeV3,
@@ -249,6 +250,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   readonly #candidateNumericalReadback = new Float64Array(
     MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   );
+  #acceptedNumericalReadbackAvailable = false;
   readonly #coupledNewtonWorkspace:
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
   readonly #coupledResidualWorkspace:
@@ -587,6 +589,56 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   }
 
   /**
+   * Projects the exact current accepted boundary without forcing the typed
+   * ordinary path back through a public accepted-step reconstruction. The
+   * cold/restored boundary deliberately falls back to the complete
+   * observation until the Session owns a clock-matched numerical readback.
+   */
+  projectCurrentAcceptedValuesV1(
+    outputIds: readonly MainWireIntegratedModelOutputIdV3[],
+  ): Readonly<Record<string, MainWireIntegratedModelOutputValueV3>> {
+    validateTypedProjectionOutputIds(outputIds);
+    if (
+      this.#typedAuthority !== null
+      && this.#acceptedNumericalReadbackAvailable
+    ) {
+      const typedPresentation = readMainWireAcceptedTypedPresentationStateV1(
+        this.#typedAuthority.currentCursor(),
+        this.requiredTypedBoundaryBinding(),
+        this.#rhythmInput.configuration,
+      );
+      if (
+        this.#acceptedNumericalReadback[
+          MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec
+        ] === typedPresentation.acceptedTimeSec
+      ) {
+        return projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
+          Object.freeze({
+            acceptedTimeSec: typedPresentation.acceptedTimeSec,
+            regularSinusCycleLengthSec:
+              typedPresentation.regularSinusCycleLengthSec,
+            regularSinusNextActivationTimeSec:
+              typedPresentation.regularSinusNextActivationTimeSec,
+            dynamicMechanicalSupportLvadFlowMlPerSec:
+              typedPresentation.lvadFlowMlPerSec,
+            runtimeSignals: runtimeSignalsAtAcceptedTime(
+              typedPresentation.acceptedTimeSec,
+              this.#runtime,
+            ),
+            completedBeatMetrics: this.#completedBeatMetrics,
+            acceptedNumericalReadback: this.#acceptedNumericalReadback,
+          }),
+          outputIds,
+        );
+      }
+    }
+    return projectMainWireIntegratedModelSelectedValuesV3(
+      this.observe(),
+      outputIds,
+    );
+  }
+
+  /**
    * Advances exactly to one presentation boundary. Boundary-limited solver
    * commits stay internal; typed-image authority commits occur after every
    * accepted substep, not merely after presentation delivery.
@@ -851,6 +903,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       );
       this.#autoregulationOwner = nextAutoregulationOwner;
       this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
+      this.#acceptedNumericalReadbackAvailable = true;
       const completedBeat = this.#beatAccumulator.acceptNumericalReadback(
         this.#acceptedNumericalReadback,
         null,
@@ -1245,6 +1298,12 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         throw error;
       }
       this.#acceptedState = committedState;
+      if (
+        this.#typedAuthority !== null
+        && acceptedNumericalReadbackAvailable
+      ) {
+        this.#acceptedNumericalReadbackAvailable = true;
+      }
       resetMainWireFiveWallCoupledPredictorV1(
         this.#coupledPredictorWorkspace,
       );

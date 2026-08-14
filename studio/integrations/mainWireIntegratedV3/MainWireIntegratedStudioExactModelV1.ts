@@ -22,7 +22,6 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3,
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
-  projectMainWireIntegratedModelObservationV3,
   projectMainWireIntegratedModelSelectedValuesV3,
   type MainWireIntegratedModelOutputIdV3,
   type MainWireIntegratedModelOutputValueV3,
@@ -285,15 +284,16 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
 
   currentFrame(runtimeSessionId: string, scenarioId: string): StudioSimulationFrameV2 {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    const observation = scenario.modelSession.observe();
-    const accepted = observation.acceptedState;
-    return standardFrameV1({
+    const accepted = scenario.modelSession.currentAcceptedState();
+    return standardFrameFromValuesV1({
       runtimeSessionId,
       scenarioId,
       inputEpoch: scenario.inputEpoch,
       acceptedRevision: accepted.revision,
       acceptedTimeSec: accepted.acceptedTimeSec,
-      projected: projectMainWireIntegratedModelObservationV3(observation),
+      values: scenario.modelSession.projectCurrentAcceptedValuesV1(
+        MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+      ),
     });
   }
 
@@ -1168,24 +1168,6 @@ function validateScenarioCheckpointV1(value: unknown): ScenarioCheckpointV2 {
     acceptedRevision: record.acceptedRevision as number,
     acceptedTimeSec: record.acceptedTimeSec as number,
     payload,
-  });
-}
-
-function standardFrameV1(input: Readonly<{
-  runtimeSessionId: string;
-  scenarioId: string;
-  inputEpoch: number;
-  acceptedRevision: number;
-  acceptedTimeSec: number;
-  projected: ReturnType<typeof projectMainWireIntegratedModelObservationV3>;
-}>): StudioSimulationFrameV2 {
-  return standardFrameFromValuesV1({
-    runtimeSessionId: input.runtimeSessionId,
-    scenarioId: input.scenarioId,
-    inputEpoch: input.inputEpoch,
-    acceptedRevision: input.acceptedRevision,
-    acceptedTimeSec: input.acceptedTimeSec,
-    values: input.projected.values,
   });
 }
 

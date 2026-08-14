@@ -30373,9 +30373,6 @@ function assertObservationPairV3(observation2) {
     );
   }
 }
-const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID = "main-wire-integrated-model-output-registry-v5";
-const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_SCHEMA_VERSION = 3;
-const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID = "main-wire-integrated-model-output-frame-v5";
 const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
   ...["LA", "LV", "RA", "RV"].map((chamber) => definition(
     `hemodynamics.volume.${chamber}`,
@@ -30628,18 +30625,6 @@ class MainWireIntegratedModelOutputProjectionErrorV3 extends Error {
     super(`Main Wire Integrated V3 output projection rejected: ${message}`);
     this.name = "MainWireIntegratedModelOutputProjectionErrorV3";
   }
-}
-function projectMainWireIntegratedModelObservationV3(observation2) {
-  const values2 = projectMainWireIntegratedModelSelectedValuesV3(
-    observation2,
-    MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3
-  );
-  return Object.freeze({
-    frameId: MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID,
-    registryId: MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID,
-    schemaVersion: MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_SCHEMA_VERSION,
-    values: Object.freeze(values2)
-  });
 }
 function projectMainWireIntegratedModelSelectedValuesV3(observation2, outputIds) {
   assertObservationReadbackPairV3(observation2);
@@ -35809,7 +35794,7 @@ function assertItemCount(count, path) {
   }
 }
 function assertOwnedDestination(value) {
-  if (!(value instanceof Uint8Array) || value.buffer instanceof SharedArrayBuffer || value.buffer.resizable === true) {
+  if (!(value instanceof Uint8Array) || typeof SharedArrayBuffer !== "undefined" && value.buffer instanceof SharedArrayBuffer || value.buffer.resizable === true) {
     throw new Error("Canonical flat data requires an owned fixed Uint8Array");
   }
 }
@@ -41964,6 +41949,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     this.#candidateNumericalReadback = new Float64Array(
       MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1
     );
+    this.#acceptedNumericalReadbackAvailable = false;
     this.#coupledSolverProfile = {
       solveCount: 0,
       convergedSolveCount: 0,
@@ -42087,6 +42073,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
   #typedHemodynamicScratch;
   #acceptedNumericalReadback;
   #candidateNumericalReadback;
+  #acceptedNumericalReadbackAvailable;
   #coupledNewtonWorkspace;
   #coupledResidualWorkspace;
   #coupledPredictorWorkspace;
@@ -42222,6 +42209,43 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     const detached = this.detachedObservation();
     this.#lastPresentationObservation = detached;
     return detached;
+  }
+  /**
+   * Projects the exact current accepted boundary without forcing the typed
+   * ordinary path back through a public accepted-step reconstruction. The
+   * cold/restored boundary deliberately falls back to the complete
+   * observation until the Session owns a clock-matched numerical readback.
+   */
+  projectCurrentAcceptedValuesV1(outputIds) {
+    validateTypedProjectionOutputIds(outputIds);
+    if (this.#typedAuthority !== null && this.#acceptedNumericalReadbackAvailable) {
+      const typedPresentation = readMainWireAcceptedTypedPresentationStateV1(
+        this.#typedAuthority.currentCursor(),
+        this.requiredTypedBoundaryBinding(),
+        this.#rhythmInput.configuration
+      );
+      if (this.#acceptedNumericalReadback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec] === typedPresentation.acceptedTimeSec) {
+        return projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
+          Object.freeze({
+            acceptedTimeSec: typedPresentation.acceptedTimeSec,
+            regularSinusCycleLengthSec: typedPresentation.regularSinusCycleLengthSec,
+            regularSinusNextActivationTimeSec: typedPresentation.regularSinusNextActivationTimeSec,
+            dynamicMechanicalSupportLvadFlowMlPerSec: typedPresentation.lvadFlowMlPerSec,
+            runtimeSignals: runtimeSignalsAtAcceptedTime(
+              typedPresentation.acceptedTimeSec,
+              this.#runtime
+            ),
+            completedBeatMetrics: this.#completedBeatMetrics,
+            acceptedNumericalReadback: this.#acceptedNumericalReadback
+          }),
+          outputIds
+        );
+      }
+    }
+    return projectMainWireIntegratedModelSelectedValuesV3(
+      this.observe(),
+      outputIds
+    );
   }
   /**
    * Advances exactly to one presentation boundary. Boundary-limited solver
@@ -42439,6 +42463,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       );
       this.#autoregulationOwner = nextAutoregulationOwner;
       this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
+      this.#acceptedNumericalReadbackAvailable = true;
       const completedBeat = this.#beatAccumulator.acceptNumericalReadback(
         this.#acceptedNumericalReadback,
         null
@@ -42772,6 +42797,9 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
         throw error;
       }
       this.#acceptedState = committedState;
+      if (this.#typedAuthority !== null && acceptedNumericalReadbackAvailable) {
+        this.#acceptedNumericalReadbackAvailable = true;
+      }
       resetMainWireFiveWallCoupledPredictorV1(
         this.#coupledPredictorWorkspace
       );
@@ -45358,7 +45386,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-30";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-32";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";
@@ -45467,15 +45495,16 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
   }
   currentFrame(runtimeSessionId, scenarioId) {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    const observation2 = scenario.modelSession.observe();
-    const accepted = observation2.acceptedState;
-    return standardFrameV1({
+    const accepted = scenario.modelSession.currentAcceptedState();
+    return standardFrameFromValuesV1({
       runtimeSessionId,
       scenarioId,
       inputEpoch: scenario.inputEpoch,
       acceptedRevision: accepted.revision,
       acceptedTimeSec: accepted.acceptedTimeSec,
-      projected: projectMainWireIntegratedModelObservationV3(observation2)
+      values: scenario.modelSession.projectCurrentAcceptedValuesV1(
+        MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3
+      )
     });
   }
   advanceOnePresentationStep(runtimeSessionId, scenarioId) {
@@ -46135,16 +46164,6 @@ function validateScenarioCheckpointV1(value) {
     acceptedRevision: record.acceptedRevision,
     acceptedTimeSec: record.acceptedTimeSec,
     payload
-  });
-}
-function standardFrameV1(input) {
-  return standardFrameFromValuesV1({
-    runtimeSessionId: input.runtimeSessionId,
-    scenarioId: input.scenarioId,
-    inputEpoch: input.inputEpoch,
-    acceptedRevision: input.acceptedRevision,
-    acceptedTimeSec: input.acceptedTimeSec,
-    values: input.projected.values
   });
 }
 function standardFrameFromValuesV1(input) {

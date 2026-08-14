@@ -32,10 +32,10 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-30
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-32
 ```
 
-Standard-30 changes the live execution authority, not the physiology. Ordinary
+Standard-32 changes the live execution authority, not the physiology. Ordinary
 presentation ticks now solve and promote directly through the fixed typed
 accepted-state image and project only the requested outputs. Public accepted
 objects are rehydrated at cold boundaries such as analysis, capture, restore,
@@ -48,7 +48,8 @@ about `0.323 ms/step`, compared with about `0.997 ms/step` for Standard-29's
 object path. This host result is construction evidence; physical iPhone and
 multi-Scenario reports remain release gates. Full-output oracle comparisons,
 batch/single parity, public-checkpoint continuation, capture/admission,
-control warm start, and isolated PV/Starling analysis remain green. The
+control warm start, exact current-frame continuity across analysis pauses, and
+isolated PV/Starling analysis remain green. The
 accepted equations, `2 ms` integration step, controls, topology, and public
 checkpoint schema are unchanged, but the exact executable and algorithmic
 authority changed and therefore receive a new `modelId`.

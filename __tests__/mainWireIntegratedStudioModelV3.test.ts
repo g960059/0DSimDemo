@@ -68,6 +68,30 @@ afterEach(() => {
 });
 
 describe("Standard Main Wire Integrated Studio exact model", () => {
+  it("keeps the exact current frame identical to the accepted batch boundary", async () => {
+    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-current-frame-repeatability";
+    const scenarioId = "scenario/baseline";
+    await host.createSession(runtimeSessionId, [{
+      scenarioId,
+      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    }]);
+    const first = host.currentFrame(runtimeSessionId, scenarioId);
+    const second = host.currentFrame(runtimeSessionId, scenarioId);
+    expect(second).toEqual(first);
+    const batchFrames = materializeStudioSimulationPresentationFramesV2(
+      host.advancePresentationBatch(
+        runtimeSessionId,
+        scenarioId,
+        16,
+        ["hemodynamics.pressure.absolute.LV"],
+      ),
+    );
+    expect(host.currentFrame(runtimeSessionId, scenarioId))
+      .toEqual(batchFrames.at(-1));
+    host.closeSession(runtimeSessionId);
+  });
+
   it("exposes hemorrhage reserve without moving the canonical baseline", () => {
     const ranges = MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3;
     expect(ranges.venousTone).toEqual({
@@ -241,6 +265,37 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
       },
     });
+    const loaded = await first;
+    const runtimeSessionId = "session/standard-artifact-repeatability";
+    const scenarioId = "scenario/baseline";
+    await loaded.simulationAdapter.createSession({
+      runtimeSessionId,
+      scenarios: [{
+        scenarioId,
+        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      }],
+    });
+    const firstFrame = loaded.simulationAdapter.currentFrame({
+      runtimeSessionId,
+      scenarioId,
+    });
+    expect(loaded.simulationAdapter.currentFrame({
+      runtimeSessionId,
+      scenarioId,
+    })).toEqual(firstFrame);
+    const artifactBatchFrames = materializeStudioSimulationPresentationFramesV2(
+      await loaded.simulationAdapter.advancePresentationBatch({
+        runtimeSessionId,
+        scenarioId,
+        stepCount: 16,
+        presentationOutputIds: ["hemodynamics.pressure.absolute.LV"],
+      }),
+    );
+    expect(loaded.simulationAdapter.currentFrame({
+      runtimeSessionId,
+      scenarioId,
+    })).toEqual(artifactBatchFrames.at(-1));
+    loaded.simulationAdapter.disposeSession(runtimeSessionId);
     expect(fetchArtifact).toHaveBeenCalledOnce();
 
     await expect(loader.load({
