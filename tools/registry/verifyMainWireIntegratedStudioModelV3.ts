@@ -14,6 +14,7 @@ import {
 } from "@/studio/contracts/v2/simulation";
 import {
   EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
+  EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   compileExecutionPlanV1,
@@ -85,6 +86,11 @@ async function main(): Promise<void> {
     fail("the only supported argument is --write");
   }
   const sourceRelease = createCircleHeartExactModelReleaseV1();
+  if (!sourceRelease.manifest.capabilities.includes(
+    EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
+  )) {
+    fail("source release omits the execution-plan Newton workspace capability");
+  }
   const compiledExecutionPlan = compileExecutionPlanV1(
     createMainWireModelDefinitionV1(),
     createMainWireNumericalPolicyV1(),

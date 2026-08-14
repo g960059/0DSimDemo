@@ -5,15 +5,58 @@ export type FlatDenseLuWorkspaceV1 = Readonly<{
   transformedRightHandSide: Float64Array;
 }>;
 
+export type FlatDenseLuWorkspaceViewsV1 = Readonly<{
+  dimension: number;
+  factors: Float64Array;
+  pivotRowByColumn: Int32Array;
+  transformedRightHandSide: Float64Array;
+}>;
+
 export function createFlatDenseLuWorkspaceV1(
   dimension: number,
 ): FlatDenseLuWorkspaceV1 {
   requireDimension(dimension);
-  return Object.freeze({
+  return bindFlatDenseLuWorkspaceV1({
     dimension,
     factors: new Float64Array(dimension * dimension),
     pivotRowByColumn: new Int32Array(dimension),
     transformedRightHandSide: new Float64Array(dimension),
+  });
+}
+
+/**
+ * Admits caller-owned, nonoverlapping typed views as persistent LU scratch.
+ * Views may share one backing buffer when their byte ranges are disjoint.
+ */
+export function bindFlatDenseLuWorkspaceV1(
+  views: FlatDenseLuWorkspaceViewsV1,
+): FlatDenseLuWorkspaceV1 {
+  requireDimension(views.dimension);
+  requireFloat64Length(
+    views.factors,
+    views.dimension * views.dimension,
+    "LU factors",
+  );
+  requireInt32Length(
+    views.pivotRowByColumn,
+    views.dimension,
+    "LU pivot rows",
+  );
+  requireFloat64Length(
+    views.transformedRightHandSide,
+    views.dimension,
+    "LU transformed right-hand side",
+  );
+  requireDisjointViews([
+    views.factors,
+    views.pivotRowByColumn,
+    views.transformedRightHandSide,
+  ]);
+  return Object.freeze({
+    dimension: views.dimension,
+    factors: views.factors,
+    pivotRowByColumn: views.pivotRowByColumn,
+    transformedRightHandSide: views.transformedRightHandSide,
   });
 }
 
@@ -158,6 +201,42 @@ function swapRows(
 function requireDimension(dimension: number): void {
   if (!Number.isInteger(dimension) || dimension <= 0) {
     throw new RangeError("flat dense dimension must be a positive integer");
+  }
+}
+
+function requireFloat64Length(
+  value: Float64Array,
+  expected: number,
+  label: string,
+): void {
+  if (!(value instanceof Float64Array) || value.length !== expected) {
+    throw new RangeError(`${label} must contain ${expected} f64 values`);
+  }
+}
+
+function requireInt32Length(
+  value: Int32Array,
+  expected: number,
+  label: string,
+): void {
+  if (!(value instanceof Int32Array) || value.length !== expected) {
+    throw new RangeError(`${label} must contain ${expected} int32 values`);
+  }
+}
+
+function requireDisjointViews(views: readonly ArrayBufferView[]): void {
+  for (let left = 0; left < views.length; left += 1) {
+    const first = views[left]!;
+    for (let right = left + 1; right < views.length; right += 1) {
+      const second = views[right]!;
+      if (
+        first.buffer === second.buffer
+        && first.byteOffset < second.byteOffset + second.byteLength
+        && second.byteOffset < first.byteOffset + first.byteLength
+      ) {
+        throw new RangeError("flat dense LU workspace views must not overlap");
+      }
+    }
   }
 }
 

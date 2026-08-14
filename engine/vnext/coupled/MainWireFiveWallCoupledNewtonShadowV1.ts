@@ -13,6 +13,7 @@ import {
   NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
+  assertFlatCoupledNewtonWorkspaceV1,
   createFlatCoupledNewtonWorkspaceV1,
   solveFlatCoupledSystemV1,
   type FlatCoupledNewtonResultV1,
@@ -95,6 +96,12 @@ export type MainWireFiveWallCoupledNewtonShadowWorkspaceV1 = Readonly<{
   dimension: number;
 }>;
 
+export type MainWireFiveWallCoupledNewtonWorkspaceBackingV1 = Readonly<{
+  newton: FlatCoupledNewtonWorkspaceV1;
+  unknownScales: Float64Array;
+  residualScales: Float64Array;
+}>;
+
 type CoupledCoronaryLinearizationStorageV1 = {
   readonly residualMl: Float64Array;
   readonly dResidualDVolume: Float64Array;
@@ -131,13 +138,32 @@ const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1 =
  * model state, is never checkpointed, and may only be borrowed by one solve.
  */
 export function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1():
-MainWireFiveWallCoupledNewtonShadowWorkspaceV1 {
+MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
+export function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
+  backing: MainWireFiveWallCoupledNewtonWorkspaceBackingV1,
+): MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
+export function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
+  backing?: MainWireFiveWallCoupledNewtonWorkspaceBackingV1,
+): MainWireFiveWallCoupledNewtonShadowWorkspaceV1 {
   const nonCoronaryDimension =
     NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
   const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
   const boundaryDimension =
     CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
   const dimension = nonCoronaryDimension + coronaryDimension;
+  const newton = backing?.newton
+    ?? createFlatCoupledNewtonWorkspaceV1(dimension);
+  const unknownScales = backing?.unknownScales
+    ?? new Float64Array(dimension);
+  const residualScales = backing?.residualScales
+    ?? new Float64Array(dimension);
+  assertFlatCoupledNewtonWorkspaceV1(newton, dimension);
+  assertExternalScaleStorageV1(
+    newton,
+    unknownScales,
+    residualScales,
+    dimension,
+  );
   const workspace = Object.freeze({
     schemaId:
       "circleheart-main-wire-five-wall-coupled-newton-shadow-workspace-v1" as const,
@@ -170,13 +196,31 @@ MainWireFiveWallCoupledNewtonShadowWorkspaceV1 {
         dCommonVenousOutletFlowDBoundary:
           new Float64Array(boundaryDimension),
       },
-      unknownScales: new Float64Array(dimension),
-      residualScales: new Float64Array(dimension),
-      newton: createFlatCoupledNewtonWorkspaceV1(dimension),
+      unknownScales,
+      residualScales,
+      newton,
       inUse: false,
     },
   );
   return workspace;
+}
+
+export function assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
+  workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+): void {
+  const expectedDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
+    + CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  const storage =
+    MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.get(
+      workspace,
+    );
+  if (
+    storage === undefined
+    || workspace.dimension !== expectedDimension
+    || storage.inUse
+  ) {
+    throw new RangeError("coupled Newton shadow workspace is not admitted");
+  }
 }
 
 function borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
@@ -195,6 +239,55 @@ function borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
   }
   storage.inUse = true;
   return storage;
+}
+
+function assertExternalScaleStorageV1(
+  newton: FlatCoupledNewtonWorkspaceV1,
+  unknownScales: Float64Array,
+  residualScales: Float64Array,
+  dimension: number,
+): void {
+  if (
+    !(unknownScales instanceof Float64Array)
+    || unknownScales.length !== dimension
+    || !(residualScales instanceof Float64Array)
+    || residualScales.length !== dimension
+  ) {
+    throw new RangeError(
+      "coupled Newton scale storage has an incompatible shape",
+    );
+  }
+  const scaleViews = [unknownScales, residualScales];
+  const newtonViews: ArrayBufferView[] = [
+    newton.current,
+    newton.residual,
+    newton.jacobian,
+    newton.linear.factors,
+    newton.rightHandSide,
+    newton.linear.transformedRightHandSide,
+    newton.update,
+    newton.trial,
+    newton.trialResidual,
+    newton.linear.pivotRowByColumn,
+  ];
+  for (let index = 0; index < scaleViews.length; index += 1) {
+    const scale = scaleViews[index]!;
+    const others: readonly ArrayBufferView[] = [
+      ...newtonViews,
+      ...scaleViews.slice(index + 1),
+    ];
+    for (const other of others) {
+      if (
+        scale.buffer === other.buffer
+        && scale.byteOffset < other.byteOffset + other.byteLength
+        && other.byteOffset < scale.byteOffset + scale.byteLength
+      ) {
+        throw new RangeError(
+          "coupled Newton scale storage must not overlap solver scratch",
+        );
+      }
+    }
+  }
 }
 
 /**

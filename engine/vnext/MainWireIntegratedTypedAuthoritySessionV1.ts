@@ -132,6 +132,7 @@ import {
   type MainWireAcceptedTypedHemodynamicBindingV1,
 } from "@/engine/vnext/MainWireAcceptedTypedHemodynamicV1";
 import {
+  assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
   type MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
@@ -252,8 +253,11 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   );
   #acceptedNumericalReadbackAvailable = false;
-  readonly #coupledNewtonWorkspace:
+  #coupledNewtonWorkspace:
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
+  #installedExecutionPlanCoupledNewtonWorkspace:
+    MainWireFiveWallCoupledNewtonShadowWorkspaceV1 | null = null;
+  #executionPlanWorkspaceInstallationClosed = false;
   readonly #coupledResidualWorkspace:
     MainWireFiveWallCoupledResidualWorkspaceV1;
   readonly #coupledPredictorWorkspace:
@@ -556,6 +560,29 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   }
 
   /**
+   * Installs compiler-owned solver scratch before the first numerical advance.
+   * Repeating the same binding is idempotent; replacing it is fail-closed.
+   */
+  installExecutionPlanCoupledNewtonWorkspaceV1(
+    workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+  ): void {
+    assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace);
+    if (this.#installedExecutionPlanCoupledNewtonWorkspace === workspace) {
+      return;
+    }
+    if (
+      this.#installedExecutionPlanCoupledNewtonWorkspace !== null
+      || this.#executionPlanWorkspaceInstallationClosed
+    ) {
+      throw new Error(
+        "Main Wire execution-plan Newton workspace cannot be replaced",
+      );
+    }
+    this.#coupledNewtonWorkspace = workspace;
+    this.#installedExecutionPlanCoupledNewtonWorkspace = workspace;
+  }
+
+  /**
    * Copies the current one-patch hemodynamic view in its canonical logical
    * order for a sampled execution-plan shadow check. The accepted typed image
    * remains the sole authority; this method neither stages nor promotes state.
@@ -683,6 +710,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   advanceToPresentationTime(
     targetTimeSec: number,
   ): MainWireIntegratedModelPresentationAdvanceV3 {
+    this.#executionPlanWorkspaceInstallationClosed = true;
     return this.advanceToPresentationTimeInternal(targetTimeSec, true);
   }
 
@@ -695,6 +723,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     targetTimeSec: number,
     outputIds: readonly MainWireIntegratedModelOutputIdV3[],
   ): MainWireFlatSelectedOutputProjectionAdvanceV1 {
+    this.#executionPlanWorkspaceInstallationClosed = true;
     validateTypedProjectionOutputIds(outputIds);
     const direct = this.tryAdvanceTypedOrdinaryProjectionV1(
       targetTimeSec,

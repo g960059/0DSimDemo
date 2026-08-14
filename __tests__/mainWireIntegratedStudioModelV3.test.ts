@@ -13,7 +13,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
 import {
+  EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
   assertBoundExecutionPlanV1,
+  prepareBoundExecutionPlanSolveGroupV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
@@ -95,12 +97,17 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     host.closeSession(runtimeSessionId);
   });
 
-  it("shadows each Scenario and control boundary without staging a candidate", async () => {
+  it("owns an isolated plan workspace for each Scenario and control boundary", async () => {
     const release = createCircleHeartExactModelReleaseV1();
+    expect(release.manifest.capabilities).toContain(
+      EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
+    );
     const simulation = release.executables.simulationAdapter;
     const executionPlan = release.executables.executionPlan!;
-    const bound = executionPlan.bind();
-    assertBoundExecutionPlanV1(bound, executionPlan.descriptor);
+    const baselineBound = executionPlan.bind();
+    const lowVolumeBound = executionPlan.bind();
+    assertBoundExecutionPlanV1(baselineBound, executionPlan.descriptor);
+    assertBoundExecutionPlanV1(lowVolumeBound, executionPlan.descriptor);
     const runtimeSessionId = "session/standard-plan-scenario-shadow";
     const baselineScenarioId = "scenario/baseline";
     const lowVolumeScenarioId = "scenario/low-volume";
@@ -129,18 +136,28 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     executionPlan.synchronizeAcceptedState({
       runtimeSessionId,
       scenarioId: baselineScenarioId,
-      boundExecutionPlan: bound,
+      boundExecutionPlan: baselineBound,
     });
-    expect(bound.currentContinuousState[2]).toBe(5_600);
+    expect(baselineBound.currentContinuousState[2]).toBe(5_600);
+    const baselineWorkspace = prepareBoundExecutionPlanSolveGroupV1(
+      baselineBound,
+      "coupled-hemodynamics",
+    );
+    await simulation.advanceOnePresentationStep({
+      runtimeSessionId,
+      scenarioId: baselineScenarioId,
+    });
+    expect(baselineWorkspace.jacobian.some((value) => value !== 0)).toBe(true);
+    expect(baselineWorkspace.pivots.some((value) => value !== 0)).toBe(true);
     executionPlan.synchronizeAcceptedState({
       runtimeSessionId,
       scenarioId: lowVolumeScenarioId,
-      boundExecutionPlan: bound,
+      boundExecutionPlan: lowVolumeBound,
     });
-    expect(bound.currentContinuousState[2]).toBe(4_200);
-    expect(bound.candidateContinuousState.every((value) => value === 0))
+    expect(lowVolumeBound.currentContinuousState[2]).toBe(4_200);
+    expect(lowVolumeBound.candidateContinuousState.every((value) => value === 0))
       .toBe(true);
-    expect(bound.candidateBooleanState.every((value) => value === 0))
+    expect(lowVolumeBound.candidateBooleanState.every((value) => value === 0))
       .toBe(true);
 
     await simulation.applyControl({
@@ -154,10 +171,40 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     executionPlan.synchronizeAcceptedState({
       runtimeSessionId,
       scenarioId: baselineScenarioId,
+      boundExecutionPlan: baselineBound,
+    });
+    expect(baselineBound.currentContinuousState[2]).toBe(6_000);
+    simulation.disposeSession(runtimeSessionId);
+  });
+
+  it("rejects one bound plan shared by equal Scenario IDs in different sessions", async () => {
+    const release = createCircleHeartExactModelReleaseV1();
+    const simulation = release.executables.simulationAdapter;
+    const executionPlan = release.executables.executionPlan!;
+    const bound = executionPlan.bind();
+    assertBoundExecutionPlanV1(bound, executionPlan.descriptor);
+    const scenarioId = "scenario/shared-name";
+    for (const runtimeSessionId of ["session/first", "session/second"]) {
+      await simulation.createSession({
+        runtimeSessionId,
+        scenarios: [{
+          scenarioId,
+          fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+        }],
+      });
+    }
+    executionPlan.synchronizeAcceptedState({
+      runtimeSessionId: "session/first",
+      scenarioId,
       boundExecutionPlan: bound,
     });
-    expect(bound.currentContinuousState[2]).toBe(6_000);
-    simulation.disposeSession(runtimeSessionId);
+    expect(() => executionPlan.synchronizeAcceptedState({
+      runtimeSessionId: "session/second",
+      scenarioId,
+      boundExecutionPlan: bound,
+    })).toThrow(/cannot be shared between Scenarios/);
+    simulation.disposeSession("session/first");
+    simulation.disposeSession("session/second");
   });
 
   it("exposes hemorrhage reserve without moving the canonical baseline", () => {
@@ -629,6 +676,11 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         scenarioId,
         fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
       }],
+    });
+    executionPlan.synchronizeAcceptedState({
+      runtimeSessionId,
+      scenarioId,
+      boundExecutionPlan: sourceBoundExecutionPlan,
     });
     for (let ordinal = 0; ordinal < 500; ordinal += 1) {
       await simulation.advanceOnePresentationStep({ runtimeSessionId, scenarioId });

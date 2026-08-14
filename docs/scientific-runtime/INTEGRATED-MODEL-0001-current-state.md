@@ -32,11 +32,11 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-39
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-41
 ```
 
-Standard-39 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
-exact artifact and binds one nonexecuting, Worker-local typed plan per Scenario
+Standard-41 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
+exact artifact and binds one Worker-local typed plan per Scenario
 during initialization. Surviving Scenario plans are retained across branch
 rebuilds, newly added branches receive fresh nonaliasing storage, and no solver
 scratch is shared between Scenarios. The production artifact contains the
@@ -44,16 +44,21 @@ generated descriptor and binder, not the compiler or `ModelDefinitionV1`. At
 sampled presentation and control boundaries, it copies the existing authority's
 100-slot hemodynamic view into the owning Scenario plan, checks finite/boolean
 storage, blood-volume conservation, and exact frame clocks, then discards no
-numerical history. The bound plans are shadow infrastructure only: Standard-32's typed accepted-state session remains the
-sole numerical and checkpoint authority, so equations, accepted results,
+numerical history. Standard-32's typed accepted-state session remains the sole
+accepted-state and checkpoint authority, so equations, accepted results,
 controls, topology, and checkpoint meaning are unchanged. Historical exact
-artifacts without the execution-plan capability retain their original loader
+artifacts without the execution-plan capabilities retain their original loader
 contract.
 
 Its generated solve policy now includes named contiguous Newton/LU workspace
 segments. The binder creates persistent views and gathers the 30 active
-unknowns by compiler-emitted state indices at shadow boundaries. No residual,
-Jacobian, candidate, or solve is executed through those views yet.
+unknowns by compiler-emitted state indices at accepted boundaries. The existing
+30-variable coupled solver now evaluates its residual and raw Jacobian, copies
+and factors that Jacobian, and stores its right-hand sides, update, trial,
+scales, and pivots through those Scenario-owned views. Component-specific
+analytic and finite-difference scratch remains internal to the existing
+scientific kernels. This is a workspace-ownership cutover rather than a change
+to equations, solver policy, convergence gates, or checkpoint semantics.
 
 Standard-32 changes the live execution authority, not the physiology. Ordinary
 presentation ticks now solve and promote directly through the fixed typed

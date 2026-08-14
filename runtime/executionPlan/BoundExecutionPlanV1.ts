@@ -8,6 +8,8 @@ import {
 
 export const EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY =
   "runtime/execution-plan-accepted-state-shadow-v1" as const;
+export const EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY =
+  "runtime/execution-plan-newton-workspace-v1" as const;
 export const BOUND_EXECUTION_PLAN_V1_SCHEMA_ID =
   "circleheart-bound-execution-plan-v1" as const;
 export const EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID =

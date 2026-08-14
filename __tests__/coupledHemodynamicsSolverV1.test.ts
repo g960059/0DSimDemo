@@ -5,6 +5,7 @@ import {
   coupledHemodynamicsUnknownIndexV1,
 } from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
 import {
+  bindFlatCoupledNewtonWorkspaceV1,
   createFlatCoupledNewtonWorkspaceV1,
   solveFlatCoupledSystemV1,
   type FlatCoupledNewtonOptionsV1,
@@ -91,6 +92,100 @@ describe("coupled hemodynamics solver V1 infrastructure", () => {
     for (let index = 0; index < DIMENSION; index += 1) {
       expect(result.solution[index]).toBeCloseTo(root[index]!, 9);
     }
+  });
+
+  it("solves directly through one compiler-style contiguous workspace", () => {
+    const dimension = 2;
+    const f64Count = 2 * dimension * dimension + 7 * dimension;
+    const storage = new Float64Array(f64Count);
+    let offset = 0;
+    const vector = () => {
+      const view = storage.subarray(offset, offset + dimension);
+      offset += dimension;
+      return view;
+    };
+    const matrix = () => {
+      const view = storage.subarray(
+        offset,
+        offset + dimension * dimension,
+      );
+      offset += dimension * dimension;
+      return view;
+    };
+    const current = vector();
+    const residual = vector();
+    const jacobian = matrix();
+    const factors = matrix();
+    const rightHandSide = vector();
+    const transformedRightHandSide = vector();
+    const update = vector();
+    const trial = vector();
+    const trialResidual = vector();
+    expect(offset).toBe(f64Count);
+    const workspace = bindFlatCoupledNewtonWorkspaceV1({
+      dimension,
+      current,
+      residual,
+      jacobian,
+      factors,
+      rightHandSide,
+      transformedRightHandSide,
+      update,
+      trial,
+      trialResidual,
+      pivots: new Int32Array(dimension),
+    });
+    const root = new Float64Array([1.25, 0.75]);
+    const result = solveFlatCoupledSystemV1(
+      manufacturedCoupledSystem(root),
+      new Float64Array([1.1, 0.9]),
+      defaultOptions(dimension),
+      workspace,
+    );
+
+    expect(result.status).toBe("converged");
+    if (result.status !== "converged") throw new Error(result.message);
+    expect(result.solution[0]).toBeCloseTo(root[0]!, 10);
+    expect(result.solution[1]).toBeCloseTo(root[1]!, 10);
+    expect(workspace.current.buffer).toBe(storage.buffer);
+    expect(workspace.jacobian.buffer).toBe(storage.buffer);
+    expect(workspace.linear.factors.buffer).toBe(storage.buffer);
+    expect(workspace.jacobian.some((value) => value !== 0)).toBe(true);
+    expect(workspace.linear.factors.some((value) => value !== 0)).toBe(true);
+  });
+
+  it("rejects overlapping or structurally forged Newton workspaces", () => {
+    const dimension = 1;
+    const shared = new Float64Array(9);
+    const views = {
+      dimension,
+      current: shared.subarray(0, 1),
+      residual: shared.subarray(1, 2),
+      jacobian: shared.subarray(2, 3),
+      factors: shared.subarray(3, 4),
+      rightHandSide: shared.subarray(4, 5),
+      transformedRightHandSide: shared.subarray(5, 6),
+      update: shared.subarray(6, 7),
+      trial: shared.subarray(7, 8),
+      trialResidual: shared.subarray(8, 9),
+      pivots: new Int32Array(1),
+    };
+    expect(() => bindFlatCoupledNewtonWorkspaceV1({
+      ...views,
+      residual: views.current,
+    })).toThrow(/must not overlap/);
+
+    const admitted = bindFlatCoupledNewtonWorkspaceV1(views);
+    const forged = Object.freeze({
+      ...admitted,
+      current: new Float64Array(1),
+    });
+    expect(() => solveFlatCoupledSystemV1(
+      manufacturedCoupledSystem(new Float64Array([1])),
+      new Float64Array([0.9]),
+      defaultOptions(1),
+      forged,
+    )).toThrow(/workspace is not admitted/);
   });
 
   it("fails closed on a singular Jacobian and preserves the caller seed", () => {

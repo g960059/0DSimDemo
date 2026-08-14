@@ -29951,6 +29951,7 @@ function assertStandardCheckpointEnvelopeV1(input) {
 }
 const EXECUTION_PLAN_DESCRIPTOR_V1_SCHEMA_ID = "circleheart-execution-plan-descriptor-v1";
 const EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY = "runtime/execution-plan-accepted-state-shadow-v1";
+const EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY = "runtime/execution-plan-newton-workspace-v1";
 const BOUND_EXECUTION_PLAN_V1_SCHEMA_ID = "circleheart-bound-execution-plan-v1";
 const EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID = "circleheart-execution-plan-accepted-state-synchronization-v1";
 const BOUND_EXECUTION_PLAN_METADATA_V1 = /* @__PURE__ */ new WeakMap();
@@ -30380,6 +30381,20 @@ function bindExecutionPlanV1(descriptorValue, catalogValue) {
     ))
   }));
   return bound;
+}
+function prepareBoundExecutionPlanSolveGroupV1(bound, solveGroupId) {
+  const metadata = BOUND_EXECUTION_PLAN_METADATA_V1.get(bound);
+  if (metadata === void 0) {
+    throw new Error("Execution plan solve preparation requires a bound plan");
+  }
+  const group = metadata.solveGroups.find((candidate) => candidate.solveGroupId === solveGroupId);
+  if (group === void 0) {
+    throw new Error(`Execution plan solve group ${solveGroupId} is unavailable`);
+  }
+  group.activeContinuousStorageIndices.forEach((storageIndex, index) => {
+    group.workspace.currentUnknowns[index] = bound.currentContinuousState[storageIndex];
+  });
+  return group.workspace;
 }
 function createBoundSolveGroupMetadataV1(descriptor, descriptorGroup, boundGroup) {
   const activeContinuousStorageIndices = Int32Array.from(
@@ -31100,6 +31115,1304 @@ function sameStringsV1(left, right) {
 }
 function failV1(path, message) {
   throw new Error(`Execution plan rejected ${path}: ${message}`);
+}
+function createFlatDenseLuWorkspaceV1(dimension) {
+  requireDimension(dimension);
+  return bindFlatDenseLuWorkspaceV1({
+    dimension,
+    factors: new Float64Array(dimension * dimension),
+    pivotRowByColumn: new Int32Array(dimension),
+    transformedRightHandSide: new Float64Array(dimension)
+  });
+}
+function bindFlatDenseLuWorkspaceV1(views) {
+  requireDimension(views.dimension);
+  requireFloat64Length(
+    views.factors,
+    views.dimension * views.dimension,
+    "LU factors"
+  );
+  requireInt32Length(
+    views.pivotRowByColumn,
+    views.dimension,
+    "LU pivot rows"
+  );
+  requireFloat64Length(
+    views.transformedRightHandSide,
+    views.dimension,
+    "LU transformed right-hand side"
+  );
+  requireDisjointViews([
+    views.factors,
+    views.pivotRowByColumn,
+    views.transformedRightHandSide
+  ]);
+  return Object.freeze({
+    dimension: views.dimension,
+    factors: views.factors,
+    pivotRowByColumn: views.pivotRowByColumn,
+    transformedRightHandSide: views.transformedRightHandSide
+  });
+}
+function factorFlatDenseMatrixV1(source, workspace, minimumAbsolutePivot = 1e-14) {
+  const { dimension, factors } = workspace;
+  requireMatrixLength(source, dimension, "source matrix");
+  requirePositiveFinite$5(minimumAbsolutePivot, "minimumAbsolutePivot");
+  factors.set(source);
+  return factorPreparedFlatDenseMatrixV1(workspace, minimumAbsolutePivot);
+}
+function factorPreparedFlatDenseMatrixV1(workspace, minimumAbsolutePivot = 1e-14) {
+  const { dimension, factors, pivotRowByColumn } = workspace;
+  requirePositiveFinite$5(minimumAbsolutePivot, "minimumAbsolutePivot");
+  for (let column = 0; column < dimension; column += 1) {
+    let pivotRow = column;
+    let pivotMagnitude = Math.abs(
+      factors[column * dimension + column]
+    );
+    for (let row = column + 1; row < dimension; row += 1) {
+      const magnitude = Math.abs(factors[row * dimension + column]);
+      if (magnitude > pivotMagnitude) {
+        pivotMagnitude = magnitude;
+        pivotRow = row;
+      }
+    }
+    if (!Number.isFinite(pivotMagnitude) || pivotMagnitude < minimumAbsolutePivot) {
+      return false;
+    }
+    pivotRowByColumn[column] = pivotRow;
+    if (pivotRow !== column) {
+      swapRows(factors, dimension, pivotRow, column);
+    }
+    const pivot = factors[column * dimension + column];
+    for (let row = column + 1; row < dimension; row += 1) {
+      const factorIndex = row * dimension + column;
+      const factor = factors[factorIndex] / pivot;
+      factors[factorIndex] = factor;
+      for (let trailing = column + 1; trailing < dimension; trailing += 1) {
+        const targetIndex = row * dimension + trailing;
+        factors[targetIndex] -= factor * factors[column * dimension + trailing];
+      }
+    }
+  }
+  return true;
+}
+function solvePreparedFactoredFlatDenseSystemV1(workspace, rightHandSide, solution) {
+  const {
+    dimension,
+    factors,
+    pivotRowByColumn,
+    transformedRightHandSide
+  } = workspace;
+  transformedRightHandSide.set(rightHandSide);
+  for (let column = 0; column < dimension; column += 1) {
+    const pivotRow = pivotRowByColumn[column];
+    if (pivotRow !== column) {
+      const temporary = transformedRightHandSide[column];
+      transformedRightHandSide[column] = transformedRightHandSide[pivotRow];
+      transformedRightHandSide[pivotRow] = temporary;
+    }
+    const pivotValue = transformedRightHandSide[column];
+    for (let row = column + 1; row < dimension; row += 1) {
+      transformedRightHandSide[row] -= factors[row * dimension + column] * pivotValue;
+    }
+  }
+  for (let row = dimension - 1; row >= 0; row -= 1) {
+    let value = transformedRightHandSide[row];
+    for (let column = row + 1; column < dimension; column += 1) {
+      value -= factors[row * dimension + column] * solution[column];
+    }
+    solution[row] = value / factors[row * dimension + row];
+    if (!Number.isFinite(solution[row])) {
+      throw new Error("flat dense LU produced a non-finite solution");
+    }
+  }
+}
+function swapRows(matrix, dimension, firstRow, secondRow) {
+  for (let column = 0; column < dimension; column += 1) {
+    const firstIndex = firstRow * dimension + column;
+    const secondIndex = secondRow * dimension + column;
+    const temporary = matrix[firstIndex];
+    matrix[firstIndex] = matrix[secondIndex];
+    matrix[secondIndex] = temporary;
+  }
+}
+function requireDimension(dimension) {
+  if (!Number.isInteger(dimension) || dimension <= 0) {
+    throw new RangeError("flat dense dimension must be a positive integer");
+  }
+}
+function requireFloat64Length(value, expected, label) {
+  if (!(value instanceof Float64Array) || value.length !== expected) {
+    throw new RangeError(`${label} must contain ${expected} f64 values`);
+  }
+}
+function requireInt32Length(value, expected, label) {
+  if (!(value instanceof Int32Array) || value.length !== expected) {
+    throw new RangeError(`${label} must contain ${expected} int32 values`);
+  }
+}
+function requireDisjointViews(views) {
+  for (let left = 0; left < views.length; left += 1) {
+    const first = views[left];
+    for (let right = left + 1; right < views.length; right += 1) {
+      const second = views[right];
+      if (first.buffer === second.buffer && first.byteOffset < second.byteOffset + second.byteLength && second.byteOffset < first.byteOffset + first.byteLength) {
+        throw new RangeError("flat dense LU workspace views must not overlap");
+      }
+    }
+  }
+}
+function requireMatrixLength(value, dimension, label) {
+  if (!(value instanceof Float64Array) || value.length !== dimension * dimension) {
+    throw new RangeError(`${label} must be a ${dimension}x${dimension} f64 matrix`);
+  }
+  if (value.some((entry) => !Number.isFinite(entry))) {
+    throw new RangeError(`${label} must contain only finite values`);
+  }
+}
+function requirePositiveFinite$5(value, label) {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(`${label} must be positive and finite`);
+  }
+}
+const ADMITTED_FLAT_COUPLED_NEWTON_WORKSPACES_V1 = /* @__PURE__ */ new WeakSet();
+function createFlatCoupledNewtonWorkspaceV1(dimension) {
+  if (!Number.isInteger(dimension) || dimension <= 0) {
+    throw new RangeError("coupled Newton dimension must be a positive integer");
+  }
+  const linear = createFlatDenseLuWorkspaceV1(dimension);
+  return bindFlatCoupledNewtonWorkspaceV1({
+    dimension,
+    current: new Float64Array(dimension),
+    residual: new Float64Array(dimension),
+    jacobian: new Float64Array(dimension * dimension),
+    factors: linear.factors,
+    rightHandSide: new Float64Array(dimension),
+    transformedRightHandSide: linear.transformedRightHandSide,
+    update: new Float64Array(dimension),
+    trial: new Float64Array(dimension),
+    trialResidual: new Float64Array(dimension),
+    pivots: linear.pivotRowByColumn
+  });
+}
+function bindFlatCoupledNewtonWorkspaceV1(views) {
+  const dimension = views.dimension;
+  if (!Number.isInteger(dimension) || dimension <= 0) {
+    throw new RangeError("coupled Newton dimension must be a positive integer");
+  }
+  const vectors = [
+    [views.current, "current"],
+    [views.residual, "residual"],
+    [views.rightHandSide, "right-hand side"],
+    [views.transformedRightHandSide, "transformed right-hand side"],
+    [views.update, "update"],
+    [views.trial, "trial"],
+    [views.trialResidual, "trial residual"]
+  ];
+  for (const [view, label] of vectors) {
+    requireLength(view, dimension, `coupled Newton ${label}`);
+  }
+  requireLength(
+    views.jacobian,
+    dimension * dimension,
+    "coupled Newton Jacobian"
+  );
+  requireLength(
+    views.factors,
+    dimension * dimension,
+    "coupled Newton factors"
+  );
+  if (!(views.pivots instanceof Int32Array) || views.pivots.length !== dimension) {
+    throw new RangeError(
+      `coupled Newton pivots must contain ${dimension} int32 values`
+    );
+  }
+  requireDisjointWorkspaceViewsV1([
+    views.current,
+    views.residual,
+    views.jacobian,
+    views.factors,
+    views.rightHandSide,
+    views.transformedRightHandSide,
+    views.update,
+    views.trial,
+    views.trialResidual,
+    views.pivots
+  ]);
+  const workspace = Object.freeze({
+    dimension,
+    current: views.current,
+    residual: views.residual,
+    jacobian: views.jacobian,
+    rightHandSide: views.rightHandSide,
+    update: views.update,
+    trial: views.trial,
+    trialResidual: views.trialResidual,
+    linear: bindFlatDenseLuWorkspaceV1({
+      dimension,
+      factors: views.factors,
+      pivotRowByColumn: views.pivots,
+      transformedRightHandSide: views.transformedRightHandSide
+    })
+  });
+  ADMITTED_FLAT_COUPLED_NEWTON_WORKSPACES_V1.add(workspace);
+  return workspace;
+}
+function assertFlatCoupledNewtonWorkspaceV1(workspace, dimension) {
+  if (!ADMITTED_FLAT_COUPLED_NEWTON_WORKSPACES_V1.has(workspace) || workspace.dimension !== dimension) {
+    throw new RangeError("coupled Newton workspace is not admitted");
+  }
+}
+function solveFlatCoupledSystemV1(system, initialUnknowns, options, workspace = createFlatCoupledNewtonWorkspaceV1(system.dimension)) {
+  validateInputs(system, initialUnknowns, options, workspace);
+  const {
+    current,
+    residual,
+    jacobian,
+    rightHandSide,
+    update,
+    trial,
+    trialResidual,
+    linear
+  } = workspace;
+  current.set(initialUnknowns);
+  let residualEvaluationCount = 0;
+  let jacobianEvaluationCount = 0;
+  let lineSearchBacktrackCount = 0;
+  const maximumAcceptedStepsPerJacobian = options.maximumAcceptedStepsPerJacobian ?? 1;
+  let acceptedStepsSinceJacobian = maximumAcceptedStepsPerJacobian;
+  try {
+    system.evaluateResidual(current, residual);
+    residualEvaluationCount += 1;
+    requireFiniteVector$1(residual, "initial coupled residual");
+  } catch (error) {
+    return failure(
+      "initial-residual-evaluation",
+      errorMessage$3(error),
+      current,
+      0,
+      Number.POSITIVE_INFINITY,
+      residualEvaluationCount,
+      jacobianEvaluationCount,
+      lineSearchBacktrackCount
+    );
+  }
+  for (let iteration = 0; iteration <= options.maximumIterations; iteration += 1) {
+    const residualInfinityNorm = infinityNorm(residual);
+    let residualConverged;
+    const residualMerit = residualInfinityNorm;
+    try {
+      residualConverged = system.isResidualConverged === void 0 ? residualInfinityNorm <= options.residualInfinityTolerance : system.isResidualConverged(current, residual);
+      if (typeof residualConverged !== "boolean") {
+        throw new TypeError("coupled convergence gate must return a boolean");
+      }
+    } catch (error) {
+      return failure(
+        "convergence-evaluation",
+        errorMessage$3(error),
+        current,
+        iteration,
+        residualInfinityNorm,
+        residualEvaluationCount,
+        jacobianEvaluationCount,
+        lineSearchBacktrackCount
+      );
+    }
+    if (residualConverged) {
+      return success(
+        current,
+        iteration,
+        residualInfinityNorm,
+        residualEvaluationCount,
+        jacobianEvaluationCount,
+        lineSearchBacktrackCount
+      );
+    }
+    if (iteration === options.maximumIterations) {
+      return failure(
+        "maximum-iterations",
+        "flat coupled Newton reached its iteration limit",
+        current,
+        iteration,
+        residualInfinityNorm,
+        residualEvaluationCount,
+        jacobianEvaluationCount,
+        lineSearchBacktrackCount
+      );
+    }
+    if (acceptedStepsSinceJacobian >= maximumAcceptedStepsPerJacobian) {
+      try {
+        system.evaluateJacobian(current, jacobian);
+        jacobianEvaluationCount += 1;
+        equilibrateJacobianInPlace(jacobian, options);
+      } catch (error) {
+        return failure(
+          "jacobian-evaluation",
+          errorMessage$3(error),
+          current,
+          iteration,
+          residualInfinityNorm,
+          residualEvaluationCount,
+          jacobianEvaluationCount,
+          lineSearchBacktrackCount
+        );
+      }
+      if (!factorFlatDenseMatrixV1(
+        jacobian,
+        linear,
+        options.minimumAbsolutePivot
+      )) {
+        return failure(
+          "singular-jacobian",
+          "flat coupled Newton Jacobian is singular or ill-conditioned",
+          current,
+          iteration,
+          residualInfinityNorm,
+          residualEvaluationCount,
+          jacobianEvaluationCount,
+          lineSearchBacktrackCount
+        );
+      }
+      acceptedStepsSinceJacobian = 0;
+    }
+    for (let index = 0; index < system.dimension; index += 1) {
+      rightHandSide[index] = -residual[index] / options.residualScaleByEquation[index];
+    }
+    solvePreparedFactoredFlatDenseSystemV1(
+      linear,
+      rightHandSide,
+      update
+    );
+    for (let index = 0; index < system.dimension; index += 1) {
+      update[index] *= options.unknownScaleByUnknown[index];
+    }
+    const updateInfinityNorm = infinityNorm(update);
+    if (updateInfinityNorm <= options.updateInfinityTolerance) {
+      return failure(
+        "stagnated",
+        "flat coupled Newton update stagnated above residual tolerance",
+        current,
+        iteration,
+        residualInfinityNorm,
+        residualEvaluationCount,
+        jacobianEvaluationCount,
+        lineSearchBacktrackCount
+      );
+    }
+    let stepLength = admissibleStepLength(
+      system,
+      current,
+      update,
+      options
+    );
+    let accepted = false;
+    let lastError = "no residual-decreasing admissible candidate";
+    let minimumTrialMerit = Number.POSITIVE_INFINITY;
+    for (let backtrack = 0; backtrack <= options.maximumLineSearchBacktracks; backtrack += 1) {
+      for (let index = 0; index < system.dimension; index += 1) {
+        trial[index] = current[index] + stepLength * update[index];
+      }
+      try {
+        requireWithinBounds(trial, options);
+        system.assertCandidateAdmissible?.(trial);
+        system.evaluateResidual(trial, trialResidual);
+        residualEvaluationCount += 1;
+        requireFiniteVector$1(trialResidual, "line-search coupled residual");
+        const trialMerit = infinityNorm(trialResidual);
+        let componentConverged = false;
+        if (system.isResidualConverged !== void 0) {
+          componentConverged = system.isResidualConverged(
+            trial,
+            trialResidual
+          );
+        }
+        minimumTrialMerit = Math.min(minimumTrialMerit, trialMerit);
+        if (typeof componentConverged !== "boolean") {
+          throw new TypeError("coupled convergence gate must return a boolean");
+        }
+        if (componentConverged || trialMerit <= (1 - options.armijoCoefficient * stepLength) * residualMerit) {
+          current.set(trial);
+          residual.set(trialResidual);
+          accepted = true;
+          acceptedStepsSinceJacobian += 1;
+          break;
+        }
+        lastError = "candidate did not satisfy the Armijo residual decrease";
+      } catch (error) {
+        lastError = errorMessage$3(error);
+      }
+      stepLength *= 0.5;
+      lineSearchBacktrackCount += 1;
+    }
+    if (!accepted) {
+      return failure(
+        "line-search",
+        `flat coupled Newton line search failed: ${lastError}; current merit ${residualMerit}; minimum trial merit ${minimumTrialMerit}`,
+        current,
+        iteration,
+        residualInfinityNorm,
+        residualEvaluationCount,
+        jacobianEvaluationCount,
+        lineSearchBacktrackCount
+      );
+    }
+  }
+  throw new Error("unreachable flat coupled Newton state");
+}
+function validateInputs(system, initialUnknowns, options, workspace) {
+  if (!Number.isInteger(system.dimension) || system.dimension <= 0) {
+    throw new RangeError("coupled system dimension must be a positive integer");
+  }
+  if (workspace.dimension !== system.dimension) {
+    throw new RangeError("coupled Newton workspace dimension differs");
+  }
+  assertFlatCoupledNewtonWorkspaceV1(workspace, system.dimension);
+  requireLength(initialUnknowns, system.dimension, "initial unknowns");
+  requireFiniteVector$1(initialUnknowns, "initial unknowns");
+  requireLength(
+    options.unknownScaleByUnknown,
+    system.dimension,
+    "unknown scales"
+  );
+  requireLength(
+    options.residualScaleByEquation,
+    system.dimension,
+    "residual scales"
+  );
+  requireLength(
+    options.lowerBoundByUnknown,
+    system.dimension,
+    "lower bounds"
+  );
+  requireLength(
+    options.upperBoundByUnknown,
+    system.dimension,
+    "upper bounds"
+  );
+  if (!Number.isInteger(options.maximumIterations) || options.maximumIterations <= 0 || !Number.isInteger(options.maximumLineSearchBacktracks) || options.maximumLineSearchBacktracks < 0) {
+    throw new RangeError("coupled Newton iteration limits are invalid");
+  }
+  if (options.maximumAcceptedStepsPerJacobian !== void 0 && (!Number.isInteger(options.maximumAcceptedStepsPerJacobian) || options.maximumAcceptedStepsPerJacobian <= 0)) {
+    throw new RangeError(
+      "maximumAcceptedStepsPerJacobian must be a positive integer"
+    );
+  }
+  requirePositiveFinite$4(
+    options.residualInfinityTolerance,
+    "residualInfinityTolerance"
+  );
+  requirePositiveFinite$4(
+    options.updateInfinityTolerance,
+    "updateInfinityTolerance"
+  );
+  requirePositiveFinite$4(options.minimumAbsolutePivot, "minimumAbsolutePivot");
+  if (!Number.isFinite(options.armijoCoefficient) || options.armijoCoefficient <= 0 || options.armijoCoefficient >= 1) {
+    throw new RangeError("armijoCoefficient must be finite within (0, 1)");
+  }
+  for (let index = 0; index < system.dimension; index += 1) {
+    requirePositiveFinite$4(
+      options.unknownScaleByUnknown[index],
+      `unknownScaleByUnknown[${index}]`
+    );
+    requirePositiveFinite$4(
+      options.residualScaleByEquation[index],
+      `residualScaleByEquation[${index}]`
+    );
+    const lower = options.lowerBoundByUnknown[index];
+    const upper = options.upperBoundByUnknown[index];
+    if (Number.isNaN(lower) || Number.isNaN(upper) || !(upper > lower)) {
+      throw new RangeError(`coupled Newton bounds[${index}] are invalid`);
+    }
+  }
+  requireWithinBounds(initialUnknowns, options);
+  system.assertCandidateAdmissible?.(initialUnknowns);
+}
+function equilibrateJacobianInPlace(jacobian, options) {
+  const dimension = options.unknownScaleByUnknown.length;
+  for (let row = 0; row < dimension; row += 1) {
+    const inverseResidualScale = 1 / options.residualScaleByEquation[row];
+    for (let column = 0; column < dimension; column += 1) {
+      const index = row * dimension + column;
+      const equilibrated = jacobian[index] * options.unknownScaleByUnknown[column] * inverseResidualScale;
+      if (!Number.isFinite(equilibrated)) {
+        throw new RangeError(
+          "equilibrated coupled Jacobian must contain only finite values"
+        );
+      }
+      jacobian[index] = equilibrated;
+    }
+  }
+}
+function admissibleStepLength(system, current, update, options) {
+  let stepLength = 1;
+  for (let index = 0; index < current.length; index += 1) {
+    const delta = update[index];
+    if (delta < 0 && Number.isFinite(options.lowerBoundByUnknown[index])) {
+      stepLength = Math.min(
+        stepLength,
+        0.99 * (current[index] - options.lowerBoundByUnknown[index]) / -delta
+      );
+    } else if (delta > 0 && Number.isFinite(options.upperBoundByUnknown[index])) {
+      stepLength = Math.min(
+        stepLength,
+        0.99 * (options.upperBoundByUnknown[index] - current[index]) / delta
+      );
+    }
+  }
+  const coupledLimit = system.maximumAdmissibleStepLength?.(current, update);
+  if (coupledLimit !== void 0) {
+    if (!Number.isFinite(coupledLimit) || coupledLimit <= 0) {
+      throw new RangeError(
+        "coupled Newton system returned no positive admissible step"
+      );
+    }
+    if (coupledLimit < 1) {
+      stepLength = Math.min(stepLength, 0.99 * coupledLimit);
+    }
+  }
+  if (!Number.isFinite(stepLength) || stepLength <= 0) {
+    throw new RangeError("coupled Newton has no positive admissible step");
+  }
+  return stepLength;
+}
+function requireWithinBounds(values2, options) {
+  for (let index = 0; index < values2.length; index += 1) {
+    if (!(values2[index] > options.lowerBoundByUnknown[index]) || !(values2[index] < options.upperBoundByUnknown[index])) {
+      throw new RangeError(`coupled unknown[${index}] left its open bounds`);
+    }
+  }
+}
+function requireLength(value, expected, label) {
+  if (!(value instanceof Float64Array) || value.length !== expected) {
+    throw new RangeError(`${label} must contain ${expected} f64 values`);
+  }
+}
+function requireDisjointWorkspaceViewsV1(views) {
+  for (let left = 0; left < views.length; left += 1) {
+    const first = views[left];
+    for (let right = left + 1; right < views.length; right += 1) {
+      const second = views[right];
+      if (first.buffer === second.buffer && first.byteOffset < second.byteOffset + second.byteLength && second.byteOffset < first.byteOffset + first.byteLength) {
+        throw new RangeError("coupled Newton workspace views must not overlap");
+      }
+    }
+  }
+}
+function requireFiniteVector$1(value, label) {
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Number.isFinite(value[index])) {
+      throw new RangeError(`${label} must contain only finite values`);
+    }
+  }
+}
+function requirePositiveFinite$4(value, label) {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(`${label} must be positive and finite`);
+  }
+}
+function infinityNorm(values2) {
+  let maximum = 0;
+  for (let index = 0; index < values2.length; index += 1) {
+    maximum = Math.max(maximum, Math.abs(values2[index]));
+  }
+  return maximum;
+}
+function success(current, iterations, residualInfinityNorm, residualEvaluationCount, jacobianEvaluationCount, lineSearchBacktrackCount) {
+  return Object.freeze({
+    status: "converged",
+    solution: current.slice(),
+    iterations,
+    residualInfinityNorm,
+    residualEvaluationCount,
+    jacobianEvaluationCount,
+    lineSearchBacktrackCount
+  });
+}
+function failure(reason, message, current, iterations, residualInfinityNorm, residualEvaluationCount, jacobianEvaluationCount, lineSearchBacktrackCount) {
+  return Object.freeze({
+    status: "failed",
+    reason,
+    message,
+    lastCandidate: current.slice(),
+    iterations,
+    residualInfinityNorm,
+    residualEvaluationCount,
+    jacobianEvaluationCount,
+    lineSearchBacktrackCount
+  });
+}
+function errorMessage$3(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+const MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID = "main-wire-five-wall-coupled-accepted-history-predictor-v1";
+const MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID = "circleheart-main-wire-five-wall-coupled-predictor-checkpoint-v2";
+const STORAGE = /* @__PURE__ */ new WeakMap();
+function createMainWireFiveWallCoupledPredictorWorkspaceV1() {
+  const workspace = Object.freeze({
+    schemaId: "circleheart-main-wire-five-wall-coupled-predictor-workspace-v1",
+    dimension: 30
+  });
+  STORAGE.set(workspace, {
+    oldestAcceptedMl: new Float64Array(30),
+    olderAcceptedMl: new Float64Array(30),
+    previousAcceptedMl: new Float64Array(30),
+    currentAcceptedMl: new Float64Array(30),
+    predictedMl: new Float64Array(30),
+    hasAcceptedPair: false,
+    historyDepth: 0,
+    expectedBaseRevision: null,
+    expectedBaseAcceptedTimeSec: null,
+    preparedBaseRevision: null,
+    preparedBaseAcceptedTimeSec: null,
+    predictionCount: 0,
+    contextFallbackCount: 0,
+    dampedPredictionCount: 0,
+    resetCount: 0
+  });
+  return workspace;
+}
+function prepareMainWireFiveWallCoupledPredictionV1(context, workspace, order = "linear") {
+  context.assertWorkspaceCurrent();
+  if (order !== "linear" && order !== "quadratic" && order !== "cubic") {
+    throw new RangeError("coupled predictor order is unsupported");
+  }
+  const storage = requireStorage(workspace);
+  storage.preparedBaseRevision = context.baseRevision;
+  storage.preparedBaseAcceptedTimeSec = context.baseAcceptedTimeSec;
+  if (!matchesSequentialAcceptedState(context, storage)) {
+    if (storage.hasAcceptedPair) resetHistory(storage);
+    storage.contextFallbackCount += 1;
+    return contextPrediction(context);
+  }
+  const cubic = order === "cubic" && storage.historyDepth === 4;
+  const quadratic = order === "quadratic" && storage.historyDepth >= 3;
+  let scale = 1;
+  while (scale >= 1 / 256) {
+    for (let index = 0; index < workspace.dimension; index += 1) {
+      const current = context.initialUnknownsMl[index];
+      const displacement = cubic ? 3 * current - 6 * storage.previousAcceptedMl[index] + 4 * storage.olderAcceptedMl[index] - storage.oldestAcceptedMl[index] : quadratic ? 2 * current - 3 * storage.previousAcceptedMl[index] + storage.olderAcceptedMl[index] : current - storage.previousAcceptedMl[index];
+      storage.predictedMl[index] = current + scale * displacement;
+    }
+    if (isAdmissiblePrediction(context, storage.predictedMl)) {
+      storage.predictionCount += 1;
+      if (scale < 1) storage.dampedPredictionCount += 1;
+      return Object.freeze({
+        predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
+        mode: cubic ? "cubic-extrapolation" : quadratic ? "quadratic-extrapolation" : "linear-extrapolation",
+        extrapolationScale: scale,
+        initialGuessMl: storage.predictedMl
+      });
+    }
+    scale *= 0.5;
+  }
+  storage.contextFallbackCount += 1;
+  return contextPrediction(context);
+}
+function recordAcceptedMainWireFiveWallCoupledSolutionV1(context, acceptedSolutionMl, workspace) {
+  context.assertWorkspaceCurrent();
+  const storage = requireStorage(workspace);
+  if (storage.preparedBaseRevision !== context.baseRevision || !sameNumber(
+    storage.preparedBaseAcceptedTimeSec,
+    context.baseAcceptedTimeSec
+  )) {
+    throw new Error(
+      "coupled predictor can record only its most recently prepared context"
+    );
+  }
+  requireFiniteVector(acceptedSolutionMl, workspace.dimension, "accepted root");
+  if (!isAdmissiblePrediction(context, acceptedSolutionMl)) {
+    throw new RangeError("accepted root is outside the coupled predictor domain");
+  }
+  if (storage.hasAcceptedPair) {
+    if (storage.historyDepth >= 3) {
+      storage.oldestAcceptedMl.set(storage.olderAcceptedMl);
+    }
+    storage.olderAcceptedMl.set(storage.previousAcceptedMl);
+  }
+  storage.previousAcceptedMl.set(context.initialUnknownsMl);
+  storage.currentAcceptedMl.set(acceptedSolutionMl);
+  storage.hasAcceptedPair = true;
+  storage.historyDepth = storage.historyDepth === 0 ? 2 : storage.historyDepth === 2 ? 3 : 4;
+  storage.expectedBaseRevision = context.baseRevision + 1;
+  storage.expectedBaseAcceptedTimeSec = context.baseAcceptedTimeSec + context.stepDtSec;
+}
+function resetMainWireFiveWallCoupledPredictorV1(workspace) {
+  const storage = requireStorage(workspace);
+  resetHistory(storage);
+}
+function reportMainWireFiveWallCoupledPredictorV1(workspace) {
+  const storage = requireStorage(workspace);
+  return Object.freeze({
+    predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
+    hasAcceptedPair: storage.hasAcceptedPair,
+    historyDepth: storage.historyDepth,
+    expectedBaseRevision: storage.expectedBaseRevision,
+    expectedBaseAcceptedTimeSec: storage.expectedBaseAcceptedTimeSec,
+    predictionCount: storage.predictionCount,
+    contextFallbackCount: storage.contextFallbackCount,
+    dampedPredictionCount: storage.dampedPredictionCount,
+    resetCount: storage.resetCount
+  });
+}
+function checkpointMainWireFiveWallCoupledPredictorV1(workspace) {
+  const storage = requireStorage(workspace);
+  return Object.freeze({
+    checkpointId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID,
+    schemaVersion: 2,
+    historyDepth: storage.historyDepth,
+    expectedBaseRevision: storage.expectedBaseRevision,
+    expectedBaseAcceptedTimeSec: storage.expectedBaseAcceptedTimeSec,
+    oldestAcceptedMl: Object.freeze(Array.from(storage.oldestAcceptedMl)),
+    olderAcceptedMl: Object.freeze(Array.from(storage.olderAcceptedMl)),
+    previousAcceptedMl: Object.freeze(Array.from(storage.previousAcceptedMl)),
+    currentAcceptedMl: Object.freeze(Array.from(storage.currentAcceptedMl))
+  });
+}
+function restoreMainWireFiveWallCoupledPredictorV1(input, accepted, workspace) {
+  const checkpoint = validatePredictorCheckpoint(input);
+  const storage = requireStorage(workspace);
+  resetStorage(storage);
+  if (checkpoint.historyDepth === 0) return;
+  if (checkpoint.expectedBaseRevision !== accepted.revision || !sameNumber(
+    checkpoint.expectedBaseAcceptedTimeSec,
+    accepted.acceptedTimeSec
+  )) {
+    throw new Error("coupled predictor checkpoint clock differs from accepted state");
+  }
+  requireFiniteVector(accepted.unknownsMl, 30, "restored accepted root");
+  for (let index = 0; index < 30; index += 1) {
+    if (!sameCoupledRootValue(
+      checkpoint.currentAcceptedMl[index],
+      accepted.unknownsMl[index]
+    )) {
+      throw new Error(
+        `coupled predictor checkpoint root differs from accepted state at index ${index}`
+      );
+    }
+  }
+  storage.oldestAcceptedMl.set(checkpoint.oldestAcceptedMl);
+  storage.olderAcceptedMl.set(checkpoint.olderAcceptedMl);
+  storage.previousAcceptedMl.set(checkpoint.previousAcceptedMl);
+  storage.currentAcceptedMl.set(checkpoint.currentAcceptedMl);
+  storage.hasAcceptedPair = true;
+  storage.historyDepth = checkpoint.historyDepth;
+  storage.expectedBaseRevision = checkpoint.expectedBaseRevision;
+  storage.expectedBaseAcceptedTimeSec = checkpoint.expectedBaseAcceptedTimeSec;
+}
+function matchesSequentialAcceptedState(context, storage) {
+  if (!storage.hasAcceptedPair || storage.expectedBaseRevision !== context.baseRevision || !sameNumber(
+    storage.expectedBaseAcceptedTimeSec,
+    context.baseAcceptedTimeSec
+  )) return false;
+  for (let index = 0; index < context.dimension; index += 1) {
+    const expected = storage.currentAcceptedMl[index];
+    const actual = context.initialUnknownsMl[index];
+    if (!sameCoupledRootValue(expected, actual)) return false;
+  }
+  return true;
+}
+function isAdmissiblePrediction(context, values2) {
+  if (values2.length !== context.dimension) return false;
+  let sum = 0;
+  for (let index = 0; index < values2.length; index += 1) {
+    const value = values2[index];
+    if (!Number.isFinite(value) || !(value > context.lowerBoundsMl[index]) || !(value < context.upperBoundsMl[index])) return false;
+    sum += value;
+  }
+  return context.fixedGlobalTotalBloodVolumeMl - sum > context.minimumDependentSvVolumeMl;
+}
+function contextPrediction(context) {
+  return Object.freeze({
+    predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
+    mode: "context",
+    extrapolationScale: 0,
+    initialGuessMl: context.initialUnknownsMl
+  });
+}
+function resetHistory(storage) {
+  storage.oldestAcceptedMl.fill(0);
+  storage.olderAcceptedMl.fill(0);
+  storage.previousAcceptedMl.fill(0);
+  storage.currentAcceptedMl.fill(0);
+  storage.hasAcceptedPair = false;
+  storage.historyDepth = 0;
+  storage.expectedBaseRevision = null;
+  storage.expectedBaseAcceptedTimeSec = null;
+  storage.resetCount += 1;
+}
+function resetStorage(storage) {
+  storage.oldestAcceptedMl.fill(0);
+  storage.olderAcceptedMl.fill(0);
+  storage.previousAcceptedMl.fill(0);
+  storage.currentAcceptedMl.fill(0);
+  storage.predictedMl.fill(0);
+  storage.hasAcceptedPair = false;
+  storage.historyDepth = 0;
+  storage.expectedBaseRevision = null;
+  storage.expectedBaseAcceptedTimeSec = null;
+  storage.preparedBaseRevision = null;
+  storage.preparedBaseAcceptedTimeSec = null;
+  storage.predictionCount = 0;
+  storage.contextFallbackCount = 0;
+  storage.dampedPredictionCount = 0;
+  storage.resetCount = 0;
+}
+function validatePredictorCheckpoint(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("coupled predictor checkpoint must be a plain object");
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error("coupled predictor checkpoint must be a plain object");
+  }
+  const expectedKeys = [
+    "checkpointId",
+    "schemaVersion",
+    "historyDepth",
+    "expectedBaseRevision",
+    "expectedBaseAcceptedTimeSec",
+    "oldestAcceptedMl",
+    "olderAcceptedMl",
+    "previousAcceptedMl",
+    "currentAcceptedMl"
+  ].sort();
+  const keys = Reflect.ownKeys(input);
+  if (keys.some((key) => typeof key !== "string") || keys.length !== expectedKeys.length || keys.sort().some((key, index) => key !== expectedKeys[index])) {
+    throw new Error("coupled predictor checkpoint has unexpected fields");
+  }
+  const checkpointId = ownDataValue(input, "checkpointId");
+  const schemaVersion = ownDataValue(input, "schemaVersion");
+  const historyDepth = ownDataValue(input, "historyDepth");
+  if (checkpointId !== MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID || schemaVersion !== 2 || historyDepth !== 0 && historyDepth !== 2 && historyDepth !== 3 && historyDepth !== 4) {
+    throw new Error("unsupported coupled predictor checkpoint schema");
+  }
+  const vectors = [
+    validateCheckpointVector(ownDataValue(input, "oldestAcceptedMl")),
+    validateCheckpointVector(ownDataValue(input, "olderAcceptedMl")),
+    validateCheckpointVector(ownDataValue(input, "previousAcceptedMl")),
+    validateCheckpointVector(ownDataValue(input, "currentAcceptedMl"))
+  ];
+  const expectedBaseRevision = ownDataValue(input, "expectedBaseRevision");
+  const expectedBaseAcceptedTimeSec = ownDataValue(
+    input,
+    "expectedBaseAcceptedTimeSec"
+  );
+  if (historyDepth === 0) {
+    if (expectedBaseRevision !== null || expectedBaseAcceptedTimeSec !== null || vectors.some((vector) => vector.some((value) => value !== 0))) {
+      throw new Error("empty coupled predictor checkpoint is not canonical");
+    }
+  } else if (!Number.isSafeInteger(expectedBaseRevision) || expectedBaseRevision < 0 || typeof expectedBaseAcceptedTimeSec !== "number" || !Number.isFinite(expectedBaseAcceptedTimeSec) || expectedBaseAcceptedTimeSec < 0) {
+    throw new Error("coupled predictor checkpoint clock is invalid");
+  }
+  if (historyDepth === 2 && (vectors[0].some((value) => value !== 0) || vectors[1].some((value) => value !== 0))) {
+    throw new Error("two-root coupled predictor checkpoint is not canonical");
+  }
+  if (historyDepth === 3 && vectors[0].some((value) => value !== 0)) {
+    throw new Error("three-root coupled predictor checkpoint is not canonical");
+  }
+  return Object.freeze({
+    checkpointId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID,
+    schemaVersion: 2,
+    historyDepth,
+    expectedBaseRevision,
+    expectedBaseAcceptedTimeSec,
+    oldestAcceptedMl: vectors[0],
+    olderAcceptedMl: vectors[1],
+    previousAcceptedMl: vectors[2],
+    currentAcceptedMl: vectors[3]
+  });
+}
+function ownDataValue(record, key) {
+  const descriptor = Object.getOwnPropertyDescriptor(record, key);
+  if (descriptor === void 0 || !("value" in descriptor)) {
+    throw new Error(`coupled predictor checkpoint ${key} must be a data field`);
+  }
+  return descriptor.value;
+}
+function validateCheckpointVector(input) {
+  if (!Array.isArray(input) || Object.getPrototypeOf(input) !== Array.prototype) {
+    throw new Error("coupled predictor checkpoint vector is invalid");
+  }
+  const keys = Reflect.ownKeys(input);
+  if (input.length !== 30 || keys.length !== 31 || keys.some((key) => typeof key === "symbol")) {
+    throw new Error("coupled predictor checkpoint vector is invalid");
+  }
+  const values2 = new Array(30);
+  for (let index = 0; index < 30; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(input, String(index));
+    if (descriptor === void 0 || !("value" in descriptor) || typeof descriptor.value !== "number" || !Number.isFinite(descriptor.value)) {
+      throw new Error("coupled predictor checkpoint vector is invalid");
+    }
+    values2[index] = descriptor.value;
+  }
+  const lengthDescriptor = Object.getOwnPropertyDescriptor(input, "length");
+  if (lengthDescriptor === void 0 || !("value" in lengthDescriptor) || lengthDescriptor.value !== 30) {
+    throw new Error("coupled predictor checkpoint vector is invalid");
+  }
+  return Object.freeze(values2);
+}
+function requireStorage(workspace) {
+  const storage = STORAGE.get(workspace);
+  if (storage === void 0 || workspace.dimension !== 30) {
+    throw new Error("coupled predictor workspace is incompatible");
+  }
+  return storage;
+}
+function requireFiniteVector(values2, expectedLength, label) {
+  if (!(values2 instanceof Float64Array) || values2.length !== expectedLength) {
+    throw new RangeError(`${label} must contain ${expectedLength} f64 values`);
+  }
+  for (const value of values2) {
+    if (!Number.isFinite(value)) {
+      throw new RangeError(`${label} must contain only finite values`);
+    }
+  }
+}
+function sameNumber(left, right) {
+  return left !== null && Object.is(left, right);
+}
+function sameCoupledRootValue(left, right) {
+  const tolerance = 1e-12 * Math.max(1, Math.abs(left), Math.abs(right));
+  return Math.abs(left - right) <= tolerance;
+}
+const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID = "main-wire-five-wall-coupled-newton-shadow-v1";
+const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
+function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(backing) {
+  const nonCoronaryDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+  const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  const boundaryDimension = CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+  const dimension = nonCoronaryDimension + coronaryDimension;
+  const newton = backing?.newton ?? createFlatCoupledNewtonWorkspaceV1(dimension);
+  const unknownScales = backing?.unknownScales ?? new Float64Array(dimension);
+  const residualScales = backing?.residualScales ?? new Float64Array(dimension);
+  assertFlatCoupledNewtonWorkspaceV1(newton, dimension);
+  assertExternalScaleStorageV1(
+    newton,
+    unknownScales,
+    residualScales,
+    dimension
+  );
+  const workspace = Object.freeze({
+    schemaId: "circleheart-main-wire-five-wall-coupled-newton-shadow-workspace-v1",
+    dimension
+  });
+  MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.set(
+    workspace,
+    {
+      plus: new Float64Array(dimension),
+      minus: new Float64Array(dimension),
+      plusResidual: new Float64Array(dimension),
+      minusResidual: new Float64Array(dimension),
+      localDependentSvColumn: new Float64Array(nonCoronaryDimension),
+      coronaryBoundaryLinearization: new Float64Array(
+        boundaryDimension * nonCoronaryDimension
+      ),
+      localNonCoronaryLinearization: new Float64Array(
+        nonCoronaryDimension * nonCoronaryDimension
+      ),
+      coronaryLinearization: {
+        residualMl: new Float64Array(coronaryDimension),
+        dResidualDVolume: new Float64Array(coronaryDimension * coronaryDimension),
+        dResidualDBoundary: new Float64Array(coronaryDimension * boundaryDimension),
+        dTotalInletFlowDVolume: new Float64Array(coronaryDimension),
+        dCommonVenousOutletFlowDVolume: new Float64Array(coronaryDimension),
+        dTotalInletFlowDBoundary: new Float64Array(boundaryDimension),
+        dCommonVenousOutletFlowDBoundary: new Float64Array(boundaryDimension)
+      },
+      unknownScales,
+      residualScales,
+      newton,
+      inUse: false
+    }
+  );
+  return workspace;
+}
+function assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace) {
+  const expectedDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  const storage = MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.get(
+    workspace
+  );
+  if (storage === void 0 || workspace.dimension !== expectedDimension || storage.inUse) {
+    throw new RangeError("coupled Newton shadow workspace is not admitted");
+  }
+}
+function borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace, dimension) {
+  const storage = MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.get(
+    workspace
+  );
+  if (storage === void 0 || workspace.dimension !== dimension) {
+    throw new RangeError("coupled Newton shadow workspace is incompatible");
+  }
+  if (storage.inUse) {
+    throw new Error("coupled Newton shadow workspace is already in use");
+  }
+  storage.inUse = true;
+  return storage;
+}
+function assertExternalScaleStorageV1(newton, unknownScales, residualScales, dimension) {
+  if (!(unknownScales instanceof Float64Array) || unknownScales.length !== dimension || !(residualScales instanceof Float64Array) || residualScales.length !== dimension) {
+    throw new RangeError(
+      "coupled Newton scale storage has an incompatible shape"
+    );
+  }
+  const scaleViews = [unknownScales, residualScales];
+  const newtonViews = [
+    newton.current,
+    newton.residual,
+    newton.jacobian,
+    newton.linear.factors,
+    newton.rightHandSide,
+    newton.linear.transformedRightHandSide,
+    newton.update,
+    newton.trial,
+    newton.trialResidual,
+    newton.linear.pivotRowByColumn
+  ];
+  for (let index = 0; index < scaleViews.length; index += 1) {
+    const scale = scaleViews[index];
+    const others = [
+      ...newtonViews,
+      ...scaleViews.slice(index + 1)
+    ];
+    for (const other of others) {
+      if (scale.buffer === other.buffer && scale.byteOffset < other.byteOffset + other.byteLength && other.byteOffset < scale.byteOffset + scale.byteLength) {
+        throw new RangeError(
+          "coupled Newton scale storage must not overlap solver scratch"
+        );
+      }
+    }
+  }
+}
+function solveMainWireFiveWallCoupledNewtonShadowV1(context, options = Object.freeze({}), workspace = createMainWireFiveWallCoupledNewtonShadowWorkspaceV1()) {
+  const dimension = context.dimension;
+  const storage = borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
+    workspace,
+    dimension
+  );
+  try {
+    const finiteDifferenceRelativeStep = options.finiteDifferenceRelativeStep ?? 2e-6;
+    requirePositiveFinite$3(
+      finiteDifferenceRelativeStep,
+      "finiteDifferenceRelativeStep"
+    );
+    const { plus, minus, plusResidual, minusResidual } = storage;
+    const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+    const boundaryDimension = CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
+    const nonCoronaryDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+    const {
+      localDependentSvColumn,
+      coronaryBoundaryLinearization,
+      localNonCoronaryLinearization,
+      coronaryLinearization
+    } = storage;
+    let jacobianResidualEvaluationCount = 0;
+    let coronaryAnalyticBlockAssemblyCount = 0;
+    let coronaryBoundaryAnalyticBlockAssemblyCount = 0;
+    let nonCoronaryAnalyticBlockAssemblyCount = 0;
+    const jacobianMode = options.jacobianMode ?? "hybrid-coronary-analytic";
+    const system = Object.freeze({
+      dimension,
+      assertCandidateAdmissible: (unknowns) => {
+        const dependentSvVolumeMl = context.fixedGlobalTotalBloodVolumeMl - sumVector(unknowns);
+        if (!(dependentSvVolumeMl > context.minimumDependentSvVolumeMl)) {
+          throw new RangeError(
+            "coupled candidate leaves no admissible dependent SV volume"
+          );
+        }
+      },
+      maximumAdmissibleStepLength: (current, update) => {
+        const updateSum = sumVector(update);
+        if (updateSum <= 0) return 1;
+        const availableVolumeMl = context.fixedGlobalTotalBloodVolumeMl - context.minimumDependentSvVolumeMl - sumVector(current);
+        if (!(availableVolumeMl > 0)) {
+          throw new RangeError(
+            "coupled candidate has no dependent SV volume headroom"
+          );
+        }
+        return availableVolumeMl / updateSum;
+      },
+      evaluateResidual: context.evaluateResidualMl,
+      isResidualConverged: context.isResidualConverged,
+      evaluateJacobian: (unknowns, destination) => {
+        let completeAnalyticAssemblyAvailable = false;
+        if (jacobianMode === "hybrid-coronary-analytic") {
+          completeAnalyticAssemblyAvailable = context.writeCoupledLinearizations(
+            unknowns,
+            coronaryLinearization,
+            localDependentSvColumn,
+            localNonCoronaryLinearization,
+            coronaryBoundaryLinearization
+          );
+          coronaryAnalyticBlockAssemblyCount += 1;
+          if (!completeAnalyticAssemblyAvailable && options.analyticJacobianPolicy === "require-complete") {
+            throw new Error(
+              "coupled authority requires a complete component-owned analytic Jacobian"
+            );
+          }
+        }
+        const finiteDifferenceColumnCount = jacobianMode === "hybrid-coronary-analytic" ? completeAnalyticAssemblyAvailable ? 0 : nonCoronaryDimension : dimension;
+        for (let column = 0; column < finiteDifferenceColumnCount; column += 1) {
+          plus.set(unknowns);
+          minus.set(unknowns);
+          const halfStep = finiteDifferenceRelativeStep * Math.max(1, Math.abs(unknowns[column]));
+          if (unknowns[column] - halfStep <= context.lowerBoundsMl[column] || unknowns[column] + halfStep >= context.upperBoundsMl[column]) {
+            throw new RangeError(
+              `coupled finite-difference column ${column} has no centered step`
+            );
+          }
+          plus[column] += halfStep;
+          minus[column] -= halfStep;
+          context.evaluateResidualMl(plus, plusResidual);
+          context.evaluateResidualMl(minus, minusResidual);
+          jacobianResidualEvaluationCount += 2;
+          const denominator = 2 * halfStep;
+          for (let row = 0; row < dimension; row += 1) {
+            destination[row * dimension + column] = (plusResidual[row] - minusResidual[row]) / denominator;
+          }
+        }
+        if (jacobianMode === "hybrid-coronary-analytic") {
+          const coronaryStart = nonCoronaryDimension;
+          const aoResidualRow = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("Ao");
+          const raResidualRow = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("RA");
+          if (aoResidualRow < 0 || raResidualRow < 0) {
+            throw new Error(
+              "coupled coronary block requires independent Ao and RA rows"
+            );
+          }
+          for (let row = 0; row < nonCoronaryDimension; row += 1) {
+            for (let column = 0; column < coronaryDimension; column += 1) {
+              let derivative = -localDependentSvColumn[row];
+              if (row === aoResidualRow) {
+                derivative += context.stepDtSec * coronaryLinearization.dTotalInletFlowDVolume[column];
+              }
+              if (row === raResidualRow) {
+                derivative -= context.stepDtSec * coronaryLinearization.dCommonVenousOutletFlowDVolume[column];
+              }
+              destination[row * dimension + coronaryStart + column] = derivative;
+            }
+          }
+          for (let row = 0; row < coronaryDimension; row += 1) {
+            for (let column = 0; column < coronaryDimension; column += 1) {
+              destination[(coronaryStart + row) * dimension + coronaryStart + column] = coronaryLinearization.dResidualDVolume[row * coronaryDimension + column];
+            }
+          }
+          if (completeAnalyticAssemblyAvailable) {
+            coronaryBoundaryAnalyticBlockAssemblyCount += 1;
+            nonCoronaryAnalyticBlockAssemblyCount += 1;
+            for (let row = 0; row < nonCoronaryDimension; row += 1) {
+              for (let column = 0; column < nonCoronaryDimension; column += 1) {
+                destination[row * dimension + column] = localNonCoronaryLinearization[row * nonCoronaryDimension + column];
+              }
+            }
+            for (let column = 0; column < nonCoronaryDimension; column += 1) {
+              let inletDerivative = 0;
+              let outletDerivative = 0;
+              for (let boundary2 = 0; boundary2 < boundaryDimension; boundary2 += 1) {
+                const boundaryDerivative = coronaryBoundaryLinearization[boundary2 * nonCoronaryDimension + column];
+                inletDerivative += coronaryLinearization.dTotalInletFlowDBoundary[boundary2] * boundaryDerivative;
+                outletDerivative += coronaryLinearization.dCommonVenousOutletFlowDBoundary[boundary2] * boundaryDerivative;
+              }
+              destination[aoResidualRow * dimension + column] += context.stepDtSec * inletDerivative;
+              destination[raResidualRow * dimension + column] -= context.stepDtSec * outletDerivative;
+            }
+            for (let row = 0; row < coronaryDimension; row += 1) {
+              for (let column = 0; column < nonCoronaryDimension; column += 1) {
+                let derivative = 0;
+                for (let boundary2 = 0; boundary2 < boundaryDimension; boundary2 += 1) {
+                  derivative += coronaryLinearization.dResidualDBoundary[row * boundaryDimension + boundary2] * coronaryBoundaryLinearization[boundary2 * nonCoronaryDimension + column];
+                }
+                destination[(coronaryStart + row) * dimension + column] = derivative;
+              }
+            }
+          }
+        }
+      }
+    });
+    for (let index = 0; index < dimension; index += 1) {
+      const scale = Math.max(1, Math.abs(context.initialUnknownsMl[index]));
+      storage.unknownScales[index] = scale;
+      storage.residualScales[index] = scale;
+    }
+    const result = solveFlatCoupledSystemV1(
+      system,
+      options.initialGuessMl ?? context.initialUnknownsMl,
+      Object.freeze({
+        maximumIterations: options.maximumIterations ?? 12,
+        maximumLineSearchBacktracks: options.maximumLineSearchBacktracks ?? 24,
+        maximumAcceptedStepsPerJacobian: options.maximumAcceptedStepsPerJacobian ?? 1,
+        residualInfinityTolerance: options.residualInfinityToleranceMl ?? 2e-9,
+        updateInfinityTolerance: options.updateInfinityToleranceMl ?? 1e-12,
+        armijoCoefficient: 1e-4,
+        minimumAbsolutePivot: 1e-14,
+        unknownScaleByUnknown: storage.unknownScales,
+        residualScaleByEquation: storage.residualScales,
+        lowerBoundByUnknown: context.lowerBoundsMl,
+        upperBoundByUnknown: context.upperBoundsMl
+      }),
+      storage.newton
+    );
+    const dependentSvContinuityResidualMl = result.status === "converged" ? context.evaluateDependentSvContinuityResidualMl(result.solution) : null;
+    return Object.freeze({
+      solverId: MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID,
+      jacobianResidualEvaluationCount,
+      coronaryAnalyticBlockAssemblyCount,
+      coronaryBoundaryAnalyticBlockAssemblyCount,
+      nonCoronaryAnalyticBlockAssemblyCount,
+      dependentSvContinuityResidualMl,
+      result
+    });
+  } finally {
+    storage.inUse = false;
+  }
+}
+function solveMainWireFiveWallCoupledNewtonPredictedV1(context, options, solverWorkspace, predictorWorkspace, predictionOrder = "linear") {
+  const prediction = prepareMainWireFiveWallCoupledPredictionV1(
+    context,
+    predictorWorkspace,
+    predictionOrder
+  );
+  const primary = solveMainWireFiveWallCoupledNewtonShadowV1(
+    context,
+    Object.freeze({
+      ...options,
+      initialGuessMl: prediction.initialGuessMl
+    }),
+    solverWorkspace
+  );
+  if (primary.result.status === "converged" || prediction.mode === "context") {
+    return Object.freeze({
+      predictionMode: prediction.mode,
+      extrapolationScale: prediction.extrapolationScale,
+      fallbackUsed: false,
+      solver: primary
+    });
+  }
+  const fallback = solveMainWireFiveWallCoupledNewtonShadowV1(
+    context,
+    Object.freeze({
+      ...options,
+      initialGuessMl: context.initialUnknownsMl
+    }),
+    solverWorkspace
+  );
+  return Object.freeze({
+    predictionMode: prediction.mode,
+    extrapolationScale: prediction.extrapolationScale,
+    fallbackUsed: true,
+    solver: fallback
+  });
+}
+function requirePositiveFinite$3(value, label) {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new RangeError(`${label} must be positive and finite`);
+  }
+}
+function sumVector(values2) {
+  let sum = 0;
+  for (let index = 0; index < values2.length; index += 1) {
+    sum += values2[index];
+  }
+  return sum;
 }
 const MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID = "main-wire-integrated-v3-guyton-starling-structural-orientation-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID = "main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1";
@@ -33170,7 +34483,7 @@ function validateAcceptedState(state, label) {
     throw new Error(`${label} coronary V2 periodic transaction id is invalid`);
   }
   if (!Number.isInteger(state.revision) || state.revision < 0 || !Number.isFinite(state.acceptedTimeSec) || state.acceptedTimeSec < 0 || state.circulation.revision !== state.revision || state.coronary.revision !== state.revision || state.mechanics.revision !== state.revision || state.circulation.acceptedTimeSec !== state.acceptedTimeSec || state.coronary.acceptedTimeSec !== state.acceptedTimeSec || state.mechanics.acceptedTimeSec !== state.acceptedTimeSec) throw new Error(`${label} coronary V2 periodic tuple clocks differ`);
-  requirePositiveFinite$5(
+  requirePositiveFinite$2(
     state.fixedGlobalTotalBloodVolumeMl,
     `${label}.fixedGlobalTotalBloodVolumeMl`
   );
@@ -33198,7 +34511,7 @@ function validateAcceptedState(state, label) {
   }
   const nonCoronaryVolumeMl = NON_CORONARY_NODE_NAMES_V1.reduce(
     (sum, nodeId) => {
-      requirePositiveFinite$5(
+      requirePositiveFinite$2(
         state.circulation.nodeVolumesMl[nodeId],
         `${label}.circulation.nodeVolumesMl.${nodeId}`
       );
@@ -33208,7 +34521,7 @@ function validateAcceptedState(state, label) {
   );
   const coronaryVolumeMl = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.reduce(
     (sum, nodeId) => {
-      requirePositiveFinite$5(
+      requirePositiveFinite$2(
         state.coronary.volumeMlByNode[nodeId],
         `${label}.coronary.volumeMlByNode.${nodeId}`
       );
@@ -33223,7 +34536,7 @@ function validateAcceptedState(state, label) {
   }
   for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
     for (const layerId of CORONARY_LAYER_IDS_V2) {
-      requirePositiveFinite$5(
+      requirePositiveFinite$2(
         state.coronary.toneResistanceScaleByTerritoryLayer[territoryId][layerId],
         `${label}.${territoryId}.${layerId} coronary tone`
       );
@@ -33248,7 +34561,7 @@ function validateScales$2(scales) {
   }
   for (const [name, value] of Object.entries(scales)) {
     if (name !== "scaleSetId") {
-      requirePositiveFinite$5(value, `periodic reference scale ${name}`);
+      requirePositiveFinite$2(value, `periodic reference scale ${name}`);
     }
   }
 }
@@ -33259,7 +34572,7 @@ function assertExactKeys$1(value, keys, label) {
     throw new Error(`${label} keys differ from the accepted schema`);
   }
 }
-function requirePositiveFinite$5(value, label) {
+function requirePositiveFinite$2(value, label) {
   requireFinite$2(value, label);
   if (!(value > 0)) throw new Error(`${label} must be positive`);
 }
@@ -33586,7 +34899,7 @@ function validateScales$1(scales) {
   }
   for (const [name, value] of Object.entries(scales)) {
     if (name !== "scaleSetId") {
-      requirePositiveFinite$4(
+      requirePositiveFinite$1(
         value,
         `coronary V3 periodic reference scale ${name}`
       );
@@ -33603,7 +34916,7 @@ function assertExactKeys(value, keys, label) {
 function nearlyEqual$2(left, right) {
   return Math.abs(left - right) <= 64 * Number.EPSILON * Math.max(1, Math.abs(left), Math.abs(right));
 }
-function requirePositiveFinite$4(value, label) {
+function requirePositiveFinite$1(value, label) {
   requireFinite$1(value, label);
   if (!(value > 0)) throw new Error(`${label} must be positive`);
 }
@@ -34836,7 +36149,7 @@ function addNullableMetadataNumber(entries, group, path, currentValue, reference
 function numericEntry(group, path, unit, currentValue, referenceValue, referenceScale) {
   requireFinite(currentValue, `${path} current`);
   requireFinite(referenceValue, `${path} reference`);
-  requirePositiveFinite$3(referenceScale, `${path} scale`);
+  requirePositiveFinite(referenceScale, `${path} scale`);
   const absoluteDelta = Math.abs(currentValue - referenceValue);
   return Object.freeze({
     kind: "numeric",
@@ -34943,7 +36256,7 @@ function requireFinite(value, label) {
   }
   return value;
 }
-function requirePositiveFinite$3(value, label) {
+function requirePositiveFinite(value, label) {
   const number = requireFinite(value, label);
   if (!(number > 0)) throw new Error(`${label} must be positive`);
   return number;
@@ -36230,7 +37543,7 @@ class MainWireIntegratedModelSessionV3 {
         if (!isNonadvancingLimiterError$1(error)) throw error;
         return this.failedAdvance(
           "candidate-time-did-not-advance",
-          errorMessage$3(error),
+          errorMessage$2(error),
           targetTimeSec,
           substeps
         );
@@ -36379,7 +37692,7 @@ function observation$1(source, acceptedState2, lastAcceptedStep, runtime, comple
 function isNonadvancingLimiterError$1(error) {
   return error instanceof Error && (error.message === "composed integrated requested endpoint must advance" || error.message === "composed integrated coronary-capped step must be positive");
 }
-function errorMessage$3(error) {
+function errorMessage$2(error) {
   return error instanceof Error ? error.message : String(error);
 }
 const CANONICAL_FLAT_CHECKPOINT_V1_MAGIC = "CHFLATB1";
@@ -41846,1101 +43159,6 @@ function requiredSlot(slots, pointer2) {
   }
   return found;
 }
-function createFlatDenseLuWorkspaceV1(dimension) {
-  requireDimension(dimension);
-  return Object.freeze({
-    dimension,
-    factors: new Float64Array(dimension * dimension),
-    pivotRowByColumn: new Int32Array(dimension),
-    transformedRightHandSide: new Float64Array(dimension)
-  });
-}
-function factorPreparedFlatDenseMatrixV1(workspace, minimumAbsolutePivot = 1e-14) {
-  const { dimension, factors, pivotRowByColumn } = workspace;
-  requirePositiveFinite$2(minimumAbsolutePivot, "minimumAbsolutePivot");
-  for (let column = 0; column < dimension; column += 1) {
-    let pivotRow = column;
-    let pivotMagnitude = Math.abs(
-      factors[column * dimension + column]
-    );
-    for (let row = column + 1; row < dimension; row += 1) {
-      const magnitude = Math.abs(factors[row * dimension + column]);
-      if (magnitude > pivotMagnitude) {
-        pivotMagnitude = magnitude;
-        pivotRow = row;
-      }
-    }
-    if (!Number.isFinite(pivotMagnitude) || pivotMagnitude < minimumAbsolutePivot) {
-      return false;
-    }
-    pivotRowByColumn[column] = pivotRow;
-    if (pivotRow !== column) {
-      swapRows(factors, dimension, pivotRow, column);
-    }
-    const pivot = factors[column * dimension + column];
-    for (let row = column + 1; row < dimension; row += 1) {
-      const factorIndex = row * dimension + column;
-      const factor = factors[factorIndex] / pivot;
-      factors[factorIndex] = factor;
-      for (let trailing = column + 1; trailing < dimension; trailing += 1) {
-        const targetIndex = row * dimension + trailing;
-        factors[targetIndex] -= factor * factors[column * dimension + trailing];
-      }
-    }
-  }
-  return true;
-}
-function solvePreparedFactoredFlatDenseSystemV1(workspace, rightHandSide, solution) {
-  const {
-    dimension,
-    factors,
-    pivotRowByColumn,
-    transformedRightHandSide
-  } = workspace;
-  transformedRightHandSide.set(rightHandSide);
-  for (let column = 0; column < dimension; column += 1) {
-    const pivotRow = pivotRowByColumn[column];
-    if (pivotRow !== column) {
-      const temporary = transformedRightHandSide[column];
-      transformedRightHandSide[column] = transformedRightHandSide[pivotRow];
-      transformedRightHandSide[pivotRow] = temporary;
-    }
-    const pivotValue = transformedRightHandSide[column];
-    for (let row = column + 1; row < dimension; row += 1) {
-      transformedRightHandSide[row] -= factors[row * dimension + column] * pivotValue;
-    }
-  }
-  for (let row = dimension - 1; row >= 0; row -= 1) {
-    let value = transformedRightHandSide[row];
-    for (let column = row + 1; column < dimension; column += 1) {
-      value -= factors[row * dimension + column] * solution[column];
-    }
-    solution[row] = value / factors[row * dimension + row];
-    if (!Number.isFinite(solution[row])) {
-      throw new Error("flat dense LU produced a non-finite solution");
-    }
-  }
-}
-function swapRows(matrix, dimension, firstRow, secondRow) {
-  for (let column = 0; column < dimension; column += 1) {
-    const firstIndex = firstRow * dimension + column;
-    const secondIndex = secondRow * dimension + column;
-    const temporary = matrix[firstIndex];
-    matrix[firstIndex] = matrix[secondIndex];
-    matrix[secondIndex] = temporary;
-  }
-}
-function requireDimension(dimension) {
-  if (!Number.isInteger(dimension) || dimension <= 0) {
-    throw new RangeError("flat dense dimension must be a positive integer");
-  }
-}
-function requirePositiveFinite$2(value, label) {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new RangeError(`${label} must be positive and finite`);
-  }
-}
-function createFlatCoupledNewtonWorkspaceV1(dimension) {
-  if (!Number.isInteger(dimension) || dimension <= 0) {
-    throw new RangeError("coupled Newton dimension must be a positive integer");
-  }
-  return Object.freeze({
-    dimension,
-    current: new Float64Array(dimension),
-    residual: new Float64Array(dimension),
-    jacobian: new Float64Array(dimension * dimension),
-    rightHandSide: new Float64Array(dimension),
-    update: new Float64Array(dimension),
-    trial: new Float64Array(dimension),
-    trialResidual: new Float64Array(dimension),
-    linear: createFlatDenseLuWorkspaceV1(dimension)
-  });
-}
-function solveFlatCoupledSystemV1(system, initialUnknowns, options, workspace = createFlatCoupledNewtonWorkspaceV1(system.dimension)) {
-  validateInputs(system, initialUnknowns, options, workspace);
-  const {
-    current,
-    residual,
-    rightHandSide,
-    update,
-    trial,
-    trialResidual,
-    linear
-  } = workspace;
-  const jacobian = linear.factors;
-  current.set(initialUnknowns);
-  let residualEvaluationCount = 0;
-  let jacobianEvaluationCount = 0;
-  let lineSearchBacktrackCount = 0;
-  const maximumAcceptedStepsPerJacobian = options.maximumAcceptedStepsPerJacobian ?? 1;
-  let acceptedStepsSinceJacobian = maximumAcceptedStepsPerJacobian;
-  try {
-    system.evaluateResidual(current, residual);
-    residualEvaluationCount += 1;
-    requireFiniteVector$1(residual, "initial coupled residual");
-  } catch (error) {
-    return failure(
-      "initial-residual-evaluation",
-      errorMessage$2(error),
-      current,
-      0,
-      Number.POSITIVE_INFINITY,
-      residualEvaluationCount,
-      jacobianEvaluationCount,
-      lineSearchBacktrackCount
-    );
-  }
-  for (let iteration = 0; iteration <= options.maximumIterations; iteration += 1) {
-    const residualInfinityNorm = infinityNorm(residual);
-    let residualConverged;
-    const residualMerit = residualInfinityNorm;
-    try {
-      residualConverged = system.isResidualConverged === void 0 ? residualInfinityNorm <= options.residualInfinityTolerance : system.isResidualConverged(current, residual);
-      if (typeof residualConverged !== "boolean") {
-        throw new TypeError("coupled convergence gate must return a boolean");
-      }
-    } catch (error) {
-      return failure(
-        "convergence-evaluation",
-        errorMessage$2(error),
-        current,
-        iteration,
-        residualInfinityNorm,
-        residualEvaluationCount,
-        jacobianEvaluationCount,
-        lineSearchBacktrackCount
-      );
-    }
-    if (residualConverged) {
-      return success(
-        current,
-        iteration,
-        residualInfinityNorm,
-        residualEvaluationCount,
-        jacobianEvaluationCount,
-        lineSearchBacktrackCount
-      );
-    }
-    if (iteration === options.maximumIterations) {
-      return failure(
-        "maximum-iterations",
-        "flat coupled Newton reached its iteration limit",
-        current,
-        iteration,
-        residualInfinityNorm,
-        residualEvaluationCount,
-        jacobianEvaluationCount,
-        lineSearchBacktrackCount
-      );
-    }
-    if (acceptedStepsSinceJacobian >= maximumAcceptedStepsPerJacobian) {
-      try {
-        system.evaluateJacobian(current, jacobian);
-        jacobianEvaluationCount += 1;
-        equilibrateJacobianInPlace(jacobian, options);
-      } catch (error) {
-        return failure(
-          "jacobian-evaluation",
-          errorMessage$2(error),
-          current,
-          iteration,
-          residualInfinityNorm,
-          residualEvaluationCount,
-          jacobianEvaluationCount,
-          lineSearchBacktrackCount
-        );
-      }
-      if (!factorPreparedFlatDenseMatrixV1(
-        linear,
-        options.minimumAbsolutePivot
-      )) {
-        return failure(
-          "singular-jacobian",
-          "flat coupled Newton Jacobian is singular or ill-conditioned",
-          current,
-          iteration,
-          residualInfinityNorm,
-          residualEvaluationCount,
-          jacobianEvaluationCount,
-          lineSearchBacktrackCount
-        );
-      }
-      acceptedStepsSinceJacobian = 0;
-    }
-    for (let index = 0; index < system.dimension; index += 1) {
-      rightHandSide[index] = -residual[index] / options.residualScaleByEquation[index];
-    }
-    solvePreparedFactoredFlatDenseSystemV1(
-      linear,
-      rightHandSide,
-      update
-    );
-    for (let index = 0; index < system.dimension; index += 1) {
-      update[index] *= options.unknownScaleByUnknown[index];
-    }
-    const updateInfinityNorm = infinityNorm(update);
-    if (updateInfinityNorm <= options.updateInfinityTolerance) {
-      return failure(
-        "stagnated",
-        "flat coupled Newton update stagnated above residual tolerance",
-        current,
-        iteration,
-        residualInfinityNorm,
-        residualEvaluationCount,
-        jacobianEvaluationCount,
-        lineSearchBacktrackCount
-      );
-    }
-    let stepLength = admissibleStepLength(
-      system,
-      current,
-      update,
-      options
-    );
-    let accepted = false;
-    let lastError = "no residual-decreasing admissible candidate";
-    let minimumTrialMerit = Number.POSITIVE_INFINITY;
-    for (let backtrack = 0; backtrack <= options.maximumLineSearchBacktracks; backtrack += 1) {
-      for (let index = 0; index < system.dimension; index += 1) {
-        trial[index] = current[index] + stepLength * update[index];
-      }
-      try {
-        requireWithinBounds(trial, options);
-        system.assertCandidateAdmissible?.(trial);
-        system.evaluateResidual(trial, trialResidual);
-        residualEvaluationCount += 1;
-        requireFiniteVector$1(trialResidual, "line-search coupled residual");
-        const trialMerit = infinityNorm(trialResidual);
-        let componentConverged = false;
-        if (system.isResidualConverged !== void 0) {
-          componentConverged = system.isResidualConverged(
-            trial,
-            trialResidual
-          );
-        }
-        minimumTrialMerit = Math.min(minimumTrialMerit, trialMerit);
-        if (typeof componentConverged !== "boolean") {
-          throw new TypeError("coupled convergence gate must return a boolean");
-        }
-        if (componentConverged || trialMerit <= (1 - options.armijoCoefficient * stepLength) * residualMerit) {
-          current.set(trial);
-          residual.set(trialResidual);
-          accepted = true;
-          acceptedStepsSinceJacobian += 1;
-          break;
-        }
-        lastError = "candidate did not satisfy the Armijo residual decrease";
-      } catch (error) {
-        lastError = errorMessage$2(error);
-      }
-      stepLength *= 0.5;
-      lineSearchBacktrackCount += 1;
-    }
-    if (!accepted) {
-      return failure(
-        "line-search",
-        `flat coupled Newton line search failed: ${lastError}; current merit ${residualMerit}; minimum trial merit ${minimumTrialMerit}`,
-        current,
-        iteration,
-        residualInfinityNorm,
-        residualEvaluationCount,
-        jacobianEvaluationCount,
-        lineSearchBacktrackCount
-      );
-    }
-  }
-  throw new Error("unreachable flat coupled Newton state");
-}
-function validateInputs(system, initialUnknowns, options, workspace) {
-  if (!Number.isInteger(system.dimension) || system.dimension <= 0) {
-    throw new RangeError("coupled system dimension must be a positive integer");
-  }
-  if (workspace.dimension !== system.dimension) {
-    throw new RangeError("coupled Newton workspace dimension differs");
-  }
-  requireLength(initialUnknowns, system.dimension, "initial unknowns");
-  requireFiniteVector$1(initialUnknowns, "initial unknowns");
-  requireLength(
-    options.unknownScaleByUnknown,
-    system.dimension,
-    "unknown scales"
-  );
-  requireLength(
-    options.residualScaleByEquation,
-    system.dimension,
-    "residual scales"
-  );
-  requireLength(
-    options.lowerBoundByUnknown,
-    system.dimension,
-    "lower bounds"
-  );
-  requireLength(
-    options.upperBoundByUnknown,
-    system.dimension,
-    "upper bounds"
-  );
-  if (!Number.isInteger(options.maximumIterations) || options.maximumIterations <= 0 || !Number.isInteger(options.maximumLineSearchBacktracks) || options.maximumLineSearchBacktracks < 0) {
-    throw new RangeError("coupled Newton iteration limits are invalid");
-  }
-  if (options.maximumAcceptedStepsPerJacobian !== void 0 && (!Number.isInteger(options.maximumAcceptedStepsPerJacobian) || options.maximumAcceptedStepsPerJacobian <= 0)) {
-    throw new RangeError(
-      "maximumAcceptedStepsPerJacobian must be a positive integer"
-    );
-  }
-  requirePositiveFinite$1(
-    options.residualInfinityTolerance,
-    "residualInfinityTolerance"
-  );
-  requirePositiveFinite$1(
-    options.updateInfinityTolerance,
-    "updateInfinityTolerance"
-  );
-  requirePositiveFinite$1(options.minimumAbsolutePivot, "minimumAbsolutePivot");
-  if (!Number.isFinite(options.armijoCoefficient) || options.armijoCoefficient <= 0 || options.armijoCoefficient >= 1) {
-    throw new RangeError("armijoCoefficient must be finite within (0, 1)");
-  }
-  for (let index = 0; index < system.dimension; index += 1) {
-    requirePositiveFinite$1(
-      options.unknownScaleByUnknown[index],
-      `unknownScaleByUnknown[${index}]`
-    );
-    requirePositiveFinite$1(
-      options.residualScaleByEquation[index],
-      `residualScaleByEquation[${index}]`
-    );
-    const lower = options.lowerBoundByUnknown[index];
-    const upper = options.upperBoundByUnknown[index];
-    if (Number.isNaN(lower) || Number.isNaN(upper) || !(upper > lower)) {
-      throw new RangeError(`coupled Newton bounds[${index}] are invalid`);
-    }
-  }
-  requireWithinBounds(initialUnknowns, options);
-  system.assertCandidateAdmissible?.(initialUnknowns);
-}
-function equilibrateJacobianInPlace(jacobian, options) {
-  const dimension = options.unknownScaleByUnknown.length;
-  for (let row = 0; row < dimension; row += 1) {
-    const inverseResidualScale = 1 / options.residualScaleByEquation[row];
-    for (let column = 0; column < dimension; column += 1) {
-      const index = row * dimension + column;
-      const equilibrated = jacobian[index] * options.unknownScaleByUnknown[column] * inverseResidualScale;
-      if (!Number.isFinite(equilibrated)) {
-        throw new RangeError(
-          "equilibrated coupled Jacobian must contain only finite values"
-        );
-      }
-      jacobian[index] = equilibrated;
-    }
-  }
-}
-function admissibleStepLength(system, current, update, options) {
-  let stepLength = 1;
-  for (let index = 0; index < current.length; index += 1) {
-    const delta = update[index];
-    if (delta < 0 && Number.isFinite(options.lowerBoundByUnknown[index])) {
-      stepLength = Math.min(
-        stepLength,
-        0.99 * (current[index] - options.lowerBoundByUnknown[index]) / -delta
-      );
-    } else if (delta > 0 && Number.isFinite(options.upperBoundByUnknown[index])) {
-      stepLength = Math.min(
-        stepLength,
-        0.99 * (options.upperBoundByUnknown[index] - current[index]) / delta
-      );
-    }
-  }
-  const coupledLimit = system.maximumAdmissibleStepLength?.(current, update);
-  if (coupledLimit !== void 0) {
-    if (!Number.isFinite(coupledLimit) || coupledLimit <= 0) {
-      throw new RangeError(
-        "coupled Newton system returned no positive admissible step"
-      );
-    }
-    if (coupledLimit < 1) {
-      stepLength = Math.min(stepLength, 0.99 * coupledLimit);
-    }
-  }
-  if (!Number.isFinite(stepLength) || stepLength <= 0) {
-    throw new RangeError("coupled Newton has no positive admissible step");
-  }
-  return stepLength;
-}
-function requireWithinBounds(values2, options) {
-  for (let index = 0; index < values2.length; index += 1) {
-    if (!(values2[index] > options.lowerBoundByUnknown[index]) || !(values2[index] < options.upperBoundByUnknown[index])) {
-      throw new RangeError(`coupled unknown[${index}] left its open bounds`);
-    }
-  }
-}
-function requireLength(value, expected, label) {
-  if (!(value instanceof Float64Array) || value.length !== expected) {
-    throw new RangeError(`${label} must contain ${expected} f64 values`);
-  }
-}
-function requireFiniteVector$1(value, label) {
-  for (let index = 0; index < value.length; index += 1) {
-    if (!Number.isFinite(value[index])) {
-      throw new RangeError(`${label} must contain only finite values`);
-    }
-  }
-}
-function requirePositiveFinite$1(value, label) {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new RangeError(`${label} must be positive and finite`);
-  }
-}
-function infinityNorm(values2) {
-  let maximum = 0;
-  for (let index = 0; index < values2.length; index += 1) {
-    maximum = Math.max(maximum, Math.abs(values2[index]));
-  }
-  return maximum;
-}
-function success(current, iterations, residualInfinityNorm, residualEvaluationCount, jacobianEvaluationCount, lineSearchBacktrackCount) {
-  return Object.freeze({
-    status: "converged",
-    solution: current.slice(),
-    iterations,
-    residualInfinityNorm,
-    residualEvaluationCount,
-    jacobianEvaluationCount,
-    lineSearchBacktrackCount
-  });
-}
-function failure(reason, message, current, iterations, residualInfinityNorm, residualEvaluationCount, jacobianEvaluationCount, lineSearchBacktrackCount) {
-  return Object.freeze({
-    status: "failed",
-    reason,
-    message,
-    lastCandidate: current.slice(),
-    iterations,
-    residualInfinityNorm,
-    residualEvaluationCount,
-    jacobianEvaluationCount,
-    lineSearchBacktrackCount
-  });
-}
-function errorMessage$2(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-const MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID = "main-wire-five-wall-coupled-accepted-history-predictor-v1";
-const MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID = "circleheart-main-wire-five-wall-coupled-predictor-checkpoint-v2";
-const STORAGE = /* @__PURE__ */ new WeakMap();
-function createMainWireFiveWallCoupledPredictorWorkspaceV1() {
-  const workspace = Object.freeze({
-    schemaId: "circleheart-main-wire-five-wall-coupled-predictor-workspace-v1",
-    dimension: 30
-  });
-  STORAGE.set(workspace, {
-    oldestAcceptedMl: new Float64Array(30),
-    olderAcceptedMl: new Float64Array(30),
-    previousAcceptedMl: new Float64Array(30),
-    currentAcceptedMl: new Float64Array(30),
-    predictedMl: new Float64Array(30),
-    hasAcceptedPair: false,
-    historyDepth: 0,
-    expectedBaseRevision: null,
-    expectedBaseAcceptedTimeSec: null,
-    preparedBaseRevision: null,
-    preparedBaseAcceptedTimeSec: null,
-    predictionCount: 0,
-    contextFallbackCount: 0,
-    dampedPredictionCount: 0,
-    resetCount: 0
-  });
-  return workspace;
-}
-function prepareMainWireFiveWallCoupledPredictionV1(context, workspace, order = "linear") {
-  context.assertWorkspaceCurrent();
-  if (order !== "linear" && order !== "quadratic" && order !== "cubic") {
-    throw new RangeError("coupled predictor order is unsupported");
-  }
-  const storage = requireStorage(workspace);
-  storage.preparedBaseRevision = context.baseRevision;
-  storage.preparedBaseAcceptedTimeSec = context.baseAcceptedTimeSec;
-  if (!matchesSequentialAcceptedState(context, storage)) {
-    if (storage.hasAcceptedPair) resetHistory(storage);
-    storage.contextFallbackCount += 1;
-    return contextPrediction(context);
-  }
-  const cubic = order === "cubic" && storage.historyDepth === 4;
-  const quadratic = order === "quadratic" && storage.historyDepth >= 3;
-  let scale = 1;
-  while (scale >= 1 / 256) {
-    for (let index = 0; index < workspace.dimension; index += 1) {
-      const current = context.initialUnknownsMl[index];
-      const displacement = cubic ? 3 * current - 6 * storage.previousAcceptedMl[index] + 4 * storage.olderAcceptedMl[index] - storage.oldestAcceptedMl[index] : quadratic ? 2 * current - 3 * storage.previousAcceptedMl[index] + storage.olderAcceptedMl[index] : current - storage.previousAcceptedMl[index];
-      storage.predictedMl[index] = current + scale * displacement;
-    }
-    if (isAdmissiblePrediction(context, storage.predictedMl)) {
-      storage.predictionCount += 1;
-      if (scale < 1) storage.dampedPredictionCount += 1;
-      return Object.freeze({
-        predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
-        mode: cubic ? "cubic-extrapolation" : quadratic ? "quadratic-extrapolation" : "linear-extrapolation",
-        extrapolationScale: scale,
-        initialGuessMl: storage.predictedMl
-      });
-    }
-    scale *= 0.5;
-  }
-  storage.contextFallbackCount += 1;
-  return contextPrediction(context);
-}
-function recordAcceptedMainWireFiveWallCoupledSolutionV1(context, acceptedSolutionMl, workspace) {
-  context.assertWorkspaceCurrent();
-  const storage = requireStorage(workspace);
-  if (storage.preparedBaseRevision !== context.baseRevision || !sameNumber(
-    storage.preparedBaseAcceptedTimeSec,
-    context.baseAcceptedTimeSec
-  )) {
-    throw new Error(
-      "coupled predictor can record only its most recently prepared context"
-    );
-  }
-  requireFiniteVector(acceptedSolutionMl, workspace.dimension, "accepted root");
-  if (!isAdmissiblePrediction(context, acceptedSolutionMl)) {
-    throw new RangeError("accepted root is outside the coupled predictor domain");
-  }
-  if (storage.hasAcceptedPair) {
-    if (storage.historyDepth >= 3) {
-      storage.oldestAcceptedMl.set(storage.olderAcceptedMl);
-    }
-    storage.olderAcceptedMl.set(storage.previousAcceptedMl);
-  }
-  storage.previousAcceptedMl.set(context.initialUnknownsMl);
-  storage.currentAcceptedMl.set(acceptedSolutionMl);
-  storage.hasAcceptedPair = true;
-  storage.historyDepth = storage.historyDepth === 0 ? 2 : storage.historyDepth === 2 ? 3 : 4;
-  storage.expectedBaseRevision = context.baseRevision + 1;
-  storage.expectedBaseAcceptedTimeSec = context.baseAcceptedTimeSec + context.stepDtSec;
-}
-function resetMainWireFiveWallCoupledPredictorV1(workspace) {
-  const storage = requireStorage(workspace);
-  resetHistory(storage);
-}
-function reportMainWireFiveWallCoupledPredictorV1(workspace) {
-  const storage = requireStorage(workspace);
-  return Object.freeze({
-    predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
-    hasAcceptedPair: storage.hasAcceptedPair,
-    historyDepth: storage.historyDepth,
-    expectedBaseRevision: storage.expectedBaseRevision,
-    expectedBaseAcceptedTimeSec: storage.expectedBaseAcceptedTimeSec,
-    predictionCount: storage.predictionCount,
-    contextFallbackCount: storage.contextFallbackCount,
-    dampedPredictionCount: storage.dampedPredictionCount,
-    resetCount: storage.resetCount
-  });
-}
-function checkpointMainWireFiveWallCoupledPredictorV1(workspace) {
-  const storage = requireStorage(workspace);
-  return Object.freeze({
-    checkpointId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID,
-    schemaVersion: 2,
-    historyDepth: storage.historyDepth,
-    expectedBaseRevision: storage.expectedBaseRevision,
-    expectedBaseAcceptedTimeSec: storage.expectedBaseAcceptedTimeSec,
-    oldestAcceptedMl: Object.freeze(Array.from(storage.oldestAcceptedMl)),
-    olderAcceptedMl: Object.freeze(Array.from(storage.olderAcceptedMl)),
-    previousAcceptedMl: Object.freeze(Array.from(storage.previousAcceptedMl)),
-    currentAcceptedMl: Object.freeze(Array.from(storage.currentAcceptedMl))
-  });
-}
-function restoreMainWireFiveWallCoupledPredictorV1(input, accepted, workspace) {
-  const checkpoint = validatePredictorCheckpoint(input);
-  const storage = requireStorage(workspace);
-  resetStorage(storage);
-  if (checkpoint.historyDepth === 0) return;
-  if (checkpoint.expectedBaseRevision !== accepted.revision || !sameNumber(
-    checkpoint.expectedBaseAcceptedTimeSec,
-    accepted.acceptedTimeSec
-  )) {
-    throw new Error("coupled predictor checkpoint clock differs from accepted state");
-  }
-  requireFiniteVector(accepted.unknownsMl, 30, "restored accepted root");
-  for (let index = 0; index < 30; index += 1) {
-    if (!sameCoupledRootValue(
-      checkpoint.currentAcceptedMl[index],
-      accepted.unknownsMl[index]
-    )) {
-      throw new Error(
-        `coupled predictor checkpoint root differs from accepted state at index ${index}`
-      );
-    }
-  }
-  storage.oldestAcceptedMl.set(checkpoint.oldestAcceptedMl);
-  storage.olderAcceptedMl.set(checkpoint.olderAcceptedMl);
-  storage.previousAcceptedMl.set(checkpoint.previousAcceptedMl);
-  storage.currentAcceptedMl.set(checkpoint.currentAcceptedMl);
-  storage.hasAcceptedPair = true;
-  storage.historyDepth = checkpoint.historyDepth;
-  storage.expectedBaseRevision = checkpoint.expectedBaseRevision;
-  storage.expectedBaseAcceptedTimeSec = checkpoint.expectedBaseAcceptedTimeSec;
-}
-function matchesSequentialAcceptedState(context, storage) {
-  if (!storage.hasAcceptedPair || storage.expectedBaseRevision !== context.baseRevision || !sameNumber(
-    storage.expectedBaseAcceptedTimeSec,
-    context.baseAcceptedTimeSec
-  )) return false;
-  for (let index = 0; index < context.dimension; index += 1) {
-    const expected = storage.currentAcceptedMl[index];
-    const actual = context.initialUnknownsMl[index];
-    if (!sameCoupledRootValue(expected, actual)) return false;
-  }
-  return true;
-}
-function isAdmissiblePrediction(context, values2) {
-  if (values2.length !== context.dimension) return false;
-  let sum = 0;
-  for (let index = 0; index < values2.length; index += 1) {
-    const value = values2[index];
-    if (!Number.isFinite(value) || !(value > context.lowerBoundsMl[index]) || !(value < context.upperBoundsMl[index])) return false;
-    sum += value;
-  }
-  return context.fixedGlobalTotalBloodVolumeMl - sum > context.minimumDependentSvVolumeMl;
-}
-function contextPrediction(context) {
-  return Object.freeze({
-    predictorId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
-    mode: "context",
-    extrapolationScale: 0,
-    initialGuessMl: context.initialUnknownsMl
-  });
-}
-function resetHistory(storage) {
-  storage.oldestAcceptedMl.fill(0);
-  storage.olderAcceptedMl.fill(0);
-  storage.previousAcceptedMl.fill(0);
-  storage.currentAcceptedMl.fill(0);
-  storage.hasAcceptedPair = false;
-  storage.historyDepth = 0;
-  storage.expectedBaseRevision = null;
-  storage.expectedBaseAcceptedTimeSec = null;
-  storage.resetCount += 1;
-}
-function resetStorage(storage) {
-  storage.oldestAcceptedMl.fill(0);
-  storage.olderAcceptedMl.fill(0);
-  storage.previousAcceptedMl.fill(0);
-  storage.currentAcceptedMl.fill(0);
-  storage.predictedMl.fill(0);
-  storage.hasAcceptedPair = false;
-  storage.historyDepth = 0;
-  storage.expectedBaseRevision = null;
-  storage.expectedBaseAcceptedTimeSec = null;
-  storage.preparedBaseRevision = null;
-  storage.preparedBaseAcceptedTimeSec = null;
-  storage.predictionCount = 0;
-  storage.contextFallbackCount = 0;
-  storage.dampedPredictionCount = 0;
-  storage.resetCount = 0;
-}
-function validatePredictorCheckpoint(input) {
-  if (input === null || typeof input !== "object" || Array.isArray(input)) {
-    throw new Error("coupled predictor checkpoint must be a plain object");
-  }
-  const prototype = Object.getPrototypeOf(input);
-  if (prototype !== Object.prototype && prototype !== null) {
-    throw new Error("coupled predictor checkpoint must be a plain object");
-  }
-  const expectedKeys = [
-    "checkpointId",
-    "schemaVersion",
-    "historyDepth",
-    "expectedBaseRevision",
-    "expectedBaseAcceptedTimeSec",
-    "oldestAcceptedMl",
-    "olderAcceptedMl",
-    "previousAcceptedMl",
-    "currentAcceptedMl"
-  ].sort();
-  const keys = Reflect.ownKeys(input);
-  if (keys.some((key) => typeof key !== "string") || keys.length !== expectedKeys.length || keys.sort().some((key, index) => key !== expectedKeys[index])) {
-    throw new Error("coupled predictor checkpoint has unexpected fields");
-  }
-  const checkpointId = ownDataValue(input, "checkpointId");
-  const schemaVersion = ownDataValue(input, "schemaVersion");
-  const historyDepth = ownDataValue(input, "historyDepth");
-  if (checkpointId !== MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID || schemaVersion !== 2 || historyDepth !== 0 && historyDepth !== 2 && historyDepth !== 3 && historyDepth !== 4) {
-    throw new Error("unsupported coupled predictor checkpoint schema");
-  }
-  const vectors = [
-    validateCheckpointVector(ownDataValue(input, "oldestAcceptedMl")),
-    validateCheckpointVector(ownDataValue(input, "olderAcceptedMl")),
-    validateCheckpointVector(ownDataValue(input, "previousAcceptedMl")),
-    validateCheckpointVector(ownDataValue(input, "currentAcceptedMl"))
-  ];
-  const expectedBaseRevision = ownDataValue(input, "expectedBaseRevision");
-  const expectedBaseAcceptedTimeSec = ownDataValue(
-    input,
-    "expectedBaseAcceptedTimeSec"
-  );
-  if (historyDepth === 0) {
-    if (expectedBaseRevision !== null || expectedBaseAcceptedTimeSec !== null || vectors.some((vector) => vector.some((value) => value !== 0))) {
-      throw new Error("empty coupled predictor checkpoint is not canonical");
-    }
-  } else if (!Number.isSafeInteger(expectedBaseRevision) || expectedBaseRevision < 0 || typeof expectedBaseAcceptedTimeSec !== "number" || !Number.isFinite(expectedBaseAcceptedTimeSec) || expectedBaseAcceptedTimeSec < 0) {
-    throw new Error("coupled predictor checkpoint clock is invalid");
-  }
-  if (historyDepth === 2 && (vectors[0].some((value) => value !== 0) || vectors[1].some((value) => value !== 0))) {
-    throw new Error("two-root coupled predictor checkpoint is not canonical");
-  }
-  if (historyDepth === 3 && vectors[0].some((value) => value !== 0)) {
-    throw new Error("three-root coupled predictor checkpoint is not canonical");
-  }
-  return Object.freeze({
-    checkpointId: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_CHECKPOINT_V2_ID,
-    schemaVersion: 2,
-    historyDepth,
-    expectedBaseRevision,
-    expectedBaseAcceptedTimeSec,
-    oldestAcceptedMl: vectors[0],
-    olderAcceptedMl: vectors[1],
-    previousAcceptedMl: vectors[2],
-    currentAcceptedMl: vectors[3]
-  });
-}
-function ownDataValue(record, key) {
-  const descriptor = Object.getOwnPropertyDescriptor(record, key);
-  if (descriptor === void 0 || !("value" in descriptor)) {
-    throw new Error(`coupled predictor checkpoint ${key} must be a data field`);
-  }
-  return descriptor.value;
-}
-function validateCheckpointVector(input) {
-  if (!Array.isArray(input) || Object.getPrototypeOf(input) !== Array.prototype) {
-    throw new Error("coupled predictor checkpoint vector is invalid");
-  }
-  const keys = Reflect.ownKeys(input);
-  if (input.length !== 30 || keys.length !== 31 || keys.some((key) => typeof key === "symbol")) {
-    throw new Error("coupled predictor checkpoint vector is invalid");
-  }
-  const values2 = new Array(30);
-  for (let index = 0; index < 30; index += 1) {
-    const descriptor = Object.getOwnPropertyDescriptor(input, String(index));
-    if (descriptor === void 0 || !("value" in descriptor) || typeof descriptor.value !== "number" || !Number.isFinite(descriptor.value)) {
-      throw new Error("coupled predictor checkpoint vector is invalid");
-    }
-    values2[index] = descriptor.value;
-  }
-  const lengthDescriptor = Object.getOwnPropertyDescriptor(input, "length");
-  if (lengthDescriptor === void 0 || !("value" in lengthDescriptor) || lengthDescriptor.value !== 30) {
-    throw new Error("coupled predictor checkpoint vector is invalid");
-  }
-  return Object.freeze(values2);
-}
-function requireStorage(workspace) {
-  const storage = STORAGE.get(workspace);
-  if (storage === void 0 || workspace.dimension !== 30) {
-    throw new Error("coupled predictor workspace is incompatible");
-  }
-  return storage;
-}
-function requireFiniteVector(values2, expectedLength, label) {
-  if (!(values2 instanceof Float64Array) || values2.length !== expectedLength) {
-    throw new RangeError(`${label} must contain ${expectedLength} f64 values`);
-  }
-  for (const value of values2) {
-    if (!Number.isFinite(value)) {
-      throw new RangeError(`${label} must contain only finite values`);
-    }
-  }
-}
-function sameNumber(left, right) {
-  return left !== null && Object.is(left, right);
-}
-function sameCoupledRootValue(left, right) {
-  const tolerance = 1e-12 * Math.max(1, Math.abs(left), Math.abs(right));
-  return Math.abs(left - right) <= tolerance;
-}
-const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID = "main-wire-five-wall-coupled-newton-shadow-v1";
-const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1 = /* @__PURE__ */ new WeakMap();
-function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1() {
-  const nonCoronaryDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
-  const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
-  const boundaryDimension = CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
-  const dimension = nonCoronaryDimension + coronaryDimension;
-  const workspace = Object.freeze({
-    schemaId: "circleheart-main-wire-five-wall-coupled-newton-shadow-workspace-v1",
-    dimension
-  });
-  MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.set(
-    workspace,
-    {
-      plus: new Float64Array(dimension),
-      minus: new Float64Array(dimension),
-      plusResidual: new Float64Array(dimension),
-      minusResidual: new Float64Array(dimension),
-      localDependentSvColumn: new Float64Array(nonCoronaryDimension),
-      coronaryBoundaryLinearization: new Float64Array(
-        boundaryDimension * nonCoronaryDimension
-      ),
-      localNonCoronaryLinearization: new Float64Array(
-        nonCoronaryDimension * nonCoronaryDimension
-      ),
-      coronaryLinearization: {
-        residualMl: new Float64Array(coronaryDimension),
-        dResidualDVolume: new Float64Array(coronaryDimension * coronaryDimension),
-        dResidualDBoundary: new Float64Array(coronaryDimension * boundaryDimension),
-        dTotalInletFlowDVolume: new Float64Array(coronaryDimension),
-        dCommonVenousOutletFlowDVolume: new Float64Array(coronaryDimension),
-        dTotalInletFlowDBoundary: new Float64Array(boundaryDimension),
-        dCommonVenousOutletFlowDBoundary: new Float64Array(boundaryDimension)
-      },
-      unknownScales: new Float64Array(dimension),
-      residualScales: new Float64Array(dimension),
-      newton: createFlatCoupledNewtonWorkspaceV1(dimension),
-      inUse: false
-    }
-  );
-  return workspace;
-}
-function borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace, dimension) {
-  const storage = MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.get(
-    workspace
-  );
-  if (storage === void 0 || workspace.dimension !== dimension) {
-    throw new RangeError("coupled Newton shadow workspace is incompatible");
-  }
-  if (storage.inUse) {
-    throw new Error("coupled Newton shadow workspace is already in use");
-  }
-  storage.inUse = true;
-  return storage;
-}
-function solveMainWireFiveWallCoupledNewtonShadowV1(context, options = Object.freeze({}), workspace = createMainWireFiveWallCoupledNewtonShadowWorkspaceV1()) {
-  const dimension = context.dimension;
-  const storage = borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
-    workspace,
-    dimension
-  );
-  try {
-    const finiteDifferenceRelativeStep = options.finiteDifferenceRelativeStep ?? 2e-6;
-    requirePositiveFinite(
-      finiteDifferenceRelativeStep,
-      "finiteDifferenceRelativeStep"
-    );
-    const { plus, minus, plusResidual, minusResidual } = storage;
-    const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
-    const boundaryDimension = CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
-    const nonCoronaryDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
-    const {
-      localDependentSvColumn,
-      coronaryBoundaryLinearization,
-      localNonCoronaryLinearization,
-      coronaryLinearization
-    } = storage;
-    let jacobianResidualEvaluationCount = 0;
-    let coronaryAnalyticBlockAssemblyCount = 0;
-    let coronaryBoundaryAnalyticBlockAssemblyCount = 0;
-    let nonCoronaryAnalyticBlockAssemblyCount = 0;
-    const jacobianMode = options.jacobianMode ?? "hybrid-coronary-analytic";
-    const system = Object.freeze({
-      dimension,
-      assertCandidateAdmissible: (unknowns) => {
-        const dependentSvVolumeMl = context.fixedGlobalTotalBloodVolumeMl - sumVector(unknowns);
-        if (!(dependentSvVolumeMl > context.minimumDependentSvVolumeMl)) {
-          throw new RangeError(
-            "coupled candidate leaves no admissible dependent SV volume"
-          );
-        }
-      },
-      maximumAdmissibleStepLength: (current, update) => {
-        const updateSum = sumVector(update);
-        if (updateSum <= 0) return 1;
-        const availableVolumeMl = context.fixedGlobalTotalBloodVolumeMl - context.minimumDependentSvVolumeMl - sumVector(current);
-        if (!(availableVolumeMl > 0)) {
-          throw new RangeError(
-            "coupled candidate has no dependent SV volume headroom"
-          );
-        }
-        return availableVolumeMl / updateSum;
-      },
-      evaluateResidual: context.evaluateResidualMl,
-      isResidualConverged: context.isResidualConverged,
-      evaluateJacobian: (unknowns, destination) => {
-        let completeAnalyticAssemblyAvailable = false;
-        if (jacobianMode === "hybrid-coronary-analytic") {
-          completeAnalyticAssemblyAvailable = context.writeCoupledLinearizations(
-            unknowns,
-            coronaryLinearization,
-            localDependentSvColumn,
-            localNonCoronaryLinearization,
-            coronaryBoundaryLinearization
-          );
-          coronaryAnalyticBlockAssemblyCount += 1;
-          if (!completeAnalyticAssemblyAvailable && options.analyticJacobianPolicy === "require-complete") {
-            throw new Error(
-              "coupled authority requires a complete component-owned analytic Jacobian"
-            );
-          }
-        }
-        const finiteDifferenceColumnCount = jacobianMode === "hybrid-coronary-analytic" ? completeAnalyticAssemblyAvailable ? 0 : nonCoronaryDimension : dimension;
-        for (let column = 0; column < finiteDifferenceColumnCount; column += 1) {
-          plus.set(unknowns);
-          minus.set(unknowns);
-          const halfStep = finiteDifferenceRelativeStep * Math.max(1, Math.abs(unknowns[column]));
-          if (unknowns[column] - halfStep <= context.lowerBoundsMl[column] || unknowns[column] + halfStep >= context.upperBoundsMl[column]) {
-            throw new RangeError(
-              `coupled finite-difference column ${column} has no centered step`
-            );
-          }
-          plus[column] += halfStep;
-          minus[column] -= halfStep;
-          context.evaluateResidualMl(plus, plusResidual);
-          context.evaluateResidualMl(minus, minusResidual);
-          jacobianResidualEvaluationCount += 2;
-          const denominator = 2 * halfStep;
-          for (let row = 0; row < dimension; row += 1) {
-            destination[row * dimension + column] = (plusResidual[row] - minusResidual[row]) / denominator;
-          }
-        }
-        if (jacobianMode === "hybrid-coronary-analytic") {
-          const coronaryStart = nonCoronaryDimension;
-          const aoResidualRow = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("Ao");
-          const raResidualRow = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("RA");
-          if (aoResidualRow < 0 || raResidualRow < 0) {
-            throw new Error(
-              "coupled coronary block requires independent Ao and RA rows"
-            );
-          }
-          for (let row = 0; row < nonCoronaryDimension; row += 1) {
-            for (let column = 0; column < coronaryDimension; column += 1) {
-              let derivative = -localDependentSvColumn[row];
-              if (row === aoResidualRow) {
-                derivative += context.stepDtSec * coronaryLinearization.dTotalInletFlowDVolume[column];
-              }
-              if (row === raResidualRow) {
-                derivative -= context.stepDtSec * coronaryLinearization.dCommonVenousOutletFlowDVolume[column];
-              }
-              destination[row * dimension + coronaryStart + column] = derivative;
-            }
-          }
-          for (let row = 0; row < coronaryDimension; row += 1) {
-            for (let column = 0; column < coronaryDimension; column += 1) {
-              destination[(coronaryStart + row) * dimension + coronaryStart + column] = coronaryLinearization.dResidualDVolume[row * coronaryDimension + column];
-            }
-          }
-          if (completeAnalyticAssemblyAvailable) {
-            coronaryBoundaryAnalyticBlockAssemblyCount += 1;
-            nonCoronaryAnalyticBlockAssemblyCount += 1;
-            for (let row = 0; row < nonCoronaryDimension; row += 1) {
-              for (let column = 0; column < nonCoronaryDimension; column += 1) {
-                destination[row * dimension + column] = localNonCoronaryLinearization[row * nonCoronaryDimension + column];
-              }
-            }
-            for (let column = 0; column < nonCoronaryDimension; column += 1) {
-              let inletDerivative = 0;
-              let outletDerivative = 0;
-              for (let boundary2 = 0; boundary2 < boundaryDimension; boundary2 += 1) {
-                const boundaryDerivative = coronaryBoundaryLinearization[boundary2 * nonCoronaryDimension + column];
-                inletDerivative += coronaryLinearization.dTotalInletFlowDBoundary[boundary2] * boundaryDerivative;
-                outletDerivative += coronaryLinearization.dCommonVenousOutletFlowDBoundary[boundary2] * boundaryDerivative;
-              }
-              destination[aoResidualRow * dimension + column] += context.stepDtSec * inletDerivative;
-              destination[raResidualRow * dimension + column] -= context.stepDtSec * outletDerivative;
-            }
-            for (let row = 0; row < coronaryDimension; row += 1) {
-              for (let column = 0; column < nonCoronaryDimension; column += 1) {
-                let derivative = 0;
-                for (let boundary2 = 0; boundary2 < boundaryDimension; boundary2 += 1) {
-                  derivative += coronaryLinearization.dResidualDBoundary[row * boundaryDimension + boundary2] * coronaryBoundaryLinearization[boundary2 * nonCoronaryDimension + column];
-                }
-                destination[(coronaryStart + row) * dimension + column] = derivative;
-              }
-            }
-          }
-        }
-      }
-    });
-    for (let index = 0; index < dimension; index += 1) {
-      const scale = Math.max(1, Math.abs(context.initialUnknownsMl[index]));
-      storage.unknownScales[index] = scale;
-      storage.residualScales[index] = scale;
-    }
-    const result = solveFlatCoupledSystemV1(
-      system,
-      options.initialGuessMl ?? context.initialUnknownsMl,
-      Object.freeze({
-        maximumIterations: options.maximumIterations ?? 12,
-        maximumLineSearchBacktracks: options.maximumLineSearchBacktracks ?? 24,
-        maximumAcceptedStepsPerJacobian: options.maximumAcceptedStepsPerJacobian ?? 1,
-        residualInfinityTolerance: options.residualInfinityToleranceMl ?? 2e-9,
-        updateInfinityTolerance: options.updateInfinityToleranceMl ?? 1e-12,
-        armijoCoefficient: 1e-4,
-        minimumAbsolutePivot: 1e-14,
-        unknownScaleByUnknown: storage.unknownScales,
-        residualScaleByEquation: storage.residualScales,
-        lowerBoundByUnknown: context.lowerBoundsMl,
-        upperBoundByUnknown: context.upperBoundsMl
-      }),
-      storage.newton
-    );
-    const dependentSvContinuityResidualMl = result.status === "converged" ? context.evaluateDependentSvContinuityResidualMl(result.solution) : null;
-    return Object.freeze({
-      solverId: MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID,
-      jacobianResidualEvaluationCount,
-      coronaryAnalyticBlockAssemblyCount,
-      coronaryBoundaryAnalyticBlockAssemblyCount,
-      nonCoronaryAnalyticBlockAssemblyCount,
-      dependentSvContinuityResidualMl,
-      result
-    });
-  } finally {
-    storage.inUse = false;
-  }
-}
-function solveMainWireFiveWallCoupledNewtonPredictedV1(context, options, solverWorkspace, predictorWorkspace, predictionOrder = "linear") {
-  const prediction = prepareMainWireFiveWallCoupledPredictionV1(
-    context,
-    predictorWorkspace,
-    predictionOrder
-  );
-  const primary = solveMainWireFiveWallCoupledNewtonShadowV1(
-    context,
-    Object.freeze({
-      ...options,
-      initialGuessMl: prediction.initialGuessMl
-    }),
-    solverWorkspace
-  );
-  if (primary.result.status === "converged" || prediction.mode === "context") {
-    return Object.freeze({
-      predictionMode: prediction.mode,
-      extrapolationScale: prediction.extrapolationScale,
-      fallbackUsed: false,
-      solver: primary
-    });
-  }
-  const fallback = solveMainWireFiveWallCoupledNewtonShadowV1(
-    context,
-    Object.freeze({
-      ...options,
-      initialGuessMl: context.initialUnknownsMl
-    }),
-    solverWorkspace
-  );
-  return Object.freeze({
-    predictionMode: prediction.mode,
-    extrapolationScale: prediction.extrapolationScale,
-    fallbackUsed: true,
-    solver: fallback
-  });
-}
-function requirePositiveFinite(value, label) {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new RangeError(`${label} must be positive and finite`);
-  }
-}
-function sumVector(values2) {
-  let sum = 0;
-  for (let index = 0; index < values2.length; index += 1) {
-    sum += values2[index];
-  }
-  return sum;
-}
 function solveMainWireFiveWallCoupledCandidateV1(provider, previous, input, workspace = createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(), options = Object.freeze({})) {
   assertBaseDeviceOff(input);
   const context = prepareMainWireFiveWallCoupledResidualContextV1(
@@ -43102,6 +43320,8 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1
     );
     this.#acceptedNumericalReadbackAvailable = false;
+    this.#installedExecutionPlanCoupledNewtonWorkspace = null;
+    this.#executionPlanWorkspaceInstallationClosed = false;
     this.#coupledSolverProfile = {
       solveCount: 0,
       convergedSolveCount: 0,
@@ -43227,6 +43447,8 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
   #candidateNumericalReadback;
   #acceptedNumericalReadbackAvailable;
   #coupledNewtonWorkspace;
+  #installedExecutionPlanCoupledNewtonWorkspace;
+  #executionPlanWorkspaceInstallationClosed;
   #coupledResidualWorkspace;
   #coupledPredictorWorkspace;
   #nonCoronaryAcceptedNumericalSource;
@@ -43334,6 +43556,23 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     return this.#authority.snapshot();
   }
   /**
+   * Installs compiler-owned solver scratch before the first numerical advance.
+   * Repeating the same binding is idempotent; replacing it is fail-closed.
+   */
+  installExecutionPlanCoupledNewtonWorkspaceV1(workspace) {
+    assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace);
+    if (this.#installedExecutionPlanCoupledNewtonWorkspace === workspace) {
+      return;
+    }
+    if (this.#installedExecutionPlanCoupledNewtonWorkspace !== null || this.#executionPlanWorkspaceInstallationClosed) {
+      throw new Error(
+        "Main Wire execution-plan Newton workspace cannot be replaced"
+      );
+    }
+    this.#coupledNewtonWorkspace = workspace;
+    this.#installedExecutionPlanCoupledNewtonWorkspace = workspace;
+  }
+  /**
    * Copies the current one-patch hemodynamic view in its canonical logical
    * order for a sampled execution-plan shadow check. The accepted typed image
    * remains the sole authority; this method neither stages nor promotes state.
@@ -43432,6 +43671,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
    * accepted substep, not merely after presentation delivery.
    */
   advanceToPresentationTime(targetTimeSec) {
+    this.#executionPlanWorkspaceInstallationClosed = true;
     return this.advanceToPresentationTimeInternal(targetTimeSec, true);
   }
   /**
@@ -43440,6 +43680,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
    * public observation requested later is rehydrated from typed authority.
    */
   advanceToPresentationTimeWithSelectedOutputProjectionV1(targetTimeSec, outputIds) {
+    this.#executionPlanWorkspaceInstallationClosed = true;
     validateTypedProjectionOutputIds(outputIds);
     const direct = this.tryAdvanceTypedOrdinaryProjectionV1(
       targetTimeSec,
@@ -46566,7 +46807,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-39";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-41";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";
@@ -46661,6 +46902,7 @@ const STANDARD_EXACT_OUTPUT_IDS_V1 = /* @__PURE__ */ new Set([
 class MainWireIntegratedStudioStandardRuntimeHostV1 {
   #sessions = /* @__PURE__ */ new Map();
   #retiredSessionIds = /* @__PURE__ */ new Set();
+  #executionPlanScenarioOwners = /* @__PURE__ */ new WeakMap();
   async createSession(runtimeSessionId, scenarioInputs) {
     requiredIdV1(runtimeSessionId, "runtimeSessionId");
     if (this.#sessions.has(runtimeSessionId) || this.#retiredSessionIds.has(runtimeSessionId)) {
@@ -46695,7 +46937,8 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
         presentationOriginTick: standardPresentationTickV1(
           modelSession.currentAcceptedState().acceptedTimeSec
         ),
-        presentationOrdinal: 0
+        presentationOrdinal: 0,
+        executionPlanBinding: null
       });
     }
     this.#sessions.set(runtimeSessionId, { scenarios });
@@ -46724,12 +46967,59 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
   }
   synchronizeExecutionPlanAcceptedState(runtimeSessionId, scenarioId, boundExecutionPlan) {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
+    const owner = this.#executionPlanScenarioOwners.get(boundExecutionPlan);
+    if (owner === void 0) {
+      this.#executionPlanScenarioOwners.set(boundExecutionPlan, Object.freeze({
+        runtimeSessionId,
+        scenarioId
+      }));
+    } else if (owner.runtimeSessionId !== runtimeSessionId || owner.scenarioId !== scenarioId) {
+      throw new Error(
+        "Standard execution plan cannot be shared between Scenarios"
+      );
+    }
     const clock = scenario.modelSession.copyCurrentAcceptedTypedHemodynamicViewV1(
       boundExecutionPlan.acceptedStateLogicalScratch
     );
     const synchronized = synchronizeBoundExecutionPlanAcceptedStateV1(
       boundExecutionPlan
     );
+    const prepared = prepareBoundExecutionPlanSolveGroupV1(
+      boundExecutionPlan,
+      "coupled-hemodynamics"
+    );
+    const installed = scenario.executionPlanBinding;
+    if (installed === null || installed.modelSession !== scenario.modelSession) {
+      if (installed !== null && installed.boundExecutionPlan !== boundExecutionPlan) {
+        throw new Error("Standard Scenario execution plan cannot be replaced");
+      }
+      const newton = bindFlatCoupledNewtonWorkspaceV1({
+        dimension: prepared.dimension,
+        current: prepared.currentUnknowns,
+        residual: prepared.residual,
+        jacobian: prepared.jacobian,
+        factors: prepared.factors,
+        rightHandSide: prepared.rightHandSide,
+        transformedRightHandSide: prepared.transformedRightHandSide,
+        update: prepared.update,
+        trial: prepared.trialUnknowns,
+        trialResidual: prepared.trialResidual,
+        pivots: prepared.pivots
+      });
+      scenario.modelSession.installExecutionPlanCoupledNewtonWorkspaceV1(
+        createMainWireFiveWallCoupledNewtonShadowWorkspaceV1({
+          newton,
+          unknownScales: prepared.unknownScale,
+          residualScales: prepared.residualScale
+        })
+      );
+      scenario.executionPlanBinding = Object.freeze({
+        boundExecutionPlan,
+        modelSession: scenario.modelSession
+      });
+    } else if (installed.boundExecutionPlan !== boundExecutionPlan) {
+      throw new Error("Standard Scenario execution plan cannot be replaced");
+    }
     return Object.freeze({
       schemaId: EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID,
       definitionId: synchronized.definitionId,
@@ -47025,6 +47315,7 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
     }
     current.fixture = fixture;
     current.modelSession = candidate;
+    current.executionPlanBinding = null;
     current.presentationOriginTick = standardPresentationTickV1(
       accepted.acceptedTimeSec
     );
@@ -47097,6 +47388,7 @@ function createMainWireIntegratedStudioExactKernelV1() {
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
       EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
+      EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1.map(({ outputId }) => `output/${outputId}`),
       ...STANDARD_MODEL_METRIC_DEFINITIONS_V1.map(({ outputId }) => `output/${outputId}`),

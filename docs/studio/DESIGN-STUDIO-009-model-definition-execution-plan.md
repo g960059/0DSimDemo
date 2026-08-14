@@ -1,6 +1,6 @@
 # DESIGN-STUDIO-009: Model definition and execution-plan compiler
 
-Status: binding shadow-runtime plan
+Status: binding plan-owned Newton workspace
 
 This document owns the declarative model-definition and ahead-of-time
 execution-plan boundary. DESIGN-STUDIO-007 continues to own numerical
@@ -73,11 +73,12 @@ VC-to-LA bypass path that leaves state and solve numbering unchanged. The
 synthetic path is a compiler test only; it does not add a Fontan or congenital
 circulation claim to the model.
 
-## Bound shadow slice
+## Bound runtime slice
 
-The Standard-39 development candidate advertises
-`runtime/execution-plan-accepted-state-shadow-v1`. Its exact artifact contains
-the generated descriptor and a small binder; it does not contain
+The Standard-41 development candidate advertises both
+`runtime/execution-plan-accepted-state-shadow-v1` and
+`runtime/execution-plan-newton-workspace-v1`. Its exact artifact contains the
+generated descriptor and a small binder; it does not contain
 `ModelDefinitionV1`, `NumericalPolicyV1`, or the compiler. Historical exact
 artifacts without the capability continue to load through their immutable
 legacy executable contract.
@@ -96,11 +97,11 @@ executable function pointers. One bound plan is retained Worker-locally for
 each Scenario; no state or solver scratch is shared between Scenario branches.
 Scenario rebuilds retain surviving plans, allocate only newly introduced
 branches, and reject cross-Scenario backing-buffer aliasing before exact
-session creation. The plans do not yet advance the numerical model. That
-candidate therefore remained behavior-neutral: the existing typed-authority
-session is still the sole execution and checkpoint authority.
+session creation. Component and path bindings remain symbolic rather than a
+generic equation interpreter. The existing typed-authority session remains
+the sole accepted-state and checkpoint authority.
 
-The same Standard-39 candidate adds sampled accepted-boundary synchronization.
+Standard-39 first added sampled accepted-boundary synchronization.
 After exact session creation and after each presentation batch or authored control, the
 model copies its canonical 100-slot typed hemodynamic view into that Scenario's
 Worker-local logical page. The neutral runtime validates every numeric and boolean value,
@@ -116,11 +117,18 @@ right-hand side, its LU-transformed copy, update, trial values, both scale
 vectors, and pivots each own one named contiguous segment. The Worker allocates
 the two backing arrays once;
 the exact binder creates persistent views at the emitted offsets and rejects
-gaps, overlap, reordering, or foreign views. At a shadow boundary the active
+gaps, overlap, reordering, or foreign views. At an accepted boundary the active
 unknowns are gathered through compiler-emitted logical indices into the
-`current-unknowns` segment. This still invokes no equation or solver, but it
-removes the final hand-written workspace/index layout needed by the next
-residual/Jacobian slice.
+`current-unknowns` segment. Standard-41 additionally binds the existing
+30-variable coupled Newton solve to those exact Scenario-owned views. Raw
+Jacobian and LU factors remain distinct segments; right-hand side,
+LU-transformed right-hand side, update, trial, scale vectors, and pivots are
+also plan-owned. The current component-specific analytic and finite-difference
+scratch remains inside its scientific kernels. Equations, residual assembly,
+globalization, convergence gates, accepted-state promotion, and checkpoint
+meaning are unchanged: this release changes solver-workspace ownership and
+therefore mints a new `modelId`, but does not claim new physiology or a new
+solver algorithm.
 
 ## Cold-start evidence
 
@@ -147,15 +155,15 @@ binding is bounded and that time-to-first-frame has not materially regressed.
 1. Add exact descriptor parity for every current generated layout that will
    become runtime-owned. **Complete for the current one-patch slice.**
 2. Embed the descriptor in the exact executable without another fetch or a
-   production compiler. **Complete in the Standard-39 development candidate.**
+   production compiler. **Complete in the Standard-41 development candidate.**
 3. Bind known kernel IDs, allocate buffers once, and reject missing, extra, or
-   aliased bindings. **Complete as a nonexecuting Worker shadow in
-   Standard-39.**
-4. Execute the bound plan in shadow against the current authority, including
+   aliased bindings. **Complete per Scenario in Standard-41.**
+4. Move existing authority resources behind the bound plan, while preserving
    checkpoint continuation and the canonical scientific corpus. **Accepted
-   state projection, canonical Newton workspace preparation, and checkpoint
-   continuation are complete in Standard-39;
-   residual/Jacobian execution remains pending.**
+   state projection, canonical Newton workspace preparation, checkpoint
+   continuation, and execution of the existing coupled Newton/LU solve through
+   the plan-owned workspace are complete in Standard-41. Descriptor-driven
+   component orchestration remains pending.**
 5. Mint a new model release for the direct runtime cutover. Do not dual-write
    state or retain a fallback inside that release.
 6. Delete the replaced hand-written layout tables only after production

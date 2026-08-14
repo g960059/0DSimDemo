@@ -6,12 +6,20 @@ import {
 import {
   EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID,
   EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
+  EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
   bindExecutionPlanV1,
+  prepareBoundExecutionPlanSolveGroupV1,
   synchronizeBoundExecutionPlanAcceptedStateV1,
   validateAndOwnExecutionPlanDescriptorV1,
   type BoundExecutionPlanV1,
   type ExecutionPlanAcceptedStateSynchronizationV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import {
+  bindFlatCoupledNewtonWorkspaceV1,
+} from "@/engine/vnext/coupled/FlatCoupledNewtonV1";
+import {
+  createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+} from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
@@ -189,6 +197,10 @@ type RuntimeScenarioV1 = {
   modelSession: MainWireIntegratedTypedAuthoritySessionV1;
   presentationOriginTick: number;
   presentationOrdinal: number;
+  executionPlanBinding: Readonly<{
+    boundExecutionPlan: BoundExecutionPlanV1;
+    modelSession: MainWireIntegratedTypedAuthoritySessionV1;
+  }> | null;
 };
 
 type RuntimeSessionV1 = {
@@ -242,6 +254,10 @@ const STANDARD_EXACT_OUTPUT_IDS_V1 = new Set([
 export class MainWireIntegratedStudioStandardRuntimeHostV1 {
   readonly #sessions = new Map<string, RuntimeSessionV1>();
   readonly #retiredSessionIds = new Set<string>();
+  readonly #executionPlanScenarioOwners = new WeakMap<
+    object,
+    Readonly<{ runtimeSessionId: string; scenarioId: string }>
+  >();
 
   async createSession(
     runtimeSessionId: string,
@@ -301,6 +317,7 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
           modelSession.currentAcceptedState().acceptedTimeSec,
         ),
         presentationOrdinal: 0,
+        executionPlanBinding: null,
       });
     }
     this.#sessions.set(runtimeSessionId, { scenarios });
@@ -337,6 +354,20 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     boundExecutionPlan: BoundExecutionPlanV1,
   ): ExecutionPlanAcceptedStateSynchronizationV1 {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
+    const owner = this.#executionPlanScenarioOwners.get(boundExecutionPlan);
+    if (owner === undefined) {
+      this.#executionPlanScenarioOwners.set(boundExecutionPlan, Object.freeze({
+        runtimeSessionId,
+        scenarioId,
+      }));
+    } else if (
+      owner.runtimeSessionId !== runtimeSessionId
+      || owner.scenarioId !== scenarioId
+    ) {
+      throw new Error(
+        "Standard execution plan cannot be shared between Scenarios",
+      );
+    }
     const clock = scenario.modelSession
       .copyCurrentAcceptedTypedHemodynamicViewV1(
         boundExecutionPlan.acceptedStateLogicalScratch,
@@ -344,6 +375,48 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     const synchronized = synchronizeBoundExecutionPlanAcceptedStateV1(
       boundExecutionPlan,
     );
+    const prepared = prepareBoundExecutionPlanSolveGroupV1(
+      boundExecutionPlan,
+      "coupled-hemodynamics",
+    );
+    const installed = scenario.executionPlanBinding;
+    if (
+      installed === null
+      || installed.modelSession !== scenario.modelSession
+    ) {
+      if (
+        installed !== null
+        && installed.boundExecutionPlan !== boundExecutionPlan
+      ) {
+        throw new Error("Standard Scenario execution plan cannot be replaced");
+      }
+      const newton = bindFlatCoupledNewtonWorkspaceV1({
+        dimension: prepared.dimension,
+        current: prepared.currentUnknowns,
+        residual: prepared.residual,
+        jacobian: prepared.jacobian,
+        factors: prepared.factors,
+        rightHandSide: prepared.rightHandSide,
+        transformedRightHandSide: prepared.transformedRightHandSide,
+        update: prepared.update,
+        trial: prepared.trialUnknowns,
+        trialResidual: prepared.trialResidual,
+        pivots: prepared.pivots,
+      });
+      scenario.modelSession.installExecutionPlanCoupledNewtonWorkspaceV1(
+        createMainWireFiveWallCoupledNewtonShadowWorkspaceV1({
+          newton,
+          unknownScales: prepared.unknownScale,
+          residualScales: prepared.residualScale,
+        }),
+      );
+      scenario.executionPlanBinding = Object.freeze({
+        boundExecutionPlan,
+        modelSession: scenario.modelSession,
+      });
+    } else if (installed.boundExecutionPlan !== boundExecutionPlan) {
+      throw new Error("Standard Scenario execution plan cannot be replaced");
+    }
     return Object.freeze({
       schemaId:
         EXECUTION_PLAN_ACCEPTED_STATE_SYNCHRONIZATION_V1_SCHEMA_ID,
@@ -752,6 +825,7 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     }
     current.fixture = fixture;
     current.modelSession = candidate;
+    current.executionPlanBinding = null;
     current.presentationOriginTick = standardPresentationTickV1(
       accepted.acceptedTimeSec,
     );
@@ -837,6 +911,7 @@ ExactModelKernelManifestV3 {
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
       EXECUTION_PLAN_ACCEPTED_STATE_SHADOW_V1_CAPABILITY,
+      EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1
         .map(({ outputId }) => `output/${outputId}`),
