@@ -32,10 +32,18 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-23
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-24
 ```
 
-Standard-23 preserves Standard-22's equations, controls, checkpoint meaning,
+Standard-24 preserves Standard-23's equations, controls, checkpoint meaning,
+accepted sequence, and public diagnostic records. It adds the out-of-production
+typed-authority reference seams used to prove ordinary-tick promotion and
+selected-output projection without public AcceptedState materialization. The
+registered exact executable still runs the same admitted public production
+algorithm; Standard-24 is a new artifact identity because model-owned runtime
+modules changed, not a claim that the reference path is active in production.
+
+Standard-23 preserved Standard-22's equations, controls, checkpoint meaning,
 accepted sequence, and public diagnostic records while compiling the immutable
 coronary edge incidence into private fixed indices. Repeated hydraulic,
 continuity, analytic-Jacobian, and implicit-sensitivity evaluations reuse those
