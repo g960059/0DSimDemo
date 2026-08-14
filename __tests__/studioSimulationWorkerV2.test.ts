@@ -846,7 +846,7 @@ describe("Studio simulation worker V2 protocol", () => {
 });
 
 describe("Studio simulation worker V2 runtime", () => {
-  it("binds one admitted shadow execution plan exactly once at initialization", async () => {
+  it("binds one admitted execution plan exactly once at initialization", async () => {
     const descriptor = validateAndOwnExecutionPlanDescriptorV1(
       generatedExecutionPlanV1,
     );
