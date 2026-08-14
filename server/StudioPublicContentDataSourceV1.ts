@@ -6,6 +6,7 @@ import type {
 import {
   StudioSupabaseContentRepositoryV1,
   type StudioPublicArticleSummaryV1,
+  type StudioPublicExperimentSummaryV1,
   type StudioSummaryPageRequestV1,
   type StudioSummaryPageV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
@@ -17,6 +18,9 @@ export type StudioPublicContentDataSourceV1 = Readonly<{
   listPublicArticles: (
     request?: StudioSummaryPageRequestV1,
   ) => Promise<StudioSummaryPageV1<StudioPublicArticleSummaryV1>>;
+  listPublicExperiments: (
+    request?: StudioSummaryPageRequestV1,
+  ) => Promise<StudioSummaryPageV1<StudioPublicExperimentSummaryV1>>;
 }>;
 
 export type StudioPublicContentServerConfigurationV1 = Readonly<{
@@ -102,6 +106,8 @@ export function createStudioPublicContentDataSourceV1(
       repository.readPublishedArticle(routeKey),
     listPublicArticles: (request: StudioSummaryPageRequestV1 = {}) =>
       repository.listPublicArticles(request),
+    listPublicExperiments: (request: StudioSummaryPageRequestV1 = {}) =>
+      repository.listPublicExperiments(request),
   });
 }
 

@@ -1,5 +1,7 @@
 import katex from "katex";
 
+import enTranslation from "@/locales/en/translation.json";
+import jaTranslation from "@/locales/ja/translation.json";
 import type {
   StudioArticleAccordionContentBlockV2,
   StudioArticleBlockV2,
@@ -473,20 +475,23 @@ function publicStaticSiteHeaderHtmlV1(
     /^\/(?:ja|en)(?=\/|$)/,
     `/${alternateLocale}`,
   );
-  const homeLabel = locale === "ja" ? "ホーム" : "Home";
-  const simulationLabel = locale === "ja" ? "シミュレーションを始める" : "Start a simulation";
-  const loginLabel = locale === "ja" ? "ログイン" : "Log in";
+  const siteHeaderCopy = locale === "ja"
+    ? jaTranslation.siteHeader
+    : enTranslation.siteHeader;
+  const homeLabel = siteHeaderCopy.home;
+  const simulationLabel = siteHeaderCopy.startSimulation;
+  const loginLabel = siteHeaderCopy.login;
   return [
     `<header class="public-static-site-header">`,
     `<a class="public-static-brand" href="/${locale}" aria-label="${homeLabel}">${SITE_NAME_V1}</a>`,
     `<span class="public-static-site-header-spacer"></span>`,
-    `<nav class="public-static-language" aria-label="${locale === "ja" ? "言語" : "Language"}">`,
+    `<nav class="public-static-language" aria-label="${siteHeaderCopy.language}">`,
     `<a${locale === "ja" ? " aria-current=\"true\"" : ""} href="${locale === "ja" ? canonical.pathname : alternatePath}">JA</a>`,
     `<a${locale === "en" ? " aria-current=\"true\"" : ""} href="${locale === "en" ? canonical.pathname : alternatePath}">EN</a>`,
     `</nav>`,
     `<span class="public-static-theme-icon" aria-hidden="true"><span class="public-static-theme-sun">${sunIconHtmlV1()}</span><span class="public-static-theme-moon">${moonIconHtmlV1()}</span></span>`,
-    `<a class="public-static-primary-icon" href="/${locale}/experiments/new" aria-label="${simulationLabel}">${flaskIconHtmlV1()}</a>`,
-    `<a class="public-static-quiet-icon" href="/${locale}/login" aria-label="${loginLabel}">${loginIconHtmlV1()}</a>`,
+    `<a class="public-static-primary-icon" href="/${locale}/experiments/new" aria-label="${simulationLabel}">${flaskIconHtmlV1()}<span class="public-static-responsive-label">${simulationLabel}</span></a>`,
+    `<a class="public-static-quiet-icon" href="/${locale}/login" aria-label="${loginLabel}">${loginIconHtmlV1()}<span class="public-static-responsive-label">${loginLabel}</span></a>`,
     `</header>`,
   ].join("");
 }

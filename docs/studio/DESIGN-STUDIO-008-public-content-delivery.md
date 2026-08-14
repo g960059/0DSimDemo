@@ -2,14 +2,15 @@
 
 ## Decision
 
-Public CircleHeart Articles use a server-rendered read boundary. The Editor,
-Experiment Session, Workbench and simulation Workers remain client-rendered.
-The application does not adopt universal SSR.
+CircleHeart Home and public Articles use a server-rendered read boundary. The
+Editor, Experiment Session, Workbench and simulation Workers remain
+client-rendered. The application does not adopt universal SSR.
 
 One anonymous Supabase projection is the content authority for all public
 representations:
 
 - canonical HTML: `/{locale}/articles/{publicSlug}`
+- localized Home: `/{locale}`
 - Markdown: `/{locale}/articles/{publicSlug}.md`
 - JSON: `/api/v1/public/articles/{publicSlug}`
 - Article directory: `/{locale}/articles`
@@ -23,25 +24,24 @@ The static document lives outside React's mount root and remains visible until
 the client route has resolved; a slow or failed bundle therefore cannot replace
 readable content with a loading screen.
 
-The first response and interactive Reader are two renderers of one presentation
-contract, not two designs. They share publication copy, date formatting,
-Article typography and page chrome. The HTML also embeds the already validated
-anonymous Article projection as inert JSON, so the client does not fetch the
-same Article a second time before becoming interactive. Snapshot resolution
-continues in the background; the handoff occurs only after the Reader is ready
-and transfers the document scroll position into the Reader's scroll container.
-The cached first response necessarily uses anonymous chrome; account-specific
-controls may replace it only after the browser resolves an authenticated
-session.
+The first response and interactive client are two renderers of one presentation
+contract, not two designs. They share copy, typography, cards and page chrome.
+Both Home and Article HTML embed their already validated anonymous projection
+as inert JSON, so the client does not repeat the public read before becoming
+interactive. Article Snapshot resolution continues in the background; the
+handoff occurs only after the Reader is ready and transfers the document scroll
+position into the Reader's scroll container. The cached first response
+necessarily uses anonymous chrome; account-specific controls may replace it
+only after the browser resolves an authenticated session.
 
 ## Why this boundary
 
 Search engines, link unfurlers, accessibility tools and AI review clients must
-receive the title and Article prose in the first HTTP response. They must not
-execute the simulation application merely to read public educational content.
-Conversely, SSR adds no value to the numerical Worker runtime or private
-authoring surfaces and would couple deployment concerns to scientific runtime
-code.
+receive the product description, public discovery links, Article title and
+Article prose in the first HTTP response. They must not execute the simulation
+application merely to discover or read public educational content. Conversely,
+SSR adds no value to the numerical Worker runtime or private authoring surfaces
+and would couple deployment concerns to scientific runtime code.
 
 The server uses only the Supabase publishable key and anonymous RPCs. A service
 role key is prohibited. Publication remains the database authority; the render
@@ -49,8 +49,9 @@ tier cannot expose drafts.
 
 ## Routing and cache contract
 
-Firebase Hosting routes only the public one-segment Article paths, public API,
-sitemap and robots to `circleheart-public-content` in `asia-northeast1`.
+Firebase Hosting routes localized Home, public one-segment Article paths,
+public API, sitemap and robots to `circleheart-public-content` in
+`asia-northeast1`.
 `/{locale}/articles/{articleId}/edit` and every other application path continue
 to the SPA fallback. Authored draft previews use
 `/{locale}/articles/{articleId}/preview`, are explicitly routed to the SPA, and

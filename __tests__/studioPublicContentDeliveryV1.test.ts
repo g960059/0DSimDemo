@@ -7,10 +7,20 @@ import {
   renderStudioPublishedArticleV1,
 } from "@/studio/application/publication/StudioPublicArticleRendererV1";
 import {
+  formatStudioPublicArticleDateV1,
+} from "@/studio/application/publication/StudioPublicArticlePresentationV1";
+import {
   readStudioPublicArticleBootstrapV1,
   renderStudioPublicArticleBootstrapV1,
   STUDIO_PUBLIC_ARTICLE_BOOTSTRAP_V1_ELEMENT_ID,
 } from "@/studio/application/publication/StudioPublicArticleBootstrapV1";
+import {
+  readStudioPublicHomeBootstrapV1,
+  renderStudioPublicHomeBootstrapV1,
+  STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID,
+  STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID,
+  validateStudioPublicHomeBootstrapV1,
+} from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 import {
   STUDIO_PUBLISHED_ARTICLE_V1_SCHEMA_ID,
   type StudioPublishedArticleV1,
@@ -209,6 +219,94 @@ describe("Studio public content delivery V1", () => {
     }
   });
 
+  it("serves a semantic localized Home with one validated client bootstrap", async () => {
+    const response = await handleStudioPublicContentRequestV1(
+      requestV1("/ja"),
+      dependenciesV1(),
+    );
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("etag")).toMatch(
+      /^"home-ja-html-v1-[0-9a-f]{64}"$/,
+    );
+    expect(html).toContain("循環動態を、動かして学ぶ。");
+    expect(html).toContain("血圧を考える");
+    expect(html).toContain("公開シミュレーション");
+    expect(html).toContain(
+      "/ja/articles/what-determines-blood-pressure",
+    );
+    expect(html).toContain(
+      "/ja/snapshots/44444444-4444-4444-8444-444444444444",
+    );
+    expect(html).toContain(`id="${STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID}"`);
+    expect(html).toContain('"@type":"WebSite"');
+    expect(html).toContain('"@type":"Organization"');
+    expect(html).toContain('hreflang="ja"');
+    expect(html).toContain('hreflang="en"');
+    expect(html).toContain('<div id="root" hidden></div>');
+    expect(html.indexOf("</main>")).toBeLessThan(html.indexOf("<footer"));
+
+    const etag = response.headers.get("etag") ?? "";
+    const cached = await handleStudioPublicContentRequestV1(
+      requestV1("/ja", { "If-None-Match": etag }),
+      dependenciesV1(),
+    );
+    expect(cached.status).toBe(304);
+    expect(await cached.text()).toBe("");
+
+    const weakListMatch = await handleStudioPublicContentRequestV1(
+      requestV1("/ja", {
+        "If-None-Match": `"unrelated", W/${etag}`,
+      }),
+      dependenciesV1(),
+    );
+    expect(weakListMatch.status).toBe(304);
+
+    const anyRepresentation = await handleStudioPublicContentRequestV1(
+      requestV1("/ja", { "If-None-Match": "*" }),
+      dependenciesV1(),
+    );
+    expect(anyRepresentation.status).toBe(304);
+  });
+
+  it("keeps public dates stable across server and browser time zones", () => {
+    expect(formatStudioPublicArticleDateV1(
+      "2026-08-13T23:30:00.000Z",
+      "ja",
+    )).toBe("2026/08/13");
+    expect(formatStudioPublicArticleDateV1(
+      "2026-08-13T23:30:00.000Z",
+      "en",
+    )).toBe("Aug 13, 2026");
+  });
+
+  it("rejects stale-locale or executable Home bootstrap content", () => {
+    const bootstrap = validateStudioPublicHomeBootstrapV1({
+      schemaId: STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID,
+      locale: "ja",
+      articles: [{
+        articleId: "article/home",
+        locale: "ja",
+        title: "</script><script>alert('inert')</script>",
+        excerpt: null,
+        publicSlug: "home-article",
+        publishedAt: "2026-08-13T00:00:00.000Z",
+      }],
+      experiments: [],
+    });
+    const script = renderStudioPublicHomeBootstrapV1(bootstrap);
+    const json = script.slice(script.indexOf(">") + 1, script.lastIndexOf("<"));
+    expect(json).not.toContain("<");
+    const documentLike = {
+      getElementById: (id: string) => id === STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID
+        ? { textContent: json }
+        : null,
+    } as Pick<Document, "getElementById">;
+    expect(readStudioPublicHomeBootstrapV1("ja", documentLike)).toEqual(bootstrap);
+    expect(readStudioPublicHomeBootstrapV1("en", documentLike)).toBeNull();
+  });
+
   it("rejects extra public projection fields before rendering", () => {
     expect(() => validateStudioPublishedArticleV1({
       ...publishedArticleV1(),
@@ -266,6 +364,10 @@ describe("Studio public content delivery V1", () => {
       dataSource: Object.freeze({
         readPublishedArticle: async () => currentArticle,
         listPublicArticles: async () => Object.freeze({
+          items: Object.freeze([]),
+          nextCursor: null,
+        }),
+        listPublicExperiments: async () => Object.freeze({
           items: Object.freeze([]),
           nextCursor: null,
         }),
@@ -347,9 +449,12 @@ describe("Studio public content delivery V1", () => {
       requestV1("/sitemap.xml"),
       dependencies,
     );
-    expect(await sitemap.text()).toContain(
+    const sitemapXml = await sitemap.text();
+    expect(sitemapXml).toContain(
       "https://www.circleheart.dev/ja/articles/what-determines-blood-pressure",
     );
+    expect(sitemapXml).toContain("https://www.circleheart.dev/ja");
+    expect(sitemapXml).toContain("https://www.circleheart.dev/en/articles");
 
     const robots = await handleStudioPublicContentRequestV1(
       requestV1("/robots.txt"),
@@ -496,6 +601,18 @@ function dependenciesV1() {
         excerpt: "血圧は何で決まるでしょうか。",
         publicSlug: article.publicSlug,
         publishedAt: article.publishedAt,
+      }]),
+      nextCursor: null,
+    }),
+    listPublicExperiments: async () => Object.freeze({
+      items: Object.freeze([{
+        experimentId: "experiment/public-simulation",
+        title: "公開シミュレーション",
+        publicSlug: "public-simulation",
+        publishedAt: "2026-08-12T00:30:00.000Z",
+        snapshotId: "44444444-4444-4444-8444-444444444444",
+        modelId: "model/test",
+        scenarioCount: 2,
       }]),
       nextCursor: null,
     }),

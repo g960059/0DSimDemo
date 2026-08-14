@@ -52,15 +52,6 @@
         ]
       },
       {
-        "source": "/@(ja|en)",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          }
-        ]
-      },
-      {
         "source": "/@(ja|en)/@(experiments|snapshots|login|me|dev|docs)",
         "headers": [
           {
@@ -133,6 +124,22 @@
       },
       {
         "source": "/sitemap.xml",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/@(ja|en)",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/@(ja|en)/",
         "run": {
           "serviceId": "circleheart-public-content",
           "region": "asia-northeast1",

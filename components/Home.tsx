@@ -9,11 +9,18 @@ import { Link, useLocation } from "react-router-dom";
 
 import {
   publicArticlesForLocaleV3,
-  readPublicCatalogAsyncV3,
+  readPublicHomeCatalogAsyncV3,
+  readPublicHomeCatalogBootstrapV3,
   type PublicArticleCatalogItemV3,
   type PublicCatalogV3,
   type PublicExperimentCatalogItemV3,
 } from "@/components/site/PublicCatalogV3";
+import {
+  completePublicStaticContentHandoffV1,
+} from "@/components/site/PublicStaticContentHandoffV1";
+import {
+  formatStudioPublicArticleDateV1,
+} from "@/studio/application/publication/StudioPublicArticlePresentationV1";
 import {
   authoringCliDocsHref,
   articleReaderHref,
@@ -29,33 +36,65 @@ const EMPTY_PUBLIC_CATALOG_V4: PublicCatalogV3 = Object.freeze({
   articles: Object.freeze([]),
   experiments: Object.freeze([]),
 });
+type HomeCatalogStateV4 = Readonly<{
+  locale: Locale;
+  catalog: PublicCatalogV3;
+}>;
+
+export function homeCatalogForLocaleV4(
+  state: HomeCatalogStateV4 | null,
+  locale: Locale,
+): PublicCatalogV3 | null {
+  return state?.locale === locale ? state.catalog : null;
+}
 
 /** The browser fallback stamps epoch zero; only real publication dates show. */
 function homePublishedDateV4(isoDate: string, locale: Locale): string | null {
   const timestamp = Date.parse(isoDate);
   if (!Number.isFinite(timestamp) || timestamp <= 0) return null;
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" })
-    .format(timestamp);
+  return formatStudioPublicArticleDateV1(isoDate, locale);
 }
 
 export const Home = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
-  const [catalog, setCatalog] = React.useState<PublicCatalogV3 | null>(null);
+  const bootstrapCatalog = React.useMemo(
+    () => readPublicHomeCatalogBootstrapV3(locale),
+    [locale],
+  );
+  const [catalogState, setCatalogState] = React.useState<HomeCatalogStateV4 | null>(
+    bootstrapCatalog === null
+      ? null
+      : Object.freeze({ locale, catalog: bootstrapCatalog }),
+  );
+  const catalog = homeCatalogForLocaleV4(catalogState, locale);
 
   React.useEffect(() => {
+    if (bootstrapCatalog !== null) {
+      setCatalogState(Object.freeze({ locale, catalog: bootstrapCatalog }));
+      return;
+    }
     let current = true;
-    void readPublicCatalogAsyncV3().then((next) => {
-      if (current) setCatalog(next);
+    setCatalogState(null);
+    void readPublicHomeCatalogAsyncV3(locale).then((next) => {
+      if (current) setCatalogState(Object.freeze({ locale, catalog: next }));
     }).catch(() => {
       // The public landing page remains usable when the catalog is offline.
-      if (current) setCatalog(EMPTY_PUBLIC_CATALOG_V4);
+      if (current) {
+        setCatalogState(Object.freeze({
+          locale,
+          catalog: EMPTY_PUBLIC_CATALOG_V4,
+        }));
+      }
     });
     return () => {
       current = false;
     };
-  }, []);
+  }, [bootstrapCatalog, locale]);
+  React.useEffect(() => {
+    if (catalog !== null) completePublicStaticContentHandoffV1();
+  }, [catalog]);
 
   const localizedArticles = catalog === null
     ? []
@@ -64,7 +103,10 @@ export const Home = () => {
   const experiments = catalog?.experiments.slice(0, HOME_SECTION_LIMIT_V4) ?? [];
 
   return (
-    <div className="h-full w-full overflow-y-auto overflow-x-hidden bg-wb-app text-wb-text">
+    <div
+      className="h-full w-full overflow-y-auto overflow-x-hidden bg-wb-app text-wb-text"
+      data-public-static-scroll-host="true"
+    >
       <main className="mx-auto w-full max-w-5xl px-4 sm:px-6">
         <section className="py-10 sm:py-20">
           <div>
