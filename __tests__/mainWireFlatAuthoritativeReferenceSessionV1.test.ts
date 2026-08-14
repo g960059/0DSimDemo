@@ -75,6 +75,7 @@ import {
   createMainWireAcceptedTypedHemodynamicBindingV1,
   createMainWireAcceptedTypedHemodynamicDestinationV1,
   MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1,
+  materializeMainWireAcceptedTypedCoupledSolverAdapterV1,
   readMainWireAcceptedTypedHemodynamicIntoV1,
   stageMainWireAcceptedTypedCoupledCandidateV1,
 } from "@/engine/vnext/MainWireAcceptedTypedHemodynamicV1";
@@ -1010,6 +1011,15 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     const reference = new MainWireFlatCoupledAcceptedStateV1(
       mainWireFiveWallCoronaryBaseStateV2(initial.coronary),
     ).snapshot();
+    const initialBase = mainWireFiveWallCoronaryBaseStateV2(initial.coronary);
+    const initialAdapter =
+      materializeMainWireAcceptedTypedCoupledSolverAdapterV1(
+        cursor,
+        binding,
+        initialBase,
+        actual,
+      );
+    expect(initialAdapter).toEqual(initialBase);
     const layout = MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1;
     expect(actual[layout.acceptedTime]).toBe(reference.acceptedTimeSec);
     expect(actual[layout.revision]).toBe(reference.revision);
@@ -1070,9 +1080,22 @@ describe("MainWireFlatAuthoritativeReferenceSessionV1", () => {
     image.stage(advanced);
     image.promote();
     readMainWireAcceptedTypedHemodynamicIntoV1(cursor, binding, actual);
+    const advancedAdapter =
+      materializeMainWireAcceptedTypedCoupledSolverAdapterV1(
+        cursor,
+        binding,
+        initialBase,
+        actual,
+      );
+    expect(advancedAdapter).toEqual(
+      mainWireFiveWallCoronaryBaseStateV2(advanced.coronary),
+    );
     expect(actual[layout.acceptedTime]).toBe(advanced.acceptedTimeSec);
     expect(actual[layout.revision]).toBe(advanced.revision);
     expect(actual[layout.acceptedTime]).toBeGreaterThan(initial.acceptedTimeSec);
+    actual.fill(Number.NaN);
+    expect(advancedAdapter.mechanics.materialState.wallStateByWall.LVFW
+      .landState.every(Number.isFinite)).toBe(true);
   });
 
   it("stages the coupled partition into the global inactive image without aliases", async () => {

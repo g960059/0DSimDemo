@@ -9,6 +9,7 @@ import {
 import {
   prepareMainWireFiveWallCoupledResidualContextV1,
   type MainWireFiveWallCoupledAcceptedCandidateBorrowV1,
+  type MainWireFiveWallCoronaryAcceptedStateV2,
   type MainWireFiveWallCoronaryStepInputV2,
   type MainWireFiveWallCoronaryStepSuccessV2,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
@@ -44,6 +45,13 @@ export type MainWireIntegratedCoupledStepOptionsV1<TWallState> = Readonly<{
    * compares every value exactly with its rollback object before use.
    */
   previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1;
+  /**
+   * Private adapter reconstructed from the sole typed accepted image. It lets
+   * the component equations stop reading the retained public object graph
+   * before the outer rhythm/device promotion is migrated.
+   */
+  previousCoupledAcceptedAdapter?:
+    MainWireFiveWallCoronaryAcceptedStateV2<TWallState>;
   /**
    * Synchronous migration seam into the global inactive typed image. The
    * borrow is context-owned and must not escape this callback.
@@ -86,7 +94,8 @@ export function stepMainWireIntegratedModelCoupledV1<TWallState>(
       } = coronaryInput;
       const context = prepareMainWireFiveWallCoupledResidualContextV1(
         provider,
-        mainWireFiveWallCoronaryBaseStateV2(coronaryPrevious),
+        options.previousCoupledAcceptedAdapter
+          ?? mainWireFiveWallCoronaryBaseStateV2(coronaryPrevious),
         baseInput as MainWireFiveWallCoronaryStepInputV2,
         options.previousAcceptedNumericalSource,
       );

@@ -695,6 +695,18 @@ whole-kernel speed delta was distinguishable from development-host load, so
 these changes narrow hot allocation and repeated work without claiming phone
 qualification.
 
+The current Phase 1b.2b.2b reference now also reconstructs the private
+circulation/mechanics solver adapter from that same global typed image before
+every condensed solve. All clocks, 31 conserved volumes, valve and dynamic-flow
+memory, coronary tone, five-wall Land/SLS/TriSeg memory, and MVC reference
+come from bound slots; the retained object contributes only immutable model
+identity and coronary binding metadata. Exact cold and advanced-state tests
+compare the reconstructed adapter with the former accepted object, including
+detachment from reusable scratch. This is intentionally an allocation-bearing
+migration seam, not the final hot path: the next slice replaces the adapter
+with a provider/context reader over typed memory and then confines object
+reconstruction to checkpoint, capture, debug audit, and event boundaries.
+
 Standard-19 snapshots the immutable vascular PV laws once per BE trial and
 retains each candidate's exact paired primal pressure and constitutive tangent.
 The analytic Jacobian consumes that tangent rather than repeating the same

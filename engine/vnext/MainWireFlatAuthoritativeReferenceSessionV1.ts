@@ -38,6 +38,7 @@ import type {
 } from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import {
   advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3,
+  mainWireFiveWallCoronaryBaseStateV2,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV3";
 import {
   projectMainWireIntegratedModelSelectedValuesV3,
@@ -104,6 +105,7 @@ import {
 import {
   createMainWireAcceptedTypedHemodynamicBindingV1,
   createMainWireAcceptedTypedHemodynamicDestinationV1,
+  materializeMainWireAcceptedTypedCoupledSolverAdapterV1,
   stageMainWireAcceptedTypedCoupledCandidateV1,
   type MainWireAcceptedTypedHemodynamicBindingV1,
 } from "@/engine/vnext/MainWireAcceptedTypedHemodynamicV1";
@@ -542,6 +544,9 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
       let borrowedAutoregulation:
         CoronaryAcceptedAutoregulationStateV3 | null = null;
       let borrowedAutoregulationCompleted = false;
+      let previousCoupledAcceptedAdapter:
+        ReturnType<typeof mainWireFiveWallCoronaryBaseStateV2<WallState>>
+        | undefined;
       let directCurrentCursor:
         TransactionalTypedStateCurrentCursorV1 | null = null;
       let directCandidateCursor:
@@ -573,6 +578,20 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             limit.candidateTimeSec,
             this.#rhythmInput.configuration,
           );
+          if (this.#typedHemodynamicBinding === null) {
+            throw new Error(
+              "Main Wire typed hemodynamic binding is unavailable",
+            );
+          }
+          previousCoupledAcceptedAdapter =
+            materializeMainWireAcceptedTypedCoupledSolverAdapterV1(
+              current,
+              this.#typedHemodynamicBinding,
+              mainWireFiveWallCoronaryBaseStateV2(
+                this.#acceptedState.coronary,
+              ),
+              this.#typedHemodynamicScratch,
+            );
         } catch (error) {
           if (directCandidateOpen) {
             this.#typedAuthority.abortDirectCandidate();
@@ -608,6 +627,7 @@ export class MainWireFlatAuthoritativeReferenceSessionV1 {
             Object.freeze({
               previousAcceptedNumericalSource:
                 this.#nonCoronaryAcceptedNumericalSource ?? undefined,
+              previousCoupledAcceptedAdapter,
               onConvergedCandidate: (candidateBorrow) => {
                 if (
                   directCandidateCursor === null

@@ -1,4 +1,5 @@
 import {
+  NON_CORONARY_CIRCULATION_BE_V1_ID,
   NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
   NON_CORONARY_VALVE_NAMES_V1,
@@ -14,9 +15,12 @@ import {
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
-import type {
-  MainWireFiveWallCoupledAcceptedCandidateBorrowV1,
-  MainWireFiveWallCoronaryAcceptedStateV2,
+import {
+  MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID,
+  validateMainWireFiveWallCoronaryAcceptedStateV2,
+  type MainWireCoronaryMvcReferenceStateV2,
+  type MainWireFiveWallCoupledAcceptedCandidateBorrowV1,
+  type MainWireFiveWallCoronaryAcceptedStateV2,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 import {
   MAIN_WIRE_ACCEPTED_TYPED_STATE_LAYOUT_V1_FINGERPRINT,
@@ -330,6 +334,134 @@ export function readMainWireAcceptedTypedHemodynamicIntoV1(
 }
 
 /**
+ * Reconstructs only the circulation/mechanics adapter required by the current
+ * component equations. Every numerical leaf comes from the sole accepted
+ * typed image; `template` contributes immutable model identities and the
+ * coronary binding only. The result is a private solver adapter, never a
+ * second accepted-state authority or a detached public snapshot.
+ */
+export function materializeMainWireAcceptedTypedCoupledSolverAdapterV1(
+  cursor: TransactionalTypedStateCurrentCursorV1,
+  binding: MainWireAcceptedTypedHemodynamicBindingV1,
+  template: MainWireFiveWallCoronaryAcceptedStateV2<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >,
+  scratch: Float64Array,
+): MainWireFiveWallCoronaryAcceptedStateV2<
+  MainWireNormalAdultFiveWallMechanicsStateV1
+> {
+  validateMainWireFiveWallCoronaryAcceptedStateV2(template);
+  readMainWireAcceptedTypedHemodynamicIntoV1(
+    cursor,
+    binding,
+    scratch,
+  );
+  if (!Object.is(
+    scratch[FIXED_TBV_INDEX],
+    template.fixedGlobalTotalBloodVolumeMl,
+  )) {
+    throw new Error(
+      "Main Wire typed solver adapter changed its fixed TBV identity",
+    );
+  }
+
+  const acceptedTimeSec = scratch[ACCEPTED_TIME_INDEX]!;
+  const revision = scratch[REVISION_INDEX]!;
+  const nodeVolumesMl = Object.freeze(Object.fromEntries(
+    NON_CORONARY_NODE_NAMES_V1.map((nodeId, index) => [
+      nodeId,
+      scratch[NON_CORONARY_INDEX + index]!,
+    ]),
+  )) as MainWireFiveWallCoronaryAcceptedStateV2<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >["circulation"]["nodeVolumesMl"];
+  const dynamicEdgeFlowsMlPerSec = Object.freeze(Object.fromEntries(
+    NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((edgeId, index) => [
+      edgeId,
+      scratch[DYNAMIC_EDGE_INDEX + index]!,
+    ]),
+  )) as MainWireFiveWallCoronaryAcceptedStateV2<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >["circulation"]["dynamicEdgeFlowsMlPerSec"];
+  const valveStates = Object.freeze(Object.fromEntries(
+    NON_CORONARY_VALVE_NAMES_V1.map((valveId, index) => [
+      valveId,
+      Object.freeze({
+        leafletOpeningFraction01: scratch[VALVE_INDEX + index]!,
+      }),
+    ]),
+  )) as MainWireFiveWallCoronaryAcceptedStateV2<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >["circulation"]["valveStates"];
+  const nonCoronaryTotalBloodVolumeMl = NON_CORONARY_NODE_NAMES_V1.reduce(
+    (sum, nodeId) => sum + nodeVolumesMl[nodeId],
+    0,
+  );
+  const circulation = Object.freeze({
+    transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,
+    revision,
+    acceptedTimeSec,
+    totalBloodVolumeMl: nonCoronaryTotalBloodVolumeMl,
+    nodeVolumesMl,
+    dynamicEdgeFlowsMlPerSec,
+    valveStates,
+  });
+
+  const volumeMlByNode = Object.freeze(Object.fromEntries(
+    CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId, index) => [
+      nodeId,
+      scratch[CORONARY_INDEX + index]!,
+    ]),
+  )) as MainWireFiveWallCoronaryAcceptedStateV2<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >["coronary"]["volumeMlByNode"];
+  const coronary = Object.freeze({
+    acceptedTimeSec,
+    revision,
+    volumeMlByNode,
+    toneResistanceScaleByTerritoryLayer:
+      readCoronaryToneFromCanonicalView(scratch),
+  });
+
+  const acceptedVolumesMl = Object.freeze({
+    LA: nodeVolumesMl.LA,
+    LV: nodeVolumesMl.LV,
+    RA: nodeVolumesMl.RA,
+    RV: nodeVolumesMl.RV,
+  });
+  const materialState = readMechanicsStateFromCanonicalView(scratch);
+  const mechanics = Object.freeze({
+    contractId: template.mechanics.contractId,
+    providerId: template.mechanics.providerId,
+    parameterSetId: template.mechanics.parameterSetId,
+    parameterIdentityHash: template.mechanics.parameterIdentityHash,
+    stateSchemaVersion: template.mechanics.stateSchemaVersion,
+    revision,
+    acceptedTimeSec,
+    acceptedVolumesMl,
+    materialState,
+    materialStateFingerprint: cursor.readString(
+      binding.mechanicsMaterialFingerprintStringSlot,
+    ),
+  });
+  const accepted = Object.freeze({
+    transactionId: MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID,
+    revision,
+    acceptedTimeSec,
+    fixedGlobalTotalBloodVolumeMl: scratch[FIXED_TBV_INDEX]!,
+    coronaryBinding: template.coronaryBinding,
+    circulation,
+    coronary,
+    mechanics,
+    mvcReferenceState: readMvcReferenceFromCanonicalView(scratch),
+  }) satisfies MainWireFiveWallCoronaryAcceptedStateV2<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >;
+  validateMainWireFiveWallCoronaryAcceptedStateV2(accepted);
+  return accepted;
+}
+
+/**
  * Copies one component-admitted 30-row candidate into the global inactive
  * image. This function never promotes; rhythm, devices, autoregulation, and
  * final cross-owner admission must complete in the same outer transaction.
@@ -548,6 +680,73 @@ function writeCandidateIntoCanonicalView(
       candidate.nonCoronaryNodeVolumesMl[index]!,
     ])) as Readonly<Record<(typeof NON_CORONARY_NODE_NAMES_V1)[number], number>>,
   );
+}
+
+function readCoronaryToneFromCanonicalView(
+  source: Float64Array,
+): MainWireFiveWallCoronaryAcceptedStateV2<
+  MainWireNormalAdultFiveWallMechanicsStateV1
+>["coronary"]["toneResistanceScaleByTerritoryLayer"] {
+  let index = CORONARY_TONE_INDEX;
+  return Object.freeze(Object.fromEntries(
+    CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+      territoryId,
+      Object.freeze(Object.fromEntries(
+        CORONARY_LAYER_IDS_V2.map((layerId) => [
+          layerId,
+          source[index++]!,
+        ]),
+      )),
+    ]),
+  )) as MainWireFiveWallCoronaryAcceptedStateV2<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >["coronary"]["toneResistanceScaleByTerritoryLayer"];
+}
+
+function readMechanicsStateFromCanonicalView(
+  source: Float64Array,
+): MainWireNormalAdultFiveWallMechanicsStateV1 {
+  let index = WALL_STATE_INDEX;
+  const wallStateByWall = Object.freeze(Object.fromEntries(
+    MAIN_WIRE_FIVE_WALL_IDS_V1.map((wallId) => {
+      const landState = source.slice(index, index + LAND_STATE_LENGTH);
+      index += LAND_STATE_LENGTH;
+      const wall = Object.freeze({
+        landState,
+        slsState: Object.freeze({
+          viscousLogStrain: source[index++]!,
+        }),
+        previousFiberLogStrain: source[index++]!,
+        previousFreeCalciumUM: source[index++]!,
+      });
+      return [wallId, wall];
+    }),
+  )) as MainWireNormalAdultFiveWallMechanicsStateV1["wallStateByWall"];
+  return Object.freeze({
+    wallStateByWall,
+    trisegCoordinates: Object.freeze({
+      septalMidwallCapVolumeM3: source[TRISEG_INDEX]!,
+      junctionRadiusM: source[TRISEG_INDEX + 1]!,
+    }),
+  });
+}
+
+function readMvcReferenceFromCanonicalView(
+  source: Float64Array,
+): MainWireCoronaryMvcReferenceStateV2 {
+  return Object.freeze({
+    reference: Object.freeze({
+      referenceFiberLogStrainByWall: Object.freeze({
+        LVFW: source[MVC_INDEX]!,
+        SEP: source[MVC_INDEX + 1]!,
+        RVFW: source[MVC_INDEX + 2]!,
+      }),
+    }),
+    referenceAcceptedTimeSec: source[MVC_INDEX + 3]!,
+    referenceRevision: source[MVC_INDEX + 4]!,
+    mitralForwardFlowActive: source[MVC_ACTIVE_INDEX] === 1,
+    acceptedMitralClosureEventCount: source[MVC_INDEX + 6]!,
+  });
 }
 
 function writeMaterialAndMvcIntoCanonicalView(
