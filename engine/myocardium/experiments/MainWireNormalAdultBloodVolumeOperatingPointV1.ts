@@ -257,8 +257,9 @@ function resolveBloodVolumeOperatingPoint(
       graph,
     ),
   });
-  const sharedTransmuralPressureOffsetMmHg = Math.abs(targetAdditionalVolumeMl)
-      <= TARGET_TOLERANCE_ML
+  const targetMatchesColdSeed = Math.abs(targetAdditionalVolumeMl)
+    <= TARGET_TOLERANCE_ML;
+  const sharedTransmuralPressureOffsetMmHg = targetMatchesColdSeed
     ? 0
     : solveSharedTransmuralPressureOffsetMmHg(
       coldSeed.nodeVolumesMl,
@@ -267,18 +268,23 @@ function resolveBloodVolumeOperatingPoint(
       graph,
       baselineTransmuralPressuresMmHg,
     );
-  const nodeVolumesMl = nodeRecord((nodeName) => {
-    if (nodeName !== "SV" && nodeName !== "VC") {
-      return coldSeed.nodeVolumesMl[nodeName];
-    }
-    return physicalVolumeAtTransmuralPressureMmHg(
-      nodeName,
-      baselineTransmuralPressuresMmHg[nodeName]
-        + sharedTransmuralPressureOffsetMmHg,
-      runtime,
-      graph,
-    );
-  });
+  // An identity TBV target is not an intervention. Preserve every admitted
+  // cold-seed bit instead of round-tripping SV/VC through an inverse/forward
+  // constitutive pair and reporting numerical round-off as a changed node.
+  const nodeVolumesMl = targetMatchesColdSeed
+    ? coldSeed.nodeVolumesMl
+    : nodeRecord((nodeName) => {
+      if (nodeName !== "SV" && nodeName !== "VC") {
+        return coldSeed.nodeVolumesMl[nodeName];
+      }
+      return physicalVolumeAtTransmuralPressureMmHg(
+        nodeName,
+        baselineTransmuralPressuresMmHg[nodeName]
+          + sharedTransmuralPressureOffsetMmHg,
+        runtime,
+        graph,
+      );
+    });
   const resolvedTotalBloodVolumeMl = sumNodeVolumes(nodeVolumesMl);
   const targetResidualMl = resolvedTotalBloodVolumeMl
     - identity.fixedTotalBloodVolumeMl;

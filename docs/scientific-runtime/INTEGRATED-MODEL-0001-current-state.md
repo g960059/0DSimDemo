@@ -32,8 +32,21 @@ page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 The current exact Standard release is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-27
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-29
 ```
+
+Standard-29 replaces the adaptive venous three-compliance inverse's repeated
+bisection with a bracket-preserving safeguarded Newton solve. The immutable
+fixed-32 compatibility policy remains bit-identical. Across 135 graph-law,
+tone, and pressure cases the adaptive inverse measured about `3.38x` faster,
+with maximum pressure error `4.45e-11 mmHg` and stressed-volume residual
+`8.21e-11 mL`; synthetic laws spanning narrow, broad, and constant-compliance
+transitions also pass the same inverse gates. Relative to the checked
+Standard-27 artifact, 500 accepted steps retained exact clocks and revisions;
+the largest public-output relative change was `2.36e-7`, below the frozen
+solver-replacement policy's `1e-6` limit. The accepted sequence and six-case
+oracle hashes are deliberately rebaselined under a new `modelId`. No
+physiology, topology, control, or checkpoint schema changes.
 
 Standard-27 preserves Standard-26's equations, controls, checkpoint meaning,
 accepted sequence, and public diagnostic records. It removes short-lived

@@ -1117,6 +1117,10 @@ function stagePreviousAcceptedNumericalStateV1(
     }
     source.readInto(numerical);
     assertPreviousAcceptedNumericalParityV1(previous, numerical);
+    // The aggregate is redundant with the admitted compartment vector. Once
+    // its round-off-sized difference is accepted, use the rollback object's
+    // canonical scalar so summation order cannot perturb the solve branch.
+    numerical.totalBloodVolumeMl = previous.totalBloodVolumeMl;
     return numerical;
   }
   for (let index = 0; index < NON_CORONARY_NODE_NAMES_V1.length; index += 1) {
@@ -1146,13 +1150,18 @@ function assertPreviousAcceptedNumericalParityV1(
   previous: NonCoronaryCirculationAcceptedStateV1,
   numerical: PreviousAcceptedNumericalStateV1,
 ): void {
+  const totalBloodVolumeToleranceMl = 64 * Number.EPSILON * Math.max(
+    1,
+    Math.abs(numerical.totalBloodVolumeMl),
+    Math.abs(previous.totalBloodVolumeMl),
+  );
   if (
     numerical.revision !== previous.revision
     || !Object.is(numerical.acceptedTimeSec, previous.acceptedTimeSec)
-    || !Object.is(
-      numerical.totalBloodVolumeMl,
-      previous.totalBloodVolumeMl,
-    )
+    || !Number.isFinite(numerical.totalBloodVolumeMl)
+    || Math.abs(
+      numerical.totalBloodVolumeMl - previous.totalBloodVolumeMl
+    ) > totalBloodVolumeToleranceMl
   ) {
     throw new Error(
       "non-coronary accepted numerical source clock or TBV diverged",

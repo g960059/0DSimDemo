@@ -314,6 +314,112 @@ describe("circulation graph kernel V1", () => {
     }
   });
 
+  it("keeps the adaptive venous inverse bracketed and more accurate across every graph law", () => {
+    const graph = buildAuthoritativeCirculationGraphV1();
+    const pressuresMmHg = [-19.75, -12.5, -5, 0, 6.123456789, 12, 20, 37.25, 44.75];
+    for (const venousTone of [0, 0.15, 1]) {
+      const params = { venousTone, arterialStiffness: 0.75 };
+      for (const node of graph.nodes) {
+        if (node.kind !== "venousPressure") continue;
+        const law = Object.freeze({
+          ...vascularPvLawFromNodeV1(node, params),
+        });
+        if (law.kind !== "venous3") {
+          throw new Error(`${node.name} must resolve to a venous3 law`);
+        }
+        for (const expectedPressureMmHg of pressuresMmHg) {
+          const targetVolumeMl = stressedVolumeFromPtm(
+            law,
+            expectedPressureMmHg,
+          );
+          const adaptivePressureMmHg = ptmFromStressedVolume(
+            law,
+            targetVolumeMl,
+          );
+          const fixed32PressureMmHg = ptmFromStressedVolume(
+            law,
+            targetVolumeMl,
+            { maxIterations: 32, termination: "fixed-iterations" },
+          );
+          const adaptiveErrorMmHg = Math.abs(
+            adaptivePressureMmHg - expectedPressureMmHg,
+          );
+          const fixed32ErrorMmHg = Math.abs(
+            fixed32PressureMmHg - expectedPressureMmHg,
+          );
+          expect(adaptiveErrorMmHg).toBeLessThanOrEqual(
+            fixed32ErrorMmHg + 1e-12,
+          );
+          expect(Math.abs(
+            stressedVolumeFromPtm(law, adaptivePressureMmHg)
+              - targetVolumeMl,
+          )).toBeLessThanOrEqual(2e-10);
+        }
+      }
+    }
+  });
+
+  it("solves future topology-independent venous laws across their full pressure domain", () => {
+    const laws = [
+      {
+        kind: "venous3" as const,
+        Vu: 0,
+        Ccoll: 2,
+        Copen: 120,
+        Cdist: 8,
+        Popen: -3,
+        Pstiff: 12,
+        dOpen: 0.35,
+        dStiff: 1.5,
+      },
+      {
+        kind: "venous3" as const,
+        Vu: 75,
+        Ccoll: 12,
+        Copen: 48,
+        Cdist: 20,
+        Popen: 2,
+        Pstiff: 28,
+        dOpen: 8,
+        dStiff: 10,
+      },
+      {
+        kind: "venous3" as const,
+        Vu: 400,
+        Ccoll: 15,
+        Copen: 15,
+        Cdist: 15,
+        Popen: -10,
+        Pstiff: 35,
+        dOpen: 0.1,
+        dStiff: 0.1,
+      },
+    ].map((law) => Object.freeze(law));
+    for (const law of laws) {
+      let previousVolumeMl = -Infinity;
+      for (let index = 0; index <= 256; index += 1) {
+        const expectedPressureMmHg = -19.9 + index * (64.8 / 256);
+        const targetVolumeMl = stressedVolumeFromPtm(
+          law,
+          expectedPressureMmHg,
+        );
+        expect(targetVolumeMl).toBeGreaterThan(previousVolumeMl);
+        const actualPressureMmHg = ptmFromStressedVolume(
+          law,
+          targetVolumeMl,
+        );
+        expect(actualPressureMmHg).toBeGreaterThanOrEqual(-20);
+        expect(actualPressureMmHg).toBeLessThanOrEqual(45);
+        expect(Math.abs(actualPressureMmHg - expectedPressureMmHg))
+          .toBeLessThanOrEqual(2e-9);
+        expect(Math.abs(
+          stressedVolumeFromPtm(law, actualPressureMmHg) - targetVolumeMl,
+        )).toBeLessThanOrEqual(2e-10);
+        previousVolumeMl = targetVolumeMl;
+      }
+    }
+  });
+
   it("does not cache mutable or accessor-backed venous law values", () => {
     const graph = buildAuthoritativeCirculationGraphV1();
     const node = graph.nodes[graph.nodeIndex.get("SV")!]!;
