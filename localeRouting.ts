@@ -3,7 +3,8 @@ export type Locale = (typeof SUPPORTED_LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "ja";
 export const FALLBACK_LOCALE: Locale = "en";
 export const LOCALE_STORAGE_KEY = "circleheart.locale";
-export const LOCALE_COOKIE_KEY = LOCALE_STORAGE_KEY;
+export const LOCALE_COOKIE_KEY = "__session";
+export const LOCALE_COOKIE_VALUE_PREFIX = "circleheart-locale-v1.";
 export const LOCALE_NEGOTIATION_PATH = "/_locale";
 const LOCALE_COOKIE_MAX_AGE_SECONDS = 31_536_000;
 
@@ -40,17 +41,29 @@ export function switchLocalePath(pathname: string, search: string, hash: string,
 export function localeFromCookieHeader(
   cookieHeader: string | null | undefined,
 ): Locale | undefined {
+  const value = cookieValueFromHeaderV1(cookieHeader, LOCALE_COOKIE_KEY);
+  if (value === undefined || !value.startsWith(LOCALE_COOKIE_VALUE_PREFIX)) {
+    return undefined;
+  }
+  const locale = value.slice(LOCALE_COOKIE_VALUE_PREFIX.length);
+  return isLocale(locale) ? locale : undefined;
+}
+
+function cookieValueFromHeaderV1(
+  cookieHeader: string | null | undefined,
+  cookieName: string,
+): string | undefined {
   if (cookieHeader === null || cookieHeader === undefined) return undefined;
   for (const part of cookieHeader.split(";")) {
     const separator = part.indexOf("=");
-    if (separator < 0 || part.slice(0, separator).trim() !== LOCALE_COOKIE_KEY) {
+    if (separator < 0 || part.slice(0, separator).trim() !== cookieName) {
       continue;
     }
     try {
-      const value = decodeURIComponent(part.slice(separator + 1).trim());
-      if (isLocale(value)) return value;
+      return decodeURIComponent(part.slice(separator + 1).trim());
     } catch {
       // A malformed saved preference must not block locale negotiation.
+      return undefined;
     }
   }
   return undefined;
@@ -121,8 +134,20 @@ export function setPreferredLocale(locale: Locale): void {
   }
   if (typeof document === "undefined") return;
   try {
+    const existingSession = cookieValueFromHeaderV1(
+      document.cookie,
+      LOCALE_COOKIE_KEY,
+    );
+    if (
+      existingSession !== undefined
+      && !existingSession.startsWith(LOCALE_COOKIE_VALUE_PREFIX)
+    ) {
+      // Never overwrite a future server-owned session with a locale hint.
+      return;
+    }
     const secure = window.location?.protocol === "https:" ? "; Secure" : "";
-    document.cookie = `${LOCALE_COOKIE_KEY}=${encodeURIComponent(locale)}`
+    const cookieValue = `${LOCALE_COOKIE_VALUE_PREFIX}${locale}`;
+    document.cookie = `${LOCALE_COOKIE_KEY}=${encodeURIComponent(cookieValue)}`
       + `; Path=/; Max-Age=${LOCALE_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`
       + secure;
   } catch {

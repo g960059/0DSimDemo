@@ -48,9 +48,13 @@ describe('locale helpers', () => {
   });
 
   it('parses saved locale cookies and weighted browser languages', () => {
-    expect(localeFromCookieHeader('theme=dark; circleheart.locale=en'))
+    expect(localeFromCookieHeader(
+      'theme=dark; __session=circleheart-locale-v1.en',
+    ))
       .toBe('en');
-    expect(localeFromCookieHeader('circleheart.locale=fr')).toBeUndefined();
+    expect(localeFromCookieHeader('__session=en')).toBeUndefined();
+    expect(localeFromCookieHeader('__session=unrelated-session')).toBeUndefined();
+    expect(localeFromCookieHeader('circleheart.locale=en')).toBeUndefined();
     expect(localeFromAcceptLanguage('fr-FR, en-US;q=0.7, ja-JP;q=0.9'))
       .toBe('ja');
     expect(localeFromAcceptLanguage('ja;q=0, en;q=0.5')).toBe('en');
@@ -59,7 +63,7 @@ describe('locale helpers', () => {
 
   it('uses and persists one browser locale across storage and cookies', () => {
     const storage = new Map<string, string>();
-    let cookie = 'circleheart.locale=en';
+    let cookie = '__session=circleheart-locale-v1.en';
     const documentLike = {} as { cookie: string };
     Object.defineProperty(documentLike, 'cookie', {
       configurable: true,
@@ -81,8 +85,36 @@ describe('locale helpers', () => {
       setPreferredLocale('ja');
       expect(storage.get('circleheart.locale')).toBe('ja');
       expect(cookie).toBe(
-        'circleheart.locale=ja; Path=/; Max-Age=31536000; SameSite=Lax; Secure',
+        '__session=circleheart-locale-v1.ja; Path=/; Max-Age=31536000; SameSite=Lax; Secure',
       );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('does not overwrite an unrelated server-owned session cookie', () => {
+    const storage = new Map<string, string>();
+    let cookie = '__session=opaque-server-session';
+    const documentLike = {} as { cookie: string };
+    Object.defineProperty(documentLike, 'cookie', {
+      configurable: true,
+      get: () => cookie,
+      set: (value: string) => { cookie = value; },
+    });
+    vi.stubGlobal('document', documentLike);
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => { storage.set(key, value); },
+      },
+      location: { protocol: 'https:' },
+      navigator: { language: 'en-US', languages: ['en-US'] },
+    });
+
+    try {
+      setPreferredLocale('ja');
+      expect(storage.get('circleheart.locale')).toBe('ja');
+      expect(cookie).toBe('__session=opaque-server-session');
     } finally {
       vi.unstubAllGlobals();
     }

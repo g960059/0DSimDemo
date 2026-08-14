@@ -42,9 +42,15 @@ The render service then redirects to `/{locale}` using the saved locale cookie
 first, weighted `Accept-Language` second and Japanese as the final fallback.
 Both redirects preserve the query string. The dynamic redirect reads no catalog
 data and is `private, no-store` with `Vary: Cookie, Accept-Language`. Localized
-pages persist the same preference to local storage and a first-party cookie.
-Their `hreflang="x-default"` points to `/`, while `ja` and `en` alternates point
-to the two stable localized URLs.
+pages persist the same preference to local storage and the versioned,
+non-sensitive `__session=circleheart-locale-v1.{locale}` hint. Firebase Hosting
+strips other cookies before a Cloud Run rewrite, so this is the only preference
+cookie visible to the negotiation endpoint. It is never an authentication or
+authorization credential. The client refuses to replace an unrecognized
+`__session` value; introducing a server-owned session therefore requires an
+explicit migration or a different locale edge rather than mixing concerns in
+one cookie. The localized pages' `hreflang="x-default"` points to `/`, while
+`ja` and `en` alternates point to the two stable localized URLs.
 
 ## Why this boundary
 

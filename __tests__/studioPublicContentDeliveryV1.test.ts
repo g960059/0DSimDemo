@@ -126,7 +126,7 @@ describe("Studio public content delivery V1", () => {
     });
     const savedPreference = await handleStudioPublicContentRequestV1(
       requestV1("/_locale?utm_source=shared", {
-        Cookie: "session=opaque; circleheart.locale=en",
+        Cookie: "other=opaque; __session=circleheart-locale-v1.en",
         "Accept-Language": "ja-JP,ja;q=0.9",
       }),
       rootDependencies,
@@ -144,7 +144,7 @@ describe("Studio public content delivery V1", () => {
 
     const weightedLanguage = await handleStudioPublicContentRequestV1(
       requestV1("/_locale", {
-        Cookie: "circleheart.locale=unsupported",
+        Cookie: "__session=circleheart-locale-v1.unsupported",
         "Accept-Language": "fr-FR, en-US;q=0.7, ja-JP;q=0.9",
       }),
       rootDependencies,
