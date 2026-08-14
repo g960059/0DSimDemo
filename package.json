@@ -29,6 +29,7 @@
     "benchmark:kernel:coronary-scratch": "vite-node --script tools/performance/benchmarkCoronaryBackwardEulerScratchV2.ts",
     "benchmark:kernel:coupled-newton": "vite-node --script tools/performance/benchmarkMainWireCoupledNewtonV1.ts",
     "benchmark:kernel:coupled-trajectory": "vite-node --script tools/performance/benchmarkMainWireFlatCoupledTrajectoryV1.ts",
+    "benchmark:kernel:land-output": "vite-node --script tools/performance/benchmarkLandContinuousOutputV1.ts",
     "profile:kernel:flat-authority": "vite-node --script tools/performance/profileMainWireFlatAuthorityV1.ts",
     "inspect:kernel:flat-state-shape": "vite-node --script tools/performance/inspectMainWireFlatStateShapeV1.ts",
     "inspect:kernel:accepted-state-identity": "vite-node --script tools/performance/inspectMainWireAcceptedStateIdentityV1.ts",

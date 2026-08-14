@@ -288,17 +288,17 @@ export function trialLandSlsWallMaterialV1(
     previousFiberLogStrain: input.nextFiberLogStrain,
     previousFreeCalciumUM: input.nextFreeCalciumUM,
   });
-  const finite = [
-    landStretch,
-    nextEngineeringStrain,
-    activeNominalStressPa,
-    activeKirchhoffStressPa,
-    totalKirchhoffStressPa,
-    activeAlgorithmicTangentPa,
-    totalAlgorithmicTangentPa,
-    passiveAndSlsTangentPa,
-    solved.residualNorm,
-  ].every(Number.isFinite) && solved.output.health.finite && sls.finite;
+  const finite = Number.isFinite(landStretch)
+    && Number.isFinite(nextEngineeringStrain)
+    && Number.isFinite(activeNominalStressPa)
+    && Number.isFinite(activeKirchhoffStressPa)
+    && Number.isFinite(totalKirchhoffStressPa)
+    && Number.isFinite(activeAlgorithmicTangentPa)
+    && Number.isFinite(totalAlgorithmicTangentPa)
+    && Number.isFinite(passiveAndSlsTangentPa)
+    && Number.isFinite(solved.residualNorm)
+    && solved.output.health.finite
+    && sls.finite;
   if (!finite) issues.push("wall material evaluation produced a non-finite value");
   if (!sls.passive) issues.push("parallel SLS failed its discrete passivity identity");
   return Object.freeze({
@@ -422,17 +422,17 @@ export function trialLandSlsWallMaterialNumericalV1(
     - physicalDissipationIncrementDensityJPerM3
     - backwardEulerNumericalDissipationIncrementDensityJPerM3,
   );
-  const slsFinite = [
-    nextViscousLogStrain,
-    nextOverstressPa,
-    stateResidual,
-    previousStoredEnergyDensityJPerM3,
-    nextStoredEnergyDensityJPerM3,
-    stressWorkIncrementDensityJPerM3,
-    physicalDissipationIncrementDensityJPerM3,
-    backwardEulerNumericalDissipationIncrementDensityJPerM3,
-    discreteEnergyBalanceResidualJPerM3,
-  ].every(Number.isFinite);
+  const slsFinite = Number.isFinite(nextViscousLogStrain)
+    && Number.isFinite(nextOverstressPa)
+    && Number.isFinite(stateResidual)
+    && Number.isFinite(previousStoredEnergyDensityJPerM3)
+    && Number.isFinite(nextStoredEnergyDensityJPerM3)
+    && Number.isFinite(stressWorkIncrementDensityJPerM3)
+    && Number.isFinite(physicalDissipationIncrementDensityJPerM3)
+    && Number.isFinite(
+      backwardEulerNumericalDissipationIncrementDensityJPerM3,
+    )
+    && Number.isFinite(discreteEnergyBalanceResidualJPerM3);
   const energyTolerance = 1e-10 * Math.max(
     1,
     Math.abs(stressWorkIncrementDensityJPerM3),
@@ -477,15 +477,15 @@ export function trialLandSlsWallMaterialNumericalV1(
     Math.abs(solved.residualNorm),
     Math.abs(stateResidual),
   );
-  if (![
-    landStretch,
-    activeNominalStressPa,
-    activeKirchhoffStressPa,
-    totalKirchhoffStressPa,
-    activeAlgorithmicTangentPa,
-    totalAlgorithmicTangentPa,
-    residualNorm,
-  ].every(Number.isFinite)) {
+  if (
+    !Number.isFinite(landStretch)
+    || !Number.isFinite(activeNominalStressPa)
+    || !Number.isFinite(activeKirchhoffStressPa)
+    || !Number.isFinite(totalKirchhoffStressPa)
+    || !Number.isFinite(activeAlgorithmicTangentPa)
+    || !Number.isFinite(totalAlgorithmicTangentPa)
+    || !Number.isFinite(residualNorm)
+  ) {
     throw new Error("wall material evaluation produced a non-finite value");
   }
   return Object.freeze({
@@ -543,8 +543,12 @@ export function evaluateAcceptedLandSlsWallStateV1(
     (state.previousFiberLogStrain - state.slsState.viscousLogStrain);
   const totalKirchhoffStressPa = equilibriumPassive.stressPa +
     activeKirchhoffStressPa + slsOverstressPa;
-  const finite = [landStretch, activeNominalStressPa, activeKirchhoffStressPa,
-    slsOverstressPa, totalKirchhoffStressPa].every(Number.isFinite) && land.health.finite;
+  const finite = Number.isFinite(landStretch)
+    && Number.isFinite(activeNominalStressPa)
+    && Number.isFinite(activeKirchhoffStressPa)
+    && Number.isFinite(slsOverstressPa)
+    && Number.isFinite(totalKirchhoffStressPa)
+    && land.health.finite;
   return Object.freeze({
     modelId: LAND_SLS_WALL_MATERIAL_V1_ID,
     parameterSetId: params.parameterSetId,
@@ -626,12 +630,19 @@ function validateState(state: LandSlsWallMaterialStateV1): void {
   if (!(state.landState instanceof Float64Array) || state.landState.length !== 6) {
     throw new Error("landState must be a six-state Float64Array");
   }
-  if (!Array.from(state.landState).every(Number.isFinite)) {
+  if (!allLandStateEntriesFiniteV1(state.landState)) {
     throw new Error("landState must be finite");
   }
   requireFinite(state.slsState.viscousLogStrain, "slsState.viscousLogStrain");
   requireFinite(state.previousFiberLogStrain, "previousFiberLogStrain");
   requireNonnegative(state.previousFreeCalciumUM, "previousFreeCalciumUM");
+}
+
+function allLandStateEntriesFiniteV1(state: Float64Array): boolean {
+  for (let index = 0; index < state.length; index += 1) {
+    if (!Number.isFinite(state[index])) return false;
+  }
+  return true;
 }
 
 function validatePassive(value: LandSlsWallEquilibriumPassiveInputV1): void {

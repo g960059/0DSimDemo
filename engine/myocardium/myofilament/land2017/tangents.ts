@@ -15,7 +15,6 @@ import {
 } from "@/engine/myocardium/myofilament/land2017/solver";
 import {
   LAND2017_STATE_INDEX,
-  LAND2017_STATE_SIZE,
   assertLand2017StateVectorLength,
   deriveLand2017StepKinematics,
   type LandStepInput,
@@ -112,29 +111,18 @@ export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
     -dWResidualDZetaW * dZetaWDStrain,
     -dSResidualDZetaS * dZetaSDStrain,
   );
-  const stateStrainDerivative = Float64Array.from([
-    dCaTRPNDStrain,
-    populationDerivative[0],
-    populationDerivative[1],
-    populationDerivative[2],
-    dZetaWDStrain,
-    dZetaSDStrain,
-  ]);
   const populationDistortion = S * (zetaS + 1) + W * zetaW;
   const stressScalePa = terms.h * p.Tref / p.rs;
   let tangentPa = land2017LengthFactorDerivative(terms.lambda, p.beta0)
     * p.Tref / p.rs
     * populationDistortion;
   tangentPa += stressScalePa * (
-    zetaW * stateStrainDerivative[LAND2017_STATE_INDEX.W]
-    + (zetaS + 1) * stateStrainDerivative[LAND2017_STATE_INDEX.S]
-    + W * stateStrainDerivative[LAND2017_STATE_INDEX.zetaW]
-    + S * stateStrainDerivative[LAND2017_STATE_INDEX.zetaS]
+    zetaW * populationDerivative[1]
+    + (zetaS + 1) * populationDerivative[2]
+    + W * dZetaWDStrain
+    + S * dZetaSDStrain
   );
-  if (
-    stateStrainDerivative.length !== LAND2017_STATE_SIZE
-    || !Number.isFinite(tangentPa)
-  ) {
+  if (!Number.isFinite(tangentPa)) {
     throw new Error("Land 2017 consistent tangent is non-finite");
   }
   return tangentPa;

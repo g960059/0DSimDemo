@@ -1501,6 +1501,38 @@ the leading self-time entries; dense LU, Land output evaluation, TriSeg
 geometry, non-coronary candidate evaluation, and vascular constitutive work are
 now the main measured components.
 
+The next retained slice is deliberately component-owned rather than tailored
+to the current five-wall topology. Land continuous-output health checking no
+longer allocates and spreads a temporary array on every evaluation. Active
+stiffness also consumes the algebraic terms already evaluated for the exact
+same state instead of re-evaluating them through the public standalone helper.
+The standalone helper remains unchanged for independent callers. In five
+two-million-evaluation runs, the focused Land-output benchmark improved from a
+median of about `333 ns/evaluation` to about `251 ns/evaluation`; the checksum
+was identical. Alternating complete-kernel runs also measured a roughly
+`2–3%` reduction from the finite-check allocation removal alone, although host
+timing remains construction evidence rather than a release gate.
+
+The same component boundary now avoids transient arrays in the Land population
+solve, consistent tangent, numerical Land/SLS passivity check, accepted-state
+evaluation, and public material health check. The tangent uses the three
+population derivatives and two zeta derivatives as scalars rather than first
+packing a six-entry typed vector. Five paired two-million-evaluation runs
+reduced its median from about `275 ns/evaluation` to about
+`204 ns/evaluation`, again with an identical checksum. These changes do not
+remove a scientific gate; they express the same finite-value and residual
+checks without allocating a collection solely to iterate over it.
+
+This optimization scope does not add AVPD, autonomic reflexes, oxygen state,
+Fontan paths, or any other future physiology. It also excludes shortcuts whose
+validity depends on the present chamber count, coronary count, or fixed
+circulation graph. Runtime ownership, solver globalization, typed layouts, and
+component-internal constitutive kernels may be optimized now; future physiology
+must enter later as separately specified state owners and topology changes.
+Land-internal work is intentionally reusable because the same constitutive
+kernel will remain a per-patch building block when multipatch myocardium is
+introduced.
+
 ### Phase 3 — strict scalar WASM
 
 Port the proven flat scalar kernel to a strict `f64` WASM implementation if
