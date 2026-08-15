@@ -13,6 +13,18 @@ import {
   STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
 } from "@/studio/contracts/v2/simulation";
 import {
+  EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
+  EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
+  assertBoundExecutionPlanV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import {
+  compileExecutionPlanV1,
+} from "@/engine/executionPlan/ExecutionPlanCompilerV1";
+import {
+  createMainWireModelDefinitionV1,
+  createMainWireNumericalPolicyV1,
+} from "@/engine/executionPlan/MainWireModelDefinitionV1";
+import {
   validateExecutableBundleV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
@@ -29,6 +41,8 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import mainWireIntegratedStandardSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
+import generatedExecutionPlanV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -73,6 +87,24 @@ async function main(): Promise<void> {
     fail("the only supported argument is --write");
   }
   const sourceRelease = createCircleHeartExactModelReleaseV1();
+  if (!sourceRelease.manifest.capabilities.includes(
+    EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
+  )) {
+    fail("source release omits the execution-plan Newton workspace capability");
+  }
+  const compiledExecutionPlan = compileExecutionPlanV1(
+    createMainWireModelDefinitionV1(),
+    createMainWireNumericalPolicyV1(),
+  );
+  if (
+    studioCanonicalJsonStringify(compiledExecutionPlan)
+      !== studioCanonicalJsonStringify(generatedExecutionPlanV1)
+  ) {
+    fail(
+      "checked-in execution plan differs from the build-time compiler; "
+        + "run npm run compile:model:execution-plan -- --write",
+    );
+  }
   const artifact = await buildExactArtifact();
   const deterministicRebuild = await buildExactArtifact();
   if (!sameBytes(artifact, deterministicRebuild)) {
@@ -248,6 +280,9 @@ async function assertArtifactAdmission(
     requiresPresentationBatch: sourceRelease.manifest.capabilities.includes(
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
     ),
+    requiresExecutionPlan: sourceRelease.manifest.capabilities.includes(
+      EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
+    ),
   });
   executables.fixtureAdapter.validateCompleteFixture({
     context: {
@@ -258,12 +293,19 @@ async function assertArtifactAdmission(
   });
   const runtimeSessionId = "session/standard-registry-verification";
   const scenarioId = "scenario/standard-registry-verification";
-  await executables.simulationAdapter.createSession({
+  const executionPlan = executables.executionPlan;
+  if (executionPlan === undefined) {
+    fail("artifact runtime omitted its required execution-plan adapter");
+  }
+  const boundExecutionPlan = executionPlan.bind();
+  assertBoundExecutionPlanV1(boundExecutionPlan, executionPlan.descriptor);
+  await executionPlan.createSession({
     runtimeSessionId,
     scenarios: [{
       scenarioId,
       fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
     }],
+    boundExecutionPlans: new Map([[scenarioId, boundExecutionPlan]]),
   });
   const frame = await executables.simulationAdapter
     .advanceOnePresentationStep({ runtimeSessionId, scenarioId });

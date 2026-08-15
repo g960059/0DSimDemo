@@ -1,7 +1,7 @@
 # Integrated V3 model: current state
 
-Status: exact experimental development package registered and wired as the
-default live Workbench model; not release-ready or clinically validated.
+Status: branch-local exact development candidate; not registered, activated,
+deployed, release-ready, or clinically validated.
 
 ## Current model boundary
 
@@ -29,11 +29,84 @@ actual integrated V3 accepted state. Its Dockview graph, output, and control
 role areas are derived from the registered model catalogs and share one
 page-owned Worker. It does not invoke a mock graph or a legacy model facade.
 
-The current exact Standard release is:
+The current branch-local Standard candidate is:
 
 ```text
-circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-32
+circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-58
 ```
+
+Standard-58 carries the build-time-generated `ExecutionPlanDescriptorV1` in the
+exact artifact and binds one Worker-local typed plan per Scenario
+during initialization. An atomic branch rebuild gives every Scenario in the
+candidate exact session fresh nonaliasing storage, so old and candidate
+sessions never share solver scratch during handoff. The production artifact
+contains the generated descriptor and binder, not the compiler or
+`ModelDefinitionV1`. During initialization, every compiled `stateId` resolves
+its accepted-authority JSON pointer to one numeric typed-image slot. The
+resulting mapping is private and opaque, and the hot path performs no pointer
+or string lookup. The Worker passes one fresh bound plan per Scenario into the
+exact model's Session-creation operation. The model installs the slot mapping
+and compiler-owned Newton workspace while constructing its transactional typed
+authority, without first constructing the legacy hemodynamic pointer map. That
+fallback is retained only for standalone engine tests and tools without a
+compiled model. The plan owns no accepted-state mirror: there is no sampled
+copy, split current/candidate page, or synchronization callback. The typed
+accepted-state Session remains the sole accepted-state and checkpoint
+authority, so equations, accepted results, controls, topology, and checkpoint
+meaning are unchanged. A control warm start constructs a fresh plan for its
+candidate Session and adopts it only after a clock-preserving atomic swap.
+Historical exact artifacts without the execution-plan capability retain their
+original loader contract.
+
+This branch does not move the Supabase active bundle pointer. Registration,
+activation, and deployment remain separate post-review operations.
+
+Its generated solve policy now includes named contiguous Newton/LU workspace
+segments. The binder creates persistent views and the model-owned solver loads
+the 30 active unknowns from the directly bound typed authority. The existing
+30-variable coupled solver now evaluates its residual and raw Jacobian, copies
+and factors that Jacobian, and stores its right-hand sides, update, trial,
+scales, and pivots through those Scenario-owned views. Component-specific
+analytic and finite-difference scratch remains internal to the existing
+scientific kernels. This is a workspace-ownership cutover rather than a change
+to equations, solver policy, convergence gates, or checkpoint semantics.
+Each solve block now also carries its compiler-derived component owner and
+kernel identity. The exact binder resolves those identities to the registered
+kernel catalog and supplies the compiled `nonCoronary / coronary / triSeg`
+ranges to the existing coupled solver. The current kernel still requires the
+same `14 + 16 + 2` shape and rejects any incompatible plan; the range ownership
+is no longer duplicated in Studio runtime wiring. Unknown gathering,
+component residual placement, and converged-candidate materialization consume
+the same Scenario-owned ranges as the Newton workspace. A context/workspace
+layout mismatch fails before the first residual evaluation.
+
+The descriptor also retains each hydraulic node and path's compiler-derived
+component owner. The bound plan resolves node ownership, storage slots,
+endpoints, component kernels, path kernels, and conservation pools once and
+passes that immutable dispatch into the model-owned solve-system binder. The
+current Main Wire kernel deliberately validates the existing 31-node/37-path
+topology before accepting the workspace; component equations remain unchanged.
+This creates a fail-closed topology seam for later bypasses and compartments
+without claiming that the present static equations already execute arbitrary
+graphs.
+
+The numerical policy now also names the model-owned coupled-system kernel.
+The neutral runtime resolves that identity to an exact-artifact binder by its
+compiler-bound ordinal at Scenario initialization. The binder validates the
+same plan-owned workspace and block dispatch before installing the coupled
+solver. Studio no longer enumerates or assembles the three Main Wire solve
+blocks; the portable descriptor still contains data and IDs only, never
+functions.
+
+The generated numerical policy also owns an integer timebase and update
+schedule. The current policy is exactly one coupled-hemodynamics update group
+with a `2 ms` base tick, period `1`, phase `0`, and a presentation period of one
+base tick. The exact host derives presentation targets and its solve-group
+dispatch from that bound schedule instead of duplicating a floating-point
+step or solve-group ID. It deliberately rejects any other schedule today.
+This changes no accepted equation or step size; it creates a typed,
+compiler-validated seam on which later transport, controller, or mechanics
+rates can be added only with their own scientific convergence evidence.
 
 Standard-32 changes the live execution authority, not the physiology. Ordinary
 presentation ticks now solve and promote directly through the fixed typed

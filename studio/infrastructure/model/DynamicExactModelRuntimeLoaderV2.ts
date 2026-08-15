@@ -1,4 +1,5 @@
 import type {
+  ExactModelRuntimeLoadTimingV2,
   RegisteredModelExecutableBundleV2,
   ResolvedExactModelRuntimeV2,
 } from "@/studio/contracts/v2/executable";
@@ -11,6 +12,9 @@ import {
 import {
   STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
 } from "@/studio/contracts/v2/simulation";
+import {
+  EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import type {
   StudioModelWorkerReleaseTicketV2,
 } from "@/studio/contracts/v2/release";
@@ -21,8 +25,7 @@ import {
   importExactExecutableArtifactModuleV2,
 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 import {
-  freezeExactRuntimeV2,
-  validateExecutableBundleV2,
+  admitExactModelExecutableRuntimeV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
   studioCanonicalJsonStringify,
@@ -40,6 +43,11 @@ export type ExactModelArtifactFetchPortV2 = (
   url: string,
 ) => Promise<ArtifactFetchResponseV2>;
 
+export type MeasuredExactModelRuntimeLoadV2 = Readonly<{
+  runtime: ResolvedExactModelRuntimeV2;
+  timing: ExactModelRuntimeLoadTimingV2;
+}>;
+
 /**
  * Worker-side exact runtime loader. Registry identity and ABI choose the
  * artifact and export. The client performs schema/binding checks but never
@@ -51,6 +59,10 @@ export class DynamicExactModelRuntimeLoaderV2 {
     canonicalTicket: string;
     promise: Promise<ResolvedExactModelRuntimeV2>;
   }>>();
+  readonly #coldTimingByModelId = new Map<
+    string,
+    ExactModelRuntimeLoadTimingV2
+  >();
 
   constructor(
     fetchArtifact: ExactModelArtifactFetchPortV2 = defaultArtifactFetchV2,
@@ -81,17 +93,47 @@ export class DynamicExactModelRuntimeLoaderV2 {
     return pending;
   }
 
+  async loadMeasured(
+    ticketValue: unknown,
+  ): Promise<MeasuredExactModelRuntimeLoadV2> {
+    const ticket = validateStudioModelWorkerReleaseTicketV2(ticketValue);
+    const cacheHit = this.#runtimePromises.has(ticket.modelId);
+    const startedAtMs = monotonicNowV2();
+    const runtime = await this.load(ticket);
+    const cold = this.#coldTimingByModelId.get(ticket.modelId);
+    if (cold === undefined) {
+      throw new Error("Exact model runtime load timing is unavailable");
+    }
+    return Object.freeze({
+      runtime,
+      timing: cacheHit
+        ? Object.freeze({
+            cacheHit: true,
+            artifactBytes: cold.artifactBytes,
+            artifactFetchMs: 0,
+            moduleImportAndFactoryMs: 0,
+            contractValidationMs: 0,
+            totalMs: nonnegativeDurationV2(startedAtMs),
+          })
+        : cold,
+    });
+  }
+
   async #loadUncached(
     ticket: StudioModelWorkerReleaseTicketV2,
   ): Promise<ResolvedExactModelRuntimeV2> {
+    const totalStartedAtMs = monotonicNowV2();
+    const fetchStartedAtMs = monotonicNowV2();
     const response = await this.#fetchArtifact(ticket.artifactUrl);
     if (!response.ok) {
       throw new Error(`Exact model artifact fetch failed (${response.status})`);
     }
     const buffer = await response.arrayBuffer();
+    const artifactFetchMs = nonnegativeDurationV2(fetchStartedAtMs);
     if (buffer.byteLength === 0 || buffer.byteLength > MAXIMUM_EXACT_MODEL_ARTIFACT_BYTES_V2) {
       throw new Error("Exact model artifact size is outside the supported range");
     }
+    const importStartedAtMs = monotonicNowV2();
     const namespace = await importExactExecutableArtifactModuleV2(
       new Uint8Array(buffer),
     );
@@ -101,6 +143,8 @@ export class DynamicExactModelRuntimeLoaderV2 {
       throw new Error(`Exact model artifact does not export ${exportName}`);
     }
     const produced = await factory();
+    const moduleImportAndFactoryMs = nonnegativeDurationV2(importStartedAtMs);
+    const validationStartedAtMs = monotonicNowV2();
     const release = exactExecutableReleaseRecordV2(produced);
     if (
       studioCanonicalJsonStringify(release.manifest)
@@ -112,13 +156,37 @@ export class DynamicExactModelRuntimeLoaderV2 {
       ticket.manifest,
       ticket.surfaceRelease,
     );
-    validateExecutableBundleV2(release.executables, composed.contract, {
-      requiresPresentationBatch: ticket.manifest.capabilities.includes(
-        STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
-      ),
-    });
-    return freezeExactRuntimeV2(release.executables, composed.contract);
+    const runtime = admitExactModelExecutableRuntimeV2(
+      release.executables,
+      composed.contract,
+      {
+        requiresPresentationBatch: ticket.manifest.capabilities.includes(
+          STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+        ),
+        requiresExecutionPlan: ticket.manifest.capabilities.includes(
+          EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
+        ),
+      },
+    );
+    const contractValidationMs = nonnegativeDurationV2(validationStartedAtMs);
+    this.#coldTimingByModelId.set(ticket.modelId, Object.freeze({
+      cacheHit: false,
+      artifactBytes: buffer.byteLength,
+      artifactFetchMs,
+      moduleImportAndFactoryMs,
+      contractValidationMs,
+      totalMs: nonnegativeDurationV2(totalStartedAtMs),
+    }));
+    return runtime;
   }
+}
+
+function monotonicNowV2(): number {
+  return globalThis.performance?.now() ?? Date.now();
+}
+
+function nonnegativeDurationV2(startedAtMs: number): number {
+  return Math.max(0, monotonicNowV2() - startedAtMs);
 }
 
 function exactExecutableReleaseRecordV2(

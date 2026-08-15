@@ -27,6 +27,10 @@ import {
 import type {
   ResolvedExactModelRuntimeV2,
 } from "@/studio/contracts/v2/executable";
+import {
+  assertBoundExecutionPlanV1,
+  type BoundExecutionPlanV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import type {
   StudioJsonObjectV2,
 } from "@/studio/contracts/v2/json";
@@ -342,7 +346,7 @@ export async function sealStudioExperimentSnapshotV1(
   assertResolvedMatchesPinV1(resolved, input.exactModel);
   const runtimeSessionId = `authoring/seal/${crypto.randomUUID()}`;
   const adapter = resolved.runtime.simulationAdapter;
-  await adapter.createSession({
+  const sessionCreateInput = Object.freeze({
     runtimeSessionId,
     scenarios: current.content.scenarios.map((scenario) => Object.freeze({
       scenarioId: scenario.scenarioId,
@@ -350,8 +354,22 @@ export async function sealStudioExperimentSnapshotV1(
       checkpoint: scenario.capture.checkpoint,
     })),
   });
+  const scenarioIds = current.content.scenarios.map(
+    ({ scenarioId }) => scenarioId,
+  );
+  const boundExecutionPlans = bindAuthoringExecutionPlansV1(
+    resolved.runtime,
+    scenarioIds,
+  );
+  if (boundExecutionPlans === null) {
+    await adapter.createSession(sessionCreateInput);
+  } else {
+    await resolved.runtime.executionPlan!.createSession(Object.freeze({
+      ...sessionCreateInput,
+      boundExecutionPlans,
+    }));
+  }
   try {
-    const scenarioIds = current.content.scenarios.map(({ scenarioId }) => scenarioId);
     const frames = new Map(scenarioIds.map((scenarioId) => [scenarioId,
       adapter.currentFrame({ runtimeSessionId, scenarioId })]));
     // Observation selection is part of the command's validation boundary. It
@@ -442,7 +460,7 @@ async function prepareExperimentCaptureV1(
   });
   const runtimeSessionId = `authoring/session/${crypto.randomUUID()}`;
   const adapter = resolved.runtime.simulationAdapter;
-  await adapter.createSession({
+  const sessionCreateInput = Object.freeze({
     runtimeSessionId,
     scenarios: sources.map(({ spec, fixture, checkpoint }) => Object.freeze({
       scenarioId: spec.scenarioId,
@@ -450,6 +468,18 @@ async function prepareExperimentCaptureV1(
       ...(checkpoint === undefined ? {} : { checkpoint }),
     })),
   });
+  const boundExecutionPlans = bindAuthoringExecutionPlansV1(
+    resolved.runtime,
+    sources.map(({ spec }) => spec.scenarioId),
+  );
+  if (boundExecutionPlans === null) {
+    await adapter.createSession(sessionCreateInput);
+  } else {
+    await resolved.runtime.executionPlan!.createSession(Object.freeze({
+      ...sessionCreateInput,
+      boundExecutionPlans,
+    }));
+  }
   try {
     const reducer = createStudioFixtureReducerV2(Object.freeze({
       resolveExactRuntime(modelId: string) {
@@ -742,6 +772,24 @@ async function advanceAuthoringScenariosV1(
       frames.get(scenarioId)!.acceptedTimeSec < targets.get(scenarioId)!);
   }
   return frames;
+}
+
+function bindAuthoringExecutionPlansV1(
+  runtime: ResolvedExactModelRuntimeV2,
+  scenarioIds: readonly string[],
+): ReadonlyMap<string, BoundExecutionPlanV1> | null {
+  const executionPlan = runtime.executionPlan;
+  if (executionPlan === undefined) return null;
+  const boundByScenario = new Map<string, BoundExecutionPlanV1>();
+  for (const scenarioId of scenarioIds) {
+    const boundExecutionPlan = executionPlan.bind();
+    assertBoundExecutionPlanV1(
+      boundExecutionPlan,
+      executionPlan.descriptor,
+    );
+    boundByScenario.set(scenarioId, boundExecutionPlan);
+  }
+  return boundByScenario;
 }
 
 function observationFromFrameV1(

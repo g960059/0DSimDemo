@@ -100,6 +100,24 @@ import {
   createTransactionalTypedStateManifestV1,
   TransactionalTypedStateImageV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
+import {
+  bindExecutionPlanV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import type {
+  ExecutionPlanDescriptorV1,
+} from "@/runtime/executionPlan/ExecutionPlanDescriptorV1";
+import {
+  bindExecutionPlanAcceptedTypedStateV1,
+  readExecutionPlanAcceptedTypedStateIntoLogicalV1,
+  resolveExecutionPlanAcceptedTypedStateSlotV1,
+} from "@/engine/vnext/ExecutionPlanAcceptedTypedStateBindingV1";
+import {
+  compileExecutionPlanV1,
+} from "@/engine/executionPlan/ExecutionPlanCompilerV1";
+import {
+  createMainWireModelDefinitionV1,
+  createMainWireNumericalPolicyV1,
+} from "@/engine/executionPlan/MainWireModelDefinitionV1";
 
 describe("CanonicalFlatDataV1", () => {
   it("encodes an owned ArrayBuffer when SharedArrayBuffer is unavailable", () => {
@@ -1170,6 +1188,77 @@ describe("MainWireIntegratedTypedAuthoritySessionV1", () => {
     actual.fill(Number.NaN);
     expect(advancedAdapter.mechanics.materialState.wallStateByWall.LVFW
       .landState.every(Number.isFinite)).toBe(true);
+  });
+
+  it("binds compiled state identities to exact typed-authority slots once", async () => {
+    const oracle = await MainWireIntegratedModelSessionV3.create();
+    const initial = oracle.currentAcceptedState();
+    const manifest = createMainWireAcceptedTypedStateManifestV1(initial);
+    const image = new TransactionalTypedStateImageV1(manifest, initial);
+    const descriptor = compileExecutionPlanV1(
+      createMainWireModelDefinitionV1(),
+      createMainWireNumericalPolicyV1(),
+    );
+    const boundPlan = bindExecutionPlanV1(
+      descriptor,
+      kernelCatalogFromDescriptor(descriptor),
+    );
+    const binding = bindExecutionPlanAcceptedTypedStateV1(
+      boundPlan,
+      manifest,
+    );
+    const compiled = new Float64Array(descriptor.stateLayout.logicalSlotCount);
+    readExecutionPlanAcceptedTypedStateIntoLogicalV1(
+      binding,
+      image.currentCursor(),
+      compiled,
+    );
+    const manualBinding = createMainWireAcceptedTypedHemodynamicBindingV1(
+      manifest,
+    );
+    const compiledHemodynamicBinding =
+      createMainWireAcceptedTypedHemodynamicBindingV1(manifest, binding);
+    const manual = createMainWireAcceptedTypedHemodynamicDestinationV1();
+    readMainWireAcceptedTypedHemodynamicIntoV1(
+      image.currentCursor(),
+      manualBinding,
+      manual,
+    );
+
+    expect(compiled).toEqual(manual);
+    expect(compiledHemodynamicBinding).toEqual(manualBinding);
+    expect(resolveExecutionPlanAcceptedTypedStateSlotV1(
+      binding,
+      "mechanics.mvc.mitralForwardFlowActive",
+    )).toMatchObject({
+      logicalIndex: MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.mvcActive,
+      storageKind: "boolean-u8",
+    });
+    expect(() => readExecutionPlanAcceptedTypedStateIntoLogicalV1(
+      { ...binding },
+      image.currentCursor(),
+      compiled,
+    )).toThrow(/requires an admitted binding/);
+    const wrongPointer = structuredClone(descriptor) as unknown as {
+      stateLayout: { slots: Array<{ authorityPointer: string }> };
+    };
+    const firstPointer = wrongPointer.stateLayout.slots[0]!.authorityPointer;
+    const booleanIndex =
+      MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.mvcActive;
+    wrongPointer.stateLayout.slots[0]!.authorityPointer =
+      wrongPointer.stateLayout.slots[booleanIndex]!.authorityPointer;
+    wrongPointer.stateLayout.slots[booleanIndex]!.authorityPointer =
+      firstPointer;
+    const wrongBoundPlan = bindExecutionPlanV1(
+      wrongPointer,
+      kernelCatalogFromDescriptor(
+        wrongPointer as unknown as ExecutionPlanDescriptorV1,
+      ),
+    );
+    expect(() => bindExecutionPlanAcceptedTypedStateV1(
+      wrongBoundPlan,
+      manifest,
+    )).toThrow(/storage kind drifted/);
   });
 
   it("stages the coupled partition into the global inactive image without aliases", async () => {
@@ -2244,6 +2333,22 @@ describe("MainWireIntegratedTypedAuthoritySessionV1", () => {
     ).rejects.toThrow("SHA-256 mismatch");
   }, 120_000);
 });
+
+function kernelCatalogFromDescriptor(
+  descriptor: ExecutionPlanDescriptorV1,
+) {
+  return Object.freeze({
+    componentKernelIds: Object.freeze(Array.from(new Set(
+      descriptor.stateLayout.blocks.map(({ kernelId }) => kernelId),
+    ))),
+    hydraulicPathKernelIds: Object.freeze(Array.from(new Set(
+      descriptor.hydraulicGraph.pathKernelIds,
+    ))),
+    solveSystemKernelIds: Object.freeze(Array.from(new Set(
+      descriptor.solveGroups.map(({ systemKernelId }) => systemKernelId),
+    ))),
+  });
+}
 
 function firstFloat64Array(value: unknown): Float64Array | null {
   if (value instanceof Float64Array) return value;

@@ -15,6 +15,7 @@ import {
   type StudioSimulationWorkerDeleteScenarioInputV2,
   type StudioSimulationWorkerDuplicateScenarioInputV2,
   type StudioSimulationWorkerInitializeInputV2,
+  type StudioSimulationWorkerInitializationTimingV2,
   type StudioSimulationWorkerReadScenariosInputV2,
   type StudioSimulationWorkerRenameScenarioInputV2,
   type StudioSimulationWorkerRequestAnalysisInputV2,
@@ -258,6 +259,8 @@ export class StudioSimulationWorkerClientV2 {
   #acceptedTimeSec: number | undefined;
   #lastPresentationTiming:
     StudioSimulationWorkerPresentationTimingV2 | undefined;
+  #lastInitializationTiming:
+    StudioSimulationWorkerInitializationTimingV2 | undefined;
   #operationInFlight:
     | "advance"
     | "advance-presentation"
@@ -364,6 +367,7 @@ export class StudioSimulationWorkerClientV2 {
       this.#acceptedRevision = response.frame.acceptedRevision;
       this.#acceptedTimeSec = response.frame.acceptedTimeSec;
       this.#experiment = request.authoringSeed?.experiment;
+      this.#lastInitializationTiming = response.initializationTiming;
       this.#state = "active";
       return response.frame;
     } catch (error) {
@@ -503,6 +507,12 @@ export class StudioSimulationWorkerClientV2 {
   presentationTiming():
     StudioSimulationWorkerPresentationTimingV2 | undefined {
     return this.#lastPresentationTiming;
+  }
+
+  /** Cold initialization phases reported by the correlated Worker response. */
+  initializationTiming():
+    StudioSimulationWorkerInitializationTimingV2 | undefined {
+    return this.#lastInitializationTiming;
   }
 
   async applyControl(
@@ -1061,6 +1071,7 @@ export class StudioSimulationWorkerClientV2 {
     this.#terminationReason = error.message;
     this.#state = "terminated";
     this.#lastPresentationTiming = undefined;
+    this.#lastInitializationTiming = undefined;
     try {
       this.#worker.removeEventListener("message", this.#onMessage);
     } catch {

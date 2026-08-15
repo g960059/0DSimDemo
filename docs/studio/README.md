@@ -36,6 +36,11 @@ defines canonical server-rendered public Article HTML, Markdown, JSON,
 discovery metadata, caching and deployment while private authoring and the
 simulation runtime remain client-rendered.
 
+[DESIGN-STUDIO-009-model-definition-execution-plan.md](DESIGN-STUDIO-009-model-definition-execution-plan.md)
+defines the build-time `ModelDefinition + NumericalPolicy → ExecutionPlan`
+compiler, its shadow parity gates, cold-start instrumentation, and the later
+direct runtime-binding cutover.
+
 Superseded Studio V1 design and vertical-slice specifications were removed
 from the working tree. They remain available in Git history, but must not be
 used as implementation context.

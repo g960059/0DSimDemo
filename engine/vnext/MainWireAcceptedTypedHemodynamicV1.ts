@@ -31,6 +31,10 @@ import type {
   TransactionalTypedStateCurrentCursorV1,
   TransactionalTypedStateManifestV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
+import {
+  listExecutionPlanAcceptedTypedStateSlotsV1,
+  type ExecutionPlanAcceptedTypedStateBindingV1,
+} from "@/engine/vnext/ExecutionPlanAcceptedTypedStateBindingV1";
 
 export const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_VIEW_V1_ID =
   "main-wire-integrated-accepted-typed-hemodynamic-view-v1" as const;
@@ -39,6 +43,39 @@ const LAND_STATE_LENGTH = 6;
 const WALL_STATE_LENGTH = LAND_STATE_LENGTH + 3;
 
 export const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1 = 100 as const;
+
+const MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1 = Object.freeze([
+  "accepted.timeSec",
+  "accepted.revision",
+  "circulation.fixedTotalBloodVolumeMl",
+  ...NON_CORONARY_NODE_NAMES_V1.map((nodeId) =>
+    `noncoronary.volume.${nodeId}`),
+  ...NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((edgeId) =>
+    `noncoronary.flow.${edgeId}`),
+  ...NON_CORONARY_VALVE_NAMES_V1.map((valveId) =>
+    `noncoronary.valve.${valveId}.openingFraction01`),
+  ...CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.map((nodeId) =>
+    `coronary.volume.${nodeId}`),
+  ...CORONARY_TERRITORY_IDS_V2.flatMap((territoryId) =>
+    CORONARY_LAYER_IDS_V2.map((layerId) =>
+      `coronary.tone.${territoryId}.${layerId}`)),
+  ...MAIN_WIRE_FIVE_WALL_IDS_V1.flatMap((wallId) => [
+    ...Array.from({ length: 6 }, (_unused, index) =>
+      `mechanics.wall.${wallId}.land.${index}`),
+    `mechanics.wall.${wallId}.sls.viscousLogStrain`,
+    `mechanics.wall.${wallId}.previousFiberLogStrain`,
+    `mechanics.wall.${wallId}.previousFreeCalciumUM`,
+  ]),
+  "TriSeg.septalMidwallCapVolume",
+  "TriSeg.junctionRadius",
+  "mechanics.mvc.referenceFiberLogStrain.LVFW",
+  "mechanics.mvc.referenceFiberLogStrain.SEP",
+  "mechanics.mvc.referenceFiberLogStrain.RVFW",
+  "mechanics.mvc.referenceAcceptedTimeSec",
+  "mechanics.mvc.referenceRevision",
+  "mechanics.mvc.mitralForwardFlowActive",
+  "mechanics.mvc.acceptedMitralClosureEventCount",
+]);
 
 const ACCEPTED_TIME_INDEX = 0;
 const REVISION_INDEX = 1;
@@ -117,15 +154,20 @@ export type MainWireAcceptedTypedHemodynamicBindingV1 = Readonly<{
   solverRetainedBooleanSlots: readonly number[];
 }>;
 
+type LegacyMainWireAcceptedProjectionV1 = Readonly<{
+  slots: (number | null)[];
+  mvcActiveBooleanSlot: number;
+}>;
+
 /**
- * Resolves the complete one-patch circulation/mechanics state once. The
- * binding is a read-only view over the existing full accepted-state image,
- * never a second state authority.
+ * Compatibility seam for engine-level tests and standalone tools that
+ * construct the typed authority without a compiled model. Registered exact
+ * Sessions receive the compiler-owned binding at construction and never enter
+ * this pointer-derived path. It is never a hot-path lookup.
  */
-export function createMainWireAcceptedTypedHemodynamicBindingV1(
+function createLegacyMainWireAcceptedProjectionV1(
   manifest: TransactionalTypedStateManifestV1,
-): MainWireAcceptedTypedHemodynamicBindingV1 {
-  assertManifest(manifest);
+): LegacyMainWireAcceptedProjectionV1 {
   const slots: (number | null)[] = [];
   slots.push(
     continuousSlot(manifest, "/acceptedTimeSec"),
@@ -234,6 +276,74 @@ export function createMainWireAcceptedTypedHemodynamicBindingV1(
   ) {
     throw new Error("Main Wire accepted typed hemodynamic binding is incomplete");
   }
+  return Object.freeze({
+    slots,
+    mvcActiveBooleanSlot: booleanSlot(
+      manifest,
+      "/coronary/mvcReferenceState/mitralForwardFlowActive",
+    ),
+  });
+}
+
+/**
+ * Resolves the complete one-patch circulation/mechanics state once. The
+ * binding is a read-only view over the existing full accepted-state image,
+ * never a second state authority.
+ */
+export function createMainWireAcceptedTypedHemodynamicBindingV1(
+  manifest: TransactionalTypedStateManifestV1,
+  executionPlanBinding?: ExecutionPlanAcceptedTypedStateBindingV1,
+): MainWireAcceptedTypedHemodynamicBindingV1 {
+  assertManifest(manifest);
+  let slots: (number | null)[];
+  let mvcActiveBooleanSlot: number;
+  if (executionPlanBinding === undefined) {
+    const legacyProjection = createLegacyMainWireAcceptedProjectionV1(manifest);
+    slots = legacyProjection.slots;
+    mvcActiveBooleanSlot = legacyProjection.mvcActiveBooleanSlot;
+  } else {
+    if (
+      executionPlanBinding.authorityLayoutId !== manifest.layoutId
+      || executionPlanBinding.authorityFingerprint !== manifest.fingerprint
+    ) {
+      throw new Error(
+        "Main Wire execution-plan authority binding identity drifted",
+      );
+    }
+    const compiled = listExecutionPlanAcceptedTypedStateSlotsV1(
+      executionPlanBinding,
+    );
+    if (
+      compiled.length
+        !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1.length
+      || compiled.length
+        !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_SLOT_COUNT_V1
+    ) {
+      throw new Error("Main Wire execution-plan state count drifted");
+    }
+    const compiledSlots = compiled.map((slot, index) => {
+      const expectedStateId =
+        MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_STATE_IDS_V1[index];
+      const expectedStorageKind = index === MVC_ACTIVE_INDEX
+        ? "boolean-u8"
+        : "continuous-f64";
+      if (
+        slot.stateId !== expectedStateId
+        || slot.logicalIndex !== index
+        || slot.storageKind !== expectedStorageKind
+      ) {
+        throw new Error(
+          `Main Wire execution-plan state ${index} identity drifted`,
+        );
+      }
+      return slot.storageKind === "boolean-u8"
+        ? null
+        : slot.authoritySlotIndex;
+    });
+    const compiledMvc = compiled[MVC_ACTIVE_INDEX]!;
+    slots = compiledSlots;
+    mvcActiveBooleanSlot = compiledMvc.authoritySlotIndex;
+  }
   const ownerClocks = Object.freeze([
     ownerClock(manifest, ""),
     ownerClock(manifest, "/composedRhythm"),
@@ -242,10 +352,6 @@ export function createMainWireAcceptedTypedHemodynamicBindingV1(
     ownerClock(manifest, "/coronary/coronary"),
     ownerClock(manifest, "/coronary/mechanics"),
   ]);
-  const mvcActiveBooleanSlot = booleanSlot(
-    manifest,
-    "/coronary/mvcReferenceState/mitralForwardFlowActive",
-  );
   const circulationTotalBloodVolumeSlot = continuousSlot(
     manifest,
     "/coronary/circulation/totalBloodVolumeMl",

@@ -10,9 +10,18 @@ import {
   CORONARY_CONSERVED_VOLUME_NODE_IDS_V2,
 } from "@/engine/coronary/typesV2";
 import {
+  NON_CORONARY_EDGE_NAMES_V1,
   NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
+  NON_CORONARY_NODE_NAMES_V1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+import { buildEdges } from "@/engine/core/topology";
+import { buildCoronaryTopologyV2 } from "@/engine/coronary/topologyPriorV2";
 import {
+  MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1,
+} from "@/engine/vnext/MainWireAcceptedTypedHemodynamicV1";
+import {
+  assertFlatCoupledNewtonWorkspaceV1,
+  bindFlatCoupledNewtonWorkspaceV1,
   createFlatCoupledNewtonWorkspaceV1,
   solveFlatCoupledSystemV1,
   type FlatCoupledNewtonResultV1,
@@ -24,9 +33,26 @@ import {
   type MainWireFiveWallCoupledPredictionOrderV1,
   type MainWireFiveWallCoupledPredictorWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
+import {
+  assertMainWireFiveWallCoupledSolveLayoutV1,
+  bindMainWireFiveWallCoupledSolveDispatchV1,
+  createCanonicalMainWireFiveWallCoupledSolveLayoutV1,
+  MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
+  type MainWireFiveWallCoupledSolveLayoutV1,
+} from "@/engine/vnext/coupled/CoupledHemodynamicsLayoutV1";
+import {
+  assertBoundExecutionPlanHydraulicDispatchV1,
+  type BoundExecutionPlanHydraulicDispatchV1,
+  type BoundExecutionPlanNewtonWorkspaceV1,
+  type BoundExecutionPlanSolveDispatchV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
 
 export const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_V1_ID =
   "main-wire-five-wall-coupled-newton-shadow-v1" as const;
+export { MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID };
+
+const MAIN_WIRE_HYDRAULIC_EXECUTION_PLAN_EXPECTATION_V1 =
+  createMainWireHydraulicExecutionPlanExpectationV1();
 
 export type MainWireFiveWallCoupledNewtonShadowOptionsV1 = Readonly<{
   /**
@@ -95,6 +121,14 @@ export type MainWireFiveWallCoupledNewtonShadowWorkspaceV1 = Readonly<{
   dimension: number;
 }>;
 
+export type MainWireFiveWallCoupledNewtonWorkspaceBackingV1 = Readonly<{
+  newton: FlatCoupledNewtonWorkspaceV1;
+  unknownScales: Float64Array;
+  residualScales: Float64Array;
+  solveLayout: MainWireFiveWallCoupledSolveLayoutV1;
+  hydraulicDispatch?: BoundExecutionPlanHydraulicDispatchV1;
+}>;
+
 type CoupledCoronaryLinearizationStorageV1 = {
   readonly residualMl: Float64Array;
   readonly dResidualDVolume: Float64Array;
@@ -117,6 +151,8 @@ type MainWireFiveWallCoupledNewtonShadowWorkspaceStorageV1 = {
   readonly unknownScales: Float64Array;
   readonly residualScales: Float64Array;
   readonly newton: FlatCoupledNewtonWorkspaceV1;
+  readonly solveLayout: MainWireFiveWallCoupledSolveLayoutV1;
+  readonly hydraulicDispatch: BoundExecutionPlanHydraulicDispatchV1 | null;
   inUse: boolean;
 };
 
@@ -125,19 +161,43 @@ const MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1 =
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
     MainWireFiveWallCoupledNewtonShadowWorkspaceStorageV1
   >();
-
 /**
  * Session-owned mutable scratch for the migration solver. It is not accepted
  * model state, is never checkpointed, and may only be borrowed by one solve.
  */
 export function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1():
-MainWireFiveWallCoupledNewtonShadowWorkspaceV1 {
+MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
+export function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
+  backing: MainWireFiveWallCoupledNewtonWorkspaceBackingV1,
+): MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
+export function createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
+  backing?: MainWireFiveWallCoupledNewtonWorkspaceBackingV1,
+): MainWireFiveWallCoupledNewtonShadowWorkspaceV1 {
   const nonCoronaryDimension =
     NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
   const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
   const boundaryDimension =
     CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
   const dimension = nonCoronaryDimension + coronaryDimension;
+  const newton = backing?.newton
+    ?? createFlatCoupledNewtonWorkspaceV1(dimension);
+  const unknownScales = backing?.unknownScales
+    ?? new Float64Array(dimension);
+  const residualScales = backing?.residualScales
+    ?? new Float64Array(dimension);
+  const solveLayout = backing?.solveLayout
+    ?? createCanonicalMainWireFiveWallCoupledSolveLayoutV1();
+  if (backing?.hydraulicDispatch !== undefined) {
+    assertBoundExecutionPlanHydraulicDispatchV1(backing.hydraulicDispatch);
+  }
+  assertFlatCoupledNewtonWorkspaceV1(newton, dimension);
+  assertMainWireFiveWallCoupledSolveLayoutV1(solveLayout);
+  assertExternalScaleStorageV1(
+    newton,
+    unknownScales,
+    residualScales,
+    dimension,
+  );
   const workspace = Object.freeze({
     schemaId:
       "circleheart-main-wire-five-wall-coupled-newton-shadow-workspace-v1" as const,
@@ -170,13 +230,232 @@ MainWireFiveWallCoupledNewtonShadowWorkspaceV1 {
         dCommonVenousOutletFlowDBoundary:
           new Float64Array(boundaryDimension),
       },
-      unknownScales: new Float64Array(dimension),
-      residualScales: new Float64Array(dimension),
-      newton: createFlatCoupledNewtonWorkspaceV1(dimension),
+      unknownScales,
+      residualScales,
+      newton,
+      solveLayout,
+      hydraulicDispatch: backing?.hydraulicDispatch ?? null,
       inUse: false,
     },
   );
   return workspace;
+}
+
+/** Binds one compiler-owned workspace to the model-owned coupled system. */
+export function bindMainWireFiveWallCoupledExecutionPlanRuntimeV1(
+  input: Readonly<{
+    dispatch: BoundExecutionPlanSolveDispatchV1;
+    hydraulicDispatch: BoundExecutionPlanHydraulicDispatchV1;
+    workspace: BoundExecutionPlanNewtonWorkspaceV1;
+  }>,
+): MainWireFiveWallCoupledNewtonShadowWorkspaceV1 {
+  if (
+    input.dispatch.systemKernelId
+      !== MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID
+    || input.workspace.solveGroupId !== input.dispatch.solveGroupId
+    || input.workspace.dimension !== input.dispatch.activeUnknownCount
+  ) {
+    throw new Error("Main Wire execution-plan solve system drifted");
+  }
+  assertBoundExecutionPlanHydraulicDispatchV1(input.hydraulicDispatch);
+  assertMainWireHydraulicExecutionPlanDispatchV1(input.hydraulicDispatch);
+  return createMainWireFiveWallCoupledNewtonShadowWorkspaceV1({
+    newton: bindFlatCoupledNewtonWorkspaceV1({
+      dimension: input.workspace.dimension,
+      current: input.workspace.currentUnknowns,
+      residual: input.workspace.residual,
+      jacobian: input.workspace.jacobian,
+      factors: input.workspace.factors,
+      rightHandSide: input.workspace.rightHandSide,
+      transformedRightHandSide:
+        input.workspace.transformedRightHandSide,
+      update: input.workspace.update,
+      trial: input.workspace.trialUnknowns,
+      trialResidual: input.workspace.trialResidual,
+      pivots: input.workspace.pivots,
+    }),
+    unknownScales: input.workspace.unknownScale,
+    residualScales: input.workspace.residualScale,
+    solveLayout: bindMainWireFiveWallCoupledSolveDispatchV1(input.dispatch),
+    hydraulicDispatch: input.hydraulicDispatch,
+  });
+}
+
+/** Returns the exact topology admitted with the compiler-owned workspace. */
+export function resolveMainWireHydraulicExecutionPlanDispatchV1(
+  workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+): BoundExecutionPlanHydraulicDispatchV1 {
+  assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace);
+  const dispatch =
+    MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.get(
+      workspace,
+    )!.hydraulicDispatch;
+  if (dispatch === null) {
+    throw new Error("coupled Newton workspace has no execution-plan topology");
+  }
+  return dispatch;
+}
+
+function assertMainWireHydraulicExecutionPlanDispatchV1(
+  dispatch: BoundExecutionPlanHydraulicDispatchV1,
+): void {
+  const {
+    nodes: expectedNodes,
+    paths: expectedPaths,
+  } = MAIN_WIRE_HYDRAULIC_EXECUTION_PLAN_EXPECTATION_V1;
+  if (
+    dispatch.definitionId !== "main-wire-hemodynamic-model-definition-v1"
+    || dispatch.nodes.length !== expectedNodes.length
+    || dispatch.paths.length !== expectedPaths.length
+    || dispatch.conservationPools.length !== 1
+  ) {
+    throw new Error("Main Wire hydraulic execution-plan dimensions drifted");
+  }
+  expectedNodes.forEach((expected, index) => {
+    const actual = dispatch.nodes[index];
+    if (
+      actual?.nodeId !== expected.nodeId
+      || actual.componentId !== expected.componentId
+      || actual.componentKernelId !== expected.componentKernelId
+      || actual.storageStateLogicalIndex !== expected.storageStateLogicalIndex
+    ) {
+      throw new Error(`Main Wire hydraulic node ${index} drifted`);
+    }
+  });
+  expectedPaths.forEach((expected, index) => {
+    const actual = dispatch.paths[index];
+    if (
+      actual?.pathId !== expected.pathId
+      || actual.componentId !== expected.componentId
+      || actual.componentKernelId !== expected.componentKernelId
+      || dispatch.nodes[actual.upstreamNodeIndex]?.nodeId
+        !== expected.upstreamNodeId
+      || dispatch.nodes[actual.downstreamNodeIndex]?.nodeId
+        !== expected.downstreamNodeId
+      || actual.pathKernelId !== expected.pathKernelId
+    ) {
+      throw new Error(`Main Wire hydraulic path ${index} drifted`);
+    }
+  });
+  const [pool] = dispatch.conservationPools;
+  if (
+    pool?.poolId !== "global-blood-volume"
+    || pool.ledgerStateLogicalIndex
+      !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.fixedTotalBloodVolume
+    || pool.dependentStateLogicalIndex
+      !== MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.nonCoronaryVolumes + 8
+    || pool.memberStateLogicalIndices.length !== expectedNodes.length
+    || pool.memberStateLogicalIndices.some((logicalIndex, index) =>
+      logicalIndex !== expectedNodes[index]!.storageStateLogicalIndex)
+  ) {
+    throw new Error("Main Wire hydraulic conservation pool drifted");
+  }
+}
+
+function createMainWireHydraulicExecutionPlanExpectationV1() {
+  const edgeById = new Map(buildEdges().map((edge) =>
+    [edge.name, edge] as const));
+  const nonCoronaryEdges = NON_CORONARY_EDGE_NAMES_V1.map((edgeId) => {
+    const edge = edgeById.get(edgeId);
+    if (edge === undefined) {
+      throw new Error(`Main Wire hydraulic path ${edgeId} is unavailable`);
+    }
+    return edge;
+  });
+  const coronaryTopology = buildCoronaryTopologyV2();
+  const nodes = Object.freeze([
+    ...NON_CORONARY_NODE_NAMES_V1.map((nodeId, index) => ({
+      nodeId,
+      componentId: "noncoronary-circulation",
+      componentKernelId: "noncoronary-backward-euler-kernel-v1",
+      storageStateLogicalIndex:
+        MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.nonCoronaryVolumes
+        + index,
+    })),
+    ...coronaryTopology.nodes.map((node, index) => ({
+      nodeId: node.nodeId,
+      componentId: "coronary-circulation",
+      componentKernelId: "coronary-backward-euler-kernel-v2",
+      storageStateLogicalIndex:
+        MAIN_WIRE_ACCEPTED_TYPED_HEMODYNAMIC_LAYOUT_V1.coronaryVolumes
+        + index,
+    })),
+  ]);
+  const paths = Object.freeze([
+    ...nonCoronaryEdges.map((edge) => ({
+      pathId: edge.name,
+      componentId: "noncoronary-circulation",
+      componentKernelId: "noncoronary-backward-euler-kernel-v1",
+      upstreamNodeId: edge.up,
+      downstreamNodeId: edge.down,
+      pathKernelId: `noncoronary-flow/${edge.kind}`,
+    })),
+    ...coronaryTopology.edges.map((edge) => ({
+      pathId: edge.edgeId,
+      componentId: "coronary-circulation",
+      componentKernelId: "coronary-backward-euler-kernel-v2",
+      upstreamNodeId: edge.upstreamNodeId,
+      downstreamNodeId: edge.downstreamNodeId,
+      pathKernelId: `coronary-flow/${edge.kind}`,
+    })),
+  ]);
+  return Object.freeze({ nodes, paths });
+}
+
+export function assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
+  workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+): void {
+  const expectedDimension = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length
+    + CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  const storage =
+    MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.get(
+      workspace,
+    );
+  if (
+    storage === undefined
+    || workspace.dimension !== expectedDimension
+    || storage.inUse
+  ) {
+    throw new RangeError("coupled Newton shadow workspace is not admitted");
+  }
+}
+
+/** Returns the admitted compiler projection owned by this Scenario workspace. */
+export function resolveMainWireFiveWallCoupledSolveLayoutV1(
+  workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+): MainWireFiveWallCoupledSolveLayoutV1 {
+  assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace);
+  return MAIN_WIRE_FIVE_WALL_COUPLED_NEWTON_SHADOW_WORKSPACE_STORAGE_V1.get(
+    workspace,
+  )!.solveLayout;
+}
+
+function assertMatchingMainWireFiveWallCoupledSolveLayoutV1(
+  contextLayout: MainWireFiveWallCoupledSolveLayoutV1,
+  workspaceLayout: MainWireFiveWallCoupledSolveLayoutV1,
+): void {
+  assertMainWireFiveWallCoupledSolveLayoutV1(contextLayout);
+  const blockNames = ["nonCoronary", "coronary", "triSeg"] as const;
+  if (contextLayout.dimension !== workspaceLayout.dimension) {
+    throw new RangeError("coupled context/workspace solve dimensions drifted");
+  }
+  for (const blockName of blockNames) {
+    const contextBlock = contextLayout[blockName];
+    const workspaceBlock = workspaceLayout[blockName];
+    if (
+      contextBlock.blockId !== workspaceBlock.blockId
+      || contextBlock.componentId !== workspaceBlock.componentId
+      || contextBlock.kernelId !== workspaceBlock.kernelId
+      || contextBlock.disposition !== workspaceBlock.disposition
+      || contextBlock.start !== workspaceBlock.start
+      || contextBlock.length !== workspaceBlock.length
+      || contextBlock.endExclusive !== workspaceBlock.endExclusive
+    ) {
+      throw new RangeError(
+        `coupled context/workspace ${blockName} solve block drifted`,
+      );
+    }
+  }
 }
 
 function borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
@@ -195,6 +474,55 @@ function borrowMainWireFiveWallCoupledNewtonShadowWorkspaceV1(
   }
   storage.inUse = true;
   return storage;
+}
+
+function assertExternalScaleStorageV1(
+  newton: FlatCoupledNewtonWorkspaceV1,
+  unknownScales: Float64Array,
+  residualScales: Float64Array,
+  dimension: number,
+): void {
+  if (
+    !(unknownScales instanceof Float64Array)
+    || unknownScales.length !== dimension
+    || !(residualScales instanceof Float64Array)
+    || residualScales.length !== dimension
+  ) {
+    throw new RangeError(
+      "coupled Newton scale storage has an incompatible shape",
+    );
+  }
+  const scaleViews = [unknownScales, residualScales];
+  const newtonViews: ArrayBufferView[] = [
+    newton.current,
+    newton.residual,
+    newton.jacobian,
+    newton.linear.factors,
+    newton.rightHandSide,
+    newton.linear.transformedRightHandSide,
+    newton.update,
+    newton.trial,
+    newton.trialResidual,
+    newton.linear.pivotRowByColumn,
+  ];
+  for (let index = 0; index < scaleViews.length; index += 1) {
+    const scale = scaleViews[index]!;
+    const others: readonly ArrayBufferView[] = [
+      ...newtonViews,
+      ...scaleViews.slice(index + 1),
+    ];
+    for (const other of others) {
+      if (
+        scale.buffer === other.buffer
+        && scale.byteOffset < other.byteOffset + other.byteLength
+        && other.byteOffset < scale.byteOffset + scale.byteLength
+      ) {
+        throw new RangeError(
+          "coupled Newton scale storage must not overlap solver scratch",
+        );
+      }
+    }
+  }
 }
 
 /**
@@ -222,12 +550,16 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1<TWallState = unknown>
     finiteDifferenceRelativeStep,
     "finiteDifferenceRelativeStep",
   );
-  const { plus, minus, plusResidual, minusResidual } = storage;
-  const coronaryDimension = CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
+  const { plus, minus, plusResidual, minusResidual, solveLayout } = storage;
+  assertMatchingMainWireFiveWallCoupledSolveLayoutV1(
+    context.solveLayout,
+    solveLayout,
+  );
+  const coronaryDimension = solveLayout.coronary.length;
+  const coronaryStart = solveLayout.coronary.start;
   const boundaryDimension =
     CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2.length;
-  const nonCoronaryDimension =
-    NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
+  const nonCoronaryDimension = solveLayout.nonCoronary.length;
   const {
     localDependentSvColumn,
     coronaryBoundaryLinearization,
@@ -321,7 +653,6 @@ export function solveMainWireFiveWallCoupledNewtonShadowV1<TWallState = unknown>
         }
       }
       if (jacobianMode === "hybrid-coronary-analytic") {
-        const coronaryStart = nonCoronaryDimension;
         const aoResidualRow =
           NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("Ao");
         const raResidualRow =

@@ -28,8 +28,12 @@ import {
   type ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import type {
+  ExactModelRuntimeLoadTimingV2,
   ExactModelRuntimeResolverPortV2,
   ResolvedExactModelRuntimeV2,
+} from "@/studio/contracts/v2/executable";
+import {
+  REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
 } from "@/studio/contracts/v2/executable";
 import type {
   StudioJsonValueV2,
@@ -67,6 +71,10 @@ import {
   studioSimulationPresentationOutputStateCodeV2,
   studioSimulationPresentationBatchTransferablesV2,
 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
+import {
+  assertBoundExecutionPlanV1,
+  type BoundExecutionPlanV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import type {
   StudioSimulationPresentationBatchV2,
 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
@@ -103,6 +111,9 @@ export type StudioSimulationWorkerRuntimeDependenciesV2 = Readonly<{
       { kind: "initialize" }
     >["releaseTicket"];
   }>): Promise<ResolvedExactModelRuntimeV2>;
+  takeExactRuntimeLoadTiming?(
+    modelId: string,
+  ): ExactModelRuntimeLoadTimingV2 | undefined;
   port: StudioSimulationWorkerPortV2;
   queueCapacity?: number;
   snapshotIds?: ExperimentSnapshotIdFactoryPortV2;
@@ -123,6 +134,9 @@ type StudioSimulationWorkerAuthoringContextV2 = Readonly<{
 export class StudioSimulationWorkerRuntimeV2 {
   readonly #loadExactRuntime: StudioSimulationWorkerRuntimeDependenciesV2[
     "loadExactRuntime"
+  ];
+  readonly #takeExactRuntimeLoadTiming: StudioSimulationWorkerRuntimeDependenciesV2[
+    "takeExactRuntimeLoadTiming"
   ];
   readonly #port: StudioSimulationWorkerPortV2;
   readonly #queueCapacity: number;
@@ -158,6 +172,12 @@ export class StudioSimulationWorkerRuntimeV2 {
       throw new Error("simulation worker exact runtime loader is required");
     }
     if (
+      dependencies.takeExactRuntimeLoadTiming !== undefined
+      && typeof dependencies.takeExactRuntimeLoadTiming !== "function"
+    ) {
+      throw new Error("simulation worker runtime timing port is invalid");
+    }
+    if (
       dependencies.port === null
       || typeof dependencies.port !== "object"
       || typeof dependencies.port.postMessage !== "function"
@@ -187,6 +207,8 @@ export class StudioSimulationWorkerRuntimeV2 {
       throw new Error("simulation worker clock is invalid");
     }
     this.#loadExactRuntime = dependencies.loadExactRuntime;
+    this.#takeExactRuntimeLoadTiming =
+      dependencies.takeExactRuntimeLoadTiming;
     this.#port = dependencies.port;
     this.#queueCapacity = queueCapacity;
     this.#snapshotIds = dependencies.snapshotIds
@@ -333,7 +355,11 @@ export class StudioSimulationWorkerRuntimeV2 {
       throw new Error("simulation worker is already initialized");
     }
     this.#state = "initializing";
+    const totalInitializeStartedAtMs = monotonicWorkerNowV2();
     let exactRuntime: ResolvedExactModelRuntimeV2 | undefined;
+    let exactRuntimeLoadTiming: ExactModelRuntimeLoadTimingV2 | undefined;
+    let boundExecutionPlans = new Map<string, BoundExecutionPlanV1>();
+    let executionPlanBindMs: number | null = null;
     let adapter: RegisteredModelSimulationAdapterV2 | undefined;
     let sessionCreationAttempted = false;
     try {
@@ -341,6 +367,9 @@ export class StudioSimulationWorkerRuntimeV2 {
         expectedModelId: request.expectedModelId,
         releaseTicket: request.releaseTicket,
       }));
+      exactRuntimeLoadTiming = this.#takeExactRuntimeLoadTiming?.(
+        request.expectedModelId,
+      );
       if (this.#portClosed || this.#state !== "initializing") return;
       assertExactRuntimeV2(exactRuntime);
       if (exactRuntime.contract.modelId !== request.expectedModelId) {
@@ -348,6 +377,7 @@ export class StudioSimulationWorkerRuntimeV2 {
           "simulation worker loaded runtime modelId does not match the requested model",
         );
       }
+      const authoringSetupStartedAtMs = monotonicWorkerNowV2();
       const models = exactRuntimeResolverV2(exactRuntime);
       const fixtureValidation = exactRuntime.fixtureAdapter
         .validateCompleteFixture(Object.freeze({
@@ -373,6 +403,9 @@ export class StudioSimulationWorkerRuntimeV2 {
         request.authoringSeed,
       );
       assertSeedMatchesInitializationV2(request, request.authoringSeed);
+      const authoringSetupMs = nonnegativeWorkerDurationV2(
+        authoringSetupStartedAtMs,
+      );
       if (this.#portClosed || this.#state !== "initializing") return;
 
       adapter = exactRuntime.simulationAdapter;
@@ -392,8 +425,17 @@ export class StudioSimulationWorkerRuntimeV2 {
             fixture: scenario.capture.fixture,
             checkpoint: scenario.capture.checkpoint,
           }));
+      if (exactRuntime.executionPlan !== undefined) {
+        const bindStartedAtMs = monotonicWorkerNowV2();
+        boundExecutionPlans = bindScenarioExecutionPlansV1(
+          exactRuntime,
+          scenarioInputs.map(({ scenarioId }) => scenarioId),
+        );
+        executionPlanBindMs = nonnegativeWorkerDurationV2(bindStartedAtMs);
+      }
       sessionCreationAttempted = true;
-      await adapter.createSession(Object.freeze({
+      const sessionCreateStartedAtMs = monotonicWorkerNowV2();
+      const sessionCreateInput = Object.freeze({
         runtimeSessionId: request.runtimeSessionId,
         scenarios: Object.freeze(scenarioInputs.map((scenario) => Object.freeze({
           scenarioId: scenario.scenarioId,
@@ -402,7 +444,18 @@ export class StudioSimulationWorkerRuntimeV2 {
             ? {}
             : { checkpoint: scenario.checkpoint }),
         }))),
-      }));
+      });
+      if (exactRuntime.executionPlan === undefined) {
+        await adapter.createSession(sessionCreateInput);
+      } else {
+        await exactRuntime.executionPlan.createSession(Object.freeze({
+          ...sessionCreateInput,
+          boundExecutionPlans,
+        }));
+      }
+      const sessionCreateMs = nonnegativeWorkerDurationV2(
+        sessionCreateStartedAtMs,
+      );
       if (this.#portClosed || this.#state !== "initializing") {
         bestEffortDisposeV2(adapter, request.runtimeSessionId);
         return;
@@ -425,6 +478,7 @@ export class StudioSimulationWorkerRuntimeV2 {
       }
       this.#currentFixture = this.#scenarioFixtures.get(request.scenarioId);
       this.#state = "active";
+      const initialFrameStartedAtMs = monotonicWorkerNowV2();
       for (const scenario of scenarioInputs) {
         const scenarioFrame = this.#validateAdapterFrame(adapter.currentFrame({
           runtimeSessionId: request.runtimeSessionId,
@@ -434,12 +488,25 @@ export class StudioSimulationWorkerRuntimeV2 {
       }
       const frame = this.#scenarioFrames.get(request.scenarioId)!;
       this.#lastFrame = frame;
+      const initialFrameMs = nonnegativeWorkerDurationV2(
+        initialFrameStartedAtMs,
+      );
       this.#postResponse({
         protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
         requestId: request.requestId,
         status: "ok",
         kind: "initialized",
         frame,
+        initializationTiming: Object.freeze({
+          exactRuntimeLoad: exactRuntimeLoadTiming ?? null,
+          authoringSetupMs,
+          sessionCreateMs,
+          initialFrameMs,
+          executionPlanBindMs,
+          totalWorkerInitializeMs: nonnegativeWorkerDurationV2(
+            totalInitializeStartedAtMs,
+          ),
+        }),
       });
     } catch (error) {
       if (adapter !== undefined && sessionCreationAttempted) {
@@ -1053,27 +1120,41 @@ export class StudioSimulationWorkerRuntimeV2 {
       this.#requiredLogicalRuntimeSessionId(),
       nextGeneration,
     );
+    const nextBoundExecutionPlans = bindScenarioExecutionPlansV1(
+      this.#requiredExactRuntime(),
+      scenarios.map(({ scenarioId }) => scenarioId),
+    );
     let created = false;
     try {
-      await adapter.createSession({
+      const sessionCreateInput = {
         runtimeSessionId: nextPhysicalRuntimeSessionId,
         scenarios: scenarios.map((scenario) => ({
           scenarioId: scenario.scenarioId,
           fixture: scenario.capture.fixture,
           checkpoint: scenario.capture.checkpoint,
         })),
-      });
+      };
+      const exactRuntime = this.#requiredExactRuntime();
+      if (exactRuntime.executionPlan === undefined) {
+        await adapter.createSession(sessionCreateInput);
+      } else {
+        await exactRuntime.executionPlan.createSession({
+          ...sessionCreateInput,
+          boundExecutionPlans: nextBoundExecutionPlans,
+        });
+      }
       created = true;
       const frames = new Map<string, StudioSimulationFrameV2>();
       for (const scenario of scenarios) {
-        frames.set(scenario.scenarioId, this.#validateAdapterFrame(
+        const frame = this.#validateAdapterFrame(
           adapter.currentFrame({
             runtimeSessionId: nextPhysicalRuntimeSessionId,
             scenarioId: scenario.scenarioId,
           }),
           scenario.scenarioId,
           nextPhysicalRuntimeSessionId,
-        ));
+        );
+        frames.set(scenario.scenarioId, frame);
       }
       try {
         adapter.disposeSession(oldPhysicalRuntimeSessionId);
@@ -1793,6 +1874,20 @@ function assertExactRuntimeV2(
       `registered executable bundle does not exactly match model ${modelId}`,
     );
   }
+  if (
+    runtime.executionPlan !== undefined
+    && (
+      runtime.executionPlan.schemaId
+        !== REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID
+      || runtime.executionPlan.modelId !== modelId
+      || typeof runtime.executionPlan.bind !== "function"
+      || typeof runtime.executionPlan.createSession !== "function"
+    )
+  ) {
+    throw new Error(
+      `registered execution plan does not exactly match model ${modelId}`,
+    );
+  }
   assertSimulationAdapterV2(runtime.simulationAdapter);
   if (
     runtime.simulationAdapter.modelId !== modelId
@@ -2208,6 +2303,61 @@ function assertSimulationAdapterV2(
   );
 }
 
+function bindScenarioExecutionPlansV1(
+  runtime: ResolvedExactModelRuntimeV2,
+  scenarioIds: readonly string[],
+): Map<string, BoundExecutionPlanV1> {
+  const executionPlan = runtime.executionPlan;
+  if (executionPlan === undefined) {
+    return new Map();
+  }
+  const descriptor = executionPlan.descriptor;
+  const occupiedBuffers = new Set<object>();
+
+  const next = new Map<string, BoundExecutionPlanV1>();
+  for (const scenarioId of scenarioIds) {
+    if (next.has(scenarioId)) {
+      throw new Error(
+        `simulation worker Scenario appears more than once: ${scenarioId}`,
+      );
+    }
+    const candidate = executionPlan.bind();
+    assertBoundExecutionPlanV1(candidate, descriptor);
+    reserveScenarioExecutionPlanBuffersV1(candidate, occupiedBuffers);
+    next.set(scenarioId, candidate);
+  }
+  return next;
+}
+
+function reserveScenarioExecutionPlanBuffersV1(
+  plan: BoundExecutionPlanV1,
+  occupiedBuffers: Set<object>,
+): void {
+  const views: ArrayBufferView[] = [
+    plan.componentKernelBindingOrdinals,
+    plan.hydraulicPathKernelBindingOrdinals,
+    plan.solveSystemKernelBindingOrdinals,
+    plan.graphStorageStateLogicalIndices,
+    plan.graphUpstreamNodeIndices,
+    plan.graphDownstreamNodeIndices,
+    ...plan.solveGroups.flatMap((group) => [
+      group.activeStateLogicalIndices,
+      group.dependentStateLogicalIndices,
+      group.workspaceF64,
+      group.workspaceInt32,
+    ]),
+  ];
+  for (const view of views) {
+    const buffer = view.buffer as object;
+    if (occupiedBuffers.has(buffer)) {
+      throw new Error(
+        "simulation worker Scenario execution-plan allocations must not alias",
+      );
+    }
+    occupiedBuffers.add(buffer);
+  }
+}
+
 function assertNonRegressingFrameV2(
   prior: StudioSimulationFrameV2 | undefined,
   next: StudioSimulationFrameV2,
@@ -2391,6 +2541,14 @@ function errorMessageV2(error: unknown): string {
     // Hostile thrown values must not interrupt terminal cleanup.
   }
   return "simulation worker request failed";
+}
+
+function monotonicWorkerNowV2(): number {
+  return globalThis.performance?.now() ?? Date.now();
+}
+
+function nonnegativeWorkerDurationV2(startedAtMs: number): number {
+  return Math.max(0, monotonicWorkerNowV2() - startedAtMs);
 }
 
 class FatalWorkerStateErrorV2 extends Error {

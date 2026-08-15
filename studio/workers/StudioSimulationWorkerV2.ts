@@ -18,13 +18,32 @@ type WorkerPortV2 = Readonly<{
 
 const workerPort = globalThis as unknown as WorkerPortV2;
 const dynamicRuntimeLoader = new DynamicExactModelRuntimeLoaderV2();
+let lastRuntimeLoadTiming: Readonly<{
+  modelId: string;
+  timing: Awaited<ReturnType<
+    DynamicExactModelRuntimeLoaderV2["loadMeasured"]
+  >>["timing"];
+}> | undefined;
 const workerRuntime = new StudioSimulationWorkerRuntimeV2({
   port: workerPort,
   async loadExactRuntime(input) {
     if (input.releaseTicket.modelId !== input.expectedModelId) {
       throw new Error("Worker release ticket does not match the requested model");
     }
-    return dynamicRuntimeLoader.load(input.releaseTicket);
+    const measured = await dynamicRuntimeLoader.loadMeasured(
+      input.releaseTicket,
+    );
+    lastRuntimeLoadTiming = Object.freeze({
+      modelId: input.expectedModelId,
+      timing: measured.timing,
+    });
+    return measured.runtime;
+  },
+  takeExactRuntimeLoadTiming(modelId) {
+    if (lastRuntimeLoadTiming?.modelId !== modelId) return undefined;
+    const timing = lastRuntimeLoadTiming.timing;
+    lastRuntimeLoadTiming = undefined;
+    return timing;
   },
 });
 

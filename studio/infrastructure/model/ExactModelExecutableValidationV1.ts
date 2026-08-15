@@ -4,6 +4,15 @@ import type {
   RegisteredModelExecutableBundleV2,
   ResolvedExactModelRuntimeV2,
 } from "@/studio/contracts/v2/executable";
+import {
+  REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+} from "@/studio/contracts/v2/executable";
+import {
+  validateAndOwnExecutionPlanDescriptorV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import type {
+  ExecutionPlanDescriptorV1,
+} from "@/runtime/executionPlan/ExecutionPlanDescriptorV1";
 
 export class ExactModelExecutableValidationErrorV1 extends Error {
   constructor(message: string) {
@@ -12,11 +21,24 @@ export class ExactModelExecutableValidationErrorV1 extends Error {
   }
 }
 
+type ExecutableBundleValidationOptionsV2 = Readonly<{
+  requiresPresentationBatch: boolean;
+  requiresExecutionPlan: boolean;
+}>;
+
 export function validateExecutableBundleV2(
   bundle: RegisteredModelExecutableBundleV2,
   model: ModelContractV2,
-  options: Readonly<{ requiresPresentationBatch: boolean }>,
+  options: ExecutableBundleValidationOptionsV2,
 ): void {
+  validateAndOwnExecutableBundleV2(bundle, model, options);
+}
+
+function validateAndOwnExecutableBundleV2(
+  bundle: RegisteredModelExecutableBundleV2,
+  model: ModelContractV2,
+  options: ExecutableBundleValidationOptionsV2,
+): ExecutionPlanDescriptorV1 | undefined {
   if (bundle === null || typeof bundle !== "object") {
     throw new ExactModelExecutableValidationErrorV1(
       "executable bundle must be an object",
@@ -32,6 +54,7 @@ export function validateExecutableBundleV2(
     "snapshotGate",
     "fixtureAdapter",
     "simulationAdapter",
+    ...(options.requiresExecutionPlan ? ["executionPlan"] : []),
   ], "executable bundle");
   assertExactExecutableKeysV1(bundle.captureAdapter, [
     "modelId",
@@ -59,6 +82,30 @@ export function validateExecutableBundleV2(
       ? []
       : ["reduceControlAction"]),
   ], "fixture adapter");
+  let executionPlanDescriptor: ExecutionPlanDescriptorV1 | undefined;
+  if (options.requiresExecutionPlan) {
+    assertExactExecutableKeysV1(bundle.executionPlan, [
+      "bind",
+      "createSession",
+      "descriptor",
+      "modelId",
+      "schemaId",
+    ], "execution plan adapter");
+    if (
+      bundle.executionPlan?.schemaId
+        !== REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID
+      || bundle.executionPlan.modelId !== model.modelId
+      || typeof bundle.executionPlan.bind !== "function"
+      || typeof bundle.executionPlan.createSession !== "function"
+    ) {
+      throw new ExactModelExecutableValidationErrorV1(
+        "execution plan adapter must exactly match the manifest identity",
+      );
+    }
+    executionPlanDescriptor = validateAndOwnExecutionPlanDescriptorV1(
+      bundle.executionPlan.descriptor,
+    );
+  }
   const requiresPresentationBatch = options.requiresPresentationBatch;
   assertExactExecutableKeysV1(bundle.simulationAdapter, [
     "modelId",
@@ -120,12 +167,20 @@ export function validateExecutableBundleV2(
       "every executable adapter must exactly match the manifest identities",
     );
   }
+  return executionPlanDescriptor;
 }
 
-export function freezeExactRuntimeV2(
+/** Validates once, owns portable data, and freezes the admitted runtime. */
+export function admitExactModelExecutableRuntimeV2(
   bundle: RegisteredModelExecutableBundleV2,
   contract: ModelContractV2,
+  options: ExecutableBundleValidationOptionsV2,
 ): ResolvedExactModelRuntimeV2 {
+  const executionPlanDescriptor = validateAndOwnExecutableBundleV2(
+    bundle,
+    contract,
+    options,
+  );
   return Object.freeze({
     contract,
     captureAdapter: Object.freeze({
@@ -174,7 +229,31 @@ export function freezeExactRuntimeV2(
       replaceFixture: bundle.simulationAdapter.replaceFixture,
       currentInputEpoch: bundle.simulationAdapter.currentInputEpoch,
     }),
+    ...(bundle.executionPlan === undefined
+      ? {}
+      : {
+          executionPlan: Object.freeze({
+            schemaId: bundle.executionPlan.schemaId,
+            modelId: bundle.executionPlan.modelId,
+            descriptor: requiredExecutionPlanDescriptorV1(
+              executionPlanDescriptor,
+            ),
+            bind: bundle.executionPlan.bind,
+            createSession: bundle.executionPlan.createSession,
+          }),
+        }),
   });
+}
+
+function requiredExecutionPlanDescriptorV1(
+  descriptor: ExecutionPlanDescriptorV1 | undefined,
+): ExecutionPlanDescriptorV1 {
+  if (descriptor === undefined) {
+    throw new ExactModelExecutableValidationErrorV1(
+      "execution plan descriptor was not admitted",
+    );
+  }
+  return descriptor;
 }
 
 function assertExactExecutableKeysV1(

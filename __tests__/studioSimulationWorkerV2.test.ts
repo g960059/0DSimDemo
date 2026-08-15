@@ -9,9 +9,17 @@ import {
   type ExperimentSurfaceV2,
   type ExperimentV2,
 } from "@/studio/contracts/v2/content";
-import type {
-  ResolvedExactModelRuntimeV2,
+import {
+  REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+  type RegisteredModelExecutionPlanAdapterV1,
+  type ResolvedExactModelRuntimeV2,
 } from "@/studio/contracts/v2/executable";
+import {
+  bindExecutionPlanV1,
+  validateAndOwnExecutionPlanDescriptorV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import generatedExecutionPlanV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 import type {
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
@@ -439,6 +447,60 @@ describe("Studio simulation worker V2 protocol", () => {
     }
   });
 
+  it("validates immutable cold-start phase timings without making them required", () => {
+    const response = validateStudioSimulationWorkerResponseV2({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: 1,
+      status: "ok",
+      kind: "initialized",
+      frame: frameV2(),
+      initializationTiming: {
+        exactRuntimeLoad: {
+          cacheHit: false,
+          artifactBytes: 1_024,
+          artifactFetchMs: 3,
+          moduleImportAndFactoryMs: 5,
+          contractValidationMs: 2,
+          totalMs: 10,
+        },
+        authoringSetupMs: 1,
+        sessionCreateMs: 4,
+        initialFrameMs: 0.5,
+        executionPlanBindMs: null,
+        totalWorkerInitializeMs: 15.5,
+      },
+    });
+
+    expect(response).toMatchObject({
+      kind: "initialized",
+      initializationTiming: {
+        exactRuntimeLoad: { artifactBytes: 1_024, cacheHit: false },
+        executionPlanBindMs: null,
+        totalWorkerInitializeMs: 15.5,
+      },
+    });
+    if (response.status === "ok" && response.kind === "initialized") {
+      expect(Object.isFrozen(response.initializationTiming)).toBe(true);
+      expect(Object.isFrozen(response.initializationTiming?.exactRuntimeLoad))
+        .toBe(true);
+    }
+    expect(() => validateStudioSimulationWorkerResponseV2({
+      protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
+      requestId: 1,
+      status: "ok",
+      kind: "initialized",
+      frame: frameV2(),
+      initializationTiming: {
+        exactRuntimeLoad: null,
+        authoringSetupMs: 1,
+        sessionCreateMs: -1,
+        initialFrameMs: 0,
+        executionPlanBindMs: null,
+        totalWorkerInitializeMs: 1,
+      },
+    })).toThrow(/sessionCreateMs.*nonnegative/);
+  });
+
   it("validates the exact control-applied response variant", () => {
     const response = validateStudioSimulationWorkerResponseV2(
       controlAppliedResponseV2(4, frameV2({ inputEpoch: 1 })),
@@ -784,6 +846,292 @@ describe("Studio simulation worker V2 protocol", () => {
 });
 
 describe("Studio simulation worker V2 runtime", () => {
+  it("binds one admitted execution plan exactly once at initialization", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const bind = vi.fn(() => bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    ));
+    const harness = runtimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(bind),
+    });
+
+    harness.runtime.enqueue(initializeRequestWithCheckpointV2(1));
+    await harness.runtime.whenIdle();
+    harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(2, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 1,
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledOnce();
+    expect(harness.adapter.createSession).toHaveBeenCalledWith({
+      runtimeSessionId: "runtime/session-1",
+      scenarios: [{
+        scenarioId: "scenario/baseline",
+        fixture: { value: 1 },
+        checkpoint: {
+          acceptedRevision: 4,
+          acceptedTimeSec: 0.4,
+          payload: { state: [4] },
+        },
+      }],
+    });
+    expect(harness.port.messages[0]).toMatchObject({
+      status: "ok",
+      kind: "initialized",
+      initializationTiming: {
+        executionPlanBindMs: expect.any(Number),
+      },
+    });
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "advanced",
+    });
+  });
+
+  it("binds and installs one isolated execution plan per seeded Scenario", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const boundPlans: ReturnType<typeof bindExecutionPlanV1>[] = [];
+    const bind = vi.fn(() => {
+      const bound = bindExecutionPlanV1(
+        descriptor,
+        mainWireExecutionPlanKernelCatalogV1(),
+      );
+      boundPlans.push(bound);
+      return bound;
+    });
+    const createPlanSession = vi.fn<
+      RegisteredModelExecutionPlanAdapterV1["createSession"]
+    >(async () => {});
+    const harness = multiScenarioRuntimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(
+        bind,
+        createPlanSession,
+      ),
+    });
+    const seeded = twoScenarioExperimentV2();
+
+    harness.runtime.enqueue(createStudioSimulationInitializeRequestV2(1, {
+      expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/comparison",
+      scenarioLabel: "Comparison",
+      fixture: seeded.content.scenarios[1]!.capture.fixture,
+      checkpoint: seeded.content.scenarios[1]!.capture.checkpoint,
+      authoringSeed: { experiment: seeded },
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledTimes(2);
+    expect(boundPlans[0]).not.toBe(boundPlans[1]);
+    expect(createPlanSession).toHaveBeenCalledOnce();
+    const initialPlans = createPlanSession.mock.calls[0]![0]
+      .boundExecutionPlans;
+    expect(initialPlans.get("scenario/baseline")).toBe(boundPlans[0]);
+    expect(initialPlans.get("scenario/comparison")).toBe(boundPlans[1]);
+
+    harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(2, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/comparison",
+      stepCount: 1,
+    }));
+    await harness.runtime.whenIdle();
+    harness.runtime.enqueue(createStudioSimulationSelectScenarioRequestV2(3, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      expectedActiveScenarioId: "scenario/comparison",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 5,
+      expectedAcceptedTimeSec: 0.5,
+    }));
+    await harness.runtime.whenIdle();
+    harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(4, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 1,
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(createPlanSession).toHaveBeenCalledOnce();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "advanced",
+      frames: [{ scenarioId: "scenario/baseline", acceptedRevision: 1 }],
+    });
+  });
+
+  it("rejects cross-Scenario execution-plan storage aliasing before session creation", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const aliased = bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    );
+    const bind = vi.fn(() => aliased);
+    const harness = multiScenarioRuntimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(bind),
+    });
+    const seeded = twoScenarioExperimentV2();
+
+    harness.runtime.enqueue(createStudioSimulationInitializeRequestV2(1, {
+      expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      scenarioLabel: "Baseline",
+      fixture: seeded.content.scenarios[0]!.capture.fixture,
+      checkpoint: seeded.content.scenarios[0]!.capture.checkpoint,
+      authoringSeed: { experiment: seeded },
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledTimes(2);
+    expect(harness.adapter.createSession).not.toHaveBeenCalled();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "error",
+      fatal: true,
+      message: expect.stringMatching(
+        /Scenario execution-plan allocations must not alias/,
+      ),
+    });
+  });
+
+  it("includes solve-system ordinals in cross-Scenario alias admission", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const first = bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    );
+    const second = bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    );
+    const plans = [first, Object.freeze({
+      ...second,
+      solveSystemKernelBindingOrdinals:
+        first.solveSystemKernelBindingOrdinals,
+    })];
+    const bind = vi.fn(() => plans.shift()!);
+    const harness = multiScenarioRuntimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(bind),
+    });
+    const seeded = twoScenarioExperimentV2();
+
+    harness.runtime.enqueue(createStudioSimulationInitializeRequestV2(1, {
+      expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      scenarioLabel: "Baseline",
+      fixture: seeded.content.scenarios[0]!.capture.fixture,
+      checkpoint: seeded.content.scenarios[0]!.capture.checkpoint,
+      authoringSeed: { experiment: seeded },
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledTimes(2);
+    expect(harness.adapter.createSession).not.toHaveBeenCalled();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "error",
+      fatal: true,
+      message: expect.stringMatching(
+        /Scenario execution-plan allocations must not alias/,
+      ),
+    });
+  });
+
+  it("fails before session creation when a plan binder returns malformed storage", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const valid = bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    );
+    const wrongGraph = new Int32Array(valid.graphDownstreamNodeIndices);
+    wrongGraph[0] = wrongGraph[0] === 0 ? 1 : 0;
+    const bind = vi.fn(() => ({
+      ...valid,
+      graphDownstreamNodeIndices: wrongGraph,
+    }));
+    const createSession = vi.fn(() => Promise.resolve());
+    const harness = runtimeHarnessV2({
+      createSession,
+      executionPlan: executionPlanAdapterV1(bind),
+    });
+
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledOnce();
+    expect(createSession).not.toHaveBeenCalled();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "error",
+      fatal: true,
+      message: expect.stringMatching(/values do not match descriptor/),
+    });
+  });
+
+  it("fails before publishing an initial frame when plan installation fails", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const bind = vi.fn(() => bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    ));
+    const createPlanSession = vi.fn<
+      RegisteredModelExecutionPlanAdapterV1["createSession"]
+    >(() => Promise.reject(new Error("typed authority binding drifted")));
+    const harness = runtimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(
+        bind,
+        createPlanSession,
+      ),
+    });
+
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledOnce();
+    expect(createPlanSession).toHaveBeenCalledOnce();
+    expect(harness.adapter.disposeSession).toHaveBeenCalledOnce();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "error",
+      fatal: true,
+      message: expect.stringMatching(/typed authority binding drifted/),
+    });
+  });
+
+  it("reports Worker initialization phases while plan binding remains isolated", async () => {
+    const harness = runtimeHarnessV2();
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "initialized",
+      initializationTiming: {
+        exactRuntimeLoad: null,
+        authoringSetupMs: expect.any(Number),
+        sessionCreateMs: expect.any(Number),
+        initialFrameMs: expect.any(Number),
+        executionPlanBindMs: null,
+        totalWorkerInitializeMs: expect.any(Number),
+      },
+    });
+  });
+
   it("serializes one exact session and rejects wrong Scenario identity", async () => {
     const harness = runtimeHarnessV2();
     harness.runtime.enqueue(initializeRequestV2(1));
@@ -887,7 +1235,18 @@ describe("Studio simulation worker V2 runtime", () => {
         outputs: { "pressure.lv": outputV2("pressure.lv", 82) },
       }),
     ], input.presentationOutputIds));
-    const harness = runtimeHarnessV2({ advancePresentationBatch });
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const harness = runtimeHarnessV2({
+      advancePresentationBatch,
+      executionPlan: executionPlanAdapterV1(
+        () => bindExecutionPlanV1(
+          descriptor,
+          mainWireExecutionPlanKernelCatalogV1(),
+        ),
+      ),
+    });
     harness.runtime.enqueue(initializeRequestV2(1));
     await harness.runtime.whenIdle();
 
@@ -1884,6 +2243,83 @@ describe("Studio simulation worker V2 runtime", () => {
 });
 
 describe("Studio simulation worker V2 multi-Scenario authoring", () => {
+  it("allocates fresh Scenario plans for each atomic exact-session rebuild", async () => {
+    const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+      generatedExecutionPlanV1,
+    );
+    const bind = vi.fn(() => bindExecutionPlanV1(
+      descriptor,
+      mainWireExecutionPlanKernelCatalogV1(),
+    ));
+    const createPlanSession = vi.fn<
+      RegisteredModelExecutionPlanAdapterV1["createSession"]
+    >(async () => {});
+    const harness = multiScenarioRuntimeHarnessV2({
+      executionPlan: executionPlanAdapterV1(
+        bind,
+        createPlanSession,
+      ),
+    });
+
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+    const baselinePlan = createPlanSession.mock.calls[0]![0]
+      .boundExecutionPlans.get("scenario/baseline")!;
+
+    harness.runtime.enqueue(createStudioSimulationDuplicateScenarioRequestV2(2, {
+      runtimeSessionId: "runtime/session-1",
+      sourceScenarioId: "scenario/baseline",
+      scenarioId: "scenario/copy",
+      label: "Copy",
+      expectedActiveScenarioId: "scenario/baseline",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledTimes(3);
+    const baselinePlans = createPlanSession.mock.calls
+      .map(([input]) => input.boundExecutionPlans.get("scenario/baseline"))
+      .filter((plan) => plan !== undefined);
+    const copyPlans = createPlanSession.mock.calls
+      .map(([input]) => input.boundExecutionPlans.get("scenario/copy"))
+      .filter((plan) => plan !== undefined);
+    expect(baselinePlans).toHaveLength(2);
+    expect(baselinePlans[0]).toBe(baselinePlan);
+    expect(baselinePlans[1]).not.toBe(baselinePlan);
+    expect(copyPlans).toHaveLength(1);
+    const copyPlan = copyPlans[0]!;
+    expect(copyPlan).not.toBe(baselinePlan);
+    expect(copyPlan).not.toBe(baselinePlans[1]);
+
+    harness.runtime.enqueue(createStudioSimulationDeleteScenarioRequestV2(3, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      expectedActiveScenarioId: "scenario/copy",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(bind).toHaveBeenCalledTimes(4);
+    const finalCopyPlans = createPlanSession.mock.calls
+      .map(([input]) => input.boundExecutionPlans.get("scenario/copy"))
+      .filter((plan) => plan !== undefined);
+    expect(finalCopyPlans).toHaveLength(2);
+    expect(finalCopyPlans[0]).toBe(copyPlan);
+    expect(finalCopyPlans[1]).not.toBe(copyPlan);
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      status: "ok",
+      kind: "scenario-state",
+      state: {
+        activeScenarioId: "scenario/copy",
+        scenarios: [{ scenarioId: "scenario/copy", label: "Copy" }],
+      },
+    });
+  });
+
   it("restores every seeded branch while activating only the requested Scenario", async () => {
     const harness = multiScenarioRuntimeHarnessV2();
     const baseline = experimentV2();
@@ -3681,6 +4117,31 @@ function experimentV2(version = 4): ExperimentV2 {
   };
 }
 
+function twoScenarioExperimentV2(): ExperimentV2 {
+  const baseline = experimentV2();
+  return {
+    ...baseline,
+    content: {
+      ...baseline.content,
+      scenarios: [
+        baseline.content.scenarios[0]!,
+        {
+          scenarioId: "scenario/comparison",
+          label: "Comparison",
+          capture: {
+            fixture: { value: 2 },
+            checkpoint: {
+              acceptedRevision: 4,
+              acceptedTimeSec: 0.4,
+              payload: { state: [4] },
+            },
+          },
+        },
+      ],
+    },
+  };
+}
+
 function replaceCheckpointV2(
   content: ExperimentContentV2,
   acceptedRevision: number,
@@ -3713,6 +4174,22 @@ function initializeRequestV2(
     scenarioId: "scenario/baseline",
     scenarioLabel: "Baseline",
     fixture: { value: 1 },
+  });
+}
+
+function initializeRequestWithCheckpointV2(requestId: number) {
+  return createStudioSimulationInitializeRequestV2(requestId, {
+    expectedModelId: "model/main-wire-v3-r1",
+    releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+    runtimeSessionId: "runtime/session-1",
+    scenarioId: "scenario/baseline",
+    scenarioLabel: "Baseline",
+    fixture: { value: 1 },
+    checkpoint: {
+      acceptedRevision: 4,
+      acceptedTimeSec: 0.4,
+      payload: { state: [4] },
+    },
   });
 }
 
@@ -3842,6 +4319,7 @@ function runtimeHarnessV2(overrides: Readonly<{
   reduceControlAction?: NonNullable<
     ResolvedExactModelRuntimeV2["fixtureAdapter"]["reduceControlAction"]
   >;
+  executionPlan?: RegisteredModelExecutionPlanAdapterV1;
 }> = {}) {
   let revision = 0;
   let inputEpoch = 0;
@@ -3923,7 +4401,9 @@ function runtimeHarnessV2(overrides: Readonly<{
   return { adapter, exactRuntime, loadAdapter, port, runtime };
 }
 
-function multiScenarioRuntimeHarnessV2() {
+function multiScenarioRuntimeHarnessV2(overrides: Readonly<{
+  executionPlan?: RegisteredModelExecutionPlanAdapterV1;
+}> = {}) {
   type ScenarioState = {
     inputEpoch: number;
     acceptedRevision: number;
@@ -3989,6 +4469,9 @@ function multiScenarioRuntimeHarnessV2() {
       state.acceptedTimeSec = 0;
       return toFrame(runtimeSessionId, scenarioId);
     }),
+    ...(overrides.executionPlan === undefined
+      ? {}
+      : { executionPlan: overrides.executionPlan }),
   });
 }
 
@@ -4002,6 +4485,7 @@ function exactRuntimeV2(
     reduceControlAction?: NonNullable<
       ResolvedExactModelRuntimeV2["fixtureAdapter"]["reduceControlAction"]
     >;
+    executionPlan?: RegisteredModelExecutionPlanAdapterV1;
   }> = {},
 ): ResolvedExactModelRuntimeV2 {
   const contract: ModelContractV2 = {
@@ -4110,7 +4594,59 @@ function exactRuntimeV2(
         })),
     },
     simulationAdapter: adapter,
+    ...(overrides.executionPlan === undefined
+      ? {}
+      : {
+          executionPlan: Object.freeze({
+            ...overrides.executionPlan,
+            async createSession(input) {
+              await adapter.createSession({
+                runtimeSessionId: input.runtimeSessionId,
+                scenarios: input.scenarios,
+              });
+              await overrides.executionPlan!.createSession(input);
+            },
+          }),
+        }),
   };
+}
+
+function executionPlanAdapterV1(
+  bind: RegisteredModelExecutionPlanAdapterV1["bind"],
+  createSession: RegisteredModelExecutionPlanAdapterV1["createSession"] =
+    async () => {},
+): RegisteredModelExecutionPlanAdapterV1 {
+  return Object.freeze({
+    schemaId: REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+    modelId: "model/main-wire-v3-r1",
+    descriptor: generatedExecutionPlanV1,
+    bind,
+    createSession,
+  });
+}
+
+function mainWireExecutionPlanKernelCatalogV1() {
+  return Object.freeze({
+    componentKernelIds: Object.freeze([
+      "accepted-transaction-kernel-v1",
+      "noncoronary-backward-euler-kernel-v1",
+      "coronary-backward-euler-kernel-v2",
+      "five-wall-land-triseg-kernel-v1",
+    ]),
+    hydraulicPathKernelIds: Object.freeze([
+      "noncoronary-flow/resistive",
+      "noncoronary-flow/valve",
+      "noncoronary-flow/dynamic",
+      "coronary-flow/large-arterial",
+      "coronary-flow/micro-proximal-arteriolar",
+      "coronary-flow/micro-intermediate-capillary",
+      "coronary-flow/micro-distal-venular",
+      "coronary-flow/large-venous-outlet",
+    ]),
+    solveSystemKernelIds: Object.freeze([
+      "main-wire-five-wall-static-condensed-system-kernel-v1",
+    ]),
+  });
 }
 
 function deferredV2<T>() {

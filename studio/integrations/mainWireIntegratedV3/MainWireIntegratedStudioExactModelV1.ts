@@ -4,6 +4,28 @@ import {
 } from
   "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
 import {
+  EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
+  EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
+  assertBoundExecutionPlanV1,
+  bindExecutionPlanV1,
+  bindExecutionPlanSolveSystemRuntimeV1,
+  executionPlanBaseTickAtTimeV1,
+  executionPlanPresentationBaseTickV1,
+  executionPlanTimeAtBaseTickV1,
+  executionPlanUpdateGroupIsDueAtBaseTickV1,
+  prepareBoundExecutionPlanSolveGroupV1,
+  resolveBoundExecutionPlanUpdateScheduleV1,
+  validateAndOwnExecutionPlanDescriptorV1,
+  validateAndOwnExecutionPlanKernelCatalogV1,
+  type BoundExecutionPlanV1,
+  type BoundExecutionPlanUpdateGroupDispatchV1,
+  type BoundExecutionPlanUpdateScheduleV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import {
+  bindMainWireFiveWallCoupledExecutionPlanRuntimeV1,
+  MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
+} from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
@@ -27,14 +49,19 @@ import {
   type MainWireIntegratedModelOutputValueV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
   MainWireIntegratedModelSessionV3,
-  mainWireIntegratedModelPresentationTargetTimeSecV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
+import {
+  MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1,
+  MAIN_WIRE_COUPLED_HEMODYNAMICS_UPDATE_GROUP_ID_V1,
+  MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1,
+  MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1,
+} from "@/engine/executionPlan/MainWireNumericalClockV1";
 import {
   MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,
   MainWireIntegratedTypedAuthoritySessionV1,
   type MainWireFlatModelOwnedProjectionAdvanceV1,
+  type MainWireTypedExecutionPlanInitializationV1,
 } from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 import {
   runMainWireIntegratedModelFormalPressureVolumeProtocolV3,
@@ -58,8 +85,10 @@ import type {
   ScenarioCaptureV2,
   ScenarioCheckpointV2,
 } from "@/studio/contracts/v2/content";
-import type { RegisteredModelExecutableBundleV2 } from
-  "@/studio/contracts/v2/executable";
+import {
+  REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+  type RegisteredModelExecutableBundleV2,
+} from "@/studio/contracts/v2/executable";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import type {
   ControlDefinitionV2,
@@ -96,6 +125,8 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from "./MainWireIntegratedStudioModelIdentityV1";
+import generatedExecutionPlanV1 from
+  "./MainWireIntegratedExecutionPlanV1.generated.json";
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 =
   "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1" as const;
@@ -103,6 +134,49 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 =
   "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1 =
   "hot-path-lean" as const;
+
+const MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1 =
+  validateAndOwnExecutionPlanDescriptorV1(generatedExecutionPlanV1);
+const MAIN_WIRE_EXECUTION_PLAN_PRESENTATION_DT_SEC_V1 =
+  MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1.updateSchedule.presentationStepSec;
+const MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1 = Object.freeze([
+  Object.freeze({
+    systemKernelId: MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
+    bind: bindMainWireFiveWallCoupledExecutionPlanRuntimeV1,
+  }),
+]);
+const MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1 =
+  validateAndOwnExecutionPlanKernelCatalogV1(Object.freeze({
+    componentKernelIds: Object.freeze([
+      "accepted-transaction-kernel-v1",
+      "noncoronary-backward-euler-kernel-v1",
+      "coronary-backward-euler-kernel-v2",
+      "five-wall-land-triseg-kernel-v1",
+    ]),
+    hydraulicPathKernelIds: Object.freeze([
+      "noncoronary-flow/resistive",
+      "noncoronary-flow/valve",
+      "noncoronary-flow/dynamic",
+      "coronary-flow/large-arterial",
+      "coronary-flow/micro-proximal-arteriolar",
+      "coronary-flow/micro-intermediate-capillary",
+      "coronary-flow/micro-distal-venular",
+      "coronary-flow/large-venous-outlet",
+    ]),
+    solveSystemKernelIds: Object.freeze(
+      MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1.map(
+        ({ systemKernelId }) => systemKernelId,
+      ),
+    ),
+  }));
+
+export function bindMainWireIntegratedStudioExecutionPlanV1():
+BoundExecutionPlanV1 {
+  return bindExecutionPlanV1(
+    MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
+    MAIN_WIRE_EXECUTION_PLAN_KERNEL_BINDINGS_V1,
+  );
+}
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1 =
   Object.freeze({
@@ -153,8 +227,13 @@ type RuntimeScenarioV1 = {
   fixture: MainWireIntegratedStudioStandardFixtureV1;
   inputEpoch: number;
   modelSession: MainWireIntegratedTypedAuthoritySessionV1;
-  presentationOriginTick: number;
   presentationOrdinal: number;
+  executionPlanBinding: Readonly<{
+    boundExecutionPlan: BoundExecutionPlanV1;
+    modelSession: MainWireIntegratedTypedAuthoritySessionV1;
+    updateSchedule: BoundExecutionPlanUpdateScheduleV1;
+    presentationOriginBaseTick: number;
+  }>;
 };
 
 type RuntimeSessionV1 = {
@@ -208,6 +287,10 @@ const STANDARD_EXACT_OUTPUT_IDS_V1 = new Set([
 export class MainWireIntegratedStudioStandardRuntimeHostV1 {
   readonly #sessions = new Map<string, RuntimeSessionV1>();
   readonly #retiredSessionIds = new Set<string>();
+  readonly #executionPlanScenarioOwners = new WeakMap<
+    object,
+    Readonly<{ runtimeSessionId: string; scenarioId: string }>
+  >();
 
   async createSession(
     runtimeSessionId: string,
@@ -216,6 +299,7 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       fixture: StudioJsonValueV2;
       checkpoint?: ScenarioCheckpointV2;
     }>[],
+    suppliedExecutionPlans?: ReadonlyMap<string, BoundExecutionPlanV1>,
   ): Promise<void> {
     requiredIdV1(runtimeSessionId, "runtimeSessionId");
     if (
@@ -227,6 +311,14 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     if (scenarioInputs.length === 0) {
       throw new Error("Standard runtime session requires at least one Scenario");
     }
+    if (
+      suppliedExecutionPlans !== undefined
+      && suppliedExecutionPlans.size !== scenarioInputs.length
+    ) {
+      throw new Error(
+        "Standard runtime execution-plan Scenario set is incomplete",
+      );
+    }
     const scenarios = new Map<string, RuntimeScenarioV1>();
     for (const input of scenarioInputs) {
       requiredIdV1(input.scenarioId, "scenarioId");
@@ -237,16 +329,33 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       const checkpoint = input.checkpoint === undefined
         ? undefined
         : validateScenarioCheckpointV1(input.checkpoint);
+      const boundExecutionPlan = suppliedExecutionPlans?.get(input.scenarioId)
+        ?? bindMainWireIntegratedStudioExecutionPlanV1();
+      if (
+        suppliedExecutionPlans !== undefined
+        && !suppliedExecutionPlans.has(input.scenarioId)
+      ) {
+        throw new Error(
+          `Standard runtime execution plan is unavailable for Scenario ${input.scenarioId}`,
+        );
+      }
+      const preparedExecutionPlan = this.#prepareExecutionPlan(
+        runtimeSessionId,
+        input.scenarioId,
+        boundExecutionPlan,
+      );
       const modelSession = checkpoint === undefined
         ? await MainWireIntegratedTypedAuthoritySessionV1.create(
             fixture.hemodynamicResearchInputs,
             fixture.ventricularContractilityScale,
+            preparedExecutionPlan.initialization,
           )
         : await MainWireIntegratedTypedAuthoritySessionV1
           .restoreStandardExactCheckpoint(
             checkpoint.payload,
             fixture.hemodynamicResearchInputs,
             fixture.ventricularContractilityScale,
+            preparedExecutionPlan.initialization,
           );
       if (
         checkpoint !== undefined
@@ -263,10 +372,16 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
         fixture,
         inputEpoch: 0,
         modelSession,
-        presentationOriginTick: standardPresentationTickV1(
-          modelSession.currentAcceptedState().acceptedTimeSec,
-        ),
         presentationOrdinal: 0,
+        executionPlanBinding: Object.freeze({
+          boundExecutionPlan,
+          modelSession,
+          updateSchedule: preparedExecutionPlan.updateSchedule,
+          presentationOriginBaseTick: executionPlanBaseTickAtTimeV1(
+            preparedExecutionPlan.updateSchedule,
+            modelSession.currentAcceptedState().acceptedTimeSec,
+          ),
+        }),
       });
     }
     this.#sessions.set(runtimeSessionId, { scenarios });
@@ -294,6 +409,56 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       values: scenario.modelSession.projectCurrentAcceptedValuesV1(
         MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
       ),
+    });
+  }
+
+  #prepareExecutionPlan(
+    runtimeSessionId: string,
+    scenarioId: string,
+    boundExecutionPlan: BoundExecutionPlanV1,
+  ): Readonly<{
+    initialization: MainWireTypedExecutionPlanInitializationV1;
+    updateSchedule: BoundExecutionPlanUpdateScheduleV1;
+  }> {
+    assertBoundExecutionPlanV1(
+      boundExecutionPlan,
+      MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
+    );
+    const owner = this.#executionPlanScenarioOwners.get(boundExecutionPlan);
+    if (owner === undefined) {
+      this.#executionPlanScenarioOwners.set(boundExecutionPlan, Object.freeze({
+        runtimeSessionId,
+        scenarioId,
+      }));
+    } else if (
+      owner.runtimeSessionId !== runtimeSessionId
+      || owner.scenarioId !== scenarioId
+    ) {
+      throw new Error(
+        "Standard execution plan cannot be shared between Scenarios",
+      );
+    }
+    const updateSchedule = resolveBoundExecutionPlanUpdateScheduleV1(
+      boundExecutionPlan,
+    );
+    const updateGroup = assertMainWireExecutionPlanUpdateScheduleV1(
+      updateSchedule,
+    );
+    const prepared = prepareBoundExecutionPlanSolveGroupV1(
+      boundExecutionPlan,
+      updateGroup.solveGroupId,
+    );
+    return Object.freeze({
+      initialization: Object.freeze({
+        boundExecutionPlan,
+        coupledNewtonWorkspace: bindExecutionPlanSolveSystemRuntimeV1(
+          boundExecutionPlan,
+          updateGroup.solveGroupId,
+          prepared,
+          MAIN_WIRE_EXECUTION_PLAN_SOLVE_SYSTEM_BINDINGS_V1,
+        ),
+      }),
+      updateSchedule,
     });
   }
 
@@ -403,9 +568,33 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       typeof projectMainWireIntegratedModelSelectedValuesV3
     >;
   }> {
+    const executionPlanBinding = scenario.executionPlanBinding;
+    if (
+      executionPlanBinding === null
+      || executionPlanBinding.modelSession !== scenario.modelSession
+    ) {
+      throw new Error("Standard Scenario update schedule is not installed");
+    }
     const nextOrdinal = scenario.presentationOrdinal + 1;
-    const targetTimeSec = mainWireIntegratedModelPresentationTargetTimeSecV3(
-      scenario.presentationOriginTick + nextOrdinal,
+    const targetBaseTick = executionPlanPresentationBaseTickV1(
+      executionPlanBinding.updateSchedule,
+      executionPlanBinding.presentationOriginBaseTick,
+      nextOrdinal,
+    );
+    const [updateGroup] = executionPlanBinding.updateSchedule.groups;
+    if (
+      updateGroup === undefined
+      || !executionPlanUpdateGroupIsDueAtBaseTickV1(
+        executionPlanBinding.updateSchedule,
+        updateGroup,
+        targetBaseTick,
+      )
+    ) {
+      throw new Error("Standard presentation target has no scheduled update");
+    }
+    const targetTimeSec = executionPlanTimeAtBaseTickV1(
+      executionPlanBinding.updateSchedule,
+      targetBaseTick,
     );
     const projection = scenario.modelSession
       .advanceToPresentationTimeWithSelectedOutputProjectionV1(
@@ -671,9 +860,15 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     if (original.inputEpoch !== expectedInputEpoch) {
       throw new Error("Standard fixture warm start input epoch is stale");
     }
+    const preparedExecutionPlan = this.#prepareExecutionPlan(
+      runtimeSessionId,
+      scenarioId,
+      bindMainWireIntegratedStudioExecutionPlanV1(),
+    );
     const candidate = await original.modelSession.warmStartWithHemodynamicResearchInputs(
       fixture.hemodynamicResearchInputs,
       fixture.ventricularContractilityScale,
+      preparedExecutionPlan.initialization,
     );
     const accepted = candidate.currentAcceptedState();
     const sourceAccepted = original.modelSession.currentAcceptedState();
@@ -689,9 +884,16 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     }
     current.fixture = fixture;
     current.modelSession = candidate;
-    current.presentationOriginTick = standardPresentationTickV1(
-      accepted.acceptedTimeSec,
-    );
+    current.executionPlanBinding = Object.freeze({
+      boundExecutionPlan:
+        preparedExecutionPlan.initialization.boundExecutionPlan,
+      modelSession: candidate,
+      updateSchedule: preparedExecutionPlan.updateSchedule,
+      presentationOriginBaseTick: executionPlanBaseTickAtTimeV1(
+        preparedExecutionPlan.updateSchedule,
+        accepted.acceptedTimeSec,
+      ),
+    });
     current.presentationOrdinal = 0;
     current.inputEpoch += 1;
     return this.currentFrame(runtimeSessionId, scenarioId);
@@ -725,7 +927,7 @@ ExactModelKernelManifestV3 {
     }),
     runtime: Object.freeze({
       numericalSessionId: MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,
-      presentationDtSec: MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
+      presentationDtSec: MAIN_WIRE_EXECUTION_PLAN_PRESENTATION_DT_SEC_V1,
       hotPathIntegrityTier:
         MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1,
       acceptedBoundaryCapture: true,
@@ -773,6 +975,8 @@ ExactModelKernelManifestV3 {
     modelMetricCatalog: STANDARD_MODEL_METRIC_DEFINITIONS_V1,
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+      EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
+      EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
       ...primitiveControlCatalog.map(({ controlId }) => `control/${controlId}`),
       ...STANDARD_PRIMITIVE_SIGNAL_DEFINITIONS_V1
         .map(({ outputId }) => `output/${outputId}`),
@@ -1030,6 +1234,17 @@ function standardExecutableBundleV1(
     }),
     fixtureAdapter,
     simulationAdapter,
+    executionPlan: Object.freeze({
+      schemaId: REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID,
+      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+      descriptor: MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1,
+      bind: bindMainWireIntegratedStudioExecutionPlanV1,
+      createSession: (input) => host.createSession(
+        input.runtimeSessionId,
+        input.scenarios,
+        input.boundExecutionPlans,
+      ),
+    }),
   });
 }
 
@@ -1251,34 +1466,42 @@ function assertRuntimeContextV1(
   requiredIdV1(context.scenarioId, "scenarioId");
 }
 
+function assertMainWireExecutionPlanUpdateScheduleV1(
+  schedule: BoundExecutionPlanUpdateScheduleV1,
+): BoundExecutionPlanUpdateGroupDispatchV1 {
+  const [group] = schedule.groups;
+  if (
+    schedule.definitionId !== MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1.definitionId
+    || schedule.policyId !== MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1.policyId
+    || schedule.baseTickSec !== MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1
+    || schedule.presentationPeriodTicks
+      !== MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1
+    || schedule.presentationStepSec
+      !== MAIN_WIRE_EXECUTION_PLAN_PRESENTATION_DT_SEC_V1
+    || schedule.groups.length !== 1
+    || group === undefined
+    || group.updateGroupId
+      !== MAIN_WIRE_COUPLED_HEMODYNAMICS_UPDATE_GROUP_ID_V1
+    || group.ordinal !== 0
+    || group.periodTicks !== 1
+    || group.phaseTicks !== 0
+    || group.effectiveStepSec !== MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1
+    || group.integration !== "fixed-step-backward-euler"
+    || group.solveGroupId
+      !== MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1
+    || group.solveGroupIndex !== 0
+    || group.systemKernelId
+      !== MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID
+  ) {
+    throw new Error("Standard execution-plan update schedule drifted");
+  }
+  return group;
+}
+
 function requiredIdV1(value: string, label: string): void {
   if (!/^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,255}$/.test(value)) {
     throw new Error(`Standard ${label} is invalid`);
   }
-}
-
-function standardPresentationTickV1(acceptedTimeSec: number): number {
-  if (!Number.isFinite(acceptedTimeSec) || acceptedTimeSec < 0) {
-    throw new Error("Standard presentation clock is invalid");
-  }
-  const tick = Math.round(
-    acceptedTimeSec / MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3,
-  );
-  if (!Number.isSafeInteger(tick)) {
-    throw new Error("Standard presentation tick exceeds the safe integer range");
-  }
-  const canonicalTimeSec =
-    mainWireIntegratedModelPresentationTargetTimeSecV3(tick);
-  const toleranceSec = Math.max(
-    1e-12,
-    Number.EPSILON * Math.max(1, Math.abs(acceptedTimeSec)) * 8,
-  );
-  if (Math.abs(canonicalTimeSec - acceptedTimeSec) > toleranceSec) {
-    throw new Error(
-      "Standard runtime accepted clock is not on a presentation tick",
-    );
-  }
-  return tick;
 }
 
 function exactRecordV1(

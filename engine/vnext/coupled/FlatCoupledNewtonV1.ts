@@ -1,6 +1,7 @@
 import {
+  bindFlatDenseLuWorkspaceV1,
   createFlatDenseLuWorkspaceV1,
-  factorPreparedFlatDenseMatrixV1,
+  factorFlatDenseMatrixV1,
   solvePreparedFactoredFlatDenseSystemV1,
   type FlatDenseLuWorkspaceV1,
 } from "@/engine/vnext/coupled/FlatDenseLuV1";
@@ -69,6 +70,22 @@ export type FlatCoupledNewtonWorkspaceV1 = Readonly<{
   linear: FlatDenseLuWorkspaceV1;
 }>;
 
+export type FlatCoupledNewtonWorkspaceViewsV1 = Readonly<{
+  dimension: number;
+  current: Float64Array;
+  residual: Float64Array;
+  jacobian: Float64Array;
+  factors: Float64Array;
+  rightHandSide: Float64Array;
+  transformedRightHandSide: Float64Array;
+  update: Float64Array;
+  trial: Float64Array;
+  trialResidual: Float64Array;
+  pivots: Int32Array;
+}>;
+
+const ADMITTED_FLAT_COUPLED_NEWTON_WORKSPACES_V1 = new WeakSet<object>();
+
 export type FlatCoupledNewtonResultV1 =
   | Readonly<{
     status: "converged";
@@ -104,17 +121,102 @@ export function createFlatCoupledNewtonWorkspaceV1(
   if (!Number.isInteger(dimension) || dimension <= 0) {
     throw new RangeError("coupled Newton dimension must be a positive integer");
   }
-  return Object.freeze({
+  const linear = createFlatDenseLuWorkspaceV1(dimension);
+  return bindFlatCoupledNewtonWorkspaceV1({
     dimension,
     current: new Float64Array(dimension),
     residual: new Float64Array(dimension),
     jacobian: new Float64Array(dimension * dimension),
+    factors: linear.factors,
     rightHandSide: new Float64Array(dimension),
+    transformedRightHandSide: linear.transformedRightHandSide,
     update: new Float64Array(dimension),
     trial: new Float64Array(dimension),
     trialResidual: new Float64Array(dimension),
-    linear: createFlatDenseLuWorkspaceV1(dimension),
+    pivots: linear.pivotRowByColumn,
   });
+}
+
+/**
+ * Binds compiler-owned typed segments to the generic Newton/LU solver without
+ * copying or reallocating them. All mutable byte ranges must be disjoint.
+ */
+export function bindFlatCoupledNewtonWorkspaceV1(
+  views: FlatCoupledNewtonWorkspaceViewsV1,
+): FlatCoupledNewtonWorkspaceV1 {
+  const dimension = views.dimension;
+  if (!Number.isInteger(dimension) || dimension <= 0) {
+    throw new RangeError("coupled Newton dimension must be a positive integer");
+  }
+  const vectors = [
+    [views.current, "current"],
+    [views.residual, "residual"],
+    [views.rightHandSide, "right-hand side"],
+    [views.transformedRightHandSide, "transformed right-hand side"],
+    [views.update, "update"],
+    [views.trial, "trial"],
+    [views.trialResidual, "trial residual"],
+  ] as const;
+  for (const [view, label] of vectors) {
+    requireLength(view, dimension, `coupled Newton ${label}`);
+  }
+  requireLength(
+    views.jacobian,
+    dimension * dimension,
+    "coupled Newton Jacobian",
+  );
+  requireLength(
+    views.factors,
+    dimension * dimension,
+    "coupled Newton factors",
+  );
+  if (!(views.pivots instanceof Int32Array) || views.pivots.length !== dimension) {
+    throw new RangeError(
+      `coupled Newton pivots must contain ${dimension} int32 values`,
+    );
+  }
+  requireDisjointWorkspaceViewsV1([
+    views.current,
+    views.residual,
+    views.jacobian,
+    views.factors,
+    views.rightHandSide,
+    views.transformedRightHandSide,
+    views.update,
+    views.trial,
+    views.trialResidual,
+    views.pivots,
+  ]);
+  const workspace = Object.freeze({
+    dimension,
+    current: views.current,
+    residual: views.residual,
+    jacobian: views.jacobian,
+    rightHandSide: views.rightHandSide,
+    update: views.update,
+    trial: views.trial,
+    trialResidual: views.trialResidual,
+    linear: bindFlatDenseLuWorkspaceV1({
+      dimension,
+      factors: views.factors,
+      pivotRowByColumn: views.pivots,
+      transformedRightHandSide: views.transformedRightHandSide,
+    }),
+  });
+  ADMITTED_FLAT_COUPLED_NEWTON_WORKSPACES_V1.add(workspace);
+  return workspace;
+}
+
+export function assertFlatCoupledNewtonWorkspaceV1(
+  workspace: FlatCoupledNewtonWorkspaceV1,
+  dimension: number,
+): void {
+  if (
+    !ADMITTED_FLAT_COUPLED_NEWTON_WORKSPACES_V1.has(workspace)
+    || workspace.dimension !== dimension
+  ) {
+    throw new RangeError("coupled Newton workspace is not admitted");
+  }
 }
 
 export function solveFlatCoupledSystemV1(
@@ -128,13 +230,13 @@ export function solveFlatCoupledSystemV1(
   const {
     current,
     residual,
+    jacobian,
     rightHandSide,
     update,
     trial,
     trialResidual,
     linear,
   } = workspace;
-  const jacobian = linear.factors;
   current.set(initialUnknowns);
   let residualEvaluationCount = 0;
   let jacobianEvaluationCount = 0;
@@ -225,7 +327,8 @@ export function solveFlatCoupledSystemV1(
           lineSearchBacktrackCount,
         );
       }
-      if (!factorPreparedFlatDenseMatrixV1(
+      if (!factorFlatDenseMatrixV1(
+        jacobian,
         linear,
         options.minimumAbsolutePivot,
       )) {
@@ -350,6 +453,7 @@ function validateInputs(
   if (workspace.dimension !== system.dimension) {
     throw new RangeError("coupled Newton workspace dimension differs");
   }
+  assertFlatCoupledNewtonWorkspaceV1(workspace, system.dimension);
   requireLength(initialUnknowns, system.dimension, "initial unknowns");
   requireFiniteVector(initialUnknowns, "initial unknowns");
   requireLength(
@@ -505,6 +609,24 @@ function requireLength(
 ): void {
   if (!(value instanceof Float64Array) || value.length !== expected) {
     throw new RangeError(`${label} must contain ${expected} f64 values`);
+  }
+}
+
+function requireDisjointWorkspaceViewsV1(
+  views: readonly ArrayBufferView[],
+): void {
+  for (let left = 0; left < views.length; left += 1) {
+    const first = views[left]!;
+    for (let right = left + 1; right < views.length; right += 1) {
+      const second = views[right]!;
+      if (
+        first.buffer === second.buffer
+        && first.byteOffset < second.byteOffset + second.byteLength
+        && second.byteOffset < first.byteOffset + first.byteLength
+      ) {
+        throw new RangeError("coupled Newton workspace views must not overlap");
+      }
+    }
   }
 }
 

@@ -124,13 +124,22 @@ import {
   type MainWireAcceptedTypedStateAuthorityReportV1,
 } from "@/engine/vnext/MainWireAcceptedTypedStateV1";
 import {
+  bindExecutionPlanAcceptedTypedStateV1,
+  type ExecutionPlanAcceptedTypedStateBindingV1,
+} from "@/engine/vnext/ExecutionPlanAcceptedTypedStateBindingV1";
+import type {
+  BoundExecutionPlanV1,
+} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import {
   createMainWireAcceptedTypedHemodynamicBindingV1,
   createMainWireAcceptedTypedHemodynamicDestinationV1,
   materializeMainWireAcceptedTypedCoupledSolverAdapterV1,
+  readMainWireAcceptedTypedHemodynamicIntoV1,
   stageMainWireAcceptedTypedCoupledCandidateV1,
   type MainWireAcceptedTypedHemodynamicBindingV1,
 } from "@/engine/vnext/MainWireAcceptedTypedHemodynamicV1";
 import {
+  assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
   type MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
@@ -213,6 +222,38 @@ type ExactBeatState = Readonly<{
   completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null;
 }>;
 
+export type MainWireTypedExecutionPlanInitializationV1 = Readonly<{
+  boundExecutionPlan: BoundExecutionPlanV1;
+  coupledNewtonWorkspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
+}>;
+
+type MainWireExecutionPlanStateInitializationV1 = Readonly<{
+  acceptedStateBinding: ExecutionPlanAcceptedTypedStateBindingV1;
+  hemodynamicBinding: MainWireAcceptedTypedHemodynamicBindingV1;
+}>;
+
+function createExecutionPlanStateInitializationV1(
+  boundExecutionPlan: BoundExecutionPlanV1,
+  typedAuthority: MainWireAcceptedTypedStateAuthorityV1 | null,
+): MainWireExecutionPlanStateInitializationV1 {
+  if (typedAuthority === null) {
+    throw new Error(
+      "Main Wire execution plan requires typed accepted-state authority",
+    );
+  }
+  const acceptedStateBinding = bindExecutionPlanAcceptedTypedStateV1(
+    boundExecutionPlan,
+    typedAuthority.manifest(),
+  );
+  return Object.freeze({
+    acceptedStateBinding,
+    hemodynamicBinding: createMainWireAcceptedTypedHemodynamicBindingV1(
+      typedAuthority.manifest(),
+      acceptedStateBinding,
+    ),
+  });
+}
+
 /**
  * Typed-authority Session for the integrated model. It owns the accepted
  * transaction loop and avoids materializing the public accepted object on
@@ -241,7 +282,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     MainWireAcceptedTypedStateAuthorityV1 | null;
   readonly #typedBoundaryBinding:
     MainWireAcceptedTypedBoundaryBindingV1 | null;
-  readonly #typedHemodynamicBinding:
+  #typedHemodynamicBinding:
     MainWireAcceptedTypedHemodynamicBindingV1 | null;
   readonly #typedHemodynamicScratch: Float64Array;
   readonly #acceptedNumericalReadback = new Float64Array(
@@ -251,8 +292,14 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   );
   #acceptedNumericalReadbackAvailable = false;
-  readonly #coupledNewtonWorkspace:
+  #coupledNewtonWorkspace:
     MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
+  #installedExecutionPlanCoupledNewtonWorkspace:
+    MainWireFiveWallCoupledNewtonShadowWorkspaceV1 | null = null;
+  #installedExecutionPlan: BoundExecutionPlanV1 | null = null;
+  #executionPlanAcceptedTypedStateBinding:
+    ExecutionPlanAcceptedTypedStateBindingV1 | null = null;
+  #executionPlanWorkspaceInstallationClosed = false;
   readonly #coupledResidualWorkspace:
     MainWireFiveWallCoupledResidualWorkspaceV1;
   readonly #coupledPredictorWorkspace:
@@ -294,6 +341,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     observationSource: MainWireIntegratedModelObservationV3["source"],
     authorityFactory: MainWireFlatReferenceAcceptedStateAuthorityFactoryV1,
     exactBeatState?: ExactBeatState,
+    executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
   ) {
     const validateAcceptedState: AcceptedStateValidatorV1<AcceptedState> =
       (candidate) => {
@@ -368,15 +416,39 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       : createMainWireAcceptedTypedBoundaryBindingV1(
           this.#typedAuthority.manifest(),
         );
+    const executionPlanStateInitialization =
+      executionPlanInitialization === undefined
+        ? null
+        : createExecutionPlanStateInitializationV1(
+            executionPlanInitialization.boundExecutionPlan,
+            this.#typedAuthority,
+          );
     this.#typedHemodynamicBinding = this.#typedAuthority === null
       ? null
-      : createMainWireAcceptedTypedHemodynamicBindingV1(
+      : executionPlanStateInitialization?.hemodynamicBinding
+        ?? createMainWireAcceptedTypedHemodynamicBindingV1(
           this.#typedAuthority.manifest(),
         );
+    if (
+      executionPlanStateInitialization !== null
+      && executionPlanInitialization !== undefined
+    ) {
+      this.#installedExecutionPlan =
+        executionPlanInitialization.boundExecutionPlan;
+      this.#executionPlanAcceptedTypedStateBinding =
+        executionPlanStateInitialization.acceptedStateBinding;
+    }
     this.#typedHemodynamicScratch =
       createMainWireAcceptedTypedHemodynamicDestinationV1();
-    this.#coupledNewtonWorkspace =
-      createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    this.#coupledNewtonWorkspace = executionPlanInitialization
+      ?.coupledNewtonWorkspace
+      ?? createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    if (executionPlanInitialization !== undefined) {
+      this.installExecutionPlanCoupledNewtonWorkspaceV1(
+        executionPlanInitialization.coupledNewtonWorkspace,
+        executionPlanInitialization.boundExecutionPlan,
+      );
+    }
     this.#coupledResidualWorkspace =
       createMainWireFiveWallCoupledResidualWorkspaceV1();
     this.#coupledPredictorWorkspace =
@@ -445,6 +517,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
+    executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
   ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
@@ -455,6 +528,8 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       runtime.cold.acceptedState,
       "cold",
       typedAuthorityFactory(runtime.cold.acceptedState),
+      undefined,
+      executionPlanInitialization,
     );
   }
 
@@ -469,6 +544,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
+    executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
   ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
@@ -487,6 +563,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       "standard-exact-checkpoint-restore",
       typedAuthorityFactory(runtime.cold.acceptedState),
       restored,
+      executionPlanInitialization,
     );
   }
 
@@ -555,6 +632,89 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   }
 
   /**
+   * Binds compiler-owned state identities before the first synchronization.
+   * Repeating the same plan is idempotent; replacing it is fail-closed.
+   */
+  installExecutionPlanAcceptedStateBindingV1(
+    boundExecutionPlan: BoundExecutionPlanV1,
+  ): void {
+    if (
+      this.#installedExecutionPlan === boundExecutionPlan
+      && this.#executionPlanAcceptedTypedStateBinding !== null
+    ) {
+      return;
+    }
+    if (
+      this.#installedExecutionPlan !== null
+      || this.#executionPlanWorkspaceInstallationClosed
+    ) {
+      throw new Error("Main Wire execution plan cannot be replaced");
+    }
+    if (
+      this.#typedAuthority === null
+      || this.#typedHemodynamicBinding === null
+    ) {
+      throw new Error(
+        "Main Wire execution plan requires typed accepted-state authority",
+      );
+    }
+    const {
+      acceptedStateBinding,
+      hemodynamicBinding,
+    } = createExecutionPlanStateInitializationV1(
+      boundExecutionPlan,
+      this.#typedAuthority,
+    );
+    if (
+      this.#typedHemodynamicBinding.mvcActiveBooleanSlot
+        !== hemodynamicBinding.mvcActiveBooleanSlot
+      || this.#typedHemodynamicBinding.canonicalContinuousSlots.some(
+        (slot, index) =>
+          slot !== hemodynamicBinding.canonicalContinuousSlots[index],
+      )
+    ) {
+      throw new Error(
+        "Main Wire execution-plan typed-authority projection drifted",
+      );
+    }
+    this.#installedExecutionPlan = boundExecutionPlan;
+    this.#executionPlanAcceptedTypedStateBinding = acceptedStateBinding;
+    this.#typedHemodynamicBinding = hemodynamicBinding;
+  }
+
+  /**
+   * Installs compiler-owned solver scratch before the first numerical advance.
+   * Repeating the same binding is idempotent; replacing it is fail-closed.
+   */
+  installExecutionPlanCoupledNewtonWorkspaceV1(
+    workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+    boundExecutionPlan: BoundExecutionPlanV1,
+  ): void {
+    assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace);
+    if (
+      this.#installedExecutionPlanCoupledNewtonWorkspace === workspace
+      && this.#installedExecutionPlan === boundExecutionPlan
+    ) {
+      return;
+    }
+    if (this.#installedExecutionPlan !== boundExecutionPlan) {
+      throw new Error(
+        "Main Wire execution-plan state binding must be installed first",
+      );
+    }
+    if (
+      this.#installedExecutionPlanCoupledNewtonWorkspace !== null
+      || this.#executionPlanWorkspaceInstallationClosed
+    ) {
+      throw new Error(
+        "Main Wire execution-plan Newton workspace cannot be replaced",
+      );
+    }
+    this.#coupledNewtonWorkspace = workspace;
+    this.#installedExecutionPlanCoupledNewtonWorkspace = workspace;
+  }
+
+  /**
    * Starts a new authored-input epoch at the exact current accepted clock.
    * The new runtime receives a fresh typed authority and predictor history;
    * failure cannot mutate this source Session.
@@ -562,6 +722,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   async warmStartWithHemodynamicResearchInputs(
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
     ventricularContractilityScale = 1,
+    executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
   ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const targetRuntime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
@@ -577,6 +738,8 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       acceptedState,
       "hemodynamic-input-warm-start",
       typedAuthorityFactory(targetRuntime.cold.acceptedState),
+      undefined,
+      executionPlanInitialization,
     );
   }
 
@@ -646,6 +809,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   advanceToPresentationTime(
     targetTimeSec: number,
   ): MainWireIntegratedModelPresentationAdvanceV3 {
+    this.#executionPlanWorkspaceInstallationClosed = true;
     return this.advanceToPresentationTimeInternal(targetTimeSec, true);
   }
 
@@ -658,6 +822,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     targetTimeSec: number,
     outputIds: readonly MainWireIntegratedModelOutputIdV3[],
   ): MainWireFlatSelectedOutputProjectionAdvanceV1 {
+    this.#executionPlanWorkspaceInstallationClosed = true;
     validateTypedProjectionOutputIds(outputIds);
     const direct = this.tryAdvanceTypedOrdinaryProjectionV1(
       targetTimeSec,

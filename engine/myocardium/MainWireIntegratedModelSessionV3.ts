@@ -46,11 +46,17 @@ import {
 import {
   warmStartMainWireIntegratedModelV3,
 } from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
+import {
+  MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1,
+  MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1,
+} from "@/engine/executionPlan/MainWireNumericalClockV1";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID =
   "main-wire-integrated-model-session-v3" as const;
 
-export const MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3 = 0.002 as const;
+export const MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3 =
+  MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1
+  * MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1;
 export const MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3 = 16 as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_COVERAGE_V3 =
   "integrated-v3-live-presentation" as const;

@@ -31,6 +31,7 @@ import type {
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
   createMainWireFiveWallCoupledNewtonShadowWorkspaceV1,
+  resolveMainWireFiveWallCoupledSolveLayoutV1,
   solveMainWireFiveWallCoupledNewtonPredictedV1,
   solveMainWireFiveWallCoupledNewtonShadowV1,
   type MainWireFiveWallCoupledNewtonShadowOptionsV1,
@@ -121,6 +122,7 @@ export function solveMainWireFiveWallCoupledCandidateV1<TWallState>(
     input,
     options.previousAcceptedNumericalSource,
     options.residualWorkspace,
+    resolveMainWireFiveWallCoupledSolveLayoutV1(workspace),
   );
   const solverOptions = Object.freeze({
     ...options.solver,
