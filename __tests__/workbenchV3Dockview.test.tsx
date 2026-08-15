@@ -1274,8 +1274,11 @@ describe("V3 Dockview Workbench", () => {
     expect(html).not.toContain("dv-groupview");
     expect(html).not.toContain("<select");
     expect(html).toContain('aria-haspopup="dialog"');
-    expect(html).toContain("1/2");
-    expect(html.match(/role="tab"/g)).toHaveLength(3);
+    expect(html).toContain('aria-label="グラフビュー"');
+    expect(html).toContain('data-mobile-pane-groups="control"');
+    expect(html).toContain('data-mobile-pane-group-role="control"');
+    expect(html).not.toContain("1/2");
+    expect(html.match(/role="tab"/g)).toHaveLength(5);
   });
 
   it("keeps output and control pane composition Scenario-neutral", async () => {

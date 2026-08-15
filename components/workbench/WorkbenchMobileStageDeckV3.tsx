@@ -1,10 +1,8 @@
 import React from "react";
 import {
-  Check,
-  ChevronDown,
+  ChevronRight,
   ChevronsDown,
   ChevronsUp,
-  LayoutPanelTop,
   Plus,
   Settings2,
   X,
@@ -18,9 +16,6 @@ import type {
 } from "@/components/workbench/WorkbenchDockview";
 
 export type WorkbenchMobileTaskV3 = "control" | "output" | "scenarios";
-
-type PaneAreaV3 = "graph" | "control" | "output";
-type MobilePaneSheetModeV3 = "switch" | "add";
 
 const FOCUSABLE_SELECTOR_V3 = [
   "button:not([disabled])",
@@ -65,6 +60,76 @@ function useReconciledPaneSelectionV3(
   return [paneId, setPaneId] as const;
 }
 
+function useReconciledPaneExpansionV3(
+  panes: readonly WorkbenchPaneDefinitionV3[],
+): readonly [ReadonlySet<string>, (paneId: string) => void, (paneId: string) => void] {
+  const knownPaneIdsRef = React.useRef<ReadonlySet<string>>(
+    new Set(panes.map(({ paneId }) => paneId)),
+  );
+  const [expandedPaneIds, setExpandedPaneIds] = React.useState<ReadonlySet<string>>(
+    () => new Set(panes.map(({ paneId }) => paneId)),
+  );
+
+  React.useEffect(() => {
+    const currentPaneIds = new Set(panes.map(({ paneId }) => paneId));
+    const previouslyKnownPaneIds = knownPaneIdsRef.current;
+    knownPaneIdsRef.current = currentPaneIds;
+    setExpandedPaneIds((current) => {
+      const next = new Set(
+        [...current].filter((paneId) => currentPaneIds.has(paneId)),
+      );
+      for (const paneId of currentPaneIds) {
+        if (!previouslyKnownPaneIds.has(paneId)) next.add(paneId);
+      }
+      return next;
+    });
+  }, [panes]);
+
+  const togglePane = React.useCallback((paneId: string) => {
+    setExpandedPaneIds((current) => {
+      const next = new Set(current);
+      if (next.has(paneId)) next.delete(paneId);
+      else next.add(paneId);
+      return next;
+    });
+  }, []);
+  const expandPane = React.useCallback((paneId: string) => {
+    setExpandedPaneIds((current) => {
+      if (current.has(paneId)) return current;
+      return new Set([...current, paneId]);
+    });
+  }, []);
+
+  return [expandedPaneIds, togglePane, expandPane] as const;
+}
+
+function useReconciledSinglePaneExpansionV3(
+  panes: readonly WorkbenchPaneDefinitionV3[],
+): readonly [string | null, React.Dispatch<React.SetStateAction<string | null>>] {
+  const knownPaneIdsRef = React.useRef<ReadonlySet<string>>(
+    new Set(panes.map(({ paneId }) => paneId)),
+  );
+  const [expandedPaneId, setExpandedPaneId] = React.useState<string | null>(
+    () => firstPaneIdV3(panes),
+  );
+
+  React.useEffect(() => {
+    const currentPaneIds = new Set(panes.map(({ paneId }) => paneId));
+    const previouslyKnownPaneIds = knownPaneIdsRef.current;
+    knownPaneIdsRef.current = currentPaneIds;
+    setExpandedPaneId((current) => {
+      if (current !== null && currentPaneIds.has(current)) return current;
+      const newlyAddedPane = panes.find(
+        ({ paneId }) => !previouslyKnownPaneIds.has(paneId),
+      );
+      if (newlyAddedPane !== undefined) return newlyAddedPane.paneId;
+      return current === null ? null : firstPaneIdV3(panes);
+    });
+  }, [panes]);
+
+  return [expandedPaneId, setExpandedPaneId] as const;
+}
+
 /**
  * Smartphone presentation shell. It intentionally owns no numerical or
  * durable Experiment state: it projects the same panes and callbacks used by
@@ -93,20 +158,14 @@ export function WorkbenchMobileStageDeckV3({
   const [graphPaneId, setGraphPaneId] = useReconciledPaneSelectionV3(
     graphPanes,
   );
-  const [outputPaneId, setOutputPaneId] = useReconciledPaneSelectionV3(
-    outputPanes,
-  );
-  const [controlPaneId, setControlPaneId] = useReconciledPaneSelectionV3(
-    controlPanes,
-  );
+  const [expandedControlPaneId, setExpandedControlPaneId] =
+    useReconciledSinglePaneExpansionV3(
+      controlPanes,
+    );
+  const [expandedOutputPaneIds, toggleOutputPane, expandOutputPane] =
+    useReconciledPaneExpansionV3(outputPanes);
   const activeGraphPane = graphPanes.find(
     ({ paneId }) => paneId === graphPaneId,
-  ) ?? null;
-  const activeOutputPane = outputPanes.find(
-    ({ paneId }) => paneId === outputPaneId,
-  ) ?? null;
-  const activeControlPane = controlPanes.find(
-    ({ paneId }) => paneId === controlPaneId,
   ) ?? null;
   const tabId = React.useId();
 
@@ -115,15 +174,13 @@ export function WorkbenchMobileStageDeckV3({
     setGraphFocused(false);
   };
 
-  const addPane = (
-    area: Exclude<PaneAreaV3, "graph">,
-  ) => {
+  const addPane = (area: "control" | "output") => {
     const paneId = area === "control"
       ? onAddControlPane()
       : onAddOutputPane();
     if (paneId === undefined) return;
-    if (area === "control") setControlPaneId(paneId);
-    else setOutputPaneId(paneId);
+    if (area === "control") setExpandedControlPaneId(paneId);
+    else expandOutputPane(paneId);
   };
 
   return (
@@ -137,38 +194,14 @@ export function WorkbenchMobileStageDeckV3({
         aria-label={t("workbench.live.graphArea")}
         data-testid="workbench-mobile-stage"
       >
-        <MobilePaneToolbarV3
-          area="graph"
-          panes={graphPanes}
-          selectedPaneId={graphPaneId}
-          pickerLabel={t("workbench.live.mobileGraphPicker")}
-          settingsLabel={t("workbench.live.paneSettings")}
-          addOptions={graphAddOptions}
-          onSelectPane={setGraphPaneId}
-          onOpenPaneSettings={onOpenPaneSettings}
-          onAddOption={(optionId) => {
-            const paneId = onAddGraphPane(optionId);
-            if (paneId !== undefined) setGraphPaneId(paneId);
-          }}
-          trailingAction={(
-            <button
-              type="button"
-              className="workbench-mobile-toolbar-action"
-              aria-label={t(
-                graphFocused
-                  ? "workbench.live.mobileShowTasks"
-                  : "workbench.live.mobileFocusGraph",
-              )}
-              aria-pressed={graphFocused}
-              onClick={() => setGraphFocused((current) => !current)}
-            >
-              {graphFocused
-                ? <ChevronsUp className="h-4 w-4" aria-hidden="true" />
-                : <ChevronsDown className="h-4 w-4" aria-hidden="true" />}
-            </button>
-          )}
-        />
-        <div className="min-h-0 flex-1 overflow-hidden bg-wb-canvas">
+        <div
+          id={`${tabId}-graph-panel`}
+          role="tabpanel"
+          aria-labelledby={graphPaneId === null
+            ? undefined
+            : `${tabId}-graph-${graphPaneId}`}
+          className="min-h-0 flex-1 overflow-hidden bg-wb-canvas"
+        >
           {activeGraphPane === null
             ? (
               <MobileEmptyPaneV3
@@ -177,6 +210,20 @@ export function WorkbenchMobileStageDeckV3({
             )
             : renderGraphPane(activeGraphPane)}
         </div>
+        <MobileGraphViewRailV3
+          tabId={tabId}
+          panes={graphPanes}
+          selectedPaneId={graphPaneId}
+          addOptions={graphAddOptions}
+          onSelectPane={setGraphPaneId}
+          onOpenPaneSettings={onOpenPaneSettings}
+          onAddOption={(optionId) => {
+            const paneId = onAddGraphPane(optionId);
+            if (paneId !== undefined) setGraphPaneId(paneId);
+          }}
+          graphFocused={graphFocused}
+          onToggleGraphFocus={() => setGraphFocused((current) => !current)}
+        />
       </section>
 
       <section
@@ -205,25 +252,6 @@ export function WorkbenchMobileStageDeckV3({
           ))}
         </div>
 
-        {!graphFocused && activeTask !== "scenarios" && (
-          <MobilePaneToolbarV3
-            area={activeTask}
-            panes={activeTask === "control" ? controlPanes : outputPanes}
-            selectedPaneId={activeTask === "control"
-              ? controlPaneId
-              : outputPaneId}
-            pickerLabel={t("workbench.live.mobilePanePicker", {
-              area: t(`workbench.live.mobileTaskTabs.${activeTask}`),
-            })}
-            settingsLabel={t("workbench.live.paneSettings")}
-            onSelectPane={activeTask === "control"
-              ? setControlPaneId
-              : setOutputPaneId}
-            onOpenPaneSettings={onOpenPaneSettings}
-            onAdd={() => addPane(activeTask)}
-          />
-        )}
-
         {!graphFocused && (
           <div
             id={`${tabId}-${activeTask}-panel`}
@@ -233,13 +261,35 @@ export function WorkbenchMobileStageDeckV3({
             data-testid="workbench-mobile-task-scroll"
           >
             {activeTask === "control"
-              ? activeControlPane === null
-                ? <MobileEmptyPaneV3 message={t("workbench.editor.emptyPaneArea")} />
-                : renderControlPane(activeControlPane)
+              ? (
+                <MobilePaneGroupCollectionV3
+                  area="control"
+                  panes={controlPanes}
+                  expandedPaneIds={new Set(
+                    expandedControlPaneId === null
+                      ? []
+                      : [expandedControlPaneId],
+                  )}
+                  renderPane={renderControlPane}
+                  onTogglePane={(paneId) =>
+                    setExpandedControlPaneId((current) =>
+                      current === paneId ? null : paneId)}
+                  onOpenPaneSettings={onOpenPaneSettings}
+                  onAddPane={() => addPane("control")}
+                />
+              )
               : activeTask === "output"
-                ? activeOutputPane === null
-                  ? <MobileEmptyPaneV3 message={t("workbench.editor.emptyPaneArea")} />
-                  : renderOutputPane(activeOutputPane)
+                ? (
+                  <MobilePaneGroupCollectionV3
+                    area="output"
+                    panes={outputPanes}
+                    expandedPaneIds={expandedOutputPaneIds}
+                    renderPane={renderOutputPane}
+                    onTogglePane={toggleOutputPane}
+                    onOpenPaneSettings={onOpenPaneSettings}
+                    onAddPane={() => addPane("output")}
+                  />
+                )
                 : (
                   <div className="min-h-full">
                     {scenarioError}
@@ -253,190 +303,289 @@ export function WorkbenchMobileStageDeckV3({
   );
 }
 
-function MobilePaneToolbarV3({
-  area,
+function MobileGraphViewRailV3({
+  tabId,
   panes,
   selectedPaneId,
-  pickerLabel,
-  settingsLabel,
-  addOptions = [],
-  trailingAction,
+  addOptions,
   onSelectPane,
   onOpenPaneSettings,
-  onAdd,
   onAddOption,
+  graphFocused,
+  onToggleGraphFocus,
 }: Readonly<{
-  area: PaneAreaV3;
+  tabId: string;
   panes: readonly WorkbenchPaneDefinitionV3[];
   selectedPaneId: string | null;
-  pickerLabel: string;
-  settingsLabel: string;
-  addOptions?: readonly WorkbenchAddPaneOptionV3[];
-  trailingAction?: React.ReactNode;
-  onSelectPane: React.Dispatch<React.SetStateAction<string | null>>;
+  addOptions: readonly WorkbenchAddPaneOptionV3[];
+  onSelectPane: (paneId: string) => void;
   onOpenPaneSettings: (paneId: string) => void;
-  onAdd?: () => void;
-  onAddOption?: (optionId: string) => void;
+  onAddOption: (optionId: string) => void;
+  graphFocused: boolean;
+  onToggleGraphFocus: () => void;
 }>) {
   const { t } = useTranslation();
-  const [sheetMode, setSheetMode] = React.useState<MobilePaneSheetModeV3 | null>(
-    null,
-  );
-  const switcherRef = React.useRef<HTMLButtonElement | null>(null);
+  const [addSheetOpen, setAddSheetOpen] = React.useState(false);
   const addRef = React.useRef<HTMLButtonElement | null>(null);
-  const selectedPane = panes.find(({ paneId }) => paneId === selectedPaneId)
-    ?? null;
-  const selectedIndex = selectedPane === null
-    ? -1
-    : panes.findIndex(({ paneId }) => paneId === selectedPane.paneId);
-  const paneSwitchingAvailable = panes.length > 1;
-  const areaLabel = t(`workbench.live.mobilePaneAreas.${area}`);
-  const switcherAriaLabel = t("workbench.live.mobileSwitchPane", {
-    area: areaLabel,
-    title: selectedPane?.title ?? "—",
-  });
-  const addAriaLabel = t("workbench.live.mobileAddPane", {
-    area: areaLabel,
-  });
-  const returnFocusRef = sheetMode === "add" ? addRef : switcherRef;
+  const tabRefs = React.useRef(new Map<string, HTMLButtonElement>());
+
+  React.useEffect(() => {
+    if (selectedPaneId === null) return;
+    tabRefs.current.get(selectedPaneId)?.scrollIntoView({
+      behavior: "auto",
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [selectedPaneId]);
+
+  const moveSelection = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    paneIndex: number,
+  ) => {
+    if (panes.length === 0) return;
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight") nextIndex = (paneIndex + 1) % panes.length;
+    else if (event.key === "ArrowLeft") {
+      nextIndex = (paneIndex - 1 + panes.length) % panes.length;
+    } else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = panes.length - 1;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const paneId = panes[nextIndex]!.paneId;
+    onSelectPane(paneId);
+    tabRefs.current.get(paneId)?.focus();
+  };
 
   return (
     <>
       <div
-        className="workbench-mobile-pane-toolbar"
-        data-mobile-pane-toolbar={area}
+        className="workbench-mobile-graph-view-rail"
+        data-testid="workbench-mobile-graph-view-rail"
       >
-        <button
-          ref={switcherRef}
-          type="button"
-          className="workbench-mobile-pane-switcher"
-          aria-label={switcherAriaLabel}
-          aria-haspopup="dialog"
-          aria-expanded={sheetMode === "switch"}
-          disabled={!paneSwitchingAvailable}
-          data-switching-available={paneSwitchingAvailable ? "true" : "false"}
-          onClick={() => setSheetMode("switch")}
+        <div
+          className="workbench-mobile-graph-view-tabs"
+          role="tablist"
+          aria-label={t("workbench.live.mobileGraphViews")}
         >
-          <LayoutPanelTop
-            className="h-4 w-4 shrink-0 text-wb-subtle"
-            aria-hidden="true"
-          />
-          <span className="min-w-0 flex-1 truncate text-start">
-            {selectedPane?.title ?? pickerLabel}
-          </span>
-          {paneSwitchingAvailable && (
-            <>
-              <span className="workbench-mobile-pane-count" aria-hidden="true">
-                {selectedIndex + 1}/{panes.length}
-              </span>
-              <ChevronDown
-                className="h-3.5 w-3.5 shrink-0 text-wb-subtle"
-                aria-hidden="true"
-              />
-            </>
-          )}
-        </button>
-        <button
-          type="button"
-          className="workbench-mobile-toolbar-action"
-          aria-label={settingsLabel}
-          disabled={selectedPaneId === null}
-          onClick={() => {
-            if (selectedPaneId !== null) onOpenPaneSettings(selectedPaneId);
-          }}
-        >
-          <Settings2 className="h-4 w-4" aria-hidden="true" />
-        </button>
-        {addOptions.length > 0 && onAddOption !== undefined
-          ? (
+          {panes.map((pane, paneIndex) => {
+            const selected = pane.paneId === selectedPaneId;
+            return (
+              <button
+                key={pane.paneId}
+                ref={(element) => {
+                  if (element === null) tabRefs.current.delete(pane.paneId);
+                  else tabRefs.current.set(pane.paneId, element);
+                }}
+                id={`${tabId}-graph-${pane.paneId}`}
+                type="button"
+                role="tab"
+                aria-controls={`${tabId}-graph-panel`}
+                aria-selected={selected}
+                tabIndex={selected ? 0 : -1}
+                className="workbench-mobile-graph-view-tab"
+                onClick={() => onSelectPane(pane.paneId)}
+                onKeyDown={(event) => moveSelection(event, paneIndex)}
+              >
+                <span className="truncate">{pane.title}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="workbench-mobile-graph-view-actions">
+          <button
+            type="button"
+            className="workbench-mobile-graph-view-action"
+            aria-label={t("workbench.live.mobileEditGraphView", {
+              title: panes.find(({ paneId }) => paneId === selectedPaneId)?.title
+                ?? "—",
+            })}
+            disabled={selectedPaneId === null}
+            onClick={() => {
+              if (selectedPaneId !== null) onOpenPaneSettings(selectedPaneId);
+            }}
+          >
+            <Settings2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+          {addOptions.length > 0 && (
             <button
               ref={addRef}
               type="button"
-              className="workbench-mobile-toolbar-action"
-              aria-label={addAriaLabel}
+              className="workbench-mobile-graph-view-action"
+              aria-label={t("workbench.live.mobileAddGraphView")}
               aria-haspopup="dialog"
-              aria-expanded={sheetMode === "add"}
-              onClick={() => setSheetMode("add")}
+              aria-expanded={addSheetOpen}
+              onClick={() => setAddSheetOpen(true)}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
             </button>
-          )
-          : onAdd !== undefined && (
+          )}
           <button
             type="button"
-            className="workbench-mobile-toolbar-action"
-            aria-label={addAriaLabel}
-            onClick={onAdd}
+            className="workbench-mobile-graph-view-action"
+            aria-label={t(
+              graphFocused
+                ? "workbench.live.mobileShowTasks"
+                : "workbench.live.mobileFocusGraph",
+            )}
+            aria-pressed={graphFocused}
+            onClick={onToggleGraphFocus}
           >
-            <Plus className="h-4 w-4" aria-hidden="true" />
+            {graphFocused
+              ? <ChevronsDown className="h-4 w-4" aria-hidden="true" />
+              : <ChevronsUp className="h-4 w-4" aria-hidden="true" />}
           </button>
-        )}
-        {trailingAction}
+        </div>
       </div>
-      <MobilePaneChooserSheetV3
-        mode={sheetMode}
-        areaLabel={areaLabel}
-        panes={panes}
-        selectedPaneId={selectedPaneId}
+      <MobileAddPaneSheetV3
+        open={addSheetOpen}
+        areaLabel={t("workbench.live.mobilePaneAreas.graph")}
         addOptions={addOptions}
-        returnFocusRef={returnFocusRef}
-        onClose={() => setSheetMode(null)}
-        onSelectPane={(paneId) => {
-          onSelectPane(paneId);
-          setSheetMode(null);
-        }}
+        returnFocusRef={addRef}
+        onClose={() => setAddSheetOpen(false)}
         onAddOption={(optionId) => {
-          onAddOption?.(optionId);
-          setSheetMode(null);
+          onAddOption(optionId);
+          setAddSheetOpen(false);
         }}
       />
     </>
   );
 }
 
-function MobilePaneChooserSheetV3({
-  mode,
-  areaLabel,
+function MobilePaneGroupCollectionV3({
+  area,
   panes,
-  selectedPaneId,
+  expandedPaneIds,
+  renderPane,
+  onTogglePane,
+  onOpenPaneSettings,
+  onAddPane,
+}: Readonly<{
+  area: "control" | "output";
+  panes: readonly WorkbenchPaneDefinitionV3[];
+  expandedPaneIds: ReadonlySet<string>;
+  renderPane: (pane: WorkbenchPaneDefinitionV3) => React.ReactNode;
+  onTogglePane: (paneId: string) => void;
+  onOpenPaneSettings: (paneId: string) => void;
+  onAddPane: () => void;
+}>) {
+  const { t } = useTranslation();
+  const collectionLabel = t(
+    area === "control"
+      ? "workbench.live.mobileControlGroups"
+      : "workbench.live.mobileMetricGroups",
+  );
+
+  return (
+    <div
+      className="workbench-mobile-pane-groups"
+      data-mobile-pane-groups={area}
+      role="group"
+      aria-label={collectionLabel}
+    >
+      {panes.length === 0 && (
+        <MobileEmptyPaneV3 message={t("workbench.editor.emptyPaneArea")} />
+      )}
+      {panes.map((pane) => {
+        const expanded = expandedPaneIds.has(pane.paneId);
+        const headingId = `mobile-pane-${pane.paneId}-heading`;
+        const bodyId = `mobile-pane-${pane.paneId}-body`;
+        return (
+          <section
+            key={pane.paneId}
+            className="workbench-mobile-pane-group"
+            data-mobile-pane-group-role={area}
+            data-expanded={expanded ? "true" : "false"}
+            aria-labelledby={headingId}
+          >
+            <header className="workbench-mobile-pane-group-header">
+              <button
+                id={headingId}
+                type="button"
+                className="workbench-mobile-pane-group-toggle"
+                aria-controls={bodyId}
+                aria-expanded={expanded}
+                onClick={() => onTogglePane(pane.paneId)}
+              >
+                <ChevronRight
+                  className="workbench-mobile-pane-group-chevron h-4 w-4"
+                  aria-hidden="true"
+                />
+                <span className="min-w-0 flex-1 truncate text-start">
+                  {pane.title}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="workbench-mobile-pane-group-settings"
+                aria-label={t("workbench.live.mobileEditPaneGroup", {
+                  title: pane.title,
+                })}
+                onClick={() => onOpenPaneSettings(pane.paneId)}
+              >
+                <Settings2 className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </header>
+            <div
+              id={bodyId}
+              className="workbench-mobile-pane-group-body"
+              hidden={!expanded}
+            >
+              {expanded && renderPane(pane)}
+            </div>
+          </section>
+        );
+      })}
+      <button
+        type="button"
+        className="workbench-mobile-pane-group-add"
+        onClick={onAddPane}
+      >
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        <span>
+          {t(
+            area === "control"
+              ? "workbench.live.mobileAddControlGroup"
+              : "workbench.live.mobileAddMetricGroup",
+          )}
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function MobileAddPaneSheetV3({
+  open,
+  areaLabel,
   addOptions,
   returnFocusRef,
   onClose,
-  onSelectPane,
   onAddOption,
 }: Readonly<{
-  mode: MobilePaneSheetModeV3 | null;
+  open: boolean;
   areaLabel: string;
-  panes: readonly WorkbenchPaneDefinitionV3[];
-  selectedPaneId: string | null;
   addOptions: readonly WorkbenchAddPaneOptionV3[];
   returnFocusRef: React.RefObject<HTMLButtonElement | null>;
   onClose: () => void;
-  onSelectPane: (paneId: string) => void;
   onAddOption: (optionId: string) => void;
 }>) {
   const { t } = useTranslation();
   const dialogRef = React.useRef<HTMLElement | null>(null);
   const onCloseRef = React.useRef(onClose);
   onCloseRef.current = onClose;
-  const [mounted, setMounted] = React.useState(mode !== null);
+  const [mounted, setMounted] = React.useState(open);
   const [visible, setVisible] = React.useState(false);
-  const [renderedMode, setRenderedMode] =
-    React.useState<MobilePaneSheetModeV3>(mode ?? "switch");
   const titleId = React.useId();
-  const open = mode !== null;
 
   React.useEffect(() => {
     if (open) {
       setMounted(true);
-      setRenderedMode(mode ?? "switch");
       const frame = window.requestAnimationFrame(() => setVisible(true));
       return () => window.cancelAnimationFrame(frame);
     }
     setVisible(false);
     const timer = window.setTimeout(() => setMounted(false), 180);
     return () => window.clearTimeout(timer);
-  }, [mode, open]);
+  }, [open]);
 
   React.useEffect(() => {
     if (!open || typeof document === "undefined") return undefined;
@@ -486,11 +635,9 @@ function MobilePaneChooserSheetV3({
       (selected ?? dialogRef.current)?.focus();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [mounted, open, renderedMode]);
+  }, [mounted, open]);
 
   if (!mounted || typeof document === "undefined") return null;
-  const switching = renderedMode === "switch";
-  const choices = switching ? panes : addOptions;
 
   return createPortal(
     <div
@@ -517,12 +664,7 @@ function MobilePaneChooserSheetV3({
               {areaLabel}
             </p>
             <h2 id={titleId} className="workbench-mobile-pane-sheet-title">
-              {t(
-                switching
-                  ? "workbench.live.mobilePaneSwitcherTitle"
-                  : "workbench.live.mobileAddPaneTitle",
-                { area: areaLabel },
-              )}
+              {t("workbench.live.mobileAddPaneTitle", { area: areaLabel })}
             </h2>
           </div>
           <button
@@ -535,48 +677,26 @@ function MobilePaneChooserSheetV3({
           </button>
         </header>
         <div className="workbench-mobile-pane-choice-list">
-          {choices.map((choice, index) => {
-            const choiceId = switching
-              ? (choice as WorkbenchPaneDefinitionV3).paneId
-              : (choice as WorkbenchAddPaneOptionV3).id;
-            const selected = switching && choiceId === selectedPaneId;
+          {addOptions.map((choice) => {
+            const choiceId = choice.id;
             return (
               <button
                 key={choiceId}
                 type="button"
                 className="workbench-mobile-pane-choice"
-                data-mobile-pane-selected={selected ? "true" : "false"}
-                aria-current={selected ? "true" : undefined}
-                onClick={() => {
-                  if (switching) onSelectPane(choiceId);
-                  else onAddOption(choiceId);
-                }}
+                onClick={() => onAddOption(choiceId)}
               >
                 <span className="workbench-mobile-pane-choice-icon">
-                  {switching
-                    ? <LayoutPanelTop className="h-4 w-4" aria-hidden="true" />
-                    : <Plus className="h-4 w-4" aria-hidden="true" />}
+                  <Plus className="h-4 w-4" aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1 text-start">
                   <span className="block truncate">
-                    {choice.label ?? (choice as WorkbenchPaneDefinitionV3).title}
+                    {choice.label}
                   </span>
                   <span className="mt-0.5 block text-[0.68rem] text-wb-subtle">
-                    {switching
-                      ? t("workbench.live.mobilePanePosition", {
-                          current: index + 1,
-                          total: panes.length,
-                        })
-                      : (choice as WorkbenchAddPaneOptionV3).description
-                        ?? t("workbench.live.mobileCreatePane")}
+                    {choice.description ?? t("workbench.live.mobileCreatePane")}
                   </span>
                 </span>
-                {selected && (
-                  <Check
-                    className="h-4 w-4 shrink-0 text-wb-accent"
-                    aria-hidden="true"
-                  />
-                )}
               </button>
             );
           })}

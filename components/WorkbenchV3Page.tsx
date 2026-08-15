@@ -2573,7 +2573,7 @@ const WorkbenchV3Session = ({
   };
   const renderOutputPaneV3 = (
     paneDefinition: WorkbenchPaneDefinitionV3,
-    scrollMode: "contained" | "parent" = "contained",
+    scrollMode: "contained" | "parent" | "section" = "contained",
   ) => {
     const pane = outputPanes.find(
       ({ paneId }) => paneId === paneDefinition.paneId,
@@ -2606,7 +2606,7 @@ const WorkbenchV3Session = ({
   };
   const renderControlPaneV3 = (
     paneDefinition: WorkbenchPaneDefinitionV3,
-    scrollMode: "contained" | "parent" = "contained",
+    scrollMode: "contained" | "parent" | "section" = "contained",
   ) => {
     const pane = controlPanes.find(
       ({ paneId }) => paneId === paneDefinition.paneId,
@@ -3057,9 +3057,9 @@ const WorkbenchV3Session = ({
               scenarioContent={renderScenarioManagerV3("embedded-mobile")}
               scenarioError={scenarioErrorNotice}
               renderGraphPane={renderGraphPaneV3}
-              renderOutputPane={(pane) => renderOutputPaneV3(pane, "parent")}
+              renderOutputPane={(pane) => renderOutputPaneV3(pane, "section")}
               renderControlPane={(pane) =>
-                renderControlPaneV3(pane, "parent")}
+                renderControlPaneV3(pane, "section")}
               onOpenPaneSettings={openPaneSettings}
               onAddGraphPane={(optionId) =>
                 addPaneToRoleArea("graph", optionId)}
@@ -4762,7 +4762,7 @@ function OutputPaneBodyV3({
   frame: StudioSimulationFrameV2 | null;
   onOpenBindingSettings: () => void;
   pane: ExperimentSurfaceOutputPaneV2;
-  scrollMode?: "contained" | "parent";
+  scrollMode?: "contained" | "parent" | "section";
   showBinding: boolean;
   scenarioLabel: string;
 }>) {
@@ -4782,7 +4782,9 @@ function OutputPaneBodyV3({
       return definition === undefined ? [] : [{ definition, item }];
     });
   return (
-    <div className="workbench-output-pane flex h-full min-h-0 flex-col bg-wb-aux">
+    <div className={`workbench-output-pane flex min-h-0 flex-col bg-wb-aux ${
+      scrollMode === "section" ? "" : "h-full"
+    }`}>
       <WorkbenchPaneBindingButtonV3
         label={bindingLabel}
         modeLabel={bindingModeLabel}
@@ -4793,7 +4795,7 @@ function OutputPaneBodyV3({
       />
       <ExperimentOutputGridV3
         variant="pane"
-        scrollMode={scrollMode}
+        scrollMode={scrollMode === "contained" ? "contained" : "parent"}
         emptyMessage={t("workbench.live.noSelectedOutputs")}
         items={selected.map(({ definition: output, item }) => {
           const outputValue = frame?.outputs[item.outputId];
@@ -4843,7 +4845,7 @@ function ControlPaneBodyV3({
   pane: ExperimentSurfaceControlPaneV2;
   pendingControlId: string | null;
   scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
-  scrollMode?: "contained" | "parent";
+  scrollMode?: "contained" | "parent" | "section";
 }>) {
   const { t } = useTranslation();
   const targetScenarioIds = resolveWorkbenchControlPaneScenarioIdsV3(
@@ -4883,7 +4885,11 @@ function ControlPaneBodyV3({
   });
   return (
     <section className={`workbench-control-pane flex min-w-0 flex-col bg-wb-aux ${
-      scrollMode === "parent" ? "min-h-full" : "h-full min-h-0"
+      scrollMode === "parent"
+        ? "min-h-full"
+        : scrollMode === "section"
+          ? "min-h-0"
+          : "h-full min-h-0"
     }`}>
       <WorkbenchPaneBindingButtonV3
         label={bindingLabel}
@@ -4894,7 +4900,7 @@ function ControlPaneBodyV3({
         visible={scenarios.length > 1}
       />
       <div className={`min-h-0 flex-1 px-2 pb-2 ${
-        scrollMode === "parent" ? "overflow-visible" : "overflow-y-auto"
+        scrollMode === "contained" ? "overflow-y-auto" : "overflow-visible"
       }`}>
         {contract.controlCatalog.length === 0 ? (
           <p className="p-3 text-xs leading-5 text-wb-muted">

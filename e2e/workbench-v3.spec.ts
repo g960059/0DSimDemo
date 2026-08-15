@@ -836,59 +836,75 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
     getComputedStyle(element).overflowY)).toBe("auto");
   const graphBox = await graphArea.boundingBox();
   expect(graphBox?.width ?? 0).toBeGreaterThan(360);
-  const graphSwitcher = graphArea.getByRole("button", {
-    name: "グラフPaneを切り替え（現在：PV loop）",
+  const graphRail = page.getByTestId("workbench-mobile-graph-view-rail");
+  const graphTabs = graphRail.getByRole("tab");
+  await expect(graphTabs).toHaveCount(3);
+  await expect(graphRail.getByRole("tab", { name: "PV loop" }))
+    .toHaveAttribute("aria-selected", "true");
+  const pressureTab = graphRail.getByRole("tab", {
+    name: "Pressure waveforms",
   });
-  await expect(graphSwitcher).toContainText("1/3");
-  await graphSwitcher.click();
-  const graphSwitcherSheet = page.getByRole("dialog", {
-    name: "グラフを切り替え",
-  });
-  await expect(graphSwitcherSheet).toBeVisible();
-  await expect(
-    graphSwitcherSheet.locator(".workbench-mobile-pane-choice"),
-  ).toHaveCount(3);
-  await expect(graphSwitcherSheet.getByRole("button", { name: /^PV loop/ }))
-    .toBeFocused();
-  await page.keyboard.press("Escape");
-  await expect(graphSwitcherSheet).toBeHidden();
-  await expect(graphSwitcher).toBeFocused();
-  await graphSwitcher.click();
-  await graphSwitcherSheet.getByRole("button", {
-    name: /^Pressure waveforms/,
-  }).click();
-  await expect(graphSwitcherSheet).toBeHidden();
+  await pressureTab.click();
+  await expect(pressureTab).toHaveAttribute("aria-selected", "true");
   await expectNonZeroCanvas(
     page.locator('[data-chart-kind="sweeping-waveform-v3"]'),
   );
-  await graphArea.getByRole("button", { name: "グラフPaneを追加" }).click();
+  await pressureTab.press("ArrowLeft");
+  await expect(graphTabs.nth(1)).toHaveAttribute("aria-selected", "true");
+  await pressureTab.click();
+  const addGraphView = graphRail.getByRole("button", {
+    name: "グラフビューを追加",
+  });
+  await addGraphView.click();
   const graphAddSheet = page.getByRole("dialog", { name: "グラフを追加" });
   await expect(graphAddSheet).toBeVisible();
   await expect(
     graphAddSheet.locator(".workbench-mobile-pane-choice"),
   ).toHaveCount(5);
-  await graphAddSheet.getByRole("button", { name: "Pane選択を閉じる" })
+  await graphAddSheet.getByRole("button", { name: "追加メニューを閉じる" })
     .click();
   await expect(graphAddSheet).toBeHidden();
+  await expect(addGraphView).toBeFocused();
 
   await expect(taskDeck.getByRole("tab", { name: "コントロール" }))
     .toHaveAttribute("aria-selected", "true");
+  const controlGroup = taskDeck.locator(
+    '[data-mobile-pane-group-role="control"]',
+  ).first();
+  const controlGroupToggle = controlGroup.locator("button[aria-expanded]");
+  await expect(controlGroupToggle).toHaveAttribute("aria-expanded", "true");
   await expect(
     page.getByRole("slider", { name: "Systemic resistance" }),
   ).toBeVisible();
-  await graphArea.getByRole("button", { name: "グラフを拡大" }).click();
+  await controlGroupToggle.click();
+  await expect(controlGroupToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(
+    page.getByRole("slider", { name: "Systemic resistance" }),
+  ).toBeHidden();
+  await controlGroupToggle.click();
+  await graphRail.getByRole("button", { name: "グラフを拡大" }).click();
   await expect(mobileShell).toHaveAttribute("data-graph-focused", "true");
   await expect(taskScroll).toHaveCount(0);
   await taskDeck.getByRole("tab", { name: "出力" }).click();
   await expect(mobileShell).toHaveAttribute("data-graph-focused", "false");
+  const outputGroup = taskDeck.locator(
+    '[data-mobile-pane-group-role="output"]',
+  ).first();
+  const outputGroupToggle = outputGroup.locator("button[aria-expanded]");
+  await expect(outputGroupToggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Mean arterial pressure", { exact: true }))
     .toBeVisible();
+  await outputGroupToggle.click();
+  await expect(page.getByText("Mean arterial pressure", { exact: true }))
+    .toBeHidden();
+  await outputGroupToggle.click();
   await taskDeck.getByRole("tab", { name: "Scenario" }).click();
   await expect(
     taskDeck.getByTestId("workbench-scenario-manager-v3"),
   ).toHaveAttribute("data-scenario-manager-variant", "embedded-mobile");
   await taskDeck.getByRole("tab", { name: "コントロール" }).click();
-  await taskDeck.getByRole("button", { name: "Pane設定" }).click();
+  await taskDeck.locator(".workbench-mobile-pane-group-settings").first()
+    .click();
   const settings = page.getByRole("dialog", { name: "Pane設定" });
   await expect(settings).toBeVisible();
   await expect(
