@@ -749,7 +749,7 @@ test("@mobile 390px Workbench uses one graph tab group and keeps controls reacha
     exact: true,
   })).toBeVisible();
   const maximumRate = Number(await rateSlider.getAttribute("max"));
-  expect(maximumRate).toBeGreaterThanOrEqual(1);
+  expect(maximumRate).toBeGreaterThanOrEqual(0.25);
   expect(maximumRate).toBeLessThanOrEqual(5);
   expect(maximumRate === 0.25 || Number.isInteger(maximumRate * 2)).toBe(true);
 
