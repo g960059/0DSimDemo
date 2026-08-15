@@ -11,17 +11,20 @@ body:has(.public-static-shell) {
    * These semantic roles are shared by Workbench, Sessions, Article inflow,
    * and Peek so the same content never changes visual meaning by context.
    */
-  --wb-canvas-bg: #0a141d;
-  --wb-chrome-bg: #15222f;
-  --wb-inspector-bg: #101c28;
-  --wb-floating-bg: #182634;
-  --wb-app-bg: #0c1823;
+  --wb-workspace-bg: #0a141d;
+  --wb-tool-plane-bg: #121f2b;
+  --wb-overlay-bg: #182634;
+  --wb-canvas-bg: var(--wb-workspace-bg);
+  --wb-chrome-bg: var(--wb-tool-plane-bg);
+  --wb-inspector-bg: var(--wb-tool-plane-bg);
+  --wb-floating-bg: var(--wb-overlay-bg);
+  --wb-app-bg: var(--wb-tool-plane-bg);
   --wb-header-bg: var(--wb-chrome-bg);
   --wb-panel-bg: var(--wb-floating-bg);
   --wb-panel-bg-soft: #1c2a38;
   --wb-zone-main-bg: var(--wb-canvas-bg);
   --wb-zone-aux-bg: var(--wb-inspector-bg);
-  --wb-tab-strip-bg: transparent;
+  --wb-tab-strip-bg: var(--wb-tool-plane-bg);
   --wb-hover-bg: rgba(164, 185, 202, 0.08);
   --wb-active-bg: rgba(61, 157, 240, 0.13);
   --wb-input-bg: #1c2a38;
@@ -67,6 +70,9 @@ body:has(.public-static-shell) {
 }
 
 @theme inline {
+  --color-wb-workspace: var(--wb-workspace-bg);
+  --color-wb-tool: var(--wb-tool-plane-bg);
+  --color-wb-overlay: var(--wb-overlay-bg);
   --color-wb-app: var(--wb-app-bg);
   --color-wb-canvas: var(--wb-canvas-bg);
   --color-wb-chrome: var(--wb-chrome-bg);
@@ -98,17 +104,20 @@ body:has(.public-static-shell) {
 .app-root[data-app-theme="light"],
 body[data-app-theme="light"] {
   color-scheme: light;
-  --wb-canvas-bg: #ffffff;
-  --wb-chrome-bg: #fafafd;
-  --wb-inspector-bg: #fafafd;
-  --wb-floating-bg: #ffffff;
-  --wb-app-bg: #fafafd;
+  --wb-workspace-bg: #ffffff;
+  --wb-tool-plane-bg: #fafafd;
+  --wb-overlay-bg: #ffffff;
+  --wb-canvas-bg: var(--wb-workspace-bg);
+  --wb-chrome-bg: var(--wb-tool-plane-bg);
+  --wb-inspector-bg: var(--wb-tool-plane-bg);
+  --wb-floating-bg: var(--wb-overlay-bg);
+  --wb-app-bg: var(--wb-tool-plane-bg);
   --wb-header-bg: var(--wb-chrome-bg);
   --wb-panel-bg: var(--wb-floating-bg);
   --wb-panel-bg-soft: #f1f1f3;
   --wb-zone-main-bg: var(--wb-canvas-bg);
   --wb-zone-aux-bg: var(--wb-inspector-bg);
-  --wb-tab-strip-bg: var(--wb-chrome-bg);
+  --wb-tab-strip-bg: var(--wb-tool-plane-bg);
   --wb-hover-bg: #f1f1f3;
   --wb-active-bg: rgba(0, 105, 204, 0.1);
   --wb-input-bg: #ffffff;

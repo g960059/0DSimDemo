@@ -32,16 +32,20 @@ describe('application theme', () => {
     expect(html).not.toContain('document.body.dataset.workbenchTheme');
   });
 
-  it('keeps graph canvases dominant and chrome, inspectors, and floating surfaces semantic', () => {
+  it('keeps workspace, tool plane, and floating overlay roles semantic', () => {
     const css = readFileSync('index.css', 'utf8');
 
-    expect(css).toContain('--wb-canvas-bg: #0a141d;');
-    expect(css).toContain('--wb-chrome-bg: #15222f;');
-    expect(css).toContain('--wb-inspector-bg: #101c28;');
-    expect(css).toContain('--wb-floating-bg: #182634;');
-    expect(css).toContain('--wb-canvas-bg: #ffffff;');
-    expect(css).toContain('--wb-chrome-bg: #fafafd;');
-    expect(css).toContain('--wb-inspector-bg: #fafafd;');
+    expect(css).toContain('--wb-workspace-bg: #0a141d;');
+    expect(css).toContain('--wb-tool-plane-bg: #121f2b;');
+    expect(css).toContain('--wb-overlay-bg: #182634;');
+    expect(css).toContain('--wb-workspace-bg: #ffffff;');
+    expect(css).toContain('--wb-tool-plane-bg: #fafafd;');
+    expect(css).toContain('--wb-overlay-bg: #ffffff;');
+    expect(css).toContain('--wb-canvas-bg: var(--wb-workspace-bg);');
+    expect(css).toContain('--wb-chrome-bg: var(--wb-tool-plane-bg);');
+    expect(css).toContain('--wb-inspector-bg: var(--wb-tool-plane-bg);');
+    expect(css).toContain('--wb-floating-bg: var(--wb-overlay-bg);');
+    expect(css).toContain('--wb-tab-strip-bg: var(--wb-tool-plane-bg);');
     expect(css).toContain('--wb-border: #f0f1f2;');
     expect(css).toContain('--wb-zone-main-bg: var(--wb-canvas-bg);');
     expect(css).toContain('--wb-zone-aux-bg: var(--wb-inspector-bg);');
@@ -54,6 +58,8 @@ describe('application theme', () => {
     expect(css).toContain('box-shadow: var(--wb-shadow-canvas-recess);');
     expect(css).toContain('box-shadow: var(--wb-shadow-floating);');
     expect(css).not.toContain('box-shadow: var(--wb-shadow-drawer');
+    expect(css).not.toContain('--wb-chrome-bg: #15222f;');
+    expect(css).not.toContain('--wb-inspector-bg: #101c28;');
   });
 
   it('uses the same semantic grid and axis tokens in every Canvas renderer', () => {
