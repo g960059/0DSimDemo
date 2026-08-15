@@ -389,6 +389,53 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     await conductor.pause();
   });
 
+  it("re-anchors compute after a long stall instead of replaying missed deadlines", async () => {
+    const clock = new GroupClockV3();
+    const performance = new WorkbenchPerformanceDiagnosticsV3({
+      enabled: true,
+      nowMs: clock.now,
+    });
+    let acceptedTimeSec = 0;
+    let advanceCount = 0;
+    let presentedFrameCount = 0;
+    const conductor = new WorkbenchGroupTimeConductorV3({
+      lanes: () => [laneV3("baseline", acceptedTimeSec, async (stepCount) => {
+        advanceCount += 1;
+        clock.elapse(advanceCount === 1 ? 10_000 : 1);
+        const frames = framesV3("baseline", acceptedTimeSec, stepCount);
+        acceptedTimeSec = frames.at(-1)!.timeSec;
+        return frames;
+      })],
+      onFrames: (frames) => { presentedFrameCount += frames.length; },
+      onError: vi.fn(),
+      nowMs: clock.now,
+      schedule: clock.schedule,
+      cancel: clock.cancel,
+      batchSteps: 16,
+      presentationIntervalMs: 16,
+      maximumPresentationFramesPerLane: 8,
+      performanceRecorder: performance,
+    });
+
+    conductor.play();
+    await clock.advanceBy(0);
+
+    // The completed stalled batch may be followed by one immediate batch.
+    // Older wall deadlines are discarded rather than converted into accepted
+    // model work and a many-second presentation queue.
+    expect(advanceCount).toBe(2);
+    expect(acceptedTimeSec).toBeCloseTo(0.064);
+    const backlog = performance.snapshot().values[
+      "scheduler.group.presentation-backlog-frames-per-lane"
+    ];
+    expect(backlog).toBeDefined();
+    expect(backlog!.maximum).toBeLessThanOrEqual(16);
+    expect(backlog!.latest).toBeLessThanOrEqual(16);
+
+    await conductor.pause();
+    expect(presentedFrameCount).toBe(32);
+  });
+
   it("fails closed before publishing a lane with an off-tick clock", async () => {
     const clock = new GroupClockV3();
     const onFrames = vi.fn();

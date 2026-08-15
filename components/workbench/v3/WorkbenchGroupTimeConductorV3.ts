@@ -313,10 +313,15 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
       this.#recordPresentationBacklog();
       this.#publishOrSchedulePresentation(completedAtMs);
       const intervalMs = this.#batchModelDurationMs() / this.#playbackRate;
-      // Carry the absolute deadline forward instead of starting each delay
-      // from the last callback. Otherwise sub-millisecond timer lateness is
-      // accumulated into a visible rate error at high playback multipliers.
-      this.#nextPumpWallMs += intervalMs;
+      // Carry the absolute deadline forward while it is still current, so
+      // ordinary sub-millisecond timer lateness cannot accumulate into a
+      // visible rate error at high playback multipliers. A suspended tab or
+      // exceptional Worker stall must not replay every missed wall deadline:
+      // re-anchor at completion and permit at most one immediate batch.
+      this.#nextPumpWallMs = Math.max(
+        this.#nextPumpWallMs + intervalMs,
+        completedAtMs,
+      );
       this.#queuePump(Math.max(0, this.#nextPumpWallMs - completedAtMs));
     }).catch((error) => {
       this.#running = false;

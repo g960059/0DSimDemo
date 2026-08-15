@@ -33,7 +33,7 @@ body:has(.public-static-shell) {
   --wb-control-track: rgba(160, 180, 198, 0.22);
   --wb-text: #e9eef4;
   --wb-text-muted: #a3b1bd;
-  --wb-text-subtle: #71818f;
+  --wb-text-subtle: #8494a1;
   --wb-accent: #3d9df0;
   --wb-accent-soft: rgba(61, 157, 240, 0.14);
   --wb-primary: #1e74b7;
@@ -126,7 +126,7 @@ body[data-app-theme="light"] {
   --wb-control-track: rgba(32, 32, 32, 0.16);
   --wb-text: #202020;
   --wb-text-muted: #606060;
-  --wb-text-subtle: #868686;
+  --wb-text-subtle: #6d6d6d;
   --wb-accent: #0069cc;
   --wb-accent-soft: rgba(0, 105, 204, 0.1);
   --wb-primary: #0069cc;

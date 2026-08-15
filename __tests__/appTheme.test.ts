@@ -97,6 +97,30 @@ describe('application theme', () => {
     expect(reader).toContain('bg-wb-inspector');
   });
 
+  it('keeps subtle small text above the WCAG AA contrast threshold', () => {
+    const css = readFileSync('index.css', 'utf8');
+    const themePairs = [
+      {
+        foreground: '#8494a1',
+        backgrounds: ['#0a141d', '#121f2b', '#182634', '#1c2a38'],
+      },
+      {
+        foreground: '#6d6d6d',
+        backgrounds: ['#ffffff', '#fafafd', '#f1f1f3'],
+      },
+    ] as const;
+
+    themePairs.forEach(({ foreground, backgrounds }) => {
+      expect(css).toContain(`--wb-text-subtle: ${foreground};`);
+      backgrounds.forEach((background) => {
+        expect(
+          contrastRatio(foreground, background),
+          `${foreground} on ${background}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      });
+    });
+  });
+
   it('keeps every tool region on one plane above the graph workspace', () => {
     const workbench = readFileSync('components/WorkbenchV3Page.tsx', 'utf8');
     const scenarios = readFileSync(
