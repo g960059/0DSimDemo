@@ -30566,24 +30566,10 @@ function validateAndOwnExecutionPlanDescriptorV1(value) {
 function bindExecutionPlanV1(descriptorValue, catalogValue) {
   const descriptor = validateAndOwnExecutionPlanDescriptorV1(descriptorValue);
   const catalog = validateAndOwnExecutionPlanKernelCatalogV1(catalogValue);
+  assertExecutionPlanCatalogMatchesDescriptorV1(descriptor, catalog);
   const requiredComponents = descriptor.stateLayout.blocks.map(({ kernelId }) => kernelId);
   const requiredPaths = descriptor.hydraulicGraph.pathKernelIds;
   const requiredSolveSystems = descriptor.solveGroups.map(({ systemKernelId }) => systemKernelId);
-  assertExactBindingSetV1(
-    requiredComponents,
-    catalog.componentKernelIds,
-    "component kernel"
-  );
-  assertExactBindingSetV1(
-    requiredPaths,
-    catalog.hydraulicPathKernelIds,
-    "hydraulic path kernel"
-  );
-  assertExactBindingSetV1(
-    requiredSolveSystems,
-    catalog.solveSystemKernelIds,
-    "solve system kernel"
-  );
   const componentOrdinalById = new Map(catalog.componentKernelIds.map(
     (kernelId, ordinal) => [kernelId, ordinal]
   ));
@@ -31084,6 +31070,7 @@ function assertBoundExecutionPlanV1(value, descriptorValue) {
   const catalog = validateAndOwnExecutionPlanKernelCatalogV1(
     bound.bindingCatalog
   );
+  assertExecutionPlanCatalogMatchesDescriptorV1(descriptor, catalog);
   const componentOrdinals = int32ViewV1(
     bound.componentKernelBindingOrdinals,
     descriptor.stateLayout.blocks.length,
@@ -31440,6 +31427,23 @@ function assertExactBindingSetV1(required, provided, label) {
   if (requiredSet.size !== providedSet.size || [...requiredSet].some((id) => !providedSet.has(id))) {
     throw new Error(`Execution plan ${label} bindings must match exactly`);
   }
+}
+function assertExecutionPlanCatalogMatchesDescriptorV1(descriptor, catalog) {
+  assertExactBindingSetV1(
+    descriptor.stateLayout.blocks.map(({ kernelId }) => kernelId),
+    catalog.componentKernelIds,
+    "component kernel"
+  );
+  assertExactBindingSetV1(
+    descriptor.hydraulicGraph.pathKernelIds,
+    catalog.hydraulicPathKernelIds,
+    "hydraulic path kernel"
+  );
+  assertExactBindingSetV1(
+    descriptor.solveGroups.map(({ systemKernelId }) => systemKernelId),
+    catalog.solveSystemKernelIds,
+    "solve system kernel"
+  );
 }
 function ownDataV1(value, path, ancestors = /* @__PURE__ */ new Set(), depth = 0) {
   if (depth > MAXIMUM_EXECUTION_PLAN_DATA_DEPTH_V1) {
@@ -47690,7 +47694,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-57";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-58";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";

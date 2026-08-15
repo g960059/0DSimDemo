@@ -657,26 +657,12 @@ export function bindExecutionPlanV1(
 ): BoundExecutionPlanV1 {
   const descriptor = validateAndOwnExecutionPlanDescriptorV1(descriptorValue);
   const catalog = validateAndOwnExecutionPlanKernelCatalogV1(catalogValue);
+  assertExecutionPlanCatalogMatchesDescriptorV1(descriptor, catalog);
   const requiredComponents = descriptor.stateLayout.blocks
     .map(({ kernelId }) => kernelId);
   const requiredPaths = descriptor.hydraulicGraph.pathKernelIds;
   const requiredSolveSystems = descriptor.solveGroups
     .map(({ systemKernelId }) => systemKernelId);
-  assertExactBindingSetV1(
-    requiredComponents,
-    catalog.componentKernelIds,
-    "component kernel",
-  );
-  assertExactBindingSetV1(
-    requiredPaths,
-    catalog.hydraulicPathKernelIds,
-    "hydraulic path kernel",
-  );
-  assertExactBindingSetV1(
-    requiredSolveSystems,
-    catalog.solveSystemKernelIds,
-    "solve system kernel",
-  );
   const componentOrdinalById = new Map(catalog.componentKernelIds.map(
     (kernelId, ordinal) => [kernelId, ordinal] as const,
   ));
@@ -1375,6 +1361,7 @@ export function assertBoundExecutionPlanV1(
   const catalog = validateAndOwnExecutionPlanKernelCatalogV1(
     bound.bindingCatalog,
   );
+  assertExecutionPlanCatalogMatchesDescriptorV1(descriptor, catalog);
   const componentOrdinals = int32ViewV1(
     bound.componentKernelBindingOrdinals,
     descriptor.stateLayout.blocks.length,
@@ -1790,6 +1777,27 @@ function assertExactBindingSetV1(
   ) {
     throw new Error(`Execution plan ${label} bindings must match exactly`);
   }
+}
+
+function assertExecutionPlanCatalogMatchesDescriptorV1(
+  descriptor: ExecutionPlanDescriptorV1,
+  catalog: ExecutionPlanKernelBindingCatalogV1,
+): void {
+  assertExactBindingSetV1(
+    descriptor.stateLayout.blocks.map(({ kernelId }) => kernelId),
+    catalog.componentKernelIds,
+    "component kernel",
+  );
+  assertExactBindingSetV1(
+    descriptor.hydraulicGraph.pathKernelIds,
+    catalog.hydraulicPathKernelIds,
+    "hydraulic path kernel",
+  );
+  assertExactBindingSetV1(
+    descriptor.solveGroups.map(({ systemKernelId }) => systemKernelId),
+    catalog.solveSystemKernelIds,
+    "solve system kernel",
+  );
 }
 
 function ownDataV1(

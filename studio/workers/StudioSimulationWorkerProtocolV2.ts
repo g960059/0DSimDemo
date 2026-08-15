@@ -55,7 +55,7 @@ export type StudioSimulationWorkerInitializationTimingV2 = Readonly<{
   authoringSetupMs: number;
   sessionCreateMs: number;
   initialFrameMs: number;
-  /** Reserved for the later descriptor-binding cutover. */
+  /** Exact kernel binding and plan-owned allocation; null for legacy models. */
   executionPlanBindMs: number | null;
   totalWorkerInitializeMs: number;
 }>;

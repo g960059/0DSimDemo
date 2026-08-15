@@ -895,6 +895,36 @@ describe("ModelDefinition V1 execution-plan compiler", () => {
     })).toThrow("solve system kernel bindings must match exactly");
 
     const bound = bindExecutionPlanV1(descriptor, catalog);
+    expect(() => assertBoundExecutionPlanV1({
+      ...bound,
+      bindingCatalog: {
+        ...bound.bindingCatalog,
+        componentKernelIds: [
+          ...bound.bindingCatalog.componentKernelIds,
+          "synthetic-component/unregistered",
+        ],
+      },
+    }, descriptor)).toThrow("component kernel bindings must match exactly");
+    expect(() => assertBoundExecutionPlanV1({
+      ...bound,
+      bindingCatalog: {
+        ...bound.bindingCatalog,
+        hydraulicPathKernelIds: [
+          ...bound.bindingCatalog.hydraulicPathKernelIds,
+          "synthetic-flow/unregistered",
+        ],
+      },
+    }, descriptor)).toThrow("hydraulic path kernel bindings must match exactly");
+    expect(() => assertBoundExecutionPlanV1({
+      ...bound,
+      bindingCatalog: {
+        ...bound.bindingCatalog,
+        solveSystemKernelIds: [
+          ...bound.bindingCatalog.solveSystemKernelIds,
+          "synthetic-solve/unregistered",
+        ],
+      },
+    }, descriptor)).toThrow("solve system kernel bindings must match exactly");
     const wrongGraph = new Int32Array(bound.graphUpstreamNodeIndices);
     wrongGraph[0] = wrongGraph[0] === 0 ? 1 : 0;
     expect(() => assertBoundExecutionPlanV1({

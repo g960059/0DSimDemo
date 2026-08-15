@@ -84,7 +84,7 @@ circulation claim to the model.
 
 ## Bound runtime slice
 
-The Standard-57 development candidate advertises both
+The Standard-58 development candidate advertises both
 `runtime/execution-plan-typed-authority-binding-v1` and
 `runtime/execution-plan-newton-workspace-v1`. Its exact artifact contains the
 generated descriptor and a small binder; it does not contain
@@ -134,7 +134,7 @@ its plans untouched. The Worker rejects cross-Scenario backing-buffer
 aliasing—including solve-system ordinals—before exact session creation. State
 pointer lookup is a cold initialization operation. The admitted binding keeps
 only numeric slot indices in private storage and exposes no mutable mapping
-array. Standard-57 uses it in the live coupled-solver adapter. This is not a
+array. Standard-58 uses it in the live coupled-solver adapter. This is not a
 generic equation interpreter. The typed-authority Session remains the sole
 accepted-state and checkpoint authority: the plan contains no current,
 candidate, or sampled logical state page.
@@ -160,7 +160,7 @@ the two backing arrays once;
 the exact binder creates persistent views at the emitted offsets and rejects
 gaps, overlap, reordering, or foreign views. At an accepted boundary the active
 unknowns are loaded by the model-owned solver from the directly bound typed
-authority into the `current-unknowns` segment. Standard-57 binds the existing
+authority into the `current-unknowns` segment. Standard-58 binds the existing
 30-variable coupled Newton solve to those exact Scenario-owned views. Raw
 Jacobian and LU factors remain distinct segments; right-hand side,
 LU-transformed right-hand side, update, trial, scale vectors, and pivots are
@@ -183,7 +183,7 @@ Hydraulic topology follows the same rule. The portable descriptor stores
 numeric component-owner indices for nodes and paths in addition to endpoint
 and state indices. The Worker-local binder resolves these to exact component
 and path-kernel ordinals, then supplies one immutable hydraulic dispatch to the
-model-owned solve-system binder. Standard-57 validates the present Main Wire
+model-owned solve-system binder. Standard-58 validates the present Main Wire
 31-node/37-path graph, storage-slot ownership, and global blood-volume pool
 once before admitting the coupled workspace. The current residual kernels do
 not yet interpret arbitrary topology, so an added bypass fails closed until a
@@ -213,7 +213,7 @@ The binder also owns the compiled update schedule. It validates integer base
 and presentation periods, period/phase arithmetic, and the exact solve-group
 ordinal before a Scenario can advance. The exact host converts accepted clocks
 to integer base ticks, derives each presentation target from that schedule,
-and dispatches the compiled solve group only when it is due. The Standard-57
+and dispatches the compiled solve group only when it is due. The Standard-58
 host accepts exactly the present single period-1 hemodynamic group and fails
 closed on a synthetic multirate schedule; it does not silently approximate a
 multirate model. The compiler and neutral binder already admit multiple
@@ -234,9 +234,11 @@ Opt-in Workbench performance reports now distinguish:
 - total Worker initialization and main-thread round trip.
 
 `executionPlanBindMs` remains `null` for historical artifacts and is a measured
-number for plan-capable exact releases. It includes descriptor validation,
-exact binding, and plan-owned typed allocation for every initially restored
-Scenario. Direct installation into the model's accepted typed authority is
+number for plan-capable exact releases. Full portable-descriptor admission is
+included in `exactRuntimeLoad.contractValidationMs`. `executionPlanBindMs`
+includes exact kernel-set binding, cross-bundle bound-plan admission, and
+plan-owned typed allocation for every initially restored Scenario. Direct
+installation into the model's accepted typed authority is
 included in `sessionCreateMs`, because it is part of atomic exact Session
 construction rather than a post-create synchronization phase.
 The application/artifact crossing performs exactly one full admission and
@@ -260,9 +262,9 @@ the product gate.
 1. Add exact descriptor parity for every current generated layout that will
    become runtime-owned. **Complete for the current one-patch slice.**
 2. Embed the descriptor in the exact executable without another fetch or a
-   production compiler. **Complete in the Standard-57 development candidate.**
+   production compiler. **Complete in the Standard-58 development candidate.**
 3. Bind known kernel IDs, allocate buffers once, and reject missing, extra, or
-   aliased bindings. **Complete per Scenario in Standard-57.**
+   aliased bindings. **Complete per Scenario in Standard-58.**
 4. Move existing authority resources behind the bound plan, while preserving
    checkpoint continuation and the canonical scientific corpus. **Accepted
    state projection, canonical Newton workspace preparation, checkpoint
@@ -270,11 +272,11 @@ the product gate.
    the plan-owned workspace, plus compiler-owned solve-block and residual
    dispatch, model-owned solve-system binding, and accepted-authority state
    binding, hydraulic topology/kernel binding, and integer update scheduling
-   are complete in Standard-57. The plan now binds directly to the sole typed
+   are complete in Standard-58. The plan now binds directly to the sole typed
    authority at Session construction; sampled shadow state has been removed.
    Component residual equations remain model-owned.**
 5. Mint a new model release for the direct runtime cutover. Do not dual-write
-   state or retain a fallback inside that release. **Complete in Standard-57.**
+   state or retain a fallback inside that release. **Complete in Standard-58.**
 6. Delete the replaced hand-written layout tables only after production
    authority and physical-device gates pass.
 
