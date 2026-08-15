@@ -251,7 +251,7 @@ cold-start cost explicit as a bounded function of the admitted Scenario count.
 Before direct execution cutover, physical iPhone measurements must show that
 binding is bounded and that time-to-first-frame has not materially regressed.
 Exact artifact URLs are immutable release identities. New uploads therefore
-carry `public, max-age=31536000, immutable`, and the Worker fetch uses the
+carry a one-year `max-age=31536000` Storage TTL, and the Worker fetch uses the
 browser's shared HTTP cache even for historical objects created before that
 metadata policy. The registry publisher inspects existing bytes first; it may
 repair cache metadata with a byte-identical PUT, but it refuses a path whose

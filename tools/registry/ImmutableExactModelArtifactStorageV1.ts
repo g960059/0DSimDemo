@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 
+export const EXACT_MODEL_ARTIFACT_CACHE_TTL_SECONDS_V1 = "31536000";
 export const EXACT_MODEL_ARTIFACT_CACHE_CONTROL_V1 =
-  "public, max-age=31536000, immutable";
+  `max-age=${EXACT_MODEL_ARTIFACT_CACHE_TTL_SECONDS_V1}`;
 
 type ExactModelArtifactFetchV1 = typeof fetch;
 
@@ -9,9 +10,10 @@ type ExactModelArtifactFetchV1 = typeof fetch;
  * Stores one content-addressed exact artifact and repairs cache metadata only
  * after proving that an existing object contains the same bytes.
  *
- * A metadata repair uses PUT with the byte-identical body. It cannot rebind an
- * exact model path to another executable, and it is safe from CDN stale-byte
- * propagation because both object versions are identical.
+ * A metadata repair uses Storage's server-side self-copy with replacement file
+ * metadata after the public bytes have passed the exact digest check. It cannot
+ * rebind an exact model path to another executable. Supabase Storage publishes
+ * the replacement cache TTL as a `max-age` response directive.
  */
 export async function uploadImmutableExactModelArtifactV1(
   input: Readonly<{
@@ -34,13 +36,13 @@ export async function uploadImmutableExactModelArtifactV1(
       throw new Error("Remote exact model path already contains different bytes");
     }
     if (immutableCacheControlV1(existing.headers.get("cache-control"))) return;
-    await writeArtifactV1(input, "PUT", fetchV1);
+    await repairArtifactCacheMetadataV1(input, fetchV1);
     return;
   }
   if (existing.status !== 400 && existing.status !== 404) {
     throw new Error(`Could not inspect remote model artifact (${existing.status})`);
   }
-  await writeArtifactV1(input, "POST", fetchV1);
+  await writeArtifactV1(input, fetchV1);
 }
 
 async function writeArtifactV1(
@@ -50,19 +52,18 @@ async function writeArtifactV1(
     objectName: string;
     secret: string;
   }>,
-  method: "POST" | "PUT",
   fetchV1: ExactModelArtifactFetchV1,
 ): Promise<void> {
   const upload = await fetchV1(
     `${input.baseUrl}/storage/v1/object/model-releases/${encodeObjectPathV1(input.objectName)}`,
     {
-      method,
+      method: "POST",
       headers: {
         apikey: input.secret,
         authorization: `Bearer ${input.secret}`,
         "cache-control": EXACT_MODEL_ARTIFACT_CACHE_CONTROL_V1,
         "content-type": "text/javascript",
-        ...(method === "POST" ? { "x-upsert": "false" } : {}),
+        "x-upsert": "false",
       },
       body: new Blob([input.artifact], { type: "text/javascript" }),
     },
@@ -74,13 +75,45 @@ async function writeArtifactV1(
   }
 }
 
+async function repairArtifactCacheMetadataV1(
+  input: Readonly<{
+    baseUrl: string;
+    objectName: string;
+    secret: string;
+  }>,
+  fetchV1: ExactModelArtifactFetchV1,
+): Promise<void> {
+  const repair = await fetchV1(`${input.baseUrl}/storage/v1/object/copy`, {
+    method: "POST",
+    headers: {
+      apikey: input.secret,
+      authorization: `Bearer ${input.secret}`,
+      "content-type": "application/json",
+      "x-upsert": "true",
+    },
+    body: JSON.stringify({
+      bucketId: "model-releases",
+      sourceKey: input.objectName,
+      destinationKey: input.objectName,
+      metadata: {
+        cacheControl: EXACT_MODEL_ARTIFACT_CACHE_CONTROL_V1,
+        mimetype: "text/javascript",
+      },
+      copyMetadata: false,
+    }),
+  });
+  if (!repair.ok) {
+    throw new Error(
+      `Exact model cache metadata repair failed (${repair.status}): ${await repair.text()}`,
+    );
+  }
+}
+
 function immutableCacheControlV1(value: string | null): boolean {
   if (value === null) return false;
   const normalized = value.toLowerCase();
   const maxAge = /(?:^|,)\s*max-age=(\d+)\s*(?:,|$)/.exec(normalized);
-  return normalized.split(",").some((directive) =>
-    directive.trim() === "immutable")
-    && Number(maxAge?.[1] ?? 0) >= 31_536_000;
+  return Number(maxAge?.[1] ?? 0) >= 31_536_000;
 }
 
 function encodeObjectPathV1(value: string): string {
