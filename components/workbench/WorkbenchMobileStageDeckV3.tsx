@@ -49,6 +49,7 @@ const firstPaneIdV3 = (
 function useReconciledPaneSelectionV3(
   panes: readonly WorkbenchPaneDefinitionV3[],
 ): readonly [string | null, React.Dispatch<React.SetStateAction<string | null>>] {
+  const paneIdSignature = JSON.stringify(panes.map(({ paneId }) => paneId));
   const [paneId, setPaneId] = React.useState<string | null>(() =>
     firstPaneIdV3(panes));
   React.useEffect(() => {
@@ -56,13 +57,14 @@ function useReconciledPaneSelectionV3(
       current !== null && panes.some((pane) => pane.paneId === current)
         ? current
         : firstPaneIdV3(panes));
-  }, [panes]);
+  }, [paneIdSignature]);
   return [paneId, setPaneId] as const;
 }
 
 function useReconciledPaneExpansionV3(
   panes: readonly WorkbenchPaneDefinitionV3[],
 ): readonly [ReadonlySet<string>, (paneId: string) => void, (paneId: string) => void] {
+  const paneIdSignature = JSON.stringify(panes.map(({ paneId }) => paneId));
   const knownPaneIdsRef = React.useRef<ReadonlySet<string>>(
     new Set(panes.map(({ paneId }) => paneId)),
   );
@@ -83,7 +85,7 @@ function useReconciledPaneExpansionV3(
       }
       return next;
     });
-  }, [panes]);
+  }, [paneIdSignature]);
 
   const togglePane = React.useCallback((paneId: string) => {
     setExpandedPaneIds((current) => {
@@ -106,6 +108,7 @@ function useReconciledPaneExpansionV3(
 function useReconciledSinglePaneExpansionV3(
   panes: readonly WorkbenchPaneDefinitionV3[],
 ): readonly [string | null, React.Dispatch<React.SetStateAction<string | null>>] {
+  const paneIdSignature = JSON.stringify(panes.map(({ paneId }) => paneId));
   const knownPaneIdsRef = React.useRef<ReadonlySet<string>>(
     new Set(panes.map(({ paneId }) => paneId)),
   );
@@ -125,7 +128,7 @@ function useReconciledSinglePaneExpansionV3(
       if (newlyAddedPane !== undefined) return newlyAddedPane.paneId;
       return current === null ? null : firstPaneIdV3(panes);
     });
-  }, [panes]);
+  }, [paneIdSignature]);
 
   return [expandedPaneId, setExpandedPaneId] as const;
 }
