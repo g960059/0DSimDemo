@@ -120,6 +120,8 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     const liveScenarioCounts: number[] = [];
     const backgroundWorkerPool = {
       setLiveScenarioCount: (count) => liveScenarioCounts.push(count),
+      setForegroundPlaybackState: () => undefined,
+      foregroundCapacityMeasurementEligible: () => true,
       schedule: () => {
         throw new Error("background operation is not expected");
       },
@@ -334,6 +336,8 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     };
     const backgroundWorkerPool = {
       setLiveScenarioCount: () => undefined,
+      setForegroundPlaybackState: () => undefined,
+      foregroundCapacityMeasurementEligible: () => true,
       schedule,
       run: async <T>(
         priority: WorkbenchBackgroundJobPriorityV3,

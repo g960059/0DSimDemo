@@ -112,6 +112,21 @@ export function WorkbenchPerformanceReportV3() {
   const groupSafeRate = snapshot.values[
     "scheduler.group.safe-playback-rate"
   ]?.latest ?? null;
+  const acceptedCapacitySamples = snapshot.counters[
+    "scheduler.group.capacity-samples-accepted"
+  ] ?? 0;
+  const rejectedCapacitySamples = snapshot.counters[
+    "scheduler.group.capacity-samples-rejected"
+  ] ?? 0;
+  const backgroundActiveWorkers = snapshot.values[
+    "background.pool.active-workers"
+  ]?.latest ?? null;
+  const artifactFetchP95Ms = snapshot.metrics[
+    "worker.initialization-artifact-fetch"
+  ]?.p95Ms ?? null;
+  const executionPlanBindP95Ms = snapshot.metrics[
+    "worker.initialization-execution-plan-bind"
+  ]?.p95Ms ?? null;
   const workerRoundTrips = Object.entries(snapshot.metrics).filter(([metric]) =>
     metric.endsWith(".worker-round-trip")
   );
@@ -181,6 +196,32 @@ export function WorkbenchPerformanceReportV3() {
                 {worstWorkerRoundTripP95Ms === null
                   ? "—"
                   : `${worstWorkerRoundTripP95Ms.toFixed(1)} ms`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-wb-subtle">Calibration evidence</dt>
+              <dd className="font-mono">
+                {acceptedCapacitySamples} accepted / {rejectedCapacitySamples} skipped
+              </dd>
+            </div>
+            <div>
+              <dt className="text-wb-subtle">Background Workers</dt>
+              <dd className="font-mono">{backgroundActiveWorkers ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-wb-subtle">Artifact fetch p95</dt>
+              <dd className="font-mono">
+                {artifactFetchP95Ms === null
+                  ? "—"
+                  : `${artifactFetchP95Ms.toFixed(1)} ms`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-wb-subtle">Plan bind p95</dt>
+              <dd className="font-mono">
+                {executionPlanBindP95Ms === null
+                  ? "—"
+                  : `${executionPlanBindP95Ms.toFixed(1)} ms`}
               </dd>
             </div>
             <div className="col-span-2">

@@ -197,15 +197,30 @@ Playback rate is a property of the group, not a Worker lane. A short initial
 calibration discards three cold batches, takes a conservative lower percentile
 from nine measured group batches, retains 10% headroom, and rounds the result
 down to a stable `0.5×` capability tier between `0.25×` and `5×` (with `0.25×`
-as the minimum fallback). The tier is then
-latched for that Scenario configuration: transient timing noise cannot make a
-slider endpoint oscillate. If the tier includes real time, playback starts at
-`1×`; otherwise it starts at the conservative tier. This one calibration
-transition is distinct from a user-selected playback-rate change.
+as the minimum fallback). Only foreground evidence is eligible: the document
+must be visible and the shared background numerical pool must have no active
+Worker. Ineligible batches still advance and render normally, but they are
+counted as rejected calibration evidence rather than being allowed to lower or
+raise the capability tier. During initial calibration speculative background
+capacity is zero and ordinary analysis waits, so a previously running prewarm
+is cancelled and the group obtains uncontended evidence before expensive
+derived graphs begin. Snapshot and Save remain explicit foreground operations;
+they are not silently discarded by this short calibration boundary.
 
-After calibration the selected rate remains fixed until the user changes it.
+The initial tier is a provisional lower bound rather than a permanent false
+negative. After 24 further eligible batches, the same conservative percentile
+may promote the ceiling upward on the `0.5×` lattice. Promotion is monotonic
+within one Scenario-membership epoch; it never lowers the ceiling and therefore
+cannot make the slider endpoint oscillate. If the initial tier includes real
+time, playback starts at `1×`; otherwise it starts at the conservative tier.
+When later evidence promotes a non-user-selected provisional rate across `1×`,
+the automatic default advances once to `1×`. An explicit user selection is
+never rewritten by requalification.
+
+After calibration the selected rate remains fixed until the user changes it,
+apart from the one automatic provisional-to-real-time transition above.
 Ongoing measurements may report sustained inability to keep up, but they do
-not silently rewrite the selected rate or its latched ceiling. Exact frames are
+not silently lower the selected rate or its ceiling. Exact frames are
 not discarded and every Scenario therefore slows together honestly under an
 overloaded device. Adding or removing a Scenario pauses the group and starts a
 new calibration epoch. An explicit user selection is retained across that
@@ -396,11 +411,21 @@ Snapshot → explicit Save → visible analysis → speculative prewarm
 ```
 
 For `C` logical cores and `L` live Scenario lanes, one logical core is reserved
-for the main thread and browser composition. Speculative capacity is therefore:
+for the main thread and browser composition. Let `M` be the calibrated safe
+group rate and `R` the selected rate. While live lanes are running,
+speculative capacity is therefore:
 
 ```text
-min(configured pool cap, max(0, C - L - 1))
+min(configured pool cap,
+    max(0, C - L - 1),
+    floor(max(0, M - R) / 0.5))
 ```
+
+Before `M` exists, speculative capacity is zero and ordinary analysis remains
+queued. This makes the calibration a foreground-only measurement and prevents
+a fast CPU-count heuristic from overriding measured numerical headroom. Once
+calibrated, a paused group (`L = 0`) ignores the playback-headroom term so idle
+device capacity remains available for settlement and analysis.
 
 The configured cap scales from one Worker below four logical cores, to two on
 ordinary machines, three from twelve cores, and four from sixteen cores. Thus
@@ -410,9 +435,12 @@ unconditional hardware-wide fan-out: the live-Scenario-aware formula above
 continues to protect foreground numerical lanes and browser composition, and
 the cap never exceeds four.
 
-This can become zero on a constrained device: speculative settlement waits
+After calibration this can become zero on a constrained device or at the selected safe ceiling:
+speculative settlement waits
 instead of competing with presentation. An explicit user operation always has
-one serialized background lane available. Snapshot/Save may use one bounded
+one serialized background lane available; an analysis requested during the
+short calibration window starts when the first ceiling is known. Snapshot/Save
+may use one bounded
 burst only when real logical-core headroom remains. No operation changes the
 accepted 2 ms model step.
 

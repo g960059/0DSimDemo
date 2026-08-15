@@ -231,10 +231,18 @@ function exactExecutableReleaseRecordV2(
   });
 }
 
-async function defaultArtifactFetchV2(url: string): Promise<ArtifactFetchResponseV2> {
+export async function fetchImmutableExactModelArtifactV2(
+  url: string,
+): Promise<ArtifactFetchResponseV2> {
   return fetch(url, {
-    cache: "default",
+    // Exact artifact URLs are immutable model-release identities. `force-cache`
+    // also lets historical objects uploaded before the one-year metadata policy
+    // reuse a stored response instead of revalidating the same 2 MB bytes for
+    // every dedicated Scenario Worker.
+    cache: "force-cache",
     credentials: "omit",
     redirect: "error",
   });
 }
+
+const defaultArtifactFetchV2 = fetchImmutableExactModelArtifactV2;
