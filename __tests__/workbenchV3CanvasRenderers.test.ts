@@ -29,6 +29,7 @@ import {
   workbenchHistoryAlphaV3,
   deriveWorkbenchScenarioItemColorV3,
   reconcileWorkbenchGraphColorsV3,
+  resolveWorkbenchAutomaticGraphColorV3,
   resolveWorkbenchGraphTraceStyleV3,
   starlingCurvePointsV3,
   starlingPresentationFocusV3,
@@ -1135,9 +1136,9 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       "series",
     );
 
-    expect(reconciled.scenarioColorSeeds?.[0]?.colorHex).toBe("#2f8fd3");
+    expect(reconciled.scenarioColorSeeds?.[0]?.colorHex).toBe("#d9822b");
     expect(reconciled.graphPanes[0]?.traceColors?.[0]?.automaticColorHex)
-      .toBe("#2f8fd3");
+      .toBe("#d9822b");
   });
 
   it("lets an exact Scenario/item custom color win over its frozen automatic color", () => {
@@ -1221,9 +1222,20 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       }).color;
 
     expect([color("LVP", "dark"), color("LAP", "dark"), color("AoP", "dark")])
-      .toEqual(["#ff5a78", "#b78bfa", "#33b1ff"]);
+      .toEqual(["#ff5f73", "#e07ce8", "#39c2ff"]);
     expect([color("LVP", "light"), color("LAP", "light"), color("AoP", "light")])
-      .toEqual(["#c72c50", "#6f42c1", "#0072a8"]);
+      .toEqual(["#c22347", "#a12bc7", "#0068a3"]);
+  });
+
+  it("migrates persisted former semantic seeds through the current theme palette", () => {
+    expect(resolveWorkbenchAutomaticGraphColorV3({
+      colorHex: "#33b1ff",
+      appTheme: "dark",
+    })).toBe("#39c2ff");
+    expect(resolveWorkbenchAutomaticGraphColorV3({
+      colorHex: "#33b1ff",
+      appTheme: "light",
+    })).toBe("#0068a3");
   });
 });
 

@@ -3,23 +3,27 @@ import {
   type WorkbenchPerformanceRecorderV3,
 } from "./WorkbenchPerformanceDiagnosticsV3";
 
-export const WORKBENCH_MINIMUM_PLAYBACK_RATE_V3 = 0.1;
-export const WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3 = 2;
+export const WORKBENCH_MINIMUM_PLAYBACK_RATE_V3 = 0.25;
+export const WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3 = 5;
+export const WORKBENCH_PLAYBACK_RATE_STEP_V3 = 0.25;
+export const WORKBENCH_PLAYBACK_CAPACITY_STEP_V3 = 0.5;
 
+const WORKBENCH_INITIAL_CALIBRATION_RATE_V3 = 0.5;
 const WORKBENCH_GROUP_RATE_HEADROOM_V3 = 0.9;
-const WORKBENCH_GROUP_RATE_RISE_FACTOR_V3 = 0.16;
-const WORKBENCH_GROUP_DURATION_SMOOTHING_V3 = 0.2;
+const WORKBENCH_GROUP_CALIBRATION_DISCARD_COUNT_V3 = 3;
+const WORKBENCH_GROUP_CALIBRATION_SAMPLE_COUNT_V3 = 9;
+const WORKBENCH_GROUP_CAPACITY_PERCENTILE_V3 = 0.2;
+const WORKBENCH_GROUP_OVERLOAD_SAMPLE_COUNT_V3 = 12;
+const WORKBENCH_GROUP_OVERLOAD_RATIO_V3 = 0.9;
 
 export type WorkbenchGroupTimeConductorTimerV3 = ReturnType<typeof setTimeout>;
 
-export type WorkbenchGroupPlaybackRateModeV3 = "auto" | "manual";
-
 export type WorkbenchGroupPlaybackRateStateV3 = Readonly<{
-  mode: WorkbenchGroupPlaybackRateModeV3;
-  effectiveRate: number;
-  safeMaximumRate: number;
-  requestedRate: number | null;
-  warmingUp: boolean;
+  playbackRate: number;
+  maximumRate: number | null;
+  calibrating: boolean;
+  userSelected: boolean;
+  performanceLimited: boolean;
 }>;
 
 export type WorkbenchGroupTimeConductorLaneV3<TFrame> = Readonly<{
@@ -92,14 +96,17 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
   #pumpTimer: WorkbenchGroupTimeConductorTimerV3 | undefined;
   #presentationTimer: WorkbenchGroupTimeConductorTimerV3 | undefined;
   #inFlight: Promise<void> | undefined;
+  #nextPumpWallMs = 0;
   #lastPresentationWallMs = 0;
   #presentationFrameCreditPerLane = 0;
   #pendingPresentation: PendingGroupPresentationV3<TFrame>[] = [];
-  #mode: WorkbenchGroupPlaybackRateModeV3 = "auto";
-  #requestedRate: number | null = null;
-  #safeMaximumRate = 0.5;
-  #smoothedGroupWallMs: number | null = null;
-  #measurementCount = 0;
+  #playbackRate = WORKBENCH_INITIAL_CALIBRATION_RATE_V3;
+  #maximumRate: number | null = null;
+  #userSelected = false;
+  #performanceLimited = false;
+  #calibrationMeasurementCount = 0;
+  #calibrationCapacitySamples: number[] = [];
+  #steadyCapacitySamples: number[] = [];
   #lastPublishedRateState: WorkbenchGroupPlaybackRateStateV3 | null = null;
 
   constructor(dependencies: WorkbenchGroupTimeConductorDependenciesV3<TFrame>) {
@@ -146,57 +153,61 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
   }
 
   playbackRateState(): WorkbenchGroupPlaybackRateStateV3 {
-    const requested = this.#mode === "manual" ? this.#requestedRate : null;
     return Object.freeze({
-      mode: this.#mode,
-      effectiveRate: this.#effectiveRate(),
-      safeMaximumRate: this.#safeMaximumRate,
-      requestedRate: requested,
-      warmingUp: this.#measurementCount < 3,
+      playbackRate: this.#playbackRate,
+      maximumRate: this.#maximumRate,
+      calibrating: this.#maximumRate === null,
+      userSelected: this.#userSelected,
+      performanceLimited: this.#performanceLimited,
     });
   }
 
-  setPlaybackRate(rate: number | "auto"): WorkbenchGroupPlaybackRateStateV3 {
-    const previousEffectiveRate = this.#effectiveRate();
+  setPlaybackRate(rate: number): WorkbenchGroupPlaybackRateStateV3 {
+    const previousPlaybackRate = this.#playbackRate;
     const changedAtMs = this.#nowMs();
     if (this.#running && !this.#disposed) {
       this.#publishOrSchedulePresentation(changedAtMs);
     }
-    if (rate === "auto") {
-      this.#mode = "auto";
-      this.#requestedRate = null;
-    } else {
-      requirePlaybackRateV3(
-        rate,
-        this.#minimumPlaybackRate,
-        this.#maximumPlaybackRate,
-      );
-      this.#mode = "manual";
-      this.#requestedRate = Math.min(rate, this.#safeMaximumRate);
+    requirePlaybackRateV3(
+      rate,
+      this.#minimumPlaybackRate,
+      this.#maximumPlaybackRate,
+    );
+    if (this.#maximumRate !== null && rate > this.#maximumRate + 1e-9) {
+      throw new Error("Workbench playback rate exceeds the calibrated limit");
     }
+    this.#playbackRate = rate;
+    this.#userSelected = true;
+    this.#performanceLimited = false;
+    this.#steadyCapacitySamples = [];
     if (this.#running && !this.#disposed) {
       // Apply the new rate from this wall-clock boundary. At most one partial
       // presentation interval is discarded; no accepted model frame is.
       this.#lastPresentationWallMs = changedAtMs;
       this.#presentationFrameCreditPerLane = 0;
       this.#publishOrSchedulePresentation(changedAtMs);
-      const nextEffectiveRate = this.#effectiveRate();
-      if (Math.abs(nextEffectiveRate - previousEffectiveRate) > 1e-9) {
+      if (Math.abs(this.#playbackRate - previousPlaybackRate) > 1e-9) {
         this.#cancelPumpTimer();
+        const nextBoundaryDemand = Math.max(
+          1,
+          Math.floor(
+            this.#maximumPresentationFramesPerLane * this.#playbackRate
+              + 1e-9,
+          ),
+        );
+        const startImmediately = this.#playbackRate > previousPlaybackRate
+          && this.#presentationBacklogFramesPerLane() < nextBoundaryDemand;
+        // An in-flight batch already occupies the current deadline. Let its
+        // completion add exactly one interval at the new rate. A queued batch
+        // instead owns the explicit immediate or delayed deadline below.
+        this.#nextPumpWallMs = this.#inFlight === undefined
+          ? changedAtMs + (startImmediately
+            ? 0
+            : this.#batchModelDurationMs() / this.#playbackRate)
+          : changedAtMs;
         if (this.#inFlight === undefined) {
-          const nextBoundaryDemand = Math.max(
-            1,
-            Math.floor(
-              this.#maximumPresentationFramesPerLane * nextEffectiveRate
-                + 1e-9,
-            ),
-          );
           this.#queuePump(
-            nextEffectiveRate > previousEffectiveRate
-                && this.#presentationBacklogFramesPerLane()
-                  < nextBoundaryDemand
-              ? 0
-              : this.#batchModelDurationMs() / nextEffectiveRate,
+            Math.max(0, this.#nextPumpWallMs - changedAtMs),
           );
         }
       }
@@ -213,6 +224,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     requireGroupLanesV3(this.#lanes());
     this.#running = true;
     this.#lastPresentationWallMs = this.#nowMs();
+    this.#nextPumpWallMs = this.#lastPresentationWallMs;
     this.#presentationFrameCreditPerLane = 0;
     this.#publishRateState();
     this.#queuePump(0);
@@ -266,7 +278,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     this.#pumpTimer = this.#schedule(() => {
       this.#pumpTimer = undefined;
       this.#pump();
-    }, Math.max(0, Math.ceil(delayMs)));
+    }, Math.max(0, delayMs));
   }
 
   #pump(): void {
@@ -293,15 +305,24 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
         throw new Error("Workbench group clock moved backwards");
       }
       this.#recordGroupCompletion(groupWallMs, lanes.length);
-      this.#updateCapacityEstimate(groupWallMs);
+      this.#updateCapacityEstimate(groupWallMs, completedAtMs);
       this.#pendingPresentation.push({
         laneFrames: Object.freeze(laneFrames),
         offset: 0,
       });
       this.#recordPresentationBacklog();
       this.#publishOrSchedulePresentation(completedAtMs);
-      const intervalMs = this.#batchModelDurationMs() / this.#effectiveRate();
-      this.#queuePump(Math.max(0, intervalMs - groupWallMs));
+      const intervalMs = this.#batchModelDurationMs() / this.#playbackRate;
+      // Carry the absolute deadline forward while it is still current, so
+      // ordinary sub-millisecond timer lateness cannot accumulate into a
+      // visible rate error at high playback multipliers. A suspended tab or
+      // exceptional Worker stall must not replay every missed wall deadline:
+      // re-anchor at completion and permit at most one immediate batch.
+      this.#nextPumpWallMs = Math.max(
+        this.#nextPumpWallMs + intervalMs,
+        completedAtMs,
+      );
+      this.#queuePump(Math.max(0, this.#nextPumpWallMs - completedAtMs));
     }).catch((error) => {
       this.#running = false;
       this.#cancelPumpTimer();
@@ -336,47 +357,79 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     );
   }
 
-  #updateCapacityEstimate(groupWallMs: number): void {
+  #updateCapacityEstimate(groupWallMs: number, completedAtMs: number): void {
     // A zero-duration synthetic clock is valid in unit tests but carries no
     // throughput information.
     if (groupWallMs <= 0) return;
-    this.#smoothedGroupWallMs = this.#smoothedGroupWallMs === null
-      ? groupWallMs
-      : this.#smoothedGroupWallMs * (1 - WORKBENCH_GROUP_DURATION_SMOOTHING_V3)
-        + groupWallMs * WORKBENCH_GROUP_DURATION_SMOOTHING_V3;
-    this.#measurementCount += 1;
-    const measuredSafeRate = clampV3(
-      this.#batchModelDurationMs() / this.#smoothedGroupWallMs
-        * WORKBENCH_GROUP_RATE_HEADROOM_V3,
-      this.#minimumPlaybackRate,
-      this.#maximumPlaybackRate,
-    );
-    if (measuredSafeRate < this.#safeMaximumRate) {
-      this.#safeMaximumRate = measuredSafeRate;
+    const measuredCapacity = this.#batchModelDurationMs() / groupWallMs;
+    if (this.#maximumRate === null) {
+      this.#calibrationMeasurementCount += 1;
+      if (
+        this.#calibrationMeasurementCount
+          > WORKBENCH_GROUP_CALIBRATION_DISCARD_COUNT_V3
+      ) this.#calibrationCapacitySamples.push(measuredCapacity);
+      if (
+        this.#calibrationCapacitySamples.length
+          >= WORKBENCH_GROUP_CALIBRATION_SAMPLE_COUNT_V3
+      ) this.#finishCalibration(completedAtMs);
     } else {
-      this.#safeMaximumRate = Math.min(
-        measuredSafeRate,
-        this.#safeMaximumRate
-          + (measuredSafeRate - this.#safeMaximumRate)
-            * WORKBENCH_GROUP_RATE_RISE_FACTOR_V3,
-      );
+      this.#steadyCapacitySamples.push(measuredCapacity);
+      if (
+        this.#steadyCapacitySamples.length
+          > WORKBENCH_GROUP_OVERLOAD_SAMPLE_COUNT_V3
+      ) this.#steadyCapacitySamples.shift();
+      if (
+        this.#steadyCapacitySamples.length
+          === WORKBENCH_GROUP_OVERLOAD_SAMPLE_COUNT_V3
+        && percentileV3(
+          this.#steadyCapacitySamples,
+          WORKBENCH_GROUP_CAPACITY_PERCENTILE_V3,
+        ) < this.#playbackRate * WORKBENCH_GROUP_OVERLOAD_RATIO_V3
+      ) this.#performanceLimited = true;
     }
-    if (
-      this.#mode === "manual"
-      && this.#requestedRate !== null
-      && this.#requestedRate > this.#safeMaximumRate
-    ) this.#requestedRate = this.#safeMaximumRate;
     if (this.#performance.enabled) {
-      this.#performance.recordValue(
-        "scheduler.group.safe-playback-rate",
-        this.#safeMaximumRate,
-      );
+      if (this.#maximumRate !== null) {
+        this.#performance.recordValue(
+          "scheduler.group.safe-playback-rate",
+          this.#maximumRate,
+        );
+      }
       this.#performance.recordValue(
         "scheduler.group.effective-playback-rate",
-        this.#effectiveRate(),
+        this.#playbackRate,
       );
     }
     this.#publishRateState();
+  }
+
+  #finishCalibration(completedAtMs: number): void {
+    const conservativeCapacity = percentileV3(
+      this.#calibrationCapacitySamples,
+      WORKBENCH_GROUP_CAPACITY_PERCENTILE_V3,
+    ) * WORKBENCH_GROUP_RATE_HEADROOM_V3;
+    this.#maximumRate = quantizePlaybackRateDownV3(
+      conservativeCapacity,
+      this.#minimumPlaybackRate,
+      this.#maximumPlaybackRate,
+    );
+    if (!this.#userSelected) {
+      const nextRate = this.#maximumRate >= 1 ? 1 : this.#maximumRate;
+      if (Math.abs(nextRate - this.#playbackRate) > 1e-9) {
+        // Finish the old presentation interval at the calibration rate. The
+        // selected rate is then fixed from this exact wall-clock boundary.
+        this.#publishOrSchedulePresentation(completedAtMs);
+        this.#cancelPresentationTimer();
+        this.#lastPresentationWallMs = completedAtMs;
+        this.#presentationFrameCreditPerLane = 0;
+        this.#playbackRate = nextRate;
+      }
+    }
+    this.#performanceLimited = this.#playbackRate > this.#maximumRate + 1e-9
+      || (
+        this.#maximumRate === this.#minimumPlaybackRate
+        && conservativeCapacity < this.#minimumPlaybackRate
+      );
+    this.#steadyCapacitySamples = [];
   }
 
   #publishOrSchedulePresentation(nowMs: number): void {
@@ -402,7 +455,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
         this.#presentationFrameCreditPerLane
           + elapsedIntervals
             * this.#maximumPresentationFramesPerLane
-            * this.#effectiveRate(),
+            * this.#playbackRate,
       );
       this.#flushCreditedPresentation();
     }
@@ -483,25 +536,18 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
   }
 
   #resetCapacityEstimate(): void {
-    const laneCount = Math.max(1, this.#lanes().length);
-    this.#safeMaximumRate = clampV3(
-      0.85 / Math.sqrt(laneCount),
-      this.#minimumPlaybackRate,
-      this.#maximumPlaybackRate,
-    );
-    this.#smoothedGroupWallMs = null;
-    this.#measurementCount = 0;
-    if (
-      this.#mode === "manual"
-      && this.#requestedRate !== null
-      && this.#requestedRate > this.#safeMaximumRate
-    ) this.#requestedRate = this.#safeMaximumRate;
-  }
-
-  #effectiveRate(): number {
-    return this.#mode === "manual" && this.#requestedRate !== null
-      ? Math.min(this.#requestedRate, this.#safeMaximumRate)
-      : this.#safeMaximumRate;
+    this.#maximumRate = null;
+    this.#performanceLimited = false;
+    this.#calibrationMeasurementCount = 0;
+    this.#calibrationCapacitySamples = [];
+    this.#steadyCapacitySamples = [];
+    if (!this.#userSelected) {
+      this.#playbackRate = clampV3(
+        WORKBENCH_INITIAL_CALIBRATION_RATE_V3,
+        this.#minimumPlaybackRate,
+        this.#maximumPlaybackRate,
+      );
+    }
   }
 
   #publishRateState(): void {
@@ -579,7 +625,15 @@ function validateGroupLaneAdvanceV3<TFrame>(
 }
 
 function requirePlaybackRateV3(rate: number, minimum: number, maximum: number) {
-  if (!Number.isFinite(rate) || rate < minimum || rate > maximum) {
+  if (
+    !Number.isFinite(rate)
+    || rate < minimum
+    || rate > maximum
+    || Math.abs(
+      rate / WORKBENCH_PLAYBACK_RATE_STEP_V3
+        - Math.round(rate / WORKBENCH_PLAYBACK_RATE_STEP_V3),
+    ) > 1e-9
+  ) {
     throw new Error("Workbench playback rate is outside the supported range");
   }
 }
@@ -592,21 +646,36 @@ function samePlaybackRateStateV3(
   // a new state when the two-decimal control can visibly change; the state we
   // do publish still carries the exact rate and exact safety ceiling.
   return right !== null
-    && left.mode === right.mode
-    && playbackRateUiBucketV3(left.effectiveRate)
-      === playbackRateUiBucketV3(right.effectiveRate)
-    && playbackRateUiBucketV3(left.safeMaximumRate)
-      === playbackRateUiBucketV3(right.safeMaximumRate)
-    && left.requestedRate === right.requestedRate
-    && left.warmingUp === right.warmingUp;
+    && left.playbackRate === right.playbackRate
+    && left.maximumRate === right.maximumRate
+    && left.calibrating === right.calibrating
+    && left.userSelected === right.userSelected
+    && left.performanceLimited === right.performanceLimited;
 }
 
 function clampV3(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
-function playbackRateUiBucketV3(value: number): number {
-  return Math.floor((value + 1e-9) * 100);
+function quantizePlaybackRateDownV3(
+  value: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const clamped = clampV3(value, minimum, maximum);
+  const quantized = Math.floor(
+    (clamped + 1e-9) / WORKBENCH_PLAYBACK_CAPACITY_STEP_V3,
+  ) * WORKBENCH_PLAYBACK_CAPACITY_STEP_V3;
+  return Number(clampV3(quantized, minimum, maximum).toFixed(2));
+}
+
+function percentileV3(values: readonly number[], percentile: number): number {
+  if (values.length === 0) {
+    throw new Error("Workbench capacity percentile requires measurements");
+  }
+  const ordered = [...values].sort((left, right) => left - right);
+  const index = Math.floor((ordered.length - 1) * percentile);
+  return ordered[index]!;
 }
 
 function errorAsErrorV3(value: unknown): Error {

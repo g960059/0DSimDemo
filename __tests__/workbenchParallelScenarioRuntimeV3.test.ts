@@ -851,13 +851,13 @@ class FakeTimeConductorV3 {
   readonly pause = vi.fn(async () => { this.running = false; });
   readonly play = vi.fn(() => { this.running = true; });
   readonly terminate = vi.fn(() => { this.running = false; });
-  readonly setPlaybackRate = vi.fn((rate: number | "auto") => {
-    this.#rate = rate === "auto" ? AUTO_RATE_STATE_V3 : Object.freeze({
-      mode: "manual" as const,
-      effectiveRate: rate,
-      safeMaximumRate: 1,
-      requestedRate: rate,
-      warmingUp: false,
+  readonly setPlaybackRate = vi.fn((rate: number) => {
+    this.#rate = Object.freeze({
+      playbackRate: rate,
+      maximumRate: 1,
+      calibrating: false,
+      userSelected: true,
+      performanceLimited: false,
     });
     this.dependencies.onPlaybackRateChange?.(this.#rate);
     return this.#rate;
@@ -883,11 +883,11 @@ class FakeTimeConductorV3 {
 }
 
 const AUTO_RATE_STATE_V3: WorkbenchGroupPlaybackRateStateV3 = Object.freeze({
-  mode: "auto",
-  effectiveRate: 0.5,
-  safeMaximumRate: 0.5,
-  requestedRate: null,
-  warmingUp: true,
+  playbackRate: 0.5,
+  maximumRate: null,
+  calibrating: true,
+  userSelected: false,
+  performanceLimited: false,
 });
 
 class ParallelSchedulerClockV3 {

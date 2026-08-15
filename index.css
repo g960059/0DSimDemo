@@ -5,41 +5,64 @@
 body[data-app-theme],
 body:has(.public-static-shell) {
   color-scheme: dark;
-  /* Restrained blue-black surfaces: hierarchy comes from luminance, not borders. */
-  --wb-app-bg: #0a1622;
-  --wb-header-bg: #0d1b29;
-  --wb-panel-bg: #0f1e2d;
-  --wb-panel-bg-soft: #172838;
-  --wb-zone-main-bg: #0b1a29;
-  --wb-zone-aux-bg: #102237;
-  --wb-tab-strip-bg: transparent;
-  --wb-hover-bg: rgba(141, 176, 204, 0.08);
-  --wb-active-bg: rgba(62, 168, 255, 0.12);
-  --wb-input-bg: #172a3d;
-  --wb-border: rgba(156, 178, 197, 0.16);
-  --wb-border-strong: rgba(164, 186, 204, 0.31);
-  --wb-text: #e8eef4;
-  --wb-text-muted: #a7b4c0;
-  --wb-text-subtle: #788998;
-  --wb-accent: #3ea8ff;
-  --wb-accent-soft: rgba(62, 168, 255, 0.15);
-  --wb-primary: #1377d1;
-  --wb-primary-hover: #258be5;
-  --wb-danger: #f18b9b;
-  --wb-danger-soft: rgba(241, 139, 155, 0.12);
-  --wb-warning: #d8a657;
-  --wb-warning-soft: rgba(216, 166, 87, 0.13);
-  --wb-success: #60c99a;
-  --wb-grid: rgba(172, 188, 199, 0.11);
-  --wb-axis: rgba(172, 188, 199, 0.3);
+  /*
+   * Deep Chart, Quiet Chrome: data lives on the darkest surface while
+   * application chrome and inspectors step back through restrained luminance.
+   * These semantic roles are shared by Workbench, Sessions, Article inflow,
+   * and Peek so the same content never changes visual meaning by context.
+   */
+  --wb-workspace-bg: #0a141d;
+  --wb-tool-plane-bg: #121f2b;
+  --wb-overlay-bg: #182634;
+  --wb-canvas-bg: var(--wb-workspace-bg);
+  --wb-chrome-bg: var(--wb-tool-plane-bg);
+  --wb-inspector-bg: var(--wb-tool-plane-bg);
+  --wb-floating-bg: var(--wb-overlay-bg);
+  --wb-app-bg: var(--wb-tool-plane-bg);
+  --wb-header-bg: var(--wb-chrome-bg);
+  --wb-panel-bg: var(--wb-floating-bg);
+  --wb-panel-bg-soft: #1c2a38;
+  --wb-zone-main-bg: var(--wb-canvas-bg);
+  --wb-zone-aux-bg: var(--wb-inspector-bg);
+  --wb-tab-strip-bg: var(--wb-tool-plane-bg);
+  --wb-hover-bg: rgba(164, 185, 202, 0.08);
+  --wb-active-bg: rgba(61, 157, 240, 0.13);
+  --wb-input-bg: #1c2a38;
+  --wb-border: rgba(160, 180, 198, 0.14);
+  --wb-border-strong: rgba(160, 180, 198, 0.3);
+  --wb-control-track: rgba(160, 180, 198, 0.22);
+  --wb-text: #e9eef4;
+  --wb-text-muted: #a3b1bd;
+  --wb-text-subtle: #8494a1;
+  --wb-accent: #3d9df0;
+  --wb-accent-soft: rgba(61, 157, 240, 0.14);
+  --wb-primary: #1e74b7;
+  --wb-primary-hover: #2d87ca;
+  --wb-danger: #ff9b8f;
+  --wb-danger-soft: rgba(255, 155, 143, 0.12);
+  --wb-warning: #e0ac59;
+  --wb-warning-soft: rgba(224, 172, 89, 0.13);
+  --wb-success: #5bc99a;
+  --wb-grid: rgba(165, 185, 200, 0.1);
+  --wb-axis: rgba(165, 185, 200, 0.32);
+  --wb-shadow-canvas-recess:
+    inset 0 9px 14px -13px rgba(0, 0, 0, 0.34),
+    inset -9px 0 14px -13px rgba(0, 0, 0, 0.34),
+    inset 0 -9px 14px -13px rgba(0, 0, 0, 0.34);
+  --wb-shadow-floating:
+    0 20px 58px rgba(2, 8, 23, 0.28),
+    0 2px 10px rgba(2, 8, 23, 0.16);
   --wb-font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
   --wb-font-numeric: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  --wb-type-caption: 0.625rem;
+  --wb-type-caption: 0.6875rem;
   --wb-type-meta: 0.6875rem;
   --wb-type-label: 0.75rem;
   --wb-type-body: 0.8125rem;
   --wb-type-title: 0.875rem;
   --wb-type-value: 1rem;
+  /* Compatibility aliases for older authored CSS; use role tokens above. */
+  --wb-panel: var(--wb-panel-bg);
+  --wb-hover: var(--wb-hover-bg);
   --wb-line: var(--wb-border);
   --wb-muted: var(--wb-text-muted);
   background: var(--wb-app-bg);
@@ -47,7 +70,14 @@ body:has(.public-static-shell) {
 }
 
 @theme inline {
+  --color-wb-workspace: var(--wb-workspace-bg);
+  --color-wb-tool: var(--wb-tool-plane-bg);
+  --color-wb-overlay: var(--wb-overlay-bg);
   --color-wb-app: var(--wb-app-bg);
+  --color-wb-canvas: var(--wb-canvas-bg);
+  --color-wb-chrome: var(--wb-chrome-bg);
+  --color-wb-inspector: var(--wb-inspector-bg);
+  --color-wb-floating: var(--wb-floating-bg);
   --color-wb-aux: var(--wb-zone-aux-bg);
   --color-wb-panel: var(--wb-panel-bg);
   --color-wb-soft: var(--wb-panel-bg-soft);
@@ -74,34 +104,74 @@ body:has(.public-static-shell) {
 .app-root[data-app-theme="light"],
 body[data-app-theme="light"] {
   color-scheme: light;
-  --wb-app-bg: #f4f7f9;
-  --wb-header-bg: #ffffff;
-  --wb-panel-bg: #ffffff;
-  --wb-panel-bg-soft: #eef3f6;
-  --wb-zone-main-bg: #f8fafb;
-  --wb-zone-aux-bg: #f2f6f8;
-  --wb-tab-strip-bg: transparent;
-  --wb-hover-bg: rgba(36, 55, 72, 0.055);
-  --wb-active-bg: rgba(62, 168, 255, 0.1);
-  --wb-input-bg: #eef3f6;
-  --wb-border: rgba(44, 64, 82, 0.14);
-  --wb-border-strong: rgba(44, 64, 82, 0.28);
-  --wb-text: #1f2933;
-  --wb-text-muted: #5d6b77;
-  --wb-text-subtle: #6d7b87;
-  --wb-accent: #167fbd;
-  --wb-accent-soft: rgba(62, 168, 255, 0.11);
-  --wb-primary: #167fbd;
-  --wb-primary-hover: #126fa7;
-  --wb-danger: #c9252d;
-  --wb-danger-soft: rgba(201, 37, 45, 0.1);
-  --wb-warning: #b45309;
-  --wb-warning-soft: rgba(180, 83, 9, 0.12);
-  --wb-success: #16855b;
-  --wb-grid: rgba(37, 55, 72, 0.09);
-  --wb-axis: rgba(37, 55, 72, 0.25);
+  --wb-workspace-bg: #ffffff;
+  --wb-tool-plane-bg: #fafafd;
+  --wb-overlay-bg: #ffffff;
+  --wb-canvas-bg: var(--wb-workspace-bg);
+  --wb-chrome-bg: var(--wb-tool-plane-bg);
+  --wb-inspector-bg: var(--wb-tool-plane-bg);
+  --wb-floating-bg: var(--wb-overlay-bg);
+  --wb-app-bg: var(--wb-tool-plane-bg);
+  --wb-header-bg: var(--wb-chrome-bg);
+  --wb-panel-bg: var(--wb-floating-bg);
+  --wb-panel-bg-soft: #f1f1f3;
+  --wb-zone-main-bg: var(--wb-canvas-bg);
+  --wb-zone-aux-bg: var(--wb-inspector-bg);
+  --wb-tab-strip-bg: var(--wb-tool-plane-bg);
+  --wb-hover-bg: #f1f1f3;
+  --wb-active-bg: rgba(0, 105, 204, 0.1);
+  --wb-input-bg: #ffffff;
+  --wb-border: #f0f1f2;
+  --wb-border-strong: #d9dadd;
+  --wb-control-track: rgba(32, 32, 32, 0.16);
+  --wb-text: #202020;
+  --wb-text-muted: #606060;
+  --wb-text-subtle: #6d6d6d;
+  --wb-accent: #0069cc;
+  --wb-accent-soft: rgba(0, 105, 204, 0.1);
+  --wb-primary: #0069cc;
+  --wb-primary-hover: #0059ad;
+  --wb-danger: #b42318;
+  --wb-danger-soft: rgba(180, 35, 24, 0.1);
+  --wb-warning: #9a6700;
+  --wb-warning-soft: rgba(154, 103, 0, 0.11);
+  --wb-success: #087a55;
+  --wb-grid: rgba(37, 55, 72, 0.13);
+  --wb-axis: rgba(37, 55, 72, 0.38);
+  --wb-shadow-canvas-recess:
+    inset 0 9px 14px -13px rgba(24, 39, 56, 0.14),
+    inset -9px 0 14px -13px rgba(24, 39, 56, 0.14),
+    inset 0 -9px 14px -13px rgba(24, 39, 56, 0.14);
+  --wb-shadow-floating:
+    0 20px 58px rgba(24, 39, 56, 0.12),
+    0 2px 10px rgba(24, 39, 56, 0.06);
+  --wb-panel: var(--wb-panel-bg);
+  --wb-hover: var(--wb-hover-bg);
   --wb-line: var(--wb-border);
   --wb-muted: var(--wb-text-muted);
+}
+
+/* Scrollbars belong to application chrome and must follow the active theme. */
+* {
+  scrollbar-color: var(--wb-border-strong) var(--wb-chrome-bg);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--wb-chrome-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--wb-border-strong);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--wb-text-muted) 58%, transparent);
 }
 
 .app-root > main {
@@ -118,8 +188,59 @@ body[data-app-theme="light"] {
 }
 
 .workbench-app-header {
+  position: relative;
+  z-index: 10;
   border-bottom: 1px solid var(--wb-border);
   background: var(--wb-header-bg);
+}
+
+/*
+ * Header, outputs, Scenario inspector, and controllers share one tool plane.
+ * Only the graph workspace recedes beneath it, so no shadow is drawn between
+ * adjacent tool regions.
+ */
+.workbench-workspace {
+  position: relative;
+  z-index: 0;
+  background: var(--wb-zone-main-bg);
+}
+
+.workbench-workspace::after {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: var(--wb-shadow-canvas-recess);
+  content: "";
+}
+
+.workbench-bottom-drawer,
+.workbench-right-drawer {
+  position: relative;
+  z-index: 10;
+  background: var(--wb-zone-aux-bg);
+}
+
+.workbench-bottom-drawer {
+  border-top: 1px solid var(--wb-border);
+}
+
+.workbench-right-drawer {
+  border-left: 1px solid var(--wb-border);
+}
+
+.workbench-floating-surface {
+  border: 1px solid var(--wb-border);
+  background: var(--wb-floating-bg);
+  box-shadow: var(--wb-shadow-floating);
+}
+
+@media (max-width: 1023px) {
+  .workbench-bottom-drawer,
+  .workbench-right-drawer {
+    border-top: 1px solid var(--wb-border);
+    border-left: 0;
+  }
 }
 
 .workbench-app-title {
@@ -154,7 +275,7 @@ body[data-app-theme="light"] {
 }
 
 .workbench-playback-rate-slider {
-  height: 1.35rem;
+  height: 2.25rem;
   margin: 0;
   cursor: pointer;
   background: transparent;
@@ -170,15 +291,15 @@ body[data-app-theme="light"] {
     to right,
     var(--wb-accent) 0,
     var(--wb-accent) var(--workbench-playback-rate-progress),
-    var(--wb-border-strong) var(--workbench-playback-rate-progress),
-    var(--wb-border-strong) 100%
+    var(--wb-control-track) var(--workbench-playback-rate-progress),
+    var(--wb-control-track) 100%
   );
 }
 
 .workbench-playback-rate-slider::-webkit-slider-thumb {
-  width: 1.08rem;
-  height: 1.08rem;
-  margin-top: -0.4rem;
+  width: 1.22rem;
+  height: 1.22rem;
+  margin-top: -0.47rem;
   border: 2px solid var(--wb-panel);
   border-radius: 999px;
   background: var(--wb-accent);
@@ -195,14 +316,14 @@ body[data-app-theme="light"] {
     to right,
     var(--wb-accent) 0,
     var(--wb-accent) var(--workbench-playback-rate-progress),
-    var(--wb-border-strong) var(--workbench-playback-rate-progress),
-    var(--wb-border-strong) 100%
+    var(--wb-control-track) var(--workbench-playback-rate-progress),
+    var(--wb-control-track) 100%
   );
 }
 
 .workbench-playback-rate-slider::-moz-range-thumb {
-  width: 1.08rem;
-  height: 1.08rem;
+  width: 1.22rem;
+  height: 1.22rem;
   border: 2px solid var(--wb-panel);
   border-radius: 999px;
   background: var(--wb-accent);
@@ -215,6 +336,37 @@ body[data-app-theme="light"] {
 
 .workbench-playback-rate-slider:focus-visible::-webkit-slider-thumb {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--wb-accent) 28%, transparent);
+}
+
+.workbench-playback-rate-slider:disabled {
+  cursor: progress;
+  opacity: 0.5;
+}
+
+.workbench-playback-rate-popover {
+  animation: workbench-playback-rate-popover-in 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes workbench-playback-rate-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.2rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workbench-playback-rate-popover {
+    animation: workbench-playback-rate-popover-fade-in 120ms ease-out;
+  }
+}
+
+@keyframes workbench-playback-rate-popover-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .workbench-dock-tab {
@@ -1453,10 +1605,8 @@ body[data-app-theme="light"] .public-static-theme-moon {
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--wb-border) 78%, transparent);
   border-radius: 0.9rem;
-  background: var(--wb-panel-bg);
-  box-shadow:
-    0 20px 58px color-mix(in srgb, #020817 22%, transparent),
-    0 2px 10px color-mix(in srgb, #020817 9%, transparent);
+  background: var(--wb-floating-bg);
+  box-shadow: var(--wb-shadow-floating);
   opacity: 0;
   pointer-events: none;
   transform: translateX(1.25rem);
@@ -1649,7 +1799,7 @@ body[data-app-theme="light"] .public-static-theme-moon {
   display: flex;
   align-items: stretch;
   border-bottom: 0;
-  background: transparent !important;
+  background: var(--wb-tab-strip-bg) !important;
   box-shadow: inset 0 -1px 0 var(--wb-border);
 }
 
@@ -1660,6 +1810,27 @@ body[data-app-theme="light"] .public-static-theme-moon {
   min-width: 0;
   padding: 0;
   background: transparent !important;
+}
+
+.workbench-dockview-main .dv-tabs-and-actions-container .dv-tab,
+.workbench-dockview-main .dv-tabs-and-actions-container .dv-tab.dv-inactive-tab {
+  background: var(--wb-tab-strip-bg) !important;
+}
+
+.workbench-dockview-main .dv-tabs-and-actions-container .dv-tab.dv-active-tab {
+  position: relative;
+  z-index: 1;
+  background: var(--wb-zone-main-bg) !important;
+  box-shadow: inset 0 1px 0 var(--wb-accent);
+}
+
+.workbench-dockview-main .dv-tabs-and-actions-container .dv-tab.dv-active-tab::after {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  height: 1px;
+  background: var(--wb-zone-main-bg);
+  content: "";
 }
 
 .workbench-dockview .dv-tab > .dv-react-part {
@@ -1679,7 +1850,11 @@ body[data-app-theme="light"] .public-static-theme-moon {
 .workbench-dockview .dv-tab.dv-active-tab .workbench-dock-tab {
   color: var(--wb-text);
   font-weight: 600;
-  box-shadow: inset 0 -1px 0 var(--wb-accent);
+  box-shadow: inset 0 -1px 0 var(--wb-border-strong);
+}
+
+.workbench-dockview-main .dv-tab.dv-active-tab .workbench-dock-tab {
+  box-shadow: none;
 }
 
 .workbench-dockview .workbench-dock-tab-accent {
@@ -1958,7 +2133,7 @@ body[data-app-theme="light"] .public-static-theme-moon {
   background: linear-gradient(
     to right,
     var(--wb-accent) 0 var(--workbench-control-progress),
-    var(--wb-border-strong) var(--workbench-control-progress) 100%
+    var(--wb-control-track) var(--workbench-control-progress) 100%
   );
 }
 
@@ -1969,14 +2144,14 @@ body[data-app-theme="light"] .public-static-theme-moon {
   appearance: none;
   border: 2px solid var(--wb-accent);
   border-radius: 999px;
-  background: var(--wb-panel-bg);
+  background: var(--wb-inspector-bg);
   box-shadow: 0 1px 2px rgba(2, 12, 27, 0.24);
 }
 
 .workbench-control-range::-moz-range-track {
   height: 0.25rem;
   border-radius: 999px;
-  background: var(--wb-border-strong);
+  background: var(--wb-control-track);
 }
 
 .workbench-control-range::-moz-range-progress {
@@ -1990,7 +2165,7 @@ body[data-app-theme="light"] .public-static-theme-moon {
   height: 0.8rem;
   border: 2px solid var(--wb-accent);
   border-radius: 999px;
-  background: var(--wb-panel-bg);
+  background: var(--wb-inspector-bg);
   box-shadow: 0 1px 2px rgba(2, 12, 27, 0.24);
 }
 

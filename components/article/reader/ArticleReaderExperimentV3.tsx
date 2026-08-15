@@ -34,6 +34,7 @@ import {
   PressureVolumeLoopCanvasV3,
   SweepingWaveformCanvasV3,
   GuytonStarlingComparisonCanvasV3,
+  resolveWorkbenchAutomaticGraphColorV3,
   resolveWorkbenchGraphTraceStyleV3,
   structuralReturnOrientationFromPayloadV3,
   useWorkbenchOptionalSampledGraphPresentationSamplesV3,
@@ -283,6 +284,7 @@ function ArticleReaderStaticExperimentV3({
   onOpen(): void;
 }>) {
   const { t } = useTranslation();
+  const { appTheme } = useAppTheme();
   const graphs = [...briefing.graphs].sort(compareOrderV3);
   if (availability === "loading") {
     return (
@@ -326,7 +328,7 @@ function ArticleReaderStaticExperimentV3({
       type="button"
       onClick={onActivate}
       aria-label={t("articleReader.openExperiment")}
-      className="block w-full rounded-lg py-1 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover/40 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+      className="block w-full rounded-xl bg-wb-canvas p-3 text-left transition-[background-color,transform] duration-150 hover:bg-wb-hover/40 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
     >
       {graphs.length === 0 ? (
         <span className="block py-8 text-sm text-wb-subtle">
@@ -363,17 +365,20 @@ function ArticleReaderStaticExperimentV3({
                       const source = pane.traceColors?.find((trace) =>
                         trace.scenarioId === scenarioId
                         && trace.seriesId === series.seriesId);
-                      const color = articleBriefingTraceColorV3(
+                      const customColor = articleBriefingTraceColorV3(
                         graph,
                         scenarioId,
                         series.seriesId,
-                      ) ?? source?.customColorHex
-                        ?? source?.automaticColorHex
-                        ?? "#64748b";
+                      ) ?? source?.customColorHex;
+                      const color = customColor ??
+                        resolveWorkbenchAutomaticGraphColorV3({
+                          colorHex: source?.automaticColorHex ?? "#64748b",
+                          appTheme,
+                        });
                       return (
                         <span
                           key={series.seriesId}
-                          className="inline-flex items-center gap-1.5 text-[10px] text-wb-muted"
+                          className="inline-flex items-center gap-1.5 text-[11px] text-wb-muted"
                         >
                           <span
                             className="h-0.5 w-5 rounded-full"
@@ -391,7 +396,7 @@ function ArticleReaderStaticExperimentV3({
           })}
         </span>
       )}
-      <span className="mt-2 block text-[10px] text-wb-subtle">
+      <span className="mt-2 block text-[11px] text-wb-subtle">
         {t("articleReader.noLiveData")}
       </span>
     </button>
@@ -638,7 +643,7 @@ function ArticleReaderLiveDetailV3({
 
   return (
     <div className={inline
-      ? "article-reader-inflow min-w-0 rounded-2xl border border-wb-line/70 bg-wb-panel/35 p-3 sm:p-4"
+      ? "article-reader-inflow min-w-0 rounded-2xl border border-wb-line/70 bg-wb-floating/35 p-3 sm:p-4"
       : "min-w-0 px-4 pb-10 sm:px-6"}>
       {inline && (
         <p className="mb-2 truncate text-sm font-semibold tracking-[-0.012em] text-wb-text">
@@ -1417,7 +1422,10 @@ export function ArticleReaderOutputsV3({
   const { t } = useTranslation();
   const samples = useWorkbenchScenarioPresentationSamplesV3(sampleStore);
   return (
-    <section className={compact ? "mt-5" : "mt-8"} aria-label={t("articleReader.outputs")}>
+    <section
+      className={`${compact ? "mt-5" : "mt-8"} rounded-xl bg-wb-inspector p-3`}
+      aria-label={t("articleReader.outputs")}
+    >
       <ExperimentOutputGridV3
         variant="article"
         items={[...briefing.outputs].sort(compareOrderV3).map((output) => {
@@ -1459,7 +1467,7 @@ function ArticleReaderControlsV3({
   const { t } = useTranslation();
   return (
     <section
-      className={`workbench-control-pane ${compact ? "mb-5" : "mb-7"}`}
+      className={`workbench-control-pane rounded-xl bg-wb-inspector p-3 ${compact ? "mb-5" : "mb-7"}`}
       aria-label={t("articleReader.controls")}
     >
       <div className="workbench-control-list">
@@ -1650,7 +1658,7 @@ export function ArticleReaderExperimentPeekPanelV3({
       id="article-reader-experiment-companion-v3"
       role="region"
       aria-labelledby="article-reader-peek-title-v3"
-      className="flex h-full min-w-0 flex-col bg-wb-panel text-wb-text"
+      className="flex h-full min-w-0 flex-col bg-wb-floating text-wb-text"
       data-testid="article-reader-experiment-peek-v3"
       data-reader-presentation="peek"
       data-peek-maximized={maximized ? "true" : "false"}
@@ -1813,7 +1821,7 @@ function ArticleReaderExperimentDrawerV3({
         aria-modal="true"
         aria-labelledby="article-reader-drawer-title-v3"
         tabIndex={-1}
-        className="article-reader-drawer absolute inset-y-0 right-0 flex w-full flex-col overflow-hidden bg-wb-panel text-wb-text shadow-[-18px_0_55px_rgba(2,12,25,0.24)]"
+        className="article-reader-drawer absolute inset-y-0 right-0 flex w-full flex-col overflow-hidden bg-wb-floating text-wb-text shadow-[-18px_0_55px_rgba(2,12,25,0.24)]"
         data-reader-presentation="fullscreen"
       >
         <header className="flex h-12 shrink-0 items-center gap-3 px-3 sm:px-5">

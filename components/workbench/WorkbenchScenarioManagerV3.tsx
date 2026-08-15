@@ -365,8 +365,8 @@ export function WorkbenchScenarioManagerV3(
         : { "aria-label": strings.title })}
       className={
         variant === "sheet"
-          ? "workbench-sheet-enter pointer-events-auto flex h-full w-full max-w-[420px] flex-col bg-wb-panel text-wb-text shadow-2xl sm:ring-1 sm:ring-wb-line"
-          : "workbench-scenario-manager flex max-h-[280px] min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden bg-wb-panel text-wb-text"
+          ? "workbench-floating-surface workbench-sheet-enter pointer-events-auto flex h-full w-full max-w-[420px] flex-col text-wb-text"
+          : "workbench-scenario-manager flex max-h-[280px] min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden bg-transparent text-wb-text"
       }
       data-scenario-manager-variant={variant}
       data-testid="workbench-scenario-manager-v3"

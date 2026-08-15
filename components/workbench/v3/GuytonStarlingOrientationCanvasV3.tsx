@@ -954,8 +954,8 @@ function drawFillingPressureMarkerV3(
 
 function readThemeV3(element: HTMLElement | null): CanvasThemeV3 {
   const [grid, axis, text] = readWorkbenchCanvasThemeVariablesV3(element, [
-    ["--wb-grid", "rgba(148, 163, 184, 0.14)"],
-    ["--wb-axis", "rgba(148, 163, 184, 0.38)"],
+    ["--wb-grid", "rgba(165, 185, 200, 0.10)"],
+    ["--wb-axis", "rgba(165, 185, 200, 0.32)"],
     ["--wb-muted", "rgba(203, 213, 225, 0.72)"],
   ]);
   return Object.freeze({

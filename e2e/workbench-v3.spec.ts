@@ -649,9 +649,70 @@ test("@desktop simulation information stays human-facing", async ({
     .toHaveCount(0);
 });
 
+test("@desktop deleting nested Scenario copies never renders a disposed lane", async ({
+  page,
+}) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  const root = page.getByTestId("v3-dockview-workbench");
+  const scenarioRegion = page.getByRole("region", { name: "Scenarios" });
+  const labels = [
+    "起動時baseline",
+    "起動時baseline のコピー",
+    "起動時baseline のコピー のコピー",
+    "起動時baseline のコピー のコピー のコピー",
+  ] as const;
+
+  for (let index = 0; index < labels.length - 1; index += 1) {
+    await openScenarioMenu(page, scenarioRegion, labels[index]!);
+    await page
+      .getByRole("menu", { name: `Scenarioメニュー: ${labels[index]}` })
+      .getByRole("menuitem", { name: "複製" })
+      .click();
+    await expect(scenarioRegion.getByRole("button", {
+      name: new RegExp(`^${labels[index + 1]}`),
+    })).toBeVisible({ timeout: 30_000 });
+  }
+
+  for (let index = labels.length - 1; index > 0; index -= 1) {
+    await openScenarioMenu(page, scenarioRegion, labels[index]!);
+    await page
+      .getByRole("menu", { name: `Scenarioメニュー: ${labels[index]}` })
+      .getByRole("menuitem", { name: "削除" })
+      .click();
+    await expect(scenarioRegion.getByRole("button", {
+      name: new RegExp(`^${labels[index]}`),
+    })).toHaveCount(0, { timeout: 30_000 });
+    await expect(root).toBeVisible();
+    await expect(page.getByText("Something went wrong.")).toHaveCount(0);
+  }
+
+  expect(pageErrors.filter((message) =>
+    message.includes("parallel Scenario not found")
+  )).toEqual([]);
+});
+
 test("@mobile 390px Workbench uses one graph tab group and keeps controls reachable", async ({
   page,
 }) => {
+  await expect(page.getByTestId("workbench-theme-toggle")).toBeHidden();
+  await expect(page.getByRole("button", {
+    name: "シミュレーションのメモ",
+  })).toHaveCount(0);
+  await page.getByTestId("workbench-simulation-info-trigger-v3").click();
+  const simulationInfo = page.getByRole("dialog", {
+    name: "シミュレーション情報",
+  });
+  await simulationInfo.getByRole("tab", {
+    name: "シミュレーションのメモ",
+  }).click();
+  await expect(simulationInfo.getByPlaceholder(
+    "このシミュレーションの解釈、制限事項、参考文献などを記入…",
+  )).toBeVisible();
+  await expect(simulationInfo.getByText("制限事項", { exact: false }))
+    .toBeVisible();
+  await simulationInfo.getByRole("button", { name: "閉じる" }).click();
+
   const rateTrigger = page.getByTestId("v3-playback-rate-trigger");
   await expect(rateTrigger).toBeVisible();
   await expect(rateTrigger).toContainText("×");
@@ -661,12 +722,50 @@ test("@mobile 390px Workbench uses one graph tab group and keeps controls reacha
   await expect(
     ratePopover.getByRole("slider", { name: "再生速度を変更" }),
   ).toBeVisible();
+  const rateSlider = ratePopover.getByRole("slider", {
+    name: "再生速度を変更",
+  });
+  await expect(rateSlider).toBeEnabled();
+  await expect(rateSlider).toHaveAttribute("min", "0.25");
+  await expect(rateSlider).toHaveAttribute("step", "0.25");
+  await expect(ratePopover.getByRole("button", {
+    name: "0.25×",
+    exact: true,
+  })).toBeVisible();
+  await expect(ratePopover.getByRole("button", {
+    name: "0.5×",
+    exact: true,
+  })).toBeVisible();
+  await expect(ratePopover.getByRole("button", {
+    name: "1×",
+    exact: true,
+  })).toBeVisible();
+  await expect(ratePopover.getByRole("button", {
+    name: "2×",
+    exact: true,
+  })).toBeVisible();
+  await expect(ratePopover.getByRole("button", {
+    name: "5×",
+    exact: true,
+  })).toBeVisible();
+  const maximumRate = Number(await rateSlider.getAttribute("max"));
+  expect(maximumRate).toBeGreaterThanOrEqual(0.25);
+  expect(maximumRate).toBeLessThanOrEqual(5);
+  expect(maximumRate === 0.25 || Number.isInteger(maximumRate * 2)).toBe(true);
+
+  const initialRate = Number(await rateSlider.inputValue());
+  await rateSlider.press("ArrowRight");
+  const selectedRate = Math.min(maximumRate, initialRate + 0.25);
+  await expect(rateSlider).toHaveValue(String(selectedRate));
+  await page.waitForTimeout(500);
+  await expect(rateSlider).toHaveValue(String(selectedRate));
+  await expect(rateTrigger).toContainText(`${selectedRate}×`);
   const ratePopoverBox = await ratePopover.boundingBox();
   expect(ratePopoverBox?.x ?? -1).toBeGreaterThanOrEqual(0);
   expect(
     (ratePopoverBox?.x ?? 0) + (ratePopoverBox?.width ?? 391),
   ).toBeLessThanOrEqual(390);
-  await rateTrigger.click();
+  await page.getByTestId("v3-playback-rate-backdrop").click();
   await expect(ratePopover).toBeHidden();
 
   const graphArea = page.getByRole("region", { name: "グラフエリア" });

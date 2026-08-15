@@ -303,7 +303,7 @@ export class ArticleReaderLiveRuntimeV3 {
     }
   }
 
-  setPlaybackRate(rate: number | "auto"): void {
+  setPlaybackRate(rate: number): void {
     const runtime = this.#runtime;
     if (runtime === null || !this.#acceptsFrames()) return;
     try {
@@ -738,11 +738,11 @@ const EMPTY_ARTICLE_READER_CONTROL_ERRORS_V3 = Object.freeze(
 ) as Readonly<Record<string, string>>;
 const INITIAL_ARTICLE_PLAYBACK_RATE_STATE_V3:
   WorkbenchGroupPlaybackRateStateV3 = Object.freeze({
-    mode: "auto",
-    effectiveRate: 0.5,
-    safeMaximumRate: 0.5,
-    requestedRate: null,
-    warmingUp: true,
+    playbackRate: 0.5,
+    maximumRate: null,
+    calibrating: true,
+    userSelected: false,
+    performanceLimited: false,
   });
 
 export function articleReaderAnalysisKeyV3(
