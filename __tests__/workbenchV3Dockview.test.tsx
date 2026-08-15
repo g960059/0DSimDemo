@@ -646,7 +646,7 @@ describe("V3 Dockview Workbench", () => {
     ).not.toBe(modelLimitationsAcknowledgementKey("model/dev-3:disclosure-v1"));
   });
 
-  it("starts with only LVP/LAP/AoP and the LV pressure-volume loop", async () => {
+  it("starts with the teaching dashboard: LV PV, systemic return, and a six-second pressure sweep", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const surface = createDefaultExperimentSurfaceV3(composition.contract);
     const graphPanes = surface.graphPanes;
@@ -660,12 +660,16 @@ describe("V3 Dockview Workbench", () => {
       })),
     ).toEqual([
       {
-        graphId: "hemodynamics.pressure.waveform",
-        seriesIds: ["LVP", "LAP", "AoP"],
-      },
-      {
         graphId: "hemodynamics.pressure-volume",
         seriesIds: ["LV"],
+      },
+      {
+        graphId: "hemodynamics.guyton-starling",
+        seriesIds: [],
+      },
+      {
+        graphId: "hemodynamics.pressure.waveform",
+        seriesIds: ["AoP", "LVP", "LAP"],
       },
     ]);
     expect(outputPane.items.map(({ outputId }) => outputId)).toEqual([
@@ -685,10 +689,11 @@ describe("V3 Dockview Workbench", () => {
       "ventilation.peep-cm-h2o",
     ]);
     expect(controlPane.items.length).toBeGreaterThan(0);
-    expect(graphPanes).toHaveLength(2);
-    expect(graphPanes[1]?.pressureVolumeAnalysisMode).toBe(
+    expect(graphPanes).toHaveLength(3);
+    expect(graphPanes[0]?.pressureVolumeAnalysisMode).toBe(
       "responsive-preview",
     );
+    expect(graphPanes[1]?.structuralSide).toBe("right");
     expect(Object.isFrozen(graphPanes)).toBe(true);
     expect(Object.isFrozen(outputPane.items)).toBe(true);
     expect("colorHex" in outputPane).toBe(false);
@@ -715,7 +720,7 @@ describe("V3 Dockview Workbench", () => {
         ).toBe(true);
       }
       if (graph.renderer === "sweep") {
-        expect(pane.windowSec).toBe(2);
+        expect(pane.windowSec).toBe(6);
       } else {
         expect(pane.historyDepth).toBe(1);
       }
@@ -746,9 +751,9 @@ describe("V3 Dockview Workbench", () => {
     );
 
     expect(selectedBindings.map(({ seriesId }) => seriesId)).toEqual([
+      "AoP",
       "LVP",
       "LAP",
-      "AoP",
     ]);
     expect(
       selectedOutputs.every(
@@ -880,7 +885,9 @@ describe("V3 Dockview Workbench", () => {
   it("updates and resets one exact Scenario/item color without touching siblings", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const pane = createDefaultExperimentSurfaceV3(composition.contract)
-      .graphPanes[0]!;
+      .graphPanes.find(
+        ({ graphId }) => graphId === "hemodynamics.pressure.waveform",
+      )!;
     const first = pane.traceColors![0]!;
     const sibling = pane.traceColors![1]!;
     const customized = updateWorkbenchGraphTraceCustomColorV3(pane, {
@@ -1201,15 +1208,8 @@ describe("V3 Dockview Workbench", () => {
       );
     }
 
-    const systemic = addWorkbenchSurfacePaneV3(
-      original,
-      "graph",
-      composition.contract,
-      "hemodynamics.guyton-starling",
-      "right",
-    );
     const pulmonary = addWorkbenchSurfacePaneV3(
-      systemic.surface,
+      original,
       "graph",
       composition.contract,
       "hemodynamics.guyton-starling",
@@ -1518,7 +1518,7 @@ describe("V3 Dockview Workbench", () => {
     expect(html).toContain("V3 graph");
   });
 
-  it("uses one tab group for narrow graph panes and a desktop split", () => {
+  it("uses one tab group for narrow graphs and a desktop teaching dashboard", () => {
     expect(
       [0, 1, 2, 3].map((index) => workbenchPanePlacementV3(index, "tabs")),
     ).toEqual(["first", "within", "within", "within"]);
@@ -1527,6 +1527,66 @@ describe("V3 Dockview Workbench", () => {
     expect(
       [0, 1, 2, 3].map((index) => workbenchPanePlacementV3(index, "split")),
     ).toEqual(["first", "right", "within", "within"]);
+    expect(
+      [0, 1, 2, 3].map((index) =>
+        workbenchPanePlacementV3(index, "dashboard")
+      ),
+    ).toEqual(["first", "right", "within", "within"]);
+  });
+
+  it("builds two upper graph groups above one full-width lower group", () => {
+    const upperLeftGroup = { id: "upper-left" };
+    const upperRightGroup = { id: "upper-right" };
+    const lowerGroup = { id: "lower" };
+    const panels: Array<{
+      id: string;
+      group: { id: string };
+      api: { setActive: ReturnType<typeof vi.fn> };
+    }> = [];
+    const addPanel = vi.fn((options: {
+      id: string;
+      position?: { direction: string };
+    }) => {
+      const group = options.position?.direction === "below"
+        ? lowerGroup
+        : options.position?.direction === "right"
+        ? upperRightGroup
+        : upperLeftGroup;
+      panels.push({ id: options.id, group, api: { setActive: vi.fn() } });
+    });
+    const api = {
+      activePanel: undefined,
+      addPanel,
+      clear: vi.fn(() => panels.splice(0)),
+      get panels() {
+        return panels;
+      },
+      getPanel: vi.fn((paneId: string) =>
+        panels.find(({ id }) => id === paneId)),
+    } as unknown as DockviewApi;
+    const panes: readonly WorkbenchPaneDefinitionV3[] = [
+      { paneId: "graph/pv", role: "graph", title: "PV loop" },
+      {
+        paneId: "graph/systemic",
+        role: "graph",
+        title: "Systemic Guyton / Starling",
+      },
+      { paneId: "graph/pressure", role: "graph", title: "Pressure" },
+    ];
+
+    applyWorkbenchPanesV3(api, panes, "dashboard");
+
+    expect(addPanel.mock.calls.map(([options]) => options.id)).toEqual([
+      "graph/pv",
+      "graph/pressure",
+      "graph/systemic",
+    ]);
+    expect(addPanel.mock.calls[1]?.[0]).toEqual(expect.objectContaining({
+      position: expect.objectContaining({ direction: "below" }),
+    }));
+    expect(addPanel.mock.calls[2]?.[0]).toEqual(expect.objectContaining({
+      position: expect.objectContaining({ direction: "right" }),
+    }));
   });
 
   it("constrains split axes by role and adds controller panes as tabs", () => {
@@ -1537,6 +1597,10 @@ describe("V3 Dockview Workbench", () => {
     expect(workbenchPaneSplitDirectionsForRoleV3("output")).toEqual(["right"]);
     expect(workbenchPaneSplitDirectionsForRoleV3("control")).toEqual(["below"]);
     expect(workbenchDockLayoutModeForRoleV3("output", false)).toBe("split");
+    expect(workbenchDockLayoutModeForRoleV3("graph", false)).toBe(
+      "dashboard",
+    );
+    expect(workbenchDockLayoutModeForRoleV3("graph", true)).toBe("tabs");
     expect(workbenchDockLayoutModeForRoleV3("control", false)).toBe("tabs");
     expect(workbenchDockLayoutModeForRoleV3("control", true)).toBe("tabs");
     expect(workbenchDockDropPositionAllowedForRoleV3("output", "right")).toBe(
@@ -1744,6 +1808,7 @@ describe("V3 Dockview Workbench", () => {
   });
 
   it("keeps Workbench area proportions as a defensive device-local preference", () => {
+    expect(DEFAULT_WORKBENCH_AREA_LAYOUT_V3.outputHeightRatio).toBe(0.18);
     const values = new Map<string, string>();
     const storage = {
       getItem: (key: string) => values.get(key) ?? null,

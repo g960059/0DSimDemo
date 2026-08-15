@@ -968,12 +968,13 @@ function GraphPaneEditorV3({
         )}
         {graph?.renderer === "sweep" && (
           <div className="grid gap-1.5">
-            <CommitNumberInputV3
+            <PaneRangeInputV3
               label={strings.windowSec}
               value={pane.windowSec ?? WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3}
               minimum={WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3}
               maximum={WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3}
               step={WORKBENCH_SWEEP_WINDOW_STEP_SEC_V3}
+              unit="s"
               onCommit={(windowSec) => onChange({ ...pane, windowSec })}
             />
             <p className="text-[10px] text-wb-subtle">
@@ -2955,6 +2956,55 @@ function CommitNumberInputV3({
         }}
       />
     </label>
+  );
+}
+
+function PaneRangeInputV3({
+  label,
+  value,
+  minimum,
+  maximum,
+  step,
+  unit,
+  onCommit,
+}: Readonly<{
+  label: string;
+  value: number;
+  minimum: number;
+  maximum: number;
+  step: number;
+  unit: string;
+  onCommit: (value: number) => void;
+}>) {
+  const inputId = React.useId();
+  const span = maximum - minimum;
+  const progress = span > 0
+    ? Math.max(0, Math.min(100, ((value - minimum) / span) * 100))
+    : 0;
+  return (
+    <div className="workbench-pane-range-field">
+      <div className="workbench-pane-range-heading">
+        <label htmlFor={inputId}>{label}</label>
+        <output htmlFor={inputId} className="workbench-pane-range-value">
+          <span>{value}</span>
+          <span className="workbench-pane-range-unit">{unit}</span>
+        </output>
+      </div>
+      <input
+        id={inputId}
+        className="workbench-control-range"
+        style={{
+          "--workbench-control-progress": `${progress}%`,
+        } as React.CSSProperties}
+        type="range"
+        min={minimum}
+        max={maximum}
+        step={step}
+        value={value}
+        aria-valuetext={`${value} ${unit}`}
+        onChange={(event) => onCommit(Number(event.currentTarget.value))}
+      />
+    </div>
   );
 }
 

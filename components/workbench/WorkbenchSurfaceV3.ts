@@ -9,7 +9,6 @@ import {
   STUDIO_GRAPH_HISTORY_DEFAULT_DEPTH_V2,
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2,
   STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2,
-  STUDIO_SWEEP_WINDOW_DEFAULT_SEC_V2,
   STUDIO_SWEEP_WINDOW_MAX_SEC_V2,
   STUDIO_SWEEP_WINDOW_MIN_SEC_V2,
   STUDIO_SWEEP_WINDOW_STEP_SEC_V2,
@@ -20,8 +19,10 @@ import type {
 } from "@/studio/contracts/v2/model";
 
 export const WORKBENCH_SCENARIO_ID_V3 = "workbench-live-default";
-export const WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 =
-  STUDIO_SWEEP_WINDOW_DEFAULT_SEC_V2;
+// A six-second sweep is the Workbench teaching default: it keeps several
+// complete beats visible while PV and Guyton/Starling occupy the upper row.
+// Portable Article authoring retains its own shorter Studio default.
+export const WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 = 6;
 export const WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3 = STUDIO_SWEEP_WINDOW_MIN_SEC_V2;
 export const WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3 = STUDIO_SWEEP_WINDOW_MAX_SEC_V2;
 export const WORKBENCH_SWEEP_WINDOW_STEP_SEC_V3 =
@@ -188,15 +189,33 @@ export function createDefaultExperimentSurfaceV3(
   contract: ModelContractV2,
   initialScenarioId: string = WORKBENCH_SCENARIO_ID_V3,
 ): ExperimentSurfaceV2 {
-  const defaultGraphIds = Object.freeze([
-    "hemodynamics.pressure.waveform",
-    "hemodynamics.pressure-volume",
+  const defaultGraphs = Object.freeze([
+    Object.freeze({
+      graphId: "hemodynamics.pressure-volume",
+    }),
+    Object.freeze({
+      graphId: "hemodynamics.guyton-starling",
+      structuralSide: "right" as const,
+    }),
+    Object.freeze({
+      graphId: "hemodynamics.pressure.waveform",
+      seriesIds: Object.freeze(["AoP", "LVP", "LAP"]),
+    }),
   ]);
-  const graphPanes = defaultGraphIds.flatMap((graphId, index) => {
+  const graphPanes = defaultGraphs.flatMap((defaultGraph, index) => {
     const graph = contract.graphCatalog.find(
-      (candidate) => candidate.graphId === graphId,
+      (candidate) => candidate.graphId === defaultGraph.graphId,
     );
-    return graph === undefined ? [] : [createDefaultGraphPaneV3(graph, index)];
+    return graph === undefined
+      ? []
+      : [createDefaultGraphPaneV3(graph, index, {
+          ...("structuralSide" in defaultGraph
+            ? { structuralSide: defaultGraph.structuralSide }
+            : {}),
+          ...("seriesIds" in defaultGraph
+            ? { seriesIds: defaultGraph.seriesIds }
+            : {}),
+        })];
   });
   const defaultOutputIds = Object.freeze([
     "rhythm.heart-rate.instantaneous",
@@ -279,17 +298,25 @@ export function createDefaultExperimentSurfaceV3(
 function createDefaultGraphPaneV3(
   graph: GraphDefinitionV2,
   index: number,
+  options: Readonly<{
+    structuralSide?: "left" | "right";
+    seriesIds?: readonly string[];
+  }> = Object.freeze({}),
 ): ExperimentSurfaceGraphPaneV2 {
+  const structuralSide = graph.renderer === "structural-return"
+    ? options.structuralSide ?? (graph.side === "both" ? "right" : graph.side)
+    : undefined;
+  const selectedSeriesIds = graph.renderer === "structural-return"
+    ? []
+    : (options.seriesIds ?? graph.defaultSeriesIds).filter((seriesId) =>
+        graph.seriesCatalog.some((series) => series.seriesId === seriesId)
+      );
   return Object.freeze({
     paneId: `graph-${index + 1}`,
     role: "graph",
     label: graphTitleV3(
       graph.graphId,
-      graph.renderer === "structural-return"
-        ? graph.side === "both"
-          ? "right"
-          : graph.side
-        : undefined,
+      structuralSide,
     ),
     order: index,
     priority: Math.max(50, 100 - index),
@@ -307,14 +334,14 @@ function createDefaultGraphPaneV3(
               }
             : {}),
           ...(graph.renderer === "structural-return"
-            ? { structuralSide: graph.side === "both" ? "right" : graph.side }
+            ? { structuralSide }
             : {}),
         }),
     traceColors: Object.freeze([]),
     series: Object.freeze(
       graph.renderer === "structural-return"
         ? []
-        : graph.defaultSeriesIds.map((seriesId, seriesIndex) =>
+        : selectedSeriesIds.map((seriesId, seriesIndex) =>
             Object.freeze({
               seriesId,
               label: graphSeriesLabelV3(seriesId),

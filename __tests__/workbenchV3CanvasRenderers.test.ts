@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   WORKBENCH_PRESENTATION_SAMPLE_CAPACITY_V3,
   WORKBENCH_PRESENTATION_HISTORY_MAX_DEPTH_V3,
+  WORKBENCH_SWEEP_FORWARD_GAP_FRACTION_V3,
   WorkbenchScenarioPresentationSampleStoreV3,
   appendWorkbenchPresentationSamplesV3,
   appendWorkbenchExactOrbitSamplesV3,
@@ -20,6 +21,7 @@ import {
   isWorkbenchPresentationSampleV3,
   lastCompleteCycleRangeV3,
   latestSweepingWaveformPointV3,
+  mixOpaqueWorkbenchCanvasColorV3,
   nextStableNumericDomainStateV3,
   niceNumericDomainV3,
   numericTicksV3,
@@ -72,6 +74,21 @@ const sampleV3 = (
   });
 
 describe("V3-neutral Workbench Canvas helpers", () => {
+  it("builds leading-cap tints as opaque colors against either Canvas theme", () => {
+    expect(mixOpaqueWorkbenchCanvasColorV3("#ff0000", "#ffffff", 0.25))
+      .toBe("#ffbfbf");
+    expect(mixOpaqueWorkbenchCanvasColorV3("#ffffff", "#000000", 0.25))
+      .toBe("#404040");
+    expect(mixOpaqueWorkbenchCanvasColorV3("#abc", "#000", 0))
+      .toBe("#000000");
+    expect(mixOpaqueWorkbenchCanvasColorV3("#abc", "#000", 1))
+      .toBe("#aabbcc");
+  });
+
+  it("reserves four percent of the sweep as a readable forward gap", () => {
+    expect(WORKBENCH_SWEEP_FORWARD_GAP_FRACTION_V3).toBe(0.04);
+  });
+
   it("does not pin a fallback palette before authored theme variables resolve", () => {
     let resolved = "";
     const getComputedStyle = vi.fn(() => ({

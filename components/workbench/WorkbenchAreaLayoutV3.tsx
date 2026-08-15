@@ -1,7 +1,7 @@
 import React from "react";
 
 export const WORKBENCH_AREA_LAYOUT_STORAGE_KEY_V3 =
-  "circleheart.workbench.area-layout.v1";
+  "circleheart.workbench.area-layout.v2";
 
 export type WorkbenchAreaLayoutPreferenceV3 = Readonly<{
   inspectorWidthRatio: number;
@@ -10,7 +10,9 @@ export type WorkbenchAreaLayoutPreferenceV3 = Readonly<{
 
 export const DEFAULT_WORKBENCH_AREA_LAYOUT_V3 = Object.freeze({
   inspectorWidthRatio: 0.24,
-  outputHeightRatio: 0.27,
+  // The default output catalog fits on one desktop row. Keep the drawer just
+  // tall enough for its tab strip and values; users can still resize it.
+  outputHeightRatio: 0.18,
 }) satisfies WorkbenchAreaLayoutPreferenceV3;
 
 const clampRatio = (value: number, minimum: number, maximum: number) =>

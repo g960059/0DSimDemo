@@ -632,8 +632,9 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
 
     const workbenchSurface = createDefaultExperimentSurfaceV3(composed.contract);
     expect(workbenchSurface.graphPanes.map(({ graphId }) => graphId)).toEqual([
-      "hemodynamics.pressure.waveform",
       "hemodynamics.pressure-volume",
+      "hemodynamics.guyton-starling",
+      "hemodynamics.pressure.waveform",
     ]);
     expect(workbenchSurface.outputPanes[0]?.items.map(({ outputId }) => outputId))
       .toEqual([

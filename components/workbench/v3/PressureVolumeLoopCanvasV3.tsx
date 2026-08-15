@@ -17,6 +17,7 @@ import {
   positiveModuloV3,
 } from "./SweepingWaveformCanvasV3";
 import {
+  mixOpaqueWorkbenchCanvasColorV3,
   scaleLinearV3,
   readWorkbenchCanvasThemeVariablesV3,
   useResponsiveCanvasFrameV3,
@@ -713,6 +714,7 @@ export function PressureVolumeLoopCanvasV3(
           x(head.volumeMl),
           y(head.pressureMmHg),
           trace.chamberColor,
+          theme.canvas,
           traceAlpha,
         );
       }
@@ -1114,6 +1116,7 @@ type PvPlotRectV3 = Readonly<{
 }>;
 
 type PvCanvasThemeV3 = Readonly<{
+  canvas: string;
   grid: string;
   axis: string;
   text: string;
@@ -1250,19 +1253,27 @@ function drawPvLeadingCapV3(
   x: number,
   y: number,
   color: string,
+  canvasColor: string,
   traceAlpha = 1,
 ): void {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return;
   context.save();
   context.setLineDash([]);
-  context.fillStyle = color;
-  context.globalAlpha = 0.2 * traceAlpha;
+  context.globalAlpha = 1;
+  context.fillStyle = mixOpaqueWorkbenchCanvasColorV3(
+    color,
+    canvasColor,
+    0.34 * traceAlpha,
+  );
   context.beginPath();
   context.arc(x, y, 4.25, 0, Math.PI * 2);
   context.fill();
-  context.strokeStyle = color;
+  context.strokeStyle = mixOpaqueWorkbenchCanvasColorV3(
+    color,
+    canvasColor,
+    0.88 * traceAlpha,
+  );
   context.lineWidth = 1;
-  context.globalAlpha = 0.72 * traceAlpha;
   context.beginPath();
   context.arc(x, y, 3.5, 0, Math.PI * 2);
   context.stroke();
@@ -1270,12 +1281,15 @@ function drawPvLeadingCapV3(
 }
 
 function readPvCanvasThemeV3(element: HTMLElement | null): PvCanvasThemeV3 {
-  const [grid, axis, text] = readWorkbenchCanvasThemeVariablesV3(element, [
-    ["--wb-grid", "rgba(165, 185, 200, 0.10)"],
-    ["--wb-axis", "rgba(165, 185, 200, 0.32)"],
-    ["--wb-text-muted", "#94a3b8"],
-  ]);
+  const [canvas, grid, axis, text] =
+    readWorkbenchCanvasThemeVariablesV3(element, [
+      ["--wb-canvas-bg", "#0a141d"],
+      ["--wb-grid", "rgba(165, 185, 200, 0.10)"],
+      ["--wb-axis", "rgba(165, 185, 200, 0.32)"],
+      ["--wb-text-muted", "#94a3b8"],
+    ]);
   return Object.freeze({
+    canvas: canvas!,
     grid: grid!,
     axis: axis!,
     text: text!,

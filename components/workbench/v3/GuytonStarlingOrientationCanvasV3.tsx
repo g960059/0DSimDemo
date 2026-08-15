@@ -418,6 +418,7 @@ export function GuytonStarlingComparisonCanvasV3({
       ref={containerRef}
       className={`relative min-h-56 h-full w-full overflow-hidden ${className ?? ""}`}
       data-chart-kind="guyton-starling-structural-orientation-v3"
+      data-circulation-side={side}
       data-structural-semantics={firstTrace.orientation.semantics}
       data-scenario-count={traces.length}
       data-history-count={traces.reduce(

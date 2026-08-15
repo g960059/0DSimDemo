@@ -10,6 +10,7 @@ import {
   type WorkbenchScalarSampleV3,
 } from "./WorkbenchScalarSampleV3";
 import {
+  mixOpaqueWorkbenchCanvasColorV3,
   scaleLinearV3,
   readWorkbenchCanvasThemeVariablesV3,
   useResponsiveCanvasFrameV3,
@@ -120,7 +121,7 @@ function waveformSourcePointsV3(
   }));
 }
 
-export const WORKBENCH_SWEEP_FORWARD_GAP_FRACTION_V3 = 0.025;
+export const WORKBENCH_SWEEP_FORWARD_GAP_FRACTION_V3 = 0.04;
 
 const WAVEFORM_EPSILON_V3 = 1e-9;
 
@@ -476,6 +477,7 @@ export function SweepingWaveformCanvasV3(
           x(head.phaseSec),
           y(head.value),
           trace.signalColor,
+          theme.canvas,
           traceAlpha,
         );
       }
@@ -640,6 +642,7 @@ type CanvasPlotRectV3 = Readonly<{
 }>;
 
 type CanvasThemeV3 = Readonly<{
+  canvas: string;
   grid: string;
   axis: string;
   text: string;
@@ -740,12 +743,15 @@ function waveformAxisTitleV3(
 }
 
 function readCanvasThemeV3(element: HTMLElement | null): CanvasThemeV3 {
-  const [grid, axis, text] = readWorkbenchCanvasThemeVariablesV3(element, [
-    ["--wb-grid", "rgba(165, 185, 200, 0.10)"],
-    ["--wb-axis", "rgba(165, 185, 200, 0.32)"],
-    ["--wb-text-muted", "#94a3b8"],
-  ]);
+  const [canvas, grid, axis, text] =
+    readWorkbenchCanvasThemeVariablesV3(element, [
+      ["--wb-canvas-bg", "#0a141d"],
+      ["--wb-grid", "rgba(165, 185, 200, 0.10)"],
+      ["--wb-axis", "rgba(165, 185, 200, 0.32)"],
+      ["--wb-text-muted", "#94a3b8"],
+    ]);
   return Object.freeze({
+    canvas: canvas!,
     grid: grid!,
     axis: axis!,
     text: text!,
@@ -757,19 +763,27 @@ function drawWaveformLeadingCapV3(
   x: number,
   y: number,
   color: string,
+  canvasColor: string,
   traceAlpha = 1,
 ): void {
   if (!Number.isFinite(x) || !Number.isFinite(y)) return;
   context.save();
   context.setLineDash([]);
-  context.fillStyle = color;
-  context.globalAlpha = 0.2 * traceAlpha;
+  context.globalAlpha = 1;
+  context.fillStyle = mixOpaqueWorkbenchCanvasColorV3(
+    color,
+    canvasColor,
+    0.34 * traceAlpha,
+  );
   context.beginPath();
   context.arc(x, y, 4, 0, Math.PI * 2);
   context.fill();
-  context.strokeStyle = color;
+  context.strokeStyle = mixOpaqueWorkbenchCanvasColorV3(
+    color,
+    canvasColor,
+    0.88 * traceAlpha,
+  );
   context.lineWidth = 1;
-  context.globalAlpha = 0.72 * traceAlpha;
   context.beginPath();
   context.arc(x, y, 3.25, 0, Math.PI * 2);
   context.stroke();

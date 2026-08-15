@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronDown, Minus, Pause, Play, Plus } from "lucide-react";
+import { Minus, Pause, Play, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -65,12 +65,13 @@ export function WorkbenchPlaybackControlV3({
   return (
     <div
       ref={rootRef}
-      className="workbench-playback-control relative inline-flex h-9 shrink-0 items-stretch text-wb-muted"
+      className="workbench-playback-control relative inline-flex h-9 shrink-0 items-center rounded-lg text-wb-muted"
+      data-open={open ? "true" : "false"}
       data-testid="v3-playback-control"
     >
       <button
         type="button"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] disabled:cursor-wait disabled:opacity-45 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:text-wb-text active:scale-[0.96] active:bg-wb-hover disabled:cursor-wait disabled:opacity-45 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
         disabled={disabled}
         aria-label={
           playing ? t("workbench.live.pause") : t("workbench.live.play")
@@ -86,27 +87,24 @@ export function WorkbenchPlaybackControlV3({
         )}
       </button>
 
-      <span className="my-2 w-px bg-wb-line" aria-hidden="true" />
-
       <button
         type="button"
-        className="inline-flex h-9 min-w-[3.65rem] items-center justify-center gap-1 rounded-lg px-1.5 font-mono text-[0.78rem] font-semibold tabular-nums text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:min-w-[4.25rem] sm:px-2"
+        className={`inline-flex h-9 min-w-[3rem] items-center justify-center rounded-lg px-1.5 font-mono text-[0.76rem] font-medium tabular-nums text-wb-muted transition-[color,background-color,transform] duration-150 hover:text-wb-text active:scale-[0.97] active:bg-wb-hover disabled:cursor-not-allowed disabled:opacity-45 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:min-w-[3.25rem] ${
+          open ? "bg-wb-hover text-wb-text" : ""
+        }`}
         disabled={disabled}
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={t("workbench.live.playbackRate", {
           rate: formatWorkbenchPlaybackRateV3(rate.playbackRate),
         })}
+        title={t("workbench.live.playbackRate", {
+          rate: formatWorkbenchPlaybackRateV3(rate.playbackRate),
+        })}
         onClick={() => setOpen((current) => !current)}
         data-testid="v3-playback-rate-trigger"
       >
         <span>{formatWorkbenchPlaybackRateV3(rate.playbackRate)}</span>
-        <ChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-150 ${
-            open ? "rotate-180" : ""
-          }`}
-          aria-hidden="true"
-        />
       </button>
 
       {open && (
