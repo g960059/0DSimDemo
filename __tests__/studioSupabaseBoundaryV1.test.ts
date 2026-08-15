@@ -32,7 +32,6 @@ import standardClientDescriptorV1 from
 import standardSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
 import {
-  EXACT_MODEL_ARTIFACT_CACHE_CONTROL_V1,
   uploadImmutableExactModelArtifactV1,
 } from "@/tools/registry/ImmutableExactModelArtifactStorageV1";
 
@@ -56,7 +55,7 @@ describe("Studio Supabase boundary V1", () => {
     });
   });
 
-  it("uploads exact artifacts with one-year immutable cache metadata", async () => {
+  it("uploads exact artifacts with one-year cache metadata", async () => {
     const fetchV1 = vi.fn()
       .mockResolvedValueOnce(new Response(null, { status: 404 }))
       .mockResolvedValueOnce(new Response(null, { status: 200 }));
@@ -75,10 +74,11 @@ describe("Studio Supabase boundary V1", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          "cache-control": EXACT_MODEL_ARTIFACT_CACHE_CONTROL_V1,
+          "cache-control": "max-age=31536000",
           "content-type": "text/javascript",
           "x-upsert": "false",
         }),
+        body: expect.any(Blob),
       }),
     );
   });
@@ -114,14 +114,28 @@ describe("Studio Supabase boundary V1", () => {
     await uploadImmutableExactModelArtifactV1(input, repairFetch);
     expect(repairFetch).toHaveBeenNthCalledWith(
       2,
-      expect.stringContaining("/storage/v1/object/model-releases/"),
+      "https://project.supabase.co/storage/v1/object/copy",
       expect.objectContaining({
-        method: "PUT",
+        method: "POST",
         headers: expect.objectContaining({
-          "cache-control": EXACT_MODEL_ARTIFACT_CACHE_CONTROL_V1,
+          "content-type": "application/json",
+          "x-upsert": "true",
         }),
       }),
     );
+    const repairBody = JSON.parse(
+      String(repairFetch.mock.calls[1]?.[1]?.body),
+    ) as Record<string, unknown>;
+    expect(repairBody).toEqual({
+      bucketId: "model-releases",
+      sourceKey: "model/standard.mjs",
+      destinationKey: "model/standard.mjs",
+      metadata: {
+        cacheControl: "max-age=31536000",
+        mimetype: "text/javascript",
+      },
+      copyMetadata: false,
+    });
 
     const mismatchFetch = vi.fn().mockResolvedValueOnce(new Response(
       new Uint8Array([9, 9, 9]),
@@ -130,6 +144,23 @@ describe("Studio Supabase boundary V1", () => {
     await expect(uploadImmutableExactModelArtifactV1(input, mismatchFetch))
       .rejects.toThrow(/different bytes/);
     expect(mismatchFetch).toHaveBeenCalledOnce();
+  });
+
+  it("does not rewrite a byte-identical artifact whose one-year TTL is already set", async () => {
+    const artifact = new Uint8Array([1, 2, 3]);
+    const fetchV1 = vi.fn().mockResolvedValueOnce(new Response(artifact, {
+      status: 200,
+      headers: { "cache-control": "public, max-age=31536000" },
+    }));
+    await uploadImmutableExactModelArtifactV1({
+      artifact,
+      artifactSha256:
+        "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+      baseUrl: "https://project.supabase.co",
+      objectName: "model/standard.mjs",
+      secret: "service-role",
+    }, fetchV1);
+    expect(fetchV1).toHaveBeenCalledOnce();
   });
 
   it("resolves a hash-free exact model ticket and owns its launch fixture", async () => {
