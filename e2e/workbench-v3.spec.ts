@@ -126,6 +126,46 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   await themeToggle.click();
   await expect(page.locator("body")).toHaveAttribute("data-app-theme", "dark");
 
+  const playbackRateTrigger = page.getByTestId("v3-playback-rate-trigger");
+  const saveAction = page.getByTestId("v3-save-experiment");
+  const headerActions = [
+    page.getByTestId("workbench-simulation-info-trigger-v3"),
+    themeToggle,
+    page.getByTestId("v3-header-information-playback-separator"),
+    playback,
+    playbackRateTrigger,
+    page.getByTestId("v3-header-playback-authoring-separator"),
+    saveAction,
+  ];
+  const headerActionXs = await Promise.all(headerActions.map(async (action) =>
+    (await action.boundingBox())?.x ?? Number.NaN
+  ));
+  expect(headerActionXs.every(Number.isFinite)).toBe(true);
+  expect(headerActionXs).toEqual([...headerActionXs].sort((a, b) => a - b));
+
+  await playbackRateTrigger.click();
+  const playbackRatePopover = page.getByTestId("v3-playback-rate-popover");
+  await expect(playbackRatePopover).toBeVisible();
+  await expect(playbackRateTrigger.locator("svg")).toHaveCount(0);
+  await expect(
+    playbackRatePopover.getByRole("slider", { name: "再生速度を変更" }),
+  ).toBeEnabled();
+  expect(await playbackRatePopover.evaluate((popover) => {
+    const bounds = popover.getBoundingClientRect();
+    const topmost = document.elementFromPoint(
+      bounds.left + bounds.width / 2,
+      bounds.top + Math.min(24, bounds.height / 2),
+    );
+    return topmost !== null && popover.contains(topmost);
+  })).toBe(true);
+  await playbackRatePopover.getByRole("button", {
+    name: "0.25×",
+    exact: true,
+  }).click();
+  await expect(playbackRateTrigger).toContainText("0.25×");
+  await playbackRateTrigger.click();
+  await expect(playbackRatePopover).toBeHidden();
+
   const scenarioRegion = page.getByRole("region", { name: "Scenarios" });
   const controlArea = page.getByRole("region", { name: "コントロールエリア" });
   const scenarioBox = await scenarioRegion.boundingBox();
@@ -136,6 +176,18 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   await expect(
     controlArea.getByRole("region", { name: "Scenarios" }),
   ).toHaveCount(0);
+  const outputArea = page.getByRole("region", { name: "出力エリア" });
+  const areaLayout = page.getByTestId("workbench-area-layout");
+  const [outputBox, areaLayoutBox] = await Promise.all([
+    outputArea.boundingBox(),
+    areaLayout.boundingBox(),
+  ]);
+  expect(outputBox).not.toBeNull();
+  expect(areaLayoutBox).not.toBeNull();
+  expect(outputBox!.height / areaLayoutBox!.height).toBeLessThan(0.21);
+  const outputItemYs = await outputArea.locator(".workbench-output-item")
+    .evaluateAll((items) => items.map((item) => item.getBoundingClientRect().y));
+  expect(Math.max(...outputItemYs) - Math.min(...outputItemYs)).toBeLessThan(4);
 
   await openPaneSettings(page, "Pressure waveforms");
   const waveformSettings = page.getByRole("dialog", { name: "Pane設定" });
@@ -144,11 +196,11 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   ).toBeVisible();
   await expect(waveformSettings.getByText("Graph pane", { exact: true }))
     .toBeVisible();
-  const waveformWindow = waveformSettings.getByRole("spinbutton", {
+  const waveformWindow = waveformSettings.getByRole("slider", {
     name: "表示時間幅",
   });
+  await expect(waveformWindow).toHaveValue("6");
   await waveformWindow.fill("3.5");
-  await waveformWindow.press("Enter");
   await expect(waveformWindow).toHaveValue("3.5");
   await waveformSettings.getByRole("button", { name: "完了" }).click();
   await expect(waveformSettings).toBeHidden();
@@ -156,7 +208,7 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   await expect(
     page
       .getByRole("dialog", { name: "Pane設定" })
-      .getByRole("spinbutton", { name: "表示時間幅" }),
+      .getByRole("slider", { name: "表示時間幅" }),
   ).toHaveValue("3.5");
   await page.getByRole("button", { name: "キャンセル" }).click();
 
@@ -174,36 +226,34 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
 
   const graphArea = page.getByRole("region", { name: "グラフエリア" });
   const graphGroups = graphArea.locator(".dv-groupview");
-  await expect(graphGroups).toHaveCount(2);
+  await expect(graphGroups).toHaveCount(3);
   await expect(
     graphArea.getByRole("button", { name: "Paneを追加" }),
-  ).toHaveCount(2);
-  await graphGroups.first().getByRole("button", { name: "Paneを追加" }).click();
-  const addGraphMenu = page.getByRole("menu", { name: "Paneを追加" });
-  await expect(addGraphMenu.getByRole("menuitem")).toHaveText([
-    "PV loop",
-    "圧波形",
-    "流量波形",
-    "体循環 Guyton / Starling（CVP）",
-    "肺循環 Guyton / Starling（PCWP）",
-  ]);
-  await addGraphMenu
-    .getByRole("menuitem", {
-      name: "体循環 Guyton / Starling（CVP）",
+  ).toHaveCount(3);
+  const groupBounds = await graphGroups.evaluateAll((groups) =>
+    groups.map((group) => {
+      const bounds = group.getBoundingClientRect();
+      return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
     })
-    .click();
-  await expect(graphGroups).toHaveCount(2);
+  );
+  const topGroups = [...groupBounds].sort((a, b) => a.y - b.y).slice(0, 2);
+  const lowerGroup = [...groupBounds].sort((a, b) => b.y - a.y)[0]!;
+  expect(Math.abs(topGroups[0]!.y - topGroups[1]!.y)).toBeLessThan(4);
+  expect(lowerGroup.y).toBeGreaterThan(topGroups[0]!.y + 20);
+  expect(lowerGroup.width).toBeGreaterThan(topGroups[0]!.width * 1.7);
   const structuralTab = graphArea.getByText("Systemic Guyton / Starling", {
     exact: true,
   });
   await expect(structuralTab).toBeVisible();
   await structuralTab.click();
   const structural = page.locator(
-    '[data-chart-kind="guyton-starling-structural-orientation-v3"]',
+    '[data-chart-kind="guyton-starling-structural-orientation-v3"][data-circulation-side="right"]',
   );
   await expect(structural).toHaveCount(1);
   await expectNonZeroCanvas(structural.first());
-  await expect(page.locator("[data-analysis-boundary-status]")).toHaveAttribute(
+  await expect(page.locator(
+    '[data-analysis-boundary-status][data-circulation-side="right"]',
+  )).toHaveAttribute(
     "data-analysis-boundary-status",
     "current-input-epoch",
   );
@@ -242,8 +292,15 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   await expect(structural).toHaveCount(1);
 
   await graphGroups.first().getByRole("button", { name: "Paneを追加" }).click();
-  await page
-    .getByRole("menu", { name: "Paneを追加" })
+  const addGraphMenu = page.getByRole("menu", { name: "Paneを追加" });
+  await expect(addGraphMenu.getByRole("menuitem")).toHaveText([
+    "PV loop",
+    "圧波形",
+    "流量波形",
+    "体循環 Guyton / Starling（CVP）",
+    "肺循環 Guyton / Starling（PCWP）",
+  ]);
+  await addGraphMenu
     .getByRole("menuitem", { name: "肺循環 Guyton / Starling（PCWP）" })
     .click();
   const pulmonaryTab = graphArea.getByText("Pulmonary Guyton / Starling", {
@@ -252,9 +309,15 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   await expect(structuralTab).toBeVisible();
   await expect(pulmonaryTab).toBeVisible();
   await pulmonaryTab.click();
-  await expect(structural).toHaveCount(1);
+  const pulmonaryStructural = page.locator(
+    '[data-chart-kind="guyton-starling-structural-orientation-v3"][data-circulation-side="left"]',
+  );
+  await expect(pulmonaryStructural).toHaveCount(1);
+  await expect(page.locator(
+    '[data-chart-kind="guyton-starling-structural-orientation-v3"]',
+  )).toHaveCount(2);
   expect(
-    Number(await structural.getAttribute("data-pressure-maximum-mmhg")),
+    Number(await pulmonaryStructural.getAttribute("data-pressure-maximum-mmhg")),
   ).toBeLessThan(30);
   await openPaneSettings(page, "Pulmonary Guyton / Starling");
   await expect(
@@ -297,7 +360,9 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
     preControlRevision,
   );
   await expect.poll(() => modelTime(root)).toBeGreaterThan(preControlTime);
-  await expect(page.locator("[data-analysis-input-epoch]")).toHaveAttribute(
+  await expect(page.locator(
+    '[data-analysis-input-epoch][data-circulation-side="right"]',
+  )).toHaveAttribute(
     "data-analysis-input-epoch",
     String(changedEpoch),
     {
@@ -443,15 +508,6 @@ test("@desktop baseline duplication stays independent and requires explicit save
 
   const graphArea = page.getByRole("region", { name: "グラフエリア" });
   await graphArea
-    .locator(".dv-groupview")
-    .first()
-    .getByRole("button", { name: "Paneを追加" })
-    .click();
-  await page
-    .getByRole("menu", { name: "Paneを追加" })
-    .getByRole("menuitem", { name: "体循環 Guyton / Starling（CVP）" })
-    .click();
-  await graphArea
     .getByText("Systemic Guyton / Starling", { exact: true })
     .click();
   const structuralComparisons = graphArea.locator(
@@ -483,7 +539,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
     .nth(1)
     .locator('input[type="color"]');
   await expect(copyTraceColors).toHaveCount(3);
-  const allocatedCopyLvp = await copyTraceColors.nth(0).inputValue();
+  const allocatedCopyLvp = await copyTraceColors.nth(1).inputValue();
   await page.getByRole("button", { name: "閉じる" }).click();
   await expect(colorSettings).toBeHidden();
   const copyBaseColor = page.getByLabel(
@@ -497,9 +553,9 @@ test("@desktop baseline duplication stays independent and requires explicit save
     .locator("section")
     .nth(1)
     .locator('input[type="color"]');
-  await expect(copyTraceColorsAfterBase.nth(0)).toHaveValue(allocatedCopyLvp);
-  await copyTraceColorsAfterBase.nth(0).fill("#00a37a");
-  await expect(copyTraceColorsAfterBase.nth(0)).toHaveValue("#00a37a");
+  await expect(copyTraceColorsAfterBase.nth(1)).toHaveValue(allocatedCopyLvp);
+  await copyTraceColorsAfterBase.nth(1).fill("#00a37a");
+  await expect(copyTraceColorsAfterBase.nth(1)).toHaveValue("#00a37a");
   const resetCopyLvp = automaticColors
     .locator("section")
     .nth(1)
@@ -508,7 +564,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
     });
   await expect(resetCopyLvp).toBeVisible();
   await resetCopyLvp.click();
-  await expect(copyTraceColorsAfterBase.nth(0)).toHaveValue(allocatedCopyLvp);
+  await expect(copyTraceColorsAfterBase.nth(1)).toHaveValue(allocatedCopyLvp);
   await page.getByRole("button", { name: "閉じる" }).click();
   await expect(colorSettings).toBeHidden();
 
@@ -773,6 +829,11 @@ test("@mobile 390px Workbench uses one graph tab group and keeps controls reacha
   await expect(graphArea.locator(".dv-groupview")).toHaveCount(1);
   const graphBox = await graphArea.boundingBox();
   expect(graphBox?.width ?? 0).toBeGreaterThan(360);
+  await expect(graphArea.getByText("PV loop", { exact: true })).toBeVisible();
+  await expect(
+    graphArea.getByText("Systemic Guyton / Starling", { exact: true }),
+  ).toBeVisible();
+  await graphArea.getByText("Pressure waveforms", { exact: true }).click();
   await expectNonZeroCanvas(
     page.locator('[data-chart-kind="sweeping-waveform-v3"]'),
   );

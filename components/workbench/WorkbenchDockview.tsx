@@ -21,7 +21,7 @@ import {
 import "dockview/dist/styles/dockview.css";
 
 export type WorkbenchPaneRoleV3 = "graph" | "output" | "control" | "note";
-export type WorkbenchDockLayoutModeV3 = "split" | "tabs";
+export type WorkbenchDockLayoutModeV3 = "dashboard" | "split" | "tabs";
 
 export type WorkbenchPaneDefinitionV3 = Readonly<{
   paneId: string;
@@ -515,6 +515,56 @@ function addPaneV3(
   });
 }
 
+function addPaneRelativeToPanelV3(
+  api: DockviewApi,
+  pane: WorkbenchPaneDefinitionV3,
+  referencePaneId: string,
+  direction: WorkbenchPaneSplitDirectionV3 | "within",
+): boolean {
+  const referenceGroup = api.getPanel(referencePaneId)?.group;
+  if (referenceGroup === undefined) return false;
+  api.addPanel<WorkbenchDockPanelParametersV3>({
+    id: pane.paneId,
+    title: pane.title,
+    component: "workbench-pane-v3",
+    params: { paneId: pane.paneId },
+    renderer: "onlyWhenVisible",
+    position: { referenceGroup, direction },
+    floating: false,
+  });
+  return true;
+}
+
+/**
+ * The desktop teaching default keeps two analytic views above one full-width
+ * time-domain view. Adding the lower pane before splitting the upper group is
+ * what makes the lower row span both columns in Dockview's split tree.
+ */
+function addWorkbenchDashboardPanesV3(
+  api: DockviewApi,
+  panes: readonly WorkbenchPaneDefinitionV3[],
+): void {
+  const [upperLeft, upperRight, lower, ...additional] = panes;
+  if (upperLeft === undefined) return;
+  addPaneV3(api, upperLeft, "first");
+  if (upperRight === undefined) return;
+  if (lower === undefined) {
+    addPaneRelativeToPanelV3(api, upperRight, upperLeft.paneId, "right");
+    return;
+  }
+  if (!addPaneRelativeToPanelV3(api, lower, upperLeft.paneId, "below")) {
+    addPaneV3(api, lower, "within");
+  }
+  if (!addPaneRelativeToPanelV3(api, upperRight, upperLeft.paneId, "right")) {
+    addPaneV3(api, upperRight, "right");
+  }
+  for (const pane of additional) {
+    if (!addPaneRelativeToPanelV3(api, pane, upperRight.paneId, "within")) {
+      addPaneV3(api, pane, "within");
+    }
+  }
+}
+
 export function applyWorkbenchPanesV3(
   api: DockviewApi,
   panes: readonly WorkbenchPaneDefinitionV3[],
@@ -552,13 +602,17 @@ export function applyWorkbenchPanesV3(
   const ordinaryPanes = exceptionalPaneIds.size === 0
     ? panes
     : panes.filter(({ paneId }) => !exceptionalPaneIds.has(paneId));
-  ordinaryPanes.forEach((pane, index) => {
-    addPaneV3(
-      api,
-      pane,
-      workbenchPanePlacementV3(index, layoutMode),
-    );
-  });
+  if (layoutMode === "dashboard" && ordinaryPanes.length >= 3) {
+    addWorkbenchDashboardPanesV3(api, ordinaryPanes);
+  } else {
+    ordinaryPanes.forEach((pane, index) => {
+      addPaneV3(
+        api,
+        pane,
+        workbenchPanePlacementV3(index, layoutMode),
+      );
+    });
+  }
   if (pendingSplit !== undefined && pendingSplit !== null) {
     const pane = panes.find(({ paneId }) => paneId === pendingSplit.paneId);
     const referenceGroup = api.getPanel(pendingSplit.sourcePaneId)?.group;
@@ -752,10 +806,9 @@ export function workbenchPanePlacementV3(
   layoutMode: WorkbenchDockLayoutModeV3,
 ): "first" | "right" | "within" {
   if (index === 0) return "first";
-  // Desktop split is intentionally bounded to two columns: pane 2 starts the
-  // right-hand group and panes 3+ join that group's tab strip. New panes and
-  // the role-owned add action therefore stay in the same spatial location.
-  return layoutMode === "split" && index === 1 ? "right" : "within";
+  // Split and dashboard fall back to two columns for fewer than three panes;
+  // the full dashboard split tree is applied as a unit by applyWorkbenchPanes.
+  return layoutMode !== "tabs" && index === 1 ? "right" : "within";
 }
 
 /**
@@ -777,6 +830,7 @@ export function workbenchDockLayoutModeForRoleV3(
 ): WorkbenchDockLayoutModeV3 {
   if (role === "control") return "tabs";
   if (role === "graph" && narrowViewport) return "tabs";
+  if (role === "graph") return "dashboard";
   return "split";
 }
 
@@ -816,7 +870,9 @@ function workbenchLayoutModeFromPaneSignatureV3(
     const parsed = JSON.parse(signature) as unknown;
     if (!Array.isArray(parsed)) return null;
     const mode = parsed[0];
-    return mode === "split" || mode === "tabs" ? mode : null;
+    return mode === "dashboard" || mode === "split" || mode === "tabs"
+      ? mode
+      : null;
   } catch {
     return null;
   }
@@ -834,8 +890,8 @@ export function reconcileWorkbenchPanesV3(
     appliedSignature !== null
     && workbenchLayoutModeFromPaneSignatureV3(appliedSignature) !== layoutMode
   ) {
-    // A responsive split→tabs transition is the sole structural rebuild. Pane
-    // membership edits must preserve the user's live group tree.
+    // A responsive desktop-layout→tabs transition is the sole structural
+    // rebuild. Pane membership edits must preserve the user's live group tree.
     applyWorkbenchPanesV3(api, panes, layoutMode);
   } else {
     reconcileWorkbenchPaneMembershipV3(api, panes, layoutMode);

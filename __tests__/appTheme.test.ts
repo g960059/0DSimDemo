@@ -54,7 +54,9 @@ describe('application theme', () => {
     expect(css).toContain('--wb-line: var(--wb-border);');
     expect(css).toContain('--wb-grid: rgba(37, 55, 72, 0.13);');
     expect(css).toContain('--wb-type-label: 0.75rem;');
-    expect(css).toContain('--wb-type-value: 1rem;');
+    expect(css).toContain('--wb-type-value: var(--wb-type-title);');
+    expect(css).toContain('--wb-weight-label: 450;');
+    expect(css).toContain('--wb-weight-emphasis: 500;');
     expect(css).toContain('box-shadow: var(--wb-shadow-canvas-recess);');
     expect(css).toContain('box-shadow: var(--wb-shadow-floating);');
     expect(css).not.toContain('box-shadow: var(--wb-shadow-drawer');

@@ -190,3 +190,40 @@ export function scaleLinearV3(
   const ratio = span > 1e-12 ? (value - domainMinimum) / span : 0.5;
   return rangeMinimum + ratio * (rangeMaximum - rangeMinimum);
 }
+
+/**
+ * Produces a fully opaque tint for Canvas markers. Mixing against the authored
+ * Canvas surface preserves the visual softness of a translucent marker while
+ * preventing the trace underneath from showing through the leading cap.
+ */
+export function mixOpaqueWorkbenchCanvasColorV3(
+  foregroundHex: string,
+  backgroundHex: string,
+  foregroundFraction: number,
+): string {
+  const foreground = parseCanvasHexColorV3(foregroundHex);
+  const background = parseCanvasHexColorV3(backgroundHex);
+  if (foreground === null || background === null) return foregroundHex;
+  const fraction = Math.max(0, Math.min(1, foregroundFraction));
+  return `#${foreground.map((component, index) => {
+    const mixed = Math.round(
+      component * fraction + background[index]! * (1 - fraction),
+    );
+    return mixed.toString(16).padStart(2, "0");
+  }).join("")}`;
+}
+
+function parseCanvasHexColorV3(
+  value: string,
+): readonly [number, number, number] | null {
+  const normalized = value.trim().toLowerCase();
+  const expanded = /^#[0-9a-f]{3}$/.test(normalized)
+    ? `#${[...normalized.slice(1)].map((digit) => `${digit}${digit}`).join("")}`
+    : normalized;
+  if (!/^#[0-9a-f]{6}$/.test(expanded)) return null;
+  return Object.freeze([
+    Number.parseInt(expanded.slice(1, 3), 16),
+    Number.parseInt(expanded.slice(3, 5), 16),
+    Number.parseInt(expanded.slice(5, 7), 16),
+  ]);
+}

@@ -2505,6 +2505,17 @@ const WorkbenchV3Session = ({
     remoteContentRepository,
     t,
   ]);
+  const durableContentAvailable = workbenchDurableContentAvailableV3({
+    modelLab,
+  });
+  const publicationAvailable = workbenchPublicationAvailableV3({
+    modelLab,
+    releaseStage,
+  });
+  const briefingAvailable = !modelLab && articleLinked;
+  const authoringActionsAvailable = briefingAvailable
+    || durableContentAvailable
+    || publicationAvailable;
 
   return (
     <div
@@ -2635,7 +2646,30 @@ const WorkbenchV3Session = ({
               <Moon className="h-3.5 w-3.5" aria-hidden="true" />
             )}
           </button>
-          {!modelLab && articleLinked && (
+          {status.kind === "live" && (
+            <>
+              <span
+                className="mx-0.5 h-5 w-px shrink-0 bg-wb-line"
+                aria-hidden="true"
+                data-testid="v3-header-information-playback-separator"
+              />
+              <WorkbenchPlaybackControlV3
+                disabled={runtimeOperationPending}
+                playing={isPlaying}
+                rate={playbackRate}
+                onPlaybackToggle={togglePlayback}
+                onRateChange={changePlaybackRate}
+              />
+            </>
+          )}
+          {status.kind === "live" && authoringActionsAvailable && (
+            <span
+              className="mx-0.5 h-5 w-px shrink-0 bg-wb-line"
+              aria-hidden="true"
+              data-testid="v3-header-playback-authoring-separator"
+            />
+          )}
+          {briefingAvailable && (
             <button
               type="button"
               className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:opacity-40"
@@ -2649,7 +2683,31 @@ const WorkbenchV3Session = ({
               </span>
             </button>
           )}
-          {workbenchPublicationAvailableV3({ modelLab, releaseStage }) && <button
+          {durableContentAvailable && <button
+            type="button"
+            className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-wait disabled:opacity-40"
+            disabled={status.kind !== "live" || runtimeOperationPending}
+            onClick={() => void saveExperimentV3()}
+            title={saveError ?? undefined}
+            data-testid="v3-save-experiment"
+          >
+            {saveState === "clean" ? (
+              <Check
+                className="h-3.5 w-3.5 text-emerald-500"
+                aria-hidden="true"
+              />
+            ) : (
+              <Save className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            <span className="hidden sm:inline">
+              {saveState === "saving"
+                ? t("workbench.editor.saving")
+                : saveState === "clean"
+                  ? t("workbench.editor.saved")
+                  : t("workbench.editor.save")}
+            </span>
+          </button>}
+          {publicationAvailable && <button
             type="button"
             className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-not-allowed disabled:opacity-40"
             disabled={
@@ -2679,39 +2737,6 @@ const WorkbenchV3Session = ({
                 : t("workbench.editor.publish")}
             </span>
           </button>}
-          {workbenchDurableContentAvailableV3({ modelLab }) && <button
-            type="button"
-            className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-wait disabled:opacity-40"
-            disabled={status.kind !== "live" || runtimeOperationPending}
-            onClick={() => void saveExperimentV3()}
-            title={saveError ?? undefined}
-            data-testid="v3-save-experiment"
-          >
-            {saveState === "clean" ? (
-              <Check
-                className="h-3.5 w-3.5 text-emerald-500"
-                aria-hidden="true"
-              />
-            ) : (
-              <Save className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
-            <span className="hidden sm:inline">
-              {saveState === "saving"
-                ? t("workbench.editor.saving")
-                : saveState === "clean"
-                  ? t("workbench.editor.saved")
-                  : t("workbench.editor.save")}
-            </span>
-          </button>}
-          {status.kind === "live" && (
-            <WorkbenchPlaybackControlV3
-              disabled={runtimeOperationPending}
-              playing={isPlaying}
-              rate={playbackRate}
-              onPlaybackToggle={togglePlayback}
-              onRateChange={changePlaybackRate}
-            />
-          )}
         </div>
       </header>
 
@@ -4390,6 +4415,7 @@ function StructuralReturnGraphPaneV3({
               key={scenarioId}
               className="sr-only"
               data-analysis-scenario-id={scenarioId}
+              data-circulation-side={structuralSide}
               data-analysis-input-epoch={analysis.inputEpoch}
               data-analysis-boundary-status="current-input-epoch"
             >
