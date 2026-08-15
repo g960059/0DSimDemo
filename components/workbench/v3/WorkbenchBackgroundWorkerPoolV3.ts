@@ -23,6 +23,10 @@ export type WorkbenchBackgroundJobHandleV3<T> = Readonly<{
 
 export type WorkbenchBackgroundWorkerPoolPortV3 = Readonly<{
   setLiveScenarioCount(count: number): void;
+  setForegroundPlaybackState(
+    state: WorkbenchForegroundPlaybackStateV3,
+  ): void;
+  foregroundCapacityMeasurementEligible(): boolean;
   schedule<T>(
     priority: WorkbenchBackgroundJobPriorityV3,
     operation: (client: StudioSimulationWorkerClientV2) => Promise<T>,
@@ -36,6 +40,12 @@ export type WorkbenchBackgroundWorkerPoolPortV3 = Readonly<{
 export type WorkbenchBackgroundWorkerBudgetV3 = Readonly<{
   warmSize: number;
   maxSize: number;
+}>;
+
+export type WorkbenchForegroundPlaybackStateV3 = Readonly<{
+  playbackRate: number;
+  maximumRate: number | null;
+  calibrating: boolean;
 }>;
 
 type WaitingJobV3 = Readonly<{
@@ -80,6 +90,7 @@ export class WorkbenchBackgroundWorkerPoolV3
   readonly #running = new Map<symbol, RunningJobV3>();
   #sequence = 0;
   #liveScenarioCount = 0;
+  #foregroundPlaybackState: WorkbenchForegroundPlaybackStateV3 | null = null;
   #disposed = false;
 
   constructor(
@@ -110,6 +121,32 @@ export class WorkbenchBackgroundWorkerPoolV3
     this.#dispatchWaiting();
     this.#replenishWarmWorkers();
     this.#recordState();
+  }
+
+  setForegroundPlaybackState(
+    state: WorkbenchForegroundPlaybackStateV3,
+  ): void {
+    requireForegroundPlaybackStateV3(state);
+    if (this.#disposed) return;
+    if (
+      state.playbackRate === this.#foregroundPlaybackState?.playbackRate
+      && state.maximumRate === this.#foregroundPlaybackState.maximumRate
+      && state.calibrating === this.#foregroundPlaybackState.calibrating
+    ) return;
+    this.#foregroundPlaybackState = Object.freeze({
+      playbackRate: state.playbackRate,
+      maximumRate: state.maximumRate,
+      calibrating: state.calibrating,
+    });
+    this.#preemptSpeculativeJobsOverBudget();
+    this.#trimWarmWorkers();
+    this.#dispatchWaiting();
+    this.#replenishWarmWorkers();
+    this.#recordState();
+  }
+
+  foregroundCapacityMeasurementEligible(): boolean {
+    return !this.#disposed && this.#leased.size === 0;
   }
 
   async run<T>(
@@ -343,17 +380,43 @@ export class WorkbenchBackgroundWorkerPoolV3
   #effectiveMaxSize(
     priority: WorkbenchBackgroundJobPriorityV3 = "analysis",
   ): number {
+    if (
+      this.#foregroundPlaybackState?.calibrating === true
+      && (priority === "analysis" || priority === "prewarm")
+    ) return 0;
     const spareLogicalCores =
       this.#logicalCoreCount - this.#liveScenarioCount - 1;
     // Speculative settlement yields completely when the live lanes and the UI
     // already consume the device budget. Explicit analysis / Save / Snapshot
     // work remains possible, but is serialized through one foreground lane.
     const minimum = priority === "prewarm" ? 0 : 1;
-    return Math.min(this.#maxSize, Math.max(minimum, spareLogicalCores));
+    const logicalCapacity = Math.min(
+      this.#maxSize,
+      Math.max(minimum, spareLogicalCores),
+    );
+    if (priority !== "prewarm") return logicalCapacity;
+    return this.#foregroundSpeculativeMaxSize(logicalCapacity);
   }
 
   #speculativeMaxSize(): number {
     return this.#effectiveMaxSize("prewarm");
+  }
+
+  #foregroundSpeculativeMaxSize(logicalCapacity: number): number {
+    // A paused group has no live numerical demand, so its previous playback
+    // ceiling must not prevent background settlement from using idle cores.
+    if (this.#liveScenarioCount === 0) return logicalCapacity;
+    const state = this.#foregroundPlaybackState;
+    if (state === null) return logicalCapacity;
+    if (state.calibrating || state.maximumRate === null) return 0;
+    const measuredHeadroom = Math.max(
+      0,
+      state.maximumRate - state.playbackRate,
+    );
+    const measuredCapacity = Math.floor(
+      (measuredHeadroom + 1e-9) / 0.5,
+    );
+    return Math.min(logicalCapacity, measuredCapacity);
   }
 
   #hasForegroundBurstHeadroom(): boolean {
@@ -423,6 +486,20 @@ export class WorkbenchBackgroundWorkerPoolV3
       "background.pool.queued-jobs",
       this.#waiting.length,
     );
+    recordWorkbenchPerformanceValueV3(
+      "background.pool.foreground-measurement-eligible",
+      this.foregroundCapacityMeasurementEligible() ? 1 : 0,
+    );
+    recordWorkbenchPerformanceValueV3(
+      "background.pool.playback-headroom",
+      this.#foregroundPlaybackState?.maximumRate == null
+        ? 0
+        : Math.max(
+            0,
+            this.#foregroundPlaybackState.maximumRate
+              - this.#foregroundPlaybackState.playbackRate,
+          ),
+    );
   }
 }
 
@@ -491,6 +568,25 @@ function requirePriorityV3(
 ): void {
   if (!(priority in PRIORITY_ORDER_V3)) {
     throw new Error("Workbench background Worker priority is invalid");
+  }
+}
+
+function requireForegroundPlaybackStateV3(
+  state: WorkbenchForegroundPlaybackStateV3,
+): void {
+  if (
+    !Number.isFinite(state.playbackRate)
+    || state.playbackRate <= 0
+    || (
+      state.maximumRate !== null
+      && (
+        !Number.isFinite(state.maximumRate)
+        || state.maximumRate <= 0
+      )
+    )
+    || state.calibrating !== (state.maximumRate === null)
+  ) {
+    throw new Error("Workbench foreground playback state is invalid");
   }
 }
 

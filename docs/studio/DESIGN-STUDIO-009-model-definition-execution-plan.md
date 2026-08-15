@@ -250,6 +250,14 @@ This prevents a placeholder zero from being mistaken for evidence and makes
 cold-start cost explicit as a bounded function of the admitted Scenario count.
 Before direct execution cutover, physical iPhone measurements must show that
 binding is bounded and that time-to-first-frame has not materially regressed.
+Exact artifact URLs are immutable release identities. New uploads therefore
+carry `public, max-age=31536000, immutable`, and the Worker fetch uses the
+browser's shared HTTP cache even for historical objects created before that
+metadata policy. The registry publisher inspects existing bytes first; it may
+repair cache metadata with a byte-identical PUT, but it refuses a path whose
+bytes differ. This reduces repeated two-megabyte fetch/revalidation cost across
+dedicated Scenario Workers without adding a production compiler, changing a
+model ID, or weakening the exact manifest check performed after import.
 `npm run benchmark:model:execution-plan-binding` supplies a local diagnostic:
 it compares repeated Scenario allocation using one privately owned descriptor
 and kernel catalog against the former repeated ownership path while keeping

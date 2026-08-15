@@ -15,6 +15,7 @@ const WORKBENCH_GROUP_CALIBRATION_SAMPLE_COUNT_V3 = 9;
 const WORKBENCH_GROUP_CAPACITY_PERCENTILE_V3 = 0.2;
 const WORKBENCH_GROUP_OVERLOAD_SAMPLE_COUNT_V3 = 12;
 const WORKBENCH_GROUP_OVERLOAD_RATIO_V3 = 0.9;
+const WORKBENCH_GROUP_REQUALIFICATION_SAMPLE_COUNT_V3 = 24;
 
 export type WorkbenchGroupTimeConductorTimerV3 = ReturnType<typeof setTimeout>;
 
@@ -38,6 +39,12 @@ export type WorkbenchGroupTimeConductorDependenciesV3<TFrame> = Readonly<{
   onFrames(frames: readonly TFrame[]): void;
   onError(error: Error): void;
   onPlaybackRateChange?(state: WorkbenchGroupPlaybackRateStateV3): void;
+  /**
+   * True only when this batch is representative foreground evidence.
+   * Background numerical work and hidden documents must not lower or raise
+   * the device capability ceiling.
+   */
+  capacityMeasurementEligible?(): boolean;
   nowMs?: () => number;
   schedule?: (
     callback: () => void,
@@ -77,6 +84,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
   readonly #onError: (error: Error) => void;
   readonly #onPlaybackRateChange:
     ((state: WorkbenchGroupPlaybackRateStateV3) => void) | undefined;
+  readonly #capacityMeasurementEligible: () => boolean;
   readonly #nowMs: () => number;
   readonly #schedule: (
     callback: () => void,
@@ -107,6 +115,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
   #calibrationMeasurementCount = 0;
   #calibrationCapacitySamples: number[] = [];
   #steadyCapacitySamples: number[] = [];
+  #requalificationCapacitySamples: number[] = [];
   #lastPublishedRateState: WorkbenchGroupPlaybackRateStateV3 | null = null;
 
   constructor(dependencies: WorkbenchGroupTimeConductorDependenciesV3<TFrame>) {
@@ -114,6 +123,8 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     this.#onFrames = dependencies.onFrames;
     this.#onError = dependencies.onError;
     this.#onPlaybackRateChange = dependencies.onPlaybackRateChange;
+    this.#capacityMeasurementEligible = dependencies.capacityMeasurementEligible
+      ?? defaultCapacityMeasurementEligibleV3;
     this.#nowMs = dependencies.nowMs ?? (() => performance.now());
     this.#schedule = dependencies.schedule ?? ((callback, delayMs) =>
       setTimeout(callback, delayMs));
@@ -180,6 +191,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     this.#userSelected = true;
     this.#performanceLimited = false;
     this.#steadyCapacitySamples = [];
+    this.#requalificationCapacitySamples = [];
     if (this.#running && !this.#disposed) {
       // Apply the new rate from this wall-clock boundary. At most one partial
       // presentation interval is discarded; no accepted model frame is.
@@ -362,16 +374,30 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     // throughput information.
     if (groupWallMs <= 0) return;
     const measuredCapacity = this.#batchModelDurationMs() / groupWallMs;
+    const eligible = this.#capacityMeasurementEligible();
+    if (this.#performance.enabled) {
+      this.#performance.recordValue(
+        "scheduler.group.capacity-sample-eligible",
+        eligible ? 1 : 0,
+      );
+      this.#performance.incrementCounter(
+        eligible
+          ? "scheduler.group.capacity-samples-accepted"
+          : "scheduler.group.capacity-samples-rejected",
+      );
+    }
     if (this.#maximumRate === null) {
-      this.#calibrationMeasurementCount += 1;
-      if (
-        this.#calibrationMeasurementCount
-          > WORKBENCH_GROUP_CALIBRATION_DISCARD_COUNT_V3
-      ) this.#calibrationCapacitySamples.push(measuredCapacity);
-      if (
-        this.#calibrationCapacitySamples.length
-          >= WORKBENCH_GROUP_CALIBRATION_SAMPLE_COUNT_V3
-      ) this.#finishCalibration(completedAtMs);
+      if (eligible) {
+        this.#calibrationMeasurementCount += 1;
+        if (
+          this.#calibrationMeasurementCount
+            > WORKBENCH_GROUP_CALIBRATION_DISCARD_COUNT_V3
+        ) this.#calibrationCapacitySamples.push(measuredCapacity);
+        if (
+          this.#calibrationCapacitySamples.length
+            >= WORKBENCH_GROUP_CALIBRATION_SAMPLE_COUNT_V3
+        ) this.#finishCalibration(completedAtMs);
+      }
     } else {
       this.#steadyCapacitySamples.push(measuredCapacity);
       if (
@@ -386,6 +412,16 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
           WORKBENCH_GROUP_CAPACITY_PERCENTILE_V3,
         ) < this.#playbackRate * WORKBENCH_GROUP_OVERLOAD_RATIO_V3
       ) this.#performanceLimited = true;
+      if (
+        eligible
+        && this.#maximumRate < this.#maximumPlaybackRate
+      ) {
+        this.#requalificationCapacitySamples.push(measuredCapacity);
+        if (
+          this.#requalificationCapacitySamples.length
+            >= WORKBENCH_GROUP_REQUALIFICATION_SAMPLE_COUNT_V3
+        ) this.#requalifyCapacity(completedAtMs);
+      }
     }
     if (this.#performance.enabled) {
       if (this.#maximumRate !== null) {
@@ -398,6 +434,12 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
         "scheduler.group.effective-playback-rate",
         this.#playbackRate,
       );
+      if (this.#maximumRate !== null) {
+        this.#performance.recordValue(
+          "scheduler.group.playback-headroom",
+          Math.max(0, this.#maximumRate - this.#playbackRate),
+        );
+      }
     }
     this.#publishRateState();
   }
@@ -430,6 +472,33 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
         && conservativeCapacity < this.#minimumPlaybackRate
       );
     this.#steadyCapacitySamples = [];
+    this.#requalificationCapacitySamples = [];
+  }
+
+  #requalifyCapacity(completedAtMs: number): void {
+    const conservativeCapacity = percentileV3(
+      this.#requalificationCapacitySamples,
+      WORKBENCH_GROUP_CAPACITY_PERCENTILE_V3,
+    ) * WORKBENCH_GROUP_RATE_HEADROOM_V3;
+    this.#requalificationCapacitySamples = [];
+    const promotedRate = quantizePlaybackRateDownV3(
+      conservativeCapacity,
+      this.#minimumPlaybackRate,
+      this.#maximumPlaybackRate,
+    );
+    if (this.#maximumRate === null || promotedRate <= this.#maximumRate) return;
+    this.#maximumRate = promotedRate;
+    this.#performance.incrementCounter(
+      "scheduler.group.safe-playback-rate-promotions",
+    );
+    if (!this.#userSelected && this.#playbackRate < 1 && promotedRate >= 1) {
+      this.#publishOrSchedulePresentation(completedAtMs);
+      this.#cancelPresentationTimer();
+      this.#lastPresentationWallMs = completedAtMs;
+      this.#presentationFrameCreditPerLane = 0;
+      this.#playbackRate = 1;
+    }
+    this.#performanceLimited = this.#playbackRate > promotedRate + 1e-9;
   }
 
   #publishOrSchedulePresentation(nowMs: number): void {
@@ -541,6 +610,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     this.#calibrationMeasurementCount = 0;
     this.#calibrationCapacitySamples = [];
     this.#steadyCapacitySamples = [];
+    this.#requalificationCapacitySamples = [];
     if (!this.#userSelected) {
       this.#playbackRate = clampV3(
         WORKBENCH_INITIAL_CALIBRATION_RATE_V3,
@@ -572,6 +642,11 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     this.#cancel(this.#presentationTimer);
     this.#presentationTimer = undefined;
   }
+}
+
+function defaultCapacityMeasurementEligibleV3(): boolean {
+  return typeof document === "undefined"
+    || document.visibilityState === "visible";
 }
 
 function requireGroupLanesV3<TFrame>(

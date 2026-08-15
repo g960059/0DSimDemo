@@ -174,6 +174,84 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
     pool.dispose();
   });
 
+  it("keeps calibration foreground-only and admits prewarm from measured headroom", async () => {
+    const events: string[] = [];
+    const pool = new WorkbenchBackgroundWorkerPoolV3(
+      { warmSize: 0, maxSize: 2 },
+      () => ({ terminate: vi.fn() }) as unknown as
+        StudioSimulationWorkerClientV2,
+      4,
+    );
+    pool.setLiveScenarioCount(1);
+    pool.setForegroundPlaybackState({
+      playbackRate: 0.5,
+      maximumRate: null,
+      calibrating: true,
+    });
+
+    const handle = pool.schedule("prewarm", async () => {
+      events.push("started");
+      return "done";
+    });
+    const analysis = pool.schedule("analysis", async () => {
+      events.push("analysis");
+      return "analysis";
+    });
+    await Promise.resolve();
+    expect(events).toEqual([]);
+    expect(pool.foregroundCapacityMeasurementEligible()).toBe(true);
+
+    pool.setForegroundPlaybackState({
+      playbackRate: 1,
+      maximumRate: 1,
+      calibrating: false,
+    });
+    await expect(analysis.promise).resolves.toBe("analysis");
+    expect(events).toEqual(["analysis"]);
+
+    pool.setForegroundPlaybackState({
+      playbackRate: 1,
+      maximumRate: 1.5,
+      calibrating: false,
+    });
+    await expect(handle.promise).resolves.toBe("done");
+    expect(events).toEqual(["analysis", "started"]);
+    expect(pool.foregroundCapacityMeasurementEligible()).toBe(true);
+    pool.dispose();
+  });
+
+  it("preempts speculative work when a live group begins calibration", async () => {
+    const clients: ReturnType<typeof cancellableClientV3>[] = [];
+    const pool = new WorkbenchBackgroundWorkerPoolV3(
+      { warmSize: 0, maxSize: 1 },
+      () => {
+        const client = cancellableClientV3();
+        clients.push(client);
+        return client as unknown as StudioSimulationWorkerClientV2;
+      },
+      4,
+    );
+    const prewarm = pool.schedule("prewarm", async (client) =>
+      await (client as unknown as ReturnType<
+        typeof cancellableClientV3
+      >).wait());
+    await Promise.resolve();
+    expect(pool.foregroundCapacityMeasurementEligible()).toBe(false);
+
+    pool.setLiveScenarioCount(1);
+    pool.setForegroundPlaybackState({
+      playbackRate: 0.5,
+      maximumRate: null,
+      calibrating: true,
+    });
+    await expect(prewarm.promise).rejects.toBeInstanceOf(
+      WorkbenchBackgroundJobCancelledErrorV3,
+    );
+    expect(clients[0]!.terminate).toHaveBeenCalled();
+    expect(pool.foregroundCapacityMeasurementEligible()).toBe(true);
+    pool.dispose();
+  });
+
   it("uses bounded surplus capacity on a high-core device", async () => {
     const events: number[] = [];
     let releaseActive!: () => void;

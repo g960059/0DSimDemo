@@ -137,6 +137,113 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     await conductor.pause();
   });
 
+  it("excludes hidden or background-contended batches from calibration", async () => {
+    const clock = new GroupClockV3();
+    const performance = new WorkbenchPerformanceDiagnosticsV3({
+      enabled: true,
+      nowMs: clock.now,
+    });
+    let acceptedTimeSec = 0;
+    let eligible = false;
+    const conductor = new WorkbenchGroupTimeConductorV3({
+      lanes: () => [laneV3("baseline", acceptedTimeSec, async (stepCount) => {
+        clock.elapse(eligible ? 16 : 64);
+        const frames = framesV3("baseline", acceptedTimeSec, stepCount);
+        acceptedTimeSec = frames.at(-1)!.timeSec;
+        return frames;
+      })],
+      onFrames: vi.fn(),
+      onError: vi.fn(),
+      capacityMeasurementEligible: () => eligible,
+      nowMs: clock.now,
+      schedule: clock.schedule,
+      cancel: clock.cancel,
+      presentationIntervalMs: 0,
+      performanceRecorder: performance,
+    });
+
+    conductor.play();
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      await clock.runNextTimer();
+    }
+    expect(conductor.playbackRateState()).toMatchObject({
+      maximumRate: null,
+      calibrating: true,
+    });
+
+    eligible = true;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await clock.runNextTimer();
+      if (!conductor.playbackRateState().calibrating) break;
+    }
+    expect(conductor.playbackRateState()).toMatchObject({
+      playbackRate: 1,
+      maximumRate: 1.5,
+      calibrating: false,
+    });
+    const counters = performance.snapshot().counters;
+    expect(counters["scheduler.group.capacity-samples-rejected"])
+      .toBeGreaterThanOrEqual(12);
+    expect(counters["scheduler.group.capacity-samples-accepted"])
+      .toBeGreaterThanOrEqual(12);
+    await conductor.pause();
+  });
+
+  it("promotes a provisional low ceiling after stable foreground evidence", async () => {
+    const clock = new GroupClockV3();
+    const performance = new WorkbenchPerformanceDiagnosticsV3({
+      enabled: true,
+      nowMs: clock.now,
+    });
+    let acceptedTimeSec = 0;
+    let groupWallMs = 50;
+    const conductor = new WorkbenchGroupTimeConductorV3({
+      lanes: () => [laneV3("baseline", acceptedTimeSec, async (stepCount) => {
+        clock.elapse(groupWallMs);
+        const frames = framesV3("baseline", acceptedTimeSec, stepCount);
+        acceptedTimeSec = frames.at(-1)!.timeSec;
+        return frames;
+      })],
+      onFrames: vi.fn(),
+      onError: vi.fn(),
+      capacityMeasurementEligible: () => true,
+      nowMs: clock.now,
+      schedule: clock.schedule,
+      cancel: clock.cancel,
+      presentationIntervalMs: 0,
+      performanceRecorder: performance,
+    });
+
+    conductor.play();
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      await clock.runNextTimer();
+      if (!conductor.playbackRateState().calibrating) break;
+    }
+    expect(conductor.playbackRateState()).toMatchObject({
+      playbackRate: 0.5,
+      maximumRate: 0.5,
+      calibrating: false,
+    });
+
+    groupWallMs = 16;
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      await clock.runNextTimer();
+    }
+    expect(conductor.playbackRateState()).toMatchObject({
+      playbackRate: 1,
+      maximumRate: 1.5,
+      calibrating: false,
+      userSelected: false,
+      performanceLimited: false,
+    });
+    expect(
+      performance.snapshot().counters[
+        "scheduler.group.safe-playback-rate-promotions"
+      ],
+    ).toBe(1);
+    await conductor.pause();
+  });
+
   it("rounds a device ceiling down to a stable 0.5× tier", async () => {
     const clock = new GroupClockV3();
     let acceptedTimeSec = 0;

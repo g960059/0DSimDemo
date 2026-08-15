@@ -1663,6 +1663,18 @@ tier policy may reduce background concurrency, live Scenario count, visual
 sample cadence, or pixel density; it may not choose a different numerical
 kernel profile.
 
+Post-activation Standard-58 reports on an iPhone 16 Pro Max separated numerical
+capacity from the remaining policy work. With two live Scenarios, numerical
+advance p95 was `15 ms`, execution-plan binding was `1–2 ms`, and recent group
+capacity was about `2.97×`; with one Scenario, an early report nevertheless
+latched playback at `0.5×` while a background Worker was active. That
+contradiction identifies calibration contamination rather than a need for
+another numerical release. DESIGN-STUDIO-005 therefore makes foreground-only
+evidence, monotonic upward requalification, and measured-headroom background
+QoS the performance-closeout boundary. A new physical-device report after that
+boundary remains required; these policy changes do not mint a model ID because
+they never change accepted steps, equations, outputs, or checkpoints.
+
 ## Rejected alternatives
 
 - Increasing the exact `dt` only on phones: changes the scientific model.

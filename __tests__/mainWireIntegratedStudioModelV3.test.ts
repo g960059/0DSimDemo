@@ -35,6 +35,7 @@ import {
 } from "@/studio/contracts/v2/release";
 import {
   DynamicExactModelRuntimeLoaderV2,
+  fetchImmutableExactModelArtifactV2,
 } from "@/studio/infrastructure/model/DynamicExactModelRuntimeLoaderV2";
 import mainWireIntegratedStudioStandardArtifactV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.artifact.mjs?raw";
@@ -395,6 +396,25 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       ...ticket,
       surfaceRelease: undefined,
     })).toThrow(/surfaceRelease|portable JSON data model/);
+  });
+
+  it("fetches immutable exact artifacts from the shared HTTP cache", async () => {
+    const fetchV3 = vi.fn(async () => new Response(new Uint8Array([1]), {
+      status: 200,
+    }));
+    vi.stubGlobal("fetch", fetchV3);
+
+    await expect(fetchImmutableExactModelArtifactV2(
+      "https://registry.example/model-releases/standard.mjs",
+    )).resolves.toMatchObject({ ok: true, status: 200 });
+    expect(fetchV3).toHaveBeenCalledWith(
+      "https://registry.example/model-releases/standard.mjs",
+      {
+        cache: "force-cache",
+        credentials: "omit",
+        redirect: "error",
+      },
+    );
   });
 
   it("loads one immutable Standard artifact and fails closed", async () => {

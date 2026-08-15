@@ -207,13 +207,25 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       })),
       onFrames: (frames) => this.#publishFrames(frames),
       onError: (error) => this.#fail(error),
-      onPlaybackRateChange: dependencies.onPlaybackRateChange,
+      onPlaybackRateChange: (state) => {
+        this.#backgroundWorkerPool?.setForegroundPlaybackState(state);
+        dependencies.onPlaybackRateChange?.(state);
+      },
+      capacityMeasurementEligible: () =>
+        foregroundDocumentVisibleV3()
+        && (
+          this.#backgroundWorkerPool
+            ?.foregroundCapacityMeasurementEligible() ?? true
+        ),
       batchSteps: this.#presentationProfile.maximumBatchSteps,
       presentationIntervalMs:
         this.#presentationProfile.presentationIntervalMs,
       maximumPresentationFramesPerLane:
         this.#presentationProfile.maximumPresentationBatchFrames,
     });
+    this.#backgroundWorkerPool?.setForegroundPlaybackState(
+      this.#timeConductor.playbackRateState(),
+    );
   }
 
   async initialize(input: Readonly<{
@@ -1225,4 +1237,9 @@ function terminateLaneV3(lane: WorkbenchParallelScenarioLaneV3): void {
 
 function errorAsErrorV3(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
+}
+
+function foregroundDocumentVisibleV3(): boolean {
+  return typeof document === "undefined"
+    || document.visibilityState === "visible";
 }

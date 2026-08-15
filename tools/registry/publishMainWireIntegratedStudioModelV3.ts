@@ -12,6 +12,9 @@ import {
   assertStudioReleaseStageV1,
   type StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
+import {
+  uploadImmutableExactModelArtifactV1,
+} from "./ImmutableExactModelArtifactStorageV1";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -44,7 +47,7 @@ async function main(): Promise<void> {
   const baseUrl = `https://${options.projectRef}.supabase.co`;
   const objectName = `${exactRelease.manifest.modelId}/main-wire-integrated-standard-v1.mjs`;
   const artifactRegistryPath = `model-releases/${objectName}`;
-  await uploadImmutableArtifact({
+  await uploadImmutableExactModelArtifactV1({
     artifact,
     artifactSha256,
     baseUrl,
@@ -170,44 +173,6 @@ function projectServiceRoleJwt(projectRef: string): string {
   );
 }
 
-async function uploadImmutableArtifact(input: Readonly<{
-  artifact: Uint8Array;
-  artifactSha256: string;
-  baseUrl: string;
-  objectName: string;
-  secret: string;
-}>): Promise<void> {
-  const publicUrl = `${input.baseUrl}/storage/v1/object/public/model-releases/${encodeObjectPath(input.objectName)}`;
-  const existing = await fetch(publicUrl, { cache: "no-store" });
-  if (existing.ok) {
-    const bytes = new Uint8Array(await existing.arrayBuffer());
-    if (sha256(bytes) !== input.artifactSha256) {
-      throw new Error("Remote exact model path already contains different bytes");
-    }
-    return;
-  }
-  if (existing.status !== 400 && existing.status !== 404) {
-    throw new Error(`Could not inspect remote model artifact (${existing.status})`);
-  }
-
-  const upload = await fetch(
-    `${input.baseUrl}/storage/v1/object/model-releases/${encodeObjectPath(input.objectName)}`,
-    {
-      method: "POST",
-      headers: {
-        apikey: input.secret,
-        authorization: `Bearer ${input.secret}`,
-        "content-type": "text/javascript",
-        "x-upsert": "false",
-      },
-      body: new Blob([input.artifact], { type: "text/javascript" }),
-    },
-  );
-  if (!upload.ok) {
-    throw new Error(`Exact model upload failed (${upload.status}): ${await upload.text()}`);
-  }
-}
-
 async function rpc(
   baseUrl: string,
   secret: string,
@@ -228,10 +193,6 @@ async function rpc(
   }
   const text = await response.text();
   return text.length === 0 ? null : JSON.parse(text);
-}
-
-function encodeObjectPath(value: string): string {
-  return value.split("/").map(encodeURIComponent).join("/");
 }
 
 function sha256(value: Uint8Array): string {

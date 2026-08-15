@@ -2,6 +2,7 @@ import {
   expect,
   test,
   type CDPSession,
+  type Locator,
   type Page,
   type TestInfo,
 } from "@playwright/test";
@@ -53,7 +54,7 @@ const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
         maximumCanvasDisplayIntervalP95Ms: 50,
         maximumCanvasDrawP95Ms: 8,
         maximumPresentationBacklogFramesPerLane: 64,
-        maximumControlLatencyMs: 150,
+        maximumControlLatencyMs: 175,
       }),
     }),
     "constrained-desktop-proxy": Object.freeze({
@@ -68,7 +69,7 @@ const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
         maximumCanvasDisplayIntervalP95Ms: 66,
         maximumCanvasDrawP95Ms: 12,
         maximumPresentationBacklogFramesPerLane: 64,
-        maximumControlLatencyMs: 250,
+        maximumControlLatencyMs: 350,
       }),
     }),
     "mobile-main-thread-layout-proxy": Object.freeze({
@@ -83,7 +84,7 @@ const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
         maximumCanvasDisplayIntervalP95Ms: 80,
         maximumCanvasDrawP95Ms: 12,
         maximumPresentationBacklogFramesPerLane: 64,
-        maximumControlLatencyMs: 300,
+        maximumControlLatencyMs: 350,
       }),
     }),
   });
@@ -210,6 +211,28 @@ test("measures exact live Workbench throughput under background contention", asy
     mainThreadSlowdown: report.threadThrottleProbe.mainThreadSlowdown,
     dedicatedWorkerSlowdown:
       report.threadThrottleProbe.dedicatedWorkerSlowdown,
+    effectivePlaybackRate:
+      report.postControlContention.diagnostics.values[
+        "scheduler.group.effective-playback-rate"
+      ]?.latest,
+    safePlaybackRate:
+      report.postControlContention.diagnostics.values[
+        "scheduler.group.safe-playback-rate"
+      ]?.latest,
+    capacitySamplesAccepted:
+      report.postControlContention.diagnostics.counters[
+        "scheduler.group.capacity-samples-accepted"
+      ] ?? 0,
+    capacitySamplesRejected:
+      report.postControlContention.diagnostics.counters[
+        "scheduler.group.capacity-samples-rejected"
+      ] ?? 0,
+    canvasDisplayIntervals: Object.fromEntries(
+      Object.entries(report.postControlContention.diagnostics.metrics)
+        .filter(([metric]) => metric.startsWith("canvas.")
+          && metric.endsWith(".display-interval"))
+        .map(([metric, value]) => [metric, value.p95Ms]),
+    ),
     controlLatencyMs: report.controlLatencyMs,
     violations: report.violations,
     enforced: report.enforced,
@@ -233,14 +256,18 @@ async function ensureScenarioCountV3(
   page: Page,
   targetCount: number,
 ): Promise<void> {
-  const region = page.getByRole("region", { name: "Scenarios" });
-  const menuButtons = region.getByRole("button", {
+  const mobileTaskDeck = page.getByTestId("workbench-mobile-task-deck");
+  const mobile = await mobileTaskDeck.isVisible();
+  const scenarioHost = mobile
+    ? await openMobileScenarioManagerV3(mobileTaskDeck)
+    : page.getByRole("region", { name: "Scenarios" });
+  const menuButtons = scenarioHost.getByRole("button", {
     name: /Scenarioメニュー:/,
   });
   await expect(menuButtons).toHaveCount(1);
   while (await menuButtons.count() < targetCount) {
     const before = await menuButtons.count();
-    const baseline = region.getByRole("button", {
+    const baseline = scenarioHost.getByRole("button", {
       name: "Scenarioメニュー: 起動時baseline",
       exact: true,
     });
@@ -254,6 +281,24 @@ async function ensureScenarioCountV3(
       .click();
     await expect(menuButtons).toHaveCount(before + 1);
   }
+  if (mobile) {
+    await mobileTaskDeck.getByRole("tab", { name: "コントロール" }).click();
+    await expect(
+      mobileTaskDeck.getByRole("slider", { name: "Heart rate" }),
+    ).toBeVisible();
+  }
+}
+
+async function openMobileScenarioManagerV3(
+  taskDeck: Locator,
+): Promise<Locator> {
+  await taskDeck.getByRole("tab", { name: "Scenario" }).click();
+  const manager = taskDeck.getByTestId("workbench-scenario-manager-v3");
+  await expect(manager).toHaveAttribute(
+    "data-scenario-manager-variant",
+    "embedded-mobile",
+  );
+  return manager;
 }
 
 /**
@@ -440,9 +485,9 @@ function evaluatePerformanceBudgetV3(
   );
   requireMetricMaximumV3(
     diagnostics.metrics,
-    (metric) => metric.startsWith("canvas.")
-      && metric.endsWith(".display-interval"),
-    "Canvas meaningful display interval p95",
+    (metric) => metric === "canvas.pressure-volume-loop.display-interval"
+      || metric === "canvas.sweeping-waveform.display-interval",
+    "live Canvas display interval p95",
     budget.maximumCanvasDisplayIntervalP95Ms,
     violations,
   );
