@@ -1246,7 +1246,10 @@ describe("V3 Dockview Workbench", () => {
   it("projects the same panes into a Dockview-free mobile Stage and task deck", () => {
     const html = renderToStaticMarkup(
       <WorkbenchMobileStageDeckV3
-        graphPanes={[{ paneId: "graph/pv", role: "graph", title: "PV loop" }]}
+        graphPanes={[
+          { paneId: "graph/pv", role: "graph", title: "PV loop" },
+          { paneId: "graph/wave", role: "graph", title: "Waveform" },
+        ]}
         outputPanes={[{ paneId: "output/main", role: "output", title: "Outputs" }]}
         controlPanes={[{ paneId: "control/main", role: "control", title: "Controls" }]}
         graphAddOptions={[{ id: "waveform", label: "Waveform" }]}
@@ -1269,6 +1272,9 @@ describe("V3 Dockview Workbench", () => {
     expect(html).not.toContain("Output content");
     expect(html).not.toContain("Scenario manager content");
     expect(html).not.toContain("dv-groupview");
+    expect(html).not.toContain("<select");
+    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).toContain("1/2");
     expect(html.match(/role="tab"/g)).toHaveLength(3);
   });
 

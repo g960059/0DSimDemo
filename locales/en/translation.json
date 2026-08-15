@@ -185,6 +185,18 @@
       "mobileShowTasks": "Show task deck",
       "mobileTaskDeck": "Workbench tasks",
       "mobilePanePicker": "Choose {{area}} pane",
+      "mobilePaneAreas": {
+        "graph": "graph",
+        "control": "controls",
+        "output": "outputs"
+      },
+      "mobileSwitchPane": "Switch {{area}} pane, current: {{title}}",
+      "mobileAddPane": "Add {{area}} pane",
+      "mobilePaneSwitcherTitle": "Switch {{area}}",
+      "mobileAddPaneTitle": "Add {{area}}",
+      "mobileClosePanePicker": "Close pane picker",
+      "mobilePanePosition": "{{current}} of {{total}}",
+      "mobileCreatePane": "Create a new pane",
       "mobileTaskTabs": {
         "control": "Controls",
         "output": "Outputs",

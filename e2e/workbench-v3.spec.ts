@@ -836,14 +836,40 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
     getComputedStyle(element).overflowY)).toBe("auto");
   const graphBox = await graphArea.boundingBox();
   expect(graphBox?.width ?? 0).toBeGreaterThan(360);
-  const graphPicker = graphArea.getByRole("combobox", {
-    name: "グラフを選択",
+  const graphSwitcher = graphArea.getByRole("button", {
+    name: "グラフPaneを切り替え（現在：PV loop）",
   });
-  await expect(graphPicker.locator("option")).toHaveCount(3);
-  await graphPicker.selectOption({ label: "Pressure waveforms" });
+  await expect(graphSwitcher).toContainText("1/3");
+  await graphSwitcher.click();
+  const graphSwitcherSheet = page.getByRole("dialog", {
+    name: "グラフを切り替え",
+  });
+  await expect(graphSwitcherSheet).toBeVisible();
+  await expect(
+    graphSwitcherSheet.locator(".workbench-mobile-pane-choice"),
+  ).toHaveCount(3);
+  await expect(graphSwitcherSheet.getByRole("button", { name: /^PV loop/ }))
+    .toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(graphSwitcherSheet).toBeHidden();
+  await expect(graphSwitcher).toBeFocused();
+  await graphSwitcher.click();
+  await graphSwitcherSheet.getByRole("button", {
+    name: /^Pressure waveforms/,
+  }).click();
+  await expect(graphSwitcherSheet).toBeHidden();
   await expectNonZeroCanvas(
     page.locator('[data-chart-kind="sweeping-waveform-v3"]'),
   );
+  await graphArea.getByRole("button", { name: "グラフPaneを追加" }).click();
+  const graphAddSheet = page.getByRole("dialog", { name: "グラフを追加" });
+  await expect(graphAddSheet).toBeVisible();
+  await expect(
+    graphAddSheet.locator(".workbench-mobile-pane-choice"),
+  ).toHaveCount(5);
+  await graphAddSheet.getByRole("button", { name: "Pane選択を閉じる" })
+    .click();
+  await expect(graphAddSheet).toBeHidden();
 
   await expect(taskDeck.getByRole("tab", { name: "コントロール" }))
     .toHaveAttribute("aria-selected", "true");

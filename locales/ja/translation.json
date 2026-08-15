@@ -185,6 +185,18 @@
       "mobileShowTasks": "操作パネルを表示",
       "mobileTaskDeck": "操作パネル",
       "mobilePanePicker": "{{area}} Paneを選択",
+      "mobilePaneAreas": {
+        "graph": "グラフ",
+        "control": "コントロール",
+        "output": "出力"
+      },
+      "mobileSwitchPane": "{{area}}Paneを切り替え（現在：{{title}}）",
+      "mobileAddPane": "{{area}}Paneを追加",
+      "mobilePaneSwitcherTitle": "{{area}}を切り替え",
+      "mobileAddPaneTitle": "{{area}}を追加",
+      "mobileClosePanePicker": "Pane選択を閉じる",
+      "mobilePanePosition": "{{current}} / {{total}}",
+      "mobileCreatePane": "新しいPaneを作成",
       "mobileTaskTabs": {
         "control": "コントロール",
         "output": "出力",
