@@ -2834,7 +2834,7 @@ const WorkbenchV3Session = ({
         >
           <WorkbenchDockview
             ariaLabel={t("workbench.live.graphArea")}
-            className="workbench-dockview-main border-b border-wb-line lg:col-start-1 lg:row-start-1 lg:border-r"
+            className="workbench-dockview-main workbench-workspace lg:col-start-1 lg:row-start-1"
             panes={graphPanes.map((pane) => ({
               paneId: pane.paneId,
               role: pane.role,
@@ -2888,7 +2888,7 @@ const WorkbenchV3Session = ({
           />
           <WorkbenchDockview
             ariaLabel={t("workbench.live.outputArea")}
-            className="border-b border-wb-line lg:col-start-1 lg:row-start-2 lg:border-b-0 lg:border-r"
+            className="workbench-bottom-drawer lg:col-start-1 lg:row-start-2"
             panes={outputPanes.map((pane) => ({
               paneId: pane.paneId,
               role: pane.role,
@@ -2945,7 +2945,7 @@ const WorkbenchV3Session = ({
               })();
             }}
           />
-          <div className="flex min-h-0 flex-col bg-wb-aux lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <div className="workbench-right-drawer flex min-h-0 flex-col bg-wb-aux lg:col-start-2 lg:row-span-2 lg:row-start-1">
             {contract !== null && (
               <div className="shrink-0 border-b border-wb-line">
                 <WorkbenchScenarioManagerV3

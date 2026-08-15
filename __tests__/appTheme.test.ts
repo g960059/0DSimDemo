@@ -40,16 +40,20 @@ describe('application theme', () => {
     expect(css).toContain('--wb-inspector-bg: #101c28;');
     expect(css).toContain('--wb-floating-bg: #182634;');
     expect(css).toContain('--wb-canvas-bg: #ffffff;');
-    expect(css).toContain('--wb-chrome-bg: #eef2f5;');
-    expect(css).toContain('--wb-inspector-bg: #f6f8fa;');
+    expect(css).toContain('--wb-chrome-bg: #fafafd;');
+    expect(css).toContain('--wb-inspector-bg: #fafafd;');
+    expect(css).toContain('--wb-border: #f0f1f2;');
     expect(css).toContain('--wb-zone-main-bg: var(--wb-canvas-bg);');
     expect(css).toContain('--wb-zone-aux-bg: var(--wb-inspector-bg);');
     expect(css).toContain('--wb-accent: #3d9df0;');
-    expect(css).toContain('--wb-accent: #0e6eb8;');
+    expect(css).toContain('--wb-accent: #0069cc;');
     expect(css).toContain('--wb-line: var(--wb-border);');
     expect(css).toContain('--wb-grid: rgba(37, 55, 72, 0.13);');
     expect(css).toContain('--wb-type-label: 0.75rem;');
     expect(css).toContain('--wb-type-value: 1rem;');
+    expect(css).toContain('box-shadow: var(--wb-shadow-canvas-recess);');
+    expect(css).toContain('box-shadow: var(--wb-shadow-floating);');
+    expect(css).not.toContain('box-shadow: var(--wb-shadow-drawer');
   });
 
   it('uses the same semantic grid and axis tokens in every Canvas renderer', () => {
@@ -85,6 +89,20 @@ describe('application theme', () => {
     expect(placement).toContain('bg-wb-inspector');
     expect(reader).toContain('bg-wb-floating');
     expect(reader).toContain('bg-wb-inspector');
+  });
+
+  it('keeps every tool region on one plane above the graph workspace', () => {
+    const workbench = readFileSync('components/WorkbenchV3Page.tsx', 'utf8');
+    const scenarios = readFileSync(
+      'components/workbench/WorkbenchScenarioManagerV3.tsx',
+      'utf8',
+    );
+
+    expect(workbench).toContain('workbench-workspace');
+    expect(workbench).toContain('workbench-bottom-drawer');
+    expect(workbench).toContain('workbench-right-drawer');
+    expect(scenarios).toContain('workbench-floating-surface');
+    expect(scenarios).toContain('overflow-hidden bg-transparent text-wb-text');
   });
 
   it('uses semantic default series colors legible on both application canvases', () => {
